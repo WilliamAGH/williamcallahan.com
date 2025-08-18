@@ -7,10 +7,11 @@
 
 import { getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { getLazyContentMap, getCachedAllContent } from "@/lib/content-similarity/cached-aggregator";
-import { findMostSimilar, groupByType } from "@/lib/content-similarity";
+import { findMostSimilar, groupByType, limitByTypeAndTotal } from "@/lib/content-similarity";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { RelatedContentSection } from "./related-content-section";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { debug } from "@/lib/utils/debug";
 import { getCachedBookmarksWithSlugs } from "@/lib/bookmarks/request-cache";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { readJsonS3 } from "@/lib/s3-utils";
@@ -47,19 +48,19 @@ function toRelatedContentItem(
       const bookmark = content.source as UnifiedBookmark;
       // Use pre-computed slug from mapping - REQUIRED for idempotency
       const slug = slugMap?.get(bookmark.id);
-      
+
       // If no slug in mapping, this is a CRITICAL ERROR
       // Every bookmark MUST have a pre-computed slug for idempotency
       if (!slug) {
         console.error(
           `[RelatedContent] CRITICAL: Missing slug for bookmark ${bookmark.id}. ` +
-          `Title="${bookmark.title}" URL="${bookmark.url}". ` +
-          `Slug mapping is incomplete or not loaded.`
+            `Title="${bookmark.title}" URL="${bookmark.url}". ` +
+            `Slug mapping is incomplete or not loaded.`,
         );
         // Return null to skip this item rather than generate an incorrect slug
         return null;
       }
-      
+
       const url = `/bookmarks/${slug}`;
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
@@ -173,14 +174,19 @@ export async function RelatedContent({
         const bookmarkId = reverse.get(sourceSlug);
         if (bookmarkId) {
           actualSourceId = bookmarkId;
-          console.log(`[RelatedContent] Using slug "${sourceSlug}" resolved to ID "${bookmarkId}"`);
+          debug(`[RelatedContent] Using slug "${sourceSlug}" resolved to ID "${bookmarkId}"`);
         } else {
           console.error(`[RelatedContent] No bookmark found for slug "${sourceSlug}"`);
           return null;
         }
+      } else if (sourceSlug) {
+        console.warn(
+          `[RelatedContent] Slug mapping not loaded; cannot resolve slug "${sourceSlug}" to ID. ` +
+            `Proceeding with sourceId="${sourceId}".`,
+        );
       }
     }
-    
+
     // Extract options with defaults
     const {
       maxPerType = DEFAULT_MAX_PER_TYPE,
@@ -189,7 +195,6 @@ export async function RelatedContent({
       excludeTypes,
       excludeIds = [],
       weights, // Don't default - let algorithm choose appropriate weights
-      debug = false,
     } = options;
 
     // Try to load pre-computed related content first
@@ -223,27 +228,12 @@ export async function RelatedContent({
         items = items.filter((item) => !excludeIds.includes(item.id));
       }
 
-      // Apply limits
-      const grouped = items.reduce(
-        (acc, item) => {
-          if (!acc[item.type]) acc[item.type] = [];
-          const typeItems = acc[item.type];
-          if (typeItems && typeItems.length < maxPerType) {
-            typeItems.push(item);
-          }
-          return acc;
-        },
-        {} as Record<string, typeof items>,
-      );
-
-      const limited = Object.values(grouped)
-        .flat()
-        .sort((a, b) => b.score - a.score)
-        .slice(0, maxTotal);
+      // Apply limits via shared helper
+      const limited = limitByTypeAndTotal(items, maxPerType, maxTotal);
 
       // Get all content for mapping
       // Use lazy loading to reduce memory pressure
-      const neededTypes = Array.from(new Set(limited.map(item => item.type)));
+      const neededTypes = Array.from(new Set(limited.map((item) => item.type)));
       const contentMap = await getLazyContentMap(neededTypes);
 
       // Get slug mappings for bookmarks using request cache
@@ -289,18 +279,8 @@ export async function RelatedContent({
         );
       }
 
-      // Apply limits
-      const grouped = groupByType(items);
-      const limited: typeof items = [];
-
-      for (const [, typeItems] of Object.entries(grouped)) {
-        if (typeItems) {
-          const limitedTypeItems = typeItems.slice(0, maxPerType);
-          limited.push(...limitedTypeItems);
-        }
-      }
-
-      const finalItems = limited.sort((a, b) => b.score - a.score).slice(0, maxTotal);
+      // Apply limits via shared helper
+      const finalItems = limitByTypeAndTotal(items, maxPerType, maxTotal);
 
       // Get pre-computed slug mappings for bookmarks using request cache
       let slugMap: Map<string, string> | undefined;
@@ -352,19 +332,8 @@ export async function RelatedContent({
     // Find similar content
     const similar = findMostSimilar(source, candidates, maxTotal * 2, weights);
 
-    // Group by type and apply per-type limits
-    const grouped = groupByType(similar);
-    const limited: typeof similar = [];
-
-    for (const [, typeItems] of Object.entries(grouped)) {
-      if (typeItems) {
-        const limitedTypeItems = typeItems.slice(0, maxPerType);
-        limited.push(...limitedTypeItems);
-      }
-    }
-
-    // Apply total limit and sort by score
-    const finalItems = limited.sort((a, b) => b.score - a.score).slice(0, maxTotal);
+    // Apply limits via shared helper
+    const finalItems = limitByTypeAndTotal(similar, maxPerType, maxTotal);
 
     // Cache the results
     const setRelatedContent = ServerCacheInstance.setRelatedContent;
