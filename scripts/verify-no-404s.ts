@@ -7,6 +7,8 @@
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS, CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
+import type { UnifiedBookmark } from "@/types/bookmark";
+import type { RelatedContentEntry } from "@/types/related-content";
 
 async function verifyNo404s() {
   console.log("🚀 QUICK 404 VERIFICATION\n");
@@ -22,7 +24,7 @@ async function verifyNo404s() {
     console.log(`✅ Slug mapping loaded: ${slugMapping.count} entries`);
     
     // 2. Load bookmarks
-    const bookmarksData = await readJsonS3<any>(BOOKMARKS_S3_PATHS.FILE);
+    const bookmarksData = await readJsonS3<{ bookmarks: UnifiedBookmark[] }>(BOOKMARKS_S3_PATHS.FILE);
     if (!bookmarksData?.bookmarks) {
       console.log("❌ No bookmarks found!");
       process.exit(1);
@@ -47,13 +49,13 @@ async function verifyNo404s() {
     console.log(`✅ All ${bookmarks.length} bookmarks have slugs`);
     
     // 4. Quick check of related content
-    const relatedContent = await readJsonS3<any>(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT);
+    const relatedContent = await readJsonS3<Record<string, RelatedContentEntry[]>>(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT);
     if (relatedContent) {
       // Check a sample
       const samples = Object.entries(relatedContent).slice(0, 5);
       let relatedErrors = 0;
       
-      for (const [, items] of samples as Array<[string, any[]]>) {
+      for (const [, items] of samples) {
         if (Array.isArray(items)) {
           const bookmarkItems = items.filter(item => item.type === "bookmark");
           for (const item of bookmarkItems) {
