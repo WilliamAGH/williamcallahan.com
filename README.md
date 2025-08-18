@@ -216,7 +216,7 @@ Environment suffix comes from `lib/config/environment.ts`:
 - production: no suffix (e.g., `.../file.json`)
 - test: `-test` (e.g., `.../file-test.json`)
 - development/local: `-dev` (e.g., `.../file-dev.json`)
- 
+
 See `lib/config/environment.ts` for detection rules and the source of the suffix.
 
 Key families (see `lib/constants.ts` for source of truth):

@@ -12,6 +12,7 @@ node_modules
 dist
 dist-ssr
 *.local
+.puppy*
 coverage
 .env
 # Editor directories and files

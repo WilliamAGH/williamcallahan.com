@@ -282,6 +282,13 @@ export { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/valid
 // Lightweight bookmark type that excludes heavy image data
 export type LightweightBookmark = Omit<UnifiedBookmark, "content" | "ogImage" | "logoData">;
 
+/**
+ * Persisted bookmark shapes written to S3. These extend existing shapes with a required slug field.
+ * We intentionally do not add slug to UnifiedBookmark to avoid rippling type changes across the app.
+ */
+export type PersistedBookmark = UnifiedBookmark & { slug: string };
+export type PersistedLightweightBookmark = LightweightBookmark & { slug: string };
+
 export interface BookmarkLoadOptions {
   includeImageData?: boolean;
   skipExternalFetch?: boolean;
