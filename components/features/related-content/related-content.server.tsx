@@ -16,6 +16,7 @@ import { getCachedBookmarksWithSlugs } from "@/lib/bookmarks/request-cache";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
+import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import type {
   RelatedContentProps,
   RelatedContentItem,
@@ -62,13 +63,11 @@ function toRelatedContentItem(
       }
 
       const url = `/bookmarks/${slug}`;
+      // Use selectBestImage for consistent image selection logic
+      const bestImage = selectBestImage(bookmark, { includeScreenshots: true });
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
-        imageUrl: bookmark.ogImage
-          ? ensureAbsoluteUrl(bookmark.ogImage)
-          : bookmark.content?.imageUrl
-            ? ensureAbsoluteUrl(bookmark.content.imageUrl)
-            : undefined,
+        imageUrl: bestImage ? ensureAbsoluteUrl(bestImage) : undefined,
       };
       return {
         type: content.type,
