@@ -183,9 +183,9 @@ export interface RelatedContentCacheData {
 export interface RelatedContentProps {
   /** Type of the source content */
   sourceType: RelatedContentType;
-  /** ID of the source content (for non-bookmarks) */
+  /** ID of the source content */
   sourceId: string;
-  /** Slug of the source content (required for bookmarks to maintain idempotency) */
+  /** Slug of the source content (DEPRECATED - slug should be embedded in bookmark objects) */
   sourceSlug?: string;
   /** Optional title for the section */
   sectionTitle?: string;
