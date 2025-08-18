@@ -612,6 +612,7 @@ async function getBookmarksIndex(): Promise<{
 
   // Load slug mapping (preferred), but allow embedded slug fallback
   const { loadSlugMapping, getSlugForBookmark } = await import("@/lib/bookmarks/slug-manager");
+  const { tryGetEmbeddedSlug } = await import("@/lib/bookmarks/slug-helpers");
   const slugMapping = await loadSlugMapping();
   // If no mapping exists, embedded slugs must be present on input bookmarks
 
@@ -641,10 +642,8 @@ async function getBookmarksIndex(): Promise<{
   // Transform bookmarks for result mapping
   const bookmarksForIndex: Array<BookmarkIndexItem & { slug: string }> = bookmarksArr.map((b) => {
     // Prefer embedded slug; fallback to mapping
-    const embedded = (b as unknown as { slug?: string })?.slug;
-    const slug = embedded && typeof embedded === "string" && embedded.length > 0
-      ? embedded
-      : (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
+    const embedded = tryGetEmbeddedSlug(b);
+    const slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
     if (!slug) {
       throw new Error(`[Search] CRITICAL: No slug found for bookmark ${b.id}. ` + `Title: ${b.title}, URL: ${b.url}`);
     }
