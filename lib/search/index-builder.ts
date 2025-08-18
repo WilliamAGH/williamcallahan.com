@@ -23,6 +23,7 @@ import { getAllMDXPostsForSearch } from "@/lib/blog/mdx";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { prepareDocumentsForIndexing } from "@/lib/utils/search-helpers";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
+import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
 import type { UnifiedBookmark } from "@/types/bookmark";
 
 /**
@@ -231,10 +232,8 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
   // Transform bookmarks for indexing
   const bookmarksForIndex = bookmarks.map((b) => {
     // Prefer embedded slug when present; fallback to centralized mapping
-    const embedded = (b as unknown as { slug?: string })?.slug;
-    const slug = embedded && typeof embedded === "string" && embedded.length > 0
-      ? embedded
-      : (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
+    const embedded = tryGetEmbeddedSlug(b);
+    const slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
 
     // Every bookmark MUST have a slug for idempotency
     if (!slug) {
