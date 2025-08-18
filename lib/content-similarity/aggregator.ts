@@ -206,7 +206,7 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
 
   try {
     // Fetch all content in parallel
-    const [bookmarksData, blogPosts] = await Promise.all([getBookmarks({ includeImageData: false }), getAllPosts()]);
+    const [bookmarksData, blogPosts] = await Promise.all([getBookmarks({ includeImageData: true }), getAllPosts()]);
 
     // Normalize all content
     const normalized: NormalizedContent[] = [];
