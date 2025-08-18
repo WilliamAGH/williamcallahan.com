@@ -66,6 +66,7 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
       showFilterBar={showFilterBar}
       searchAllBookmarks={searchAllBookmarks}
       initialTag={initialTag}
+      internalHrefs={internalHrefs}
     />
   );
 };
