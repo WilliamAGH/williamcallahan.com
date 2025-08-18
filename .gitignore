@@ -58,3 +58,5 @@ tsconfig.tsbuildinfo
 
 # S3 reset audits directory
 .s3-reset-audits/
+bookmarks.json
+github-activity.json
