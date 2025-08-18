@@ -37,6 +37,13 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
     }
   }
 
+  // If bookmarks supplied, try embedded slug first
+  if (bookmarks && Array.isArray(bookmarks)) {
+    const found = bookmarks.find((b) => b.id === bookmarkId);
+    const embeddedSlug = (found as unknown as { slug?: string })?.slug;
+    if (embeddedSlug && typeof embeddedSlug === "string") return embeddedSlug;
+  }
+
   // Load the mapping from S3
   let mapping = await loadSlugMapping();
 
@@ -71,6 +78,13 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
     };
   }
 
+  // Prefer embedded slug if available on the specific item
+  if (bookmarks) {
+    const found = bookmarks.find((b) => b.id === bookmarkId);
+    const embeddedSlug = (found as unknown as { slug?: string })?.slug;
+    if (embeddedSlug && typeof embeddedSlug === "string") return embeddedSlug;
+  }
+
   return mapping ? getSlugForBookmark(mapping, bookmarkId) : null;
 }
 
@@ -83,7 +97,21 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
 export async function getBulkBookmarkSlugs(bookmarks: UnifiedBookmark[]): Promise<Map<string, string>> {
   const slugMap = new Map<string, string>();
 
-  // Check cache first (with TTL)
+  // Fast path: use embedded slugs when present
+  let hasAllEmbedded = true;
+  for (const b of bookmarks) {
+    const s = (b as unknown as { slug?: string })?.slug;
+    if (!s || typeof s !== "string") {
+      hasAllEmbedded = false;
+      break;
+    }
+  }
+  if (hasAllEmbedded) {
+    for (const b of bookmarks) slugMap.set(b.id, (b as unknown as { slug: string }).slug);
+    return slugMap;
+  }
+
+  // Check cache next (with TTL)
   if (cachedMapping) {
     const age = Date.now() - cachedMapping.timestamp;
     if (age < CACHE_TTL_MS) {
