@@ -92,14 +92,31 @@ async function refreshAllOpenGraphImages() {
             return { status: "timeout" };
           }
 
-          if (ogData && isValidImageUrl(ogData.imageUrl) && !ogData.error) {
-            console.log(`  ✅ Success: Image for ${bookmark.url} is stored or was just processed.`);
+          // Check what we actually have/did
+          const hasKarakeepImage = bookmark.content?.imageUrl || bookmark.content?.imageAssetId || bookmark.content?.screenshotAssetId;
+          
+          if (hasKarakeepImage) {
+            const imageType = bookmark.content?.imageUrl ? "OpenGraph URL" : 
+                             bookmark.content?.imageAssetId ? "image asset" : 
+                             "screenshot asset";
+            console.log(`  📦 Karakeep provided ${imageType} - OpenGraph fetch skipped`);
+            if (ogData && ogData.imageUrl) {
+              console.log(`     └─ Image persisted to S3: ${ogData.imageUrl}`);
+            }
+            successCount++;
+            return { status: "success" };
+          } else if (ogData && isValidImageUrl(ogData.imageUrl) && !ogData.error) {
+            console.log(`  ✅ Fetched OpenGraph image: ${bookmark.url}`);
+            console.log(`     └─ Image URL: ${ogData.imageUrl}`);
             successCount++;
             return { status: "success" };
           }
 
           console.warn(
-            `  ⚠️ Warning: Could not process OpenGraph data for ${bookmark.url}. Error: ${ogData?.error || "No image URL found"}`,
+            `  ⚠️ No image available for ${bookmark.url}`,
+          );
+          console.warn(
+            `     └─ Reason: ${ogData?.error || "No Karakeep data and no OpenGraph image found"}`,
           );
           failureCount++;
           return { status: "failed" };
