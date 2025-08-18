@@ -41,9 +41,9 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
   if (!bookmarksListId) {
     console.error("[refreshBookmarksData] CRITICAL_CONFIG: BOOKMARKS_LIST_ID environment variable is not set.");
     console.warn(
-      "[refreshBookmarksData] Returning empty array due to missing BOOKMARKS_LIST_ID. Check deployment environment variables.",
+      "[refreshBookmarksData] Throwing error due to missing BOOKMARKS_LIST_ID. Check deployment environment variables.",
     );
-    return [];
+    throw new Error("CRITICAL_CONFIG: BOOKMARKS_LIST_ID environment variable is not set.");
   }
   const apiUrl = `${BOOKMARKS_API_CONFIG.API_URL}/lists/${bookmarksListId}/bookmarks`;
 
@@ -51,9 +51,9 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
   if (!bearerToken) {
     console.error("[refreshBookmarksData] CRITICAL_CONFIG: BOOKMARK_BEARER_TOKEN environment variable is not set.");
     console.warn(
-      "[refreshBookmarksData] Returning empty array due to missing BOOKMARK_BEARER_TOKEN. Check deployment environment variables.",
+      "[refreshBookmarksData] Throwing error due to missing BOOKMARK_BEARER_TOKEN. Check deployment environment variables.",
     );
-    return [];
+    throw new Error("CRITICAL_CONFIG: BOOKMARK_BEARER_TOKEN environment variable is not set.");
   }
 
   const requestHeaders = {
@@ -241,8 +241,8 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
       console.error("[refreshBookmarksData] S3_FALLBACK_FAILURE: Error reading fallback S3 data:", s3ReadError);
     }
 
-    // If we can't get S3 fallback data, return empty array instead of throwing
-    console.warn("[refreshBookmarksData] All fallback attempts failed. Returning empty array to prevent hard failure.");
-    return [];
+    // If we can't get S3 fallback data, throw the original error
+    console.error("[refreshBookmarksData] All fallback attempts failed. Throwing the original fetch error.");
+    throw primaryFetchError;
   }
 }
