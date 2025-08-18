@@ -258,7 +258,7 @@ async function hasBookmarksChanged(newBookmarks: UnifiedBookmark[]): Promise<boo
 }
 
 /** Write bookmarks in paginated format with embedded slugs */
-async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<void> {
+async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<import("@/types/bookmark").BookmarkSlugMapping> {
   const pageSize = BOOKMARKS_PER_PAGE,
     totalPages = Math.ceil(bookmarks.length / pageSize),
     now = Date.now();
@@ -296,6 +296,8 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<vo
     // This is a CRITICAL error - slug mappings are required for bookmark navigation
     throw new Error(`Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`);
   }
+  
+  return mapping;
 }
 
 /** Write tag-filtered bookmarks in paginated format with embedded slugs */
@@ -392,12 +394,20 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         // Slug mappings are CRITICAL for bookmark navigation
         throw new Error(`Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`);
       }
+      
+      // Ensure lightweight bookmarks file also exists
+      const mapping = generateSlugMapping(allIncomingBookmarks);
+      const lightweightWithSlugs = toLightweightBookmarks(allIncomingBookmarks).map((b) => ({
+        ...b,
+        slug: mapping.slugs[b.id]?.slug ?? "",
+      }));
+      await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, lightweightWithSlugs);
+      
       return allIncomingBookmarks;
     }
     console.log(`${LOG_PREFIX} Changes detected, persisting bookmarks`);
-    await writePaginatedBookmarks(allIncomingBookmarks);
+    const mapping = await writePaginatedBookmarks(allIncomingBookmarks);
     {
-      const mapping = generateSlugMapping(allIncomingBookmarks);
       const lightweightWithSlugs = toLightweightBookmarks(allIncomingBookmarks).map((b) => ({
         ...b,
         slug: mapping.slugs[b.id]?.slug ?? "",
@@ -427,9 +437,8 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
             const hasChanged = await hasBookmarksChanged(freshBookmarks);
             if (hasChanged || force) {
               console.log(`${LOG_PREFIX} ${force ? "Forcing write" : "Changes detected"}, writing to S3`);
-              await writePaginatedBookmarks(freshBookmarks);
+              const mapping = await writePaginatedBookmarks(freshBookmarks);
               {
-                const mapping = generateSlugMapping(freshBookmarks);
                 const lightweightWithSlugs = toLightweightBookmarks(freshBookmarks).map((b) => ({
                   ...b,
                   slug: mapping.slugs[b.id]?.slug ?? "",
@@ -464,6 +473,14 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                   `Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`,
                 );
               }
+              
+              // Generate mapping for use in lightweight bookmarks (but don't save it again)
+              const mapping = generateSlugMapping(freshBookmarks);
+              const lightweightWithSlugs = toLightweightBookmarks(freshBookmarks).map((b) => ({
+                ...b,
+                slug: mapping.slugs[b.id]?.slug ?? "",
+              }));
+              await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, lightweightWithSlugs);
             }
             // Heartbeat write (tiny file)
             void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {

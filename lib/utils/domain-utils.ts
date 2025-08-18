@@ -117,7 +117,6 @@ export function getDomainSlug(url: string): string {
     return "unknown-domain";
   }
 }
-
 /**
  * Generates a unique, user-friendly slug from a URL
  *
@@ -170,6 +169,7 @@ export function generateUniqueSlug(
 
     // Compute the base slug once using the helper
     const baseSlug = getBaseSlugFromUrl(processedUrl);
+    
     // Build a map of all existing slugs (with their suffixes)
     const slugCounts = new Map<string, number>();
 
