@@ -17,6 +17,7 @@ import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
+import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import type {
   RelatedContentProps,
   RelatedContentItem,
@@ -125,7 +126,7 @@ function toRelatedContentItem(
     case "project": {
       const project = content.source as import("@/types/project").Project;
       const metadata: RelatedContentItem["metadata"] = project.imageKey
-        ? { ...baseMetadata, imageUrl: ensureAbsoluteUrl(`/${project.imageKey}`) }
+        ? { ...baseMetadata, imageUrl: buildCdnUrl(project.imageKey, getCdnConfigFromEnv()) }
         : baseMetadata;
 
       return {
