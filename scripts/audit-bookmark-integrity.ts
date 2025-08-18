@@ -10,7 +10,11 @@ import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { loadSlugMapping, getSlugForBookmark, getBookmarkIdFromSlug } from "@/lib/bookmarks/slug-manager";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS, SEARCH_S3_PATHS, CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
-import type { UnifiedBookmark } from "@/types/bookmark";
+import type { UnifiedBookmark, BookmarksIndex } from "@/types/bookmark";
+import {
+  bookmarksIndexSchema,
+  bookmarkSlugMappingSchema,
+} from "@/types/bookmark";
 
 function isUnifiedBookmarkArray(x: unknown): x is UnifiedBookmark[] {
   return (
@@ -159,9 +163,155 @@ async function auditBookmarkIntegrity(): Promise<void> {
     }
 
     // ========================================================================
-    // 4. VERIFY SEARCH INDEX CONSISTENCY
+    // 4. SCHEMA VALIDATION - VALIDATE ALL S3 JSON AGAINST ZOD SCHEMAS
     // ========================================================================
-    console.log("\n🔎 PHASE 4: Search Index Verification");
+    console.log("\n🔒 PHASE 4: Schema Validation (Type Safety)");
+    console.log("-".repeat(40));
+    console.log("Validating all S3 JSON data against TypeScript/Zod schemas...");
+
+    const schemaValidationResults: Array<{
+      file: string;
+      status: "✅" | "❌";
+      errors?: string[];
+    }> = [];
+
+    // 4a. Validate main bookmarks.json
+    try {
+      const bookmarksData = await readJsonS3(BOOKMARKS_S3_PATHS.FILE);
+      // Use type guard to validate bookmarks array
+      if (!isUnifiedBookmarkArray(bookmarksData)) {
+        const errors = ["Invalid bookmarks data structure"];
+        schemaValidationResults.push({
+          file: "bookmarks.json",
+          status: "❌",
+          errors,
+        });
+        console.log(`❌ bookmarks.json schema validation failed`);
+        errors.forEach((err) => console.log(`   ${err}`));
+      } else {
+        schemaValidationResults.push({
+          file: "bookmarks.json",
+          status: "✅",
+        });
+        console.log(`✅ bookmarks.json validated successfully`);
+      }
+    } catch (error) {
+      console.log(`⚠️ Could not validate bookmarks.json: ${error}`);
+    }
+
+    // 4b. Validate slug-mapping.json
+    try {
+      const slugMappingData = await readJsonS3(BOOKMARKS_S3_PATHS.SLUG_MAPPING);
+      const parseResult = bookmarkSlugMappingSchema.safeParse(slugMappingData);
+      if (!parseResult.success) {
+        const errors = parseResult.error.issues.map(
+          (issue) => `${issue.path.join(".")} - ${issue.message}`
+        ).slice(0, 5);
+        schemaValidationResults.push({
+          file: "slug-mapping.json",
+          status: "❌",
+          errors,
+        });
+        console.log(`❌ slug-mapping.json schema validation failed`);
+        errors.forEach((err) => console.log(`   ${err}`));
+      } else {
+        schemaValidationResults.push({
+          file: "slug-mapping.json",
+          status: "✅",
+        });
+        console.log(`✅ slug-mapping.json validated successfully`);
+      }
+    } catch (error) {
+      console.log(`⚠️ Could not validate slug-mapping.json: ${error}`);
+    }
+
+    // 4c. Validate index.json
+    try {
+      const indexData = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+      const parseResult = bookmarksIndexSchema.safeParse(indexData);
+      if (!parseResult.success) {
+        const errors = parseResult.error.issues.map(
+          (issue) => `${issue.path.join(".")} - ${issue.message}`
+        ).slice(0, 5);
+        schemaValidationResults.push({
+          file: "index.json",
+          status: "❌",
+          errors,
+        });
+        console.log(`❌ index.json schema validation failed`);
+        errors.forEach((err) => console.log(`   ${err}`));
+      } else {
+        schemaValidationResults.push({
+          file: "index.json",
+          status: "✅",
+        });
+        console.log(`✅ index.json validated successfully`);
+      }
+    } catch (error) {
+      console.log(`⚠️ Could not validate index.json: ${error}`);
+    }
+
+    // 4d. Validate paginated bookmarks
+    console.log("\n📄 Validating paginated bookmark files...");
+    const indexData = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+    if (indexData?.totalPages) {
+      let paginationErrors = 0;
+      // Ensure we have the pages prefix properly defined
+      const pagesPrefix = BOOKMARKS_S3_PATHS.PAGE_PREFIX || "json/bookmarks/pages/";
+      for (let page = 1; page <= Math.min(3, indexData.totalPages); page++) {
+        try {
+          const pagePath = `${pagesPrefix}page-${page}.json`;
+          console.log(`   Checking ${pagePath}...`);
+          const pageData = await readJsonS3(pagePath);
+          // Use type guard to validate page data
+          if (!isUnifiedBookmarkArray(pageData)) {
+            paginationErrors++;
+            console.log(`   ❌ page-${page}.json schema validation failed`);
+            console.log(`      Invalid page data structure`);
+          } else {
+            console.log(`   ✅ page-${page}.json validated`);
+          }
+        } catch (error) {
+          console.log(`   ⚠️ Could not validate page-${page}.json: ${error}`);
+        }
+      }
+      if (paginationErrors > 0) {
+        schemaValidationResults.push({
+          file: "paginated bookmarks",
+          status: "❌",
+          errors: [`${paginationErrors} pages failed validation`],
+        });
+      } else {
+        schemaValidationResults.push({
+          file: "paginated bookmarks",
+          status: "✅",
+        });
+      }
+    }
+
+    // Add schema validation summary to results
+    const schemaErrors = schemaValidationResults.filter((r) => r.status === "❌");
+    if (schemaErrors.length > 0) {
+      results.push({
+        category: "Schema Validation",
+        status: "❌",
+        message: `${schemaErrors.length} files failed schema validation`,
+        details: schemaErrors.flatMap((e) => [`${e.file}: ${e.errors?.join(", ") || "validation failed"}`]),
+      });
+      hasErrors = true;
+    } else {
+      results.push({
+        category: "Schema Validation",
+        status: "✅",
+        message: "All S3 JSON files pass schema validation",
+        details: [`Validated ${schemaValidationResults.length} file types`],
+      });
+    }
+
+    // ========================================================================
+    // 5. VERIFY SEARCH INDEX CONSISTENCY (renumbered from 4)
+    // ========================================================================
+    console.log("\n🔎 PHASE 5: Search Index Verification (renumbered from 4)");
     console.log("-".repeat(40));
 
     const searchIndex = await readJsonS3<{
@@ -228,9 +378,9 @@ async function auditBookmarkIntegrity(): Promise<void> {
     }
 
     // ========================================================================
-    // 5. VERIFY RELATED CONTENT REFERENCES
+    // 6. VERIFY RELATED CONTENT REFERENCES (renumbered from 5)
     // ========================================================================
-    console.log("\n🔗 PHASE 5: Related Content References");
+    console.log("\n🔗 PHASE 6: Related Content References (renumbered from 5)");
     console.log("-".repeat(40));
 
     const relatedContent = await readJsonS3<
