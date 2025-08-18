@@ -17,7 +17,7 @@ import type { BaseComponentProps, BaseFilterableProps, BasePaginatedProps } from
 
 /**
  * Bookmark card client props - USED in bookmark-card.client.tsx
- * 
+ *
  * This type combines UnifiedBookmark with additional UI props needed for the card component.
  * When bookmarks are passed to this component, they should maintain all content fields
  * including screenshotAssetId for proper fallback image rendering.
@@ -218,6 +218,8 @@ export interface SerializableBookmark {
   url: string;
   title: string;
   description: string;
+  // Embed slug for idempotent client navigation
+  slug?: string;
   tags: string[] | BookmarkTag[];
   ogImage?: string;
   ogImageExternal?: string;

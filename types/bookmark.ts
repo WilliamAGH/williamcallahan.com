@@ -115,6 +115,8 @@ export const unifiedBookmarkSchema = z.object({
   url: z.string().url(),
   title: z.string().min(1),
   description: z.string(),
+  // Embed slug on every bookmark object for idempotent routing - REQUIRED for all bookmarks
+  slug: z.string().min(1),
   tags: z.union([z.array(bookmarkTagSchema), z.array(z.string())]),
   ogImage: z.string().url().optional(),
   dateBookmarked: z.string(),
@@ -283,24 +285,37 @@ export { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/valid
 // BUT preserves essential content fields needed for UI rendering
 /**
  * Lightweight bookmark type that excludes heavy image data for performance in lists.
- * 
+ *
  * This type preserves essential fields needed for UI rendering while omitting large
  * image assets. The content object specifically preserves metadata fields like
  * screenshotAssetId (for fallback images), favicon, author, publisher, and dates.
- * 
+ *
  * Used throughout the application when rendering bookmark lists to minimize data transfer.
  * Conversion to/from UnifiedBookmark should use standardized utilities in '@/lib/bookmarks/utils'.
  */
 export type LightweightBookmark = Omit<UnifiedBookmark, "ogImage" | "logoData"> & {
-  content?: Pick<BookmarkContent, "type" | "url" | "title" | "description" | "screenshotAssetId" | "favicon" | "author" | "publisher" | "datePublished" | "dateModified">;
+  slug: string; // Explicitly include slug as required
+  content?: Pick<
+    BookmarkContent,
+    | "type"
+    | "url"
+    | "title"
+    | "description"
+    | "screenshotAssetId"
+    | "favicon"
+    | "author"
+    | "publisher"
+    | "datePublished"
+    | "dateModified"
+  >;
 };
 
 /**
- * Persisted bookmark shapes written to S3. These extend existing shapes with a required slug field.
- * We intentionally do not add slug to UnifiedBookmark to avoid rippling type changes across the app.
+ * Persisted bookmark shapes written to S3.
+ * Since slug is now required in UnifiedBookmark, these types are kept for backward compatibility.
  */
-export type PersistedBookmark = UnifiedBookmark & { slug: string };
-export type PersistedLightweightBookmark = LightweightBookmark & { slug: string };
+export type PersistedBookmark = UnifiedBookmark;
+export type PersistedLightweightBookmark = LightweightBookmark;
 
 export interface BookmarkLoadOptions {
   includeImageData?: boolean;
