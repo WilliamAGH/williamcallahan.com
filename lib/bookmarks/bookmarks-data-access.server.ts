@@ -283,10 +283,17 @@ async function writePaginatedBookmarks(
   };
   await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, index);
 
-  // Write pages with bookmarks as-is (they already have slugs)
+  // Write pages with bookmarks ensuring they have embedded slugs
   for (let page = 1; page <= totalPages; page++) {
     const start = (page - 1) * pageSize;
-    const slice = bookmarks.slice(start, start + pageSize);
+    const slice = bookmarks.slice(start, start + pageSize).map((b) => {
+      // Ensure each bookmark has its slug embedded
+      const entry = mapping.slugs[b.id];
+      if (!entry) {
+        throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (page ${page})`);
+      }
+      return { ...b, slug: entry.slug };
+    });
     await writeJsonS3(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${page}.json`, slice);
   }
   console.log(`${LOG_PREFIX} Wrote ${totalPages} pages of bookmarks with embedded slugs`);
@@ -646,8 +653,8 @@ async function fetchAndCacheBookmarks(
         if (cliBookmark) {
           console.log(`[BookmarksServer] CLI bookmark content exists:`, {
             hasContent: !!cliBookmark.content,
-            hasImageAssetId: !!cliBookmark.content?.imageAssetId,
-            imageAssetId: cliBookmark.content?.imageAssetId,
+            hasScreenshotAssetId: !!cliBookmark.content?.screenshotAssetId,
+            screenshotAssetId: cliBookmark.content?.screenshotAssetId,
             contentKeys: cliBookmark.content ? Object.keys(cliBookmark.content) : [],
           });
         }
