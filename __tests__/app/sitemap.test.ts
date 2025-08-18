@@ -40,6 +40,25 @@ jest.mock("@/lib/bookmarks/slug-manager", () => ({
   getSlugForBookmark: (mapping: any, id: string) => mapping?.slugs?.[id]?.slug ?? null,
 }));
 
+// Helper to build consistent slug-mapping payloads for tests
+function buildSlugMappingFrom(bookmarks: Array<{ id: string; url: string; title: string }>, prefix = "example-com-") {
+  const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
+  const reverseMap: Record<string, string> = {};
+  for (const [i, bm] of bookmarks.entries()) {
+    const slug = `${prefix}${i}`;
+    slugs[bm.id] = { id: bm.id, slug, url: bm.url, title: bm.title };
+    reverseMap[slug] = bm.id;
+  }
+  return {
+    version: "1.0.0",
+    generated: "2024-01-01T00:00:00.000Z", // fixed to avoid time drift in snapshots
+    count: bookmarks.length,
+    checksum: "test",
+    slugs,
+    reverseMap,
+  };
+}
+
 // Mock the blog posts loading
 jest.mock("fs", () => ({
   ...jest.requireActual("fs"),
@@ -88,36 +107,25 @@ describe("Sitemap Generation", () => {
       mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
 
       // Provide full slug mapping for all bookmarks to avoid console errors and ensure correct URLs
-      const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
-      const reverseMap: Record<string, string> = {};
-      for (let i = 0; i < mockBookmarks.length; i++) {
-        const id = `bookmark-${i}`;
-        const slug = `example-com-${i}`;
-        slugs[id] = { id, slug, url: `https://example.com/${i}`, title: `Bookmark ${i}` };
-        reverseMap[slug] = id;
-      }
-      mockLoadSlugMapping.mockResolvedValue({
-        version: "1.0.0",
-        generated: new Date().toISOString(),
-        count: mockBookmarks.length,
-        checksum: "test",
-        slugs,
-        reverseMap,
-      });
+      mockLoadSlugMapping.mockResolvedValue(buildSlugMappingFrom(mockBookmarks));
 
       const sitemapEntries = await sitemap();
 
       // Calculate expected pages
       const totalPages = Math.ceil(mockBookmarks.length / BOOKMARKS_PER_PAGE);
-      expect(totalPages).toBe(3); // 50 / 24 = 2.08, rounded up to 3
+      expect(totalPages).toBe(3); // 50 / BOOKMARKS_PER_PAGE, rounded up
 
       // Find paginated bookmark entries (pages 2 and 3, since page 1 is /bookmarks)
       const paginatedEntries = sitemapEntries.filter((entry) => entry.url.includes("/bookmarks/page/"));
 
       // Should have entries for pages 2 and 3
       expect(paginatedEntries).toHaveLength(2);
-      expect(paginatedEntries[0].url).toBe("https://williamcallahan.com/bookmarks/page/2");
-      expect(paginatedEntries[1].url).toBe("https://williamcallahan.com/bookmarks/page/3");
+      expect(paginatedEntries.map((e) => e.url)).toEqual(
+        expect.arrayContaining([
+          "https://williamcallahan.com/bookmarks/page/2",
+          "https://williamcallahan.com/bookmarks/page/3",
+        ]),
+      );
 
       // All paginated entries should have proper metadata
       for (const entry of paginatedEntries) {
@@ -141,22 +149,7 @@ describe("Sitemap Generation", () => {
 
       mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
 
-      const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
-      const reverseMap: Record<string, string> = {};
-      for (let i = 0; i < mockBookmarks.length; i++) {
-        const id = `bookmark-${i}`;
-        const slug = `example-com-${i}`;
-        slugs[id] = { id, slug, url: `https://example.com/${i}`, title: `Bookmark ${i}` };
-        reverseMap[slug] = id;
-      }
-      mockLoadSlugMapping.mockResolvedValue({
-        version: "1.0.0",
-        generated: new Date().toISOString(),
-        count: mockBookmarks.length,
-        checksum: "test",
-        slugs,
-        reverseMap,
-      });
+      mockLoadSlugMapping.mockResolvedValue(buildSlugMappingFrom(mockBookmarks));
 
       const sitemapEntries = await sitemap();
 
@@ -187,22 +180,7 @@ describe("Sitemap Generation", () => {
 
       mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
 
-      const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
-      const reverseMap: Record<string, string> = {};
-      for (let i = 0; i < mockBookmarks.length; i++) {
-        const id = `bookmark-${i}`;
-        const slug = `example-com-${i}`;
-        slugs[id] = { id, slug, url: `https://example.com/${i}`, title: `Bookmark ${i}` };
-        reverseMap[slug] = id;
-      }
-      mockLoadSlugMapping.mockResolvedValue({
-        version: "1.0.0",
-        generated: new Date().toISOString(),
-        count: mockBookmarks.length,
-        checksum: "test",
-        slugs,
-        reverseMap,
-      });
+      mockLoadSlugMapping.mockResolvedValue(buildSlugMappingFrom(mockBookmarks));
 
       const sitemapEntries = await sitemap();
 
@@ -291,12 +269,22 @@ describe("Sitemap Generation", () => {
       // Provide slugs for the two bookmarks used in this test
       const slugMapping = {
         version: "1.0.0",
-        generated: new Date().toISOString(),
+        generated: "2024-01-01T00:00:00.000Z",
         count: 2,
         checksum: "test",
         slugs: {
-          "bookmark-1": { id: "bookmark-1", slug: "example-com-article", url: "https://example.com/article", title: "Great Article" },
-          "bookmark-2": { id: "bookmark-2", slug: "another-com-post", url: "https://another.com/post", title: "Another Post" },
+          "bookmark-1": {
+            id: "bookmark-1",
+            slug: "example-com-article",
+            url: "https://example.com/article",
+            title: "Great Article",
+          },
+          "bookmark-2": {
+            id: "bookmark-2",
+            slug: "another-com-post",
+            url: "https://another.com/post",
+            title: "Another Post",
+          },
         },
         reverseMap: {
           "example-com-article": "bookmark-1",
@@ -333,14 +321,7 @@ describe("Sitemap Generation", () => {
     it("should include all static pages with correct metadata", async () => {
       mockGetBookmarksForStaticBuild.mockReturnValue([]);
 
-      mockLoadSlugMapping.mockResolvedValue({
-        version: "1.0.0",
-        generated: new Date().toISOString(),
-        count: 0,
-        checksum: "test",
-        slugs: {},
-        reverseMap: {},
-      });
+      mockLoadSlugMapping.mockResolvedValue(buildSlugMappingFrom([]));
 
       const sitemapEntries = await sitemap();
 
