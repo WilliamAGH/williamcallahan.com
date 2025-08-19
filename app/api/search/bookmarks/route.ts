@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { searchBookmarks } from "@/lib/search";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
+import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import type { UnifiedBookmark } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +51,12 @@ export async function GET(request: Request) {
     const matchingIds = new Set(searchResults.map((r) => String(r.id)));
 
     // Pull full bookmark objects (includeImageData=false for lighter payload)
-    const fullDataset = (await getBookmarks({ includeImageData: false })) as UnifiedBookmark[];
+    const fullDataset = (await getBookmarks({
+      ...DEFAULT_BOOKMARK_OPTIONS,
+      includeImageData: false,
+      skipExternalFetch: false,
+      force: false,
+    })) as UnifiedBookmark[];
     const matched = fullDataset.filter((b) => matchingIds.has(b.id));
 
     const totalCount = matched.length;
