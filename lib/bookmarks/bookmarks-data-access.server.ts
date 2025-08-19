@@ -97,10 +97,22 @@ const safeRevalidateTag = (...tags: string[]): void => {
 
 const INSTANCE_ID = `instance-${randomInt(1000000, 9999999)}-${Date.now()}`;
 const ENABLE_TAG_PERSISTENCE = process.env.ENABLE_TAG_PERSISTENCE !== "false";
-// Default to no limit (persist all tags) when env var not set
-const MAX_TAGS_TO_PERSIST = process.env.MAX_TAGS_TO_PERSIST 
-  ? parseInt(process.env.MAX_TAGS_TO_PERSIST, 10)
-  : Number.MAX_SAFE_INTEGER;
+
+// Default to no limit (persist all tags) when env var not set or invalid
+const RAW_MAX_TAGS = process.env.MAX_TAGS_TO_PERSIST;
+const PARSED_MAX_TAGS = RAW_MAX_TAGS != null ? Number(RAW_MAX_TAGS) : Number.NaN;
+const MAX_TAGS_TO_PERSIST =
+  Number.isFinite(PARSED_MAX_TAGS) && PARSED_MAX_TAGS > 0
+    ? Math.floor(PARSED_MAX_TAGS)
+    : Number.MAX_SAFE_INTEGER;
+
+if (RAW_MAX_TAGS && (!Number.isFinite(PARSED_MAX_TAGS) || PARSED_MAX_TAGS <= 0)) {
+  envLogger.debug(
+    "MAX_TAGS_TO_PERSIST is invalid or <= 0; defaulting to unlimited persistence",
+    { RAW_MAX_TAGS },
+    { category: "BookmarksDataAccess" },
+  );
+}
 
 // In-memory runtime cache for the full bookmarks dataset to prevent repeated S3 reads
 // This is a temporary runtime cache, NOT S3 persistence
@@ -111,7 +123,23 @@ let fullDatasetMemoryCache: { data: UnifiedBookmark[]; timestamp: number } | nul
 
 const LOG_PREFIX = "[BookmarksDataAccess]";
 const DISTRIBUTED_LOCK_S3_KEY = BOOKMARKS_S3_PATHS.LOCK;
-const LOCK_TTL_MS = Number(process.env.BOOKMARKS_LOCK_TTL_MS) || 5 * 60 * 1000;
+
+// Parse LOCK_TTL_MS with robust validation
+const RAW_LOCK_TTL = process.env.BOOKMARKS_LOCK_TTL_MS;
+const PARSED_LOCK_TTL = RAW_LOCK_TTL != null ? Number(RAW_LOCK_TTL) : Number.NaN;
+const LOCK_TTL_MS =
+  Number.isFinite(PARSED_LOCK_TTL) && PARSED_LOCK_TTL > 0
+    ? Math.floor(PARSED_LOCK_TTL)
+    : 5 * 60 * 1000; // Default: 5 minutes
+
+if (RAW_LOCK_TTL && (!Number.isFinite(PARSED_LOCK_TTL) || PARSED_LOCK_TTL <= 0)) {
+  envLogger.debug(
+    "BOOKMARKS_LOCK_TTL_MS is invalid or <= 0; defaulting to 5 minutes",
+    { RAW_LOCK_TTL },
+    { category: "BookmarksDataAccess" },
+  );
+}
+
 const LOCK_CLEANUP_INTERVAL_MS = 2 * 60 * 1000;
 
 let isRefreshLocked = false;
