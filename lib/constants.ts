@@ -135,6 +135,13 @@ export const BOOKMARKS_API_CONFIG = {
 /** Number of bookmarks displayed per page in paginated views (used in sitemap.ts, bookmarks/*) */
 export const BOOKMARKS_PER_PAGE = 24;
 
+/** Default options for getBookmarks calls - explicit parameters for clarity and ZERO TEMPERATURE compliance */
+export const DEFAULT_BOOKMARK_OPTIONS = {
+  includeImageData: true,
+  skipExternalFetch: false,
+  force: false,
+} as const;
+
 /** GitHub activity cache: 24 hours success, 1 hour failure, 6 hours revalidation */
 export const GITHUB_ACTIVITY_CACHE_DURATION = { SUCCESS: 24 * 60 * 60, FAILURE: 60 * 60, REVALIDATION: 6 * 60 * 60 };
 
