@@ -8,6 +8,8 @@ import { type JSX, useState, useEffect } from "react";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { kebabCase } from "@/lib/utils/formatters";
 
+const MAX_DISPLAY_TECH_ITEMS = 10;
+
 // Placeholder for centered top image with gradient
 function PlaceholderImageTop() {
   return (
@@ -86,7 +88,7 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
     return tagList.filter((t) => TECH_KEYWORDS.has(t));
   };
 
-  const displayTech = (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)).slice(0, 10);
+  const displayTech = (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)).slice(0, MAX_DISPLAY_TECH_ITEMS);
 
   return (
     // Redesigned card for horizontal layout on medium screens and up
