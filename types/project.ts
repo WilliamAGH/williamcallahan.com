@@ -11,4 +11,10 @@ export interface Project {
    */
   imageKey: string;
   tags?: string[]; // Optional tags
+  /**
+   * Primary technologies used to build the project. Displayed as a "Tech Stack"
+   * section on project cards. Keep concise, human-friendly labels such as
+   * "Next.js", "TypeScript", "PostgreSQL", etc.
+   */
+  techStack?: string[];
 }
