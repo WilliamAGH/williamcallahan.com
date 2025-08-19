@@ -826,10 +826,6 @@ const sentryWebpackPluginOptions = {
           // Enable debug IDs for better source map matching
           filesToDeleteAfterUpload: ["./**/*.js.map"], // Clean up map files after upload
         },
-        // Enable Debug ID injection
-        reactComponentAnnotation: {
-          enabled: true, // Annotate React components for better debugging
-        },
       }),
 };
 
