@@ -15,7 +15,7 @@ import { sanitizeSearchQuery } from "./validators/search";
 import { prepareDocumentsForIndexing } from "./utils/search-helpers";
 import { USE_NEXTJS_CACHE, withCacheFallback } from "./cache";
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
-import { SEARCH_S3_PATHS } from "./constants";
+import { SEARCH_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "./constants";
 import { readJsonS3 } from "./s3-utils";
 import type { SerializedIndex } from "@/types/search";
 import { loadIndexFromJSON } from "./search/index-builder";
@@ -559,7 +559,12 @@ async function getBookmarksIndex(): Promise<{
 
   try {
     const { getBookmarks } = await import("@/lib/bookmarks/service.server");
-    const all = (await getBookmarks({ includeImageData: false })) as Array<{
+    const all = (await getBookmarks({
+      ...DEFAULT_BOOKMARK_OPTIONS,
+      includeImageData: false,
+      skipExternalFetch: false,
+      force: false,
+    })) as Array<{
       id: string;
       url: string;
       title: string;
