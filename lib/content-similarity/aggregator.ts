@@ -6,6 +6,7 @@
  */
 
 import { getBookmarks } from "@/lib/bookmarks/service.server";
+import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { getAllPosts } from "@/lib/blog";
 import { investments } from "@/data/investments";
 import { projects } from "@/data/projects";
@@ -218,7 +219,12 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
     // CRITICAL: Must include image data for RelatedContent display
     // Previous regression: includeImageData: false caused missing images in UI
     const [bookmarksRes, blogPostsRes] = await Promise.allSettled([
-      getBookmarks({ includeImageData: true }),
+      getBookmarks({
+        ...DEFAULT_BOOKMARK_OPTIONS,
+        includeImageData: true,
+        skipExternalFetch: false,
+        force: false,
+      }),
       getAllPosts(),
     ]);
 
