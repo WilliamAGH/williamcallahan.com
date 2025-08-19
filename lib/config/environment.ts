@@ -11,9 +11,23 @@ import type { Environment } from "@/types/config";
 /**
  * Get the current environment based on URL configuration
  * Uses API_BASE_URL or NEXT_PUBLIC_SITE_URL to determine environment
+ * 
+ * CRITICAL: During build time, we MUST use explicit environment variables
+ * because the deployment URL is not yet known. The DEPLOYMENT_ENV variable
+ * should be set in CI/CD to match the target deployment.
  */
 export function getEnvironment(): Environment {
-  // First try to infer from URLs (most reliable)
+  // PRIORITY 1: Use explicit DEPLOYMENT_ENV if set (for build-time consistency)
+  const deploymentEnv = process.env.DEPLOYMENT_ENV;
+  if (deploymentEnv) {
+    const normalized = deploymentEnv.toLowerCase().trim();
+    if (normalized === "production" || normalized === "development" || normalized === "test") {
+      logger.info(`[Environment] Using explicit DEPLOYMENT_ENV: ${normalized}`);
+      return normalized as Environment;
+    }
+  }
+
+  // PRIORITY 2: Try to infer from URLs (runtime detection)
   const apiUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL;
 
   if (apiUrl) {
@@ -36,7 +50,7 @@ export function getEnvironment(): Environment {
     }
   }
 
-  // Fallback to NODE_ENV if URLs aren't set
+  // PRIORITY 3: Fallback to NODE_ENV if URLs aren't set
   const env = process.env.NODE_ENV;
 
   if (!env) {
