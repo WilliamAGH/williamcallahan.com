@@ -174,19 +174,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         latestBookmarkUpdateTime = getLatestDate(latestBookmarkUpdateTime, bookmarkLastModified);
       }
 
-      // Add individual bookmark entry only if we have a slug mapping
-      if (slugMapping) {
-        const slug = getSlugForBookmark(slugMapping, bookmark.id);
-        if (!slug) {
-          console.error(`[Sitemap] CRITICAL: No slug found for bookmark ${bookmark.id}, skipping individual URL`);
-        } else {
-          bookmarkEntries.push({
-            url: `${siteUrl}/bookmarks/${slug}`,
-            lastModified: bookmarkLastModified,
-            changeFrequency: "weekly",
-            priority: 0.65, // Same priority level as blog posts
-          });
-        }
+      // Prefer mapping for canonical slugs; fall back to embedded slug
+      const mappedSlug = slugMapping ? getSlugForBookmark(slugMapping, bookmark.id) : null;
+      const slug = mappedSlug || bookmark.slug;
+      if (!slug) {
+        console.error(`[Sitemap] CRITICAL: No slug found for bookmark ${bookmark.id}, skipping individual URL`);
+      } else {
+        bookmarkEntries.push({
+          url: `${siteUrl}/bookmarks/${slug}`,
+          lastModified: bookmarkLastModified,
+          changeFrequency: "weekly",
+          priority: 0.65, // Same priority level as blog posts
+        });
       }
 
       // Process tags for this bookmark
