@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "default-no-store";
 
 import { getBookmarks } from "@/lib/bookmarks/service.server";
+import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { getDomainSlug } from "@/lib/utils/domain-utils";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { redirect } from "next/navigation";
@@ -23,7 +24,12 @@ import { redirect } from "next/navigation";
 import type { DomainPageRedirectorProps } from "@/types";
 
 export default async function DomainPageRedirector({ params, searchParams }: DomainPageRedirectorProps) {
-  const allBookmarks = (await getBookmarks({ includeImageData: false })) as import("@/types").UnifiedBookmark[];
+  const allBookmarks = (await getBookmarks({
+    ...DEFAULT_BOOKMARK_OPTIONS,
+    includeImageData: false,
+    skipExternalFetch: false,
+    force: false,
+  })) as import("@/types").UnifiedBookmark[];
 
   // Load slug mapping - REQUIRED for idempotency
   const slugMapping = await loadSlugMapping();
