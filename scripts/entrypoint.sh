@@ -26,18 +26,53 @@ echo "🗺️  [Entrypoint] Submitting sitemap..."
 bun run submit-sitemap || true
 
 echo "🕒 [Entrypoint] Starting data scheduler in background..."
-bun run scheduler &
+
+# Create a log file for scheduler output (for debugging)
+SCHEDULER_LOG="/tmp/scheduler.log"
+echo "[$(date)] Scheduler startup initiated" > $SCHEDULER_LOG
+
+# Start scheduler directly without pipeline to get correct PID
+# Redirect output to both stdout and log file
+bun run scheduler >> $SCHEDULER_LOG 2>&1 &
 SCHEDULER_PID=$!
 echo "✅ [Entrypoint] Scheduler started (PID: $SCHEDULER_PID)"
+
+# Tail the log in background to show scheduler output
+tail -f $SCHEDULER_LOG 2>/dev/null | sed 's/^/[SCHEDULER] /' &
+TAIL_PID=$!
+
+# Verify scheduler is still running after 3 seconds
+sleep 3
+if kill -0 $SCHEDULER_PID 2>/dev/null; then
+    echo "✅ [Entrypoint] Scheduler process verified running (PID: $SCHEDULER_PID)"
+    # Show initial scheduler output
+    echo "📋 [Entrypoint] Initial scheduler output:"
+    head -n 10 $SCHEDULER_LOG | sed 's/^/    /'
+else
+    echo "❌ [Entrypoint] ERROR: Scheduler process died immediately after starting"
+    echo "❌ [Entrypoint] Last output from scheduler:"
+    cat $SCHEDULER_LOG | sed 's/^/    /'
+    echo "❌ [Entrypoint] Debug: Checking if bun exists and scheduler script is accessible"
+    which bun || echo "    bun not found in PATH"
+    ls -la package.json lib/server/scheduler.ts || echo "    scheduler files not found"
+fi
 
 # Set up signal handling to properly terminate background processes
 cleanup() {
     echo "🛑 [Entrypoint] Received termination signal, cleaning up..."
-    if kill -0 $SCHEDULER_PID 2>/dev/null; then
+    
+    # Kill the tail process first
+    if [ -n "$TAIL_PID" ] && kill -0 $TAIL_PID 2>/dev/null; then
+        kill $TAIL_PID 2>/dev/null || true
+    fi
+    
+    # Then kill the scheduler
+    if [ -n "$SCHEDULER_PID" ] && kill -0 $SCHEDULER_PID 2>/dev/null; then
         echo "🛑 [Entrypoint] Terminating scheduler (PID: $SCHEDULER_PID)..."
         kill $SCHEDULER_PID 2>/dev/null || true
         wait $SCHEDULER_PID 2>/dev/null || true
     fi
+    
     echo "✅ [Entrypoint] Cleanup complete"
     exit 0
 }
