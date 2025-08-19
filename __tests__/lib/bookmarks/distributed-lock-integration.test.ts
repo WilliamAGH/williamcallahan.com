@@ -468,10 +468,10 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         // Only verify if refresh actually happened
         if (result !== null) {
           // Verify operation order
-          const lockWriteIndex = operationLog.findIndex(op => op === `WRITE:${BOOKMARKS_S3_PATHS.LOCK}`);
-          const refreshIndex = operationLog.findIndex(op => op === "REFRESH_CALLBACK");
-          const dataWriteIndex = operationLog.findIndex(op => op === `WRITE:${BOOKMARKS_S3_PATHS.FILE}`);
-          const lockDeleteIndex = operationLog.findIndex(op => op === `DELETE:${BOOKMARKS_S3_PATHS.LOCK}`);
+          const lockWriteIndex = operationLog.indexOf(`WRITE:${BOOKMARKS_S3_PATHS.LOCK}`);
+          const refreshIndex = operationLog.indexOf("REFRESH_CALLBACK");
+          const dataWriteIndex = operationLog.indexOf(`WRITE:${BOOKMARKS_S3_PATHS.FILE}`);
+          const lockDeleteIndex = operationLog.indexOf(`DELETE:${BOOKMARKS_S3_PATHS.LOCK}`);
           
           // Lock must be acquired before refresh
           expect(lockWriteIndex).toBeGreaterThan(-1);

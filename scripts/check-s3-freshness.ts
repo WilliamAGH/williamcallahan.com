@@ -66,7 +66,7 @@ async function checkS3Freshness() {
       const heartbeat = await readJsonS3<{ timestamp: string; count: number }>(BOOKMARKS_S3_PATHS.HEARTBEAT);
       if (heartbeat?.timestamp) {
         const heartbeatDate = new Date(heartbeat.timestamp);
-        const minsSinceHeartbeat = (new Date().getTime() - heartbeatDate.getTime()) / (1000 * 60);
+        const minsSinceHeartbeat = (Date.now() - heartbeatDate.getTime()) / (1000 * 60);
         console.log(`   📍 Last heartbeat: ${heartbeat.timestamp} (${minsSinceHeartbeat.toFixed(1)} minutes ago)`);
         console.log(`   📊 Bookmark count at heartbeat: ${heartbeat.count}`);
         
@@ -87,7 +87,7 @@ async function checkS3Freshness() {
       const lock = await readJsonS3<{ timestamp: string; ttl: number }>(BOOKMARKS_S3_PATHS.LOCK);
       if (lock?.timestamp) {
         const lockDate = new Date(lock.timestamp);
-        const minsSinceLock = (new Date().getTime() - lockDate.getTime()) / (1000 * 60);
+        const minsSinceLock = (Date.now() - lockDate.getTime()) / (1000 * 60);
         console.log(`   🔒 Lock timestamp: ${lock.timestamp} (${minsSinceLock.toFixed(1)} minutes ago)`);
         
         if (minsSinceLock < 5) {

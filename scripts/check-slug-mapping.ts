@@ -50,8 +50,8 @@ async function checkSlugMapping() {
     // Check local file
     console.log("");
     console.log("3. LOCAL SLUG MAPPING:");
-    const fs = await import("fs/promises");
-    const path = await import("path");
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
     const localPath = path.join(process.cwd(), "lib", "data", "slug-mapping.json");
     
     try {
