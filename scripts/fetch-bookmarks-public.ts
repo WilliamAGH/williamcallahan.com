@@ -129,6 +129,8 @@ async function main() {
     }
   } else {
     failureCount++;
+    // Create minimal index fallback to prevent missing-file errors
+    saveToFile(LOCAL_PATHS.INDEX, { lastFetchedAt: 0 });
   }
   
   // Fetch slug mapping (CRITICAL for sitemap generation)
