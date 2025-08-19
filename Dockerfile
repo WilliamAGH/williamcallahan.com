@@ -72,8 +72,10 @@ ENV SENTRY_LOG_LEVEL=debug
 # Accept and propagate public env vars for Next.js build
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
 ARG NEXT_PUBLIC_SITE_URL
+ARG DEPLOYMENT_ENV
 ENV NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+ENV DEPLOYMENT_ENV=$DEPLOYMENT_ENV
 
 # --- S3 configuration (build-time and runtime -- CI/CD can pass these) -------------------------------
 ARG S3_BUCKET
@@ -103,11 +105,20 @@ COPY . .
 # @see app/sitemap.ts:149 - Calls getBookmarksForStaticBuildAsync()
 # @see scripts/entrypoint.sh:14-23 - Runtime fetch is TOO LATE for sitemap
 RUN echo "📊 Fetching bookmark data from S3 for sitemap generation..." && \
+    echo "DEPLOYMENT_ENV: ${DEPLOYMENT_ENV:-NOT SET}" && \
+    echo "NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-NOT SET}" && \
+    echo "S3_BUCKET: ${S3_BUCKET:-NOT SET}" && \
+    echo "S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:+SET}" && \
+    echo "S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:+SET}" && \
     if [ -n "$S3_ACCESS_KEY_ID" ] && [ -n "$S3_SECRET_ACCESS_KEY" ] && [ -n "$S3_BUCKET" ]; then \
-      bun scripts/data-updater.ts --bookmarks --force || \
-      echo "⚠️  Warning: Could not fetch bookmark data from S3, sitemap may be incomplete"; \
+      echo "✅ S3 credentials available, fetching bookmarks..." && \
+      bun scripts/data-updater.ts --bookmarks --force --allow-build-writes 2>&1 || \
+      (echo "❌ CRITICAL: Bookmark fetch FAILED. Sitemap will be EMPTY." && exit 1); \
     else \
-      echo "⚠️  Warning: S3 credentials not provided at build time, sitemap will not include bookmarks"; \
+      echo "❌ CRITICAL: S3 credentials NOT provided at build time!" && \
+      echo "   Required: --build-arg S3_BUCKET=... --build-arg S3_ACCESS_KEY_ID=... --build-arg S3_SECRET_ACCESS_KEY=..." && \
+      echo "   Sitemap will have NO bookmark URLs!" && \
+      exit 1; \
     fi
 
 # Pre-build checks disabled to avoid network hang during build
