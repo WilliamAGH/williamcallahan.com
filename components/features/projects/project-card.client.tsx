@@ -64,7 +64,7 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
   return (
     // Redesigned card for horizontal layout on medium screens and up
     <div 
-      id={projectId}
+      id={projectId || undefined}
       className="group rounded-lg border border-gray-300 dark:border-gray-900 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-400 opacity-0 animate-fade-in-up md:flex h-auto flex-col md:flex-row">
       {" "}
       {/* Use h-auto for responsive height */}
