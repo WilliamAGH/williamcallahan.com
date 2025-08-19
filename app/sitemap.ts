@@ -135,6 +135,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // --- 2. Process Bookmarks and Bookmark Tags ---
+  // CRITICAL: Bookmarks require special handling vs blog posts:
+  // - Blog posts: Read from local filesystem (fs.readFileSync) - always available at build
+  // - Bookmarks: Stored in S3 (async AWS SDK) - requires credentials + pre-build fetch
+  // Issue #sitemap-2024: Without Dockerfile pre-fetch, this returns empty array
   const bookmarkEntries: MetadataRoute.Sitemap = [];
   const paginatedBookmarkEntries: MetadataRoute.Sitemap = [];
   let bookmarkTagEntries: MetadataRoute.Sitemap = [];
@@ -149,8 +153,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const bookmarks = await getBookmarksForStaticBuildAsync();
     console.log(`[Sitemap] Successfully got ${bookmarks.length} bookmarks with slugs for sitemap generation.`);
 
-    // Load slug mapping – preferred for individual bookmark routes. If unavailable,
-    // generate one dynamically to ensure all bookmark routes are included.
+    // Load slug mapping - CRITICAL: This file is empty in git (skip-worktree locally)
+    // Must be populated by Dockerfile pre-build fetch or dynamic generation
     console.log("[Sitemap] Loading slug mapping...");
     let slugMapping = await loadSlugMapping();
     if (!slugMapping || Object.keys(slugMapping.slugs).length === 0) {

@@ -27,13 +27,15 @@ import { RelatedContent } from "@/components/features/related-content";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { loadSlugMapping, generateSlugMapping, getBookmarkIdFromSlug } from "@/lib/bookmarks/slug-manager";
 
-// NOTE: Static generation disabled - using force-dynamic for consistency
-// All bookmark routes now use dynamic rendering to avoid build-time S3 dependency
-// and ensure consistent behavior between development and production environments.
-// Pages are dynamically generated at runtime with ISR caching (30 min revalidation).
+// CRITICAL: generateStaticParams() is INTENTIONALLY DISABLED for individual bookmarks
+// Issue #sitemap-2024: Even though this prevents static generation, sitemap.ts
+// MANUALLY adds all bookmark URLs by calling getBookmarksForStaticBuildAsync().
+// This hybrid approach allows dynamic rendering (no build-time S3 dependency)
+// while still including URLs in sitemap. Blog posts use full static generation
+// because they read from local files. Bookmarks can't because S3 is async-only.
 //
 // export async function generateStaticParams(): Promise<{ slug: string }[]> {
-//   // Disabled - see note above
+//   // Disabled - sitemap.ts handles URL generation separately
 // }
 
 // Helper function to find bookmark by slug using pre-computed mappings

@@ -95,7 +95,20 @@ COPY --from=deps --link /app/node_modules ./node_modules
 # Copy entire source code
 COPY . .
 
-# Build-time S3 data update disabled; will run at runtime via scheduler
+# CRITICAL: Fetch bookmark data from S3 BEFORE build for sitemap generation
+# Issue #sitemap-2024: Sitemap.xml was missing bookmark URLs in production because:
+# 1. Next.js generates sitemap at BUILD time (during 'next build')
+# 2. Bookmarks are in S3 (async-only), not local files like blog posts
+# 3. Without this step, sitemap.ts gets empty data and generates no bookmark URLs
+# @see app/sitemap.ts:149 - Calls getBookmarksForStaticBuildAsync()
+# @see scripts/entrypoint.sh:14-23 - Runtime fetch is TOO LATE for sitemap
+RUN echo "📊 Fetching bookmark data from S3 for sitemap generation..." && \
+    if [ -n "$S3_ACCESS_KEY_ID" ] && [ -n "$S3_SECRET_ACCESS_KEY" ] && [ -n "$S3_BUCKET" ]; then \
+      bun scripts/data-updater.ts --bookmarks --force || \
+      echo "⚠️  Warning: Could not fetch bookmark data from S3, sitemap may be incomplete"; \
+    else \
+      echo "⚠️  Warning: S3 credentials not provided at build time, sitemap will not include bookmarks"; \
+    fi
 
 # Pre-build checks disabled to avoid network hang during build
 
