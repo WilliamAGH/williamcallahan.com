@@ -123,6 +123,9 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
           "[refreshBookmarksData] Invalid API response shape:",
           parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
         );
+        // Log the actual response for debugging
+        console.error("[refreshBookmarksData] Actual API response keys:", Object.keys(raw as Record<string, unknown>));
+        console.error("[refreshBookmarksData] First 500 chars of response:", JSON.stringify(raw).substring(0, 500));
         throw new Error("Invalid bookmarks API response shape");
       }
       const data: ApiResponse = parsed.data;
@@ -283,8 +286,15 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
     primaryFetchError = error instanceof Error ? error : new Error(String(error));
     console.error(
       `[refreshBookmarksData] PRIMARY_FETCH_FAILURE: Error during external API fetch or processing: ${primaryFetchError.message}`,
-      primaryFetchError,
     );
+    // Log full error details for debugging
+    const errorWithCause = primaryFetchError as Error & { cause?: unknown };
+    console.error("[refreshBookmarksData] Full error details:", {
+      message: primaryFetchError.message,
+      stack: primaryFetchError.stack,
+      cause: errorWithCause.cause,
+      name: primaryFetchError.name,
+    });
 
     // Resilience: Return cached S3 data when API fails (S3 = source of truth)
     try {

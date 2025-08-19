@@ -59,7 +59,7 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       title: bestTitle,
       description: bestDescription,
       tags: normalizedTags,
-      ogImage: raw.content?.imageUrl, // Will be enhanced with OpenGraph data
+      ogImage: raw.content?.imageUrl || undefined, // Will be enhanced with OpenGraph data
       dateBookmarked: raw.createdAt,
       datePublished: raw.content?.datePublished,
       dateCreated: raw.createdAt,

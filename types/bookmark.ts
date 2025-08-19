@@ -55,12 +55,12 @@ export const bookmarkContentSchema = z.object({
   url: z.string(),
   title: z.string().nullable(),
   description: z.string().nullable(),
-  imageUrl: z.string().optional(),
-  imageAssetId: z.string().optional(),
-  screenshotAssetId: z.string().optional(),
+  imageUrl: z.string().nullable().optional(), // Can be null or undefined
+  imageAssetId: z.string().nullable().optional(), // Can be null or undefined
+  screenshotAssetId: z.string().nullable().optional(), // Can be null or undefined
   favicon: z.string().nullable().optional(),
-  htmlContent: z.string().optional(),
-  crawledAt: z.string().optional(),
+  htmlContent: z.string().nullable().optional(), // Can be null or undefined
+  crawledAt: z.string().nullable().optional(), // Can be null or undefined
   author: z.string().nullable().optional(),
   publisher: z.string().nullable().optional(),
   datePublished: z.string().nullable().optional(),
@@ -80,12 +80,13 @@ export const rawApiBookmarkSchema = z.object({
   title: z.string().nullable(),
   archived: z.boolean(),
   favourited: z.boolean(),
-  taggingStatus: z.string(),
+  taggingStatus: z.string().optional(), // May not always be present
+  summarizationStatus: z.string().optional(), // New field from API
   note: z.string().nullable(),
   summary: z.string().nullable(),
   tags: z.array(rawApiBookmarkTagSchema),
   content: bookmarkContentSchema,
-  assets: z.array(bookmarkAssetSchema),
+  assets: z.array(bookmarkAssetSchema).optional(), // Assets may be missing
 });
 
 export type RawApiBookmark = z.infer<typeof rawApiBookmarkSchema>;
