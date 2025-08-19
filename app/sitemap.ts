@@ -149,15 +149,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const bookmarks = await getBookmarksForStaticBuildAsync();
     console.log(`[Sitemap] Successfully got ${bookmarks.length} bookmarks with slugs for sitemap generation.`);
 
-    // Load slug mapping - REQUIRED for idempotency
+    // Load slug mapping – preferred for individual bookmark routes. If unavailable,
+    // generate one dynamically to ensure all bookmark routes are included.
     console.log("[Sitemap] Loading slug mapping...");
-    const slugMapping = await loadSlugMapping();
-    if (!slugMapping) {
-      throw new Error(
-        "[Sitemap] CRITICAL: No slug mapping found. " + "Slug mappings must be generated when bookmarks are fetched.",
+    let slugMapping = await loadSlugMapping();
+    if (!slugMapping || Object.keys(slugMapping.slugs).length === 0) {
+      console.warn(
+        "[Sitemap] WARNING: No valid slug mapping found – generating dynamically to ensure all bookmark routes are included.",
       );
+      // Generate slug mapping dynamically from the bookmarks we already have
+      const { generateSlugMapping } = await import("../lib/bookmarks/slug-manager");
+      slugMapping = generateSlugMapping(bookmarks);
+      console.log(`[Sitemap] Dynamically generated slug mapping with ${slugMapping.count} entries`);
+    } else {
+      console.log(`[Sitemap] Loaded slug mapping with ${slugMapping.count} entries`);
     }
-    console.log(`[Sitemap] Loaded slug mapping with ${slugMapping.count} entries`);
 
     // Process each bookmark for individual pages
     for (const bookmark of bookmarks) {
@@ -168,20 +174,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         latestBookmarkUpdateTime = getLatestDate(latestBookmarkUpdateTime, bookmarkLastModified);
       }
 
-      // Get slug from mapping - REQUIRED for idempotency
-      const slug = getSlugForBookmark(slugMapping, bookmark.id);
-      if (!slug) {
-        console.error(`[Sitemap] CRITICAL: No slug found for bookmark ${bookmark.id}, skipping`);
-        continue; // Skip this bookmark rather than generate incorrect URL
+      // Add individual bookmark entry only if we have a slug mapping
+      if (slugMapping) {
+        const slug = getSlugForBookmark(slugMapping, bookmark.id);
+        if (!slug) {
+          console.error(`[Sitemap] CRITICAL: No slug found for bookmark ${bookmark.id}, skipping individual URL`);
+        } else {
+          bookmarkEntries.push({
+            url: `${siteUrl}/bookmarks/${slug}`,
+            lastModified: bookmarkLastModified,
+            changeFrequency: "weekly",
+            priority: 0.65, // Same priority level as blog posts
+          });
+        }
       }
-
-      // Add bookmark entry
-      bookmarkEntries.push({
-        url: `${siteUrl}/bookmarks/${slug}`,
-        lastModified: bookmarkLastModified,
-        changeFrequency: "weekly",
-        priority: 0.65, // Same priority level as blog posts
-      });
 
       // Process tags for this bookmark
       const tags = Array.isArray(bookmark.tags)
