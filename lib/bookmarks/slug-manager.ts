@@ -16,8 +16,9 @@
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
 import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
-import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
+import { BOOKMARKS_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import logger from "@/lib/utils/logger";
+import { envLogger } from "@/lib/utils/env-logger";
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -153,10 +154,14 @@ export async function saveSlugMapping(
       revalidateTag("bookmarks");
       revalidateTag("bookmarks-slugs");
       revalidateTag("search-index");
-      logger.info(`[SlugManager] ✅ Cache invalidated for bookmark-related tags`);
+      envLogger.log(`Cache invalidated for bookmark tags`, undefined, { category: "SlugManager" });
     } catch (cacheError) {
       // Cache invalidation failure is non-fatal but should be logged
-      logger.warn(`[SlugManager] Cache invalidation failed (non-fatal):`, cacheError);
+      envLogger.debug(
+        `Cache invalidation failed (non-fatal)`,
+        cacheError,
+        { category: "SlugManager" }
+      );
     }
 
     // Optionally save to all environment paths for redundancy
@@ -170,9 +175,13 @@ export async function saveSlugMapping(
         if (path !== primaryPath) {
           try {
             await writeJsonS3(path, mapping);
-            logger.info(`[SlugManager] ✅ Also saved to ${path} for redundancy`);
+            envLogger.debug(`Saved to redundant path`, path, { category: "SlugManager" });
           } catch (error) {
-            logger.warn(`[SlugManager] Could not save to redundant path ${path}:`, error);
+            envLogger.debug(
+              `Could not save to redundant path`,
+              { path, error },
+              { category: "SlugManager" }
+            );
           }
         }
       }
@@ -316,7 +325,12 @@ export async function getBookmarkBySlug(slug: string): Promise<UnifiedBookmark |
 
   // Import here to avoid circular dependency
   const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
-  const bookmarks = await getBookmarks({ skipExternalFetch: true });
+  const bookmarks = await getBookmarks({
+    ...DEFAULT_BOOKMARK_OPTIONS,
+    includeImageData: true,
+    skipExternalFetch: true,
+    force: false,
+  });
   
   const bookmark = bookmarks.find((b) => b.id === bookmarkId);
   if (!bookmark) {

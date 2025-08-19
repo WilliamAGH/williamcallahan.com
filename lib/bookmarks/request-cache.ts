@@ -10,6 +10,7 @@
 import { cache } from "react";
 import { getBookmarks } from "./service.server";
 import { getBulkBookmarkSlugs } from "./slug-helpers";
+import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import type { UnifiedBookmark } from "@/types";
 
 /**
@@ -18,7 +19,10 @@ import type { UnifiedBookmark } from "@/types";
  */
 export const getCachedBookmarks = cache(
   async (options?: { skipExternalFetch?: boolean; includeImageData?: boolean }): Promise<UnifiedBookmark[]> => {
-    return (await getBookmarks(options)) as UnifiedBookmark[];
+    return (await getBookmarks({
+      ...DEFAULT_BOOKMARK_OPTIONS,
+      ...options,
+    })) as UnifiedBookmark[];
   },
 );
 
@@ -28,7 +32,10 @@ export const getCachedBookmarks = cache(
  */
 export const getCachedBookmarkSlugs = cache(async (): Promise<Map<string, string>> => {
   // Use the cached bookmarks to prevent duplicate fetches
-  const bookmarks = await getCachedBookmarks({ includeImageData: false });
+  const bookmarks = await getCachedBookmarks({
+    includeImageData: false,
+    skipExternalFetch: false,
+  });
   return await getBulkBookmarkSlugs(bookmarks);
 });
 
@@ -44,7 +51,10 @@ export const getCachedBookmarksWithSlugs = cache(
     // Fetch bookmarks once
     // CRITICAL: Must include image data for RelatedContent display
     // Previous regression: includeImageData: false caused missing images in UI
-    const bookmarks = await getCachedBookmarks({ includeImageData: true });
+    const bookmarks = await getCachedBookmarks({
+      includeImageData: true,
+      skipExternalFetch: false,
+    });
     // Generate slug map from the same bookmarks
     const slugMap = await getBulkBookmarkSlugs(bookmarks);
 
