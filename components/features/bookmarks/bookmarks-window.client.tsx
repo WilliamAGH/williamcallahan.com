@@ -82,8 +82,8 @@ function BookmarksWindowContentInner({
         // Maximize: Use fixed positioning, take full screen except header/footer space
         isMaximized
           ? "fixed inset-0 top-16 bottom-16 md:bottom-4 max-w-none m-0 z-40"
-          : // Normal: Default flow with full width on larger screens
-            "relative mx-auto mt-8 w-full max-w-[95%] xl:max-w-[1400px] 2xl:max-w-[1800px]",
+          : // Normal: Default flow matching site-wide container width
+            "relative max-w-5xl mx-auto mt-8",
       )}
     >
       <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 sticky top-0 z-10">

@@ -25,7 +25,9 @@ import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
  * @returns Empty array synchronously - use getBookmarksForStaticBuildAsync for actual data
  */
 export function getBookmarksForStaticBuild(): UnifiedBookmark[] {
-  console.log("[Static Build] Synchronous method called - returning empty array. Use async version for actual data.");
+  if (process.env.NODE_ENV === "development") {
+    console.log("[Static Build] Synchronous method called - returning empty array. Use async version for actual data.");
+  }
   return [];
 }
 
@@ -42,12 +44,16 @@ export async function getBookmarksForStaticBuildAsync(): Promise<LightweightBook
 
   try {
     // Load full bookmarks from S3
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    const rawData = await readJsonS3<unknown>(BOOKMARKS_S3_PATHS.FILE);
     
-    if (!bookmarks || !Array.isArray(bookmarks)) {
-      console.warn("[Static Build] No bookmarks found in S3");
+    if (!rawData || !Array.isArray(rawData)) {
+      console.warn("[Static Build] No bookmarks found in S3 or invalid format");
       return [];
     }
+
+    // Validate and ensure all bookmarks have required fields
+    const bookmarks = rawData as UnifiedBookmark[];
+    console.log(`[Static Build] Loaded ${bookmarks.length} bookmarks from S3 path: ${BOOKMARKS_S3_PATHS.FILE}`);
 
     // Attempt to load precomputed slug mapping so we can include bookmarks that
     // don't yet have an embedded slug field in the persisted dataset. This keeps
@@ -55,18 +61,33 @@ export async function getBookmarksForStaticBuildAsync(): Promise<LightweightBook
     let slugMapping = await loadSlugMapping().catch(() => null);
 
     // If no mapping exists or it's empty, generate one dynamically
-    if (!slugMapping || Object.keys(slugMapping.slugs).length === 0) {
+    if (!slugMapping?.slugs || Object.keys(slugMapping.slugs).length === 0) {
       console.log("[Static Build] No valid slug mapping found, generating dynamically...");
       const { generateSlugMapping } = await import("@/lib/bookmarks/slug-manager");
       slugMapping = generateSlugMapping(bookmarks);
       console.log(`[Static Build] Generated slug mapping with ${Object.keys(slugMapping.slugs).length} entries`);
     }
 
+    // First, check how many bookmarks already have embedded slugs
+    const bookmarksWithEmbeddedSlugs = bookmarks.filter(b => b.slug);
+    console.log(`[Static Build] ${bookmarksWithEmbeddedSlugs.length}/${bookmarks.length} bookmarks have embedded slugs`);
+    
+    // If some bookmarks lack slugs, log details
+    if (bookmarksWithEmbeddedSlugs.length < bookmarks.length) {
+      const missingSlugSample = bookmarks
+        .filter(b => !b.slug)
+        .slice(0, 3)
+        .map(b => `ID: ${b.id}, Title: ${b.title || "UNKNOWN"}`)
+        .join("; ");
+      console.warn(`[Static Build] Sample bookmarks missing embedded slugs: ${missingSlugSample}`);
+    }
+
     // Validate that all bookmarks have required fields (id and slug)
     const validBookmarks = bookmarks
       .map((b) => {
         // If slug missing, try to hydrate from mapping (when available)
-        if (!b.slug && slugMapping && slugMapping.slugs[b.id]?.slug) {
+        if (!b.slug && slugMapping?.slugs && slugMapping.slugs[b.id]?.slug) {
+          console.log(`[Static Build] Hydrating slug for bookmark ${b.id} from mapping: ${slugMapping.slugs[b.id]?.slug}`);
           return { ...b, slug: slugMapping.slugs[b.id]?.slug } as UnifiedBookmark;
         }
         return b;

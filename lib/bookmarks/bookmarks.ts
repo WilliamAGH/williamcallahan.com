@@ -209,6 +209,9 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
 
     // Persist slug mapping to S3 (primary) and local file (ephemeral cache)
     // S3 persistence ensures stable routes across container restarts/deployments
+    // TODO: Optimization opportunity - saveSlugMapping recomputes the mapping internally,
+    // but we already have slugMapping computed above. Consider accepting a precomputed
+    // mapping to avoid duplicate work. Low priority as this only runs during data updates.
     try {
       await saveSlugMapping(normalizedBookmarks);
       console.log(

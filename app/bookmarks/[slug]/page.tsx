@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 // Revalidate cache every 30 minutes - consistent with other bookmark routes  
 export const revalidate = 1800;
 
-import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
+import { BookmarkDetail } from "@/components/features/bookmarks/bookmark-detail";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -23,7 +23,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { OG_IMAGE_DIMENSIONS } from "@/data/metadata";
-import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 import { RelatedContent } from "@/components/features/related-content";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { loadSlugMapping, generateSlugMapping, getBookmarkIdFromSlug } from "@/lib/bookmarks/slug-manager";
@@ -255,28 +254,25 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
   return (
     <>
       <JsonLdScript data={jsonLdData} />
-      <div className="max-w-5xl mx-auto space-y-8">
-        <BookmarksServer
-          title={`Detail view for ${foundBookmark.title || "Bookmark"}`}
-          description="A detailed view of a single saved bookmark."
-          bookmarks={convertBookmarksToSerializable([foundBookmark])}
-          usePagination={false}
-          showFilterBar={false}
-        />
+      
+      {/* Stunning Individual Bookmark Page */}
+      <BookmarkDetail bookmark={foundBookmark} />
 
-        {/* Similar Content Section */}
-        {/* Intentionally omit sourceSlug to avoid redundant slug->ID resolution */}
-        <RelatedContent
-          sourceType="bookmark"
-          sourceId={foundBookmark.id}
-          sectionTitle="You might also like"
-          options={{
-            maxPerType: 3,
-            maxTotal: 9,
-            excludeTypes: [], // Include all content types
-          }}
-          className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700"
-        />
+      {/* Enhanced Related Content Section */}
+      <div className="bg-gradient-to-b from-background to-secondary/20">
+        <div className="max-w-6xl mx-auto px-8 md:px-12 lg:px-16 py-16">
+          <RelatedContent
+            sourceType="bookmark"
+            sourceId={foundBookmark.id}
+            sectionTitle="Discover Similar Content"
+            options={{
+              maxPerType: 4,
+              maxTotal: 12,
+              excludeTypes: [], // Include all content types
+            }}
+            className="relative"
+          />
+        </div>
       </div>
     </>
   );
