@@ -55,7 +55,7 @@ function toRelatedContentItem(
       const url = `/bookmarks/${slug}`;
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
-        imageUrl: bookmark.ogImage || bookmark.content?.imageUrl,
+        imageUrl: bookmark.ogImage || bookmark.content?.imageUrl || undefined,
       };
       return {
         type: content.type,
