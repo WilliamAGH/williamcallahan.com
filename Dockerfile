@@ -139,7 +139,8 @@ WORKDIR /app
 # Install runtime dependencies including Node.js for Next.js standalone compatibility
 # Note: We need Node.js to run the Next.js standalone server even though Bun is available
 # Also installing vips for Sharp image processing, curl for healthchecks, and bash for scripts
-RUN apk add --no-cache nodejs npm vips curl bash
+# libc6-compat is required for Sharp/vips native bindings to work properly
+RUN apk add --no-cache nodejs vips curl bash libc6-compat
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -152,6 +153,9 @@ ARG S3_BUCKET
 ARG S3_SERVER_URL
 ARG S3_CDN_URL
 ARG NEXT_PUBLIC_S3_CDN_URL
+ARG DEPLOYMENT_ENV
+ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
+ARG NEXT_PUBLIC_SITE_URL
 
 # Make sure they are present at runtime (can still be overridden with `docker run -e`)
 # NOTE: S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY should ONLY be injected at runtime
@@ -159,7 +163,10 @@ ARG NEXT_PUBLIC_S3_CDN_URL
 ENV S3_BUCKET=$S3_BUCKET \
     S3_SERVER_URL=$S3_SERVER_URL \
     S3_CDN_URL=$S3_CDN_URL \
-    NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL
+    NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL \
+    DEPLOYMENT_ENV=$DEPLOYMENT_ENV \
+    NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID \
+    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
 # Copy standalone output and required assets (run as root, so no chown needed)
 COPY --from=builder /app/.next/standalone ./
