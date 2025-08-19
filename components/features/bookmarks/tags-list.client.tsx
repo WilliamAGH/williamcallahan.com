@@ -8,11 +8,14 @@
 
 import { formatTagDisplay } from "@/lib/utils/tag-utils";
 import { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import type { TagsListClientProps } from "@/types";
 
 export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListClientProps) {
   const [mounted, setMounted] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
 
   // Set mounted flag after hydration is complete
   useEffect(() => {
@@ -59,7 +62,18 @@ export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListClien
       {/* Clear filter button – always present to keep SSR/CSR markup identical */}
       <button
         type="button"
-        onClick={() => selectedTag && mounted && onTagSelectAction(selectedTag)}
+        onClick={() => {
+          if (!mounted || !selectedTag) return;
+          
+          // Check if we're on a tag-specific route
+          if (pathname.includes('/bookmarks/tags/')) {
+            // Navigate back to the main bookmarks page
+            router.push('/bookmarks');
+          } else {
+            // Otherwise, just clear the selected tag locally
+            onTagSelectAction(selectedTag);
+          }
+        }}
         className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
         style={{ visibility: mounted && selectedTag ? "visible" : "hidden" }}
         disabled={!mounted || !selectedTag}
