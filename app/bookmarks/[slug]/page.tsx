@@ -257,8 +257,10 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     <>
       <JsonLdScript data={jsonLdData} />
       
-      {/* Stunning Individual Bookmark Page */}
-      <BookmarkDetail bookmark={foundBookmark} />
+      {/* Stunning Individual Bookmark Page - Add consistent container */}
+      <div className="max-w-6xl mx-auto">
+        <BookmarkDetail bookmark={foundBookmark} />
+      </div>
 
       {/* Enhanced Related Content Section */}
       <div className="bg-gradient-to-b from-background to-secondary/20">
