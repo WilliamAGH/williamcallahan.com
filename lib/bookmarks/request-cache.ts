@@ -42,7 +42,9 @@ export const getCachedBookmarksWithSlugs = cache(
     slugMap: Map<string, string>;
   }> => {
     // Fetch bookmarks once
-    const bookmarks = await getCachedBookmarks({ includeImageData: false });
+    // CRITICAL: Must include image data for RelatedContent display
+    // Previous regression: includeImageData: false caused missing images in UI
+    const bookmarks = await getCachedBookmarks({ includeImageData: true });
     // Generate slug map from the same bookmarks
     const slugMap = await getBulkBookmarkSlugs(bookmarks);
 
