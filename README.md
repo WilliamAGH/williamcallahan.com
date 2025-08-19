@@ -39,7 +39,13 @@ useEffect(() => { setMounted(true) }, []);
 
 // 3. Render placeholder during SSR and initial client render
 if (!mounted) {
-  return <div className="placeholder-styles" suppressHydrationWarning />;
+  return (
+    <div
+      className="placeholder-styles"
+      suppressHydrationWarning
+      aria-hidden="true"
+    />
+  );
 }
 
 // 4. Only render actual content on client after hydration
