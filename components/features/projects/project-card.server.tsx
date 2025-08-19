@@ -4,6 +4,8 @@ import Image from "next/image";
 import { type JSX } from "react";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 
+const MAX_DISPLAY_TECH_ITEMS = 10;
+
 // Placeholder for centered top image with gradient
 function PlaceholderImageTop() {
   return (
@@ -62,7 +64,7 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
     return tagList.filter((t) => TECH_KEYWORDS.has(t));
   };
 
-  const displayTech = (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)).slice(0, 10);
+  const displayTech = (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)).slice(0, MAX_DISPLAY_TECH_ITEMS);
 
   return (
     // Redesigned card for horizontal layout on medium screens and up
