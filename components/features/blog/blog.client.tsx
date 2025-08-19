@@ -23,6 +23,6 @@ import type { BlogPropsWithChildren } from "@/types/features";
  * Main Blog component using a hybrid architecture for optimal performance
  * This client component renders pre-rendered server content passed as children
  */
-export function Blog({ children }: BlogPropsWithChildren) {
-  return <BlogWindow>{children}</BlogWindow>;
+export function Blog({ children, windowTitle }: BlogPropsWithChildren & { windowTitle?: string }) {
+  return <BlogWindow windowTitle={windowTitle}>{children}</BlogWindow>;
 }
