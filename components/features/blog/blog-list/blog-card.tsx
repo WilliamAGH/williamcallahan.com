@@ -21,38 +21,47 @@ import type { BlogCardPropsExtended } from "@/types/features";
 
 export function BlogCard({ post, isPriority = false }: BlogCardPropsExtended) {
   return (
-    <Link href={`/blog/${post.slug}`} className="block group h-full">
-      <article className="flex flex-col h-full rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden bg-gray-50 dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-200 cursor-pointer">
-        {post.coverImage && typeof post.coverImage === "string" && post.coverImage.trim() !== "" && (
-          <div className="relative h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
-            <Image
-              src={post.coverImage}
-              alt={post.title}
-              fill
-              priority={isPriority}
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
-            />
-          </div>
-        )}
+    <article className="group flex flex-col h-full rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden bg-gray-50 dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-200">
+      {post.coverImage && typeof post.coverImage === "string" && post.coverImage.trim() !== "" && (
+        <Link 
+          href={`/blog/${post.slug}`} 
+          className="relative h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-800 block cursor-pointer"
+        >
+          <Image
+            src={post.coverImage}
+            alt={post.title}
+            fill
+            priority={isPriority}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        </Link>
+      )}
 
-        <div className="flex flex-col flex-grow p-6">
-          <h2 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">{post.title}</h2>
+      <div className="flex flex-col flex-grow p-6">
+        <h2 className="text-xl font-semibold mb-3">
+          <Link 
+            href={`/blog/${post.slug}`} 
+            className="text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer inline-block"
+          >
+            {post.title}
+          </Link>
+        </h2>
 
-          <BlogTagsExpandable tags={post.tags} interactive={false} />
+        {/* Tags are interactive and clickable */}
+        <BlogTagsExpandable tags={post.tags} interactive={true} />
 
-          <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2 mt-3">{post.excerpt}</p>
+        <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2 mt-3">{post.excerpt}</p>
 
-          <div className="mt-auto flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-            <div className="flex items-center gap-4">
-              <span className="flex items-center">
-                <Calendar className="w-4 h-4 mr-1" />
-                {formatDate(post.publishedAt)}
-              </span>
-            </div>
+        <div className="mt-auto flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-4">
+            <span className="flex items-center">
+              <Calendar className="w-4 h-4 mr-1" />
+              {formatDate(post.publishedAt)}
+            </span>
           </div>
         </div>
-      </article>
-    </Link>
+      </div>
+    </article>
   );
 }

@@ -10,7 +10,7 @@
 import { kebabCase } from "@/lib/utils/formatters";
 import { Tag, ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 
 import type { BlogTagsPropsExtended, TagWrapperProps } from "@/types/features";
 
@@ -27,92 +27,6 @@ function TagWrapper({ children, className, href }: TagWrapperProps) {
 
 export function BlogTagsExpandable({ tags, interactive = false }: BlogTagsPropsExtended) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [visibleTags, setVisibleTags] = useState<string[]>(tags);
-  const [hiddenCount, setHiddenCount] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const testRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const calculateVisibleTags = () => {
-      if (!testRef.current || !containerRef.current) return;
-
-      // Reset to test with all tags
-      testRef.current.innerHTML = '';
-      
-      // Create test elements for all tags plus the "see more" button
-      const testContainer = document.createElement('div');
-      testContainer.className = 'flex flex-wrap gap-2';
-      testContainer.style.position = 'absolute';
-      testContainer.style.visibility = 'hidden';
-      testContainer.style.width = containerRef.current.offsetWidth + 'px';
-      
-      // Add all tag elements to test container
-      tags.forEach(tag => {
-        const tagEl = document.createElement('span');
-        tagEl.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm';
-        tagEl.textContent = tag;
-        testContainer.appendChild(tagEl);
-      });
-      
-      // Add "see more" button to test
-      const buttonEl = document.createElement('span');
-      buttonEl.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm';
-      buttonEl.textContent = 'See more';
-      
-      testRef.current.appendChild(testContainer);
-      
-      // Check if all tags fit in ~2 lines (80px)
-      if (testContainer.offsetHeight <= 80) {
-        setVisibleTags(tags);
-        setHiddenCount(0);
-      } else {
-        // Binary search to find how many tags fit with the button
-        let low = 0;
-        let high = tags.length - 1;
-        let bestFit = 0;
-        
-        while (low <= high) {
-          const mid = Math.floor((low + high) / 2);
-          testContainer.innerHTML = '';
-          
-          // Add tags up to mid
-          for (let i = 0; i <= mid; i++) {
-            const tagEl = document.createElement('span');
-            tagEl.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm';
-            tagEl.textContent = tags[i] ?? null;
-            testContainer.appendChild(tagEl);
-          }
-          
-          // Add the button
-          testContainer.appendChild(buttonEl.cloneNode(true));
-          
-          if (testContainer.offsetHeight <= 80) {
-            bestFit = mid;
-            low = mid + 1;
-          } else {
-            high = mid - 1;
-          }
-        }
-        
-        setVisibleTags(tags.slice(0, bestFit + 1));
-        setHiddenCount(tags.length - bestFit - 1);
-      }
-      
-      // Clean up test container
-      testRef.current.innerHTML = '';
-    };
-
-    calculateVisibleTags();
-    
-    // Recalculate on window resize
-    if (typeof window !== "undefined") {
-      const handleResize = () => {
-        calculateVisibleTags();
-      };
-      window.addEventListener("resize", handleResize);
-      return () => window.removeEventListener("resize", handleResize);
-    }
-  }, [tags]);
 
   const baseTagClass = `
     inline-flex items-center px-3 py-1 rounded-full text-sm
@@ -124,11 +38,14 @@ export function BlogTagsExpandable({ tags, interactive = false }: BlogTagsPropsE
     ? "hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer" 
     : "";
 
-  const displayTags = isExpanded ? tags : visibleTags;
+  // Simple approach: show first 5 tags, then allow expansion
+  // But if there's only 1 extra tag (6 total), just show all 6 instead of a button
+  const maxVisibleTags = 5;
+  const hasMore = tags.length > maxVisibleTags + 1; // Only show button if 2+ tags are hidden
+  const displayTags = isExpanded ? tags : (hasMore ? tags.slice(0, maxVisibleTags) : tags);
 
   return (
-    <div className="mb-4" ref={containerRef}>
-      <div ref={testRef} style={{ position: 'absolute', visibility: 'hidden' }} />
+    <div className="mb-4">
       <div className="flex flex-wrap gap-2">
         {displayTags.map((tag) => (
           <TagWrapper
@@ -141,8 +58,8 @@ export function BlogTagsExpandable({ tags, interactive = false }: BlogTagsPropsE
           </TagWrapper>
         ))}
         
-        {/* Inline See More/Less Button */}
-        {hiddenCount > 0 && (
+        {/* See More/Less Button */}
+        {hasMore && (
           <button
             type="button"
             onClick={(e) => {
@@ -166,7 +83,7 @@ export function BlogTagsExpandable({ tags, interactive = false }: BlogTagsPropsE
             ) : (
               <>
                 <ChevronDown className="w-3 h-3 mr-1" />
-                +{hiddenCount} more
+                +{tags.length - maxVisibleTags} more
               </>
             )}
           </button>
