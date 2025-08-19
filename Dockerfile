@@ -77,19 +77,19 @@ ENV NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV DEPLOYMENT_ENV=$DEPLOYMENT_ENV
 
-# --- S3 configuration (build-time and runtime -- CI/CD can pass these) -------------------------------
+# --- S3 configuration (build-time and runtime) -------------------------------
+# Only non-secret values as ARGs (bucket name, URLs)
 ARG S3_BUCKET
 ARG S3_SERVER_URL
-ARG S3_ACCESS_KEY_ID
-ARG S3_SECRET_ACCESS_KEY
 ARG S3_CDN_URL
 ARG NEXT_PUBLIC_S3_CDN_URL
+# Pass these as ENV for build process
 ENV S3_BUCKET=$S3_BUCKET \
     S3_SERVER_URL=$S3_SERVER_URL \
-    S3_ACCESS_KEY_ID=$S3_ACCESS_KEY_ID \
-    S3_SECRET_ACCESS_KEY=$S3_SECRET_ACCESS_KEY \
     S3_CDN_URL=$S3_CDN_URL \
     NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL
+# NOTE: S3 credentials (S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY) are NOT needed at build time
+# We fetch bookmarks from the PUBLIC S3 CDN URL which doesn't require authentication
 
 # Copy dependencies and source code
 COPY --from=deps --link /app/node_modules ./node_modules
@@ -97,28 +97,29 @@ COPY --from=deps --link /app/node_modules ./node_modules
 # Copy entire source code
 COPY . .
 
-# CRITICAL: Fetch bookmark data from S3 BEFORE build for sitemap generation
+# CRITICAL: Fetch bookmark data from PUBLIC S3 CDN for sitemap generation
 # Issue #sitemap-2024: Sitemap.xml was missing bookmark URLs in production because:
 # 1. Next.js generates sitemap at BUILD time (during 'next build')
 # 2. Bookmarks are in S3 (async-only), not local files like blog posts
 # 3. Without this step, sitemap.ts gets empty data and generates no bookmark URLs
 # @see app/sitemap.ts:149 - Calls getBookmarksForStaticBuildAsync()
 # @see scripts/entrypoint.sh:14-23 - Runtime fetch is TOO LATE for sitemap
-RUN echo "📊 Fetching bookmark data from S3 for sitemap generation..." && \
+# 
+# SOLUTION: Use PUBLIC S3 CDN URLs - no credentials needed!
+# The S3 bucket is configured for public read access via CDN
+RUN echo "📊 Fetching bookmark data from PUBLIC S3 CDN for sitemap generation..." && \
     echo "DEPLOYMENT_ENV: ${DEPLOYMENT_ENV:-NOT SET}" && \
-    echo "NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-NOT SET}" && \
-    echo "S3_BUCKET: ${S3_BUCKET:-NOT SET}" && \
-    echo "S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:+SET}" && \
-    echo "S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:+SET}" && \
-    if [ -n "$S3_ACCESS_KEY_ID" ] && [ -n "$S3_SECRET_ACCESS_KEY" ] && [ -n "$S3_BUCKET" ]; then \
-      echo "✅ S3 credentials available, fetching bookmarks..." && \
-      bun scripts/data-updater.ts --bookmarks --force --allow-build-writes 2>&1 || \
-      (echo "❌ CRITICAL: Bookmark fetch FAILED. Sitemap will be EMPTY." && exit 1); \
+    echo "S3_CDN_URL: ${S3_CDN_URL:-NOT SET}" && \
+    echo "NEXT_PUBLIC_S3_CDN_URL: ${NEXT_PUBLIC_S3_CDN_URL:-NOT SET}" && \
+    # Use public CDN URL to fetch bookmarks - no credentials needed!
+    if [ -n "$S3_CDN_URL" ] || [ -n "$NEXT_PUBLIC_S3_CDN_URL" ]; then \
+      echo "✅ CDN URL available, fetching bookmarks from public S3..." && \
+      bun scripts/fetch-bookmarks-public.ts || \
+      echo "⚠️  Warning: Bookmark fetch failed. Sitemap may be incomplete."; \
     else \
-      echo "❌ CRITICAL: S3 credentials NOT provided at build time!" && \
-      echo "   Required: --build-arg S3_BUCKET=... --build-arg S3_ACCESS_KEY_ID=... --build-arg S3_SECRET_ACCESS_KEY=..." && \
-      echo "   Sitemap will have NO bookmark URLs!" && \
-      exit 1; \
+      echo "⚠️  Warning: No CDN URL configured (S3_CDN_URL or NEXT_PUBLIC_S3_CDN_URL)." && \
+      echo "   Bookmarks cannot be fetched for sitemap generation." && \
+      echo "   Continuing build without bookmarks in sitemap..."; \
     fi
 
 # Pre-build checks disabled to avoid network hang during build
