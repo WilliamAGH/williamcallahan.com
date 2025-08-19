@@ -1,7 +1,7 @@
 import type { Project } from "@/types/project";
 
 // Remember to update this date whenever the projects data or the Projects page design changes
-export const updatedAt = "2025-04-30";
+export const updatedAt = "2025-08-19";
 
 export const projects: Project[] = [
   {
@@ -12,7 +12,23 @@ export const projects: Project[] = [
     shortSummary: "Data-driven research platform for the VC ecosystem",
     url: "https://aventure.vc",
     imageKey: "images/other/projects/aventurevc-homepage.png",
-    tags: ["Venture Capital", "Data Platform", "Startups", "Funding Trends", "Research", "Web App", "SaaS"],
+    tags: ["Analytics", "Data Platform", "Research Tool", "Business Intelligence", "SaaS", "Web Application", "Real-time Data", "Search"],
+    techStack: [
+      "Next.js",
+      "TypeScript",
+      "JavaScript",
+      "Tailwind CSS",
+      "Chakra UI",
+      "Zod",
+      "PostgreSQL",
+      "MySQL",
+      "Node.js",
+      "Express Router",
+      "Docker",
+      "Railway",
+      "Google Cloud",
+      "Oracle Cloud",
+    ],
   },
   {
     id: "williamcallahan.com",
@@ -22,7 +38,8 @@ export const projects: Project[] = [
     shortSummary: "Interactive personal site with beautiful terminal/code components & other dynamic content",
     url: "https://williamcallahan.com",
     imageKey: "images/other/projects/williamcallahan-com-project.png",
-    tags: ["Next.js", "TypeScript", "Tailwind CSS", "React", "MDX", "Server Components"],
+    tags: ["Portfolio", "Open Source", "MDX Blog", "macOS Components", "Terminal Emulation", "Code Syntax Highlighting"],
+    techStack: ["Next.js", "TypeScript", "Tailwind CSS", "Zod","Bun", "Docker", "Fly.io"],
   },
   {
     id: "Filey - Flag Deprecated Files Extension",
@@ -38,11 +55,15 @@ export const projects: Project[] = [
       "Cursor",
       "Windsurf",
       "TypeScript",
-      "Files",
+      "Developer Tools",
       "Extension",
-      "Flag Deprecation",
       "IDE",
+      "Productivity",
+      "Open Source",
+      "Code Quality",
+      "File Management",
     ],
+    techStack: ["TypeScript", "VS Code API", "Node.js"],
   },
   {
     id: "SearchAI",
@@ -53,6 +74,7 @@ export const projects: Project[] = [
     url: "https://search-ai.io",
     imageKey: "images/other/projects/searchAI.png",
     tags: ["AI", "Web Search", "Chat Assistant", "OpenAI", "GPT", "RAG", "Contextual Search", "Web App", "Groq"],
+    techStack: ["Next.js", "TypeScript", "JavaScript", "Convex Database", "Python", "Vercel AI SDK"],
   },
   {
     id: "Book Finder (findmybook.net)",
@@ -75,6 +97,7 @@ export const projects: Project[] = [
       "Web App",
       "Book Recommendation",
     ],
+    techStack: ["Java", "Spring Boot", "Spring AI", "OpenAI", "Thymeleaf", "HTMX", "PostgreSQL", "Docker"],
   },
   {
     id: "AI Company Research Tool",
@@ -85,5 +108,6 @@ export const projects: Project[] = [
     url: "https://company-lookup.iocloudhost.net/",
     imageKey: "images/other/projects/company-research-experimental-ai-tool.png",
     tags: ["LLM", "AI", "JSON", "Company Research", "Web App", "Experimental"],
+    techStack: ["Svelte", "TypeScript", "Tailwind CSS", "OpenAI", "Node.js","Groq", "Docker"],
   },
 ];
