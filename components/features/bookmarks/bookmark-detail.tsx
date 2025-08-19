@@ -43,6 +43,17 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
     }
   }, [bookmark.url]);
 
+  // Sanitize URL to prevent XSS attacks (only allow http/https protocols)
+  const safeUrl = useMemo(() => {
+    try {
+      const normalized = bookmark.url.startsWith("http") ? bookmark.url : `https://${bookmark.url}`;
+      const u = new URL(normalized);
+      return u.protocol === "http:" || u.protocol === "https:" ? u.toString() : null;
+    } catch {
+      return null;
+    }
+  }, [bookmark.url]);
+
   // Calculate reading time display
   const readingTimeDisplay = useMemo(() => {
     if (!bookmark.readingTime) return null;
@@ -86,7 +97,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
             <div className="mb-3 sm:mb-4">
               <Link 
                 href="/bookmarks" 
-                className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1.5 transition-colors inline-flex"
+                className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 inline-flex items-center gap-1.5 transition-colors"
               >
                 <Bookmark className="w-3.5 h-3.5" />
                 <span>William&apos;s Bookmark Library</span>
@@ -98,9 +109,9 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
               {/* Title - Much larger for proper hierarchy */}
               <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 sm:mb-5 leading-tight">
                 <a 
-                  href={bookmark.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={safeUrl ?? "/bookmarks"}
+                  target={safeUrl ? "_blank" : undefined}
+                  rel={safeUrl ? "noopener noreferrer" : undefined}
                   className="text-gray-900 dark:text-gray-100 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
                 >
                   {bookmark.title}
@@ -129,9 +140,9 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
               <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
                 {/* Domain with link */}
                 <a
-                  href={bookmark.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={safeUrl ?? "/bookmarks"}
+                  target={safeUrl ? "_blank" : undefined}
+                  rel={safeUrl ? "noopener noreferrer" : undefined}
                   className="inline-flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-gray-100 transition-colors group"
                 >
                   <Globe className="w-3.5 h-3.5" />
@@ -201,9 +212,9 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                           />
                           {/* Hover overlay */}
                           <a
-                            href={bookmark.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            href={safeUrl ?? "/bookmarks"}
+                            target={safeUrl ? "_blank" : undefined}
+                            rel={safeUrl ? "noopener noreferrer" : undefined}
                             className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center"
                             aria-label={`View ${bookmark.title} on ${domain}`}
                           >
@@ -337,9 +348,9 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                   className="space-y-2 sm:space-y-3"
                 >
                   <a
-                    href={bookmark.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={safeUrl ?? "/bookmarks"}
+                    target={safeUrl ? "_blank" : undefined}
+                    rel={safeUrl ? "noopener noreferrer" : undefined}
                     className="flex items-center justify-center gap-2 w-full px-5 py-3 sm:py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors group"
                   >
                     <span>Visit Site</span>
