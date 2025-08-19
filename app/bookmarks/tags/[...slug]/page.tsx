@@ -52,11 +52,14 @@ export async function generateStaticParams() {
     });
   });
 
-  const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
+  // Import constants for pagination calculation
+  const { BOOKMARKS_PER_PAGE } = await import("@/lib/constants");
   const params: { slug: string[] }[] = [];
 
   for (const tagSlug in tagCounts) {
-    const { totalPages } = await getBookmarksByTag(tagSlug, 1);
+    // Calculate totalPages directly from tagCounts to avoid unnecessary API calls
+    const count = tagCounts[tagSlug] || 0;
+    const totalPages = Math.ceil(count / BOOKMARKS_PER_PAGE);
     params.push({ slug: [tagSlug] });
     for (let i = 2; i <= totalPages; i++) {
       params.push({ slug: [tagSlug, "page", i.toString()] });
