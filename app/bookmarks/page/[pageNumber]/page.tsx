@@ -30,6 +30,7 @@ import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { getBookmarks, getBookmarksPage, getBookmarksIndex } from "@/lib/bookmarks/service.server";
+import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import type { PaginatedBookmarkContext } from "@/types";
 import { PageNumberSchema } from "@/types/lib";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
@@ -162,7 +163,12 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
   const pageBookmarks = await getBookmarksPage(pageNum);
 
   // Fetch all bookmarks without image data for slug generation
-  const allBookmarks = (await getBookmarks({ includeImageData: false })) as UnifiedBookmark[];
+  const allBookmarks = (await getBookmarks({
+    ...DEFAULT_BOOKMARK_OPTIONS,
+    includeImageData: false,
+    skipExternalFetch: false,
+    force: false,
+  })) as UnifiedBookmark[];
 
   if (pageBookmarks.length === 0 && pageNum > 1) {
     notFound();
