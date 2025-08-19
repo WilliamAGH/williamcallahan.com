@@ -14,6 +14,7 @@ import {
 import { refreshBookmarksData } from "./bookmarks";
 import type { UnifiedBookmark } from "@/types";
 import type { BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
+import { envLogger } from "@/lib/utils/env-logger";
 
 // Initialize the refresh callback
 setRefreshBookmarksCallback((force?: boolean) => refreshBookmarksData(force));
@@ -24,14 +25,18 @@ setRefreshBookmarksCallback((force?: boolean) => refreshBookmarksData(force));
 export async function getBookmarks(
   options: BookmarkLoadOptions = {},
 ): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
-  console.log(`[BookmarksService] getBookmarks called with options:`, {
-    skipExternalFetch: options.skipExternalFetch,
-    includeImageData: options.includeImageData,
-    force: options.force,
-  });
+  envLogger.service(
+    "BookmarksService",
+    "getBookmarks",
+    {
+      skipExternalFetch: options.skipExternalFetch,
+      includeImageData: options.includeImageData,
+      force: options.force,
+    }
+  );
   initializeBookmarksDataAccess();
   const result = await getBookmarksInternal(options);
-  console.log(`[BookmarksService] getBookmarks returning ${result.length} bookmarks`);
+  envLogger.service("BookmarksService", "getBookmarks", undefined, result.length);
   return result;
 }
 
