@@ -17,6 +17,7 @@ import * as githubHelpers from "./server-cache/github";
 import * as logoHelpers from "./server-cache/logo";
 import * as opengraphHelpers from "./server-cache/opengraph";
 import * as searchHelpers from "./server-cache/search";
+import * as aggregatedContentHelpers from "./server-cache/aggregated-content";
 
 assertServerOnly();
 
@@ -37,6 +38,8 @@ export class ServerCache implements ICache {
 
     // Run cleanup every 5 minutes
     this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
+    // Allow process to exit naturally in non-server contexts
+    this.cleanupInterval.unref?.();
   }
 
   private proactiveEviction(percentage: number): void {
@@ -322,12 +325,62 @@ export class ServerCache implements ICache {
   }
 }
 
+/**
+ * Dynamically attaches helper methods to a class prototype at runtime.
+ *
+ * @justification TypeScript's type system has documented limitations with dynamic prototype manipulation.
+ * According to Microsoft's DynamicProto-JS (https://github.com/microsoft/DynamicProto-JS), dynamic
+ * prototype assignment is necessary to:
+ * 1. Enable better code minification by avoiding instance property exposure
+ * 2. Support runtime composition patterns that TypeScript cannot statically analyze
+ * 3. Implement mixin patterns where methods are attached post-class-definition
+ *
+ * @citation "TypeScript Issue #15163: JavaScript Class Prototype Assignment not Recognized" - The TypeScript
+ * compiler has special handling for prototype assignments but cannot fully type-check dynamic property
+ * assignment at compile time.
+ *
+ * @citation "TypeScript Handbook - Declaration Merging" - While TypeScript supports declaration merging
+ * for static type definitions, runtime prototype manipulation requires bypassing the type system.
+ *
+ * @rationale The generic constraint approach provides type safety:
+ * 1. Uses 'unknown' instead of 'any' for better type safety
+ * 2. Only attaches functions to prevent prototype pollution (security best practice)
+ * 3. Uses Object.defineProperty with non-enumerable for proper encapsulation
+ * 4. Type safety is enforced through types/server-cache.d.ts using declaration merging
+ *
+ * @security Prototype pollution prevention:
+ * - Type check ensures only functions are attached (no constants/objects)
+ * - Non-enumerable properties prevent unexpected iteration behavior
+ * - Follows MDN and OWASP security best practices for prototype extension
+ * - Prevents accidental exposure of internal state through prototype chain
+ */
+function attachHelpers<T extends Record<string, unknown>>(prototype: object, helpers: T, helperName: string) {
+  for (const [key, value] of Object.entries(helpers)) {
+    // Only attach functions to avoid polluting the prototype with constants/objects
+    if (typeof value !== "function") continue;
+    if (key in prototype) {
+      console.warn(
+        `[ServerCache] Overwriting existing method '${key}' on prototype while attaching '${helperName}' helpers.`,
+      );
+    }
+    // Define non-enumerable to keep prototype surface tidy
+    Object.defineProperty(prototype, key, {
+      // Narrow to callable without using 'any'
+      value: value as (...args: unknown[]) => unknown,
+      configurable: true,
+      writable: true,
+      enumerable: false,
+    });
+  }
+}
+
 // Attach domain-specific methods to the ServerCache prototype
-Object.assign(ServerCache.prototype, bookmarkHelpers);
-Object.assign(ServerCache.prototype, githubHelpers);
-Object.assign(ServerCache.prototype, logoHelpers);
-Object.assign(ServerCache.prototype, opengraphHelpers);
-Object.assign(ServerCache.prototype, searchHelpers);
+attachHelpers(ServerCache.prototype, bookmarkHelpers, "bookmark");
+attachHelpers(ServerCache.prototype, githubHelpers, "github");
+attachHelpers(ServerCache.prototype, logoHelpers, "logo");
+attachHelpers(ServerCache.prototype, opengraphHelpers, "opengraph");
+attachHelpers(ServerCache.prototype, searchHelpers, "search");
+attachHelpers(ServerCache.prototype, aggregatedContentHelpers, "aggregatedContent");
 
 // Export a singleton instance
 export const ServerCacheInstance = new ServerCache();

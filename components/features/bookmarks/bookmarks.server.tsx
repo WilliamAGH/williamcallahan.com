@@ -2,7 +2,12 @@
  * Bookmarks Server Component
  * @module components/features/bookmarks/bookmarks.server
  * @description
- * Server component that fetches bookmarks data and passes it to the client component.
+ * Server component that fetches and processes bookmarks data for client consumption.
+ *
+ * This component handles the conversion between UnifiedBookmark and SerializableBookmark formats,
+ * using standardized utility functions from '@/lib/bookmarks/utils' to ensure consistency.
+ * When includeImageData is false, it uses stripImageData() to create LightweightBookmark structures
+ * that preserve essential rendering data like screenshotAssetId while excluding heavy image assets.
  */
 import "server-only"; // Ensure this component remains server-only
 
@@ -11,13 +16,14 @@ const getBookmarks = async () => (await import("@/lib/bookmarks/service.server")
 const getBookmarksPage = async () => (await import("@/lib/bookmarks/service.server")).getBookmarksPage;
 const getBookmarksIndex = async () => (await import("@/lib/bookmarks/service.server")).getBookmarksIndex;
 const normalizeBookmarkTag = async () => (await import("@/lib/bookmarks/utils")).normalizeBookmarkTag;
+const stripImageData = async () => (await import("@/lib/bookmarks/utils")).stripImageData;
 import { convertSerializableBookmarksToUnified } from "@/lib/bookmarks/utils";
 
 import type { UnifiedBookmark } from "@/types";
 import { BookmarksClientWithWindow } from "./bookmarks-client-with-window";
 
 import type { JSX } from "react";
-import { generateUniqueSlug } from "@/lib/utils/domain-utils";
+import { getBulkBookmarkSlugs } from "@/lib/bookmarks/slug-helpers";
 
 import type { BookmarksServerExtendedProps, SerializableBookmark } from "@/types";
 
@@ -30,6 +36,11 @@ import type { BookmarksServerExtendedProps, SerializableBookmark } from "@/types
  *
  * @returns The rendered {@link BookmarksClientWithWindow} component with bookmark data and related props.
  *
+ * @remark Uses standardized utility functions from '@/lib/bookmarks/utils' for data conversion
+ * to ensure consistency with LightweightBookmark type definitions and preserve essential fields
+ * like content.screenshotAssetId needed for fallback rendering.
+ *
+ * @returns The rendered {@link BookmarksClientWithWindow} component with processed bookmark data.
  * @throws {Error} If no bookmarks are available in production mode.
  */
 export async function BookmarksServer({
@@ -53,18 +64,16 @@ export async function BookmarksServer({
   let totalCount = 0;
   const internalHrefs = new Map<string, string>();
 
-  // Helper function to generate slugs for a list of bookmarks
-  const generateHrefs = (bms: UnifiedBookmark[], allBms?: UnifiedBookmark[]) => {
+  // Helper function to generate slugs for a list of bookmarks using pre-computed mappings
+  const generateHrefs = async (bms: UnifiedBookmark[], allBms?: UnifiedBookmark[]) => {
     const allBookmarks = allBms || bms;
+    const slugMap = await getBulkBookmarkSlugs(allBookmarks);
+
     bms.forEach((bookmark) => {
-      internalHrefs.set(
-        bookmark.id,
-        `/bookmarks/${generateUniqueSlug(
-          bookmark.url,
-          allBookmarks.map((b) => ({ id: b.id, url: b.url })),
-          bookmark.id,
-        )}`,
-      );
+      const slug = slugMap.get(bookmark.id);
+      if (slug) {
+        internalHrefs.set(bookmark.id, `/bookmarks/${slug}`);
+      }
     });
   };
 
@@ -73,16 +82,16 @@ export async function BookmarksServer({
   if (propsBookmarks && propsBookmarks.length > 0 && allBookmarksForSlugs) {
     // Case: We have both bookmarks and allBookmarksForSlugs (paginated scenario)
     bookmarks = convertSerializableBookmarksToUnified(propsBookmarks);
-    generateHrefs(bookmarks, allBookmarksForSlugs);
+    await generateHrefs(bookmarks, allBookmarksForSlugs);
     totalPages = propsTotalPages || 1;
     totalCount = propsTotalCount || bookmarks.length;
   } else if (propsBookmarks && propsBookmarks.length > 0) {
     // Case: We have bookmarks but need to fetch allBookmarksForSlugs
     bookmarks = convertSerializableBookmarksToUnified(propsBookmarks);
-    const allBookmarksForSlugs = (await (await getBookmarks())({ includeImageData: false })) as UnifiedBookmark[];
+    const allBookmarksForSlugsData = (await (await getBookmarks())({ includeImageData: false })) as UnifiedBookmark[];
     totalPages = propsTotalPages || 1;
     totalCount = propsTotalCount || propsBookmarks.length;
-    generateHrefs(bookmarks, allBookmarksForSlugs);
+    await generateHrefs(bookmarks, allBookmarksForSlugsData);
   } else if (initialPage && initialPage > 1) {
     const getBookmarksPageFunc = await getBookmarksPage();
     const getBookmarksIndexFunc = await getBookmarksIndex();
@@ -92,7 +101,7 @@ export async function BookmarksServer({
     totalCount = indexData?.count ?? 0;
     if (bookmarks.length > 0) {
       const allBookmarksForSlugs = (await (await getBookmarks())({ includeImageData: false })) as UnifiedBookmark[];
-      generateHrefs(bookmarks, allBookmarksForSlugs);
+      await generateHrefs(bookmarks, allBookmarksForSlugs);
     }
   } else {
     // Default to fetching all bookmarks for the main page or if no specific page is set
@@ -102,7 +111,7 @@ export async function BookmarksServer({
       const index = await (await getBookmarksIndex())();
       totalPages = index?.totalPages ?? 1;
       totalCount = index?.count ?? 0;
-      generateHrefs(bookmarks, allBookmarks);
+      await generateHrefs(bookmarks, allBookmarks);
     }
   }
 
@@ -113,20 +122,53 @@ export async function BookmarksServer({
   }
 
   // Transform to serializable format for client component
+  // Using standardized utility functions to ensure consistency
   const normalizeFunc = await normalizeBookmarkTag();
-  const serializableBookmarks: SerializableBookmark[] = bookmarks.map((bookmark) => ({
-    id: bookmark.id,
-    url: bookmark.url,
-    title: bookmark.title,
-    description: bookmark.description,
-    tags: Array.isArray(bookmark.tags) ? bookmark.tags.map(normalizeFunc) : [],
-    dateBookmarked: bookmark.dateBookmarked,
-    dateCreated: bookmark.dateCreated,
-    dateUpdated: bookmark.dateUpdated,
-    // Only include heavy image data if explicitly requested
-    content: includeImageData ? bookmark.content : undefined,
-    logoData:
-      includeImageData && bookmark.logoData
+  const stripImageDataFunc = await stripImageData();
+
+  const serializableBookmarks: SerializableBookmark[] = bookmarks.map((bookmark) => {
+    // When includeImageData is false, use the standardized stripImageData utility
+    if (!includeImageData) {
+      const lightweight = stripImageDataFunc(bookmark);
+      return {
+        id: lightweight.id,
+        url: lightweight.url,
+        title: lightweight.title,
+        description: lightweight.description,
+        slug: lightweight.slug, // REQUIRED field
+        tags: Array.isArray(lightweight.tags) ? lightweight.tags.map(normalizeFunc) : [],
+        dateBookmarked: lightweight.dateBookmarked,
+        dateCreated: lightweight.dateCreated,
+        dateUpdated: lightweight.dateUpdated,
+        content: lightweight.content,
+        logoData: null,
+        isPrivate: lightweight.isPrivate || false,
+        isFavorite: lightweight.isFavorite || false,
+        readingTime: lightweight.readingTime,
+        wordCount: lightweight.wordCount,
+        ogTitle: undefined,
+        ogDescription: undefined,
+        ogImage: undefined,
+        domain: lightweight.domain,
+        ogImageExternal: undefined,
+      };
+    }
+
+    // When includeImageData is true, use full data conversion
+    return {
+      id: bookmark.id,
+      url: bookmark.url,
+      title: bookmark.title,
+      description: bookmark.description,
+      slug: bookmark.slug, // REQUIRED field
+      tags: Array.isArray(bookmark.tags) ? bookmark.tags.map(normalizeFunc) : [],
+      dateBookmarked: bookmark.dateBookmarked,
+      dateCreated: bookmark.dateCreated,
+      dateUpdated: bookmark.dateUpdated,
+      content: bookmark.content,
+      ogImage: bookmark.ogImage,
+      ogImageExternal: bookmark.ogImageExternal,
+      logoData: bookmark.logoData
         ? {
             url: bookmark.logoData.url,
             alt: bookmark.logoData.alt || "Logo",
@@ -134,15 +176,15 @@ export async function BookmarksServer({
             height: bookmark.logoData.height,
           }
         : null,
-    isPrivate: bookmark.isPrivate || false,
-    isFavorite: bookmark.isFavorite || false,
-    readingTime: bookmark.readingTime,
-    wordCount: bookmark.wordCount,
-    ogTitle: includeImageData ? bookmark.ogTitle : undefined,
-    ogDescription: includeImageData ? bookmark.ogDescription : undefined,
-    ogImage: includeImageData ? bookmark.ogImage : undefined,
-    domain: bookmark.domain,
-  }));
+      isPrivate: bookmark.isPrivate || false,
+      isFavorite: bookmark.isFavorite || false,
+      readingTime: bookmark.readingTime,
+      wordCount: bookmark.wordCount,
+      ogTitle: bookmark.ogTitle ?? undefined,
+      ogDescription: bookmark.ogDescription ?? undefined,
+      domain: bookmark.domain,
+    };
+  });
 
   // Pass the processed data to the client component with explicit typing
   const includesAll = serializableBookmarks.length === totalCount;

@@ -22,7 +22,7 @@ import { loadIndexFromJSON } from "./search/index-builder";
 import type { Project } from "../types/project";
 
 // Add near top of file (after imports) a dev log helper
-const IS_DEV = process.env.NODE_ENV !== "production";
+const IS_DEV = process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test";
 const devLog = (...args: unknown[]) => {
   if (IS_DEV) console.log("[SearchDev]", ...args);
 };
@@ -610,8 +610,11 @@ async function getBookmarksIndex(): Promise<{
     content?: { author?: string | null; publisher?: string | null };
   }>;
 
-  // Generate slugs
-  const { generateUniqueSlug } = await import("@/lib/utils/domain-utils");
+  // Load slug mapping (preferred), but allow embedded slug fallback
+  const { loadSlugMapping, getSlugForBookmark } = await import("@/lib/bookmarks/slug-manager");
+  const { tryGetEmbeddedSlug } = await import("@/lib/bookmarks/slug-helpers");
+  const slugMapping = await loadSlugMapping();
+  // If no mapping exists, embedded slugs must be present on input bookmarks
 
   // Try to load index from S3 if available
   let bookmarksIndex: MiniSearch<BookmarkIndexItem>;
@@ -637,16 +640,31 @@ async function getBookmarksIndex(): Promise<{
   }
 
   // Transform bookmarks for result mapping
-  const bookmarksForIndex: Array<BookmarkIndexItem & { slug: string }> = bookmarksArr.map((b) => ({
-    id: b.id,
-    title: b.title || b.url,
-    description: b.description || "",
-    tags: Array.isArray(b.tags) ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
-    url: b.url,
-    author: b.content?.author || "",
-    publisher: b.content?.publisher || "",
-    slug: generateUniqueSlug(b.url, bookmarksArr, b.id),
-  }));
+  const bookmarksForIndex: Array<BookmarkIndexItem & { slug: string }> = [];
+
+  for (const b of bookmarksArr) {
+    // Prefer embedded slug; fallback to mapping
+    const embedded = tryGetEmbeddedSlug(b);
+    const slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
+
+    if (!slug) {
+      // Log warning but continue processing other bookmarks
+      console.warn(`[Search] Warning: No slug found for bookmark ${b.id}. Title: ${b.title}, URL: ${b.url}`);
+      // Skip this bookmark instead of throwing
+      continue;
+    }
+
+    bookmarksForIndex.push({
+      id: b.id,
+      title: b.title || b.url,
+      description: b.description || "",
+      tags: Array.isArray(b.tags) ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
+      url: b.url,
+      author: b.content?.author || "",
+      publisher: b.content?.publisher || "",
+      slug,
+    });
+  }
 
   // Cache the index and bookmarks
   const result = { index: bookmarksIndex, bookmarks: bookmarksForIndex };
@@ -665,12 +683,13 @@ function buildBookmarksIndex(
     description: string;
     tags?: Array<string | { name?: string }>;
     content?: { author?: string | null; publisher?: string | null };
+    slug?: string; // May have embedded slug
   }>,
 ): MiniSearch<BookmarkIndexItem> {
   // Create MiniSearch index
   const bookmarksIndex = new MiniSearch<BookmarkIndexItem>({
-    fields: ["title", "description", "tags", "author", "publisher", "url"],
-    storeFields: ["id", "title", "description", "url"],
+    fields: ["title", "description", "tags", "author", "publisher", "url", "slug"],
+    storeFields: ["id", "title", "description", "url", "slug"], // Include slug in stored fields
     idField: "id",
     searchOptions: {
       boost: { title: 2, description: 1.5 },
@@ -679,16 +698,24 @@ function buildBookmarksIndex(
     },
   });
 
-  // Transform bookmarks for indexing
-  const bookmarksForIndex: BookmarkIndexItem[] = bookmarks.map((b) => ({
-    id: b.id,
-    title: b.title || b.url,
-    description: b.description || "",
-    tags: Array.isArray(b.tags) ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
-    url: b.url,
-    author: b.content?.author || "",
-    publisher: b.content?.publisher || "",
-  }));
+  // Transform bookmarks for indexing - SKIP if no slug
+  const bookmarksForIndex: BookmarkIndexItem[] = [];
+  for (const b of bookmarks) {
+    // For buildBookmarksIndex, we need to generate a fallback slug if not present
+    // This happens when called directly without slug mapping
+    const slug = b.slug || `${b.url.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${b.id.slice(0, 8)}`;
+    
+    bookmarksForIndex.push({
+      id: b.id,
+      title: b.title || b.url,
+      description: b.description || "",
+      tags: Array.isArray(b.tags) ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
+      url: b.url,
+      author: b.content?.author || "",
+      publisher: b.content?.publisher || "",
+      slug, // REQUIRED field
+    });
+  }
 
   // Add to index
   bookmarksIndex.addAll(bookmarksForIndex);
@@ -740,19 +767,19 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
 
     // Map search results back to SearchResult format
     const resultIds = new Set(searchResults.map((r) => String(r.id)));
+    const scoreById = new Map(searchResults.map((r) => [String(r.id), r.score ?? 0] as const));
     const results: SearchResult[] = bookmarks
       .filter((b) => resultIds.has(b.id))
-      .map((b) => {
-        const mapped: SearchResult = {
+      .map(
+        (b): SearchResult => ({
           id: b.id,
-          type: "bookmark",
+          type: "bookmark" as const,
           title: b.title,
           description: b.description,
           url: `/bookmarks/${b.slug}`,
-          score: searchResults.find((r) => r.id === b.id)?.score ?? 0,
-        };
-        return mapped;
-      })
+          score: scoreById.get(b.id) ?? 0,
+        }),
+      )
       .sort((a, b) => b.score - a.score);
 
     devLog("[searchBookmarks] results", { count: results.length });

@@ -1,33 +1,44 @@
-/**
- * Health Check and Memory Monitoring Types
- */
+import { z } from "zod";
+
+export interface DeepCheckResult {
+  name: string;
+  status: "ok" | "error";
+  details: string;
+  duration: number;
+}
+
+export interface DeploymentReadinessCheckResult {
+  name: string;
+  category: string;
+  passed: boolean;
+  message: string;
+  severity: "critical" | "warning" | "info";
+  details?: string[];
+}
+
+// =============================================================================
+// Health endpoint types and schema
+// =============================================================================
+
+export type MemoryStatus = "healthy" | "warning" | "critical";
 
 export interface HealthCheckResult {
   status: "healthy" | "degraded" | "unhealthy";
   statusCode: number;
   message: string;
-  details: {
-    rss: number;
-    heapUsed: number;
-    heapTotal: number;
-    external: number;
-    arrayBuffers: number;
-    threshold?: number;
-    budget?: number;
-    memoryPressure?: boolean;
-    cacheStats?: {
-      imageCache: {
-        size: number;
-        bytes: number;
-      };
-      serverCache: {
-        keys: number;
-        hits: number;
-        misses: number;
-      };
-    };
-  };
+  // Details are intentionally broad to carry process metrics, thresholds, cache stats, etc.
+  details: Record<string, unknown>;
 }
+
+export type MiddlewareRequest = Record<string, unknown>;
+
+export interface MiddlewareResponse {
+  status: (code: number) => MiddlewareResponse;
+  json: (body: unknown) => void;
+  setHeader?: (name: string, value: string) => void;
+}
+
+export type MiddlewareNextFunction = () => void;
 
 export interface MemoryMetrics {
   timestamp: number;
@@ -39,133 +50,9 @@ export interface MemoryMetrics {
   imageCacheSize: number;
   imageCacheBytes: number;
   serverCacheKeys: number;
-  asyncOperations?: {
-    pending: number;
-    total: number;
-  };
-  /** Whether the system is currently under memory pressure */
-  memoryPressure?: boolean;
 }
 
-/**
- * Basic middleware types for health check endpoints
- * These avoid the need for Express dependency
- */
-export interface MiddlewareRequest {
-  [key: string]: unknown;
-}
-
-export interface MiddlewareResponse {
-  status(code: number): MiddlewareResponse;
-  json(data: unknown): void;
-  setHeader?(name: string, value: string): void;
-}
-
-export type MiddlewareNextFunction = () => void;
-
-/** Memory thresholds configuration for monitoring and load shedding */
-export interface MemoryThresholds {
-  /** Critical memory threshold - triggers 503 responses (in bytes) */
-  MEMORY_CRITICAL_THRESHOLD: number;
-  /** Warning memory threshold - adds warning headers (in bytes) */
-  MEMORY_WARNING_THRESHOLD: number;
-  /** Total RAM budget for image caching (in bytes) */
-  IMAGE_RAM_BUDGET_BYTES: number;
-  /** Threshold for streaming large images to S3 (in bytes) */
-  IMAGE_STREAM_THRESHOLD_BYTES: number;
-}
-
-/** Memory monitoring interface for runtime-specific implementations */
-export interface MemoryChecker {
-  isMemoryCritical(): Promise<boolean>;
-  isMemoryWarning(): Promise<boolean>;
-}
-
-export type MemoryStatus = "healthy" | "warning" | "critical";
-
-/** Event payload emitted by ImageMemoryManager when memory pressure starts or ends */
-export interface MemoryPressureEvent {
-  rss: number;
-  heap: number;
-  /** Percentage of total process memory used (0-100) if available */
-  memoryUsagePercent?: number;
-  /** Threshold in bytes that triggered the pressure event, if provided */
-  threshold?: number;
-  /** Source that triggered the event (e.g., "external", "internal") */
-  source?: string;
-  /** Optional size of the image cache when event fired */
-  cacheSize?: number;
-}
-
-import { z } from "zod";
-
-/**
- * Zod schema for system memory information from systeminformation library
- * Validates memory metrics including total, free, used, and swap memory
- */
-const SystemInfoMemSchema = z.object({
-  total: z.number(),
-  free: z.number(),
-  used: z.number(),
-  active: z.number(),
-  available: z.number(),
-  buffcache: z.number(),
-  swaptotal: z.number(),
-  swapused: z.number(),
-  swapfree: z.number(),
-});
-
-/**
- * Zod schema for system CPU information from systeminformation library
- * Validates CPU load metrics including average load, current load, and per-CPU statistics
- */
-const SystemInfoCpuSchema = z.object({
-  avgLoad: z.number(),
-  currentLoad: z.number(),
-  cpus: z.array(
-    z.object({
-      load: z.number(),
-      loadUser: z.number(),
-      loadNice: z.number(),
-      loadSystem: z.number(),
-      loadIrq: z.number(),
-      rawLoad: z.number(),
-      rawLoadUser: z.number(),
-      rawLoadNice: z.number(),
-      rawLoadSystem: z.number(),
-      rawLoadIrq: z.number(),
-    }),
-  ),
-});
-
-/**
- * Zod schema for network interface statistics from systeminformation library
- * Validates network metrics including interface name, operational state, and byte counters
- */
-const SystemInfoNetSchema = z.array(
-  z.object({
-    iface: z.string(),
-    operstate: z.string(),
-    rx_bytes: z.number(),
-    tx_bytes: z.number(),
-  }),
-);
-
-/**
- * Zod schema for consolidated system metrics
- * Combines memory, CPU, network, and timestamp information
- */
-export const SystemMetricsSchema = z.object({
-  mem: SystemInfoMemSchema,
-  cpu: SystemInfoCpuSchema,
-  net: SystemInfoNetSchema,
-  ts: z.number(),
-});
-
-/**
- * Zod schema for the complete health metrics API response
- * Validates the entire structure returned by the /api/health/metrics endpoint
- */
+// Broad, forward-compatible schema for health metrics API
 export const HealthMetricsResponseSchema = z.object({
   status: z.string(),
   timestamp: z.string(),
@@ -187,8 +74,6 @@ export const HealthMetricsResponseSchema = z.object({
       keys: z.number(),
       hits: z.number(),
       misses: z.number(),
-      ksize: z.number().optional(),
-      vsize: z.number().optional(),
       sizeBytes: z.number(),
       maxSizeBytes: z.number(),
       utilizationPercent: z.number(),
@@ -206,9 +91,9 @@ export const HealthMetricsResponseSchema = z.object({
     status: z.string(),
     message: z.string(),
   }),
-  system: SystemMetricsSchema.or(z.object({ error: z.string(), details: z.string() })),
-  allocator: z.record(z.unknown()).optional(),
+  // System and allocator details may vary by environment; keep them flexible
+  system: z.record(z.string(), z.unknown()),
+  allocator: z.record(z.string(), z.unknown()),
 });
 
-/** TypeScript type inferred from HealthMetricsResponseSchema for type-safe health metrics */
 export type HealthMetrics = z.infer<typeof HealthMetricsResponseSchema>;

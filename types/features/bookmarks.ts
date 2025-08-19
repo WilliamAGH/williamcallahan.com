@@ -17,6 +17,10 @@ import type { BaseComponentProps, BaseFilterableProps, BasePaginatedProps } from
 
 /**
  * Bookmark card client props - USED in bookmark-card.client.tsx
+ *
+ * This type combines UnifiedBookmark with additional UI props needed for the card component.
+ * When bookmarks are passed to this component, they should maintain all content fields
+ * including screenshotAssetId for proper fallback image rendering.
  */
 export type BookmarkCardClientProps = UnifiedBookmark & {
   /**
@@ -89,7 +93,7 @@ export type BookmarksPaginatedClientProps = BaseBookmarkListProps &
     baseUrl?: string;
     initialTag?: string;
     tag?: string;
-    internalHrefs?: Record<string, string>;
+    readonly internalHrefs?: Readonly<Record<string, string>>;
   };
 
 /**
@@ -107,6 +111,7 @@ export type BookmarksWithOptionsClientProps = BaseBookmarkListProps &
   BaseFilterableProps & {
     filterOptions?: FilterOptions;
     className?: string;
+    readonly internalHrefs?: Readonly<Record<string, string>>;
   };
 
 /**
@@ -121,7 +126,7 @@ export type BookmarksWithPaginationClientProps = BaseBookmarkListProps &
     initialTag?: string;
     tag?: string;
     className?: string;
-    internalHrefs?: Record<string, string>;
+    readonly internalHrefs?: Readonly<Record<string, string>>;
   };
 
 /**
@@ -158,7 +163,7 @@ export interface BookmarksClientWithWindowProps {
   itemsPerPage?: number;
   enableInfiniteScroll?: boolean;
   searchAllBookmarks?: boolean;
-  internalHrefs?: Record<string, string>;
+  readonly internalHrefs?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -197,7 +202,7 @@ export interface BookmarksServerExtendedProps {
   initialTag?: string;
   tag?: string;
   includeImageData?: boolean;
-  internalHrefs?: Record<string, string>;
+  readonly internalHrefs?: Readonly<Record<string, string>>;
 }
 
 // =============================================================================
@@ -213,6 +218,8 @@ export interface SerializableBookmark {
   url: string;
   title: string;
   description: string;
+  // REQUIRED: Embed slug for idempotent client navigation
+  slug: string;
   tags: string[] | BookmarkTag[];
   ogImage?: string;
   ogImageExternal?: string;
@@ -240,42 +247,11 @@ export interface SerializableBookmark {
 // =============================================================================
 
 /**
- * Pagination hook options - USED in use-bookmarks-pagination.ts
- */
-export interface UseBookmarksPaginationOptions {
-  limit?: number;
-  initialData?: UnifiedBookmark[];
-  initialPage?: number;
-  initialTotalPages?: number;
-  initialTotalCount?: number;
-  tag?: string;
-  internalHrefs?: Record<string, string>;
-}
-
-/**
  * Image selection options for bookmark helpers
  */
 export interface ImageSelectionOptions {
-  preferOpenGraph?: boolean;
   includeScreenshots?: boolean;
   returnUndefined?: boolean;
-}
-
-/**
- * Pagination hook return - USED in use-bookmarks-pagination.ts
- */
-export interface UseBookmarksPaginationReturn {
-  bookmarks: UnifiedBookmark[];
-  currentPage: number;
-  totalPages: number;
-  totalItems: number;
-  isLoading: boolean;
-  isLoadingMore: boolean;
-  hasMore: boolean;
-  error: Error | undefined;
-  loadMore: () => void;
-  goToPage: (page: number) => void;
-  mutate: () => void;
 }
 
 // All validated types are now derived from schemas in types/bookmark.ts

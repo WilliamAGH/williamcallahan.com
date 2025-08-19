@@ -11,8 +11,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { getBookmarksForStaticBuild } from "../lib/bookmarks/bookmarks.server";
-import { generateUniqueSlug } from "../lib/utils/domain-utils";
+import { getBookmarksForStaticBuildAsync } from "../lib/bookmarks/bookmarks.server";
+import { loadSlugMapping, getSlugForBookmark } from "../lib/bookmarks/slug-manager";
 import { kebabCase } from "../lib/utils/formatters";
 import { tagToSlug } from "../lib/utils/tag-utils";
 import matter from "gray-matter";
@@ -60,7 +60,7 @@ const getLatestDate = (...dates: (Date | undefined)[]): Date | undefined => {
 };
 
 // --- Main Sitemap Generation ---
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = siteMetadata.site.url;
   const postsDirectory = path.join(process.cwd(), "data/blog/posts");
 
@@ -135,6 +135,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }));
 
   // --- 2. Process Bookmarks and Bookmark Tags ---
+  // CRITICAL: Bookmarks require special handling vs blog posts:
+  // - Blog posts: Read from local filesystem (fs.readFileSync) - always available at build
+  // - Bookmarks: Stored in S3 (async AWS SDK) - requires credentials + pre-build fetch
+  // Issue #sitemap-2024: Without Dockerfile pre-fetch, this returns empty array
   const bookmarkEntries: MetadataRoute.Sitemap = [];
   const paginatedBookmarkEntries: MetadataRoute.Sitemap = [];
   let bookmarkTagEntries: MetadataRoute.Sitemap = [];
@@ -144,13 +148,26 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const bookmarkTagCounts: { [tagSlug: string]: number } = {};
 
   try {
-    // Use static build function to get bookmarks
+    // Use async static build function to get bookmarks with slugs
     console.log("[Sitemap] Getting bookmarks for static build...");
-    const bookmarks = getBookmarksForStaticBuild();
-    console.log(`[Sitemap] Successfully got ${bookmarks.length} bookmarks for sitemap generation.`);
+    const bookmarks = await getBookmarksForStaticBuildAsync();
+    console.log(`[Sitemap] Successfully got ${bookmarks.length} bookmarks with slugs for sitemap generation.`);
 
-    // Pre-compute slugs to avoid O(n²) complexity
-    const slugCache = new Map<string, string>();
+    // Load slug mapping - CRITICAL: This file is empty in git (skip-worktree locally)
+    // Must be populated by Dockerfile pre-build fetch or dynamic generation
+    console.log("[Sitemap] Loading slug mapping...");
+    let slugMapping = await loadSlugMapping();
+    if (!slugMapping || Object.keys(slugMapping.slugs).length === 0) {
+      console.warn(
+        "[Sitemap] WARNING: No valid slug mapping found – generating dynamically to ensure all bookmark routes are included.",
+      );
+      // Generate slug mapping dynamically from the bookmarks we already have
+      const { generateSlugMapping } = await import("../lib/bookmarks/slug-manager");
+      slugMapping = generateSlugMapping(bookmarks);
+      console.log(`[Sitemap] Dynamically generated slug mapping with ${slugMapping.count} entries`);
+    } else {
+      console.log(`[Sitemap] Loaded slug mapping with ${slugMapping.count} entries`);
+    }
 
     // Process each bookmark for individual pages
     for (const bookmark of bookmarks) {
@@ -161,20 +178,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
         latestBookmarkUpdateTime = getLatestDate(latestBookmarkUpdateTime, bookmarkLastModified);
       }
 
-      // Get or generate the unique slug for this bookmark
-      let slug = slugCache.get(bookmark.id);
+      // Prefer mapping for canonical slugs; fall back to embedded slug
+      const mappedSlug = slugMapping ? getSlugForBookmark(slugMapping, bookmark.id) : null;
+      const slug = mappedSlug || bookmark.slug;
       if (!slug) {
-        slug = generateUniqueSlug(bookmark.url, bookmarks, bookmark.id);
-        slugCache.set(bookmark.id, slug);
+        console.error(`[Sitemap] CRITICAL: No slug found for bookmark ${bookmark.id}, skipping individual URL`);
+      } else {
+        bookmarkEntries.push({
+          url: `${siteUrl}/bookmarks/${slug}`,
+          lastModified: bookmarkLastModified,
+          changeFrequency: "weekly",
+          priority: 0.65, // Same priority level as blog posts
+        });
       }
-
-      // Add bookmark entry
-      bookmarkEntries.push({
-        url: `${siteUrl}/bookmarks/${slug}`,
-        lastModified: bookmarkLastModified,
-        changeFrequency: "weekly",
-        priority: 0.65, // Same priority level as blog posts
-      });
 
       // Process tags for this bookmark
       const tags = Array.isArray(bookmark.tags)

@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "generated": "2024-01-01T00:00:00.000Z",
+  "count": 1,
+  "checksum": "sample-checksum",
+  "slugs": {
+    "test-1": {
+      "id": "test-1",
+      "slug": "example-com",
+      "url": "https://example.com",
+      "title": "Test Bookmark"
+    }
+  },
+  "reverseMap": {
+    "example-com": "test-1"
+  }
+}

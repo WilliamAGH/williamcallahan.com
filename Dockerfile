@@ -19,6 +19,11 @@ COPY package.json ./
 COPY bun.lockb* ./
 COPY .husky ./.husky
 
+# Copy the init-csp-hashes script and config directory needed by postinstall
+# This is required because postinstall runs during bun install
+COPY scripts/init-csp-hashes.ts ./scripts/init-csp-hashes.ts
+COPY config ./config
+
 # Install dependencies with Bun, allowing necessary lifecycle scripts
 RUN --mount=type=cache,target=/root/.bun/install bun install --frozen-lockfile
 
@@ -67,22 +72,24 @@ ENV SENTRY_LOG_LEVEL=debug
 # Accept and propagate public env vars for Next.js build
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
 ARG NEXT_PUBLIC_SITE_URL
+ARG DEPLOYMENT_ENV
 ENV NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+ENV DEPLOYMENT_ENV=$DEPLOYMENT_ENV
 
-# --- S3 configuration (build-time and runtime -- CI/CD can pass these) -------------------------------
+# --- S3 configuration (build-time and runtime) -------------------------------
+# Only non-secret values as ARGs (bucket name, URLs)
 ARG S3_BUCKET
 ARG S3_SERVER_URL
-ARG S3_ACCESS_KEY_ID
-ARG S3_SECRET_ACCESS_KEY
 ARG S3_CDN_URL
 ARG NEXT_PUBLIC_S3_CDN_URL
+# Pass these as ENV for build process
 ENV S3_BUCKET=$S3_BUCKET \
     S3_SERVER_URL=$S3_SERVER_URL \
-    S3_ACCESS_KEY_ID=$S3_ACCESS_KEY_ID \
-    S3_SECRET_ACCESS_KEY=$S3_SECRET_ACCESS_KEY \
     S3_CDN_URL=$S3_CDN_URL \
     NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL
+# NOTE: S3 credentials (S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY) are NOT needed at build time
+# We fetch bookmarks from the PUBLIC S3 CDN URL which doesn't require authentication
 
 # Copy dependencies and source code
 COPY --from=deps --link /app/node_modules ./node_modules
@@ -90,7 +97,30 @@ COPY --from=deps --link /app/node_modules ./node_modules
 # Copy entire source code
 COPY . .
 
-# Build-time S3 data update disabled; will run at runtime via scheduler
+# CRITICAL: Fetch bookmark data from PUBLIC S3 CDN for sitemap generation
+# Issue #sitemap-2024: Sitemap.xml was missing bookmark URLs in production because:
+# 1. Next.js generates sitemap at BUILD time (during 'next build')
+# 2. Bookmarks are in S3 (async-only), not local files like blog posts
+# 3. Without this step, sitemap.ts gets empty data and generates no bookmark URLs
+# @see app/sitemap.ts:149 - Calls getBookmarksForStaticBuildAsync()
+# @see scripts/entrypoint.sh:14-23 - Runtime fetch is TOO LATE for sitemap
+# 
+# SOLUTION: Use PUBLIC S3 CDN URLs - no credentials needed!
+# The S3 bucket is configured for public read access via CDN
+RUN echo "📊 Fetching bookmark data from PUBLIC S3 CDN for sitemap generation..." && \
+    echo "DEPLOYMENT_ENV: ${DEPLOYMENT_ENV:-NOT SET}" && \
+    echo "S3_CDN_URL: ${S3_CDN_URL:-NOT SET}" && \
+    echo "NEXT_PUBLIC_S3_CDN_URL: ${NEXT_PUBLIC_S3_CDN_URL:-NOT SET}" && \
+    # Use public CDN URL to fetch bookmarks - no credentials needed!
+    if [ -n "$S3_CDN_URL" ] || [ -n "$NEXT_PUBLIC_S3_CDN_URL" ]; then \
+      echo "✅ CDN URL available, fetching bookmarks from public S3..." && \
+      bun scripts/fetch-bookmarks-public.ts || \
+      echo "⚠️  Warning: Bookmark fetch failed. Sitemap may be incomplete."; \
+    else \
+      echo "⚠️  Warning: No CDN URL configured (S3_CDN_URL or NEXT_PUBLIC_S3_CDN_URL)." && \
+      echo "   Bookmarks cannot be fetched for sitemap generation." && \
+      echo "   Continuing build without bookmarks in sitemap..."; \
+    fi
 
 # Pre-build checks disabled to avoid network hang during build
 
@@ -109,7 +139,8 @@ WORKDIR /app
 # Install runtime dependencies including Node.js for Next.js standalone compatibility
 # Note: We need Node.js to run the Next.js standalone server even though Bun is available
 # Also installing vips for Sharp image processing, curl for healthchecks, and bash for scripts
-RUN apk add --no-cache nodejs npm vips curl bash su-exec
+# libc6-compat is required for Sharp/vips native bindings to work properly
+RUN apk add --no-cache nodejs vips curl bash libc6-compat
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -120,18 +151,22 @@ ENV CONTAINER=true
 # Re-declare the build args so we can forward them (ARG values are scoped per stage)
 ARG S3_BUCKET
 ARG S3_SERVER_URL
-ARG S3_ACCESS_KEY_ID
-ARG S3_SECRET_ACCESS_KEY
 ARG S3_CDN_URL
 ARG NEXT_PUBLIC_S3_CDN_URL
+ARG DEPLOYMENT_ENV
+ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
+ARG NEXT_PUBLIC_SITE_URL
 
 # Make sure they are present at runtime (can still be overridden with `docker run -e`)
+# NOTE: S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY should ONLY be injected at runtime
+# via docker run -e or orchestration secrets to avoid baking them into the image
 ENV S3_BUCKET=$S3_BUCKET \
     S3_SERVER_URL=$S3_SERVER_URL \
-    S3_ACCESS_KEY_ID=$S3_ACCESS_KEY_ID \
-    S3_SECRET_ACCESS_KEY=$S3_SECRET_ACCESS_KEY \
     S3_CDN_URL=$S3_CDN_URL \
-    NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL
+    NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL \
+    DEPLOYMENT_ENV=$DEPLOYMENT_ENV \
+    NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID \
+    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
 # Copy standalone output and required assets (run as root, so no chown needed)
 COPY --from=builder /app/.next/standalone ./
@@ -203,15 +238,11 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
   CMD curl --silent --show-error --fail http://127.0.0.1:3000/api/health || exit 1
 
-# Use entrypoint to seed logos, then start server
-# Note: We use Node.js to run the standalone server as it's more compatible
-# with Next.js 15's standalone output, even though Bun is available in the runner
+# Use entrypoint to handle data initialization, scheduler startup, and graceful shutdown
+# Note: entrypoint.sh now includes initial data population before starting scheduler
 ENTRYPOINT ["/app/entrypoint.sh"]
 # Node.js will respect NODE_OPTIONS env var for memory limit
 CMD ["node", "server.js"]
 
 ARG BUILDKIT_INLINE_CACHE=1
 LABEL org.opencontainers.image.build=true
-
-# Install Node.js for running Next.js build within Bun scripts
-RUN apk add --no-cache nodejs npm

@@ -1,6 +1,10 @@
 /**
- * @file Bookmark-specific utility functions.
+ * @file Bookmark-specific utility functions for data conversion and normalization.
  * @module lib/bookmarks/utils
+ * @description
+ * Standardized utility functions for converting between UnifiedBookmark, LightweightBookmark,
+ * and SerializableBookmark formats. These functions ensure consistency across the application
+ * and proper preservation of essential fields like screenshotAssetId for fallback rendering.
  */
 
 import type {
@@ -95,6 +99,7 @@ export function convertRawBookmarksToUnified(rawBookmarks: RawBookmark[]): Unifi
         url: bookmark.url,
         title: bookmark.title,
         description: bookmark.description || "",
+        slug: bookmark.slug, // REQUIRED field from RawBookmark
         tags: bookmark.tags || [],
         dateBookmarked: bookmark.dateBookmarked,
         dateCreated: bookmark.dateCreated,
@@ -157,6 +162,8 @@ export const convertBookmarksToSerializable = (bookmarks: UnifiedBookmark[]): Se
     url: b.url,
     title: b.title,
     description: b.description ?? "",
+    // REQUIRED: Preserve embedded slug (all bookmarks must have slugs)
+    slug: b.slug,
     tags: (b.tags || []).map((t) => normalizeBookmarkTag(t as string | BookmarkTag)),
     ogImage: b.ogImage,
     ogImageExternal: b.ogImageExternal,
@@ -191,20 +198,67 @@ export const calculateBookmarksChecksum = (bookmarks: UnifiedBookmark[]): string
     .map((b) => `${b.id}:${b.modifiedAt || b.dateBookmarked}`)
     .join("|");
 
-/** Convert UnifiedBookmark to LightweightBookmark by stripping image data */
-export const stripImageData = (b: UnifiedBookmark): LightweightBookmark =>
-  ({
-    ...b,
-    content: undefined,
-    imageUrl: undefined,
-    imageAssetId: undefined,
-    screenshotAssetId: undefined,
+/**
+ * Convert UnifiedBookmark to LightweightBookmark by stripping heavy image data.
+ *
+ * This function preserves essential content fields needed for rendering like screenshotAssetId,
+ * favicon, author, publisher, datePublished, and dateModified while removing heavy image assets
+ * like imageUrl, imageAssetId, htmlContent, and crawledAt to reduce memory usage in lists.
+ *
+ * @param b - The UnifiedBookmark to convert
+ * @returns A LightweightBookmark with image data stripped but essential fields preserved
+ */
+export const stripImageData = (b: UnifiedBookmark): LightweightBookmark => {
+  // Destructure to omit heavy image fields
+  const { 
+    ogImage: omittedOgImage,  // Intentionally unused - stripped from result
+    logoData: omittedLogoData,  // Intentionally unused - stripped from result
+    ...bookmarkWithoutImages 
+  } = b;
+  
+  // Void the omitted variables to satisfy linter
+  void omittedOgImage;
+  void omittedLogoData;
+
+  // Build the base lightweight bookmark
+  const baseResult: LightweightBookmark = {
+    ...bookmarkWithoutImages,
+    content: b.content
+      ? {
+          type: b.content.type,
+          url: b.content.url,
+          title: b.content.title,
+          description: b.content.description,
+          screenshotAssetId: b.content.screenshotAssetId,
+          favicon: b.content.favicon,
+          author: b.content.author,
+          publisher: b.content.publisher,
+          datePublished: b.content.datePublished,
+          dateModified: b.content.dateModified,
+        }
+      : undefined,
+    ogImageExternal: undefined,
     tags: ((b.tags ?? []) as (string | BookmarkTag)[])
       .filter((t) => t && (typeof t === "string" ? t.trim() : t.name?.trim()))
       .map(normalizeBookmarkTag),
-  }) as unknown as LightweightBookmark;
+  };
 
-/** Convert to lightweight bookmarks for reduced memory usage */
+  // Slug is REQUIRED in UnifiedBookmark, so it's always present
+  // No need for conditional checks - slug is guaranteed to exist
+
+  return baseResult;
+};
+
+/**
+ * Convert an array of UnifiedBookmarks to LightweightBookmarks for reduced memory usage.
+ *
+ * Uses {@link stripImageData} for each bookmark to ensure consistent field preservation
+ * and proper exclusion of heavy image data. This function should be used when preparing
+ * bookmark lists for client-side rendering to minimize bundle size.
+ *
+ * @param bookmarks - Array of UnifiedBookmarks to convert
+ * @returns Array of LightweightBookmarks with heavy image data stripped
+ */
 export const toLightweightBookmarks = (bookmarks: UnifiedBookmark[]): LightweightBookmark[] => {
   const lightweight: LightweightBookmark[] = [];
   for (const b of bookmarks) lightweight.push(stripImageData(b));

@@ -58,7 +58,7 @@ export const bookmarkContentSchema = z.object({
   imageUrl: z.string().optional(),
   imageAssetId: z.string().optional(),
   screenshotAssetId: z.string().optional(),
-  favicon: z.string().optional(),
+  favicon: z.string().nullable().optional(),
   htmlContent: z.string().optional(),
   crawledAt: z.string().optional(),
   author: z.string().nullable().optional(),
@@ -115,6 +115,8 @@ export const unifiedBookmarkSchema = z.object({
   url: z.string().url(),
   title: z.string().min(1),
   description: z.string(),
+  // Embed slug on every bookmark object for idempotent routing - REQUIRED for all bookmarks
+  slug: z.string().min(1),
   tags: z.union([z.array(bookmarkTagSchema), z.array(z.string())]),
   ogImage: z.string().url().optional(),
   dateBookmarked: z.string(),
@@ -151,6 +153,7 @@ const baseBookmarkSchema = z.object({
   url: urlSchema,
   title: z.string().min(1),
   description: stringOrNullSchema,
+  slug: z.string().min(1), // REQUIRED for idempotent routing in ALL bookmark types
   dateBookmarked: z.string(),
   dateCreated: z.string().optional(),
   dateUpdated: z.string().optional(),
@@ -248,7 +251,7 @@ export const RawApiBookmarkContentSchema = z.object({
   imageUrl: z.string().optional(),
   imageAssetId: z.string().optional(),
   screenshotAssetId: z.string().optional(),
-  favicon: z.string().optional(),
+  favicon: z.string().nullable().optional(),
   htmlContent: z.string().optional(),
   crawledAt: z.string().optional(),
   author: z.string().nullable().optional(),
@@ -279,11 +282,90 @@ export const BookmarksApiResponseSchema = z.object({
 
 export { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 
-// Lightweight bookmark type that excludes heavy image data
-export type LightweightBookmark = Omit<UnifiedBookmark, "content" | "ogImage" | "logoData">;
+// Lightweight bookmark type that excludes heavy image data for performance
+// BUT preserves essential content fields needed for UI rendering
+/**
+ * Lightweight bookmark type that excludes heavy image data for performance in lists.
+ *
+ * This type preserves essential fields needed for UI rendering while omitting large
+ * image assets. The content object specifically preserves metadata fields like
+ * screenshotAssetId (for fallback images), favicon, author, publisher, and dates.
+ *
+ * Used throughout the application when rendering bookmark lists to minimize data transfer.
+ * Conversion to/from UnifiedBookmark should use standardized utilities in '@/lib/bookmarks/utils'.
+ */
+export type LightweightBookmark = Omit<UnifiedBookmark, "ogImage" | "logoData"> & {
+  slug: string; // Explicitly include slug as required
+  content?: Pick<
+    BookmarkContent,
+    | "type"
+    | "url"
+    | "title"
+    | "description"
+    | "screenshotAssetId"
+    | "favicon"
+    | "author"
+    | "publisher"
+    | "datePublished"
+    | "dateModified"
+  >;
+};
+
+/**
+ * Persisted bookmark shapes written to S3.
+ * Since slug is now required in UnifiedBookmark, these types are kept for backward compatibility.
+ */
+export type PersistedBookmark = UnifiedBookmark;
+export type PersistedLightweightBookmark = LightweightBookmark;
 
 export interface BookmarkLoadOptions {
   includeImageData?: boolean;
   skipExternalFetch?: boolean;
   force?: boolean;
 }
+
+/**
+ * Mapping of bookmark IDs to pre-computed slugs for static generation
+ */
+export interface BookmarkSlugMapping {
+  version: string;
+  generated: string;
+  count: number;
+  checksum: string; // MD5 hash of slugs for concurrent write protection
+  slugs: Readonly<
+    Record<
+      string,
+      {
+        id: string;
+        slug: string;
+        url: string;
+        title: string;
+      }
+    >
+  >;
+  reverseMap: Readonly<Record<string, string>>; // slug -> id for quick lookup
+}
+
+export type BookmarkSlugEntry = {
+  id: string;
+  slug: string;
+  url: string;
+  title: string;
+};
+
+// Reusable schema for mapping entries
+export const bookmarkSlugEntrySchema = z.object({
+  id: z.string(),
+  slug: z.string().min(1),
+  url: z.string().url(),
+  title: z.string(),
+});
+
+export const bookmarkSlugMappingSchema = z.object({
+  version: z.string(),
+  generated: z.string().datetime(), // ISO8601
+  count: z.number().int().min(0),
+  checksum: z.string().regex(/^[a-f0-9]{32}$/), // MD5 hex
+  slugs: z.record(bookmarkSlugEntrySchema),
+  reverseMap: z.record(z.string()),
+});

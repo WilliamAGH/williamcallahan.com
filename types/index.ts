@@ -47,6 +47,9 @@ export * from "./navigation";
 /** 📱 SOCIAL DOMAIN (types/social.ts) - Social media integration and sharing */
 export * from "./social";
 
+/** 🔗 RELATED CONTENT DOMAIN (types/related-content.ts) - Related content recommendations */
+export * from "./related-content";
+
 /** 💻 TERMINAL DOMAIN (types/terminal.ts) - Core terminal logic, commands, business data (NOT component props) */
 export * from "./terminal";
 

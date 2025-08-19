@@ -378,7 +378,7 @@ export class MemoryHealthMonitor extends EventEmitter {
 
       // Simulate asynchronous cleanup step to satisfy linter (and preserve API)
       await Promise.resolve();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[MemoryHealthMonitor] Error during emergency cleanup", err);
     }
   }

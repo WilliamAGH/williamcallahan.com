@@ -2,30 +2,30 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { BookmarksWithPagination } from "@/components/features/bookmarks/bookmarks-with-pagination.client";
 import { describe, it, expect, jest, beforeEach, afterEach } from "@jest/globals";
 import "@testing-library/jest-dom";
+import type { UnifiedBookmark } from "@/types";
 
 // Mock next/navigation's router
-jest.mock("next/navigation", () => {
-  const push = jest.fn();
-  return {
-    useRouter: () => ({ push, refresh: jest.fn() }),
-    usePathname: () => "/bookmarks",
-    useSearchParams: () => new URLSearchParams(),
-  };
-});
-
-// Mock the pagination hook so we have deterministic state without network
-jest.mock("@/hooks/use-bookmarks-pagination", () => ({
-  useBookmarksPagination: jest.fn(),
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
+  usePathname: () => "/bookmarks",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
-const buildBookmarks = (count: number) =>
+// Mock the pagination hook
+const mockUsePagination = jest.fn();
+jest.mock("@/hooks/use-pagination", () => ({
+  usePagination: mockUsePagination,
+}));
+
+const buildBookmarks = (count: number): UnifiedBookmark[] =>
   Array.from({ length: count }).map((_, i) => ({
     id: `${i}`,
     url: `https://example.com/${i}`,
     title: `AI Post ${i}`,
     description: "demo",
     tags: ["ai"],
-    dateBookmarked: "2024-01-01",
+    dateBookmarked: "2024-01-01T00:00:00.000Z",
+    sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
   }));
 
 describe("Search-mode client pagination", () => {
@@ -33,17 +33,17 @@ describe("Search-mode client pagination", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUsePagination.mockClear();
 
     // Mock the hook to return different values based on the current state
-    const { useBookmarksPagination } = require("@/hooks/use-bookmarks-pagination");
     let currentPage = 1;
 
     const goToPageMock = jest.fn((page: number) => {
       currentPage = page;
     });
 
-    useBookmarksPagination.mockImplementation(() => ({
-      bookmarks: mockBookmarks.slice((currentPage - 1) * 24, currentPage * 24),
+    mockUsePagination.mockImplementation(() => ({
+      items: mockBookmarks.slice((currentPage - 1) * 24, currentPage * 24),
       currentPage,
       totalPages: 3,
       totalItems: 66,

@@ -8,7 +8,6 @@
 "use client";
 
 import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
-import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { UnifiedBookmark } from "@/types";
 import { ArrowRight, Loader2, RefreshCw, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -27,11 +26,29 @@ const getTagsAsStringArray = (tags: UnifiedBookmark["tags"]): string[] => {
   return normalizeTagsToStrings(tags);
 };
 
+function isBookmarksApiResponse(
+  obj: unknown,
+): obj is { data: UnifiedBookmark[]; internalHrefs?: Record<string, string>; meta?: unknown } {
+  if (!obj || typeof obj !== "object") return false;
+  const maybe = obj as Record<string, unknown>;
+  return Array.isArray(maybe.data);
+}
+
+function isUnifiedBookmarkArray(x: unknown): x is UnifiedBookmark[] {
+  return (
+    Array.isArray(x) &&
+    x.every(
+      (b) => b && typeof (b as { id?: unknown }).id === "string" && typeof (b as { url?: unknown }).url === "string",
+    )
+  );
+}
+
 export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = ({
   bookmarks,
   showFilterBar = true,
   searchAllBookmarks = false,
   initialTag,
+  internalHrefs: initialInternalHrefs,
 }) => {
   // Add mounted state for hydration safety
   const [mounted, setMounted] = useState(false);
@@ -42,6 +59,8 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   // Using setIsSearching in handleSearchSubmit
   const [isSearching, setIsSearching] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // Store internal hrefs mapping (critical for preventing 404s)
+  const [internalHrefs, setInternalHrefs] = useState<Record<string, string>>(initialInternalHrefs ?? {});
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [dataSource, setDataSource] = useState<"server" | "client">("server");
   // Currently unused filter UI states - can be removed if the feature is not being developed
@@ -80,32 +99,18 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       try {
         setIsSearching(true);
         setIsSearchingAPI(true);
-        const response = await fetch(`/api/search/all?q=${encodeURIComponent(searchQuery)}`);
+        const response = await fetch(`/api/search/bookmarks?q=${encodeURIComponent(searchQuery)}`);
         if (response.ok) {
           const raw: unknown = await response.json();
 
-          // The scoped search API returns { results: SearchResult[] }
-          // while older code expected an array. Handle both.
-          const resultsArray = Array.isArray(raw) ? raw : ((raw as { results?: unknown[] })?.results ?? []);
+          // Bookmark search API returns { data: UnifiedBookmark[] }
+          const bookmarkResults = Array.isArray(raw) ? raw : ((raw as { data?: unknown })?.data ?? []);
 
-          // Narrow to bookmark results and map back to UnifiedBookmark by ID
-          const bookmarkResults = resultsArray
-            .filter((r): r is { id: string; type: string; [key: string]: unknown } => {
-              return (
-                typeof r === "object" &&
-                r !== null &&
-                "type" in r &&
-                (r as { type: unknown }).type === "bookmark" &&
-                "id" in r &&
-                typeof (r as { id: unknown }).id === "string"
-              );
-            })
-            .map((r) => {
-              return [...allBookmarks, ...bookmarks].find((b) => b.id === r.id);
-            })
-            .filter((b): b is UnifiedBookmark => Boolean(b));
-
-          setSearchResults(bookmarkResults);
+          if (Array.isArray(bookmarkResults) && isUnifiedBookmarkArray(bookmarkResults)) {
+            setSearchResults(bookmarkResults);
+          } else {
+            setSearchResults(null);
+          }
         } else {
           // API failed, fall back to client-side search
           setSearchResults(null);
@@ -120,7 +125,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
     }, 300); // 300ms debounce
 
     return () => clearTimeout(searchTimeout);
-  }, [searchQuery, allBookmarks, bookmarks]);
+  }, [searchQuery]);
 
   // Separate effect for fetching bookmarks
   useEffect(() => {
@@ -144,15 +149,30 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
             throw new Error(`API request failed with status ${response.status}`);
           }
 
-          const responseData = (await response.json()) as {
-            data: UnifiedBookmark[];
-            meta: unknown;
-          };
-          const allBookmarksData = responseData.data;
+          const responseData: unknown = await response.json();
+          if (!isBookmarksApiResponse(responseData)) {
+            console.error("Client-side: Invalid /api/bookmarks response shape", responseData);
+            setAllBookmarks(bookmarks);
+            return;
+          }
+          const allBookmarksData: UnifiedBookmark[] = isUnifiedBookmarkArray(responseData.data)
+            ? responseData.data
+            : [];
+          const apiInternalHrefs = responseData.internalHrefs;
           console.log("Client-side direct fetch bookmarks count:", allBookmarksData?.length || 0);
+          console.log("Client-side direct fetch has internalHrefs:", !!apiInternalHrefs);
 
           if (Array.isArray(allBookmarksData) && allBookmarksData.length > 0) {
             setAllBookmarks(allBookmarksData);
+            // CRITICAL: Update the slug mappings from API
+            if (apiInternalHrefs) {
+              setInternalHrefs(apiInternalHrefs);
+              console.log("BookmarksWithOptions: Updated internalHrefs from API");
+            } else {
+              console.error(
+                "BookmarksWithOptions: WARNING - No internalHrefs from API. Cards will fall back to external URLs.",
+              );
+            }
             // Explicitly force the dataSource to client
             console.log("BookmarksWithOptions: Setting data source to client-side");
             setDataSource("client");
@@ -286,7 +306,14 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         throw new Error(errorMessage);
       }
 
-      const result = (await response.json()) as import("@/types").RefreshResult;
+      const resultJson: unknown = await response.json();
+      function isRefreshResult(obj: unknown): obj is import("@/types").RefreshResult {
+        return !!obj && typeof obj === "object" && "status" in (obj as Record<string, unknown>);
+      }
+      if (!isRefreshResult(resultJson)) {
+        throw new Error("Unexpected response from refresh endpoint");
+      }
+      const result = resultJson;
       console.log("Bookmarks refresh result:", result);
 
       // If refresh was successful, fetch the new bookmarks
@@ -304,14 +331,36 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
           throw new Error(`Failed to fetch updated bookmarks: ${bookmarksResponse.status}`);
         }
 
-        const refreshedBookmarks = (await bookmarksResponse.json()) as UnifiedBookmark[];
+        const refreshedJson: unknown = await bookmarksResponse.json();
+        let refreshedArray: UnifiedBookmark[] = [];
+        let refreshedInternalHrefs: Record<string, string> | undefined;
+        if (Array.isArray(refreshedJson)) {
+          refreshedArray = isUnifiedBookmarkArray(refreshedJson) ? refreshedJson : [];
+        } else if (refreshedJson && typeof refreshedJson === "object") {
+          const obj = refreshedJson as Record<string, unknown>;
+          if (Array.isArray(obj.data) && isUnifiedBookmarkArray(obj.data)) {
+            refreshedArray = obj.data;
+          }
+          if (obj.internalHrefs && typeof obj.internalHrefs === "object") {
+            refreshedInternalHrefs = obj.internalHrefs as Record<string, string>;
+          }
+        }
 
-        if (Array.isArray(refreshedBookmarks) && refreshedBookmarks.length > 0) {
-          setAllBookmarks(refreshedBookmarks);
+        if (refreshedArray.length > 0) {
+          setAllBookmarks(refreshedArray);
+          // CRITICAL: Update slug mappings after refresh
+          if (refreshedInternalHrefs) {
+            setInternalHrefs(refreshedInternalHrefs);
+            console.log("Bookmarks refresh: Updated internalHrefs");
+          } else {
+            console.error("Bookmarks refresh: WARNING - No internalHrefs, URLs will cause 404s!");
+          }
           setLastRefreshed(new Date());
           setDataSource("client");
-          console.log("Bookmarks refreshed successfully:", refreshedBookmarks.length);
+          console.log("Bookmarks refreshed successfully:", refreshedArray.length);
           router.refresh();
+        } else {
+          console.warn("Refresh returned empty or invalid data shape:", refreshedJson);
         }
       }
     } catch (error) {
@@ -465,14 +514,17 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
             {filteredBookmarks.map((bookmark) => {
-              // Generate internal href once per bookmark to avoid per-card API calls
-              const internalHref = `/bookmarks/${generateUniqueSlug(
-                bookmark.url,
-                bookmarks.map((b) => ({ id: b.id, url: b.url })),
-                bookmark.id,
-              )}`;
-              // Debug: Log bookmark data for CLI bookmark
-              if (bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
+              // Use pre-computed href from server if available
+              // CRITICAL: Never fallback to using bookmark.id in the URL!
+              const internalHref = internalHrefs?.[bookmark.id] ?? bookmark.url;
+              if (!internalHrefs?.[bookmark.id]) {
+                console.warn(
+                  `[BookmarksWithOptions] Missing slug for ${bookmark.id}. Using external URL fallback: ${bookmark.url}`,
+                );
+              }
+
+              // Debug: Log bookmark data for CLI bookmark (dev-only)
+              if (isDevelopment && bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
                 console.log("[BookmarksWithOptions] CLI bookmark data:", {
                   id: bookmark.id,
                   hasContent: !!bookmark.content,

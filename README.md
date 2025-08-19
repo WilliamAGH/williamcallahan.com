@@ -1,6 +1,25 @@
 # William Callahan's Personal Website
 >
 > ⚠️ Run tests with `bun run test` (Jest) instead of `bun test`.
+>
+> 📝 **Local setup:** After cloning, run these commands to ignore auto-generated files:
+> ```bash
+> git update-index --skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
+> ```
+>
+> To revert:
+> ```bash
+> git update-index --no-skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
+> ```
+> Note: skip-worktree is per-clone (does not affect CI or teammates) and can hide local edits from `git status`.
+>
+> Troubleshooting:
+>
+> - List files marked skip-worktree:  
+>   `git ls-files -v | grep '^S'`
+> - If upstream changes seem to be ignored, clear the flag for a file:  
+>   `git update-index --no-skip-worktree <path>`
+
 This is the repo for my personal website [williamcallahan.com](https://williamcallahan.com). The code is hosted at [github.com/WilliamAGH/williamcallahan.com](https://github.com/WilliamAGH/williamcallahan.com). Below is some info on how the logo fetching works and other stuff to help me remember.
 
 > "I don't know what I think until I read what I'm writing" - Shirley MacLaine
@@ -20,7 +39,13 @@ useEffect(() => { setMounted(true) }, []);
 
 // 3. Render placeholder during SSR and initial client render
 if (!mounted) {
-  return <div className="placeholder-styles" suppressHydrationWarning />;
+  return (
+    <div
+      className="placeholder-styles"
+      suppressHydrationWarning
+      aria-hidden="true"
+    />
+  );
 }
 
 // 4. Only render actual content on client after hydration
@@ -184,3 +209,105 @@ To force a refresh of all persisted GitHub activity data, ensuring accuracy and 
 This process ensures that the GitHub activity data is updated in S3 based on the latest logic.
 For other data types (bookmarks, logos), use the appropriate flags or run without flags to update all data types.
 
+## Data Updater CLI and S3 JSON Storage
+
+Use the Data Updater to (re)generate environment-aware JSON data in S3. Prefer the package script alias:
+
+```bash
+# Runs scripts/data-updater.ts
+bun run update-s3 -- --bookmarks --github --logos --search-indexes
+```
+
+### Supported flags
+
+Data types:
+
+- `--bookmarks`: bookmarks dataset, index, pages, tags, slug-mapping.
+- `--github`: GitHub activity datasets.
+- `--logos`: image manifests (and logo processing where applicable).
+- `--search-indexes`: posts, investments, experience, education, bookmarks indexes.
+
+Global options:
+
+- `--force`: bypass freshness checks and regenerate.
+- `--testLimit=N`: limit processing to N items (dev/testing).
+
+If no flags are provided, all operations run: bookmarks, GitHub, logos, search-indexes.
+
+### S3 JSON key syntax (environment-aware)
+
+Environment suffix comes from `lib/config/environment.ts`:
+
+- production: no suffix (e.g., `.../file.json`)
+- test: `-test` (e.g., `.../file-test.json`)
+- development/local: `-dev` (e.g., `.../file-dev.json`)
+
+See `lib/config/environment.ts` for detection rules and the source of the suffix.
+For multi-line secrets and local env quirks, see the shared loader: `lib/utils/env-loader.ts`.
+
+Key families (see `lib/constants.ts` for source of truth):
+
+```ts
+// Bookmarks
+BOOKMARKS_S3_PATHS = {
+  FILE:            "json/bookmarks/bookmarks{SUFFIX}.json",
+  INDEX:           "json/bookmarks/index{SUFFIX}.json",
+  PAGE_PREFIX:     "json/bookmarks/pages{SUFFIX}/page-",      // + "<n>.json"
+  TAG_PREFIX:      "json/bookmarks/tags{SUFFIX}/",            // + "<tag>/page-<n>.json"
+                                                     // e.g., "json/bookmarks/tags-dev/typescript/page-1.json"
+                                                     // Note: <tag> must be a slug/percent-encoded string (encode `/`, `?`, `#`, spaces, etc.) before composing keys.
+  TAG_INDEX_PREFIX:"json/bookmarks/tags{SUFFIX}/",            // + "<tag>/index.json"
+                                                     // e.g., "json/bookmarks/tags-dev/typescript/index.json"
+  SLUG_MAPPING:    "json/bookmarks/slug-mapping{SUFFIX}.json",
+  LOCK:            "json/bookmarks/refresh-lock{SUFFIX}.json",
+  HEARTBEAT:       "json/bookmarks/heartbeat{SUFFIX}.json",
+};
+
+// Content graph
+CONTENT_GRAPH_S3_PATHS = {
+  DIR:             "json/content-graph{SUFFIX}",
+  RELATED_CONTENT: "json/content-graph{SUFFIX}/related-content.json",
+  TAG_GRAPH:       "json/content-graph{SUFFIX}/tag-graph.json",
+  METADATA:        "json/content-graph{SUFFIX}/metadata.json",
+};
+
+// Search indexes
+SEARCH_S3_PATHS = {
+  DIR:                 "json/search",
+  POSTS_INDEX:         "json/search/posts-index{SUFFIX}.json",
+  BOOKMARKS_INDEX:     "json/search/bookmarks-index{SUFFIX}.json",
+  INVESTMENTS_INDEX:   "json/search/investments-index{SUFFIX}.json",
+  EXPERIENCE_INDEX:    "json/search/experience-index{SUFFIX}.json",
+  EDUCATION_INDEX:     "json/search/education-index{SUFFIX}.json",
+  PROJECTS_INDEX:      "json/search/projects-index{SUFFIX}.json",
+  BUILD_METADATA:      "json/search/build-metadata{SUFFIX}.json",
+};
+
+// GitHub activity
+GITHUB_ACTIVITY_S3_PATHS = {
+  DIR:                 "json/github-activity",
+  ACTIVITY_DATA:       "json/github-activity/activity_data{SUFFIX}.json",
+  STATS_SUMMARY:       "json/github-activity/github_stats_summary{SUFFIX}.json",
+  ALL_TIME_SUMMARY:    "json/github-activity/github_stats_summary_all_time{SUFFIX}.json",
+  AGGREGATED_WEEKLY:   "json/github-activity/aggregated_weekly_activity{SUFFIX}.json",
+  REPO_RAW_WEEKLY_STATS_DIR: "json/github-activity/repo_raw_weekly_stats{SUFFIX}",
+};
+
+// Image manifests (JSON metadata only)
+IMAGE_MANIFEST_S3_PATHS = {
+  DIR:                       "json/image-data",               // Global dir; leaf files are suffixed per environment.
+  LOGOS_MANIFEST:            "json/image-data/logos/manifest{SUFFIX}.json",
+  OPENGRAPH_MANIFEST:        "json/image-data/opengraph/manifest{SUFFIX}.json",
+  BLOG_IMAGES_MANIFEST:      "json/image-data/blog/manifest{SUFFIX}.json",
+  EDUCATION_IMAGES_MANIFEST: "json/image-data/education/manifest{SUFFIX}.json",
+  EXPERIENCE_IMAGES_MANIFEST:"json/image-data/experience/manifest{SUFFIX}.json",
+  INVESTMENTS_IMAGES_MANIFEST:"json/image-data/investments/manifest{SUFFIX}.json",
+  PROJECTS_IMAGES_MANIFEST:  "json/image-data/projects/manifest{SUFFIX}.json",
+};
+```
+
+Tips:
+
+- Use `bun run update-s3 -- --force` after deployments to refresh everything.
+- For quick fixes, target one area, e.g., `bun run update-s3 -- --bookmarks` or `bun run update-s3 -- --search-indexes`.
+- The scheduler (`bun run scheduler`) runs these with sensible cadences in production.

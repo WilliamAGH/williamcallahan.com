@@ -33,6 +33,7 @@ export interface BookmarkIndexItem {
   url: string;
   author: string;
   publisher: string;
+  slug: string; // REQUIRED for idempotent routing
 }
 
 export interface SerializedIndex {

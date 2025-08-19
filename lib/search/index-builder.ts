@@ -22,7 +22,8 @@ import type { Project } from "@/types/project";
 import { getAllMDXPostsForSearch } from "@/lib/blog/mdx";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { prepareDocumentsForIndexing } from "@/lib/utils/search-helpers";
-import { generateUniqueSlug } from "@/lib/utils/domain-utils";
+import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
+import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
 import type { UnifiedBookmark } from "@/types/bookmark";
 
 /**
@@ -212,7 +213,11 @@ function buildProjectsIndexForBuilder(): SerializedIndex {
  */
 async function buildBookmarksIndex(): Promise<SerializedIndex> {
   // Fetch bookmarks from API
-  const bookmarks = (await getBookmarks({ skipExternalFetch: false })) as UnifiedBookmark[];
+  const maybeBookmarks = await getBookmarks({ skipExternalFetch: false });
+  if (!Array.isArray(maybeBookmarks)) {
+    throw new Error("[Search Index Builder] Unexpected bookmarks payload");
+  }
+  const bookmarks = maybeBookmarks as UnifiedBookmark[];
 
   const index = new MiniSearch<BookmarkIndexItem>({
     fields: ["title", "description", "tags", "author", "publisher", "url"],
@@ -225,23 +230,37 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
     },
   });
 
+  // Load centralized slug mapping (preferred), but allow embedded slug fallback
+  const slugMapping = await loadSlugMapping();
+
   // Transform bookmarks for indexing
-  const bookmarksForIndex = bookmarks.map((b) => ({
-    id: b.id,
-    title: b.title || b.url,
-    description: b.description || "",
-    tags: Array.isArray(b.tags)
-      ? b.tags.map((t) => (typeof t === "string" ? t : (t as { name?: string })?.name || "")).join(" ")
-      : "",
-    url: b.url,
-    author: b.content?.author || "",
-    publisher: b.content?.publisher || "",
-    slug: generateUniqueSlug(
-      b.url || "",
-      bookmarks.filter((bm): bm is UnifiedBookmark & { id: string; url: string } => Boolean(bm.id) && Boolean(bm.url)),
-      b.id || "",
-    ),
-  }));
+  const bookmarksForIndex = bookmarks.map((b) => {
+    // Prefer embedded slug when present; fallback to centralized mapping
+    const embedded = tryGetEmbeddedSlug(b);
+    const slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
+
+    // Every bookmark MUST have a slug for idempotency
+    if (!slug) {
+      throw new Error(
+        `[Search Index Builder] CRITICAL: No slug found for bookmark ${b.id}. ` +
+          `Title: ${b.title}, URL: ${b.url}. ` +
+          `This indicates an incomplete slug mapping.`,
+      );
+    }
+
+    return {
+      id: b.id,
+      title: b.title || b.url,
+      description: b.description || "",
+      tags: Array.isArray(b.tags)
+        ? b.tags.map((t) => (typeof t === "string" ? t : (t as { name?: string })?.name || "")).join(" ")
+        : "",
+      url: b.url,
+      author: b.content?.author || "",
+      publisher: b.content?.publisher || "",
+      slug, // slug is required (either embedded or via mapping)
+    };
+  });
 
   index.addAll(bookmarksForIndex);
 

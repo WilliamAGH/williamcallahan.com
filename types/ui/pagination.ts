@@ -38,3 +38,31 @@ export interface PaginationControlUrlProps extends PaginationControlProps {
   /** URL parameter name for page number */
   pageParam?: string;
 }
+
+// PaginationMeta and PaginatedResponse are defined centrally in types/lib.ts
+
+// Options for the generic usePagination hook
+export interface UsePaginationOptions<T> {
+  apiUrl: string;
+  limit?: number;
+  initialData?: T[];
+  initialPage?: number;
+  initialTotalPages?: number;
+  initialTotalCount?: number;
+  queryParams?: Record<string, string | number>;
+}
+
+// The return value of the generic usePagination hook
+export interface UsePaginationReturn<T> {
+  items: T[];
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  isLoading: boolean;
+  isLoadingMore: boolean;
+  hasMore: boolean;
+  error: Error | undefined;
+  loadMore: () => void;
+  goToPage: (page: number) => void;
+  mutate: () => void;
+}

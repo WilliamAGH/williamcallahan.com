@@ -134,6 +134,24 @@ export interface DistributedLockEntry {
   ttlMs: number;
 }
 
+/** Lock entry shape used by S3-based distributed lock */
+export interface LockEntry {
+  instanceId: string;
+  acquiredAt: number;
+  operation: string;
+}
+
+/**
+ * Abstraction for distributed lock persistence.
+ * Default implementation is S3-backed; tests may inject an in-memory store.
+ */
+export interface LockStore {
+  read(key: string): Promise<LockEntry | null>;
+  createIfAbsent(key: string, value: LockEntry): Promise<boolean>;
+  delete(key: string): Promise<void>;
+  list(prefix: string): Promise<string[]>;
+}
+
 /**
  * Callback function type for refreshing bookmarks data.
  */
@@ -419,6 +437,23 @@ export interface DataFetchResult<T> extends OperationResult<T> {
   statusCode?: number;
 }
 
+/**
+ * Result of attempting to read and parse a JSON object by key.
+ */
+export interface ReadJsonResult<T = unknown> {
+  key: string;
+  /** Whether the key exists in the backing store */
+  exists: boolean;
+  /** Whether the read/parse operation was successful */
+  ok: boolean;
+  /** Optional diagnostic details */
+  details?: unknown;
+  /** Error message if the operation failed */
+  error?: string;
+  /** Parsed value, or null when explicitly present-but-null */
+  parsed?: T | null;
+}
+
 /** Data fetch manager interface */
 export interface DataFetchManager {
   fetch: <T>(key: string, fetcher: () => Promise<T>, options?: DataFetchOptions) => Promise<DataFetchResult<T>>;
@@ -601,6 +636,8 @@ export interface BookmarksS3Paths {
   TAG_INDEX_PREFIX: string;
   /** Heartbeat file for operational checks */
   HEARTBEAT: string;
+  /** S3 path to bookmark slug mapping */
+  SLUG_MAPPING: string;
 }
 
 /** URL validation result */

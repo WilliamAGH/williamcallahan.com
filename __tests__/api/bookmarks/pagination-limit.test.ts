@@ -5,13 +5,17 @@ import { readJsonS3 } from "@/lib/s3-utils";
 // Placeholder variable – will be set in beforeAll
 let BOOKMARKS_PER_PAGE: number;
 import type { UnifiedBookmark } from "@/types";
+import type { BookmarkSlugMapping } from "@/types/bookmark";
 
 // Mock dependencies used inside the route
 jest.mock("@/lib/bookmarks/service.server");
 jest.mock("@/lib/s3-utils");
+jest.mock("@/lib/bookmarks/slug-manager");
 
 const mockGetBookmarks = jest.mocked(getBookmarks);
 const mockReadJsonS3 = jest.mocked(readJsonS3);
+const slugManager = jest.requireMock<typeof import("@/lib/bookmarks/slug-manager")>("@/lib/bookmarks/slug-manager");
+const loadSlugMapping = jest.mocked(slugManager.loadSlugMapping);
 
 describe("Bookmark API – large limit behavior", () => {
   let mockBookmarks: UnifiedBookmark[];
@@ -38,6 +42,31 @@ describe("Bookmark API – large limit behavior", () => {
       totalPages: Math.ceil(mockBookmarks.length / BOOKMARKS_PER_PAGE),
       lastFetchedAt: Date.now(),
     });
+
+    // Mock slug mapping for bookmarks with correct typing and reverse map
+    const slugs: BookmarkSlugMapping["slugs"] = Object.fromEntries(
+      mockBookmarks.map((bookmark) => [
+        bookmark.id,
+        {
+          id: bookmark.id,
+          slug: `mock-slug-${bookmark.id}`,
+          url: bookmark.url,
+          title: bookmark.title ?? bookmark.url,
+        },
+      ]),
+    );
+    const reverseMap: BookmarkSlugMapping["reverseMap"] = Object.fromEntries(
+      Object.entries(slugs).map(([id, entry]) => [entry.slug, id]),
+    );
+    const mockSlugMapping: BookmarkSlugMapping = {
+      slugs,
+      reverseMap,
+      version: "1.0.0",
+      generated: "2025-01-01T00:00:00.000Z",
+      count: mockBookmarks.length,
+      checksum: "mock-checksum",
+    };
+    loadSlugMapping.mockResolvedValue(mockSlugMapping);
   });
 
   it("returns the full dataset when limit exceeds BOOKMARKS_PER_PAGE", async () => {
@@ -46,7 +75,7 @@ describe("Bookmark API – large limit behavior", () => {
       nextUrl: {
         searchParams: new URLSearchParams({ limit: "1000", page: "1" }),
       },
-    } as any;
+    } as unknown as import("next/server").NextRequest;
 
     const response = await GET(request);
     const data = await response.json();

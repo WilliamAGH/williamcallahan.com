@@ -200,7 +200,8 @@ const main = async (): Promise<void> => {
 async function processUrlIndexing(): Promise<void> {
   await loadRateLimitStoreFromS3(GOOGLE_STORE, INDEXING_RATE_LIMIT_PATH);
 
-  const allUrls = sitemap().map((u) => u.url);
+  const sitemapData = await sitemap();
+  const allUrls = sitemapData.map((u) => u.url);
   const totalUrls = allUrls.length;
   console.info(`Found ${totalUrls} URLs to process.`);
 
@@ -280,7 +281,8 @@ async function submitToIndexNow(siteUrlCanonical: string): Promise<void> {
   }
 
   try {
-    const urlList = sitemap().map((u) => u.url);
+    const sitemapData = await sitemap();
+    const urlList = sitemapData.map((u) => u.url);
 
     // Build payload per IndexNow spec
     const payload: Record<string, unknown> = {

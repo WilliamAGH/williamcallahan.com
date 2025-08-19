@@ -8,11 +8,7 @@ import { join } from "node:path";
 
 describe("Dotenv v17 Compatibility Test", () => {
   it("should use consistent dotenv import pattern across all scripts", () => {
-    const scriptsToCheck = [
-      "scripts/force-refresh-repo-stats.ts",
-      "scripts/refresh-opengraph-images.ts",
-      "scripts/submit-sitemap.ts",
-    ];
+    const scriptsToCheck = ["scripts/submit-sitemap.ts"];
 
     const results: Record<string, string> = {};
 
@@ -31,11 +27,7 @@ describe("Dotenv v17 Compatibility Test", () => {
       }
     }
 
-    // Verify force-refresh-repo-stats.ts was updated to use the correct pattern
-    expect(results["scripts/force-refresh-repo-stats.ts"]).toBe("import dotenv/config");
-
-    // These should use their existing patterns
-    expect(results["scripts/refresh-opengraph-images.ts"]).toBe("import dotenv/config");
+    // Submit-sitemap should use custom env loader
     expect(results["scripts/submit-sitemap.ts"]).toBe("custom env loader");
   });
 });

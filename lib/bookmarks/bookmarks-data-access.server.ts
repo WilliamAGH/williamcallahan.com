@@ -12,15 +12,36 @@ import {
   normalizeBookmarkTag,
   calculateBookmarksChecksum,
   stripImageData,
-  toLightweightBookmarks,
   normalizePageBookmarkTags,
 } from "@/lib/bookmarks/utils";
+import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+
+const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "lib", "data", "bookmarks.json");
 
 // Runtime-safe cache wrappers for experimental Next.js APIs
 // These functions are only available in Next.js request context with experimental.useCache enabled
 // They will be no-ops when called from CLI scripts or outside request context
+
+// Shared helpers for CLI context detection
+const isCliLikeContext = (): boolean => {
+  const argv1 = process.argv[1] || "";
+  // Cross-platform check for scripts directory
+  const inScriptsDir = /(^|[\\/])scripts[\\/]/.test(argv1);
+  return (
+    inScriptsDir ||
+    process.argv.includes("data-updater") ||
+    process.argv.includes("reset-and-regenerate") ||
+    process.argv.includes("regenerate-content") ||
+    process.env.NEXT_PHASE === "phase-production-build"
+  );
+};
+
+const shouldLogCacheWarning = (): boolean =>
+  process.env.NODE_ENV === "development" && !isCliLikeContext() && !process.env.SUPPRESS_CACHE_WARNINGS;
 const safeCacheLife = (
   profile:
     | "default"
@@ -35,13 +56,13 @@ const safeCacheLife = (
   try {
     // Only attempt to use cacheLife if we're in a Next.js request context
     // CLI scripts and data-updater won't have access to these functions
-    if (typeof cacheLife === "function" && !process.argv.includes("data-updater")) {
+    if (typeof cacheLife === "function" && !isCliLikeContext()) {
       cacheLife(profile);
     }
   } catch (err) {
     // Silently ignore - expected when running outside Next.js request context
     // This is normal for CLI scripts, data-updater, and environments without experimental.useCache
-    if (process.env.NODE_ENV === "development") {
+    if (shouldLogCacheWarning()) {
       console.warn("[Bookmarks] cacheLife not available:", err);
     }
   }
@@ -49,12 +70,12 @@ const safeCacheLife = (
 const safeCacheTag = (...tags: string[]): void => {
   try {
     // Only attempt to use cacheTag if we're in a Next.js request context
-    if (typeof cacheTag === "function" && !process.argv.includes("data-updater")) {
+    if (typeof cacheTag === "function" && !isCliLikeContext()) {
       for (const tag of new Set(tags)) cacheTag(tag);
     }
   } catch (err) {
     // Silently ignore - expected when running outside Next.js request context
-    if (process.env.NODE_ENV === "development") {
+    if (shouldLogCacheWarning()) {
       console.warn("[Bookmarks] cacheTag not available:", err);
     }
   }
@@ -62,12 +83,12 @@ const safeCacheTag = (...tags: string[]): void => {
 const safeRevalidateTag = (...tags: string[]): void => {
   try {
     // Only attempt to use revalidateTag if we're in a Next.js request context
-    if (typeof revalidateTag === "function" && !process.argv.includes("data-updater")) {
+    if (typeof revalidateTag === "function" && !isCliLikeContext()) {
       for (const tag of new Set(tags)) revalidateTag(tag);
     }
   } catch (err) {
     // Silently ignore - expected when running outside Next.js request context
-    if (process.env.NODE_ENV === "development") {
+    if (shouldLogCacheWarning()) {
       console.warn("[Bookmarks] revalidateTag not available:", err);
     }
   }
@@ -239,11 +260,17 @@ async function hasBookmarksChanged(newBookmarks: UnifiedBookmark[]): Promise<boo
   }
 }
 
-/** Write bookmarks in paginated format */
-async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<void> {
+/** Write bookmarks in paginated format (slugs already embedded) */
+async function writePaginatedBookmarks(
+  bookmarks: UnifiedBookmark[],
+): Promise<import("@/types/bookmark").BookmarkSlugMapping> {
   const pageSize = BOOKMARKS_PER_PAGE,
     totalPages = Math.ceil(bookmarks.length / pageSize),
     now = Date.now();
+
+  // Bookmarks already have embedded slugs - just create mapping for backward compatibility
+  const mapping = generateSlugMapping(bookmarks);
+
   const index: BookmarksIndex = {
     count: bookmarks.length,
     totalPages,
@@ -255,19 +282,42 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<vo
     changeDetected: true,
   };
   await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, index);
+
+  // Write pages with bookmarks ensuring they have embedded slugs
   for (let page = 1; page <= totalPages; page++) {
     const start = (page - 1) * pageSize;
-    await writeJsonS3(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${page}.json`, bookmarks.slice(start, start + pageSize));
+    const slice = bookmarks.slice(start, start + pageSize).map((b) => {
+      // Ensure each bookmark has its slug embedded
+      const entry = mapping.slugs[b.id];
+      if (!entry) {
+        throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (page ${page})`);
+      }
+      return { ...b, slug: entry.slug };
+    });
+    await writeJsonS3(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${page}.json`, slice);
   }
-  console.log(`${LOG_PREFIX} Wrote ${totalPages} pages of bookmarks`);
+  console.log(`${LOG_PREFIX} Wrote ${totalPages} pages of bookmarks with embedded slugs`);
+
+  // Save slug mapping for backward compatibility and static generation
+  try {
+    await saveSlugMapping(bookmarks, true, false);
+    console.log(`${LOG_PREFIX} Saved slug mapping for ${bookmarks.length} bookmarks`);
+  } catch (error) {
+    console.error(`${LOG_PREFIX} Warning: Failed to save slug mapping (bookmarks have embedded slugs):`, error);
+    // Not critical since bookmarks have embedded slugs
+  }
+
+  return mapping;
 }
 
-/** Write tag-filtered bookmarks in paginated format */
+/** Write tag-filtered bookmarks in paginated format with embedded slugs */
 async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<void> {
   if (!ENABLE_TAG_CACHING) {
     console.log(`${LOG_PREFIX} Tag caching disabled by environment variable`);
     return;
   }
+  // Build a mapping once for this write to embed slugs
+  const mapping = generateSlugMapping(bookmarks);
   const pageSize = BOOKMARKS_PER_PAGE,
     bookmarksByTag: Record<string, UnifiedBookmark[]> = {},
     tagCounts: Record<string, number> = {};
@@ -309,10 +359,14 @@ async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<
     await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`, tagIndex);
     for (let page = 1; page <= totalPages; page++) {
       const start = (page - 1) * pageSize;
-      await writeJsonS3(
-        `${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${page}.json`,
-        tagBookmarks.slice(start, start + pageSize),
-      );
+      const slice = tagBookmarks.slice(start, start + pageSize).map((b) => {
+        const entry = mapping.slugs[b.id];
+        if (!entry) {
+          throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (tag=${tagSlug})`);
+        }
+        return { ...b, slug: entry.slug };
+      });
+      await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${page}.json`, slice);
     }
   }
   console.log(`${LOG_PREFIX} Wrote tag-filtered bookmarks for ${topTags.length} tags`);
@@ -344,16 +398,67 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         changeDetected: false,
       };
       await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, updatedIndex);
+      // Ensure slug mapping exists even when no changes detected (idempotent)
+      try {
+        await saveSlugMapping(allIncomingBookmarks, true, false);
+        console.log(`${LOG_PREFIX} Saved slug mapping (no-change path) for ${allIncomingBookmarks.length} bookmarks`);
+      } catch (error) {
+        console.error(`${LOG_PREFIX} CRITICAL: Failed to save slug mapping (no-change path):`, error);
+        // Slug mappings are CRITICAL for bookmark navigation
+        throw new Error(`Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`);
+      }
+
+      // Ensure bookmarks file exists with full content data
+      const mapping = generateSlugMapping(allIncomingBookmarks);
+      const bookmarksWithSlugs = allIncomingBookmarks.map((b) => {
+        const entry = mapping.slugs[b.id];
+        if (!entry) {
+          throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (no-change FILE)`);
+        }
+        return { ...b, slug: entry.slug };
+      });
+      await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
+
+      // --- START LOCAL CACHE WRITE ---
+      try {
+        await fs.mkdir(path.dirname(LOCAL_BOOKMARKS_PATH), { recursive: true });
+        await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarksWithSlugs, null, 2));
+        console.log(`${LOG_PREFIX} ✅ Successfully saved bookmarks to local fallback path (no-change path)`);
+      } catch (error) {
+        console.error(`${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path (no-change path):`, error);
+      }
+      // --- END LOCAL CACHE WRITE ---
+
       return allIncomingBookmarks;
     }
     console.log(`${LOG_PREFIX} Changes detected, persisting bookmarks`);
-    await writePaginatedBookmarks(allIncomingBookmarks);
-    await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, toLightweightBookmarks(allIncomingBookmarks));
+    const mapping = await writePaginatedBookmarks(allIncomingBookmarks);
+    {
+      const bookmarksWithSlugs = allIncomingBookmarks.map((b) => {
+        const entry = mapping.slugs[b.id];
+        if (!entry) {
+          throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (change FILE)`);
+        }
+        return { ...b, slug: entry.slug };
+      });
+      await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
+
+      // --- START LOCAL CACHE WRITE ---
+      try {
+        await fs.mkdir(path.dirname(LOCAL_BOOKMARKS_PATH), { recursive: true });
+        await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarksWithSlugs, null, 2));
+        console.log(`${LOG_PREFIX} ✅ Successfully saved bookmarks to local fallback path (change-detected path)`);
+      } catch (error) {
+        console.error(`${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path (change-detected path):`, error);
+      }
+      // --- END LOCAL CACHE WRITE ---
+    }
     await writeTagFilteredBookmarks(allIncomingBookmarks);
     return allIncomingBookmarks;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`${LOG_PREFIX} Error during selective refresh:`, String(error));
-    return null;
+    // Propagate the error to ensure the data update process fails correctly.
+    throw error;
   }
 }
 
@@ -372,8 +477,17 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
             const hasChanged = await hasBookmarksChanged(freshBookmarks);
             if (hasChanged || force) {
               console.log(`${LOG_PREFIX} ${force ? "Forcing write" : "Changes detected"}, writing to S3`);
-              await writePaginatedBookmarks(freshBookmarks);
-              await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, toLightweightBookmarks(freshBookmarks));
+              const mapping = await writePaginatedBookmarks(freshBookmarks);
+              {
+                const bookmarksWithSlugs = freshBookmarks.map((b) => {
+                  const entry = mapping.slugs[b.id];
+                  if (!entry) {
+                    throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (force FILE)`);
+                  }
+                  return { ...b, slug: entry.slug };
+                });
+                await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
+              }
               await writeTagFilteredBookmarks(freshBookmarks);
             } else {
               console.log(`${LOG_PREFIX} No changes, skipping heavy S3 writes`);
@@ -391,6 +505,38 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                 changeDetected: false,
               };
               await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, updatedIndex);
+              // Ensure slug mapping exists even when no changes detected (idempotent)
+              try {
+                await saveSlugMapping(freshBookmarks, true, false);
+                console.log(`${LOG_PREFIX} Saved slug mapping (no-change path) for ${freshBookmarks.length} bookmarks`);
+              } catch (error) {
+                console.error(`${LOG_PREFIX} CRITICAL: Failed to save slug mapping (no-change path):`, error);
+                // Slug mappings are CRITICAL for bookmark navigation
+                throw new Error(
+                  `Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`,
+                );
+              }
+
+              // Generate mapping for use in bookmarks (but don't save it again)
+              const mapping = generateSlugMapping(freshBookmarks);
+              const bookmarksWithSlugs = freshBookmarks.map((b) => {
+                const entry = mapping.slugs[b.id];
+                if (!entry) {
+                  throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (non-selective FILE)`);
+                }
+                return { ...b, slug: entry.slug };
+              });
+              await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
+
+              // --- START LOCAL CACHE WRITE ---
+              try {
+                await fs.mkdir(path.dirname(LOCAL_BOOKMARKS_PATH), { recursive: true });
+                await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarksWithSlugs, null, 2));
+                console.log(`${LOG_PREFIX} ✅ Successfully saved bookmarks to local fallback path: ${LOCAL_BOOKMARKS_PATH}`);
+              } catch (error) {
+                console.error(`${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path:`, error);
+              }
+              // --- END LOCAL CACHE WRITE ---
             }
             // Heartbeat write (tiny file)
             void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
@@ -403,6 +549,26 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
           console.warn(`${LOG_PREFIX} Freshly fetched bookmarks are invalid.`);
           return null;
         }
+        // If we get an empty array, try to return existing S3 data as fallback
+        console.warn(
+          `${LOG_PREFIX} No bookmarks returned from refresh (likely missing API config), attempting S3 fallback`,
+        );
+        try {
+          const existingBookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+          if (existingBookmarks && Array.isArray(existingBookmarks) && existingBookmarks.length > 0) {
+            console.log(`${LOG_PREFIX} Returning ${existingBookmarks.length} existing bookmarks from S3`);
+            // Write heartbeat to record successful fallback
+            void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
+              runAt: Date.now(),
+              success: true,
+              changeDetected: false,
+              usedFallback: true,
+            }).catch(() => void 0);
+            return existingBookmarks;
+          }
+        } catch (error) {
+          console.error(`${LOG_PREFIX} Failed to read existing bookmarks from S3:`, String(error));
+        }
         return null;
       }
       const sel = await selectiveRefreshAndPersistBookmarks();
@@ -413,16 +579,17 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
         changeDetected: !!sel, // conservative signal
       }).catch(() => void 0);
       return sel;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`${LOG_PREFIX} Failed to refresh bookmarks:`, String(error));
       // Failure heartbeat
-      await writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
+      void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
         runAt: Date.now(),
         success: false,
         changeDetected: false,
         error: String(error),
       }).catch(() => void 0);
-      return null;
+      // Propagate the error to fail the CI/CD process
+      throw error;
     } finally {
       await releaseRefreshLock();
     }
@@ -446,24 +613,51 @@ async function fetchAndCacheBookmarks(
   console.log(
     `${LOG_PREFIX} fetchAndCacheBookmarks called. skipExternalFetch=${skipExternalFetch}, includeImageData=${includeImageData}`,
   );
+
+  // Define normalizeBookmarkTags function before usage
   const normalizeBookmarkTags = (bookmark: UnifiedBookmark) => ({
     ...bookmark,
     tags: (bookmark.tags || [])
       .filter((tag) => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
       .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
   });
+
+  // --- 1. Try loading from local cache first ---
+  try {
+    const localData = await fs.readFile(LOCAL_BOOKMARKS_PATH, "utf-8");
+    const bookmarks = JSON.parse(localData) as UnifiedBookmark[];
+    
+    // Skip local cache if it only contains test data
+    const isTestData = bookmarks.length === 1 && bookmarks[0]?.id === "test-1";
+    if (isTestData) {
+      console.log(`${LOG_PREFIX} Local cache contains only test data, skipping to S3`);
+    } else if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
+      console.log(`${LOG_PREFIX} Successfully loaded ${bookmarks.length} bookmarks from local cache: ${LOCAL_BOOKMARKS_PATH}`);
+      if (!includeImageData) {
+        console.log(`${LOG_PREFIX} Stripping image data from ${bookmarks.length} bookmarks`);
+        return bookmarks.map(stripImageData);
+      }
+      return bookmarks.map(normalizeBookmarkTags);
+    }
+  } catch (error) {
+    console.warn(`[Bookmarks] Local bookmarks cache not found or invalid, proceeding to S3. Error: ${String(error)}`);
+  }
+
+  // --- 2. Fallback to S3 ---
   try {
     const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
     if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
       console.log(`${LOG_PREFIX} Loaded ${bookmarks.length} bookmarks from S3`);
-      const cliBookmark = bookmarks.find((b) => b.id === "yz7g8v8vzprsd2bm1w1cjc4y");
-      if (cliBookmark) {
-        console.log(`[BookmarksServer] CLI bookmark content exists:`, {
-          hasContent: !!cliBookmark.content,
-          hasImageAssetId: !!cliBookmark.content?.imageAssetId,
-          imageAssetId: cliBookmark.content?.imageAssetId,
-          contentKeys: cliBookmark.content ? Object.keys(cliBookmark.content) : [],
-        });
+      if (process.env.DEBUG_BOOKMARKS === "true") {
+        const cliBookmark = bookmarks.find((b) => b.id === "yz7g8v8vzprsd2bm1w1cjc4y");
+        if (cliBookmark) {
+          console.log(`[BookmarksServer] CLI bookmark content exists:`, {
+            hasContent: !!cliBookmark.content,
+            hasScreenshotAssetId: !!cliBookmark.content?.screenshotAssetId,
+            screenshotAssetId: cliBookmark.content?.screenshotAssetId,
+            contentKeys: cliBookmark.content ? Object.keys(cliBookmark.content) : [],
+          });
+        }
       }
       if (!includeImageData) {
         console.log(`${LOG_PREFIX} Stripping image data from ${bookmarks.length} bookmarks`);

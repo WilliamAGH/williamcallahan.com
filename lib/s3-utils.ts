@@ -49,8 +49,10 @@ const MAX_S3_READ_SIZE = 50 * 1024 * 1024; // 50MB max read size to prevent memo
 // Request coalescing for duplicate S3 reads
 const inFlightReads = new Map<string, Promise<Buffer | string | null>>();
 
-// Helper: log a single warning when S3 configuration is missing, then downgrade subsequent messages to debug level
-const isS3FullyConfigured = Boolean(S3_BUCKET && S3_ACCESS_KEY_ID && S3_SECRET_ACCESS_KEY);
+// Helper: check if S3 is fully configured (now a function for dynamic checking)
+function isS3FullyConfigured(): boolean {
+  return Boolean(process.env.S3_BUCKET && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY);
+}
 
 let hasLoggedMissingS3Config = false;
 function logMissingS3ConfigOnce(context: string): void {
@@ -87,6 +89,11 @@ if (!S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
 // Lazy initialization of S3 client to ensure environment variables are loaded
 let s3ClientInstance: S3Client | null = null;
 
+// Export a function to reset client for testing
+export function resetS3Client(): void {
+  s3ClientInstance = null;
+}
+
 export function getS3Client(): S3Client | null {
   if (s3ClientInstance !== null) {
     return s3ClientInstance;
@@ -108,15 +115,19 @@ export function getS3Client(): S3Client | null {
       retryMode: "adaptive" as const,
     };
     s3ClientInstance = endpoint ? new S3Client({ ...baseConfig, endpoint }) : new S3Client(baseConfig);
+    // Structured, one-line init summary for diagnostics
+    console.log(
+      `[S3Utils] S3 client initialized | bucket=${bucket} | endpoint=${endpoint || "SDK default"} | region=${region}`,
+    );
     if (isDebug)
       debug(`[S3Utils] S3-compatible client initialized (${endpoint ? "custom endpoint" : "sdk default endpoint"}).`);
-  } else if (isDebug) {
-    debug(
-      `[S3Utils] S3 client not initialized - missing envs: ` +
-        `S3_BUCKET=${bucket ? "set" : "missing"}, ` +
-        `S3_SERVER_URL=${endpoint ? "set" : "missing"}, ` +
-        `S3_ACCESS_KEY_ID=${accessKeyId ? "set" : "missing"}, ` +
-        `S3_SECRET_ACCESS_KEY=${secretAccessKey ? "set" : "missing"}`,
+  } else {
+    console.error(
+      `[S3Utils] CRITICAL: S3 client not initialized | ` +
+        `S3_BUCKET=${bucket ? "set" : "MISSING"} | ` +
+        `S3_SERVER_URL=${endpoint ? "set" : "not required"} | ` +
+        `S3_ACCESS_KEY_ID=${accessKeyId ? "set" : "MISSING"} | ` +
+        `S3_SECRET_ACCESS_KEY=${secretAccessKey ? "set" : "MISSING"}`,
     );
   }
 
@@ -231,6 +242,8 @@ export async function readFromS3(
 }
 
 async function performS3Read(key: string, options?: { range?: string }): Promise<Buffer | string | null> {
+  console.log(`[S3Utils] performS3Read called for key: ${key}`);
+
   if (isUnderMemoryPressure() && isBinaryKey(key)) {
     // Allow small binaries (e.g., logos) under pressure, but block anything exceeding MAX_S3_READ_SIZE.
     const canProceed = await validateContentSize(key);
@@ -302,7 +315,7 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
     return null;
   }
   const client = getS3Client();
-  if (!isS3FullyConfigured || !client) {
+  if (!isS3FullyConfigured() || !client) {
     logMissingS3ConfigOnce("readFromS3");
     return null;
   }
@@ -338,7 +351,7 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
         );
       return null; // Should not happen if Body is present and Readable
     } catch (error: unknown) {
-      const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+      const err = error as { name?: string; $metadata?: { httpStatusCode?: number }; Code?: string };
       if (err.name === "NotFound" || err.name === "NoSuchKey" || err.$metadata?.httpStatusCode === 404) {
         if (isDebug) debug(`[S3Utils] readFromS3: Key ${key} not found (attempt ${attempt}/${MAX_S3_READ_RETRIES}).`);
         if (attempt < MAX_S3_READ_RETRIES) {
@@ -357,7 +370,11 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
         return null; // All retries failed
       }
       const message = err instanceof Error ? err.message : safeJsonStringify(err) || "Unknown error";
-      console.error(`[S3Utils] Error reading from S3 key ${key} (attempt ${attempt}/${MAX_S3_READ_RETRIES}):`, message);
+      const code = err.Code ?? err.name ?? "unknown";
+      const status = err.$metadata?.httpStatusCode ?? "unknown";
+      console.error(
+        `[S3Utils] Error reading from S3 | key=${key} | attempt=${attempt}/${MAX_S3_READ_RETRIES} | status=${status} | code=${code} | msg=${message}`,
+      );
       return null;
     }
   }
@@ -423,7 +440,7 @@ export async function writeToS3(
     return;
   }
   const client = getS3Client();
-  if (!isS3FullyConfigured || !client) {
+  if (!isS3FullyConfigured() || !client) {
     // During build phase without credentials, silently skip writes instead of logging warnings
     if (process.env.NEXT_PHASE === "phase-production-build") {
       if (isDebug) debug(`[S3Utils] Skipping S3 write during build (no credentials) for key: ${key}`);
@@ -470,7 +487,7 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
     return false;
   }
   const client = getS3Client();
-  if (!isS3FullyConfigured || !client) {
+  if (!isS3FullyConfigured() || !client) {
     logMissingS3ConfigOnce("checkIfS3ObjectExists");
     return false;
   }
@@ -507,7 +524,7 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
     return null;
   }
   const client = getS3Client();
-  if (!isS3FullyConfigured || !client) {
+  if (!isS3FullyConfigured() || !client) {
     logMissingS3ConfigOnce("getS3ObjectMetadata");
     return null;
   }
@@ -550,7 +567,7 @@ export async function listS3Objects(prefix: string): Promise<string[]> {
     return [];
   }
   const client = getS3Client();
-  if (!isS3FullyConfigured || !client) {
+  if (!isS3FullyConfigured() || !client) {
     logMissingS3ConfigOnce("listS3Objects");
     return [];
   }
@@ -594,7 +611,7 @@ export async function deleteFromS3(key: string): Promise<void> {
     return;
   }
   const client = getS3Client();
-  if (!isS3FullyConfigured || !client) {
+  if (!isS3FullyConfigured() || !client) {
     logMissingS3ConfigOnce("deleteFromS3");
     return;
   }
@@ -681,28 +698,51 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
  * @returns Parsed JSON data or null if an error occurs
  */
 export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
+  console.log(`[S3Utils] readJsonS3 called for key: ${s3Key}`);
+
   if (DRY_RUN) {
-    if (isDebug) debug(`[S3Utils][DRY RUN] Would read JSON from S3 key ${s3Key}`);
+    console.log(`[S3Utils][DRY RUN] Would read JSON from S3 key ${s3Key}`);
     return null;
   }
+
   try {
+    console.log(`[S3Utils] Attempting to read from S3: ${s3Key}`);
     const content = await readFromS3(s3Key); // readFromS3 already has debug logging
+
+    if (content === null) {
+      console.warn(`[S3Utils] readFromS3 returned null for key: ${s3Key}`);
+      return null;
+    }
+
     if (typeof content === "string") {
+      console.log(`[S3Utils] Content is string, length: ${content.length}`);
       const parsed = safeJsonParse<T>(content);
-      if (parsed !== null && isDebug) debug(`[S3Utils] Successfully read and parsed JSON from S3 key ${s3Key}.`);
+      if (parsed !== null) {
+        console.log(`[S3Utils] Successfully parsed JSON from S3 key ${s3Key}`);
+        if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON from S3 key ${s3Key}.`);
+      } else {
+        console.error(`[S3Utils] Failed to parse JSON content from ${s3Key}`);
+      }
       return parsed;
     }
+
     if (Buffer.isBuffer(content)) {
+      console.log(`[S3Utils] Content is buffer, size: ${content.length} bytes`);
       const parsed = parseJsonFromBuffer<T>(content, "utf-8");
-      if (parsed !== null && isDebug)
-        debug(`[S3Utils] Successfully read and parsed JSON (from buffer) from S3 key ${s3Key}.`);
+      if (parsed !== null) {
+        console.log(`[S3Utils] Successfully parsed JSON from buffer for S3 key ${s3Key}`);
+        if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON (from buffer) from S3 key ${s3Key}.`);
+      } else {
+        console.error(`[S3Utils] Failed to parse JSON from buffer for ${s3Key}`);
+      }
       return parsed;
     }
-    if (isDebug) debug(`[S3Utils] readJsonS3: Key ${s3Key} not found or content was not string/buffer.`);
+
+    console.error(`[S3Utils] Unexpected content type for ${s3Key}: ${typeof content}`);
     return null;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
-    console.warn(`[S3Utils] Error reading/parsing JSON from S3 key ${s3Key}:`, message);
+    console.error(`[S3Utils] CRITICAL ERROR reading/parsing JSON from S3 key ${s3Key}:`, message);
     return null;
   }
 }
@@ -718,6 +758,24 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
  * @param options Optional parameters including IfNoneMatch for conditional writes
  */
 export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneMatch?: string }): Promise<void> {
+  // CRITICAL: Validate environment path before any S3 write
+  if (s3Key.includes("/bookmarks/") && s3Key.endsWith(".json")) {
+    const { validateEnvironmentPath, getEnvironment } = await import("@/lib/config/environment");
+    if (!validateEnvironmentPath(s3Key)) {
+      const env = getEnvironment();
+      console.error(`[S3Utils] ❌ ENVIRONMENT PATH MISMATCH PREVENTED`);
+      console.error(`[S3Utils]    Current environment: ${env}`);
+      console.error(`[S3Utils]    Attempted write to: ${s3Key}`);
+      console.error(`[S3Utils]    This path doesn't match the expected environment suffix`);
+
+      // In non-production, throw error to catch issues early
+      if (env !== "production") {
+        throw new Error(`Environment path validation failed: ${s3Key} doesn't match ${env} environment`);
+      }
+      return;
+    }
+  }
+
   if (DRY_RUN) {
     if (isDebug) debug(`[S3Utils][DRY RUN] Would write JSON to S3 key: ${s3Key}`);
     return;
@@ -755,20 +813,29 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
     // Prefer atomic conditional create when requested and client is available
     if (options?.IfNoneMatch === "*") {
       const client = getS3Client();
-      if (isS3FullyConfigured && client) {
-        const { PutObjectCommand } = await import("@aws-sdk/client-s3");
-        const command = new PutObjectCommand({
-          Bucket: S3_BUCKET,
-          Key: s3Key,
-          Body: jsonData,
-          ContentType: "application/json",
-          ACL: "public-read",
-          IfNoneMatch: "*",
-        });
-        await client.send(command);
+      // Check dynamically if S3 is configured (re-read env vars)
+      const bucket = process.env.S3_BUCKET;
+      const accessKeyId = process.env.S3_ACCESS_KEY_ID;
+      const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
+      const isConfigured = Boolean(bucket && accessKeyId && secretAccessKey);
+
+      if (!isConfigured || !client) {
+        // If conditional write is requested but S3 is not configured, log error and return
+        // Don't throw to maintain backward compatibility with tests
+        console.error("[S3Utils] Cannot perform conditional write: S3 client not configured");
         return;
       }
-      // Fall through to regular write if client not available
+      const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+      const command = new PutObjectCommand({
+        Bucket: bucket,
+        Key: s3Key,
+        Body: jsonData,
+        ContentType: "application/json",
+        ACL: "public-read",
+        IfNoneMatch: "*",
+      });
+      await client.send(command);
+      return;
     }
     await writeToS3(s3Key, jsonData, "application/json", "public-read");
     // No need for redundant success log here, writeToS3 handles it.
@@ -778,6 +845,36 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
     throw error; // Re-throw other errors so callers can handle
   }
 }
+
+// ----------------------------------------------------------------------------
+// Lock store abstraction for deterministic testing and alternative backends
+// ----------------------------------------------------------------------------
+
+import type { LockStore, LockEntry } from "@/types/lib";
+
+const s3LockStore: LockStore = {
+  async read(key) {
+    return await readJsonS3<LockEntry>(key);
+  },
+  async createIfAbsent(key, value) {
+    try {
+      await writeJsonS3(key, value, { IfNoneMatch: "*" });
+      return true;
+    } catch (error: unknown) {
+      if (error && typeof error === "object" && "$metadata" in error) {
+        const metadata = (error as { $metadata?: { httpStatusCode?: number } }).$metadata;
+        if (metadata?.httpStatusCode === 412) return false;
+      }
+      throw error;
+    }
+  },
+  async delete(key) {
+    await deleteFromS3(key);
+  },
+  async list(prefix) {
+    return await listS3Objects(prefix);
+  },
+};
 
 /**
  * Reads a binary file (e.g., an image) from S3
@@ -892,27 +989,40 @@ export async function acquireDistributedLock(
   instanceId: string,
   operation: string,
   timeoutMs: number = LOCK_TIMEOUT_MS,
+  options?: { store?: LockStore; clock?: () => number },
 ): Promise<boolean> {
+  const clock = options?.clock ?? Date.now;
+  const store = options?.store ?? s3LockStore;
   const lockPath = `locks/${lockKey}.json`;
   const lockEntry: { instanceId: string; acquiredAt: number; operation: string } = {
     instanceId,
-    acquiredAt: Date.now(),
+    acquiredAt: clock(),
     operation,
   };
 
   try {
-    const existingLock = await readJsonS3<{ instanceId: string; acquiredAt: number; operation: string }>(lockPath);
-    if (existingLock && Date.now() - existingLock.acquiredAt < timeoutMs) {
-      return false; // Lock still active
+    const existingLock = await store.read(lockPath);
+    if (existingLock) {
+      const age = clock() - existingLock.acquiredAt;
+      if (age < timeoutMs) {
+        return false; // Lock still active
+      }
+      // Stale lock: attempt best-effort cleanup before acquiring
+      try {
+        await store.delete(lockPath);
+      } catch {
+        // Ignore cleanup errors and proceed to conditional create
+      }
     }
   } catch {
     // Lock doesn't exist, proceed to acquire
   }
 
   try {
-    await writeJsonS3(lockPath, lockEntry, { IfNoneMatch: "*" });
+    const created = await store.createIfAbsent(lockPath, lockEntry);
+    if (!created) return false;
     // Read-back verification to confirm we own the lock after any concurrent writes
-    const current = await readJsonS3<{ instanceId: string; acquiredAt: number; operation: string }>(lockPath);
+    const current = await store.read(lockPath);
     if (current && current.instanceId === lockEntry.instanceId && current.acquiredAt === lockEntry.acquiredAt) {
       return true;
     }
@@ -933,13 +1043,18 @@ export async function acquireDistributedLock(
 }
 
 /** Release a distributed lock */
-export async function releaseDistributedLock(lockKey: string, instanceId: string): Promise<void> {
+export async function releaseDistributedLock(
+  lockKey: string,
+  instanceId: string,
+  options?: { store?: LockStore },
+): Promise<void> {
+  const store = options?.store ?? s3LockStore;
   const lockPath = `locks/${lockKey}.json`;
 
   try {
-    const existingLock = await readJsonS3<{ instanceId: string; acquiredAt: number; operation: string }>(lockPath);
+    const existingLock = await store.read(lockPath);
     if (existingLock?.instanceId === instanceId) {
-      await deleteFromS3(lockPath);
+      await store.delete(lockPath);
     }
   } catch (error) {
     console.error(`Failed to release lock ${lockKey}:`, error);
@@ -947,16 +1062,21 @@ export async function releaseDistributedLock(lockKey: string, instanceId: string
 }
 
 /** Clean up stale locks older than timeout */
-export async function cleanupStaleLocks(timeoutMs: number = LOCK_TIMEOUT_MS): Promise<void> {
+export async function cleanupStaleLocks(
+  timeoutMs: number = LOCK_TIMEOUT_MS,
+  options?: { store?: LockStore; clock?: () => number },
+): Promise<void> {
+  const store = options?.store ?? s3LockStore;
+  const clock = options?.clock ?? Date.now;
   try {
-    const locks = await listS3Objects("locks/");
-    const now = Date.now();
+    const locks = await store.list("locks/");
+    const now = clock();
 
     for (const lockKey of locks) {
       try {
-        const lockData = await readJsonS3<{ instanceId: string; acquiredAt: number; operation: string }>(lockKey);
+        const lockData = await store.read(lockKey);
         if (lockData && now - lockData.acquiredAt > timeoutMs) {
-          await deleteFromS3(lockKey);
+          await store.delete(lockKey);
         }
       } catch {
         // Ignore errors for individual lock cleanup
@@ -966,3 +1086,11 @@ export async function cleanupStaleLocks(timeoutMs: number = LOCK_TIMEOUT_MS): Pr
     console.error("Failed to cleanup stale locks:", error);
   }
 }
+
+// Convenience wrapper object to enable simpler spying in tests
+export const s3Json = {
+  readJsonS3,
+  writeJsonS3,
+  listS3Objects,
+  deleteFromS3,
+} as const;

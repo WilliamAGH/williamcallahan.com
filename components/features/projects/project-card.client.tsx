@@ -6,6 +6,7 @@ import Image from "next/image";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { type JSX, useState, useEffect } from "react";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
+import { kebabCase } from "@/lib/utils/formatters";
 
 // Placeholder for centered top image with gradient
 function PlaceholderImageTop() {
@@ -39,6 +40,9 @@ function PlaceholderImageTop() {
 export function ProjectCard({ project, isPriority = false }: ProjectCardProps): JSX.Element {
   const { name, description, url, imageKey, tags } = project;
   const initialImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
+  
+  // Generate a URL-safe ID from the project name for anchor linking
+  const projectId = kebabCase(name);
 
   const [imageUrl, setImageUrl] = useState(initialImageUrl);
   const [hasError, setHasError] = useState(false);
@@ -59,7 +63,9 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
 
   return (
     // Redesigned card for horizontal layout on medium screens and up
-    <div className="group rounded-lg border border-gray-300 dark:border-gray-900 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-400 opacity-0 animate-fade-in-up md:flex h-auto flex-col md:flex-row">
+    <div 
+      id={projectId || undefined}
+      className="group rounded-lg border border-gray-300 dark:border-gray-900 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-400 opacity-0 animate-fade-in-up md:flex h-auto flex-col md:flex-row">
       {" "}
       {/* Use h-auto for responsive height */}
       {/* Image Section (Left side on md+) */}

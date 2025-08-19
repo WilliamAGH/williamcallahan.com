@@ -39,6 +39,20 @@ import {
   getS3ObjectMetadata,
   s3Client,
 } from "@/lib/s3-utils";
+import { Readable } from "node:stream";
+let mockClient: ((c: any) => any) | null = null;
+try {
+  mockClient = require("aws-sdk-client-mock").mockClient;
+} catch {
+  mockClient = null;
+}
+import {
+  S3Client,
+  GetObjectCommand,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  ListObjectsV2Command,
+} from "@aws-sdk/client-s3";
 
 // Removed extraneous exports to satisfy ESLint rules
 
@@ -72,6 +86,13 @@ const IS_S3_CONFIGURED = Boolean(
 const SHOULD_RUN_LIVE_TESTS = S3_TEST_MODE !== "DRY" && IS_S3_CONFIGURED;
 
 // Ensure live tests can perform write operations by disabling read-only mode
+// Always prepare a client mock; when running live, we'll reset and let requests through
+const s3Mock = mockClient ? mockClient(S3Client) : null;
+
+beforeEach(() => {
+  if (s3Mock) s3Mock.reset();
+});
+
 if (SHOULD_RUN_LIVE_TESTS) {
   // Explicit override respected by isS3ReadOnly (see utils/s3-read-only.ts)
   const previousReadOnly = process.env.S3_READ_ONLY;
@@ -102,8 +123,44 @@ if (SHOULD_RUN_LIVE_TESTS) {
       await deleteFromS3(TEST_KEY);
     });
   });
+} else if (s3Mock) {
+  // Mocked integration path using aws-sdk-client-mock (no network)
+  describe("S3 Utils Integration – read/write JSON (mocked)", () => {
+    const TEST_KEY = "test/integration-test.json";
+    const payload = { hello: "world", ts: 12345 };
+
+    it("writes JSON to S3 and reads it back via mocked client", async () => {
+      let storedBody: string | null = null;
+
+      // Mock PutObject to capture Body
+      s3Mock.on(PutObjectCommand).callsFake((input) => {
+        storedBody = typeof input.Body === "string" ? input.Body : String(input.Body);
+        return { ETag: '"test-etag"' } as any;
+      });
+
+      // Mock GetObject to return captured Body as Readable stream
+      s3Mock.on(GetObjectCommand).callsFake(() => {
+        const body = storedBody ?? JSON.stringify({});
+        return { Body: Readable.from([Buffer.from(body)]) } as any;
+      });
+
+      // Mock DeleteObject and ListObjects (satisfy potential calls)
+      s3Mock.on(DeleteObjectCommand).resolves({} as any);
+      s3Mock.on(ListObjectsV2Command).resolves({ Contents: [{ Key: TEST_KEY }] } as any);
+
+      await writeJsonS3(TEST_KEY, payload);
+      const readBack = await readJsonS3<typeof payload>(TEST_KEY);
+      expect(readBack).toEqual(payload);
+
+      // Exercise delete path without network
+      await deleteFromS3(TEST_KEY);
+    });
+  });
 } else {
-  console.warn(
-    `[S3 Utils Integration] Skipping live S3 tests – mode: ${S3_TEST_MODE}, credentials present: ${IS_S3_CONFIGURED}`,
-  );
+  // Neither live tests nor mock library available; skip mocked integration
+  describe.skip("S3 Utils Integration – read/write JSON (mocked)", () => {
+    it("skipped due to missing aws-sdk-client-mock", () => {
+      expect(true).toBe(true);
+    });
+  });
 }

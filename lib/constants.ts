@@ -17,8 +17,15 @@
  */
 import type { BookmarksS3Paths, RateLimiterConfig } from "@/types/lib";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
-const env = process.env.NODE_ENV;
-const envSuffix = env === "production" || !env ? "" : env === "test" ? "-test" : "-dev";
+import { ENVIRONMENT_SUFFIX } from "@/lib/config/environment";
+
+// Use validated environment suffix from centralized config
+const envSuffix = ENVIRONMENT_SUFFIX;
+
+// Warn if environment is not properly configured
+if (typeof process !== "undefined" && !process.env.NODE_ENV) {
+  console.warn("[Constants] NODE_ENV not set - using environment suffix:", envSuffix);
+}
 
 /** Client-side cache duration: 30 days (milliseconds) */
 export const CACHE_DURATION = 30 * 24 * 60 * 60 * 1000;
@@ -36,11 +43,27 @@ export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
   TAG_PREFIX: `json/bookmarks/tags${envSuffix}/`,
   TAG_INDEX_PREFIX: `json/bookmarks/tags${envSuffix}/`,
   HEARTBEAT: `json/bookmarks/heartbeat${envSuffix}.json`,
+  SLUG_MAPPING: `json/bookmarks/slug-mapping${envSuffix}.json`,
 } as const;
 
 export const LOGO_BLOCKLIST_S3_PATH = `json/rate-limit/logo-failed-domains${envSuffix}.json`;
 
-/** S3 paths for search indexes (environment-aware) */
+/**
+ * S3 paths for content graph (environment-aware)
+ * Note: DIR includes the environment suffix and leaf files are unsuffixed by design.
+ * This keeps the content-graph directory environment-scoped while file names stay stable.
+ */
+export const CONTENT_GRAPH_S3_PATHS = {
+  DIR: `json/content-graph${envSuffix}`,
+  RELATED_CONTENT: `json/content-graph${envSuffix}/related-content.json`,
+  TAG_GRAPH: `json/content-graph${envSuffix}/tag-graph.json`,
+  METADATA: `json/content-graph${envSuffix}/metadata.json`,
+} as const;
+
+/**
+ * S3 paths for search indexes (environment-aware)
+ * Note: DIR is global; each leaf file appends the environment suffix.
+ */
 export const SEARCH_S3_PATHS = {
   DIR: "json/search",
   POSTS_INDEX: `json/search/posts-index${envSuffix}.json`,
@@ -52,7 +75,10 @@ export const SEARCH_S3_PATHS = {
   BUILD_METADATA: `json/search/build-metadata${envSuffix}.json`,
 } as const;
 
-/** S3 paths for GitHub activity data (environment-aware) */
+/**
+ * S3 paths for GitHub activity data (environment-aware)
+ * Note: DIR is global; each leaf file appends the environment suffix.
+ */
 export const GITHUB_ACTIVITY_S3_PATHS = {
   DIR: "json/github-activity",
   ACTIVITY_DATA: `json/github-activity/activity_data${envSuffix}.json`,
@@ -63,7 +89,10 @@ export const GITHUB_ACTIVITY_S3_PATHS = {
   REPO_RAW_WEEKLY_STATS_DIR: `json/github-activity/repo_raw_weekly_stats${envSuffix}`,
 } as const;
 
-/** S3 paths for image manifests (environment-aware) */
+/**
+ * S3 paths for image manifests (environment-aware)
+ * Note: DIR is global; each leaf file appends the environment suffix.
+ */
 export const IMAGE_MANIFEST_S3_PATHS = {
   DIR: "json/image-data",
   LOGOS_MANIFEST: `json/image-data/logos/manifest${envSuffix}.json`,
@@ -90,8 +119,14 @@ export const IMAGE_S3_PATHS = {
 export const BOOKMARKS_CACHE_DURATION = { SUCCESS: 7 * 24 * 60 * 60, FAILURE: 60 * 60, REVALIDATION: 60 * 60 };
 
 /** Bookmarks API configuration */
+// Normalize Karakeep API base URL: ensure it ends with /api/v1
+const RAW_BOOKMARKS_API = process.env.BOOKMARKS_API_URL ?? "https://bookmark.iocloudhost.net";
+const NORMALIZED_BOOKMARKS_API = /\/api(\/v\d+)?\/?$/.test(RAW_BOOKMARKS_API)
+  ? RAW_BOOKMARKS_API.replace(/\/?$/, "")
+  : `${RAW_BOOKMARKS_API.replace(/\/?$/, "")}/api/v1`;
+
 export const BOOKMARKS_API_CONFIG = {
-  API_URL: process.env.BOOKMARKS_API_URL ?? "https://bookmark.iocloudhost.net/api/v1",
+  API_URL: NORMALIZED_BOOKMARKS_API,
   LIST_ID: process.env.BOOKMARKS_LIST_ID,
   BEARER_TOKEN: process.env.BOOKMARK_BEARER_TOKEN,
   REQUEST_TIMEOUT_MS: 10_000,
