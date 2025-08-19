@@ -5,6 +5,9 @@
  * Displays paginated collection of bookmarked resources with URL-based navigation
  * Implements proper SEO with canonical URLs and pagination metadata
  *
+ * NOTE: No generateStaticParams() needed - sitemap.ts calculates total pages
+ * and adds URLs directly. This avoids S3 dependency at build time.
+ * @see app/sitemap.ts:213-230 - Pagination URL generation
  * @see {@link "https://nextjs.org/docs/app/api-reference/functions/generate-metadata"} - Next.js Metadata API
  * @see {@link "https://developers.google.com/search/docs/specialty/ecommerce/pagination"} - Google pagination guidelines
  */

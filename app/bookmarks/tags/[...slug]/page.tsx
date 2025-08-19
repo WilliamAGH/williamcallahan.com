@@ -16,7 +16,7 @@ export const fetchCache = "default-no-store";
 
 import type { Metadata } from "next";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
-import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
+import { getBookmarksForStaticBuildAsync } from "@/lib/bookmarks/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
@@ -30,10 +30,16 @@ import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 import { redirect } from "next/navigation";
 
 /**
- * Generate static paths for tag pages
+ * Generate static paths for tag pages at build time
+ * 
+ * FIX (Issue #sitemap-2024): Changed from sync getBookmarksForStaticBuild() to async version.
+ * Sync function always returned empty array, causing tag URLs to be missing from sitemap.
+ * Blog tags worked because getAllPosts() reads from local filesystem synchronously.
+ * 
+ * @see lib/bookmarks/bookmarks.server.ts for why sync vs async matters
  */
 export async function generateStaticParams() {
-  const bookmarks = getBookmarksForStaticBuild();
+  const bookmarks = await getBookmarksForStaticBuildAsync();
   const tagCounts: { [key: string]: number } = {};
   bookmarks.forEach((b) => {
     (Array.isArray(b.tags) ? b.tags : []).forEach((t: string | { name: string }) => {

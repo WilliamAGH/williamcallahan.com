@@ -14,15 +14,16 @@ import { stripImageData } from "../bookmarks/utils";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 
 /**
- * Get minimal bookmark data for static site generation (sitemap, static params)
- *
- * Returns bookmarks with REQUIRED fields (id, slug, url, title) but WITHOUT heavy image data.
- * This allows sitemap generation and static route generation while keeping build times fast.
- *
- * CRITICAL: Every bookmark MUST have a slug for idempotent routing.
- * If bookmarks don't have slugs, they cannot be included in sitemap or static generation.
+ * DEPRECATED: Synchronous bookmark fetcher that ALWAYS returns empty array
  * 
- * @returns Empty array synchronously - use getBookmarksForStaticBuildAsync for actual data
+ * CRITICAL BUG (Issue #sitemap-2024): This function was causing sitemap generation failures
+ * because Next.js generateStaticParams() requires synchronous data during build, but bookmarks
+ * are stored in S3 (async-only). Blog posts work because they're read from local filesystem
+ * synchronously via fs.readFileSync(). Bookmarks fail because S3 has no sync API.
+ * 
+ * @deprecated Use getBookmarksForStaticBuildAsync() instead
+ * @see https://nextjs.org/docs/app/api-reference/functions/generate-static-params
+ * @returns Empty array - NEVER use for sitemap/static generation
  */
 export function getBookmarksForStaticBuild(): UnifiedBookmark[] {
   if (process.env.NODE_ENV === "development") {
@@ -32,12 +33,15 @@ export function getBookmarksForStaticBuild(): UnifiedBookmark[] {
 }
 
 /**
- * Get minimal bookmark data for static site generation (async version)
- *
- * Returns lightweight bookmarks with REQUIRED slugs for sitemap and static route generation.
- * Strips heavy image data to keep memory usage low during build.
- *
- * CRITICAL: Every returned bookmark is GUARANTEED to have both id and slug fields.
+ * Async bookmark fetcher for static site generation (sitemap, generateStaticParams)
+ * 
+ * CRITICAL FOR SITEMAP: This MUST be called during Docker build (before 'next build')
+ * to ensure bookmark data exists when sitemap.ts runs. Unlike blog posts (local files),
+ * bookmarks require S3 access which only works if credentials are provided at build time.
+ * 
+ * @see Dockerfile:98-106 - Fetches bookmark data BEFORE build
+ * @see app/sitemap.ts:149 - Uses this to generate bookmark URLs
+ * @returns Bookmarks with guaranteed id+slug fields, or empty array if S3 unavailable
  */
 export async function getBookmarksForStaticBuildAsync(): Promise<LightweightBookmark[]> {
   console.log("[Static Build] Loading bookmarks with slugs for sitemap/static generation...");
@@ -64,7 +68,12 @@ export async function getBookmarksForStaticBuildAsync(): Promise<LightweightBook
     if (!slugMapping?.slugs || Object.keys(slugMapping.slugs).length === 0) {
       console.log("[Static Build] No valid slug mapping found, generating dynamically...");
       const { generateSlugMapping } = await import("@/lib/bookmarks/slug-manager");
-      slugMapping = generateSlugMapping(bookmarks);
+      // Ensure all bookmarks have URLs before attempting to generate slugs
+      const bookmarksWithUrls = bookmarks.filter((b) => Boolean(b.url));
+      if (bookmarksWithUrls.length < bookmarks.length) {
+        console.warn(`[Static Build] Filtered out ${bookmarks.length - bookmarksWithUrls.length} bookmarks without URLs`);
+      }
+      slugMapping = generateSlugMapping(bookmarksWithUrls);
       console.log(`[Static Build] Generated slug mapping with ${Object.keys(slugMapping.slugs).length} entries`);
     }
 
