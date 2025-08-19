@@ -2,7 +2,7 @@
 
 import { randomInt } from "node:crypto";
 import { readJsonS3, writeJsonS3, deleteFromS3 } from "@/lib/s3-utils";
-import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
+import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
 import type { UnifiedBookmark, DistributedLockEntry, RefreshBookmarksCallback } from "@/types";
 import type { BookmarksIndex, BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
@@ -96,8 +96,16 @@ const safeRevalidateTag = (...tags: string[]): void => {
 };
 
 const INSTANCE_ID = `instance-${randomInt(1000000, 9999999)}-${Date.now()}`;
-const ENABLE_TAG_CACHING = process.env.ENABLE_TAG_CACHING !== "false";
-const MAX_TAGS_TO_CACHE = parseInt(process.env.MAX_TAGS_TO_CACHE || "10", 10);
+const ENABLE_TAG_PERSISTENCE = process.env.ENABLE_TAG_PERSISTENCE !== "false";
+// Default to no limit (persist all tags) when env var not set
+const MAX_TAGS_TO_PERSIST = process.env.MAX_TAGS_TO_PERSIST 
+  ? parseInt(process.env.MAX_TAGS_TO_PERSIST, 10)
+  : Number.MAX_SAFE_INTEGER;
+
+// In-memory runtime cache for the full bookmarks dataset to prevent repeated S3 reads
+// This is a temporary runtime cache, NOT S3 persistence
+const FULL_DATASET_MEMORY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+let fullDatasetMemoryCache: { data: UnifiedBookmark[]; timestamp: number } | null = null;
 
 // In-process short-TTL cache parameters (centralized in lib/cache; local cache removed)
 
@@ -320,10 +328,10 @@ async function writePaginatedBookmarks(
   return mapping;
 }
 
-/** Write tag-filtered bookmarks in paginated format with embedded slugs */
-async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<void> {
-  if (!ENABLE_TAG_CACHING) {
-    console.log(`${LOG_PREFIX} Tag caching disabled by environment variable`);
+/** Persist pre-computed tag-filtered bookmarks to S3 storage in paginated format with embedded slugs */
+async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark[]): Promise<void> {
+  if (!ENABLE_TAG_PERSISTENCE) {
+    envLogger.log("Tag persistence disabled by environment variable", undefined, { category: LOG_PREFIX });
     return;
   }
   // Build a mapping once for this write to embed slugs
@@ -344,14 +352,14 @@ async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<
       tagCounts[tagSlugValue] = (tagCounts[tagSlugValue] || 0) + 1;
     }
   }
-  const topTags = Object.entries(tagCounts)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, MAX_TAGS_TO_CACHE)
-    .map(([tag]) => tag);
-  console.log(
-    `${LOG_PREFIX} Processing ${topTags.length} of ${Object.keys(bookmarksByTag).length} tags (limited to top ${MAX_TAGS_TO_CACHE})`,
+  // Persist ALL tags to S3, not just the top N - this ensures all tags have pre-computed data
+  const allTags = Object.keys(bookmarksByTag);
+  envLogger.log(
+    `Persisting ALL ${allTags.length} tags to S3 storage`, 
+    { totalTags: allTags.length, previousLimit: MAX_TAGS_TO_PERSIST },
+    { category: LOG_PREFIX }
   );
-  for (const tagSlug of topTags) {
+  for (const tagSlug of allTags) {
     const tagBookmarks = bookmarksByTag[tagSlug];
     if (!tagBookmarks) continue;
     const totalPages = Math.ceil(tagBookmarks.length / pageSize),
@@ -379,7 +387,11 @@ async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<
       await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${page}.json`, slice);
     }
   }
-  console.log(`${LOG_PREFIX} Wrote tag-filtered bookmarks for ${topTags.length} tags`);
+  envLogger.log(
+    `Persisted tag-filtered bookmarks to S3`,
+    { tagCount: allTags.length },
+    { category: LOG_PREFIX }
+  );
 }
 
 /** Core refresh logic - only process new/changed bookmarks */
@@ -463,7 +475,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
       }
       // --- END LOCAL CACHE WRITE ---
     }
-    await writeTagFilteredBookmarks(allIncomingBookmarks);
+    await persistTagFilteredBookmarksToS3(allIncomingBookmarks);
     return allIncomingBookmarks;
   } catch (error: unknown) {
     console.error(`${LOG_PREFIX} Error during selective refresh:`, String(error));
@@ -498,7 +510,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                 });
                 await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
               }
-              await writeTagFilteredBookmarks(freshBookmarks);
+              await persistTagFilteredBookmarksToS3(freshBookmarks);
             } else {
               console.log(`${LOG_PREFIX} No changes, skipping heavy S3 writes`);
               // Still update index freshness to reflect successful refresh
@@ -863,12 +875,39 @@ export async function getBookmarksByTag(
     };
   }
   console.log(`${LOG_PREFIX} Cache miss for tag "${tagSlug}". Falling back to full bookmark set filtering`);
-  const allBookmarks = (await getBookmarks({
-    ...DEFAULT_BOOKMARK_OPTIONS,
-    includeImageData: true,
-    skipExternalFetch: false,
-    force: false,
-  })) as UnifiedBookmark[];
+  
+  // Check in-memory runtime cache first to avoid repeated S3 reads
+  let allBookmarks: UnifiedBookmark[];
+  const now = Date.now();
+  
+  if (fullDatasetMemoryCache && (now - fullDatasetMemoryCache.timestamp) < FULL_DATASET_MEMORY_CACHE_TTL) {
+    envLogger.log(
+      "Using in-memory runtime cache for full bookmarks dataset",
+      { age: Math.round((now - fullDatasetMemoryCache.timestamp) / 1000), unit: "seconds" },
+      { category: LOG_PREFIX }
+    );
+    allBookmarks = fullDatasetMemoryCache.data;
+  } else {
+    envLogger.log("Reading full bookmarks dataset from S3 persistence", undefined, { category: LOG_PREFIX });
+    allBookmarks = (await getBookmarks(
+      {
+        includeImageData: true,
+        skipExternalFetch: false,
+        force: false,
+      } satisfies BookmarkLoadOptions,
+    )) as UnifiedBookmark[];
+    
+    // Update in-memory runtime cache
+    fullDatasetMemoryCache = {
+      data: allBookmarks,
+      timestamp: now
+    };
+    envLogger.log(
+      "Updated in-memory runtime cache",
+      { bookmarkCount: allBookmarks.length },
+      { category: LOG_PREFIX }
+    );
+  }
   const filteredBookmarks = allBookmarks.filter((b) => {
     const tags = Array.isArray(b.tags) ? b.tags : [];
     return tags.some((t) => {
@@ -884,12 +923,16 @@ export async function getBookmarksByTag(
   return { bookmarks: paginated, totalCount, totalPages, fromCache: false };
 }
 
-/** Cache invalidation functions */
+/** Cache invalidation functions (Next.js cache and in-memory runtime cache) */
 export const invalidateBookmarksCache = (): void => {
+  // Clear in-memory runtime cache
+  fullDatasetMemoryCache = null;
+  envLogger.log("In-memory runtime cache cleared", undefined, { category: LOG_PREFIX });
+  
   if (USE_NEXTJS_CACHE) {
     safeRevalidateTag("bookmarks");
     safeRevalidateTag("bookmarks-s3-full");
-    console.log("[Bookmarks] Cache invalidated for tag: bookmarks");
+    envLogger.log("Next.js cache invalidated for bookmarks tags", undefined, { category: "Bookmarks" });
   }
 };
 export const invalidateBookmarksPageCache = (pageNumber: number): void => {

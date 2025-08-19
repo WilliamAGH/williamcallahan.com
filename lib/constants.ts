@@ -16,6 +16,7 @@
  * @deprecated Use lib/constants/client.ts for client components
  */
 import type { BookmarksS3Paths, RateLimiterConfig } from "@/types/lib";
+import type { BookmarkLoadOptions } from "@/types/bookmark";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { ENVIRONMENT_SUFFIX } from "@/lib/config/environment";
 
@@ -136,7 +137,7 @@ export const BOOKMARKS_API_CONFIG = {
 export const BOOKMARKS_PER_PAGE = 24;
 
 /** Default options for getBookmarks calls - explicit parameters for clarity and ZERO TEMPERATURE compliance */
-export const DEFAULT_BOOKMARK_OPTIONS = {
+export const DEFAULT_BOOKMARK_OPTIONS: Readonly<Required<BookmarkLoadOptions>> = {
   includeImageData: true,
   skipExternalFetch: false,
   force: false,
