@@ -66,9 +66,9 @@ export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListClien
           if (!mounted || !selectedTag) return;
           
           // Check if we're on a tag-specific route
-          if (pathname.includes('/bookmarks/tags/')) {
-            // Navigate back to the main bookmarks page
-            router.push('/bookmarks');
+          if (pathname.startsWith('/bookmarks/tags')) {
+            // Navigate back to the main bookmarks page (replace to avoid history pollution)
+            router.replace('/bookmarks');
           } else {
             // Otherwise, just clear the selected tag locally
             onTagSelectAction(selectedTag);
