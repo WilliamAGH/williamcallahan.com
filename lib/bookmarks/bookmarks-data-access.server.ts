@@ -1,10 +1,10 @@
 /** Bookmarks data access: In-memory → S3 → External API */
 
-import { randomInt } from "node:crypto";
-import { readJsonS3, writeJsonS3, deleteFromS3 } from "@/lib/s3-utils";
+import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
-import type { UnifiedBookmark, DistributedLockEntry, RefreshBookmarksCallback } from "@/types";
+import { createDistributedLock, cleanupStaleLocks } from "@/lib/utils/s3-distributed-lock.server";
+import type { UnifiedBookmark, RefreshBookmarksCallback } from "@/types";
 import type { BookmarksIndex, BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 import { BookmarksIndexSchema } from "@/lib/schemas/bookmarks";
@@ -95,7 +95,6 @@ const safeRevalidateTag = (...tags: string[]): void => {
   }
 };
 
-const INSTANCE_ID = `instance-${randomInt(1000000, 9999999)}-${Date.now()}`;
 const ENABLE_TAG_PERSISTENCE = process.env.ENABLE_TAG_PERSISTENCE !== "false";
 
 // Default to no limit (persist all tags) when env var not set or invalid
@@ -140,6 +139,13 @@ if (RAW_LOCK_TTL && (!Number.isFinite(PARSED_LOCK_TTL) || PARSED_LOCK_TTL <= 0))
   );
 }
 
+// Create the distributed lock instance for bookmarks refresh
+const bookmarksLock = createDistributedLock({
+  lockKey: BOOKMARKS_S3_PATHS.LOCK,
+  ttlMs: LOCK_TTL_MS,
+  logCategory: "BookmarksLock",
+});
+
 const LOCK_CLEANUP_INTERVAL_MS = 2 * 60 * 1000;
 
 let isRefreshLocked = false;
@@ -150,106 +156,16 @@ let inFlightRefreshPromise: Promise<UnifiedBookmark[] | null> | null = null;
 const isS3Error = (err: unknown): err is { $metadata?: { httpStatusCode?: number } } =>
   typeof err === "object" && err !== null && "$metadata" in err;
 
-/** S3-compatible single-file lock with read-back verification */
-async function acquireDistributedLock(lockKey: string, ttlMs: number, retryCount = 0): Promise<boolean> {
-  const MAX_RETRIES = 3;
-  const backoff = async (attempt: number) => {
-    const baseDelay = 100 + 2 ** attempt * 50;
-    const jitter = Math.floor(Math.random() * 50);
-    await new Promise((res) => setTimeout(res, baseDelay + jitter));
-  };
-
-  // Step A: if an active lock exists, bail fast
-  try {
-    const existing = await readJsonS3<DistributedLockEntry>(lockKey);
-    if (existing && typeof existing === "object") {
-      const age = Date.now() - existing.acquiredAt;
-      // lock is still valid if age hasn't exceeded TTL
-      const isExpired = age >= existing.ttlMs;
-      if (!isExpired) {
-        return false;
-      }
-    }
-  } catch {
-    // ignore read issues and try to proceed
-  }
-
-  // Step B: write our lock entry with atomic conditional create
-  const myEntry: DistributedLockEntry = { instanceId: INSTANCE_ID, acquiredAt: Date.now(), ttlMs };
-  try {
-    await writeJsonS3(lockKey, myEntry, { IfNoneMatch: "*" });
-  } catch {
-    // If conditional write failed, another process has the lock
-    if (retryCount < MAX_RETRIES) {
-      await backoff(retryCount);
-      return acquireDistributedLock(lockKey, ttlMs, retryCount + 1);
-    }
-    return false;
-  }
-
-  // Step C: read back and verify ownership
-  try {
-    const current = await readJsonS3<DistributedLockEntry>(lockKey);
-    if (current && current.instanceId === myEntry.instanceId && current.acquiredAt === myEntry.acquiredAt) {
-      envLogger.log("Lock acquired", { instanceId: INSTANCE_ID }, { category: "BookmarksLock" });
-      return true;
-    }
-  } catch (e) {
-    console.warn(`${LOG_PREFIX} Failed to verify lock ownership:`, String(e));
-  }
-
-  // Another process won the race
-  if (retryCount < MAX_RETRIES) {
-    await backoff(retryCount);
-    return acquireDistributedLock(lockKey, ttlMs, retryCount + 1);
-  }
-  return false;
-}
-
-async function releaseDistributedLock(lockKey: string, forceRelease = false): Promise<void> {
-  try {
-    const existingLock = await readJsonS3<DistributedLockEntry>(lockKey);
-    if (existingLock?.instanceId === INSTANCE_ID || forceRelease) {
-      await deleteFromS3(lockKey);
-      envLogger.log(
-        forceRelease ? "Lock force-released" : "Lock released",
-        { instanceId: INSTANCE_ID },
-        { category: "BookmarksLock" }
-      );
-    }
-  } catch (e: unknown) {
-    if (!isS3Error(e) || e.$metadata?.httpStatusCode !== 404)
-      console.error(`${LOG_PREFIX} Error during distributed lock release:`, String(e));
-  }
-}
-
-async function cleanupStaleLocks(): Promise<void> {
-  try {
-    const existingLock = await readJsonS3<DistributedLockEntry>(DISTRIBUTED_LOCK_S3_KEY);
-    if (existingLock && typeof existingLock === "object") {
-      const expired = Date.now() - existingLock.acquiredAt >= existingLock.ttlMs;
-      if (expired) {
-        const ageMs = Date.now() - existingLock.acquiredAt;
-        envLogger.log("Releasing stale lock", { ageMs, instanceId: existingLock.instanceId }, { category: "BookmarksLock" });
-        await releaseDistributedLock(DISTRIBUTED_LOCK_S3_KEY, true);
-      }
-    }
-    // No lock exists is the normal state - no need to log
-  } catch (e: unknown) {
-    if (!isS3Error(e) || e.$metadata?.httpStatusCode !== 404)
-      console.debug(`${LOG_PREFIX} Error checking for stale locks:`, String(e));
-  }
-}
 
 const acquireRefreshLock = async (): Promise<boolean> => {
-  const locked = await acquireDistributedLock(DISTRIBUTED_LOCK_S3_KEY, LOCK_TTL_MS);
+  const locked = await bookmarksLock.acquire();
   if (locked) isRefreshLocked = true;
   return locked;
 };
 
 const releaseRefreshLock = async (): Promise<void> => {
   try {
-    await releaseDistributedLock(DISTRIBUTED_LOCK_S3_KEY);
+    await bookmarksLock.release();
   } finally {
     isRefreshLocked = false;
   }
@@ -271,11 +187,11 @@ export function initializeBookmarksDataAccess(): void {
       .catch((error) => console.error("[Bookmarks] Failed to initialize refresh callback:", String(error)));
   }
   if (!lockCleanupInterval) {
-    cleanupStaleLocks().catch((error) =>
+    cleanupStaleLocks(DISTRIBUTED_LOCK_S3_KEY, "BookmarksLock").catch((error) =>
       envLogger.debug("Initial lock cleanup failed", { error: String(error) }, { category: "BookmarksLock" }),
     );
     lockCleanupInterval = setInterval(() => {
-      cleanupStaleLocks().catch((error) =>
+      cleanupStaleLocks(DISTRIBUTED_LOCK_S3_KEY, "BookmarksLock").catch((error) =>
         envLogger.debug("Periodic lock cleanup failed", { error: String(error) }, { category: "BookmarksLock" }),
       );
     }, LOCK_CLEANUP_INTERVAL_MS);
@@ -694,7 +610,8 @@ async function fetchAndCacheBookmarks(
     const bookmarks = JSON.parse(localData) as UnifiedBookmark[];
     
     // Skip local cache if it only contains test data
-    const isTestData = bookmarks.length === 1 && bookmarks[0]?.id === "test-1";
+    const isTestData = bookmarks.length === 1 && 
+      (bookmarks[0]?.id === "test-1" || bookmarks[0]?.id === "test" || bookmarks[0]?.url === "https://example.com");
     if (isTestData) {
       console.log(`${LOG_PREFIX} Local cache contains only test data, skipping to S3`);
     } else if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {

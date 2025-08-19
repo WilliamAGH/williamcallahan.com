@@ -110,6 +110,28 @@ cron.schedule(bookmarksCron, () => {
       } else {
         console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] update-s3 script completed successfully`);
 
+        // Invalidate Next.js cache to serve fresh data
+        console.log("[Scheduler] [Bookmarks] Invalidating Next.js cache for bookmarks...");
+        const apiUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+        const revalidateUrl = `${apiUrl}/api/revalidate/bookmarks`;
+        
+        fetch(revalidateUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.BOOKMARK_CRON_REFRESH_SECRET}`
+          }
+        })
+          .then(response => {
+            if (response.ok) {
+              console.log("[Scheduler] [Bookmarks] ✅ Cache invalidated successfully");
+            } else {
+              console.error(`[Scheduler] [Bookmarks] Cache invalidation failed with status ${response.status}`);
+            }
+          })
+          .catch(error => {
+            console.error("[Scheduler] [Bookmarks] Failed to invalidate cache:", error);
+          });
+
         // Submit updated sitemap to search engines
         console.log("[Scheduler] [Bookmarks] Submitting updated sitemap to search engines asynchronously...");
         const sitemapProcess = spawn("bun", ["run", "submit-sitemap"], {
