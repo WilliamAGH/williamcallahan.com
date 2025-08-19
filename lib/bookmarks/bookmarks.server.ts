@@ -50,9 +50,17 @@ export async function getBookmarksForStaticBuildAsync(): Promise<LightweightBook
     }
 
     // Attempt to load precomputed slug mapping so we can include bookmarks that
-    // don’t yet have an embedded slug field in the persisted dataset. This keeps
+    // don't yet have an embedded slug field in the persisted dataset. This keeps
     // sitemap/static generation resilient during migrations.
-    const slugMapping = await loadSlugMapping().catch(() => null);
+    let slugMapping = await loadSlugMapping().catch(() => null);
+
+    // If no mapping exists or it's empty, generate one dynamically
+    if (!slugMapping || Object.keys(slugMapping.slugs).length === 0) {
+      console.log("[Static Build] No valid slug mapping found, generating dynamically...");
+      const { generateSlugMapping } = await import("@/lib/bookmarks/slug-manager");
+      slugMapping = generateSlugMapping(bookmarks);
+      console.log(`[Static Build] Generated slug mapping with ${Object.keys(slugMapping.slugs).length} entries`);
+    }
 
     // Validate that all bookmarks have required fields (id and slug)
     const validBookmarks = bookmarks
