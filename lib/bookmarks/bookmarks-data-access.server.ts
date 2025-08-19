@@ -352,14 +352,21 @@ async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark[]): Pr
       tagCounts[tagSlugValue] = (tagCounts[tagSlugValue] || 0) + 1;
     }
   }
-  // Persist ALL tags to S3, not just the top N - this ensures all tags have pre-computed data
+  // Apply MAX_TAGS_TO_PERSIST limit if configured
   const allTags = Object.keys(bookmarksByTag);
+  const tagsToProcess = MAX_TAGS_TO_PERSIST && MAX_TAGS_TO_PERSIST > 0
+    ? Object.entries(tagCounts)
+        .sort((a, b) => b[1] - a[1]) // Sort by count descending
+        .slice(0, MAX_TAGS_TO_PERSIST)
+        .map(([tag]) => tag)
+    : allTags;
+  
   envLogger.log(
-    `Persisting ALL ${allTags.length} tags to S3 storage`, 
-    { totalTags: allTags.length, previousLimit: MAX_TAGS_TO_PERSIST },
+    `Persisting ${tagsToProcess.length} of ${allTags.length} tags to S3 storage`, 
+    { totalTags: allTags.length, persistingCount: tagsToProcess.length, limit: MAX_TAGS_TO_PERSIST },
     { category: LOG_PREFIX }
   );
-  for (const tagSlug of allTags) {
+  for (const tagSlug of tagsToProcess) {
     const tagBookmarks = bookmarksByTag[tagSlug];
     if (!tagBookmarks) continue;
     const totalPages = Math.ceil(tagBookmarks.length / pageSize),
@@ -389,7 +396,7 @@ async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark[]): Pr
   }
   envLogger.log(
     `Persisted tag-filtered bookmarks to S3`,
-    { tagCount: allTags.length },
+    { tagCount: tagsToProcess.length, totalTags: allTags.length },
     { category: LOG_PREFIX }
   );
 }
