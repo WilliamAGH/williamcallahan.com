@@ -88,9 +88,15 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
     return getStaticPageMetadata("/bookmarks", "bookmarks");
   }
 
-  const pageNumber = page === "page" && pageNumberStr ? parseInt(pageNumberStr, 10) : 1;
+  const parsedPage = page === "page" && pageNumberStr ? Number.parseInt(pageNumberStr, 10) : 1;
+  const pageNumber = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
 
-  const decodedSlug = decodeURIComponent(tagSlug);
+  let decodedSlug: string;
+  try {
+    decodedSlug = decodeURIComponent(tagSlug);
+  } catch {
+    decodedSlug = tagSlug;
+  }
   const normalizedSlug = tagToSlug(decodedSlug);
   const sanitizedSlug = sanitizeUnicode(normalizedSlug);
 
@@ -151,13 +157,19 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
   }
 
   const [rawTagSlug, page, pageNumberStr] = slug;
-  const currentPage = page === "page" && pageNumberStr ? parseInt(pageNumberStr, 10) : 1;
+  const parsedCurrent = page === "page" && pageNumberStr ? Number.parseInt(pageNumberStr, 10) : 1;
+  const currentPage = Number.isNaN(parsedCurrent) || parsedCurrent < 1 ? 1 : parsedCurrent;
 
   if (!rawTagSlug) {
     redirect("/bookmarks");
   }
 
-  const decodedSlug = decodeURIComponent(rawTagSlug);
+  let decodedSlug: string;
+  try {
+    decodedSlug = decodeURIComponent(rawTagSlug);
+  } catch {
+    decodedSlug = rawTagSlug;
+  }
   const normalizedSlug = tagToSlug(decodedSlug);
   const sanitizedSlug = sanitizeUnicode(normalizedSlug);
 
