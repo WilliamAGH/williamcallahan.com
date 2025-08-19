@@ -51,6 +51,18 @@ async function fetchFromCDN(path: string): Promise<unknown> {
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
+    
+    // Verify we got JSON content-type (not HTML error pages)
+    const contentType = response.headers.get("content-type");
+    if (!contentType?.includes("application/json")) {
+      // Get first 200 bytes of response for diagnostic logging
+      const text = await response.text();
+      const preview = text.length > 200 ? text.substring(0, 200) + "..." : text;
+      console.error(`⚠️  Expected JSON but got ${contentType || "unknown"} for ${path}`);
+      console.error(`   Response preview: ${preview}`);
+      return null;
+    }
+    
     return await response.json();
   } catch (error) {
     console.error(`❌ Failed to fetch ${path}:`, error);
