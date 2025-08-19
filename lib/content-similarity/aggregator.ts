@@ -215,8 +215,10 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
 
   try {
     // Fetch all content in parallel (best-effort with Promise.allSettled)
+    // CRITICAL: Must include image data for RelatedContent display
+    // Previous regression: includeImageData: false caused missing images in UI
     const [bookmarksRes, blogPostsRes] = await Promise.allSettled([
-      getBookmarks({ includeImageData: false }),
+      getBookmarks({ includeImageData: true }),
       getAllPosts(),
     ]);
 
