@@ -85,4 +85,4 @@ if [ ! -f /tmp/scheduler.log ]; then
 fi
 
 echo ""
-echo "=== END DIAGNOSTIC REPORT ===">
+echo "=== END DIAGNOSTIC REPORT ==="
