@@ -23,7 +23,12 @@ if (!CDN_URL) {
 }
 
 // Determine environment suffix for S3 paths
-const envSuffix = DEPLOYMENT_ENV === "development" ? "-dev" : "";
+// production = no suffix, development = "-dev", test = "-test"
+const envSuffix = DEPLOYMENT_ENV === "development" 
+  ? "-dev" 
+  : DEPLOYMENT_ENV === "test" 
+    ? "-test" 
+    : "";
 
 // S3 paths to fetch
 const BOOKMARKS_PATHS = {
@@ -101,8 +106,9 @@ async function main() {
   if (bookmarks) {
     saveToFile(LOCAL_PATHS.BOOKMARKS, bookmarks);
     successCount++;
-    const bookmarkArray = bookmarks as { length?: number };
-    console.log(`   📚 Loaded ${bookmarkArray.length || 0} bookmarks`);
+    // Runtime check for array length instead of unsafe type assertion
+    const bookmarkCount = Array.isArray(bookmarks) ? bookmarks.length : 0;
+    console.log(`   📚 Loaded ${bookmarkCount} bookmarks`);
   } else {
     failureCount++;
     // Create empty file to prevent build errors
@@ -114,9 +120,12 @@ async function main() {
   if (index) {
     saveToFile(LOCAL_PATHS.INDEX, index);
     successCount++;
-    const indexData = index as { lastFetchedAt?: number };
-    if (indexData.lastFetchedAt) {
-      console.log(`   📑 Index updated: ${new Date(indexData.lastFetchedAt).toISOString()}`);
+    // Runtime check for lastFetchedAt property instead of unsafe type assertion
+    if (typeof index === "object" && index !== null && "lastFetchedAt" in index) {
+      const lastFetchedAt = (index as Record<string, unknown>).lastFetchedAt;
+      if (typeof lastFetchedAt === "number") {
+        console.log(`   📑 Index updated: ${new Date(lastFetchedAt).toISOString()}`);
+      }
     }
   } else {
     failureCount++;
@@ -127,16 +136,30 @@ async function main() {
   if (slugMapping) {
     saveToFile(LOCAL_PATHS.SLUG_MAPPING, slugMapping);
     successCount++;
-    const mappingData = slugMapping as { count?: number };
-    console.log(`   🗺️  Slug mapping loaded: ${mappingData.count || 0} entries`);
+    // Runtime check for count property instead of unsafe type assertion
+    let mappingCount = 0;
+    if (typeof slugMapping === "object" && slugMapping !== null) {
+      // Check for 'count' property
+      if ("count" in slugMapping && typeof (slugMapping as Record<string, unknown>).count === "number") {
+        mappingCount = (slugMapping as Record<string, unknown>).count as number;
+      }
+      // Fallback: count the 'slugs' object keys if present
+      else if ("slugs" in slugMapping && typeof (slugMapping as Record<string, unknown>).slugs === "object") {
+        const slugs = (slugMapping as Record<string, unknown>).slugs;
+        if (slugs && typeof slugs === "object") {
+          mappingCount = Object.keys(slugs).length;
+        }
+      }
+    }
+    console.log(`   🗺️  Slug mapping loaded: ${mappingCount} entries`);
   } else {
     failureCount++;
     // Create minimal slug mapping to prevent errors
     saveToFile(LOCAL_PATHS.SLUG_MAPPING, {
       version: 1,
-      generatedAt: new Date().toISOString(),
+      generated: new Date().toISOString(),
       count: 0,
-      mappings: {},
+      slugs: {},
     });
   }
   
