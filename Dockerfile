@@ -139,7 +139,7 @@ WORKDIR /app
 # Install runtime dependencies including Node.js for Next.js standalone compatibility
 # Note: We need Node.js to run the Next.js standalone server even though Bun is available
 # Also installing vips for Sharp image processing, curl for healthchecks, and bash for scripts
-RUN apk add --no-cache nodejs npm vips curl bash su-exec
+RUN apk add --no-cache nodejs npm vips curl bash
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -150,16 +150,14 @@ ENV CONTAINER=true
 # Re-declare the build args so we can forward them (ARG values are scoped per stage)
 ARG S3_BUCKET
 ARG S3_SERVER_URL
-ARG S3_ACCESS_KEY_ID
-ARG S3_SECRET_ACCESS_KEY
 ARG S3_CDN_URL
 ARG NEXT_PUBLIC_S3_CDN_URL
 
 # Make sure they are present at runtime (can still be overridden with `docker run -e`)
+# NOTE: S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY should ONLY be injected at runtime
+# via docker run -e or orchestration secrets to avoid baking them into the image
 ENV S3_BUCKET=$S3_BUCKET \
     S3_SERVER_URL=$S3_SERVER_URL \
-    S3_ACCESS_KEY_ID=$S3_ACCESS_KEY_ID \
-    S3_SECRET_ACCESS_KEY=$S3_SECRET_ACCESS_KEY \
     S3_CDN_URL=$S3_CDN_URL \
     NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL
 
@@ -241,6 +239,3 @@ CMD ["node", "server.js"]
 
 ARG BUILDKIT_INLINE_CACHE=1
 LABEL org.opencontainers.image.build=true
-
-# Install Node.js for running Next.js build within Bun scripts
-RUN apk add --no-cache nodejs npm
