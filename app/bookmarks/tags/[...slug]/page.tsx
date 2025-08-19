@@ -36,6 +36,13 @@ import { redirect } from "next/navigation";
  * Sync function always returned empty array, causing tag URLs to be missing from sitemap.
  * Blog tags worked because getAllPosts() reads from local filesystem synchronously.
  * 
+ * IMPORTANT: Filtering Consistency Requirement
+ * getBookmarksForStaticBuildAsync() filters out bookmarks without id/slug fields,
+ * while getBookmarksByTag() at runtime includes ALL bookmarks. This ensures we only
+ * generate static paths for bookmarks that can actually be rendered (those with slugs).
+ * If bookmarks without id/slug exist, runtime will show fewer items per page than expected,
+ * but this is preferable to generating paths for bookmarks that cannot be displayed.
+ * 
  * @see lib/bookmarks/bookmarks.server.ts for why sync vs async matters
  */
 export async function generateStaticParams() {
@@ -57,7 +64,8 @@ export async function generateStaticParams() {
   const params: { slug: string[] }[] = [];
 
   for (const tagSlug in tagCounts) {
-    // Calculate totalPages directly from tagCounts to avoid unnecessary API calls
+    // Calculate totalPages based on bookmarks that have valid id/slug fields
+    // This matches the filtering in getBookmarksForStaticBuildAsync()
     const count = tagCounts[tagSlug] || 0;
     const totalPages = Math.ceil(count / BOOKMARKS_PER_PAGE);
     params.push({ slug: [tagSlug] });
