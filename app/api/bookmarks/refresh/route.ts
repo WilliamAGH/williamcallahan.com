@@ -15,6 +15,7 @@ import { logEnvironmentConfig } from "@/lib/config/environment";
 import logger from "@/lib/utils/logger";
 import { NextResponse } from "next/server";
 import type { BookmarksIndex } from "@/types/bookmark";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 // Ensure this route is not statically cached
 export const dynamic = "force-dynamic";
@@ -130,6 +131,19 @@ export async function POST(request: Request): Promise<NextResponse> {
           const newCount = bookmarkResult.itemsProcessed || 0;
           console.log(`[API Trigger] ✅ Refresh completed: ${newCount} bookmarks (was ${previousCount})`);
           logger.info(`[API Bookmarks Refresh] Background refresh completed successfully`);
+          
+          // Invalidate Next.js cache to serve fresh data
+          console.log("[API Trigger] Invalidating Next.js cache for bookmarks...");
+          try {
+            revalidatePath('/bookmarks');
+            revalidatePath('/bookmarks/[slug]', 'page');
+            revalidatePath('/bookmarks/page/[pageNumber]', 'page');
+            revalidatePath('/bookmarks/domain/[domainSlug]', 'page');
+            revalidateTag('bookmarks');
+            console.log("[API Trigger] ✅ Cache invalidated successfully");
+          } catch (cacheError) {
+            console.error("[API Trigger] Failed to invalidate cache:", cacheError);
+          }
         } else {
           console.log(`[API Trigger] ❌ Refresh failed: ${bookmarkResult?.error}`);
           logger.error(`[API Bookmarks Refresh] Background refresh failed:`, bookmarkResult?.error);
