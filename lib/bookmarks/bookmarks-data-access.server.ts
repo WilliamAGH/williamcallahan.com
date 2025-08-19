@@ -2,7 +2,8 @@
 
 import { randomInt } from "node:crypto";
 import { readJsonS3, writeJsonS3, deleteFromS3 } from "@/lib/s3-utils";
-import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE } from "@/lib/constants";
+import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
+import { envLogger } from "@/lib/utils/env-logger";
 import type { UnifiedBookmark, DistributedLockEntry, RefreshBookmarksCallback } from "@/types";
 import type { BookmarksIndex, BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
@@ -154,7 +155,7 @@ async function acquireDistributedLock(lockKey: string, ttlMs: number, retryCount
   try {
     const current = await readJsonS3<DistributedLockEntry>(lockKey);
     if (current && current.instanceId === myEntry.instanceId && current.acquiredAt === myEntry.acquiredAt) {
-      console.log(`${LOG_PREFIX} Lock acquired by ${INSTANCE_ID}`);
+      envLogger.log("Lock acquired", { instanceId: INSTANCE_ID }, { category: "BookmarksLock" });
       return true;
     }
   } catch (e) {
@@ -174,7 +175,11 @@ async function releaseDistributedLock(lockKey: string, forceRelease = false): Pr
     const existingLock = await readJsonS3<DistributedLockEntry>(lockKey);
     if (existingLock?.instanceId === INSTANCE_ID || forceRelease) {
       await deleteFromS3(lockKey);
-      console.log(`${LOG_PREFIX} Distributed lock released ${forceRelease ? "(forced)" : ""} by ${INSTANCE_ID}`);
+      envLogger.log(
+        forceRelease ? "Lock force-released" : "Lock released",
+        { instanceId: INSTANCE_ID },
+        { category: "BookmarksLock" }
+      );
     }
   } catch (e: unknown) {
     if (!isS3Error(e) || e.$metadata?.httpStatusCode !== 404)
@@ -187,8 +192,13 @@ async function cleanupStaleLocks(): Promise<void> {
     const existingLock = await readJsonS3<DistributedLockEntry>(DISTRIBUTED_LOCK_S3_KEY);
     if (existingLock && typeof existingLock === "object") {
       const expired = Date.now() - existingLock.acquiredAt >= existingLock.ttlMs;
-      if (expired) await releaseDistributedLock(DISTRIBUTED_LOCK_S3_KEY, true);
+      if (expired) {
+        const ageMs = Date.now() - existingLock.acquiredAt;
+        envLogger.log("Releasing stale lock", { ageMs, instanceId: existingLock.instanceId }, { category: "BookmarksLock" });
+        await releaseDistributedLock(DISTRIBUTED_LOCK_S3_KEY, true);
+      }
     }
+    // No lock exists is the normal state - no need to log
   } catch (e: unknown) {
     if (!isS3Error(e) || e.$metadata?.httpStatusCode !== 404)
       console.debug(`${LOG_PREFIX} Error checking for stale locks:`, String(e));
@@ -226,11 +236,11 @@ export function initializeBookmarksDataAccess(): void {
   }
   if (!lockCleanupInterval) {
     cleanupStaleLocks().catch((error) =>
-      console.debug("[Bookmarks] Initial lock cleanup check failed:", String(error)),
+      envLogger.debug("Initial lock cleanup failed", { error: String(error) }, { category: "BookmarksLock" }),
     );
     lockCleanupInterval = setInterval(() => {
       cleanupStaleLocks().catch((error) =>
-        console.debug("[Bookmarks] Periodic lock cleanup check failed:", String(error)),
+        envLogger.debug("Periodic lock cleanup failed", { error: String(error) }, { category: "BookmarksLock" }),
       );
     }, LOCK_CLEANUP_INTERVAL_MS);
     if (lockCleanupInterval.unref) lockCleanupInterval.unref();
@@ -601,17 +611,26 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
   return promise;
 }
 
+/**
+ * Fetches bookmarks with Next.js caching layer.
+ * Cache duration: 1 hour (coordinated with 2-hour scheduler to minimize staleness).
+ * Max staleness: ~3 hours (1h cache + 2h schedule + 15min jitter).
+ * @param options - Control data inclusion and fetch behavior
+ * @returns Full or lightweight bookmarks depending on options
+ */
 async function fetchAndCacheBookmarks(
   options: BookmarkLoadOptions = {},
 ): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
   "use cache";
-  // Cache the full bookmarks payload in memory for 5 minutes and tag it so it can be
-  // invalidated together with the existing bookmarks cache.
-  safeCacheLife({ revalidate: 300 });
+  // Cache for 1 hour to coordinate with 2-hour scheduler runs.
+  // This ensures data refreshes between scheduler cycles.
+  safeCacheLife({ revalidate: 3600 }); // 1 hour
   safeCacheTag("bookmarks-s3-full");
   const { skipExternalFetch = false, includeImageData = true, force = false } = options;
-  console.log(
-    `${LOG_PREFIX} fetchAndCacheBookmarks called. skipExternalFetch=${skipExternalFetch}, includeImageData=${includeImageData}`,
+  envLogger.service(
+    "BookmarksDataAccess",
+    "fetchAndCacheBookmarks",
+    { skipExternalFetch, includeImageData, force },
   );
 
   // Define normalizeBookmarkTags function before usage
@@ -691,9 +710,15 @@ async function getBookmarksPageDirect(pageNumber: number): Promise<UnifiedBookma
   }
 }
 
+/**
+ * Gets a paginated bookmarks page with caching.
+ * Cache duration: 1 day (pages rarely change, reduces S3 reads).
+ * @param pageNumber - Page number to fetch (1-indexed)
+ * @returns Bookmarks for the specified page
+ */
 async function getCachedBookmarksPage(pageNumber: number): Promise<UnifiedBookmark[]> {
   "use cache";
-  safeCacheLife("hours");
+  safeCacheLife({ revalidate: 86400 }); // 1 day - pagination rarely changes
   safeCacheTag("bookmarks", `bookmarks-page-${pageNumber}`);
   return getBookmarksPageDirect(pageNumber);
 }
@@ -720,9 +745,16 @@ async function getTagBookmarksPageDirect(tagSlug: string, pageNumber: number): P
   }
 }
 
+/**
+ * Gets bookmarks for a specific tag with caching.
+ * Cache duration: 1 hour (aligned with main cache for consistency).
+ * @param tagSlug - URL-safe tag identifier
+ * @param pageNumber - Page number within tag results
+ * @returns Bookmarks matching the tag
+ */
 async function getCachedTagBookmarksPage(tagSlug: string, pageNumber: number): Promise<UnifiedBookmark[]> {
   "use cache";
-  safeCacheLife("hours");
+  safeCacheLife({ revalidate: 3600 }); // 1 hour - aligned with main bookmark cache
   safeCacheTag("bookmarks", `bookmarks-tag-${tagSlug}`, `bookmarks-tag-${tagSlug}-page-${pageNumber}`);
   return getTagBookmarksPageDirect(tagSlug, pageNumber);
 }
@@ -746,9 +778,15 @@ async function getTagBookmarksIndexDirect(tagSlug: string): Promise<BookmarksInd
   }
 }
 
+/**
+ * Gets tag-specific bookmarks index with caching.
+ * Cache duration: 1 hour (matches tag pages for consistency).
+ * @param tagSlug - URL-safe tag identifier
+ * @returns Index metadata for tag bookmarks
+ */
 async function getCachedTagBookmarksIndex(tagSlug: string): Promise<BookmarksIndex | null> {
   "use cache";
-  safeCacheLife("hours");
+  safeCacheLife({ revalidate: 3600 }); // 1 hour - consistent with tag pages
   safeCacheTag("bookmarks", `bookmarks-tag-${tagSlug}`, `bookmarks-tag-${tagSlug}-index`);
   return getTagBookmarksIndexDirect(tagSlug);
 }
@@ -780,9 +818,14 @@ async function getBookmarksIndexDirect(): Promise<BookmarksIndex | null> {
   }
 }
 
+/**
+ * Gets main bookmarks index with caching.
+ * Cache duration: 1 hour (coordinates with scheduler for fresh counts).
+ * @returns Index with count, pages, checksum, and freshness timestamps
+ */
 async function getCachedBookmarksIndex(): Promise<BookmarksIndex | null> {
   "use cache";
-  safeCacheLife("minutes");
+  safeCacheLife({ revalidate: 3600 }); // 1 hour - ensures fresh counts between scheduler runs
   safeCacheTag("bookmarks", "bookmarks-index");
   return getBookmarksIndexDirect();
 }
@@ -820,7 +863,12 @@ export async function getBookmarksByTag(
     };
   }
   console.log(`${LOG_PREFIX} Cache miss for tag "${tagSlug}". Falling back to full bookmark set filtering`);
-  const allBookmarks = (await getBookmarks({ includeImageData: true })) as UnifiedBookmark[];
+  const allBookmarks = (await getBookmarks({
+    ...DEFAULT_BOOKMARK_OPTIONS,
+    includeImageData: true,
+    skipExternalFetch: false,
+    force: false,
+  })) as UnifiedBookmark[];
   const filteredBookmarks = allBookmarks.filter((b) => {
     const tags = Array.isArray(b.tags) ? b.tags : [];
     return tags.some((t) => {

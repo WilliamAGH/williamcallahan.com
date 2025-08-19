@@ -9,6 +9,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { monitoredAsync } from "../async-operations-monitor";
+import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 
 // Flags to prevent redundant work across calls within the same process
 let isPreloading = false;
@@ -43,7 +44,12 @@ export async function preloadBookmarksIfNeeded(): Promise<void> {
         null, // Let monitor generate ID
         "Bookmark Preload",
         async () => {
-          const result = await getBookmarks({ skipExternalFetch });
+          const result = await getBookmarks({
+            ...DEFAULT_BOOKMARK_OPTIONS,
+            includeImageData: true,
+            skipExternalFetch,
+            force: false,
+          });
           console.log("Bookmarks preloaded successfully");
           return result;
         },
