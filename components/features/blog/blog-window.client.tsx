@@ -36,6 +36,7 @@ function BlogWindowContentInner({
   onMinimize,
   onMaximize,
   contentRef,
+  windowTitle,
 }: {
   children: React.ReactNode;
   windowState: string;
@@ -43,6 +44,7 @@ function BlogWindowContentInner({
   onMinimize: () => void;
   onMaximize: () => void;
   contentRef: React.RefObject<HTMLDivElement | null>;
+  windowTitle?: string;
 }): React.JSX.Element {
   const isMaximized = windowState === "maximized";
 
@@ -64,7 +66,7 @@ function BlogWindowContentInner({
       <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 flex-shrink-0 sticky top-0 z-10">
         <div className="flex items-center">
           <WindowControls onClose={onClose} onMinimize={onMinimize} onMaximize={onMaximize} />
-          <h1 className="text-xl font-mono ml-4">~/blog</h1>
+          <h1 className="text-xl font-mono ml-4">{windowTitle || "~/blog"}</h1>
         </div>
       </div>
 
@@ -94,7 +96,7 @@ const BlogWindowContent = dynamic(() => Promise.resolve({ default: BlogWindowCon
  * @param {BlogWindowClientProps} props - Component props
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
  */
-export function BlogWindow({ children }: BlogWindowClientProps) {
+export function BlogWindow({ children, windowTitle }: BlogWindowClientProps & { windowTitle?: string }) {
   // Ref for the content container
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -136,6 +138,7 @@ export function BlogWindow({ children }: BlogWindowClientProps) {
       onMinimize={minimizeWindow}
       onMaximize={maximizeWindow}
       contentRef={contentRef}
+      windowTitle={windowTitle}
     >
       {children}
     </BlogWindowContent>
