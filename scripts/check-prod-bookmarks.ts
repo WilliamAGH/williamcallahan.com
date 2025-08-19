@@ -62,7 +62,7 @@ async function checkProdBookmarks() {
       const heartbeat = await readJsonS3<{ timestamp: string; count: number }>("json/bookmarks/heartbeat.json");
       if (heartbeat?.timestamp) {
         const heartbeatDate = new Date(heartbeat.timestamp);
-        const hoursSinceHeartbeat = (new Date().getTime() - heartbeatDate.getTime()) / (1000 * 60 * 60);
+        const hoursSinceHeartbeat = (Date.now() - heartbeatDate.getTime()) / (1000 * 60 * 60);
         console.log(`   📍 Last heartbeat: ${heartbeat.timestamp} (${hoursSinceHeartbeat.toFixed(1)} hours ago)`);
         console.log(`   📊 Bookmark count at heartbeat: ${heartbeat.count}`);
       }

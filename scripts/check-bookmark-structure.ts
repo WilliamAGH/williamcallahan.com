@@ -11,6 +11,7 @@ async function checkBookmarkStructure() {
   console.log("=== BOOKMARK STRUCTURE ANALYSIS ===");
   
   try {
+    // biome-ignore lint/suspicious/noExplicitAny: Diagnostic script needs to explore actual data structure
     const bookmarks = await readJsonS3<any[]>(BOOKMARKS_S3_PATHS.FILE);
     
     if (!bookmarks || !Array.isArray(bookmarks) || bookmarks.length === 0) {
@@ -33,6 +34,7 @@ async function checkBookmarkStructure() {
     let hasMetadataDate = 0;
     let hasAnyDate = 0;
     
+    // biome-ignore lint/suspicious/noExplicitAny: Diagnostic script needs to explore actual data structure
     const sampleDates: any[] = [];
     
     bookmarks.forEach(b => {
