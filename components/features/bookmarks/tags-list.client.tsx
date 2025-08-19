@@ -70,7 +70,8 @@ export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListClien
             // Navigate back to the main bookmarks page (replace to avoid history pollution)
             router.replace('/bookmarks');
           } else {
-            // Otherwise, just clear the selected tag locally
+            // Clear the selected tag locally by passing the same tag (toggles it off)
+            // Note: handleTagClick compares with selectedTag and sets to null if they match
             onTagSelectAction(selectedTag);
           }
         }}
