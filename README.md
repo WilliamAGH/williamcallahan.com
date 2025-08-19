@@ -1,7 +1,7 @@
 # William Callahan's Personal Website
 >
 > ⚠️ Run tests with `bun run test` (Jest) instead of `bun test`.
-> 
+>
 > 📝 **Local setup:** After cloning, run these commands to ignore auto-generated files:
 > ```bash
 > git update-index --skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
@@ -12,6 +12,13 @@
 > git update-index --no-skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
 > ```
 > Note: skip-worktree is per-clone (does not affect CI or teammates) and can hide local edits from `git status`.
+>
+> Troubleshooting:
+>
+> - List files marked skip-worktree:  
+>   `git ls-files -v | grep '^S'`
+> - If upstream changes seem to be ignored, clear the flag for a file:  
+>   `git update-index --no-skip-worktree <path>`
 
 This is the repo for my personal website [williamcallahan.com](https://williamcallahan.com). The code is hosted at [github.com/WilliamAGH/williamcallahan.com](https://github.com/WilliamAGH/williamcallahan.com). Below is some info on how the logo fetching works and other stuff to help me remember.
 
