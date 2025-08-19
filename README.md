@@ -6,6 +6,12 @@
 > ```bash
 > git update-index --skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
 > ```
+>
+> To revert:
+> ```bash
+> git update-index --no-skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
+> ```
+> Note: skip-worktree is per-clone (does not affect CI or teammates) and can hide local edits from `git status`.
 
 This is the repo for my personal website [williamcallahan.com](https://williamcallahan.com). The code is hosted at [github.com/WilliamAGH/williamcallahan.com](https://github.com/WilliamAGH/williamcallahan.com). Below is some info on how the logo fetching works and other stuff to help me remember.
 
@@ -224,6 +230,7 @@ Environment suffix comes from `lib/config/environment.ts`:
 - development/local: `-dev` (e.g., `.../file-dev.json`)
 
 See `lib/config/environment.ts` for detection rules and the source of the suffix.
+For multi-line secrets and local env quirks, see the shared loader: `lib/utils/env-loader.ts`.
 
 Key families (see `lib/constants.ts` for source of truth):
 
@@ -235,7 +242,7 @@ BOOKMARKS_S3_PATHS = {
   PAGE_PREFIX:     "json/bookmarks/pages{SUFFIX}/page-",      // + "<n>.json"
   TAG_PREFIX:      "json/bookmarks/tags{SUFFIX}/",            // + "<tag>/page-<n>.json"
                                                      // e.g., "json/bookmarks/tags-dev/typescript/page-1.json"
-                                                     // Note: <tag> should be a slug/URL-encoded string.
+                                                     // Note: <tag> must be a slug/percent-encoded string (encode `/`, `?`, `#`, spaces, etc.) before composing keys.
   TAG_INDEX_PREFIX:"json/bookmarks/tags{SUFFIX}/",            // + "<tag>/index.json"
                                                      // e.g., "json/bookmarks/tags-dev/typescript/index.json"
   SLUG_MAPPING:    "json/bookmarks/slug-mapping{SUFFIX}.json",

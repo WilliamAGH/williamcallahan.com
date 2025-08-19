@@ -33,6 +33,10 @@ TYPE_CHECK_COMMAND: bun run type-check
 
 # Git Setup (per working directory)
 LOCAL_GIT_SETUP: git update-index --skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
+# Unset skip-worktree so you can pull in upstream updates
+LOCAL_GIT_UNSET: git update-index --no-skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
+# Refresh your local copies from HEAD after unsetting
+LOCAL_GIT_REFRESH: git restore --source=HEAD -- config/csp-hashes.json lib/data/slug-mapping.json
 
 # Stack
 FRAMEWORK: Next.js
@@ -618,10 +622,10 @@ grep -r "functionName" --include="*.md" --include="*.ts" --include="*.tsx"
 
 **THE CONSEQUENCES:**
 
-- Partial updates = Broken features
-- Missed usages = Runtime errors
-- Inconsistent parameters = Type errors
-- Forgotten imports = Build failures
+- Partial updates: Broken features
+- Missed usages: Runtime errors
+- Inconsistent parameters: Type errors
+- Forgotten imports: Build failures
 
 **THE SOLUTION:**
 
