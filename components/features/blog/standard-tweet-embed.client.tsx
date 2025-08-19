@@ -9,13 +9,27 @@ const StandardTweetEmbed: React.FC<StandardTweetEmbedProps> = ({ id, theme }) =>
   const embedContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Capture the container reference early in the effect
+    const containerElement = embedContainerRef.current;
+    
     const createTweetEmbed = () => {
-      if (window.twttr?.widgets && embedContainerRef.current) {
-        // Clear previous tweet before rendering a new one
-        embedContainerRef.current.innerHTML = "";
+      if (window.twttr?.widgets && containerElement) {
+        // Clear previous tweet safely for Safari compatibility
+        // Use a more defensive approach to avoid DOM manipulation conflicts
+        
+        // Remove all child nodes instead of using innerHTML
+        while (containerElement.firstChild) {
+          try {
+            containerElement.removeChild(containerElement.firstChild);
+          } catch (e) {
+            // In case of DOM exception (e.g., node already removed), break the loop
+            console.warn("Tweet embed cleanup warning:", e);
+            break;
+          }
+        }
 
         window.twttr.widgets
-          .createTweet(id, embedContainerRef.current, {
+          .createTweet(id, containerElement, {
             theme,
             dnt: true,
           })
@@ -36,6 +50,22 @@ const StandardTweetEmbed: React.FC<StandardTweetEmbedProps> = ({ id, theme }) =>
     } else {
       createTweetEmbed();
     }
+
+    // Cleanup function to handle component unmounting
+    return () => {
+      // Use the captured container reference to avoid stale closure issues
+      if (containerElement) {
+        // Safely clear the container on unmount
+        while (containerElement.firstChild) {
+          try {
+            containerElement.removeChild(containerElement.firstChild);
+          } catch {
+            // Ignore errors during cleanup
+            break;
+          }
+        }
+      }
+    };
   }, [id, theme]);
 
   return (
