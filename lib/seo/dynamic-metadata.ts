@@ -10,6 +10,7 @@ import { SEO_TITLE_SUFFIXES, SEO_TITLE_REDUNDANT_PREFIXES } from "@/lib/constant
 import { gradientTruncate } from "./text-truncation";
 import type { TruncationOptions } from "@/types/seo";
 import { formatTagDisplay as utilFormatTagDisplay } from "@/lib/utils/tag-utils";
+import { envLogger } from "@/lib/utils/env-logger";
 
 /**
  * Generates consistent title formatting for dynamic pages
@@ -90,15 +91,19 @@ export function generateDynamicTitle(
 
   // Log truncation for monitoring
   if (result.wasTruncated) {
-    console.warn(`[SEO] Title truncated:`, {
-      original: content,
-      cleaned: cleanedContent,
-      truncated: result.text,
-      truncatedLength: result.text.length,
-      wouldBeWithSuffix: `${result.text}${suffixWithSeparator}`,
-      wouldBeLength: result.text.length + suffixWithSeparator.length,
-      strategy: result.strategy,
-    });
+    envLogger.debug(
+      `Title truncated`,
+      {
+        original: content,
+        cleaned: cleanedContent,
+        truncated: result.text,
+        truncatedLength: result.text.length,
+        wouldBeWithSuffix: `${result.text}${suffixWithSeparator}`,
+        wouldBeLength: result.text.length + suffixWithSeparator.length,
+        strategy: result.strategy,
+      },
+      { category: "SEO" }
+    );
   }
 
   // Return truncated content without suffix (since it would exceed 70 chars)
@@ -142,11 +147,15 @@ export function generateTagDescription(tagName: string, type: "blog" | "bookmark
 
   // Log truncation in development for monitoring
   if (process.env.NODE_ENV === "development" && result.wasTruncated) {
-    console.warn(`[SEO] Description truncated using ${result.strategy} strategy:`, {
-      original: result.original,
-      final: result.text,
-      overage: result.metrics.overage,
-    });
+    envLogger.debug(
+      `Description truncated using ${result.strategy} strategy`,
+      {
+        original: result.original,
+        final: result.text,
+        overage: result.metrics.overage,
+      },
+      { category: "SEO" }
+    );
   }
 
   return result.text;
@@ -187,11 +196,15 @@ export function generateDynamicDescription(
 
     // Log truncation in development for monitoring
     if (process.env.NODE_ENV === "development" && truncationResult.wasTruncated) {
-      console.warn(`[SEO] Dynamic description truncated using ${truncationResult.strategy} strategy:`, {
-        original: truncationResult.original,
-        final: truncationResult.text,
-        overage: truncationResult.metrics.overage,
-      });
+      envLogger.debug(
+        `Dynamic description truncated using ${truncationResult.strategy} strategy`,
+        {
+          original: truncationResult.original,
+          final: truncationResult.text,
+          overage: truncationResult.metrics.overage,
+        },
+        { category: "SEO" }
+      );
     }
 
     return truncationResult.text;
