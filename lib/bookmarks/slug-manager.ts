@@ -212,8 +212,13 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
     
     // Skip local cache if it only contains test data
     const isTestData = mapping?.count === 1 && mapping?.slugs?.["test-1"]?.id === "test-1";
+    // Skip local cache if it's empty (count is 0 or slugs is empty)
+    const isEmpty = !mapping?.count || mapping.count === 0 || !mapping?.slugs || Object.keys(mapping.slugs).length === 0;
+    
     if (isTestData) {
       logger.info(`[SlugManager] Local cache contains only test data, skipping to S3`);
+    } else if (isEmpty) {
+      logger.info(`[SlugManager] Local cache is empty (count: ${mapping?.count || 0}), skipping to S3`);
     } else if (mapping?.slugs) {
       logger.info(`[SlugManager] Successfully loaded slug mapping from local cache: ${LOCAL_SLUG_MAPPING_PATH}`);
       return mapping;
