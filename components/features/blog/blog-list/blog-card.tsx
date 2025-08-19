@@ -13,7 +13,7 @@ import { formatDate } from "@/lib/utils";
 import { Calendar } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { BlogTags } from "../shared/blog-tags";
+import { BlogTagsExpandable } from "../shared/blog-tags-expandable.client";
 
 import type { BlogCardPropsExtended } from "@/types/features";
 
@@ -22,7 +22,7 @@ import type { BlogCardPropsExtended } from "@/types/features";
 export function BlogCard({ post, isPriority = false }: BlogCardPropsExtended) {
   return (
     <Link href={`/blog/${post.slug}`} className="block group h-full">
-      <article className="flex flex-col h-full rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden bg-gray-50 dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-200">
+      <article className="flex flex-col h-full rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden bg-gray-50 dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-200 cursor-pointer">
         {post.coverImage && typeof post.coverImage === "string" && post.coverImage.trim() !== "" && (
           <div className="relative h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
             <Image
@@ -37,11 +37,11 @@ export function BlogCard({ post, isPriority = false }: BlogCardPropsExtended) {
         )}
 
         <div className="flex flex-col flex-grow p-6">
-          <BlogTags tags={post.tags} interactive={false} />
+          <h2 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">{post.title}</h2>
 
-          <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">{post.title}</h2>
+          <BlogTagsExpandable tags={post.tags} interactive={false} />
 
-          <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">{post.excerpt}</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2 mt-3">{post.excerpt}</p>
 
           <div className="mt-auto flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
             <div className="flex items-center gap-4">
