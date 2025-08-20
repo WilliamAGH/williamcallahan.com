@@ -15,7 +15,9 @@ jest.mock("next/image", () => ({
     const effectiveLayout = layout ?? (fill ? "fill" : undefined);
     const dataPriority = restProps["data-priority"] || (priority ? "true" : "false");
     return (
+      /* biome-ignore lint/performance/noImgElement: mock next/image with <img> in tests */
       <img
+        data-testid="next-image-mock"
         src={src}
         alt={alt}
         data-layout={effectiveLayout}
