@@ -41,6 +41,7 @@ export function LogoImage({
   priority = false,
   needsInversion = false,
 }: LogoImageProps & { needsInversion?: boolean }): React.JSX.Element {
+  const isDev = process.env.NODE_ENV === "development";
   const [imageError, setImageError] = useState(false);
   const [reloadKey, setReloadKey] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,7 +50,7 @@ export function LogoImage({
   const handleError = useCallback(() => {
     if (retryInitiated.current) {
       // We already retried once – fallback permanently to placeholder
-      console.error(`[LogoImage] Final failure loading logo src: ${src}`);
+      if (isDev) console.error(`[LogoImage] Final failure loading logo src: ${src}`);
       setImageError(true);
       setIsLoading(false);
       return;
@@ -72,10 +73,10 @@ export function LogoImage({
         setIsLoading(false);
         return;
       }
-      console.warn(`[LogoImage] Retrying logo load with cache-buster: ${src}`);
+      if (isDev) console.warn(`[LogoImage] Retrying logo load with cache-buster: ${src}`);
       setReloadKey(Date.now());
     }, 3000);
-  }, [src]);
+  }, [src, isDev]);
 
   if (!src) {
     // Use company placeholder when no src is provided
@@ -154,6 +155,7 @@ export function OptimizedCardImage({
   alt,
   className = "",
 }: OptimizedCardImageProps): React.JSX.Element {
+  const isDev = process.env.NODE_ENV === "development";
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
@@ -175,7 +177,7 @@ export function OptimizedCardImage({
 
   // No source provided - show placeholder (should be rare with proper data)
   if (!src) {
-    console.warn(`[OptimizedCardImage] No image source provided, showing placeholder`);
+    if (isDev) console.warn(`[OptimizedCardImage] No image source provided, showing placeholder`);
     return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
   }
 
@@ -183,7 +185,7 @@ export function OptimizedCardImage({
   if (errored && (!isProxyUrl || retryCount >= maxRetries)) {
     // Log for debugging but don't spam with proxy URL retries
     if (!isProxyUrl || retryCount === 0) {
-      console.warn(`[OptimizedCardImage] Failed to load image after ${retryCount} retries: ${src}, showing placeholder`);
+      if (isDev) console.warn(`[OptimizedCardImage] Failed to load image after ${retryCount} retries: ${src}, showing placeholder`);
     }
     return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
   }
@@ -199,8 +201,8 @@ export function OptimizedCardImage({
       fill
       sizes="(max-width:768px) 100vw, 50vw"
       quality={80}
-      // Proxy URLs need unoptimized=true to bypass Next.js image optimization
-      unoptimized={isProxyUrl}
+      // Skip Next.js optimization for external URLs (proxies and direct http(s) sources)
+      unoptimized={isProxyUrl || /^https?:\/\//.test(displaySrc)}
       placeholder="empty"
       className={`object-cover transition-opacity duration-200 ${className}`}
       style={{ opacity: loaded ? 1 : 0.2 }}
@@ -215,7 +217,7 @@ export function OptimizedCardImage({
       onError={() => {
         // For proxy URLs, retry with exponential backoff
         if (isProxyUrl && retryCount < maxRetries) {
-          console.log(`[OptimizedCardImage] Scheduling retry for proxy URL: ${src}`);
+          if (isDev) console.log(`[OptimizedCardImage] Scheduling retry for proxy URL: ${src}`);
           const backoffDelay = Math.min(1000 * 2 ** retryCount, 5000); // 1s, 2s, up to 5s max
           
           retryTimeoutRef.current = setTimeout(() => {
