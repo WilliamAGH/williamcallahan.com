@@ -57,19 +57,18 @@ const GitHubActivity = () => {
 
   const [dataComplete, setDataComplete] = useState<boolean>(true); // Flag indicating if the fetched data is complete
   const [lastRefreshed, setLastRefreshed] = useState<string | null>(null); // Timestamp of the last data refresh
+  const [showCrossEnvRefresh, setShowCrossEnvRefresh] = useState(false); // Show option to refresh other environments
+  const [isRefreshingProduction, setIsRefreshingProduction] = useState(false); // Loading state for production refresh
 
   // Determine if refresh buttons should be shown based on environment
-  const coolifyUrl = process.env.NEXT_PUBLIC_COOLIFY_URL;
-  const targetUrl = "https://williamcallahan.com";
+  // Show refresh button for non-production environments (development, test, staging)
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   const isDev = process.env.NODE_ENV === "development";
-  let showRefreshButtons = isDev; // Show only in development by default
-  if (coolifyUrl) {
-    const normalizedCoolifyUrl = coolifyUrl.endsWith("/") ? coolifyUrl.slice(0, -1) : coolifyUrl;
-    const normalizedTargetUrl = targetUrl.endsWith("/") ? targetUrl.slice(0, -1) : targetUrl;
-    if (normalizedCoolifyUrl === normalizedTargetUrl) {
-      showRefreshButtons = false;
-    }
-  }
+  
+  // Show refresh button if:
+  // 1. We're in development mode (NODE_ENV=development), OR
+  // 2. NEXT_PUBLIC_SITE_URL is not the production URL (https://williamcallahan.com)
+  const showRefreshButtons = isDev || (siteUrl && siteUrl !== "https://williamcallahan.com");
 
   const fetchInitiatedRef = useRef(false); // Ref to track if the initial fetch has been initiated
   const containerRef = useRef<HTMLDivElement>(null);
@@ -153,6 +152,10 @@ const GitHubActivity = () => {
             setError(errorMessage); // Set error, but still proceed to fetch current data
           } else {
             console.log("[Client] GitHub data refresh POST request successful.");
+            // Show cross-environment refresh option for non-production environments
+            if (showRefreshButtons && !isRefreshingProduction) {
+              setShowCrossEnvRefresh(true);
+            }
             // setError(null); // Clear error if refresh was successful before fetching - No, keep error if subsequent GET fails
           }
         }
@@ -231,7 +234,7 @@ const GitHubActivity = () => {
         setIsRefreshing(false);
       }
     },
-    [resetState],
+    [resetState, isRefreshingProduction, showRefreshButtons],
   );
 
   /**
@@ -241,7 +244,38 @@ const GitHubActivity = () => {
    */
   const handleRefresh = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
+    setShowCrossEnvRefresh(false); // Reset cross-env option
     void fetchData(true);
+  };
+
+  /**
+   * Handles refreshing production environment data
+   */
+  const handleProductionRefresh = async () => {
+    setIsRefreshingProduction(true);
+    setShowCrossEnvRefresh(false);
+    
+    try {
+      console.log("[Client] Requesting production GitHub data refresh");
+      // Call a special endpoint that will trigger production refresh
+      const response = await fetch("/api/github-activity/refresh-production", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error("[Client] Production refresh failed:", errorData?.message || response.statusText);
+      } else {
+        console.log("[Client] Production refresh initiated successfully");
+      }
+    } catch (error) {
+      console.error("[Client] Failed to trigger production refresh:", error);
+    } finally {
+      setIsRefreshingProduction(false);
+    }
   };
 
   /**
@@ -291,9 +325,45 @@ const GitHubActivity = () => {
       </div>
 
       {isLoading && ( // This covers both initial load and refresh triggered loading
-        <div className="flex justify-center items-center h-48">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
-          <p className="ml-3 text-gray-600 dark:text-gray-400">Loading activity data...</p>
+        <div className="flex flex-col justify-center items-center h-48">
+          <div className="flex items-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+            <p className="ml-3 text-gray-600 dark:text-gray-400">
+              {isRefreshing ? "Refreshing GitHub activity data..." : "Loading activity data..."}
+            </p>
+          </div>
+          {isRefreshing && (
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              This may take several minutes to fetch data from GitHub API
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Cross-environment refresh option */}
+      {showCrossEnvRefresh && !isLoading && (
+        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            {isRefreshingProduction ? (
+              <span className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2" />
+                Triggering production refresh...
+              </span>
+            ) : (
+              <>
+                Local refresh initiated. Would you like to{" "}
+                <button
+                  type="button"
+                  onClick={handleProductionRefresh}
+                  className="underline hover:text-blue-900 dark:hover:text-blue-100 font-medium"
+                  disabled={isRefreshingProduction}
+                >
+                  refresh production environment as well
+                </button>
+                ?
+              </>
+            )}
+          </p>
         </div>
       )}
 
