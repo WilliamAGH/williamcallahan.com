@@ -36,7 +36,7 @@ export function setBookmarks(this: ICache): void {
     envLogger.log(
       "setBookmarks called - this is deprecated. Bookmarks are stored in S3 only.",
       undefined,
-      { category: "ServerCache" },
+      { category: "ServerCache", context: { method: "setBookmarks", deprecated: true } },
     );
   }
 }
