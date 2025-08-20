@@ -84,7 +84,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const token = authorizationHeader.substring(7); // Remove "Bearer " prefix
     if (token === cronRefreshSecret) {
       isCronJob = true;
-      console.log("[API Refresh] Authenticated as cron job via GITHUB_CRON_REFRESH_SECRET.");
+      envLogger.log(
+        "Authenticated as cron job via GITHUB_CRON_REFRESH_SECRET",
+        undefined,
+        { category: "GitHubActivityRefresh" },
+      );
     }
   }
 
