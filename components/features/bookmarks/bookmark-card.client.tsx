@@ -35,6 +35,9 @@ import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 
 import type { BookmarkCardClientProps } from "@/types";
 
+// Display configuration
+const MAX_TITLE_WORDS = 10;
+
 /**
  * Bookmark Card Client Component
  * @param {BookmarkCardClientProps} props - Component properties
@@ -173,10 +176,11 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   // Process tags using shared utilities for consistency
   const rawTags = normalizeTagsToStrings(tags || []);
 
-  // Truncate title to max 10 words
-  const maxTitleWords = 10;
+  // Truncate title to configured number of words
   const titleWords = title.split(" ");
-  const displayTitle = titleWords.length > maxTitleWords ? `${titleWords.slice(0, maxTitleWords).join(" ")}...` : title;
+  const displayTitle = titleWords.length > MAX_TITLE_WORDS
+    ? `${titleWords.slice(0, MAX_TITLE_WORDS).join(" ")}` + "..."
+    : title;
 
   // Don't use a placeholder for SSR - render full card without interactive elements
   // Server will render as much as possible for SEO, client will hydrate
