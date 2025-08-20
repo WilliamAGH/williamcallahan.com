@@ -29,6 +29,23 @@ import { EducationCardClient } from "./education-card.client";
 // Define a unique ID for this window instance
 const EDUCATION_WINDOW_ID = "education-window";
 
+/**
+ * Sanitizes external URLs to prevent XSS attacks.
+ * Only allows http and https protocols.
+ * 
+ * @param url - The URL to sanitize
+ * @returns The URL if valid, null otherwise
+ */
+function safeExternalHref(url?: string): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 import type { EducationClientProps, EducationTableItem } from "@/types/education";
 
 // Sort indicator component
@@ -304,22 +321,25 @@ export function EducationClient({
                                 className="h-6 w-6 mr-2 object-contain rounded-md"
                               />
                             )}
-                            {item.website ? (
-                              <a
-                                href={item.website}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 
-                                         underline decoration-gray-300 dark:decoration-gray-600 decoration-1 
-                                         underline-offset-2 hover:decoration-blue-600 dark:hover:decoration-blue-400 
-                                         transition-colors duration-200 focus:outline-none focus:ring-2 
-                                         focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded-sm"
-                              >
-                                {item.institution}
-                              </a>
-                            ) : (
-                              item.institution
-                            )}
+                            {(() => {
+                              const safeUrl = safeExternalHref(item.website);
+                              return safeUrl ? (
+                                <a
+                                  href={safeUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 
+                                           underline decoration-gray-300 dark:decoration-gray-600 decoration-1 
+                                           underline-offset-2 hover:decoration-blue-600 dark:hover:decoration-blue-400 
+                                           transition-colors duration-200 focus:outline-none focus:ring-2 
+                                           focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded-sm"
+                                >
+                                  {item.institution}
+                                </a>
+                              ) : (
+                                item.institution
+                              );
+                            })()}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">

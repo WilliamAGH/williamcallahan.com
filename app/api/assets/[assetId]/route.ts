@@ -270,13 +270,17 @@ async function saveAssetToS3(
  * - Generates descriptive filenames when context available
  * - Returns existing key if write fails due to concurrent creation
  * 
+ * NOTE: This function is intentionally unused - it's provided as an alternative
+ * implementation that can be activated by uncommenting the call in line 554-556.
+ * 
  * @param assetId - Karakeep asset ID
  * @param buffer - Image data to save
  * @param contentType - MIME type of the image
  * @param context - Optional bookmark context for descriptive filenames
  * @returns S3 key where asset was saved
+ * @unused Intentional alternative implementation
  */
-// eslint-disable-next-line no-unused-vars -- Alternative implementation kept for easy switching
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function saveAssetToS3Atomic(
   assetId: string,
   buffer: Buffer,
@@ -328,15 +332,18 @@ async function saveAssetToS3Atomic(
     await s3Client.send(putCommand);
     console.log(`[Assets API] Successfully wrote asset atomically to S3: ${key}`);
     return key;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // Type guard for AWS SDK errors
+    const awsError = error as { $metadata?: { httpStatusCode?: number }; Code?: string; message?: string };
+    
     // Check if the error is because the object already exists (412 Precondition Failed)
-    if (error?.$metadata?.httpStatusCode === 412 || error?.Code === "PreconditionFailed") {
+    if (awsError.$metadata?.httpStatusCode === 412 || awsError.Code === "PreconditionFailed") {
       console.log(`[Assets API] Asset already exists (atomic check): ${key}`);
       return key; // File already exists, that's fine
     }
     
     // Re-throw other errors
-    console.error(`[Assets API] Failed to write asset atomically: ${error?.message || error}`);
+    console.error(`[Assets API] Failed to write asset atomically: ${awsError.message || error}`);
     throw error;
   }
 }
