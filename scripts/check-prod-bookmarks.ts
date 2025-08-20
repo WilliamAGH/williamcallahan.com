@@ -31,11 +31,40 @@ async function checkProdBookmarks() {
 
     console.log(`   ✅ Found ${bookmarks.length} bookmarks in production`);
     
-    // Check dates
+    // Check dates with validation and broader field coverage
+    const getBookmarkDate = (b: UnifiedBookmark): Date | null => {
+      // Cast to record for broader field access
+      const record = b as Record<string, unknown>;
+      
+      // Check multiple date fields in priority order
+      const candidates: (string | undefined | null)[] = [
+        b.dateBookmarked,
+        b.dateCreated,
+        b.dateUpdated,
+        b.modifiedAt,
+        // Access additional fields that might exist
+        record.createdAt as string | undefined,
+        record.updatedAt as string | undefined,
+        // Check metadata fields if they exist
+        (record.metadata as Record<string, unknown> | undefined)?.datePublished as string | undefined,
+        (record.metadata as Record<string, unknown> | undefined)?.dateModified as string | undefined,
+      ];
+      
+      // Find first valid date
+      for (const dateStr of candidates) {
+        if (typeof dateStr === 'string' && dateStr) {
+          const parsed = Date.parse(dateStr);
+          if (!Number.isNaN(parsed)) {
+            return new Date(parsed);
+          }
+        }
+      }
+      return null;
+    };
+    
     const dates = bookmarks
-      .map(b => b.dateBookmarked || b.dateCreated || b.modifiedAt)
-      .filter((d): d is string => Boolean(d))
-      .map(d => new Date(d))
+      .map(getBookmarkDate)
+      .filter((d): d is Date => d !== null)
       .sort((a, b) => b.getTime() - a.getTime());
     
     if (dates.length > 0) {
