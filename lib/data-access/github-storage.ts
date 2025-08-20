@@ -86,7 +86,7 @@ export async function writeGitHubActivityToS3(
       const hasData = Array.isArray(ty?.data) && (ty?.data?.length ?? 0) > 0;
       const hasContributions = (ty?.totalContributions ?? 0) > 0;
       
-      // Consider data valid if it has EITHER contribution data OR a totalContributions count
+      // Consider data incomplete only if it has NEITHER contribution data NOR a totalContributions count
       // This is less strict than before - we don't require dataComplete flag
       return !hasData && !hasContributions;
     };
