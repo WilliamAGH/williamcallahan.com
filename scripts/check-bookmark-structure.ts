@@ -6,13 +6,14 @@
 
 import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
+import type { UnifiedBookmark } from "@/types/bookmark";
 
 async function checkBookmarkStructure() {
   console.log("=== BOOKMARK STRUCTURE ANALYSIS ===");
   
   try {
-    // biome-ignore lint/suspicious/noExplicitAny: Diagnostic script needs to explore actual data structure
-    const bookmarks = await readJsonS3<any[]>(BOOKMARKS_S3_PATHS.FILE);
+    // Use proper typing - the data should conform to UnifiedBookmark[]
+    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
     
     if (!bookmarks || !Array.isArray(bookmarks) || bookmarks.length === 0) {
       console.log("❌ No bookmarks found");
@@ -34,19 +35,27 @@ async function checkBookmarkStructure() {
     let hasMetadataDate = 0;
     let hasAnyDate = 0;
     
-    // biome-ignore lint/suspicious/noExplicitAny: Diagnostic script needs to explore actual data structure
-    const sampleDates: any[] = [];
+    // Type-safe sample dates collection
+    const sampleDates: Array<{ title: string; createdAt: string }> = [];
     
     bookmarks.forEach(b => {
-      if (b.createdAt) {
-        hasCreatedAt++;
-        if (sampleDates.length < 3) sampleDates.push({ title: b.title, createdAt: b.createdAt });
-      }
-      if (b.updatedAt) hasUpdatedAt++;
-      if (b.archivedAt) hasArchivedAt++;
-      if (b.metadata?.datePublished || b.metadata?.dateModified) hasMetadataDate++;
+      // Use bracket notation for dynamic field access in diagnostic script
+      const record = b as Record<string, unknown>;
       
-      if (b.createdAt || b.updatedAt || b.archivedAt || b.metadata?.datePublished) {
+      if (record.createdAt) {
+        hasCreatedAt++;
+        if (sampleDates.length < 3 && typeof record.createdAt === 'string') {
+          sampleDates.push({ title: b.title, createdAt: record.createdAt });
+        }
+      }
+      if (record.updatedAt) hasUpdatedAt++;
+      if (record.archivedAt) hasArchivedAt++;
+      
+      // Check for metadata fields
+      const metadata = record.metadata as Record<string, unknown> | undefined;
+      if (metadata?.datePublished || metadata?.dateModified) hasMetadataDate++;
+      
+      if (record.createdAt || record.updatedAt || record.archivedAt || metadata?.datePublished) {
         hasAnyDate++;
       }
     });
@@ -68,8 +77,10 @@ async function checkBookmarkStructure() {
     console.log("\nMETADATA FIELDS FOUND:");
     const metadataFields = new Set<string>();
     bookmarks.forEach(b => {
-      if (b.metadata && typeof b.metadata === 'object') {
-        Object.keys(b.metadata).forEach(key => metadataFields.add(key));
+      const record = b as Record<string, unknown>;
+      const metadata = record.metadata;
+      if (metadata && typeof metadata === 'object') {
+        Object.keys(metadata).forEach(key => metadataFields.add(key));
       }
     });
     console.log(Array.from(metadataFields).sort().join(', '));
