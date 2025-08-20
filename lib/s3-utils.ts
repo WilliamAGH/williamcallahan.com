@@ -419,8 +419,11 @@ export async function writeToS3(
 
   // Skip memory checks during explicit dev-only migration builds (disabled in prod)
   const isDevMigrationRun = false; // Migration mode env flag removed – always false in production
+  
+  // CRITICAL: Data updater process MUST bypass memory checks to ensure scheduled updates succeed
+  const isDataUpdater = process.env.IS_DATA_UPDATER === "true";
 
-  if (!isDevMigrationRun) {
+  if (!isDevMigrationRun && !isDataUpdater) {
     if (isBinaryKey(key)) {
       // For binary payloads, use different thresholds based on the type of image
       const isOpenGraphImage = key.includes("images/opengraph/");
@@ -438,6 +441,11 @@ export async function writeToS3(
       // For non-binary (JSON/string) data, still guard very large writes
       throw new Error(`[S3Utils] Insufficient memory headroom for large S3 write operation`);
     }
+  }
+  
+  // Log when data updater bypasses memory check for images
+  if (isDataUpdater && !hasMemoryHeadroom() && isBinaryKey(key)) {
+    console.log(`[S3Utils] Data updater bypassing memory check for binary: ${key}`);
   }
 
   if (DRY_RUN) {
@@ -822,11 +830,22 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
   const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
   const isTinyOperationalFile =
     s3Key === BOOKMARKS_S3_PATHS.INDEX || s3Key === BOOKMARKS_S3_PATHS.HEARTBEAT || s3Key === BOOKMARKS_S3_PATHS.LOCK;
-  if (!isTinyOperationalFile && !hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
+  
+  // CRITICAL: Data updater process MUST bypass memory checks to ensure scheduled updates succeed
+  const isDataUpdater = process.env.IS_DATA_UPDATER === "true";
+  
+  if (!isTinyOperationalFile && !isDataUpdater && !hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
     console.warn(
       `[S3Utils] Skipping S3 write for ${s3Key} (${(dataSize / 1024).toFixed(1)} KB) due to memory pressure`,
     );
     return;
+  }
+  
+  // Log when data updater bypasses memory check
+  if (isDataUpdater && !hasMemoryHeadroom()) {
+    console.log(
+      `[S3Utils] Data updater bypassing memory check for ${s3Key} (${(dataSize / 1024).toFixed(1)} KB)`,
+    );
   }
 
   try {

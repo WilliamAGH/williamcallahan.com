@@ -154,7 +154,6 @@ export function OptimizedCardImage({
   src,
   alt,
   className = "",
-  logoDomain,
 }: OptimizedCardImageProps): React.JSX.Element {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
@@ -163,9 +162,6 @@ export function OptimizedCardImage({
 
   // Detect if this is a proxy URL that needs special handling
   const isProxyUrl = src?.startsWith("/api/assets/") || src?.startsWith("/api/og-image");
-  
-  // For proxy URLs (especially screenshots), be more lenient with errors
-  const shouldShowReal = src && (!errored || (isProxyUrl && retryCount < maxRetries));
 
   // No source provided - show placeholder
   if (!src) {
