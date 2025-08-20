@@ -79,30 +79,67 @@ export async function writeGitHubActivityToS3(
     }
 
     // 2) Non-degrading write: avoid overwriting a healthy dataset with empty/incomplete results
-    const isIncomplete = (d: GitHubActivityApiResponse | null | undefined): boolean => {
-      if (!d) return true;
+    // BUT be more lenient - allow writes if data has meaningful content even if not "complete"
+    
+    // Classify dataset quality to support non-degrading writes
+    const classifyDataset = (d: GitHubActivityApiResponse | null | undefined) => {
+      if (!d) {
+        return {
+          hasData: false,
+          hasCount: false,
+          contributions: -1,
+          isEmpty: true,
+          isIncomplete: true,
+        };
+      }
+      
       const ty = d.trailingYearData as { data?: unknown[]; dataComplete?: boolean; totalContributions?: number } | undefined;
       const hasData = Array.isArray(ty?.data) && (ty?.data?.length ?? 0) > 0;
-      const complete = ty?.dataComplete === true;
-      const contributions = typeof ty?.totalContributions === "number" ? ty?.totalContributions : 0;
-      return !hasData || !complete || contributions === 0;
+      // Treat 0 as a valid known count (don't penalize quiet/new accounts)
+      const hasCount = typeof ty?.totalContributions === "number" && Number.isFinite(ty.totalContributions);
+      const contributions = hasCount ? (ty.totalContributions ?? -1) : -1;
+      
+      return {
+        hasData,
+        hasCount,
+        contributions,
+        isEmpty: !hasData && !hasCount,
+        // Incomplete = missing daily series (even if we know the count)
+        isIncomplete: !hasData,
+      };
     };
 
-    // If new data looks incomplete, check existing
-    if (isIncomplete(data)) {
+    // If new data looks incomplete (no daily series), check existing
+    const newQ = classifyDataset(data);
+    if (newQ.isIncomplete) {
       try {
         const existing = await readGitHubActivityFromS3(key);
-        const existingIsHealthy = existing && !isIncomplete(existing);
+        const existingQ = classifyDataset(existing);
+        const existingIsHealthy = !!existing && !existingQ.isEmpty;
+        
+        // Only skip write if existing data is actually better
         if (existingIsHealthy) {
-          debugLog(
-            `Non-degrading write: New GitHub activity appears incomplete; preserving existing healthy dataset`,
-            "warn",
-            { key },
-          );
-          return true; // skip write, keep healthy file
+          const existingContributions = Math.max(0, existingQ.contributions);
+          const newContributions = Math.max(0, newQ.contributions);
+          
+          // Allow write if new data has MORE contributions (even if incomplete / no series)
+          if (newContributions > existingContributions) {
+            debugLog(
+              `Writing new data despite incomplete flag - has more contributions`,
+              "info",
+              { key, oldCount: existingContributions, newCount: newContributions },
+            );
+          } else {
+            debugLog(
+              `Non-degrading write: Preserving existing dataset with more data`,
+              "warn",
+              { key, existingCount: existingContributions, newCount: newContributions },
+            );
+            return true; // skip write, keep healthy file
+          }
         }
       } catch {
-        /* if read fails, proceed to best-effort write below */
+        /* if read fails, proceed to write new data */
       }
     }
 

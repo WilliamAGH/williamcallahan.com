@@ -83,10 +83,15 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       ogImageEtag: undefined,
     };
   } catch (normError) {
-    console.error(
-      `[Bookmarks Normalize] Error normalizing bookmark at index ${index} (ID: ${raw.id || "N/A"}):`,
-      normError,
-      raw,
+    envLogger.log(
+      "Error normalizing bookmark",
+      {
+        index,
+        bookmarkId: raw?.id ?? "N/A",
+        // Avoid logging full raw object to reduce PII leakage
+        error: normError instanceof Error ? normError.message : String(normError),
+      },
+      { category: "BookmarksNormalize" },
     );
     return null;
   }

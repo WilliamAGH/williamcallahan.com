@@ -15,6 +15,7 @@ import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import type { NextRequest } from "next/server";
 import { incrementAndPersist, loadRateLimitStoreFromS3 } from "@/lib/rate-limiter";
+import { envLogger } from "@/lib/utils/env-logger";
 
 /**
  * @constant {string} dynamic - Ensures the route is dynamically rendered and not cached.
@@ -83,7 +84,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const token = authorizationHeader.substring(7); // Remove "Bearer " prefix
     if (token === cronRefreshSecret) {
       isCronJob = true;
-      console.log("[API Refresh] Authenticated as cron job via GITHUB_CRON_REFRESH_SECRET.");
+      envLogger.log(
+        "Authenticated as cron job via GITHUB_CRON_REFRESH_SECRET",
+        undefined,
+        { category: "GitHubActivityRefresh" },
+      );
     }
   }
 
@@ -169,8 +174,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       invalidateGitHubCache(); // in-memory
       try {
         revalidateTag("github-activity"); // Next.js function cache tag
-      } catch {
+      } catch (err) {
         // No-op outside of Next request context
+        envLogger.log(
+          "revalidateTag('github-activity') skipped or failed",
+          { error: err instanceof Error ? err.message : String(err) },
+          { category: "GitHubActivityRefresh" },
+        );
       }
 
       const responseData = {

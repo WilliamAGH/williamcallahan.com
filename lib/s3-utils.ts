@@ -121,18 +121,23 @@ export function getS3Client(): S3Client | null {
     };
     s3ClientInstance = endpoint ? new S3Client({ ...baseConfig, endpoint }) : new S3Client(baseConfig);
     // Structured, one-line init summary for diagnostics
-    console.log(
-      `[S3Utils] S3 client initialized | bucket=${bucket} | endpoint=${endpoint || "SDK default"} | region=${region}`,
+    envLogger.log(
+      `S3 client initialized`,
+      { bucket, endpoint: endpoint || "SDK default", region },
+      { category: "S3Utils" },
     );
     if (isDebug)
       debug(`[S3Utils] S3-compatible client initialized (${endpoint ? "custom endpoint" : "sdk default endpoint"}).`);
   } else {
-    console.error(
-      `[S3Utils] CRITICAL: S3 client not initialized | ` +
-        `S3_BUCKET=${bucket ? "set" : "MISSING"} | ` +
-        `S3_SERVER_URL=${endpoint ? "set" : "not required"} | ` +
-        `S3_ACCESS_KEY_ID=${accessKeyId ? "set" : "MISSING"} | ` +
-        `S3_SECRET_ACCESS_KEY=${secretAccessKey ? "set" : "MISSING"}`,
+    envLogger.log(
+      `CRITICAL: S3 client not initialized`,
+      {
+        S3_BUCKET: bucket ? "set" : "MISSING",
+        S3_SERVER_URL: endpoint ? "set" : "not required",
+        S3_ACCESS_KEY_ID: accessKeyId ? "set" : "MISSING",
+        S3_SECRET_ACCESS_KEY: secretAccessKey ? "set" : "MISSING",
+      },
+      { category: "S3Utils" },
     );
   }
 
@@ -390,8 +395,10 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
       const message = err instanceof Error ? err.message : safeJsonStringify(err) || "Unknown error";
       const code = err.Code ?? err.name ?? "unknown";
       const status = err.$metadata?.httpStatusCode ?? "unknown";
-      console.error(
-        `[S3Utils] Error reading from S3 | key=${key} | attempt=${attempt}/${MAX_S3_READ_RETRIES} | status=${status} | code=${code} | msg=${message}`,
+      envLogger.log(
+        `Error reading from S3`,
+        { key, attempt: `${attempt}/${MAX_S3_READ_RETRIES}`, status, code, message },
+        { category: "S3Utils" },
       );
       return null;
     }
@@ -418,7 +425,12 @@ export async function writeToS3(
 ): Promise<void> {
   const SMALL_PAYLOAD_THRESHOLD = 512 * 1024; // 512 KB
   const OPENGRAPH_IMAGE_THRESHOLD = 2 * 1024 * 1024; // 2 MB - reasonable limit for OpenGraph images
-  const ABSOLUTE_BINARY_WRITE_MAX = 10 * 1024 * 1024; // 10 MB absolute cap for ALL binary writes
+  const ABSOLUTE_BINARY_WRITE_MAX = (() => {
+    const raw = process.env.ABSOLUTE_BINARY_WRITE_MAX_BYTES;
+    const parsed = raw != null ? Number(raw) : Number.NaN;
+    const value = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 10 * 1024 * 1024;
+    return value;
+  })(); // Absolute cap for ALL binary writes (default: 10 MB)
   const dataSize =
     typeof data === "string"
       ? Buffer.byteLength(data, "utf-8")
@@ -462,7 +474,7 @@ export async function writeToS3(
   
   // Log when data updater bypasses memory check for images
   if (isDataUpdater && !hasMemoryHeadroom() && isBinaryKey(key)) {
-    console.log(`[S3Utils] Data updater bypassing memory check for binary: ${key}`);
+    envLogger.log("Data updater bypassing memory check for binary", { key }, { category: "S3Utils" });
   }
 
   if (DRY_RUN) {
@@ -505,7 +517,7 @@ export async function writeToS3(
     else envLogger.log(`Wrote to S3`, { key, acl, etag: response.ETag }, { category: "S3Utils" });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
-    console.error(`[S3Utils] ❌ Error writing to S3 key ${key}:`, message);
+    envLogger.log(`Error writing to S3`, { key, message }, { category: "S3Utils" });
     // Re-throw the error so callers like writeBinaryS3 can catch it if needed
     throw error;
   }
@@ -543,7 +555,7 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
       return false;
     }
     const message = err instanceof Error ? err.message : safeJsonStringify(err) || "Unknown error";
-    console.error(`[S3Utils] Error checking S3 object existence for key ${key}:`, message);
+    envLogger.log(`Error checking S3 object existence`, { key, message }, { category: "S3Utils" });
     return false;
   }
 }
@@ -586,7 +598,7 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
       return null;
     }
     const message = err instanceof Error ? err.message : safeJsonStringify(err) || "Unknown error";
-    console.error(`[S3Utils] Error getting S3 object metadata for key ${key}:`, message);
+    envLogger.log(`Error getting S3 object metadata`, { key, message }, { category: "S3Utils" });
     return null;
   }
 }
@@ -631,7 +643,7 @@ export async function listS3Objects(prefix: string): Promise<string[]> {
     return keys;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
-    console.error(`[S3Utils] Error listing S3 objects with prefix ${prefix}:`, message);
+    envLogger.log(`Error listing S3 objects`, { prefix, message }, { category: "S3Utils" });
     return [];
   }
 }
@@ -661,7 +673,7 @@ export async function deleteFromS3(key: string): Promise<void> {
     if (isDebug) debug(`[S3Utils] Successfully deleted S3 object: ${key}`);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
-    console.error(`[S3Utils] Error deleting S3 object ${key}:`, message);
+    envLogger.log(`Error deleting S3 object`, { key, message }, { category: "S3Utils" });
   }
 }
 
@@ -741,7 +753,7 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
   }
 
   if (DRY_RUN) {
-    envLogger.debug(`[DRY RUN] Would read JSON from S3`, s3Key, { category: "S3Utils" });
+    envLogger.debug(`[DRY RUN] Would read JSON from S3`, { key: s3Key }, { category: "S3Utils" });
     return null;
   }
 
@@ -754,7 +766,7 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
       if (s3Key.includes("refresh-lock")) {
         envLogger.log("Refresh lock: idle", undefined, { category: "S3Utils" });
       } else {
-        console.warn(`[S3Utils] readFromS3 returned null for key: ${s3Key}`);
+        envLogger.log("readFromS3 returned null", { key: s3Key }, { category: "S3Utils" });
       }
       return null;
     }
@@ -763,10 +775,10 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
       envLogger.log(`Content loaded`, { type: "string", length: content.length }, { category: "S3Utils" });
       const parsed = safeJsonParse<T>(content);
       if (parsed !== null) {
-        envLogger.log(`Parsed JSON successfully`, s3Key, { category: "S3Utils" });
+        envLogger.log(`Parsed JSON successfully`, { key: s3Key }, { category: "S3Utils" });
         if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON from S3 key ${s3Key}.`);
       } else {
-        console.error(`[S3Utils] Failed to parse JSON content from ${s3Key}`);
+        envLogger.log(`Failed to parse JSON content`, { key: s3Key }, { category: "S3Utils" });
       }
       return parsed;
     }
@@ -775,19 +787,19 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
       envLogger.log(`Content loaded`, { type: "buffer", size: content.length }, { category: "S3Utils" });
       const parsed = parseJsonFromBuffer<T>(content, "utf-8");
       if (parsed !== null) {
-        envLogger.log(`Parsed JSON from buffer`, s3Key, { category: "S3Utils" });
+        envLogger.log(`Parsed JSON from buffer`, { key: s3Key }, { category: "S3Utils" });
         if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON (from buffer) from S3 key ${s3Key}.`);
       } else {
-        console.error(`[S3Utils] Failed to parse JSON from buffer for ${s3Key}`);
+        envLogger.log(`Failed to parse JSON from buffer`, { key: s3Key }, { category: "S3Utils" });
       }
       return parsed;
     }
 
-    console.error(`[S3Utils] Unexpected content type for ${s3Key}: ${typeof content}`);
+    envLogger.log(`Unexpected content type`, { key: s3Key, type: typeof content }, { category: "S3Utils" });
     return null;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
-    console.error(`[S3Utils] CRITICAL ERROR reading/parsing JSON from S3 key ${s3Key}:`, message);
+    envLogger.log(`CRITICAL ERROR reading/parsing JSON`, { key: s3Key, message }, { category: "S3Utils" });
     return null;
   }
 }
@@ -808,10 +820,11 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
     const { validateEnvironmentPath, getEnvironment } = await import("@/lib/config/environment");
     if (!validateEnvironmentPath(s3Key)) {
       const env = getEnvironment();
-      console.error(`[S3Utils] ❌ ENVIRONMENT PATH MISMATCH PREVENTED`);
-      console.error(`[S3Utils]    Current environment: ${env}`);
-      console.error(`[S3Utils]    Attempted write to: ${s3Key}`);
-      console.error(`[S3Utils]    This path doesn't match the expected environment suffix`);
+      envLogger.log(
+        `ENVIRONMENT PATH MISMATCH PREVENTED`,
+        { env, key: s3Key, note: "Path doesn't match expected environment suffix" },
+        { category: "S3Utils" },
+      );
 
       // In non-production, throw error to catch issues early
       if (env !== "production") {
@@ -852,8 +865,10 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
   const isDataUpdater = process.env.IS_DATA_UPDATER === "true";
   
   if (!isTinyOperationalFile && !isDataUpdater && !hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
-    console.warn(
-      `[S3Utils] Skipping S3 write for ${s3Key} (${(dataSize / 1024).toFixed(1)} KB) due to memory pressure`,
+    envLogger.log(
+      `Skipping S3 write due to memory pressure`,
+      { key: s3Key, sizeKB: Number((dataSize / 1024).toFixed(1)) },
+      { category: "S3Utils" },
     );
     return;
   }
@@ -878,7 +893,7 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
       if (!isConfigured || !client) {
         // If conditional write is requested but S3 is not configured, log error and return
         // Don't throw to maintain backward compatibility with tests
-        console.error("[S3Utils] Cannot perform conditional write: S3 client not configured");
+        envLogger.log("Cannot perform conditional write: S3 client not configured", undefined, { category: "S3Utils" });
         return;
       }
       const { PutObjectCommand } = await import("@aws-sdk/client-s3");
@@ -897,7 +912,7 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
     // No need for redundant success log here, writeToS3 handles it.
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
-    console.error(`[S3Utils] Failed to write JSON to S3 key ${s3Key}:`, message);
+    envLogger.log(`Failed to write JSON to S3`, { key: s3Key, message }, { category: "S3Utils" });
     throw error; // Re-throw other errors so callers can handle
   }
 }
@@ -1010,7 +1025,7 @@ export async function writeBinaryS3(s3Key: string, data: Buffer | Readable, cont
       }
     } catch (error) {
       // Log the specific error and throw a more descriptive error
-      console.error(`[S3Utils] Failed to convert stream to buffer for key ${s3Key}:`, error);
+      envLogger.log(`Failed to convert stream to buffer`, { key: s3Key, error }, { category: "S3Utils" });
       throw new Error(
         `Failed to convert stream to buffer: ${error instanceof Error ? error.message : String(error)}. ` +
           `This typically occurs when the stream is malformed or the x-amz-decoded-content-length header cannot be determined.`,
@@ -1032,7 +1047,7 @@ export async function writeBinaryS3(s3Key: string, data: Buffer | Readable, cont
     // Success is logged by writeToS3.
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
-    console.error(`[S3Utils] Failed to write binary file to S3 key ${s3Key}:`, message);
+    envLogger.log(`Failed to write binary file to S3`, { key: s3Key, message }, { category: "S3Utils" });
     throw error; // Re-throw to let callers handle the error appropriately
   }
 }
@@ -1093,7 +1108,7 @@ export async function acquireDistributedLock(
         return false;
       }
     }
-    console.error(`Failed to acquire lock ${lockKey}:`, error);
+    envLogger.log(`Failed to acquire lock`, { lockKey, error }, { category: "S3Utils" });
     return false;
   }
 }
@@ -1113,7 +1128,7 @@ export async function releaseDistributedLock(
       await store.delete(lockPath);
     }
   } catch (error) {
-    console.error(`Failed to release lock ${lockKey}:`, error);
+    envLogger.log(`Failed to release lock`, { lockKey, error }, { category: "S3Utils" });
   }
 }
 
@@ -1139,7 +1154,7 @@ export async function cleanupStaleLocks(
       }
     }
   } catch (error) {
-    console.error("Failed to cleanup stale locks:", error);
+    envLogger.log("Failed to cleanup stale locks", { error }, { category: "S3Utils" });
   }
 }
 

@@ -233,7 +233,7 @@ export async function getOpenGraphData(
 
   // Validate URL first
   if (!validateOgUrl(normalizedUrl)) {
-    console.warn(`[DataAccess/OpenGraph] Invalid or unsafe URL: ${normalizedUrl}`);
+    envLogger.log("Invalid or unsafe URL", { url: normalizedUrl }, { category: "OpenGraph" });
     return createFallbackResult(normalizedUrl, "Invalid or unsafe URL", validatedFallback);
   }
 
@@ -271,7 +271,16 @@ export async function getOpenGraphData(
       const ogError = new OgError(`Background refresh failed for ${normalizedUrl}`, "refresh", {
         originalError: error,
       });
-      console.error(`[DataAccess/OpenGraph] ${ogError.message}:`, ogError);
+      envLogger.log(
+        `Background refresh failed`,
+        {
+          url: normalizedUrl,
+          errorName: ogError.name,
+          errorMessage: ogError.message,
+          originalErrorMessage: error instanceof Error ? error.message : String(error),
+        },
+        { category: "OpenGraph" },
+      );
     });
 
     return {
@@ -403,7 +412,17 @@ export async function refreshOpenGraphData(
       const ogError = new OgError(`Failed to refresh OpenGraph data for ${normalizedUrl}`, "refresh", {
         originalError: error,
       });
-      console.error(`[DataAccess/OpenGraph] ${ogError.message}:`, ogError);
+      envLogger.log(
+        ogError.message,
+        {
+          errorName: ogError.name,
+          errorMessage: ogError.message,
+          stack: ogError.stack,
+          cause: err instanceof Error ? err.message : String(err),
+          url: normalizedUrl,
+        },
+        { category: "OpenGraph" },
+      );
 
       const fallback = createFallbackResult(normalizedUrl, ogError.message, validatedFallback);
       ServerCacheInstance.setOpenGraphData(normalizedUrl, fallback, true);
@@ -433,11 +452,11 @@ export async function serveOpenGraphImage(s3Key: string): Promise<{ buffer: Buff
 export function invalidateOpenGraphCache(): void {
   if (USE_NEXTJS_CACHE) {
     safeRevalidateTag("opengraph");
-    console.log("[OpenGraph] Cache invalidated for all OpenGraph data");
+    envLogger.log("Cache invalidated for all OpenGraph data", undefined, { category: "OpenGraph" });
   } else {
     // Legacy: clear memory cache
     ServerCacheInstance.deleteOpenGraphData("*");
-    console.log("[OpenGraph] Legacy cache cleared for all OpenGraph data");
+    envLogger.log("Legacy cache cleared for all OpenGraph data", undefined, { category: "OpenGraph" });
   }
 }
 
@@ -449,10 +468,10 @@ export function invalidateOpenGraphCacheForUrl(url: string): void {
 
   if (USE_NEXTJS_CACHE) {
     safeRevalidateTag(`opengraph-${normalizedUrl}`);
-    console.log(`[OpenGraph] Cache invalidated for URL: ${normalizedUrl}`);
+    envLogger.log("Cache invalidated for URL", { url: normalizedUrl }, { category: "OpenGraph" });
   } else {
     // Legacy: clear specific entry from memory cache
     ServerCacheInstance.deleteOpenGraphData(normalizedUrl);
-    console.log(`[OpenGraph] Legacy cache cleared for URL: ${normalizedUrl}`);
+    envLogger.log("Legacy cache cleared for URL", { url: normalizedUrl }, { category: "OpenGraph" });
   }
 }

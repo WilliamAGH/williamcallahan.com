@@ -98,32 +98,76 @@ export async function getGithubActivity(): Promise<UserActivityView> {
   let s3ActivityData = await readGitHubActivityFromS3();
   let metadataKey = GITHUB_ACTIVITY_S3_KEY_FILE;
 
-  // Fallback: In non-production deployments (e.g., dev site), use the production file if
-  // the env-scoped file is missing OR clearly empty. This prevents blank charts on dev
-  // when the nightly job hasn’t run yet or hit rate limits.
-  const isNonProdDeployment = getEnvironment() !== "production";
+  // Enhanced fallback mechanism: Try production file for ANY environment when primary is missing
+  // This ensures data is always available, even during initial deployments
   const isEmptyData = (data: unknown): boolean => {
     if (!data || typeof data !== "object") return true;
     const obj = data as { trailingYearData?: { data?: unknown[]; totalContributions?: number } };
     const ty = obj.trailingYearData;
-    return !ty || !Array.isArray(ty.data) || ty.data.length === 0 || (ty.totalContributions ?? 0) === 0;
+    if (!ty) return true;
+    
+    // Don't treat zero contributions as "empty" - users can legitimately have 0 contributions
+    const hasSeries = Array.isArray(ty.data) && ty.data.length > 0;
+    const hasCount = typeof ty.totalContributions === "number" && Number.isFinite(ty.totalContributions);
+    
+    // Empty only if we have neither series data nor a known count
+    return !hasSeries && !hasCount;
   };
 
-  if ((!s3ActivityData || isEmptyData(s3ActivityData)) && isNonProdDeployment) {
-    console.log(
-      `[DataAccess/GitHub:getGithubActivity] Using production fallback due to missing/empty env-scoped data. Fallback key: ${GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK}`,
+  // Try fallback for ANY environment if primary data is missing or empty
+  if (!s3ActivityData || isEmptyData(s3ActivityData)) {
+    const { envLogger } = await import("@/lib/utils/env-logger");
+    const currentEnv = getEnvironment();
+    
+    // Always try the production fallback file
+    const fallbackKey = GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK;
+    envLogger.log(
+      `Primary data missing/empty for ${currentEnv}, attempting production fallback`,
+      { primaryKey: GITHUB_ACTIVITY_S3_KEY_FILE, fallbackKey },
+      { category: "GitHubActivity" },
     );
-    metadataKey = GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK;
-    const fallbackData = await readGitHubActivityFromS3(metadataKey);
-    // Only adopt fallback if it looks populated
+    
+    const fallbackData = await readGitHubActivityFromS3(fallbackKey);
+    
+    // Use fallback if it has valid data
     if (fallbackData && !isEmptyData(fallbackData)) {
       s3ActivityData = fallbackData;
+      metadataKey = fallbackKey;
+      envLogger.log(
+        `Successfully using production fallback data`,
+        { environment: currentEnv, fallbackKey },
+        { category: "GitHubActivity" },
+      );
+    } else {
+      // If we're in production and both files are missing, try WITHOUT suffix
+      // This handles the case where files might be stored without environment suffix
+      if (currentEnv === "production" && GITHUB_ACTIVITY_S3_KEY_FILE.includes(".json")) {
+        const baseKey = GITHUB_ACTIVITY_S3_KEY_FILE.replace(/(-dev|-test)?\.json$/, ".json") as `json/github-activity/activity_data${string}.json`;
+        if (baseKey !== GITHUB_ACTIVITY_S3_KEY_FILE) {
+          const baseData = await readGitHubActivityFromS3(baseKey);
+          if (baseData && !isEmptyData(baseData)) {
+            s3ActivityData = baseData;
+            metadataKey = baseKey;
+            envLogger.log(
+              `Using base filename without environment suffix`,
+              { baseKey },
+              { category: "GitHubActivity" },
+            );
+          }
+        }
+      }
     }
-    // If still empty, do not attempt to write during build; GET path is read-only
-    // Build will just render “no data” and rely on public CDN read where possible
-    if (!s3ActivityData) {
-      console.error(
-        `[DataAccess/GitHub:getGithubActivity] CRITICAL: No usable data found in S3 for either ${GITHUB_ACTIVITY_S3_KEY_FILE} or fallback ${GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK}.`,
+    
+    // Log critical error if still no data
+    if (!s3ActivityData || isEmptyData(s3ActivityData)) {
+      envLogger.log(
+        `CRITICAL: No usable GitHub data found in any location`,
+        { 
+          primaryKey: GITHUB_ACTIVITY_S3_KEY_FILE, 
+          fallbackKey: GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK,
+          environment: currentEnv 
+        },
+        { category: "GitHubActivity" },
       );
     }
   }

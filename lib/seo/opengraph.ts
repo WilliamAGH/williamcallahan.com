@@ -23,6 +23,7 @@ import type { ArticleOpenGraph, ArticleParams } from "../../types/seo";
 import { ensureAbsoluteUrl, formatSeoDate, getImageTypeFromUrl } from "./utils";
 import { prepareOGImageUrl, validateOpenGraphMetadata } from "./og-validation";
 import { adaptNextOpenGraphToOGMetadata } from "../../types/seo/validation";
+import { envLogger } from "@/lib/utils/env-logger";
 
 /**
  * Base OpenGraph metadata configuration
@@ -111,10 +112,18 @@ export function createArticleOgMetadata({
     if (ogValidationData) {
       const validation = validateOpenGraphMetadata(ogValidationData);
       if (!validation.isValid) {
-        console.error(`[OG Validation] Article ${url} errors:`, validation.errors);
+        envLogger.log(
+          `Article ${url} validation errors`,
+          { url, errors: validation.errors },
+          { category: "OGValidation" },
+        );
       }
       if (validation.warnings.length > 0) {
-        console.warn(`[OG Validation] Article ${url} warnings:`, validation.warnings);
+        envLogger.log(
+          `Article ${url} validation warnings`,
+          { url, warnings: validation.warnings },
+          { category: "OGValidation" },
+        );
       }
     }
   }

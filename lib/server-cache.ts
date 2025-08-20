@@ -32,6 +32,7 @@ export class ServerCache implements ICache {
   private totalSize = 0;
   private readonly maxSize: number;
   private cleanupInterval: NodeJS.Timeout;
+  private static readonly MAX_EVICTION_PERCENTAGE = 0.95 as const;
 
   constructor() {
     // Size-aware cache configuration
@@ -44,6 +45,8 @@ export class ServerCache implements ICache {
   }
 
   private proactiveEviction(percentage: number): void {
+    // Clamp percentage to a safe range [0, MAX_EVICTION_PERCENTAGE]
+    percentage = Math.min(ServerCache.MAX_EVICTION_PERCENTAGE, Math.max(0, percentage));
     // If disabled, don't perform eviction
     if (this.disabled) {
       return;
@@ -56,8 +59,8 @@ export class ServerCache implements ICache {
     if (currentSizeBytes < 1024 * 1024) {
       envLogger.log(
         `Skipping eviction - cache size only ${Math.round(currentSizeBytes / 1024)}KB`,
-        undefined,
-        { category: "ServerCache" },
+        { sizeKB: Math.round(currentSizeBytes / 1024) },
+        { category: "ServerCache", context: { event: "eviction-skip" } },
       );
       return;
     }
@@ -80,8 +83,8 @@ export class ServerCache implements ICache {
 
     envLogger.log(
       `Proactive eviction complete. Removed ${removedCount} entries (${Math.round(removedBytes / 1024)}KB)`,
-      undefined,
-      { category: "ServerCache" },
+      { removedCount, removedKB: Math.round(removedBytes / 1024) },
+      { category: "ServerCache", context: { event: "eviction-complete" } },
     );
   }
 
@@ -110,7 +113,7 @@ export class ServerCache implements ICache {
       this.hits++;
       return entry.value as T;
     } catch (error) {
-      console.error("[ServerCache] Error in get operation:", error);
+      envLogger.log("Error in get operation", { error }, { category: "ServerCache" });
       this.handleFailure();
       return undefined;
     }
@@ -135,7 +138,7 @@ export class ServerCache implements ICache {
         if (size > 10 * 1024 * 1024) {
           envLogger.log(
             `Rejected ${Math.round(size / 1024)}KB buffer – exceeds 10MB item limit`,
-            { key },
+            { key, sizeKB: Math.round(size / 1024), limitKB: 10 * 1024 },
             { category: "ServerCache" },
           );
           return false;
@@ -158,7 +161,11 @@ export class ServerCache implements ICache {
 
       // If still too big after eviction, reject
       if (this.totalSize + size > this.maxSize) {
-        envLogger.log("Cache full, cannot store key", { key }, { category: "ServerCache" });
+        envLogger.log(
+          "Cache full, cannot store key",
+          { key, utilizationPercent: Math.round((this.totalSize / this.maxSize) * 100) },
+          { category: "ServerCache", context: { event: "cache-full" } },
+        );
         return false;
       }
 
@@ -175,7 +182,7 @@ export class ServerCache implements ICache {
       this.totalSize += size;
       return true;
     } catch (error) {
-      console.error("[ServerCache] Error in set operation:", error);
+      envLogger.log("Error in set operation", { error }, { category: "ServerCache" });
       this.handleFailure();
       return false;
     }
@@ -242,8 +249,8 @@ export class ServerCache implements ICache {
       this.disabled = true;
       envLogger.log(
         `Circuit breaker activated after ${this.failureCount} failures. Cache operations disabled to prevent system instability.`,
-        undefined,
-        { category: "ServerCache" },
+        { failureCount: this.failureCount },
+        { category: "ServerCache", context: { event: "circuit-breaker-activated" } },
       );
     }
   }
@@ -256,7 +263,7 @@ export class ServerCache implements ICache {
   public clearAllCaches(): void {
     // If disabled, don't attempt cleanup
     if (this.disabled) {
-      envLogger.log("Cache is disabled, skipping clear operation", undefined, { category: "ServerCache" });
+      envLogger.log("Cache is disabled, skipping clear operation", undefined, { category: "ServerCache", context: { event: "clear-skip" } });
       return;
     }
 
@@ -274,7 +281,7 @@ export class ServerCache implements ICache {
               this.totalSize -= entry.size;
             }
           } catch (deleteError) {
-            console.error(`[ServerCache] Failed to delete key ${key}:`, deleteError);
+            envLogger.log("Failed to delete key during clear", { key, error: deleteError }, { category: "ServerCache" });
           }
         }
       }
@@ -284,7 +291,7 @@ export class ServerCache implements ICache {
       this.hits = 0;
       this.misses = 0;
     } catch (error) {
-      console.error("[ServerCache] Error during cache clear:", error);
+      envLogger.log("Error during cache clear", { error }, { category: "ServerCache" });
       this.handleFailure();
     }
   }
@@ -320,14 +327,14 @@ export class ServerCache implements ICache {
       this.failureCount = 0;
       envLogger.log(
         `Circuit breaker reset. Memory usage ${Math.round(memUsage.rss / 1024 / 1024)}MB is below safe threshold.`,
-        undefined,
-        { category: "ServerCache" },
+        { rssMB: Math.round(memUsage.rss / 1024 / 1024) },
+        { category: "ServerCache", context: { event: "circuit-breaker-reset" } },
       );
     } else {
       envLogger.log(
         `Cannot reset circuit breaker. Memory usage ${Math.round(memUsage.rss / 1024 / 1024)}MB still above safe threshold.`,
-        { rssMB: Math.round(memUsage.rss / 1024 / 1024) },
-        { category: "ServerCache" },
+        { rssMB: Math.round(memUsage.rss / 1024 / 1024), safeThresholdMB: Math.round(safeThreshold / 1024 / 1024) },
+        { category: "ServerCache", context: { event: "circuit-breaker-not-reset" } },
       );
     }
   }
@@ -376,8 +383,8 @@ function attachHelpers<T extends Record<string, unknown>>(prototype: object, hel
     if (key in prototype) {
       envLogger.log(
         `Overwriting existing method '${key}' on prototype while attaching '${helperName}' helpers.`,
-        undefined,
-        { category: "ServerCache" },
+        { method: key, helperName },
+        { category: "ServerCache", context: { event: "prototype-overwrite" } },
       );
     }
     // Define non-enumerable to keep prototype surface tidy

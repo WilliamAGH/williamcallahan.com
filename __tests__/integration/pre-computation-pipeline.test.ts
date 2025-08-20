@@ -222,21 +222,39 @@ describe("Pre-computation Pipeline Integration", () => {
 
         // Test production paths
         process.env.NODE_ENV = "production";
-        jest.resetModules();
-        const prodConstants = require("@/lib/constants");
-        expect(prodConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe("json/content-graph/related-content.json");
+        jest.isolateModules(() => {
+          const prodConstants = require("@/lib/constants");
+          expect(prodConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe("json/content-graph/related-content.json");
+        });
 
         // Test development paths
         process.env.NODE_ENV = "development";
-        jest.resetModules();
-        const devConstants = require("@/lib/constants");
-        expect(devConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe("json/content-graph-dev/related-content.json");
+        jest.isolateModules(() => {
+          const devConstants = require("@/lib/constants");
+          expect(devConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe("json/content-graph-dev/related-content.json");
+        });
       } finally {
         // Restore original environment variables even if test fails
-        process.env.NODE_ENV = originalEnv;
-        if (originalApiUrl) process.env.API_BASE_URL = originalApiUrl;
-        if (originalSiteUrl) process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
-        if (originalDeploymentEnv) process.env.DEPLOYMENT_ENV = originalDeploymentEnv;
+        if (originalEnv === undefined) {
+          delete process.env.NODE_ENV;
+        } else {
+          process.env.NODE_ENV = originalEnv;
+        }
+        if (originalApiUrl === undefined) {
+          delete process.env.API_BASE_URL;
+        } else {
+          process.env.API_BASE_URL = originalApiUrl;
+        }
+        if (originalSiteUrl === undefined) {
+          delete process.env.NEXT_PUBLIC_SITE_URL;
+        } else {
+          process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
+        }
+        if (originalDeploymentEnv === undefined) {
+          delete process.env.DEPLOYMENT_ENV;
+        } else {
+          process.env.DEPLOYMENT_ENV = originalDeploymentEnv;
+        }
       }
     });
 
