@@ -570,15 +570,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
             </button>
           )}
 
-          {/* Display Refresh Status */}
-          {isRefreshing && (
-            <div className="mt-2 text-sm text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
-              <div className="flex items-center">
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                <span>Refreshing bookmarks... This may take several minutes</span>
-              </div>
-            </div>
-          )}
           {/* Display Refresh Error */}
           {refreshError && !isRefreshing && (
             <div className="mt-2 text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg">
