@@ -29,7 +29,7 @@ import { type JSX, useEffect, useState } from "react";
 import { normalizeDomain } from "../../../lib/utils/domain-utils";
 import { ExternalLink } from "../../ui/external-link.client";
 import { ShareButton } from "./share-button.client";
-import { getAssetUrl } from "@/lib/bookmarks/bookmark-helpers";
+import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { usePathname } from "next/navigation";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 
@@ -53,7 +53,7 @@ const MAX_TITLE_WORDS = 10;
  */
 
 export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element | null {
-  const { id, url, title, description, tags, ogImage, ogImageExternal, content, dateBookmarked, internalHref } = props;
+  const { id, url, title, description, tags, ogImage, content, dateBookmarked, internalHref } = props;
   const pathname = usePathname();
 
   /**
@@ -81,94 +81,24 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   const formattedBookmarkDate = displayBookmarkDate ? utilFormatDate(displayBookmarkDate) : "";
   const formattedPublishDate = displayPublishDate ? utilFormatDate(displayPublishDate) : null;
 
-  // Handle image sources with multiple fallbacks
-  // CRITICAL: Always prefer direct S3 CDN URLs to avoid proxy overhead
-  // Only use proxy routes (/api/assets/, /api/og-image) as absolute last resort
-  const getDisplayImageUrl = () => {
-    // DEV-ONLY: Log the props received by the card for debugging
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[BookmarkCardClient:${id}] Received props:`, {
-        ogImage,
-        ogImageExternal,
-        contentExists: !!content,
-        imageUrl: content?.imageUrl,
-        imageAssetId: content?.imageAssetId,
-        screenshotAssetId: content?.screenshotAssetId,
-      });
-    }
+  // Use centralized image selection logic that properly handles all fallback cases
+  // This ensures consistency across server and client components
+  const displayImageUrl = selectBestImage(
+    { ogImage, content },
+    { includeScreenshots: true }
+  );
 
-    // Fix for critical bug: properly handle empty S3 CDN URL
-    const rawCdn = process.env.NEXT_PUBLIC_S3_CDN_URL;
-    const s3CdnUrl = typeof rawCdn === "string" ? rawCdn.replace(/\/+$/, "") : undefined;
-    const hasCdn = !!s3CdnUrl;
-    const isDev = process.env.NODE_ENV === "development";
-
-    // PRIORITY 1: Enriched ogImage field (already persisted to S3)
-    // This is the MOST IMPORTANT - it contains the S3 URL from enrichment
-    if (hasCdn && ogImage?.startsWith(s3CdnUrl)) {
-      if (isDev) console.log(`[BookmarkCard] ✅ Using DIRECT S3 CDN from ogImage: ${ogImage}`);
-      return ogImage;
-    }
-
-    // PRIORITY 2: Direct S3 CDN URLs in content.imageUrl
-    if (hasCdn && content?.imageUrl?.startsWith(s3CdnUrl)) {
-      if (isDev) console.log(`[BookmarkCard] ✅ Using DIRECT S3 CDN from imageUrl: ${content.imageUrl}`);
-      return content.imageUrl;
-    }
-
-    // PRIORITY 3: Check if ogImageExternal is available (external remote)
-    if (ogImageExternal?.startsWith("http")) {
-      if (isDev) console.log(`[BookmarkCard] Using ogImageExternal: ${ogImageExternal}`);
-      return ogImageExternal;
-    }
-
-    // PRIORITY 3.5: Accept relative Karakeep asset URLs returned by enrichment
-    // Rationale: The enrichment pipeline may set ogImage to a relative Karakeep asset path like
-    // "/api/assets/[id]" when S3 persistence isn't available at runtime. It does NOT set
-    // "/api/og-image" itself — that route is constructed client-side later as a fallback for
-    // external absolute URLs. Treat these relative proxies as valid sources and render unoptimized.
-    if (ogImage && (ogImage.startsWith("/api/assets/") || ogImage.startsWith("/api/og-image"))) {
-      if (isDev) console.log(`[BookmarkCard] Using relative proxy ogImage: ${ogImage}`);
-      return ogImage;
-    }
-
-    // PRIORITY 4: Check if ogImage is a direct HTTP URL (not a proxy)
-    if (ogImage?.startsWith("http")) {
-      // If it's already a direct URL, use it (might be from older enrichments)
-      if (isDev) console.log(`[BookmarkCard] Using direct HTTP ogImage: ${ogImage}`);
-      return ogImage;
-    }
-
-    // PRIORITY 5: Direct HTTP URLs in content.imageUrl
-    if (content?.imageUrl?.startsWith("http")) {
-      if (isDev) console.log(`[BookmarkCard] Using direct HTTP imageUrl: ${content.imageUrl}`);
-      return content.imageUrl;
-    }
-
-    // === PROXY FALLBACKS (only if no direct URLs available) ===
-
-    // PRIORITY 6: Karakeep imageAssetId - unfortunately requires proxy
-    if (content?.imageAssetId) {
-      if (isDev) console.log(`[BookmarkCard] ⚠️ FALLBACK to proxy for Karakeep asset: ${content.imageAssetId}`);
-      return getAssetUrl(content.imageAssetId);
-    }
-
-    // PRIORITY 7: OpenGraph proxy - only for truly external http(s) images
-    if (ogImage && /^https?:\/\//i.test(ogImage)) {
-      if (isDev) console.log(`[BookmarkCard] ⚠️ FALLBACK to og-image proxy: ${ogImage}`);
-      return `/api/og-image?url=${encodeURIComponent(ogImage)}&bookmarkId=${encodeURIComponent(id)}`;
-    }
-
-    // PRIORITY 8: Screenshot fallback - requires proxy
-    if (content?.screenshotAssetId) {
-      if (isDev) console.log(`[BookmarkCard] ⚠️ FALLBACK to proxy for screenshot: ${content.screenshotAssetId}`);
-      return getAssetUrl(content.screenshotAssetId);
-    }
-
-    return null;
-  };
-
-  const displayImageUrl = getDisplayImageUrl();
+  // DEV-ONLY: Log the image selection result for debugging
+  if (process.env.NODE_ENV === "development") {
+    console.log(`[BookmarkCardClient:${id}] Image selection:`, {
+      ogImage,
+      contentExists: !!content,
+      imageUrl: content?.imageUrl,
+      imageAssetId: content?.imageAssetId,
+      screenshotAssetId: content?.screenshotAssetId,
+      selectedImage: displayImageUrl,
+    });
+  }
 
   const domain = normalizeDomain(url);
   const domainWithoutWWW = domain.replace(/^www\./, "");
