@@ -84,8 +84,7 @@ export async function writeGitHubActivityToS3(
       const ty = d.trailingYearData as { data?: unknown[]; dataComplete?: boolean; totalContributions?: number } | undefined;
       const hasData = Array.isArray(ty?.data) && (ty?.data?.length ?? 0) > 0;
       const complete = ty?.dataComplete === true;
-      const contributions = typeof ty?.totalContributions === "number" ? ty?.totalContributions : 0;
-      return !hasData || !complete || contributions === 0;
+      return !hasData || !complete;
     };
 
     // If new data looks incomplete, check existing
