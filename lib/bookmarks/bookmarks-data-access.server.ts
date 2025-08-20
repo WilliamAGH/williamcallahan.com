@@ -16,6 +16,7 @@ import {
   normalizePageBookmarkTags,
 } from "@/lib/bookmarks/utils";
 import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { getEnvironment } from "@/lib/config/environment";
 import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
 import { promises as fs } from "node:fs";
@@ -604,26 +605,39 @@ async function fetchAndCacheBookmarks(
       .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
   });
 
-  // --- 1. Try loading from local cache first ---
-  try {
-    const localData = await fs.readFile(LOCAL_BOOKMARKS_PATH, "utf-8");
-    const bookmarks = JSON.parse(localData) as UnifiedBookmark[];
-    
-    // Skip local cache if it only contains test data
-    const isTestData = bookmarks.length === 1 && 
-      (bookmarks[0]?.id === "test-1" || bookmarks[0]?.id === "test" || bookmarks[0]?.url === "https://example.com");
-    if (isTestData) {
-      console.log(`${LOG_PREFIX} Local cache contains only test data, skipping to S3`);
-    } else if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
-      console.log(`${LOG_PREFIX} Successfully loaded ${bookmarks.length} bookmarks from local cache: ${LOCAL_BOOKMARKS_PATH}`);
-      if (!includeImageData) {
-        console.log(`${LOG_PREFIX} Stripping image data from ${bookmarks.length} bookmarks`);
-        return bookmarks.map(stripImageData);
+  // --- 1. Prefer S3 in production runtime; use local fallback only in dev/test/CLI contexts ---
+  const isProductionRuntime = getEnvironment() === "production" && !isCliLikeContext();
+  if (!isProductionRuntime) {
+    try {
+      const localData = await fs.readFile(LOCAL_BOOKMARKS_PATH, "utf-8");
+      const bookmarks = JSON.parse(localData) as UnifiedBookmark[];
+
+      // Skip local cache if it only contains test data
+      const isTestData =
+        bookmarks.length === 1 &&
+        (bookmarks[0]?.id === "test-1" || bookmarks[0]?.id === "test" || bookmarks[0]?.url === "https://example.com");
+      if (isTestData) {
+        console.log(`${LOG_PREFIX} Local cache contains only test data, skipping to S3`);
+      } else if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
+        console.log(
+          `${LOG_PREFIX} Successfully loaded ${bookmarks.length} bookmarks from local cache: ${LOCAL_BOOKMARKS_PATH}`,
+        );
+        if (!includeImageData) {
+          console.log(`${LOG_PREFIX} Stripping image data from ${bookmarks.length} bookmarks`);
+          return bookmarks.map(stripImageData);
+        }
+        return bookmarks.map(normalizeBookmarkTags);
       }
-      return bookmarks.map(normalizeBookmarkTags);
+    } catch (error) {
+      console.warn(
+        `[Bookmarks] Local bookmarks cache not found or invalid, proceeding to S3. Error: ${String(error)}`,
+      );
     }
-  } catch (error) {
-    console.warn(`[Bookmarks] Local bookmarks cache not found or invalid, proceeding to S3. Error: ${String(error)}`);
+  } else {
+    // Explicitly log that we are skipping local fallback in production runtime to avoid stale snapshots from build layers
+    envLogger.log("Skipping local bookmarks fallback in production runtime; using S3-first strategy", undefined, {
+      category: LOG_PREFIX,
+    });
   }
 
   // --- 2. Fallback to S3 ---
