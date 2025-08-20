@@ -312,7 +312,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                 )}
 
                 {/* Metadata Card - Only show if there's content */}
-                {(bookmark.wordCount || bookmark.dateUpdated) && (
+                {bookmark.dateUpdated && (
                   <motion.section
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -323,13 +323,6 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                     <h2 className="hidden sm:block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
                       Details
                     </h2>
-                    
-                    {bookmark.wordCount && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500 dark:text-gray-400">Words</span>
-                        <span className="font-medium text-gray-900 dark:text-gray-100">{bookmark.wordCount.toLocaleString()}</span>
-                      </div>
-                    )}
                     
                     {bookmark.dateUpdated && (
                       <div className="flex items-center justify-between text-sm">
