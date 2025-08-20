@@ -51,7 +51,7 @@ export async function processBookmarksInBatches(
 
   // Process sequentially with a small delay between requests
   const enrichedBookmarks: UnifiedBookmark[] = [];
-  const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL || "";
+  const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL;
 
   for (let i = 0; i < bookmarks.length; i++) {
     const bookmark = bookmarks[i];
@@ -64,7 +64,7 @@ export async function processBookmarksInBatches(
 
     try {
       // 1. Skip if already processed with S3 CDN URL
-      if (bookmark.ogImage?.includes(s3CdnUrl)) {
+      if (s3CdnUrl && bookmark.ogImage?.startsWith(s3CdnUrl)) {
         imageStats.imagesAlreadyInS3++;
         imageStats.bookmarksUsingS3Image++;
         enrichedBookmarks.push(bookmark);
@@ -90,7 +90,7 @@ export async function processBookmarksInBatches(
             url: bookmark.url,
             karakeepImage: sourceImageUrl,
           });
-        } else if (sourceImageUrl.includes(s3CdnUrl)) {
+        } else if (s3CdnUrl && sourceImageUrl.startsWith(s3CdnUrl)) {
           // Already persisted to S3
           finalImageSource = "S3";
           imageStats.bookmarksUsingS3Image++;

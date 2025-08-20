@@ -399,17 +399,17 @@ async function fetchExternalOpenGraph(
     envLogger.log(`Found profile image`, { profileImageUrl }, { category: "OpenGraph" });
 
     // Determine platform-specific directory for better organization
-    const domain = getDomainType(url);
+    const hostname = new URL(url).hostname.replace(/^www\./, "");
     let profileImageDirectory = "social-avatars";
-    if (domain === "github.com") {
+    if (hostname === "github.com") {
       profileImageDirectory = "social-avatars/github";
-    } else if (domain === "twitter.com" || domain === "x.com") {
+    } else if (hostname === "twitter.com" || hostname === "x.com") {
       profileImageDirectory = "social-avatars/twitter";
-    } else if (domain === "linkedin.com") {
+    } else if (hostname === "linkedin.com") {
       profileImageDirectory = "social-avatars/linkedin";
-    } else if (domain === "bsky.app") {
+    } else if (hostname === "bsky.app") {
       profileImageDirectory = "social-avatars/bluesky";
-    } else if (domain === "discord.com") {
+    } else if (hostname === "discord.com") {
       profileImageDirectory = "social-avatars/discord";
     }
 
