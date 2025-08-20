@@ -114,5 +114,6 @@
   "tailwindCSS.includeLanguages": {
     "typescript": "javascript",
     "typescriptreact": "javascript"
-  }
+  },
+  "oxc.enable": true
 }
