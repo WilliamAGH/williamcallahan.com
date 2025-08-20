@@ -365,9 +365,17 @@ async function fetchExternalOpenGraph(
     }
   } else {
     if (!bestImageUrl) {
-      envLogger.log(`No image found to persist`, { url }, { category: "OpenGraph" });
+      envLogger.log(
+        `No image found to persist`,
+        { url, idempotencyKey: fallbackImageData?.idempotencyKey },
+        { category: "OpenGraph" },
+      );
     } else if (!fallbackImageData?.idempotencyKey) {
-      envLogger.log(`No idempotencyKey provided, cannot persist image`, { bestImageUrl }, { category: "OpenGraph" });
+      envLogger.log(
+        `No idempotencyKey provided, cannot persist image`,
+        { url, bestImageUrl },
+        { category: "OpenGraph" },
+      );
     }
   }
 
