@@ -410,12 +410,21 @@ export async function writeToS3(
 ): Promise<void> {
   const SMALL_PAYLOAD_THRESHOLD = 512 * 1024; // 512 KB
   const OPENGRAPH_IMAGE_THRESHOLD = 2 * 1024 * 1024; // 2 MB - reasonable limit for OpenGraph images
+  const ABSOLUTE_BINARY_WRITE_MAX = 10 * 1024 * 1024; // 10 MB absolute cap for ALL binary writes
   const dataSize =
     typeof data === "string"
       ? Buffer.byteLength(data, "utf-8")
       : Buffer.isBuffer(data)
         ? data.length
         : SMALL_PAYLOAD_THRESHOLD; // Unknown stream size – treat as small for head-room check
+
+  // ABSOLUTE CAP: Prevent OOM by limiting ALL binary writes regardless of process type
+  if (isBinaryKey(key) && dataSize > ABSOLUTE_BINARY_WRITE_MAX) {
+    throw new Error(
+      `[S3Utils] Binary S3 write exceeds absolute maximum: ${dataSize} bytes (cap: ${ABSOLUTE_BINARY_WRITE_MAX} bytes). ` +
+      `This safety limit prevents OOM errors even for data updater processes.`
+    );
+  }
 
   // Skip memory checks during explicit dev-only migration builds (disabled in prod)
   const isDevMigrationRun = false; // Migration mode env flag removed – always false in production

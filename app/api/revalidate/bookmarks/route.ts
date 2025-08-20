@@ -9,7 +9,7 @@ export function POST(request: NextRequest) {
   console.log(`[Cache Invalidation] Bookmarks revalidation endpoint called at ${new Date().toISOString()}`);
 
   // Verify authorization
-  const authHeader = request.headers.get('authorization');
+  const authHeader = request.headers.get('Authorization') || request.headers.get('authorization');
   const expectedToken = process.env.BOOKMARK_CRON_REFRESH_SECRET;
   
   if (!expectedToken) {
@@ -20,10 +20,12 @@ export function POST(request: NextRequest) {
     );
   }
 
-  // Parse Bearer token robustly (case-insensitive, trim whitespace)
-  const presentedToken = authHeader?.startsWith('Bearer ')
-    ? authHeader.slice('Bearer '.length).trim()
-    : '';
+  // Parse Bearer token robustly (case-insensitive scheme, tolerant to whitespace)
+  const presentedToken = (() => {
+    const h = authHeader ?? '';
+    const match = h.match(/^\s*Bearer\s+(.+?)\s*$/i);
+    return match?.[1]?.trim() ?? '';
+  })();
   
   if (presentedToken !== expectedToken) {
     console.warn('[Cache Invalidation] Unauthorized revalidation attempt');

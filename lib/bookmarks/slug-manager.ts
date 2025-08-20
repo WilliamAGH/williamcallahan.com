@@ -24,7 +24,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 // Local file path for ephemeral cache (container-local, not persisted)
-const LOCAL_SLUG_MAPPING_PATH = path.join(process.cwd(), "lib", "data", "slug-mapping.json");
+export const LOCAL_SLUG_MAPPING_PATH = path.join(process.cwd(), "lib", "data", "slug-mapping.json");
 
 /**
  * Generate deterministic slug mapping for all bookmarks.

@@ -9,8 +9,6 @@
 
 // Configure dynamic rendering
 export const dynamic = "force-dynamic";
-// Revalidate every 30 minutes for fresh content
-export const revalidate = 1800;
 // Force dynamic rendering and disable Next.js Data Cache for heavy tag list pages (we use our own cache via lib/image-memory-manager.ts)
 export const fetchCache = "default-no-store";
 
@@ -24,7 +22,7 @@ import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
-import { tagToSlug, sanitizeUnicode } from "@/lib/utils/tag-utils";
+import { tagToSlug } from "@/lib/utils/tag-utils";
 import type { BookmarkTagPageContext } from "@/types";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 import { redirect, notFound } from "next/navigation";
@@ -52,8 +50,7 @@ export async function generateStaticParams() {
   bookmarks.forEach((b) => {
     (Array.isArray(b.tags) ? b.tags : []).forEach((t: string | { name: string }) => {
       const tagName = typeof t === "string" ? t : t.name;
-      const normalized = tagToSlug(tagName);
-      const slug = sanitizeUnicode(normalized);
+      const slug = tagToSlug(tagName);
       if (!tagCounts[slug]) {
         tagCounts[slug] = 0;
       }
@@ -97,8 +94,7 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
   } catch {
     decodedSlug = tagSlug;
   }
-  const normalizedSlug = tagToSlug(decodedSlug);
-  const sanitizedSlug = sanitizeUnicode(normalizedSlug);
+  const sanitizedSlug = tagToSlug(decodedSlug);
 
   let path = `/bookmarks/tags/${sanitizedSlug}`;
   if (pageNumber > 1) {
@@ -170,8 +166,7 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
   } catch {
     decodedSlug = rawTagSlug;
   }
-  const normalizedSlug = tagToSlug(decodedSlug);
-  const sanitizedSlug = sanitizeUnicode(normalizedSlug);
+  const sanitizedSlug = tagToSlug(decodedSlug);
 
   if (sanitizedSlug !== rawTagSlug || (page && page !== "page")) {
     let redirectPath = `/bookmarks/tags/${sanitizedSlug}`;
