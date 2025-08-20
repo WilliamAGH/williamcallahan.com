@@ -95,6 +95,7 @@ const config = tseslint.config(
       "components/ui/code-block/prism-syntax-highlighting/prism.js",
       "config/.remarkrc.mjs",
       "config/",
+      "next-env.d.ts",
     ],
   },
 

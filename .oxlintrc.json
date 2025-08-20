@@ -1,0 +1,15 @@
+{
+  "$schema": "https://oxc.rs/schemas/oxlintrc.json",
+  "ignorePatterns": [
+    "next-env.d.ts",
+    ".next/**"
+  ],
+  "overrides": [
+    {
+      "files": ["next-env.d.ts"],
+      "rules": {
+        "typescript/triple-slash-reference": "off"
+      }
+    }
+  ]
+}
