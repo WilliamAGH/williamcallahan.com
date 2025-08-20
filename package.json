@@ -206,6 +206,8 @@
   "trustedDependencies": [
     "@sentry/cli",
     "@swc/core",
+    "canvas",
+    "sharp",
     "unrs-resolver"
   ],
   "overrides": {
