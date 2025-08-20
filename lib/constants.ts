@@ -19,13 +19,14 @@ import type { BookmarksS3Paths, RateLimiterConfig } from "@/types/lib";
 import type { BookmarkLoadOptions } from "@/types/bookmark";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { ENVIRONMENT_SUFFIX } from "@/lib/config/environment";
+import { envLogger } from "@/lib/utils/env-logger";
 
 // Use validated environment suffix from centralized config
 const envSuffix = ENVIRONMENT_SUFFIX;
 
 // Warn if environment is not properly configured
 if (typeof process !== "undefined" && !process.env.NODE_ENV) {
-  console.warn("[Constants] NODE_ENV not set - using environment suffix:", envSuffix);
+  envLogger.log("NODE_ENV not set - using environment suffix", envSuffix, { category: "Constants" });
 }
 
 /** Client-side cache duration: 30 days (milliseconds) */

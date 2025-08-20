@@ -1,3 +1,4 @@
+import { envLogger } from "@/lib/utils/env-logger";
 /**
  * OpenGraph Data Access Module
  *
@@ -60,7 +61,7 @@ const safeCacheLife = (
   } catch (error) {
     // Silently ignore if cacheLife is not available or experimental.useCache is not enabled
     if (shouldLogCacheWarning()) {
-      console.warn("[OpenGraph] cacheLife not available:", error);
+      envLogger.log("cacheLife not available", { error: String(error) }, { category: "OpenGraph" });
     }
   }
 };
@@ -72,7 +73,7 @@ const safeCacheTag = (...tags: string[]): void => {
   } catch (error) {
     // Silently ignore if cacheTag is not available
     if (shouldLogCacheWarning()) {
-      console.warn("[OpenGraph] cacheTag not available:", error);
+      envLogger.log("cacheTag not available", { error: String(error) }, { category: "OpenGraph" });
     }
   }
 };
@@ -84,7 +85,7 @@ const safeRevalidateTag = (...tags: string[]): void => {
   } catch (error) {
     // Silently ignore if revalidateTag is not available
     if (shouldLogCacheWarning()) {
-      console.warn("[OpenGraph] revalidateTag not available:", error);
+      envLogger.log("revalidateTag not available", { error: String(error) }, { category: "OpenGraph" });
     }
   }
 };
@@ -121,7 +122,7 @@ async function getCachedOpenGraphDataInternal(
 
   // Validate URL first
   if (!validateOgUrl(normalizedUrl)) {
-    console.warn(`[DataAccess/OpenGraph] Invalid or unsafe URL: ${normalizedUrl}`);
+    envLogger.log("Invalid or unsafe URL", { url: normalizedUrl }, { category: "OpenGraph" });
     return createFallbackResult(normalizedUrl, "Invalid or unsafe URL", validatedFallback);
   }
 
@@ -244,7 +245,7 @@ export async function getOpenGraphData(
 
     // Validate cached data integrity
     if (!cached.data.url || !cached.data.title || (cached.data.error && typeof cached.data.error !== "string")) {
-      console.warn(`[DataAccess/OpenGraph] Cached data for ${normalizedUrl} appears corrupted, invalidating cache`);
+      envLogger.log("Cached data appears corrupted, invalidating cache", { url: normalizedUrl }, { category: "OpenGraph" });
       ServerCacheInstance.deleteOpenGraphData(normalizedUrl);
       // Continue to S3/external fetch
     } else {

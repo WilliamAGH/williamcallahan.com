@@ -71,7 +71,7 @@ async function findBookmarkBySlug(slug: string): Promise<import("@/types").Unifi
 
     // If no mapping exists, generate it (this should only happen during build)
     if (!mapping) {
-      console.warn(`[BookmarkPage] No slug mapping found in S3, generating dynamically...`);
+      envLogger.log("No slug mapping found in S3, generating dynamically...", undefined, { category: "BookmarkPage" });
       // Fetch with image data once so we can reuse for the final lookup
       const allBookmarks = (await getBookmarks({
         ...DEFAULT_BOOKMARK_OPTIONS,
@@ -244,17 +244,19 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     // Check if this might be a blog post slug that was incorrectly routed
     if (slug.startsWith("blog-") || slug.includes("-blog-")) {
       // This looks like a blog post slug, suggest the correct URL
-      console.warn(
-        `[BookmarkPage] Potential blog slug detected in bookmark route: ${slug}. ` +
-          `User should be redirected to /blog/${slug.replace(/^blog-/, "")}`,
+      envLogger.log(
+        `Potential blog slug detected in bookmark route: ${slug}. User should be redirected to /blog/${slug.replace(/^blog-/, "")}`,
+        undefined,
+        { category: "BookmarkPage" },
       );
     }
 
     // Check if this might be a project slug
     if (slug.startsWith("project-") || slug.includes("-project-")) {
-      console.warn(
-        `[BookmarkPage] Potential project slug detected in bookmark route: ${slug}. ` +
-          `User should be redirected to /projects#${slug}`,
+      envLogger.log(
+        `Potential project slug detected in bookmark route: ${slug}. User should be redirected to /projects#${slug}`,
+        undefined,
+        { category: "BookmarkPage" },
       );
     }
 
