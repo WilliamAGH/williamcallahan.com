@@ -61,7 +61,6 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
         return { __esModule: true, readJsonS3, writeJsonS3, deleteFromS3 };
       });
 
-      const s3 = await import("@/lib/s3-utils");
       const { setRefreshBookmarksCallback, refreshAndPersistBookmarks, initializeBookmarksDataAccess } = await import(
         "../../../lib/bookmarks/bookmarks-data-access.server"
       );
