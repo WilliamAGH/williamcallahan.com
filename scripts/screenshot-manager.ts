@@ -139,7 +139,7 @@ async function verifyScreenshotEnrichment() {
       if (b.content?.screenshotAssetId) screenshotFields['content.screenshotAssetId'] = (screenshotFields['content.screenshotAssetId'] || 0) + 1;
       
       // Check OG fields
-      if (b.ogImage) ogFields['ogImage'] = (ogFields['ogImage'] || 0) + 1;
+      if (b.ogImage) ogFields.ogImage = (ogFields.ogImage || 0) + 1;
       if (b.content?.imageUrl) ogFields['content.imageUrl'] = (ogFields['content.imageUrl'] || 0) + 1;
     });
     

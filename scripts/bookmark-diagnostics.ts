@@ -265,7 +265,7 @@ async function checkBookmarkStructure() {
         fieldPresence[key]++;
         
         if (!fieldTypes[key]) fieldTypes[key] = new Set();
-        const value = (b as any)[key];
+        const value = (b as Record<string, unknown>)[key];
         fieldTypes[key].add(value === null ? 'null' : typeof value);
       });
     });
@@ -314,9 +314,9 @@ async function checkBookmarkStructure() {
         
         // Show sample values
         const samples = bookmarks
-          .filter(b => (b as any)[field])
+          .filter(b => Boolean((b as Record<string, unknown>)[field]))
           .slice(0, 2)
-          .map(b => (b as any)[field]);
+          .map(b => (b as Record<string, unknown>)[field]);
         if (samples.length > 0) {
           console.log(`  Sample: ${samples[0]}`);
         }
