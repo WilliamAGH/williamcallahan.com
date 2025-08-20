@@ -258,6 +258,90 @@ async function saveAssetToS3(
 }
 
 /**
+ * Save an asset to S3 atomically using conditional puts.
+ * 
+ * This is an alternative to saveAssetToS3 that uses S3's conditional put feature
+ * (IfNoneMatch: "*") to ensure atomic writes at the storage level. This approach
+ * works across multiple server instances without needing in-memory locks.
+ * 
+ * Features:
+ * - Uses S3 conditional puts for atomic operations (IfNoneMatch: "*")
+ * - No need for in-memory locks - works across multiple servers
+ * - Generates descriptive filenames when context available
+ * - Returns existing key if write fails due to concurrent creation
+ * 
+ * @param assetId - Karakeep asset ID
+ * @param buffer - Image data to save
+ * @param contentType - MIME type of the image
+ * @param context - Optional bookmark context for descriptive filenames
+ * @returns S3 key where asset was saved
+ */
+// eslint-disable-next-line no-unused-vars -- Alternative implementation kept for easy switching
+async function saveAssetToS3Atomic(
+  assetId: string,
+  buffer: Buffer,
+  contentType: string,
+  context?: {
+    bookmarkId?: string;
+    url?: string;
+    domain?: string;
+  }
+): Promise<string> {
+  if (!process.env.S3_BUCKET || !s3Client) {
+    throw new Error("S3 not configured");
+  }
+
+  const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+  const extension = getExtensionFromContentType(contentType);
+  let key: string;
+
+  // Generate descriptive filename if context is available
+  if (context?.bookmarkId && context?.url) {
+    const { getOgImageS3Key, hashImageContent } = await import("@/lib/utils/opengraph-utils");
+    key = getOgImageS3Key(
+      `karakeep-asset-${assetId}`,
+      IMAGE_S3_PATHS.OPENGRAPH_DIR,
+      context.url,
+      context.bookmarkId,
+      hashImageContent(buffer)
+    );
+  } else {
+    // Fallback to simple assetId-based naming
+    key = `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${assetId}.${extension}`;
+  }
+
+  try {
+    console.log(`[Assets API] Attempting atomic S3 write: ${key} (${buffer.length} bytes, ${contentType})`);
+
+    // Use conditional put with IfNoneMatch: "*" to ensure atomic write
+    // This will only succeed if the object doesn't already exist
+    const putCommand = new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+      ACL: "public-read",
+      CacheControl: "public, max-age=31536000, immutable",
+      IfNoneMatch: "*", // This makes the operation atomic - only write if doesn't exist
+    });
+
+    await s3Client.send(putCommand);
+    console.log(`[Assets API] Successfully wrote asset atomically to S3: ${key}`);
+    return key;
+  } catch (error: any) {
+    // Check if the error is because the object already exists (412 Precondition Failed)
+    if (error?.$metadata?.httpStatusCode === 412 || error?.Code === "PreconditionFailed") {
+      console.log(`[Assets API] Asset already exists (atomic check): ${key}`);
+      return key; // File already exists, that's fine
+    }
+    
+    // Re-throw other errors
+    console.error(`[Assets API] Failed to write asset atomically: ${error?.message || error}`);
+    throw error;
+  }
+}
+
+/**
  * GET /api/assets/[assetId] - Proxy endpoint for Karakeep/Hoarder assets.
  * 
  * Query parameters:
@@ -461,9 +545,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         // Save to S3 in the background (don't block the response)
         // Only save if we're in data updater mode to avoid conflicts
         if (process.env.IS_DATA_UPDATER === "true") {
+          // Option 1: Use in-memory locks (current implementation)
           saveAssetToS3(assetId, buffer, contentType, context).catch((error) => {
             console.error(`[Assets API] Failed to save asset ${assetId} to S3:`, error);
           });
+          
+          // Option 2: Use S3 conditional puts for atomic writes (uncomment to use)
+          // This approach works better across multiple server instances
+          // saveAssetToS3Atomic(assetId, buffer, contentType, context).catch((error) => {
+          //   console.error(`[Assets API] Failed to save asset ${assetId} to S3:`, error);
+          // });
         }
 
         // Return the asset
