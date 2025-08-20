@@ -169,8 +169,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       invalidateGitHubCache(); // in-memory
       try {
         revalidateTag("github-activity"); // Next.js function cache tag
-      } catch {
+      } catch (err) {
         // No-op outside of Next request context
+        console.warn(
+          "[API Refresh] revalidateTag('github-activity') skipped or failed:",
+          err instanceof Error ? err.message : String(err),
+        );
       }
 
       const responseData = {
