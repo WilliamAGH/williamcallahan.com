@@ -9,15 +9,13 @@
  */
 
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 import { envLogger } from "@/lib/utils/env-logger";
 
 /**
  * POST handler for triggering production bookmarks refresh
  * Only available in non-production environments
  */
-// eslint-disable-next-line no-underscore-dangle
-export async function POST(_request: NextRequest): Promise<NextResponse> {
+export async function POST(): Promise<NextResponse> {
   // Check if we're in a non-production environment
   const isProduction = process.env.DEPLOYMENT_ENV === "production" || 
                       process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
