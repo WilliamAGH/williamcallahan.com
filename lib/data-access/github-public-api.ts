@@ -104,8 +104,14 @@ export async function getGithubActivity(): Promise<UserActivityView> {
     if (!data || typeof data !== "object") return true;
     const obj = data as { trailingYearData?: { data?: unknown[]; totalContributions?: number } };
     const ty = obj.trailingYearData;
-    // Check both data array AND totalContributions to catch partially populated data
-    return !ty || !Array.isArray(ty.data) || ty.data.length === 0 || (ty.totalContributions ?? 0) === 0;
+    if (!ty) return true;
+    
+    // Don't treat zero contributions as "empty" - users can legitimately have 0 contributions
+    const hasSeries = Array.isArray(ty.data) && ty.data.length > 0;
+    const hasCount = typeof ty.totalContributions === "number" && Number.isFinite(ty.totalContributions);
+    
+    // Empty only if we have neither series data nor a known count
+    return !hasSeries && !hasCount;
   };
 
   // Try fallback for ANY environment if primary data is missing or empty

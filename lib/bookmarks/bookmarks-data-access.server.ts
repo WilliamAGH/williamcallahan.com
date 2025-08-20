@@ -302,7 +302,13 @@ async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark[]): Pr
   const tagsToProcess =
     MAX_TAGS_TO_PERSIST > 0 && MAX_TAGS_TO_PERSIST < allTags.length
       ? Object.entries(tagCounts)
-          .sort((a, b) => b[1] - a[1])
+          .sort((a, b) => {
+            // Primary sort by count (descending)
+            const countDiff = b[1] - a[1];
+            if (countDiff !== 0) return countDiff;
+            // Secondary sort by tag name (ascending) for deterministic ordering
+            return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
+          })
           .slice(0, MAX_TAGS_TO_PERSIST)
           .map(([tag]) => tag)
       : allTags;

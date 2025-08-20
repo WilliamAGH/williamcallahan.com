@@ -23,7 +23,7 @@ import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
 
 async function main() {
   console.log("🔍 GitHub Activity Debug Script\n");
-  console.log("=" .repeat(50));
+  console.log("=".repeat(50));
   
   // 1. Check environment configuration
   console.log("\n📋 Environment Configuration:");

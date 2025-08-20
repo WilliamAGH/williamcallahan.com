@@ -15,6 +15,7 @@ import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import type { NextRequest } from "next/server";
 import { incrementAndPersist, loadRateLimitStoreFromS3 } from "@/lib/rate-limiter";
+import { envLogger } from "@/lib/utils/env-logger";
 
 /**
  * @constant {string} dynamic - Ensures the route is dynamically rendered and not cached.

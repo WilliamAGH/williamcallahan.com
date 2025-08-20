@@ -32,6 +32,7 @@ export class ServerCache implements ICache {
   private totalSize = 0;
   private readonly maxSize: number;
   private cleanupInterval: NodeJS.Timeout;
+  private static readonly MAX_EVICTION_PERCENTAGE = 0.95 as const;
 
   constructor() {
     // Size-aware cache configuration
@@ -44,8 +45,8 @@ export class ServerCache implements ICache {
   }
 
   private proactiveEviction(percentage: number): void {
-    // Clamp percentage to a safe range [0, 0.95]
-    percentage = Math.min(0.95, Math.max(0, percentage));
+    // Clamp percentage to a safe range [0, MAX_EVICTION_PERCENTAGE]
+    percentage = Math.min(ServerCache.MAX_EVICTION_PERCENTAGE, Math.max(0, percentage));
     // If disabled, don't perform eviction
     if (this.disabled) {
       return;
