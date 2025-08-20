@@ -16,7 +16,10 @@ import type { ApiError } from "@/types/features/github";
 
 // Responsive calculation helpers
 const DEFAULT_COLUMNS = 53; // GitHub contribution calendar weeks (~53)
+const MOBILE_COLUMNS = 20; // Fewer columns for mobile to make blocks more visible
 const BLOCK_MARGIN_PX = 2; // Keep constant; margin between squares
+const MIN_BLOCK_SIZE = 8; // Minimum block size for visibility
+const MAX_BLOCK_SIZE = 16; // Maximum block size to prevent oversized blocks
 
 // Define the custom theme for the calendar
 const calendarCustomTheme: ReactActivityCalendarThemeInput = {
@@ -40,6 +43,7 @@ const calendarCustomTheme: ReactActivityCalendarThemeInput = {
 const GitHubActivity = () => {
   const { resolvedTheme } = useTheme(); // Resolved theme (accounts for system preference)
   const [blockSize, setBlockSize] = useState<number>(12); // Dynamically calculated square size
+  const [isMobile, setIsMobile] = useState(false); // Track mobile viewport
   const [activityData, setActivityData] = useState<ContributionDay[]>([]); // Activity data for the calendar
   const [isLoading, setIsLoading] = useState(true); // Loading state for initial data fetch
   const [isRefreshing, setIsRefreshing] = useState(false); // Loading state for refresh operation
@@ -79,9 +83,19 @@ const GitHubActivity = () => {
     if (!el) return;
 
     const updateSize = (width: number) => {
-      const columns = Math.ceil(activityData.length / 7) || DEFAULT_COLUMNS;
-      const candidate = Math.floor(width / columns) - BLOCK_MARGIN_PX;
-      if (candidate > 0 && Math.abs(candidate - blockSize) > 1) {
+      // Detect mobile viewport
+      const mobile = width < 640; // sm breakpoint
+      setIsMobile(mobile);
+      
+      // Use fewer columns on mobile for better visibility
+      const targetColumns = mobile ? MOBILE_COLUMNS : DEFAULT_COLUMNS;
+      const columns = Math.min(Math.ceil(activityData.length / 7) || targetColumns, targetColumns);
+      
+      // Calculate block size with min/max constraints
+      let candidate = Math.floor(width / columns) - BLOCK_MARGIN_PX;
+      candidate = Math.max(MIN_BLOCK_SIZE, Math.min(candidate, MAX_BLOCK_SIZE));
+      
+      if (Math.abs(candidate - blockSize) > 1) {
         setBlockSize(candidate);
       }
     };
@@ -253,7 +267,7 @@ const GitHubActivity = () => {
    */
   const handleProductionRefresh = async () => {
     setIsRefreshingProduction(true);
-    setShowCrossEnvRefresh(false);
+    // Keep the banner visible during production refresh so user sees the loading state
     
     try {
       console.log("[Client] Requesting production GitHub data refresh");
@@ -275,6 +289,7 @@ const GitHubActivity = () => {
       console.error("[Client] Failed to trigger production refresh:", error);
     } finally {
       setIsRefreshingProduction(false);
+      setShowCrossEnvRefresh(false); // Hide banner after completion
     }
   };
 
@@ -298,9 +313,9 @@ const GitHubActivity = () => {
   }, [activityData]);
 
   return (
-    <div className="bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-card hover:shadow-card-hover transition-all duration-300 transform hover:-translate-y-1 group text-left w-full">
+    <div className="bg-white dark:bg-neutral-900 p-3 sm:p-4 rounded-lg shadow-card hover:shadow-card-hover transition-all duration-300 transform sm:hover:-translate-y-1 group text-left w-full">
       <div className="flex justify-between items-center mb-3">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
           <a
             href="https://github.com/WilliamAGH/"
             target="_blank"
@@ -389,30 +404,42 @@ const GitHubActivity = () => {
               )}
             </div>
           ) : (
-            <div className="mt-4 mb-2 p-2 overflow-x-auto w-full" ref={containerRef}>
-              <ActivityCalendarComponent
-                data={activityData}
-                theme={calendarCustomTheme}
-                colorScheme={resolvedTheme === "dark" ? "dark" : "light"}
-                blockSize={blockSize}
-                blockMargin={BLOCK_MARGIN_PX}
-                blockRadius={0}
-                fontSize={14}
-                hideTotalCount
-                showWeekdayLabels
-              />
+            <div className="mt-4 mb-2 p-2 w-full" ref={containerRef}>
+              {/* Mobile-optimized wrapper with better touch scrolling */}
+              <div className={`${isMobile ? 'overflow-x-auto -mx-2 px-2' : ''} w-full`}>
+                <div className={isMobile ? 'min-w-fit' : ''}>
+                  <ActivityCalendarComponent
+                    data={activityData}
+                    theme={calendarCustomTheme}
+                    colorScheme={resolvedTheme === "dark" ? "dark" : "light"}
+                    blockSize={blockSize}
+                    blockMargin={BLOCK_MARGIN_PX}
+                    blockRadius={isMobile ? 2 : 0}
+                    fontSize={isMobile ? 11 : 14}
+                    hideTotalCount
+                    showWeekdayLabels={!isMobile}
+                  />
+                </div>
+              </div>
+              {isMobile && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
+                  ← Swipe to view full year →
+                </p>
+              )}
             </div>
           )}
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 space-y-1 sm:space-y-0">
             {totalContributions !== null && (
-              <span>
+              <span className="block sm:inline">
                 Total contributions (trailing year):{" "}
-                <span className="font-medium">{totalContributions.toLocaleString()}</span>.{" "}
+                <span className="font-medium">{totalContributions.toLocaleString()}</span>
+                <span className="hidden sm:inline">.{" "}</span>
               </span>
             )}
             {trailingYearLinesAdded !== null && trailingYearLinesRemoved !== null && (
-              <span>
-                LOC Change (trailing year):{" "}
+              <span className="block sm:inline">
+                <span className="hidden sm:inline">LOC Change (trailing year):{" "}</span>
+                <span className="inline sm:hidden">LOC:{" "}</span>
                 <span className="text-green-600 dark:text-green-400 font-medium">
                   +{trailingYearLinesAdded.toLocaleString()}
                 </span>{" "}
@@ -420,12 +447,15 @@ const GitHubActivity = () => {
                 <span className="text-red-600 dark:text-red-400 font-medium">
                   -{trailingYearLinesRemoved.toLocaleString()}
                 </span>
-                .{" "}
+                <span className="hidden sm:inline">.{" "}</span>
               </span>
             )}
             {lastRefreshed && (
-              <span title={`Data last updated: ${new Date(lastRefreshed).toLocaleString()}`}>
-                Last updated: {formatDistanceToNow(new Date(lastRefreshed), { addSuffix: true })}.
+              <span className="block sm:inline" title={`Data last updated: ${new Date(lastRefreshed).toLocaleString()}`}>
+                <span className="hidden sm:inline">Last updated: </span>
+                <span className="inline sm:hidden">Updated: </span>
+                {formatDistanceToNow(new Date(lastRefreshed), { addSuffix: true })}
+                <span className="hidden sm:inline">.</span>
               </span>
             )}
           </div>
