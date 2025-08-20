@@ -692,7 +692,7 @@ const nextConfig = {
     formats: ["image/webp", "image/avif"], // Prioritize webp over avif for speed
     /**
      * Specifies the image quality levels that can be used with next/image
-     * Required for Next.js 16 to avoid warnings
+     * Addresses the warning about unconfigured qualities in Next.js 15+
      * @see https://nextjs.org/docs/messages/next-image-unconfigured-qualities
      */
     qualities: [75, 80, 90, 100], // Support common quality settings
