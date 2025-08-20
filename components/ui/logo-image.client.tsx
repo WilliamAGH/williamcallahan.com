@@ -215,7 +215,7 @@ export function OptimizedCardImage({
         // For proxy URLs, retry with exponential backoff
         if (isProxyUrl && retryCount < maxRetries) {
           console.log(`[OptimizedCardImage] Scheduling retry for proxy URL: ${src}`);
-          const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 5000); // 1s, 2s, up to 5s max
+          const backoffDelay = Math.min(1000 * 2 ** retryCount, 5000); // 1s, 2s, up to 5s max
           
           retryTimeoutRef.current = setTimeout(() => {
             setRetryCount(prev => prev + 1);
