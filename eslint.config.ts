@@ -487,9 +487,7 @@ const config = tseslint.config(
               try {
                 // Use ESM-compatible require to load the JSON file synchronously.
                 // Optional: bust require cache in watch mode to pick up changes without restart.
-                const mappingRelPath = typeof STATIC_IMAGE_MAPPING_REL_PATH === "string"
-                  ? STATIC_IMAGE_MAPPING_REL_PATH
-                  : "./lib/data-access/static-image-mapping.json";
+                const mappingRelPath = STATIC_IMAGE_MAPPING_REL_PATH;
                 const resolved = requireJson.resolve(mappingRelPath);
                 if (process.env.ESLINT_WATCH === "1" && (requireJson as any).cache) {
                   delete (requireJson as any).cache[resolved as unknown as string];
