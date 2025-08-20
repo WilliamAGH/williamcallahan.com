@@ -392,7 +392,6 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   // Handler for refreshing production environment bookmarks
   const handleProductionRefresh = async () => {
     setIsRefreshingProduction(true);
-    setShowCrossEnvRefresh(false);
     
     try {
       console.log("[Bookmarks] Requesting production bookmarks refresh");
@@ -419,6 +418,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       setTimeout(() => setRefreshError(null), 5000);
     } finally {
       setIsRefreshingProduction(false);
+      setShowCrossEnvRefresh(false); // Hide banner after completion
     }
   };
 

@@ -62,7 +62,7 @@ export async function POST(): Promise<NextResponse> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-refresh-secret": refreshSecret,
+        "Authorization": `Bearer ${refreshSecret}`,
       },
     });
 
