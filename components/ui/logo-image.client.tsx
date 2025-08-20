@@ -158,7 +158,7 @@ export function OptimizedCardImage({
   const [errored, setErrored] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [retryKey, setRetryKey] = useState(0);
-  const maxRetries = 1;
+  const maxRetries = 2; // Increased to allow more retry attempts for images
   const retryTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Cleanup timeout on unmount
@@ -173,8 +173,9 @@ export function OptimizedCardImage({
   // Detect if this is a proxy URL that needs special handling
   const isProxyUrl = src?.startsWith("/api/assets/") || src?.startsWith("/api/og-image");
 
-  // No source provided - show placeholder
+  // No source provided - show placeholder (should be rare with proper data)
   if (!src) {
+    console.warn(`[OptimizedCardImage] No image source provided, showing placeholder`);
     return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
   }
 
@@ -182,7 +183,7 @@ export function OptimizedCardImage({
   if (errored && (!isProxyUrl || retryCount >= maxRetries)) {
     // Log for debugging but don't spam with proxy URL retries
     if (!isProxyUrl || retryCount === 0) {
-      console.warn(`[OptimizedCardImage] Failed to load image: ${src}, showing placeholder`);
+      console.warn(`[OptimizedCardImage] Failed to load image after ${retryCount} retries: ${src}, showing placeholder`);
     }
     return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
   }

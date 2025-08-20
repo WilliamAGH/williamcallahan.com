@@ -115,6 +115,16 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       return ogImageExternal;
     }
 
+    // PRIORITY 3.5: Accept relative Karakeep asset URLs returned by enrichment
+    // Rationale: The enrichment pipeline may set ogImage to a relative Karakeep asset path like
+    // "/api/assets/[id]" when S3 persistence isn't available at runtime. It does NOT set
+    // "/api/og-image" itself — that route is constructed client-side later as a fallback for
+    // external absolute URLs. Treat these relative proxies as valid sources and render unoptimized.
+    if (ogImage && (ogImage.startsWith("/api/assets/") || ogImage.startsWith("/api/og-image"))) {
+      console.log(`[BookmarkCard] Using relative proxy ogImage: ${ogImage}`);
+      return ogImage;
+    }
+
     // PRIORITY 4: Check if ogImage is a direct HTTP URL (not a proxy)
     if (ogImage?.startsWith("http")) {
       // If it's already a direct URL, use it (might be from older enrichments)
@@ -183,16 +193,16 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
           // When on list/grid views, link to internal bookmark page
           <Link href={effectiveInternalHref} title={title} className="absolute inset-0 block">
             <div className="relative w-full h-full">
-              {/* Try unified OG image API first, but fall back to logo if image fails to load */}
-              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} logoDomain={domain} />
+              {/* Display OpenGraph image, screenshot, or placeholder */}
+              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} />
             </div>
           </Link>
         ) : (
           // When on individual bookmark page, link to external URL in new tab
           <ExternalLink href={url} title={title} showIcon={false} className="absolute inset-0 block">
             <div className="relative w-full h-full">
-              {/* Try unified OG image API first, but fall back to logo if image fails to load */}
-              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} logoDomain={domain} />
+              {/* Display OpenGraph image, screenshot, or placeholder */}
+              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} />
             </div>
           </ExternalLink>
         )}
