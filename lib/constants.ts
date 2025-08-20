@@ -16,15 +16,17 @@
  * @deprecated Use lib/constants/client.ts for client components
  */
 import type { BookmarksS3Paths, RateLimiterConfig } from "@/types/lib";
+import type { BookmarkLoadOptions } from "@/types/bookmark";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { ENVIRONMENT_SUFFIX } from "@/lib/config/environment";
+import { envLogger } from "@/lib/utils/env-logger";
 
 // Use validated environment suffix from centralized config
 const envSuffix = ENVIRONMENT_SUFFIX;
 
 // Warn if environment is not properly configured
 if (typeof process !== "undefined" && !process.env.NODE_ENV) {
-  console.warn("[Constants] NODE_ENV not set - using environment suffix:", envSuffix);
+  envLogger.log("NODE_ENV not set - using environment suffix", envSuffix, { category: "Constants" });
 }
 
 /** Client-side cache duration: 30 days (milliseconds) */
@@ -134,6 +136,13 @@ export const BOOKMARKS_API_CONFIG = {
 
 /** Number of bookmarks displayed per page in paginated views (used in sitemap.ts, bookmarks/*) */
 export const BOOKMARKS_PER_PAGE = 24;
+
+/** Default options for getBookmarks calls - explicit parameters for clarity and ZERO TEMPERATURE compliance */
+export const DEFAULT_BOOKMARK_OPTIONS: Readonly<Required<BookmarkLoadOptions>> = {
+  includeImageData: true,
+  skipExternalFetch: false,
+  force: false,
+} as const;
 
 /** GitHub activity cache: 24 hours success, 1 hour failure, 6 hours revalidation */
 export const GITHUB_ACTIVITY_CACHE_DURATION = { SUCCESS: 24 * 60 * 60, FAILURE: 60 * 60, REVALIDATION: 6 * 60 * 60 };

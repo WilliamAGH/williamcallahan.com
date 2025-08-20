@@ -17,6 +17,7 @@ import { Readable } from "node:stream";
 import { debug, isDebug } from "@/lib/utils/debug"; // Imported isDebug
 import { MEMORY_THRESHOLDS } from "@/lib/constants";
 import { safeJsonParse, safeJsonStringify, parseJsonFromBuffer } from "@/lib/utils/json-utils";
+import { envLogger } from "@/lib/utils/env-logger";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -57,8 +58,10 @@ function isS3FullyConfigured(): boolean {
 let hasLoggedMissingS3Config = false;
 function logMissingS3ConfigOnce(context: string): void {
   if (!hasLoggedMissingS3Config) {
-    console.warn(
-      "[S3Utils] Missing S3 configuration (S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3_SERVER_URL is optional. All S3 operations will be skipped.",
+    envLogger.log(
+      "Missing S3 configuration (S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3_SERVER_URL is optional. All S3 operations will be skipped.",
+      undefined,
+      { category: "S3Utils" },
     );
     hasLoggedMissingS3Config = true;
   }
@@ -80,8 +83,10 @@ function isBinaryKey(key: string): boolean {
 // During build, S3 write operations are intentionally disabled so missing config is expected
 if (!S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
   if (process.env.NEXT_PHASE !== "phase-production-build") {
-    console.warn(
-      "[S3Utils] Missing one or more S3 configuration environment variables (S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3_SERVER_URL is optional. S3 operations may fail.",
+    envLogger.log(
+      "Missing one or more S3 configuration environment variables (S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3_SERVER_URL is optional. S3 operations may fail.",
+      undefined,
+      { category: "S3Utils" },
     );
   }
 }
@@ -184,8 +189,10 @@ async function validateContentSize(key: string): Promise<boolean> {
     const contentLength = response.ContentLength;
 
     if (contentLength && contentLength > MAX_S3_READ_SIZE) {
-      console.warn(
-        `[S3Utils] Object ${key} too large (${contentLength} bytes > ${MAX_S3_READ_SIZE} bytes). Skipping read to prevent memory exhaustion.`,
+      envLogger.log(
+        `Object too large. Skipping read to prevent memory exhaustion`,
+        { key, contentLength, max: MAX_S3_READ_SIZE },
+        { category: "S3Utils" },
       );
       return false;
     }
@@ -242,13 +249,16 @@ export async function readFromS3(
 }
 
 async function performS3Read(key: string, options?: { range?: string }): Promise<Buffer | string | null> {
-  console.log(`[S3Utils] performS3Read called for key: ${key}`);
+  // Skip debug logging for refresh-lock checks to reduce noise
+  if (!key.includes("refresh-lock")) {
+    envLogger.debug(`performS3Read called`, { key }, { category: "S3Utils" });
+  }
 
   if (isUnderMemoryPressure() && isBinaryKey(key)) {
     // Allow small binaries (e.g., logos) under pressure, but block anything exceeding MAX_S3_READ_SIZE.
     const canProceed = await validateContentSize(key);
     if (!canProceed) {
-      console.warn(`[S3Utils] System under memory pressure. Deferring binary read of ${key}`);
+      envLogger.log(`System under memory pressure. Deferring binary read`, { key }, { category: "S3Utils" });
       return null;
     }
   }
@@ -282,8 +292,10 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
         // Check content length before reading
         const contentLength = res.headers.get("content-length");
         if (contentLength && parseInt(contentLength, 10) > MAX_S3_READ_SIZE) {
-          console.warn(
-            `[S3Utils] CDN response too large (${contentLength} bytes > ${MAX_S3_READ_SIZE} bytes). Skipping.`,
+          envLogger.log(
+            `CDN response too large. Skipping`,
+            { contentLength: Number(contentLength), max: MAX_S3_READ_SIZE },
+            { category: "S3Utils" },
           );
           return null;
         }
@@ -365,8 +377,14 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue; // Next attempt
         }
-        if (isDebug)
-          debug(`[S3Utils] readFromS3: All ${MAX_S3_READ_RETRIES} attempts failed for key ${key}. Returning null.`);
+        if (isDebug) {
+          // Special case: refresh-lock not existing is normal (no refresh in progress)
+          if (key.includes("refresh-lock")) {
+            envLogger.debug("Refresh lock not found (idle state)", { key }, { category: "S3Utils" });
+          } else {
+            debug(`[S3Utils] readFromS3: All ${MAX_S3_READ_RETRIES} attempts failed for key ${key}. Returning null.`);
+          }
+        }
         return null; // All retries failed
       }
       const message = err instanceof Error ? err.message : safeJsonStringify(err) || "Unknown error";
@@ -400,6 +418,7 @@ export async function writeToS3(
 ): Promise<void> {
   const SMALL_PAYLOAD_THRESHOLD = 512 * 1024; // 512 KB
   const OPENGRAPH_IMAGE_THRESHOLD = 2 * 1024 * 1024; // 2 MB - reasonable limit for OpenGraph images
+  const ABSOLUTE_BINARY_WRITE_MAX = 10 * 1024 * 1024; // 10 MB absolute cap for ALL binary writes
   const dataSize =
     typeof data === "string"
       ? Buffer.byteLength(data, "utf-8")
@@ -407,10 +426,21 @@ export async function writeToS3(
         ? data.length
         : SMALL_PAYLOAD_THRESHOLD; // Unknown stream size – treat as small for head-room check
 
+  // ABSOLUTE CAP: Prevent OOM by limiting ALL binary writes regardless of process type
+  if (isBinaryKey(key) && dataSize > ABSOLUTE_BINARY_WRITE_MAX) {
+    throw new Error(
+      `[S3Utils] Binary S3 write exceeds absolute maximum: ${dataSize} bytes (cap: ${ABSOLUTE_BINARY_WRITE_MAX} bytes). ` +
+      `This safety limit prevents OOM errors even for data updater processes.`
+    );
+  }
+
   // Skip memory checks during explicit dev-only migration builds (disabled in prod)
   const isDevMigrationRun = false; // Migration mode env flag removed – always false in production
+  
+  // CRITICAL: Data updater process MUST bypass memory checks to ensure scheduled updates succeed
+  const isDataUpdater = process.env.IS_DATA_UPDATER === "true";
 
-  if (!isDevMigrationRun) {
+  if (!isDevMigrationRun && !isDataUpdater) {
     if (isBinaryKey(key)) {
       // For binary payloads, use different thresholds based on the type of image
       const isOpenGraphImage = key.includes("images/opengraph/");
@@ -428,6 +458,11 @@ export async function writeToS3(
       // For non-binary (JSON/string) data, still guard very large writes
       throw new Error(`[S3Utils] Insufficient memory headroom for large S3 write operation`);
     }
+  }
+  
+  // Log when data updater bypasses memory check for images
+  if (isDataUpdater && !hasMemoryHeadroom() && isBinaryKey(key)) {
+    console.log(`[S3Utils] Data updater bypassing memory check for binary: ${key}`);
   }
 
   if (DRY_RUN) {
@@ -464,10 +499,10 @@ export async function writeToS3(
           typeof data === "string" ? dataSize : Buffer.isBuffer(data) ? data.length : "stream"
         }`,
       );
-    else console.log(`[S3Utils] Writing to S3 key ${key} with ACL: ${acl}`);
+    else envLogger.log(`Writing to S3`, { key, acl }, { category: "S3Utils" });
     const response = await client.send(command);
     if (isDebug) debug(`[S3Utils] Successfully wrote to S3 key ${key}`);
-    else console.log(`[S3Utils] ✅ Successfully wrote to S3 key ${key} with ACL: ${acl}. ETag: ${response.ETag}`);
+    else envLogger.log(`Wrote to S3`, { key, acl, etag: response.ETag }, { category: "S3Utils" });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
     console.error(`[S3Utils] ❌ Error writing to S3 key ${key}:`, message);
@@ -698,27 +733,37 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
  * @returns Parsed JSON data or null if an error occurs
  */
 export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
-  console.log(`[S3Utils] readJsonS3 called for key: ${s3Key}`);
+  // Use envLogger for all reads, with special context for refresh-lock
+  if (s3Key.includes("refresh-lock")) {
+    envLogger.log("Checking refresh lock", undefined, { category: "S3Utils" });
+  } else {
+    envLogger.service("S3Utils", "readJsonS3", { key: s3Key });
+  }
 
   if (DRY_RUN) {
-    console.log(`[S3Utils][DRY RUN] Would read JSON from S3 key ${s3Key}`);
+    envLogger.debug(`[DRY RUN] Would read JSON from S3`, s3Key, { category: "S3Utils" });
     return null;
   }
 
   try {
-    console.log(`[S3Utils] Attempting to read from S3: ${s3Key}`);
-    const content = await readFromS3(s3Key); // readFromS3 already has debug logging
+    // Debug logging only in development (readFromS3 has its own debug logging)
+    const content = await readFromS3(s3Key);
 
     if (content === null) {
-      console.warn(`[S3Utils] readFromS3 returned null for key: ${s3Key}`);
+      // Special handling for refresh-lock: it's normal for it not to exist
+      if (s3Key.includes("refresh-lock")) {
+        envLogger.log("Refresh lock: idle", undefined, { category: "S3Utils" });
+      } else {
+        console.warn(`[S3Utils] readFromS3 returned null for key: ${s3Key}`);
+      }
       return null;
     }
 
     if (typeof content === "string") {
-      console.log(`[S3Utils] Content is string, length: ${content.length}`);
+      envLogger.log(`Content loaded`, { type: "string", length: content.length }, { category: "S3Utils" });
       const parsed = safeJsonParse<T>(content);
       if (parsed !== null) {
-        console.log(`[S3Utils] Successfully parsed JSON from S3 key ${s3Key}`);
+        envLogger.log(`Parsed JSON successfully`, s3Key, { category: "S3Utils" });
         if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON from S3 key ${s3Key}.`);
       } else {
         console.error(`[S3Utils] Failed to parse JSON content from ${s3Key}`);
@@ -727,10 +772,10 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
     }
 
     if (Buffer.isBuffer(content)) {
-      console.log(`[S3Utils] Content is buffer, size: ${content.length} bytes`);
+      envLogger.log(`Content loaded`, { type: "buffer", size: content.length }, { category: "S3Utils" });
       const parsed = parseJsonFromBuffer<T>(content, "utf-8");
       if (parsed !== null) {
-        console.log(`[S3Utils] Successfully parsed JSON from buffer for S3 key ${s3Key}`);
+        envLogger.log(`Parsed JSON from buffer`, s3Key, { category: "S3Utils" });
         if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON (from buffer) from S3 key ${s3Key}.`);
       } else {
         console.error(`[S3Utils] Failed to parse JSON from buffer for ${s3Key}`);
@@ -802,11 +847,22 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
   const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
   const isTinyOperationalFile =
     s3Key === BOOKMARKS_S3_PATHS.INDEX || s3Key === BOOKMARKS_S3_PATHS.HEARTBEAT || s3Key === BOOKMARKS_S3_PATHS.LOCK;
-  if (!isTinyOperationalFile && !hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
+  
+  // CRITICAL: Data updater process MUST bypass memory checks to ensure scheduled updates succeed
+  const isDataUpdater = process.env.IS_DATA_UPDATER === "true";
+  
+  if (!isTinyOperationalFile && !isDataUpdater && !hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
     console.warn(
       `[S3Utils] Skipping S3 write for ${s3Key} (${(dataSize / 1024).toFixed(1)} KB) due to memory pressure`,
     );
     return;
+  }
+  
+  // Log when data updater bypasses memory check
+  if (isDataUpdater && !hasMemoryHeadroom()) {
+    console.log(
+      `[S3Utils] Data updater bypassing memory check for ${s3Key} (${(dataSize / 1024).toFixed(1)} KB)`,
+    );
   }
 
   try {
@@ -905,7 +961,7 @@ export async function readBinaryS3(s3Key: string): Promise<Buffer | null> {
     return null;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
-    console.warn(`[S3Utils] Error reading binary file from S3 key ${s3Key}:`, message);
+    envLogger.log(`Error reading binary file from S3`, { s3Key, message }, { category: "S3Utils" });
     return null;
   }
 }

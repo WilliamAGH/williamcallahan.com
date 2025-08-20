@@ -10,7 +10,7 @@ import type { BookmarksIndex } from "@/types/bookmark";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import { type NextRequest, NextResponse } from "next/server";
-import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
+import { BOOKMARKS_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
 
@@ -106,7 +106,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Fall back to loading all bookmarks for filtering or if paginated format not available
-    const allBookmarks = await getBookmarks();
+    const allBookmarks = await getBookmarks({
+      ...DEFAULT_BOOKMARK_OPTIONS,
+      includeImageData: true,
+      skipExternalFetch: false,
+      force: false,
+    });
 
     // Try to get metadata from S3 index
     let lastFetchedAt = Date.now();

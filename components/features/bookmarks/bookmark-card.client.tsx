@@ -35,6 +35,9 @@ import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 
 import type { BookmarkCardClientProps } from "@/types";
 
+// Display configuration
+const MAX_TITLE_WORDS = 10;
+
 /**
  * Bookmark Card Client Component
  * @param {BookmarkCardClientProps} props - Component properties
@@ -94,37 +97,51 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       });
     }
 
-    const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+    // Fix for critical bug: properly handle empty S3 CDN URL
+    const rawCdn = process.env.NEXT_PUBLIC_S3_CDN_URL;
+    const s3CdnUrl = typeof rawCdn === "string" ? rawCdn.replace(/\/+$/, "") : undefined;
+    const hasCdn = !!s3CdnUrl;
+    const isDev = process.env.NODE_ENV === "development";
 
     // PRIORITY 1: Enriched ogImage field (already persisted to S3)
     // This is the MOST IMPORTANT - it contains the S3 URL from enrichment
-    if (ogImage?.includes(s3CdnUrl)) {
-      console.log(`[BookmarkCard] ✅ Using DIRECT S3 CDN from ogImage: ${ogImage}`);
+    if (hasCdn && ogImage?.startsWith(s3CdnUrl)) {
+      if (isDev) console.log(`[BookmarkCard] ✅ Using DIRECT S3 CDN from ogImage: ${ogImage}`);
       return ogImage;
     }
 
     // PRIORITY 2: Direct S3 CDN URLs in content.imageUrl
-    if (content?.imageUrl?.includes(s3CdnUrl)) {
-      console.log(`[BookmarkCard] ✅ Using DIRECT S3 CDN from imageUrl: ${content.imageUrl}`);
+    if (hasCdn && content?.imageUrl?.startsWith(s3CdnUrl)) {
+      if (isDev) console.log(`[BookmarkCard] ✅ Using DIRECT S3 CDN from imageUrl: ${content.imageUrl}`);
       return content.imageUrl;
     }
 
     // PRIORITY 3: Check if ogImageExternal is available (external remote)
     if (ogImageExternal?.startsWith("http")) {
-      console.log(`[BookmarkCard] Using ogImageExternal: ${ogImageExternal}`);
+      if (isDev) console.log(`[BookmarkCard] Using ogImageExternal: ${ogImageExternal}`);
       return ogImageExternal;
+    }
+
+    // PRIORITY 3.5: Accept relative Karakeep asset URLs returned by enrichment
+    // Rationale: The enrichment pipeline may set ogImage to a relative Karakeep asset path like
+    // "/api/assets/[id]" when S3 persistence isn't available at runtime. It does NOT set
+    // "/api/og-image" itself — that route is constructed client-side later as a fallback for
+    // external absolute URLs. Treat these relative proxies as valid sources and render unoptimized.
+    if (ogImage && (ogImage.startsWith("/api/assets/") || ogImage.startsWith("/api/og-image"))) {
+      if (isDev) console.log(`[BookmarkCard] Using relative proxy ogImage: ${ogImage}`);
+      return ogImage;
     }
 
     // PRIORITY 4: Check if ogImage is a direct HTTP URL (not a proxy)
     if (ogImage?.startsWith("http")) {
       // If it's already a direct URL, use it (might be from older enrichments)
-      console.log(`[BookmarkCard] Using direct HTTP ogImage: ${ogImage}`);
+      if (isDev) console.log(`[BookmarkCard] Using direct HTTP ogImage: ${ogImage}`);
       return ogImage;
     }
 
     // PRIORITY 5: Direct HTTP URLs in content.imageUrl
     if (content?.imageUrl?.startsWith("http")) {
-      console.log(`[BookmarkCard] Using direct HTTP imageUrl: ${content.imageUrl}`);
+      if (isDev) console.log(`[BookmarkCard] Using direct HTTP imageUrl: ${content.imageUrl}`);
       return content.imageUrl;
     }
 
@@ -132,19 +149,19 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
 
     // PRIORITY 6: Karakeep imageAssetId - unfortunately requires proxy
     if (content?.imageAssetId) {
-      console.log(`[BookmarkCard] ⚠️ FALLBACK to proxy for Karakeep asset: ${content.imageAssetId}`);
+      if (isDev) console.log(`[BookmarkCard] ⚠️ FALLBACK to proxy for Karakeep asset: ${content.imageAssetId}`);
       return getAssetUrl(content.imageAssetId);
     }
 
-    // PRIORITY 7: OpenGraph proxy - only for truly external images
-    if (ogImage && !ogImage.startsWith("/")) {
-      console.log(`[BookmarkCard] ⚠️ FALLBACK to og-image proxy: ${ogImage}`);
+    // PRIORITY 7: OpenGraph proxy - only for truly external http(s) images
+    if (ogImage && /^https?:\/\//i.test(ogImage)) {
+      if (isDev) console.log(`[BookmarkCard] ⚠️ FALLBACK to og-image proxy: ${ogImage}`);
       return `/api/og-image?url=${encodeURIComponent(ogImage)}&bookmarkId=${encodeURIComponent(id)}`;
     }
 
     // PRIORITY 8: Screenshot fallback - requires proxy
     if (content?.screenshotAssetId) {
-      console.log(`[BookmarkCard] ⚠️ FALLBACK to proxy for screenshot: ${content.screenshotAssetId}`);
+      if (isDev) console.log(`[BookmarkCard] ⚠️ FALLBACK to proxy for screenshot: ${content.screenshotAssetId}`);
       return getAssetUrl(content.screenshotAssetId);
     }
 
@@ -159,10 +176,11 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   // Process tags using shared utilities for consistency
   const rawTags = normalizeTagsToStrings(tags || []);
 
-  // Truncate title to max 10 words
-  const maxTitleWords = 10;
+  // Truncate title to configured number of words
   const titleWords = title.split(" ");
-  const displayTitle = titleWords.length > maxTitleWords ? `${titleWords.slice(0, maxTitleWords).join(" ")}...` : title;
+  const displayTitle = titleWords.length > MAX_TITLE_WORDS
+    ? `${titleWords.slice(0, MAX_TITLE_WORDS).join(" ")}` + "..."
+    : title;
 
   // Don't use a placeholder for SSR - render full card without interactive elements
   // Server will render as much as possible for SEO, client will hydrate
@@ -183,16 +201,16 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
           // When on list/grid views, link to internal bookmark page
           <Link href={effectiveInternalHref} title={title} className="absolute inset-0 block">
             <div className="relative w-full h-full">
-              {/* Try unified OG image API first, but fall back to logo if image fails to load */}
-              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} logoDomain={domain} />
+              {/* Display OpenGraph image, screenshot, or placeholder */}
+              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} />
             </div>
           </Link>
         ) : (
           // When on individual bookmark page, link to external URL in new tab
           <ExternalLink href={url} title={title} showIcon={false} className="absolute inset-0 block">
             <div className="relative w-full h-full">
-              {/* Try unified OG image API first, but fall back to logo if image fails to load */}
-              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} logoDomain={domain} />
+              {/* Display OpenGraph image, screenshot, or placeholder */}
+              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} />
             </div>
           </ExternalLink>
         )}

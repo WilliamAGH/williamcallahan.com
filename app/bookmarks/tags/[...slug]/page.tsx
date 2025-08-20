@@ -9,8 +9,6 @@
 
 // Configure dynamic rendering
 export const dynamic = "force-dynamic";
-// Revalidate every 30 minutes for fresh content
-export const revalidate = 1800;
 // Force dynamic rendering and disable Next.js Data Cache for heavy tag list pages (we use our own cache via lib/image-memory-manager.ts)
 export const fetchCache = "default-no-store";
 
@@ -24,10 +22,11 @@ import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
-import { tagToSlug, sanitizeUnicode } from "@/lib/utils/tag-utils";
+import { tagToSlug } from "@/lib/utils/tag-utils";
 import type { BookmarkTagPageContext } from "@/types";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
+import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 
 /**
  * Generate static paths for tag pages at build time
@@ -35,6 +34,13 @@ import { redirect } from "next/navigation";
  * FIX (Issue #sitemap-2024): Changed from sync getBookmarksForStaticBuild() to async version.
  * Sync function always returned empty array, causing tag URLs to be missing from sitemap.
  * Blog tags worked because getAllPosts() reads from local filesystem synchronously.
+ * 
+ * IMPORTANT: Filtering Consistency Requirement
+ * getBookmarksForStaticBuildAsync() filters out bookmarks without id/slug fields,
+ * while getBookmarksByTag() at runtime includes ALL bookmarks. This ensures we only
+ * generate static paths for bookmarks that can actually be rendered (those with slugs).
+ * If bookmarks without id/slug exist, runtime will show fewer items per page than expected,
+ * but this is preferable to generating paths for bookmarks that cannot be displayed.
  * 
  * @see lib/bookmarks/bookmarks.server.ts for why sync vs async matters
  */
@@ -52,11 +58,13 @@ export async function generateStaticParams() {
     });
   });
 
-  const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
   const params: { slug: string[] }[] = [];
 
   for (const tagSlug in tagCounts) {
-    const { totalPages } = await getBookmarksByTag(tagSlug, 1);
+    // Calculate totalPages based on bookmarks that have valid id/slug fields
+    // This matches the filtering in getBookmarksForStaticBuildAsync()
+    const count = tagCounts[tagSlug] || 0;
+    const totalPages = Math.ceil(count / BOOKMARKS_PER_PAGE);
     params.push({ slug: [tagSlug] });
     for (let i = 2; i <= totalPages; i++) {
       params.push({ slug: [tagSlug, "page", i.toString()] });
@@ -77,11 +85,16 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
     return getStaticPageMetadata("/bookmarks", "bookmarks");
   }
 
-  const pageNumber = page === "page" && pageNumberStr ? parseInt(pageNumberStr, 10) : 1;
+  const parsedPage = page === "page" && pageNumberStr ? Number.parseInt(pageNumberStr, 10) : 1;
+  const pageNumber = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
 
-  const decodedSlug = decodeURIComponent(tagSlug);
-  const normalizedSlug = tagToSlug(decodedSlug);
-  const sanitizedSlug = sanitizeUnicode(normalizedSlug);
+  let decodedSlug: string;
+  try {
+    decodedSlug = decodeURIComponent(tagSlug);
+  } catch {
+    decodedSlug = tagSlug;
+  }
+  const sanitizedSlug = tagToSlug(decodedSlug);
 
   let path = `/bookmarks/tags/${sanitizedSlug}`;
   if (pageNumber > 1) {
@@ -140,15 +153,20 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
   }
 
   const [rawTagSlug, page, pageNumberStr] = slug;
-  const currentPage = page === "page" && pageNumberStr ? parseInt(pageNumberStr, 10) : 1;
+  const parsedCurrent = page === "page" && pageNumberStr ? Number.parseInt(pageNumberStr, 10) : 1;
+  const currentPage = Number.isNaN(parsedCurrent) || parsedCurrent < 1 ? 1 : parsedCurrent;
 
   if (!rawTagSlug) {
     redirect("/bookmarks");
   }
 
-  const decodedSlug = decodeURIComponent(rawTagSlug);
-  const normalizedSlug = tagToSlug(decodedSlug);
-  const sanitizedSlug = sanitizeUnicode(normalizedSlug);
+  let decodedSlug: string;
+  try {
+    decodedSlug = decodeURIComponent(rawTagSlug);
+  } catch {
+    decodedSlug = rawTagSlug;
+  }
+  const sanitizedSlug = tagToSlug(decodedSlug);
 
   if (sanitizedSlug !== rawTagSlug || (page && page !== "page")) {
     let redirectPath = `/bookmarks/tags/${sanitizedSlug}`;
@@ -162,7 +180,7 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
   const result = await getBookmarksByTag(sanitizedSlug, currentPage);
 
   if (!result.bookmarks || result.bookmarks.length === 0) {
-    redirect("/bookmarks");
+    notFound();
   }
 
   const tagDisplayName =

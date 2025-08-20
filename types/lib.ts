@@ -134,6 +134,44 @@ export interface DistributedLockEntry {
   ttlMs: number;
 }
 
+/**
+ * Configuration options for the distributed lock
+ */
+export interface LockConfig {
+  /** S3 key where the lock will be stored */
+  lockKey: string;
+  /** Unique identifier for this instance */
+  instanceId: string;
+  /** Time-to-live for the lock in milliseconds */
+  ttlMs: number;
+  /** Maximum number of retry attempts (default: 3) */
+  maxRetries?: number;
+  /** Category for logging (default: "DistributedLock") */
+  logCategory?: string;
+}
+
+/**
+ * Result of a lock acquisition attempt
+ */
+export interface LockResult {
+  /** Whether the lock was successfully acquired */
+  success: boolean;
+  /** The lock entry if acquired */
+  lockEntry?: DistributedLockEntry;
+  /** Reason for failure if not successful */
+  reason?: string;
+}
+
+/**
+ * Type for the distributed lock instance
+ */
+export type DistributedLock = {
+  instanceId: string;
+  acquire(): Promise<boolean>;
+  release(force?: boolean): Promise<void>;
+  cleanup(): Promise<void>;
+};
+
 /** Lock entry shape used by S3-based distributed lock */
 export interface LockEntry {
   instanceId: string;

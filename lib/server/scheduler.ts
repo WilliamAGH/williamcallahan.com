@@ -2,6 +2,11 @@
 import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
 loadEnvironmentWithMultilineSupport();
 
+// Log startup immediately to verify process is running
+console.log(`[Scheduler] Process starting at ${new Date().toISOString()}`);
+console.log(`[Scheduler] Node version: ${process.version}, Bun version: ${process.versions.bun || 'N/A'}`);
+console.log(`[Scheduler] Working directory: ${process.cwd()}`);
+
 // Continuous Background Scheduler
 //
 // This is a long-running process that schedules and triggers data update tasks
@@ -31,11 +36,16 @@ loadEnvironmentWithMultilineSupport();
 //
 // Note: This process must stay running for scheduled updates to occur.
 
+// Import required modules
 import { randomInt } from "node:crypto";
 import rawCron from "node-cron";
+import { spawn } from "node:child_process";
+
+// Verify modules loaded
+console.log("[Scheduler] All required modules loaded successfully");
+
 // Maximum random jitter for scheduled tasks: 15 minutes
 const DEFAULT_JITTER_MS = 15 * 60 * 1000;
-import { spawn } from "node:child_process";
 
 // Generate unique instance ID for this scheduler
 const SCHEDULER_INSTANCE_ID = `scheduler-${randomInt(1000000, 9999999)}-${Date.now()}`;
@@ -99,6 +109,42 @@ cron.schedule(bookmarksCron, () => {
         console.error(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] update-s3 script failed (code ${code}).`);
       } else {
         console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] update-s3 script completed successfully`);
+
+        // Invalidate Next.js cache to serve fresh data
+        console.log("[Scheduler] [Bookmarks] Invalidating Next.js cache for bookmarks...");
+        const apiUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+        const revalidateUrl = `${apiUrl}/api/revalidate/bookmarks`;
+        
+        // Only include auth header if secret is configured
+        const headers = process.env.BOOKMARK_CRON_REFRESH_SECRET
+          ? { Authorization: `Bearer ${process.env.BOOKMARK_CRON_REFRESH_SECRET}` }
+          : undefined;
+        
+        // Add timeout using AbortController
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10_000); // 10 second timeout
+        
+        fetch(revalidateUrl, {
+          method: 'POST',
+          headers,
+          signal: controller.signal
+        })
+          .then(response => {
+            clearTimeout(timeoutId);
+            if (response.ok) {
+              console.log("[Scheduler] [Bookmarks] ✅ Cache invalidated successfully");
+            } else {
+              console.error(`[Scheduler] [Bookmarks] Cache invalidation failed with status ${response.status}`);
+            }
+          })
+          .catch(error => {
+            clearTimeout(timeoutId);
+            if (error instanceof Error && error.name === 'AbortError') {
+              console.error("[Scheduler] [Bookmarks] Cache invalidation timed out after 10 seconds");
+            } else {
+              console.error("[Scheduler] [Bookmarks] Failed to invalidate cache:", error);
+            }
+          });
 
         // Submit updated sitemap to search engines
         console.log("[Scheduler] [Bookmarks] Submitting updated sitemap to search engines asynchronously...");
@@ -207,3 +253,25 @@ cron.schedule(logosCron, () => {
 // DO NOT EXIT this process - it must stay running for scheduled updates to occur.
 console.log("[Scheduler] Setup complete. Scheduler is running and waiting for scheduled trigger times...");
 console.log("[Scheduler] Production frequencies: Bookmarks (12x/day), GitHub (1x/day), Logos (1x/week)");
+
+// Add process-level error handling to prevent silent crashes
+process.on("uncaughtException", (error) => {
+  console.error(`[Scheduler] FATAL: Uncaught exception:`, error);
+  console.error(`[Scheduler] Stack trace:`, error.stack);
+  // Don't exit - try to keep running
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error(`[Scheduler] ERROR: Unhandled promise rejection:`, reason);
+  console.error(`[Scheduler] Promise:`, promise);
+  // Don't exit - try to keep running
+});
+
+// Log heartbeat every hour to confirm scheduler is alive
+setInterval(() => {
+  const uptime = Math.floor(process.uptime() / 60);
+  console.log(`[Scheduler] Heartbeat: Process alive for ${uptime} minutes, waiting for scheduled tasks...`);
+}, 60 * 60 * 1000);
+
+// Log immediate heartbeat
+console.log(`[Scheduler] Initial heartbeat: Process ${SCHEDULER_INSTANCE_ID} is running`);

@@ -154,6 +154,7 @@ The following environment variables are **REQUIRED** for proper image delivery:
 ### Environment Variable Validation
 
 All critical environment variables are validated at startup using Zod schemas:
+
 - Schema definition: `types/schemas/env.ts`
 - Runtime validation: `lib/env.ts`
 - Type definitions: `types/env.d.ts`

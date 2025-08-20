@@ -9,14 +9,15 @@ import type { Certification, Class, Education } from "@/types/education";
 import { validateClassArray, validateEducationArray, validateCertificationArray } from "@/types/education";
 
 const recentCoursesData: Class[] = [
-  {
-    id: "uc-berkeley-data-structures",
-    institution: "University of California Berkeley",
-    name: "Data Abstractions & Structures",
-    website: "https://www.berkeley.edu",
-    location: "Berkeley, California",
-    year: 2025,
-  },
+  // TODO: Display this course in September 2025
+  // {
+  //   id: "san-mateo-data-structures",
+  //   institution: "College of San Mateo",
+  //   name: "Data Structures & Algorithms",
+  //   website: "https://collegeofsanmateo.edu",
+  //   location: "San Mateo, California",
+  //   year: 2025,
+  // },
   {
     id: "san-mateo-object-oriented-java",
     institution: "College of San Mateo",

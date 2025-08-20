@@ -15,6 +15,7 @@ import { logEnvironmentConfig } from "@/lib/config/environment";
 import logger from "@/lib/utils/logger";
 import { NextResponse } from "next/server";
 import type { BookmarksIndex } from "@/types/bookmark";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 // Ensure this route is not statically cached
 export const dynamic = "force-dynamic";
@@ -28,11 +29,15 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   let isCronJob = false;
 
+  // Log API trigger immediately
+  console.log(`[API Trigger] Bookmarks refresh endpoint called at ${new Date().toISOString()}`);
+  
   // Check for custom secret authentication
   if (cronRefreshSecret && authorizationHeader && authorizationHeader.startsWith("Bearer ")) {
     const token = authorizationHeader.substring(7); // Remove "Bearer " prefix
     if (token === cronRefreshSecret) {
       isCronJob = true;
+      console.log("[API Trigger] ✅ Authenticated as external cron job via bearer token");
       logger.info("[API Bookmarks Refresh] Authenticated as cron job via BOOKMARK_CRON_REFRESH_SECRET.");
     }
   }
@@ -41,7 +46,9 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (!isCronJob) {
     const forwardedFor: string = request.headers.get("x-forwarded-for") || "unknown";
     const clientIp = forwardedFor?.split(",")[0]?.trim() || "unknown_ip"; // Ensure clientIp is never empty
+    console.log(`[API Trigger] Regular request from IP: ${clientIp}`);
     if (!isOperationAllowed(API_ENDPOINT_STORE_NAME, clientIp, DEFAULT_API_ENDPOINT_LIMIT_CONFIG)) {
+      console.log(`[API Trigger] ❌ Rate limit exceeded for IP: ${clientIp}`);
       return NextResponse.json(
         {
           error: "Rate limit exceeded. Try again later.",
@@ -84,8 +91,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     if (isCronJob) {
+      console.log("[API Trigger] 🔄 FORCING bookmark refresh (external cron job)");
       logger.info("[API Bookmarks Refresh] Cron job: Forcing bookmark data refresh.");
     } else {
+      console.log("[API Trigger] 🔄 Starting bookmark refresh (manual/API request)");
       logger.info(
         "[API Bookmarks Refresh] Regular request: Refreshing bookmarks data as they are stale or need update.",
       );
@@ -101,6 +110,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       // Index doesn't exist yet
     }
 
+    console.log(`[API Trigger] Previous count: ${previousCount} bookmarks`);
     logger.info(`[API Bookmarks Refresh] Previous bookmarks count: ${previousCount}`);
 
     // Use DataFetchManager for centralized data fetching
@@ -118,20 +128,39 @@ export async function POST(request: Request): Promise<NextResponse> {
       .then((results) => {
         const bookmarkResult = results.find((r) => r.operation === "bookmarks");
         if (bookmarkResult?.success) {
+          const newCount = bookmarkResult.itemsProcessed || 0;
+          console.log(`[API Trigger] ✅ Refresh completed: ${newCount} bookmarks (was ${previousCount})`);
           logger.info(`[API Bookmarks Refresh] Background refresh completed successfully`);
+          
+          // Invalidate Next.js cache to serve fresh data
+          console.log("[API Trigger] Invalidating Next.js cache for bookmarks...");
+          try {
+            revalidatePath('/bookmarks');
+            revalidatePath('/bookmarks/[slug]', 'page');
+            revalidatePath('/bookmarks/page/[pageNumber]', 'page');
+            revalidatePath('/bookmarks/domain/[domainSlug]', 'page');
+            revalidateTag('bookmarks');
+            console.log("[API Trigger] ✅ Cache invalidated successfully");
+          } catch (cacheError) {
+            console.error("[API Trigger] Failed to invalidate cache:", cacheError);
+          }
         } else {
+          console.log(`[API Trigger] ❌ Refresh failed: ${bookmarkResult?.error}`);
           logger.error(`[API Bookmarks Refresh] Background refresh failed:`, bookmarkResult?.error);
         }
       })
       .catch((error) => {
+        console.log(`[API Trigger] ❌ Refresh error: ${error}`);
         logger.error(`[API Bookmarks Refresh] Background refresh error:`, error);
         // Check if memory related
         if ((error as Error).message?.includes("memory")) {
+          console.log(`[API Trigger] ⚠️  Memory exhaustion detected - container restart may be needed`);
           logger.error(`[API Bookmarks Refresh] Memory exhaustion detected. Container restart may be needed.`);
         }
       });
 
     // Return immediately without waiting
+    console.log(`[API Trigger] 📤 Returning response (refresh continues in background)`);
     logger.info(`[API Bookmarks Refresh] Started background refresh process`);
 
     return NextResponse.json({

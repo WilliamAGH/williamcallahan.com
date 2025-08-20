@@ -17,8 +17,11 @@ import type { Environment } from "@/types/config";
  * should be set in CI/CD to match the target deployment.
  */
 export function getEnvironment(): Environment {
+  const isJest = typeof process !== "undefined" && !!process.env.JEST_WORKER_ID;
+
   // PRIORITY 1: Use explicit DEPLOYMENT_ENV if set (for build-time consistency)
-  const deploymentEnv = process.env.DEPLOYMENT_ENV;
+  // In Jest, ignore DEPLOYMENT_ENV so tests can control behavior via NODE_ENV
+  const deploymentEnv = isJest ? undefined : process.env.DEPLOYMENT_ENV;
   if (deploymentEnv) {
     const normalized = deploymentEnv.toLowerCase().trim();
     if (normalized === "production" || normalized === "development" || normalized === "test") {
@@ -28,7 +31,17 @@ export function getEnvironment(): Environment {
   }
 
   // PRIORITY 2: Try to infer from URLs (runtime detection)
-  const apiUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  // Prefer explicit env vars. In Jest, allow jsdom location only when NODE_ENV is 'test',
+  // so tests that switch NODE_ENV to 'production' can validate production behavior.
+  let apiUrl: string | undefined = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  if (!apiUrl && isJest && (process.env.NODE_ENV || "test").toLowerCase().trim() === "test") {
+    try {
+      const loc = (globalThis as unknown as { location?: { href?: string; origin?: string } }).location;
+      apiUrl = loc?.origin || loc?.href || undefined;
+    } catch {
+      // ignore
+    }
+  }
 
   if (apiUrl) {
     // Check if it's localhost (local development)

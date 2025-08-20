@@ -12,6 +12,7 @@
 import { refreshGitHubActivityDataFromApi, invalidateGitHubCache } from "@/lib/data-access/github";
 import { TIME_CONSTANTS } from "@/lib/constants";
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import type { NextRequest } from "next/server";
 import { incrementAndPersist, loadRateLimitStoreFromS3 } from "@/lib/rate-limiter";
 
@@ -164,8 +165,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (result) {
       console.log("[API Refresh] GitHub activity data refresh completed successfully");
 
-      // Invalidate Next.js cache for GitHub data
-      invalidateGitHubCache();
+      // Invalidate cache layers for GitHub data
+      invalidateGitHubCache(); // in-memory
+      try {
+        revalidateTag("github-activity"); // Next.js function cache tag
+      } catch {
+        // No-op outside of Next request context
+      }
 
       const responseData = {
         message: `GitHub activity data refresh completed successfully${isCronJob ? " (triggered by cron job)" : ""}.`,

@@ -809,8 +809,6 @@ const sentryWebpackPluginOptions = {
   // This was causing gigabyte-scale memory usage during webpack compilation
   // Based on Sentry GitHub issue #13836 and official troubleshooting docs
   dryRun: process.env.NODE_ENV === "development", // Skip actual uploads in dev
-  uploadSourceMaps: process.env.NODE_ENV === "production", // Only upload in production
-  widenClientFileUpload: process.env.NODE_ENV === "production", // Only in production
   // Disable source map processing entirely in development
   ...(process.env.NODE_ENV === "development"
     ? {
@@ -820,10 +818,13 @@ const sentryWebpackPluginOptions = {
         },
       }
     : {
-        // In production, use optimized source map settings
+        // In production, use optimized source map settings with Debug IDs
+        widenClientFileUpload: true, // Upload larger set of source maps
         sourcemaps: {
-          assets: ["**/*.js", "**/*.map"],
-          ignore: ["node_modules/**"],
+          assets: ["./**/*.js", "./**/*.js.map"], // Include all JS files and maps
+          ignore: ["./node_modules/**"],
+          // Enable debug IDs for better source map matching
+          filesToDeleteAfterUpload: ["./**/*.js.map"], // Clean up map files after upload
         },
       }),
 };

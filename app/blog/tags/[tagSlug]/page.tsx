@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { BlogList } from "@/components/features/blog/blog-list";
+import { Blog } from "@/components/features/blog/blog.client";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { metadata } from "@/data/metadata";
@@ -175,15 +176,20 @@ export default async function TagPage({ params }: { params: { tagSlug: string } 
     ],
   });
 
+  // Create the window title with the tag slug
+  const windowTitle = `~/blog/tags/${tagSlug}`;
+
   return (
     <>
       <JsonLdScript data={jsonLdData} />
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="mb-8 text-3xl font-bold leading-tight tracking-tighter text-primary md:text-5xl">
-          <span className="capitalize">{tagName}</span> Posts
-        </h1>
-        {filteredPosts.length > 0 ? <BlogList posts={filteredPosts} /> : <p>No posts found for this tag.</p>}
-      </div>
+      <Blog windowTitle={windowTitle}>
+        <div className="container mx-auto px-4 py-8">
+          <h1 className="mb-8 text-3xl font-bold leading-tight tracking-tighter text-primary md:text-5xl">
+            <span className="capitalize">{tagName}</span> Posts
+          </h1>
+          {filteredPosts.length > 0 ? <BlogList posts={filteredPosts} /> : <p>No posts found for this tag.</p>}
+        </div>
+      </Blog>
     </>
   );
 }

@@ -8,6 +8,8 @@ import { type JSX, useState, useEffect } from "react";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { kebabCase } from "@/lib/utils/formatters";
 
+const MAX_DISPLAY_TECH_ITEMS = 10;
+
 // Placeholder for centered top image with gradient
 function PlaceholderImageTop() {
   return (
@@ -38,7 +40,7 @@ function PlaceholderImageTop() {
 }
 
 export function ProjectCard({ project, isPriority = false }: ProjectCardProps): JSX.Element {
-  const { name, description, url, imageKey, tags } = project;
+  const { name, description, url, imageKey, tags, techStack } = project;
   const initialImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
   
   // Generate a URL-safe ID from the project name for anchor linking
@@ -60,6 +62,33 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
       setImageUrl(placeholderUrl);
     }
   };
+
+  // Derive a technology stack from tags if explicit techStack is not provided
+  const deriveTechFromTags = (tagList: string[] | undefined): string[] => {
+    if (!tagList || tagList.length === 0) return [];
+    const TECH_KEYWORDS = new Set([
+      "Next.js",
+      "TypeScript",
+      "Tailwind CSS",
+      "React",
+      "MDX",
+      "Server Components",
+      "Java",
+      "Spring Boot",
+      "Spring AI",
+      "OpenAI",
+      "Google Books API",
+      "Thymeleaf",
+      "HTMX",
+      "PostgreSQL",
+      "Docker",
+      "Groq",
+      "Gemini",
+    ]);
+    return tagList.filter((t) => TECH_KEYWORDS.has(t));
+  };
+
+  const displayTech = (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)).slice(0, MAX_DISPLAY_TECH_ITEMS);
 
   return (
     // Redesigned card for horizontal layout on medium screens and up
@@ -139,6 +168,24 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
                 {/* Adjusted text size/color */}
                 {description}
               </p>
+            )}
+            {/* Tech Stack */}
+            {displayTech.length > 0 && (
+              <div className="mt-4">
+                <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+                  Tech Stack
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {displayTech.map((tech) => (
+                    <span
+                      key={tech}
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-gradient-to-br from-gray-700/70 to-gray-800/60 border border-white/10 text-gray-200 shadow-sm"
+                    >
+                      {tech}
+                    </span>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
           {/* Tags (Bottom aligned) */}

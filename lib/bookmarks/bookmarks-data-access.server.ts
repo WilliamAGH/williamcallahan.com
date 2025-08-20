@@ -1,9 +1,10 @@
 /** Bookmarks data access: In-memory → S3 → External API */
 
-import { randomInt } from "node:crypto";
-import { readJsonS3, writeJsonS3, deleteFromS3 } from "@/lib/s3-utils";
+import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE } from "@/lib/constants";
-import type { UnifiedBookmark, DistributedLockEntry, RefreshBookmarksCallback } from "@/types";
+import { envLogger } from "@/lib/utils/env-logger";
+import { createDistributedLock, cleanupStaleLocks } from "@/lib/utils/s3-distributed-lock.server";
+import type { UnifiedBookmark, RefreshBookmarksCallback } from "@/types";
 import type { BookmarksIndex, BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 import { BookmarksIndexSchema } from "@/lib/schemas/bookmarks";
@@ -15,6 +16,7 @@ import {
   normalizePageBookmarkTags,
 } from "@/lib/bookmarks/utils";
 import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { getEnvironment } from "@/lib/config/environment";
 import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
 import { promises as fs } from "node:fs";
@@ -94,15 +96,57 @@ const safeRevalidateTag = (...tags: string[]): void => {
   }
 };
 
-const INSTANCE_ID = `instance-${randomInt(1000000, 9999999)}-${Date.now()}`;
-const ENABLE_TAG_CACHING = process.env.ENABLE_TAG_CACHING !== "false";
-const MAX_TAGS_TO_CACHE = parseInt(process.env.MAX_TAGS_TO_CACHE || "10", 10);
+const ENABLE_TAG_PERSISTENCE = process.env.ENABLE_TAG_PERSISTENCE !== "false";
+
+// Default to no limit (persist all tags) when env var not set or invalid
+const RAW_MAX_TAGS = process.env.MAX_TAGS_TO_PERSIST;
+const PARSED_MAX_TAGS = RAW_MAX_TAGS != null ? Number(RAW_MAX_TAGS) : Number.NaN;
+const MAX_TAGS_TO_PERSIST =
+  Number.isFinite(PARSED_MAX_TAGS) && PARSED_MAX_TAGS > 0
+    ? Math.floor(PARSED_MAX_TAGS)
+    : Number.MAX_SAFE_INTEGER;
+
+if (RAW_MAX_TAGS && (!Number.isFinite(PARSED_MAX_TAGS) || PARSED_MAX_TAGS <= 0)) {
+  envLogger.debug(
+    "MAX_TAGS_TO_PERSIST is invalid or <= 0; defaulting to unlimited persistence",
+    { RAW_MAX_TAGS },
+    { category: "BookmarksDataAccess" },
+  );
+}
+
+// In-memory runtime cache for the full bookmarks dataset to prevent repeated S3 reads
+// This is a temporary runtime cache, NOT S3 persistence
+const FULL_DATASET_MEMORY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+let fullDatasetMemoryCache: { data: UnifiedBookmark[]; timestamp: number } | null = null;
 
 // In-process short-TTL cache parameters (centralized in lib/cache; local cache removed)
 
 const LOG_PREFIX = "[BookmarksDataAccess]";
 const DISTRIBUTED_LOCK_S3_KEY = BOOKMARKS_S3_PATHS.LOCK;
-const LOCK_TTL_MS = Number(process.env.BOOKMARKS_LOCK_TTL_MS) || 5 * 60 * 1000;
+
+// Parse LOCK_TTL_MS with robust validation
+const RAW_LOCK_TTL = process.env.BOOKMARKS_LOCK_TTL_MS;
+const PARSED_LOCK_TTL = RAW_LOCK_TTL != null ? Number(RAW_LOCK_TTL) : Number.NaN;
+const LOCK_TTL_MS =
+  Number.isFinite(PARSED_LOCK_TTL) && PARSED_LOCK_TTL > 0
+    ? Math.floor(PARSED_LOCK_TTL)
+    : 5 * 60 * 1000; // Default: 5 minutes
+
+if (RAW_LOCK_TTL && (!Number.isFinite(PARSED_LOCK_TTL) || PARSED_LOCK_TTL <= 0)) {
+  envLogger.debug(
+    "BOOKMARKS_LOCK_TTL_MS is invalid or <= 0; defaulting to 5 minutes",
+    { RAW_LOCK_TTL },
+    { category: "BookmarksDataAccess" },
+  );
+}
+
+// Create the distributed lock instance for bookmarks refresh
+const bookmarksLock = createDistributedLock({
+  lockKey: BOOKMARKS_S3_PATHS.LOCK,
+  ttlMs: LOCK_TTL_MS,
+  logCategory: "BookmarksLock",
+});
+
 const LOCK_CLEANUP_INTERVAL_MS = 2 * 60 * 1000;
 
 let isRefreshLocked = false;
@@ -113,97 +157,16 @@ let inFlightRefreshPromise: Promise<UnifiedBookmark[] | null> | null = null;
 const isS3Error = (err: unknown): err is { $metadata?: { httpStatusCode?: number } } =>
   typeof err === "object" && err !== null && "$metadata" in err;
 
-/** S3-compatible single-file lock with read-back verification */
-async function acquireDistributedLock(lockKey: string, ttlMs: number, retryCount = 0): Promise<boolean> {
-  const MAX_RETRIES = 3;
-  const backoff = async (attempt: number) => {
-    const baseDelay = 100 + 2 ** attempt * 50;
-    const jitter = Math.floor(Math.random() * 50);
-    await new Promise((res) => setTimeout(res, baseDelay + jitter));
-  };
-
-  // Step A: if an active lock exists, bail fast
-  try {
-    const existing = await readJsonS3<DistributedLockEntry>(lockKey);
-    if (existing && typeof existing === "object") {
-      const age = Date.now() - existing.acquiredAt;
-      // lock is still valid if age hasn't exceeded TTL
-      const isExpired = age >= existing.ttlMs;
-      if (!isExpired) {
-        return false;
-      }
-    }
-  } catch {
-    // ignore read issues and try to proceed
-  }
-
-  // Step B: write our lock entry with atomic conditional create
-  const myEntry: DistributedLockEntry = { instanceId: INSTANCE_ID, acquiredAt: Date.now(), ttlMs };
-  try {
-    await writeJsonS3(lockKey, myEntry, { IfNoneMatch: "*" });
-  } catch {
-    // If conditional write failed, another process has the lock
-    if (retryCount < MAX_RETRIES) {
-      await backoff(retryCount);
-      return acquireDistributedLock(lockKey, ttlMs, retryCount + 1);
-    }
-    return false;
-  }
-
-  // Step C: read back and verify ownership
-  try {
-    const current = await readJsonS3<DistributedLockEntry>(lockKey);
-    if (current && current.instanceId === myEntry.instanceId && current.acquiredAt === myEntry.acquiredAt) {
-      console.log(`${LOG_PREFIX} Lock acquired by ${INSTANCE_ID}`);
-      return true;
-    }
-  } catch (e) {
-    console.warn(`${LOG_PREFIX} Failed to verify lock ownership:`, String(e));
-  }
-
-  // Another process won the race
-  if (retryCount < MAX_RETRIES) {
-    await backoff(retryCount);
-    return acquireDistributedLock(lockKey, ttlMs, retryCount + 1);
-  }
-  return false;
-}
-
-async function releaseDistributedLock(lockKey: string, forceRelease = false): Promise<void> {
-  try {
-    const existingLock = await readJsonS3<DistributedLockEntry>(lockKey);
-    if (existingLock?.instanceId === INSTANCE_ID || forceRelease) {
-      await deleteFromS3(lockKey);
-      console.log(`${LOG_PREFIX} Distributed lock released ${forceRelease ? "(forced)" : ""} by ${INSTANCE_ID}`);
-    }
-  } catch (e: unknown) {
-    if (!isS3Error(e) || e.$metadata?.httpStatusCode !== 404)
-      console.error(`${LOG_PREFIX} Error during distributed lock release:`, String(e));
-  }
-}
-
-async function cleanupStaleLocks(): Promise<void> {
-  try {
-    const existingLock = await readJsonS3<DistributedLockEntry>(DISTRIBUTED_LOCK_S3_KEY);
-    if (existingLock && typeof existingLock === "object") {
-      const expired = Date.now() - existingLock.acquiredAt >= existingLock.ttlMs;
-      if (expired) await releaseDistributedLock(DISTRIBUTED_LOCK_S3_KEY, true);
-    }
-  } catch (e: unknown) {
-    if (!isS3Error(e) || e.$metadata?.httpStatusCode !== 404)
-      console.debug(`${LOG_PREFIX} Error checking for stale locks:`, String(e));
-  }
-}
 
 const acquireRefreshLock = async (): Promise<boolean> => {
-  const locked = await acquireDistributedLock(DISTRIBUTED_LOCK_S3_KEY, LOCK_TTL_MS);
+  const locked = await bookmarksLock.acquire();
   if (locked) isRefreshLocked = true;
   return locked;
 };
 
 const releaseRefreshLock = async (): Promise<void> => {
   try {
-    await releaseDistributedLock(DISTRIBUTED_LOCK_S3_KEY);
+    await bookmarksLock.release();
   } finally {
     isRefreshLocked = false;
   }
@@ -225,12 +188,12 @@ export function initializeBookmarksDataAccess(): void {
       .catch((error) => console.error("[Bookmarks] Failed to initialize refresh callback:", String(error)));
   }
   if (!lockCleanupInterval) {
-    cleanupStaleLocks().catch((error) =>
-      console.debug("[Bookmarks] Initial lock cleanup check failed:", String(error)),
+    cleanupStaleLocks(DISTRIBUTED_LOCK_S3_KEY, "BookmarksLock").catch((error) =>
+      envLogger.debug("Initial lock cleanup failed", { error: String(error) }, { category: "BookmarksLock" }),
     );
     lockCleanupInterval = setInterval(() => {
-      cleanupStaleLocks().catch((error) =>
-        console.debug("[Bookmarks] Periodic lock cleanup check failed:", String(error)),
+      cleanupStaleLocks(DISTRIBUTED_LOCK_S3_KEY, "BookmarksLock").catch((error) =>
+        envLogger.debug("Periodic lock cleanup failed", { error: String(error) }, { category: "BookmarksLock" }),
       );
     }, LOCK_CLEANUP_INTERVAL_MS);
     if (lockCleanupInterval.unref) lockCleanupInterval.unref();
@@ -310,10 +273,10 @@ async function writePaginatedBookmarks(
   return mapping;
 }
 
-/** Write tag-filtered bookmarks in paginated format with embedded slugs */
-async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<void> {
-  if (!ENABLE_TAG_CACHING) {
-    console.log(`${LOG_PREFIX} Tag caching disabled by environment variable`);
+/** Persist pre-computed tag-filtered bookmarks to S3 storage in paginated format with embedded slugs */
+async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark[]): Promise<void> {
+  if (!ENABLE_TAG_PERSISTENCE) {
+    envLogger.log("Tag persistence disabled by environment variable", undefined, { category: LOG_PREFIX });
     return;
   }
   // Build a mapping once for this write to embed slugs
@@ -334,14 +297,21 @@ async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<
       tagCounts[tagSlugValue] = (tagCounts[tagSlugValue] || 0) + 1;
     }
   }
-  const topTags = Object.entries(tagCounts)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, MAX_TAGS_TO_CACHE)
-    .map(([tag]) => tag);
-  console.log(
-    `${LOG_PREFIX} Processing ${topTags.length} of ${Object.keys(bookmarksByTag).length} tags (limited to top ${MAX_TAGS_TO_CACHE})`,
+  // Apply MAX_TAGS_TO_PERSIST limit if configured
+  const allTags = Object.keys(bookmarksByTag);
+  const tagsToProcess = MAX_TAGS_TO_PERSIST && MAX_TAGS_TO_PERSIST > 0
+    ? Object.entries(tagCounts)
+        .sort((a, b) => b[1] - a[1]) // Sort by count descending
+        .slice(0, MAX_TAGS_TO_PERSIST)
+        .map(([tag]) => tag)
+    : allTags;
+  
+  envLogger.log(
+    `Persisting ${tagsToProcess.length} of ${allTags.length} tags to S3 storage`, 
+    { totalTags: allTags.length, persistingCount: tagsToProcess.length, limit: MAX_TAGS_TO_PERSIST },
+    { category: LOG_PREFIX }
   );
-  for (const tagSlug of topTags) {
+  for (const tagSlug of tagsToProcess) {
     const tagBookmarks = bookmarksByTag[tagSlug];
     if (!tagBookmarks) continue;
     const totalPages = Math.ceil(tagBookmarks.length / pageSize),
@@ -369,7 +339,11 @@ async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<
       await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${page}.json`, slice);
     }
   }
-  console.log(`${LOG_PREFIX} Wrote tag-filtered bookmarks for ${topTags.length} tags`);
+  envLogger.log(
+    `Persisted tag-filtered bookmarks to S3`,
+    { tagCount: tagsToProcess.length, totalTags: allTags.length },
+    { category: LOG_PREFIX }
+  );
 }
 
 /** Core refresh logic - only process new/changed bookmarks */
@@ -453,7 +427,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
       }
       // --- END LOCAL CACHE WRITE ---
     }
-    await writeTagFilteredBookmarks(allIncomingBookmarks);
+    await persistTagFilteredBookmarksToS3(allIncomingBookmarks);
     return allIncomingBookmarks;
   } catch (error: unknown) {
     console.error(`${LOG_PREFIX} Error during selective refresh:`, String(error));
@@ -488,7 +462,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                 });
                 await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
               }
-              await writeTagFilteredBookmarks(freshBookmarks);
+              await persistTagFilteredBookmarksToS3(freshBookmarks);
             } else {
               console.log(`${LOG_PREFIX} No changes, skipping heavy S3 writes`);
               // Still update index freshness to reflect successful refresh
@@ -601,17 +575,26 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
   return promise;
 }
 
+/**
+ * Fetches bookmarks with Next.js caching layer.
+ * Cache duration: 1 hour (coordinated with 2-hour scheduler to minimize staleness).
+ * Max staleness: ~3 hours (1h cache + 2h schedule + 15min jitter).
+ * @param options - Control data inclusion and fetch behavior
+ * @returns Full or lightweight bookmarks depending on options
+ */
 async function fetchAndCacheBookmarks(
   options: BookmarkLoadOptions = {},
 ): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
   "use cache";
-  // Cache the full bookmarks payload in memory for 5 minutes and tag it so it can be
-  // invalidated together with the existing bookmarks cache.
-  safeCacheLife({ revalidate: 300 });
+  // Cache for 1 hour to coordinate with 2-hour scheduler runs.
+  // This ensures data refreshes between scheduler cycles.
+  safeCacheLife({ revalidate: 3600 }); // 1 hour
   safeCacheTag("bookmarks-s3-full");
   const { skipExternalFetch = false, includeImageData = true, force = false } = options;
-  console.log(
-    `${LOG_PREFIX} fetchAndCacheBookmarks called. skipExternalFetch=${skipExternalFetch}, includeImageData=${includeImageData}`,
+  envLogger.service(
+    "BookmarksDataAccess",
+    "fetchAndCacheBookmarks",
+    { skipExternalFetch, includeImageData, force },
   );
 
   // Define normalizeBookmarkTags function before usage
@@ -622,25 +605,39 @@ async function fetchAndCacheBookmarks(
       .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
   });
 
-  // --- 1. Try loading from local cache first ---
-  try {
-    const localData = await fs.readFile(LOCAL_BOOKMARKS_PATH, "utf-8");
-    const bookmarks = JSON.parse(localData) as UnifiedBookmark[];
-    
-    // Skip local cache if it only contains test data
-    const isTestData = bookmarks.length === 1 && bookmarks[0]?.id === "test-1";
-    if (isTestData) {
-      console.log(`${LOG_PREFIX} Local cache contains only test data, skipping to S3`);
-    } else if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
-      console.log(`${LOG_PREFIX} Successfully loaded ${bookmarks.length} bookmarks from local cache: ${LOCAL_BOOKMARKS_PATH}`);
-      if (!includeImageData) {
-        console.log(`${LOG_PREFIX} Stripping image data from ${bookmarks.length} bookmarks`);
-        return bookmarks.map(stripImageData);
+  // --- 1. Prefer S3 in production runtime; use local fallback only in dev/test/CLI contexts ---
+  const isProductionRuntime = getEnvironment() === "production" && !isCliLikeContext();
+  if (!isProductionRuntime) {
+    try {
+      const localData = await fs.readFile(LOCAL_BOOKMARKS_PATH, "utf-8");
+      const bookmarks = JSON.parse(localData) as UnifiedBookmark[];
+
+      // Skip local cache if it only contains test data
+      const isTestData =
+        bookmarks.length === 1 &&
+        (bookmarks[0]?.id === "test-1" || bookmarks[0]?.id === "test" || bookmarks[0]?.url === "https://example.com");
+      if (isTestData) {
+        console.log(`${LOG_PREFIX} Local cache contains only test data, skipping to S3`);
+      } else if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
+        console.log(
+          `${LOG_PREFIX} Successfully loaded ${bookmarks.length} bookmarks from local cache: ${LOCAL_BOOKMARKS_PATH}`,
+        );
+        if (!includeImageData) {
+          console.log(`${LOG_PREFIX} Stripping image data from ${bookmarks.length} bookmarks`);
+          return bookmarks.map(stripImageData);
+        }
+        return bookmarks.map(normalizeBookmarkTags);
       }
-      return bookmarks.map(normalizeBookmarkTags);
+    } catch (error) {
+      console.warn(
+        `[Bookmarks] Local bookmarks cache not found or invalid, proceeding to S3. Error: ${String(error)}`,
+      );
     }
-  } catch (error) {
-    console.warn(`[Bookmarks] Local bookmarks cache not found or invalid, proceeding to S3. Error: ${String(error)}`);
+  } else {
+    // Explicitly log that we are skipping local fallback in production runtime to avoid stale snapshots from build layers
+    envLogger.log("Skipping local bookmarks fallback in production runtime; using S3-first strategy", undefined, {
+      category: LOG_PREFIX,
+    });
   }
 
   // --- 2. Fallback to S3 ---
@@ -691,9 +688,15 @@ async function getBookmarksPageDirect(pageNumber: number): Promise<UnifiedBookma
   }
 }
 
+/**
+ * Gets a paginated bookmarks page with caching.
+ * Cache duration: 1 day (pages rarely change, reduces S3 reads).
+ * @param pageNumber - Page number to fetch (1-indexed)
+ * @returns Bookmarks for the specified page
+ */
 async function getCachedBookmarksPage(pageNumber: number): Promise<UnifiedBookmark[]> {
   "use cache";
-  safeCacheLife("hours");
+  safeCacheLife({ revalidate: 86400 }); // 1 day - pagination rarely changes
   safeCacheTag("bookmarks", `bookmarks-page-${pageNumber}`);
   return getBookmarksPageDirect(pageNumber);
 }
@@ -720,9 +723,16 @@ async function getTagBookmarksPageDirect(tagSlug: string, pageNumber: number): P
   }
 }
 
+/**
+ * Gets bookmarks for a specific tag with caching.
+ * Cache duration: 1 hour (aligned with main cache for consistency).
+ * @param tagSlug - URL-safe tag identifier
+ * @param pageNumber - Page number within tag results
+ * @returns Bookmarks matching the tag
+ */
 async function getCachedTagBookmarksPage(tagSlug: string, pageNumber: number): Promise<UnifiedBookmark[]> {
   "use cache";
-  safeCacheLife("hours");
+  safeCacheLife({ revalidate: 3600 }); // 1 hour - aligned with main bookmark cache
   safeCacheTag("bookmarks", `bookmarks-tag-${tagSlug}`, `bookmarks-tag-${tagSlug}-page-${pageNumber}`);
   return getTagBookmarksPageDirect(tagSlug, pageNumber);
 }
@@ -746,9 +756,15 @@ async function getTagBookmarksIndexDirect(tagSlug: string): Promise<BookmarksInd
   }
 }
 
+/**
+ * Gets tag-specific bookmarks index with caching.
+ * Cache duration: 1 hour (matches tag pages for consistency).
+ * @param tagSlug - URL-safe tag identifier
+ * @returns Index metadata for tag bookmarks
+ */
 async function getCachedTagBookmarksIndex(tagSlug: string): Promise<BookmarksIndex | null> {
   "use cache";
-  safeCacheLife("hours");
+  safeCacheLife({ revalidate: 3600 }); // 1 hour - consistent with tag pages
   safeCacheTag("bookmarks", `bookmarks-tag-${tagSlug}`, `bookmarks-tag-${tagSlug}-index`);
   return getTagBookmarksIndexDirect(tagSlug);
 }
@@ -780,9 +796,14 @@ async function getBookmarksIndexDirect(): Promise<BookmarksIndex | null> {
   }
 }
 
+/**
+ * Gets main bookmarks index with caching.
+ * Cache duration: 1 hour (coordinates with scheduler for fresh counts).
+ * @returns Index with count, pages, checksum, and freshness timestamps
+ */
 async function getCachedBookmarksIndex(): Promise<BookmarksIndex | null> {
   "use cache";
-  safeCacheLife("minutes");
+  safeCacheLife({ revalidate: 3600 }); // 1 hour - ensures fresh counts between scheduler runs
   safeCacheTag("bookmarks", "bookmarks-index");
   return getBookmarksIndexDirect();
 }
@@ -820,7 +841,42 @@ export async function getBookmarksByTag(
     };
   }
   console.log(`${LOG_PREFIX} Cache miss for tag "${tagSlug}". Falling back to full bookmark set filtering`);
-  const allBookmarks = (await getBookmarks({ includeImageData: true })) as UnifiedBookmark[];
+  
+  // Check in-memory runtime cache first to avoid repeated S3 reads.
+  // In test environment, bypass the in-process cache so each test can
+  // provide different mocked datasets deterministically.
+  let allBookmarks: UnifiedBookmark[];
+  const now = Date.now();
+  const bypassMemoryCache = process.env.NODE_ENV === "test";
+
+  if (!bypassMemoryCache && fullDatasetMemoryCache && now - fullDatasetMemoryCache.timestamp < FULL_DATASET_MEMORY_CACHE_TTL) {
+    envLogger.log(
+      "Using in-memory runtime cache for full bookmarks dataset",
+      { age: Math.round((now - fullDatasetMemoryCache.timestamp) / 1000), unit: "seconds" },
+      { category: LOG_PREFIX },
+    );
+    allBookmarks = fullDatasetMemoryCache.data;
+  } else {
+    envLogger.log("Reading full bookmarks dataset from S3 persistence", undefined, { category: LOG_PREFIX });
+    allBookmarks = (await getBookmarks({
+      includeImageData: true,
+      skipExternalFetch: false,
+      force: false,
+    } satisfies BookmarkLoadOptions)) as UnifiedBookmark[];
+
+    if (!bypassMemoryCache) {
+      // Update in-memory runtime cache
+      fullDatasetMemoryCache = {
+        data: allBookmarks,
+        timestamp: now,
+      };
+      envLogger.log(
+        "Updated in-memory runtime cache",
+        { bookmarkCount: allBookmarks.length },
+        { category: LOG_PREFIX },
+      );
+    }
+  }
   const filteredBookmarks = allBookmarks.filter((b) => {
     const tags = Array.isArray(b.tags) ? b.tags : [];
     return tags.some((t) => {
@@ -836,12 +892,16 @@ export async function getBookmarksByTag(
   return { bookmarks: paginated, totalCount, totalPages, fromCache: false };
 }
 
-/** Cache invalidation functions */
+/** Cache invalidation functions (Next.js cache and in-memory runtime cache) */
 export const invalidateBookmarksCache = (): void => {
+  // Clear in-memory runtime cache
+  fullDatasetMemoryCache = null;
+  envLogger.log("In-memory runtime cache cleared", undefined, { category: LOG_PREFIX });
+  
   if (USE_NEXTJS_CACHE) {
     safeRevalidateTag("bookmarks");
     safeRevalidateTag("bookmarks-s3-full");
-    console.log("[Bookmarks] Cache invalidated for tag: bookmarks");
+    envLogger.log("Next.js cache invalidated for bookmarks tags", undefined, { category: "Bookmarks" });
   }
 };
 export const invalidateBookmarksPageCache = (pageNumber: number): void => {

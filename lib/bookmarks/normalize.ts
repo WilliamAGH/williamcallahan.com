@@ -8,6 +8,7 @@
 
 import type { RawApiBookmark, UnifiedBookmark, BookmarkContent } from "@/types/bookmark";
 import { omitHtmlContent } from "./utils";
+import { envLogger } from "@/lib/utils/env-logger";
 
 /**
  * Normalizes a raw bookmark from the API into a UnifiedBookmark
@@ -18,7 +19,11 @@ import { omitHtmlContent } from "./utils";
  */
 export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBookmark | null {
   if (!raw || typeof raw !== "object") {
-    console.warn(`[Bookmarks Normalize] Invalid raw bookmark data at index ${index}:`, raw);
+    envLogger.log(
+      `Invalid raw bookmark data`,
+      { index, rawType: typeof raw },
+      { category: "BookmarksNormalize" },
+    );
     return null;
   }
 
@@ -59,7 +64,7 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       title: bestTitle,
       description: bestDescription,
       tags: normalizedTags,
-      ogImage: raw.content?.imageUrl, // Will be enhanced with OpenGraph data
+      ogImage: raw.content?.imageUrl || undefined, // Will be enhanced with OpenGraph data
       dateBookmarked: raw.createdAt,
       datePublished: raw.content?.datePublished,
       dateCreated: raw.createdAt,

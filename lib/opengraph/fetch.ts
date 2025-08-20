@@ -9,6 +9,7 @@
  */
 
 import { debug, debugWarn } from "@/lib/utils/debug";
+import { envLogger } from "@/lib/utils/env-logger";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import {
   getCachedJinaHtml,
@@ -364,9 +365,9 @@ async function fetchExternalOpenGraph(
     }
   } else {
     if (!bestImageUrl) {
-      console.warn(`[DataAccess/OpenGraph] ⚠️ No image found to persist for ${url}`);
+      envLogger.log(`No image found to persist`, { url }, { category: "OpenGraph" });
     } else if (!fallbackImageData?.idempotencyKey) {
-      console.warn(`[DataAccess/OpenGraph] ⚠️ No idempotencyKey provided, cannot persist image: ${bestImageUrl}`);
+      envLogger.log(`No idempotencyKey provided, cannot persist image`, { bestImageUrl }, { category: "OpenGraph" });
     }
   }
 
