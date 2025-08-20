@@ -22,6 +22,7 @@ import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControl } from "@/components/ui/pagination-control.client";
 import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel.client";
+import { getErrorMessage } from "@/types/api-responses";
 
 import type { BookmarksWithPaginationClientProps } from "@/types";
 
@@ -387,9 +388,10 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       });
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        console.error("[Bookmarks] Production refresh failed:", errorData?.message || response.statusText);
-        setRefreshError(`Production refresh failed: ${errorData?.message || response.statusText}`);
+        const errorData: unknown = await response.json().catch(() => null);
+        const errorMessage = getErrorMessage(errorData, response.statusText);
+        console.error("[Bookmarks] Production refresh failed:", errorMessage);
+        setRefreshError(`Production refresh failed: ${errorMessage}`);
         setTimeout(() => setRefreshError(null), 5000);
       } else {
         console.log("[Bookmarks] Production refresh initiated successfully");

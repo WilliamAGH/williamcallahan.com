@@ -94,13 +94,12 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
     // Redesigned card for horizontal layout on medium screens and up
     <div 
       id={projectId || undefined}
-      className="group rounded-lg border border-gray-300 dark:border-gray-900 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-400 opacity-0 animate-fade-in-up md:flex h-auto flex-col md:flex-row">
-      {" "}
-      {/* Use h-auto for responsive height */}
-      {/* Image Section (Left side on md+) */}
-      <div className="md:w-2/5 relative aspect-[16/10] md:aspect-auto overflow-hidden flex-shrink-0 hover:scale-105 transition-transform duration-300 ease-in-out w-full">
-        {" "}
-        {/* Adjust width for responsiveness */}
+      className="group rounded-lg border border-gray-300 dark:border-gray-900 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-400 opacity-0 animate-fade-in-up md:grid md:grid-cols-[minmax(0,3fr)_minmax(0,4fr)] flex flex-col">
+      {/* Use CSS Grid on desktop for better aspect ratio control */}
+      {/* Image Section (Left on desktop, top on mobile) */}
+      <div className="md:flex md:items-center md:justify-center md:py-4 md:pl-4">
+        <div className="relative aspect-[16/10] md:aspect-[4/3] lg:aspect-[16/10] overflow-hidden w-full md:rounded-lg">
+        {/* Consistent 16:10 aspect ratio across all viewports */}
         <ExternalLink
           href={url}
           title={`Visit ${name}'s website`}
@@ -116,7 +115,7 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
                 fill
                 quality={hasError ? 70 : 80}
                 priority={isPriority}
-                sizes="(max-width: 767px) 100vw, (min-width: 768px) 50vw"
+                sizes="(max-width: 767px) 100vw, (min-width: 768px) 60vw, (min-width: 1024px) 50vw"
                 placeholder="blur"
                 blurDataURL={getStaticImageUrl("/images/opengraph-placeholder.png")}
                 onError={handleImageError}
@@ -128,10 +127,10 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
           )}
           {/* Removed Title Overlay */}
         </ExternalLink>
+        </div>
       </div>
-      {/* Removed the div wrapper for the image */}
-      {/* Content Section (Right side on md+) */}
-      <div className="p-5 md:p-6 flex-1 w-full">
+      {/* Content Section (Right on desktop, bottom on mobile) */}
+      <div className="p-5 md:p-6 w-full flex flex-col">
         {" "}
         {/* Use flex-1 to take remaining space */}
         <div className="flex flex-col h-full justify-between">
