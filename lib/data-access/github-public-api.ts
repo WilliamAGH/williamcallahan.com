@@ -98,38 +98,70 @@ export async function getGithubActivity(): Promise<UserActivityView> {
   let s3ActivityData = await readGitHubActivityFromS3();
   let metadataKey = GITHUB_ACTIVITY_S3_KEY_FILE;
 
-  // Fallback: In non-production deployments (e.g., dev site), use the production file if
-  // the env-scoped file is missing OR clearly empty. This prevents blank charts on dev
-  // when the nightly job hasn’t run yet or hit rate limits.
-  const isNonProdDeployment = getEnvironment() !== "production";
+  // Enhanced fallback mechanism: Try production file for ANY environment when primary is missing
+  // This ensures data is always available, even during initial deployments
   const isEmptyData = (data: unknown): boolean => {
     if (!data || typeof data !== "object") return true;
-    const obj = data as { trailingYearData?: { data?: unknown[] } };
+    const obj = data as { trailingYearData?: { data?: unknown[]; totalContributions?: number } };
     const ty = obj.trailingYearData;
-    return !ty || !Array.isArray(ty.data) || ty.data.length === 0;
+    // Check both data array AND totalContributions to catch partially populated data
+    return !ty || !Array.isArray(ty.data) || ty.data.length === 0 || (ty.totalContributions ?? 0) === 0;
   };
 
-  if ((!s3ActivityData || isEmptyData(s3ActivityData)) && isNonProdDeployment) {
+  // Try fallback for ANY environment if primary data is missing or empty
+  if (!s3ActivityData || isEmptyData(s3ActivityData)) {
     const { envLogger } = await import("@/lib/utils/env-logger");
+    const currentEnv = getEnvironment();
+    
+    // Always try the production fallback file
+    const fallbackKey = GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK;
     envLogger.log(
-      `Using production fallback due to missing/empty env-scoped data`,
-      { fallbackKey: GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK },
+      `Primary data missing/empty for ${currentEnv}, attempting production fallback`,
+      { primaryKey: GITHUB_ACTIVITY_S3_KEY_FILE, fallbackKey },
       { category: "GitHubActivity" },
     );
-    const fallbackKey = GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK;
+    
     const fallbackData = await readGitHubActivityFromS3(fallbackKey);
-    // Only adopt fallback if it looks populated
+    
+    // Use fallback if it has valid data
     if (fallbackData && !isEmptyData(fallbackData)) {
       s3ActivityData = fallbackData;
       metadataKey = fallbackKey;
+      envLogger.log(
+        `Successfully using production fallback data`,
+        { environment: currentEnv, fallbackKey },
+        { category: "GitHubActivity" },
+      );
+    } else {
+      // If we're in production and both files are missing, try WITHOUT suffix
+      // This handles the case where files might be stored without environment suffix
+      if (currentEnv === "production" && GITHUB_ACTIVITY_S3_KEY_FILE.includes(".json")) {
+        const baseKey = GITHUB_ACTIVITY_S3_KEY_FILE.replace(/(-dev|-test)?\.json$/, ".json");
+        if (baseKey !== GITHUB_ACTIVITY_S3_KEY_FILE) {
+          const baseData = await readGitHubActivityFromS3(baseKey);
+          if (baseData && !isEmptyData(baseData)) {
+            s3ActivityData = baseData;
+            metadataKey = baseKey as typeof GITHUB_ACTIVITY_S3_KEY_FILE;
+            envLogger.log(
+              `Using base filename without environment suffix`,
+              { baseKey },
+              { category: "GitHubActivity" },
+            );
+          }
+        }
+      }
     }
-    // If still empty, do not attempt to write during build; GET path is read-only
-    // Build will just render “no data” and rely on public CDN read where possible
-    if (!s3ActivityData) {
+    
+    // Log critical error if still no data
+    if (!s3ActivityData || isEmptyData(s3ActivityData)) {
       const { envLogger } = await import("@/lib/utils/env-logger");
       envLogger.log(
-        `CRITICAL: No usable data found in S3 for either primary or fallback`,
-        { primaryKey: GITHUB_ACTIVITY_S3_KEY_FILE, fallbackKey: GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK },
+        `CRITICAL: No usable GitHub data found in any location`,
+        { 
+          primaryKey: GITHUB_ACTIVITY_S3_KEY_FILE, 
+          fallbackKey: GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK,
+          environment: currentEnv 
+        },
         { category: "GitHubActivity" },
       );
     }

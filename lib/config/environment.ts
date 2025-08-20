@@ -15,6 +15,9 @@ import type { Environment } from "@/types/config";
  * CRITICAL: During build time, we MUST use explicit environment variables
  * because the deployment URL is not yet known. The DEPLOYMENT_ENV variable
  * should be set in CI/CD to match the target deployment.
+ * 
+ * GITHUB ACTIVITY FIX: Always prefer DEPLOYMENT_ENV for consistency between
+ * build-time and runtime to prevent environment-specific file mismatches.
  */
 export function getEnvironment(): Environment {
   const isJest = typeof process !== "undefined" && !!process.env.JEST_WORKER_ID;
@@ -28,6 +31,8 @@ export function getEnvironment(): Environment {
       logger.info(`[Environment] Using explicit DEPLOYMENT_ENV: ${normalized}`);
       return normalized as Environment;
     }
+    // Log warning for invalid DEPLOYMENT_ENV values
+    logger.warn(`[Environment] Invalid DEPLOYMENT_ENV value: '${deploymentEnv}', falling back to URL detection`);
   }
 
   // PRIORITY 2: Try to infer from URLs (runtime detection)

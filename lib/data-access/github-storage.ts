@@ -79,12 +79,16 @@ export async function writeGitHubActivityToS3(
     }
 
     // 2) Non-degrading write: avoid overwriting a healthy dataset with empty/incomplete results
+    // BUT be more lenient - allow writes if data has meaningful content even if not "complete"
     const isIncomplete = (d: GitHubActivityApiResponse | null | undefined): boolean => {
       if (!d) return true;
       const ty = d.trailingYearData as { data?: unknown[]; dataComplete?: boolean; totalContributions?: number } | undefined;
       const hasData = Array.isArray(ty?.data) && (ty?.data?.length ?? 0) > 0;
-      const complete = ty?.dataComplete === true;
-      return !hasData || !complete;
+      const hasContributions = (ty?.totalContributions ?? 0) > 0;
+      
+      // Consider data valid if it has EITHER contribution data OR a totalContributions count
+      // This is less strict than before - we don't require dataComplete flag
+      return !hasData && !hasContributions;
     };
 
     // If new data looks incomplete, check existing
@@ -92,16 +96,30 @@ export async function writeGitHubActivityToS3(
       try {
         const existing = await readGitHubActivityFromS3(key);
         const existingIsHealthy = existing && !isIncomplete(existing);
+        
+        // Only skip write if existing data is actually better
         if (existingIsHealthy) {
-          debugLog(
-            `Non-degrading write: New GitHub activity appears incomplete; preserving existing healthy dataset`,
-            "warn",
-            { key },
-          );
-          return true; // skip write, keep healthy file
+          const existingContributions = existing.trailingYearData?.totalContributions ?? 0;
+          const newContributions = data.trailingYearData?.totalContributions ?? 0;
+          
+          // Allow write if new data has MORE contributions (even if incomplete)
+          if (newContributions > existingContributions) {
+            debugLog(
+              `Writing new data despite incomplete flag - has more contributions`,
+              "info",
+              { key, oldCount: existingContributions, newCount: newContributions },
+            );
+          } else {
+            debugLog(
+              `Non-degrading write: Preserving existing dataset with more data`,
+              "warn",
+              { key, existingCount: existingContributions, newCount: newContributions },
+            );
+            return true; // skip write, keep healthy file
+          }
         }
       } catch {
-        /* if read fails, proceed to best-effort write below */
+        /* if read fails, proceed to write new data */
       }
     }
 
