@@ -271,7 +271,16 @@ export async function getOpenGraphData(
       const ogError = new OgError(`Background refresh failed for ${normalizedUrl}`, "refresh", {
         originalError: error,
       });
-      envLogger.log(`Background refresh failed`, { url: normalizedUrl, error: String(ogError) }, { category: "OpenGraph" });
+      envLogger.log(
+        `Background refresh failed`,
+        {
+          url: normalizedUrl,
+          errorName: ogError.name,
+          errorMessage: ogError.message,
+          originalErrorMessage: error instanceof Error ? error.message : String(error),
+        },
+        { category: "OpenGraph" },
+      );
     });
 
     return {
