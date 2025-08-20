@@ -28,7 +28,9 @@ export function getAssetUrl(assetId: string | undefined | null): string | undefi
  * 2. Karakeep image asset (content.imageAssetId) - HIGH QUALITY
  * 3. Karakeep screenshot asset (content.screenshotAssetId) - GOOD FALLBACK
  * 4. Any other ogImage we might have fetched ourselves
- * 5. Karakeep-provided scraped image URL (content.imageUrl) - LOWEST PRIORITY (often favicons)
+ *
+ * NOTE: content.imageUrl is EXCLUDED as it's typically just a logo/favicon
+ * and not suitable for OpenGraph or preview cards.
  *
  * @param bookmark The bookmark to select an image for
  * @param options Configuration options for image selection
@@ -73,12 +75,8 @@ export function selectBestImage(
     return bookmark.ogImage;
   }
 
-  // PRIORITY 5: Karakeep's scraped image URL (lowest priority - often low-quality favicons)
-  // Only use if nothing better is available
-  if (content?.imageUrl) {
-    return content.imageUrl;
-  }
-
+  // NEVER use content.imageUrl - it's typically just a logo/favicon, not suitable for cards
+  
   return noImageResult;
 }
 
