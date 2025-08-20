@@ -104,26 +104,33 @@ export async function getGithubActivity(): Promise<UserActivityView> {
   const isNonProdDeployment = getEnvironment() !== "production";
   const isEmptyData = (data: unknown): boolean => {
     if (!data || typeof data !== "object") return true;
-    const obj = data as { trailingYearData?: { data?: unknown[]; totalContributions?: number } };
+    const obj = data as { trailingYearData?: { data?: unknown[] } };
     const ty = obj.trailingYearData;
-    return !ty || !Array.isArray(ty.data) || ty.data.length === 0 || (ty.totalContributions ?? 0) === 0;
+    return !ty || !Array.isArray(ty.data) || ty.data.length === 0;
   };
 
   if ((!s3ActivityData || isEmptyData(s3ActivityData)) && isNonProdDeployment) {
-    console.log(
-      `[DataAccess/GitHub:getGithubActivity] Using production fallback due to missing/empty env-scoped data. Fallback key: ${GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK}`,
+    const { envLogger } = await import("@/lib/utils/env-logger");
+    envLogger.log(
+      `Using production fallback due to missing/empty env-scoped data`,
+      { fallbackKey: GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK },
+      { category: "GitHubActivity" },
     );
-    metadataKey = GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK;
-    const fallbackData = await readGitHubActivityFromS3(metadataKey);
+    const fallbackKey = GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK;
+    const fallbackData = await readGitHubActivityFromS3(fallbackKey);
     // Only adopt fallback if it looks populated
     if (fallbackData && !isEmptyData(fallbackData)) {
       s3ActivityData = fallbackData;
+      metadataKey = fallbackKey;
     }
     // If still empty, do not attempt to write during build; GET path is read-only
     // Build will just render “no data” and rely on public CDN read where possible
     if (!s3ActivityData) {
-      console.error(
-        `[DataAccess/GitHub:getGithubActivity] CRITICAL: No usable data found in S3 for either ${GITHUB_ACTIVITY_S3_KEY_FILE} or fallback ${GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK}.`,
+      const { envLogger } = await import("@/lib/utils/env-logger");
+      envLogger.log(
+        `CRITICAL: No usable data found in S3 for either primary or fallback`,
+        { primaryKey: GITHUB_ACTIVITY_S3_KEY_FILE, fallbackKey: GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK },
+        { category: "GitHubActivity" },
       );
     }
   }
