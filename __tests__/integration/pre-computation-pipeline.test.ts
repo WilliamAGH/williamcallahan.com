@@ -212,10 +212,12 @@ describe("Pre-computation Pipeline Integration", () => {
       const originalEnv = process.env.NODE_ENV;
       const originalApiUrl = process.env.API_BASE_URL;
       const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+      const originalDeploymentEnv = process.env.DEPLOYMENT_ENV;
 
-      // Clear URL env vars to make NODE_ENV the primary determinant
+      // Clear URL and DEPLOYMENT_ENV vars to make NODE_ENV the primary determinant
       delete process.env.API_BASE_URL;
       delete process.env.NEXT_PUBLIC_SITE_URL;
+      delete process.env.DEPLOYMENT_ENV;
 
       // Test production paths
       process.env.NODE_ENV = "production";
@@ -233,6 +235,7 @@ describe("Pre-computation Pipeline Integration", () => {
       process.env.NODE_ENV = originalEnv;
       if (originalApiUrl) process.env.API_BASE_URL = originalApiUrl;
       if (originalSiteUrl) process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
+      if (originalDeploymentEnv) process.env.DEPLOYMENT_ENV = originalDeploymentEnv;
     });
 
     it("should not interfere between environments", async () => {
