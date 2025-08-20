@@ -280,7 +280,7 @@ const GitHubActivity = () => {
       });
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
+        const errorData = await response.json().catch(() => null) as { message?: string } | null;
         console.error("[Client] Production refresh failed:", errorData?.message || response.statusText);
       } else {
         console.log("[Client] Production refresh initiated successfully");

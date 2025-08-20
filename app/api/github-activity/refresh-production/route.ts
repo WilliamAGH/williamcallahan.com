@@ -10,6 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { envLogger } from "@/lib/utils/env-logger";
+import { getErrorMessage } from "@/types/api-responses";
 
 /**
  * POST handler for triggering production GitHub activity refresh
@@ -66,12 +67,14 @@ export async function POST(): Promise<NextResponse> {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
+      const errorData: unknown = await response.json().catch(() => null);
+      const errorMessage = getErrorMessage(errorData, response.statusText);
+      
       envLogger.log(
         "Production refresh request failed",
         { 
           status: response.status,
-          error: errorData?.message || response.statusText,
+          error: errorMessage,
         },
         { category: "GitHubActivityRefresh" },
       );
@@ -79,13 +82,13 @@ export async function POST(): Promise<NextResponse> {
       return NextResponse.json(
         { 
           message: "Failed to trigger production refresh",
-          error: errorData?.message || response.statusText,
+          error: errorMessage,
         },
         { status: response.status },
       );
     }
 
-    const result = await response.json();
+    const result: unknown = await response.json();
     
     envLogger.log(
       "Production refresh triggered successfully",

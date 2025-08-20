@@ -15,6 +15,7 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
+import { getErrorMessage } from "@/types/api-responses";
 
 import type { BookmarksWithOptionsClientProps } from "@/types";
 
@@ -404,9 +405,10 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       });
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        console.error("[Bookmarks] Production refresh failed:", errorData?.message || response.statusText);
-        setRefreshError(`Production refresh failed: ${errorData?.message || response.statusText}`);
+        const errorData: unknown = await response.json().catch(() => null);
+        const errorMessage = getErrorMessage(errorData, response.statusText);
+        console.error("[Bookmarks] Production refresh failed:", errorMessage);
+        setRefreshError(`Production refresh failed: ${errorMessage}`);
         setTimeout(() => setRefreshError(null), 5000);
       } else {
         console.log("[Bookmarks] Production refresh initiated successfully");
