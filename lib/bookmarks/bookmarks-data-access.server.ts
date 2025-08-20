@@ -828,37 +828,40 @@ export async function getBookmarksByTag(
   }
   console.log(`${LOG_PREFIX} Cache miss for tag "${tagSlug}". Falling back to full bookmark set filtering`);
   
-  // Check in-memory runtime cache first to avoid repeated S3 reads
+  // Check in-memory runtime cache first to avoid repeated S3 reads.
+  // In test environment, bypass the in-process cache so each test can
+  // provide different mocked datasets deterministically.
   let allBookmarks: UnifiedBookmark[];
   const now = Date.now();
-  
-  if (fullDatasetMemoryCache && (now - fullDatasetMemoryCache.timestamp) < FULL_DATASET_MEMORY_CACHE_TTL) {
+  const bypassMemoryCache = process.env.NODE_ENV === "test";
+
+  if (!bypassMemoryCache && fullDatasetMemoryCache && now - fullDatasetMemoryCache.timestamp < FULL_DATASET_MEMORY_CACHE_TTL) {
     envLogger.log(
       "Using in-memory runtime cache for full bookmarks dataset",
       { age: Math.round((now - fullDatasetMemoryCache.timestamp) / 1000), unit: "seconds" },
-      { category: LOG_PREFIX }
+      { category: LOG_PREFIX },
     );
     allBookmarks = fullDatasetMemoryCache.data;
   } else {
     envLogger.log("Reading full bookmarks dataset from S3 persistence", undefined, { category: LOG_PREFIX });
-    allBookmarks = (await getBookmarks(
-      {
-        includeImageData: true,
-        skipExternalFetch: false,
-        force: false,
-      } satisfies BookmarkLoadOptions,
-    )) as UnifiedBookmark[];
-    
-    // Update in-memory runtime cache
-    fullDatasetMemoryCache = {
-      data: allBookmarks,
-      timestamp: now
-    };
-    envLogger.log(
-      "Updated in-memory runtime cache",
-      { bookmarkCount: allBookmarks.length },
-      { category: LOG_PREFIX }
-    );
+    allBookmarks = (await getBookmarks({
+      includeImageData: true,
+      skipExternalFetch: false,
+      force: false,
+    } satisfies BookmarkLoadOptions)) as UnifiedBookmark[];
+
+    if (!bypassMemoryCache) {
+      // Update in-memory runtime cache
+      fullDatasetMemoryCache = {
+        data: allBookmarks,
+        timestamp: now,
+      };
+      envLogger.log(
+        "Updated in-memory runtime cache",
+        { bookmarkCount: allBookmarks.length },
+        { category: LOG_PREFIX },
+      );
+    }
   }
   const filteredBookmarks = allBookmarks.filter((b) => {
     const tags = Array.isArray(b.tags) ? b.tags : [];
