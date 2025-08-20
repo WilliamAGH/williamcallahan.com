@@ -25,9 +25,10 @@ export function getAssetUrl(assetId: string | undefined | null): string | undefi
  *
  * CRITICAL: Proper priority order for Karakeep bookmarks:
  * 1. Already persisted S3 CDN URLs (from ogImage) - BEST PERFORMANCE
- * 2. Karakeep-provided OpenGraph image URL (content.imageUrl) - USE AS-IS
- * 3. Karakeep screenshot asset (content.screenshotAssetId) - FALLBACK
- * 4. Only fetch ourselves if Karakeep provides nothing
+ * 2. Karakeep image asset (content.imageAssetId) - HIGH QUALITY
+ * 3. Karakeep screenshot asset (content.screenshotAssetId) - GOOD FALLBACK
+ * 4. Any other ogImage we might have fetched ourselves
+ * 5. Karakeep-provided scraped image URL (content.imageUrl) - LOWEST PRIORITY (often favicons)
  *
  * @param bookmark The bookmark to select an image for
  * @param options Configuration options for image selection
@@ -35,7 +36,7 @@ export function getAssetUrl(assetId: string | undefined | null): string | undefi
  *
  * @example
  * ```typescript
- * // Default behavior - use Karakeep data first
+ * // Default behavior - prioritize quality images
  * const imageUrl = selectBestImage(bookmark);
  *
  * // Exclude screenshots from fallback
@@ -57,24 +58,25 @@ export function selectBestImage(
     return bookmark.ogImage;
   }
 
-  // PRIORITY 2: Karakeep-provided OpenGraph image URL (use as-is)
-  if (content?.imageUrl) {
-    return content.imageUrl;
-  }
-
-  // PRIORITY 3: Karakeep image asset (requires API proxy)
+  // PRIORITY 2: Karakeep image asset (high quality, dedicated image)
   if (content?.imageAssetId) {
     return getAssetUrl(content.imageAssetId);
   }
 
-  // PRIORITY 4: Karakeep screenshot asset (if enabled)
+  // PRIORITY 3: Karakeep screenshot asset (good quality fallback)
   if (includeScreenshots && content?.screenshotAssetId) {
     return getAssetUrl(content.screenshotAssetId);
   }
 
-  // PRIORITY 5: Any other ogImage we might have fetched ourselves
+  // PRIORITY 4: Any other ogImage we might have fetched ourselves
   if (bookmark.ogImage) {
     return bookmark.ogImage;
+  }
+
+  // PRIORITY 5: Karakeep's scraped image URL (lowest priority - often low-quality favicons)
+  // Only use if nothing better is available
+  if (content?.imageUrl) {
+    return content.imageUrl;
   }
 
   return noImageResult;
