@@ -58,8 +58,10 @@ function isS3FullyConfigured(): boolean {
 let hasLoggedMissingS3Config = false;
 function logMissingS3ConfigOnce(context: string): void {
   if (!hasLoggedMissingS3Config) {
-    console.warn(
-      "[S3Utils] Missing S3 configuration (S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3_SERVER_URL is optional. All S3 operations will be skipped.",
+    envLogger.log(
+      "Missing S3 configuration (S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3_SERVER_URL is optional. All S3 operations will be skipped.",
+      undefined,
+      { category: "S3Utils" },
     );
     hasLoggedMissingS3Config = true;
   }
@@ -81,8 +83,10 @@ function isBinaryKey(key: string): boolean {
 // During build, S3 write operations are intentionally disabled so missing config is expected
 if (!S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
   if (process.env.NEXT_PHASE !== "phase-production-build") {
-    console.warn(
-      "[S3Utils] Missing one or more S3 configuration environment variables (S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3_SERVER_URL is optional. S3 operations may fail.",
+    envLogger.log(
+      "Missing one or more S3 configuration environment variables (S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3_SERVER_URL is optional. S3 operations may fail.",
+      undefined,
+      { category: "S3Utils" },
     );
   }
 }
@@ -185,8 +189,10 @@ async function validateContentSize(key: string): Promise<boolean> {
     const contentLength = response.ContentLength;
 
     if (contentLength && contentLength > MAX_S3_READ_SIZE) {
-      console.warn(
-        `[S3Utils] Object ${key} too large (${contentLength} bytes > ${MAX_S3_READ_SIZE} bytes). Skipping read to prevent memory exhaustion.`,
+      envLogger.log(
+        `Object too large. Skipping read to prevent memory exhaustion`,
+        { key, contentLength, max: MAX_S3_READ_SIZE },
+        { category: "S3Utils" },
       );
       return false;
     }
@@ -252,7 +258,7 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
     // Allow small binaries (e.g., logos) under pressure, but block anything exceeding MAX_S3_READ_SIZE.
     const canProceed = await validateContentSize(key);
     if (!canProceed) {
-      console.warn(`[S3Utils] System under memory pressure. Deferring binary read of ${key}`);
+      envLogger.log(`System under memory pressure. Deferring binary read`, { key }, { category: "S3Utils" });
       return null;
     }
   }
@@ -286,8 +292,10 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
         // Check content length before reading
         const contentLength = res.headers.get("content-length");
         if (contentLength && parseInt(contentLength, 10) > MAX_S3_READ_SIZE) {
-          console.warn(
-            `[S3Utils] CDN response too large (${contentLength} bytes > ${MAX_S3_READ_SIZE} bytes). Skipping.`,
+          envLogger.log(
+            `CDN response too large. Skipping`,
+            { contentLength: Number(contentLength), max: MAX_S3_READ_SIZE },
+            { category: "S3Utils" },
           );
           return null;
         }
@@ -953,7 +961,7 @@ export async function readBinaryS3(s3Key: string): Promise<Buffer | null> {
     return null;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
-    console.warn(`[S3Utils] Error reading binary file from S3 key ${s3Key}:`, message);
+    envLogger.log(`Error reading binary file from S3`, { s3Key, message }, { category: "S3Utils" });
     return null;
   }
 }

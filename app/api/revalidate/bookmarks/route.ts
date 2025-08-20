@@ -1,3 +1,4 @@
+import { envLogger } from "@/lib/utils/env-logger";
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -28,7 +29,7 @@ export function POST(request: NextRequest) {
   })();
   
   if (presentedToken !== expectedToken) {
-    console.warn('[Cache Invalidation] Unauthorized revalidation attempt');
+    envLogger.log('Unauthorized revalidation attempt', undefined, { category: 'CacheInvalidation' });
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }

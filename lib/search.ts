@@ -20,6 +20,7 @@ import { readJsonS3 } from "./s3-utils";
 import type { SerializedIndex } from "@/types/search";
 import { loadIndexFromJSON } from "./search/index-builder";
 import type { Project } from "../types/project";
+import { envLogger } from "@/lib/utils/env-logger";
 
 // Add near top of file (after imports) a dev log helper
 const IS_DEV = process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test";
@@ -104,7 +105,7 @@ async function loadOrBuildIndex<T>(
         console.log(`[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`);
       } else {
         // Fall back to building in-memory
-        console.warn(`[Search] Failed to load ${cacheKey} from S3, building in-memory`);
+        envLogger.log(`Failed to load ${cacheKey} from S3, building in-memory`, undefined, { category: "Search" });
         index = buildFn();
       }
     } catch (error) {
@@ -165,7 +166,7 @@ function searchContent<T>(
         return resultIds.has(itemId);
       });
     } catch (error) {
-      console.warn("[Search] MiniSearch failed, falling back to substring search:", error);
+      envLogger.log("MiniSearch failed, falling back to substring search", { error: String(error) }, { category: "Search" });
       // Fall through to substring search
     }
   }
@@ -576,7 +577,7 @@ async function getBookmarksIndex(): Promise<{
     devLog("[getBookmarksIndex] fetched bookmarks via direct import", { count: bookmarks.length });
   } catch (directErr) {
     devLog("[getBookmarksIndex] falling back to API fetch");
-    console.warn("[Search] Direct bookmarks fetch failed, falling back to /api/bookmarks", directErr);
+    envLogger.log("Direct bookmarks fetch failed, falling back to /api/bookmarks", { error: String(directErr) }, { category: "Search" });
 
     const { getBaseUrl } = await import("@/lib/utils/get-base-url");
     const apiUrl = `${getBaseUrl()}/api/bookmarks?limit=10000`;
@@ -654,7 +655,7 @@ async function getBookmarksIndex(): Promise<{
 
     if (!slug) {
       // Log warning but continue processing other bookmarks
-      console.warn(`[Search] Warning: No slug found for bookmark ${b.id}. Title: ${b.title}, URL: ${b.url}`);
+      envLogger.log("No slug found for bookmark", { id: b.id, title: b.title, url: b.url }, { category: "Search" });
       // Skip this bookmark instead of throwing
       continue;
     }
