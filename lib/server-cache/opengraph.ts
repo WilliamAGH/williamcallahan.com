@@ -8,6 +8,7 @@ import type { ICache } from "@/types/cache";
 import type { OgResult, OgCacheEntry } from "@/types/opengraph";
 import { ogResultSchema } from "@/types/seo/opengraph";
 import { OPENGRAPH_CACHE_DURATION } from "@/lib/constants";
+import { envLogger } from "@/lib/utils/env-logger";
 import { TIME_CONSTANTS } from "@/lib/constants";
 
 const OPENGRAPH_PREFIX = "og-data:";
@@ -30,7 +31,11 @@ export function setOpenGraphData(this: ICache, url: string, data: OgResult, isFa
     : { ...data, timestamp: data.timestamp || now };
 
   if (!validationResult.success) {
-    console.warn(`[ServerCache] OpenGraph data failed strict validation for ${url} – caching anyway.`);
+    envLogger.log(
+      `OpenGraph data failed strict validation for ${url} – caching anyway`,
+      { url },
+      { category: "ServerCache" },
+    );
   }
 
   const cacheEntry: OgCacheEntry = {
@@ -76,7 +81,11 @@ export function clearOpenGraphData(this: ICache, url?: string): void {
 export function deleteOpenGraphData(this: ICache, url: string): void {
   const key = OPENGRAPH_PREFIX + url;
   this.del(key);
-  console.log(`[ServerCache] Deleted corrupted OpenGraph cache entry: ${url}`);
+  envLogger.log(
+    `Deleted corrupted OpenGraph cache entry`,
+    { url },
+    { category: "ServerCache" },
+  );
 }
 
 /**
@@ -91,8 +100,10 @@ export function invalidateStaleOpenGraphData(this: ICache, pageUrl: string, reas
   // Check if we recently attempted a refresh (cooldown period)
   if (lastRefresh && now - lastRefresh < REFRESH_COOLDOWN_MS) {
     const remainingCooldown = Math.round((REFRESH_COOLDOWN_MS - (now - lastRefresh)) / 1000);
-    console.log(
-      `[ServerCache] Skipping OpenGraph refresh for ${pageUrl} - in cooldown period (${remainingCooldown}s remaining)`,
+    envLogger.log(
+      `Skipping OpenGraph refresh for ${pageUrl} - in cooldown period`,
+      { pageUrl, remainingCooldownSeconds: remainingCooldown },
+      { category: "ServerCache" },
     );
     return false;
   }
@@ -101,14 +112,21 @@ export function invalidateStaleOpenGraphData(this: ICache, pageUrl: string, reas
   try {
     deleteOpenGraphData.call(this, pageUrl);
   } catch (error) {
-    console.error(`[ServerCache] Failed to delete OpenGraph data for ${pageUrl}:`, error);
+    envLogger.log(
+      `Failed to delete OpenGraph data for ${pageUrl}`,
+      { error: error instanceof Error ? error.message : String(error), pageUrl },
+      { category: "ServerCache" },
+    );
     return false;
   }
 
   // Track this refresh attempt
   this.set(refreshKey, now, REFRESH_COOLDOWN_MS / 1000);
 
-  console.log(`[OpenGraph Auto-Recovery] 🔄 Invalidated stale cache for ${pageUrl}. Reason: ${reason}`);
-  console.log(`[OpenGraph Auto-Recovery] ⏱️ Next refresh allowed in ${Math.round(REFRESH_COOLDOWN_MS / 1000)}s`);
+  envLogger.log(
+    `OpenGraph Auto-Recovery: Invalidated stale cache`,
+    { pageUrl, reason, nextRefreshAllowedInSeconds: Math.round(REFRESH_COOLDOWN_MS / 1000) },
+    { category: "OpenGraphAutoRecovery" },
+  );
   return true;
 }

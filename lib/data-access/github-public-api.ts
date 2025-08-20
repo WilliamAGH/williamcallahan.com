@@ -142,12 +142,12 @@ export async function getGithubActivity(): Promise<UserActivityView> {
       // If we're in production and both files are missing, try WITHOUT suffix
       // This handles the case where files might be stored without environment suffix
       if (currentEnv === "production" && GITHUB_ACTIVITY_S3_KEY_FILE.includes(".json")) {
-        const baseKey = GITHUB_ACTIVITY_S3_KEY_FILE.replace(/(-dev|-test)?\.json$/, ".json");
+        const baseKey = GITHUB_ACTIVITY_S3_KEY_FILE.replace(/(-dev|-test)?\.json$/, ".json") as `json/github-activity/activity_data${string}.json`;
         if (baseKey !== GITHUB_ACTIVITY_S3_KEY_FILE) {
           const baseData = await readGitHubActivityFromS3(baseKey);
           if (baseData && !isEmptyData(baseData)) {
             s3ActivityData = baseData;
-            metadataKey = baseKey as typeof GITHUB_ACTIVITY_S3_KEY_FILE;
+            metadataKey = baseKey;
             envLogger.log(
               `Using base filename without environment suffix`,
               { baseKey },
@@ -160,7 +160,6 @@ export async function getGithubActivity(): Promise<UserActivityView> {
     
     // Log critical error if still no data
     if (!s3ActivityData || isEmptyData(s3ActivityData)) {
-      const { envLogger } = await import("@/lib/utils/env-logger");
       envLogger.log(
         `CRITICAL: No usable GitHub data found in any location`,
         { 

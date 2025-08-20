@@ -412,7 +412,17 @@ export async function refreshOpenGraphData(
       const ogError = new OgError(`Failed to refresh OpenGraph data for ${normalizedUrl}`, "refresh", {
         originalError: error,
       });
-      console.error(`[DataAccess/OpenGraph] ${ogError.message}:`, ogError);
+      envLogger.log(
+        ogError.message,
+        {
+          errorName: ogError.name,
+          errorMessage: ogError.message,
+          stack: ogError.stack,
+          cause: err instanceof Error ? err.message : String(err),
+          url: normalizedUrl,
+        },
+        { category: "OpenGraph" },
+      );
 
       const fallback = createFallbackResult(normalizedUrl, ogError.message, validatedFallback);
       ServerCacheInstance.setOpenGraphData(normalizedUrl, fallback, true);
