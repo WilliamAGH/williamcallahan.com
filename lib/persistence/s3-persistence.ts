@@ -332,6 +332,12 @@ export async function persistImageAndGetS3Url(
   idempotencyKey?: string,
   pageUrl?: string,
 ): Promise<string | null> {
+  // Check if we're in read-only mode (build phase, tests, etc.)
+  if (isS3ReadOnly()) {
+    console.log(`[OpenGraph S3] Read-only mode - skipping image persistence`);
+    return null;
+  }
+  
   const displayUrl = imageUrl.startsWith("data:") ? `${imageUrl.substring(0, 50)}...[base64 data truncated]` : imageUrl;
 
   console.log(`[OpenGraph S3] 🔄 Persisting image synchronously: ${displayUrl}`);
@@ -375,8 +381,8 @@ export async function persistImageAndGetS3UrlWithStatus(
   idempotencyKey?: string,
   pageUrl?: string,
 ): Promise<PersistImageResult> {
-  // Web runtime: don't attempt to persist immediately. Validate the URL first so we don't store hot-link dead images.
-  if (process.env.IS_DATA_UPDATER !== "true") {
+  // Check if we're in read-only mode (build phase, tests, etc.)
+  if (isS3ReadOnly()) {
     // Skip validation for internal /api/assets/ URLs - these are our own proxy endpoints
     // and should always be valid. Also skip data URLs.
     const isInternalAsset = imageUrl.startsWith("/api/assets/");
@@ -488,6 +494,12 @@ export async function persistImageBufferToS3(
   idempotencyKey?: string,
   pageUrl?: string,
 ): Promise<string | null> {
+  // Check if we're in read-only mode (build phase, tests, etc.)
+  if (isS3ReadOnly()) {
+    console.log(`[OpenGraph S3] Read-only mode - skipping Karakeep asset persistence for ${assetId}`);
+    return null;
+  }
+  
   try {
     console.log(`[OpenGraph S3] 🔄 Processing Karakeep asset buffer: ${assetId} (${imageBuffer.length} bytes)`);
 
