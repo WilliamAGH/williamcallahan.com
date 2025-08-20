@@ -8,6 +8,7 @@
  * class's prototype from files in the `lib/server-cache/` directory.
  */
 import { assertServerOnly } from "./utils";
+import { envLogger } from "@/lib/utils/env-logger";
 
 import type { ICache, CacheStats, CacheValue, ServerCacheMapEntry } from "@/types/cache";
 import { SERVER_CACHE_DURATION, MEMORY_THRESHOLDS } from "./constants";
@@ -53,7 +54,11 @@ export class ServerCache implements ICache {
 
     // Skip eviction if cache is essentially empty (less than 1MB)
     if (currentSizeBytes < 1024 * 1024) {
-      console.log(`[ServerCache] Skipping eviction - cache size only ${Math.round(currentSizeBytes / 1024)}KB`);
+      envLogger.log(
+        `Skipping eviction - cache size only ${Math.round(currentSizeBytes / 1024)}KB`,
+        undefined,
+        { category: "ServerCache" },
+      );
       return;
     }
 
@@ -73,8 +78,10 @@ export class ServerCache implements ICache {
       removedCount++;
     }
 
-    console.log(
-      `[ServerCache] Proactive eviction complete. Removed ${removedCount} entries (${Math.round(removedBytes / 1024)}KB)`,
+    envLogger.log(
+      `Proactive eviction complete. Removed ${removedCount} entries (${Math.round(removedBytes / 1024)}KB)`,
+      undefined,
+      { category: "ServerCache" },
     );
   }
 
@@ -126,8 +133,10 @@ export class ServerCache implements ICache {
       if (Buffer.isBuffer(value)) {
         size = value.byteLength;
         if (size > 10 * 1024 * 1024) {
-          console.warn(
-            `[ServerCache] Rejected ${Math.round(size / 1024)}KB buffer (key="${key}") – exceeds 10MB item limit`,
+          envLogger.log(
+            `Rejected ${Math.round(size / 1024)}KB buffer – exceeds 10MB item limit`,
+            { key },
+            { category: "ServerCache" },
           );
           return false;
         }
@@ -149,7 +158,7 @@ export class ServerCache implements ICache {
 
       // If still too big after eviction, reject
       if (this.totalSize + size > this.maxSize) {
-        console.warn(`[ServerCache] Cache full, cannot store key: ${key}`);
+        envLogger.log("Cache full, cannot store key", { key }, { category: "ServerCache" });
         return false;
       }
 
@@ -231,8 +240,10 @@ export class ServerCache implements ICache {
 
     if (this.failureCount >= this.maxFailures && !this.disabled) {
       this.disabled = true;
-      console.warn(
-        `[ServerCache] Circuit breaker activated after ${this.failureCount} failures. Cache operations disabled to prevent system instability.`,
+      envLogger.log(
+        `Circuit breaker activated after ${this.failureCount} failures. Cache operations disabled to prevent system instability.`,
+        undefined,
+        { category: "ServerCache" },
       );
     }
   }
@@ -245,7 +256,7 @@ export class ServerCache implements ICache {
   public clearAllCaches(): void {
     // If disabled, don't attempt cleanup
     if (this.disabled) {
-      console.warn("[ServerCache] Cache is disabled, skipping clear operation");
+      envLogger.log("Cache is disabled, skipping clear operation", undefined, { category: "ServerCache" });
       return;
     }
 
@@ -307,12 +318,16 @@ export class ServerCache implements ICache {
     if (memUsage.rss < safeThreshold) {
       this.disabled = false;
       this.failureCount = 0;
-      console.log(
-        `[ServerCache] Circuit breaker reset. Memory usage ${Math.round(memUsage.rss / 1024 / 1024)}MB is below safe threshold.`,
+      envLogger.log(
+        `Circuit breaker reset. Memory usage ${Math.round(memUsage.rss / 1024 / 1024)}MB is below safe threshold.`,
+        undefined,
+        { category: "ServerCache" },
       );
     } else {
-      console.warn(
-        `[ServerCache] Cannot reset circuit breaker. Memory usage ${Math.round(memUsage.rss / 1024 / 1024)}MB still above safe threshold.`,
+      envLogger.log(
+        `Cannot reset circuit breaker. Memory usage ${Math.round(memUsage.rss / 1024 / 1024)}MB still above safe threshold.`,
+        { rssMB: Math.round(memUsage.rss / 1024 / 1024) },
+        { category: "ServerCache" },
       );
     }
   }
@@ -359,8 +374,10 @@ function attachHelpers<T extends Record<string, unknown>>(prototype: object, hel
     // Only attach functions to avoid polluting the prototype with constants/objects
     if (typeof value !== "function") continue;
     if (key in prototype) {
-      console.warn(
-        `[ServerCache] Overwriting existing method '${key}' on prototype while attaching '${helperName}' helpers.`,
+      envLogger.log(
+        `Overwriting existing method '${key}' on prototype while attaching '${helperName}' helpers.`,
+        undefined,
+        { category: "ServerCache" },
       );
     }
     // Define non-enumerable to keep prototype surface tidy
