@@ -158,42 +158,58 @@ export function OptimizedCardImage({
 }: OptimizedCardImageProps): React.JSX.Element {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 1;
 
-  const shouldShowReal = src && !errored;
+  // Detect if this is a proxy URL that needs special handling
+  const isProxyUrl = src?.startsWith("/api/assets/") || src?.startsWith("/api/og-image");
+  
+  // For proxy URLs (especially screenshots), be more lenient with errors
+  const shouldShowReal = src && (!errored || (isProxyUrl && retryCount < maxRetries));
 
-  if (!shouldShowReal) {
-    // If the primary image source (ogImage) fails or is missing,
-    // always fall back to the generic static placeholder.
-    // Do NOT attempt to fetch a logo as a fallback.
+  // No source provided - show placeholder
+  if (!src) {
     return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
   }
 
-  if (!shouldShowReal && logoDomain) {
-    return (
-      <LogoImage
-        src={`/api/logo?website=${encodeURIComponent(logoDomain)}`}
-        width={130}
-        height={80}
-        alt={alt}
-        className="object-contain max-w-[60%] max-h-[60%]"
-      />
-    );
+  // Source provided but errored after retries - show placeholder
+  if (errored && (!isProxyUrl || retryCount >= maxRetries)) {
+    // Log for debugging but don't spam with proxy URL retries
+    if (!isProxyUrl || retryCount === 0) {
+      console.warn(`[OptimizedCardImage] Failed to load image: ${src}, showing placeholder`);
+    }
+    return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
   }
 
-  // Real image case with placeholder first
+  // Real image case - includes screenshots and other proxy URLs
   return (
     <Image
-      src={shouldShowReal && src ? src : Placeholder}
+      src={src}
       alt={alt}
       fill
       sizes="(max-width:768px) 100vw, 50vw"
       quality={80}
-      unoptimized={!!shouldShowReal} // placeholder is local, real may be CDN
+      // Proxy URLs need unoptimized=true to bypass Next.js image optimization
+      unoptimized={isProxyUrl}
       placeholder="empty"
       className={`object-cover transition-opacity duration-200 ${className}`}
       style={{ opacity: loaded ? 1 : 0.2 }}
-      onLoad={() => setLoaded(true)}
-      onError={() => setErrored(true)}
+      onLoad={() => {
+        setLoaded(true);
+        setErrored(false); // Clear error state on successful load
+      }}
+      onError={() => {
+        // For proxy URLs, retry once before giving up
+        if (isProxyUrl && retryCount < maxRetries) {
+          console.log(`[OptimizedCardImage] Retrying proxy URL: ${src}`);
+          setRetryCount(prev => prev + 1);
+          // Force a re-render by toggling error state
+          setErrored(false);
+          setTimeout(() => setErrored(true), 100);
+        } else {
+          setErrored(true);
+        }
+      }}
     />
   );
 }

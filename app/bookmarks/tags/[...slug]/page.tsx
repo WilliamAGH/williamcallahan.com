@@ -27,7 +27,8 @@ import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { tagToSlug, sanitizeUnicode } from "@/lib/utils/tag-utils";
 import type { BookmarkTagPageContext } from "@/types";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
+import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 
 /**
  * Generate static paths for tag pages at build time
@@ -51,7 +52,8 @@ export async function generateStaticParams() {
   bookmarks.forEach((b) => {
     (Array.isArray(b.tags) ? b.tags : []).forEach((t: string | { name: string }) => {
       const tagName = typeof t === "string" ? t : t.name;
-      const slug = tagToSlug(tagName);
+      const normalized = tagToSlug(tagName);
+      const slug = sanitizeUnicode(normalized);
       if (!tagCounts[slug]) {
         tagCounts[slug] = 0;
       }
@@ -59,8 +61,6 @@ export async function generateStaticParams() {
     });
   });
 
-  // Import constants for pagination calculation
-  const { BOOKMARKS_PER_PAGE } = await import("@/lib/constants");
   const params: { slug: string[] }[] = [];
 
   for (const tagSlug in tagCounts) {
@@ -185,7 +185,7 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
   const result = await getBookmarksByTag(sanitizedSlug, currentPage);
 
   if (!result.bookmarks || result.bookmarks.length === 0) {
-    redirect("/bookmarks");
+    notFound();
   }
 
   const tagDisplayName =
