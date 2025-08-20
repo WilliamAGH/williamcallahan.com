@@ -11,6 +11,7 @@
 
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import type { UnifiedBookmark } from "@/types";
+import { bookmarksSearchResponseSchema } from "@/types/bookmark";
 import { ArrowRight, Loader2, RefreshCw, Search } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type React from "react";
@@ -59,6 +60,8 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   const [searchResults, setSearchResults] = useState<UnifiedBookmark[] | null>(null);
   const [isSearchingAPI, setIsSearchingAPI] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [showCrossEnvRefresh, setShowCrossEnvRefresh] = useState(false);
+  const [isRefreshingProduction, setIsRefreshingProduction] = useState(false);
   // ---------------------------------------------------------------------------
   // When the user is performing a TEXT SEARCH we paginate purely on the client
   // (because we already fetched the *entire* result-set via /api/search/bookmarks).
@@ -104,16 +107,14 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   });
 
   // Determine if refresh button should be shown
-  const coolifyUrl = process.env.NEXT_PUBLIC_COOLIFY_URL;
-  const targetUrl = "https://williamcallahan.com";
-  let showRefreshButton = true; // Default to true
-  if (coolifyUrl) {
-    const normalizedCoolifyUrl = coolifyUrl.endsWith("/") ? coolifyUrl.slice(0, -1) : coolifyUrl;
-    const normalizedTargetUrl = targetUrl.endsWith("/") ? targetUrl.slice(0, -1) : targetUrl;
-    if (normalizedCoolifyUrl === normalizedTargetUrl) {
-      showRefreshButton = false;
-    }
-  }
+  // Show refresh button for non-production environments (development, test, staging)
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  const isDev = process.env.NODE_ENV === "development";
+  
+  // Show refresh button if:
+  // 1. We're in development mode (NODE_ENV=development), OR
+  // 2. NEXT_PUBLIC_SITE_URL is not the production URL (https://williamcallahan.com)
+  const showRefreshButton = isDev || (siteUrl && siteUrl !== "https://williamcallahan.com");
 
   // Set mounted state once after hydration
   useEffect(() => {
@@ -154,8 +155,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
 
         const json: unknown = await response.json();
 
-        // Validate the API response using dynamic import to comply with codebase rules
-        const { bookmarksSearchResponseSchema } = await import("@/types/bookmark");
+        // Validate the API response
         const validation = bookmarksSearchResponseSchema.safeParse(json);
         if (!validation.success) {
           console.error("[BookmarksSearch] Invalid API response format:", validation.error);
@@ -341,6 +341,10 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       if (result.status === "success") {
         mutate();
         setLastRefreshed(new Date());
+        // Show cross-environment refresh option for non-production
+        if (showRefreshButton && !isRefreshingProduction) {
+          setShowCrossEnvRefresh(true);
+        }
         router.refresh();
       }
     } catch (err: unknown) {
@@ -365,7 +369,39 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       // Ensure timeout is always cleared
       clearTimeout(timeoutId);
     }
-  }, [mutate, router]);
+  }, [mutate, router, showRefreshButton, isRefreshingProduction]);
+
+  // Handler for refreshing production environment bookmarks
+  const handleProductionRefresh = async () => {
+    setIsRefreshingProduction(true);
+    setShowCrossEnvRefresh(false);
+    
+    try {
+      console.log("[Bookmarks] Requesting production bookmarks refresh");
+      // Call a special endpoint that will trigger production refresh
+      const response = await fetch("/api/bookmarks/refresh-production", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error("[Bookmarks] Production refresh failed:", errorData?.message || response.statusText);
+        setRefreshError(`Production refresh failed: ${errorData?.message || response.statusText}`);
+        setTimeout(() => setRefreshError(null), 5000);
+      } else {
+        console.log("[Bookmarks] Production refresh initiated successfully");
+      }
+    } catch (error) {
+      console.error("[Bookmarks] Failed to trigger production refresh:", error);
+      setRefreshError("Failed to trigger production refresh");
+      setTimeout(() => setRefreshError(null), 5000);
+    } finally {
+      setIsRefreshingProduction(false);
+    }
+  };
 
   // ---------------------------------------------------------------------------
   // Reset to page 1 whenever search query or selected tag changes.
@@ -521,7 +557,10 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           {showRefreshButton && (
             <button
               type="button"
-              onClick={refreshBookmarks}
+              onClick={() => {
+                setShowCrossEnvRefresh(false);
+                void refreshBookmarks();
+              }}
               disabled={isRefreshing}
               className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               aria-label="Refresh Bookmarks"
@@ -531,10 +570,43 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
             </button>
           )}
 
+          {/* Display Refresh Status */}
+          {isRefreshing && (
+            <div className="mt-2 text-sm text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
+              <div className="flex items-center">
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                <span>Refreshing bookmarks... This may take several minutes</span>
+              </div>
+            </div>
+          )}
           {/* Display Refresh Error */}
-          {refreshError && (
+          {refreshError && !isRefreshing && (
             <div className="mt-2 text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg">
               {refreshError}
+            </div>
+          )}
+          {/* Cross-environment refresh option */}
+          {showCrossEnvRefresh && !isRefreshing && (
+            <div className="mt-2 text-sm text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
+              {isRefreshingProduction ? (
+                <span className="flex items-center">
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Triggering production refresh...
+                </span>
+              ) : (
+                <>
+                  Local refresh completed. Would you like to{" "}
+                  <button
+                    type="button"
+                    onClick={handleProductionRefresh}
+                    className="underline hover:text-blue-700 dark:hover:text-blue-200 font-medium"
+                    disabled={isRefreshingProduction}
+                  >
+                    refresh production environment as well
+                  </button>
+                  ?
+                </>
+              )}
             </div>
           )}
         </div>
