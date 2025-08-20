@@ -67,12 +67,21 @@ export async function acquireDistributedLock(config: LockConfig): Promise<LockRe
           };
         }
         
-        // Lock is expired, we can try to acquire it
+        // Lock is expired, delete it before attempting to acquire
         envLogger.log(
-          "Found expired lock, attempting cleanup",
+          "Found expired lock, deleting before re-acquire",
           { holder: existing.instanceId, ageMs: age },
           { category: logCategory }
         );
+        
+        // Delete the stale lock
+        try {
+          await deleteFromS3(lockKey);
+          envLogger.debug("Expired lock deleted successfully", undefined, { category: logCategory });
+        } catch (cleanupError) {
+          // Best-effort cleanup; proceed to write and let retries handle contention
+          envLogger.debug(`Failed to delete expired lock: ${String(cleanupError)}`, undefined, { category: logCategory });
+        }
       }
     } catch (error: unknown) {
       if (!isS3Error(error) || error.$metadata?.httpStatusCode !== 404) {
