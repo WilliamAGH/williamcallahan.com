@@ -277,15 +277,12 @@ export function EducationClient({
                   >
                     Type
                   </th>
-                  <th scope="col" className="relative px-6 py-3">
-                    <span className="sr-only">Actions</span>
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-800">
                 {filteredTableData.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                       No results found. Try adjusting your search or filters.
                     </td>
                   </tr>
@@ -307,7 +304,22 @@ export function EducationClient({
                                 className="h-6 w-6 mr-2 object-contain rounded-md"
                               />
                             )}
-                            {item.institution}
+                            {item.website ? (
+                              <a
+                                href={item.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 
+                                         underline decoration-gray-300 dark:decoration-gray-600 decoration-1 
+                                         underline-offset-2 hover:decoration-blue-600 dark:hover:decoration-blue-400 
+                                         transition-colors duration-200 focus:outline-none focus:ring-2 
+                                         focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded-sm"
+                              >
+                                {item.institution}
+                              </a>
+                            ) : (
+                              item.institution
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -324,18 +336,6 @@ export function EducationClient({
                           >
                             {item.type ? item.type.charAt(0).toUpperCase() + item.type.slice(1) : ""}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          {item.website && (
-                            <a
-                              href={item.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                            >
-                              View
-                            </a>
-                          )}
                         </td>
                       </tr>
                     );
