@@ -134,31 +134,44 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   // Skip x-refresh-secret check if authenticated as cron job
   if (!isCronJob) {
-    const secret = request.headers.get("x-refresh-secret");
-    const serverSecret = process.env.GITHUB_REFRESH_SECRET;
-
-    if (!serverSecret) {
-      console.error("[API Refresh] GITHUB_REFRESH_SECRET is not set – refusing to run refresh.");
-      return NextResponse.json({ message: "Server mis-configuration: secret missing." }, { status: 500 });
-    }
-
-    if (secret !== serverSecret) {
-      const generateKeyCommand =
-        "node -e \"import('crypto').then(crypto => console.log(crypto.randomBytes(32).toString('hex')))\"";
-      console.warn(
-        `[API Refresh] Unauthorized: 'x-refresh-secret' header invalid or missing.\n    Ensure GITHUB_REFRESH_SECRET is set on the server.\n    To generate a new secret, run in terminal: ${generateKeyCommand}`,
+    // Allow unauthenticated refresh in non-production environments
+    const isProduction = process.env.DEPLOYMENT_ENV === "production" || 
+                        process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
+    
+    if (!isProduction) {
+      envLogger.log(
+        "Allowing unauthenticated refresh in non-production environment",
+        { deploymentEnv: process.env.DEPLOYMENT_ENV, siteUrl: process.env.NEXT_PUBLIC_SITE_URL },
+        { category: "GitHubActivityRefresh" },
       );
+    } else {
+      // Production environment requires authentication
+      const secret = request.headers.get("x-refresh-secret");
+      const serverSecret = process.env.GITHUB_REFRESH_SECRET;
 
-      const exampleCurl =
-        "curl -X POST -H 'Content-Type: application/json' -H 'x-refresh-secret: YOUR_ACTUAL_SECRET' http://localhost:3000/api/github-activity/refresh";
+      if (!serverSecret) {
+        console.error("[API Refresh] GITHUB_REFRESH_SECRET is not set – refusing to run refresh.");
+        return NextResponse.json({ message: "Server mis-configuration: secret missing." }, { status: 500 });
+      }
 
-      return NextResponse.json(
-        {
-          message: `Unauthorized. Refresh secret invalid or missing. Ensure 'x-refresh-secret' header is set correctly. Example: ${exampleCurl}. See server logs for more details.`,
-          code: "UNAUTHORIZED_REFRESH_SECRET",
-        },
-        { status: 401 },
-      );
+      if (secret !== serverSecret) {
+        const generateKeyCommand =
+          "node -e \"import('crypto').then(crypto => console.log(crypto.randomBytes(32).toString('hex')))\"";
+        console.warn(
+          `[API Refresh] Unauthorized: 'x-refresh-secret' header invalid or missing.\n    Ensure GITHUB_REFRESH_SECRET is set on the server.\n    To generate a new secret, run in terminal: ${generateKeyCommand}`,
+        );
+
+        const exampleCurl =
+          "curl -X POST -H 'Content-Type: application/json' -H 'x-refresh-secret: YOUR_ACTUAL_SECRET' http://localhost:3000/api/github-activity/refresh";
+
+        return NextResponse.json(
+          {
+            message: `Unauthorized. Refresh secret invalid or missing. Ensure 'x-refresh-secret' header is set correctly. Example: ${exampleCurl}. See server logs for more details.`,
+            code: "UNAUTHORIZED_REFRESH_SECRET",
+          },
+          { status: 401 },
+        );
+      }
     }
   }
 
