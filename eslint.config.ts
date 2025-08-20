@@ -3,6 +3,7 @@
  * Cleaned up monolithic config with clear organization
  */
 
+import { createRequire } from "node:module";
 import js from "@eslint/js";
 import nextPlugin from "@next/eslint-plugin-next";
 import jestPlugin from "eslint-plugin-jest";
@@ -12,6 +13,9 @@ import reactJsxRuntime from "eslint-plugin-react/configs/jsx-runtime.js";
 import reactRecommended from "eslint-plugin-react/configs/recommended.js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
+
+// ESM-compatible require for loading JSON files
+const requireJson = createRequire(import.meta.url);
 // Local ESLint Rule Types
 import type { Rule } from "eslint";
 
@@ -478,8 +482,8 @@ const config = tseslint.config(
               // Import the static mapping at the top of the file
               let staticMapping: Record<string, string> | null = null;
               try {
-                // Use require to load the JSON file synchronously
-                staticMapping = require("./lib/data-access/static-image-mapping.json");
+                // Use ESM-compatible require to load the JSON file synchronously
+                staticMapping = requireJson("./lib/data-access/static-image-mapping.json");
               } catch {
                 // If we can't load the mapping, we'll still report errors but can't check if images exist
               }
