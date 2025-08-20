@@ -9,6 +9,11 @@ import { getEnvironment } from "@/lib/config/environment";
 import type { Environment } from "@/types/config";
 import type { LogOptions } from "@/types/logging";
 
+// String truncation configuration
+const STRING_TRUNCATE_LENGTH = 50;
+const TITLE_PREVIEW_LENGTH = 30;
+const ELLIPSIS = "...";
+
 class EnvLogger {
   private readonly isDevelopment: boolean;
   private readonly environment: Environment;
@@ -147,7 +152,9 @@ class EnvLogger {
     }
 
     if (typeof data === "string") {
-      return data.length > 50 ? `${data.substring(0, 47)}...` : data;
+      return data.length > STRING_TRUNCATE_LENGTH
+        ? `${data.substring(0, STRING_TRUNCATE_LENGTH - ELLIPSIS.length)}${ELLIPSIS}`
+        : data;
     }
 
     if (typeof data === "number" || typeof data === "boolean") {
@@ -169,8 +176,8 @@ class EnvLogger {
                           typeof rawTitle === "string" ? rawTitle :
                           typeof rawTitle === "number" || typeof rawTitle === "boolean" ? String(rawTitle) :
                           JSON.stringify(rawTitle);
-        const title = titleValue.substring(0, 30);
-        return `id=${String(obj.id)}, title="${title}${titleValue.length > 30 ? "..." : ""}"`;
+        const title = titleValue.substring(0, TITLE_PREVIEW_LENGTH);
+        return `id=${String(obj.id)}, title="${title}${titleValue.length > TITLE_PREVIEW_LENGTH ? ELLIPSIS : ""}"`;
       }
       
       if ("length" in obj) {
