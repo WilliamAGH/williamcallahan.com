@@ -120,7 +120,7 @@ export function generateOpenGraphImageKey(url: string, bookmarkId: string, exten
   const hash = getShortHash(`${url}:${bookmarkId}`);
   // Sanitize the domain from the URL to create a clean filename
   const domain = new URL(url).hostname.replace(/^www\./, "").replace(/\./g, "-");
-  const filename = `${domain}-bookmark-${hash}.${extension}`;
+  const filename = `${domain}-${hash}.${extension}`;
   return `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${filename}`;
 }
 

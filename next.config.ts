@@ -691,6 +691,12 @@ const nextConfig = {
      */
     formats: ["image/webp", "image/avif"], // Prioritize webp over avif for speed
     /**
+     * Specifies the image quality levels that can be used with next/image
+     * Addresses the warning about unconfigured qualities in Next.js 15+
+     * @see https://nextjs.org/docs/messages/next-image-unconfigured-qualities
+     */
+    qualities: [75, 80, 90, 100], // Support common quality settings
+    /**
      * The minimum time (in seconds) an optimized image will be cached by the browser and CDNs
      * This is 7 days
      * @see https://nextjs.org/docs/app/api-reference/components/image#minimumcachettl

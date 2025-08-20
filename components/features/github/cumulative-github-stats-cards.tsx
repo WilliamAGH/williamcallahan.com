@@ -65,17 +65,17 @@ const CumulativeGitHubStatsCards: React.FC<CumulativeGitHubStatsCardsProps> = ({
   ];
 
   return (
-    <div className={cn("w-full py-6", className)}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className={cn("w-full py-4 sm:py-6", className)}>
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {statCards.map((card) => (
-          <Card key={card.title} className="p-6 border border-border bg-background hover:shadow-md transition-shadow">
-            <div className="flex flex-col space-y-2">
+          <Card key={card.title} className="p-4 sm:p-6 border border-border bg-background hover:shadow-md transition-shadow">
+            <div className="flex flex-col space-y-1 sm:space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
-                {card.icon}
+                <h3 className="text-xs sm:text-sm font-medium text-muted-foreground truncate pr-1">{card.title}</h3>
+                <div className="flex-shrink-0">{card.icon}</div>
               </div>
-              <p className="text-3xl font-bold">{card.value}</p>
-              <p className="text-xs text-muted-foreground">{card.description}</p>
+              <p className="text-xl sm:text-3xl font-bold">{card.value}</p>
+              <p className="text-xs text-muted-foreground hidden sm:block">{card.description}</p>
             </div>
           </Card>
         ))}

@@ -71,7 +71,7 @@ export async function processBookmarksInBatches(
         continue;
       }
 
-      // 2. Determine the best source URL - Karakeep data takes priority
+      // 2. Determine the best source URL - selectBestImage now handles favicon avoidance
       let sourceImageUrl: string | undefined | null = selectBestImage(bookmark, {
         includeScreenshots: true,
         returnUndefined: false,
@@ -112,11 +112,15 @@ export async function processBookmarksInBatches(
             ? await getOpenGraphDataBatch(bookmark.url)
             : await getOpenGraphData(bookmark.url, false, bookmark.id);
 
-          if (ogData?.ogMetadata?.image) {
-            sourceImageUrl = ogData.ogMetadata.image;
-            bookmark.title = ogData.ogMetadata.title || bookmark.title;
-            bookmark.description = ogData.ogMetadata.description || bookmark.description;
+          // FIX: OgResult has imageUrl, not ogMetadata.image
+          if (ogData?.imageUrl) {
+            sourceImageUrl = ogData.imageUrl;
+            bookmark.title = ogData.title || bookmark.title;
+            bookmark.description = ogData.description || bookmark.description;
             imageStats.bookmarksUsingOpenGraphImage++;
+          } else {
+            // No OpenGraph image found
+            console.log(`${LOG_PREFIX} No OpenGraph image found for ${bookmark.url}`);
           }
         } catch (e: unknown) {
           const error = e instanceof Error ? e : new Error(String(e));
@@ -145,39 +149,84 @@ export async function processBookmarksInBatches(
           }
 
           if (process.env.IS_DATA_UPDATER === "true") {
-            // In batch mode, we can fetch directly from Karakeep API
-            console.log(`${LOG_PREFIX} 🔗 Fetching Karakeep asset directly for S3 persistence: ${assetId}`);
-
-            // Fetch the actual image buffer from Karakeep
+            // In batch mode, fetch and validate the asset size
+            console.log(`${LOG_PREFIX} 🔗 Fetching Karakeep asset for S3 persistence: ${assetId}`);
             const imageBuffer = await fetchKarakeepImage(assetId);
 
             if (imageBuffer) {
-              // Save the buffer to S3 and get the CDN URL
-              const { persistImageBufferToS3 } = await import("@/lib/persistence/s3-persistence");
-              const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
-
-              const s3Url = await persistImageBufferToS3(
-                imageBuffer,
-                OPENGRAPH_IMAGES_S3_DIR,
-                assetId,
-                finalImageSource,
-                bookmark.id,
-                bookmark.url,
-              );
-
-              if (s3Url) {
-                bookmark.ogImage = s3Url;
-                bookmark.ogImageExternal = sourceImageUrl;
-                imageStats.bookmarksUsingS3Image++;
-                imageStats.imagesNewlyPersisted++;
-                console.log(`${LOG_PREFIX} ✅ Successfully persisted Karakeep asset to S3: ${s3Url}`);
-                // Skip the normal persistence flow since we already handled it
+              const bufferSizeKB = imageBuffer.length / 1024;
+              
+              // Check if this is a favicon (< 5KB)
+              if (bufferSizeKB < 5) {
+                console.warn(
+                  `${LOG_PREFIX} ⚠️ REJECTED: Karakeep asset ${assetId} is only ${imageBuffer.length} bytes (${bufferSizeKB.toFixed(1)}KB) - likely a favicon/logo`,
+                );
+                
+                // If we rejected the image, check if there's a screenshot we can use instead
+                const screenshotId = bookmark.content?.screenshotAssetId;
+                if (screenshotId && assetId !== screenshotId) {
+                  console.log(`${LOG_PREFIX} 📸 Trying screenshot fallback: ${screenshotId}`);
+                  const screenshotBuffer = await fetchKarakeepImage(screenshotId);
+                  
+                  if (screenshotBuffer && screenshotBuffer.length / 1024 >= 5) {
+                    // Screenshot is valid, use it
+                    const { persistImageBufferToS3 } = await import("@/lib/persistence/s3-persistence");
+                    const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
+                    
+                    const s3Url = await persistImageBufferToS3(
+                      screenshotBuffer,
+                      OPENGRAPH_IMAGES_S3_DIR,
+                      screenshotId,
+                      "Screenshot",
+                      bookmark.id,
+                      bookmark.url,
+                    );
+                    
+                    if (s3Url) {
+                      bookmark.ogImage = s3Url;
+                      bookmark.ogImageExternal = `/api/assets/${screenshotId}`;
+                      imageStats.bookmarksUsingS3Image++;
+                      imageStats.imagesNewlyPersisted++;
+                      console.log(`${LOG_PREFIX} ✅ Successfully used screenshot fallback: ${s3Url}`);
+                    }
+                  }
+                }
+                
+                // No valid image found
+                if (!bookmark.ogImage) {
+                  bookmark.ogImage = undefined;
+                  bookmark.ogImageExternal = undefined;
+                  imageStats.bookmarksWithoutImages++;
+                }
                 sourceImageUrl = null;
                 absoluteImageUrl = null;
               } else {
-                console.error(`${LOG_PREFIX} ❌ Failed to persist Karakeep asset to S3: ${assetId}`);
-                sourceImageUrl = null;
-                absoluteImageUrl = null;
+                // Image is valid size, persist it
+                const { persistImageBufferToS3 } = await import("@/lib/persistence/s3-persistence");
+                const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
+
+                const s3Url = await persistImageBufferToS3(
+                  imageBuffer,
+                  OPENGRAPH_IMAGES_S3_DIR,
+                  assetId,
+                  finalImageSource,
+                  bookmark.id,
+                  bookmark.url,
+                );
+
+                if (s3Url) {
+                  bookmark.ogImage = s3Url;
+                  bookmark.ogImageExternal = sourceImageUrl;
+                  imageStats.bookmarksUsingS3Image++;
+                  imageStats.imagesNewlyPersisted++;
+                  console.log(`${LOG_PREFIX} ✅ Successfully persisted Karakeep asset to S3: ${s3Url}`);
+                  sourceImageUrl = null;
+                  absoluteImageUrl = null;
+                } else {
+                  console.error(`${LOG_PREFIX} ❌ Failed to persist Karakeep asset to S3: ${assetId}`);
+                  sourceImageUrl = null;
+                  absoluteImageUrl = null;
+                }
               }
             } else {
               console.error(`${LOG_PREFIX} ❌ Failed to fetch Karakeep asset: ${assetId}`);
@@ -215,7 +264,11 @@ export async function processBookmarksInBatches(
             const screenshotId = bookmark.content?.screenshotAssetId;
             if (screenshotId) {
               const { getAssetUrl } = await import("./bookmark-helpers");
-              const ssUrl = getAssetUrl(screenshotId);
+              const assetContext = {
+                bookmarkId: bookmark.id,
+                url: bookmark.url,
+              };
+              const ssUrl = getAssetUrl(screenshotId, assetContext);
               if (ssUrl) {
                 // Use relative URL for screenshot fallback too
                 bookmark.ogImage = ssUrl; // Keep relative: /api/assets/[id]

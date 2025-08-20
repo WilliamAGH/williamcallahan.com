@@ -11,13 +11,12 @@ echo "✅ [Entrypoint] Cache directory /app/cache/s3_data ensured."
 # REMOVED: User switching logic - running as root
 
 echo "📊 [Entrypoint] Checking for initial data population..."
-# Check if critical data exists, if not populate immediately
+# Check if critical data exists, if not mark for background population
 if ! bun scripts/debug-slug-mapping.ts 2>/dev/null | grep -q "Slug mapping exists"; then
-    echo "⚠️  [Entrypoint] Slug mapping missing, running initial data population..."
-    bun scripts/data-updater.ts --bookmarks --force || {
-        echo "⚠️  [Entrypoint] Data updater failed, trying ensure-slug-mappings fallback..."
-        bun scripts/ensure-slug-mappings.ts --force --all-paths
-    }
+    echo "⚠️  [Entrypoint] Slug mapping missing, marking for background population..."
+    # Create a marker file to trigger background population
+    touch /tmp/needs-initial-data-population
+    echo "✅ [Entrypoint] Marker created for background data population"
 else
     echo "✅ [Entrypoint] Data already exists, skipping initial population"
 fi
@@ -25,7 +24,15 @@ fi
 echo "🗺️  [Entrypoint] Submitting sitemap..."
 bun run submit-sitemap || true
 
-echo "🕒 [Entrypoint] Starting data scheduler in background..."
+echo "🕒 [Entrypoint] Starting background services..."
+
+# Start the background data populator if needed
+if [ -f /tmp/needs-initial-data-population ]; then
+    echo "📦 [Entrypoint] Starting background data populator..."
+    bun scripts/background-data-populator.ts > /tmp/data-populator.log 2>&1 &
+    DATA_POPULATOR_PID=$!
+    echo "✅ [Entrypoint] Background data populator started (PID: $DATA_POPULATOR_PID)"
+fi
 
 # Create a log file for scheduler output (for debugging)
 SCHEDULER_LOG="/tmp/scheduler.log"
@@ -64,6 +71,13 @@ cleanup() {
     # Kill the tail process first
     if [ -n "$TAIL_PID" ] && kill -0 $TAIL_PID 2>/dev/null; then
         kill $TAIL_PID 2>/dev/null || true
+    fi
+    
+    # Kill the data populator if running
+    if [ -n "$DATA_POPULATOR_PID" ] && kill -0 $DATA_POPULATOR_PID 2>/dev/null; then
+        echo "🛑 [Entrypoint] Terminating data populator (PID: $DATA_POPULATOR_PID)..."
+        kill $DATA_POPULATOR_PID 2>/dev/null || true
+        wait $DATA_POPULATOR_PID 2>/dev/null || true
     fi
     
     # Then kill the scheduler

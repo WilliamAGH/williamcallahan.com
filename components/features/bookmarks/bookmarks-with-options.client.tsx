@@ -15,6 +15,7 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
+import { getErrorMessage } from "@/types/api-responses";
 
 import type { BookmarksWithOptionsClientProps } from "@/types";
 
@@ -69,6 +70,8 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<UnifiedBookmark[] | null>(null);
   const [isSearchingAPI, setIsSearchingAPI] = useState(false);
+  const [showCrossEnvRefresh, setShowCrossEnvRefresh] = useState(false);
+  const [isRefreshingProduction, setIsRefreshingProduction] = useState(false);
   const router = useRouter();
 
   // Determine if refresh button should be shown
@@ -358,6 +361,10 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
           setLastRefreshed(new Date());
           setDataSource("client");
           console.log("Bookmarks refreshed successfully:", refreshedArray.length);
+          // Show cross-environment refresh option for non-production
+          if (showRefreshButton && !isRefreshingProduction) {
+            setShowCrossEnvRefresh(true);
+          }
           router.refresh();
         } else {
           console.warn("Refresh returned empty or invalid data shape:", refreshedJson);
@@ -379,6 +386,39 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       setIsRefreshing(false);
       // Ensure timeout is always cleared
       clearTimeout(timeoutId);
+    }
+  };
+
+  // Handler for refreshing production environment bookmarks
+  const handleProductionRefresh = async () => {
+    setIsRefreshingProduction(true);
+    setShowCrossEnvRefresh(false);
+    
+    try {
+      console.log("[Bookmarks] Requesting production bookmarks refresh");
+      // Call a special endpoint that will trigger production refresh
+      const response = await fetch("/api/bookmarks/refresh-production", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData: unknown = await response.json().catch(() => null);
+        const errorMessage = getErrorMessage(errorData, response.statusText);
+        console.error("[Bookmarks] Production refresh failed:", errorMessage);
+        setRefreshError(`Production refresh failed: ${errorMessage}`);
+        setTimeout(() => setRefreshError(null), 5000);
+      } else {
+        console.log("[Bookmarks] Production refresh initiated successfully");
+      }
+    } catch (error) {
+      console.error("[Bookmarks] Failed to trigger production refresh:", error);
+      setRefreshError("Failed to trigger production refresh");
+      setTimeout(() => setRefreshError(null), 5000);
+    } finally {
+      setIsRefreshingProduction(false);
     }
   };
 
@@ -424,7 +464,10 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
           {showRefreshButton && (
             <button
               type="button"
-              onClick={() => void refreshBookmarks()}
+              onClick={() => {
+                setShowCrossEnvRefresh(false);
+                void refreshBookmarks();
+              }}
               disabled={isRefreshing}
               className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               aria-label="Refresh Bookmarks"
@@ -434,9 +477,33 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
             </button>
           )}
           {/* Display Refresh Error */}
-          {refreshError && (
+          {refreshError && !isRefreshing && (
             <div className="mt-2 text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg">
               {refreshError}
+            </div>
+          )}
+          {/* Cross-environment refresh option */}
+          {showCrossEnvRefresh && !isRefreshing && (
+            <div className="mt-2 text-sm text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
+              {isRefreshingProduction ? (
+                <span className="flex items-center">
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Triggering production refresh...
+                </span>
+              ) : (
+                <>
+                  Local refresh completed. Would you like to{" "}
+                  <button
+                    type="button"
+                    onClick={handleProductionRefresh}
+                    className="underline hover:text-blue-700 dark:hover:text-blue-200 font-medium"
+                    disabled={isRefreshingProduction}
+                  >
+                    refresh production environment as well
+                  </button>
+                  ?
+                </>
+              )}
             </div>
           )}
         </div>

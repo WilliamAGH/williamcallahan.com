@@ -37,7 +37,6 @@ import {
   OPENGRAPH_IMAGES_S3_DIR,
 } from "@/lib/constants";
 import { extractOpenGraphTags } from "./parser";
-import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import type { OgResult, KarakeepImageFallback } from "@/types";
 
 /**
@@ -323,13 +322,10 @@ async function fetchExternalOpenGraph(
         siteName: null,
       };
 
-  // Use centralized image selection logic - for OpenGraph fetch, we don't have content yet
+  // Select the best image from OpenGraph metadata
+  // Note: selectBestImage is for bookmark objects with Karakeep content, not raw OpenGraph fetch
   const ogImageValue = validatedMetadata.image || validatedMetadata.profileImage || validatedMetadata.twitterImage;
-  const bestImageUrlRaw = selectBestImage(
-    { ogImage: ogImageValue || undefined, content: undefined },
-    { includeScreenshots: false, returnUndefined: true },
-  );
-  const bestImageUrl: string | undefined = bestImageUrlRaw === null ? undefined : bestImageUrlRaw;
+  const bestImageUrl: string | undefined = ogImageValue || undefined;
 
   // Log what we found
   envLogger.log(
