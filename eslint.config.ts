@@ -16,6 +16,8 @@ import tseslint from "typescript-eslint";
 
 // ESM-compatible require for loading JSON files
 const requireJson = createRequire(import.meta.url);
+// Single source of truth for the static image mapping JSON path
+const STATIC_IMAGE_MAPPING_REL_PATH = "./lib/data-access/static-image-mapping.json" as const;
 // Local ESLint Rule Types
 import type { Rule } from "eslint";
 
@@ -483,8 +485,16 @@ const config = tseslint.config(
               // Import the static mapping at the top of the file
               let staticMapping: Record<string, string> | null = null;
               try {
-                // Use ESM-compatible require to load the JSON file synchronously
-                staticMapping = requireJson("./lib/data-access/static-image-mapping.json");
+                // Use ESM-compatible require to load the JSON file synchronously.
+                // Optional: bust require cache in watch mode to pick up changes without restart.
+                const mappingRelPath = typeof STATIC_IMAGE_MAPPING_REL_PATH === "string"
+                  ? STATIC_IMAGE_MAPPING_REL_PATH
+                  : "./lib/data-access/static-image-mapping.json";
+                const resolved = requireJson.resolve(mappingRelPath);
+                if (process.env.ESLINT_WATCH === "1" && (requireJson as any).cache) {
+                  delete (requireJson as any).cache[resolved as unknown as string];
+                }
+                staticMapping = requireJson(resolved);
               } catch {
                 // If we can't load the mapping, we'll still report errors but can't check if images exist
               }
@@ -564,8 +574,10 @@ const config = tseslint.config(
                       fix:
                         isInS3 && hasImport
                           ? function (fixer: any) {
-                              // Simple fix: wrap the string in getStaticImageUrl()
-                              return fixer.replaceText(node, `getStaticImageUrl(${node.raw})`);
+                              // Safer replacement that works across parsers
+                              const source = context.getSourceCode();
+                              const text = source.getText(node); // includes original quotes
+                              return fixer.replaceText(node, `getStaticImageUrl(${text})`);
                             }
                           : null,
                     });
