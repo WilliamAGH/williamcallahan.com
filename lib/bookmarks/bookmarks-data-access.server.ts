@@ -297,14 +297,15 @@ async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark[]): Pr
       tagCounts[tagSlugValue] = (tagCounts[tagSlugValue] || 0) + 1;
     }
   }
-  // Apply MAX_TAGS_TO_PERSIST limit if configured
+  // Apply MAX_TAGS_TO_PERSIST limit if configured with O(n) fast-path when limit >= totalTags
   const allTags = Object.keys(bookmarksByTag);
-  const tagsToProcess = MAX_TAGS_TO_PERSIST && MAX_TAGS_TO_PERSIST > 0
-    ? Object.entries(tagCounts)
-        .sort((a, b) => b[1] - a[1]) // Sort by count descending
-        .slice(0, MAX_TAGS_TO_PERSIST)
-        .map(([tag]) => tag)
-    : allTags;
+  const tagsToProcess =
+    MAX_TAGS_TO_PERSIST > 0 && MAX_TAGS_TO_PERSIST < allTags.length
+      ? Object.entries(tagCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, MAX_TAGS_TO_PERSIST)
+          .map(([tag]) => tag)
+      : allTags;
   
   envLogger.log(
     `Persisting ${tagsToProcess.length} of ${allTags.length} tags to S3 storage`, 
@@ -344,6 +345,8 @@ async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark[]): Pr
     { tagCount: tagsToProcess.length, totalTags: allTags.length },
     { category: LOG_PREFIX }
   );
+  // Reduce staleness window by clearing in-memory dataset cache after writes
+  fullDatasetMemoryCache = null;
 }
 
 /** Core refresh logic - only process new/changed bookmarks */
