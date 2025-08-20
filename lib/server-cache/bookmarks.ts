@@ -9,6 +9,7 @@
 
 import type { BookmarksCacheEntry, ICache } from "@/types/cache";
 import { BOOKMARKS_CACHE_DURATION } from "@/lib/constants";
+import { envLogger } from "@/lib/utils/env-logger";
 
 const BOOKMARKS_METADATA_KEY = "bookmarks:metadata";
 
@@ -32,7 +33,11 @@ export function getBookmarks(this: ICache): BookmarksCacheEntry | undefined {
 export function setBookmarks(this: ICache): void {
   // NO-OP: Bookmarks are stored in S3, not in memory cache
   if (process.env.NODE_ENV !== "test") {
-    console.warn("[ServerCache] setBookmarks called - this is deprecated. Bookmarks are stored in S3 only.");
+    envLogger.log(
+      "setBookmarks called - this is deprecated. Bookmarks are stored in S3 only.",
+      undefined,
+      { category: "ServerCache" },
+    );
   }
 }
 
