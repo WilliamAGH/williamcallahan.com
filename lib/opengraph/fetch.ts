@@ -110,25 +110,29 @@ async function performFetchWithRetry(
         for (const effectiveUrl of urlsToTry) {
           const isProxy = effectiveUrl !== url;
           if (isProxy) {
-            console.log(
-              `[OpenGraph Proxy] Trying ${new URL(effectiveUrl).hostname} for ${url.includes("/status/") ? "tweet" : "profile"}: ${effectiveUrl}`,
+            envLogger.log(
+              `Trying proxy for OpenGraph fetch`,
+              { proxyHost: new URL(effectiveUrl).hostname, type: url.includes("/status/") ? "tweet" : "profile", effectiveUrl },
+              { category: "OpenGraph" },
             );
           } else {
-            console.log(`[OpenGraph Direct] Attempting direct fetch for: ${url}`);
+            envLogger.log(`Attempting direct fetch`, { url }, { category: "OpenGraph" });
           }
 
           try {
             const result = await fetchExternalOpenGraph(effectiveUrl, fallbackImageData);
 
             if (result && typeof result === "object" && "permanentFailure" in result) {
-              console.log(
-                `[OpenGraph Crawl] ❌ Permanent failure (${result.status}) for ${effectiveUrl}, trying next option`,
+              envLogger.log(
+                `Permanent failure for OpenGraph fetch, trying next option`,
+                { effectiveUrl, status: result.status },
+                { category: "OpenGraph" },
               );
               continue;
             }
 
             if (result && typeof result === "object" && "blocked" in result) {
-              console.log(`[OpenGraph Crawl] 🚫 Access blocked for ${effectiveUrl}, trying next option`);
+              envLogger.log(`Access blocked for OpenGraph fetch, trying next option`, { effectiveUrl }, { category: "OpenGraph" });
               continue;
             }
 
@@ -137,14 +141,22 @@ async function performFetchWithRetry(
               const hasValidData = result.title || result.description || result.imageUrl;
 
               if (hasValidData) {
-                console.log(`[OpenGraph Crawl] ✅ Successfully crawled ${url}`);
-                console.log(
-                  `[OpenGraph Crawl] 📊 Extracted data: title="${result.title}", description="${result.description?.substring(0, 100)}...", imageUrl="${result.imageUrl}"`,
+                envLogger.log(
+                  `Successfully crawled OpenGraph`,
+                  {
+                    url,
+                    title: result.title,
+                    descriptionPreview: result.description?.substring(0, 100) ?? null,
+                    imageUrl: result.imageUrl ?? null,
+                  },
+                  { category: "OpenGraph" },
                 );
                 return result; // Success!
               } else {
-                console.log(
-                  `[OpenGraph Crawl] ⚠️ Empty metadata from ${isProxy ? "proxy" : "direct fetch"} for ${url}, trying next option`,
+                envLogger.log(
+                  `Empty metadata from OpenGraph fetch, trying next option`,
+                  { url, via: isProxy ? "proxy" : "direct" },
+                  { category: "OpenGraph" },
                 );
               }
             }
@@ -181,7 +193,7 @@ async function performFetchWithRetry(
     if (isNetworkError) {
       debug(`[DataAccess/OpenGraph] Final network connectivity issue for ${url}: ${errorMessage}`);
     } else {
-      console.error(`[DataAccess/OpenGraph] Final unexpected error for ${url}:`, errorMessage);
+      envLogger.log(`Final unexpected error for OpenGraph fetch`, { url, error: errorMessage }, { category: "OpenGraph" });
     }
 
     return { networkFailure: true, lastError: error };
@@ -234,8 +246,10 @@ async function fetchExternalOpenGraph(
         if (jinaResponse.ok) {
           html = await jinaResponse.text();
           finalUrl = jinaResponse.url;
-          console.log(
-            `[OpenGraph Crawl] 🌐 Successfully fetched HTML via Jina AI Reader (${html.length} bytes) from: ${url}`,
+          envLogger.log(
+            `Fetched HTML via Jina AI Reader`,
+            { url, bytes: html.length, finalUrl },
+            { category: "OpenGraph" },
           );
           // Persist the successful Jina response to S3 in the background
           persistJinaHtmlInBackground(url, html);
@@ -318,10 +332,16 @@ async function fetchExternalOpenGraph(
   const bestImageUrl: string | undefined = bestImageUrlRaw === null ? undefined : bestImageUrlRaw;
 
   // Log what we found
-  console.log(`[DataAccess/OpenGraph] Image selection for ${url}:`);
-  console.log(`[DataAccess/OpenGraph]   Best image URL: ${bestImageUrl || "NONE FOUND"}`);
-  console.log(`[DataAccess/OpenGraph]   Fallback data provided: ${fallbackImageData ? "YES" : "NO"}`);
-  console.log(`[DataAccess/OpenGraph]   Idempotency key: ${fallbackImageData?.idempotencyKey || "NONE"}`);
+  envLogger.log(
+    `Image selection summary`,
+    {
+      url,
+      bestImageUrl: bestImageUrl || null,
+      hasFallback: !!fallbackImageData,
+      idempotencyKey: fallbackImageData?.idempotencyKey || null,
+    },
+    { category: "OpenGraph" },
+  );
 
   // Handle image persistence
   let finalImageUrl = bestImageUrl;
@@ -335,7 +355,7 @@ async function fetchExternalOpenGraph(
   if (bestImageUrl && fallbackImageData?.idempotencyKey) {
     if (isBatchMode) {
       // In batch mode, persist synchronously and get S3 URL
-      console.log(`[DataAccess/OpenGraph] 🔄 Batch mode: Persisting image synchronously for: ${bestImageUrl}`);
+      envLogger.log(`Batch mode: Persisting image synchronously`, { bestImageUrl }, { category: "OpenGraph" });
       const s3Url = await persistImageAndGetS3Url(
         bestImageUrl,
         OPENGRAPH_IMAGES_S3_DIR,
@@ -346,15 +366,13 @@ async function fetchExternalOpenGraph(
 
       if (s3Url) {
         finalImageUrl = s3Url;
-        console.log(`[DataAccess/OpenGraph] ✅ Image persisted to S3, using S3 URL: ${s3Url}`);
+        envLogger.log(`Image persisted to S3`, { s3Url }, { category: "OpenGraph" });
       } else {
-        console.error(`[DataAccess/OpenGraph] ❌ Failed to persist image to S3, keeping original URL: ${bestImageUrl}`);
+        envLogger.log(`Failed to persist image to S3, keeping original`, { bestImageUrl }, { category: "OpenGraph" });
       }
     } else {
       // In runtime mode, schedule background persistence
-      console.log(
-        `[DataAccess/OpenGraph] 📋 Runtime mode: Scheduling background image persistence for: ${bestImageUrl}`,
-      );
+      envLogger.log(`Scheduling background image persistence`, { bestImageUrl }, { category: "OpenGraph" });
       scheduleImagePersistence(
         bestImageUrl,
         OPENGRAPH_IMAGES_S3_DIR,
@@ -382,7 +400,7 @@ async function fetchExternalOpenGraph(
   // Persist profile image if available
   if (validatedMetadata.profileImage && fallbackImageData?.idempotencyKey) {
     const profileImageUrl = validatedMetadata.profileImage;
-    console.log(`[DataAccess/OpenGraph] 👤 Found profile image: ${profileImageUrl}`);
+    envLogger.log(`Found profile image`, { profileImageUrl }, { category: "OpenGraph" });
 
     // Determine platform-specific directory for better organization
     const domain = getDomainType(url);
@@ -400,9 +418,7 @@ async function fetchExternalOpenGraph(
     }
 
     if (isBatchMode) {
-      console.log(
-        `[DataAccess/OpenGraph] 🔄 Batch mode: Persisting profile image synchronously to ${profileImageDirectory}`,
-      );
+      envLogger.log(`Batch mode: Persisting profile image synchronously`, { dir: profileImageDirectory }, { category: "OpenGraph" });
       const s3ProfileUrl = await persistImageAndGetS3Url(
         profileImageUrl,
         profileImageDirectory,
@@ -413,16 +429,12 @@ async function fetchExternalOpenGraph(
 
       if (s3ProfileUrl) {
         finalProfileImageUrl = s3ProfileUrl;
-        console.log(`[DataAccess/OpenGraph] ✅ Profile image persisted to S3: ${s3ProfileUrl}`);
+        envLogger.log(`Profile image persisted to S3`, { s3ProfileUrl }, { category: "OpenGraph" });
       } else {
-        console.error(
-          `[DataAccess/OpenGraph] ❌ Failed to persist profile image, keeping original: ${profileImageUrl}`,
-        );
+        envLogger.log(`Failed to persist profile image, keeping original`, { profileImageUrl }, { category: "OpenGraph" });
       }
     } else {
-      console.log(
-        `[DataAccess/OpenGraph] 📋 Runtime mode: Scheduling profile image persistence to ${profileImageDirectory}`,
-      );
+      envLogger.log(`Scheduling profile image persistence`, { dir: profileImageDirectory }, { category: "OpenGraph" });
       scheduleImagePersistence(
         profileImageUrl,
         profileImageDirectory,
@@ -436,10 +448,10 @@ async function fetchExternalOpenGraph(
   // Persist banner image if available
   if (validatedMetadata.bannerImage && fallbackImageData?.idempotencyKey) {
     const bannerImageUrl = validatedMetadata.bannerImage;
-    console.log(`[DataAccess/OpenGraph] 🎨 Found banner image: ${bannerImageUrl}`);
+    envLogger.log(`Found banner image`, { bannerImageUrl }, { category: "OpenGraph" });
 
     if (isBatchMode) {
-      console.log(`[DataAccess/OpenGraph] 🔄 Batch mode: Persisting banner image synchronously`);
+      envLogger.log(`Batch mode: Persisting banner image synchronously`, undefined, { category: "OpenGraph" });
       const s3BannerUrl = await persistImageAndGetS3Url(
         bannerImageUrl,
         "social-banners",
@@ -450,12 +462,12 @@ async function fetchExternalOpenGraph(
 
       if (s3BannerUrl) {
         finalBannerImageUrl = s3BannerUrl;
-        console.log(`[DataAccess/OpenGraph] ✅ Banner image persisted to S3: ${s3BannerUrl}`);
+        envLogger.log(`Banner image persisted to S3`, { s3BannerUrl }, { category: "OpenGraph" });
       } else {
-        console.error(`[DataAccess/OpenGraph] ❌ Failed to persist banner image, keeping original: ${bannerImageUrl}`);
+        envLogger.log(`Failed to persist banner image, keeping original`, { bannerImageUrl }, { category: "OpenGraph" });
       }
     } else {
-      console.log(`[DataAccess/OpenGraph] 📋 Runtime mode: Scheduling banner image persistence`);
+      envLogger.log(`Scheduling banner image persistence`, undefined, { category: "OpenGraph" });
       scheduleImagePersistence(
         bannerImageUrl,
         "social-banners",
