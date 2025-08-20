@@ -20,7 +20,12 @@ export function POST(request: NextRequest) {
     );
   }
 
-  if (authHeader !== `Bearer ${expectedToken}`) {
+  // Parse Bearer token robustly (case-insensitive, trim whitespace)
+  const presentedToken = authHeader?.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length).trim()
+    : '';
+  
+  if (presentedToken !== expectedToken) {
     console.warn('[Cache Invalidation] Unauthorized revalidation attempt');
     return NextResponse.json(
       { error: 'Unauthorized' },
