@@ -403,7 +403,7 @@ function validateApiKey(request: NextRequest): boolean {
 
 - `/api/cache/bookmarks` - Authenticated operations
 - `/api/cache/images` - Redirects to CDN URLs
-- `/api/cache/clear` - ⚠️ NEEDS AUTH
+- `/api/cache/clear` - Authenticated with `x-api-key` header
 - `/api/logo` - Always 301 redirect to CDN
 
 ### Memory Safety
@@ -447,11 +447,13 @@ function validateApiKey(request: NextRequest): boolean {
 ### Development vs Production
 
 **Development Environment:**
+
 - Less aggressive caching for faster iteration
 - Cache TTLs can be reduced for testing
 - Direct S3 access for debugging
 
 **Production Environment:**
+
 - Balance between performance and freshness
 - 1-hour cache for bookmarks data
 - Automated invalidation via scheduler
@@ -468,12 +470,14 @@ function validateApiKey(request: NextRequest): boolean {
 ## ✅ FIXED Issues
 
 ### 2025-08: Cache Invalidation
+
 - Implemented `/api/revalidate/bookmarks` endpoint
 - Added authentication for cache operations
 - Fixed local cache corruption (test data detection)
 - Automated cache clearing after data refresh
 
 ### 2025-06: Memory Management
+
 - Memory limits implemented
 - `useClones: true` → `false` (safe now)
 - Buffer rejection >10MB
