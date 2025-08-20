@@ -119,6 +119,8 @@ export async function getGithubActivity(): Promise<UserActivityView> {
     if (fallbackData && !isEmptyData(fallbackData)) {
       s3ActivityData = fallbackData;
     }
+    // If still empty, do not attempt to write during build; GET path is read-only
+    // Build will just render “no data” and rely on public CDN read where possible
     if (!s3ActivityData) {
       console.error(
         `[DataAccess/GitHub:getGithubActivity] CRITICAL: No usable data found in S3 for either ${GITHUB_ACTIVITY_S3_KEY_FILE} or fallback ${GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK}.`,

@@ -68,6 +68,44 @@ export async function writeGitHubActivityToS3(
   key: string = GITHUB_ACTIVITY_S3_KEY_FILE,
 ): Promise<boolean> {
   try {
+    // 1) Never write during Next.js build phase – build reads from public CDN only
+    if (process.env.NEXT_PHASE === "phase-production-build") {
+      debugLog(
+        `Skipping GitHub activity write during build phase (NEXT_PHASE=phase-production-build)`,
+        "warn",
+        { key },
+      );
+      return true; // treat as successful no-op
+    }
+
+    // 2) Non-degrading write: avoid overwriting a healthy dataset with empty/incomplete results
+    const isIncomplete = (d: GitHubActivityApiResponse | null | undefined): boolean => {
+      if (!d) return true;
+      const ty = d.trailingYearData as { data?: unknown[]; dataComplete?: boolean; totalContributions?: number } | undefined;
+      const hasData = Array.isArray(ty?.data) && (ty?.data?.length ?? 0) > 0;
+      const complete = ty?.dataComplete === true;
+      const contributions = typeof ty?.totalContributions === "number" ? ty?.totalContributions : 0;
+      return !hasData || !complete || contributions === 0;
+    };
+
+    // If new data looks incomplete, check existing
+    if (isIncomplete(data)) {
+      try {
+        const existing = await readGitHubActivityFromS3(key);
+        const existingIsHealthy = existing && !isIncomplete(existing);
+        if (existingIsHealthy) {
+          debugLog(
+            `Non-degrading write: New GitHub activity appears incomplete; preserving existing healthy dataset`,
+            "warn",
+            { key },
+          );
+          return true; // skip write, keep healthy file
+        }
+      } catch {
+        /* if read fails, proceed to best-effort write below */
+      }
+    }
+
     await writeJsonS3(key, data);
     debugLog(`Successfully wrote GitHub activity to S3`, "info", { key });
     return true;
