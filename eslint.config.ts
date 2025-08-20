@@ -364,6 +364,7 @@ const config = tseslint.config(
       "@typescript-eslint/no-require-imports": "off",
       "no-restricted-syntax": "off",
       "no-underscore-dangle": "off", // Allow underscores in test files for mocking and test utilities
+      "@next/next/no-img-element": "off", // Allow <img> in test files for mocking next/image
     },
   },
 

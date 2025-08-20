@@ -46,6 +46,7 @@ export function LogoImage({
   const [reloadKey, setReloadKey] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const retryInitiated = useRef(false);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const handleError = useCallback(() => {
     if (retryInitiated.current) {
@@ -67,7 +68,10 @@ export function LogoImage({
     }
 
     // Wait 3 s then retry the CDN URL with cache-buster
-    setTimeout(() => {
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+    }
+    retryTimeoutRef.current = setTimeout(() => {
       if (!src) {
         setImageError(true);
         setIsLoading(false);
@@ -77,6 +81,15 @@ export function LogoImage({
       setReloadKey(Date.now());
     }, 3000);
   }, [src, isDev]);
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (!src) {
     // Use company placeholder when no src is provided
@@ -136,7 +149,10 @@ export function LogoImage({
         style={{ opacity: isLoading ? 0 : 1, transition: "opacity 0.2s ease-in-out" }}
         {...(priority ? { priority } : {})}
         onError={handleError}
-        onLoad={() => setIsLoading(false)}
+        onLoad={() => {
+          setIsLoading(false);
+          if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+        }}
         // Allow external images from the logo API
         unoptimized={!!src.includes("/api/logo")}
       />
@@ -160,8 +176,8 @@ export function OptimizedCardImage({
   const [errored, setErrored] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [retryKey, setRetryKey] = useState(0);
-  const maxRetries = 2; // Increased to allow more retry attempts for images
-  const retryTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const MAX_RETRIES = 2; // Increased to allow more retry attempts for images
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Cleanup timeout on unmount
   React.useEffect(() => {
@@ -182,7 +198,7 @@ export function OptimizedCardImage({
   }
 
   // Source provided but errored after retries - show placeholder
-  if (errored && (!isProxyUrl || retryCount >= maxRetries)) {
+  if (errored && (!isProxyUrl || retryCount >= MAX_RETRIES)) {
     // Log for debugging but don't spam with proxy URL retries
     if (!isProxyUrl || retryCount === 0) {
       if (isDev) console.warn(`[OptimizedCardImage] Failed to load image after ${retryCount} retries: ${src}, showing placeholder`);
@@ -216,10 +232,13 @@ export function OptimizedCardImage({
       }}
       onError={() => {
         // For proxy URLs, retry with exponential backoff
-        if (isProxyUrl && retryCount < maxRetries) {
+        if (isProxyUrl && retryCount < MAX_RETRIES) {
           if (isDev) console.log(`[OptimizedCardImage] Scheduling retry for proxy URL: ${src}`);
           const backoffDelay = Math.min(1000 * 2 ** retryCount, 5000); // 1s, 2s, up to 5s max
           
+          if (retryTimeoutRef.current) {
+            clearTimeout(retryTimeoutRef.current);
+          }
           retryTimeoutRef.current = setTimeout(() => {
             setRetryCount(prev => prev + 1);
             setRetryKey(Date.now()); // Force new URL with cache buster
