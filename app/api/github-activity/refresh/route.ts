@@ -172,9 +172,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         revalidateTag("github-activity"); // Next.js function cache tag
       } catch (err) {
         // No-op outside of Next request context
-        console.warn(
-          "[API Refresh] revalidateTag('github-activity') skipped or failed:",
-          err instanceof Error ? err.message : String(err),
+        envLogger.log(
+          "revalidateTag('github-activity') skipped or failed",
+          { error: err instanceof Error ? err.message : String(err) },
+          { category: "GitHubActivityRefresh" },
         );
       }
 
