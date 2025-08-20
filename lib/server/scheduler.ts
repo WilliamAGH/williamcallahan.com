@@ -115,13 +115,22 @@ cron.schedule(bookmarksCron, () => {
         const apiUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
         const revalidateUrl = `${apiUrl}/api/revalidate/bookmarks`;
         
+        // Only include auth header if secret is configured
+        const headers = process.env.BOOKMARK_CRON_REFRESH_SECRET
+          ? { Authorization: `Bearer ${process.env.BOOKMARK_CRON_REFRESH_SECRET}` }
+          : undefined;
+        
+        // Add timeout using AbortController
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10_000); // 10 second timeout
+        
         fetch(revalidateUrl, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.BOOKMARK_CRON_REFRESH_SECRET}`
-          }
+          headers,
+          signal: controller.signal
         })
           .then(response => {
+            clearTimeout(timeoutId);
             if (response.ok) {
               console.log("[Scheduler] [Bookmarks] ✅ Cache invalidated successfully");
             } else {
@@ -129,7 +138,12 @@ cron.schedule(bookmarksCron, () => {
             }
           })
           .catch(error => {
-            console.error("[Scheduler] [Bookmarks] Failed to invalidate cache:", error);
+            clearTimeout(timeoutId);
+            if (error instanceof Error && error.name === 'AbortError') {
+              console.error("[Scheduler] [Bookmarks] Cache invalidation timed out after 10 seconds");
+            } else {
+              console.error("[Scheduler] [Bookmarks] Failed to invalidate cache:", error);
+            }
           });
 
         // Submit updated sitemap to search engines

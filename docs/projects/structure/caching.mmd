@@ -14,16 +14,32 @@ graph TD
         L4["External APIs<br/>100ms-5s"]
     end
     
+    subgraph "Cache Invalidation"
+        INV1["/api/revalidate/bookmarks<br/>✅ Authenticated"]
+        INV2["revalidateTag()<br/>Programmatic"]
+        INV3["Scheduler Trigger<br/>After S3 Update"]
+        INV4["Cache Tags:<br/>• bookmarks<br/>• bookmarks-page-N<br/>• bookmarks-tag-X<br/>• search-index"]
+    end
+    
     subgraph "Migration Status"
-        M1["✅ MIGRATED (5 files)<br/>• lib/search.ts<br/>• lib/bookmarks/bookmarks-data-access.server.ts<br/>• lib/data-access/github.ts<br/>• lib/blog/mdx.ts<br/>• lib/data-access/images.server.ts"]
-        M2["❌ LEGACY (20+ files)<br/>• lib/data-access/opengraph.ts<br/>• lib/data-access/logos.ts<br/>• lib/bookmarks/bookmarks.ts<br/>• API routes<br/>• Health endpoints"]
-        M3["🔧 MAP-BASED CACHE (3 files)<br/>• lib/server-cache.ts<br/>• lib/image-memory-manager.ts<br/>• lib/blog/mdx.ts (cleanup needed)"]
+        M1["✅ MIGRATED (9 files)<br/>• lib/search.ts<br/>• lib/bookmarks/bookmarks-data-access.server.ts<br/>• lib/data-access/github.ts<br/>• lib/blog/mdx.ts<br/>• lib/data-access/images.server.ts<br/>+ 4 API routes"]
+        M2["❌ LEGACY (33 files)<br/>Using ServerCacheInstance<br/>• lib/data-access/opengraph.ts<br/>• lib/data-access/logos.ts<br/>• API routes<br/>• Health endpoints"]
+        M3["🔧 MAP-BASED (10 files)<br/>Direct Map usage<br/>• lib/server-cache.ts<br/>• lib/rate-limit.ts<br/>• Session management"]
     end
     
     subgraph "Advanced Patterns"
         RC["Request Coalescing<br/>(Share promises)"]
         DL["Distributed Lock<br/>(S3-based)"]
         NC["Negative Cache<br/>(Failed = 1-2hr)"]
+        SWR["Stale-While-Revalidate<br/>Serve old, fetch new"]
+    end
+
+    subgraph "Cache TTLs"
+        TTL1["Bookmarks: 1hr"]
+        TTL2["Pagination: 1 day"]
+        TTL3["Logos: 30 days"]
+        TTL4["GitHub: 24hr"]
+        TTL5["Search: 15min"]
     end
 
     subgraph "Memory Safety"
@@ -47,13 +63,20 @@ graph TD
     NC --> L1
     
     L1 -.->|Images| L2
-    L2 -.->|Buffers| C
+    L2 -.->|No Cache| C
     L1 -.->|Metadata| C
+    L1B -.->|JSON Data| C
+    
+    %% Invalidation Flow
+    INV3 -->|POST| INV1
+    INV1 -->|Calls| INV2
+    INV2 -->|Clears| INV4
+    INV4 -->|Invalidates| L1B
 
-    subgraph "🔴 Security Issue"
+    subgraph "✅ Security Fixed"
         SEC1["/api/cache/clear"]
-        SEC2["NO AUTH!"]
-        SEC3["DoS Risk"]
+        SEC2["x-api-key Auth"]
+        SEC3["Protected"]
     end
     
     SEC1 --> SEC2
@@ -63,7 +86,9 @@ graph TD
     style B fill:#e1f5fe
     style C fill:#d4edda,stroke:#155724
     style D fill:#f8d7da,stroke:#721c24
-    style L2 fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
-    style SEC1 fill:#ffcdd2,stroke:#d32f2f
-    style SEC2 fill:#ffcdd2,stroke:#d32f2f
-    style SEC3 fill:#ffcdd2,stroke:#d32f2f
+    style L1B fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
+    style INV1 fill:#d4edda,stroke:#155724
+    style INV2 fill:#d4edda,stroke:#155724
+    style SEC1 fill:#d4edda,stroke:#155724
+    style SEC2 fill:#d4edda,stroke:#155724
+    style SEC3 fill:#d4edda,stroke:#155724
