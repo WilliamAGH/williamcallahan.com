@@ -94,24 +94,28 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       });
     }
 
-    const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+    // Fix for critical bug: properly handle empty S3 CDN URL
+    const rawCdn = process.env.NEXT_PUBLIC_S3_CDN_URL;
+    const s3CdnUrl = typeof rawCdn === "string" ? rawCdn.replace(/\/+$/, "") : undefined;
+    const hasCdn = !!s3CdnUrl;
+    const isDev = process.env.NODE_ENV === "development";
 
     // PRIORITY 1: Enriched ogImage field (already persisted to S3)
     // This is the MOST IMPORTANT - it contains the S3 URL from enrichment
-    if (ogImage?.includes(s3CdnUrl)) {
-      console.log(`[BookmarkCard] ✅ Using DIRECT S3 CDN from ogImage: ${ogImage}`);
+    if (hasCdn && ogImage?.startsWith(s3CdnUrl)) {
+      if (isDev) console.log(`[BookmarkCard] ✅ Using DIRECT S3 CDN from ogImage: ${ogImage}`);
       return ogImage;
     }
 
     // PRIORITY 2: Direct S3 CDN URLs in content.imageUrl
-    if (content?.imageUrl?.includes(s3CdnUrl)) {
-      console.log(`[BookmarkCard] ✅ Using DIRECT S3 CDN from imageUrl: ${content.imageUrl}`);
+    if (hasCdn && content?.imageUrl?.startsWith(s3CdnUrl)) {
+      if (isDev) console.log(`[BookmarkCard] ✅ Using DIRECT S3 CDN from imageUrl: ${content.imageUrl}`);
       return content.imageUrl;
     }
 
     // PRIORITY 3: Check if ogImageExternal is available (external remote)
     if (ogImageExternal?.startsWith("http")) {
-      console.log(`[BookmarkCard] Using ogImageExternal: ${ogImageExternal}`);
+      if (isDev) console.log(`[BookmarkCard] Using ogImageExternal: ${ogImageExternal}`);
       return ogImageExternal;
     }
 
@@ -121,20 +125,20 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
     // "/api/og-image" itself — that route is constructed client-side later as a fallback for
     // external absolute URLs. Treat these relative proxies as valid sources and render unoptimized.
     if (ogImage && (ogImage.startsWith("/api/assets/") || ogImage.startsWith("/api/og-image"))) {
-      console.log(`[BookmarkCard] Using relative proxy ogImage: ${ogImage}`);
+      if (isDev) console.log(`[BookmarkCard] Using relative proxy ogImage: ${ogImage}`);
       return ogImage;
     }
 
     // PRIORITY 4: Check if ogImage is a direct HTTP URL (not a proxy)
     if (ogImage?.startsWith("http")) {
       // If it's already a direct URL, use it (might be from older enrichments)
-      console.log(`[BookmarkCard] Using direct HTTP ogImage: ${ogImage}`);
+      if (isDev) console.log(`[BookmarkCard] Using direct HTTP ogImage: ${ogImage}`);
       return ogImage;
     }
 
     // PRIORITY 5: Direct HTTP URLs in content.imageUrl
     if (content?.imageUrl?.startsWith("http")) {
-      console.log(`[BookmarkCard] Using direct HTTP imageUrl: ${content.imageUrl}`);
+      if (isDev) console.log(`[BookmarkCard] Using direct HTTP imageUrl: ${content.imageUrl}`);
       return content.imageUrl;
     }
 
@@ -142,19 +146,19 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
 
     // PRIORITY 6: Karakeep imageAssetId - unfortunately requires proxy
     if (content?.imageAssetId) {
-      console.log(`[BookmarkCard] ⚠️ FALLBACK to proxy for Karakeep asset: ${content.imageAssetId}`);
+      if (isDev) console.log(`[BookmarkCard] ⚠️ FALLBACK to proxy for Karakeep asset: ${content.imageAssetId}`);
       return getAssetUrl(content.imageAssetId);
     }
 
-    // PRIORITY 7: OpenGraph proxy - only for truly external images
-    if (ogImage && !ogImage.startsWith("/")) {
-      console.log(`[BookmarkCard] ⚠️ FALLBACK to og-image proxy: ${ogImage}`);
+    // PRIORITY 7: OpenGraph proxy - only for truly external http(s) images
+    if (ogImage && /^https?:\/\//i.test(ogImage)) {
+      if (isDev) console.log(`[BookmarkCard] ⚠️ FALLBACK to og-image proxy: ${ogImage}`);
       return `/api/og-image?url=${encodeURIComponent(ogImage)}&bookmarkId=${encodeURIComponent(id)}`;
     }
 
     // PRIORITY 8: Screenshot fallback - requires proxy
     if (content?.screenshotAssetId) {
-      console.log(`[BookmarkCard] ⚠️ FALLBACK to proxy for screenshot: ${content.screenshotAssetId}`);
+      if (isDev) console.log(`[BookmarkCard] ⚠️ FALLBACK to proxy for screenshot: ${content.screenshotAssetId}`);
       return getAssetUrl(content.screenshotAssetId);
     }
 
