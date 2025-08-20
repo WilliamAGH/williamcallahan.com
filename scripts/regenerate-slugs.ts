@@ -4,8 +4,9 @@
  * Force regeneration of slug mappings from existing bookmarks
  */
 
+import "dotenv/config";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
-import { generateSlugMapping, saveSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { generateSlugMapping, saveSlugMapping, LOCAL_SLUG_MAPPING_PATH } from "@/lib/bookmarks/slug-manager";
 import type { UnifiedBookmark } from "@/types";
 
 /**
@@ -63,11 +64,11 @@ async function regenerateSlugs() {
     // Sample some mappings
     console.log("");
     console.log("3. Sample mappings (first 5):");
-    Object.entries(mapping.slugs).slice(0, 5).forEach(([id, entry]) => {
-      if (typeof entry === 'object' && entry !== null && 'slug' in entry) {
-        console.log(`   ${entry.slug} -> ${id}`);
-      }
-    });
+    Object.values(mapping.slugs)
+      .slice(0, 5)
+      .forEach((entry) => {
+        console.log(`   ${entry.slug} -> ${entry.id}`);
+      });
     
     // Save the mapping
     console.log("");
@@ -77,8 +78,7 @@ async function regenerateSlugs() {
     
     // Verify it saved correctly
     const fs = await import("node:fs/promises");
-    const path = await import("node:path");
-    const localPath = path.join(process.cwd(), "lib", "data", "slug-mapping.json");
+    const localPath = LOCAL_SLUG_MAPPING_PATH;
     
     try {
       const localData = await fs.readFile(localPath, "utf-8");
