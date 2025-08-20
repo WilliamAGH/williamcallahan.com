@@ -1,3 +1,4 @@
+/* eslint-disable s3/no-hardcoded-images */ 
 /**
  * Server-only utilities for processing Education and Certification data,
  * specifically handling logo fetching and placeholder generation.
@@ -38,7 +39,7 @@ export async function processEducationItem<T extends Education>(
   try {
     if (logo) {
       // If a specific logo path or URL is provided, resolve /images/ paths to CDN via getStaticImageUrl()
-      const resolvedUrl = /^\/images\//.test(logo) ? getStaticImageUrl(logo) : logo;
+      const resolvedUrl = logo.startsWith('/images/') ? getStaticImageUrl(logo) : logo;
       logoData = { url: resolvedUrl, source: null };
     } else {
       // Otherwise, fetch by domain
@@ -95,7 +96,7 @@ export async function processCertificationItem<T extends Certification | Class>(
   try {
     if (logo) {
       // If a specific logo path or URL is provided, resolve /images/ paths to CDN via getStaticImageUrl()
-      const resolvedUrl = /^\/images\//.test(logo) ? getStaticImageUrl(logo) : logo;
+      const resolvedUrl = logo.startsWith('/images/') ? getStaticImageUrl(logo) : logo;
       logoData = { url: resolvedUrl, source: null };
     } else {
       const domain = website ? normalizeDomain(website) : normalizeDomain(name);

@@ -11,8 +11,7 @@
 "use client";
 
 import Image from "next/image";
-import type React from "react";
-import { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import type { LogoImageProps, OptimizedCardImageProps } from "@/types/ui/image";
 import { getCompanyPlaceholder, COMPANY_PLACEHOLDER_BASE64 } from "@/lib/data-access/placeholder-images";
 
@@ -158,7 +157,18 @@ export function OptimizedCardImage({
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [retryKey, setRetryKey] = useState(0);
   const maxRetries = 1;
+  const retryTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Detect if this is a proxy URL that needs special handling
   const isProxyUrl = src?.startsWith("/api/assets/") || src?.startsWith("/api/og-image");
@@ -177,10 +187,13 @@ export function OptimizedCardImage({
     return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
   }
 
+  // Add cache buster for retries
+  const displaySrc = retryKey > 0 ? `${src}${src.includes("?") ? "&" : "?"}retry=${retryKey}` : src;
+
   // Real image case - includes screenshots and other proxy URLs
   return (
     <Image
-      src={src}
+      src={displaySrc}
       alt={alt}
       fill
       sizes="(max-width:768px) 100vw, 50vw"
@@ -193,15 +206,21 @@ export function OptimizedCardImage({
       onLoad={() => {
         setLoaded(true);
         setErrored(false); // Clear error state on successful load
+        // Clear any pending retry timeout
+        if (retryTimeoutRef.current) {
+          clearTimeout(retryTimeoutRef.current);
+        }
       }}
       onError={() => {
-        // For proxy URLs, retry once before giving up
+        // For proxy URLs, retry with exponential backoff
         if (isProxyUrl && retryCount < maxRetries) {
-          console.log(`[OptimizedCardImage] Retrying proxy URL: ${src}`);
-          setRetryCount(prev => prev + 1);
-          // Force a re-render by toggling error state
-          setErrored(false);
-          setTimeout(() => setErrored(true), 100);
+          console.log(`[OptimizedCardImage] Scheduling retry for proxy URL: ${src}`);
+          const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 5000); // 1s, 2s, up to 5s max
+          
+          retryTimeoutRef.current = setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+            setRetryKey(Date.now()); // Force new URL with cache buster
+          }, backoffDelay);
         } else {
           setErrored(true);
         }
