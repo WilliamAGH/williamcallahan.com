@@ -46,11 +46,6 @@ export class DataFetchManager {
   } as const;
 
   /**
-   * Safety threshold for new bookmarks processing
-   */
-  private readonly SAFETY_THRESHOLD_NEW_BOOKMARKS = 10;
-
-  /**
    * Fetches data based on the provided configuration
    * @param config - Configuration specifying which data to fetch
    * @returns Promise resolving to array of operation summaries
@@ -114,7 +109,7 @@ export class DataFetchManager {
       // Get current cached bookmarks to compare for new additions
       const previousBookmarks = (await getBookmarks({ skipExternalFetch: false })) as UnifiedBookmark[];
       const previousCount = previousBookmarks.length;
-      const previousBookmarkIds = new Set(previousBookmarks.map((b: UnifiedBookmark) => b.id));
+      // const previousBookmarkIds = new Set(previousBookmarks.map((b: UnifiedBookmark) => b.id));
 
       // Force fresh data fetch, passing the forceRefresh flag
       const bookmarksResult = await refreshBookmarks(config.forceRefresh);
@@ -129,13 +124,15 @@ export class DataFetchManager {
 
       logger.info(`[DataFetchManager] Fetched ${bookmarks.length} bookmarks (previous: ${previousCount})`);
 
-      // Process new bookmark logos if immediate processing is enabled
-      if (config.immediate) {
-        const newBookmarks = bookmarks.filter((b: UnifiedBookmark) => !previousBookmarkIds.has(b.id));
-        if (newBookmarks.length > 0) {
-          await this.processNewBookmarkLogos(newBookmarks, config.testLimit);
-        }
-      }
+      // DISABLED FOR BOOKMARKS: Don't fetch logos for bookmarks
+      // Bookmarks should only use OpenGraph images, not logos/favicons
+      // But logos are still needed for investments/experience/education pages
+      // if (config.immediate) {
+      //   const newBookmarks = bookmarks.filter((b: UnifiedBookmark) => !previousBookmarkIds.has(b.id));
+      //   if (newBookmarks.length > 0) {
+      //     await this.processNewBookmarkLogos(newBookmarks, config.testLimit);
+      //   }
+      // }
 
       // Read current index to surface changeDetected/lastFetchedAt consistently
       let changeDetected: boolean | undefined;
@@ -287,44 +284,6 @@ export class DataFetchManager {
         duration: (Date.now() - startTime) / 1000,
       };
     }
-  }
-
-  /**
-   * Process logos for newly added bookmarks
-   * @param newBookmarks - Array of newly added bookmark objects
-   * @param testLimit - Optional limit for testing purposes
-   * @returns Promise that resolves when processing is complete
-   */
-  private async processNewBookmarkLogos(newBookmarks: UnifiedBookmark[], testLimit?: number): Promise<void> {
-    let bookmarksToProcess = newBookmarks;
-
-    const newBookmarkCount = newBookmarks.length;
-    logger.info(`[DataFetchManager] Processing logos for ${newBookmarkCount} new bookmarks`);
-
-    // Safety check for excessive new bookmarks
-    if (newBookmarkCount > this.SAFETY_THRESHOLD_NEW_BOOKMARKS) {
-      logger.warn(
-        `[DataFetchManager] New bookmark count (${newBookmarkCount}) exceeds safety threshold (${this.SAFETY_THRESHOLD_NEW_BOOKMARKS}). Processing logos may be throttled.`,
-      );
-    }
-
-    // Apply test limit if provided
-    if (typeof testLimit === "number" && testLimit > 0) {
-      bookmarksToProcess = newBookmarks.slice(0, testLimit);
-      logger.info(`[DataFetchManager] Applying test limit, processing ${bookmarksToProcess.length} bookmarks`);
-    }
-
-    const domains = this.extractDomainsFromBookmarks(bookmarksToProcess);
-    logger.info(`[DataFetchManager] Found ${domains.size} unique domains from new bookmarks`);
-
-    const { successCount, failureCount } = await this.processLogoBatch(
-      Array.from(domains),
-      this.LOGO_BATCH_CONFIGS.IMMEDIATE,
-      "new bookmark logo update",
-    );
-    logger.info(
-      `[DataFetchManager] ${"new bookmark logo update"} batches complete. Success: ${successCount}, Failures: ${failureCount}`,
-    );
   }
 
   /**

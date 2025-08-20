@@ -86,33 +86,33 @@ export function getOgImageS3Key(
   fallbackHash?: string,
 ): string {
   const extension = getImageExtension(imageUrl);
-  let baseKey: string;
-
+  
+  // Use the centralized function for consistent naming when we have both URL and ID
   if (idempotencyKey && pageUrl) {
     try {
-      const domain = new URL(pageUrl).hostname.replace(/^www\./, "");
-      const sanitizedDomain = domain.replace(/\./g, "-");
-      // Generate short hash from idempotency key for uniqueness
-      const shortHash = hashImageContent(Buffer.from(idempotencyKey)).substring(0, 8);
-      // Format: domain-tld-bookmark-shorthash (e.g., github-com-bookmark-a1b2c3d4)
-      baseKey = `${sanitizedDomain}-bookmark-${shortHash}`;
+      // Import at top of file instead - for now, just inline the logic
+      const hash = hashImageContent(Buffer.from(`${pageUrl}:${idempotencyKey}`)).substring(0, 8);
+      const domain = new URL(pageUrl).hostname.replace(/^www\./, "").replace(/\./g, "-");
+      const filename = `${domain}-${hash}.${extension}`;
+      return `${s3Directory}/${filename}`;
     } catch {
-      // Fallback if pageUrl is invalid
+      // Fallback if URL parsing fails
       const shortHash = hashImageContent(Buffer.from(idempotencyKey)).substring(0, 8);
-      baseKey = `bookmark-${shortHash}`;
+      return `${s3Directory}/img-${shortHash}.${extension}`;
     }
-  } else if (idempotencyKey) {
-    // Fallback if pageUrl is not provided for some reason
+  }
+  
+  // Fallback cases when we don't have both URL and ID
+  let baseKey: string;
+  if (idempotencyKey) {
     const shortHash = hashImageContent(Buffer.from(idempotencyKey)).substring(0, 8);
-    baseKey = `bookmark-${shortHash}`;
+    baseKey = `img-${shortHash}`;
   } else if (fallbackHash) {
-    // Use first 8 chars of provided hash
     baseKey = fallbackHash.substring(0, 8);
   } else {
-    // Generate hash from image URL
     baseKey = hashImageContent(Buffer.from(imageUrl)).substring(0, 8);
   }
-
+  
   return `${s3Directory}/${baseKey}.${extension}`;
 }
 

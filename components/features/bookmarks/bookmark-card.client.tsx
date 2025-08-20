@@ -84,7 +84,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   // Use centralized image selection logic that properly handles all fallback cases
   // This ensures consistency across server and client components
   const displayImageUrl = selectBestImage(
-    { ogImage, content },
+    { ogImage, content, id, url },
     { includeScreenshots: true }
   );
 

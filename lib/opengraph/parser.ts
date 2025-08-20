@@ -96,17 +96,12 @@ export function extractOpenGraphTags(
     karakeepImage: null,
     karakeepAssetImage: null,
     karakeepScreenshotImage: null,
-    // Additional social media image variants
-    msapplicationImage: getMetaContent(['meta[name="msapplication-TileImage"]']),
-    // Schema.org image
-    schemaImage: getMetaContent(['meta[itemprop="image"]']),
-    // Apple touch icon (often high quality)
-    appleTouchIcon:
-      $('link[rel="apple-touch-icon"]').attr("href") ||
-      $('link[rel="apple-touch-icon-precomposed"]').attr("href") ||
-      null,
-    // Standard icon/favicon (last resort)
-    icon: $('link[rel="icon"]').attr("href") || $('link[rel="shortcut icon"]').attr("href") || null,
+    // REMOVED: We should NEVER use favicons/icons as OpenGraph images
+    // These fields were causing favicons to be fetched and stored
+    // msapplicationImage: REMOVED - not a content image
+    // schemaImage: REMOVED - often just a logo
+    // appleTouchIcon: REMOVED - this is a favicon, not content
+    // icon: REMOVED - this is definitely just a favicon
 
     site: getMetaContent(['meta[property="og:site_name"]', 'meta[name="twitter:site"]']),
     type: getMetaContent(['meta[property="og:type"]']),
