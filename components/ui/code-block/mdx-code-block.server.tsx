@@ -1,8 +1,7 @@
 "use client";
 
 import { processSvgTransforms } from "@/lib/image-handling/svg-transform-fix";
-import { useEffect, useRef } from "react";
-import type { DetailedHTMLProps, HTMLAttributes } from "react";
+import { useEffect, useRef, type DetailedHTMLProps, type HTMLAttributes } from "react";
 import { CodeBlock } from "./code-block.client";
 
 /**

@@ -16,8 +16,7 @@
 
 "use client";
 
-import { type JSX, isValidElement, useCallback, useEffect, useRef, useState } from "react"; // Import useEffect, useRef, useCallback, isValidElement
-import type { ReactNode } from "react";
+import { type JSX, isValidElement, useCallback, useEffect, useRef, useState, type ReactNode } from "react"; // Import useEffect, useRef, useCallback, isValidElement
 import { useWindowSize } from "../../../lib/hooks/use-window-size.client";
 import { cn } from "../../../lib/utils";
 import { WindowControls } from "../navigation/window-controls";
