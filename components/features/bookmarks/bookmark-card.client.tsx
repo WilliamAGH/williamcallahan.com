@@ -32,6 +32,7 @@ import { ShareButton } from "./share-button.client";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { usePathname } from "next/navigation";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
+import { BookmarkInsights } from "./bookmark-insights";
 
 import type { BookmarkCardClientProps } from "@/types";
 
@@ -53,7 +54,7 @@ const MAX_TITLE_WORDS = 10;
  */
 
 export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element | null {
-  const { id, url, title, description, tags, ogImage, content, dateBookmarked, internalHref } = props;
+  const { id, url, title, description, tags, ogImage, content, dateBookmarked, internalHref, note, summary } = props;
   const pathname = usePathname();
 
   /**
@@ -83,10 +84,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
 
   // Use centralized image selection logic that properly handles all fallback cases
   // This ensures consistency across server and client components
-  const displayImageUrl = selectBestImage(
-    { ogImage, content, id, url },
-    { includeScreenshots: true }
-  );
+  const displayImageUrl = selectBestImage({ ogImage, content, id, url }, { includeScreenshots: true });
 
   // DEV-ONLY: Log the image selection result for debugging
   if (process.env.NODE_ENV === "development") {
@@ -108,9 +106,8 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
 
   // Truncate title to configured number of words
   const titleWords = title.split(" ");
-  const displayTitle = titleWords.length > MAX_TITLE_WORDS
-    ? `${titleWords.slice(0, MAX_TITLE_WORDS).join(" ")}` + "..."
-    : title;
+  const displayTitle =
+    titleWords.length > MAX_TITLE_WORDS ? `${titleWords.slice(0, MAX_TITLE_WORDS).join(" ")}` + "..." : title;
 
   // Don't use a placeholder for SSR - render full card without interactive elements
   // Server will render as much as possible for SEO, client will hydrate
@@ -207,7 +204,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
         {/* Tags - always render for SEO, motion effects only when mounted */}
         {rawTags.length > 0 && (
           <div className="flex flex-wrap gap-2.5 mt-3 pt-4 pb-4 border-t border-gray-200 dark:border-gray-700">
-            {rawTags.map((raw) => {
+            {rawTags.map(raw => {
               const label = formatTagDisplay(raw);
               return (
                 <Link key={raw} href={`/bookmarks/tags/${tagToSlug(raw)}`} className="inline-block">
@@ -223,6 +220,18 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
               );
             })}
           </div>
+        )}
+
+        {/* AI Insights & Personal Notes - Only show on detail pages */}
+        {!effectiveInternalHref && (
+          <BookmarkInsights
+            note={note}
+            summary={summary}
+            tags={
+              tags && typeof tags[0] === "object" ? (tags as Array<{ name: string; attachedBy?: "ai" | "user" }>) : []
+            }
+            className="mt-4"
+          />
         )}
       </div>
     </div>
