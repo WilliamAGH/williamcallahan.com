@@ -19,7 +19,7 @@ class NextRequest {
     const originalGet = this.headers.get.bind(this.headers);
 
     // Override get method to be case-insensitive
-    this.headers.get = (name) => originalGet(name.toLowerCase());
+    this.headers.get = name => originalGet(name.toLowerCase());
   }
 }
 

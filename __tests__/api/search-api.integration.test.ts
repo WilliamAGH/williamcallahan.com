@@ -175,12 +175,10 @@ describe("Search API: GET /api/search/all", () => {
      */
     it("should successfully manage concurrent requests", async () => {
       const queries = ["test1", "test2", "test3"];
-      const requests = queries.map((q) =>
-        GET(new MockNextRequest(`http://localhost:3000/api/search/all?q=${q}`) as any),
-      );
+      const requests = queries.map(q => GET(new MockNextRequest(`http://localhost:3000/api/search/all?q=${q}`) as any));
 
       const responses = await Promise.all(requests);
-      const results = await Promise.all(responses.map((r) => r.json()));
+      const results = await Promise.all(responses.map(r => r.json()));
 
       // All requests should succeed
       for (const response of responses) {

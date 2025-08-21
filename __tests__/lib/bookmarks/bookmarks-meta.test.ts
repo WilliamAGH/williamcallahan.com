@@ -66,7 +66,7 @@ const mockBookmarks: UnifiedBookmark[] = [
 
 /** Helper to strip tag objects -> names for deep equality where expected data uses strings */
 const simplify = (bookmarks: UnifiedBookmark[]) =>
-  bookmarks.map((b) => ({ ...b, tags: b.tags.map((t) => (typeof t === "string" ? t : t.name)) }));
+  bookmarks.map(b => ({ ...b, tags: b.tags.map(t => (typeof t === "string" ? t : t.name)) }));
 
 describe("Bookmarks Data Access (Simple)", () => {
   beforeEach(() => {

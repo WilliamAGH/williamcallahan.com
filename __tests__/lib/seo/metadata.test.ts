@@ -201,7 +201,7 @@ describe("SEO Metadata", () => {
         experienceMetadata.script?.[0]?.text || "{}",
       ) as SchemaGraph;
       const webPageExp = parsedExperienceJsonLd["@graph"]?.find(
-        (entity) => entity["@type"] === "WebPage" || entity["@type"] === "ProfilePage",
+        entity => entity["@type"] === "WebPage" || entity["@type"] === "ProfilePage",
       );
       expect(webPageExp).toBeDefined();
       if (webPageExp) {
@@ -229,7 +229,7 @@ describe("SEO Metadata", () => {
       const dates = metadata.other || {};
       const jsonLd = JSON.parse(metadata.script?.[0]?.text || "{}") as SchemaGraph;
       const webPage = jsonLd["@graph"]?.find(
-        (entity) => entity["@type"] === "WebPage" || entity["@type"] === "ProfilePage",
+        entity => entity["@type"] === "WebPage" || entity["@type"] === "ProfilePage",
       );
 
       expect(webPage).toBeDefined();

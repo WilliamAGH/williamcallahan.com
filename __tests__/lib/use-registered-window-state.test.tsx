@@ -39,7 +39,7 @@ describe("useRegisteredWindowState", () => {
 
     // let effects flush
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 0));
+      await new Promise(r => setTimeout(r, 0));
     });
 
     expect(registerSpy).toHaveBeenCalledTimes(1);

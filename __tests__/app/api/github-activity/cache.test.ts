@@ -198,7 +198,7 @@ describe("GitHub Activity API Cache Tests", () => {
 
   it("should handle concurrent access to cache", async () => {
     // Reset mock implementation to track concurrent calls
-    mockSetGithubActivity.mockImplementation((data) => {
+    mockSetGithubActivity.mockImplementation(data => {
       // Simulate some work
       mockGithubActivity.current = data;
     });
@@ -211,7 +211,7 @@ describe("GitHub Activity API Cache Tests", () => {
           ...MOCK_GITHUB_ACTIVITY,
           trailingYearData: {
             ...MOCK_GITHUB_ACTIVITY.trailingYearData,
-            data: MOCK_GITHUB_ACTIVITY.trailingYearData.data.map((item) => ({
+            data: MOCK_GITHUB_ACTIVITY.trailingYearData.data.map(item => ({
               ...item,
               count: i, // Each concurrent call gets a different count
             })),

@@ -57,7 +57,7 @@ describe("Search Helpers", () => {
         { slug: "post-3", title: "Third Post" },
       ];
 
-      const result = dedupeDocuments(documents, (doc) => doc.slug);
+      const result = dedupeDocuments(documents, doc => doc.slug);
 
       expect(result).toHaveLength(3);
       expect(result[0]).toEqual({ slug: "post-1", title: "First Post" });
@@ -149,7 +149,7 @@ describe("Search Helpers", () => {
         { code: "ABC", value: 300 },
       ];
 
-      const result = prepareDocumentsForIndexing(documents, "Custom ID Test", (doc) => doc.code);
+      const result = prepareDocumentsForIndexing(documents, "Custom ID Test", doc => doc.code);
 
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({ code: "ABC", value: 100 });

@@ -86,7 +86,7 @@ describe("InvestmentCardClient", () => {
     // We need to target the specific link with the aVenture research URL
     const aventureLinks = screen.getAllByRole("link");
     const aventureLink = aventureLinks.find(
-      (link) =>
+      link =>
         link.getAttribute("href") === "https://aventure.vc/companies/aventure-venture-capital-san-francisco-ca-usa",
     );
     expect(aventureLink).toBeInTheDocument();

@@ -29,7 +29,7 @@ describe("Blog MDX Smoke Tests", () => {
   beforeAll(async () => {
     try {
       const files = await fs.readdir(POSTS_DIRECTORY);
-      mdxFiles = files.filter((file) => file.endsWith(".mdx"));
+      mdxFiles = files.filter(file => file.endsWith(".mdx"));
       console.log(`Found ${mdxFiles.length} MDX files in ${POSTS_DIRECTORY}`);
     } catch (error) {
       console.error("Failed to read blog posts directory:", POSTS_DIRECTORY, error);
@@ -46,43 +46,47 @@ describe("Blog MDX Smoke Tests", () => {
   });
 
   it("all blog posts have valid frontmatter", async () => {
-    for (const fileName of mdxFiles) {
-      const fullPath = path.join(POSTS_DIRECTORY, fileName);
-      let fileContents: string;
+    await Promise.all(
+      mdxFiles.map(async fileName => {
+        const fullPath = path.join(POSTS_DIRECTORY, fileName);
+        let fileContents: string;
 
-      try {
-        fileContents = await fs.readFile(fullPath, "utf8");
-      } catch (readError) {
-        console.error(`Failed to read file ${fileName}:`, readError);
-        expect(readError).toBeNull(); // Fail test if file can't be read
-        return;
-      }
+        try {
+          fileContents = await fs.readFile(fullPath, "utf8");
+        } catch (readError) {
+          console.error(`Failed to read file ${fileName}:`, readError);
+          expect(readError).toBeNull(); // Fail test if file can't be read
+          return;
+        }
 
-      const { data: frontmatter } = matter(fileContents) as unknown as { data: BlogFrontmatter };
+        const { data: frontmatter } = matter(fileContents) as unknown as { data: BlogFrontmatter };
 
-      expect(frontmatter.slug).toEqual(expect.any(String));
-      expect(frontmatter.slug.trim()).not.toBe("");
-    }
+        expect(frontmatter.slug).toEqual(expect.any(String));
+        expect(frontmatter.slug.trim()).not.toBe("");
+      }),
+    );
   });
 
   it("all blog posts can be processed by getMDXPost", async () => {
-    for (const fileName of mdxFiles) {
-      const fullPath = path.join(POSTS_DIRECTORY, fileName);
-      const fileContents = await fs.readFile(fullPath, "utf8");
-      const { data: frontmatter } = matter(fileContents) as unknown as { data: BlogFrontmatter };
-      const frontmatterSlug = frontmatter.slug.trim();
+    await Promise.all(
+      mdxFiles.map(async fileName => {
+        const fullPath = path.join(POSTS_DIRECTORY, fileName);
+        const fileContents = await fs.readFile(fullPath, "utf8");
+        const { data: frontmatter } = matter(fileContents) as unknown as { data: BlogFrontmatter };
+        const frontmatterSlug = frontmatter.slug.trim();
 
-      const post = await getMDXPost(frontmatterSlug, fullPath, fileContents);
+        const post = await getMDXPost(frontmatterSlug, fullPath, fileContents);
 
-      // Check that the post was processed correctly
-      expect(post).not.toBeNull();
-      if (post) {
-        expect(post.title).toEqual(expect.any(String));
-        expect(post.title.length).toBeGreaterThan(0);
-        expect(post.content).toBeDefined();
-        // Verify other critical properties as needed
-        expect(post.slug).toBe(frontmatterSlug);
-      }
-    }
+        // Check that the post was processed correctly
+        expect(post).not.toBeNull();
+        if (post) {
+          expect(post.title).toEqual(expect.any(String));
+          expect(post.title.length).toBeGreaterThan(0);
+          expect(post.content).toBeDefined();
+          // Verify other critical properties as needed
+          expect(post.slug).toBe(frontmatterSlug);
+        }
+      }),
+    );
   });
 });

@@ -10,7 +10,7 @@
  *    - Verifies all blog post URLs return 200 OK
  *    - Uses actual MDX filenames as slugs
  *    - Tests each post in /data/blog/posts/
- * 
+ *
  * 3. Sitemap URL Validation
  *    - Verifies ALL URLs in sitemap.xml return 200 OK
  *    - Tests bookmarks, pagination, and all dynamic routes
@@ -36,7 +36,7 @@ const BLOG_POSTS_DIR = path.join(process.cwd(), "data", "blog", "posts");
 // Helper to get all blog post slugs from MDX files
 const getBlogSlugs = (): string[] => {
   const files = fs.readdirSync(BLOG_POSTS_DIR);
-  return files.filter((file) => file.endsWith(".mdx")).map((file) => file.replace(".mdx", ""));
+  return files.filter(file => file.endsWith(".mdx")).map(file => file.replace(".mdx", ""));
 };
 
 describe("Routes Module", () => {
@@ -64,7 +64,7 @@ describe("Routes Module", () => {
      */
     const nonExistentRoutes = ["/this-page-does-not-exist", "/blog/non-existent-post"];
 
-    test.each(nonExistentRoutes)("route %s returns 404", async (route) => {
+    test.each(nonExistentRoutes)("route %s returns 404", async route => {
       // Mock 404 response for non-existent routes
       mockFetch.mockImplementationOnce(() =>
         Promise.resolve({
@@ -93,7 +93,7 @@ describe("Routes Module", () => {
      */
     const routes = ["/", "/blog", "/bookmarks", "/education", "/experience", "/investments"];
 
-    test.each(routes)("route %s returns 200", async (route) => {
+    test.each(routes)("route %s returns 200", async route => {
       // Mock 200 response for existing routes
       mockFetch.mockImplementationOnce(() =>
         Promise.resolve({
@@ -122,7 +122,7 @@ describe("Routes Module", () => {
      */
     const slugs = getBlogSlugs();
 
-    test.each(slugs)("blog post %s returns 200", async (slug) => {
+    test.each(slugs)("blog post %s returns 200", async slug => {
       // Mock 200 response for existing blog posts
       mockFetch.mockImplementationOnce(() =>
         Promise.resolve({
@@ -154,16 +154,16 @@ describe("Routes Module", () => {
     it("should return 200 for ALL sitemap URLs", async () => {
       // Load the actual sitemap with all URLs
       const sitemapEntries: MetadataRoute.Sitemap = await sitemap();
-      
+
       // Extract just the URLs
       const urls = sitemapEntries.map(entry => entry.url);
-      
+
       console.log(`🔍 Testing ${urls.length} sitemap URLs for 200 responses...`);
-      
+
       // Track results for reporting
       const results: { url: string; status: number }[] = [];
       let failureCount = 0;
-      
+
       // Test each URL
       for (const url of urls) {
         // Mock successful response for valid sitemap URLs
@@ -173,19 +173,19 @@ describe("Routes Module", () => {
             ok: true,
           }),
         );
-        
+
         const response = await fetch(url);
         results.push({ url, status: response.status });
-        
+
         if (response.status !== 200) {
           failureCount++;
           console.error(`❌ ${url} returned ${response.status}`);
         }
-        
+
         // Verify the URL was called
         expect(mockFetch).toHaveBeenCalledWith(url);
       }
-      
+
       // Report summary
       const successCount = urls.length - failureCount;
       console.log(`\n📊 Sitemap URL Test Results:`);
@@ -193,7 +193,7 @@ describe("Routes Module", () => {
       if (failureCount > 0) {
         console.log(`   ❌ Failed: ${failureCount}/${urls.length}`);
       }
-      
+
       // Assert all URLs returned 200
       const failedUrls = results.filter(r => r.status !== 200);
       if (failedUrls.length > 0) {
@@ -202,13 +202,13 @@ describe("Routes Module", () => {
           console.error(`   ${url} → ${status}`);
         });
       }
-      
+
       expect(failedUrls).toHaveLength(0);
     });
 
     /**
      * Test: Critical Bookmark Routes
-     * 
+     *
      * Specifically tests bookmark pages with slugs to ensure:
      * 1. Slug generation is working
      * 2. Bookmark detail pages are accessible
@@ -217,18 +217,18 @@ describe("Routes Module", () => {
     it("should return 200 for bookmark detail pages", async () => {
       // Load sitemap to get bookmark URLs
       const sitemapEntries = await sitemap();
-      
+
       // Filter for bookmark detail pages (not pagination)
       const bookmarkUrls = sitemapEntries
         .map(e => e.url)
         .filter(url => url.includes("/bookmarks/") && !url.includes("/page/"));
-      
+
       console.log(`🔖 Testing ${bookmarkUrls.length} bookmark detail pages...`);
-      
+
       // Test a sample if there are many bookmarks
       const samplesToTest = Math.min(bookmarkUrls.length, 10);
       const bookmarkSample = bookmarkUrls.slice(0, samplesToTest);
-      
+
       for (const url of bookmarkSample) {
         mockFetch.mockImplementationOnce(() =>
           Promise.resolve({
@@ -236,11 +236,11 @@ describe("Routes Module", () => {
             ok: true,
           }),
         );
-        
+
         const response = await fetch(url);
         expect(response.status).toBe(200);
       }
-      
+
       if (bookmarkUrls.length > samplesToTest) {
         console.log(`   (Tested ${samplesToTest} of ${bookmarkUrls.length} bookmark URLs)`);
       }

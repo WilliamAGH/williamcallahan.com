@@ -16,7 +16,7 @@ const mockReadJsonS3 = jest.mocked(readJsonS3);
 const createTag = (name: string) => ({ id: name, name, slug: name.replace(/\s+/g, "-"), color: undefined });
 
 const simplify = (bookmarks: UnifiedBookmark[]) =>
-  bookmarks.map((b) => ({ ...b, tags: b.tags.map((t) => (typeof t === "string" ? t : t.name)) }));
+  bookmarks.map(b => ({ ...b, tags: b.tags.map(t => (typeof t === "string" ? t : t.name)) }));
 
 describe("Tag Route Functionality", () => {
   beforeEach(() => {
@@ -300,7 +300,7 @@ describe("Tag Route Functionality", () => {
       ];
 
       // Test 1: Popular tag (cached in S3)
-      const cachedReactBookmarks = allBookmarks.filter((b) => b.tags.includes("react")).slice(0, 24); // First page
+      const cachedReactBookmarks = allBookmarks.filter(b => b.tags.includes("react")).slice(0, 24); // First page
 
       const reactIndex: BookmarksIndex = {
         count: 20,
@@ -452,7 +452,7 @@ describe("Tag Route Functionality", () => {
 
       // Verify data was successfully retrieved from S3
       expect(result.bookmarks).toHaveLength(24);
-      const firstTags = result.bookmarks[0].tags.map((t) => (typeof t === "string" ? t : t.name));
+      const firstTags = result.bookmarks[0].tags.map(t => (typeof t === "string" ? t : t.name));
       expect(firstTags).toContain("popular tag");
 
       // Verify ONLY S3 tag cache was used, not the full bookmarks file

@@ -48,7 +48,7 @@ describe("LogoImage Conditional Rendering", () => {
       render(<LogoImage {...regularUrlProps} />);
       // Get all images and find the main one (not placeholder)
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find((img) => img.getAttribute("src") === regularUrlProps.src);
+      const mainImage = images.find(img => img.getAttribute("src") === regularUrlProps.src);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -69,7 +69,7 @@ describe("LogoImage Conditional Rendering", () => {
       render(<LogoImage {...regularUrlProps} priority={true} />);
       // Get all images and find the main one
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find((img) => img.getAttribute("src") === regularUrlProps.src);
+      const mainImage = images.find(img => img.getAttribute("src") === regularUrlProps.src);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -82,7 +82,7 @@ describe("LogoImage Conditional Rendering", () => {
     it("applies custom className to the component wrapper", () => {
       render(<LogoImage {...regularUrlProps} className="custom-class" />);
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find((img) => img.getAttribute("src") === regularUrlProps.src);
+      const mainImage = images.find(img => img.getAttribute("src") === regularUrlProps.src);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -97,7 +97,7 @@ describe("LogoImage Conditional Rendering", () => {
       render(<LogoImage {...dataUrlProps} />);
       // Check if next/image was rendered for data URL
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find((img) => img.getAttribute("src") === dataUrlProps.src);
+      const mainImage = images.find(img => img.getAttribute("src") === dataUrlProps.src);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -117,7 +117,7 @@ describe("LogoImage Conditional Rendering", () => {
     it("applies custom className to next/image for data URLs", () => {
       render(<LogoImage {...dataUrlProps} className="custom-img-class" />);
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find((img) => img.getAttribute("src") === dataUrlProps.src);
+      const mainImage = images.find(img => img.getAttribute("src") === dataUrlProps.src);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -130,7 +130,7 @@ describe("LogoImage Conditional Rendering", () => {
     it("handles priority prop for data URLs with next/image", () => {
       render(<LogoImage {...dataUrlProps} priority={true} />);
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find((img) => img.getAttribute("src") === dataUrlProps.src);
+      const mainImage = images.find(img => img.getAttribute("src") === dataUrlProps.src);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");

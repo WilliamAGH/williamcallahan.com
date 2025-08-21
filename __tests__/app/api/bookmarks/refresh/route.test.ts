@@ -103,7 +103,7 @@ describe("Bookmarks Refresh API Route", () => {
       }
 
       // Check if we've hit the limit
-      const withinWindow = requests.filter((t) => now - t < rateLimitConfig.windowMs);
+      const withinWindow = requests.filter(t => now - t < rateLimitConfig.windowMs);
       const shouldAllow = withinWindow.length < rateLimitConfig.maxRequests;
 
       expect(shouldAllow).toBe(false); // We've hit the limit
@@ -173,8 +173,8 @@ describe("Bookmarks Refresh API Route", () => {
 
       const summary = {
         processed: domains.length,
-        successful: results.filter((r) => r.success).length,
-        failed: results.filter((r) => !r.success).length,
+        successful: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success).length,
       };
 
       expect(summary.processed).toBe(3);

@@ -10,7 +10,7 @@ module.exports = {
       captureMessage: jest.fn(),
     })),
   })),
-  withScope: jest.fn((callback) =>
+  withScope: jest.fn(callback =>
     callback({
       setTag: jest.fn(),
       setLevel: jest.fn(),

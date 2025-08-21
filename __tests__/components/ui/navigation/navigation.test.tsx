@@ -125,11 +125,11 @@ describe("Navigation", () => {
       const allLinks = screen.getAllByRole("link");
       console.log(
         "Rendered links:",
-        allLinks.map((link) => link.textContent),
+        allLinks.map(link => link.textContent),
       );
       console.log(
         "Expected navigationLinks:",
-        navigationLinks.map((link) => link.name),
+        navigationLinks.map(link => link.name),
       );
 
       // At 1440px width, all links including Contact should be visible
