@@ -10,21 +10,22 @@
  */
 
 import { debug } from "@/lib/utils/debug";
-import type {
-  ContributionDay,
-  GitHubActivityApiResponse,
-  GitHubActivitySegment,
-  GitHubActivitySummary,
-  StoredGithubActivityS3,
-  GithubRepoNode,
-  RepoWeeklyStatCache,
+import {
+  type ContributionDay,
+  type GitHubActivityApiResponse,
+  type GitHubActivitySegment,
+  type GitHubActivitySummary,
+  type StoredGithubActivityS3,
+  type GithubRepoNode,
+  type RepoWeeklyStatCache,
+  ContributorStatsResponseSchema,
+  CommitResponseSchema,
+  type RepoRawWeeklyStat,
 } from "@/types/github";
-import { ContributorStatsResponseSchema, CommitResponseSchema } from "@/types/github";
 import { formatPacificDateTime, getTrailingYearDate, startOfDay, endOfDay, unixToDate } from "@/lib/utils/date-format";
 import { waitForPermit, isOperationAllowed } from "@/lib/rate-limiter";
 import { generateGitHubStatsCSV, parseGitHubStatsCSV } from "@/lib/utils/csv";
 import { writeBinaryS3, readBinaryS3 } from "@/lib/s3-utils";
-import type { RepoRawWeeklyStat } from "@/types/github";
 import { BatchProcessor } from "@/lib/batch-processing";
 import { retryWithDomainConfig, delay } from "@/lib/utils/retry";
 import { createCategorizedError } from "@/lib/utils/error-utils";
