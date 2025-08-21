@@ -1,14 +1,29 @@
 {
-  "$schema": "https://oxc.rs/schemas/oxlintrc.json",
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "env": { "browser": true, "es2023": true },
   "ignorePatterns": [
-    "next-env.d.ts",
-    ".next/**"
+    "**/.next/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/out/**",
+    "components/ui/code-block/prism-syntax-highlighting/prism.js"
   ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn",
+    "style": "off",
+    "pedantic": "off"
+  },
+  "rules": {
+    "no-duplicate-imports": "error",
+    "no-unreachable": "error"
+  },
   "overrides": [
     {
-      "files": ["next-env.d.ts"],
+      "files": ["**/*.{js,cjs,mjs}"],
       "rules": {
-        "typescript/triple-slash-reference": "off"
+        "typescript/*": "off"
       }
     }
   ]
