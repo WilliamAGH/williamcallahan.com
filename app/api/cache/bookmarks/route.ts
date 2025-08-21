@@ -95,7 +95,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       forceRefresh: true,
     });
 
-    const bookmarkResult: DataFetchOperationSummary | undefined = results.find((r) => r.operation === "bookmarks");
+    const bookmarkResult: DataFetchOperationSummary | undefined = results.find(r => r.operation === "bookmarks");
     if (!bookmarkResult?.success) {
       throw new Error(bookmarkResult?.error ?? "Bookmark refresh failed");
     }

@@ -117,7 +117,7 @@ class CircularDependencyAnalyzer {
       } else if (match[2]) {
         const namedExports = match[2]
           .split(",")
-          .map((e) => {
+          .map(e => {
             const trimmed = e.trim();
             const beforeAs = trimmed.split(" as ")[0];
             return beforeAs || "";
@@ -226,7 +226,7 @@ class CircularDependencyAnalyzer {
   }
 
   private describeCycle(chain: string[]): string {
-    const shortNames = chain.map((file) => {
+    const shortNames = chain.map(file => {
       const parts = file.split("/");
       const lastPart = parts.length > 0 ? parts[parts.length - 1] : null;
       return lastPart ? lastPart.replace(/\.(ts|tsx)$/, "") : "";
@@ -241,13 +241,13 @@ class CircularDependencyAnalyzer {
       if (file.includes("types/")) {
         // Check if any lib file later in the chain imports back to types
         return (
-          chain.slice(idx + 1).some((f) => f.includes("lib/")) && chain.slice(idx + 1).some((f) => f.includes("types/"))
+          chain.slice(idx + 1).some(f => f.includes("lib/")) && chain.slice(idx + 1).some(f => f.includes("types/"))
         );
       }
       return false;
     });
 
-    const hasComponents = chain.some((file) => file.includes("components/"));
+    const hasComponents = chain.some(file => file.includes("components/"));
 
     if (hasTypesLib) return "high";
     if (hasComponents) return "medium";
@@ -259,17 +259,17 @@ class CircularDependencyAnalyzer {
     let impact = 10; // Base impact
 
     // Types ↔ Lib cycles cause the most warnings
-    if (chain.some((f) => f.includes("types/")) && chain.some((f) => f.includes("lib/"))) {
+    if (chain.some(f => f.includes("types/")) && chain.some(f => f.includes("lib/"))) {
       impact += 50;
     }
 
     // Validator cycles cause type inference issues
-    if (chain.some((f) => f.includes("validators"))) {
+    if (chain.some(f => f.includes("validators"))) {
       impact += 30;
     }
 
     // Component cycles cause prop typing issues
-    if (chain.some((f) => f.includes("components/"))) {
+    if (chain.some(f => f.includes("components/"))) {
       impact += 20;
     }
 
@@ -288,11 +288,11 @@ class CircularDependencyAnalyzer {
     // Filter cycles based on --full flag
     const filteredCycles = showFull
       ? cycles
-      : cycles.filter((cycle) => {
+      : cycles.filter(cycle => {
           // Exclude cycles that only go through scripts, app files, or UI components
           // These don't impact type safety or runtime behavior
           const isOnlyUIOrScripts = cycle.chain.every(
-            (f) =>
+            f =>
               f.includes("scripts/") ||
               f.includes("app/") ||
               f.includes("components/") ||
@@ -303,8 +303,8 @@ class CircularDependencyAnalyzer {
           if (isOnlyUIOrScripts) return false;
 
           // Include cycles that have actual runtime impact
-          const hasLibDependency = cycle.chain.some((f) => f.includes("lib/"));
-          const hasTypesDependency = cycle.chain.some((f) => f.includes("types/"));
+          const hasLibDependency = cycle.chain.some(f => f.includes("lib/"));
+          const hasTypesDependency = cycle.chain.some(f => f.includes("types/"));
           const hasHighImpact = cycle.impactEstimate >= 70;
 
           return hasLibDependency || hasTypesDependency || hasHighImpact;
@@ -357,10 +357,10 @@ class CircularDependencyAnalyzer {
   }
 
   private suggestFix(chain: string[]): string {
-    const hasTypes = chain.some((f) => f.includes("types/"));
-    const hasLib = chain.some((f) => f.includes("lib/"));
-    const hasValidators = chain.some((f) => f.includes("validators"));
-    const hasConstants = chain.some((f) => f.includes("constants"));
+    const hasTypes = chain.some(f => f.includes("types/"));
+    const hasLib = chain.some(f => f.includes("lib/"));
+    const hasValidators = chain.some(f => f.includes("validators"));
+    const hasConstants = chain.some(f => f.includes("constants"));
 
     if (hasTypes && hasLib && hasValidators) {
       return "Move Zod schema to types/ or use interface + separate validation";
@@ -392,15 +392,13 @@ async function main() {
 
     // Only exit with non-zero status if there are critical cycles
     // (non-critical cycles don't impact type safety or runtime behavior)
-    const criticalCycles = cycles.filter((cycle) => {
-      const hasTypesLibCycle =
-        cycle.chain.some((f) => f.includes("types/")) && cycle.chain.some((f) => f.includes("lib/"));
+    const criticalCycles = cycles.filter(cycle => {
+      const hasTypesLibCycle = cycle.chain.some(f => f.includes("types/")) && cycle.chain.some(f => f.includes("lib/"));
       const isHighSeverity = cycle.severity === "high";
       const hasHighImpact = cycle.impactEstimate >= 70;
 
       const isOnlyUIOrScripts = cycle.chain.every(
-        (f) =>
-          f.includes("scripts/") || f.includes("app/") || f.includes("components/") || f.includes("data/blog/posts"),
+        f => f.includes("scripts/") || f.includes("app/") || f.includes("components/") || f.includes("data/blog/posts"),
       );
 
       return (hasTypesLibCycle || isHighSeverity || hasHighImpact) && !isOnlyUIOrScripts;

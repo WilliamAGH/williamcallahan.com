@@ -32,15 +32,17 @@ Provide comprehensive guidance for properly implementing server/client boundarie
 ### ✅ DO's - Server/Client Coordination
 
 1. **DO fetch data in Server Components**
+
    ```tsx
    // Server Component - Direct database access
    export default async function ProductList() {
-     const products = await db.query('SELECT * FROM products')
-     return <ProductGrid products={products} />
+     const products = await db.query("SELECT * FROM products");
+     return <ProductGrid products={products} />;
    }
    ```
 
 2. **DO use Suspense boundaries for streaming**
+
    ```tsx
    <Suspense fallback={<LoadingSkeleton />}>
      <AsyncServerComponent />
@@ -48,122 +50,130 @@ Provide comprehensive guidance for properly implementing server/client boundarie
    ```
 
 3. **DO pass Server Components as children to Client Components**
+
    ```tsx
    // Client Component
-   'use client'
+   "use client";
    export function Modal({ children }) {
-     return <div className="modal">{children}</div>
+     return <div className="modal">{children}</div>;
    }
-   
+
    // Server Component usage
    <Modal>
      <ServerContent /> {/* This remains a Server Component */}
-   </Modal>
+   </Modal>;
    ```
 
 4. **DO use parallel data fetching**
+
    ```tsx
    export default async function Page() {
      // Start all fetches in parallel
-     const userPromise = getUser()
-     const postsPromise = getPosts()
-     
+     const userPromise = getUser();
+     const postsPromise = getPosts();
+
      // Wait for all to complete
-     const [user, posts] = await Promise.all([userPromise, postsPromise])
-     
-     return <Dashboard user={user} posts={posts} />
+     const [user, posts] = await Promise.all([userPromise, postsPromise]);
+
+     return <Dashboard user={user} posts={posts} />;
    }
    ```
 
 5. **DO validate environment variables**
+
    ```tsx
    // Server-only validation
-   const apiKey = process.env.SECRET_API_KEY
-   if (!apiKey) throw new Error('SECRET_API_KEY is required')
-   
+   const apiKey = process.env.SECRET_API_KEY;
+   if (!apiKey) throw new Error("SECRET_API_KEY is required");
+
    // Client-safe config
-   const publicUrl = process.env.NEXT_PUBLIC_API_URL
+   const publicUrl = process.env.NEXT_PUBLIC_API_URL;
    ```
 
 ### ❌ DON'Ts - Common Pitfalls
 
 1. **DON'T use hooks in Server Components**
+
    ```tsx
    // ❌ WRONG - Server Component
    export default function ServerComponent() {
-     const [state, setState] = useState() // Error!
-     useEffect(() => {}) // Error!
+     const [state, setState] = useState(); // Error!
+     useEffect(() => {}); // Error!
    }
    ```
 
-2. **DON'T expose secrets with NEXT_PUBLIC_**
+2. **DON'T expose secrets with NEXT*PUBLIC***
+
    ```tsx
    // ❌ NEVER DO THIS
-   NEXT_PUBLIC_DATABASE_URL=postgres://... 
+   NEXT_PUBLIC_DATABASE_URL=postgres://...
    NEXT_PUBLIC_API_SECRET=sk_live_...
-   
+
    // ✅ Keep secrets server-only
    DATABASE_URL=postgres://...
    API_SECRET=sk_live_...
    ```
 
 3. **DON'T pass non-serializable props from Server to Client**
+
    ```tsx
    // ❌ WRONG - Functions can't be serialized
-   <ClientComponent onClick={() => console.log('error')} />
-   
+   <ClientComponent onClick={() => console.log("error")} />;
+
    // ✅ RIGHT - Handle events client-side
-   'use client'
+   ("use client");
    function ClientComponent() {
-     const handleClick = () => console.log('works')
-     return <button onClick={handleClick}>Click</button>
+     const handleClick = () => console.log("works");
+     return <button onClick={handleClick}>Click</button>;
    }
    ```
 
 4. **DON'T make Client Components async**
+
    ```tsx
    // ❌ WRONG
-   'use client'
+   "use client";
    export default async function ClientComponent() {
-     const data = await fetch() // Error!
+     const data = await fetch(); // Error!
    }
-   
+
    // ✅ RIGHT - Use useEffect or SWR/React Query
-   'use client'
+   ("use client");
    export default function ClientComponent() {
-     const { data } = useSWR('/api/data', fetcher)
+     const { data } = useSWR("/api/data", fetcher);
    }
    ```
 
 5. **DON'T await Promises on the server that should stream**
+
    ```tsx
    // ❌ Blocks entire component
    export default async function Page() {
-     const slowData = await fetchSlowData() // Blocks!
-     return <div>{slowData}</div>
+     const slowData = await fetchSlowData(); // Blocks!
+     return <div>{slowData}</div>;
    }
-   
+
    // ✅ Stream with Suspense
    export default function Page() {
      return (
        <Suspense fallback={<Loading />}>
          <SlowDataComponent /> {/* Async component */}
        </Suspense>
-     )
+     );
    }
    ```
 
 ## Environment Variable Security Matrix
 
-| Variable Type | Server Access | Client Access | Build-Time Inlined | Use Cases |
-|---------------|---------------|---------------|-------------------|-----------|
-| `PRIVATE_KEY` | ✅ Yes | ❌ No | ❌ No | API keys, secrets, passwords |
-| `NEXT_PUBLIC_*` | ✅ Yes | ✅ Yes | ✅ Yes | Public API endpoints, analytics IDs |
+| Variable Type   | Server Access | Client Access | Build-Time Inlined | Use Cases                           |
+| --------------- | ------------- | ------------- | ------------------ | ----------------------------------- |
+| `PRIVATE_KEY`   | ✅ Yes        | ❌ No         | ❌ No              | API keys, secrets, passwords        |
+| `NEXT_PUBLIC_*` | ✅ Yes        | ✅ Yes        | ✅ Yes             | Public API endpoints, analytics IDs |
 
 ### Security Rules
 
-1. **Build-time inlining**: NEXT_PUBLIC_ variables are permanently baked into the client bundle at build time
-2. **No runtime updates**: Changing NEXT_PUBLIC_ values requires a rebuild
+1. **Build-time inlining**: NEXT*PUBLIC* variables are permanently baked into the client bundle at build time
+2. **No runtime updates**: Changing NEXT*PUBLIC* values requires a rebuild
 3. **Git safety**: Always add `.env.local` to `.gitignore`
 4. **Production secrets**: Use proper secrets management (AWS Secrets Manager, Vault, etc.)
 
@@ -177,10 +187,10 @@ export default function Layout({ children }) {
   return (
     <div>
       <Header /> {/* Static, renders immediately */}
-      <Nav />    {/* Static, renders immediately */}
+      <Nav /> {/* Static, renders immediately */}
       {children}
     </div>
-  )
+  );
 }
 
 // 2. Progressive content streaming
@@ -188,55 +198,55 @@ export default function Page() {
   return (
     <>
       <HeroSection /> {/* Static content first */}
-      
       <Suspense fallback={<ProductsSkeleton />}>
         <ProductList /> {/* Async, streams when ready */}
       </Suspense>
-      
       <Suspense fallback={<ReviewsSkeleton />}>
         <Reviews /> {/* Async, streams independently */}
       </Suspense>
     </>
-  )
+  );
 }
 ```
 
 ### Data Loading Patterns
 
 1. **Preload Pattern**
+
    ```tsx
    // Preload function starts fetch early
    export const preload = (id: string) => {
-     void getProduct(id) // Start loading, don't await
-   }
-   
+     void getProduct(id); // Start loading, don't await
+   };
+
    export default async function ProductPage({ params }) {
-     preload(params.id) // Start early
-     
-     const user = await getUser() // Do other work
-     
-     return <ProductDetails id={params.id} user={user} />
+     preload(params.id); // Start early
+
+     const user = await getUser(); // Do other work
+
+     return <ProductDetails id={params.id} user={user} />;
    }
    ```
 
 2. **Streaming Promises Pattern**
+
    ```tsx
    // Server Component
    async function Comments({ postId }) {
-     const commentsPromise = getComments(postId) // Don't await!
-     
+     const commentsPromise = getComments(postId); // Don't await!
+
      return (
        <Suspense fallback={<CommentsSkeleton />}>
          <CommentsList commentsPromise={commentsPromise} />
        </Suspense>
-     )
+     );
    }
-   
+
    // Client Component with use()
-   'use client'
+   ("use client");
    function CommentsList({ commentsPromise }) {
-     const comments = use(commentsPromise) // Suspends here
-     return comments.map(c => <Comment key={c.id} {...c} />)
+     const comments = use(commentsPromise); // Suspends here
+     return comments.map(c => <Comment key={c.id} {...c} />);
    }
    ```
 
@@ -249,14 +259,14 @@ All request-specific APIs are now async in Next.js 15:
 ```tsx
 // ❌ OLD (Next.js 14)
 export default function Page({ params, searchParams }) {
-  const { id } = params
-  const { sort } = searchParams
+  const { id } = params;
+  const { sort } = searchParams;
 }
 
 // ✅ NEW (Next.js 15)
 export default async function Page({ params, searchParams }) {
-  const { id } = await params
-  const { sort } = await searchParams
+  const { id } = await params;
+  const { sort } = await searchParams;
 }
 
 // Also applies to:
@@ -269,21 +279,17 @@ export default async function Page({ params, searchParams }) {
 
 ```tsx
 // Next.js 15 - No default caching
-const data = await fetch('/api/data') // Not cached by default
+const data = await fetch("/api/data"); // Not cached by default
 
 // Opt-in to caching
-const data = await fetch('/api/data', {
-  next: { revalidate: 3600 } // Cache for 1 hour
-})
+const data = await fetch("/api/data", {
+  next: { revalidate: 3600 }, // Cache for 1 hour
+});
 
 // Or use unstable_cache
-import { unstable_cache } from 'next/cache'
+import { unstable_cache } from "next/cache";
 
-const getCachedData = unstable_cache(
-  async () => fetchData(),
-  ['cache-key'],
-  { revalidate: 3600 }
-)
+const getCachedData = unstable_cache(async () => fetchData(), ["cache-key"], { revalidate: 3600 });
 ```
 
 ## Error Boundary Patterns
@@ -292,20 +298,14 @@ const getCachedData = unstable_cache(
 
 ```tsx
 // app/error.tsx - Catches errors in server components
-'use client'
-export default function Error({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string }
-  reset: () => void
-}) {
+"use client";
+export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <div>
       <h2>Something went wrong!</h2>
       <button onClick={() => reset()}>Try again</button>
     </div>
-  )
+  );
 }
 ```
 
@@ -313,14 +313,8 @@ export default function Error({
 
 ```tsx
 // app/global-error.tsx - Catches root layout errors
-'use client'
-export default function GlobalError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string }
-  reset: () => void
-}) {
+"use client";
+export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <html>
       <body>
@@ -328,7 +322,7 @@ export default function GlobalError({
         <button onClick={() => reset()}>Try again</button>
       </body>
     </html>
-  )
+  );
 }
 ```
 
@@ -340,7 +334,7 @@ export default function GlobalError({
 - [ ] Parallel data fetching implemented
 - [ ] Preload pattern for critical data
 - [ ] Progressive enhancement with instant shell
-- [ ] No secrets in NEXT_PUBLIC_ variables
+- [ ] No secrets in NEXT*PUBLIC* variables
 - [ ] Error boundaries at appropriate levels
 - [ ] Loading states for all async operations
 - [ ] Streaming configured for large responses

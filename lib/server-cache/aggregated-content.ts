@@ -72,7 +72,7 @@ export function clearRelatedContent(this: ICache, sourceType: string, sourceId: 
  */
 export function clearAllRelatedContent(this: ICache): void {
   const keys = this.keys();
-  const relatedKeys = keys.filter((key) => key.startsWith(RELATED_CONTENT_PREFIX));
+  const relatedKeys = keys.filter(key => key.startsWith(RELATED_CONTENT_PREFIX));
   if (relatedKeys.length > 0) {
     this.del(relatedKeys);
   }

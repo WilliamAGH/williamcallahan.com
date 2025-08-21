@@ -134,7 +134,7 @@ export async function waitForPermit(
       }
     }
 
-    await new Promise((resolve) => setTimeout(resolve, Math.max(10, waitTime))); // Ensure waitTime is not too small or negative
+    await new Promise(resolve => setTimeout(resolve, Math.max(10, waitTime))); // Ensure waitTime is not too small or negative
   }
 }
 

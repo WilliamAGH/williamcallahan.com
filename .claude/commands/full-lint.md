@@ -16,32 +16,33 @@ STEP 2: Multi-Source Analysis of Linting Errors
 Perform comprehensive analysis using ALL available MCP tools:
 
 a) **Technology Documentation via MCPs**:
-   For ANY TypeScript/ESLint errors related to framework usage:
+For ANY TypeScript/ESLint errors related to framework usage:
 
-- Next.js 15 patterns: @mcp__context7__resolve-library-id libraryName="next.js" then @mcp__context7__get-library-docs
-- React 19 hooks/patterns: @mcp__context7__resolve-library-id libraryName="react" then @mcp__context7__get-library-docs
-- Zod 4 validation: @mcp__context7__resolve-library-id libraryName="zod" then @mcp__context7__get-library-docs
+- Next.js 15 patterns: @mcp**context7**resolve-library-id libraryName="next.js" then @mcp**context7**get-library-docs
+- React 19 hooks/patterns: @mcp**context7**resolve-library-id libraryName="react" then @mcp**context7**get-library-docs
+- Zod 4 validation: @mcp**context7**resolve-library-id libraryName="zod" then @mcp**context7**get-library-docs
 - TypeScript 5.x features: Use available documentation MCPs
 - ESLint rules: Search for rule documentation if unfamiliar
 
-   CRITICAL: Framework best practices change - always verify current patterns!
+  CRITICAL: Framework best practices change - always verify current patterns!
 
 b) **Anti-Polyfill Mandate (2025)**:
-   **FORBIDDEN**: Never add polyfills to this modern Next.js 15 + Node 22 LTS codebase:
+**FORBIDDEN**: Never add polyfills to this modern Next.js 15 + Node 22 LTS codebase:
 
 - ❌ BANNED: `core-js`, `@babel/polyfill`, `react-app-polyfill`, `polyfill.io`
 - ❌ BANNED: `whatwg-fetch`, `isomorphic-fetch`, `cross-fetch` (use native `fetch`)
 - ❌ BANNED: Any "kitchen-sink" polyfills or legacy browser support packages
 - ❌ BANNED: Any polyfill that patches `globalThis`, `window`, or `global` objects
 
-   **MODERN ALTERNATIVES ONLY**:
+  **MODERN ALTERNATIVES ONLY**:
+
 - ✅ NATIVE: Use built-in Node 22 LTS APIs (`fetch`, `URL`, `TextEncoder`, etc.)
 - ✅ PONYFILLS: Import-only modules that don't mutate globals
 - ✅ FEATURE-DETECT: Dynamic imports with runtime capability detection
 - ✅ SERVER-FIRST: Move heavy processing to Server Components/Edge Functions
 
 c) **Web Search for Solutions**:
-   Use @mcp__brave-search__brave_web_search for:
+Use @mcp**brave-search**brave_web_search for:
 
 - Specific ESLint rule explanations and fixes
 - TypeScript error codes with framework context
@@ -57,7 +58,7 @@ d) **Architecture Alignment**:
 - **Verify no polyfills introduced that violate modern practices**
 
 e) **Deep Analysis**:
-   Use @mcp__zen__thinkdeep with model="pro" and thinking_mode="high" including:
+Use @mcp**zen**thinkdeep with model="pro" and thinking_mode="high" including:
 
 - All error context
 - Documentation findings
@@ -79,11 +80,13 @@ STEP 3: **Type Error Resolution Priority**:
 **Resolution Strategies**:
 
 1. **For unsafe assignment/member access**:
+
    ```typescript
    // BAD: const data = JSON.parse(input);
    // GOOD: const data: unknown = JSON.parse(input);
    // Then use type narrowing or Zod validation
    ```
+
    - Use `unknown` instead of `any`
    - Implement type guards or Zod schemas
    - Check lib/schemas/ for existing validators
@@ -103,7 +106,9 @@ STEP 3: **Type Error Resolution Priority**:
    ```typescript
    // BAD: const item = array[index]; // item could be undefined
    // GOOD: const item = array[index];
-   if (item !== undefined) { /* use item */ }
+   if (item !== undefined) {
+     /* use item */
+   }
    ```
 
 **Priority 2 - Type Mismatches**:
@@ -170,6 +175,7 @@ STEP 6: **Final Verification**:
 - **Bundle Hygiene**: Any polyfill detected in `node_modules` should be investigated for removal
 
 **Common Patterns**:
+
 ```typescript
 // Type narrowing with unknown
 function processData(data: unknown) {
@@ -184,7 +190,7 @@ if (value !== undefined) {
 }
 
 // Optional chaining for nested access
-const city = user.address?.city ?? 'Unknown';
+const city = user.address?.city ?? "Unknown";
 ```
 
 Output comprehensive summary:

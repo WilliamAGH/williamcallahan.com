@@ -82,7 +82,7 @@ const PreRenderer = (props: ComponentProps<"pre">) => {
   if (
     !isProperCodeBlock &&
     React.Children.toArray(props.children).some(
-      (child) =>
+      child =>
         isValidElement<{ className?: string }>(child) &&
         child.type === "code" &&
         typeof child.props.className === "string" &&
@@ -107,7 +107,7 @@ const PreRenderer = (props: ComponentProps<"pre">) => {
   // Extract className from the first code child element for proper syntax highlighting
   // Defensively find the first <code> element to handle cases where MDX emits multiple children
   const firstCodeChild = React.Children.toArray(props.children).find(
-    (child) => isValidElement<{ className?: string }>(child) && child.type === "code",
+    child => isValidElement<{ className?: string }>(child) && child.type === "code",
   ) as ReactElement<{ className?: string }> | undefined;
 
   const childClassName =

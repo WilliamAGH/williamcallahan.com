@@ -23,7 +23,7 @@ const primaryAuthor: Author = {
   id: "william-callahan", // Assuming a fixed ID for the main author
   name: metadata.author,
   // Add avatar/bio/url if available in metadata or define statically
-  url: metadata.social.profiles.find((p) => p.includes("linkedin")) || metadata.url,
+  url: metadata.social.profiles.find(p => p.includes("linkedin")) || metadata.url,
   avatar: getStaticImageUrl("/images/william.jpeg"), // Example static avatar
 };
 
@@ -36,8 +36,8 @@ function getAllPosts(): BlogPost[] {
     const filenames = fs.readdirSync(postsDirectory);
 
     const posts = filenames
-      .filter((filename) => filename.endsWith(".mdx"))
-      .map((filename) => {
+      .filter(filename => filename.endsWith(".mdx"))
+      .map(filename => {
         const filePath = path.join(postsDirectory, filename);
         const fileContents = fs.readFileSync(filePath, "utf8");
         // Cast the frontmatter data to the defined interface, via unknown
@@ -96,7 +96,7 @@ export async function generateStaticParams(): Promise<{ tagSlug: string }[]> {
       tags.add(kebabCase(tag));
     }
   }
-  return Array.from(tags).map((tag) => ({ tagSlug: tag }));
+  return Array.from(tags).map(tag => ({ tagSlug: tag }));
 }
 
 /**
@@ -147,7 +147,7 @@ export default async function TagPage({ params }: { params: { tagSlug: string } 
   const { tagSlug } = params;
   const allPosts = getAllPosts();
 
-  const filteredPosts = allPosts.filter((post) => post.tags.map((tag: string) => kebabCase(tag)).includes(tagSlug));
+  const filteredPosts = allPosts.filter(post => post.tags.map((tag: string) => kebabCase(tag)).includes(tagSlug));
 
   // Wrap in Promise.resolve to satisfy linter's await-thenable rule
   const tagName = await Promise.resolve(formatTagDisplay(deslugify(tagSlug)));

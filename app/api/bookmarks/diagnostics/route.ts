@@ -78,14 +78,14 @@ export async function GET(request: Request): Promise<NextResponse> {
   if (totalPages >= 3) extraPageKeys.push(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}3.json`);
 
   const extraPageChecks: ReadonlyArray<ReadJsonResult<unknown>> = extraPageKeys.length
-    ? await Promise.all(extraPageKeys.map((k) => tryReadJson<unknown>(k)))
+    ? await Promise.all(extraPageKeys.map(k => tryReadJson<unknown>(k)))
     : [];
 
   // Compute health flags
   const datasetOk = fileRes.ok;
   const indexOk = indexRes.ok && typeof indexRes.parsed?.totalPages === "number";
   const firstPageOk = page1Res.ok || totalPages === 0; // If no pages expected, don’t fail on page-1
-  const extraPagesOk = extraPageChecks.every((r) => r.ok) || totalPages <= 1;
+  const extraPagesOk = extraPageChecks.every(r => r.ok) || totalPages <= 1;
   const slugMapOk =
     slugMapRes.ok &&
     slugMapRes.parsed != null &&

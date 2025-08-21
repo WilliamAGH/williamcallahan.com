@@ -202,7 +202,7 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
       // Apply exponential backoff during memory pressure
       const backoffMs = Math.min(this.backoffBase * 2 ** (this.memoryPressureActivations % 10), this.maxBackoffMs);
 
-      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+      await new Promise(resolve => setTimeout(resolve, backoffMs));
       return;
     }
 

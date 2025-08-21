@@ -102,7 +102,7 @@ async function sanitizeCoverImage(
           // Both map back to the same front-matter reference.
           const ext = path.extname(filename); // ".png", ".jpg", etc.
 
-          const matchingKey = s3Keys.find((key) => {
+          const matchingKey = s3Keys.find(key => {
             const s3Filename = key.split("/").pop();
             if (!s3Filename) return false;
             return s3Filename === filename || (s3Filename.startsWith(`${baseName}_`) && s3Filename.endsWith(ext));
@@ -346,10 +346,10 @@ export async function getAllMDXPosts(): Promise<BlogPost[]> {
 
   try {
     const files = await fs.readdir(POSTS_DIRECTORY);
-    const mdxFiles = files.filter((file) => file.endsWith(".mdx"));
+    const mdxFiles = files.filter(file => file.endsWith(".mdx"));
 
     // Map filenames to promises that read/parse frontmatter and then fully process
-    const postPromises = mdxFiles.map(async (fileName) => {
+    const postPromises = mdxFiles.map(async fileName => {
       const fullPath = path.join(POSTS_DIRECTORY, fileName);
       let frontmatterSlug: string | null = null;
       try {
@@ -463,7 +463,7 @@ export async function getAllMDXPostsCached(): Promise<BlogPost[]> {
 export async function getAllMDXPostsForSearch(): Promise<BlogPost[]> {
   const posts = await getAllMDXPosts();
   // Return posts without rawContent to save memory
-  return posts.map((post) => {
+  return posts.map(post => {
     // Destructure to exclude rawContent - intentionally unused to save memory
     const { rawContent, ...lightweightPost } = post;
     void rawContent; // Explicitly mark as intentionally unused

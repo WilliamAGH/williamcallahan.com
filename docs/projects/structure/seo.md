@@ -54,19 +54,19 @@ Provides comprehensive search engine optimization through metadata generation, s
 
 All SEO images defined in `data/metadata.ts` via `SEO_IMAGES` constant:
 
-| Constant | Purpose | Path |
-|----------|---------|------|
-| `SEO_IMAGES.ogDefault` | Site-wide default OpenGraph & Twitter card (1200×630 PNG) | `/images/og/default-og.png` |
-| `SEO_IMAGES.ogLogo` | Optional logo-only card | `/images/og/logo-og.png` |
-| `SEO_IMAGES.ogBookmarks` | Bookmarks collection card | `/images/og/bookmarks-og.png` |
-| `SEO_IMAGES.ogProjects` | Projects collection card | `/images/og/projects-og.png` |
-| `SEO_IMAGES.ogBlogIndex` | Blog index card | `/images/og/blog-og.png` |
-| `SEO_IMAGES.ogDynamicFallback` | Fallback returned by `/api/og-image` | `/images/og/dynamic-fallback.png` |
-| `SEO_IMAGES.faviconIco` | Favicon (ICO multi-size) | `/favicon.ico` |
-| `SEO_IMAGES.faviconSvg` | Favicon SVG (hi-DPI) | `/favicon.svg` |
-| `SEO_IMAGES.appleTouch` | Apple touch icon 180×180 | `/apple-touch-icon.png` |
-| `SEO_IMAGES.android192` | Android/manifest 192×192 | `/android-chrome-192x192.png` |
-| `SEO_IMAGES.android512` | Android/manifest 512×512 | `/android-chrome-512x512.png` |
+| Constant                       | Purpose                                                   | Path                              |
+| ------------------------------ | --------------------------------------------------------- | --------------------------------- |
+| `SEO_IMAGES.ogDefault`         | Site-wide default OpenGraph & Twitter card (1200×630 PNG) | `/images/og/default-og.png`       |
+| `SEO_IMAGES.ogLogo`            | Optional logo-only card                                   | `/images/og/logo-og.png`          |
+| `SEO_IMAGES.ogBookmarks`       | Bookmarks collection card                                 | `/images/og/bookmarks-og.png`     |
+| `SEO_IMAGES.ogProjects`        | Projects collection card                                  | `/images/og/projects-og.png`      |
+| `SEO_IMAGES.ogBlogIndex`       | Blog index card                                           | `/images/og/blog-og.png`          |
+| `SEO_IMAGES.ogDynamicFallback` | Fallback returned by `/api/og-image`                      | `/images/og/dynamic-fallback.png` |
+| `SEO_IMAGES.faviconIco`        | Favicon (ICO multi-size)                                  | `/favicon.ico`                    |
+| `SEO_IMAGES.faviconSvg`        | Favicon SVG (hi-DPI)                                      | `/favicon.svg`                    |
+| `SEO_IMAGES.appleTouch`        | Apple touch icon 180×180                                  | `/apple-touch-icon.png`           |
+| `SEO_IMAGES.android192`        | Android/manifest 192×192                                  | `/android-chrome-192x192.png`     |
+| `SEO_IMAGES.android512`        | Android/manifest 512×512                                  | `/android-chrome-512x512.png`     |
 
 **Missing Assets** (Build will warn):
 
@@ -164,13 +164,13 @@ The validation system integrates seamlessly with the existing metadata pipeline:
 
 ```typescript
 // Automatic validation in development
-import { validateOpenGraphMetadata } from '@/lib/seo/og-validation';
+import { validateOpenGraphMetadata } from "@/lib/seo/og-validation";
 
 // In lib/seo/opengraph.ts - validation runs automatically in development
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === "development") {
   const validation = validateOpenGraphMetadata(ogMetadata);
   if (!validation.isValid) {
-    console.error('OpenGraph validation errors:', validation.errors);
+    console.error("OpenGraph validation errors:", validation.errors);
   }
 }
 ```
@@ -319,9 +319,9 @@ External URL → Fetch → Validate → Transform → S3 Upload → CDN Serve
 1. `[slug]/page.tsx` calls `getBlogPostMetadata` from `lib/seo/index.ts`.
 2. `getBlogPostMetadata` fetches post data and calls `createArticleMetadata` in `lib/seo/metadata.ts`.
 3. `createArticleMetadata` orchestrates calls to:
-    - `generateSchemaGraph` (`lib/seo/schema.ts`) to build the `JSON-LD` graph.
-    - `createArticleOgMetadata` (`lib/seo/opengraph.ts`) to get OpenGraph data.
-    - `formatSeoDate` (`lib/seo/utils.ts`) to format timestamps.
+   - `generateSchemaGraph` (`lib/seo/schema.ts`) to build the `JSON-LD` graph.
+   - `createArticleOgMetadata` (`lib/seo/opengraph.ts`) to get OpenGraph data.
+   - `formatSeoDate` (`lib/seo/utils.ts`) to format timestamps.
 4. The aggregated metadata is returned as a `Next.js` `Metadata` object to the page, which Next.js then uses to render the final `<head>` section of the HTML document.
 
 This modular architecture ensures a clear separation of concerns, making the SEO system robust and maintainable.
@@ -332,32 +332,27 @@ This modular architecture ensures a clear separation of concerns, making the SEO
 
 ```typescript
 // Import everything SEO-related from one place
-import { 
-  SITE_NAME, 
-  createArticleMetadata,
-  validateMetadata,
-  SEO_LIMITS 
-} from '@/lib/seo';
+import { SITE_NAME, createArticleMetadata, validateMetadata, SEO_LIMITS } from "@/lib/seo";
 
 // Validate metadata configuration
 const validationResult = safeValidateMetadata(metadata);
 if (!validationResult.success) {
-  console.error('Metadata validation errors:', validationResult.errors);
+  console.error("Metadata validation errors:", validationResult.errors);
 }
 ```
 
 ### Validating Page Metadata
 
 ```typescript
-import { validatePageMetadata } from '@/lib/seo';
+import { validatePageMetadata } from "@/lib/seo";
 
 // This will throw if validation fails
-const validatedHomeMetadata = validatePageMetadata('home', {
-  title: 'My Site',
-  description: 'A great website',
-  dateCreated: '2024-01-01T00:00:00Z',
-  dateModified: '2024-01-01T00:00:00Z',
-  bio: 'Welcome to my site',
+const validatedHomeMetadata = validatePageMetadata("home", {
+  title: "My Site",
+  description: "A great website",
+  dateCreated: "2024-01-01T00:00:00Z",
+  dateModified: "2024-01-01T00:00:00Z",
+  bio: "Welcome to my site",
 });
 ```
 
@@ -430,14 +425,14 @@ graph TD
 
 ### Environment Configuration
 
-| Variable | Description | Example | Required For |
-|----------|-------------|---------|-------------|
-| `GOOGLE_PROJECT_ID` | GCP project identifier | `my-project-123` | Google submission |
-| `GOOGLE_SEARCH_INDEXING_SA_EMAIL` | Service account email | `sa@project.iam.gserviceaccount.com` | Google submission |
+| Variable                                | Description                   | Example                                                           | Required For      |
+| --------------------------------------- | ----------------------------- | ----------------------------------------------------------------- | ----------------- |
+| `GOOGLE_PROJECT_ID`                     | GCP project identifier        | `my-project-123`                                                  | Google submission |
+| `GOOGLE_SEARCH_INDEXING_SA_EMAIL`       | Service account email         | `sa@project.iam.gserviceaccount.com`                              | Google submission |
 | `GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY` | Full private key with headers | `"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"` | Google submission |
-| `INDEXNOW_KEY` | Bing IndexNow API key | `abc123def456` | Bing submission |
-| `SITE_URL` | Production site URL | `https://williamcallahan.com` | All submissions |
-| `NODE_ENV` | Environment indicator | `production` | Production check |
+| `INDEXNOW_KEY`                          | Bing IndexNow API key         | `abc123def456`                                                    | Bing submission   |
+| `SITE_URL`                              | Production site URL           | `https://williamcallahan.com`                                     | All submissions   |
+| `NODE_ENV`                              | Environment indicator         | `production`                                                      | Production check  |
 
 ### Setup Requirements
 
@@ -500,14 +495,14 @@ NODE_ENV=production SITE_URL=https://williamcallahan.com bun run scripts/submit-
 
 The `tagToSlug` function handles special characters in tags to generate SEO-friendly URLs:
 
-| Original Tag | Generated Slug | URL Path |
-|--------------|----------------|-----------|
-| `AI & ML` | `ai-and-ml` | `/bookmarks/tags/ai-and-ml` |
-| `C++` | `c-plus-plus` | `/bookmarks/tags/c-plus-plus` |
-| `C#` | `c-sharp` | `/bookmarks/tags/c-sharp` |
-| `.NET` | `dotnet` | `/bookmarks/tags/dotnet` |
-| `Node.js` | `nodedotjs` | `/bookmarks/tags/nodedotjs` |
-| `Vue@3` | `vue-at-3` | `/bookmarks/tags/vue-at-3` |
+| Original Tag | Generated Slug | URL Path                      |
+| ------------ | -------------- | ----------------------------- |
+| `AI & ML`    | `ai-and-ml`    | `/bookmarks/tags/ai-and-ml`   |
+| `C++`        | `c-plus-plus`  | `/bookmarks/tags/c-plus-plus` |
+| `C#`         | `c-sharp`      | `/bookmarks/tags/c-sharp`     |
+| `.NET`       | `dotnet`       | `/bookmarks/tags/dotnet`      |
+| `Node.js`    | `nodedotjs`    | `/bookmarks/tags/nodedotjs`   |
+| `Vue@3`      | `vue-at-3`     | `/bookmarks/tags/vue-at-3`    |
 
 ### URL Safety
 
@@ -520,16 +515,16 @@ The `tagToSlug` function handles special characters in tags to generate SEO-frie
 
 ### Production Dependencies
 
-| Package | Version | Purpose | Usage in SEO |
-|---------|---------|---------|-------------|
-| `next` | 15.1.5 | Framework | Metadata API, App Router, dynamic routes |
-| `react` | 19.1.0 | UI library | Server components for SEO tags |
-| `zod` | 3.25.67 | Validation | Metadata validation, external data parsing |
-| `cheerio` | 1.1.0 | HTML parsing | OpenGraph tag extraction from HTML |
-| `node-cron` | 4.2.0 | Scheduling | Automated sitemap submission (2hr interval) |
-| `@aws-sdk/client-s3` | 3.840.0 | S3 client | OG image persistence, metadata storage |
-| `google-auth-library` | 10.1.0 | Google APIs | Search Console API authentication |
-| `schema-dts` | 1.1.5 | Schema types | TypeScript types for Schema.org |
+| Package               | Version | Purpose      | Usage in SEO                                |
+| --------------------- | ------- | ------------ | ------------------------------------------- |
+| `next`                | 15.1.5  | Framework    | Metadata API, App Router, dynamic routes    |
+| `react`               | 19.1.0  | UI library   | Server components for SEO tags              |
+| `zod`                 | 3.25.67 | Validation   | Metadata validation, external data parsing  |
+| `cheerio`             | 1.1.0   | HTML parsing | OpenGraph tag extraction from HTML          |
+| `node-cron`           | 4.2.0   | Scheduling   | Automated sitemap submission (2hr interval) |
+| `@aws-sdk/client-s3`  | 3.840.0 | S3 client    | OG image persistence, metadata storage      |
+| `google-auth-library` | 10.1.0  | Google APIs  | Search Console API authentication           |
+| `schema-dts`          | 1.1.5   | Schema types | TypeScript types for Schema.org             |
 
 ### Platform-Specific Requirements
 
@@ -539,7 +534,7 @@ The `tagToSlug` function handles special characters in tags to generate SEO-frie
 - Search Console API v3 enabled in GCP
 - Owner permission on verified property
 
-#### Bing IndexNow  
+#### Bing IndexNow
 
 - API key stored as `INDEXNOW_KEY`
 - Verification file at `/public/[KEY].txt`
@@ -693,7 +688,7 @@ NODE_ENV=production bun run scripts/submit-sitemap.ts --all
 ### Health Indicators
 
 - **OG Fetch Success Rate**: Track by domain in logs
-- **S3 Persistence**: Monitor failed uploads in error logs  
+- **S3 Persistence**: Monitor failed uploads in error logs
 - **Sitemap Submission**: Check scheduler logs for API responses
 - **Cache Hit Rates**: Available via CDN analytics
 
@@ -728,7 +723,7 @@ grep -n "TODO" data/metadata.ts
    - Verify robots.txt allows crawling
    - Ensure production environment vars set
 
-3. **"Twitter card broken"**  
+3. **"Twitter card broken"**
    - Fallback to vxtwitter.com proxy active
    - Check Twitter Card Validator
    - May need manual cache clear

@@ -379,7 +379,7 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
 
           if (isDebug)
             debug(`[S3Utils] Retrying read for ${key} in ${delay}ms (attempt ${attempt}/${MAX_S3_READ_RETRIES})...`);
-          await new Promise((resolve) => setTimeout(resolve, delay));
+          await new Promise(resolve => setTimeout(resolve, delay));
           continue; // Next attempt
         }
         if (isDebug) {
@@ -442,13 +442,13 @@ export async function writeToS3(
   if (isBinaryKey(key) && dataSize > ABSOLUTE_BINARY_WRITE_MAX) {
     throw new Error(
       `[S3Utils] Binary S3 write exceeds absolute maximum: ${dataSize} bytes (cap: ${ABSOLUTE_BINARY_WRITE_MAX} bytes). ` +
-      `This safety limit prevents OOM errors even for data updater processes.`
+        `This safety limit prevents OOM errors even for data updater processes.`,
     );
   }
 
   // Skip memory checks during explicit dev-only migration builds (disabled in prod)
   const isDevMigrationRun = false; // Migration mode env flag removed – always false in production
-  
+
   // CRITICAL: Data updater process MUST bypass memory checks to ensure scheduled updates succeed
   const isDataUpdater = process.env.IS_DATA_UPDATER === "true";
 
@@ -471,7 +471,7 @@ export async function writeToS3(
       throw new Error(`[S3Utils] Insufficient memory headroom for large S3 write operation`);
     }
   }
-  
+
   // Log when data updater bypasses memory check for images
   if (isDataUpdater && !hasMemoryHeadroom() && isBinaryKey(key)) {
     envLogger.log("Data updater bypassing memory check for binary", { key }, { category: "S3Utils" });
@@ -716,7 +716,7 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
       chunks.push(chunk);
     });
 
-    stream.on("error", (error) => {
+    stream.on("error", error => {
       cleanup();
       reject(error);
     });
@@ -860,10 +860,10 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
   const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
   const isTinyOperationalFile =
     s3Key === BOOKMARKS_S3_PATHS.INDEX || s3Key === BOOKMARKS_S3_PATHS.HEARTBEAT || s3Key === BOOKMARKS_S3_PATHS.LOCK;
-  
+
   // CRITICAL: Data updater process MUST bypass memory checks to ensure scheduled updates succeed
   const isDataUpdater = process.env.IS_DATA_UPDATER === "true";
-  
+
   if (!isTinyOperationalFile && !isDataUpdater && !hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
     envLogger.log(
       `Skipping S3 write due to memory pressure`,
@@ -872,12 +872,10 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
     );
     return;
   }
-  
+
   // Log when data updater bypasses memory check
   if (isDataUpdater && !hasMemoryHeadroom()) {
-    console.log(
-      `[S3Utils] Data updater bypassing memory check for ${s3Key} (${(dataSize / 1024).toFixed(1)} KB)`,
-    );
+    console.log(`[S3Utils] Data updater bypassing memory check for ${s3Key} (${(dataSize / 1024).toFixed(1)} KB)`);
   }
 
   try {

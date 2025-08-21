@@ -69,7 +69,7 @@ export async function BookmarksServer({
     const allBookmarks = allBms || bms;
     const slugMap = await getBulkBookmarkSlugs(allBookmarks);
 
-    bms.forEach((bookmark) => {
+    bms.forEach(bookmark => {
       const slug = slugMap.get(bookmark.id);
       if (slug) {
         internalHrefs.set(bookmark.id, `/bookmarks/${slug}`);
@@ -126,7 +126,7 @@ export async function BookmarksServer({
   const normalizeFunc = await normalizeBookmarkTag();
   const stripImageDataFunc = await stripImageData();
 
-  const serializableBookmarks: SerializableBookmark[] = bookmarks.map((bookmark) => {
+  const serializableBookmarks: SerializableBookmark[] = bookmarks.map(bookmark => {
     // When includeImageData is false, use the standardized stripImageData utility
     if (!includeImageData) {
       const lightweight = stripImageDataFunc(bookmark);

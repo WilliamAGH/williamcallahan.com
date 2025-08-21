@@ -15,20 +15,20 @@ See `json-handling.mmd` for a visual diagram of the data flow.
 The system handles JSON data from multiple sources, each with its own specific processing pipeline before being unified under a common caching and storage strategy.
 
 1. **Bookmarks (from Karakeep API)**:
-    * Fetches paginated bookmark data from the external Karakeep API.
-    * Normalizes the raw API data into a consistent `UnifiedBookmark` format.
-    * Enriches the data by invoking the `image-handling` functionality to fetch OpenGraph images for each bookmark link.
-    * The final enriched JSON data is then cached and stored.
+   - Fetches paginated bookmark data from the external Karakeep API.
+   - Normalizes the raw API data into a consistent `UnifiedBookmark` format.
+   - Enriches the data by invoking the `image-handling` functionality to fetch OpenGraph images for each bookmark link.
+   - The final enriched JSON data is then cached and stored.
 
 2. **GitHub Activity (from GitHub API)**:
-    * Uses a hybrid strategy, fetching data from both the GraphQL and REST APIs, and even falling back to parsing a raw CSV export.
-    * Aggregates and processes the data to create several JSON objects, including contribution calendars, repository statistics, and weekly activity summaries.
-    * This processed JSON data is then cached and stored.
+   - Uses a hybrid strategy, fetching data from both the GraphQL and REST APIs, and even falling back to parsing a raw CSV export.
+   - Aggregates and processes the data to create several JSON objects, including contribution calendars, repository statistics, and weekly activity summaries.
+   - This processed JSON data is then cached and stored.
 
 3. **OpenGraph Metadata (from any URL)**:
-    * Fetches a given URL and parses the HTML to extract OpenGraph meta tags (`og:title`, `og:description`, etc.).
-    * Constructs a JSON object from the extracted metadata.
-    * This functionality is often triggered by other processes, like bookmark enrichment.
+   - Fetches a given URL and parses the HTML to extract OpenGraph meta tags (`og:title`, `og:description`, etc.).
+   - Constructs a JSON object from the extracted metadata.
+   - This functionality is often triggered by other processes, like bookmark enrichment.
 
 ## Caching & Persistence
 

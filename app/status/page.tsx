@@ -24,7 +24,9 @@ const StatusPage: NextPage = async () => {
 
     const renderValue = (value: unknown) => {
       if (typeof value === "object" && value !== null) {
-        return <pre className="text-sm bg-gray-800 p-2 rounded-md overflow-x-auto">{JSON.stringify(value, null, 2)}</pre>;
+        return (
+          <pre className="text-sm bg-gray-800 p-2 rounded-md overflow-x-auto">{JSON.stringify(value, null, 2)}</pre>
+        );
       }
       return <span className="text-green-400">{String(value)}</span>;
     };

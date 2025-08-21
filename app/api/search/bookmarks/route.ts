@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 
     // Get IDs of matching bookmarks via MiniSearch index
     const searchResults = await searchBookmarks(query);
-    const matchingIds = new Set(searchResults.map((r) => String(r.id)));
+    const matchingIds = new Set(searchResults.map(r => String(r.id)));
 
     // Pull full bookmark objects (includeImageData=false for lighter payload)
     const fullDataset = (await getBookmarks({
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
       skipExternalFetch: false,
       force: false,
     })) as UnifiedBookmark[];
-    const matched = fullDataset.filter((b) => matchingIds.has(b.id));
+    const matched = fullDataset.filter(b => matchingIds.has(b.id));
 
     const totalCount = matched.length;
     const start = (page - 1) * limit;

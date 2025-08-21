@@ -13,6 +13,7 @@ import reactJsxRuntime from "eslint-plugin-react/configs/jsx-runtime.js";
 import reactRecommended from "eslint-plugin-react/configs/recommended.js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
+import oxlint from "eslint-plugin-oxlint";
 
 // ESM-compatible require for loading JSON files
 const requireJson = createRequire(import.meta.url);
@@ -88,6 +89,29 @@ const noDuplicateTypesRule: Rule.RuleModule & { duplicateTypeTracker?: Map<strin
     };
   },
 };
+
+/**
+ * Returns true if the given AST node is nested within a getStaticImageUrl(...) call.
+ * Hoisted to module scope to satisfy consistent-function-scoping and avoid recreating on each invocation.
+ */
+function isInsideGetStaticImageUrl(node: any): boolean {
+  let current = node?.parent;
+  while (current) {
+    if (current.type === "CallExpression") {
+      const { callee } = current;
+      if (
+        (callee.type === "Identifier" && callee.name === "getStaticImageUrl") ||
+        (callee.type === "MemberExpression" &&
+          callee.property?.type === "Identifier" &&
+          callee.property?.name === "getStaticImageUrl")
+      ) {
+        return true;
+      }
+    }
+    current = current.parent;
+  }
+  return false;
+}
 
 const config = tseslint.config(
   // Global ignores
@@ -497,29 +521,7 @@ const config = tseslint.config(
                 // If we can't load the mapping, we'll still report errors but can't check if images exist
               }
 
-              /**
-               * Walk up the AST from the current node to see if it appears
-               * anywhere inside a getStaticImageUrl(...) call.
-               */
-              function isInsideGetStaticImageUrl(node: any): boolean {
-                let current = node.parent;
-                while (current) {
-                  if (current.type === "CallExpression") {
-                    const { callee } = current;
-                    if (
-                      (callee.type === "Identifier" && callee.name === "getStaticImageUrl") ||
-                      // Handle potential namespace import (e.g. utils.getStaticImageUrl)
-                      (callee.type === "MemberExpression" &&
-                        callee.property.type === "Identifier" &&
-                        callee.property.name === "getStaticImageUrl")
-                    ) {
-                      return true;
-                    }
-                  }
-                  current = current.parent;
-                }
-                return false;
-              }
+              // Use module-scoped helper to satisfy consistent-function-scoping
 
               /**
                * Check if the file already imports getStaticImageUrl
@@ -591,6 +593,12 @@ const config = tseslint.config(
       "s3/no-hardcoded-images": "error", // Changed from "warn" to "error" to fail builds
     },
   },
+
+  // Disable overlapping ESLint rules with Oxlint to avoid duplicate diagnostics
+  ...oxlint.configs["flat/all"],
+  ...oxlint.configs["flat/typescript"],
+  ...oxlint.configs["flat/react"],
+  ...oxlint.configs["flat/nextjs"],
 );
 
 export default config;

@@ -64,7 +64,7 @@ export class UnifiedImageService {
   private retryTimerId: NodeJS.Timeout | null = null;
 
   // Use FailureTracker for domain blocklist management
-  private domainFailureTracker = new FailureTracker<string>((domain) => domain, {
+  private domainFailureTracker = new FailureTracker<string>(domain => domain, {
     s3Path: LOGO_BLOCKLIST_S3_PATH,
     maxRetries: this.CONFIG.PERMANENT_FAILURE_THRESHOLD,
     cooldownMs: 24 * 60 * 60 * 1000, // 24 hours
@@ -561,7 +561,7 @@ export class UnifiedImageService {
           {
             maxRetries: this.CONFIG.MAX_UPLOAD_RETRIES - retry.attempts,
             baseDelay: this.CONFIG.RETRY_BASE_DELAY,
-            isRetryable: (error) => isRetryableHttpError(error),
+            isRetryable: error => isRetryableHttpError(error),
             onRetry: (error, attempt) => {
               void error; // Explicitly mark as unused per project convention
               console.log(
@@ -570,13 +570,13 @@ export class UnifiedImageService {
             },
           },
         )
-          .then((result) => {
+          .then(result => {
             if (result?.cdnUrl) {
               this.uploadRetryQueue.delete(key);
               console.log(`[UnifiedImageService] Retry successful for ${key}`);
             }
           })
-          .catch((error) => {
+          .catch(error => {
             logger.error("[UnifiedImageService] All retries failed", error, { key });
             this.uploadRetryQueue.delete(key);
           });

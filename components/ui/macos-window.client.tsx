@@ -66,7 +66,7 @@ export function MacOSWindow({
             role="tablist"
             aria-label="Window tabs"
           >
-            {tabs.map((tab) => (
+            {tabs.map(tab => (
               <button
                 key={tab.id}
                 type="button"

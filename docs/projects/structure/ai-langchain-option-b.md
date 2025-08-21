@@ -24,23 +24,23 @@ An implementation using LangChain would replace our bespoke `UnifiedAIService` a
 
 Instead of a custom base class, we would use LangChain's provided integration packages.
 
-| Provider | LangChain Package | LangChain Class | Implementation Detail |
-| :--- | :--- | :--- | :--- |
-| **OpenAI** | `@langchain/openai` | `ChatOpenAI` | Standard integration. |
-| **OpenRouter** | `@langchain/openai` | `ChatOpenAI` | Used as an OpenAI-compatible endpoint by setting `baseURL` and passing headers. |
-| **Perplexity** | `@langchain/perplexity` | `ChatPerplexity` | Dedicated integration package. |
-| **Groq** | `@langchain/groq` | `ChatGroq` | Dedicated integration package. |
-| **Ollama** | `@langchain/community` | `ChatOllama` | Community-supported integration. |
-| **Brave Search** | `@langchain/community` | `BraveSearch` | Community-supported tool/retriever. |
-| **Serper** | `@langchain/community` | `Serper` | Community-supported tool/retriever. |
-| **LM Studio** | `@langchain/openai` | `ChatOpenAI` | OpenAI-compatible endpoint. |
+| Provider         | LangChain Package       | LangChain Class  | Implementation Detail                                                           |
+| :--------------- | :---------------------- | :--------------- | :------------------------------------------------------------------------------ |
+| **OpenAI**       | `@langchain/openai`     | `ChatOpenAI`     | Standard integration.                                                           |
+| **OpenRouter**   | `@langchain/openai`     | `ChatOpenAI`     | Used as an OpenAI-compatible endpoint by setting `baseURL` and passing headers. |
+| **Perplexity**   | `@langchain/perplexity` | `ChatPerplexity` | Dedicated integration package.                                                  |
+| **Groq**         | `@langchain/groq`       | `ChatGroq`       | Dedicated integration package.                                                  |
+| **Ollama**       | `@langchain/community`  | `ChatOllama`     | Community-supported integration.                                                |
+| **Brave Search** | `@langchain/community`  | `BraveSearch`    | Community-supported tool/retriever.                                             |
+| **Serper**       | `@langchain/community`  | `Serper`         | Community-supported tool/retriever.                                             |
+| **LM Studio**    | `@langchain/openai`     | `ChatOpenAI`     | OpenAI-compatible endpoint.                                                     |
 
 ### Architectural Mismatch on Cross-Cutting Concerns
 
 Our bespoke plan specifies unified, application-wide services for rate limiting and caching. The LangChain architecture presents significant challenges to this model.
 
-* **Rate Limiting**: LangChain does not have a built-in, centralized rate limiter. Each provider integration handles its own retry logic (or lacks it). To implement our unified `rate-limiter`, we would need to wrap every LangChain model/tool initialization in a higher-order function that calls `waitForPermit`, adding a layer of complexity that undermines the framework's simplicity.
-* **Caching**: LangChain offers `BaseCache` implementations (e.g., `InMemoryCache`, `RedisCache`), but they are integrated at the `Runnable` level. This means caching is federated to individual chains. It would be difficult to implement our multi-tiered `ServerCache` strategy in a unified way without significant custom wrappers around core LangChain components.
+- **Rate Limiting**: LangChain does not have a built-in, centralized rate limiter. Each provider integration handles its own retry logic (or lacks it). To implement our unified `rate-limiter`, we would need to wrap every LangChain model/tool initialization in a higher-order function that calls `waitForPermit`, adding a layer of complexity that undermines the framework's simplicity.
+- **Caching**: LangChain offers `BaseCache` implementations (e.g., `InMemoryCache`, `RedisCache`), but they are integrated at the `Runnable` level. This means caching is federated to individual chains. It would be difficult to implement our multi-tiered `ServerCache` strategy in a unified way without significant custom wrappers around core LangChain components.
 
 These mismatches mean we would either abandon our unified strategies or build complex, brittle wrappers around LangChain's abstractions, defeating the purpose of using the framework.
 
@@ -60,7 +60,7 @@ import { ChatGroq } from "@langchain/groq";
 import { ChatPerplexity } from "@langchain/perplexity";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 
-export type AIProviderType = 'openai' | 'groq' | 'perplexity';
+export type AIProviderType = "openai" | "groq" | "perplexity";
 
 // This map replaces our service class
 const models: Record<AIProviderType, BaseChatModel> = {
@@ -91,14 +91,12 @@ export function getLangChainModel(provider: AIProviderType): BaseChatModel {
 LangChain uses a `chain` paradigm with `.invoke()`.
 
 ```typescript
-import { getLangChainModel } from './lib/ai/langchain-service';
-import { HumanMessage } from '@langchain/core/messages';
+import { getLangChainModel } from "./lib/ai/langchain-service";
+import { HumanMessage } from "@langchain/core/messages";
 
-const model = getLangChainModel('openai');
+const model = getLangChainModel("openai");
 
-const response = await model.invoke([
-  new HumanMessage({ content: "What is the capital of France?" }),
-]);
+const response = await model.invoke([new HumanMessage({ content: "What is the capital of France?" })]);
 
 // response is an AIMessage object
 console.log(response.content); // "Paris"
@@ -109,14 +107,12 @@ console.log(response.content); // "Paris"
 Streaming is handled via the `.stream()` method, which returns an `AsyncGenerator`.
 
 ```typescript
-import { getLangChainModel } from './lib/ai/langchain-service';
-import { HumanMessage } from '@langchain/core/messages';
+import { getLangChainModel } from "./lib/ai/langchain-service";
+import { HumanMessage } from "@langchain/core/messages";
 
-const model = getLangChainModel('groq');
+const model = getLangChainModel("groq");
 
-const stream = await model.stream([
-  new HumanMessage({ content: "Tell me a short story about a robot." }),
-]);
+const stream = await model.stream([new HumanMessage({ content: "Tell me a short story about a robot." })]);
 
 for await (const chunk of stream) {
   // chunk is an AIMessageChunk object
@@ -133,10 +129,10 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { createStuffDocumentsChain } from "langchain/chains/combine_documents";
 import { createRetrievalChain } from "langchain/chains/retrieval";
-import { getLangChainModel } from './lib/ai/langchain-service';
-import { getVectorStoreRetriever } from './lib/vector-store'; // Assume this exists
+import { getLangChainModel } from "./lib/ai/langchain-service";
+import { getVectorStoreRetriever } from "./lib/vector-store"; // Assume this exists
 
-const model = getLangChainModel('openai');
+const model = getLangChainModel("openai");
 const retriever = getVectorStoreRetriever(); // Your vector store retriever
 
 // 1. Create a prompt template
@@ -176,7 +172,7 @@ The `ai-shared-services` plan requires first-class support for tool calling and 
 ```typescript
 import { z } from "zod";
 import { tool } from "@langchain/core/tools";
-import { getLangChainModel } from './lib/ai/langchain-service';
+import { getLangChainModel } from "./lib/ai/langchain-service";
 import { JsonOutputToolsParser } from "langchain/output_parsers";
 
 // 1. Define a tool with a Zod schema
@@ -191,11 +187,11 @@ const addTool = tool(
       a: z.number().describe("First number"),
       b: z.number().describe("Second number"),
     }),
-  }
+  },
 );
 
 // 2. Bind the tool to the model
-const model = getLangChainModel('openai');
+const model = getLangChainModel("openai");
 const modelWithTools = model.bindTools([addTool]);
 
 // 3. Create a chain with an output parser
@@ -207,6 +203,7 @@ const response = await toolChain.invoke("what is 2 plus 2?");
 // response contains the tool call details
 // [{ type: 'add', args: { a: 2, b: 2 } }]
 ```
+
 This demonstrates that while LangChain supports these features, it does so through its own specific abstractions (`tool`, `.bindTools`, `JsonOutputToolsParser`), which we would be forced to adopt.
 
 ## Vercel AI SDK and LangChain
@@ -215,14 +212,14 @@ The `ai-shared-services.md` document outlines a strict, compliance-based policy 
 
 ## Pros vs. Cons Analysis (ZERO TEMPERATURE Context)
 
-| Category | Pros (The "For" Argument) | Cons (The "Against" Argument & ZERO TEMPERATURE Violations) |
-| :--- | :--- | :--- |
-| **Development Speed** | ✅ **Much Faster Initial Setup**: For standard patterns like RAG, Agents, and structured output, LangChain provides pre-built chains (`createRetrievalChain`, `createToolCallingAgent`) that reduce boilerplate code significantly. | ❌ **Slower for Custom Logic**: When requirements deviate from LangChain's conventions, fighting the framework can be slower than building from scratch. This is a significant risk. |
-| **Control & Verifiability** | ➖ **Standardized Interface**: Provides a consistent API across different models and tools. | 🚨 **Major Violation**: The high-level abstractions hide the actual network requests, retry logic, and error handling. This makes it impossible to verify behavior against live documentation directly, violating a core "ZERO TEMPERATURE" tenet. We would be trusting the framework's implementation entirely. |
-| **Dependencies & Complexity** | ➖ **Managed Ecosystem**: Integrations are managed within a single monorepo, theoretically ensuring compatibility between packages. | 🚨 **Major Violation**: Introduces a massive dependency footprint (`@langchain/core`, `@langchain/community`, plus dozens of transitive dependencies). This conflicts with our "lightweight footprint" principle and increases the surface area for bugs and security vulnerabilities. |
-| **Abstraction & "Magic"** | ✅ **Reduces Cognitive Load**: Developers don't need to know the specific request/response format for each API, as LangChain normalizes them. | 🚨 **Major Violation**: This "magic" is a direct violation of the "no assumptions" rule. The framework's internal workings are a black box unless we spend significant time auditing its source code, which defeats the purpose of using it for speed. |
-| **Ecosystem & Maintenance** | ✅ **Large Community**: Benefits from a vast number of third-party integrations and active maintenance from the open-source community. | ❌ **Dependency on Community**: We are reliant on the community for timely updates and bug fixes. If a provider changes its API, we must wait for a new package version, a significant loss of agility compared to updating a `fetch` call ourselves. |
-| **Type Safety** | ➖ **Typed Interfaces**: LangChain is written in TypeScript and provides types for its components. | ❌ **Potential for `any`**: The framework deals with so many dynamic parts that it sometimes resorts to less strict types or `any`. Our bespoke Zod-based approach provides absolute, verifiable type safety at every boundary, which is superior. |
+| Category                      | Pros (The "For" Argument)                                                                                                                                                                                                           | Cons (The "Against" Argument & ZERO TEMPERATURE Violations)                                                                                                                                                                                                                                                      |
+| :---------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Development Speed**         | ✅ **Much Faster Initial Setup**: For standard patterns like RAG, Agents, and structured output, LangChain provides pre-built chains (`createRetrievalChain`, `createToolCallingAgent`) that reduce boilerplate code significantly. | ❌ **Slower for Custom Logic**: When requirements deviate from LangChain's conventions, fighting the framework can be slower than building from scratch. This is a significant risk.                                                                                                                             |
+| **Control & Verifiability**   | ➖ **Standardized Interface**: Provides a consistent API across different models and tools.                                                                                                                                         | 🚨 **Major Violation**: The high-level abstractions hide the actual network requests, retry logic, and error handling. This makes it impossible to verify behavior against live documentation directly, violating a core "ZERO TEMPERATURE" tenet. We would be trusting the framework's implementation entirely. |
+| **Dependencies & Complexity** | ➖ **Managed Ecosystem**: Integrations are managed within a single monorepo, theoretically ensuring compatibility between packages.                                                                                                 | 🚨 **Major Violation**: Introduces a massive dependency footprint (`@langchain/core`, `@langchain/community`, plus dozens of transitive dependencies). This conflicts with our "lightweight footprint" principle and increases the surface area for bugs and security vulnerabilities.                           |
+| **Abstraction & "Magic"**     | ✅ **Reduces Cognitive Load**: Developers don't need to know the specific request/response format for each API, as LangChain normalizes them.                                                                                       | 🚨 **Major Violation**: This "magic" is a direct violation of the "no assumptions" rule. The framework's internal workings are a black box unless we spend significant time auditing its source code, which defeats the purpose of using it for speed.                                                           |
+| **Ecosystem & Maintenance**   | ✅ **Large Community**: Benefits from a vast number of third-party integrations and active maintenance from the open-source community.                                                                                              | ❌ **Dependency on Community**: We are reliant on the community for timely updates and bug fixes. If a provider changes its API, we must wait for a new package version, a significant loss of agility compared to updating a `fetch` call ourselves.                                                            |
+| **Type Safety**               | ➖ **Typed Interfaces**: LangChain is written in TypeScript and provides types for its components.                                                                                                                                  | ❌ **Potential for `any`**: The framework deals with so many dynamic parts that it sometimes resorts to less strict types or `any`. Our bespoke Zod-based approach provides absolute, verifiable type safety at every boundary, which is superior.                                                               |
 
 ## Final Conclusion
 

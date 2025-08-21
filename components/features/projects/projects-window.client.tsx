@@ -160,7 +160,7 @@ function TagVisibilityController() {
 
   React.useEffect(() => {
     const projectNodes = document.querySelectorAll<HTMLElement>("[data-project-tags]");
-    projectNodes.forEach((node) => {
+    projectNodes.forEach(node => {
       const tags = node.getAttribute("data-project-tags")?.split("|||") ?? [];
       const shouldShow = selectedTag === "All" || tags.includes(selectedTag);
       node.style.display = shouldShow ? "" : "none";

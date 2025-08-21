@@ -70,17 +70,15 @@ export async function writeGitHubActivityToS3(
   try {
     // 1) Never write during Next.js build phase – build reads from public CDN only
     if (process.env.NEXT_PHASE === "phase-production-build") {
-      debugLog(
-        `Skipping GitHub activity write during build phase (NEXT_PHASE=phase-production-build)`,
-        "warn",
-        { key },
-      );
+      debugLog(`Skipping GitHub activity write during build phase (NEXT_PHASE=phase-production-build)`, "warn", {
+        key,
+      });
       return true; // treat as successful no-op
     }
 
     // 2) Non-degrading write: avoid overwriting a healthy dataset with empty/incomplete results
     // BUT be more lenient - allow writes if data has meaningful content even if not "complete"
-    
+
     // Classify dataset quality to support non-degrading writes
     const classifyDataset = (d: GitHubActivityApiResponse | null | undefined) => {
       if (!d) {
@@ -92,13 +90,15 @@ export async function writeGitHubActivityToS3(
           isIncomplete: true,
         };
       }
-      
-      const ty = d.trailingYearData as { data?: unknown[]; dataComplete?: boolean; totalContributions?: number } | undefined;
+
+      const ty = d.trailingYearData as
+        | { data?: unknown[]; dataComplete?: boolean; totalContributions?: number }
+        | undefined;
       const hasData = Array.isArray(ty?.data) && (ty?.data?.length ?? 0) > 0;
       // Treat 0 as a valid known count (don't penalize quiet/new accounts)
       const hasCount = typeof ty?.totalContributions === "number" && Number.isFinite(ty.totalContributions);
       const contributions = hasCount ? (ty.totalContributions ?? -1) : -1;
-      
+
       return {
         hasData,
         hasCount,
@@ -116,25 +116,25 @@ export async function writeGitHubActivityToS3(
         const existing = await readGitHubActivityFromS3(key);
         const existingQ = classifyDataset(existing);
         const existingIsHealthy = !!existing && !existingQ.isEmpty;
-        
+
         // Only skip write if existing data is actually better
         if (existingIsHealthy) {
           const existingContributions = Math.max(0, existingQ.contributions);
           const newContributions = Math.max(0, newQ.contributions);
-          
+
           // Allow write if new data has MORE contributions (even if incomplete / no series)
           if (newContributions > existingContributions) {
-            debugLog(
-              `Writing new data despite incomplete flag - has more contributions`,
-              "info",
-              { key, oldCount: existingContributions, newCount: newContributions },
-            );
+            debugLog(`Writing new data despite incomplete flag - has more contributions`, "info", {
+              key,
+              oldCount: existingContributions,
+              newCount: newContributions,
+            });
           } else {
-            debugLog(
-              `Non-degrading write: Preserving existing dataset with more data`,
-              "warn",
-              { key, existingCount: existingContributions, newCount: newContributions },
-            );
+            debugLog(`Non-degrading write: Preserving existing dataset with more data`, "warn", {
+              key,
+              existingCount: existingContributions,
+              newCount: newContributions,
+            });
             return true; // skip write, keep healthy file
           }
         }
@@ -262,7 +262,7 @@ export async function writeAggregatedWeeklyActivityToS3(data: AggregatedWeeklyAc
 export async function listRepoStatsFiles(): Promise<string[]> {
   try {
     const results = await s3UtilsListS3Objects(REPO_RAW_WEEKLY_STATS_S3_KEY_DIR);
-    return results.filter((key) => key.endsWith(".json")).sort();
+    return results.filter(key => key.endsWith(".json")).sort();
   } catch (error) {
     debugLog(`Failed to list repo stats files`, "error", {
       error: error instanceof Error ? error.message : String(error),

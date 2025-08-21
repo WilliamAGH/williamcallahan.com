@@ -71,7 +71,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const filenames = fs.readdirSync(postsDirectory);
-    const mdxFiles = filenames.filter((filename) => filename.endsWith(".mdx"));
+    const mdxFiles = filenames.filter(filename => filename.endsWith(".mdx"));
     for (const filename of mdxFiles) {
       const filePath = path.join(postsDirectory, filename);
       let fileMtime: Date | undefined;
@@ -119,7 +119,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   // Create blog post sitemap entries
-  const blogPostEntries: MetadataRoute.Sitemap = postsData.map((post) => ({
+  const blogPostEntries: MetadataRoute.Sitemap = postsData.map(post => ({
     url: `${siteUrl}/blog/${post.slug}`,
     lastModified: post.lastModified,
     changeFrequency: "weekly",
@@ -313,8 +313,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   );
 
   // --- 2.5 Process Project Tags (query variant URLs) ---
-  const uniqueProjectTags = Array.from(new Set(projects.flatMap((p) => p.tags || [])));
-  const projectTagEntries: MetadataRoute.Sitemap = uniqueProjectTags.map((tag) => {
+  const uniqueProjectTags = Array.from(new Set(projects.flatMap(p => p.tags || [])));
+  const projectTagEntries: MetadataRoute.Sitemap = uniqueProjectTags.map(tag => {
     const tagParam = encodeURIComponent(tag.replace(/ /g, "+"));
     return {
       url: `${siteUrl}/projects?tag=${tagParam}`,

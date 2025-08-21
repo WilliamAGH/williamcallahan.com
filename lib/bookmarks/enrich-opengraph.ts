@@ -155,24 +155,24 @@ export async function processBookmarksInBatches(
 
             if (imageBuffer) {
               const bufferSizeKB = imageBuffer.length / 1024;
-              
+
               // Check if this is a favicon (< 5KB)
               if (bufferSizeKB < 5) {
                 console.warn(
                   `${LOG_PREFIX} ⚠️ REJECTED: Karakeep asset ${assetId} is only ${imageBuffer.length} bytes (${bufferSizeKB.toFixed(1)}KB) - likely a favicon/logo`,
                 );
-                
+
                 // If we rejected the image, check if there's a screenshot we can use instead
                 const screenshotId = bookmark.content?.screenshotAssetId;
                 if (screenshotId && assetId !== screenshotId) {
                   console.log(`${LOG_PREFIX} 📸 Trying screenshot fallback: ${screenshotId}`);
                   const screenshotBuffer = await fetchKarakeepImage(screenshotId);
-                  
+
                   if (screenshotBuffer && screenshotBuffer.length / 1024 >= 5) {
                     // Screenshot is valid, use it
                     const { persistImageBufferToS3 } = await import("@/lib/persistence/s3-persistence");
                     const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
-                    
+
                     const s3Url = await persistImageBufferToS3(
                       screenshotBuffer,
                       OPENGRAPH_IMAGES_S3_DIR,
@@ -181,7 +181,7 @@ export async function processBookmarksInBatches(
                       bookmark.id,
                       bookmark.url,
                     );
-                    
+
                     if (s3Url) {
                       bookmark.ogImage = s3Url;
                       bookmark.ogImageExternal = `/api/assets/${screenshotId}`;
@@ -191,7 +191,7 @@ export async function processBookmarksInBatches(
                     }
                   }
                 }
-                
+
                 // No valid image found
                 if (!bookmark.ogImage) {
                   bookmark.ogImage = undefined;

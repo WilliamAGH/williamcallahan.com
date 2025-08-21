@@ -15,8 +15,8 @@ STEP 0.5: Check if issue number was provided:
   - Labels (urgent priority, bug, etc.)
   - Age of issue
   - Impact on system
-  d) Present prioritized list with recommendations
-  e) Ask user which issue to work on
+    d) Present prioritized list with recommendations
+    e) Ask user which issue to work on
 - If an issue number was provided as an argument (e.g., `/issue-review 260`), continue to STEP 1
 
 Issue: #[issue number from command arguments]
@@ -27,7 +27,7 @@ STEP 2: Multi-Source Analysis with All Available MCPs
 Gather comprehensive context from multiple sources:
 
 a) **Technology Documentation via MCP Tools**:
-   IMPORTANT: Always check current documentation for the specific versions we use:
+IMPORTANT: Always check current documentation for the specific versions we use:
 
 - For Express.js: @mcp_context7 resolve-library-id libraryName="express" then @mcp_context7 get-library-docs
 - For Node.js 22: @mcp_context7 resolve-library-id libraryName="node" then @mcp_context7 get-library-docs
@@ -56,20 +56,24 @@ d) Search for relevant code using codebase_search and Read tools
 
 STEP 4: If issue is actionable and can be fixed now:
 a) **MANDATORY: Run validation before making changes:**
-   ```bash
-   pnpm run validate
-   ```
-   Must show 0 errors, 0 warnings. Fix any issues following @docs/projects/structure/linting-formatting.md guidance.
+
+```bash
+pnpm run validate
+```
+
+Must show 0 errors, 0 warnings. Fix any issues following @docs/projects/structure/linting-formatting.md guidance.
 
 b) Implement the fix using Edit/MultiEdit tools
 c) Document all changes made
 d) Create comprehensive test if needed
 
 e) **MANDATORY: Run validation after making changes:**
-   ```bash
-   pnpm run validate
-   ```
-   Never use @ts-ignore, @ts-expect-error, or eslint-disable. Fix all type safety issues properly.
+
+```bash
+pnpm run validate
+```
+
+Never use @ts-ignore, @ts-expect-error, or eslint-disable. Fix all type safety issues properly.
 
 STEP 5: Post detailed comment on issue using `gh issue comment [issue_number] --repo aventurevc/back-end --body "<your_analysis_and_plan>"` including: analysis, changes made (if any), or implementation plan if changes are too large.
 

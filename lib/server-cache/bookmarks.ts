@@ -33,11 +33,10 @@ export function getBookmarks(this: ICache): BookmarksCacheEntry | undefined {
 export function setBookmarks(this: ICache): void {
   // NO-OP: Bookmarks are stored in S3, not in memory cache
   if (process.env.NODE_ENV !== "test") {
-    envLogger.log(
-      "setBookmarks called - this is deprecated. Bookmarks are stored in S3 only.",
-      undefined,
-      { category: "ServerCache", context: { method: "setBookmarks", deprecated: true } },
-    );
+    envLogger.log("setBookmarks called - this is deprecated. Bookmarks are stored in S3 only.", undefined, {
+      category: "ServerCache",
+      context: { method: "setBookmarks", deprecated: true },
+    });
   }
 }
 

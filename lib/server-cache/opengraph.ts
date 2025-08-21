@@ -68,7 +68,7 @@ export function clearOpenGraphData(this: ICache, url?: string): void {
     const key = OPENGRAPH_PREFIX + url;
     this.del(key);
   } else {
-    const keys = this.keys().filter((key) => key.startsWith(OPENGRAPH_PREFIX));
+    const keys = this.keys().filter(key => key.startsWith(OPENGRAPH_PREFIX));
     for (const key of keys) {
       this.del(key);
     }
@@ -81,11 +81,7 @@ export function clearOpenGraphData(this: ICache, url?: string): void {
 export function deleteOpenGraphData(this: ICache, url: string): void {
   const key = OPENGRAPH_PREFIX + url;
   this.del(key);
-  envLogger.log(
-    `Deleted corrupted OpenGraph cache entry`,
-    { url },
-    { category: "ServerCache" },
-  );
+  envLogger.log(`Deleted corrupted OpenGraph cache entry`, { url }, { category: "ServerCache" });
 }
 
 /**

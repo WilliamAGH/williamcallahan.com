@@ -48,17 +48,17 @@ export const ImageWindow = ({
 
   // Handler functions for window controls
   const handleClose = () => {
-    setIsVisible((prev) => !prev); // Toggle visibility
+    setIsVisible(prev => !prev); // Toggle visibility
   };
 
   const handleMinimize = () => {
-    setIsMinimized((prev) => !prev);
+    setIsMinimized(prev => !prev);
     if (isMaximized) setIsMaximized(false); // Exit maximized mode if active
   };
 
   // Wrap in useCallback to prevent recreation on each render
   const handleMaximize = useCallback(() => {
-    setIsMaximized((prev) => !prev);
+    setIsMaximized(prev => !prev);
     if (isMinimized) setIsMinimized(false); // Exit minimized mode if active
   }, [isMinimized]); // Add dependencies
 
@@ -105,7 +105,7 @@ export const ImageWindow = ({
             borderRadius: "8px",
           }}
           onClick={handleClose}
-          onKeyUp={(e) => {
+          onKeyUp={e => {
             if (e.key === "Enter" || e.key === " ") {
               handleClose();
             }

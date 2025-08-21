@@ -201,7 +201,7 @@ The styling system relies on a small build pipeline that stitches together Tailw
 - Enables class-based dark mode (`darkMode: "class"`).
 - Extends `@tailwindcss/typography` so prose elements inherit project typography rules.
 
-### PostCSS Pipeline *(defined in `package.json`)*
+### PostCSS Pipeline _(defined in `package.json`)_
 
 - `tailwindcss/nesting` → Enables native nesting syntax so authored CSS can be closer to SCSS style without another pre-processor.
 - `tailwindcss` → Generates the utility classes.
@@ -222,9 +222,9 @@ Coverage-report CSS (`coverage/lcov-report/*.css`) is generated and therefore **
 
 Blog posts (MDX files under `app/blog/**`) leverage several layers of the styling stack:
 
-1. **Global Prose Rules** – The `@tailwindcss/typography` extension in `tailwind.config.js` ensures headings, lists, blockquotes, etc. get consistent spacing and font sizes.  Global overrides in `app/globals.css` further adjust colors to match light/dark themes.
+1. **Global Prose Rules** – The `@tailwindcss/typography` extension in `tailwind.config.js` ensures headings, lists, blockquotes, etc. get consistent spacing and font sizes. Global overrides in `app/globals.css` further adjust colors to match light/dark themes.
 2. **Code Blocks** – `components/ui/code-block/**` together with `app/code-blocks.css` and `prism.css` provide syntax highlighting that automatically picks up the current theme.
-3. **Responsive Images & Embeds** – Posts inherit `max-width: none` from the prose rules, allowing wide visuals without side-scroll.  Utility classes (`prose-img:rounded-md`, etc.) are added in MDX content for fine control.
+3. **Responsive Images & Embeds** – Posts inherit `max-width: none` from the prose rules, allowing wide visuals without side-scroll. Utility classes (`prose-img:rounded-md`, etc.) are added in MDX content for fine control.
 4. **MDX Components** – Custom React components used in articles (e.g., Tabs, Terminal) pull their own scoped CSS while still inheriting root CSS variables.
 
 This layered approach means **blog articles share the global design language** while retaining flexibility for rich interactive content.

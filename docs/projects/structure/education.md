@@ -30,14 +30,14 @@ interface EducationBase {
   year: number;
   website: string;
   location: string;
-  logo?: string;  // Static logo path fallback
+  logo?: string; // Static logo path fallback
   logoScale?: number;
 }
 
 // types/education.ts:62-65
 export interface EducationLogoData {
-  url: string;  // Always CDN URL when available
-  source: string | null;  // "s3-store" | "external" | "placeholder"
+  url: string; // Always CDN URL when available
+  source: string | null; // "s3-store" | "external" | "placeholder"
 }
 ```
 

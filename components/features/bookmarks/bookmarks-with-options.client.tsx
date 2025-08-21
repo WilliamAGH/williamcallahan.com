@@ -39,7 +39,7 @@ function isUnifiedBookmarkArray(x: unknown): x is UnifiedBookmark[] {
   return (
     Array.isArray(x) &&
     x.every(
-      (b) => b && typeof (b as { id?: unknown }).id === "string" && typeof (b as { url?: unknown }).url === "string",
+      b => b && typeof (b as { id?: unknown }).id === "string" && typeof (b as { url?: unknown }).url === "string",
     )
   );
 }
@@ -200,7 +200,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
 
   // Extract all unique tags from all available bookmarks
   const allTags = (searchAllBookmarks ? allBookmarks : bookmarks)
-    .flatMap((bookmark) => {
+    .flatMap(bookmark => {
       return getTagsAsStringArray(bookmark.tags);
     })
     .filter((tag, index, self) => tag && self.indexOf(tag) === index)
@@ -214,7 +214,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
     if (searchResults && searchQuery) {
       // Apply tag filter to API results
       if (selectedTag) {
-        return searchResults.filter((bookmark) => {
+        return searchResults.filter(bookmark => {
           const tagsAsString = getTagsAsStringArray(bookmark.tags);
           return tagsAsString.includes(selectedTag);
         });
@@ -223,7 +223,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
     }
 
     // Otherwise, use the original client-side filtering logic
-    return bookmarksToFilter.filter((bookmark) => {
+    return bookmarksToFilter.filter(bookmark => {
       const tagsAsString = getTagsAsStringArray(bookmark.tags);
 
       // Filter by selected tag if any
@@ -235,7 +235,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       const searchTerms = searchQuery
         .toLowerCase()
         .split(" ")
-        .filter((term) => term.length > 0);
+        .filter(term => term.length > 0);
       if (searchTerms.length === 0) return true;
 
       // Combine relevant text fields for searching
@@ -252,7 +252,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         .toLowerCase();
 
       // Check if all search terms are included in the bookmark text
-      return searchTerms.every((term) => bookmarkText.includes(term));
+      return searchTerms.every(term => bookmarkText.includes(term));
     });
   })();
 
@@ -392,7 +392,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   // Handler for refreshing production environment bookmarks
   const handleProductionRefresh = async () => {
     setIsRefreshingProduction(true);
-    
+
     try {
       console.log("[Bookmarks] Requesting production bookmarks refresh");
       // Call a special endpoint that will trigger production refresh
@@ -402,7 +402,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
           "Content-Type": "application/json",
         },
       });
-      
+
       if (!response.ok) {
         const errorData: unknown = await response.json().catch(() => null);
         const errorMessage = getErrorMessage(errorData, response.statusText);
@@ -580,7 +580,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
-            {filteredBookmarks.map((bookmark) => {
+            {filteredBookmarks.map(bookmark => {
               // Use pre-computed href from server if available
               // CRITICAL: Never fallback to using bookmark.id in the URL!
               const internalHref = internalHrefs?.[bookmark.id] ?? bookmark.url;
@@ -608,7 +608,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       ) : (
         /* Server-side placeholder with hydration suppression */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6" suppressHydrationWarning>
-          {bookmarks.slice(0, 6).map((bookmark) => (
+          {bookmarks.slice(0, 6).map(bookmark => (
             <div
               key={bookmark.id}
               className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg h-96"

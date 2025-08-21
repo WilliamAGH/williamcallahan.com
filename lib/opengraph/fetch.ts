@@ -99,7 +99,7 @@ async function performFetchWithRetry(
         // Try direct fetch first, then proxies
         const urlsToTry = [
           url,
-          ...proxies.map((proxy) => {
+          ...proxies.map(proxy => {
             const proxyUrl = new URL(url);
             proxyUrl.hostname = proxy;
             return proxyUrl.toString();
@@ -111,7 +111,11 @@ async function performFetchWithRetry(
           if (isProxy) {
             envLogger.log(
               `Trying proxy for OpenGraph fetch`,
-              { proxyHost: new URL(effectiveUrl).hostname, type: url.includes("/status/") ? "tweet" : "profile", effectiveUrl },
+              {
+                proxyHost: new URL(effectiveUrl).hostname,
+                type: url.includes("/status/") ? "tweet" : "profile",
+                effectiveUrl,
+              },
               { category: "OpenGraph" },
             );
           } else {
@@ -131,7 +135,11 @@ async function performFetchWithRetry(
             }
 
             if (result && typeof result === "object" && "blocked" in result) {
-              envLogger.log(`Access blocked for OpenGraph fetch, trying next option`, { effectiveUrl }, { category: "OpenGraph" });
+              envLogger.log(
+                `Access blocked for OpenGraph fetch, trying next option`,
+                { effectiveUrl },
+                { category: "OpenGraph" },
+              );
               continue;
             }
 
@@ -192,7 +200,11 @@ async function performFetchWithRetry(
     if (isNetworkError) {
       debug(`[DataAccess/OpenGraph] Final network connectivity issue for ${url}: ${errorMessage}`);
     } else {
-      envLogger.log(`Final unexpected error for OpenGraph fetch`, { url, error: errorMessage }, { category: "OpenGraph" });
+      envLogger.log(
+        `Final unexpected error for OpenGraph fetch`,
+        { url, error: errorMessage },
+        { category: "OpenGraph" },
+      );
     }
 
     return { networkFailure: true, lastError: error };
@@ -414,7 +426,11 @@ async function fetchExternalOpenGraph(
     }
 
     if (isBatchMode) {
-      envLogger.log(`Batch mode: Persisting profile image synchronously`, { dir: profileImageDirectory }, { category: "OpenGraph" });
+      envLogger.log(
+        `Batch mode: Persisting profile image synchronously`,
+        { dir: profileImageDirectory },
+        { category: "OpenGraph" },
+      );
       const s3ProfileUrl = await persistImageAndGetS3Url(
         profileImageUrl,
         profileImageDirectory,
@@ -427,7 +443,11 @@ async function fetchExternalOpenGraph(
         finalProfileImageUrl = s3ProfileUrl;
         envLogger.log(`Profile image persisted to S3`, { s3ProfileUrl }, { category: "OpenGraph" });
       } else {
-        envLogger.log(`Failed to persist profile image, keeping original`, { profileImageUrl }, { category: "OpenGraph" });
+        envLogger.log(
+          `Failed to persist profile image, keeping original`,
+          { profileImageUrl },
+          { category: "OpenGraph" },
+        );
       }
     } else {
       envLogger.log(`Scheduling profile image persistence`, { dir: profileImageDirectory }, { category: "OpenGraph" });
@@ -460,7 +480,11 @@ async function fetchExternalOpenGraph(
         finalBannerImageUrl = s3BannerUrl;
         envLogger.log(`Banner image persisted to S3`, { s3BannerUrl }, { category: "OpenGraph" });
       } else {
-        envLogger.log(`Failed to persist banner image, keeping original`, { bannerImageUrl }, { category: "OpenGraph" });
+        envLogger.log(
+          `Failed to persist banner image, keeping original`,
+          { bannerImageUrl },
+          { category: "OpenGraph" },
+        );
       }
     } else {
       envLogger.log(`Scheduling banner image persistence`, undefined, { category: "OpenGraph" });

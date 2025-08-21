@@ -40,7 +40,7 @@ function countWords(text: string): number {
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "") // Remove images
     .trim();
 
-  return cleanText.split(/\s+/).filter((word) => word.length > 0).length;
+  return cleanText.split(/\s+/).filter(word => word.length > 0).length;
 }
 
 /**
@@ -151,7 +151,7 @@ export async function extractMarkdownBatch(
 
     // Small delay to prevent rate limiting
     if (processed < bookmarks.length) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
   }
 

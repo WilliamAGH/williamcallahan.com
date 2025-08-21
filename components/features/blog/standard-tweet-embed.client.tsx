@@ -11,12 +11,12 @@ const StandardTweetEmbed: React.FC<StandardTweetEmbedProps> = ({ id, theme }) =>
   useEffect(() => {
     // Capture the container reference early in the effect
     const containerElement = embedContainerRef.current;
-    
+
     const createTweetEmbed = () => {
       if (window.twttr?.widgets && containerElement) {
         // Clear previous tweet safely for Safari compatibility
         // Use a more defensive approach to avoid DOM manipulation conflicts
-        
+
         // Remove all child nodes instead of using innerHTML
         while (containerElement.firstChild) {
           try {
@@ -33,7 +33,7 @@ const StandardTweetEmbed: React.FC<StandardTweetEmbedProps> = ({ id, theme }) =>
             theme,
             dnt: true,
           })
-          .catch((error) => console.error("Error creating Tweet embed:", error));
+          .catch(error => console.error("Error creating Tweet embed:", error));
       }
     };
 

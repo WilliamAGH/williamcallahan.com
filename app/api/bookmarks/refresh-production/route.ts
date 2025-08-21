@@ -1,7 +1,7 @@
 /**
  * @file API Route: Bookmarks Refresh for Production
  * @module app/api/bookmarks/refresh-production/route
- * 
+ *
  * @description
  * This endpoint allows non-production environments to trigger a refresh
  * of bookmarks data in the production environment. It requires
@@ -18,15 +18,13 @@ import { getErrorMessage } from "@/types/api-responses";
  */
 export async function POST(): Promise<NextResponse> {
   // Check if we're in a non-production environment
-  const isProduction = process.env.DEPLOYMENT_ENV === "production" || 
-                      process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
-  
+  const isProduction =
+    process.env.DEPLOYMENT_ENV === "production" || process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
+
   if (isProduction) {
-    envLogger.log(
-      "Production refresh endpoint called from production environment - not allowed",
-      undefined,
-      { category: "BookmarksRefresh" },
-    );
+    envLogger.log("Production refresh endpoint called from production environment - not allowed", undefined, {
+      category: "BookmarksRefresh",
+    });
     return NextResponse.json(
       { message: "This endpoint is only available in non-production environments" },
       { status: 403 },
@@ -35,17 +33,12 @@ export async function POST(): Promise<NextResponse> {
 
   // Get the production refresh secret
   const refreshSecret = process.env.BOOKMARK_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
-  
+
   if (!refreshSecret) {
-    envLogger.log(
-      "BOOKMARK_REFRESH_SECRET not configured - cannot trigger production refresh",
-      undefined,
-      { category: "BookmarksRefresh" },
-    );
-    return NextResponse.json(
-      { message: "Server configuration error: refresh secret not set" },
-      { status: 500 },
-    );
+    envLogger.log("BOOKMARK_REFRESH_SECRET not configured - cannot trigger production refresh", undefined, {
+      category: "BookmarksRefresh",
+    });
+    return NextResponse.json({ message: "Server configuration error: refresh secret not set" }, { status: 500 });
   }
 
   try {
@@ -57,30 +50,30 @@ export async function POST(): Promise<NextResponse> {
 
     // Call the production refresh endpoint
     const productionUrl = "https://williamcallahan.com/api/bookmarks/refresh";
-    
+
     const response = await fetch(productionUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${refreshSecret}`,
+        Authorization: `Bearer ${refreshSecret}`,
       },
     });
 
     if (!response.ok) {
       const errorData: unknown = await response.json().catch(() => null);
       const errorMessage = getErrorMessage(errorData, response.statusText);
-      
+
       envLogger.log(
         "Production bookmarks refresh request failed",
-        { 
+        {
           status: response.status,
           error: errorMessage,
         },
         { category: "BookmarksRefresh" },
       );
-      
+
       return NextResponse.json(
-        { 
+        {
           message: "Failed to trigger production bookmarks refresh",
           error: errorMessage,
         },
@@ -89,27 +82,22 @@ export async function POST(): Promise<NextResponse> {
     }
 
     const result: unknown = await response.json();
-    
-    envLogger.log(
-      "Production bookmarks refresh triggered successfully",
-      { result },
-      { category: "BookmarksRefresh" },
-    );
+
+    envLogger.log("Production bookmarks refresh triggered successfully", { result }, { category: "BookmarksRefresh" });
 
     return NextResponse.json({
       message: "Production bookmarks refresh initiated successfully",
       productionResponse: result,
     });
-    
   } catch (error) {
     envLogger.log(
       "Error triggering production bookmarks refresh",
       { error: error instanceof Error ? error.message : String(error) },
       { category: "BookmarksRefresh" },
     );
-    
+
     return NextResponse.json(
-      { 
+      {
         message: "Failed to connect to production environment",
         error: error instanceof Error ? error.message : "Unknown error",
       },

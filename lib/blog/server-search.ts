@@ -29,7 +29,7 @@ export async function searchBlogPostsServerSide(query: string): Promise<SearchRe
 
   const searchTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
 
-  const results = allPosts.filter((post) => {
+  const results = allPosts.filter(post => {
     if (!post) return false;
 
     if (post.title?.toLowerCase() === query.toLowerCase()) {
@@ -45,19 +45,19 @@ export async function searchBlogPostsServerSide(query: string): Promise<SearchRe
       post.author?.name || "",
       // rawContent excluded - was causing memory explosion
     ]
-      .filter((field) => typeof field === "string" && field.length > 0)
+      .filter(field => typeof field === "string" && field.length > 0)
       .join(" ")
       .toLowerCase();
 
     // Check if all search terms exist in the combined text
-    return searchTerms.every((term) => allContentText.includes(term));
+    return searchTerms.every(term => allContentText.includes(term));
   });
 
   // Map results to the SearchResult format
   return results
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     .map(
-      (post) =>
+      post =>
         ({
           id: post.slug,
           type: "blog-post",

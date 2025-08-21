@@ -8,18 +8,18 @@ STEP 2: Multi-Source Analysis of Build Errors
 Analyze the build output using ALL available MCP tools:
 
 a) **Technology Documentation via MCPs**:
-   For ANY build errors related to framework APIs:
+For ANY build errors related to framework APIs:
 
-- Next.js 15 errors: @mcp__context7__resolve-library-id libraryName="next.js" then @mcp__context7__get-library-docs
-- React 19 errors: @mcp__context7__resolve-library-id libraryName="react" then @mcp__context7__get-library-docs
-- Zod 4 validation: @mcp__context7__resolve-library-id libraryName="zod" then @mcp__context7__get-library-docs
+- Next.js 15 errors: @mcp**context7**resolve-library-id libraryName="next.js" then @mcp**context7**get-library-docs
+- React 19 errors: @mcp**context7**resolve-library-id libraryName="react" then @mcp**context7**get-library-docs
+- Zod 4 validation: @mcp**context7**resolve-library-id libraryName="zod" then @mcp**context7**get-library-docs
 - TypeScript 5.x: Use available documentation MCPs
 - Check package.json for other dependencies and fetch their docs as needed
 
-   CRITICAL: Always verify against current documentation - APIs change between versions!
+  CRITICAL: Always verify against current documentation - APIs change between versions!
 
 b) **Web Search for Build Issues**:
-   Use @mcp__brave-search__brave_web_search to find:
+Use @mcp**brave-search**brave_web_search to find:
 
 - Specific TypeScript error codes (e.g., "TS2339 Next.js 15")
 - Known build issues with our framework versions
@@ -27,7 +27,7 @@ b) **Web Search for Build Issues**:
 - Community solutions for similar errors
 
 c) **Deep Analysis**:
-   Use @mcp__zen__thinkdeep with model="pro" including:
+Use @mcp**zen**thinkdeep with model="pro" including:
 
 - Full build error context
 - Documentation findings from MCPs
@@ -47,25 +47,25 @@ a) **Root Cause Analysis**:
 
 b) **Type Safety Resolution Strategies**:
 
-   1. **For `any` type errors**:
-      - Replace with `unknown` and use type narrowing
-      - Create proper type definitions in types/ directory
-      - Use Zod schemas from lib/schemas/ for runtime validation
+1.  **For `any` type errors**:
+    - Replace with `unknown` and use type narrowing
+    - Create proper type definitions in types/ directory
+    - Use Zod schemas from lib/schemas/ for runtime validation
 
-   2. **For unsafe member access**:
-      - Add proper null/undefined checks
-      - Use optional chaining (?.) and nullish coalescing (??)
-      - Leverage TypeScript's `noUncheckedIndexedAccess` setting
+2.  **For unsafe member access**:
+    - Add proper null/undefined checks
+    - Use optional chaining (?.) and nullish coalescing (??)
+    - Leverage TypeScript's `noUncheckedIndexedAccess` setting
 
-   3. **For type mismatches**:
-      - Trace back to the source type definition
-      - Check for duplicate type definitions using @type-flattener
-      - Ensure types are imported from the canonical location
+3.  **For type mismatches**:
+    - Trace back to the source type definition
+    - Check for duplicate type definitions using @type-flattener
+    - Ensure types are imported from the canonical location
 
-   4. **For missing types**:
-      - Check if type exists elsewhere in codebase
-      - Create new type definition in appropriate types/ subdirectory
-      - Consider if Zod schema would provide runtime safety
+4.  **For missing types**:
+    - Check if type exists elsewhere in codebase
+    - Create new type definition in appropriate types/ subdirectory
+    - Consider if Zod schema would provide runtime safety
 
 c) **Implementation**:
 

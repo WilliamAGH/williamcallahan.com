@@ -26,7 +26,7 @@ import { RelatedContent } from "@/components/features/related-content";
  */
 export const generateStaticParams = async () => {
   const posts = await getAllPosts();
-  return posts.map((post) => ({
+  return posts.map(post => ({
     slug: post.slug,
   }));
 };

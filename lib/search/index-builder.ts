@@ -57,7 +57,7 @@ async function buildPostsIndex(): Promise<SerializedIndex> {
   });
 
   // Deduplicate and add to index
-  const dedupedPosts = prepareDocumentsForIndexing(allPosts, "Blog Posts", (post) => post.slug);
+  const dedupedPosts = prepareDocumentsForIndexing(allPosts, "Blog Posts", post => post.slug);
   index.addAll(dedupedPosts);
 
   return {
@@ -152,13 +152,13 @@ function buildEducationIndex(): SerializedIndex {
 
   // Combine education and certifications
   const allEducationItems = [
-    ...education.map((edu) => ({
+    ...education.map(edu => ({
       id: edu.id,
       label: edu.institution,
       description: edu.degree,
       path: `/education#${edu.id}`,
     })),
-    ...certifications.map((cert) => ({
+    ...certifications.map(cert => ({
       id: cert.id,
       label: cert.institution,
       description: cert.name,
@@ -194,7 +194,7 @@ function buildProjectsIndexForBuilder(): SerializedIndex {
   const dedupedProjects: Project[] = prepareDocumentsForIndexing(
     projects as Array<Project & { id?: string | number }>,
     "Projects",
-    (p) => p.name,
+    p => p.name,
   );
   index.addAll(dedupedProjects);
 
@@ -234,7 +234,7 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
   const slugMapping = await loadSlugMapping();
 
   // Transform bookmarks for indexing
-  const bookmarksForIndex = bookmarks.map((b) => {
+  const bookmarksForIndex = bookmarks.map(b => {
     // Prefer embedded slug when present; fallback to centralized mapping
     const embedded = tryGetEmbeddedSlug(b);
     const slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
@@ -253,7 +253,7 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
       title: b.title || b.url,
       description: b.description || "",
       tags: Array.isArray(b.tags)
-        ? b.tags.map((t) => (typeof t === "string" ? t : (t as { name?: string })?.name || "")).join(" ")
+        ? b.tags.map(t => (typeof t === "string" ? t : (t as { name?: string })?.name || "")).join(" ")
         : "",
       url: b.url,
       author: b.content?.author || "",

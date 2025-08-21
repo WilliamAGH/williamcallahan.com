@@ -9,14 +9,7 @@
  */
 
 // Re-export all types from the schema file for single source of truth
-export type {
-  Experience,
-  ProcessedExperienceItem,
-} from "./schemas/experience";
+export type { Experience, ProcessedExperienceItem } from "./schemas/experience";
 
 // Re-export validation functions for convenience
-export {
-  validateExperience,
-  validateExperienceArray,
-  validateProcessedExperienceItem,
-} from "./schemas/experience";
+export { validateExperience, validateExperienceArray, validateProcessedExperienceItem } from "./schemas/experience";

@@ -58,7 +58,7 @@ async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWe
       const contributors = (await response.json()) as GithubContributorStatsEntry[];
       const ownerLoginLower = GITHUB_REPO_OWNER.toLowerCase();
       const userStatsEntry = Array.isArray(contributors)
-        ? contributors.find((c) => c.author && c.author.login.toLowerCase() === ownerLoginLower)
+        ? contributors.find(c => c.author && c.author.login.toLowerCase() === ownerLoginLower)
         : null;
 
       if (userStatsEntry?.weeks && Array.isArray(userStatsEntry.weeks)) {
@@ -77,7 +77,7 @@ async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWe
       console.log(
         `[Script] GitHub API returned 202 (Accepted) for ${owner}/${name}. Data is being prepared. Waiting ${delay / 1000}s before retry (${attempt}/${maxAttempts}).`,
       );
-      await new Promise((resolve) => setTimeout(resolve, delay));
+      await new Promise(resolve => setTimeout(resolve, delay));
       delay *= 2; // Exponential backoff
       continue;
     }
@@ -103,7 +103,7 @@ async function processRepo(repo: RepoToUpdate) {
   const weeklyStats = await fetchStatsForRepo(repo.owner, repo.name);
 
   if (weeklyStats.length > 0) {
-    const csvContent = weeklyStats.map((s) => `${s.w},${s.a},${s.d},${s.c}`).join("\n");
+    const csvContent = weeklyStats.map(s => `${s.w},${s.a},${s.d},${s.c}`).join("\n");
     try {
       await writeBinaryS3(s3Key, Buffer.from(csvContent), "text/csv");
       console.log(
@@ -147,7 +147,7 @@ async function main() {
   );
 }
 
-main().catch((error) => {
+main().catch(error => {
   console.error("[Script] Unhandled error in main execution:", error);
   process.exit(1);
 });

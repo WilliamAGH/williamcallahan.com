@@ -25,7 +25,7 @@ function TagWrapper({ children, className, href }: TagWrapperProps) {
 export function BlogTags({ tags, interactive = false }: BlogTagsPropsExtended) {
   return (
     <div className="flex flex-wrap gap-2 mb-4">
-      {tags.map((tag) => (
+      {tags.map(tag => (
         <TagWrapper
           key={tag}
           href={interactive ? `/blog/tags/${kebabCase(tag)}` : undefined}

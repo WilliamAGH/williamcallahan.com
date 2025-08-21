@@ -25,15 +25,11 @@ setRefreshBookmarksCallback((force?: boolean) => refreshBookmarksData(force));
 export async function getBookmarks(
   options: BookmarkLoadOptions = {},
 ): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
-  envLogger.service(
-    "BookmarksService",
-    "getBookmarks",
-    {
-      skipExternalFetch: options.skipExternalFetch,
-      includeImageData: options.includeImageData,
-      force: options.force,
-    }
-  );
+  envLogger.service("BookmarksService", "getBookmarks", {
+    skipExternalFetch: options.skipExternalFetch,
+    includeImageData: options.includeImageData,
+    force: options.force,
+  });
   initializeBookmarksDataAccess();
   const result = await getBookmarksInternal(options);
   envLogger.service("BookmarksService", "getBookmarks", undefined, result.length);

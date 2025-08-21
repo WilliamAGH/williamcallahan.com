@@ -61,10 +61,13 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
       "Groq",
       "Gemini",
     ]);
-    return tagList.filter((t) => TECH_KEYWORDS.has(t));
+    return tagList.filter(t => TECH_KEYWORDS.has(t));
   };
 
-  const displayTech = (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)).slice(0, MAX_DISPLAY_TECH_ITEMS);
+  const displayTech = (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)).slice(
+    0,
+    MAX_DISPLAY_TECH_ITEMS,
+  );
 
   return (
     // Redesigned card for horizontal layout on medium screens and up
@@ -147,7 +150,7 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
                   Tech Stack
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {displayTech.map((tech) => (
+                  {displayTech.map(tech => (
                     <span
                       key={tech}
                       className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-gradient-to-br from-gray-700/70 to-gray-800/60 border border-white/10 text-gray-200 shadow-sm"
@@ -164,7 +167,7 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
             <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-700">
               {" "}
               {/* Added top border */}
-              {tags.map((tag) => (
+              {tags.map(tag => (
                 <span
                   key={tag}
                   className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-300" // Adjusted size/color

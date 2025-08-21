@@ -19,7 +19,7 @@ b) If ANY errors or warnings exist:
 
 - Apply type safety resolution strategies from the `full-lint` command.
 - Achieve 100% compliance before proceeding.
-c) This ensures tests run against type-safe code.
+  c) This ensures tests run against type-safe code.
 
 Then, execute: `bun run test`
 
@@ -40,8 +40,8 @@ b) **Deep, Multi-Source Research (No Assumptions)**:
 
 - **MANDATORY**: This codebase uses cutting-edge features. Your internal knowledge is insufficient. You **MUST** search for current, version-specific documentation.
 - **MCP-driven Documentation Search**: Use `@mcp_context7` to fetch the LATEST official docs for Next.js, React, Jest, etc.
-  - *Example Workflow:* First, find the exact library version from `package.json`. Then, construct the query dynamically: `@mcp_context7 get-library-docs --context7CompatibleLibraryID='/[org]/[project]/[retrieved-version]' --topic='[topic]'`
-- **Targeted Web Search**: Use `@mcp_brave-search` for *exact* error messages.
+  - _Example Workflow:_ First, find the exact library version from `package.json`. Then, construct the query dynamically: `@mcp_context7 get-library-docs --context7CompatibleLibraryID='/[org]/[project]/[retrieved-version]' --topic='[topic]'`
+- **Targeted Web Search**: Use `@mcp_brave-search` for _exact_ error messages.
 - **Official Documentation Quick Links**:
   - [Next.js Testing Docs](https://nextjs.org/docs/pages/guides/testing/jest)
   - [Jest React Tutorial](https://jestjs.io/docs/tutorial-react)
@@ -76,70 +76,69 @@ f) **Implementation**:
 - **Do not begin editing code until all above steps are complete.**
 - Proceed with the final, robust, and CONFORMANT plan.
 
-g) **Iterative Refinement & Focused Testing**:
-    - After applying a fix, validate it by running the test for the specific file you are working on: `bun run test <path/to/your/test-file.test.ts>`. This provides fast feedback and isolates changes.
-    - Continue this iterative process—fix, then test the specific file—until the test passes.
-    - **CRITICAL**: Avoid changing broad-reaching Jest/testing configurations. Such changes are a last resort and require strong justification. The goal is to fix the code/test, not the environment.
-    - Do not run the full `bun run test` suite during this iterative fixing process. The full suite run is reserved for the final validation stage.
-    - Once you believe all individually failing tests have been fixed, proceed to the subsequent steps.
+g) **Iterative Refinement & Focused Testing**: - After applying a fix, validate it by running the test for the specific file you are working on: `bun run test <path/to/your/test-file.test.ts>`. This provides fast feedback and isolates changes. - Continue this iterative process—fix, then test the specific file—until the test passes. - **CRITICAL**: Avoid changing broad-reaching Jest/testing configurations. Such changes are a last resort and require strong justification. The goal is to fix the code/test, not the environment. - Do not run the full `bun run test` suite during this iterative fixing process. The full suite run is reserved for the final validation stage. - Once you believe all individually failing tests have been fixed, proceed to the subsequent steps.
 
 ### **STEP 3: Common Test Failure Patterns & Solutions**
 
 **For test failures related to types**:
 
 1. **Mock Data Type Mismatches**:
-    ```typescript
-    // BAD: const mockUser = { id: '123' } as any;
-    // GOOD: const mockUser: User = {
-    //   id: '123',
-    //   name: 'Test User',
-    //   // ... all required fields
-    // };
-    ```
-    - Create fully typed mock data.
-    - Use partial types when appropriate: `Partial<User>`.
-    - Consider factory functions for test data.
+
+   ```typescript
+   // BAD: const mockUser = { id: '123' } as any;
+   // GOOD: const mockUser: User = {
+   //   id: '123',
+   //   name: 'Test User',
+   //   // ... all required fields
+   // };
+   ```
+
+   - Create fully typed mock data.
+   - Use partial types when appropriate: `Partial<User>`.
+   - Consider factory functions for test data.
 
 2. **Native `fetch` Mocking (Node 22 LTS)**:
-    ```typescript
-    // ✅ MODERN: Mock native fetch (no polyfills needed)
-    beforeEach(() => {
-      global.fetch = jest.fn(() =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ data: 'test' }),
-        })
-      ) as jest.Mock;
-    });
-    
-    afterEach(() => {
-      jest.restoreAllMocks();
-    });
-    ```
+
+   ```typescript
+   // ✅ MODERN: Mock native fetch (no polyfills needed)
+   beforeEach(() => {
+     global.fetch = jest.fn(() =>
+       Promise.resolve({
+         ok: true,
+         json: () => Promise.resolve({ data: "test" }),
+       }),
+     ) as jest.Mock;
+   });
+
+   afterEach(() => {
+     jest.restoreAllMocks();
+   });
+   ```
 
 3. **API Response Mocking**:
-    ```typescript
-    // Use Zod schemas for type-safe mocks
-    const mockResponse = BookmarkSchema.parse({
-      url: 'https://example.com',
-      title: 'Test',
-      // ... validates at runtime
-    });
-    ```
+
+   ```typescript
+   // Use Zod schemas for type-safe mocks
+   const mockResponse = BookmarkSchema.parse({
+     url: "https://example.com",
+     title: "Test",
+     // ... validates at runtime
+   });
+   ```
 
 4. **Test Utility Types**:
-    - Check `types/test.ts` for test-specific types.
-    - Create test helpers with proper generics.
-    - Use the `satisfies` operator for type checking.
+   - Check `types/test.ts` for test-specific types.
+   - Create test helpers with proper generics.
+   - Use the `satisfies` operator for type checking.
 
 5. **Async Test Type Safety**:
-    ```typescript
-    // Ensure proper Promise types
-    test('async operation', async () => {
-      const result: Bookmark = await fetchBookmark();
-      expect(result.url).toBeDefined();
-    });
-    ```
+   ```typescript
+   // Ensure proper Promise types
+   test("async operation", async () => {
+     const result: Bookmark = await fetchBookmark();
+     expect(result.url).toBeDefined();
+   });
+   ```
 
 **Resolution Process**:
 a) Use `@mcp_zen__debug` to identify root causes during implementation.
@@ -150,6 +149,7 @@ d) Document why specific type decisions were made in your thought process.
 ### **STEP 4: Test Type Safety Best Practices**
 
 1. **Use Test-Specific Types**:
+
    ```typescript
    // In types/test.ts
    export type MockedFunction<T> = T & {
@@ -158,6 +158,7 @@ d) Document why specific type decisions were made in your thought process.
    ```
 
 2. **Leverage Zod for Test Data**:
+
    ```typescript
    // Generate valid test data
    const testBookmark = BookmarkSchema.parse({
@@ -170,9 +171,9 @@ d) Document why specific type decisions were made in your thought process.
    ```typescript
    function createMockUser(overrides?: Partial<User>): User {
      return {
-       id: '1',
-       name: 'Test User',
-       email: 'test@example.com',
+       id: "1",
+       name: "Test User",
+       email: "test@example.com",
        ...overrides,
      };
    }
@@ -188,7 +189,7 @@ c) Run: `bun run build:only` (ensure no build issues - uses cached data without 
 
 ### **STEP 6: Test Coverage Improvement**
 
-**Note**: This step occurs *after* the final validation runs in STEP 5 confirm that the entire test suite is passing.
+**Note**: This step occurs _after_ the final validation runs in STEP 5 confirm that the entire test suite is passing.
 
 a) Ask: "All tests are passing with full type safety. Would you like to: 1) Review test coverage and add tests for uncovered code, or 2) Skip test improvements?"
 b) If improving tests, use `Read` to understand uncovered functionality and create new, type-safe tests.
@@ -204,7 +205,7 @@ b) **Commit Changes**:
 - **CRITICAL**: Never use broad staging commands like `git add .` or commit commands with the `-a` flag. You must stage each file individually.
 - Commit with a clear, succinct, and specific message.
 - **CRITICAL**: Do not add `Co-authored-by: Claude ...` or any other AI attribution to the commit message.
-c) **Task Completion**: The task is complete only after the commit is successful.
+  c) **Task Completion**: The task is complete only after the commit is successful.
 
 **Test Configuration Notes**:
 

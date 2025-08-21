@@ -2,13 +2,13 @@
 
 /**
  * Verify No 404s - Comprehensive Sitemap URL Validation
- * 
+ *
  * This script loads the actual sitemap and verifies every URL returns 200 OK.
  * It's designed to catch any 404 regressions before deployment.
- * 
+ *
  * Usage:
  *   bun scripts/verify-no-404s.ts [--local|--production|--dev]
- *   
+ *
  * Options:
  *   --local       Test against localhost:3000 (default)
  *   --production  Test against williamcallahan.com
@@ -30,9 +30,9 @@ const sampleArg = sampleIndex >= 0 ? args[sampleIndex + 1] : undefined;
 const sampleSize = sampleArg ? parseInt(sampleArg, 10) : null;
 
 // Determine base URL
-const BASE_URL = isProduction 
+const BASE_URL = isProduction
   ? "https://williamcallahan.com"
-  : isDev 
+  : isDev
     ? "https://dev.williamcallahan.com"
     : "http://localhost:3000";
 
@@ -51,11 +51,11 @@ async function testUrl(url: string): Promise<{
   error?: string;
 }> {
   const startTime = Date.now();
-  
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
+
     const response = await fetch(url, {
       method: "HEAD",
       signal: controller.signal,
@@ -63,10 +63,10 @@ async function testUrl(url: string): Promise<{
         "User-Agent": "williamcallahan.com-404-checker/1.0",
       },
     });
-    
+
     clearTimeout(timeoutId);
     const responseTime = Date.now() - startTime;
-    
+
     return {
       url,
       status: response.status,
@@ -76,7 +76,7 @@ async function testUrl(url: string): Promise<{
   } catch (error) {
     const responseTime = Date.now() - startTime;
     let errorMsg = "Unknown error";
-    
+
     if (error instanceof Error) {
       if (error.name === "AbortError") {
         errorMsg = "Timeout (>10s)";
@@ -86,7 +86,7 @@ async function testUrl(url: string): Promise<{
         errorMsg = error.message;
       }
     }
-    
+
     return {
       url,
       status: 0,
@@ -107,15 +107,15 @@ async function processBatch(
   const results: Array<Awaited<ReturnType<typeof testUrl>>> = [];
   const queue = [...urls];
   const activePromises = new Set<Promise<void>>();
-  
+
   while (queue.length > 0 || activePromises.size > 0) {
     // Start new tasks up to concurrency limit
     while (queue.length > 0 && activePromises.size < concurrencyLimit) {
       const url = queue.shift();
       if (!url) break;
-      
+
       const promise = testUrl(url)
-        .then((result) => {
+        .then(result => {
           results.push(result);
           if (isVerbose || !result.ok) {
             const icon = result.ok ? "✅" : "❌";
@@ -126,25 +126,25 @@ async function processBatch(
         .finally(() => {
           activePromises.delete(promise);
         });
-      
+
       activePromises.add(promise);
     }
-    
+
     // Wait for at least one promise to complete
     if (activePromises.size > 0) {
       await Promise.race(activePromises);
     }
   }
-  
+
   return results;
 }
 
 async function main() {
   console.log("\n📋 Loading sitemap...");
-  
+
   // Load the actual sitemap
   const sitemapEntries: MetadataRoute.Sitemap = await sitemap();
-  
+
   // Convert sitemap URLs to use the target base URL
   const urls = sitemapEntries.map(entry => {
     // Replace the sitemap's base URL with our test target
@@ -154,24 +154,23 @@ async function main() {
     url.host = targetUrl.host;
     return url.toString();
   });
-  
+
   console.log(`Found ${urls.length} URLs in sitemap`);
-  
+
   // Sample URLs if requested
-  const urlsToTest = sampleSize && sampleSize < urls.length
-    ? urls.sort(() => Math.random() - 0.5).slice(0, sampleSize)
-    : urls;
-  
+  const urlsToTest =
+    sampleSize && sampleSize < urls.length ? urls.sort(() => Math.random() - 0.5).slice(0, sampleSize) : urls;
+
   if (sampleSize) {
     console.log(`Testing random sample of ${urlsToTest.length} URLs`);
   }
-  
+
   console.log("\n🚀 Starting URL verification...\n");
-  
+
   const startTime = Date.now();
   const results = await processBatch(urlsToTest, 5);
   const duration = Date.now() - startTime;
-  
+
   // Analyze results
   const successful = results.filter(r => r.ok);
   const failed = results.filter(r => !r.ok);
@@ -179,23 +178,19 @@ async function main() {
   const serverErrors = results.filter(r => r.status >= 500);
   const timeouts = results.filter(r => r.error?.includes("Timeout"));
   const connectionErrors = results.filter(r => r.error?.includes("Connection refused"));
-  
+
   // Calculate stats
-  const avgResponseTime = results.length > 0 
-    ? results.reduce((sum, r) => sum + r.responseTime, 0) / results.length
-    : 0;
-  const slowest = results.length > 0 
-    ? results.sort((a, b) => b.responseTime - a.responseTime)[0]
-    : null;
-  
+  const avgResponseTime = results.length > 0 ? results.reduce((sum, r) => sum + r.responseTime, 0) / results.length : 0;
+  const slowest = results.length > 0 ? results.sort((a, b) => b.responseTime - a.responseTime)[0] : null;
+
   console.log("\n" + "=".repeat(60));
   console.log("📊 VERIFICATION RESULTS");
   console.log("=".repeat(60));
-  
+
   console.log(`\nTotal URLs tested: ${results.length}`);
   console.log(`✅ Successful (2xx): ${successful.length}`);
   console.log(`❌ Failed: ${failed.length}`);
-  
+
   if (failed.length > 0) {
     console.log(`\nFailure Breakdown:`);
     if (notFound.length > 0) console.log(`   404 Not Found: ${notFound.length}`);
@@ -203,14 +198,14 @@ async function main() {
     if (timeouts.length > 0) console.log(`   Timeouts: ${timeouts.length}`);
     if (connectionErrors.length > 0) console.log(`   Connection Refused: ${connectionErrors.length}`);
   }
-  
+
   console.log(`\nPerformance:`);
   console.log(`   Total time: ${(duration / 1000).toFixed(1)}s`);
   console.log(`   Avg response time: ${Math.round(avgResponseTime)}ms`);
   if (slowest) {
     console.log(`   Slowest: ${slowest.url} (${slowest.responseTime}ms)`);
   }
-  
+
   // Show failed URLs
   if (notFound.length > 0) {
     console.log("\n🚨 404 NOT FOUND URLs:");
@@ -218,14 +213,14 @@ async function main() {
       console.log(`   ${r.url}`);
     });
   }
-  
+
   if (serverErrors.length > 0) {
     console.log("\n🚨 SERVER ERROR URLs:");
     serverErrors.forEach(r => {
       console.log(`   [${r.status}] ${r.url}`);
     });
   }
-  
+
   // Exit with error code if any failures
   if (failed.length > 0) {
     console.log(`\n❌ VERIFICATION FAILED: ${failed.length} URLs are not accessible`);

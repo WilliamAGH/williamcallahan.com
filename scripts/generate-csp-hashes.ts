@@ -135,8 +135,8 @@ function generateHashes() {
     const htmlContent = readFileSync(file, "utf-8");
     const { scripts, styles } = extractInlineContent(htmlContent);
 
-    scripts.forEach((script) => scriptHashes.add(calculateHash(script)));
-    styles.forEach((style) => styleHashes.add(calculateHash(style)));
+    scripts.forEach(script => scriptHashes.add(calculateHash(script)));
+    styles.forEach(style => styleHashes.add(calculateHash(style)));
   }
 
   // Prepare output structure matching the expected format

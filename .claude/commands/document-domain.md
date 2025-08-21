@@ -36,18 +36,18 @@ find . -name "*[domain]*" -type f | grep -v node_modules
 
 - `NEXT_PUBLIC_*` = Client-exposed (build-time inlined!)
 - No prefix = Server-only (verify not needed client-side)
-- **Audit**: Secrets in NEXT_PUBLIC_? Missing NEXT_PUBLIC_ for client needs?
+- **Audit**: Secrets in NEXT*PUBLIC*? Missing NEXT*PUBLIC* for client needs?
 
 ```typescript
 // ❌ SECURITY LEAK
-NEXT_PUBLIC_API_KEY="secret-key"  // Exposed to browser!
+NEXT_PUBLIC_API_KEY = "secret-key"; // Exposed to browser!
 
-// ❌ HYDRATION ERROR  
-const data = process.env.API_URL  // Undefined client-side
+// ❌ HYDRATION ERROR
+const data = process.env.API_URL; // Undefined client-side
 
 // ✅ CORRECT
-NEXT_PUBLIC_API_URL="https://api.example.com"  // Client-safe
-API_KEY="secret-key"  // Server-only
+NEXT_PUBLIC_API_URL = "https://api.example.com"; // Client-safe
+API_KEY = "secret-key"; // Server-only
 ```
 
 ## STEP 1: Pre-Documentation Setup
@@ -64,6 +64,7 @@ bun run validate  # Must show 0 errors, 0 warnings
 ls docs/projects/structure/[domain]*.{md,mmd}  # Check existing
 grep -l "[domain]" docs/projects/structure/*.md  # Find related
 ```
+
 **IF FOUND**: Ask user - Update existing or create new with cross-refs? (DRY)
 
 ### C. Review Architecture Entrypoint
@@ -101,44 +102,62 @@ grep -r "z\.|interface.*{|type.*=" --include="*.ts" | grep "[domain]"
 **CRITICAL**: Single source of truth - `types/` + Zod schemas. NO duplicates.
 
 **The Golden Pattern**:
+
 ```typescript
 // types/[domain].ts - ALWAYS do this
 export const BaseSchema = z.object({ id: z.string(), url: z.url() });
 export const UserSchema = BaseSchema.extend({ userId: z.string() });
-export type User = z.infer<typeof UserSchema>;  // Type from schema
+export type User = z.infer<typeof UserSchema>; // Type from schema
 ```
 
 **Type Audit - Find These Issues**:
+
 ```typescript
 // ❌ DUPLICATION (80%+ similar = RED FLAG)
-interface UserData { id: string; name: string; email: string }
-interface AdminData { id: string; name: string; email: string; role: string }
+interface UserData {
+  id: string;
+  name: string;
+  email: string;
+}
+interface AdminData {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
 
 // ❌ MANUAL TYPE + SCHEMA
-interface User { /* ... */ }
-const UserSchema = z.object({ /* same fields */ })
+interface User {
+  /* ... */
+}
+const UserSchema = z.object({
+  /* same fields */
+});
 
 // ❌ NO VALIDATION
-const data = await fetch().then(r => r.json()) // raw any!
+const data = await fetch().then(r => r.json()); // raw any!
 ```
 
 **Zod v4 Power Patterns**:
+
 ```typescript
 // Boundary validation (MANDATORY)
 const body: unknown = await request.json();
 const validated = Schema.parse(body); // Throws on invalid
 
 // Transform inconsistencies ONCE
-const APISchema = z.object({
-  user_name: z.string()
-}).transform(data => ({
-  userName: data.user_name  // Fix naming here, not everywhere
-}));
+const APISchema = z
+  .object({
+    user_name: z.string(),
+  })
+  .transform(data => ({
+    userName: data.user_name, // Fix naming here, not everywhere
+  }));
 
 // Discriminated unions for variants
 const Result = z.discriminatedUnion("type", [
   z.object({ type: z.literal("success"), data: Schema }),
-  z.object({ type: z.literal("error"), code: z.number() })
+  z.object({ type: z.literal("error"), code: z.number() }),
 ]);
 ```
 
@@ -164,7 +183,7 @@ grep -r "z\.object({" -A 10 --include="*.ts" | grep "[domain]"   # Compare schem
 **Document ALL validation gaps**:
 
 - External API responses without `.parse()`
-- Form data without `.safeParse()`  
+- Form data without `.safeParse()`
 - JSON.parse without validation
 - Type assertions instead of runtime checks
 
@@ -178,6 +197,7 @@ grep -r "z\.object({" -A 10 --include="*.ts" | grep "[domain]"   # Compare schem
 ### D. Hydration & Server/Client Issues
 
 **Find ALL hydration errors (see `react-server-client.md` for complete patterns)**:
+
 ```typescript
 // ❌ DATE/TIME MISMATCH
 <div>{new Date().toLocaleString()}</div>  // Different server/client
@@ -201,6 +221,7 @@ useEffect(() => setMounted(true), [])
 ```
 
 **React 19/Next.js 15 Streaming Patterns**:
+
 ```typescript
 // ✅ PARALLEL FETCH (not waterfall)
 const [users, posts] = await Promise.all([
@@ -253,24 +274,30 @@ grep -r "TODO\|FIXME\|HACK\|XXX" --include="*.ts" | grep "[domain]"
 **FORBIDDEN**: Generic descriptions, placeholder text, theoretical explanations.
 **REQUIRED**: Specific file:line references, actual function names, real measurements.
 
-```markdown
+````markdown
 # [Domain] Architecture
 
 ## Core Purpose
+
 [What this domain ACTUALLY does based on code at file:line - NO generic descriptions]
 
 ## Architecture Overview
+
 Data Flow: External → Fetch → Transform → Cache → Serve
-Components: 
+Components:
+
 - **[Layer]** (`file.ts:line`): purpose, exports
 
 ## Key Features
+
 - **[Feature]**: implementation at file:line, measured performance
 
 ## Data Structures
+
 ```typescript
 // Paste ACTUAL interfaces from code
 ```
+````
 
 ## Design Decisions
 
@@ -285,7 +312,7 @@ Components:
 - Response times, TTLs, memory limits
 - Auth methods, validation, XSS prevention
 
-## Operations & Testing  
+## Operations & Testing
 
 - Health: [endpoints at file:line]
 - Tests: [files] with X% coverage
@@ -303,8 +330,8 @@ Components:
 
 ### Environment Issues (CRITICAL - scan ALL env vars)
 
-1. **Secret Exposure** - `file:line`: ANY secret in NEXT_PUBLIC_*
-2. **Missing Prefix** - `file:line`: ANY client-used var without NEXT_PUBLIC_
+1. **Secret Exposure** - `file:line`: ANY secret in NEXT*PUBLIC*\*
+2. **Missing Prefix** - `file:line`: ANY client-used var without NEXT*PUBLIC*
 
 ### Hydration Issues (scan for ALL patterns, not just these)
 
@@ -336,7 +363,7 @@ Components:
 - `[domain].mmd` - visual diagram
 - `[related].md` - cross-references
 
-```
+````
 
 ### C. Mermaid Diagram Best Practices
 
@@ -345,13 +372,13 @@ graph TD
     subgraph "External"
         API[External API]
     end
-    subgraph "Application"  
+    subgraph "Application"
         Service[Domain Service]
     end
     API --"1. Fetch"--> Service
     Service --"2. Transform"--> Cache
     style Service fill:#e1f5fe
-```
+````
 
 **DO**: Group by layers, number flows, style key nodes
 **DON'T**: Overcrowd, use abbreviations, mix abstraction levels
@@ -454,6 +481,7 @@ done
 **Summary**: X bugs, Y improvements, Z British spellings found.
 
 **Search existing issues FIRST**:
+
 ```bash
 # MCP (in Claude)
 @mcp__github__search_issues query="[domain] bug" state="open"
@@ -467,14 +495,15 @@ gh search issues "[domain] improvement" --state=open --repo=WilliamAGH/williamca
 **Ask**: "Create GitHub issues for findings not already reported?"
 
 **If approved, create**:
+
 ```bash
 # ONE bug issue (if any bugs found)
-@mcp__github__create_issue 
+@mcp__github__create_issue
   title="fix([domain]): [summary of all bugs found]"
   body="## Bugs found in [domain] audit\n\n[list all bugs with file:line]\n\n### British English corrections\n[list any found]"
   labels="bug"
 
-# ONE improvement issue (if any improvements found)  
+# ONE improvement issue (if any improvements found)
 @mcp__github__create_issue
   title="feat([domain]): improvements from architecture audit"
   body="## Potential improvements\n\n[list all improvements with effort estimates]"

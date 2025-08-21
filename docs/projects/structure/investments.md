@@ -12,17 +12,17 @@ See [Investments Architecture Diagram](./investments.mmd).
 
 1. **Data Source**: A large, static array of `Investment` objects is defined in `data/investments.ts`.
 2. **Server-Side Pre-Rendering (`Investments` server component)**:
-    - Iterates through each investment from the static data file.
-    - For each investment, it calls `InvestmentCardServer` to generate a pre-rendered card.
+   - Iterates through each investment from the static data file.
+   - For each investment, it calls `InvestmentCardServer` to generate a pre-rendered card.
 3. **Logo Fetching (`InvestmentCardServer`)**:
-    - For each card, this component fetches the company's logo.
-    - It uses a direct file read for a placeholder SVG and a `fetchLogo` utility for external logos.
-    - The fetched logo (or placeholder) is converted into a `base64` data URL.
-    - It then renders an `InvestmentCardClient` component, passing the investment data and the logo data URL as props.
+   - For each card, this component fetches the company's logo.
+   - It uses a direct file read for a placeholder SVG and a `fetchLogo` utility for external logos.
+   - The fetched logo (or placeholder) is converted into a `base64` data URL.
+   - It then renders an `InvestmentCardClient` component, passing the investment data and the logo data URL as props.
 4. **Client-Side Hydration (`InvestmentsClient`)**:
-    - This component receives the array of fully pre-rendered investment cards from the server.
-    - Its main responsibility is to manage the interactive "window" state (minimize, maximize, close) and display the static content and prose about the investment philosophy.
-    - A `ThemeWrapper` is used to provide theme context (dark/light) to each card for proper styling.
+   - This component receives the array of fully pre-rendered investment cards from the server.
+   - Its main responsibility is to manage the interactive "window" state (minimize, maximize, close) and display the static content and prose about the investment philosophy.
+   - A `ThemeWrapper` is used to provide theme context (dark/light) to each card for proper styling.
 
 ## Key Files & Components
 

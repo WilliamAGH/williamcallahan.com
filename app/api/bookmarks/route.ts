@@ -59,7 +59,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // will miss results that live beyond page 1.
     if (!tagFilter && page > 0 && limit <= BOOKMARKS_PER_PAGE) {
       const { getBookmarksPage } = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      const rawIndex: unknown = await import("@/lib/s3-utils").then((m) =>
+      const rawIndex: unknown = await import("@/lib/s3-utils").then(m =>
         m.readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX),
       );
 
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Try to get metadata from S3 index
     let lastFetchedAt = Date.now();
     try {
-      const rawIndex: unknown = await import("@/lib/s3-utils").then((m) =>
+      const rawIndex: unknown = await import("@/lib/s3-utils").then(m =>
         m.readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX),
       );
       const indexResult = BookmarksIndexSchema.safeParse(rawIndex);
@@ -135,9 +135,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const decodedTag = decodeURIComponent(tagFilter);
       const normalizedQuerySlug = (decodedTag.includes("-") ? decodedTag : tagToSlug(decodedTag)).toLowerCase();
 
-      filteredBookmarks = allBookmarks.filter((bookmark) => {
+      filteredBookmarks = allBookmarks.filter(bookmark => {
         const tags = normalizeTagsToStrings(bookmark.tags);
-        return tags.some((tag) => tagToSlug(tag).toLowerCase() === normalizedQuerySlug);
+        return tags.some(tag => tagToSlug(tag).toLowerCase() === normalizedQuerySlug);
       });
 
       console.log(

@@ -239,7 +239,7 @@ async function auditS3Paths() {
 
 // Run the audit
 auditS3Paths()
-  .catch((err) => {
+  .catch(err => {
     console.error(err);
   })
   .finally(() => {

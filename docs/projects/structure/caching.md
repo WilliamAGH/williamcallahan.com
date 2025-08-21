@@ -115,24 +115,25 @@ See `caching.mmd` for visual flow and migration status.
 - Used by 9 files and growing
 
 **Implementation Pattern:**
+
 ```typescript
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
 
 export async function getCachedData() {
-  'use cache'
-  cacheLife('hours');
-  cacheTag('data-type');
-  
+  "use cache";
+  cacheLife("hours");
+  cacheTag("data-type");
+
   // Expensive operation
   return await fetchData();
 }
 
 export function invalidateDataCache() {
-  revalidateTag('data-type');
+  revalidateTag("data-type");
 }
 ```
 
-### 3. S3/CDN Image Delivery  
+### 3. S3/CDN Image Delivery
 
 - All images stored in S3 bucket
 - Direct CDN URL delivery (no buffers)
@@ -174,7 +175,7 @@ Request → Check S3 Lock → Locked? Wait
 
 ```javascript
 LOGO_CACHE: 30 days success / 1 day failure
-BOOKMARKS_CACHE: 7 days success / 1 hour failure  
+BOOKMARKS_CACHE: 7 days success / 1 hour failure
 GITHUB_CACHE: 24 hours success / 1 hour failure
 OPENGRAPH_CACHE: 7 days success / 2 hours failure
 SEARCH_CACHE: 15 minutes success / 1 minute failure
@@ -190,7 +191,7 @@ const nextConfig: NextConfig = {
   experimental: {
     dynamicIO: true, // Enables 'use cache' directive and cacheLife/cacheTag
     // OR
-    useCache: true,  // Alternative flag for 'use cache' directive
+    useCache: true, // Alternative flag for 'use cache' directive
   },
 };
 ```
@@ -199,18 +200,14 @@ const nextConfig: NextConfig = {
 
 ```typescript
 // Always use unstable_ prefixed imports with aliases
-import { 
-  unstable_cacheLife as cacheLife, 
-  unstable_cacheTag as cacheTag, 
-  revalidateTag 
-} from "next/cache";
+import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
 ```
 
 ### Cache Lifetime Profiles
 
 - `'default'` - 5 min stale, 15 min revalidate, 1 year expire
 - `'seconds'` - Near real-time updates
-- `'minutes'` - Frequent updates within an hour  
+- `'minutes'` - Frequent updates within an hour
 - `'hours'` - Daily updates
 - `'days'` - Weekly updates
 - `'weeks'` - Monthly updates
@@ -220,20 +217,20 @@ import {
 
 ```typescript
 // Before: Using ServerCacheInstance
-const cached = ServerCacheInstance.get('key');
+const cached = ServerCacheInstance.get("key");
 if (!cached) {
   const data = await fetchData();
-  ServerCacheInstance.set('key', data, TTL);
+  ServerCacheInstance.set("key", data, TTL);
   return data;
 }
 return cached;
 
 // After: Using Next.js 'use cache'
 export async function getCachedData() {
-  'use cache'
-  cacheLife('hours');
-  cacheTag('data-type');
-  
+  "use cache";
+  cacheLife("hours");
+  cacheTag("data-type");
+
   return await fetchData();
 }
 ```
@@ -245,7 +242,7 @@ export async function getCachedData() {
 Users may see stale data even after successful S3 updates due to multiple caching layers:
 
 1. **Next.js Page-Level ISR Cache** (`app/bookmarks/page.tsx`): 30 min TTL
-2. **Function-Level Cache** (`bookmarks-data-access.server.ts`): 1 hour TTL  
+2. **Function-Level Cache** (`bookmarks-data-access.server.ts`): 1 hour TTL
 3. **In-Memory Runtime Cache** (`fullDatasetMemoryCache`): 5 min TTL
 4. **Local File Cache** (`lib/data/bookmarks.json`): Fallback only
 
@@ -289,7 +286,7 @@ The codebase uses wrapper functions to handle cache operations gracefully in dif
 
 ```typescript
 // lib/bookmarks/bookmarks-data-access.server.ts:54-94
-const safeCacheLife = (profile) => {
+const safeCacheLife = profile => {
   if (typeof cacheLife === "function" && !isCliLikeContext()) {
     cacheLife(profile);
   }
@@ -317,10 +314,10 @@ After successful data refresh, the scheduler calls the revalidation endpoint:
 ```typescript
 // In scheduler after successful refresh
 await fetch(`${process.env.API_BASE_URL}/api/revalidate/bookmarks`, {
-  method: 'POST',
+  method: "POST",
   headers: {
-    'Authorization': `Bearer ${process.env.BOOKMARK_CRON_REFRESH_SECRET}`
-  }
+    Authorization: `Bearer ${process.env.BOOKMARK_CRON_REFRESH_SECRET}`,
+  },
 });
 ```
 
@@ -399,7 +396,7 @@ function validateApiKey(request: NextRequest): boolean {
 - `lib/data-access/logos.ts` - Metadata caching only (images in S3)
 - `lib/data-access/opengraph.ts` - Stale-while-revalidate
 
-### API Routes  
+### API Routes
 
 - `/api/cache/bookmarks` - Authenticated operations
 - `/api/cache/images` - Redirects to CDN URLs

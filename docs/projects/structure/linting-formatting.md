@@ -15,9 +15,9 @@ bun run validate  # Golden rule - runs Biome, ESLint, and tsc
 ```typescript
 // ❌ NEVER USE - No exceptions
 // @ts-ignore
-// @ts-expect-error  
+// @ts-expect-error
 // eslint-disable-next-line
-const _unused = value;  // No underscore prefixes
+const _unused = value; // No underscore prefixes
 ```
 
 ### Handling Unused Variables
@@ -28,7 +28,7 @@ const { buffer: _, ...metadata } = s3Result;
 
 // ✅ DO
 const { buffer, ...metadata } = s3Result;
-void buffer;  // Explicitly mark as unused
+void buffer; // Explicitly mark as unused
 ```
 
 ## Top TypeScript Issues & Solutions
@@ -38,11 +38,11 @@ void buffer;  // Explicitly mark as unused
 ```typescript
 // ❌ DON'T
 const data: any = JSON.parse(jsonString);
-console.log(data.property);  // No type safety
+console.log(data.property); // No type safety
 
 // ✅ DO
 const data: unknown = JSON.parse(jsonString);
-if (typeof data === 'object' && data && 'property' in data) {
+if (typeof data === "object" && data && "property" in data) {
   console.log((data as { property: unknown }).property);
 }
 ```
@@ -70,7 +70,7 @@ function process(data: unknown) {
 const city = user.address.city;
 
 // ✅ DO
-const city = user?.address?.city ?? 'Default City';
+const city = user?.address?.city ?? "Default City";
 ```
 
 ### 4. Type Assertions
@@ -94,7 +94,7 @@ if (e.target instanceof HTMLInputElement) {
 ```typescript
 // ❌ DON'T
 const item = myArray[0];
-console.log(item.toUpperCase());  // Could crash
+console.log(item.toUpperCase()); // Could crash
 
 // ✅ DO
 const item = myArray[0];
@@ -109,14 +109,18 @@ if (item !== undefined) {
 // ❌ DON'T
 class MyClass {
   doSomething() {
-    setTimeout(function() { console.log(this); }, 1000);  // Lost context
+    setTimeout(function () {
+      console.log(this);
+    }, 1000); // Lost context
   }
 }
 
 // ✅ DO
 class MyClass {
   doSomething(): void {
-    setTimeout(() => { console.log(this); }, 1000);  // Preserves context
+    setTimeout(() => {
+      console.log(this);
+    }, 1000); // Preserves context
   }
 }
 ```
@@ -126,7 +130,7 @@ class MyClass {
 ```typescript
 // ❌ DON'T
 function logLength<T>(arg: T): void {
-  console.log(arg.length);  // Error: T might not have length
+  console.log(arg.length); // Error: T might not have length
 }
 
 // ✅ DO
@@ -140,11 +144,11 @@ function logLength<T extends { length: number }>(arg: T): void {
 ```typescript
 // ❌ DON'T
 const req = { url: "...", method: "GET" };
-handleRequest(req.url, req.method);  // method is string, not "GET"
+handleRequest(req.url, req.method); // method is string, not "GET"
 
 // ✅ DO
 const req = { url: "...", method: "GET" } as const;
-handleRequest(req.url, req.method);  // method is "GET"
+handleRequest(req.url, req.method); // method is "GET"
 ```
 
 ### 10. Interface vs Type
@@ -162,7 +166,7 @@ if (typeof imageUrl === "string" && imageUrl) {
   if (isValidImageUrl(imageUrl)) {
     return imageUrl;
   } else {
-    console.log(`Invalid URL: ${imageUrl}`);  // Error: 'never' type
+    console.log(`Invalid URL: ${imageUrl}`); // Error: 'never' type
   }
 }
 
@@ -175,7 +179,7 @@ if (typeof imageUrl !== "string" || !imageUrl) {
   continue;
 }
 if (!isValidImageUrl(imageUrl)) {
-  console.log(`Invalid URL format: ${imageUrl}`);  // No 'never' issue
+  console.log(`Invalid URL format: ${imageUrl}`); // No 'never' issue
   continue;
 }
 return imageUrl;
@@ -186,8 +190,8 @@ return imageUrl;
 ```typescript
 // ❌ DON'T - Complex chains fail inference
 const checkedTypes = imagePriority
-  .filter((key) => metadata[key] && typeof metadata[key] === "string")
-  .map((key) => `${key}="${metadata[key] as string}"`)
+  .filter(key => metadata[key] && typeof metadata[key] === "string")
+  .map(key => `${key}="${metadata[key] as string}"`)
   .join(", ");
 
 // ✅ DO - Explicit loops
@@ -212,7 +216,7 @@ try {
   await riskyOperation();
 } catch (error: unknown) {
   const errorMessage = error instanceof Error ? error.message : String(error);
-  console.error("Operation failed:", errorMessage);  // UNSAFE ASSIGNMENT
+  console.error("Operation failed:", errorMessage); // UNSAFE ASSIGNMENT
 }
 ```
 
@@ -260,10 +264,10 @@ try {
 ```typescript
 // ❌ DON'T - Causes type narrowing issues
 let parsedCandidate: ReturnType<typeof parseS3Key> | null = null;
-const candidate = keys.find((k) => {
+const candidate = keys.find(k => {
   const parsed = parseS3Key(k);
   if (parsed.type === "logo" && parsed.domain === domain) {
-    parsedCandidate = parsed;  // Type narrowing confusion
+    parsedCandidate = parsed; // Type narrowing confusion
     return true;
   }
   return false;
@@ -271,7 +275,7 @@ const candidate = keys.find((k) => {
 
 if (!candidate || !parsedCandidate) return null;
 // parsedCandidate is now 'never' type - TypeScript lost track
-const source = parsedCandidate.source;  // ❌ Error: Property 'source' does not exist on type 'never'
+const source = parsedCandidate.source; // ❌ Error: Property 'source' does not exist on type 'never'
 ```
 
 **Solution:** Use explicit mapping to maintain type information.
@@ -279,21 +283,16 @@ const source = parsedCandidate.source;  // ❌ Error: Property 'source' does not
 ```typescript
 // ✅ DO - Explicit mapping preserves types
 const candidateInfo = keys
-  .map((k) => ({ key: k, parsed: parseS3Key(k) }))
+  .map(k => ({ key: k, parsed: parseS3Key(k) }))
   .find(({ key, parsed }) => {
-    return (
-      key.toLowerCase().startsWith(prefix) &&
-      parsed.type === "logo" &&
-      parsed.domain === domain &&
-      !parsed.hash
-    );
+    return key.toLowerCase().startsWith(prefix) && parsed.type === "logo" && parsed.domain === domain && !parsed.hash;
   });
 
 if (!candidateInfo) return null;
 
 const { key: candidate, parsed: parsedCandidate } = candidateInfo;
 // parsedCandidate maintains proper typing
-const source = parsedCandidate.source;  // ✅ Works perfectly
+const source = parsedCandidate.source; // ✅ Works perfectly
 ```
 
 ### 28. Error Object Creation Patterns
@@ -378,12 +377,12 @@ export function logError(context: string, error: unknown): void {
 export function createContextualError(context: string, originalError: unknown): Error {
   const message = formatError(originalError);
   const error = new Error(`[${context}] ${message}`);
-  
+
   // Preserve stack trace if original was an Error
   if (originalError instanceof Error && originalError.stack) {
     error.stack = originalError.stack;
   }
-  
+
   return error;
 }
 ```
@@ -409,7 +408,7 @@ try {
 // Always validate at boundaries
 export async function POST(request: Request) {
   const body: unknown = await request.json();
-  const user = UserSchema.parse(body);  // Validates or throws
+  const user = UserSchema.parse(body); // Validates or throws
 }
 ```
 
@@ -417,7 +416,10 @@ export async function POST(request: Request) {
 
 ```typescript
 // ❌ DON'T - Duplicate definitions
-interface User { id: string; name: string; }
+interface User {
+  id: string;
+  name: string;
+}
 const UserSchema = z.object({ id: z.string(), name: z.string() });
 
 // ✅ DO - Infer from schema
@@ -471,8 +473,8 @@ export default async function Page({ params, searchParams }: Props) {
 ```typescript
 // Use 'use cache' directive
 async function getUsers() {
-  'use cache';
-  const response = await fetch('https://api.example.com/users');
+  "use cache";
+  const response = await fetch("https://api.example.com/users");
   const data = await response.json();
   return UserSchema.array().parse(data);
 }
@@ -490,12 +492,9 @@ const QuerySchema = z.object({
 export async function GET(request: NextRequest) {
   const searchParams = Object.fromEntries(request.nextUrl.searchParams);
   const result = QuerySchema.safeParse(searchParams);
-  
+
   if (!result.success) {
-    return Response.json(
-      { error: 'Invalid query parameters', issues: result.error.flatten() },
-      { status: 400 }
-    );
+    return Response.json({ error: "Invalid query parameters", issues: result.error.flatten() }, { status: 400 });
   }
 }
 ```
@@ -504,11 +503,11 @@ export async function GET(request: NextRequest) {
 
 ```typescript
 // ❌ OLD - Cached by default in v14
-const res = await fetch('https://api.example.com/data');
+const res = await fetch("https://api.example.com/data");
 
 // ✅ NEW - Explicit caching in v15
-const cached = await fetch('https://api.example.com/data', {
-  next: { revalidate: 3600 }  // Cache for 1 hour
+const cached = await fetch("https://api.example.com/data", {
+  next: { revalidate: 3600 }, // Cache for 1 hour
 });
 ```
 
@@ -524,8 +523,8 @@ const cached = await fetch('https://api.example.com/data', {
 ```typescript
 // ✅ DO - Parallel fetching in Server Components
 const [users, posts] = await Promise.all([
-  fetch('/api/users').then(r => r.json()),
-  fetch('/api/posts').then(r => r.json())
+  fetch("/api/users").then(r => r.json()),
+  fetch("/api/posts").then(r => r.json()),
 ]);
 ```
 
@@ -542,8 +541,8 @@ setState([...state.items, newItem]);
 ### 24. Dynamic Imports
 
 ```typescript
-const HeavyComponent = dynamic(() => import('../components/Heavy'), { 
-  ssr: false 
+const HeavyComponent = dynamic(() => import("../components/Heavy"), {
+  ssr: false,
 });
 ```
 
@@ -552,7 +551,7 @@ const HeavyComponent = dynamic(() => import('../components/Heavy'), {
 ```typescript
 // Move browser APIs to useEffect
 useEffect(() => {
-  const stored = localStorage.getItem('key');
+  const stored = localStorage.getItem("key");
   // ...
 }, []);
 ```
@@ -622,49 +621,47 @@ When stuck, use:
 
 ### Type Safety Checklist
 
-| Rule | Check |
-|------|-------|
-| No `any` types | ✓ Replace with `unknown` |
-| No `@ts-ignore` | ✓ Fix root cause |
-| No underscore prefixes | ✓ Use `void` operator |
-| Validate external data | ✓ Use Zod schemas |
-| Check array access | ✓ Handle undefined |
-| Type function returns | ✓ Explicit return types |
+| Rule                   | Check                    |
+| ---------------------- | ------------------------ |
+| No `any` types         | ✓ Replace with `unknown` |
+| No `@ts-ignore`        | ✓ Fix root cause         |
+| No underscore prefixes | ✓ Use `void` operator    |
+| Validate external data | ✓ Use Zod schemas        |
+| Check array access     | ✓ Handle undefined       |
+| Type function returns  | ✓ Explicit return types  |
 
 ### Zod v4 Migration
 
-| Old (v3) | New (v4) |
-|----------|----------|
-| `z.string().email()` | `z.email()` |
-| `z.string().uuid()` | `z.uuid()` |
-| `z.string().url()` | `z.url()` |
-| Complex recursion | Use getter pattern |
+| Old (v3)             | New (v4)           |
+| -------------------- | ------------------ |
+| `z.string().email()` | `z.email()`        |
+| `z.string().uuid()`  | `z.uuid()`         |
+| `z.string().url()`   | `z.url()`          |
+| Complex recursion    | Use getter pattern |
 
 ### Next.js 15 Changes
 
-| Feature | v14 | v15 |
-|---------|-----|-----|
-| Route params | Sync | `Promise<{}>` |
-| Default caching | Enabled | Opt-in with `'use cache'` |
-| Fetch caching | Default | Explicit `next: { revalidate }` |
+| Feature         | v14     | v15                             |
+| --------------- | ------- | ------------------------------- |
+| Route params    | Sync    | `Promise<{}>`                   |
+| Default caching | Enabled | Opt-in with `'use cache'`       |
+| Fetch caching   | Default | Explicit `next: { revalidate }` |
 
 +### Error Handling Patterns
-+
-+| Problem | ❌ DON'T | ✅ DO |
-+|---------|----------|-------|
-+| Unsafe assignment | `const msg = err instanceof Error ? err.message : String(err);` | `if (err instanceof Error) { console.log(err.message); } else { console.log(String(err)); }` |
-+| Type narrowing | `let parsed = null; const found = items.find(i => { parsed = parse(i); return true; });` | `const found = items.map(i => ({item: i, parsed: parse(i)})).find(...)` |
-+| Error creation | `throw new Error(unknownValue);` | `throw new Error(String(unknownValue));` |
-+| Error logging | `console.error(error.message);` | `console.error(error instanceof Error ? error.message : String(error));` |
-+
-+### Common ESLint Violations & Fixes
-+
-+| Rule | Common Trigger | Quick Fix |
-+|------|----------------|-----------|
-+| `@typescript-eslint/no-unsafe-assignment` | `const x = unknownVar;` | Use type guards or explicit conditionals |
-+| `@typescript-eslint/no-unsafe-member-access` | `unknownObj.property` | Check with `'property' in obj` first |
-+| `@typescript-eslint/no-unsafe-call` | `unknownFunc()` | Verify `typeof unknownFunc === 'function'` |
-+| `@typescript-eslint/no-unsafe-return` | `return unknownValue;` | Validate with Zod or type guards |
-+| `@typescript-eslint/no-explicit-any` | `const x: any = ...` | Replace with `unknown` and validate |
+
+- +| Problem | ❌ DON'T | ✅ DO |
+  +|---------|----------|-------|
+  +| Unsafe assignment | `const msg = err instanceof Error ? err.message : String(err);` | `if (err instanceof Error) { console.log(err.message); } else { console.log(String(err)); }` |
+  +| Type narrowing | `let parsed = null; const found = items.find(i => { parsed = parse(i); return true; });` | `const found = items.map(i => ({item: i, parsed: parse(i)})).find(...)` |
+  +| Error creation | `throw new Error(unknownValue);` | `throw new Error(String(unknownValue));` |
+  +| Error logging | `console.error(error.message);` | `console.error(error instanceof Error ? error.message : String(error));` |
+- +### Common ESLint Violations & Fixes
+- +| Rule | Common Trigger | Quick Fix |
+  +|------|----------------|-----------|
+  +| `@typescript-eslint/no-unsafe-assignment` | `const x = unknownVar;` | Use type guards or explicit conditionals |
+  +| `@typescript-eslint/no-unsafe-member-access` | `unknownObj.property` | Check with `'property' in obj` first |
+  +| `@typescript-eslint/no-unsafe-call` | `unknownFunc()` | Verify `typeof unknownFunc === 'function'` |
+  +| `@typescript-eslint/no-unsafe-return` | `return unknownValue;` | Validate with Zod or type guards |
+  +| `@typescript-eslint/no-explicit-any` | `const x: any = ...` | Replace with `unknown` and validate |
 
 Remember: **Zero tolerance for type safety violations. Every line must be provably correct.**

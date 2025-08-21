@@ -107,7 +107,7 @@ class LogoDebugger {
       info.s3Results = {
         totalLogos: objects.length,
         matchingDomains: matchingDomain.slice(0, 10), // Limit to 10 for readability
-        potentialMatches: similarDomain.slice(0, 10).map((filename) => ({
+        potentialMatches: similarDomain.slice(0, 10).map(filename => ({
           key: filename,
           extractedDomain: filename.split("_")[0] || filename,
           similarity: 0.5, // Placeholder similarity score

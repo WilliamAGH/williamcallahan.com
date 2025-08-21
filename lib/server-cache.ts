@@ -190,7 +190,7 @@ export class ServerCache implements ICache {
 
   public del(key: string | string[]): void {
     if (Array.isArray(key)) {
-      key.forEach((k) => {
+      key.forEach(k => {
         const entry = this.cache.get(k);
         if (entry && typeof entry === "object" && "size" in entry) {
           this.cache.delete(k);
@@ -263,7 +263,10 @@ export class ServerCache implements ICache {
   public clearAllCaches(): void {
     // If disabled, don't attempt cleanup
     if (this.disabled) {
-      envLogger.log("Cache is disabled, skipping clear operation", undefined, { category: "ServerCache", context: { event: "clear-skip" } });
+      envLogger.log("Cache is disabled, skipping clear operation", undefined, {
+        category: "ServerCache",
+        context: { event: "clear-skip" },
+      });
       return;
     }
 
@@ -281,7 +284,11 @@ export class ServerCache implements ICache {
               this.totalSize -= entry.size;
             }
           } catch (deleteError) {
-            envLogger.log("Failed to delete key during clear", { key, error: deleteError }, { category: "ServerCache" });
+            envLogger.log(
+              "Failed to delete key during clear",
+              { key, error: deleteError },
+              { category: "ServerCache" },
+            );
           }
         }
       }

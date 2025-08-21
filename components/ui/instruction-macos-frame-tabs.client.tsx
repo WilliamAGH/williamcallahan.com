@@ -48,7 +48,7 @@ export { MacOSFrameContext };
  * @returns {JSX.Element} A React fragment containing the children with added context properties.
  */
 export function InstructionMACOSTab({ children }: InstructionMACOSTabProps): JSX.Element {
-  const childrenWithProps = Children.map(children, (childNode) => {
+  const childrenWithProps = Children.map(children, childNode => {
     if (!React.isValidElement(childNode)) {
       return childNode;
     }
@@ -97,17 +97,17 @@ export function InstructionMacOSFrameTabs({
   const windowRef = useRef<HTMLDivElement>(null); // Ref to the window for click-outside detection when maximized
 
   /** Toggles the visibility of the window. */
-  const handleClose = useCallback(() => setIsVisible((prev) => !prev), []);
+  const handleClose = useCallback(() => setIsVisible(prev => !prev), []);
 
   /** Toggles the minimized state of the window. Un-maximizes if currently maximized. */
   const handleMinimize = useCallback(() => {
-    setIsMinimized((prev) => !prev);
+    setIsMinimized(prev => !prev);
     if (isMaximized) setIsMaximized(false); // Cannot be minimized and maximized simultaneously
   }, [isMaximized]);
 
   /** Toggles the maximized state of the window. Un-minimizes if currently minimized. */
   const handleMaximize = useCallback(() => {
-    setIsMaximized((prev) => !prev);
+    setIsMaximized(prev => !prev);
     if (isMinimized) setIsMinimized(false); // Cannot be maximized and minimized simultaneously
   }, [isMinimized]);
 
@@ -167,7 +167,7 @@ export function InstructionMacOSFrameTabs({
   useEffect(() => {
     if (activeTabLabel === null && instructionTabs.length > 0) {
       // Prefer an explicitly-marked default, otherwise first tab
-      const defaultTab = instructionTabs.find((t) => t.isDefault) ?? instructionTabs[0];
+      const defaultTab = instructionTabs.find(t => t.isDefault) ?? instructionTabs[0];
       if (defaultTab) setActiveTabLabel(defaultTab.label);
     }
   }, [activeTabLabel, instructionTabs]);
@@ -180,13 +180,13 @@ export function InstructionMacOSFrameTabs({
     );
   }
 
-  const windowTabs: WindowTab[] = instructionTabs.map((it) => ({
+  const windowTabs: WindowTab[] = instructionTabs.map(it => ({
     id: it.label,
     label: it.label,
   }));
 
   // Process activeChildContent to open CollapseDropdowns
-  const activeTabDetails = activeTabLabel ? instructionTabs.find((it) => it.label === activeTabLabel) : undefined;
+  const activeTabDetails = activeTabLabel ? instructionTabs.find(it => it.label === activeTabLabel) : undefined;
   let activeChildContentProcessed: ReactNode = null;
 
   if (activeTabDetails) {
@@ -252,7 +252,7 @@ export function InstructionMacOSFrameTabs({
         value={{
           activeTab: activeTabLabel,
           setActiveTab: setActiveTabLabel,
-          tabs: instructionTabs.map((t) => ({ label: t.label, id: t.id })),
+          tabs: instructionTabs.map(t => ({ label: t.label, id: t.id })),
           baseId,
         }}
       >
@@ -264,7 +264,7 @@ export function InstructionMacOSFrameTabs({
           )}
           tabs={windowTabs}
           activeTabId={activeTabLabel || ""}
-          onTabClick={(tabId) => setActiveTabLabel(tabId)}
+          onTabClick={tabId => setActiveTabLabel(tabId)}
           contentClassName={cn(
             "bg-gray-100 dark:bg-gray-800",
             "p-2",
