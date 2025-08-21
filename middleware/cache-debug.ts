@@ -1,6 +1,5 @@
 import { ServerCacheInstance } from "@/lib/server-cache";
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 // This middleware adds cache stats to API responses
 export function middleware(request: NextRequest) {

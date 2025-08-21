@@ -6,7 +6,7 @@
 import { s3Client, writeBinaryS3, checkIfS3ObjectExists } from "../s3-utils";
 import { ServerCacheInstance } from "../server-cache";
 import { getDomainVariants } from "../utils/domain-utils";
-import { parseS3Key } from "../utils/hash-utils";
+import { parseS3Key, generateS3Key, getFileExtension, getBufferHash, hashAndArchiveManualLogo } from "../utils/hash-utils";
 import { LOGO_SOURCES, LOGO_BLOCKLIST_S3_PATH, UNIFIED_IMAGE_SERVICE_CONFIG } from "../constants";
 import { getBaseUrl } from "../utils/get-base-url";
 import { isDebug } from "../utils/debug";
@@ -24,13 +24,11 @@ import {
   isRetryableHttpError,
 } from "../utils/http-client";
 import { retryWithOptions, computeExponentialDelay } from "../utils/retry";
-import { generateS3Key, getFileExtension } from "../utils/hash-utils";
 import { FailureTracker } from "../utils/failure-tracker";
 import { isOperationAllowedWithCircuitBreaker, recordOperationFailure } from "../rate-limiter";
 import { inferContentTypeFromUrl, getExtensionFromContentType, IMAGE_EXTENSIONS } from "../utils/content-type";
 import { buildCdnUrl } from "../utils/cdn-utils";
 import { isLogoUrl, extractDomain } from "../utils/url-utils";
-import { getBufferHash } from "../utils/hash-utils";
 import { getMemoryHealthMonitor, wipeBuffer } from "../health/memory-health-monitor";
 
 import { monitoredAsync } from "../async-operations-monitor";
@@ -39,7 +37,6 @@ import type { LogoInversion } from "../../types/logo";
 import type { ImageServiceOptions, ImageResult } from "../../types/image";
 import { logoDebugger } from "@/lib/utils/logo-debug";
 import { maybeStreamImageToS3 } from "./image-streaming";
-import { hashAndArchiveManualLogo } from "../utils/hash-utils";
 import logger from "../utils/logger";
 
 export class UnifiedImageService {
