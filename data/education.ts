@@ -5,8 +5,7 @@
 // Remember to update this date whenever the education data or the Education page design changes
 export const updatedAt = "2025-06-28";
 
-import type { Certification, Class, Education } from "@/types/education";
-import { validateClassArray, validateEducationArray, validateCertificationArray } from "@/types/education";
+import { type Certification, type Class, type Education, validateClassArray, validateEducationArray, validateCertificationArray } from "@/types/education";
 
 const recentCoursesData: Class[] = [
   // TODO: Display this course in September 2025
