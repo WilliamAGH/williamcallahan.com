@@ -9,6 +9,7 @@
 import type { RawApiBookmark, UnifiedBookmark, BookmarkContent } from "@/types/bookmark";
 import { omitHtmlContent } from "./utils";
 import { envLogger } from "@/lib/utils/env-logger";
+import { processSummaryText, removeCitations } from "@/lib/utils/formatters";
 
 /**
  * Normalizes a raw bookmark from the API into a UnifiedBookmark
@@ -19,11 +20,7 @@ import { envLogger } from "@/lib/utils/env-logger";
  */
 export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBookmark | null {
   if (!raw || typeof raw !== "object") {
-    envLogger.log(
-      `Invalid raw bookmark data`,
-      { index, rawType: typeof raw },
-      { category: "BookmarksNormalize" },
-    );
+    envLogger.log(`Invalid raw bookmark data`, { index, rawType: typeof raw }, { category: "BookmarksNormalize" });
     return null;
   }
 
@@ -32,7 +29,7 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
     const bestDescription = raw.summary || raw.content?.description || "No description available.";
 
     const normalizedTags = Array.isArray(raw.tags)
-      ? raw.tags.map((tag) => ({
+      ? raw.tags.map(tag => ({
           id: tag.id,
           name: tag.name,
           slug: tag.name.toLowerCase().replace(/\s+/g, "-"),
@@ -43,8 +40,8 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       : [];
 
     // Include asset IDs from raw.assets if raw.content fields are missing
-    const screenshotAsset = raw.assets?.find((asset) => asset.assetType === "screenshot");
-    const bannerAsset = raw.assets?.find((asset) => asset.assetType === "bannerImage");
+    const screenshotAsset = raw.assets?.find(asset => asset.assetType === "screenshot");
+    const bannerAsset = raw.assets?.find(asset => asset.assetType === "bannerImage");
 
     const unifiedContent: BookmarkContent = {
       ...(raw.content ? omitHtmlContent(raw.content) : {}),
@@ -72,8 +69,10 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       archived: raw.archived,
       isFavorite: raw.favourited,
       taggingStatus: raw.taggingStatus,
-      note: raw.note,
-      summary: raw.summary,
+      // Process note: remove citations but keep as single paragraph
+      note: raw.note ? removeCitations(raw.note) : raw.note,
+      // Process summary: remove citations and add paragraph breaks every 2 sentences
+      summary: raw.summary ? processSummaryText(raw.summary) : raw.summary,
       content: unifiedContent,
       assets: Array.isArray(raw.assets) ? raw.assets : [],
 
