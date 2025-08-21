@@ -8,8 +8,7 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
-import { Component, type ReactNode } from "react";
-import type { ErrorInfo } from "react";
+import { Component, type ReactNode, type ErrorInfo } from "react";
 import type { LocalErrorBoundaryProps, ErrorBoundaryState } from "@/types/ui";
 
 /**
