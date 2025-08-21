@@ -26,8 +26,7 @@ import {
   JINA_FETCH_CONTEXT_ID,
   JINA_FETCH_RATE_LIMIT_S3_PATH,
 } from "@/lib/constants";
-import { getDomainType } from "@/lib/utils/opengraph-utils";
-import { sanitizeOgMetadata } from "@/lib/utils/opengraph-utils";
+import { getDomainType, sanitizeOgMetadata } from "@/lib/utils/opengraph-utils";
 import { ogMetadataSchema, type ValidatedOgMetadata } from "@/types/seo/opengraph";
 import {
   OPENGRAPH_FETCH_CONFIG,
@@ -35,6 +34,10 @@ import {
   OPENGRAPH_FETCH_STORE_NAME,
   DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG,
   OPENGRAPH_IMAGES_S3_DIR,
+  JINA_FETCH_RATE_LIMIT_S3_PATH,
+  JINA_FETCH_CONTEXT_ID,
+  JINA_FETCH_STORE_NAME,
+  JINA_FETCH_CONFIG,
 } from "@/lib/constants";
 import { extractOpenGraphTags } from "./parser";
 import type { OgResult, KarakeepImageFallback } from "@/types";

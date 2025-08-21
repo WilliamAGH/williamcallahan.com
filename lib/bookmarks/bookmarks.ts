@@ -14,14 +14,12 @@
  */
 
 import { BOOKMARKS_S3_PATHS, BOOKMARKS_API_CONFIG } from "@/lib/constants";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
 import { normalizeBookmarks } from "./normalize";
 import { processBookmarksInBatches } from "./enrich-opengraph";
 import { createHash } from "node:crypto";
-import { writeJsonS3 } from "@/lib/s3-utils";
 
-import type { UnifiedBookmark, RawApiBookmark, BookmarksApiResponse as ApiResponse } from "@/types/bookmark";
-import { bookmarksApiResponseSchema } from "@/types/bookmark";
+import { type UnifiedBookmark, type RawApiBookmark, type BookmarksApiResponse as ApiResponse, bookmarksApiResponseSchema } from "@/types/bookmark";
 
 // S3 prefix for raw API snapshots (environment-suffixed for isolation)
 // These snapshots enable incremental refresh by comparing checksums
