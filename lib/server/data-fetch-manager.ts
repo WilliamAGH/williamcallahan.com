@@ -14,13 +14,12 @@ loadEnvironmentWithMultilineSupport();
 import logger from "@/lib/utils/logger";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
-import { KNOWN_DOMAINS } from "@/lib/constants";
+import { KNOWN_DOMAINS, SEARCH_S3_PATHS, IMAGE_MANIFEST_S3_PATHS, IMAGE_S3_PATHS } from "@/lib/constants";
 import { getLogo } from "@/lib/data-access/logos";
 import { processLogoBatch } from "@/lib/data-access/logos-batch";
 import { refreshBookmarks } from "@/lib/bookmarks/service.server";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
-import { SEARCH_S3_PATHS, IMAGE_MANIFEST_S3_PATHS, IMAGE_S3_PATHS } from "@/lib/constants";
 import { writeJsonS3, listS3Objects } from "@/lib/s3-utils";
 import type { LogoManifest } from "@/types/image";
 

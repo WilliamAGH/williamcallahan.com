@@ -7,9 +7,8 @@
 import type { ICache } from "@/types/cache";
 import type { OgResult, OgCacheEntry } from "@/types/opengraph";
 import { ogResultSchema } from "@/types/seo/opengraph";
-import { OPENGRAPH_CACHE_DURATION } from "@/lib/constants";
+import { OPENGRAPH_CACHE_DURATION, TIME_CONSTANTS } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
-import { TIME_CONSTANTS } from "@/lib/constants";
 
 const OPENGRAPH_PREFIX = "og-data:";
 const REFRESH_TRACKING_PREFIX = "og-refresh-attempt:";
