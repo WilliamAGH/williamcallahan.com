@@ -1,29 +1,34 @@
 # S3 CDN Image Idempotency Architecture
 
 ## Core Purpose
+
 Ensures education and experience domains ALWAYS fetch institution/company logos from S3 CDN idempotently - same domain input always produces same CDN URL output, preventing duplicate fetches and ensuring consistent branding across all page loads.
 
 ## Architecture Overview
+
 Data Flow: Domain → UnifiedImageService → Memory Cache → S3 Check → External APIs → S3 Upload → CDN URL
 Components:
+
 - **UnifiedImageService** (`lib/services/unified-image-service.ts:41-943`): Singleton service managing all logo operations
 - **Logo Facade** (`lib/data-access/logos.ts:42-93`): Backward-compatible interface to UnifiedImageService
 - **CDN Utils** (`lib/utils/cdn-utils.ts:28-52`): Consistent CDN URL generation
 - **Domain Utils** (`lib/utils/domain-utils.ts`): Normalizes URLs to consistent domains
 
 ## Key Features
+
 - **Idempotent S3 Keys**: `lib/utils/s3-key-generator.ts` generates deterministic keys from domain+source
 - **In-Flight Deduplication**: `unified-image-service.ts:170-177` prevents concurrent fetches for same domain
 - **3-Tier Cache**: Memory (15min) → S3 (permanent) → External APIs (fallback)
 - **CDN-First Delivery**: All logos served via `NEXT_PUBLIC_S3_CDN_URL` for performance
 
 ## Data Structures
+
 ```typescript
 // types/logo.ts
 export interface LogoResult {
-  s3Key?: string;           // S3 storage key
-  url: string | null;       // Legacy URL field
-  cdnUrl?: string;          // CDN URL (preferred)
+  s3Key?: string; // S3 storage key
+  url: string | null; // Legacy URL field
+  cdnUrl?: string; // CDN URL (preferred)
   source: LogoSource | null; // "google" | "duckduckgo" | null
   retrieval: "s3-store" | "external" | "api";
   contentType: string;
@@ -73,16 +78,16 @@ export async function processEducationItem(item: Education) {
     // Static logo path takes precedence
     return { url: item.logo, source: null };
   }
-  
+
   // Domain normalization ensures consistency
   const domain = normalizeDomain(item.website || item.institution);
   const logoResult = await getLogo(domain);
-  
+
   if (logoResult?.cdnUrl) {
     // Always prefer CDN URL
     return { url: logoResult.cdnUrl, source: logoResult.source };
   }
-  
+
   // Fallback to placeholder
   return { url: "/images/company-placeholder.svg", source: "placeholder" };
 }

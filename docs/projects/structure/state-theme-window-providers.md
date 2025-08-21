@@ -11,7 +11,6 @@ Centralized provider composition for application-wide state management, includin
 - **`app/providers.client.tsx`**: Root provider composition
   - Wraps app in ThemeProvider and TerminalProvider
   - Client-side only with `"use client"` directive
-  
 - **`app/layout.tsx`**: Additional provider integration
   - Adds GlobalWindowRegistryProvider
   - Wraps providers with error boundaries
@@ -93,7 +92,7 @@ See [`hooks.md`](./hooks.md#window-management) for detailed documentation of win
 
 - **`lib/hooks/use-window-size.client.ts`**: Reactive window dimension tracking
 - **`lib/hooks/use-window-state.client.ts`**: Window state management with persistence
-  
+
 #### Window Registry Context
 
 - **`lib/context/global-window-registry-context.client.tsx`**: Global window registry

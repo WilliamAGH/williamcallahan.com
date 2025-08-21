@@ -19,7 +19,7 @@ export const InfiniteScrollSentinel: React.FC<InfiniteScrollSentinelProps> = ({
     if (!hasMore || loading) return;
 
     const observer = new IntersectionObserver(
-      (entries) => {
+      entries => {
         const firstEntry = entries[0];
         if (firstEntry?.isIntersecting) {
           onIntersect();

@@ -166,11 +166,7 @@ export function LogoImage({
 
 import Placeholder from "@/public/images/opengraph-placeholder.png";
 
-export function OptimizedCardImage({
-  src,
-  alt,
-  className = "",
-}: OptimizedCardImageProps): React.JSX.Element {
+export function OptimizedCardImage({ src, alt, className = "" }: OptimizedCardImageProps): React.JSX.Element {
   const isDev = process.env.NODE_ENV === "development";
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
@@ -201,7 +197,10 @@ export function OptimizedCardImage({
   if (errored && (!isProxyUrl || retryCount >= MAX_RETRIES)) {
     // Log for debugging but don't spam with proxy URL retries
     if (!isProxyUrl || retryCount === 0) {
-      if (isDev) console.warn(`[OptimizedCardImage] Failed to load image after ${retryCount} retries: ${src}, showing placeholder`);
+      if (isDev)
+        console.warn(
+          `[OptimizedCardImage] Failed to load image after ${retryCount} retries: ${src}, showing placeholder`,
+        );
     }
     return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
   }
@@ -235,7 +234,7 @@ export function OptimizedCardImage({
         if (isProxyUrl && retryCount < MAX_RETRIES) {
           if (isDev) console.log(`[OptimizedCardImage] Scheduling retry for proxy URL: ${src}`);
           const backoffDelay = Math.min(1000 * 2 ** retryCount, 5000); // 1s, 2s, up to 5s max
-          
+
           if (retryTimeoutRef.current) {
             clearTimeout(retryTimeoutRef.current);
           }

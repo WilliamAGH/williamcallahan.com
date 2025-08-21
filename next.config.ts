@@ -276,7 +276,7 @@ const nextConfig = {
     const webpack = require("webpack");
     config.plugins = config.plugins || [];
     config.plugins.push(
-      new webpack.NormalModuleReplacementPlugin(/@opentelemetry\/api/, (resource) => {
+      new webpack.NormalModuleReplacementPlugin(/@opentelemetry\/api/, resource => {
         // Only apply fix for Edge runtime builds
         if (resource.context.includes("@sentry/vercel-edge")) {
           resource.request = path.resolve(__dirname, "lib/edge-polyfills/opentelemetry.ts");

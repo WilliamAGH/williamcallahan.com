@@ -12,7 +12,7 @@ b) Technical debt that should be addressed
 c) Feature improvements or enhancements
 d) Documentation gaps
 
-STEP 3: Create a well-structured GitHub issue using @mcp__github__create_issue with owner="WilliamAGH" repo="williamcallahan.com" title="<descriptive_title>" body="<detailed_description>" labels=["bug", "enhancement", "documentation", etc.]. Include:
+STEP 3: Create a well-structured GitHub issue using @mcp**github**create_issue with owner="WilliamAGH" repo="williamcallahan.com" title="<descriptive_title>" body="<detailed_description>" labels=["bug", "enhancement", "documentation", etc.]. Include:
 a) Clear, descriptive title
 b) Detailed description with context
 c) Steps to reproduce (if bug)

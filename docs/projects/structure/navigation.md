@@ -43,6 +43,7 @@ The "navigation" functionality encompasses components and utilities that manage 
 ## Key Files and Responsibilities
 
 ### Core Navigation Components
+
 - **`components/ui/navigation/navigation.client.tsx`**: Main navigation container
   - Responsive mobile menu with hamburger button
   - JavaScript-based responsive logic (should be CSS)
@@ -62,6 +63,7 @@ The "navigation" functionality encompasses components and utilities that manage 
   - Styled minimize/maximize/close buttons
 
 ### Supporting Hooks & Utilities
+
 - **`lib/hooks/use-anchor-scroll.client.ts`**: Anchor scrolling system
   - Handles scrolling to hash fragments
   - Integrates with CollapseDropdown components
@@ -73,11 +75,13 @@ The "navigation" functionality encompasses components and utilities that manage 
   - **Issue**: Uses module-level global state
 
 ### Type Definitions
+
 - **`types/navigation.ts`**: TypeScript interfaces (currently unreviewed)
 
 ## Logic Flow and Interactions
 
 ### Navigation Rendering Flow
+
 ```
 Navigation.tsx → navigation-links.ts → NavigationLink.tsx → next/link
 
@@ -88,6 +92,7 @@ Navigation.tsx → navigation-links.ts → NavigationLink.tsx → next/link
 ```
 
 ### Anchor Scrolling Flow
+
 ```
 URL Hash Change → useAnchorScrollHandler → findDropdownForHash
                         ↓                         ↓
@@ -97,6 +102,7 @@ URL Hash Change → useAnchorScrollHandler → findDropdownForHash
 ```
 
 ### Dropdown Registration
+
 ```
 CollapseDropdown mount → registerDropdown(id, instance)
                               ↓
@@ -108,18 +114,22 @@ CollapseDropdown mount → registerDropdown(id, instance)
 ## Architecture Issues
 
 ### Performance
+
 - No server-side rendering of navigation (impacts LCP)
 - Re-renders on every window resize due to JS-based responsive logic
 - Good: Selective prefetching of priority pages (/bookmarks, /blog)
 
 ### Code Quality
+
 1. **Duplicate Logic**: Navigation mapping duplicated in multiple places
 2. **Hardcoded Logic**: "Projects Sandbox" special case hardcoded
 3. **Complex Responsive**: JavaScript-based instead of CSS media queries
 4. **Unstable IDs**: Dropdown IDs generated from summary text
 
 ### Accessibility
+
 Generally good with:
+
 - Proper `aria-current="page"` for active links
 - Semantic HTML (`<details>`, `<summary>`)
 - Proper button labels
@@ -129,6 +139,7 @@ Minor issue: Decorative chevron icon should have `aria-hidden="true"`
 ## Recommendations
 
 ### Immediate Fixes
+
 1. Remove production console.log or wrap in development check
 2. Switch to CSS-only responsive design
 3. Remove `isMounted` pattern for proper SSR
@@ -136,12 +147,14 @@ Minor issue: Decorative chevron icon should have `aria-hidden="true"`
 5. Remove duplicate `clearHistory()` call
 
 ### Architectural Improvements
+
 1. Refactor global dropdown registry to React Context
 2. Make dropdown IDs explicit (required prop)
 3. Consolidate duplicate navigation mapping logic
 4. Extract hardcoded "Projects Sandbox" logic
 
 ### Testing Considerations
+
 - Test files should be categorized with navigation functionality
 - Need tests for anchor scrolling edge cases
 - Need tests for responsive behavior

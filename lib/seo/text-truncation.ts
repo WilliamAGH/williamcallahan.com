@@ -25,7 +25,7 @@ class SafeString {
       try {
         this.segmenter = new Intl.Segmenter(locale, { granularity: "grapheme" });
         const segments = Array.from(this.segmenter.segment(text));
-        this.segments = segments.map((s) => s.segment);
+        this.segments = segments.map(s => s.segment);
       } catch (error) {
         console.warn("Intl.Segmenter failed, using fallback:", error);
         this.segments = Array.from(text);
@@ -87,7 +87,7 @@ class SafeString {
   }
 
   words(): string[] {
-    return this.text.split(/\s+/).filter((word) => word.length > 0);
+    return this.text.split(/\s+/).filter(word => word.length > 0);
   }
 
   get isUnicodeAware(): boolean {
@@ -212,9 +212,9 @@ export function gradientTruncate(text: string | null | undefined, options: Trunc
  */
 function lightTruncate(text: SafeString, options: TruncationOptions): string | null {
   const words = text.words();
-  const important = new Set(options.importantKeywords?.map((k) => k.toLowerCase()) || []);
+  const important = new Set(options.importantKeywords?.map(k => k.toLowerCase()) || []);
 
-  const filtered = words.filter((word) => {
+  const filtered = words.filter(word => {
     const clean = word.toLowerCase().replace(/[^a-z0-9]/g, "");
     return important.has(clean) || !FILLER_WORDS.has(clean);
   });

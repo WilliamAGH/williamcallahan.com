@@ -28,11 +28,11 @@ export function History({ history }: HistoryProps) {
     }
     if (isHelpCommand(line)) {
       return line.commands
-        .map((cmd) => `${cmd.name}: ${cmd.description}${cmd.usage ? ` (${cmd.usage})` : ""}`)
+        .map(cmd => `${cmd.name}: ${cmd.description}${cmd.usage ? ` (${cmd.usage})` : ""}`)
         .join("\n");
     }
     if (isSelectionCommand(line)) {
-      return line.items.map((item) => `${item.label}: ${item.description}`).join("\n");
+      return line.items.map(item => `${item.label}: ${item.description}`).join("\n");
     }
     if (isSearchingCommand(line)) {
       const searchText = line.scope

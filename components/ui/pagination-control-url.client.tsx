@@ -189,7 +189,7 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
           )}
 
           {/* Visible page numbers */}
-          {visiblePages?.map((page) =>
+          {visiblePages?.map(page =>
             page === currentPage ? (
               <button
                 key={page}

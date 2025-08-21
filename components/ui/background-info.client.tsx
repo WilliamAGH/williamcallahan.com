@@ -53,7 +53,7 @@ export function BackgroundInfo({
           const isContentSignificantlyTaller = contentRef.current.scrollHeight > collapsedHeightThreshold + buffer;
 
           // Only update if the value actually changes to prevent unnecessary re-renders
-          setShowToggleButton((prev) => (prev !== isContentSignificantlyTaller ? isContentSignificantlyTaller : prev));
+          setShowToggleButton(prev => (prev !== isContentSignificantlyTaller ? isContentSignificantlyTaller : prev));
         }
       }, 0);
     };

@@ -237,7 +237,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     { linesAdded: number; linesRemoved: number; categoryKey: string; dataComplete: boolean }
   >(
     "github-repo-stats",
-    async (repo) => {
+    async repo => {
       const repoOwnerLogin = repo.owner.login;
       const repoName = repo.name;
       const repoStatS3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwnerLogin}_${repoName}.csv`;
@@ -894,7 +894,7 @@ async function detectAndRepairCsvFiles(): Promise<{
 
             if (ownerStats?.weeks && Array.isArray(ownerStats.weeks)) {
               const weeklyStats = ownerStats.weeks
-                .map((w) => ({
+                .map(w => ({
                   w: w.w,
                   a: w.a,
                   d: w.d,

@@ -34,7 +34,7 @@
  */
 export function dedupeDocuments<T extends { id?: string | number }>(
   documents: T[],
-  getIdField: (doc: T) => string = (doc) => String(doc.id ?? ""),
+  getIdField: (doc: T) => string = doc => String(doc.id ?? ""),
 ): T[] {
   const seen = new Set<string>();
   const deduped: T[] = [];

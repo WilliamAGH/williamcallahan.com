@@ -45,21 +45,24 @@ try {
 // Test 4: Can we create a simple cron job?
 try {
   const cron = await import("node-cron");
-  const testJob = cron.schedule("*/10 * * * * *", () => {
-    console.log("[TEST] Cron job triggered at", new Date().toISOString());
-  }, { scheduled: false });
-  
+  const testJob = cron.schedule(
+    "*/10 * * * * *",
+    () => {
+      console.log("[TEST] Cron job triggered at", new Date().toISOString());
+    },
+    { scheduled: false },
+  );
+
   console.log("[TEST] ✅ Test cron job created successfully");
   console.log("[TEST] Starting test job for 15 seconds...");
-  
+
   testJob.start();
-  
+
   setTimeout(() => {
     testJob.stop();
     console.log("[TEST] ✅ All tests passed! Scheduler should be able to start.");
     process.exit(0);
   }, 15000);
-  
 } catch (error) {
   console.error("[TEST] ❌ Failed to create test cron job:", error);
   process.exit(1);

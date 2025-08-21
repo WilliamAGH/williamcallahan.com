@@ -1,15 +1,15 @@
 ---
-title: 'Setting Up a New PC / Server with Pop!_OS 22.04'
-excerpt: 'A detailed checklist for setting up a PC / server with Pop!_OS 22.04, from BIOS configuration to essential tools installation'
-publishedAt: '2024-09-25'
-updatedAt: '2025-05-22'
+title: "Setting Up a New PC / Server with Pop!_OS 22.04"
+excerpt: "A detailed checklist for setting up a PC / server with Pop!_OS 22.04, from BIOS configuration to essential tools installation"
+publishedAt: "2024-09-25"
+updatedAt: "2025-05-22"
 author: "william-callahan"
-tags: ['linux', 'pop-os', 'server', 'tutorial', 'checklist']
-coverImage: '/images/posts/terminal_pop_os.svg'
-slug: 'pop-os-22-micro-pc-server-setup'
+tags: ["linux", "pop-os", "server", "tutorial", "checklist"]
+coverImage: "/images/posts/terminal_pop_os.svg"
+slug: "pop-os-22-micro-pc-server-setup"
 ---
 
-I use a lot of checklists -- here's another one of mine, this time for setting up a PC / server with Pop!_OS. While these instructions are written specifically for Pop!_OS, they should work similarly for Ubuntu with minor adjustments.
+I use a lot of checklists -- here's another one of mine, this time for setting up a PC / server with Pop!\_OS. While these instructions are written specifically for Pop!\_OS, they should work similarly for Ubuntu with minor adjustments.
 
 ## Pre-Installation Steps
 
@@ -23,6 +23,7 @@ Most modern PCs require disabling Secure Boot and TPM/device security features t
    - Different manufacturers use different keys, but `Delete` is increasingly common
 
 Navigate to:
+
 - Security/Boot section
 - Disable "Secure Boot"
 - Disable "TPM Security" if present
@@ -31,6 +32,7 @@ Navigate to:
 ### 2. Boot Order Configuration
 
 While still in BIOS:
+
 1. Navigate to Boot Order/Boot Priority section
 2. Move USB drive to the top of the boot order
 3. Save changes and exit
@@ -38,7 +40,7 @@ While still in BIOS:
 ### 3. Prepare Installation Media
 
 1. Download the OS:
-   - [Pop!_OS 22.04](https://pop.system76.com/)
+   - [Pop!\_OS 22.04](https://pop.system76.com/)
    - Or [Ubuntu 22.04](https://ubuntu.com/download/desktop) if you prefer
 2. Download [Etcher](https://www.balena.io/etcher/) to create bootable USB
 3. Use Etcher to flash the OS image to your USB drive
@@ -50,11 +52,13 @@ While still in BIOS:
 When you reach the disk partitioning step, here's how to set up your partitions:
 
 > Why These Partitions?
+>
 > - EFI partition stores bootloader files
 > - Root partition holds your OS and all data
 > - Modern systems with sufficient RAM often don't need swap
 
 #### EFI System Partition
+
 ```bash
 Partition Name: EFI
 Label: EFI
@@ -65,6 +69,7 @@ Size: 1GB  # Being generous for safety
 ```
 
 #### Root Partition
+
 ```bash
 Partition Name: Root
 Label: Pop_OS
@@ -80,8 +85,8 @@ Size: Remaining space
 
 ### System Updates
 
-> APT vs Pop!_Shop
-> Pop!_OS uses APT for CLI package management and Pop!_Shop for GUI. Stick to one to avoid conflicts - I prefer APT for servers.
+> APT vs Pop!\_Shop
+> Pop!\_OS uses APT for CLI package management and Pop!\_Shop for GUI. Stick to one to avoid conflicts - I prefer APT for servers.
 
 ```bash
 # Update package lists and upgrade system
@@ -90,6 +95,7 @@ sudo apt upgrade
 ```
 
 ### Setting Hostname
+
 ```bash
 sudo hostnamectl set-hostname NEW_HOSTNAME
 ```
@@ -108,6 +114,7 @@ sudo nano /etc/ssh/sshd_config
 ```
 
 Add/modify these lines:
+
 ```bash
 PermitRootLogin no
 PasswordAuthentication no
@@ -115,6 +122,7 @@ PubkeyAuthentication yes
 ```
 
 Set up SSH keys:
+
 ```bash
 # Create .ssh directory
 sudo mkdir -p ~/.ssh
@@ -139,6 +147,7 @@ sudo chmod 600 /root/.ssh/authorized_keys
 Follow the [official Docker installation guide](https://docs.docker.com/engine/install/ubuntu/) for the latest instructions.
 
 ### AppImage Management
+
 ```bash
 # Create applications directory
 sudo mkdir -p /opt/applications
@@ -159,6 +168,7 @@ EOF
 ```
 
 ### Set Micro as Default Editor
+
 ```bash
 # Install Micro
 sudo apt install micro
@@ -174,6 +184,7 @@ source ~/.bashrc
 ```
 
 ### Enable Automatic Reboot
+
 ```bash
 sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
 ```
@@ -182,17 +193,17 @@ sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.ta
 
 Here's my curated list of must-have tools for development:
 
-| Tool | Description | Installation |
-|------|-------------|--------------|
-| [Homebrew](https://brew.sh) | Package manager | `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"` |
-| [Lazygit](https://github.com/jesseduffield/lazygit) | Git TUI | `brew install lazygit` |
-| [Lazydocker](https://github.com/jesseduffield/lazydocker) | Docker TUI | `brew install jesseduffield/lazydocker/lazydocker` |
-| [Node.js & npm](https://nodejs.org) | JavaScript runtime | `curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh \| bash` |
-| [pnpm](https://pnpm.io) | Fast package manager | `npm install -g pnpm` |
-| [Python](https://python.org) | Python runtime | `sudo apt install python3 python3-pip` |
-| [pipx](https://pypa.github.io/pipx/) | Python app installer | `python3 -m pip install --user pipx` |
-| [uv](https://github.com/astral-sh/uv) | Fast Python packager | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
-| [Warp](https://warp.dev) | Modern terminal | Visit [warp.dev](https://warp.dev) for installation |
-| [Micro](https://micro-editor.github.io) | Terminal editor | `sudo apt install micro` |
+| Tool                                                      | Description          | Installation                                                                                      |
+| --------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------- |
+| [Homebrew](https://brew.sh)                               | Package manager      | `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"` |
+| [Lazygit](https://github.com/jesseduffield/lazygit)       | Git TUI              | `brew install lazygit`                                                                            |
+| [Lazydocker](https://github.com/jesseduffield/lazydocker) | Docker TUI           | `brew install jesseduffield/lazydocker/lazydocker`                                                |
+| [Node.js & npm](https://nodejs.org)                       | JavaScript runtime   | `curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh \| bash`                |
+| [pnpm](https://pnpm.io)                                   | Fast package manager | `npm install -g pnpm`                                                                             |
+| [Python](https://python.org)                              | Python runtime       | `sudo apt install python3 python3-pip`                                                            |
+| [pipx](https://pypa.github.io/pipx/)                      | Python app installer | `python3 -m pip install --user pipx`                                                              |
+| [uv](https://github.com/astral-sh/uv)                     | Fast Python packager | `curl -LsSf https://astral.sh/uv/install.sh \| sh`                                                |
+| [Warp](https://warp.dev)                                  | Modern terminal      | Visit [warp.dev](https://warp.dev) for installation                                               |
+| [Micro](https://micro-editor.github.io)                   | Terminal editor      | `sudo apt install micro`                                                                          |
 
 Remember to test all services and configurations before considering the setup complete. This checklist has served me well in setting up numerous servers - I hope it helps you too!

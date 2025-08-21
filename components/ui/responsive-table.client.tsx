@@ -20,17 +20,17 @@ function parseTableChildren(children: ReactNode): TableData {
   const rows: TableRow[] = [];
   let headerProcessed = false;
 
-  Children.forEach(children, (child) => {
+  Children.forEach(children, child => {
     if (!isValidElement(child)) return;
 
     const childProps = child.props as { children?: ReactNode }; // Type assertion for props
 
     // Process thead for headers
     if (child.type === "thead" && !headerProcessed) {
-      Children.forEach(childProps.children, (tr) => {
+      Children.forEach(childProps.children, tr => {
         if (isValidElement(tr) && tr.type === "tr") {
           const trProps = tr.props as { children?: ReactNode }; // Type assertion
-          Children.forEach(trProps.children, (th) => {
+          Children.forEach(trProps.children, th => {
             if (isValidElement(th) && th.type === "th") {
               const thProps = th.props as { children?: ReactNode }; // Type assertion
               headers.push(thProps.children);
@@ -42,11 +42,11 @@ function parseTableChildren(children: ReactNode): TableData {
     }
     // Process tbody for rows
     else if (child.type === "tbody") {
-      Children.forEach(childProps.children, (tr) => {
+      Children.forEach(childProps.children, tr => {
         if (isValidElement(tr) && tr.type === "tr") {
           const trProps = tr.props as { children?: ReactNode }; // Type assertion
           const currentRow: TableCell[] = [];
-          Children.forEach(trProps.children, (td) => {
+          Children.forEach(trProps.children, td => {
             if (isValidElement(td) && td.type === "td") {
               const tdProps = td.props as { children?: ReactNode }; // Type assertion
               currentRow.push(tdProps.children);
@@ -164,8 +164,8 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
           return "";
         };
 
-        const programPeriodIndex = headers.findIndex((h) => /program period/i.test(headerToString(h ?? "") ?? ""));
-        const investmentIndex = headers.findIndex((h) => /investment/i.test(headerToString(h)));
+        const programPeriodIndex = headers.findIndex(h => /program period/i.test(headerToString(h ?? "") ?? ""));
+        const investmentIndex = headers.findIndex(h => /investment/i.test(headerToString(h)));
         const isEven = rowIndex % 2 === 0;
 
         return (

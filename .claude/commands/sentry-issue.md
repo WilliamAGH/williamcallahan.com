@@ -14,9 +14,9 @@ b) If ANY errors or warnings exist:
 - Apply type safety resolution strategies from @full-lint command
 - Fix ALL issues to achieve 100% compliance
 - Never use @ts-ignore, @ts-expect-error, or eslint-disable
-c) Run: bun run test
+  c) Run: bun run test
 - Ensure 100% test pass rate
-d) Only proceed once BOTH commands report ZERO issues
+  d) Only proceed once BOTH commands report ZERO issues
 
 STEP 1: Retrieve Sentry Issue Details
 Use available Sentry MCP tools to fetch the issue:
@@ -30,7 +30,7 @@ a) Get full issue details including:
 - Tags and metadata
 - Event breadcrumbs
 - User actions leading to error
-b) If Sentry MCP unavailable, ask user for:
+  b) If Sentry MCP unavailable, ask user for:
 - Full error message
 - Stack trace
 - Steps to reproduce
@@ -44,25 +44,25 @@ b) Identify which functionality/domain is affected by analyzing:
 - File paths in stack trace
 - Component/function names
 - Error context
-c) For each identified functionality:
+  c) For each identified functionality:
 - Read docs/projects/structure/<functionality>.md
 - Read docs/projects/structure/<functionality>.mmd if exists
 - Note critical issues and known pitfalls sections
-d) Use docs/projects/file-overview-map.md to understand file relationships
+  d) Use docs/projects/file-overview-map.md to understand file relationships
 
 STEP 3: Multi-Source Knowledge Gathering (Run in parallel using Task agents)
 Gather comprehensive context from multiple sources:
 
 a) **Technology Documentation (Context7 MCP)**:
 
-- If error involves Next.js: @mcp__context7__resolve-library-id libraryName="next.js"
-- If error involves React: @mcp__context7__resolve-library-id libraryName="react"
+- If error involves Next.js: @mcp**context7**resolve-library-id libraryName="next.js"
+- If error involves React: @mcp**context7**resolve-library-id libraryName="react"
 - For any other libraries in stack trace, resolve and fetch their docs
 - Focus on error-related topics (e.g., hydration, routing, data fetching)
 
 b) **Web Search for Similar Issues**:
 
-- Use @mcp__brave-search__brave_web_search with query constructed from:
+- Use @mcp**brave-search**brave_web_search with query constructed from:
   - Error message (sanitized of app-specific details)
   - Framework version + error keywords
   - "site:github.com issues" for known bugs
@@ -78,7 +78,7 @@ c) **Code Analysis**:
 
 STEP 4: Deep Analysis with Zen MCP
 Synthesize all gathered information:
-a) Use @mcp__zen__thinkdeep with model="pro" and thinking_mode="max":
+a) Use @mcp**zen**thinkdeep with model="pro" and thinking_mode="max":
 
 - Include Sentry issue details
 - Include relevant architecture documentation
@@ -91,7 +91,7 @@ a) Use @mcp__zen__thinkdeep with model="pro" and thinking_mode="max":
   - Risk assessment for each approach
   - Edge cases to consider
 
-b) Use @mcp__zen__debug with all diagnostic information:
+b) Use @mcp**zen**debug with all diagnostic information:
 
 - Sentry stack trace and breadcrumbs
 - Related source files
@@ -125,9 +125,9 @@ d) Ensure type safety is maintained:
 - No new `any` types
 - Proper error handling with typed catches
 - Zod validation for external data if needed
-e) Run: bun run validate after each fix
-f) Fix any new issues immediately
-g) Mark as completed
+  e) Run: bun run validate after each fix
+  f) Fix any new issues immediately
+  g) Mark as completed
 
 STEP 7: Error Reproduction & Testing
 Create tests to verify the fix:
@@ -146,7 +146,7 @@ b) Enhance logging for better future debugging:
 - Add contextual information
 - Include user actions in logs
 - Add performance metrics if relevant
-c) Consider adding:
+  c) Consider adding:
 - Input validation
 - Loading states
 - Fallback UI
@@ -159,19 +159,19 @@ b) Update docs/projects/structure/<functionality>.md with:
 - New error handling approach
 - Lessons learned
 - Known issues section if applicable
-c) Update inline code comments for clarity
-d) Add JSDoc comments for complex error handling
+  c) Update inline code comments for clarity
+  d) Add JSDoc comments for complex error handling
 
 STEP 10: Final Validation Suite
 Run comprehensive validation:
 a) Run: bun run validate
 
 - Must show 0 errors, 0 warnings
-b) Run: bun run test
+  b) Run: bun run test
 - Must show 100% pass rate
-c) Run: bun run build
+  c) Run: bun run build
 - Must complete successfully
-d) If ANY issues, resolve before proceeding
+  d) If ANY issues, resolve before proceeding
 
 STEP 11: Sentry Issue Status Update
 Update the Sentry issue to reflect resolution:
@@ -183,19 +183,19 @@ a) Use Sentry MCP to update issue status:
   - Fix summary
   - Affected files
   - Testing performed
-b) If Sentry MCP unavailable:
+    b) If Sentry MCP unavailable:
 - Provide user with update text for manual entry
 - Include commit hash once available
 
 STEP 12: Pre-Commit Verification
-Use @mcp__zen__precommit to validate all changes:
+Use @mcp**zen**precommit to validate all changes:
 a) Review ensures:
 
 - Fix addresses the Sentry issue
 - No regressions introduced
 - Type safety maintained
 - Tests cover the bug scenario
-b) Address any findings before commit
+  b) Address any findings before commit
 
 STEP 13: Commit Decision
 Ask user: "The Sentry issue has been resolved and all validations pass. Would you like to commit these changes? (yes/no)"
@@ -203,14 +203,16 @@ Ask user: "The Sentry issue has been resolved and all validations pass. Would yo
 If yes:
 a) Show all changed files with git status
 b) Create detailed commit message:
-   ```
-   fix(<functionality>): resolve Sentry issue #<id> - <brief description>
-   
-   - Root cause: <explanation>
-   - Solution: <what was fixed>
-   - Added tests to prevent regression
-   - Sentry: <issue URL>
-   ```
+
+```
+fix(<functionality>): resolve Sentry issue #<id> - <brief description>
+
+- Root cause: <explanation>
+- Solution: <what was fixed>
+- Added tests to prevent regression
+- Sentry: <issue URL>
+```
+
 c) Commit using conventional format
 d) IMPORTANT: NEVER include Claude code attribution or co-author tags
 e) Show commit hash

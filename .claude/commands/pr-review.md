@@ -54,34 +54,35 @@ Before implementing ANY suggestion:
 3. **Gather Context from ALL Available MCPs**:
 
    a) **Technology Documentation**:
-      - For Next.js suggestions: @mcp__context7__resolve-library-id libraryName="next.js" then @mcp__context7__get-library-docs
-      - For React patterns: @mcp__context7__resolve-library-id libraryName="react" then @mcp__context7__get-library-docs
-      - For Zod validation: @mcp__context7__resolve-library-id libraryName="zod" then @mcp__context7__get-library-docs
-      - For TypeScript: Use available documentation MCPs
-      - Verify the suggestion aligns with current best practices
+   - For Next.js suggestions: @mcp**context7**resolve-library-id libraryName="next.js" then @mcp**context7**get-library-docs
+   - For React patterns: @mcp**context7**resolve-library-id libraryName="react" then @mcp**context7**get-library-docs
+   - For Zod validation: @mcp**context7**resolve-library-id libraryName="zod" then @mcp**context7**get-library-docs
+   - For TypeScript: Use available documentation MCPs
+   - Verify the suggestion aligns with current best practices
 
    b) **Web Search for Context**:
-      - Use @mcp__brave-search__brave_web_search to verify if the suggestion is:
-        - A known best practice for our framework versions
-        - A deprecated pattern we should avoid
-        - A performance consideration worth implementing
+   - Use @mcp**brave-search**brave_web_search to verify if the suggestion is:
+     - A known best practice for our framework versions
+     - A deprecated pattern we should avoid
+     - A performance consideration worth implementing
 
    c) **Get second opinion with TYPE SAFETY FOCUS**:
-      ```text
-      @mcp__zen__thinkdeep model="pro" thinking_mode="high" prompt="
-      Comment: [paste]
-      File: [path] | Functionality: [from docs]
-      Current: [explain] | Suggested: [what they want]
-      Framework docs say: [findings from Context7]
-      Web search shows: [relevant findings]
-      Analyze: 
-      1) Does this improve type safety? 
-      2) Are there any type implications?
-      3) Would this introduce any `any` types or unsafe operations?
-      4) Better type-safe alternatives?
-      5) Edge cases and runtime safety?
-      6) Does this align with Next.js 15/React 19 best practices?"
-      ```
+
+   ```text
+   @mcp__zen__thinkdeep model="pro" thinking_mode="high" prompt="
+   Comment: [paste]
+   File: [path] | Functionality: [from docs]
+   Current: [explain] | Suggested: [what they want]
+   Framework docs say: [findings from Context7]
+   Web search shows: [relevant findings]
+   Analyze:
+   1) Does this improve type safety?
+   2) Are there any type implications?
+   3) Would this introduce any `any` types or unsafe operations?
+   4) Better type-safe alternatives?
+   5) Edge cases and runtime safety?
+   6) Does this align with Next.js 15/React 19 best practices?"
+   ```
 
 4. **Type Safety Checklist for PR changes:**
    - No new `any` types introduced
@@ -98,6 +99,7 @@ Before implementing ANY suggestion:
 Before starting the PR review process:
 
 1. **Run full validation to check for existing issues:**
+
    ```bash
    bun run validate
    ```
@@ -111,6 +113,7 @@ Before starting the PR review process:
    - `project/no-duplicate-types`: Use @type-flattener to consolidate duplicates
 
    **Resolution strategies:**
+
    ```typescript
    // BAD: const data = JSON.parse(input);
    // GOOD: const data: unknown = JSON.parse(input);
@@ -118,6 +121,7 @@ Before starting the PR review process:
    ```
 
 3. **Commit type safety fixes properly:**
+
    ```bash
    # Example: Fix type safety in specific file
    git add lib/bookmarks/service.server.ts
@@ -142,21 +146,23 @@ When fixing multiple issues:
 4. Move to next file and repeat
 
 **Type Safety Fix Examples:**
+
 ```bash
 # ✅ CORRECT - Type safety improvement
 git add lib/api/bookmarks/route.ts
 git commit -m "fix(api): add Zod validation for bookmark request body"
 
-# ✅ CORRECT - Unsafe operation fix  
+# ✅ CORRECT - Unsafe operation fix
 git add components/bookmarks/list.tsx
 git commit -m "fix(bookmarks): add null checks for array access with noUncheckedIndexedAccess"
 
 # ❌ WRONG - Generic or bypassing
-git add lib/utils/helpers.ts  
+git add lib/utils/helpers.ts
 git commit -m "fix: add ts-ignore to suppress error" # NEVER DO THIS
 ```
 
 **NEVER DO THIS:**
+
 ```bash
 # ❌ WRONG - Multiple files in one commit
 git add file1.ts file2.ts file3.ts && git commit -m "fix: various issues"
@@ -166,6 +172,7 @@ git add eslint.config.ts && git commit -m "fix: lint issues"
 ```
 
 **ALWAYS DO THIS:**
+
 ```bash
 # ✅ CORRECT - One file, specific message
 git add eslint.config.ts && git commit -m "fix(eslint): re-enable jsx-no-target-blank with allowReferrer"
@@ -216,7 +223,7 @@ else
   echo "PR has $TOTAL_THREADS threads, paginating through them..."
   UNRESOLVED_COUNT=0
   CURSOR=""
-  
+
   while true; do
     if [ -z "$CURSOR" ]; then
       # First page
@@ -257,17 +264,17 @@ else
         }
       }')
     fi
-    
+
     # Count unresolved in this page
     PAGE_UNRESOLVED=$(echo "$RESPONSE" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
     UNRESOLVED_COUNT=$((UNRESOLVED_COUNT + PAGE_UNRESOLVED))
-    
+
     # Check if more pages exist
     HAS_NEXT=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')
     if [ "$HAS_NEXT" = "false" ]; then
       break
     fi
-    
+
     # Get cursor for next page
     CURSOR=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')
   done
@@ -278,7 +285,7 @@ echo "Found $UNRESOLVED_COUNT unresolved comments"
 # STEP 3: If there are unresolved comments, fetch them with details
 if [ "$UNRESOLVED_COUNT" -gt 0 ]; then
   echo "Fetching details of $UNRESOLVED_COUNT unresolved comments..."
-  
+
   # Similar pagination logic for fetching full details
   if [ "$TOTAL_THREADS" -le 100 ]; then
     # Simple case
@@ -304,13 +311,13 @@ if [ "$UNRESOLVED_COUNT" -gt 0 ]; then
           }
         }
       }
-    }' | jq -r '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | 
+    }' | jq -r '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) |
     "---\nThread ID: \(.id)\nPath: \(.path // "general comment")\nLine: \(.line // "N/A")\nComment ID: \(.comments.nodes[0].databaseId)\nAuthor: \(.comments.nodes[0].author.login)\nFirst line: \(.comments.nodes[0].body | split("\n")[0])"'
   else
     # Complex case: paginate through all unresolved threads
     echo "Paginating through unresolved comments..."
     CURSOR=""
-    
+
     while true; do
       if [ -z "$CURSOR" ]; then
         # First page
@@ -371,22 +378,22 @@ if [ "$UNRESOLVED_COUNT" -gt 0 ]; then
           }
         }')
       fi
-      
+
       # Output unresolved comments from this page
-      echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | 
+      echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) |
       "---\nThread ID: \(.id)\nPath: \(.path // "general comment")\nLine: \(.line // "N/A")\nComment ID: \(.comments.nodes[0].databaseId)\nAuthor: \(.comments.nodes[0].author.login)\nFirst line: \(.comments.nodes[0].body | split("\n")[0])"'
-      
+
       # Check if more pages exist
       HAS_NEXT=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')
       if [ "$HAS_NEXT" = "false" ]; then
         break
       fi
-      
+
       # Get cursor for next page
       CURSOR=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')
     done
   fi
-  
+
   echo -e "\n✅ Above are all unresolved comments. Process each one individually."
 fi
 ```
@@ -401,11 +408,12 @@ fi
 **2. For each comment:**
 
 **PROCESSING WORKFLOW FOR EACH UNRESOLVED COMMENT**:
+
 ```bash
 # For EACH comment in the output:
 # 1. Extract these values:
 THREAD_ID="PRRT_..."      # From "Thread ID:" line
-FILE_PATH="path/to/file"  # From "Path:" line  
+FILE_PATH="path/to/file"  # From "Path:" line
 LINE_NUM="123"            # From "Line:" line
 COMMENT_ID="2148802948"   # From "Comment ID:" line (numeric!)
 
@@ -431,12 +439,14 @@ gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "'$THR
 **3. Reply to comment (REST API - see note):**
 
 First get the numeric comment ID from GraphQL output:
+
 ```bash
 # The GraphQL query returns both 'id' and 'databaseId'
 # Use the 'databaseId' value for REST API calls
 ```
 
 Then reply using the numeric databaseId:
+
 ```bash
 # Implemented:
 gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/[PR]/comments/[NUMERIC_DATABASE_ID]/replies \
@@ -452,6 +462,7 @@ gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/[PR]/comments/[NUMERIC
 **4. Resolve thread (GraphQL):**
 
 Use the thread ID (not comment ID) from the GraphQL output:
+
 ```bash
 # The thread ID starts with "PRRT_" (e.g., "PRRT_kwDONglMk85SSn9V")
 gh api graphql -f query='
@@ -485,6 +496,7 @@ mutation {
 ## 🤖 CRITICAL LLM INSTRUCTIONS
 
 **MANDATORY EXECUTION PATTERN**:
+
 ```bash
 1. RUN: UNRESOLVED_COUNT=$(gh api graphql -f query='...' | jq '[...] | length')
 2. READ: The numeric value of $UNRESOLVED_COUNT
@@ -495,7 +507,7 @@ mutation {
 **OUTPUT INTERPRETATION RULES**:
 
 - `Tool ran without output` → IGNORE THIS MESSAGE, run count check
-- Empty visual output → DOES NOT MEAN no comments, run count check  
+- Empty visual output → DOES NOT MEAN no comments, run count check
 - `$UNRESOLVED_COUNT = 0` → No unresolved comments (ONLY valid signal)
 - `$UNRESOLVED_COUNT > 0` → Unresolved comments EXIST, must process ALL
 
@@ -509,6 +521,7 @@ mutation {
 ## 📚 WORKING EXAMPLES
 
 **Get all unresolved comments with both IDs:**
+
 ```bash
 # First check total thread count
 TOTAL_THREADS=$(gh api graphql -f query='
@@ -555,6 +568,7 @@ fi
 ```
 
 **Get IDs for specific file:**
+
 ```bash
 # For a specific file's comments
 gh api graphql -f query='...' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.path == "lib/utils/api-sanitization.ts" and .isResolved == false)'

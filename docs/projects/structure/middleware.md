@@ -41,26 +41,26 @@ export const CSP_DIRECTIVES = {
     "'self'",
     "'unsafe-inline'",
     "'unsafe-eval'",
-    'https://umami.iocloudhost.net',
-    'https://plausible.iocloudhost.net',
-    'https://static.cloudflareinsights.com',
-    'https://*.sentry.io',
+    "https://umami.iocloudhost.net",
+    "https://plausible.iocloudhost.net",
+    "https://static.cloudflareinsights.com",
+    "https://*.sentry.io",
     // ... other allowed script sources
   ],
   connectSrc: [
     "'self'",
-    'https://umami.iocloudhost.net',
-    'https://plausible.iocloudhost.net',
-    'https://*.ingest.sentry.io',
+    "https://umami.iocloudhost.net",
+    "https://plausible.iocloudhost.net",
+    "https://*.ingest.sentry.io",
     // ... other allowed connect sources
   ],
-  imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
+  imgSrc: ["'self'", "data:", "https:", "blob:"],
   styleSrc: ["'self'", "'unsafe-inline'"],
-  fontSrc: ["'self'", 'data:'],
-  frameSrc: ['https://platform.twitter.com', 'https://*.x.com'],
+  fontSrc: ["'self'", "data:"],
+  frameSrc: ["https://platform.twitter.com", "https://*.x.com"],
   frameAncestors: ["'none'"],
   baseUri: ["'self'"],
-  formAction: ["'self'"]
+  formAction: ["'self'"],
 };
 ```
 
@@ -106,14 +106,14 @@ Cross-Origin Resource Sharing is configured with the following settings:
 
 ```typescript
 // Preflight response for OPTIONS requests
-if (request.method === 'OPTIONS') {
+if (request.method === "OPTIONS") {
   return new NextResponse(null, {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-refresh-secret',
-      'Access-Control-Max-Age': '86400',
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, x-refresh-secret",
+      "Access-Control-Max-Age": "86400",
     },
   });
 }

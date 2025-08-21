@@ -102,7 +102,7 @@ bookmarks/
         └── page-1.json
 ```
 
-Note: As of this update, all persisted bookmark arrays (bookmarks.json, pages/page-*.json, tags/[tag]/page-*.json)
+Note: As of this update, all persisted bookmark arrays (bookmarks.json, pages/page-_.json, tags/[tag]/page-_.json)
 embed a required `slug` field per item for idempotent internal routing. The centralized slug-mapping file
 (`slug-mapping*.json`) remains the source of truth and is still written for integrity checks and static
 param generation, but readers now prefer the embedded `slug` when present.
@@ -225,9 +225,9 @@ This consolidates deployment details for bookmarks data population and scheduler
   await saveSlugMapping(bookmarks, true, true);
   ```
 - Load fallback order:
-  1) Primary (env-specific)
-  2) All environment variants
-  3) Regenerate dynamically
+  1. Primary (env-specific)
+  2. All environment variants
+  3. Regenerate dynamically
 
 ### Manual Ops
 

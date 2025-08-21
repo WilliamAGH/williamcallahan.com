@@ -44,18 +44,18 @@ These operations only need metadata and can safely use `includeImageData: false`
 
 ```typescript
 // For UI display
-getCachedBookmarksWithSlugs() // request-cache.ts - MUST use includeImageData: true
-aggregateAllContent()         // aggregator.ts - MUST use includeImageData: true
+getCachedBookmarksWithSlugs(); // request-cache.ts - MUST use includeImageData: true
+aggregateAllContent(); // aggregator.ts - MUST use includeImageData: true
 ```
 
 #### Functions that can strip image data
 
 ```typescript
 // For slug generation only
-getCachedBookmarkSlugs()      // request-cache.ts - can use includeImageData: false
+getCachedBookmarkSlugs(); // request-cache.ts - can use includeImageData: false
 
 // For sitemap generation
-getBookmarksForStaticBuildAsync() // can strip images for memory efficiency
+getBookmarksForStaticBuildAsync(); // can strip images for memory efficiency
 ```
 
 ## Common Regression Pattern
@@ -90,8 +90,9 @@ Before changing any `includeImageData` parameter:
    - Build-time functions: Optimize for memory
 
 2. **Type safety**: Use TypeScript to enforce image data presence
+
    ```typescript
-   type BookmarkWithImages = UnifiedBookmark & { 
+   type BookmarkWithImages = UnifiedBookmark & {
      imageUrl: string | undefined;
      screenshot?: string;
    };

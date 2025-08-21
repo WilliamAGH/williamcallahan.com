@@ -258,7 +258,7 @@ export async function findLegacyLogoKey(
   const prefix = `${IMAGE_S3_PATHS.LOGOS_DIR}/`;
   const keys = await listS3Objects(prefix);
   return (
-    keys.find((key) => {
+    keys.find(key => {
       const parsed = parseS3Key(key);
       return parsed.type === "logo" && parsed.domain === domain && !parsed.hash;
     }) || null

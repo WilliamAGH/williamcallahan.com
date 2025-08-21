@@ -245,7 +245,11 @@ export async function getOpenGraphData(
 
     // Validate cached data integrity
     if (!cached.data.url || !cached.data.title || (cached.data.error && typeof cached.data.error !== "string")) {
-      envLogger.log("Cached data appears corrupted, invalidating cache", { url: normalizedUrl }, { category: "OpenGraph" });
+      envLogger.log(
+        "Cached data appears corrupted, invalidating cache",
+        { url: normalizedUrl },
+        { category: "OpenGraph" },
+      );
       ServerCacheInstance.deleteOpenGraphData(normalizedUrl);
       // Continue to S3/external fetch
     } else {
@@ -267,7 +271,7 @@ export async function getOpenGraphData(
   if (cached && !skipExternalFetch) {
     debug(`[DataAccess/OpenGraph] Using stale metadata cache while refreshing in background: ${normalizedUrl}`);
 
-    refreshOpenGraphData(normalizedUrl, idempotencyKey, validatedFallback).catch((error) => {
+    refreshOpenGraphData(normalizedUrl, idempotencyKey, validatedFallback).catch(error => {
       const ogError = new OgError(`Background refresh failed for ${normalizedUrl}`, "refresh", {
         originalError: error,
       });

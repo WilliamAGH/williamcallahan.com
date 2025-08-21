@@ -100,7 +100,7 @@ export function Experience({ data }: ExperienceProps): React.JSX.Element | null 
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-6">Experience</h2>
           <div className="space-y-6">
-            {data.map((item) => (
+            {data.map(item => (
               <ExperienceCardClient key={item.id} {...item} />
             ))}
           </div>

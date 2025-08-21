@@ -3,19 +3,19 @@
  *
  * Proxies asset requests to the external bookmarks service (Karakeep/Hoarder)
  * and caches OpenGraph images in S3 with proper file extensions for improved performance.
- * 
+ *
  * @module api/assets
- * 
+ *
  * Security measures:
  * - URL validation to prevent injection attacks
  * - Size limits (50MB) to prevent memory exhaustion
  * - Content-type validation for images only
- * 
+ *
  * Caching strategy:
  * - Check S3 for existing asset (with descriptive filename if context provided)
  * - Fetch from Karakeep if not in S3
  * - Save to S3 in background for future requests
- * 
+ *
  * @see {@link findAssetInS3} for S3 lookup logic
  * @see {@link saveAssetToS3} for S3 persistence logic
  */
@@ -32,7 +32,7 @@ import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
  * In-memory set to track ongoing S3 write operations.
  * Prevents duplicate concurrent writes for the same asset.
  * Keys are S3 object keys, automatically cleaned up after write completes.
- * 
+ *
  * NOTE: This could be replaced with S3 conditional puts (IfNoneMatch: "*")
  * for atomic operations at the storage level, which would work across
  * multiple server instances.
@@ -61,11 +61,11 @@ function getAssetBaseUrl(apiUrl: string): string {
 
 /**
  * Check if an asset exists in S3 and return its key if found.
- * 
+ *
  * Lookup strategy:
  * 1. If context provided: Try descriptive filename (domain-hash.ext)
  * 2. Fallback: Try UUID-based filename (assetId.ext)
- * 
+ *
  * @param assetId - Karakeep asset ID
  * @param context - Optional bookmark context for descriptive filenames
  * @param context.bookmarkId - Bookmark ID for hash generation
@@ -78,14 +78,14 @@ async function findAssetInS3(
     bookmarkId?: string;
     url?: string;
     domain?: string;
-  }
+  },
 ): Promise<{ key: string; contentType: string } | null> {
   if (!process.env.S3_BUCKET || !s3Client) {
     return null;
   }
 
   // Build list once from central IMAGE_EXTENSIONS
-  const extensions = IMAGE_EXTENSIONS.map((e) => `.${e}`);
+  const extensions = IMAGE_EXTENSIONS.map(e => `.${e}`);
 
   // First, try to find with descriptive filename if context is available
   if (context?.bookmarkId && context?.url) {
@@ -94,10 +94,10 @@ async function findAssetInS3(
     const { hashImageContent } = await import("@/lib/utils/opengraph-utils");
     const hash = hashImageContent(Buffer.from(`${context.url}:${context.bookmarkId}`)).substring(0, 8);
     const domain = new URL(context.url).hostname.replace(/^www\./, "").replace(/\./g, "-");
-    
+
     for (const ext of extensions) {
       const descriptiveKey = `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${domain}-${hash}${ext}`;
-      
+
       try {
         const command = new HeadObjectCommand({
           Bucket: process.env.S3_BUCKET,
@@ -175,14 +175,14 @@ async function streamFromS3(key: string, contentType: string): Promise<NextRespo
 
 /**
  * Save an asset to S3 with a descriptive filename when context is available.
- * 
+ *
  * Features:
  * - Generates descriptive filenames (domain-hash.ext) when context available
  * - Falls back to UUID-based names (assetId.ext) without context
  * - Uses centralized persistence for consistent ACL settings
  * - Performs content-based deduplication via S3 HEAD check
  * - Uses in-memory lock to prevent concurrent writes (see saveAssetToS3Atomic for S3-level alternative)
- * 
+ *
  * @param assetId - Karakeep asset ID
  * @param buffer - Image data to save
  * @param contentType - MIME type of the image
@@ -197,7 +197,7 @@ async function saveAssetToS3(
     bookmarkId?: string;
     url?: string;
     domain?: string;
-  }
+  },
 ): Promise<string> {
   if (!process.env.S3_BUCKET || !s3Client) {
     throw new Error("S3 not configured");
@@ -214,7 +214,7 @@ async function saveAssetToS3(
       IMAGE_S3_PATHS.OPENGRAPH_DIR,
       context.url,
       context.bookmarkId,
-      hashImageContent(buffer)
+      hashImageContent(buffer),
     );
   } else {
     // Fallback to simple assetId-based naming
@@ -266,19 +266,19 @@ async function saveAssetToS3(
 
 /**
  * GET /api/assets/[assetId] - Proxy endpoint for Karakeep/Hoarder assets.
- * 
+ *
  * Query parameters:
  * - bid: Bookmark ID for generating descriptive filenames
  * - url: Bookmark URL for domain extraction (validated for security)
  * - domain: Pre-extracted domain (optional optimization)
- * 
+ *
  * Response:
  * - 200: Image data with appropriate content-type
  * - 400: Invalid asset ID or parameters
  * - 404: Asset not found in Karakeep
  * - 502: Karakeep service error
  * - 504: Timeout fetching from Karakeep
- * 
+ *
  * @param request - Next.js request object with query parameters
  * @param params - Route parameters containing assetId
  * @returns Image response or error
@@ -288,7 +288,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   // Extract context from query parameters for descriptive S3 filenames
   const searchParams = request.nextUrl.searchParams;
-  
+
   // Validate URL parameter to prevent security issues
   let validatedUrl: string | undefined;
   const urlParam = searchParams.get("url");
@@ -303,7 +303,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       // Invalid URL, ignore it
     }
   }
-  
+
   const context = {
     bookmarkId: searchParams.get("bid") || undefined,
     url: validatedUrl,
@@ -468,7 +468,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         // Save to S3 in the background (don't block the response)
         // Only save if we're in data updater mode to avoid conflicts
         if (process.env.IS_DATA_UPDATER === "true") {
-          saveAssetToS3(assetId, buffer, contentType, context).catch((error) => {
+          saveAssetToS3(assetId, buffer, contentType, context).catch(error => {
             console.error(`[Assets API] Failed to save asset ${assetId} to S3:`, error);
           });
         }

@@ -10,7 +10,9 @@ coverImage: "/images/posts/jules-ai.png"
 ---
 
 <BackgroundInfo title="About Jules AI Agent">
-Jules is Google's autonomous coding agent, announced in public beta at [Google I/O 2025](https://blog.google/technology/ai/io-2025-keynote/). It runs tasks asynchronously in a secure Google Cloud virtual machine, understands your codebase context, and performs complex coding tasks from natural language prompts.
+  Jules is Google's autonomous coding agent, announced in public beta at [Google I/O
+  2025](https://blog.google/technology/ai/io-2025-keynote/). It runs tasks asynchronously in a secure Google Cloud
+  virtual machine, understands your codebase context, and performs complex coding tasks from natural language prompts.
 </BackgroundInfo>
 
 # Google's Jules: The Autonomous Coding Agent That Works While You Don't
@@ -55,6 +57,7 @@ Getting started with Jules is straightforward. You'll need to connect your GitHu
 </CollapseDropdown>
 
 Once connected, you can start assigning tasks to Jules using natural language prompts. For example, you might ask it to:
+
 - "Fix the failing tests in the authentication module"
 - "Update all dependencies to their latest versions"
 - "Implement a dark mode toggle for the UI"
@@ -73,7 +76,7 @@ Jules doesn't properly detect alternative package managers like pnpm and Bun aut
   <div className="mdx-tab-panel" data-tab="pnpm">
 
 ```bash
-set -ux 
+set -ux
 export CI=true
 cd /app
 
@@ -87,7 +90,7 @@ if [ -s "$NVM_DIR/nvm.sh" ]; then
 else
   echo "ERROR: NVM script not found"; exit 1
 fi
-set -e 
+set -e
 
 nvm install 22 && nvm use 22 && nvm alias default 22
 npm install -g pnpm@10
@@ -113,7 +116,7 @@ if [ -s "$NVM_DIR/nvm.sh" ]; then
 else
   echo "ERROR: NVM script not found"; exit 1
 fi
-set -e 
+set -e
 
 nvm install 22 && nvm use 22 && nvm alias default 22
 curl -fsSL https://bun.sh/install | bash
@@ -126,6 +129,7 @@ bun install
 </div>
 
 These scripts:
+
 - Install NVM (Node Version Manager)
 - Set up Node.js 22 (latest stable)
 - Install the latest version of your chosen package manager
@@ -156,7 +160,8 @@ When choosing between these tools, consider your specific workflow needs—such 
 During the public beta phase, Jules is available for free with some [usage limits](https://jules.google/docs/usage-limits/). According to Google, they expect to introduce pricing after the beta as the platform matures.
 
 <BackgroundInfo title="Privacy and Security">
-Jules is private by default and doesn't train on your private code. Your data stays isolated within the execution environment, addressing a common concern with AI coding tools.
+  Jules is private by default and doesn't train on your private code. Your data stays isolated within the execution
+  environment, addressing a common concern with AI coding tools.
 </BackgroundInfo>
 
 For comprehensive documentation on Jules, including detailed guides on running tasks, reviewing code diffs, and managing environments, visit the [official Jules documentation](https://jules.google/docs).

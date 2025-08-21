@@ -57,13 +57,13 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
 
         if (isTerminalCommandArray(parsedData)) {
           // Check if welcome message exists, add if not
-          const hasWelcome = parsedData.some((cmd) => cmd.id === INITIAL_WELCOME_MESSAGE.id);
+          const hasWelcome = parsedData.some(cmd => cmd.id === INITIAL_WELCOME_MESSAGE.id);
           let loadedHistory = hasWelcome ? parsedData : [INITIAL_WELCOME_MESSAGE, ...parsedData];
 
           // Trim history if it exceeds max size
           if (loadedHistory.length > MAX_HISTORY_SIZE) {
-            const welcomeMsg = loadedHistory.find((cmd) => cmd.id === INITIAL_WELCOME_MESSAGE.id);
-            const otherCommands = loadedHistory.filter((cmd) => cmd.id !== INITIAL_WELCOME_MESSAGE.id);
+            const welcomeMsg = loadedHistory.find(cmd => cmd.id === INITIAL_WELCOME_MESSAGE.id);
+            const otherCommands = loadedHistory.filter(cmd => cmd.id !== INITIAL_WELCOME_MESSAGE.id);
             const trimmedCommands = otherCommands.slice(-(MAX_HISTORY_SIZE - 1));
             loadedHistory = welcomeMsg ? [welcomeMsg, ...trimmedCommands] : trimmedCommands;
           }
@@ -116,7 +116,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
   const addToHistory = useCallback((command: TerminalCommand): void => {
     setHistory((prev: TerminalCommand[]): TerminalCommand[] => {
       // Check if this exact command already exists (by ID to prevent duplicates)
-      if (prev.some((cmd) => cmd.id === command.id)) {
+      if (prev.some(cmd => cmd.id === command.id)) {
         return prev; // Don't add duplicate
       }
 
@@ -129,7 +129,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
       ) {
         // Remove any existing "Found X results for" messages from history
         const filteredHistory = prev.filter(
-          (cmd) =>
+          cmd =>
             !(
               cmd.type === "text" &&
               cmd.output &&
@@ -141,8 +141,8 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
 
         // Apply size limit after filtering
         if (newHistory.length > MAX_HISTORY_SIZE) {
-          const welcomeMsg = newHistory.find((cmd) => cmd.id === INITIAL_WELCOME_MESSAGE.id);
-          const otherCommands = newHistory.filter((cmd) => cmd.id !== INITIAL_WELCOME_MESSAGE.id);
+          const welcomeMsg = newHistory.find(cmd => cmd.id === INITIAL_WELCOME_MESSAGE.id);
+          const otherCommands = newHistory.filter(cmd => cmd.id !== INITIAL_WELCOME_MESSAGE.id);
           const trimmedCommands = otherCommands.slice(-(MAX_HISTORY_SIZE - 1));
           return welcomeMsg ? [welcomeMsg, ...trimmedCommands] : trimmedCommands;
         }
@@ -153,8 +153,8 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
       // Keep only the most recent MAX_HISTORY_SIZE items
       if (newHistory.length > MAX_HISTORY_SIZE) {
         // Always keep the welcome message at index 0
-        const welcomeMsg = newHistory.find((cmd) => cmd.id === INITIAL_WELCOME_MESSAGE.id);
-        const otherCommands = newHistory.filter((cmd) => cmd.id !== INITIAL_WELCOME_MESSAGE.id);
+        const welcomeMsg = newHistory.find(cmd => cmd.id === INITIAL_WELCOME_MESSAGE.id);
+        const otherCommands = newHistory.filter(cmd => cmd.id !== INITIAL_WELCOME_MESSAGE.id);
         const trimmedCommands = otherCommands.slice(-(MAX_HISTORY_SIZE - 1));
         return welcomeMsg ? [welcomeMsg, ...trimmedCommands] : trimmedCommands;
       }
@@ -173,7 +173,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
   // Remove a specific command from history by ID
   const removeFromHistory = useCallback((commandId: string): void => {
     setHistory((prev: TerminalCommand[]): TerminalCommand[] => {
-      return prev.filter((cmd) => cmd.id !== commandId);
+      return prev.filter(cmd => cmd.id !== commandId);
     });
   }, []);
 

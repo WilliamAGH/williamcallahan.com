@@ -67,7 +67,7 @@ async function getCachedJsonS3<T>(
   safeCacheTag("s3-json");
   safeCacheTag(`s3-key-${s3Key.replace(/[^a-zA-Z0-9-]/g, "-")}`);
   const normalize = (t: string) => t.replace(/[^a-zA-Z0-9-]/g, "-");
-  tags.forEach((tag) => safeCacheTag(normalize(tag)));
+  tags.forEach(tag => safeCacheTag(normalize(tag)));
 
   return readJsonS3<T>(s3Key);
 }
@@ -156,5 +156,5 @@ export async function batchReadJsonS3Cached<T>(
     tags?: string[];
   } = {},
 ): Promise<(T | null)[]> {
-  return Promise.all(s3Keys.map((key) => readJsonS3Cached<T>(key, options)));
+  return Promise.all(s3Keys.map(key => readJsonS3Cached<T>(key, options)));
 }

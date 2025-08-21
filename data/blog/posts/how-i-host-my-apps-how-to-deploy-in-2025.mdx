@@ -9,7 +9,7 @@ tags: ["devops", "docker", "cloud", "startups"]
 coverImage: "/images/posts/cloudHostingOptionsRailwayFlyHetznerDigitalOcean.jpg"
 ---
 
-_Apologies for the AI image, ChatGPT images still struggle with spelling_  😉
+_Apologies for the AI image, ChatGPT images still struggle with spelling_ 😉
 
 When you're building a tech startup or app, the worst thing you can do is get stuck perfecting your hosting setup (I speak from painful experience!). Spend too much time fussing over it and you'll be left without a live product and pristine hosting. Get something up and running fast, then iterate as your needs grow.
 
@@ -18,6 +18,7 @@ I run both [aVenture.vc](https://aventure.vc) and this site [williamcallahan.com
 ## Get Live Fast – Start Simple
 
 For a lean startup, the easiest way to get a live deployment is to start with a managed app platform. They're cheap in the beginning, super easy to connect to a GitHub repo and get going right away. I recommend:
+
 - [Railway](https://railway.com?referralCode=8czykZ)
 - [Fly.io](https://fly.io)
 - [DigitalOcean App Platform](https://www.digitalocean.com/products/app-platform)
@@ -39,6 +40,7 @@ flyctl deploy
 Once you're live and need a bit more control, you can transition to using Docker containers on VMs. This is what I did for [aVenture.vc](https://aventure.vc). Using a simple `Dockerfile` or `docker-compose.yml` setup means you're not locked in:
 
 Consider these options when you need dedicated VMs:
+
 - [Coolify](https://coolify.io) – free open source software layer for managing easy self-hosting and your Docker containers
 - [Oracle Cloud Free Tier](https://www.oracle.com/cloud/free/) – free ARM Linux VMs and more, this is worth several thousand dollars a year alone perpetually
 - [Hetzner](https://www.hetzner.com) – European-based, but extremely cost effective equivalent to [DigitalOcean](https://digitalocean.com) (which is also great!) with Oregon (US-West) and Virginia (US-East) data centers available

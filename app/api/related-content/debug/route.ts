@@ -35,10 +35,10 @@ export async function GET(request: NextRequest) {
     const allContent = await aggregateAllContent();
 
     // Filter out the source item
-    const candidates = allContent.filter((item) => !(item.type === sourceType && item.id === sourceId));
+    const candidates = allContent.filter(item => !(item.type === sourceType && item.id === sourceId));
 
     // Calculate similarity for ALL items with detailed breakdown
-    const scoredItems = candidates.map((candidate) => {
+    const scoredItems = candidates.map(candidate => {
       const { total, breakdown } = calculateSimilarity(source, candidate, DEFAULT_WEIGHTS);
       return {
         type: candidate.type,
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
         score: total,
         breakdown,
         // Show what matched
-        matchedTags: source.tags.filter((tag) => candidate.tags.some((t) => t.toLowerCase() === tag.toLowerCase())),
+        matchedTags: source.tags.filter(tag => candidate.tags.some(t => t.toLowerCase() === tag.toLowerCase())),
       };
     });
 
@@ -58,14 +58,14 @@ export async function GET(request: NextRequest) {
 
     // Group by content type
     const byType = {
-      bookmark: sorted.filter((i) => i.type === "bookmark").slice(0, limit),
-      blog: sorted.filter((i) => i.type === "blog").slice(0, limit),
-      investment: sorted.filter((i) => i.type === "investment").slice(0, limit),
-      project: sorted.filter((i) => i.type === "project").slice(0, limit),
+      bookmark: sorted.filter(i => i.type === "bookmark").slice(0, limit),
+      blog: sorted.filter(i => i.type === "blog").slice(0, limit),
+      investment: sorted.filter(i => i.type === "investment").slice(0, limit),
+      project: sorted.filter(i => i.type === "project").slice(0, limit),
     };
 
     // Find top cross-content matches (different types only)
-    const crossContent = sorted.filter((i) => i.type !== sourceType).slice(0, limit);
+    const crossContent = sorted.filter(i => i.type !== sourceType).slice(0, limit);
 
     return NextResponse.json({
       source: {
@@ -79,10 +79,10 @@ export async function GET(request: NextRequest) {
       statistics: {
         totalCandidates: candidates.length,
         byType: {
-          bookmarks: candidates.filter((i) => i.type === "bookmark").length,
-          blogs: candidates.filter((i) => i.type === "blog").length,
-          investments: candidates.filter((i) => i.type === "investment").length,
-          projects: candidates.filter((i) => i.type === "project").length,
+          bookmarks: candidates.filter(i => i.type === "bookmark").length,
+          blogs: candidates.filter(i => i.type === "blog").length,
+          investments: candidates.filter(i => i.type === "investment").length,
+          projects: candidates.filter(i => i.type === "project").length,
         },
         topScores: {
           overall: sorted[0]?.score || 0,

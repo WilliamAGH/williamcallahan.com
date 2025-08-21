@@ -244,7 +244,7 @@ export class DataFetchManager {
           },
         });
 
-        const successCount = Array.from(results.values()).filter((r) => !r.error).length;
+        const successCount = Array.from(results.values()).filter(r => !r.error).length;
         const failureCount = results.size - successCount;
 
         const duration = (Date.now() - startTime) / 1000;
@@ -406,9 +406,9 @@ export class DataFetchManager {
         )} (size: ${batch.length})`,
       );
 
-      const promises = batch.map((domain) =>
+      const promises = batch.map(domain =>
         getLogo(domain)
-          .then((result) => {
+          .then(result => {
             if (result && !result.error) {
               successCount++;
             } else {
@@ -423,7 +423,7 @@ export class DataFetchManager {
       await Promise.all(promises);
 
       if (i + batchConfig.size < domains.length) {
-        await new Promise((resolve) => setTimeout(resolve, batchConfig.delay));
+        await new Promise(resolve => setTimeout(resolve, batchConfig.delay));
       }
     }
 
@@ -643,7 +643,7 @@ export class DataFetchManager {
    */
   private createImageManifest(s3Keys: string[]): string[] {
     const cdnBase = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
-    return s3Keys.map((key) => `${cdnBase}/${key}`);
+    return s3Keys.map(key => `${cdnBase}/${key}`);
   }
 
   private async runContentGraphBuild(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
@@ -675,7 +675,7 @@ if (require.main === module) {
     config.forceRefresh = true;
   }
 
-  const testLimitArg = args.find((arg) => arg.startsWith("--testLimit="));
+  const testLimitArg = args.find(arg => arg.startsWith("--testLimit="));
   if (testLimitArg) {
     const limitStr = testLimitArg.split("=")[1];
     if (limitStr) {
@@ -691,9 +691,9 @@ if (require.main === module) {
 
   manager
     .fetchData(config)
-    .then((results) => {
+    .then(results => {
       logger.info(`[DataFetchManagerCLI] All tasks complete. Results count: ${results.length}`);
-      results.forEach((result) => {
+      results.forEach(result => {
         if (result.success) {
           logger.info(`  - ${result.operation}: Success (${result.itemsProcessed} items)`);
         } else {

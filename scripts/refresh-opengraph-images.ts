@@ -22,7 +22,7 @@ import { BOOKMARKS_API_CONFIG } from "@/lib/constants";
  * @returns Promise that resolves to either the result or timeout value
  */
 async function processWithTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutValue: T): Promise<T> {
-  const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(timeoutValue), timeoutMs));
+  const timeout = new Promise<T>(resolve => setTimeout(() => resolve(timeoutValue), timeoutMs));
   return Promise.race([promise, timeout]);
 }
 
@@ -57,7 +57,7 @@ async function refreshAllOpenGraphImages() {
       console.log(`\nProcessing batch ${batchNumber}/${totalBatches} (${batch.length} items)`);
 
       // Process batch items in parallel with timeout protection
-      const batchPromises = batch.map(async (bookmark) => {
+      const batchPromises = batch.map(async bookmark => {
         processedCount++;
         const itemNumber = processedCount;
 
@@ -132,7 +132,7 @@ async function refreshAllOpenGraphImages() {
 
       // Add a small delay between batches to prevent overwhelming services
       if (i + BATCH_SIZE < bookmarks.length) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
 

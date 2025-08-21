@@ -231,7 +231,7 @@ function getSchemaOrgData(includeDebug = false): string {
     }
 
     // Collect all JSON-LD data from scripts
-    const schemas: unknown[] = Array.from(scripts).map((script) => {
+    const schemas: unknown[] = Array.from(scripts).map(script => {
       try {
         return JSON.parse(script.textContent ?? "{}") as unknown; // Explicitly cast to unknown
       } catch (err: unknown) {
@@ -246,7 +246,7 @@ function getSchemaOrgData(includeDebug = false): string {
     const ogMetaElements = document.querySelectorAll<HTMLMetaElement>('meta[property^="og:"], meta[name^="og:"]');
 
     const ogMetadata: Record<string, string> = {};
-    ogMetaElements.forEach((meta) => {
+    ogMetaElements.forEach(meta => {
       const key = meta.getAttribute("property") ?? meta.getAttribute("name");
       const value = meta.getAttribute("content") ?? "";
       if (key && value) {
@@ -482,7 +482,7 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
         console.log(
           `[Terminal Search] Sample result titles: ${allResults
             .slice(0, 3)
-            .map((r) => r.label ?? "Untitled")
+            .map(r => r.label ?? "Untitled")
             .join(", ")}`,
         );
       }

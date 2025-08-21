@@ -337,7 +337,7 @@ export async function persistImageAndGetS3Url(
     console.log(`[OpenGraph S3] Read-only mode - skipping image persistence`);
     return null;
   }
-  
+
   const displayUrl = imageUrl.startsWith("data:") ? `${imageUrl.substring(0, 50)}...[base64 data truncated]` : imageUrl;
 
   console.log(`[OpenGraph S3] 🔄 Persisting image synchronously: ${displayUrl}`);
@@ -499,7 +499,7 @@ export async function persistImageBufferToS3(
     console.log(`[OpenGraph S3] Read-only mode - skipping Karakeep asset persistence for ${assetId}`);
     return null;
   }
-  
+
   try {
     console.log(`[OpenGraph S3] 🔄 Processing Karakeep asset buffer: ${assetId} (${imageBuffer.length} bytes)`);
 

@@ -34,20 +34,18 @@ export function BlogTagsExpandable({ tags, interactive = false }: BlogTagsPropsE
     transition-colors
   `;
 
-  const interactiveClass = interactive 
-    ? "hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer" 
-    : "";
+  const interactiveClass = interactive ? "hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer" : "";
 
   // Simple approach: show first 5 tags, then allow expansion
   // But if there's only 1 extra tag (6 total), just show all 6 instead of a button
   const maxVisibleTags = 5;
   const hasMore = tags.length > maxVisibleTags + 1; // Only show button if 2+ tags are hidden
-  const displayTags = isExpanded ? tags : (hasMore ? tags.slice(0, maxVisibleTags) : tags);
+  const displayTags = isExpanded ? tags : hasMore ? tags.slice(0, maxVisibleTags) : tags;
 
   return (
     <div className="mb-4">
       <div className="flex flex-wrap gap-2">
-        {displayTags.map((tag) => (
+        {displayTags.map(tag => (
           <TagWrapper
             key={tag}
             href={interactive ? `/blog/tags/${kebabCase(tag)}` : undefined}
@@ -57,12 +55,12 @@ export function BlogTagsExpandable({ tags, interactive = false }: BlogTagsPropsE
             {tag}
           </TagWrapper>
         ))}
-        
+
         {/* See More/Less Button */}
         {hasMore && (
           <button
             type="button"
-            onClick={(e) => {
+            onClick={e => {
               e.preventDefault();
               e.stopPropagation();
               setIsExpanded(!isExpanded);
@@ -82,8 +80,7 @@ export function BlogTagsExpandable({ tags, interactive = false }: BlogTagsPropsE
               </>
             ) : (
               <>
-                <ChevronDown className="w-3 h-3 mr-1" />
-                +{tags.length - maxVisibleTags} more
+                <ChevronDown className="w-3 h-3 mr-1" />+{tags.length - maxVisibleTags} more
               </>
             )}
           </button>

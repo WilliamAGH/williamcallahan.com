@@ -17,16 +17,16 @@ async function checkS3Freshness() {
     // Check main bookmarks file
     console.log("1. CHECKING MAIN BOOKMARKS FILE:");
     console.log(`   Path: ${BOOKMARKS_S3_PATHS.FILE}`);
-    
+
     const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
-    
+
     if (!bookmarks || !Array.isArray(bookmarks)) {
       console.log("   ❌ No bookmarks found or invalid format");
       return;
     }
 
     console.log(`   ✅ Found ${bookmarks.length} bookmarks`);
-    
+
     // Analyze bookmark dates - use dateBookmarked or dateCreated
     const dates = bookmarks
       .map(b => b.dateBookmarked || b.dateCreated || b.modifiedAt)
@@ -37,24 +37,24 @@ async function checkS3Freshness() {
       })
       .filter((d): d is Date => d !== null)
       .sort((a, b) => b.getTime() - a.getTime());
-    
+
     if (dates.length > 0) {
       const now = new Date();
       const newestDate = dates[0];
       const oldestDate = dates[dates.length - 1];
-      
+
       if (newestDate && oldestDate) {
         const daysSinceNewest = (now.getTime() - newestDate.getTime()) / (1000 * 60 * 60 * 24);
-        
+
         console.log(`   📅 Newest bookmark: ${newestDate.toISOString()} (${daysSinceNewest.toFixed(1)} days ago)`);
         console.log(`   📅 Oldest bookmark: ${oldestDate.toISOString()}`);
       }
-      
+
       // Check distribution
-      const last24h = dates.filter(d => (now.getTime() - d.getTime()) < 24 * 60 * 60 * 1000).length;
-      const last7d = dates.filter(d => (now.getTime() - d.getTime()) < 7 * 24 * 60 * 60 * 1000).length;
-      const last30d = dates.filter(d => (now.getTime() - d.getTime()) < 30 * 24 * 60 * 60 * 1000).length;
-      
+      const last24h = dates.filter(d => now.getTime() - d.getTime() < 24 * 60 * 60 * 1000).length;
+      const last7d = dates.filter(d => now.getTime() - d.getTime() < 7 * 24 * 60 * 60 * 1000).length;
+      const last30d = dates.filter(d => now.getTime() - d.getTime() < 30 * 24 * 60 * 60 * 1000).length;
+
       console.log("");
       console.log("2. BOOKMARK AGE DISTRIBUTION:");
       console.log(`   Last 24 hours: ${last24h} bookmarks`);
@@ -76,7 +76,7 @@ async function checkS3Freshness() {
           const minsSinceHeartbeat = (Date.now() - heartbeatDate.getTime()) / (1000 * 60);
           console.log(`   📍 Last heartbeat: ${heartbeat.timestamp} (${minsSinceHeartbeat.toFixed(1)} minutes ago)`);
           console.log(`   📊 Bookmark count at heartbeat: ${heartbeat.count}`);
-          
+
           if (minsSinceHeartbeat > 120) {
             console.log("   ⚠️  WARNING: Heartbeat is older than 2 hours - scheduler may not be running!");
           }
@@ -100,7 +100,7 @@ async function checkS3Freshness() {
         } else {
           const minsSinceLock = (Date.now() - lockDate.getTime()) / (1000 * 60);
           console.log(`   🔒 Lock timestamp: ${lock.timestamp} (${minsSinceLock.toFixed(1)} minutes ago)`);
-          
+
           if (minsSinceLock < 5) {
             console.log("   ⚠️  WARNING: Active lock - refresh might be in progress");
           } else if (minsSinceLock < 60) {
@@ -127,7 +127,6 @@ async function checkS3Freshness() {
         console.log(`       Has image: ❌`);
       }
     });
-
   } catch (error) {
     console.error("ERROR:", error);
   }

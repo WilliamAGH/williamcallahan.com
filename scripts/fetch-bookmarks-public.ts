@@ -2,10 +2,10 @@
 
 /**
  * Fetch Bookmarks from Public S3 CDN
- * 
+ *
  * This script fetches bookmark data from the public S3 CDN URL without requiring
  * AWS credentials. Used during Docker build to populate data for sitemap generation.
- * 
+ *
  * CRITICAL: This enables sitemap generation without exposing S3 credentials in build.
  * @see https://github.com/williamcallahan/williamcallahan.com/issues/sitemap-2024
  */
@@ -24,11 +24,7 @@ if (!CDN_URL) {
 
 // Determine environment suffix for S3 paths
 // production = no suffix, development = "-dev", test = "-test"
-const envSuffix = DEPLOYMENT_ENV === "development" 
-  ? "-dev" 
-  : DEPLOYMENT_ENV === "test" 
-    ? "-test" 
-    : "";
+const envSuffix = DEPLOYMENT_ENV === "development" ? "-dev" : DEPLOYMENT_ENV === "test" ? "-test" : "";
 
 // S3 paths to fetch
 const BOOKMARKS_PATHS = {
@@ -40,7 +36,7 @@ const BOOKMARKS_PATHS = {
 // Local paths to save fetched data
 const LOCAL_PATHS = {
   BOOKMARKS: "lib/data/bookmarks.json",
-  INDEX: "lib/data/bookmarks-index.json", 
+  INDEX: "lib/data/bookmarks-index.json",
   SLUG_MAPPING: "lib/data/slug-mapping.json",
 };
 
@@ -50,13 +46,13 @@ const LOCAL_PATHS = {
 async function fetchFromCDN(path: string): Promise<unknown> {
   const url = `${CDN_URL.replace(/\/+$/, "")}/${path}`;
   console.log(`📥 Fetching: ${url}`);
-  
+
   try {
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-    
+
     // Verify we got JSON content-type (not HTML error pages)
     const contentType = response.headers.get("content-type");
     if (!contentType?.includes("application/json")) {
@@ -67,7 +63,7 @@ async function fetchFromCDN(path: string): Promise<unknown> {
       console.error(`   Response preview: ${preview}`);
       return null;
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error(`❌ Failed to fetch ${path}:`, error);
@@ -81,10 +77,10 @@ async function fetchFromCDN(path: string): Promise<unknown> {
 function saveToFile(filePath: string, data: unknown): void {
   const fullPath = join(process.cwd(), filePath);
   const dir = dirname(fullPath);
-  
+
   // Ensure directory exists
   mkdirSync(dir, { recursive: true });
-  
+
   // Write file
   writeFileSync(fullPath, JSON.stringify(data, null, 2));
   console.log(`✅ Saved to: ${filePath}`);
@@ -97,10 +93,10 @@ async function main() {
   console.log("🚀 Fetching bookmark data from public S3 CDN...");
   console.log(`   CDN URL: ${CDN_URL}`);
   console.log(`   Environment: ${DEPLOYMENT_ENV}`);
-  
+
   let successCount = 0;
   let failureCount = 0;
-  
+
   // Fetch bookmarks file
   const bookmarks = await fetchFromCDN(BOOKMARKS_PATHS.FILE);
   if (bookmarks) {
@@ -114,7 +110,7 @@ async function main() {
     // Create empty file to prevent build errors
     saveToFile(LOCAL_PATHS.BOOKMARKS, []);
   }
-  
+
   // Fetch index file
   const index = await fetchFromCDN(BOOKMARKS_PATHS.INDEX);
   if (index) {
@@ -132,7 +128,7 @@ async function main() {
     // Create minimal index fallback to prevent missing-file errors
     saveToFile(LOCAL_PATHS.INDEX, { lastFetchedAt: 0 });
   }
-  
+
   // Fetch slug mapping (CRITICAL for sitemap generation)
   const slugMapping = await fetchFromCDN(BOOKMARKS_PATHS.SLUG_MAPPING);
   if (slugMapping) {
@@ -164,7 +160,7 @@ async function main() {
       slugs: {},
     });
   }
-  
+
   // Summary
   console.log("\n📊 Summary:");
   console.log(`   ✅ Success: ${successCount}/3 files`);
@@ -172,14 +168,14 @@ async function main() {
     console.log(`   ⚠️  Failed: ${failureCount}/3 files`);
     console.log(`   Note: Sitemap may be incomplete without bookmark data`);
   }
-  
+
   // Exit with appropriate code
   process.exit(failureCount > 0 ? 1 : 0);
 }
 
 // Run if executed directly
 if (import.meta.main) {
-  main().catch((error) => {
+  main().catch(error => {
     console.error("❌ Fatal error:", error);
     process.exit(1);
   });

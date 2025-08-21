@@ -47,7 +47,7 @@ const filterComments = (text: string): string => {
   if (typeof text !== "string") return "";
   return text
     .split("\n")
-    .filter((line) => !line.trim().startsWith("#"))
+    .filter(line => !line.trim().startsWith("#"))
     .join("\n")
     .trim();
 };
@@ -112,14 +112,14 @@ export const CodeBlock = ({
    * Handler function for close button - toggles visibility
    */
   const handleClose = () => {
-    setIsVisible((prev) => !prev); // Toggle visibility
+    setIsVisible(prev => !prev); // Toggle visibility
   };
 
   /**
    * Handler function for minimize button - toggles minimized state
    */
   const handleMinimize = () => {
-    setIsMinimized((prev) => !prev);
+    setIsMinimized(prev => !prev);
     if (isMaximized) setIsMaximized(false); // Exit maximized mode if active
   };
 
@@ -128,7 +128,7 @@ export const CodeBlock = ({
    * Wrapped in useCallback to prevent recreation on each render
    */
   const handleMaximize = useCallback(() => {
-    setIsMaximized((prev) => !prev);
+    setIsMaximized(prev => !prev);
     if (isMinimized) setIsMinimized(false); // Exit minimized mode if active
   }, [isMinimized]); // Add dependencies
 

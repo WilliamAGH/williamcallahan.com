@@ -224,7 +224,7 @@ export async function retryWithOptions<T>(operation: () => Promise<T>, options: 
         debugLog(`[Retry] Retrying operation after ${backoff}ms delay...`, "info");
       }
 
-      await new Promise((resolve) => setTimeout(resolve, backoff));
+      await new Promise(resolve => setTimeout(resolve, backoff));
     }
   }
 
@@ -258,7 +258,7 @@ export async function retryWithThrow<T>(operation: () => Promise<T>, options: Re
  * @returns Promise that resolves after the specified delay
  */
 export async function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**

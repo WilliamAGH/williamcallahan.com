@@ -2,11 +2,11 @@
 
 /**
  * Background Data Populator
- * 
+ *
  * Monitors for initial data population needs and runs data updates
  * in the background after the server has started. This prevents blocking
  * the server startup with S3 operations.
- * 
+ *
  * @module scripts/background-data-populator
  */
 
@@ -24,7 +24,7 @@ const INITIAL_DELAY = 30000; // Wait 30 seconds after server start
 async function runDataUpdater(): Promise<void> {
   return new Promise((resolve, reject) => {
     logger.info("[BackgroundPopulator] Starting data updater process...");
-    
+
     // Spawn the data updater as a child process
     const child = spawn("bun", ["scripts/data-updater.ts"], {
       env: {
@@ -36,7 +36,7 @@ async function runDataUpdater(): Promise<void> {
 
     let stderr = "";
 
-    child.stdout?.on("data", (data) => {
+    child.stdout?.on("data", data => {
       const output = data.toString();
       // Log important lines in real-time
       if (output.includes("✅") || output.includes("❌") || output.includes("Summary")) {
@@ -44,13 +44,13 @@ async function runDataUpdater(): Promise<void> {
       }
     });
 
-    child.stderr?.on("data", (data) => {
+    child.stderr?.on("data", data => {
       const output = data.toString();
       stderr += output;
       console.error(`[DataUpdater ERROR] ${output.trim()}`);
     });
 
-    child.on("close", (code) => {
+    child.on("close", code => {
       if (code === 0) {
         logger.info("[BackgroundPopulator] Data updater completed successfully");
         resolve();
@@ -63,7 +63,7 @@ async function runDataUpdater(): Promise<void> {
       }
     });
 
-    child.on("error", (error) => {
+    child.on("error", error => {
       logger.error("[BackgroundPopulator] Failed to start data updater:", error);
       reject(error);
     });
@@ -79,15 +79,15 @@ async function checkAndPopulate(): Promise<void> {
   }
 
   logger.info("[BackgroundPopulator] Marker file detected - initial data population needed");
-  
+
   try {
     // Remove the marker file immediately to prevent duplicate runs
     unlinkSync(MARKER_FILE);
     logger.info("[BackgroundPopulator] Removed marker file");
-    
+
     // Run the data updater
     await runDataUpdater();
-    
+
     logger.info("[BackgroundPopulator] Initial data population completed");
   } catch (error) {
     logger.error("[BackgroundPopulator] Failed to populate initial data:", error);
@@ -102,27 +102,27 @@ async function checkAndPopulate(): Promise<void> {
 async function main(): Promise<void> {
   logger.info("[BackgroundPopulator] Background data populator started");
   logger.info(`[BackgroundPopulator] Waiting ${INITIAL_DELAY / 1000}s for server to stabilize...`);
-  
+
   // Wait for server to fully start and stabilize
   await new Promise(resolve => setTimeout(resolve, INITIAL_DELAY));
-  
+
   logger.info("[BackgroundPopulator] Beginning monitoring for data population needs");
-  
+
   // Check immediately
   await checkAndPopulate();
-  
+
   // Then check periodically (in case the marker file is created later)
   const interval = setInterval(async () => {
     await checkAndPopulate();
   }, CHECK_INTERVAL);
-  
+
   // Handle graceful shutdown
   process.on("SIGTERM", () => {
     logger.info("[BackgroundPopulator] Received SIGTERM, shutting down");
     clearInterval(interval);
     process.exit(0);
   });
-  
+
   process.on("SIGINT", () => {
     logger.info("[BackgroundPopulator] Received SIGINT, shutting down");
     clearInterval(interval);
@@ -132,7 +132,7 @@ async function main(): Promise<void> {
 
 // Start the monitoring if run directly
 if (import.meta.main) {
-  main().catch((error) => {
+  main().catch(error => {
     logger.error("[BackgroundPopulator] Fatal error:", error);
     process.exit(1);
   });

@@ -11,9 +11,8 @@
 
 import { refreshGitHubActivityDataFromApi, invalidateGitHubCache } from "@/lib/data-access/github";
 import { TIME_CONSTANTS } from "@/lib/constants";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { revalidateTag } from "next/cache";
-import type { NextRequest } from "next/server";
 import { incrementAndPersist, loadRateLimitStoreFromS3 } from "@/lib/rate-limiter";
 import { envLogger } from "@/lib/utils/env-logger";
 
@@ -84,11 +83,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const token = authorizationHeader.substring(7); // Remove "Bearer " prefix
     if (token === cronRefreshSecret) {
       isCronJob = true;
-      envLogger.log(
-        "Authenticated as cron job via GITHUB_CRON_REFRESH_SECRET",
-        undefined,
-        { category: "GitHubActivityRefresh" },
-      );
+      envLogger.log("Authenticated as cron job via GITHUB_CRON_REFRESH_SECRET", undefined, {
+        category: "GitHubActivityRefresh",
+      });
     }
   }
 
@@ -135,9 +132,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Skip x-refresh-secret check if authenticated as cron job
   if (!isCronJob) {
     // Allow unauthenticated refresh in non-production environments
-    const isProduction = process.env.DEPLOYMENT_ENV === "production" || 
-                        process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
-    
+    const isProduction =
+      process.env.DEPLOYMENT_ENV === "production" || process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
+
     if (!isProduction) {
       envLogger.log(
         "Allowing unauthenticated refresh in non-production environment",

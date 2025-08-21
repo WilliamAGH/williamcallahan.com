@@ -8,18 +8,18 @@ a) Run: bun run validate
 
 - If ANY linting errors, warnings, or issues exist, fix them ALL first
 - Use @full-lint command if needed
-b) Run: bun run test
+  b) Run: bun run test
 - If ANY tests fail, fix them ALL first
 - Ensure 100% test pass rate
-c) Only proceed once both commands report ZERO issues
+  c) Only proceed once both commands report ZERO issues
 
 STEP 1: Scope Definition & Context Gathering
 a) If type file/domain provided in $ARGUMENTS:
 
 - Identify the specific type file(s) to focus on
-- Use Grep to find ALL related type definitions across types/ and *.d.ts files
+- Use Grep to find ALL related type definitions across types/ and \*.d.ts files
 - Search for similar/related naming patterns (e.g., "Bookmark", "BookmarkType", "IBookmark")
-b) If no arguments provided:
+  b) If no arguments provided:
 - Scan entire types/ directory recursively
 - Create comprehensive inventory of all type definitions
 
@@ -28,7 +28,7 @@ For each type domain being analyzed:
 a) Read docs/projects/structure/00-architecture-entrypoint.md to understand overall architecture
 b) Find related functionality documentation in docs/projects/structure/<functionality>.md
 c) Read any associated .mmd Mermaid diagrams for data flow understanding
-d) Use @mcp__zen__analyze with model="pro" on documentation to understand:
+d) Use @mcp**zen**analyze with model="pro" on documentation to understand:
 
 - The intended purpose of each type
 - Relationships between types
@@ -40,24 +40,24 @@ Use ALL available MCP tools for comprehensive analysis:
 a) **Gather TypeScript Best Practices**:
 
 - Use available TypeScript documentation MCPs for v5.x patterns
-- @mcp__context7__resolve-library-id libraryName="typescript" then @mcp__context7__get-library-docs topic="types"
-- @mcp__brave-search__brave_web_search for "TypeScript 5 type organization best practices"
+- @mcp**context7**resolve-library-id libraryName="typescript" then @mcp**context7**get-library-docs topic="types"
+- @mcp**brave-search**brave_web_search for "TypeScript 5 type organization best practices"
 - Understand current patterns for type exports and organization
 
 b) **Framework-Specific Type Patterns**:
 
-- Next.js 15 types: @mcp__context7__resolve-library-id libraryName="next.js" then @mcp__context7__get-library-docs topic="typescript"
-- React 19 types: @mcp__context7__resolve-library-id libraryName="react" then @mcp__context7__get-library-docs topic="typescript"
-- Zod 4 integration: @mcp__context7__resolve-library-id libraryName="zod" then @mcp__context7__get-library-docs
+- Next.js 15 types: @mcp**context7**resolve-library-id libraryName="next.js" then @mcp**context7**get-library-docs topic="typescript"
+- React 19 types: @mcp**context7**resolve-library-id libraryName="react" then @mcp**context7**get-library-docs topic="typescript"
+- Zod 4 integration: @mcp**context7**resolve-library-id libraryName="zod" then @mcp**context7**get-library-docs
 
 c) **Deep Analysis with Context**:
-   Use @mcp__zen__thinkdeep with model="pro" and thinking_mode="max" including:
+Use @mcp**zen**thinkdeep with model="pro" and thinking_mode="max" including:
 
 - All type definitions found
 - Framework documentation insights
 - Best practices from web search
 
-   Analyze for:
+  Analyze for:
 
 - List all type definitions found
 - Identify potential duplicates by analyzing:
@@ -82,8 +82,8 @@ b) Create detailed usage map:
 - API routes using the type
 - Utility functions using the type
 - Test files using the type
-c) Document the exact import statements and usage patterns
-d) Use TodoWrite to create a mapping task for each consumer
+  c) Document the exact import statements and usage patterns
+  d) Use TodoWrite to create a mapping task for each consumer
 
 STEP 5: Zod Schema Analysis
 For types that could benefit from runtime validation:
@@ -100,8 +100,8 @@ b) For each duplicate to be removed:
 - List ALL files that need import updates
 - Specify exact changes needed
 - Order changes to avoid breaking imports
-c) Include Zod schema updates in the plan
-d) Flag any breaking changes that might affect:
+  c) Include Zod schema updates in the plan
+  d) Flag any breaking changes that might affect:
 - API contracts
 - External consumers
 - Test expectations
@@ -115,7 +115,7 @@ b) For each consumer file:
 - Use Edit/MultiEdit to update imports
 - Update any type annotations
 - Ensure no type errors introduced
-c) After updating ALL consumers of a duplicate type:
+  c) After updating ALL consumers of a duplicate type:
 - Run: bun run validate
 - Fix any new issues immediately
 - Only then mark the task as completed
@@ -152,12 +152,12 @@ After ALL changes:
 a) Run: bun run validate
 
 - Must show ZERO errors, warnings, or issues
-b) Run: bun run test
+  b) Run: bun run test
 - Must show 100% test pass rate
-c) If ANY issues, fix them before proceeding
+  c) If ANY issues, fix them before proceeding
 
 STEP 13: Final Verification with Deep Analysis
-Use @mcp__zen__codereview with model="pro" and review_type="full" on:
+Use @mcp**zen**codereview with model="pro" and review_type="full" on:
 a) All modified type files
 b) A sample of consumer files
 c) Any new Zod schemas

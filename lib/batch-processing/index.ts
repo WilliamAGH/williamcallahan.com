@@ -70,7 +70,7 @@ export class BatchProcessor<T, R> {
       const batch = items.slice(i, Math.min(i + batchSize, items.length));
 
       // Process batch items concurrently with monitoring
-      const batchPromises = batch.map(async (item) => {
+      const batchPromises = batch.map(async item => {
         try {
           // Rate limiting check
           if (rateLimitNamespace) {
@@ -137,7 +137,7 @@ export class BatchProcessor<T, R> {
 
       // Delay between batches (skip on last batch)
       if (i + batchSize < items.length) {
-        await new Promise((resolve) => setTimeout(resolve, batchDelay));
+        await new Promise(resolve => setTimeout(resolve, batchDelay));
       }
     }
 

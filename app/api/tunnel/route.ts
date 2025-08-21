@@ -6,8 +6,7 @@
  * @returns {NextResponse} The response object
  */
 
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 // This endpoint proxies Sentry events from the client `tunnel` option to the Sentry ingest URL
 export async function POST(request: NextRequest) {

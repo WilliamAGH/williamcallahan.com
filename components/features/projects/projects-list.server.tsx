@@ -42,7 +42,7 @@ export function ProjectsListServer({ projects: projectsProp }: ProjectsListServe
 
       {/* Projects List */}
       <div className="space-y-8 mt-8">
-        {projectsToRender.map((project) => (
+        {projectsToRender.map(project => (
           <div key={project.name}>
             <ProjectCardServer project={project} />
           </div>

@@ -22,38 +22,38 @@ To provide robust, multi-layered memory management that prevents leaks, ensures 
 The system now operates on **coordinated proactive management** rather than independent reactive systems:
 
 1. **Unified Monitoring System**:
-    - **ImageMemoryManager** acts as the primary memory monitor (every 30s)
-    - Uses consistent RSS-based thresholds aligned with total process budget
-    - **S3Utils** and other systems query ImageMemoryManager for pressure state
+   - **ImageMemoryManager** acts as the primary memory monitor (every 30s)
+   - Uses consistent RSS-based thresholds aligned with total process budget
+   - **S3Utils** and other systems query ImageMemoryManager for pressure state
 
 2. **Proactive Coordination Cascade**:
-    - **70% RSS**: ImageMemoryManager triggers `memory-coordination-trigger` event
-      - Starts proactive eviction in ImageMemoryManager (60% target)
-      - ServerCache listens and clears 25% of oldest entries
-      - All systems begin memory-aware request handling
-    - **80% RSS**: Memory pressure mode activated
-      - All new memory-intensive operations rejected/queued
-      - S3 operations check pressure before reading
-      - OpenGraph enrichment skips processing
+   - **70% RSS**: ImageMemoryManager triggers `memory-coordination-trigger` event
+     - Starts proactive eviction in ImageMemoryManager (60% target)
+     - ServerCache listens and clears 25% of oldest entries
+     - All systems begin memory-aware request handling
+   - **80% RSS**: Memory pressure mode activated
+     - All new memory-intensive operations rejected/queued
+     - S3 operations check pressure before reading
+     - OpenGraph enrichment skips processing
 3. **Emergency Failsafes** (should rarely trigger):
-    - **90% RSS**: MemGuard critical monitoring validates coordination worked
-    - **95% RSS**: Nuclear option - full cache flush (coordination failed)
+   - **90% RSS**: MemGuard critical monitoring validates coordination worked
+   - **95% RSS**: Nuclear option - full cache flush (coordination failed)
 
 4. **Early Request Rejection**:
-    - Memory pressure checks **before** starting operations, not after
-    - S3 reads validate size limits and memory state
-    - Image processing queued or skipped under pressure
-    - Bookmark enrichment degrades gracefully
+   - Memory pressure checks **before** starting operations, not after
+   - S3 reads validate size limits and memory state
+   - Image processing queued or skipped under pressure
+   - Bookmark enrichment degrades gracefully
 
 5. **State Coordination**:
-    - **Single source of truth**: ImageMemoryManager memory pressure state
-    - **Consistent metrics**: All systems use same RSS thresholds
-    - **Event-driven**: Coordination via event emitters, not polling
+   - **Single source of truth**: ImageMemoryManager memory pressure state
+   - **Consistent metrics**: All systems use same RSS thresholds
+   - **Event-driven**: Coordination via event emitters, not polling
 
 6. **Observability**:
-    - The `/api/health` endpoint exposes coordinated system status
-    - The `/api/health/metrics` endpoint shows cross-system memory coordination
-    - MemGuard logs validate that proactive systems are working
+   - The `/api/health` endpoint exposes coordinated system status
+   - The `/api/health/metrics` endpoint shows cross-system memory coordination
+   - MemGuard logs validate that proactive systems are working
 
 ## Critical Issues & Design Decisions
 
@@ -109,7 +109,7 @@ See `memory-mgmt.mmd` for a visual diagram of the memory management flow and saf
 **Root Cause**:
 
 - ImageMemoryManager used heap-based thresholds
-- MemGuard used RSS-based thresholds  
+- MemGuard used RSS-based thresholds
 - S3Utils used different pressure calculations
 - ServerCache had no coordination with other memory systems
 - Systems accumulated memory instead of failing early
@@ -303,13 +303,13 @@ The system now uses **three separate memory budgets**:
 
 ### Memory Thresholds Explained
 
-| Threshold | RSS Usage | Action | Purpose |
-|-----------|-----------|--------|---------|
-| 70% (1.4GB) | Coordination | ServerCache evicts 25%, ImageManager evicts to 60% | Proactive memory management |
-| 75% (1.5GB) | Warning | Health monitor reports degraded status | Load balancer awareness |
-| 80% (1.6GB) | Image Pressure | Reject new image ops | Protect image processing |
-| 90% (1.8GB) | Critical | Clear image cache, return 503 | Aggressive cleanup |
-| 95% (1.9GB) | Emergency | Flush all caches | Last resort |
+| Threshold   | RSS Usage      | Action                                             | Purpose                     |
+| ----------- | -------------- | -------------------------------------------------- | --------------------------- |
+| 70% (1.4GB) | Coordination   | ServerCache evicts 25%, ImageManager evicts to 60% | Proactive memory management |
+| 75% (1.5GB) | Warning        | Health monitor reports degraded status             | Load balancer awareness     |
+| 80% (1.6GB) | Image Pressure | Reject new image ops                               | Protect image processing    |
+| 90% (1.8GB) | Critical       | Clear image cache, return 503                      | Aggressive cleanup          |
+| 95% (1.9GB) | Emergency      | Flush all caches                                   | Last resort                 |
 
 ### Why This Fixes False Positives
 
@@ -359,13 +359,13 @@ const copy = Buffer.from(buffer.subarray(0, 1024));
 
 ```typescript
 // ❌ Don't store buffers in ServerCache
-ServerCacheInstance.set('key', largeBuffer);
+ServerCacheInstance.set("key", largeBuffer);
 
 // ✅ Store metadata only
-ServerCacheInstance.set('key', {
-  s3Key: 'images/abc123.png',
-  cdnUrl: 'https://cdn.example.com/images/abc123.png',
-  contentType: 'image/png'
+ServerCacheInstance.set("key", {
+  s3Key: "images/abc123.png",
+  cdnUrl: "https://cdn.example.com/images/abc123.png",
+  contentType: "image/png",
 });
 ```
 
@@ -374,16 +374,11 @@ ServerCacheInstance.set('key', {
 ```typescript
 // Always check memory pressure before operations
 if (!memoryManager.shouldAllowImageOperations()) {
-  return { error: 'System under memory pressure' };
+  return { error: "System under memory pressure" };
 }
 
 // Wrap operations with monitoring
-await monitoredAsync(
-  null,
-  'process-image',
-  async () => processImage(buffer),
-  { timeoutMs: 30000 }
-);
+await monitoredAsync(null, "process-image", async () => processImage(buffer), { timeoutMs: 30000 });
 ```
 
 ## Testing Strategy

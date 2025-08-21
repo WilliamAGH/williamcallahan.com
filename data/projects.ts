@@ -12,7 +12,16 @@ export const projects: Project[] = [
     shortSummary: "Data-driven research platform for the VC ecosystem",
     url: "https://aventure.vc",
     imageKey: "images/other/projects/aventurevc-homepage.png",
-    tags: ["Analytics", "Data Platform", "Research Tool", "Business Intelligence", "SaaS", "Web Application", "Real-time Data", "Search"],
+    tags: [
+      "Analytics",
+      "Data Platform",
+      "Research Tool",
+      "Business Intelligence",
+      "SaaS",
+      "Web Application",
+      "Real-time Data",
+      "Search",
+    ],
     techStack: [
       "Next.js",
       "TypeScript",
@@ -38,8 +47,15 @@ export const projects: Project[] = [
     shortSummary: "Interactive personal site with beautiful terminal/code components & other dynamic content",
     url: "https://williamcallahan.com",
     imageKey: "images/other/projects/williamcallahan-com-project.png",
-    tags: ["Portfolio", "Open Source", "MDX Blog", "macOS Components", "Terminal Emulation", "Code Syntax Highlighting"],
-    techStack: ["Next.js", "TypeScript", "Tailwind CSS", "Zod","Bun", "Docker", "Fly.io"],
+    tags: [
+      "Portfolio",
+      "Open Source",
+      "MDX Blog",
+      "macOS Components",
+      "Terminal Emulation",
+      "Code Syntax Highlighting",
+    ],
+    techStack: ["Next.js", "TypeScript", "Tailwind CSS", "Zod", "Bun", "Docker", "Fly.io"],
   },
   {
     id: "Filey - Flag Deprecated Files Extension",
@@ -108,6 +124,6 @@ export const projects: Project[] = [
     url: "https://company-lookup.iocloudhost.net/",
     imageKey: "images/other/projects/company-research-experimental-ai-tool.png",
     tags: ["LLM", "AI", "JSON", "Company Research", "Web App", "Experimental"],
-    techStack: ["Svelte", "TypeScript", "Tailwind CSS", "OpenAI", "Node.js","Groq", "Docker"],
+    techStack: ["Svelte", "TypeScript", "Tailwind CSS", "OpenAI", "Node.js", "Groq", "Docker"],
   },
 ];

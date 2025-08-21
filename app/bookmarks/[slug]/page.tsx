@@ -8,7 +8,7 @@
 
 // Configure for dynamic rendering - consistent with all other bookmark routes
 export const dynamic = "force-dynamic";
-// Revalidate cache every 30 minutes - consistent with other bookmark routes  
+// Revalidate cache every 30 minutes - consistent with other bookmark routes
 export const revalidate = 1800;
 
 import { BookmarkDetail } from "@/components/features/bookmarks/bookmark-detail";
@@ -17,13 +17,11 @@ import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
-import { PAGE_METADATA } from "@/data/metadata";
-import { formatSeoDate } from "@/lib/seo/utils";
+import { PAGE_METADATA, OG_IMAGE_DIMENSIONS } from "@/data/metadata";
+import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ensureAbsoluteUrl } from "@/lib/seo/utils";
-import { OG_IMAGE_DIMENSIONS } from "@/data/metadata";
 import { RelatedContent } from "@/components/features/related-content";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { loadSlugMapping, generateSlugMapping, getBookmarkIdFromSlug } from "@/lib/bookmarks/slug-manager";
@@ -61,7 +59,7 @@ async function findBookmarkBySlug(slug: string): Promise<import("@/types").Unifi
         },
       },
     ],
-    { category: "BookmarkPage" }
+    { category: "BookmarkPage" },
   );
 
   try {
@@ -79,11 +77,7 @@ async function findBookmarkBySlug(slug: string): Promise<import("@/types").Unifi
         skipExternalFetch: false,
         force: false,
       })) as import("@/types").UnifiedBookmark[];
-      envLogger.log(
-        `Loaded bookmarks for dynamic mapping`,
-        allBookmarks?.length || 0,
-        { category: "BookmarkPage" }
-      );
+      envLogger.log(`Loaded bookmarks for dynamic mapping`, allBookmarks?.length || 0, { category: "BookmarkPage" });
 
       if (!allBookmarks || allBookmarks.length === 0) {
         console.error(`[BookmarkPage] No bookmarks available to generate mapping`);
@@ -93,7 +87,7 @@ async function findBookmarkBySlug(slug: string): Promise<import("@/types").Unifi
       envLogger.log(
         `Generated mapping`,
         { slugCount: Object.keys(mapping.slugs).length },
-        { category: "BookmarkPage" }
+        { category: "BookmarkPage" },
       );
 
       // We can return immediately if the slug is found, reusing allBookmarks
@@ -101,9 +95,9 @@ async function findBookmarkBySlug(slug: string): Promise<import("@/types").Unifi
       envLogger.log(
         `Slug lookup in generated mapping`,
         { slug, foundId: bookmarkIdFromGenerated || "none" },
-        { category: "BookmarkPage" }
+        { category: "BookmarkPage" },
       );
-      return bookmarkIdFromGenerated ? allBookmarks.find((b) => b.id === bookmarkIdFromGenerated) || null : null;
+      return bookmarkIdFromGenerated ? allBookmarks.find(b => b.id === bookmarkIdFromGenerated) || null : null;
     }
 
     envLogger.log(
@@ -113,16 +107,12 @@ async function findBookmarkBySlug(slug: string): Promise<import("@/types").Unifi
         version: mapping.version,
         generated: mapping.generated,
       },
-      { category: "BookmarkPage" }
+      { category: "BookmarkPage" },
     );
 
     // Look up the bookmark ID from the slug
     const bookmarkId = getBookmarkIdFromSlug(mapping, slug);
-    envLogger.log(
-      `Slug mapped to ID`,
-      { slug, bookmarkId: bookmarkId || "NOT FOUND" },
-      { category: "BookmarkPage" }
-    );
+    envLogger.log(`Slug mapped to ID`, { slug, bookmarkId: bookmarkId || "NOT FOUND" }, { category: "BookmarkPage" });
 
     if (!bookmarkId) {
       console.error(`[BookmarkPage] No bookmark ID found for slug "${slug}"`);
@@ -130,8 +120,8 @@ async function findBookmarkBySlug(slug: string): Promise<import("@/types").Unifi
         "Available slugs (first 10)",
         Object.values(mapping.slugs)
           .slice(0, 10)
-          .map((e) => e.slug),
-        { category: "BookmarkPage" }
+          .map(e => e.slug),
+        { category: "BookmarkPage" },
       );
       return null;
     }
@@ -146,12 +136,8 @@ async function findBookmarkBySlug(slug: string): Promise<import("@/types").Unifi
     })) as import("@/types").UnifiedBookmark[];
     envLogger.log(`Loaded bookmarks`, allBookmarks?.length || 0, { category: "BookmarkPage" });
 
-    const foundBookmark = allBookmarks.find((b) => b.id === bookmarkId);
-    envLogger.log(
-      `Bookmark lookup result`,
-      { bookmarkId, found: !!foundBookmark },
-      { category: "BookmarkPage" }
-    );
+    const foundBookmark = allBookmarks.find(b => b.id === bookmarkId);
+    envLogger.log(`Bookmark lookup result`, { bookmarkId, found: !!foundBookmark }, { category: "BookmarkPage" });
     return foundBookmark || null;
   } catch (error) {
     console.error(`[BookmarkPage] Error finding bookmark by slug "${slug}":`, error);
@@ -270,7 +256,7 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
       url: foundBookmark.url,
       title: foundBookmark.title,
     },
-    { category: "BookmarkPage" }
+    { category: "BookmarkPage" },
   );
 
   let domainName = "";
@@ -307,7 +293,7 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
   return (
     <>
       <JsonLdScript data={jsonLdData} />
-      
+
       {/* Stunning Individual Bookmark Page - Add consistent container */}
       <div className="max-w-6xl mx-auto">
         <BookmarkDetail bookmark={foundBookmark} />

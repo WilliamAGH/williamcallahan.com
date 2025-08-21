@@ -53,7 +53,7 @@ export function CollapseDropdownProvider({ children }: { children: ReactNode }) 
     // 2. Partial ID match
     const hashWords = hash.split("-").filter(Boolean);
     for (const [id, entry] of dropdownRegistry.current.entries()) {
-      const matchCount = hashWords.filter((word) => id.includes(word)).length;
+      const matchCount = hashWords.filter(word => id.includes(word)).length;
       if (matchCount > 0 && matchCount >= hashWords.length * 0.5 && entry.ref.current) {
         if (enableDebugLogs)
           console.debug(`[CollapseDropdownContext] findDropdownForHash: Found partial match '${id}' for #${hash}`);

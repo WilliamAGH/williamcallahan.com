@@ -25,7 +25,7 @@ import type { ShellTabProps, ShellParentTabsContextProps } from "@/types/ui";
  */
 export function ShellTab({ children }: ShellTabProps): JSX.Element {
   // Add a marker prop to children that are elements to help identify when they're in ShellTab
-  const childrenWithProps = Children.map(children, (child) => {
+  const childrenWithProps = Children.map(children, child => {
     if (isValidElement(child)) {
       // Create properly typed props object
       const props = {
@@ -112,7 +112,7 @@ export function ShellParentTabs({ children, className = "" }: { children: ReactN
           className="flex border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30 rounded-t-lg"
           role="tablist"
         >
-          {tabs.map((tab) => (
+          {tabs.map(tab => (
             <button
               type="button"
               key={tab.label} // Use label as key
@@ -133,11 +133,11 @@ export function ShellParentTabs({ children, className = "" }: { children: ReactN
           ))}
         </div>
         <div className="bg-white dark:bg-gray-900 relative group p-4">
-          {Children.toArray(children).map((child) => {
+          {Children.toArray(children).map(child => {
             if (isValidElement(child)) {
               const shellTabChildProps = child.props as ShellTabProps;
               if (shellTabChildProps.label === activeTab) {
-                const tabInfo = tabs.find((t) => t.label === shellTabChildProps.label);
+                const tabInfo = tabs.find(t => t.label === shellTabChildProps.label);
 
                 return (
                   <div

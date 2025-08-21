@@ -41,10 +41,10 @@ export const DEFAULT_WEIGHTS = SAME_TYPE_WEIGHTS;
 function calculateTagSimilarity(tags1: string[], tags2: string[]): number {
   if (tags1.length === 0 || tags2.length === 0) return 0;
 
-  const set1 = new Set(tags1.map((t) => t.toLowerCase()));
-  const set2 = new Set(tags2.map((t) => t.toLowerCase()));
+  const set1 = new Set(tags1.map(t => t.toLowerCase()));
+  const set2 = new Set(tags2.map(t => t.toLowerCase()));
 
-  const intersection = new Set([...set1].filter((x) => set2.has(x)));
+  const intersection = new Set([...set1].filter(x => set2.has(x)));
   const union = new Set([...set1, ...set2]);
 
   return union.size > 0 ? intersection.size / union.size : 0;
@@ -64,14 +64,14 @@ function calculateTextSimilarity(text1: string, text2: string): number {
       .toLowerCase()
       .replace(/[^\w\s]/g, " ")
       .split(/\s+/)
-      .filter((token) => token.length > 2 || SHORT_TOKENS.has(token));
+      .filter(token => token.length > 2 || SHORT_TOKENS.has(token));
 
   const tokens1 = new Set(normalize(text1));
   const tokens2 = new Set(normalize(text2));
 
   if (tokens1.size === 0 || tokens2.size === 0) return 0;
 
-  const intersection = new Set([...tokens1].filter((x) => tokens2.has(x)));
+  const intersection = new Set([...tokens1].filter(x => tokens2.has(x)));
   const smaller = Math.min(tokens1.size, tokens2.size);
 
   // Use smaller set as denominator for better results with different text lengths
@@ -228,7 +228,7 @@ export function findMostSimilar(
 ): Array<NormalizedContent & { score: number; breakdown: Record<keyof SimilarityWeights, number> }> {
   // Calculate similarity for all candidates
   const scored = candidates
-    .map((candidate) => {
+    .map(candidate => {
       // Determine if this is cross-type comparison
       const isCrossType = source.type !== candidate.type;
       // Use appropriate weights: custom weights if provided, otherwise cross-type or same-type defaults
@@ -242,7 +242,7 @@ export function findMostSimilar(
         breakdown,
       };
     })
-    .filter((item) => item.score > 0) // Filter out zero scores
+    .filter(item => item.score > 0) // Filter out zero scores
     .sort((a, b) => b.score - a.score) // Sort by score descending
     .slice(0, limit); // Limit results
 
@@ -298,7 +298,7 @@ export function limitByTypeAndTotal<T extends { type: RelatedContentType; score:
 
   const perTypeLimited = Object.values(grouped)
     .filter((arr): arr is T[] => Array.isArray(arr))
-    .flatMap((typeItems) => typeItems.sort(cmp).slice(0, safePerType));
+    .flatMap(typeItems => typeItems.sort(cmp).slice(0, safePerType));
 
   return perTypeLimited.sort(cmp).slice(0, safeTotal);
 }

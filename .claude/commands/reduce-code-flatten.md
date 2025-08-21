@@ -46,12 +46,12 @@ Before any code is changed, a rigorous analysis and planning phase is mandatory.
 **Phase 1: Comprehensive Analysis & Information Gathering**
 
 1. **Tool-Driven Research**: You are required to use all available tools to build complete context.
-    - **MCPs (`@mcp_...`)**: Utilize tools like `@mcp_context7_resolve-library-id` and `@mcp_context7_get-library-docs` to fetch the most current documentation for all relevant libraries and dependencies.
-    - **Web Search (`@web`)**: Perform web searches for implementation patterns, potential performance implications of changes, and community best practices.
+   - **MCPs (`@mcp_...`)**: Utilize tools like `@mcp_context7_resolve-library-id` and `@mcp_context7_get-library-docs` to fetch the most current documentation for all relevant libraries and dependencies.
+   - **Web Search (`@web`)**: Perform web searches for implementation patterns, potential performance implications of changes, and community best practices.
 2. **Total Context Review**: NEVER make assumptions. You must read and understand all related code, types, and documentation.
-    - Read the actual source code of imported functions.
-    - Review all relevant type definitions in the `types/` directory.
-    - Examine existing test cases to understand expected behavior.
+   - Read the actual source code of imported functions.
+   - Review all relevant type definitions in the `types/` directory.
+   - Examine existing test cases to understand expected behavior.
 3. **Zero Boilerplate**: The use of generic, copy-pasted, or boilerplate code is strictly forbidden. Every line of code must be intentional and tailored to its specific context.
 
 **Phase 2: Strategic Planning & Contrarian Review**
@@ -59,7 +59,7 @@ Before any code is changed, a rigorous analysis and planning phase is mandatory.
 1. **Formulate an Initial Plan**: After your comprehensive analysis, create a detailed, step-by-step plan for refactoring. Document which techniques you will apply and why.
 2. **Deep Thinking Revision**: Re-evaluate your own plan. Use deep thinking to identify potential weaknesses, edge cases you might have missed, or alternative approaches that might be safer or more effective.
 3. **Seek Contrarian Opinion**: Use the Zen MCP (`@mcp_zen_chat` or other relevant Zen tools) to challenge your revised plan. Frame your request for a contrarian viewpoint:
-    > "Review this refactoring plan. My goal is to reduce code size without any risk of breaking changes. Act as a contrarian and identify what I might have missed, potential risks in my approach, and how this plan could be made even safer and more robust."
+   > "Review this refactoring plan. My goal is to reduce code size without any risk of breaking changes. Act as a contrarian and identify what I might have missed, potential risks in my approach, and how this plan could be made even safer and more robust."
 
 **Do not proceed to edit any code until this entire prerequisite workflow is complete.** All planning and analysis must be finished before implementation begins.
 
@@ -67,26 +67,26 @@ Before any code is changed, a rigorous analysis and planning phase is mandatory.
 
 ## 🔰 Kick-Off Recipe – Start Every Flattening Task the Same Way
 
-### 1  Create a **Functionality Inventory** (WHAT the file does)
+### 1 Create a **Functionality Inventory** (WHAT the file does)
 
 Fill a small table before touching code:
 
-| Category | Questions to answer |
-| --- | --- |
-| **Public API** | What is exported? Params & return types? |
-| **Side-effects** | Disk writes? Logs? DOM tweaks? Global state? |
-| **Data Flow** | Which modules/types are consumed & produced? |
-| **Branching** | List every conditional and what it checks. |
-| **Collections** | Loops / map / filter / reduce targets? |
-| **Errors** | try/catch, error codes, expected failures? |
-| **I/O & Network** | fetch, db, S3, fs, etc.? |
-| **Config Flags** | Env vars, feature toggles, runtime flags? |
-| **Types & Schemas** | Local aliases, interfaces, Zod, enums? |
-| **Domain Nouns** | Business concepts used repeatedly? |
+| Category            | Questions to answer                          |
+| ------------------- | -------------------------------------------- |
+| **Public API**      | What is exported? Params & return types?     |
+| **Side-effects**    | Disk writes? Logs? DOM tweaks? Global state? |
+| **Data Flow**       | Which modules/types are consumed & produced? |
+| **Branching**       | List every conditional and what it checks.   |
+| **Collections**     | Loops / map / filter / reduce targets?       |
+| **Errors**          | try/catch, error codes, expected failures?   |
+| **I/O & Network**   | fetch, db, S3, fs, etc.?                     |
+| **Config Flags**    | Env vars, feature toggles, runtime flags?    |
+| **Types & Schemas** | Local aliases, interfaces, Zod, enums?       |
+| **Domain Nouns**    | Business concepts used repeatedly?           |
 
-*(1-line per row, no judgement yet)*
+_(1-line per row, no judgement yet)_
 
-### 2  Run the **First-Principles Search Loop** (WHERE else is it?)
+### 2 Run the **First-Principles Search Loop** (WHERE else is it?)
 
 For **each** inventory bullet:
 
@@ -98,7 +98,7 @@ For **each** inventory bullet:
 
 Repeat until every item has a clear fate backed by evidence.
 
-### 3  Lock in with a **Refactor Prompt Template**
+### 3 Lock in with a **Refactor Prompt Template**
 
 ```text
 System: "ZERO-TEMPERATURE refactor – file <path>."
@@ -119,11 +119,11 @@ Use this exact sequence every time to ensure consistency with project rules.
 1. **Functionality is Sacred**: The foremost rule is to preserve 100% of the existing functionality. No features, behaviors, or edge cases should be changed or removed.
 2. **Clarity Over Brevity**: While the goal is to reduce lines, it must not come at the cost of readability. Code should become more expressive, not more cryptic.
 3. **Strict Compliance**: All refactoring must adhere to the project's development standards.
-4. **JSDoc Comments Remain Mandatory**: Every file **must** continue to include concise JSDoc comments *after* refactoring.
+4. **JSDoc Comments Remain Mandatory**: Every file **must** continue to include concise JSDoc comments _after_ refactoring.
    - A file-level JSDoc comment is required and should appear **above all package imports**.
    - All exported functions (and any complex internal helpers) require their own JSDoc block.
    - Comments must be **specific and succinct**—single phrases or short fragments are preferred over full sentences.
-/  - Removing or substantially diluting existing JSDoc is **prohibited**; update wording only when it improves accuracy or brevity.
+     / - Removing or substantially diluting existing JSDoc is **prohibited**; update wording only when it improves accuracy or brevity.
 
 ### Mandatory Project Compliance
 
@@ -145,24 +145,24 @@ let value;
 if (obj && obj.prop && obj.prop.nested) {
   value = obj.prop.nested;
 } else {
-  value = 'default';
+  value = "default";
 }
 
 // After (1 line)
-const value = obj?.prop?.nested ?? 'default';
+const value = obj?.prop?.nested ?? "default";
 ```
 
 #### 2. Use Destructuring with Default Values
 
 ```typescript
 // Before (4 lines)
-const name = props.name || 'Anonymous';
+const name = props.name || "Anonymous";
 const age = props.age || 0;
-const city = props.city || 'Unknown';
-const country = props.country || 'Unknown';
+const city = props.city || "Unknown";
+const country = props.country || "Unknown";
 
 // After (1 line)
-const { name = 'Anonymous', age = 0, city = 'Unknown', country = 'Unknown' } = props;
+const { name = "Anonymous", age = 0, city = "Unknown", country = "Unknown" } = props;
 ```
 
 #### 3. Replace Conditional Returns with Logical Operators
@@ -171,13 +171,13 @@ const { name = 'Anonymous', age = 0, city = 'Unknown', country = 'Unknown' } = p
 // Before (5 lines)
 function getDisplayName(user) {
   if (!user) {
-    return 'Guest';
+    return "Guest";
   }
   return user.name;
 }
 
 // After (1 line)
-const getDisplayName = (user) => user?.name || 'Guest';
+const getDisplayName = user => user?.name || "Guest";
 ```
 
 #### 4. Combine Array Operations
@@ -190,7 +190,11 @@ const sorted = mapped.sort((a, b) => a - b);
 const result = sorted.slice(0, 10);
 
 // After (1 line)
-const result = items.filter(item => item.active).map(item => item.value).sort((a, b) => a - b).slice(0, 10);
+const result = items
+  .filter(item => item.active)
+  .map(item => item.value)
+  .sort((a, b) => a - b)
+  .slice(0, 10);
 ```
 
 #### 5. Use Object Property Shorthand and Spread Syntax
@@ -202,7 +206,7 @@ function createUser(name, email, age) {
     name: name,
     email: email,
     age: age,
-    createdAt: Date.now()
+    createdAt: Date.now(),
   };
 }
 
@@ -215,30 +219,30 @@ const createUser = (name, email, age) => ({ name, email, age, createdAt: Date.no
 ```typescript
 // Before (12 lines)
 function getStatusColor(status) {
-  switch(status) {
-    case 'active':
-      return 'green';
-    case 'pending':
-      return 'yellow';
-    case 'inactive':
-      return 'red';
+  switch (status) {
+    case "active":
+      return "green";
+    case "pending":
+      return "yellow";
+    case "inactive":
+      return "red";
     default:
-      return 'gray';
+      return "gray";
   }
 }
 
 // After (2 lines)
-const statusColors = { active: 'green', pending: 'yellow', inactive: 'red' };
-const getStatusColor = (status) => statusColors[status] || 'gray';
+const statusColors = { active: "green", pending: "yellow", inactive: "red" };
+const getStatusColor = status => statusColors[status] || "gray";
 ```
 
 #### 7. Use Template Literals for String Building
 
 ```typescript
 // Before (4 lines)
-const message = 'Hello, ' + user.name + '! ';
-const fullMessage = message + 'You have ' + count + ' messages.';
-const finalMessage = fullMessage + ' Last login: ' + lastLogin;
+const message = "Hello, " + user.name + "! ";
+const fullMessage = message + "You have " + count + " messages.";
+const finalMessage = fullMessage + " Last login: " + lastLogin;
 return finalMessage;
 
 // After (1 line)
@@ -249,20 +253,20 @@ return `Hello, ${user.name}! You have ${count} messages. Last login: ${lastLogin
 
 ```typescript
 // Before (8 lines)
-if (type === 'admin' || type === 'superadmin') {
-  permissions.push('delete');
+if (type === "admin" || type === "superadmin") {
+  permissions.push("delete");
 }
-if (type === 'admin' || type === 'superadmin') {
-  permissions.push('edit');
+if (type === "admin" || type === "superadmin") {
+  permissions.push("edit");
 }
-if (type === 'admin' || type === 'superadmin' || type === 'moderator') {
-  permissions.push('view');
+if (type === "admin" || type === "superadmin" || type === "moderator") {
+  permissions.push("view");
 }
 
 // After (3 lines)
-const isAdmin = ['admin', 'superadmin'].includes(type);
-if (isAdmin) permissions.push('delete', 'edit');
-if (isAdmin || type === 'moderator') permissions.push('view');
+const isAdmin = ["admin", "superadmin"].includes(type);
+if (isAdmin) permissions.push("delete", "edit");
+if (isAdmin || type === "moderator") permissions.push("view");
 ```
 
 #### 9. Use Array Methods Instead of Loops
@@ -326,6 +330,7 @@ These techniques are powerful but require professional judgment.
 ## Real Example: What Flattening Actually Looks Like
 
 **BEFORE: 25 lines**
+
 ```typescript
 /**
  * Process user authentication
@@ -337,28 +342,29 @@ These techniques are powerful but require professional judgment.
 function authenticateUser(username: string, password: string): boolean {
   // Check if username exists
   if (!username) {
-    console.error('Username is required');
+    console.error("Username is required");
     return false;
   }
-  
+
   // Check if password exists
   if (!password) {
-    console.error('Password is required');
+    console.error("Password is required");
     return false;
   }
-  
+
   // Validate credentials
   const isValid = checkCredentials(username, password);
-  
+
   return isValid;
 }
 ```
 
 **AFTER: 5 lines**
+
 ```typescript
 /** Authenticate user credentials */
 function authenticateUser(username: string, password: string): boolean {
-  if (!username || !password) return console.error('Credentials required'), false;
+  if (!username || !password) return (console.error("Credentials required"), false);
   return checkCredentials(username, password);
 }
 ```
@@ -393,6 +399,7 @@ Before committing any code reduction refactoring, confirm the following:
 4. Use conventional format: `refactor([scope]): specific description`
 
 **Example commits:**
+
 ```bash
 # Single file optimization
 git add components/BlogList.tsx

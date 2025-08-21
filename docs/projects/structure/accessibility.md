@@ -21,13 +21,13 @@ See `accessibility.mmd` for a visual diagram of the focus flow.
 2. **Saving Context:** It records the element that was focused right before the trap was activated.
 3. **Initial Focus:** It can optionally move focus to the first focusable element within its children.
 4. **Trapping Logic:**
-    - It uses two invisible, focusable `div` elements (sentinels) at the very beginning and end of its child content.
-    - If a user tabs from the last focusable element in the content, the focus lands on the end sentinel. The component detects this and immediately moves focus to the start sentinel, creating a loop.
-    - Similarly, `Shift+Tab` from the first element is caught by the start sentinel, which then moves focus to the end sentinel.
+   - It uses two invisible, focusable `div` elements (sentinels) at the very beginning and end of its child content.
+   - If a user tabs from the last focusable element in the content, the focus lands on the end sentinel. The component detects this and immediately moves focus to the start sentinel, creating a loop.
+   - Similarly, `Shift+Tab` from the first element is caught by the start sentinel, which then moves focus to the end sentinel.
 5. **Dismissal:** It listens for the `Escape` key and, if pressed, triggers the `onEscape` callback function provided in its props.
 6. **Deactivation:** When the `active` prop becomes `false` or the component unmounts, it performs cleanup:
-    - Removes its event listeners.
-    - Restores focus to the element that was focused before the trap was activated.
-    - Restores the body's scrollability.
+   - Removes its event listeners.
+   - Restores focus to the element that was focused before the trap was activated.
+   - Restores the body's scrollability.
 
 This component is essential for creating accessible modals, pop-ups, and other overlay UI elements that should command the user's full attention.

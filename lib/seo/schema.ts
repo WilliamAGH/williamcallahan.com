@@ -222,7 +222,7 @@ function createCollectionPageEntity(
     dateModified: params.dateModified,
     mainEntity: {
       "@type": "ItemList",
-      itemListElement: items.map((item) => ({
+      itemListElement: items.map(item => ({
         "@type": "ListItem",
         position: item.position,
         url: ensureAbsoluteUrl(item.url),
@@ -300,7 +300,7 @@ function createNewsArticleEntity(params: SchemaParams): NewsArticleSchema {
 
   // Format author information
   const authorEntities = params.authors
-    ? params.authors.map((author) => ({
+    ? params.authors.map(author => ({
         "@type": "Person" as const,
         name: author.name,
         ...(author.url && { url: author.url }),
@@ -396,7 +396,7 @@ function createSoftwareApplicationEntity(params: SchemaParams): SoftwareApplicat
   // Add screenshots if provided
   if (softwareMetadata.screenshot) {
     schema.screenshot = Array.isArray(softwareMetadata.screenshot)
-      ? softwareMetadata.screenshot.map((url) => ensureAbsoluteUrl(url))
+      ? softwareMetadata.screenshot.map(url => ensureAbsoluteUrl(url))
       : ensureAbsoluteUrl(softwareMetadata.screenshot);
   }
 

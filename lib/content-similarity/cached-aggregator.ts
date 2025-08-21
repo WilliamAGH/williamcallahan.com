@@ -39,7 +39,7 @@ export const getLazyContentMap = cache(
     }
 
     // Create the map
-    return new Map(content.map((c) => [`${c.type}:${c.id}`, c]));
+    return new Map(content.map(c => [`${c.type}:${c.id}`, c]));
   },
 );
 

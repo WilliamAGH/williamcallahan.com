@@ -28,7 +28,6 @@ The "blog-article" functionality encompasses components and utilities that manag
   - Different cache headers for dev vs production
   - Returns posts array with count
   - Handles errors with proper formatting
-  
 - **app/api/twitter-image/[...path]/route.ts**: API route for proxying Twitter images used in blog article embeds.
   - **🟠 HIGH**: Path traversal vulnerability - regex allows `..` in paths
   - Implements retry logic with exponential backoff
@@ -49,7 +48,7 @@ The "blog-article" functionality encompasses components and utilities that manag
 
 ### Content Files
 
-- **data/blog/posts/*.mdx**: Blog post content files (22 posts)
+- **data/blog/posts/\*.mdx**: Blog post content files (22 posts)
   - Written in MDX format (Markdown with JSX)
   - Includes frontmatter metadata (title, author, date, tags, etc.)
   - Can embed React components like tabs, tweets, and custom elements

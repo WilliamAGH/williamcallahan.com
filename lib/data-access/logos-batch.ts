@@ -18,7 +18,7 @@ import { Readable } from "node:stream";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 
 // Initialize failure tracker for domains
-const domainFailureTracker = new FailureTracker<string>((domain) => domain, {
+const domainFailureTracker = new FailureTracker<string>(domain => domain, {
   s3Path: LOGO_BLOCKLIST_S3_PATH,
   maxRetries: 3,
   cooldownMs: 24 * 60 * 60 * 1000, // 24 hours
@@ -88,7 +88,7 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
     );
 
     // Return first found result
-    const found = results.find((r) => r.exists);
+    const found = results.find(r => r.exists);
     if (found) {
       return {
         url: `${cdnUrl}/${found.key}`,
@@ -226,7 +226,7 @@ export async function processLogoBatch(
   const progressReporter = new BatchProgressReporter("Logo Batch");
 
   // Create batch processor
-  const processor = new BatchProcessor<string, LogoResult>("logo-batch", async (domain) => getLogoBatch(domain), {
+  const processor = new BatchProcessor<string, LogoResult>("logo-batch", async domain => getLogoBatch(domain), {
     batchSize: options.batchSize || 10,
     batchDelay: 500, // Rate limit protection
     memoryThreshold: 0.8,

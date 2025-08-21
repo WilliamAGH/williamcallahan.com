@@ -9,13 +9,13 @@ Issue/Problem Description: $ARGUMENTS
 STEP 1: Issue Tracking Setup
 First, ask the user: "Would you like to:
 
-1) Create a new GitHub issue for this problem
-2) Link this to an existing GitHub issue (provide issue number)
-3) Proceed without creating/linking to an issue (just fix it now)
-Please respond with 1, 2, or 3"
+1. Create a new GitHub issue for this problem
+2. Link this to an existing GitHub issue (provide issue number)
+3. Proceed without creating/linking to an issue (just fix it now)
+   Please respond with 1, 2, or 3"
 
-If option 1: Use @mcp__github__create_issue with owner="WilliamAGH" repo="williamcallahan.com" to create the issue
-If option 2: Use @mcp__github__get_issue with owner="WilliamAGH" repo="williamcallahan.com" issue_number=<provided_number> to get issue details
+If option 1: Use @mcp**github**create_issue with owner="WilliamAGH" repo="williamcallahan.com" to create the issue
+If option 2: Use @mcp**github**get_issue with owner="WilliamAGH" repo="williamcallahan.com" issue_number=<provided_number> to get issue details
 
 STEP 2: Context Discovery (Run in parallel using Task agents)
 While waiting for user response, begin gathering context:
@@ -26,25 +26,25 @@ c) For each potentially affected functionality:
 - Read docs/projects/structure/<functionality>.md
 - Read docs/projects/structure/<functionality>.mmd if it exists
 - Use Grep to find all files tagged with that functionality
-d) Use Read tool to examine docs/projects/file-overview-map.md to understand file-to-functionality mapping
+  d) Use Read tool to examine docs/projects/file-overview-map.md to understand file-to-functionality mapping
 
 STEP 3: Multi-Source Analysis with All Available MCPs
 Gather comprehensive knowledge from multiple sources in parallel:
 
 a) **Technology Documentation via MCP Tools**:
-   Use Context7 and other documentation MCPs to get current, accurate information:
+Use Context7 and other documentation MCPs to get current, accurate information:
 
-- For Next.js 15 issues: @mcp__context7__resolve-library-id libraryName="next.js" then @mcp__context7__get-library-docs
-- For React 19 issues: @mcp__context7__resolve-library-id libraryName="react" then @mcp__context7__get-library-docs
-- For Zod 4 validation: @mcp__context7__resolve-library-id libraryName="zod" then @mcp__context7__get-library-docs
+- For Next.js 15 issues: @mcp**context7**resolve-library-id libraryName="next.js" then @mcp**context7**get-library-docs
+- For React 19 issues: @mcp**context7**resolve-library-id libraryName="react" then @mcp**context7**get-library-docs
+- For Zod 4 validation: @mcp**context7**resolve-library-id libraryName="zod" then @mcp**context7**get-library-docs
 - For TypeScript issues: Use available documentation MCPs for TypeScript 5.x
 - For any other dependencies: Check package.json and fetch relevant docs via MCPs
 
-   IMPORTANT: Always use MCPs for documentation instead of relying on training data, as versions and APIs change frequently.
+  IMPORTANT: Always use MCPs for documentation instead of relying on training data, as versions and APIs change frequently.
 
 b) **Web Search for Known Issues**:
 
-- Use @mcp__brave-search__brave_web_search for:
+- Use @mcp**brave-search**brave_web_search for:
   - Similar error messages with framework versions
   - GitHub issues for the specific library versions we use
   - Recent Stack Overflow solutions
@@ -52,15 +52,15 @@ b) **Web Search for Known Issues**:
 
 c) **Deep Analysis with Zen MCP**:
 
-- Use @mcp__zen__thinkdeep with model="pro" and thinking_mode="max" to:
+- Use @mcp**zen**thinkdeep with model="pro" and thinking_mode="max" to:
   - Analyze the issue in context of the functionality documentation
   - Identify all files that need to be modified
   - Consider type safety implications
   - Review existing type definitions that may be affected
   - Consider edge cases and potential side effects
   - Create a comprehensive solution plan
-- Use @mcp__zen__codereview on key files to understand current implementation
-- Use @mcp__zen__debug for complex error analysis
+- Use @mcp**zen**codereview on key files to understand current implementation
+- Use @mcp**zen**debug for complex error analysis
 
 d) **Type Safety Analysis**:
 
@@ -117,7 +117,7 @@ b) If ANY type errors or warnings:
 - Apply type safety resolution strategies
 - Never use @ts-ignore or eslint-disable
 - Fix root causes following TypeScript best practices
-c) Only proceed when validation shows 0 errors, 0 warnings
+  c) Only proceed when validation shows 0 errors, 0 warnings
 
 STEP 8: Automated Testing
 Run tests for affected functionalities:
@@ -139,12 +139,12 @@ Once user confirms testing passed:
 a) Run full test suite: bun run test
 
 - Must achieve 100% pass rate
-b) Run full validation: bun run validate
+  b) Run full validation: bun run validate
 - Must show 0 errors, 0 warnings
 - This includes TypeScript, ESLint, and Biome checks
-c) Run build: bun run build
+  c) Run build: bun run build
 - Must complete successfully
-d) If any issues found, resolve them before proceeding
+  d) If any issues found, resolve them before proceeding
 
 STEP 11: Commit Changes
 ONLY after ALL tests pass and user confirms:
@@ -156,15 +156,15 @@ b) Create a comprehensive commit message summarizing:
 - What issue was fixed
 - Which functionality was affected
 - What approach was taken
-c) Commit using conventional format (fix:, feat:, etc.)
-   IMPORTANT: NEVER include Claude code attribution or co-author tags in commits
-d) Show the commit hash
+  c) Commit using conventional format (fix:, feat:, etc.)
+  IMPORTANT: NEVER include Claude code attribution or co-author tags in commits
+  d) Show the commit hash
 
 STEP 12: Issue Closure
 If a GitHub issue was created or linked:
-a) Post a final comment using @mcp__github__add_issue_comment with owner="WilliamAGH" repo="williamcallahan.com" issue_number=<issue_number> summarizing the fix
+a) Post a final comment using @mcp**github**add_issue_comment with owner="WilliamAGH" repo="williamcallahan.com" issue_number=<issue_number> summarizing the fix
 b) Reference the commit hash in the comment
 c) Ask if the issue should be closed
-d) If yes, use @mcp__github__update_issue with owner="WilliamAGH" repo="williamcallahan.com" issue_number=<issue_number> state="closed"
+d) If yes, use @mcp**github**update_issue with owner="WilliamAGH" repo="williamcallahan.com" issue_number=<issue_number> state="closed"
 
 Output a complete summary of all actions taken, files changed, and tests run.

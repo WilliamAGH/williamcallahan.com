@@ -68,7 +68,7 @@ const GitHubActivity = () => {
   // Show refresh button for non-production environments (development, test, staging)
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   const isDev = process.env.NODE_ENV === "development";
-  
+
   // Show refresh button if:
   // 1. We're in development mode (NODE_ENV=development), OR
   // 2. NEXT_PUBLIC_SITE_URL is not the production URL (https://williamcallahan.com)
@@ -86,15 +86,15 @@ const GitHubActivity = () => {
       // Detect mobile viewport
       const mobile = width < 640; // sm breakpoint
       setIsMobile(mobile);
-      
+
       // Use fewer columns on mobile for better visibility
       const targetColumns = mobile ? MOBILE_COLUMNS : DEFAULT_COLUMNS;
       const columns = Math.min(Math.ceil(activityData.length / 7) || targetColumns, targetColumns);
-      
+
       // Calculate block size with min/max constraints
       let candidate = Math.floor(width / columns) - BLOCK_MARGIN_PX;
       candidate = Math.max(MIN_BLOCK_SIZE, Math.min(candidate, MAX_BLOCK_SIZE));
-      
+
       if (Math.abs(candidate - blockSize) > 1) {
         setBlockSize(candidate);
       }
@@ -103,7 +103,7 @@ const GitHubActivity = () => {
     // Initial measurement
     updateSize(el.clientWidth);
 
-    const observer = new ResizeObserver((entries) => {
+    const observer = new ResizeObserver(entries => {
       if (!entries[0]) return;
       updateSize(entries[0].contentRect.width);
     });
@@ -268,7 +268,7 @@ const GitHubActivity = () => {
   const handleProductionRefresh = async () => {
     setIsRefreshingProduction(true);
     // Keep the banner visible during production refresh so user sees the loading state
-    
+
     try {
       console.log("[Client] Requesting production GitHub data refresh");
       // Call a special endpoint that will trigger production refresh
@@ -278,9 +278,9 @@ const GitHubActivity = () => {
           "Content-Type": "application/json",
         },
       });
-      
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null) as { message?: string } | null;
+        const errorData = (await response.json().catch(() => null)) as { message?: string } | null;
         console.error("[Client] Production refresh failed:", errorData?.message || response.statusText);
       } else {
         console.log("[Client] Production refresh initiated successfully");
@@ -307,7 +307,7 @@ const GitHubActivity = () => {
     if (activityData.length === 0) return; // Avoid on first empty render
     const svg = document.querySelector<SVGSVGElement>(".react-activity-calendar__svg");
     if (!svg) return;
-    svg.querySelectorAll<SVGRectElement>("rect[data-date]").forEach((rect) => {
+    svg.querySelectorAll<SVGRectElement>("rect[data-date]").forEach(rect => {
       rect.setAttribute("stroke", "none");
     });
   }, [activityData]);
@@ -406,8 +406,8 @@ const GitHubActivity = () => {
           ) : (
             <div className="mt-4 mb-2 p-2 w-full" ref={containerRef}>
               {/* Mobile-optimized wrapper with better touch scrolling */}
-              <div className={`${isMobile ? 'overflow-x-auto -mx-2 px-2' : ''} w-full`}>
-                <div className={isMobile ? 'min-w-fit' : ''}>
+              <div className={`${isMobile ? "overflow-x-auto -mx-2 px-2" : ""} w-full`}>
+                <div className={isMobile ? "min-w-fit" : ""}>
                   <ActivityCalendarComponent
                     data={activityData}
                     theme={calendarCustomTheme}
@@ -422,9 +422,7 @@ const GitHubActivity = () => {
                 </div>
               </div>
               {isMobile && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
-                  ← Swipe to view full year →
-                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">← Swipe to view full year →</p>
               )}
             </div>
           )}
@@ -433,13 +431,13 @@ const GitHubActivity = () => {
               <span className="block sm:inline">
                 Total contributions (trailing year):{" "}
                 <span className="font-medium">{totalContributions.toLocaleString()}</span>
-                <span className="hidden sm:inline">.{" "}</span>
+                <span className="hidden sm:inline">. </span>
               </span>
             )}
             {trailingYearLinesAdded !== null && trailingYearLinesRemoved !== null && (
               <span className="block sm:inline">
-                <span className="hidden sm:inline">LOC Change (trailing year):{" "}</span>
-                <span className="inline sm:hidden">LOC:{" "}</span>
+                <span className="hidden sm:inline">LOC Change (trailing year): </span>
+                <span className="inline sm:hidden">LOC: </span>
                 <span className="text-green-600 dark:text-green-400 font-medium">
                   +{trailingYearLinesAdded.toLocaleString()}
                 </span>{" "}
@@ -447,11 +445,14 @@ const GitHubActivity = () => {
                 <span className="text-red-600 dark:text-red-400 font-medium">
                   -{trailingYearLinesRemoved.toLocaleString()}
                 </span>
-                <span className="hidden sm:inline">.{" "}</span>
+                <span className="hidden sm:inline">. </span>
               </span>
             )}
             {lastRefreshed && (
-              <span className="block sm:inline" title={`Data last updated: ${new Date(lastRefreshed).toLocaleString()}`}>
+              <span
+                className="block sm:inline"
+                title={`Data last updated: ${new Date(lastRefreshed).toLocaleString()}`}
+              >
                 <span className="hidden sm:inline">Last updated: </span>
                 <span className="inline sm:hidden">Updated: </span>
                 {formatDistanceToNow(new Date(lastRefreshed), { addSuffix: true })}

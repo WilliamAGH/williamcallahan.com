@@ -197,7 +197,7 @@ export async function GET(request: NextRequest) {
       const set = new Set(allowed);
       const parsed = value
         .split(",")
-        .map((s) => s.trim())
+        .map(s => s.trim())
         .filter(Boolean)
         .filter((t): t is RelatedContentType => set.has(t as RelatedContentType));
       return parsed.length ? parsed : undefined;
@@ -237,7 +237,7 @@ export async function GET(request: NextRequest) {
           const excludeIds = searchParams.get("excludeIds")?.split(",") || [];
           excludeIds.push(sourceId);
 
-          const candidates = allContent.filter((item) => !(item.type === sourceType && excludeIds.includes(item.id)));
+          const candidates = allContent.filter(item => !(item.type === sourceType && excludeIds.includes(item.id)));
 
           // Get a large number of similar items to allow for pagination
           const similar = findMostSimilar(source, candidates, 100, weights);
@@ -270,7 +270,7 @@ export async function GET(request: NextRequest) {
       items = filterByTypes(items, includeTypes, excludeTypes);
     }
     // Honor excludeIds on cache hits
-    const excludeIds = (request.nextUrl.searchParams.get("excludeIds")?.split(",") || []).map((s) => s.trim());
+    const excludeIds = (request.nextUrl.searchParams.get("excludeIds")?.split(",") || []).map(s => s.trim());
     excludeIds.push(sourceId);
 
     // Apply per-type limits
@@ -288,14 +288,14 @@ export async function GET(request: NextRequest) {
 
     // Apply pagination
     // Remove excluded IDs before pagination
-    const withoutExcluded = sortedItems.filter((i) => !excludeIds.includes(i.id));
+    const withoutExcluded = sortedItems.filter(i => !excludeIds.includes(i.id));
     const totalItems = withoutExcluded.length;
     const totalPages = Math.ceil(totalItems / limit);
     const paginatedItems = withoutExcluded.slice((page - 1) * limit, page * limit);
 
     // Get slug mapping if needed for bookmark URLs
     let slugMapping: BookmarkSlugMapping | null = null;
-    if (paginatedItems.some((item) => item.type === "bookmark")) {
+    if (paginatedItems.some(item => item.type === "bookmark")) {
       slugMapping = await loadSlugMapping();
       if (!slugMapping) {
         console.error("[RelatedContent API] Failed to load slug mapping - bookmarks will be skipped");
@@ -303,7 +303,7 @@ export async function GET(request: NextRequest) {
     }
 
     const responseData = paginatedItems
-      .map((item) => toRelatedContentItem(item, slugMapping))
+      .map(item => toRelatedContentItem(item, slugMapping))
       .filter((item): item is RelatedContentItem => item !== null);
 
     const response = {

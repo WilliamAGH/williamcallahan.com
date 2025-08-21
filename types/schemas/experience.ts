@@ -61,7 +61,7 @@ const experienceBaseSchema = z.object({
  * Schema for experience entry with structured dates and validation
  */
 export const experienceSchema = experienceBaseSchema.refine(
-  (data) => {
+  data => {
     // Ensure endDate is after startDate if both are provided
     if (data.endDate && data.startDate) {
       return new Date(data.endDate) >= new Date(data.startDate);

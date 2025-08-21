@@ -30,7 +30,7 @@ export function SocialListClient() {
 
         {/* Social Media Cards */}
         <div className="grid auto-rows-[1fr] gap-6 sm:grid-cols-[repeat(auto-fit,minmax(min(330px,100%),1fr))] mt-8">
-          {socialLinks.map((social) => (
+          {socialLinks.map(social => (
             <div key={social.href} className="h-full">
               <SocialCardClient social={social} />
             </div>

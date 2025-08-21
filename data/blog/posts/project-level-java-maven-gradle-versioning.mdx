@@ -10,9 +10,14 @@ coverImage: "/images/posts/java-maven.png"
 ---
 
 <BackgroundInfo title="Related Java Setup Guides">
-- **This Article: Core Java, Maven & Gradle Setup & Usage**
-- <ExternalLink href="/blog/how-to-setup-the-java-sdk-and-use-javafx-on-macos-windows">Specifics: Setting up JavaFX</ExternalLink>
-- <ExternalLink href="/blog/setting-up-modern-spring-boot-web-server-rest-api-web-content-2025-guide">Specifics: Setting up a Spring Boot Server</ExternalLink>
+  - **This Article: Core Java, Maven & Gradle Setup & Usage** -{" "}
+  <ExternalLink href="/blog/how-to-setup-the-java-sdk-and-use-javafx-on-macos-windows">
+    Specifics: Setting up JavaFX
+  </ExternalLink>
+  -{" "}
+  <ExternalLink href="/blog/setting-up-modern-spring-boot-web-server-rest-api-web-content-2025-guide">
+    Specifics: Setting up a Spring Boot Server
+  </ExternalLink>
 </BackgroundInfo>
 
 ## Part 1: OS-Level Tool Installation (The Foundation)
@@ -107,79 +112,64 @@ Before diving into project-specific setups, you'll generally need a Java Develop
             ```
       </div>
     </ShellTab>
+
   </ShellParentTabs>
 </CollapseDropdown>
 
 <CollapseDropdown summary="Installing Build Tools (Maven & Gradle) - OS Level (Optional)">
   <div>
-    While project wrappers (`mvnw`, `gradlew`) are preferred for project work, you might want global installations for bootstrapping new projects or for tools that expect them.
+    While project wrappers (`mvnw`, `gradlew`) are preferred for project work, you might want global installations for
+    bootstrapping new projects or for tools that expect them.
   </div>
   <ShellParentTabs>
     <ShellTab label="Maven (OS Level)" isDefault={true}>
       <InstructionToggleTabs>
         <InstructionTab label="macOS (Homebrew)" isDefault={true}>
-          ```bash
-          brew install maven
-          mvn -v # Verify
-          ```
+          ```bash brew install maven mvn -v # Verify ```
         </InstructionTab>
         <InstructionTab label="Linux (apt)">
-          ```bash
-          sudo apt update
-          sudo apt install maven
-          mvn -v # Verify
-          ```
+          ```bash sudo apt update sudo apt install maven mvn -v # Verify ```
         </InstructionTab>
         <InstructionTab label="Manual Install (All OS)">
           <div>
-            1.  Download Maven binaries from <ExternalLink href="https://maven.apache.org/download.cgi">Apache Maven</ExternalLink>.
-            2.  Extract to a directory (e.g., `/opt/maven` on Linux/macOS, `C:\Program Files\Maven` on Windows).
-            3.  Set `MAVEN_HOME` (or `M2_HOME`) environment variable to this directory.
-            4.  Add `MAVEN_HOME/bin` (or `M2_HOME/bin`) to your `PATH`.
-            5.  Verify with `mvn -v`.
+            1. Download Maven binaries from{" "}
+            <ExternalLink href="https://maven.apache.org/download.cgi">Apache Maven</ExternalLink>. 2. Extract to a
+            directory (e.g., `/opt/maven` on Linux/macOS, `C:\Program Files\Maven` on Windows). 3. Set `MAVEN_HOME` (or
+            `M2_HOME`) environment variable to this directory. 4. Add `MAVEN_HOME/bin` (or `M2_HOME/bin`) to your
+            `PATH`. 5. Verify with `mvn -v`.
           </div>
-          ```bash
-          # Example for macOS/Linux in ~/.zshrc or ~/.bashrc
-          # export MAVEN_HOME=/opt/apache-maven-3.9.6
-          # export PATH="$MAVEN_HOME/bin:$PATH"
-          ```
+          ```bash # Example for macOS/Linux in ~/.zshrc or ~/.bashrc # export MAVEN_HOME=/opt/apache-maven-3.9.6 #
+          export PATH="$MAVEN_HOME/bin:$PATH" ```
         </InstructionTab>
       </InstructionToggleTabs>
     </ShellTab>
     <ShellTab label="Gradle (OS Level)">
       <InstructionToggleTabs>
         <InstructionTab label="macOS (Homebrew)" isDefault={true}>
-          ```bash
-          brew install gradle
-          gradle -v # Verify
-          ```
+          ```bash brew install gradle gradle -v # Verify ```
         </InstructionTab>
         <InstructionTab label="Linux (SDKMAN!)">
           <div>SDKMAN! (see Part 2) is excellent for managing global Gradle versions:</div>
-          ```bash
-          sdk install gradle
-          gradle -v # Verify
-          ```
+          ```bash sdk install gradle gradle -v # Verify ```
         </InstructionTab>
         <InstructionTab label="Manual Install (All OS)">
           <div>
-            1.  Download Gradle binaries from <ExternalLink href="https://gradle.org/releases/">Gradle Releases</ExternalLink>.
-            2.  Extract to a directory (e.g., `/opt/gradle` on Linux/macOS, `C:\Program Files\Gradle` on Windows).
-            3.  Set `GRADLE_HOME` environment variable.
-            4.  Add `GRADLE_HOME/bin` to your `PATH`.
-            5.  Verify with `gradle -v`.
+            1. Download Gradle binaries from{" "}
+            <ExternalLink href="https://gradle.org/releases/">Gradle Releases</ExternalLink>. 2. Extract to a directory
+            (e.g., `/opt/gradle` on Linux/macOS, `C:\Program Files\Gradle` on Windows). 3. Set `GRADLE_HOME` environment
+            variable. 4. Add `GRADLE_HOME/bin` to your `PATH`. 5. Verify with `gradle -v`.
           </div>
-          ```bash
-          # Example for macOS/Linux in ~/.zshrc or ~/.bashrc
-          # export GRADLE_HOME=/opt/gradle-8.7
-          # export PATH="$GRADLE_HOME/bin:$PATH"
-          ```
+          ```bash # Example for macOS/Linux in ~/.zshrc or ~/.bashrc # export GRADLE_HOME=/opt/gradle-8.7 # export
+          PATH="$GRADLE_HOME/bin:$PATH" ```
         </InstructionTab>
       </InstructionToggleTabs>
     </ShellTab>
   </ShellParentTabs>
   <BackgroundInfo title="OS Install vs. Project Wrappers">
-  Global (OS-level) installations of Maven/Gradle are for convenience or bootstrapping. **For actual project development and builds, always prefer using the project's Maven Wrapper (`./mvnw`) or Gradle Wrapper (`./gradlew`).** This ensures everyone uses the same build tool version, leading to reproducible builds. The wrappers will download the correct version if needed.
+    Global (OS-level) installations of Maven/Gradle are for convenience or bootstrapping. **For actual project
+    development and builds, always prefer using the project's Maven Wrapper (`./mvnw`) or Gradle Wrapper
+    (`./gradlew`).** This ensures everyone uses the same build tool version, leading to reproducible builds. The
+    wrappers will download the correct version if needed.
   </BackgroundInfo>
 </CollapseDropdown>
 
@@ -192,27 +182,19 @@ Ensure different projects can use different Java versions without conflict.
     <CollapseDropdown summary="Project-Specific JAVA_HOME (Manual/Scripted)">
       <InstructionToggleTabs>
         <InstructionTab label="Temporary Override (Current Shell)" isDefault={true}>
-          ```bash
-          # Example: Point to a JDK 21 installation
-          export JAVA_HOME=$(/usr/libexec/java_home -v 21)
-          # Or directly: export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home
-          java -version
-          ```
+          ```bash # Example: Point to a JDK 21 installation export JAVA_HOME=$(/usr/libexec/java_home -v 21) # Or
+          directly: export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home java -version ```
         </InstructionTab>
         <InstructionTab label="Project-Local Script">
           <div>`set_java_env.sh`:</div>
-          ```bash
-          #!/bin/bash
-          export JAVA_HOME=$(/usr/libexec/java_home -v 17) # Or project's JDK path
-          ```
+          ```bash #!/bin/bash export JAVA_HOME=$(/usr/libexec/java_home -v 17) # Or project's JDK path ```
           <div>Source it: `source ./set_java_env.sh`.</div>
         </InstructionTab>
         <InstructionTab label="Using direnv">
-          <div>Install <ExternalLink href="https://direnv.net/">direnv</ExternalLink>. Create `.envrc` in project root:</div>
-          ```bash
-          # .envrc
-          export JAVA_HOME=$(/usr/libexec/java_home -v 17) # Or specific path
-          ```
+          <div>
+            Install <ExternalLink href="https://direnv.net/">direnv</ExternalLink>. Create `.envrc` in project root:
+          </div>
+          ```bash # .envrc export JAVA_HOME=$(/usr/libexec/java_home -v 17) # Or specific path ```
           <div>Run `direnv allow`. `JAVA_HOME` auto-sets on `cd`.</div>
         </InstructionTab>
       </InstructionToggleTabs>
@@ -221,58 +203,47 @@ Ensure different projects can use different Java versions without conflict.
       <InstructionToggleTabs>
         <InstructionTab label="IntelliJ IDEA" isDefault={true}>
           <div>**File > Project Structure... > Project > SDK**. Select project JDK.</div>
-          <ArticleImage src="/images/posts/idea-edit-default-sdk-project-structure.png" alt="IntelliJ IDEA Project SDK setting" caption="IntelliJ IDEA: Project Structure > Project SDK" size="medium" />
+          <ArticleImage
+            src="/images/posts/idea-edit-default-sdk-project-structure.png"
+            alt="IntelliJ IDEA Project SDK setting"
+            caption="IntelliJ IDEA: Project Structure > Project SDK"
+            size="medium"
+          />
         </InstructionTab>
         <InstructionTab label="VS Code">
-          <div>Command Palette (**Cmd+Shift+P** / **Ctrl+Shift+P**) > `Java: Configure Java Runtime`. Select project & JDK.</div>
+          <div>
+            Command Palette (**Cmd+Shift+P** / **Ctrl+Shift+P**) > `Java: Configure Java Runtime`. Select project & JDK.
+          </div>
         </InstructionTab>
       </InstructionToggleTabs>
       <BackgroundInfo title="Note">
-      IDE settings control development. CLI consistency benefits from scripted `JAVA_HOME` or tools like SDKMAN!.
+        IDE settings control development. CLI consistency benefits from scripted `JAVA_HOME` or tools like SDKMAN!.
       </BackgroundInfo>
     </CollapseDropdown>
   </ShellTab>
   <ShellTab label="Alternative: SDKMAN! (CLI Tool)">
     <CollapseDropdown summary="Install & Use SDKMAN!">
-      ```bash
-      curl -s "https://get.sdkman.io" | bash
-      source "$HOME/.sdkman/bin/sdkman-init.sh"
-      sdk install java 17.0.10-tem # Example install
-      sdk use java 17.0.10-tem   # Use in current shell
-      ```
+      ```bash curl -s "https://get.sdkman.io" | bash source "$HOME/.sdkman/bin/sdkman-init.sh" sdk install java
+      17.0.10-tem # Example install sdk use java 17.0.10-tem # Use in current shell ```
     </CollapseDropdown>
     <CollapseDropdown summary="Project Pinning (.sdkmanrc)">
       <div>In project directory:</div>
-      ```bash
-      sdk env init java 11.0.22-tem # Creates .sdkmanrc
-      ```
+      ```bash sdk env init java 11.0.22-tem # Creates .sdkmanrc ```
       <div>SDKMAN! auto-switches Java version when entering the directory (after initial trust).</div>
-      ```bash
-      java -version # Shows .sdkmanrc version
-      javac -version
-      ```
+      ```bash java -version # Shows .sdkmanrc version javac -version ```
     </CollapseDropdown>
   </ShellTab>
   <ShellTab label="Alternative: jenv (CLI Tool)">
     <CollapseDropdown summary="Install & Use jenv (macOS Homebrew example)">
-      ```bash
-      brew install jenv
-      # Add to shell config (e.g., ~/.zshrc)
-      echo 'export PATH="$HOME/.jenv/bin:$PATH"' >> ~/.zshrc
-      echo 'eval "$(jenv init -)"' >> ~/.zshrc
-      source ~/.zshrc
-      jenv add /opt/homebrew/opt/openjdk@11 # Add installed JDK
-      ```
+      ```bash brew install jenv # Add to shell config (e.g., ~/.zshrc) echo 'export PATH="$HOME/.jenv/bin:$PATH"' >>
+      ~/.zshrc echo 'eval "$(jenv init -)"' >> ~/.zshrc source ~/.zshrc jenv add /opt/homebrew/opt/openjdk@11 # Add
+      installed JDK ```
     </CollapseDropdown>
     <CollapseDropdown summary="Project Pinning (.java-version)">
       <div>In project directory:</div>
-      ```bash
-      jenv local 17.0 # Creates .java-version
-      ```
+      ```bash jenv local 17.0 # Creates .java-version ```
       <div>`jenv` auto-switches Java version.</div>
-      ```bash
-      java -version # Shows .java-version version
-      ```
+      ```bash java -version # Shows .java-version version ```
     </CollapseDropdown>
   </ShellTab>
 </ShellParentTabs>
@@ -379,6 +350,7 @@ Maven is a powerful build automation tool that uses a Project Object Model (POM)
       ```
       <div>Ensure the active `JAVA_HOME` (ideally set per-project) is compatible with these settings.</div>
     </CollapseDropdown>
+
   </ShellTab>
   <ShellTab label="System 'mvn' (Context Only)">
     <CollapseDropdown summary="Global Maven Issues">
@@ -476,6 +448,7 @@ Gradle is another popular build automation tool, known for its flexibility and p
       ```
       <div>Ensure the active `JAVA_HOME` is compatible. Gradle also supports <ExternalLink href="https://docs.gradle.org/current/userguide/toolchains.html">Java toolchains</ExternalLink> for more fine-grained control over the JDK/JRE used by Gradle tasks, independent of `JAVA_HOME`.</div>
     </CollapseDropdown>
+
   </ShellTab>
   <ShellTab label="System 'gradle' (Context Only)">
     <CollapseDropdown summary="Global Gradle Issues">
@@ -493,35 +466,25 @@ Dependencies are external libraries your project relies on. They are declared in
     <InstructionTab label="Maven (./mvnw)" isDefault={true}>
       <CollapseDropdown summary="Check for Updates">
         <div>Requires `versions-maven-plugin` in `pom.xml`.</div>
-        ```bash
-        ./mvnw versions:display-dependency-updates
-        ```
+        ```bash ./mvnw versions:display-dependency-updates ```
       </CollapseDropdown>
       <CollapseDropdown summary="Apply Updates">
-        ```bash
-        # Update specific dependency
-        ./mvnw versions:use-latest-versions -Dincludes=groupId:artifactId
-        # Or edit pom.xml manually, then:
-        ./mvnw clean install
-        ```
+        ```bash # Update specific dependency ./mvnw versions:use-latest-versions -Dincludes=groupId:artifactId # Or edit
+        pom.xml manually, then: ./mvnw clean install ```
       </CollapseDropdown>
     </InstructionTab>
     <InstructionTab label="Gradle (./gradlew)">
       <CollapseDropdown summary="Check for Updates (with plugin)">
         <div>Requires `com.github.ben-manes.versions` plugin in `build.gradle(.kts)`.</div>
-        ```bash
-        ./gradlew dependencyUpdates
-        ```
+        ```bash ./gradlew dependencyUpdates ```
       </CollapseDropdown>
       <CollapseDropdown summary="Apply Updates">
         <div>Edit `build.gradle(.kts)` versions manually, then:</div>
-        ```bash
-        ./gradlew build
-        ```
+        ```bash ./gradlew build ```
       </CollapseDropdown>
     </InstructionTab>
   </InstructionToggleTabs>
   <BackgroundInfo title="IDE Support">
-  IntelliJ IDEA and VS Code (with Java extensions) often provide UI features to detect and update dependencies.
+    IntelliJ IDEA and VS Code (with Java extensions) often provide UI features to detect and update dependencies.
   </BackgroundInfo>
 </CollapseDropdown>

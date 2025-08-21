@@ -30,14 +30,14 @@ export function Skills() {
         SKILLS
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {skillCategories.map((category) => (
+        {skillCategories.map(category => (
           <div
             key={category.title}
             className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg border border-gray-200 dark:border-gray-700"
           >
             <h3 className="text-xl font-semibold mb-4">{category.title}</h3>
             <div className="flex flex-wrap gap-2">
-              {category.skills.map((skill) => (
+              {category.skills.map(skill => (
                 <span key={skill} className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-sm">
                   {skill}
                 </span>

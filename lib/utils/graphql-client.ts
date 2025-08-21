@@ -68,7 +68,7 @@ export class GraphQLClient {
       });
 
       if (response.errors && response.errors.length > 0) {
-        const errorMessages = response.errors.map((e) => e.message).join(", ");
+        const errorMessages = response.errors.map(e => e.message).join(", ");
 
         if (this.config.debug) {
           debugLog("GraphQL Errors", "error", { errors: response.errors });

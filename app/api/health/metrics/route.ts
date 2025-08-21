@@ -98,7 +98,8 @@ export async function GET(request: Request): Promise<NextResponse> {
     return NextResponse.json(parsedResponse);
   } catch (error: unknown) {
     console.error("Error retrieving health metrics:", error);
-    const message = error instanceof Error ? error.message : "An unknown error occurred while retrieving health metrics.";
+    const message =
+      error instanceof Error ? error.message : "An unknown error occurred while retrieving health metrics.";
     return NextResponse.json({ error: "Failed to retrieve health metrics", details: message }, { status: 500 });
   }
 }

@@ -147,7 +147,7 @@ export default async function middleware(request: NextRequest): Promise<NextResp
 
   const csp = Object.entries(cspDirectives)
     .map(([key, sources]) => {
-      const directive = key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+      const directive = key.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`);
       return `${directive} ${sources.join(" ")}`;
     })
     .join("; ");

@@ -176,11 +176,11 @@ export function InvestmentCardClient({
               <div className="grid grid-cols-3 gap-x-2 sm:gap-x-6">
                 <div className="flex flex-col text-center">
                   <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Round Size</div>
-                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt((details?.find((d) => d.label === "Round Size")?.value ?? "0").replace(/[^0-9]/g, "") || "0", 10))}`}</div>
+                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt((details?.find(d => d.label === "Round Size")?.value ?? "0").replace(/[^0-9]/g, "") || "0", 10))}`}</div>
                 </div>
                 <div className="flex flex-col text-center">
                   <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Valuation</div>
-                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt((details?.find((d) => d.label === "Valuation")?.value ?? "0").replace(/[^0-9]/g, "") || "0", 10))}`}</div>
+                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt((details?.find(d => d.label === "Valuation")?.value ?? "0").replace(/[^0-9]/g, "") || "0", 10))}`}</div>
                 </div>
                 <div className="flex flex-col text-center">
                   <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Return</div>

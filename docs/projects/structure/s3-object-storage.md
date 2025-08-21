@@ -78,7 +78,7 @@ See `s3-object-storage.mmd` for detailed data flow visualization.
   - Request deduplication for concurrent fetches
   - CDN URL generation and validation
   - **NEW**: SSRF protection with URL validation before external fetches
-  - **NEW**: Uses server-only env vars (S3_CDN_URL) instead of NEXT_PUBLIC_ in server code
+  - **NEW**: Uses server-only env vars (S3*CDN_URL) instead of NEXT_PUBLIC* in server code
   - **NEW**: Parallel logo analysis and inversion operations
 
 - **`lib/image-handling/image-s3-utils.ts`**: Generic image persistence
@@ -134,7 +134,7 @@ IS_DATA_UPDATER=true             # Batch mode for synchronous persistence
 ### URL Validation & SSRF Prevention
 
 - **Comprehensive URL Validation**: All external URLs validated with Zod schemas
-- **Private IP Blocking**: Prevents access to internal networks (127.*, 10.*, 172.16-31.*, 192.168.*, ::1, fc00::/7)
+- **Private IP Blocking**: Prevents access to internal networks (127._, 10._, 172.16-31._, 192.168._, ::1, fc00::/7)
 - **Protocol Restrictions**: Only HTTP/HTTPS allowed, no file://, ftp://, or javascript:
 - **Domain Allowlisting**: Sensitive endpoints restricted to known safe domains
 - **Credential Stripping**: URLs with embedded credentials rejected
@@ -227,7 +227,7 @@ bucket/
 **NEVER store:**
 
 - JSON files in `images/` directories
-- Binary files in `json/` directories  
+- Binary files in `json/` directories
 - Unrelated files in domain-specific directories
 - Cache files without proper expiration handling
 
@@ -268,7 +268,7 @@ bucket/
 
 ### Environment Issues (CRITICAL)
 
-6. **NEXT_PUBLIC_ Misuse** - Server-side code using client prefix:
+6. **NEXT*PUBLIC* Misuse** - Server-side code using client prefix:
    - `lib/services/unified-image-service.ts:48,104,148`
    - `lib/persistence/s3-persistence.ts:294,296,349,362`
    - `lib/s3-utils.ts:39`
@@ -285,7 +285,7 @@ bucket/
    - Impact: Server can be used to attack internal resources
    - Fix: Implement URL allowlist, block private IP ranges
    - **✅ FIXED (2025-07)**: Implemented comprehensive URL validation in `lib/utils/url-utils.ts` with:
-     - Private IP range blocking (127.*, 10.*, 172.16-31.*, 192.168.*, ::1, fc00::/7)
+     - Private IP range blocking (127._, 10._, 172.16-31._, 192.168._, ::1, fc00::/7)
      - Protocol restrictions (HTTP/HTTPS only)
      - Domain allowlisting for sensitive endpoints
      - Zod validation schemas for all URL inputs
@@ -361,7 +361,7 @@ bucket/
 
 - ✅ **SSRF Vulnerability**: Comprehensive URL validation with private IP blocking
 - ✅ **Path Traversal**: All paths sanitized, S3 keys validated
-- ✅ **NEXT_PUBLIC_ Misuse**: Server code uses S3_CDN_URL, client uses NEXT_PUBLIC_S3_CDN_URL
+- ✅ **NEXT*PUBLIC* Misuse**: Server code uses S3_CDN_URL, client uses NEXT_PUBLIC_S3_CDN_URL
 - ✅ **Sequential Operations**: Parallel logo fetching, batch S3 checks
 - ✅ **Type Safety**: BaseMediaResult interface consolidates image/logo types
 - ✅ **British Spellings**: All converted to American English
@@ -380,7 +380,7 @@ bucket/
 - **S3 Direct**: ~100-200ms
 - **Large Files (>5MB)**: Streamed to prevent memory spikes
 
-### Write Operations  
+### Write Operations
 
 - **S3 Upload**: ~200-500ms (varies by size)
 - **With Retry**: Up to 3x base time
@@ -446,15 +446,16 @@ When `scripts/data-updater.ts` runs with bookmarks enabled:
 - Prevents duplicate downloads for same domain
 
 **Persistence Logic**:
+
 ```typescript
 // In batch mode (data-updater)
 if (useBatchMode) {
   const s3Url = await persistImageAndGetS3Url(
-    imageUrl,           // External URL from Karakeep
-    OPENGRAPH_IMAGES_S3_DIR,  // images/opengraph/
-    "Karakeep",         // Log context
-    bookmark.id,        // Idempotency key
-    bookmark.url        // Page URL for context
+    imageUrl, // External URL from Karakeep
+    OPENGRAPH_IMAGES_S3_DIR, // images/opengraph/
+    "Karakeep", // Log context
+    bookmark.id, // Idempotency key
+    bookmark.url, // Page URL for context
   );
   bookmark.ogImage = s3Url; // Update to use CDN URL
 }
@@ -578,10 +579,10 @@ The platform automatically prepares and maintains S3 JSON data across environmen
 
 ### Container Startup Flow
 
-1) Entrypoint executes
-2) Initial data population if required (bookmarks/slug mapping)
-3) Scheduler boots in the background
-4) Next.js server starts serving traffic
+1. Entrypoint executes
+2. Initial data population if required (bookmarks/slug mapping)
+3. Scheduler boots in the background
+4. Next.js server starts serving traffic
 
 ### Environment-Specific Behavior
 
@@ -597,9 +598,9 @@ The platform automatically prepares and maintains S3 JSON data across environmen
   await saveSlugMapping(bookmarks, true, true); // Save to all paths
   ```
 - Fallback load order:
-  1) Environment-specific primary path
-  2) All environment variants
-  3) Dynamic regeneration when necessary
+  1. Environment-specific primary path
+  2. All environment variants
+  3. Dynamic regeneration when necessary
 
 ### Manual Intervention
 

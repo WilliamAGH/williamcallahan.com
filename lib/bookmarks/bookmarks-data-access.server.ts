@@ -102,9 +102,7 @@ const ENABLE_TAG_PERSISTENCE = process.env.ENABLE_TAG_PERSISTENCE !== "false";
 const RAW_MAX_TAGS = process.env.MAX_TAGS_TO_PERSIST;
 const PARSED_MAX_TAGS = RAW_MAX_TAGS != null ? Number(RAW_MAX_TAGS) : Number.NaN;
 const MAX_TAGS_TO_PERSIST =
-  Number.isFinite(PARSED_MAX_TAGS) && PARSED_MAX_TAGS > 0
-    ? Math.floor(PARSED_MAX_TAGS)
-    : Number.MAX_SAFE_INTEGER;
+  Number.isFinite(PARSED_MAX_TAGS) && PARSED_MAX_TAGS > 0 ? Math.floor(PARSED_MAX_TAGS) : Number.MAX_SAFE_INTEGER;
 
 if (RAW_MAX_TAGS && (!Number.isFinite(PARSED_MAX_TAGS) || PARSED_MAX_TAGS <= 0)) {
   envLogger.debug(
@@ -128,9 +126,7 @@ const DISTRIBUTED_LOCK_S3_KEY = BOOKMARKS_S3_PATHS.LOCK;
 const RAW_LOCK_TTL = process.env.BOOKMARKS_LOCK_TTL_MS;
 const PARSED_LOCK_TTL = RAW_LOCK_TTL != null ? Number(RAW_LOCK_TTL) : Number.NaN;
 const LOCK_TTL_MS =
-  Number.isFinite(PARSED_LOCK_TTL) && PARSED_LOCK_TTL > 0
-    ? Math.floor(PARSED_LOCK_TTL)
-    : 5 * 60 * 1000; // Default: 5 minutes
+  Number.isFinite(PARSED_LOCK_TTL) && PARSED_LOCK_TTL > 0 ? Math.floor(PARSED_LOCK_TTL) : 5 * 60 * 1000; // Default: 5 minutes
 
 if (RAW_LOCK_TTL && (!Number.isFinite(PARSED_LOCK_TTL) || PARSED_LOCK_TTL <= 0)) {
   envLogger.debug(
@@ -156,7 +152,6 @@ let inFlightRefreshPromise: Promise<UnifiedBookmark[] | null> | null = null;
 
 const isS3Error = (err: unknown): err is { $metadata?: { httpStatusCode?: number } } =>
   typeof err === "object" && err !== null && "$metadata" in err;
-
 
 const acquireRefreshLock = async (): Promise<boolean> => {
   const locked = await bookmarksLock.acquire();
@@ -185,14 +180,14 @@ export function initializeBookmarksDataAccess(): void {
   if (!refreshBookmarksCallback) {
     import("@/lib/bookmarks")
       .then(({ refreshBookmarksData }) => setRefreshBookmarksCallback(refreshBookmarksData))
-      .catch((error) => console.error("[Bookmarks] Failed to initialize refresh callback:", String(error)));
+      .catch(error => console.error("[Bookmarks] Failed to initialize refresh callback:", String(error)));
   }
   if (!lockCleanupInterval) {
-    cleanupStaleLocks(DISTRIBUTED_LOCK_S3_KEY, "BookmarksLock").catch((error) =>
+    cleanupStaleLocks(DISTRIBUTED_LOCK_S3_KEY, "BookmarksLock").catch(error =>
       envLogger.debug("Initial lock cleanup failed", { error: String(error) }, { category: "BookmarksLock" }),
     );
     lockCleanupInterval = setInterval(() => {
-      cleanupStaleLocks(DISTRIBUTED_LOCK_S3_KEY, "BookmarksLock").catch((error) =>
+      cleanupStaleLocks(DISTRIBUTED_LOCK_S3_KEY, "BookmarksLock").catch(error =>
         envLogger.debug("Periodic lock cleanup failed", { error: String(error) }, { category: "BookmarksLock" }),
       );
     }, LOCK_CLEANUP_INTERVAL_MS);
@@ -206,9 +201,7 @@ export function cleanupBookmarksDataAccess(): void {
     lockCleanupInterval = null;
   }
   if (isRefreshLocked)
-    releaseRefreshLock().catch((error) =>
-      console.error("[Bookmarks] Failed to release lock on cleanup:", String(error)),
-    );
+    releaseRefreshLock().catch(error => console.error("[Bookmarks] Failed to release lock on cleanup:", String(error)));
 }
 
 /** Check if bookmarks have changed */
@@ -249,7 +242,7 @@ async function writePaginatedBookmarks(
   // Write pages with bookmarks ensuring they have embedded slugs
   for (let page = 1; page <= totalPages; page++) {
     const start = (page - 1) * pageSize;
-    const slice = bookmarks.slice(start, start + pageSize).map((b) => {
+    const slice = bookmarks.slice(start, start + pageSize).map(b => {
       // Ensure each bookmark has its slug embedded
       const entry = mapping.slugs[b.id];
       if (!entry) {
@@ -312,11 +305,11 @@ async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark[]): Pr
           .slice(0, MAX_TAGS_TO_PERSIST)
           .map(([tag]) => tag)
       : allTags;
-  
+
   envLogger.log(
-    `Persisting ${tagsToProcess.length} of ${allTags.length} tags to S3 storage`, 
+    `Persisting ${tagsToProcess.length} of ${allTags.length} tags to S3 storage`,
     { totalTags: allTags.length, persistingCount: tagsToProcess.length, limit: MAX_TAGS_TO_PERSIST },
-    { category: LOG_PREFIX }
+    { category: LOG_PREFIX },
   );
   for (const tagSlug of tagsToProcess) {
     const tagBookmarks = bookmarksByTag[tagSlug];
@@ -336,7 +329,7 @@ async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark[]): Pr
     await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`, tagIndex);
     for (let page = 1; page <= totalPages; page++) {
       const start = (page - 1) * pageSize;
-      const slice = tagBookmarks.slice(start, start + pageSize).map((b) => {
+      const slice = tagBookmarks.slice(start, start + pageSize).map(b => {
         const entry = mapping.slugs[b.id];
         if (!entry) {
           throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (tag=${tagSlug})`);
@@ -349,7 +342,7 @@ async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark[]): Pr
   envLogger.log(
     `Persisted tag-filtered bookmarks to S3`,
     { tagCount: tagsToProcess.length, totalTags: allTags.length },
-    { category: LOG_PREFIX }
+    { category: LOG_PREFIX },
   );
   // Reduce staleness window by clearing in-memory dataset cache after writes
   fullDatasetMemoryCache = null;
@@ -393,7 +386,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
 
       // Ensure bookmarks file exists with full content data
       const mapping = generateSlugMapping(allIncomingBookmarks);
-      const bookmarksWithSlugs = allIncomingBookmarks.map((b) => {
+      const bookmarksWithSlugs = allIncomingBookmarks.map(b => {
         const entry = mapping.slugs[b.id];
         if (!entry) {
           throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (no-change FILE)`);
@@ -417,7 +410,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
     console.log(`${LOG_PREFIX} Changes detected, persisting bookmarks`);
     const mapping = await writePaginatedBookmarks(allIncomingBookmarks);
     {
-      const bookmarksWithSlugs = allIncomingBookmarks.map((b) => {
+      const bookmarksWithSlugs = allIncomingBookmarks.map(b => {
         const entry = mapping.slugs[b.id];
         if (!entry) {
           throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (change FILE)`);
@@ -432,7 +425,10 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarksWithSlugs, null, 2));
         console.log(`${LOG_PREFIX} ✅ Successfully saved bookmarks to local fallback path (change-detected path)`);
       } catch (error) {
-        console.error(`${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path (change-detected path):`, error);
+        console.error(
+          `${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path (change-detected path):`,
+          error,
+        );
       }
       // --- END LOCAL CACHE WRITE ---
     }
@@ -462,7 +458,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
               console.log(`${LOG_PREFIX} ${force ? "Forcing write" : "Changes detected"}, writing to S3`);
               const mapping = await writePaginatedBookmarks(freshBookmarks);
               {
-                const bookmarksWithSlugs = freshBookmarks.map((b) => {
+                const bookmarksWithSlugs = freshBookmarks.map(b => {
                   const entry = mapping.slugs[b.id];
                   if (!entry) {
                     throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (force FILE)`);
@@ -502,7 +498,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
 
               // Generate mapping for use in bookmarks (but don't save it again)
               const mapping = generateSlugMapping(freshBookmarks);
-              const bookmarksWithSlugs = freshBookmarks.map((b) => {
+              const bookmarksWithSlugs = freshBookmarks.map(b => {
                 const entry = mapping.slugs[b.id];
                 if (!entry) {
                   throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (non-selective FILE)`);
@@ -515,7 +511,9 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
               try {
                 await fs.mkdir(path.dirname(LOCAL_BOOKMARKS_PATH), { recursive: true });
                 await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarksWithSlugs, null, 2));
-                console.log(`${LOG_PREFIX} ✅ Successfully saved bookmarks to local fallback path: ${LOCAL_BOOKMARKS_PATH}`);
+                console.log(
+                  `${LOG_PREFIX} ✅ Successfully saved bookmarks to local fallback path: ${LOCAL_BOOKMARKS_PATH}`,
+                );
               } catch (error) {
                 console.error(`${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path:`, error);
               }
@@ -600,17 +598,13 @@ async function fetchAndCacheBookmarks(
   safeCacheLife({ revalidate: 3600 }); // 1 hour
   safeCacheTag("bookmarks-s3-full");
   const { skipExternalFetch = false, includeImageData = true, force = false } = options;
-  envLogger.service(
-    "BookmarksDataAccess",
-    "fetchAndCacheBookmarks",
-    { skipExternalFetch, includeImageData, force },
-  );
+  envLogger.service("BookmarksDataAccess", "fetchAndCacheBookmarks", { skipExternalFetch, includeImageData, force });
 
   // Define normalizeBookmarkTags function before usage
   const normalizeBookmarkTags = (bookmark: UnifiedBookmark) => ({
     ...bookmark,
     tags: (bookmark.tags || [])
-      .filter((tag) => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
+      .filter(tag => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
       .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
   });
 
@@ -638,9 +632,7 @@ async function fetchAndCacheBookmarks(
         return bookmarks.map(normalizeBookmarkTags);
       }
     } catch (error) {
-      console.warn(
-        `[Bookmarks] Local bookmarks cache not found or invalid, proceeding to S3. Error: ${String(error)}`,
-      );
+      console.warn(`[Bookmarks] Local bookmarks cache not found or invalid, proceeding to S3. Error: ${String(error)}`);
     }
   } else {
     // Explicitly log that we are skipping local fallback in production runtime to avoid stale snapshots from build layers
@@ -655,7 +647,7 @@ async function fetchAndCacheBookmarks(
     if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
       console.log(`${LOG_PREFIX} Loaded ${bookmarks.length} bookmarks from S3`);
       if (process.env.DEBUG_BOOKMARKS === "true") {
-        const cliBookmark = bookmarks.find((b) => b.id === "yz7g8v8vzprsd2bm1w1cjc4y");
+        const cliBookmark = bookmarks.find(b => b.id === "yz7g8v8vzprsd2bm1w1cjc4y");
         if (cliBookmark) {
           console.log(`[BookmarksServer] CLI bookmark content exists:`, {
             hasContent: !!cliBookmark.content,
@@ -850,7 +842,7 @@ export async function getBookmarksByTag(
     };
   }
   console.log(`${LOG_PREFIX} Cache miss for tag "${tagSlug}". Falling back to full bookmark set filtering`);
-  
+
   // Check in-memory runtime cache first to avoid repeated S3 reads.
   // In test environment, bypass the in-process cache so each test can
   // provide different mocked datasets deterministically.
@@ -858,7 +850,11 @@ export async function getBookmarksByTag(
   const now = Date.now();
   const bypassMemoryCache = process.env.NODE_ENV === "test";
 
-  if (!bypassMemoryCache && fullDatasetMemoryCache && now - fullDatasetMemoryCache.timestamp < FULL_DATASET_MEMORY_CACHE_TTL) {
+  if (
+    !bypassMemoryCache &&
+    fullDatasetMemoryCache &&
+    now - fullDatasetMemoryCache.timestamp < FULL_DATASET_MEMORY_CACHE_TTL
+  ) {
     envLogger.log(
       "Using in-memory runtime cache for full bookmarks dataset",
       { age: Math.round((now - fullDatasetMemoryCache.timestamp) / 1000), unit: "seconds" },
@@ -886,9 +882,9 @@ export async function getBookmarksByTag(
       );
     }
   }
-  const filteredBookmarks = allBookmarks.filter((b) => {
+  const filteredBookmarks = allBookmarks.filter(b => {
     const tags = Array.isArray(b.tags) ? b.tags : [];
-    return tags.some((t) => {
+    return tags.some(t => {
       const tagName = typeof t === "string" ? t : (t as { name: string }).name;
       return tagToSlug(tagName) === tagSlug;
     });
@@ -906,7 +902,7 @@ export const invalidateBookmarksCache = (): void => {
   // Clear in-memory runtime cache
   fullDatasetMemoryCache = null;
   envLogger.log("In-memory runtime cache cleared", undefined, { category: LOG_PREFIX });
-  
+
   if (USE_NEXTJS_CACHE) {
     safeRevalidateTag("bookmarks");
     safeRevalidateTag("bookmarks-s3-full");
@@ -948,5 +944,5 @@ export async function getBookmarksIndex(): Promise<BookmarksIndex | null> {
 
 // Cleanup cache and locks on process exit
 process.on("SIGTERM", () => {
-  releaseRefreshLock().catch((error) => console.error("[Bookmarks] Failed to release lock on cleanup:", String(error)));
+  releaseRefreshLock().catch(error => console.error("[Bookmarks] Failed to release lock on cleanup:", String(error)));
 });

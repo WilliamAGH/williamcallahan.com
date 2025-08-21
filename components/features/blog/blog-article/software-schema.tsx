@@ -71,7 +71,7 @@ export function SoftwareSchema({
 
   const finalScreenshot = screenshot
     ? Array.isArray(screenshot)
-      ? screenshot.map((url) => ensureAbsoluteUrl(url))
+      ? screenshot.map(url => ensureAbsoluteUrl(url))
       : ensureAbsoluteUrl(screenshot)
     : undefined;
 

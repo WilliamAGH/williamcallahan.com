@@ -19,9 +19,8 @@ import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
-import { formatSeoDate } from "@/lib/seo/utils";
+import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
-import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import type { BookmarkTagPageContext } from "@/types";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
@@ -30,24 +29,24 @@ import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 
 /**
  * Generate static paths for tag pages at build time
- * 
+ *
  * FIX (Issue #sitemap-2024): Changed from sync getBookmarksForStaticBuild() to async version.
  * Sync function always returned empty array, causing tag URLs to be missing from sitemap.
  * Blog tags worked because getAllPosts() reads from local filesystem synchronously.
- * 
+ *
  * IMPORTANT: Filtering Consistency Requirement
  * getBookmarksForStaticBuildAsync() filters out bookmarks without id/slug fields,
  * while getBookmarksByTag() at runtime includes ALL bookmarks. This ensures we only
  * generate static paths for bookmarks that can actually be rendered (those with slugs).
  * If bookmarks without id/slug exist, runtime will show fewer items per page than expected,
  * but this is preferable to generating paths for bookmarks that cannot be displayed.
- * 
+ *
  * @see lib/bookmarks/bookmarks.server.ts for why sync vs async matters
  */
 export async function generateStaticParams() {
   const bookmarks = await getBookmarksForStaticBuildAsync();
   const tagCounts: { [key: string]: number } = {};
-  bookmarks.forEach((b) => {
+  bookmarks.forEach(b => {
     (Array.isArray(b.tags) ? b.tags : []).forEach((t: string | { name: string }) => {
       const tagName = typeof t === "string" ? t : t.name;
       const slug = tagToSlug(tagName);
@@ -184,8 +183,7 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
   }
 
   const tagDisplayName =
-    result.bookmarks[0]?.tags.find((t) => typeof t !== "string" && tagToSlug(t.name) === sanitizedSlug) ??
-    sanitizedSlug;
+    result.bookmarks[0]?.tags.find(t => typeof t !== "string" && tagToSlug(t.name) === sanitizedSlug) ?? sanitizedSlug;
 
   const finalTagDisplayName = typeof tagDisplayName === "string" ? tagDisplayName : tagDisplayName.name;
   const displayTag = formatTagDisplay(finalTagDisplayName.replace(/-/g, " "));

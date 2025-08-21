@@ -107,7 +107,7 @@ export async function memoryPressureMiddleware(request: NextRequest): Promise<Ne
   const pathname = request.nextUrl.pathname;
 
   // Always allow health checks through
-  if (HEALTH_CHECK_PATHS.some((path) => pathname.startsWith(path))) {
+  if (HEALTH_CHECK_PATHS.some(path => pathname.startsWith(path))) {
     return null; // Continue to next middleware
   }
 

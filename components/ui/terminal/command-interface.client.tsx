@@ -49,7 +49,7 @@ export function CommandInterface() {
         },
       ]);
     } else {
-      setHistory((prev) => [...prev, ...result.results]);
+      setHistory(prev => [...prev, ...result.results]);
 
       if (result.navigation) {
         router.push(result.navigation);
@@ -67,7 +67,7 @@ export function CommandInterface() {
           <History history={history} />
         </div>
         <form
-          onSubmit={(e) => {
+          onSubmit={e => {
             void handleSubmit(e);
           }}
         >
@@ -77,7 +77,7 @@ export function CommandInterface() {
               ref={inputRef}
               type="text"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={e => setInput(e.target.value)}
               className="bg-transparent flex-1 focus:outline-none text-gray-300"
               aria-label="Terminal command input"
               placeholder="Type a command..."

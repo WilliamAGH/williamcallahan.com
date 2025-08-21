@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD029 -->
+
 # GitHub Activity Architecture
 
 **Functionality:** `github-activity`
@@ -47,17 +48,17 @@ See `github-activity.mmd` for a visual diagram illustrating how this feature orc
 The GitHub Activity system coordinates several modules to produce its final output:
 
 1. **Data Fetching & Processing (`json-handling`)**:
-    - The process is initiated by invoking the `json-handling` functionality.
-    - This core service is responsible for the complex task of fetching data from multiple GitHub sources (GraphQL API, REST API, and a CSV export fallback).
-    - It handles the aggregation and processing of this raw data, producing a structured JSON object containing contribution calendars, language statistics, and repository breakdowns.
+   - The process is initiated by invoking the `json-handling` functionality.
+   - This core service is responsible for the complex task of fetching data from multiple GitHub sources (GraphQL API, REST API, and a CSV export fallback).
+   - It handles the aggregation and processing of this raw data, producing a structured JSON object containing contribution calendars, language statistics, and repository breakdowns.
 
 2. **Persistence (`s3-object-storage`)**:
-    - Once the `json-handling` module returns the final, processed JSON data, the GitHub Activity orchestrator passes it to the `s3-object-storage` service.
-    - This service is responsible for writing the `github_stats_summary.json` and related files to the S3 bucket, ensuring the data is stored persistently.
+   - Once the `json-handling` module returns the final, processed JSON data, the GitHub Activity orchestrator passes it to the `s3-object-storage` service.
+   - This service is responsible for writing the `github_stats_summary.json` and related files to the S3 bucket, ensuring the data is stored persistently.
 
 3. **Caching (`caching`)**:
-    - To ensure performance, the final JSON data is cached in the in-memory `ServerCacheInstance`. This is managed by the `caching` module.
-    - This allows the application to serve the complex GitHub statistics rapidly without needing to hit S3 or the GitHub APIs on every request.
+   - To ensure performance, the final JSON data is cached in the in-memory `ServerCacheInstance`. This is managed by the `caching` module.
+   - This allows the application to serve the complex GitHub statistics rapidly without needing to hit S3 or the GitHub APIs on every request.
 
 This orchestration model allows the GitHub Activity feature to focus on its specific domain—presenting GitHub statistics—while delegating the complex, reusable tasks of data fetching, processing, and storage to the appropriate core services.
 
@@ -138,7 +139,6 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 - **`app/api/github-activity/route.ts`**
   - Read-only endpoint for cached data
   - Never triggers refresh
-  
 - **`app/api/github-activity/refresh/route.ts`**
   - Protected refresh endpoint
   - **Issue**: Uses exposed public secret
@@ -214,9 +214,9 @@ aws s3 ls s3://$S3_BUCKET/github/
 GitHub's `/stats/contributors` endpoint often returns **HTTP 202** for several minutes while it prepares a repository's statistics.  
 Our pipeline now recognises this explicitly:
 
-- `fetchContributorStats` performs a configurable retry loop (env vars `GITHUB_STATS_PENDING_MAX_ATTEMPTS`, `GITHUB_STATS_PENDING_DELAY_MS`).  
+- `fetchContributorStats` performs a configurable retry loop (env vars `GITHUB_STATS_PENDING_MAX_ATTEMPTS`, `GITHUB_STATS_PENDING_DELAY_MS`).
   - If the endpoint keeps returning 202 after the configured attempts it throws `GitHubContributorStatsPendingError`.
-- The repo-processing batch marks the repository status as `pending_202_from_api` (instead of `fetch_error`).  
+- The repo-processing batch marks the repository status as `pending_202_from_api` (instead of `fetch_error`).
   - This allows the refresh job to fall back to any existing CSV and keep partial data flowing.
 - `detectAndRepairCsvFiles` treats 202 as informational and defers repair until the next run.
 

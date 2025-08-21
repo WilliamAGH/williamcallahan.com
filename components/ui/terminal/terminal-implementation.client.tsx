@@ -298,7 +298,7 @@ export function Terminal() {
           onClick={() => {
             maximizeWindow();
           }}
-          onKeyDown={(e) => {
+          onKeyDown={e => {
             if (e.key === "Enter" || e.key === " ") {
               maximizeWindow();
             }
@@ -313,7 +313,7 @@ export function Terminal() {
         className={cn(commonTerminalClasses, isMaximized ? maximizedTerminalClasses : normalTerminalClasses)}
         aria-label="Terminal"
         onFocus={() => setIsTerminalFocused(true)}
-        onBlur={(e) => {
+        onBlur={e => {
           // Only blur if focus is leaving the terminal entirely
           if (!e.currentTarget.contains(e.relatedTarget)) {
             setIsTerminalFocused(false);
@@ -340,7 +340,7 @@ export function Terminal() {
               focusInput();
             }
           }}
-          onKeyDown={(e) => {
+          onKeyDown={e => {
             // Only prevent space key default behavior if the input is not focused
             // This allows typing spaces in the input while preventing scroll when clicking elsewhere
             if (e.key === " " && document.activeElement !== inputRef.current) {

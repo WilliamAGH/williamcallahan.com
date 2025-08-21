@@ -35,7 +35,7 @@ const SkeletonLoader = () => {
 
   return (
     <div className="animate-pulse space-y-4 p-6">
-      {skeletonKeys.map((key) => (
+      {skeletonKeys.map(key => (
         <div key={key} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
       ))}
     </div>

@@ -108,9 +108,9 @@ export const s3Client: S3ClientWrapper = (() => {
           },
           async end(): Promise<void> {
             if (parts.length === 0) return;
-            const data = parts.every((p) => typeof p === "string")
+            const data = parts.every(p => typeof p === "string")
               ? parts.join("")
-              : Buffer.concat(parts.map((p) => (typeof p === "string" ? Buffer.from(p) : p))).toString("utf-8");
+              : Buffer.concat(parts.map(p => (typeof p === "string" ? Buffer.from(p) : p))).toString("utf-8");
             try {
               await writeJsonS3(key, JSON.parse(data));
             } catch {
@@ -125,7 +125,7 @@ export const s3Client: S3ClientWrapper = (() => {
   // Polyfill list() method
   client.list = async (prefix?: string) => {
     const keys = await awsListS3Objects(prefix || "");
-    return { contents: keys.map((key) => ({ key })), isTruncated: false };
+    return { contents: keys.map(key => ({ key })), isTruncated: false };
   };
 
   return client; // Return AWS SDK client

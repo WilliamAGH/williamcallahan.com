@@ -175,7 +175,7 @@ if (args.includes("--force")) {
   config.forceRefresh = true;
 }
 
-const testLimitArg = args.find((arg) => arg.startsWith("--testLimit="));
+const testLimitArg = args.find(arg => arg.startsWith("--testLimit="));
 if (testLimitArg) {
   const limitStr = testLimitArg.split("=")[1];
   if (limitStr?.trim()) {
@@ -204,7 +204,7 @@ if (testLimitArg) {
 
     logger.info("[DataUpdaterCLI] All tasks complete.");
 
-    results.forEach((result) => {
+    results.forEach(result => {
       if (result.success) {
         logger.info(`  - ${result.operation}: Success (${result.itemsProcessed} items, duration: ${result.duration}s)`);
       } else {
@@ -214,13 +214,15 @@ if (testLimitArg) {
 
     // --- Final Summary Table ---
     console.log("\n--- Data Updater Final Summary ---");
-    console.table(results.map(r => ({
-      Operation: r.operation,
-      Success: r.success ? '✅' : '❌',
-      'Items Processed': r.itemsProcessed || 'N/A',
-      'Duration (s)': r.duration,
-      Error: r.error || 'None',
-    })));
+    console.table(
+      results.map(r => ({
+        Operation: r.operation,
+        Success: r.success ? "✅" : "❌",
+        "Items Processed": r.itemsProcessed || "N/A",
+        "Duration (s)": r.duration,
+        Error: r.error || "None",
+      })),
+    );
     console.log("------------------------------------\n");
 
     // Always update timestamp to prevent rate limit spiral
@@ -228,7 +230,7 @@ if (testLimitArg) {
     await updateTimestamp(results);
 
     // Log warning if GitHub failed due to rate limiting
-    const githubResult = results.find((r) => r.operation === "github-activity");
+    const githubResult = results.find(r => r.operation === "github-activity");
     if (githubResult && !githubResult.success && githubResult.error?.includes("rate")) {
       logger.warn("[DataUpdaterCLI] GitHub activity failed due to rate limiting. Will retry after cooldown period.");
     }

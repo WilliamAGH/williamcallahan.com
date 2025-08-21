@@ -145,7 +145,7 @@ export class FailureTracker<T> {
    * Get failure statistics
    */
   getStats() {
-    const permanent = Array.from(this.failures.values()).filter((f) => f.permanentFailure).length;
+    const permanent = Array.from(this.failures.values()).filter(f => f.permanentFailure).length;
     const temporary = this.failures.size - permanent;
 
     return {

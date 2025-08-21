@@ -60,6 +60,7 @@ For web search capabilities, see [Step 5: AI Web Search & Grounding](./ai-web-se
 - **Groq**: <https://console.groq.com/docs>
 
 Use MCP tools:
+
 ```bash
 @mcp__context7__resolve-library-id libraryName="provider-name"
 @mcp__context7__get-library-docs context7CompatibleLibraryID="[id]"
@@ -71,16 +72,16 @@ Use MCP tools:
 
 ```typescript
 // lib/ai/providers/openrouter.ts
-import { OpenAICompatibleProvider } from './openai-compatible-base';
+import { OpenAICompatibleProvider } from "./openai-compatible-base";
 
 export class OpenRouterProvider extends OpenAICompatibleProvider {
   constructor(apiKey?: string) {
-    super('openrouter', {
+    super("openrouter", {
       apiKey: apiKey || process.env.OPENROUTER_API_KEY,
-      baseURL: 'https://openrouter.ai/api/v1',
+      baseURL: "https://openrouter.ai/api/v1",
       defaultHeaders: {
-        'HTTP-Referer': 'https://williamcallahan.com',
-        'X-Title': 'William Callahan AI Services',
+        "HTTP-Referer": "https://williamcallahan.com",
+        "X-Title": "William Callahan AI Services",
       },
     });
   }
@@ -91,76 +92,69 @@ export class OpenRouterProvider extends OpenAICompatibleProvider {
 
 ```typescript
 // lib/ai/providers/perplexity.ts
-import { AIProvider, AICompletionOptions } from '../types';
-import { assertServerOnly } from '@/lib/utils/server-only';
-import { waitForPermit } from '@/lib/rate-limiter';
-import { retryWithDomainConfig } from '@/lib/utils/retry';
-import { createCategorizedError } from '@/lib/utils/error-utils';
-import { createStreamFromResponse, SSEStreamReader } from '../http-client';
+import { AIProvider, AICompletionOptions } from "../types";
+import { assertServerOnly } from "@/lib/utils/server-only";
+import { waitForPermit } from "@/lib/rate-limiter";
+import { retryWithDomainConfig } from "@/lib/utils/retry";
+import { createCategorizedError } from "@/lib/utils/error-utils";
+import { createStreamFromResponse, SSEStreamReader } from "../http-client";
 
 export class PerplexityProvider implements AIProvider {
   private apiKey: string;
-  private baseUrl = 'https://api.perplexity.ai';
-  
+  private baseUrl = "https://api.perplexity.ai";
+
   constructor(apiKey?: string) {
     assertServerOnly();
     this.apiKey = apiKey || process.env.PERPLEXITY_API_KEY!;
-    if (!this.apiKey) throw new Error('PERPLEXITY_API_KEY is required');
+    if (!this.apiKey) throw new Error("PERPLEXITY_API_KEY is required");
   }
 
   async complete(options: AICompletionOptions): Promise<any> {
-    await waitForPermit('perplexity');
-    
-    return retryWithDomainConfig(
-      async () => {
-        const response = await fetch(`${this.baseUrl}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...options,
-            model: options.model || 'sonar-pro',
-          }),
+    await waitForPermit("perplexity");
+
+    return retryWithDomainConfig(async () => {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...options,
+          model: options.model || "sonar-pro",
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw createCategorizedError(new Error(`Perplexity error: ${response.status}`), "ai", {
+          status: response.status,
+          error,
         });
+      }
 
-        if (!response.ok) {
-          const error = await response.text();
-          throw createCategorizedError(
-            new Error(`Perplexity error: ${response.status}`),
-            'ai',
-            { status: response.status, error }
-          );
-        }
-
-        return response.json();
-      },
-      'AI_PROVIDERS'
-    );
+      return response.json();
+    }, "AI_PROVIDERS");
   }
 
   async *stream(options: AICompletionOptions): AsyncGenerator<any> {
-    await waitForPermit('perplexity');
-    
+    await waitForPermit("perplexity");
+
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ ...options, stream: true }),
     });
 
     if (!response.ok) {
-      throw createCategorizedError(
-        new Error(`Perplexity stream error: ${response.status}`),
-        'ai'
-      );
+      throw createCategorizedError(new Error(`Perplexity stream error: ${response.status}`), "ai");
     }
 
     const reader = new SSEStreamReader(response.body!.getReader());
-    
+
     try {
       while (true) {
         const data = await reader.read();
@@ -168,7 +162,7 @@ export class PerplexityProvider implements AIProvider {
         try {
           yield JSON.parse(data);
         } catch (e) {
-          console.warn('Parse error:', e);
+          console.warn("Parse error:", e);
         }
       }
     } finally {
@@ -182,15 +176,15 @@ export class PerplexityProvider implements AIProvider {
 
 ```typescript
 // lib/ai/providers/groq.ts
-import Groq from 'groq-sdk';
-import { AIProvider, AICompletionOptions } from '../types';
-import { assertServerOnly } from '@/lib/utils/server-only';
-import { waitForPermit } from '@/lib/rate-limiter';
-import { retryWithDomainConfig } from '@/lib/utils/retry';
+import Groq from "groq-sdk";
+import { AIProvider, AICompletionOptions } from "../types";
+import { assertServerOnly } from "@/lib/utils/server-only";
+import { waitForPermit } from "@/lib/rate-limiter";
+import { retryWithDomainConfig } from "@/lib/utils/retry";
 
 export class GroqProvider implements AIProvider {
   private client: Groq;
-  
+
   constructor(apiKey?: string) {
     assertServerOnly();
     this.client = new Groq({
@@ -199,24 +193,25 @@ export class GroqProvider implements AIProvider {
   }
 
   async complete(options: AICompletionOptions): Promise<Groq.ChatCompletion> {
-    await waitForPermit('groq');
-    
+    await waitForPermit("groq");
+
     return retryWithDomainConfig(
-      async () => this.client.chat.completions.create({
-        ...options,
-        model: options.model || 'llama-3.3-70b-versatile',
-      }),
-      'AI_PROVIDERS'
+      async () =>
+        this.client.chat.completions.create({
+          ...options,
+          model: options.model || "llama-3.3-70b-versatile",
+        }),
+      "AI_PROVIDERS",
     );
   }
 
   async *stream(options: AICompletionOptions): AsyncGenerator<Groq.ChatCompletionChunk> {
-    await waitForPermit('groq');
-    
+    await waitForPermit("groq");
+
     const stream = await this.client.chat.completions.create({
       ...options,
       stream: true,
-      model: options.model || 'llama-3.3-70b-versatile',
+      model: options.model || "llama-3.3-70b-versatile",
     });
 
     for await (const chunk of stream) yield chunk;
@@ -233,21 +228,21 @@ export class GroqProvider implements AIProvider {
 import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
 
 class SecureSecretsManager {
-  private cache = new Map<string, {value: string, expiry: number}>();
+  private cache = new Map<string, { value: string; expiry: number }>();
   private client = new SecretsManagerClient({ region: process.env.AWS_REGION });
-  
+
   async getApiKey(provider: string): Promise<string> {
     const cached = this.cache.get(provider);
     if (cached && cached.expiry > Date.now()) return cached.value;
-    
-    const command = new GetSecretValueCommand({ 
-      SecretId: `ai-provider-${provider}` 
+
+    const command = new GetSecretValueCommand({
+      SecretId: `ai-provider-${provider}`,
     });
     const { SecretString } = await this.client.send(command);
-    
+
     this.cache.set(provider, {
       value: SecretString!,
-      expiry: Date.now() + 3600000 // 1-hour cache
+      expiry: Date.now() + 3600000, // 1-hour cache
     });
     return SecretString!;
   }
@@ -265,25 +260,25 @@ export class AIProviderCircuitBreaker {
   private lastFailureTime = new Map<string, number>();
   private readonly threshold = 5;
   private readonly timeout = 60000; // 1 minute
-  
+
   isOpen(provider: string): boolean {
     const failures = this.failures.get(provider) || 0;
     const lastFailure = this.lastFailureTime.get(provider) || 0;
-    
+
     if (Date.now() - lastFailure > this.timeout) {
       this.failures.delete(provider);
       this.lastFailureTime.delete(provider);
       return false;
     }
-    
+
     return failures >= this.threshold;
   }
-  
+
   recordSuccess(provider: string): void {
     this.failures.delete(provider);
     this.lastFailureTime.delete(provider);
   }
-  
+
   recordFailure(provider: string): void {
     const current = this.failures.get(provider) || 0;
     this.failures.set(provider, current + 1);
@@ -299,7 +294,7 @@ export class AIProviderCircuitBreaker {
 export class SSEStreamReader {
   private reader: ReadableStreamDefaultReader<Uint8Array>;
   private decoder = new TextDecoder();
-  private buffer = '';
+  private buffer = "";
   private closed = false;
 
   constructor(reader: ReadableStreamDefaultReader<Uint8Array>) {
@@ -310,14 +305,14 @@ export class SSEStreamReader {
     if (this.closed) return null;
 
     while (true) {
-      const lineEnd = this.buffer.indexOf('\n');
+      const lineEnd = this.buffer.indexOf("\n");
       if (lineEnd !== -1) {
         const line = this.buffer.slice(0, lineEnd).trim();
         this.buffer = this.buffer.slice(lineEnd + 1);
-        
-        if (line.startsWith('data: ')) {
+
+        if (line.startsWith("data: ")) {
           const data = line.slice(6);
-          if (data === '[DONE]') {
+          if (data === "[DONE]") {
             this.closed = true;
             return null;
           }
@@ -347,16 +342,16 @@ export class SSEStreamReader {
 
 ```typescript
 // lib/ai/unified-ai-service.ts - Extended version
-import { OpenAICompatibleProvider } from './providers/openai-compatible-base';
-import { OpenRouterProvider } from './providers/openrouter';
-import { PerplexityProvider } from './providers/perplexity';
-import { GroqProvider } from './providers/groq';
-import { AIProvider, AICompletionOptions } from './types';
-import { assertServerOnly } from '@/lib/utils/server-only';
-import { secretsManager } from './secrets-manager';
-import { AIProviderCircuitBreaker } from './circuit-breaker';
+import { OpenAICompatibleProvider } from "./providers/openai-compatible-base";
+import { OpenRouterProvider } from "./providers/openrouter";
+import { PerplexityProvider } from "./providers/perplexity";
+import { GroqProvider } from "./providers/groq";
+import { AIProvider, AICompletionOptions } from "./types";
+import { assertServerOnly } from "@/lib/utils/server-only";
+import { secretsManager } from "./secrets-manager";
+import { AIProviderCircuitBreaker } from "./circuit-breaker";
 
-export type AIProviderType = 'openai' | 'openrouter' | 'perplexity' | 'groq' | 'ollama' | 'lmstudio';
+export type AIProviderType = "openai" | "openrouter" | "perplexity" | "groq" | "ollama" | "lmstudio";
 
 class UnifiedAIService {
   private providers = new Map<AIProviderType, AIProvider>();
@@ -382,35 +377,42 @@ class UnifiedAIService {
 
     if (!this.providers.has(type)) {
       // Secure API key retrieval
-      const apiKey = type !== 'ollama' && type !== 'lmstudio' 
-        ? await secretsManager.getApiKey(type)
-        : undefined;
-      
+      const apiKey = type !== "ollama" && type !== "lmstudio" ? await secretsManager.getApiKey(type) : undefined;
+
       switch (type) {
-        case 'openai':
-          this.providers.set(type, new OpenAICompatibleProvider('openai', {
-            apiKey,
-            baseURL: 'https://api.openai.com/v1',
-          }));
+        case "openai":
+          this.providers.set(
+            type,
+            new OpenAICompatibleProvider("openai", {
+              apiKey,
+              baseURL: "https://api.openai.com/v1",
+            }),
+          );
           break;
-        case 'openrouter':
+        case "openrouter":
           this.providers.set(type, new OpenRouterProvider(apiKey));
           break;
-        case 'perplexity':
+        case "perplexity":
           this.providers.set(type, new PerplexityProvider(apiKey));
           break;
-        case 'groq':
+        case "groq":
           this.providers.set(type, new GroqProvider(apiKey));
           break;
-        case 'ollama':
-          this.providers.set(type, new OpenAICompatibleProvider('ollama', {
-            baseURL: process.env.OLLAMA_HOST || 'http://localhost:11434/v1',
-          }));
+        case "ollama":
+          this.providers.set(
+            type,
+            new OpenAICompatibleProvider("ollama", {
+              baseURL: process.env.OLLAMA_HOST || "http://localhost:11434/v1",
+            }),
+          );
           break;
-        case 'lmstudio':
-          this.providers.set(type, new OpenAICompatibleProvider('lmstudio', {
-            baseURL: process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1',
-          }));
+        case "lmstudio":
+          this.providers.set(
+            type,
+            new OpenAICompatibleProvider("lmstudio", {
+              baseURL: process.env.LMSTUDIO_BASE_URL || "http://localhost:1234/v1",
+            }),
+          );
           break;
       }
     }
@@ -448,7 +450,7 @@ class UnifiedAIService {
           for await (const chunk of getInstance().stream(provider, options)) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
           }
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         } catch (error) {
           controller.error(error);
         } finally {
@@ -459,9 +461,9 @@ class UnifiedAIService {
 
     return new Response(stream, {
       headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
       },
     });
   }
@@ -475,25 +477,27 @@ export const getUnifiedAIService = () => UnifiedAIService.getInstance();
 ### Tool Calling Example
 
 ```typescript
-const response = await aiService.complete('openai', {
-  model: 'gpt-4o',
-  messages: [{ role: 'user', content: 'What is the weather in NYC?' }],
-  tools: [{
-    type: 'function',
-    function: {
-      name: 'get_weather',
-      description: 'Get current weather for a location',
-      parameters: {
-        type: 'object',
-        properties: {
-          location: { type: 'string' },
-          unit: { type: 'string', enum: ['celsius', 'fahrenheit'] },
+const response = await aiService.complete("openai", {
+  model: "gpt-4o",
+  messages: [{ role: "user", content: "What is the weather in NYC?" }],
+  tools: [
+    {
+      type: "function",
+      function: {
+        name: "get_weather",
+        description: "Get current weather for a location",
+        parameters: {
+          type: "object",
+          properties: {
+            location: { type: "string" },
+            unit: { type: "string", enum: ["celsius", "fahrenheit"] },
+          },
+          required: ["location"],
         },
-        required: ['location'],
       },
     },
-  }],
-  tool_choice: 'auto',
+  ],
+  tool_choice: "auto",
 });
 ```
 
@@ -501,19 +505,16 @@ const response = await aiService.complete('openai', {
 
 ```typescript
 // app/api/ai/[provider]/stream/route.ts
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ provider: string }> }
-) {
+export async function POST(request: Request, { params }: { params: Promise<{ provider: string }> }) {
   const { provider } = await params;
   const { messages } = await request.json();
 
   // Rate limiting check from Step 1
   const { allowed, reason } = await checkRequestLimits(provider as AIProviderType);
   if (!allowed) {
-    return new Response(JSON.stringify({ error: reason }), { 
+    return new Response(JSON.stringify({ error: reason }), {
       status: 429,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { "Content-Type": "application/json" },
     });
   }
 
@@ -533,12 +534,12 @@ Add to `lib/constants.ts`:
 ```typescript
 // Extended model defaults
 export const AI_MODEL_DEFAULTS = {
-  openai: 'gpt-4o-mini',
-  openrouter: 'openai/gpt-4o-mini',
-  perplexity: 'sonar-pro',
-  groq: 'llama-3.3-70b-versatile',
-  ollama: 'llama3.2',
-  lmstudio: 'local-model',
+  openai: "gpt-4o-mini",
+  openrouter: "openai/gpt-4o-mini",
+  perplexity: "sonar-pro",
+  groq: "llama-3.3-70b-versatile",
+  ollama: "llama3.2",
+  lmstudio: "local-model",
 } as const;
 
 // Extended timeouts
@@ -550,7 +551,6 @@ export const AI_PROVIDER_TIMEOUTS = {
   ollama: { default: 10000, stream: 60000 },
   lmstudio: { default: 10000, stream: 60000 },
 } as const;
-
 ```
 
 ## Environment Variables

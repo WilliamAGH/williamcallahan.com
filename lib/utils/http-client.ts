@@ -224,7 +224,7 @@ export async function fetchWithRetryAndProxy(
   const { proxies = [], maxRetries = 3, baseDelay = 1000, ...fetchOptions } = options;
 
   // Try direct fetch first, then proxies if provided
-  const urlsToTry = [url, ...proxies.map((proxy) => ({ url, proxy }))];
+  const urlsToTry = [url, ...proxies.map(proxy => ({ url, proxy }))];
 
   for (const urlConfig of urlsToTry) {
     const targetUrl = typeof urlConfig === "string" ? urlConfig : urlConfig.url;

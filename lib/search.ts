@@ -159,14 +159,18 @@ function searchContent<T>(
       });
 
       // Map search results back to original items
-      const resultIds = new Set(searchResults.map((r) => String(r.id)));
-      return items.filter((item) => {
+      const resultIds = new Set(searchResults.map(r => String(r.id)));
+      return items.filter(item => {
         const itemWithId = item as T & { id?: string | number };
         const itemId = String(itemWithId.id ?? item);
         return resultIds.has(itemId);
       });
     } catch (error) {
-      envLogger.log("MiniSearch failed, falling back to substring search", { error: String(error) }, { category: "Search" });
+      envLogger.log(
+        "MiniSearch failed, falling back to substring search",
+        { error: String(error) },
+        { category: "Search" },
+      );
       // Fall through to substring search
     }
   }
@@ -174,7 +178,7 @@ function searchContent<T>(
   // Fallback: Original substring search implementation
   const searchTerms = sanitizedQuery.split(/\s+/).filter(Boolean);
 
-  return items.filter((item) => {
+  return items.filter(item => {
     // First try exact match if exact match field is provided
     if (getExactMatchField) {
       const exactField = getExactMatchField(item);
@@ -190,7 +194,7 @@ function searchContent<T>(
       .toLowerCase();
 
     // Check if all search terms exist in the combined text
-    return searchTerms.every((term) => allContentText.includes(term));
+    return searchTerms.every(term => allContentText.includes(term));
   });
 }
 
@@ -223,7 +227,7 @@ function buildPostsIndex(): MiniSearch<BlogPost> {
   });
 
   // Deduplicate posts by slug before adding to index
-  const dedupedPosts = prepareDocumentsForIndexing(posts, "Blog Posts", (post) => post.slug);
+  const dedupedPosts = prepareDocumentsForIndexing(posts, "Blog Posts", post => post.slug);
 
   // Add posts directly - virtual fields are handled by extractField
   postsIndex.addAll(dedupedPosts);
@@ -241,8 +245,8 @@ async function searchPostsDirect(query: string): Promise<BlogPost[]> {
   const results = searchContent(
     posts,
     query,
-    (post) => [post.title || "", post.excerpt || "", ...(post.tags || []), post.author?.name || ""],
-    (post) => post.title,
+    post => [post.title || "", post.excerpt || "", ...(post.tags || []), post.author?.name || ""],
+    post => post.title,
     index,
   );
 
@@ -338,7 +342,7 @@ export async function searchInvestments(query: string): Promise<SearchResult[]> 
   const results = searchContent(
     investments,
     query,
-    (inv) => [
+    inv => [
       inv.name,
       inv.description,
       inv.type,
@@ -348,11 +352,11 @@ export async function searchInvestments(query: string): Promise<SearchResult[]> 
       inv.acquired_year,
       inv.shutdown_year,
     ],
-    (inv) => inv.name,
+    inv => inv.name,
     index,
   );
 
-  const searchResults: SearchResult[] = results.map((inv) => ({
+  const searchResults: SearchResult[] = results.map(inv => ({
     id: inv.id,
     type: "project",
     title: inv.name,
@@ -407,12 +411,12 @@ export async function searchExperience(query: string): Promise<SearchResult[]> {
   const results = searchContent(
     experiences,
     query,
-    (exp) => [exp.company, exp.role, exp.period],
-    (exp) => exp.company,
+    exp => [exp.company, exp.role, exp.period],
+    exp => exp.company,
     index,
   );
 
-  const searchResults: SearchResult[] = results.map((exp) => ({
+  const searchResults: SearchResult[] = results.map(exp => ({
     id: exp.id,
     type: "project",
     title: exp.company,
@@ -442,13 +446,13 @@ function buildEducationIndex(): MiniSearch<EducationItem> {
 
   // Combine education and certifications
   const allEducationItems = [
-    ...education.map((edu) => ({
+    ...education.map(edu => ({
       id: edu.id,
       label: edu.institution,
       description: edu.degree,
       path: `/education#${edu.id}`,
     })),
-    ...certifications.map((cert) => ({
+    ...certifications.map(cert => ({
       id: cert.id,
       label: cert.institution,
       description: cert.name,
@@ -481,14 +485,14 @@ export async function searchEducation(query: string): Promise<SearchResult[]> {
 
   const index = await getEducationIndex();
   const allItems = [
-    ...education.map((edu) => ({
+    ...education.map(edu => ({
       id: edu.id,
       label: edu.institution,
       description: edu.degree,
       path: `/education#${edu.id}`,
       searchableText: [edu.institution, edu.degree], // For search
     })),
-    ...certifications.map((cert) => ({
+    ...certifications.map(cert => ({
       id: cert.id,
       label: cert.institution,
       description: cert.name,
@@ -500,13 +504,13 @@ export async function searchEducation(query: string): Promise<SearchResult[]> {
   const results = searchContent(
     allItems,
     query,
-    (item) => item.searchableText,
-    (item) => item.label, // Exact match on institution
+    item => item.searchableText,
+    item => item.label, // Exact match on institution
     index,
   );
 
   // Remove the temporary searchableText field
-  const searchResults: SearchResult[] = results.map((item) => ({
+  const searchResults: SearchResult[] = results.map(item => ({
     id: item.id,
     type: "page",
     title: item.label,
@@ -577,7 +581,11 @@ async function getBookmarksIndex(): Promise<{
     devLog("[getBookmarksIndex] fetched bookmarks via direct import", { count: bookmarks.length });
   } catch (directErr) {
     devLog("[getBookmarksIndex] falling back to API fetch");
-    envLogger.log("Direct bookmarks fetch failed, falling back to /api/bookmarks", { error: String(directErr) }, { category: "Search" });
+    envLogger.log(
+      "Direct bookmarks fetch failed, falling back to /api/bookmarks",
+      { error: String(directErr) },
+      { category: "Search" },
+    );
 
     const { getBaseUrl } = await import("@/lib/utils/get-base-url");
     const apiUrl = `${getBaseUrl()}/api/bookmarks?limit=10000`;
@@ -664,7 +672,7 @@ async function getBookmarksIndex(): Promise<{
       id: b.id,
       title: b.title || b.url,
       description: b.description || "",
-      tags: Array.isArray(b.tags) ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
+      tags: Array.isArray(b.tags) ? b.tags.map(t => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
       url: b.url,
       author: b.content?.author || "",
       publisher: b.content?.publisher || "",
@@ -709,13 +717,13 @@ function buildBookmarksIndex(
   for (const b of bookmarks) {
     // For buildBookmarksIndex, we need to generate a fallback slug if not present
     // This happens when called directly without slug mapping
-    const slug = b.slug || `${b.url.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${b.id.slice(0, 8)}`;
-    
+    const slug = b.slug || `${b.url.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${b.id.slice(0, 8)}`;
+
     bookmarksForIndex.push({
       id: b.id,
       title: b.title || b.url,
       description: b.description || "",
-      tags: Array.isArray(b.tags) ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
+      tags: Array.isArray(b.tags) ? b.tags.map(t => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
       url: b.url,
       author: b.content?.author || "",
       publisher: b.content?.publisher || "",
@@ -772,10 +780,10 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     });
 
     // Map search results back to SearchResult format
-    const resultIds = new Set(searchResults.map((r) => String(r.id)));
-    const scoreById = new Map(searchResults.map((r) => [String(r.id), r.score ?? 0] as const));
+    const resultIds = new Set(searchResults.map(r => String(r.id)));
+    const scoreById = new Map(searchResults.map(r => [String(r.id), r.score ?? 0] as const));
     const results: SearchResult[] = bookmarks
-      .filter((b) => resultIds.has(b.id))
+      .filter(b => resultIds.has(b.id))
       .map(
         (b): SearchResult => ({
           id: b.id,
@@ -833,7 +841,7 @@ function buildProjectsIndex(): MiniSearch<Project> {
   });
 
   // Deduplicate by name (assumed unique) - explicitly type the result
-  const deduped: Project[] = prepareDocumentsForIndexing(projectsData, "Projects", (p) => p.name);
+  const deduped: Project[] = prepareDocumentsForIndexing(projectsData, "Projects", p => p.name);
   projectsIndex.addAll(deduped);
   return projectsIndex;
 }
@@ -857,12 +865,12 @@ export async function searchProjects(query: string): Promise<SearchResult[]> {
   const results = searchContent(
     projectsData,
     query,
-    (p) => [p.name, p.description, (p.tags || []).join(" ")],
-    (p) => p.name,
+    p => [p.name, p.description, (p.tags || []).join(" ")],
+    p => p.name,
     index,
   );
 
-  const searchResults: SearchResult[] = results.map<SearchResult>((p) => ({
+  const searchResults: SearchResult[] = results.map<SearchResult>(p => ({
     id: p.name,
     type: "project",
     title: p.name,

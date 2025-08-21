@@ -44,7 +44,7 @@ export function useFixSvgTransforms<T extends HTMLElement = HTMLDivElement>(
     }
 
     // Set up a MutationObserver to fix SVGs added dynamically
-    const observer = new MutationObserver((mutations) => {
+    const observer = new MutationObserver(mutations => {
       // Check if any mutations involve SVGs
       for (const mutation of mutations) {
         if (mutation.type === "childList") {

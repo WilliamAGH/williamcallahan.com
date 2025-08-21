@@ -54,7 +54,7 @@ function normalizeBookmark(bookmark: UnifiedBookmark, slugMap?: Map<string, stri
     ? Array.from(
         new Set(
           bookmark.tags
-            .map((t) => {
+            .map(t => {
               if (typeof t === "string") return t;
               if (t && typeof t === "object" && "name" in t) return (t as { name?: string }).name;
               return undefined;
@@ -73,7 +73,7 @@ function normalizeBookmark(bookmark: UnifiedBookmark, slugMap?: Map<string, stri
   // Extract keywords to supplement tags
   const keywords = extractKeywords(title, text, tags, 8);
   // Deduplicate and normalize tags to lowercase for consistent similarity
-  const enhancedTags = Array.from(new Set([...tags, ...keywords].map((t) => t.toLowerCase().trim())));
+  const enhancedTags = Array.from(new Set([...tags, ...keywords].map(t => t.toLowerCase().trim())));
 
   // Get slug from mapping - REQUIRED for idempotency
   const slug = slugMap?.get(bookmark.id);
@@ -114,7 +114,7 @@ function normalizeBlogPost(post: BlogPost): NormalizedContent {
   // Extract keywords to supplement tags
   const keywords = extractKeywords(post.title, text, tags, 8);
   // Deduplicate and normalize tags to lowercase for consistent similarity
-  const enhancedTags = Array.from(new Set([...tags, ...keywords].map((t) => t.toLowerCase().trim())));
+  const enhancedTags = Array.from(new Set([...tags, ...keywords].map(t => t.toLowerCase().trim())));
 
   return {
     id: post.id,
@@ -142,7 +142,7 @@ function normalizeInvestment(investment: Investment): NormalizedContent {
   // Add accelerator tags
   if (investment.accelerator) {
     if (Array.isArray(investment.accelerator)) {
-      investment.accelerator.forEach((acc) => {
+      investment.accelerator.forEach(acc => {
         if (acc && typeof acc === "object" && "name" in acc) {
           const accObj = acc as { name: string };
           tags.push(accObj.name);
@@ -163,7 +163,7 @@ function normalizeInvestment(investment: Investment): NormalizedContent {
   );
 
   // Deduplicate and normalize tags to lowercase for consistent similarity
-  const enhancedTags = Array.from(new Set([...tags, ...keywords].map((t) => t.toLowerCase().trim())));
+  const enhancedTags = Array.from(new Set([...tags, ...keywords].map(t => t.toLowerCase().trim())));
 
   const text = typeof investment.description === "string" ? investment.description.slice(0, 1000) : "";
   return {
@@ -189,7 +189,7 @@ function normalizeProject(project: Project): NormalizedContent {
   // Extract keywords to supplement tags
   const keywords = extractKeywords(project.name, text, tags, 8);
   // Deduplicate and normalize tags to lowercase for consistent similarity
-  const enhancedTags = Array.from(new Set([...tags, ...keywords].map((t) => t.toLowerCase().trim())));
+  const enhancedTags = Array.from(new Set([...tags, ...keywords].map(t => t.toLowerCase().trim())));
 
   return {
     id: project.id || project.name,
@@ -236,7 +236,7 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
       bookmarksRes.status === "fulfilled" && Array.isArray(bookmarksRes.value)
         ? (bookmarksRes.value as UnifiedBookmark[])
         : [];
-    
+
     if (bookmarks.length > 0) {
       let slugMap: Map<string, string> | undefined;
       try {
@@ -244,9 +244,9 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
       } catch (error) {
         console.error("Failed to load slug mappings; skipping bookmark normalization", error);
       }
-      
+
       if (slugMap) {
-        bookmarks.forEach((bookmark) => {
+        bookmarks.forEach(bookmark => {
           try {
             normalized.push(normalizeBookmark(bookmark, slugMap));
           } catch (error) {
@@ -265,12 +265,10 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
 
     // Process blog posts
     const blogPosts: BlogPost[] =
-      blogPostsRes.status === "fulfilled" && Array.isArray(blogPostsRes.value)
-        ? blogPostsRes.value
-        : [];
-    
+      blogPostsRes.status === "fulfilled" && Array.isArray(blogPostsRes.value) ? blogPostsRes.value : [];
+
     if (blogPosts.length > 0) {
-      blogPosts.forEach((post) => {
+      blogPosts.forEach(post => {
         try {
           normalized.push(normalizeBlogPost(post));
         } catch (error) {
@@ -282,7 +280,7 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
     }
 
     // Process investments (static data)
-    investments.forEach((investment) => {
+    investments.forEach(investment => {
       try {
         normalized.push(normalizeInvestment(investment));
       } catch (error) {
@@ -291,7 +289,7 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
     });
 
     // Process projects (static data)
-    projects.forEach((project) => {
+    projects.forEach(project => {
       try {
         normalized.push(normalizeProject(project));
       } catch (error) {
@@ -320,7 +318,7 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
  */
 export async function getContentById(type: RelatedContentType, id: string): Promise<NormalizedContent | null> {
   const allContent = await aggregateAllContent();
-  return allContent.find((item) => item.type === type && item.id === id) || null;
+  return allContent.find(item => item.type === type && item.id === id) || null;
 }
 
 /**
@@ -333,7 +331,7 @@ export function filterByTypes<T extends NormalizedContent>(
 ): T[] {
   const include = includeTypes && includeTypes.length > 0 ? new Set(includeTypes) : undefined;
   const exclude = excludeTypes && excludeTypes.length > 0 ? new Set(excludeTypes) : undefined;
-  return content.filter((item) => {
+  return content.filter(item => {
     if (include && !include.has(item.type)) return false;
     if (exclude?.has(item.type)) return false;
     return true;

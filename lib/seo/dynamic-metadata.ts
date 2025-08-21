@@ -102,7 +102,7 @@ export function generateDynamicTitle(
         wouldBeLength: result.text.length + suffixWithSeparator.length,
         strategy: result.strategy,
       },
-      { category: "SEO" }
+      { category: "SEO" },
     );
   }
 
@@ -154,7 +154,7 @@ export function generateTagDescription(tagName: string, type: "blog" | "bookmark
         final: result.text,
         overage: result.metrics.overage,
       },
-      { category: "SEO" }
+      { category: "SEO" },
     );
   }
 
@@ -189,7 +189,7 @@ export function generateDynamicDescription(
       ellipsis: "...",
       contentType: "description",
       // Extract important keywords from variables
-      importantKeywords: Object.values(variables).filter((v) => v.length > 3),
+      importantKeywords: Object.values(variables).filter(v => v.length > 3),
     };
 
     const truncationResult = gradientTruncate(result, truncationOptions);
@@ -203,7 +203,7 @@ export function generateDynamicDescription(
           final: truncationResult.text,
           overage: truncationResult.metrics.overage,
         },
-        { category: "SEO" }
+        { category: "SEO" },
       );
     }
 

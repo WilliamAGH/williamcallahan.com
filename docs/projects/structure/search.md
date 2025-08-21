@@ -62,12 +62,10 @@ The search functionality provides site-wide and section-specific search capabili
   - Handles all search scopes dynamically
   - Validates queries before processing
   - Returns consistent response format
-  
 - **`app/api/search/all/route.ts`**: Site-wide search
   - Aggregates results from all sections
   - Adds section prefixes to results
   - Uses query validation
-  
 - **`app/api/search/blog/route.ts`**: Legacy blog-specific search
   - Maintained for backward compatibility
   - Routes through server-side search
@@ -105,6 +103,7 @@ The search functionality provides site-wide and section-specific search capabili
 ## Data Flow
 
 See [search.mmd](./search.mmd) for detailed architecture diagrams including:
+
 - Overall architecture flow with all components
 - Component interaction sequence diagram
 
@@ -143,14 +142,14 @@ function searchContent<T>(
   query: string,
   getSearchableFields: (item: T) => (string | undefined | null)[],
   getExactMatchField?: (item: T) => string,
-  miniSearchIndex?: MiniSearch<T> | null
-): T[]
+  miniSearchIndex?: MiniSearch<T> | null,
+): T[];
 ```
 
 ### Features
 
 1. **Query Sanitization**: Removes dangerous regex patterns
-2. **MiniSearch Integration**: 
+2. **MiniSearch Integration**:
    - Fuzzy matching (10% edit distance)
    - Prefix matching for autocomplete
    - Multi-word AND search
@@ -289,10 +288,10 @@ GET /api/search/all?q=nextjs
 
 ```typescript
 // Check cache stats
-ServerCacheInstance.getStats()
+ServerCacheInstance.getStats();
 
 // Clear search cache
-ServerCacheInstance.clearSearchCache()
+ServerCacheInstance.clearSearchCache();
 ```
 
 ### Debug Logging

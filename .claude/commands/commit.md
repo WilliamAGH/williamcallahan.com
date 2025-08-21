@@ -7,6 +7,7 @@ Files to commit: $ARGUMENTS
 **MANDATORY: Run validation BEFORE and AFTER making any changes**
 
 STEP 0: **Always run validation first to ensure clean starting point:**
+
 ```bash
 bun run validate
 ```
@@ -14,7 +15,7 @@ bun run validate
 This command runs ALL checks according to @docs/projects/structure/linting-formatting.md:
 
 - **Biome:** Formatting and foundational linting
-- **ESLint:** Advanced, type-aware linting  
+- **ESLint:** Advanced, type-aware linting
 - **TypeScript Compiler (tsc):** Ultimate type correctness check
 
 **Requirements:**
@@ -60,6 +61,7 @@ Categories:
 Keep under 50 characters.
 
 STEP 6: **Run validation again to ensure changes don't break anything:**
+
 ```bash
 bun run validate
 ```
@@ -90,6 +92,7 @@ If `bun run validate` fails, apply these resolution strategies:
 - `project/no-duplicate-types`: Use @type-flattener to consolidate duplicates
 
 **Resolution Examples:**
+
 ```typescript
 // BAD: const data = JSON.parse(input);
 // GOOD: const data: unknown = JSON.parse(input);

@@ -356,7 +356,7 @@ async function main() {
 }
 
 // Execute the script with proper error handling
-main().catch((err) => {
+main().catch(err => {
   console.error("❌ Script execution failed:", err);
   process.exit(1);
 });

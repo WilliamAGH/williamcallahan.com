@@ -1,15 +1,15 @@
 /**
  * @file Bookmark Slug Manager - S3-persisted URL-to-slug mappings
- * 
+ *
  * Critical for stable bookmark URLs across deployments:
  * - Generates deterministic slugs from bookmark URLs
  * - Persists to S3 (primary) and local file (ephemeral cache)
  * - Ensures bookmarks maintain consistent URLs even after container restarts
- * 
+ *
  * Architecture:
  * - S3 = Source of truth (survives deployments)
  * - Local file = Temporary cache (lost on container restart)
- * 
+ *
  * @module lib/bookmarks/slug-manager
  */
 
@@ -29,7 +29,7 @@ export const LOCAL_SLUG_MAPPING_PATH = path.join(process.cwd(), "lib", "data", "
 /**
  * Generate deterministic slug mapping for all bookmarks.
  * Ensures every bookmark gets a unique, stable slug for routing.
- * 
+ *
  * @param bookmarks - Array of normalized bookmarks
  * @returns Mapping with slugs, reverse lookup, and checksum
  * @throws Error if any bookmark cannot generate a slug
@@ -43,7 +43,7 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
 
   for (const bookmark of sortedBookmarks) {
     // generateUniqueSlug should handle uniqueness, but add a belt-and-suspenders guard
-    const candidates = sortedBookmarks.map((b) => ({ id: b.id, url: b.url })).filter((c) => !!c.url);
+    const candidates = sortedBookmarks.map(b => ({ id: b.id, url: b.url })).filter(c => !!c.url);
     let slug = generateUniqueSlug(bookmark.url || "", candidates as { id: string; url: string }[], bookmark.id);
 
     // Validate that a slug was generated
@@ -70,7 +70,7 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
   }
 
   // Validate that every bookmark has a slug
-  const missingSlugIds = bookmarks.filter((b) => !slugs[b.id]).map((b) => b.id);
+  const missingSlugIds = bookmarks.filter(b => !slugs[b.id]).map(b => b.id);
   if (missingSlugIds.length > 0) {
     throw new Error(
       `[SlugManager] CRITICAL: ${missingSlugIds.length} bookmarks missing slugs: ${missingSlugIds.join(", ")}`,
@@ -80,7 +80,7 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
   // Generate checksum for change detection based on [id, slug] pairs in a stable order
   const checksumPayload = Object.keys(slugs)
     .sort((a, b) => a.localeCompare(b))
-    .map((id) => [id, slugs[id]?.slug]);
+    .map(id => [id, slugs[id]?.slug]);
   const checksum = createHash("md5").update(JSON.stringify(checksumPayload)).digest("hex");
 
   const mapping: BookmarkSlugMapping = {
@@ -96,12 +96,12 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
 
 /**
  * Save slug mapping to S3 (primary) and local file (cache).
- * 
+ *
  * CRITICAL OPERATION: Essential for bookmark navigation stability.
  * - S3 write ensures persistence across deployments
  * - Local file provides fast access during container lifetime
  * - Checksum comparison prevents unnecessary S3 writes
- * 
+ *
  * @param bookmarks - Array of bookmarks to generate mapping from
  * @param overwrite - Whether to overwrite existing mapping (default: true)
  * @param saveToAllPaths - Save to all env paths for redundancy (default: false)
@@ -157,11 +157,7 @@ export async function saveSlugMapping(
       envLogger.log(`Cache invalidated for bookmark tags`, undefined, { category: "SlugManager" });
     } catch (cacheError) {
       // Cache invalidation failure is non-fatal but should be logged
-      envLogger.debug(
-        `Cache invalidation failed (non-fatal)`,
-        cacheError,
-        { category: "SlugManager" }
-      );
+      envLogger.debug(`Cache invalidation failed (non-fatal)`, cacheError, { category: "SlugManager" });
     }
 
     // Optionally save to all environment paths for redundancy
@@ -169,7 +165,7 @@ export async function saveSlugMapping(
       // Use programmatic path generation to avoid hardcoding
       const basePath = "json/bookmarks/slug-mapping";
       const envSuffixes = ["", "-dev", "-test"] as const;
-      const allPaths = envSuffixes.map((suffix) => `${basePath}${suffix}.json`);
+      const allPaths = envSuffixes.map(suffix => `${basePath}${suffix}.json`);
 
       for (const path of allPaths) {
         if (path !== primaryPath) {
@@ -177,11 +173,7 @@ export async function saveSlugMapping(
             await writeJsonS3(path, mapping);
             envLogger.debug(`Saved to redundant path`, path, { category: "SlugManager" });
           } catch (error) {
-            envLogger.debug(
-              `Could not save to redundant path`,
-              { path, error },
-              { category: "SlugManager" }
-            );
+            envLogger.debug(`Could not save to redundant path`, { path, error }, { category: "SlugManager" });
           }
         }
       }
@@ -210,7 +202,7 @@ export async function saveSlugMapping(
  * 1. Local file (fastest, ephemeral cache)
  * 2. Primary S3 path (environment-specific)
  * 3. Alternative S3 paths (cross-environment fallback)
- * 
+ *
  * @returns Slug mapping or null if not found
  */
 export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
@@ -218,12 +210,13 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
   try {
     const localData = await fs.readFile(LOCAL_SLUG_MAPPING_PATH, "utf-8");
     const mapping = JSON.parse(localData) as BookmarkSlugMapping;
-    
+
     // Skip local cache if it only contains test data
     const isTestData = mapping?.count === 1 && mapping?.slugs?.["test-1"]?.id === "test-1";
     // Skip local cache if it's empty (count is 0 or slugs is empty)
-    const isEmpty = !mapping?.count || mapping.count === 0 || !mapping?.slugs || Object.keys(mapping.slugs).length === 0;
-    
+    const isEmpty =
+      !mapping?.count || mapping.count === 0 || !mapping?.slugs || Object.keys(mapping.slugs).length === 0;
+
     if (isTestData) {
       logger.info(`[SlugManager] Local cache contains only test data, skipping to S3`);
     } else if (isEmpty) {
@@ -234,7 +227,9 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
     }
   } catch (error) {
     // This is not a critical error, just means we need to fetch from S3
-    logger.warn(`[SlugManager] Local slug mapping cache not found or invalid, proceeding to S3. Error: ${String(error)}`);
+    logger.warn(
+      `[SlugManager] Local slug mapping cache not found or invalid, proceeding to S3. Error: ${String(error)}`,
+    );
   }
 
   // --- 2. Fallback to S3 ---
@@ -331,8 +326,8 @@ export async function getBookmarkBySlug(slug: string): Promise<UnifiedBookmark |
     skipExternalFetch: true,
     force: false,
   });
-  
-  const bookmark = bookmarks.find((b) => b.id === bookmarkId);
+
+  const bookmark = bookmarks.find(b => b.id === bookmarkId);
   if (!bookmark) {
     logger.warn(`[SlugManager] Bookmark with ID ${bookmarkId} not found in bookmarks data`);
     return null;
@@ -347,7 +342,7 @@ export async function getBookmarkBySlug(slug: string): Promise<UnifiedBookmark |
  */
 export function generateBookmarkRoutes(mapping: BookmarkSlugMapping): string[] {
   return Object.values(mapping.slugs)
-    .map((entry) => entry.slug)
+    .map(entry => entry.slug)
     .sort((a, b) => a.localeCompare(b))
-    .map((slug) => `/bookmarks/${slug}`);
+    .map(slug => `/bookmarks/${slug}`);
 }

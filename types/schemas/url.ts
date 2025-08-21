@@ -30,7 +30,7 @@ const PRIVATE_IP_PATTERNS = [
 function isPrivateIP(hostname: string): boolean {
   // Remove brackets from IPv6 addresses
   const cleanHostname = hostname.replace(/^\[|\]$/g, "");
-  return PRIVATE_IP_PATTERNS.some((pattern) => pattern.test(cleanHostname));
+  return PRIVATE_IP_PATTERNS.some(pattern => pattern.test(cleanHostname));
 }
 
 /**
@@ -40,7 +40,7 @@ export const safeUrlSchema = z
   .string()
   .url()
   .refine(
-    (url) => {
+    url => {
       try {
         const parsed = new URL(url);
 
@@ -107,7 +107,7 @@ const ALLOWED_LOGO_DOMAINS = new Set(
  * Logo URL validation schema (restricted to allowlist)
  */
 export const logoUrlSchema = safeUrlSchema.refine(
-  (url) => {
+  url => {
     try {
       const parsed = new URL(url);
       const domain = parsed.hostname;
@@ -146,7 +146,7 @@ export const openGraphUrlSchema = safeUrlSchema;
  * S3 key validation schema
  */
 export const s3KeySchema = z.string().refine(
-  (key) => {
+  key => {
     // No directory traversal
     if (key.includes("..") || key.includes("./") || key.includes("//")) {
       return false;
@@ -161,7 +161,7 @@ export const s3KeySchema = z.string().refine(
       /^[a-f0-9]{32,64}\.[a-z]+$/, // Hash-based names
     ];
 
-    return validPatterns.some((pattern) => pattern.test(key));
+    return validPatterns.some(pattern => pattern.test(key));
   },
   {
     message: "Invalid S3 key format",
@@ -171,11 +171,11 @@ export const s3KeySchema = z.string().refine(
 /**
  * Path sanitization schema
  */
-export const safePathSchema = z.string().transform((path) => {
+export const safePathSchema = z.string().transform(path => {
   // Remove directory traversal sequences
   return path
     .split("/")
-    .filter((segment) => segment !== ".." && segment !== ".")
+    .filter(segment => segment !== ".." && segment !== ".")
     .join("/")
     .replace(/\/+/g, "/")
     .replace(/^\/+/, "");

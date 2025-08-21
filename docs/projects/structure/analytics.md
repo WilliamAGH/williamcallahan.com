@@ -11,31 +11,31 @@ This file contains tests for the `Analytics` client component, which is responsi
 
 ## Mocks Used
 
-* `next/navigation`: The `usePathname` hook is mocked to control the current path in tests.
-* `next/script`: The `Script` component is mocked to simulate script loading and initialization behavior for Umami and Plausible. This mock handles `onLoad` and `onError` callbacks and sets up the global `umami` and `plausible` objects.
+- `next/navigation`: The `usePathname` hook is mocked to control the current path in tests.
+- `next/script`: The `Script` component is mocked to simulate script loading and initialization behavior for Umami and Plausible. This mock handles `onLoad` and `onError` callbacks and sets up the global `umami` and `plausible` objects.
 
 ## Test Structure
 
-* The tests are organized within a `describe.skip` block, indicating they are currently skipped in the test suite.
-* `beforeEach` and `afterEach` hooks are used to set up and tear down test conditions, including:
-  * Setting up mock environment variables.
-  * Mocking `usePathname`.
-  * Resetting mock script loading states and global analytics objects.
-  * Using fake timers (`jest.useFakeTimers()`).
-  * Mocking `console` methods (`debug`, `error`, `warn`).
+- The tests are organized within a `describe.skip` block, indicating they are currently skipped in the test suite.
+- `beforeEach` and `afterEach` hooks are used to set up and tear down test conditions, including:
+  - Setting up mock environment variables.
+  - Mocking `usePathname`.
+  - Resetting mock script loading states and global analytics objects.
+  - Using fake timers (`jest.useFakeTimers()`).
+  - Mocking `console` methods (`debug`, `error`, `warn`).
 
 ## Notable Test Cases
 
-* `initializes analytics scripts correctly`: Checks if Umami and Plausible are defined globally and if `umami.track` is called after simulated script loading.
-* `handles blog post paths correctly`: Verifies component rendering for blog post paths (though the component itself renders `null` due to the `next/script` mock).
-* `does not initialize without required environment variables`: Ensures no scripts are rendered if essential environment variables are missing.
-* `tracks page views on route changes`: Simulates a route change and verifies that `umami.track` is called with the new path.
+- `initializes analytics scripts correctly`: Checks if Umami and Plausible are defined globally and if `umami.track` is called after simulated script loading.
+- `handles blog post paths correctly`: Verifies component rendering for blog post paths (though the component itself renders `null` due to the `next/script` mock).
+- `does not initialize without required environment variables`: Ensures no scripts are rendered if essential environment variables are missing.
+- `tracks page views on route changes`: Simulates a route change and verifies that `umami.track` is called with the new path.
 
 ## Potential Issues/Observations
 
-* The entire test suite for this component is currently skipped (`describe.skip`).
-* The tests rely heavily on Jest's mocking capabilities, particularly for `next/script` and `next/navigation`.
-* The mock for `next/script` uses `setTimeout` to simulate asynchronous script loading, and tests use `jest.advanceTimersByTime` and `waitFor` to manage these asynchronous operations.
+- The entire test suite for this component is currently skipped (`describe.skip`).
+- The tests rely heavily on Jest's mocking capabilities, particularly for `next/script` and `next/navigation`.
+- The mock for `next/script` uses `setTimeout` to simulate asynchronous script loading, and tests use `jest.advanceTimersByTime` and `waitFor` to manage these asynchronous operations.
 
 ## Overview
 
@@ -43,33 +43,33 @@ The analytics system is responsible for loading and managing third-party trackin
 
 ## Core Components
 
-* **`components/analytics/analytics.client.tsx`**: The primary component that contains all logic for script injection, event tracking, and error handling.
-* **`types/analytics.d.ts`**: Provides TypeScript definitions for the global `window` object, adding types for the third-party analytics libraries to ensure type safety.
+- **`components/analytics/analytics.client.tsx`**: The primary component that contains all logic for script injection, event tracking, and error handling.
+- **`types/analytics.d.ts`**: Provides TypeScript definitions for the global `window` object, adding types for the third-party analytics libraries to ensure type safety.
 
 ## Logic Flow & Key Features
 
 1. **Environment Check**:
-    * The `Analytics` component first checks the environment. It will not load any scripts if the app is running on `localhost` in development mode or if crucial environment variables (e.g., `NEXT_PUBLIC_UMAMI_WEBSITE_ID`) are missing.
+   - The `Analytics` component first checks the environment. It will not load any scripts if the app is running on `localhost` in development mode or if crucial environment variables (e.g., `NEXT_PUBLIC_UMAMI_WEBSITE_ID`) are missing.
 
 2. **Error Boundary**:
-    * The entire component is wrapped in a custom `AnalyticsErrorBoundary`. If any of the analytics scripts throw an error during rendering or execution, this boundary will catch it and silently fail, preventing the main application from crashing.
+   - The entire component is wrapped in a custom `AnalyticsErrorBoundary`. If any of the analytics scripts throw an error during rendering or execution, this boundary will catch it and silently fail, preventing the main application from crashing.
 
 3. **Script Injection**:
-    * It uses the Next.js `<Script>` component to asynchronously load the analytics libraries from their respective CDNs.
-    * `onLoad` callbacks on the `<Script>` components are used to track which scripts have successfully loaded.
+   - It uses the Next.js `<Script>` component to asynchronously load the analytics libraries from their respective CDNs.
+   - `onLoad` callbacks on the `<Script>` components are used to track which scripts have successfully loaded.
 
 4. **Pageview Tracking**:
-    * It uses the `usePathname` hook from `next/navigation` to detect route changes.
-    * An `useEffect` hook triggers a `trackPageview` function whenever the `pathname` changes.
-    * Before being sent to the analytics services, dynamic paths (like `/blog/[slug]`) are normalized to aggregate data correctly (e.g., to `/blog/:slug`).
+   - It uses the `usePathname` hook from `next/navigation` to detect route changes.
+   - An `useEffect` hook triggers a `trackPageview` function whenever the `pathname` changes.
+   - Before being sent to the analytics services, dynamic paths (like `/blog/[slug]`) are normalized to aggregate data correctly (e.g., to `/blog/:slug`).
 
 5. **Defensive API Calls**:
-    * All calls to the third-party analytics functions (`window.plausible`, `window.umami`, etc.) are wrapped in `try...catch` blocks. This ensures that if a script loaded but its API is unavailable or fails, it will not disrupt the application.
+   - All calls to the third-party analytics functions (`window.plausible`, `window.umami`, etc.) are wrapped in `try...catch` blocks. This ensures that if a script loaded but its API is unavailable or fails, it will not disrupt the application.
 
 ## Data Structures
 
-* **`UmamiEvent` / `PlausibleEvent`**: Interfaces that define the structure of the data sent with custom events, ensuring consistency.
-* **`Window` Augmentation**: The `global.d.ts` file extends the standard `Window` interface to include the analytics library objects, enabling static type checking.
+- **`UmamiEvent` / `PlausibleEvent`**: Interfaces that define the structure of the data sent with custom events, ensuring consistency.
+- **`Window` Augmentation**: The `global.d.ts` file extends the standard `Window` interface to include the analytics library objects, enabling static type checking.
 
 This architecture ensures that analytics are a non-critical, resilient feature that can be safely disabled or fail without impacting the core user experience.
 
@@ -77,7 +77,7 @@ This architecture ensures that analytics are a non-critical, resilient feature t
 
 ### Same-origin proxy (`/stats/**`, `/api/send`)
 
-All Umami traffic is now routed through the site's own domain.  The rewrite lives in `next.config.ts`:
+All Umami traffic is now routed through the site's own domain. The rewrite lives in `next.config.ts`:
 
 ```ts
 async rewrites() {
@@ -106,4 +106,4 @@ Plausible's script already tracks page-views automatically. No manual fallback h
 
 ### `safeTrack` helper
 
-`components/analytics/analytics.client.tsx` now exports `safeTrack(name, data)` which truncates event names to 50 characters (Umami's server-side limit) and no-ops when the API is unavailable.  Use this instead of calling `window.umami.track` directly.
+`components/analytics/analytics.client.tsx` now exports `safeTrack(name, data)` which truncates event names to 50 characters (Umami's server-side limit) and no-ops when the API is unavailable. Use this instead of calling `window.umami.track` directly.

@@ -48,7 +48,7 @@ export const SEO_LIMITS = {
  * ISO 8601 date string validator
  * Ensures dates are properly formatted for SEO
  */
-const isoDateString = z.string().refine((val) => !Number.isNaN(Date.parse(val)), {
+const isoDateString = z.string().refine(val => !Number.isNaN(Date.parse(val)), {
   message: "Must be a valid ISO 8601 date string",
 });
 
@@ -59,7 +59,7 @@ const isoDateString = z.string().refine((val) => !Number.isNaN(Date.parse(val)),
 const httpsUrl = z
   .string()
   .url()
-  .refine((url) => url.startsWith("https://"), { message: "URLs must use HTTPS protocol" });
+  .refine(url => url.startsWith("https://"), { message: "URLs must use HTTPS protocol" });
 
 /**
  * Social media handle validator
@@ -234,7 +234,7 @@ export function safeValidateMetadata(metadata: unknown) {
 
   if (!result.success) {
     // Format errors for better readability
-    const errors = result.error.errors.map((err) => ({
+    const errors = result.error.errors.map(err => ({
       path: err.path.join("."),
       message: err.message,
       code: err.code,

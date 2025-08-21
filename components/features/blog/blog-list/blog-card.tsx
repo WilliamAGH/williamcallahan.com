@@ -23,8 +23,8 @@ export function BlogCard({ post, isPriority = false }: BlogCardPropsExtended) {
   return (
     <article className="group flex flex-col h-full rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden bg-gray-50 dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-200">
       {post.coverImage && typeof post.coverImage === "string" && post.coverImage.trim() !== "" && (
-        <Link 
-          href={`/blog/${post.slug}`} 
+        <Link
+          href={`/blog/${post.slug}`}
           className="relative h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-800 block cursor-pointer"
         >
           <Image
@@ -40,8 +40,8 @@ export function BlogCard({ post, isPriority = false }: BlogCardPropsExtended) {
 
       <div className="flex flex-col flex-grow p-6">
         <h2 className="text-xl font-semibold mb-3">
-          <Link 
-            href={`/blog/${post.slug}`} 
+          <Link
+            href={`/blog/${post.slug}`}
             className="text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer inline-block"
           >
             {post.title}

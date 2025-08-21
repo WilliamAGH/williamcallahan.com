@@ -31,17 +31,17 @@ export interface Experience {
   startDate: string;
   endDate?: string;
   role: string;
-  logo?: string;  // Static logo path
+  logo?: string; // Static logo path
   website?: string;
   accelerator?: Accelerator;
   location?: string;
-  logoOnlyDomain?: string;  // Override domain for logo fetching
+  logoOnlyDomain?: string; // Override domain for logo fetching
 }
 
 // types/index.ts (LogoData)
 export interface LogoData {
-  url: string;  // Always CDN URL when available
-  source: string | null;  // "manifest" | "s3-store" | "static" | null
+  url: string; // Always CDN URL when available
+  source: string | null; // "manifest" | "s3-store" | "static" | null
 }
 ```
 

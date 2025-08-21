@@ -28,27 +28,27 @@ This document outlines the architecture for self-hosted embeddings generation us
 
 #### Recommended Models for Self-Hosting
 
-| Model | Size | Dimensions | Performance | Use Case |
-|-------|------|------------|-------------|----------|
-| **all-MiniLM-L6-v2** | 22M params | 384 | Fast (50ms/batch) | General purpose, semantic search |
-| **all-mpnet-base-v2** | 110M params | 768 | Balanced (100ms/batch) | High quality semantic search |
-| **bge-large-en-v1.5** | 335M params | 1024 | High quality (200ms/batch) | Premium semantic search |
-| **e5-large-v2** | 335M params | 1024 | State-of-art (250ms/batch) | Best quality, multilingual |
-| **gte-large** | 350M params | 1024 | Excellent (220ms/batch) | General + code understanding |
+| Model                 | Size        | Dimensions | Performance                | Use Case                         |
+| --------------------- | ----------- | ---------- | -------------------------- | -------------------------------- |
+| **all-MiniLM-L6-v2**  | 22M params  | 384        | Fast (50ms/batch)          | General purpose, semantic search |
+| **all-mpnet-base-v2** | 110M params | 768        | Balanced (100ms/batch)     | High quality semantic search     |
+| **bge-large-en-v1.5** | 335M params | 1024       | High quality (200ms/batch) | Premium semantic search          |
+| **e5-large-v2**       | 335M params | 1024       | State-of-art (250ms/batch) | Best quality, multilingual       |
+| **gte-large**         | 350M params | 1024       | Excellent (220ms/batch)    | General + code understanding     |
 
 #### Model Selection Criteria
 
 ```yaml
 # embeddings-config.yaml
 model_selection:
-  primary_model: "all-mpnet-base-v2"  # Balance of speed/quality
-  fallback_model: "all-MiniLM-L6-v2"  # Fast fallback
-  
+  primary_model: "all-mpnet-base-v2" # Balance of speed/quality
+  fallback_model: "all-MiniLM-L6-v2" # Fast fallback
+
   criteria:
-    - max_sequence_length: 512  # OpenAI compatible
-    - min_batch_size: 32        # GPU efficiency
-    - output_dimensions: 768    # Storage considerations
-    - quantization: "int8"      # Memory optimization
+    - max_sequence_length: 512 # OpenAI compatible
+    - min_batch_size: 32 # GPU efficiency
+    - output_dimensions: 768 # Storage considerations
+    - quantization: "int8" # Memory optimization
 ```
 
 ### 2. Container Architecture
@@ -177,7 +177,7 @@ class EmbeddingRequest(BaseModel):
     model: str = "text-embedding-ada-002"  # OpenAI compatibility
     encoding_format: Optional[str] = "float"
     user: Optional[str] = None
-    
+
     @validator('input')
     def validate_input(cls, v):
         """Security: Validate input against injection attacks"""
@@ -199,22 +199,22 @@ async def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(sec
     """Security: Verify API key authentication with rate limiting"""
     token = credentials.credentials
     token_hash = hashlib.sha256(token.encode()).hexdigest()
-    
+
     # Check against valid keys
     if token not in VALID_API_KEYS:
         # Log failed auth attempt to Convex
         await log_auth_failure(token_hash)
         raise HTTPException(status_code=401, detail="Invalid API key")
-    
+
     # Check rate limits for this API key
     rate_limit_ok = await check_api_key_rate_limit(token_hash)
     if not rate_limit_ok:
         raise HTTPException(
-            status_code=429, 
+            status_code=429,
             detail="API key rate limit exceeded",
             headers={"Retry-After": "60"}
         )
-    
+
     return token
 
 async def log_auth_failure(key_hash: str):
@@ -245,11 +245,11 @@ async def load_model():
     model_name = os.getenv('EMBEDDING_MODEL', 'sentence-transformers/all-mpnet-base-v2')
     model = SentenceTransformer(model_name, device=device)
     model.eval()
-    
+
     # Security: Log startup with model info
     print(f"Model loaded: {model_name} on {device}")
     print(f"API Keys configured: {len(VALID_API_KEYS)}")
-    
+
     # Warm up GPU
     with torch.no_grad():
         _ = model.encode(["warmup"], convert_to_tensor=True)
@@ -263,11 +263,11 @@ async def create_embeddings(
 ):
     embeddings_counter.inc()
     start_time = time.time()
-    
+
     # Convert input to list
     texts = request.input if isinstance(request.input, list) else [request.input]
     batch_size_histogram.observe(len(texts))
-    
+
     try:
         # Generate embeddings with GPU acceleration
         with torch.no_grad():
@@ -278,7 +278,7 @@ async def create_embeddings(
                 batch_size=min(32, len(texts)),
                 show_progress_bar=False
             )
-        
+
         # Convert to numpy for JSON serialization
         if request.encoding_format == "base64":
             # Base64 encoding for bandwidth optimization
@@ -289,7 +289,7 @@ async def create_embeddings(
             ]
         else:
             embeddings_list = embeddings.cpu().numpy().tolist()
-        
+
         # Format response (OpenAI compatible)
         response_data = [
             {
@@ -299,12 +299,12 @@ async def create_embeddings(
             }
             for i, emb in enumerate(embeddings_list)
         ]
-        
+
         # Token counting approximation
         total_tokens = sum(len(text.split()) * 1.3 for text in texts)
-        
+
         embeddings_histogram.observe(time.time() - start_time)
-        
+
         # Security: Audit logging to Convex
         if x_request_id:
             await log_embedding_request({
@@ -322,7 +322,7 @@ async def log_embedding_request(data: dict):
         await convex_client.mutation("embeddings:logRequest", data)
     except Exception as e:
         print(f"Failed to log request: {e}")
-        
+
         return EmbeddingResponse(
             data=response_data,
             model=request.model,
@@ -331,7 +331,7 @@ async def log_embedding_request(data: dict):
                 "total_tokens": int(total_tokens)
             }
         )
-    
+
     except ValueError as e:
         # Security validation errors
         raise HTTPException(status_code=400, detail=str(e))
@@ -360,7 +360,7 @@ async def metrics():
 #### docker-compose.yml for Coolify
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   embeddings-api:
@@ -377,7 +377,7 @@ services:
               capabilities: [gpu]
         limits:
           memory: 8G
-          cpus: '4.0'
+          cpus: "4.0"
     environment:
       - EMBEDDING_MODEL=sentence-transformers/all-mpnet-base-v2
       - CUDA_VISIBLE_DEVICES=0
@@ -389,13 +389,13 @@ services:
     secrets:
       - api_keys
     volumes:
-      - embeddings-models:/models:ro  # Read-only
+      - embeddings-models:/models:ro # Read-only
       - embeddings-cache:/app/.cache
     ports:
       - "8080:8080"
     security_opt:
       - no-new-privileges:true
-    read_only: true  # Read-only root filesystem
+    read_only: true # Read-only root filesystem
     tmpfs:
       - /tmp:noexec,nosuid,size=1G
     healthcheck:
@@ -421,7 +421,7 @@ services:
 
 secrets:
   api_keys:
-    external: true  # Managed by Docker/Kubernetes secrets
+    external: true # Managed by Docker/Kubernetes secrets
 
 volumes:
   embeddings-models:
@@ -434,7 +434,7 @@ networks:
     driver: bridge
     driver_opts:
       com.docker.network.bridge.name: embeddings0
-      com.docker.network.driver.mtu: 1450  # For cloud environments
+      com.docker.network.driver.mtu: 1450 # For cloud environments
 ```
 
 #### NGINX Load Balancer Configuration
@@ -463,7 +463,7 @@ http {
     limit_req_zone $http_authorization zone=embeddings_auth_limit:10m rate=100r/s;
     limit_req_zone $request_uri zone=embeddings_uri_limit:10m rate=50r/s;
     limit_req_status 429;
-    
+
     # Bot detection maps
     map $http_user_agent $is_bot {
         default 0;
@@ -494,15 +494,15 @@ http {
             # Multi-layer rate limiting
             limit_req zone=embeddings_limit burst=20 nodelay;
             limit_req zone=embeddings_auth_limit burst=50 nodelay;
-            
+
             # Block detected bots
             if ($is_bot) {
                 return 403 "Bot detected";
             }
-            
+
             # Security: Request size limit
             client_max_body_size 1M;
-            
+
             proxy_pass http://embeddings_backend;
             proxy_http_version 1.1;
             proxy_set_header Connection "";
@@ -576,12 +576,12 @@ Prometheus scrapes metrics every 5s from `embeddings-api:8080/metrics`.
 
 #### Cost Comparison
 
-| Provider | Cost per 1M tokens | Latency | Privacy | Control |
-|----------|-------------------|---------|---------|---------|
-| OpenAI text-embedding-3-small | $0.02 | 50-200ms | Cloud | Limited |
-| OpenAI text-embedding-3-large | $0.13 | 100-300ms | Cloud | Limited |
-| Self-Hosted (T4 GPU) | ~$0.001 | 20-50ms | On-premise | Full |
-| Self-Hosted (A10G GPU) | ~$0.002 | 10-30ms | On-premise | Full |
+| Provider                      | Cost per 1M tokens | Latency   | Privacy    | Control |
+| ----------------------------- | ------------------ | --------- | ---------- | ------- |
+| OpenAI text-embedding-3-small | $0.02              | 50-200ms  | Cloud      | Limited |
+| OpenAI text-embedding-3-large | $0.13              | 100-300ms | Cloud      | Limited |
+| Self-Hosted (T4 GPU)          | ~$0.001            | 20-50ms   | On-premise | Full    |
+| Self-Hosted (A10G GPU)        | ~$0.002            | 10-30ms   | On-premise | Full    |
 
 #### Scaling Strategy
 

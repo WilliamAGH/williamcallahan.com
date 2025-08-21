@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
               console.error("[OG-Image] Invalid bookmark data:", validatedBookmarks.error);
               throw new Error("Invalid bookmark data format");
             }
-            const bookmark = validatedBookmarks.data.find((b) => b.id === bookmarkId);
+            const bookmark = validatedBookmarks.data.find(b => b.id === bookmarkId);
 
             if (bookmark) {
               // PRIORITY: Karakeep bannerImage (imageAssetId) takes precedence over OpenGraph

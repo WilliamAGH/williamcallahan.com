@@ -101,7 +101,7 @@ export async function processOpenGraphBatch(
   // Create batch processor with lower concurrency for OpenGraph (to be polite to external sites)
   const processor = new BatchProcessor<{ url: string; fallback?: KarakeepImageFallback | null }, OgResult>(
     "opengraph-batch",
-    async (item) => getOpenGraphDataBatch(item.url, item.fallback, options.forceRefresh),
+    async item => getOpenGraphDataBatch(item.url, item.fallback, options.forceRefresh),
     {
       batchSize: options.batchSize || 5, // Lower concurrency for external sites
       batchDelay: 100, // Small delay between batches

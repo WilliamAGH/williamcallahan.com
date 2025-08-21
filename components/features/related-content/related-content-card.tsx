@@ -136,7 +136,7 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
           {/* Tags */}
           {displayTags.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-2">
-              {displayTags.map((tag) => (
+              {displayTags.map(tag => (
                 <span
                   key={tag}
                   className="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded"

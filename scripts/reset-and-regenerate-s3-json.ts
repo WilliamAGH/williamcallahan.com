@@ -76,19 +76,19 @@ const verbose = args.includes("--verbose");
 const shouldBackup = !args.includes("--no-backup");
 
 // Parse exclude/only options
-const excludeArg = args.find((arg) => arg.startsWith("--exclude="));
-const onlyArg = args.find((arg) => arg.startsWith("--only="));
+const excludeArg = args.find(arg => arg.startsWith("--exclude="));
+const onlyArg = args.find(arg => arg.startsWith("--only="));
 const excludeCategories = excludeArg
   ? (excludeArg
       .split("=")[1]
       ?.split(",")
-      .map((s) => s.trim().toLowerCase()) ?? [])
+      .map(s => s.trim().toLowerCase()) ?? [])
   : [];
 const onlyCategories = onlyArg
   ? (onlyArg
       .split("=")[1]
       ?.split(",")
-      .map((s) => s.trim().toLowerCase()) ?? [])
+      .map(s => s.trim().toLowerCase()) ?? [])
   : [];
 
 if (excludeArg && onlyArg) {
@@ -248,8 +248,8 @@ async function promptConfirmation(message: string): Promise<boolean> {
     output: process.stdout,
   });
 
-  return new Promise((resolve) => {
-    rl.question(`${message} (yes/no): `, (answer) => {
+  return new Promise(resolve => {
+    rl.question(`${message} (yes/no): `, answer => {
       rl.close();
       resolve(answer.toLowerCase() === "yes" || answer.toLowerCase() === "y");
     });
@@ -276,7 +276,7 @@ async function createBackupManifest(files: string[]): Promise<void> {
   const BATCH_SIZE = 10;
   for (let i = 0; i < files.length; i += BATCH_SIZE) {
     const batch = files.slice(i, i + BATCH_SIZE);
-    const metadataPromises = batch.map(async (file) => {
+    const metadataPromises = batch.map(async file => {
       const metadata = await getS3ObjectMetadata(file);
       return { key: file, metadata: metadata as Record<string, unknown> | null };
     });
@@ -321,7 +321,7 @@ async function deleteJsonFiles(): Promise<DeletionStats> {
     }
 
     const files = await listS3Objects(pattern);
-    files.forEach((file) => {
+    files.forEach(file => {
       // Only include JSON files and ensure they match our environment
       if (file.endsWith(".json")) {
         // Check category filter first
@@ -380,7 +380,7 @@ async function deleteJsonFiles(): Promise<DeletionStats> {
   };
 
   // Categorize files
-  fileList.forEach((file) => {
+  fileList.forEach(file => {
     if (file.startsWith(BOOKMARKS_S3_PATHS.DIR)) {
       filesByCategory.Bookmarks.push(file);
     } else if (file.startsWith(GITHUB_ACTIVITY_S3_PATHS.DIR)) {
@@ -408,16 +408,16 @@ async function deleteJsonFiles(): Promise<DeletionStats> {
       logger.info(`\n  ${category} (${files.length} files):`);
       if (verbose || files.length <= 20) {
         // Show all files if verbose mode or category has 20 or fewer files
-        files.forEach((file) => {
+        files.forEach(file => {
           logger.info(`    - ${file}`);
         });
       } else {
         // Show first 10 and last 5 files for large categories in non-verbose mode
-        files.slice(0, 10).forEach((file) => {
+        files.slice(0, 10).forEach(file => {
           logger.info(`    - ${file}`);
         });
         logger.info(`    ... ${files.length - 15} more files ...`);
-        files.slice(-5).forEach((file) => {
+        files.slice(-5).forEach(file => {
           logger.info(`    - ${file}`);
         });
       }
@@ -464,7 +464,7 @@ async function deleteJsonFiles(): Promise<DeletionStats> {
   for (let i = 0; i < fileList.length; i += BATCH_SIZE) {
     const batch = fileList.slice(i, i + BATCH_SIZE);
 
-    const deletePromises = batch.map(async (file) => {
+    const deletePromises = batch.map(async file => {
       try {
         await deleteFromS3(file);
         stats.deletedFiles++;
@@ -516,7 +516,7 @@ async function regenerateData(): Promise<RegenerationStats> {
         forceRefresh: true,
       });
 
-      const bookmarkOp = bookmarkResult.find((r) => r.operation === "bookmarks");
+      const bookmarkOp = bookmarkResult.find(r => r.operation === "bookmarks");
       if (bookmarkOp?.success) {
         stats.bookmarks = {
           success: true,
@@ -559,7 +559,7 @@ async function regenerateData(): Promise<RegenerationStats> {
         forceRefresh: true,
       });
 
-      const githubOp = githubResult.find((r) => r.operation === "github-activity");
+      const githubOp = githubResult.find(r => r.operation === "github-activity");
       if (githubOp?.success) {
         stats.github = {
           success: true,
@@ -583,7 +583,7 @@ async function regenerateData(): Promise<RegenerationStats> {
         forceRefresh: true,
       });
 
-      const logoOp = logoResult.find((r) => r.operation === "logos");
+      const logoOp = logoResult.find(r => r.operation === "logos");
       if (logoOp?.success) {
         stats.logos = {
           success: true,
@@ -606,7 +606,7 @@ async function regenerateData(): Promise<RegenerationStats> {
         forceRefresh: true,
       });
 
-      const graphOp = graphResult.find((r) => r.operation === "content-graph");
+      const graphOp = graphResult.find(r => r.operation === "content-graph");
       if (graphOp?.success) {
         stats.contentGraph = {
           success: true,
@@ -629,7 +629,7 @@ async function regenerateData(): Promise<RegenerationStats> {
         forceRefresh: true,
       });
 
-      const searchOp = searchResult.find((r) => r.operation === "searchIndexes");
+      const searchOp = searchResult.find(r => r.operation === "searchIndexes");
       if (searchOp?.success) {
         stats.search = {
           success: true,
@@ -667,7 +667,7 @@ async function generateAuditReport(
     regenerationStats,
     duration,
     success:
-      deletionStats.failedFiles === 0 && (isDryRun || Object.values(regenerationStats).every((stat) => stat.success)),
+      deletionStats.failedFiles === 0 && (isDryRun || Object.values(regenerationStats).every(stat => stat.success)),
   };
 
   // Ensure audit directory exists
@@ -696,7 +696,7 @@ async function generateAuditReport(
 
   if (deletionStats.errors.length > 0) {
     logger.error("\n❌ Deletion Errors:");
-    deletionStats.errors.slice(0, 5).forEach((err) => {
+    deletionStats.errors.slice(0, 5).forEach(err => {
       logger.error(`  - ${err.file}: ${err.error}`);
     });
     if (deletionStats.errors.length > 5) {
@@ -799,12 +799,12 @@ async function main() {
 
   // Exit with appropriate code
   const success =
-    deletionStats.failedFiles === 0 && (isDryRun || Object.values(regenerationStats).every((stat) => stat.success));
+    deletionStats.failedFiles === 0 && (isDryRun || Object.values(regenerationStats).every(stat => stat.success));
   process.exit(success ? 0 : 1);
 }
 
 // Run the script
-main().catch((error) => {
+main().catch(error => {
   logger.error("💥 Unhandled error:", error);
   process.exit(1);
 });

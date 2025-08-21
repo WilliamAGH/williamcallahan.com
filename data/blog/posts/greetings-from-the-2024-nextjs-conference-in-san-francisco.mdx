@@ -21,8 +21,8 @@ First up, Next.js 15 launched with some cool new long awaited features:
 
 ```tsx
 // app/page.tsx
-import { Suspense } from 'react';
-import { headers } from 'next/headers';
+import { Suspense } from "react";
+import { headers } from "next/headers";
 
 // Static content pre-rendered at build time
 function StaticShell() {
@@ -37,10 +37,10 @@ function StaticShell() {
 // Dynamic content loaded on request
 async function UserCart() {
   const headersList = await headers(); // New async API
-  const token = headersList.get('authorization');
+  const token = headersList.get("authorization");
 
-  const cart = await fetch('/api/cart', {
-    headers: { authorization: token || '' }
+  const cart = await fetch("/api/cart", {
+    headers: { authorization: token || "" },
   });
   const items = await cart.json();
 
@@ -70,7 +70,8 @@ export default function Page() {
 
 - [TypeScript Config Support](https://nextjs.org/blog/next-15#support-for-nextconfigts) - First-class support for `next.config.ts` with type safety.
 
-----
+---
+
 I also met some amazing folks at the conference!
 
 First up in the morningwas Sahil Lavingia from <a href="https://gumroad.com" className="text-blue-500 hover:text-blue-600">Gumroad</a>. We had a great conversation about his upcoming projects. Update: he just <a href="https://x.com/shl/status/1871231606930981021" className="text-blue-500 hover:text-blue-600">announced them!</a>
