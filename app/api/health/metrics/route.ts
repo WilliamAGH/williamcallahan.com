@@ -10,8 +10,7 @@
 import { NextResponse } from "next/server";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { getSystemMetrics } from "@/lib/health/status-monitor.server";
-import { HealthMetricsResponseSchema } from "@/types/health";
-import { type HealthMetrics } from "@/types/health";
+import { HealthMetricsResponseSchema, type HealthMetrics } from "@/types/health";
 
 export const dynamic = "force-dynamic";
 

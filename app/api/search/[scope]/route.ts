@@ -8,8 +8,7 @@
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
 import { searchBookmarks, searchExperience, searchEducation, searchInvestments, searchProjects } from "@/lib/search";
 import { validateSearchQuery } from "@/lib/validators/search";
-import type { SearchResult } from "@/types/search";
-import { type SearchScope, VALID_SCOPES } from "@/types/search";
+import { type SearchResult, type SearchScope, VALID_SCOPES } from "@/types/search";
 import { NextResponse } from "next/server";
 
 // Ensure this route is not statically cached
