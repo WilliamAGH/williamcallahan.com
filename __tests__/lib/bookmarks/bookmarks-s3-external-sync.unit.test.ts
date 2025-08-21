@@ -272,10 +272,10 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
       );
       // Optionally log differences here if needed for debugging
       // For example, find IDs in one list but not the other
-      const s3Ids = new Set(s3Bookmarks.map((b) => b.id));
-      const externalIds = new Set(externalApiBookmarks.map((b) => b.id));
-      const inExternalOnly = externalApiBookmarks.filter((b) => !s3Ids.has(b.id)).map((b) => b.id);
-      const inS3Only = s3Bookmarks.filter((b) => !externalIds.has(b.id)).map((b) => b.id);
+      const s3Ids = new Set(s3Bookmarks.map(b => b.id));
+      const externalIds = new Set(externalApiBookmarks.map(b => b.id));
+      const inExternalOnly = externalApiBookmarks.filter(b => !s3Ids.has(b.id)).map(b => b.id);
+      const inS3Only = s3Bookmarks.filter(b => !externalIds.has(b.id)).map(b => b.id);
       if (inExternalOnly.length > 0) console.error(`[UnitTest] IDs in External API only: ${inExternalOnly.join(", ")}`);
       if (inS3Only.length > 0) console.error(`[UnitTest] IDs in S3 only: ${inS3Only.join(", ")}`);
     }

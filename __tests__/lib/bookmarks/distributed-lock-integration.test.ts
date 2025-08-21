@@ -1,6 +1,6 @@
 /**
  * Integration test for distributed lock and bookmarks data access
- * 
+ *
  * This test validates the complete flow of:
  * 1. Lock acquisition and release
  * 2. Lock contention handling
@@ -28,7 +28,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
-    
+
     // Initialize mock S3 state
     mockS3State = {
       lock: null,
@@ -74,7 +74,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
           }),
           writeJsonS3: jest.fn().mockImplementation((key: string, value: unknown) => {
             mockS3State.writes.push(key);
-            
+
             if (key === BOOKMARKS_S3_PATHS.LOCK) {
               // Simulate atomic conditional write (IfNoneMatch)
               if (mockS3State.lock === null) {
@@ -104,7 +104,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         }));
 
         const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-        
+
         // Set up test data
         const testBookmarks: UnifiedBookmark[] = [
           {
@@ -136,19 +136,19 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         // Verify the complete flow
         expect(result).toBeTruthy();
         expect(result).toHaveLength(2);
-        
+
         // Verify lock was acquired (written to S3)
         expect(mockS3State.writes).toContain(BOOKMARKS_S3_PATHS.LOCK);
-        
+
         // Verify data was persisted
         expect(mockS3State.writes).toContain(BOOKMARKS_S3_PATHS.FILE);
         expect(mockS3State.writes).toContain(BOOKMARKS_S3_PATHS.INDEX);
         expect(mockS3State.writes).toContain(BOOKMARKS_S3_PATHS.HEARTBEAT);
-        
+
         // Verify lock was released
         expect(mockS3State.deletes).toContain(BOOKMARKS_S3_PATHS.LOCK);
         expect(mockS3State.lock).toBeNull();
-        
+
         // Verify persisted data
         expect(mockS3State.bookmarks).toHaveLength(2);
         expect(mockS3State.index?.count).toBe(2);
@@ -165,7 +165,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
 
       await jest.isolateModulesAsync(async () => {
         let lockAttempts = 0;
-        
+
         jest.doMock("@/lib/s3-utils", () => ({
           readJsonS3: jest.fn().mockImplementation((key: string) => {
             if (key === BOOKMARKS_S3_PATHS.LOCK) {
@@ -190,23 +190,25 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         }));
 
         const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-        
-        bookmarksModule.setRefreshBookmarksCallback(() => 
-          Promise.resolve([{
-            id: "test",
-            url: "https://example.com",
-            title: "Test",
-            description: "Test",
-            tags: [],
-            dateBookmarked: "2024-01-01T00:00:00.000Z",
-            sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
-          }])
+
+        bookmarksModule.setRefreshBookmarksCallback(() =>
+          Promise.resolve([
+            {
+              id: "test",
+              url: "https://example.com",
+              title: "Test",
+              description: "Test",
+              tags: [],
+              dateBookmarked: "2024-01-01T00:00:00.000Z",
+              sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
+            },
+          ]),
         );
         bookmarksModule.initializeBookmarksDataAccess();
 
         // Process 2 attempts to acquire lock (should fail)
         const result = await bookmarksModule.refreshAndPersistBookmarks();
-        
+
         // Should return null because lock is held by process1
         expect(result).toBeNull();
       });
@@ -252,17 +254,19 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         }));
 
         const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-        
-        bookmarksModule.setRefreshBookmarksCallback(() => 
-          Promise.resolve([{
-            id: "test",
-            url: "https://example.com",
-            title: "Test",
-            description: "Test",
-            tags: [],
-            dateBookmarked: "2024-01-01T00:00:00.000Z",
-            sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
-          }])
+
+        bookmarksModule.setRefreshBookmarksCallback(() =>
+          Promise.resolve([
+            {
+              id: "test",
+              url: "https://example.com",
+              title: "Test",
+              description: "Test",
+              tags: [],
+              dateBookmarked: "2024-01-01T00:00:00.000Z",
+              sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
+            },
+          ]),
         );
         bookmarksModule.initializeBookmarksDataAccess();
 
@@ -271,7 +275,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
 
         // Should be able to acquire lock after stale lock cleanup
         const result = await bookmarksModule.refreshAndPersistBookmarks();
-        
+
         // Might need a retry if cleanup hasn't run yet
         if (result === null) {
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -280,7 +284,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         } else {
           expect(result).toBeTruthy();
         }
-        
+
         expect(cleanupAttempted).toBe(true);
       });
     });
@@ -301,7 +305,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
             if (key === BOOKMARKS_S3_PATHS.LOCK) {
               writeAttempts++;
               const lockValue = value as DistributedLockEntry;
-              
+
               // Simulate race condition: another process wins on second attempt
               if (writeAttempts === 1) {
                 currentLock = lockValue; // Our write succeeds
@@ -326,22 +330,24 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         }));
 
         const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-        
-        bookmarksModule.setRefreshBookmarksCallback(() => 
-          Promise.resolve([{
-            id: "test",
-            url: "https://example.com",
-            title: "Test",
-            description: "Test",
-            tags: [],
-            dateBookmarked: "2024-01-01T00:00:00.000Z",
-            sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
-          }])
+
+        bookmarksModule.setRefreshBookmarksCallback(() =>
+          Promise.resolve([
+            {
+              id: "test",
+              url: "https://example.com",
+              title: "Test",
+              description: "Test",
+              tags: [],
+              dateBookmarked: "2024-01-01T00:00:00.000Z",
+              sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
+            },
+          ]),
         );
         bookmarksModule.initializeBookmarksDataAccess();
 
         const result = await bookmarksModule.refreshAndPersistBookmarks();
-        
+
         // Should succeed because read-back verification confirms our ownership
         expect(result).toBeTruthy();
         expect(writeAttempts).toBeGreaterThanOrEqual(1);
@@ -361,7 +367,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
           }),
           writeJsonS3: jest.fn().mockImplementation((key: string, value: unknown) => {
             mockS3State.writes.push(key);
-            
+
             if (key === BOOKMARKS_S3_PATHS.LOCK) {
               // Allow lock acquisition
               if (mockS3State.lock === null) {
@@ -386,7 +392,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         }));
 
         const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-        
+
         // Create enough bookmarks to trigger pagination
         const manyBookmarks: UnifiedBookmark[] = Array.from({ length: BOOKMARKS_PER_PAGE + 5 }, (_, i) => ({
           id: `bookmark-${i}`,
@@ -402,14 +408,14 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         bookmarksModule.initializeBookmarksDataAccess();
 
         const result = await bookmarksModule.refreshAndPersistBookmarks();
-        
+
         expect(result).toBeTruthy();
         expect(result).toHaveLength(manyBookmarks.length);
-        
+
         // Verify pagination occurred
         const pageWrites = mockS3State.writes.filter(w => w.startsWith(BOOKMARKS_S3_PATHS.PAGE_PREFIX));
         expect(pageWrites.length).toBeGreaterThan(1);
-        
+
         // Verify index was updated with pagination info
         expect(mockS3State.index?.totalPages).toBeGreaterThan(1);
         expect(mockS3State.index?.count).toBe(manyBookmarks.length);
@@ -422,7 +428,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
       await jest.isolateModulesAsync(async () => {
         const operationLog: string[] = [];
         let lockState: DistributedLockEntry | null = null;
-        
+
         jest.doMock("@/lib/s3-utils", () => ({
           readJsonS3: jest.fn().mockImplementation((key: string) => {
             operationLog.push(`READ:${key}`);
@@ -448,23 +454,25 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         }));
 
         const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-        
+
         bookmarksModule.setRefreshBookmarksCallback(() => {
           operationLog.push("REFRESH_CALLBACK");
-          return Promise.resolve([{
-            id: "test",
-            url: "https://example.com",
-            title: "Test",
-            description: "Test",
-            tags: [],
-            dateBookmarked: "2024-01-01T00:00:00.000Z",
-            sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
-          }]);
+          return Promise.resolve([
+            {
+              id: "test",
+              url: "https://example.com",
+              title: "Test",
+              description: "Test",
+              tags: [],
+              dateBookmarked: "2024-01-01T00:00:00.000Z",
+              sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
+            },
+          ]);
         });
         bookmarksModule.initializeBookmarksDataAccess();
 
         const result = await bookmarksModule.refreshAndPersistBookmarks();
-        
+
         // Only verify if refresh actually happened
         if (result !== null) {
           // Verify operation order
@@ -472,22 +480,22 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
           const refreshIndex = operationLog.indexOf("REFRESH_CALLBACK");
           const dataWriteIndex = operationLog.indexOf(`WRITE:${BOOKMARKS_S3_PATHS.FILE}`);
           const lockDeleteIndex = operationLog.indexOf(`DELETE:${BOOKMARKS_S3_PATHS.LOCK}`);
-          
+
           // Lock must be acquired before refresh
           expect(lockWriteIndex).toBeGreaterThan(-1);
           if (refreshIndex > -1) {
             expect(lockWriteIndex).toBeLessThan(refreshIndex);
-            
+
             // Refresh must happen before data write
             expect(refreshIndex).toBeLessThan(dataWriteIndex);
           }
-          
+
           // Lock must be released after data write (if data was written)
           if (dataWriteIndex > -1) {
             expect(dataWriteIndex).toBeLessThan(lockDeleteIndex);
           }
         }
-        
+
         // At minimum, verify lock operations occurred
         expect(operationLog).toContain(`READ:${BOOKMARKS_S3_PATHS.LOCK}`);
       });

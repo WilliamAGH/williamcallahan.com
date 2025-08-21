@@ -531,7 +531,7 @@ describe.skip("Terminal Component", () => {
       const input = screen.getByRole("textbox");
 
       // Mock slow fetch
-      global.fetch = jest.fn().mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 1000)));
+      global.fetch = jest.fn().mockImplementation(() => new Promise(resolve => setTimeout(resolve, 1000)));
 
       // Submit first search
       fireEvent.change(input, { target: { value: "blog first" } });

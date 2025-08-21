@@ -5,7 +5,7 @@ const React = require("react");
 
 module.exports = {
   __esModule: true,
-  default: (props) => {
+  default: props => {
     const { src, alt, priority, fill, ...rest } = props;
     return React.createElement("img", {
       src,

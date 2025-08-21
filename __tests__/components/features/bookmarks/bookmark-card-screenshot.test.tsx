@@ -62,7 +62,7 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
 
     // Check that the screenshot asset ID is used for image fallback
     const images = container.querySelectorAll("img");
-    const logoImage = Array.from(images).find((img) => img.dataset.testid === "logo-image");
+    const logoImage = Array.from(images).find(img => img.dataset.testid === "logo-image");
 
     if (logoImage) {
       // If we have a logo image element, verify it uses the screenshot asset URL
@@ -128,7 +128,7 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
 
     // Check that screenshotAssetId is still accessible and used
     const images = container.querySelectorAll("img");
-    const logoImage = Array.from(images).find((img) => img.dataset.testid === "logo-image");
+    const logoImage = Array.from(images).find(img => img.dataset.testid === "logo-image");
 
     if (logoImage) {
       expect(logoImage.getAttribute("src")).toBe("/api/assets/test-screenshot-asset-id");

@@ -84,7 +84,7 @@ describe("Search-mode client pagination", () => {
     // Helper to check for text in the component
     const findText = (text: string) => {
       const elements = container.querySelectorAll("*");
-      return Array.from(elements).some((el) => el.textContent?.includes(text));
+      return Array.from(elements).some(el => el.textContent?.includes(text));
     };
 
     // Verify initial state shows some bookmarks

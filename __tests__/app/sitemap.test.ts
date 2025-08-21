@@ -76,7 +76,9 @@ Content`,
 }));
 
 describe("Sitemap Generation", () => {
-  const mockGetBookmarksForStaticBuildAsync = getBookmarksForStaticBuildAsync as jest.MockedFunction<typeof getBookmarksForStaticBuildAsync>;
+  const mockGetBookmarksForStaticBuildAsync = getBookmarksForStaticBuildAsync as jest.MockedFunction<
+    typeof getBookmarksForStaticBuildAsync
+  >;
   let originalSiteUrl: string | undefined;
 
   beforeEach(() => {
@@ -118,11 +120,11 @@ describe("Sitemap Generation", () => {
       expect(totalPages).toBe(3); // 50 / BOOKMARKS_PER_PAGE, rounded up
 
       // Find paginated bookmark entries (pages 2 and 3, since page 1 is /bookmarks)
-      const paginatedEntries = sitemapEntries.filter((entry) => entry.url.includes("/bookmarks/page/"));
+      const paginatedEntries = sitemapEntries.filter(entry => entry.url.includes("/bookmarks/page/"));
 
       // Should have entries for pages 2 and 3
       expect(paginatedEntries).toHaveLength(2);
-      expect(paginatedEntries.map((e) => e.url)).toEqual(
+      expect(paginatedEntries.map(e => e.url)).toEqual(
         expect.arrayContaining([
           "https://williamcallahan.com/bookmarks/page/2",
           "https://williamcallahan.com/bookmarks/page/3",
@@ -156,9 +158,7 @@ describe("Sitemap Generation", () => {
       const sitemapEntries = await sitemap();
 
       // Find paginated bookmark entry
-      const paginatedEntry = sitemapEntries.find(
-        (entry) => entry.url === "https://williamcallahan.com/bookmarks/page/2",
-      );
+      const paginatedEntry = sitemapEntries.find(entry => entry.url === "https://williamcallahan.com/bookmarks/page/2");
 
       expect(paginatedEntry).toBeDefined();
       // lastModified should not be present when undefined
@@ -187,9 +187,7 @@ describe("Sitemap Generation", () => {
       const sitemapEntries = await sitemap();
 
       // Find paginated bookmark entry
-      const paginatedEntry = sitemapEntries.find(
-        (entry) => entry.url === "https://williamcallahan.com/bookmarks/page/2",
-      );
+      const paginatedEntry = sitemapEntries.find(entry => entry.url === "https://williamcallahan.com/bookmarks/page/2");
 
       expect(paginatedEntry).toBeDefined();
       expect(paginatedEntry?.lastModified).toEqual(testDate);
@@ -230,12 +228,12 @@ describe("Sitemap Generation", () => {
       const sitemapEntries = await sitemap();
 
       // Should not have any paginated entries
-      const paginatedEntries = sitemapEntries.filter((entry) => entry.url.includes("/bookmarks/page/"));
+      const paginatedEntries = sitemapEntries.filter(entry => entry.url.includes("/bookmarks/page/"));
 
       expect(paginatedEntries).toHaveLength(0);
 
       // But should still have the main bookmarks page
-      const mainBookmarksEntry = sitemapEntries.find((entry) => entry.url === "https://williamcallahan.com/bookmarks");
+      const mainBookmarksEntry = sitemapEntries.find(entry => entry.url === "https://williamcallahan.com/bookmarks");
 
       expect(mainBookmarksEntry).toBeDefined();
     });
@@ -299,16 +297,16 @@ describe("Sitemap Generation", () => {
 
       // Should have entries for individual bookmarks
       const bookmarkEntries = sitemapEntries.filter(
-        (entry) => entry.url.includes("/bookmarks/") && !entry.url.includes("/page/"),
+        entry => entry.url.includes("/bookmarks/") && !entry.url.includes("/page/"),
       );
 
       // Should generate slugs based on domain and title
       expect(
-        bookmarkEntries.some((entry) => entry.url.includes("/bookmarks/") && entry.url.includes("example-com")),
+        bookmarkEntries.some(entry => entry.url.includes("/bookmarks/") && entry.url.includes("example-com")),
       ).toBe(true);
 
       expect(
-        bookmarkEntries.some((entry) => entry.url.includes("/bookmarks/") && entry.url.includes("another-com")),
+        bookmarkEntries.some(entry => entry.url.includes("/bookmarks/") && entry.url.includes("another-com")),
       ).toBe(true);
     });
   });
@@ -339,7 +337,7 @@ describe("Sitemap Generation", () => {
       ];
 
       for (const expectedUrl of expectedPages) {
-        const entry = sitemapEntries.find((e) => e.url === expectedUrl);
+        const entry = sitemapEntries.find(e => e.url === expectedUrl);
         expect(entry).toBeDefined();
         expect(entry?.changeFrequency).toBeDefined();
         expect(entry?.priority).toBeDefined();
