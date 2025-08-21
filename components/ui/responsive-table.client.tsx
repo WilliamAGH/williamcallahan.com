@@ -8,8 +8,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import React, { Children, isValidElement, useMemo, type JSX } from "react";
-import type { ReactNode } from "react";
+import React, { Children, isValidElement, useMemo, type JSX, type ReactNode } from "react";
 import type { TableCell, TableRow, TableData, ResponsiveTableContainerProps as ResponsiveTableProps } from "@/types/ui";
 
 /**

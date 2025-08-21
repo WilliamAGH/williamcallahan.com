@@ -7,8 +7,9 @@
  * This is a shared component that can be used in both client and server contexts.
  */
 
-import type { HistoryProps, TerminalCommand } from "@/types";
 import {
+  type HistoryProps,
+  type TerminalCommand,
   isTextCommand,
   isNavigationCommand,
   isClearCommand,
