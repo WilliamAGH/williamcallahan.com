@@ -184,9 +184,13 @@ export async function getMDXPost(
     let content = parsed.content;
     
     // Preprocess MDX to fix JSX components inside list items
-    // This regex finds closing tags that appear directly after list items
-    // and adds a newline before them to prevent MDX parsing errors
+    // Multiple patterns to fix:
+    // 1. Closing tags immediately after list items
     content = content.replace(/^(\s*[-*]\s+.*)\n(\s*<\/\w+>)/gm, '$1\n\n$2');
+    // 2. Opening tags in list items that span multiple lines - add closing outside list
+    content = content.replace(/^(\s*[-*]\s+.*<\w+[^>]*>)([^<]*)\n(\s+<\/\w+>)/gm, '$1$2\n\n$3');
+    // 3. Components that appear within list items - move them outside
+    content = content.replace(/^(\s*[-*]\s+)(.*)(<\w+[^>]*>.*<\/\w+>)(.*)$/gm, '$1$2$4\n\n$3');
 
     // Validate frontmatter slug consistency
     const normalizedParam = frontmatterSlug.trim();
