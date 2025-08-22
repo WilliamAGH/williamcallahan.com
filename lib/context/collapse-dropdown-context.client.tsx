@@ -10,8 +10,7 @@
 
 "use client";
 
-import type React from "react";
-import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import React, { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import type { DropdownRegistryEntry, CollapseDropdownContextType } from "@/types/ui/interactive";
 
 const CollapseDropdownContext = createContext<CollapseDropdownContextType | null>(null);

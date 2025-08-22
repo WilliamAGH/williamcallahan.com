@@ -79,6 +79,17 @@ function calculateTextSimilarity(text1: string, text2: string): number {
 }
 
 /**
+ * Extract main domain from a full domain string
+ */
+function extractMainDomain(domain: string): string {
+  const parts = domain.split(".");
+  if (parts.length >= 2) {
+    return parts.slice(-2).join(".");
+  }
+  return domain;
+}
+
+/**
  * Calculate domain similarity for bookmarks
  */
 function calculateDomainSimilarity(domain1?: string, domain2?: string): number {
@@ -88,14 +99,6 @@ function calculateDomainSimilarity(domain1?: string, domain2?: string): number {
   if (domain1 === domain2) return 1;
 
   // Subdomain match (e.g., blog.example.com and www.example.com)
-  const extractMainDomain = (domain: string) => {
-    const parts = domain.split(".");
-    if (parts.length >= 2) {
-      return parts.slice(-2).join(".");
-    }
-    return domain;
-  };
-
   const main1 = extractMainDomain(domain1);
   const main2 = extractMainDomain(domain2);
 
@@ -147,7 +150,7 @@ export function calculateSimilarity(
 
   // Use appropriate base weights and merge any overrides
   const base = isCrossContent ? CROSS_TYPE_WEIGHTS : SAME_TYPE_WEIGHTS;
-  const activeWeights: SimilarityWeights = { ...base, ...(weights ?? {}) } as SimilarityWeights;
+  const activeWeights: SimilarityWeights = weights ? ({ ...base, ...weights } as SimilarityWeights) : base;
 
   // Calculate exact tag similarity
   const exactTagScore = calculateTagSimilarity(source.tags, target.tags);
