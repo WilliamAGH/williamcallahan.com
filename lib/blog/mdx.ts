@@ -181,7 +181,12 @@ export async function getMDXPost(
     // Parse frontmatter
     const parsed = matter(fileContents);
     const frontmatter = parsed.data as FrontmatterData;
-    const content = parsed.content;
+    let content = parsed.content;
+    
+    // Preprocess MDX to fix JSX components inside list items
+    // This regex finds closing tags that appear directly after list items
+    // and adds a newline before them to prevent MDX parsing errors
+    content = content.replace(/^(\s*[-*]\s+.*)\n(\s*<\/\w+>)/gm, '$1\n\n$2');
 
     // Validate frontmatter slug consistency
     const normalizedParam = frontmatterSlug.trim();
