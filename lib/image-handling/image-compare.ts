@@ -90,7 +90,7 @@ function generateStructuralHash(meta: BasicImageMeta, buffer: Buffer): string {
 function extractColorSignature(buffer: Buffer): number[] {
   // Sample first 2KB for color distribution
   const sample = buffer.slice(0, 2048);
-  const histogram: number[] = new Array(8).fill(0) as number[];
+  const histogram: number[] = Array.from({ length: 8 }, () => 0);
 
   // Simple byte distribution as proxy for color
   for (let i = 0; i < sample.length; i++) {
@@ -112,9 +112,14 @@ function extractColorSignature(buffer: Buffer): number[] {
  * Calculate Shannon entropy of data
  */
 function calculateEntropy(data: Buffer): number {
-  const counts = new Array(256).fill(0);
+  const counts = Array.from({ length: 256 }, () => 0);
   for (const byte of data) {
-    counts[byte]++;
+    if (byte >= 0 && byte < 256 && byte < counts.length) {
+      const count = counts[byte];
+      if (count !== undefined) {
+        counts[byte] = count + 1;
+      }
+    }
   }
 
   let entropy = 0;
