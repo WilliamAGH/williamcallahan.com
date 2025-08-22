@@ -7,8 +7,7 @@
 "use client";
 
 import type { CommandResult, TerminalSearchResult } from "@/types/terminal";
-import type { SearchResult } from "@/types/search";
-import { searchResultsSchema } from "@/types/search";
+import { searchResultsSchema, type SearchResult } from "@/types/search";
 
 // Transform SearchResult from API to TerminalSearchResult format
 function transformSearchResultToSelectionItem(result: SearchResult): TerminalSearchResult {
