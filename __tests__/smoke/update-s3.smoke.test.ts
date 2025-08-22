@@ -73,7 +73,6 @@ describe("Update S3 Script Smoke Tests", () => {
     delete cleanEnv.S3_BUCKET;
 
     let stdout = "";
-    let _exitCode = 0;
 
     try {
       // Use test limit and dry run to ensure quick execution
@@ -82,10 +81,8 @@ describe("Update S3 Script Smoke Tests", () => {
         env: { ...cleanEnv, DRY_RUN: "true", S3_TEST_LIMIT: "1" },
         timeout: 5000, // 5 second timeout
       });
-      _exitCode = 0;
     } catch (error: any) {
       stdout = error.stdout || "";
-      _exitCode = error.status || 1;
     }
 
     // In dry-run mode without S3_BUCKET, script may exit non-zero; assert graceful message instead
@@ -129,17 +126,17 @@ describe("Update S3 Script Smoke Tests", () => {
    */
   it("should load script without module resolution errors", () => {
     /** Execute script with immediate exit to test module loading */
-    let _exitCode = 0;
+    let exitCode = 0;
     try {
       execSync(`${bunPath} ${scriptPath} --help`, {
         encoding: "utf8",
         env: { ...process.env, S3_BUCKET: "test-bucket" },
       });
     } catch (error: any) {
-      _exitCode = error.status || 1;
+      exitCode = error.status || 1;
     }
 
     /** Script should exit with code 0 after displaying help */
-    expect(_exitCode).toBe(0);
+    expect(exitCode).toBe(0);
   });
 });
