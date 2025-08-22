@@ -148,6 +148,7 @@ const config = tseslint.config(
   // React and Next.js configurations
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
+    ignores: ["**/*.mdx"],
     languageOptions: {
       globals: {
         ...globals.browser,
@@ -180,6 +181,7 @@ const config = tseslint.config(
 
   // TypeScript rules
   {
+    ignores: ["**/*.mdx"],
     rules: {
       "no-underscore-dangle": [
         "error",
@@ -244,7 +246,7 @@ const config = tseslint.config(
   // Enforce centralized type definitions (all types AND Zod schemas must live in @/types or *.d.ts)
   {
     files: ["**/*.{ts,tsx}"],
-    ignores: ["types/**/*", "**/*.d.ts"],
+    ignores: ["types/**/*", "**/*.d.ts", "**/*.mdx"],
     rules: {
       "no-restricted-syntax": [
         "error",

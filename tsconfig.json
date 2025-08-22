@@ -65,6 +65,7 @@
     "out",
     "dist",
     "components/ui/code-block/prism-syntax-highlighting/prism.js",
-    "__tests__"
+    "__tests__",
+    "**/*.mdx"
   ]
 }
