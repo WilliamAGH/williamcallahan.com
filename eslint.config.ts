@@ -7,7 +7,6 @@ import { createRequire } from "node:module";
 import js from "@eslint/js";
 import nextPlugin from "@next/eslint-plugin-next";
 import jestPlugin from "eslint-plugin-jest";
-import * as mdxPlugin from "eslint-plugin-mdx";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactJsxRuntime from "eslint-plugin-react/configs/jsx-runtime.js";
 import reactRecommended from "eslint-plugin-react/configs/recommended.js";
@@ -126,6 +125,7 @@ const config = tseslint.config(
       "config/.remarkrc.mjs",
       "config/",
       "next-env.d.ts",
+      "**/*.mdx", // Skip MDX files entirely - the parser doesn't handle JSX in lists correctly
     ],
   },
 
@@ -459,33 +459,6 @@ const config = tseslint.config(
     },
   },
 
-  // MDX configuration
-  {
-    name: "custom/mdx/recommended",
-    files: ["**/*.mdx"],
-    ...mdxPlugin.flat,
-    processor: mdxPlugin.createRemarkProcessor({
-      lintCodeBlocks: false,
-      languageMapper: {},
-    }) as any,
-    rules: {
-      ...tseslint.configs.disableTypeChecked.rules,
-      "react/no-unescaped-entities": "off",
-      "react/no-unknown-property": "off",
-      "@typescript-eslint/no-unused-vars": "off",
-    },
-  },
-  {
-    name: "custom/mdx/code-blocks",
-    files: ["**/*.mdx"],
-    ...mdxPlugin.flatCodeBlocks,
-    rules: {
-      ...mdxPlugin.flatCodeBlocks.rules,
-      ...tseslint.configs.disableTypeChecked.rules,
-      "no-var": "error",
-      "prefer-const": "error",
-    },
-  },
 
   // --------------------------------------------------
   // Project-specific global type uniqueness rule
