@@ -11,8 +11,7 @@
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
 import logger from "@/lib/utils/logger";
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 

@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     // More sophisticated URL validation (skip for relative URLs we handle)
     if (!url.startsWith("/")) {
       try {
-        new URL(url);
+        if (!URL.canParse(url)) throw new Error("invalid");
       } catch (urlError) {
         console.warn("[OG-Image] Invalid URL format:", url, urlError);
         const fallbackImage = getDomainFallbackImage("unknown");
