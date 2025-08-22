@@ -135,8 +135,7 @@ A well-designed submission script might export primary functions such as:
 
 - **`submitSitemapFilesToSearchEngines()`**: Submits a generated `/sitemap.xml` file to both Google Search Console and Bing (IndexNow), respecting production environment checks.
 - **`submitIndividualUrlsToGoogle()`**: Iterates sitemap entries (e.g., from a Next.js sitemap), selects recently updated pages (e.g., last 14 days), checks Google's last crawl date for each URL, and resubmits only URLs needing an update.
-
-</BackgroundInfo>
+  </BackgroundInfo>
 
 Once a submission script (e.g., `path/to/your/submit-sitemap.ts`) is prepared with the necessary functions, it can be invoked. The following illustrates a simple runner script:
 
