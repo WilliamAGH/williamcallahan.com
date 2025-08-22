@@ -171,9 +171,18 @@ export function applyExtractedContent(bookmark: UnifiedBookmark, content: Extrac
   bookmark.readingTime = content.readingTime;
 
   // Store a summary instead of full content to save memory
-  // Take first 200 characters of markdown as summary if none exists
-  if (!bookmark.summary && content.markdown) {
+  // Only synthesize a summary when BOTH summary and description are missing.
+  // This prevents auto-generated text from overriding clean backend descriptions.
+  if (
+    (!bookmark.summary || bookmark.summary.trim().length === 0) &&
+    (!bookmark.description ||
+      bookmark.description.trim().length === 0 ||
+      bookmark.description === "No description available.") &&
+    content.markdown
+  ) {
     const cleanSummary = content.markdown
+      // Remove basic markdown syntax and convert links to plain text
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
       .replace(/[#*_~>-]/g, "")
       .replace(/\s+/g, " ")
       .trim()
