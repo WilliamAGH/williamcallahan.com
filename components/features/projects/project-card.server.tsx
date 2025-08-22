@@ -6,6 +6,31 @@ import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 
 const MAX_DISPLAY_TECH_ITEMS = 10;
 
+// Hoisted helper to satisfy consistent-function-scoping
+function deriveTechFromTags(tagList: string[] | undefined): string[] {
+  if (!tagList || tagList.length === 0) return [];
+  const TECH_KEYWORDS = new Set([
+    "Next.js",
+    "TypeScript",
+    "Tailwind CSS",
+    "React",
+    "MDX",
+    "Server Components",
+    "Java",
+    "Spring Boot",
+    "Spring AI",
+    "OpenAI",
+    "Google Books API",
+    "Thymeleaf",
+    "HTMX",
+    "PostgreSQL",
+    "Docker",
+    "Groq",
+    "Gemini",
+  ]);
+  return tagList.filter(t => TECH_KEYWORDS.has(t));
+}
+
 // Placeholder for centered top image with gradient
 function PlaceholderImageTop() {
   return (
@@ -40,34 +65,9 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
   const imageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
 
   // Derive a technology stack from tags if explicit techStack is not provided
-  const deriveTechFromTags = (tagList: string[] | undefined): string[] => {
-    if (!tagList || tagList.length === 0) return [];
-    const TECH_KEYWORDS = new Set([
-      "Next.js",
-      "TypeScript",
-      "Tailwind CSS",
-      "React",
-      "MDX",
-      "Server Components",
-      "Java",
-      "Spring Boot",
-      "Spring AI",
-      "OpenAI",
-      "Google Books API",
-      "Thymeleaf",
-      "HTMX",
-      "PostgreSQL",
-      "Docker",
-      "Groq",
-      "Gemini",
-    ]);
-    return tagList.filter(t => TECH_KEYWORDS.has(t));
-  };
-
-  const displayTech = (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)).slice(
-    0,
-    MAX_DISPLAY_TECH_ITEMS,
-  );
+  const displayTech = (
+    (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags))
+  ).slice(0, MAX_DISPLAY_TECH_ITEMS);
 
   return (
     // Redesigned card for horizontal layout on medium screens and up
