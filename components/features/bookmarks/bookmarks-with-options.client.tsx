@@ -8,16 +8,12 @@
 "use client";
 
 import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
-import type { UnifiedBookmark } from "@/types";
+import { getErrorMessage, type UnifiedBookmark, type BookmarksWithOptionsClientProps } from "@/types";
 import { ArrowRight, Loader2, RefreshCw, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import type React from "react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
-import { getErrorMessage } from "@/types/api-responses";
-
-import type { BookmarksWithOptionsClientProps } from "@/types";
 
 // Environment detection helper
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -33,6 +29,10 @@ function isBookmarksApiResponse(
   if (!obj || typeof obj !== "object") return false;
   const maybe = obj as Record<string, unknown>;
   return Array.isArray(maybe.data);
+}
+
+function isRefreshResult(obj: unknown): obj is import("@/types").RefreshResult {
+  return !!obj && typeof obj === "object" && "status" in (obj as Record<string, unknown>);
 }
 
 function isUnifiedBookmarkArray(x: unknown): x is UnifiedBookmark[] {
@@ -310,9 +310,6 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       }
 
       const resultJson: unknown = await response.json();
-      function isRefreshResult(obj: unknown): obj is import("@/types").RefreshResult {
-        return !!obj && typeof obj === "object" && "status" in (obj as Record<string, unknown>);
-      }
       if (!isRefreshResult(resultJson)) {
         throw new Error("Unexpected response from refresh endpoint");
       }
@@ -405,7 +402,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
 
       if (!response.ok) {
         const errorData: unknown = await response.json().catch(() => null);
-        const errorMessage = getErrorMessage(errorData, response.statusText);
+        const errorMessage = getErrorMessage(errorData) || response.statusText;
         console.error("[Bookmarks] Production refresh failed:", errorMessage);
         setRefreshError(`Production refresh failed: ${errorMessage}`);
         setTimeout(() => setRefreshError(null), 5000);
