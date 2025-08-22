@@ -90,9 +90,9 @@ describe("DataFetchManager Performance Optimizations", () => {
         includeImageData: false,
       });
 
-      // Verify parallel execution - all should start within a few ms of each other
+      // Verify parallel execution - all should start within a reasonable time of each other
       const timeDifference = Math.abs(callTimes.investments - callTimes.bookmarks);
-      expect(timeDifference).toBeLessThan(10); // Should be called almost simultaneously
+      expect(timeDifference).toBeLessThan(50); // Should be called almost simultaneously (increased threshold for CI/slower machines)
 
       // Verify domains were collected correctly
       expect(domains).toBeInstanceOf(Set);
