@@ -106,20 +106,22 @@ async function main() {
     { name: "All-Time Summary", path: ALL_TIME_SUMMARY_S3_KEY_FILE },
   ];
 
-  for (const file of summaryFiles) {
-    console.log(`  ${file.name}: ${file.path}`);
-    try {
-      const exists = await listS3Objects(file.path);
-      console.log(`    ${exists.length > 0 ? "✅ Exists" : "❌ Not found"}`);
-    } catch {
-      console.log(`    ❌ Error checking`);
-    }
-  }
+  await Promise.all(
+    summaryFiles.map(async file => {
+      console.log(`  ${file.name}: ${file.path}`);
+      try {
+        const exists = await listS3Objects(file.path);
+        console.log(`    ${exists.length > 0 ? "✅ Exists" : "❌ Not found"}`);
+      } catch {
+        console.log(`    ❌ Error checking`);
+      }
+    }),
+  );
 
   // 6. Ask if user wants to refresh
   console.log("\n" + "=".repeat(50));
-  const args = process.argv.slice(2);
-  if (args.includes("--refresh") || args.includes("-r")) {
+  const args = new Set(process.argv.slice(2));
+  if (args.has("--refresh") || args.has("-r")) {
     console.log("\n🔄 Refreshing GitHub Activity Data...");
     console.log("  This may take a few minutes...\n");
 

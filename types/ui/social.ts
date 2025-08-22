@@ -4,7 +4,6 @@
  * SCOPE: Types for the social icon components.
  */
 import type { ReactNode } from "react";
-import type React from "react";
 
 export interface SocialIcon {
   /** Icon identifier */
