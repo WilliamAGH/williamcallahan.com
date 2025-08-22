@@ -6,7 +6,8 @@
     "**/node_modules/**",
     "**/dist/**",
     "**/out/**",
-    "components/ui/code-block/prism-syntax-highlighting/prism.js"
+    "components/ui/code-block/prism-syntax-highlighting/prism.js",
+    "**/*.mdx"
   ],
   "categories": {
     "correctness": "error",
