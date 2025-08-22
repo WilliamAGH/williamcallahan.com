@@ -216,12 +216,12 @@ export async function RelatedContent({
 
       // Apply filters
       if (includeTypes) {
-        const inc = [...includeTypes];
-        items = items.filter(item => inc.includes(item.type));
+        const inc = new Set(includeTypes);
+        items = items.filter(item => inc.has(item.type));
       }
       if (excludeTypes) {
-        const exc = [...excludeTypes];
-        items = items.filter(item => !exc.includes(item.type));
+        const exc = new Set(excludeTypes);
+        items = items.filter(item => !exc.has(item.type));
       }
       if (excludeIds.length > 0) {
         items = items.filter(item => !excludeIds.includes(item.id));
@@ -273,8 +273,8 @@ export async function RelatedContent({
       if (includeTypes || excludeTypes) {
         items = filterByTypes(
           items,
-          includeTypes ? [...includeTypes] : undefined,
-          excludeTypes ? [...excludeTypes] : undefined,
+          includeTypes ? Array.from(new Set(includeTypes)) : undefined,
+          excludeTypes ? Array.from(new Set(excludeTypes)) : undefined,
         );
       }
 
@@ -318,15 +318,15 @@ export async function RelatedContent({
     if (includeTypes || excludeTypes) {
       allContent = filterByTypes(
         allContent,
-        includeTypes ? [...includeTypes] : undefined,
-        excludeTypes ? [...excludeTypes] : undefined,
+        includeTypes ? Array.from(new Set(includeTypes)) : undefined,
+        excludeTypes ? Array.from(new Set(excludeTypes)) : undefined,
       );
     }
 
     // Exclude the source item and any specified IDs
-    const allExcludeIds = [...excludeIds, actualSourceId];
+    const allExcludeIds = new Set([...excludeIds, actualSourceId]);
 
-    const candidates = allContent.filter(item => !(item.type === sourceType && allExcludeIds.includes(item.id)));
+    const candidates = allContent.filter(item => !(item.type === sourceType && allExcludeIds.has(item.id)));
 
     // Find similar content
     const similar = findMostSimilar(source, candidates, maxTotal * 2, weights);
