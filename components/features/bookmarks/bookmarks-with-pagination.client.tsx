@@ -10,21 +10,17 @@
 "use client";
 
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import type { UnifiedBookmark } from "@/types";
+import { getErrorMessage, type UnifiedBookmark, type BookmarksWithPaginationClientProps } from "@/types";
 import { bookmarksSearchResponseSchema } from "@/types/bookmark";
 import { ArrowRight, Loader2, RefreshCw, Search } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import type React from "react";
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControl } from "@/components/ui/pagination-control.client";
 import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel.client";
-import { getErrorMessage } from "@/types/api-responses";
-
-import type { BookmarksWithPaginationClientProps } from "@/types";
 
 // Environment detection helper
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -32,6 +28,12 @@ const isDevelopment = process.env.NODE_ENV === "development";
 // Use the shared utility for tag normalization
 const getTagsAsStringArray = (tags: UnifiedBookmark["tags"]): string[] => {
   return normalizeTagsToStrings(tags);
+};
+
+// Simple form submit handler that prevents default - doesn't need to be inside component
+const handleSearchSubmit = (event: React.FormEvent) => {
+  event.preventDefault();
+  // The search happens automatically as the query is typed
 };
 
 export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProps> = ({
@@ -274,11 +276,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     setLocalSearchPage(1);
   };
 
-  const handleSearchSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    // The search happens automatically as the query is typed
-  };
-
   const handleTagClick = (tag: string) => {
     if (selectedTag === tag) {
       // Clear filter
@@ -389,7 +386,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
 
       if (!response.ok) {
         const errorData: unknown = await response.json().catch(() => null);
-        const errorMessage = getErrorMessage(errorData, response.statusText);
+        const errorMessage = getErrorMessage(errorData) || response.statusText;
         console.error("[Bookmarks] Production refresh failed:", errorMessage);
         setRefreshError(`Production refresh failed: ${errorMessage}`);
         setTimeout(() => setRefreshError(null), 5000);
