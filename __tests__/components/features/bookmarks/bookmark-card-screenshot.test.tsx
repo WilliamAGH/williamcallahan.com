@@ -9,15 +9,14 @@ import React from "react";
 import { getAssetUrl } from "@/lib/bookmarks/bookmark-helpers";
 
 // Mock next/link since we're not testing navigation behavior
-jest.mock("next/link", () => {
-  const MockLink = ({ children, href }: { children: React.ReactNode; href: string }) => (
+function MockNextLink({ children, href }: { children: React.ReactNode; href: string }) {
+  return (
     <a href={href} data-testid="mocked-link">
       {children}
     </a>
   );
-  (MockLink as React.FC).displayName = "MockNextLink";
-  return MockLink;
-});
+}
+jest.mock("next/link", () => MockNextLink);
 
 // Mock next/navigation
 jest.mock("next/navigation", () => ({

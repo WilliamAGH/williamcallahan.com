@@ -8,25 +8,25 @@ import type { SearchResult } from "@/types/search";
 // Mock environment variables
 process.env.NODE_ENV = "test";
 
+// Helper to format bytes to MB (hoisted to module scope)
+const formatBytes = (bytes: number): string => {
+  const mb = bytes / 1024 / 1024;
+  return `${mb.toFixed(2)} MB`;
+};
+
+// Helper to get memory usage (hoisted to module scope)
+const getMemoryUsage = () => {
+  const usage = process.memoryUsage();
+  return {
+    rss: usage.rss,
+    heapTotal: usage.heapTotal,
+    heapUsed: usage.heapUsed,
+    external: usage.external,
+  };
+};
+
 describe("Search API Memory Usage", () => {
   const baseUrl = "http://localhost:3000"; // This will be intercepted by our mocks
-
-  // Helper to format bytes to MB
-  const formatBytes = (bytes: number): string => {
-    const mb = bytes / 1024 / 1024;
-    return `${mb.toFixed(2)} MB`;
-  };
-
-  // Helper to get memory usage
-  const getMemoryUsage = () => {
-    const usage = process.memoryUsage();
-    return {
-      rss: usage.rss,
-      heapTotal: usage.heapTotal,
-      heapUsed: usage.heapUsed,
-      external: usage.external,
-    };
-  };
 
   // Mock fetch for testing
   const mockSearchResults = (query: string): SearchResult[] => {

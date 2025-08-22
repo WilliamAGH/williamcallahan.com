@@ -22,7 +22,7 @@ describe("Bookmarks Refresh API Route", () => {
           const url = new URL(bookmark.url);
           const domain = url.hostname.replace(/^www\./, "");
           domains.add(domain);
-        } catch (_error) {
+        } catch {
           // Skip invalid URLs
         }
       }
@@ -50,7 +50,7 @@ describe("Bookmarks Refresh API Route", () => {
             const domain = url.hostname.replace(/^www\./, "");
             domains.add(domain);
           }
-        } catch (_error) {
+        } catch {
           errorCount++;
         }
       }
