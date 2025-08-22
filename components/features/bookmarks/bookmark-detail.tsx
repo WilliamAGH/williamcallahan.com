@@ -148,8 +148,8 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
               {bookmarkedDate && (
                 <span className="flex items-center gap-1.5">
                   <Library className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Saved {bookmarkedDate}</span>
-                  <span className="sm:hidden">Saved {bookmarkedDate}</span>
+                  <span className="hidden sm:inline" suppressHydrationWarning>Saved {bookmarkedDate}</span>
+                  <span className="sm:hidden" suppressHydrationWarning>Saved {bookmarkedDate}</span>
                 </span>
               )}
 
@@ -163,7 +163,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
               {publishedDate && (
                 <span className="flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5" />
-                  {publishedDate}
+                  <span suppressHydrationWarning>{publishedDate}</span>
                 </span>
               )}
             </div>
@@ -335,7 +335,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                   {bookmark.dateUpdated && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-500 dark:text-gray-400">Updated</span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                      <span className="font-medium text-gray-900 dark:text-gray-100" suppressHydrationWarning>
                         {formatDate(bookmark.dateUpdated)}
                       </span>
                     </div>
