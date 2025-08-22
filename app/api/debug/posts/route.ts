@@ -11,8 +11,7 @@ import path from "node:path";
 import { authors } from "@/data/blog/authors";
 import { posts as staticPosts } from "@/data/blog/posts";
 import { getAllMDXPosts } from "@/lib/blog/mdx";
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 // Only allow this endpoint in development
 // Commented out as unused but kept for reference

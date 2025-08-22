@@ -6,10 +6,8 @@
  * This route handles image inversion, caching, and serving inverted logos.
  */
 
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { getUnifiedImageService } from "@/lib/services/unified-image-service";
-import type { UnifiedImageService } from "@/lib/services/unified-image-service";
+import { NextResponse, type NextRequest } from "next/server";
+import { getUnifiedImageService, type UnifiedImageService } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
 
 /**
