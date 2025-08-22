@@ -23,12 +23,12 @@ export async function onRequestError(
   request: RequestInfo,
   context: Record<string, unknown>,
 ): Promise<void> {
-  const normalizeRequest = (
-    req: RequestInfo,
-  ): { path: string; method: string; headers: Record<string, string | string[] | undefined> } => {
-    if (typeof req === "string") {
-      return { path: req, method: "GET", headers: {} };
-    }
+  function normalizeRequest(req: RequestInfo): {
+    path: string;
+    method: string;
+    headers: Record<string, string | string[] | undefined>;
+  } {
+    if (typeof req === "string") return { path: req, method: "GET", headers: {} };
     if (req instanceof Request) {
       return {
         path: new URL(req.url).pathname,
@@ -36,9 +36,8 @@ export async function onRequestError(
         headers: Object.fromEntries(req.headers.entries()),
       };
     }
-    // Fallback – treat unknown shape as empty request
     return { path: "unknown", method: "GET", headers: {} };
-  };
+  }
 
   const safeRequest = normalizeRequest(request);
   if (process.env.NEXT_RUNTIME === "nodejs") {

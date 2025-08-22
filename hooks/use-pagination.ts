@@ -100,10 +100,11 @@ export function usePagination<T>({
 
   const paginationMeta = useMemo(() => {
     const dataSource = data || [];
-    if (!dataSource || dataSource.length === 0) {
+    if (dataSource.length === 0) {
       return { totalPages: 0, totalItems: 0, hasMore: false };
     }
-    const lastPage = dataSource.filter(Boolean).pop();
+    // Find the last non-null page in the data array
+    const lastPage = [...dataSource].reverse().find(Boolean);
     if (!lastPage) {
       return { totalPages: 0, totalItems: 0, hasMore: false };
     }
