@@ -97,34 +97,69 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
           </div>
         </header>
 
-        {/* Image if available */}
-        {metadata.imageUrl && !imageError && (
-          <div className="relative w-full h-32 mb-3 rounded overflow-hidden bg-gray-100 dark:bg-gray-700">
-            {imageLoading && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin" />
+        {/* Investment logos aligned with title - match investment card pattern */}
+        {type === "investment" && metadata.imageUrl && !imageError ? (
+          <div className="flex items-start gap-3 mb-3">
+            <div className="relative w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+              {imageLoading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              <Image
+                src={metadata.imageUrl}
+                alt={title}
+                fill
+                className={`object-contain p-1 transition-opacity duration-200 ${imageLoading ? "opacity-0" : "opacity-100"}`}
+                sizes="40px"
+                onLoad={() => setImageLoading(false)}
+                onError={() => {
+                  setImageError(true);
+                  setImageLoading(false);
+                  console.warn(`Failed to load investment logo for ${title}: ${metadata.imageUrl}`);
+                }}
+                unoptimized={isExternalImage}
+                priority={false}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">{title}</h3>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Regular images for other content types */}
+            {metadata.imageUrl && !imageError && type !== "investment" && (
+              <div className="relative w-full h-32 mb-3 rounded overflow-hidden bg-gray-100 dark:bg-gray-700">
+                {imageLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-8 h-8 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+                <Image
+                  src={metadata.imageUrl}
+                  alt={title}
+                  fill
+                  className={`object-cover transition-opacity duration-200 ${imageLoading ? "opacity-0" : "opacity-100"}`}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  onLoad={() => setImageLoading(false)}
+                  onError={() => {
+                    setImageError(true);
+                    setImageLoading(false);
+                    console.warn(`Failed to load image for ${type}: ${metadata.imageUrl}`);
+                  }}
+                  unoptimized={isExternalImage}
+                  priority={false}
+                />
               </div>
             )}
-            <Image
-              src={metadata.imageUrl}
-              alt={title}
-              fill
-              className={`object-cover transition-opacity duration-200 ${imageLoading ? "opacity-0" : "opacity-100"}`}
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              onLoad={() => setImageLoading(false)}
-              onError={() => {
-                setImageError(true);
-                setImageLoading(false);
-                console.warn(`Failed to load image for ${type}: ${metadata.imageUrl}`);
-              }}
-              unoptimized={isExternalImage}
-              priority={false}
-            />
-          </div>
+            
+            {/* Title for non-investment types or investments without logos */}
+            {type !== "investment" || !metadata.imageUrl || imageError ? (
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">{title}</h3>
+            ) : null}
+          </>
         )}
-
-        {/* Title */}
-        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">{title}</h3>
 
         {/* Description */}
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 flex-grow line-clamp-3">
