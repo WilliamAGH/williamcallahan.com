@@ -7,7 +7,8 @@
     "**/dist/**",
     "**/out/**",
     "components/ui/code-block/prism-syntax-highlighting/prism.js",
-    "**/*.mdx"
+    "**/*.mdx",
+    "next-env.d.ts"
   ],
   "categories": {
     "correctness": "error",
@@ -18,7 +19,9 @@
   },
   "rules": {
     "no-duplicate-imports": "error",
-    "no-unreachable": "error"
+    "no-unreachable": "error",
+    "no-await-in-loop": "off",
+    "unicorn/consistent-function-scoping": "off"
   },
   "overrides": [
     {
