@@ -302,9 +302,9 @@ export async function processBookmarksInBatches(
       // 7. Extract markdown content if enabled (memory-efficient: one at a time)
       if (extractContent) {
         try {
-          const content = await extractMarkdownContent(bookmark);
+          const content = await extractMarkdownContent();
           if (content) {
-            applyExtractedContent(bookmark, content);
+            applyExtractedContent();
             console.log(
               `${LOG_PREFIX}   📝 Extracted ${content.wordCount} words (${content.readingTime}min read) from ${bookmark.url}`,
             );
