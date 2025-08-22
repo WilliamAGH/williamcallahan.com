@@ -14,11 +14,14 @@ function NextRequest(url, init = {}) {
     });
   }
 
-  // Store original Map.get method
+  // Store original Map.get and Map.set methods
   const originalGet = this.headers.get.bind(this.headers);
+  const originalSet = this.headers.set.bind(this.headers);
 
   // Override get method to be case-insensitive
   this.headers.get = name => originalGet(name.toLowerCase());
+  // Override set method to normalize keys
+  this.headers.set = (name, value) => originalSet(String(name).toLowerCase(), value);
 }
 
 function NextResponse(body, init = {}) {
@@ -28,9 +31,18 @@ function NextResponse(body, init = {}) {
 
   if (init.headers) {
     Object.entries(init.headers).forEach(([key, value]) => {
-      this.headers.set(key, value);
+      this.headers.set(key.toLowerCase(), value);
     });
   }
+
+  // Store original Map.get and Map.set methods
+  const originalGet = this.headers.get.bind(this.headers);
+  const originalSet = this.headers.set.bind(this.headers);
+
+  // Override get method to be case-insensitive
+  this.headers.get = name => originalGet(name.toLowerCase());
+  // Override set method to normalize keys
+  this.headers.set = (name, value) => originalSet(String(name).toLowerCase(), value);
 }
 
 NextResponse.json = function json(data, init = {}) {
