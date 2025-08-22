@@ -3,7 +3,7 @@
 import { useMemo, useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark, BookmarkTag } from "@/types";
 import {
   Calendar,
   Clock,
@@ -18,9 +18,22 @@ import {
   Library,
 } from "lucide-react";
 import Image from "next/image";
-import type { BookmarkTag } from "@/types";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { BookmarksWindow } from "./bookmarks-window.client";
+
+// Hoisted helper to satisfy consistent-function-scoping without behavior change
+const formatDate = (dateString: string | null | undefined): string | null => {
+  if (!dateString) return null;
+  try {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return null;
+  }
+};
 
 export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
   const [mounted, setMounted] = useState(false);
@@ -60,20 +73,6 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
     const minutes = Math.ceil(bookmark.readingTime);
     return `${minutes} min`;
   }, [bookmark.readingTime]);
-
-  // Format dates
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return null;
-    try {
-      return new Date(dateString).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return null;
-    }
-  };
 
   const publishedDate = formatDate(bookmark.content?.datePublished || bookmark.datePublished);
   const bookmarkedDate = formatDate(bookmark.dateBookmarked);

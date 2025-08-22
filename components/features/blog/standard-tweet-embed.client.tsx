@@ -1,7 +1,6 @@
 "use client";
 
-import type React from "react";
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 
 import type { StandardTweetEmbedProps } from "@/types";
 
@@ -46,7 +45,7 @@ const StandardTweetEmbed: React.FC<StandardTweetEmbedProps> = ({ id, theme }) =>
       script.async = true;
       script.charset = "utf-8";
       document.body.appendChild(script);
-      script.onload = createTweetEmbed;
+      script.addEventListener("load", createTweetEmbed, { once: true });
     } else {
       createTweetEmbed();
     }
