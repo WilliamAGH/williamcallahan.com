@@ -6,13 +6,19 @@
 import { s3Client, writeBinaryS3, checkIfS3ObjectExists } from "../s3-utils";
 import { ServerCacheInstance } from "../server-cache";
 import { getDomainVariants } from "../utils/domain-utils";
-import { parseS3Key, generateS3Key, getFileExtension, getBufferHash, hashAndArchiveManualLogo } from "../utils/hash-utils";
+import {
+  parseS3Key,
+  generateS3Key,
+  getFileExtension,
+  getBufferHash,
+  hashAndArchiveManualLogo,
+} from "../utils/hash-utils";
 import { LOGO_SOURCES, LOGO_BLOCKLIST_S3_PATH, UNIFIED_IMAGE_SERVICE_CONFIG } from "../constants";
 import { getBaseUrl } from "../utils/get-base-url";
 import { isDebug } from "../utils/debug";
 import { isS3ReadOnly } from "../utils/s3-read-only";
-import type { LogoSource } from "../../types/logo";
-import type { ExternalFetchResult } from "../../types/image";
+import type { LogoSource, LogoInversion } from "../../types/logo";
+import type { ExternalFetchResult, ImageServiceOptions, ImageResult } from "../../types/image";
 import { extractBasicImageMeta } from "../image-handling/image-metadata";
 import { analyzeImage } from "../image-handling/image-analysis"; // now lightweight stub
 import { processImageBuffer as sharedProcessImageBuffer } from "../image-handling/shared-image-processing";
@@ -33,8 +39,6 @@ import { getMemoryHealthMonitor, wipeBuffer } from "../health/memory-health-moni
 
 import { monitoredAsync } from "../async-operations-monitor";
 import type { LogoFetchResult, LogoValidationResult } from "../../types/cache";
-import type { LogoInversion } from "../../types/logo";
-import type { ImageServiceOptions, ImageResult } from "../../types/image";
 import { logoDebugger } from "@/lib/utils/logo-debug";
 import { maybeStreamImageToS3 } from "./image-streaming";
 import logger from "../utils/logger";
