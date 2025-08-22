@@ -49,6 +49,11 @@ const safeCacheTag = (tag: string): void => {
 };
 
 /**
+ * Normalizes a tag string for use as a cache tag
+ */
+const normalizeTag = (t: string) => t.replace(/[^a-zA-Z0-9-]/g, "-");
+
+/**
  * Cached JSON read from S3 with 'use cache' directive
  * @template T The expected type of the JSON data
  * @param s3Key - The S3 key to read
@@ -66,8 +71,7 @@ async function getCachedJsonS3<T>(
   safeCacheLife(cacheProfile);
   safeCacheTag("s3-json");
   safeCacheTag(`s3-key-${s3Key.replace(/[^a-zA-Z0-9-]/g, "-")}`);
-  const normalize = (t: string) => t.replace(/[^a-zA-Z0-9-]/g, "-");
-  tags.forEach(tag => safeCacheTag(normalize(tag)));
+  tags.forEach(tag => safeCacheTag(normalizeTag(tag)));
 
   return readJsonS3<T>(s3Key);
 }
