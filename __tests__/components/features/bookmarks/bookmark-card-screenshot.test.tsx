@@ -23,9 +23,16 @@ jest.mock("next/navigation", () => ({
   usePathname: () => "/bookmarks",
 }));
 
-// Mock the getAssetUrl function to return predictable values
+// Mock the bookmark-helpers functions to return predictable values
 jest.mock("@/lib/bookmarks/bookmark-helpers", () => ({
   getAssetUrl: jest.fn(),
+  selectBestImage: jest.fn((bookmark) => {
+    // Simple mock implementation that mimics the real function's priority
+    if (bookmark.ogImage) return bookmark.ogImage;
+    if (bookmark.content?.imageAssetId) return `/api/assets/${bookmark.content.imageAssetId}`;
+    if (bookmark.content?.screenshotAssetId) return `/api/assets/${bookmark.content.screenshotAssetId}`;
+    return null;
+  }),
 }));
 
 describe("BookmarkCardClient screenshotAssetId handling", () => {
