@@ -20,9 +20,8 @@
 import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { UnifiedBookmark } from "@/types";
-import type { BookmarksIndex } from "@/types/bookmark";
+import { bookmarkSlugMappingSchema, type BookmarksIndex } from "@/types/bookmark";
 import { loadSlugMapping, getSlugForBookmark, getBookmarkIdFromSlug } from "@/lib/bookmarks/slug-manager";
-import { bookmarkSlugMappingSchema } from "@/types/bookmark";
 
 // Command line argument parsing
 const command = process.argv[2] || "counts";
