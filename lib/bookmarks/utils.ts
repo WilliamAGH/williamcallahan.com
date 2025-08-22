@@ -27,6 +27,15 @@ function thirtyDaysAgo(): Date {
 }
 
 /**
+ * Normalizes an ETag by removing weak prefix and quotes.
+ * @param {string | null} tag - The ETag to normalize.
+ * @returns {string | undefined} The normalized ETag.
+ */
+function normalizeEtag(tag: string | null): string | undefined {
+  return tag?.replace(/^W\//, "").replace(/"/g, "");
+}
+
+/**
  * Utility function to remove the potentially large `htmlContent` field from a bookmark's content object.
  * This is used to reduce the size of data stored in some caches or passed around.
  *
@@ -49,7 +58,7 @@ export function omitHtmlContent<T extends RawApiBookmarkContent>(content: T): Om
  * @returns A normalized tag object with required id field
  */
 // Acronyms that should always be uppercase
-const FORCE_UPPERCASE = ["AI", "API", "CSS", "HTML", "JS", "TS"];
+const FORCE_UPPERCASE_SET = new Set(["AI", "API", "CSS", "HTML", "JS", "TS"]);
 
 export function normalizeBookmarkTag(tag: string | BookmarkTag): {
   id: string;
@@ -60,7 +69,7 @@ export function normalizeBookmarkTag(tag: string | BookmarkTag): {
   if (typeof tag === "string") {
     // Check if tag matches any forced uppercase acronym
     const upperTag = tag.toUpperCase();
-    const forceUppercase = FORCE_UPPERCASE.includes(upperTag);
+    const forceUppercase = FORCE_UPPERCASE_SET.has(upperTag);
 
     return {
       id: forceUppercase ? upperTag : tag,
@@ -72,7 +81,7 @@ export function normalizeBookmarkTag(tag: string | BookmarkTag): {
 
   // Defensively handle malformed tag objects
   let name = tag?.name || "";
-  const forceUppercase = FORCE_UPPERCASE.includes(name.toUpperCase());
+  const forceUppercase = FORCE_UPPERCASE_SET.has(name.toUpperCase());
   if (forceUppercase) {
     name = name.toUpperCase();
   }
@@ -325,7 +334,6 @@ export async function shouldRefreshOgImage(bookmark: UnifiedBookmark): Promise<b
 
     // 5. Compare ETags. If they are different, the image has changed.
     // Note: ETag comparison should be weak (e.g., W/"some-tag" should match "some-tag").
-    const normalizeEtag = (tag: string | null) => tag?.replace(/^W\//, "").replace(/"/g, "");
     return normalizeEtag(currentEtag) !== normalizeEtag(ogImageEtag);
   } catch (error) {
     // If the HEAD request fails (e.g., timeout, network error, CORS issue),
