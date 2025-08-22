@@ -43,7 +43,7 @@ export const dynamic = "force-dynamic";
  * List of blog posts that should use software application schema
  * This helps improve SEO for software-related posts
  */
-const SOFTWARE_POSTS = ["introducing-flag-deprecated-files-vscode-extension"];
+const SOFTWARE_POSTS = new Set(["introducing-flag-deprecated-files-vscode-extension"]);
 
 /**
  * Software application details by slug
@@ -97,7 +97,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
   const postUrl = ensureAbsoluteUrl(`/blog/${post.slug}`);
 
   // Check if this is a software post
-  const isSoftwarePost = SOFTWARE_POSTS.includes(slug);
+  const isSoftwarePost = SOFTWARE_POSTS.has(slug);
 
   if (isSoftwarePost && SOFTWARE_DETAILS[slug]) {
     // Use SoftwareApplication schema for software posts
@@ -188,7 +188,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     }
 
     // Build JSON-LD schema graph (Next.js metadata script tag not reliable for bots)
-    const isSoftwarePost = SOFTWARE_POSTS.includes(slug);
+    const isSoftwarePost = SOFTWARE_POSTS.has(slug);
 
     const pageType: "software" | "article" = isSoftwarePost ? "software" : "article";
 
