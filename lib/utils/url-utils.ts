@@ -74,7 +74,7 @@ export function extractPathname(url: string): string {
 /**
  * Known complex TLDs that should be treated as a single unit
  */
-const COMPLEX_TLDS = [
+const COMPLEX_TLDS = new Set([
   "com.br",
   "co.uk",
   "co.za",
@@ -116,7 +116,7 @@ const COMPLEX_TLDS = [
   "or.jp",
   "ne.jp",
   "gr.jp",
-];
+]);
 
 /**
  * Extract TLD from domain, supporting complex TLDs
@@ -127,7 +127,7 @@ export function extractTld(domain: string): { name: string; tld: string } {
   // Check for complex TLDs
   if (parts.length >= 3) {
     const possibleComplexTld = `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
-    if (COMPLEX_TLDS.includes(possibleComplexTld)) {
+    if (COMPLEX_TLDS.has(possibleComplexTld)) {
       return {
         name: parts.slice(0, -2).join("."),
         tld: possibleComplexTld,
