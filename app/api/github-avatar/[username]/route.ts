@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
-import type { NextRequest } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import type { GitHubAvatarRouteParams } from "@/types/api";
 
