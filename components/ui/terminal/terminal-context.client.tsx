@@ -6,12 +6,10 @@
 
 "use client";
 
-import type React from "react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import type { TerminalCommand } from "@/types/terminal";
+import { isTerminalCommandArray, type TerminalCommand } from "@/types/terminal";
 import type { TerminalContextType } from "@/types/ui/terminal";
-import { isTerminalCommandArray } from "@/types/terminal";
 
 // Define default context value
 const defaultContext: TerminalContextType = {
