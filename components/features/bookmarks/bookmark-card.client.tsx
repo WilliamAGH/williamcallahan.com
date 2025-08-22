@@ -107,7 +107,9 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   // Truncate title to configured number of words
   const titleWords = title.split(" ");
   const displayTitle =
-    titleWords.length > MAX_TITLE_WORDS ? `${titleWords.slice(0, MAX_TITLE_WORDS).join(" ")}` + "..." : title;
+    titleWords.length > MAX_TITLE_WORDS
+      ? `${titleWords.slice(0, MAX_TITLE_WORDS).join(" ")}...`
+      : title;
 
   // Don't use a placeholder for SSR - render full card without interactive elements
   // Server will render as much as possible for SEO, client will hydrate
