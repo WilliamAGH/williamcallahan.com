@@ -138,13 +138,8 @@ Before diving into project-specific setups, you'll generally need a Java Develop
             `M2_HOME`) environment variable to this directory. 4. Add `MAVEN_HOME/bin` (or `M2_HOME/bin`) to your
             `PATH`. 5. Verify with `mvn -v`.
           </div>
-
-```bash
-# Example for macOS/Linux in ~/.zshrc or ~/.bashrc
-# export MAVEN_HOME=/opt/apache-maven-3.9.6
-# export PATH="$MAVEN_HOME/bin:$PATH"
-```
-
+          ```bash # Example for macOS/Linux in ~/.zshrc or ~/.bashrc # export MAVEN_HOME=/opt/apache-maven-3.9.6 #
+          export PATH="$MAVEN_HOME/bin:$PATH" ```
         </InstructionTab>
       </InstructionToggleTabs>
     </ShellTab>
@@ -164,13 +159,8 @@ Before diving into project-specific setups, you'll generally need a Java Develop
             (e.g., `/opt/gradle` on Linux/macOS, `C:\Program Files\Gradle` on Windows). 3. Set `GRADLE_HOME` environment
             variable. 4. Add `GRADLE_HOME/bin` to your `PATH`. 5. Verify with `gradle -v`.
           </div>
-
-```bash
-# Example for macOS/Linux in ~/.zshrc or ~/.bashrc
-# export GRADLE_HOME=/opt/gradle-8.7
-# export PATH="$GRADLE_HOME/bin:$PATH"
-```
-
+          ```bash # Example for macOS/Linux in ~/.zshrc or ~/.bashrc # export GRADLE_HOME=/opt/gradle-8.7 # export
+          PATH="$GRADLE_HOME/bin:$PATH" ```
         </InstructionTab>
       </InstructionToggleTabs>
     </ShellTab>
@@ -282,7 +272,6 @@ Maven is a powerful build automation tool that uses a Project Object Model (POM)
       distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.9.6/apache-maven-3.9.6-bin.zip
       # ... other properties
       ```
-
     </CollapseDropdown>
     <CollapseDropdown summary="Core Maven Lifecycle & Commands (using ./mvnw)">
       <div>Always use `./mvnw` (or `mvnw.cmd`) instead of a global `mvn` for project tasks.</div>
