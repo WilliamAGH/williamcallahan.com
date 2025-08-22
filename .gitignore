@@ -52,6 +52,9 @@ tsconfig.tsbuildinfo
 # Data update details file
 .data-update-details.json
 
+# Lint progress tracking
+.lint-progress.json
+
 .jrdev/
 !.jrdev/.gitkeep
 .aider*
