@@ -5,12 +5,11 @@
  */
 
 import { BookmarksIndexSchema } from "@/lib/schemas/bookmarks";
-import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
+import { BOOKMARKS_PER_PAGE, BOOKMARKS_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import type { BookmarksIndex } from "@/types/bookmark";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import { type NextRequest, NextResponse } from "next/server";
-import { BOOKMARKS_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
 

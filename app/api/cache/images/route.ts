@@ -15,7 +15,7 @@ import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 const CACHE_DURATION = 60 * 60 * 24 * 365;
 
 // Valid image formats
-const VALID_IMAGE_FORMATS = ["jpeg", "jpg", "png", "webp", "avif", "gif"];
+const VALID_IMAGE_FORMATS = new Set(["jpeg", "jpg", "png", "webp", "avif", "gif"]);
 
 /**
  * GET handler for image caching
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const imageWidth = !Number.isNaN(parsedWidth) && parsedWidth > 0 ? parsedWidth : 1920;
 
   // Validate format
-  const imageFormat = VALID_IMAGE_FORMATS.includes(format)
+  const imageFormat = VALID_IMAGE_FORMATS.has(format)
     ? (format as "jpeg" | "jpg" | "png" | "webp" | "avif" | "gif")
     : ("webp" as "jpeg" | "jpg" | "png" | "webp" | "avif" | "gif");
 
