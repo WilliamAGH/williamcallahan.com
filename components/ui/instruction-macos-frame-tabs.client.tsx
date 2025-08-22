@@ -8,8 +8,8 @@
 
 // import type { ReactNode, ReactElement } from 'react'; // Combined into the line above
 import { cn } from "@/lib/utils";
-import React, { type JSX } from "react"; // Removed unused type FC
-import {
+import React, {
+  type JSX,
   Children,
   type ReactElement,
   type ReactNode,
@@ -19,7 +19,7 @@ import {
   useId,
   useRef,
   useState,
-} from "react";
+} from "react"; // Removed unused type FC
 import { CollapseDropdown } from "./collapse-dropdown.client";
 import { MacOSWindow, type WindowTab } from "./macos-window.client";
 import { WindowControls } from "./navigation/window-controls";
