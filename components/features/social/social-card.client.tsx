@@ -11,8 +11,7 @@
 
 import { ExternalLink } from "@/components/ui/external-link.client";
 import Image from "next/image";
-import type React from "react";
-import { type JSX, useCallback, useEffect, useState } from "react";
+import React, { type JSX, useCallback, useEffect, useState } from "react";
 import type { SocialCardProps } from "@/types/features/social";
 import { cn } from "@/lib/utils";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
