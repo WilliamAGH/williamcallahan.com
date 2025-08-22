@@ -25,7 +25,8 @@ import {
 import { formatPacificDateTime, getTrailingYearDate, startOfDay, endOfDay, unixToDate } from "@/lib/utils/date-format";
 import { waitForPermit, isOperationAllowed } from "@/lib/rate-limiter";
 import { generateGitHubStatsCSV, parseGitHubStatsCSV } from "@/lib/utils/csv";
-import { writeBinaryS3, readBinaryS3 } from "@/lib/s3-utils";
+import { writeBinaryS3, readBinaryS3, writeJsonS3, readJsonS3 } from "@/lib/s3-utils";
+import { createHash } from "node:crypto";
 import { BatchProcessor } from "@/lib/batch-processing";
 import { retryWithDomainConfig, delay } from "@/lib/utils/retry";
 import { createCategorizedError } from "@/lib/utils/error-utils";
@@ -817,8 +818,6 @@ async function detectAndRepairCsvFiles(): Promise<{
 
         // ------- incremental skip logic --------
         try {
-          const { createHash } = await import("node:crypto");
-          const { readJsonS3 } = await import("@/lib/s3-utils");
           const checksumKey = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwner}_${repoName}_raw_checksum.json`;
 
           const latest = await readJsonS3<{ checksum: string }>(checksumKey);
@@ -847,8 +846,6 @@ async function detectAndRepairCsvFiles(): Promise<{
 
         // After potential repair, store new checksum pointer (best-effort)
         try {
-          const { createHash } = await import("node:crypto");
-          const { writeJsonS3 } = await import("@/lib/s3-utils");
           const csvForChecksum = typeof repairedCsv === "string" ? repairedCsv : csvString;
           const newChecksum = createHash("sha256").update(csvForChecksum).digest("hex");
           const checksumKey = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwner}_${repoName}_raw_checksum.json`;

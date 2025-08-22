@@ -14,9 +14,7 @@ import { fetchExternalOpenGraphWithRetry } from "@/lib/opengraph/fetch";
 import { createFallbackResult } from "@/lib/opengraph/fallback";
 import { generateS3Key } from "@/lib/utils/hash-utils";
 import { BatchProcessor, BatchProgressReporter } from "@/lib/batch-processing";
-import type { OgResult } from "@/types";
-import { isOgResult } from "@/types";
-import type { KarakeepImageFallback } from "@/types/seo/opengraph";
+import { isOgResult, type OgResult, type KarakeepImageFallback } from "@/types";
 
 /**
  * Batch-optimized OpenGraph data fetching
