@@ -26,7 +26,8 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
 
   try {
     const bestTitle = raw.title || raw.content?.title || "Untitled Bookmark";
-    const bestDescription = raw.summary || raw.content?.description || "No description available.";
+    // Prefer backend-provided description over summary to avoid AI text overriding clean descriptions
+    const bestDescription = raw.content?.description || raw.summary || "No description available.";
 
     const normalizedTags = Array.isArray(raw.tags)
       ? raw.tags.map(tag => ({
