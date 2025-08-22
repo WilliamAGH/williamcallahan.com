@@ -113,6 +113,40 @@ export function getDomainSlug(url: string): string {
     return "unknown-domain";
   }
 }
+
+/**
+ * Generate base slug from URL for bookmark identification
+ */
+function getBaseSlugFromUrl(url: string): string {
+  try {
+    const urlToProcess = url.startsWith("http") ? url : `https://${url}`;
+    const urlObj = new URL(urlToProcess);
+    const domain = urlObj.hostname.replace(/^www\./, "");
+    let slug = domain.replace(/\./g, "-");
+
+    // If there's a meaningful path, include it
+    const path = urlObj.pathname;
+    if (path && path !== "/" && path.length > 1) {
+      const cleanPath = path
+        .toLowerCase()
+        // Strip Unicode control characters first
+        .replace(/[\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, "")
+        .replace(/^\/|\/$/g, "") // Remove leading/trailing slashes
+        .replace(/\//g, "-") // Replace slashes with dashes
+        .replace(/[^a-zA-Z0-9-]/g, "-") // Replace non-alphanumeric with dashes
+        .replace(/-+/g, "-") // Replace multiple dashes with single dash
+        .replace(/-+$/g, ""); // Remove trailing dashes
+
+      if (cleanPath) {
+        slug = `${slug}-${cleanPath}`;
+      }
+    }
+    return slug;
+  } catch {
+    return "unknown-url";
+  }
+}
+
 /**
  * Generates a unique, user-friendly slug from a URL
  *
@@ -131,37 +165,6 @@ export function generateUniqueSlug(
     if (!processedUrl.startsWith("http://") && !processedUrl.startsWith("https://")) {
       processedUrl = `https://${processedUrl}`;
     }
-
-    // Generate base slugs for all bookmarks once instead of recursively calling
-    const getBaseSlugFromUrl = (url: string): string => {
-      try {
-        const urlToProcess = url.startsWith("http") ? url : `https://${url}`;
-        const urlObj = new URL(urlToProcess);
-        const domain = urlObj.hostname.replace(/^www\./, "");
-        let slug = domain.replace(/\./g, "-");
-
-        // If there's a meaningful path, include it
-        const path = urlObj.pathname;
-        if (path && path !== "/" && path.length > 1) {
-          const cleanPath = path
-            .toLowerCase()
-            // Strip Unicode control characters first
-            .replace(/[\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, "")
-            .replace(/^\/|\/$/g, "") // Remove leading/trailing slashes
-            .replace(/\//g, "-") // Replace slashes with dashes
-            .replace(/[^a-zA-Z0-9-]/g, "-") // Replace non-alphanumeric with dashes
-            .replace(/-+/g, "-") // Replace multiple dashes with single dash
-            .replace(/-+$/g, ""); // Remove trailing dashes
-
-          if (cleanPath) {
-            slug = `${slug}-${cleanPath}`;
-          }
-        }
-        return slug;
-      } catch {
-        return "unknown-url";
-      }
-    };
 
     // Compute the base slug once using the helper
     const baseSlug = getBaseSlugFromUrl(processedUrl);
