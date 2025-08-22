@@ -60,6 +60,35 @@ export async function readGitHubActivityFromS3(
   }
 }
 
+// Classify dataset quality to support non-degrading writes
+const classifyDataset = (d: GitHubActivityApiResponse | null | undefined) => {
+  if (!d) {
+    return {
+      hasData: false,
+      hasCount: false,
+      contributions: -1,
+      isEmpty: true,
+      isIncomplete: true,
+    };
+  }
+
+  const ty = d.trailingYearData as
+    | { data?: unknown[]; dataComplete?: boolean; totalContributions?: number }
+    | undefined;
+  const hasData = Array.isArray(ty?.data) && (ty?.data?.length ?? 0) > 0;
+  const hasCount = typeof ty?.totalContributions === "number" && ty.totalContributions >= 0;
+  const contributions = ty?.totalContributions ?? -1;
+  const isDataComplete = ty?.dataComplete === true;
+
+  // Empty = no trailing year data at all, or empty array
+  const isEmpty = !hasData && contributions <= 0;
+
+  // Incomplete = missing key fields or explicitly marked incomplete
+  const isIncomplete = !hasData || !hasCount || !isDataComplete;
+
+  return { hasData, hasCount, contributions, isEmpty, isIncomplete };
+};
+
 /**
  * Write GitHub activity data to S3
  */
@@ -78,36 +107,6 @@ export async function writeGitHubActivityToS3(
 
     // 2) Non-degrading write: avoid overwriting a healthy dataset with empty/incomplete results
     // BUT be more lenient - allow writes if data has meaningful content even if not "complete"
-
-    // Classify dataset quality to support non-degrading writes
-    const classifyDataset = (d: GitHubActivityApiResponse | null | undefined) => {
-      if (!d) {
-        return {
-          hasData: false,
-          hasCount: false,
-          contributions: -1,
-          isEmpty: true,
-          isIncomplete: true,
-        };
-      }
-
-      const ty = d.trailingYearData as
-        | { data?: unknown[]; dataComplete?: boolean; totalContributions?: number }
-        | undefined;
-      const hasData = Array.isArray(ty?.data) && (ty?.data?.length ?? 0) > 0;
-      // Treat 0 as a valid known count (don't penalize quiet/new accounts)
-      const hasCount = typeof ty?.totalContributions === "number" && Number.isFinite(ty.totalContributions);
-      const contributions = hasCount ? (ty.totalContributions ?? -1) : -1;
-
-      return {
-        hasData,
-        hasCount,
-        contributions,
-        isEmpty: !hasData && !hasCount,
-        // Incomplete = missing daily series (even if we know the count)
-        isIncomplete: !hasData,
-      };
-    };
 
     // If new data looks incomplete (no daily series), check existing
     const newQ = classifyDataset(data);

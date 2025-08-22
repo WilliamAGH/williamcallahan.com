@@ -24,6 +24,23 @@ import {
 // Import detectAndRepairCsvFiles if needed for refreshGitHubActivityDataFromApi
 
 /**
+ * Checks if GitHub activity data is empty or invalid
+ */
+function isEmptyData(data: unknown): boolean {
+  if (!data || typeof data !== "object") return true;
+  const obj = data as { trailingYearData?: { data?: unknown[]; totalContributions?: number } };
+  const ty = obj.trailingYearData;
+  if (!ty) return true;
+
+  // Don't treat zero contributions as "empty" - users can legitimately have 0 contributions
+  const hasSeries = Array.isArray(ty.data) && ty.data.length > 0;
+  const hasCount = typeof ty.totalContributions === "number" && Number.isFinite(ty.totalContributions);
+
+  // Empty only if we have neither series data nor a known count
+  return !hasSeries && !hasCount;
+}
+
+/**
  * Formats GitHub activity data into a user-friendly view
  */
 function formatActivityView(
@@ -100,20 +117,6 @@ export async function getGithubActivity(): Promise<UserActivityView> {
 
   // Enhanced fallback mechanism: Try production file for ANY environment when primary is missing
   // This ensures data is always available, even during initial deployments
-  const isEmptyData = (data: unknown): boolean => {
-    if (!data || typeof data !== "object") return true;
-    const obj = data as { trailingYearData?: { data?: unknown[]; totalContributions?: number } };
-    const ty = obj.trailingYearData;
-    if (!ty) return true;
-
-    // Don't treat zero contributions as "empty" - users can legitimately have 0 contributions
-    const hasSeries = Array.isArray(ty.data) && ty.data.length > 0;
-    const hasCount = typeof ty.totalContributions === "number" && Number.isFinite(ty.totalContributions);
-
-    // Empty only if we have neither series data nor a known count
-    return !hasSeries && !hasCount;
-  };
-
   // Try fallback for ANY environment if primary data is missing or empty
   if (!s3ActivityData || isEmptyData(s3ActivityData)) {
     const { envLogger } = await import("@/lib/utils/env-logger");

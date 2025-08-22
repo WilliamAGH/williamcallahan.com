@@ -11,15 +11,16 @@ import { createGitHubGraphQLClient } from "@/lib/utils/graphql-client";
 import { createRetryingFetch } from "@/lib/utils/http-client";
 import { waitForPermit } from "@/lib/rate-limiter";
 import { debugLog } from "@/lib/utils/debug";
-import { retryWithOptions, RETRY_CONFIGS } from "@/lib/utils/retry";
-import { delay } from "@/lib/utils/retry";
+import { retryWithOptions, RETRY_CONFIGS, delay } from "@/lib/utils/retry";
 import {
   GitHubGraphQLContributionResponseSchema,
   GraphQLUserContributionsResponseSchema,
   GraphQLCommitHistoryResponseSchema,
   ContributorStatsResponseSchema,
+  type GithubRepoNode,
+  type GraphQLUserContributionsResponse,
+  type GithubContributorStatsEntry,
 } from "@/types/github";
-import type { GithubRepoNode, GraphQLUserContributionsResponse, GithubContributorStatsEntry } from "@/types/github";
 // GitHub API configuration
 const GITHUB_API_TOKEN =
   process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH || process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN;
