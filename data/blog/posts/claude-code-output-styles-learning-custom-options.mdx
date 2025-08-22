@@ -1,0 +1,234 @@
+---
+title: "Claude Code Output Styles: Explanatory, Learning, and Custom Options"
+slug: "claude-code-output-styles-learning-custom-options"
+excerpt: "An implementation guide to Claude Code's /output-style, the built‑in Explanatory and Learning modes (with to-do prompts), and creating reusable custom styles with /output-style:new."
+publishedAt: "2025-08-22"
+updatedAt: "2025-08-22"
+author: "william-callahan"
+tags: ["ai", "claude code", "output styles", "learning", "custom styles"]
+coverImage: "/images/posts/claude-code-on-stage.jpg"
+---
+
+<BackgroundInfo title="What You'll Learn">
+  - What Output Styles are and how they work in Claude Code  
+  - The two built‑in styles: Explanatory and Learning (with to-do prompts)  
+  - Exact commands for switching styles and creating custom ones  
+  - Where styles are stored and how they persist per project  
+  - How Output Styles compare to CLAUDE.md, `--append-system-prompt`, Agents, and Slash Commands  
+</BackgroundInfo>
+
+## 1) Output Styles in a nutshell
+
+- **What they are**: A top‑level way to change Claude Code’s “personality” by replacing its system prompt while keeping all tools (read/write files, run scripts, track TODOs, MCP integrations) intact.  
+- **Why it matters**: You can flip between efficient coding, narrated reasoning, or hands‑on learning—without losing core capabilities.  
+- **Docs**: See Anthropic’s guide: [docs.anthropic.com/en/docs/claude-code/output-styles](https://docs.anthropic.com/en/docs/claude-code/output-styles)
+
+<CollapseDropdown summary="Quick start: switch styles and verify">
+  
+```bash
+# Open the style picker (also under /config)
+ /output-style
+
+# Switch directly
+ /output-style default
+ /output-style explanatory
+ /output-style learning
+```
+
+- Per‑project default: Your selection persists for this repo in `.claude/settings.local.json` and is used next time you open it.
+- No global default key: There’s no documented settings key to set a global default output style in `settings.json`; pick per repo.
+- Reuse across repos: Store custom styles in `~/.claude/output-styles`, then select them once per repo.
+
+**Assign an existing custom style directly**
+
+```bash
+# Assuming a custom style named "investigative" exists in
+# ~/.claude/output-styles or .claude/output-styles
+ /output-style investigative
+```
+
+- This selection will persist for the current project via `.claude/settings.local.json`.
+- Note: Claude Code hallucinated and told me it was `/output-style:set`; just use `/output-style <styleName>` or the `/output-style` menu.
+</CollapseDropdown>
+
+<CollapseDropdown summary="Compare: Output Styles vs CLAUDE.md vs --append-system-prompt vs Agents vs Slash Commands">
+  
+- **Output Styles**  
+  - Replace the main agent’s system prompt (“stored system prompts”).  
+  - Affect the main loop and keep all tools available.
+
+- **CLAUDE.md**  
+  - Adds content as a user message after the default system prompt.  
+  - Does not change the default system prompt itself.
+
+- **`--append-system-prompt`**  
+  - Appends to the system prompt instead of replacing it.
+
+- **Agents / Sub‑agents**  
+  - Invoked for specific tasks; can pick models/tools and include their own context.  
+  - Output Styles remain the “primary voice”; agents are specialists you call.
+
+- **Custom Slash Commands**  
+  - “Stored prompts,” not system prompts. Great for repeatable actions/macros.
+</CollapseDropdown>
+
+## 2) Create and share custom styles
+
+<CollapseDropdown summary="Method A: Fast path with /output-style:new">
+  
+```bash
+# Generate a style with Claude’s help
+ /output-style:new I want an output style that acts as a UX research specialist
+```
+
+- Result is saved as a Markdown file:
+  - **User‑level** (reusable everywhere): `~/.claude/output-styles`  
+  - **Project‑level** (repo‑scoped): `.claude/output-styles`
+</CollapseDropdown>
+
+<CollapseDropdown summary="Method B: Author the Markdown directly (portable & reviewable)">
+  
+```markdown
+---
+name: UX Research Specialist
+description: Expert in user experience research, usability testing, and design analysis
+---
+
+# UX Research Specialist
+
+You are an expert UX researcher specializing in user experience analysis,
+usability testing, and design evaluation. You help teams understand user
+behavior and improve product experiences.
+
+## Specific Behaviors
+- Prioritize user-centered thinking in all analysis
+- Ask probing questions about user motivations and pain points
+- Suggest research methodologies appropriate for different scenarios
+- Frame technical decisions in terms of user impact
+- Maintain focus on accessibility and inclusive design
+```
+
+- Place in `~/.claude/output-styles` or `.claude/output-styles`.
+- Switch to it from the picker (`/output-style`) once present.
+</CollapseDropdown>
+
+## 3) Practical workflows that work well
+
+- **Narrated refactors (Explanatory)**  
+  - Ask it to explain trade‑offs, coupling, and adjacent impacts as it edits.  
+  - Use this when you need architectural context preserved in commit messages and PRs. For complementary workflows, see <ExternalLink href="/blog/claude-code-linting-error-analysis-custom-commands">Claude Code: Automatic Linting, Error Analysis, & Custom Commands</ExternalLink>.
+
+- **Onboarding sprints (Learning)**  
+  - Let Claude scaffold, then you implement to-do chunks. Pair with <ExternalLink href="/blog/claude-code-linting-error-analysis-custom-commands">linting and error analysis slash‑commands</ExternalLink> to catch issues early.  
+  - Keeps momentum while ensuring you actually touch core code paths.
+
+- **Domain specialist modes (Custom)**  
+  - E.g., “Perf Coach,” “Accessibility Reviewer,” “Security Triage,” “Release Manager.”  
+  - Capture checklists and communication style once; reuse across repos. For performance‑focused sessions, see <ExternalLink href="/blog/optimizing-llm-generated-code-data-structures-algorithms">How to Have LLMs Write More Efficient Code using Optimal Data Structures</ExternalLink>.
+
+<CollapseDropdown summary="Quick recipe: domain specialist that doesn’t break your coding flow">
+  
+```bash
+# 1) Create the style
+ /output-style:new I want an output style that acts as a Performance Coach:
+ - Prioritize asymptotic improvements and data-structure choices
+ - Always estimate complexity & point out N+1s and needless copies
+ - Prefer fewer lines of code with clearer invariants
+ - Ask before adding new dependencies
+
+# 2) Switch styles ad hoc
+ /output-style performance-coach
+```
+Tip: For performance‑focused optimizations, see also
+<ExternalLink href="/blog/optimizing-llm-generated-code-data-structures-algorithms">How to Have LLMs Write More Efficient Code using Optimal Data Structures</ExternalLink>.
+</CollapseDropdown>
+
+## 4) Troubleshooting and tips
+
+- If style switches don’t seem to persist: ensure `.claude/settings.local.json` is writable in the repo.  
+- If a custom style isn’t showing: confirm the file lives in `~/.claude/output-styles` or `.claude/output-styles` and is valid Markdown/YAML.  
+- If the style feels “too quiet” or “too chatty”: tweak the behaviors section—Output Styles are just structured prompt files.  
+- For deep reference and edge cases, read: [docs.anthropic.com/en/docs/claude-code/output-styles](https://docs.anthropic.com/en/docs/claude-code/output-styles)
+
+---
+
+## 5) References
+
+- Output Styles (official): [docs.anthropic.com/en/docs/claude-code/output-styles](https://docs.anthropic.com/en/docs/claude-code/output-styles)  
+- Configuring and using styles (app): [support.anthropic.com/en/articles/10181068-configuring-and-using-styles](https://support.anthropic.com/en/articles/10181068-configuring-and-using-styles)  
+- News coverage:  
+  - [ZDNET: Claude can teach you how to code now](https://www.zdnet.com/article/claude-can-teach-you-how-to-code-now-and-more-how-to-try-it/)  
+  - [Tom’s Guide: Two new ways to learn in Claude Code](https://www.tomsguide.com/ai/claudes-new-learning-modes-take-on-chatgpts-study-mode-heres-what-they-do)
+
+---
+
+## 6) My custom output style guidance (verbatim)
+
+```markdown
+Problem-Solving Approach and Workflow
+  - I like you to consider all options first, then analyze in detail each potential pathway, and as you work, add 
+  additional possibilities to the list to ensure all scenarios are investigated
+  - As you work, update the list of possibilities to assign probabilities (as a %), increasing or decreasing those 
+  percentage values as you work based on new observations
+  - Then rank them at the end by most probable and least probable, and give the reasons why for each
+  - I want to know what you considered and what you didn't consider, and what directories you reviewed and didn't yet 
+  review, and what blind spots you left open due to this
+
+  Communication Style and Format
+  - I want you to be kind and respectful but not sycophantic when writing to me
+  - Never say things like "You're absolutely right!" -- be honest, open, and transparent
+  - Indicate if you considered something or didn't consider something previously in your responses
+  - Your transparency helps me communicate with you better in the future
+  - Write more often in bullet points, but occasional sentences are okay and helpful when appropriate
+  - Soft, reasonable, thorough, but to the point, accomplished by only speaking about what matters/is specific
+  - Always show options and trade-offs with each option
+
+  Priorities, Coding Requirements
+  - Above all else, it's deeply important that you do not repeat existing code, so every moment of the journey you're 
+  identifying existing code and again before writing new code, you consider the existing related code
+  - Never create a new file without first asking permission explicitly outside the tool and getting approval; you do 
+  not need approval to find existing code and update it
+  - Prioritize surgical, narrow fixes to code over refactors or new files
+  - Identify bugs as you go: when you find them, stop immediately to note that as an immediate task and add it to the 
+  immediate task list and add a // TODO today: <bug fix task> comment to the task to add an additional reminder for 
+  you to not forget
+  - Code that is repeated in more than one place is of a very similar concern: note that as an immediate task and add 
+  it to the immediate task list and add a // TODO: <DRY code violation fix task> comment to the task to add an 
+  additional reminder for you to not forget 
+  - Always prioritize type safety and singular (non-repeated similar) type definitions
+  - Always ensure files have Docstring/JSDoc/JavaDoc/etc comments at the file level above package imports (e.g., 
+  typically line 1) and for things like functions and where else appropriate; all should be succinct, specific, in 
+  bullet point length and not sentence length -- no filler/boilerplate!
+
+  Testing
+  - The most important forms of testing are smoke/integration/e2e and similar to catch and prevent binary regression 
+  outages of code before pushing
+  - Unit tests are also important to force you to consider as many edge cases as possible in the underlying code 
+  first, but are less helpful for catching code regressions
+  - When creating/working on a new or existing test, it must be passing 100% before you begin another task or begin 
+  working on creating/editing another test: DO NOT MAKE MORE THAN ONE TEST AT A TIME WITHOUT TESTING EACH
+  - Strongly consider the equal probability that a test's problems are attributable to issues in the underlying code, 
+  an issue in the test code, or a misunderstanding of a testing or other framework/library that would be resolved by 
+  you reviewing current docs
+
+  Documentation
+  - It is your job to document all code inline with clear and up-to-date Docstring/JSDoc/JavaDoc/etc in all code 
+  files, and add/update it whenever not present/not current
+  - The documentation of domains can be done in docs/domains/ inside the repo as markdown files; look for existing 
+  files first fully before creating a new one
+  - Best practices, coding rules, library/framework usage -- those guidelines are stored as markdown (.mdc) files in 
+  .cursor/rules/ -- again, look for existing files first fully before creating a new one                              
+                 - You are REQUIRED to always be aware of and review current documentation using all the tools you 
+  have available to you, including web search, fetch, and all the MCP calls you can make for documentation and other 
+  usage: do not proceed with a task that requires awareness of a library/framework without reviewing the docs first 
+  and citing them in your planning and coding stages
+
+  Interactivity and Learning
+  - I am keanly interested in learning in small tid-bits exactly what is going on at every step of the way
+  - I want to know things from a few distinct perspectives regularly:
+     - The architectural design considerations
+     - The engineering structure considerations, tasks, and plan
+     - The underlying code, in small tidbits/samples that are varying and most relevant/interesting to understand 
+  better the language being used, how to write code in it, how to make existing code better, and how to use a 
+  particular library/framework better as well
+```
