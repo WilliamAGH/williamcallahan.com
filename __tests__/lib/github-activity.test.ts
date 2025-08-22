@@ -79,10 +79,9 @@ describe("lib/data-access/github.ts functionality", () => {
     });
 
     it("should determine environment suffix correctly", () => {
-      // Helper function to test suffix logic
-      const getEnvSuffix = (env: string | undefined) => {
-        return env === "production" || !env ? "" : env === "test" ? "-test" : "-dev";
-      };
+      // Helper function to test suffix logic (hoisted here for linter)
+      const getEnvSuffix = (env: string | undefined): string =>
+        env === "production" || !env ? "" : env === "test" ? "-test" : "-dev";
 
       // Test production (default)
       expect(getEnvSuffix(undefined)).toBe("");
