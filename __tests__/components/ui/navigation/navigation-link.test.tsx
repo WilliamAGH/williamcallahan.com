@@ -10,7 +10,7 @@ import "@testing-library/jest-dom";
 // Mock next/link using jest.mock
 jest.mock("next/link", () => ({
   __esModule: true,
-  default: ({ children, href, prefetch, scroll, ...props }: any) => {
+  default: ({ children, href, ...props }: any) => {
     return (
       <a href={href} {...props}>
         {children}
