@@ -5,8 +5,7 @@
  * Displays investment financial metrics with color-coded return values.
  */
 
-import { formatPercentage } from "../../lib/utils";
-import { cn } from "../../lib/utils";
+import { formatPercentage, cn } from "../../lib/utils";
 
 import type { JSX } from "react";
 import type { FinancialMetricsProps } from "@/types/ui";
