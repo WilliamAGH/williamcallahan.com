@@ -205,7 +205,7 @@
     "typescript-eslint": "8.40.0"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,mdx}": [
+    "*.{js,jsx,ts,tsx}": [
       "prettier -w",
       "oxlint --max-warnings 0",
       "eslint --config eslint.config.ts --max-warnings 0"
