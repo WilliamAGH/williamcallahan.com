@@ -57,7 +57,7 @@ export function BlogCard({ post, isPriority = false }: BlogCardPropsExtended) {
           <div className="flex items-center gap-4">
             <span className="flex items-center">
               <Calendar className="w-4 h-4 mr-1" />
-              {formatDate(post.publishedAt)}
+              <span suppressHydrationWarning>{formatDate(post.publishedAt)}</span>
             </span>
           </div>
         </div>
