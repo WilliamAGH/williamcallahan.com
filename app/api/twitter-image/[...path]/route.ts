@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 // Prefer explicit async params typing to avoid thenable duck-typing
 import { sanitizePath, IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
