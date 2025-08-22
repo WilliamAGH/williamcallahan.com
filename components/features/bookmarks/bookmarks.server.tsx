@@ -19,13 +19,11 @@ const normalizeBookmarkTag = async () => (await import("@/lib/bookmarks/utils"))
 const stripImageData = async () => (await import("@/lib/bookmarks/utils")).stripImageData;
 import { convertSerializableBookmarksToUnified } from "@/lib/bookmarks/utils";
 
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark, BookmarksServerExtendedProps, SerializableBookmark } from "@/types";
 import { BookmarksClientWithWindow } from "./bookmarks-client-with-window";
 
 import type { JSX } from "react";
 import { getBulkBookmarkSlugs } from "@/lib/bookmarks/slug-helpers";
-
-import type { BookmarksServerExtendedProps, SerializableBookmark } from "@/types";
 
 /**
  * Server-side React component that prepares and provides bookmark data to the client component.

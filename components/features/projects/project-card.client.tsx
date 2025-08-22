@@ -10,6 +10,31 @@ import { kebabCase } from "@/lib/utils/formatters";
 
 const MAX_DISPLAY_TECH_ITEMS = 10;
 
+// Hoisted helper to satisfy consistent-function-scoping
+function deriveTechFromTags(tagList: string[] | undefined): string[] {
+  if (!tagList || tagList.length === 0) return [];
+  const TECH_KEYWORDS = new Set([
+    "Next.js",
+    "TypeScript",
+    "Tailwind CSS",
+    "React",
+    "MDX",
+    "Server Components",
+    "Java",
+    "Spring Boot",
+    "Spring AI",
+    "OpenAI",
+    "Google Books API",
+    "Thymeleaf",
+    "HTMX",
+    "PostgreSQL",
+    "Docker",
+    "Groq",
+    "Gemini",
+  ]);
+  return tagList.filter(t => TECH_KEYWORDS.has(t));
+}
+
 // Placeholder for centered top image with gradient
 function PlaceholderImageTop() {
   return (
@@ -64,29 +89,6 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
   };
 
   // Derive a technology stack from tags if explicit techStack is not provided
-  const deriveTechFromTags = (tagList: string[] | undefined): string[] => {
-    if (!tagList || tagList.length === 0) return [];
-    const TECH_KEYWORDS = new Set([
-      "Next.js",
-      "TypeScript",
-      "Tailwind CSS",
-      "React",
-      "MDX",
-      "Server Components",
-      "Java",
-      "Spring Boot",
-      "Spring AI",
-      "OpenAI",
-      "Google Books API",
-      "Thymeleaf",
-      "HTMX",
-      "PostgreSQL",
-      "Docker",
-      "Groq",
-      "Gemini",
-    ]);
-    return tagList.filter(t => TECH_KEYWORDS.has(t));
-  };
 
   const displayTech = (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)).slice(
     0,
