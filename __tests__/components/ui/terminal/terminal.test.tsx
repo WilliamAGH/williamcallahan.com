@@ -28,9 +28,10 @@ import React from "react"; // Ensure React is imported first
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { Terminal } from "../../../../components/ui/terminal/terminal-implementation.client";
 import { TerminalProvider } from "../../../../components/ui/terminal/terminal-context.client";
-import type {
-  GlobalWindowRegistryContextType,
-  WindowState,
+import {
+  useRegisteredWindowState as useRegisteredWindowStateImported,
+  type GlobalWindowRegistryContextType,
+  type WindowState,
 } from "../../../../lib/context/global-window-registry-context.client"; // Import types for mocking
 import type { SearchResult } from "../../../../types/search"; // Import SearchResult type
 
@@ -137,7 +138,6 @@ jest.mock("../../../../lib/context/global-window-registry-context.client", () =>
 
 // Get handles *after* mocking
 import { useRouter as useRouterImported } from "next/navigation";
-import { useRegisteredWindowState as useRegisteredWindowStateImported } from "../../../../lib/context/global-window-registry-context.client";
 const mockUseRegisteredWindowState = useRegisteredWindowStateImported as jest.Mock;
 const mockUseRouter = useRouterImported as jest.Mock;
 
