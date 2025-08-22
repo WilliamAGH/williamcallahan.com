@@ -23,7 +23,8 @@
     "**/coverage/**": true
   },
   "files.associations": {
-    "*.tsx": "typescriptreact"
+    "*.tsx": "typescriptreact",
+    "*.mdx": "mdx"
   },
   "search.exclude": {
     "**/node_modules": true,
@@ -43,7 +44,7 @@
     "**/Thumbs.db": true,
     "**/.next": true
   },
-  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact", "html", "vue", "markdown"],
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
   "typescript.validate.enable": true, // Ensure TS validation is on
   // Prettier is the only formatter - stable and low-churn
   "editor.defaultFormatter": "esbenp.prettier-vscode",
@@ -59,6 +60,7 @@
   // Oxlint VS Code extension: run lint on save, not on type to reduce background churn
   "oxc.enable": true,
   "oxc.lint.run": "onSave",
+  "oxc.exclude": ["**/*.mdx"],
   "typescript.disableAutomaticTypeAcquisition": true,
   "github-actions.use-enterprise": true,
   "[typescript]": {
@@ -84,6 +86,10 @@
   },
   "[markdown]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[mdx]": {
+    "editor.defaultFormatter": null,
+    "editor.formatOnSave": false
   },
   "terminal.integrated.shellIntegration.enabled": true,
   "terminal.integrated.defaultProfile.osx": "zsh",
