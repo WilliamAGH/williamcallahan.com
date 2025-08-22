@@ -74,7 +74,7 @@ describe("Next.js Cache Invalidation", () => {
         expect(page3.data.length).toBe(page1.data.length);
 
         console.log(`Bookmarks cache test - Cached: ${cachedTime}ms, Fresh: ${freshTime}ms`);
-      } catch (_error) {
+      } catch {
         console.log("Bookmarks test skipped - S3 not configured");
         expect(true).toBe(true); // Pass the test
       }
@@ -109,7 +109,7 @@ describe("Next.js Cache Invalidation", () => {
         );
 
         console.log(`GitHub cache test - Cached: ${cachedTime}ms, Fresh: ${freshTime}ms`);
-      } catch (_error) {
+      } catch {
         console.log("GitHub test skipped - data not available");
         expect(true).toBe(true); // Pass the test
       }

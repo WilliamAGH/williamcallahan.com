@@ -1,8 +1,7 @@
 /**
  * Tests for Server Cache
  */
-import { ServerCacheInstance } from "@/lib/server-cache";
-import type { ServerCache } from "@/lib/server-cache";
+import { ServerCacheInstance, type ServerCache } from "@/lib/server-cache";
 import type { GitHubActivityApiResponse } from "@/types/github";
 import type { OgResult } from "@/types/opengraph";
 
