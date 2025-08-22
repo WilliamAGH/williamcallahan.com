@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Validate URL
-    new URL(url);
+    // Validate URL without side effects
+    if (!URL.canParse(url)) throw new Error("invalid");
   } catch {
     return NextResponse.json({ error: "Invalid URL format" }, { status: 400 });
   }
