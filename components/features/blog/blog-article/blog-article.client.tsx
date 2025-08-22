@@ -105,7 +105,7 @@ export const BlogArticle: React.FC<BlogArticleProps> = ({ post, mdxContent }) =>
         <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4 sm:mb-6">
           <div className="flex items-center">
             <Calendar className="w-4 h-4 mr-2" />
-            {formattedDate}
+            <span suppressHydrationWarning>{formattedDate}</span>
           </div>
           {post.readingTime ? (
             <div className="flex items-center">
