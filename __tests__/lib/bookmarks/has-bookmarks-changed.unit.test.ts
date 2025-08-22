@@ -291,7 +291,6 @@ describe("hasBookmarksChanged() function (unit)", () => {
 
       const writeCalls = writeJsonS3Mock.mock.calls;
       const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-      const _pageWrite = writeCalls.find(call => call[0].includes("page-1.json"));
       const heartbeatWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.HEARTBEAT);
 
       // Should update index freshness but NOT write pages
