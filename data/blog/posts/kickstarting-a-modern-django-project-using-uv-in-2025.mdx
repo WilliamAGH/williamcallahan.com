@@ -19,7 +19,7 @@ This guide covers setting up a modern Django project, including:
 - **SQL Database Integration (PostgreSQL/MySQL)**: Connecting Django to a relational database.
 - **IDE Tooling (VSCode/IntelliJ IDEA)**: Optimizing development with extensions and configurations.
 - **Fast-Start Resources**: Libraries and communities to accelerate development.
-  </BackgroundInfo>
+</BackgroundInfo>
 
 ## Part 1: Setting Up Your Initial Django Project
 
@@ -418,8 +418,14 @@ python manage.py startapp my_first_app
 <div>
   Add your new app to <code>INSTALLED_APPS</code> in your project's <code>settings.py</code> file:
 </div>
-```python INSTALLED_APPS = [ # ... other apps 'my_first_app', # Or 'my_first_app.apps.MyFirstAppConfig' if using
-AppConfig # ... django apps ... ] ```
+```python
+INSTALLED_APPS = [
+    # ... other apps
+    'my_first_app',
+    # Or 'my_first_app.apps.MyFirstAppConfig' if using AppConfig
+    # ... django apps ...
+]
+```
 
 <div className="py-[6px]">
   <strong>3. Define a Simple Model:</strong>
@@ -427,16 +433,16 @@ AppConfig # ... django apps ... ] ```
 <div>
   Edit <code>my_first_app/models.py</code>:
 </div>
-```python from django.db import models
+```python
+from django.db import models
 
 class Greeting(models.Model):
-message = models.CharField(max_length=255)
-created_at = models.DateTimeField(auto_now_add=True)
+    message = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
 
-      def __str__(self):
-          return self.message
-
-````
+    def __str__(self):
+        return self.message
+```
 
 <div className="py-[6px]"><strong>4. Create & Apply Migrations:</strong></div>
 <div className="instruction-tabs">
@@ -453,7 +459,7 @@ uv run manage.py makemigrations my_first_app
 
 # Apply migrations to database
 uv run manage.py migrate
-````
+```
 
       </div>
       <div data-panel='pip-migrate'>
@@ -479,15 +485,14 @@ python manage.py migrate
   from django.http import HttpResponse
   from .models import Greeting
 
-def hello_world(request):
-greeting = Greeting.objects.first() # Get the first greeting, or None
-if not greeting:
-greeting_text = "No greetings yet!"
-else:
-greeting_text = greeting.message
-return HttpResponse(f"<h1>{greeting_text}</h1><p>From my_first_app!</p>")
-
-````
+  def hello_world(request):
+      greeting = Greeting.objects.first()  # Get the first greeting, or None
+      if not greeting:
+          greeting_text = "No greetings yet!"
+      else:
+          greeting_text = greeting.message
+      return HttpResponse(f"<h1>{greeting_text}</h1><p>From my_first_app!</p>")
+  ```
 
 <div><strong>2. Create App URLs:</strong></div>
 <div>Create <code>my_first_app/urls.py</code>:</div>
@@ -498,7 +503,7 @@ from . import views
 urlpatterns = [
     path('hello/', views.hello_world, name='hello_world'),
 ]
-````
+```
 
 <div>
   <strong>3. Include in Project URLs:</strong>
@@ -506,14 +511,15 @@ urlpatterns = [
 <div>
   Update your project's <code>urls.py</code> (e.g., <code>config/urls.py</code>):
 </div>
-```python from django.contrib import admin from django.urls import path, include
+```python
+from django.contrib import admin
+from django.urls import path, include
 
 urlpatterns = [
-path('admin/', admin.site.urls),
-path('app/', include('my_first_app.urls')), # This adds your app URLs
+    path('admin/', admin.site.urls),
+    path('app/', include('my_first_app.urls')),  # This adds your app URLs
 ]
-
-````
+```
 
 <div className="py-[6px]">Now visit <code>http://127.0.0.1:8000/app/hello/</code> to see your view in action.</div>
 </CollapseDropdown>
@@ -599,7 +605,7 @@ uv add cookiecutter
 
 # Generate project from template
 uv run cookiecutter gh:cookiecutter/cookiecutter-django
-````
+```
 
             </div>
             <div data-panel="pip-cookie">
@@ -907,14 +913,15 @@ DATABASES = {
 <div>
   In your app's <code>admin.py</code> file:
 </div>
-```python from django.contrib import admin from .models import Greeting
+```python
+from django.contrib import admin
+from .models import Greeting
 
 @admin.register(Greeting)
 class GreetingAdmin(admin.ModelAdmin):
-list_display = ('message', 'created_at')
-search_fields = ('message',)
-
-````
+    list_display = ('message', 'created_at')
+    search_fields = ('message',)
+```
 
 <div><strong>2. Access Admin Interface:</strong></div>
 <div>After starting the development server, visit <code>http://127.0.0.1:8000/admin/</code> and log in with superuser credentials.</div>
@@ -959,7 +966,7 @@ uv run manage.py runserver
 
 # Optional: specify port
 uv run manage.py runserver 8080
-````
+```
 
           </div>
           <div data-panel="pip-server">
@@ -1147,13 +1154,13 @@ For a deeper dive into some deployment strategies and easy deployment options, I
   <strong>Address Already in Use:</strong>
 </div>
 <div>If you see "Address already in use," find and kill the process:</div>
-```bash # Find the process using port 8000 lsof -i :8000
+```bash
+# Find the process using port 8000
+lsof -i :8000
 
 # Kill the process
-
 kill <PID>
-
-````
+```
 </CollapseDropdown>
 
 <CollapseDropdown summary='Migration issues'>
@@ -1208,7 +1215,7 @@ uv add <package_name>
 
 # Verify installed packages
 uv pip list
-````
+```
 
       </div>
       <div data-panel="pip-pkg">
@@ -1269,16 +1276,15 @@ python manage.py shell
   </div>
 
 <div>Example shell session for debugging models:</div>
-```python # Import your model from my_first_app.models import Greeting
+```python
+# Import your model
+from my_first_app.models import Greeting
 
 # Query data
-
 Greeting.objects.all()
 
 # Create test data
-
 Greeting.objects.create(message="Hello, Django!")
-
 ```
 </CollapseDropdown>
 ```
