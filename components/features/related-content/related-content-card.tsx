@@ -11,6 +11,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { formatDate as formatDateUtil, truncateText as truncateTextUtil } from "@/lib/utils";
 import type { RelatedContentCardProps } from "@/types/related-content";
+import { ExternalLink } from "@/components/ui/external-link.client";
 
 /**
  * Get type badge configuration
@@ -66,15 +67,17 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
   );
 
   return (
-    <Link
-      href={url}
+    <div
       className={`
-        related-content-card block p-4 rounded-lg border border-gray-200 dark:border-gray-700
+        related-content-card relative block p-4 rounded-lg border border-gray-200 dark:border-gray-700
         bg-white dark:bg-gray-800 hover:shadow-lg transition-shadow duration-200
         hover:border-blue-500 dark:hover:border-blue-400 ${className}
       `}
     >
-      <article className="h-full flex flex-col">
+      {/* Stretched overlay link to make the whole card clickable without nesting links */}
+      <Link href={url} aria-label={`Open ${title}`} className="absolute inset-0 z-0" />
+
+      <article className="h-full flex flex-col pointer-events-none">
         {/* Header with type badge and metadata */}
         <header className="flex items-start justify-between mb-3">
           <span
@@ -153,7 +156,7 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
                 />
               </div>
             )}
-            
+
             {/* Title for non-investment types or investments without logos */}
             {type !== "investment" || !metadata.imageUrl || imageError ? (
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">{title}</h3>
@@ -188,7 +191,7 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
           )}
 
           {/* Type-specific metadata */}
-          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
             {/* Domain for bookmarks */}
             {type === "bookmark" && metadata.domain && <span className="truncate">{metadata.domain}</span>}
 
@@ -216,9 +219,27 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
 
             {/* Category for investments and projects */}
             {(type === "investment" || type === "project") && metadata.category && <span>{metadata.category}</span>}
+
+            {/* aVenture research link for investments - separate external link */}
+            {type === "investment" && metadata.aventureUrl && (
+              <ExternalLink
+                href={metadata.aventureUrl}
+                title={`${title} - aVenture Startup Research`}
+                showIcon={false}
+                className="ml-auto inline-flex items-center bg-slate-100 dark:bg-transparent hover:bg-slate-200 dark:hover:bg-gray-700/50 px-2 py-1 rounded-full transition-colors pointer-events-auto relative z-10"
+              >
+                <Image
+                  src="https://s3-storage.callahan.cloud/images/ui-components/aVenture-research-button.png"
+                  alt="aVenture"
+                  width={16}
+                  height={16}
+                  className="inline-block h-4 w-4"
+                />
+              </ExternalLink>
+            )}
           </div>
         </footer>
       </article>
-    </Link>
+    </div>
   );
 }
