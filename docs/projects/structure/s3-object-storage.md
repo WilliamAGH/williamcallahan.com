@@ -134,7 +134,7 @@ IS_DATA_UPDATER=true             # Batch mode for synchronous persistence
 ### URL Validation & SSRF Prevention
 
 - **Comprehensive URL Validation**: All external URLs validated with Zod schemas
-- **Private IP Blocking**: Prevents access to internal networks (127._, 10._, 172.16-31._, 192.168._, ::1, fc00::/7)
+- **Private IP Blocking**: Prevents access to internal networks (127.*, 10.*, 172.16-31.*, 192.168.*, ::1, fc00::/7)
 - **Protocol Restrictions**: Only HTTP/HTTPS allowed, no file://, ftp://, or javascript:
 - **Domain Allowlisting**: Sensitive endpoints restricted to known safe domains
 - **Credential Stripping**: URLs with embedded credentials rejected
@@ -285,7 +285,7 @@ bucket/
    - Impact: Server can be used to attack internal resources
    - Fix: Implement URL allowlist, block private IP ranges
    - **✅ FIXED (2025-07)**: Implemented comprehensive URL validation in `lib/utils/url-utils.ts` with:
-     - Private IP range blocking (127._, 10._, 172.16-31._, 192.168._, ::1, fc00::/7)
+     - Private IP range blocking (127.*, 10.*, 172.16-31.*, 192.168.*, ::1, fc00::/7)
      - Protocol restrictions (HTTP/HTTPS only)
      - Domain allowlisting for sensitive endpoints
      - Zod validation schemas for all URL inputs
