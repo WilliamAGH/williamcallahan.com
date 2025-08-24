@@ -108,10 +108,10 @@ async function toRelatedContentItem(
 
     case "investment": {
       const investment = content.source as import("@/types/investment").Investment;
-      
+
       // Fetch logo dynamically using the same system as investment cards
       let logoUrl: string | undefined;
-      
+
       // If static logo is provided, use it
       if (investment.logo) {
         logoUrl = ensureAbsoluteUrl(investment.logo);
@@ -122,7 +122,7 @@ async function toRelatedContentItem(
           : investment.website
             ? normalizeDomain(investment.website)
             : normalizeDomain(investment.name);
-        
+
         if (effectiveDomain) {
           try {
             const liveLogo = await getLogo(effectiveDomain);
@@ -144,7 +144,7 @@ async function toRelatedContentItem(
           logoUrl = ensureAbsoluteUrl(getCompanyPlaceholder());
         }
       }
-      
+
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
         stage: investment.stage,
@@ -292,9 +292,68 @@ export async function RelatedContent({
         }
         return relatedItem;
       });
-      
-      const relatedItems = (await Promise.all(relatedItemPromises))
-        .filter((i): i is RelatedContentItem => i !== null);
+
+      const relatedItems = (await Promise.all(relatedItemPromises)).filter((i): i is RelatedContentItem => i !== null);
+
+      // If precomputed items exist but are missing some allowed content types (e.g., projects),
+      // compute additional candidates for just the missing types and merge.
+      const allAllowedTypes = includeTypes
+        ? new Set(includeTypes)
+        : new Set<RelatedContentType>(["bookmark", "blog", "investment", "project"]);
+      const presentTypes = new Set(relatedItems.map(i => i.type));
+      const missingTypes = Array.from(allAllowedTypes).filter(t => !presentTypes.has(t));
+
+      if (missingTypes.length > 0) {
+        const source = await getContentById(sourceType, actualSourceId);
+        if (source) {
+          // Load all content and filter
+          let allContent = await getCachedAllContent();
+          if (includeTypes || excludeTypes) {
+            allContent = filterByTypes(
+              allContent,
+              includeTypes ? Array.from(new Set(includeTypes)) : undefined,
+              excludeTypes ? Array.from(new Set(excludeTypes)) : undefined,
+            );
+          }
+
+          const excludeSet = new Set([...excludeIds, actualSourceId]);
+          const precomputedKeys = new Set(relatedItems.map(i => `${i.type}:${i.id}`));
+
+          const candidates = allContent
+            .filter(item => !(item.type === sourceType && excludeSet.has(item.id)))
+            .filter(item => missingTypes.includes(item.type))
+            .filter(item => !precomputedKeys.has(`${item.type}:${item.id}`));
+
+          const extraSimilar = findMostSimilar(source, candidates, maxTotal * 2, weights);
+
+          // Prepare slug mapping only if needed for bookmarks in the extras
+          let extraSlugMap: Map<string, string> | undefined = slugMap;
+          if (!extraSlugMap && extraSimilar.some(item => item.type === "bookmark")) {
+            const { slugMap: map } = await getCachedBookmarksWithSlugs();
+            extraSlugMap = map;
+          }
+
+          const extraItems = (
+            await Promise.all(extraSimilar.map(item => toRelatedContentItem(item, extraSlugMap)))
+          ).filter((i): i is RelatedContentItem => i !== null);
+
+          // Merge, dedupe, and re-limit per type and total
+          const merged: RelatedContentItem[] = [];
+          const seen = new Set<string>();
+          for (const it of [...relatedItems, ...extraItems]) {
+            const key = `${it.type}:${it.id}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              merged.push(it);
+            }
+          }
+
+          const final = limitByTypeAndTotal(merged, maxPerType, maxTotal);
+          if (final.length > 0) {
+            return <RelatedContentSection title={sectionTitle} items={final} className={className} />;
+          }
+        }
+      }
 
       if (relatedItems.length > 0) {
         return <RelatedContentSection title={sectionTitle} items={relatedItems} className={className} />;
@@ -336,9 +395,8 @@ export async function RelatedContent({
         }
         return relatedItem;
       });
-      
-      const relatedItems = (await Promise.all(relatedItemPromises))
-        .filter((i): i is RelatedContentItem => i !== null);
+
+      const relatedItems = (await Promise.all(relatedItemPromises)).filter((i): i is RelatedContentItem => i !== null);
 
       if (relatedItems.length === 0) {
         return null;
@@ -400,9 +458,8 @@ export async function RelatedContent({
       }
       return relatedItem;
     });
-    
-    const relatedItems = (await Promise.all(relatedItemPromises))
-      .filter((i): i is RelatedContentItem => i !== null);
+
+    const relatedItems = (await Promise.all(relatedItemPromises)).filter((i): i is RelatedContentItem => i !== null);
 
     // Return nothing if no related items found
     if (relatedItems.length === 0) {
