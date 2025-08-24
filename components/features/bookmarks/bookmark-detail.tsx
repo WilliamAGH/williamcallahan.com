@@ -20,21 +20,9 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
+import { formatDate } from "@/lib/utils";
 import { BookmarksWindow } from "./bookmarks-window.client";
 
-// Hoisted helper to satisfy consistent-function-scoping without behavior change
-const formatDate = (dateString: string | null | undefined): string | null => {
-  if (!dateString) return null;
-  try {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return null;
-  }
-};
 
 export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
   const [mounted, setMounted] = useState(false);
@@ -75,8 +63,11 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
     return `${minutes} min`;
   }, [bookmark.readingTime]);
 
-  const publishedDate = formatDate(bookmark.content?.datePublished || bookmark.datePublished);
-  const bookmarkedDate = formatDate(bookmark.dateBookmarked);
+  const publishedDate = bookmark.content?.datePublished || bookmark.datePublished
+    ? formatDate(bookmark.content?.datePublished || bookmark.datePublished || "")
+    : null;
+  const bookmarkedDate = bookmark.dateBookmarked ? formatDate(bookmark.dateBookmarked) : null;
+  const updatedDate = bookmark.dateUpdated ? formatDate(bookmark.dateUpdated) : null;
 
   // Get best image for display
   const featuredImage = selectBestImage(bookmark, {
@@ -327,8 +318,8 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                 </motion.section>
               )}
 
-              {/* Metadata Card - Only show if there's content */}
-              {bookmark.dateUpdated && (
+              {/* Metadata Card - Only show if there's a valid date */}
+              {updatedDate && (
                 <motion.section
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -339,15 +330,12 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                   <h2 className="hidden sm:block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
                     Details
                   </h2>
-
-                  {bookmark.dateUpdated && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500 dark:text-gray-400">Updated</span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100" suppressHydrationWarning>
-                        {formatDate(bookmark.dateUpdated)}
-                      </span>
-                    </div>
-                  )}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500 dark:text-gray-400">Updated</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100" suppressHydrationWarning>
+                      {updatedDate}
+                    </span>
+                  </div>
                 </motion.section>
               )}
 
