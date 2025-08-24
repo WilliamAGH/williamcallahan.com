@@ -68,7 +68,7 @@ export function RelatedContentSection({
                 {getTypeLabel(type as RelatedContentType)}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {typeItems.map((item) => (
+                {typeItems.map(item => (
                   <RelatedContentCard key={`${item.type}-${item.id}`} item={item} showScore={showScores} />
                 ))}
               </div>
@@ -78,7 +78,7 @@ export function RelatedContentSection({
       ) : (
         // Show as single grid if all same type
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((item) => (
+          {items.map(item => (
             <RelatedContentCard key={`${item.type}-${item.id}`} item={item} showScore={showScores} />
           ))}
         </div>

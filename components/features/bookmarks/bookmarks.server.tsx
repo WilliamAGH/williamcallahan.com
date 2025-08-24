@@ -19,13 +19,11 @@ const normalizeBookmarkTag = async () => (await import("@/lib/bookmarks/utils"))
 const stripImageData = async () => (await import("@/lib/bookmarks/utils")).stripImageData;
 import { convertSerializableBookmarksToUnified } from "@/lib/bookmarks/utils";
 
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark, BookmarksServerExtendedProps, SerializableBookmark } from "@/types";
 import { BookmarksClientWithWindow } from "./bookmarks-client-with-window";
 
 import type { JSX } from "react";
 import { getBulkBookmarkSlugs } from "@/lib/bookmarks/slug-helpers";
-
-import type { BookmarksServerExtendedProps, SerializableBookmark } from "@/types";
 
 /**
  * Server-side React component that prepares and provides bookmark data to the client component.
@@ -69,7 +67,7 @@ export async function BookmarksServer({
     const allBookmarks = allBms || bms;
     const slugMap = await getBulkBookmarkSlugs(allBookmarks);
 
-    bms.forEach((bookmark) => {
+    bms.forEach(bookmark => {
       const slug = slugMap.get(bookmark.id);
       if (slug) {
         internalHrefs.set(bookmark.id, `/bookmarks/${slug}`);
@@ -126,7 +124,7 @@ export async function BookmarksServer({
   const normalizeFunc = await normalizeBookmarkTag();
   const stripImageDataFunc = await stripImageData();
 
-  const serializableBookmarks: SerializableBookmark[] = bookmarks.map((bookmark) => {
+  const serializableBookmarks: SerializableBookmark[] = bookmarks.map(bookmark => {
     // When includeImageData is false, use the standardized stripImageData utility
     if (!includeImageData) {
       const lightweight = stripImageDataFunc(bookmark);

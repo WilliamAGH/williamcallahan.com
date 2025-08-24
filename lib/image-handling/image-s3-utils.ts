@@ -190,7 +190,7 @@ async function handleStaleImageUrl(imageUrl: string, pageUrl: string, logContext
     // Trigger background refresh to get fresh OpenGraph data with updated image URLs
     console.log(`[${logContext}] Triggering OpenGraph recrawl for ${pageUrl} (stale Karakeep asset)`);
     const { refreshOpenGraphData } = await import("@/lib/data-access/opengraph");
-    refreshOpenGraphData(pageUrl).catch((refreshError) => {
+    refreshOpenGraphData(pageUrl).catch(refreshError => {
       console.error(`[${logContext}] Background OpenGraph refresh failed for ${pageUrl}:`, refreshError);
       console.warn(`[${logContext}] ⚠️ Karakeep asset and refresh both failed – fallback images will be used`);
     });
@@ -244,7 +244,7 @@ export async function findImageInS3(
     if (idempotencyKey) {
       const allImages = await listS3Objects(s3Directory);
       if (allImages.length > 0) {
-        const foundById = allImages.find((key) => key.includes(idempotencyKey));
+        const foundById = allImages.find(key => key.includes(idempotencyKey));
         if (foundById) {
           if (isDebug) debug(`[${logContext}] Fallback search: Found image by ID '${idempotencyKey}': ${foundById}`);
           return foundById;

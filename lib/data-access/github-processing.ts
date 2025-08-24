@@ -102,7 +102,7 @@ export function filterContributorStats(
   username: string,
 ): GithubContributorStatsEntry | undefined {
   const lowercaseUsername = username.toLowerCase();
-  return stats.find((stat) => stat.author.login.toLowerCase() === lowercaseUsername);
+  return stats.find(stat => stat.author.login.toLowerCase() === lowercaseUsername);
 }
 
 /**
@@ -191,14 +191,14 @@ export function repairCsvData(csvContent: string, defaultValues = { w: 0, a: 0, 
   const stats = parseGitHubStatsCSV(csvContent);
 
   // Check if repair is needed
-  const needsRepair = stats.some((stat) => Object.values(stat).some((val) => val === undefined || val === null));
+  const needsRepair = stats.some(stat => Object.values(stat).some(val => val === undefined || val === null));
 
   if (!needsRepair) {
     return csvContent;
   }
 
   // Repair by filling in defaults
-  const repaired = stats.map((stat) => ({
+  const repaired = stats.map(stat => ({
     w: stat.w ?? defaultValues.w,
     a: stat.a ?? defaultValues.a,
     d: stat.d ?? defaultValues.d,
@@ -217,7 +217,7 @@ export function validateContributionData(data: ContributionDay[]): boolean {
   }
 
   return data.every(
-    (day) =>
+    day =>
       typeof day.date === "string" &&
       typeof day.count === "number" &&
       typeof day.level === "number" &&
@@ -246,7 +246,7 @@ export function calculateContributionSummary(
 
   const filteredContributions =
     startDate && endDate
-      ? contributions.filter((day) => {
+      ? contributions.filter(day => {
           const date = new Date(day.date);
           return isDateInRange(date, startDate, endDate);
         })
@@ -315,7 +315,7 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
     await writeAggregatedWeeklyActivityToS3([]); // Write empty if listing fails
     return { aggregatedActivity: [], overallDataComplete: false };
   }
-  s3StatFileKeys = s3StatFileKeys.filter((key) => key.endsWith(".csv"));
+  s3StatFileKeys = s3StatFileKeys.filter(key => key.endsWith(".csv"));
   if (s3StatFileKeys.length === 0) {
     debug(
       `[DataAccess/GitHub-S3] Aggregation: No raw weekly stat files found in S3 path ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/. Nothing to aggregate.`,

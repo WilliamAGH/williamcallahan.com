@@ -10,6 +10,31 @@ import { kebabCase } from "@/lib/utils/formatters";
 
 const MAX_DISPLAY_TECH_ITEMS = 10;
 
+// Hoisted helper to satisfy consistent-function-scoping
+function deriveTechFromTags(tagList: string[] | undefined): string[] {
+  if (!tagList || tagList.length === 0) return [];
+  const TECH_KEYWORDS = new Set([
+    "Next.js",
+    "TypeScript",
+    "Tailwind CSS",
+    "React",
+    "MDX",
+    "Server Components",
+    "Java",
+    "Spring Boot",
+    "Spring AI",
+    "OpenAI",
+    "Google Books API",
+    "Thymeleaf",
+    "HTMX",
+    "PostgreSQL",
+    "Docker",
+    "Groq",
+    "Gemini",
+  ]);
+  return tagList.filter(t => TECH_KEYWORDS.has(t));
+}
+
 // Placeholder for centered top image with gradient
 function PlaceholderImageTop() {
   return (
@@ -42,7 +67,7 @@ function PlaceholderImageTop() {
 export function ProjectCard({ project, isPriority = false }: ProjectCardProps): JSX.Element {
   const { name, description, url, imageKey, tags, techStack } = project;
   const initialImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
-  
+
   // Generate a URL-safe ID from the project name for anchor linking
   const projectId = kebabCase(name);
 
@@ -64,69 +89,50 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
   };
 
   // Derive a technology stack from tags if explicit techStack is not provided
-  const deriveTechFromTags = (tagList: string[] | undefined): string[] => {
-    if (!tagList || tagList.length === 0) return [];
-    const TECH_KEYWORDS = new Set([
-      "Next.js",
-      "TypeScript",
-      "Tailwind CSS",
-      "React",
-      "MDX",
-      "Server Components",
-      "Java",
-      "Spring Boot",
-      "Spring AI",
-      "OpenAI",
-      "Google Books API",
-      "Thymeleaf",
-      "HTMX",
-      "PostgreSQL",
-      "Docker",
-      "Groq",
-      "Gemini",
-    ]);
-    return tagList.filter((t) => TECH_KEYWORDS.has(t));
-  };
 
-  const displayTech = (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)).slice(0, MAX_DISPLAY_TECH_ITEMS);
+  const displayTech = (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)).slice(
+    0,
+    MAX_DISPLAY_TECH_ITEMS,
+  );
 
   return (
     // Redesigned card for horizontal layout on medium screens and up
-    <div 
+    <div
       id={projectId || undefined}
-      className="group rounded-lg border border-gray-300 dark:border-gray-900 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-400 opacity-0 animate-fade-in-up md:grid md:grid-cols-[minmax(0,3fr)_minmax(0,4fr)] flex flex-col">
+      className="group rounded-lg border border-gray-300 dark:border-gray-900 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-400 opacity-0 animate-fade-in-up md:grid md:grid-cols-[minmax(0,3fr)_minmax(0,4fr)] flex flex-col"
+    >
       {/* Use CSS Grid on desktop for better aspect ratio control */}
       {/* Image Section (Left on desktop, top on mobile) */}
       <div className="md:flex md:items-center md:justify-center md:py-4 md:pl-4">
         <div className="relative aspect-[16/10] md:aspect-[4/3] lg:aspect-[16/10] overflow-hidden w-full md:rounded-lg">
-        {/* Consistent 16:10 aspect ratio across all viewports */}
-        <ExternalLink
-          href={url}
-          title={`Visit ${name}'s website`}
-          rawTitle={true} // Keep raw title for accessibility
-          showIcon={false}
-          className="block w-full h-full" // Removed relative from here
-        >
-          {imageUrl ? (
-            <div className="relative w-full h-full">
-              <Image
-                src={imageUrl || placeholderUrl}
-                alt={`${name} screenshot`}
-                fill
-                quality={hasError ? 70 : 80}
-                priority={isPriority}
-                sizes="(max-width: 767px) 100vw, (min-width: 768px) 60vw, (min-width: 1024px) 50vw"
-                placeholder="blur"
-                blurDataURL={getStaticImageUrl("/images/opengraph-placeholder.png")}
-                onError={handleImageError}
-                className="object-cover w-full h-full transition-transform duration-300 ease-in-out group-hover:scale-105"
-              />
-            </div>
-          ) : (
-            <PlaceholderImageTop />
-          )}
-          {/* Removed Title Overlay */}
-        </ExternalLink>
+          {/* Consistent 16:10 aspect ratio across all viewports */}
+          <ExternalLink
+            href={url}
+            title={`Visit ${name}'s website`}
+            rawTitle={true} // Keep raw title for accessibility
+            showIcon={false}
+            className="block w-full h-full" // Removed relative from here
+          >
+            {imageUrl ? (
+              <div className="relative w-full h-full">
+                <Image
+                  src={imageUrl || placeholderUrl}
+                  alt={`${name} screenshot`}
+                  fill
+                  quality={hasError ? 70 : 80}
+                  priority={isPriority}
+                  sizes="(max-width: 767px) 100vw, (min-width: 768px) 60vw, (min-width: 1024px) 50vw"
+                  placeholder="blur"
+                  blurDataURL={getStaticImageUrl("/images/opengraph-placeholder.png")}
+                  onError={handleImageError}
+                  className="object-cover w-full h-full transition-transform duration-300 ease-in-out group-hover:scale-105"
+                />
+              </div>
+            ) : (
+              <PlaceholderImageTop />
+            )}
+            {/* Removed Title Overlay */}
+          </ExternalLink>
         </div>
       </div>
       {/* Content Section (Right on desktop, bottom on mobile) */}
@@ -175,7 +181,7 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
                   Tech Stack
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {displayTech.map((tech) => (
+                  {displayTech.map(tech => (
                     <span
                       key={tech}
                       className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-gradient-to-br from-gray-700/70 to-gray-800/60 border border-white/10 text-gray-200 shadow-sm"
@@ -192,7 +198,7 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
             <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-700">
               {" "}
               {/* Added top border */}
-              {tags.map((tag) => (
+              {tags.map(tag => (
                 <span
                   key={tag}
                   className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-300" // Adjusted size/color

@@ -7,9 +7,8 @@
 import type { ICache } from "@/types/cache";
 import type { OgResult, OgCacheEntry } from "@/types/opengraph";
 import { ogResultSchema } from "@/types/seo/opengraph";
-import { OPENGRAPH_CACHE_DURATION } from "@/lib/constants";
+import { OPENGRAPH_CACHE_DURATION, TIME_CONSTANTS } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
-import { TIME_CONSTANTS } from "@/lib/constants";
 
 const OPENGRAPH_PREFIX = "og-data:";
 const REFRESH_TRACKING_PREFIX = "og-refresh-attempt:";
@@ -68,7 +67,7 @@ export function clearOpenGraphData(this: ICache, url?: string): void {
     const key = OPENGRAPH_PREFIX + url;
     this.del(key);
   } else {
-    const keys = this.keys().filter((key) => key.startsWith(OPENGRAPH_PREFIX));
+    const keys = this.keys().filter(key => key.startsWith(OPENGRAPH_PREFIX));
     for (const key of keys) {
       this.del(key);
     }
@@ -81,11 +80,7 @@ export function clearOpenGraphData(this: ICache, url?: string): void {
 export function deleteOpenGraphData(this: ICache, url: string): void {
   const key = OPENGRAPH_PREFIX + url;
   this.del(key);
-  envLogger.log(
-    `Deleted corrupted OpenGraph cache entry`,
-    { url },
-    { category: "ServerCache" },
-  );
+  envLogger.log(`Deleted corrupted OpenGraph cache entry`, { url }, { category: "ServerCache" });
 }
 
 /**

@@ -27,13 +27,13 @@ jest.mock("@/lib/hooks/use-window-size.client", () => ({
 // REMOVE ALL MOCKING FOR terminal-context.client
 
 // Mock window-controls component using jest.mock
-jest.mock("@/components/ui/navigation/window-controls", () => {
-  function MockWindowControls() {
-    return <div data-testid="window-controls">Window Controls</div>;
-  }
-  MockWindowControls.displayName = "MockWindowControls";
-  return { WindowControls: MockWindowControls }; // Return the component directly
-});
+function MockWindowControls() {
+  return <div data-testid="window-controls">Window Controls</div>;
+}
+MockWindowControls.displayName = "MockWindowControls";
+jest.mock("@/components/ui/navigation/window-controls", () => ({
+  WindowControls: MockWindowControls,
+}));
 
 // Mock next/link using jest.mock
 interface LinkProps {
@@ -125,11 +125,11 @@ describe("Navigation", () => {
       const allLinks = screen.getAllByRole("link");
       console.log(
         "Rendered links:",
-        allLinks.map((link) => link.textContent),
+        allLinks.map(link => link.textContent),
       );
       console.log(
         "Expected navigationLinks:",
-        navigationLinks.map((link) => link.name),
+        navigationLinks.map(link => link.name),
       );
 
       // At 1440px width, all links including Contact should be visible

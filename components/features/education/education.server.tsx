@@ -17,12 +17,12 @@ import type { JSX } from "react";
 export async function Education({ isDarkTheme }: { isDarkTheme?: boolean } = {}): Promise<JSX.Element> {
   // Process all items concurrently using the server-only functions
   const [processedEducation, processedRecentCourses, processedCertifications] = await Promise.all([
-    Promise.all(education.map((item) => processEducationItem(item, { isDarkTheme }))),
-    Promise.all(recentCourses.map((item) => processCertificationItem(item, { isDarkTheme }))).then((courses) =>
-      courses.map((course) => ({ ...course, type: "course" as const })),
+    Promise.all(education.map(item => processEducationItem(item, { isDarkTheme }))),
+    Promise.all(recentCourses.map(item => processCertificationItem(item, { isDarkTheme }))).then(courses =>
+      courses.map(course => ({ ...course, type: "course" as const })),
     ),
-    Promise.all(certifications.map((item) => processCertificationItem(item, { isDarkTheme }))).then((certs) =>
-      certs.map((cert) => ({ ...cert, type: "certification" as const })),
+    Promise.all(certifications.map(item => processCertificationItem(item, { isDarkTheme }))).then(certs =>
+      certs.map(cert => ({ ...cert, type: "certification" as const })),
     ),
   ]);
 

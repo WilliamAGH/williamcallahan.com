@@ -14,8 +14,7 @@
 import { EventEmitter } from "node:events";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { MEMORY_THRESHOLDS } from "@/lib/constants";
-import type { ScheduledRequest, SchedulerMetrics } from "@/types/services";
-import { RequestPriority } from "@/types/services";
+import { RequestPriority, type ScheduledRequest, type SchedulerMetrics } from "@/types/services";
 
 /**
  * Memory-aware request scheduler that queues and prioritizes requests
@@ -202,7 +201,7 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
       // Apply exponential backoff during memory pressure
       const backoffMs = Math.min(this.backoffBase * 2 ** (this.memoryPressureActivations % 10), this.maxBackoffMs);
 
-      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+      await new Promise(resolve => setTimeout(resolve, backoffMs));
       return;
     }
 

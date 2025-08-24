@@ -8,16 +8,12 @@
 "use client";
 
 import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
-import type { UnifiedBookmark } from "@/types";
+import { getErrorMessage, type UnifiedBookmark, type BookmarksWithOptionsClientProps } from "@/types";
 import { ArrowRight, Loader2, RefreshCw, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import type React from "react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
-import { getErrorMessage } from "@/types/api-responses";
-
-import type { BookmarksWithOptionsClientProps } from "@/types";
 
 // Environment detection helper
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -35,11 +31,15 @@ function isBookmarksApiResponse(
   return Array.isArray(maybe.data);
 }
 
+function isRefreshResult(obj: unknown): obj is import("@/types").RefreshResult {
+  return !!obj && typeof obj === "object" && "status" in (obj as Record<string, unknown>);
+}
+
 function isUnifiedBookmarkArray(x: unknown): x is UnifiedBookmark[] {
   return (
     Array.isArray(x) &&
     x.every(
-      (b) => b && typeof (b as { id?: unknown }).id === "string" && typeof (b as { url?: unknown }).url === "string",
+      b => b && typeof (b as { id?: unknown }).id === "string" && typeof (b as { url?: unknown }).url === "string",
     )
   );
 }
@@ -200,7 +200,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
 
   // Extract all unique tags from all available bookmarks
   const allTags = (searchAllBookmarks ? allBookmarks : bookmarks)
-    .flatMap((bookmark) => {
+    .flatMap(bookmark => {
       return getTagsAsStringArray(bookmark.tags);
     })
     .filter((tag, index, self) => tag && self.indexOf(tag) === index)
@@ -214,7 +214,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
     if (searchResults && searchQuery) {
       // Apply tag filter to API results
       if (selectedTag) {
-        return searchResults.filter((bookmark) => {
+        return searchResults.filter(bookmark => {
           const tagsAsString = getTagsAsStringArray(bookmark.tags);
           return tagsAsString.includes(selectedTag);
         });
@@ -223,7 +223,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
     }
 
     // Otherwise, use the original client-side filtering logic
-    return bookmarksToFilter.filter((bookmark) => {
+    return bookmarksToFilter.filter(bookmark => {
       const tagsAsString = getTagsAsStringArray(bookmark.tags);
 
       // Filter by selected tag if any
@@ -235,7 +235,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       const searchTerms = searchQuery
         .toLowerCase()
         .split(" ")
-        .filter((term) => term.length > 0);
+        .filter(term => term.length > 0);
       if (searchTerms.length === 0) return true;
 
       // Combine relevant text fields for searching
@@ -252,7 +252,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         .toLowerCase();
 
       // Check if all search terms are included in the bookmark text
-      return searchTerms.every((term) => bookmarkText.includes(term));
+      return searchTerms.every(term => bookmarkText.includes(term));
     });
   })();
 
@@ -310,9 +310,6 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       }
 
       const resultJson: unknown = await response.json();
-      function isRefreshResult(obj: unknown): obj is import("@/types").RefreshResult {
-        return !!obj && typeof obj === "object" && "status" in (obj as Record<string, unknown>);
-      }
       if (!isRefreshResult(resultJson)) {
         throw new Error("Unexpected response from refresh endpoint");
       }
@@ -392,8 +389,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   // Handler for refreshing production environment bookmarks
   const handleProductionRefresh = async () => {
     setIsRefreshingProduction(true);
-    setShowCrossEnvRefresh(false);
-    
+
     try {
       console.log("[Bookmarks] Requesting production bookmarks refresh");
       // Call a special endpoint that will trigger production refresh
@@ -403,10 +399,10 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
           "Content-Type": "application/json",
         },
       });
-      
+
       if (!response.ok) {
         const errorData: unknown = await response.json().catch(() => null);
-        const errorMessage = getErrorMessage(errorData, response.statusText);
+        const errorMessage = getErrorMessage(errorData) || response.statusText;
         console.error("[Bookmarks] Production refresh failed:", errorMessage);
         setRefreshError(`Production refresh failed: ${errorMessage}`);
         setTimeout(() => setRefreshError(null), 5000);
@@ -419,6 +415,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       setTimeout(() => setRefreshError(null), 5000);
     } finally {
       setIsRefreshingProduction(false);
+      setShowCrossEnvRefresh(false); // Hide banner after completion
     }
   };
 
@@ -580,7 +577,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
-            {filteredBookmarks.map((bookmark) => {
+            {filteredBookmarks.map(bookmark => {
               // Use pre-computed href from server if available
               // CRITICAL: Never fallback to using bookmark.id in the URL!
               const internalHref = internalHrefs?.[bookmark.id] ?? bookmark.url;
@@ -608,7 +605,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       ) : (
         /* Server-side placeholder with hydration suppression */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6" suppressHydrationWarning>
-          {bookmarks.slice(0, 6).map((bookmark) => (
+          {bookmarks.slice(0, 6).map(bookmark => (
             <div
               key={bookmark.id}
               className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg h-96"

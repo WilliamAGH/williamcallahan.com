@@ -51,7 +51,7 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
 
   // If bookmarks supplied, try embedded slug first
   if (bookmarks && Array.isArray(bookmarks)) {
-    const found = bookmarks.find((b) => b.id === bookmarkId);
+    const found = bookmarks.find(b => b.id === bookmarkId);
     const embeddedSlug = tryGetEmbeddedSlug(found);
     if (embeddedSlug) return embeddedSlug;
   }

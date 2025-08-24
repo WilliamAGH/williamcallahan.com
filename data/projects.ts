@@ -1,7 +1,7 @@
 import type { Project } from "@/types/project";
 
 // Remember to update this date whenever the projects data or the Projects page design changes
-export const updatedAt = "2025-08-19";
+export const updatedAt = "2025-08-24";
 
 export const projects: Project[] = [
   {
@@ -12,7 +12,16 @@ export const projects: Project[] = [
     shortSummary: "Data-driven research platform for the VC ecosystem",
     url: "https://aventure.vc",
     imageKey: "images/other/projects/aventurevc-homepage.png",
-    tags: ["Analytics", "Data Platform", "Research Tool", "Business Intelligence", "SaaS", "Web Application", "Real-time Data", "Search"],
+    tags: [
+      "Analytics",
+      "Data Platform",
+      "Research Tool",
+      "Business Intelligence",
+      "SaaS",
+      "Web Application",
+      "Real-time Data",
+      "Search",
+    ],
     techStack: [
       "Next.js",
       "TypeScript",
@@ -38,8 +47,15 @@ export const projects: Project[] = [
     shortSummary: "Interactive personal site with beautiful terminal/code components & other dynamic content",
     url: "https://williamcallahan.com",
     imageKey: "images/other/projects/williamcallahan-com-project.png",
-    tags: ["Portfolio", "Open Source", "MDX Blog", "macOS Components", "Terminal Emulation", "Code Syntax Highlighting"],
-    techStack: ["Next.js", "TypeScript", "Tailwind CSS", "Zod","Bun", "Docker", "Fly.io"],
+    tags: [
+      "Portfolio",
+      "Open Source",
+      "MDX Blog",
+      "macOS Components",
+      "Terminal Emulation",
+      "Code Syntax Highlighting",
+    ],
+    techStack: ["Next.js", "TypeScript", "Tailwind CSS", "Zod", "Bun", "Docker", "Fly.io"],
   },
   {
     id: "Filey - Flag Deprecated Files Extension",
@@ -107,7 +123,7 @@ export const projects: Project[] = [
     shortSummary: "Web app for AI-driven company research",
     url: "https://company-lookup.iocloudhost.net/",
     imageKey: "images/other/projects/company-research-experimental-ai-tool.png",
-    tags: ["LLM", "AI", "JSON", "Company Research", "Web App", "Experimental"],
-    techStack: ["Svelte", "TypeScript", "Tailwind CSS", "OpenAI", "Node.js","Groq", "Docker"],
+    tags: ["LLM", "AI", "JSON", "Company Research", "Web App", "Web Search", "Experimental"],
+    techStack: ["Svelte", "TypeScript", "Tailwind CSS", "OpenAI", "Node.js", "Groq", "Docker"],
   },
 ];

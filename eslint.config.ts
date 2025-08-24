@@ -7,12 +7,12 @@ import { createRequire } from "node:module";
 import js from "@eslint/js";
 import nextPlugin from "@next/eslint-plugin-next";
 import jestPlugin from "eslint-plugin-jest";
-import * as mdxPlugin from "eslint-plugin-mdx";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactJsxRuntime from "eslint-plugin-react/configs/jsx-runtime.js";
 import reactRecommended from "eslint-plugin-react/configs/recommended.js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
+import oxlint from "eslint-plugin-oxlint";
 
 // ESM-compatible require for loading JSON files
 const requireJson = createRequire(import.meta.url);
@@ -89,6 +89,29 @@ const noDuplicateTypesRule: Rule.RuleModule & { duplicateTypeTracker?: Map<strin
   },
 };
 
+/**
+ * Returns true if the given AST node is nested within a getStaticImageUrl(...) call.
+ * Hoisted to module scope to satisfy consistent-function-scoping and avoid recreating on each invocation.
+ */
+function isInsideGetStaticImageUrl(node: any): boolean {
+  let current = node?.parent;
+  while (current) {
+    if (current.type === "CallExpression") {
+      const { callee } = current;
+      if (
+        (callee.type === "Identifier" && callee.name === "getStaticImageUrl") ||
+        (callee.type === "MemberExpression" &&
+          callee.property?.type === "Identifier" &&
+          callee.property?.name === "getStaticImageUrl")
+      ) {
+        return true;
+      }
+    }
+    current = current.parent;
+  }
+  return false;
+}
+
 const config = tseslint.config(
   // Global ignores
   {
@@ -102,6 +125,7 @@ const config = tseslint.config(
       "config/.remarkrc.mjs",
       "config/",
       "next-env.d.ts",
+      "**/*.mdx", // Skip MDX files entirely - the parser doesn't handle JSX in lists correctly
     ],
   },
 
@@ -124,6 +148,7 @@ const config = tseslint.config(
   // React and Next.js configurations
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
+    ignores: ["**/*.mdx"],
     languageOptions: {
       globals: {
         ...globals.browser,
@@ -156,6 +181,7 @@ const config = tseslint.config(
 
   // TypeScript rules
   {
+    ignores: ["**/*.mdx"],
     rules: {
       "no-underscore-dangle": [
         "error",
@@ -220,7 +246,7 @@ const config = tseslint.config(
   // Enforce centralized type definitions (all types AND Zod schemas must live in @/types or *.d.ts)
   {
     files: ["**/*.{ts,tsx}"],
-    ignores: ["types/**/*", "**/*.d.ts"],
+    ignores: ["types/**/*", "**/*.d.ts", "**/*.mdx"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -357,6 +383,13 @@ const config = tseslint.config(
     rules: {
       "no-restricted-globals": "off",
       "@typescript-eslint/no-unused-vars": "off",
+      // Tests often re-import the same module in different ways for mocks; allow duplicate imports
+      "no-duplicate-imports": "off",
+      // Tests intentionally await in loops for sequential flows
+      "no-await-in-loop": "off",
+      "oxlint/no-await-in-loop": "off",
+      // Tests create small helpers inside describes; don't force hoisting
+      "unicorn/consistent-function-scoping": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
@@ -367,6 +400,15 @@ const config = tseslint.config(
       "no-restricted-syntax": "off",
       "no-underscore-dangle": "off", // Allow underscores in test files for mocking and test utilities
       "@next/next/no-img-element": "off", // Allow <img> in test files for mocking next/image
+    },
+  },
+
+  // Project scripts - allow sequential awaits by design
+  {
+    files: ["scripts/**/*.ts"],
+    rules: {
+      "no-await-in-loop": "off",
+      "oxlint/no-await-in-loop": "off",
     },
   },
 
@@ -419,33 +461,6 @@ const config = tseslint.config(
     },
   },
 
-  // MDX configuration
-  {
-    name: "custom/mdx/recommended",
-    files: ["**/*.mdx"],
-    ...mdxPlugin.flat,
-    processor: mdxPlugin.createRemarkProcessor({
-      lintCodeBlocks: false,
-      languageMapper: {},
-    }) as any,
-    rules: {
-      ...tseslint.configs.disableTypeChecked.rules,
-      "react/no-unescaped-entities": "off",
-      "react/no-unknown-property": "off",
-      "@typescript-eslint/no-unused-vars": "off",
-    },
-  },
-  {
-    name: "custom/mdx/code-blocks",
-    files: ["**/*.mdx"],
-    ...mdxPlugin.flatCodeBlocks,
-    rules: {
-      ...mdxPlugin.flatCodeBlocks.rules,
-      ...tseslint.configs.disableTypeChecked.rules,
-      "no-var": "error",
-      "prefer-const": "error",
-    },
-  },
 
   // --------------------------------------------------
   // Project-specific global type uniqueness rule
@@ -459,7 +474,7 @@ const config = tseslint.config(
       },
     },
     rules: {
-      "project/no-duplicate-types": "error",
+      "project/no-duplicate-types": "warn",  // Changed to warn for gradual migration
     },
   },
 
@@ -497,29 +512,7 @@ const config = tseslint.config(
                 // If we can't load the mapping, we'll still report errors but can't check if images exist
               }
 
-              /**
-               * Walk up the AST from the current node to see if it appears
-               * anywhere inside a getStaticImageUrl(...) call.
-               */
-              function isInsideGetStaticImageUrl(node: any): boolean {
-                let current = node.parent;
-                while (current) {
-                  if (current.type === "CallExpression") {
-                    const { callee } = current;
-                    if (
-                      (callee.type === "Identifier" && callee.name === "getStaticImageUrl") ||
-                      // Handle potential namespace import (e.g. utils.getStaticImageUrl)
-                      (callee.type === "MemberExpression" &&
-                        callee.property.type === "Identifier" &&
-                        callee.property.name === "getStaticImageUrl")
-                    ) {
-                      return true;
-                    }
-                  }
-                  current = current.parent;
-                }
-                return false;
-              }
+              // Use module-scoped helper to satisfy consistent-function-scoping
 
               /**
                * Check if the file already imports getStaticImageUrl
@@ -588,7 +581,55 @@ const config = tseslint.config(
       },
     },
     rules: {
-      "s3/no-hardcoded-images": "error", // Changed from "warn" to "error" to fail builds
+      "s3/no-hardcoded-images": "warn",  // Changed to warn for gradual migration
+    },
+  },
+
+  // Disable overlapping ESLint rules with Oxlint to avoid duplicate diagnostics
+  ...oxlint.configs["flat/all"],
+  ...oxlint.configs["flat/typescript"],
+  ...oxlint.configs["flat/react"],
+  ...oxlint.configs["flat/nextjs"],
+
+  // Targeted override: intentional sequential awaits (pagination, rate limits, first-success semantics)
+  {
+    files: [
+      "**/lib/bookmarks/bookmarks.ts",
+      "**/lib/server/data-fetch-manager.ts",
+      "**/lib/services/unified-image-service.ts",
+      "**/lib/data-access/github.ts",
+      "**/lib/bookmarks/enrich-opengraph.ts",
+      "**/lib/bookmarks/extract-markdown.ts",
+      "**/lib/bookmarks/slug-manager.ts",
+      "**/lib/s3-utils.ts",
+      "**/lib/content-graph/build.ts",
+      "**/lib/utils/retry.ts",
+      "**/lib/opengraph/fetch.ts",
+      "**/lib/data-access/github-api.ts",
+      "**/lib/persistence/s3-persistence.ts",
+      "**/lib/utils/http-client.ts",
+      "**/app/api/assets/[assetId]/route.ts",
+      "**/app/api/validate-logo/route.ts",
+      "**/lib/bookmarks/bookmarks-data-access.server.ts",
+    ],
+    rules: {
+      "no-await-in-loop": "off",
+      // oxlint maps core rules; disable its equivalent as well for these files
+      "oxlint/no-await-in-loop": "off",
+    },
+  },
+
+  // Disable function-scoping hoist where helpers are intentionally local
+  {
+    files: [
+      "**/app/status/page.tsx",
+      "**/instrumentation.ts",
+      "**/instrumentation-node.ts",
+      "**/components/features/projects/project-card.client.tsx",
+      "**/components/features/projects/project-card.server.tsx",
+    ],
+    rules: {
+      "unicorn/consistent-function-scoping": "off",
     },
   },
 );

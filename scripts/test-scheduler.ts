@@ -2,7 +2,7 @@
 
 /**
  * Test Script for Scheduler Functionality
- * 
+ *
  * This script helps diagnose scheduler issues by:
  * 1. Checking environment variables
  * 2. Testing S3 connectivity
@@ -52,7 +52,7 @@ console.log("2. S3 CONNECTIVITY TEST:");
 try {
   const { readJsonS3 } = await import("@/lib/s3-utils");
   const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
-  
+
   console.log("  Testing S3 read access...");
   const index = await readJsonS3(BOOKMARKS_S3_PATHS.INDEX);
   if (index) {
@@ -70,7 +70,7 @@ console.log("\n3. BOOKMARK API CONNECTIVITY TEST:");
 try {
   const apiUrl = `${requiredVars.BOOKMARKS_API_URL}/lists/${requiredVars.BOOKMARKS_LIST_ID}/bookmarks`;
   console.log(`  Testing API: ${apiUrl}`);
-  
+
   const response = await fetch(apiUrl, {
     headers: {
       Accept: "application/json",
@@ -78,7 +78,7 @@ try {
     },
     signal: AbortSignal.timeout(5000),
   });
-  
+
   if (response.ok) {
     const data = await response.json();
     console.log(`  ✅ API connection successful. Response has ${data.bookmarks?.length || 0} bookmarks.`);
@@ -98,18 +98,18 @@ console.log("  This simulates what the scheduler would do...\n");
 
 try {
   const { spawn } = await import("node:child_process");
-  
+
   const updateProcess = spawn("bun", ["run", "update-s3", "--", "--bookmarks"], {
     env: process.env,
     stdio: "inherit",
   });
-  
-  updateProcess.on("error", (err) => {
+
+  updateProcess.on("error", err => {
     console.error(`  ❌ Failed to start update process: ${err}`);
     process.exit(1);
   });
-  
-  updateProcess.on("close", (code) => {
+
+  updateProcess.on("close", code => {
     if (code === 0) {
       console.log("\n✅ SCHEDULER TEST SUCCESSFUL!");
       console.log("   The scheduler should work correctly with these settings.");

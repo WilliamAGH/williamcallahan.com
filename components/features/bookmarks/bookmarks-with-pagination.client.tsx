@@ -10,21 +10,17 @@
 "use client";
 
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import type { UnifiedBookmark } from "@/types";
+import { getErrorMessage, type UnifiedBookmark, type BookmarksWithPaginationClientProps } from "@/types";
 import { bookmarksSearchResponseSchema } from "@/types/bookmark";
 import { ArrowRight, Loader2, RefreshCw, Search } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import type React from "react";
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControl } from "@/components/ui/pagination-control.client";
 import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel.client";
-import { getErrorMessage } from "@/types/api-responses";
-
-import type { BookmarksWithPaginationClientProps } from "@/types";
 
 // Environment detection helper
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -32,6 +28,12 @@ const isDevelopment = process.env.NODE_ENV === "development";
 // Use the shared utility for tag normalization
 const getTagsAsStringArray = (tags: UnifiedBookmark["tags"]): string[] => {
   return normalizeTagsToStrings(tags);
+};
+
+// Simple form submit handler that prevents default - doesn't need to be inside component
+const handleSearchSubmit = (event: React.FormEvent) => {
+  event.preventDefault();
+  // The search happens automatically as the query is typed
 };
 
 export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProps> = ({
@@ -111,7 +113,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   // Show refresh button for non-production environments (development, test, staging)
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   const isDev = process.env.NODE_ENV === "development";
-  
+
   // Show refresh button if:
   // 1. We're in development mode (NODE_ENV=development), OR
   // 2. NEXT_PUBLIC_SITE_URL is not the production URL (https://williamcallahan.com)
@@ -171,7 +173,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         const terms = searchQuery
           .toLowerCase()
           .split(" ")
-          .filter((t) => t.length > 0);
+          .filter(t => t.length > 0);
 
         const matches = allBookmarks.filter((b: UnifiedBookmark) => {
           if (terms.length === 0) return true;
@@ -190,7 +192,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
             .join(" ")
             .toLowerCase();
 
-          return terms.every((term) => haystack.includes(term));
+          return terms.every(term => haystack.includes(term));
         });
 
         setSearchResults(matches);
@@ -240,7 +242,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       const searchTerms = searchQuery
         .toLowerCase()
         .split(" ")
-        .filter((term) => term.length > 0);
+        .filter(term => term.length > 0);
       if (searchTerms.length === 0) return true;
 
       // Combine relevant text fields for searching
@@ -257,7 +259,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         .toLowerCase();
 
       // Check if all search terms are included in the bookmark text
-      return searchTerms.every((term) => bookmarkText.includes(term));
+      return searchTerms.every(term => bookmarkText.includes(term));
     });
   }, [bookmarks, searchQuery, selectedTag, searchResults, tag]);
 
@@ -272,11 +274,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     // Whenever a new query is typed we reset the local page state so the
     // user starts from the first page of the new result-set.
     setLocalSearchPage(1);
-  };
-
-  const handleSearchSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    // The search happens automatically as the query is typed
   };
 
   const handleTagClick = (tag: string) => {
@@ -376,7 +373,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   const handleProductionRefresh = async () => {
     setIsRefreshingProduction(true);
     setShowCrossEnvRefresh(false);
-    
+
     try {
       console.log("[Bookmarks] Requesting production bookmarks refresh");
       // Call a special endpoint that will trigger production refresh
@@ -386,10 +383,10 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           "Content-Type": "application/json",
         },
       });
-      
+
       if (!response.ok) {
         const errorData: unknown = await response.json().catch(() => null);
-        const errorMessage = getErrorMessage(errorData, response.statusText);
+        const errorMessage = getErrorMessage(errorData) || response.statusText;
         console.error("[Bookmarks] Production refresh failed:", errorMessage);
         setRefreshError(`Production refresh failed: ${errorMessage}`);
         setTimeout(() => setRefreshError(null), 5000);
@@ -580,25 +577,30 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           )}
           {/* Cross-environment refresh option */}
           {showCrossEnvRefresh && !isRefreshing && (
-            <div className="mt-2 text-sm text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
+            <div className="mt-3 sm:mt-2 text-xs sm:text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-2.5 sm:p-3 rounded-lg border border-blue-200/50 dark:border-blue-800/30 shadow-sm">
               {isRefreshingProduction ? (
-                <span className="flex items-center">
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Triggering production refresh...
+                <span className="flex items-center justify-center sm:justify-start">
+                  <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin mr-2 flex-shrink-0" />
+                  <span className="leading-relaxed">Triggering production refresh...</span>
                 </span>
               ) : (
-                <>
-                  Local refresh completed. Would you like to{" "}
-                  <button
-                    type="button"
-                    onClick={handleProductionRefresh}
-                    className="underline hover:text-blue-700 dark:hover:text-blue-200 font-medium"
-                    disabled={isRefreshingProduction}
-                  >
-                    refresh production environment as well
-                  </button>
-                  ?
-                </>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-0">
+                  <span className="block sm:inline leading-relaxed">✓ Local refresh completed.</span>
+                  <span className="block sm:inline sm:ml-1.5">
+                    Would you like to{" "}
+                    <button
+                      type="button"
+                      onClick={handleProductionRefresh}
+                      className="inline-flex items-center gap-1 underline decoration-1 underline-offset-2 hover:text-blue-800 dark:hover:text-blue-200 font-semibold transition-colors touch-manipulation"
+                      disabled={isRefreshingProduction}
+                    >
+                      refresh production
+                      <span className="hidden sm:inline">environment</span>
+                      <span className="inline sm:hidden">too</span>
+                    </button>
+                    ?
+                  </span>
+                </div>
               )}
             </div>
           )}
@@ -722,7 +724,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
               {Array.isArray(displayBookmarks) &&
-                paginatedSlice(displayBookmarks).map((bookmark) => {
+                paginatedSlice(displayBookmarks).map(bookmark => {
                   // Debug: Log bookmark data for CLI bookmark
                   if (bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
                     console.log("[BookmarksWithPagination] CLI bookmark data:", {
@@ -752,7 +754,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           {Array.isArray(initialBookmarks) &&
             initialBookmarks
               .slice(0, 6)
-              .map((bookmark) => (
+              .map(bookmark => (
                 <div
                   key={bookmark.id}
                   className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg h-96"

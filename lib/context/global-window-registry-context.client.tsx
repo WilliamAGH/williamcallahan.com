@@ -40,7 +40,7 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
   const registerWindow = useCallback(
     (id: string, icon: LucideIcon, title: string, initialState: WindowStateValue = "normal") => {
       // Registration logging removed to keep development console clean
-      setWindows((prev) => {
+      setWindows(prev => {
         // Avoid re-registering if already present with the same info
         // Don't compare icon since React components are recreated on each render
         if (prev[id] && prev[id].state === initialState && prev[id].title === title) {
@@ -56,7 +56,7 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
   );
 
   const unregisterWindow = useCallback((id: string) => {
-    setWindows((prev) => {
+    setWindows(prev => {
       // Destructure to get all windows except the one we're removing
       const { [id]: removedWindow, ...rest } = prev; // Extract removed window for cleanup
       void removedWindow; // Explicitly acknowledge unused variable
@@ -66,7 +66,7 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
   }, []);
 
   const setWindowState = useCallback((id: string, state: WindowStateValue) => {
-    setWindows((prev) => {
+    setWindows(prev => {
       if (!prev[id] || prev[id].state === state) return prev; // No change needed
       // TODO: Persist to sessionStorage here?
       return { ...prev, [id]: { ...prev[id], state } };
@@ -78,7 +78,7 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
   const restoreWindow = useCallback((id: string) => setWindowState(id, "normal"), [setWindowState]);
 
   const maximizeWindow = useCallback((id: string) => {
-    setWindows((prev) => {
+    setWindows(prev => {
       if (!prev[id]) return prev;
       const newState = prev[id].state === "maximized" ? "normal" : "maximized";
       // TODO: Persist to sessionStorage here?

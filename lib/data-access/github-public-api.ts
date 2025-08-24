@@ -24,6 +24,23 @@ import {
 // Import detectAndRepairCsvFiles if needed for refreshGitHubActivityDataFromApi
 
 /**
+ * Checks if GitHub activity data is empty or invalid
+ */
+function isEmptyData(data: unknown): boolean {
+  if (!data || typeof data !== "object") return true;
+  const obj = data as { trailingYearData?: { data?: unknown[]; totalContributions?: number } };
+  const ty = obj.trailingYearData;
+  if (!ty) return true;
+
+  // Don't treat zero contributions as "empty" - users can legitimately have 0 contributions
+  const hasSeries = Array.isArray(ty.data) && ty.data.length > 0;
+  const hasCount = typeof ty.totalContributions === "number" && Number.isFinite(ty.totalContributions);
+
+  // Empty only if we have neither series data nor a known count
+  return !hasSeries && !hasCount;
+}
+
+/**
  * Formats GitHub activity data into a user-friendly view
  */
 function formatActivityView(
@@ -100,25 +117,11 @@ export async function getGithubActivity(): Promise<UserActivityView> {
 
   // Enhanced fallback mechanism: Try production file for ANY environment when primary is missing
   // This ensures data is always available, even during initial deployments
-  const isEmptyData = (data: unknown): boolean => {
-    if (!data || typeof data !== "object") return true;
-    const obj = data as { trailingYearData?: { data?: unknown[]; totalContributions?: number } };
-    const ty = obj.trailingYearData;
-    if (!ty) return true;
-    
-    // Don't treat zero contributions as "empty" - users can legitimately have 0 contributions
-    const hasSeries = Array.isArray(ty.data) && ty.data.length > 0;
-    const hasCount = typeof ty.totalContributions === "number" && Number.isFinite(ty.totalContributions);
-    
-    // Empty only if we have neither series data nor a known count
-    return !hasSeries && !hasCount;
-  };
-
   // Try fallback for ANY environment if primary data is missing or empty
   if (!s3ActivityData || isEmptyData(s3ActivityData)) {
     const { envLogger } = await import("@/lib/utils/env-logger");
     const currentEnv = getEnvironment();
-    
+
     // Always try the production fallback file
     const fallbackKey = GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK;
     envLogger.log(
@@ -126,9 +129,9 @@ export async function getGithubActivity(): Promise<UserActivityView> {
       { primaryKey: GITHUB_ACTIVITY_S3_KEY_FILE, fallbackKey },
       { category: "GitHubActivity" },
     );
-    
+
     const fallbackData = await readGitHubActivityFromS3(fallbackKey);
-    
+
     // Use fallback if it has valid data
     if (fallbackData && !isEmptyData(fallbackData)) {
       s3ActivityData = fallbackData;
@@ -142,7 +145,10 @@ export async function getGithubActivity(): Promise<UserActivityView> {
       // If we're in production and both files are missing, try WITHOUT suffix
       // This handles the case where files might be stored without environment suffix
       if (currentEnv === "production" && GITHUB_ACTIVITY_S3_KEY_FILE.includes(".json")) {
-        const baseKey = GITHUB_ACTIVITY_S3_KEY_FILE.replace(/(-dev|-test)?\.json$/, ".json") as `json/github-activity/activity_data${string}.json`;
+        const baseKey = GITHUB_ACTIVITY_S3_KEY_FILE.replace(
+          /(-dev|-test)?\.json$/,
+          ".json",
+        ) as `json/github-activity/activity_data${string}.json`;
         if (baseKey !== GITHUB_ACTIVITY_S3_KEY_FILE) {
           const baseData = await readGitHubActivityFromS3(baseKey);
           if (baseData && !isEmptyData(baseData)) {
@@ -157,15 +163,15 @@ export async function getGithubActivity(): Promise<UserActivityView> {
         }
       }
     }
-    
+
     // Log critical error if still no data
     if (!s3ActivityData || isEmptyData(s3ActivityData)) {
       envLogger.log(
         `CRITICAL: No usable GitHub data found in any location`,
-        { 
-          primaryKey: GITHUB_ACTIVITY_S3_KEY_FILE, 
+        {
+          primaryKey: GITHUB_ACTIVITY_S3_KEY_FILE,
           fallbackKey: GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK,
-          environment: currentEnv 
+          environment: currentEnv,
         },
         { category: "GitHubActivity" },
       );

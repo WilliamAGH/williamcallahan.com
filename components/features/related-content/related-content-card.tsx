@@ -11,6 +11,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { formatDate as formatDateUtil, truncateText as truncateTextUtil } from "@/lib/utils";
 import type { RelatedContentCardProps } from "@/types/related-content";
+import { ExternalLink } from "@/components/ui/external-link.client";
 
 /**
  * Get type badge configuration
@@ -66,15 +67,19 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
   );
 
   return (
-    <Link
-      href={url}
+    <div
       className={`
-        related-content-card block p-4 rounded-lg border border-gray-200 dark:border-gray-700
+        related-content-card relative block p-4 rounded-lg border border-gray-200 dark:border-gray-700
         bg-white dark:bg-gray-800 hover:shadow-lg transition-shadow duration-200
         hover:border-blue-500 dark:hover:border-blue-400 ${className}
       `}
     >
-      <article className="h-full flex flex-col">
+      {/* Stretched overlay link to make the whole card clickable without nesting links */}
+      <Link href={url} aria-label={`Open ${title}`} className="absolute inset-0 z-0">
+        <span aria-hidden="true" />
+      </Link>
+
+      <article className="h-full flex flex-col pointer-events-none">
         {/* Header with type badge and metadata */}
         <header className="flex items-start justify-between mb-3">
           <span
@@ -97,34 +102,69 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
           </div>
         </header>
 
-        {/* Image if available */}
-        {metadata.imageUrl && !imageError && (
-          <div className="relative w-full h-32 mb-3 rounded overflow-hidden bg-gray-100 dark:bg-gray-700">
-            {imageLoading && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin" />
+        {/* Investment logos aligned with title - match investment card pattern */}
+        {type === "investment" && metadata.imageUrl && !imageError ? (
+          <div className="flex items-start gap-3 mb-3">
+            <div className="relative w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+              {imageLoading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              <Image
+                src={metadata.imageUrl}
+                alt={title}
+                fill
+                className={`object-contain p-1 transition-opacity duration-200 ${imageLoading ? "opacity-0" : "opacity-100"}`}
+                sizes="40px"
+                onLoad={() => setImageLoading(false)}
+                onError={() => {
+                  setImageError(true);
+                  setImageLoading(false);
+                  console.warn(`Failed to load investment logo for ${title}: ${metadata.imageUrl}`);
+                }}
+                unoptimized={isExternalImage}
+                priority={false}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">{title}</h3>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Regular images for other content types */}
+            {metadata.imageUrl && !imageError && type !== "investment" && (
+              <div className="relative w-full h-32 mb-3 rounded overflow-hidden bg-gray-100 dark:bg-gray-700">
+                {imageLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-8 h-8 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+                <Image
+                  src={metadata.imageUrl}
+                  alt={title}
+                  fill
+                  className={`object-cover transition-opacity duration-200 ${imageLoading ? "opacity-0" : "opacity-100"}`}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  onLoad={() => setImageLoading(false)}
+                  onError={() => {
+                    setImageError(true);
+                    setImageLoading(false);
+                    console.warn(`Failed to load image for ${type}: ${metadata.imageUrl}`);
+                  }}
+                  unoptimized={isExternalImage}
+                  priority={false}
+                />
               </div>
             )}
-            <Image
-              src={metadata.imageUrl}
-              alt={title}
-              fill
-              className={`object-cover transition-opacity duration-200 ${imageLoading ? "opacity-0" : "opacity-100"}`}
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              onLoad={() => setImageLoading(false)}
-              onError={() => {
-                setImageError(true);
-                setImageLoading(false);
-                console.warn(`Failed to load image for ${type}: ${metadata.imageUrl}`);
-              }}
-              unoptimized={isExternalImage}
-              priority={false}
-            />
-          </div>
-        )}
 
-        {/* Title */}
-        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">{title}</h3>
+            {/* Title for non-investment types or investments without logos */}
+            {type !== "investment" || !metadata.imageUrl || imageError ? (
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">{title}</h3>
+            ) : null}
+          </>
+        )}
 
         {/* Description */}
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 flex-grow line-clamp-3">
@@ -136,7 +176,7 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
           {/* Tags */}
           {displayTags.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-2">
-              {displayTags.map((tag) => (
+              {displayTags.map(tag => (
                 <span
                   key={tag}
                   className="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded"
@@ -153,7 +193,7 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
           )}
 
           {/* Type-specific metadata */}
-          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
             {/* Domain for bookmarks */}
             {type === "bookmark" && metadata.domain && <span className="truncate">{metadata.domain}</span>}
 
@@ -181,9 +221,27 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
 
             {/* Category for investments and projects */}
             {(type === "investment" || type === "project") && metadata.category && <span>{metadata.category}</span>}
+
+            {/* aVenture research link for investments - separate external link */}
+            {type === "investment" && metadata.aventureUrl && (
+              <ExternalLink
+                href={metadata.aventureUrl}
+                title={`${title} - aVenture Startup Research`}
+                showIcon={false}
+                className="ml-auto inline-flex items-center bg-slate-100 dark:bg-transparent hover:bg-slate-200 dark:hover:bg-gray-700/50 px-2 py-1 rounded-full transition-colors pointer-events-auto relative z-10"
+              >
+                <Image
+                  src="https://s3-storage.callahan.cloud/images/ui-components/aVenture-research-button.png"
+                  alt="aVenture"
+                  width={16}
+                  height={16}
+                  className="inline-block h-4 w-4"
+                />
+              </ExternalLink>
+            )}
           </div>
         </footer>
       </article>
-    </Link>
+    </div>
   );
 }

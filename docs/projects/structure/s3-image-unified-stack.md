@@ -87,9 +87,9 @@ export interface LogoResult {
 
 ### Environment Issues (CRITICAL)
 
-1. **NEXT_PUBLIC_ Misuse** - `lib/services/unified-image-service.ts:48,104,148`: Server code using client prefix
-2. **NEXT_PUBLIC_ Misuse** - `lib/persistence/s3-persistence.ts:294,296,349,362`: Persistence layer exposure
-3. **NEXT_PUBLIC_ Misuse** - `lib/s3-utils.ts:39`: Utility code with client prefix
+1. **NEXT*PUBLIC* Misuse** - `lib/services/unified-image-service.ts:48,104,148`: Server code using client prefix
+2. **NEXT*PUBLIC* Misuse** - `lib/persistence/s3-persistence.ts:294,296,349,362`: Persistence layer exposure
+3. **NEXT*PUBLIC* Misuse** - `lib/s3-utils.ts:39`: Utility code with client prefix
 
 ### Security Issues (CRITICAL)
 

@@ -2,7 +2,7 @@
 
 /**
  * Deployment Readiness Verification Script
- * 
+ *
  * Run this before every deployment to catch potential production issues early.
  * This script validates configuration, tests critical paths, and ensures
  * environment-specific requirements are met.
@@ -68,9 +68,9 @@ class DeploymentVerifier {
 
     const envFile = join(process.cwd(), `.env.${this.targetEnv}`);
     const envLocalFile = join(process.cwd(), `.env.${this.targetEnv}.local`);
-    
+
     const envVars: Record<string, string> = {};
-    
+
     // Load environment variables from files
     if (existsSync(envFile)) {
       const content = readFileSync(envFile, "utf-8");
@@ -79,7 +79,7 @@ class DeploymentVerifier {
         if (key && value) envVars[key.trim()] = value.trim();
       });
     }
-    
+
     if (existsSync(envLocalFile)) {
       const content = readFileSync(envLocalFile, "utf-8");
       content.split("\n").forEach(line => {
@@ -89,7 +89,7 @@ class DeploymentVerifier {
     }
 
     const missingVars = requiredEnvVars.filter(v => !envVars[v] && !process.env[v]);
-    
+
     this.addCheck({
       name: "Required Environment Variables",
       category: "Environment",
@@ -103,7 +103,7 @@ class DeploymentVerifier {
     const siteUrl = envVars.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
     const expectedEnv = siteUrl.includes("dev.") ? "development" : "production";
     const expectedSuffix = expectedEnv === "production" ? "" : "-dev";
-    
+
     this.addCheck({
       name: "Environment Detection",
       category: "Environment",
@@ -131,7 +131,7 @@ class DeploymentVerifier {
       const filePath = join(process.cwd(), file);
       if (existsSync(filePath)) {
         const content = readFileSync(filePath, "utf-8");
-        
+
         if (content.includes('export const dynamic = "force-dynamic"')) {
           dynamicRoutes.push(file);
         } else if (content.includes("generateStaticParams") && !content.includes("//") && !content.includes("/*")) {
@@ -144,9 +144,10 @@ class DeploymentVerifier {
       name: "Dynamic Route Configuration",
       category: "Routes",
       passed: staticRoutes.length === 0,
-      message: staticRoutes.length > 0 
-        ? `Found ${staticRoutes.length} routes with static generation that may fail in production`
-        : "All bookmark routes use dynamic rendering",
+      message:
+        staticRoutes.length > 0
+          ? `Found ${staticRoutes.length} routes with static generation that may fail in production`
+          : "All bookmark routes use dynamic rendering",
       severity: "critical",
       details: staticRoutes,
     });
@@ -160,14 +161,15 @@ class DeploymentVerifier {
       const response = await fetch("http://localhost:3001/api/bookmarks/diagnostics");
       if (response.ok) {
         const data = await response.json();
-        
+
         this.addCheck({
           name: "S3 Configuration",
           category: "S3",
           passed: data.s3Config?.bucketSet && data.s3Config?.endpointSet,
-          message: data.s3Config?.bucketSet && data.s3Config?.endpointSet
-            ? "S3 properly configured"
-            : "S3 configuration incomplete",
+          message:
+            data.s3Config?.bucketSet && data.s3Config?.endpointSet
+              ? "S3 properly configured"
+              : "S3 configuration incomplete",
           severity: "critical",
           details: !data.s3Config?.bucketSet ? ["S3_BUCKET not set"] : [],
         });
@@ -180,7 +182,7 @@ class DeploymentVerifier {
           severity: "critical",
           details: [
             !data.checks?.datasetOk && "Bookmarks dataset missing",
-            !data.checks?.indexOk && "Bookmarks index missing", 
+            !data.checks?.indexOk && "Bookmarks index missing",
             !data.checks?.slugMapOk && "Slug mapping missing",
           ].filter(Boolean) as string[],
         });
@@ -203,7 +205,7 @@ class DeploymentVerifier {
     // Check if .next directory exists
     const nextDir = join(process.cwd(), ".next");
     const buildExists = existsSync(nextDir);
-    
+
     this.addCheck({
       name: "Build Output",
       category: "Build",
@@ -276,14 +278,14 @@ class DeploymentVerifier {
     // Check package.json for memory settings
     const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf-8"));
     const buildScript = packageJson.scripts?.build || "";
-    
+
     const hasMemoryConfig = buildScript.includes("--max-old-space-size");
-    
+
     this.addCheck({
       name: "Build Memory Configuration",
       category: "Performance",
       passed: hasMemoryConfig,
-      message: hasMemoryConfig 
+      message: hasMemoryConfig
         ? "Build has memory optimization"
         : "Consider adding --max-old-space-size to build script",
       severity: "warning",
@@ -295,14 +297,15 @@ class DeploymentVerifier {
       try {
         const { stdout } = await execAsync(`find ${publicDir} -type f -size +5M`);
         const largeFiles = stdout.split("\n").filter(Boolean);
-        
+
         this.addCheck({
           name: "Large Static Files",
           category: "Performance",
           passed: largeFiles.length === 0,
-          message: largeFiles.length > 0
-            ? `Found ${largeFiles.length} files over 5MB in public directory`
-            : "No large static files detected",
+          message:
+            largeFiles.length > 0
+              ? `Found ${largeFiles.length} files over 5MB in public directory`
+              : "No large static files detected",
           severity: "warning",
           details: largeFiles.map(f => f.replace(publicDir, "public")),
         });
@@ -358,14 +361,14 @@ class DeploymentVerifier {
   async run(): Promise<void> {
     this.log("🚀 Starting Deployment Readiness Verification...", colors.cyan);
     this.log(`Target Environment: ${this.targetEnv}`, colors.magenta);
-    
+
     await this.checkEnvironmentConfig();
     await this.checkRouteConfiguration();
     await this.checkS3Connectivity();
     await this.checkBuildIntegrity();
     await this.checkCriticalRoutes();
     await this.checkPerformance();
-    
+
     this.generateReport();
   }
 }

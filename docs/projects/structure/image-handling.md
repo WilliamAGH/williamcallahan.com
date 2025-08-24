@@ -16,7 +16,7 @@ See `image-handling.mmd` for visual pipeline diagram.
 
 ### Core Components
 
-1. **UnifiedImageService** (`/lib/services/unified-image-service.ts`)  
+1. **UnifiedImageService** (`/lib/services/unified-image-service.ts`)
    - Single entry point for all image operations
    - Direct S3 persistence without memory caching
    - Streaming support for images >5MB to S3
@@ -102,7 +102,7 @@ images/
 ├── logos/                          # Company logos (descriptive naming)
 │   ├── {company}_{hash}_{source}.png  # e.g., morningstar_83a33aed_clearbit.png
 │   └── inverted/{company}_{hash}_{source}.png  # Inverted logos
-├── logo/                           # Legacy path (hash-based naming) 
+├── logo/                           # Legacy path (hash-based naming)
 │   ├── {domain-hash}.png           # Old format
 │   └── public-migration/           # Migrated from /public/logos
 ├── opengraph/
@@ -173,7 +173,7 @@ unifiedImageService.markDomainAsFailed(domain);
    - `/api/og-image/route.ts:282-293`: No URL validation before fetch
    - `/api/logo/invert`: Allows internal API access
    - `lib/services/unified-image-service.ts:842-946`: No private IP blocking
-   - **Fix**: Implement URL allowlist, block private IP ranges (127.*, 10.*, 172.16-31.*, 192.168.*)
+   - **Fix**: Implement URL allowlist, block private IP ranges (127._, 10._, 172.16-31._, 192.168._)
    - **✅ FIXED (2025-07)**: Comprehensive URL validation implemented:
      - Created `lib/utils/url-utils.ts` with `validateExternalUrl()` function
      - Blocks all private IP ranges (IPv4 and IPv6)
@@ -211,7 +211,7 @@ unifiedImageService.markDomainAsFailed(domain);
 
 ### Environment Issues (HIGH PRIORITY)
 
-5. **NEXT_PUBLIC_ Misuse** - Server-side code using client prefix:
+5. **NEXT*PUBLIC* Misuse** - Server-side code using client prefix:
    - `lib/services/unified-image-service.ts:48,104,148`
    - `lib/persistence/s3-persistence.ts:294,296,349,362`
    - `lib/s3-utils.ts:39`

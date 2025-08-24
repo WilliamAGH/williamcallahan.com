@@ -44,7 +44,7 @@ export function shouldRefreshSearch(this: ICache, dataType: string, query: strin
 
 export function clearSearchCache(this: ICache, dataType?: string): void {
   const prefix = dataType ? `${SEARCH_PREFIX}${dataType}:` : SEARCH_PREFIX;
-  const keys = this.keys().filter((key) => key.startsWith(prefix));
+  const keys = this.keys().filter(key => key.startsWith(prefix));
   for (const key of keys) {
     this.del(key);
   }

@@ -1,27 +1,25 @@
 /**
  * @file Bookmarks API and data management with S3-first persistence.
- * 
+ *
  * Architecture:
  * - S3 = Primary source of truth (persistent across deployments)
  * - Docker containers = Ephemeral (destroyed/recreated frequently)
  * - Local files = Temporary cache/fallback only (not critical for persistence)
- * 
+ *
  * This module fetches bookmarks from Hoarder/Karakeep API, normalizes data,
  * enriches with OpenGraph metadata, and persists to S3. Handles pagination,
  * error fallbacks, and incremental updates via checksum comparison.
- * 
+ *
  * @module lib/bookmarks
  */
 
 import { BOOKMARKS_S3_PATHS, BOOKMARKS_API_CONFIG } from "@/lib/constants";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
 import { normalizeBookmarks } from "./normalize";
 import { processBookmarksInBatches } from "./enrich-opengraph";
 import { createHash } from "node:crypto";
-import { writeJsonS3 } from "@/lib/s3-utils";
 
-import type { UnifiedBookmark, RawApiBookmark, BookmarksApiResponse as ApiResponse } from "@/types/bookmark";
-import { bookmarksApiResponseSchema } from "@/types/bookmark";
+import { type UnifiedBookmark, type RawApiBookmark, type BookmarksApiResponse as ApiResponse, bookmarksApiResponseSchema } from "@/types/bookmark";
 
 // S3 prefix for raw API snapshots (environment-suffixed for isolation)
 // These snapshots enable incremental refresh by comparing checksums
@@ -35,7 +33,7 @@ export { getBookmarks as fetchExternalBookmarks } from "./service.server";
 
 /**
  * Refreshes bookmarks data with S3-first persistence strategy.
- * 
+ *
  * Pipeline:
  * 1. Fetch all pages from external API (with timeout protection)
  * 2. Check if raw data changed via checksum (skip if unchanged)
@@ -138,7 +136,7 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
       if (!parsed.success) {
         console.error(
           "[refreshBookmarksData] Invalid API response shape:",
-          parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
+          parsed.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("; "),
         );
         // Log the actual response for debugging
         console.error("[refreshBookmarksData] Actual API response keys:", Object.keys(raw as Record<string, unknown>));
@@ -177,7 +175,7 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
           if (cached && cached.length === allRawBookmarks.length) {
             // Back-compat runtime check: some historic persisted manifests may predate slug embedding.
             // Use a runtime guard to ensure we only reuse a cached manifest that already contains slugs.
-            const hasSlugs = cached.every((b) => {
+            const hasSlugs = cached.every(b => {
               if (typeof b !== "object" || b === null || !("slug" in b)) return false;
               const s = (b as Record<string, unknown>).slug;
               return typeof s === "string" && s.length > 0;
@@ -324,9 +322,7 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
         // S3 is our source of truth - return cached data for resilience
         return s3Backup;
       } else {
-        console.warn(
-          "[refreshBookmarksData] S3_FALLBACK_EMPTY: S3 storage exists but contains no bookmarks.",
-        );
+        console.warn("[refreshBookmarksData] S3_FALLBACK_EMPTY: S3 storage exists but contains no bookmarks.");
       }
     } catch (s3ReadError) {
       console.error("[refreshBookmarksData] S3_FALLBACK_FAILURE: Cannot read from S3 storage:", s3ReadError);

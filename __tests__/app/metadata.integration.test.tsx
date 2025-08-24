@@ -102,12 +102,12 @@ describe("Metadata Integration Tests", () => {
       expect(links).toHaveLength(2);
 
       // Check prev link
-      const prevLink = links.find((link) => link.rel === "prev");
+      const prevLink = links.find(link => link.rel === "prev");
       expect(prevLink).toBeDefined();
       expect(prevLink?.url).toBe("https://williamcallahan.com/bookmarks");
 
       // Check next link
-      const nextLink = links.find((link) => link.rel === "next");
+      const nextLink = links.find(link => link.rel === "next");
       expect(nextLink).toBeDefined();
       expect(nextLink?.url).toBe("https://williamcallahan.com/bookmarks/page/3");
     });
@@ -119,7 +119,7 @@ describe("Metadata Integration Tests", () => {
       });
 
       const links = metadata.icons?.other as Array<{ rel: string; url: string }>;
-      const prevLink = links.find((link) => link.rel === "prev");
+      const prevLink = links.find(link => link.rel === "prev");
 
       // Page 2 should have prev link to /bookmarks (not /bookmarks/page/1)
       expect(prevLink?.url).toBe("https://williamcallahan.com/bookmarks");
@@ -133,8 +133,8 @@ describe("Metadata Integration Tests", () => {
       const links = metadata.icons?.other as Array<{ rel: string; url: string }>;
 
       // Should only have prev link
-      const prevLink = links.find((link) => link.rel === "prev");
-      const nextLink = links.find((link) => link.rel === "next");
+      const prevLink = links.find(link => link.rel === "prev");
+      const nextLink = links.find(link => link.rel === "next");
 
       expect(prevLink).toBeDefined();
       expect(prevLink?.url).toBe("https://williamcallahan.com/bookmarks/page/2");
@@ -286,7 +286,7 @@ describe("Metadata HTML Output Verification", () => {
     expect(htmlTags).toContain('<link rel="next" href="https://williamcallahan.com/bookmarks/page/3">');
 
     // Verify other important tags - title without suffix due to length constraints
-    expect(htmlTags.some((tag) => tag.includes("<title>Bookmarks - Page 2</title>"))).toBe(true);
-    expect(htmlTags.some((tag) => tag.includes('rel="canonical"'))).toBe(true);
+    expect(htmlTags.some(tag => tag.includes("<title>Bookmarks - Page 2</title>"))).toBe(true);
+    expect(htmlTags.some(tag => tag.includes('rel="canonical"'))).toBe(true);
   });
 });

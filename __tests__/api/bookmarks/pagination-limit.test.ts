@@ -45,7 +45,7 @@ describe("Bookmark API – large limit behavior", () => {
 
     // Mock slug mapping for bookmarks with correct typing and reverse map
     const slugs: BookmarkSlugMapping["slugs"] = Object.fromEntries(
-      mockBookmarks.map((bookmark) => [
+      mockBookmarks.map(bookmark => [
         bookmark.id,
         {
           id: bookmark.id,

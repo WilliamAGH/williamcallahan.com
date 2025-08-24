@@ -4,7 +4,7 @@ import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 
 // This function was moved from DataFetchManager
-function buildTagGraph(allContent: Array<{ type: string; id: string; tags?: string[] }>): {
+async function buildTagGraph(allContent: Array<{ type: string; id: string; tags?: string[] }>): Promise<{
   tags: Record<
     string,
     {
@@ -15,7 +15,7 @@ function buildTagGraph(allContent: Array<{ type: string; id: string; tags?: stri
     }
   >;
   tagHierarchy: Record<string, string[]>;
-} {
+}> {
   const tagData: Record<
     string,
     {
@@ -26,7 +26,14 @@ function buildTagGraph(allContent: Array<{ type: string; id: string; tags?: stri
   > = {};
 
   // Process each content item's tags
-  for (const content of allContent) {
+  for (let i = 0; i < allContent.length; i++) {
+    // Yield control periodically to prevent blocking
+    if (i > 0 && i % 20 === 0) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+
+    const content = allContent[i];
+    if (!content) continue; // Safety check for TypeScript
     const contentKey = `${content.type}:${content.id}`;
     const uniqueTags = Array.from(new Set(content.tags || [])).filter(Boolean);
     for (const tag of uniqueTags) {
@@ -116,6 +123,17 @@ export async function buildContentGraph(config: DataFetchConfig): Promise<DataFe
     const blogPosts = await getAllPosts();
     const projectsData = projects;
 
+    // Early return if no content to process
+    if (allContent.length === 0) {
+      logger.info("[DataFetchManager] No content to process, skipping graph build");
+      return {
+        success: true,
+        operation: "content-graph",
+        itemsProcessed: 0,
+        duration: (Date.now() - startTime) / 1000,
+      };
+    }
+
     // Pre-compute related content for every item
     logger.info("[DataFetchManager] Computing similarity scores for all content...");
     const relatedContentMappings: Record<
@@ -128,21 +146,32 @@ export async function buildContentGraph(config: DataFetchConfig): Promise<DataFe
       }>
     > = {};
     const MAX_RELATED = 20; // Store top 20 for each item
+    const YIELD_INTERVAL = 10; // Yield control every 10 items to prevent blocking
 
-    for (const sourceContent of allContent) {
+    for (let i = 0; i < allContent.length; i++) {
+      // Yield control periodically to allow HTTP requests to be processed
+      if (i > 0 && i % YIELD_INTERVAL === 0) {
+        await new Promise(resolve => setImmediate(resolve));
+
+        // Log progress for visibility
+        if (i % 50 === 0) {
+          logger.info(`[DataFetchManager] Content graph progress: ${i}/${allContent.length} items processed`);
+        }
+      }
+
+      const sourceContent = allContent[i];
+      if (!sourceContent) continue; // Safety check for TypeScript
       const contentKey = `${sourceContent.type}:${sourceContent.id}`;
 
       // Find similar content (excluding self)
-      const candidates = allContent.filter(
-        (item) => !(item.type === sourceContent.type && item.id === sourceContent.id),
-      );
+      const candidates = allContent.filter(item => !(item.type === sourceContent.type && item.id === sourceContent.id));
 
       const similar = findMostSimilar(sourceContent, candidates, MAX_RELATED, DEFAULT_WEIGHTS);
 
       // Store with minimal data needed for hydration
       // Note: Bookmark slugs will be resolved at render time using slug mappings
       // to ensure consistency and avoid hydration issues
-      relatedContentMappings[contentKey] = similar.map((item) => ({
+      relatedContentMappings[contentKey] = similar.map(item => ({
         type: item.type,
         id: item.id,
         score: item.score,
@@ -150,14 +179,12 @@ export async function buildContentGraph(config: DataFetchConfig): Promise<DataFe
       }));
     }
 
-    // Save to S3
-    await writeJsonS3(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT, relatedContentMappings);
+    // Build tag co-occurrence graph while saving related content
+    const [tagGraph] = await Promise.all([
+      buildTagGraph(allContent),
+      writeJsonS3(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT, relatedContentMappings),
+    ]);
     logger.info(`[DataFetchManager] Saved ${Object.keys(relatedContentMappings).length} related content mappings`);
-
-    // Build tag co-occurrence graph
-    const tagGraph = buildTagGraph(allContent);
-    await writeJsonS3(CONTENT_GRAPH_S3_PATHS.TAG_GRAPH, tagGraph);
-    logger.info(`[DataFetchManager] Saved tag graph with ${Object.keys(tagGraph.tags).length} tags`);
 
     // Save metadata
     const metadata = {
@@ -167,10 +194,16 @@ export async function buildContentGraph(config: DataFetchConfig): Promise<DataFe
         total: allContent.length,
         blogPosts: blogPosts.length,
         projects: projectsData.length,
-        bookmarks: allContent.filter((c) => c.type === "bookmark").length,
+        bookmarks: allContent.filter(c => c.type === "bookmark").length,
       },
     };
-    await writeJsonS3(CONTENT_GRAPH_S3_PATHS.METADATA, metadata);
+
+    // Batch write tag graph and metadata to S3
+    await Promise.all([
+      writeJsonS3(CONTENT_GRAPH_S3_PATHS.TAG_GRAPH, tagGraph),
+      writeJsonS3(CONTENT_GRAPH_S3_PATHS.METADATA, metadata),
+    ]);
+    logger.info(`[DataFetchManager] Saved tag graph with ${Object.keys(tagGraph.tags).length} tags`);
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
     logger.info(`[DataFetchManager] Content graph built in ${duration}s`);

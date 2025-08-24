@@ -14,9 +14,7 @@ import { fetchExternalOpenGraphWithRetry } from "@/lib/opengraph/fetch";
 import { createFallbackResult } from "@/lib/opengraph/fallback";
 import { generateS3Key } from "@/lib/utils/hash-utils";
 import { BatchProcessor, BatchProgressReporter } from "@/lib/batch-processing";
-import type { OgResult } from "@/types";
-import { isOgResult } from "@/types";
-import type { KarakeepImageFallback } from "@/types/seo/opengraph";
+import { isOgResult, type OgResult, type KarakeepImageFallback } from "@/types";
 
 /**
  * Batch-optimized OpenGraph data fetching
@@ -101,7 +99,7 @@ export async function processOpenGraphBatch(
   // Create batch processor with lower concurrency for OpenGraph (to be polite to external sites)
   const processor = new BatchProcessor<{ url: string; fallback?: KarakeepImageFallback | null }, OgResult>(
     "opengraph-batch",
-    async (item) => getOpenGraphDataBatch(item.url, item.fallback, options.forceRefresh),
+    async item => getOpenGraphDataBatch(item.url, item.fallback, options.forceRefresh),
     {
       batchSize: options.batchSize || 5, // Lower concurrency for external sites
       batchDelay: 100, // Small delay between batches

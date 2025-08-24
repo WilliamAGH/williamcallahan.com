@@ -4,7 +4,7 @@ loadEnvironmentWithMultilineSupport();
 
 // Log startup immediately to verify process is running
 console.log(`[Scheduler] Process starting at ${new Date().toISOString()}`);
-console.log(`[Scheduler] Node version: ${process.version}, Bun version: ${process.versions.bun || 'N/A'}`);
+console.log(`[Scheduler] Node version: ${process.version}, Bun version: ${process.versions.bun || "N/A"}`);
 console.log(`[Scheduler] Working directory: ${process.cwd()}`);
 
 // Continuous Background Scheduler
@@ -97,11 +97,11 @@ cron.schedule(bookmarksCron, () => {
       detached: false,
     });
 
-    updateProcess.on("error", (err) => {
+    updateProcess.on("error", err => {
       console.error(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Failed to start update-s3 process:`, err);
     });
 
-    updateProcess.on("close", (code) => {
+    updateProcess.on("close", code => {
       // Remove from running jobs
       runningJobs.delete("bookmarks");
 
@@ -112,22 +112,22 @@ cron.schedule(bookmarksCron, () => {
 
         // Invalidate Next.js cache to serve fresh data
         console.log("[Scheduler] [Bookmarks] Invalidating Next.js cache for bookmarks...");
-        const apiUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+        const apiUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
         const revalidateUrl = `${apiUrl}/api/revalidate/bookmarks`;
-        
+
         // Only include auth header if secret is configured
         const headers = process.env.BOOKMARK_CRON_REFRESH_SECRET
           ? { Authorization: `Bearer ${process.env.BOOKMARK_CRON_REFRESH_SECRET}` }
           : undefined;
-        
+
         // Add timeout using AbortController
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10_000); // 10 second timeout
-        
+
         fetch(revalidateUrl, {
-          method: 'POST',
+          method: "POST",
           headers,
-          signal: controller.signal
+          signal: controller.signal,
         })
           .then(response => {
             clearTimeout(timeoutId);
@@ -139,7 +139,7 @@ cron.schedule(bookmarksCron, () => {
           })
           .catch(error => {
             clearTimeout(timeoutId);
-            if (error instanceof Error && error.name === 'AbortError') {
+            if (error instanceof Error && error.name === "AbortError") {
               console.error("[Scheduler] [Bookmarks] Cache invalidation timed out after 10 seconds");
             } else {
               console.error("[Scheduler] [Bookmarks] Failed to invalidate cache:", error);
@@ -153,11 +153,11 @@ cron.schedule(bookmarksCron, () => {
           stdio: "inherit",
         });
 
-        sitemapProcess.on("error", (err) => {
+        sitemapProcess.on("error", err => {
           console.error("[Scheduler] [Bookmarks] Failed to start sitemap submission process:", err);
         });
 
-        sitemapProcess.on("close", (code) => {
+        sitemapProcess.on("close", code => {
           if (code !== 0) {
             console.error(`[Scheduler] [Bookmarks] Sitemap submission failed (code ${code}).`);
           } else {
@@ -192,11 +192,11 @@ cron.schedule(githubCron, () => {
       detached: false,
     });
 
-    updateProcess.on("error", (err) => {
+    updateProcess.on("error", err => {
       console.error("[Scheduler] [GitHub] Failed to start update-s3 process:", err);
     });
 
-    updateProcess.on("close", (code) => {
+    updateProcess.on("close", code => {
       // Remove from running jobs
       runningJobs.delete("github");
 
@@ -232,11 +232,11 @@ cron.schedule(logosCron, () => {
       detached: false,
     });
 
-    updateProcess.on("error", (err) => {
+    updateProcess.on("error", err => {
       console.error("[Scheduler] [Logos] Failed to start update-s3 process:", err);
     });
 
-    updateProcess.on("close", (code) => {
+    updateProcess.on("close", code => {
       // Remove from running jobs
       runningJobs.delete("logos");
 
@@ -255,7 +255,7 @@ console.log("[Scheduler] Setup complete. Scheduler is running and waiting for sc
 console.log("[Scheduler] Production frequencies: Bookmarks (12x/day), GitHub (1x/day), Logos (1x/week)");
 
 // Add process-level error handling to prevent silent crashes
-process.on("uncaughtException", (error) => {
+process.on("uncaughtException", error => {
   console.error(`[Scheduler] FATAL: Uncaught exception:`, error);
   console.error(`[Scheduler] Stack trace:`, error.stack);
   // Don't exit - try to keep running
@@ -268,10 +268,13 @@ process.on("unhandledRejection", (reason, promise) => {
 });
 
 // Log heartbeat every hour to confirm scheduler is alive
-setInterval(() => {
-  const uptime = Math.floor(process.uptime() / 60);
-  console.log(`[Scheduler] Heartbeat: Process alive for ${uptime} minutes, waiting for scheduled tasks...`);
-}, 60 * 60 * 1000);
+setInterval(
+  () => {
+    const uptime = Math.floor(process.uptime() / 60);
+    console.log(`[Scheduler] Heartbeat: Process alive for ${uptime} minutes, waiting for scheduled tasks...`);
+  },
+  60 * 60 * 1000,
+);
 
 // Log immediate heartbeat
 console.log(`[Scheduler] Initial heartbeat: Process ${SCHEDULER_INSTANCE_ID} is running`);

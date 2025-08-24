@@ -111,7 +111,7 @@ export class DataFetchManager {
     // Orchestrates all data fetching operations
     // Returns unified results for monitoring
   }
-  
+
   async prefetchForBuild(): Promise<DataFetchResult[]> {
     // Optimized build-time fetch (S3 only)
   }
@@ -266,8 +266,8 @@ The schedules are deliberately staggered to prevent resource contention:
 ```typescript
 interface JobState {
   id: string;
-  type: 'bookmarks' | 'github' | 'logos';
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  type: "bookmarks" | "github" | "logos";
+  status: "pending" | "running" | "completed" | "failed";
   startedAt?: Date;
   completedAt?: Date;
   error?: string;
@@ -280,11 +280,11 @@ interface JobState {
 ```typescript
 class CircuitBreaker {
   private failureCount = 0;
-  private state: 'closed' | 'open' | 'half-open' = 'closed';
-  
+  private state: "closed" | "open" | "half-open" = "closed";
+
   async execute<T>(fn: () => Promise<T>): Promise<T> {
-    if (this.state === 'open') {
-      throw new Error('Circuit breaker is open');
+    if (this.state === "open") {
+      throw new Error("Circuit breaker is open");
     }
     // Implementation...
   }
@@ -312,8 +312,8 @@ const createLock = (jobName: string): boolean => {
 
 ```typescript
 // PRODUCTION EXAMPLE - Multi-Instance Safe
-import Redis from 'ioredis';
-import Redlock from 'redlock';
+import Redis from "ioredis";
+import Redlock from "redlock";
 
 const redis = new Redis();
 const redlock = new Redlock([redis]);
@@ -333,7 +333,7 @@ async function createDistributedLock(jobName: string): Promise<Lock | null> {
 async function runJobWithLock(jobName: string, job: () => Promise<void>) {
   const lock = await createDistributedLock(jobName);
   if (!lock) return;
-  
+
   try {
     await job();
   } finally {
@@ -418,16 +418,16 @@ The scheduler process must remain running for automated updates. Monitor via:
 
 ```typescript
 // WRONG: Current blocking approach
-const result = spawnSync('bun', ['run', 'update-s3']);
+const result = spawnSync("bun", ["run", "update-s3"]);
 
 // RIGHT: Non-blocking async approach
-const updateProcess = spawn('bun', ['run', 'update-s3'], {
+const updateProcess = spawn("bun", ["run", "update-s3"], {
   env: process.env,
-  stdio: 'inherit',
-  detached: false
+  stdio: "inherit",
+  detached: false,
 });
 
-updateProcess.on('close', (code) => {
+updateProcess.on("close", code => {
   if (code !== 0) {
     console.error(`Update failed with code ${code}`);
     // Add to dead letter queue
@@ -445,7 +445,7 @@ interface SyncState {
 }
 
 async function incrementalBookmarkSync(): Promise<void> {
-  const syncState = await getSyncState('bookmarks');
+  const syncState = await getSyncState("bookmarks");
   const newBookmarks = await fetchBookmarksSince(syncState.lastSuccessfulSyncAt);
   // Process only new/updated items
 }

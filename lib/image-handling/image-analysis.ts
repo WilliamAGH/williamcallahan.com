@@ -94,9 +94,14 @@ export function analyzeImagePatterns(buffer: Buffer): {
  * Calculate Shannon entropy of data
  */
 function calculateEntropy(data: Buffer): number {
-  const counts = new Array(256).fill(0);
+  const counts = Array.from({ length: 256 }, () => 0);
   for (const byte of data) {
-    counts[byte]++;
+    if (byte >= 0 && byte < 256 && byte < counts.length) {
+      const count = counts[byte];
+      if (count !== undefined) {
+        counts[byte] = count + 1;
+      }
+    }
   }
 
   let entropy = 0;
@@ -120,7 +125,7 @@ function analyzeBytePatterns(buffer: Buffer): {
   dominantByte: number;
 } {
   const sample = buffer.slice(0, Math.min(4096, buffer.length));
-  const byteCounts: number[] = new Array(256).fill(0) as number[];
+  const byteCounts: number[] = Array.from({ length: 256 }, () => 0);
 
   for (const byte of sample) {
     if (byte !== undefined && byte >= 0 && byte < 256) {
@@ -169,7 +174,7 @@ function detectGlobePattern(
   const goodCompression = patterns.compressionEstimate > 0.7;
 
   // Check for common globe icon file sizes
-  const typicalGlobeSizes = [1024, 2048, 3072, 4096].some((size) => Math.abs(buffer.length - size) < 512);
+  const typicalGlobeSizes = [1024, 2048, 3072, 4096].some(size => Math.abs(buffer.length - size) < 512);
 
   return (likelyBlue || goodCompression) && typicalGlobeSizes;
 }

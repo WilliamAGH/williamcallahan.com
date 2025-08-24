@@ -227,7 +227,7 @@ try {
   if (error instanceof BookmarkError) {
     // Handle bookmark-specific error
   }
-  throw new ExtendedError('API request failed', { cause: error });
+  throw new ExtendedError("API request failed", { cause: error });
 }
 ```
 
@@ -242,19 +242,16 @@ try {
 ### Structured Logging
 
 ```typescript
-logger.error('Operation failed', { 
-  error, 
-  context: { userId, operation } 
+logger.error("Operation failed", {
+  error,
+  context: { userId, operation },
 });
 ```
 
 ### Network Retry
 
 ```typescript
-const result = await retryOperation(
-  async () => await fetchAPI(url),
-  { maxRetries: 3, delay: 1000 }
-);
+const result = await retryOperation(async () => await fetchAPI(url), { maxRetries: 3, delay: 1000 });
 if (!result) {
   // Handle final failure
 }
@@ -276,7 +273,7 @@ if (!result) {
 
 1. **Implement Rate Limiting**: Add rate limiting to all endpoints
 2. **Reduce Health Info**: Limit health endpoint to status only
-3. **Structured Logging**: Replace console.* with logger.ts
+3. **Structured Logging**: Replace console.\* with logger.ts
 4. **Request Size Limits**: Add body size limits to tunnel endpoint
 
 ### Medium-term Improvements

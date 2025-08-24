@@ -86,7 +86,7 @@ export function getOgImageS3Key(
   fallbackHash?: string,
 ): string {
   const extension = getImageExtension(imageUrl);
-  
+
   // Use the centralized function for consistent naming when we have both URL and ID
   if (idempotencyKey && pageUrl) {
     try {
@@ -101,7 +101,7 @@ export function getOgImageS3Key(
       return `${s3Directory}/img-${shortHash}.${extension}`;
     }
   }
-  
+
   // Fallback cases when we don't have both URL and ID
   let baseKey: string;
   if (idempotencyKey) {
@@ -112,7 +112,7 @@ export function getOgImageS3Key(
   } else {
     baseKey = hashImageContent(Buffer.from(imageUrl)).substring(0, 8);
   }
-  
+
   return `${s3Directory}/${baseKey}.${extension}`;
 }
 
@@ -209,7 +209,7 @@ export function shouldRetryUrl(error: Error): boolean {
     "unsafe",
     "content too large",
   ];
-  return !nonRetryableErrors.some((errText) => msg.includes(errText));
+  return !nonRetryableErrors.some(errText => msg.includes(errText));
 }
 
 /**

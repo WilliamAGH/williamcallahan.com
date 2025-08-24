@@ -1,6 +1,6 @@
 ---
 description: "Master configuration for ZERO TEMPERATURE development environment with absolute type safety, no assumptions, and mandatory verification workflow."
-alwaysApply: true  # Exception: This master config file always applies to provide complete development governance
+alwaysApply: true # Exception: This master config file always applies to provide complete development governance
 ---
 
 # CLAUDE Development Environment - ZERO TEMPERATURE PROTOCOLS
@@ -158,6 +158,7 @@ Claude is **NEVER EVER ALLOWED** to use:
 - Placeholder text like "Lorem ipsum" or "Example content"
 
 **VIOLATION DETECTION PROTOCOL:**
+
 ```
 🚨 CRITICAL VIOLATION DETECTED 🚨
 Boilerplate/example code found in: [file:line]
@@ -215,6 +216,7 @@ NEVER assume:
 ### Step 3: Existing Functionality Search
 
 **NEVER assume functionality doesn't exist - ALWAYS search first:**
+
 ```bash
 # Comprehensive search for existing functionality
 grep -r "[task-keyword]" --include="*.ts" --include="*.tsx" .
@@ -255,10 +257,18 @@ find . -name "*[task-keyword]*" -type f
 
 **ALWAYS prefer editing existing files over creating new ones:**
 
-1. Search for existing implementations
-2. Extend existing functionality rather than duplicating
-3. Refactor existing code to be more general if needed
-4. Only create new files with explicit consent
+1. **Review existing content first** - Never append without reading what's already there
+2. Search for existing implementations to extend or improve
+3. Look for opportunities to consolidate rather than duplicate
+4. Refactor existing code to be more general if needed
+5. Only create new files with explicit repeated affirmative consent
+
+**Content Integration Mandate:**
+
+- Read ENTIRE file before making edits
+- Integrate changes with existing structure
+- Remove redundancies during edits
+- NEVER just append content to the end
 
 ### Real-Time Verification
 
@@ -293,7 +303,7 @@ Before completing any task:
 
 **MUST verify changes don't violate documented architecture:**
 
-- Check *Critical Issues* sections in functionality docs
+- Check _Critical Issues_ sections in functionality docs
 - Verify against documented patterns
 - Ensure consistency with existing implementations
 
@@ -321,6 +331,7 @@ When file approaches 500 lines:
 ### Mandatory Validation
 
 **BEFORE and AFTER every code change:**
+
 ```bash
 bun run validate
 ```
@@ -368,7 +379,64 @@ bun test [filename]           # ❌ Bypasses Jest config
 - Handles module resolution and path aliases
 - **CRITICAL**: Ensures native Node 22 APIs are used (no polyfill imports)
 
+### 📝 Temporary Test Files Protocol
+
+**MANDATORY: All temporary test scripts/files MUST be placed in `/tmp`:**
+
+```bash
+# CORRECT - Use /tmp for temporary files:
+/tmp/test-validation.js        # ✅ Temporary test script
+/tmp/debug-output.json         # ✅ Debug data file
+/tmp/repro-case.tsx           # ✅ Reproduction test case
+
+# FORBIDDEN - Never place temporary files in:
+./test-temp.js                # ❌ Project root
+components/test.tsx           # ❌ Source directories
+public/debug.json            # ❌ Public directory
+```
+
+**Temporary file lifecycle:**
+
+1. Create in `/tmp` when testing/debugging
+2. Use for problem verification
+3. Remove immediately after user confirms resolution
+
 ## 🔄 COMMIT & VERSION CONTROL
+
+### Task Completion Protocol
+
+**MANDATORY three-phase task completion for EVERY task:**
+
+#### Phase 1: Verification Assistance
+
+"I've completed the changes. Let me help verify the fix is working correctly:"
+
+- Offer to run validation commands
+- Suggest specific tests to confirm resolution
+- Provide commands to check affected functionality
+
+#### Phase 2: User Confirmation Request
+
+"Please confirm that the issue has been fully resolved. You can test by:"
+
+- Provide specific verification steps
+- Wait for explicit user confirmation
+- Do NOT proceed to Phase 3 without confirmation
+
+#### Phase 3: Cleanup & Commit
+
+After user confirms resolution:
+
+1. **Remove temporary test files** (if any):
+   ```bash
+   rm /tmp/test-*.{js,ts,tsx,json}  # Remove test files created
+   ```
+2. **Create specific, detailed commit**:
+   ```bash
+   git add -A
+   git commit -m "fix: [specific description of what was fixed and how]"
+   # NEVER use generic messages like "fix bug" or "update code"
+   ```
 
 ### No AI Attribution Policy - ABSOLUTELY FORBIDDEN
 
@@ -394,10 +462,11 @@ bun test [filename]           # ❌ Bypasses Jest config
 ### Rule Configuration Standards
 
 All rules follow Agent Requested configuration:
+
 ```yaml
 ---
 description: "Brief, specific description"
-alwaysApply: false  # All rules are Agent Requested type
+alwaysApply: false # All rules are Agent Requested type
 ---
 ```
 
@@ -463,18 +532,20 @@ bun run test
 **BEFORE making any code changes:**
 
 1. **Map All Usages**:
+
    ```bash
    # Find all imports of the module/function
    grep -r "import.*ModuleName" --include="*.ts" --include="*.tsx"
-   
+
    # Find all function calls
    grep -r "functionName(" --include="*.ts" --include="*.tsx"
-   
+
    # Find all type references
    grep -r "TypeName" --include="*.ts" --include="*.tsx"
    ```
 
 2. **Create Update Checklist**:
+
    ```typescript
    // TODO: Update Plan for [Function/Type/Module Name]
    // [ ] components/Chat/ChatInput.tsx - line 45
@@ -495,6 +566,7 @@ bun run test
 **WHILE making changes:**
 
 1. **Track Every Change**:
+
    ```typescript
    // CHANGE LOG:
    // ✓ Updated function signature in lib/validation.ts
@@ -520,13 +592,14 @@ bun run test
 **AFTER completing updates:**
 
 1. **Comprehensive Usage Audit**:
+
    ```bash
    # Verify no old patterns remain
    grep -r "oldFunctionName" --include="*.ts" --include="*.tsx"
-   
+
    # Check for type mismatches
    bun run type-check
-   
+
    # Verify all imports resolve
    bun run build
    ```
@@ -548,30 +621,33 @@ bun run test
 **❌ CRITICAL FAILURES:**
 
 1. **Parameter Mismatch**:
+
    ```typescript
    // Function updated to take 3 parameters
    function processChat(id: string, message: string, userId: string) {}
-   
+
    // But some calls still use 2 parameters
    processChat(id, message); // 💥 Runtime error!
    ```
 
 2. **Type Definition Drift**:
+
    ```typescript
    // Type updated in one place
-   type ChatMessage = { id: string; content: string; timestamp: number }
-   
+   type ChatMessage = { id: string; content: string; timestamp: number };
+
    // But old type still used elsewhere
-   type ChatMessage = { id: string; text: string } // 💥 Type mismatch!
+   type ChatMessage = { id: string; text: string }; // 💥 Type mismatch!
    ```
 
 3. **Import Path Inconsistency**:
+
    ```typescript
    // Some files use new path
-   import { validate } from '@/lib/validation/chat'
-   
+   import { validate } from "@/lib/validation/chat";
+
    // Others still use old path
-   import { validate } from '../../../utils/validate' // 💥 Module not found!
+   import { validate } from "../../../utils/validate"; // 💥 Module not found!
    ```
 
 ### The Update Verification Checklist
@@ -630,7 +706,7 @@ grep -r "functionName" --include="*.md" --include="*.ts" --include="*.tsx"
 **THE SOLUTION:**
 
 - Plan comprehensively
-- Update systematically  
+- Update systematically
 - Verify exhaustively
 - Never assume completeness
 

@@ -36,7 +36,7 @@ export function RelatedContentWithPagination({
   return (
     <div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {items.map((item) => (
+        {items.map(item => (
           <RelatedContentCard key={`${item.type}-${item.id}`} item={item} />
         ))}
       </div>

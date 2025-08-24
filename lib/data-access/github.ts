@@ -10,21 +10,23 @@
  */
 
 import { debug } from "@/lib/utils/debug";
-import type {
-  ContributionDay,
-  GitHubActivityApiResponse,
-  GitHubActivitySegment,
-  GitHubActivitySummary,
-  StoredGithubActivityS3,
-  GithubRepoNode,
-  RepoWeeklyStatCache,
+import {
+  type ContributionDay,
+  type GitHubActivityApiResponse,
+  type GitHubActivitySegment,
+  type GitHubActivitySummary,
+  type StoredGithubActivityS3,
+  type GithubRepoNode,
+  type RepoWeeklyStatCache,
+  ContributorStatsResponseSchema,
+  CommitResponseSchema,
+  type RepoRawWeeklyStat,
 } from "@/types/github";
-import { ContributorStatsResponseSchema, CommitResponseSchema } from "@/types/github";
 import { formatPacificDateTime, getTrailingYearDate, startOfDay, endOfDay, unixToDate } from "@/lib/utils/date-format";
 import { waitForPermit, isOperationAllowed } from "@/lib/rate-limiter";
 import { generateGitHubStatsCSV, parseGitHubStatsCSV } from "@/lib/utils/csv";
-import { writeBinaryS3, readBinaryS3 } from "@/lib/s3-utils";
-import type { RepoRawWeeklyStat } from "@/types/github";
+import { writeBinaryS3, readBinaryS3, writeJsonS3, readJsonS3 } from "@/lib/s3-utils";
+import { createHash } from "node:crypto";
 import { BatchProcessor } from "@/lib/batch-processing";
 import { retryWithDomainConfig, delay } from "@/lib/utils/retry";
 import { createCategorizedError } from "@/lib/utils/error-utils";
@@ -237,7 +239,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     { linesAdded: number; linesRemoved: number; categoryKey: string; dataComplete: boolean }
   >(
     "github-repo-stats",
-    async (repo) => {
+    async repo => {
       const repoOwnerLogin = repo.owner.login;
       const repoName = repo.name;
       const repoStatS3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwnerLogin}_${repoName}.csv`;
@@ -816,8 +818,6 @@ async function detectAndRepairCsvFiles(): Promise<{
 
         // ------- incremental skip logic --------
         try {
-          const { createHash } = await import("node:crypto");
-          const { readJsonS3 } = await import("@/lib/s3-utils");
           const checksumKey = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwner}_${repoName}_raw_checksum.json`;
 
           const latest = await readJsonS3<{ checksum: string }>(checksumKey);
@@ -846,8 +846,6 @@ async function detectAndRepairCsvFiles(): Promise<{
 
         // After potential repair, store new checksum pointer (best-effort)
         try {
-          const { createHash } = await import("node:crypto");
-          const { writeJsonS3 } = await import("@/lib/s3-utils");
           const csvForChecksum = typeof repairedCsv === "string" ? repairedCsv : csvString;
           const newChecksum = createHash("sha256").update(csvForChecksum).digest("hex");
           const checksumKey = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwner}_${repoName}_raw_checksum.json`;
@@ -894,7 +892,7 @@ async function detectAndRepairCsvFiles(): Promise<{
 
             if (ownerStats?.weeks && Array.isArray(ownerStats.weeks)) {
               const weeklyStats = ownerStats.weeks
-                .map((w) => ({
+                .map(w => ({
                   w: w.w,
                   a: w.a,
                   d: w.d,

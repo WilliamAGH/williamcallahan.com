@@ -1,6 +1,6 @@
 /**
  * Environment-aware logging utility
- * 
+ *
  * Provides condensed logging in production and verbose logging in development.
  * Uses DEPLOYMENT_ENV to determine the current environment.
  */
@@ -44,10 +44,8 @@ class EnvLogger {
     } else {
       // Production mode: Condensed single-line logging
       const condensedData = this.condenseData(data);
-      const contextStr = Object.keys(context).length > 0 
-        ? ` | ${JSON.stringify(context)}` 
-        : "";
-      
+      const contextStr = Object.keys(context).length > 0 ? ` | ${JSON.stringify(context)}` : "";
+
       if (condensedData) {
         console.log(`${prefix} ${message}: ${condensedData}${contextStr}`);
       } else {
@@ -62,7 +60,7 @@ class EnvLogger {
    */
   debug(message: string, data?: unknown, options: LogOptions = {}): void {
     const { forceVerbose = false, category } = options;
-    
+
     if (this.isDevelopment || forceVerbose) {
       const prefix = category ? `[${category}]` : "";
       console.log(`${prefix} ${message}`);
@@ -98,7 +96,7 @@ class EnvLogger {
         .map(d => this.condenseData(d.data))
         .filter(Boolean)
         .slice(0, 2); // Only show first 2 data points in production
-      
+
       const dataStr = dataPoints.length > 0 ? `: ${dataPoints.join(", ")}` : "";
       console.log(`${prefix} ${summary} (${detailCount} items)${dataStr}`);
     }
@@ -109,12 +107,7 @@ class EnvLogger {
    * In development: Multi-line with indentation
    * In production: Single line with key info
    */
-  service(
-    serviceName: string,
-    method: string,
-    data?: Record<string, unknown>,
-    result?: unknown
-  ): void {
+  service(serviceName: string, method: string, data?: Record<string, unknown>, result?: unknown): void {
     if (this.isDevelopment) {
       console.log(`[${serviceName}] ${method} called${data ? " with options:" : ""}`);
       if (data) {
@@ -136,11 +129,13 @@ class EnvLogger {
    */
   analytics(data: Record<string, unknown>): void {
     // Analytics logs should always be detailed for monitoring
-    console.log(JSON.stringify({ 
-      timestamp: new Date().toISOString(),
-      type: "server_pageview",
-      data 
-    }));
+    console.log(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        type: "server_pageview",
+        data,
+      }),
+    );
   }
 
   /**
@@ -168,18 +163,22 @@ class EnvLogger {
     if (typeof data === "object") {
       const obj = data as Record<string, unknown>;
       const keys = Object.keys(obj);
-      
+
       // Special handling for common patterns
       if ("id" in obj && "title" in obj) {
         const rawTitle = obj.title;
-        const titleValue = rawTitle == null ? "" : 
-                          typeof rawTitle === "string" ? rawTitle :
-                          typeof rawTitle === "number" || typeof rawTitle === "boolean" ? String(rawTitle) :
-                          JSON.stringify(rawTitle);
+        const titleValue =
+          rawTitle == null
+            ? ""
+            : typeof rawTitle === "string"
+              ? rawTitle
+              : typeof rawTitle === "number" || typeof rawTitle === "boolean"
+                ? String(rawTitle)
+                : JSON.stringify(rawTitle);
         const title = titleValue.substring(0, TITLE_PREVIEW_LENGTH);
         return `id=${String(obj.id)}, title="${title}${titleValue.length > TITLE_PREVIEW_LENGTH ? ELLIPSIS : ""}"`;
       }
-      
+
       if ("length" in obj) {
         return `length=${String(obj.length)}`;
       }
@@ -191,7 +190,7 @@ class EnvLogger {
     if (data == null) {
       return String(data);
     }
-    
+
     // For any remaining types (symbols, functions, etc.)
     return typeof data === "string" ? data : JSON.stringify(data);
   }

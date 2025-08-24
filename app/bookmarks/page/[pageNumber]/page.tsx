@@ -26,9 +26,8 @@ import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
-import { formatSeoDate } from "@/lib/seo/utils";
+import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
-import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { getBookmarks, getBookmarksPage, getBookmarksIndex } from "@/lib/bookmarks/service.server";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import type { PaginatedBookmarkContext } from "@/types";
@@ -54,29 +53,36 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
   const index = await getBookmarksIndex();
   const totalPages = index?.totalPages ?? 1;
 
+  // Canonicalize when requested page exceeds available pages
+  const effectivePage = Math.min(Math.max(pageNum, 1), Math.max(totalPages, 1));
+
   const baseMetadata = getStaticPageMetadata("/bookmarks", "bookmarks") as Metadata;
 
   // Add pagination-specific metadata
   const baseTitle = typeof baseMetadata.title === "string" ? baseMetadata.title : "Bookmarks";
 
   const title =
-    pageNum === 1
+    effectivePage === 1
       ? baseTitle
-      : generateDynamicTitle("Bookmarks", "bookmarks", { isPaginated: true, pageNumber: pageNum });
+      : generateDynamicTitle("Bookmarks", "bookmarks", { isPaginated: true, pageNumber: effectivePage });
 
   const metadata: Metadata = {
     ...baseMetadata,
     title,
     description:
-      pageNum === 1 ? baseMetadata.description : `${baseMetadata.description} Page ${pageNum} of ${totalPages}.`,
+      effectivePage === 1
+        ? baseMetadata.description
+        : `${baseMetadata.description} Page ${effectivePage} of ${totalPages}.`,
     alternates: {
       ...baseMetadata.alternates,
-      canonical: pageNum === 1 ? ensureAbsoluteUrl("/bookmarks") : ensureAbsoluteUrl(`/bookmarks/page/${pageNum}`),
+      canonical:
+        effectivePage === 1 ? ensureAbsoluteUrl("/bookmarks") : ensureAbsoluteUrl(`/bookmarks/page/${effectivePage}`),
     },
     openGraph: {
       ...baseMetadata.openGraph,
       title,
-      url: pageNum === 1 ? ensureAbsoluteUrl("/bookmarks") : ensureAbsoluteUrl(`/bookmarks/page/${pageNum}`),
+      url:
+        effectivePage === 1 ? ensureAbsoluteUrl("/bookmarks") : ensureAbsoluteUrl(`/bookmarks/page/${effectivePage}`),
     },
     robots: {
       index: true,
@@ -90,17 +96,20 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
   // Build pagination link tags for SEO using icons.other workaround
   const paginationLinks: Array<{ rel: string; url: string }> = [];
 
-  if (pageNum > 1) {
+  if (effectivePage > 1) {
     paginationLinks.push({
       rel: "prev",
-      url: pageNum === 2 ? ensureAbsoluteUrl("/bookmarks") : ensureAbsoluteUrl(`/bookmarks/page/${pageNum - 1}`),
+      url:
+        effectivePage === 2
+          ? ensureAbsoluteUrl("/bookmarks")
+          : ensureAbsoluteUrl(`/bookmarks/page/${effectivePage - 1}`),
     });
   }
 
-  if (pageNum < totalPages) {
+  if (effectivePage < totalPages) {
     paginationLinks.push({
       rel: "next",
-      url: ensureAbsoluteUrl(`/bookmarks/page/${pageNum + 1}`),
+      url: ensureAbsoluteUrl(`/bookmarks/page/${effectivePage + 1}`),
     });
   }
 
@@ -134,8 +143,13 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
   const index = await getBookmarksIndex();
   const totalPages = index?.totalPages ?? 0;
 
-  if (pageNum > totalPages) {
-    notFound();
+  if (totalPages > 0 && pageNum > totalPages) {
+    // Redirect to last valid page rather than 404
+    if (totalPages === 1) {
+      redirect("/bookmarks");
+    } else {
+      redirect(`/bookmarks/page/${totalPages}`);
+    }
   }
 
   const pageTitle = "Bookmarks";

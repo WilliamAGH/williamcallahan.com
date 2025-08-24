@@ -67,7 +67,7 @@ Root layout wrapper providing global styles, providers, and consistent UI struct
 ## Integration Points
 
 - **Navigation** → See [`navigation.md`](./navigation.md)
-- **Theming** → See [`state-theme-window-providers.md`](./state-theme-window-providers.md)  
+- **Theming** → See [`state-theme-window-providers.md`](./state-theme-window-providers.md)
 - **Window Management** → See [`state-theme-window-providers.md`](./state-theme-window-providers.md)
 - **Hooks** → See [`hooks.md`](./hooks.md) for anchor scrolling, SVG transforms, and other utilities
 - **Analytics** → See [`analytics.md`](./analytics.md)

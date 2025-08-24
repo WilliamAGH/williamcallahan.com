@@ -329,7 +329,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
       });
 
       // Simulate concurrent requests
-      const promises = urls.map((url) => getOpenGraphData(url));
+      const promises = urls.map(url => getOpenGraphData(url));
       const results = await Promise.all(promises);
 
       expect(results).toHaveLength(3);

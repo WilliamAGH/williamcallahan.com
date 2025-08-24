@@ -18,8 +18,7 @@
  * @module lib/middleware/memory-pressure
  */
 
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 // Health check paths that should always be allowed
 const HEALTH_CHECK_PATHS = ["/api/health", "/api/health/metrics", "/healthz", "/livez", "/readyz"];
@@ -107,7 +106,7 @@ export async function memoryPressureMiddleware(request: NextRequest): Promise<Ne
   const pathname = request.nextUrl.pathname;
 
   // Always allow health checks through
-  if (HEALTH_CHECK_PATHS.some((path) => pathname.startsWith(path))) {
+  if (HEALTH_CHECK_PATHS.some(path => pathname.startsWith(path))) {
     return null; // Continue to next middleware
   }
 

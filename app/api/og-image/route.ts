@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     // More sophisticated URL validation (skip for relative URLs we handle)
     if (!url.startsWith("/")) {
       try {
-        new URL(url);
+        if (!URL.canParse(url)) throw new Error("invalid");
       } catch (urlError) {
         console.warn("[OG-Image] Invalid URL format:", url, urlError);
         const fallbackImage = getDomainFallbackImage("unknown");
@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
               console.error("[OG-Image] Invalid bookmark data:", validatedBookmarks.error);
               throw new Error("Invalid bookmark data format");
             }
-            const bookmark = validatedBookmarks.data.find((b) => b.id === bookmarkId);
+            const bookmark = validatedBookmarks.data.find(b => b.id === bookmarkId);
 
             if (bookmark) {
               // PRIORITY: Karakeep bannerImage (imageAssetId) takes precedence over OpenGraph

@@ -84,7 +84,7 @@ graph TD
 - **Base Icon** (`base-icon.tsx`): Abstract base component for consistent icon styling
 - **Platform Icons**: Individual icon components for each platform
   - `x-icon.tsx`: X (Twitter) icon
-  - `discord-icon.tsx`: Discord icon  
+  - `discord-icon.tsx`: Discord icon
   - `bluesky-icon.tsx`: Bluesky icon
   - `linkedin-icon.tsx`: LinkedIn icon
   - `github-icon.tsx`: GitHub icon
@@ -124,7 +124,7 @@ graph TD
    - Loses compile-time type checking for icon components
    - **Fix**: Create custom type guard or use discriminated union
 
-### 🟢 LOW Priority Issues  
+### 🟢 LOW Priority Issues
 
 1. **CSS Dead Code** (`styles/social-styles.css`)
    - Hover effects set `height: 0` for ::after elements

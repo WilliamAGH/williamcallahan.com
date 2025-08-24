@@ -60,7 +60,7 @@ export function validateOGImage(imageUrl: string, width?: number, height?: numbe
   // Check file extension
   const supportedFormats = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
   const urlPath = imageUrl.split("?")[0]?.split("#")[0] ?? imageUrl;
-  const hasValidExtension = supportedFormats.some((ext) => urlPath.toLowerCase().endsWith(ext));
+  const hasValidExtension = supportedFormats.some(ext => urlPath.toLowerCase().endsWith(ext));
 
   if (!hasValidExtension) {
     warnings.push("Image format may not be supported - use JPG, PNG, GIF, or WebP");
@@ -118,11 +118,11 @@ export function validateOpenGraphMetadata(ogData: OGMetadata): OGImageValidation
       const imageValidation = validateOGImage(image.url, image.width, image.height);
 
       if (!imageValidation.isValid) {
-        errors.push(...imageValidation.errors.map((err) => `Image ${index + 1}: ${err}`));
+        errors.push(...imageValidation.errors.map(err => `Image ${index + 1}: ${err}`));
       }
 
-      warnings.push(...imageValidation.warnings.map((warn) => `Image ${index + 1}: ${warn}`));
-      recommendations.push(...imageValidation.recommendations.map((rec) => `Image ${index + 1}: ${rec}`));
+      warnings.push(...imageValidation.warnings.map(warn => `Image ${index + 1}: ${warn}`));
+      recommendations.push(...imageValidation.recommendations.map(rec => `Image ${index + 1}: ${rec}`));
     });
   }
 

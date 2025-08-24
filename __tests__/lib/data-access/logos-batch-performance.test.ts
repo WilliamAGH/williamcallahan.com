@@ -92,9 +92,9 @@ describe("Logos Batch Performance Optimizations", () => {
       const startTime = Date.now();
 
       // Track when each check is called
-      mockCheckIfS3ObjectExists.mockImplementation(async (key) => {
+      mockCheckIfS3ObjectExists.mockImplementation(async key => {
         checkTimes[key] = Date.now() - startTime;
-        await new Promise((resolve) => setTimeout(resolve, 10)); // Simulate S3 latency
+        await new Promise(resolve => setTimeout(resolve, 10)); // Simulate S3 latency
         return false;
       });
 
@@ -144,7 +144,7 @@ describe("Logos Batch Performance Optimizations", () => {
 
       mockCheckIfS3ObjectExists.mockImplementation(async () => {
         checkTimes.push(Date.now() - startTime);
-        await new Promise((resolve) => setTimeout(resolve, 5));
+        await new Promise(resolve => setTimeout(resolve, 5));
         return false;
       });
 
@@ -158,7 +158,7 @@ describe("Logos Batch Performance Optimizations", () => {
       const windows = [0, 10, 20, 30, 40];
       const checksPerWindow = windows.map((window, i) => {
         const nextWindow = windows[i + 1] || Infinity;
-        return checkTimes.filter((t) => t >= window && t < nextWindow).length;
+        return checkTimes.filter(t => t >= window && t < nextWindow).length;
       });
 
       // With fast mocked responses, many checks may complete in the first window
@@ -171,7 +171,7 @@ describe("Logos Batch Performance Optimizations", () => {
     it("should be significantly faster than sequential checking", async () => {
       // Simulate realistic S3 latency
       mockCheckIfS3ObjectExists.mockImplementation(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 20)); // 20ms per check
+        await new Promise(resolve => setTimeout(resolve, 20)); // 20ms per check
         return false;
       });
 

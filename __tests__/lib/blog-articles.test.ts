@@ -95,7 +95,7 @@ jest.mock("@/lib/blog/mdx", () => ({
         tags: ["test"],
       },
     ];
-    const post = posts.find((p) => p.slug === slug);
+    const post = posts.find(p => p.slug === slug);
     return Promise.resolve(post || null);
   }),
 }));
@@ -126,7 +126,7 @@ describe("Blog Module", () => {
       }
 
       // Verify sorting
-      const dates = posts.map((post) => new Date(post.publishedAt).getTime());
+      const dates = posts.map(post => new Date(post.publishedAt).getTime());
       expect(dates).toEqual([...dates].sort((a, b) => b - a));
     });
   });

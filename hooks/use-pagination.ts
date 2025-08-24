@@ -12,7 +12,7 @@ import type { UsePaginationOptions, UsePaginationReturn, PaginatedResponse } fro
 // The fetcher is now defined inside the hook to capture the apiUrl.
 const createFetcher =
   <T>(apiUrl: string): Fetcher<PaginatedResponse<T>, string> =>
-  async (url) => {
+  async url => {
     const response = await fetch(url);
 
     if (!response.ok) {
@@ -92,7 +92,7 @@ export function usePagination<T>({
         : [],
   });
 
-  const items: T[] = data ? data.flatMap((page) => page?.data ?? []) : [];
+  const items: T[] = data ? data.flatMap(page => page?.data ?? []) : [];
   const isLoading = swrIsLoading;
   const isLoadingMore = swrIsLoading && size > 1;
   const totalItems = initialTotalCount ?? data?.[0]?.meta.pagination.total ?? 0;
@@ -100,10 +100,11 @@ export function usePagination<T>({
 
   const paginationMeta = useMemo(() => {
     const dataSource = data || [];
-    if (!dataSource || dataSource.length === 0) {
+    if (dataSource.length === 0) {
       return { totalPages: 0, totalItems: 0, hasMore: false };
     }
-    const lastPage = dataSource.filter(Boolean).pop();
+    // Find the last non-null page in the data array
+    const lastPage = [...dataSource].reverse().find(Boolean);
     if (!lastPage) {
       return { totalPages: 0, totalItems: 0, hasMore: false };
     }

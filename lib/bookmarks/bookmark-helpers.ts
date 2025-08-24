@@ -3,7 +3,7 @@
  *
  * Provides consistent URL construction and image selection for bookmarks.
  * Handles Karakeep/Hoarder asset URLs with optional context for S3 filenames.
- * 
+ *
  * @module lib/bookmarks/bookmark-helpers
  */
 
@@ -12,20 +12,20 @@ import type { ImageSelectionOptions } from "@/types/features/bookmarks";
 
 /**
  * Constructs a consistent asset URL for Karakeep assets.
- * 
+ *
  * Appends optional context as query parameters to enable descriptive S3 filenames.
  * The assets API uses this context to generate filenames like 'github-com-abc123.png'
  * instead of UUID-only names.
- * 
+ *
  * @param assetId - The asset ID from Karakeep/Hoarder
  * @param context - Optional bookmark context for descriptive filenames
  * @param context.bookmarkId - Used for hash generation in filenames
  * @param context.url - Used for domain extraction in filenames
  * @param context.domain - Pre-extracted domain (optimization)
  * @returns Asset proxy URL with encoded query parameters, or undefined if no assetId
- * 
+ *
  * @example
- * getAssetUrl('abc-123', { 
+ * getAssetUrl('abc-123', {
  *   bookmarkId: 'bm-456',
  *   url: 'https://github.com/example'
  * })
@@ -37,7 +37,7 @@ export function getAssetUrl(
     bookmarkId?: string;
     url?: string;
     domain?: string;
-  }
+  },
 ): string | undefined {
   if (!assetId) return undefined;
 
@@ -63,9 +63,9 @@ export function getAssetUrl(
  * 3. Karakeep screenshot asset (content.screenshotAssetId) - Reliable fallback
  * 4. Any other ogImage we might have fetched ourselves
  *
- * IMPORTANT: content.imageUrl is intentionally EXCLUDED as it's typically 
+ * IMPORTANT: content.imageUrl is intentionally EXCLUDED as it's typically
  * a low-quality logo/favicon unsuitable for preview cards.
- * 
+ *
  * The function automatically passes bookmark context to getAssetUrl() to enable
  * descriptive S3 filenames when assets are cached.
  *
@@ -105,7 +105,7 @@ export function selectBestImage(
   } catch {
     domain = undefined;
   }
-  
+
   const assetContext = {
     bookmarkId: bookmark.id,
     url: bookmark.url,
@@ -135,7 +135,7 @@ export function selectBestImage(
   }
 
   // NEVER use content.imageUrl - it's typically just a logo/favicon, not suitable for cards
-  
+
   return noImageResult;
 }
 

@@ -1,7 +1,6 @@
 "use client";
 
-import type React from "react";
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import type { InfiniteScrollSentinelProps } from "@/types/ui/async";
 
@@ -19,7 +18,7 @@ export const InfiniteScrollSentinel: React.FC<InfiniteScrollSentinelProps> = ({
     if (!hasMore || loading) return;
 
     const observer = new IntersectionObserver(
-      (entries) => {
+      entries => {
         const firstEntry = entries[0];
         if (firstEntry?.isIntersecting) {
           onIntersect();

@@ -270,7 +270,7 @@ function extractWords(text: string): Map<string, number> {
     .replace(/\s+/g, " ");
 
   // Split into tokens
-  const tokens = normalized.split(" ").filter((token) => token.length > 2);
+  const tokens = normalized.split(" ").filter(token => token.length > 2);
 
   // Count word frequency
   for (const token of tokens) {
@@ -327,7 +327,7 @@ function extractBigrams(text: string): string[] {
     .replace(/[^\w\s-]/g, " ")
     .replace(/\s+/g, " ");
 
-  const words = normalized.split(" ").filter((w) => w.length > 1);
+  const words = normalized.split(" ").filter(w => w.length > 1);
   const bigrams: string[] = [];
 
   for (let i = 0; i < words.length - 1; i++) {
@@ -354,6 +354,14 @@ function extractBigrams(text: string): string[] {
       "series a",
       "series b",
       "web app",
+      "web search",
+      "search engine",
+      "semantic search",
+      "vector search",
+      "ai search",
+      "contextual search",
+      "information retrieval",
+      "similarity search",
       "mobile app",
       "open source",
       "real time",
@@ -398,7 +406,7 @@ export function extractKeywords(
   }
 
   // Filter out existing tags to avoid duplicates
-  const existingTagsNormalized = new Set(existingTags.map((tag) => tag.toLowerCase().trim()));
+  const existingTagsNormalized = new Set(existingTags.map(tag => tag.toLowerCase().trim()));
 
   for (const tag of existingTagsNormalized) {
     scores.delete(tag);
@@ -448,7 +456,7 @@ export function extractCrossContentKeywords(
       /\b(react|vue|angular|nextjs|next.js|django|rails|spring|nodejs|node.js|python|java|typescript|javascript|golang|rust)\b/gi,
     );
   if (techMatches) {
-    keywords.push(...techMatches.map((t) => t.toLowerCase()));
+    keywords.push(...techMatches.map(t => t.toLowerCase()));
   }
 
   // Extract business terms
@@ -456,7 +464,7 @@ export function extractCrossContentKeywords(
     .toLowerCase()
     .match(/\b(startup|saas|b2b|b2c|marketplace|platform|fintech|edtech|healthtech|enterprise|sme)\b/gi);
   if (businessMatches) {
-    keywords.push(...businessMatches.map((t) => t.toLowerCase()));
+    keywords.push(...businessMatches.map(t => t.toLowerCase()));
   }
 
   // Remove duplicates and return
@@ -482,7 +490,7 @@ export function hasInvestmentContext(text: string): boolean {
   ];
 
   const lowercased = text.toLowerCase();
-  if (investmentTerms.some((term) => lowercased.includes(term))) {
+  if (investmentTerms.some(term => lowercased.includes(term))) {
     return true;
   }
 
@@ -510,5 +518,5 @@ export function hasTechnicalContext(text: string): boolean {
   ];
 
   const lowercased = text.toLowerCase();
-  return techTerms.some((term) => lowercased.includes(term));
+  return techTerms.some(term => lowercased.includes(term));
 }

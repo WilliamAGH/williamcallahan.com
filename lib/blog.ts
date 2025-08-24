@@ -57,7 +57,7 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
     // and then find the one with the matching slug.
     // This avoids needing to guess filenames or re-implement file iteration logic here.
     const allPosts = await getAllPosts();
-    const foundPost = allPosts.find((post) => post.slug === slug);
+    const foundPost = allPosts.find(post => post.slug === slug);
 
     if (!foundPost) {
       console.log(`[getPostBySlug] Blog post not found with slug: ${slug}`);
@@ -88,7 +88,7 @@ export async function getAllTags(): Promise<string[]> {
     const posts = await getAllPosts();
 
     // Filter out posts with no tags and flatten the array
-    const allTags = posts.filter((post) => post.tags && Array.isArray(post.tags)).flatMap((post) => post.tags);
+    const allTags = posts.filter(post => post.tags && Array.isArray(post.tags)).flatMap(post => post.tags);
 
     // Create a set to remove duplicates
     const tags = new Set(allTags);

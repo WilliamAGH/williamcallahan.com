@@ -133,7 +133,7 @@ if (SHOULD_RUN_LIVE_TESTS) {
       let storedBody: string | null = null;
 
       // Mock PutObject to capture Body
-      s3Mock.on(PutObjectCommand).callsFake((input) => {
+      s3Mock.on(PutObjectCommand).callsFake(input => {
         storedBody = typeof input.Body === "string" ? input.Body : String(input.Body);
         return { ETag: '"test-etag"' } as any;
       });

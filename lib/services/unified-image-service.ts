@@ -6,13 +6,19 @@
 import { s3Client, writeBinaryS3, checkIfS3ObjectExists } from "../s3-utils";
 import { ServerCacheInstance } from "../server-cache";
 import { getDomainVariants } from "../utils/domain-utils";
-import { parseS3Key } from "../utils/hash-utils";
+import {
+  parseS3Key,
+  generateS3Key,
+  getFileExtension,
+  getBufferHash,
+  hashAndArchiveManualLogo,
+} from "../utils/hash-utils";
 import { LOGO_SOURCES, LOGO_BLOCKLIST_S3_PATH, UNIFIED_IMAGE_SERVICE_CONFIG } from "../constants";
 import { getBaseUrl } from "../utils/get-base-url";
 import { isDebug } from "../utils/debug";
 import { isS3ReadOnly } from "../utils/s3-read-only";
-import type { LogoSource } from "../../types/logo";
-import type { ExternalFetchResult } from "../../types/image";
+import type { LogoSource, LogoInversion } from "../../types/logo";
+import type { ExternalFetchResult, ImageServiceOptions, ImageResult } from "../../types/image";
 import { extractBasicImageMeta } from "../image-handling/image-metadata";
 import { analyzeImage } from "../image-handling/image-analysis"; // now lightweight stub
 import { processImageBuffer as sharedProcessImageBuffer } from "../image-handling/shared-image-processing";
@@ -24,22 +30,17 @@ import {
   isRetryableHttpError,
 } from "../utils/http-client";
 import { retryWithOptions, computeExponentialDelay } from "../utils/retry";
-import { generateS3Key, getFileExtension } from "../utils/hash-utils";
 import { FailureTracker } from "../utils/failure-tracker";
 import { isOperationAllowedWithCircuitBreaker, recordOperationFailure } from "../rate-limiter";
 import { inferContentTypeFromUrl, getExtensionFromContentType, IMAGE_EXTENSIONS } from "../utils/content-type";
 import { buildCdnUrl } from "../utils/cdn-utils";
 import { isLogoUrl, extractDomain } from "../utils/url-utils";
-import { getBufferHash } from "../utils/hash-utils";
 import { getMemoryHealthMonitor, wipeBuffer } from "../health/memory-health-monitor";
 
 import { monitoredAsync } from "../async-operations-monitor";
 import type { LogoFetchResult, LogoValidationResult } from "../../types/cache";
-import type { LogoInversion } from "../../types/logo";
-import type { ImageServiceOptions, ImageResult } from "../../types/image";
 import { logoDebugger } from "@/lib/utils/logo-debug";
 import { maybeStreamImageToS3 } from "./image-streaming";
-import { hashAndArchiveManualLogo } from "../utils/hash-utils";
 import logger from "../utils/logger";
 
 export class UnifiedImageService {
@@ -64,7 +65,7 @@ export class UnifiedImageService {
   private retryTimerId: NodeJS.Timeout | null = null;
 
   // Use FailureTracker for domain blocklist management
-  private domainFailureTracker = new FailureTracker<string>((domain) => domain, {
+  private domainFailureTracker = new FailureTracker<string>(domain => domain, {
     s3Path: LOGO_BLOCKLIST_S3_PATH,
     maxRetries: this.CONFIG.PERMANENT_FAILURE_THRESHOLD,
     cooldownMs: 24 * 60 * 60 * 1000, // 24 hours
@@ -561,7 +562,7 @@ export class UnifiedImageService {
           {
             maxRetries: this.CONFIG.MAX_UPLOAD_RETRIES - retry.attempts,
             baseDelay: this.CONFIG.RETRY_BASE_DELAY,
-            isRetryable: (error) => isRetryableHttpError(error),
+            isRetryable: error => isRetryableHttpError(error),
             onRetry: (error, attempt) => {
               void error; // Explicitly mark as unused per project convention
               console.log(
@@ -570,13 +571,13 @@ export class UnifiedImageService {
             },
           },
         )
-          .then((result) => {
+          .then(result => {
             if (result?.cdnUrl) {
               this.uploadRetryQueue.delete(key);
               console.log(`[UnifiedImageService] Retry successful for ${key}`);
             }
           })
-          .catch((error) => {
+          .catch(error => {
             logger.error("[UnifiedImageService] All retries failed", error, { key });
             this.uploadRetryQueue.delete(key);
           });

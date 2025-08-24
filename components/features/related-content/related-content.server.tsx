@@ -18,6 +18,9 @@ import { readJsonS3 } from "@/lib/s3-utils";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { getLogo } from "@/lib/data-access/logos";
+import { normalizeDomain } from "@/lib/utils/domain-utils";
+import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import type {
   RelatedContentProps,
   RelatedContentItem,
@@ -34,10 +37,10 @@ import { DEFAULT_MAX_PER_TYPE, DEFAULT_MAX_TOTAL } from "@/config/related-conten
  * Convert normalized content to related content item
  * Returns null if a bookmark doesn't have a pre-computed slug (critical for idempotency)
  */
-function toRelatedContentItem(
+async function toRelatedContentItem(
   content: NormalizedContent & { score: number },
   slugMap?: Map<string, string>,
-): RelatedContentItem | null {
+): Promise<RelatedContentItem | null> {
   const baseMetadata: RelatedContentItem["metadata"] = {
     tags: content.tags,
     domain: content.domain,
@@ -105,11 +108,49 @@ function toRelatedContentItem(
 
     case "investment": {
       const investment = content.source as import("@/types/investment").Investment;
+
+      // Fetch logo dynamically using the same system as investment cards
+      let logoUrl: string | undefined;
+
+      // If static logo is provided, use it
+      if (investment.logo) {
+        logoUrl = ensureAbsoluteUrl(investment.logo);
+      } else {
+        // Dynamically fetch logo from S3/CDN with fallback to external APIs
+        const effectiveDomain = investment.logoOnlyDomain
+          ? normalizeDomain(investment.logoOnlyDomain)
+          : investment.website
+            ? normalizeDomain(investment.website)
+            : normalizeDomain(investment.name);
+
+        if (effectiveDomain) {
+          try {
+            const liveLogo = await getLogo(effectiveDomain);
+            if (liveLogo?.cdnUrl || liveLogo?.url) {
+              logoUrl = ensureAbsoluteUrl(liveLogo.cdnUrl || liveLogo.url || getCompanyPlaceholder());
+              // Log correctly distinguishing between fetch location (S3/CDN) and original source
+              const isFromS3 = liveLogo.cdnUrl && liveLogo.cdnUrl.includes("images/logos");
+              const originalSource = liveLogo.source ?? "api";
+              console.info(
+                `[RelatedContent] Logo fetched for investment ${investment.name} (${effectiveDomain}) from ${isFromS3 ? "S3/CDN" : "external API"} - original source: ${originalSource}`,
+              );
+            }
+          } catch (fetchErr) {
+            const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+            console.error(`[RelatedContent] Logo fetch failed for investment ${effectiveDomain}:`, msg);
+            logoUrl = ensureAbsoluteUrl(getCompanyPlaceholder());
+          }
+        } else {
+          logoUrl = ensureAbsoluteUrl(getCompanyPlaceholder());
+        }
+      }
+
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
         stage: investment.stage,
         category: investment.category,
-        imageUrl: investment.logo ? ensureAbsoluteUrl(investment.logo) : undefined,
+        imageUrl: logoUrl,
+        aventureUrl: investment.aventure_url ?? undefined,
       };
 
       return {
@@ -216,15 +257,15 @@ export async function RelatedContent({
 
       // Apply filters
       if (includeTypes) {
-        const inc = [...includeTypes];
-        items = items.filter((item) => inc.includes(item.type));
+        const inc = new Set(includeTypes);
+        items = items.filter(item => inc.has(item.type));
       }
       if (excludeTypes) {
-        const exc = [...excludeTypes];
-        items = items.filter((item) => !exc.includes(item.type));
+        const exc = new Set(excludeTypes);
+        items = items.filter(item => !exc.has(item.type));
       }
       if (excludeIds.length > 0) {
-        items = items.filter((item) => !excludeIds.includes(item.id));
+        items = items.filter(item => !excludeIds.includes(item.id));
       }
 
       // Apply limits via shared helper
@@ -232,28 +273,88 @@ export async function RelatedContent({
 
       // Get all content for mapping
       // Use lazy loading to reduce memory pressure
-      const neededTypes = Array.from(new Set(limited.map((item) => item.type)));
+      const neededTypes = Array.from(new Set(limited.map(item => item.type)));
       const contentMap = await getLazyContentMap(neededTypes);
 
       // Get slug mappings for bookmarks using request cache
       let slugMap: Map<string, string> | undefined;
-      if (limited.some((item) => item.type === "bookmark")) {
+      if (limited.some(item => item.type === "bookmark")) {
         const { slugMap: map } = await getCachedBookmarksWithSlugs();
         slugMap = map;
       }
 
       // Convert to RelatedContentItem format
-      const relatedItems = limited
-        .map((item) => {
-          const content = contentMap.get(`${item.type}:${item.id}`);
-          if (!content) return null;
-          const relatedItem = toRelatedContentItem({ ...content, score: item.score }, slugMap);
-          if (!relatedItem) {
-            console.warn(`[RelatedContent] Skipping item ${item.type}:${item.id} due to missing slug`);
+      const relatedItemPromises = limited.map(async item => {
+        const content = contentMap.get(`${item.type}:${item.id}`);
+        if (!content) return null;
+        const relatedItem = await toRelatedContentItem({ ...content, score: item.score }, slugMap);
+        if (!relatedItem) {
+          console.warn(`[RelatedContent] Skipping item ${item.type}:${item.id} due to missing slug`);
+        }
+        return relatedItem;
+      });
+
+      const relatedItems = (await Promise.all(relatedItemPromises)).filter((i): i is RelatedContentItem => i !== null);
+
+      // If precomputed items exist but are missing some allowed content types (e.g., projects),
+      // compute additional candidates for just the missing types and merge.
+      const allAllowedTypes = includeTypes
+        ? new Set(includeTypes)
+        : new Set<RelatedContentType>(["bookmark", "blog", "investment", "project"]);
+      const presentTypes = new Set(relatedItems.map(i => i.type));
+      const missingTypes = Array.from(allAllowedTypes).filter(t => !presentTypes.has(t));
+
+      if (missingTypes.length > 0) {
+        const source = await getContentById(sourceType, actualSourceId);
+        if (source) {
+          // Load all content and filter
+          let allContent = await getCachedAllContent();
+          if (includeTypes || excludeTypes) {
+            allContent = filterByTypes(
+              allContent,
+              includeTypes ? Array.from(new Set(includeTypes)) : undefined,
+              excludeTypes ? Array.from(new Set(excludeTypes)) : undefined,
+            );
           }
-          return relatedItem;
-        })
-        .filter((i): i is RelatedContentItem => i !== null);
+
+          const excludeSet = new Set([...excludeIds, actualSourceId]);
+          const precomputedKeys = new Set(relatedItems.map(i => `${i.type}:${i.id}`));
+
+          const candidates = allContent
+            .filter(item => !(item.type === sourceType && excludeSet.has(item.id)))
+            .filter(item => missingTypes.includes(item.type))
+            .filter(item => !precomputedKeys.has(`${item.type}:${item.id}`));
+
+          const extraSimilar = findMostSimilar(source, candidates, maxTotal * 2, weights);
+
+          // Prepare slug mapping only if needed for bookmarks in the extras
+          let extraSlugMap: Map<string, string> | undefined = slugMap;
+          if (!extraSlugMap && extraSimilar.some(item => item.type === "bookmark")) {
+            const { slugMap: map } = await getCachedBookmarksWithSlugs();
+            extraSlugMap = map;
+          }
+
+          const extraItems = (
+            await Promise.all(extraSimilar.map(item => toRelatedContentItem(item, extraSlugMap)))
+          ).filter((i): i is RelatedContentItem => i !== null);
+
+          // Merge, dedupe, and re-limit per type and total
+          const merged: RelatedContentItem[] = [];
+          const seen = new Set<string>();
+          for (const it of [...relatedItems, ...extraItems]) {
+            const key = `${it.type}:${it.id}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              merged.push(it);
+            }
+          }
+
+          const final = limitByTypeAndTotal(merged, maxPerType, maxTotal);
+          if (final.length > 0) {
+            return <RelatedContentSection title={sectionTitle} items={final} className={className} />;
+          }
+        }
+      }
 
       if (relatedItems.length > 0) {
         return <RelatedContentSection title={sectionTitle} items={relatedItems} className={className} />;
@@ -273,8 +374,8 @@ export async function RelatedContent({
       if (includeTypes || excludeTypes) {
         items = filterByTypes(
           items,
-          includeTypes ? [...includeTypes] : undefined,
-          excludeTypes ? [...excludeTypes] : undefined,
+          includeTypes ? Array.from(new Set(includeTypes)) : undefined,
+          excludeTypes ? Array.from(new Set(excludeTypes)) : undefined,
         );
       }
 
@@ -283,20 +384,20 @@ export async function RelatedContent({
 
       // Get pre-computed slug mappings for bookmarks using request cache
       let slugMap: Map<string, string> | undefined;
-      if (finalItems.some((item) => item.type === "bookmark")) {
+      if (finalItems.some(item => item.type === "bookmark")) {
         const { slugMap: map } = await getCachedBookmarksWithSlugs();
         slugMap = map;
       }
 
-      const relatedItems = finalItems
-        .map((item) => {
-          const relatedItem = toRelatedContentItem(item, slugMap);
-          if (!relatedItem && item.type === "bookmark") {
-            console.warn(`[RelatedContent] Skipping bookmark ${item.id} due to missing slug`);
-          }
-          return relatedItem;
-        })
-        .filter((i): i is RelatedContentItem => i !== null);
+      const relatedItemPromises = finalItems.map(async item => {
+        const relatedItem = await toRelatedContentItem(item, slugMap);
+        if (!relatedItem && item.type === "bookmark") {
+          console.warn(`[RelatedContent] Skipping bookmark ${item.id} due to missing slug`);
+        }
+        return relatedItem;
+      });
+
+      const relatedItems = (await Promise.all(relatedItemPromises)).filter((i): i is RelatedContentItem => i !== null);
 
       if (relatedItems.length === 0) {
         return null;
@@ -318,15 +419,15 @@ export async function RelatedContent({
     if (includeTypes || excludeTypes) {
       allContent = filterByTypes(
         allContent,
-        includeTypes ? [...includeTypes] : undefined,
-        excludeTypes ? [...excludeTypes] : undefined,
+        includeTypes ? Array.from(new Set(includeTypes)) : undefined,
+        excludeTypes ? Array.from(new Set(excludeTypes)) : undefined,
       );
     }
 
     // Exclude the source item and any specified IDs
-    const allExcludeIds = [...excludeIds, actualSourceId];
+    const allExcludeIds = new Set([...excludeIds, actualSourceId]);
 
-    const candidates = allContent.filter((item) => !(item.type === sourceType && allExcludeIds.includes(item.id)));
+    const candidates = allContent.filter(item => !(item.type === sourceType && allExcludeIds.has(item.id)));
 
     // Find similar content
     const similar = findMostSimilar(source, candidates, maxTotal * 2, weights);
@@ -345,21 +446,21 @@ export async function RelatedContent({
 
     // Get pre-computed slug mappings for bookmarks using request cache
     let slugMap: Map<string, string> | undefined;
-    if (finalItems.some((item) => item.type === "bookmark")) {
+    if (finalItems.some(item => item.type === "bookmark")) {
       const { slugMap: map } = await getCachedBookmarksWithSlugs();
       slugMap = map;
     }
 
     // Convert to RelatedContentItem format
-    const relatedItems = finalItems
-      .map((item) => {
-        const relatedItem = toRelatedContentItem(item, slugMap);
-        if (!relatedItem && item.type === "bookmark") {
-          console.warn(`[RelatedContent] Skipping bookmark ${item.id} due to missing slug`);
-        }
-        return relatedItem;
-      })
-      .filter((i): i is RelatedContentItem => i !== null);
+    const relatedItemPromises = finalItems.map(async item => {
+      const relatedItem = await toRelatedContentItem(item, slugMap);
+      if (!relatedItem && item.type === "bookmark") {
+        console.warn(`[RelatedContent] Skipping bookmark ${item.id} due to missing slug`);
+      }
+      return relatedItem;
+    });
+
+    const relatedItems = (await Promise.all(relatedItemPromises)).filter((i): i is RelatedContentItem => i !== null);
 
     // Return nothing if no related items found
     if (relatedItems.length === 0) {

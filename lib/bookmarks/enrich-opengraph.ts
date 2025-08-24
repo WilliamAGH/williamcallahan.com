@@ -51,7 +51,7 @@ export async function processBookmarksInBatches(
 
   // Process sequentially with a small delay between requests
   const enrichedBookmarks: UnifiedBookmark[] = [];
-  const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL || "";
+  const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL;
 
   for (let i = 0; i < bookmarks.length; i++) {
     const bookmark = bookmarks[i];
@@ -64,7 +64,7 @@ export async function processBookmarksInBatches(
 
     try {
       // 1. Skip if already processed with S3 CDN URL
-      if (bookmark.ogImage?.includes(s3CdnUrl)) {
+      if (s3CdnUrl && bookmark.ogImage?.startsWith(s3CdnUrl)) {
         imageStats.imagesAlreadyInS3++;
         imageStats.bookmarksUsingS3Image++;
         enrichedBookmarks.push(bookmark);
@@ -90,7 +90,7 @@ export async function processBookmarksInBatches(
             url: bookmark.url,
             karakeepImage: sourceImageUrl,
           });
-        } else if (sourceImageUrl.includes(s3CdnUrl)) {
+        } else if (s3CdnUrl && sourceImageUrl.startsWith(s3CdnUrl)) {
           // Already persisted to S3
           finalImageSource = "S3";
           imageStats.bookmarksUsingS3Image++;
@@ -155,24 +155,24 @@ export async function processBookmarksInBatches(
 
             if (imageBuffer) {
               const bufferSizeKB = imageBuffer.length / 1024;
-              
+
               // Check if this is a favicon (< 5KB)
               if (bufferSizeKB < 5) {
                 console.warn(
                   `${LOG_PREFIX} ⚠️ REJECTED: Karakeep asset ${assetId} is only ${imageBuffer.length} bytes (${bufferSizeKB.toFixed(1)}KB) - likely a favicon/logo`,
                 );
-                
+
                 // If we rejected the image, check if there's a screenshot we can use instead
                 const screenshotId = bookmark.content?.screenshotAssetId;
                 if (screenshotId && assetId !== screenshotId) {
                   console.log(`${LOG_PREFIX} 📸 Trying screenshot fallback: ${screenshotId}`);
                   const screenshotBuffer = await fetchKarakeepImage(screenshotId);
-                  
+
                   if (screenshotBuffer && screenshotBuffer.length / 1024 >= 5) {
                     // Screenshot is valid, use it
                     const { persistImageBufferToS3 } = await import("@/lib/persistence/s3-persistence");
                     const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
-                    
+
                     const s3Url = await persistImageBufferToS3(
                       screenshotBuffer,
                       OPENGRAPH_IMAGES_S3_DIR,
@@ -181,7 +181,7 @@ export async function processBookmarksInBatches(
                       bookmark.id,
                       bookmark.url,
                     );
-                    
+
                     if (s3Url) {
                       bookmark.ogImage = s3Url;
                       bookmark.ogImageExternal = `/api/assets/${screenshotId}`;
@@ -191,7 +191,7 @@ export async function processBookmarksInBatches(
                     }
                   }
                 }
-                
+
                 // No valid image found
                 if (!bookmark.ogImage) {
                   bookmark.ogImage = undefined;
@@ -302,9 +302,9 @@ export async function processBookmarksInBatches(
       // 7. Extract markdown content if enabled (memory-efficient: one at a time)
       if (extractContent) {
         try {
-          const content = await extractMarkdownContent(bookmark);
+          const content = await extractMarkdownContent();
           if (content) {
-            applyExtractedContent(bookmark, content);
+            applyExtractedContent();
             console.log(
               `${LOG_PREFIX}   📝 Extracted ${content.wordCount} words (${content.readingTime}min read) from ${bookmark.url}`,
             );

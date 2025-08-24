@@ -29,6 +29,23 @@ import { EducationCardClient } from "./education-card.client";
 // Define a unique ID for this window instance
 const EDUCATION_WINDOW_ID = "education-window";
 
+/**
+ * Sanitizes external URLs to prevent XSS attacks.
+ * Only allows http and https protocols.
+ *
+ * @param url - The URL to sanitize
+ * @returns The URL if valid, null otherwise
+ */
+function safeExternalHref(url?: string): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 import type { EducationClientProps, EducationTableItem } from "@/types/education";
 
 // Sort indicator component
@@ -79,7 +96,7 @@ export function EducationClient({
   // Filter and sort the table data
   const filteredTableData = useMemo(() => {
     return tableData
-      .filter((item) => {
+      .filter(item => {
         // Type filter
         if (selectedType !== "all" && item.type !== selectedType) {
           return false;
@@ -89,7 +106,7 @@ export function EducationClient({
         if (searchQuery) {
           const searchTerms = searchQuery.toLowerCase().split(" ").filter(Boolean);
           const itemText = `${item.name} ${item.institution} ${item.year || ""}`.toLowerCase();
-          return searchTerms.every((term) => itemText.includes(term));
+          return searchTerms.every(term => itemText.includes(term));
         }
 
         return true;
@@ -119,7 +136,7 @@ export function EducationClient({
   // Toggle sort direction and field
   const toggleSort = (field: "name" | "institution" | "year") => {
     if (sortField === field) {
-      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      setSortDirection(prev => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
       setSortDirection("asc");
@@ -185,7 +202,7 @@ export function EducationClient({
           <h2 className="text-2xl font-bold mb-6">University Degrees</h2>
           <div className="space-y-6">
             {/* Render EducationCardClient directly with processed data */}
-            {education.map((edu) => (
+            {education.map(edu => (
               <EducationCardClient key={edu.id} education={edu} />
             ))}
           </div>
@@ -205,7 +222,7 @@ export function EducationClient({
                 type="text"
                 placeholder="Search courses and certifications..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={e => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
                            text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -213,7 +230,7 @@ export function EducationClient({
 
             <select
               value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value as "all" | "course" | "certification")}
+              onChange={e => setSelectedType(e.target.value as "all" | "course" | "certification")}
               className="px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
                          text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Filter by type"
@@ -287,7 +304,7 @@ export function EducationClient({
                     </td>
                   </tr>
                 ) : (
-                  filteredTableData.map((item) => {
+                  filteredTableData.map(item => {
                     return (
                       <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
@@ -304,22 +321,25 @@ export function EducationClient({
                                 className="h-6 w-6 mr-2 object-contain rounded-md"
                               />
                             )}
-                            {item.website ? (
-                              <a
-                                href={item.website}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 
-                                         underline decoration-gray-300 dark:decoration-gray-600 decoration-1 
-                                         underline-offset-2 hover:decoration-blue-600 dark:hover:decoration-blue-400 
-                                         transition-colors duration-200 focus:outline-none focus:ring-2 
-                                         focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded-sm"
-                              >
-                                {item.institution}
-                              </a>
-                            ) : (
-                              item.institution
-                            )}
+                            {(() => {
+                              const safeUrl = safeExternalHref(item.website);
+                              return safeUrl ? (
+                                <a
+                                  href={safeUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 
+                                           underline decoration-gray-300 dark:decoration-gray-600 decoration-1 
+                                           underline-offset-2 hover:decoration-blue-600 dark:hover:decoration-blue-400 
+                                           transition-colors duration-200 focus:outline-none focus:ring-2 
+                                           focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded-sm"
+                                >
+                                  {item.institution}
+                                </a>
+                              ) : (
+                                item.institution
+                              );
+                            })()}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">

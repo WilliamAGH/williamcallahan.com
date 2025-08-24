@@ -13,8 +13,7 @@
 // Using `edge` here (not deprecated `experimental-edge`).
 
 import { CSP_DIRECTIVES } from "./config/csp";
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { memoryPressureMiddleware } from "./lib/middleware/memory-pressure";
 
 import type { RequestLog } from "@/types/lib";
@@ -147,7 +146,7 @@ export default async function middleware(request: NextRequest): Promise<NextResp
 
   const csp = Object.entries(cspDirectives)
     .map(([key, sources]) => {
-      const directive = key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+      const directive = key.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`);
       return `${directive} ${sources.join(" ")}`;
     })
     .join("; ");

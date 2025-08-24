@@ -52,7 +52,7 @@ export function clearLogoFetch(this: ICache, domain: string): void {
 }
 
 export function clearAllLogoFetches(this: ICache): void {
-  const keys = this.keys().filter((key) => key.startsWith(LOGO_FETCH_PREFIX));
+  const keys = this.keys().filter(key => key.startsWith(LOGO_FETCH_PREFIX));
   for (const key of keys) {
     this.del(key);
   }

@@ -25,17 +25,14 @@ import {
   JINA_FETCH_STORE_NAME,
   JINA_FETCH_CONTEXT_ID,
   JINA_FETCH_RATE_LIMIT_S3_PATH,
-} from "@/lib/constants";
-import { getDomainType } from "@/lib/utils/opengraph-utils";
-import { sanitizeOgMetadata } from "@/lib/utils/opengraph-utils";
-import { ogMetadataSchema, type ValidatedOgMetadata } from "@/types/seo/opengraph";
-import {
   OPENGRAPH_FETCH_CONFIG,
   OPENGRAPH_FETCH_CONTEXT_ID,
   OPENGRAPH_FETCH_STORE_NAME,
   DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG,
   OPENGRAPH_IMAGES_S3_DIR,
 } from "@/lib/constants";
+import { getDomainType, sanitizeOgMetadata } from "@/lib/utils/opengraph-utils";
+import { ogMetadataSchema, type ValidatedOgMetadata } from "@/types/seo/opengraph";
 import { extractOpenGraphTags } from "./parser";
 import type { OgResult, KarakeepImageFallback } from "@/types";
 
@@ -99,7 +96,7 @@ async function performFetchWithRetry(
         // Try direct fetch first, then proxies
         const urlsToTry = [
           url,
-          ...proxies.map((proxy) => {
+          ...proxies.map(proxy => {
             const proxyUrl = new URL(url);
             proxyUrl.hostname = proxy;
             return proxyUrl.toString();
@@ -111,7 +108,11 @@ async function performFetchWithRetry(
           if (isProxy) {
             envLogger.log(
               `Trying proxy for OpenGraph fetch`,
-              { proxyHost: new URL(effectiveUrl).hostname, type: url.includes("/status/") ? "tweet" : "profile", effectiveUrl },
+              {
+                proxyHost: new URL(effectiveUrl).hostname,
+                type: url.includes("/status/") ? "tweet" : "profile",
+                effectiveUrl,
+              },
               { category: "OpenGraph" },
             );
           } else {
@@ -131,7 +132,11 @@ async function performFetchWithRetry(
             }
 
             if (result && typeof result === "object" && "blocked" in result) {
-              envLogger.log(`Access blocked for OpenGraph fetch, trying next option`, { effectiveUrl }, { category: "OpenGraph" });
+              envLogger.log(
+                `Access blocked for OpenGraph fetch, trying next option`,
+                { effectiveUrl },
+                { category: "OpenGraph" },
+              );
               continue;
             }
 
@@ -192,7 +197,11 @@ async function performFetchWithRetry(
     if (isNetworkError) {
       debug(`[DataAccess/OpenGraph] Final network connectivity issue for ${url}: ${errorMessage}`);
     } else {
-      envLogger.log(`Final unexpected error for OpenGraph fetch`, { url, error: errorMessage }, { category: "OpenGraph" });
+      envLogger.log(
+        `Final unexpected error for OpenGraph fetch`,
+        { url, error: errorMessage },
+        { category: "OpenGraph" },
+      );
     }
 
     return { networkFailure: true, lastError: error };
@@ -399,22 +408,26 @@ async function fetchExternalOpenGraph(
     envLogger.log(`Found profile image`, { profileImageUrl }, { category: "OpenGraph" });
 
     // Determine platform-specific directory for better organization
-    const domain = getDomainType(url);
+    const hostname = new URL(url).hostname.replace(/^www\./, "");
     let profileImageDirectory = "social-avatars";
-    if (domain === "github.com") {
+    if (hostname === "github.com") {
       profileImageDirectory = "social-avatars/github";
-    } else if (domain === "twitter.com" || domain === "x.com") {
+    } else if (hostname === "twitter.com" || hostname === "x.com") {
       profileImageDirectory = "social-avatars/twitter";
-    } else if (domain === "linkedin.com") {
+    } else if (hostname === "linkedin.com") {
       profileImageDirectory = "social-avatars/linkedin";
-    } else if (domain === "bsky.app") {
+    } else if (hostname === "bsky.app") {
       profileImageDirectory = "social-avatars/bluesky";
-    } else if (domain === "discord.com") {
+    } else if (hostname === "discord.com") {
       profileImageDirectory = "social-avatars/discord";
     }
 
     if (isBatchMode) {
-      envLogger.log(`Batch mode: Persisting profile image synchronously`, { dir: profileImageDirectory }, { category: "OpenGraph" });
+      envLogger.log(
+        `Batch mode: Persisting profile image synchronously`,
+        { dir: profileImageDirectory },
+        { category: "OpenGraph" },
+      );
       const s3ProfileUrl = await persistImageAndGetS3Url(
         profileImageUrl,
         profileImageDirectory,
@@ -427,7 +440,11 @@ async function fetchExternalOpenGraph(
         finalProfileImageUrl = s3ProfileUrl;
         envLogger.log(`Profile image persisted to S3`, { s3ProfileUrl }, { category: "OpenGraph" });
       } else {
-        envLogger.log(`Failed to persist profile image, keeping original`, { profileImageUrl }, { category: "OpenGraph" });
+        envLogger.log(
+          `Failed to persist profile image, keeping original`,
+          { profileImageUrl },
+          { category: "OpenGraph" },
+        );
       }
     } else {
       envLogger.log(`Scheduling profile image persistence`, { dir: profileImageDirectory }, { category: "OpenGraph" });
@@ -460,7 +477,11 @@ async function fetchExternalOpenGraph(
         finalBannerImageUrl = s3BannerUrl;
         envLogger.log(`Banner image persisted to S3`, { s3BannerUrl }, { category: "OpenGraph" });
       } else {
-        envLogger.log(`Failed to persist banner image, keeping original`, { bannerImageUrl }, { category: "OpenGraph" });
+        envLogger.log(
+          `Failed to persist banner image, keeping original`,
+          { bannerImageUrl },
+          { category: "OpenGraph" },
+        );
       }
     } else {
       envLogger.log(`Scheduling banner image persistence`, undefined, { category: "OpenGraph" });

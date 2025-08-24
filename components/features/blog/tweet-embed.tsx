@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import type { JSX } from "react";
 /**
  * @file TweetEmbed component and related image proxy utilities.
@@ -8,7 +9,19 @@ import type { JSX } from "react";
  * and includes an image proxy to serve Twitter images from the same origin,
  * with optimizations for image versions.
  */
-import { Tweet } from "react-tweet";
+
+// Dynamic import to prevent SSR hydration issues
+const Tweet = dynamic(
+  () => import("react-tweet").then(mod => mod.Tweet),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="mx-auto max-w-xl flex justify-center">
+        <div className="w-full h-[400px] bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
+      </div>
+    ),
+  }
+);
 
 /**
  * Proxies pbs.twimg.com image URLs to a same-origin endpoint (`/api/twitter-image/`).

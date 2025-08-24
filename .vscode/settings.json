@@ -23,7 +23,8 @@
     "**/coverage/**": true
   },
   "files.associations": {
-    "*.tsx": "typescriptreact"
+    "*.tsx": "typescriptreact",
+    "*.mdx": "mdx"
   },
   "search.exclude": {
     "**/node_modules": true,
@@ -43,40 +44,52 @@
     "**/Thumbs.db": true,
     "**/.next": true
   },
-  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact", "html", "vue", "markdown"],
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
   "typescript.validate.enable": true, // Ensure TS validation is on
+  // Prettier is the only formatter - stable and low-churn
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
-  "editor.defaultFormatter": "biomejs.biome",
-  "editor.codeActionsOnSave": {
-    "source.fixAll.biome": "explicit"
-  },
-  "eslint.codeActionsOnSave.rules": ["!@typescript-eslint/no-unused-vars"],
-  "biome.lsp.bin": "./node_modules/@biomejs/biome/bin/biome",
+
+  // Keep this off unless you specifically want import reordering every save.
+  // You can always run "Organize Imports" on demand.
+  // "editor.codeActionsOnSave": { "source.organizeImports": "explicit" },
+
+  // ESLint: diagnostics only; ESLint should not format
+  "eslint.format.enable": false,
+
+  // Oxlint VS Code extension: run lint on save, not on type to reduce background churn
+  "oxc.enable": true,
+  "oxc.lint.run": "onSave",
+  "oxc.exclude": ["**/*.mdx"],
   "typescript.disableAutomaticTypeAcquisition": true,
   "github-actions.use-enterprise": true,
   "[typescript]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[typescriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[javascript]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[javascriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[json]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[jsonc]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[css]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[markdown]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[mdx]": {
+    "editor.defaultFormatter": null,
+    "editor.formatOnSave": false
   },
   "terminal.integrated.shellIntegration.enabled": true,
   "terminal.integrated.defaultProfile.osx": "zsh",
@@ -114,6 +127,5 @@
   "tailwindCSS.includeLanguages": {
     "typescript": "javascript",
     "typescriptreact": "javascript"
-  },
-  "oxc.enable": true
+  }
 }

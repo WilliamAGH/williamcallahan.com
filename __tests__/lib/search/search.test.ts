@@ -369,19 +369,19 @@ describe("search", () => {
     it("should find projects by name", async () => {
       const results = await searchProjects("Test Project 1");
       expect(results.length).toBeGreaterThanOrEqual(1);
-      expect(results.some((r) => r.title === "Test Project 1")).toBe(true);
+      expect(results.some(r => r.title === "Test Project 1")).toBe(true);
     });
 
     it("should find projects by description", async () => {
       const results = await searchProjects("React");
       expect(results.length).toBeGreaterThanOrEqual(1);
-      expect(results.some((r) => r.title === "Test Project 1")).toBe(true);
+      expect(results.some(r => r.title === "Test Project 1")).toBe(true);
     });
 
     it("should find projects by tags", async () => {
       const results = await searchProjects("typescript");
       expect(results.length).toBeGreaterThanOrEqual(1);
-      expect(results.some((r) => r.title === "Test Project 1")).toBe(true);
+      expect(results.some(r => r.title === "Test Project 1")).toBe(true);
     });
 
     it("should handle special 'projects' query to navigate to projects page", async () => {
@@ -395,7 +395,7 @@ describe("search", () => {
 
     it("should include correct URL in results", async () => {
       const results = await searchProjects("Test Project 1");
-      const project1Result = results.find((r) => r.title === "Test Project 1");
+      const project1Result = results.find(r => r.title === "Test Project 1");
       expect(project1Result?.url).toBe("https://example.com/project1");
     });
 

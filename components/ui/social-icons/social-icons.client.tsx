@@ -40,7 +40,7 @@ export function SocialIcons({ className = "", showXOnly = false }: SocialIconsPr
     "p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all duration-200 ease-in-out hover:scale-110 active:scale-100";
 
   // Filter links based on showXOnly prop
-  const linksToShow = showXOnly ? socialLinks.filter((link) => link.label === "X (Twitter)") : socialLinks;
+  const linksToShow = showXOnly ? socialLinks.filter(link => link.label === "X (Twitter)") : socialLinks;
 
   // During server rendering and before hydration completes on client,
   // just render nothing with suppressHydrationWarning
@@ -51,7 +51,7 @@ export function SocialIcons({ className = "", showXOnly = false }: SocialIconsPr
   // Only render the full component after mounting on the client
   return (
     <div className={`flex items-center space-x-1 ${className}`}>
-      {linksToShow.map((link) => (
+      {linksToShow.map(link => (
         <ErrorBoundary key={link.href} silent>
           <Link
             href={link.href}

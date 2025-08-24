@@ -159,13 +159,13 @@ describe("Distributed lock contention (unit)", () => {
       bookmarksModule.initializeBookmarksDataAccess();
 
       // Trigger cleanup of stale locks
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Should be able to acquire lock since the old one is expired.
       // Note: In some runs, lock cleanup may not have executed yet; retry once after small delay.
       let result = await bookmarksModule.refreshAndPersistBookmarks();
       if (result === null) {
-        await new Promise((r) => setTimeout(r, 50));
+        await new Promise(r => setTimeout(r, 50));
         result = await bookmarksModule.refreshAndPersistBookmarks();
       }
       expect(result).toBeTruthy();

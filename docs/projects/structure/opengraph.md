@@ -84,7 +84,7 @@ Request → Cache Check → S3 Check → External Fetch → Process → Store �
 ### OpenGraph Modules
 
 - **`lib/opengraph/constants.ts`**: Centralized configuration (~65 LoC)
-  - All OPENGRAPH_* constants
+  - All OPENGRAPH\_\* constants
   - S3 directory structure
   - Fetch configuration and timeouts
   - Circuit breaker settings
@@ -258,17 +258,17 @@ Store Metadata in S3 → Persist Images to S3 → Update Memory Cache
 ```typescript
 function selectBestOpenGraphImage(metadata, pageUrl) {
   const priority = [
-    'profileImage',      // GitHub/Twitter/LinkedIn avatars
-    'image',             // Standard og:image
-    'imageSecure',       // og:image:secure_url
-    'imageUrl',          // og:image:url
-    'twitterImage',      // Twitter cards
-    'schemaImage',       // Schema.org
-    'msapplicationImage', // Windows tiles
-    'appleTouchIcon',    // iOS icons
-    'icon'               // Favicons
+    "profileImage", // GitHub/Twitter/LinkedIn avatars
+    "image", // Standard og:image
+    "imageSecure", // og:image:secure_url
+    "imageUrl", // og:image:url
+    "twitterImage", // Twitter cards
+    "schemaImage", // Schema.org
+    "msapplicationImage", // Windows tiles
+    "appleTouchIcon", // iOS icons
+    "icon", // Favicons
   ];
-  
+
   for (const type of priority) {
     if (metadata[type] && isValid(metadata[type])) {
       return resolveUrl(metadata[type], pageUrl);
@@ -381,6 +381,7 @@ function selectBestOpenGraphImage(metadata, pageUrl) {
 ## Debugging
 
 Enable debug logging:
+
 ```bash
 DEBUG=* npm run dev
 ```

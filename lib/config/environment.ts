@@ -11,11 +11,11 @@ import type { Environment } from "@/types/config";
 /**
  * Get the current environment based on URL configuration
  * Uses API_BASE_URL or NEXT_PUBLIC_SITE_URL to determine environment
- * 
+ *
  * CRITICAL: During build time, we MUST use explicit environment variables
  * because the deployment URL is not yet known. The DEPLOYMENT_ENV variable
  * should be set in CI/CD to match the target deployment.
- * 
+ *
  * GITHUB ACTIVITY FIX: Always prefer DEPLOYMENT_ENV for consistency between
  * build-time and runtime to prevent environment-specific file mismatches.
  */

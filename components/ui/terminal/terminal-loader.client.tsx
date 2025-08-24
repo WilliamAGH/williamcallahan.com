@@ -60,7 +60,7 @@ export function TerminalSkeleton() {
 }
 
 // Lazy load the Terminal component with SSR disabled
-const Terminal = dynamic(() => import("./terminal.client").then((mod) => mod.ClientTerminal), {
+const Terminal = dynamic(() => import("./terminal.client").then(mod => mod.ClientTerminal), {
   loading: () => <TerminalSkeleton />,
   ssr: false, // Now allowed in Client Component
 });

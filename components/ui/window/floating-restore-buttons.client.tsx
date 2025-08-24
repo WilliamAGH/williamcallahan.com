@@ -12,7 +12,7 @@ export function FloatingRestoreButtons() {
   const { windows, restoreWindow } = useSafeWindowRegistry();
 
   // Filter for windows that are minimized or closed
-  const windowsToRestore = Object.values(windows).filter((win) => win.state === "minimized" || win.state === "closed");
+  const windowsToRestore = Object.values(windows).filter(win => win.state === "minimized" || win.state === "closed");
 
   // If no windows need restoring, render nothing
   if (windowsToRestore.length === 0) {
@@ -21,7 +21,7 @@ export function FloatingRestoreButtons() {
 
   return (
     <div className="fixed bottom-4 right-4 z-[100] flex items-center space-x-2">
-      {windowsToRestore.map((win) => {
+      {windowsToRestore.map(win => {
         const IconComponent = win.icon; // Get the icon component
         return (
           <button

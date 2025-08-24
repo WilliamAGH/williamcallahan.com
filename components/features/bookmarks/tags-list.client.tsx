@@ -64,11 +64,11 @@ export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListClien
         type="button"
         onClick={() => {
           if (!mounted || !selectedTag) return;
-          
+
           // Check if we're on a tag-specific route
-          if (pathname.startsWith('/bookmarks/tags')) {
+          if (pathname.startsWith("/bookmarks/tags")) {
             // Navigate back to the main bookmarks page (replace to avoid history pollution)
-            router.replace('/bookmarks');
+            router.replace("/bookmarks");
           } else {
             // Clear the selected tag locally by passing the same tag (toggles it off)
             // Note: handleTagClick compares with selectedTag and sets to null if they match

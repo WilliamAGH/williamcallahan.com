@@ -1,16 +1,19 @@
 # William Callahan's Personal Website
->
+
 > ⚠️ Run tests with `bun run test` (Jest) instead of `bun test`.
 >
 > 📝 **Local setup:** After cloning, run these commands to ignore auto-generated files:
+>
 > ```bash
 > git update-index --skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
 > ```
 >
 > To revert:
+>
 > ```bash
 > git update-index --no-skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
 > ```
+>
 > Note: skip-worktree is per-clone (does not affect CI or teammates) and can hide local edits from `git status`.
 >
 > Troubleshooting:
@@ -35,17 +38,13 @@ To avoid React hydration mismatches in client components that use formatting or 
 const [mounted, setMounted] = useState(false);
 
 // 2. Set mounted flag after hydration is complete
-useEffect(() => { setMounted(true) }, []);
+useEffect(() => {
+  setMounted(true);
+}, []);
 
 // 3. Render placeholder during SSR and initial client render
 if (!mounted) {
-  return (
-    <div
-      className="placeholder-styles"
-      suppressHydrationWarning
-      aria-hidden="true"
-    />
-  );
+  return <div className="placeholder-styles" suppressHydrationWarning aria-hidden="true" />;
 }
 
 // 4. Only render actual content on client after hydration
@@ -185,7 +184,7 @@ docker run --rm \
 
 ### Check Health & Logs
 
-```bash
+````bash
 # Check the health endpoint
 curl http://localhost:3000/api/health
 
@@ -216,7 +215,7 @@ Use the Data Updater to (re)generate environment-aware JSON data in S3. Prefer t
 ```bash
 # Runs scripts/data-updater.ts
 bun run update-s3 -- --bookmarks --github --logos --search-indexes
-```
+````
 
 ### Supported flags
 
@@ -250,59 +249,59 @@ Key families (see `lib/constants.ts` for source of truth):
 ```ts
 // Bookmarks
 BOOKMARKS_S3_PATHS = {
-  FILE:            "json/bookmarks/bookmarks{SUFFIX}.json",
-  INDEX:           "json/bookmarks/index{SUFFIX}.json",
-  PAGE_PREFIX:     "json/bookmarks/pages{SUFFIX}/page-",      // + "<n>.json"
-  TAG_PREFIX:      "json/bookmarks/tags{SUFFIX}/",            // + "<tag>/page-<n>.json"
-                                                     // e.g., "json/bookmarks/tags-dev/typescript/page-1.json"
-                                                     // Note: <tag> must be a slug/percent-encoded string (encode `/`, `?`, `#`, spaces, etc.) before composing keys.
-  TAG_INDEX_PREFIX:"json/bookmarks/tags{SUFFIX}/",            // + "<tag>/index.json"
-                                                     // e.g., "json/bookmarks/tags-dev/typescript/index.json"
-  SLUG_MAPPING:    "json/bookmarks/slug-mapping{SUFFIX}.json",
-  LOCK:            "json/bookmarks/refresh-lock{SUFFIX}.json",
-  HEARTBEAT:       "json/bookmarks/heartbeat{SUFFIX}.json",
+  FILE: "json/bookmarks/bookmarks{SUFFIX}.json",
+  INDEX: "json/bookmarks/index{SUFFIX}.json",
+  PAGE_PREFIX: "json/bookmarks/pages{SUFFIX}/page-", // + "<n>.json"
+  TAG_PREFIX: "json/bookmarks/tags{SUFFIX}/", // + "<tag>/page-<n>.json"
+  // e.g., "json/bookmarks/tags-dev/typescript/page-1.json"
+  // Note: <tag> must be a slug/percent-encoded string (encode `/`, `?`, `#`, spaces, etc.) before composing keys.
+  TAG_INDEX_PREFIX: "json/bookmarks/tags{SUFFIX}/", // + "<tag>/index.json"
+  // e.g., "json/bookmarks/tags-dev/typescript/index.json"
+  SLUG_MAPPING: "json/bookmarks/slug-mapping{SUFFIX}.json",
+  LOCK: "json/bookmarks/refresh-lock{SUFFIX}.json",
+  HEARTBEAT: "json/bookmarks/heartbeat{SUFFIX}.json",
 };
 
 // Content graph
 CONTENT_GRAPH_S3_PATHS = {
-  DIR:             "json/content-graph{SUFFIX}",
+  DIR: "json/content-graph{SUFFIX}",
   RELATED_CONTENT: "json/content-graph{SUFFIX}/related-content.json",
-  TAG_GRAPH:       "json/content-graph{SUFFIX}/tag-graph.json",
-  METADATA:        "json/content-graph{SUFFIX}/metadata.json",
+  TAG_GRAPH: "json/content-graph{SUFFIX}/tag-graph.json",
+  METADATA: "json/content-graph{SUFFIX}/metadata.json",
 };
 
 // Search indexes
 SEARCH_S3_PATHS = {
-  DIR:                 "json/search",
-  POSTS_INDEX:         "json/search/posts-index{SUFFIX}.json",
-  BOOKMARKS_INDEX:     "json/search/bookmarks-index{SUFFIX}.json",
-  INVESTMENTS_INDEX:   "json/search/investments-index{SUFFIX}.json",
-  EXPERIENCE_INDEX:    "json/search/experience-index{SUFFIX}.json",
-  EDUCATION_INDEX:     "json/search/education-index{SUFFIX}.json",
-  PROJECTS_INDEX:      "json/search/projects-index{SUFFIX}.json",
-  BUILD_METADATA:      "json/search/build-metadata{SUFFIX}.json",
+  DIR: "json/search",
+  POSTS_INDEX: "json/search/posts-index{SUFFIX}.json",
+  BOOKMARKS_INDEX: "json/search/bookmarks-index{SUFFIX}.json",
+  INVESTMENTS_INDEX: "json/search/investments-index{SUFFIX}.json",
+  EXPERIENCE_INDEX: "json/search/experience-index{SUFFIX}.json",
+  EDUCATION_INDEX: "json/search/education-index{SUFFIX}.json",
+  PROJECTS_INDEX: "json/search/projects-index{SUFFIX}.json",
+  BUILD_METADATA: "json/search/build-metadata{SUFFIX}.json",
 };
 
 // GitHub activity
 GITHUB_ACTIVITY_S3_PATHS = {
-  DIR:                 "json/github-activity",
-  ACTIVITY_DATA:       "json/github-activity/activity_data{SUFFIX}.json",
-  STATS_SUMMARY:       "json/github-activity/github_stats_summary{SUFFIX}.json",
-  ALL_TIME_SUMMARY:    "json/github-activity/github_stats_summary_all_time{SUFFIX}.json",
-  AGGREGATED_WEEKLY:   "json/github-activity/aggregated_weekly_activity{SUFFIX}.json",
+  DIR: "json/github-activity",
+  ACTIVITY_DATA: "json/github-activity/activity_data{SUFFIX}.json",
+  STATS_SUMMARY: "json/github-activity/github_stats_summary{SUFFIX}.json",
+  ALL_TIME_SUMMARY: "json/github-activity/github_stats_summary_all_time{SUFFIX}.json",
+  AGGREGATED_WEEKLY: "json/github-activity/aggregated_weekly_activity{SUFFIX}.json",
   REPO_RAW_WEEKLY_STATS_DIR: "json/github-activity/repo_raw_weekly_stats{SUFFIX}",
 };
 
 // Image manifests (JSON metadata only)
 IMAGE_MANIFEST_S3_PATHS = {
-  DIR:                       "json/image-data",               // Global dir; leaf files are suffixed per environment.
-  LOGOS_MANIFEST:            "json/image-data/logos/manifest{SUFFIX}.json",
-  OPENGRAPH_MANIFEST:        "json/image-data/opengraph/manifest{SUFFIX}.json",
-  BLOG_IMAGES_MANIFEST:      "json/image-data/blog/manifest{SUFFIX}.json",
+  DIR: "json/image-data", // Global dir; leaf files are suffixed per environment.
+  LOGOS_MANIFEST: "json/image-data/logos/manifest{SUFFIX}.json",
+  OPENGRAPH_MANIFEST: "json/image-data/opengraph/manifest{SUFFIX}.json",
+  BLOG_IMAGES_MANIFEST: "json/image-data/blog/manifest{SUFFIX}.json",
   EDUCATION_IMAGES_MANIFEST: "json/image-data/education/manifest{SUFFIX}.json",
-  EXPERIENCE_IMAGES_MANIFEST:"json/image-data/experience/manifest{SUFFIX}.json",
-  INVESTMENTS_IMAGES_MANIFEST:"json/image-data/investments/manifest{SUFFIX}.json",
-  PROJECTS_IMAGES_MANIFEST:  "json/image-data/projects/manifest{SUFFIX}.json",
+  EXPERIENCE_IMAGES_MANIFEST: "json/image-data/experience/manifest{SUFFIX}.json",
+  INVESTMENTS_IMAGES_MANIFEST: "json/image-data/investments/manifest{SUFFIX}.json",
+  PROJECTS_IMAGES_MANIFEST: "json/image-data/projects/manifest{SUFFIX}.json",
 };
 ```
 

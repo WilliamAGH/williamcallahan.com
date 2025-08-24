@@ -12,15 +12,18 @@
 
 "use client";
 
-import React, { Suspense, useEffect, useMemo } from "react";
+import React, { Suspense, useEffect, useMemo, type JSX } from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
-import { Bookmark } from "lucide-react";
+import { Bookmark, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
-import type { RegisteredWindowState, BookmarksWindowContentProps } from "@/types";
+import type { 
+  RegisteredWindowState, 
+  BookmarksWindowContentProps,
+  BookmarksWindowClientPropsExtended as BookmarksWindowClientProps 
+} from "@/types";
 
 // Define a unique ID for this window instance
 // Use this as the default window ID, but it can be overridden with props
@@ -30,24 +33,17 @@ const DEFAULT_BOOKMARKS_WINDOW_ID = "bookmarks-window";
  * Skeleton loader component with stable keys for loading states
  * @returns {JSX.Element} Skeleton loading animation
  */
-const SkeletonLoader = () => {
+const SkeletonLoader = (): JSX.Element => {
   const skeletonKeys = useMemo(() => Array.from({ length: 6 }, () => crypto.randomUUID()), []);
 
   return (
     <div className="animate-pulse space-y-4 p-6">
-      {skeletonKeys.map((key) => (
+      {skeletonKeys.map(key => (
         <div key={key} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
       ))}
     </div>
   );
 };
-
-/**
- * Client-specific props for the BookmarksWindow component
- * @interface BookmarksWindowClientProps
- * @extends BookmarksWindowProps
- */
-import type { BookmarksWindowClientPropsExtended as BookmarksWindowClientProps } from "@/types";
 
 /**
  * Inner content component wrapper for dynamic()

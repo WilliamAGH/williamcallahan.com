@@ -8,9 +8,13 @@ import "server-only";
 
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
 import { isOperationAllowed } from "@/lib/rate-limiter";
-import { API_ENDPOINT_STORE_NAME, DEFAULT_API_ENDPOINT_LIMIT_CONFIG } from "@/lib/constants";
+import {
+  API_ENDPOINT_STORE_NAME,
+  DEFAULT_API_ENDPOINT_LIMIT_CONFIG,
+  BOOKMARKS_S3_PATHS,
+  BOOKMARKS_CACHE_DURATION,
+} from "@/lib/constants";
 import { readJsonS3 } from "@/lib/s3-utils";
-import { BOOKMARKS_S3_PATHS, BOOKMARKS_CACHE_DURATION } from "@/lib/constants";
 import { logEnvironmentConfig } from "@/lib/config/environment";
 import logger from "@/lib/utils/logger";
 import { NextResponse } from "next/server";
@@ -19,6 +23,9 @@ import { revalidatePath, revalidateTag } from "next/cache";
 
 // Ensure this route is not statically cached
 export const dynamic = "force-dynamic";
+
+// Simple in-memory flag to prevent concurrent refreshes
+let isRefreshInProgress = false;
 
 /**
  * POST handler - Refreshes the bookmarks
@@ -31,7 +38,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   // Log API trigger immediately
   console.log(`[API Trigger] Bookmarks refresh endpoint called at ${new Date().toISOString()}`);
-  
+
   // Check for custom secret authentication
   if (cronRefreshSecret && authorizationHeader && authorizationHeader.startsWith("Bearer ")) {
     const token = authorizationHeader.substring(7); // Remove "Bearer " prefix
@@ -64,6 +71,41 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
+    // Check if refresh is already in progress
+    if (isRefreshInProgress) {
+      console.log("[API Trigger] ⚠️  Refresh already in progress, skipping");
+      logger.info("[API Bookmarks Refresh] Refresh already in progress, returning early");
+      return NextResponse.json({
+        status: "success",
+        message: "Refresh already in progress",
+        data: {
+          refreshed: false,
+          refreshInProgress: true,
+        },
+      });
+    }
+
+    // Check memory pressure before starting heavy operation
+    if (typeof process !== "undefined" && process.memoryUsage) {
+      const { rss } = process.memoryUsage();
+      const memoryLimitMB = 512; // Conservative limit
+      const memoryUsedMB = Math.round(rss / 1024 / 1024);
+
+      if (memoryUsedMB > memoryLimitMB * 0.8) {
+        console.log(`[API Trigger] ⚠️  High memory usage: ${memoryUsedMB}MB, deferring refresh`);
+        logger.warn(`[API Bookmarks Refresh] High memory usage: ${memoryUsedMB}MB, deferring refresh`);
+        return NextResponse.json({
+          status: "success",
+          message: "Refresh deferred due to high memory usage",
+          data: {
+            refreshed: false,
+            memoryUsage: `${memoryUsedMB}MB`,
+            reason: "memory_pressure",
+          },
+        });
+      }
+    }
+
     // For cron jobs, always refresh. For others, check if refresh is needed.
     if (!isCronJob) {
       // Read current index from S3 to check timing
@@ -113,6 +155,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     console.log(`[API Trigger] Previous count: ${previousCount} bookmarks`);
     logger.info(`[API Bookmarks Refresh] Previous bookmarks count: ${previousCount}`);
 
+    // Set the flag to prevent concurrent refreshes
+    isRefreshInProgress = true;
+    console.log("[API Trigger] 🔒 Setting refresh lock");
+
     // Use DataFetchManager for centralized data fetching
     const manager = new DataFetchManager();
 
@@ -125,21 +171,21 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     // Handle errors in background without blocking response
     refreshPromise
-      .then((results) => {
-        const bookmarkResult = results.find((r) => r.operation === "bookmarks");
+      .then(results => {
+        const bookmarkResult = results.find(r => r.operation === "bookmarks");
         if (bookmarkResult?.success) {
           const newCount = bookmarkResult.itemsProcessed || 0;
           console.log(`[API Trigger] ✅ Refresh completed: ${newCount} bookmarks (was ${previousCount})`);
           logger.info(`[API Bookmarks Refresh] Background refresh completed successfully`);
-          
+
           // Invalidate Next.js cache to serve fresh data
           console.log("[API Trigger] Invalidating Next.js cache for bookmarks...");
           try {
-            revalidatePath('/bookmarks');
-            revalidatePath('/bookmarks/[slug]', 'page');
-            revalidatePath('/bookmarks/page/[pageNumber]', 'page');
-            revalidatePath('/bookmarks/domain/[domainSlug]', 'page');
-            revalidateTag('bookmarks');
+            revalidatePath("/bookmarks");
+            revalidatePath("/bookmarks/[slug]", "page");
+            revalidatePath("/bookmarks/page/[pageNumber]", "page");
+            revalidatePath("/bookmarks/domain/[domainSlug]", "page");
+            revalidateTag("bookmarks");
             console.log("[API Trigger] ✅ Cache invalidated successfully");
           } catch (cacheError) {
             console.error("[API Trigger] Failed to invalidate cache:", cacheError);
@@ -149,7 +195,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           logger.error(`[API Bookmarks Refresh] Background refresh failed:`, bookmarkResult?.error);
         }
       })
-      .catch((error) => {
+      .catch(error => {
         console.log(`[API Trigger] ❌ Refresh error: ${error}`);
         logger.error(`[API Bookmarks Refresh] Background refresh error:`, error);
         // Check if memory related
@@ -157,6 +203,12 @@ export async function POST(request: Request): Promise<NextResponse> {
           console.log(`[API Trigger] ⚠️  Memory exhaustion detected - container restart may be needed`);
           logger.error(`[API Bookmarks Refresh] Memory exhaustion detected. Container restart may be needed.`);
         }
+      })
+      .finally(() => {
+        // Always clear the flag when refresh completes
+        isRefreshInProgress = false;
+        console.log("[API Trigger] 🔓 Clearing refresh lock");
+        logger.info("[API Bookmarks Refresh] Refresh lock cleared");
       });
 
     // Return immediately without waiting

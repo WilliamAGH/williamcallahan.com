@@ -10,9 +10,8 @@
 
 import * as cheerio from "cheerio";
 import { debug, debugWarn } from "@/lib/utils/debug";
-import { getDomainType } from "@/lib/utils/opengraph-utils";
+import { getDomainType, isValidImageUrl, constructKarakeepAssetUrl } from "@/lib/utils/opengraph-utils";
 import { OPENGRAPH_FETCH_CONFIG } from "@/lib/constants";
-import { isValidImageUrl, constructKarakeepAssetUrl } from "@/lib/utils/opengraph-utils";
 import { karakeepImageFallbackSchema, type KarakeepImageFallback } from "@/types";
 import { SOCIAL_PLATFORMS } from "@/types/social";
 // OgMetadata type not needed in parser - only returns raw Record<string, string | null>

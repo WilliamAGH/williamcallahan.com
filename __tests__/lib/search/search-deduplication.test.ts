@@ -60,7 +60,7 @@ describe("Search Deduplication", () => {
       await searchPosts("example");
 
       // Should not warn about duplicates if none exist
-      const duplicateWarnings = warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
+      const duplicateWarnings = warnSpy.mock.calls.filter(call => call[0]?.includes("duplicate ID"));
 
       // If there are duplicate warnings, that's what we're testing for
       if (duplicateWarnings.length > 0) {
@@ -85,7 +85,7 @@ describe("Search Deduplication", () => {
       const results = await searchInvestments("");
 
       // Check for any duplicate warnings
-      warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
+      warnSpy.mock.calls.filter(call => call[0]?.includes("duplicate ID"));
 
       // The function should work regardless of duplicates
       expect(Array.isArray(results)).toBe(true);
@@ -106,7 +106,7 @@ describe("Search Deduplication", () => {
       const results = await searchExperience("");
 
       // Check for any duplicate warnings
-      warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
+      warnSpy.mock.calls.filter(call => call[0]?.includes("duplicate ID"));
 
       // The function should work regardless of duplicates
       expect(Array.isArray(results)).toBe(true);
@@ -127,7 +127,7 @@ describe("Search Deduplication", () => {
       const results = await searchEducation("");
 
       // Check for any duplicate warnings
-      warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
+      warnSpy.mock.calls.filter(call => call[0]?.includes("duplicate ID"));
 
       // The function should work regardless of duplicates
       expect(Array.isArray(results)).toBe(true);
@@ -149,7 +149,7 @@ describe("Search Deduplication", () => {
         expect(results.length).toBeGreaterThan(0);
 
         // Should find the certification
-        const certResult = results.find((r) => r.title === firstCert.institution);
+        const certResult = results.find(r => r.title === firstCert.institution);
         expect(certResult).toBeDefined();
       }
     });
@@ -164,7 +164,7 @@ describe("Search Deduplication", () => {
       await searchEducation("test");
 
       // Check if any deduplication happened
-      const deduplicationLogs = warnSpy.mock.calls.filter((call) => call[0]?.includes("Deduplicated"));
+      const deduplicationLogs = warnSpy.mock.calls.filter(call => call[0]?.includes("Deduplicated"));
 
       // If deduplication occurred, verify the log format
       for (const log of deduplicationLogs) {

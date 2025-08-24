@@ -26,8 +26,8 @@ export function BodyClassManager() {
     }
 
     // Check states separately
-    const isAnyWindowMaximized = Object.values(windows).some((w) => w.state === "maximized");
-    const isAnyWindowMinimized = Object.values(windows).some((w) => w.state === "minimized");
+    const isAnyWindowMaximized = Object.values(windows).some(w => w.state === "maximized");
+    const isAnyWindowMinimized = Object.values(windows).some(w => w.state === "minimized");
 
     // Manage maximized class
     if (isAnyWindowMaximized) {

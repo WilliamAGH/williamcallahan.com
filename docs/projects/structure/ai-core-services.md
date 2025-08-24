@@ -35,30 +35,30 @@ lib/
 
 ```typescript
 // lib/ai/types.ts
-import { z } from 'zod';
+import { z } from "zod";
 
 // Security: Injection pattern detection
 const INJECTION_PATTERNS = /(\bignore\s+previous\b|\bsystem\s+prompt\b|\bdisregard\s+instructions\b)/i;
 
 // Minimal message types for OpenAI compatibility
-export const AIMessageSchema = z.discriminatedUnion('role', [
-  z.object({ 
-    role: z.literal('system'), 
-    content: z.string().max(2000).refine(
-      (val) => !INJECTION_PATTERNS.test(val),
-      { message: "Potential injection detected" }
-    )
+export const AIMessageSchema = z.discriminatedUnion("role", [
+  z.object({
+    role: z.literal("system"),
+    content: z
+      .string()
+      .max(2000)
+      .refine(val => !INJECTION_PATTERNS.test(val), { message: "Potential injection detected" }),
   }),
-  z.object({ 
-    role: z.literal('user'), 
-    content: z.string().max(8192).refine(
-      (val) => !INJECTION_PATTERNS.test(val),
-      { message: "Potential injection detected" }
-    )
+  z.object({
+    role: z.literal("user"),
+    content: z
+      .string()
+      .max(8192)
+      .refine(val => !INJECTION_PATTERNS.test(val), { message: "Potential injection detected" }),
   }),
-  z.object({ 
-    role: z.literal('assistant'), 
-    content: z.string().nullable()
+  z.object({
+    role: z.literal("assistant"),
+    content: z.string().nullable(),
   }),
 ]);
 
@@ -78,38 +78,41 @@ export type AICompletionOptions = z.infer<typeof AICompletionOptionsSchema>;
 
 ```typescript
 // lib/ai/providers/openai-compatible-base.ts
-import OpenAI from 'openai'; // v4.x SDK
-import { AICompletionOptions } from '../types';
-import { assertServerOnly } from '@/lib/utils/server-only';
+import OpenAI from "openai"; // v4.x SDK
+import { AICompletionOptions } from "../types";
+import { assertServerOnly } from "@/lib/utils/server-only";
 
 export class OpenAICompatibleProvider {
   protected client: OpenAI;
   protected providerName: string;
-  
-  constructor(providerName: string, config: {
-    apiKey?: string;
-    baseURL?: string;
-  }) {
+
+  constructor(
+    providerName: string,
+    config: {
+      apiKey?: string;
+      baseURL?: string;
+    },
+  ) {
     assertServerOnly();
     this.providerName = providerName;
-    
+
     // Security: Validate API key for cloud providers
-    if (!config.apiKey && providerName !== 'ollama') {
+    if (!config.apiKey && providerName !== "ollama") {
       throw new Error(`${providerName.toUpperCase()}_API_KEY is required`);
     }
-    
+
     this.client = new OpenAI({
-      apiKey: config.apiKey || 'not-needed',
+      apiKey: config.apiKey || "not-needed",
       baseURL: config.baseURL,
       timeout: 30000,
       maxRetries: 3,
     });
   }
-  
+
   async complete(options: AICompletionOptions): Promise<OpenAI.ChatCompletion> {
     return this.client.chat.completions.create({ ...options, stream: false });
   }
-  
+
   async *stream(options: AICompletionOptions): AsyncGenerator<OpenAI.ChatCompletionChunk> {
     const stream = await this.client.chat.completions.create({ ...options, stream: true });
     for await (const chunk of stream) yield chunk;
@@ -121,11 +124,11 @@ export class OpenAICompatibleProvider {
 
 ```typescript
 // lib/ai/unified-ai-service.ts
-import { OpenAICompatibleProvider } from './providers/openai-compatible-base';
-import { AICompletionOptions } from './types';
-import { assertServerOnly } from '@/lib/utils/server-only';
+import { OpenAICompatibleProvider } from "./providers/openai-compatible-base";
+import { AICompletionOptions } from "./types";
+import { assertServerOnly } from "@/lib/utils/server-only";
 
-export type CoreAIProviderType = 'openai' | 'ollama';
+export type CoreAIProviderType = "openai" | "ollama";
 
 class UnifiedAIService {
   private providers = new Map<CoreAIProviderType, OpenAICompatibleProvider>();
@@ -143,16 +146,22 @@ class UnifiedAIService {
   private getProvider(type: CoreAIProviderType): OpenAICompatibleProvider {
     if (!this.providers.has(type)) {
       switch (type) {
-        case 'openai':
-          this.providers.set(type, new OpenAICompatibleProvider('openai', {
-            apiKey: process.env.OPENAI_API_KEY,
-            baseURL: 'https://api.openai.com/v1',
-          }));
+        case "openai":
+          this.providers.set(
+            type,
+            new OpenAICompatibleProvider("openai", {
+              apiKey: process.env.OPENAI_API_KEY,
+              baseURL: "https://api.openai.com/v1",
+            }),
+          );
           break;
-        case 'ollama':
-          this.providers.set(type, new OpenAICompatibleProvider('ollama', {
-            baseURL: process.env.OLLAMA_HOST || 'http://localhost:11434/v1',
-          }));
+        case "ollama":
+          this.providers.set(
+            type,
+            new OpenAICompatibleProvider("ollama", {
+              baseURL: process.env.OLLAMA_HOST || "http://localhost:11434/v1",
+            }),
+          );
           break;
       }
     }
@@ -175,7 +184,7 @@ class UnifiedAIService {
           for await (const chunk of getInstance().stream(provider, options)) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
           }
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         } catch (error) {
           controller.error(error);
         } finally {
@@ -186,9 +195,9 @@ class UnifiedAIService {
 
     return new Response(stream, {
       headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
       },
     });
   }
@@ -201,43 +210,39 @@ export const getUnifiedAIService = () => UnifiedAIService.getInstance();
 
 ```typescript
 // app/api/ai/chat/route.ts
-import { getUnifiedAIService } from '@/lib/ai/unified-ai-service';
-import { AICompletionOptionsSchema } from '@/lib/ai/types';
-import { NextRequest } from 'next/server';
+import { getUnifiedAIService } from "@/lib/ai/unified-ai-service";
+import { AICompletionOptionsSchema } from "@/lib/ai/types";
+import { NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     // Validate input
     const options = AICompletionOptionsSchema.parse({
-      model: body.model || 'gpt-4o-mini',
+      model: body.model || "gpt-4o-mini",
       messages: body.messages,
       temperature: body.temperature || 0.7,
       max_tokens: body.max_tokens || 1000,
       stream: body.stream || false,
     });
-    
-    const provider = body.provider || 'openai';
+
+    const provider = body.provider || "openai";
     const aiService = getUnifiedAIService();
-    
+
     // Streaming response
     if (options.stream) {
       return aiService.streamToResponse(provider, options);
     }
-    
+
     // Non-streaming response
     const completion = await aiService.complete(provider, options);
     return Response.json(completion);
-    
   } catch (error) {
     if (error instanceof Error) {
-      return Response.json(
-        { error: error.message },
-        { status: error.message.includes('API_KEY') ? 401 : 400 }
-      );
+      return Response.json({ error: error.message }, { status: error.message.includes("API_KEY") ? 401 : 400 });
     }
-    return Response.json({ error: 'Internal server error' }, { status: 500 });
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 ```
@@ -247,8 +252,8 @@ export async function POST(request: NextRequest) {
 ```typescript
 // lib/constants.ts - Add to existing file:
 export const AI_MODEL_DEFAULTS = {
-  openai: 'gpt-4o-mini',
-  ollama: 'llama3.2',
+  openai: "gpt-4o-mini",
+  ollama: "llama3.2",
 } as const;
 
 export const AI_PROVIDER_TIMEOUTS = {
@@ -290,7 +295,7 @@ curl -X POST http://localhost:3000/api/ai/chat \
 
 export function AIChat() {
   const [response, setResponse] = useState('');
-  
+
   async function sendMessage() {
     const res = await fetch('/api/ai/chat', {
       method: 'POST',
@@ -300,22 +305,22 @@ export function AIChat() {
         stream: true,
       }),
     });
-    
+
     const reader = res.body?.getReader();
     const decoder = new TextDecoder();
-    
+
     while (reader) {
       const { done, value } = await reader.read();
       if (done) break;
-      
+
       const chunk = decoder.decode(value);
       const lines = chunk.split('\n');
-      
+
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           const data = line.slice(6);
           if (data === '[DONE]') continue;
-          
+
           try {
             const parsed = JSON.parse(data);
             setResponse(prev => prev + (parsed.choices[0]?.delta?.content || ''));
@@ -326,7 +331,7 @@ export function AIChat() {
       }
     }
   }
-  
+
   return (
     <div>
       <button onClick={sendMessage}>Send Message</button>
@@ -342,9 +347,9 @@ See [Step 1: Convex Database](./convex-database.md#rate-limiting-check) for the 
 
 ```typescript
 // Add to API route before processing
-import { checkRequestLimits } from '@/lib/ai/rate-limiter-convex';
+import { checkRequestLimits } from "@/lib/ai/rate-limiter-convex";
 
-const { allowed, reason } = await checkRequestLimits('openai', userId);
+const { allowed, reason } = await checkRequestLimits("openai", userId);
 if (!allowed) {
   return Response.json({ error: reason }, { status: 429 });
 }

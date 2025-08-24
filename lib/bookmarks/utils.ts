@@ -27,6 +27,15 @@ function thirtyDaysAgo(): Date {
 }
 
 /**
+ * Normalizes an ETag by removing weak prefix and quotes.
+ * @param {string | null} tag - The ETag to normalize.
+ * @returns {string | undefined} The normalized ETag.
+ */
+function normalizeEtag(tag: string | null): string | undefined {
+  return tag?.replace(/^W\//, "").replace(/"/g, "");
+}
+
+/**
  * Utility function to remove the potentially large `htmlContent` field from a bookmark's content object.
  * This is used to reduce the size of data stored in some caches or passed around.
  *
@@ -49,7 +58,7 @@ export function omitHtmlContent<T extends RawApiBookmarkContent>(content: T): Om
  * @returns A normalized tag object with required id field
  */
 // Acronyms that should always be uppercase
-const FORCE_UPPERCASE = ["AI", "API", "CSS", "HTML", "JS", "TS"];
+const FORCE_UPPERCASE_SET = new Set(["AI", "API", "CSS", "HTML", "JS", "TS"]);
 
 export function normalizeBookmarkTag(tag: string | BookmarkTag): {
   id: string;
@@ -60,7 +69,7 @@ export function normalizeBookmarkTag(tag: string | BookmarkTag): {
   if (typeof tag === "string") {
     // Check if tag matches any forced uppercase acronym
     const upperTag = tag.toUpperCase();
-    const forceUppercase = FORCE_UPPERCASE.includes(upperTag);
+    const forceUppercase = FORCE_UPPERCASE_SET.has(upperTag);
 
     return {
       id: forceUppercase ? upperTag : tag,
@@ -72,7 +81,7 @@ export function normalizeBookmarkTag(tag: string | BookmarkTag): {
 
   // Defensively handle malformed tag objects
   let name = tag?.name || "";
-  const forceUppercase = FORCE_UPPERCASE.includes(name.toUpperCase());
+  const forceUppercase = FORCE_UPPERCASE_SET.has(name.toUpperCase());
   if (forceUppercase) {
     name = name.toUpperCase();
   }
@@ -93,7 +102,7 @@ export function normalizeBookmarkTag(tag: string | BookmarkTag): {
  */
 export function convertRawBookmarksToUnified(rawBookmarks: RawBookmark[]): UnifiedBookmark[] {
   return rawBookmarks.map(
-    (bookmark) =>
+    bookmark =>
       ({
         id: bookmark.id,
         url: bookmark.url,
@@ -141,7 +150,7 @@ export function convertSerializableBookmarksToUnified(
   serializableBookmarks: SerializableBookmark[],
 ): UnifiedBookmark[] {
   return serializableBookmarks.map(
-    (bookmark) =>
+    bookmark =>
       ({
         ...bookmark,
         description: bookmark.description || "",
@@ -157,14 +166,14 @@ export function convertSerializableBookmarksToUnified(
  * @returns Array of serializable bookmarks for client props
  */
 export const convertBookmarksToSerializable = (bookmarks: UnifiedBookmark[]): SerializableBookmark[] =>
-  bookmarks.map((b) => ({
+  bookmarks.map(b => ({
     id: b.id,
     url: b.url,
     title: b.title,
     description: b.description ?? "",
     // REQUIRED: Preserve embedded slug (all bookmarks must have slugs)
     slug: b.slug,
-    tags: (b.tags || []).map((t) => normalizeBookmarkTag(t as string | BookmarkTag)),
+    tags: (b.tags || []).map(t => normalizeBookmarkTag(t as string | BookmarkTag)),
     ogImage: b.ogImage,
     ogImageExternal: b.ogImageExternal,
     content: b.content,
@@ -195,7 +204,7 @@ export const convertBookmarksToSerializable = (bookmarks: UnifiedBookmark[]): Se
 export const calculateBookmarksChecksum = (bookmarks: UnifiedBookmark[]): string =>
   [...bookmarks]
     .sort((a, b) => (a.id || "").localeCompare(b.id || ""))
-    .map((b) => `${b.id}:${b.modifiedAt || b.dateBookmarked}`)
+    .map(b => `${b.id}:${b.modifiedAt || b.dateBookmarked}`)
     .join("|");
 
 /**
@@ -210,12 +219,12 @@ export const calculateBookmarksChecksum = (bookmarks: UnifiedBookmark[]): string
  */
 export const stripImageData = (b: UnifiedBookmark): LightweightBookmark => {
   // Destructure to omit heavy image fields
-  const { 
-    ogImage: omittedOgImage,  // Intentionally unused - stripped from result
-    logoData: omittedLogoData,  // Intentionally unused - stripped from result
-    ...bookmarkWithoutImages 
+  const {
+    ogImage: omittedOgImage, // Intentionally unused - stripped from result
+    logoData: omittedLogoData, // Intentionally unused - stripped from result
+    ...bookmarkWithoutImages
   } = b;
-  
+
   // Void the omitted variables to satisfy linter
   void omittedOgImage;
   void omittedLogoData;
@@ -239,7 +248,7 @@ export const stripImageData = (b: UnifiedBookmark): LightweightBookmark => {
       : undefined,
     ogImageExternal: undefined,
     tags: ((b.tags ?? []) as (string | BookmarkTag)[])
-      .filter((t) => t && (typeof t === "string" ? t.trim() : t.name?.trim()))
+      .filter(t => t && (typeof t === "string" ? t.trim() : t.name?.trim()))
       .map(normalizeBookmarkTag),
   };
 
@@ -267,7 +276,7 @@ export const toLightweightBookmarks = (bookmarks: UnifiedBookmark[]): Lightweigh
 
 /** Normalize tags for a page of bookmarks */
 export const normalizePageBookmarkTags = (bookmarks: UnifiedBookmark[]): UnifiedBookmark[] =>
-  bookmarks.map((b) => ({
+  bookmarks.map(b => ({
     ...b,
     tags: ((b.tags ?? []) as (string | BookmarkTag)[]).map(normalizeBookmarkTag),
   }));
@@ -325,7 +334,6 @@ export async function shouldRefreshOgImage(bookmark: UnifiedBookmark): Promise<b
 
     // 5. Compare ETags. If they are different, the image has changed.
     // Note: ETag comparison should be weak (e.g., W/"some-tag" should match "some-tag").
-    const normalizeEtag = (tag: string | null) => tag?.replace(/^W\//, "").replace(/"/g, "");
     return normalizeEtag(currentEtag) !== normalizeEtag(ogImageEtag);
   } catch (error) {
     // If the HEAD request fails (e.g., timeout, network error, CORS issue),

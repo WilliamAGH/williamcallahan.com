@@ -64,7 +64,7 @@ export function useWindowState(id: string, initialState: WindowStateValue = "nor
       if (storedState) {
         console.log(`useWindowState (${id}): Hydrating state from sessionStorage: ${storedState}`);
         // Use functional update to avoid needing windowState in dependency array
-        setWindowState((prevState) => {
+        setWindowState(prevState => {
           // Prevent terminal from starting maximized - always start in normal mode
           if (id === "terminal" && storedState === "maximized") {
             console.log(`useWindowState (${id}): Preventing maximized state on load, using normal instead`);
@@ -103,7 +103,7 @@ export function useWindowState(id: string, initialState: WindowStateValue = "nor
 
   const maximizeWindow = useCallback(() => {
     console.log(`useWindowState (${id}): Toggling maximize/normal`);
-    setWindowState((prev) => (prev === "maximized" ? "normal" : "maximized"));
+    setWindowState(prev => (prev === "maximized" ? "normal" : "maximized"));
   }, [id]); // Dependency array includes id
 
   // The state returned is always the current `windowState`.

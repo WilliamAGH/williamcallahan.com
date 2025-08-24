@@ -3,6 +3,29 @@ import { Suspense } from "react";
 import { type HealthMetrics, HealthMetricsResponseSchema } from "@/types/health";
 import { getBaseUrl } from "@/lib/utils/get-base-url";
 
+function renderValue(value: unknown) {
+  if (typeof value === "object" && value !== null) {
+    return <pre className="text-sm bg-gray-800 p-2 rounded-md overflow-x-auto">{JSON.stringify(value, null, 2)}</pre>;
+  }
+  return <span className="text-green-400">{String(value)}</span>;
+}
+
+function renderSection(title: string, sectionData: object) {
+  return (
+    <div className="mb-8">
+      <h2 className="text-2xl font-bold text-gray-100 border-b-2 border-gray-700 pb-2 mb-4">{title}</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(sectionData).map(([key, value]) => (
+          <div key={key} className="bg-gray-900 p-4 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold text-gray-300 mb-2 capitalize">{key.replace(/([A-Z])/g, " $1")}</h3>
+            {renderValue(value)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 async function getStatusData(): Promise<HealthMetrics> {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/health/metrics`, {
@@ -21,27 +44,6 @@ async function getStatusData(): Promise<HealthMetrics> {
 const StatusPage: NextPage = async () => {
   try {
     const data: HealthMetrics = await getStatusData();
-
-    const renderValue = (value: unknown) => {
-      if (typeof value === "object" && value !== null) {
-        return <pre className="text-sm bg-gray-800 p-2 rounded-md overflow-x-auto">{JSON.stringify(value, null, 2)}</pre>;
-      }
-      return <span className="text-green-400">{String(value)}</span>;
-    };
-
-    const renderSection = (title: string, sectionData: object) => (
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-100 border-b-2 border-gray-700 pb-2 mb-4">{title}</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Object.entries(sectionData).map(([key, value]) => (
-            <div key={key} className="bg-gray-900 p-4 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold text-gray-300 mb-2 capitalize">{key.replace(/([A-Z])/g, " $1")}</h3>
-              {renderValue(value)}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
 
     return (
       <div className="min-h-screen bg-gray-950 text-gray-200 p-4 sm:p-6 lg:p-8">

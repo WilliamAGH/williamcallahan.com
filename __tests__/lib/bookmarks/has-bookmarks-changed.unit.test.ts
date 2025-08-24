@@ -56,8 +56,8 @@ describe("hasBookmarksChanged() function (unit)", () => {
       await bookmarksModule.refreshAndPersistBookmarks();
 
       const writeCalls = writeJsonS3Mock.mock.calls;
-      const indexWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-      const pageWrite = writeCalls.find((call) => call[0].includes("page-1.json"));
+      const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
+      const pageWrite = writeCalls.find(call => call[0].includes("page-1.json"));
 
       // Should have written index and pages (indicating change detected)
       expect(indexWrite).toBeDefined();
@@ -139,8 +139,8 @@ describe("hasBookmarksChanged() function (unit)", () => {
       await bookmarksModule.refreshAndPersistBookmarks();
 
       const writeCalls = writeJsonS3Mock.mock.calls;
-      const indexWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-      const pageWrite = writeCalls.find((call) => call[0].includes("page-1.json"));
+      const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
+      const pageWrite = writeCalls.find(call => call[0].includes("page-1.json"));
 
       // Count changed (5 -> 3), so should write pages
       expect(indexWrite).toBeDefined();
@@ -214,8 +214,8 @@ describe("hasBookmarksChanged() function (unit)", () => {
       await bookmarksModule.refreshAndPersistBookmarks();
 
       const writeCalls = writeJsonS3Mock.mock.calls;
-      const indexWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-      const pageWrite = writeCalls.find((call) => call[0].includes("page-1.json"));
+      const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
+      const pageWrite = writeCalls.find(call => call[0].includes("page-1.json"));
 
       // Checksum changed, so should write pages
       expect(indexWrite).toBeDefined();
@@ -290,9 +290,8 @@ describe("hasBookmarksChanged() function (unit)", () => {
       await bookmarksModule.refreshAndPersistBookmarks();
 
       const writeCalls = writeJsonS3Mock.mock.calls;
-      const indexWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-      const pageWrite = writeCalls.find((call) => call[0].includes("page-1.json"));
-      const heartbeatWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.HEARTBEAT);
+      const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
+      const heartbeatWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.HEARTBEAT);
 
       // Should update index freshness but NOT write pages
       expect(indexWrite).toBeDefined();
@@ -351,8 +350,8 @@ describe("hasBookmarksChanged() function (unit)", () => {
       await bookmarksModule.refreshAndPersistBookmarks();
 
       const writeCalls = writeJsonS3Mock.mock.calls;
-      const indexWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-      const pageWrite = writeCalls.find((call) => call[0].includes("page-1.json"));
+      const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
+      const pageWrite = writeCalls.find(call => call[0].includes("page-1.json"));
 
       // On S3 error, should assume change and write everything
       expect(indexWrite).toBeDefined();

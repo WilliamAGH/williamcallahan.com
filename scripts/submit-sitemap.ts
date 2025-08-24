@@ -201,7 +201,7 @@ async function processUrlIndexing(): Promise<void> {
   await loadRateLimitStoreFromS3(GOOGLE_STORE, INDEXING_RATE_LIMIT_PATH);
 
   const sitemapData = await sitemap();
-  const allUrls = sitemapData.map((u) => u.url);
+  const allUrls = sitemapData.map(u => u.url);
   const totalUrls = allUrls.length;
   console.info(`Found ${totalUrls} URLs to process.`);
 
@@ -235,7 +235,7 @@ async function processUrlIndexing(): Promise<void> {
     }
 
     if (i + batchSize < allowedUrls.length) {
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 1000));
     }
   }
   console.info(`${LOG_PREFIX.google} URL-level submission complete`);
@@ -282,7 +282,7 @@ async function submitToIndexNow(siteUrlCanonical: string): Promise<void> {
 
   try {
     const sitemapData = await sitemap();
-    const urlList = sitemapData.map((u) => u.url);
+    const urlList = sitemapData.map(u => u.url);
 
     // Build payload per IndexNow spec
     const payload: Record<string, unknown> = {
@@ -363,7 +363,7 @@ main()
     // completion; failures are handled in the catch below.
     process.exit(0);
   })
-  .catch((err) => {
+  .catch(err => {
     console.error("An unexpected error occurred in the main process:", err);
     process.exit(1);
   });

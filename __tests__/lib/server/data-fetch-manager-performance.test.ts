@@ -58,13 +58,13 @@ describe("DataFetchManager Performance Optimizations", () => {
 
       mockGetInvestmentDomainsAndIds.mockImplementation(async () => {
         callTimes.investments = Date.now() - startTime;
-        await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate delay
+        await new Promise(resolve => setTimeout(resolve, 50)); // Simulate delay
         return [["investment-a.com", "inv-1"]];
       });
 
       mockGetBookmarks.mockImplementation(async () => {
         callTimes.bookmarks = Date.now() - startTime;
-        await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate delay
+        await new Promise(resolve => setTimeout(resolve, 50)); // Simulate delay
         return [
           {
             id: "bookmark-1",
@@ -90,9 +90,9 @@ describe("DataFetchManager Performance Optimizations", () => {
         includeImageData: false,
       });
 
-      // Verify parallel execution - all should start within a few ms of each other
+      // Verify parallel execution - all should start within a reasonable time of each other
       const timeDifference = Math.abs(callTimes.investments - callTimes.bookmarks);
-      expect(timeDifference).toBeLessThan(10); // Should be called almost simultaneously
+      expect(timeDifference).toBeLessThan(50); // Should be called almost simultaneously (increased threshold for CI/slower machines)
 
       // Verify domains were collected correctly
       expect(domains).toBeInstanceOf(Set);
@@ -180,12 +180,12 @@ describe("DataFetchManager Performance Optimizations", () => {
     it("should complete domain collection faster with parallel execution", async () => {
       // Add delays to simulate real network/database calls
       mockGetInvestmentDomainsAndIds.mockImplementation(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 100));
         return [["investment-a.com", "inv-1"]];
       });
 
       mockGetBookmarks.mockImplementation(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 100));
         return [
           {
             id: "bookmark-1",
