@@ -27,12 +27,12 @@ coverImage: "/images/posts/claude-code-on-stage.jpg"
   
 ```bash
 # Open the style picker (also under /config)
- /output-style
+/output-style
 
 # Switch directly
- /output-style default
- /output-style explanatory
- /output-style learning
+/output-style default
+/output-style explanatory
+/output-style learning
 ```
 
 - Per‑project default: Your selection persists for this repo in `.claude/settings.local.json` and is used next time you open it.
@@ -44,7 +44,7 @@ coverImage: "/images/posts/claude-code-on-stage.jpg"
 ```bash
 # Assuming a custom style named "investigative" exists in
 # ~/.claude/output-styles or .claude/output-styles
- /output-style investigative
+/output-style investigative
 ```
 
 - This selection will persist for the current project via `.claude/settings.local.json`.
@@ -77,8 +77,8 @@ coverImage: "/images/posts/claude-code-on-stage.jpg"
 <CollapseDropdown summary="Method A: Fast path with /output-style:new">
   
 ```bash
-# Generate a style with Claude’s help
- /output-style:new I want an output style that acts as a UX research specialist
+# Generate a style with Claude's help
+/output-style:new I want an output style that acts as a UX research specialist
 ```
 
 - Result is saved as a Markdown file:
@@ -130,14 +130,14 @@ behavior and improve product experiences.
   
 ```bash
 # 1) Create the style
- /output-style:new I want an output style that acts as a Performance Coach:
+/output-style:new I want an output style that acts as a Performance Coach:
  - Prioritize asymptotic improvements and data-structure choices
  - Always estimate complexity & point out N+1s and needless copies
  - Prefer fewer lines of code with clearer invariants
  - Ask before adding new dependencies
 
 # 2) Switch styles ad hoc
- /output-style performance-coach
+/output-style performance-coach
 ```
 Tip: For performance‑focused optimizations, see also
 <ExternalLink href="/blog/optimizing-llm-generated-code-data-structures-algorithms">How to Have LLMs Write More Efficient Code using Optimal Data Structures</ExternalLink>.
@@ -145,7 +145,8 @@ Tip: For performance‑focused optimizations, see also
 
 ## 4) Troubleshooting and tips
 
-- If style switches don’t seem to persist: ensure `.claude/settings.local.json` is writable in the repo.  
+- If style switches don't seem to persist: ensure `.claude/settings.local.json` is writable in the repo.  
+  (This file is per-user and typically not committed; verify your `.gitignore` rules.)  
 - If a custom style isn’t showing: confirm the file lives in `~/.claude/output-styles` or `.claude/output-styles` and is valid Markdown/YAML.  
 - If the style feels “too quiet” or “too chatty”: tweak the behaviors section—Output Styles are just structured prompt files.  
 - For deep reference and edge cases, read: [docs.anthropic.com/en/docs/claude-code/output-styles](https://docs.anthropic.com/en/docs/claude-code/output-styles)
