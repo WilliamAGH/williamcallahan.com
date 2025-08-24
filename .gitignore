@@ -58,6 +58,10 @@ tsconfig.tsbuildinfo
 .jrdev/
 !.jrdev/.gitkeep
 .aider*
+.crush/
+
+# Claude Code user-local settings (per-user, not committed)
+.claude/
 
 # S3 reset audits directory
 .s3-reset-audits/
