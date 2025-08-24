@@ -84,7 +84,13 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
     return getStaticPageMetadata("/bookmarks", "bookmarks");
   }
 
-  const parsedPage = page === "page" && pageNumberStr ? Number.parseInt(pageNumberStr, 10) : 1;
+  // Support both /tags/[slug]/page/[n] and legacy /tags/[slug]/[n]
+  const parsedPage =
+    page === "page" && pageNumberStr
+      ? Number.parseInt(pageNumberStr, 10)
+      : page && /^\d+$/.test(page)
+        ? Number.parseInt(page, 10)
+        : 1;
   const pageNumber = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
 
   let decodedSlug: string;
@@ -98,9 +104,9 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
   const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
   const { bookmarks, totalPages } = await getBookmarksByTag(sanitizedSlug, pageNumber);
 
-  // Determine canonical page for metadata if requested page exceeds available pages
-  const isOutOfRange = totalPages > 0 && pageNumber > totalPages;
-  const effectivePage = isOutOfRange ? totalPages : pageNumber;
+  // Determine canonical page for metadata
+  // If there are zero pages for this tag, canonicalize to page 1 (base tag path)
+  const effectivePage = totalPages === 0 ? 1 : pageNumber > totalPages ? totalPages : pageNumber;
 
   let path = `/bookmarks/tags/${sanitizedSlug}`;
   if (effectivePage > 1) {
@@ -157,7 +163,13 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
   }
 
   const [rawTagSlug, page, pageNumberStr] = slug;
-  const parsedCurrent = page === "page" && pageNumberStr ? Number.parseInt(pageNumberStr, 10) : 1;
+  // Support both /tags/[slug]/page/[n] and legacy /tags/[slug]/[n]
+  const parsedCurrent =
+    page === "page" && pageNumberStr
+      ? Number.parseInt(pageNumberStr, 10)
+      : page && /^\d+$/.test(page)
+        ? Number.parseInt(page, 10)
+        : 1;
   const currentPage = Number.isNaN(parsedCurrent) || parsedCurrent < 1 ? 1 : parsedCurrent;
 
   if (!rawTagSlug) {
@@ -172,12 +184,28 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
   }
   const sanitizedSlug = tagToSlug(decodedSlug);
 
-  if (sanitizedSlug !== rawTagSlug || (page && page !== "page")) {
+  // Canonicalize legacy numeric-only page segment to /page/[n]
+  const isLegacyNumeric = page && /^\d+$/.test(page);
+  if (sanitizedSlug !== rawTagSlug || (page && page !== "page" && !isLegacyNumeric)) {
     let redirectPath = `/bookmarks/tags/${sanitizedSlug}`;
     if (currentPage > 1) {
       redirectPath += `/page/${currentPage}`;
     }
     redirect(redirectPath);
+  }
+
+  // Redirect legacy numeric form /bookmarks/tags/[slug]/[n] to canonical /bookmarks/tags/[slug]/page/[n]
+  if (isLegacyNumeric) {
+    let redirectPath = `/bookmarks/tags/${sanitizedSlug}`;
+    if (currentPage > 1) {
+      redirectPath += `/page/${currentPage}`;
+    }
+    redirect(redirectPath);
+  }
+
+  // Redirect /page/1 to base tag path
+  if (page === "page" && currentPage === 1) {
+    redirect(`/bookmarks/tags/${sanitizedSlug}`);
   }
 
   const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
@@ -190,6 +218,11 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
       redirectPath += `/page/${result.totalPages}`;
     }
     redirect(redirectPath);
+  }
+
+  // If there are zero pages for this tag and a paginated route was requested, redirect to the base tag path
+  if (result.totalPages === 0 && currentPage > 1) {
+    redirect(`/bookmarks/tags/${sanitizedSlug}`);
   }
 
   if (!result.bookmarks || result.bookmarks.length === 0) {
