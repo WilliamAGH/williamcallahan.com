@@ -95,15 +95,20 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
   }
   const sanitizedSlug = tagToSlug(decodedSlug);
 
+  const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
+  const { bookmarks, totalPages } = await getBookmarksByTag(sanitizedSlug, pageNumber);
+
+  // Determine canonical page for metadata if requested page exceeds available pages
+  const isOutOfRange = totalPages > 0 && pageNumber > totalPages;
+  const effectivePage = isOutOfRange ? totalPages : pageNumber;
+
   let path = `/bookmarks/tags/${sanitizedSlug}`;
-  if (pageNumber > 1) {
-    path += `/page/${pageNumber}`;
+  if (effectivePage > 1) {
+    path += `/page/${effectivePage}`;
   }
 
-  const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
-  const { bookmarks } = await getBookmarksByTag(sanitizedSlug, pageNumber);
-
-  if (bookmarks.length === 0) {
+  // If the tag has zero bookmarks in total, return the empty-state metadata
+  if (bookmarks.length === 0 && totalPages === 0) {
     return {
       ...getStaticPageMetadata(path, "bookmarks"),
       title: "No Bookmarks Found For This Tag",
@@ -111,7 +116,7 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
   }
 
   const displayTag = formatTagDisplay(sanitizedSlug.replace(/-/g, " "));
-  const pageTitle = pageNumber > 1 ? `${displayTag} Bookmarks (Page ${pageNumber})` : `${displayTag} Bookmarks`;
+  const pageTitle = effectivePage > 1 ? `${displayTag} Bookmarks (Page ${effectivePage})` : `${displayTag} Bookmarks`;
 
   const customTitle = generateDynamicTitle(pageTitle, "bookmarks", {
     isTag: true,
@@ -119,7 +124,7 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
   const customDescription = generateTagDescription(
     displayTag,
     "bookmarks",
-    pageNumber > 1 ? pageNumber.toString() : undefined,
+    effectivePage > 1 ? effectivePage.toString() : undefined,
   );
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
@@ -177,6 +182,15 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
 
   const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
   const result = await getBookmarksByTag(sanitizedSlug, currentPage);
+
+  // If the requested page exceeds the total available pages, redirect to the last page
+  if (result.totalPages > 0 && currentPage > result.totalPages) {
+    let redirectPath = `/bookmarks/tags/${sanitizedSlug}`;
+    if (result.totalPages > 1) {
+      redirectPath += `/page/${result.totalPages}`;
+    }
+    redirect(redirectPath);
+  }
 
   if (!result.bookmarks || result.bookmarks.length === 0) {
     notFound();
