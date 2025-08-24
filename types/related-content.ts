@@ -56,6 +56,8 @@ export interface RelatedContentMetadata {
   readonly stage?: string;
   /** Business category */
   readonly category?: string;
+  /** aVenture external research URL (for investments) */
+  readonly aventureUrl?: string;
   /** Author information (for blog posts) */
   readonly author?: {
     readonly name: string;

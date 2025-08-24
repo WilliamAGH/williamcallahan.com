@@ -150,6 +150,7 @@ async function toRelatedContentItem(
         stage: investment.stage,
         category: investment.category,
         imageUrl: logoUrl,
+        aventureUrl: investment.aventure_url ?? undefined,
       };
 
       return {
