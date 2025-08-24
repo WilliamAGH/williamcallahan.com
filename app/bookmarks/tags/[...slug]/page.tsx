@@ -127,11 +127,9 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
   const customTitle = generateDynamicTitle(pageTitle, "bookmarks", {
     isTag: true,
   });
-  const customDescription = generateTagDescription(
-    displayTag,
-    "bookmarks",
-    effectivePage > 1 ? effectivePage.toString() : undefined,
-  );
+  const baseDescription = generateTagDescription(displayTag, "bookmarks");
+  const customDescription =
+    effectivePage > 1 ? `${baseDescription} — Page ${effectivePage}.` : baseDescription;
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
   return {
@@ -238,11 +236,9 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
   const pageTitle =
     currentPage > 1 ? `Bookmarks for ${displayTag} (Page ${currentPage})` : `Bookmarks for ${displayTag}`;
 
-  const pageDescription = generateTagDescription(
-    displayTag,
-    "bookmarks",
-    currentPage > 1 ? currentPage.toString() : undefined,
-  );
+  const pageBaseDescription = generateTagDescription(displayTag, "bookmarks");
+  const pageDescription =
+    currentPage > 1 ? `${pageBaseDescription} — Page ${currentPage}.` : pageBaseDescription;
 
   // Generate schema for this tagged bookmarks page
   let path = `/bookmarks/tags/${sanitizedSlug}`;
