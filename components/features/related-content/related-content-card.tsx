@@ -75,7 +75,9 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
       `}
     >
       {/* Stretched overlay link to make the whole card clickable without nesting links */}
-      <Link href={url} aria-label={`Open ${title}`} className="absolute inset-0 z-0" />
+      <Link href={url} aria-label={`Open ${title}`} className="absolute inset-0 z-0">
+        <span aria-hidden="true" />
+      </Link>
 
       <article className="h-full flex flex-col pointer-events-none">
         {/* Header with type badge and metadata */}
