@@ -32,7 +32,6 @@ import { ShareButton } from "./share-button.client";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { usePathname } from "next/navigation";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
-import { BookmarkInsights } from "./bookmark-insights";
 
 import type { BookmarkCardClientProps } from "@/types";
 
@@ -54,7 +53,7 @@ const MAX_TITLE_WORDS = 10;
  */
 
 export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element | null {
-  const { id, url, title, description, tags, ogImage, content, dateBookmarked, internalHref, note, summary } = props;
+  const { id, url, title, description, tags, ogImage, content, dateBookmarked, internalHref } = props;
   const pathname = usePathname();
 
   /**
@@ -107,9 +106,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   // Truncate title to configured number of words
   const titleWords = title.split(" ");
   const displayTitle =
-    titleWords.length > MAX_TITLE_WORDS
-      ? `${titleWords.slice(0, MAX_TITLE_WORDS).join(" ")}...`
-      : title;
+    titleWords.length > MAX_TITLE_WORDS ? `${titleWords.slice(0, MAX_TITLE_WORDS).join(" ")}...` : title;
 
   // Don't use a placeholder for SSR - render full card without interactive elements
   // Server will render as much as possible for SEO, client will hydrate
@@ -224,17 +221,9 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
           </div>
         )}
 
-        {/* AI Insights & Personal Notes - Only show on detail pages */}
-        {!effectiveInternalHref && (
-          <BookmarkInsights
-            note={note}
-            summary={summary}
-            tags={
-              tags && typeof tags[0] === "object" ? (tags as Array<{ name: string; attachedBy?: "ai" | "user" }>) : []
-            }
-            className="mt-4"
-          />
-        )}
+        {/* Intentionally do not render AI Insights/Personal Notes in list/grid views.
+            Detailed notes and summaries are displayed exclusively on the individual
+            bookmark page component to avoid cluttering the list UI. */}
       </div>
     </div>
   );

@@ -16,6 +16,7 @@ import {
   ArrowUpRight,
   Bookmark,
   Library,
+  Quote,
 } from "lucide-react";
 import Image from "next/image";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
@@ -148,8 +149,12 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
               {bookmarkedDate && (
                 <span className="flex items-center gap-1.5">
                   <Library className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline" suppressHydrationWarning>Saved {bookmarkedDate}</span>
-                  <span className="sm:hidden" suppressHydrationWarning>Saved {bookmarkedDate}</span>
+                  <span className="hidden sm:inline" suppressHydrationWarning>
+                    Saved {bookmarkedDate}
+                  </span>
+                  <span className="sm:hidden" suppressHydrationWarning>
+                    Saved {bookmarkedDate}
+                  </span>
                 </span>
               )}
 
@@ -269,9 +274,12 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                     <BookOpen className="w-4 h-4" />
                     Personal Notes
                   </h2>
-                  <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap text-blue-900 dark:text-blue-100">
-                    {bookmark.note}
-                  </p>
+                  <div className="relative pl-4">
+                    <Quote className="absolute -left-1 -top-1 w-5 h-5 text-amber-500/30 dark:text-amber-400/20 rotate-180" />
+                    <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap text-blue-900 dark:text-blue-100">
+                      {bookmark.note}
+                    </p>
+                  </div>
                 </motion.section>
               )}
 
