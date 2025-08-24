@@ -88,6 +88,23 @@ export const TAG_ONTOLOGY = {
     "tsx",
   ],
 
+  // Search and Information Retrieval
+  SEARCH_IR: [
+    "search",
+    "web search",
+    "search engine",
+    "semantic search",
+    "vector search",
+    "similarity search",
+    "contextual search",
+    "information retrieval",
+    "ir",
+    "ai search",
+    "retrieval",
+    "retrieval augmented generation",
+    "rag",
+  ],
+
   // Backend and APIs
   BACKEND_TECH: [
     "node.js",

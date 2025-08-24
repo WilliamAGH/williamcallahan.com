@@ -1,7 +1,7 @@
 import type { Project } from "@/types/project";
 
 // Remember to update this date whenever the projects data or the Projects page design changes
-export const updatedAt = "2025-08-19";
+export const updatedAt = "2025-08-24";
 
 export const projects: Project[] = [
   {
@@ -123,7 +123,7 @@ export const projects: Project[] = [
     shortSummary: "Web app for AI-driven company research",
     url: "https://company-lookup.iocloudhost.net/",
     imageKey: "images/other/projects/company-research-experimental-ai-tool.png",
-    tags: ["LLM", "AI", "JSON", "Company Research", "Web App", "Experimental"],
+    tags: ["LLM", "AI", "JSON", "Company Research", "Web App", "Web Search", "Experimental"],
     techStack: ["Svelte", "TypeScript", "Tailwind CSS", "OpenAI", "Node.js", "Groq", "Docker"],
   },
 ];
