@@ -133,32 +133,47 @@ async function checkBookmarkIntegrity() {
       return false;
     }
 
-    let missingSlugCount = 0;
-    let invalidSlugCount = 0;
+    const missingSlugs: Array<{ id: string; title: string; url: string }> = [];
+    const invalidSlugs: Array<{ id: string; title: string; url: string; slug: string }> = [];
 
     for (const bookmark of bookmarks) {
       const slug = getSlugForBookmark(slugMapping, bookmark.id);
       if (!slug) {
-        missingSlugCount++;
+        missingSlugs.push({
+          id: bookmark.id,
+          title: bookmark.title || "Untitled",
+          url: bookmark.url,
+        });
       } else {
         const reverseId = getBookmarkIdFromSlug(slugMapping, slug);
         if (reverseId !== bookmark.id) {
-          invalidSlugCount++;
+          invalidSlugs.push({
+            id: bookmark.id,
+            title: bookmark.title || "Untitled",
+            url: bookmark.url,
+            slug,
+          });
         }
       }
     }
 
-    if (missingSlugCount > 0) {
+    if (missingSlugs.length > 0) {
       results.push({
         category: "Bookmark Slugs",
         status: "❌",
-        message: `${missingSlugCount} bookmarks missing slugs - will cause 404s!`,
+        message: `${missingSlugs.length} bookmarks missing slugs - will cause 404s!`,
+        details: missingSlugs.map(
+          b => `ID: ${b.id} | Title: "${b.title}" | URL: ${b.url}`
+        ),
       });
-    } else if (invalidSlugCount > 0) {
+    } else if (invalidSlugs.length > 0) {
       results.push({
         category: "Bookmark Slugs",
         status: "⚠️",
-        message: `${invalidSlugCount} bookmarks have invalid slug mappings`,
+        message: `${invalidSlugs.length} bookmarks have invalid slug mappings`,
+        details: invalidSlugs.map(
+          b => `ID: ${b.id} | Slug: "${b.slug}" | Title: "${b.title}"`
+        ),
       });
     } else {
       results.push({
@@ -218,9 +233,40 @@ async function checkBookmarkIntegrity() {
 
     if (hasErrors) {
       console.log("\n❌ CRITICAL ISSUES FOUND - Fix immediately to prevent 404s!");
+      
+      // Display critical issues with bookmark details
+      const criticalIssues = results.filter(r => r.status === "❌" && r.details);
+      if (criticalIssues.length > 0) {
+        console.log("\n🚨 BOOKMARKS REQUIRING IMMEDIATE ATTENTION:");
+        console.log("─".repeat(60));
+        criticalIssues.forEach(issue => {
+          console.log(`\n${issue.category}:`);
+          issue.details?.forEach(detail => {
+            console.log(`  • ${detail}`);
+          });
+        });
+        console.log("\n" + "─".repeat(60));
+        console.log("Fix these bookmarks by running the slug generation script");
+        console.log("or manually adding them to the slug mapping.");
+      }
+      
       return false;
     } else if (hasWarnings) {
       console.log("\n⚠️  Warnings found - Review and fix if needed");
+      
+      // Display warnings with details
+      const warningIssues = results.filter(r => r.status === "⚠️" && r.details);
+      if (warningIssues.length > 0) {
+        console.log("\n⚠️  BOOKMARKS WITH WARNINGS:");
+        console.log("─".repeat(60));
+        warningIssues.forEach(issue => {
+          console.log(`\n${issue.category}:`);
+          issue.details?.forEach(detail => {
+            console.log(`  • ${detail}`);
+          });
+        });
+      }
+      
       return true;
     } else {
       console.log("\n✅ All integrity checks passed!");
