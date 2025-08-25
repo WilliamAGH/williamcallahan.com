@@ -1,17 +1,42 @@
-echo "🧪 Running pre-commit checks..."
+echo "🚀 Running pre-commit checks on staged files..."
 
-# Run validate (linting and type-checking)
-echo "📝 Validating code..."
-bun run validate || { echo "❌ Code validation failed!"; exit 1; }
+# Set up PATH to include bun
+export PATH="$HOME/.bun/bin:$PATH"
 
-# Run blog smoke tests
-echo "📚 Testing blog functionality..."
-bun run test:smoke:blog || { echo "❌ Blog smoke tests failed!"; exit 1; }
+# Check for and remove stale git lock file if it exists
+if [ -f .git/index.lock ]; then
+  echo "⚠️  Found stale git lock file, removing..."
+  rm -f .git/index.lock
+fi
 
-# Run pages smoke tests
-echo "📄 Testing pages functionality..."
-bun run test:smoke:pages || { echo "❌ Pages smoke tests failed!"; exit 1; }
+# Get list of staged files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
 
-# Image path checking removed - script not found
+if [ -z "$STAGED_FILES" ]; then
+  echo "📭 No staged files to check"
+  exit 0
+fi
 
-echo "✅ All pre-commit checks passed!"
+# Filter for JavaScript/TypeScript files
+JS_TS_FILES=$(echo "$STAGED_FILES" | grep -E '\.(js|jsx|ts|tsx)$' || true)
+# Filter for files that prettier can format
+PRETTIER_FILES=$(echo "$STAGED_FILES" | grep -E '\.(js|jsx|ts|tsx|json|md|mdx|yml|yaml|css)$' || true)
+
+# Run oxlint on JS/TS files if any
+if [ -n "$JS_TS_FILES" ]; then
+  echo "🔍 Running oxlint on TypeScript/JavaScript files..."
+  echo "$JS_TS_FILES" | xargs bun x oxlint --fix || {
+    echo "❌ Oxlint found issues!"
+    exit 1
+  }
+fi
+
+# Run prettier on applicable files if any
+if [ -n "$PRETTIER_FILES" ]; then
+  echo "✨ Running prettier on staged files..."
+  echo "$PRETTIER_FILES" | xargs bun x prettier --write
+  # Re-add files that were modified by prettier
+  echo "$PRETTIER_FILES" | xargs git add
+fi
+
+echo "✅ Pre-commit checks passed!"

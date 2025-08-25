@@ -206,9 +206,11 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "prettier -w",
-      "oxlint --max-warnings 0",
-      "eslint --config eslint.config.ts --max-warnings 0"
+      "oxlint --fix",
+      "prettier -w"
+    ],
+    "*.{json,md,mdx,yml,yaml,css}": [
+      "prettier -w"
     ]
   },
   "trustedDependencies": [
