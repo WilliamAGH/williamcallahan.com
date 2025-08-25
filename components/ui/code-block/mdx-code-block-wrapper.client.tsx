@@ -36,8 +36,8 @@ export function MDXCodeBlockFallback(props: DetailedHTMLProps<HTMLAttributes<HTM
   // Define default classes for the PRE tag - make sure they match the CodeBlock component
   const preClasses = cn(
     "not-prose",
-    "text-gray-100",
-    "text-xs",
+    "text-gray-900 dark:text-gray-100",
+    "text-[13px] leading-relaxed",
     "whitespace-pre-wrap",
     "break-words",
     "custom-scrollbar",

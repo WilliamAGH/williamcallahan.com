@@ -259,7 +259,7 @@ export const CodeBlock = ({
         className={cn(
           "max-w-full w-full overflow-auto",
           !embeddedInTabFrame
-            ? "bg-[#f5f2f0] dark:bg-[#282a36] rounded-lg shadow-md"
+            ? "bg-[#f5f2f0] dark:bg-[#282a36] rounded-lg shadow-sm md:shadow-md border border-gray-200/80 dark:border-gray-800/80 ring-1 ring-black/5 dark:ring-white/5"
             : "!bg-transparent !shadow-none !border-0 !rounded-none",
           isMaximized &&
             !embeddedInTabFrame &&
@@ -270,7 +270,7 @@ export const CodeBlock = ({
         {
           !embeddedInTabFrame ? (
             // Full header for standalone CodeBlock
-            <div className="flex items-center bg-[#1a2a35] dark:bg-[#1a1b26] px-3 py-1.5 rounded-t-lg">
+            <div className="flex items-center bg-[#1a2a35] dark:bg-[#1a1b26] px-3 py-2 rounded-t-lg border-b border-black/10 dark:border-white/10">
               <WindowControls
                 onClose={handleClose}
                 onMinimize={handleMinimize}
@@ -279,10 +279,7 @@ export const CodeBlock = ({
                 isMaximized={isMaximized}
               />
               {language && (
-                <div
-                  style={{ fontSize: "8px" }}
-                  className="not-prose ml-auto flex-shrink min-w-0 px-1.5 py-0.5 font-mono rounded-md bg-gray-600/70 text-gray-300 uppercase truncate"
-                >
+                <div className="not-prose ml-auto flex-shrink min-w-0 px-1.5 py-0.5 font-mono rounded-md bg-gray-600/70 text-gray-200 uppercase tracking-wide truncate text-[10px] sm:text-[11px]">
                   {language}
                 </div>
               )}
@@ -307,10 +304,10 @@ export const CodeBlock = ({
                 embeddedInTabFrame
                   ? "!p-0 !m-0 !bg-transparent !border-0 !rounded-none"
                   : "p-4 text-gray-900 dark:text-gray-100",
-                "text-xs",
+                "text-[13px] leading-relaxed",
                 "custom-scrollbar",
                 "![text-shadow:none] [&_*]:![text-shadow:none]",
-                "[&_*]:!bg-transparent",
+                "[&_*]:!bg-transparent [&_*]:!leading-relaxed font-mono",
                 isMaximized && !embeddedInTabFrame && "overflow-auto max-h-full",
                 className, // From MDX (e.g., language-bash)
               )}
