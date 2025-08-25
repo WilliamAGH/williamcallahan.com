@@ -14,6 +14,20 @@ import type { RelatedContentCardProps } from "@/types/related-content";
 import { ExternalLink } from "@/components/ui/external-link.client";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import { kebabCase } from "@/lib/utils/formatters";
+// Local helper to avoid any unsafe function call/type issues in certain editor setups
+function sanitizeExternalHref(raw?: string): string | null {
+  if (!raw) return null;
+  const input = raw.trim();
+  if (!input) return null;
+  const hasScheme = /^https?:\/\//i.test(input);
+  try {
+    const urlObj = new URL(hasScheme ? input : `https://${input}`);
+    if (urlObj.protocol !== "http:" && urlObj.protocol !== "https:") return null;
+    return urlObj.toString();
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Get type badge configuration
@@ -69,6 +83,12 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
     (metadata.imageUrl.startsWith("http://") || metadata.imageUrl.startsWith("https://"))
   );
 
+  // Prepare safe external href for aVenture link when present (investments only)
+  const aventureHref: string | null =
+    type === "investment" && typeof metadata.aventureUrl === "string"
+      ? sanitizeExternalHref(metadata.aventureUrl)
+      : null;
+
   return (
     <div
       className={`
@@ -78,7 +98,11 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
       `}
     >
       {/* Stretched overlay link to make the whole card clickable without nesting links */}
-      <Link href={url} aria-label={`Open ${title}`} className="absolute inset-0 z-0">
+      <Link
+        href={url}
+        aria-label={`Open ${title}`}
+        className="absolute inset-0 z-0 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-lg"
+      >
         <span aria-hidden="true" />
       </Link>
 
@@ -124,7 +148,9 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
                 onError={() => {
                   setImageError(true);
                   setImageLoading(false);
-                  console.warn(`Failed to load investment logo for ${title}: ${metadata.imageUrl}`);
+                  if (process.env.NODE_ENV === "development") {
+                    console.warn(`Failed to load investment logo for ${title}: ${metadata.imageUrl}`);
+                  }
                 }}
                 unoptimized={isExternalImage}
                 priority={false}
@@ -154,7 +180,9 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
                   onError={() => {
                     setImageError(true);
                     setImageLoading(false);
-                    console.warn(`Failed to load image for ${type}: ${metadata.imageUrl}`);
+                    if (process.env.NODE_ENV === "development") {
+                      console.warn(`Failed to load image for ${type}: ${metadata.imageUrl}`);
+                    }
                   }}
                   unoptimized={isExternalImage}
                   priority={false}
@@ -241,14 +269,12 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
             {/* Category for investments and projects */}
             {(type === "investment" || type === "project") &&
               metadata.category &&
-              !((type === "investment" || type === "project") && normalizedTagSet.has(String(metadata.category).toLowerCase())) && (
-                <span>{metadata.category}</span>
-              )}
+              !normalizedTagSet.has(String(metadata.category).toLowerCase()) && <span>{metadata.category}</span>}
 
             {/* aVenture research link for investments - separate external link */}
-            {type === "investment" && metadata.aventureUrl && (
+            {typeof aventureHref === "string" ? (
               <ExternalLink
-                href={metadata.aventureUrl}
+                href={aventureHref}
                 title={`${title} - aVenture Startup Research`}
                 showIcon={false}
                 className="ml-auto inline-flex items-center bg-slate-100 dark:bg-transparent hover:bg-slate-200 dark:hover:bg-gray-700/50 px-2 py-1 rounded-full transition-colors pointer-events-auto relative z-10"
@@ -261,7 +287,7 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
                   className="inline-block h-4 w-4"
                 />
               </ExternalLink>
-            )}
+            ) : null}
           </div>
         </footer>
       </article>
