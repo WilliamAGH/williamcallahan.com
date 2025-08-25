@@ -26,11 +26,11 @@ import React, {
   type JSX,
 } from "react";
 import type { ArticleImageProps, ArticleGalleryProps, MDXContentProps } from "@/types/features";
+import type { MetricsGroupProps } from "@/types/ui";
 import { BackgroundInfo } from "../../../ui/background-info.client";
 import { MDXCodeBlock } from "../../../ui/code-block/mdx-code-block-wrapper.client";
 import { CollapseDropdown } from "../../../ui/collapse-dropdown.client";
 import { ExternalLink } from "../../../ui/external-link.client";
-import FinancialMetrics from "../../../ui/financial-metrics.server";
 import {
   InstructionMACOSTab,
   InstructionMacOSFrameTabs,
@@ -217,11 +217,36 @@ const ArticleGallery = ({ children, className = "" }: ArticleGalleryProps): JSX.
  * Component renderers extracted to avoid nested component definitions
  * ------------------------------------------------------------------- */
 
-const MetricsGroupRenderer = (props: ComponentProps<typeof FinancialMetrics>) => (
-  <div className="mb-4">
-    <FinancialMetrics {...props} />
-  </div>
-);
+const MetricsGroupRenderer = ({ title, date, metrics }: MetricsGroupProps) => {
+  return (
+    <section className="my-4">
+      <div className="mx-auto max-w-3xl overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-900">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+          {date ? <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{date}</p> : null}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5">
+          {Array.isArray(metrics) &&
+            metrics.map((m, idx) => {
+              const color = m.isPositive
+                ? "text-emerald-600 dark:text-emerald-400"
+                : m.isNegative
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-gray-900 dark:text-gray-100";
+              return (
+                <div key={`${m.label}-${idx}`} className="flex flex-col">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                    {m.label}
+                  </span>
+                  <span className={cn("font-medium", color)}>{String(m.value)}</span>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const BackgroundInfoRenderer = (props: ComponentProps<typeof BackgroundInfo>) => (
   <BackgroundInfo {...props} className={cn(props.className)} />
@@ -300,6 +325,53 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
       for (const svg of svgs) {
         processSvgTransforms(svg);
       }
+    }
+  }, []);
+
+  // Development diagnostics: detect invalid HTML structures from MDX output
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+    const root = contentRef.current;
+    if (!root) return;
+
+    // 1) Identify nested paragraphs which will cause hydration errors
+    const nestedParagraphs = root.querySelectorAll("p p");
+    if (nestedParagraphs.length > 0) {
+      // Log a concise report with surrounding context
+      const report = Array.from(nestedParagraphs)
+        .slice(0, 10)
+        .map(node => {
+          const outer = node.closest("p");
+          const outerId = outer?.getAttribute("id") || "";
+          const outerClass = outer?.getAttribute("class") || "";
+          const innerClass = (node as HTMLElement).className || "";
+          return { outerId, outerClass, innerClass, innerHTML: (node as HTMLElement).innerHTML.slice(0, 120) };
+        });
+      // eslint-disable-next-line no-console
+      console.groupCollapsed(
+        `[MDX Diagnostics] Found ${nestedParagraphs.length} nested <p> elements (this can cause hydration errors)`,
+      );
+      // eslint-disable-next-line no-console
+      console.table(report);
+      // eslint-disable-next-line no-console
+      console.groupEnd();
+    }
+
+    // 2) Footnote anchors inventory (#ref*, #fn*)
+    const footnoteAnchors = root.querySelectorAll('a[href^="#ref"], a[href^="#fn"]');
+    if (footnoteAnchors.length > 0) {
+      const sample = Array.from(footnoteAnchors)
+        .slice(0, 10)
+        .map(a => ({ href: (a as HTMLAnchorElement).getAttribute("href"), text: a.textContent?.slice(0, 60) }));
+      // eslint-disable-next-line no-console
+      console.debug("[MDX Diagnostics] Footnote anchors detected:", { count: footnoteAnchors.length, sample });
+    }
+
+    // 3) Superscripts inventory
+    const supers = root.querySelectorAll("sup");
+    if (supers.length > 0) {
+      // eslint-disable-next-line no-console
+      console.debug("[MDX Diagnostics] <sup> elements detected:", supers.length);
     }
   }, []);
 
@@ -392,13 +464,19 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
        * @returns {JSX.Element} The appropriately rendered link or span element.
        */
       a: (props: ComponentProps<"a">) => {
-        const { href, children, ...rest } = props;
+        const { href, children, className, ...rest } = props;
         if (!href) {
           return <a {...rest}>{children}</a>; // Fallback for missing href
         }
 
-        if (href.startsWith("#fn")) {
-          return <span {...rest}>{children}</span>;
+        // Treat footnote-style anchors (#fn*, #ref*) specially: keep them clickable
+        // but remove default link styling so superscripts render cleanly.
+        if (href.startsWith("#fn") || href.startsWith("#ref")) {
+          return (
+            <a href={href} {...rest} className={cn("no-underline text-inherit", className)}>
+              {children}
+            </a>
+          );
         }
 
         if (href.startsWith("http://") || href.startsWith("https://")) {
@@ -421,6 +499,12 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
           </a>
         );
       },
+      // Ensure consistent superscript rendering across prose and custom containers
+      sup: ({ className, children, ...rest }: ComponentProps<"sup">) => (
+        <sup className={cn("align-super text-[0.75em] leading-none ml-0.5", className)} {...rest}>
+          {children}
+        </sup>
+      ),
       /** Renderer for `<h1>` elements, applying specific Tailwind CSS classes for styling. */
       h1: (props: ComponentProps<"h1">) => (
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight" {...props} />

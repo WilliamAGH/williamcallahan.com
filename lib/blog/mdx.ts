@@ -30,6 +30,7 @@
 assertServerOnly(); // Ensure this module runs only on the server
 
 import { assertServerOnly } from "../utils/ensure-server-only";
+import rehypeRaw from "rehype-raw";
 import { formatSeoDate } from "../seo/utils"; // Import the Pacific Time formatter
 import type { FrontmatterData } from "@/types/features/blog";
 
@@ -232,7 +233,10 @@ export async function getMDXPost(
       mdxSource = await serialize(content, {
         mdxOptions: {
           remarkPlugins: [remarkGfm],
-          rehypePlugins: [rehypePrism, rehypeSlug, rehypeAutolinkHeadings],
+          // rehypeRaw MUST run before other rehype transforms so raw HTML is merged
+          // into the HAST. This prevents illegal nested paragraph structures when
+          // MDX includes JSX/HTML blocks like the References section.
+          rehypePlugins: [rehypeRaw, rehypePrism, rehypeSlug, rehypeAutolinkHeadings],
         },
         scope: {},
         parseFrontmatter: false,
