@@ -89,7 +89,10 @@ export function BackgroundInfo({
 
   // --- Final Content Classes ---
   const contentClasses = cn(
-    "prose-sm dark:prose-invert text-blue-800 dark:text-blue-200", // Base prose styles
+    // Base prose styles
+    "prose-sm dark:prose-invert text-blue-800 dark:text-blue-200",
+    // Spacing policy: small gaps between non-paragraph blocks; full line between paragraph-to-paragraph
+    "[&>*+*]:mt-2 [&>p+p]:mt-4 [&>:first-child]:mt-0 [&>:last-child]:mb-0",
     dynamicContentClasses, // Dynamic height classes post-mount
   );
 

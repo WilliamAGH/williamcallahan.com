@@ -347,13 +347,11 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
           const innerClass = (node as HTMLElement).className || "";
           return { outerId, outerClass, innerClass, innerHTML: (node as HTMLElement).innerHTML.slice(0, 120) };
         });
-      // eslint-disable-next-line no-console
+      // Group logs (development only)
       console.groupCollapsed(
         `[MDX Diagnostics] Found ${nestedParagraphs.length} nested <p> elements (this can cause hydration errors)`,
       );
-      // eslint-disable-next-line no-console
       console.table(report);
-      // eslint-disable-next-line no-console
       console.groupEnd();
     }
 
@@ -363,14 +361,12 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
       const sample = Array.from(footnoteAnchors)
         .slice(0, 10)
         .map(a => ({ href: (a as HTMLAnchorElement).getAttribute("href"), text: a.textContent?.slice(0, 60) }));
-      // eslint-disable-next-line no-console
       console.debug("[MDX Diagnostics] Footnote anchors detected:", { count: footnoteAnchors.length, sample });
     }
 
     // 3) Superscripts inventory
     const supers = root.querySelectorAll("sup");
     if (supers.length > 0) {
-      // eslint-disable-next-line no-console
       console.debug("[MDX Diagnostics] <sup> elements detected:", supers.length);
     }
   }, []);
@@ -465,6 +461,23 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
        */
       a: (props: ComponentProps<"a">) => {
         const { href, children, className, ...rest } = props;
+
+        // Normalize children to avoid invalid <a><p>…</p></a> blocks that MDX can emit
+        // when a component is used inside list items. If the only child is a <p>, unwrap it.
+        const unwrapParagraph = (node: React.ReactNode): React.ReactNode => {
+          if (
+            isValidElement<{ children?: React.ReactNode }>(node) &&
+            node.type === "p" &&
+            Object.prototype.hasOwnProperty.call(node, "props")
+          ) {
+            return (node as React.ReactElement<{ children?: React.ReactNode }>).props.children;
+          }
+          return node;
+        };
+
+        const normalizedChildren = Array.isArray(children)
+          ? (children as ReadonlyArray<React.ReactNode>).map(child => unwrapParagraph(child))
+          : unwrapParagraph(children);
         if (!href) {
           return <a {...rest}>{children}</a>; // Fallback for missing href
         }
@@ -482,7 +495,7 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
         if (href.startsWith("http://") || href.startsWith("https://")) {
           return (
             <ExternalLink href={href} {...rest}>
-              {children}
+              {normalizedChildren}
             </ExternalLink>
           );
         }
@@ -495,7 +508,7 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
         }
         return (
           <a href={href} className="text-inherit no-underline hover:underline" {...rest}>
-            {children}
+            {normalizedChildren}
           </a>
         );
       },
@@ -517,8 +530,8 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
       h3: (props: ComponentProps<"h3">) => (
         <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight" {...props} />
       ),
-      /** Renderer for `<p>` (paragraph) elements. Styling primarily handled by Tailwind `prose` classes on the parent `<article>`. */
-      p: (props: ComponentProps<"p">) => <p className="text-gray-700 dark:text-gray-300 text-base" {...props} />,
+      // Remove custom <p> renderer to avoid ever creating nested <p> inside raw HTML structures.
+      // Let Tailwind Typography's prose styles handle paragraph styling globally.
       /** Renderer for `<ul>` (unordered list) elements. Styling primarily handled by `prose`. */
       ul: (props: ComponentProps<"ul">) => (
         <ul className="pl-6 list-disc text-gray-700 dark:text-gray-300 text-base" {...props} />

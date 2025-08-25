@@ -127,7 +127,7 @@ html {
   color: #111827; /* text-gray-900 */
   padding: 0.125rem 0.375rem; /* px-1.5 py-0.5 */
   border-radius: 0.25rem; /* rounded */
-  font-size: 0.875rem; /* text-sm */
+  font-size: 13px; /* match MDX inline code + code blocks */
   font-weight: 500; /* font-medium */
 }
 
