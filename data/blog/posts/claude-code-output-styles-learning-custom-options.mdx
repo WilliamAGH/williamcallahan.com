@@ -3,7 +3,7 @@ title: "Claude Code Output Styles: Explanatory, Learning, and Custom Options"
 slug: "claude-code-output-styles-learning-custom-options"
 excerpt: "An implementation guide to Claude Code's /output-style, the built‑in Explanatory and Learning modes (with to-do prompts), and creating reusable custom styles with /output-style:new."
 publishedAt: "2025-08-22"
-updatedAt: "2025-08-22"
+updatedAt: "2025-08-25"
 author: "william-callahan"
 tags: ["ai", "claude code", "output styles", "learning", "custom styles"]
 coverImage: "/images/posts/claude-code-on-stage.jpg"
@@ -36,7 +36,7 @@ coverImage: "/images/posts/claude-code-on-stage.jpg"
 ```
 
 - Per‑project default: Your selection persists for this repo in `.claude/settings.local.json` and is used next time you open it.
-- No global default key: There’s no documented settings key to set a global default output style in `settings.json`; pick per repo.
+- No global default key (as of 2025-08-24): There's no documented settings key to set a global default output style in `settings.json`; pick per repo.
 - Reuse across repos: Store custom styles in `~/.claude/output-styles`, then select them once per repo.
 
 **Assign an existing custom style directly**
@@ -48,7 +48,8 @@ coverImage: "/images/posts/claude-code-on-stage.jpg"
 ```
 
 - This selection will persist for the current project via `.claude/settings.local.json`.
-- Note: Claude Code hallucinated and told me it was `/output-style:set`; just use `/output-style <styleName>` or the `/output-style` menu.
+- Note (as of 2025-08-24): Claude Code suggested `/output-style:set`, but the working command is
+  `/output-style <styleName>` or use the `/output-style` menu.
 </CollapseDropdown>
 
 <CollapseDropdown summary="Compare: Output Styles vs CLAUDE.md vs --append-system-prompt vs Agents vs Slash Commands">
