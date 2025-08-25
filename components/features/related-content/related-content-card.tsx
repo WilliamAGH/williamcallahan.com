@@ -12,6 +12,8 @@ import { useState } from "react";
 import { formatDate as formatDateUtil, truncateText as truncateTextUtil } from "@/lib/utils";
 import type { RelatedContentCardProps } from "@/types/related-content";
 import { ExternalLink } from "@/components/ui/external-link.client";
+import { tagToSlug } from "@/lib/utils/tag-utils";
+import { kebabCase } from "@/lib/utils/formatters";
 
 /**
  * Get type badge configuration
@@ -59,6 +61,7 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
   // Build tag display (max 3 tags)
   const displayTags = metadata.tags?.slice(0, 3) || [];
   const typeBadge = getTypeBadge(type);
+  const normalizedTagSet = new Set((metadata.tags || []).map(t => t.toLowerCase()));
 
   // Determine if image is from external source that might need unoptimized
   const isExternalImage = !!(
@@ -175,15 +178,29 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
         <footer className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-700">
           {/* Tags */}
           {displayTags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-2">
-              {displayTags.map(tag => (
-                <span
-                  key={tag}
-                  className="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded"
-                >
-                  {tag}
-                </span>
-              ))}
+            <div className="flex flex-wrap gap-1 mb-2 pointer-events-auto relative z-10">
+              {displayTags.map(tag => {
+                const href =
+                  type === "bookmark"
+                    ? `/bookmarks/tags/${tagToSlug(tag)}`
+                    : type === "blog"
+                      ? `/blog/tags/${kebabCase(tag)}`
+                      : null;
+                const chip = (
+                  <span className="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
+                    {tag}
+                  </span>
+                );
+                return href ? (
+                  <Link key={tag} href={href} className="inline-block pointer-events-auto relative z-10">
+                    {chip}
+                  </Link>
+                ) : (
+                  <span key={tag} className="inline-block">
+                    {chip}
+                  </span>
+                );
+              })}
               {metadata.tags && metadata.tags.length > 3 && (
                 <span className="px-2 py-0.5 text-xs text-gray-400 dark:text-gray-500">
                   +{metadata.tags.length - 3} more
@@ -217,10 +234,16 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
             {type === "blog" && metadata.readingTime && <span>{metadata.readingTime} min read</span>}
 
             {/* Stage for investments */}
-            {type === "investment" && metadata.stage && <span>{metadata.stage}</span>}
+            {type === "investment" && metadata.stage && !normalizedTagSet.has(String(metadata.stage).toLowerCase()) && (
+              <span>{metadata.stage}</span>
+            )}
 
             {/* Category for investments and projects */}
-            {(type === "investment" || type === "project") && metadata.category && <span>{metadata.category}</span>}
+            {(type === "investment" || type === "project") &&
+              metadata.category &&
+              !(type === "investment" && normalizedTagSet.has(String(metadata.category).toLowerCase())) && (
+                <span>{metadata.category}</span>
+              )}
 
             {/* aVenture research link for investments - separate external link */}
             {type === "investment" && metadata.aventureUrl && (
