@@ -68,9 +68,11 @@ const getTextContent = (node: ReactNode): string => {
 
   // Check if it's a valid React element that might have children
   if (isValidElement(node)) {
-    // node.props.children is ReactNode. We need to recurse on it.
-    const props = node.props as { children?: ReactNode };
-    return getTextContent(props.children); // Recurse
+    const props: unknown = node.props;
+    if (typeof props === "object" && props !== null && "children" in (props as Record<string, unknown>)) {
+      return getTextContent((props as { children?: ReactNode }).children);
+    }
+    return "";
   }
 
   return "";
@@ -192,8 +194,9 @@ export const CodeBlock = ({
   // Prepare display content: remove leading/trailing blank lines that add invisible space
   const displayContent = typeof children === "string" ? children.replace(/^\n+|\n+$/g, "") : children;
 
-  // Count lines from the extracted text content actually displayed
-  const lineCount = content.split("\n").length;
+  // Count lines from the actually displayed text content
+  const visibleText = typeof displayContent === "string" ? displayContent : content;
+  const lineCount = visibleText ? visibleText.split(/\r?\n/).length : 0;
   const isLongCode = lineCount > COLLAPSE_LINE_THRESHOLD;
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => isLongCode);
 
