@@ -266,7 +266,7 @@ Output final test results and all changes made.
 <CollapseDropdown summary="4.5 /pr-review – Systematically Address PR Comments" id="user-pr-review">
 Systematically review and address unresolved comments on GitHub pull requests, making thoughtful decisions about which suggestions to implement.
 
-````markdown
+```markdown
 # PR Review Command
 
 **Purpose**: Systematically review and address unresolved comments on GitHub pull requests, making thoughtful decisions about which suggestions to implement.
@@ -746,7 +746,8 @@ fi
 # For a specific file's comments
 gh api graphql -f query='...' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.path == "lib/utils/api-sanitization.ts" and .isResolved == false)'
 ```
-````
+```
+```
 
 </CollapseDropdown>
 

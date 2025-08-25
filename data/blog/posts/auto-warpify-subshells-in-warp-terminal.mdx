@@ -21,17 +21,18 @@ Add this to your `.bashrc` or `.zshrc` file to automatically use Warp subshells 
 
 For modern macOS if you have JetBrains IDE(s) installed (to exclude them):
 
-````bash
+```bash
 # Warpify subshells
 if [[ "$TERM_PROGRAM" == "WarpTerminal" ]]; then
  printf '\eP$f{"hook": "SourcedRcFileForWarp", "value": { "shell": "zsh" }}\x9c'
-fi```
+fi
+```
 
 To have the basic config appended to the file automatically, you can just run the following command in your terminal (for macOS):
 
 ```bash
 echo 'printf '\eP$f{"hook": "SourcedRcFileForWarp", "value": { "shell": "zsh" }}\x9c'' >> ~/.zshrc
-````
+```
 
 For Linux:
 
