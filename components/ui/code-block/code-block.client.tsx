@@ -16,7 +16,7 @@
 
 "use client";
 
-import { type JSX, isValidElement, useCallback, useEffect, useRef, useState, type ReactNode } from "react"; // Import useEffect, useRef, useCallback, isValidElement
+import { type JSX, isValidElement, useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react"; // Import useEffect, useRef, useCallback, isValidElement, useId
 import { useWindowSize } from "../../../lib/hooks/use-window-size.client";
 import { cn } from "../../../lib/utils";
 import { WindowControls } from "../navigation/window-controls";
@@ -97,7 +97,8 @@ export const CodeBlock = ({
   // 64 => 16rem (256px), 72 => 18rem (288px), 80 => 20rem (320px)
 
   const language = extractLanguage(className);
-  const codeElementRef = useRef<HTMLElement>(null);
+  const codeElementRef = useRef<HTMLElement | null>(null);
+  const collapsibleRegionId = useId();
 
   // Add state for interactive behavior
   const [isVisible, setIsVisible] = useState(true);
@@ -308,6 +309,10 @@ export const CodeBlock = ({
         {!isMinimized && (
           <div className={cn("relative group", isMaximized && !embeddedInTabFrame && "flex-1 overflow-hidden")}>
             <pre
+              id={collapsibleRegionId}
+              role="region"
+              aria-label={language ? `${language} code` : "Code block"}
+              tabIndex={0}
               className={cn(
                 "not-prose max-w-full",
                 "whitespace-pre-wrap",
@@ -358,15 +363,17 @@ export const CodeBlock = ({
                     type="button"
                     aria-label="Show all code"
                     aria-expanded={!isCollapsed}
+                    aria-controls={collapsibleRegionId}
                     onClick={() => setIsCollapsed(false)}
                     className={cn(
                       "px-3 py-1 text-xs sm:text-sm rounded-full",
                       "bg-white/85 dark:bg-black/40 backdrop-blur",
                       "text-gray-900 dark:text-gray-100",
                       "shadow-sm ring-1 ring-black/10 dark:ring-white/10",
-                      "hover:bg-white/95 dark:hover:bg-black/50 transition-colors",
+                      "hover:bg-white/95 dark:hover:bg-black/50 motion-safe:transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50",
                       // Visible by default on mobile; reveal on hover for sm+ viewports
-                      "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity",
+                      "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 motion-safe:transition-opacity",
                       !embeddedInTabFrame && "border border-black/5 dark:border-white/5",
                     )}
                   >
@@ -382,13 +389,15 @@ export const CodeBlock = ({
                   type="button"
                   aria-label="Collapse code"
                   aria-expanded={!isCollapsed}
+                  aria-controls={collapsibleRegionId}
                   onClick={() => setIsCollapsed(true)}
                   className={cn(
                     "mt-1 px-3 py-1 text-xs sm:text-sm rounded-full",
                     "bg-gray-100/80 dark:bg-gray-800/60",
                     "text-gray-800 dark:text-gray-100",
                     "shadow-sm ring-1 ring-black/10 dark:ring-white/10",
-                    "hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors",
+                    "hover:bg-gray-100 dark:hover:bg-gray-800 motion-safe:transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50",
                   )}
                 >
                   Collapse
