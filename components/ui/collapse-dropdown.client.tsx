@@ -104,7 +104,8 @@ export function CollapseDropdown({
           "ml-6 mt-4 mb-4 px-4 pb-2", // Added px-4 padding horizontally and pb-2 at bottom
           "prose prose-sm dark:prose-invert max-w-none",
           "overflow-visible",
-          "[&_code]:text-base [&_code]:break-words [&_code]:whitespace-normal", // Updated text-sm to text-base
+          // Preserve code block whitespace inside <pre><code> while leaving inline code styling to global rules
+          "[&_pre>code]:whitespace-pre-wrap",
           "[&_a]:text-blue-600 [&_a]:dark:text-blue-400 [&_a]:underline [&_a]:font-medium", // Fixed link styling
           "[&_a:hover]:text-blue-500 [&_a:hover]:dark:text-blue-300 [&_a:hover]:no-underline", // Fixed hover state
           "[&_a>code]:text-blue-600 dark:[&_a>code]:text-blue-400",
