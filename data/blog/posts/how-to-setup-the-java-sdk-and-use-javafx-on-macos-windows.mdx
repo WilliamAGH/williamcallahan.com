@@ -10,26 +10,33 @@ coverImage: "/images/posts/JavaFX-logo.png"
 ---
 
 <BackgroundInfo title="Related Java Setup Guides">
-  -
-  <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">
-    Core Guide: Java, Maven & Gradle Setup & Usage
-  </ExternalLink>
-  - **This Article: Specifics for Setting up JavaFX** -
-  <ExternalLink href="/blog/setting-up-modern-spring-boot-web-server-rest-api-web-content-2025-guide">
-    Specifics: Setting up a Spring Boot Server
-  </ExternalLink>
+  <ul>
+    <li>
+      <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">
+        Core Guide: Java, Maven & Gradle Setup & Usage
+      </ExternalLink>
+    </li>
+    <li>
+      <strong>This Article: Specifics for Setting up JavaFX</strong> –
+      <ExternalLink href="/blog/setting-up-modern-spring-boot-web-server-rest-api-web-content-2025-guide">
+        Specifics: Setting up a Spring Boot Server
+      </ExternalLink>
+    </li>
+  </ul>
 </BackgroundInfo>
 
 <BackgroundInfo title="Overview: JavaFX Key Components">
-  This guide focuses on setting up a JavaFX development environment. Key parts: - **JDK Setup**: Assumed to be done. For
-  initial JDK installation and `JAVA_HOME` setup, refer to the 
-  <ExternalLink href="/blog/project-level-java-maven-gradle-versioning#part-1-os-level-tool-installation-the-foundation">
-    Core Java Setup Guide
-  </ExternalLink>
-  . - **Build Tool (Maven/Gradle)**: Manages JavaFX libraries as project dependencies. This is covered in detail in the 
-  <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">Core Java Guide</ExternalLink>. This article
-  will show JavaFX-specific dependency examples. - **FXML**: XML for UI layout, separating design from Java logic. -
-  **SceneBuilder**: Visual tool for FXML design.
+  This guide focuses on setting up a JavaFX development environment. Key parts:
+  <ul>
+    <li><strong>JDK Setup</strong>: Assumed to be done. For initial JDK installation and <code>JAVA_HOME</code> setup, refer to the
+      <ExternalLink href="/blog/project-level-java-maven-gradle-versioning#part-1-os-level-tool-installation-the-foundation">
+        Core Java Setup Guide
+      </ExternalLink>.
+    </li>
+    <li><strong>Build Tool (Maven/Gradle)</strong>: Manages JavaFX libraries as project dependencies. Covered in the <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">Core Java Guide</ExternalLink>. This article shows JavaFX-specific dependency examples.</li>
+    <li><strong>FXML</strong>: XML for UI layout, separating design from Java logic.</li>
+    <li><strong>Scene Builder</strong>: Visual tool for FXML design.</li>
+  </ul>
 </BackgroundInfo>
 
 ## Part 1: JavaFX Project Setup in IDEs
@@ -92,8 +99,8 @@ Scene Builder is a visual layout tool for designing JavaFX UIs (.fxml files).
 
 <CollapseDropdown summary="2.3: Configure Path in VS Code">
   * Install the [SceneBuilder extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=bilalekrem.scenebuilderextension).
-  * Open the Command
-  Palette (**Cmd+Shift+P** on macOS, **Ctrl+Shift+P** on Windows) * Type `Configure Scene Builder path` and press enter
+  * Open the Command Palette (**Cmd+Shift+P** on macOS, **Ctrl+Shift+P** on Windows)
+  * Type `Configure Scene Builder path` and press Enter
   * Browse to and select your installed Scene Builder executable
   {/* Corrected indentation for ArticleImage */}
   <ArticleImage
