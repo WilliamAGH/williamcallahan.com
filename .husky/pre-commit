@@ -19,33 +19,28 @@ if [ -f .git/index.lock ]; then
   exit 1
 fi
 
-# Get list of staged files (NUL-delimited to handle spaces/newlines)
-STAGED_FILES_NUL=$(git diff --cached --name-only --diff-filter=ACMR -z)
-
-if [ -z "$STAGED_FILES_NUL" ]; then
+# Check if there are any staged files
+if ! git diff --cached --name-only --diff-filter=ACMR | grep -q .; then
   echo "📭 No staged files to check"
   exit 0
 fi
 
-# Filter staged files into buckets, NUL-safe
-JS_TS_FILES_NUL=$(printf "%s" "$STAGED_FILES_NUL" | grep -zE '\.(js|jsx|ts|tsx)$' || true)
-PRETTIER_FILES_NUL=$(printf "%s" "$STAGED_FILES_NUL" | grep -zE '\.(js|jsx|ts|tsx|json|md|mdx|yml|yaml|css)$' || true)
-
+# Process staged files directly with pipes to preserve NUL delimiters
 # Run oxlint on JS/TS files if any
-if [ -n "${JS_TS_FILES_NUL:-}" ]; then
+if git diff --cached --name-only --diff-filter=ACMR -z | grep -zE '\.(js|jsx|ts|tsx)$' | grep -qz .; then
   echo "🔍 Running oxlint on TypeScript/JavaScript files..."
-  printf "%s" "$JS_TS_FILES_NUL" | xargs -0 "${RUNNER_PREFIX[@]}" oxlint --fix || {
+  git diff --cached --name-only --diff-filter=ACMR -z | grep -zE '\.(js|jsx|ts|tsx)$' | xargs -0 "${RUNNER_PREFIX[@]}" oxlint --fix || {
     echo "❌ Oxlint found issues!"
     exit 1
   }
 fi
 
 # Run prettier on applicable files if any
-if [ -n "${PRETTIER_FILES_NUL:-}" ]; then
+if git diff --cached --name-only --diff-filter=ACMR -z | grep -zE '\.(js|jsx|ts|tsx|json|md|mdx|yml|yaml|css)$' | grep -qz .; then
   echo "✨ Running prettier on staged files..."
-  printf "%s" "$PRETTIER_FILES_NUL" | xargs -0 "${RUNNER_PREFIX[@]}" prettier --write
+  git diff --cached --name-only --diff-filter=ACMR -z | grep -zE '\.(js|jsx|ts|tsx|json|md|mdx|yml|yaml|css)$' | xargs -0 "${RUNNER_PREFIX[@]}" prettier --write
   # Re-add files that were modified by prettier
-  printf "%s" "$PRETTIER_FILES_NUL" | xargs -0 git add
+  git diff --cached --name-only --diff-filter=ACMR -z | grep -zE '\.(js|jsx|ts|tsx|json|md|mdx|yml|yaml|css)$' | xargs -0 git add
 fi
 
 echo "✅ Pre-commit checks passed!"
