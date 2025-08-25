@@ -23,6 +23,7 @@ describe("Bookmark API Tag Filtering", () => {
       description: "A comprehensive guide",
       tags: ["Web Development", "JavaScript"],
       dateBookmarked: "2025-01-01",
+      slug: "web-development-guide",
     } as UnifiedBookmark,
     {
       id: "2",
@@ -31,6 +32,7 @@ describe("Bookmark API Tag Filtering", () => {
       description: "Essential tools",
       tags: ["Software Development Tools", "productivity"],
       dateBookmarked: "2025-01-02",
+      slug: "software-tools",
     } as UnifiedBookmark,
     {
       id: "3",
@@ -39,6 +41,7 @@ describe("Bookmark API Tag Filtering", () => {
       description: "Common patterns",
       tags: ["design", "architecture"],
       dateBookmarked: "2025-01-03",
+      slug: "design-patterns",
     } as UnifiedBookmark,
   ];
 
@@ -176,6 +179,7 @@ describe("Bookmark API Tag Filtering", () => {
               description: `Description ${i}`,
               tags: ["test tag"],
               dateBookmarked: "2025-01-01",
+              slug: `bookmark-${i}`,
             }) as UnifiedBookmark,
         );
 
