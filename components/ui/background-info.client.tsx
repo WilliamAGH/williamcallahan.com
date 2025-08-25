@@ -48,8 +48,10 @@ export function BackgroundInfo({
       setTimeout(() => {
         // Ensures layout is stable
         if (contentRef.current) {
-          const buffer = 16; // Buffer to prevent toggle for slightly taller content
-          const collapsedHeightThreshold = 144; // Corresponds to max-h-36 (1rem = 16px, 9rem = 144px)
+          const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+          const collapsedHeightThreshold = 9 * rootFontSize; // max-h-36 == 9rem
+          const lh = Number.parseFloat(getComputedStyle(contentRef.current).lineHeight);
+          const buffer = Number.isFinite(lh) ? lh : 1 * rootFontSize; // scalable buffer
           const isContentSignificantlyTaller = contentRef.current.scrollHeight > collapsedHeightThreshold + buffer;
 
           // Only update if the value actually changes to prevent unnecessary re-renders
