@@ -265,7 +265,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             sourceId={post.id}
             sectionTitle="Similar Content"
             options={{
-              maxPerType: 4,
+              maxPerType: 3,
               maxTotal: 12,
               excludeTypes: [], // Include all content types
             }}
