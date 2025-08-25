@@ -89,6 +89,13 @@ export const CodeBlock = ({
   embeddedInTabFrame = false,
   ...props
 }: CodeBlockProps): JSX.Element => {
+  // Threshold for when to auto-collapse long code blocks
+  const COLLAPSE_LINE_THRESHOLD = 12;
+  // Approx. max height that corresponds to ~12 lines at text-[13px] leading-relaxed
+  // Tuned for mobile/tablet/desktop for a consistent preview before expanding
+  // Max-heights use Tailwind preset sizes to ensure classes are statically discoverable by the compiler
+  // 64 => 16rem (256px), 72 => 18rem (288px), 80 => 20rem (320px)
+
   const language = extractLanguage(className);
   const codeElementRef = useRef<HTMLElement>(null);
 
@@ -183,6 +190,11 @@ export const CodeBlock = ({
 
   // Prepare display content: remove leading/trailing blank lines that add invisible space
   const displayContent = typeof children === "string" ? children.replace(/^\n+|\n+$/g, "") : children;
+
+  // Count lines from the extracted text content actually displayed
+  const lineCount = content.split("\n").length;
+  const isLongCode = lineCount > COLLAPSE_LINE_THRESHOLD;
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => isLongCode);
 
   // Return early if code block is closed
   if (!isVisible) {
@@ -309,6 +321,8 @@ export const CodeBlock = ({
                 "![text-shadow:none] [&_*]:![text-shadow:none]",
                 "[&_*]:!bg-transparent [&_*]:!leading-relaxed font-mono",
                 isMaximized && !embeddedInTabFrame && "overflow-auto max-h-full",
+                // Auto-collapse long code blocks unless maximized
+                isCollapsed && !isMaximized && isLongCode && "overflow-hidden max-h-64 sm:max-h-72 md:max-h-80",
                 className, // From MDX (e.g., language-bash)
               )}
               {...props}
@@ -323,6 +337,64 @@ export const CodeBlock = ({
             </pre>
             {/* CopyButton is always rendered. It uses group-hover on the parent div. */}
             <CopyButton content={filteredContent} parentIsPadded={!embeddedInTabFrame} />
+            {/* Collapsed overlay with gradient and expand/collapse control */}
+            {isCollapsed && isLongCode && !isMaximized && (
+              <>
+                {/* Gradient fade from container background to transparent for visual cue */}
+                <div
+                  aria-hidden="true"
+                  className={cn(
+                    "pointer-events-none absolute inset-x-0 bottom-0",
+                    "h-16 sm:h-20",
+                    // Match the container background colors for a seamless fade
+                    "bg-gradient-to-t from-[#f5f2f0]/95 to-transparent dark:from-[#282a36]/95",
+                    // Respect rounded corners in standalone mode
+                    !embeddedInTabFrame && "rounded-b-lg",
+                  )}
+                />
+                {/* Expand button */}
+                <div className="absolute inset-x-0 bottom-2 sm:bottom-3 flex justify-center">
+                  <button
+                    type="button"
+                    aria-label="Show all code"
+                    aria-expanded={!isCollapsed}
+                    onClick={() => setIsCollapsed(false)}
+                    className={cn(
+                      "px-3 py-1 text-xs sm:text-sm rounded-full",
+                      "bg-white/85 dark:bg-black/40 backdrop-blur",
+                      "text-gray-900 dark:text-gray-100",
+                      "shadow-sm ring-1 ring-black/10 dark:ring-white/10",
+                      "hover:bg-white/95 dark:hover:bg-black/50 transition-colors",
+                      // Visible by default on mobile; reveal on hover for sm+ viewports
+                      "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity",
+                      !embeddedInTabFrame && "border border-black/5 dark:border-white/5",
+                    )}
+                  >
+                    Show all code
+                  </button>
+                </div>
+              </>
+            )}
+            {/* Collapse control when expanded (appears as a subtle inline action) */}
+            {!isCollapsed && isLongCode && !isMaximized && (
+              <div className="flex justify-center py-2">
+                <button
+                  type="button"
+                  aria-label="Collapse code"
+                  aria-expanded={!isCollapsed}
+                  onClick={() => setIsCollapsed(true)}
+                  className={cn(
+                    "mt-1 px-3 py-1 text-xs sm:text-sm rounded-full",
+                    "bg-gray-100/80 dark:bg-gray-800/60",
+                    "text-gray-800 dark:text-gray-100",
+                    "shadow-sm ring-1 ring-black/10 dark:ring-white/10",
+                    "hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors",
+                  )}
+                >
+                  Collapse
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
