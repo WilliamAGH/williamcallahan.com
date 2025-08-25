@@ -241,7 +241,7 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
             {/* Category for investments and projects */}
             {(type === "investment" || type === "project") &&
               metadata.category &&
-              !(type === "investment" && normalizedTagSet.has(String(metadata.category).toLowerCase())) && (
+              !((type === "investment" || type === "project") && normalizedTagSet.has(String(metadata.category).toLowerCase())) && (
                 <span>{metadata.category}</span>
               )}
 
