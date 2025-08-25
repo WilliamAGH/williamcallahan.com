@@ -186,6 +186,8 @@ export function Terminal() {
           const isNativeInteractive = ae?.tagName === "BUTTON" || ae?.tagName === "A";
           if (!isInputFocused && !isEditable && !isInteractiveRole && !isNativeInteractive) {
             e.preventDefault();
+            // Ensure the terminal input receives focus so Space can be typed next
+            focusInput();
           }
         }
       }
