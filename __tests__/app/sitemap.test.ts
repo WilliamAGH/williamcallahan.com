@@ -37,9 +37,31 @@ jest.mock("@/data/projects", () => ({
 const mockLoadSlugMapping = jest.fn();
 type TestSlugMapping = { slugs?: Record<string, { slug?: string }> } | null | undefined;
 const mockGetSlugForBookmark = jest.fn((mapping: TestSlugMapping, id: string) => mapping?.slugs?.[id]?.slug ?? null);
+const mockGenerateSlugMapping = jest.fn((bookmarks: any[]) => {
+  // Generate a simple slug mapping for testing
+  const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
+  const reverseMap: Record<string, string> = {};
+  for (const bookmark of bookmarks) {
+    const slug = bookmark.slug || `bookmark-${bookmark.id}`;
+    slugs[bookmark.id] = {
+      id: bookmark.id,
+      slug,
+      url: bookmark.url || "",
+      title: bookmark.title || "",
+    };
+    reverseMap[slug] = bookmark.id;
+  }
+  return {
+    slugs,
+    reverseMap,
+    count: bookmarks.length,
+    generatedAt: new Date().toISOString(),
+  };
+});
 jest.mock("@/lib/bookmarks/slug-manager", () => ({
   loadSlugMapping: () => mockLoadSlugMapping(),
   getSlugForBookmark: (mapping: TestSlugMapping, id: string) => mockGetSlugForBookmark(mapping, id),
+  generateSlugMapping: (bookmarks: any[]) => mockGenerateSlugMapping(bookmarks),
 }));
 
 // Helper to build consistent slug-mapping payloads for tests
