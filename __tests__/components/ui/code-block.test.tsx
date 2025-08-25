@@ -211,4 +211,84 @@ const y = 2;`}
       expect(screen.getByTestId("maximize-button")).toBeInTheDocument();
     });
   });
+
+  describe("Auto-collapse overlay", () => {
+    it("auto-collapses when line count exceeds threshold and shows expand control", () => {
+      const longCode = Array.from({ length: 20 }, (_, i) => `line ${i + 1}`).join("\n");
+      const { container } = render(<CodeBlock>{longCode}</CodeBlock>);
+
+      const pre = container.querySelector("pre");
+      expect(pre).toBeInTheDocument();
+
+      // Collapsed pre should have a max-height class (responsive set)
+      // We check any of the responsive classes to avoid fragility
+      const preClass = pre?.className || "";
+      expect(preClass).toMatch(/max-h-64|sm:max-h-72|md:max-h-80/);
+
+      // The expand control should be present with accessible label
+      const expandButton = screen.getByRole("button", { name: /show all code/i });
+      expect(expandButton).toBeInTheDocument();
+    });
+
+    it('expands on clicking "Show all code" and reveals Collapse control', async () => {
+      const longCode = Array.from({ length: 20 }, (_, i) => `line ${i + 1}`).join("\n");
+      const { container } = render(<CodeBlock>{longCode}</CodeBlock>);
+
+      const expandButton = screen.getByRole("button", { name: /show all code/i });
+      fireEvent.click(expandButton);
+
+      // After expanding, the pre should NOT have the collapsed classes
+      await waitFor(() => {
+        const pre = container.querySelector("pre");
+        const preClass = pre?.className || "";
+        expect(preClass).not.toMatch(/max-h-64|sm:max-h-72|md:max-h-80/);
+      });
+
+      // Collapse control should now be visible
+      const collapseButton = screen.getByRole("button", { name: /collapse/i });
+      expect(collapseButton).toBeInTheDocument();
+    });
+
+    it('collapses again when clicking "Collapse" after expansion', async () => {
+      const longCode = Array.from({ length: 20 }, (_, i) => `line ${i + 1}`).join("\n");
+      const { container } = render(<CodeBlock>{longCode}</CodeBlock>);
+
+      // Expand first
+      fireEvent.click(screen.getByRole("button", { name: /show all code/i }));
+
+      // Now collapse
+      const collapseButton = await screen.findByRole("button", { name: /collapse/i });
+      fireEvent.click(collapseButton);
+
+      // Pre should regain collapsed classes
+      await waitFor(() => {
+        const pre = container.querySelector("pre");
+        const preClass = pre?.className || "";
+        expect(preClass).toMatch(/max-h-64|sm:max-h-72|md:max-h-80/);
+      });
+    });
+
+    it("does not show expand control for short code blocks", () => {
+      const shortCode = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"].join("\n"); // 12 lines
+      render(<CodeBlock>{shortCode}</CodeBlock>);
+
+      // Exactly threshold lines should not auto-collapse
+      expect(screen.queryByRole("button", { name: /show all code/i })).not.toBeInTheDocument();
+    });
+
+    it("respects maximize state and does not apply collapsed height when maximized", () => {
+      const longCode = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`).join("\n");
+      const { container } = render(<CodeBlock>{longCode}</CodeBlock>);
+
+      // Click maximize
+      act(() => {
+        screen.getByTestId("maximize-button").click();
+      });
+
+      // When maximized, pre should allow full height (no collapsed classes)
+      const pre = container.querySelector("pre");
+      const preClass = pre?.className || "";
+      expect(preClass).not.toMatch(/max-h-64|sm:max-h-72|md:max-h-80/);
+    });
+  });
 });
