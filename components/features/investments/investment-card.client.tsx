@@ -105,6 +105,7 @@ export function InvestmentCardClient({
                       title={`Visit ${name}'s website`}
                       showIcon={false}
                       className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      aria-label={`Visit ${name}'s website`}
                     >
                       <ExternalLinkIcon className="w-4 h-4" />
                     </ExternalLink>
