@@ -62,7 +62,7 @@ function getGitHash(): string {
     // Railway provides full SHA, truncate to short version
     return hash.slice(0, 7);
   }
-  
+
   // Priority 2: For local development, try git command
   // This only works locally where git is available
   if (process.env.NODE_ENV === "development") {
@@ -76,23 +76,23 @@ function getGitHash(): string {
       // Git not available or not in a git repo
     }
   }
-  
+
   // Priority 3: Use build-time generated hash if available
   // This should be set during the build process
   if (process.env.BUILD_ID) {
     return process.env.BUILD_ID.slice(0, 7);
   }
-  
+
   // Final fallback: Use package version for production builds
   // This ensures we always have a meaningful release identifier
   const version = getPackageVersion();
-  
+
   // For production, just use the version (no timestamp needed)
   // This is more stable and meaningful for release tracking
   if (process.env.NODE_ENV === "production") {
     return `v${version}`;
   }
-  
+
   // For development, add timestamp for uniqueness
   const datePart = new Date().toISOString().split("T")[0];
   const timestamp = datePart ? datePart.replace(/-/g, "") : "00000000";
@@ -163,7 +163,16 @@ const nextConfig = {
    * @param {import('webpack').Configuration} config - Webpack config object
    * @returns {import('webpack').Configuration} Modified webpack config
    */
-  webpack: (config: import("webpack").Configuration) => {
+  webpack: (
+    config: import("webpack").Configuration,
+    options: {
+      buildId: string;
+      dev: boolean;
+      isServer: boolean;
+      nextRuntime?: "edge" | "nodejs";
+      webpack: typeof import("webpack");
+    },
+  ) => {
     // Added type annotation
     // Configure SVG handling, excluding /public directory
     const svgRule: RuleSetRule = {
@@ -323,14 +332,32 @@ const nextConfig = {
     if (process.env.NODE_ENV === "development") {
       // Use filesystem cache in development to dramatically reduce memory usage.
       // Each compiler (server, client, edge-server) needs a unique cache name.
-      const compilerName = config.name || "unknown";
+      const compilerName =
+        (config.name as string) ||
+        (options?.nextRuntime === "edge" ? "edge-server" : options?.isServer ? "server" : "client");
+      const nextPkgVersion = (() => {
+        try {
+          return require("next/package.json").version as string;
+        } catch {
+          return "unknown";
+        }
+      })();
+      const webpackPkgVersion = (() => {
+        try {
+          return require("webpack/package.json").version as string;
+        } catch {
+          return "unknown";
+        }
+      })();
+
       config.cache = {
         type: "filesystem",
         // Let Next.js handle buildDependencies automatically
-        compression: "gzip",
+        compression: false, // disable gzip to avoid corrupted pack restores in dev
         hashAlgorithm: "xxhash64",
         name: `dev-cache-${compilerName}`,
-        version: appVersion,
+        version: `dev-${appVersion}|next@${nextPkgVersion}|webpack@${webpackPkgVersion}`,
+        cacheDirectory: require("node:path").resolve(__dirname, ".next/cache/webpack", compilerName),
         // **ENHANCED MEMORY LIMITS FOR NEXT.JS 15**
         maxMemoryGenerations: 1, // Limit memory generations
         memoryCacheUnaffected: false, // Don't keep unaffected modules in memory
@@ -338,6 +365,12 @@ const nextConfig = {
         // Aggressive cache memory management
         store: "pack", // Use pack store for better memory efficiency
         profile: false, // Disable profiling to save memory
+      };
+
+      // Add infra logging to trace cache restores in dev only
+      config.infrastructureLogging = {
+        level: "log",
+        debug: [/PackFileCacheStrategy/, /ResolverCachePlugin/, /Compilation\/codeGeneration/, /Cache/],
       };
 
       // RESTORE default devtool to ensure chunk mapping works correctly.
@@ -819,12 +852,10 @@ const nextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   /**
-   * Disable Next.js' default in-memory cache for ISR/data. We already employ
-   * a bespoke cache (see `lib/server-cache.ts` & `lib/image-memory-manager.ts`).
-   * Setting this to 0 prevents duplicated objects in RAM.
-   * @see https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandler
+   * Disable Next.js' default in-memory cache for ISR/data in production only.
+   * In development we allow defaults to reduce filesystem cache churn.
    */
-  cacheMaxMemorySize: 0,
+  ...(process.env.NODE_ENV === "production" ? { cacheMaxMemorySize: 0 } : {}),
 };
 
 const sentryWebpackPluginOptions = {
