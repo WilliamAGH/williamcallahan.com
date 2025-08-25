@@ -264,10 +264,10 @@ export function extractFileName(url: string): string | null {
 /**
  * Creates a safe external href from a raw URL string.
  * Ensures the URL has a valid http/https protocol and handles edge cases.
- * 
+ *
  * @param raw - The raw URL string to sanitize
  * @returns A safe URL string or null if invalid
- * 
+ *
  * @example
  * safeExternalHref('example.com') // Returns 'https://example.com'
  * safeExternalHref('HTTPS://Example.com ') // Returns 'https://example.com/'
@@ -276,21 +276,29 @@ export function extractFileName(url: string): string | null {
  */
 export function safeExternalHref(raw: string): string | null {
   if (!raw) return null;
-  
+
   const input = raw.trim();
   if (!input) return null;
-  
-  // Check if URL has a scheme (case-insensitive)
+
+  // Check if URL has a scheme (case-insensitive) or is protocol-relative
   const hasScheme = /^https?:\/\//i.test(input);
-  
+  const isProtocolRelative = input.startsWith("//");
+
   try {
-    const url = new URL(hasScheme ? input : `https://${input}`);
-    
+    const candidate = hasScheme ? input : isProtocolRelative ? `https:${input}` : `https://${input}`;
+    const url = new URL(candidate);
+
     // Only allow http and https protocols
     if (url.protocol !== "http:" && url.protocol !== "https:") {
       return null;
     }
-    
+
+    // Strip credentials if present to avoid accidental credential leaks
+    if (url.username || url.password) {
+      url.username = "";
+      url.password = "";
+    }
+
     return url.toString();
   } catch {
     return null;
@@ -301,10 +309,10 @@ export function safeExternalHref(raw: string): string | null {
  * Creates a safe href for both internal and external URLs.
  * Internal paths (starting with /) are returned as-is.
  * External URLs are validated and sanitized.
- * 
+ *
  * @param href - The href string to sanitize
  * @returns A safe href string or '#' if invalid
- * 
+ *
  * @example
  * safeHref('/about') // Returns '/about'
  * safeHref('https://example.com') // Returns 'https://example.com/'
@@ -312,10 +320,16 @@ export function safeExternalHref(raw: string): string | null {
  */
 export function safeHref(href: string): string {
   if (!href) return "#";
-  
+
   // Internal paths are safe
   if (href.startsWith("/")) return href;
-  
+
+  // In-page anchors and query-only refs are safe
+  if (href.startsWith("#") || href.startsWith("?")) return href;
+
+  // Common non-http schemes that should pass through
+  if (/^(mailto:|tel:|sms:|geo:)/i.test(href)) return href;
+
   // Validate external URLs
   const safeUrl = safeExternalHref(href);
   return safeUrl || "#";
