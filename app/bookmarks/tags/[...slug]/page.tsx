@@ -28,6 +28,20 @@ import { redirect, notFound } from "next/navigation";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 
 /**
+ * Parse page number from URL segments
+ * Supports both /tags/[slug]/page/[n] and legacy /tags/[slug]/[n] formats
+ */
+function parsePageParam(page: string | undefined, pageNumberStr: string | undefined): number {
+  const parsed =
+    page === "page" && pageNumberStr
+      ? Number.parseInt(pageNumberStr, 10)
+      : page && /^\d+$/.test(page)
+        ? Number.parseInt(page, 10)
+        : 1;
+  return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
+}
+
+/**
  * Generate static paths for tag pages at build time
  *
  * FIX (Issue #sitemap-2024): Changed from sync getBookmarksForStaticBuild() to async version.
@@ -45,24 +59,20 @@ import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
  */
 export async function generateStaticParams() {
   const bookmarks = await getBookmarksForStaticBuildAsync();
-  const tagCounts: { [key: string]: number } = {};
+  const tagCounts = new Map<string, number>();
   bookmarks.forEach(b => {
     (Array.isArray(b.tags) ? b.tags : []).forEach((t: string | { name: string }) => {
       const tagName = typeof t === "string" ? t : t.name;
       const slug = tagToSlug(tagName);
-      if (!tagCounts[slug]) {
-        tagCounts[slug] = 0;
-      }
-      tagCounts[slug]++;
+      tagCounts.set(slug, (tagCounts.get(slug) || 0) + 1);
     });
   });
 
   const params: { slug: string[] }[] = [];
 
-  for (const tagSlug in tagCounts) {
+  for (const [tagSlug, count] of tagCounts) {
     // Calculate totalPages based on bookmarks that have valid id/slug fields
     // This matches the filtering in getBookmarksForStaticBuildAsync()
-    const count = tagCounts[tagSlug] || 0;
     const totalPages = Math.ceil(count / BOOKMARKS_PER_PAGE);
     params.push({ slug: [tagSlug] });
     for (let i = 2; i <= totalPages; i++) {
@@ -84,14 +94,7 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
     return getStaticPageMetadata("/bookmarks", "bookmarks");
   }
 
-  // Support both /tags/[slug]/page/[n] and legacy /tags/[slug]/[n]
-  const parsedPage =
-    page === "page" && pageNumberStr
-      ? Number.parseInt(pageNumberStr, 10)
-      : page && /^\d+$/.test(page)
-        ? Number.parseInt(page, 10)
-        : 1;
-  const pageNumber = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
+  const pageNumber = parsePageParam(page, pageNumberStr);
 
   let decodedSlug: string;
   try {
@@ -161,14 +164,7 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
   }
 
   const [rawTagSlug, page, pageNumberStr] = slug;
-  // Support both /tags/[slug]/page/[n] and legacy /tags/[slug]/[n]
-  const parsedCurrent =
-    page === "page" && pageNumberStr
-      ? Number.parseInt(pageNumberStr, 10)
-      : page && /^\d+$/.test(page)
-        ? Number.parseInt(page, 10)
-        : 1;
-  const currentPage = Number.isNaN(parsedCurrent) || parsedCurrent < 1 ? 1 : parsedCurrent;
+  const currentPage = parsePageParam(page, pageNumberStr);
 
   if (!rawTagSlug) {
     redirect("/bookmarks");
