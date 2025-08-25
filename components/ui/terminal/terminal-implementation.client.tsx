@@ -67,7 +67,7 @@ export function Terminal() {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
-  }, []); // Dependency on history from context
+  }, [terminalHistory.length]); // Re-run when history changes
 
   // Determine maximized state - moved up before hooks that depend on it
   const isMaximized = windowState === "maximized";
@@ -116,23 +116,7 @@ export function Terminal() {
     }
   }, [isMaximized, inputRef]);
 
-  // Add effect to register/unregister click outside handler
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (isMaximized && !scrollContainerRef.current?.contains(event.target as Node)) {
-        maximizeWindow(); // Toggle back to normal state
-      }
-    };
-
-    if (isMaximized) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    // Cleanup function to remove the event listener
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isMaximized, maximizeWindow]);
+  // Backdrop provides the accessible outside-click affordance; no doc-level mousedown needed.
 
   // Effect for handling Escape key when maximized
   useEffect(() => {
@@ -180,16 +164,27 @@ export function Terminal() {
           isTerminalFocused);
 
       if (isTerminalActive) {
-        // Prevent default for navigation keys to stop page scrolling
-        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End"].includes(e.key)) {
+        // Prevent default for navigation keys to stop page scrolling (but not when modifiers are pressed)
+        if (
+          !e.altKey &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          !e.shiftKey &&
+          ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End"].includes(e.key)
+        ) {
           e.preventDefault();
           return;
         }
 
-        // Allow typing spaces when input is focused; otherwise prevent page scroll
-        if (e.key === " ") {
-          const isInputFocused = document.activeElement === inputRef.current;
-          if (!isInputFocused) {
+        // Handle space key: don't hijack activation of other focusable elements
+        if (e.key === " " || e.key === "Spacebar") {
+          const ae = document.activeElement as HTMLElement | null;
+          const isInputFocused = ae === inputRef.current;
+          const isEditable = !!ae?.isContentEditable || ae?.tagName === "TEXTAREA" || ae?.tagName === "INPUT";
+          const role = ae?.getAttribute?.("role");
+          const isInteractiveRole = role === "button" || role === "link";
+          const isNativeInteractive = ae?.tagName === "BUTTON" || ae?.tagName === "A";
+          if (!isInputFocused && !isEditable && !isInteractiveRole && !isNativeInteractive) {
             e.preventDefault();
           }
         }
@@ -216,15 +211,13 @@ export function Terminal() {
       }
     };
 
-    // Add listeners in capture phase with highest priority
+    // Add listeners in capture phase with highest priority (only on window, not document to avoid double firing)
     window.addEventListener("keydown", handleWindowKeyDown, { capture: true, passive: false });
-    document.addEventListener("keydown", handleWindowKeyDown, { capture: true, passive: false });
     window.addEventListener("wheel", handleWheel, { capture: true, passive: false });
 
     return () => {
       clearTimeout(setupTimer);
       window.removeEventListener("keydown", handleWindowKeyDown, { capture: true });
-      document.removeEventListener("keydown", handleWindowKeyDown, { capture: true });
       window.removeEventListener("wheel", handleWheel, { capture: true });
     };
   }, [isTerminalFocused]);
@@ -304,11 +297,6 @@ export function Terminal() {
           className="fixed left-0 right-0 top-14 bottom-0 z-[59] bg-black/50 backdrop-blur-sm"
           onClick={() => {
             maximizeWindow();
-          }}
-          onKeyDown={e => {
-            if (e.key === "Enter" || e.key === " ") {
-              maximizeWindow();
-            }
           }}
           aria-label="Close terminal"
         />
