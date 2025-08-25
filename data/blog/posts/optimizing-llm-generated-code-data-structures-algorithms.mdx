@@ -451,7 +451,7 @@ users.forEach(u => UserSchema.parse(u));
 return Object.fromEntries(users.map(u => [u.id, u]));
 }
 
-````
+```
 </CollapseDropdown>
 
 <BackgroundInfo title="Why this matters">With a single source of truth you get exhaustive type-checking **and** runtime safety—no silent shape drift.</BackgroundInfo>
@@ -469,7 +469,7 @@ EXPLAIN ANALYZE SELECT * FROM posts WHERE user_id = 42;
 CREATE INDEX CONCURRENTLY idx_posts_user_created ON posts(user_id, created_at DESC);
 
 -- After: 3ms using idx_posts_user_created
-````
+```
 
 </CollapseDropdown>
 
