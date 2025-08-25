@@ -72,6 +72,7 @@ jest.mock("../../../../components/ui/terminal/terminal-header", () => ({
 jest.mock("next/navigation", () => ({
   // Use mock.module
   useRouter: jest.fn(() => ({ push: jest.fn() })), // Provide default mock implementation
+  usePathname: jest.fn(() => "/"),
 }));
 
 // --- Mock GlobalWindowRegistryContext using mock.module ---
@@ -551,5 +552,47 @@ describe.skip("Terminal Component", () => {
       // Restore original AbortController
       global.AbortController = originalAbortController;
     });
+  });
+});
+
+// Focused regression tests for Space key behavior — run independently of the skipped suite
+describe("Terminal Space Key Behavior", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseRegisteredWindowState.mockImplementation(() => ({
+      windowState: "normal",
+      isRegistered: true,
+      minimize: jest.fn(),
+      maximize: jest.fn(),
+      close: jest.fn(),
+      restore: jest.fn(),
+      setState: jest.fn(),
+    }));
+  });
+
+  it("allows typing space when input is focused (does not prevent default)", () => {
+    renderTerminal();
+    const input = screen.getByRole("textbox");
+    input.focus();
+
+    const evt = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    window.dispatchEvent(evt);
+
+    // Global keydown safeguard must NOT block space when input is focused
+    expect(evt.defaultPrevented).toBe(false);
+  });
+
+  it("prevents space scrolling and focuses input when pressed on content area", () => {
+    renderTerminal();
+    const input = screen.getByRole("textbox");
+    // Ensure input is not focused to simulate pressing space outside the input
+    input.blur();
+    expect(document.activeElement).not.toBe(input);
+
+    const content = screen.getByLabelText("Terminal content area");
+    // Trigger section-level keydown handler which should prevent scroll and focus input
+    fireEvent.keyDown(content, { key: " " });
+
+    expect(input).toHaveFocus();
   });
 });

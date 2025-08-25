@@ -19,6 +19,10 @@ import type { BlogFrontmatter } from "@/types/test";
 import fs from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
+// IMPORTANT: Use the real serializer. Keep ESM rehype/remark plugins mocked by config.
+jest.unmock("next-mdx-remote/serialize");
+jest.unmock("next-mdx-remote");
+
 import { getMDXPost } from "../../lib/blog/mdx";
 
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
@@ -85,6 +89,12 @@ describe("Blog MDX Smoke Tests", () => {
           expect(post.content).toBeDefined();
           // Verify other critical properties as needed
           expect(post.slug).toBe(frontmatterSlug);
+
+          // Guardrail: ensure we did not hit the MDX fallback renderer
+          // Fallback string is produced when MDX compilation fails in lib/blog/mdx.ts
+          const FALLBACK_MDX_MARKER = "Unable to render content due to MDX errors.";
+          const compiled = JSON.stringify(post.content);
+          expect(compiled).not.toContain(FALLBACK_MDX_MARKER);
         }
       }),
     );
