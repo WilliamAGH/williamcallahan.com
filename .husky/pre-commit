@@ -1,42 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
 echo "🚀 Running pre-commit checks on staged files..."
 
-# Set up PATH to include bun
+# Set up PATH to include bun, fall back to npx if bun not available
 export PATH="$HOME/.bun/bin:$PATH"
-
-# Check for and remove stale git lock file if it exists
-if [ -f .git/index.lock ]; then
-  echo "⚠️  Found stale git lock file, removing..."
-  rm -f .git/index.lock
+if command -v bun >/dev/null 2>&1; then
+  RUNNER_PREFIX=(bun x)
+else
+  echo "ℹ️  Bun not found; falling back to npx."
+  RUNNER_PREFIX=(npx)
 fi
 
-# Get list of staged files
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
+# Check for git lock file and fail safely instead of force-deleting
+if [ -f .git/index.lock ]; then
+  echo "❌ .git/index.lock exists. A Git process may be running."
+  echo "   Resolve the lock (close other Git processes) and retry the commit."
+  exit 1
+fi
 
-if [ -z "$STAGED_FILES" ]; then
+# Get list of staged files (NUL-delimited to handle spaces/newlines)
+STAGED_FILES_NUL=$(git diff --cached --name-only --diff-filter=ACMR -z)
+
+if [ -z "$STAGED_FILES_NUL" ]; then
   echo "📭 No staged files to check"
   exit 0
 fi
 
-# Filter for JavaScript/TypeScript files
-JS_TS_FILES=$(echo "$STAGED_FILES" | grep -E '\.(js|jsx|ts|tsx)$' || true)
-# Filter for files that prettier can format
-PRETTIER_FILES=$(echo "$STAGED_FILES" | grep -E '\.(js|jsx|ts|tsx|json|md|mdx|yml|yaml|css)$' || true)
+# Filter staged files into buckets, NUL-safe
+JS_TS_FILES_NUL=$(printf "%s" "$STAGED_FILES_NUL" | grep -zE '\.(js|jsx|ts|tsx)$' || true)
+PRETTIER_FILES_NUL=$(printf "%s" "$STAGED_FILES_NUL" | grep -zE '\.(js|jsx|ts|tsx|json|md|mdx|yml|yaml|css)$' || true)
 
 # Run oxlint on JS/TS files if any
-if [ -n "$JS_TS_FILES" ]; then
+if [ -n "${JS_TS_FILES_NUL:-}" ]; then
   echo "🔍 Running oxlint on TypeScript/JavaScript files..."
-  echo "$JS_TS_FILES" | xargs bun x oxlint --fix || {
+  printf "%s" "$JS_TS_FILES_NUL" | xargs -0 "${RUNNER_PREFIX[@]}" oxlint --fix || {
     echo "❌ Oxlint found issues!"
     exit 1
   }
 fi
 
 # Run prettier on applicable files if any
-if [ -n "$PRETTIER_FILES" ]; then
+if [ -n "${PRETTIER_FILES_NUL:-}" ]; then
   echo "✨ Running prettier on staged files..."
-  echo "$PRETTIER_FILES" | xargs bun x prettier --write
+  printf "%s" "$PRETTIER_FILES_NUL" | xargs -0 "${RUNNER_PREFIX[@]}" prettier --write
   # Re-add files that were modified by prettier
-  echo "$PRETTIER_FILES" | xargs git add
+  printf "%s" "$PRETTIER_FILES_NUL" | xargs -0 git add
 fi
 
 echo "✅ Pre-commit checks passed!"
