@@ -9,12 +9,9 @@
  * cover images and inline images within the content.
  */
 
-"use client";
-
 import { ArrowLeft, Calendar, Clock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorBoundary } from "../../../ui/error-boundary.client";
 import { BlogAuthor } from "../shared/blog-author";
 import { BlogTags } from "../shared/blog-tags";
@@ -39,53 +36,6 @@ import type { BlogArticleProps } from "@/types/features";
 export const BlogArticle: React.FC<BlogArticleProps> = ({ post, mdxContent }) => {
   // Format publication date to a human-readable string (e.g., "June 16, 2025")
   const formattedDate = formatDate(post.publishedAt);
-  // State to track mounted status and cleanup queue
-  const [isMounted, setIsMounted] = useState(false);
-  const cleanupQueue = useRef<(() => void)[]>([]);
-
-  // Add cleanup function to queue
-  const addCleanup = useCallback((cleanup: () => void) => {
-    cleanupQueue.current.push(cleanup);
-  }, []);
-
-  // Setup and cleanup effects
-  useEffect(() => {
-    setIsMounted(true);
-
-    return () => {
-      setIsMounted(false);
-
-      // Execute all cleanup functions
-      for (const cleanup of cleanupQueue.current) {
-        try {
-          cleanup();
-        } catch (error) {
-          console.error("Cleanup error:", error);
-        }
-      }
-      cleanupQueue.current = [];
-
-      // Additional cleanup
-      if (typeof window !== "undefined" && window.document) {
-        for (const selector of ["[data-fullscreen-image]", "[data-modal-backdrop]", "[data-article-image]"]) {
-          const elements = window.document.querySelectorAll(selector);
-          for (const el of elements) {
-            if (el instanceof HTMLElement) {
-              // Fade out before removal
-              el.style.opacity = "0";
-              el.style.transition = "opacity 0.2s ease-out";
-
-              setTimeout(() => {
-                el.remove();
-              }, 200);
-            } else {
-              el.remove();
-            }
-          }
-        }
-      }
-    };
-  }, []);
 
   return (
     <article className="max-w-4xl mx-auto mt-4 sm:mt-8 px-4">
@@ -120,7 +70,7 @@ export const BlogArticle: React.FC<BlogArticleProps> = ({ post, mdxContent }) =>
       </header>
 
       {/* Cover Image */}
-      {post.coverImage && isMounted && (
+      {post.coverImage && (
         <ErrorBoundary
           fallback={
             <div className="relative aspect-[2/1] mb-6 sm:mb-8 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800" />
@@ -134,18 +84,9 @@ export const BlogArticle: React.FC<BlogArticleProps> = ({ post, mdxContent }) =>
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               className="object-cover"
               priority
+              fetchPriority="high"
               data-article-image="cover"
               unoptimized={false}
-              onLoad={() => {
-                addCleanup(() => {
-                  if (typeof window !== "undefined" && window.document) {
-                    const img = window.document.querySelector(`img[src="${post.coverImage}"]`);
-                    if (img instanceof HTMLElement) {
-                      img.style.opacity = "0";
-                    }
-                  }
-                });
-              }}
             />
           </div>
         </ErrorBoundary>
