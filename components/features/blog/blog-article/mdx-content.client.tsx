@@ -475,11 +475,17 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
           return node;
         };
 
-        const normalizedChildren = Array.isArray(children)
-          ? (children as ReadonlyArray<React.ReactNode>).map(child => unwrapParagraph(child))
-          : unwrapParagraph(children);
+        const normalizedChildrenArray = React.Children.toArray(children).map((child: React.ReactNode) =>
+          unwrapParagraph(child),
+        );
+        const normalizedChildren =
+          normalizedChildrenArray.length === 1 ? normalizedChildrenArray[0] : normalizedChildrenArray;
         if (!href) {
-          return <a {...rest}>{children}</a>; // Fallback for missing href
+          return (
+            <a {...rest} className={className}>
+              {normalizedChildren}
+            </a>
+          ); // Fallback for missing href
         }
 
         // Treat footnote-style anchors (#fn*, #ref*) specially: keep them clickable
@@ -487,22 +493,22 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
         if (href.startsWith("#fn") || href.startsWith("#ref")) {
           return (
             <a href={href} {...rest} className={cn("no-underline text-inherit", className)}>
-              {children}
+              {normalizedChildren}
             </a>
           );
         }
 
         if (href.startsWith("http://") || href.startsWith("https://")) {
           return (
-            <ExternalLink href={href} {...rest}>
+            <ExternalLink href={href} {...rest} className={className}>
               {normalizedChildren}
             </ExternalLink>
           );
         }
         if (href.startsWith("/")) {
           return (
-            <Link href={href} {...rest}>
-              {children}
+            <Link href={href} {...rest} className={className}>
+              {normalizedChildren}
             </Link>
           );
         }
