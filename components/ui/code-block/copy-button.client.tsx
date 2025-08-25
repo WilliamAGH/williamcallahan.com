@@ -54,11 +54,12 @@ export const CopyButton: React.FC<CopyButtonProps> = ({ content, className, pare
       data-content={content}
       onClick={() => void handleCopy()}
       className={cn(
-        "absolute p-2 rounded-md",
+        "absolute p-2 rounded-md backdrop-blur-sm",
         rightPosition,
         verticalPosition,
-        "bg-gray-700/60 hover:bg-gray-600/60",
-        "text-gray-300 hover:text-gray-100",
+        "bg-gray-800/60 hover:bg-gray-700/60 dark:bg-gray-700/50 dark:hover:bg-gray-600/50",
+        "text-gray-200 hover:text-white",
+        "shadow-sm ring-1 ring-black/10 dark:ring-white/10",
         "transition-all duration-200",
         "focus:outline-none focus:ring-2 focus:ring-blue-500/40",
         "opacity-0 group-hover:opacity-100",
@@ -67,7 +68,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({ content, className, pare
       title="Copy code"
       aria-label={copied ? "Copied!" : "Copy code"}
     >
-      {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+      {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
     </button>
   );
 };
