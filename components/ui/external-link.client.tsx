@@ -60,12 +60,12 @@ export function ExternalLink({
     <a
       href={href}
       target="_blank"
-      rel="noopener"
+      rel="noopener noreferrer"
       className={`${baseClassName} hover:text-gray-600 dark:hover:text-gray-300 transition-colors`}
       title={rawTitle ? title : title || `Visit ${href} (opens in new tab)`}
     >
       {normalizedChildren}
-      {showIcon && <ExternalLinkIcon className="w-4 h-4" aria-label="Opens in new tab" />}
+      {showIcon && <ExternalLinkIcon className="w-4 h-4" aria-hidden="true" />}
     </a>
   );
 }
