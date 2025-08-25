@@ -180,11 +180,18 @@ export function Terminal() {
           isTerminalFocused);
 
       if (isTerminalActive) {
-        if (
-          ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End", " "].includes(e.key)
-        ) {
-          // Only prevent default to stop page scrolling, but let the event propagate
+        // Prevent default for navigation keys to stop page scrolling
+        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End"].includes(e.key)) {
           e.preventDefault();
+          return;
+        }
+
+        // Allow typing spaces when input is focused; otherwise prevent page scroll
+        if (e.key === " ") {
+          const isInputFocused = document.activeElement === inputRef.current;
+          if (!isInputFocused) {
+            e.preventDefault();
+          }
         }
       }
     };
@@ -375,3 +382,5 @@ export function Terminal() {
     </>
   );
 }
+
+export default Terminal;
