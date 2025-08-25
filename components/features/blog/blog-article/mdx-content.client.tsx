@@ -338,11 +338,11 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
         return (
           <code
             className={cn(
-              "font-medium align-middle", // Base styles
+              "font-medium align-middle font-mono", // Base styles
               isBlockCode
                 ? "whitespace-pre" // For <code> inside <pre>: respect all whitespace. Display will be handled by CSS.
-                : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-1 sm:px-1.5 py-0.5 rounded whitespace-normal break-words", // Styles for INLINE <code>
-              "text-xs", // Consistent font size
+                : "bg-gray-100/80 dark:bg-gray-800/70 text-gray-900 dark:text-gray-100 px-1.5 sm:px-2 py-0.5 rounded-md whitespace-normal break-words ring-1 ring-inset ring-black/5 dark:ring-white/10", // Styles for INLINE <code>
+              "text-[13px] leading-relaxed",
               className, // Merge className from MDX (e.g., language-bash)
             )}
             {...rest}
