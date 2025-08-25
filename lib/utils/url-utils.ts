@@ -260,3 +260,63 @@ export function extractFileName(url: string): string | null {
 
   return null;
 }
+
+/**
+ * Creates a safe external href from a raw URL string.
+ * Ensures the URL has a valid http/https protocol and handles edge cases.
+ * 
+ * @param raw - The raw URL string to sanitize
+ * @returns A safe URL string or null if invalid
+ * 
+ * @example
+ * safeExternalHref('example.com') // Returns 'https://example.com'
+ * safeExternalHref('HTTPS://Example.com ') // Returns 'https://example.com/'
+ * safeExternalHref('javascript:alert(1)') // Returns null
+ * safeExternalHref('data:text/html,...') // Returns null
+ */
+export function safeExternalHref(raw: string): string | null {
+  if (!raw) return null;
+  
+  const input = raw.trim();
+  if (!input) return null;
+  
+  // Check if URL has a scheme (case-insensitive)
+  const hasScheme = /^https?:\/\//i.test(input);
+  
+  try {
+    const url = new URL(hasScheme ? input : `https://${input}`);
+    
+    // Only allow http and https protocols
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return null;
+    }
+    
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Creates a safe href for both internal and external URLs.
+ * Internal paths (starting with /) are returned as-is.
+ * External URLs are validated and sanitized.
+ * 
+ * @param href - The href string to sanitize
+ * @returns A safe href string or '#' if invalid
+ * 
+ * @example
+ * safeHref('/about') // Returns '/about'
+ * safeHref('https://example.com') // Returns 'https://example.com/'
+ * safeHref('javascript:alert(1)') // Returns '#'
+ */
+export function safeHref(href: string): string {
+  if (!href) return "#";
+  
+  // Internal paths are safe
+  if (href.startsWith("/")) return href;
+  
+  // Validate external URLs
+  const safeUrl = safeExternalHref(href);
+  return safeUrl || "#";
+}
