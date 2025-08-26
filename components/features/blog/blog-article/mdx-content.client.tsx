@@ -26,11 +26,11 @@ import React, {
   type JSX,
 } from "react";
 import type { ArticleImageProps, ArticleGalleryProps, MDXContentProps } from "@/types/features";
+import type { MetricsGroupProps } from "@/types/ui";
 import { BackgroundInfo } from "../../../ui/background-info.client";
 import { MDXCodeBlock } from "../../../ui/code-block/mdx-code-block-wrapper.client";
 import { CollapseDropdown } from "../../../ui/collapse-dropdown.client";
 import { ExternalLink } from "../../../ui/external-link.client";
-import FinancialMetrics from "../../../ui/financial-metrics.server";
 import {
   InstructionMACOSTab,
   InstructionMacOSFrameTabs,
@@ -217,11 +217,36 @@ const ArticleGallery = ({ children, className = "" }: ArticleGalleryProps): JSX.
  * Component renderers extracted to avoid nested component definitions
  * ------------------------------------------------------------------- */
 
-const MetricsGroupRenderer = (props: ComponentProps<typeof FinancialMetrics>) => (
-  <div className="mb-4">
-    <FinancialMetrics {...props} />
-  </div>
-);
+const MetricsGroupRenderer = ({ title, date, metrics }: MetricsGroupProps) => {
+  return (
+    <section className="my-4">
+      <div className="mx-auto max-w-3xl overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-900">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+          {date ? <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{date}</p> : null}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5">
+          {Array.isArray(metrics) &&
+            metrics.map((m, idx) => {
+              const color = m.isPositive
+                ? "text-emerald-600 dark:text-emerald-400"
+                : m.isNegative
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-gray-900 dark:text-gray-100";
+              return (
+                <div key={`${m.label}-${idx}`} className="flex flex-col">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                    {m.label}
+                  </span>
+                  <span className={cn("font-medium", color)}>{String(m.value)}</span>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const BackgroundInfoRenderer = (props: ComponentProps<typeof BackgroundInfo>) => (
   <BackgroundInfo {...props} className={cn(props.className)} />
@@ -303,6 +328,49 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
     }
   }, []);
 
+  // Development diagnostics: detect invalid HTML structures from MDX output
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+    const root = contentRef.current;
+    if (!root) return;
+
+    // 1) Identify nested paragraphs which will cause hydration errors
+    const nestedParagraphs = root.querySelectorAll("p p");
+    if (nestedParagraphs.length > 0) {
+      // Log a concise report with surrounding context
+      const report = Array.from(nestedParagraphs)
+        .slice(0, 10)
+        .map(node => {
+          const outer = node.closest("p");
+          const outerId = outer?.getAttribute("id") || "";
+          const outerClass = outer?.getAttribute("class") || "";
+          const innerClass = (node as HTMLElement).className || "";
+          return { outerId, outerClass, innerClass, innerHTML: (node as HTMLElement).innerHTML.slice(0, 120) };
+        });
+      // Group logs (development only)
+      console.groupCollapsed(
+        `[MDX Diagnostics] Found ${nestedParagraphs.length} nested <p> elements (this can cause hydration errors)`,
+      );
+      console.table(report);
+      console.groupEnd();
+    }
+
+    // 2) Footnote anchors inventory (#ref*, #fn*)
+    const footnoteAnchors = root.querySelectorAll('a[href^="#ref"], a[href^="#fn"]');
+    if (footnoteAnchors.length > 0) {
+      const sample = Array.from(footnoteAnchors)
+        .slice(0, 10)
+        .map(a => ({ href: (a as HTMLAnchorElement).getAttribute("href"), text: a.textContent?.slice(0, 60) }));
+      console.debug("[MDX Diagnostics] Footnote anchors detected:", { count: footnoteAnchors.length, sample });
+    }
+
+    // 3) Superscripts inventory
+    const supers = root.querySelectorAll("sup");
+    if (supers.length > 0) {
+      console.debug("[MDX Diagnostics] <sup> elements detected:", supers.length);
+    }
+  }, []);
+
   /**
    * @constant components
    * A memoized object mapping MDX element tag names (or custom component names used in MDX)
@@ -338,11 +406,11 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
         return (
           <code
             className={cn(
-              "font-medium align-middle", // Base styles
+              "font-medium align-middle font-mono", // Base styles
               isBlockCode
                 ? "whitespace-pre" // For <code> inside <pre>: respect all whitespace. Display will be handled by CSS.
-                : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-1 sm:px-1.5 py-0.5 rounded whitespace-normal break-words", // Styles for INLINE <code>
-              "text-xs", // Consistent font size
+                : "bg-gray-100/80 dark:bg-gray-800/70 text-gray-900 dark:text-gray-100 px-1.5 sm:px-2 py-0.5 rounded-md whitespace-normal break-words ring-1 ring-inset ring-black/5 dark:ring-white/10", // Styles for INLINE <code>
+              "text-[13px] leading-relaxed",
               className, // Merge className from MDX (e.g., language-bash)
             )}
             {...rest}
@@ -392,35 +460,70 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
        * @returns {JSX.Element} The appropriately rendered link or span element.
        */
       a: (props: ComponentProps<"a">) => {
-        const { href, children, ...rest } = props;
+        const { href, children, className, ...rest } = props;
+
+        // Normalize children to avoid invalid <a><p>…</p></a> blocks that MDX can emit
+        // when a component is used inside list items. If the only child is a <p>, unwrap it.
+        const unwrapParagraph = (node: React.ReactNode): React.ReactNode => {
+          if (
+            isValidElement<{ children?: React.ReactNode }>(node) &&
+            node.type === "p" &&
+            Object.prototype.hasOwnProperty.call(node, "props")
+          ) {
+            return (node as React.ReactElement<{ children?: React.ReactNode }>).props.children;
+          }
+          return node;
+        };
+
+        const normalizedChildrenArray = React.Children.toArray(children).map((child: React.ReactNode) =>
+          unwrapParagraph(child),
+        );
+        const normalizedChildren =
+          normalizedChildrenArray.length === 1 ? normalizedChildrenArray[0] : normalizedChildrenArray;
         if (!href) {
-          return <a {...rest}>{children}</a>; // Fallback for missing href
+          return (
+            <a {...rest} className={className}>
+              {normalizedChildren}
+            </a>
+          ); // Fallback for missing href
         }
 
-        if (href.startsWith("#fn")) {
-          return <span {...rest}>{children}</span>;
+        // Treat footnote-style anchors (#fn*, #ref*) specially: keep them clickable
+        // but remove default link styling so superscripts render cleanly.
+        if (href.startsWith("#fn") || href.startsWith("#ref")) {
+          return (
+            <a href={href} {...rest} className={cn("no-underline text-inherit", className)}>
+              {normalizedChildren}
+            </a>
+          );
         }
 
         if (href.startsWith("http://") || href.startsWith("https://")) {
           return (
-            <ExternalLink href={href} {...rest}>
-              {children}
+            <ExternalLink href={href} {...rest} className={className}>
+              {normalizedChildren}
             </ExternalLink>
           );
         }
         if (href.startsWith("/")) {
           return (
-            <Link href={href} {...rest}>
-              {children}
+            <Link href={href} {...rest} className={className}>
+              {normalizedChildren}
             </Link>
           );
         }
         return (
           <a href={href} className="text-inherit no-underline hover:underline" {...rest}>
-            {children}
+            {normalizedChildren}
           </a>
         );
       },
+      // Ensure consistent superscript rendering across prose and custom containers
+      sup: ({ className, children, ...rest }: ComponentProps<"sup">) => (
+        <sup className={cn("align-super text-[0.75em] leading-none ml-0.5", className)} {...rest}>
+          {children}
+        </sup>
+      ),
       /** Renderer for `<h1>` elements, applying specific Tailwind CSS classes for styling. */
       h1: (props: ComponentProps<"h1">) => (
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight" {...props} />
@@ -433,8 +536,8 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
       h3: (props: ComponentProps<"h3">) => (
         <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight" {...props} />
       ),
-      /** Renderer for `<p>` (paragraph) elements. Styling primarily handled by Tailwind `prose` classes on the parent `<article>`. */
-      p: (props: ComponentProps<"p">) => <p className="text-gray-700 dark:text-gray-300 text-base" {...props} />,
+      // Remove custom <p> renderer to avoid ever creating nested <p> inside raw HTML structures.
+      // Let Tailwind Typography's prose styles handle paragraph styling globally.
       /** Renderer for `<ul>` (unordered list) elements. Styling primarily handled by `prose`. */
       ul: (props: ComponentProps<"ul">) => (
         <ul className="pl-6 list-disc text-gray-700 dark:text-gray-300 text-base" {...props} />

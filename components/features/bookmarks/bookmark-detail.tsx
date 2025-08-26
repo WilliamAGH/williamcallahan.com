@@ -22,6 +22,16 @@ import Image from "next/image";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { formatDate } from "@/lib/utils";
 import { BookmarksWindow } from "./bookmarks-window.client";
+import { tagToSlug } from "@/lib/utils/tag-utils";
+import { removeCitations, processSummaryText } from "@/lib/utils/formatters";
+import { safeExternalHref } from "@/lib/utils/url-utils";
+
+// Helper to avoid rendering the literal "Invalid Date"
+function toDisplayDate(date?: string | Date | number | null): string | null {
+  if (date == null) return null;
+  const text = formatDate(date);
+  return text === "Invalid Date" ? null : text;
+}
 
 
 export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
@@ -35,26 +45,20 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
     setMounted(true);
   }, []);
 
-  // Extract domain for display
+  // Extract domain for display with case-insensitive scheme detection
   const domain = useMemo(() => {
     try {
-      const url = new URL(bookmark.url.startsWith("http") ? bookmark.url : `https://${bookmark.url}`);
+      const input = bookmark.url.trim();
+      const hasScheme = /^https?:\/\//i.test(input);
+      const url = new URL(hasScheme ? input : `https://${input}`);
       return url.hostname.replace(/^www\./, "");
     } catch {
       return "website";
     }
   }, [bookmark.url]);
 
-  // Sanitize URL to prevent XSS attacks (only allow http/https protocols)
-  const safeUrl = useMemo(() => {
-    try {
-      const normalized = bookmark.url.startsWith("http") ? bookmark.url : `https://${bookmark.url}`;
-      const u = new URL(normalized);
-      return u.protocol === "http:" || u.protocol === "https:" ? u.toString() : null;
-    } catch {
-      return null;
-    }
-  }, [bookmark.url]);
+  // Sanitize URL using the shared utility
+  const safeUrl = useMemo(() => safeExternalHref(bookmark.url), [bookmark.url]);
 
   // Calculate reading time display
   const readingTimeDisplay = useMemo(() => {
@@ -63,11 +67,11 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
     return `${minutes} min`;
   }, [bookmark.readingTime]);
 
-  const publishedDate = bookmark.content?.datePublished || bookmark.datePublished
-    ? formatDate(bookmark.content?.datePublished || bookmark.datePublished || "")
-    : null;
-  const bookmarkedDate = bookmark.dateBookmarked ? formatDate(bookmark.dateBookmarked) : null;
-  const updatedDate = bookmark.dateUpdated ? formatDate(bookmark.dateUpdated) : null;
+  // Use helper to prevent "Invalid Date" from appearing
+  const rawPublished = bookmark.content?.datePublished || bookmark.datePublished;
+  const publishedDate = toDisplayDate(rawPublished);
+  const bookmarkedDate = toDisplayDate(bookmark.dateBookmarked);
+  const updatedDate = toDisplayDate(bookmark.dateUpdated);
 
   // Get best image for display
   const featuredImage = selectBestImage(bookmark, {
@@ -140,12 +144,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
               {bookmarkedDate && (
                 <span className="flex items-center gap-1.5">
                   <Library className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline" suppressHydrationWarning>
-                    Saved {bookmarkedDate}
-                  </span>
-                  <span className="sm:hidden" suppressHydrationWarning>
-                    Saved {bookmarkedDate}
-                  </span>
+                  <span suppressHydrationWarning>Saved {bookmarkedDate}</span>
                 </span>
               )}
 
@@ -239,17 +238,17 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                   <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 sm:mb-3">
                     Summary
                   </h2>
-                  {bookmark.summary ? (
-                    <div className="text-sm sm:text-base leading-relaxed text-gray-700 dark:text-gray-300 space-y-3">
-                      {bookmark.summary.split("\n\n").map((paragraph, index) => (
-                        <p key={`${bookmark.id}-p-${index}`}>{paragraph}</p>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm sm:text-base leading-relaxed text-gray-700 dark:text-gray-300">
-                      {bookmark.description}
-                    </p>
-                  )}
+                  <div className="text-sm sm:text-base leading-relaxed text-gray-700 dark:text-gray-300 space-y-3">
+                    {(() => {
+                      // Use shared utilities for consistent formatting
+                      const paragraphs = bookmark.summary
+                        ? processSummaryText(removeCitations(bookmark.summary)).split("\n\n")
+                        : [bookmark.description || ""];
+                      return paragraphs.map((p, i) => (
+                        <p key={`${bookmark.id}-p-${i}`}>{p}</p>
+                      ));
+                    })()}
+                  </div>
                 </motion.section>
               )}
 
@@ -301,7 +300,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                       const isString = typeof tag === "string";
                       const tagName = isString ? tag : (tag as BookmarkTag).name;
                       const tagSlug = isString
-                        ? tag.toLowerCase().replace(/\s+/g, "-")
+                        ? tagToSlug(tagName)
                         : ((tag as BookmarkTag).slug ?? "");
                       const tagKey = isString ? tag : (tag as BookmarkTag).id;
                       return (

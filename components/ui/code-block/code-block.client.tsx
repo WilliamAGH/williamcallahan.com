@@ -16,7 +16,7 @@
 
 "use client";
 
-import { type JSX, isValidElement, useCallback, useEffect, useRef, useState, type ReactNode } from "react"; // Import useEffect, useRef, useCallback, isValidElement
+import { type JSX, isValidElement, useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react"; // Import useEffect, useRef, useCallback, isValidElement, useId
 import { useWindowSize } from "../../../lib/hooks/use-window-size.client";
 import { cn } from "../../../lib/utils";
 import { WindowControls } from "../navigation/window-controls";
@@ -68,9 +68,11 @@ const getTextContent = (node: ReactNode): string => {
 
   // Check if it's a valid React element that might have children
   if (isValidElement(node)) {
-    // node.props.children is ReactNode. We need to recurse on it.
-    const props = node.props as { children?: ReactNode };
-    return getTextContent(props.children); // Recurse
+    const props: unknown = node.props;
+    if (typeof props === "object" && props !== null && "children" in (props as Record<string, unknown>)) {
+      return getTextContent((props as { children?: ReactNode }).children);
+    }
+    return "";
   }
 
   return "";
@@ -89,8 +91,16 @@ export const CodeBlock = ({
   embeddedInTabFrame = false,
   ...props
 }: CodeBlockProps): JSX.Element => {
+  // Threshold for when to auto-collapse long code blocks
+  const COLLAPSE_LINE_THRESHOLD = 12;
+  // Approx. max height that corresponds to ~12 lines at text-[13px] leading-relaxed
+  // Tuned for mobile/tablet/desktop for a consistent preview before expanding
+  // Max-heights use Tailwind preset sizes to ensure classes are statically discoverable by the compiler
+  // 64 => 16rem (256px), 72 => 18rem (288px), 80 => 20rem (320px)
+
   const language = extractLanguage(className);
-  const codeElementRef = useRef<HTMLElement>(null);
+  const codeElementRef = useRef<HTMLElement | null>(null);
+  const collapsibleRegionId = useId();
 
   // Add state for interactive behavior
   const [isVisible, setIsVisible] = useState(true);
@@ -184,6 +194,12 @@ export const CodeBlock = ({
   // Prepare display content: remove leading/trailing blank lines that add invisible space
   const displayContent = typeof children === "string" ? children.replace(/^\n+|\n+$/g, "") : children;
 
+  // Count lines from the actually displayed text content
+  const visibleText = typeof displayContent === "string" ? displayContent : content;
+  const lineCount = visibleText ? visibleText.split(/\r?\n/).length : 0;
+  const isLongCode = lineCount > COLLAPSE_LINE_THRESHOLD;
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => isLongCode);
+
   // Return early if code block is closed
   if (!isVisible) {
     // Common content for both button and div versions
@@ -259,7 +275,7 @@ export const CodeBlock = ({
         className={cn(
           "max-w-full w-full overflow-auto",
           !embeddedInTabFrame
-            ? "bg-[#f5f2f0] dark:bg-[#282a36] rounded-lg shadow-md"
+            ? "bg-[#f5f2f0] dark:bg-[#282a36] rounded-lg shadow-sm md:shadow-md border border-gray-200/80 dark:border-gray-800/80 ring-1 ring-black/5 dark:ring-white/5"
             : "!bg-transparent !shadow-none !border-0 !rounded-none",
           isMaximized &&
             !embeddedInTabFrame &&
@@ -270,7 +286,7 @@ export const CodeBlock = ({
         {
           !embeddedInTabFrame ? (
             // Full header for standalone CodeBlock
-            <div className="flex items-center bg-[#1a2a35] dark:bg-[#1a1b26] px-3 py-1.5 rounded-t-lg">
+            <div className="flex items-center bg-[#1a2a35] dark:bg-[#1a1b26] px-3 py-2 rounded-t-lg border-b border-black/10 dark:border-white/10">
               <WindowControls
                 onClose={handleClose}
                 onMinimize={handleMinimize}
@@ -279,10 +295,7 @@ export const CodeBlock = ({
                 isMaximized={isMaximized}
               />
               {language && (
-                <div
-                  style={{ fontSize: "8px" }}
-                  className="not-prose ml-auto flex-shrink min-w-0 px-1.5 py-0.5 font-mono rounded-md bg-gray-600/70 text-gray-300 uppercase truncate"
-                >
+                <div className="not-prose ml-auto flex-shrink min-w-0 px-1.5 py-0.5 font-mono rounded-md bg-gray-600/70 text-gray-200 uppercase tracking-wide truncate text-[10px] sm:text-[11px]">
                   {language}
                 </div>
               )}
@@ -299,6 +312,10 @@ export const CodeBlock = ({
         {!isMinimized && (
           <div className={cn("relative group", isMaximized && !embeddedInTabFrame && "flex-1 overflow-hidden")}>
             <pre
+              id={collapsibleRegionId}
+              role="region"
+              aria-label={language ? `${language} code` : "Code block"}
+              tabIndex={0}
               className={cn(
                 "not-prose max-w-full",
                 "whitespace-pre-wrap",
@@ -307,11 +324,13 @@ export const CodeBlock = ({
                 embeddedInTabFrame
                   ? "!p-0 !m-0 !bg-transparent !border-0 !rounded-none"
                   : "p-4 text-gray-900 dark:text-gray-100",
-                "text-xs",
+                "text-[13px] leading-relaxed",
                 "custom-scrollbar",
                 "![text-shadow:none] [&_*]:![text-shadow:none]",
-                "[&_*]:!bg-transparent",
+                "[&_*]:!bg-transparent [&_*]:!leading-relaxed font-mono",
                 isMaximized && !embeddedInTabFrame && "overflow-auto max-h-full",
+                // Auto-collapse long code blocks unless maximized
+                isCollapsed && !isMaximized && isLongCode && "overflow-hidden max-h-64 sm:max-h-72 md:max-h-80",
                 className, // From MDX (e.g., language-bash)
               )}
               {...props}
@@ -326,6 +345,68 @@ export const CodeBlock = ({
             </pre>
             {/* CopyButton is always rendered. It uses group-hover on the parent div. */}
             <CopyButton content={filteredContent} parentIsPadded={!embeddedInTabFrame} />
+            {/* Collapsed overlay with gradient and expand/collapse control */}
+            {isCollapsed && isLongCode && !isMaximized && (
+              <>
+                {/* Gradient fade from container background to transparent for visual cue */}
+                <div
+                  aria-hidden="true"
+                  className={cn(
+                    "pointer-events-none absolute inset-x-0 bottom-0",
+                    "h-16 sm:h-20",
+                    // Match the container background colors for a seamless fade
+                    "bg-gradient-to-t from-[#f5f2f0]/95 to-transparent dark:from-[#282a36]/95",
+                    // Respect rounded corners in standalone mode
+                    !embeddedInTabFrame && "rounded-b-lg",
+                  )}
+                />
+                {/* Expand button */}
+                <div className="absolute inset-x-0 bottom-2 sm:bottom-3 flex justify-center">
+                  <button
+                    type="button"
+                    aria-label="Show all code"
+                    aria-expanded={!isCollapsed}
+                    aria-controls={collapsibleRegionId}
+                    onClick={() => setIsCollapsed(false)}
+                    className={cn(
+                      "px-3 py-1 text-xs sm:text-sm rounded-full",
+                      "bg-white/85 dark:bg-black/40 backdrop-blur",
+                      "text-gray-900 dark:text-gray-100",
+                      "shadow-sm ring-1 ring-black/10 dark:ring-white/10",
+                      "hover:bg-white/95 dark:hover:bg-black/50 motion-safe:transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50",
+                      // Visible by default on mobile; reveal on hover for sm+ viewports
+                      "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 motion-safe:transition-opacity",
+                      !embeddedInTabFrame && "border border-black/5 dark:border-white/5",
+                    )}
+                  >
+                    Show all code
+                  </button>
+                </div>
+              </>
+            )}
+            {/* Collapse control when expanded (appears as a subtle inline action) */}
+            {!isCollapsed && isLongCode && !isMaximized && (
+              <div className="flex justify-center py-2">
+                <button
+                  type="button"
+                  aria-label="Collapse code"
+                  aria-expanded={!isCollapsed}
+                  aria-controls={collapsibleRegionId}
+                  onClick={() => setIsCollapsed(true)}
+                  className={cn(
+                    "mt-1 px-3 py-1 text-xs sm:text-sm rounded-full",
+                    "bg-gray-100/80 dark:bg-gray-800/60",
+                    "text-gray-800 dark:text-gray-100",
+                    "shadow-sm ring-1 ring-black/10 dark:ring-white/10",
+                    "hover:bg-gray-100 dark:hover:bg-gray-800 motion-safe:transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50",
+                  )}
+                >
+                  Collapse
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

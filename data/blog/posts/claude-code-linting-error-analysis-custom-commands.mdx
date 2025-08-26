@@ -101,7 +101,8 @@ Delete all local branches that have already been merged into main.
 3. **Reload Claude** inside the REPL with `/reload` (or simply restart the CLI).
 
 4. **Docs**: See [Slash Commands – Custom Commands](https://docs.anthropic.com/en/docs/claude-code/slash-commands) for namespacing (`/project:` vs `/user:`) and `$ARGUMENTS` usage.
-   </CollapseDropdown>
+
+</CollapseDropdown>
 
 > You can store commands **globally** in `~/.claude/commands/` or keep them **project-scoped** in `.claude/commands/`. Claude automatically detects the scope and displays it as a suffix, e.g., `/commit (user)` or `/commit (project)`. See the [slash-command docs](https://docs.anthropic.com/en/docs/claude-code/slash-commands) for details on scoping.
 
@@ -265,7 +266,7 @@ Output final test results and all changes made.
 <CollapseDropdown summary="4.5 /pr-review – Systematically Address PR Comments" id="user-pr-review">
 Systematically review and address unresolved comments on GitHub pull requests, making thoughtful decisions about which suggestions to implement.
 
-````markdown
+```markdown
 # PR Review Command
 
 **Purpose**: Systematically review and address unresolved comments on GitHub pull requests, making thoughtful decisions about which suggestions to implement.
@@ -745,7 +746,8 @@ fi
 # For a specific file's comments
 gh api graphql -f query='...' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.path == "lib/utils/api-sanitization.ts" and .isResolved == false)'
 ```
-````
+```
+```
 
 </CollapseDropdown>
 

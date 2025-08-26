@@ -61,14 +61,9 @@ export function CertificationCardClient({ certification, className }: Certificat
             <div className="flex items-center gap-1">
               <h3 className="text-xl font-semibold">{institution}</h3>
               {website && (
-                <ExternalLink
-                  href={website}
-                  title={`Visit ${institution}'s website`}
-                  showIcon={false}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
+                <span className="text-gray-400" aria-hidden="true">
                   <ExternalLinkIcon className="w-4 h-4" />
-                </ExternalLink>
+                </span>
               )}
             </div>
             <span className="text-sm text-gray-500 dark:text-gray-400">{year}</span>

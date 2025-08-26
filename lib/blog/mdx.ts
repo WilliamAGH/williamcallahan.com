@@ -30,6 +30,7 @@
 assertServerOnly(); // Ensure this module runs only on the server
 
 import { assertServerOnly } from "../utils/ensure-server-only";
+// rehype-raw removed to avoid conflicts with MDX v3 JSX nodes
 import { formatSeoDate } from "../seo/utils"; // Import the Pacific Time formatter
 import type { FrontmatterData } from "@/types/features/blog";
 

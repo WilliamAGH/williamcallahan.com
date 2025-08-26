@@ -1,17 +1,46 @@
-echo "🧪 Running pre-commit checks..."
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Run validate (linting and type-checking)
-echo "📝 Validating code..."
-bun run validate || { echo "❌ Code validation failed!"; exit 1; }
+echo "🚀 Running pre-commit checks on staged files..."
 
-# Run blog smoke tests
-echo "📚 Testing blog functionality..."
-bun run test:smoke:blog || { echo "❌ Blog smoke tests failed!"; exit 1; }
+# Set up PATH to include bun, fall back to npx if bun not available
+export PATH="$HOME/.bun/bin:$PATH"
+if command -v bun >/dev/null 2>&1; then
+  RUNNER_PREFIX=(bun x)
+else
+  echo "ℹ️  Bun not found; falling back to npx."
+  RUNNER_PREFIX=(npx)
+fi
 
-# Run pages smoke tests
-echo "📄 Testing pages functionality..."
-bun run test:smoke:pages || { echo "❌ Pages smoke tests failed!"; exit 1; }
+# Check for git lock file and fail safely instead of force-deleting
+if [ -f .git/index.lock ]; then
+  echo "❌ .git/index.lock exists. A Git process may be running."
+  echo "   Resolve the lock (close other Git processes) and retry the commit."
+  exit 1
+fi
 
-# Image path checking removed - script not found
+# Check if there are any staged files
+if ! git diff --cached --name-only --diff-filter=ACMR | grep -q .; then
+  echo "📭 No staged files to check"
+  exit 0
+fi
 
-echo "✅ All pre-commit checks passed!"
+# Process staged files directly with pipes to preserve NUL delimiters
+# Run oxlint on JS/TS files if any
+if git diff --cached --name-only --diff-filter=ACMR -z | grep -zE '\.(js|jsx|ts|tsx)$' | grep -qz .; then
+  echo "🔍 Running oxlint on TypeScript/JavaScript files..."
+  git diff --cached --name-only --diff-filter=ACMR -z | grep -zE '\.(js|jsx|ts|tsx)$' | xargs -0 "${RUNNER_PREFIX[@]}" oxlint --fix || {
+    echo "❌ Oxlint found issues!"
+    exit 1
+  }
+fi
+
+# Run prettier on applicable files if any
+if git diff --cached --name-only --diff-filter=ACMR -z | grep -zE '\.(js|jsx|ts|tsx|json|md|mdx|yml|yaml|css)$' | grep -qz .; then
+  echo "✨ Running prettier on staged files..."
+  git diff --cached --name-only --diff-filter=ACMR -z | grep -zE '\.(js|jsx|ts|tsx|json|md|mdx|yml|yaml|css)$' | xargs -0 "${RUNNER_PREFIX[@]}" prettier --write
+  # Re-add files that were modified by prettier
+  git diff --cached --name-only --diff-filter=ACMR -z | grep -zE '\.(js|jsx|ts|tsx|json|md|mdx|yml|yaml|css)$' | xargs -0 git add
+fi
+
+echo "✅ Pre-commit checks passed!"

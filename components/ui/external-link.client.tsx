@@ -10,7 +10,7 @@
 import { ExternalLink as ExternalLinkIcon } from "lucide-react";
 import type { ExternalLinkProps } from "@/types";
 
-import type { JSX } from "react";
+import React, { Children, isValidElement, type JSX } from "react";
 
 /**
  * A component that renders an external link with proper SEO and accessibility attributes
@@ -44,16 +44,28 @@ export function ExternalLink({
     return <span className={baseClassName}>{children}</span>;
   }
 
+  // Normalize children: if MDX wrapped text in a <p>, unwrap it to avoid invalid <a><p/></a> markup
+  const unwrapParagraph = (node: React.ReactNode): React.ReactNode => {
+    if (isValidElement<{ children?: React.ReactNode }>(node) && node.type === "p") {
+      return node.props.children;
+    }
+    return node;
+  };
+
+  const normalizedChildrenArray = Children.toArray(children).map(unwrapParagraph);
+  const normalizedChildren =
+    normalizedChildrenArray.length === 1 ? normalizedChildrenArray[0] : normalizedChildrenArray;
+
   return (
     <a
       href={href}
       target="_blank"
-      rel="noopener"
+      rel="noopener noreferrer"
       className={`${baseClassName} hover:text-gray-600 dark:hover:text-gray-300 transition-colors`}
       title={rawTitle ? title : title || `Visit ${href} (opens in new tab)`}
     >
-      {children}
-      {showIcon && <ExternalLinkIcon className="w-4 h-4" aria-label="Opens in new tab" />}
+      {normalizedChildren}
+      {showIcon && <ExternalLinkIcon className="w-4 h-4" aria-hidden="true" />}
     </a>
   );
 }

@@ -59,8 +59,8 @@ export function TerminalSkeleton() {
   );
 }
 
-// Lazy load the Terminal component with SSR disabled
-const Terminal = dynamic(() => import("./terminal.client").then(mod => mod.ClientTerminal), {
+// Lazy load the Terminal implementation directly to avoid circular imports
+const TerminalImpl = dynamic(() => import("./terminal-implementation.client").then(mod => mod.Terminal), {
   loading: () => <TerminalSkeleton />,
   ssr: false, // Now allowed in Client Component
 });
@@ -69,7 +69,7 @@ const Terminal = dynamic(() => import("./terminal.client").then(mod => mod.Clien
 export function TerminalLoader() {
   return (
     <Suspense fallback={<TerminalSkeleton />}>
-      <Terminal />
+      <TerminalImpl />
     </Suspense>
   );
 }

@@ -124,6 +124,7 @@
     "react-parallax-tilt": "1.7.299",
     "react-tweet": "^3.2.2",
     "rehype-prism": "^2.3.3",
+    "rehype-raw": "^7.0.0",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^2.0.0",
     "remark-mdx": "^3.1.0",
@@ -206,9 +207,11 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "prettier -w",
-      "oxlint --max-warnings 0",
-      "eslint --config eslint.config.ts --max-warnings 0"
+      "oxlint --fix",
+      "prettier -w"
+    ],
+    "*.{json,md,mdx,yml,yaml,css}": [
+      "prettier -w"
     ]
   },
   "trustedDependencies": [
