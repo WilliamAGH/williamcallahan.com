@@ -12,13 +12,6 @@ else
   RUNNER_PREFIX=(npx)
 fi
 
-# Check for git lock file and fail safely instead of force-deleting
-if [ -f .git/index.lock ]; then
-  echo "❌ .git/index.lock exists. A Git process may be running."
-  echo "   Resolve the lock (close other Git processes) and retry the commit."
-  exit 1
-fi
-
 # Check if there are any staged files
 if ! git diff --cached --name-only --diff-filter=ACMR | grep -q .; then
   echo "📭 No staged files to check"
