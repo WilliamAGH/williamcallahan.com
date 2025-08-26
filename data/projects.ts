@@ -133,7 +133,7 @@ export const projects: Project[] = [
       "Dead simple token calculator for your CLI. Count tokens for files or entire directories (recursive, n-deep) using tiktoken with an isolated uv environment and a pretty summary output.",
     shortSummary: "CLI token counter (Python + tiktoken + uv) with pretty summary",
     url: "https://github.com/WilliamAGH/repo-tokens-calculator",
-    imageKey: "images/repo-tokens-calculator.png",
+    imageKey: "images/other/projects/repo-tokens-calculator.png",
     tags: ["CLI", "Python", "tiktoken", "uv", "Developer Tools", "Open Source"],
     techStack: ["Python", "tiktoken", "uv"],
   },
