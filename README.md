@@ -208,7 +208,74 @@ To force a refresh of all persisted GitHub activity data, ensuring accuracy and 
 This process ensures that the GitHub activity data is updated in S3 based on the latest logic.
 For other data types (bookmarks, logos), use the appropriate flags or run without flags to update all data types.
 
-## Data Updater CLI and S3 JSON Storage
+## Bookmark Refresh System
+
+The bookmark system fetches and enriches external bookmarks with OpenGraph metadata, images, and content extraction. This data is stored in S3 with environment-specific paths (production: no suffix, development: `-dev` suffix).
+
+### Automatic Bookmark Refresh
+
+#### During Build Process
+When the Docker container is built, bookmarks are fetched from S3:
+1. The `Dockerfile` runs `bun scripts/fetch-bookmarks-public.ts` during the build
+2. This fetches pre-existing bookmark data from the public S3 CDN
+3. Saves it locally for sitemap generation and initial page loads
+4. Note: This does NOT refresh/enrich the bookmarks, it only fetches existing data
+
+#### Runtime Scheduler
+In production, bookmarks are automatically refreshed via the scheduler (`lib/server/scheduler.ts`):
+- **Frequency**: Every 2 hours (12 times per day)
+- **Process**:
+  1. Scheduler triggers `bun run update-s3 -- --bookmarks` via cron pattern `0 */2 * * *`
+  2. Updates S3 data with fresh content
+  3. Invalidates Next.js cache via `/api/revalidate/bookmarks`
+  4. Submits updated sitemap to search engines
+
+### When Bookmark Enrichment Happens
+
+The actual bookmark enrichment (fetching OpenGraph data, images, content extraction) occurs in these scenarios:
+
+1. **Initial Setup**: Run manually when first deploying the site to populate S3
+2. **Scheduled Updates**: Every 2 hours in production via the scheduler
+3. **Manual Refresh**: When explicitly running the refresh commands below
+4. **On-Demand**: Through the `/api/bookmarks/refresh` endpoint (if configured)
+
+### Manual Bookmark Refresh
+
+For local development and testing, use these commands:
+
+#### Full Bookmark Refresh
+Fetches all bookmarks and enriches them with OpenGraph data and images:
+
+```bash
+# Development environment (writes to bookmarks-dev.json)
+bun run bookmarks:refresh:dev
+
+# Production environment (writes to bookmarks.json)
+bun run bookmarks:refresh:prod
+```
+
+#### Metadata-Only Refresh
+Lightweight refresh that only updates OpenGraph metadata without processing images:
+
+```bash
+# Development environment (metadata only)
+bun run bookmarks:metadata:dev
+
+# Production environment (metadata only)
+bun run bookmarks:metadata:prod
+```
+
+#### Environment Detection
+
+The system determines the environment using this hierarchy (see `lib/config/environment.ts`):
+
+1. **DEPLOYMENT_ENV** (highest priority) - Explicitly sets the environment
+2. **URL Detection** - Checks API_BASE_URL or NEXT_PUBLIC_SITE_URL
+3. **NODE_ENV** (fallback) - Uses NODE_ENV if other methods fail
+
+**Important**: The `.env` file contains `DEPLOYMENT_ENV=development` by default. This means even setting `NODE_ENV=production` won't affect the environment unless you explicitly override `DEPLOYMENT_ENV`. The package.json scripts handle this automatically.
+
+### Data Updater CLI and S3 JSON Storage
 
 Use the Data Updater to (re)generate environment-aware JSON data in S3. Prefer the package script alias:
 
@@ -230,6 +297,11 @@ Global options:
 
 - `--force`: bypass freshness checks and regenerate.
 - `--testLimit=N`: limit processing to N items (dev/testing).
+
+Bookmark-specific options:
+
+- `--metadata-only`: refresh only OpenGraph metadata without image processing.
+- `--metadata-limit N`: limit metadata refresh to N items (default: 50).
 
 If no flags are provided, all operations run: bookmarks, GitHub, logos, search-indexes.
 
