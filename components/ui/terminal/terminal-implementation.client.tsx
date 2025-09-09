@@ -310,7 +310,7 @@ export function Terminal() {
               maximizeWindow();
             }
           }}
-          aria-label="Close terminal"
+          aria-label="Toggle terminal size"
         />
       )}
 
