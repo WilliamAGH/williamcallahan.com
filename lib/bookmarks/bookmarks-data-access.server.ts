@@ -21,6 +21,7 @@ import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { processBookmarksInBatches } from "@/lib/bookmarks/enrich-opengraph";
 
 const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "lib", "data", "bookmarks.json");
 
@@ -152,6 +153,31 @@ let inFlightRefreshPromise: Promise<UnifiedBookmark[] | null> | null = null;
 
 const isS3Error = (err: unknown): err is { $metadata?: { httpStatusCode?: number } } =>
   typeof err === "object" && err !== null && "$metadata" in err;
+
+// Compute a lightweight signature over display metadata that affect list/detail rendering
+function computeDisplaySignature(bookmarks: UnifiedBookmark[]): string {
+  let acc = "";
+  for (const b of bookmarks) {
+    // Use only fields that influence visible metadata
+    acc += `${b.id}|${b.title}|${b.description ?? ""}|${b.ogTitle ?? ""}|${b.ogDescription ?? ""}||`;
+  }
+  return acc;
+}
+
+// Attempt a metadata-only refresh (OpenGraph title/description) when dataset shape is unchanged
+async function refreshMetadataIfNeeded(
+  input: UnifiedBookmark[],
+): Promise<{ changed: boolean; updated: UnifiedBookmark[] }> {
+  const beforeSig = computeDisplaySignature(input);
+  // Conservative cap to avoid excessive network during periodic runs
+  const updated = await processBookmarksInBatches(input, false, true, false, {
+    metadataOnly: true,
+    refreshMetadataEvenIfImagePresent: true,
+    maxItems: 50,
+  });
+  const afterSig = computeDisplaySignature(updated);
+  return { changed: beforeSig !== afterSig, updated };
+}
 
 const acquireRefreshLock = async (): Promise<boolean> => {
   const locked = await bookmarksLock.acquire();
@@ -384,9 +410,20 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         throw new Error(`Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`);
       }
 
-      // Ensure bookmarks file exists with full content data
-      const mapping = generateSlugMapping(allIncomingBookmarks);
-      const bookmarksWithSlugs = allIncomingBookmarks.map(b => {
+      // Attempt metadata-only refresh to capture OG/title/description changes even when raw dataset unchanged
+      let metadataChanged = false;
+      let refreshed = allIncomingBookmarks;
+      try {
+        const res = await refreshMetadataIfNeeded(allIncomingBookmarks);
+        metadataChanged = res.changed;
+        refreshed = res.updated;
+      } catch (err) {
+        console.warn(`${LOG_PREFIX} Metadata-only refresh failed, continuing with existing dataset:`, String(err));
+      }
+
+      // Write FILE and, if any metadata changed, also rewrite pages/tags to eliminate staleness
+      const mapping = generateSlugMapping(refreshed);
+      const bookmarksWithSlugs = refreshed.map(b => {
         const entry = mapping.slugs[b.id];
         if (!entry) {
           throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (no-change FILE)`);
@@ -394,6 +431,25 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         return { ...b, slug: entry.slug };
       });
       await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
+      if (metadataChanged) {
+        console.log(
+          `${LOG_PREFIX} Metadata changes detected without dataset changes – rewriting pages/tags for consistency`,
+        );
+        await writePaginatedBookmarks(bookmarksWithSlugs);
+        await persistTagFilteredBookmarksToS3(bookmarksWithSlugs);
+        // Refresh index to indicate change was applied
+        const now2 = Date.now();
+        await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, {
+          count: bookmarksWithSlugs.length,
+          totalPages: Math.ceil(bookmarksWithSlugs.length / BOOKMARKS_PER_PAGE),
+          pageSize: BOOKMARKS_PER_PAGE,
+          lastModified: new Date().toISOString(),
+          lastFetchedAt: now2,
+          lastAttemptedAt: now2,
+          checksum: calculateBookmarksChecksum(bookmarksWithSlugs),
+          changeDetected: true,
+        } satisfies BookmarksIndex);
+      }
 
       // --- START LOCAL CACHE WRITE ---
       try {
@@ -496,9 +552,20 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                 );
               }
 
-              // Generate mapping for use in bookmarks (but don't save it again)
-              const mapping = generateSlugMapping(freshBookmarks);
-              const bookmarksWithSlugs = freshBookmarks.map(b => {
+              // Attempt metadata-only refresh (captures OG/title/description changes)
+              let metadataChanged = false;
+              let refreshed = freshBookmarks;
+              try {
+                const res = await refreshMetadataIfNeeded(freshBookmarks);
+                metadataChanged = res.changed;
+                refreshed = res.updated;
+              } catch (err) {
+                console.warn(`${LOG_PREFIX} Metadata-only refresh failed (default path):`, String(err));
+              }
+
+              // Generate mapping and write FILE (always), and optionally rewrite pages/tags if metadata changed
+              const mapping = generateSlugMapping(refreshed);
+              const bookmarksWithSlugs = refreshed.map(b => {
                 const entry = mapping.slugs[b.id];
                 if (!entry) {
                   throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (non-selective FILE)`);
@@ -506,6 +573,22 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                 return { ...b, slug: entry.slug };
               });
               await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
+              if (metadataChanged) {
+                console.log(`${LOG_PREFIX} Metadata changes detected – rewriting pages/tags for consistency`);
+                await writePaginatedBookmarks(bookmarksWithSlugs);
+                await persistTagFilteredBookmarksToS3(bookmarksWithSlugs);
+                const now2 = Date.now();
+                await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, {
+                  count: bookmarksWithSlugs.length,
+                  totalPages: Math.ceil(bookmarksWithSlugs.length / BOOKMARKS_PER_PAGE),
+                  pageSize: BOOKMARKS_PER_PAGE,
+                  lastModified: new Date().toISOString(),
+                  lastFetchedAt: now2,
+                  lastAttemptedAt: now2,
+                  checksum: calculateBookmarksChecksum(bookmarksWithSlugs),
+                  changeDetected: true,
+                } satisfies BookmarksIndex);
+              }
 
               // --- START LOCAL CACHE WRITE ---
               try {
