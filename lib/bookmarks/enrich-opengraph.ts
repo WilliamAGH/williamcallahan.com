@@ -24,6 +24,7 @@ export async function processBookmarksInBatches(
   isDev: boolean,
   useBatchMode = false,
   extractContent = false,
+  refreshOptions?: { metadataOnly?: boolean; refreshMetadataEvenIfImagePresent?: boolean; maxItems?: number },
 ): Promise<UnifiedBookmark[]> {
   void isDev; // Unused parameter
   const startTime = Date.now();
@@ -60,6 +61,42 @@ export async function processBookmarksInBatches(
     if (!bookmark.url) {
       enrichedBookmarks.push(bookmark);
       continue;
+    }
+
+    // Fast path: Metadata-only refresh mode (no image persistence or heavy logo operations)
+    if (refreshOptions?.metadataOnly === true) {
+      try {
+        // Honor an upper bound to avoid excessive network during periodic jobs
+        if (typeof refreshOptions.maxItems === "number" && i >= refreshOptions.maxItems) {
+          enrichedBookmarks.push(bookmark);
+          continue;
+        }
+
+        // Always refetch OpenGraph metadata in this mode when requested, even if an image already exists
+        if (refreshOptions.refreshMetadataEvenIfImagePresent === true) {
+          const ogData = useBatchMode
+            ? await getOpenGraphDataBatch(bookmark.url)
+            : await getOpenGraphData(bookmark.url, false, bookmark.id);
+
+          if (ogData) {
+            if (ogData.title && ogData.title !== bookmark.title) {
+              bookmark.title = ogData.title;
+            }
+            if (ogData.description && ogData.description !== bookmark.description) {
+              bookmark.description = ogData.description;
+            }
+            // Leave images untouched in metadata-only mode
+          }
+        }
+
+        enrichedBookmarks.push(bookmark);
+        continue;
+      } catch (e: unknown) {
+        const err = e instanceof Error ? e : new Error(String(e));
+        console.warn(`${LOG_PREFIX} ⚠️ Metadata-only refresh failed for ${bookmark.url}: ${err.message}`);
+        enrichedBookmarks.push(bookmark);
+        continue;
+      }
     }
 
     try {
