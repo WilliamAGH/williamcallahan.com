@@ -19,7 +19,12 @@ import { normalizeBookmarks } from "./normalize";
 import { processBookmarksInBatches } from "./enrich-opengraph";
 import { createHash } from "node:crypto";
 
-import { type UnifiedBookmark, type RawApiBookmark, type BookmarksApiResponse as ApiResponse, bookmarksApiResponseSchema } from "@/types/bookmark";
+import {
+  type UnifiedBookmark,
+  type RawApiBookmark,
+  type BookmarksApiResponse as ApiResponse,
+  bookmarksApiResponseSchema,
+} from "@/types/bookmark";
 
 // S3 prefix for raw API snapshots (environment-suffixed for isolation)
 // These snapshots enable incremental refresh by comparing checksums
@@ -267,7 +272,30 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
     const isDev = process.env.NODE_ENV === "development";
     const isBatchMode = process.env.IS_DATA_UPDATER === "true";
     const extractContent = process.env.EXTRACT_BOOKMARK_CONTENT === "true" || isBatchMode;
-    const enrichedBookmarks = await processBookmarksInBatches(bookmarksToProcess, isDev, isBatchMode, extractContent);
+
+    // Check for metadata-only refresh mode
+    const metadataOnlyMode = process.env.BOOKMARK_METADATA_ONLY_REFRESH === "true";
+    const refreshOptions = metadataOnlyMode
+      ? {
+          metadataOnly: true,
+          refreshMetadataEvenIfImagePresent: true,
+          maxItems: parseInt(process.env.BOOKMARK_METADATA_REFRESH_LIMIT || "50", 10),
+        }
+      : undefined;
+
+    if (metadataOnlyMode) {
+      console.log(
+        `[refreshBookmarksData] Metadata-only refresh mode enabled (limit: ${refreshOptions?.maxItems || 50} items)`,
+      );
+    }
+
+    const enrichedBookmarks = await processBookmarksInBatches(
+      bookmarksToProcess,
+      isDev,
+      isBatchMode,
+      extractContent,
+      refreshOptions,
+    );
 
     console.log(`[refreshBookmarksData] OpenGraph enrichment completed for ${enrichedBookmarks.length} bookmarks.`);
 

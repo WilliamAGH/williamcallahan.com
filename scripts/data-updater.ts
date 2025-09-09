@@ -92,12 +92,25 @@ async function updateTimestamp(results: DataFetchOperationSummary[]): Promise<vo
   }
 }
 
+// Handle metadata-only refresh mode for bookmarks
+if (args.includes("--metadata-only")) {
+  process.env.BOOKMARK_METADATA_ONLY_REFRESH = "true";
+  // Allow custom limit if provided
+  const limitIndex = args.indexOf("--metadata-limit");
+  if (limitIndex !== -1 && args[limitIndex + 1]) {
+    process.env.BOOKMARK_METADATA_REFRESH_LIMIT = args[limitIndex + 1];
+  }
+  console.log("📝 Metadata-only refresh mode enabled for bookmarks");
+}
+
 // Handle help flag
 if (args.includes("--help") || args.includes("-h")) {
   console.log(`Usage: data-fetch-manager [options]
 
 Options:
   --bookmarks          Fetch and update bookmarks data
+  --metadata-only      Use lightweight metadata refresh (titles/descriptions only)
+  --metadata-limit N   Max items to refresh in metadata mode (default: 50)
   --github             Fetch and update GitHub activity data  
   --logos              Fetch and update logos for all domains
   --search-indexes     Build and update search indexes
