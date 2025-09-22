@@ -59,7 +59,8 @@ tsconfig.tsbuildinfo
 !.jrdev/.gitkeep
 .aider*
 .crush/
-
+redocly-demo/
+redoc-demo.html
 # Claude Code user-local settings (per-user, not committed)
 .claude/
 
