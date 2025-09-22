@@ -17,28 +17,88 @@ Warp subshells provide isolated environments where you can run commands without 
 
 ## How to auto Warpify Subshells
 
-Add this to your `.bashrc` or `.zshrc` file to automatically use Warp subshells when you open a new terminal session.
+Add the snippet to the appropriate RC file in the target environment. For SSH/containers, add it on the host you're connecting to. For local nested shells, add it to your local RC.
 
-For modern macOS if you have JetBrains IDE(s) installed (to exclude them):
+<BackgroundInfo title="Important: Configure this on the host you're connecting to">
+  <p>
+    To Warpify SSH or container sessions, add the snippet in the <strong>target environment</strong> — the machine
+    you're connecting to (for example: a Docker container, a remote SSH server, or a VM). Place it in that user's
+    shell startup file (<code>~/.bashrc</code> or <code>~/.bash_profile</code> for bash, <code>~/.zshrc</code> for zsh).
+  </p>
+  <ul>
+    <li><strong>SSH:</strong> edit the <em>remote</em> user's RC file on the server you SSH into.</li>
+    <li><strong>Docker:</strong> edit the container image or the running container's RC file.</li>
+    <li><strong>Local nested shells:</strong> add it to your local RC if you want local subshells warpified.</li>
+  </ul>
+</BackgroundInfo>
+
+### Local nested shells: examples
+
+“Local nested shells” are interactive shells you start inside your current Warp session on the same machine (not SSH, not a container). If you want these inner shells to be auto‑warpified without a prompt, add the snippet to your local RC file.
+
+- Switching shells locally
+  - From zsh → bash: `bash`, `bash -l`
+  - From bash → zsh: `zsh`, `zsh -l`
+- Elevating or switching users locally
+  - `sudo -s`, `sudo -i`
+  - `su - otheruser`, `su -l otheruser`
+- Dev tools that spawn subshells
+  - `poetry shell`, `pipenv shell`
+  - `nix-shell`, `nix develop`
+  - `asdf shell <tool> <version>` (depending on setup)
+- Multiplexers launching a fresh shell in new panes/windows
+  - `tmux new -s work`, `screen`
+
+What do NOT count as local nested shells (configure the host you enter instead):
+- `docker exec -it <container> /bin/bash` → put the snippet in the container user’s RC file.
+- `ssh user@host` (even `ssh localhost`) → put the snippet on the target/remote machine.
+
+This protection boundary ensures it only runs inside Warp and only for interactive shells:
 
 ```bash
-# Warpify subshells
-if [[ "$TERM_PROGRAM" == "WarpTerminal" ]]; then
- printf '\eP$f{"hook": "SourcedRcFileForWarp", "value": { "shell": "zsh" }}\x9c'
+# zsh (~/.zshrc)
+if [[ $- == *i* && $TERM_PROGRAM == "WarpTerminal" ]]; then
+  printf '\eP$f{"hook":"SourcedRcFileForWarp","value":{"shell":"zsh"}}\x9c'
 fi
 ```
 
-To have the basic config appended to the file automatically, you can just run the following command in your terminal (for macOS):
-
 ```bash
-echo 'printf '\eP$f{"hook": "SourcedRcFileForWarp", "value": { "shell": "zsh" }}\x9c'' >> ~/.zshrc
+# bash (~/.bashrc or ~/.bash_profile)
+if [[ $- == *i* && $TERM_PROGRAM == "WarpTerminal" ]]; then
+  printf '\eP$f{"hook":"SourcedRcFileForWarp","value":{"shell":"bash"}}\x9c'
+fi
 ```
 
-For Linux:
+Quick add (local only — guarded) examples:
 
 ```bash
-# Warpify subshells
+# zsh (local ~/.zshrc)
+cat <<'EOF' >> ~/.zshrc
+
+# Auto-Warpify (Warp) — only in Warp and interactive zsh
+if [[ $- == *i* && $TERM_PROGRAM == "WarpTerminal" ]]; then
+  printf '\eP$f{"hook":"SourcedRcFileForWarp","value":{"shell":"zsh"}}\x9c'
+fi
+EOF
+```
+
+```bash
+# bash (local ~/.bashrc)
+cat <<'EOF' >> ~/.bashrc
+
+# Auto-Warpify (Warp) — only in Warp and interactive bash
+if [[ $- == *i* && $TERM_PROGRAM == "WarpTerminal" ]]; then
+  printf '\eP$f{"hook":"SourcedRcFileForWarp","value":{"shell":"bash"}}\x9c'
+fi
+EOF
+```
+
+For Linux (on the host you're connecting to):
+
+```bash
+# Warpify subshells on the host you're connecting to (remote server/container)
+# Add this to the remote user's ~/.bashrc (or ~/.bash_profile)
 printf '\eP$f{"hook": "SourcedRcFileForWarp", "value": { "shell": "bash" }}\x9c'
 ```
 
-See this article for further documentation on this: [Warpify Subshells](https://warp.dev/docs/subshells).
+See this article for further documentation on this: [Warpify Subshells](https://docs.warp.dev/terminal/warpify/subshells).
