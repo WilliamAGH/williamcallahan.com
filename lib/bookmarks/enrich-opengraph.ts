@@ -15,6 +15,42 @@ import type { UnifiedBookmark } from "@/types/bookmark";
 
 const LOG_PREFIX = "[Bookmarks OpenGraph]";
 
+const FALLBACK_TITLE = "Untitled Bookmark";
+const FALLBACK_DESCRIPTION = "No description available.";
+
+const isFallbackTitle = (value: string | null | undefined): boolean => {
+  if (value == null) return true;
+  const trimmed = value.trim();
+  return trimmed.length === 0 || trimmed === FALLBACK_TITLE;
+};
+
+const isFallbackDescription = (value: string | null | undefined): boolean => {
+  if (value == null) return true;
+  const trimmed = value.trim();
+  return trimmed.length === 0 || trimmed === FALLBACK_DESCRIPTION;
+};
+
+const applyOgTextMetadata = (
+  bookmark: UnifiedBookmark,
+  metadata: { title?: string | null; description?: string | null },
+): void => {
+  const ogTitle = metadata.title?.trim();
+  if (ogTitle) {
+    bookmark.ogTitle = ogTitle;
+    if (isFallbackTitle(bookmark.title)) {
+      bookmark.title = ogTitle;
+    }
+  }
+
+  const ogDescription = metadata.description?.trim();
+  if (ogDescription) {
+    bookmark.ogDescription = ogDescription;
+    if (isFallbackDescription(bookmark.description)) {
+      bookmark.description = ogDescription;
+    }
+  }
+};
+
 /**
  * Process bookmarks in batches to fetch OpenGraph data
  * Simplified to process sequentially without complex batching
@@ -79,12 +115,7 @@ export async function processBookmarksInBatches(
             : await getOpenGraphData(bookmark.url, false, bookmark.id);
 
           if (ogData) {
-            if (ogData.title && ogData.title !== bookmark.title) {
-              bookmark.title = ogData.title;
-            }
-            if (ogData.description && ogData.description !== bookmark.description) {
-              bookmark.description = ogData.description;
-            }
+            applyOgTextMetadata(bookmark, { title: ogData.title, description: ogData.description });
             // Leave images untouched in metadata-only mode
           }
         }
@@ -152,8 +183,7 @@ export async function processBookmarksInBatches(
           // FIX: OgResult has imageUrl, not ogMetadata.image
           if (ogData?.imageUrl) {
             sourceImageUrl = ogData.imageUrl;
-            bookmark.title = ogData.title || bookmark.title;
-            bookmark.description = ogData.description || bookmark.description;
+            applyOgTextMetadata(bookmark, { title: ogData.title, description: ogData.description });
             imageStats.bookmarksUsingOpenGraphImage++;
           } else {
             // No OpenGraph image found
