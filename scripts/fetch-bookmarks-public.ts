@@ -15,12 +15,9 @@ import { join, dirname } from "node:path";
 
 // Get CDN URL from environment or use default
 const CDN_URL = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+const ORIGIN_SERVER_URL = process.env.S3_SERVER_URL || "";
+const S3_BUCKET = process.env.S3_BUCKET || "";
 const DEPLOYMENT_ENV = process.env.DEPLOYMENT_ENV || "production";
-
-if (!CDN_URL) {
-  console.error("❌ No CDN URL configured. Set S3_CDN_URL or NEXT_PUBLIC_S3_CDN_URL");
-  process.exit(1);
-}
 
 // Determine environment suffix for S3 paths
 // production = no suffix, development = "-dev", test = "-test"
@@ -43,8 +40,7 @@ const LOCAL_PATHS = {
 /**
  * Fetch JSON data from public CDN URL
  */
-async function fetchFromCDN(path: string): Promise<unknown> {
-  const url = `${CDN_URL.replace(/\/+$/, "")}/${path}`;
+async function fetchJson(url: string, label: string): Promise<unknown> {
   console.log(`📥 Fetching: ${url}`);
 
   try {
@@ -59,14 +55,14 @@ async function fetchFromCDN(path: string): Promise<unknown> {
       // Get first 200 bytes of response for diagnostic logging
       const text = await response.text();
       const preview = text.length > 200 ? text.substring(0, 200) + "..." : text;
-      console.error(`⚠️  Expected JSON but got ${contentType || "unknown"} for ${path}`);
+      console.error(`⚠️  Expected JSON but got ${contentType || "unknown"} for ${label}`);
       console.error(`   Response preview: ${preview}`);
       return null;
     }
 
     return await response.json();
   } catch (error) {
-    console.error(`❌ Failed to fetch ${path}:`, error);
+    console.error(`❌ Failed to fetch ${label}:`, error);
     return null;
   }
 }
@@ -92,13 +88,39 @@ function saveToFile(filePath: string, data: unknown): void {
 async function main() {
   console.log("🚀 Fetching bookmark data from public S3 CDN...");
   console.log(`   CDN URL: ${CDN_URL}`);
+  console.log(`   Origin URL: ${ORIGIN_SERVER_URL}`);
   console.log(`   Environment: ${DEPLOYMENT_ENV}`);
 
   let successCount = 0;
   let failureCount = 0;
 
+  const candidateUrls = (path: string): string[] => {
+    const urls: string[] = [];
+    if (ORIGIN_SERVER_URL && S3_BUCKET) {
+      const originBase = ORIGIN_SERVER_URL.replace(/\/+$/, "");
+      urls.push(`${originBase}/${S3_BUCKET}/${path}`);
+    }
+    if (CDN_URL) {
+      urls.push(`${CDN_URL.replace(/\/+$/, "")}/${path}`);
+    }
+    return urls;
+  };
+
+  const fetchWithFallback = async (path: string): Promise<unknown> => {
+    const urls = candidateUrls(path);
+    if (urls.length === 0) {
+      console.error("❌ No origin or CDN URL configured; cannot fetch", path);
+      return null;
+    }
+    for (const url of urls) {
+      const result = await fetchJson(url, path);
+      if (result) return result;
+    }
+    return null;
+  };
+
   // Fetch bookmarks file
-  const bookmarks = await fetchFromCDN(BOOKMARKS_PATHS.FILE);
+  const bookmarks = await fetchWithFallback(BOOKMARKS_PATHS.FILE);
   if (bookmarks) {
     saveToFile(LOCAL_PATHS.BOOKMARKS, bookmarks);
     successCount++;
@@ -112,7 +134,7 @@ async function main() {
   }
 
   // Fetch index file
-  const index = await fetchFromCDN(BOOKMARKS_PATHS.INDEX);
+  const index = await fetchWithFallback(BOOKMARKS_PATHS.INDEX);
   if (index) {
     saveToFile(LOCAL_PATHS.INDEX, index);
     successCount++;
@@ -130,7 +152,7 @@ async function main() {
   }
 
   // Fetch slug mapping (CRITICAL for sitemap generation)
-  const slugMapping = await fetchFromCDN(BOOKMARKS_PATHS.SLUG_MAPPING);
+  const slugMapping = await fetchWithFallback(BOOKMARKS_PATHS.SLUG_MAPPING);
   if (slugMapping) {
     saveToFile(LOCAL_PATHS.SLUG_MAPPING, slugMapping);
     successCount++;
