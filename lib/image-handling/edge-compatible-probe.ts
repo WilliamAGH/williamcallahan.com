@@ -35,7 +35,9 @@ export async function probeImageSize(input: string | Buffer): Promise<ProbeResul
       const fullBuffer = Buffer.from(await fullResponse.arrayBuffer());
       return parseImageHeader(fullBuffer);
     } catch (error) {
-      throw new Error(`Failed to fetch image from URL: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Failed to fetch image from URL: ${error instanceof Error ? error.message : String(error)}`, {
+        cause: error,
+      });
     }
   }
 
