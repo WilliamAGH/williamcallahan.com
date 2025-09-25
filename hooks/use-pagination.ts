@@ -104,7 +104,7 @@ export function usePagination<T>({
       return { totalPages: 0, totalItems: 0, hasMore: false };
     }
     // Find the last non-null page in the data array
-    const lastPage = [...dataSource].reverse().find(Boolean);
+    const lastPage = [...dataSource].toReversed().find(Boolean);
     if (!lastPage) {
       return { totalPages: 0, totalItems: 0, hasMore: false };
     }
