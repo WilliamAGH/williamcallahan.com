@@ -4,4 +4,12 @@
  *
  * Separated from types/cache.ts to avoid circular dependencies
  */
-export type CacheProfile = "seconds" | "minutes" | "hours" | "days" | "weeks" | "max";
+export type CacheDurationProfile =
+  | "default"
+  | "seconds"
+  | "minutes"
+  | "hours"
+  | "days"
+  | "weeks"
+  | "max"
+  | { stale?: number; revalidate?: number; expire?: number };
