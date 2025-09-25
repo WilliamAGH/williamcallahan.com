@@ -249,9 +249,15 @@ export async function getGithubActivityCached(): Promise<UserActivityView> {
  * Invalidate GitHub cache
  */
 export function invalidateGitHubCache(): void {
+  // Clear in-memory cache
   ServerCacheInstance.del("github-activity");
   ServerCacheInstance.del("github-activity-summary");
   ServerCacheInstance.del("github-activity-weekly");
+
+  // Invalidate Next.js cache tags
+  if (USE_NEXTJS_CACHE) {
+    cacheContextGuards.revalidateTag("GitHubActivity", "github-activity", "github-activity-main");
+  }
 }
 
 /**
