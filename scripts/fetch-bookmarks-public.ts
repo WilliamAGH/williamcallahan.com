@@ -114,7 +114,7 @@ async function main() {
     }
     for (const url of urls) {
       const result = await fetchJson(url, path);
-      if (result) return result;
+      if (result !== null) return result;
     }
     return null;
   };
