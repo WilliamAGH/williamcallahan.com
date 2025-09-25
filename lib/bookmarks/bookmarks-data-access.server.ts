@@ -17,8 +17,7 @@ import {
 } from "@/lib/bookmarks/utils";
 import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { getEnvironment } from "@/lib/config/environment";
-import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
+import { USE_NEXTJS_CACHE, cacheContextGuards, isCliLikeCacheContext, withCacheFallback } from "@/lib/cache";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { processBookmarksInBatches } from "@/lib/bookmarks/enrich-opengraph";
@@ -29,22 +28,8 @@ const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "lib", "data", "bookmarks.
 // These functions are only available in Next.js request context with experimental.useCache enabled
 // They will be no-ops when called from CLI scripts or outside request context
 
-// Shared helpers for CLI context detection
-const isCliLikeContext = (): boolean => {
-  const argv1 = process.argv[1] || "";
-  // Cross-platform check for scripts directory
-  const inScriptsDir = /(^|[\\/])scripts[\\/]/.test(argv1);
-  return (
-    inScriptsDir ||
-    process.argv.includes("data-updater") ||
-    process.argv.includes("reset-and-regenerate") ||
-    process.argv.includes("regenerate-content") ||
-    process.env.NEXT_PHASE === "phase-production-build"
-  );
-};
+const isCliLikeContext = isCliLikeCacheContext;
 
-const shouldLogCacheWarning = (): boolean =>
-  process.env.NODE_ENV === "development" && !isCliLikeContext() && !process.env.SUPPRESS_CACHE_WARNINGS;
 const safeCacheLife = (
   profile:
     | "default"
@@ -56,45 +41,15 @@ const safeCacheLife = (
     | "max"
     | { stale?: number; revalidate?: number; expire?: number },
 ): void => {
-  try {
-    // Only attempt to use cacheLife if we're in a Next.js request context
-    // CLI scripts and data-updater won't have access to these functions
-    if (typeof cacheLife === "function" && !isCliLikeContext()) {
-      cacheLife(profile);
-    }
-  } catch (err) {
-    // Silently ignore - expected when running outside Next.js request context
-    // This is normal for CLI scripts, data-updater, and environments without experimental.useCache
-    if (shouldLogCacheWarning()) {
-      console.warn("[Bookmarks] cacheLife not available:", err);
-    }
-  }
+  cacheContextGuards.cacheLife("BookmarksDataAccess", profile);
 };
+
 const safeCacheTag = (...tags: string[]): void => {
-  try {
-    // Only attempt to use cacheTag if we're in a Next.js request context
-    if (typeof cacheTag === "function" && !isCliLikeContext()) {
-      for (const tag of new Set(tags)) cacheTag(tag);
-    }
-  } catch (err) {
-    // Silently ignore - expected when running outside Next.js request context
-    if (shouldLogCacheWarning()) {
-      console.warn("[Bookmarks] cacheTag not available:", err);
-    }
-  }
+  cacheContextGuards.cacheTag("BookmarksDataAccess", ...tags);
 };
+
 const safeRevalidateTag = (...tags: string[]): void => {
-  try {
-    // Only attempt to use revalidateTag if we're in a Next.js request context
-    if (typeof revalidateTag === "function" && !isCliLikeContext()) {
-      for (const tag of new Set(tags)) revalidateTag(tag);
-    }
-  } catch (err) {
-    // Silently ignore - expected when running outside Next.js request context
-    if (shouldLogCacheWarning()) {
-      console.warn("[Bookmarks] revalidateTag not available:", err);
-    }
-  }
+  cacheContextGuards.revalidateTag("BookmarksDataAccess", ...tags);
 };
 
 const ENABLE_TAG_PERSISTENCE = process.env.ENABLE_TAG_PERSISTENCE !== "false";
@@ -111,6 +66,17 @@ if (RAW_MAX_TAGS && (!Number.isFinite(PARSED_MAX_TAGS) || PARSED_MAX_TAGS <= 0))
     { RAW_MAX_TAGS },
     { category: "BookmarksDataAccess" },
   );
+}
+
+async function saveSlugMappingOrThrow(bookmarks: UnifiedBookmark[], logSuffix: string): Promise<void> {
+  try {
+    await saveSlugMapping(bookmarks, true, false);
+    console.log(`${LOG_PREFIX} Saved slug mapping ${logSuffix} for ${bookmarks.length} bookmarks`);
+  } catch (error) {
+    const normalizedError = error instanceof Error ? error : new Error(String(error));
+    console.error(`${LOG_PREFIX} CRITICAL: Failed to save slug mapping ${logSuffix}:`, normalizedError);
+    throw new Error(`Failed to save slug mapping: ${normalizedError.message}`, { cause: normalizedError });
+  }
 }
 
 // In-memory runtime cache for the full bookmarks dataset to prevent repeated S3 reads
@@ -401,14 +367,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
       };
       await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, updatedIndex);
       // Ensure slug mapping exists even when no changes detected (idempotent)
-      try {
-        await saveSlugMapping(allIncomingBookmarks, true, false);
-        console.log(`${LOG_PREFIX} Saved slug mapping (no-change path) for ${allIncomingBookmarks.length} bookmarks`);
-      } catch (error) {
-        console.error(`${LOG_PREFIX} CRITICAL: Failed to save slug mapping (no-change path):`, error);
-        // Slug mappings are CRITICAL for bookmark navigation
-        throw new Error(`Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`);
-      }
+      await saveSlugMappingOrThrow(allIncomingBookmarks, "(no-change path)");
 
       // Attempt metadata-only refresh to capture OG/title/description changes even when raw dataset unchanged
       let metadataChanged = false;
@@ -541,16 +500,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
               };
               await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, updatedIndex);
               // Ensure slug mapping exists even when no changes detected (idempotent)
-              try {
-                await saveSlugMapping(freshBookmarks, true, false);
-                console.log(`${LOG_PREFIX} Saved slug mapping (no-change path) for ${freshBookmarks.length} bookmarks`);
-              } catch (error) {
-                console.error(`${LOG_PREFIX} CRITICAL: Failed to save slug mapping (no-change path):`, error);
-                // Slug mappings are CRITICAL for bookmark navigation
-                throw new Error(
-                  `Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`,
-                );
-              }
+              await saveSlugMappingOrThrow(freshBookmarks, "no-change path");
 
               // Attempt metadata-only refresh (captures OG/title/description changes)
               let metadataChanged = false;
@@ -987,27 +937,27 @@ export const invalidateBookmarksCache = (): void => {
   envLogger.log("In-memory runtime cache cleared", undefined, { category: LOG_PREFIX });
 
   if (USE_NEXTJS_CACHE) {
-    safeRevalidateTag("bookmarks");
-    safeRevalidateTag("bookmarks-s3-full");
+    safeRevalidateTag("BookmarksDataAccess", "bookmarks");
+    safeRevalidateTag("BookmarksDataAccess", "bookmarks-s3-full");
     envLogger.log("Next.js cache invalidated for bookmarks tags", undefined, { category: "Bookmarks" });
   }
 };
 export const invalidateBookmarksPageCache = (pageNumber: number): void => {
   if (USE_NEXTJS_CACHE) {
-    safeRevalidateTag(`bookmarks-page-${pageNumber}`);
+    safeRevalidateTag("BookmarksDataAccess", `bookmarks-page-${pageNumber}`);
     console.log(`[Bookmarks] Cache invalidated for page: ${pageNumber}`);
   }
 };
 export const invalidateBookmarksTagCache = (tagSlug: string): void => {
   if (USE_NEXTJS_CACHE) {
-    safeRevalidateTag(`bookmarks-tag-${tagSlug}`);
+    safeRevalidateTag("BookmarksDataAccess", `bookmarks-tag-${tagSlug}`);
     console.log(`[Bookmarks] Cache invalidated for tag: ${tagSlug}`);
   }
 };
 export const invalidateTagCache = invalidateBookmarksTagCache;
 export const invalidateBookmarkCache = (bookmarkId: string): void => {
   if (USE_NEXTJS_CACHE) {
-    safeRevalidateTag(`bookmark-${bookmarkId}`);
+    safeRevalidateTag("BookmarksDataAccess", `bookmark-${bookmarkId}`);
     console.log(`[Bookmarks] Cache invalidated for bookmark: ${bookmarkId}`);
   }
 };
