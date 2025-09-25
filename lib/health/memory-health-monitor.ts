@@ -10,6 +10,7 @@
 
 import { EventEmitter } from "node:events";
 import { ServerCacheInstance } from "@/lib/server-cache";
+import type { CacheStats } from "@/types/cache";
 import { MEMORY_THRESHOLDS } from "@/lib/constants";
 import {
   type HealthCheckResult,
@@ -23,6 +24,41 @@ import {
  * Health monitor that uses ImageMemoryManager's memory state
  * for load balancer integration and health endpoints.
  */
+let hasLoggedMissingCacheStats = false;
+
+const ZERO_CACHE_STATS: CacheStats = {
+  keys: 0,
+  hits: 0,
+  misses: 0,
+  ksize: 0,
+  vsize: 0,
+  sizeBytes: 0,
+  maxSizeBytes: 0,
+  utilizationPercent: 0,
+};
+
+const getServerCacheStats = (): CacheStats => {
+  if (typeof ServerCacheInstance.getStats === "function") {
+    try {
+      return ServerCacheInstance.getStats();
+    } catch (error) {
+      if (!hasLoggedMissingCacheStats) {
+        console.warn("[MemoryHealthMonitor] Failed to read ServerCacheInstance stats:", error);
+        hasLoggedMissingCacheStats = true;
+      }
+      return ZERO_CACHE_STATS;
+    }
+  }
+
+  if (!hasLoggedMissingCacheStats) {
+    console.warn(
+      "[MemoryHealthMonitor] ServerCacheInstance.getStats is unavailable; using zeroed cache statistics for health checks",
+    );
+    hasLoggedMissingCacheStats = true;
+  }
+  return ZERO_CACHE_STATS;
+};
+
 export class MemoryHealthMonitor extends EventEmitter {
   private readonly memoryBudget = MEMORY_THRESHOLDS.TOTAL_PROCESS_MEMORY_BUDGET_BYTES;
   private readonly warningThreshold = MEMORY_THRESHOLDS.MEMORY_WARNING_THRESHOLD;
@@ -45,7 +81,7 @@ export class MemoryHealthMonitor extends EventEmitter {
    */
   getHealthStatus(): HealthCheckResult {
     const usage = process.memoryUsage();
-    const serverCacheStats = ServerCacheInstance.getStats();
+    const serverCacheStats = getServerCacheStats();
 
     // Determine status based on current RSS
     const status =
@@ -202,7 +238,7 @@ export class MemoryHealthMonitor extends EventEmitter {
    */
   checkMemory(): void {
     const usage = process.memoryUsage();
-    const serverCacheStats = ServerCacheInstance.getStats();
+    const serverCacheStats = getServerCacheStats();
 
     const snapshot: import("@/types/health").MemoryMetrics = {
       timestamp: Date.now(),

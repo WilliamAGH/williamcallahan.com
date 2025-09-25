@@ -7,7 +7,7 @@
 
 import { readJsonS3 } from "@/lib/s3-utils";
 import { IMAGE_MANIFEST_S3_PATHS } from "@/lib/constants";
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from "next/cache";
+import { cacheContextGuards } from "@/lib/cache";
 import type { LogoManifest, ImageManifest } from "@/types/image";
 
 // Runtime-safe wrappers for experimental cache APIs
@@ -22,28 +22,10 @@ const safeCacheLife = (
     | "max"
     | { stale?: number; revalidate?: number; expire?: number },
 ): void => {
-  try {
-    if (typeof cacheLife === "function") {
-      cacheLife(profile);
-    }
-  } catch (error) {
-    // Silently ignore if cacheLife is not available or experimental.useCache is not enabled
-    if (process.env.NODE_ENV === "development") {
-      console.warn("[ManifestLoader] cacheLife not available:", error);
-    }
-  }
+  cacheContextGuards.cacheLife("ImageManifest", profile);
 };
-const safeCacheTag = (tag: string): void => {
-  try {
-    if (typeof cacheTag === "function") {
-      cacheTag(tag);
-    }
-  } catch (error) {
-    // Silently ignore if cacheTag is not available
-    if (process.env.NODE_ENV === "development") {
-      console.warn("[ManifestLoader] cacheTag not available:", error);
-    }
-  }
+const safeCacheTag = (...tags: string[]): void => {
+  cacheContextGuards.cacheTag("ImageManifest", ...tags);
 };
 
 /**

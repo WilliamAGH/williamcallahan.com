@@ -13,8 +13,7 @@ import MiniSearch from "minisearch";
 import { ServerCacheInstance } from "./server-cache";
 import { sanitizeSearchQuery } from "./validators/search";
 import { prepareDocumentsForIndexing } from "./utils/search-helpers";
-import { USE_NEXTJS_CACHE, withCacheFallback } from "./cache";
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
+import { USE_NEXTJS_CACHE, cacheContextGuards, withCacheFallback } from "./cache";
 import { SEARCH_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "./constants";
 import { readJsonS3 } from "./s3-utils";
 import type { SerializedIndex } from "@/types/search";
@@ -31,28 +30,22 @@ const devLog = (...args: unknown[]) => {
 // Type-safe wrappers for cache functions to fix ESLint unsafe call errors
 const safeCacheLife = (
   profile:
-    | "minutes"
     | "default"
     | "seconds"
+    | "minutes"
     | "hours"
     | "days"
     | "weeks"
     | "max"
-    | { stale?: number | undefined; revalidate?: number | undefined; expire?: number | undefined },
+    | { stale?: number; revalidate?: number; expire?: number },
 ): void => {
-  if (typeof cacheLife === "function") {
-    cacheLife(profile);
-  }
+  cacheContextGuards.cacheLife("Search", profile);
 };
-const safeCacheTag = (tag: string): void => {
-  if (typeof cacheTag === "function") {
-    cacheTag(tag);
-  }
+const safeCacheTag = (...tags: string[]): void => {
+  cacheContextGuards.cacheTag("Search", ...tags);
 };
-const safeRevalidateTag = (tag: string): void => {
-  if (typeof revalidateTag === "function") {
-    revalidateTag(tag);
-  }
+const safeRevalidateTag = (...tags: string[]): void => {
+  cacheContextGuards.revalidateTag("Search", ...tags);
 };
 
 // --- MiniSearch Index Management ---
@@ -600,7 +593,8 @@ async function getBookmarksIndex(): Promise<{
       clearTimeout(timeoutId);
     }
     if (!resp.ok) {
-      throw new Error(`Failed to fetch bookmarks: ${resp.status}`);
+      const normalizedError = directErr instanceof Error ? directErr : new Error(String(directErr));
+      throw new Error(`Failed to fetch bookmarks: ${resp.status}`, { cause: normalizedError });
     }
     const raw = (await resp.json()) as unknown;
     if (Array.isArray(raw)) {
