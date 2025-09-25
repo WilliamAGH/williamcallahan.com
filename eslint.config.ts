@@ -187,11 +187,14 @@ const config = tseslint.config(
         "error",
         {
           allow: ["__filename", "__dirname", "__TEST__"],
+          allowAfterThis: false,
+          allowAfterSuper: false,
+          allowAfterThisConstructor: false,
           enforceInMethodNames: true,
           enforceInClassFields: true,
           allowInArrayDestructuring: false,
           allowInObjectDestructuring: false,
-          allowFunctionParams: false,
+          allowFunctionParams: true,
         },
       ],
       "@typescript-eslint/naming-convention": [
@@ -461,7 +464,6 @@ const config = tseslint.config(
     },
   },
 
-
   // --------------------------------------------------
   // Project-specific global type uniqueness rule
   // --------------------------------------------------
@@ -474,7 +476,7 @@ const config = tseslint.config(
       },
     },
     rules: {
-      "project/no-duplicate-types": "warn",  // Changed to warn for gradual migration
+      "project/no-duplicate-types": "warn", // Changed to warn for gradual migration
     },
   },
 
@@ -581,7 +583,7 @@ const config = tseslint.config(
       },
     },
     rules: {
-      "s3/no-hardcoded-images": "warn",  // Changed to warn for gradual migration
+      "s3/no-hardcoded-images": "warn", // Changed to warn for gradual migration
     },
   },
 
