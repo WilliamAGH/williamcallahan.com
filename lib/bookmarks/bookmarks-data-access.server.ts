@@ -937,27 +937,27 @@ export const invalidateBookmarksCache = (): void => {
   envLogger.log("In-memory runtime cache cleared", undefined, { category: LOG_PREFIX });
 
   if (USE_NEXTJS_CACHE) {
-    safeRevalidateTag("BookmarksDataAccess", "bookmarks");
-    safeRevalidateTag("BookmarksDataAccess", "bookmarks-s3-full");
+    safeRevalidateTag("bookmarks");
+    safeRevalidateTag("bookmarks-s3-full");
     envLogger.log("Next.js cache invalidated for bookmarks tags", undefined, { category: "Bookmarks" });
   }
 };
 export const invalidateBookmarksPageCache = (pageNumber: number): void => {
   if (USE_NEXTJS_CACHE) {
-    safeRevalidateTag("BookmarksDataAccess", `bookmarks-page-${pageNumber}`);
+    safeRevalidateTag(`bookmarks-page-${pageNumber}`);
     console.log(`[Bookmarks] Cache invalidated for page: ${pageNumber}`);
   }
 };
 export const invalidateBookmarksTagCache = (tagSlug: string): void => {
   if (USE_NEXTJS_CACHE) {
-    safeRevalidateTag("BookmarksDataAccess", `bookmarks-tag-${tagSlug}`);
+    safeRevalidateTag(`bookmarks-tag-${tagSlug}`);
     console.log(`[Bookmarks] Cache invalidated for tag: ${tagSlug}`);
   }
 };
 export const invalidateTagCache = invalidateBookmarksTagCache;
 export const invalidateBookmarkCache = (bookmarkId: string): void => {
   if (USE_NEXTJS_CACHE) {
-    safeRevalidateTag("BookmarksDataAccess", `bookmark-${bookmarkId}`);
+    safeRevalidateTag(`bookmark-${bookmarkId}`);
     console.log(`[Bookmarks] Cache invalidated for bookmark: ${bookmarkId}`);
   }
 };

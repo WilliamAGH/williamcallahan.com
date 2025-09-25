@@ -48,6 +48,15 @@ const isCliLikeContext = isCliLikeCacheContext;
 const inFlightOgPromises: Map<string, Promise<OgResult | null>> = new Map();
 
 /**
+ * Sanitize a string for use as a cache tag by removing/replacing invalid characters
+ * Cache tags should only contain alphanumeric characters, hyphens, and underscores
+ */
+function sanitizeCacheTag(tag: string): string {
+  // Replace any character that isn't alphanumeric, hyphen, underscore, or dot with a hyphen
+  return tag.replace(/[^a-zA-Z0-9._-]/g, "-");
+}
+
+/**
  * Cached OpenGraph data fetching with Next.js 'use cache'
  * This function caches only the metadata - images in S3 are served directly
  */
@@ -60,7 +69,7 @@ async function getCachedOpenGraphDataInternal(
   "use cache";
   safeCacheLife("OpenGraph", "days"); // OpenGraph data is relatively stable
   safeCacheTag("OpenGraph", "opengraph");
-  safeCacheTag("OpenGraph", `opengraph-${normalizedUrl}`);
+  safeCacheTag("OpenGraph", `opengraph-${sanitizeCacheTag(normalizedUrl)}`);
 
   const urlHash = hashUrl(normalizedUrl);
 
@@ -407,6 +416,9 @@ export async function serveOpenGraphImage(s3Key: string): Promise<{ buffer: Buff
 
 /**
  * Invalidate all OpenGraph cache entries
+ * Note: This clears the base "opengraph" tag. URL-specific tags like "opengraph-${url}"
+ * are not individually tracked, but clearing the base tag should invalidate the entire category.
+ * For granular invalidation of specific URLs, use invalidateOpenGraphCacheForUrl()
  */
 export function invalidateOpenGraphCache(): void {
   if (USE_NEXTJS_CACHE) {
@@ -426,7 +438,7 @@ export function invalidateOpenGraphCacheForUrl(url: string): void {
   const normalizedUrl = normalizeUrl(url);
 
   if (USE_NEXTJS_CACHE) {
-    safeRevalidateTag("OpenGraph", `opengraph-${normalizedUrl}`);
+    safeRevalidateTag("OpenGraph", `opengraph-${sanitizeCacheTag(normalizedUrl)}`);
     envLogger.log("Cache invalidated for URL", { url: normalizedUrl }, { category: "OpenGraph" });
   } else {
     // Legacy: clear specific entry from memory cache
