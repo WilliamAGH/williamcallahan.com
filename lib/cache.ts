@@ -31,16 +31,18 @@ export const isCliLikeCacheContext = (): boolean => {
   );
 };
 
-const shouldLogCacheWarning = (): boolean =>
-  process.env.NODE_ENV === "development" && !isCliLikeCacheContext() && !process.env.SUPPRESS_CACHE_WARNINGS;
-
-const logCacheWarning = (
-  category: string,
-  action: "cacheLife" | "cacheTag" | "revalidateTag",
-  error: unknown,
-): void => {
+const logCacheError = (category: string, action: "cacheLife" | "cacheTag" | "revalidateTag", error: unknown): void => {
   const message = error instanceof Error ? error.message : String(error);
-  envLogger.debug("Cache API unavailable", { action, error: message }, { category: `Cache:${category}` });
+  const isDevelopment = process.env.NODE_ENV === "development";
+  const isCliContext = isCliLikeCacheContext();
+
+  // Always log cache errors, but use appropriate level
+  if (isDevelopment && !isCliContext && !process.env.SUPPRESS_CACHE_WARNINGS) {
+    envLogger.debug("Cache API unavailable", { action, error: message }, { category: `Cache:${category}` });
+  } else if (!isCliContext) {
+    // In production, still log for monitoring
+    envLogger.log("Cache API error", { action, error: message }, { category: `Cache:${category}` });
+  }
 };
 
 const normalizeCategory = (category: string): string => (category || "Cache").trim() || "Cache";
@@ -54,9 +56,8 @@ const withGuard = <Args extends unknown[]>(
     try {
       fn(safeCategory, ...args);
     } catch (error) {
-      if (shouldLogCacheWarning()) {
-        logCacheWarning(safeCategory, action, error);
-      }
+      // Always log errors for observability
+      logCacheError(safeCategory, action, error);
     }
   };
 };
