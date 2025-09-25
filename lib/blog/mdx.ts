@@ -48,7 +48,6 @@ import type { BlogPost } from "../../types/blog";
 
 import type { CacheDurationProfile } from "@/types/cache-profile";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
-import { revalidateTag } from "next/cache";
 
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
@@ -59,6 +58,10 @@ const cacheLife = (profile: CacheDurationProfile): void => {
 
 const cacheTag = (...tags: string[]): void => {
   cacheContextGuards.cacheTag("BlogMDX", ...tags);
+};
+
+const revalidateTag = (...tags: string[]): void => {
+  cacheContextGuards.revalidateTag("BlogMDX", ...tags);
 };
 
 /**
@@ -469,6 +472,7 @@ export function invalidateBlogCache(): void {
     revalidateTag("blog");
     revalidateTag("mdx");
     revalidateTag("blog-posts-all");
+    revalidateTag("blog-mdx");
     console.log("[Blog] Cache invalidated for all blog posts");
   }
 }
