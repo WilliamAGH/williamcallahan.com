@@ -52,8 +52,8 @@ const inFlightOgPromises: Map<string, Promise<OgResult | null>> = new Map();
  * Cache tags should only contain alphanumeric characters, hyphens, and underscores
  */
 function sanitizeCacheTag(tag: string): string {
-  // Replace any character that isn't alphanumeric, hyphen, underscore, or dot with a hyphen
-  return tag.replace(/[^a-zA-Z0-9._-]/g, "-");
+  // Replace any character that isn't alphanumeric, hyphen, or underscore with a hyphen
+  return tag.replace(/[^a-zA-Z0-9_-]/g, "-");
 }
 
 /**
