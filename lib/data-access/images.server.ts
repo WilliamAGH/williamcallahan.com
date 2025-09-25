@@ -1,57 +1,20 @@
 import "server-only";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { env } from "@/lib/env";
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
+import { cacheContextGuards } from "@/lib/cache";
 
 // S3 is PERSISTENT STORAGE, not a cache!
 // This module caches data retrieved FROM S3 to reduce storage reads.
 
 // Runtime-safe wrappers for experimental cache APIs
-const safeCacheLife = (
-  profile:
-    | "default"
-    | "seconds"
-    | "minutes"
-    | "hours"
-    | "days"
-    | "weeks"
-    | "max"
-    | { stale?: number; revalidate?: number; expire?: number },
-): void => {
-  try {
-    if (typeof cacheLife === "function") {
-      cacheLife(profile);
-    }
-  } catch (error) {
-    // Silently ignore if cacheLife is not available or experimental.useCache is not enabled
-    if (process.env.NODE_ENV === "development") {
-      console.warn("[Images] cacheLife not available:", error);
-    }
-  }
+const safeCacheLife = (...args: Parameters<typeof cacheContextGuards.cacheLife>): void => {
+  cacheContextGuards.cacheLife(...args);
 };
-const safeCacheTag = (tag: string): void => {
-  try {
-    if (typeof cacheTag === "function") {
-      cacheTag(tag);
-    }
-  } catch (error) {
-    // Silently ignore if cacheTag is not available
-    if (process.env.NODE_ENV === "development") {
-      console.warn("[Images] cacheTag not available:", error);
-    }
-  }
+const safeCacheTag = (...args: Parameters<typeof cacheContextGuards.cacheTag>): void => {
+  cacheContextGuards.cacheTag(...args);
 };
-const safeRevalidateTag = (tag: string): void => {
-  try {
-    if (typeof revalidateTag === "function") {
-      revalidateTag(tag);
-    }
-  } catch (error) {
-    // Silently ignore if revalidateTag is not available
-    if (process.env.NODE_ENV === "development") {
-      console.warn("[Images] revalidateTag not available:", error);
-    }
-  }
+const safeRevalidateTag = (...args: Parameters<typeof cacheContextGuards.revalidateTag>): void => {
+  cacheContextGuards.revalidateTag(...args);
 };
 
 const s3Client = new S3Client({ region: env.AWS_REGION });
@@ -67,10 +30,10 @@ const s3Client = new S3Client({ region: env.AWS_REGION });
 export async function getImageFromS3StorageForCache(key: string): Promise<Buffer> {
   "use cache";
 
-  safeCacheLife("weeks"); // Use predefined profile for consistency
-  safeCacheTag("image");
+  safeCacheLife("Images", "weeks"); // Use predefined profile for consistency
+  safeCacheTag("Images", "image");
   const imageKeyTag = `image-key-${key.replace(/[^a-zA-Z0-9-]/g, "-")}`;
-  safeCacheTag(imageKeyTag);
+  safeCacheTag("Images", imageKeyTag);
 
   const command = new GetObjectCommand({
     Bucket: env.S3_BUCKET,
@@ -94,11 +57,11 @@ export function invalidateImageCache(key?: string): void {
   if (key) {
     // Invalidate specific image
     const imageKeyTag = `image-key-${key.replace(/[^a-zA-Z0-9-]/g, "-")}`;
-    safeRevalidateTag(imageKeyTag);
+    safeRevalidateTag("Images", imageKeyTag);
     console.log(`[Images] Cache invalidated for image: ${key}`);
   } else {
     // Invalidate all images
-    safeRevalidateTag("image");
+    safeRevalidateTag("Images", "image");
     console.log("[Images] Cache invalidated for all images");
   }
 }

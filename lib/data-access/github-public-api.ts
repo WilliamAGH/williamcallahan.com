@@ -9,8 +9,7 @@
 
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { debug } from "@/lib/utils/debug";
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from "next/cache";
-import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
+import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { formatPacificDateTime } from "@/lib/utils/date-format";
 import { getEnvironment } from "@/lib/config/environment";
 import type { GitHubActivityApiResponse, StoredGithubActivityS3, UserActivityView } from "@/types/github";
@@ -229,8 +228,8 @@ async function getGithubActivityDirect(): Promise<UserActivityView> {
  */
 async function getCachedGithubActivity(): Promise<UserActivityView> {
   "use cache";
-  cacheLife("minutes");
-  cacheTag("github-activity");
+  cacheContextGuards.cacheLife("GitHubActivity", "minutes");
+  cacheContextGuards.cacheTag("GitHubActivity", "github-activity", "github-activity-main");
 
   return getGithubActivityDirect();
 }
