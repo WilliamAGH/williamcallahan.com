@@ -10,7 +10,7 @@
 import { readJsonS3, checkIfS3ObjectExists } from "./s3-utils";
 import { USE_NEXTJS_CACHE } from "./constants";
 import { withCacheFallback } from "./cache";
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from "next/cache";
+import { cacheContextGuards } from "@/lib/cache";
 
 // Runtime-safe wrappers for cache functions
 const safeCacheLife = (
@@ -24,28 +24,10 @@ const safeCacheLife = (
     | "max"
     | { stale?: number; revalidate?: number; expire?: number },
 ): void => {
-  try {
-    if (typeof cacheLife === "function") {
-      cacheLife(profile);
-    }
-  } catch (error) {
-    // Silently ignore if cacheLife is not available or experimental.useCache is not enabled
-    if (process.env.NODE_ENV === "development") {
-      console.warn("[S3Cache] cacheLife not available:", error);
-    }
-  }
+  cacheContextGuards.cacheLife("S3Cache", profile);
 };
 const safeCacheTag = (tag: string): void => {
-  try {
-    if (typeof cacheTag === "function") {
-      cacheTag(tag);
-    }
-  } catch (error) {
-    // Silently ignore if cacheTag is not available
-    if (process.env.NODE_ENV === "development") {
-      console.warn("[S3Cache] cacheTag not available:", error);
-    }
-  }
+  cacheContextGuards.cacheTag("S3Cache", tag);
 };
 
 /**

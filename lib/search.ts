@@ -13,8 +13,7 @@ import MiniSearch from "minisearch";
 import { ServerCacheInstance } from "./server-cache";
 import { sanitizeSearchQuery } from "./validators/search";
 import { prepareDocumentsForIndexing } from "./utils/search-helpers";
-import { USE_NEXTJS_CACHE, withCacheFallback } from "./cache";
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
+import { USE_NEXTJS_CACHE, cacheContextGuards, withCacheFallback } from "./cache";
 import { SEARCH_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "./constants";
 import { readJsonS3 } from "./s3-utils";
 import type { SerializedIndex } from "@/types/search";
@@ -31,28 +30,22 @@ const devLog = (...args: unknown[]) => {
 // Type-safe wrappers for cache functions to fix ESLint unsafe call errors
 const safeCacheLife = (
   profile:
-    | "minutes"
     | "default"
     | "seconds"
+    | "minutes"
     | "hours"
     | "days"
     | "weeks"
     | "max"
-    | { stale?: number | undefined; revalidate?: number | undefined; expire?: number | undefined },
+    | { stale?: number; revalidate?: number; expire?: number },
 ): void => {
-  if (typeof cacheLife === "function") {
-    cacheLife(profile);
-  }
+  cacheContextGuards.cacheLife("Search", profile);
 };
-const safeCacheTag = (tag: string): void => {
-  if (typeof cacheTag === "function") {
-    cacheTag(tag);
-  }
+const safeCacheTag = (...tags: string[]): void => {
+  cacheContextGuards.cacheTag("Search", ...tags);
 };
-const safeRevalidateTag = (tag: string): void => {
-  if (typeof revalidateTag === "function") {
-    revalidateTag(tag);
-  }
+const safeRevalidateTag = (...tags: string[]): void => {
+  cacheContextGuards.revalidateTag("Search", ...tags);
 };
 
 // --- MiniSearch Index Management ---
@@ -593,14 +586,19 @@ async function getBookmarksIndex(): Promise<{
     const controller = new AbortController();
     const FETCH_TIMEOUT_MS = Number(process.env.SEARCH_BOOKMARKS_TIMEOUT_MS) || 30000; // 30s fallback
     const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    let resp: Response;
+    let resp: Response | undefined;
     try {
       resp = await fetch(apiUrl, { cache: "no-store", signal: controller.signal });
-    } finally {
+    } catch (err) {
       clearTimeout(timeoutId);
+      throw err;
     }
-    if (!resp.ok) {
-      throw new Error(`Failed to fetch bookmarks: ${resp.status}`);
+    clearTimeout(timeoutId);
+
+    // Check response status after successful fetch
+    if (!resp || !resp.ok) {
+      // oxlint-disable-next-line preserve-caught-error -- False positive: Not re-throwing, checking HTTP status
+      throw new Error(`Failed to fetch bookmarks: HTTP ${resp?.status ?? "unknown"} ${resp?.statusText ?? ""}`);
     }
     const raw = (await resp.json()) as unknown;
     if (Array.isArray(raw)) {

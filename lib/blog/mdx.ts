@@ -46,11 +46,23 @@ import remarkGfm from "remark-gfm";
 import { authors } from "../../data/blog/authors";
 import type { BlogPost } from "../../types/blog";
 
+import type { CacheDurationProfile } from "@/types/cache-profile";
+import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
+
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
 
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
-import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
+const cacheLife = (profile: CacheDurationProfile): void => {
+  cacheContextGuards.cacheLife("BlogMDX", profile);
+};
+
+const cacheTag = (...tags: string[]): void => {
+  cacheContextGuards.cacheTag("BlogMDX", ...tags);
+};
+
+const revalidateTag = (...tags: string[]): void => {
+  cacheContextGuards.revalidateTag("BlogMDX", ...tags);
+};
 
 /**
  * Converts a date string or Date object to a Pacific Time ISO string
@@ -296,17 +308,10 @@ async function getMDXPostDirect(
 async function getCachedMDXPost(frontmatterSlug: string, filePathForPost: string): Promise<BlogPost | null> {
   "use cache";
 
-  // Safe cacheLife call with availability check
-  try {
-    if (typeof cacheLife === "function") {
-      cacheLife("weeks"); // Blog posts are relatively static
-    }
-  } catch {
-    // Silently ignore if cacheLife is not available in this context
-  }
+  // Set cache profile for blog posts
+  cacheLife("hours"); // Blog posts are relatively static
 
-  cacheTag("blog");
-  cacheTag("mdx");
+  cacheTag("blog-mdx");
   cacheTag(`blog-post-${frontmatterSlug}`);
 
   return getMDXPostDirect(frontmatterSlug, filePathForPost);
@@ -418,25 +423,13 @@ async function getAllMDXPostsDirect(): Promise<BlogPost[]> {
 async function getCachedAllMDXPosts(): Promise<BlogPost[]> {
   "use cache";
 
-  // Safe cacheLife call with availability check
-  try {
-    if (typeof cacheLife === "function") {
-      cacheLife("weeks"); // Blog posts are relatively static
-    }
-  } catch {
-    // Silently ignore if cacheLife is not available in this context
-  }
+  // Set cache profile for blog posts
+  cacheLife("hours"); // Blog posts are relatively static
 
-  // Safe cacheTag calls with availability check
-  try {
-    if (typeof cacheTag === "function") {
-      cacheTag("blog");
-      cacheTag("mdx");
-      cacheTag("blog-posts-all");
-    }
-  } catch {
-    // Silently ignore if cacheTag is not available in this context
-  }
+  // Set cache tags for blog posts
+  cacheTag("blog");
+  cacheTag("mdx");
+  cacheTag("blog-posts-all");
 
   return getAllMDXPostsDirect();
 }
@@ -479,6 +472,7 @@ export function invalidateBlogCache(): void {
     revalidateTag("blog");
     revalidateTag("mdx");
     revalidateTag("blog-posts-all");
+    revalidateTag("blog-mdx");
     console.log("[Blog] Cache invalidated for all blog posts");
   }
 }

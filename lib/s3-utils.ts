@@ -1027,6 +1027,7 @@ export async function writeBinaryS3(s3Key: string, data: Buffer | Readable, cont
       throw new Error(
         `Failed to convert stream to buffer: ${error instanceof Error ? error.message : String(error)}. ` +
           `This typically occurs when the stream is malformed or the x-amz-decoded-content-length header cannot be determined.`,
+        { cause: error },
       );
     }
   }
