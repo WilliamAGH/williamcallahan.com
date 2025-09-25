@@ -9,7 +9,7 @@ import { envLogger } from "@/lib/utils/env-logger";
  * @module data-access/opengraph
  */
 
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
+import { cacheContextGuards, isCliLikeCacheContext, USE_NEXTJS_CACHE } from "@/lib/cache";
 import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { debug } from "@/lib/utils/debug";
@@ -28,67 +28,22 @@ import { createFallbackResult } from "@/lib/opengraph/fallback";
 import type { OgResult } from "@/types";
 import { isOgResult, OgError } from "@/types/opengraph";
 import { karakeepImageFallbackSchema, type KarakeepImageFallback } from "@/types/seo/opengraph";
-import { USE_NEXTJS_CACHE } from "@/lib/cache";
 
 // Re-export constants for backwards compatibility
 export { OPENGRAPH_S3_KEY_DIR, OPENGRAPH_METADATA_S3_DIR, OPENGRAPH_IMAGES_S3_DIR };
 
 // Runtime-safe wrappers for experimental cache APIs
 // Detect CLI-like contexts (e.g., running from scripts/) where Next.js cache APIs are unavailable
-const isCliLikeContext = (): boolean => {
-  const argv1 = process.argv[1] || "";
-  const inScriptsDir = /(^|[\\/])scripts[\\/]/.test(argv1);
-  return inScriptsDir || process.argv.includes("data-updater") || process.env.NEXT_PHASE === "phase-production-build";
+const safeCacheLife = (...args: Parameters<typeof cacheContextGuards.cacheLife>): void => {
+  cacheContextGuards.cacheLife(...args);
 };
-
-const shouldLogCacheWarning = (): boolean =>
-  process.env.NODE_ENV === "development" && !isCliLikeContext() && !process.env.SUPPRESS_CACHE_WARNINGS;
-const safeCacheLife = (
-  profile:
-    | "default"
-    | "seconds"
-    | "minutes"
-    | "hours"
-    | "days"
-    | "weeks"
-    | "max"
-    | { stale?: number; revalidate?: number; expire?: number },
-): void => {
-  try {
-    if (typeof cacheLife === "function" && !isCliLikeContext()) {
-      cacheLife(profile);
-    }
-  } catch (error) {
-    // Silently ignore if cacheLife is not available or experimental.useCache is not enabled
-    if (shouldLogCacheWarning()) {
-      envLogger.log("cacheLife not available", { error: String(error) }, { category: "OpenGraph" });
-    }
-  }
+const safeCacheTag = (...args: Parameters<typeof cacheContextGuards.cacheTag>): void => {
+  cacheContextGuards.cacheTag(...args);
 };
-const safeCacheTag = (...tags: string[]): void => {
-  try {
-    if (typeof cacheTag === "function" && !isCliLikeContext()) {
-      for (const tag of new Set(tags)) cacheTag(tag);
-    }
-  } catch (error) {
-    // Silently ignore if cacheTag is not available
-    if (shouldLogCacheWarning()) {
-      envLogger.log("cacheTag not available", { error: String(error) }, { category: "OpenGraph" });
-    }
-  }
+const safeRevalidateTag = (...args: Parameters<typeof cacheContextGuards.revalidateTag>): void => {
+  cacheContextGuards.revalidateTag(...args);
 };
-const safeRevalidateTag = (...tags: string[]): void => {
-  try {
-    if (typeof revalidateTag === "function" && !isCliLikeContext()) {
-      for (const tag of new Set(tags)) revalidateTag(tag);
-    }
-  } catch (error) {
-    // Silently ignore if revalidateTag is not available
-    if (shouldLogCacheWarning()) {
-      envLogger.log("revalidateTag not available", { error: String(error) }, { category: "OpenGraph" });
-    }
-  }
-};
+const isCliLikeContext = isCliLikeCacheContext;
 
 const inFlightOgPromises: Map<string, Promise<OgResult | null>> = new Map();
 
@@ -103,9 +58,9 @@ async function getCachedOpenGraphDataInternal(
   validatedFallback?: KarakeepImageFallback | null,
 ): Promise<OgResult> {
   "use cache";
-  safeCacheLife("days"); // OpenGraph data is relatively stable
-  safeCacheTag("opengraph");
-  safeCacheTag(`opengraph-${normalizedUrl}`);
+  safeCacheLife("OpenGraph", "days"); // OpenGraph data is relatively stable
+  safeCacheTag("OpenGraph", "opengraph");
+  safeCacheTag("OpenGraph", `opengraph-${normalizedUrl}`);
 
   const urlHash = hashUrl(normalizedUrl);
 
@@ -455,7 +410,7 @@ export async function serveOpenGraphImage(s3Key: string): Promise<{ buffer: Buff
  */
 export function invalidateOpenGraphCache(): void {
   if (USE_NEXTJS_CACHE) {
-    safeRevalidateTag("opengraph");
+    safeRevalidateTag("OpenGraph", "opengraph");
     envLogger.log("Cache invalidated for all OpenGraph data", undefined, { category: "OpenGraph" });
   } else {
     // Legacy: clear memory cache
@@ -471,7 +426,7 @@ export function invalidateOpenGraphCacheForUrl(url: string): void {
   const normalizedUrl = normalizeUrl(url);
 
   if (USE_NEXTJS_CACHE) {
-    safeRevalidateTag(`opengraph-${normalizedUrl}`);
+    safeRevalidateTag("OpenGraph", `opengraph-${normalizedUrl}`);
     envLogger.log("Cache invalidated for URL", { url: normalizedUrl }, { category: "OpenGraph" });
   } else {
     // Legacy: clear specific entry from memory cache
