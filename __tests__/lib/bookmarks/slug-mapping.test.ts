@@ -267,7 +267,7 @@ describe("Bookmark Slug Mapping", () => {
 
   describe("Idempotency", () => {
     it("should generate same slugs regardless of bookmark order", () => {
-      const shuffled = [...mockBookmarks].reverse();
+      const shuffled = [...mockBookmarks].toReversed();
 
       const mapping1 = generateSlugMapping(mockBookmarks);
       const mapping2 = generateSlugMapping(shuffled);
