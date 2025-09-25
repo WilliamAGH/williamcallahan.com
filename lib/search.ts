@@ -586,14 +586,19 @@ async function getBookmarksIndex(): Promise<{
     const controller = new AbortController();
     const FETCH_TIMEOUT_MS = Number(process.env.SEARCH_BOOKMARKS_TIMEOUT_MS) || 30000; // 30s fallback
     const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    let resp: Response;
+    let resp: Response | undefined;
     try {
       resp = await fetch(apiUrl, { cache: "no-store", signal: controller.signal });
-    } finally {
+    } catch (err) {
       clearTimeout(timeoutId);
+      throw err;
     }
-    if (!resp.ok) {
-      throw new Error(`Failed to fetch bookmarks: HTTP ${resp.status}`, { cause: directErr });
+    clearTimeout(timeoutId);
+
+    // Check response status after successful fetch
+    if (!resp || !resp.ok) {
+      // oxlint-disable-next-line preserve-caught-error -- False positive: Not re-throwing, checking HTTP status
+      throw new Error(`Failed to fetch bookmarks: HTTP ${resp?.status ?? "unknown"} ${resp?.statusText ?? ""}`);
     }
     const raw = (await resp.json()) as unknown;
     if (Array.isArray(raw)) {
