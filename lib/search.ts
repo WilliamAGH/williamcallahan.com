@@ -593,7 +593,7 @@ async function getBookmarksIndex(): Promise<{
       clearTimeout(timeoutId);
     }
     if (!resp.ok) {
-      throw new Error(`Failed to fetch bookmarks: ${resp.status}`, { cause: directErr });
+      throw new Error(`Failed to fetch bookmarks: HTTP ${resp.status}`, { cause: directErr });
     }
     const raw = (await resp.json()) as unknown;
     if (Array.isArray(raw)) {
