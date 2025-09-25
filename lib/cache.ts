@@ -67,14 +67,12 @@ export const cacheContextGuards = {
       nextCacheLife(profile);
     }
   }),
-  cacheTag: withGuard("cacheTag", (category: string, ...tags: string[]) => {
-    void category;
+  cacheTag: withGuard("cacheTag", (_category: string, ...tags: string[]) => {
     if (typeof nextCacheTag === "function" && !isCliLikeCacheContext()) {
       for (const tag of new Set(tags)) nextCacheTag(tag);
     }
   }),
-  revalidateTag: withGuard("revalidateTag", (category: string, ...tags: string[]) => {
-    void category;
+  revalidateTag: withGuard("revalidateTag", (_category: string, ...tags: string[]) => {
     if (typeof nextRevalidateTag === "function" && !isCliLikeCacheContext()) {
       for (const tag of new Set(tags)) nextRevalidateTag(tag);
     }
