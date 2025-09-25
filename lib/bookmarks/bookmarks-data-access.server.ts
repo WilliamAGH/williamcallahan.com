@@ -75,7 +75,7 @@ async function saveSlugMappingOrThrow(bookmarks: UnifiedBookmark[], logSuffix: s
   } catch (error) {
     const normalizedError = error instanceof Error ? error : new Error(String(error));
     console.error(`${LOG_PREFIX} CRITICAL: Failed to save slug mapping ${logSuffix}:`, normalizedError);
-    throw new Error(`Failed to save slug mapping: ${normalizedError.message}`, { cause: normalizedError });
+    throw new Error(`Failed to save slug mapping: ${normalizedError.message}`, { cause: error });
   }
 }
 
