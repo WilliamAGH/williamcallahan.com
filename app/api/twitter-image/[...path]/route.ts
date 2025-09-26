@@ -32,7 +32,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     // Validate Twitter image path patterns to prevent SSRF attacks
     // Allow common avatar/media roots; keep strict filename extension check
-    const validPathPattern = /^(profile_images|ext_tw_video_thumb|media)\/[A-Za-z0-9_\-/]+\.(jpg|jpeg|png|gif|webp)$/i;
+    // Allow dots in segments (e.g., versioned directories like v1.2/media/...),
+    // while remaining SSRF-safe due to prior sanitizePath which strips '../' and './'
+    const validPathPattern = /^(profile_images|ext_tw_video_thumb|media)\/[A-Za-z0-9._\-/]+\.(jpg|jpeg|png|gif|webp)$/i;
     if (!validPathPattern.test(pathOnly)) {
       console.log(`[Twitter Image Proxy] Invalid path rejected: ${fullPath}`);
       return new NextResponse(null, { status: 400 });
@@ -90,8 +92,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         const upstreamResp = await fetch(upstreamUrl, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!upstreamResp.ok) {
-          // Upstream non-OK → treat as Bad Gateway unless explicit timeout status
-          return new NextResponse(null, { status: upstreamResp.status === 408 ? 504 : 502 });
+          // Preserve timeout/unavailable semantics from upstream where possible
+          const status = [408, 503, 504].includes(upstreamResp.status) ? 504 : 502;
+          return new NextResponse(null, { status });
         }
         const contentType = upstreamResp.headers.get("content-type") || "application/octet-stream";
         if (!contentType.startsWith("image/")) return new NextResponse(null, { status: 502 });
