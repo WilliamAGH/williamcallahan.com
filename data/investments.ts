@@ -1083,7 +1083,7 @@ export const investments: Investment[] = [
     multiple: 0.0,
     holding_return: -1.0,
     accelerator: null,
-    aventure_url: "https://aventure.vc/companies/easyknock-new-york-ny-us",
+    aventure_url: null,
     details: [
       {
         label: "Investment Type",
@@ -3552,7 +3552,7 @@ export const investments: Investment[] = [
     multiple: 0.02,
     holding_return: -0.98,
     accelerator: null,
-    aventure_url: "https://aventure.vc/companies/turbodega-mexico-city-mx",
+    aventure_url: null,
     details: [
       {
         label: "Investment Type",

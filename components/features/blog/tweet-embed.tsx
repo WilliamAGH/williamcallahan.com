@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 /**
  * @file TweetEmbed component and related image proxy utilities.
  * This file provides a component to embed tweets using `react-tweet`
@@ -11,50 +12,57 @@ import type { JSX } from "react";
  */
 
 // Dynamic import to prevent SSR hydration issues
-const Tweet = dynamic(
-  () => import("react-tweet").then(mod => mod.Tweet),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="mx-auto max-w-xl flex justify-center">
-        <div className="w-full h-[400px] bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
-      </div>
-    ),
-  }
-);
+const Tweet = dynamic(() => import("react-tweet").then(mod => mod.Tweet), {
+  ssr: false,
+  loading: () => (
+    <div className="mx-auto max-w-xl flex justify-center">
+      <div className="w-full h-[400px] bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
+    </div>
+  ),
+});
 
 /**
  * Proxies pbs.twimg.com image URLs to a same-origin endpoint (`/api/twitter-image/`).
- * It also attempts to request larger versions of profile and media images.
- *
- * @param {string | Blob} srcInput - The original image source URL or Blob.
- * @returns {string} The proxied image URL, or the original src if not a pbs.twimg.com URL or if input is a Blob.
- *                   Returns an empty string if srcInput is a Blob that cannot be processed as a pbs.twimg.com URL.
+ * Belt-and-suspenders hardening:
+ *  - Preserve real path segments (no full-path percent-encoding)
+ *  - Move/normalize query params properly (e.g., name=large for media)
+ *  - Upscale profile avatars from _normal → _400x400 regardless of extension
  */
 const proxy = (srcInput: string | Blob): string => {
-  if (typeof srcInput !== "string" || !srcInput.startsWith("https://pbs.twimg.com/")) {
-    return typeof srcInput === "string" ? srcInput : ""; // Return empty string or original if not a pbs.twimg string
-  }
-  const src = srcInput; // Now we know src is a string
+  if (typeof srcInput !== "string") return "";
+  if (!srcInput.startsWith("https://pbs.twimg.com/")) return srcInput;
 
-  let modifiedSrc = src;
-
-  // For profile images, try to get a larger version
-  if (modifiedSrc.includes("/profile_images/") && modifiedSrc.endsWith("_normal.jpg")) {
-    modifiedSrc = modifiedSrc.replace("_normal.jpg", "_400x400.jpg");
+  let url: URL;
+  try {
+    url = new URL(srcInput);
+  } catch {
+    return srcInput;
   }
 
-  // For media images, always use large version
-  if (modifiedSrc.includes("/media/")) {
-    if (modifiedSrc.includes("name=small") || modifiedSrc.includes("name=medium")) {
-      modifiedSrc = modifiedSrc.replace(/name=(small|medium)/, "name=large");
-    } else if (modifiedSrc.includes("format=jpg") && !modifiedSrc.includes("name=")) {
-      modifiedSrc += "&name=large";
+  let pathname = url.pathname; // e.g. /profile_images/.../foo_normal.jpg
+  const params = new URLSearchParams(url.search);
+
+  // Profile avatars: prefer higher resolution suffix
+  if (pathname.includes("/profile_images/")) {
+    // _normal.[ext] → _400x400.[ext] (handles jpg/png/webp/jpeg)
+    pathname = pathname.replace(/_normal(\.(?:jpg|jpeg|png|webp))$/i, "_400x400$1");
+    const name = (params.get("name") || "").toLowerCase();
+    if (name === "small" || name === "medium") params.set("name", "large");
+  }
+
+  // Tweet media and video thumbs: request large when applicable
+  if (pathname.includes("/media/") || pathname.includes("/ext_tw_video_thumb/")) {
+    const name = (params.get("name") || "").toLowerCase();
+    if (name === "small" || name === "medium") params.set("name", "large");
+    if (!params.has("name")) {
+      const fmt = (params.get("format") || "").toLowerCase();
+      if (fmt === "jpg") params.set("name", "large");
     }
   }
 
-  const proxiedPath = encodeURIComponent(modifiedSrc.slice("https://pbs.twimg.com/".length));
-  return `/api/twitter-image/${proxiedPath}`;
+  const cleanPath = pathname.replace(/^\/+/, ""); // remove leading slash for catch-all route
+  const query = params.toString();
+  return `/api/twitter-image/${cleanPath}${query ? `?${query}` : ""}`;
 };
 
 import type { TweetEmbedProps } from "@/types";
@@ -68,27 +76,50 @@ import type { ImgProxyProps } from "@/types/ui";
  * @param {ImgProxyProps} props - The props for the ImgProxy component.
  * @returns {JSX.Element} The rendered image element.
  */
-const ImgProxy = ({ src = "", alt, width, height, ...rest }: ImgProxyProps) => {
-  const proxiedSrc = proxy(src || "");
+const ImgProxy = ({ src = "", alt, width, height, className }: ImgProxyProps) => {
   // Ensure we have a string for string operations, handle Blob case
   const safeSrc = typeof src === "string" ? src : "";
 
-  const imageWidth = width || (safeSrc.includes("/profile_images/") ? 48 : 500);
-  const imageHeight = height || (safeSrc.includes("/profile_images/") ? 48 : 300);
+  // Fallback to original pbs URL if proxy fails (belt-and-suspenders)
+  const [srcStage, setSrcStage] = useState<"proxy" | "original" | "fallback">("proxy");
+  const resolvedSrc =
+    srcStage === "proxy"
+      ? proxy(safeSrc)
+      : srcStage === "original"
+        ? safeSrc
+        : // Final CDN fallback image for X/Twitter avatars
+          getStaticImageUrl("/images/social-media/profiles/x_5469c2d0.jpg");
+
+  const isAvatar = safeSrc.includes("/profile_images/");
+  const imageWidth = width || (isAvatar ? 48 : 500);
+  const imageHeight = height || (isAvatar ? 48 : 300);
 
   return (
     <Image
-      src={proxiedSrc}
-      alt={alt || "Tweet image"}
+      src={resolvedSrc}
+      alt={alt || (isAvatar ? "Tweet avatar" : "Tweet image")}
       width={imageWidth}
       height={imageHeight}
-      style={{
-        objectFit: "cover",
-        width: "100%",
-        height: "auto",
-        borderRadius: safeSrc.includes("/profile_images/") ? "9999px" : "0.5rem",
+      onError={() => {
+        if (srcStage === "proxy" && safeSrc) setSrcStage("original");
+        else if (srcStage === "original") setSrcStage("fallback");
       }}
-      {...rest}
+      style={
+        isAvatar
+          ? {
+              objectFit: "cover",
+              width: `${imageWidth}px`,
+              height: `${imageHeight}px`,
+              borderRadius: "9999px",
+            }
+          : {
+              objectFit: "cover",
+              width: "100%",
+              height: "auto",
+              borderRadius: "0.5rem",
+            }
+      }
+      className={className}
     />
   );
 };
