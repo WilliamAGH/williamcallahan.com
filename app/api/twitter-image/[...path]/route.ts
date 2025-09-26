@@ -86,11 +86,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // If we have an error, attempt a direct fetch as a last-resort fallback (belt-and-suspenders)
     if (result.error) {
       console.error(`[Twitter Image Proxy] Error: ${result.error}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
         const upstreamResp = await fetch(upstreamUrl, { signal: controller.signal });
-        clearTimeout(timeoutId);
         if (!upstreamResp.ok) {
           // Preserve timeout/unavailable semantics from upstream where possible
           const status = [408, 503, 504].includes(upstreamResp.status) ? 504 : 502;
@@ -114,6 +113,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           return new NextResponse(null, { status: 504 });
         }
         return new NextResponse(null, { status: 502 });
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
