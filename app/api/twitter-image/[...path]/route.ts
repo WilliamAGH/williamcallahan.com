@@ -8,8 +8,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Reconstruct the Twitter image URL from dynamic params
     const { path: pathSegments } = await params;
 
-    // Sanitize path to prevent directory traversal
-    const fullPath = sanitizePath(pathSegments.join("/"));
+    // Decode any percent-encoding from client and sanitize to prevent traversal
+    // Client now sends path segments (not a single encoded string), but be defensive.
+    const decodedJoined = decodeURIComponent(pathSegments.join("/"));
+    const fullPath = sanitizePath(decodedJoined);
 
     // Extract embedded query parameters from the fullPath
     let pathOnly = fullPath;
@@ -21,8 +23,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Validate Twitter image path patterns to prevent SSRF attacks
-    // Updated pattern to disallow dots except in file extensions
-    const validPathPattern = /^(profile_images|ext_tw_video_thumb|media)\/[\w\-/]+\.(jpg|jpeg|png|gif|webp)$/i;
+    // Allow common avatar/media roots; keep strict filename extension check
+    const validPathPattern = /^(profile_images|ext_tw_video_thumb|media)\/[A-Za-z0-9_\-/]+\.(jpg|jpeg|png|gif|webp)$/i;
     if (!validPathPattern.test(pathOnly)) {
       console.log(`[Twitter Image Proxy] Invalid path rejected: ${fullPath}`);
       return new NextResponse(null, { status: 400 });
@@ -71,13 +73,32 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return new NextResponse(new Uint8Array(result.buffer), { headers: responseHeaders });
     }
 
-    // If we have an error, return appropriate status
+    // If we have an error, attempt a direct fetch as a last-resort fallback (belt-and-suspenders)
     if (result.error) {
       console.error(`[Twitter Image Proxy] Error: ${result.error}`);
-      if (result.error.includes("timeout")) {
-        return new NextResponse(null, { status: 504 }); // Gateway Timeout
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        const upstreamResp = await fetch(upstreamUrl, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!upstreamResp.ok) {
+          if (result.error.includes("timeout")) return new NextResponse(null, { status: 504 });
+          return new NextResponse(null, { status: 502 });
+        }
+        const contentType = upstreamResp.headers.get("content-type") || "application/octet-stream";
+        if (!contentType.startsWith("image/")) return new NextResponse(null, { status: 502 });
+        const arrayBuffer = await upstreamResp.arrayBuffer();
+        const responseHeaders = new Headers({
+          "Content-Type": contentType,
+          "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800, immutable",
+          ...IMAGE_SECURITY_HEADERS,
+        });
+        return new NextResponse(new Uint8Array(arrayBuffer), { headers: responseHeaders });
+      } catch (fallbackError) {
+        console.error("[Twitter Image Proxy] Fallback fetch failed:", fallbackError);
+        if (result.error.includes("timeout")) return new NextResponse(null, { status: 504 });
+        return new NextResponse(null, { status: 502 });
       }
-      return new NextResponse(null, { status: 502 }); // Bad Gateway
     }
 
     // Fallback error
