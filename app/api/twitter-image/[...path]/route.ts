@@ -8,10 +8,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Reconstruct the Twitter image URL from dynamic params
     const { path: pathSegments } = await params;
 
-    // Decode any percent-encoding from client and sanitize to prevent traversal
-    // Client now sends path segments (not a single encoded string), but be defensive.
-    const decodedJoined = decodeURIComponent(pathSegments.join("/"));
-    const fullPath = sanitizePath(decodedJoined);
+    // Build joined path; Next.js already decodes segments, so avoid double-decoding.
+    // Only attempt decode when '%' is present and guard against malformed encodings.
+    const joined = pathSegments.join("/");
+    let fullPath = joined;
+    if (joined.includes("%")) {
+      try {
+        fullPath = decodeURIComponent(joined);
+      } catch {
+        // Malformed encoding – keep as-is and continue with sanitization
+      }
+    }
+    fullPath = sanitizePath(fullPath);
 
     // Extract embedded query parameters from the fullPath
     let pathOnly = fullPath;
@@ -78,12 +86,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       console.error(`[Twitter Image Proxy] Error: ${result.error}`);
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         const upstreamResp = await fetch(upstreamUrl, { signal: controller.signal });
-        clearTimeout(timeout);
+        clearTimeout(timeoutId);
         if (!upstreamResp.ok) {
-          if (result.error.includes("timeout")) return new NextResponse(null, { status: 504 });
-          return new NextResponse(null, { status: 502 });
+          // Upstream non-OK → treat as Bad Gateway unless explicit timeout status
+          return new NextResponse(null, { status: upstreamResp.status === 408 ? 504 : 502 });
         }
         const contentType = upstreamResp.headers.get("content-type") || "application/octet-stream";
         if (!contentType.startsWith("image/")) return new NextResponse(null, { status: 502 });
@@ -96,7 +104,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         return new NextResponse(new Uint8Array(arrayBuffer), { headers: responseHeaders });
       } catch (fallbackError) {
         console.error("[Twitter Image Proxy] Fallback fetch failed:", fallbackError);
-        if (result.error.includes("timeout")) return new NextResponse(null, { status: 504 });
+        if (
+          fallbackError instanceof Error &&
+          (fallbackError.name === "AbortError" || /timeout|aborted/i.test(fallbackError.message))
+        ) {
+          return new NextResponse(null, { status: 504 });
+        }
         return new NextResponse(null, { status: 502 });
       }
     }
