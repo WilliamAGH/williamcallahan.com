@@ -13,7 +13,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
     "disableSourceOfProjectReferenceRedirect": true,
     "disableSolutionSearching": true,
@@ -58,7 +58,6 @@
     "instrumentation.ts",
     "middleware.ts"
   ],
-
   "exclude": [
     "node_modules",
     ".next",
