@@ -11,7 +11,7 @@
  * ALWAYS use: bun run test (includes these mocks)
  * NEVER use: bun test (missing these mocks)
  *
- * ✅ Bun 1.2.17 provides natively (no polyfills needed):
+ * ✅ Bun 1.2.22 provides natively (no polyfills needed):
  * - fetch, Request, Response, Headers, Response.json
  * - URL, URLSearchParams
  * - TextEncoder, TextDecoder
@@ -42,6 +42,6 @@ if (!globalThis.sessionStorage) {
   globalThis.sessionStorage = mockStorage;
 }
 
-// Note: Bun 1.2.17 provides Response.json natively, no polyfill needed
+// Note: Bun 1.2.22 provides Response.json natively, no polyfill needed
 
-// Note: Bun 1.2.17 provides FormData natively, no polyfill needed
+// Note: Bun 1.2.22 provides FormData natively, no polyfill needed
