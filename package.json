@@ -225,7 +225,7 @@
     "unrs-resolver"
   ],
   "overrides": {
-    "import-in-the-middle": "1.14.0"
+    "import-in-the-middle": "1.14.4"
   },
   "resolutions": {
     "ansi-styles": "4.3.0"
