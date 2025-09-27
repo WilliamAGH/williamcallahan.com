@@ -8,14 +8,14 @@
  * Use: bun run test (loads this setup)
  * NOT: bun test (skips this setup)
  *
- * ✅ Bun 1.2.17 provides all Web APIs natively - no polyfills needed
+ * ✅ Bun 1.2.22 provides all Web APIs natively - no polyfills needed
  */
 import "@testing-library/jest-dom";
 import { cleanup } from "@testing-library/react";
 
-// Note: Bun 1.2.17 provides ReadableStream natively, no polyfill needed
+// Note: Bun 1.2.22 provides ReadableStream natively, no polyfill needed
 
-// Note: Bun 1.2.17 provides MessagePort and MessageChannel natively, no polyfill needed
+// Note: Bun 1.2.22 provides MessagePort and MessageChannel natively, no polyfill needed
 
 import React from "react";
 

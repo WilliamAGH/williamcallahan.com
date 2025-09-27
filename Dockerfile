@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.16
 
-FROM oven/bun:alpine AS base
+FROM docker.io/oven/bun:1.2.22-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -24,8 +24,10 @@ COPY .husky ./.husky
 COPY scripts/init-csp-hashes.ts ./scripts/init-csp-hashes.ts
 COPY config ./config
 
-# Install dependencies with Bun, allowing necessary lifecycle scripts
-RUN --mount=type=cache,target=/root/.bun/install bun install --frozen-lockfile
+# Install dependencies with Bun, skipping third-party postinstall scripts to avoid native crashes
+RUN --mount=type=cache,target=/root/.bun/install bun install --frozen-lockfile --ignore-scripts
+# Ensure CSP hashes file exists early for tooling that might import it
+RUN bun scripts/init-csp-hashes.ts
 
 # --------------------------------------------------
 # PRE-CHECKS STAGE (lint + type-check, cached)
