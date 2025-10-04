@@ -204,7 +204,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       return getTagsAsStringArray(bookmark.tags);
     })
     .filter((tag, index, self) => tag && self.indexOf(tag) === index)
-    .sort();
+    .toSorted();
 
   // Determine which set of bookmarks to filter
   const bookmarksToFilter = searchAllBookmarks && searchQuery ? allBookmarks : bookmarks;

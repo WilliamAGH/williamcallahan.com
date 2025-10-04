@@ -67,7 +67,7 @@ async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWe
         );
         return userStatsEntry.weeks
           .map((w: RepoRawWeeklyStat) => ({ w: w.w, a: w.a, d: w.d, c: w.c }))
-          .sort((a, b) => a.w - b.w);
+          .toSorted((a, b) => a.w - b.w);
       }
       console.log(`[Script] No specific stats found for user ${GITHUB_REPO_OWNER} in ${owner}/${name}.`);
       return [];
