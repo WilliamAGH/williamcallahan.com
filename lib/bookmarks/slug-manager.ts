@@ -39,7 +39,7 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
   const reverseMap: Record<string, string> = {};
 
   // Sort bookmarks by ID for consistent ordering (string comparison)
-  const sortedBookmarks = [...bookmarks].sort((a, b) => a.id.localeCompare(b.id));
+  const sortedBookmarks = bookmarks.toSorted((a, b) => a.id.localeCompare(b.id));
 
   for (const bookmark of sortedBookmarks) {
     // generateUniqueSlug should handle uniqueness, but add a belt-and-suspenders guard
@@ -79,7 +79,7 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
 
   // Generate checksum for change detection based on [id, slug] pairs in a stable order
   const checksumPayload = Object.keys(slugs)
-    .sort((a, b) => a.localeCompare(b))
+    .toSorted((a, b) => a.localeCompare(b))
     .map(id => [id, slugs[id]?.slug]);
   const checksum = createHash("md5").update(JSON.stringify(checksumPayload)).digest("hex");
 
@@ -343,6 +343,6 @@ export async function getBookmarkBySlug(slug: string): Promise<UnifiedBookmark |
 export function generateBookmarkRoutes(mapping: BookmarkSlugMapping): string[] {
   return Object.values(mapping.slugs)
     .map(entry => entry.slug)
-    .sort((a, b) => a.localeCompare(b))
+    .toSorted((a, b) => a.localeCompare(b))
     .map(slug => `/bookmarks/${slug}`);
 }
