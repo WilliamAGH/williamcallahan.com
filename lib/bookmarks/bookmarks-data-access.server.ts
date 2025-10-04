@@ -287,7 +287,7 @@ async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark[]): Pr
   const tagsToProcess =
     MAX_TAGS_TO_PERSIST > 0 && MAX_TAGS_TO_PERSIST < allTags.length
       ? Object.entries(tagCounts)
-          .sort((a, b) => {
+          .toSorted((a, b) => {
             // Primary sort by count (descending)
             const countDiff = b[1] - a[1];
             if (countDiff !== 0) return countDiff;
@@ -352,10 +352,10 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
     const hasChanged = await hasBookmarksChanged(allIncomingBookmarks);
     if (!hasChanged) {
       console.log(`${LOG_PREFIX} No changes detected, skipping write`);
-      // Still update index freshness to reflect successful refresh
+
       const now = Date.now();
       const existingIndex = (await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX)) || null;
-      const updatedIndex: BookmarksIndex = {
+      const baseIndex: Omit<BookmarksIndex, "changeDetected"> = {
         count: existingIndex?.count ?? allIncomingBookmarks.length,
         totalPages: existingIndex?.totalPages ?? Math.ceil(allIncomingBookmarks.length / BOOKMARKS_PER_PAGE),
         pageSize: existingIndex?.pageSize ?? BOOKMARKS_PER_PAGE,
@@ -363,9 +363,8 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         lastFetchedAt: now,
         lastAttemptedAt: now,
         checksum: existingIndex?.checksum ?? calculateBookmarksChecksum(allIncomingBookmarks),
-        changeDetected: false,
       };
-      await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, updatedIndex);
+
       // Ensure slug mapping exists even when no changes detected (idempotent)
       await saveSlugMappingOrThrow(allIncomingBookmarks, "(no-change path)");
 
@@ -380,47 +379,39 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         console.warn(`${LOG_PREFIX} Metadata-only refresh failed, continuing with existing dataset:`, String(err));
       }
 
-      // Write FILE and, if any metadata changed, also rewrite pages/tags to eliminate staleness
+      if (!metadataChanged) {
+        await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, { ...baseIndex, changeDetected: false });
+        return allIncomingBookmarks;
+      }
+
       const mapping = generateSlugMapping(refreshed);
       const bookmarksWithSlugs = refreshed.map(b => {
         const entry = mapping.slugs[b.id];
         if (!entry) {
-          throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (no-change FILE)`);
+          throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (metadata refresh)`);
         }
         return { ...b, slug: entry.slug };
       });
+
       await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
-      if (metadataChanged) {
-        console.log(
-          `${LOG_PREFIX} Metadata changes detected without dataset changes – rewriting pages/tags for consistency`,
-        );
-        await writePaginatedBookmarks(bookmarksWithSlugs);
-        await persistTagFilteredBookmarksToS3(bookmarksWithSlugs);
-        // Refresh index to indicate change was applied
-        const now2 = Date.now();
-        await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, {
-          count: bookmarksWithSlugs.length,
-          totalPages: Math.ceil(bookmarksWithSlugs.length / BOOKMARKS_PER_PAGE),
-          pageSize: BOOKMARKS_PER_PAGE,
-          lastModified: new Date().toISOString(),
-          lastFetchedAt: now2,
-          lastAttemptedAt: now2,
-          checksum: calculateBookmarksChecksum(bookmarksWithSlugs),
-          changeDetected: true,
-        } satisfies BookmarksIndex);
-      }
+      await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, {
+        ...baseIndex,
+        lastModified: new Date().toISOString(),
+        checksum: calculateBookmarksChecksum(bookmarksWithSlugs),
+        changeDetected: true,
+      });
 
       // --- START LOCAL CACHE WRITE ---
       try {
         await fs.mkdir(path.dirname(LOCAL_BOOKMARKS_PATH), { recursive: true });
         await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarksWithSlugs, null, 2));
-        console.log(`${LOG_PREFIX} ✅ Successfully saved bookmarks to local fallback path (no-change path)`);
+        console.log(`${LOG_PREFIX} ✅ Successfully saved bookmarks to local fallback path (metadata refresh)`);
       } catch (error) {
-        console.error(`${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path (no-change path):`, error);
+        console.error(`${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path (metadata refresh):`, error);
       }
       // --- END LOCAL CACHE WRITE ---
 
-      return allIncomingBookmarks;
+      return bookmarksWithSlugs;
     }
     console.log(`${LOG_PREFIX} Changes detected, persisting bookmarks`);
     const mapping = await writePaginatedBookmarks(allIncomingBookmarks);
@@ -524,20 +515,12 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
               });
               await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
               if (metadataChanged) {
-                console.log(`${LOG_PREFIX} Metadata changes detected – rewriting pages/tags for consistency`);
-                await writePaginatedBookmarks(bookmarksWithSlugs);
-                await persistTagFilteredBookmarksToS3(bookmarksWithSlugs);
-                const now2 = Date.now();
-                await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, {
-                  count: bookmarksWithSlugs.length,
-                  totalPages: Math.ceil(bookmarksWithSlugs.length / BOOKMARKS_PER_PAGE),
-                  pageSize: BOOKMARKS_PER_PAGE,
-                  lastModified: new Date().toISOString(),
-                  lastFetchedAt: now2,
-                  lastAttemptedAt: now2,
-                  checksum: calculateBookmarksChecksum(bookmarksWithSlugs),
-                  changeDetected: true,
-                } satisfies BookmarksIndex);
+                console.log(
+                  `${LOG_PREFIX} Metadata changes detected – FILE updated with fresh metadata (pages/tags will refresh on next dataset change)`,
+                );
+                // NOTE: Removed aggressive full rewrite to prevent S3 write storms
+                // Pages/tags will be refreshed on next actual dataset change (max 2 hours)
+                // This prevents 120+ S3 writes when only metadata changed
               }
 
               // --- START LOCAL CACHE WRITE ---
