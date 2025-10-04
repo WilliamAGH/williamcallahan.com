@@ -215,7 +215,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     return bookmarks
       .flatMap((bookmark: UnifiedBookmark) => getTagsAsStringArray(bookmark.tags))
       .filter((tag, index, self) => tag && self.indexOf(tag) === index)
-      .sort();
+      .toSorted();
   }, [bookmarks]);
 
   // Filter bookmarks based on search and tags
