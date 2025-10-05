@@ -119,7 +119,12 @@ param generation, but readers now prefer the embedded `slug` when present.
 
 **Problem**: Race conditions with concurrent refresh operations
 
-**Solution**: Conditional writes using `IfNoneMatch: "*"` for atomic lock acquisition
+**Solution**: Conditional writes using `IfNoneMatch: "*"` for atomic lock acquisition.
+
+- Default TTL is **30 minutes** to cover the worst-case OpenGraph enrichment window. The previous 5-minute TTL
+  allowed long-running refreshes to appear stale, which meant other processes could start overlapping refreshes.
+- Periodic stale-lock cleanup now skips while the current process owns the distributed lock, avoiding self-deletion
+  during active refresh cycles.
 
 ### 3. Tag Caching Memory Protection
 
