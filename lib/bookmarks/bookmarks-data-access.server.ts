@@ -92,12 +92,13 @@ const DISTRIBUTED_LOCK_S3_KEY = BOOKMARKS_S3_PATHS.LOCK;
 // Parse LOCK_TTL_MS with robust validation
 const RAW_LOCK_TTL = process.env.BOOKMARKS_LOCK_TTL_MS;
 const PARSED_LOCK_TTL = RAW_LOCK_TTL != null ? Number(RAW_LOCK_TTL) : Number.NaN;
+const DEFAULT_LOCK_TTL_MS = 30 * 60 * 1000; // 30 minutes - covers longest OpenGraph enrichment cycle
 const LOCK_TTL_MS =
-  Number.isFinite(PARSED_LOCK_TTL) && PARSED_LOCK_TTL > 0 ? Math.floor(PARSED_LOCK_TTL) : 5 * 60 * 1000; // Default: 5 minutes
+  Number.isFinite(PARSED_LOCK_TTL) && PARSED_LOCK_TTL > 0 ? Math.floor(PARSED_LOCK_TTL) : DEFAULT_LOCK_TTL_MS;
 
 if (RAW_LOCK_TTL && (!Number.isFinite(PARSED_LOCK_TTL) || PARSED_LOCK_TTL <= 0)) {
   envLogger.debug(
-    "BOOKMARKS_LOCK_TTL_MS is invalid or <= 0; defaulting to 5 minutes",
+    "BOOKMARKS_LOCK_TTL_MS is invalid or <= 0; defaulting to 30 minutes",
     { RAW_LOCK_TTL },
     { category: "BookmarksDataAccess" },
   );
@@ -175,10 +176,18 @@ export function initializeBookmarksDataAccess(): void {
       .catch(error => console.error("[Bookmarks] Failed to initialize refresh callback:", String(error)));
   }
   if (!lockCleanupInterval) {
-    cleanupStaleLocks(DISTRIBUTED_LOCK_S3_KEY, "BookmarksLock").catch(error =>
-      envLogger.debug("Initial lock cleanup failed", { error: String(error) }, { category: "BookmarksLock" }),
-    );
+    if (!isRefreshLocked) {
+      cleanupStaleLocks(DISTRIBUTED_LOCK_S3_KEY, "BookmarksLock").catch(error =>
+        envLogger.debug("Initial lock cleanup failed", { error: String(error) }, { category: "BookmarksLock" }),
+      );
+    }
     lockCleanupInterval = setInterval(() => {
+      if (isRefreshLocked) {
+        envLogger.debug("Skipping stale lock cleanup while current process holds the distributed lock", undefined, {
+          category: "BookmarksLock",
+        });
+        return;
+      }
       cleanupStaleLocks(DISTRIBUTED_LOCK_S3_KEY, "BookmarksLock").catch(error =>
         envLogger.debug("Periodic lock cleanup failed", { error: String(error) }, { category: "BookmarksLock" }),
       );
