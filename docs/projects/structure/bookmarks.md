@@ -109,7 +109,41 @@ param generation, but readers now prefer the embedded `slug` when present.
 
 ## Critical Design Decisions
 
-### 1. Callback Pattern for Circular Dependencies
+### 1. Title-Based Slug Generation for Content-Sharing Domains (2025-01)
+
+**Problem**: Slug collisions on content-sharing platforms (YouTube, Reddit, etc.) where multiple pieces of content share the same URL structure
+
+**Previous Behavior**:
+
+```text
+youtube.com/watch?v=abc123 → "youtube-com-watch"
+youtube.com/watch?v=xyz789 → "youtube-com-watch-2" ❌ Collision with numeric suffix
+```
+
+**Solution**: Domain whitelist with title-based natural language slugs
+
+**New Behavior**:
+
+```text
+youtube.com/watch?v=abc123 + "How to Use OpenAI" → "youtube-how-to-use-openai"
+youtube.com/watch?v=xyz789 + "React Best Practices" → "youtube-react-best-practices"
+```
+
+**Implementation**:
+
+- **Whitelist**: `lib/config/content-sharing-domains.ts` defines platforms requiring title-based slugs
+- **Slug Generation**: `lib/utils/domain-utils.ts` detects content-sharing domains and uses `titleToSlug()` for natural language conversion
+- **Backward Compatibility**: Regular domains continue using domain + path-based slugs
+
+**Affected Domains**:
+
+- Video: YouTube, Vimeo, Twitch
+- Social: Reddit, Twitter/X, LinkedIn
+- Content: Medium, Substack, Dev.to
+- Code: GitHub, GitLab, StackOverflow
+- And others (see full list in `content-sharing-domains.ts`)
+
+### 2. Callback Pattern for Circular Dependencies
 
 **Problem**: Circular dependency between business logic and data access layers
 
@@ -145,6 +179,30 @@ param generation, but readers now prefer the embedded `slug` when present.
 - Server provides pre-filtered data for tag pages
 - Client skips redundant filtering on tag routes
 - Pagination hook respects server-provided initial data
+
+### 5. Slug Uniqueness Guarantees (2025-01)
+
+**Strategy**:
+
+```text
+1. Primary: Title-based slugs for content-sharing domains (YouTube, Reddit, etc.)
+2. Secondary: Domain + path-based slugs for regular domains
+3. Fallback: Numeric suffixes when identical slugs detected (-2, -3, etc.)
+```
+
+**Deterministic Ordering**:
+
+- Bookmarks sorted by ID before slug generation
+- Ensures consistent slug assignment across refreshes
+- First bookmark with a given slug gets no suffix
+- Subsequent bookmarks with same base slug get -2, -3, etc.
+
+**Edge Cases Handled**:
+
+- Empty titles on content-sharing domains → Fall back to domain + path
+- Identical titles on same platform → Numeric suffix applied
+- Very long titles → Truncated at 60 characters at word boundary
+- Special characters in titles → Sanitized to URL-safe format
 
 ## Security Considerations
 

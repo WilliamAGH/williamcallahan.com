@@ -41,10 +41,19 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
   // Sort bookmarks by ID for consistent ordering (string comparison)
   const sortedBookmarks = bookmarks.toSorted((a, b) => a.id.localeCompare(b.id));
 
+  // Build candidates array once (performance optimization: avoids O(n²) array rebuilding)
+  const candidates = sortedBookmarks
+    .map(b => ({ id: b.id, url: b.url, title: b.title }))
+    .filter(c => typeof c.url === "string" && c.url.length > 0);
+
   for (const bookmark of sortedBookmarks) {
-    // generateUniqueSlug should handle uniqueness, but add a belt-and-suspenders guard
-    const candidates = sortedBookmarks.map(b => ({ id: b.id, url: b.url })).filter(c => !!c.url);
-    let slug = generateUniqueSlug(bookmark.url || "", candidates as { id: string; url: string }[], bookmark.id);
+    // Pass bookmark title for content-sharing domains (YouTube, Reddit, etc.)
+    let slug = generateUniqueSlug(
+      bookmark.url || "",
+      candidates,
+      bookmark.id,
+      bookmark.title, // ✅ Pass title for content-sharing domain slug generation
+    );
 
     // Validate that a slug was generated
     if (!slug) {
