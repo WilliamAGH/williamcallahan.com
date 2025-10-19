@@ -25,6 +25,7 @@ import {
   getDisplayDomain,
   titleToSlug,
 } from "../../../lib/utils/domain-utils";
+import { isContentSharingDomain } from "../../../lib/config/content-sharing-domains";
 
 describe("Domain Utilities", () => {
   describe("normalizeDomain", () => {
@@ -157,6 +158,122 @@ describe("Domain Utilities", () => {
     });
   });
 
+  describe("isContentSharingDomain", () => {
+    describe("basic functionality", () => {
+      it("should return true for YouTube", () => {
+        expect(isContentSharingDomain("youtube.com")).toBe(true);
+      });
+
+      it("should return true for Reddit", () => {
+        expect(isContentSharingDomain("reddit.com")).toBe(true);
+      });
+
+      it("should return true for Medium", () => {
+        expect(isContentSharingDomain("medium.com")).toBe(true);
+      });
+
+      it("should return false for regular domains", () => {
+        expect(isContentSharingDomain("example.com")).toBe(false);
+      });
+
+      it("should handle www prefix", () => {
+        expect(isContentSharingDomain("www.youtube.com")).toBe(true);
+        expect(isContentSharingDomain("www.reddit.com")).toBe(true);
+      });
+
+      it("should be case insensitive", () => {
+        expect(isContentSharingDomain("YouTube.com")).toBe(true);
+        expect(isContentSharingDomain("REDDIT.COM")).toBe(true);
+      });
+    });
+
+    describe("subdomain fallback support", () => {
+      it("should support old.reddit.com subdomain", () => {
+        expect(isContentSharingDomain("old.reddit.com")).toBe(true);
+      });
+
+      it("should support m.youtube.com mobile subdomain", () => {
+        expect(isContentSharingDomain("m.youtube.com")).toBe(true);
+      });
+
+      it("should support www.old.reddit.com (www + subdomain)", () => {
+        expect(isContentSharingDomain("www.old.reddit.com")).toBe(true);
+      });
+
+      it("should support various Reddit subdomains", () => {
+        expect(isContentSharingDomain("new.reddit.com")).toBe(true);
+        expect(isContentSharingDomain("i.reddit.com")).toBe(true);
+        expect(isContentSharingDomain("v.reddit.com")).toBe(true);
+      });
+
+      it("should support various YouTube subdomains", () => {
+        expect(isContentSharingDomain("music.youtube.com")).toBe(true);
+        expect(isContentSharingDomain("studio.youtube.com")).toBe(true);
+      });
+
+      it("should support GitHub subdomains", () => {
+        expect(isContentSharingDomain("gist.github.com")).toBe(true);
+        expect(isContentSharingDomain("raw.github.com")).toBe(true);
+      });
+
+      it("should support Twitter/X subdomains", () => {
+        expect(isContentSharingDomain("mobile.twitter.com")).toBe(true);
+        expect(isContentSharingDomain("mobile.x.com")).toBe(true);
+      });
+
+      it("should NOT match arbitrary subdomains of non-content-sharing domains", () => {
+        expect(isContentSharingDomain("blog.example.com")).toBe(false);
+        expect(isContentSharingDomain("api.example.com")).toBe(false);
+      });
+    });
+
+    describe("explicit subdomain entries priority", () => {
+      it("should match docs.google.com explicitly (not via google.com fallback)", () => {
+        expect(isContentSharingDomain("docs.google.com")).toBe(true);
+      });
+
+      it("should match sheets.google.com explicitly", () => {
+        expect(isContentSharingDomain("sheets.google.com")).toBe(true);
+      });
+
+      it("should match slides.google.com explicitly", () => {
+        expect(isContentSharingDomain("slides.google.com")).toBe(true);
+      });
+
+      it("should NOT match random.google.com (google.com not in list)", () => {
+        expect(isContentSharingDomain("random.google.com")).toBe(false);
+        expect(isContentSharingDomain("mail.google.com")).toBe(false);
+      });
+
+      it("should match news.ycombinator.com explicitly", () => {
+        expect(isContentSharingDomain("news.ycombinator.com")).toBe(true);
+      });
+
+      it("should NOT match other ycombinator.com subdomains", () => {
+        expect(isContentSharingDomain("www.ycombinator.com")).toBe(false);
+        expect(isContentSharingDomain("apply.ycombinator.com")).toBe(false);
+      });
+    });
+
+    describe("edge cases", () => {
+      it("should handle single-level domains (no fallback needed)", () => {
+        expect(isContentSharingDomain("localhost")).toBe(false);
+        expect(isContentSharingDomain("example")).toBe(false);
+      });
+
+      it("should handle deeply nested subdomains", () => {
+        expect(isContentSharingDomain("a.b.c.reddit.com")).toBe(true);
+        expect(isContentSharingDomain("deeply.nested.youtube.com")).toBe(true);
+      });
+
+      it("should handle country-code TLDs correctly", () => {
+        // youtube.co.uk should NOT match (would need .co.uk TLD awareness)
+        // This is a known limitation of the simple eTLD+1 heuristic
+        expect(isContentSharingDomain("youtube.co.uk")).toBe(false);
+      });
+    });
+  });
+
   describe("titleToSlug", () => {
     it("should convert title to lowercase slug", () => {
       expect(titleToSlug("How to Use OpenAI for Java")).toBe("how-to-use-openai-for-java");
@@ -213,6 +330,53 @@ describe("Domain Utilities", () => {
       const title = "A reasonably long title for testing";
       const result = titleToSlug(title, 20);
       expect(result.length).toBeLessThanOrEqual(20);
+    });
+
+    it("should handle programming language names with special characters", () => {
+      // Real-world test case: technical bookmarks with C++, C#, etc.
+      const title = "C++ & C# Programming Guide";
+      const result = titleToSlug(title);
+      // Ampersand becomes "and", special chars removed
+      expect(result).toBe("c-and-c-programming-guide");
+    });
+
+    describe("diacritics and special characters", () => {
+      it("should handle diacritics by removing them (café → caf)", () => {
+        // Note: Current implementation removes diacritics via \W regex
+        // Spaces are preserved as hyphens
+        expect(titleToSlug("Café au Lait")).toBe("caf-au-lait");
+      });
+
+      it("should handle multiple diacritics (collapse when no space)", () => {
+        // Diacritics removed without replacement, causing letters to collapse
+        expect(titleToSlug("Naïve résumé")).toBe("nave-rsum");
+      });
+
+      it("should handle Spanish characters (ñ removed, letters collapse)", () => {
+        // ñ removed from "mañana" → "maana", á removed from "será" → "ser"
+        expect(titleToSlug("Mañana será hermoso")).toBe("maana-ser-hermoso");
+      });
+
+      it("should handle German umlauts (ö removed, letters collapse)", () => {
+        // Ü removed from "Über" → "ber", ö removed from "schön" → "schn"
+        expect(titleToSlug("Über schön")).toBe("ber-schn");
+      });
+
+      it("should handle French accents (è/é removed, letters collapse)", () => {
+        // è removed from "Très" → "trs", é removed from "élégant" → "lgant"
+        expect(titleToSlug("Très élégant")).toBe("trs-lgant");
+      });
+
+      it("should handle plus signs in programming contexts", () => {
+        // Real test case from PR feedback
+        // ++ removed, & becomes "and", # removed
+        expect(titleToSlug("C++ & C#")).toBe("c-and-c");
+      });
+
+      it("should handle mixed diacritics and special characters", () => {
+        // é removed from both words, : and ! removed, & becomes "and"
+        expect(titleToSlug("Café & Résumé: A Guide!")).toBe("caf-and-rsum-a-guide");
+      });
     });
   });
 
@@ -369,6 +533,162 @@ describe("Domain Utilities", () => {
       const title = "Engineering Team Handbook";
       const result = generateUniqueSlug(url, [], undefined, title);
       expect(result).toBe("notion-site-engineering-team-handbook");
+    });
+
+    describe("subdomain integration tests", () => {
+      it("should use title-based slug for old.reddit.com subdomain", () => {
+        const url = "https://old.reddit.com/r/programming/comments/abc";
+        const title = "Best TypeScript Practices";
+        const result = generateUniqueSlug(url, [], undefined, title);
+        expect(result).toBe("old-reddit-com-best-typescript-practices");
+      });
+
+      it("should use title-based slug for m.youtube.com mobile subdomain", () => {
+        const url = "https://m.youtube.com/watch?v=xyz123";
+        const title = "Mobile Video Tutorial";
+        const result = generateUniqueSlug(url, [], undefined, title);
+        expect(result).toBe("m-youtube-com-mobile-video-tutorial");
+      });
+
+      it("should use title-based slug for gist.github.com subdomain", () => {
+        const url = "https://gist.github.com/user/abc123";
+        const title = "Code Snippet Example";
+        const result = generateUniqueSlug(url, [], undefined, title);
+        expect(result).toBe("gist-github-com-code-snippet-example");
+      });
+
+      it("should prevent collisions for multiple old.reddit.com posts", () => {
+        const bookmarks = [
+          { id: "1", url: "https://old.reddit.com/r/foo/123", title: "First Post" },
+          { id: "2", url: "https://old.reddit.com/r/bar/456", title: "Second Post" },
+        ];
+
+        const slug1 = generateUniqueSlug(bookmarks[0].url, bookmarks, "1", bookmarks[0].title);
+        const slug2 = generateUniqueSlug(bookmarks[1].url, bookmarks, "2", bookmarks[1].title);
+
+        expect(slug1).toBe("old-reddit-com-first-post");
+        expect(slug2).toBe("old-reddit-com-second-post");
+        expect(slug1).not.toBe(slug2);
+      });
+
+      it("should differentiate between reddit.com and old.reddit.com with same titles", () => {
+        const bookmarks = [
+          { id: "1", url: "https://reddit.com/r/foo/123", title: "Same Title" },
+          { id: "2", url: "https://old.reddit.com/r/bar/456", title: "Same Title" },
+        ];
+
+        const slug1 = generateUniqueSlug(bookmarks[0].url, bookmarks, "1", bookmarks[0].title);
+        const slug2 = generateUniqueSlug(bookmarks[1].url, bookmarks, "2", bookmarks[1].title);
+
+        // Different domains (reddit.com vs old.reddit.com) should produce different slugs
+        expect(slug1).toBe("reddit-com-same-title");
+        expect(slug2).toBe("old-reddit-com-same-title");
+        expect(slug1).not.toBe(slug2);
+      });
+
+      it("should fall back to path-based slug for subdomain when title missing", () => {
+        const url = "https://old.reddit.com/r/programming/comments/abc";
+        const result = generateUniqueSlug(url, [], undefined, undefined);
+        expect(result).toBe("old-reddit-com-r-programming-comments-abc");
+      });
+
+      it("should handle subdomain with emoji-only title (empty after sanitization)", () => {
+        const url = "https://m.youtube.com/watch?v=abc123";
+        const title = "🎉🎉🎉"; // Emojis sanitize to empty string
+        const result = generateUniqueSlug(url, [], undefined, title);
+        // Should fall back to path-based slug
+        expect(result).toBe("m-youtube-com-watch");
+        expect(result).not.toBe("m-youtube-com"); // Bug: would return bare domain
+      });
+
+      it("should handle www + subdomain combination", () => {
+        const url = "https://www.old.reddit.com/r/foo/123";
+        const title = "Test Post";
+        const result = generateUniqueSlug(url, [], undefined, title);
+        // www should be stripped, leaving old-reddit-com
+        expect(result).toBe("old-reddit-com-test-post");
+      });
+    });
+
+    // Edge case tests for empty title slugs (bug fix validation)
+    describe("empty title slug edge cases", () => {
+      it("should fall back to path-based slug for emoji-only titles on YouTube", () => {
+        const url = "https://youtube.com/watch?v=abc123";
+        const title = "🎉🎉🎉"; // Emojis only - titleToSlug returns empty string
+        const result = generateUniqueSlug(url, [], undefined, title);
+        // Should use path-based slug, NOT bare domain
+        expect(result).toBe("youtube-com-watch");
+        expect(result).not.toBe("youtube-com"); // Bug: would return this before fix
+      });
+
+      it("should fall back to path-based slug for punctuation-only titles on YouTube", () => {
+        const url = "https://youtube.com/watch?v=xyz789";
+        const title = "!!!"; // Punctuation only - titleToSlug returns empty string
+        const result = generateUniqueSlug(url, [], undefined, title);
+        expect(result).toBe("youtube-com-watch");
+        expect(result).not.toBe("youtube-com"); // Bug: would return this before fix
+      });
+
+      it("should fall back to path-based slug for hyphen-only titles on GitHub", () => {
+        const url = "https://github.com/user/repo/issues/123";
+        const title = "---"; // Hyphens only - gets trimmed to empty string
+        const result = generateUniqueSlug(url, [], undefined, title);
+        expect(result).toBe("github-com-user-repo-issues-123");
+        expect(result).not.toBe("github-com"); // Bug: would return this before fix
+      });
+
+      it("should fall back to path-based slug for special character titles on Reddit", () => {
+        const url = "https://reddit.com/r/programming/comments/abc";
+        const title = "&&&"; // Special chars - converted to "andandand" (ampersands become "and", then collapsed)
+        const result = generateUniqueSlug(url, [], undefined, title);
+        // Title "&&&" becomes "andandand" which is valid, so uses title-based
+        expect(result).toBe("reddit-com-andandand");
+      });
+
+      it("should fall back to path-based slug for whitespace-only titles", () => {
+        const url = "https://youtube.com/watch?v=test123";
+        const title = "   "; // Whitespace only - titleToSlug returns empty string
+        const result = generateUniqueSlug(url, [], undefined, title);
+        expect(result).toBe("youtube-com-watch");
+        expect(result).not.toBe("youtube-com"); // Bug: would return this before fix
+      });
+
+      it("should fall back to path-based slug for mixed emoji and punctuation", () => {
+        const url = "https://twitter.com/user/status/123456";
+        const title = "🔥!!!🎉"; // Mixed emoji and punctuation - titleToSlug returns empty
+        const result = generateUniqueSlug(url, [], undefined, title);
+        expect(result).toBe("twitter-com-user-status-123456");
+        expect(result).not.toBe("twitter-com"); // Bug: would return this before fix
+      });
+
+      it("should prevent mass collisions with multiple emoji-titled videos", () => {
+        const bookmarks = [
+          { id: "1", url: "https://youtube.com/watch?v=abc", title: "🎉" },
+          { id: "2", url: "https://youtube.com/watch?v=def", title: "🔥" },
+          { id: "3", url: "https://youtube.com/watch?v=ghi", title: "!!!" },
+        ];
+
+        const slug1 = generateUniqueSlug(bookmarks[0].url, bookmarks, "1", bookmarks[0].title);
+        const slug2 = generateUniqueSlug(bookmarks[1].url, bookmarks, "2", bookmarks[1].title);
+        const slug3 = generateUniqueSlug(bookmarks[2].url, bookmarks, "3", bookmarks[2].title);
+
+        // All should get path-based slugs (youtube-com-watch)
+        expect(slug1).toBe("youtube-com-watch");
+        expect(slug2).toBe("youtube-com-watch-2"); // Collision handled by numeric suffix
+        expect(slug3).toBe("youtube-com-watch-3");
+
+        // Bug scenario (before fix): All would get "youtube-com", "youtube-com-2", "youtube-com-3"
+        // which are less descriptive than path-based slugs
+      });
+
+      it("should handle Unicode control characters that result in empty slug", () => {
+        const url = "https://medium.com/@user/post-123";
+        const title = "\u200B\u200B\u200B"; // Zero-width spaces - titleToSlug returns empty
+        const result = generateUniqueSlug(url, [], undefined, title);
+        // Path cleaning converts @ to hyphen, resulting in -user-post-123
+        expect(result).toBe("medium-com--user-post-123");
+        expect(result).not.toBe("medium-com"); // Bug: would return this before fix
+      });
     });
   });
 });

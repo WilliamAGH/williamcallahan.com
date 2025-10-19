@@ -115,7 +115,7 @@ param generation, but readers now prefer the embedded `slug` when present.
 
 **Previous Behavior**:
 
-```
+```text
 youtube.com/watch?v=abc123 → "youtube-com-watch"
 youtube.com/watch?v=xyz789 → "youtube-com-watch-2" ❌ Collision with numeric suffix
 ```
@@ -124,7 +124,7 @@ youtube.com/watch?v=xyz789 → "youtube-com-watch-2" ❌ Collision with numeric 
 
 **New Behavior**:
 
-```
+```text
 youtube.com/watch?v=abc123 + "How to Use OpenAI" → "youtube-how-to-use-openai"
 youtube.com/watch?v=xyz789 + "React Best Practices" → "youtube-react-best-practices"
 ```
@@ -184,9 +184,11 @@ youtube.com/watch?v=xyz789 + "React Best Practices" → "youtube-react-best-prac
 
 **Strategy**:
 
-1. **Primary**: Title-based slugs for content-sharing domains (YouTube, Reddit, etc.)
-2. **Secondary**: Domain + path-based slugs for regular domains
-3. **Fallback**: Numeric suffixes when identical slugs detected (-2, -3, etc.)
+```text
+1. Primary: Title-based slugs for content-sharing domains (YouTube, Reddit, etc.)
+2. Secondary: Domain + path-based slugs for regular domains
+3. Fallback: Numeric suffixes when identical slugs detected (-2, -3, etc.)
+```
 
 **Deterministic Ordering**:
 

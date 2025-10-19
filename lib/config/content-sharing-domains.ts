@@ -98,18 +98,40 @@ export const CONTENT_SHARING_DOMAINS = [
  * Normalizes the input by:
  * 1. Converting to lowercase
  * 2. Removing 'www.' prefix
+ * 3. Checking explicit domain match first (e.g., docs.google.com)
+ * 4. Falling back to parent domain (eTLD+1) if subdomain not explicitly listed
  *
- * @param domain - The domain to check (e.g., "youtube.com", "www.reddit.com")
- * @returns true if the domain is in the content-sharing whitelist
+ * @param domain - The domain to check (e.g., "youtube.com", "www.reddit.com", "old.reddit.com")
+ * @returns true if the domain or its parent domain is in the content-sharing whitelist
  *
  * @example
  * isContentSharingDomain("youtube.com") // → true
  * isContentSharingDomain("www.reddit.com") // → true
+ * isContentSharingDomain("old.reddit.com") // → true (falls back to reddit.com)
+ * isContentSharingDomain("docs.google.com") // → true (explicit match)
+ * isContentSharingDomain("random.google.com") // → false (google.com not in list)
  * isContentSharingDomain("example.com") // → false
  */
 export function isContentSharingDomain(domain: string): boolean {
   const normalized = domain.toLowerCase().replace(/^www\./, "");
-  return CONTENT_SHARING_DOMAINS.includes(normalized as (typeof CONTENT_SHARING_DOMAINS)[number]);
+
+  // First, check for exact match (handles explicit subdomain entries like docs.google.com)
+  if (CONTENT_SHARING_DOMAINS.includes(normalized as (typeof CONTENT_SHARING_DOMAINS)[number])) {
+    return true;
+  }
+
+  // If no exact match, try parent domain (eTLD+1) fallback
+  // This handles cases like old.reddit.com → reddit.com
+  const parts = normalized.split(".");
+  if (parts.length >= 3) {
+    // Extract parent domain (last two parts: domain.tld)
+    const parentDomain = parts.slice(-2).join(".");
+    if (CONTENT_SHARING_DOMAINS.includes(parentDomain as (typeof CONTENT_SHARING_DOMAINS)[number])) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
