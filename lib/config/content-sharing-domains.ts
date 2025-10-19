@@ -26,6 +26,7 @@
  * - Content platforms: Medium, Substack, Dev.to, etc.
  * - Code hosting: GitHub, GitLab, StackOverflow, etc.
  * - Blog platforms: WordPress, Blogspot, Tumblr, etc.
+ * - AI chat platforms: ChatGPT, Claude, Perplexity, etc.
  */
 export const CONTENT_SHARING_DOMAINS = [
   // Video platforms
@@ -53,6 +54,7 @@ export const CONTENT_SHARING_DOMAINS = [
   "blogspot.com",
   "tumblr.com",
   "notion.site",
+  "notion.so",
 
   // Code hosting & developer platforms
   "github.com",
@@ -73,6 +75,12 @@ export const CONTENT_SHARING_DOMAINS = [
   "coursera.org",
   "edx.org",
   "khanacademy.org",
+
+  // AI chat & conversation platforms
+  "chat.openai.com",
+  "chatgpt.com",
+  "claude.ai",
+  "perplexity.ai",
 
   // Google Workspace / Cloud Storage (multiple documents per domain)
   "docs.google.com",
