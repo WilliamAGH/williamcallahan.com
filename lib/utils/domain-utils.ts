@@ -199,8 +199,7 @@ function getBaseSlugFromUrl(url: string, title?: string): string {
       if (titleSlug) {
         return `${domainPrefix}-${titleSlug}`;
       }
-      // Fall back to domain-only if title conversion failed
-      return domainPrefix;
+      // No valid title slug → fall through to domain+path handling below
     }
 
     // For regular domains, use domain + path approach
@@ -260,7 +259,7 @@ export function generateUniqueSlug(
     const slugCounts = new Map<string, number>();
 
     // Process bookmarks in a deterministic order (by ID)
-    const sortedBookmarks = [...allBookmarks].sort((a, b) => a.id.localeCompare(b.id));
+    const sortedBookmarks = allBookmarks.toSorted((a, b) => a.id.localeCompare(b.id));
 
     for (const bookmark of sortedBookmarks) {
       if (bookmark.id === currentBookmarkId) continue; // Skip current bookmark
