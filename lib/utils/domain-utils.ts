@@ -7,6 +7,64 @@
  * @module lib/utils/domain-utils
  */
 
+import { isContentSharingDomain } from "@/lib/config/content-sharing-domains";
+
+/**
+ * Converts a title string into a URL-safe slug.
+ *
+ * Handles:
+ * - Lowercase conversion
+ * - Special character removal
+ * - Whitespace to hyphen conversion
+ * - Length limiting at word boundaries
+ *
+ * @param title - The title to convert to a slug
+ * @param maxLength - Maximum length of the slug (default: 60)
+ * @returns URL-safe slug string
+ *
+ * @example
+ * titleToSlug("How to Use OpenAI for Java") // → "how-to-use-openai-for-java"
+ * titleToSlug("React: Best Practices!") // → "react-best-practices"
+ */
+export function titleToSlug(title: string, maxLength: number = 60): string {
+  if (!title || typeof title !== "string") {
+    return "";
+  }
+
+  let slug = title
+    .toLowerCase()
+    .trim()
+    // Remove apostrophes and quotes
+    .replace(/['"]/g, "")
+    // Replace ampersands with 'and'
+    .replace(/&/g, "and")
+    // Remove all non-alphanumeric characters except spaces and hyphens
+    .replace(/[^\w\s-]/g, "")
+    // Replace whitespace with hyphens
+    .replace(/\s+/g, "-")
+    // Replace multiple consecutive hyphens with a single hyphen
+    .replace(/-+/g, "-")
+    // Remove leading/trailing hyphens
+    .replace(/^-+|-+$/g, "");
+
+  // Trim to max length, preferably at a word boundary (hyphen)
+  if (slug.length > maxLength) {
+    // Try to cut at a hyphen near the max length
+    const cutPoint = slug.lastIndexOf("-", maxLength);
+    if (cutPoint > maxLength / 2) {
+      // Only use the hyphen if it's in the latter half
+      slug = slug.substring(0, cutPoint);
+    } else {
+      // Otherwise just hard cut
+      slug = slug.substring(0, maxLength);
+    }
+    // Clean up any trailing hyphens after cutting
+    slug = slug.replace(/-+$/, "");
+  }
+
+  return slug;
+}
+
 /**
  * Extract domain from URL or company name
  * Handles common URL formats and converts them to clean FQDNs
@@ -115,13 +173,37 @@ export function getDomainSlug(url: string): string {
 }
 
 /**
- * Generate base slug from URL for bookmark identification
+ * Generate base slug from URL for bookmark identification.
+ *
+ * Strategy:
+ * - Content-sharing domains (YouTube, Reddit, etc.): Use title-based slugs
+ * - Regular domains: Use domain + path-based slugs
+ *
+ * @param url - The URL to generate a slug from
+ * @param title - Optional title for content-sharing domains
+ * @returns Base slug string
  */
-function getBaseSlugFromUrl(url: string): string {
+function getBaseSlugFromUrl(url: string, title?: string): string {
   try {
     const urlToProcess = url.startsWith("http") ? url : `https://${url}`;
     const urlObj = new URL(urlToProcess);
     const domain = urlObj.hostname.replace(/^www\./, "");
+
+    // Check if this is a content-sharing domain
+    if (isContentSharingDomain(domain) && title) {
+      // Use title-based slug for content platforms
+      const domainPrefix = domain.replace(/\./g, "-");
+      const titleSlug = titleToSlug(title);
+
+      // If we got a valid title slug, combine with domain
+      if (titleSlug) {
+        return `${domainPrefix}-${titleSlug}`;
+      }
+      // Fall back to domain-only if title conversion failed
+      return domainPrefix;
+    }
+
+    // For regular domains, use domain + path approach
     let slug = domain.replace(/\./g, "-");
 
     // If there's a meaningful path, include it
@@ -148,17 +230,22 @@ function getBaseSlugFromUrl(url: string): string {
 }
 
 /**
- * Generates a unique, user-friendly slug from a URL
+ * Generates a unique, user-friendly slug from a URL.
+ *
+ * For content-sharing domains (YouTube, Reddit, etc.), uses title-based slugs.
+ * For regular domains, uses domain + path-based slugs.
  *
  * @param url The URL to generate a slug for
- * @param allBookmarks All bookmarks to check for uniqueness
+ * @param allBookmarks All bookmarks to check for uniqueness (must include title for content-sharing domains)
  * @param currentBookmarkId The ID of the current bookmark (to exclude from uniqueness check)
+ * @param title Optional title for title-based slug generation on content-sharing domains
  * @returns A unique slug for the URL
  */
 export function generateUniqueSlug(
   url: string,
-  allBookmarks: Array<{ id: string; url: string }>,
+  allBookmarks: Array<{ id: string; url: string; title?: string }>,
   currentBookmarkId?: string,
+  title?: string,
 ): string {
   try {
     let processedUrl = url;
@@ -166,8 +253,8 @@ export function generateUniqueSlug(
       processedUrl = `https://${processedUrl}`;
     }
 
-    // Compute the base slug once using the helper
-    const baseSlug = getBaseSlugFromUrl(processedUrl);
+    // Compute the base slug once using the helper (with title for content-sharing domains)
+    const baseSlug = getBaseSlugFromUrl(processedUrl, title);
 
     // Build a map of all existing slugs (with their suffixes)
     const slugCounts = new Map<string, number>();
@@ -178,7 +265,8 @@ export function generateUniqueSlug(
     for (const bookmark of sortedBookmarks) {
       if (bookmark.id === currentBookmarkId) continue; // Skip current bookmark
 
-      const bookmarkBaseSlug = getBaseSlugFromUrl(bookmark.url);
+      // Use bookmark's own title for generating its base slug
+      const bookmarkBaseSlug = getBaseSlugFromUrl(bookmark.url, bookmark.title);
       const count = slugCounts.get(bookmarkBaseSlug) || 0;
       slugCounts.set(bookmarkBaseSlug, count + 1);
     }
@@ -195,7 +283,7 @@ export function generateUniqueSlug(
     for (const bookmark of sortedBookmarks) {
       if (bookmark.id === currentBookmarkId) break; // Found our position
 
-      const bookmarkBaseSlug = getBaseSlugFromUrl(bookmark.url);
+      const bookmarkBaseSlug = getBaseSlugFromUrl(bookmark.url, bookmark.title);
       if (bookmarkBaseSlug === baseSlug) {
         position++;
       }
