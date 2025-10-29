@@ -32,12 +32,12 @@ export const SITE_NAME = "William Callahan";
  * Full site title - used in main page and SEO
  * @recommended Keep under 80 characters for optimal display in search results
  */
-export const SITE_TITLE = "William Callahan - Startups, Engineering, & Finance - San Francisco";
+export const SITE_TITLE = "William Callahan - San Francisco";
 
 /**
  * Shorter title optimized for OpenGraph (under 60 characters)
  */
-export const SITE_TITLE_SHORT = "William Callahan - Finance, Startups, & Engineering";
+export const SITE_TITLE_SHORT = "William Callahan - San Francisco";
 
 /**
  * Primary site description
