@@ -3,11 +3,155 @@
  */
 
 // Remember to update this date whenever the education data or the Education page design changes
-export const updatedAt = "2025-06-28";
+export const updatedAt = "2025-10-30";
 
-import { type Certification, type Class, type Education, validateClassArray, validateEducationArray, validateCertificationArray } from "@/types/education";
+import {
+  type Certification,
+  type Class,
+  type Education,
+  validateClassArray,
+  validateEducationArray,
+  validateCertificationArray,
+} from "@/types/education";
 
 const recentCoursesData: Class[] = [
+  // Creighton University — Courses from MIMFA/MBA programs (2014–2016)
+  {
+    id: "creighton-fixed-income-derivatives-i",
+    institution: "Creighton University",
+    name: "Fixed Income and Derivatives",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2014,
+  },
+  {
+    id: "creighton-capital-markets",
+    institution: "Creighton University",
+    name: "Capital Markets",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2014,
+  },
+  {
+    id: "creighton-financial-statement-analysis-i",
+    institution: "Creighton University",
+    name: "Financial Statement Analysis",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2014,
+  },
+  {
+    id: "creighton-equity-analysis",
+    institution: "Creighton University",
+    name: "Equity Analysis",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2014,
+  },
+  {
+    id: "creighton-quantitative-analysis",
+    institution: "Creighton University",
+    name: "Quantitative Methods / Quantitative Analysis",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2015,
+  },
+  {
+    id: "creighton-fixed-income-derivatives-ii",
+    institution: "Creighton University",
+    name: "Fixed Income & Derivatives - Advanced Topics",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2015,
+  },
+  {
+    id: "creighton-leadership-and-organizational-behavior",
+    institution: "Creighton University",
+    name: "Leadership and Organizational Behavior",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2015,
+  },
+  {
+    id: "creighton-business-ethics-and-society",
+    institution: "Creighton University",
+    name: "Business, Ethics and Society",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2015,
+  },
+  {
+    id: "creighton-business-world-hong-kong",
+    institution: "Creighton University",
+    name: "Trade & Finance in Asia: Mainland China & Hong Kong",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2015,
+  },
+  {
+    id: "creighton-ethical-and-professional-standards",
+    institution: "Creighton University",
+    name: "Ethical and Professional Standards",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2016,
+  },
+  {
+    id: "creighton-portfolio-management",
+    institution: "Creighton University",
+    name: "Portfolio Management",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2016,
+  },
+  {
+    id: "creighton-business-policy-managerial-action",
+    institution: "Creighton University",
+    name: "Business Policy and Managerial Action",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2016,
+  },
+  {
+    id: "creighton-advanced-financial-analysis",
+    institution: "Creighton University",
+    name: "Financial Analysis - Advanced Topics",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2016,
+  },
+  {
+    id: "creighton-asset-management-portfolio-context",
+    institution: "Creighton University",
+    name: "Asset Management within a Portfolio Context",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2016,
+  },
+  {
+    id: "creighton-advanced-topics-it-management",
+    institution: "Creighton University",
+    name: "Information Technology Management - Advanced Topics",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2016,
+  },
+  {
+    id: "creighton-leadership-presentation-skills",
+    institution: "Creighton University",
+    name: "Leadership Presentation Skills",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2016,
+  },
+  {
+    id: "creighton-high-impact-leadership-skills",
+    institution: "Creighton University",
+    name: "High Impact Leadership Skills",
+    website: "https://www.creighton.edu",
+    location: "Omaha, Nebraska",
+    year: 2016,
+  },
   // TODO: Display this course in September 2025
   // {
   //   id: "san-mateo-data-structures",
