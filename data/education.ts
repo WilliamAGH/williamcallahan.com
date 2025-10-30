@@ -15,6 +15,72 @@ import {
 } from "@/types/education";
 
 const recentCoursesData: Class[] = [
+  // Stanford University — Priority
+  {
+    id: "stanford-ml",
+    institution: "Stanford University",
+    name: "Machine Learning for Business with Python",
+    website: "https://www.stanford.edu",
+    location: "Stanford, California",
+    year: 2024,
+  },
+  {
+    id: "stanford-llm",
+    institution: "Stanford University",
+    name: "Large Language Models for Business with Python",
+    website: "https://www.stanford.edu",
+    location: "Stanford, California",
+    year: 2024,
+  },
+  {
+    id: "stanford-ai-design",
+    institution: "Stanford University",
+    name: "User-Centered Design for AI Applications",
+    website: "https://www.stanford.edu",
+    location: "Stanford, California",
+    year: 2024,
+  },
+  {
+    id: "san-mateo-programming-methods-java",
+    institution: "College of San Mateo",
+    name: "Programming Methods - Java",
+    website: "https://collegeofsanmateo.edu",
+    location: "San Mateo, California",
+    year: 2025,
+  },
+  {
+    id: "san-mateo-object-oriented-java",
+    institution: "College of San Mateo",
+    name: "Object-Oriented Programming - Java",
+    website: "https://collegeofsanmateo.edu",
+    location: "San Mateo, California",
+    year: 2025,
+  },
+  {
+    id: "san-mateo-college-python",
+    institution: "College of San Mateo",
+    name: "Python Programming",
+    website: "https://collegeofsanmateo.edu",
+    location: "San Mateo, California",
+    year: 2025,
+  },
+  {
+    id: "san-mateo-college-unix-linux",
+    institution: "College of San Mateo",
+    name: "Unix & Linux Systems",
+    website: "https://collegeofsanmateo.edu",
+    location: "San Mateo, California",
+    year: 2025,
+  },
+  // University of California Berkeley — Then others
+  {
+    id: "berkeley-front-end-development",
+    institution: "University of California Berkeley",
+    name: "Web Development (JavaScript / TypeScript)",
+    website: "https://www.berkeley.edu",
+    location: "Berkeley, California",
+    year: 2025,
+  },
   // Creighton University — Courses from MIMFA/MBA programs (2014–2016)
   {
     id: "creighton-fixed-income-derivatives-i",
@@ -115,7 +181,7 @@ const recentCoursesData: Class[] = [
   {
     id: "creighton-advanced-financial-analysis",
     institution: "Creighton University",
-    name: "Financial Analysis - Advanced Topics",
+    name: "Financial StatementAnalysis - Advanced Topics",
     website: "https://www.creighton.edu",
     location: "Omaha, Nebraska",
     year: 2016,
@@ -151,71 +217,6 @@ const recentCoursesData: Class[] = [
     website: "https://www.creighton.edu",
     location: "Omaha, Nebraska",
     year: 2016,
-  },
-  // TODO: Display this course in September 2025
-  // {
-  //   id: "san-mateo-data-structures",
-  //   institution: "College of San Mateo",
-  //   name: "Data Structures & Algorithms",
-  //   website: "https://collegeofsanmateo.edu",
-  //   location: "San Mateo, California",
-  //   year: 2025,
-  // },
-  {
-    id: "san-mateo-object-oriented-java",
-    institution: "College of San Mateo",
-    name: "Object-Oriented Programming - Java",
-    website: "https://collegeofsanmateo.edu",
-    location: "San Mateo, California",
-    year: 2025,
-  },
-  {
-    id: "san-mateo-college-python",
-    institution: "College of San Mateo",
-    name: "Python Programming",
-    website: "https://collegeofsanmateo.edu",
-    location: "San Mateo, California",
-    year: 2025,
-  },
-  {
-    id: "san-mateo-college-unix-linux",
-    institution: "College of San Mateo",
-    name: "Unix & Linux Systems",
-    website: "https://collegeofsanmateo.edu",
-    location: "San Mateo, California",
-    year: 2025,
-  },
-  {
-    id: "berkeley-front-end-development",
-    institution: "University of California Berkeley",
-    name: "Front-End Web Development",
-    website: "https://www.berkeley.edu",
-    location: "Berkeley, California",
-    year: 2025,
-  },
-  {
-    id: "stanford-ml",
-    institution: "Stanford University",
-    name: "Machine Learning for Business with Python",
-    website: "https://www.stanford.edu",
-    location: "Stanford, California",
-    year: 2024,
-  },
-  {
-    id: "stanford-llm",
-    institution: "Stanford University",
-    name: "Large Language Models for Business with Python",
-    website: "https://www.stanford.edu",
-    location: "Stanford, California",
-    year: 2024,
-  },
-  {
-    id: "stanford-ai-design",
-    institution: "Stanford University",
-    name: "User-Centered Design for AI Applications",
-    website: "https://www.stanford.edu",
-    location: "Stanford, California",
-    year: 2024,
   },
 ];
 
