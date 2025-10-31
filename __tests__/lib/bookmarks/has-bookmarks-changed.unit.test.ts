@@ -260,6 +260,11 @@ describe("hasBookmarksChanged() function (unit)", () => {
         deleteFromS3: deleteFromS3Mock,
       }));
 
+      // Mock enrichment to prevent metadata changes
+      jest.doMock("@/lib/bookmarks/enrich-opengraph", () => ({
+        enrichBookmarksWithOpenGraph: jest.fn((bookmarks: any[]) => Promise.resolve(bookmarks)),
+      }));
+
       const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
 
       // Exact same bookmarks that will produce the same checksum
@@ -272,6 +277,7 @@ describe("hasBookmarksChanged() function (unit)", () => {
           tags: [],
           dateBookmarked: testDate,
           sourceUpdatedAt: testDate,
+          modifiedAt: testDate,
         },
         {
           id: "b",
@@ -281,6 +287,7 @@ describe("hasBookmarksChanged() function (unit)", () => {
           tags: [],
           dateBookmarked: testDate,
           sourceUpdatedAt: testDate,
+          modifiedAt: testDate,
         },
       ];
 
