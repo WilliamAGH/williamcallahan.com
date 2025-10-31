@@ -308,7 +308,9 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                     {bookmark.tags.map(tag => {
                       const isString = typeof tag === "string";
                       const tagName = isString ? tag : (tag as BookmarkTag).name;
-                      const tagSlug = isString ? tagToSlug(tagName) : ((tag as BookmarkTag).slug ?? "");
+                      const tagSlug = isString
+                        ? tagToSlug(tagName)
+                        : (tag as BookmarkTag).slug?.trim() || tagToSlug(tagName);
                       const tagKey = isString ? tag : (tag as BookmarkTag).id;
                       return (
                         <Link

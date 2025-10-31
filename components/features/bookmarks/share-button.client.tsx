@@ -113,20 +113,24 @@ export function ShareButton({ shareUrl }: BookmarkShareButtonProps): JSX.Element
 
   const handleCopy = async () => {
     try {
-      // Generate the unique URL for this bookmark
       const bookmarkUrl = getBookmarkUrl();
+      let copySucceeded = false;
 
-      // Copy to clipboard
       const clipboard = typeof navigator !== "undefined" ? navigator.clipboard : undefined;
       if (clipboard?.writeText) {
-        await clipboard.writeText(bookmarkUrl);
-        showTooltip(false);
-        setCopied(true);
-        return;
+        try {
+          await clipboard.writeText(bookmarkUrl);
+          copySucceeded = true;
+        } catch (clipboardError) {
+          console.warn("navigator.clipboard.writeText failed, falling back to execCommand", clipboardError);
+        }
       }
 
-      const fallbackSuccess = copyUsingFallback(bookmarkUrl);
-      if (fallbackSuccess) {
+      if (!copySucceeded) {
+        copySucceeded = copyUsingFallback(bookmarkUrl);
+      }
+
+      if (copySucceeded) {
         showTooltip(false);
         setCopied(true);
         return;
@@ -134,10 +138,6 @@ export function ShareButton({ shareUrl }: BookmarkShareButtonProps): JSX.Element
 
       showTooltip(true);
       setCopied(false);
-
-      return;
-
-      // Show success state
     } catch (error) {
       console.error("Failed to copy URL:", error);
       showTooltip(true);
