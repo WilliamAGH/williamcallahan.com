@@ -23,39 +23,39 @@ Whether you're using JavaScript, Python, Go, or any other modern language, you c
 
 Let's compare the key features of these four object storage solutions:
 
-| Feature               | Vercel Blob                                         | Hetzner Object Storage          | DigitalOcean Spaces         | AWS S3                                                   |
-| --------------------- | --------------------------------------------------- | ------------------------------- | --------------------------- | -------------------------------------------------------- |
-| Underlying Technology | AWS S3 backend                                      | Ceph clusters                   | Proprietary (S3-compatible) | Native AWS infrastructure                                |
-| S3 API Compatibility  | Partial (proxied to S3)                             | Yes (S3-compatible)             | Yes (S3-compatible)         | Native                                                   |
-| Durability            | 11 nines (via S3)                                   | Not explicitly stated           | Not explicitly stated       | 11 nines                                                 |
-| Global CDN            | Yes (Vercel Edge Network)                           | No built-in CDN                 | Yes (built-in, 25+ PoPs)    | Optional (CloudFront)                                    |
-| Data Center Locations | AWS regions, global cache                           | Germany, Finland                | 5 regions (US, EU, Asia)    | Dozens globally                                          |
-| Storage Classes       | Single (standard)                                   | Single (standard)               | Single (standard)           | Multiple (Standard, IA, Glacier, etc.)                   |
-| Advanced Features     | Deep Vercel integration, global caching, simple API | S3 API, Ceph, WORM, public URLs | Built-in CDN, simple UI     | Lifecycle, Object Lock, Replication, Batch Ops, rich IAM |
+| Feature | Vercel Blob | Hetzner Object Storage | DigitalOcean Spaces | AWS S3 |
+|---------|-------------|------------------------|---------------------|--------|
+| Underlying Technology | AWS S3 backend | Ceph clusters | Proprietary (S3-compatible) | Native AWS infrastructure |
+| S3 API Compatibility | Partial (proxied to S3) | Yes (S3-compatible) | Yes (S3-compatible) | Native |
+| Durability | 11 nines (via S3) | Not explicitly stated | Not explicitly stated | 11 nines |
+| Global CDN | Yes (Vercel Edge Network) | No built-in CDN | Yes (built-in, 25+ PoPs) | Optional (CloudFront) |
+| Data Center Locations | AWS regions, global cache | Germany, Finland | 5 regions (US, EU, Asia) | Dozens globally |
+| Storage Classes | Single (standard) | Single (standard) | Single (standard) | Multiple (Standard, IA, Glacier, etc.) |
+| Advanced Features | Deep Vercel integration, global caching, simple API | S3 API, Ceph, WORM, public URLs | Built-in CDN, simple UI | Lifecycle, Object Lock, Replication, Batch Ops, rich IAM |
 
 ## Pricing Comparison
 
 Now let's look at how these services compare in terms of pricing:
 
-| Provider               | Storage Price (per GB/month) | Data Transfer Out (per GB) | Minimum Monthly Price | Free Tier                                                               |
-| ---------------------- | ---------------------------- | -------------------------- | --------------------- | ----------------------------------------------------------------------- |
-| Vercel Blob            | $0.023                       | $0.05 (regional)           | $0 (with Hobby plan)  | 1GB storage & 10GB transfer (Hobby), 5GB storage & 100GB transfer (Pro) |
-| Hetzner Object Storage | ~$0.0064 (1TB for $5.99)     | $0.0013 ($1.20/TB)         | $5.99                 | 1TB storage & 1TB transfer included in base price                       |
-| DigitalOcean Spaces    | $0.02                        | $0.01                      | $5                    | 250GB storage & 1,024GB transfer included in base price                 |
-| AWS S3 (Standard)      | $0.023 (first 50TB)          | $0.09                      | $0 (pay as you go)    | 5GB storage & 100GB transfer (AWS Free Tier, 12 months)                 |
+| Provider | Storage Price (per GB/month) | Data Transfer Out (per GB) | Minimum Monthly Price | Free Tier |
+|----------|------------------------------|---------------------------|----------------------|------------|
+| Vercel Blob | $0.023 | $0.05 (regional) | $0 (with Hobby plan) | 1GB storage & 10GB transfer (Hobby), 5GB storage & 100GB transfer (Pro) |
+| Hetzner Object Storage | ~$0.0064 (1TB for $5.99) | $0.0013 ($1.20/TB) | $5.99 | 1TB storage & 1TB transfer included in base price |
+| DigitalOcean Spaces | $0.02 | $0.01 | $5 | 250GB storage & 1,024GB transfer included in base price |
+| AWS S3 (Standard) | $0.023 (first 50TB) | $0.09 | $0 (pay as you go) | 5GB storage & 100GB transfer (AWS Free Tier, 12 months) |
 
 ## Cost Comparison for Different Storage Needs
 
 Let's see how these services compare for different storage volumes:
 
-| Provider               | Price for 250GB        | Price for 1TB           | Price for 5TB            |
-| ---------------------- | ---------------------- | ----------------------- | ------------------------ |
-| Vercel Blob            | ~$5.75 (Hobby + extra) | ~$23.00 (Hobby + extra) | ~$115.00 (Hobby + extra) |
-| Hetzner Object Storage | $5.99 (for 1TB)        | $5.99                   | ~$29.95 (5TB)            |
-| DigitalOcean Spaces    | $5.00                  | ~$20.00                 | ~$100.00                 |
-| AWS S3 (Standard)      | ~$5.75                 | ~$23.00                 | ~$115.00                 |
+| Provider | Price for 250GB | Price for 1TB | Price for 5TB |
+|----------|-----------------|---------------|---------------|
+| Vercel Blob | ~$5.75 (Hobby + extra) | ~$23.00 (Hobby + extra) | ~$115.00 (Hobby + extra) |
+| Hetzner Object Storage | $5.99 (for 1TB) | $5.99 | ~$29.95 (5TB) |
+| DigitalOcean Spaces | $5.00 | ~$20.00 | ~$100.00 |
+| AWS S3 (Standard) | ~$5.75 | ~$23.00 | ~$115.00 |
 
-_Note: These calculations focus on storage costs only and don't include data transfer or API operation costs, which can significantly impact your total bill depending on usage patterns._
+*Note: These calculations focus on storage costs only and don't include data transfer or API operation costs, which can significantly impact your total bill depending on usage patterns.*
 
 ## Integration with Modern Programming Languages
 
@@ -112,7 +112,6 @@ One of the great things about all these services is how easily they integrate wi
       return blob.url;
     }
     ```
-
   </div>
 </CollapseDropdown>
 
@@ -144,7 +143,6 @@ One of the great things about all these services is how easily they integrate wi
     def upload_file(client, bucket, key, file_path):
         return client.upload_file(file_path, bucket, key)
     ```
-
   </div>
 </CollapseDropdown>
 
@@ -193,7 +191,6 @@ One of the great things about all these services is how easily they integrate wi
         // s3Client.PutObject(...)
     }
     ```
-
   </div>
 </CollapseDropdown>
 
@@ -204,7 +201,6 @@ Each of these object storage solutions has its strengths and ideal use cases:
 ### Vercel Blob
 
 **Best for:**
-
 - Vercel-hosted applications
 - Projects needing tight integration with Vercel's platform
 - Applications benefiting from global CDN caching
@@ -213,7 +209,6 @@ Each of these object storage solutions has its strengths and ideal use cases:
 ### Hetzner Object Storage
 
 **Best for:**
-
 - Budget-conscious projects with large storage needs
 - European-based workloads (GDPR compliance)
 - Bulk storage with low egress requirements
@@ -222,7 +217,6 @@ Each of these object storage solutions has its strengths and ideal use cases:
 ### DigitalOcean Spaces
 
 **Best for:**
-
 - DigitalOcean customers
 - Projects needing built-in CDN capabilities
 - Developers who prefer a simple UI and predictable pricing
@@ -231,7 +225,6 @@ Each of these object storage solutions has its strengths and ideal use cases:
 ### AWS S3
 
 **Best for:**
-
 - Enterprise applications requiring advanced features
 - Workloads needing global distribution
 - Projects requiring multiple storage tiers

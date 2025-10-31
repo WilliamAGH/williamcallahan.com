@@ -14,20 +14,16 @@ You've probably noticed it too. You ask an LLM to write some code, and it works 
 I've been using Claude, ChatGPT, and other LLMs extensively for code generation, and I've noticed they have the same bad habits many junior engineers have: defaulting to arrays when sets would be better, writing nested loops when a single pass would suffice, and generating N+1 SQL queries like our database won't ever have more than 100 rows.
 
 <BackgroundInfo title="The Fundamental Problem">
-  LLMs are trained on a massive corpus of code where correctness is prioritized over performance. Most tutorial code,
-  Stack Overflow answers, and GitHub repositories optimize for readability and "getting it working" rather than
-  efficiency. As Martin Kleppmann notes in *Designing Data-Intensive Applications*, "premature optimization" warnings
-  have led to a generation of developers who never optimize at all.
+LLMs are trained on a massive corpus of code where correctness is prioritized over performance. Most tutorial code, Stack Overflow answers, and GitHub repositories optimize for readability and "getting it working" rather than efficiency. As Martin Kleppmann notes in *Designing Data-Intensive Applications*, "premature optimization" warnings have led to a generation of developers who never optimize at all.
 </BackgroundInfo>
 
-After spending months refactoring LLM-generated code and studying both _Designing Data-Intensive Applications_ and _A Common-Sense Guide to Data Structures and Algorithms_, I've identified the most common performance mistakes LLMs make—and more importantly, how to get them to write efficient code from the start.
+After spending months refactoring LLM-generated code and studying both *Designing Data-Intensive Applications* and *A Common-Sense Guide to Data Structures and Algorithms*, I've identified the most common performance mistakes LLMs make—and more importantly, how to get them to write efficient code from the start.
 
 ## 1: The Array vs Set Trap
 
 This is by far the most common mistake I see. LLMs love arrays, even when you're doing membership checks.
 
 ### Common LLM Code (O(n) lookups)
-
 ```typescript
 // LLM typically generates this
 const userIds = [1, 2, 3, 4, 5, ...]; // thousands of IDs
@@ -46,7 +42,6 @@ userIds.forEach(userId => {
 ```
 
 ### Improved Code (Using Set)
-
 ```typescript
 // Better approach
 const userIds = [1, 2, 3, 4, 5, ...];
@@ -64,7 +59,6 @@ userIds.forEach(userId => {
 ```
 
 ### Most Optimized Code (Batch Processing)
-
 ```typescript
 // Optimal for large-scale processing
 const userIds = [1, 2, 3, 4, 5, ...];
@@ -84,9 +78,7 @@ console.log(`Found ${results.length} banned users`);
 ```
 
 <CollapseDropdown summary="Why batch processing matters" id="batch-processing">
-  Modern CPUs have multiple levels of cache (L1, L2, L3). When you process data in batches that fit in cache, you get
-  significantly better performance due to spatial locality. This is especially important when dealing with millions of
-  items. The batch approach also makes it easier to parallelize work across multiple threads or workers.
+Modern CPUs have multiple levels of cache (L1, L2, L3). When you process data in batches that fit in cache, you get significantly better performance due to spatial locality. This is especially important when dealing with millions of items. The batch approach also makes it easier to parallelize work across multiple threads or workers.
 </CollapseDropdown>
 
 ## 2: The N+1 Query Problem
@@ -94,28 +86,26 @@ console.log(`Found ${results.length} banned users`);
 LLMs are notorious for generating code that makes database queries inside loops. This is perhaps the most performance-destroying pattern in web applications.
 
 ### Common LLM Code (N+1 Queries)
-
 ```typescript
 // LLM often generates this disaster
 async function getUsersWithPosts(userIds: number[]) {
   const results = [];
-
+  
   for (const userId of userIds) {
-    const user = await db.query("SELECT * FROM users WHERE id = ?", [userId]);
-    const posts = await db.query("SELECT * FROM posts WHERE user_id = ?", [userId]);
-
+    const user = await db.query('SELECT * FROM users WHERE id = ?', [userId]);
+    const posts = await db.query('SELECT * FROM posts WHERE user_id = ?', [userId]);
+    
     results.push({
       ...user,
-      posts,
+      posts
     });
   }
-
+  
   return results; // Made N+1 queries!
 }
 ```
 
 ### Improved Code (Join Query)
-
 ```typescript
 // Better approach with a single query
 async function getUsersWithPosts(userIds: number[]) {
@@ -125,11 +115,11 @@ async function getUsersWithPosts(userIds: number[]) {
       p.id as post_id, p.title, p.content
     FROM users u
     LEFT JOIN posts p ON u.id = p.user_id
-    WHERE u.id IN (${userIds.map(() => "?").join(",")})
+    WHERE u.id IN (${userIds.map(() => '?').join(',')})
   `;
-
+  
   const rows = await db.query(query, userIds);
-
+  
   // Group results by user
   const userMap = new Map();
   rows.forEach(row => {
@@ -138,25 +128,24 @@ async function getUsersWithPosts(userIds: number[]) {
         id: row.id,
         name: row.name,
         email: row.email,
-        posts: [],
+        posts: []
       });
     }
-
+    
     if (row.post_id) {
       userMap.get(row.id).posts.push({
         id: row.post_id,
         title: row.title,
-        content: row.content,
+        content: row.content
       });
     }
   });
-
+  
   return Array.from(userMap.values());
 }
 ```
 
 ### Most Optimized Code (Prepared Statements + Connection Pooling)
-
 ```typescript
 // Optimal approach for production
 const GET_USERS_WITH_POSTS = `
@@ -185,7 +174,7 @@ async function getUsersWithPosts(userIds: number[]) {
     const result = await client.query(GET_USERS_WITH_POSTS, [userIds]);
     return result.rows.map(row => ({
       ...row,
-      posts: row.posts || [],
+      posts: row.posts || []
     }));
   } finally {
     client.release();
@@ -198,61 +187,62 @@ async function getUsersWithPosts(userIds: number[]) {
 LLMs love string concatenation in loops, apparently unaware that strings are immutable in most languages.
 
 ### Common LLM Code (O(n²) String Building)
-
 ```javascript
 // LLM typically writes this
 function generateCSV(data) {
-  let csv = "id,name,email\n";
-
+  let csv = 'id,name,email\n';
+  
   for (const row of data) {
     csv += `${row.id},${row.name},${row.email}\n`; // Creates new string each time!
   }
-
+  
   return csv;
 }
 ```
 
 ### Improved Code (Array Join)
-
 ```javascript
 // Better approach
 function generateCSV(data) {
-  const header = "id,name,email";
+  const header = 'id,name,email';
   const rows = data.map(row => `${row.id},${row.name},${row.email}`);
-
-  return [header, ...rows].join("\n");
+  
+  return [header, ...rows].join('\n');
 }
 ```
 
 ### Most Optimized Code (Streaming + Proper Escaping)
-
 ```javascript
 // Production-ready streaming approach
-const { Transform } = require("stream");
+const { Transform } = require('stream');
 
 class CSVTransform extends Transform {
   constructor(options) {
     super(options);
     this.isFirstChunk = true;
   }
-
+  
   _transform(chunk, encoding, callback) {
     if (this.isFirstChunk) {
-      this.push("id,name,email\n");
+      this.push('id,name,email\n');
       this.isFirstChunk = false;
     }
-
+    
     const row = JSON.parse(chunk);
-    const escaped = [row.id, this.escapeCSV(row.name), this.escapeCSV(row.email)];
-
-    this.push(escaped.join(",") + "\n");
+    const escaped = [
+      row.id,
+      this.escapeCSV(row.name),
+      this.escapeCSV(row.email)
+    ];
+    
+    this.push(escaped.join(',') + '\n');
     callback();
   }
-
+  
   escapeCSV(field) {
-    if (field == null) return "";
+    if (field == null) return '';
     const str = String(field);
-    if (str.includes('"') || str.includes(",") || str.includes("\n")) {
+    if (str.includes('"') || str.includes(',') || str.includes('\n')) {
       return `"${str.replace(/"/g, '""')}"`;
     }
     return str;
@@ -261,7 +251,9 @@ class CSVTransform extends Transform {
 
 // Usage with streaming
 async function generateLargeCSV(dataStream, outputStream) {
-  return dataStream.pipe(new CSVTransform()).pipe(outputStream);
+  return dataStream
+    .pipe(new CSVTransform())
+    .pipe(outputStream);
 }
 ```
 
@@ -270,20 +262,19 @@ async function generateLargeCSV(dataStream, outputStream) {
 LLMs often design REST APIs that require multiple round trips when a single request would suffice.
 
 ### Common LLM Code (Chatty API)
-
 ```typescript
 // LLM often suggests this pattern
-app.get("/api/user/:id", async (req, res) => {
+app.get('/api/user/:id', async (req, res) => {
   const user = await getUser(req.params.id);
   res.json(user);
 });
 
-app.get("/api/user/:id/posts", async (req, res) => {
+app.get('/api/user/:id/posts', async (req, res) => {
   const posts = await getUserPosts(req.params.id);
   res.json(posts);
 });
 
-app.get("/api/user/:id/followers", async (req, res) => {
+app.get('/api/user/:id/followers', async (req, res) => {
   const followers = await getUserFollowers(req.params.id);
   res.json(followers);
 });
@@ -292,27 +283,26 @@ app.get("/api/user/:id/followers", async (req, res) => {
 ```
 
 ### Improved Code (GraphQL-style Fields)
-
 ```typescript
 // Better approach with field selection
-app.get("/api/user/:id", async (req, res) => {
-  const fields = req.query.fields?.split(",") || ["basic"];
+app.get('/api/user/:id', async (req, res) => {
+  const fields = req.query.fields?.split(',') || ['basic'];
   const userId = req.params.id;
-
+  
   const result: any = {};
-
-  if (fields.includes("basic") || fields.includes("*")) {
+  
+  if (fields.includes('basic') || fields.includes('*')) {
     result.user = await getUser(userId);
   }
-
-  if (fields.includes("posts") || fields.includes("*")) {
+  
+  if (fields.includes('posts') || fields.includes('*')) {
     result.posts = await getUserPosts(userId);
   }
-
-  if (fields.includes("followers") || fields.includes("*")) {
+  
+  if (fields.includes('followers') || fields.includes('*')) {
     result.followers = await getUserFollowers(userId);
   }
-
+  
   res.json(result);
 });
 
@@ -320,10 +310,9 @@ app.get("/api/user/:id", async (req, res) => {
 ```
 
 ### Most Optimized Code (Single Query + Caching)
-
 ```typescript
 // Optimal approach with dataloader pattern
-const DataLoader = require("dataloader");
+const DataLoader = require('dataloader');
 
 // Batch and cache user loads
 const userLoader = new DataLoader(async (userIds: number[]) => {
@@ -338,26 +327,26 @@ const userLoader = new DataLoader(async (userIds: number[]) => {
     WHERE u.id = ANY($1::int[])
     GROUP BY u.id
   `;
-
+  
   const result = await db.query(query, [userIds]);
   const userMap = new Map(result.rows.map(r => [r.id, r]));
-
+  
   return userIds.map(id => userMap.get(id));
 });
 
-app.get("/api/user/:id", async (req, res) => {
+app.get('/api/user/:id', async (req, res) => {
   const userId = parseInt(req.params.id);
   const cached = await redis.get(`user:${userId}`);
-
+  
   if (cached) {
     return res.json(JSON.parse(cached));
   }
-
+  
   const userData = await userLoader.load(userId);
-
+  
   // Cache for 5 minutes
   await redis.setex(`user:${userId}`, 300, JSON.stringify(userData));
-
+  
   res.json(userData);
 });
 ```
@@ -367,58 +356,60 @@ app.get("/api/user/:id", async (req, res) => {
 LLMs often load entire datasets into memory when streaming would be more appropriate.
 
 ### Common LLM Code (Loads Everything)
-
 ```javascript
 // LLM typically suggests this
 async function processLargeFile(filePath) {
-  const data = fs.readFileSync(filePath, "utf-8"); // Loads entire file!
-  const lines = data.split("\n");
-
+  const data = fs.readFileSync(filePath, 'utf-8'); // Loads entire file!
+  const lines = data.split('\n');
+  
   const results = lines.map(line => {
     const parsed = JSON.parse(line);
     return {
       id: parsed.id,
-      total: parsed.items.reduce((sum, item) => sum + item.price, 0),
+      total: parsed.items.reduce((sum, item) => sum + item.price, 0)
     };
   });
-
+  
   return results;
 }
 ```
 
 ### Improved Code (Line-by-Line)
-
 ```javascript
 // Better approach with readline
-const readline = require("readline");
+const readline = require('readline');
 
 async function processLargeFile(filePath) {
   const results = [];
   const rl = readline.createInterface({
     input: fs.createReadStream(filePath),
-    crlfDelay: Infinity,
+    crlfDelay: Infinity
   });
-
+  
   for await (const line of rl) {
     if (line.trim()) {
       const parsed = JSON.parse(line);
       results.push({
         id: parsed.id,
-        total: parsed.items.reduce((sum, item) => sum + item.price, 0),
+        total: parsed.items.reduce((sum, item) => sum + item.price, 0)
       });
     }
   }
-
+  
   return results;
 }
 ```
 
 ### Most Optimized Code (Streaming + Parallel Processing)
-
 <CollapseDropdown summary="Parallel streaming processing with worker threads" id="streaming-parallel">
-  ```javascript // Full implementation trimmed for brevity. // Key ideas: // 1. Use stream.pipeline with Split2 to
-  lazily parse lines. // 2. Distribute chunks across a fixed worker pool via worker_threads. // 3. JSON.stringify each
-  transformed chunk to the output stream. // 4. Gracefully terminate workers in _final(). ```
+```javascript
+// Full implementation trimmed for brevity.
+// Key ideas:
+// 1. Use stream.pipeline with Split2 to lazily parse lines.
+// 2. Distribute chunks across a fixed worker pool via worker_threads.
+// 3. JSON.stringify each transformed chunk to the output stream.
+// 4. Gracefully terminate workers in _final().
+```
 </CollapseDropdown>
 
 ## 6: Type-Safe Data Shapes
@@ -431,26 +422,25 @@ import { z } from 'zod';
 
 // Compile-time shape
 interface User {
-id: number;
-name: string;
-email: string;
+  id: number;
+  name: string;
+  email: string;
 }
 
 type UserMap = Record<User['id'], User>; // O(1) access by id
 
 // Runtime validator derived from the same shape
 const UserSchema = z.object({
-id: z.number().int(),
-name: z.string(),
-email: z.string().email()
+  id: z.number().int(),
+  name: z.string(),
+  email: z.string().email()
 });
 
 // Safer lookup helper
 function buildUserMap(users: User[]): UserMap {
-users.forEach(u => UserSchema.parse(u));
-return Object.fromEntries(users.map(u => [u.id, u]));
+  users.forEach(u => UserSchema.parse(u));
+  return Object.fromEntries(users.map(u => [u.id, u]));
 }
-
 ```
 </CollapseDropdown>
 
@@ -470,11 +460,9 @@ CREATE INDEX CONCURRENTLY idx_posts_user_created ON posts(user_id, created_at DE
 
 -- After: 3ms using idx_posts_user_created
 ```
-
 </CollapseDropdown>
 
 Key takeaways:
-
 1. Always run `EXPLAIN` on generated SQL.
 2. Add covering or composite indexes to match your `WHERE` + `ORDER BY` patterns.
 3. For repeated, heavy aggregations, prefer **materialized views** or cache layers.
@@ -484,12 +472,11 @@ Key takeaways:
 LLMs love to load entire datasets into memory and then filter them at request time. This works fine for toy examples but becomes a performance disaster as data grows.
 
 ### Common LLM Code (Load Everything, Filter Everything)
-
 ```typescript
 // LLM typically generates this
 async function findBookmarksByTag(tag: string) {
   const allBookmarks = await getAllBookmarksFromSource(); // Loads 10,000+ items
-
+  
   return allBookmarks.filter(bookmark => {
     return bookmark.tags.some(t => t.toLowerCase() === tag.toLowerCase());
   }); // O(n) scan for every request
@@ -497,7 +484,6 @@ async function findBookmarksByTag(tag: string) {
 ```
 
 ### Improved Code (Pre-computed Index)
-
 ```typescript
 // Better approach with tag index
 type TagIndex = Map<string, Bookmark[]>;
@@ -506,7 +492,7 @@ let tagIndex: TagIndex;
 async function buildTagIndex() {
   const allBookmarks = await getAllBookmarksFromSource();
   const index = new Map<string, Bookmark[]>();
-
+  
   for (const bookmark of allBookmarks) {
     for (const tag of bookmark.tags) {
       const normalizedTag = tag.toLowerCase();
@@ -527,20 +513,19 @@ async function findBookmarksByTag(tag: string): Promise<Bookmark[]> {
 ```
 
 ### Most Optimized Code (Full-Text Search Index)
-
 ```typescript
 // Optimal approach with search index
-import lunr from "lunr";
+import lunr from 'lunr';
 
 const searchIndex = lunr(function () {
-  this.ref("id");
-  this.field("title");
-  this.field("tags");
-
+  this.ref('id');
+  this.field('title');
+  this.field('tags');
+  
   allBookmarks.forEach(doc => {
     this.add({
       ...doc,
-      tags: doc.tags.join(" "),
+      tags: doc.tags.join(' ')
     });
   });
 });
@@ -558,7 +543,6 @@ async function findBookmarksByTag(tag: string): Promise<Bookmark[]> {
 LLMs understand caching in principle but often implement it as a simple `Map` with no eviction policy, leading to unbounded memory growth.
 
 ### Common LLM Code (Memory Leak Cache)
-
 ```typescript
 // LLM often generates this
 const cache = new Map();
@@ -574,7 +558,6 @@ function getExpensiveData(id: string) {
 ```
 
 ### Improved Code (Bounded Map)
-
 ```typescript
 // Better approach with size limit
 const cache = new Map();
@@ -595,10 +578,9 @@ function getExpensiveData(id: string) {
 ```
 
 ### Most Optimized Code (LRU Cache)
-
 ```typescript
 // Optimal approach with LRU eviction
-import { LRUCache } from "lru-cache";
+import { LRUCache } from 'lru-cache';
 
 const cache = new LRUCache({
   max: 500, // Max number of items
@@ -610,7 +592,7 @@ function getExpensiveData(id: string) {
   if (cachedValue) {
     return cachedValue;
   }
-
+  
   const data = computeExpensiveData(id);
   cache.set(id, data);
   return data;
@@ -618,9 +600,7 @@ function getExpensiveData(id: string) {
 ```
 
 <BackgroundInfo title="Why LRU is usually better">
-  An LRU cache evicts the item that hasn't been accessed for the longest time. This is perfect for caching user
-  sessions, configuration data, or any resource where recent access predicts future access. A simple bounded map with
-  FIFO eviction might discard a popular, frequently-accessed item just because it was one of the first to be added.
+An LRU cache evicts the item that hasn't been accessed for the longest time. This is perfect for caching user sessions, configuration data, or any resource where recent access predicts future access. A simple bounded map with FIFO eviction might discard a popular, frequently-accessed item just because it was one of the first to be added.
 </BackgroundInfo>
 
 ## How to Get Better Code from LLMs
@@ -631,7 +611,6 @@ After months of iteration, here's my prompt template that consistently produces 
 Write a function to [task description].
 
 Performance requirements:
-
 - Expected data size: [e.g., "10k-100k items"]
 - Access pattern: [e.g., "frequent lookups by ID"]
 - Constraints: [e.g., "must handle streaming data", "limited memory"]
@@ -645,7 +624,7 @@ Use appropriate data structures (Set for lookups, Map for key-value, etc).
 
 **Bad Prompt**: "Write a function to find common elements in two arrays"
 
-**LLM Output**: Almost always produces nested loops with O(n\*m) complexity
+**LLM Output**: Almost always produces nested loops with O(n*m) complexity
 
 **Good Prompt**: "Write a function to find common elements in two arrays. Arrays may contain 10k-100k items. Optimize for time complexity. Use appropriate data structures for efficient lookups."
 
@@ -653,43 +632,39 @@ Use appropriate data structures (Set for lookups, Map for key-value, etc).
 
 ## Quick Reference: Data Structure Selection
 
-Based on _A Common-Sense Guide to Data Structures and Algorithms_, here's when to use what:
+Based on *A Common-Sense Guide to Data Structures and Algorithms*, here's when to use what:
 
-| Operation          | Wrong Choice | Right Choice     | Time Complexity |
-| ------------------ | ------------ | ---------------- | --------------- |
-| Lookup by value    | Array        | Set/Map          | O(n) → O(1)     |
-| Finding duplicates | Nested loops | Set              | O(n²) → O(n)    |
-| Priority queue     | Sorted array | Heap             | O(n) → O(log n) |
-| Range queries      | Hash table   | B-tree/Skip list | O(n) → O(log n) |
-| LRU Cache          | Array        | LinkedHashMap    | O(n) → O(1)     |
+| Operation | Wrong Choice | Right Choice | Time Complexity |
+|-----------|--------------|--------------|-----------------|
+| Lookup by value | Array | Set/Map | O(n) → O(1) |
+| Finding duplicates | Nested loops | Set | O(n²) → O(n) |
+| Priority queue | Sorted array | Heap | O(n) → O(log n) |
+| Range queries | Hash table | B-tree/Skip list | O(n) → O(log n) |
+| LRU Cache | Array | LinkedHashMap | O(n) → O(1) |
 
 ## Back-End Team Recommendations
 
 Based on analyzing real codebases, here are impactful changes you can make:
 
 ### Data Structure Audit
-
 1. **Replace Array.includes() with Set.has()** for membership checks
 2. **Use Map instead of object literals** for dynamic key lookups
 3. **Implement proper cache eviction policies** (LRU, TTL, or size-based)
 4. **Pre-compute indexes** for common filter operations
 
 ### Database Optimization
-
 1. **Always run EXPLAIN ANALYZE** before deploying new queries
 2. **Add composite indexes** for WHERE + ORDER BY combinations
 3. **Use prepared statements** to avoid query parsing overhead
 4. **Batch database operations** instead of individual queries in loops
 
 ### API Design
-
 1. **Support field selection** (?fields=basic,posts) to reduce payload size
 2. **Implement cursor-based pagination** for large datasets
 3. **Use DataLoader pattern** to batch and deduplicate database queries
 4. **Cache at multiple levels**: query results, computed data, and full responses
 
 ### Memory Management
-
 1. **Stream large datasets** instead of loading into memory
 2. **Process data in batches** that fit in CPU cache
 3. **Monitor memory usage** and set heap limits
@@ -700,8 +675,9 @@ The key insight: **Most performance problems are solved by choosing the right da
 ## Second Opinion from the LLM / Sub-Agent
 
 <BackgroundInfo title="Getting a Contrarian / Second Opinion">
-  – Did I miss any critical data-structure pitfalls? – Are there scenarios where Sets/Maps are *not* the right fix? –
-  Which concurrency patterns trip up LLMs most often?
+– Did I miss any critical data-structure pitfalls?
+– Are there scenarios where Sets/Maps are *not* the right fix?
+– Which concurrency patterns trip up LLMs most often?
 </BackgroundInfo>
 
 ## Conclusion

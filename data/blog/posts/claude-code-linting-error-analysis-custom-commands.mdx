@@ -26,8 +26,9 @@ Below I show how I've been customizing [Claude Code](https://docs.anthropic.com/
 ## 0. Getting Started
 
 <CollapseDropdown summary="0.1 Install & launch" id="install-launch">
-  - **Install globally**: ```bash npm install -g @anthropic-ai/claude-code ``` - **Launch in any repository**: ```bash
-  claude ``` - **Docs & download**: [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code/quickstart)
+  - **Install globally**: ```bash npm install -g @anthropic-ai/claude-code ```
+  - **Launch in any repository**: ```bash claude ```
+  - **Docs & download**: [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code/quickstart)
 </CollapseDropdown>
 
 Here are some ways I'm currently using Claude Code:
@@ -69,9 +70,9 @@ executes Claude once in print mode and then exits; it doesn't launch the interac
 ## 2. Instant Error Diagnosis
 
 <CollapseDropdown summary="2.1 /analyze" id="analyze-command">
-  - **Purpose**: Given a stack trace or failing test output, Claude pinpoints the source file, probable cause, and
-  suggests a minimal fix. - **Usage**: Pipe any stderr/stdout into the command. - **Docs**: [Slash Commands –
-  /analyze](https://docs.anthropic.com/en/docs/claude-code/slash-commands)
+  - **Purpose**: Given a stack trace or failing test output, Claude pinpoints the source file, probable cause, and suggests a minimal fix.
+  - **Usage**: Pipe any stderr/stdout into the command.
+  - **Docs**: [Slash Commands – /analyze](https://docs.anthropic.com/en/docs/claude-code/slash-commands)
 </CollapseDropdown>
 
 ```bash
@@ -745,7 +746,6 @@ fi
 
 # For a specific file's comments
 gh api graphql -f query='...' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.path == "lib/utils/api-sanitization.ts" and .isResolved == false)'
-```
 ```
 ```
 

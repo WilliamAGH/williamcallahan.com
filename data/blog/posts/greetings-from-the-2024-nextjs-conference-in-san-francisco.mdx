@@ -13,16 +13,16 @@ I attended the 2024 Next.js Conference in San Francisco this week. It was a grea
 
 First up, Next.js 15 launched with some cool new long awaited features:
 
-- [Partial Prerendering](https://nextjs.org/docs/app/building-your-application/rendering/partial-prerendering) - A new rendering model that combines static and dynamic content for faster page loads. It statically pre-renders a shell of your page while streaming in dynamic content, giving users instant initial views.
+- [Partial Prerendering](https://nextjs.org/docs/app/building-your-application/rendering/partial-prerendering): A new rendering model that combines static and dynamic content for faster page loads. It statically pre-renders a shell of your page while streaming in dynamic content, giving users instant initial views.
 
-- [Stable Turbopack](https://nextjs.org/blog/turbopack-for-development-stable) - The Rust-based successor to Webpack is now production-ready, delivering up to 96% faster code updates and 77% faster local server startup. Check out the [detailed docs](https://nextjs.org/docs/app/api-reference/turbopack) to get started.
+- [Stable Turbopack](https://nextjs.org/blog/turbopack-for-development-stable): The Rust-based successor to Webpack is now production-ready, delivering up to 96% faster code updates and 77% faster local server startup. Check out the [detailed docs](https://nextjs.org/docs/app/api-reference/turbopack) to get started.
 
-- [Async Request APIs](https://nextjs.org/blog/next-15#async-request-apis-breaking-change) - A more efficient way to handle request-specific data. Here's a practical example using Partial Prerendering:
+- [Async Request APIs](https://nextjs.org/blog/next-15#async-request-apis-breaking-change): A more efficient way to handle request-specific data. Here's a practical example using Partial Prerendering:
 
 ```tsx
 // app/page.tsx
-import { Suspense } from "react";
-import { headers } from "next/headers";
+import { Suspense } from 'react';
+import { headers } from 'next/headers';
 
 // Static content pre-rendered at build time
 function StaticShell() {
@@ -37,10 +37,10 @@ function StaticShell() {
 // Dynamic content loaded on request
 async function UserCart() {
   const headersList = await headers(); // New async API
-  const token = headersList.get("authorization");
+  const token = headersList.get('authorization');
 
-  const cart = await fetch("/api/cart", {
-    headers: { authorization: token || "" },
+  const cart = await fetch('/api/cart', {
+    headers: { authorization: token || '' }
   });
   const items = await cart.json();
 
@@ -68,10 +68,9 @@ export default function Page() {
 
 - [React 19 Support](https://nextjs.org/blog/next-15#react-19) with the new [React Compiler](https://nextjs.org/blog/next-15#eslint-9-support) for automatic optimizations.
 
-- [TypeScript Config Support](https://nextjs.org/blog/next-15#support-for-nextconfigts) - First-class support for `next.config.ts` with type safety.
+- [TypeScript Config Support](https://nextjs.org/blog/next-15#support-for-nextconfigts): First-class support for `next.config.ts` with type safety.
 
----
-
+----
 I also met some amazing folks at the conference!
 
 First up in the morningwas Sahil Lavingia from <a href="https://gumroad.com" className="text-blue-500 hover:text-blue-600">Gumroad</a>. We had a great conversation about his upcoming projects. Update: he just <a href="https://x.com/shl/status/1871231606930981021" className="text-blue-500 hover:text-blue-600">announced them!</a>

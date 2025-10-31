@@ -44,20 +44,17 @@ interface ContributionDay {
   level: number; // 0-4
 }
 
-const GITHUB_USERNAME = "your-github-username"; // Replace with your username
+const GITHUB_USERNAME = 'your-github-username'; // Replace with your username
 const GITHUB_API_TOKEN = process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH;
 
-export async function fetchGitHubContributions(
-  fromDate: string,
-  toDate: string,
-): Promise<{ contributions: ContributionDay[]; totalContributions: number }> {
+export async function fetchGitHubContributions(fromDate: string, toDate: string): Promise<{ contributions: ContributionDay[], totalContributions: number }> {
   if (!GITHUB_API_TOKEN) {
     throw new Error("Missing GITHUB_ACCESS_TOKEN_COMMIT_GRAPH environment variable.");
   }
 
   const { user } = await graphql<GitHubGraphQLContributionResponse>(
     `
-      query ($username: String!, $from: DateTime!, $to: DateTime!) {
+      query($username: String!, $from: DateTime!, $to: DateTime!) {
         user(login: $username) {
           contributionsCollection(from: $from, to: $to) {
             contributionCalendar {
@@ -81,7 +78,7 @@ export async function fetchGitHubContributions(
       headers: {
         authorization: `bearer ${GITHUB_API_TOKEN}`,
       },
-    },
+    }
   );
 
   if (!user?.contributionsCollection) {
@@ -89,27 +86,21 @@ export async function fetchGitHubContributions(
   }
 
   const contributionDays = user.contributionsCollection.contributionCalendar.weeks.flatMap(
-    week => week.contributionDays,
+    (week) => week.contributionDays
   );
 
   const mapContributionLevel = (level: string): number => {
     switch (level) {
-      case "NONE":
-        return 0;
-      case "FIRST_QUARTILE":
-        return 1;
-      case "SECOND_QUARTILE":
-        return 2;
-      case "THIRD_QUARTILE":
-        return 3;
-      case "FOURTH_QUARTILE":
-        return 4;
-      default:
-        return 0;
+      case 'NONE': return 0;
+      case 'FIRST_QUARTILE': return 1;
+      case 'SECOND_QUARTILE': return 2;
+      case 'THIRD_QUARTILE': return 3;
+      case 'FOURTH_QUARTILE': return 4;
+      default: return 0;
     }
   };
 
-  const contributions: ContributionDay[] = contributionDays.map(day => ({
+  const contributions: ContributionDay[] = contributionDays.map((day) => ({
     date: day.date,
     count: day.contributionCount,
     level: mapContributionLevel(day.contributionLevel),
@@ -117,7 +108,7 @@ export async function fetchGitHubContributions(
 
   return {
     contributions,
-    totalContributions: user.contributionsCollection.contributionCalendar.totalContributions,
+    totalContributions: user.contributionsCollection.contributionCalendar.totalContributions
   };
 }
 ```
@@ -132,22 +123,22 @@ Here's an example API route in Next.js:
 
 ```typescript
 // app/api/github-activity/route.ts (example location)
-import { NextResponse } from "next/server";
-import cache from "@/lib/cache"; // Your cache implementation
-import { fetchGitHubContributions } from "@/lib/github"; // The function from Step 1
+import { NextResponse } from 'next/server';
+import cache from '@/lib/cache'; // Your cache implementation
+import { fetchGitHubContributions } from '@/lib/github'; // The function from Step 1
 
 interface GitHubActivityApiResponse {
-  source: "graphql" | "cache";
+  source: 'graphql' | 'cache';
   data: ContributionDay[];
   totalContributions: number;
 }
 
-const GITHUB_ACTIVITY_CACHE_KEY = "github_activity_data";
+const GITHUB_ACTIVITY_CACHE_KEY = 'github_activity_data';
 const CACHE_TTL_DAILY = 24 * 60 * 60; // 24 hours in seconds
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const refreshCache = url.searchParams.get("refresh") === "true";
+  const refreshCache = url.searchParams.get('refresh') === 'true';
 
   if (refreshCache) {
     cache.del(GITHUB_ACTIVITY_CACHE_KEY);
@@ -156,7 +147,7 @@ export async function GET(request: Request) {
   const cachedData = cache.get<GitHubActivityApiResponse>(GITHUB_ACTIVITY_CACHE_KEY);
   if (cachedData && !refreshCache) {
     // Add source indication for debugging/transparency
-    return NextResponse.json({ ...cachedData, source: "cache" });
+    return NextResponse.json({ ...cachedData, source: 'cache' });
   }
 
   try {
@@ -164,30 +155,30 @@ export async function GET(request: Request) {
     const oneYearAgo = new Date(today);
     oneYearAgo.setFullYear(today.getFullYear() - 1);
 
-    const fromDate = oneYearAgo.toISOString().split("T")[0]; // YYYY-MM-DD
-    const toDate = today.toISOString().split("T")[0]; // YYYY-MM-DD
+    const fromDate = oneYearAgo.toISOString().split('T')[0]; // YYYY-MM-DD
+    const toDate = today.toISOString().split('T')[0];       // YYYY-MM-DD
 
     const { contributions, totalContributions } = await fetchGitHubContributions(fromDate, toDate);
 
     const activityData: GitHubActivityApiResponse = {
-      source: "graphql",
+      source: 'graphql',
       data: contributions,
-      totalContributions: totalContributions,
+      totalContributions: totalContributions
     };
 
     cache.set(GITHUB_ACTIVITY_CACHE_KEY, activityData, CACHE_TTL_DAILY);
     return NextResponse.json(activityData);
+
   } catch (error) {
-    console.error("Error fetching GitHub contributions:", error);
+    console.error('Error fetching GitHub contributions:', error);
     // Return an error response or potentially stale cache data if available
     return NextResponse.json(
-      { error: "Failed to fetch GitHub activity", details: (error as Error).message },
-      { status: 500 },
+      { error: 'Failed to fetch GitHub activity', details: (error as Error).message },
+      { status: 500 }
     );
   }
 }
 ```
-
 This API route first checks the cache. If data is missing or a refresh is requested, it fetches fresh data from GitHub using the function created in Step 1, caches it, and then returns it.
 
 ## 3: Rendering the Graph
@@ -196,7 +187,7 @@ With the data fetched (likely via a client-side fetch to your API route or passe
 
 ```tsx
 // components/ContributionGraph.tsx (example component)
-import React from "react";
+import React from 'react';
 
 interface ContributionDay {
   date: string;
@@ -208,18 +199,12 @@ const getLevelColor = (level: number): string => {
   // Tailwind classes for different contribution levels
   // Adjust colors to match your site's theme
   switch (level) {
-    case 0:
-      return "bg-gray-100 dark:bg-gray-800"; // No contributions
-    case 1:
-      return "bg-green-200 dark:bg-green-900"; // Low
-    case 2:
-      return "bg-green-400 dark:bg-green-700"; // Medium
-    case 3:
-      return "bg-green-600 dark:bg-green-500"; // High
-    case 4:
-      return "bg-green-800 dark:bg-green-300"; // Very high
-    default:
-      return "bg-gray-100 dark:bg-gray-800";
+    case 0: return 'bg-gray-100 dark:bg-gray-800'; // No contributions
+    case 1: return 'bg-green-200 dark:bg-green-900'; // Low
+    case 2: return 'bg-green-400 dark:bg-green-700'; // Medium
+    case 3: return 'bg-green-600 dark:bg-green-500'; // High
+    case 4: return 'bg-green-800 dark:bg-green-300'; // Very high
+    default: return 'bg-gray-100 dark:bg-gray-800';
   }
 };
 
@@ -245,11 +230,11 @@ export function ContributionGraph({ data, totalContributions, isLoading }: Contr
         {totalContributions.toLocaleString()} contributions in the last year
       </p>
       <div className="grid grid-flow-col grid-rows-7 gap-1 p-2 border rounded-md dark:border-gray-700 overflow-x-auto bg-white dark:bg-gray-900/50">
-        {data.map(day => (
+        {data.map((day) => (
           <div
             key={day.date}
             className={`w-3 h-3 rounded-sm ${getLevelColor(day.level)}`}
-            title={`${day.count} contribution${day.count !== 1 ? "s" : ""} on ${day.date}`} // Tooltip
+            title={`${day.count} contribution${day.count !== 1 ? 's' : ''} on ${day.date}`} // Tooltip
           />
         ))}
       </div>
@@ -257,7 +242,6 @@ export function ContributionGraph({ data, totalContributions, isLoading }: Contr
   );
 }
 ```
-
 This component maps each `ContributionDay` to a colored square, using the `level` (0-4) to determine the background color via the `getLevelColor` helper.
 
 ## Bonus: Fixing Hydration Errors
@@ -265,15 +249,13 @@ This component maps each `ContributionDay` to a colored square, using the `level
 Sometimes when making components interactive, like wrapping them in links, you might encounter React hydration errors due to invalid HTML nesting (e.g., an `<a>` inside another `<a>`).
 
 **Problematic (can cause errors):**
-
 ```jsx
 <a href="URL">
-  <div> {isLoading ? <a href="URL">Loading...</a> : content} </div>
+  <div> {isLoading ? <a href="URL">Loading...</a> : content } </div>
 </a>
 ```
 
 **Solution (use a clickable `div`):**
-
 ```jsx
 const navigateToUrl = (url: string) => {
   window.open(url, '_blank', 'noopener,noreferrer');
@@ -289,5 +271,4 @@ const navigateToUrl = (url: string) => {
   {isLoading ? <span>Loading...</span> : content}
 </div>
 ```
-
 Using a `div` with an `onClick` handler and proper accessibility attributes (`role`, `tabIndex`, `onKeyDown`) achieves the same result without the nesting issues.

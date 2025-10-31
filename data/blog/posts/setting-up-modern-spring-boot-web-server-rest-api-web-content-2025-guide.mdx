@@ -5,39 +5,33 @@ excerpt: "A comprehensive guide to creating a Spring Boot application with RESTf
 publishedAt: "2025-05-12"
 updatedAt: "2025-06-06"
 author: "william-callahan"
-tags: ["spring boot", "java", "maven", "intellij idea", "rest api", "web development", "backend", "tutorial"]
+tags:
+  [
+    "spring boot",
+    "java",
+    "maven",
+    "intellij idea",
+    "rest api",
+    "web development",
+    "backend",
+    "tutorial",
+  ]
 coverImage: "/images/posts/spring-for-java.png"
 ---
 
 <BackgroundInfo title="Related Java Setup Guides">
-  <ul>
-    <li>
-      <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">
-        Core Guide: Java, Maven & Gradle Setup & Usage
-      </ExternalLink>
-    </li>
-    <li>
-      <ExternalLink href="/blog/how-to-setup-the-java-sdk-and-use-javafx-on-macos-windows">
-        Specifics: Setting up JavaFX
-      </ExternalLink>
-    </li>
-    <li>
-      <strong>This Article: Specifics for Setting up a Spring Boot Server</strong>
-    </li>
-  </ul>
+- <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">Core Guide: Java, Maven & Gradle Setup & Usage</ExternalLink>
+- <ExternalLink href="/blog/how-to-setup-the-java-sdk-and-use-javafx-on-macos-windows">Specifics: Setting up JavaFX</ExternalLink>
+- **This Article: Specifics for Setting up a Spring Boot Server**
 </BackgroundInfo>
 
 <BackgroundInfo title="Overview">
-  <p>This guide covers creating a Spring Boot application. Key aspects:</p>
-  <ul>
-    <li>
-      <strong>Build Tool Setup (Maven/Gradle)</strong>: JDK, Maven, and Gradle setup (including <code>JAVA_HOME</code>/<code>M2_HOME</code>) are covered in the <ExternalLink href="/blog/project-level-java-maven-gradle-versioning#part-1-os-level-tool-installation-the-foundation">Core Java & Build Tools Setup Guide</ExternalLink>
-    </li>
-    <li><strong>IntelliJ IDEA Spring Initializr</strong>: For easy project generation</li>
-    <li><strong>REST API Endpoint</strong>: A simple "Hello World" example</li>
-    <li><strong>Static Web Content</strong>: Serving HTML/CSS/JS</li>
-    <li><strong>Application Configuration</strong>: Using <code>application.properties</code> and environment variables</li>
-  </ul>
+This guide covers creating a Spring Boot application. Key aspects:
+- **Build Tool Setup (Maven/Gradle)**: JDK, Maven, and Gradle setup (including `JAVA_HOME`/`M2_HOME`) are covered in the <ExternalLink href="/blog/project-level-java-maven-gradle-versioning#part-1-os-level-tool-installation-the-foundation">Core Java & Build Tools Setup Guide</ExternalLink>. While this article primarily demonstrates a Maven-based Spring Boot project, Gradle is a well-supported alternative, and the linked guide provides details for both.
+- **IntelliJ IDEA Spring Initializr**: For easy project generation.
+- **REST API Endpoint**: A simple "Hello World" example.
+- **Static Web Content**: Serving HTML/CSS/JS.
+- **Application Configuration**: Using `application.properties` and environment variables.
 </BackgroundInfo>
 
 ## Part 1: Create a Spring Boot Project
@@ -77,7 +71,6 @@ curl https://start.spring.io/starter.zip \
         </ol>
       </CollapseDropdown>
     </div>
-
   </div>
 </div>
 
@@ -107,17 +100,14 @@ spring.devtools.restart.enabled=true
 ```
 
 For different environments, create profile-specific properties:
-
 - `application-dev.properties`
 - `application-prod.properties`
-
 </CollapseDropdown>
 
 <CollapseDropdown summary="Environment variables with .env">
 For sensitive data like API keys, use environment variables.
 
 1. Add <ExternalLink href="https://central.sonatype.com/artifact/me.paulschwarz/spring-dotenv">spring-dotenv</ExternalLink> dependency to `pom.xml`:
-
 ```xml
 <dependency>
     <groupId>me.paulschwarz</groupId>
@@ -127,26 +117,22 @@ For sensitive data like API keys, use environment variables.
 ```
 
 2. Create `.env.example` file:
-
 ```
 SERVER_PORT=8080
 CUSTOM_API_KEY=your-api-key-here
 ```
 
 3. Create your actual `.env` file (don't commit to git):
-
 ```
 SERVER_PORT=8080
 CUSTOM_API_KEY=actual-api-key-value
 ```
 
 4. Reference env variables in `application.properties`:
-
 ```properties
 server.port=${SERVER_PORT:8080}
 api.key=${CUSTOM_API_KEY}
 ```
-
 </CollapseDropdown>
 
 ## Part 3: Build a Basic REST API
@@ -162,14 +148,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class HelloController {
-@GetMapping("/hello")
-public String sayHello(
-@RequestParam(defaultValue = "World") String name
-) {
-return String.format("Hello, %s!", name);
+    @GetMapping("/hello")
+    public String sayHello(
+      @RequestParam(defaultValue = "World") String name
+    ) {
+        return String.format("Hello, %s!", name);
+    }
 }
-}
-
 ```
 </CollapseDropdown>
 
@@ -178,15 +163,12 @@ return String.format("Hello, %s!", name);
 - **CLI**:
   ```bash
   mvn spring-boot:run
-```
-
+  ```
 Visit http://localhost:8080/hello and http://localhost:8080/hello?name=Spring or use:
-
 ```bash
 curl http://localhost:8080/hello
 curl http://localhost:8080/hello?name=Developer
 ```
-
 </CollapseDropdown>
 
 ## Part 4: Serve Static Web Content
@@ -215,20 +197,16 @@ Refer to the <ExternalLink href="/blog/project-level-java-maven-gradle-versionin
   # Run the Spring Boot application (dev mode with hot reload if DevTools is present)
   ./mvnw spring-boot:run
 
-# Package the application into an executable JAR
+  # Package the application into an executable JAR
+  ./mvnw clean package
+  # (The spring-boot-maven-plugin's repackage goal runs by default during the package phase)
 
-./mvnw clean package
-
-# (The spring-boot-maven-plugin's repackage goal runs by default during the package phase)
-
-# Build an OCI image (e.g., Docker image) if configured
-
-./mvnw spring-boot:build-image
-
-```
-<div>
-The `spring-boot:run` goal is particularly useful for development. For other standard Maven lifecycle commands like `clean`, `compile`, `test`, `install`, use them as described in the Core Maven Guide.
-</div>
+  # Build an OCI image (e.g., Docker image) if configured
+  ./mvnw spring-boot:build-image
+  ```
+  <div>
+  The `spring-boot:run` goal is particularly useful for development. For other standard Maven lifecycle commands like `clean`, `compile`, `test`, `install`, use them as described in the Core Maven Guide.
+  </div>
 </CollapseDropdown>
 
 ## Part 6: Development & Hot Reload
@@ -237,8 +215,8 @@ The `spring-boot:run` goal is particularly useful for development. For other sta
 Spring Boot DevTools (`spring-boot-devtools` dependency) enables automatic restart/hot reload by default when files change. To optimize:
 
 1. For IntelliJ IDEA:
- - In Preferences > Build, Execution, Deployment > Compiler, enable "Build project automatically"
- - Enable advanced settings: Registry (Ctrl+Alt+Shift+/) > check "compiler.automake.allow.when.app.running"
+   - In Preferences > Build, Execution, Deployment > Compiler, enable "Build project automatically"
+   - Enable advanced settings: Registry (Ctrl+Alt+Shift+/) > check "compiler.automake.allow.when.app.running"
 
 2. For CLI:
 ```bash
@@ -246,42 +224,33 @@ mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dspring.devtools.restart.en
 ```
 
 3. To run with specific profile:
-
 ```bash
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev # For Maven
 # For Gradle: ./gradlew bootRun --args='--spring.profiles.active=dev'
 ```
-
 </CollapseDropdown>
 
 ## Part 7: Key Spring Boot Concepts & Troubleshooting
 
 <CollapseDropdown summary="Spring Boot Auto-configuration">
-  Spring Boot automatically configures your application based on the JAR dependencies you have added. For example, if
-  `spring-boot-starter-web` is on the classpath, it auto-configures Tomcat and Spring MVC.
+Spring Boot automatically configures your application based on the JAR dependencies you have added. For example, if `spring-boot-starter-web` is on the classpath, it auto-configures Tomcat and Spring MVC.
 </CollapseDropdown>
 
 <CollapseDropdown summary="Starters">
-  Spring Boot "Starters" are convenient dependency descriptors that you can include in your application. For example,
-  `spring-boot-starter-data-jpa` for JPA/Hibernate, `spring-boot-starter-security` for security.
+Spring Boot "Starters" are convenient dependency descriptors that you can include in your application. For example, `spring-boot-starter-data-jpa` for JPA/Hibernate, `spring-boot-starter-security` for security.
 </CollapseDropdown>
 
 <CollapseDropdown summary="Port Conflict">
-  <div>
-    If port 8080 is in use, change it in <code>application.properties</code> (e.g., <code>server.port=8081</code>) or via
-    command line:
-  </div>
-  
-  ```bash
-  ./mvnw spring-boot:run -Dspring-boot.run.arguments="--server.port=8081"
-  ```
+If port 8080 is in use, change it in `application.properties` (e.g., `server.port=8081`) or via command line:
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--server.port=8081"
+```
 </CollapseDropdown>
 
 <CollapseDropdown summary="Maven Central Repository">
-  Maven Central (<ExternalLink href="https://central.sonatype.com/">central.sonatype.com</ExternalLink>) is the primary
-  public repository for Java libraries (dependencies). Spring Boot dependencies are typically fetched from here or other
-  configured repositories (like Spring Milestones/Snapshots).
+  Maven Central (<ExternalLink href="https://central.sonatype.com/">central.sonatype.com</ExternalLink>) is the primary public repository for Java libraries (dependencies). Spring Boot dependencies are typically fetched from here or other configured repositories (like Spring Milestones/Snapshots).
 </CollapseDropdown>
+
 
 ## Part 8: Deployment Options
 
@@ -291,14 +260,11 @@ mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dspring.devtools.restart.en
   ./mvnw clean package
   # This creates an executable JAR in target/your-app-name.jar
 
-# Using Gradle
-
-./gradlew clean bootJar
-
-# This creates an executable JAR in build/libs/your-app-name.jar
-
-```
-<div>Run the JAR: `java -jar target/myspringbootapp-0.0.1-SNAPSHOT.jar` (adjust filename).</div>
+  # Using Gradle
+  ./gradlew clean bootJar
+  # This creates an executable JAR in build/libs/your-app-name.jar
+  ```
+  <div>Run the JAR: `java -jar target/myspringbootapp-0.0.1-SNAPSHOT.jar` (adjust filename).</div>
 </CollapseDropdown>
 
 <CollapseDropdown summary="Running with Different Profiles in Production">
@@ -307,13 +273,11 @@ java -jar target/*.jar --spring.profiles.active=prod
 ```
 
 When running in production, set environment variables externally:
-
 ```bash
 export SERVER_PORT=80
 export CUSTOM_API_KEY=production-key
 java -jar target/*.jar
 ```
-
 </CollapseDropdown>
 
 <CollapseDropdown summary="Docker deployment">
@@ -327,10 +291,8 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 ```
 
 2. Build and run:
-
 ```bash
 docker build -t myspringbootapp .
 docker run -p 8080:8080 --env-file .env myspringbootapp
 ```
-
 </CollapseDropdown>
