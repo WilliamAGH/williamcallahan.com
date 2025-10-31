@@ -635,7 +635,8 @@ async function fetchAndCacheBookmarks(
 
   // --- 1. Prefer S3 in production runtime; use local fallback only in dev/test/CLI contexts ---
   const isProductionRuntime = getEnvironment() === "production" && !isCliLikeContext();
-  if (!isProductionRuntime) {
+  const isTestEnvironment = process.env.NODE_ENV === "test" || process.env.JEST_WORKER_ID !== undefined;
+  if (!isProductionRuntime && !isTestEnvironment) {
     try {
       const localData = await fs.readFile(LOCAL_BOOKMARKS_PATH, "utf-8");
       const bookmarks = JSON.parse(localData) as UnifiedBookmark[];
@@ -659,7 +660,7 @@ async function fetchAndCacheBookmarks(
     } catch (error) {
       console.warn(`[Bookmarks] Local bookmarks cache not found or invalid, proceeding to S3. Error: ${String(error)}`);
     }
-  } else {
+  } else if (isProductionRuntime) {
     // Explicitly log that we are skipping local fallback in production runtime to avoid stale snapshots from build layers
     envLogger.log("Skipping local bookmarks fallback in production runtime; using S3-first strategy", undefined, {
       category: LOG_PREFIX,
