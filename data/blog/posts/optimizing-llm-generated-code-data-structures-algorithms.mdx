@@ -85,62 +85,67 @@ Modern CPUs have multiple levels of cache (L1, L2, L3). When you process data in
 
 LLMs are notorious for generating code that makes database queries inside loops. This is perhaps the most performance-destroying pattern in web applications.
 
+> **Context (2025 Q4):** These SQL examples assume PostgreSQL 15 running behind Node.js 22 with `pg@8.12`, using `pool` as an instance of `pg.Pool`. Adjust parameter binding syntax if you're using a different driver.
+
 ### Common LLM Code (N+1 Queries)
 ```typescript
 // LLM often generates this disaster
 async function getUsersWithPosts(userIds: number[]) {
-  const results = [];
-  
+  const results: Array<{ user: User; posts: Post[] }> = [];
+
   for (const userId of userIds) {
-    const user = await db.query('SELECT * FROM users WHERE id = ?', [userId]);
-    const posts = await db.query('SELECT * FROM posts WHERE user_id = ?', [userId]);
-    
+    const user = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+    const posts = await pool.query('SELECT * FROM posts WHERE user_id = $1', [userId]);
+
     results.push({
-      ...user,
-      posts
+      user: user.rows[0],
+      posts: posts.rows,
     });
   }
-  
+
   return results; // Made N+1 queries!
 }
 ```
 
 ### Improved Code (Join Query)
 ```typescript
-// Better approach with a single query
+// Better approach with a single round-trip
 async function getUsersWithPosts(userIds: number[]) {
   const query = `
-    SELECT 
-      u.id, u.name, u.email,
-      p.id as post_id, p.title, p.content
+    SELECT
+      u.id,
+      u.name,
+      u.email,
+      p.id AS post_id,
+      p.title,
+      p.content
     FROM users u
     LEFT JOIN posts p ON u.id = p.user_id
-    WHERE u.id IN (${userIds.map(() => '?').join(',')})
+    WHERE u.id = ANY($1::int[])
   `;
-  
-  const rows = await db.query(query, userIds);
-  
-  // Group results by user
-  const userMap = new Map();
-  rows.forEach(row => {
+
+  const { rows } = await pool.query(query, [userIds]);
+
+  const userMap = new Map<number, { id: number; name: string; email: string; posts: Post[] }>();
+  for (const row of rows) {
     if (!userMap.has(row.id)) {
       userMap.set(row.id, {
         id: row.id,
         name: row.name,
         email: row.email,
-        posts: []
+        posts: [],
       });
     }
-    
+
     if (row.post_id) {
-      userMap.get(row.id).posts.push({
+      userMap.get(row.id)!.posts.push({
         id: row.post_id,
         title: row.title,
-        content: row.content
+        content: row.content,
       });
     }
-  });
-  
+  }
+
   return Array.from(userMap.values());
 }
 ```
@@ -149,32 +154,47 @@ async function getUsersWithPosts(userIds: number[]) {
 ```typescript
 // Optimal approach for production
 const GET_USERS_WITH_POSTS = `
-  SELECT 
-    u.id, u.name, u.email,
-    COALESCE(
-      JSON_AGG(
-        JSON_BUILD_OBJECT(
-          'id', p.id,
-          'title', p.title,
-          'content', p.content
-        ) ORDER BY p.created_at DESC
-      ) FILTER (WHERE p.id IS NOT NULL),
-      '[]'::json
-    ) as posts
+  WITH input_ids AS (
+    SELECT UNNEST($1::int[]) AS id
+  )
+  SELECT
+    u.id,
+    u.name,
+    u.email,
+    COALESCE(posts.posts, '[]'::jsonb) AS posts,
+    COALESCE(followers.followers, '[]'::jsonb) AS followers
   FROM users u
-  LEFT JOIN posts p ON u.id = p.user_id
-  WHERE u.id = ANY($1::int[])
-  GROUP BY u.id
+  JOIN input_ids ON input_ids.id = u.id
+  LEFT JOIN LATERAL (
+    SELECT jsonb_agg(row_to_json(p) ORDER BY p.created_at DESC) AS posts
+    FROM posts p
+    WHERE p.user_id = u.id
+  ) posts ON TRUE
+  LEFT JOIN LATERAL (
+    SELECT jsonb_agg(row_to_json(f)) AS followers
+    FROM followers f
+    WHERE f.following_id = u.id
+  ) followers ON TRUE
 `;
 
 // Use prepared statement with connection pool
 async function getUsersWithPosts(userIds: number[]) {
   const client = await pool.connect();
   try {
-    const result = await client.query(GET_USERS_WITH_POSTS, [userIds]);
+    const result = await client.query<{ id: number; name: string; email: string; posts: unknown; followers: unknown }>(
+      {
+        name: 'get-users-with-posts',
+        text: GET_USERS_WITH_POSTS,
+        values: [userIds],
+      },
+    );
+
     return result.rows.map(row => ({
-      ...row,
-      posts: row.posts || []
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      posts: (row.posts as unknown[] | null) ?? [],
+      followers: (row.followers as unknown[] | null) ?? [],
     }));
   } finally {
     client.release();
@@ -285,25 +305,52 @@ app.get('/api/user/:id/followers', async (req, res) => {
 ### Improved Code (GraphQL-style Fields)
 ```typescript
 // Better approach with field selection
+type UserProfilePayload = Partial<{
+  user: Awaited<ReturnType<typeof getUser>>;
+  posts: Awaited<ReturnType<typeof getUserPosts>>;
+  followers: Awaited<ReturnType<typeof getUserFollowers>>;
+}>;
+
 app.get('/api/user/:id', async (req, res) => {
-  const fields = req.query.fields?.split(',') || ['basic'];
-  const userId = req.params.id;
-  
-  const result: any = {};
-  
-  if (fields.includes('basic') || fields.includes('*')) {
-    result.user = await getUser(userId);
+  const fieldsParam = typeof req.query.fields === 'string' ? req.query.fields : undefined;
+  const requested = new Set((fieldsParam ?? 'basic').split(',').map(field => field.trim()));
+
+  if (requested.has('*')) {
+    requested.add('basic');
+    requested.add('posts');
+    requested.add('followers');
   }
-  
-  if (fields.includes('posts') || fields.includes('*')) {
-    result.posts = await getUserPosts(userId);
+
+  const userId = Number.parseInt(req.params.id, 10);
+  const payload: UserProfilePayload = {};
+  const tasks: Array<Promise<void>> = [];
+
+  if (requested.has('basic')) {
+    tasks.push(
+      getUser(userId).then(data => {
+        payload.user = data;
+      }),
+    );
   }
-  
-  if (fields.includes('followers') || fields.includes('*')) {
-    result.followers = await getUserFollowers(userId);
+
+  if (requested.has('posts')) {
+    tasks.push(
+      getUserPosts(userId).then(data => {
+        payload.posts = data;
+      }),
+    );
   }
-  
-  res.json(result);
+
+  if (requested.has('followers')) {
+    tasks.push(
+      getUserFollowers(userId).then(data => {
+        payload.followers = data;
+      }),
+    );
+  }
+
+  await Promise.all(tasks);
+  res.json(payload);
 });
 
 // Client can request: /api/user/123?fields=basic,posts,followers
@@ -312,30 +359,29 @@ app.get('/api/user/:id', async (req, res) => {
 ### Most Optimized Code (Single Query + Caching)
 ```typescript
 // Optimal approach with dataloader pattern
-const DataLoader = require('dataloader');
+import DataLoader from 'dataloader';
 
 // Batch and cache user loads
-const userLoader = new DataLoader(async (userIds: number[]) => {
-  const query = `
-    SELECT 
-      u.*,
-      array_agg(DISTINCT p.*) FILTER (WHERE p.id IS NOT NULL) as posts,
-      array_agg(DISTINCT f.*) FILTER (WHERE f.id IS NOT NULL) as followers
-    FROM users u
-    LEFT JOIN posts p ON p.user_id = u.id
-    LEFT JOIN followers f ON f.following_id = u.id
-    WHERE u.id = ANY($1::int[])
-    GROUP BY u.id
-  `;
-  
-  const result = await db.query(query, [userIds]);
-  const userMap = new Map(result.rows.map(r => [r.id, r]));
-  
-  return userIds.map(id => userMap.get(id));
+const userLoader = new DataLoader(async (userIds: readonly number[]) => {
+  const { rows } = await pool.query(GET_USERS_WITH_POSTS, [Array.from(userIds)]);
+  const userMap = new Map(
+    rows.map(row => [
+      row.id,
+      {
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        posts: (row.posts as unknown[] | null) ?? [],
+        followers: (row.followers as unknown[] | null) ?? [],
+      },
+    ]),
+  );
+
+  return userIds.map(id => userMap.get(id) ?? null);
 });
 
 app.get('/api/user/:id', async (req, res) => {
-  const userId = parseInt(req.params.id);
+  const userId = Number.parseInt(req.params.id, 10);
   const cached = await redis.get(`user:${userId}`);
   
   if (cached) {
@@ -345,7 +391,7 @@ app.get('/api/user/:id', async (req, res) => {
   const userData = await userLoader.load(userId);
   
   // Cache for 5 minutes
-  await redis.setex(`user:${userId}`, 300, JSON.stringify(userData));
+  await redis.setEx(`user:${userId}`, 300, JSON.stringify(userData)); // redis@4.6 camelCase API
   
   res.json(userData);
 });
@@ -640,7 +686,7 @@ Based on *A Common-Sense Guide to Data Structures and Algorithms*, here's when t
 | Finding duplicates | Nested loops | Set | O(n²) → O(n) |
 | Priority queue | Sorted array | Heap | O(n) → O(log n) |
 | Range queries | Hash table | B-tree/Skip list | O(n) → O(log n) |
-| LRU Cache | Array | LinkedHashMap | O(n) → O(1) |
+| LRU Cache | Array | `lru-cache@10` (doubly linked list + Map) | O(n) → O(1) |
 
 ## Back-End Team Recommendations
 
