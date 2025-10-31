@@ -6,6 +6,6 @@ export const authors: Record<string, Author> = {
     id: "william-callahan",
     name: "William Callahan",
     avatar: getStaticImageUrl("/images/william.jpeg"),
-    bio: "Software engineer and entrepreneur based in San Francisco.",
+    bio: "Software engineer, founder, and leadership background in finance/tech. Based in San Francisco.",
   },
 };
