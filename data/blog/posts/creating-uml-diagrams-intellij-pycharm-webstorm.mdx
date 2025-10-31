@@ -42,15 +42,18 @@ JetBrains IDEs generate UML class diagrams from code. These are not general-purp
 The process for generating UML class diagrams is as follows:
 
 <CollapseDropdown summary="2.1: IntelliJ IDEA (Java/Kotlin)">
-  - Right-click a package, class, or multiple classes in the Project tool window. - Select **Diagrams > Show
-  Diagram...** (`Ctrl+Alt+Shift+U` on Windows/Linux, `⌥⇧⌘U` on macOS). - If prompted, select **Java Class Diagram**. -
-  The diagram opens in a new editor tab.
+  - Right-click a package, class, or multiple classes in the Project tool window.
+  - Select **Diagrams > Show Diagram...** (`Ctrl+Alt+Shift+U` on Windows/Linux, `⌥⇧⌘U` on macOS).
+  - If prompted, select **Java Class Diagram**.
+  - The diagram opens in a new editor tab.
 </CollapseDropdown>
 
 <CollapseDropdown summary="2.2: PyCharm (Python)">
-  - Right-click a Python file, class, or package in the Project tool window. - Select **Diagrams > Show Diagram...**. -
-  Select **Python Class Diagram**. - The diagram opens in a new editor tab. - PyCharm can also visualize database
-  schemas (separate from UML class diagrams).
+  - Right-click a Python file, class, or package in the Project tool window.
+  - Select **Diagrams > Show Diagram...**.
+  - Select **Python Class Diagram**.
+  - The diagram opens in a new editor tab.
+  - PyCharm can also visualize database schemas (separate from UML class diagrams).
 </CollapseDropdown>
 
 <CollapseDropdown summary="2.3: WebStorm and IntelliJ support for JavaScript/TypeScript">
@@ -102,7 +105,9 @@ The process for generating UML class diagrams is as follows:
 Support for UML class diagram generation:
 
 <CollapseDropdown summary="5.1: Supported Languages">
-  - Java: IntelliJ IDEA Ultimate - Kotlin: IntelliJ IDEA Ultimate - Python: PyCharm Professional
+  - Java: IntelliJ IDEA Ultimate
+  - Kotlin: IntelliJ IDEA Ultimate
+  - Python: PyCharm Professional
 </CollapseDropdown>
 
 <CollapseDropdown summary="5.2: Not Supported or Limited">
@@ -118,30 +123,22 @@ Support for UML class diagram generation:
 If you need other UML diagram types or to design diagrams before code:
 
 <CollapseDropdown summary="6.1: Dedicated UML Tools and Plugins">
-  - Use dedicated UML tools for full modeling: [Visual Paradigm](https://www.visual-paradigm.com/),
-  [StarUML](https://staruml.io/), [Lucidchart](https://www.lucidchart.com/), [PlantUML](https://plantuml.com/), or
-  [draw.io](https://www.drawio.com/) (also sometimes referred to as diagrams.net). - JetBrains Marketplace has plugins
-  for additional diagram types and language support: - [UML JavaScript and
-  TypeScript](https://plugins.jetbrains.com/plugin/17380-uml-javascript-and-typescript) for JS/TS UML diagrams - Other
-  diagram plugins may be available for specific languages or diagram types
+  - Use dedicated UML tools for full modeling: [Visual Paradigm](https://www.visual-paradigm.com/), [StarUML](https://staruml.io/), [Lucidchart](https://www.lucidchart.com/), [PlantUML](https://plantuml.com/), or [draw.io](https://www.drawio.com/) (also sometimes referred to as diagrams.net).
+  - JetBrains Marketplace has plugins for additional diagram types and language support:
+    - [UML JavaScript and TypeScript](https://plugins.jetbrains.com/plugin/17380-uml-javascript-and-typescript) for JS/TS UML diagrams
+    - Other diagram plugins may be available for specific languages or diagram types
 </CollapseDropdown>
 
 <CollapseDropdown summary="6.2: Tools for Automated Full Repository Diagramming">
-  If your primary goal is to automatically generate comprehensive UML diagrams from an entire repository with minimal
-  manual intervention, consider these types of tools: - **[GitUML](https://gituml.com/)**: A tool that generates UML
-  diagrams from your Git repository. It is often free for public repositories and can be a quick way to visualize your
-  codebase structure. - **Dedicated UML/Modeling Tools with Strong Reverse Engineering:** - [**Visual
-  Paradigm**](https://www.visual-paradigm.com/): Offers robust reverse engineering features, allowing import of source
-  code from various languages to generate detailed UML diagrams. - [**Sparx Systems Enterprise
-  Architect**](https://sparxsystems.com/): A comprehensive modeling tool that can reverse engineer code from entire
-  projects into UML models. - [**StarUML**](https://staruml.io/): Supports reverse engineering from code to class
-  diagrams for several languages. - **Static Analysis & Visualization Tools:** - [**SciTools
-  Understand**](https://scitools.com/): A powerful code analysis tool that can generate various diagrams, including UML
-  class diagrams, from large codebases. - [**SourceTrail**](https://www.sourcetrail.com/): While not exclusively UML, it
-  provides interactive source code visualization that can help understand class structures and dependencies across a
-  repository (Note: Development of SourceTrail has been discontinued, but it remains available). These tools are
-  generally more specialized for in-depth code analysis and large-scale diagram generation than the built-in IDE
-  features.
+  If your primary goal is to automatically generate comprehensive UML diagrams from an entire repository with minimal manual intervention, consider these types of tools:
+  - **[GitUML](https://gituml.com/)**: Generates UML diagrams directly from a Git repository. Often free for public projects and quick for structural overviews.
+  - **Dedicated UML/Modeling Tools with Strong Reverse Engineering:**
+    - [**Visual Paradigm**](https://www.visual-paradigm.com/): Imports source code across languages to produce detailed UML diagrams.
+    - [**Sparx Systems Enterprise Architect**](https://sparxsystems.com/): Comprehensive modeling with code reverse engineering for entire projects.
+    - [**StarUML**](https://staruml.io/): Supports reverse engineering from code to class diagrams for several languages.
+  - **Static Analysis & Visualization Tools:**
+    - [**SciTools Understand**](https://scitools.com/): Generates UML class diagrams and other visualizations from large codebases.
+    - [**SourceTrail**](https://www.sourcetrail.com/): Interactive code visualization that helps explain class structures and dependencies. (Development is discontinued but it remains available.)
 </CollapseDropdown>
 
 ---
@@ -197,14 +194,10 @@ Generating a _full_ and detailed UML diagram often involves a combination of aut
 </CollapseDropdown>
 
 <CollapseDropdown summary="With AI Assistance">
-  - **AI Coding Assistants (e.g., GitHub Copilot, Codeium, Figstack, Amazon CodeWhisperer):** - **Generate
-  PlantUML/Mermaid Code:** This is a very effective use of AI in VS Code. Select a piece of code, or describe a system
-  architecture, and ask the AI assistant to generate the PlantUML or Mermaid syntax for a class diagram, sequence
-  diagram, etc. You can then paste this into the appropriate file or Markdown code fence for rendering. - **Explain Code
-  for Manual Diagramming:** Use the AI to get summaries of files, classes, and their interactions to accelerate manual
-  diagramming using tools like the Draw.io extension or text-based approaches. - **Emerging AI Diagramming Extensions:**
-  The field is evolving rapidly. Keep an eye on the VS Code Marketplace for new extensions that explicitly use AI to
-  generate or assist with UML diagrams directly from your codebase.
+  - **AI Coding Assistants (e.g., GitHub Copilot, Codeium, Figstack, Amazon CodeWhisperer):**
+    - **Generate PlantUML/Mermaid Code:** Select code or describe a system and let the assistant draft PlantUML/Mermaid syntax for diagrams you can paste into Markdown or dedicated files.
+    - **Explain Code for Manual Diagramming:** Ask the assistant to summarize files, classes, and interactions so you can more quickly draw diagrams with tools like Draw.io.
+  - **Emerging AI Diagramming Extensions:** Keep an eye on the VS Code Marketplace for extensions that leverage AI to generate or assist with UML diagrams directly from your codebase.
 </CollapseDropdown>
 
 ### 7.3: From a GitHub Repository (Online/Standalone Tools)

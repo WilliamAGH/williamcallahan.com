@@ -25,12 +25,12 @@ It excels at sustained performance on complex, long-running tasks that require t
 
 The performance improvements are substantial, with Claude models now leading on key benchmarks:
 
-| Benchmark          | Claude Opus 4 | Claude Sonnet 4 | Previous Best   |
-| ------------------ | ------------- | --------------- | --------------- |
-| SWE-bench Verified | 72.5%         | 72.7%           | 67.0% (GPT-4.1) |
-| Terminal-bench     | 43.2%         | 39.6%           | 38.0% (GPT-4.1) |
-| MMLU               | 90.2%         | 88.0%           | 88.7% (GPT-4.1) |
-| TAU-bench          | 83.0%         | 78.0%           | 76.0% (o3)      |
+| Benchmark | Claude Opus 4 | Claude Sonnet 4 | Previous Best |
+|-----------|---------------|-----------------|---------------|
+| SWE-bench Verified | 72.5% | 72.7% | 67.0% (GPT-4.1) |
+| Terminal-bench | 43.2% | 39.6% | 38.0% (GPT-4.1) |
+| MMLU | 90.2% | 88.0% | 88.7% (GPT-4.1) |
+| TAU-bench | 83.0% | 78.0% | 76.0% (o3) |
 
 What's particularly impressive is Claude Opus 4's ability to maintain performance over extended periods, at least according to the benchmark results. They cited today a Rakuten validation of this by having Opus 4 run a demanding open-source refactor continuously for 7 hours with sustained performance—something previous models couldn't achieve. If true, this would constitute a significant improvement over the status quo -- I'll be testing this shortly.
 
@@ -99,26 +99,24 @@ Another new powerful feature of Claude Code is its support for git worktrees, al
 <CollapseDropdown summary="Using Git Worktrees with Claude Code">
   Git worktrees let you check out multiple branches of a repository simultaneously in different directories. With Claude Code, this enables:
 
-- Working on multiple features or bug fixes concurrently
-- Running separate Claude Code sessions for each worktree
-- Maintaining context isolation between different tasks
-- Comparing approaches across branches without context switching
+  - Working on multiple features or bug fixes concurrently
+  - Running separate Claude Code sessions for each worktree
+  - Maintaining context isolation between different tasks
+  - Comparing approaches across branches without context switching
 
-To set up a git worktree workflow with Claude Code:
+  To set up a git worktree workflow with Claude Code:
+  ```bash
+  # Create a new worktree for a feature branch
+  git worktree add ../repo-feature-a feature/a
 
-```bash
-# Create a new worktree for a feature branch
-git worktree add ../repo-feature-a feature/a
+  # In one terminal, run Claude Code in the main worktree
+  cd /path/to/main/repo
+  claude-code
 
-# In one terminal, run Claude Code in the main worktree
-cd /path/to/main/repo
-claude-code
-
-# In another terminal, run Claude Code in the feature worktree
-cd ../repo-feature-a
-claude-code
-```
-
+  # In another terminal, run Claude Code in the feature worktree
+  cd ../repo-feature-a
+  claude-code
+  ```
 </CollapseDropdown>
 
 ## New API Capabilities for Agent Development
@@ -134,13 +132,12 @@ Anthropic has released four new capabilities on their API specifically designed 
 
 Both models maintain consistent pricing with previous Opus and Sonnet models:
 
-| Model           | Input Tokens    | Output Tokens   | Context Window | Availability               |
-| --------------- | --------------- | --------------- | -------------- | -------------------------- |
-| Claude Opus 4   | $15 per million | $75 per million | 200K tokens    | Pro, Max, Team, Enterprise |
-| Claude Sonnet 4 | $3 per million  | $15 per million | 200K tokens    | All users (including free) |
+| Model | Input Tokens | Output Tokens | Context Window | Availability |
+|-------|--------------|---------------|----------------|--------------|
+| Claude Opus 4 | $15 per million | $75 per million | 200K tokens | Pro, Max, Team, Enterprise |
+| Claude Sonnet 4 | $3 per million | $15 per million | 200K tokens | All users (including free) |
 
 Both models are available on:
-
 - Claude.ai
 - Anthropic API
 - Amazon Bedrock

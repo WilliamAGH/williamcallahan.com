@@ -1,13 +1,25 @@
 ---
-title: "Kickstarting a Modern Django Project (using UV) in 2025"
-slug: "kickstarting-a-modern-django-project-using-uv-in-2025"
-excerpt: "A comprehensive guide to rapidly launching a Django project with modern templates, SaaS core features, SQL database integration, and popular IDE tooling."
-publishedAt: "2025-05-07"
-updatedAt: "2025-06-06"
-author: "william-callahan"
+title: 'Kickstarting a Modern Django Project (using UV) in 2025'
+slug: 'kickstarting-a-modern-django-project-using-uv-in-2025'
+excerpt: 'A comprehensive guide to rapidly launching a Django project with modern templates, SaaS core features, SQL database integration, and popular IDE tooling.'
+publishedAt: '2025-05-07'
+updatedAt: '2025-06-06'
+author: 'william-callahan'
 tags:
-  ["django", "python", "vscode", "intellij", "pycharm", "saas", "startup", "postgres", "mysql", "web development", "uv"]
-coverImage: "/images/posts/django-cover-image.png"
+  [
+    'django',
+    'python',
+    'vscode',
+    'intellij',
+    'pycharm',
+    'saas',
+    'startup',
+    'postgres',
+    'mysql',
+    'web development',
+    'uv',
+  ]
+coverImage: '/images/posts/django-cover-image.png'
 ---
 
 <BackgroundInfo title="Overview: Key Components & Their Roles">
@@ -166,7 +178,6 @@ python3 -m venv .venv
         </ul>
       </CollapseDropdown>
     </div>
-
   </div>
 </div>
 
@@ -364,13 +375,12 @@ python manage.py createsuperuser
         </ul>
       </CollapseDropdown>
     </div>
-
   </div>
 </div>
 
-<BackgroundInfo title="Next Steps">
-  Now that you have a basic Django project running using your preferred setup method, the next sections will cover
-  creating your first app and using modern project templates.
+<BackgroundInfo title='Next Steps'>
+Now that you have a basic Django project running using your preferred setup
+method, the next sections will cover creating your first app and using modern project templates.
 </BackgroundInfo>
 
 ## Part 2: Adding Your First App & Core Concepts
@@ -404,54 +414,43 @@ python manage.py startapp my_first_app
 
       </div>
     </div>
-
   </div>
 
-<BackgroundInfo title="App Naming Tip">
-  When naming your Django app, it may be required to use lowercase alphabet-only characters and avoid special characters
-  like underscores (e.g., avoid "my_first_app").
-</BackgroundInfo>
+  <BackgroundInfo title='App Naming Tip'>
+    When naming your Django app, it may be required to use lowercase alphabet-only characters and avoid special characters like underscores (e.g., avoid "my_first_app").
+  </BackgroundInfo>
 
-<div className="py-[6px]">
-  <strong>2. Register Your App:</strong>
-</div>
-<div>
-  Add your new app to <code>INSTALLED_APPS</code> in your project's <code>settings.py</code> file:
-</div>
-```python
-INSTALLED_APPS = [
-    # ... other apps
-    'my_first_app',
-    # Or 'my_first_app.apps.MyFirstAppConfig' if using AppConfig
-    # ... django apps ...
-]
-```
+  <div className="py-[6px]"><strong>2. Register Your App:</strong></div>
+  <div>Add your new app to <code>INSTALLED_APPS</code> in your project's <code>settings.py</code> file:</div>
+  ```python
+  INSTALLED_APPS = [
+      # ... other apps
+      'my_first_app', # Or 'my_first_app.apps.MyFirstAppConfig' if using AppConfig
+      # ... django apps ...
+  ]
+  ```
 
-<div className="py-[6px]">
-  <strong>3. Define a Simple Model:</strong>
-</div>
-<div>
-  Edit <code>my_first_app/models.py</code>:
-</div>
-```python
-from django.db import models
+  <div className="py-[6px]"><strong>3. Define a Simple Model:</strong></div>
+  <div>Edit <code>my_first_app/models.py</code>:</div>
+  ```python
+  from django.db import models
 
-class Greeting(models.Model):
-    message = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
+  class Greeting(models.Model):
+      message = models.CharField(max_length=255)
+      created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return self.message
-```
+      def __str__(self):
+          return self.message
+  ```
 
-<div className="py-[6px]"><strong>4. Create & Apply Migrations:</strong></div>
-<div className="instruction-tabs">
-  <div className="tab-buttons">
-    <button data-tab='uv-migrate' className="active">uv</button>
-    <button data-tab='pip-migrate'>pip</button>
-  </div>
-  <div className="tab-panels">
-    <div data-panel='uv-migrate' className="active">
+  <div className="py-[6px]"><strong>4. Create & Apply Migrations:</strong></div>
+  <div className="instruction-tabs">
+    <div className="tab-buttons">
+      <button data-tab='uv-migrate' className="active">uv</button>
+      <button data-tab='pip-migrate'>pip</button>
+    </div>
+    <div className="tab-panels">
+      <div data-panel='uv-migrate' className="active">
 
 ```bash
 # Generate migration files
@@ -474,7 +473,6 @@ python manage.py migrate
 
       </div>
     </div>
-
   </div>
 </CollapseDropdown>
 
@@ -494,51 +492,47 @@ python manage.py migrate
       return HttpResponse(f"<h1>{greeting_text}</h1><p>From my_first_app!</p>")
   ```
 
-<div><strong>2. Create App URLs:</strong></div>
-<div>Create <code>my_first_app/urls.py</code>:</div>
-```python
-from django.urls import path
-from . import views
+  <div><strong>2. Create App URLs:</strong></div>
+  <div>Create <code>my_first_app/urls.py</code>:</div>
+  ```python
+  from django.urls import path
+  from . import views
 
-urlpatterns = [
-    path('hello/', views.hello_world, name='hello_world'),
-]
-```
+  urlpatterns = [
+      path('hello/', views.hello_world, name='hello_world'),
+  ]
+  ```
 
-<div>
-  <strong>3. Include in Project URLs:</strong>
-</div>
-<div>
-  Update your project's <code>urls.py</code> (e.g., <code>config/urls.py</code>):
-</div>
-```python
-from django.contrib import admin
-from django.urls import path, include
+  <div><strong>3. Include in Project URLs:</strong></div>
+  <div>Update your project's <code>urls.py</code> (e.g., <code>config/urls.py</code>):</div>
+  ```python
+  from django.contrib import admin
+  from django.urls import path, include
 
-urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('app/', include('my_first_app.urls')),  # This adds your app URLs
-]
-```
+  urlpatterns = [
+      path('admin/', admin.site.urls),
+      path('app/', include('my_first_app.urls')),  # This adds your app URLs
+  ]
+  ```
 
-<div className="py-[6px]">Now visit <code>http://127.0.0.1:8000/app/hello/</code> to see your view in action.</div>
+  <div className="py-[6px]">Now visit <code>http://127.0.0.1:8000/app/hello/</code> to see your view in action.</div>
 </CollapseDropdown>
 
 <CollapseDropdown summary='Key Django concepts'>
-<ul>
-  <li><div><strong>Apps for Features:</strong> Organize functionality into reusable, modular apps</div></li>
-  <li>
-    <div><strong>MVT (Model-View-Template):</strong> Django's architecture pattern</div>
-    <ul>
-      <li><div>Models - Define data structure and interact with database</div></li>
-      <li><div>Views - Handle logic and request/response flow</div></li>
-      <li><div>Templates - Present information to users (HTML)</div></li>
-    </ul>
-  </li>
-  <li><div><strong>URL Routing:</strong> Map web addresses to view functions</div></li>
-  <li><div><strong>Admin Interface:</strong> Built-in data management UI</div></li>
-  <li><div><strong>ORM:</strong> Object-Relational Mapper for database operations using Python</div></li>
-</ul>
+  <ul>
+    <li><div><strong>Apps for Features:</strong> Organize functionality into reusable, modular apps</div></li>
+    <li>
+      <div><strong>MVT (Model-View-Template):</strong> Django's architecture pattern</div>
+      <ul>
+        <li><div>Models - Define data structure and interact with database</div></li>
+        <li><div>Views - Handle logic and request/response flow</div></li>
+        <li><div>Templates - Present information to users (HTML)</div></li>
+      </ul>
+    </li>
+    <li><div><strong>URL Routing:</strong> Map web addresses to view functions</div></li>
+    <li><div><strong>Admin Interface:</strong> Built-in data management UI</div></li>
+    <li><div><strong>ORM:</strong> Object-Relational Mapper for database operations using Python</div></li>
+  </ul>
 </CollapseDropdown>
 
 ## Part 3: Level Up with Modern Project Templates
@@ -548,56 +542,56 @@ These templates reduce boilerplate for common functionalities (auth, UI componen
 </BackgroundInfo>
 
 <CollapseDropdown summary='Popular modern template options'>
-<ul>
-  <li>
-    <strong><ExternalLink href="https://github.com/cookiecutter/cookiecutter-django">Cookiecutter Django</ExternalLink></strong>:
-    <ul>
-      <li><strong>Pros:</strong> Highly configurable, production-ready (Docker, Celery), many best practices.</li>
-      <li><strong>Cons:</strong> Can be complex for beginners.</li>
-    </ul>
-  </li>
-  <li>
-    <strong><ExternalLink href="https://www.saaspegasus.com/">SaaS Pegasus</ExternalLink></strong>:
-    <ul>
-      <li><strong>Pros:</strong> For SaaS apps; includes subscriptions, teams, pre-built UI. Good documentation.</li>
-      <li><strong>Cons:</strong> Paid.</li>
-    </ul>
-  </li>
-  <li>
-    <strong><ExternalLink href="https://github.com/saadmk11/djangox">DjangoX</ExternalLink></strong>:
-    <ul>
-      <li><strong>Pros:</strong> Simpler starter; Tailwind CSS, user auth.</li>
-      <li><strong>Cons:</strong> Less feature-rich.</li>
-    </ul>
-  </li>
-  <li>
-    <strong><ExternalLink href="https://www.creative-tim.com/templates/django">Creative Tim</ExternalLink> / <ExternalLink href="https://themeforest.net/category/site-templates/admin-templates?term=django">ThemeForest</ExternalLink></strong>:
-    <ul>
-      <li><strong>Pros:</strong> Wide variety of themes.</li>
-      <li><strong>Cons:</strong> Quality and Django integration vary.</li>
-    </ul>
-  </li>
-</ul>
+  <ul>
+    <li>
+      <strong><ExternalLink href="https://github.com/cookiecutter/cookiecutter-django">Cookiecutter Django</ExternalLink></strong>:
+      <ul>
+        <li><strong>Pros:</strong> Highly configurable, production-ready (Docker, Celery), many best practices.</li>
+        <li><strong>Cons:</strong> Can be complex for beginners.</li>
+      </ul>
+    </li>
+    <li>
+      <strong><ExternalLink href="https://www.saaspegasus.com/">SaaS Pegasus</ExternalLink></strong>:
+      <ul>
+        <li><strong>Pros:</strong> For SaaS apps; includes subscriptions, teams, pre-built UI. Good documentation.</li>
+        <li><strong>Cons:</strong> Paid.</li>
+      </ul>
+    </li>
+    <li>
+      <strong><ExternalLink href="https://github.com/saadmk11/djangox">DjangoX</ExternalLink></strong>:
+      <ul>
+        <li><strong>Pros:</strong> Simpler starter; Tailwind CSS, user auth.</li>
+        <li><strong>Cons:</strong> Less feature-rich.</li>
+      </ul>
+    </li>
+    <li>
+      <strong><ExternalLink href="https://www.creative-tim.com/templates/django">Creative Tim</ExternalLink> / <ExternalLink href="https://themeforest.net/category/site-templates/admin-templates?term=django">ThemeForest</ExternalLink></strong>:
+      <ul>
+        <li><strong>Pros:</strong> Wide variety of themes.</li>
+        <li><strong>Cons:</strong> Quality and Django integration vary.</li>
+      </ul>
+    </li>
+  </ul>
 </CollapseDropdown>
 
 <CollapseDropdown summary="Setting up a modern template">
-<div>Most templates provide detailed setup instructions, but here's a general workflow:</div>
+  <div>Most templates provide detailed setup instructions, but here's a general workflow:</div>
 
-<div><strong>1. Generate or Clone the Template:</strong></div>
-<div className="macos-frame-tabs">
-  <div className="tab-buttons">
-    <button data-tab="cookiecutter" className="active">Using Cookiecutter</button>
-    <button data-tab="git-clone">Using git clone</button>
-  </div>
-  <div className="tab-panels">
-    <div data-panel="cookiecutter" className="active">
-      <div className="instruction-tabs">
-        <div className="tab-buttons">
-          <button data-tab="uv-cookie" className="active">uv</button>
-          <button data-tab="pip-cookie">pip</button>
-        </div>
-        <div className="tab-panels">
-          <div data-panel="uv-cookie" className="active">
+  <div><strong>1. Generate or Clone the Template:</strong></div>
+  <div className="macos-frame-tabs">
+    <div className="tab-buttons">
+      <button data-tab="cookiecutter" className="active">Using Cookiecutter</button>
+      <button data-tab="git-clone">Using git clone</button>
+    </div>
+    <div className="tab-panels">
+      <div data-panel="cookiecutter" className="active">
+        <div className="instruction-tabs">
+          <div className="tab-buttons">
+            <button data-tab="uv-cookie" className="active">uv</button>
+            <button data-tab="pip-cookie">pip</button>
+          </div>
+          <div className="tab-panels">
+            <div data-panel="uv-cookie" className="active">
 
 ```bash
 # Install cookiecutter if needed
@@ -632,7 +626,6 @@ cd my_modern_project
 
       </div>
     </div>
-
   </div>
 
   <div><strong>2. Install Dependencies:</strong></div>
@@ -723,13 +716,10 @@ docker-compose up --build
 
       </div>
     </div>
-
   </div>
 
-<div>
-  <strong>3. Configure Settings:</strong>
-</div>
-<div>Adjust environment variables or settings according to template documentation.</div>
+  <div><strong>3. Configure Settings:</strong></div>
+  <div>Adjust environment variables or settings according to template documentation.</div>
 
   <div><strong>4. Run Initial Setup/Migrations:</strong></div>
   <div className="instruction-tabs">
@@ -761,7 +751,6 @@ docker-compose exec web python manage.py migrate
 
       </div>
     </div>
-
   </div>
 </CollapseDropdown>
 
@@ -769,10 +758,11 @@ docker-compose exec web python manage.py migrate
 
 ## Part 4: Implementing Core Admin Features with SQL Database
 
-<BackgroundInfo title="Core Admin Features in Django">
-  Django offers robust features for web applications: - **User Authentication**: `django.contrib.auth` for user
-  management. - **Admin Panel**: `django.contrib.admin` for data management. - **ORM & Models**: Django's ORM for
-  database interaction via Python.
+<BackgroundInfo title='Core Admin Features in Django'>
+Django offers robust features for web applications:
+- **User Authentication**: `django.contrib.auth` for user management.
+- **Admin Panel**: `django.contrib.admin` for data management.
+- **ORM & Models**: Django's ORM for database interaction via Python.
 </BackgroundInfo>
 
 <CollapseDropdown summary='Setting up SQL database'>
@@ -835,15 +825,10 @@ pip install mysqlclient
         </div>
       </div>
     </div>
-
   </div>
 
-<div>
-  <strong>3. Configure Database in settings.py:</strong>
-</div>
-<div>
-  Update the <code>DATABASES</code> dictionary in <code>settings.py</code>:
-</div>
+  <div><strong>3. Configure Database in settings.py:</strong></div>
+  <div>Update the <code>DATABASES</code> dictionary in <code>settings.py</code>:</div>
 
   <div className="macos-frame-tabs">
     <div className="tab-buttons">
@@ -884,7 +869,6 @@ DATABASES = {
 
       </div>
     </div>
-
   </div>
 
   <BackgroundInfo title='Database Credentials Tip'>
@@ -907,33 +891,29 @@ DATABASES = {
 <CollapseDropdown summary='Admin panel configuration'>
   <div>Django's admin panel provides a powerful interface for managing your application's data.</div>
 
-<div>
-  <strong>1. Register Models in admin.py:</strong>
-</div>
-<div>
-  In your app's <code>admin.py</code> file:
-</div>
-```python
-from django.contrib import admin
-from .models import Greeting
+  <div><strong>1. Register Models in admin.py:</strong></div>
+  <div>In your app's <code>admin.py</code> file:</div>
+  ```python
+  from django.contrib import admin
+  from .models import Greeting
 
-@admin.register(Greeting)
-class GreetingAdmin(admin.ModelAdmin):
-    list_display = ('message', 'created_at')
-    search_fields = ('message',)
-```
+  @admin.register(Greeting)
+  class GreetingAdmin(admin.ModelAdmin):
+      list_display = ('message', 'created_at')
+      search_fields = ('message',)
+  ```
 
-<div><strong>2. Access Admin Interface:</strong></div>
-<div>After starting the development server, visit <code>http://127.0.0.1:8000/admin/</code> and log in with superuser credentials.</div>
+  <div><strong>2. Access Admin Interface:</strong></div>
+  <div>After starting the development server, visit <code>http://127.0.0.1:8000/admin/</code> and log in with superuser credentials.</div>
 
-<div><strong>Admin Customization Options:</strong></div>
-<ul>
-  <li><code>list_display</code>: Fields to show in list view</li>
-  <li><code>search_fields</code>: Fields to search through</li>
-  <li><code>list_filter</code>: Enable filtering by fields</li>
-  <li><code>fieldsets</code>: Organize fields in detail view</li>
-  <li><code>readonly_fields</code>: Fields that can't be edited</li>
-</ul>
+  <div><strong>Admin Customization Options:</strong></div>
+  <ul>
+    <li><code>list_display</code>: Fields to show in list view</li>
+    <li><code>search_fields</code>: Fields to search through</li>
+    <li><code>list_filter</code>: Enable filtering by fields</li>
+    <li><code>fieldsets</code>: Organize fields in detail view</li>
+    <li><code>readonly_fields</code>: Fields that can't be edited</li>
+  </ul>
 </CollapseDropdown>
 
 ---
@@ -943,22 +923,22 @@ class GreetingAdmin(admin.ModelAdmin):
 Execute from project root with virtual environment active.
 
 <div className="macos-frame-tabs">
-<div className="tab-buttons">
-  <button data-tab="dev-server" className="active">Development Server</button>
-  <button data-tab="db-mgmt">Database Management</button>
-  <button data-tab="user-mgmt">User Management</button>
-  <button data-tab="shell-test">Shell & Testing</button>
-  <button data-tab="static-files">Static Files</button>
-</div>
-<div className="tab-panels">
-  <div data-panel="dev-server" className="active">
-    <div className="instruction-tabs">
-      <div className="tab-buttons">
-        <button data-tab="uv-server" className="active">uv</button>
-        <button data-tab="pip-server">pip</button>
-      </div>
-      <div className="tab-panels">
-        <div data-panel="uv-server" className="active">
+  <div className="tab-buttons">
+    <button data-tab="dev-server" className="active">Development Server</button>
+    <button data-tab="db-mgmt">Database Management</button>
+    <button data-tab="user-mgmt">User Management</button>
+    <button data-tab="shell-test">Shell & Testing</button>
+    <button data-tab="static-files">Static Files</button>
+  </div>
+  <div className="tab-panels">
+    <div data-panel="dev-server" className="active">
+      <div className="instruction-tabs">
+        <div className="tab-buttons">
+          <button data-tab="uv-server" className="active">uv</button>
+          <button data-tab="pip-server">pip</button>
+        </div>
+        <div className="tab-panels">
+          <div data-panel="uv-server" className="active">
 
 ```bash
 # Start development server
@@ -1127,7 +1107,6 @@ python manage.py findstatic --first filename.ext
         </div>
       </div>
     </div>
-
   </div>
 </div>
 
@@ -1150,64 +1129,62 @@ For a deeper dive into some deployment strategies and easy deployment options, I
     <li><div><strong>If <code>Ctrl+Z</code> was used:</strong> Use <code>fg</code> then <code>Ctrl+C</code>, or <code>jobs</code> and <code>kill %JOB_NUMBER</code></div></li>
   </ul>
 
-<div>
-  <strong>Address Already in Use:</strong>
-</div>
-<div>If you see "Address already in use," find and kill the process:</div>
-```bash
-# Find the process using port 8000
-lsof -i :8000
+  <div><strong>Address Already in Use:</strong></div>
+  <div>If you see "Address already in use," find and kill the process:</div>
+  ```bash
+  # Find the process using port 8000
+  lsof -i :8000
 
-# Kill the process
-kill <PID>
-```
+  # Kill the process
+  kill <PID>
+  ```
 </CollapseDropdown>
 
 <CollapseDropdown summary='Migration issues'>
-<div><strong>"No changes detected":</strong></div>
-<ul>
-  <li>Check that your app is in <code>INSTALLED_APPS</code></li>
-  <li>Verify you saved all changes to <code>models.py</code></li>
-  <li>Ensure you're specifying the correct app name in the command</li>
-</ul>
+  <div><strong>"No changes detected":</strong></div>
+  <ul>
+    <li>Check that your app is in <code>INSTALLED_APPS</code></li>
+    <li>Verify you saved all changes to <code>models.py</code></li>
+    <li>Ensure you're specifying the correct app name in the command</li>
+  </ul>
 
-<div><strong>Migration Errors:</strong></div>
-<ul>
-  <li>Verify database connection settings</li>
-  <li>Check for syntax errors in models</li>
-  <li>View migration status with <code>python manage.py showmigrations</code></li>
-</ul>
+  <div><strong>Migration Errors:</strong></div>
+  <ul>
+    <li>Verify database connection settings</li>
+    <li>Check for syntax errors in models</li>
+    <li>View migration status with <code>python manage.py showmigrations</code></li>
+  </ul>
 </CollapseDropdown>
 
 <CollapseDropdown summary='Static files & templates'>
-<div><strong>Static Files Not Loading (404s):</strong></div>
-<ul>
-  <li><strong>Development:</strong> Check <code>STATIC_URL</code>, ensure files are in <code>app_name/static/app_name/</code></li>
-  <li><strong>Production:</strong> Run <code>collectstatic</code>, configure web server for <code>STATIC_ROOT</code></li>
-</ul>
+  <div><strong>Static Files Not Loading (404s):</strong></div>
+  <ul>
+    <li><strong>Development:</strong> Check <code>STATIC_URL</code>, ensure files are in <code>app_name/static/app_name/</code></li>
+    <li><strong>Production:</strong> Run <code>collectstatic</code>, configure web server for <code>STATIC_ROOT</code></li>
+  </ul>
 
-<div><strong><code>TemplateDoesNotExist</code> Error:</strong></div>
-<ul>
-  <li>Verify app is in <code>INSTALLED_APPS</code></li>
-  <li>Check template path - should be in <code>app_name/templates/app_name/</code></li>
-  <li>Check for typos in template names</li>
-</ul>
+  <div><strong><code>TemplateDoesNotExist</code> Error:</strong></div>
+  <ul>
+    <li>Verify app is in <code>INSTALLED_APPS</code></li>
+    <li>Check template path - should be in <code>app_name/templates/app_name/</code></li>
+    <li>Check for typos in template names</li>
+  </ul>
 </CollapseDropdown>
 
 <CollapseDropdown summary='Import & package issues'>
-<div><strong>ModuleNotFoundError:</strong></div>
-<ul>
-  <li>Ensure virtual environment is activated</li>
-  <li>Check if package is installed:</li>
-</ul>
+  <div><strong>ModuleNotFoundError:</strong></div>
+  <ul>
+    <li>Ensure virtual environment is activated</li>
+    <li>Check if package is installed:</li>
+  </ul>
 
-<div className="instruction-tabs">
-  <div className="tab-buttons">
-    <button data-tab="uv-pkg" className="active">uv</button>
-    <button data-tab="pip-pkg">pip</button>
-  </div>
-  <div className="tab-panels">
-    <div data-panel="uv-pkg" className="active">
+  <div className="instruction-tabs">
+    <div className="tab-buttons">
+      <button data-tab="uv-pkg" className="active">uv</button>
+      <button data-tab="pip-pkg">pip</button>
+    </div>
+    <div className="tab-panels">
+      <div data-panel="uv-pkg" className="active">
 
 ```bash
 # Install package
@@ -1230,7 +1207,6 @@ pip list
 
       </div>
     </div>
-
   </div>
 
   <div><strong>Other Import Issues:</strong></div>
@@ -1272,19 +1248,17 @@ python manage.py shell
 
       </div>
     </div>
-
   </div>
 
-<div>Example shell session for debugging models:</div>
-```python
-# Import your model
-from my_first_app.models import Greeting
+  <div>Example shell session for debugging models:</div>
+  ```python
+  # Import your model
+  from my_first_app.models import Greeting
 
-# Query data
-Greeting.objects.all()
+  # Query data
+  Greeting.objects.all()
 
-# Create test data
-Greeting.objects.create(message="Hello, Django!")
-```
+  # Create test data
+  Greeting.objects.create(message="Hello, Django!")
+  ```
 </CollapseDropdown>
-
