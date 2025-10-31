@@ -11,6 +11,8 @@ import * as Sentry from "@sentry/nextjs";
  * Common browser extension error patterns to filter from error reporting
  * Prevents unnecessary noise from extension conflicts
  */
+const NON_CRITICAL_ERROR_PATTERNS = ['can\'t redefine non-configurable property "ethereum"', "Load failed"];
+
 const BROWSER_EXTENSION_ERROR_PATTERNS = [
   "runtime.sendMessage",
   "Tab not found",
@@ -21,8 +23,7 @@ const BROWSER_EXTENSION_ERROR_PATTERNS = [
   "chrome-extension://",
   "script error",
   "Non-Error promise rejection captured",
-  'can\'t redefine non-configurable property "ethereum"',
-  "Load failed",
+  ...NON_CRITICAL_ERROR_PATTERNS,
 ];
 
 /**
@@ -75,15 +76,13 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-const NON_CRITICAL_ERROR_PATTERNS = ['can\'t redefine non-configurable property "ethereum"', "load failed"];
-
 const matchesNonCriticalPattern = (message: string | undefined): boolean => {
   if (!message) {
     return false;
   }
 
   const normalized = message.toLowerCase();
-  return NON_CRITICAL_ERROR_PATTERNS.some(pattern => normalized.includes(pattern));
+  return NON_CRITICAL_ERROR_PATTERNS.some(pattern => normalized.includes(pattern.toLowerCase()));
 };
 
 if (typeof window !== "undefined") {

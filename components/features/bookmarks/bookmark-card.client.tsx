@@ -196,7 +196,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
               const label = formatTagDisplay(raw);
               return (
                 <Link key={raw} href={`/bookmarks/tags/${tagToSlug(raw)}`} className="inline-block">
-                  <span className="inline-block px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-medium transition-colors hover:bg-indigo-200 dark:hover:bg-indigo-800/60 transform hover:scale-102">
+                  <span className="inline-block px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-medium transition-colors hover:bg-indigo-200 dark:hover:bg-indigo-800/60 transform hover:scale-[1.02]">
                     {label}
                   </span>
                 </Link>
