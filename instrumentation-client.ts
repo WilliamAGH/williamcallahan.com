@@ -21,6 +21,8 @@ const BROWSER_EXTENSION_ERROR_PATTERNS = [
   "chrome-extension://",
   "script error",
   "Non-Error promise rejection captured",
+  'can\'t redefine non-configurable property "ethereum"',
+  "Load failed",
 ];
 
 /**
@@ -29,15 +31,16 @@ const BROWSER_EXTENSION_ERROR_PATTERNS = [
  * @returns true if the error should be filtered out, false otherwise
  */
 export function shouldFilterError(errorMessage: string): boolean {
+  const normalizedMessage = errorMessage.toLowerCase();
   // Check for known browser extension error patterns
   for (const pattern of BROWSER_EXTENSION_ERROR_PATTERNS) {
-    if (errorMessage.includes(pattern)) {
+    if (normalizedMessage.includes(pattern.toLowerCase())) {
       return true;
     }
   }
 
   // Special case for generic extension errors
-  if (errorMessage.includes("extension") && errorMessage.includes("not found")) {
+  if (normalizedMessage.includes("extension") && normalizedMessage.includes("not found")) {
     return true;
   }
 
@@ -69,6 +72,43 @@ if (process.env.NODE_ENV === "production") {
       const errorMessage = event.exception?.values?.[0]?.value || "";
       return shouldFilterError(errorMessage) ? null : event;
     },
+  });
+}
+
+const NON_CRITICAL_ERROR_PATTERNS = ['can\'t redefine non-configurable property "ethereum"', "load failed"];
+
+const matchesNonCriticalPattern = (message: string | undefined): boolean => {
+  if (!message) {
+    return false;
+  }
+
+  const normalized = message.toLowerCase();
+  return NON_CRITICAL_ERROR_PATTERNS.some(pattern => normalized.includes(pattern));
+};
+
+if (typeof window !== "undefined") {
+  window.addEventListener(
+    "error",
+    event => {
+      if (matchesNonCriticalPattern(event.message)) {
+        event.preventDefault();
+      }
+    },
+    true,
+  );
+
+  window.addEventListener("unhandledrejection", event => {
+    const reason = event.reason as unknown;
+    const message =
+      typeof reason === "string"
+        ? reason
+        : reason && typeof reason === "object" && "message" in reason
+          ? String((reason as { message?: unknown }).message)
+          : "";
+
+    if (matchesNonCriticalPattern(message)) {
+      event.preventDefault();
+    }
   });
 }
 

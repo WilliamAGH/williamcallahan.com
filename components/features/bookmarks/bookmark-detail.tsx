@@ -26,13 +26,33 @@ import { tagToSlug } from "@/lib/utils/tag-utils";
 import { removeCitations, processSummaryText } from "@/lib/utils/formatters";
 import { safeExternalHref } from "@/lib/utils/url-utils";
 
+const getHostname = (rawUrl: string): string => {
+  if (!rawUrl) {
+    return "website";
+  }
+
+  const candidate = rawUrl.trim();
+  if (!candidate) {
+    return "website";
+  }
+
+  const withScheme = /^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`;
+
+  try {
+    const url = new URL(withScheme);
+    const hostname = url.hostname.replace(/^www\./, "").trim();
+    return hostname || "website";
+  } catch {
+    return "website";
+  }
+};
+
 // Helper to avoid rendering the literal "Invalid Date"
 function toDisplayDate(date?: string | Date | number | null): string | null {
   if (date == null) return null;
   const text = formatDate(date);
   return text === "Invalid Date" ? null : text;
 }
-
 
 export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
   const [mounted, setMounted] = useState(false);
@@ -46,16 +66,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
   }, []);
 
   // Extract domain for display with case-insensitive scheme detection
-  const domain = useMemo(() => {
-    try {
-      const input = bookmark.url.trim();
-      const hasScheme = /^https?:\/\//i.test(input);
-      const url = new URL(hasScheme ? input : `https://${input}`);
-      return url.hostname.replace(/^www\./, "");
-    } catch {
-      return "website";
-    }
-  }, [bookmark.url]);
+  const domain = useMemo(() => getHostname(bookmark.url), [bookmark.url]);
 
   // Sanitize URL using the shared utility
   const safeUrl = useMemo(() => safeExternalHref(bookmark.url), [bookmark.url]);
@@ -244,9 +255,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                       const paragraphs = bookmark.summary
                         ? processSummaryText(removeCitations(bookmark.summary)).split("\n\n")
                         : [bookmark.description || ""];
-                      return paragraphs.map((p, i) => (
-                        <p key={`${bookmark.id}-p-${i}`}>{p}</p>
-                      ));
+                      return paragraphs.map((p, i) => <p key={`${bookmark.id}-p-${i}`}>{p}</p>);
                     })()}
                   </div>
                 </motion.section>
@@ -299,9 +308,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                     {bookmark.tags.map(tag => {
                       const isString = typeof tag === "string";
                       const tagName = isString ? tag : (tag as BookmarkTag).name;
-                      const tagSlug = isString
-                        ? tagToSlug(tagName)
-                        : ((tag as BookmarkTag).slug ?? "");
+                      const tagSlug = isString ? tagToSlug(tagName) : ((tag as BookmarkTag).slug ?? "");
                       const tagKey = isString ? tag : (tag as BookmarkTag).id;
                       return (
                         <Link

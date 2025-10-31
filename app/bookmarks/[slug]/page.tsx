@@ -38,6 +38,35 @@ import { envLogger } from "@/lib/utils/env-logger";
 //   // Disabled - sitemap.ts handles URL generation separately
 // }
 
+const safeEnsureAbsoluteUrl = (path: string): string => {
+  try {
+    return ensureAbsoluteUrl(path);
+  } catch {
+    return path;
+  }
+};
+
+const getBookmarkHostname = (rawUrl: string | null | undefined): string | null => {
+  if (!rawUrl) {
+    return null;
+  }
+
+  const trimmed = rawUrl.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  try {
+    const url = new URL(candidate);
+    const hostname = url.hostname.replace(/^www\./, "").trim();
+    return hostname || null;
+  } catch {
+    return null;
+  }
+};
+
 // Helper function to find bookmark by slug using pre-computed mappings
 async function findBookmarkBySlug(slug: string): Promise<import("@/types").UnifiedBookmark | null> {
   // Enhanced logging for environment detection issues
@@ -164,13 +193,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
   const customTitle = generateDynamicTitle(bookmark.title || "Bookmark", "bookmarks");
 
-  let domainName = "website";
-  try {
-    const url = new URL(bookmark.url.startsWith("http") ? bookmark.url : `https://${bookmark.url}`);
-    domainName = url.hostname.replace(/^www\./, "");
-  } catch {
-    // domainName is already "website"
-  }
+  const domainName = getBookmarkHostname(bookmark.url) ?? "website";
 
   const customDescription =
     bookmark.description || `A bookmark from ${domainName} that I've saved for future reference.`;
@@ -179,7 +202,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     selectBestImage(bookmark, {
       includeScreenshots: true,
     }) || undefined;
-  const imageUrl = rawImageUrl ? ensureAbsoluteUrl(rawImageUrl) : undefined;
+  const imageUrl = rawImageUrl ? safeEnsureAbsoluteUrl(rawImageUrl) : undefined;
 
   const openGraphImages = imageUrl
     ? [
@@ -201,7 +224,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       title: customTitle,
       description: customDescription,
       type: "article",
-      url: ensureAbsoluteUrl(path),
+      url: safeEnsureAbsoluteUrl(path),
       images: openGraphImages,
     },
     twitter: {
@@ -212,7 +235,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       images: imageUrl ? [{ url: imageUrl, alt: customTitle }] : baseMetadata.twitter?.images || [],
     },
     alternates: {
-      canonical: ensureAbsoluteUrl(path),
+      canonical: safeEnsureAbsoluteUrl(path),
     },
   };
 }
@@ -259,13 +282,7 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     { category: "BookmarkPage" },
   );
 
-  let domainName = "";
-  try {
-    const url = new URL(foundBookmark.url.startsWith("http") ? foundBookmark.url : `https://${foundBookmark.url}`);
-    domainName = url.hostname.replace(/^www\./, "");
-  } catch {
-    domainName = "website";
-  }
+  const domainName = getBookmarkHostname(foundBookmark.url) ?? "website";
 
   const pageTitle = "Bookmark";
   const pageDescription = domainName
