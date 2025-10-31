@@ -169,11 +169,11 @@ The application uses CSS custom properties for theming, defined in `:root` and `
 
 ## Known Issues
 
-1. **Duplicate Styles**: Token colors defined in multiple files
-2. **Dead Code**: Unused chart color variables
+1. **Duplicate Styles**: Token colors defined in multiple files -- do not do this
+2. **Dead Code**: Unused chart color variables -- do not do this
 3. **Incomplete Features**: Social card top bars set to height: 0
 4. **Hardcoded Values**: Tab system limited to specific package managers
-5. **Specificity Wars**: Some styles use !important unnecessarily
+5. **Specificity Wars**: Some styles use !important unnecessarily - not allowed
 
 ## Dependencies
 
