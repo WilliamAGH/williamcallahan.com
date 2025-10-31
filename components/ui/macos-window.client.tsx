@@ -32,13 +32,18 @@ export function MacOSWindow({
   onMinimize,
   onMaximize,
   isMaximized, // Already used by InstructionMacOSFrameTabs
+  clipContent = true,
 }: MacOSWindowProps) {
   // Use showTrafficLights prop directly
   const displayTrafficLights = showTrafficLights;
 
   return (
     <div
-      className={cn("my-4 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm", className)}
+      className={cn(
+        "my-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm",
+        clipContent ? "overflow-hidden" : "!overflow-visible",
+        className,
+      )}
     >
       {/* macOS-style window header */}
       <div
@@ -94,7 +99,7 @@ export function MacOSWindow({
       </div>
 
       {/* Window content */}
-      <div className={cn("bg-gray-900 text-gray-100 w-full", contentClassName)}>{children}</div>
+      <div className={cn("bg-gray-900 w-full", contentClassName)}>{children}</div>
     </div>
   );
 }
@@ -132,7 +137,7 @@ export function MacOSCodeWindow({
       activeTabId={activeTabId}
       onTabClick={onTabClick}
       showTrafficLights={displayTrafficLights}
-      contentClassName={cn("!p-0", contentClassName)}
+      contentClassName={cn("!p-0 text-gray-100", contentClassName)}
     >
       {typeof children === "string" ? (
         <CodeBlock className={cn(language ? `language-${language}` : "", "!my-0 !shadow-none !border-0")}>
