@@ -167,11 +167,14 @@ Implemented using standard React hooks:
 Command processing logic is centralized for maintainability:
 
 <CollapseDropdown summary="How Commands Are Processed">
-  - User input is captured by the terminal component. - A `useTerminal` hook takes the submitted command string. - It
-  passes the command to a central, asynchronous `handleCommand` function. - This function is responsible for: - Parsing
-  the input (command and arguments). - Matching against predefined commands or known application routes. - Performing
-  the appropriate action: returning formatted text output, calling separate search logic, using Next.js's `useRouter`
-  for client-side navigation, or returning error messages.
+  - User input is captured by the terminal component.
+  - A `useTerminal` hook takes the submitted command string.
+  - The hook passes the command to a central, asynchronous `handleCommand` function.
+  - `handleCommand` is responsible for:
+    - Parsing the input (command and arguments).
+    - Matching against predefined commands or known application routes.
+    - Performing the appropriate action—returning formatted text output, calling separate search logic, using Next.js's
+      `useRouter` for client-side navigation, or returning structured error messages.
 </CollapseDropdown>
 
 ---

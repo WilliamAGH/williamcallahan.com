@@ -14,30 +14,30 @@ All timings are averages across 5 samples per endpoint. Lower is better.
 
 | Endpoint Group | Endpoint          | Example Request                       | Java Avg (ms) | Node.js Avg (ms) | Speed Difference | Winner  |
 | -------------- | ----------------- | ------------------------------------- | ------------: | ---------------: | ---------------: | :-----: |
-| Entity         | Entity List       | `GET /entity?limit=10`                |         **6** |              175 |       29x faster | 🚀 Java |
+| Entity         | Entity List       | `GET /entity?limit=10`                |         **6** |              175 |       29x faster |  Java   |
 | Entity         | Entity Count      | `GET /entity/count`                   |           337 |           **97** |      3.5x slower | Node.js |
-| Entity         | Entity Detail     | `GET /entity/{id}/detail`             |        **67** |              235 |      3.5x faster | 🚀 Java |
-| Entity         | Entity Employees  | `GET /entity/{id}/employee`           |        **45** |              180 |      4.0x faster | 🚀 Java |
-| Entity         | Entity Fundraise  | `GET /entity/{id}/fundraise`          |        **38** |              165 |      4.3x faster | 🚀 Java |
-| Entity         | Entity Investment | `GET /entity/{id}/investment`         |        **42** |              210 |      5.0x faster | 🚀 Java |
-| Entity         | Entity Investors  | `GET /entity/{id}/investor`           |        **40** |              195 |      4.9x faster | 🚀 Java |
-| Entity         | Entity Similar    | `GET /entity/{id}/similar`            |        **35** |              150 |      4.3x faster | 🚀 Java |
-| Entity         | Entity Search     | `GET /entity/search/venture?limit=10` |         **4** |              251 |       63x faster | 🚀 Java |
-| Entity         | Entity Main       | `GET /entity/main`                    |        **25** |              140 |      5.6x faster | 🚀 Java |
+| Entity         | Entity Detail     | `GET /entity/{id}/detail`             |        **67** |              235 |      3.5x faster |  Java   |
+| Entity         | Entity Employees  | `GET /entity/{id}/employee`           |        **45** |              180 |      4.0x faster |  Java   |
+| Entity         | Entity Fundraise  | `GET /entity/{id}/fundraise`          |        **38** |              165 |      4.3x faster |  Java   |
+| Entity         | Entity Investment | `GET /entity/{id}/investment`         |        **42** |              210 |      5.0x faster |  Java   |
+| Entity         | Entity Investors  | `GET /entity/{id}/investor`           |        **40** |              195 |      4.9x faster |  Java   |
+| Entity         | Entity Similar    | `GET /entity/{id}/similar`            |        **35** |              150 |      4.3x faster |  Java   |
+| Entity         | Entity Search     | `GET /entity/search/venture?limit=10` |         **4** |              251 |       63x faster |  Java   |
+| Entity         | Entity Main       | `GET /entity/main`                    |        **25** |              140 |      5.6x faster |  Java   |
 | Person         | Person List       | `GET /person?limit=10`                |           156 |          **109** |      1.4x slower | Node.js |
 | Person         | Person Count      | `GET /person/count`                   |           643 |          **115** |      5.6x slower | Node.js |
-| Person         | Person Detail     | `GET /person/{id}/detail`             |        **85** |              195 |      2.3x faster | 🚀 Java |
-| Fund           | Fund List         | `GET /fund?limit=10`                  |       **112** |              130 |      1.2x faster | 🚀 Java |
-| Fund           | Fund Count        | `GET /fund/count`                     |        **73** |              108 |      1.5x faster | 🚀 Java |
+| Person         | Person Detail     | `GET /person/{id}/detail`             |        **85** |              195 |      2.3x faster |  Java   |
+| Fund           | Fund List         | `GET /fund?limit=10`                  |       **112** |              130 |      1.2x faster |  Java   |
+| Fund           | Fund Count        | `GET /fund/count`                     |        **73** |              108 |      1.5x faster |  Java   |
 | News           | News List         | `GET /news?limit=10`                  |           120 |          **109** |      1.1x slower | Node.js |
-| News           | News by Entity    | `GET /news/entity?entityId={id}`      |        **95** |              185 |      1.9x faster | 🚀 Java |
-| Search         | Search All        | `GET /search/venture?limit=10`        |     **2,901** |           16,946 |      5.8x faster | 🚀 Java |
-| Tag            | Tag List          | `GET /tag?limit=10`                   |        **99** |              114 |      1.2x faster | 🚀 Java |
-| Tag            | Tag Search        | `GET /tag/search/tech`                |        **45** |              125 |      2.8x faster | 🚀 Java |
-| Sitemap        | Sitemap Entity    | `GET /sitemap/res?limit=10`           |         **8** |              165 |       20x faster | 🚀 Java |
-| Sitemap        | Sitemap Person    | `GET /sitemap/person?limit=10`        |        **12** |              145 |       12x faster | 🚀 Java |
-| Sitemap        | Sitemap Fund      | `GET /sitemap/fund?limit=10`          |        **10** |              125 |     12.5x faster | 🚀 Java |
-| Sitemap        | Sitemap News      | `GET /sitemap/news?limit=10`          |        **15** |              155 |       10x faster | 🚀 Java |
+| News           | News by Entity    | `GET /news/entity?entityId={id}`      |        **95** |              185 |      1.9x faster |  Java   |
+| Search         | Search All        | `GET /search/venture?limit=10`        |     **2,901** |           16,946 |      5.8x faster |  Java   |
+| Tag            | Tag List          | `GET /tag?limit=10`                   |        **99** |              114 |      1.2x faster |  Java   |
+| Tag            | Tag Search        | `GET /tag/search/tech`                |        **45** |              125 |      2.8x faster |  Java   |
+| Sitemap        | Sitemap Entity    | `GET /sitemap/res?limit=10`           |         **8** |              165 |       20x faster |  Java   |
+| Sitemap        | Sitemap Person    | `GET /sitemap/person?limit=10`        |        **12** |              145 |       12x faster |  Java   |
+| Sitemap        | Sitemap Fund      | `GET /sitemap/fund?limit=10`          |        **10** |              125 |     12.5x faster |  Java   |
+| Sitemap        | Sitemap News      | `GET /sitemap/news?limit=10`          |        **15** |              155 |       10x faster |  Java   |
 
 ## Performance Analysis by Category
 
