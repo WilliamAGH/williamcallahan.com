@@ -37,12 +37,8 @@ This guide covers creating a Spring Boot application. Key aspects:
 ## Part 1: Create a Spring Boot Project
 
 <div className="macos-frame-tabs">
-  <div className="tab-buttons">
-    <button data-tab="maven-cli" className="active">Maven + start.spring.io</button>
-    <button data-tab="intellij">IntelliJ IDEA</button>
-  </div>
-  <div className="tab-panels">
-    <div data-panel="maven-cli" className="active">
+  <InstructionToggleTabs>
+    <InstructionTab label="Maven + start.spring.io">
       <CollapseDropdown summary="Generate project via CLI (start.spring.io)">
         <div>Use <code>curl</code> to fetch and unpack a new Spring Boot starter:</div>
 
@@ -60,8 +56,8 @@ curl https://start.spring.io/starter.zip \
 ```
 
       </CollapseDropdown>
-    </div>
-    <div data-panel="intellij">
+    </InstructionTab>
+    <InstructionTab label="IntelliJ IDEA">
       <CollapseDropdown summary="Using Spring Initializr in IntelliJ IDEA">
         <ol>
           <li>In IntelliJ IDEA: File > New > Project… &rarr; Spring Initializr</li>
@@ -70,8 +66,8 @@ curl https://start.spring.io/starter.zip \
           <li>Click Create to generate the project</li>
         </ol>
       </CollapseDropdown>
-    </div>
-  </div>
+    </InstructionTab>
+  </InstructionToggleTabs>
 </div>
 
 <CollapseDropdown summary="Project structure">
