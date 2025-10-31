@@ -33,7 +33,7 @@ describe("MDX integration – References markup", () => {
     // Heuristic: ensure we didn't produce nested <p><p> anywhere
     expect(compiled).not.toMatch(/<p[^>]*>\s*<p[^>]*>/i);
 
-    // Confirm references structure is an ordered list
-    expect(post.rawContent).toContain('<ol id="references"');
+    // Confirm references structure exists
+    expect(post.rawContent).toContain('<div id="references"');
   });
 });

@@ -28,6 +28,7 @@ jest.mock("@/lib/validators/bookmarks", () => ({
 
 jest.mock("node:crypto", () => ({
   randomInt: jest.fn(() => 123456),
+  randomUUID: jest.fn(() => "00000000-0000-0000-0000-000000000000"),
 }));
 
 // Mock cheerio before importing modules that use it
