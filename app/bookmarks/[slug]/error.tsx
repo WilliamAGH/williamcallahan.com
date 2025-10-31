@@ -35,13 +35,17 @@ export default function BookmarkPageError({
 
     setRetryAttempted(true);
 
-    import("./page")
-      .then(() => {
+    const timeout = setTimeout(() => {
+      try {
         reset();
-      })
-      .catch(() => {
+      } catch {
         reloadWindow();
-      });
+      }
+    }, 0);
+
+    return () => {
+      clearTimeout(timeout);
+    };
   }, [error, reset, retryAttempted]);
 
   return (
