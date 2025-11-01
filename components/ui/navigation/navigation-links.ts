@@ -12,11 +12,11 @@ import type { NavigationLink } from "@/types/navigation";
 
 export const navigationLinks: NavigationLink[] = [
   { name: "Home", path: "/" },
-  { name: "Investments", path: "/investments" },
   { name: "Experience", path: "/experience" },
   { name: "Education", path: "/education" },
-  { name: "Projects Sandbox", path: "/projects" }, // Use plural to match rendered label
+  { name: "Projects", path: "/projects" },
   { name: "Bookmarks", path: "/bookmarks" },
+  { name: "Investments", path: "/investments" },
   // Contact tab is shown before Blog, but only on XL viewports and above
   {
     name: "Contact",
