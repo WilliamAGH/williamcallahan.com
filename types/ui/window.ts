@@ -29,6 +29,8 @@ export interface MacOSWindowProps {
   /** Custom CSS classes */
   className?: string;
   isMaximized?: boolean;
+  /** Whether the window should clip overflowing content. Defaults to true. */
+  clipContent?: boolean;
 }
 
 export interface WindowTab {

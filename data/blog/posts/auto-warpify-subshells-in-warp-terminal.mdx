@@ -17,10 +17,13 @@ Warp subshells provide isolated environments where you can run commands without 
 
 ## How to auto Warpify Subshells
 
-Add the snippet to the appropriate RC file in the target environment. For SSH/containers, add it on the host you're connecting to. For local nested shells, add it to your local RC.
+Add the snippet to the appropriate RC file in the target environment. For SSH or containers, place it on the host you're
+connecting to; for local nested shells, keep it in your local RC file so those inner shells are warpified automatically.
 
 <BackgroundInfo title="Important: Configure this on the host you're connecting to">
-  To Warpify SSH or container sessions, add the snippet in the **target environment** — the machine you're connecting to (for example: a Docker container, a remote SSH server, or a VM). Place it in that user's shell startup file (`~/.bashrc` or `~/.bash_profile` for bash, `~/.zshrc` for zsh).
+  To Warpify SSH or container sessions, add the snippet in the **target environment** — the machine you're connecting to
+  (for example: a Docker container, a remote SSH server, or a VM). Place it in that user's shell startup file (`~/.bashrc`
+  or `~/.bash_profile` for bash, `~/.zshrc` for zsh).
 
   - **SSH:** edit the remote user's RC file on the server you SSH into.
   - **Docker:** edit the container image or the running container's RC file.
@@ -29,7 +32,8 @@ Add the snippet to the appropriate RC file in the target environment. For SSH/co
 
 ### Local nested shells: examples
 
-“Local nested shells” are interactive shells you start inside your current Warp session on the same machine (not SSH, not a container). If you want these inner shells to be auto‑warpified without a prompt, add the snippet to your local RC file.
+“Local nested shells” are interactive shells that you launch inside the current Warp session on the same machine (not SSH,
+not a container). If you want these inner shells to be warpified without a prompt, add the snippet to your local RC file.
 
 - Switching shells locally
   - From zsh → bash: `bash`, `bash -l`
@@ -41,14 +45,15 @@ Add the snippet to the appropriate RC file in the target environment. For SSH/co
   - `poetry shell`, `pipenv shell`
   - `nix-shell`, `nix develop`
   - `asdf shell <tool> <version>` (depending on setup)
-- Multiplexers launching a fresh shell in new panes/windows
+- Multiplexers that launch a fresh shell in new panes or windows
   - `tmux new -s work`, `screen`
 
-What do NOT count as local nested shells (configure the host you enter instead):
-- `docker exec -it <container> /bin/bash` → put the snippet in the container user’s RC file.
-- `ssh user@host` (even `ssh localhost`) → put the snippet on the target/remote machine.
+What do **not** count as local nested shells (configure the environment you jump into instead):
 
-This protection boundary ensures it only runs inside Warp and only for interactive shells:
+- `docker exec -it <container> /bin/bash` → put the snippet in the container user's RC file.
+- `ssh user@host` (even `ssh localhost`) → put the snippet on the target machine.
+
+This protection boundary keeps the hook scoped to Warp and to interactive shells only:
 
 ```bash
 # zsh (~/.zshrc)
@@ -64,7 +69,7 @@ if [[ $- == *i* && $TERM_PROGRAM == "WarpTerminal" ]]; then
 fi
 ```
 
-Quick add (local only — guarded) examples:
+Quick add (local-only, guarded) helpers:
 
 ```bash
 # zsh (local ~/.zshrc)
@@ -88,12 +93,11 @@ fi
 EOF
 ```
 
-For Linux (on the host you're connecting to):
+For Linux hosts you're connecting to (remote server or container):
 
 ```bash
-# Warpify subshells on the host you're connecting to (remote server/container)
-# Add this to the remote user's ~/.bashrc (or ~/.bash_profile)
+# Warpify subshells in the remote environment (add to remote ~/.bashrc)
 printf '\eP$f{"hook": "SourcedRcFileForWarp", "value": { "shell": "bash" }}\x9c'
 ```
 
-See this article for further documentation on this: [Warpify Subshells](https://docs.warp.dev/terminal/warpify/subshells).
+See the official docs for further details: [Warpify Subshells](https://docs.warp.dev/terminal/warpify/subshells).

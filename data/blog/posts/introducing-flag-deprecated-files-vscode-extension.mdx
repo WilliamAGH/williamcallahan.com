@@ -28,7 +28,7 @@ That's why I built [**Filey - Flag Deprecated Files**, a VSCode extension](https
 
 ## Why I Built This
 
-Working in large repositories, I often flag files as deprecated with JSDoc/JavaDoc/Docstring tags when we're planning to phase them out. The problem? There was no easy way to _see_ which files were deprecated without opening each one. In my case, these are repo's with a thousand + files, so it was a real pain.
+Working in large repositories, I often flag files as deprecated with JSDoc/JavaDoc/Docstring tags when we're planning to phase them out. The problem? There was no easy way to *see* which files were deprecated without opening each one. In my case, these are repo's with a thousand + files, so it was a real pain.
 
 I decided to build a lightweight extension that simply works. Since I needed it myself, I figured others might find it useful too!
 
@@ -40,6 +40,7 @@ The extension is refreshingly straightforward:
 2. Files with the tag get a visual deprecated indicator (⊘) in the file explorer
 3. Folders show a count of how many deprecated files they contain
 4. Everything updates in real-time as you edit files
+
 
 The best part? It's performant by default—it only scans the first 12 lines of each file (configurable) and uses batched processing to avoid slowing down your IDE.
 
@@ -91,7 +92,6 @@ Change the badge icon, choose your own color scheme, or adjust exactly which dir
 ## How to Use / Get Started
 
 The extension is available now on:
-
 - [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=WilliamCallahan.flag-deprecated-files) (for VSCode, Cursor)
 - [Open VSX Registry](https://open-vsx.org/extension/williamcallahan/flag-deprecated-files) (for VSCodium, Windsurf IDE, Trae, and other forks)
 

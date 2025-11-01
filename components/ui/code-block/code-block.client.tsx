@@ -322,7 +322,7 @@ export const CodeBlock = ({
                 "break-words",
                 "overflow-x-auto",
                 embeddedInTabFrame
-                  ? "!p-0 !m-0 !bg-transparent !border-0 !rounded-none"
+                  ? "!p-0 !m-0 !bg-transparent !border-0 !rounded-none text-gray-900 dark:text-gray-100"
                   : "p-4 text-gray-900 dark:text-gray-100",
                 "text-[13px] leading-relaxed",
                 "custom-scrollbar",

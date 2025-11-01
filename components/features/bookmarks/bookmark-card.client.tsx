@@ -22,10 +22,10 @@
 "use client";
 
 import { formatTagDisplay, normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import { cn, formatDate as utilFormatDate } from "@/lib/utils";
+import { formatDate as utilFormatDate } from "@/lib/utils";
 import { Calendar, ExternalLink as LucideExternalLinkIcon } from "lucide-react";
 import Link from "next/link";
-import { type JSX, useEffect, useState } from "react";
+import { type JSX } from "react";
 import { normalizeDomain } from "../../../lib/utils/domain-utils";
 import { ExternalLink } from "../../ui/external-link.client";
 import { ShareButton } from "./share-button.client";
@@ -66,12 +66,6 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
    *   navigate to the original source
    */
   const effectiveInternalHref = internalHref && pathname !== internalHref ? internalHref : undefined;
-  const [mounted, setMounted] = useState(false);
-
-  // Effects for handling client-side initialization
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Define the date variables but only format them when mounted to avoid hydration mismatches
   const displayBookmarkDate = dateBookmarked;
@@ -114,12 +108,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   if (!id || !url) return null;
 
   return (
-    <div
-      className={cn(
-        "relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transform transition-all duration-200",
-        mounted && "hover:scale-[1.005]",
-      )}
-    >
+    <div className="relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transform transition-all duration-200 hover:scale-[1.005]">
       {/* Image Section with domain overlay */}
       <div className="relative w-full aspect-video overflow-hidden rounded-t-3xl bg-gray-100 dark:bg-gray-800">
         {/* Image background - clickable link */}
@@ -207,12 +196,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
               const label = formatTagDisplay(raw);
               return (
                 <Link key={raw} href={`/bookmarks/tags/${tagToSlug(raw)}`} className="inline-block">
-                  <span
-                    className={cn(
-                      "inline-block px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-medium transition-colors hover:bg-indigo-200 dark:hover:bg-indigo-800/60",
-                      mounted && "transform hover:scale-102",
-                    )}
-                  >
+                  <span className="inline-block px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-medium transition-colors hover:bg-indigo-200 dark:hover:bg-indigo-800/60 transform hover:scale-[1.02]">
                     {label}
                   </span>
                 </Link>

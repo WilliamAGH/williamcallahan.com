@@ -5,20 +5,19 @@ excerpt: "Still hitting 403 errors trying to make a DigitalOcean Spaces bucket p
 publishedAt: "2025-07-20"
 updatedAt: "2025-07-20"
 author: "william-callahan"
-tags:
-  [
-    "digitalocean",
-    "s3",
-    "object storage",
-    "aws-cli",
-    "s3cmd",
-    "devops",
-    "sysadmin",
-    "hosting",
-    "cdn",
-    "bucket policy",
-    "acl",
-  ]
+tags: [
+  "digitalocean",
+  "s3",
+  "object storage",
+  "aws-cli",
+  "s3cmd",
+  "devops",
+  "sysadmin",
+  "hosting",
+  "cdn",
+  "bucket policy",
+  "acl"
+]
 coverImage: "/images/posts/digitalocean-set-bucket-policy-public-always.png"
 ---
 
@@ -29,7 +28,6 @@ By the end of this guide you'll know:
 - **The dead-simple ACL approach** that works every time.
 - **When you can safely use a JSON bucket policy** (and when to save yourself the headache).
 - **How to turn on server access logging**—no support ticket required anymore.
-
 </BackgroundInfo>
 
 I thought making a bucket public on DigitalOcean Spaces would be a ten-second checkbox. Instead I burned an afternoon chasing `403 Forbidden` errors and second-guessing my JSON.
@@ -42,9 +40,9 @@ Below is the exact sequence that finally worked for me, with the false turns cal
 
 DigitalOcean's per-bucket keys sound great on paper: tight scoping, least-privilege, all that good stuff. Unfortunately the current implementation blocks `PutBucketPolicy`, `PutBucketLogging`, and a few other S3 calls—even if the UI insists the key has those permissions.
 
-**Fix:** In the Spaces dashboard, open your bucket ➜ _Settings_ ➜ toggle **Per-Bucket Access Keys** off. Grab a classic Spaces key (or create a new one) that has full account-wide access. Use that for every command below.
+**Fix:** In the Spaces dashboard, open your bucket ➜ *Settings* ➜ toggle **Per-Bucket Access Keys** off. Grab a classic Spaces key (or create a new one) that has full account-wide access. Use that for every command below.
 
-_If you're still seeing 403s after this step, double-check that your CLI is using the new key._
+*If you're still seeing 403s after this step, double-check that your CLI is using the new key.*
 
 ## 2. Install `s3cmd` (AWS CLI Works, But `s3cmd` is Friendlier Here)
 

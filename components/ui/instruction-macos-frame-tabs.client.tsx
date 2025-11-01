@@ -265,8 +265,10 @@ export function InstructionMacOSFrameTabs({
           tabs={windowTabs}
           activeTabId={activeTabLabel || ""}
           onTabClick={tabId => setActiveTabLabel(tabId)}
+          clipContent={false}
           contentClassName={cn(
             "bg-gray-100 dark:bg-gray-800",
+            "text-gray-900 dark:text-gray-100",
             "p-2",
             "text-xs",
             isMaximized && "flex-1 overflow-auto",
