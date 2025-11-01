@@ -190,6 +190,14 @@ NEVER assume:
 
 ## 🛡️ MANDATORY PRE-TASK WORKFLOW (Required Before Any Code Changes)
 
+### Step 0: Purpose Alignment (Why-First Mandate)
+
+- Pause before building anything new or modifying existing behavior until you can state the precise reason the functionality must change. If the why is unclear or second-hand, stop and ask the user for clarification before touching the codebase.
+- Maintain a working note for the task (scratchpad, checklist, or plan) that records the validated why and reference it while completing Steps 1-4. This keeps every investigation anchored to the business or technical objective instead of drifting into assumptions.
+- Every time you create or adjust a class, function, component, or module, update its JSDoc/JavaDoc (or equivalent docstring) to capture **why** it exists or changed. Keep the note succinct, factual, and free of filler while adding any other critical operational context (edge cases, invariants, downstream consumers).
+- When revising existing types or modules, audit their current documentation. If the why is missing, stale, or contradicted by the new goal, correct the comment immediately so it mirrors the newly confirmed intent.
+- Purpose alignment is a gate: proceed to Step 1 only after the why is explicit and the documentation plan for conveying it is clear.
+
 ### Step 1: Architecture Context Discovery
 
 **MANDATORY SEQUENCE:**
