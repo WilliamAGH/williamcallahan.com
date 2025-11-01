@@ -183,7 +183,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
   return (
     <div
       className={cn(
-        "relative flex flex-col bg-gray-50 dark:bg-gray-800/40 ring-0 rounded-2xl overflow-hidden shadow-md border border-transparent group h-full social-card transition-transform min-h-[340px] md:min-h-[360px]",
+        "relative flex flex-col bg-gray-50 dark:bg-gray-800/40 ring-0 rounded-2xl overflow-hidden shadow-md border border-transparent group h-full social-card transition-transform min-h-[260px]",
         cardBrandClass,
       )}
       style={{ "--accent": accentHex, "--accent-rgb": accentRgb } as React.CSSProperties}
@@ -253,7 +253,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 px-5 py-5 flex flex-col">
+      <div className="flex-1 px-5 py-4 flex flex-col">
         {/* Profile Image and Title */}
         <div className="flex items-start -mt-10 z-10">
           <a
@@ -296,59 +296,20 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
           </div>
         </div>
 
-        {/* Description */}
-        <p className="text-sm text-gray-600 dark:text-gray-300 mt-3 flex-grow line-clamp-3">
-          {getNetworkDescription(label)}
-        </p>
-
-        {/* Footer with Tags and Link */}
+        {/* Footer with Link and Optional Badge */}
         <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <div className="flex flex-wrap gap-2 min-h-[24px]">
-            <span className="inline-block px-2.5 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-medium">
-              {getNetworkCategory(label)}
+          {emphasized && (
+            <span className="inline-block px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-medium">
+              Primary
             </span>
-            {emphasized ? (
-              <span className="inline-block px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-medium">
-                Primary
-              </span>
-            ) : (
-              <span className="inline-block px-2.5 py-1 rounded-full text-xs opacity-0">placeholder</span>
-            )}
-          </div>
-          <ExternalLink href={href} showIcon={true} className="text-xs">
+          )}
+          <ExternalLink href={href} showIcon={true} className={cn("text-xs", emphasized ? "" : "ml-auto")}>
             {domain}
           </ExternalLink>
         </div>
       </div>
     </div>
   );
-}
-
-/**
- * Generates a description for a social network based on its label.
- * @param {string} label - The label of the social network.
- * @returns {string} A descriptive string for the network.
- */
-function getNetworkDescription(label: string): string {
-  if (label.includes("GitHub")) return "Code, contributions, and open-source projects.";
-  if (label.includes("X") || label.includes("Twitter")) return "Thoughts on tech, startups, and AI.";
-  if (label.includes("LinkedIn")) return "Professional profile and network.";
-  if (label.includes("Discord")) return "Community chat and discussions.";
-  if (label.includes("Bluesky")) return "Decentralized social media alternative.";
-  return "Connecting and sharing updates.";
-}
-
-/**
- * Determines the category of a social network based on its label.
- * @param {string} label - The label of the social network.
- * @returns {string} The category of the network (e.g., "Development", "Social").
- */
-function getNetworkCategory(label: string): string {
-  if (label.includes("GitHub")) return "Development";
-  if (label.includes("X") || label.includes("Twitter") || label.includes("Bluesky")) return "Social";
-  if (label.includes("LinkedIn")) return "Professional";
-  if (label.includes("Discord")) return "Community";
-  return "Social";
 }
 
 /**
