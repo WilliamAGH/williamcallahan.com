@@ -500,9 +500,9 @@ File/Path Functionality Description
 
 ## Tests Directory
 
-- [x] ****tests**/**
+- [x] \***\*tests**/\*\*
   - [x] `README.md` `project-mgmt` - Tests documentation
-  - [x] ****mocks**/**
+  - [x] \***\*mocks**/\*\*
     - [x] `lib/node-cache.ts` `caching` - Mock for node-cache library
     - [x] `lib/search.ts` `search` - Mock for search functionality
     - [x] `node-fetch.js` `log-error-debug-handling` - Mock for node-fetch
@@ -567,6 +567,7 @@ File/Path Functionality Description
       - [x] `domain-utils.test.ts` `bookmarks` - Domain utility tests
       - [x] `svg-transform-fix.test.ts` `image-handling` - SVG transform fix tests
   - [x] **scripts/**
+    - [x] `fix-s3-acl-public.sh` `s3-object-storage` - Reapply public ACLs for S3 buckets; accepts optional `--prefix` to scope updates (2025-08 refresh)
     - [x] `update-s3-data.smoke.test.ts` `batch-fetch-update` - S3 data update smoke tests
   - [x] **setup/**
     - [x] `bun-setup.ts` `testing-config` - Bun test environment setup
@@ -574,6 +575,6 @@ File/Path Functionality Description
 
 ## Mocks Directory
 
-- [x] ****mocks**/**
+- [x] \***\*mocks**/\*\*
   - [x] `fileMock.js` `testing-config` - Mock for static file imports
   - [x] `styleMock.js` `testing-config` - Mock for CSS/style imports
