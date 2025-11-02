@@ -15,7 +15,7 @@ I've noticed a bit of a renaissance of its functionality/utility given the recen
 
 ## Update: August 19, 2025 - AGENTS.md (Finally!) Announced as Standard
 
-It looks like [AGENTS.md](https://agents.md) has finally emerged as an open standard for AI coding agent instructions (think of a README but for AI agents). Now the one AGENTS.md file can be used almost universally—Cursor, OpenAI Codex, Zed, VS Code (Github Copilot), Warp, Opencode, and many other tools now support it.
+It looks like [AGENTS.md](https://agents.md) has finally emerged as an open standard for AI coding agent instructions (think of a README but for AI agents). Now the one AGENTS.md file can be used almost universally—Cursor, OpenAI Codex, Zed, VS Code (GitHub Copilot), Warp, Opencode, and many other tools now support it.
 
 But, two notable holdouts remain: **Claude Code** and **Cline** still use `CLAUDE.md` and `.clinerules`. Until they add native AGENTS.md support, symlinks are the workaround:
 
@@ -140,7 +140,7 @@ ln -s /c/path/to/original /c/path/to/symlink
 
 ## Important Final Note - When Inside Git Tracked Repository
 
-When renaming or modifying symlinks in a Git-tracked repository (e.g., a Github hosted repo), Git's tracking can behave non-deterministically if you try to remove and recreate symlinks with the same or similar names in a single commit in my experience.
+When renaming or modifying symlinks in a Git-tracked repository (e.g., a GitHub hosted repo), Git's tracking can behave non-deterministically if you try to remove and recreate symlinks with the same or similar names in a single commit in my experience.
 
 **The problem:** Git may misinterpret the change—sometimes treating it as a file type change, sometimes losing the symlink metadata entirely, or creating ambiguous diffs that GitHub displays incorrectly.
 
