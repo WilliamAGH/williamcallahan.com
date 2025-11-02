@@ -3,7 +3,7 @@ title: 'Kickstarting a Modern Django Project (using UV) in 2025'
 slug: 'kickstarting-a-modern-django-project-using-uv-in-2025'
 excerpt: 'A comprehensive guide to rapidly launching a Django project with modern templates, SaaS core features, SQL database integration, and popular IDE tooling.'
 publishedAt: '2025-05-07'
-updatedAt: '2025-06-06'
+updatedAt: '2025-11-01'
 author: 'william-callahan'
 tags:
   [
@@ -193,11 +193,10 @@ uv venv
 # `uv venv` creates a lightweight virtual environment in the .venv directory,
 # isolating project dependencies from the system Python installation.
 # For more details on how uv manages Python environments, see the official documentation: https://docs.astral.sh/uv/pip/environments/
-uv init --bare --python-pin
-# `uv init` sets up the project for uv's dependency management, creating
-# a minimal pyproject.toml and a .python-version file. This is where
-# uv will track dependencies and can generate a uv.lock file for
-# reproducible builds.
+uv init --python 3.12
+# `uv init` creates a `pyproject.toml` in the current directory and pins the
+# requested Python version. The command also prepares the environment so `uv`
+# can manage dependencies and generate a reproducible `uv.lock` file.
 
 # 2. Install Django
 uv add django
@@ -390,8 +389,8 @@ python manage.py startapp my_first_app
     </InstructionToggleTabs>
   </div>
 
-  <BackgroundInfo title='App Naming Tip'>
-    When naming your Django app, it may be required to use lowercase alphabet-only characters and avoid special characters like underscores (e.g., avoid "my_first_app").
+  <BackgroundInfo title='App naming tip'>
+    App labels need to be valid Python identifiers. Stick to lowercase letters and optional underscores (for example, `my_first_app`) so the generated package imports cleanly.
   </BackgroundInfo>
 
   <div className="py-[6px]"><strong>2. Register Your App:</strong></div>
