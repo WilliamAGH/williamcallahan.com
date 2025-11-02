@@ -79,6 +79,13 @@ LOCAL_DEVELOPMENT_URL: http://localhost:3000
 
 This project operates under **ZERO TEMPERATURE** development standards where every decision must be explicitly verified, no assumptions are permitted, and type safety is absolute.
 
+## 🔒 Command Execution Guardrails — Non‑Negotiable
+
+1. **Escalate the failing command first.** When any command errors because of permission issues, `.git/index.lock`, or related filesystem gating, immediately re-run the _same command_ with `with_escalated_permissions=true` and include a one-sentence justification. Do this before attempting any alternative command.
+2. **Never perform destructive git/file operations without explicit, quoted user commands.** This includes (but is not limited to) `git reset --hard`, `git checkout -- <path>`, `git clean`, deleting anything inside `.git/`, removing lock files, or manually restoring files. If a user wants one of these executed, they must provide the exact command verbatim.
+3. **Lock handling has one path:** escalate the original command. Do not delete `.git/index.lock`, `.git/next-index-*.lock`, or similar files. After the escalated retry, if the command still fails, surface the exact stderr output and halt for instructions.
+4. **No inference-driven cleanup.** Never guess at fixes or “clean up” side effects. Surface the full command + error and wait if escalation fails. 99.99999999999% of prior regressions came from skipping these steps—treat this as an immutable law.
+
 ## 🎯 COMMUNICATION PRINCIPLES - TRUTH THROUGH VERIFICATION
 
 ### Empty Platitudes & Premature Agreement - ABSOLUTELY FORBIDDEN
