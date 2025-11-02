@@ -6,12 +6,26 @@ publishedAt: "2025-06-15"
 updatedAt: "2025-11-01"
 author: "william-callahan"
 tags: ["symlink", "files", "git", "zsh", "bash", "cmd", "powershell", "claude", "agents.md", "agents", "symlinks"]
-coverImage: ""
+coverImage: "/images/posts/symlink-chain-link-files.png"
 ---
 
 A symlink (symbolic link) is a file that points to another file or directory. It acts like a shortcut—when you access the symlink, you're actually accessing the target file.
 
 I've noticed a bit of a renaissance of its functionality/utility given the recent proliferation of synonymous overlapping files like `AGENTS.md`, `AGENT.md`, and `CLAUDE.md`, `.cursorrules`, `.clinerules`, and the desire/need to consolidate them into a single file.
+
+## Update: August 19, 2025 - AGENTS.md (Finally!) Announced as Standard
+
+It looks like [AGENTS.md](https://agents.md) has finally emerged as an open standard for AI coding agent instructions (think of a README but for AI agents). Now the one AGENTS.md file can be used almost universally—Cursor, OpenAI Codex, Zed, VS Code (Github Copilot), Warp, Opencode, and many other tools now support it.
+
+But, two notable holdouts remain: **Claude Code** and **Cline** still use `CLAUDE.md` and `.clinerules`. Until they add native AGENTS.md support, symlinks are the workaround:
+
+```bash
+# Link holdout tool configs to AGENTS.md
+ln -s AGENTS.md CLAUDE.md
+ln -s AGENTS.md .clinerules
+```
+
+See the [full spec on GitHub](https://github.com/openai/agents.md) for updates.
 
 ## macOS / Linux (zsh / bash)
 
