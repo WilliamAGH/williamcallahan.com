@@ -3,7 +3,7 @@ title: "Java, Maven, & Gradle: OS Setup & Project-Level Usage"
 slug: "project-level-java-maven-gradle-versioning"
 excerpt: "Install Java, Maven, Gradle at OS & project levels. Learn common commands for consistent builds & development workflows."
 publishedAt: "2025-05-17"
-updatedAt: "2025-05-17"
+updatedAt: "2025-11-01"
 author: "william-callahan"
 tags: ["java", "jdk", "maven", "gradle", "build-tools", "sdkman", "jenv", "maven-wrapper", "gradle-wrapper"]
 coverImage: "/images/posts/java-maven.png"
@@ -37,7 +37,7 @@ Before diving into project-specific setups, you'll generally need a Java Develop
           sudo ln -sfn /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-21.jdk
 
           # Set JAVA_HOME in your shell profile (e.g., ~/.zshrc)
-          echo 'export JAVA_HOME=$(/usr/libexec/java_home -v21)' >> ~/.zshrc
+          echo 'export JAVA_HOME=$(/usr/libexec/java_home -v 21)' >> ~/.zshrc
           # Add Java to your PATH
           echo 'export PATH="$JAVA_HOME/bin:$PATH"' >> ~/.zshrc
           source ~/.zshrc
