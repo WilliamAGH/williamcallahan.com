@@ -16,7 +16,7 @@
 # Optional flags:
 #   --prefix <key-prefix>   Limit the ACL update to keys that begin with this prefix.
 #                           Accepts either "--prefix foo/bar" or "--prefix=foo/bar" syntax.
-#                           Do NOT include "s3://". Trailing slash is optional but recommended.
+#                           Do NOT include "s3://". Provide the exact prefix you want to match.
 #   --debug                 Enable verbose logging (unchanged behaviour).
 set -euo pipefail
 
@@ -74,11 +74,11 @@ if [[ -n "${TARGET_PREFIX}" ]]; then
     echo "[ACL-Fix] ERROR: --prefix expects only the key prefix, not an s3:// URL." >&2
     print_usage_and_exit
   fi
-  case "${TARGET_PREFIX}" in
-    */) ;; # already has trailing slash
-    *) TARGET_PREFIX="${TARGET_PREFIX}/" ;;
-  esac
   echo "[ACL-Fix] Restricting operations to keys beginning with '${TARGET_PREFIX}'"
+  if [[ "${TARGET_PREFIX}" != */ ]]; then
+    echo "[ACL-Fix] INFO: Prefix does not end with '/' — matching any object keys that start with this value."
+    echo "[ACL-Fix]       Add a trailing '/' if you only want to target a virtual directory."
+  fi
 fi
 
 # Safety confirmation prompt
