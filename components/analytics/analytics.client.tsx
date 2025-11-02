@@ -40,17 +40,31 @@ export function Analytics(): JSX.Element | null {
     }
   })();
 
+  const shouldLoadUmami = (() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    try {
+      void window.localStorage.length;
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+
   return (
     <>
       {/* Umami Analytics - Official docs: https://umami.is/docs/install */}
-      <Script
-        id="umami"
-        strategy="afterInteractive"
-        src="/stats/script.js"
-        data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
-        data-host-url={process.env.NEXT_PUBLIC_SITE_URL}
-        data-auto-track="true"
-      />
+      {shouldLoadUmami && (
+        <Script
+          id="umami"
+          strategy="afterInteractive"
+          src="/stats/script.js"
+          data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+          data-host-url={process.env.NEXT_PUBLIC_SITE_URL}
+          data-auto-track="true"
+        />
+      )}
 
       {/* Plausible Analytics - Official docs: https://plausible.io/docs/script-extensions */}
       <Script
