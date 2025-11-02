@@ -103,7 +103,7 @@ Common sequences benefit from a thin wrapper:
 
 - `/commit` → run `git status`, show staged diffs, prompt for a summary, then call `git commit -m "..."` using the supplied message. Keep the Markdown file focused on the order of operations and the allowed commit categories.
 - `/push` → ensure `git status --short` is clean, then push the current branch. Abort if the working tree is dirty.
-- `/create-issue` → run `git diff` and `git status`, summarise the change, then call `@mcp**github**create_issue` with owner/repo preset.
+- `/create-issue` → run `git diff` and `git status`, summarise the change, then call `@mcp**GitHub**create_issue` with owner/repo preset.
 
 Claude follows the exact shell commands in the prompt, so list them in the order you expect. Avoid phrases like “do whatever is necessary.”
 
