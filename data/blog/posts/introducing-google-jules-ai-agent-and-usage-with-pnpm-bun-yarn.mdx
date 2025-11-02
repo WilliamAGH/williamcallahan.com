@@ -33,7 +33,7 @@ The agent’s behavior resembles a remote engineer: it clones the repo, performs
 1. Create a project in the Jules dashboard.
 2. Provide repository access, then hit **Configure** to define setup commands.
 3. Submit a natural-language task. Jules runs the plan, opens pull requests when asked, and exposes logs in the web UI.
-4. You can interrupt a run at any stage; the VM is destroyed afterwards.
+4. You can interrupt a run at any stage; the VM is destroyed afterward.
 
 The agent does not currently support self-hosted runners or on-prem repositories. All execution happens in Google's environment.
 
@@ -100,17 +100,12 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 bun install
 ```
 
-  </div>
-</div>
 
 These scripts:
 - Install NVM (Node Version Manager)
 - Set up Node.js 22 (latest stable)
 - Install the latest version of your chosen package manager
 - Install project dependencies with frozen lockfiles
-
-bun install --frozen-lockfile
-```
 
 
 <TweetEmbed url="https://x.com/leerob/status/1925228425301893481" />
