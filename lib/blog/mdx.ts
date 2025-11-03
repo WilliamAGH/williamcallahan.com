@@ -242,7 +242,15 @@ export async function getMDXPost(
      */
     let mdxSource: MDXRemoteSerializeResult<Record<string, unknown>, Record<string, unknown>>;
     try {
-      mdxSource = await serialize(content, {
+      // Normalize code block language labels to Prism-compatible names
+      // This avoids MDX compile errors from rehype-prism when encountering unknown languages
+      const normalizedContent = content
+        .replace(/```cmd\b/g, "```batch")
+        .replace(/```dos\b/g, "```batch")
+        .replace(/```ps\b/g, "```powershell")
+        .replace(/```ps1\b/g, "```powershell");
+
+      mdxSource = await serialize(normalizedContent, {
         mdxOptions: {
           remarkPlugins: [remarkGfm],
           rehypePlugins: [rehypePrism, rehypeSlug, rehypeAutolinkHeadings],
