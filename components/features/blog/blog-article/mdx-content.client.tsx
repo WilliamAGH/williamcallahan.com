@@ -38,7 +38,6 @@ import {
 } from "../../../ui/instruction-macos-frame-tabs.client";
 import { MacOSCodeWindow, MacOSWindow } from "../../../ui/macos-window.client";
 import { ShellParentTabs, ShellTab } from "../../../ui/shell-parent-tabs.client";
-import { ImageWindow } from "../../../ui/window/image-window.client";
 import { TweetEmbed } from "../tweet-embed";
 import { SoftwareSchema } from "./software-schema";
 
@@ -137,30 +136,22 @@ const MdxImage = ({
   src = "",
   alt = "",
   caption,
-  size = "full",
+  size = "medium",
   priority = false,
 }: ArticleImageProps): JSX.Element | null => {
   if (typeof src !== "string" || !src) return null;
 
   const isDataUrl = src.startsWith("data:");
 
-  let widthClass = "max-w-4xl"; // Default width class for 'full' size
-  let imageSizes = "(max-width: 1024px) 100vw, 896px"; // Default image sizes for responsive loading
+  // Responsive width defaults: center and keep images narrower than the content width
+  // Default (medium): 75% on large screens, wider on small screens for readability
+  let widthClass = "w-full md:w-5/6 lg:w-3/4";
 
-  if (size === "medium") {
-    widthClass = "max-w-2xl";
-    imageSizes = "(max-width: 768px) 100vw, 672px";
+  if (size === "full") {
+    widthClass = "w-full";
   } else if (size === "small") {
-    widthClass = "max-w-lg";
-    imageSizes = "(max-width: 640px) 100vw, 512px";
+    widthClass = "w-full sm:w-5/6 md:w-2/3 lg:w-1/2";
   }
-
-  const windowWrapperClass = cn(
-    "mx-auto",
-    size === "full" ? "max-w-4xl" : "",
-    size === "medium" ? "max-w-2xl" : "",
-    size === "small" ? "max-w-lg" : "",
-  );
 
   // Choose the appropriate image component based on whether the src is a data URL or an external URL.
   const content = isDataUrl ? (
@@ -169,28 +160,25 @@ const MdxImage = ({
       alt={alt}
       width={1600} // Intrinsic width for aspect ratio calculation, actual display width controlled by CSS
       height={800} // Intrinsic height for aspect ratio calculation
-      className="rounded-lg shadow-md"
+      className="rounded-lg shadow-md w-full h-auto"
       priority={priority}
     />
   ) : (
-    <ImageWindow
+    <img
       src={src}
       alt={alt}
-      width={1600} // Base width for responsive calculations
-      height={800} // Base height for responsive calculations
-      sizes={imageSizes} // Provides information for selecting appropriate image source based on viewport
-      priority={priority || src.endsWith(".svg")} // SVGs are often critical, prioritize them
-      unoptimized={src.endsWith(".svg")} // Disable Next.js optimization for SVGs
-      wrapperClassName={windowWrapperClass}
-      noMargin={Boolean(caption)} // If there's a caption, the figure will handle margin
-      style={{ width: "100%", height: "auto" }} // Ensures responsive scaling within the container
+      width={1600}
+      height={800}
+      loading={priority ? "eager" : "lazy"}
+      className="rounded-lg shadow-md w-full h-auto"
+      style={{ width: "100%", height: "auto" }}
     />
   );
 
   return (
     <figure className={`${widthClass} mx-auto my-6`}>
       {content}
-      {caption && <figcaption className="mt-2 text-center text-sm text-muted-foreground">{caption}</figcaption>}
+      {caption && <figcaption className="mt-3 text-center text-sm text-muted-foreground">{caption}</figcaption>}
     </figure>
   );
 };
