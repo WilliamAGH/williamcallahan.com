@@ -138,6 +138,8 @@ const MdxImage = ({
   caption,
   size = "medium",
   priority = false,
+  widthPct,
+  vwPct,
 }: ArticleImageProps): JSX.Element | null => {
   if (typeof src !== "string" || !src) return null;
 
@@ -175,8 +177,20 @@ const MdxImage = ({
     />
   );
 
+  // Inline width constraints when specified
+  const figureStyle: React.CSSProperties = {};
+  if (typeof vwPct === "number" && !Number.isNaN(vwPct)) {
+    const clamped = Math.max(0, Math.min(100, vwPct));
+    figureStyle.width = `${clamped}vw`;
+    figureStyle.maxWidth = "100%"; // never overflow the article container
+  } else if (typeof widthPct === "number" && !Number.isNaN(widthPct)) {
+    const clamped = Math.max(0, Math.min(100, widthPct));
+    figureStyle.width = `${clamped}%`;
+    figureStyle.maxWidth = "100%";
+  }
+
   return (
-    <figure className={`${widthClass} mx-auto my-6`}>
+    <figure className={`${widthClass} mx-auto my-6`} style={figureStyle}>
       {content}
       {caption && <figcaption className="mt-3 text-center text-sm text-muted-foreground">{caption}</figcaption>}
     </figure>

@@ -154,10 +154,14 @@ export interface BlogClientProps {
 export interface ArticleImageProps extends Omit<React.ComponentProps<"img">, "height" | "width" | "loading" | "style"> {
   /** Optional caption to display below the image */
   caption?: string;
-  /** Display size of the image */
+  /** Display size presets of the image (ignored when widthPct or vwPct are provided) */
   size?: "full" | "medium" | "small";
   /** Whether the image is high priority for loading */
   priority?: boolean;
+  /** Optional: constrain figure max-width to a percentage of its container (0-100). */
+  widthPct?: number;
+  /** Optional: constrain figure max-width to a percentage of the viewport width (0-100). */
+  vwPct?: number;
 }
 
 /**
