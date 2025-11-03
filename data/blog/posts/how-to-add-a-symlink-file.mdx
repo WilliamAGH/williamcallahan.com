@@ -1,0 +1,162 @@
+---
+title: "How to Add a Symlink (From One) File (To Another)"
+slug: "how-to-add-a-symlink-file-from-one-to-another"
+excerpt: "Learn how to create a symlink from one file to another in macOS (zsh), Linux (bash), and Windows (cmd), including to cleanup the dreaded AGENTS.md variations."
+publishedAt: "2025-06-15"
+updatedAt: "2025-11-01"
+author: "william-callahan"
+tags: ["symlink", "files", "git", "zsh", "bash", "cmd", "powershell", "claude", "agents.md", "agents", "symlinks"]
+coverImage: "/images/posts/symlink-chain-link-files.png"
+---
+
+A symlink (symbolic link) is a file that points to another file or directory. It acts like a shortcut—when you access the symlink, you're actually accessing the target file.
+
+I've noticed a bit of a renaissance of its functionality/utility given the recent proliferation of synonymous overlapping files like `AGENTS.md`, `AGENT.md`, and `CLAUDE.md`, `.cursorrules`, `.clinerules`, and the desire/need to consolidate them into a single file.
+
+## Update: August 19, 2025 - AGENTS.md (Finally!) Announced as Standard
+
+It looks like [AGENTS.md](https://agents.md) has finally emerged as an open standard for AI coding agent instructions (think of a README but for AI agents). Now the one AGENTS.md file can be used almost universally—Cursor, OpenAI Codex, Zed, VS Code with GitHub Copilot, Warp, Opencode, and many other tools now support it.
+
+But, two notable holdouts remain: **Claude Code** and **Cline** still use `CLAUDE.md` and `.clinerules`. Until they add native AGENTS.md support, symlinks are the workaround:
+
+```bash
+# Link holdout tool configs to AGENTS.md
+ln -s AGENTS.md CLAUDE.md
+ln -s AGENTS.md .clinerules
+```
+
+See the [full spec on GitHub](https://github.com/openai/agents.md) for updates.
+
+## macOS / Linux (zsh / bash)
+
+The `ln -s` command creates a symbolic link.
+
+**Syntax:**
+```bash
+ln -s /path/to/original /path/to/symlink
+```
+
+**Key points:**
+- First argument is the **target** (what you're pointing to, the _main_ file)
+- Second argument is the **link name** (the _alias_ what you're creating)
+- `-s` flag creates a symbolic link (vs. hard link)
+
+### Examples
+
+**Link a file in the same directory:**
+```bash
+ln -s AGENTS.md CLAUDE.md
+```
+
+**Link with relative paths (e.g., for repos):**
+```bash
+ln -s ../data/config.json ./config.json
+```
+
+### Verify the symlink
+
+```bash
+# Check if it exists
+ls -la | grep "^l"
+
+# See where it points
+readlink agents.md
+
+# Full details
+ls -l agents.md
+```
+
+### Remove a symlink
+
+```bash
+rm agents.md
+```
+
+This deletes the symlink, **not** the original file.
+
+## Windows (cmd / PowerShell)
+
+If you're using Windows, it has three types of links: symbolic links, hard links, and junctions. Symbolic links are closest to Unix symlinks.
+
+### Command Prompt
+
+```cmd
+# For files
+mklink link-name C:\path\to\original-file
+
+# For directories
+mklink /D link-name C:\path\to\original-directory
+
+# For directory junctions (no admin needed)
+mklink /J link-name C:\path\to\original-directory
+```
+
+**Note:** Argument order is reversed from Unix—link first, then target.
+
+### PowerShell
+
+```powershell
+# For files or directories
+New-Item -ItemType SymbolicLink -Path "link-name" -Target "C:\path\to\original"
+
+# Shorter version
+ni -ItemType SymbolicLink -Path "link-name" -Target "C:\path\to\original"
+```
+
+### Enable Developer Mode (No Admin Required)
+
+By default, creating symlinks on Windows requires administrator privileges. Enable Developer Mode to skip this:
+
+1. Settings → Update & Security → For Developers
+2. Toggle **Developer Mode** ON
+
+### Verify the symlink
+
+```powershell
+# PowerShell
+Get-Item link-name | Select-Object LinkType, Target
+
+# Command Prompt
+dir | find "<SYMLINK>"
+```
+
+### Remove a symlink
+
+```cmd
+# Command Prompt
+del link-name
+
+# PowerShell
+Remove-Item link-name
+```
+
+## Git Bash / WSL on Windows (I recommend this method!)
+
+Unix syntax works in Git Bash and WSL:
+
+```bash
+ln -s /c/path/to/original /c/path/to/symlink
+```
+
+## Important Final Note - When Inside Git Tracked Repository
+
+When renaming or modifying symlinks in a Git-tracked repository (e.g., a GitHub hosted repo), Git's tracking can behave non-deterministically if you try to remove and recreate symlinks with the same or similar names in a single commit in my experience.
+
+**The problem:** Git may misinterpret the change—sometimes treating it as a file type change, sometimes losing the symlink metadata entirely, or creating ambiguous diffs that GitHub displays incorrectly.
+
+**The fix:** Always commit the removal of old symlinks/files first, then create the new symlinks in a separate commit. Here's an example flow to do this right:
+
+```bash
+# Step 1: Remove old symlinks/files
+rm agents.md AGENT.md
+git add -A
+git commit -m "Remove old symlink variants"
+
+# Step 2: Create new symlinks
+ln -s AGENTS.md agents.md
+ln -s AGENTS.md AGENT.md
+git add -A
+git commit -m "Add consolidated symlinks to AGENTS.md"
+```
+
+This two-commit approach ensures Git cleanly tracks the deletion and creation as separate operations, making the history clear and preventing GitHub from displaying confusing diffs.

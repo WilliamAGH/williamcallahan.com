@@ -3,928 +3,128 @@ title: "Claude Code: Automatic Linting, Error Analysis, & Custom Commands"
 slug: "claude-code-linting-error-analysis-custom-commands"
 excerpt: "How to leverage Claude Code's error analysis slash-commands and create your own linting commands to automate repetitive CLI tasks."
 publishedAt: "2025-06-16"
-updatedAt: "2025-06-16"
+updatedAt: "2025-11-01"
 author: "william-callahan"
 tags: ["ai", "claude code", "linting", "error analysis", "slash commands", "prompts", "cli"]
-coverImage: "/images/posts/claude-code-cli-5th.png"
+coverImage: "/images/posts/claude-code-linting-commands.png"
 ---
 
-I found myself doing a lot of manual linting and copy-pasting stack traces... and was elated when I discovered my beloved Claude Code CLI tool had some cool scripting/command functionality that was just the ticket for some quasi-automation.
+Claude Code ships with a CLI that can run slash commands without opening the desktop client. This document records the small set of commands that keep a terminal workflow fast: run lint checks, hand stack traces to `/analyze`, and trigger project-specific helpers.
 
 And while Claude Code has many tools and agentic behaviors of its own built in behind the scenes, commands are a great way (in my opinion) to dip your toes into agentic behavior for coding.
 
-Below I show how I've been customizing [Claude Code](https://docs.anthropic.com/en/docs/claude-code/quickstart), Anthropic's command-line companion, to squeeze the most productivity out of its tool chain and multi-agent skills.
+Below I show how I've been customizing [Claude Code](https://docs.anthropic.com/en/docs/claude-code/quickstart).
 
 <BackgroundInfo title="Intro to Claude Code in Your CLI">
-  Stop context-switching between your editor and terminal. Claude Code's built-in **/analyze** plus custom slash
-  commands like **/project:lint** bring static analysis, error tracing, and project-specific helpers directly into your
-  CLI workflow.
+  Claude Code's built-in **/analyze** plus custom slash
+  commands like **/project:lint** can do things like static analysis, error tracing, and other project-specific helpers directly in an agentic environment.
 </BackgroundInfo>
 
-> **In practice** I combine Claude Code's CLI (see the [Quickstart](https://docs.anthropic.com/en/docs/claude-code/quickstart)) with custom Zen MCP tools to automate repetitive checks before every commit. The slash-command system ([reference](https://docs.anthropic.com/en/docs/claude-code/slash-commands)) plus the SDK's `-p` print mode let me treat Claude like any other Unix utility. The four scripts below show how I wire Claude into my workflow for PR reviews, build triage, lint aggregation, and Jest debugging.
-
-## 0. Getting Started
-
-<CollapseDropdown summary="0.1 Install & launch" id="install-launch">
-  - **Install globally**: ```bash npm install -g @anthropic-ai/claude-code ```
-  - **Launch in any repository**: ```bash claude ```
-  - **Docs & download**: [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code/quickstart)
-</CollapseDropdown>
-
-Here are some ways I'm currently using Claude Code:
-
-## 1. Basic Out-of-the-Box Linting
-
-Claude Code provides basic linting capabilities using environment defaults, and custom commands offer tailored behavior for your specific project setup.
-
-## 1.1 Linting with a Custom Command
-
-<CollapseDropdown summary="1.1 /lint at a glance" id="lint-at-a-glance">
-  - **Purpose**: Runs your linter(s) via a custom slash command—perfect for ESLint, Flake8, golangci-lint, etc. -
-  **Syntax**: `/lint [path] [--fix]` - **Note**: Claude displays the scope as a suffix, e.g., `/lint (project)` or
-  `/lint (user)` based on where you saved the command - **Docs**: [Slash Commands – Custom
-  Commands](https://docs.anthropic.com/en/docs/claude-code/slash-commands)
-</CollapseDropdown>
+## Installation
 
 ```bash
-# Check staged files, fix if possible
-a$ /lint --fix
-✅ Fixed 3 ESLint errors, 1 TypeScript warning
+npm install -g @anthropic-ai/claude-code
+claude --version
 ```
 
-<BackgroundInfo title="Built-in vs custom commands">
-Claude Code offers basic linting using environment defaults (like `/analyze` for error diagnosis), and custom commands provide behavior tailored to your project setup.
+The CLI stores repo-scoped data in `.claude/`. Global settings live in `~/.claude/`. Both folders are plain JSON/Markdown and can be committed (for project scope) or ignored (for personal scope).
 
-**Automatic scope detection**: When you type a command like `/lint`, Claude displays it with the scope as a suffix in parentheses—e.g., `/lint (project)` for repo-scoped commands or `/lint (user)` for personal commands—based on where the command file is located.
+## Using /analyze for failing tests
 
-**npm scripts are different**: An entry like
-
-```json
-"lint:claude": "claude -p '…'"
-```
-
-executes Claude once in print mode and then exits; it doesn't launch the interactive REPL. If you need to keep chatting, either run `claude -c` afterward to reopen the last session or start an interactive session first (`claude`) and invoke your slash commands there.
-
-</BackgroundInfo>
-
-## 2. Instant Error Diagnosis
-
-<CollapseDropdown summary="2.1 /analyze" id="analyze-command">
-  - **Purpose**: Given a stack trace or failing test output, Claude pinpoints the source file, probable cause, and suggests a minimal fix.
-  - **Usage**: Pipe any stderr/stdout into the command.
-  - **Docs**: [Slash Commands – /analyze](https://docs.anthropic.com/en/docs/claude-code/slash-commands)
-</CollapseDropdown>
+Pipe build output into the CLI and ask for `/analyze`:
 
 ```bash
-# Example: detect why tests fail
-a$ npm test 2>&1 | claude -p "/analyze"
+bun run test 2>&1 | claude -p "/analyze"
 ```
 
-Claude responds with a ranked list of root-cause candidates, including linked code excerpts and one-line fix suggestions.
+Claude returns a ranked list of suspected causes plus the files involved. Because the command runs in print mode, the response appears once and exits—ideal for CI transcripts or terminal history.
 
-## 3. Crafting Custom Commands
+## Creating a project lint command
 
-<CollapseDropdown summary="3.1 The recipe – Markdown Commands" id="recipe">
-1. **Create the directory** (once per repo):  
-   ```bash
-   mkdir -p .claude/commands
+1. Create `.claude/commands/lint.md` in the repository.
+2. Add a concise instruction:
+   ```markdown
+   Run `bun run lint`. Show the first command that fails and summarize the error.
    ```
-   
-2. **Add a Markdown file** named after your command—**`prune-branches.md`**, **`lint.md`**, etc.  
-   The file's contents become the prompt that Claude will run.
+3. Reload commands with `/reload` inside an interactive `claude` session or restart the CLI.
+4. Invoke with `/lint`.
+
+When the command executes, Claude prints the command it ran, surfaces stdout/stderr, and explains the next step. Keep the instruction short—Claude already has repository context.
+
+## Pattern for preseeding arguments
+
+Commands accept arguments appended after the name. Example: `/lint apps/web`. Inside the Markdown prompt, reference `$ARGUMENTS` to forward them:
 
 ```markdown
-<!-- prune-branches.md example -->
-
-Delete all local branches that have already been merged into main.
+Run `bun run lint $ARGUMENTS`. If the command fails, print the exit code and the relevant lines from the log.
 ```
 
-3. **Reload Claude** inside the REPL with `/reload` (or simply restart the CLI).
+Use this to target sub-packages or language-specific linters without creating multiple command files.
 
-4. **Docs**: See [Slash Commands – Custom Commands](https://docs.anthropic.com/en/docs/claude-code/slash-commands) for namespacing (`/project:` vs `/user:`) and `$ARGUMENTS` usage.
+## Custom macros for triage
 
-</CollapseDropdown>
+A few small commands cover most incidents:
 
-> You can store commands **globally** in `~/.claude/commands/` or keep them **project-scoped** in `.claude/commands/`. Claude automatically detects the scope and displays it as a suffix, e.g., `/commit (user)` or `/commit (project)`. See the [slash-command docs](https://docs.anthropic.com/en/docs/claude-code/slash-commands) for details on scoping.
+| Command | Purpose |
+| --- | --- |
+| `/logs failing` | Search structured logs under `var/log/` and return the newest matches. |
+| `/tests changed` | Run tests for paths changed in the last commit: `bun run test -- $ARGUMENTS`. |
+| `/fmt` | Execute formatters (`bun run biome:format` in this repo). |
 
-<BackgroundInfo title="Home vs Project Scopes — Quick Reference">
-• **Filename ➜ Command name**: the Markdown file's basename (minus `.md`) becomes your command name.
+Keep commands deterministic. Avoid instructions that ask Claude to guess or invent fixes; treat the CLI as a wrapper around the tooling you already trust.
 
-| Where you save the file              | Example file                   | How to run it | How Claude displays it |
-| ------------------------------------ | ------------------------------ | ------------- | ---------------------- |
-| Personal scope (works in every repo) | `~/.claude/commands/commit.md` | `/commit`     | `/commit (user)`       |
-| Project scope (only in current repo) | `.claude/commands/commit.md`   | `/commit`     | `/commit (project)`    |
+## Configuration files worth tracking
 
-**Tip**: If you create sub-directories, the folder path becomes part of the command—e.g. `.claude/commands/deploy/staging.md` ⇒ `/deploy/staging (project)`.
+- `.claude/settings.local.json` – per-repo defaults (selected model, chosen output style).
+- `.claude/commands/*.md` – project commands (commit these when they codify workflow).
+- `~/.claude/commands/*.md` – personal commands (do not commit).
 
-</BackgroundInfo>
+Check these files into source control only when everyone on the team needs them. Otherwise add `.claude/commands` to `.gitignore` and keep your local automation private.
 
-<BackgroundInfo title="Alternative: Package.json Scripts">
-You could also add Claude commands to your `package.json` (or equivalent) as scripts, but this approach has limitations:
+## Command templates to keep handy
 
-```json
-{
-  "scripts": {
-    "lint:claude": "claude -p 'Run ESLint and fix all issues found'"
-  }
-}
-```
+Stash the _minimal_ prompt for each frequent task alongside the command so you can regenerate it quickly:
 
-**But the issues/drawbacks are currently:**
-
-- **No interactive REPL** - runs once and exits, no "conversation"
-- **No tool access** - can't use MCP servers, Edit tools, etc.
-- **No multi-step workflows** - single prompt only
-- **Awkward continuation** - must use `claude -c` to resume conversation
-
-**Best practices if using scripts:**
-
-- Write very detailed, comprehensive prompts hoping Claude gets it right in one shot
-- Use `claude -c` afterward if you need to continue the conversation
-- Consider this mainly for simple, one-shot tasks rather than complex workflows
-
-**Recommendation:** Stick with slash commands for the rich, interactive experience your complex recipes require.
-
-</BackgroundInfo>
-
-## 4. Template Command Recipes Ideas
-
-Here are some "commands" I'm currently using and finding very helpful that I personally wrote, I hope you find them helpful!
-
-<CollapseDropdown summary="4.1 /doublecheck – AI Pull-Request Review" id="user-doublecheck">
-Invoke your personal **doublecheck** command to analyze the current diff against `main` for bugs, outdated APIs, and more.
-
-```bash
-/doublecheck
+```markdown
+<!-- .claude/commands/status.md -->
+Run `git status --short`. Explain staged vs unstaged files. Do not run `git add`.
 ```
 
 ```markdown
-<!-- ~/.claude/commands/doublecheck.md -->
-
-You are a code reviewer.
-
-STEP 1: Output the full git diff vs main branch.
-
-STEP 2: Analyze and identify:
-
-1. Potential bugs or logic errors
-2. Usage of deprecated or outdated API methods
-3. Security vulnerabilities
-4. Performance issues
-
-Use web search and available MCP servers to verify API usage against current documentation.
-
-STEP 3: For each issue found, use the Edit or MultiEdit tools to implement the fix directly in the codebase.
-
-STEP 4: After all fixes are applied, run git diff again to show the changes made.
-
-Output a summary of all fixes implemented.
+<!-- ~/.claude/commands/prune-branches.md -->
+Delete all local branches merged into `main`. Show `git branch` output before removing anything.
 ```
 
-</CollapseDropdown>
+When a command needs arguments, reference `$ARGUMENTS` directly instead of repeating separate Markdown files.
 
-<CollapseDropdown summary="4.2 /build – Build Log Triage" id="user-build">
-Run your **build** helper to execute `bun run build`, surface errors, and iterate until the build is clean.
+## Automation workflow helpers
 
-```bash
-/build
-```
+Common sequences benefit from a thin wrapper:
+
+- `/commit` → run `git status`, show staged diffs, prompt for a summary, then call `git commit -m "..."` using the supplied message. Keep the Markdown file focused on the order of operations and the allowed commit categories.
+- `/push` → ensure `git status --short` is clean, then push the current branch. Abort if the working tree is dirty.
+- `/create-issue` → run `git diff` and `git status`, summarise the change, then call `@mcp**GitHub**create_issue` with owner/repo preset.
+
+Claude follows the exact shell commands in the prompt, so list them in the order you expect. Avoid phrases like “do whatever is necessary.”
+
+## Commit checklist snippet
+
+Drop this into `.claude/commands/commit.md` (adapt category names to your workflow):
 
 ```markdown
-<!-- ~/.claude/commands/build.md -->
-
-Run the build command and analyze any errors or warnings.
-
-First, execute: bun run build
-
-STEP 1: Output the full build log for reference.
-STEP 2: Analyze the build output using @mcp**zen**thinkdeep with model="pro".
-STEP 3: If there are errors: explain, read, edit, document.
-STEP 4: If build succeeds but warnings exist, fix those too.
-STEP 5: Re-run the build to verify.
+Show `git status --short`. If nothing is staged, stop.
+Run `git diff --cached`.
+Ask the user for context, then generate a message in `type: subject` form (types: feat, fix, docs, refactor, test, chore, style).
+Confirm the message before running `git commit -m`.
+Display `git log -1 --stat` after committing.
 ```
 
-</CollapseDropdown>
+This keeps every commit interactive but consistent.
 
-<CollapseDropdown summary="4.3 /full-lint – Deep Lint Aggregation" id="user-full-lint">
-Run every linter plus type-checker, then let Claude fix issues in priority order.
+## Pitfalls to avoid
 
-```bash
-/full-lint
-```
+- Commands that call external services (`@mcp…`) should include rate-limit handling and always echo the command they attempted.
+- Keep long-running scripts (tests, builds) opt-in. Add a `--watch` variant if the project uses one.
+- Never embed secrets in Markdown prompts. Use `.claude/settings.local.json` or the host application’s environment variable injection instead.
 
-```markdown
-<!-- ~/.claude/commands/full-lint.md -->
-
-Run comprehensive linting and type checking, then fix all issues found.
-
-First, run Biome, ESLint, and the TypeScript checker.
-STEP 1: Output results.
-STEP 2: Deep analysis via thinkdeep.
-STEP 3: Fix categorized issues with Read/Edit tools.
-STEP 4: Re-run all linters to confirm.
-```
-
-</CollapseDropdown>
-
-<CollapseDropdown summary="4.4 /test – Jest Failure Forensics" id="user-test">
-Run Jest, debug failures, and ask about coverage improvements.
-
-```bash
-/test
-```
-
-```markdown
-<!-- ~/.claude/commands/test.md -->
-
-Run all tests and fix any failures. After 100% of tests are passing, ask the user if they wish to create/improve tests with low coverage.
-
-First, execute: bun run test
-
-STEP 1: Output the full test results.
-
-STEP 2: Perform deep analysis using @mcp**zen**thinkdeep with model="pro" and thinking_mode="high".
-
-STEP 3: For test failures:
-a) Use @mcp**zen**debug to identify root causes
-b) Use Read tool to examine failing tests and implementation
-c) Use Edit/MultiEdit to fix failing tests or implementation bugs
-d) Document each fix
-
-STEP 4: If all tests pass (100% passing):
-a) Ask the user if they want to improve test coverage
-b) If yes, thoroughly examine the functionality of code with low coverage using Read tool
-c) Only after understanding the functionality completely, propose new tests
-d) Never create tests without thorough understanding of what is being tested
-
-STEP 5: Run "bun run test" again to verify all tests pass.
-
-Output final test results and all changes made.
-```
-
-</CollapseDropdown>
-
-<CollapseDropdown summary="4.5 /pr-review – Systematically Address PR Comments" id="user-pr-review">
-Systematically review and address unresolved comments on GitHub pull requests, making thoughtful decisions about which suggestions to implement.
-
-```markdown
-# PR Review Command
-
-**Purpose**: Systematically review and address unresolved comments on GitHub pull requests, making thoughtful decisions about which suggestions to implement.
-
-**What this does**:
-
-- Fetches only unresolved review comments from a PR using GraphQL
-- Analyzes each suggestion for genuine code improvement
-- Implements beneficial changes with proper validation
-- Replies to comments and marks threads as resolved
-
-**Repository**: <https://github.com/WilliamAGH/williamcallahan.com>
-
-**Project Constants**:
-
-- Owner: `WilliamAGH`
-- Repo: `williamcallahan.com`
-
-## ⚠️ CRITICAL REQUIREMENTS
-
-1. **ALWAYS CHECK THE QUERY OUTPUT CAREFULLY** - If there are JSON objects in the output, THOSE ARE UNRESOLVED COMMENTS!
-2. **DO NOT RE-PROCESS ALREADY RESOLVED COMMENTS** - Only process comments where `isResolved == false`
-3. **GraphQL for fetching/resolving** - REST API fails with token limits (GitHub MCP lacks GraphQL support)
-4. **REST API for comment replies** - GitHub's GraphQL lacks working reply mutation (see note below)
-5. **MANDATORY validation before EVERY commit:** `bun run lint && bun run type-check && bun run biome:check`
-6. **Fix ALL language server warnings** - Including biome, ESLint, TypeScript diagnostics in modified files
-7. **COMMIT MESSAGE RULES - ABSOLUTELY NO EXCEPTIONS:**
-   - **NEVER COMBINE MULTIPLE FILES IN ONE COMMIT**
-   - **EACH FILE GETS ITS OWN COMMIT WITH SPECIFIC MESSAGE**
-   - Format: `fix(scope): specific change description`
-   - Examples:
-     - ✅ `fix(eslint): re-enable jsx-no-target-blank rule with allowReferrer`
-     - ✅ `fix(bookmarks): replace globalThis lock checks with distributed lock`
-     - ❌ `fix(lint): resolve eslint issues` (TOO GENERIC)
-     - ❌ `fix: multiple fixes` (ABSOLUTELY FORBIDDEN)
-   - **SCOPE**: Must be the specific area/file being changed
-   - **DESCRIPTION**: Must describe the EXACT change, not generic "fix issues"
-8. **Deep analysis REQUIRED** - Review comments are suggestions, not orders
-
-## 🧠 DEEP THINKING PROTOCOL
-
-Before implementing ANY suggestion:
-
-1. Find functionality in `docs/projects/file-overview-map.md` → `docs/projects/structure/<functionality>.md`
-2. Analyze: Is this actually an improvement? What are the risks? Better alternatives?
-3. Get second opinion:
-
-@mcp**zen**thinkdeep model="pro" thinking_mode="high" prompt="
-Comment: [paste]
-File: [path] | Functionality: [from docs]
-Current: [explain] | Suggested: [what they want]
-Analyze: 1) Improvement? 2) Risks? 3) Alternatives? 4) Edge cases?"
-
-## 📋 WORKFLOW
-
-### ⚠️ COMMIT WORKFLOW - FOLLOW EXACTLY
-
-When fixing multiple issues:
-
-1. Fix ONE file
-2. Run validation: `bun run lint && bun run type-check && bun run biome:check`
-3. Commit ONLY that file with SPECIFIC message
-4. Move to next file and repeat
-
-**NEVER DO THIS:**
-
-# ❌ WRONG - Multiple files in one commit
-
-git add file1.ts file2.ts file3.ts && git commit -m "fix: various issues"
-
-# ❌ WRONG - Generic message
-
-git add eslint.config.ts && git commit -m "fix: lint issues"
-
-**ALWAYS DO THIS:**
-
-# ✅ CORRECT - One file, specific message
-
-git add eslint.config.ts && git commit -m "fix(eslint): re-enable jsx-no-target-blank with allowReferrer"
-
-# ✅ CORRECT - Next file, its own commit
-
-git add lib/bookmarks.ts && git commit -m "fix(bookmarks): replace globalThis.isBookmarkRefreshLocked with distributed lock check"
-
-**1. Get unresolved comments (GraphQL):**
-
-⚠️ **CRITICAL**: The query output WILL show unresolved comments! DO NOT assume there are none if the output appears empty at first glance. The jq filter produces JSON objects, not a message saying "no comments". If you see JSON output, THOSE ARE THE UNRESOLVED COMMENTS TO PROCESS!
-
-# STEP 1: First check total thread count to detect pagination needs
-
-echo "Checking total review thread count..."
-TOTAL_THREADS=$(gh api graphql -f query='
-{
-repository(owner: "WilliamAGH", name: "williamcallahan.com") {
-pullRequest(number: [PR_NUMBER]) {
-reviewThreads {
-totalCount
-}
-}
-}
-}' | jq '.data.repository.pullRequest.reviewThreads.totalCount')
-
-echo "Total review threads: $TOTAL_THREADS"
-
-# STEP 2: Handle pagination if needed (GitHub GraphQL limit is 100 per page)
-
-echo "Checking for unresolved comments..."
-if [ "$TOTAL_THREADS" -le 100 ]; then
-
-# Simple case: all threads fit in one request
-
-UNRESOLVED_COUNT=$(gh api graphql -f query='
-{
-repository(owner: "WilliamAGH", name: "williamcallahan.com") {
-pullRequest(number: [PR_NUMBER]) {
-reviewThreads(first: 100) {
-nodes {
-id
-isResolved
-}
-}
-}
-}
-}' | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
-else
-
-# Complex case: need to paginate through all threads
-
-echo "PR has $TOTAL_THREADS threads, paginating through them..."
-UNRESOLVED_COUNT=0
-CURSOR=""
-
-while true; do
-if [ -z "$CURSOR" ]; then # First page
-RESPONSE=$(gh api graphql -f query='
-      {
-        repository(owner: "WilliamAGH", name: "williamcallahan.com") {
-          pullRequest(number: [PR_NUMBER]) {
-            reviewThreads(first: 100) {
-              nodes {
-                id
-                isResolved
-              }
-              pageInfo {
-                hasNextPage
-                endCursor
-              }
-            }
-          }
-        }
-      }')
-    else
-      # Subsequent pages
-      RESPONSE=$(gh api graphql -f query='
-{
-repository(owner: "WilliamAGH", name: "williamcallahan.com") {
-pullRequest(number: [PR_NUMBER]) {
-reviewThreads(first: 100, after: "'$CURSOR'") {
-nodes {
-id
-isResolved
-}
-pageInfo {
-hasNextPage
-endCursor
-}
-}
-}
-}
-}')
-fi
-
-    # Count unresolved in this page
-    PAGE_UNRESOLVED=$(echo "$RESPONSE" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
-    UNRESOLVED_COUNT=$((UNRESOLVED_COUNT + PAGE_UNRESOLVED))
-
-    # Check if more pages exist
-    HAS_NEXT=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')
-    if [ "$HAS_NEXT" = "false" ]; then
-      break
-    fi
-
-    # Get cursor for next page
-    CURSOR=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')
-
-done
-fi
-
-echo "Found $UNRESOLVED_COUNT unresolved comments"
-
-# STEP 3: If there are unresolved comments, fetch them with details
-
-if [ "$UNRESOLVED_COUNT" -gt 0 ]; then
-echo "Fetching details of $UNRESOLVED_COUNT unresolved comments..."
-
-# Similar pagination logic for fetching full details
-
-if [ "$TOTAL_THREADS" -le 100 ]; then # Simple case
-gh api graphql -f query='
-{
-repository(owner: "WilliamAGH", name: "williamcallahan.com") {
-pullRequest(number: [PR_NUMBER]) {
-reviewThreads(first: 100) {
-nodes {
-id
-isResolved
-path
-line
-comments(first: 1) {
-nodes {
-id
-databaseId
-body
-author { login }
-}
-}
-}
-}
-}
-}
-}' | jq -r '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) |
-"---\nThread ID: \(.id)\nPath: \(.path // "general comment")\nLine: \(.line // "N/A")\nComment ID: \(.comments.nodes[0].databaseId)\nAuthor: \(.comments.nodes[0].author.login)\nFirst line: \(.comments.nodes[0].body | split("\n")[0])"'
-else # Complex case: paginate through all unresolved threads
-echo "Paginating through unresolved comments..."
-CURSOR=""
-
-    while true; do
-      if [ -z "$CURSOR" ]; then
-        # First page
-        RESPONSE=$(gh api graphql -f query='
-        {
-          repository(owner: "WilliamAGH", name: "williamcallahan.com") {
-            pullRequest(number: [PR_NUMBER]) {
-              reviewThreads(first: 100) {
-                nodes {
-                  id
-                  isResolved
-                  path
-                  line
-                  comments(first: 1) {
-                    nodes {
-                      id
-                      databaseId
-                      body
-                      author { login }
-                    }
-                  }
-                }
-                pageInfo {
-                  hasNextPage
-                  endCursor
-                }
-              }
-            }
-          }
-        }')
-      else
-        # Subsequent pages
-        RESPONSE=$(gh api graphql -f query='
-        {
-          repository(owner: "WilliamAGH", name: "williamcallahan.com") {
-            pullRequest(number: [PR_NUMBER]) {
-              reviewThreads(first: 100, after: "'$CURSOR'") {
-                nodes {
-                  id
-                  isResolved
-                  path
-                  line
-                  comments(first: 1) {
-                    nodes {
-                      id
-                      databaseId
-                      body
-                      author { login }
-                    }
-                  }
-                }
-                pageInfo {
-                  hasNextPage
-                  endCursor
-                }
-              }
-            }
-          }
-        }')
-      fi
-
-      # Output unresolved comments from this page
-      echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) |
-      "---\nThread ID: \(.id)\nPath: \(.path // "general comment")\nLine: \(.line // "N/A")\nComment ID: \(.comments.nodes[0].databaseId)\nAuthor: \(.comments.nodes[0].author.login)\nFirst line: \(.comments.nodes[0].body | split("\n")[0])"'
-
-      # Check if more pages exist
-      HAS_NEXT=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')
-      if [ "$HAS_NEXT" = "false" ]; then
-        break
-      fi
-
-      # Get cursor for next page
-      CURSOR=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')
-    done
-
-fi
-
-echo -e "\n✅ Above are all unresolved comments. Process each one individually."
-fi
-
-**⚠️ CRITICAL INTERPRETATION RULES:**
-
-1. **ALWAYS run the count check first** - This tells you definitively if there are unresolved comments
-2. **"Tool ran without output" does NOT mean no comments** - The shell might not echo JSON output
-3. **If UNRESOLVED_COUNT > 0, there ARE comments to process** - Do not assume otherwise
-4. **Each JSON object in Step 2 output = ONE unresolved thread** - Process every single one
-
-**2. For each comment:**
-
-**PROCESSING WORKFLOW FOR EACH UNRESOLVED COMMENT**:
-
-# For EACH comment in the output:
-
-# 1. Extract these values:
-
-THREAD*ID="PRRT*..." # From "Thread ID:" line
-FILE_PATH="path/to/file" # From "Path:" line  
-LINE_NUM="123" # From "Line:" line
-COMMENT_ID="2148802948" # From "Comment ID:" line (numeric!)
-
-# 2. Read the full comment body
-
-gh api graphql -f query='...' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.id == "'$THREAD_ID'") | .comments.nodes[0].body'
-
-# 3. Analyze and decide (see Deep Thinking Protocol)
-
-# 4. IF implementing:
-
-- Read file at specified line
-- Make changes
-- Run: bun run lint && bun run type-check && bun run biome:check
-- Commit ONLY this file with specific message
-
-# 5. Reply to comment (use numeric COMMENT_ID):
-
-gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/[PR]/comments/$COMMENT_ID/replies \
- -f body="[Your response]"
-
-# 6. Resolve thread (use THREAD_ID):
-
-gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "'$THREAD_ID'"}) { thread { isResolved } } }'
-
-**3. Reply to comment (REST API - see note):**
-
-First get the numeric comment ID from GraphQL output:
-
-# The GraphQL query returns both 'id' and 'databaseId'
-
-# Use the 'databaseId' value for REST API calls
-
-Then reply using the numeric databaseId:
-
-# Implemented:
-
-gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/[PR]/comments/[NUMERIC_DATABASE_ID]/replies \
- -f body="Fixed in commit [HASH]. [What was done]"
-
-# Rejected:
-
-gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/[PR]/comments/[NUMERIC_DATABASE_ID]/replies \
- -f body="After careful analysis, I've decided not to implement this suggestion because [detailed reasoning]. The current implementation [explain why it's better]."
-
-**Note**: GitHub's GraphQL API cannot reply to review comments. The mutation `addPullRequestReviewCommentReply` suggested by linters doesn't exist. GitHub deprecated `addPullRequestReviewComment` and promised `addPullRequestReviewThreadReply` as replacement, but it was never implemented. REST API is the ONLY way to reply to PR review comments.
-
-**4. Resolve thread (GraphQL):**
-
-Use the thread ID (not comment ID) from the GraphQL output:
-
-# The thread ID starts with "PRRT\_" (e.g., "PRRT_kwDONglMk85SSn9V")
-
-gh api graphql -f query='
-mutation {
-resolveReviewThread(input: {threadId: "[THREAD_ID_STARTING_WITH_PRRT]"}) {
-thread { isResolved }
-}
-}'
-
-## 💡 REMEMBER
-
-- **EVERY comment needs a reply AND thread resolution** - Even rejected suggestions
-- Rejection is OK if suggestion doesn't improve code
-- Comments don't auto-resolve - use thread ID to resolve
-- Each file gets separate commit with descriptive message
-- **Mark threads as resolved AFTER replying** - Whether implemented or rejected
-
-## ⚠️ COMMON PITFALLS TO AVOID
-
-1. **JQ syntax errors**: The `!=` operator in jq must be written without backslash escaping
-   - ❌ Wrong: `select(.databaseId \!= null)`
-   - ✅ Correct: `select(.databaseId != null)`
-
-2. **Comment ID confusion**: Always use numeric `databaseId` for REST replies, not GraphQL IDs
-   - ❌ Wrong: Using ID like `PRRC_kwDONglMk86AFCFz`
-   - ✅ Correct: Using numeric ID like `2148802931`
-
-3. **Forgetting to validate**: ALWAYS run validation before committing, even for "simple" fixes
-
-## 🤖 CRITICAL LLM INSTRUCTIONS
-
-**MANDATORY EXECUTION PATTERN**:
-
-```bash
-1. RUN: UNRESOLVED_COUNT=$(gh api graphql -f query='...' | jq '[...] | length')
-2. READ: The numeric value of $UNRESOLVED_COUNT
-3. DECISION: If UNRESOLVED_COUNT > 0, then unresolved comments EXIST
-4. ACTION: Process EVERY comment from Step 2 output
-
-**OUTPUT INTERPRETATION RULES**:
-
-- `Tool ran without output` → IGNORE THIS MESSAGE, run count check
-- Empty visual output → DOES NOT MEAN no comments, run count check
-- `$UNRESOLVED_COUNT = 0` → No unresolved comments (ONLY valid signal)
-- `$UNRESOLVED_COUNT > 0` → Unresolved comments EXIST, must process ALL
-
-**FORBIDDEN ASSUMPTIONS**:
-
-- ❌ "No output means no comments" → WRONG
-- ❌ "Already processed this comment" → WRONG, only process `isResolved == false`
-- ❌ "Can skip count check" → WRONG, count is mandatory first step
-- ✅ "Trust only numeric count value" → CORRECT
-
-## 📚 WORKING EXAMPLES
-
-**Get all unresolved comments with both IDs:**
-
-# First check total thread count
-TOTAL_THREADS=$(gh api graphql -f query='
-{
-  repository(owner: "WilliamAGH", name: "williamcallahan.com") {
-    pullRequest(number: 109) {
-      reviewThreads {
-        totalCount
-      }
-    }
-  }
-}' | jq '.data.repository.pullRequest.reviewThreads.totalCount')
-
-# Then fetch with pagination if needed
-if [ "$TOTAL_THREADS" -le 100 ]; then
-  # Simple case: fetch all in one request
-  gh api graphql -f query='
-  {
-    repository(owner: "WilliamAGH", name: "williamcallahan.com") {
-      pullRequest(number: 109) {
-        reviewThreads(first: 100) {
-          nodes {
-            id
-            isResolved
-            path
-            line
-            comments(first: 1) {
-              nodes {
-                id
-                databaseId
-                body
-                author { login }
-              }
-            }
-          }
-        }
-      }
-    }
-  }' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
-else
-  # Complex case: use pagination (see main workflow above)
-  echo "PR has more than 100 threads - use the full pagination workflow from Step 2"
-fi
-
-**Get IDs for specific file:**
-
-# For a specific file's comments
-gh api graphql -f query='...' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.path == "lib/utils/api-sanitization.ts" and .isResolved == false)'
-```
-```
-
-</CollapseDropdown>
-
-<CollapseDropdown summary="4.6 /issue-review – Deep Dive on a GitHub Issue" id="user-issue-review">
-Deep-dive on any GitHub issue with a single command.
-
-```bash
-/issue-review 123
-```
-
-```markdown
-<!-- ~/.claude/commands/issue-review.md -->
-
-Review and potentially fix a GitHub issue.
-
-Repository: https://github.com/WilliamAGH/williamcallahan.com
-STEP 0: Run `git branch --show-current` to capture the current branch name for additional context.
-Issue: #$ARGUMENTS
-
-STEP 1: Use @mcp**github**get_issue to get and output full issue details.
-
-STEP 2: Use @mcp**zen**thinkdeep with model='pro' to deeply analyze the issue.
-
-STEP 3: Search for relevant code using @mcp**github**search_code and Read tools.
-
-STEP 4: If issue is actionable and can be fixed now:
-a) Implement the fix using Edit/MultiEdit tools
-b) Document all changes made
-c) Create comprehensive test if needed
-
-STEP 5: Post detailed comment on issue with: analysis, changes made (if any), or implementation plan if changes are too large.
-
-STEP 6: If fixed, mention it can be closed after review.
-
-Output summary of analysis and all actions taken.
-```
-
-</CollapseDropdown>
-
-<CollapseDropdown summary="4.7 /commit – Smart Conventional Commits" id="user-commit">
-Automatically stage files and create conventional commit messages.
-
-```bash
-/commit [files...]
-```
-
-```markdown
-<!-- ~/.claude/commands/commit.md -->
-
-Create a smart git commit with conventional commit message.
-
-Files to commit: $ARGUMENTS
-
-STEP 1: Show git status to see all changes.
-
-STEP 2: Check if there are already staged files:
-
-- If files are already staged (in "Changes to be committed"), skip to STEP 3 to review them
-- If no files are staged AND no files specified in arguments, user wants to commit ALL changes - use 'git add .' BUT ONLY if explicitly confirmed
-- If no files are staged AND specific files provided in arguments, stage only those specific files
-
-STEP 3: Run git diff --cached to show what will be committed.
-
-STEP 4: Analyze the changes to understand what was done.
-
-STEP 5: Write a commit message using conventional format: 'category: short description'.
-Categories:
-
-- feat (new feature)
-- fix (bug fix)
-- docs (documentation)
-- style (formatting)
-- refactor (code restructuring)
-- test (tests)
-- chore (maintenance)
-
-Keep under 50 characters.
-
-STEP 6: Execute the commit with your generated message.
-
-STEP 7: Show the commit hash and message.
-
-Example: 'fix: resolved bookmark API timeout issue'.
-```
-
-</CollapseDropdown>
-
-<CollapseDropdown summary="4.8 /create-issue – GitHub Issue Creator" id="user-create-issue">
-Create well-structured GitHub issues based on current codebase state.
-
-```bash
-/create-issue
-```
-
-```markdown
-<!-- ~/.claude/commands/create-issue.md -->
-
-Create a new GitHub issue based on current codebase state.
-
-Repository: https://github.com/WilliamAGH/williamcallahan.com
-
-STEP 1: Run git status and git diff to see current changes and understand context.
-
-STEP 2: Analyze the codebase state and recent changes to identify:
-a) Bugs or issues that need fixing
-b) Technical debt that should be addressed
-c) Feature improvements or enhancements
-d) Documentation gaps
-
-STEP 3: Create a well-structured GitHub issue using @mcp**github**create_issue with owner="WilliamAGH" repo="williamcallahan.com". Include:
-a) Clear, descriptive title
-b) Detailed description with context
-c) Steps to reproduce (if bug)
-d) Expected vs actual behavior
-e) Proposed solution or acceptance criteria
-f) Relevant labels
-
-STEP 4: Output the created issue URL and summary.
-```
-
-</CollapseDropdown>
-
-<CollapseDropdown summary="4.9 /solve-issue – Comprehensive Issue Resolution Workflow" id="user-solve-issue">
-Full-cycle issue resolution with context gathering, testing, and documentation updates.
-
-```bash
-/solve-issue [description or issue #]
-```
-
-```markdown
-<!-- ~/.claude/commands/solve-issue.md -->
-
-Comprehensive issue resolution workflow with full context gathering and testing.
-
-Repository: https://github.com/WilliamAGH/williamcallahan.com
-Issue/Problem Description: $ARGUMENTS
-
-STEP 1: Issue Tracking Setup
-Ask if user wants to: 1) Create new GitHub issue, 2) Link to existing issue, or 3) Fix without issue tracking
-
-STEP 2: Context Discovery (parallel Task agents)
-
-- List all documented functionalities
-- Read relevant functionality docs and diagrams
-- Map files to functionalities using file-overview-map.md
-
-STEP 3: Deep Analysis with Zen MCP
-
-- Use @mcp**zen**thinkdeep with model="pro" and thinking_mode="max"
-- Analyze issue in context of functionality documentation
-- Identify all affected files and side effects
-
-STEP 4: Create Action Plan
-Generate detailed todo list with specific files, tests, and documentation to update
-
-STEP 5: Implementation
-For each todo: mark in_progress, read, edit, document, mark completed
-
-STEP 6: Update Documentation
-CRITICAL: Update all affected functionality docs, diagrams, and file-overview-map.md
-
-STEP 7: Automated Testing
-Run tests for affected functionalities until 100% pass rate
-
-STEP 8: Manual Testing Guidance
-Provide specific test steps and wait for user confirmation
-
-STEP 9: Final Verification
-Run full test suite, linting, ensure no new warnings
-
-STEP 10: Commit Changes
-After user confirms, create comprehensive commit with conventional format
-
-STEP 11: Issue Closure
-Post summary to GitHub issue and ask if it should be closed
-
-Output complete summary of all actions taken.
-```
-
-</CollapseDropdown>
+Brief documentation inside the repository helps new contributors understand why the commands exist and where to extend them. Whenever the workflow changes, update the Markdown first so the CLI remains trustworthy.

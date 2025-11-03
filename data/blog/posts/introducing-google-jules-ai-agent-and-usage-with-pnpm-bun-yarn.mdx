@@ -3,100 +3,54 @@ title: "Google's Jules AI Agent: Autonomous Coding and Environment Setup Guide"
 slug: "google-jules-ai-agent-launched-and-pnpm-bun-yarn-environment-setup"
 excerpt: "A hands-on look at Google's new Jules AI coding agent, its key capabilities, and how to configure your development environment for full autonomous abilities in Jules."
 publishedAt: "2025-05-21"
-updatedAt: "2025-06-06"
+updatedAt: "2025-11-01"
 author: "william-callahan"
 tags: ["ai", "google", "jules", "package-managers", "pnpm", "bun", "yarn", "coding-agents"]
 coverImage: "/images/posts/jules-ai.png"
 ---
 
-<BackgroundInfo title="About Jules AI Agent">
-Jules is Google's autonomous coding agent, announced in public beta at [Google I/O 2025](https://blog.google/technology/ai/io-2025-keynote/). It runs tasks asynchronously in a secure Google Cloud virtual machine, understands your codebase context, and performs complex coding tasks from natural language prompts.
+<BackgroundInfo title="Jules overview">
+Jules is Google's autonomous coding service released during Google I/O 2025. It runs on managed Google Cloud VMs, connects to GitHub repositories, and executes tasks asynchronously. Jobs run until completion and return a diff, plan, and reasoning trace.
 </BackgroundInfo>
 
-# Google's Jules: The Autonomous Coding Agent That Works While You Don't
+# Google's Jules: An Autonomous & Asynchronous Coding Agent
 
-Google has officially released [Jules](https://jules.google) in public beta, making their autonomous coding agent available worldwide. Unlike code completion tools or co-pilots, Jules is a fully autonomous agent that reads your code, understands your intent, and works independently on tasks you'd rather not handle yourself.
+- Public free beta at [jules.google](https://jules.google) (access requires a Google account)
+- GitHub App installation is mandatory; Jules reads repositories through that integration
+- Jobs execute inside a temporary VM, and each run has a default 60-minute cap
 
-Jules operates asynchronously in a secure cloud environment, allowing you to focus on other work while it handles tasks like writing tests, fixing bugs, building features, or updating dependencies. When finished, it presents its reasoning and a diff of the changes made.
+## Feature summary
 
-## Key Features and Capabilities
+- **Planning and diff output** – every run publishes the plan, intermediate reasoning, and final patch set before prompting for approval.
+- **Long-context models** – Jules uses Gemini 2.5 Pro; requested context is capped at roughly 200k tokens during the beta.
+- **Audio recap** – optional short audio summary for teams that prefer listening to changelog updates.
+- **Tool execution** – runs shell commands, package managers, and tests inside `/app`; all commands are logged in the dashboard.
 
-Jules leverages [Gemini 2.5 Pro](https://blog.google/technology/google-deepmind/gemini-model-thinking-updates-march-2025/#gemini-2-5-pro), giving it access to advanced coding reasoning capabilities. Combined with its cloud VM system, it can handle complex, multi-file changes with impressive speed and precision.
+The agent’s behavior resembles a remote engineer: it clones the repo, performs the scripted setup, runs tasks, and leaves artefacts you can review.
 
-<CollapseDropdown summary="What Makes Jules Different">
-  <div>
+## Session workflow
 
-    - **Works on real codebases**: Jules doesn't need a sandbox. It takes the full context of your existing project to reason about changes intelligently.
-    - **Parallel execution**: Tasks run inside a cloud VM, enabling concurrent execution and handling multiple requests simultaneously.
-    - **Visible workflow**: Jules shows you its plan and reasoning before making changes, maintaining transparency.
-    - **GitHub integration**: Works directly with your GitHub repositories without requiring context-switching.
-    - **User control**: Modify the presented plan before, during, and after execution to maintain control over your code.
-    - **Audio summaries**: Get audio changelogs of recent commits, turning your project history into something you can listen to.
+1. Create a project in the Jules dashboard.
+2. Provide repository access, then hit **Configure** to define setup commands.
+3. Submit a natural-language task. Jules runs the plan, opens pull requests when asked, and exposes logs in the web UI.
+4. You can interrupt a run at any stage; the VM is destroyed afterward.
 
-  </div>
-</CollapseDropdown>
+The agent does not currently support self-hosted runners or on-prem repositories. All execution happens in Google's environment.
 
-Jules represents Google's latest effort to corner the market for AI agents, which are widely regarded as a more practical and profitable form of chatbot. The agent is built on Gemini 2.5 Pro, which has outscored other industry-leading models on key benchmarks like math and code editing.
+## Default tools
 
-## Getting Started with Jules
+| Area | Default behavior |
+| --- | --- |
+| Runtime | Node.js 22, Python 3.12, Java 21 images available. |
+| Package managers | npm is detected automatically; pnpm, Bun, or Yarn require manual configuration. |
+| Auth | Environment variables defined in the configuration UI are injected before the setup script runs. |
+| Output | Each task produces a diff, plan summary, and optional audio recap. |
 
-Getting started with Jules is straightforward. You'll need to connect your GitHub repository and configure your environment.
+## Custom package manager setup
 
-<CollapseDropdown summary="Onboarding Process">
-  <div>
+Add a setup script under **Configuration → Environment**. Jules runs this script before executing tasks. Jules doesn't properly detect alternative package managers like pnpm and Bun automatically. You need to configure these manually using custom setup scripts in the **Configuration** tab of your Jules project:
 
-    1. Visit [jules.google](https://jules.google) and sign in with your Google account.
-    2. In the Jules dashboard, click **Add Codebase** and authorize GitHub to select your repository.
-    3. Open the project dropdown in the top bar and choose **Configuration**.
-    4. Review the **Initial setup** commands. These ensure Jules has the right environment to work with your code.
-    5. Save your configuration before assigning your first task.
-
-  </div>
-</CollapseDropdown>
-
-Once connected, you can start assigning tasks to Jules using natural language prompts. For example, you might ask it to:
-- "Fix the failing tests in the authentication module"
-- "Update all dependencies to their latest versions"
-- "Implement a dark mode toggle for the UI"
-- "Refactor the user service to use async/await instead of promises"
-
-### Package Manager Configuration
-
-Jules doesn't properly detect alternative package managers like pnpm and Bun automatically. You need to configure these manually using custom setup scripts in the **Configuration** tab of your Jules project:
-
-<div className="mdx-tab-group" data-active-tab="pnpm">
-  <div className="mdx-tab-list">
-    <button className="mdx-tab-button" data-tab="pnpm" data-active="true">pnpm Configuration</button>
-    <button className="mdx-tab-button" data-tab="bun" data-active="false">Bun Configuration</button>
-  </div>
-
-  <div className="mdx-tab-panel" data-tab="pnpm">
-
-```bash
-set -ux 
-export CI=true
-cd /app
-
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-export NVM_DIR="$HOME/.nvm"
-if [ -s "$NVM_DIR/nvm.sh" ]; then
-  set +e; \\. "$NVM_DIR/nvm.sh"; NVM_SOURCE_STATUS=$?; set -e
-  if [ $NVM_SOURCE_STATUS -ne 0 ] && [ $NVM_SOURCE_STATUS -ne 3 ]; then
-    echo "ERROR: NVM sourcing failed: $NVM_SOURCE_STATUS"; exit 1
-  fi
-else
-  echo "ERROR: NVM script not found"; exit 1
-fi
-set -e 
-
-nvm install 22 && nvm use 22 && nvm alias default 22
-npm install -g pnpm@10
-pnpm install --frozen-lockfile
-```
-
-  </div>
-
-  <div className="mdx-tab-panel" data-tab="bun">
+### pnpm
 
 ```bash
 set -ux
@@ -113,7 +67,31 @@ if [ -s "$NVM_DIR/nvm.sh" ]; then
 else
   echo "ERROR: NVM script not found"; exit 1
 fi
-set -e 
+set -e
+
+nvm install 22 && nvm use 22 && nvm alias default 22
+npm install -g pnpm@10
+pnpm install --frozen-lockfile
+```
+
+### Bun
+
+```bash
+set -ux
+export CI=true
+cd /app
+
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+export NVM_DIR="$HOME/.nvm"
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+  set +e; \\. "$NVM_DIR/nvm.sh"; NVM_SOURCE_STATUS=$?; set -e
+  if [ $NVM_SOURCE_STATUS -ne 0 ] && [ $NVM_SOURCE_STATUS -ne 3 ]; then
+    echo "ERROR: NVM sourcing failed: $NVM_SOURCE_STATUS"; exit 1
+  fi
+else
+  echo "ERROR: NVM script not found"; exit 1
+fi
+set -e
 
 nvm install 22 && nvm use 22 && nvm alias default 22
 curl -fsSL https://bun.sh/install | bash
@@ -122,8 +100,6 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 bun install
 ```
 
-  </div>
-</div>
 
 These scripts:
 - Install NVM (Node Version Manager)
@@ -131,11 +107,6 @@ These scripts:
 - Install the latest version of your chosen package manager
 - Install project dependencies with frozen lockfiles
 
-Both scripts are minimal but include necessary error handling for the Jules cloud environment.
-
-## The AI Coding Agent Landscape in 2025
-
-The release of Jules comes amid intense competition in the AI coding agent space. According to [VentureBeat](https://venturebeat.com/ai/googles-jules-aims-to-out-code-codex-in-battle-for-the-ai-developer-stack/), we're witnessing a battle for the AI developer stack, with several major players offering competing solutions.
 
 <TweetEmbed url="https://x.com/leerob/status/1925228425301893481" />
 
@@ -151,14 +122,12 @@ Here's how Jules compares to other major AI coding assistants:
 
 When choosing between these tools, consider your specific workflow needs—such as network access requirements, GitHub integration depth, UI preferences, and CI/CD integration capabilities.
 
-## Trying Jules Today
+## When to use Jules vs. local tooling
 
-During the public beta phase, Jules is available for free with some [usage limits](https://jules.google/docs/usage-limits/). According to Google, they expect to introduce pricing after the beta as the platform matures.
+Jules has been reliable for dependency upgrades, regenerating SDKs, and running large-formatting tasks that take longer than a local machine allows. For urgent hotfixes or code that depends on local services, a conventional shell is still faster. Treat the agent as a remote worker that follows scripts literally—every successful job starts with a clean, reproducible setup phase.
 
-<BackgroundInfo title="Privacy and Security">
-Jules is private by default and doesn't train on your private code. Your data stays isolated within the execution environment, addressing a common concern with AI coding tools.
-</BackgroundInfo>
+## Beta limitations and privacy
 
-For comprehensive documentation on Jules, including detailed guides on running tasks, reviewing code diffs, and managing environments, visit the [official Jules documentation](https://jules.google/docs).
-
-Have you tried Jules or other AI coding agents? I'd be interested to hear about your experiences, especially if you've used alternative package managers with these tools.
+- **Usage limits** – during public beta the service is free but throttled; Google has indicated a paid tier will replace the free allowance when the beta closes.
+- **Data handling** – Google states that private repositories processed through Jules are not used to train models and stay within the temporary execution environment.
+- **Unsupported environments** – self-hosted Git or non-GitHub remotes are not yet available; every job clones from GitHub via the installed app.

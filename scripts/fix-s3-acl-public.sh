@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# fix-s3-acl-public.sh – Make every S3 object in the configured bucket publicly readable (ACL = public-read)
+# fix-s3-acl-public.sh – Make S3 objects publicly readable (ACL = public-read)
 # Usage:
 #   source .env            # or .env.local / .env.development
-#   bash scripts/fix-s3-acl-public.sh
+#   bash scripts/fix-s3-acl-public.sh [--prefix images/other/blog-posts/]
 #
 # Requirements:
 # • AWS CLI v2 with credentials configured via env-vars (AWS_ACCESS_KEY_ID etc.)
@@ -12,6 +12,12 @@
 #
 # The script is idempotent: re-running it merely re-applies the same ACL.
 # Hidden keys (those starting with a dot) are skipped.
+#
+# Optional flags:
+#   --prefix <key-prefix>   Limit the ACL update to keys that begin with this prefix.
+#                           Accepts either "--prefix foo/bar" or "--prefix=foo/bar" syntax.
+#                           Do NOT include "s3://". Provide the exact prefix you want to match.
+#   --debug                 Enable verbose logging (unchanged behaviour).
 set -euo pipefail
 
 # ---- Dependency Checks ----
@@ -31,8 +37,55 @@ fi
 
 : "${S3_BUCKET:?S3_BUCKET is not set}"
 
+# ------------------------------- Flag parsing -------------------------------
+TARGET_PREFIX=""
+
+print_usage_and_exit() {
+  echo "[ACL-Fix] Usage: bash scripts/fix-s3-acl-public.sh [--prefix images/other/blog-posts/]" >&2
+  echo "          Provide S3 object key prefixes without an s3:// scheme." >&2
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --debug)
+      DEBUG=1
+      shift
+      ;;
+    --prefix=*)
+      TARGET_PREFIX="${1#*=}"
+      shift
+      ;;
+    --prefix)
+      shift
+      [[ $# -gt 0 ]] || { echo "[ACL-Fix] ERROR: --prefix flag requires a value." >&2; print_usage_and_exit; }
+      TARGET_PREFIX="$1"
+      shift
+      ;;
+    *)
+      echo "[ACL-Fix] ERROR: Unknown flag '$1'." >&2
+      print_usage_and_exit
+      ;;
+  esac
+done
+
+if [[ -n "${TARGET_PREFIX}" ]]; then
+  if [[ "${TARGET_PREFIX}" == s3://* ]]; then
+    echo "[ACL-Fix] ERROR: --prefix expects only the key prefix, not an s3:// URL." >&2
+    print_usage_and_exit
+  fi
+  echo "[ACL-Fix] Restricting operations to keys beginning with '${TARGET_PREFIX}'"
+  if [[ "${TARGET_PREFIX}" != */ ]]; then
+    echo "[ACL-Fix] INFO: Prefix does not end with '/' — matching any object keys that start with this value."
+    echo "[ACL-Fix]       Add a trailing '/' if you only want to target a virtual directory."
+  fi
+fi
+
 # Safety confirmation prompt
 echo "[ACL-Fix] WARNING: This will make ALL objects in bucket '${S3_BUCKET}' publicly readable!"
+if [[ -n "${TARGET_PREFIX}" ]]; then
+  echo "[ACL-Fix] Scope limited to prefix: ${TARGET_PREFIX}"
+fi
 echo "[ACL-Fix] This means anyone on the internet can access these files."
 read -p "[ACL-Fix] Are you ABSOLUTELY sure? Type 'yes' to continue: " CONFIRM
 if [[ "${CONFIRM}" != "yes" ]]; then
@@ -111,11 +164,6 @@ echo "[ACL-Fix] Command preview: aws --endpoint-url ${S3_SERVER_URL:-default} --
 #   1. DEBUG env-var is set (e.g. `DEBUG=1 bun run fix:s3-acl-public`)
 #   2. --debug flag is supplied as the first CLI argument
 
-if [[ "${1:-}" == "--debug" ]]; then
-  DEBUG=1
-  shift # remove flag so positional args (if any) remain consistent
-fi
-
 if [[ -n "${DEBUG:-}" ]]; then
   # PS4 prefix prints the source file + line + function and exit status
   export PS4='+ ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:-main}() – exit=$? '
@@ -162,26 +210,31 @@ trap - ERR
 
 CONT_TOKEN=""
 while true; do
+  AWS_LIST_ARGS=("--bucket" "${S3_BUCKET}")
+  if [[ -n "${TARGET_PREFIX}" ]]; then
+    AWS_LIST_ARGS+=("--prefix" "${TARGET_PREFIX}")
+  fi
+
   if [[ -n "${CONT_TOKEN}" ]]; then
     # Capture both stdout and stderr separately for better error diagnosis
     if ! RESP=$(aws "${CLI_ARGS[@]}" "${AWS_GLOBAL_FLAGS[@]}" s3api list-objects-v2 \
-      --bucket "${S3_BUCKET}" --continuation-token "${CONT_TOKEN}" 2>&1); then
+      "${AWS_LIST_ARGS[@]}" --continuation-token "${CONT_TOKEN}" 2>&1); then
       STATUS=$?
       echo "[ACL-Fix] ERROR: list-objects-v2 with continuation token failed (exit ${STATUS})" >&2
       echo "[ACL-Fix] Full AWS CLI output:" >&2
       echo "${RESP}" >&2
-      echo "[ACL-Fix] Command was: aws ${CLI_ARGS[*]} ${AWS_GLOBAL_FLAGS[*]} s3api list-objects-v2 --bucket ${S3_BUCKET} --continuation-token ${CONT_TOKEN}" >&2
+      echo "[ACL-Fix] Command was: aws ${CLI_ARGS[*]} ${AWS_GLOBAL_FLAGS[*]} s3api list-objects-v2 ${AWS_LIST_ARGS[*]} --continuation-token ${CONT_TOKEN}" >&2
       exit ${STATUS}
     fi
   else
     # Capture both stdout and stderr separately for better error diagnosis
     if ! RESP=$(aws "${CLI_ARGS[@]}" "${AWS_GLOBAL_FLAGS[@]}" s3api list-objects-v2 \
-      --bucket "${S3_BUCKET}" 2>&1); then
+      "${AWS_LIST_ARGS[@]}" 2>&1); then
       STATUS=$?
       echo "[ACL-Fix] ERROR: list-objects-v2 failed (exit ${STATUS})" >&2
       echo "[ACL-Fix] Full AWS CLI output:" >&2
       echo "${RESP}" >&2
-      echo "[ACL-Fix] Command was: aws ${CLI_ARGS[*]} ${AWS_GLOBAL_FLAGS[*]} s3api list-objects-v2 --bucket ${S3_BUCKET}" >&2
+      echo "[ACL-Fix] Command was: aws ${CLI_ARGS[*]} ${AWS_GLOBAL_FLAGS[*]} s3api list-objects-v2 ${AWS_LIST_ARGS[*]}" >&2
       exit ${STATUS}
     fi
   fi
@@ -199,8 +252,12 @@ while true; do
   fi
 
   mapfile -t KEYS < <(echo "${RESP}" | jq -r '.Contents[]?.Key')
-  
-  echo "[ACL-Fix] Processing ${#KEYS[@]} objects in this batch..."
+
+  if [[ ${#KEYS[@]} -eq 0 ]]; then
+    echo "[ACL-Fix] No objects found for prefix '${TARGET_PREFIX:-<entire bucket>}' in this batch."
+  else
+    echo "[ACL-Fix] Processing ${#KEYS[@]} objects in this batch..."
+  fi
   # Temporarily disable set -e for arithmetic operations that can return non-zero
   set +e
   for key in "${KEYS[@]}"; do
