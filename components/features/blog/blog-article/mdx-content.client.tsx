@@ -118,19 +118,21 @@ const PreRenderer = (props: ComponentProps<"pre">) => {
 
 /**
  * @component MdxImage
- * Renders an image within MDX content, providing options for captions, sizing, and priority loading.
- * It intelligently handles both external image URLs and Base64 encoded data URLs,
- * using appropriate Next.js image components (`ImageWindow` for external URLs, `Base64Image` for data URLs)
- * to ensure optimization and proper display.
+ * Renders an image within MDX content with caption support and width controls.
+ * - Data URLs render via Base64Image for proper sizing.
+ * - External URLs render as a plain <img>, intentionally without macOS window chrome.
+ * - Defaults to ~75% width on large screens; override with size, widthPct, or vwPct.
  *
  * @param {ArticleImageProps} props - The properties for the MdxImage component.
  * @param {string} [props.src=''] - The source URL or Base64 data string of the image.
  * @param {string} [props.alt=''] - The alternative text for the image.
  * @param {string} [props.caption] - Optional caption to display below the image.
- * @param {'full' | 'medium' | 'small'} [props.size='full'] - The display size of the image.
+ * @param {'full' | 'medium' | 'small'} [props.size='medium'] - Preset display size (ignored if widthPct/vwPct provided).
+ * @param {number} [props.widthPct] - Optional container-relative width percentage (0–100).
+ * @param {number} [props.vwPct] - Optional viewport-relative width percentage (0–100).
  * @param {boolean} [props.priority=false] - Whether the image is a priority for loading.
- * @returns {JSX.Element | null} The rendered image wrapped in a `<figure>` element with an optional caption,
- *                               or null if no `src` is provided or `src` is not a string.
+ * @returns {JSX.Element | null} The rendered image wrapped in a <figure> with an optional <figcaption>,
+ *                               or null if `src` is missing/invalid.
  */
 const MdxImage = ({
   src = "",
@@ -172,6 +174,7 @@ const MdxImage = ({
       width={1600}
       height={800}
       loading={priority ? "eager" : "lazy"}
+      decoding="async"
       className="rounded-lg shadow-md w-full h-auto"
       style={{ width: "100%", height: "auto" }}
     />
