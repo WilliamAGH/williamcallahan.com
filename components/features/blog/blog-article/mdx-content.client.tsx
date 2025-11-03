@@ -174,7 +174,6 @@ const MdxImage = ({
       width={1600}
       height={800}
       loading={priority ? "eager" : "lazy"}
-      decoding="async"
       className="rounded-lg shadow-md w-full h-auto"
       style={{ width: "100%", height: "auto" }}
     />
