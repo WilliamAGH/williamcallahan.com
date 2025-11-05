@@ -63,6 +63,10 @@ Window Controls → TerminalHeader → GlobalWindowRegistry
 6. **Navigation**: Commands can trigger navigation to different pages; `ai` and `chat` open `https://search-ai.io` in a new browser tab
 7. **API Integration**: Search commands communicate with /api/search endpoints
 
+### CV Page Rendering Exception (2025-11)
+
+- `TerminalLoader` now checks `usePathname()` and returns `null` on `/cv` so the curriculum vitae page renders without the terminal window. The provider hierarchy stays mounted which preserves window registry state and keeps restore buttons consistent while hiding the UI surface for that route only.
+
 ## Architecture Strengths
 
 - **Separation of Concerns**: Command logic completely decoupled from React components

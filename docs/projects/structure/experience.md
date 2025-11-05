@@ -2,7 +2,7 @@
 
 ## Core Purpose
 
-The Experience domain displays professional work history with idempotent S3 CDN logo fetching at `app/experience/page.tsx:61-108` ensuring consistent company branding. Uses logoOnlyDomain property at `types/experience.ts:43` for logo resolution override when company domain differs from website.
+The Experience domain displays professional work history with idempotent S3 CDN logo fetching at `app/experience/page.tsx:61-108` ensuring consistent company branding. Uses logoOnlyDomain property at `types/experience.ts:43` for logo resolution override when company domain differs from website. Entries flagged with `cvFeatured` are additionally consumed by the `/cv` route to present a condensed résumé view without duplicating data.
 
 ## Architecture Overview
 
@@ -19,6 +19,7 @@ Components:
 - **logoOnlyDomain Override**: `types/experience.ts:37-43` allows separate domain for logo fetching vs website link, which should override the normal domain url (for logo purposes)
 - **3-Tier Logo Resolution**: Manifest → S3 CDN → Static fallback at `page.tsx:77-95`
 - **Idempotent Fetching**: Always returns same CDN URL for given domain via UnifiedImageService
+- **CV Flagging**: `data/experience.ts` sets `cvFeatured` for items surfaced on the `/cv` curriculum vitae route without duplicating records.
 
 ## Data Structures
 
@@ -36,6 +37,7 @@ export interface Experience {
   accelerator?: Accelerator;
   location?: string;
   logoOnlyDomain?: string; // Override domain for logo fetching
+  cvFeatured?: boolean; // Highlight in app/cv
 }
 
 // types/index.ts (LogoData)

@@ -442,6 +442,8 @@ File/Path Functionality Description
   - [x] `page.tsx` `education` - Education page (ISR)
 - [x] **experience/**
   - [x] `page.tsx` `experience` - Experience page (ISR)
+- [x] **cv/**
+  - [x] `page.tsx` `experience` - Curriculum vitae page reusing `cvFeatured` subsets from experience, education, and projects
 - [x] **investments/**
   - [x] `page.tsx` `investments` - Investments page (ISR)
 - [x] **projects/**
