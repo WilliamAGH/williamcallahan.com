@@ -74,6 +74,7 @@ function formatActivityView(
   };
 
   const allTimeData = s3ActivityData.cumulativeAllTimeData || trailingYearData;
+  const commitsOlderThanYear = allTimeData.allCommitsOlderThanYear;
 
   return {
     source,
@@ -90,6 +91,7 @@ function formatActivityView(
       linesAdded: allTimeData.linesAdded || 0,
       linesRemoved: allTimeData.linesRemoved || 0,
     },
+    commitsOlderThanYear,
     lastRefreshed,
   };
 }

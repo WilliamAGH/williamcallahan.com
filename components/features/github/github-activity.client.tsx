@@ -5,7 +5,7 @@
 
 "use client";
 
-import type { ContributionDay, UserActivityView } from "@/types/github";
+import type { CommitsOlderThanYearSummary, ContributionDay, UserActivityView } from "@/types/github";
 import { formatDistanceToNow } from "date-fns";
 import { Code, RefreshCw } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -58,11 +58,14 @@ const GitHubActivity = () => {
   const [allTimeLinesAdded, setAllTimeLinesAdded] = useState<number | null>(null); // All-time lines added
   const [allTimeLinesRemoved, setAllTimeLinesRemoved] = useState<number | null>(null); // All-time lines removed
   const [allTimeTotalContributions, setAllTimeTotalContributions] = useState<number | null>(null); // All-time total contributions
+  const [commitsOlderThanYear, setCommitsOlderThanYear] = useState<CommitsOlderThanYearSummary | null>(null); // Older-than-year commit stats
 
   const [dataComplete, setDataComplete] = useState<boolean>(true); // Flag indicating if the fetched data is complete
   const [lastRefreshed, setLastRefreshed] = useState<string | null>(null); // Timestamp of the last data refresh
   const [showCrossEnvRefresh, setShowCrossEnvRefresh] = useState(false); // Show option to refresh other environments
   const [isRefreshingProduction, setIsRefreshingProduction] = useState(false); // Loading state for production refresh
+  const lifetimeContributionTotal =
+    allTimeTotalContributions ?? (totalContributions ?? 0) + (commitsOlderThanYear?.totalCommits ?? 0);
 
   // Determine if refresh buttons should be shown based on environment
   // Show refresh button for non-production environments (development, test, staging)
@@ -125,6 +128,7 @@ const GitHubActivity = () => {
     setAllTimeLinesAdded(null); // Reset for cards
     setAllTimeLinesRemoved(null); // Reset for cards
     setAllTimeTotalContributions(null); // Reset for cards
+    setCommitsOlderThanYear(null);
     setDataComplete(false); // Assume data is incomplete after reset
     setLastRefreshed(null);
     setError(null); // Also reset error state
@@ -205,6 +209,7 @@ const GitHubActivity = () => {
           setAllTimeLinesAdded(result?.allTimeStats?.linesAdded ?? null);
           setAllTimeLinesRemoved(result?.allTimeStats?.linesRemoved ?? null);
           setAllTimeTotalContributions(result?.allTimeStats?.totalContributions ?? null);
+          setCommitsOlderThanYear(result?.commitsOlderThanYear ?? null);
 
           setLastRefreshed(result?.lastRefreshed ?? null);
           return; // Return after setting partial data/error
@@ -228,6 +233,7 @@ const GitHubActivity = () => {
         setAllTimeLinesAdded(result?.allTimeStats?.linesAdded ?? null);
         setAllTimeLinesRemoved(result?.allTimeStats?.linesRemoved ?? null);
         setAllTimeTotalContributions(result?.allTimeStats?.totalContributions ?? null);
+        setCommitsOlderThanYear(result?.commitsOlderThanYear ?? null);
 
         if (result?.allTimeStats) {
           console.log("[Client] All-time stats received:", result.allTimeStats);
@@ -460,6 +466,18 @@ const GitHubActivity = () => {
               </span>
             )}
           </div>
+          {lifetimeContributionTotal > 0 && (
+            <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">
+              Lifetime contributions:{" "}
+              <span className="font-semibold">{lifetimeContributionTotal.toLocaleString()}</span>
+              {commitsOlderThanYear && totalContributions !== null && (
+                <span className="ml-1 text-gray-500 dark:text-gray-400">
+                  (Prior years: {commitsOlderThanYear.totalCommits.toLocaleString()} + Trailing year:{" "}
+                  {totalContributions.toLocaleString()})
+                </span>
+              )}
+            </div>
+          )}
           {allTimeLinesAdded !== null && allTimeLinesRemoved !== null && allTimeTotalContributions !== null && (
             <div className="mt-6">
               <CumulativeGitHubStatsCards
