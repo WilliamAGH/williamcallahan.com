@@ -542,7 +542,7 @@ const nextConfig = {
       const openTelemetryPolyfill = path.resolve(__dirname, "lib/edge-polyfills/opentelemetry.ts");
       config.resolve.alias["@opentelemetry/api"] = openTelemetryPolyfill;
       config.resolve.alias["@opentelemetry/instrumentation"] = openTelemetryPolyfill;
-      config.resolve.alias["@sentry/opentelemetry"] = openTelemetryPolyfill;
+      // Allow @sentry/opentelemetry to resolve to the real package; the Edge SDK now relies on its helpers.
     }
 
     // Suppress warnings for Sentry and OpenTelemetry dynamic requires
