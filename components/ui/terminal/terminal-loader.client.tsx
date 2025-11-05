@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
+import { usePathname } from "next/navigation";
 
 // Terminal loading skeleton
 export function TerminalSkeleton() {
@@ -67,6 +68,12 @@ const TerminalImpl = dynamic(() => import("./terminal-implementation.client").th
 
 // Export the loader component
 export function TerminalLoader() {
+  const pathname = usePathname();
+
+  if (pathname === "/cv") {
+    return null;
+  }
+
   return (
     <Suspense fallback={<TerminalSkeleton />}>
       <TerminalImpl />
