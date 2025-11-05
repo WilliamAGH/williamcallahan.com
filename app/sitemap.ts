@@ -273,6 +273,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: getLatestDate(getPageFileMtime("page.tsx"), getSafeDate(PAGE_METADATA.home.dateModified)),
     },
     "/experience": { priority: 0.8, lastModified: getSafeDate(experienceUpdatedAt) },
+    "/cv": {
+      priority: 0.85,
+      lastModified: getLatestDate(
+        getPageFileMtime("cv/page.tsx"),
+        getSafeDate(PAGE_METADATA.cv?.dateModified),
+        getSafeDate(experienceUpdatedAt),
+      ),
+    },
     "/investments": { priority: 0.9, lastModified: getSafeDate(investmentsUpdatedAt) },
     "/education": { priority: 0.7, lastModified: getSafeDate(educationUpdatedAt) }, // Adjusted priority
     "/projects": { priority: 0.9, lastModified: getSafeDate(projectsUpdatedAt) }, // Added projects

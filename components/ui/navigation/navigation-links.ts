@@ -13,6 +13,7 @@ import type { NavigationLink } from "@/types/navigation";
 export const navigationLinks: NavigationLink[] = [
   { name: "Home", path: "/" },
   { name: "Experience", path: "/experience" },
+  { name: "CV", path: "/cv" },
   { name: "Education", path: "/education" },
   { name: "Projects", path: "/projects" },
   { name: "Bookmarks", path: "/bookmarks" },
