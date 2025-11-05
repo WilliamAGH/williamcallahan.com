@@ -21,6 +21,7 @@ import {
   ContributorStatsResponseSchema,
   CommitResponseSchema,
   type RepoRawWeeklyStat,
+  type CommitsOlderThanYearSummary,
 } from "@/types/github";
 import { formatPacificDateTime, getTrailingYearDate, startOfDay, endOfDay, unixToDate } from "@/lib/utils/date-format";
 import { waitForPermit, isOperationAllowed } from "@/lib/rate-limiter";
@@ -220,6 +221,15 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     other: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
   };
 
+  const olderThanYearCommitStats: CommitsOlderThanYearSummary = {
+    totalCommits: 0,
+    totalLinesAdded: 0,
+    totalLinesRemoved: 0,
+    publicCommits: 0,
+    privateCommits: 0,
+    perRepo: {},
+  };
+
   // Initialize accumulators for all-time stats (calculated in-memory)
   let allTimeLinesAdded = 0;
   let allTimeLinesRemoved = 0;
@@ -242,6 +252,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     async repo => {
       const repoOwnerLogin = repo.owner.login;
       const repoName = repo.name;
+      const repoKey = repo.nameWithOwner ?? `${repoOwnerLogin}/${repoName}`;
       const repoStatS3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwnerLogin}_${repoName}.csv`;
       let currentRepoLinesAdded365 = 0;
       let currentRepoLinesRemoved365 = 0;
@@ -249,6 +260,11 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       let currentRepoAllTimeLinesAdded = 0;
       let currentRepoAllTimeLinesRemoved = 0;
       let thisRepoAllTimeDataContributed = false;
+      const repoOlderThanYearAccumulator = {
+        commits: 0,
+        linesAdded: 0,
+        linesRemoved: 0,
+      };
 
       let apiStatus: RepoWeeklyStatCache["status"] = "fetch_error";
       let finalStatsToSaveForRepo: RepoRawWeeklyStat[] = [];
@@ -343,6 +359,10 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
           if (weekDate >= trailingYearFromDate && weekDate <= now) {
             currentRepoLinesAdded365 += week.a || 0;
             currentRepoLinesRemoved365 += week.d || 0;
+          } else if (weekDate < trailingYearFromDate) {
+            repoOlderThanYearAccumulator.commits += week.c || 0;
+            repoOlderThanYearAccumulator.linesAdded += week.a || 0;
+            repoOlderThanYearAccumulator.linesRemoved += week.d || 0;
           }
         }
       } catch (repoError: unknown) {
@@ -394,6 +414,29 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       allTimeLinesAdded += currentRepoAllTimeLinesAdded;
       allTimeLinesRemoved += currentRepoAllTimeLinesRemoved;
       // allTimeTotalCommits is now calculated later using a more accurate method
+
+      if (
+        repoOlderThanYearAccumulator.commits > 0 ||
+        repoOlderThanYearAccumulator.linesAdded !== 0 ||
+        repoOlderThanYearAccumulator.linesRemoved !== 0
+      ) {
+        olderThanYearCommitStats.totalCommits += repoOlderThanYearAccumulator.commits;
+        olderThanYearCommitStats.totalLinesAdded += repoOlderThanYearAccumulator.linesAdded;
+        olderThanYearCommitStats.totalLinesRemoved += repoOlderThanYearAccumulator.linesRemoved;
+
+        if (repo.isPrivate) {
+          olderThanYearCommitStats.privateCommits += repoOlderThanYearAccumulator.commits;
+        } else {
+          olderThanYearCommitStats.publicCommits += repoOlderThanYearAccumulator.commits;
+        }
+
+        olderThanYearCommitStats.perRepo[repoKey] = {
+          commits: repoOlderThanYearAccumulator.commits,
+          linesAdded: repoOlderThanYearAccumulator.linesAdded,
+          linesRemoved: repoOlderThanYearAccumulator.linesRemoved,
+          isPrivate: repo.isPrivate,
+        };
+      }
 
       const categoryKey = categorizeRepository(repo.name);
 
@@ -662,21 +705,16 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     );
   }
 
-  let reconciledAllTimeTotalCommits = allTimeTotalCommits;
-  if (allTimeTotalCommits < yearTotalCommits) {
-    console.log(
-      `[DataAccess/GitHub] Reconciling totalContributions for all-time data: Calculated all-time commits (${allTimeTotalCommits}) is less than trailing year commits (${yearTotalCommits}). Using trailing year count as the floor for all-time total contributions.`,
-    );
-    reconciledAllTimeTotalCommits = yearTotalCommits;
-  }
+  const lifetimeContributionEstimate = (yearTotalCommits || 0) + (olderThanYearCommitStats.totalCommits || 0);
 
   const allTimeData: StoredGithubActivityS3 = {
     source: "api", // Source is 'api' because it's processed from API/S3 cache, not re-read from aggregated S3 files for this specific object.
     data: [], // All-time data typically doesn't include the daily calendar view
-    totalContributions: reconciledAllTimeTotalCommits,
+    totalContributions: lifetimeContributionEstimate,
     linesAdded: allTimeLinesAdded,
     linesRemoved: allTimeLinesRemoved,
     dataComplete: allTimeOverallDataComplete,
+    allCommitsOlderThanYear: olderThanYearCommitStats,
     // No allTimeTotalContributions field here, totalContributions is the source of truth.
   };
 
