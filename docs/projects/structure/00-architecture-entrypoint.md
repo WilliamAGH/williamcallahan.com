@@ -87,3 +87,7 @@ Example schemas:
 ### Provider Localization Note (2025-08)
 
 - TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for resilience. See “Provider Location & Resilience (2025-08)” in [terminal.md](./terminal.md) for details and guarantees.
+
+## Recent Architecture Notes
+
+- **2025-11-05** — Projects data refreshed with the ComposerAI entry (Svelte + Vite UI with Java 25/Spring Boot, Qdrant, and S3 Object Storage services) so the portfolio accurately reflects the AI email client capabilities described in `data/projects.ts`.

@@ -1,7 +1,7 @@
 import type { Project } from "@/types/project";
 
 // Remember to update this date whenever the projects data or the Projects page design changes
-export const updatedAt = "2025-08-25";
+export const updatedAt = "2025-11-05";
 
 export const projects: Project[] = [
   {
@@ -58,6 +58,17 @@ export const projects: Project[] = [
     techStack: ["Next.js", "TypeScript", "Tailwind CSS", "Zod", "Bun", "Docker", "Fly.io"],
   },
   {
+    id: "SearchAI",
+    name: "SearchAI",
+    description:
+      "A web application that combines traditional web search with an AI-powered chat assistant. Users can perform searches, review selected context from the results, and then engage in a conversation with AI (e.g., OpenAI's GPT models, Groq, Gemini, etc.) that utilizes this context to provide more relevant and informed responses.",
+    shortSummary: "AI-powered web search with a contextual chat assistant",
+    url: "https://search-ai.io",
+    imageKey: "images/other/projects/searchAI.png",
+    tags: ["AI", "Web Search", "Chat Assistant", "OpenAI", "GPT", "RAG", "Contextual Search", "Web App", "Groq"],
+    techStack: ["Next.js", "TypeScript", "JavaScript", "Convex Database", "Python", "Vercel AI SDK"],
+  },
+  {
     id: "Filey - Flag Deprecated Files Extension",
     name: "Filey - Flag Deprecated Files Extension",
     description:
@@ -82,15 +93,26 @@ export const projects: Project[] = [
     techStack: ["TypeScript", "VS Code API", "Node.js"],
   },
   {
-    id: "SearchAI",
-    name: "SearchAI",
+    id: "ComposerAI",
+    name: "ComposerAI",
     description:
-      "A web application that combines traditional web search with an AI-powered chat assistant. Users can perform searches, review selected context from the results, and then engage in a conversation with AI (e.g., OpenAI's GPT models, Groq, Gemini, etc.) that utilizes this context to provide more relevant and informed responses.",
-    shortSummary: "AI-powered web search with a contextual chat assistant",
-    url: "https://search-ai.io",
-    imageKey: "images/other/projects/searchAI.png",
-    tags: ["AI", "Web Search", "Chat Assistant", "OpenAI", "GPT", "RAG", "Contextual Search", "Web App", "Groq"],
-    techStack: ["Next.js", "TypeScript", "JavaScript", "Convex Database", "Python", "Vercel AI SDK"],
+      "ComposerAI is an AI-native email client that runs on a Svelte + Vite frontend, backed by a Spring Boot server/container orchestrating all the other services required for the app. It indexes every message in Qdrant so users can ask natural language questions informed by their entire mailbox, generate replies that cite prior conversations, and a context-aware task suggestion engine for suggesting follow-up tasks.",
+    shortSummary: "AI email client / mailbox for agentic search and tasks.",
+    url: "https://composerai.app",
+    imageKey: "images/other/projects/composerai-app.png",
+    tags: ["AI", "Email Client", "LLM", "Productivity", "Task Automation", "Vector Search", "Web App", "Svelte"],
+    techStack: ["Svelte", "Vite", "Java 25", "Spring Boot", "Qdrant", "S3 Object Storage"],
+  },
+  {
+    id: "AI Company Research Tool",
+    name: "AI Company Research Tool",
+    description:
+      "An experimental web app to retrieve live data from one or more LLMs, parse the JSON response, and display nested/cleaned text for diagnostics in researching companies and competitive intelligence.",
+    shortSummary: "Web app for AI-driven company research",
+    url: "https://company-lookup.iocloudhost.net/",
+    imageKey: "images/other/projects/company-research-experimental-ai-tool.png",
+    tags: ["LLM", "AI", "JSON", "Company Research", "Web App", "Web Search", "Experimental"],
+    techStack: ["Svelte", "TypeScript", "Tailwind CSS", "OpenAI", "Node.js", "Groq", "Docker"],
   },
   {
     id: "Book Finder (findmybook.net)",
@@ -114,17 +136,6 @@ export const projects: Project[] = [
       "Book Recommendation",
     ],
     techStack: ["Java", "Spring Boot", "Spring AI", "OpenAI", "Thymeleaf", "HTMX", "PostgreSQL", "Docker"],
-  },
-  {
-    id: "AI Company Research Tool",
-    name: "AI Company Research Tool",
-    description:
-      "An experimental web app to retrieve live data from one or more LLMs, parse the JSON response, and display nested/cleaned text for diagnostics in researching companies and competitive intelligence.",
-    shortSummary: "Web app for AI-driven company research",
-    url: "https://company-lookup.iocloudhost.net/",
-    imageKey: "images/other/projects/company-research-experimental-ai-tool.png",
-    tags: ["LLM", "AI", "JSON", "Company Research", "Web App", "Web Search", "Experimental"],
-    techStack: ["Svelte", "TypeScript", "Tailwind CSS", "OpenAI", "Node.js", "Groq", "Docker"],
   },
   {
     id: "repo-tokens-calculator",
