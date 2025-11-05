@@ -91,3 +91,4 @@ Example schemas:
 ## Recent Architecture Notes
 
 - **2025-11-05** — Projects data refreshed with the ComposerAI entry (Svelte + Vite UI with Java 25/Spring Boot, Qdrant, and S3 Object Storage services) so the portfolio accurately reflects the AI email client capabilities described in `data/projects.ts`.
+- **2025-11-05** — Added `/cv` curriculum vitae route powered by existing experience, education, certification, and project datasets via new `cvFeatured` flags.
