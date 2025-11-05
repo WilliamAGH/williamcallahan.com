@@ -34,6 +34,7 @@ export interface StoredGithubActivityS3 {
   error?: string;
   details?: string;
   allTimeTotalContributions?: number;
+  allCommitsOlderThanYear?: CommitsOlderThanYearSummary;
 }
 
 /**
@@ -77,6 +78,28 @@ export interface GitHubActivitySummary {
     };
     other: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
   };
+}
+
+/**
+ * Per-repository stats for commits older than one trailing year window
+ */
+export interface CommitsOlderThanYearRepoStats {
+  commits: number;
+  linesAdded: number;
+  linesRemoved: number;
+  isPrivate: boolean;
+}
+
+/**
+ * Aggregated commit statistics for activity that occurred more than one year ago
+ */
+export interface CommitsOlderThanYearSummary {
+  totalCommits: number;
+  totalLinesAdded: number;
+  totalLinesRemoved: number;
+  publicCommits: number;
+  privateCommits: number;
+  perRepo: Record<string, CommitsOlderThanYearRepoStats>;
 }
 
 /**
@@ -227,6 +250,7 @@ export interface UserActivityView {
     linesAdded: number;
     linesRemoved: number;
   };
+  commitsOlderThanYear?: CommitsOlderThanYearSummary;
   lastRefreshed?: string;
 }
 
