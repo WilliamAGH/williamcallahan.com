@@ -83,6 +83,7 @@ const PAGE_OG_IMAGE_MAP: Record<keyof typeof PAGE_METADATA, keyof typeof SEO_IMA
   bookmarks: "ogBookmarks",
   projects: "ogProjects",
   experience: "ogExperience",
+  cv: "ogCv",
   education: "ogEducation",
   investments: "ogInvestments",
   contact: "ogContact",
