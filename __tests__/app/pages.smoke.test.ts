@@ -9,6 +9,7 @@ const staticPageRoutes = [
   { name: "Contact", path: "@/app/contact/page", needsProvider: true },
   { name: "Education", path: "@/app/education/page", skipRender: true }, // Has server-only imports
   { name: "Experience", path: "@/app/experience/page", skipRender: true, needsProvider: true }, // Needs provider
+  { name: "CV", path: "@/app/cv/page" },
   { name: "Investments", path: "@/app/investments/page", skipRender: true }, // Uses async components
   { name: "Projects", path: "@/app/projects/page", needsProvider: true },
   { name: "Bookmarks", path: "@/app/bookmarks/page", skipRender: true }, // Has server data fetching
