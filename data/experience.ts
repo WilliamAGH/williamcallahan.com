@@ -20,6 +20,7 @@ const experiencesData: Experience[] = [
     logo: undefined,
     website: "https://aventure.vc",
     location: "San Francisco, California",
+    cvFeatured: true,
   },
   {
     id: "techstars",
@@ -52,6 +53,7 @@ const experiencesData: Experience[] = [
     logo: undefined,
     website: "https://www.tsbank.com",
     location: "Omaha, Nebraska",
+    cvFeatured: true,
   },
   {
     id: "callahan-financial",
@@ -64,6 +66,7 @@ const experiencesData: Experience[] = [
     logoOnlyDomain: "callahanplanning.com",
     website: "https://tsbank.com",
     location: "Omaha, Nebraska / San Francisco, California",
+    cvFeatured: true,
   },
   {
     id: "mutual-first",
@@ -75,6 +78,7 @@ const experiencesData: Experience[] = [
     logo: undefined,
     website: "https://mutualfirst.com",
     location: "Omaha, Nebraska",
+    cvFeatured: true,
   },
   {
     id: "morningstar",
@@ -86,6 +90,7 @@ const experiencesData: Experience[] = [
     logo: undefined,
     website: "https://morningstar.com",
     location: "Chicago, Illinois",
+    cvFeatured: true,
   },
 ];
 
