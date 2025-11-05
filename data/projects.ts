@@ -96,7 +96,7 @@ export const projects: Project[] = [
     id: "ComposerAI",
     name: "ComposerAI",
     description:
-      "ComposerAI is an AI-native email client that runs on a Svelte + Vite frontend, backed by a Spring Boot server/container orchestrating all the other services required for the app. It indexes every message in Qdrant so users can ask natural language questions informed by their entire mailbox, generate replies that cite prior conversations, and a context aware task suggestion engine for suggesting follow-up tasks.",
+      "ComposerAI is an AI-native email client that runs on a Svelte + Vite frontend, backed by a Spring Boot server/container orchestrating all the other services required for the app. It indexes every message in Qdrant so users can ask natural language questions informed by their entire mailbox, generate replies that cite prior conversations, and a context-aware task suggestion engine for suggesting follow-up tasks.",
     shortSummary: "AI email client / mailbox for agentic search and tasks.",
     url: "https://composerai.app",
     imageKey: "images/other/projects/composerai-app.png",
