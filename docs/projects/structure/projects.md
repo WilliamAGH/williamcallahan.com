@@ -34,3 +34,7 @@ See [Projects Architecture Diagram](./projects.mmd).
 - **UI Components**: `components/features/projects/`
 - **Data Source**: `data/projects.ts`
 - **Types**: `types/project.ts`
+
+## Recent Updates
+
+- **2025-11-05** — Added the ComposerAI project (Svelte + Vite email client with Spring Boot/Qdrant/S3 services) to `data/projects.ts`, ensuring its screenshot lives at `images/other/projects/composerai-app.png` for the Projects cards.

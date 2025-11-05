@@ -481,6 +481,7 @@ File/Path Functionality Description
   - [ ] **posts/**
     - [x] `*.mdx` `blog-article` - Blog post content files
 - [ ] `*.ts` `data` - Data configuration files
+- [x] `projects.ts` `projects` - Project metadata source (2025-11-05: ComposerAI entry + `images/other/projects/composerai-app.png`)
 
 ## Public Directory
 
