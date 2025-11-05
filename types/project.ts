@@ -19,4 +19,6 @@ export interface Project {
   techStack?: string[];
   /** Optional note/disclaimer surfaced alongside the project description */
   note?: string;
+  /** Flag projects that should appear on the CV page */
+  cvFeatured?: boolean;
 }

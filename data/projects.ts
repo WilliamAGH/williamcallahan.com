@@ -38,6 +38,7 @@ export const projects: Project[] = [
       "Google Cloud",
       "Oracle Cloud",
     ],
+    cvFeatured: true,
   },
   {
     id: "williamcallahan.com",
@@ -56,6 +57,7 @@ export const projects: Project[] = [
       "Code Syntax Highlighting",
     ],
     techStack: ["Next.js", "TypeScript", "Tailwind CSS", "Zod", "Bun", "Docker", "Fly.io"],
+    cvFeatured: true,
   },
   {
     id: "SearchAI",
@@ -67,6 +69,7 @@ export const projects: Project[] = [
     imageKey: "images/other/projects/searchAI.png",
     tags: ["AI", "Web Search", "Chat Assistant", "OpenAI", "GPT", "RAG", "Contextual Search", "Web App", "Groq"],
     techStack: ["Next.js", "TypeScript", "JavaScript", "Convex Database", "Python", "Vercel AI SDK"],
+    cvFeatured: true,
   },
   {
     id: "Filey - Flag Deprecated Files Extension",
@@ -102,6 +105,7 @@ export const projects: Project[] = [
     imageKey: "images/other/projects/composerai-app.png",
     tags: ["AI", "Email Client", "LLM", "Productivity", "Task Automation", "Vector Search", "Web App", "Svelte"],
     techStack: ["Svelte", "Vite", "Java 25", "Spring Boot", "Qdrant", "S3 Object Storage"],
+    cvFeatured: true,
   },
   {
     id: "AI Company Research Tool",
@@ -137,6 +141,7 @@ export const projects: Project[] = [
       "Book Recommendation",
     ],
     techStack: ["Java", "Spring Boot", "Spring AI", "OpenAI", "Thymeleaf", "HTMX", "PostgreSQL", "Docker"],
+    cvFeatured: false,
   },
   {
     id: "repo-tokens-calculator",
