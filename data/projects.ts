@@ -122,6 +122,7 @@ export const projects: Project[] = [
     shortSummary: "Java-based book search and recommendation engine with OpenAI integration",
     url: "https://findmybook.net/",
     imageKey: "images/other/projects/book-finder-findmybook-net.png",
+    note: "Note: Because it relies on the Google Books API and other public endpoints, heavy traffic can hit their rate limits—during those windows some books or covers may fail to render until quotas reset.",
     tags: [
       "Java",
       "Spring Boot",

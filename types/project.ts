@@ -17,4 +17,6 @@ export interface Project {
    * "Next.js", "TypeScript", "PostgreSQL", etc.
    */
   techStack?: string[];
+  /** Optional note/disclaimer surfaced alongside the project description */
+  note?: string;
 }

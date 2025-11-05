@@ -7,6 +7,7 @@ import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { type JSX, useState, useEffect } from "react";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { kebabCase } from "@/lib/utils/formatters";
+import { AlertTriangle } from "lucide-react";
 
 const MAX_DISPLAY_TECH_ITEMS = 10;
 
@@ -167,12 +168,17 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
               <code>{`// ${project.shortSummary}`}</code>
             </pre>
             {/* Description */}
-            {description && (
-              <p className="text-gray-400 leading-relaxed text-sm mt-1">
-                {" "}
-                {/* Adjusted text size/color */}
-                {description}
-              </p>
+            {description && <p className="text-gray-400 leading-relaxed text-sm mt-1">{description}</p>}
+            {project.note && (
+              <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-300/70 bg-amber-50 px-3 py-2 text-amber-900 text-sm font-medium shadow-sm dark:border-amber-400/60 dark:bg-amber-500/10 dark:text-amber-100">
+                <AlertTriangle
+                  className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500 dark:text-amber-200"
+                  aria-hidden
+                />
+                <span>
+                  <span className="font-semibold">Heads up:</span> {project.note}
+                </span>
+              </div>
             )}
             {/* Tech Stack */}
             {displayTech.length > 0 && (
