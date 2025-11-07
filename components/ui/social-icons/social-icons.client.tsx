@@ -32,15 +32,24 @@ function useHasMounted() {
   return hasMounted;
 }
 
-export function SocialIcons({ className = "", showXOnly = false }: SocialIconsProps) {
+export function SocialIcons({ className = "", showXOnly = false, excludePlatforms = [] }: SocialIconsProps) {
   const hasMounted = useHasMounted();
+
+  // Local type guard to keep filtering type-safe without using `any`
+  const PLATFORM_SLUGS = ["github", "x", "discord", "linkedin", "bluesky"] as const;
+  const isPlatformSlug = (value: string): value is (typeof PLATFORM_SLUGS)[number] =>
+    (PLATFORM_SLUGS as readonly string[]).includes(value);
 
   // Icon button styling
   const iconButtonClasses =
     "p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all duration-200 ease-in-out hover:scale-110 active:scale-100";
 
-  // Filter links based on showXOnly prop
-  const linksToShow = showXOnly ? socialLinks.filter(link => link.label === "X (Twitter)") : socialLinks;
+  // Compute links to render based on props
+  const linksToShow = React.useMemo(() => {
+    const base = showXOnly ? socialLinks.filter(link => link.label === "X (Twitter)") : socialLinks;
+    if (!excludePlatforms.length) return base;
+    return base.filter(link => !(isPlatformSlug(link.platform) && excludePlatforms.includes(link.platform)));
+  }, [showXOnly, excludePlatforms]);
 
   // During server rendering and before hydration completes on client,
   // just render nothing with suppressHydrationWarning
