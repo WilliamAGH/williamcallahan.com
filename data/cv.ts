@@ -10,7 +10,7 @@
 import type { CvContactLinks, CvQualification, CvTechnicalFocusSection } from "@/types/cv";
 
 export const CV_PROFESSIONAL_SUMMARY =
-  "Investment professional and builder combining CFA/CFP credentials with a decade of quantitative portfolio leadership and modern AI/ML product development. Leading aVenture.vc and ComposerAI to bring real-time data, retrieval-augmented intelligence, and automation into venture research and institutional workflows.";
+  "Software engineer & finance/investment professional currently building web applications, generally in AI today. Currently building aVenture.vc and adjacent projects.";
 
 export const CV_QUALIFICATIONS = [
   {

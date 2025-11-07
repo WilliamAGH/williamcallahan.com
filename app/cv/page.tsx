@@ -4,6 +4,8 @@
  * @description
  * Server-rendered curriculum vitae that reuses existing data sources across experience,
  * education, certifications, and projects while presenting a condensed printable layout.
+ * Contact details reuse shared social icon assets (e.g., the canonical X icon) to avoid
+ * duplicating SVG definitions and keep brand styling consistent.
  */
 
 // TODO: Add a special generative AI component that allows the user to generate a CV based on my real experience on the topics they're most interested in
@@ -11,10 +13,11 @@
 
 import Link from "next/link";
 import type { Metadata } from "next";
-import { AtSign, Globe, Linkedin, MapPin } from "lucide-react";
+import { Globe, Linkedin, MapPin } from "lucide-react";
 import { PAGE_METADATA, OG_IMAGE_DIMENSIONS } from "@/data/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import CvPdfDownloadButton from "@/components/features/cv/CvPdfDownloadButton";
+import { X } from "@/components/ui/social-icons";
 import { getCvData } from "@/lib/cv/cv-data";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { generateSchemaGraph } from "@/lib/seo/schema";
@@ -27,6 +30,8 @@ export const metadata: Metadata = getStaticPageMetadata(CV_PAGE_PATH, "cv");
 
 /**
  * Curriculum vitae route rendering highlighted professional history and credentials.
+ * Surfaces highlighted technical projects immediately after qualifications to balance
+ * modern software work with prior finance leadership experience.
  */
 export default function CvPage(): React.JSX.Element {
   const pageMetadata = PAGE_METADATA.cv;
@@ -127,7 +132,7 @@ export default function CvPage(): React.JSX.Element {
               </Link>
             </span>
             <span className="flex items-center gap-2">
-              <AtSign className="h-4 w-4" aria-hidden="true" />
+              <X className="h-4 w-4" aria-hidden="true" />
               <Link
                 href={twitterUrl}
                 className="transition-colors hover:text-zinc-700 dark:hover:text-zinc-200"
@@ -183,6 +188,46 @@ export default function CvPage(): React.JSX.Element {
           </div>
         </section>
 
+        {projects.length > 0 ? (
+          <section className="mt-10">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">
+              Highlighted Technical Projects
+            </h2>
+            <div className="mt-5 space-y-6">
+              {projects.map(project => (
+                <article key={project.id} className="space-y-3 border-l border-zinc-300 pl-4 dark:border-zinc-700">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{project.name}</h3>
+                    {project.url ? (
+                      <Link
+                        href={project.url}
+                        className="text-xs uppercase tracking-[0.25em] text-zinc-500 transition-colors hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                        rel="noreferrer noopener"
+                        target="_blank"
+                      >
+                        View
+                      </Link>
+                    ) : null}
+                  </div>
+                  {project.tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 text-[0.65rem] uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">
+                      {project.tags.map(tag => (
+                        <span
+                          key={`${project.id}-${tag}`}
+                          className="rounded-sm border border-zinc-300 px-2 py-[2px] dark:border-zinc-600"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <p className="text-sm text-zinc-600 dark:text-zinc-300">{project.description}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         {experiences.length > 0 ? (
           <section className="mt-10">
             <h2 className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">
@@ -231,46 +276,6 @@ export default function CvPage(): React.JSX.Element {
                 </li>
               ))}
             </ul>
-          </section>
-        ) : null}
-
-        {projects.length > 0 ? (
-          <section className="mt-10">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">
-              Research Projects
-            </h2>
-            <div className="mt-5 space-y-6">
-              {projects.map(project => (
-                <article key={project.id} className="space-y-3 border-l border-zinc-300 pl-4 dark:border-zinc-700">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{project.name}</h3>
-                    {project.url ? (
-                      <Link
-                        href={project.url}
-                        className="text-xs uppercase tracking-[0.25em] text-zinc-500 transition-colors hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-                        rel="noreferrer noopener"
-                        target="_blank"
-                      >
-                        View
-                      </Link>
-                    ) : null}
-                  </div>
-                  {project.tags.length > 0 ? (
-                    <div className="flex flex-wrap gap-2 text-[0.65rem] uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">
-                      {project.tags.map(tag => (
-                        <span
-                          key={`${project.id}-${tag}`}
-                          className="rounded-sm border border-zinc-300 px-2 py-[2px] dark:border-zinc-600"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  <p className="text-sm text-zinc-600 dark:text-zinc-300">{project.description}</p>
-                </article>
-              ))}
-            </div>
           </section>
         ) : null}
 
