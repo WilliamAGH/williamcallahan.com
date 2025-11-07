@@ -445,6 +445,13 @@ const nextConfig = {
         config.plugins = [];
       }
 
+      // Use in-memory cache in development to avoid large filesystem pack serialize/unpack spikes
+      config.cache = {
+        type: "memory",
+        maxGenerations: 1,
+        cacheUnaffected: false,
+      };
+
       // **ENHANCED MEMORY MONITORING FOR NEXT.JS 15**
       // Keep a small state to throttle logs
       const memoryProgressState = { lastPct: -0.2, lastTime: 0 } as {
