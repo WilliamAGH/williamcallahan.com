@@ -47,6 +47,11 @@ export class UnifiedImageService {
   // Migration lock moved to centralized async-lock utility
   private readonly isReadOnly = isS3ReadOnly();
   private readonly isDev = process.env.NODE_ENV !== "production";
+  private readonly devProcessingDisabled =
+    this.isDev &&
+    (process.env.DEV_DISABLE_IMAGE_PROCESSING === "1" || process.env.DEV_DISABLE_IMAGE_PROCESSING === "true");
+  private readonly devStreamImagesToS3 =
+    this.isDev && (process.env.DEV_STREAM_IMAGES_TO_S3 === "1" || process.env.DEV_STREAM_IMAGES_TO_S3 === "true");
 
   // Removed sessionProcessedDomains as it was never used
   private sessionFailedDomains = new Set<string>();
@@ -86,8 +91,25 @@ export class UnifiedImageService {
 
   /** Fetch image with caching (memory → S3 → origin) */
   async getImage(url: string, options: ImageServiceOptions = {}): Promise<ImageResult> {
+    // Prefer streaming-to-S3 behavior over full processing in development when requested
+    // Note: When enabled, we still attempt normal fetch logic; processing will be skipped in fetchAndProcess.
+    if (!this.devStreamImagesToS3 && this.devProcessingDisabled) {
+      const transparentPngBase64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO3GdQAAAABJRU5ErkJggg==";
+      const placeholder = Buffer.from(transparentPngBase64, "base64");
+      return {
+        buffer: placeholder,
+        contentType: "image/png",
+        source: "placeholder",
+        timestamp: Date.now(),
+      };
+    }
+
     const memoryMonitor = getMemoryHealthMonitor();
-    if (!memoryMonitor.shouldAcceptNewRequests()) throw new Error("Insufficient memory to process image request");
+    // When streaming mode is enabled for dev, allow the request to proceed; streaming uses bounded memory.
+    if (!this.devStreamImagesToS3 && !memoryMonitor.shouldAcceptNewRequests()) {
+      throw new Error("Insufficient memory to process image request");
+    }
     return monitoredAsync(
       null,
       `get-image-${url}`,
@@ -122,9 +144,9 @@ export class UnifiedImageService {
 
   /** Get logo with validation, optional inversion */
   async getLogo(domain: string, options: ImageServiceOptions = {}): Promise<LogoFetchResult> {
-    // Check memory before starting
+    // Check memory before starting (relaxed when streaming mode is enabled in dev)
     const memoryMonitor = getMemoryHealthMonitor();
-    if (!memoryMonitor.shouldAcceptNewRequests()) {
+    if (!this.devStreamImagesToS3 && !memoryMonitor.shouldAcceptNewRequests()) {
       return {
         domain,
         source: null,
@@ -263,6 +285,41 @@ export class UnifiedImageService {
             logoDebugger.logAttempt(domain, "external-fetch", "All external sources failed", "failed");
             throw new Error("No logo found");
           }
+
+          // In streaming mode for dev: skip heavy validation/inversion and persist the original buffer
+          if (this.devStreamImagesToS3) {
+            const ext = getExtensionFromContentType(logoData.contentType || "image/png");
+            const s3KeyStreaming = generateS3Key({
+              type: "logo",
+              domain,
+              source: logoData.source,
+              url: logoData.url || `https://${domain}/logo.${ext}`,
+              extension: ext,
+            });
+            if (!this.isReadOnly)
+              await this.uploadToS3(s3KeyStreaming, logoData.buffer, logoData.contentType || "image/png");
+            const streamingResult: LogoFetchResult = {
+              domain,
+              url: logoData.url,
+              cdnUrl: this.getCdnUrl(s3KeyStreaming),
+              s3Key: s3KeyStreaming,
+              source: logoData.source,
+              contentType: logoData.contentType,
+              timestamp: Date.now(),
+              isValid: true,
+            } as LogoFetchResult;
+            ServerCacheInstance.setLogoFetch(domain, streamingResult);
+            logoDebugger.setFinalResult(
+              domain,
+              true,
+              streamingResult.source || undefined,
+              streamingResult.s3Key,
+              streamingResult.cdnUrl,
+            );
+            logoDebugger.printDebugInfo(domain);
+            return streamingResult;
+          }
+
           const validation = await this.validateLogo(logoData.buffer);
           const isValid = !validation.isGlobeIcon;
           let finalBuffer = logoData.buffer;
@@ -403,9 +460,16 @@ export class UnifiedImageService {
     url: string,
     options: ImageServiceOptions,
   ): Promise<{ buffer: Buffer; contentType: string; streamedToS3?: boolean }> {
-    // Check memory before fetching
+    // Dev gating: skip fetch/processing entirely when disabled in development
+    if (this.devProcessingDisabled && !this.devStreamImagesToS3) {
+      const transparentPngBase64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO3GdQAAAABJRU5ErkJggg==";
+      return { buffer: Buffer.from(transparentPngBase64, "base64"), contentType: "image/png" };
+    }
+
+    // Check memory before fetching unless we are in streaming mode (streaming uses bounded memory)
     const memoryMonitor = getMemoryHealthMonitor();
-    if (!memoryMonitor.shouldAcceptNewRequests()) {
+    if (!this.devStreamImagesToS3 && !memoryMonitor.shouldAcceptNewRequests()) {
       throw new Error("Insufficient memory to fetch image");
     }
 
@@ -440,8 +504,13 @@ export class UnifiedImageService {
         };
       }
 
+      // If streaming failed and we're in streaming mode, only fall back to buffering if memory allows
+      if (this.devStreamImagesToS3 && !memoryMonitor.shouldAcceptNewRequests()) {
+        throw new Error("Streaming required but unavailable under memory pressure");
+      }
+
       // Check memory again before loading into buffer
-      if (!memoryMonitor.shouldAcceptNewRequests()) {
+      if (!this.devStreamImagesToS3 && !memoryMonitor.shouldAcceptNewRequests()) {
         throw new Error("Insufficient memory to load image into buffer");
       }
 
@@ -449,6 +518,11 @@ export class UnifiedImageService {
       let buffer = Buffer.from(arrayBuffer);
 
       try {
+        // When DEV_STREAM_IMAGES_TO_S3 is enabled, skip any CPU-heavy processing and return original buffer
+        if (this.devStreamImagesToS3) {
+          return { buffer, contentType: contentType || "application/octet-stream" };
+        }
+
         if (options.width || options.format || options.quality) {
           const processed = await this.processImageBuffer(buffer);
           // Clear original buffer after processing
@@ -818,6 +892,12 @@ export class UnifiedImageService {
       }
 
       const mockResponse = { headers: new Map([["content-type", responseContentType]]) } as unknown as Response;
+
+      // In streaming mode for dev, skip globe detection and validation; return raw buffer
+      if (this.devStreamImagesToS3) {
+        console.log(`[UnifiedImageService] (dev-stream) Using raw logo for ${originalDomain} from ${name} (${size})`);
+        return { buffer: rawBuffer, source: name, contentType: responseContentType, url };
+      }
 
       if (await this.checkIfGlobeIcon(rawBuffer, url, mockResponse, testDomain, name)) return null;
 
