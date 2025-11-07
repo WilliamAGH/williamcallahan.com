@@ -368,7 +368,7 @@ function detectCgroupMemoryLimitBytes(): number | null {
     if (typeof process === "undefined" || !process.versions?.node) return null;
 
     // Use dynamic require to avoid bundling issues in edge contexts
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+
     const fs = require("node:fs") as typeof import("node:fs");
 
     const candidates = [
