@@ -54,10 +54,11 @@ const CvPdfDownloadButton: React.FC<CvPdfDownloadButtonProps> = ({ className, va
   }, [isGenerating]);
 
   const buttonClassName = cn(
-    "inline-flex items-center justify-center rounded-full border border-zinc-300 transition-colors disabled:cursor-not-allowed disabled:opacity-70",
+    // Improve dark mode contrast: stronger border and lighter foreground
+    "inline-flex items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 transition-colors disabled:cursor-not-allowed disabled:opacity-70",
     variant === "icon"
-      ? "h-10 w-10 text-zinc-600 hover:bg-zinc-900 hover:text-white"
-      : "px-4 py-2 text-sm font-medium hover:bg-zinc-900 hover:text-white",
+      ? "h-10 w-10 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-900 hover:text-white"
+      : "px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-900 hover:text-white",
   );
 
   return (
