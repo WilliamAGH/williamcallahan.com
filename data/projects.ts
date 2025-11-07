@@ -1,15 +1,15 @@
 import type { Project } from "@/types/project";
 
 // Remember to update this date whenever the projects data or the Projects page design changes
-export const updatedAt = "2025-11-05";
+export const updatedAt = "2025-11-07";
 
 export const projects: Project[] = [
   {
     id: "aVenture.vc",
     name: "aVenture.vc",
     description:
-      "A new data-driven research platform for the venture capital ecosystem. Track startups, analyze funding trends, and identify opportunities faster.",
-    shortSummary: "Data-driven research platform for the VC ecosystem",
+      "A data platform for researching private startup companies and venture investors. Requires orchestration of 10s of millions of database records across 500+ keys. Live data pipelines and ETL, with near instant processing of news articles, company data, and other to contribute updates daily. Built with Node.js, Next.js, TypeScript, Zod, PostgreSQL and many others.",
+    shortSummary: "Data-driven research platform for researching private startup companies and venture investors",
     url: "https://aventure.vc",
     imageKey: "images/other/projects/aventurevc-homepage.png",
     tags: [
@@ -44,7 +44,7 @@ export const projects: Project[] = [
     id: "williamcallahan.com",
     name: "williamcallahan.com",
     description:
-      "This personal site featuring interactive macOS-style window components (Terminal, Code Blocks, Images) with close/minimize/maximize controls and animations. Includes a lot of dynamic content, an API for fetching investment logos (with refetch/cache logic), MDX blog posts, and more. Built with Next.js App Router, TypeScript, Tailwind CSS, and deployable via Docker across various cloud environments (Vercel, GCP, Oracle Cloud, Hetzner, Railway, Fly.io, etc.).",
+      "Personal site with dynamically generated graph index of thousands of json documents. Dynamically fetches images (logos, opengraph images) and scrapes/crawls, and parses external websites for external links. Built with Next.js App Router, TypeScript, and Tailwind; Dockerized for cloud deployment, which I do with all my deployments.",
     shortSummary: "Interactive personal site with beautiful terminal/code components & other dynamic content",
     url: "https://williamcallahan.com",
     imageKey: "images/other/projects/williamcallahan-com-project.png",
@@ -55,6 +55,11 @@ export const projects: Project[] = [
       "macOS Components",
       "Terminal Emulation",
       "Code Syntax Highlighting",
+      "Graph Index",
+      "JSON Documents",
+      "API",
+      "Refetch/Cache Logic",
+      "Multi-cloud Deployment",
     ],
     techStack: ["Next.js", "TypeScript", "Tailwind CSS", "Zod", "Bun", "Docker", "Fly.io"],
     cvFeatured: true,
@@ -63,7 +68,7 @@ export const projects: Project[] = [
     id: "SearchAI",
     name: "SearchAI",
     description:
-      "A web application that combines traditional web search with an AI-powered chat assistant. Users can perform searches, review selected context from the results, and then engage in a conversation with AI (e.g., OpenAI's GPT models, Groq, Gemini, etc.) that utilizes this context to provide more relevant and informed responses.",
+      "Web app that blends traditional web search with an AI chat assistant. Search, review selected context from results, then ask questions to GPT/Groq/Gemini using that context for grounded answers. Built with Next.js, TypeScript, JavaScript, Convex Database, and Vercel AI SDK. Performs a large amount of scraping/parsing live server-side for enhanced context, with semantic intent observation to return only relevant answers to prevent context pollution.",
     shortSummary: "AI-powered web search with a contextual chat assistant",
     url: "https://search-ai.io",
     imageKey: "images/other/projects/searchAI.png",
@@ -99,7 +104,7 @@ export const projects: Project[] = [
     id: "ComposerAI",
     name: "ComposerAI",
     description:
-      "ComposerAI is an AI-native email client that runs on a Svelte + Vite frontend, backed by a Spring Boot server/container orchestrating all the other services required for the app. It indexes every message in Qdrant so users can ask natural language questions informed by their entire mailbox, generate replies that cite prior conversations, and a context-aware task suggestion engine for suggesting follow-up tasks.",
+      "AI-native email client. Indexes every message in Qdrant for semantic search (embeddings and BM25/BM42 (RAG) search). Powerful full mailbox search, and automatically writes and generates replies that cite prior conversations, and suggests follow-up tasks from context. Built with Svelte + Vite and Spring Boot.",
     shortSummary: "AI email client / mailbox for agentic search and tasks.",
     url: "https://composerai.app",
     imageKey: "images/other/projects/composerai-app.png",
@@ -122,11 +127,11 @@ export const projects: Project[] = [
     id: "Book Finder (findmybook.net)",
     name: "Book Finder (findmybook.net)",
     description:
-      "A Java Spring Boot application that allows users to search for almost any book ever written and receive personalized book recommendations. It integrates with the Google Books API for extensive book data and OpenAI for generating recommendations. The application features a web interface built with Thymeleaf and HTMX, and supports PostgreSQL for data persistence and Spring Session for session management. It includes robust logging and can be deployed via Docker or directly to cloud environments.",
-    shortSummary: "Java-based book search and recommendation engine with OpenAI integration",
+      "Organizes and indexes a large number of the English-language books ever written. Utilizes its own Postgres database and Google Books and several other public APIs for augmenting book data and local LLM for generating recommendations. Built with Tailwind CSS, Java, Spring Boot, Thymeleaf, PostgreSQL, and Docker.",
+    shortSummary: "Book search and recommendation engine with OpenAI integration",
     url: "https://findmybook.net/",
     imageKey: "images/other/projects/book-finder-findmybook-net.png",
-    note: "Note: Because it relies on the Google Books API and other public endpoints, heavy traffic can hit their rate limits—during those windows some books or covers may fail to render until quotas reset.",
+    note: "Note: Because it relies on the Google Books API and other public endpoints, heavy traffic lately has caused it to frequently hit external rate limits—during those windows some books or covers may fail to render until quotas reset. Since this project is not actively maintained, I haven't engineered an alternative solution yet.",
     tags: [
       "Java",
       "Spring Boot",

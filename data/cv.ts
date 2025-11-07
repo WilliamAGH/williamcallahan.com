@@ -10,7 +10,7 @@
 import type { CvContactLinks, CvQualification, CvTechnicalFocusSection } from "@/types/cv";
 
 export const CV_PROFESSIONAL_SUMMARY =
-  "Software engineer & finance/investment professional currently building web applications, generally in AI today. Currently building aVenture.vc and adjacent projects.";
+  "Software engineer and leader experienced in data, search, finance, and AI-powered web applications. Deep background in product development and quantitative research.";
 
 export const CV_QUALIFICATIONS = [
   {
@@ -34,12 +34,12 @@ export const CV_TECHNICAL_FOCUS = [
   {
     id: "languages-platforms",
     title: "Languages & platforms",
-    bullets: ["TypeScript", "Java", "Python", "SQL", "PostgreSQL", "Qdrant"],
+    bullets: ["TypeScript (JavaScript)", "Java", "Python", "SQL", "PostgreSQL", "Qdrant"],
   },
   {
     id: "frameworks",
     title: "Frameworks & runtimes",
-    bullets: ["Next.js", "React", "Spring Boot", "Node.js", "Vite", "Docker"],
+    bullets: ["Next.js", "Node.js", "React", "Svelte", "Spring Boot", "Vite", "Docker"],
   },
   {
     id: "ai-systems",
@@ -49,12 +49,20 @@ export const CV_TECHNICAL_FOCUS = [
       "Retrieval-augmented generation",
       "LLM tool chaining",
       "Vector indexing",
+      "Self-hosted LLM inference",
+      "Semantic meaning extraction",
     ],
   },
   {
     id: "finance-analytics",
-    title: "Investment & risk analytics",
-    bullets: ["Asset-liability management", "Factor modeling", "Portfolio optimization", "Performance attribution"],
+    title: "Investment, finance, & risk analytics",
+    bullets: [
+      "Asset-liability management",
+      "Quantitative research",
+      "Factor modeling",
+      "Portfolio optimization",
+      "Performance attribution",
+    ],
   },
 ] as const satisfies ReadonlyArray<CvTechnicalFocusSection>;
 

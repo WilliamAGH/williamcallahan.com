@@ -206,7 +206,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <ErrorBoundary silent>
                 <header className="relative w-full bg-white/80 dark:bg-[#232530]/90 backdrop-blur-sm z-[1000]">
                   {/* Add overflow-hidden for safety, ensure items can shrink */}
-                  <div className="w-full max-w-[95%] xl:max-w-[1400px] 2xl:max-w-[1800px] mx-auto px-4 py-4 flex items-center justify-between overflow-hidden gap-4">
+                  <div className="w-full max-w-[95%] xl:max-w-[1400px] 2xl:max-w-[1800px] mx-auto px-4 py-4 flex items-center justify-between gap-4">
                     {/* Navigation should shrink if needed, but prioritize it */}
                     <div className="flex-1 min-w-0">
                       <Suspense fallback={null}>
@@ -230,8 +230,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       {/* Full Version - Hidden below lg */}
                       <div className="header-icons hidden lg:flex items-center p-1 bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700/50 shadow-sm">
                         <Suspense fallback={null}>
-                          {/* Render all icons */}
-                          <SocialIcons />
+                          {/* Render all icons except Bluesky in the main header */}
+                          <SocialIcons excludePlatforms={["bluesky"]} />
                         </Suspense>
                       </div>
 

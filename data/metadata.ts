@@ -160,7 +160,7 @@ export const PAGE_METADATA = {
     title: `Professional Experience - ${SITE_NAME}`,
     description: `Explore ${SITE_NAME}'s professional experience, including roles in software engineering, entrepreneurship, and technology leadership.`,
     dateCreated: "2025-02-10T12:42:00",
-    dateModified: "2025-11-04T12:42:00",
+    dateModified: "2025-11-07T12:42:00",
     bio: "Software engineer, startup investor, and Techstars founder based in San Francisco.",
     interactionStats: {
       follows: 200,
@@ -173,8 +173,8 @@ export const PAGE_METADATA = {
   cv: {
     title: `Curriculum Vitae - ${SITE_NAME}`,
     description: `${SITE_NAME}'s curriculum vitae, including highlighted experience, education, certifications, and technical capabilities.`,
-    dateCreated: "2025-11-05T00:00:00",
-    dateModified: "2025-11-05T00:00:00",
+    dateCreated: "2025-11-07T00:00:00",
+    dateModified: "2025-11-07T00:00:00",
     bio: "Investor, founder, and engineer building cloud/web applications in San Francisco.",
     alternateName: "williamcallahan",
     profileImage: getStaticImageUrl("/images/william-callahan-san-francisco.png"),
