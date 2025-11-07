@@ -360,9 +360,52 @@ export const UNIFIED_IMAGE_SERVICE_CONFIG = {
 /** Memory thresholds (bytes) */
 const GB = 1024 * 1024 * 1024,
   MB = 1024 * 1024;
-const totalBudget = Number(
-  process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? (process.env.NODE_ENV === "production" ? 3.75 * GB : 4 * GB),
-);
+// Auto-detect container memory limit (cgroups) to set accurate process budgets.
+// Falls back to env override or sane defaults.
+function detectCgroupMemoryLimitBytes(): number | null {
+  try {
+    // Guard against Edge/runtime environments without Node APIs
+    if (typeof process === "undefined" || !process.versions?.node) return null;
+
+    // Use dynamic require to avoid bundling issues in edge contexts
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require("node:fs") as typeof import("node:fs");
+
+    const candidates = [
+      "/sys/fs/cgroup/memory.max", // cgroup v2
+      "/sys/fs/cgroup/memory/memory.limit_in_bytes", // cgroup v1
+    ];
+
+    for (const p of candidates) {
+      try {
+        if (fs.existsSync(p)) {
+          const raw = fs.readFileSync(p, "utf8").trim();
+          if (!raw || raw === "max") continue; // "max" means no limit enforced
+          const parsed = Number(raw);
+          if (Number.isFinite(parsed) && parsed > 0) return parsed;
+        }
+      } catch {
+        // Continue to next candidate
+      }
+    }
+  } catch {
+    // Ignore detection errors
+  }
+  return null;
+}
+
+const envBudgetRaw = process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES;
+const envBudget = envBudgetRaw != null ? Number(envBudgetRaw) : NaN;
+const cgroupLimitBytes = detectCgroupMemoryLimitBytes();
+const defaultBudget = process.env.NODE_ENV === "production" ? 3.75 * GB : 4 * GB;
+
+// Prefer explicit env override, then cgroup limit (with 5% safety headroom), else defaults.
+const totalBudget =
+  Number.isFinite(envBudget) && envBudget > 0
+    ? envBudget
+    : cgroupLimitBytes && cgroupLimitBytes > 0
+      ? Math.max(Math.floor(cgroupLimitBytes * 0.95), 512 * MB) // never below 512MB
+      : defaultBudget;
 
 export const MEMORY_THRESHOLDS = {
   TOTAL_PROCESS_MEMORY_BUDGET_BYTES: totalBudget,
