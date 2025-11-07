@@ -20,6 +20,7 @@ Components:
 - **3-Tier Logo Resolution**: Manifest → S3 CDN → Static fallback at `page.tsx:77-95`
 - **Idempotent Fetching**: Always returns same CDN URL for given domain via UnifiedImageService
 - **CV Flagging**: `data/experience.ts` sets `cvFeatured` for items surfaced on the `/cv` curriculum vitae route without duplicating records.
+- **CV Narrative Balance**: `/cv` now renders highlighted technical projects directly after qualifications (`app/cv/page.tsx:134-190`) so engineering initiatives lead into the finance-oriented experience list.
 
 ## Data Structures
 
