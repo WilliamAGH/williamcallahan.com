@@ -64,6 +64,9 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 24,
   },
+  firstSection: {
+    marginTop: 28,
+  },
   sectionTitle: {
     fontSize: 8,
     fontWeight: 600,
@@ -262,6 +265,11 @@ const CvPdfDocument = (): React.ReactElement => {
     throw new Error("Failed to register fonts for CV PDF rendering");
   }
 
+  // Keep PDF output aligned with the visible /cv page.
+  // Qualifications are intentionally hidden in the page UI during iteration;
+  // mirror that behavior in the PDF until the section is finalized.
+  const showQualifications: boolean = false;
+
   const {
     professionalSummary,
     qualifications,
@@ -320,12 +328,12 @@ const CvPdfDocument = (): React.ReactElement => {
           </View>
         </View>
 
-        <View style={styles.section}>
+        <View style={[styles.section, styles.firstSection]}>
           <Text style={styles.sectionTitle}>Professional Summary</Text>
           <Text style={styles.paragraph}>{professionalSummary}</Text>
         </View>
 
-        {qualifications.length > 0 ? (
+        {showQualifications && qualifications.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Distinguished Qualifications</Text>
             <View style={styles.cardGrid}>
@@ -380,7 +388,7 @@ const CvPdfDocument = (): React.ReactElement => {
 
         {projects.length > 0 ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Research Projects</Text>
+            <Text style={styles.sectionTitle}>Highlighted Technical Projects</Text>
             {projects.map(project => (
               <View key={project.id} style={styles.projectCard}>
                 <View style={styles.projectHeader}>
