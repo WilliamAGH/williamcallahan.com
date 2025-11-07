@@ -3,7 +3,7 @@
  */
 
 // Remember to update this date whenever the education data or the Education page design changes
-export const updatedAt = "2025-10-30";
+export const updatedAt = "2025-11-07";
 
 import {
   type Certification,
@@ -50,6 +50,7 @@ const recentCoursesData: Class[] = [
     website: "https://collegeofsanmateo.edu",
     location: "San Mateo, California",
     year: 2025,
+    cvFeatured: true,
   },
   {
     id: "san-mateo-object-oriented-java",
@@ -58,6 +59,7 @@ const recentCoursesData: Class[] = [
     website: "https://collegeofsanmateo.edu",
     location: "San Mateo, California",
     year: 2025,
+    cvFeatured: true,
   },
   {
     id: "san-mateo-college-python",
@@ -66,6 +68,7 @@ const recentCoursesData: Class[] = [
     website: "https://collegeofsanmateo.edu",
     location: "San Mateo, California",
     year: 2025,
+    cvFeatured: true,
   },
   {
     id: "san-mateo-college-unix-linux",
@@ -74,6 +77,16 @@ const recentCoursesData: Class[] = [
     website: "https://collegeofsanmateo.edu",
     location: "San Mateo, California",
     year: 2025,
+    cvFeatured: true,
+  },
+  {
+    id: "san-mateo-data-structures-algorithms",
+    institution: "College of San Mateo",
+    name: "Data Structures & Algorithms",
+    website: "https://collegeofsanmateo.edu",
+    location: "San Mateo, California",
+    year: 2025,
+    cvFeatured: true,
   },
   // University of California Berkeley — Then others
   {

@@ -86,10 +86,18 @@ export default function CvPage(): React.JSX.Element {
     lastUpdatedDisplay,
   } = getCvData();
 
+  // Temporary: hide Qualifications section during iteration
+  const showQualifications: boolean = false;
+
+  // Build a flattened list of coursework with issuer shown as muted metadata
+  const courseItems: { id: string; name: string; year: string; institution: string }[] = groupedCourses
+    .flatMap(group => group.courses.map(course => ({ ...course, institution: group.institution })))
+    .toSorted((a, b) => Number(b.year) - Number(a.year));
+
   return (
     <>
       <JsonLdScript data={jsonLdData} />
-      <div className="mx-auto w-full max-w-3xl px-6 py-12 sm:px-8 md:py-16 font-mono text-[0.95rem] leading-7 text-zinc-800 dark:text-zinc-100">
+      <div className="mx-auto w-full max-w-3xl px-6 py-6 sm:px-8 md:py-8 font-mono text-[0.95rem] leading-7 text-zinc-800 dark:text-zinc-100">
         <header className="space-y-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -100,8 +108,14 @@ export default function CvPage(): React.JSX.Element {
                 CFA Charterholder · CFP® Professional
               </p>
             </div>
-            <div className="self-start sm:self-auto">
+            <div className="self-start sm:self-auto flex flex-col items-center gap-0.5">
               <CvPdfDownloadButton variant="icon" />
+              <span
+                aria-hidden="true"
+                className="leading-none text-[0.7rem] uppercase tracking-[0.25em] text-zinc-500 dark:text-zinc-400"
+              >
+                PDF
+              </span>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-zinc-500 dark:text-zinc-400">
@@ -165,28 +179,30 @@ export default function CvPage(): React.JSX.Element {
           <p className="mt-4 leading-7 text-zinc-700 dark:text-zinc-200">{professionalSummary}</p>
         </section>
 
-        <section className="mt-10">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">
-            Distinguished Qualifications
-          </h2>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {qualifications.map(item => (
-              <article
-                key={item.id}
-                className={`rounded-md border border-zinc-300 bg-white/40 p-4 shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-colors dark:border-zinc-700 dark:bg-zinc-900/20 ${
-                  item.id === "dual" ? "sm:col-span-2" : ""
-                }`}
-              >
-                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{item.title}</p>
-                <div className="mt-3 space-y-1 text-xs uppercase tracking-[0.25em] text-zinc-500 dark:text-zinc-400">
-                  {item.meta.map((line: string) => (
-                    <p key={line}>{line}</p>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+        {showQualifications ? (
+          <section className="mt-10">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">
+              Distinguished Qualifications
+            </h2>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {qualifications.map(item => (
+                <article
+                  key={item.id}
+                  className={`rounded-md border border-zinc-300 bg-white/40 p-4 shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-colors dark:border-zinc-700 dark:bg-zinc-900/20 ${
+                    item.id === "dual" ? "sm:col-span-2" : ""
+                  }`}
+                >
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{item.title}</p>
+                  <div className="mt-3 space-y-1 text-xs uppercase tracking-[0.25em] text-zinc-500 dark:text-zinc-400">
+                    {item.meta.map((line: string) => (
+                      <p key={line}>{line}</p>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {projects.length > 0 ? (
           <section className="mt-10">
@@ -301,29 +317,24 @@ export default function CvPage(): React.JSX.Element {
               ))}
             </ul>
 
-            {groupedCourses.length > 0 ? (
+            {courseItems.length > 0 ? (
               <div className="mt-8 space-y-3">
                 <h3 className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">
-                  Continuing Education (Selected)
+                  Selected Programming Coursework
                 </h3>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {groupedCourses.map(group => (
-                    <div
-                      key={group.institution}
-                      className="space-y-2 border border-dashed border-zinc-300 p-4 dark:border-zinc-700"
-                    >
-                      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{group.institution}</p>
-                      <ul className="space-y-1 text-xs text-zinc-600 dark:text-zinc-300">
-                        {group.courses.map(course => (
-                          <li key={course.id} className="flex justify-between gap-2">
-                            <span>{course.name}</span>
-                            <span className="text-zinc-500 dark:text-zinc-400">{course.year}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                <ul className="space-y-2">
+                  {courseItems.map(item => (
+                    <li key={item.id} className="rounded-md border border-zinc-300 p-3 dark:border-zinc-700">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{item.name}</span>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400">{item.year}</span>
+                      </div>
+                      <div className="mt-1 text-[0.65rem] uppercase tracking-[0.25em] text-zinc-500 dark:text-zinc-400">
+                        {item.institution}
+                      </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             ) : null}
           </section>
