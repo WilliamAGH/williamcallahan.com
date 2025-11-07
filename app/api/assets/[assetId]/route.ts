@@ -426,42 +426,51 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           throw new Error("No response body");
         }
 
-        while (true) {
-          const readPromise = reader.read();
+        // Create a single abort promise to avoid per-iteration listener accumulation.
+        let onAbort: ((evt: Event) => void) | null = null;
+        const abortOncePromise: Promise<never> = new Promise((_, reject) => {
+          onAbort = () => reject(new Error("Read timeout"));
+          // Attach a single listener; it will auto-remove on first invocation
+          // due to the `once: true` option.
+          readController.signal.addEventListener("abort", onAbort!, { once: true });
+        });
 
-          const timeoutPromise = new Promise<never>((_, reject) => {
-            const abortHandler = () => reject(new Error("Read timeout"));
-            // The `{ once: true }` option guarantees we attach the handler
-            // only for this iteration and it is removed automatically after
-            // the first invocation – prevents listener accumulation.
-            readController.signal.addEventListener("abort", abortHandler, {
-              once: true,
-            });
-          });
+        try {
+          while (true) {
+            const readPromise = reader.read();
 
-          try {
-            const { done, value } = await Promise.race([readPromise, timeoutPromise]);
-            if (done) break;
-            if (value) {
-              totalSize += value.length;
-              if (totalSize > MAX_SIZE) {
-                await reader.cancel();
-                throw new Error(`Image too large: ${totalSize} bytes exceeds ${MAX_SIZE} byte limit`);
+            try {
+              const { done, value } = (await Promise.race([readPromise, abortOncePromise])) as {
+                done: boolean;
+                value?: Uint8Array;
+              };
+              if (done) break;
+              if (value) {
+                totalSize += value.length;
+                if (totalSize > MAX_SIZE) {
+                  await reader.cancel();
+                  throw new Error(`Image too large: ${totalSize} bytes exceeds ${MAX_SIZE} byte limit`);
+                }
+                chunks.push(value);
               }
-              chunks.push(value);
+            } catch (error) {
+              // Ensure the reader is promptly canceled to free resources
+              if (typeof reader.cancel === "function") {
+                await reader.cancel();
+              }
+              throw error;
             }
-          } catch (error) {
-            // Ensure the reader is promptly canceled to free resources
-            if (typeof reader.cancel === "function") {
-              await reader.cancel();
-            }
-            throw error;
+          }
+        } finally {
+          // All chunks read successfully – clean-up resources
+          reader.releaseLock();
+          clearTimeout(readTimeoutId);
+          if (onAbort) {
+            // Remove the abort listener if it never fired
+            readController.signal.removeEventListener("abort", onAbort);
+            onAbort = null;
           }
         }
-
-        // All chunks read successfully – clean-up resources
-        reader.releaseLock();
-        clearTimeout(readTimeoutId);
 
         const buffer = Buffer.concat(chunks);
 
