@@ -42,7 +42,7 @@ export async function GET() {
               message: "Memory critically high - restart recommended",
             },
           },
-          { status: 503, headers: { "Cache-Control": "no-cache" } },
+          { status: 503, headers: { "Cache-Control": "no-cache", "X-System-Status": "MEMORY_CRITICAL" } },
         );
       }
     }
@@ -65,10 +65,15 @@ export async function GET() {
       const health = monitor.getHealthStatus();
       const status = health.status === "unhealthy" ? 503 : 200;
 
+      // Map health to X-System-Status for lightweight HEAD checks
+      const systemStatus =
+        health.status === "unhealthy" ? "MEMORY_CRITICAL" : health.status === "degraded" ? "MEMORY_WARNING" : "HEALTHY";
+
       return NextResponse.json(health, {
         status,
         headers: {
           "Cache-Control": "no-cache, no-store, must-revalidate",
+          "X-System-Status": systemStatus,
         },
       });
     } catch (error: unknown) {
@@ -83,7 +88,7 @@ export async function GET() {
         status: "unhealthy",
         error: error instanceof Error ? error.message : "Health check failed",
       },
-      { status: 503, headers: { "Cache-Control": "no-cache" } },
+      { status: 503, headers: { "Cache-Control": "no-cache", "X-System-Status": "MEMORY_CRITICAL" } },
     );
   }
 }
