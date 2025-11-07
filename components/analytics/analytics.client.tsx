@@ -34,7 +34,8 @@ export function Analytics(): JSX.Element | null {
 
   const domain = (() => {
     try {
-      return new URL(process.env.NEXT_PUBLIC_SITE_URL).hostname;
+      const siteUrl: string = process.env.NEXT_PUBLIC_SITE_URL ?? "https://williamcallahan.com";
+      return new URL(siteUrl).hostname;
     } catch {
       return "williamcallahan.com";
     }
