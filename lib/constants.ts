@@ -400,12 +400,12 @@ const cgroupLimitBytes = detectCgroupMemoryLimitBytes();
 const defaultBudget = process.env.NODE_ENV === "production" ? 3.75 * GB : 4 * GB;
 
 // Prefer explicit env override, then cgroup limit (with 5% safety headroom), else defaults.
-const totalBudget =
-  Number.isFinite(envBudget) && envBudget > 0
-    ? envBudget
-    : cgroupLimitBytes && cgroupLimitBytes > 0
-      ? Math.max(Math.floor(cgroupLimitBytes * 0.95), 512 * MB) // never below 512MB
-      : defaultBudget;
+const cgroupBudget =
+  cgroupLimitBytes && cgroupLimitBytes > 0
+    ? Math.min(Math.max(Math.floor(cgroupLimitBytes * 0.95), 512 * MB), cgroupLimitBytes) // Keep at least 512MB when available, but never exceed the reported limit.
+    : null;
+
+const totalBudget = Number.isFinite(envBudget) && envBudget > 0 ? envBudget : (cgroupBudget ?? defaultBudget);
 
 export const MEMORY_THRESHOLDS = {
   TOTAL_PROCESS_MEMORY_BUDGET_BYTES: totalBudget,

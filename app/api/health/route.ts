@@ -13,6 +13,12 @@ import { NextResponse } from "next/server";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { MEMORY_THRESHOLDS } from "@/lib/constants";
 
+const SYSTEM_STATUS = {
+  MEMORY_CRITICAL: "MEMORY_CRITICAL",
+  MEMORY_WARNING: "MEMORY_WARNING",
+  HEALTHY: "HEALTHY",
+} as const;
+
 export const dynamic = "force-dynamic";
 
 /**
@@ -42,7 +48,13 @@ export async function GET() {
               message: "Memory critically high - restart recommended",
             },
           },
-          { status: 503, headers: { "Cache-Control": "no-cache", "X-System-Status": "MEMORY_CRITICAL" } },
+          {
+            status: 503,
+            headers: {
+              "Cache-Control": "no-cache",
+              "X-System-Status": SYSTEM_STATUS.MEMORY_CRITICAL,
+            },
+          },
         );
       }
     }
@@ -66,8 +78,12 @@ export async function GET() {
       const status = health.status === "unhealthy" ? 503 : 200;
 
       // Map health to X-System-Status for lightweight HEAD checks
-      const systemStatus =
-        health.status === "unhealthy" ? "MEMORY_CRITICAL" : health.status === "degraded" ? "MEMORY_WARNING" : "HEALTHY";
+      const systemStatus: (typeof SYSTEM_STATUS)[keyof typeof SYSTEM_STATUS] =
+        health.status === "unhealthy"
+          ? SYSTEM_STATUS.MEMORY_CRITICAL
+          : health.status === "degraded"
+            ? SYSTEM_STATUS.MEMORY_WARNING
+            : SYSTEM_STATUS.HEALTHY;
 
       return NextResponse.json(health, {
         status,
@@ -82,13 +98,20 @@ export async function GET() {
       throw error;
     }
   } catch (error) {
-    // Timeout or other error
+    // Timeout or other error. We intentionally default to MEMORY_CRITICAL to follow a fail-safe policy:
+    // if health cannot be confirmed, downstream systems must assume the host is unhealthy and shed load.
     return NextResponse.json(
       {
         status: "unhealthy",
         error: error instanceof Error ? error.message : "Health check failed",
       },
-      { status: 503, headers: { "Cache-Control": "no-cache", "X-System-Status": "MEMORY_CRITICAL" } },
+      {
+        status: 503,
+        headers: {
+          "Cache-Control": "no-cache",
+          "X-System-Status": SYSTEM_STATUS.MEMORY_CRITICAL,
+        },
+      },
     );
   }
 }

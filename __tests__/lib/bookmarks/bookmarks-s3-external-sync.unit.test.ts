@@ -92,7 +92,6 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
   let apiError: Error | null = null;
 
   let originalCdnUrl: string | undefined;
-  let originalFetch: typeof fetch;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -103,53 +102,6 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
    * Uses mocked fetch to test synchronization logic without external dependencies
    */
   beforeAll(async () => {
-    // Store the original fetch function
-    originalFetch = global.fetch;
-
-    // Mock the global fetch with proper typing
-    const mockFetchImplementation = jest.fn();
-    const mockFetch = Object.assign(mockFetchImplementation, {
-      preconnect: jest.fn(),
-    });
-    global.fetch = mockFetch as typeof fetch;
-
-    // Mock a successful response for the bookmarks API
-    const mockBookmarks = [
-      {
-        id: "1",
-        createdAt: "2024-01-01T00:00:00.000Z",
-        modifiedAt: "2024-01-01T00:00:00.000Z",
-        title: "Test Bookmark",
-        archived: false,
-        favourited: false,
-        taggingStatus: "user",
-        note: null,
-        summary: null,
-        tags: [
-          {
-            id: "t1",
-            name: "Test",
-            attachedBy: "user",
-          },
-        ],
-        content: {
-          type: "link",
-          url: "https://example.com",
-          title: "Test Bookmark",
-          description: "Example description",
-        },
-        assets: [],
-      },
-    ];
-    const mockResponse = {
-      ok: true,
-      status: 200,
-      json: jest.fn().mockResolvedValue({ bookmarks: mockBookmarks, nextCursor: null }),
-      text: jest.fn().mockResolvedValue(JSON.stringify({ bookmarks: mockBookmarks, nextCursor: null })),
-      headers: new Map([["content-type", "application/json"]]),
-    };
-    mockFetchImplementation.mockResolvedValue(mockResponse);
-
     // Check for necessary environment variables
     if (
       !process.env.S3_BUCKET ||
@@ -227,12 +179,6 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
    * Cleanup test environment by restoring original CDN URL and fetch function
    */
   afterAll(() => {
-    // Restore original fetch function
-    if (originalFetch) {
-      global.fetch = originalFetch;
-      console.log("[UnitTest] Restored original fetch function");
-    }
-
     // Restore original CDN URL if it was set
     if (originalCdnUrl) {
       process.env.S3_PUBLIC_CDN_URL = originalCdnUrl;
