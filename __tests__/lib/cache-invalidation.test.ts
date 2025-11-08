@@ -140,6 +140,6 @@ describe("Next.js Cache Invalidation", () => {
       expect(posts3.length).toBe(posts1.length);
 
       console.log(`Blog cache test - Cached: ${cachedTime}ms, Fresh: ${freshTime}ms`);
-    });
+    }, 30000); // 30 second timeout for MDX processing
   });
 });

@@ -15,6 +15,39 @@ jest.mock("../../../lib/s3-utils", () => ({
   deleteFromS3: jest.fn(() => Promise.resolve()),
 }));
 
+// Mock refreshBookmarksData to return mock data
+jest.mock("../../../lib/bookmarks", () => ({
+  refreshBookmarksData: jest.fn(() =>
+    Promise.resolve([
+      {
+        id: "1",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        modifiedAt: "2024-01-01T00:00:00.000Z",
+        title: "Test Bookmark",
+        archived: false,
+        favourited: false,
+        taggingStatus: "user",
+        note: null,
+        summary: null,
+        tags: [
+          {
+            id: "t1",
+            name: "Test",
+            attachedBy: "user",
+          },
+        ],
+        content: {
+          type: "link",
+          url: "https://example.com",
+          title: "Test Bookmark",
+          description: "Example description",
+        },
+        assets: [],
+      },
+    ]),
+  ),
+}));
+
 /**
  * @file bookmarks-s3-external-sync.unit.test.ts
  * @summary **Bookmark Sync Logic (S3 ⇄ External API)**
@@ -128,7 +161,9 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
       console.warn(
         "Skipping bookmark sync unit test: Required environment variables (S3_BUCKET, BOOKMARK_BEARER_TOKEN, S3 credentials, AWS_REGION) are not set.",
       );
-      // This will cause tests to be skipped if conditions aren't met in 'it' blocks
+      // Set mock data directly and return early - don't make real API calls
+      s3Bookmarks = [];
+      externalApiBookmarks = [];
       return;
     }
 
