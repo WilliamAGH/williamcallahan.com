@@ -8,7 +8,7 @@
 import { type Experience, validateExperienceArray } from "../types/experience";
 
 // Remember to update this date whenever the experience data or the Experience page design changes
-export const updatedAt = "2025-04-30";
+export const updatedAt = "2025-11-08";
 
 const experiencesData: Experience[] = [
   {
@@ -16,7 +16,7 @@ const experiencesData: Experience[] = [
     company: "aVenture",
     period: "2023 - Present",
     startDate: "2023-01-01T00:00:00Z",
-    role: "Founder & CEO - Building a research platform with data on venture-backed startups and their investors to help founders and investors make better decisions.",
+    role: "Founder & CEO - Building a research platform with data on venture-backed startups and their investors to help founders and investors make better decisions. Backed by Techstars.",
     logo: undefined,
     website: "https://aventure.vc",
     location: "San Francisco, California",
@@ -49,7 +49,7 @@ const experiencesData: Experience[] = [
     period: "2021 - 2022",
     startDate: "2021-04-01T00:00:00Z",
     endDate: "2022-02-01T00:00:00Z",
-    role: "President of wealth management division following acquisition/sale of Callahan Financial Planning unit",
+    role: "President, wealth management division - Led unit following acquisition/sale of Callahan Financial Planning",
     logo: undefined,
     website: "https://www.tsbank.com",
     location: "San Francisco, California / Omaha, Nebraska",
@@ -61,7 +61,7 @@ const experiencesData: Experience[] = [
     period: "2010 - 2022",
     startDate: "2010-02-01T00:00:00Z",
     endDate: "2022-02-01T00:00:00Z",
-    role: "Founded and led an SEC-registered investment advisor - Provided comprehensive financial planning and investment advisory services, including proprietary cloud software for managing complex and nuanced data sets in such relationships. Managed $225 million in assets on acquisition.",
+    role: "Founded and led an SEC-registered investment advisor - Provided comprehensive financial planning and investment advisory services, including proprietary cloud software for managing complex/nuanced data sets in such relationships. Managed $225 million in assets on acquisition.",
     logo: undefined,
     logoOnlyDomain: "callahanplanning.com",
     website: "https://tsbank.com",
