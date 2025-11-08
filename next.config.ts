@@ -412,8 +412,8 @@ const nextConfig = {
         config.plugins = [];
       }
 
-      // NOTE: Filesystem cache is already configured above (lines 353-368).
-      // DO NOT overwrite it here - that would force all webpack modules into memory.
+      // NOTE: Webpack cache is disabled above (line 336) to prevent memory accumulation.
+      // DO NOT re-enable it here without addressing the 9,646+ cache entry memory issue.
 
       // **ENHANCED MEMORY MONITORING FOR NEXT.JS 15**
       // Keep a small state to throttle logs
