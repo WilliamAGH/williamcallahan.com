@@ -285,6 +285,12 @@ const nextConfig = {
 
     // Direct module resolution for SWR subpaths
     const path = require("node:path");
+
+    // Dev-only: keep AWS SDK out of all dev bundles via stub to avoid accidental writes and heavy dependencies.
+    if (process.env.NODE_ENV === "development") {
+      config.resolve.alias["@aws-sdk/client-s3"] = path.resolve(__dirname, "lib/stubs/aws-s3-stub.ts");
+    }
+
     try {
       // Force webpack to use the CommonJS build of SWR that has default export
       config.resolve.alias.swr$ = path.resolve(__dirname, "node_modules/swr/dist/index/index.js");
@@ -500,11 +506,6 @@ const nextConfig = {
       }
       if (!config.resolve.alias) {
         config.resolve.alias = {};
-      }
-
-      // Dev-only: keep AWS SDK out of edge/server dev bundles via stub
-      if (process.env.NODE_ENV === "development") {
-        config.resolve.alias["@aws-sdk/client-s3"] = path.resolve(__dirname, "lib/stubs/aws-s3-stub.ts");
       }
 
       // Use polyfill for OpenTelemetry modules in edge runtime
