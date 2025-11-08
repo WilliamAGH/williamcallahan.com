@@ -1,66 +1,109 @@
 import React from "react";
 import { Circle, Document, Font, Link, Page, Path, Rect, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
 import { getCvData } from "@/lib/cv/cv-data";
+import logger from "@/lib/utils/logger";
 import path from "path";
+import { existsSync } from "node:fs";
 
-const ensureFontsRegistered = (() => {
-  // For server-side rendering, use local font files
-  const isServer = typeof window === "undefined";
+const resolveFontFamily = (() => {
+  let cachedFamily: string | null = null;
+  let hasAttempted = false;
 
-  if (isServer) {
-    // Server-side: Use file system paths
-    const fontsDir = path.join(process.cwd(), "public", "fonts", "ibm-plex-mono");
+  const PRIMARY_FAMILY = "IBM Plex Mono";
+  const FALLBACK_FAMILY = "Courier";
 
-    Font.register({
-      family: "IBM Plex Mono",
-      fonts: [
-        {
-          src: path.join(fontsDir, "IBMPlexMono-Regular.ttf"),
-          fontWeight: "normal",
-          fontStyle: "normal",
-        },
-        {
-          src: path.join(fontsDir, "IBMPlexMono-Italic.ttf"),
-          fontWeight: "normal",
-          fontStyle: "italic",
-        },
-        {
-          src: path.join(fontsDir, "IBMPlexMono-SemiBold.ttf"),
-          fontWeight: 600,
-          fontStyle: "normal",
-        },
-      ],
-    });
-  } else {
-    // Client-side fallback (if ever used in browser context)
-    Font.register({
-      family: "IBM Plex Mono",
-      fonts: [
-        {
-          src: "/fonts/ibm-plex-mono/IBMPlexMono-Regular.ttf",
-          fontWeight: "normal",
-          fontStyle: "normal",
-        },
-        {
-          src: "/fonts/ibm-plex-mono/IBMPlexMono-Italic.ttf",
-          fontWeight: "normal",
-          fontStyle: "italic",
-        },
-        {
-          src: "/fonts/ibm-plex-mono/IBMPlexMono-SemiBold.ttf",
-          fontWeight: 600,
-          fontStyle: "normal",
-        },
-      ],
-    });
-  }
+  return (): string => {
+    if (hasAttempted && cachedFamily) {
+      return cachedFamily;
+    }
 
-  return true;
+    hasAttempted = true;
+
+    const isServer = typeof window === "undefined";
+
+    try {
+      if (isServer) {
+        const fontsDir = path.join(process.cwd(), "public", "fonts", "ibm-plex-mono");
+        const serverFonts = [
+          {
+            filename: "IBMPlexMono-Regular.ttf",
+            fontWeight: "normal" as const,
+            fontStyle: "normal" as const,
+          },
+          {
+            filename: "IBMPlexMono-Italic.ttf",
+            fontWeight: "normal" as const,
+            fontStyle: "italic" as const,
+          },
+          {
+            filename: "IBMPlexMono-SemiBold.ttf",
+            fontWeight: 600 as const,
+            fontStyle: "normal" as const,
+          },
+        ];
+
+        const missingFiles = serverFonts
+          .map(definition => ({ ...definition, absolutePath: path.join(fontsDir, definition.filename) }))
+          .filter(definition => !existsSync(definition.absolutePath));
+
+        if (missingFiles.length > 0) {
+          logger.error(
+            "[CV PDF] Missing IBM Plex Mono font files, falling back to system font:",
+            missingFiles.map(definition => definition.filename),
+          );
+          cachedFamily = FALLBACK_FAMILY;
+          return cachedFamily;
+        }
+
+        Font.register({
+          family: PRIMARY_FAMILY,
+          fonts: serverFonts.map(definition => ({
+            src: path.join(fontsDir, definition.filename),
+            fontWeight: definition.fontWeight,
+            fontStyle: definition.fontStyle,
+          })),
+        });
+      } else {
+        Font.register({
+          family: PRIMARY_FAMILY,
+          fonts: [
+            {
+              src: "/fonts/ibm-plex-mono/IBMPlexMono-Regular.ttf",
+              fontWeight: "normal",
+              fontStyle: "normal",
+            },
+            {
+              src: "/fonts/ibm-plex-mono/IBMPlexMono-Italic.ttf",
+              fontWeight: "normal",
+              fontStyle: "italic",
+            },
+            {
+              src: "/fonts/ibm-plex-mono/IBMPlexMono-SemiBold.ttf",
+              fontWeight: 600,
+              fontStyle: "normal",
+            },
+          ],
+        });
+      }
+
+      cachedFamily = PRIMARY_FAMILY;
+      return cachedFamily;
+    } catch (error) {
+      logger.error(
+        `[CV PDF] Failed to register font family "${PRIMARY_FAMILY}"; reverting to fallback ${FALLBACK_FAMILY}.`,
+        error instanceof Error ? error.message : error,
+      );
+      cachedFamily = FALLBACK_FAMILY;
+      return cachedFamily;
+    }
+  };
 })();
+
+const FONT_FAMILY = resolveFontFamily();
 
 const styles = StyleSheet.create({
   page: {
-    fontFamily: "IBM Plex Mono",
+    fontFamily: FONT_FAMILY,
     fontSize: 10,
     lineHeight: 1.45,
     color: "#1f2937", // zinc-800
@@ -404,10 +447,6 @@ const XPdfIcon = (): React.ReactElement => (
 );
 
 const CvPdfDocument = (): React.ReactElement => {
-  if (!ensureFontsRegistered) {
-    throw new Error("Failed to register fonts for CV PDF rendering");
-  }
-
   // Keep PDF output aligned with the visible /cv page.
   // The contact header mirrors the page layout by splitting location/website metadata
   // into a dedicated first row so those items always start on a new line.

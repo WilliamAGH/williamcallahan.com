@@ -1,8 +1,37 @@
 import React from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
 import CvPdfDocument from "@/components/features/cv/CvPdfDocument";
+import logger from "@/lib/utils/logger";
 
-export async function GET(): Promise<Response> {
+const PROBLEM_DETAILS_TYPE = "https://williamcallahan.com/problems/cv-pdf-rendering";
+
+function buildProblemDetails({
+  title,
+  detail,
+  status,
+  instance,
+  correlationId,
+}: {
+  title: string;
+  detail: string;
+  status: number;
+  instance: string;
+  correlationId: string;
+}) {
+  return {
+    type: PROBLEM_DETAILS_TYPE,
+    title,
+    detail,
+    status,
+    instance,
+    correlationId,
+  } satisfies Record<string, unknown>;
+}
+
+export async function GET(request: Request): Promise<Response> {
+  const correlationId = globalThis.crypto.randomUUID();
+  const instance = new URL(request.url).pathname;
+
   try {
     const pdfBuffer = await renderToBuffer(<CvPdfDocument />);
     const pdfArray = new Uint8Array(pdfBuffer);
@@ -15,30 +44,33 @@ export async function GET(): Promise<Response> {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="william-callahan-cv-${fileSuffix}.pdf"`,
         "Cache-Control": "no-store",
+        "X-Correlation-ID": correlationId,
       },
     });
   } catch (error) {
-    // Enhanced error logging for debugging
-    console.error("CV PDF Generation Error:", {
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      type: error?.constructor?.name,
+    const normalizedError = error instanceof Error ? error : new Error(String(error));
+    const isMissingFont = /font|typeface/i.test(normalizedError.message);
+    const status = isMissingFont ? 424 : 500;
+    const problem = buildProblemDetails({
+      title: "CV PDF rendering failed",
+      detail: normalizedError.message,
+      status,
+      instance,
+      correlationId,
     });
 
-    const message = error instanceof Error ? error.message : "Unable to generate the requested CV PDF.";
-
-    return new Response(
-      JSON.stringify({
-        error: message,
-        details: process.env.NODE_ENV === "development" ? error?.toString() : undefined,
-      }),
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      },
+    logger.error(
+      `[CV PDF] Rendering failure (status: ${status}, correlationId: ${correlationId})`,
+      normalizedError.stack ?? normalizedError.message,
     );
+
+    return new Response(JSON.stringify(problem), {
+      status,
+      headers: {
+        "Content-Type": "application/problem+json",
+        "Cache-Control": "no-store",
+        "X-Correlation-ID": correlationId,
+      },
+    });
   }
 }
