@@ -15,6 +15,7 @@
 
 import { withSentryConfig } from "@sentry/nextjs";
 import type { RuleSetRule } from "webpack"; // Import RuleSetRule type
+import type { WebpackConfigContext } from "next/dist/server/config-shared";
 
 /**
  * @typedef {{ version: string }} PackageJson
@@ -163,16 +164,8 @@ const nextConfig = {
    * @param {import('webpack').Configuration} config - Webpack config object
    * @returns {import('webpack').Configuration} Modified webpack config
    */
-  webpack: (
-    config: import("webpack").Configuration,
-    options: {
-      buildId: string;
-      dev: boolean;
-      isServer: boolean;
-      nextRuntime?: "edge" | "nodejs";
-      webpack: typeof import("webpack");
-    },
-  ) => {
+  webpack: (config: import("webpack").Configuration, context: WebpackConfigContext) => {
+    void context;
     // Added type annotation
     // Configure SVG handling, excluding /public directory
     const svgRule: RuleSetRule = {
@@ -330,47 +323,15 @@ const nextConfig = {
 
     // Optimize webpack cache for memory efficiency
     if (process.env.NODE_ENV === "development") {
-      // Use filesystem cache in development to dramatically reduce memory usage.
-      // Each compiler (server, client, edge-server) needs a unique cache name.
-      const compilerName =
-        (config.name as string) ||
-        (options?.nextRuntime === "edge" ? "edge-server" : options?.isServer ? "server" : "client");
-      const nextPkgVersion = (() => {
-        try {
-          return require("next/package.json").version as string;
-        } catch {
-          return "unknown";
-        }
-      })();
-      const webpackPkgVersion = (() => {
-        try {
-          return require("webpack/package.json").version as string;
-        } catch {
-          return "unknown";
-        }
-      })();
+      // **CRITICAL MEMORY FIX**: Disable webpack cache entirely in development.
+      // Filesystem cache was creating 9,646+ cache entries (158MB pack files) PER compiler,
+      // causing memory to balloon to 4GB+ from serialization overhead.
+      // With 3 compilers (client, server, edge), that's ~30K cache entries in memory.
+      config.cache = false;
 
-      config.cache = {
-        type: "filesystem",
-        // Let Next.js handle buildDependencies automatically
-        compression: false, // disable gzip to avoid corrupted pack restores in dev
-        hashAlgorithm: "xxhash64",
-        name: `dev-cache-${compilerName}`,
-        version: `dev-${appVersion}|next@${nextPkgVersion}|webpack@${webpackPkgVersion}`,
-        cacheDirectory: require("node:path").resolve(__dirname, ".next/cache/webpack", compilerName),
-        // **ENHANCED MEMORY LIMITS FOR NEXT.JS 15**
-        maxMemoryGenerations: 1, // Limit memory generations
-        memoryCacheUnaffected: false, // Don't keep unaffected modules in memory
-        maxAge: 1000 * 60 * 60 * 24, // 24 hours max age
-        // Aggressive cache memory management
-        store: "pack", // Use pack store for better memory efficiency
-        profile: false, // Disable profiling to save memory
-      };
-
-      // Add infra logging to trace cache restores in dev only
+      // Disable verbose infrastructure logging that creates memory overhead
       config.infrastructureLogging = {
-        level: "log",
-        debug: [/PackFileCacheStrategy/, /ResolverCachePlugin/, /Compilation\/codeGeneration/, /Cache/],
+        level: "error", // Only show errors, not verbose debug logs
       };
 
       // RESTORE default devtool to ensure chunk mapping works correctly.
@@ -445,12 +406,8 @@ const nextConfig = {
         config.plugins = [];
       }
 
-      // Use in-memory cache in development to avoid large filesystem pack serialize/unpack spikes
-      config.cache = {
-        type: "memory",
-        maxGenerations: 1,
-        cacheUnaffected: false,
-      };
+      // NOTE: Filesystem cache is already configured above (lines 353-368).
+      // DO NOT overwrite it here - that would force all webpack modules into memory.
 
       // **ENHANCED MEMORY MONITORING FOR NEXT.JS 15**
       // Keep a small state to throttle logs
@@ -691,8 +648,8 @@ const nextConfig = {
   reactStrictMode: true,
   productionBrowserSourceMaps: false, // Disable to save memory during builds
   // Nextjs 15 uses SWC by default; swcMinify option is no longer needed
-  // Add transpilePackages to handle ESM packages - removed Sentry/OpenTelemetry to reduce watchers
-  transpilePackages: ["next-mdx-remote", "swr"],
+  // Minimize transpilation overhead in development
+  transpilePackages: process.env.NODE_ENV === "production" ? ["next-mdx-remote", "swr"] : [],
   experimental: {
     taint: true,
     serverMinification: false,
@@ -700,8 +657,8 @@ const nextConfig = {
     webpackMemoryOptimizations: false, // DISABLED - might be buggy in canary
     preloadEntriesOnStart: false, // Don't preload all pages on server start
     serverSourceMaps: false, // Disable server source maps to save memory
-    // Reduce memory usage in development
-    optimizePackageImports: ["lucide-react", "@sentry/nextjs", "swr"],
+    // Disable package optimization in development to reduce cache entries
+    optimizePackageImports: process.env.NODE_ENV === "production" ? ["lucide-react", "@sentry/nextjs"] : [],
     // Enable 'use cache' directive for Next.js 15 caching
     // ⚠️ NEVER DISABLE THIS - This is part of the memory SOLUTION, not the problem
     // This feature helps reduce memory usage by proper caching, disabling it makes memory worse
