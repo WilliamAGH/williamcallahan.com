@@ -545,6 +545,11 @@ const nextConfig = {
         config.resolve.alias = {};
       }
 
+      // Dev-only: keep AWS SDK out of edge/server dev bundles via stub
+      if (process.env.NODE_ENV === "development") {
+        config.resolve.alias["@aws-sdk/client-s3"] = path.resolve(__dirname, "lib/stubs/aws-s3-stub.ts");
+      }
+
       // Use polyfill for OpenTelemetry modules in edge runtime
       const openTelemetryPolyfill = path.resolve(__dirname, "lib/edge-polyfills/opentelemetry.ts");
       config.resolve.alias["@opentelemetry/api"] = openTelemetryPolyfill;
