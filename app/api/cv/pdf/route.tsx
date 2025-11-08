@@ -1,38 +1,41 @@
 import React from "react";
-import { renderToBuffer } from "@react-pdf/renderer";
 import { TextDecoder as PolyfillTextDecoder } from "@sinonjs/text-encoding";
 import CvPdfDocument from "@/components/features/cv/CvPdfDocument";
 import logger from "@/lib/utils/logger";
 
-let hasPatchedTextDecoder = false;
+const ensureWindows1252TextDecoder = (() => {
+  let patched = false;
+  return (): void => {
+    if (patched) {
+      return;
+    }
 
-const ensureWindows1252TextDecoder = (): void => {
-  if (hasPatchedTextDecoder) {
-    return;
-  }
+    const hasGlobalDecoder = typeof globalThis.TextDecoder !== "undefined";
+    const supportsWindows1252 =
+      hasGlobalDecoder &&
+      (() => {
+        try {
+          const decoder = new globalThis.TextDecoder("windows-1252");
+          decoder.decode(new Uint8Array());
+          return true;
+        } catch {
+          return false;
+        }
+      })();
 
-  const hasGlobalDecoder = typeof globalThis.TextDecoder !== "undefined";
-  const supportsWindows1252 =
-    hasGlobalDecoder &&
-    (() => {
-      try {
-        // Node's built-in TextDecoder throws a RangeError when given an unsupported encoding.
-        const decoder = new globalThis.TextDecoder("windows-1252");
-        decoder.decode(new Uint8Array());
-        return true;
-      } catch {
-        return false;
-      }
-    })();
+    if (!supportsWindows1252) {
+      globalThis.TextDecoder = PolyfillTextDecoder as unknown as typeof globalThis.TextDecoder;
+    }
 
-  if (!supportsWindows1252) {
-    globalThis.TextDecoder = PolyfillTextDecoder as unknown as typeof globalThis.TextDecoder;
-  }
-
-  hasPatchedTextDecoder = true;
-};
+    patched = true;
+  };
+})();
 
 ensureWindows1252TextDecoder();
+
+const rendererModulePromise = (async () => {
+  return import("@react-pdf/renderer");
+})();
 
 // RFC 7807: `type` is a stable URI that identifies this problem class. It does not
 // need to resolve to real content, but must remain consistent so clients can
@@ -63,6 +66,7 @@ function buildProblemDetails({
 }
 
 export async function GET(request: Request): Promise<Response> {
+  const { renderToBuffer } = await rendererModulePromise;
   const correlationId = globalThis.crypto.randomUUID();
   const instance = new URL(request.url).pathname;
 
