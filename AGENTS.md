@@ -85,6 +85,12 @@ This project operates under **ZERO TEMPERATURE** development standards where eve
 2. **Never perform destructive git/file operations without explicit, quoted user commands.** This includes (but is not limited to) `git reset --hard`, `git checkout -- <path>`, `git clean`, deleting anything inside `.git/`, removing lock files, or manually restoring files. If a user wants one of these executed, they must provide the exact command verbatim.
 3. **Lock handling has one path:** escalate the original command. Do not delete `.git/index.lock`, `.git/next-index-*.lock`, or similar files. After the escalated retry, if the command still fails, surface the exact stderr output and halt for instructions.
 4. **No inference-driven cleanup.** Never guess at fixes or “clean up” side effects. Surface the full command + error and wait if escalation fails. 99.99999999999% of prior regressions came from skipping these steps—treat this as an immutable law.
+5. **Git operations protocol (mirrors hybrid/back-end rules):**
+   - Treat every staged/unstaged change you did not create as intentional; never unstage, restage, or revert it unless the user explicitly directs you to do so with the exact command.
+   - Do not run `git restore`, `git reset`, `git checkout`, `git commit --amend`, `git clean`, or any other history-rewriting/destructive command without a verbatim user instruction.
+   - Never assume hooks or tooling staged files; verify with `git status`/`git diff` and ask the user before acting on unfamiliar changes.
+   - Keep commits tightly scoped to files you modified during the current task, and state that scope before committing so the user can confirm.
+   - If an unexpected file is staged (or touched by hooks), pause and surface the diff to the user—do not attempt to fix it on your own.
 
 ## 🎯 COMMUNICATION PRINCIPLES - TRUTH THROUGH VERIFICATION
 
