@@ -8,6 +8,11 @@
  */
 
 export async function register() {
+  // Skip all instrumentation in development to reduce memory overhead
+  if (process.env.NODE_ENV === "development") {
+    return;
+  }
+
   // Only run instrumentation in server/node runtime
   if (process.env.NEXT_RUNTIME === "nodejs") {
     // Dynamically import Node.js specific instrumentation
