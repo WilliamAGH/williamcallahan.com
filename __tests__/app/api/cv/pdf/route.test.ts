@@ -46,13 +46,13 @@ class TestResponse {
     this.headers = new HeaderBag(init?.headers);
   }
 
-  async arrayBuffer(): Promise<ArrayBuffer> {
+  arrayBuffer(): Promise<ArrayBuffer> {
     const copy = Buffer.from(this.body);
-    return copy.buffer.slice(copy.byteOffset, copy.byteOffset + copy.byteLength);
+    return Promise.resolve(copy.buffer.slice(copy.byteOffset, copy.byteOffset + copy.byteLength));
   }
 
-  async json(): Promise<unknown> {
-    return JSON.parse(this.body.toString("utf8"));
+  json(): Promise<unknown> {
+    return Promise.resolve(JSON.parse(this.body.toString("utf8")));
   }
 }
 
