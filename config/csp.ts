@@ -32,6 +32,7 @@ export const CSP_DIRECTIVES = {
     "https://*.sentry.io",
     "https://*.ingest.sentry.io",
     "https://queue.simpleanalyticscdn.com",
+    "https://scripts.simpleanalyticscdn.com",
     "https://in.getclicky.com",
     "https://react-tweet.vercel.app",
     "https://*.twitter.com",
