@@ -1,8 +1,42 @@
 import React from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
+import { TextDecoder as PolyfillTextDecoder } from "@sinonjs/text-encoding";
 import CvPdfDocument from "@/components/features/cv/CvPdfDocument";
 import logger from "@/lib/utils/logger";
 
+let hasPatchedTextDecoder = false;
+
+const ensureWindows1252TextDecoder = (): void => {
+  if (hasPatchedTextDecoder) {
+    return;
+  }
+
+  const hasGlobalDecoder = typeof globalThis.TextDecoder !== "undefined";
+  const supportsWindows1252 =
+    hasGlobalDecoder &&
+    (() => {
+      try {
+        // Node's built-in TextDecoder throws a RangeError when given an unsupported encoding.
+        const decoder = new globalThis.TextDecoder("windows-1252");
+        decoder.decode(new Uint8Array());
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+
+  if (!supportsWindows1252) {
+    globalThis.TextDecoder = PolyfillTextDecoder as unknown as typeof globalThis.TextDecoder;
+  }
+
+  hasPatchedTextDecoder = true;
+};
+
+ensureWindows1252TextDecoder();
+
+// RFC 7807: `type` is a stable URI that identifies this problem class. It does not
+// need to resolve to real content, but must remain consistent so clients can
+// detect "CV PDF rendering failed" responses reliably.
 const PROBLEM_DETAILS_TYPE = "https://williamcallahan.com/problems/cv-pdf-rendering";
 
 function buildProblemDetails({
