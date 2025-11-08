@@ -429,10 +429,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         // Create a single abort promise to avoid per-iteration listener accumulation.
         let onAbort: ((evt: Event) => void) | null = null;
         const abortOncePromise: Promise<never> = new Promise((_, reject) => {
-          onAbort = () => reject(new Error("Read timeout"));
+          const handleAbort = () => reject(new Error("Read timeout"));
+          onAbort = handleAbort;
           // Attach a single listener; it will auto-remove on first invocation
           // due to the `once: true` option.
-          readController.signal.addEventListener("abort", onAbort!, { once: true });
+          readController.signal.addEventListener("abort", handleAbort, { once: true });
         });
 
         try {
