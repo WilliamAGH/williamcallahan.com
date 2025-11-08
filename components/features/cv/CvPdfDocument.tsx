@@ -1,21 +1,59 @@
 import React from "react";
 import { Circle, Document, Font, Link, Page, Path, Rect, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
 import { getCvData } from "@/lib/cv/cv-data";
+import path from "path";
 
 const ensureFontsRegistered = (() => {
-  Font.register({
-    family: "IBM Plex Mono",
-    fonts: [
-      {
-        src: "https://github.com/google/fonts/raw/main/ofl/ibmplexmono/IBMPlexMono-Regular.ttf",
-        fontWeight: "normal",
-      },
-      {
-        src: "https://github.com/google/fonts/raw/main/ofl/ibmplexmono/IBMPlexMono-SemiBold.ttf",
-        fontWeight: 600,
-      },
-    ],
-  });
+  // For server-side rendering, use local font files
+  const isServer = typeof window === "undefined";
+
+  if (isServer) {
+    // Server-side: Use file system paths
+    const fontsDir = path.join(process.cwd(), "public", "fonts", "ibm-plex-mono");
+
+    Font.register({
+      family: "IBM Plex Mono",
+      fonts: [
+        {
+          src: path.join(fontsDir, "IBMPlexMono-Regular.ttf"),
+          fontWeight: "normal",
+          fontStyle: "normal",
+        },
+        {
+          src: path.join(fontsDir, "IBMPlexMono-Italic.ttf"),
+          fontWeight: "normal",
+          fontStyle: "italic",
+        },
+        {
+          src: path.join(fontsDir, "IBMPlexMono-SemiBold.ttf"),
+          fontWeight: 600,
+          fontStyle: "normal",
+        },
+      ],
+    });
+  } else {
+    // Client-side fallback (if ever used in browser context)
+    Font.register({
+      family: "IBM Plex Mono",
+      fonts: [
+        {
+          src: "/fonts/ibm-plex-mono/IBMPlexMono-Regular.ttf",
+          fontWeight: "normal",
+          fontStyle: "normal",
+        },
+        {
+          src: "/fonts/ibm-plex-mono/IBMPlexMono-Italic.ttf",
+          fontWeight: "normal",
+          fontStyle: "italic",
+        },
+        {
+          src: "/fonts/ibm-plex-mono/IBMPlexMono-SemiBold.ttf",
+          fontWeight: 600,
+          fontStyle: "normal",
+        },
+      ],
+    });
+  }
 
   return true;
 })();
