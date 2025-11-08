@@ -10,7 +10,7 @@
 
 import { experiences } from "@/data/experience";
 import { certifications, education, recentCourses } from "@/data/education";
-import { PAGE_METADATA, metadata as siteMetadata } from "@/data/metadata";
+import { metadata as siteMetadata } from "@/data/metadata";
 import { projects } from "@/data/projects";
 import { CV_CONTACT_LINKS, CV_PROFESSIONAL_SUMMARY, CV_QUALIFICATIONS, CV_TECHNICAL_FOCUS } from "@/data/cv";
 import type {
@@ -162,7 +162,8 @@ export const getCvData = (): CvData => {
     month: "long",
     day: "numeric",
     year: "numeric",
-  }).format(new Date(PAGE_METADATA.cv.dateModified));
+    timeZone: "America/Los_Angeles",
+  }).format(new Date());
 
   return {
     professionalSummary: CV_PROFESSIONAL_SUMMARY,

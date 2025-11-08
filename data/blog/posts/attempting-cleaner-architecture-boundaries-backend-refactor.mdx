@@ -1,0 +1,405 @@
+---
+title: "Attempting to Design a Back-end with Cleaner Architecture Rules and Boundaries"
+slug: "attempting-cleaner-architecture-boundaries-backend-refactor"
+excerpt: "How I'm learning to keep cleaner architectural boundaries (while 'moving fast and breaking things')."
+publishedAt: "2025-11-07"
+updatedAt: "2025-11-07"
+author: "william-callahan"
+tags:
+  [
+    "backend",
+    "architecture",
+    "spring boot",
+    "clean architecture",
+    "refactoring",
+    "java",
+    "api design",
+    "boundaries",
+  ]
+coverImage: "/images/posts/clean-software-architecture-boundaries.png"
+---
+
+I've been writing code with hygiene and type safety in mind for a while now (or at least trying to). Every function gets explicit return types, objects get validated, repository methods get tested. But I've noticed I'm not quite strict enough about the *other* boundaries.
+
+A natural abstraction that I've always fought with (a mental model of sorts) is a principle of _modularity_ (e.g., in the 'lego blocks' or 'IKEA furniture' sense of the word's meaning). So I've tried to make that compatible with long-learned software architecture practices.
+
+In the science of finance, I became allergic to the phrase "best practices", something that more accurately would be described as "common practices" at best, and as "foolish things people commonly believe are true" at its worst.
+
+The trouble is that discernment is hard earlier on in the exploration of a science: you're a vagabond for an extended period of time, only gradually learning which voices to follow and which to tune out.
+
+And so, like so many things in life, I had to experience the pains of bad code myself several times to truly appreciate why disciplined boundaries are important. That, and the line between thoughtful rules and pedantic ones always feels hard to get just right.
+
+---
+
+## The mess I created
+
+I couldn't possibly write a comprehensive list of things I've seen wrong or done wrong myself (and not just because it would be too long, but also because I'm limited by the limits of my own present knowledge!).
+
+Instead, here are some current boundaries I've been grappling with, using salient examples from my own Java + Spring Boot repo. But most of what I've written here, examples aside, are agnostic and repo/framework/language-independent.
+
+I recently had a renewed sense that I'd recently shipped too much code too fast with inadequate guardrails, so I decided to revisit the book [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html) for a fresh look/reflection... and oh my god I just realized that the author, Robert Martin, is "Uncle Bob"! (the friendly Twitter and YouTube sensation I've been following for years, but never put two-and-two together).
+
+Anyways, without further ado, some code/repository observations.
+
+**Phase 1: The convenience trap**
+
+My Controllers started bleeding into repository territory in ways that seemed harmless at first. I'd find myself with something like this:
+
+**Temporal note: This controller method from November 2024 shows the exact boundary violation I'm describing. The identifier resolution and slug normalization should live in a use-case layer, not in the HTTP adapter.**
+
+```java
+// In PeopleV1Controller - boundary violation example
+@PutMapping("/detail")
+public ResponseEntity<Map<String, Object>> updatePersonDetail(
+    @RequestParam(required = false) String id,
+    @RequestParam(required = false) String slug,
+    @RequestBody Map<String, Object> body) {
+    
+    String personId = resolveIdOrThrow(id, slug, s -> personService.resolveIdBySlug(s));
+    String normalizedSlug = RequestValidation.normalizeOptionalSlug(body.get("slug"), "slug");
+    if (normalizedSlug != null) {
+        body.put("slug", normalizedSlug);
+    }
+    var updated = personService.update(personId, body);
+    return ResponseEntity.ok(updated);
+}
+```
+
+**What should move where:**
+- `resolveIdOrThrow()` → belongs in a `PersonIdentifierResolver` use-case service
+- `normalizeOptionalSlug()` → belongs in a `SlugNormalizationService` domain service
+- `body.put("slug", ...)` → should happen in the use-case layer, not the controller
+- The controller should only translate HTTP → command and return the response
+
+**Temporal note: This repository method from October 2024 demonstrates how my data layer started handling web concerns. Slug generation and validation should be in domain logic, not JDBC code.**
+
+```java
+// In PersonRepository - web concerns in data layer
+public String create(Map<String, Object> request) {
+    String slug = ControllerParameterUtils.normalizeSlugStrict(toStr(request.get("slug")));
+    if (slug == null || slug.isBlank()) {
+        slug = SlugUtils.slugify(first, last);
+    }
+    if (slug == null || slug.isBlank()) {
+        slug = IdGenerator.generate(8).toLowerCase(Locale.ROOT);
+    }
+    slug = SlugUtils.ensureUniqueSlug(slug, null, (candidate, ignored) -> existsBySlug(candidate));
+    request.put("slug", slug);
+    // ... JDBC insert follows
+}
+```
+
+**What should move where:**
+- `ControllerParameterUtils.normalizeSlugStrict()` → should use a domain `SlugNormalizer` instead
+- `SlugUtils.slugify()` → belongs in a `PersonNameSlugGenerator` domain service
+- `ensureUniqueSlug()` → belongs in a `UniqueSlugValidator` use-case service
+- The repository should only persist validated entities, not generate business rules
+
+The rationalizations were always the same: "It's just a simple lookup," or "This validation is only used by this one endpoint." But each shortcut created a new dependency direction. Six months later, changing the email validation rules required touching both the controller and the repository, plus every test that had come to depend on this specific behavior.
+
+The real kicker came when I needed to reuse the slug normalization logic in a background job. The controller method was now a critical dependency for a completely unrelated process, and untangling it meant refactoring across three different layers.
+
+**Phase 2: The base class**
+
+I created `BaseDomainService` and `BaseDomainRepository` to reduce duplication. Good intention, mixed results. These abstractions became magnets though for overlapping logic—caching, logging, validation, authorization—piled into inheritance hierarchies that make it harder to see what any single class actually does.
+
+**From my actual codebase:**
+
+```java
+// BaseDomainService.java - 200+ lines of "helpful" abstractions
+public abstract class BaseDomainService<T, ID> extends BaseListService {
+    protected final String domainName;
+    protected final BaseDomainRepository<T, ID> baseRepository;
+    
+    // Now includes: caching, circuit breakers, generic CRUD, 
+    // domain column mappings, string column handling, etc.
+    @Cacheable("domain:list")
+    @CircuitBreaker(name = "domain-operations")
+    public List<T> findPage(FilterParams.Where where, String order, String direction, int limit, int offset) {
+        return baseRepository.findPage(where, order, direction, limit, offset);
+    }
+    
+    // Plus 15 more "convenience" methods...
+}
+```
+
+The problem shows up when I need to create a `PersonService` that doesn't need caching but does need custom validation. I end up with:
+
+```java
+@Service
+public class PersonService extends BaseDomainService<PersonDTO, String> {
+    // Inherits 200+ lines I don't need
+    // But still need to override half the methods
+    // And now debugging requires understanding the entire hierarchy
+}
+```
+
+What started as "eliminating duplication" became "eliminating clarity."
+
+**Phase 3: The DTO drift**
+
+My OpenAPI spec gets auto-generated by using annotations, controller DTOs in another, domain models in a third. They started as aligned representations of the same concepts. A few months later, they're three related but distinct truths, each optimized for its layer, none quite matching the others.
+
+**Temporal note: This pattern emerged between August-October 2024 as I optimized each layer independently. The Map-based payloads created three separate "person" representations with no single source of truth.**
+
+**Concrete example from my codebase:**
+
+```java
+// Controller layer - OpenAPI annotations
+@PutMapping("/detail")
+public ResponseEntity<Map<String, Object>> updatePersonDetail(
+    @RequestBody Map<String, Object> body) // Untyped Map
+    
+// Service layer - accepts Map
+public PersonDTO update(String id, Map<String, Object> request) {
+    int rows = personRepository.update(id, request);
+    
+// Repository layer - still Map-based
+public int update(String id, Map<String, Object> request) {
+    if (request.containsKey("nameFirst")) {
+        updates.add("name_first = ?");
+        args.add(toStr(request.get("nameFirst")));
+    }
+```
+
+**What should consolidate where:**
+- Controller should accept a typed `UpdatePersonRequest` DTO
+- Service should accept a `UpdatePersonCommand` use-case object
+- Repository should accept a `Person` domain entity
+- All three should share a single validation schema, not three separate Map key interpretations
+
+When I add a new field like `linkedinUrl`, I currently have to update:
+1. OpenAPI annotations in the controller
+2. Map key handling in the service  
+3. Column mapping in the repository
+4. Frontend expecting specific JSON structure
+
+The cognitive overhead compounds with every change.
+
+---
+
+## What went wrong, exactly?
+
+The issue isn't that I didn't *know* about clean architecture. The problem was more subtle and familiar: truly grokking the point. When you're under pressure to ship, those "simple lookups" in controllers feel like pragmatic shortcuts. A few months later, though, you realize you've built a distributed monolith where business logic lives wherever it was most convenient at the time.
+
+This creates a specific kind of technical debt that's hard to see immediately or objectively. The code *works*—all tests pass, the API responds correctly—but every change requires understanding multiple layers simultaneously. A new developer can't reason about the system by reading just the controller or just the repository; they need to hold the entire mental model in their head, which I've found is too much to ask a junior developer.
+
+So I'll share my own thoughts (flawed and imperfect as they are) and approaches I use and have used to help catch and prevent/reduce these coing hygiene violations.
+
+
+## Rethinking the approach
+
+Instead of treating clean architecture as a destination to reach through heroic refactoring, I try to treat it as a set of guardrails as a crude linting barrier. The goal isn't "perfect layers", but instead "boundaries that are harder to accidentally cross than to respect."
+
+---
+
+## The refactor I'm experimenting with right now
+
+Instead of the usual "big bang rewrite," I'm trying a more surgical approach. The goal isn't perfect architecture—it's boundaries that feel less likely to slip, enforced in ways that don't slow down legitimate development.
+
+### Step 1: Adding some architectural guardrails
+
+I've started adding [ArchUnit tests](https://www.archunit.org/userguide/) to catch boundary violations earlier on, similar to how I use [Husky](https://typicode.github.io/husky/) pre-commit and pre-push hooks. 
+
+But after a repo is well built out, it feels a bit like rebuilding a house from scratch to prevent an earthquake. Sometimes your retrofits need to be more surgical, given the complexities of dealing with a pre-existing structure.
+
+Nonetheless, I still think tools like these are excellent for new repo's and existing repo's alike, and I find them really helpful in all the JavaScript/TypeScript, Java, Python, and Svelte repositories I've worked in so far. Their setup just looks a bit different each time, with lots of finicky quirks for each setup.
+
+### Step 2: Experimenting with a use-case layer
+
+I'm introducing a thin use-case layer—one class per business action. Not quite services, not quite repositories, but specific orchestrators that coordinate domain logic.
+
+```java
+// use-case core (trimmed)
+public Person handle(CreatePersonCommand command) {
+    if (duplicateCheck.exists(command.email())) {
+        throw new DuplicatePersonException(command.email());
+    }
+    var person = Person.create(command.name(), command.email());
+    repository.save(person);
+    events.publish(new PersonCreatedEvent(person.id()));
+    return person;
+}
+```
+
+```java
+// Inbound Port
+public interface CreatePerson {
+    Person handle(CreatePersonCommand command);
+}
+```
+
+### Step 3: Standardizing the error contract
+
+I'm gradually replacing ad-hoc error responses with [RFC 7807 Problem Details](https://datatracker.ietf.org/doc/html/rfc7807). The goal is making client integration more predictable, not perfect. This includes mapping constraint violations from [Jakarta Bean Validation](https://beanvalidation.org/). In JavaScript, my favorite is [Zod](https://zod.dev/) for validation and automatic type inference (TypeScript).
+
+In Spring, [ProblemDetail](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/http/ProblemDetail.html) provides a built-in structure for these responses:
+
+```java
+@RestControllerAdvice
+class ApiExceptionHandler {
+    @ExceptionHandler(DuplicatePersonException.class)
+    ProblemDetail handleDuplicate(DuplicatePersonException ex) {
+        return ProblemDetail.forStatusAndDetail(
+            HttpStatus.CONFLICT,
+            "Person with email " + ex.email() + " already exists"
+        );
+    }
+
+}
+```
+
+### Step 4: Trying compile-time mapping with MapStruct
+
+Instead of hand-rolled mappers that seem to drift over time, I'm experimenting with [MapStruct](https://mapstruct.org/) to generate type-safe mappings between layers:
+
+```java
+public interface PersonWebMapper {
+    CreatePersonCommand toCommand(CreatePersonRequest request);
+    PersonResponse toResponse(Person person);
+}
+```
+
+This seems to eliminate a category of bugs where DTOs and domain models get out of sync.
+
+---
+
+## The file structure that's emerging
+
+The refactor is producing a structure that makes boundaries more explicit:
+
+```markdown
+src/ [...]
+├── boot/                   # entry + typed config (in this example, for Spring Boot)
+├── domain/                 # Business types (minimal framework deps)
+│   ├── model/              # Value objects and aggregates
+│   ├── service/            # Domain rules and calculations
+│   └── port/               # Repository interfaces
+├── application/            # Use cases (transactional boundaries)
+│   ├── usecase/            # One class per business action
+│   └── dto/                # Input/output records for use cases
+├── adapters/
+│   ├── in/web/             # HTTP layer (controllers, DTOs, mappers)
+│   └── out/persistence/    # Database layer (repositories, entities)
+└── shared/                 # Cross-cutting utilities
+```
+
+---
+
+## What I'm learning about sustainable boundaries
+
+**Boundaries seem to be about friction, not perfection.** The right amount of friction appears to prevent the wrong shortcuts without noticeably slowing legitimate development.
+
+The most interesting change isn't technical—it seems to be psychological. Once boundaries are enforced by tests rather than convention, architecture debates happen less often. The code either compiles or it doesn't. Discussions are shifting from "where should this logic live?" to "what's the right business rule?"
+
+Velocity might actually be *increasing* after these changes. New features seem to take less time because boundaries are more obvious, error handling is more consistent, and cognitive load feels lower. What felt like ceremony in theory is becoming clarity in practice.
+
+The lesson I'm taking isn't that clean architecture is always worth the overhead. It's that *unclean* architecture appears to have hidden costs that compound in ways I didn't fully appreciate. The refactor isn't about achieving perfection—it's about making the right thing feel like the easier thing.
+
+The codebase feels different lately. Not necessarily cleaner, but *safer*. Changes that used to require understanding the entire system now seem to need just the relevant slice. That's not architecture for architecture's sake—it feels like architecture for human comprehension.
+
+And that seems like progress: making the codebase work *with* human limitations instead of against them.
+
+---
+
+## Reference: Drawing boundaries on definitions
+
+These definitions create the boundaries I'm experimenting with. Having explicit definitions feels more useful than assuming we all mean the same thing.
+
+```markdown
+*Runtime Sequence Flow*
+HTTP → Controller → (Map) → Inbound Port (Use Case Interface) → Use Case Implementation
+     → Domain (Entities/VOs, Services) → Outbound Port (Repository)
+     → Repository Implementation (Adapter-Out) → DB/SQL
+...and the result flows back the same path, with mappers at the edges.
+```
+
+```markdown
+*Dependency Flow*
+1) Controller → Inbound Port (Use Case Interface) → Use Case Implementation → Domain
+2) Use Case → Outbound Port (Repository Interface) → Repository Implementation (Adapter-Out) → DB
+3) Web DTOs ↔ (MapStruct) ↔ App DTOs ↔ (MapStruct) ↔ Domain
+```
+
+### Core Domain Concepts
+
+- **Model**: Core business concept; depends on nothing external. Defines `User` with invariants—never knows HTTP/SQL.
+  *Example: `record User(UserId id, Email email) { ... }`*
+
+- **Domain Service**: Pure domain rules that don't fit in aggregates.
+  *Example: `class UserValidationService { boolean isValid(Email email) { ... } }`*
+
+### Application Layer
+
+- **Application Service**: Orchestrates business logic and transactions. Takes `CreateUserCommand` → returns `User`—never knows HTTP/storage.
+  *Example: `class UserService { User create(CreateUserCommand cmd) { ... } }`*
+
+### Ports
+
+Ports and adapters here follow [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/).
+
+- **Inbound Port (interface)**: Application-defined interface for use cases, e.g., `CreateUser` without implementation details.
+  *Example: `interface CreateUser { User handle(CreateUserCommand cmd); }`*
+
+- **Outbound Port (interface)**: Application-defined interface for external capabilities, e.g., `EmailPort.send(email)` without *how*.
+  *Example: `interface EmailPort { void send(Email email); }`*
+
+- **Repository (Outbound Port)**: Storage boundary interface in application/domain. Takes `User` → returns `User`—framework-free and entity-agnostic; never contains business rules.
+  *Example: `interface UserRepository { User save(User user); Optional<User> findById(UserId id); }`*
+
+### Adapters and Mappers
+
+- **Adapters**: External boundary. Implements ports (e.g., `EmailPort` using SMTP, or `UserRepository` with mapping to persistence entities)—hides *how* things happen.
+  *Example: `class SmtpEmailAdapter implements EmailPort { ... }` or `class JpaUserRepository implements UserRepository { ... /* maps User to Entity */ }`*
+
+- **Mapper**: Shape boundary. Converts `User` ↔ `UserDto`—shape-only transform (no business logic).
+  *Example: `@Mapper interface UserMapper { UserDto toDto(User user); }`*
+
+### Web/HTTP Components
+
+- **Controller**: HTTP boundary. Takes `POST /users {"name":"Alice"}` → produces `CreateUserCommand`; returns HTTP response—never decides *how* to create users.
+  *Example: `@PostMapping ResponseEntity<UserResponse> create(@RequestBody CreateUserRequest req)`*
+
+- **Global Exception Handler**: Cross-boundary. Converts exceptions → HTTP status codes—never changes *what* went wrong. In Spring, implemented via Advice; document standardized error responses in OpenAPI specifications for better API client integration and consistency.
+  *Example: `@RestControllerAdvice class GlobalExceptionHandler { ... }`*
+
+- **Filter**: Pipeline boundary. Converts HTTP requests → authenticated requests—never changes *what* the request asks for.
+  *Example: `class AuthFilter extends OncePerRequestFilter { ... }`*
+
+## Cross-layer dependency inversion
+
+The most insidious violations happen when lower layers start depending on higher ones. I found this pattern in my own code:
+
+**Temporal note: This dependency inversion appeared in September 2024 when I introduced WebUrlService into repositories for "convenience"**
+
+**Repository depending on web services:**
+```java
+// EntityRepository.java - data layer depending on web layer
+@Repository
+public class EntityRepository extends BaseDomainRepository<EntityDTO, String> {
+    private final WebUrlService webUrlService;  // Web-facing service
+    
+    public Map<String, Object> findWebUrlsByEntityId(String entityId) {
+        return webUrlService.findWebUrlsByEntityId(entityId);  // Wrong direction
+    }
+}
+```
+
+**Service layer handling HTTP concerns:**
+```java
+// SupabaseUserService.java - service layer with HTTP dependencies
+public void writeSessionCookie(
+    HttpServletRequest request, 
+    HttpServletResponse response, 
+    Jwt jwt, 
+    String accessToken) {
+    // Service now knows about cookies, domains, SameSite policies
+    ResponseCookie cookie = ResponseCookie.from("session", accessToken)
+        .httpOnly(true)
+        .secure(request.isSecure())
+        .build();
+    response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+}
+```
+
+These dependencies create a web where I can't run background jobs without mocking the entire servlet stack, and I can't change API contracts without touching business logic.

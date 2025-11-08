@@ -1,7 +1,7 @@
 import type { Project } from "@/types/project";
 
 // Remember to update this date whenever the projects data or the Projects page design changes
-export const updatedAt = "2025-11-07";
+export const updatedAt = "2025-11-08";
 
 export const projects: Project[] = [
   {
@@ -48,19 +48,7 @@ export const projects: Project[] = [
     shortSummary: "Interactive personal site with beautiful terminal/code components & other dynamic content",
     url: "https://williamcallahan.com",
     imageKey: "images/other/projects/williamcallahan-com-project.png",
-    tags: [
-      "Portfolio",
-      "Open Source",
-      "MDX Blog",
-      "macOS Components",
-      "Terminal Emulation",
-      "Code Syntax Highlighting",
-      "Graph Index",
-      "JSON Documents",
-      "API",
-      "Refetch/Cache Logic",
-      "Multi-cloud Deployment",
-    ],
+    tags: ["Graph Index", "S3 Object Storage", "Interactive App", "Terminal UI", "MDX Blog", "Search"],
     techStack: ["Next.js", "TypeScript", "Tailwind CSS", "Zod", "Bun", "Docker", "Fly.io"],
     cvFeatured: true,
   },

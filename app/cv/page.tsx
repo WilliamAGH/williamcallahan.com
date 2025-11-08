@@ -32,6 +32,8 @@ export const metadata: Metadata = getStaticPageMetadata(CV_PAGE_PATH, "cv");
  * Curriculum vitae route rendering highlighted professional history and credentials.
  * Surfaces highlighted technical projects immediately after qualifications to balance
  * modern software work with prior finance leadership experience.
+ * Contact metadata renders in explicit rows so the location and primary websites always
+ * start on their own line, preserving parity with the PDF export.
  */
 export default function CvPage(): React.JSX.Element {
   const pageMetadata = PAGE_METADATA.cv;
@@ -118,55 +120,59 @@ export default function CvPage(): React.JSX.Element {
               </span>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-zinc-500 dark:text-zinc-400">
-            <span className="flex items-center gap-2">
-              <MapPin className="h-4 w-4" aria-hidden="true" />
-              <span>San Francisco, California</span>
-            </span>
-            <span className="flex items-center gap-2">
-              <Globe className="h-4 w-4" aria-hidden="true" />
-              <Link
-                href={siteUrl}
-                className="transition-colors hover:text-zinc-700 dark:hover:text-zinc-200"
-                rel="noreferrer noopener"
-                target="_blank"
-              >
-                {personalSiteHost}
-              </Link>
-            </span>
-            <span className="flex items-center gap-2">
-              <Globe className="h-4 w-4" aria-hidden="true" />
-              <Link
-                href={aventureUrl}
-                className="transition-colors hover:text-zinc-700 dark:hover:text-zinc-200"
-                rel="noreferrer noopener"
-                target="_blank"
-              >
-                {aventureHost}
-              </Link>
-            </span>
-            <span className="flex items-center gap-2">
-              <X className="h-4 w-4" aria-hidden="true" />
-              <Link
-                href={twitterUrl}
-                className="transition-colors hover:text-zinc-700 dark:hover:text-zinc-200"
-                rel="noreferrer noopener"
-                target="_blank"
-              >
-                {twitterHandle}
-              </Link>
-            </span>
-            <span className="flex items-center gap-2">
-              <Linkedin className="h-4 w-4" aria-hidden="true" />
-              <Link
-                href={linkedInUrl}
-                className="transition-colors hover:text-zinc-700 dark:hover:text-zinc-200"
-                rel="noreferrer noopener"
-                target="_blank"
-              >
-                {linkedInLabel}
-              </Link>
-            </span>
+          <div className="flex flex-col gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <span className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" aria-hidden="true" />
+                <span>San Francisco, California</span>
+              </span>
+              <span className="flex items-center gap-2">
+                <Globe className="h-4 w-4" aria-hidden="true" />
+                <Link
+                  href={siteUrl}
+                  className="transition-colors hover:text-zinc-700 dark:hover:text-zinc-200"
+                  rel="noreferrer noopener"
+                  target="_blank"
+                >
+                  {personalSiteHost}
+                </Link>
+              </span>
+              <span className="flex items-center gap-2">
+                <Globe className="h-4 w-4" aria-hidden="true" />
+                <Link
+                  href={aventureUrl}
+                  className="transition-colors hover:text-zinc-700 dark:hover:text-zinc-200"
+                  rel="noreferrer noopener"
+                  target="_blank"
+                >
+                  {aventureHost}
+                </Link>
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <span className="flex items-center gap-2">
+                <X className="h-4 w-4" aria-hidden="true" />
+                <Link
+                  href={twitterUrl}
+                  className="transition-colors hover:text-zinc-700 dark:hover:text-zinc-200"
+                  rel="noreferrer noopener"
+                  target="_blank"
+                >
+                  {twitterHandle}
+                </Link>
+              </span>
+              <span className="flex items-center gap-2">
+                <Linkedin className="h-4 w-4" aria-hidden="true" />
+                <Link
+                  href={linkedInUrl}
+                  className="transition-colors hover:text-zinc-700 dark:hover:text-zinc-200"
+                  rel="noreferrer noopener"
+                  target="_blank"
+                >
+                  {linkedInLabel}
+                </Link>
+              </span>
+            </div>
           </div>
         </header>
 
@@ -258,21 +264,34 @@ export default function CvPage(): React.JSX.Element {
                     </span>
                     <span className="text-sm text-zinc-500 dark:text-zinc-400">{experienceItem.period}</span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-500 dark:text-zinc-400">
-                    <span>{experienceItem.headline}</span>
-                    {experienceItem.location ? <span>· {experienceItem.location}</span> : null}
-                    {experienceItem.displayWebsite && experienceItem.website ? (
-                      <span>
-                        ·{" "}
-                        <Link
-                          href={experienceItem.website}
-                          className="underline decoration-dotted underline-offset-4 transition-colors hover:text-zinc-700 dark:hover:text-zinc-200"
-                          rel="noreferrer noopener"
-                          target="_blank"
-                        >
-                          {experienceItem.displayWebsite}
-                        </Link>
-                      </span>
+                  <div className="space-y-1 text-sm text-zinc-500 dark:text-zinc-400">
+                    <span className="block">{experienceItem.headline}</span>
+                    {experienceItem.location || (experienceItem.displayWebsite && experienceItem.website) ? (
+                      <div className="flex flex-wrap items-center gap-3">
+                        {experienceItem.location ? (
+                          <span className="flex items-center gap-2">
+                            <span aria-hidden="true" className="text-zinc-400 dark:text-zinc-500">
+                              ·
+                            </span>
+                            <span>{experienceItem.location}</span>
+                          </span>
+                        ) : null}
+                        {experienceItem.displayWebsite && experienceItem.website ? (
+                          <span className="flex items-center gap-2">
+                            <span aria-hidden="true" className="text-zinc-400 dark:text-zinc-500">
+                              ·
+                            </span>
+                            <Link
+                              href={experienceItem.website}
+                              className="text-zinc-500 underline decoration-dotted underline-offset-4 transition-colors hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                              rel="noreferrer noopener"
+                              target="_blank"
+                            >
+                              {experienceItem.displayWebsite}
+                            </Link>
+                          </span>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
                   {experienceItem.bullets.length > 0 ? (
