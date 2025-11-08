@@ -744,6 +744,9 @@ const nextConfig = {
    * @see https://nextjs.org/docs/app/api-reference/components/image
    */
   images: {
+    // Bypass image optimization in development to reduce memory pressure
+    // Image-worker transforms contribute significantly to webpack memory spikes
+    ...(process.env.NODE_ENV === "development" ? { unoptimized: true } : {}),
     /**
      * Allows Nextjs to optimize SVGs using `next/image`
      * Note: This can have security implications if SVGs are user-uploaded

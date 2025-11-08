@@ -9,6 +9,26 @@
 
 import { Readable } from "node:stream";
 
+const createS3StubError = (params: {
+  method: string;
+  url: string;
+  status: number;
+  statusText: string;
+  overrideName?: "NotFound" | "S3StubError" | "S3StubWriteBlocked";
+}): Error & {
+  name: "NotFound" | "S3StubError" | "S3StubWriteBlocked";
+  $metadata: { httpStatusCode: number };
+} => {
+  const { method, url, status, statusText, overrideName } = params;
+  const error = new Error(`${method} ${url} failed: ${status} ${statusText}`) as Error & {
+    name: "NotFound" | "S3StubError" | "S3StubWriteBlocked";
+    $metadata: { httpStatusCode: number };
+  };
+  error.name = overrideName ?? (status === 404 ? "NotFound" : "S3StubError");
+  error.$metadata = { httpStatusCode: status };
+  return error;
+};
+
 // Minimal command shapes used by our codebase
 export class GetObjectCommand {
   constructor(public input: { Bucket: string; Key: string; Range?: string }) {}
@@ -69,10 +89,7 @@ export class S3Client {
 
     const res = await fetch(url, { headers });
     if (!res.ok) {
-      const err: any = new Error(`GET ${url} failed: ${res.status} ${res.statusText}`);
-      err.name = res.status === 404 ? "NotFound" : "S3StubError";
-      err.$metadata = { httpStatusCode: res.status };
-      throw err;
+      throw createS3StubError({ method: "GET", url, status: res.status, statusText: res.statusText });
     }
 
     const arrayBuffer = await res.arrayBuffer();
@@ -89,10 +106,7 @@ export class S3Client {
     const url = this.buildUrl(cmd.input.Bucket, cmd.input.Key);
     const res = await fetch(url, { method: "HEAD", headers: { "User-Agent": "S3Stub/1.0" } });
     if (!res.ok) {
-      const err: any = new Error(`HEAD ${url} failed: ${res.status} ${res.statusText}`);
-      err.name = res.status === 404 ? "NotFound" : "S3StubError";
-      err.$metadata = { httpStatusCode: res.status };
-      throw err;
+      throw createS3StubError({ method: "HEAD", url, status: res.status, statusText: res.statusText });
     }
     const lenStr = res.headers.get("content-length");
     const type = res.headers.get("content-type") || undefined;
@@ -115,8 +129,12 @@ export class S3Client {
   }
 
   private handlePutObject(_cmd: PutObjectCommand) {
-    const err: any = new Error("S3Stub: writes are disabled in development");
-    err.$metadata = { httpStatusCode: 403 };
-    throw err;
+    throw createS3StubError({
+      method: "PUT",
+      url: "s3://development-write-block",
+      status: 403,
+      statusText: "Writes disabled in development",
+      overrideName: "S3StubWriteBlocked",
+    });
   }
 }
