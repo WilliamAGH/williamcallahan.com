@@ -1,9 +1,45 @@
 import React from "react";
-import { Circle, Document, Font, Link, Page, Path, Rect, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
+import { TextDecoder as PolyfillTextDecoder } from "@sinonjs/text-encoding";
 import { getCvData } from "@/lib/cv/cv-data";
 import logger from "@/lib/utils/logger";
 import path from "path";
 import { existsSync } from "node:fs";
+
+const ensureWindows1252TextDecoder = (() => {
+  let patched = false;
+  return (): void => {
+    if (patched) {
+      return;
+    }
+
+    const hasGlobalDecoder = typeof globalThis.TextDecoder !== "undefined";
+    const supportsWindows1252 =
+      hasGlobalDecoder &&
+      (() => {
+        try {
+          const decoder = new globalThis.TextDecoder("windows-1252");
+          decoder.decode(new Uint8Array());
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+
+    if (!supportsWindows1252) {
+      globalThis.TextDecoder = PolyfillTextDecoder as unknown as typeof globalThis.TextDecoder;
+    }
+
+    patched = true;
+  };
+})();
+
+ensureWindows1252TextDecoder();
+
+const rendererModulePromise = (async () => {
+  return import("@react-pdf/renderer");
+})();
+
+const { Circle, Document, Font, Link, Page, Path, Rect, StyleSheet, Svg, Text, View } = await rendererModulePromise;
 
 const resolveFontFamily = (() => {
   let cachedFamily: string | null = null;
