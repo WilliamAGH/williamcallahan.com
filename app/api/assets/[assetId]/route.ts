@@ -595,6 +595,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // For non-images stream the upstream body directly
+    if (!response.body) {
+      console.error(`[Assets API] No response body for non-image asset ${assetId}`);
+      return NextResponse.json(
+        {
+          error: "Failed to read asset",
+          assetId,
+        },
+        { status: 502 },
+      );
+    }
+
     return new NextResponse(response.body, {
       status: 200,
       headers: {
