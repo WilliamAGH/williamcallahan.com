@@ -13,18 +13,21 @@
 
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Globe, Linkedin, MapPin } from "lucide-react";
+import { FileText, Globe, Linkedin, Loader2, MapPin } from "lucide-react";
 import { PAGE_METADATA, OG_IMAGE_DIMENSIONS } from "@/data/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
-import CvPdfDownloadButton from "@/components/features/cv/CvPdfDownloadButton";
+import CvPdfDownloadButtonEnhancer from "@/components/features/cv/CvPdfDownloadButton";
 import { X } from "@/components/ui/social-icons";
 import { getCvData } from "@/lib/cv/cv-data";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
+import { cn } from "@/lib/utils";
 
 const CV_PAGE_PATH = "/cv" as const;
+const CV_PDF_DOWNLOAD_ENDPOINT = "/api/cv/pdf" as const;
+const CV_PDF_BUTTON_ID = "cv-pdf-download-button" as const;
 
 export const metadata: Metadata = getStaticPageMetadata(CV_PAGE_PATH, "cv");
 
@@ -67,6 +70,12 @@ export default function CvPage(): React.JSX.Element {
   };
 
   const jsonLdData = generateSchemaGraph(schemaParams);
+
+  const pdfButtonLabel = "Download CV as PDF" as const;
+  const pdfButtonClassName = cn(
+    "inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 transition-colors hover:bg-zinc-900 hover:text-white dark:border-zinc-700 dark:text-zinc-300",
+    "disabled:cursor-not-allowed disabled:opacity-70",
+  );
 
   const {
     professionalSummary,
@@ -111,7 +120,18 @@ export default function CvPage(): React.JSX.Element {
               </p>
             </div>
             <div className="self-start sm:self-auto flex flex-col items-center gap-0.5">
-              <CvPdfDownloadButton variant="icon" />
+              <a
+                id={CV_PDF_BUTTON_ID}
+                href={CV_PDF_DOWNLOAD_ENDPOINT}
+                className={pdfButtonClassName}
+                aria-label={pdfButtonLabel}
+                data-loading="false"
+              >
+                <Loader2 className="h-4 w-4 animate-spin hidden data-[loading=true]:block" aria-hidden="true" />
+                <FileText className="h-4 w-4 data-[loading=true]:hidden" aria-hidden="true" />
+                <span className="sr-only">{pdfButtonLabel}</span>
+              </a>
+              <CvPdfDownloadButtonEnhancer targetId={CV_PDF_BUTTON_ID} />
               <span
                 aria-hidden="true"
                 className="leading-none text-[0.7rem] uppercase tracking-[0.25em] text-zinc-500 dark:text-zinc-400"

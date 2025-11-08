@@ -19,11 +19,6 @@ export interface CvTechnicalFocusSection {
   bullets: readonly string[];
 }
 
-export interface CvPdfDownloadButtonProps {
-  className?: string;
-  variant?: "default" | "icon";
-}
-
 export interface CvExperienceEntry {
   id: string;
   company: string;
