@@ -91,6 +91,7 @@ This project operates under **ZERO TEMPERATURE** development standards where eve
    - Never assume hooks or tooling staged files; verify with `git status`/`git diff` and ask the user before acting on unfamiliar changes.
    - Keep commits tightly scoped to files you modified during the current task, and state that scope before committing so the user can confirm.
    - If an unexpected file is staged (or touched by hooks), pause and surface the diff to the user—do not attempt to fix it on your own.
+   - **When invoking git via Codex tools, always set `with_escalated_permissions=true`** so every git command (status, add, commit, etc.) is explicitly authorized; never run git through a non-escalated shell.
 
 ## 🎯 COMMUNICATION PRINCIPLES - TRUTH THROUGH VERIFICATION
 
