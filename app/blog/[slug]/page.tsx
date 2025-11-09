@@ -34,10 +34,8 @@ export const generateStaticParams = async () => {
 // Set revalidation time for ISR (Incremental Static Regeneration)
 // Using ISR instead of force-static to allow revalidation
 // Removed conflicting 'dynamic = force-static' directive per GitHub issue #112
-export const revalidate = 3600; // Revalidate every hour
 
 // Force dynamic rendering to avoid prerender-time MDX runtime issues for complex components
-export const dynamic = "force-dynamic";
 
 /**
  * List of blog posts that should use software application schema

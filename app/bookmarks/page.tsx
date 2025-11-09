@@ -9,13 +9,6 @@
  * @see {@link "https://schema.org/CollectionPage"} - Schema.org CollectionPage specification
  */
 
-// Configure dynamic rendering
-export const dynamic = "force-dynamic";
-// Opt out of the Next.js Data Cache for this route (we use our own cache via lib/image-memory-manager.ts)
-export const fetchCache = "default-no-store";
-// Revalidate static HTML every 30 minutes to keep bookmark counts fresh
-export const revalidate = 1800; // 30 minutes (60 * 30)
-
 import type { Metadata } from "next";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo";

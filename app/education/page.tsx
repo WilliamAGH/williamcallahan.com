@@ -18,8 +18,6 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
  * @see {@link "https://schema.org/ProfilePage"} - Schema.org ProfilePage specification
  */
 
-export const dynamic = "force-dynamic";
-
 /**
  * Generate metadata for the education page
  */

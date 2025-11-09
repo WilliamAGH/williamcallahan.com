@@ -22,7 +22,6 @@ const VALID_IMAGE_FORMATS = new Set(["jpeg", "jpg", "png", "webp", "avif", "gif"
  * @param {NextRequest} request - Incoming request
  * @returns {Promise<NextResponse>} API response with cached image
  */
-export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const { searchParams } = request.nextUrl;

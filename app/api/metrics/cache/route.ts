@@ -10,8 +10,6 @@
 
 import { NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-
 /**
  * GET /api/metrics/cache
  * @description Returns process memory metrics. Cache-specific metrics are no longer available.

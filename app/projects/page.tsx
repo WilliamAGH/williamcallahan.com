@@ -20,7 +20,6 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
  * Enable ISR for projects page with hourly revalidation
  * This generates static HTML at build time and revalidates periodically
  */
-export const revalidate = 3600; // Revalidate every hour
 
 export function generateMetadata(): Metadata {
   return getStaticPageMetadata("/projects", "projects");

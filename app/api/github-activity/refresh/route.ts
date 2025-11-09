@@ -20,9 +20,7 @@ import { envLogger } from "@/lib/utils/env-logger";
  * @constant {string} dynamic - Ensures the route is dynamically rendered and not cached.
  * @default 'force-dynamic'
  */
-export const dynamic = "force-dynamic";
 
-// Rate limiting configuration
 const RATE_LIMIT_WINDOW = TIME_CONSTANTS.RATE_LIMIT_WINDOW_MS;
 const RATE_LIMIT_MAX_REQUESTS = 5; // 5 requests per hour per IP
 const RATE_LIMIT_S3_PATH = "json/rate-limits/github-refresh.json";
@@ -183,11 +181,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // Invalidate cache layers for GitHub data
       invalidateGitHubCache(); // in-memory
       try {
-        revalidateTag("github-activity"); // Next.js function cache tag
+        revalidateTag("github-activity", "default"); // Next.js function cache tag
       } catch (err) {
         // No-op outside of Next request context
         envLogger.log(
-          "revalidateTag('github-activity') skipped or failed",
+          "revalidateTag('github-activity', 'default') skipped or failed",
           { error: err instanceof Error ? err.message : String(err) },
           { category: "GitHubActivityRefresh" },
         );

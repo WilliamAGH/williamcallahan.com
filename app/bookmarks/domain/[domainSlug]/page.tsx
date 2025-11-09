@@ -7,9 +7,6 @@
  */
 
 // Configure dynamic rendering
-export const dynamic = "force-dynamic";
-// Disable persistent Data Cache – content is updated via revalidation logic in code (we use our own cache via lib/image-memory-manager.ts)
-export const fetchCache = "default-no-store";
 
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";

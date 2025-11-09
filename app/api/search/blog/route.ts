@@ -15,7 +15,6 @@ import { NextResponse } from "next/server";
 // import type { SearchResult } from '@/types/search'; // Keep SearchResult type - Removed as unused by ESLint
 
 // Ensure this route is not statically cached
-export const dynamic = "force-dynamic";
 
 /**
  * Server-side API route for blog search.

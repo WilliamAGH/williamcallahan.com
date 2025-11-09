@@ -160,9 +160,9 @@ export async function saveSlugMapping(
     try {
       const { revalidateTag } = await import("next/cache");
       // Invalidate all bookmark-related caches
-      revalidateTag("bookmarks");
-      revalidateTag("bookmarks-slugs");
-      revalidateTag("search-index");
+      revalidateTag("bookmarks", "default");
+      revalidateTag("bookmarks-slugs", "default");
+      revalidateTag("search-index", "default");
       envLogger.log(`Cache invalidated for bookmark tags`, undefined, { category: "SlugManager" });
     } catch (cacheError) {
       // Cache invalidation failure is non-fatal but should be logged

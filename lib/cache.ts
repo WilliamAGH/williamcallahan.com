@@ -10,11 +10,7 @@
 import type { CacheDurationProfile } from "@/types/cache-profile";
 import { CACHE_TTL, USE_NEXTJS_CACHE } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
-import {
-  unstable_cacheLife as nextCacheLife,
-  unstable_cacheTag as nextCacheTag,
-  revalidateTag as nextRevalidateTag,
-} from "next/cache";
+import { cacheLife as nextCacheLife, cacheTag as nextCacheTag, revalidateTag as nextRevalidateTag } from "next/cache";
 
 // Re-export for backward compatibility
 export { CACHE_TTL, USE_NEXTJS_CACHE };
@@ -65,7 +61,14 @@ const withGuard = <Args extends unknown[]>(
 export const cacheContextGuards = {
   cacheLife: withGuard("cacheLife", (category: string, profile: CacheDurationProfile) => {
     if (typeof nextCacheLife === "function" && !isCliLikeCacheContext()) {
-      nextCacheLife(profile);
+      // Next.js uses function overloads, not a union type, so we need to handle each case
+      if (typeof profile === "string") {
+        // Cast to any to bypass TypeScript's overload resolution
+        (nextCacheLife as any)(profile);
+      } else {
+        // It's an object with stale/revalidate/expire properties
+        nextCacheLife(profile);
+      }
     }
   }),
   cacheTag: withGuard("cacheTag", (_category: string, ...tags: string[]) => {
@@ -75,7 +78,7 @@ export const cacheContextGuards = {
   }),
   revalidateTag: withGuard("revalidateTag", (_category: string, ...tags: string[]) => {
     if (typeof nextRevalidateTag === "function" && !isCliLikeCacheContext()) {
-      for (const tag of new Set(tags)) nextRevalidateTag(tag);
+      for (const tag of new Set(tags)) nextRevalidateTag(tag, "default");
     }
   }),
 };

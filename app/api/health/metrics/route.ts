@@ -12,8 +12,6 @@ import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { getSystemMetrics } from "@/lib/health/status-monitor.server";
 import { HealthMetricsResponseSchema, type HealthMetrics } from "@/types/health";
 
-export const dynamic = "force-dynamic";
-
 /**
  * GET /api/health/metrics
  * @description Returns detailed health and performance metrics for the application.

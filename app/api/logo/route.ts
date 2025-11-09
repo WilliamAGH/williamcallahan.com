@@ -28,8 +28,6 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
  * - Retry logic with exponential backoff
  * - Placeholder fallback for unavailable logos
  */
-export const dynamic = "force-dynamic";
-export const revalidate = 3600;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;

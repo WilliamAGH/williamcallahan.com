@@ -8,9 +8,6 @@
  */
 
 // Configure dynamic rendering
-export const dynamic = "force-dynamic";
-// Force dynamic rendering and disable Next.js Data Cache for heavy tag list pages (we use our own cache via lib/image-memory-manager.ts)
-export const fetchCache = "default-no-store";
 
 import type { Metadata } from "next";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
@@ -131,8 +128,7 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
     isTag: true,
   });
   const baseDescription = generateTagDescription(displayTag, "bookmarks");
-  const customDescription =
-    effectivePage > 1 ? `${baseDescription} — Page ${effectivePage}.` : baseDescription;
+  const customDescription = effectivePage > 1 ? `${baseDescription} — Page ${effectivePage}.` : baseDescription;
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
   return {
@@ -233,8 +229,7 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
     currentPage > 1 ? `Bookmarks for ${displayTag} (Page ${currentPage})` : `Bookmarks for ${displayTag}`;
 
   const pageBaseDescription = generateTagDescription(displayTag, "bookmarks");
-  const pageDescription =
-    currentPage > 1 ? `${pageBaseDescription} — Page ${currentPage}.` : pageBaseDescription;
+  const pageDescription = currentPage > 1 ? `${pageBaseDescription} — Page ${currentPage}.` : pageBaseDescription;
 
   // Generate schema for this tagged bookmarks page
   let path = `/bookmarks/tags/${sanitizedSlug}`;
