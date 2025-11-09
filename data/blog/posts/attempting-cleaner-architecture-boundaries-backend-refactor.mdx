@@ -180,7 +180,7 @@ Ultimately, the way I 'move the needle' for myself (and when collaborating on re
 
 ---
 
-### Step 1: Adding architectural guardrails (pragmatically)
+### Adding architectural guardrails (pragmatically)
 
 I wanted to add [ArchUnit tests](https://www.archunit.org/userguide/) to prevent future violations, but existing code would fail immediately. The solution: use `FreezingArchRule` to baseline current violations while preventing new ones:
 
@@ -217,13 +217,13 @@ freeze.allow.store.creation=true
 
 Now the build tracks violations in `archunit_store/` files (gitignored). New violations fail, existing ones are tolerated until refactored.
 
-### Step 2: Introducing a use-case layer
+### Introducing a use-case layer
 
 With guardrails in place, I'm refactoring the most problematic areas by introducing a use-case layer. This addresses the core issue: business logic scattered across controllers, services, and repositories. Each use case is one class with one clear responsibility.
 
 #### Before: Service layer doing everything
 
-Looking back at the `PersonService` that extends `BaseDomainService` (shown earlier), the create method demonstrates all the problems in one place:
+The service layer demonstrates all the problems in one place. Here's a typical create method with mixed concerns:
 
 ```java
 // PersonService.createPerson() - Mixed concerns everywhere
