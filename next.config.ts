@@ -113,8 +113,8 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   /**
-   * Include data directory in standalone build output
-   * This ensures static data files are available in production
+   * Ensure the data directory is included in traced output
+   * so static data files are available in production
    */
   outputFileTracingIncludes: {
     "/": ["./data/**/*"],
@@ -254,8 +254,7 @@ const nextConfig = {
     // },
   ],
 
-  // Standard Nextjs config options
-  output: "standalone",
+  // Standard Nextjs config options (Next 16 Turbopack server output)
   poweredByHeader: false,
   reactStrictMode: true,
   productionBrowserSourceMaps: false, // Disable to save memory during builds
