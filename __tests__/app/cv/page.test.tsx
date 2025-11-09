@@ -21,13 +21,14 @@ describe("CvPage", () => {
     jest.clearAllMocks();
   });
 
-  it("renders curriculum vitae sections without qualifications", () => {
+  it("renders curriculum vitae sections without qualifications", async () => {
     jest.useFakeTimers({
       now: new Date("2025-11-08T12:00:00Z"),
       doNotFake: ["nextTick", "performance"],
     });
 
-    render(<CvPage />);
+    const Component = await CvPage({ params: {} });
+    render(Component);
 
     expect(screen.getByRole("heading", { name: "Professional Summary" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Highlighted Technical Projects" })).toBeInTheDocument();
@@ -38,13 +39,14 @@ describe("CvPage", () => {
     expect(screen.getByText("Last updated: November 8, 2025")).toBeInTheDocument();
   });
 
-  it("wires the download enhancer and renders contact links", () => {
+  it("wires the download enhancer and renders contact links", async () => {
     jest.useFakeTimers({
       now: new Date("2025-11-08T00:00:00Z"),
       doNotFake: ["nextTick", "performance"],
     });
 
-    render(<CvPage />);
+    const Component = await CvPage({ params: {} });
+    render(Component);
 
     expect(mockEnhancer).toHaveBeenCalledTimes(1);
     expect(mockEnhancer.mock.calls[0]?.[0]).toEqual({ targetId: "cv-pdf-download-button" });
