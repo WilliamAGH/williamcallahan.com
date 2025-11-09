@@ -39,12 +39,12 @@ export const metadata: Metadata = getStaticPageMetadata(CV_PAGE_PATH, "cv");
  * Contact metadata renders in explicit rows so the location and primary websites always
  * start on their own line, preserving parity with the PDF export.
  */
-export default function CvPage(): React.JSX.Element {
+export default async function CvPage(): Promise<React.JSX.Element> {
   // Access headers to opt out of static rendering for dynamic date
   // This allows getCvData() to use new Date() safely
   // Only call headers() in non-test environments as it requires request context
   if (typeof jest === "undefined") {
-    headers();
+    await headers();
   }
 
   const pageMetadata = PAGE_METADATA.cv;
