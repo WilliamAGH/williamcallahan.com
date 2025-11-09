@@ -142,6 +142,8 @@ export function generateMetadata({ params }: { params: { tagSlug: string } }): M
  * Renders the page displaying blog posts filtered by a specific tag.
  * @param {object} params - The route parameters.
  * @param {string} params.tagSlug - The URL-friendly tag slug.
+ * @remarks Schema timestamps are derived from the filtered posts to keep the
+ *          page statically renderable without relying on runtime clocks.
  * @returns {JSX.Element} The rendered page component.
  */
 export default async function TagPage({ params }: { params: { tagSlug: string } }): Promise<JSX.Element> {
@@ -175,7 +177,8 @@ export default async function TagPage({ params }: { params: { tagSlug: string } 
     datePublished,
     dateModified,
     type: "collection",
-    itemList,
+    // Only pass itemList if there are actually items to list
+    ...(itemList.length > 0 ? { itemList } : {}),
     breadcrumbs: [
       { path: "/", name: "Home" },
       { path: "/blog", name: "Blog" },

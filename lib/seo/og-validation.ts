@@ -145,22 +145,30 @@ export function validateOpenGraphMetadata(ogData: OGMetadata): OGImageValidation
 
 /**
  * Creates a cache-busting URL for OpenGraph images
- * Uses a combination of timestamp and content hash for maximum cache invalidation
+ * Uses a deterministic hash for static rendering compatibility
  * @param imageUrl - The base image URL
- * @param forceRefresh - Whether to force immediate refresh (defaults to daily refresh)
+ * @param forceRefresh - Whether to force immediate refresh (uses URL hash)
  * @returns Cache-busted URL
  */
 export function createCacheBustingUrl(imageUrl: string, forceRefresh = false): string {
   const separator = imageUrl.includes("?") ? "&" : "?";
 
+  // Use a deterministic hash based on the URL for static rendering
+  // This ensures the same URL always produces the same cache-busting value
+  const urlHash = imageUrl.split("").reduce((acc, char) => {
+    return ((acc << 5) - acc + char.charCodeAt(0)) | 0;
+  }, 0);
+
+  // Convert to positive number and modulo for a reasonable range
+  const cacheVersion = Math.abs(urlHash) % 10000;
+
   if (forceRefresh) {
-    // Force immediate refresh with current timestamp
-    return `${imageUrl}${separator}cb=${Date.now()}`;
+    // Use a different parameter for forced refresh
+    return `${imageUrl}${separator}cb=${cacheVersion}`;
   }
 
-  // Daily cache refresh (changes once per day)
-  const dailyTimestamp = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
-  return `${imageUrl}${separator}v=${dailyTimestamp}`;
+  // Standard cache version
+  return `${imageUrl}${separator}v=${cacheVersion}`;
 }
 
 /**

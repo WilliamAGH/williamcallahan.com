@@ -63,8 +63,9 @@ export const cacheContextGuards = {
     if (typeof nextCacheLife === "function" && !isCliLikeCacheContext()) {
       // Next.js uses function overloads, not a union type, so we need to handle each case
       if (typeof profile === "string") {
-        // Cast to any to bypass TypeScript's overload resolution
-        (nextCacheLife as any)(profile);
+        // Use a type assertion that's more specific than any
+        const cacheLifeFn = nextCacheLife as (profile: string) => void;
+        cacheLifeFn(profile);
       } else {
         // It's an object with stale/revalidate/expire properties
         nextCacheLife(profile);
