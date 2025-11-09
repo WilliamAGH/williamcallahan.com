@@ -9,7 +9,6 @@ graph TB
     subgraph "Memory Management Core"
         IMM["ImageMemoryManager<br/>Deprecated<br/>No Caching"]
         MHM["MemoryHealthMonitor<br/>RSS Monitoring<br/>State Management"]
-        MG["mem-guard.ts<br/>30s Check<br/>Emergency Flush"]
         AOM["AsyncOperationsMonitor<br/>30s Timeouts<br/>Operation Tracking"]
     end
 
@@ -53,7 +52,7 @@ graph TB
     MHM --> CRITICAL
     
     %% Threshold monitoring
-    MG --> T1
+    MHM --> T1
     T1 --> T2
     T2 --> T3
     T3 --> T4
@@ -92,4 +91,4 @@ graph TB
     class HEALTHY healthy
     class WARNING,T1,T2 warning
     class CRITICAL,RESP503,T3,T4,T5 critical
-    class IMM,MHM,MG,AOM memory
+    class IMM,MHM,AOM memory

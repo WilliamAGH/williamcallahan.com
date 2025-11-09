@@ -17,7 +17,6 @@ graph TD
         MM1["ImageMemoryManager<br/>Deprecated<br/>No caching"]
         MM2["UnifiedImageService<br/>Request Router<br/>Stream >5MB<br/>Domain Session Manager"]
         MM3["MemoryHealthMonitor<br/>Progressive Thresholds"]
-        MM4["mem-guard.ts<br/>30s RSS Check"]
         MM5["Domain Session<br/>30min duration<br/>3 retry limit<br/>⚠️ Unbounded Sets"]
     end
 
@@ -90,7 +89,6 @@ graph TD
     J --> K
 
     %% Memory pressure monitoring
-    MM4 -->|"Monitor RSS"| MM3
     MM3 -->|"75% Warning"| MM2
     MM3 -->|"80% Reject Large"| MM1
     MM3 -->|"90% Critical"| A & B & C
@@ -126,7 +124,7 @@ graph TD
     classDef critical fill:#ffcdd2,stroke:#d32f2f,stroke-width:4px
     classDef warning fill:#fff8e1,stroke:#f57f17,stroke-width:3px
     
-    class MM1,MM2,MM3,MM4 memory
+    class MM1,MM2,MM3 memory
     class I fast
     class J medium
     class L,M slow
