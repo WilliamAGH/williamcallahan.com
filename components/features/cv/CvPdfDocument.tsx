@@ -35,11 +35,11 @@ const ensureWindows1252TextDecoder = (() => {
 
 ensureWindows1252TextDecoder();
 
-const rendererModulePromise = (async () => {
-  return import("@react-pdf/renderer");
-})();
+// Import react-pdf/renderer synchronously for Jest compatibility
+// This avoids top-level await which breaks Jest
+import * as ReactPDF from "@react-pdf/renderer";
 
-const { Circle, Document, Font, Link, Page, Path, Rect, StyleSheet, Svg, Text, View } = await rendererModulePromise;
+const { Circle, Document, Font, Link, Page, Path, Rect, StyleSheet, Svg, Text, View } = ReactPDF;
 
 const resolveFontFamily = (() => {
   let cachedFamily: string | null = null;
