@@ -56,7 +56,8 @@
     "types/**/*",
     "eslint.config.ts",
     "instrumentation.ts",
-    "middleware.ts"
+    "middleware.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
