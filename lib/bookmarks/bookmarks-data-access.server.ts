@@ -1064,6 +1064,8 @@ export const invalidateBookmarksTagCache = (tagSlug: string): void => {
 };
 export const invalidateTagCache = invalidateBookmarksTagCache;
 export const invalidateBookmarkCache = (bookmarkId: string): void => {
+  bookmarkByIdCache.delete(bookmarkId);
+  lightweightBookmarkByIdCache.delete(bookmarkId);
   if (USE_NEXTJS_CACHE) {
     safeRevalidateTag(`bookmark-${bookmarkId}`);
     console.log(`[Bookmarks] Cache invalidated for bookmark: ${bookmarkId}`);
