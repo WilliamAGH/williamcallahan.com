@@ -84,7 +84,7 @@ export async function generateStaticParams() {
  * Generate metadata for this tag page
  */
 export async function generateMetadata({ params }: BookmarkTagPageContext): Promise<Metadata> {
-  const { slug } = params;
+  const { slug } = await Promise.resolve(params);
   const [tagSlug, page, pageNumberStr] = slug;
 
   if (!tagSlug) {
@@ -153,7 +153,7 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
 }
 
 export default async function TagPage({ params }: BookmarkTagPageContext) {
-  const { slug = [] } = params;
+  const { slug = [] } = await Promise.resolve(params);
 
   if (!slug || slug.length === 0) {
     redirect("/bookmarks");

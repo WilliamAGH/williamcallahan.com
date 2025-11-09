@@ -106,8 +106,9 @@ export async function generateStaticParams(): Promise<{ tagSlug: string }[]> {
  * @returns {Promise<Metadata>} The metadata object for the page.
  */
 export async function generateMetadata({ params }: { params: { tagSlug: string } }): Promise<Metadata> {
-  // Use Promise.resolve to satisfy require-await rule
-  const tagName = await Promise.resolve(formatTagDisplay(deslugify(params.tagSlug)));
+  // Await params in Next.js 16
+  const { tagSlug } = await params;
+  const tagName = formatTagDisplay(deslugify(tagSlug));
   const title = generateDynamicTitle(`${tagName} Posts`, "blog", { isTag: true });
   const description = generateTagDescription(tagName, "blog");
   const url = ensureAbsoluteUrl(`/blog/tags/${params.tagSlug}`);
@@ -144,7 +145,7 @@ export async function generateMetadata({ params }: { params: { tagSlug: string }
  * @returns {JSX.Element} The rendered page component.
  */
 export default async function TagPage({ params }: { params: { tagSlug: string } }): Promise<JSX.Element> {
-  const { tagSlug } = params;
+  const { tagSlug } = await params;
   const allPosts = getAllPosts();
 
   const filteredPosts = allPosts.filter(post => post.tags.map((tag: string) => kebabCase(tag)).includes(tagSlug));
