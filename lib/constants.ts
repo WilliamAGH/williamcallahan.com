@@ -39,6 +39,7 @@ export const LOGO_CACHE_DURATION = { SUCCESS: 30 * 24 * 60 * 60, FAILURE: 24 * 6
 export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
   DIR: "json/bookmarks",
   FILE: `json/bookmarks/bookmarks${envSuffix}.json`,
+  BY_ID_DIR: `json/bookmarks/by-id${envSuffix}`,
   LOCK: `json/bookmarks/refresh-lock${envSuffix}.json`,
   INDEX: `json/bookmarks/index${envSuffix}.json`,
   PAGE_PREFIX: `json/bookmarks/pages${envSuffix}/page-`,

@@ -7,6 +7,7 @@ import {
   getBookmarksByTag as getBookmarksByTagInternal,
   getBookmarksIndex as getBookmarksIndexInternal,
   getBookmarksPage as getBookmarksPageInternal,
+  getBookmarkById as getBookmarkByIdInternal,
   refreshAndPersistBookmarks,
   setRefreshBookmarksCallback,
   initializeBookmarksDataAccess,
@@ -34,6 +35,14 @@ export async function getBookmarks(
   const result = await getBookmarksInternal(options);
   envLogger.service("BookmarksService", "getBookmarks", undefined, result.length);
   return result;
+}
+
+export async function getBookmarkById(
+  bookmarkId: string,
+  options: BookmarkLoadOptions = {},
+): Promise<UnifiedBookmark | LightweightBookmark | null> {
+  initializeBookmarksDataAccess();
+  return getBookmarkByIdInternal(bookmarkId, options);
 }
 
 /**
