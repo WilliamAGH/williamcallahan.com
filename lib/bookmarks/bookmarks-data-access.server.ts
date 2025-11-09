@@ -23,6 +23,7 @@ import path from "node:path";
 import { processBookmarksInBatches } from "@/lib/bookmarks/enrich-opengraph";
 
 const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "lib", "data", "bookmarks.json");
+const LOCAL_BOOKMARKS_BY_ID_DIR = path.join(process.cwd(), ".next", "cache", "bookmarks", "by-id");
 
 // Runtime-safe cache wrappers for experimental Next.js APIs
 // These functions are only available in Next.js request context with experimental.useCache enabled
@@ -83,6 +84,34 @@ async function saveSlugMappingOrThrow(bookmarks: UnifiedBookmark[], logSuffix: s
 // This is a temporary runtime cache, NOT S3 persistence
 const FULL_DATASET_MEMORY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 let fullDatasetMemoryCache: { data: UnifiedBookmark[]; timestamp: number } | null = null;
+
+const BOOKMARK_BY_ID_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const BOOKMARK_BY_ID_CACHE_LIMIT = 1024;
+const bookmarkByIdCache = new Map<string, { data: UnifiedBookmark; timestamp: number }>();
+const lightweightBookmarkByIdCache = new Map<string, { data: LightweightBookmark; timestamp: number }>();
+
+function invalidateBookmarkByIdCaches(): void {
+  bookmarkByIdCache.clear();
+  lightweightBookmarkByIdCache.clear();
+}
+
+function getCachedBookmark<T>(cache: Map<string, { data: T; timestamp: number }>, key: string): T | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > BOOKMARK_BY_ID_CACHE_TTL) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCachedBookmark<T>(cache: Map<string, { data: T; timestamp: number }>, key: string, value: T): void {
+  cache.set(key, { data: value, timestamp: Date.now() });
+  if (cache.size > BOOKMARK_BY_ID_CACHE_LIMIT) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey) cache.delete(oldestKey);
+  }
+}
 
 // In-process short-TTL cache parameters (centralized in lib/cache; local cache removed)
 
@@ -267,6 +296,39 @@ async function writePaginatedBookmarks(
   return mapping;
 }
 
+async function writeBookmarksByIdFiles(bookmarks: UnifiedBookmark[]): Promise<void> {
+  if (bookmarks.length === 0) return;
+  const batchSize = 25;
+  for (let i = 0; i < bookmarks.length; i += batchSize) {
+    const batch = bookmarks.slice(i, i + batchSize);
+    await Promise.all(
+      batch.map(async bookmark => {
+        if (!bookmark.slug) {
+          throw new Error(`${LOG_PREFIX} Missing slug while writing by-id file for bookmark id=${bookmark.id}`);
+        }
+        await writeJsonS3(`${BOOKMARKS_S3_PATHS.BY_ID_DIR}/${bookmark.id}.json`, bookmark);
+
+        try {
+          await fs.mkdir(LOCAL_BOOKMARKS_BY_ID_DIR, { recursive: true });
+          await fs.writeFile(path.join(LOCAL_BOOKMARKS_BY_ID_DIR, `${bookmark.id}.json`), JSON.stringify(bookmark));
+        } catch (error) {
+          envLogger.debug(
+            "Failed to cache bookmark locally by id",
+            { bookmarkId: bookmark.id, error: String(error) },
+            { category: LOG_PREFIX },
+          );
+        }
+      }),
+    );
+  }
+}
+
+async function writeBookmarkMasterFiles(bookmarksWithSlugs: UnifiedBookmark[]): Promise<void> {
+  invalidateBookmarkByIdCaches();
+  await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
+  await writeBookmarksByIdFiles(bookmarksWithSlugs);
+}
+
 /** Persist pre-computed tag-filtered bookmarks to S3 storage in paginated format with embedded slugs */
 async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark[]): Promise<void> {
   if (!ENABLE_TAG_PERSISTENCE) {
@@ -402,7 +464,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         return { ...b, slug: entry.slug };
       });
 
-      await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
+      await writeBookmarkMasterFiles(bookmarksWithSlugs);
       await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, {
         ...baseIndex,
         lastModified: new Date().toISOString(),
@@ -432,7 +494,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         }
         return { ...b, slug: entry.slug };
       });
-      await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
+      await writeBookmarkMasterFiles(bookmarksWithSlugs);
 
       // --- START LOCAL CACHE WRITE ---
       try {
@@ -480,7 +542,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                   }
                   return { ...b, slug: entry.slug };
                 });
-                await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
+                await writeBookmarkMasterFiles(bookmarksWithSlugs);
               }
               await persistTagFilteredBookmarksToS3(freshBookmarks);
             } else {
@@ -522,7 +584,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                 }
                 return { ...b, slug: entry.slug };
               });
-              await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
+              await writeBookmarkMasterFiles(bookmarksWithSlugs);
               if (metadataChanged) {
                 console.log(
                   `${LOG_PREFIX} Metadata changes detected – FILE updated with fresh metadata (pages/tags will refresh on next dataset change)`,
@@ -848,6 +910,59 @@ export async function getBookmarks(
   } finally {
     inFlightGetPromise = null;
   }
+}
+
+export async function getBookmarkById(
+  bookmarkId: string,
+  options: BookmarkLoadOptions = {},
+): Promise<UnifiedBookmark | LightweightBookmark | null> {
+  const includeImageData = options.includeImageData ?? true;
+  const cache = includeImageData ? bookmarkByIdCache : lightweightBookmarkByIdCache;
+  const cached = getCachedBookmark(cache, bookmarkId);
+  if (cached) {
+    return cached;
+  }
+
+  const localFilePath = path.join(LOCAL_BOOKMARKS_BY_ID_DIR, `${bookmarkId}.json`);
+  let bookmark: UnifiedBookmark | null = null;
+
+  try {
+    const localData = await fs.readFile(localFilePath, "utf-8");
+    bookmark = JSON.parse(localData) as UnifiedBookmark;
+  } catch {
+    // Ignore local cache misses
+  }
+
+  if (!bookmark) {
+    bookmark = await readJsonS3<UnifiedBookmark>(`${BOOKMARKS_S3_PATHS.BY_ID_DIR}/${bookmarkId}.json`);
+  }
+
+  if (!bookmark) {
+    envLogger.log(
+      "Per-bookmark JSON missing in S3. Falling back to scanning full dataset.",
+      { bookmarkId },
+      { category: LOG_PREFIX },
+    );
+    const allBookmarks = (await getBookmarks({
+      includeImageData: true,
+      skipExternalFetch: false,
+      force: false,
+    })) as UnifiedBookmark[];
+    bookmark = allBookmarks.find(b => b.id === bookmarkId) ?? null;
+  }
+
+  if (!bookmark) {
+    return null;
+  }
+
+  if (includeImageData) {
+    setCachedBookmark(bookmarkByIdCache, bookmarkId, bookmark);
+    return bookmark;
+  }
+
+  const lightweight = stripImageData(bookmark);
+  setCachedBookmark(lightweightBookmarkByIdCache, bookmarkId, lightweight);
+  return lightweight;
 }
 
 /** Get bookmarks by tag with caching support */

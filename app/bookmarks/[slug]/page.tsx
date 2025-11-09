@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 1800;
 
 import { BookmarkDetail } from "@/components/features/bookmarks/bookmark-detail";
-import { getBookmarks } from "@/lib/bookmarks/service.server";
+import { getBookmarkById, getBookmarks } from "@/lib/bookmarks/service.server";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -24,7 +24,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { RelatedContent } from "@/components/features/related-content";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
-import { loadSlugMapping, generateSlugMapping, getBookmarkIdFromSlug } from "@/lib/bookmarks/slug-manager";
+import { generateSlugMapping, getBookmarkIdFromSlug } from "@/lib/bookmarks/slug-manager";
+import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { envLogger } from "@/lib/utils/env-logger";
 
 // CRITICAL: generateStaticParams() is INTENTIONALLY DISABLED for individual bookmarks
@@ -69,7 +70,6 @@ const getBookmarkHostname = (rawUrl: string | null | undefined): string | null =
 
 // Helper function to find bookmark by slug using pre-computed mappings
 async function findBookmarkBySlug(slug: string): Promise<import("@/types").UnifiedBookmark | null> {
-  // Enhanced logging for environment detection issues
   envLogger.group(
     "Bookmark Lookup Start",
     [
@@ -92,82 +92,69 @@ async function findBookmarkBySlug(slug: string): Promise<import("@/types").Unifi
   );
 
   try {
-    // Try to load the pre-computed slug mapping
-    envLogger.log("Loading slug mapping from S3", undefined, { category: "BookmarkPage" });
-    let mapping = await loadSlugMapping();
+    envLogger.log("Resolving slug via cached mapping", undefined, { category: "BookmarkPage" });
+    const bookmarkId = await resolveBookmarkIdFromSlug(slug);
 
-    // If no mapping exists, generate it (this should only happen during build)
-    if (!mapping) {
-      envLogger.log("No slug mapping found in S3, generating dynamically...", undefined, { category: "BookmarkPage" });
-      // Fetch with image data once so we can reuse for the final lookup
+    if (bookmarkId) {
+      envLogger.log(`Slug mapped to ID`, { slug, bookmarkId }, { category: "BookmarkPage" });
+      const bookmark = (await getBookmarkById(bookmarkId, {
+        includeImageData: true,
+      })) as import("@/types").UnifiedBookmark | null;
+
+      if (bookmark) {
+        envLogger.log(`Bookmark lookup result`, { bookmarkId, found: true }, { category: "BookmarkPage" });
+        return bookmark;
+      }
+
+      envLogger.log(
+        "Per-ID bookmark JSON missing; falling back to full dataset scan",
+        { bookmarkId },
+        { category: "BookmarkPage" },
+      );
+
       const allBookmarks = (await getBookmarks({
         ...DEFAULT_BOOKMARK_OPTIONS,
         includeImageData: true,
         skipExternalFetch: false,
         force: false,
       })) as import("@/types").UnifiedBookmark[];
-      envLogger.log(`Loaded bookmarks for dynamic mapping`, allBookmarks?.length || 0, { category: "BookmarkPage" });
-
-      if (!allBookmarks || allBookmarks.length === 0) {
-        console.error(`[BookmarkPage] No bookmarks available to generate mapping`);
-        return null;
-      }
-      mapping = generateSlugMapping(allBookmarks);
-      envLogger.log(
-        `Generated mapping`,
-        { slugCount: Object.keys(mapping.slugs).length },
-        { category: "BookmarkPage" },
-      );
-
-      // We can return immediately if the slug is found, reusing allBookmarks
-      const bookmarkIdFromGenerated = getBookmarkIdFromSlug(mapping, slug);
-      envLogger.log(
-        `Slug lookup in generated mapping`,
-        { slug, foundId: bookmarkIdFromGenerated || "none" },
-        { category: "BookmarkPage" },
-      );
-      return bookmarkIdFromGenerated ? allBookmarks.find(b => b.id === bookmarkIdFromGenerated) || null : null;
+      envLogger.log(`Loaded bookmarks for fallback`, allBookmarks?.length || 0, { category: "BookmarkPage" });
+      return allBookmarks.find(b => b.id === bookmarkId) || null;
     }
 
     envLogger.log(
-      "Loaded slug mapping",
-      {
-        entries: Object.keys(mapping.slugs).length,
-        version: mapping.version,
-        generated: mapping.generated,
-      },
+      "Slug not found in cached mapping; generating fallback mapping",
+      { slug },
       { category: "BookmarkPage" },
     );
-
-    // Look up the bookmark ID from the slug
-    const bookmarkId = getBookmarkIdFromSlug(mapping, slug);
-    envLogger.log(`Slug mapped to ID`, { slug, bookmarkId: bookmarkId || "NOT FOUND" }, { category: "BookmarkPage" });
-
-    if (!bookmarkId) {
-      console.error(`[BookmarkPage] No bookmark ID found for slug "${slug}"`);
-      envLogger.debug(
-        "Available slugs (first 10)",
-        Object.values(mapping.slugs)
-          .slice(0, 10)
-          .map(e => e.slug),
-        { category: "BookmarkPage" },
-      );
-      return null;
-    }
-
-    // Load all bookmarks and find the one with matching ID
-    envLogger.log(`Loading bookmarks to find ID`, bookmarkId, { category: "BookmarkPage" });
     const allBookmarks = (await getBookmarks({
       ...DEFAULT_BOOKMARK_OPTIONS,
       includeImageData: true,
       skipExternalFetch: false,
       force: false,
     })) as import("@/types").UnifiedBookmark[];
-    envLogger.log(`Loaded bookmarks`, allBookmarks?.length || 0, { category: "BookmarkPage" });
+    envLogger.log(`Loaded bookmarks for dynamic mapping`, allBookmarks?.length || 0, { category: "BookmarkPage" });
 
-    const foundBookmark = allBookmarks.find(b => b.id === bookmarkId);
-    envLogger.log(`Bookmark lookup result`, { bookmarkId, found: !!foundBookmark }, { category: "BookmarkPage" });
-    return foundBookmark || null;
+    if (!allBookmarks || allBookmarks.length === 0) {
+      console.error(`[BookmarkPage] No bookmarks available to regenerate mapping`);
+      return null;
+    }
+
+    const mapping = generateSlugMapping(allBookmarks);
+    envLogger.log(
+      `Generated fallback mapping`,
+      { slugCount: Object.keys(mapping.slugs).length },
+      { category: "BookmarkPage" },
+    );
+
+    const fallbackId = getBookmarkIdFromSlug(mapping, slug);
+    envLogger.log(
+      `Slug lookup in regenerated mapping`,
+      { slug, foundId: fallbackId || "none" },
+      { category: "BookmarkPage" },
+    );
+
+    return fallbackId ? allBookmarks.find(b => b.id === fallbackId) || null : null;
   } catch (error) {
     console.error(`[BookmarkPage] Error finding bookmark by slug "${slug}":`, error);
     return null;
