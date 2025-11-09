@@ -170,11 +170,10 @@ ENV S3_BUCKET=$S3_BUCKET \
     NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
-# Copy standalone output and required assets (run as root, so no chown needed)
-COPY --from=builder /app/.next/standalone ./
-# Ensure all node_modules (including those for scripts like scheduler) are available
+# Copy Next.js build output (Turbopack doesn't use standalone)
+COPY --from=builder /app/.next ./.next
+# Copy node_modules for runtime dependencies
 COPY --from=deps --link /app/node_modules ./node_modules
-COPY --from=builder /app/.next/static ./.next/static
 
 # Copy scripts directory (run as root, so no chown needed)
 COPY --from=builder /app/scripts ./scripts
@@ -243,8 +242,9 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
 # Use entrypoint to handle data initialization, scheduler startup, and graceful shutdown
 # Note: entrypoint.sh now includes initial data population before starting scheduler
 ENTRYPOINT ["/app/entrypoint.sh"]
-# Node.js will respect NODE_OPTIONS env var for memory limit
-CMD ["node", "server.js"]
+# Use npx next start for Turbopack builds (non-standalone)
+# Note: Using npx since we have Node.js but not Bun in the runner stage
+CMD ["npx", "next", "start"]
 
 ARG BUILDKIT_INLINE_CACHE=1
 LABEL org.opencontainers.image.build=true
