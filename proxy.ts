@@ -1,10 +1,10 @@
 /**
- * Middleware for handling request logging and security headers
- * @module middleware
+ * Proxy for handling request logging and security headers (Next.js 16)
+ * @module proxy
  * @description
  * Handles request logging and security headers for all non-static routes
  * Applies security headers and caching headers for static assets and analytics scripts
- *
+ * Note: Renamed from middleware.ts to proxy.ts in Next.js 16
  */
 
 // Runtime configuration for middleware (Edge)
@@ -70,7 +70,7 @@ function getRealIp(request: NextRequest): string {
  * @param request - The incoming Nextjs request
  * @returns The modified response with added headers
  */
-export default async function middleware(request: NextRequest): Promise<NextResponse> {
+async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   // Check memory pressure first (before any expensive operations)
@@ -242,8 +242,14 @@ export default async function middleware(request: NextRequest): Promise<NextResp
  * Route matcher configuration
  * Includes image optimization routes and excludes other static files from middleware processing
  */
+// Export both named and default exports for Next.js 16 proxy compatibility
+export { proxy };
+export default proxy;
+
 export const config = {
-  runtime: "experimental-edge",
+  // Note: Edge runtime is NOT supported in proxy.ts in Next.js 16
+  // Using nodejs runtime (which is the default and only option for proxy)
+  // runtime: "nodejs", // This is implicit and cannot be configured
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
