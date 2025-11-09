@@ -14,8 +14,6 @@
  */
 
 import { withSentryConfig } from "@sentry/nextjs";
-import type { RuleSetRule } from "webpack"; // Import RuleSetRule type
-import type { WebpackConfigContext } from "next/dist/server/config-shared";
 
 /**
  * @typedef {{ version: string }} PackageJson
@@ -110,10 +108,7 @@ process.env.SENTRY_RELEASE = gitHash;
 
 const nextConfig = {
   // We run our own rigorous validation pipeline (`bun run validate`).
-  // Disable Next's built-in lint/type checks to prevent auto-installs and peer-resolve issues.
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // TypeScript checks remain but eslint config is removed in Next.js 16
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -126,12 +121,11 @@ const nextConfig = {
   },
 
   /**
-   * Turbopack configuration (moved from experimental.turbo)
-   * Turbopack is now stable in Next.js 15
-   * Valid options: root, rules, resolveAlias, resolveExtensions
+   * Turbopack configuration - Now default in Next.js 16
+   * Consolidating all webpack functionality into Turbopack config
    */
   turbopack: {
-    // Configure SVG handling for Turbopack (equivalent to webpack config)
+    // Configure SVG handling for Turbopack
     rules: {
       "*.svg": {
         loaders: ["@svgr/webpack"],
@@ -140,6 +134,22 @@ const nextConfig = {
     },
     // Configure module resolution extensions
     resolveExtensions: [".mdx", ".tsx", ".ts", ".jsx", ".js", ".mjs", ".json"],
+    // Module resolution aliases (migrated from webpack)
+    resolveAlias: {
+      // Fix SWR module resolution
+      swr$: "./node_modules/swr/dist/index/index.js",
+      "swr/infinite": "./node_modules/swr/infinite/dist/index.js",
+      "swr/_internal": "./node_modules/swr/_internal/dist/index.js",
+      // Fix hoist-non-react-statics for Sentry
+      "hoist-non-react-statics$": "./node_modules/hoist-non-react-statics/dist/hoist-non-react-statics.cjs.js",
+      // OpenTelemetry polyfill for Edge runtime
+      "@opentelemetry/api": {
+        browser: "./lib/edge-polyfills/opentelemetry.ts",
+        edge: "./lib/edge-polyfills/opentelemetry.ts",
+      },
+      // Dev-only: AWS SDK stub
+      ...(process.env.NODE_ENV === "development" ? { "@aws-sdk/client-s3": "./lib/stubs/aws-s3-stub.ts" } : {}),
+    },
   },
 
   /**
@@ -159,408 +169,9 @@ const nextConfig = {
     ];
   },
 
-  /**
-   * Custom webpack configuration
-   * @param {import('webpack').Configuration} config - Webpack config object
-   * @returns {import('webpack').Configuration} Modified webpack config
-   */
-  webpack: (config: import("webpack").Configuration, context: WebpackConfigContext) => {
-    void context;
-    // Added type annotation
-    // Configure SVG handling, excluding /public directory
-    const svgRule: RuleSetRule = {
-      test: /\.svg$/i,
-      issuer: /\.(js|ts|jsx|tsx|mdx)$/,
-      exclude: /public\//, // Exclude SVGs in the public folder
-      use: [
-        {
-          loader: "@svgr/webpack",
-          options: {
-            icon: true, // Optional: Treat SVGs as icons
-          },
-        },
-      ],
-    };
-    // Ensure module and rules exist before pushing
-    if (!config.module) {
-      config.module = { rules: [] };
-    }
-    if (!config.module.rules) {
-      config.module.rules = [];
-    }
-    config.module.rules.push(svgRule);
-
-    // Exclude dts files from being processed by Webpack
-    if (Array.isArray(config.module.rules)) {
-      config.module.rules.push({
-        test: /\.d\.ts$/,
-        exclude: /.*/,
-      });
-    }
-
-    // Let default Nextjs handle SVGs in /public for next/image
-    // Find the default rule that handles images and ensure it still processes SVGs in public
-    // (This part is usually handled automatically by Nextjs unless overridden)
-
-    // Handle node modules in API routes
-    // Ensure resolve and fallback exist before modifying
-    if (!config.resolve) {
-      config.resolve = {};
-    }
-    if (!config.resolve.fallback) {
-      config.resolve.fallback = {};
-    }
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      crypto: false,
-      path: false,
-      child_process: false,
-      os: false,
-      stream: false,
-      util: false,
-      net: false,
-      tls: false,
-      worker_threads: false,
-    };
-
-    // Add server externals to prevent bundling server-only code
-    if (!config.externals) {
-      config.externals = [];
-    }
-    if (Array.isArray(config.externals)) {
-      config.externals.push({
-        "node:child_process": "commonjs child_process",
-        "node:crypto": "commonjs crypto",
-        "node:fs": "commonjs fs",
-        "node:os": "commonjs os",
-        "node:path": "commonjs path",
-        "node:stream": "commonjs stream",
-        "node:util": "commonjs util",
-        "detect-libc": "commonjs detect-libc",
-        // Ignore optional dependencies that cause build warnings
-        "osx-temperature-sensor": "commonjs osx-temperature-sensor",
-        // Externalize canvas module for client-side bundles
-        canvas: "commonjs canvas",
-      });
-    }
-
-    // Mark server-only packages as external to prevent client-side bundling
-    config.externals = config.externals || [];
-    if (Array.isArray(config.externals)) {
-      config.externals.push("googleapis"); // 114MB package only used in server scripts
-    }
-
-    // **NEXT.JS 15 WEBPACK COMPILATION MEMORY OPTIMIZATIONS**
-    // These target the specific webpack memory growth issue (109MB -> 1200MB+)
-
-    // 1. Aggressive module concatenation limits for memory efficiency
-    if (!config.optimization) {
-      config.optimization = {};
-    }
-    config.optimization.concatenateModules = process.env.NODE_ENV !== "development";
-
-    // 2. Limit webpack's internal memory usage during compilation
-    config.optimization.minimize = process.env.NODE_ENV === "production";
-    config.optimization.removeAvailableModules = true;
-    config.optimization.removeEmptyChunks = true;
-    config.optimization.mergeDuplicateChunks = true;
-    config.optimization.flagIncludedChunks = process.env.NODE_ENV === "production";
-
-    // 3. Configure module resolution to reduce memory pressure
-    if (!config.resolve.modules) {
-      config.resolve.modules = [];
-    }
-    config.resolve.modules = ["node_modules"];
-    config.resolve.symlinks = false; // Disable symlink resolution to save memory
-
-    // Add alias to fix swr import issue with react-tweet
-    if (!config.resolve.alias || Array.isArray(config.resolve.alias)) {
-      config.resolve.alias = {};
-    }
-
-    // Fix SWR module resolution for Next.js 15 canary
-    // This handles the subpath exports issue with webpack
-    config.resolve.alias = config.resolve.alias || {};
-
-    // Direct module resolution for SWR subpaths
-    const path = require("node:path");
-
-    // Dev-only: keep AWS SDK out of all dev bundles via stub to avoid accidental writes and heavy dependencies.
-    if (process.env.NODE_ENV === "development") {
-      config.resolve.alias["@aws-sdk/client-s3"] = path.resolve(__dirname, "lib/stubs/aws-s3-stub.ts");
-    }
-
-    try {
-      // Force webpack to use the CommonJS build of SWR that has default export
-      config.resolve.alias.swr$ = path.resolve(__dirname, "node_modules/swr/dist/index/index.js");
-      config.resolve.alias["swr/infinite"] = require.resolve("swr/infinite");
-      config.resolve.alias["swr/_internal"] = require.resolve("swr/_internal");
-
-      // Fix hoist-non-react-statics for Sentry
-      config.resolve.alias["hoist-non-react-statics$"] = path.resolve(
-        __dirname,
-        "node_modules/hoist-non-react-statics/dist/hoist-non-react-statics.cjs.js",
-      );
-    } catch (e) {
-      void e; // Mark as intentionally unused
-      console.warn("[Next Config] Could not resolve SWR submodules, using fallback paths");
-    }
-
-    // Fix for Sentry/OpenTelemetry compatibility issue in Edge runtime
-    // DiagLogLevel was removed in OpenTelemetry API 1.9.0
-    // Create a webpack plugin to handle the missing export
-    const webpack = require("webpack");
-    config.plugins = config.plugins || [];
-    config.plugins.push(
-      new webpack.NormalModuleReplacementPlugin(/@opentelemetry\/api/, resource => {
-        // Only apply fix for Edge runtime builds
-        if (resource.context.includes("@sentry/vercel-edge")) {
-          resource.request = path.resolve(__dirname, "lib/edge-polyfills/opentelemetry.ts");
-        }
-      }),
-    );
-
-    // 4. Limit concurrent module processing
-    config.parallelism = 1; // Already set but ensuring it's applied
-
-    // 5. Configure webpack stats to reduce memory overhead
-    config.stats = process.env.NODE_ENV === "development" ? "minimal" : "errors-warnings";
-
-    // Optimize webpack cache for memory efficiency
-    if (process.env.NODE_ENV === "development") {
-      // **CRITICAL MEMORY FIX**: Disable webpack cache entirely in development.
-      // Filesystem cache was creating 9,646+ cache entries (158MB pack files) PER compiler,
-      // causing memory to balloon to 4GB+ from serialization overhead.
-      // With 3 compilers (client, server, edge), that's ~30K cache entries in memory.
-      config.cache = false;
-
-      // Disable verbose infrastructure logging that creates memory overhead
-      config.infrastructureLogging = {
-        level: "error", // Only show errors, not verbose debug logs
-      };
-
-      // RESTORE default devtool to ensure chunk mapping works correctly.
-      config.devtool = "eval-source-map";
-
-      /**
-       * DEVELOPMENT-SAFETY BLOCK ‑ READ BEFORE MODIFYING
-       * ------------------------------------------------
-       * We deliberately restore `eval-source-map` and **remove** any custom
-       * `optimization.splitChunks` logic in development.  The default Next.js
-       * dev server relies on predictable chunk-naming and HMR bookkeeping;
-       * aggressive splitChunks config or disabled source-maps causes the
-       * runtime manifest to reference files that are never emitted, leading
-       * to fatal `ChunkLoadError` white-screen regressions (see PR #181).
-       *
-       * PRODUCTION retains the tuned splitChunks settings further down.
-       * DO NOT re-introduce these optimizations in dev unless you have
-       * manually verified that **all** pages load and HMR works.
-       */
-      // The aggressive custom splitChunks strategy can cause missing chunks in
-      // Next.js 15 dev server.  Remove it entirely when running in development
-      // to allow the framework’s default (stable) behaviour.
-      delete (config.optimization as { splitChunks?: unknown }).splitChunks;
-
-      // **NEXT.JS 15 SPECIFIC OPTIMIZATIONS**
-      // Enhanced split chunks configuration for memory efficiency
-      // This block is effectively overridden - do not remove this comment
-      // config.optimization.splitChunks = {
-      //   chunks: "all",
-      //   minSize: 20000,
-      //   maxSize: 244000, // Limit chunk size to prevent large modules in memory
-      //   minChunks: 1,
-      //   maxAsyncRequests: 30,
-      //   maxInitialRequests: 30,
-      //   automaticNameDelimiter: "~",
-      //   cacheGroups: {
-      //     // Prevent large vendor bundles in memory during development
-      //     default: {
-      //       minChunks: 2,
-      //       priority: -20,
-      //       reuseExistingChunk: true,
-      //       enforce: false,
-      //     },
-      //     vendor: {
-      //       test: /[\\/]node_modules[\\/]/,
-      //       name: "vendors",
-      //       priority: -10,
-      //       chunks: "all",
-      //       enforce: false,
-      //       maxSize: 244000, // Limit vendor chunk size
-      //     },
-      //     // Separate large libraries to prevent memory spikes
-      //     sentry: {
-      //       test: /[\\/]node_modules[\\/]@sentry[\\/]/,
-      //       name: "sentry",
-      //       priority: 10,
-      //       chunks: "all",
-      //       enforce: true,
-      //     },
-      //     react: {
-      //       test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
-      //       name: "react",
-      //       priority: 20,
-      //       chunks: "all",
-      //       enforce: true,
-      //     },
-      //   },
-      // };
-
-      // Limit TypeScript checker memory usage
-      if (!config.plugins) {
-        config.plugins = [];
-      }
-
-      // NOTE: Webpack cache is disabled above (line 336) to prevent memory accumulation.
-      // DO NOT re-enable it here without addressing the 9,646+ cache entry memory issue.
-
-      // **ENHANCED MEMORY MONITORING FOR NEXT.JS 15**
-      // Keep a small state to throttle logs
-      const memoryProgressState = { lastPct: -0.2, lastTime: 0 } as {
-        lastPct: number;
-        lastTime: number;
-      };
-
-      config.plugins.push(
-        new webpack.ProgressPlugin({
-          handler: (percentage: number, message?: string) => {
-            const now = Date.now();
-            // Only log when:
-            //   • start or end
-            //   • moved at least 10% since last log OR 3 s elapsed
-            const pctMoved = Math.abs(percentage - memoryProgressState.lastPct);
-            const timeElapsed = now - memoryProgressState.lastTime;
-
-            if (!(percentage === 0 || percentage === 1 || pctMoved >= 0.1 || timeElapsed >= 3000)) {
-              return; // Skip overly-chatty updates
-            }
-
-            memoryProgressState.lastPct = percentage;
-            memoryProgressState.lastTime = now;
-
-            const used = process.memoryUsage();
-            const rss = Math.round(used.rss / 1024 / 1024);
-            const heap = Math.round(used.heapUsed / 1024 / 1024);
-            const external = Math.round(used.external / 1024 / 1024);
-
-            // Calculate memory pressure as percentage of available memory
-            const totalMemory = require("node:os").totalmem() / 1024 / 1024;
-            const memoryPressure = (rss / totalMemory) * 100;
-
-            console.log(
-              `[Webpack Memory] ${Math.round(percentage * 100)}% | ` +
-                `RSS: ${rss}MB, Heap: ${heap}MB, External: ${external}MB | ` +
-                `Pressure: ${memoryPressure.toFixed(1)}% | ` +
-                `Phase: ${message || "unknown"}`,
-            );
-
-            // Next.js 15 appropriate memory thresholds
-            if (rss > 6000) {
-              // Critical: 6GB indicates severe memory issues
-              console.error(`🚨 [Webpack Memory CRITICAL] RSS exceeded 6GB: ${rss}MB - OOM risk!`);
-            } else if (rss > 4000) {
-              // Alert: 4GB indicates potential memory issues
-              console.warn(`⚠️  [Webpack Memory Alert] RSS exceeded 4GB: ${rss}MB`);
-            } else if (rss > 2000) {
-              // Warning: 2GB is typical but worth monitoring
-              console.log(`📊 [Webpack Memory Warning] RSS exceeded 2GB: ${rss}MB`);
-            }
-
-            // Also warn on high memory pressure
-            if (memoryPressure > 80) {
-              console.warn(`⚠️  [Webpack Memory Pressure] Using ${memoryPressure.toFixed(1)}% of system memory`);
-            }
-          },
-        }),
-      );
-    } else {
-      // **PRODUCTION MEMORY OPTIMIZATIONS FOR NEXT.JS 15**
-      // Keep memory cache in production but with strict limits
-      config.cache = {
-        type: "memory",
-        maxGenerations: 1,
-        cacheUnaffected: false,
-        // Add memory limits for production builds
-      };
-
-      // Production-specific optimizations
-      config.optimization.sideEffects = false;
-      config.optimization.usedExports = true;
-      config.optimization.providedExports = true;
-    }
-
-    // **NEXT.JS 15 RESOLVER OPTIMIZATIONS**
-    // Configure resolver to be more memory efficient
-    if (config.resolve) {
-      config.resolve.cacheWithContext = false; // Disable context-sensitive caching
-      config.resolve.unsafeCache = true; // Enable unsafe cache for better performance
-      config.resolve.preferRelative = true; // Prefer relative paths to reduce resolution overhead
-    }
-
-    // Special handling for Edge runtime
-    if (config.name === "edge-server") {
-      // Prevent OpenTelemetry from being bundled in edge runtime
-      if (!config.resolve) {
-        config.resolve = {};
-      }
-      if (!config.resolve.alias) {
-        config.resolve.alias = {};
-      }
-
-      // Use polyfill for OpenTelemetry modules in edge runtime
-      const openTelemetryPolyfill = path.resolve(__dirname, "lib/edge-polyfills/opentelemetry.ts");
-      config.resolve.alias["@opentelemetry/api"] = openTelemetryPolyfill;
-      config.resolve.alias["@opentelemetry/instrumentation"] = openTelemetryPolyfill;
-      // Allow @sentry/opentelemetry to resolve to the real package; the Edge SDK now relies on its helpers.
-    }
-
-    // Suppress warnings for Sentry and OpenTelemetry dynamic requires
-    config.ignoreWarnings = [
-      // Suppress warnings about dynamic requires
-      { module: /node_modules\/require-in-the-middle\/index\.js/ },
-      {
-        module: /node_modules\/@opentelemetry\/instrumentation\/build\/esm\/platform\/node\/instrumentation\.js/,
-      },
-      { module: /node_modules\/@sentry/ },
-      // Suppress webpack cache serialization warnings
-      /Skipped not serializable cache item/,
-      // Suppress third-party CSS autoprefixer warnings
-      /autoprefixer.*grid-auto-rows.*not supported by IE/,
-      /autoprefixer.*grid-gap.*only works if grid-template/,
-      /autoprefixer.*Autoplacement does not work without grid-template/,
-      // Suppress react-tweet CSS warnings
-      { module: /node_modules\/react-tweet.*\.css$/ },
-      // **NEXT.JS 15 SPECIFIC WARNINGS**
-      // Suppress memory-related webpack warnings
-      /exceeded the recommended size limit/,
-      /asset size limit/,
-      /entrypoint size limit/,
-    ];
-
-    // We no longer need to externalize require-in-the-middle since we've added it as a dependency
-    // Externalizing was causing the runtime error in production
-
-    // Fix source map issues
-    if (process.env.NODE_ENV === "development" && config.optimization?.minimizer) {
-      // Added check for minimizer array
-      // Remove the devtool setting that's causing warnings
-      config.optimization.minimizer.forEach((minimizer: unknown) => {
-        // Added type annotation
-        // Runtime check is still necessary as minimizer is unknown
-        if (typeof minimizer === "object" && minimizer !== null && minimizer.constructor.name === "TerserPlugin") {
-          // Explicitly type options to satisfy ESLint/TypeScript
-          const terserOptions = (minimizer as any).options; // Keep 'as any' for flexibility with webpack plugins
-          if (terserOptions && typeof terserOptions === "object") {
-            // Set sourceMap, assuming it might exist or needs to be added
-            (terserOptions as { sourceMap?: boolean }).sourceMap = true;
-          }
-        }
-      });
-    }
-
-    return config;
-  },
+  // Webpack configuration removed in favor of Turbopack (Next.js 16 default)
+  // All webpack functionality has been migrated to the turbopack config above
+  // If you need webpack, add --webpack flag and restore the webpack config from git history
 
   /**
    * generateBuildId – CRITICAL ENV DIFFERENTIATION
@@ -651,19 +262,17 @@ const nextConfig = {
   // Nextjs 15 uses SWC by default; swcMinify option is no longer needed
   // Minimize transpilation overhead in development
   transpilePackages: process.env.NODE_ENV === "production" ? ["next-mdx-remote", "swr"] : [],
+  // Enable Cache Components (formerly experimental.useCache in Next.js 15)
+  // This is the new way to enable 'use cache' directive in Next.js 16
+  cacheComponents: true,
+
   experimental: {
     taint: true,
     serverMinification: false,
-    webpackBuildWorker: false, // DISABLED - worker threads can accumulate memory
-    webpackMemoryOptimizations: false, // DISABLED - might be buggy in canary
     preloadEntriesOnStart: false, // Don't preload all pages on server start
     serverSourceMaps: false, // Disable server source maps to save memory
     // Disable package optimization in development to reduce cache entries
     optimizePackageImports: process.env.NODE_ENV === "production" ? ["lucide-react", "@sentry/nextjs"] : [],
-    // Enable 'use cache' directive for Next.js 15 caching
-    // ⚠️ NEVER DISABLE THIS - This is part of the memory SOLUTION, not the problem
-    // This feature helps reduce memory usage by proper caching, disabling it makes memory worse
-    useCache: true,
     // DISABLED EXPERIMENTAL FEATURES THAT COULD CAUSE MEMORY ISSUES:
     // webpackLayers: true, // DISABLED - experimental layer system
     // webpackPersistentCache: true, // DISABLED - experimental caching that could leak
