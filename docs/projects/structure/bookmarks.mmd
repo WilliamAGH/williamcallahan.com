@@ -31,7 +31,7 @@ graph TD
     
     %% Entry Points
     A["📖 Bookmark Request"] --> B{Request Type?}
-    B -->|Static Generation| C[getBookmarksForStaticBuild]
+    B -->|Static Generation| C[getBookmarksForStaticBuildAsync]
     B -->|Component Rendering| D[getBookmarks]
     B -->|API Call| E[Refresh Endpoints]
     

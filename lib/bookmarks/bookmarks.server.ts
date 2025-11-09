@@ -14,25 +14,6 @@ import { stripImageData } from "../bookmarks/utils";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 
 /**
- * DEPRECATED: Synchronous bookmark fetcher that ALWAYS returns empty array
- *
- * CRITICAL BUG (Issue #sitemap-2024): This function was causing sitemap generation failures
- * because Next.js generateStaticParams() requires synchronous data during build, but bookmarks
- * are stored in S3 (async-only). Blog posts work because they're read from local filesystem
- * synchronously via fs.readFileSync(). Bookmarks fail because S3 has no sync API.
- *
- * @deprecated Use getBookmarksForStaticBuildAsync() instead
- * @see https://nextjs.org/docs/app/api-reference/functions/generate-static-params
- * @returns Empty array - NEVER use for sitemap/static generation
- */
-export function getBookmarksForStaticBuild(): UnifiedBookmark[] {
-  if (process.env.NODE_ENV === "development") {
-    console.log("[Static Build] Synchronous method called - returning empty array. Use async version for actual data.");
-  }
-  return [];
-}
-
-/**
  * Async bookmark fetcher for static site generation (sitemap, generateStaticParams)
  *
  * CRITICAL FOR SITEMAP: This MUST be called during Docker build (before 'next build')

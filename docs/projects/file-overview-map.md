@@ -265,7 +265,6 @@ File/Path Functionality Description
   - [x] `bookmarks-preloader.ts` `bookmarks` - Server-side bookmark preloading orchestrator
   - [x] `data-fetch-manager.ts` `batch-fetch-update` - Centralized data fetching orchestrator with CLI handler
   - [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates
-  - [x] `mem-guard.ts` `memory-mgmt` - Lightweight RSS watchdog for cache flushing
 - [x] **server-cache/**
   - [x] `index.ts` `caching` - Barrel file for server cache
 - [x] **test-utils/**

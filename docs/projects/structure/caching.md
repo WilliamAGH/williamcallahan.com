@@ -56,7 +56,6 @@ See `caching.mmd` for visual flow and migration status.
 - `app/api/cache/images/route.ts`
 - `app/api/bookmarks/refresh/route.ts`
 - `app/api/bookmarks/status/route.ts`
-- `app/api/github-activity/debug/route.ts`
 - `app/api/logo/invert/route.ts`
 - `app/api/validate-logo/route.ts`
 
