@@ -15,6 +15,7 @@ import { extractKeywords, extractCrossContentKeywords } from "./keyword-extracto
 import { extractDomain } from "@/lib/utils";
 import { getBulkBookmarkSlugs } from "@/lib/bookmarks/slug-helpers";
 import { kebabCase } from "@/lib/utils/formatters";
+import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import type { NormalizedContent, RelatedContentType } from "@/types/related-content";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import type { BlogPost } from "@/types/blog";
@@ -85,6 +86,8 @@ function normalizeBookmark(bookmark: UnifiedBookmark, slugMap?: Map<string, stri
     );
   }
 
+  const bestImage = selectBestImage(bookmark, { includeScreenshots: true, returnUndefined: true }) ?? undefined;
+
   return {
     id: bookmark.id,
     type: "bookmark",
@@ -94,7 +97,11 @@ function normalizeBookmark(bookmark: UnifiedBookmark, slugMap?: Map<string, stri
     url: `/bookmarks/${slug}`, // Use actual slug from mapping
     domain: extractDomain(bookmark.url),
     date: parseDate(bookmark.dateBookmarked),
-    source: bookmark,
+    display: {
+      description: bookmark.description || "",
+      imageUrl: bestImage,
+      bookmark: { slug },
+    },
   };
 }
 
@@ -125,7 +132,12 @@ function normalizeBlogPost(post: BlogPost): NormalizedContent {
     url: `/blog/${post.slug}`,
     domain: undefined,
     date: parseDate(post.publishedAt),
-    source: post,
+    display: {
+      description: post.excerpt || "",
+      imageUrl: post.coverImage || undefined,
+      author: post.author ? { name: post.author.name, avatar: post.author.avatar || undefined } : undefined,
+      readingTime: post.readingTime,
+    },
   };
 }
 
@@ -175,7 +187,19 @@ function normalizeInvestment(investment: Investment): NormalizedContent {
     url: `/investments#${investment.id}`,
     domain: extractDomain(investment.website || ""),
     date: investment.invested_year ? new Date(`${investment.invested_year}-01-01`) : undefined,
-    source: investment,
+    display: {
+      description: typeof investment.description === "string" ? investment.description : "",
+      stage: investment.stage,
+      category: investment.category,
+      aventureUrl: investment.aventure_url ?? undefined,
+      imageUrl: investment.logo ?? undefined,
+      investment: {
+        name: investment.name,
+        website: investment.website || undefined,
+        logoOnlyDomain: investment.logoOnlyDomain || undefined,
+        logo: investment.logo ?? undefined,
+      },
+    },
   };
 }
 
@@ -200,7 +224,12 @@ function normalizeProject(project: Project): NormalizedContent {
     url: `/projects#${kebabCase(String(project.id || project.name))}`,
     domain: extractDomain(project.url),
     date: undefined, // Projects don't have dates in current schema
-    source: project,
+    display: {
+      description: project.shortSummary || project.description,
+      project: {
+        imageKey: project.imageKey ?? undefined,
+      },
+    },
   };
 }
 

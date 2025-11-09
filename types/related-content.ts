@@ -5,11 +5,6 @@
  * relevant content across bookmarks, blog posts, investments, and projects.
  */
 
-import type { UnifiedBookmark } from "./bookmark";
-import type { BlogPost } from "./blog";
-import type { Investment } from "./investment";
-import type { Project } from "./project";
-
 /**
  * Content types that can be related/recommended
  */
@@ -131,11 +126,6 @@ export interface RelatedContentResponse {
 }
 
 /**
- * Union type for all content sources
- */
-export type ContentSource = UnifiedBookmark | BlogPost | Investment | Project;
-
-/**
  * Normalized content for similarity comparison
  */
 export interface NormalizedContent {
@@ -155,8 +145,30 @@ export interface NormalizedContent {
   domain?: string;
   /** Creation/publication date */
   date?: Date;
-  /** Original source data */
-  source: ContentSource;
+  /** Precomputed display data for UI consumers */
+  display?: NormalizedContentDisplay;
+}
+
+export interface NormalizedContentDisplay {
+  description?: string;
+  imageUrl?: string;
+  author?: { name: string; avatar?: string };
+  readingTime?: number;
+  stage?: string;
+  category?: string;
+  aventureUrl?: string;
+  bookmark?: {
+    slug: string;
+  };
+  investment?: {
+    name: string;
+    website?: string;
+    logoOnlyDomain?: string;
+    logo?: string;
+  };
+  project?: {
+    imageKey?: string;
+  };
 }
 
 /**

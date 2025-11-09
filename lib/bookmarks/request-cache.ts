@@ -12,6 +12,7 @@ import { getBookmarks } from "./service.server";
 import { getBulkBookmarkSlugs } from "./slug-helpers";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import type { UnifiedBookmark } from "@/types";
+import { stripImageData } from "./utils";
 
 /**
  * Cached version of getBookmarks that ensures bookmarks are only fetched once per request
@@ -19,10 +20,17 @@ import type { UnifiedBookmark } from "@/types";
  */
 export const getCachedBookmarks = cache(
   async (options?: { skipExternalFetch?: boolean; includeImageData?: boolean }): Promise<UnifiedBookmark[]> => {
-    return (await getBookmarks({
+    const bookmarks = (await getBookmarks({
       ...DEFAULT_BOOKMARK_OPTIONS,
-      ...options,
+      includeImageData: options?.includeImageData ?? false,
+      skipExternalFetch: options?.skipExternalFetch ?? false,
     })) as UnifiedBookmark[];
+
+    if (options?.includeImageData) {
+      return bookmarks;
+    }
+
+    return bookmarks.map(stripImageData);
   },
 );
 
@@ -39,25 +47,4 @@ export const getCachedBookmarkSlugs = cache(async (): Promise<Map<string, string
   return await getBulkBookmarkSlugs(bookmarks);
 });
 
-/**
- * Get both bookmarks and their slug mappings efficiently
- * This is the preferred method when you need both data sets
- */
-export const getCachedBookmarksWithSlugs = cache(
-  async (): Promise<{
-    bookmarks: UnifiedBookmark[];
-    slugMap: Map<string, string>;
-  }> => {
-    // Fetch bookmarks once
-    // CRITICAL: Must include image data for RelatedContent display
-    // Previous regression: includeImageData: false caused missing images in UI
-    const bookmarks = await getCachedBookmarks({
-      includeImageData: true,
-      skipExternalFetch: false,
-    });
-    // Generate slug map from the same bookmarks
-    const slugMap = await getBulkBookmarkSlugs(bookmarks);
-
-    return { bookmarks, slugMap };
-  },
-);
+// NOTE: Components should call getCachedBookmarks({ includeImageData: true }) explicitly when hydrated data is required.

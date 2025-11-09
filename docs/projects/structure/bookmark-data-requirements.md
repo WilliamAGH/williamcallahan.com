@@ -13,9 +13,9 @@ These components display bookmarks to users and **REQUIRE** image data:
 1. **RelatedContent Component**
    - Location: `components/features/related-content/`
    - Data sources:
-     - `getCachedBookmarksWithSlugs()` - **MUST** use `includeImageData: true`
-     - `aggregateAllContent()` - **MUST** use `includeImageData: true`
-   - Why: Displays bookmark thumbnails in "Discover Similar Content" section
+     - `aggregateAllContent()` (precomputes preview metadata + best image URL)
+     - Lightweight bookmark fetch via `getCachedBookmarks()` (strips heavy fields unless explicitly overridden)
+   - Why: Displays bookmark thumbnails in "Discover Similar Content" section without duplicating raw bookmark blobs
 
 2. **Bookmark Cards/Lists**
    - Any component rendering bookmark cards with visual previews
@@ -44,15 +44,15 @@ These operations only need metadata and can safely use `includeImageData: false`
 
 ```typescript
 // For UI display
-getCachedBookmarksWithSlugs(); // request-cache.ts - MUST use includeImageData: true
-aggregateAllContent(); // aggregator.ts - MUST use includeImageData: true
+aggregateAllContent(); // aggregator.ts - precomputes best image + description
+// When a feature genuinely needs raw bookmark assets, call getCachedBookmarks({ includeImageData: true }) explicitly.
 ```
 
 #### Functions that can strip image data
 
 ```typescript
 // For slug generation only
-getCachedBookmarkSlugs(); // request-cache.ts - can use includeImageData: false
+getCachedBookmarkSlugs(); // request-cache.ts - uses lightweight bookmarks
 
 // For sitemap generation
 getBookmarksForStaticBuildAsync(); // can strip images for memory efficiency

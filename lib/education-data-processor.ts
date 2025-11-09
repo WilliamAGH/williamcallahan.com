@@ -7,7 +7,7 @@ import "server-only"; // Ensure this module is never bundled for the client
 
 import { getLogo } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
-import type { Certification, Class, Education, EducationLogoData } from "../types/education";
+import type { Certification, Class, Education, EducationLogoData } from "@/types/education";
 import { assertServerOnly } from "./utils/ensure-server-only"; // Import the assertion utility
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
