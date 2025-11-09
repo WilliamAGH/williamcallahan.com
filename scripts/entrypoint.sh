@@ -97,5 +97,5 @@ trap cleanup SIGTERM SIGINT SIGQUIT
 echo "🚀 [Entrypoint] Starting main application..."
 
 # Execute the command passed to the entrypoint (CMD in Dockerfile) directly as root
-# The "$@" here expands to the CMD specified in the Dockerfile (e.g., ["node", ".next/standalone/server.js"])
+# The "$@" here expands to the CMD specified in the Dockerfile (e.g., ["npx", "next", "start"])
 exec "$@"

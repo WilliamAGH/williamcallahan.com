@@ -30,7 +30,7 @@
     "build": "NODE_ENV=production bun scripts/validate-environment.ts && bun run validate:build && NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' next build",
     "build:only": "NODE_ENV=production bun scripts/validate-environment.ts && bun run check:file-size && NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' next build",
     "build:full": "NODE_ENV=production bun scripts/validate-environment.ts && bun run validate:with-size && NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' next build",
-    "start": "NODE_OPTIONS='--max-old-space-size=3072 --max-semi-space-size=64 --expose-gc' node .next/standalone/server.js",
+    "start": "NODE_OPTIONS='--max-old-space-size=3072 --max-semi-space-size=64 --expose-gc' next start",
     "start:plain": "NODE_OPTIONS='--max-old-space-size=3072 --max-semi-space-size=64 --expose-gc' next start",
     "docker:build": "docker buildx build --platform=linux/amd64 --build-arg NODE_ENV=production --build-arg NEXT_TELEMETRY_DISABLED=1 --load -t williamcallahan-web:latest .",
     "docker:start": "docker run --platform=linux/amd64 -p 3010:3000 -e NODE_ENV=production -e NODE_OPTIONS='--max-old-space-size=3072 --max-semi-space-size=64 --expose-gc' williamcallahan-web:latest",

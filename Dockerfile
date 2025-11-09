@@ -138,8 +138,8 @@ RUN --mount=type=cache,target=/app/.next/cache \
 FROM base AS runner
 WORKDIR /app
 
-# Install runtime dependencies including Node.js for Next.js standalone compatibility
-# Note: We need Node.js to run the Next.js standalone server even though Bun is available
+# Install runtime dependencies including Node.js for the Next.js production server
+# Note: We still need Node.js to run `next start` even though Bun is available
 # Also installing vips for Sharp image processing, curl for healthchecks, and bash for scripts
 # libc6-compat is required for Sharp/vips native bindings to work properly
 RUN apk add --no-cache nodejs vips curl bash libc6-compat
@@ -194,7 +194,7 @@ COPY --from=builder /app/tsconfig*.json ./
 
 # Runtime helper scripts (`scripts/*.ts`) import source modules directly from the
 # repository (e.g. `@/lib/*`, `@/types/*`). These folders are *not* included in
-# the Next.js standalone output, so we need to copy them into the final image
+# the Next.js production build output, so we need to copy them into the final image
 # as well.
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/types ./types
