@@ -14,7 +14,6 @@ import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manage
 import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
 
 // This route can leverage the caching within getBookmarks
-export const dynamic = "force-dynamic";
 
 function buildInternalHrefs(
   items: Array<{ id: string } & Record<string, unknown>>,

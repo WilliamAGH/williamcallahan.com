@@ -16,7 +16,6 @@ import type { BookmarksIndex } from "@/types/bookmark";
 import { invalidateBookmarksCache } from "@/lib/bookmarks/bookmarks-data-access.server";
 
 // Ensure this route is not statically cached
-export const dynamic = "force-dynamic";
 
 /**
  * API Key validation middleware

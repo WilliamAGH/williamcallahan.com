@@ -12,9 +12,7 @@ import { type SearchResult, type SearchScope, VALID_SCOPES } from "@/types/searc
 import { NextResponse } from "next/server";
 
 // Ensure this route is not statically cached
-export const dynamic = "force-dynamic";
 
-// Add "all" to the list of valid scopes for validation purposes
 const ALL_VALID_SCOPES = [...VALID_SCOPES, "all"];
 
 /**

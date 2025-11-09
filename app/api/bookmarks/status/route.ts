@@ -10,8 +10,6 @@ import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS, BOOKMARKS_CACHE_DURATION } from "@/lib/constants";
 import type { BookmarksIndex } from "@/types/bookmark";
 
-export const dynamic = "force-dynamic";
-
 /**
  * GET /api/bookmarks/status
  * @description Returns the status of the bookmarks system.

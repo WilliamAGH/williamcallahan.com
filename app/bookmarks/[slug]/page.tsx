@@ -7,9 +7,6 @@
  */
 
 // Configure for dynamic rendering - consistent with all other bookmark routes
-export const dynamic = "force-dynamic";
-// Revalidate cache every 30 minutes - consistent with other bookmark routes
-export const revalidate = 1800;
 
 import { BookmarkDetail } from "@/components/features/bookmarks/bookmark-detail";
 import { getBookmarkById, getBookmarks } from "@/lib/bookmarks/service.server";

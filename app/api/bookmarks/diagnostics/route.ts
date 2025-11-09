@@ -14,8 +14,6 @@ import type { BookmarksIndex, BookmarkSlugMapping } from "@/types/bookmark";
 import type { ReadJsonResult } from "@/types/lib";
 import { getEnvironment, getEnvironmentSuffix, logEnvironmentConfig } from "@/lib/config/environment";
 
-export const dynamic = "force-dynamic";
-
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }

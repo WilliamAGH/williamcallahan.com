@@ -8,8 +8,6 @@
 
 import { NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-
 /**
  * GET /api/github-activity/debug
  * @description Returns deprecation notice. Cache debug info is no longer available.

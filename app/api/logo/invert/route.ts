@@ -34,8 +34,6 @@ function validateUrl(urlString: string): string {
  * @returns {Promise<NextResponse>} API response with inverted image
  */
 // Enable dynamic rendering to allow API calls during server-side rendering
-export const dynamic = "force-dynamic";
-export const revalidate = 3600; // Cache for 1 hour
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;

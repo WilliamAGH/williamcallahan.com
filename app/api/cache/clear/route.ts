@@ -102,7 +102,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Invalidate each cache tag
     for (const tag of cacheTags) {
-      revalidateTag(tag);
+      revalidateTag(tag, "default");
       console.log(`[Cache Clear] Invalidated cache tag: ${tag}`);
     }
 

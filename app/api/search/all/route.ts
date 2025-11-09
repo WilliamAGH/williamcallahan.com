@@ -14,9 +14,7 @@ import { NextResponse } from "next/server";
 import os from "node:os";
 
 // Ensure this route is not statically cached
-export const dynamic = "force-dynamic";
 
-// Request coalescing to prevent duplicate concurrent searches
 const inFlightSearches = new Map<string, Promise<SearchResult[]>>();
 
 // ────────────────────────────────────────────────────────────────────────────

@@ -19,8 +19,6 @@ const SYSTEM_STATUS = {
   HEALTHY: "HEALTHY",
 } as const;
 
-export const dynamic = "force-dynamic";
-
 /**
  * GET /api/health
  *

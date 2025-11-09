@@ -13,11 +13,8 @@
  */
 
 // Configure dynamic rendering
-export const dynamic = "force-dynamic";
-// Disable persistent Data Cache – content is updated via revalidation logic in code (we use our own cache via lib/image-memory-manager.ts)
-export const fetchCache = "default-no-store";
+
 // Incremental Static Regeneration – recache every 30 minutes for fresh-but-fast UX
-export const revalidate = 1800; // 30 minutes (60 * 30)
 
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";

@@ -24,6 +24,7 @@ import { generateSchemaGraph } from "@/lib/seo/schema";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { cn } from "@/lib/utils";
+import { headers } from "next/headers";
 
 const CV_PAGE_PATH = "/cv" as const;
 const CV_PDF_DOWNLOAD_ENDPOINT = "/api/cv/pdf" as const;
@@ -39,6 +40,13 @@ export const metadata: Metadata = getStaticPageMetadata(CV_PAGE_PATH, "cv");
  * start on their own line, preserving parity with the PDF export.
  */
 export default function CvPage(): React.JSX.Element {
+  // Access headers to opt out of static rendering for dynamic date
+  // This allows getCvData() to use new Date() safely
+  // Only call headers() in non-test environments as it requires request context
+  if (typeof jest === "undefined") {
+    headers();
+  }
+
   const pageMetadata = PAGE_METADATA.cv;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);

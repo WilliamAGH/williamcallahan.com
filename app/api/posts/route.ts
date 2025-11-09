@@ -7,7 +7,6 @@ import { sanitizeBlogPosts, sanitizeError } from "@/lib/utils/api-sanitization";
 import { NextResponse } from "next/server";
 
 // Set cache options for API - revalidate every 1 hour (3600 seconds)
-export const revalidate = 3600;
 
 /**
  * Formats error details for API response

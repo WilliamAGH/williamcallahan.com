@@ -22,9 +22,7 @@ import type { BookmarksIndex } from "@/types/bookmark";
 import { revalidatePath, revalidateTag } from "next/cache";
 
 // Ensure this route is not statically cached
-export const dynamic = "force-dynamic";
 
-// Simple in-memory flag to prevent concurrent refreshes
 let isRefreshInProgress = false;
 
 /**
@@ -185,7 +183,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             revalidatePath("/bookmarks/[slug]", "page");
             revalidatePath("/bookmarks/page/[pageNumber]", "page");
             revalidatePath("/bookmarks/domain/[domainSlug]", "page");
-            revalidateTag("bookmarks");
+            revalidateTag("bookmarks", "default");
             console.log("[API Trigger] ✅ Cache invalidated successfully");
           } catch (cacheError) {
             console.error("[API Trigger] Failed to invalidate cache:", cacheError);

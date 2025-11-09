@@ -14,8 +14,6 @@
 import { getGithubActivityCached } from "@/lib/data-access/github";
 import { NextResponse, type NextRequest } from "next/server";
 
-export const dynamic = "force-dynamic";
-
 /**
  * Handles GET requests for the GitHub Activity API endpoint, returning pre-processed GitHub activity data.
  *

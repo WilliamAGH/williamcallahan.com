@@ -28,7 +28,6 @@ export const metadata: Metadata = getStaticPageMetadata("/", "home");
  * Make homepage more static and resilient to rapid requests
  * Remove force-dynamic to allow static generation where possible
  */
-export const revalidate = 3600; // Revalidate every hour
 
 /**
  * Home page component

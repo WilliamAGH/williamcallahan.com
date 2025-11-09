@@ -4,8 +4,6 @@ import { getBookmarksIndex } from "@/lib/bookmarks/bookmarks-data-access.server"
 import logger from "@/lib/utils/logger";
 import type { DeepCheckResult } from "@/types/health";
 
-export const dynamic = "force-dynamic";
-
 async function measure<T>(name: string, fn: () => Promise<T>): Promise<{ result: T | null; check: DeepCheckResult }> {
   const start = performance.now();
   try {

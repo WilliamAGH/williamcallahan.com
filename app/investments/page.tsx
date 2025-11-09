@@ -25,7 +25,6 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
 export const metadata: Metadata = getStaticPageMetadata("/investments", "investments");
 
 // Avoid long static generation by rendering this page dynamically at request time
-export const dynamic = "force-dynamic";
 
 /**
  * NOTE ON LOGO RESOLUTION
