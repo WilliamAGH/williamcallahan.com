@@ -27,8 +27,7 @@ describe("CvPage", () => {
       doNotFake: ["nextTick", "performance"],
     });
 
-    const Component = await CvPage({ params: {} });
-    render(Component);
+    render(await CvPage());
 
     expect(screen.getByRole("heading", { name: "Professional Summary" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Highlighted Technical Projects" })).toBeInTheDocument();
@@ -45,8 +44,7 @@ describe("CvPage", () => {
       doNotFake: ["nextTick", "performance"],
     });
 
-    const Component = await CvPage({ params: {} });
-    render(Component);
+    render(await CvPage());
 
     expect(mockEnhancer).toHaveBeenCalledTimes(1);
     expect(mockEnhancer.mock.calls[0]?.[0]).toEqual({ targetId: "cv-pdf-download-button" });

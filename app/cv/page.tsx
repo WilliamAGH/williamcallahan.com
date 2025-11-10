@@ -39,7 +39,7 @@ export const metadata: Metadata = getStaticPageMetadata(CV_PAGE_PATH, "cv");
  * Contact metadata renders in explicit rows so the location and primary websites always
  * start on their own line, preserving parity with the PDF export.
  */
-export default function CvPage(): React.JSX.Element {
+export default async function CvPage(): Promise<React.JSX.Element> {
   "use cache";
   cacheLife("days");
 
