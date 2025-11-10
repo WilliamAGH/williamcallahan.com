@@ -21,6 +21,7 @@ import { USE_NEXTJS_CACHE, cacheContextGuards, isCliLikeCacheContext, withCacheF
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { processBookmarksInBatches } from "@/lib/bookmarks/enrich-opengraph";
+import { readLocalS3Json } from "@/lib/bookmarks/local-s3-cache";
 
 const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "lib", "data", "bookmarks.json");
 const LOCAL_BOOKMARKS_BY_ID_DIR = path.join(process.cwd(), ".next", "cache", "bookmarks", "by-id");
@@ -792,14 +793,25 @@ async function fetchAndCacheBookmarks(
 }
 
 async function getBookmarksPageDirect(pageNumber: number): Promise<UnifiedBookmark[]> {
+  const key = `${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${pageNumber}.json`;
   try {
-    const pageData = await readJsonS3<UnifiedBookmark[]>(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${pageNumber}.json`);
-    return pageData ? normalizePageBookmarkTags(pageData) : [];
+    const pageData = await readJsonS3<UnifiedBookmark[]>(key);
+    if (pageData) {
+      return normalizePageBookmarkTags(pageData);
+    }
   } catch (error) {
-    if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) return [];
-    console.error(`${LOG_PREFIX} S3 service error loading page ${pageNumber}:`, error);
-    return [];
+    if (!isS3Error(error) || error.$metadata?.httpStatusCode !== 404) {
+      console.error(`${LOG_PREFIX} S3 service error loading page ${pageNumber}:`, error);
+    }
   }
+
+  const fallback = await readLocalS3Json<UnifiedBookmark[]>(key);
+  if (fallback) {
+    logBookmarkDataAccessEvent("Loaded page data from local S3 cache", { pageNumber, source: "local" });
+    return normalizePageBookmarkTags(fallback);
+  }
+
+  return [];
 }
 
 /**
@@ -825,16 +837,29 @@ export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookm
 }
 
 async function getTagBookmarksPageDirect(tagSlug: string, pageNumber: number): Promise<UnifiedBookmark[]> {
+  const key = `${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${pageNumber}.json`;
   try {
-    const pageData = await readJsonS3<UnifiedBookmark[]>(
-      `${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${pageNumber}.json`,
-    );
-    return pageData ? normalizePageBookmarkTags(pageData) : [];
+    const pageData = await readJsonS3<UnifiedBookmark[]>(key);
+    if (pageData) {
+      return normalizePageBookmarkTags(pageData);
+    }
   } catch (error) {
-    if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) return [];
-    console.error(`${LOG_PREFIX} S3 service error loading tag page ${tagSlug}/${pageNumber}:`, error);
-    return [];
+    if (!isS3Error(error) || error.$metadata?.httpStatusCode !== 404) {
+      console.error(`${LOG_PREFIX} S3 service error loading tag page ${tagSlug}/${pageNumber}:`, error);
+    }
   }
+
+  const fallback = await readLocalS3Json<UnifiedBookmark[]>(key);
+  if (fallback) {
+    logBookmarkDataAccessEvent("Loaded tag page data from local S3 cache", {
+      pageNumber,
+      tagSlug,
+      source: "local",
+    });
+    return normalizePageBookmarkTags(fallback);
+  }
+
+  return [];
 }
 
 /**

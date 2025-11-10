@@ -14,6 +14,7 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { normalizeTagsToStrings, tagToSlug } from "../lib/utils/tag-utils";
 import { calculateBookmarksChecksum } from "../lib/bookmarks/utils";
+import { readJsonS3 } from "../lib/s3-utils";
 
 // Get CDN URL from environment or use default
 const CDN_URL = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
@@ -44,6 +45,8 @@ const LOCAL_PATHS = {
 };
 
 const LOCAL_S3_BASE = join(process.cwd(), "lib/data/s3-cache");
+const HAS_S3_CREDENTIALS =
+  Boolean(process.env.S3_BUCKET) && Boolean(process.env.S3_ACCESS_KEY_ID) && Boolean(process.env.S3_SECRET_ACCESS_KEY);
 
 /**
  * Fetch JSON data from public CDN URL
@@ -71,6 +74,20 @@ async function fetchJson(url: string, label: string): Promise<unknown> {
     return await response.json();
   } catch (error) {
     console.error(`❌ Failed to fetch ${label}:`, error);
+    return null;
+  }
+}
+
+async function fetchViaS3(key: string): Promise<unknown | null> {
+  if (!HAS_S3_CREDENTIALS) return null;
+  try {
+    const data = await readJsonS3<unknown>(key);
+    if (data !== null) {
+      console.log(`   📡 Loaded ${key} via S3 SDK`);
+    }
+    return data;
+  } catch (error) {
+    console.error(`⚠️  Failed to fetch ${key} via S3 SDK:`, error);
     return null;
   }
 }
@@ -193,9 +210,12 @@ async function main() {
   };
 
   // Fetch bookmarks file
-  const bookmarks = await fetchWithFallback(BOOKMARKS_PATHS.FILE);
+  const bookmarks =
+    (HAS_S3_CREDENTIALS ? await fetchViaS3(BOOKMARKS_PATHS.FILE) : null) ??
+    (await fetchWithFallback(BOOKMARKS_PATHS.FILE));
   if (bookmarks) {
     saveToFile(LOCAL_PATHS.BOOKMARKS, bookmarks);
+    saveToLocalS3(BOOKMARKS_PATHS.FILE, bookmarks);
     successCount++;
     // Runtime check for array length instead of unsafe type assertion
     const bookmarkCount = Array.isArray(bookmarks) ? bookmarks.length : 0;
@@ -204,12 +224,16 @@ async function main() {
     failureCount++;
     // Create empty file to prevent build errors
     saveToFile(LOCAL_PATHS.BOOKMARKS, []);
+    saveToLocalS3(BOOKMARKS_PATHS.FILE, []);
   }
 
   // Fetch index file
-  const index = await fetchWithFallback(BOOKMARKS_PATHS.INDEX);
+  const index =
+    (HAS_S3_CREDENTIALS ? await fetchViaS3(BOOKMARKS_PATHS.INDEX) : null) ??
+    (await fetchWithFallback(BOOKMARKS_PATHS.INDEX));
   if (index) {
     saveToFile(LOCAL_PATHS.INDEX, index);
+    saveToLocalS3(BOOKMARKS_PATHS.INDEX, index);
     successCount++;
     // Runtime check for lastFetchedAt property instead of unsafe type assertion
     if (typeof index === "object" && index !== null && "lastFetchedAt" in index) {
@@ -221,13 +245,18 @@ async function main() {
   } else {
     failureCount++;
     // Create minimal index fallback to prevent missing-file errors
-    saveToFile(LOCAL_PATHS.INDEX, { lastFetchedAt: 0 });
+    const fallbackIndex = { lastFetchedAt: 0 };
+    saveToFile(LOCAL_PATHS.INDEX, fallbackIndex);
+    saveToLocalS3(BOOKMARKS_PATHS.INDEX, fallbackIndex);
   }
 
   // Fetch slug mapping (CRITICAL for sitemap generation)
-  const slugMapping = await fetchWithFallback(BOOKMARKS_PATHS.SLUG_MAPPING);
+  const slugMapping =
+    (HAS_S3_CREDENTIALS ? await fetchViaS3(BOOKMARKS_PATHS.SLUG_MAPPING) : null) ??
+    (await fetchWithFallback(BOOKMARKS_PATHS.SLUG_MAPPING));
   if (slugMapping) {
     saveToFile(LOCAL_PATHS.SLUG_MAPPING, slugMapping);
+    saveToLocalS3(BOOKMARKS_PATHS.SLUG_MAPPING, slugMapping);
     successCount++;
     // Runtime check for count property instead of unsafe type assertion
     let mappingCount = 0;
@@ -248,16 +277,20 @@ async function main() {
   } else {
     failureCount++;
     // Create minimal slug mapping to prevent errors
-    saveToFile(LOCAL_PATHS.SLUG_MAPPING, {
+    const emptyMapping = {
       version: 1,
       generated: new Date().toISOString(),
       count: 0,
       slugs: {},
-    });
+    };
+    saveToFile(LOCAL_PATHS.SLUG_MAPPING, emptyMapping);
+    saveToLocalS3(BOOKMARKS_PATHS.SLUG_MAPPING, emptyMapping);
   }
 
   // Fetch heartbeat file
-  const heartbeat = await fetchWithFallback(BOOKMARKS_PATHS.HEARTBEAT);
+  const heartbeat =
+    (HAS_S3_CREDENTIALS ? await fetchViaS3(BOOKMARKS_PATHS.HEARTBEAT) : null) ??
+    (await fetchWithFallback(BOOKMARKS_PATHS.HEARTBEAT));
   if (heartbeat) {
     saveToLocalS3(BOOKMARKS_PATHS.HEARTBEAT, heartbeat);
     successCount++;
