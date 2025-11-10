@@ -50,6 +50,11 @@ NEXT_PUBLIC_S3_CDN_URL=https://s3-storage.callahan.cloud  # CDN with custom SSL 
 
 **Important**: Server-side code should use `S3_CDN_URL` (direct CDN) with fallback to `NEXT_PUBLIC_S3_CDN_URL`. This reduces client bundle size and provides flexibility for different CDN endpoints.
 
+### Next.js Optimizer Allowlist
+
+- `next.config.ts:images.domains` must include every CDN host that appears in blog/article metadata. The Next.js image optimizer throws a 400 with `"url" parameter is not allowed` (see `node_modules/next/dist/server/image-optimizer.js:522-546`) whenever the host is missing.
+- Current production list: `s3-storage.callahan.cloud`, `williamcallahan.com`, `dev.williamcallahan.com`. Add any new Spaces/CDN hostname there **before** shipping content that references it.
+
 ## Key API Routes
 
 ### Logo Management
