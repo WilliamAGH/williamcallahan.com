@@ -71,12 +71,13 @@ export async function POST(request: NextRequest) {
     console.error("==================================================================\n");
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     // Log server-side errors but don't expose details to client
     console.error("\n==================================================================");
     console.error("[ERROR_LOGGING_FAILURE] Failed to process client error report");
     console.error("------------------------------------------------------------------");
-    console.error(error);
+    console.error(errorMessage);
     console.error("==================================================================\n");
 
     return NextResponse.json({ success: false, message: "Error processing log" }, { status: 500 });

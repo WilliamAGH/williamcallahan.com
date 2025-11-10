@@ -35,9 +35,9 @@ async function tryReadJson<T>(key: string): Promise<ReadJsonResult<T>> {
   try {
     const data = await readJsonS3<T>(key);
     return { key, exists: data !== null, ok: data !== null, parsed: data };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return { key, exists: false, ok: false, error: msg };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { key, exists: false, ok: false, error: message };
   }
 }
 
