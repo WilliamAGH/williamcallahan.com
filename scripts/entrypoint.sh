@@ -22,7 +22,15 @@ else
 fi
 
 echo "🗺️  [Entrypoint] Submitting sitemap..."
-bun run submit-sitemap || true
+if [ -n "${GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY:-}" ] && [ -n "${GOOGLE_SEARCH_INDEXING_SA_EMAIL:-}" ]; then
+    if bun run submit-sitemap; then
+        echo "✅ [Entrypoint] Sitemap submission completed"
+    else
+        echo "⚠️  [Entrypoint] Sitemap submission failed; continuing startup"
+    fi
+else
+    echo "⚠️  [Entrypoint] Missing Google sitemap credentials; skipping submission"
+fi
 
 echo "🕒 [Entrypoint] Starting background services..."
 
