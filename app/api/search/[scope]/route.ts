@@ -9,6 +9,7 @@ import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
 import { searchBookmarks, searchExperience, searchEducation, searchInvestments, searchProjects } from "@/lib/search";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { type SearchResult, type SearchScope, VALID_SCOPES } from "@/types/search";
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
@@ -27,7 +28,16 @@ const ALL_VALID_SCOPES = [...VALID_SCOPES, "all"];
  */
 export async function GET(request: Request, { params }: { params: { scope: string } }) {
   try {
-    const { searchParams } = new URL(request.url);
+    const headersList = await headers();
+    const nextUrlHeader = headersList.get("next-url");
+    const requestUrl = nextUrlHeader
+      ? nextUrlHeader.startsWith("http")
+        ? new URL(nextUrlHeader)
+        : new URL(
+            `${headersList.get("x-forwarded-proto") ?? "https"}://${headersList.get("host") ?? "localhost"}${nextUrlHeader}`,
+          )
+      : new URL(request.url);
+    const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q") ?? "";
     const scope = params.scope.toLowerCase() as SearchScope;
 

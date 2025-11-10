@@ -9,6 +9,7 @@
  * `getBookmarks()`.
  */
 
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { searchBookmarks } from "@/lib/search";
@@ -20,7 +21,16 @@ const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
+    const headersList = await headers();
+    const nextUrlHeader = headersList.get("next-url");
+    const requestUrl = nextUrlHeader
+      ? nextUrlHeader.startsWith("http")
+        ? new URL(nextUrlHeader)
+        : new URL(
+            `${headersList.get("x-forwarded-proto") ?? "https"}://${headersList.get("host") ?? "localhost"}${nextUrlHeader}`,
+          )
+      : new URL(request.url);
+    const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q");
 
     // Sanitize / validate like other search routes

@@ -2,6 +2,7 @@ import React from "react";
 import { TextDecoder as PolyfillTextDecoder } from "@sinonjs/text-encoding";
 import CvPdfDocument from "@/components/features/cv/CvPdfDocument";
 import logger from "@/lib/utils/logger";
+import { headers } from "next/headers";
 
 const ensureWindows1252TextDecoder = (() => {
   let patched = false;
@@ -68,7 +69,16 @@ function buildProblemDetails({
 export async function GET(request: Request): Promise<Response> {
   const { renderToBuffer } = await rendererModulePromise;
   const correlationId = globalThis.crypto.randomUUID();
-  const instance = new URL(request.url).pathname;
+  const headersList = await headers();
+  const nextUrlHeader = headersList.get("next-url");
+  const url = nextUrlHeader
+    ? nextUrlHeader.startsWith("http")
+      ? new URL(nextUrlHeader)
+      : new URL(
+          `${headersList.get("x-forwarded-proto") ?? "https"}://${headersList.get("host") ?? "localhost"}${nextUrlHeader}`,
+        )
+    : new URL(request.url);
+  const instance = url.pathname;
 
   try {
     const pdfBuffer = await renderToBuffer(<CvPdfDocument />);

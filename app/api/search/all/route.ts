@@ -10,6 +10,7 @@ import { searchBookmarks, searchEducation, searchExperience, searchInvestments, 
 import { validateSearchQuery } from "@/lib/validators/search";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import type { SearchResult } from "@/types/search";
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import os from "node:os";
 
@@ -19,6 +20,25 @@ const withNoStoreHeaders = (additional?: Record<string, string>): HeadersInit =>
 // Ensure this route is not statically cached
 
 const inFlightSearches = new Map<string, Promise<SearchResult[]>>();
+
+function buildAbsoluteUrl(value: string, headersList: Awaited<ReturnType<typeof headers>>): URL {
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return new URL(value);
+  }
+  const protocol = headersList.get("x-forwarded-proto") ?? "https";
+  const host = headersList.get("host") ?? "localhost";
+  const normalizedPath = value.startsWith("/") ? value : `/${value}`;
+  return new URL(`${protocol}://${host}${normalizedPath}`);
+}
+
+async function resolveRequestContext(
+  request: Request,
+): Promise<{ url: URL; headersList: Awaited<ReturnType<typeof headers>> }> {
+  const headersList = await headers();
+  const nextUrlHeader = headersList.get("next-url");
+  const url = nextUrlHeader ? buildAbsoluteUrl(nextUrlHeader, headersList) : new URL(request.url);
+  return { url, headersList };
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Memory pressure check (adaptive & configurable)
@@ -82,11 +102,12 @@ function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
  */
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
+    const { url: requestUrl, headersList } = await resolveRequestContext(request);
+    const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q");
 
     // Extract client IP for rate limiting
-    const forwardedFor = request.headers.get("x-forwarded-for");
+    const forwardedFor = headersList.get("x-forwarded-for");
     const clientIp = forwardedFor ? forwardedFor.split(",")[0]?.trim() || "anonymous" : "anonymous";
 
     // Apply rate limiting: 10 searches per minute per IP

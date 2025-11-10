@@ -5,12 +5,22 @@
  * Used by social cards to fetch profile images with S3 persistence
  */
 
+import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import type { OgImageApiResponse } from "@/types";
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
+  const headersList = await headers();
+  const nextUrlHeader = headersList.get("next-url");
+  const requestUrl = nextUrlHeader
+    ? nextUrlHeader.startsWith("http")
+      ? new URL(nextUrlHeader)
+      : new URL(
+          `${headersList.get("x-forwarded-proto") ?? "https"}://${headersList.get("host") ?? "localhost"}${nextUrlHeader}`,
+        )
+    : new URL(request.url);
+  const { searchParams } = requestUrl;
   const url = searchParams.get("url");
 
   if (!url) {

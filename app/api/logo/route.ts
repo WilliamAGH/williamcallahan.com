@@ -11,6 +11,7 @@
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
 import logger from "@/lib/utils/logger";
+import { headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
@@ -30,7 +31,16 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
  */
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const searchParams = request.nextUrl.searchParams;
+  const headersList = await headers();
+  const nextUrlHeader = headersList.get("next-url");
+  const requestUrl = nextUrlHeader
+    ? nextUrlHeader.startsWith("http")
+      ? new URL(nextUrlHeader)
+      : new URL(
+          `${headersList.get("x-forwarded-proto") ?? "https"}://${headersList.get("host") ?? "localhost"}${nextUrlHeader}`,
+        )
+    : new URL(request.url);
+  const searchParams = requestUrl.searchParams;
   const website = searchParams.get("website");
   const company = searchParams.get("company");
   const forceRefresh = searchParams.get("forceRefresh") === "true";
