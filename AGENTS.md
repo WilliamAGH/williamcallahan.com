@@ -79,6 +79,17 @@ LOCAL_DEVELOPMENT_URL: http://localhost:3000
 
 This project operates under **ZERO TEMPERATURE** development standards where every decision must be explicitly verified, no assumptions are permitted, and type safety is absolute.
 
+## 🧭 Next.js 16 · React 19 · Jest 30 Enforcement (2025-11-08)
+
+- **Framework reality:** `package.json` locks us to `next@16.0.1`, `react@19.1.1`, and `jest@30.1.3`. Treat those exact versions as law until the owner explicitly bumps them.
+- **Node_modules verification is mandatory before any change** touching Next.js, React (18/19), or Jest 30. Read and cite the relevant sources (examples: `node_modules/next/dist/server/config.js`, `node_modules/next/dist/server/request/params.js`, `node_modules/next/dist/shared/lib/image-config.js`, `node_modules/react/package.json`, `node_modules/jest/package.json`). No decision can rely on memory or blog posts.
+- **Live documentation pulls are required for every such task.** Run at least one MCP lookup (Context7, DeepWiki, _or_ Brave search) to fetch the current Next.js/React guidance. Capture the URL or reference inside your notes and final response.
+- **`docs/projects/structure/next-js-16-usage.md` is required reading** before modifying framework-level code. Align behavior with its “Allowed Patterns” vs “Outlawed Patterns” tables and update that doc if your change alters expectations.
+- **Cache Components + React 19 primitives are default expectations.** Confirm whether your change respects `cacheComponents` (see `node_modules/next/dist/server/config.js`) and new async params/metadata flows (`node_modules/next/dist/server/request/params.js`). Reject any proposal that reintroduces legacy behavior (e.g., `next/legacy/image`, synchronous `cookies()` shims, `unstable_cache*` aliases).
+- **Jest 30 compliance:** Any test harness change must note the Jest 30 runtime (`node_modules/jest/package.json`) and reference the project’s `config/jest/` stack. Never add tooling that downgrades or polyfills Jest APIs without written approval.
+
+> **Enforcement:** If you cannot point to a specific source file for a framework claim, you do not understand it. Halt, investigate, and only continue once the evidence is cited.
+
 ## 🔒 Command Execution Guardrails — Non‑Negotiable
 
 1. **Escalate the failing command first.** When any command errors because of permission issues, `.git/index.lock`, or related filesystem gating, immediately re-run the _same command_ with `with_escalated_permissions=true` and include a one-sentence justification. Do this before attempting any alternative command.

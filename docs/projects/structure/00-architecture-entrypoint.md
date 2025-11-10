@@ -8,6 +8,8 @@ This document serves as the master index for all architectural documentation in 
 
 This project enforces **100% strict TypeScript type safety** and adherence to modern Next.js and React best practices. All code must pass `bun run validate` before any commit. This is non-negotiable.
 
+👉 **Framework guardrails live in [`next-js-16-usage.md`](./next-js-16-usage.md).** Read it before changing anything tied to Next.js 16, React 19, or Jest 30.
+
 For a comprehensive guide on how to diagnose and fix type errors, and for crucial framework guidance, see the master playbook:
 
 **[➡️ Architecting for 100% Type Safety: A Guide for Developers & LLMs](./linting-formatting.md)**
@@ -43,6 +45,7 @@ Example schemas:
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------ |
 | `accessibility`      | Provide reusable components and utilities to enhance accessibility and ensure WCAG compliance.                                                | [accessibility.md](./accessibility.md)           | [Diagram](./accessibility.mmd) |
 | `ai-shared-services` | Unified AI provider integration (OpenAI, OpenRouter, Perplexity, Groq) and web search APIs with streaming, tool calling, and modern features. | [ai-shared-services.md](./ai-shared-services.md) |                                |
+| `next-js-16-usage`   | Governs all framework-level work for Next.js 16, React 19, and Jest 30 (cache components, async params, outlawed patterns).                   | [next-js-16-usage.md](./next-js-16-usage.md)     |                                |
 | `analytics`          | Load and manage third-party tracking scripts (Plausible, Umami, Clicky) in a safe, non-blocking, and privacy-conscious manner.                | [analytics.md](./analytics.md)                   |                                |
 | `app-layout`         | Provide the root layout wrapper with global styles, providers, and a consistent UI structure for all pages.                                   | [app-layout.md](./app-layout.md)                 | [Diagram](./app-layout.mmd)    |
 | `batch-fetch-update` | Outline the automated background refresh schedule and batch processing architecture for production data.                                      | [batch-fetch-update.md](./batch-fetch-update.md) |                                |

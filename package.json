@@ -19,7 +19,7 @@
     "prefetch": "bun scripts/data-updater.ts --bookmarks --github --logos",
     "populate-data": "NODE_ENV=development bun scripts/validate-environment.ts && NODE_ENV=development bun scripts/data-updater.ts --bookmarks --github --logos",
     "postinstall": "bun scripts/init-csp-hashes.ts",
-    "prebuild": "bun scripts/init-csp-hashes.ts",
+    "prebuild": "bun scripts/init-csp-hashes.ts && bun scripts/fetch-bookmarks-public.ts",
     "postbuild": "bun scripts/generate-csp-hashes.ts",
     "dev": "bun scripts/init-csp-hashes.ts && bun run cleanCache && NODE_OPTIONS='--max-old-space-size=4096 --max-semi-space-size=64' NODE_ENV=development node --expose-gc ./node_modules/next/dist/bin/next dev",
     "dev:update-data": "NODE_ENV=development bun scripts/validate-environment.ts && NODE_ENV=development bun scripts/data-updater.ts",
