@@ -11,11 +11,23 @@ import { calculateSimilarity, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
 import type { RelatedContentType } from "@/types/related-content";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
+  if (isProductionBuild) {
+    return NextResponse.json(
+      {
+        buildPhase: true,
+        message: "Related-content debug disabled during build phase",
+      },
+      { status: 200, headers: NO_STORE_HEADERS },
+    );
+  }
   noStore();
   try {
-    const searchParams = new URL(request.url).searchParams;
+    const searchParams = request.nextUrl.searchParams;
     const sourceTypeRaw = searchParams.get("type");
     const sourceId = searchParams.get("id");
     const limitRaw = parseInt(searchParams.get("limit") || "20", 10);

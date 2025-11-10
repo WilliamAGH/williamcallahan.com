@@ -18,6 +18,9 @@ const withNoStoreHeaders = (additional?: Record<string, string>): HeadersInit =>
   additional ? { "Cache-Control": "no-store", ...additional } : { "Cache-Control": "no-store" };
 
 const inFlightSearches = new Map<string, Promise<SearchResult[]>>();
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+export const runtime = "nodejs";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Memory pressure check (adaptive & configurable)
@@ -80,6 +83,9 @@ function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
  * @returns A JSON response containing the search results or an error message.
  */
 export async function GET(request: NextRequest) {
+  if (isProductionBuild) {
+    return NextResponse.json([], { headers: withNoStoreHeaders({ "X-Search-Build-Phase": "true" }) });
+  }
   noStore();
   try {
     const headersList = request.headers;

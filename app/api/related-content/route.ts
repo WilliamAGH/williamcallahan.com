@@ -20,9 +20,12 @@ import type {
 } from "@/types/related-content";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+export const runtime = "nodejs";
 
 function resolveRequestUrl(request: NextRequest): URL {
-  return new URL(request.url);
+  return request.nextUrl;
 }
 
 // Default options
@@ -127,6 +130,19 @@ function toRelatedContentItem(content: NormalizedContent & { score: number }): R
 }
 
 export async function GET(request: NextRequest) {
+  if (isProductionBuild) {
+    return NextResponse.json(
+      {
+        data: [],
+        meta: {
+          pagination: { total: 0, totalPages: 0, page: 1, limit: 0, hasNext: false, hasPrev: false },
+          computeTime: 0,
+          buildPhase: true,
+        },
+      },
+      { headers: NO_STORE_HEADERS },
+    );
+  }
   noStore();
   const startTime = Date.now();
 

@@ -16,19 +16,12 @@ import { NextResponse, type NextRequest } from "next/server";
 // import type { SearchResult } from '@/types/search'; // Keep SearchResult type - Removed as unused by ESLint
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+export const runtime = "nodejs";
 
 function resolveRequestUrl(request: NextRequest): URL {
-  const headerStore = request.headers;
-  const nextUrlHeader = headerStore.get("next-url");
-  if (nextUrlHeader) {
-    if (nextUrlHeader.startsWith("http")) {
-      return new URL(nextUrlHeader);
-    }
-    const protocol = headerStore.get("x-forwarded-proto") ?? "https";
-    const host = headerStore.get("host") ?? "localhost";
-    return new URL(`${protocol}://${host}${nextUrlHeader.startsWith("/") ? nextUrlHeader : `/${nextUrlHeader}`}`);
-  }
-  return new URL(request.url);
+  return request.nextUrl;
 }
 
 /**
@@ -43,6 +36,9 @@ function resolveRequestUrl(request: NextRequest): URL {
  * @returns A JSON response containing the search results or an error message.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  if (isProductionBuild) {
+    return NextResponse.json([], { headers: NO_STORE_HEADERS });
+  }
   noStore();
   try {
     const requestUrl = resolveRequestUrl(request);
