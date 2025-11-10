@@ -12,6 +12,8 @@
 
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
+import { normalizeTagsToStrings, tagToSlug } from "../lib/utils/tag-utils";
+import { calculateBookmarksChecksum } from "../lib/bookmarks/utils";
 
 // Get CDN URL from environment or use default
 const CDN_URL = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
@@ -28,6 +30,10 @@ const BOOKMARKS_PATHS = {
   FILE: `json/bookmarks/bookmarks${envSuffix}.json`,
   INDEX: `json/bookmarks/index${envSuffix}.json`,
   SLUG_MAPPING: `json/bookmarks/slug-mapping${envSuffix}.json`,
+  HEARTBEAT: `json/bookmarks/heartbeat${envSuffix}.json`,
+  PAGE_PREFIX: `json/bookmarks/pages${envSuffix}/page-`,
+  TAG_PREFIX: `json/bookmarks/tags${envSuffix}/`,
+  TAG_INDEX_PREFIX: `json/bookmarks/tags${envSuffix}/`,
 };
 
 // Local paths to save fetched data
@@ -36,6 +42,8 @@ const LOCAL_PATHS = {
   INDEX: "lib/data/bookmarks-index.json",
   SLUG_MAPPING: "lib/data/slug-mapping.json",
 };
+
+const LOCAL_S3_BASE = join(process.cwd(), "lib/data/s3-cache");
 
 /**
  * Fetch JSON data from public CDN URL
@@ -80,6 +88,71 @@ function saveToFile(filePath: string, data: unknown): void {
   // Write file
   writeFileSync(fullPath, JSON.stringify(data, null, 2));
   console.log(`✅ Saved to: ${filePath}`);
+}
+
+function saveToLocalS3(key: string, data: unknown): void {
+  const fullPath = join(LOCAL_S3_BASE, key);
+  const dir = dirname(fullPath);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(fullPath, JSON.stringify(data, null, 2));
+  console.log(`   📦 Cached ${key} locally (${fullPath})`);
+}
+
+type BookmarkRecord = Record<string, unknown> & { id?: string; slug?: string; tags?: unknown };
+
+function embedSlug(bookmark: BookmarkRecord, slugMapping: any): BookmarkRecord {
+  if (bookmark.slug) return bookmark;
+  const slug = slugMapping?.slugs?.[bookmark.id as string]?.slug;
+  return slug ? { ...bookmark, slug } : bookmark;
+}
+
+function buildPaginationArtifacts(rawBookmarks: unknown, slugMapping: any, index: any, pagePrefix: string): void {
+  if (!Array.isArray(rawBookmarks) || rawBookmarks.length === 0) return;
+  const pageSize = typeof index?.pageSize === "number" && index.pageSize > 0 ? index.pageSize : 24;
+  const bookmarks = rawBookmarks.map(b => embedSlug(b as BookmarkRecord, slugMapping));
+  const totalPages = Math.max(1, Math.ceil(bookmarks.length / pageSize));
+  for (let page = 1; page <= totalPages; page++) {
+    const start = (page - 1) * pageSize;
+    const slice = bookmarks.slice(start, start + pageSize);
+    saveToLocalS3(`${pagePrefix}${page}.json`, slice);
+  }
+}
+
+function buildTagArtifacts(rawBookmarks: unknown, slugMapping: any, tagPrefix: string, tagIndexPrefix: string): void {
+  if (!Array.isArray(rawBookmarks) || rawBookmarks.length === 0) return;
+  const tagBuckets = new Map<string, BookmarkRecord[]>();
+  rawBookmarks.forEach(item => {
+    const bookmark = embedSlug(item as BookmarkRecord, slugMapping);
+    const tagNames = normalizeTagsToStrings((bookmark.tags as Array<string>) || []);
+    tagNames.forEach(tagName => {
+      const slug = tagToSlug(tagName);
+      if (!slug) return;
+      if (!tagBuckets.has(slug)) tagBuckets.set(slug, []);
+      tagBuckets.get(slug)?.push(bookmark);
+    });
+  });
+
+  const pageSize = 24;
+  const timestamp = Date.now();
+  tagBuckets.forEach((bookmarks, slug) => {
+    const totalPages = Math.max(1, Math.ceil(bookmarks.length / pageSize));
+    const indexPayload = {
+      count: bookmarks.length,
+      totalPages,
+      pageSize,
+      lastModified: new Date().toISOString(),
+      lastFetchedAt: timestamp,
+      lastAttemptedAt: timestamp,
+      checksum: calculateBookmarksChecksum(bookmarks as any),
+      changeDetected: true,
+    };
+    saveToLocalS3(`${tagIndexPrefix}${slug}/index.json`, indexPayload);
+    for (let page = 1; page <= totalPages; page++) {
+      const start = (page - 1) * pageSize;
+      const slice = bookmarks.slice(start, start + pageSize);
+      saveToLocalS3(`${tagPrefix}${slug}/page-${page}.json`, slice);
+    }
+  });
 }
 
 /**
@@ -183,16 +256,33 @@ async function main() {
     });
   }
 
-  // Summary
-  console.log("\n📊 Summary:");
-  console.log(`   ✅ Success: ${successCount}/3 files`);
-  if (failureCount > 0) {
-    console.log(`   ⚠️  Failed: ${failureCount}/3 files`);
-    console.log(`   Note: Sitemap may be incomplete without bookmark data`);
+  // Fetch heartbeat file
+  const heartbeat = await fetchWithFallback(BOOKMARKS_PATHS.HEARTBEAT);
+  if (heartbeat) {
+    saveToLocalS3(BOOKMARKS_PATHS.HEARTBEAT, heartbeat);
+    successCount++;
+  } else {
+    failureCount++;
   }
 
-  // Exit with appropriate code
-  process.exit(failureCount > 0 ? 1 : 0);
+  // Build local pagination + tag artifacts for fallback
+  if (bookmarks) {
+    buildPaginationArtifacts(bookmarks, slugMapping || {}, index, BOOKMARKS_PATHS.PAGE_PREFIX);
+    buildTagArtifacts(bookmarks, slugMapping || {}, BOOKMARKS_PATHS.TAG_PREFIX, BOOKMARKS_PATHS.TAG_INDEX_PREFIX);
+  }
+
+  // Summary
+  const totalOps = successCount + failureCount;
+  console.log("\n📊 Summary:");
+  console.log(`   ✅ Success: ${successCount}/${totalOps} fetch/build steps`);
+  if (failureCount > 0) {
+    console.log(`   ⚠️  Failed: ${failureCount}/${totalOps} steps`);
+    console.log(`   Note: Build will proceed using any locally cached data.`);
+  }
+
+  // Only fail hard if we couldn't fetch bookmarks at all
+  const criticalFailure = !bookmarks;
+  process.exit(criticalFailure ? 1 : 0);
 }
 
 // Run if executed directly

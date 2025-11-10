@@ -103,6 +103,7 @@ if (!S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
 
 // Lazy initialization of S3 client to ensure environment variables are loaded
 let s3ClientInstance: S3Client | null = null;
+let hasLoggedS3ClientInitialization = false;
 
 // Export a function to reset client for testing
 export function resetS3Client(): void {
@@ -130,12 +131,14 @@ export function getS3Client(): S3Client | null {
       retryMode: "adaptive" as const,
     };
     s3ClientInstance = endpoint ? new S3Client({ ...baseConfig, endpoint }) : new S3Client(baseConfig);
-    // Structured, one-line init summary for diagnostics
-    envLogger.log(
-      `S3 client initialized`,
-      { bucket, endpoint: endpoint || "SDK default", region },
-      { category: "S3Utils" },
-    );
+    const initDetails = { bucket, endpoint: endpoint || "SDK default", region } as const;
+    if (!hasLoggedS3ClientInitialization) {
+      // Structured, one-line init summary for diagnostics (first call only)
+      envLogger.log(`S3 client initialized`, initDetails, { category: "S3Utils" });
+      hasLoggedS3ClientInitialization = true;
+    } else {
+      envLogger.debug(`S3 client already initialized`, initDetails, { category: "S3Utils" });
+    }
     if (isDebug)
       debug(`[S3Utils] S3-compatible client initialized (${endpoint ? "custom endpoint" : "sdk default endpoint"}).`);
   } else {
