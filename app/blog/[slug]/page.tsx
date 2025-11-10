@@ -20,6 +20,15 @@ import { generateSchemaGraph } from "@/lib/seo/schema";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { RelatedContent } from "@/components/features/related-content";
 
+const shouldReadCspNonce =
+  process.env.NODE_ENV === "production" ||
+  process.env.DEBUG_CSP === "true" ||
+  process.env.DEBUG === "true" ||
+  process.env.VERBOSE === "true";
+
+const shouldLogCspWarnings =
+  process.env.DEBUG_CSP === "true" || process.env.DEBUG === "true" || process.env.VERBOSE === "true";
+
 /**
  * Generate static paths for all blog posts at build time
  * with ISR revalidation for newer content
@@ -237,15 +246,26 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
     // Read CSP nonce from middleware-injected header
     let nonce: string | undefined;
-    try {
-      const headersList = await headers();
-      const nonceValue = headersList.get("x-nonce");
-      if (nonceValue) {
-        nonce = nonceValue;
+    if (shouldReadCspNonce) {
+      try {
+        const headersList = await headers();
+        const nonceValue = headersList.get("x-nonce");
+        if (nonceValue) {
+          nonce = nonceValue;
+        }
+      } catch (error: unknown) {
+        if (shouldLogCspWarnings) {
+          let warningMessage = "Unknown error";
+          if (error instanceof Error) {
+            warningMessage = error.message;
+          } else if (typeof error === "string") {
+            warningMessage = error;
+          } else if (typeof error === "object" && error !== null) {
+            warningMessage = JSON.stringify(error);
+          }
+          console.warn("Failed to read headers for CSP nonce:", warningMessage);
+        }
       }
-    } catch (error) {
-      // headers() may fail in certain contexts (e.g., static generation)
-      console.warn("Failed to read headers for CSP nonce:", error instanceof Error ? error.message : String(error));
     }
 
     // Import MDXContent server component here at the page level
@@ -272,9 +292,14 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         </div>
       </>
     );
-  } catch (error) {
+  } catch (error: unknown) {
     // Log the error with details
-    console.error(`Error rendering blog post ${slug}:`, error);
+    if (error instanceof Error) {
+      console.error(`Error rendering blog post ${slug}:`, error);
+    } else {
+      const errorMessage = String(error);
+      console.error(`Error rendering blog post ${slug}:`, errorMessage);
+    }
 
     // Return 404 page for any error in blog post rendering
     // This prevents server crashes and provides a better user experience

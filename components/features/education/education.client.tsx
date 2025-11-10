@@ -111,7 +111,7 @@ export function EducationClient({
 
         return true;
       })
-      .sort((a, b) => {
+      .toSorted((a, b) => {
         // Handle sorting
         let valueA: string | number | undefined;
         let valueB: string | number | undefined;
