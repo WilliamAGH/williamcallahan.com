@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
  * Cache invalidation endpoint for bookmarks
  * Called by the scheduler after successful bookmark refresh to ensure fresh data is served
  */
-export async function POST(request: NextRequest) {
+export function POST(request: NextRequest): NextResponse {
   console.log(`[Cache Invalidation] Bookmarks revalidation endpoint called at ${new Date().toISOString()}`);
 
   // Verify authorization
