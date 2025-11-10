@@ -1,94 +1,41 @@
 graph TD
-    subgraph "Request Flow"
-        A[API/Component Request]
-        B{Cache Check}
-        C["✅ HIT<br/>~1ms"]
-        D["❌ MISS"]
+    subgraph "Write Pipeline"
+        EXT[External Suppliers<br/>(Karakeep, GitHub, etc.)]
+        JOB[Refresh Jobs / Scripts<br/>(cron, selective refresh)]
+        S3[S3 JSON Source of Truth<br/>(bookmarks.json, github_stats_summary.json, ...)]
+        EXT --> JOB --> S3
     end
 
-    subgraph "Caching Layers" 
-        L1["ServerCacheInstance<br/>Metadata Only<br/>(Map-based Cache)"]
-        L1B["Next.js 15 'use cache'<br/>Native Caching<br/>(NEW)"]
-        L2["ImageMemoryManager<br/>Deprecated<br/>(No caching)"]
-        L3["S3 Storage<br/>~50ms"]
-        L4["External APIs<br/>100ms-5s"]
-    end
-    
-    subgraph "Cache Invalidation"
-        INV1["/api/revalidate/bookmarks<br/>✅ Authenticated"]
-        INV2["revalidateTag()<br/>Programmatic"]
-        INV3["Scheduler Trigger<br/>After S3 Update"]
-        INV4["Cache Tags:<br/>• bookmarks<br/>• bookmarks-page-N<br/>• bookmarks-tag-X<br/>• search-index"]
-    end
-    
-    subgraph "Migration Status"
-        M1["✅ MIGRATED (9 files)<br/>• lib/search.ts<br/>• lib/bookmarks/bookmarks-data-access.server.ts<br/>• lib/data-access/github.ts<br/>• lib/blog/mdx.ts<br/>• lib/data-access/images.server.ts<br/>+ 4 API routes"]
-        M2["❌ LEGACY (33 files)<br/>Using ServerCacheInstance<br/>• lib/data-access/opengraph.ts<br/>• lib/data-access/logos.ts<br/>• API routes<br/>• Health endpoints"]
-        M3["🔧 MAP-BASED (10 files)<br/>Direct Map usage<br/>• lib/server-cache.ts<br/>• lib/rate-limit.ts<br/>• Session management"]
-    end
-    
-    subgraph "Advanced Patterns"
-        RC["Request Coalescing<br/>(Share promises)"]
-        DL["Distributed Lock<br/>(S3-based)"]
-        NC["Negative Cache<br/>(Failed = 1-2hr)"]
-        SWR["Stale-While-Revalidate<br/>Serve old, fetch new"]
+    subgraph "Read Pipeline"
+        RSC[Next.js Cache Components<br/>('use cache', cacheTag)]
+        UI[Pages & RSC Consumers<br/>(bookmarks, blog, related-content, github)]
+        API[API Routes<br/>(noStore, Cache-Control: no-store)]
+        S3 --> RSC --> UI
+        S3 --> API
     end
 
-    subgraph "Cache TTLs"
-        TTL1["Bookmarks: 1hr"]
-        TTL2["Pagination: 1 day"]
-        TTL3["Logos: 30 days"]
-        TTL4["GitHub: 24hr"]
-        TTL5["Search: 15min"]
+    subgraph "Supporting Layers"
+        LEGACY[ServerCacheInstance<br/>Metadata-only Map cache]
+        LOCK[Distributed Locking<br/>(S3 lock files)]
+        RC[Request Coalescing]
+        LEGACY --> UI
+        LOCK --> JOB
+        RC --> JOB
     end
 
-    subgraph "Memory Safety"
-        MS1["No buffers in ServerCache"]
-        MS2["10MB buffer rejection"]
-        MS3["100k key limit"]
-        MS4["Batch eviction 10%"]
+    subgraph "Cache Tags & TTLs"
+        TAG1[bookmarks / slug tags<br/>15-60 min]
+        TAG2[blog / related-content<br/>~1-2 h]
+        TAG3[github-activity<br/>~30 min]
+        RSC --> TAG1
+        RSC --> TAG2
+        RSC --> TAG3
     end
 
-    A --> B
-    B -->|HIT| C
-    B -->|MISS| D
-    
-    D --> RC
-    RC -->|New| L3
-    RC -->|Waiting| RC
-    
-    L3 -->|Found| L1
-    L3 -->|Miss| L4
-    L4 --> NC
-    NC --> L1
-    
-    L1 -.->|Images| L2
-    L2 -.->|No Cache| C
-    L1 -.->|Metadata| C
-    L1B -.->|JSON Data| C
-    
-    %% Invalidation Flow
-    INV3 -->|POST| INV1
-    INV1 -->|Calls| INV2
-    INV2 -->|Clears| INV4
-    INV4 -->|Invalidates| L1B
-
-    subgraph "✅ Security Fixed"
-        SEC1["/api/cache/clear"]
-        SEC2["x-api-key Auth"]
-        SEC3["Protected"]
+    subgraph "API Exclusions"
+        API --> EX[unstable_noStore()<br/>Cache-Control: no-store]
     end
-    
-    SEC1 --> SEC2
-    SEC2 --> SEC3
 
-    %% Styling
-    style B fill:#e1f5fe
-    style C fill:#d4edda,stroke:#155724
-    style D fill:#f8d7da,stroke:#721c24
-    style L1B fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
-    style INV1 fill:#d4edda,stroke:#155724
-    style INV2 fill:#d4edda,stroke:#155724
-    style SEC1 fill:#d4edda,stroke:#155724
-    style SEC2 fill:#d4edda,stroke:#155724
-    style SEC3 fill:#d4edda,stroke:#155724
+    style S3 fill:#dff0d8,stroke:#2f6627,stroke-width:2px
+    style RSC fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style API fill:#fdecea,stroke:#b71c1c,stroke-width:2px

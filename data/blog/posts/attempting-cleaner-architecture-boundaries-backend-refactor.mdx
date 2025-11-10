@@ -2,8 +2,8 @@
 title: "Attempting to Design a Back-end with Cleaner Architecture Rules and Boundaries"
 slug: "attempting-cleaner-architecture-boundaries-backend-refactor"
 excerpt: "How I'm learning to build with better software architecture design principles (while 'moving fast and breaking things')."
-publishedAt: "2025-11-07"
-updatedAt: "2025-11-07"
+publishedAt: "2025-11-09"
+updatedAt: "2025-11-09"
 author: "william-callahan"
 tags:
   [
@@ -113,7 +113,7 @@ public abstract class BaseDomainService<T, ID> extends BaseListService {
         return baseRepository.findPage(where, order, direction, limit, offset);
     }
 
-    // Plus 15 more "convenience" methods...
+    // Plus more "convenience" methods...
 }
 ```
 
@@ -205,7 +205,7 @@ private final ArchRule new_use_cases_follow_clean_architecture =
         .resideInAnyPackage(
             "..domain..",
             "java..",
-            "org.slf4j.."  // logging allowed
+            "org.slf4j.."
         );
 ```
 
@@ -335,7 +335,7 @@ In Spring, [ProblemDetail](https://docs.spring.io/spring-framework/docs/current/
 ```java
 @RestControllerAdvice
 class ApiExceptionHandler {
-    @ExceptionHandler(DuplicatePersonException.class)
+    @ExceptionHandler(DupulicatePersonException.class)
     ProblemDetail handleDuplicate(DuplicatePersonException ex) {
         return ProblemDetail.forStatusAndDetail(
             HttpStatus.CONFLICT,

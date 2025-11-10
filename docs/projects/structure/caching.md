@@ -4,13 +4,23 @@
 
 ## Core Objective
 
-High-performance multi-tiered caching with request coalescing, distributed locking, cache invalidation, and memory-safe operations using Next.js 15's native 'use cache' directive and a simple Map-based server cache implementation.
+High-performance multi-tiered caching with request coalescing, distributed locking, cache invalidation, and memory-safe operations built on **JSON source-of-truth files in S3**, periodic refresh jobs, and Next.js Cache Components for page/UI responses. The JSON writers are not new—they have always been the backbone for bookmarks, blogs, GitHub activity, and related-content results—but this document now reflects the actual production pipeline end to end.
 
 ## Architecture Diagram
 
-See `caching.mmd` for visual flow and migration status.
+See `caching.mmd` for the updated flow showing JSON writers, S3 persistence, Next.js cache layers, and API exclusions.
 
 ## Caching Implementation Inventory
+
+### JSON ➜ Next.js Cache Responsibilities (high-traffic flows)
+
+| Domain                          | JSON writers (cron/scripts)                                                                             | JSON readers (Next.js cache)                                                                    | Cache tags & TTL                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| **Bookmarks** (highest traffic) | `scripts/update-bookmarks.ts`, selective refresh inside `lib/bookmarks/bookmarks-data-access.server.ts` | Bookmark list/detail routes, related-content aggregators (`lib/search.ts`, `lib/content-graph`) | `cacheTag("bookmarks")`, slug-level tags, 15–60 min depending on page |
+| **Blog + Related Content**      | `lib/blog/mdx.ts` MDX build cache, content graph jobs                                                   | Blog index/detail routes, `/related-content` readers                                            | `cacheTag("blog")`, `cacheTag("related-content")`, ~1–2 h             |
+| **GitHub Activity**             | `scripts/update-s3-data.ts`, signed `/api/github-activity/refresh`                                      | `/github` RSCs, summary cards, `/health` deep checks                                            | `cacheTag("github-activity")`, ~30 min                                |
+
+**Important:** Every read listed above first pulls JSON from S3. Only after S3 JSON loads do we hydrate RSCs and wrap the output in Next.js cache tags/lifetimes. API routes (`/api/bookmarks`, `/api/search/*`, `/api/related-content*`, `/api/health/*`, etc.) explicitly call `unstable_noStore()` and return `Cache-Control: no-store` so they never participate in Cache Components.
 
 ### Files Using Next.js 15 'use cache' Directive (9 files)
 
@@ -143,7 +153,13 @@ export function invalidateDataCache() {
 ### 4. Multi-Tier Architecture
 
 ```
-L1: Memory Cache (~1ms) → L2: S3 Storage (~50ms) → L3: External APIs (100ms-5s)
+External APIs (Karakeep, GitHub, etc.)
+  ↓ periodic refresh jobs / scripts
+JSON in S3 (bookmarks.json, github_stats_summary.json, ...)
+  ↓ Next.js Cache Components (per page/section)
+Client responses (RSCs / React Server Actions)
+
+API routes (REST/GraphQL endpoints) → `unstable_noStore()` → always read S3 JSON fresh
 ```
 
 ## Caching Patterns
