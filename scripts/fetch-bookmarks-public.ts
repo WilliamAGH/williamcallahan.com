@@ -46,7 +46,9 @@ const LOCAL_PATHS = {
   SLUG_MAPPING: "lib/data/slug-mapping.json",
 };
 
-const LOCAL_S3_BASE = join(process.cwd(), "lib/data/s3-cache");
+const LOCAL_S3_BASE =
+  (process.env.LOCAL_S3_CACHE_DIR && process.env.LOCAL_S3_CACHE_DIR.trim()) ||
+  join(process.cwd(), ".next", "cache", "local-s3");
 const HAS_S3_CREDENTIALS =
   Boolean(process.env.S3_BUCKET) && Boolean(process.env.S3_ACCESS_KEY_ID) && Boolean(process.env.S3_SECRET_ACCESS_KEY);
 

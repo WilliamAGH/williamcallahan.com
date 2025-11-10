@@ -5,7 +5,9 @@ import path from "node:path";
  * Local directory where build-time scripts persist S3 snapshots.
  * Path mirrors the remote key structure so callers can join S3 keys directly.
  */
-export const LOCAL_S3_CACHE_DIR = path.join(process.cwd(), "lib/data/s3-cache");
+export const LOCAL_S3_CACHE_DIR =
+  (process.env.LOCAL_S3_CACHE_DIR && process.env.LOCAL_S3_CACHE_DIR.trim()) ||
+  path.join(process.cwd(), ".next", "cache", "local-s3");
 
 /**
  * Resolve an absolute filesystem path for a given S3 key inside the local cache.

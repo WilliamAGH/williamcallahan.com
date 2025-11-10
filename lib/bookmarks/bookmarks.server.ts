@@ -12,7 +12,20 @@ import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import { stripImageData } from "../bookmarks/utils";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
-import { readLocalS3Json } from "@/lib/bookmarks/local-s3-cache";
+
+const isProductionBuildPhase =
+  process.env.NODE_ENV === "production" || process.env.NEXT_PHASE === "phase-production-build";
+
+let localS3CacheModule: typeof import("@/lib/bookmarks/local-s3-cache") | null = null;
+async function readLocalS3JsonSafe<T>(key: string): Promise<T | null> {
+  if (isProductionBuildPhase) {
+    return null;
+  }
+  if (!localS3CacheModule) {
+    localS3CacheModule = await import("@/lib/bookmarks/local-s3-cache");
+  }
+  return localS3CacheModule.readLocalS3Json<T>(key);
+}
 
 /**
  * Async bookmark fetcher for static site generation (sitemap, generateStaticParams)
@@ -32,7 +45,7 @@ export async function getBookmarksForStaticBuildAsync(): Promise<LightweightBook
     // Load full bookmarks from S3 (or fallback to local cache)
     let rawData = await readJsonS3<unknown>(BOOKMARKS_S3_PATHS.FILE);
     if (!rawData) {
-      rawData = await readLocalS3Json<unknown>(BOOKMARKS_S3_PATHS.FILE);
+      rawData = await readLocalS3JsonSafe<unknown>(BOOKMARKS_S3_PATHS.FILE);
       if (rawData) {
         console.log(`[Static Build] Loaded ${BOOKMARKS_S3_PATHS.FILE} from local cache (S3 unavailable).`);
       }

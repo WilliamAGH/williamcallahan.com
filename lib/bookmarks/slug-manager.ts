@@ -22,7 +22,19 @@ import { envLogger } from "@/lib/utils/env-logger";
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { readLocalS3Json } from "@/lib/bookmarks/local-s3-cache";
+const isProductionBuildPhase =
+  process.env.NODE_ENV === "production" || process.env.NEXT_PHASE === "phase-production-build";
+
+let localS3CacheModule: typeof import("@/lib/bookmarks/local-s3-cache") | null = null;
+async function readLocalS3JsonSafe<T>(key: string): Promise<T | null> {
+  if (isProductionBuildPhase) {
+    return null;
+  }
+  if (!localS3CacheModule) {
+    localS3CacheModule = await import("@/lib/bookmarks/local-s3-cache");
+  }
+  return localS3CacheModule.readLocalS3Json<T>(key);
+}
 
 // Local file path for ephemeral cache (container-local, not persisted)
 export const LOCAL_SLUG_MAPPING_PATH = path.join(process.cwd(), "lib", "data", "slug-mapping.json");
@@ -271,7 +283,7 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
       logger.info(`[SlugManager] Successfully loaded slug mapping with ${data.count} entries from primary path`);
       return data;
     }
-    const localS3Data = await readLocalS3Json<BookmarkSlugMapping>(primaryPath);
+    const localS3Data = await readLocalS3JsonSafe<BookmarkSlugMapping>(primaryPath);
     if (localS3Data) {
       logger.info(
         `[SlugManager] Loaded slug mapping from local cache mirror (${primaryPath}) with ${localS3Data.count} entries`,

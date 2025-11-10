@@ -22,10 +22,23 @@ import { getDeterministicTimestamp } from "@/lib/server-cache";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { processBookmarksInBatches } from "@/lib/bookmarks/enrich-opengraph";
-import { readLocalS3Json } from "@/lib/bookmarks/local-s3-cache";
 
 const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "lib", "data", "bookmarks.json");
 const LOCAL_BOOKMARKS_BY_ID_DIR = path.join(process.cwd(), ".next", "cache", "bookmarks", "by-id");
+
+const isProductionBuildPhase =
+  process.env.NODE_ENV === "production" || process.env.NEXT_PHASE === "phase-production-build";
+
+let localS3CacheModule: typeof import("@/lib/bookmarks/local-s3-cache") | null = null;
+async function readLocalS3JsonSafe<T>(key: string): Promise<T | null> {
+  if (isProductionBuildPhase) {
+    return null;
+  }
+  if (!localS3CacheModule) {
+    localS3CacheModule = await import("@/lib/bookmarks/local-s3-cache");
+  }
+  return localS3CacheModule.readLocalS3Json<T>(key);
+}
 
 // Runtime-safe cache wrappers for experimental Next.js APIs
 // These functions are only available in Next.js request context with experimental.useCache enabled
@@ -896,7 +909,7 @@ async function getBookmarksPageDirect(pageNumber: number): Promise<UnifiedBookma
     }
   }
 
-  const fallback = await readLocalS3Json<UnifiedBookmark[]>(key);
+  const fallback = await readLocalS3JsonSafe<UnifiedBookmark[]>(key);
   if (fallback) {
     logBookmarkDataAccessEvent("Loaded page data from local S3 cache", { pageNumber, source: "local" });
     return normalizePageBookmarkTags(fallback);
@@ -940,7 +953,7 @@ async function getTagBookmarksPageDirect(tagSlug: string, pageNumber: number): P
     }
   }
 
-  const fallback = await readLocalS3Json<UnifiedBookmark[]>(key);
+  const fallback = await readLocalS3JsonSafe<UnifiedBookmark[]>(key);
   if (fallback) {
     logBookmarkDataAccessEvent("Loaded tag page data from local S3 cache", {
       pageNumber,

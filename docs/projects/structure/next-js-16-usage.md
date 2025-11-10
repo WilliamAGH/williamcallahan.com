@@ -50,6 +50,54 @@ Provide a single operational playbook for all work that interacts with our Next.
 
 - Confirm all test utilities work with `jest@30.1.3` and `@types/jest@30`. Avoid packages that patch globals incompatible with this runtime.
 
+## Build-Stability Runbook (Repository-Specific)
+
+These are the failure modes that blocked >100 deploy attempts. Follow each checklist before touching framework files or opening a PR.
+
+### 1. Async request params & metadata (Promises everywhere)
+
+- **Mandatory pattern:** Resolve `params`/`searchParams`/`id` immediately via `const resolved = await params` or `await Promise.resolve(params)` before destructuring.
+- **Reference implementations:**
+  - `app/bookmarks/page/[pageNumber]/page.tsx:34-111` – uses `const paramsResolved = await Promise.resolve(params)` for both `generateMetadata` and the page component.
+  - `app/blog/[slug]/page.tsx:78-118` – destructures `{ slug } = await params` before any lookups.
+  - `app/bookmarks/tags/[...slug]/page.tsx:86-147` and `app/bookmarks/[slug]/page.tsx:182-297` follow the same pattern for complex Zod validation.
+- **Sitemap / metadata builders:** `app/sitemap.ts:63-240` still carries a Next.js 14 comment; the implementation already runs inside `export default async function sitemap()` but every future change must keep `await getBookmarksForStaticBuildAsync()` and any future route params asynchronous.
+- **Action items when adding new routes:** copy one of the reference patterns, add a code comment citing this section, and include tests under `__tests__/app/` that cover invalid params so we catch missing `await` calls.
+
+#### 1.a Guarding Date/Time usage (`next-prerender-current-time`)
+
+- **Problem:** Next.js 16 throws [next-prerender-current-time](https://nextjs.org/docs/messages/next-prerender-current-time) if `Date.now()`, `Date()`, or `new Date()` executes before any uncached `fetch()`/DB call or before request-bound data (`headers()`, `cookies()`, `connection()`, `searchParams`). This blocks prerendering and killed several builds.
+- **Repository guidance:**
+  - Use `performance.now()`/`performance.timeOrigin + performance.now()` for profiling/diagnostics. Never feed those values into render output or cache keys.
+  - If the timestamp should be cached with the page, move it inside a cache component/function (`"use cache"`) so it only runs during ISR/revalidation (see Next.js doc’s “Cacheable use case”).
+  - If the time must be request-specific, prefer a Client Component (wrap it in `<Suspense>`). When that’s impossible, await request data first (`await connection()` or run the uncached `fetch`) **before** calling `Date.now()`.
+  - When third-party code reads the current time, wrap the call site in a helper that invokes `await connection()` prior to the import so Next.js recognizes it as request-time logic.
+- **Code search:** `rg "Date\.now" -g"*.ts*"` currently shows only test/scripts/client files, but re-run this search before every PR to ensure no server entry point reintroduces the anti-pattern.
+
+### 2. Turbopack + build CLI expectations
+
+- **Dev/build scripts:** `package.json:18-44` launches `node --expose-gc ./node_modules/next/dist/bin/next dev` and `next build` without any `--turbopack` flags. Do **not** add CLI switches; Turbopack is already the default runtime in v16.
+- **`next.config.ts:250-320`** documents the server output settings that keep CI stable (disabled `poweredByHeader`, `productionBrowserSourceMaps`, custom `staticGenerationMaxConcurrency`). Any deviation must include measured heap usage.
+- **When builds hang:** capture the failing command plus stderr, then inspect `<repo>/.next/turbopack/.../trace.log`. Document the incident at the bottom of this file before retrying.
+- **Local verification loop:** `bun run validate && NODE_ENV=production bun run build` is the minimum to reproduce CI (remember the custom `NODE_OPTIONS` in `package.json`).
+
+### 3. Cache Components + fetch caching discipline
+
+- **Configuration source-of-truth:** `next.config.ts:286` enables `cacheComponents: true`. Never reintroduce `experimental.ppr`, `dynamicIO`, or `force-static` overrides without updating this doc.
+- **Cache helpers:** when a module needs tagging/staleness, import `{ cacheLife, cacheTag }` from `next/cache`. Example: update `lib/server/data-fetch-manager.ts` when we need a new tag rather than reusing `unstable_cache`.
+- **Fetch defaults:** With cache components on, `fetch()` remains uncached unless `next: { revalidate }` is set. Document intent inline (e.g., `// Next 16: do not cache because ...`).
+- **Bookmarks + S3:** `app/sitemap.ts:188-246` shows the approved flow (fetch data via `getBookmarksForStaticBuildAsync`, generate slug mapping, and log diagnostics). Any new cache invalidation must also touch `lib/bookmarks/service.server.ts` so ISR + cache components agree.
+
+### 4. Image redirect + asset consistency
+
+- Node 22 + Next 16 limit remote image redirects to 3 (`node_modules/next/dist/shared/lib/image-config.js:37-73`). If a provider needs more, document the `images.maximumRedirects` override inside `next.config.ts` plus the evidence (HTTP trace) in this file.
+- When Turbopack reports `Missing image response meta`, inspect `/app/(.*)/opengraph-image.tsx` handlers first—they now receive async params, so you must `await` before building OG data.
+
+### 5. Documentation + MCP receipts
+
+- Every framework PR must paste the specific MCP query + node_modules file reference into its description. Example: “Context7 `/vercel/next.js` topic `version-16` (2025-11-12) confirms async sitemap params – see `node_modules/next/dist/server/request/params.js:150-226`.”
+- Update this runbook the moment a new failure mode appears; treat it as the incident log.
+
 ## Allowed Patterns (✅)
 
 | Area         | Requirement                                                                                      |
