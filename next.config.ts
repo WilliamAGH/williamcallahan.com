@@ -272,15 +272,9 @@ const nextConfig = {
     // NOTE: CSP is now primarily handled in middleware.ts. This block is effectively overridden - do not remove this comment.
     // },
   ],
-
-  // Standard Nextjs config options (Next 16 Turbopack server output)
   poweredByHeader: false,
   reactStrictMode: true,
   productionBrowserSourceMaps: false, // Disable to save memory during builds
-  // Nextjs 15 uses SWC by default; swcMinify option is no longer needed
-  // Transpile ESM-only dependencies that need CJS compatibility in production.
-  // Dev builds can skip this to preserve fast refresh because both packages ship
-  // dev-friendly bundles that work without transpilation (see PR #XXXX review).
   // Enable Cache Components (formerly experimental.useCache in Next.js 15)
   // This is the new way to enable 'use cache' directive in Next.js 16
   cacheComponents: true,
@@ -330,10 +324,7 @@ const nextConfig = {
    * @see https://nextjs.org/docs/app/api-reference/components/image
    */
   images: {
-    // Bypass image optimization in development to reduce memory pressure
-    // Image-worker transforms contribute significantly to webpack memory spikes
     ...(process.env.NODE_ENV === "development" ? { unoptimized: true } : {}),
-    domains: ["s3-storage.callahan.cloud", "williamcallahan.com", "dev.williamcallahan.com"],
     /**
      * Allows Nextjs to optimize SVGs using `next/image`
      * Note: This can have security implications if SVGs are user-uploaded
@@ -401,6 +392,7 @@ const nextConfig = {
       /**
        * Whitelist for general image sources and CDNs used by the site
        */
+      { protocol: "https", hostname: "s3-storage.callahan.cloud", pathname: "/**" },
       // Stock photos and site-specific assets
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "williamcallahan.com" },
@@ -419,7 +411,6 @@ const nextConfig = {
       { protocol: "https", hostname: "*.popos-sf2.com" },
       { protocol: "https", hostname: "*.popos-sf3.com" },
       { protocol: "https", hostname: "*.digitaloceanspaces.com" }, // DigitalOcean Spaces CDN
-      { protocol: "https", hostname: "s3-storage.callahan.cloud", pathname: "/**" }, // S3 Storage CDN
       { protocol: "https", hostname: "*.callahan.cloud", pathname: "/**" }, // DigitalOcean Spaces CDN
 
       /**
