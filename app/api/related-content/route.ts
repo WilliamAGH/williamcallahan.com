@@ -6,7 +6,6 @@
  */
 
 import { unstable_noStore as noStore } from "next/cache";
-import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { aggregateAllContent, getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { findMostSimilar, groupByType, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
@@ -22,22 +21,8 @@ import type {
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
-function buildAbsoluteUrl(value: string, headersList: Headers): URL {
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return new URL(value);
-  }
-  const protocol = headersList.get("x-forwarded-proto") ?? "https";
-  const host = headersList.get("host") ?? "localhost";
-  const normalizedPath = value.startsWith("/") ? value : `/${value}`;
-  return new URL(`${protocol}://${host}${normalizedPath}`);
-}
-
-function resolveRequestUrl(request: NextRequest, headersList: Headers): URL {
-  const nextUrlHeader = headersList.get("next-url");
-  if (nextUrlHeader) {
-    return buildAbsoluteUrl(nextUrlHeader, headersList);
-  }
-  return new URL(request.url);
+function resolveRequestUrl(request: NextRequest): URL {
+  return request.nextUrl;
 }
 
 // Default options
@@ -144,11 +129,10 @@ function toRelatedContentItem(content: NormalizedContent & { score: number }): R
 export async function GET(request: NextRequest) {
   noStore();
   const startTime = Date.now();
-  const headersList = headers();
 
   try {
     // Parse query parameters
-    const requestUrl = resolveRequestUrl(request, headersList);
+    const requestUrl = resolveRequestUrl(request);
     const searchParams = requestUrl.searchParams;
     const sourceTypeRaw = searchParams.get("type");
     const allowedTypes = new Set<RelatedContentType>(["bookmark", "blog", "investment", "project"]);

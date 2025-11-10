@@ -4,31 +4,18 @@
  * This endpoint helps diagnose why certain content types are or aren't matching
  */
 
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
-import { headers } from "next/headers";
 import { aggregateAllContent, getContentById } from "@/lib/content-similarity/aggregator";
 import { calculateSimilarity, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
 import type { RelatedContentType } from "@/types/related-content";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
-function buildAbsoluteUrl(value: string, headersList: Headers): URL {
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return new URL(value);
-  }
-  const protocol = headersList.get("x-forwarded-proto") ?? "https";
-  const host = headersList.get("host") ?? "localhost";
-  const normalizedPath = value.startsWith("/") ? value : `/${value}`;
-  return new URL(`${protocol}://${host}${normalizedPath}`);
-}
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   noStore();
   try {
-    const headersList = await headers();
-    const nextUrlHeader = headersList.get("next-url") ?? "/api/related-content/debug";
-    const searchParams = buildAbsoluteUrl(nextUrlHeader, headersList).searchParams;
+    const searchParams = request.nextUrl.searchParams;
     const sourceTypeRaw = searchParams.get("type");
     const sourceId = searchParams.get("id");
     const limitRaw = parseInt(searchParams.get("limit") || "20", 10);
