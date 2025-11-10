@@ -21,6 +21,22 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const hasPerformanceClock =
+  typeof globalThis !== "undefined" &&
+  typeof globalThis.performance !== "undefined" &&
+  typeof globalThis.performance.now === "function";
+
+/**
+ * Provides a monotonic timestamp without relying on Date.now()
+ * to keep Server Components deterministic during prerender.
+ */
+export function getMonotonicTime(): number {
+  if (hasPerformanceClock && globalThis.performance) {
+    return Math.floor(globalThis.performance.timeOrigin + globalThis.performance.now());
+  }
+  return Date.now();
+}
+
 /**
  * Formats a numeric percentage value (0–100) as a string with a '%' suffix
  *
