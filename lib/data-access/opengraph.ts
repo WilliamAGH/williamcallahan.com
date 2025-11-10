@@ -1,4 +1,5 @@
 import { envLogger } from "@/lib/utils/env-logger";
+import { getMonotonicTime } from "@/lib/utils";
 /**
  * OpenGraph Data Access Module
  *
@@ -46,6 +47,8 @@ const safeRevalidateTag = (...args: Parameters<typeof cacheContextGuards.revalid
 const isCliLikeContext = isCliLikeCacheContext;
 
 const inFlightOgPromises: Map<string, Promise<OgResult | null>> = new Map();
+const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+const getOgTimestamp = (): number => (isProductionBuildPhase ? 0 : getMonotonicTime());
 
 /**
  * Cached OpenGraph data fetching with Next.js 'use cache'
@@ -95,11 +98,12 @@ async function getCachedOpenGraphDataInternal(
     const stored = await readJsonS3(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`);
     if (isOgResult(stored)) {
       // Check if S3 data is fresh enough
-      const isDataFresh = stored.timestamp && Date.now() - stored.timestamp < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
+      const isDataFresh =
+        stored.timestamp && getOgTimestamp() - stored.timestamp < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
 
       if (isDataFresh) {
         debug(
-          `[OG-Priority-3] ✅ Found FRESH S3 storage: ${normalizedUrl} (age: ${Math.round((Date.now() - (stored.timestamp || 0)) / 1000)}s)`,
+          `[OG-Priority-3] ✅ Found FRESH S3 storage: ${normalizedUrl} (age: ${Math.round((getOgTimestamp() - (stored.timestamp || 0)) / 1000)}s)`,
         );
 
         // Return the stored result directly - no need to process S3 image URLs
@@ -195,7 +199,7 @@ export async function getOpenGraphData(
   // PRIORITY LEVEL 2: Check metadata cache first
   debug(`[OG-Priority-2] 🔍 Checking metadata cache for: ${normalizedUrl}`);
   const cached = ServerCacheInstance.getOpenGraphData(normalizedUrl);
-  if (cached && Date.now() - (cached.data.timestamp ?? 0) < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000) {
+  if (cached && getOgTimestamp() - (cached.data.timestamp ?? 0) < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000) {
     debug(`[OG-Priority-2] ✅ Found valid metadata cache for: ${normalizedUrl}`);
 
     // Validate cached data integrity
@@ -254,16 +258,17 @@ export async function getOpenGraphData(
     const stored = await readJsonS3(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`);
     if (isOgResult(stored)) {
       // Check if S3 data is fresh enough
-      const isDataFresh = stored.timestamp && Date.now() - stored.timestamp < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
+      const isDataFresh =
+        stored.timestamp && getOgTimestamp() - stored.timestamp < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
 
       if (!isDataFresh) {
         debug(
-          `[OG-Priority-3] ❌ Found STALE S3 storage (age: ${Math.round((Date.now() - (stored.timestamp || 0)) / 1000)}s), continuing to Priority 4: ${normalizedUrl}`,
+          `[OG-Priority-3] ❌ Found STALE S3 storage (age: ${Math.round((getOgTimestamp() - (stored.timestamp || 0)) / 1000)}s), continuing to Priority 4: ${normalizedUrl}`,
         );
         // Continue to Priority 4 by not returning here
       } else {
         debug(
-          `[OG-Priority-3] ✅ Found FRESH S3 storage: ${normalizedUrl} (age: ${Math.round((Date.now() - (stored.timestamp || 0)) / 1000)}s)`,
+          `[OG-Priority-3] ✅ Found FRESH S3 storage: ${normalizedUrl} (age: ${Math.round((getOgTimestamp() - (stored.timestamp || 0)) / 1000)}s)`,
         );
 
         // Store in memory cache and return - S3 images are served directly

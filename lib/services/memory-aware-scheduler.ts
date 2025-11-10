@@ -14,6 +14,7 @@
 import { EventEmitter } from "node:events";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { MEMORY_THRESHOLDS } from "@/lib/constants";
+import { getMonotonicTime } from "@/lib/utils";
 import { RequestPriority, type ScheduledRequest, type SchedulerMetrics } from "@/types/services";
 
 /**
@@ -81,8 +82,8 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
     }
 
     this.requestCounter += 1;
-    const requestId = `req-${this.requestCounter}-${Date.now()}`;
-    const timestamp = Date.now();
+    const requestId = `req-${this.requestCounter}-${Math.floor(getMonotonicTime())}`;
+    const timestamp = getMonotonicTime();
 
     return new Promise<T>((resolve, reject) => {
       const scheduledRequest: ScheduledRequest = {
@@ -217,7 +218,7 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
 
       this.activeRequests.add(request.id);
 
-      const startTime = Date.now();
+      const startTime = getMonotonicTime();
       const waitTime = startTime - request.timestamp;
       this.waitTimes.push(waitTime);
 
@@ -238,7 +239,7 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
         request.resolve(result);
         this.totalProcessed++;
 
-        const processingTime = Date.now() - startTime;
+        const processingTime = getMonotonicTime() - startTime;
         this.emit("request-completed", {
           id: request.id,
           processingTime,

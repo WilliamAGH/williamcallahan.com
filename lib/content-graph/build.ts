@@ -1,6 +1,7 @@
 import logger from "@/lib/utils/logger";
 import { writeJsonS3 } from "@/lib/s3-utils";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
+import { getMonotonicTime } from "@/lib/utils";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 
 // This function was moved from DataFetchManager
@@ -103,7 +104,7 @@ async function buildTagGraph(allContent: Array<{ type: string; id: string; tags?
 
 // This function was moved from DataFetchManager
 export async function buildContentGraph(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
-  const startTime = Date.now();
+  const startTime = getMonotonicTime();
   void config; // Mark as acknowledged per project convention
   logger.info("[DataFetchManager] Starting content graph build...");
 
@@ -130,7 +131,7 @@ export async function buildContentGraph(config: DataFetchConfig): Promise<DataFe
         success: true,
         operation: "content-graph",
         itemsProcessed: 0,
-        duration: (Date.now() - startTime) / 1000,
+        duration: (getMonotonicTime() - startTime) / 1000,
       };
     }
 
@@ -205,7 +206,7 @@ export async function buildContentGraph(config: DataFetchConfig): Promise<DataFe
     ]);
     logger.info(`[DataFetchManager] Saved tag graph with ${Object.keys(tagGraph.tags).length} tags`);
 
-    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    const duration = ((getMonotonicTime() - startTime) / 1000).toFixed(2);
     logger.info(`[DataFetchManager] Content graph built in ${duration}s`);
 
     return {
@@ -220,7 +221,7 @@ export async function buildContentGraph(config: DataFetchConfig): Promise<DataFe
       success: false,
       operation: "content-graph",
       error: error instanceof Error ? error.message : String(error),
-      duration: (Date.now() - startTime) / 1000,
+      duration: (getMonotonicTime() - startTime) / 1000,
     };
   }
 }

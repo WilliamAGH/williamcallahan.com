@@ -8,6 +8,7 @@
  */
 
 import si from "systeminformation";
+import { getMonotonicTime } from "@/lib/utils";
 
 /**
  * Fetches a consolidated object of system metrics.
@@ -21,7 +22,7 @@ export async function getSystemMetrics() {
       mem,
       cpu,
       net,
-      ts: Date.now(),
+      ts: getMonotonicTime(),
     };
   } catch (error) {
     console.error("[SystemMetrics] Failed to get system metrics:", error);
