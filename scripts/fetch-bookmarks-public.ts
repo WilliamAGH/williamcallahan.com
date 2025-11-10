@@ -15,6 +15,7 @@ import { join, dirname } from "node:path";
 import { normalizeTagsToStrings, tagToSlug } from "../lib/utils/tag-utils";
 import { calculateBookmarksChecksum } from "../lib/bookmarks/utils";
 import { readJsonS3 } from "../lib/s3-utils";
+import type { BookmarkS3Record } from "@/types/bookmark";
 
 // Get CDN URL from environment or use default
 const CDN_URL = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
@@ -115,9 +116,7 @@ function saveToLocalS3(key: string, data: unknown): void {
   console.log(`   📦 Cached ${key} locally (${fullPath})`);
 }
 
-type BookmarkRecord = Record<string, unknown> & { id?: string; slug?: string; tags?: unknown };
-
-function embedSlug(bookmark: BookmarkRecord, slugMapping: any): BookmarkRecord {
+function embedSlug(bookmark: BookmarkS3Record, slugMapping: any): BookmarkS3Record {
   if (bookmark.slug) return bookmark;
   const slug = slugMapping?.slugs?.[bookmark.id as string]?.slug;
   return slug ? { ...bookmark, slug } : bookmark;
@@ -126,7 +125,7 @@ function embedSlug(bookmark: BookmarkRecord, slugMapping: any): BookmarkRecord {
 function buildPaginationArtifacts(rawBookmarks: unknown, slugMapping: any, index: any, pagePrefix: string): void {
   if (!Array.isArray(rawBookmarks) || rawBookmarks.length === 0) return;
   const pageSize = typeof index?.pageSize === "number" && index.pageSize > 0 ? index.pageSize : 24;
-  const bookmarks = rawBookmarks.map(b => embedSlug(b as BookmarkRecord, slugMapping));
+  const bookmarks = rawBookmarks.map(b => embedSlug(b as BookmarkS3Record, slugMapping));
   const totalPages = Math.max(1, Math.ceil(bookmarks.length / pageSize));
   for (let page = 1; page <= totalPages; page++) {
     const start = (page - 1) * pageSize;
@@ -137,9 +136,9 @@ function buildPaginationArtifacts(rawBookmarks: unknown, slugMapping: any, index
 
 function buildTagArtifacts(rawBookmarks: unknown, slugMapping: any, tagPrefix: string, tagIndexPrefix: string): void {
   if (!Array.isArray(rawBookmarks) || rawBookmarks.length === 0) return;
-  const tagBuckets = new Map<string, BookmarkRecord[]>();
+  const tagBuckets = new Map<string, BookmarkS3Record[]>();
   rawBookmarks.forEach(item => {
-    const bookmark = embedSlug(item as BookmarkRecord, slugMapping);
+    const bookmark = embedSlug(item as BookmarkS3Record, slugMapping);
     const tagNames = normalizeTagsToStrings((bookmark.tags as Array<string>) || []);
     tagNames.forEach(tagName => {
       const slug = tagToSlug(tagName);

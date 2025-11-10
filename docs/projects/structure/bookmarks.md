@@ -293,6 +293,7 @@ This consolidates deployment details for bookmarks data population and scheduler
 - Examples:
   - dev: `json/bookmarks/slug-mapping-dev.json`
   - prod: `json/bookmarks/slug-mapping.json`
+- Docker builds hydrate `lib/data/s3-cache/` snapshots from these paths via `scripts/fetch-bookmarks-public.ts` (supports BuildKit secrets for private buckets).
 
 ### Redundancy & Fallbacks
 
@@ -303,7 +304,8 @@ This consolidates deployment details for bookmarks data population and scheduler
 - Load fallback order:
   1. Primary (env-specific)
   2. All environment variants
-  3. Regenerate dynamically
+  3. Local BuildKit snapshot in `lib/data/s3-cache/` (written during Docker builds)
+  4. Regenerate dynamically
 
 ### Manual Ops
 
