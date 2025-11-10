@@ -21,10 +21,6 @@ import type {
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
-// Related content relies on per-request headers (auth + routing); disable prerendering.
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 function buildAbsoluteUrl(value: string, headersList: Headers): URL {
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return new URL(value);

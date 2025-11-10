@@ -14,10 +14,6 @@ import { getAllMDXPosts } from "@/lib/blog/mdx";
 import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 
-// This endpoint requires per-request auth headers, so force runtime execution.
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 // Only allow this endpoint in development
 // Commented out as unused but kept for reference
 // function checkIsDevelopment() {

@@ -17,10 +17,6 @@ import os from "node:os";
 const withNoStoreHeaders = (additional?: Record<string, string>): HeadersInit =>
   additional ? { "Cache-Control": "no-store", ...additional } : { "Cache-Control": "no-store" };
 
-// Ensure this route is not statically cached
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 const inFlightSearches = new Map<string, Promise<SearchResult[]>>();
 
 function buildAbsoluteUrl(value: string, headersList: Headers): URL {
