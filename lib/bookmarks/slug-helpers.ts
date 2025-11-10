@@ -8,6 +8,7 @@
 import { loadSlugMapping, generateSlugMapping, getSlugForBookmark, saveSlugMapping } from "./slug-manager";
 import type { UnifiedBookmark } from "@/types";
 import type { CachedSlugMapping } from "@/types/cache";
+import type { BookmarkSlugMapping } from "@/types/bookmark";
 import logger from "@/lib/utils/logger";
 import { getDeterministicTimestamp } from "@/lib/server-cache";
 
@@ -19,6 +20,32 @@ let cachedReverseMap: { map: Map<string, string>; timestamp: number } | null = n
 import { getSlugCacheTTL } from "@/config/related-content.config";
 
 const CACHE_TTL_MS = getSlugCacheTTL();
+
+const normalizeReverseMap = (mapping: BookmarkSlugMapping): { normalized: BookmarkSlugMapping; rebuilt: boolean } => {
+  if (mapping.reverseMap && Object.keys(mapping.reverseMap).length > 0) {
+    return { normalized: mapping, rebuilt: false };
+  }
+
+  const rebuilt: Record<string, string> = {};
+  for (const entry of Object.values(mapping.slugs ?? {})) {
+    if (!entry?.slug || !entry?.id) continue;
+    if (!(entry.slug in rebuilt)) {
+      rebuilt[entry.slug] = entry.id;
+    }
+  }
+
+  logger.warn(
+    `[SlugHelpers] reverseMap missing or empty; rebuilt ${Object.keys(rebuilt).length} entries from forward mapping`,
+  );
+
+  return {
+    normalized: {
+      ...mapping,
+      reverseMap: rebuilt as Readonly<Record<string, string>>,
+    },
+    rebuilt: true,
+  };
+};
 
 /**
  * Safely extract an embedded slug from an unknown bookmark-like object.
@@ -197,7 +224,13 @@ async function loadReverseSlugMap(): Promise<Map<string, string> | null> {
     mappingData = mapping;
   }
 
-  const reverse = new Map<string, string>(Object.entries(mappingData.reverseMap));
+  const { normalized, rebuilt } = normalizeReverseMap(mappingData);
+  if (rebuilt) {
+    const timestamp = cachedMapping?.timestamp ?? now;
+    cachedMapping = { data: normalized, timestamp };
+  }
+
+  const reverse = new Map<string, string>(Object.entries(normalized.reverseMap));
   cachedReverseMap = { map: reverse, timestamp: now };
   return reverse;
 }
