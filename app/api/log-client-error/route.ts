@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 import { ClientErrorSchema, type ClientErrorPayload } from "@/types/error";
 
@@ -14,7 +13,7 @@ export async function POST(request: NextRequest) {
   try {
     // Cast the parsed JSON to our defined type
     const errorData = ClientErrorSchema.parse(await request.json());
-    const headerStore = headers();
+    const headerStore = request.headers;
 
     // Add server timestamp and request details
     const enrichedErrorData: ClientErrorPayload & {

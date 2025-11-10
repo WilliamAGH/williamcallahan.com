@@ -13,12 +13,12 @@
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search"; // Import the refactored search function
 import { unstable_noStore as noStore } from "next/cache";
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 // import type { SearchResult } from '@/types/search'; // Keep SearchResult type - Removed as unused by ESLint
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
-function resolveRequestUrl(request: Request, headersList: Headers): URL {
+function resolveRequestUrl(request: NextRequest, headersList: Headers): URL {
   const nextUrlHeader = headersList.get("next-url");
   if (nextUrlHeader) {
     if (nextUrlHeader.startsWith("http")) {
@@ -42,7 +42,7 @@ function resolveRequestUrl(request: Request, headersList: Headers): URL {
  * @param request - The HTTP request object.
  * @returns A JSON response containing the search results or an error message.
  */
-export async function GET(request: Request): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   noStore();
   const headersList = headers();
   try {

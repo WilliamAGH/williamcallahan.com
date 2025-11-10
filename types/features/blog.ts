@@ -182,8 +182,6 @@ export interface ArticleGalleryProps {
 export interface MDXContentProps {
   /** The serialized MDX content object */
   content: import("next-mdx-remote").MDXRemoteSerializeResult;
-  /** CSP nonce propagated from the server */
-  nonce?: string;
 }
 
 /**

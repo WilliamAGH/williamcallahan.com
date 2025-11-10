@@ -4,25 +4,6 @@ import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 // Prefer explicit async params typing to avoid thenable duck-typing
 import { sanitizePath, IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 
-function buildAbsoluteUrl(value: string, headersList: Headers): URL {
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return new URL(value);
-  }
-  const protocol = headersList.get("x-forwarded-proto") ?? "https";
-  const host = headersList.get("host") ?? "localhost";
-  const normalizedPath = value.startsWith("/") ? value : `/${value}`;
-  return new URL(`${protocol}://${host}${normalizedPath}`);
-}
-
-function resolveRequestUrl(request: NextRequest): URL {
-  const headersList = request.headers;
-  const nextUrlHeader = headersList.get("next-url");
-  if (nextUrlHeader) {
-    return buildAbsoluteUrl(nextUrlHeader, headersList);
-  }
-  return new URL(request.url);
-}
-
 export async function GET(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   noStore();
   try {
@@ -62,7 +43,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Preserve any query parameters (e.g., format, name)
-    const { search } = resolveRequestUrl(request);
+    const { search } = request.nextUrl;
     // Use embeddedSearch as fallback for query parameters embedded in the path
     const upstreamUrl = `https://pbs.twimg.com/${pathOnly}${search || embeddedSearch}`;
     console.log(`[Twitter Image Proxy] Attempting to fetch: ${upstreamUrl}`);

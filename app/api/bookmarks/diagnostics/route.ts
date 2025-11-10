@@ -7,8 +7,7 @@
 
 import "server-only";
 
-import { NextResponse } from "next/server";
-import { headers } from "next/headers";
+import { NextResponse, type NextRequest } from "next/server";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { BookmarksIndex, BookmarkSlugMapping } from "@/types/bookmark";
@@ -24,9 +23,9 @@ function allowWithoutSecret(): boolean {
   return process.env.NODE_ENV !== "production";
 }
 
-function isAuthorized(): boolean {
+function isAuthorized(headerStore: Headers): boolean {
   if (allowWithoutSecret()) return true;
-  const auth = headers().get("authorization") || "";
+  const auth = headerStore.get("authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   const secret = process.env.DEBUG_API_SECRET || "";
   return Boolean(secret && token && token === secret);
@@ -42,8 +41,8 @@ async function tryReadJson<T>(key: string): Promise<ReadJsonResult<T>> {
   }
 }
 
-export async function GET(_request: Request): Promise<NextResponse> {
-  if (!isAuthorized()) return unauthorized();
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  if (!isAuthorized(request.headers)) return unauthorized();
 
   // Log env summary in non-production to aid diagnosis
   if (process.env.NODE_ENV !== "production") {

@@ -7,7 +7,6 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { headers } from "next/headers";
 
 // This endpoint proxies Sentry events from the client `tunnel` option to the Sentry ingest URL
 export async function POST(request: NextRequest) {
@@ -39,7 +38,7 @@ export async function POST(request: NextRequest) {
     const upstreamResponse = await fetch(envelopeUrl, {
       method: "POST",
       headers: {
-        "Content-Type": headers().get("content-type") || "application/x-sentry-envelope",
+        "Content-Type": request.headers.get("content-type") || "application/x-sentry-envelope",
       },
       body,
     });

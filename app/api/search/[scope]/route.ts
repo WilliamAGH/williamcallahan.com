@@ -10,23 +10,12 @@ import { searchBookmarks, searchExperience, searchEducation, searchInvestments, 
 import { validateSearchQuery } from "@/lib/validators/search";
 import { type SearchResult, type SearchScope, VALID_SCOPES } from "@/types/search";
 import { unstable_noStore as noStore } from "next/cache";
-import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
-function resolveRequestUrl(request: Request, headersList: Headers): URL {
-  const nextUrlHeader = headersList.get("next-url");
-  if (nextUrlHeader) {
-    if (nextUrlHeader.startsWith("http")) {
-      return new URL(nextUrlHeader);
-    }
-    const protocol = headersList.get("x-forwarded-proto") ?? "https";
-    const host = headersList.get("host") ?? "localhost";
-    const normalized = nextUrlHeader.startsWith("/") ? nextUrlHeader : `/${nextUrlHeader}`;
-    return new URL(`${protocol}://${host}${normalized}`);
-  }
-  return new URL(request.url);
+function resolveRequestUrl(request: NextRequest): URL {
+  return request.nextUrl;
 }
 
 const ALL_VALID_SCOPES = [...VALID_SCOPES, "all"];
@@ -41,11 +30,10 @@ const ALL_VALID_SCOPES = [...VALID_SCOPES, "all"];
  * @param params - Route parameters including the search scope.
  * @returns A JSON response containing the search results or an error message.
  */
-export async function GET(request: Request, { params }: { params: { scope: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { scope: string } }) {
   noStore();
-  const headersList = headers();
   try {
-    const requestUrl = resolveRequestUrl(request, headersList);
+    const requestUrl = resolveRequestUrl(request);
     const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q") ?? "";
     const scope = params.scope.toLowerCase() as SearchScope;
