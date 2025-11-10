@@ -53,6 +53,7 @@
     "components/**/*",
     "app/**/*",
     "lib/**/*",
+    "lib/bookmarks/local-s3-cache.ts",
     "types/**/*",
     "eslint.config.ts",
     "instrumentation.ts",
