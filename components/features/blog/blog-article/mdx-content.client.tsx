@@ -9,14 +9,13 @@
  */
 "use client";
 
-import { Base64Image } from "@/components/utils/base64-image.client";
-import { CollapseDropdownProvider } from "@/lib/context/collapse-dropdown-context.client";
-import { cn } from "@/lib/utils";
-import { processSvgTransforms } from "@/lib/image-handling/svg-transform-fix";
-import { MDXRemote, type MDXRemoteProps } from "next-mdx-remote";
+import { MDXProvider } from "@mdx-js/react";
+import * as mdxRuntime from "@mdx-js/react";
+import type { MDXComponents } from "mdx/types";
 import Link from "next/link";
 import React, {
   type ComponentProps,
+  type ComponentType,
   type ReactElement,
   isValidElement,
   useEffect,
@@ -25,6 +24,12 @@ import React, {
   useContext,
   type JSX,
 } from "react";
+import * as jsxDevRuntime from "react/jsx-dev-runtime";
+import * as jsxProdRuntime from "react/jsx-runtime";
+import { Base64Image } from "@/components/utils/base64-image.client";
+import { CollapseDropdownProvider } from "@/lib/context/collapse-dropdown-context.client";
+import { cn } from "@/lib/utils";
+import { processSvgTransforms } from "@/lib/image-handling/svg-transform-fix";
 import type { ArticleImageProps, ArticleGalleryProps, MDXContentProps } from "@/types/features";
 import type { MetricsGroupProps } from "@/types/ui";
 import { BackgroundInfo } from "../../../ui/background-info.client";
@@ -40,6 +45,52 @@ import { MacOSCodeWindow, MacOSWindow } from "../../../ui/macos-window.client";
 import { ShellParentTabs, ShellTab } from "../../../ui/shell-parent-tabs.client";
 import { TweetEmbed } from "../tweet-embed";
 import { SoftwareSchema } from "./software-schema";
+
+const jsxRuntime = process.env.NODE_ENV === "development" ? jsxDevRuntime : jsxProdRuntime;
+
+const compiledMdxCache = new Map<string, ComponentType>();
+
+const buildMdxComponent = (
+  content: import("next-mdx-remote").MDXRemoteSerializeResult<Record<string, unknown>, Record<string, unknown>>,
+): ComponentType => {
+  const cached = compiledMdxCache.get(content.compiledSource);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const scope = content.scope ?? {};
+    const frontmatter = content.frontmatter ?? {};
+
+    const fullScope: Record<string, unknown> = Object.assign(
+      {
+        opts: {
+          ...mdxRuntime,
+          ...jsxRuntime,
+        },
+      },
+      { frontmatter },
+      scope,
+    );
+
+    const keys = Object.keys(fullScope);
+    const values = Object.values(fullScope);
+    const hydrateFn = Reflect.construct(Function, keys.concat(`${content.compiledSource}`)) as (
+      ...fnArgs: unknown[]
+    ) => { default: ComponentType };
+    const { default: Component } = hydrateFn.apply(hydrateFn, values) as { default: ComponentType };
+    compiledMdxCache.set(content.compiledSource, Component);
+    return Component;
+  } catch (error) {
+    console.error("[MDXContent] Failed to evaluate compiled MDX source", error);
+    const Fallback: ComponentType = () => (
+      <p className="text-red-600 dark:text-red-400">
+        Unable to render this portion of the article. Please refresh or contact support if the issue persists.
+      </p>
+    );
+    return Fallback;
+  }
+};
 
 /**
  * Hook to check if we're currently inside a macOS frame
@@ -385,7 +436,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
    * (e.g., `MetricsGroup`, `ArticleGallery`). The value is the React component that will be used
    * to render that element when encountered in the MDX source.
    */
-  const components: MDXRemoteProps["components"] = useMemo(() => {
+  const components: MDXComponents = useMemo(() => {
     return {
       /** Custom renderer for `<pre>` elements using the PreRenderer component that can access context */
       pre: PreRenderer,
@@ -601,6 +652,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
       TweetEmbed: TweetEmbedRenderer,
     };
   }, []);
+  const CompiledMdxComponent = useMemo(() => buildMdxComponent(content), [content.compiledSource]);
 
   return (
     <CollapseDropdownProvider>
@@ -627,9 +679,11 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
           "prose-spacing-override", // Custom class to potentially override prose's default vertical spacing for direct children
         )}
       >
-        {/* Wrapper div to enforce consistent vertical spacing between direct children of MDXRemote output */}
+        {/* Wrapper div to enforce consistent vertical spacing between direct children of MDX content */}
         <div className="flex flex-col space-y-5">
-          <MDXRemote {...content} components={components} />
+          <MDXProvider components={components}>
+            <CompiledMdxComponent />
+          </MDXProvider>
         </div>
       </article>
     </CollapseDropdownProvider>
