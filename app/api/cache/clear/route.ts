@@ -19,14 +19,14 @@ import { revalidateTag } from "next/cache";
 /**
  * Validates API key for cache operations
  */
-function validateApiKey(request: NextRequest): boolean {
+function validateApiKey(headerStore: Headers): boolean {
   const apiKey = process.env.CACHE_API_KEY;
   if (!apiKey) {
     console.warn("[Cache API] CACHE_API_KEY not configured");
     return false;
   }
 
-  const providedKey = request.headers.get("x-api-key");
+  const providedKey = headerStore.get("x-api-key");
   return providedKey === apiKey;
 }
 
@@ -51,7 +51,7 @@ function detectCacheCorruption() {
  * @deprecated Cache health checks are no longer applicable with Next.js cache
  */
 export function GET(request: NextRequest): NextResponse {
-  if (!validateApiKey(request)) {
+  if (!validateApiKey(request.headers)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -79,7 +79,7 @@ export function GET(request: NextRequest): NextResponse {
  * POST - Clear all Next.js caches
  */
 export function POST(request: NextRequest): NextResponse {
-  if (!validateApiKey(request)) {
+  if (!validateApiKey(request.headers)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

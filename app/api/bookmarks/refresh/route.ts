@@ -17,8 +17,7 @@ import {
 import { readJsonS3 } from "@/lib/s3-utils";
 import { logEnvironmentConfig } from "@/lib/config/environment";
 import logger from "@/lib/utils/logger";
-import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import type { BookmarksIndex } from "@/types/bookmark";
 import { revalidatePath, revalidateTag } from "next/cache";
 
@@ -29,8 +28,8 @@ let isRefreshInProgress = false;
 /**
  * POST handler - Refreshes the bookmarks
  */
-export async function POST(): Promise<NextResponse> {
-  const headerStore = await headers();
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const headerStore = request.headers;
   const authorizationHeader = headerStore.get("authorization");
   const cronRefreshSecret = process.env.BOOKMARK_CRON_REFRESH_SECRET;
 

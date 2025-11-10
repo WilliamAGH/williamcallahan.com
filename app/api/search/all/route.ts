@@ -11,8 +11,7 @@ import { validateSearchQuery } from "@/lib/validators/search";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import type { SearchResult } from "@/types/search";
 import { unstable_noStore as noStore } from "next/cache";
-import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import os from "node:os";
 
 const withNoStoreHeaders = (additional?: Record<string, string>): HeadersInit =>
@@ -20,20 +19,8 @@ const withNoStoreHeaders = (additional?: Record<string, string>): HeadersInit =>
 
 const inFlightSearches = new Map<string, Promise<SearchResult[]>>();
 
-function buildAbsoluteUrl(value: string, headersList: Headers): URL {
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return new URL(value);
-  }
-  const protocol = headersList.get("x-forwarded-proto") ?? "https";
-  const host = headersList.get("host") ?? "localhost";
-  const normalizedPath = value.startsWith("/") ? value : `/${value}`;
-  return new URL(`${protocol}://${host}${normalizedPath}`);
-}
-
-function resolveRequestContext(request: Request, headersList: Headers): { url: URL; headersList: Headers } {
-  const nextUrlHeader = headersList.get("next-url");
-  const url = nextUrlHeader ? buildAbsoluteUrl(nextUrlHeader, headersList) : new URL(request.url);
-  return { url, headersList };
+function resolveRequestContext(request: NextRequest): { url: URL; headersList: Headers } {
+  return { url: request.nextUrl, headersList: request.headers };
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -96,11 +83,11 @@ function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
  * @param request - The HTTP request object.
  * @returns A JSON response containing the search results or an error message.
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   noStore();
-  const headersList = headers();
+  const headersList = request.headers;
   try {
-    const { url: requestUrl } = resolveRequestContext(request, headersList);
+    const { url: requestUrl } = resolveRequestContext(request);
     const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q");
 

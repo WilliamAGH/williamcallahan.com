@@ -73,7 +73,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   await ensureRateLimitsLoaded();
 
   // Check for cron job authentication first
-  const authorizationHeader = request.headers.get("Authorization");
+  const headerStore = request.headers;
+  const authorizationHeader = headerStore.get("authorization");
   const cronRefreshSecret = process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
   let isCronJob = false;
 
@@ -90,8 +91,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Only apply rate limiting if not a cron job
   if (!isCronJob) {
     // Extract IP for rate limiting
-    const forwarded = request.headers.get("x-forwarded-for");
-    const realIp = request.headers.get("x-real-ip");
+    const forwarded = headerStore.get("x-forwarded-for");
+    const realIp = headerStore.get("x-real-ip");
     const ip = forwarded?.split(",")[0] || realIp || "unknown";
     const rateLimitKey = `github-refresh:${ip}`;
 
@@ -141,7 +142,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     } else {
       // Production environment requires authentication
-      const secret = request.headers.get("x-refresh-secret");
+      const secret = headerStore.get("x-refresh-secret");
       const serverSecret = process.env.GITHUB_REFRESH_SECRET;
 
       if (!serverSecret) {

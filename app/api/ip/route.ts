@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 
 /**
@@ -34,9 +33,9 @@ function getRealIp(headerStore: Headers): string {
  * @param request - The incoming Next.js request
  * @returns A Next.js response containing the IP address with no-cache headers
  */
-export async function GET(_request: NextRequest): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   // Use Promise.resolve to satisfy require-await rule
-  const ip = await Promise.resolve(getRealIp(headers()));
+  const ip = await Promise.resolve(getRealIp(request.headers));
 
   return new NextResponse(ip, {
     headers: CACHE_HEADERS,

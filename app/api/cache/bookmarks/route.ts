@@ -11,7 +11,7 @@ import { ServerCacheInstance } from "@/lib/server-cache";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { DataFetchOperationSummary } from "@/types/lib";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import type { BookmarksIndex } from "@/types/bookmark";
 import { invalidateBookmarksCache } from "@/lib/bookmarks/bookmarks-data-access.server";
 
@@ -22,11 +22,11 @@ import { invalidateBookmarksCache } from "@/lib/bookmarks/bookmarks-data-access.
  * @param request - The HTTP request
  * @returns Boolean indicating if the request has a valid API key
  */
-function validateApiKey(request: Request): boolean {
+function validateApiKey(headerStore: Headers): boolean {
   const apiKey = process.env.ADMIN_API_KEY;
   if (!apiKey) return false;
 
-  const authHeader = request.headers.get("Authorization");
+  const authHeader = headerStore.get("authorization");
   if (!authHeader) return false;
 
   // Check 'Bearer TOKEN' format
@@ -39,8 +39,8 @@ function validateApiKey(request: Request): boolean {
 /**
  * GET handler - Returns current status of the bookmarks
  */
-export async function GET(request: Request): Promise<NextResponse> {
-  if (!validateApiKey(request)) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  if (!validateApiKey(request.headers)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -80,8 +80,8 @@ export async function GET(request: Request): Promise<NextResponse> {
 /**
  * POST handler - Forces a refresh of the bookmarks
  */
-export async function POST(request: Request): Promise<NextResponse> {
-  if (!validateApiKey(request)) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  if (!validateApiKey(request.headers)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -129,8 +129,8 @@ export async function POST(request: Request): Promise<NextResponse> {
 /**
  * DELETE handler - Clears the bookmarks cache metadata
  */
-export function DELETE(request: Request): NextResponse {
-  if (!validateApiKey(request)) {
+export function DELETE(request: NextRequest): NextResponse {
+  if (!validateApiKey(request.headers)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

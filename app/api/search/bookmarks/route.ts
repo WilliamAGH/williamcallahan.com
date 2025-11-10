@@ -10,8 +10,7 @@
  */
 
 import { unstable_noStore as noStore } from "next/cache";
-import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { searchBookmarks } from "@/lib/search";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
@@ -20,25 +19,14 @@ import type { UnifiedBookmark } from "@/types";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
-function resolveRequestUrl(request: Request, headersList: Headers): URL {
-  const nextUrlHeader = headersList.get("next-url");
-  if (nextUrlHeader) {
-    if (nextUrlHeader.startsWith("http")) {
-      return new URL(nextUrlHeader);
-    }
-    const protocol = headersList.get("x-forwarded-proto") ?? "https";
-    const host = headersList.get("host") ?? "localhost";
-    const normalized = nextUrlHeader.startsWith("/") ? nextUrlHeader : `/${nextUrlHeader}`;
-    return new URL(`${protocol}://${host}${normalized}`);
-  }
-  return new URL(request.url);
+function resolveRequestUrl(request: NextRequest): URL {
+  return request.nextUrl;
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   noStore();
-  const headersList = headers();
   try {
-    const requestUrl = resolveRequestUrl(request, headersList);
+    const requestUrl = resolveRequestUrl(request);
     const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q");
 

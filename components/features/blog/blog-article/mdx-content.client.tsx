@@ -310,10 +310,9 @@ const TweetEmbedRenderer = (props: ComponentProps<typeof TweetEmbed>) => (
  *
  * @param {MDXContentProps} props - The properties for the MDXContent component.
  * @param {MDXRemoteSerializeResult} props.content - The serialized MDX data to render.
- * @param {string} [props.nonce] - CSP nonce for inline scripts.
  * @returns {JSX.Element} The rendered MDX content, structured within an `<article>` tag with applied prose styling.
  */
-export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
+export function MDXContent({ content }: MDXContentProps): JSX.Element {
   const contentRef = useRef<HTMLDivElement>(null);
 
   /**
@@ -387,13 +386,6 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
    * to render that element when encountered in the MDX source.
    */
   const components: MDXRemoteProps["components"] = useMemo(() => {
-    // SoftwareSchemaRenderer needs access to nonce from props
-    const SoftwareSchemaRenderer = (props: ComponentProps<typeof SoftwareSchema>) => (
-      <div>
-        <SoftwareSchema {...props} nonce={nonce} />
-      </div>
-    );
-
     return {
       /** Custom renderer for `<pre>` elements using the PreRenderer component that can access context */
       pre: PreRenderer,
@@ -452,7 +444,7 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
       /** Renderer for `MDXCodeBlock` if used directly as a component tag in MDX (as opposed to via a `<pre>` tag). */
       MDXCodeBlock: MDXCodeBlockRenderer,
       /** Renderer for the custom `SoftwareSchema` component, typically for structured data. */
-      SoftwareSchema: SoftwareSchemaRenderer,
+      SoftwareSchema,
       /**
        * Custom renderer for anchor `<a>` tags.
        * This function intelligently handles different types of links:
@@ -608,7 +600,7 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
        */
       TweetEmbed: TweetEmbedRenderer,
     };
-  }, [nonce]);
+  }, []);
 
   return (
     <CollapseDropdownProvider>
