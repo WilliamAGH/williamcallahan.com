@@ -7,6 +7,7 @@
 
 import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
 import { debugLog } from "./debug";
+import { getMonotonicTime } from "@/lib/utils";
 import type { FailedItem, FailureTrackerConfig } from "@/types/s3-cdn";
 
 /**
@@ -85,7 +86,7 @@ export class FailureTracker<T> {
 
     // Skip if still in cooldown
     if (failure.attempts >= this.config.maxRetries) {
-      const timeSinceLastAttempt = Date.now() - failure.lastAttempt;
+      const timeSinceLastAttempt = getMonotonicTime() - failure.lastAttempt;
       return timeSinceLastAttempt < this.config.cooldownMs;
     }
 
@@ -110,13 +111,13 @@ export class FailureTracker<T> {
       ? {
           ...existing,
           attempts: existing.attempts + 1,
-          lastAttempt: Date.now(),
+          lastAttempt: getMonotonicTime(),
           reason: reason || existing.reason,
         }
       : {
           item,
           attempts: 1,
-          lastAttempt: Date.now(),
+          lastAttempt: getMonotonicTime(),
           reason,
         };
 

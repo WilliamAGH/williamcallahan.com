@@ -10,6 +10,7 @@
 
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { envLogger } from "@/lib/utils/env-logger";
+import { getMonotonicTime } from "@/lib/utils";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import {
   getCachedJinaHtml,
@@ -504,7 +505,7 @@ async function fetchExternalOpenGraph(
     bannerImageUrl: finalBannerImageUrl || null,
     profileImageUrl: finalProfileImageUrl || null,
     siteName: validatedMetadata.siteName || undefined,
-    timestamp: Date.now(),
+    timestamp: getMonotonicTime(),
     source: "external",
   };
 

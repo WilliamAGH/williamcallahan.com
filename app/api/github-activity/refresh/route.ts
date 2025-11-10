@@ -15,6 +15,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { revalidateTag } from "next/cache";
 import { incrementAndPersist, loadRateLimitStoreFromS3 } from "@/lib/rate-limiter";
 import { envLogger } from "@/lib/utils/env-logger";
+import { getMonotonicTime } from "@/lib/utils";
 
 /**
  * @constant {string} dynamic - Ensures the route is dynamically rendered and not cached.
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
 
     if (!allowed) {
-      const resetTime = Date.now() + RATE_LIMIT_WINDOW;
+      const resetTime = getMonotonicTime() + RATE_LIMIT_WINDOW;
       const resetDate = new Date(resetTime);
       console.warn(`[API Refresh] Rate limit exceeded for IP ${ip}. Limit: ${RATE_LIMIT_MAX_REQUESTS} per hour`);
 

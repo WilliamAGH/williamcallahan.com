@@ -13,6 +13,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
+import { getMonotonicTime } from "@/lib/utils";
 
 // This route can leverage the caching within getBookmarks
 
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       if (indexResult.success) {
         const indexData = indexResult.data;
-        const { totalPages, count: total, lastFetchedAt = Date.now() } = indexData;
+        const { totalPages, count: total, lastFetchedAt = getMonotonicTime() } = indexData;
 
         if (page <= totalPages) {
           // Load just the requested page
@@ -115,7 +116,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
     // Try to get metadata from S3 index
-    let lastFetchedAt = Date.now();
+    let lastFetchedAt = getMonotonicTime();
     try {
       const rawIndex: unknown = await import("@/lib/s3-utils").then(m =>
         m.readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX),

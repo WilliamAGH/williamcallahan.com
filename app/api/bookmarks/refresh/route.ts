@@ -20,6 +20,7 @@ import logger from "@/lib/utils/logger";
 import { type NextRequest, NextResponse } from "next/server";
 import type { BookmarksIndex } from "@/types/bookmark";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { getMonotonicTime } from "@/lib/utils";
 
 // Ensure this route is not statically cached
 
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
 
       if (index?.lastFetchedAt) {
-        const timeSinceLastFetch = Date.now() - new Date(index.lastFetchedAt).getTime();
+        const timeSinceLastFetch = getMonotonicTime() - new Date(index.lastFetchedAt).getTime();
         const revalidationThreshold = BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
 
         if (timeSinceLastFetch <= revalidationThreshold) {
@@ -249,7 +250,7 @@ export async function GET(): Promise<NextResponse> {
     // Check if refresh is needed based on timing
     let needsRefresh = true;
     if (index?.lastFetchedAt) {
-      const timeSinceLastFetch = Date.now() - new Date(index.lastFetchedAt).getTime();
+      const timeSinceLastFetch = getMonotonicTime() - new Date(index.lastFetchedAt).getTime();
       const revalidationThreshold = BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
       needsRefresh = timeSinceLastFetch > revalidationThreshold;
     }

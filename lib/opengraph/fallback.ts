@@ -10,6 +10,7 @@
 // debug import removed - using console.log for fallback logging
 import { getDomainType, isValidImageUrl } from "@/lib/utils/opengraph-utils";
 import { getBaseUrl } from "@/lib/utils/get-base-url";
+import { getMonotonicTime } from "@/lib/utils";
 import type { OgResult, KarakeepImageFallback } from "@/types";
 import { karakeepImageFallbackSchema } from "@/types/seo/opengraph";
 import { SOCIAL_PLATFORMS } from "@/types/social";
@@ -124,7 +125,7 @@ export function createFallbackResult(
     imageUrl,
     bannerImageUrl: getFallbackBannerForDomain(domain),
     error,
-    timestamp: Date.now(),
+    timestamp: getMonotonicTime(),
     source: "fallback",
   };
 }

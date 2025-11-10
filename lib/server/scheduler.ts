@@ -1,5 +1,6 @@
 // Load environment variables first
 import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
+import { getMonotonicTime } from "@/lib/utils";
 loadEnvironmentWithMultilineSupport();
 
 // Log startup immediately to verify process is running
@@ -48,7 +49,7 @@ console.log("[Scheduler] All required modules loaded successfully");
 const DEFAULT_JITTER_MS = 15 * 60 * 1000;
 
 // Generate unique instance ID for this scheduler
-const SCHEDULER_INSTANCE_ID = `scheduler-${randomInt(1000000, 9999999)}-${Date.now()}`;
+const SCHEDULER_INSTANCE_ID = `scheduler-${randomInt(1000000, 9999999)}-${Math.floor(getMonotonicTime())}`;
 
 // Track running jobs to prevent concurrent executions
 const runningJobs = new Set<string>();

@@ -12,6 +12,7 @@ import { findMostSimilar, groupByType, DEFAULT_WEIGHTS } from "@/lib/content-sim
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { requestLock } from "@/lib/server/request-lock";
+import { getMonotonicTime } from "@/lib/utils";
 import type {
   RelatedContentItem,
   RelatedContentType,
@@ -142,7 +143,7 @@ export async function GET(request: NextRequest) {
     );
   }
   noStore();
-  const startTime = Date.now();
+  const startTime = getMonotonicTime();
 
   try {
     // Parse query parameters
@@ -226,7 +227,8 @@ export async function GET(request: NextRequest) {
     let cached = ServerCacheInstance.getRelatedContent(sourceType, sourceId);
 
     // If cache is stale/missing, or custom weights/debug requested, compute it (with a lock)
-    if (!cached || cached.timestamp <= Date.now() - CACHE_TTL || debug || hasCustomWeights) {
+    const now = getMonotonicTime();
+    if (!cached || now - cached.timestamp >= CACHE_TTL || debug || hasCustomWeights) {
       await requestLock.run({
         key: lockKey,
         work: async () => {
@@ -249,7 +251,7 @@ export async function GET(request: NextRequest) {
           if (!debug && !hasCustomWeights) {
             ServerCacheInstance.setRelatedContent(sourceType, sourceId, {
               items: similar,
-              timestamp: Date.now(),
+              timestamp: now,
             });
           }
         },
@@ -311,7 +313,7 @@ export async function GET(request: NextRequest) {
           hasNext: page < totalPages,
           hasPrev: page > 1,
         },
-        computeTime: Date.now() - startTime,
+        computeTime: getMonotonicTime() - startTime,
       },
     };
 
