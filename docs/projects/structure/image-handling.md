@@ -55,6 +55,12 @@ NEXT_PUBLIC_S3_CDN_URL=https://s3-storage.callahan.cloud  # CDN with custom SSL 
 - `next.config.ts:images.domains` must include every CDN host that appears in blog/article metadata. The Next.js image optimizer throws a 400 with `"url" parameter is not allowed` (see `node_modules/next/dist/server/image-optimizer.js:522-546`) whenever the host is missing.
 - Current production list: `s3-storage.callahan.cloud`, `williamcallahan.com`, `dev.williamcallahan.com`. Add any new Spaces/CDN hostname there **before** shipping content that references it.
 
+### Blog Cover Image Workflow
+
+- Run `bun scripts/sync-blog-cover-images.ts` (automatically invoked during `prebuild`) to upload `/public/images/posts/**` assets to S3 and regenerate `data/blog/cover-image-map.json`.
+- `cover-image-map.json` stores `{ [basename]: "images/other/blog-posts/foo_hash.png" }`. `lib/blog/mdx.ts` reads this manifest at build time instead of listing S3.
+- Jest test `__tests__/lib/blog-cover-image-map.test.ts` fails if any MDX frontmatter references a cover image that lacks a manifest entry—run the sync script before committing new posts.
+
 ## Key API Routes
 
 ### Logo Management
