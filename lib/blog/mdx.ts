@@ -43,6 +43,8 @@ import { serialize } from "next-mdx-remote/serialize";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
+import coverImageManifest from "@/data/blog/cover-image-map.json";
+import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { authors } from "../../data/blog/authors";
 import type { BlogPost } from "../../types/blog";
 
@@ -60,6 +62,7 @@ const logCoverImageInfo = (message: string): void => {
 
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
+const coverImageMap: Record<string, string> = coverImageManifest;
 
 const cacheLife = (profile: CacheDurationProfile): void => {
   cacheContextGuards.cacheLife("BlogMDX", profile);
@@ -90,11 +93,11 @@ function toPacificISOString(date: string | Date | undefined): string {
  * @param contextFilePath - The file path of the post for logging purposes.
  * @returns Sanitized cover image string (S3 CDN URL if available) or undefined.
  */
-async function sanitizeCoverImage(
+function sanitizeCoverImage(
   coverImageValue: unknown,
   contextSlug: string,
   contextFilePath: string,
-): Promise<string | undefined> {
+): string | undefined {
   if (!coverImageValue) {
     return undefined;
   }
@@ -109,39 +112,14 @@ async function sanitizeCoverImage(
       if (filename) {
         // Remove extension to create base name for S3 lookup
         const baseName = filename.replace(/\.[^.]+$/, "");
-
-        try {
-          // Import S3 utilities dynamically to avoid circular dependencies
-          const { listS3Objects } = await import("@/lib/s3-utils");
-          const { buildCdnUrl, getCdnConfigFromEnv } = await import("@/lib/utils/cdn-utils");
-
-          // List all objects in the blog posts S3 directory
-          const s3Keys = await listS3Objects("images/other/blog-posts/");
-
-          // Allow two naming conventions in S3:
-          // 1. Exact filename   -> my-cover.png
-          // 2. Hash-suffixed    -> my-cover_<hash>.png
-          // Both map back to the same front-matter reference.
-          const ext = path.extname(filename); // ".png", ".jpg", etc.
-
-          const matchingKey = s3Keys.find(key => {
-            const s3Filename = key.split("/").pop();
-            if (!s3Filename) return false;
-            return s3Filename === filename || (s3Filename.startsWith(`${baseName}_`) && s3Filename.endsWith(ext));
-          });
-
-          if (matchingKey) {
-            // Build and return CDN URL
-            const cdnConfig = getCdnConfigFromEnv();
-            const cdnUrl = buildCdnUrl(matchingKey, cdnConfig);
-            logCoverImageInfo(`Mapped ${trimmedValue} to S3 CDN: ${cdnUrl}`);
-            return cdnUrl;
-          } else {
-            logCoverImageInfo(`No S3 match found for ${trimmedValue}, using local path`);
-          }
-        } catch (error) {
-          console.warn(`[sanitizeCoverImage] Error mapping to S3 for ${trimmedValue}:`, error);
+        const s3Key = coverImageMap[baseName];
+        if (s3Key) {
+          const cdnConfig = getCdnConfigFromEnv();
+          const cdnUrl = buildCdnUrl(s3Key, cdnConfig);
+          logCoverImageInfo(`Mapped ${trimmedValue} to S3 CDN: ${cdnUrl}`);
+          return cdnUrl;
         }
+        console.warn(`[sanitizeCoverImage] Missing cover image manifest entry for ${trimmedValue}`);
       }
     }
 
@@ -281,7 +259,7 @@ export async function getMDXPost(
     const updatedAt = toPacificISOString(frontmatter.updatedAt || frontmatter.modifiedAt || fileDates.modified);
 
     // Validate coverImage using helper (now async to support S3 lookup)
-    const coverImage = await sanitizeCoverImage(frontmatter.coverImage, frontmatterSlug, filePathForPost);
+    const coverImage = sanitizeCoverImage(frontmatter.coverImage, frontmatterSlug, filePathForPost);
 
     // Construct the full blog post object
     const post: BlogPost = {
