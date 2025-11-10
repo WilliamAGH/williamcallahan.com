@@ -8,7 +8,6 @@
  * Hierarchy: Memory cache → S3 storage → External fetch → Karakeep fallback
  */
 
-import { headers } from "next/headers";
 import { unstable_noStore as noStore } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
@@ -31,15 +30,7 @@ import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
  */
 export async function GET(request: NextRequest) {
   noStore();
-  const headersList = await headers();
-  const nextUrlHeader = headersList.get("next-url");
-  const requestUrl = nextUrlHeader
-    ? nextUrlHeader.startsWith("http")
-      ? new URL(nextUrlHeader)
-      : new URL(
-          `${headersList.get("x-forwarded-proto") ?? "https"}://${headersList.get("host") ?? "localhost"}${nextUrlHeader}`,
-        )
-    : new URL(request.url);
+  const requestUrl = request.nextUrl;
   const { searchParams } = requestUrl;
   const url = searchParams.get("url");
   const assetId = searchParams.get("assetId");

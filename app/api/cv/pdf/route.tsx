@@ -3,6 +3,7 @@ import { TextDecoder as PolyfillTextDecoder } from "@sinonjs/text-encoding";
 import CvPdfDocument from "@/components/features/cv/CvPdfDocument";
 import logger from "@/lib/utils/logger";
 import { unstable_noStore as noStore } from "next/cache";
+import { headers } from "next/headers";
 
 const ensureWindows1252TextDecoder = (() => {
   let patched = false;
@@ -66,14 +67,14 @@ function buildProblemDetails({
   } satisfies Record<string, unknown>;
 }
 
-function resolveRequestUrl(request: Request): URL {
-  const nextUrlHeader = request.headers.get("next-url");
+function resolveRequestUrl(request: Request, headersList: Headers): URL {
+  const nextUrlHeader = headersList.get("next-url");
   if (nextUrlHeader) {
     if (nextUrlHeader.startsWith("http")) {
       return new URL(nextUrlHeader);
     }
-    const protocol = request.headers.get("x-forwarded-proto") ?? "https";
-    const host = request.headers.get("host") ?? "localhost";
+    const protocol = headersList.get("x-forwarded-proto") ?? "https";
+    const host = headersList.get("host") ?? "localhost";
     const normalized = nextUrlHeader.startsWith("/") ? nextUrlHeader : `/${nextUrlHeader}`;
     return new URL(`${protocol}://${host}${normalized}`);
   }
@@ -82,9 +83,10 @@ function resolveRequestUrl(request: Request): URL {
 
 export async function GET(request: Request): Promise<Response> {
   noStore();
+  const headerStore = headers();
   const { renderToBuffer } = await rendererModulePromise;
   const correlationId = globalThis.crypto.randomUUID();
-  const url = resolveRequestUrl(request);
+  const url = resolveRequestUrl(request, headerStore);
   const instance = url.pathname;
 
   try {
