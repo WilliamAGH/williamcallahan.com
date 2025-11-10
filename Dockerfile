@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.16
 
-FROM docker.io/oven/bun:1.2.22-alpine AS base
+FROM docker.io/oven/bun:1.3.2-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
