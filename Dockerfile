@@ -92,8 +92,8 @@ ENV S3_BUCKET=$S3_BUCKET \
     S3_SERVER_URL=$S3_SERVER_URL \
     S3_CDN_URL=$S3_CDN_URL \
     NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL
-# NOTE: S3 credentials (S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY) are NOT needed at build time
-# We fetch bookmarks from the PUBLIC S3 CDN URL which doesn't require authentication
+# NOTE: S3 credentials (S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY) remain optional at build time.
+# When provided via BuildKit secrets the helper script uses the S3 SDK; otherwise it falls back to public CDN fetches.
 
 # Copy dependencies and source code
 COPY --from=deps --link /app/node_modules ./node_modules
@@ -101,30 +101,28 @@ COPY --from=deps --link /app/node_modules ./node_modules
 # Copy entire source code
 COPY . .
 
-# CRITICAL: Fetch bookmark data from PUBLIC S3 CDN for sitemap generation
-# Issue #sitemap-2024: Sitemap.xml was missing bookmark URLs in production because:
-# 1. Next.js generates sitemap at BUILD time (during 'next build')
-# 2. Bookmarks are in S3 (async-only), not local files like blog posts
-# 3. Without this step, sitemap.ts gets empty data and generates no bookmark URLs
-# @see app/sitemap.ts:149 - Calls getBookmarksForStaticBuildAsync()
-# @see scripts/entrypoint.sh:14-23 - Runtime fetch is TOO LATE for sitemap
-# 
-# SOLUTION: Use PUBLIC S3 CDN URLs - no credentials needed!
-# The S3 bucket is configured for public read access via CDN
-RUN echo "📊 Fetching bookmark data from PUBLIC S3 CDN for sitemap generation..." && \
-    echo "DEPLOYMENT_ENV: ${DEPLOYMENT_ENV:-NOT SET}" && \
-    echo "S3_CDN_URL: ${S3_CDN_URL:-NOT SET}" && \
-    echo "NEXT_PUBLIC_S3_CDN_URL: ${NEXT_PUBLIC_S3_CDN_URL:-NOT SET}" && \
-    # Use public CDN URL to fetch bookmarks - no credentials needed!
-    if [ -n "$S3_CDN_URL" ] || [ -n "$NEXT_PUBLIC_S3_CDN_URL" ]; then \
-      echo "✅ CDN URL available, fetching bookmarks from public S3..." && \
-      bun scripts/fetch-bookmarks-public.ts || \
-      echo "⚠️  Warning: Bookmark fetch failed. Sitemap may be incomplete."; \
-    else \
-      echo "⚠️  Warning: No CDN URL configured (S3_CDN_URL or NEXT_PUBLIC_S3_CDN_URL)." && \
-      echo "   Bookmarks cannot be fetched for sitemap generation." && \
-      echo "   Continuing build without bookmarks in sitemap..."; \
-    fi
+# CRITICAL: Fetch bookmark data from S3 (with BuildKit secrets when available) for sitemap generation
+# Issue #sitemap-2024: Sitemap.xml was missing bookmark URLs because bookmarks only exist in S3.
+# The helper script now supports both public CDN fetches and authenticated S3 SDK reads.
+RUN --mount=type=secret,id=s3_access_key_id,required=false \
+    --mount=type=secret,id=s3_secret_access_key,required=false \
+    --mount=type=secret,id=s3_session_token,required=false \
+    bash -c 'set -euo pipefail \
+      && if [ -f /run/secrets/s3_access_key_id ]; then export S3_ACCESS_KEY_ID="$(cat /run/secrets/s3_access_key_id)"; fi \
+      && if [ -f /run/secrets/s3_secret_access_key ]; then export S3_SECRET_ACCESS_KEY="$(cat /run/secrets/s3_secret_access_key)"; fi \
+      && if [ -f /run/secrets/s3_session_token ]; then export AWS_SESSION_TOKEN="$(cat /run/secrets/s3_session_token)"; export S3_SESSION_TOKEN="$AWS_SESSION_TOKEN"; fi \
+      && echo "📊 Fetching bookmark data for sitemap generation..." \
+      && echo "DEPLOYMENT_ENV: ${DEPLOYMENT_ENV:-NOT SET}" \
+      && echo "S3_CDN_URL: ${S3_CDN_URL:-NOT SET}" \
+      && echo "NEXT_PUBLIC_S3_CDN_URL: ${NEXT_PUBLIC_S3_CDN_URL:-NOT SET}" \
+      && if [ -n "$S3_CDN_URL" ] || [ -n "$NEXT_PUBLIC_S3_CDN_URL" ] || [ -n "${S3_ACCESS_KEY_ID:-}" ]; then \
+        echo "✅ Fetching bookmarks snapshot (SDK if credentials, otherwise CDN)..." && \
+        bun scripts/fetch-bookmarks-public.ts || \
+        echo "⚠️  Warning: Bookmark fetch failed. Sitemap may be incomplete."; \
+      else \
+        echo "⚠️  Warning: No CDN URL or S3 credentials configured. Bookmarks cannot be fetched for sitemap generation." && \
+        echo "   Continuing build without bookmarks in sitemap..."; \
+      fi'
 
 # Pre-build checks disabled to avoid network hang during build
 
