@@ -36,7 +36,7 @@ async function checkS3Freshness() {
         return Number.isNaN(parsed.getTime()) ? null : parsed;
       })
       .filter((d): d is Date => d !== null)
-      .sort((a, b) => b.getTime() - a.getTime());
+      .toSorted((a, b) => b.getTime() - a.getTime());
 
     if (dates.length > 0) {
       const now = new Date();

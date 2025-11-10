@@ -159,7 +159,7 @@ async function main() {
 
   // Sample URLs if requested
   const urlsToTest =
-    sampleSize && sampleSize < urls.length ? urls.sort(() => Math.random() - 0.5).slice(0, sampleSize) : urls;
+    sampleSize && sampleSize < urls.length ? urls.toSorted(() => Math.random() - 0.5).slice(0, sampleSize) : urls;
 
   if (sampleSize) {
     console.log(`Testing random sample of ${urlsToTest.length} URLs`);
@@ -181,7 +181,7 @@ async function main() {
 
   // Calculate stats
   const avgResponseTime = results.length > 0 ? results.reduce((sum, r) => sum + r.responseTime, 0) / results.length : 0;
-  const slowest = results.length > 0 ? results.sort((a, b) => b.responseTime - a.responseTime)[0] : null;
+  const slowest = results.length > 0 ? results.toSorted((a, b) => b.responseTime - a.responseTime)[0] : null;
 
   console.log("\n" + "=".repeat(60));
   console.log("📊 VERIFICATION RESULTS");

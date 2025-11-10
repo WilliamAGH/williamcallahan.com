@@ -168,7 +168,7 @@ export class FailureTracker<T> {
    */
   private pruneOldest(): void {
     const toRemove = Math.floor(this.config.maxItems * 0.2); // Remove 20%
-    const sorted = Array.from(this.failures.entries()).sort(([, a], [, b]) => a.lastAttempt - b.lastAttempt);
+    const sorted = Array.from(this.failures.entries()).toSorted(([, a], [, b]) => a.lastAttempt - b.lastAttempt);
 
     for (let i = 0; i < toRemove && i < sorted.length; i++) {
       const entry = sorted[i];

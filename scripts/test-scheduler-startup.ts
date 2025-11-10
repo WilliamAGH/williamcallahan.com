@@ -5,7 +5,7 @@
  * Run this to isolate scheduler startup issues
  */
 
-export {}; // Make this a module to allow top-level await
+export const schedulerStartupScriptModule = true as const; // Mark module for top-level await support
 
 console.log("[TEST] Starting scheduler startup test...");
 console.log("[TEST] Current directory:", process.cwd());
