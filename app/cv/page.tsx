@@ -13,6 +13,7 @@
 
 import Link from "next/link";
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import { FileText, Globe, Linkedin, Loader2, MapPin } from "lucide-react";
 import { PAGE_METADATA, OG_IMAGE_DIMENSIONS } from "@/data/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -38,9 +39,10 @@ export const metadata: Metadata = getStaticPageMetadata(CV_PAGE_PATH, "cv");
  * Contact metadata renders in explicit rows so the location and primary websites always
  * start on their own line, preserving parity with the PDF export.
  */
-export const revalidate = 60 * 60 * 24; // Recompute daily to keep "last updated" fresh
-
 export default function CvPage(): React.JSX.Element {
+  "use cache";
+  cacheLife("days");
+
   const pageMetadata = PAGE_METADATA.cv;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
