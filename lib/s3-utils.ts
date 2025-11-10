@@ -347,9 +347,37 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
         );
     } catch (err) {
       clearTimeout(timeoutId);
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error && err.stack ? err.stack : undefined;
+      let cause: string | undefined;
+      if (err instanceof Error && err.cause !== undefined) {
+        if (err.cause instanceof Error) {
+          cause = err.cause.message;
+        } else if (typeof err.cause === "string") {
+          cause = err.cause;
+        } else if (typeof err.cause === "number" || typeof err.cause === "boolean") {
+          cause = String(err.cause);
+        } else {
+          try {
+            cause = JSON.stringify(err.cause);
+          } catch {
+            cause = undefined;
+          }
+        }
+      }
+      envLogger.log(
+        "CDN fetch failed",
+        {
+          key,
+          url: cdnUrl.toString(),
+          message,
+          stack,
+          cause,
+        },
+        { category: "S3Utils" },
+      );
       if (isDebug)
-        debug(`[S3Utils] CDN fetch error for ${cdnUrl.toString()}: ${errorMessage}. Falling back to direct S3 read.`);
+        debug(`[S3Utils] CDN fetch error for ${cdnUrl.toString()}: ${message}. Falling back to direct S3 read.`);
     }
     // Fallback to AWS SDK if CDN fetch fails
   }
