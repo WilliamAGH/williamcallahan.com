@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
   // The 'refresh' and 'force-cache' query params are no longer used by this GET endpoint
   // as getGithubActivity is now S3-read-only and refresh is handled by POST /api/github-activity/refresh
-  const url = request.nextUrl;
+  const url = new URL(request.url);
   const refreshParam = url.searchParams.get("refresh");
   if (refreshParam === "true") {
     console.warn(

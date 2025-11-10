@@ -459,7 +459,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { assetId } = await params;
 
   // Extract context from query parameters for descriptive S3 filenames
-  const requestUrl = request.nextUrl;
+  const requestUrl = new URL(request.url);
   const searchParams = requestUrl.searchParams;
 
   // Validate URL parameter to prevent security issues

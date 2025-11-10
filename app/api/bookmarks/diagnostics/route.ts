@@ -23,9 +23,9 @@ function allowWithoutSecret(): boolean {
   return process.env.NODE_ENV !== "production";
 }
 
-function isAuthorized(headerStore: Headers): boolean {
+function isAuthorized(request: NextRequest): boolean {
   if (allowWithoutSecret()) return true;
-  const auth = headerStore.get("authorization") || "";
+  const auth = request.headers.get("authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   const secret = process.env.DEBUG_API_SECRET || "";
   return Boolean(secret && token && token === secret);
@@ -42,7 +42,7 @@ async function tryReadJson<T>(key: string): Promise<ReadJsonResult<T>> {
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  if (!isAuthorized(request.headers)) return unauthorized();
+  if (!isAuthorized(request)) return unauthorized();
 
   // Log env summary in non-production to aid diagnosis
   if (process.env.NODE_ENV !== "production") {

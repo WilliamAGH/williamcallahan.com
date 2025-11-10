@@ -15,7 +15,7 @@ const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 export async function GET(request: NextRequest) {
   noStore();
   try {
-    const searchParams = request.nextUrl.searchParams;
+    const searchParams = new URL(request.url).searchParams;
     const sourceTypeRaw = searchParams.get("type");
     const sourceId = searchParams.get("id");
     const limitRaw = parseInt(searchParams.get("limit") || "20", 10);

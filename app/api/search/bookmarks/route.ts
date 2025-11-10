@@ -20,7 +20,7 @@ import type { UnifiedBookmark } from "@/types";
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
 function resolveRequestUrl(request: NextRequest): URL {
-  return request.nextUrl;
+  return new URL(request.url);
 }
 
 export async function GET(request: NextRequest) {

@@ -26,7 +26,7 @@ const VALID_IMAGE_FORMATS = new Set(["jpeg", "jpg", "png", "webp", "avif", "gif"
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   noStore();
-  const requestUrl = request.nextUrl;
+  const requestUrl = new URL(request.url);
   const searchParams = requestUrl.searchParams;
   const encodedUrl = searchParams.get("url");
   if (!encodedUrl) {

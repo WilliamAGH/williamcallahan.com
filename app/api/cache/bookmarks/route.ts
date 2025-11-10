@@ -22,11 +22,11 @@ import { invalidateBookmarksCache } from "@/lib/bookmarks/bookmarks-data-access.
  * @param request - The HTTP request
  * @returns Boolean indicating if the request has a valid API key
  */
-function validateApiKey(headerStore: Headers): boolean {
+function validateApiKey(request: NextRequest): boolean {
   const apiKey = process.env.ADMIN_API_KEY;
   if (!apiKey) return false;
 
-  const authHeader = headerStore.get("authorization");
+  const authHeader = request.headers.get("authorization");
   if (!authHeader) return false;
 
   // Check 'Bearer TOKEN' format
@@ -40,7 +40,7 @@ function validateApiKey(headerStore: Headers): boolean {
  * GET handler - Returns current status of the bookmarks
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  if (!validateApiKey(request.headers)) {
+  if (!validateApiKey(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  * POST handler - Forces a refresh of the bookmarks
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  if (!validateApiKey(request.headers)) {
+  if (!validateApiKey(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -129,8 +129,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 /**
  * DELETE handler - Clears the bookmarks cache metadata
  */
-export function DELETE(request: NextRequest): NextResponse {
-  if (!validateApiKey(request.headers)) {
+export async function DELETE(request: NextRequest): Promise<NextResponse> {
+  if (!validateApiKey(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

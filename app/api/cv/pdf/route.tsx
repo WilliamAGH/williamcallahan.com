@@ -71,7 +71,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   noStore();
   const { renderToBuffer } = await rendererModulePromise;
   const correlationId = globalThis.crypto.randomUUID();
-  const url = request.nextUrl;
+  const url = new URL(request.url);
   const instance = url.pathname;
 
   try {
