@@ -6,7 +6,6 @@
  * Uses UnifiedImageService for consistent image handling across the application.
  */
 
-import { headers } from "next/headers";
 import { unstable_noStore as noStore } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
@@ -19,25 +18,6 @@ const CACHE_DURATION = 60 * 60 * 24 * 365;
 // Valid image formats
 const VALID_IMAGE_FORMATS = new Set(["jpeg", "jpg", "png", "webp", "avif", "gif"]);
 
-function buildAbsoluteUrl(value: string, headersList: Awaited<ReturnType<typeof headers>>): URL {
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return new URL(value);
-  }
-  const protocol = headersList.get("x-forwarded-proto") ?? "https";
-  const host = headersList.get("host") ?? "localhost";
-  const normalizedPath = value.startsWith("/") ? value : `/${value}`;
-  return new URL(`${protocol}://${host}${normalizedPath}`);
-}
-
-async function resolveRequestUrl(request: NextRequest): Promise<URL> {
-  const headersList = await headers();
-  const nextUrlHeader = headersList.get("next-url");
-  if (nextUrlHeader) {
-    return buildAbsoluteUrl(nextUrlHeader, headersList);
-  }
-  return new URL(request.url);
-}
-
 /**
  * GET handler for image caching
  * @param {NextRequest} request - Incoming request
@@ -46,7 +26,7 @@ async function resolveRequestUrl(request: NextRequest): Promise<URL> {
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   noStore();
-  const requestUrl = await resolveRequestUrl(request);
+  const requestUrl = request.nextUrl;
   const searchParams = requestUrl.searchParams;
   const encodedUrl = searchParams.get("url");
   if (!encodedUrl) {

@@ -9,7 +9,6 @@ import { BOOKMARKS_PER_PAGE, BOOKMARKS_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from
 import type { BookmarksIndex } from "@/types/bookmark";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import { headers } from "next/headers";
 import { unstable_noStore as noStore } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
@@ -39,30 +38,11 @@ function buildInternalHrefs(
   return res;
 }
 
-function buildAbsoluteUrl(value: string, headersList: Awaited<ReturnType<typeof headers>>): URL {
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return new URL(value);
-  }
-  const protocol = headersList.get("x-forwarded-proto") ?? "https";
-  const host = headersList.get("host") ?? "localhost";
-  const normalizedPath = value.startsWith("/") ? value : `/${value}`;
-  return new URL(`${protocol}://${host}${normalizedPath}`);
-}
-
-async function resolveRequestUrl(request: NextRequest): Promise<URL> {
-  const headersList = await headers();
-  const nextUrlHeader = headersList.get("next-url");
-  if (nextUrlHeader) {
-    return buildAbsoluteUrl(nextUrlHeader, headersList);
-  }
-  return new URL(request.url);
-}
-
 export async function GET(request: NextRequest): Promise<NextResponse> {
   noStore();
   console.log("[API Bookmarks] Received GET request for bookmarks");
 
-  const requestUrl = await resolveRequestUrl(request);
+  const requestUrl = request.nextUrl;
   const searchParams = requestUrl.searchParams;
   const rawPage = Number.parseInt(searchParams.get("page") || "1", 10);
   const page = Number.isNaN(rawPage) ? 1 : Math.max(1, rawPage);
