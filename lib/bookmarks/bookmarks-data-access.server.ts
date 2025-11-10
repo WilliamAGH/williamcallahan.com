@@ -489,7 +489,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarksWithSlugs, null, 2));
         logBookmarkDataAccessEvent("Saved bookmarks to local fallback path (metadata refresh)", {
           path: LOCAL_BOOKMARKS_PATH,
-          bookmarkCount: updatedBookmarks.length,
+          bookmarkCount: bookmarksWithSlugs.length,
         });
       } catch (error) {
         console.error(`${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path (metadata refresh):`, error);
@@ -516,7 +516,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarksWithSlugs, null, 2));
         logBookmarkDataAccessEvent("Saved bookmarks to local fallback path (change-detected path)", {
           path: LOCAL_BOOKMARKS_PATH,
-          bookmarkCount: bookmarks.length,
+          bookmarkCount: bookmarksWithSlugs.length,
         });
       } catch (error) {
         console.error(
