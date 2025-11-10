@@ -24,7 +24,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 const forceLocalS3Cache = process.env.FORCE_LOCAL_S3_CACHE === "true";
 const shouldSkipLocalS3Cache =
-  !forceLocalS3Cache && (process.env.NODE_ENV === "production" || process.env.NEXT_PHASE === "phase-production-build");
+  !forceLocalS3Cache && process.env.RUNNING_IN_DOCKER === "true" && process.env.NEXT_PHASE !== "phase-production-build";
 
 let localS3CacheModule: typeof import("@/lib/bookmarks/local-s3-cache") | null = null;
 async function readLocalS3JsonSafe<T>(key: string): Promise<T | null> {
