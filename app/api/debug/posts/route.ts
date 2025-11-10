@@ -14,6 +14,11 @@ import { getAllMDXPosts } from "@/lib/blog/mdx";
 import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 
+const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+export const runtime = "nodejs";
+
 // Only allow this endpoint in development
 // Commented out as unused but kept for reference
 // function checkIsDevelopment() {
@@ -24,6 +29,15 @@ import { NextResponse, type NextRequest } from "next/server";
 // }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  if (isProductionBuild) {
+    return NextResponse.json(
+      {
+        message: "Debug diagnostics disabled during build phase",
+        buildPhase: true,
+      },
+      { status: 200, headers: NO_STORE_HEADERS },
+    );
+  }
   noStore();
   try {
     // SECURITY: Require authentication for debug endpoints
@@ -31,12 +45,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const debugSecret = process.env.DEBUG_API_SECRET;
 
     if (!debugSecret || authHeader !== `Bearer ${debugSecret}`) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS });
     }
 
     // In production, return a simple "not available" message instead of throwing an error
     if (process.env.NODE_ENV !== "development") {
-      return NextResponse.json({ message: "Debug information is only available in development mode" }, { status: 403 });
+      return NextResponse.json(
+        { message: "Debug information is only available in development mode" },
+        { status: 403, headers: NO_STORE_HEADERS },
+      );
     }
 
     // Get information about the posts directory - BUT DON'T EXPOSE PATHS

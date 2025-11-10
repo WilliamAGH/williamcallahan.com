@@ -4,6 +4,10 @@ import { getBookmarksIndex } from "@/lib/bookmarks/bookmarks-data-access.server"
 import logger from "@/lib/utils/logger";
 import type { DeepCheckResult } from "@/types/health";
 
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+export const runtime = "nodejs";
+
 async function measure<T>(name: string, fn: () => Promise<T>): Promise<{ result: T | null; check: DeepCheckResult }> {
   const start = performance.now();
   try {
@@ -55,6 +59,12 @@ async function checkBookmarks(): Promise<DeepCheckResult> {
 }
 
 export async function GET() {
+  if (isProductionBuild) {
+    return NextResponse.json(
+      { status: "skipped", timestamp: new Date().toISOString(), reason: "build-phase" },
+      { status: 200 },
+    );
+  }
   logger.info("[Deep Health Check] Starting deep health check...");
   const checks: DeepCheckResult[] = [];
 

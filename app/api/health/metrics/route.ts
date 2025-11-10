@@ -14,6 +14,9 @@ import { getSystemMetrics } from "@/lib/health/status-monitor.server";
 import { HealthMetricsResponseSchema, type HealthMetrics } from "@/types/health";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+export const runtime = "nodejs";
 
 /**
  * GET /api/health/metrics
@@ -21,6 +24,16 @@ const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
  * @returns {NextResponse}
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  if (isProductionBuild) {
+    return NextResponse.json(
+      {
+        status: "skipped",
+        message: "Health metrics disabled during build phase",
+        timestamp: new Date().toISOString(),
+      },
+      { status: 200, headers: NO_STORE_HEADERS },
+    );
+  }
   noStore();
   try {
     // Check authorization using existing env variable

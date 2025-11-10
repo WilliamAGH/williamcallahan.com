@@ -13,6 +13,9 @@ import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+export const runtime = "nodejs";
 
 function resolveRequestUrl(request: NextRequest): URL {
   return new URL(request.url);
@@ -31,6 +34,21 @@ const ALL_VALID_SCOPES = [...VALID_SCOPES, "all"];
  * @returns A JSON response containing the search results or an error message.
  */
 export async function GET(request: NextRequest, { params }: { params: { scope: string } }) {
+  if (isProductionBuild) {
+    return NextResponse.json(
+      {
+        results: [],
+        meta: {
+          query: "",
+          scope: params.scope.toLowerCase(),
+          count: 0,
+          timestamp: new Date().toISOString(),
+          buildPhase: true,
+        },
+      },
+      { headers: NO_STORE_HEADERS },
+    );
+  }
   noStore();
   try {
     const requestUrl = resolveRequestUrl(request);
