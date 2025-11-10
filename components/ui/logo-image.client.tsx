@@ -166,7 +166,12 @@ export function LogoImage({
 
 import Placeholder from "@/public/images/opengraph-placeholder.png";
 
-export function OptimizedCardImage({ src, alt, className = "" }: OptimizedCardImageProps): React.JSX.Element {
+export function OptimizedCardImage({
+  src,
+  alt,
+  className = "",
+  priority = false,
+}: OptimizedCardImageProps): React.JSX.Element {
   const isDev = process.env.NODE_ENV === "development";
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
@@ -190,7 +195,16 @@ export function OptimizedCardImage({ src, alt, className = "" }: OptimizedCardIm
   // No source provided - show placeholder (should be rare with proper data)
   if (!src) {
     if (isDev) console.warn(`[OptimizedCardImage] No image source provided, showing placeholder`);
-    return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
+    return (
+      <Image
+        src={Placeholder}
+        alt={alt}
+        fill
+        placeholder="empty"
+        className="object-cover"
+        {...(priority ? { priority, fetchPriority: "high" } : {})}
+      />
+    );
   }
 
   // Source provided but errored after retries - show placeholder
@@ -202,7 +216,16 @@ export function OptimizedCardImage({ src, alt, className = "" }: OptimizedCardIm
           `[OptimizedCardImage] Failed to load image after ${retryCount} retries: ${src}, showing placeholder`,
         );
     }
-    return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
+    return (
+      <Image
+        src={Placeholder}
+        alt={alt}
+        fill
+        placeholder="empty"
+        className="object-cover"
+        {...(priority ? { priority, fetchPriority: "high" } : {})}
+      />
+    );
   }
 
   // Add cache buster for retries
@@ -221,6 +244,7 @@ export function OptimizedCardImage({ src, alt, className = "" }: OptimizedCardIm
       placeholder="empty"
       className={`object-cover transition-opacity duration-200 ${className}`}
       style={{ opacity: loaded ? 1 : 0.2 }}
+      {...(priority ? { priority, fetchPriority: "high" as const } : {})}
       onLoad={() => {
         setLoaded(true);
         setErrored(false); // Clear error state on successful load
