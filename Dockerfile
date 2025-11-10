@@ -130,6 +130,21 @@ RUN --mount=type=secret,id=s3_access_key_id,required=false \
         echo "   Continuing build without bookmarks in sitemap..."; \
       fi'
 
+# Quick connectivity verification so CI/CD logs capture upstream reachability before the Next.js build.
+RUN bash -c 'set -euo pipefail \
+  && if [ -n "${S3_SERVER_URL:-}" ]; then \
+       echo "🔍 Checking S3 server connectivity at ${S3_SERVER_URL}" && \
+       curl -fsSIL "${S3_SERVER_URL%%/}" >/dev/null; \
+     else \
+       echo "⚠️  S3_SERVER_URL not set; skipping server connectivity check"; \
+     fi \
+  && if [ -n "${NEXT_PUBLIC_S3_CDN_URL:-}" ]; then \
+       echo "🔍 Checking CDN connectivity at ${NEXT_PUBLIC_S3_CDN_URL}" && \
+       curl -fsSIL "${NEXT_PUBLIC_S3_CDN_URL%%/}" >/dev/null; \
+     else \
+       echo "⚠️  NEXT_PUBLIC_S3_CDN_URL not set; skipping CDN connectivity check"; \
+     fi'
+
 # Pre-build checks disabled to avoid network hang during build
 
 # Now build the app using bun (Bun) to avoid OOM issues
