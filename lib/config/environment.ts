@@ -8,6 +8,19 @@
 import logger from "@/lib/utils/logger";
 import type { Environment } from "@/types/config";
 
+const shouldLogEnvironmentInfo =
+  process.env.DEBUG_ENVIRONMENT === "true" || process.env.DEBUG === "true" || process.env.VERBOSE === "true";
+
+let loggedExplicitDeploymentEnv: string | null = null;
+let loggedInvalidDeploymentWarning = false;
+const loggedDetectionMessages = new Set<string>();
+
+const logEnvironmentInfo = (message: string): void => {
+  if (shouldLogEnvironmentInfo) {
+    logger.info(message);
+  }
+};
+
 /**
  * Get the current environment based on URL configuration
  * Uses API_BASE_URL or NEXT_PUBLIC_SITE_URL to determine environment
@@ -28,11 +41,17 @@ export function getEnvironment(): Environment {
   if (deploymentEnv) {
     const normalized = deploymentEnv.toLowerCase().trim();
     if (normalized === "production" || normalized === "development" || normalized === "test") {
-      logger.info(`[Environment] Using explicit DEPLOYMENT_ENV: ${normalized}`);
+      if (loggedExplicitDeploymentEnv !== normalized) {
+        logEnvironmentInfo(`[Environment] Using explicit DEPLOYMENT_ENV: ${normalized}`);
+        loggedExplicitDeploymentEnv = normalized;
+      }
       return normalized as Environment;
     }
     // Log warning for invalid DEPLOYMENT_ENV values
-    logger.warn(`[Environment] Invalid DEPLOYMENT_ENV value: '${deploymentEnv}', falling back to URL detection`);
+    if (!loggedInvalidDeploymentWarning) {
+      logger.warn(`[Environment] Invalid DEPLOYMENT_ENV value: '${deploymentEnv}', falling back to URL detection`);
+      loggedInvalidDeploymentWarning = true;
+    }
   }
 
   // PRIORITY 2: Try to infer from URLs (runtime detection)
@@ -51,19 +70,28 @@ export function getEnvironment(): Environment {
   if (apiUrl) {
     // Check if it's localhost (local development)
     if (apiUrl.includes("localhost") || apiUrl.includes("127.0.0.1")) {
-      logger.info("[Environment] Detected localhost - using development");
+      if (!loggedDetectionMessages.has("localhost")) {
+        logEnvironmentInfo("[Environment] Detected localhost - using development");
+        loggedDetectionMessages.add("localhost");
+      }
       return "development";
     }
 
     // Check if it's dev.williamcallahan.com
     if (apiUrl.includes("dev.williamcallahan.com")) {
-      logger.info("[Environment] Detected dev.williamcallahan.com - using development");
+      if (!loggedDetectionMessages.has("dev-domain")) {
+        logEnvironmentInfo("[Environment] Detected dev.williamcallahan.com - using development");
+        loggedDetectionMessages.add("dev-domain");
+      }
       return "development";
     }
 
     // Check if it's production williamcallahan.com
     if (apiUrl.includes("williamcallahan.com") && !apiUrl.includes("dev.")) {
-      logger.info("[Environment] Detected williamcallahan.com - using production");
+      if (!loggedDetectionMessages.has("prod-domain")) {
+        logEnvironmentInfo("[Environment] Detected williamcallahan.com - using production");
+        loggedDetectionMessages.add("prod-domain");
+      }
       return "production";
     }
   }
@@ -179,11 +207,11 @@ export function logEnvironmentConfig(): void {
   const env = getEnvironment();
   const suffix = getEnvironmentSuffix();
 
-  logger.info("[Environment] Configuration:");
-  logger.info(`  NODE_ENV: ${process.env.NODE_ENV || "(not set)"}`);
-  logger.info(`  Normalized: ${env}`);
-  logger.info(`  Suffix: "${suffix}"`);
-  logger.info(`  Example path: json/bookmarks/data${suffix}.json`);
+  logEnvironmentInfo("[Environment] Configuration:");
+  logEnvironmentInfo(`  NODE_ENV: ${process.env.NODE_ENV || "(not set)"}`);
+  logEnvironmentInfo(`  Normalized: ${env}`);
+  logEnvironmentInfo(`  Suffix: "${suffix}"`);
+  logEnvironmentInfo(`  Example path: json/bookmarks/data${suffix}.json`);
 }
 
 // Validate on module load
