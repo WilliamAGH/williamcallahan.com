@@ -27,8 +27,13 @@ const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "lib", "data", "bookmarks.
 const LOCAL_BOOKMARKS_BY_ID_DIR = path.join(process.cwd(), ".next", "cache", "bookmarks", "by-id");
 
 const forceLocalS3Cache = process.env.FORCE_LOCAL_S3_CACHE === "true";
+const nextPhase = process.env.NEXT_PHASE;
+// Next.js injects PHASE_PRODUCTION_BUILD during compilation and PHASE_PRODUCTION_SERVER at runtime
+// (see node_modules/next/dist/shared/lib/constants.js).  We only disable the local S3 snapshot when
+// the server is running the production phase so Docker builds can stay offline.
+const isProductionServerPhase = nextPhase === "phase-production-server";
 const shouldSkipLocalS3Cache =
-  !forceLocalS3Cache && (process.env.NODE_ENV === "production" || process.env.NEXT_PHASE === "phase-production-build");
+  !forceLocalS3Cache && process.env.RUNNING_IN_DOCKER === "true" && isProductionServerPhase;
 
 let localS3CacheModule: typeof import("@/lib/bookmarks/local-s3-cache") | null = null;
 async function readLocalS3JsonSafe<T>(key: string): Promise<T | null> {
@@ -822,7 +827,8 @@ async function fetchAndCacheBookmarks(
   });
 
   // --- 1. Prefer S3 in production runtime; use local fallback only in dev/test/CLI contexts ---
-  const isProductionRuntime = getEnvironment() === "production" && !isCliLikeContext();
+  const isProductionRuntime =
+    getEnvironment() === "production" && !isCliLikeContext() && process.env.NEXT_PHASE !== "phase-production-build";
   const isTestEnvironment = process.env.NODE_ENV === "test" || process.env.JEST_WORKER_ID !== undefined;
   if (!isProductionRuntime && !isTestEnvironment) {
     try {
@@ -858,32 +864,54 @@ async function fetchAndCacheBookmarks(
     });
   }
 
-  // --- 2. Fallback to S3 ---
+  // --- 2. Fallback to S3 (with local snapshot) ---
+  const formatBookmarks = (dataset: UnifiedBookmark[], source: string) => {
+    if (!includeImageData) {
+      logBookmarkDataAccessEvent(`Stripping image data from ${source} bookmarks`, {
+        bookmarkCount: dataset.length,
+      });
+      return dataset.map(stripImageData);
+    }
+    return dataset.map(normalizeBookmarkTags);
+  };
+
+  let bookmarksFromS3: UnifiedBookmark[] | null = null;
   try {
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
-    if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
-      logBookmarkDataAccessEvent("Loaded bookmarks from S3", { bookmarkCount: bookmarks.length });
-      if (process.env.DEBUG_BOOKMARKS === "true") {
-        const cliBookmark = bookmarks.find(b => b.id === "yz7g8v8vzprsd2bm1w1cjc4y");
-        if (cliBookmark) {
-          logBookmarkDataAccessEvent("CLI bookmark content exists", {
-            hasContent: !!cliBookmark.content,
-            hasScreenshotAssetId: !!cliBookmark.content?.screenshotAssetId,
-            screenshotAssetId: cliBookmark.content?.screenshotAssetId,
-            contentKeys: cliBookmark.content ? Object.keys(cliBookmark.content) : [],
-          });
-        }
-      }
-      if (!includeImageData) {
-        logBookmarkDataAccessEvent("Stripping image data from S3 bookmarks", { bookmarkCount: bookmarks.length });
-        return bookmarks.map(stripImageData);
-      }
-      return bookmarks.map(normalizeBookmarkTags);
+    const s3Data = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    if (s3Data && Array.isArray(s3Data) && s3Data.length > 0) {
+      bookmarksFromS3 = s3Data;
     }
   } catch (e: unknown) {
-    if (!isS3Error(e) || e.$metadata?.httpStatusCode !== 404)
+    if (!isS3Error(e) || e.$metadata?.httpStatusCode !== 404) {
       console.error(`${LOG_PREFIX} Error reading bookmarks file:`, String(e));
+    }
   }
+
+  if (bookmarksFromS3) {
+    logBookmarkDataAccessEvent("Loaded bookmarks from S3", { bookmarkCount: bookmarksFromS3.length });
+    if (process.env.DEBUG_BOOKMARKS === "true") {
+      const cliBookmark = bookmarksFromS3.find(b => b.id === "yz7g8v8vzprsd2bm1w1cjc4y");
+      if (cliBookmark) {
+        logBookmarkDataAccessEvent("CLI bookmark content exists", {
+          hasContent: !!cliBookmark.content,
+          hasScreenshotAssetId: !!cliBookmark.content?.screenshotAssetId,
+          screenshotAssetId: cliBookmark.content?.screenshotAssetId,
+          contentKeys: cliBookmark.content ? Object.keys(cliBookmark.content) : [],
+        });
+      }
+    }
+    return formatBookmarks(bookmarksFromS3, "S3");
+  }
+
+  const localS3Snapshot = await readLocalS3JsonSafe<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+  if (localS3Snapshot && Array.isArray(localS3Snapshot) && localS3Snapshot.length > 0) {
+    logBookmarkDataAccessEvent("Loaded bookmarks from local S3 snapshot", {
+      bookmarkCount: localS3Snapshot.length,
+      source: "local",
+    });
+    return formatBookmarks(localS3Snapshot, "local S3 snapshot");
+  }
+
   logBookmarkDataAccessEvent("No bookmarks in S3; attempting refresh");
   if (skipExternalFetch) return [];
   const refreshedBookmarks = await refreshAndPersistBookmarks(force);
