@@ -412,14 +412,14 @@ const nextConfig = {
       // Analytics and internal hosting platforms
       { protocol: "https", hostname: "umami.iocloudhost.net" },
       { protocol: "https", hostname: "plausible.iocloudhost.net" },
-      { protocol: "https", hostname: "**.iocloudhost.net" }, // Wildcard for iocloudhost subdomains
+      { protocol: "https", hostname: "*.iocloudhost.net" }, // Wildcard for iocloudhost subdomains
       // Specific hosting provider subdomains
-      { protocol: "https", hostname: "**.popos-sf1.com" },
-      { protocol: "https", hostname: "**.popos-sf2.com" },
-      { protocol: "https", hostname: "**.popos-sf3.com" },
-      { protocol: "https", hostname: "**.digitaloceanspaces.com" }, // DigitalOcean Spaces CDN
+      { protocol: "https", hostname: "*.popos-sf1.com" },
+      { protocol: "https", hostname: "*.popos-sf2.com" },
+      { protocol: "https", hostname: "*.popos-sf3.com" },
+      { protocol: "https", hostname: "*.digitaloceanspaces.com" }, // DigitalOcean Spaces CDN
       { protocol: "https", hostname: "s3-storage.callahan.cloud", pathname: "/**" }, // S3 Storage CDN
-      { protocol: "https", hostname: "**.callahan.cloud", pathname: "/**" }, // DigitalOcean Spaces CDN
+      { protocol: "https", hostname: "*.callahan.cloud", pathname: "/**" }, // DigitalOcean Spaces CDN
 
       /**
        * Development-only: Allow all image sources for easier local development
