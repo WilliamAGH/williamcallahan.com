@@ -11,11 +11,9 @@ import { validateSearchQuery } from "@/lib/validators/search";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import type { SearchResult } from "@/types/search";
 import { unstable_noStore as noStore } from "next/cache";
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import os from "node:os";
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 const withNoStoreHeaders = (additional?: Record<string, string>): HeadersInit =>
   additional ? { "Cache-Control": "no-store", ...additional } : { "Cache-Control": "no-store" };
@@ -32,8 +30,7 @@ function buildAbsoluteUrl(value: string, headersList: Headers): URL {
   return new URL(`${protocol}://${host}${normalizedPath}`);
 }
 
-function resolveRequestContext(request: Request): { url: URL; headersList: Headers } {
-  const headersList = request.headers;
+function resolveRequestContext(request: Request, headersList: Headers): { url: URL; headersList: Headers } {
   const nextUrlHeader = headersList.get("next-url");
   const url = nextUrlHeader ? buildAbsoluteUrl(nextUrlHeader, headersList) : new URL(request.url);
   return { url, headersList };
@@ -101,8 +98,9 @@ function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
  */
 export async function GET(request: Request) {
   noStore();
+  const headersList = headers();
   try {
-    const { url: requestUrl, headersList } = resolveRequestContext(request);
+    const { url: requestUrl } = resolveRequestContext(request, headersList);
     const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q");
 

@@ -10,6 +10,7 @@
  */
 
 import { unstable_noStore as noStore } from "next/cache";
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { searchBookmarks } from "@/lib/search";
@@ -17,19 +18,16 @@ import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import type { UnifiedBookmark } from "@/types";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
-function resolveRequestUrl(request: Request): URL {
-  const nextUrlHeader = request.headers.get("next-url");
+function resolveRequestUrl(request: Request, headersList: Headers): URL {
+  const nextUrlHeader = headersList.get("next-url");
   if (nextUrlHeader) {
     if (nextUrlHeader.startsWith("http")) {
       return new URL(nextUrlHeader);
     }
-    const protocol = request.headers.get("x-forwarded-proto") ?? "https";
-    const host = request.headers.get("host") ?? "localhost";
+    const protocol = headersList.get("x-forwarded-proto") ?? "https";
+    const host = headersList.get("host") ?? "localhost";
     const normalized = nextUrlHeader.startsWith("/") ? nextUrlHeader : `/${nextUrlHeader}`;
     return new URL(`${protocol}://${host}${normalized}`);
   }
@@ -38,8 +36,9 @@ function resolveRequestUrl(request: Request): URL {
 
 export async function GET(request: Request) {
   noStore();
+  const headersList = headers();
   try {
-    const requestUrl = resolveRequestUrl(request);
+    const requestUrl = resolveRequestUrl(request, headersList);
     const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q");
 

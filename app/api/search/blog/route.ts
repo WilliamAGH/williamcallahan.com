@@ -12,22 +12,20 @@
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search"; // Import the refactored search function
 import { unstable_noStore as noStore } from "next/cache";
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 // import type { SearchResult } from '@/types/search'; // Keep SearchResult type - Removed as unused by ESLint
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
-function resolveRequestUrl(request: Request): URL {
-  const nextUrlHeader = request.headers.get("next-url");
+function resolveRequestUrl(request: Request, headersList: Headers): URL {
+  const nextUrlHeader = headersList.get("next-url");
   if (nextUrlHeader) {
     if (nextUrlHeader.startsWith("http")) {
       return new URL(nextUrlHeader);
     }
-    const protocol = request.headers.get("x-forwarded-proto") ?? "https";
-    const host = request.headers.get("host") ?? "localhost";
+    const protocol = headersList.get("x-forwarded-proto") ?? "https";
+    const host = headersList.get("host") ?? "localhost";
     return new URL(`${protocol}://${host}${nextUrlHeader.startsWith("/") ? nextUrlHeader : `/${nextUrlHeader}`}`);
   }
   return new URL(request.url);
@@ -46,8 +44,9 @@ function resolveRequestUrl(request: Request): URL {
  */
 export async function GET(request: Request): Promise<NextResponse> {
   noStore();
+  const headersList = headers();
   try {
-    const requestUrl = resolveRequestUrl(request);
+    const requestUrl = resolveRequestUrl(request, headersList);
     const searchParams = requestUrl.searchParams;
     const query = searchParams.get("q");
 
