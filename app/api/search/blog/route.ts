@@ -17,14 +17,14 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
-function resolveRequestUrl(request: NextRequest): URL {
-  const nextUrlHeader = request.headers.get("next-url");
+function resolveRequestUrl(request: NextRequest, headerStore: Headers): URL {
+  const nextUrlHeader = headerStore.get("next-url");
   if (nextUrlHeader) {
     if (nextUrlHeader.startsWith("http")) {
       return new URL(nextUrlHeader);
     }
-    const protocol = request.headers.get("x-forwarded-proto") ?? "https";
-    const host = request.headers.get("host") ?? "localhost";
+    const protocol = headerStore.get("x-forwarded-proto") ?? "https";
+    const host = headerStore.get("host") ?? "localhost";
     return new URL(`${protocol}://${host}${nextUrlHeader.startsWith("/") ? nextUrlHeader : `/${nextUrlHeader}`}`);
   }
   return new URL(request.url);

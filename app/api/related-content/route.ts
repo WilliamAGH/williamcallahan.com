@@ -22,7 +22,7 @@ import type {
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
 function resolveRequestUrl(request: NextRequest): URL {
-  return request.nextUrl;
+  return new URL(request.url);
 }
 
 // Default options

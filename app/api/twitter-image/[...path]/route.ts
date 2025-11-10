@@ -43,7 +43,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Preserve any query parameters (e.g., format, name)
-    const { search } = request.nextUrl;
+    const { search } = new URL(request.url);
     // Use embeddedSearch as fallback for query parameters embedded in the path
     const upstreamUrl = `https://pbs.twimg.com/${pathOnly}${search || embeddedSearch}`;
     console.log(`[Twitter Image Proxy] Attempting to fetch: ${upstreamUrl}`);

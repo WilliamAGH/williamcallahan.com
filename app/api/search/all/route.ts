@@ -19,10 +19,6 @@ const withNoStoreHeaders = (additional?: Record<string, string>): HeadersInit =>
 
 const inFlightSearches = new Map<string, Promise<SearchResult[]>>();
 
-function resolveRequestContext(request: NextRequest): { url: URL; headersList: Headers } {
-  return { url: request.nextUrl, headersList: request.headers };
-}
-
 // ────────────────────────────────────────────────────────────────────────────
 // Memory pressure check (adaptive & configurable)
 //
@@ -85,9 +81,9 @@ function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
  */
 export async function GET(request: NextRequest) {
   noStore();
-  const headersList = request.headers;
   try {
-    const { url: requestUrl } = resolveRequestContext(request);
+    const headersList = request.headers;
+    const requestUrl = new URL(request.url);
     const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q");
 
