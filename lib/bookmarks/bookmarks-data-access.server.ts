@@ -1,7 +1,7 @@
 /** Bookmarks data access: In-memory → S3 → External API */
 
-import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
-import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE } from "@/lib/constants";
+import { readJsonS3, writeJsonS3, listS3Objects, deleteFromS3 } from "@/lib/s3-utils";
+import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
 import { createDistributedLock, cleanupStaleLocks } from "@/lib/utils/s3-distributed-lock.server";
 import type { UnifiedBookmark, RefreshBookmarksCallback } from "@/types";
@@ -336,8 +336,98 @@ async function writeBookmarksByIdFiles(bookmarks: UnifiedBookmark[]): Promise<vo
   }
 }
 
+async function cleanupLocalBookmarkByIdFiles(activeIds: ReadonlySet<string>): Promise<number> {
+  try {
+    const entries = await fs.readdir(LOCAL_BOOKMARKS_BY_ID_DIR, { withFileTypes: true });
+    const removals = await Promise.all(
+      entries.map(async entry => {
+        if (!entry.isFile() || !entry.name.endsWith(".json")) {
+          return 0;
+        }
+        const bookmarkId = entry.name.replace(/\.json$/, "");
+        if (activeIds.has(bookmarkId)) {
+          return 0;
+        }
+        try {
+          await fs.rm(path.join(LOCAL_BOOKMARKS_BY_ID_DIR, entry.name), { force: true });
+          return 1;
+        } catch (error) {
+          envLogger.debug(
+            "Failed to delete local bookmark by-id cache file",
+            { bookmarkId, error: String(error) },
+            { category: LOG_PREFIX },
+          );
+          return 0;
+        }
+      }),
+    );
+    return removals.reduce<number>((sum, count) => sum + count, 0);
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err?.code === "ENOENT") {
+      return 0;
+    }
+    envLogger.debug(
+      "Failed to scan local bookmark by-id cache for cleanup",
+      { error: String(error) },
+      { category: LOG_PREFIX },
+    );
+    return 0;
+  }
+}
+
+async function cleanupS3BookmarkByIdFiles(activeIds: ReadonlySet<string>): Promise<number> {
+  const prefix = `${BOOKMARKS_S3_PATHS.BY_ID_DIR}/`;
+  const keys = await listS3Objects(prefix);
+  if (keys.length === 0) {
+    return 0;
+  }
+
+  const removals = await Promise.all(
+    keys.map(async key => {
+      if (!key.endsWith(".json")) {
+        return 0;
+      }
+      const normalizedKey = key.startsWith(prefix) ? key.slice(prefix.length) : key;
+      const bookmarkId = normalizedKey.replace(/\.json$/, "");
+      if (activeIds.has(bookmarkId)) {
+        return 0;
+      }
+      try {
+        await deleteFromS3(key);
+        return 1;
+      } catch (error) {
+        envLogger.debug(
+          "Failed to delete orphaned bookmark by-id object in S3",
+          { bookmarkId, key, error: String(error) },
+          { category: LOG_PREFIX },
+        );
+        return 0;
+      }
+    }),
+  );
+
+  return removals.reduce<number>((sum, count) => sum + count, 0);
+}
+
+async function cleanupOrphanedBookmarkByIdFiles(bookmarks: UnifiedBookmark[]): Promise<void> {
+  const activeIds = new Set(bookmarks.map(bookmark => bookmark.id));
+  const [localDeleted, remoteDeleted] = await Promise.all([
+    cleanupLocalBookmarkByIdFiles(activeIds),
+    cleanupS3BookmarkByIdFiles(activeIds),
+  ]);
+
+  if (localDeleted > 0 || remoteDeleted > 0) {
+    logBookmarkDataAccessEvent("Removed orphaned bookmark by-id cache entries", {
+      localDeleted,
+      remoteDeleted,
+    });
+  }
+}
+
 async function writeBookmarkMasterFiles(bookmarksWithSlugs: UnifiedBookmark[]): Promise<void> {
   invalidateBookmarkByIdCaches();
+  await cleanupOrphanedBookmarkByIdFiles(bookmarksWithSlugs);
   await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
   await writeBookmarksByIdFiles(bookmarksWithSlugs);
 }
@@ -996,8 +1086,8 @@ export async function getBookmarkById(
     );
     const allBookmarks = (await getBookmarks({
       includeImageData: true,
-      skipExternalFetch: false,
-      force: false,
+      skipExternalFetch: options.skipExternalFetch ?? DEFAULT_BOOKMARK_OPTIONS.skipExternalFetch,
+      force: options.force ?? DEFAULT_BOOKMARK_OPTIONS.force,
     })) as UnifiedBookmark[];
     bookmark = allBookmarks.find(b => b.id === bookmarkId) ?? null;
   }
