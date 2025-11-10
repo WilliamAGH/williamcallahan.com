@@ -444,7 +444,7 @@ const nextConfig = {
 const sentryWebpackPluginOptions = {
   // Additional config options for Sentry Webpack plugin
   // Essential: org, project, and SENTRY_AUTH_TOKEN (via env var) must be available
-  silent: process.env.SENTRY_SILENT_OUTPUT === "true", // Example: use env var to control verbosity
+  silent: true,
   org: "williamcallahan-com",
   project: "williamcallahan-com",
   authToken: process.env.SENTRY_AUTH_TOKEN,
