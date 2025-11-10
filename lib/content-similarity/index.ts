@@ -6,6 +6,7 @@
  */
 
 import type { NormalizedContent, SimilarityWeights, RelatedContentType } from "@/types/related-content";
+import { getDeterministicTimestamp } from "@/lib/server-cache";
 import { hasInvestmentContext } from "./keyword-extractor";
 import { calculateSemanticTagSimilarity } from "./tag-ontology";
 
@@ -111,8 +112,8 @@ function calculateDomainSimilarity(domain1?: string, domain2?: string): number {
 function calculateRecencyScore(date?: Date): number {
   if (!date) return 0.5; // Neutral score for undated content
 
-  const now = new Date();
-  const ageInDays = (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
+  const now = getDeterministicTimestamp();
+  const ageInDays = (now - date.getTime()) / (1000 * 60 * 60 * 24);
 
   // Scoring curve: content from today = 1.0, older content gradually decreases
   if (ageInDays <= 0) return 1;

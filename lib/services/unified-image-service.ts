@@ -4,7 +4,7 @@
  * @module lib/services/unified-image-service
  */
 import { s3Client, writeBinaryS3, checkIfS3ObjectExists } from "../s3-utils";
-import { ServerCacheInstance } from "../server-cache";
+import { ServerCacheInstance, getDeterministicTimestamp } from "../server-cache";
 import { getDomainVariants } from "../utils/domain-utils";
 import {
   parseS3Key,
@@ -57,8 +57,8 @@ export class UnifiedImageService {
   private sessionFailedDomains = new Set<string>();
   private domainRetryCount = new Map<string, number>();
   private domainFirstFailureTime = new Map<string, number>(); // Track when domain first failed
-  private sessionStartTime = Date.now();
-  private lastCleanupTime = Date.now();
+  private sessionStartTime = getDeterministicTimestamp();
+  private lastCleanupTime = getDeterministicTimestamp();
 
   // Request deduplication for concurrent logo fetches
   private inFlightLogoRequests = new Map<string, Promise<LogoFetchResult>>();
@@ -101,7 +101,7 @@ export class UnifiedImageService {
         buffer: placeholder,
         contentType: "image/png",
         source: "placeholder",
-        timestamp: Date.now(),
+        timestamp: getDeterministicTimestamp(),
       };
     }
 
@@ -152,7 +152,7 @@ export class UnifiedImageService {
         source: null,
         contentType: "image/png",
         error: "Insufficient memory to process logo request",
-        timestamp: Date.now(),
+        timestamp: getDeterministicTimestamp(),
         isValid: false,
       };
     }
@@ -182,7 +182,7 @@ export class UnifiedImageService {
             source: null,
             contentType: "image/png",
             error: "Logo not available in read-only mode",
-            timestamp: Date.now(),
+            timestamp: getDeterministicTimestamp(),
             isValid: false,
           };
         }
@@ -217,7 +217,7 @@ export class UnifiedImageService {
                     url: undefined,
                     source,
                     contentType,
-                    timestamp: Date.now(),
+                    timestamp: getDeterministicTimestamp(),
                     isValid: true,
                   } as LogoFetchResult;
 
@@ -267,7 +267,7 @@ export class UnifiedImageService {
               url: undefined,
               source,
               contentType,
-              timestamp: Date.now(),
+              timestamp: getDeterministicTimestamp(),
               isValid: true,
             } as LogoFetchResult;
 
@@ -305,7 +305,7 @@ export class UnifiedImageService {
               s3Key: s3KeyStreaming,
               source: logoData.source,
               contentType: logoData.contentType,
-              timestamp: Date.now(),
+              timestamp: getDeterministicTimestamp(),
               isValid: true,
             } as LogoFetchResult;
             ServerCacheInstance.setLogoFetch(domain, streamingResult);
@@ -379,7 +379,7 @@ export class UnifiedImageService {
             s3Key,
             source: logoData.source,
             contentType: logoData.contentType,
-            timestamp: Date.now(),
+            timestamp: getDeterministicTimestamp(),
             isValid,
             isGlobeIcon: validation.isGlobeIcon,
           };
@@ -393,7 +393,7 @@ export class UnifiedImageService {
             source: null,
             contentType: "image/png",
             error: error instanceof Error ? error.message : "Unknown error",
-            timestamp: Date.now(),
+            timestamp: getDeterministicTimestamp(),
             isValid: false,
           };
           ServerCacheInstance.setLogoFetch(domain, errorResult);
@@ -576,8 +576,14 @@ export class UnifiedImageService {
             this.CONFIG.RETRY_MAX_DELAY,
             this.CONFIG.RETRY_JITTER_FACTOR,
           );
-          const nextRetry = Date.now() + delay;
-          this.uploadRetryQueue.set(key, { sourceUrl, contentType, attempts, lastAttempt: Date.now(), nextRetry });
+          const nextRetry = getDeterministicTimestamp() + delay;
+          this.uploadRetryQueue.set(key, {
+            sourceUrl,
+            contentType,
+            attempts,
+            lastAttempt: getDeterministicTimestamp(),
+            nextRetry,
+          });
           console.log(
             `[UnifiedImageService] S3 upload failed due to memory pressure. Retry ${attempts}/${this.CONFIG.MAX_UPLOAD_RETRIES} scheduled for ${new Date(nextRetry).toISOString()}`,
           );
@@ -612,7 +618,7 @@ export class UnifiedImageService {
   }
 
   private processRetryQueue(): void {
-    const now = Date.now();
+    const now = getDeterministicTimestamp();
     // Use memory health monitor instead of direct memory check
     const memoryMonitor = getMemoryHealthMonitor();
     if (!memoryMonitor.shouldAcceptNewRequests()) {
@@ -736,7 +742,7 @@ export class UnifiedImageService {
     const isBasicValid = await this.validateLogoBuffer(buffer, "");
     if (!isBasicValid) {
       ServerCacheInstance.setLogoValidation(bufferHash, true); // It's a globe/invalid
-      return { isGlobeIcon: true, timestamp: Date.now() };
+      return { isGlobeIcon: true, timestamp: getDeterministicTimestamp() };
     }
 
     // Import analysis functions
@@ -745,7 +751,7 @@ export class UnifiedImageService {
 
     const isGlobeIcon = blankCheck.isBlank || blankCheck.isGlobe;
     ServerCacheInstance.setLogoValidation(bufferHash, isGlobeIcon);
-    return { isGlobeIcon, timestamp: Date.now() };
+    return { isGlobeIcon, timestamp: getDeterministicTimestamp() };
   }
 
   async analyzeLogo(buffer: Buffer, url: string): Promise<LogoInversion> {
@@ -1014,7 +1020,8 @@ export class UnifiedImageService {
   }
 
   private checkAndResetSession(): void {
-    if (Date.now() - this.sessionStartTime > this.CONFIG.SESSION_MAX_DURATION) this.resetDomainSessionTracking();
+    if (getDeterministicTimestamp() - this.sessionStartTime > this.CONFIG.SESSION_MAX_DURATION)
+      this.resetDomainSessionTracking();
   }
 
   private startPeriodicCleanup(): void {
@@ -1022,7 +1029,7 @@ export class UnifiedImageService {
   }
 
   private performMemoryCleanup(): void {
-    const now = Date.now();
+    const now = getDeterministicTimestamp();
 
     for (const [key, retry] of this.uploadRetryQueue.entries()) {
       if (now - retry.lastAttempt > 60 * 60 * 1000) this.uploadRetryQueue.delete(key);
@@ -1097,7 +1104,7 @@ export class UnifiedImageService {
     this.sessionFailedDomains.clear();
     this.domainRetryCount.clear();
     this.domainFirstFailureTime.clear();
-    this.sessionStartTime = Date.now();
+    this.sessionStartTime = getDeterministicTimestamp();
   }
 
   // Legacy migration methods moved to logo-hash-migrator.ts

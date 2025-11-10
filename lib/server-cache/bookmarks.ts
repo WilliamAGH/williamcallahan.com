@@ -11,6 +11,8 @@ import type { BookmarksCacheEntry, ICache } from "@/types/cache";
 import { BOOKMARKS_CACHE_DURATION } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
 
+const getCacheTimestamp = (): number => (process.env.NEXT_PHASE === "phase-production-build" ? 0 : Date.now());
+
 const BOOKMARKS_METADATA_KEY = "bookmarks:metadata";
 
 /**
@@ -55,7 +57,7 @@ export function shouldRefreshBookmarks(this: ICache): boolean {
     return true;
   }
 
-  const now = Date.now();
+  const now = getCacheTimestamp();
   const timeSinceLastFetch = now - cached.lastFetchedAt;
   const revalidationThreshold = BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
 

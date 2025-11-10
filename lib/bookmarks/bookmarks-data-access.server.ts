@@ -18,6 +18,7 @@ import {
 import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { getEnvironment } from "@/lib/config/environment";
 import { USE_NEXTJS_CACHE, cacheContextGuards, isCliLikeCacheContext, withCacheFallback } from "@/lib/cache";
+import { getDeterministicTimestamp } from "@/lib/server-cache";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { processBookmarksInBatches } from "@/lib/bookmarks/enrich-opengraph";
@@ -99,7 +100,7 @@ function invalidateBookmarkByIdCaches(): void {
 function getCachedBookmark<T>(cache: Map<string, { data: T; timestamp: number }>, key: string): T | null {
   const entry = cache.get(key);
   if (!entry) return null;
-  if (Date.now() - entry.timestamp > BOOKMARK_BY_ID_CACHE_TTL) {
+  if (getDeterministicTimestamp() - entry.timestamp > BOOKMARK_BY_ID_CACHE_TTL) {
     cache.delete(key);
     return null;
   }
@@ -107,7 +108,7 @@ function getCachedBookmark<T>(cache: Map<string, { data: T; timestamp: number }>
 }
 
 function setCachedBookmark<T>(cache: Map<string, { data: T; timestamp: number }>, key: string, value: T): void {
-  cache.set(key, { data: value, timestamp: Date.now() });
+  cache.set(key, { data: value, timestamp: getDeterministicTimestamp() });
   if (cache.size > BOOKMARK_BY_ID_CACHE_LIMIT) {
     const oldestKey = cache.keys().next().value;
     if (oldestKey) cache.delete(oldestKey);
@@ -264,7 +265,7 @@ async function writePaginatedBookmarks(
 ): Promise<import("@/types/bookmark").BookmarkSlugMapping> {
   const pageSize = BOOKMARKS_PER_PAGE,
     totalPages = Math.ceil(bookmarks.length / pageSize),
-    now = Date.now();
+    now = getDeterministicTimestamp();
 
   // Bookmarks already have embedded slugs - just create mapping for backward compatibility
   const mapping = generateSlugMapping(bookmarks);
@@ -390,7 +391,7 @@ async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark[]): Pr
     const tagBookmarks = bookmarksByTag[tagSlug];
     if (!tagBookmarks) continue;
     const totalPages = Math.ceil(tagBookmarks.length / pageSize),
-      now = Date.now();
+      now = getDeterministicTimestamp();
     const tagIndex: BookmarksIndex = {
       count: tagBookmarks.length,
       totalPages,
@@ -436,7 +437,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
     if (!hasChanged) {
       logBookmarkDataAccessEvent("No changes detected, skipping bookmarks write");
 
-      const now = Date.now();
+      const now = getDeterministicTimestamp();
       const existingIndex = (await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX)) || null;
       const baseIndex: Omit<BookmarksIndex, "changeDetected"> = {
         count: existingIndex?.count ?? allIncomingBookmarks.length,
@@ -566,7 +567,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
             } else {
               logBookmarkDataAccessEvent("No changes detected, skipping heavy S3 writes");
               // Still update index freshness to reflect successful refresh
-              const now = Date.now();
+              const now = getDeterministicTimestamp();
               const existingIndex = (await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX)) || null;
               const updatedIndex: BookmarksIndex = {
                 count: existingIndex?.count ?? freshBookmarks.length,
@@ -627,7 +628,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
             }
             // Heartbeat write (tiny file)
             void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
-              runAt: Date.now(),
+              runAt: getDeterministicTimestamp(),
               success: true,
               changeDetected: hasChanged || !!force,
             }).catch(() => void 0);
@@ -648,7 +649,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
             });
             // Write heartbeat to record successful fallback
             void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
-              runAt: Date.now(),
+              runAt: getDeterministicTimestamp(),
               success: true,
               changeDetected: false,
               usedFallback: true,
@@ -663,7 +664,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
       const sel = await selectiveRefreshAndPersistBookmarks();
       // Heartbeat for selective path
       void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
-        runAt: Date.now(),
+        runAt: getDeterministicTimestamp(),
         success: !!sel,
         changeDetected: !!sel, // conservative signal
       }).catch(() => void 0);
@@ -672,7 +673,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
       console.error(`${LOG_PREFIX} Failed to refresh bookmarks:`, String(error));
       // Failure heartbeat
       void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
-        runAt: Date.now(),
+        runAt: getDeterministicTimestamp(),
         success: false,
         changeDetected: false,
         error: String(error),
@@ -1042,7 +1043,7 @@ export async function getBookmarksByTag(
   // In test environment, bypass the in-process cache so each test can
   // provide different mocked datasets deterministically.
   let allBookmarks: UnifiedBookmark[];
-  const now = Date.now();
+  const now = getDeterministicTimestamp();
   const bypassMemoryCache = process.env.NODE_ENV === "test";
 
   if (

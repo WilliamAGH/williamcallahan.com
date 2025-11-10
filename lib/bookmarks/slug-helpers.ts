@@ -9,6 +9,7 @@ import { loadSlugMapping, generateSlugMapping, getSlugForBookmark, saveSlugMappi
 import type { UnifiedBookmark } from "@/types";
 import type { CachedSlugMapping } from "@/types/cache";
 import logger from "@/lib/utils/logger";
+import { getDeterministicTimestamp } from "@/lib/server-cache";
 
 // Cache the slug mapping with TTL for automatic invalidation
 let cachedMapping: CachedSlugMapping | null = null;
@@ -41,7 +42,7 @@ export function tryGetEmbeddedSlug(input: unknown): string | null {
 export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: UnifiedBookmark[]): Promise<string | null> {
   // Try to use cached mapping first (check TTL)
   if (cachedMapping) {
-    const age = Date.now() - cachedMapping.timestamp;
+    const age = getDeterministicTimestamp() - cachedMapping.timestamp;
     if (age < CACHE_TTL_MS) {
       return getSlugForBookmark(cachedMapping.data, bookmarkId);
     }
@@ -86,7 +87,7 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
   if (mapping) {
     cachedMapping = {
       data: mapping,
-      timestamp: Date.now(),
+      timestamp: getDeterministicTimestamp(),
     };
     cachedReverseMap = null;
   }
@@ -122,7 +123,7 @@ export async function getBulkBookmarkSlugs(bookmarks: UnifiedBookmark[]): Promis
 
   // Check cache next (with TTL)
   if (cachedMapping) {
-    const age = Date.now() - cachedMapping.timestamp;
+    const age = getDeterministicTimestamp() - cachedMapping.timestamp;
     if (age < CACHE_TTL_MS) {
       for (const bookmark of bookmarks) {
         const slug = getSlugForBookmark(cachedMapping.data, bookmark.id);
@@ -156,7 +157,7 @@ export async function getBulkBookmarkSlugs(bookmarks: UnifiedBookmark[]): Promis
   if (mapping) {
     cachedMapping = {
       data: mapping,
-      timestamp: Date.now(),
+      timestamp: getDeterministicTimestamp(),
     };
     cachedReverseMap = null;
   }
@@ -181,7 +182,7 @@ export function resetSlugCache(): void {
 }
 
 async function loadReverseSlugMap(): Promise<Map<string, string> | null> {
-  const now = Date.now();
+  const now = getDeterministicTimestamp();
   if (cachedReverseMap && cachedMapping && now - cachedReverseMap.timestamp < CACHE_TTL_MS) {
     return cachedReverseMap.map;
   }
