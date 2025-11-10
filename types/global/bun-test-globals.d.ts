@@ -37,6 +37,3 @@ declare global {
   /** Freeze or restore system time */
   const setSystemTime: typeof import("bun:test").setSystemTime;
 }
-
-// no top-level import or export, this is a global script
-export {};
