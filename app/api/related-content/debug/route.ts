@@ -4,8 +4,7 @@
  * This endpoint helps diagnose why certain content types are or aren't matching
  */
 
-import { NextResponse } from "next/server";
-import { headers } from "next/headers";
+import { NextResponse, type NextRequest } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { aggregateAllContent, getContentById } from "@/lib/content-similarity/aggregator";
 import { calculateSimilarity, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
@@ -13,7 +12,11 @@ import type { RelatedContentType } from "@/types/related-content";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
-function buildAbsoluteUrl(value: string, headersList: Awaited<ReturnType<typeof headers>>): URL {
+// Debug endpoint requires inspecting headers in-flight; disable prerendering.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+function buildAbsoluteUrl(value: string, headersList: Headers): URL {
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return new URL(value);
   }
@@ -23,10 +26,10 @@ function buildAbsoluteUrl(value: string, headersList: Awaited<ReturnType<typeof 
   return new URL(`${protocol}://${host}${normalizedPath}`);
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   noStore();
   try {
-    const headersList = await headers();
+    const headersList = request.headers;
     const nextUrlHeader = headersList.get("next-url") ?? "/api/related-content/debug";
     const searchParams = buildAbsoluteUrl(nextUrlHeader, headersList).searchParams;
     const sourceTypeRaw = searchParams.get("type");

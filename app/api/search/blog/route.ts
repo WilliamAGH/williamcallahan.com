@@ -11,12 +11,27 @@
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search"; // Import the refactored search function
-import { headers } from "next/headers";
 import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse } from "next/server";
 // import type { SearchResult } from '@/types/search'; // Keep SearchResult type - Removed as unused by ESLint
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+function resolveRequestUrl(request: Request): URL {
+  const nextUrlHeader = request.headers.get("next-url");
+  if (nextUrlHeader) {
+    if (nextUrlHeader.startsWith("http")) {
+      return new URL(nextUrlHeader);
+    }
+    const protocol = request.headers.get("x-forwarded-proto") ?? "https";
+    const host = request.headers.get("host") ?? "localhost";
+    return new URL(`${protocol}://${host}${nextUrlHeader.startsWith("/") ? nextUrlHeader : `/${nextUrlHeader}`}`);
+  }
+  return new URL(request.url);
+}
 
 /**
  * Server-side API route for blog search.
@@ -32,15 +47,7 @@ const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 export async function GET(request: Request): Promise<NextResponse> {
   noStore();
   try {
-    const headersList = await headers();
-    const nextUrlHeader = headersList.get("next-url");
-    const requestUrl = nextUrlHeader
-      ? nextUrlHeader.startsWith("http")
-        ? new URL(nextUrlHeader)
-        : new URL(
-            `${headersList.get("x-forwarded-proto") ?? "https"}://${headersList.get("host") ?? "localhost"}${nextUrlHeader}`,
-          )
-      : new URL(request.url);
+    const requestUrl = resolveRequestUrl(request);
     const searchParams = requestUrl.searchParams;
     const query = searchParams.get("q");
 

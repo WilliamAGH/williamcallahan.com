@@ -10,7 +10,6 @@ import { searchBookmarks, searchEducation, searchExperience, searchInvestments, 
 import { validateSearchQuery } from "@/lib/validators/search";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import type { SearchResult } from "@/types/search";
-import { headers } from "next/headers";
 import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse } from "next/server";
 import os from "node:os";
@@ -19,10 +18,12 @@ const withNoStoreHeaders = (additional?: Record<string, string>): HeadersInit =>
   additional ? { "Cache-Control": "no-store", ...additional } : { "Cache-Control": "no-store" };
 
 // Ensure this route is not statically cached
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const inFlightSearches = new Map<string, Promise<SearchResult[]>>();
 
-function buildAbsoluteUrl(value: string, headersList: Awaited<ReturnType<typeof headers>>): URL {
+function buildAbsoluteUrl(value: string, headersList: Headers): URL {
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return new URL(value);
   }
@@ -32,10 +33,8 @@ function buildAbsoluteUrl(value: string, headersList: Awaited<ReturnType<typeof 
   return new URL(`${protocol}://${host}${normalizedPath}`);
 }
 
-async function resolveRequestContext(
-  request: Request,
-): Promise<{ url: URL; headersList: Awaited<ReturnType<typeof headers>> }> {
-  const headersList = await headers();
+function resolveRequestContext(request: Request): { url: URL; headersList: Headers } {
+  const headersList = request.headers;
   const nextUrlHeader = headersList.get("next-url");
   const url = nextUrlHeader ? buildAbsoluteUrl(nextUrlHeader, headersList) : new URL(request.url);
   return { url, headersList };
@@ -104,7 +103,7 @@ function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
 export async function GET(request: Request) {
   noStore();
   try {
-    const { url: requestUrl, headersList } = await resolveRequestContext(request);
+    const { url: requestUrl, headersList } = resolveRequestContext(request);
     const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q");
 

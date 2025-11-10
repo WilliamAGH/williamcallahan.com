@@ -405,21 +405,27 @@ File/Path Functionality Description
     - [x] **bookmarks/`route.ts`** `bookmarks` - Bookmarks cache API
     - [x] **clear/`route.ts`** `caching` - Clear cache API
     - [x] **images/`route.ts`** `image-handling` - Images cache API
-  - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts
+  - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts (force-dynamic bearer auth)
   - [x] **github-activity/**
     - [x] `route.ts` `github-activity` - GitHub activity API
     - [x] **refresh/`route.ts`** `github-activity` - Refresh GitHub activity API
   - [x] **health/`route.ts`** `log-error-debug-handling` - Health check API
+  - [x] **health/metrics/`route.ts`** `log-error-debug-handling` - Authenticated health metrics API (force-dynamic)
   - [x] **ip/`route.ts`** `log-error-debug-handling` - IP address API
   - [x] **log-client-error/`route.ts`** `log-error-debug-handling` - API endpoint for logging client-side errors
   - [ ] **logo/**
     - [x] `route.ts` `image-handling` - Logo API
     - [x] **invert/`route.ts`** `image-handling` - Invert logo API
   - [x] **og-image/`route.ts`** `opengraph` - Universal OpenGraph image endpoint (2025-06 rewrite)
+  - [x] **related-content/**
+    - [x] `route.ts` `search` - Related content recommender (force-dynamic, request header aware)
+    - [x] **debug/`route.ts`** `search` - Related content scoring debugger (force-dynamic)
   - [x] **posts/`route.ts`** `blog-article` - Posts API
   - [x] **search/**
-    - [x] **all/`route.ts`** `search` - Global search API
-    - [x] **blog/`route.ts`** `search` - Blog search API
+    - [x] **all/`route.ts`** `search` - Global search API (force-dynamic rate limiting)
+    - [x] **blog/`route.ts`** `search` - Blog search API (force-dynamic URL resolver)
+    - [x] **bookmarks/`route.ts`** `search` - Bookmark search API (force-dynamic pagination)
+    - [x] **[scope]/`route.ts`** `search` - Scoped search API (force-dynamic)
   - [x] **sentry-example-api/`route.ts`** `log-error-debug-handling` - Sentry example API (debug endpoint)
   - [x] **tunnel/`route.ts`** `log-error-debug-handling` - Sentry tunnel API
   - [x] **twitter-image/[...path]/`route.ts`** `blog-article` - Twitter image proxy API

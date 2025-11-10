@@ -5,7 +5,6 @@
  * using similarity scoring across bookmarks, blog posts, investments, and projects.
  */
 
-import { headers } from "next/headers";
 import { unstable_noStore as noStore } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { aggregateAllContent, getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
@@ -22,7 +21,11 @@ import type {
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
-function buildAbsoluteUrl(value: string, headersList: Awaited<ReturnType<typeof headers>>): URL {
+// Related content relies on per-request headers (auth + routing); disable prerendering.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+function buildAbsoluteUrl(value: string, headersList: Headers): URL {
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return new URL(value);
   }
@@ -32,8 +35,8 @@ function buildAbsoluteUrl(value: string, headersList: Awaited<ReturnType<typeof 
   return new URL(`${protocol}://${host}${normalizedPath}`);
 }
 
-async function resolveRequestUrl(request: NextRequest): Promise<URL> {
-  const headersList = await headers();
+function resolveRequestUrl(request: NextRequest): URL {
+  const headersList = request.headers;
   const nextUrlHeader = headersList.get("next-url");
   if (nextUrlHeader) {
     return buildAbsoluteUrl(nextUrlHeader, headersList);
@@ -148,7 +151,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Parse query parameters
-    const requestUrl = await resolveRequestUrl(request);
+    const requestUrl = resolveRequestUrl(request);
     const searchParams = requestUrl.searchParams;
     const sourceTypeRaw = searchParams.get("type");
     const allowedTypes = new Set<RelatedContentType>(["bookmark", "blog", "investment", "project"]);
