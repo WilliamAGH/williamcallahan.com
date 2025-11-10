@@ -11,9 +11,9 @@
 
 import { formatDate } from "@/lib/utils";
 import { Calendar } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { BlogTagsExpandable } from "../shared/blog-tags-expandable.client";
+import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 
 import type { BlogCardPropsExtended } from "@/types/features";
 
@@ -27,13 +27,11 @@ export function BlogCard({ post, isPriority = false }: BlogCardPropsExtended) {
           href={`/blog/${post.slug}`}
           className="relative h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-800 block cursor-pointer"
         >
-          <Image
+          <OptimizedCardImage
             src={post.coverImage}
             alt={post.title}
-            fill
+            className="transition-transform duration-300 group-hover:scale-105"
             priority={isPriority}
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         </Link>
       )}

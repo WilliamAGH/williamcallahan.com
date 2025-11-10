@@ -10,12 +10,12 @@
  */
 
 import { ArrowLeft, Calendar, Clock } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { ErrorBoundary } from "../../../ui/error-boundary.client";
 import { BlogAuthor } from "../shared/blog-author";
 import { BlogTags } from "../shared/blog-tags";
 import { formatDate } from "@/lib/utils";
+import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 
 import type { BlogArticleProps } from "@/types/features";
 
@@ -77,17 +77,7 @@ export const BlogArticle: React.FC<BlogArticleProps> = ({ post, mdxContent }) =>
           }
         >
           <div className="relative aspect-[2/1] mb-6 sm:mb-8 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
-            <Image
-              src={post.coverImage}
-              alt={post.title}
-              fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              className="object-cover"
-              priority
-              fetchPriority="high"
-              data-article-image="cover"
-              unoptimized={false}
-            />
+            <OptimizedCardImage src={post.coverImage} alt={post.title} className="object-cover" priority />
           </div>
         </ErrorBoundary>
       )}
