@@ -22,6 +22,15 @@ import * as aggregatedContentHelpers from "./server-cache/aggregated-content";
 
 assertServerOnly();
 
+const isProductionBuildPhase = () => process.env.NEXT_PHASE === "phase-production-build";
+
+export const getDeterministicTimestamp = (): number => {
+  if (isProductionBuildPhase()) {
+    return 0;
+  }
+  return Date.now();
+};
+
 export class ServerCache implements ICache {
   private readonly cache = new Map<string, ServerCacheMapEntry>();
   private hits = 0;
@@ -103,7 +112,7 @@ export class ServerCache implements ICache {
       }
 
       // Check if expired
-      if (entry.expiresAt < Date.now()) {
+      if (entry.expiresAt < getDeterministicTimestamp()) {
         this.cache.delete(key);
         this.totalSize -= entry.size;
         this.misses++;
@@ -170,7 +179,7 @@ export class ServerCache implements ICache {
       }
 
       const ttl = (ttlSeconds || SERVER_CACHE_DURATION) * 1000;
-      const expiresAt = Date.now() + ttl;
+      const expiresAt = getDeterministicTimestamp() + ttl;
 
       // Remove old entry if exists
       const oldEntry = this.cache.get(key);
@@ -217,7 +226,7 @@ export class ServerCache implements ICache {
     }
 
     // Check if expired
-    if (entry.expiresAt < Date.now()) {
+    if (entry.expiresAt < getDeterministicTimestamp()) {
       this.cache.delete(key);
       this.totalSize -= entry.size;
       return false;
@@ -311,7 +320,7 @@ export class ServerCache implements ICache {
    * Cleanup expired entries
    */
   private cleanup(): void {
-    const now = Date.now();
+    const now = getDeterministicTimestamp();
     for (const [key, entry] of this.cache.entries()) {
       if (entry.expiresAt < now) {
         this.cache.delete(key);
