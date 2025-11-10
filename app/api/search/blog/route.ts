@@ -11,6 +11,7 @@
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search"; // Import the refactored search function
+import { validateSearchQuery } from "@/lib/validators/search";
 import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 // import type { SearchResult } from '@/types/search'; // Keep SearchResult type - Removed as unused by ESLint
@@ -26,9 +27,9 @@ function resolveRequestUrl(request: NextRequest): URL {
  * Server-side API route for blog search.
  *
  * This route handles GET requests to search for blog posts based on a query.
- * It extracts the search query from the request URL parameters and passes it
- * to the server-side search function. The results are then returned as a JSON
- * response.
+ * It extracts and sanitizes the search query via validateSearchQuery to prevent
+ * whitespace-only or malicious input before delegating to the server-side search
+ * function. The results are then returned as a JSON response.
  *
  * @param request - The HTTP request object.
  * @returns A JSON response containing the search results or an error message.
@@ -41,11 +42,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const requestUrl = resolveRequestUrl(request);
     const searchParams = requestUrl.searchParams;
-    const query = searchParams.get("q");
+    const rawQuery = searchParams.get("q");
+    const validation = validateSearchQuery(rawQuery);
 
-    if (!query) {
+    if (!validation.isValid) {
       return NextResponse.json(
-        { error: 'Search query parameter "q" is required' },
+        { error: validation.error || "Invalid search query" },
         {
           status: 400,
           headers: NO_STORE_HEADERS,
@@ -53,7 +55,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Call the imported server-side search function
+    const query = validation.sanitized;
+
+    // Call the imported server-side search function with sanitized input to prevent whitespace bypasses
     const searchResults = await searchBlogPostsServerSide(query);
 
     return NextResponse.json(searchResults, { headers: NO_STORE_HEADERS });
