@@ -10,6 +10,7 @@ import { searchBookmarks, searchExperience, searchEducation, searchInvestments, 
 import { validateSearchQuery } from "@/lib/validators/search";
 import { type SearchResult, type SearchScope, VALID_SCOPES } from "@/types/search";
 import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse } from "next/server";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
@@ -27,6 +28,7 @@ const ALL_VALID_SCOPES = [...VALID_SCOPES, "all"];
  * @returns A JSON response containing the search results or an error message.
  */
 export async function GET(request: Request, { params }: { params: { scope: string } }) {
+  noStore();
   try {
     const headersList = await headers();
     const nextUrlHeader = headersList.get("next-url");

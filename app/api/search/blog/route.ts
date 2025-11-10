@@ -12,6 +12,7 @@
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search"; // Import the refactored search function
 import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse } from "next/server";
 // import type { SearchResult } from '@/types/search'; // Keep SearchResult type - Removed as unused by ESLint
 
@@ -29,6 +30,7 @@ const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
  * @returns A JSON response containing the search results or an error message.
  */
 export async function GET(request: Request): Promise<NextResponse> {
+  noStore();
   try {
     const headersList = await headers();
     const nextUrlHeader = headersList.get("next-url");

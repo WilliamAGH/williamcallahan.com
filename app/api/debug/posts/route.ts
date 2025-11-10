@@ -11,6 +11,7 @@ import path from "node:path";
 import { authors } from "@/data/blog/authors";
 import { posts as staticPosts } from "@/data/blog/posts";
 import { getAllMDXPosts } from "@/lib/blog/mdx";
+import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Only allow this endpoint in development
@@ -23,6 +24,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  noStore();
   try {
     // SECURITY: Require authentication for debug endpoints
     const authHeader = request.headers.get("authorization");

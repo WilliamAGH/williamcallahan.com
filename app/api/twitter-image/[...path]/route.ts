@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 // Prefer explicit async params typing to avoid thenable duck-typing
@@ -24,6 +25,7 @@ async function resolveRequestUrl(request: NextRequest): Promise<URL> {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  noStore();
   try {
     // Reconstruct the Twitter image URL from dynamic params
     const { path: pathSegments } = await params;

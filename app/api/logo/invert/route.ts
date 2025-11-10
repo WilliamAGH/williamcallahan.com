@@ -7,6 +7,7 @@
  */
 
 import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import { getUnifiedImageService, type UnifiedImageService } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
@@ -56,6 +57,7 @@ async function resolveRequestUrl(request: NextRequest): Promise<URL> {
 // Enable dynamic rendering to allow API calls during server-side rendering
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  noStore();
   const requestUrl = await resolveRequestUrl(request);
   const searchParams = requestUrl.searchParams;
   const domain = searchParams.get("domain");
@@ -106,6 +108,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  * @returns {Promise<NextResponse>} API response with inversion status
  */
 export async function HEAD(request: NextRequest): Promise<NextResponse> {
+  noStore();
   const requestUrl = await resolveRequestUrl(request);
   const searchParams = requestUrl.searchParams;
   const urlParam = searchParams.get("url");

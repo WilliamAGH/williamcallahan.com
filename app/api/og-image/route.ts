@@ -9,6 +9,7 @@
  */
 
 import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client } from "@/lib/s3-utils";
@@ -29,6 +30,7 @@ import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
  * - bookmarkId: Bookmark ID (optional, enables domain fallback for Karakeep assets)
  */
 export async function GET(request: NextRequest) {
+  noStore();
   const headersList = await headers();
   const nextUrlHeader = headersList.get("next-url");
   const requestUrl = nextUrlHeader

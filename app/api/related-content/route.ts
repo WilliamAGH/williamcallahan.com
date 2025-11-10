@@ -6,6 +6,7 @@
  */
 
 import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { aggregateAllContent, getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { findMostSimilar, groupByType, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
@@ -142,6 +143,7 @@ function toRelatedContentItem(content: NormalizedContent & { score: number }): R
 }
 
 export async function GET(request: NextRequest) {
+  noStore();
   const startTime = Date.now();
 
   try {

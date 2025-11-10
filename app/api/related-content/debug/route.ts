@@ -6,6 +6,7 @@
 
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import { aggregateAllContent, getContentById } from "@/lib/content-similarity/aggregator";
 import { calculateSimilarity, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
 import type { RelatedContentType } from "@/types/related-content";
@@ -23,6 +24,7 @@ function buildAbsoluteUrl(value: string, headersList: Awaited<ReturnType<typeof 
 }
 
 export async function GET() {
+  noStore();
   try {
     const headersList = await headers();
     const nextUrlHeader = headersList.get("next-url") ?? "/api/related-content/debug";
