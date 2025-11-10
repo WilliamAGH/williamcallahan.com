@@ -40,7 +40,7 @@ export function ProjectTagsClient(): React.JSX.Element {
   const [showAllTags, setShowAllTags] = useState(false);
 
   // Get all unique tags from projects data, excluding "All" for counting purposes
-  const uniqueProjectTags = Array.from(new Set(projects.flatMap(p => p.tags || []))).sort();
+  const uniqueProjectTags = Array.from(new Set(projects.flatMap(p => p.tags || []))).toSorted();
   const allTags = ["All", ...uniqueProjectTags];
 
   // Determine if there are more tags than the limit (excluding "All")
