@@ -10,6 +10,7 @@
  */
 
 import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse } from "next/server";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { searchBookmarks } from "@/lib/search";
@@ -20,6 +21,7 @@ import type { UnifiedBookmark } from "@/types";
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
 export async function GET(request: Request) {
+  noStore();
   try {
     const headersList = await headers();
     const nextUrlHeader = headersList.get("next-url");

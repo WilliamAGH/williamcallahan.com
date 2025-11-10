@@ -7,6 +7,7 @@
  */
 
 import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import { openGraphUrlSchema } from "@/types/schemas/url";
@@ -44,6 +45,7 @@ async function resolveRequestUrl(request: NextRequest): Promise<URL> {
  */
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  noStore();
   const requestUrl = await resolveRequestUrl(request);
   const searchParams = requestUrl.searchParams;
   const encodedUrl = searchParams.get("url");

@@ -9,6 +9,7 @@
 
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { getSystemMetrics } from "@/lib/health/status-monitor.server";
 import { HealthMetricsResponseSchema, type HealthMetrics } from "@/types/health";
@@ -21,6 +22,7 @@ const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
  * @returns {NextResponse}
  */
 export async function GET(): Promise<NextResponse> {
+  noStore();
   try {
     // Check authorization using existing env variable
     const authHeader = (await headers()).get("authorization");

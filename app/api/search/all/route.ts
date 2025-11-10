@@ -11,6 +11,7 @@ import { validateSearchQuery } from "@/lib/validators/search";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import type { SearchResult } from "@/types/search";
 import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse } from "next/server";
 import os from "node:os";
 
@@ -101,6 +102,7 @@ function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
  * @returns A JSON response containing the search results or an error message.
  */
 export async function GET(request: Request) {
+  noStore();
   try {
     const { url: requestUrl, headersList } = await resolveRequestContext(request);
     const searchParams = requestUrl.searchParams;

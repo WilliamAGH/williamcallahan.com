@@ -10,6 +10,7 @@ import type { BookmarksIndex } from "@/types/bookmark";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
@@ -58,6 +59,7 @@ async function resolveRequestUrl(request: NextRequest): Promise<URL> {
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  noStore();
   console.log("[API Bookmarks] Received GET request for bookmarks");
 
   const requestUrl = await resolveRequestUrl(request);

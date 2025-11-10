@@ -6,11 +6,13 @@
  */
 
 import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import type { OgImageApiResponse } from "@/types";
 
 export async function GET(request: NextRequest) {
+  noStore();
   const headersList = await headers();
   const nextUrlHeader = headersList.get("next-url");
   const requestUrl = nextUrlHeader

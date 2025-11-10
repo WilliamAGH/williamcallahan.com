@@ -12,6 +12,7 @@ import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
 import logger from "@/lib/utils/logger";
 import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
@@ -31,6 +32,7 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
  */
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  noStore();
   const headersList = await headers();
   const nextUrlHeader = headersList.get("next-url");
   const requestUrl = nextUrlHeader

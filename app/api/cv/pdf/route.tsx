@@ -3,6 +3,7 @@ import { TextDecoder as PolyfillTextDecoder } from "@sinonjs/text-encoding";
 import CvPdfDocument from "@/components/features/cv/CvPdfDocument";
 import logger from "@/lib/utils/logger";
 import { headers } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 
 const ensureWindows1252TextDecoder = (() => {
   let patched = false;
@@ -67,6 +68,7 @@ function buildProblemDetails({
 }
 
 export async function GET(request: Request): Promise<Response> {
+  noStore();
   const { renderToBuffer } = await rendererModulePromise;
   const correlationId = globalThis.crypto.randomUUID();
   const headersList = await headers();
