@@ -62,9 +62,9 @@ The search functionality provides site-wide and section-specific search capabili
   - Handles all search scopes dynamically
   - Validates queries before processing
   - Returns consistent response format
-- **Runtime behavior (2025-02)**: Every search API now exports `dynamic = "force-dynamic"` and skips `next/headers()`.
-  This guarantees that IP-based rate limiting and query logging can read request headers at runtime without
-  triggering Next.js prerender bailouts.
+- **Runtime behavior (2025-11)**: Every search API now resolves request metadata from `request.headers` rather than
+  the global `headers()` helper. This prevents the `NEXT_PRERENDER_INTERRUPTED` errors we hit during prerendering,
+  while still keeping rate limiting and pagination logic header-aware under `cacheComponents`.
 - **`app/api/search/all/route.ts`**: Site-wide search
   - Aggregates results from all sections
   - Adds section prefixes to results

@@ -12,10 +12,6 @@ import type { RelatedContentType } from "@/types/related-content";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
-// Debug endpoint requires inspecting headers in-flight; disable prerendering.
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 function buildAbsoluteUrl(value: string, headersList: Headers): URL {
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return new URL(value);

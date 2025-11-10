@@ -17,9 +17,6 @@ import { NextResponse } from "next/server";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 function resolveRequestUrl(request: Request): URL {
   const nextUrlHeader = request.headers.get("next-url");
   if (nextUrlHeader) {

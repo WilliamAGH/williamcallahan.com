@@ -15,10 +15,6 @@ import { HealthMetricsResponseSchema, type HealthMetrics } from "@/types/health"
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
-// Requires bearer auth from the incoming request, so prevent prerendering.
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 /**
  * GET /api/health/metrics
  * @description Returns detailed health and performance metrics for the application.
