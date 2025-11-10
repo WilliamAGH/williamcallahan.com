@@ -77,3 +77,4 @@ lib/data/bookmarks.json
 !lib/data/bookmarks.sample.json
 !lib/data/slug-mapping.sample.json
 
+next-env.d.ts
