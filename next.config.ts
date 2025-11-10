@@ -259,7 +259,9 @@ const nextConfig = {
   reactStrictMode: true,
   productionBrowserSourceMaps: false, // Disable to save memory during builds
   // Nextjs 15 uses SWC by default; swcMinify option is no longer needed
-  // Minimize transpilation overhead in development
+  // Transpile ESM-only dependencies that need CJS compatibility in production.
+  // Dev builds can skip this to preserve fast refresh because both packages ship
+  // dev-friendly bundles that work without transpilation (see PR #XXXX review).
   transpilePackages: process.env.NODE_ENV === "production" ? ["next-mdx-remote", "swr"] : [],
   // Enable Cache Components (formerly experimental.useCache in Next.js 15)
   // This is the new way to enable 'use cache' directive in Next.js 16
