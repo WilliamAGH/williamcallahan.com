@@ -76,7 +76,7 @@ export function buffersMatch(buffer1: Buffer, buffer2: Buffer): boolean {
  * Sorts keys to ensure consistent hashing regardless of property order
  */
 export function getObjectHash(obj: Record<string, unknown>): string {
-  const sortedJson = JSON.stringify(obj, Object.keys(obj).sort());
+  const sortedJson = JSON.stringify(obj, Object.keys(obj).toSorted());
   return generateHash(sortedJson);
 }
 

@@ -162,18 +162,14 @@ async function checkBookmarkIntegrity() {
         category: "Bookmark Slugs",
         status: "❌",
         message: `${missingSlugs.length} bookmarks missing slugs - will cause 404s!`,
-        details: missingSlugs.map(
-          b => `ID: ${b.id} | Title: "${b.title}" | URL: ${b.url}`
-        ),
+        details: missingSlugs.map(b => `ID: ${b.id} | Title: "${b.title}" | URL: ${b.url}`),
       });
     } else if (invalidSlugs.length > 0) {
       results.push({
         category: "Bookmark Slugs",
         status: "⚠️",
         message: `${invalidSlugs.length} bookmarks have invalid slug mappings`,
-        details: invalidSlugs.map(
-          b => `ID: ${b.id} | Slug: "${b.slug}" | Title: "${b.title}"`
-        ),
+        details: invalidSlugs.map(b => `ID: ${b.id} | Slug: "${b.slug}" | Title: "${b.title}"`),
       });
     } else {
       results.push({
@@ -233,7 +229,7 @@ async function checkBookmarkIntegrity() {
 
     if (hasErrors) {
       console.log("\n❌ CRITICAL ISSUES FOUND - Fix immediately to prevent 404s!");
-      
+
       // Display critical issues with bookmark details
       const criticalIssues = results.filter(r => r.status === "❌" && r.details);
       if (criticalIssues.length > 0) {
@@ -249,11 +245,11 @@ async function checkBookmarkIntegrity() {
         console.log("Fix these bookmarks by running the slug generation script");
         console.log("or manually adding them to the slug mapping.");
       }
-      
+
       return false;
     } else if (hasWarnings) {
       console.log("\n⚠️  Warnings found - Review and fix if needed");
-      
+
       // Display warnings with details
       const warningIssues = results.filter(r => r.status === "⚠️" && r.details);
       if (warningIssues.length > 0) {
@@ -266,7 +262,7 @@ async function checkBookmarkIntegrity() {
           });
         });
       }
-      
+
       return true;
     } else {
       console.log("\n✅ All integrity checks passed!");
@@ -316,7 +312,7 @@ async function checkBookmarkStructure() {
 
     // Sort by presence
     const sortedFields = Object.entries(fieldPresence)
-      .sort(([, a], [, b]) => b - a)
+      .toSorted(([, a], [, b]) => b - a)
       .map(([field, count]) => ({
         field,
         count,
