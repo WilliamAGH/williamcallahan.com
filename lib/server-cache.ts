@@ -9,6 +9,7 @@
  */
 import { assertServerOnly } from "./utils";
 import { envLogger } from "@/lib/utils/env-logger";
+import { getMonotonicTime } from "@/lib/utils";
 
 import type { ICache, CacheStats, CacheValue, ServerCacheMapEntry } from "@/types/cache";
 import { SERVER_CACHE_DURATION, MEMORY_THRESHOLDS } from "./constants";
@@ -28,7 +29,7 @@ export const getDeterministicTimestamp = (): number => {
   if (isProductionBuildPhase()) {
     return 0;
   }
-  return Date.now();
+  return getMonotonicTime();
 };
 
 export class ServerCache implements ICache {

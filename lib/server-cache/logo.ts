@@ -7,13 +7,15 @@
 import type { LogoValidationResult, LogoFetchResult, InvertedLogoEntry, ICache } from "@/types/cache";
 import type { LogoInversion } from "@/types/logo";
 import { LOGO_CACHE_DURATION } from "@/lib/constants";
+import { getMonotonicTime } from "@/lib/utils";
 
 const LOGO_VALIDATION_PREFIX = "logo-validation:";
 const LOGO_FETCH_PREFIX = "logo-fetch:";
 const INVERTED_LOGO_PREFIX = "logo-inverted:";
 const LOGO_ANALYSIS_PREFIX = "logo-analysis:";
 
-const getCacheTimestamp = (): number => (process.env.NEXT_PHASE === "phase-production-build" ? 0 : Date.now());
+const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+const getCacheTimestamp = (): number => (isProductionBuildPhase ? 0 : getMonotonicTime());
 
 export function getLogoValidation(this: ICache, imageHash: string): LogoValidationResult | undefined {
   const key = LOGO_VALIDATION_PREFIX + imageHash;
