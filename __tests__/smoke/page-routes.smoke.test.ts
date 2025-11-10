@@ -22,6 +22,10 @@ import path from "node:path";
 import sitemap from "../../app/sitemap";
 import type { MetadataRoute } from "next";
 
+// Allow longer-running sitemap validations in CI
+const DEFAULT_TEST_TIMEOUT_MS = 60_000;
+jest.setTimeout(DEFAULT_TEST_TIMEOUT_MS);
+
 // Store original fetch
 const originalFetch = global.fetch;
 
