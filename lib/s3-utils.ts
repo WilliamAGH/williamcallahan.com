@@ -38,7 +38,10 @@ const DRY_RUN = process.env.DRY_RUN === "true";
 // Use canonical public CDN env vars only. Legacy S3_PUBLIC_CDN_URL is no longer referenced.
 const CDN_BASE_URL = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || ""; // Public CDN endpoint
 const isS3DebugLoggingEnabled =
-  process.env.NODE_ENV === "development" || process.env.DEBUG === "true" || process.env.VERBOSE === "true";
+  process.env.DEBUG_S3 === "true" ||
+  process.env.DEBUG_BOOKMARKS === "true" ||
+  process.env.DEBUG === "true" ||
+  process.env.VERBOSE === "true";
 
 const logS3Debug = (message: string, data?: Record<string, unknown>): void => {
   if (!isS3DebugLoggingEnabled) return;
@@ -263,7 +266,7 @@ export async function readFromS3(
 async function performS3Read(key: string, options?: { range?: string }): Promise<Buffer | string | null> {
   // Skip debug logging for refresh-lock checks to reduce noise
   if (!key.includes("refresh-lock")) {
-    envLogger.debug(`performS3Read called`, { key }, { category: "S3Utils" });
+    logS3Debug("performS3Read called", { key });
   }
 
   if (isUnderMemoryPressure() && isBinaryKey(key)) {
