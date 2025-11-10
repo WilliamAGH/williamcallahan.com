@@ -243,7 +243,7 @@ async function searchPostsDirect(query: string): Promise<BlogPost[]> {
     index,
   );
 
-  return results.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  return results.toSorted((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 }
 
 // Cached version using 'use cache' directive
@@ -792,7 +792,7 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
           score: scoreById.get(b.id) ?? 0,
         }),
       )
-      .sort((a, b) => b.score - a.score);
+      .toSorted((a, b) => b.score - a.score);
 
     devLog("[searchBookmarks] results", { count: results.length });
     // Cache the results

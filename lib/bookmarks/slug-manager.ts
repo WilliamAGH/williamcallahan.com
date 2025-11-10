@@ -26,6 +26,23 @@ import path from "node:path";
 // Local file path for ephemeral cache (container-local, not persisted)
 export const LOCAL_SLUG_MAPPING_PATH = path.join(process.cwd(), "lib", "data", "slug-mapping.json");
 
+const formatSlugEnvironmentSnapshot = (): string =>
+  `NODE_ENV=${process.env.NODE_ENV || "(not set)"}, DEPLOYMENT_ENV=${process.env.DEPLOYMENT_ENV || "(not set)"}`;
+
+const shouldLogSlugEnvironmentInfo =
+  process.env.NODE_ENV === "production" ||
+  process.env.DEBUG_SLUG_MANAGER === "true" ||
+  process.env.DEBUG === "true" ||
+  process.env.VERBOSE === "true";
+
+let hasLoggedSlugEnvironmentInfo = false;
+
+const logSlugEnvironmentOnce = (context: string): void => {
+  if (!shouldLogSlugEnvironmentInfo || hasLoggedSlugEnvironmentInfo) return;
+  hasLoggedSlugEnvironmentInfo = true;
+  logger.info(`[SlugManager] Environment snapshot (${context}): ${formatSlugEnvironmentSnapshot()}`);
+};
+
 /**
  * Generate deterministic slug mapping for all bookmarks.
  * Ensures every bookmark gets a unique, stable slug for routing.
@@ -122,7 +139,7 @@ export async function saveSlugMapping(
   saveToAllPaths = false,
 ): Promise<void> {
   const primaryPath = BOOKMARKS_S3_PATHS.SLUG_MAPPING;
-  logger.info(`[SlugManager] [CRITICAL] Environment check: NODE_ENV=${process.env.NODE_ENV || "(not set)"}`);
+  logSlugEnvironmentOnce("save");
   logger.info(`[SlugManager] [CRITICAL] Preparing to save slug mapping to S3 path: ${primaryPath}`);
 
   try {
@@ -244,7 +261,7 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
   // --- 2. Fallback to S3 ---
   const primaryPath = BOOKMARKS_S3_PATHS.SLUG_MAPPING;
   logger.info(`[SlugManager] Attempting to load slug mapping from S3 path: ${primaryPath}`);
-  logger.info(`[SlugManager] Environment: NODE_ENV=${process.env.NODE_ENV || "(not set)"}`);
+  logSlugEnvironmentOnce("load");
 
   try {
     // Try primary path first

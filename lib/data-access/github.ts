@@ -290,7 +290,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
         }
 
         if (apiStatus === "complete" && userWeeklyStatsFromApi.length > 0) {
-          finalStatsToSaveForRepo = userWeeklyStatsFromApi.sort((a, b) => a.w - b.w);
+          finalStatsToSaveForRepo = userWeeklyStatsFromApi.toSorted((a, b) => a.w - b.w);
         } else {
           const existingDataBuffer = await readBinaryS3(repoStatS3Key);
           if (existingDataBuffer && existingDataBuffer.length > 0) {
@@ -936,7 +936,7 @@ async function detectAndRepairCsvFiles(): Promise<{
                   d: w.d,
                   c: w.c,
                 }))
-                .sort((a, b) => a.w - b.w);
+                .toSorted((a, b) => a.w - b.w);
               if (weeklyStats.length > 0) {
                 await writeBinaryS3(repoStatS3Key, Buffer.from(generateGitHubStatsCSV(weeklyStats)), "text/csv");
                 console.log(

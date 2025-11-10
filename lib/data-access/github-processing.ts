@@ -128,7 +128,7 @@ export function aggregateWeeklyStats(repoStats: Array<{ stats: RepoRawWeeklyStat
       weekStartDate,
       ...stats,
     }))
-    .sort((a, b) => a.weekStartDate.localeCompare(b.weekStartDate));
+    .toSorted((a, b) => a.weekStartDate.localeCompare(b.weekStartDate));
 }
 
 /**
@@ -366,7 +366,7 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
       linesAdded: totals.added,
       linesRemoved: totals.removed,
     }))
-    .sort((a, b) => new Date(a.weekStartDate).getTime() - new Date(b.weekStartDate).getTime());
+    .toSorted((a, b) => new Date(a.weekStartDate).getTime() - new Date(b.weekStartDate).getTime());
   await writeAggregatedWeeklyActivityToS3(aggregatedActivity);
   console.log(
     `[DataAccess/GitHub-S3] Aggregated weekly activity calculated and stored to ${AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE}. Total weeks aggregated: ${aggregatedActivity.length}. Overall data complete: ${overallDataComplete}`,

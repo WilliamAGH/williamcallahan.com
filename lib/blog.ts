@@ -26,7 +26,7 @@ export async function getAllPosts(): Promise<BlogPost[]> {
     const allPosts = [...(staticPosts || []), ...mdxPosts];
 
     // Sort by date, newest first
-    return allPosts.sort((a, b) => {
+    return allPosts.toSorted((a, b) => {
       const dateA = new Date(a.publishedAt || 0).getTime();
       const dateB = new Date(b.publishedAt || 0).getTime();
       return dateB - dateA;
@@ -92,7 +92,7 @@ export async function getAllTags(): Promise<string[]> {
 
     // Create a set to remove duplicates
     const tags = new Set(allTags);
-    return Array.from(tags).sort();
+    return Array.from(tags).toSorted();
   } catch (error) {
     console.error("[getAllTags] Error retrieving blog tags:", error);
     throw error;

@@ -419,7 +419,7 @@ export function extractKeywords(
 
   // Sort by score and return top keywords
   const sorted = Array.from(scores.entries())
-    .sort((a, b) => b[1] - a[1])
+    .toSorted((a, b) => b[1] - a[1])
     .slice(0, limit)
     .map(([word, _score]) => word);
 

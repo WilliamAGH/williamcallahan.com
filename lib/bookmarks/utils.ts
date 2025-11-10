@@ -203,7 +203,7 @@ export const convertBookmarksToSerializable = (bookmarks: UnifiedBookmark[]): Se
  */
 export const calculateBookmarksChecksum = (bookmarks: UnifiedBookmark[]): string =>
   [...bookmarks]
-    .sort((a, b) => (a.id || "").localeCompare(b.id || ""))
+    .toSorted((a, b) => (a.id || "").localeCompare(b.id || ""))
     .map(b => `${b.id}:${b.modifiedAt || b.dateBookmarked}`)
     .join("|");
 

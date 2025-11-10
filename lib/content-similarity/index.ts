@@ -246,7 +246,7 @@ export function findMostSimilar(
       };
     })
     .filter(item => item.score > 0) // Filter out zero scores
-    .sort((a, b) => b.score - a.score) // Sort by score descending
+    .toSorted((a, b) => b.score - a.score) // Sort by score descending
     .slice(0, limit); // Limit results
 
   return scored;
@@ -301,7 +301,7 @@ export function limitByTypeAndTotal<T extends { type: RelatedContentType; score:
 
   const perTypeLimited = Object.values(grouped)
     .filter((arr): arr is T[] => Array.isArray(arr))
-    .flatMap(typeItems => typeItems.sort(cmp).slice(0, safePerType));
+    .flatMap(typeItems => typeItems.toSorted(cmp).slice(0, safePerType));
 
-  return perTypeLimited.sort(cmp).slice(0, safeTotal);
+  return perTypeLimited.toSorted(cmp).slice(0, safeTotal);
 }
