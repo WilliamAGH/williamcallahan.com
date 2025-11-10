@@ -27,11 +27,16 @@ const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "lib", "data", "bookmarks.
 const LOCAL_BOOKMARKS_BY_ID_DIR = path.join(process.cwd(), ".next", "cache", "bookmarks", "by-id");
 
 const forceLocalS3Cache = process.env.FORCE_LOCAL_S3_CACHE === "true";
+const allowRuntimeFallback = process.env.ALLOW_RUNTIME_S3_FALLBACK !== "false";
 const nextPhase = process.env.NEXT_PHASE;
-// Only disable the local S3 snapshot during the production build step so runtime containers
-// can continue serving cached data even when S3/CDN is offline.
+// Only disable the local S3 snapshot during the production build step by default so runtime
+// containers can continue serving cached data even when S3/CDN is offline. Setting
+// ALLOW_RUNTIME_S3_FALLBACK=false restores the old behavior where Docker runtimes skip the cache.
 const isBuildPhase = nextPhase === "phase-production-build";
-const shouldSkipLocalS3Cache = !forceLocalS3Cache && isBuildPhase;
+const isRuntimePhase = !isBuildPhase;
+const shouldSkipLocalS3Cache =
+  !forceLocalS3Cache &&
+  (isBuildPhase || (!allowRuntimeFallback && process.env.RUNNING_IN_DOCKER === "true" && isRuntimePhase));
 
 let localS3CacheModule: typeof import("@/lib/bookmarks/local-s3-cache") | null = null;
 async function readLocalS3JsonSafe<T>(key: string): Promise<T | null> {
