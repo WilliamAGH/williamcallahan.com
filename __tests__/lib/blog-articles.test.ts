@@ -127,7 +127,7 @@ describe("Blog Module", () => {
 
       // Verify sorting
       const dates = posts.map(post => new Date(post.publishedAt).getTime());
-      expect(dates).toEqual([...dates].sort((a, b) => b - a));
+      expect(dates).toEqual([...dates].toSorted((a, b) => b - a));
     });
   });
 

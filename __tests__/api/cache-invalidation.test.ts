@@ -193,7 +193,7 @@ describe("Cache Invalidation via API Routes", () => {
       });
 
       // Call the handler
-      const response = await clearCacheHandler(req as any);
+      const response = await Promise.resolve(clearCacheHandler(req as any));
       const data = await response.json();
 
       // Verify response

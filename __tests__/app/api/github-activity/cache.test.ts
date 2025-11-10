@@ -204,21 +204,21 @@ describe("GitHub Activity API Cache Tests", () => {
     });
 
     // Test that the cache can handle concurrent access
-    const concurrentPromises = Array(5)
-      .fill(0)
-      .map((_, i) => {
-        const mockData = {
-          ...MOCK_GITHUB_ACTIVITY,
-          trailingYearData: {
-            ...MOCK_GITHUB_ACTIVITY.trailingYearData,
-            data: MOCK_GITHUB_ACTIVITY.trailingYearData.data.map(item => ({
-              ...item,
-              count: i, // Each concurrent call gets a different count
-            })),
-          },
-        };
-        return ServerCacheInstance.setGithubActivity(mockData);
+    const concurrentPromises: Array<Promise<void>> = Array.from({ length: 5 }, (_, i) => {
+      const mockData = {
+        ...MOCK_GITHUB_ACTIVITY,
+        trailingYearData: {
+          ...MOCK_GITHUB_ACTIVITY.trailingYearData,
+          data: MOCK_GITHUB_ACTIVITY.trailingYearData.data.map(item => ({
+            ...item,
+            count: i, // Each concurrent call gets a different count
+          })),
+        },
+      };
+      return Promise.resolve().then(() => {
+        ServerCacheInstance.setGithubActivity(mockData);
       });
+    });
 
     await Promise.all(concurrentPromises);
 
