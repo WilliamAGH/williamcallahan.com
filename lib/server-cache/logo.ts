@@ -13,6 +13,8 @@ const LOGO_FETCH_PREFIX = "logo-fetch:";
 const INVERTED_LOGO_PREFIX = "logo-inverted:";
 const LOGO_ANALYSIS_PREFIX = "logo-analysis:";
 
+const getCacheTimestamp = (): number => (process.env.NEXT_PHASE === "phase-production-build" ? 0 : Date.now());
+
 export function getLogoValidation(this: ICache, imageHash: string): LogoValidationResult | undefined {
   const key = LOGO_VALIDATION_PREFIX + imageHash;
   return this.get<LogoValidationResult>(key);
@@ -22,7 +24,7 @@ export function setLogoValidation(this: ICache, imageHash: string, isGlobeIcon: 
   const key = LOGO_VALIDATION_PREFIX + imageHash;
   this.set(key, {
     isGlobeIcon,
-    timestamp: Date.now(),
+    timestamp: getCacheTimestamp(),
   });
 }
 
@@ -35,7 +37,7 @@ export function setLogoFetch(this: ICache, domain: string, result: Partial<LogoF
   const key = LOGO_FETCH_PREFIX + domain;
   const entryToCache = {
     ...result,
-    timestamp: Date.now(),
+    timestamp: getCacheTimestamp(),
   };
 
   // Ensure buffer is not cached
@@ -67,7 +69,7 @@ export function setInvertedLogo(this: ICache, cacheKey: string, entry: Omit<Inve
   const key = INVERTED_LOGO_PREFIX + cacheKey;
   this.set(key, {
     ...entry,
-    timestamp: Date.now(),
+    timestamp: getCacheTimestamp(),
   });
 }
 

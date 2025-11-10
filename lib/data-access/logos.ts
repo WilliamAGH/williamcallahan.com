@@ -12,7 +12,7 @@
 
 import { revalidateTag } from "next/cache";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
-import { ServerCacheInstance } from "@/lib/server-cache";
+import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
 import type { LogoResult, LogoInversion } from "@/types/logo";
 import type { LogoValidationResult } from "@/types/cache";
 import { USE_NEXTJS_CACHE } from "@/lib/cache";
@@ -57,7 +57,7 @@ export async function getLogo(domain: string): Promise<LogoResult | null> {
         retrieval: "api",
         error: logoResult.error,
         contentType: "image/png",
-        timestamp: Date.now(),
+        timestamp: getDeterministicTimestamp(),
       };
     }
 

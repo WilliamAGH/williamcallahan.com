@@ -15,7 +15,7 @@
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { JINA_FETCH_CONFIG } from "@/lib/constants";
 import { type JinaLimiterState, isJinaLimiterState } from "@/types/jina";
-import { ServerCacheInstance } from "@/lib/server-cache";
+import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
 
 const JINA_LIMITER_CACHE_KEY = "jina-fetch-limiter-state";
 
@@ -28,7 +28,7 @@ const JINA_LIMITER_CACHE_KEY = "jina-fetch-limiter-state";
 export function isJinaFetchAllowed(): boolean {
   try {
     const state = ServerCacheInstance.get<JinaLimiterState>(JINA_LIMITER_CACHE_KEY);
-    const now = Date.now();
+    const now = getDeterministicTimestamp();
 
     // Reset if the window has expired or state is invalid
     if (!isJinaLimiterState(state) || now - state.windowStartTimestamp > JINA_FETCH_CONFIG.windowMs) {

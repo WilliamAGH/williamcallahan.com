@@ -8,6 +8,7 @@ import type { SearchCacheEntry, ICache } from "@/types/cache";
 import { SEARCH_CACHE_DURATION } from "@/lib/constants";
 
 const SEARCH_PREFIX = "search:";
+const getCacheTimestamp = (): number => (process.env.NEXT_PHASE === "phase-production-build" ? 0 : Date.now());
 
 function getSearchKey(dataType: string, query: string): string {
   return `${SEARCH_PREFIX}${dataType}:${query.toLowerCase()}`;
@@ -28,7 +29,7 @@ export function setSearchResults<T>(this: ICache, dataType: string, query: strin
     results,
     query,
     dataType,
-    timestamp: Date.now(),
+    timestamp: getCacheTimestamp(),
   };
   this.set(key, entry, SEARCH_CACHE_DURATION.SUCCESS);
 }
@@ -38,7 +39,7 @@ export function shouldRefreshSearch(this: ICache, dataType: string, query: strin
   if (!cached) {
     return true;
   }
-  const timeSinceLastFetch = Date.now() - cached.timestamp;
+  const timeSinceLastFetch = getCacheTimestamp() - cached.timestamp;
   return timeSinceLastFetch > SEARCH_CACHE_DURATION.REVALIDATION * 1000;
 }
 

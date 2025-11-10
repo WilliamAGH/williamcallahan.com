@@ -13,6 +13,7 @@ import { envLogger } from "@/lib/utils/env-logger";
 const OPENGRAPH_PREFIX = "og-data:";
 const REFRESH_TRACKING_PREFIX = "og-refresh-attempt:";
 const REFRESH_COOLDOWN_MS = TIME_CONSTANTS.FIVE_MINUTES_MS; // 5 minutes between refresh attempts
+const getCacheTimestamp = (): number => (process.env.NEXT_PHASE === "phase-production-build" ? 0 : Date.now());
 
 export function getOpenGraphData(this: ICache, url: string): OgCacheEntry | undefined {
   const key = OPENGRAPH_PREFIX + url;
@@ -21,7 +22,7 @@ export function getOpenGraphData(this: ICache, url: string): OgCacheEntry | unde
 
 export function setOpenGraphData(this: ICache, url: string, data: OgResult, isFailure = false): void {
   const key = OPENGRAPH_PREFIX + url;
-  const now = Date.now();
+  const now = getCacheTimestamp();
   const existing = getOpenGraphData.call(this, url);
 
   const validationResult = ogResultSchema.safeParse(data);
@@ -54,11 +55,11 @@ export function shouldRefreshOpenGraph(this: ICache, url: string): boolean {
   }
 
   if (cached.isFailure) {
-    const timeSinceLastAttempt = Date.now() - cached.lastAttemptedAt;
+    const timeSinceLastAttempt = getCacheTimestamp() - cached.lastAttemptedAt;
     return timeSinceLastAttempt > OPENGRAPH_CACHE_DURATION.FAILURE * 1000;
   }
 
-  const timeSinceLastFetch = Date.now() - cached.lastFetchedAt;
+  const timeSinceLastFetch = getCacheTimestamp() - cached.lastFetchedAt;
   return timeSinceLastFetch > OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
 }
 
@@ -90,7 +91,7 @@ export function deleteOpenGraphData(this: ICache, url: string): void {
 export function invalidateStaleOpenGraphData(this: ICache, pageUrl: string, reason: string): boolean {
   const refreshKey = REFRESH_TRACKING_PREFIX + pageUrl;
   const lastRefresh = this.get<number>(refreshKey);
-  const now = Date.now();
+  const now = getCacheTimestamp();
 
   // Check if we recently attempted a refresh (cooldown period)
   if (lastRefresh && now - lastRefresh < REFRESH_COOLDOWN_MS) {
