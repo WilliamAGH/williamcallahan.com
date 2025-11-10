@@ -4,14 +4,12 @@
  * This endpoint helps diagnose why certain content types are or aren't matching
  */
 
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
+import { headers } from "next/headers";
 import { aggregateAllContent, getContentById } from "@/lib/content-similarity/aggregator";
 import { calculateSimilarity, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
 import type { RelatedContentType } from "@/types/related-content";
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
@@ -25,10 +23,10 @@ function buildAbsoluteUrl(value: string, headersList: Headers): URL {
   return new URL(`${protocol}://${host}${normalizedPath}`);
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   noStore();
   try {
-    const headersList = request.headers;
+    const headersList = await headers();
     const nextUrlHeader = headersList.get("next-url") ?? "/api/related-content/debug";
     const searchParams = buildAbsoluteUrl(nextUrlHeader, headersList).searchParams;
     const sourceTypeRaw = searchParams.get("type");

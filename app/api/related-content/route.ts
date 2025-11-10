@@ -6,6 +6,7 @@
  */
 
 import { unstable_noStore as noStore } from "next/cache";
+import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { aggregateAllContent, getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { findMostSimilar, groupByType, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
@@ -19,9 +20,6 @@ import type {
   NormalizedContent,
 } from "@/types/related-content";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
 function buildAbsoluteUrl(value: string, headersList: Headers): URL {
@@ -34,8 +32,7 @@ function buildAbsoluteUrl(value: string, headersList: Headers): URL {
   return new URL(`${protocol}://${host}${normalizedPath}`);
 }
 
-function resolveRequestUrl(request: NextRequest): URL {
-  const headersList = request.headers;
+function resolveRequestUrl(request: NextRequest, headersList: Headers): URL {
   const nextUrlHeader = headersList.get("next-url");
   if (nextUrlHeader) {
     return buildAbsoluteUrl(nextUrlHeader, headersList);
@@ -147,10 +144,11 @@ function toRelatedContentItem(content: NormalizedContent & { score: number }): R
 export async function GET(request: NextRequest) {
   noStore();
   const startTime = Date.now();
+  const headersList = headers();
 
   try {
     // Parse query parameters
-    const requestUrl = resolveRequestUrl(request);
+    const requestUrl = resolveRequestUrl(request, headersList);
     const searchParams = requestUrl.searchParams;
     const sourceTypeRaw = searchParams.get("type");
     const allowedTypes = new Set<RelatedContentType>(["bookmark", "blog", "investment", "project"]);
