@@ -14,7 +14,6 @@ import { getSystemMetrics } from "@/lib/health/status-monitor.server";
 import { HealthMetricsResponseSchema, type HealthMetrics } from "@/types/health";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
-export const fetchCache = "force-no-store";
 
 /**
  * GET /api/health/metrics
