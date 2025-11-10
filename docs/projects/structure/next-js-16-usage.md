@@ -87,6 +87,7 @@ These are the failure modes that blocked >100 deploy attempts. Follow each check
 - **Cache helpers:** when a module needs tagging/staleness, import `{ cacheLife, cacheTag }` from `next/cache`. Example: update `lib/server/data-fetch-manager.ts` when we need a new tag rather than reusing `unstable_cache`.
 - **Fetch defaults:** With cache components on, `fetch()` remains uncached unless `next: { revalidate }` is set. Document intent inline (e.g., `// Next 16: do not cache because ...`).
 - **Bookmarks + S3:** `app/sitemap.ts:188-246` shows the approved flow (fetch data via `getBookmarksForStaticBuildAsync`, generate slug mapping, and log diagnostics). Any new cache invalidation must also touch `lib/bookmarks/service.server.ts` so ISR + cache components agree.
+  - Docker builds now always read the `.next/cache/local-s3` snapshots because `lib/bookmarks/bookmarks-data-access.server.ts` only disables the local fallback when `NEXT_PHASE === "phase-production-server"` (see guard near the top of that file). This keeps `bun run build` offline-safe even when S3 isn’t reachable.
 - **Offline local builds:** CI/CD must hit S3/CDN, so local fallbacks are disabled whenever `NODE_ENV=production` (same state as `bun run build`). To run a production build without network access, set `FORCE_LOCAL_S3_CACHE=true` before invoking the build so `.next/cache/local-s3` is used. Never enable this in Docker/Coolify.
 
 ### 4. Image redirect + asset consistency
