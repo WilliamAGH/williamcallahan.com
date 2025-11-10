@@ -10,6 +10,9 @@ import { aggregateAllContent, getContentById } from "@/lib/content-similarity/ag
 import { calculateSimilarity, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
 import type { RelatedContentType } from "@/types/related-content";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
 function buildAbsoluteUrl(value: string, headersList: Headers): URL {

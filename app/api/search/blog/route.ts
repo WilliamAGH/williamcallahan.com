@@ -15,6 +15,9 @@ import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse } from "next/server";
 // import type { SearchResult } from '@/types/search'; // Keep SearchResult type - Removed as unused by ESLint
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
 function resolveRequestUrl(request: Request): URL {

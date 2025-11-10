@@ -14,6 +14,9 @@ import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse } from "next/server";
 import os from "node:os";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const withNoStoreHeaders = (additional?: Record<string, string>): HeadersInit =>
   additional ? { "Cache-Control": "no-store", ...additional } : { "Cache-Control": "no-store" };
 
