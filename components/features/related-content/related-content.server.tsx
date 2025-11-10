@@ -8,7 +8,7 @@
 import { getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { getLazyContentMap, getCachedAllContent } from "@/lib/content-similarity/cached-aggregator";
 import { findMostSimilar, limitByTypeAndTotal } from "@/lib/content-similarity";
-import { ServerCacheInstance } from "@/lib/server-cache";
+import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
 import { RelatedContentSection } from "./related-content-section";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { debug } from "@/lib/utils/debug";
@@ -314,7 +314,8 @@ export async function RelatedContent({
     if (getRelatedContent && typeof getRelatedContent === "function") {
       cached = getRelatedContent.call(ServerCacheInstance, sourceType, actualSourceId);
     }
-    if (cached && cached.timestamp > Date.now() - 15 * 60 * 1000 && !debug) {
+    const now = getDeterministicTimestamp();
+    if (cached && cached.timestamp > now - 15 * 60 * 1000 && !debug) {
       // Apply filtering to cached results
       let items = cached.items;
 
@@ -377,7 +378,7 @@ export async function RelatedContent({
     if (setRelatedContent && typeof setRelatedContent === "function") {
       setRelatedContent.call(ServerCacheInstance, sourceType, actualSourceId, {
         items: finalItems,
-        timestamp: Date.now(),
+        timestamp: getDeterministicTimestamp(),
       });
     }
 
