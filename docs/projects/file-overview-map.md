@@ -54,7 +54,7 @@ File/Path Functionality Description
     - [x] `blog-article.client.tsx` `blog-article` - Renders article content and metadata
     - [x] `blog-wrapper.tsx` `blog-article` - Dynamic import wrapper for hydration
     - [x] `index.ts` `blog-article` - Blog article components barrel file
-    - [x] `mdx-content.tsx` `blog-article` - MDX renderer with styled elements
+    - [x] `mdx-content.tsx` `blog-article` - Server wrapper for the MDX renderer, now delegating to a React 19-safe cached evaluator instead of `next-mdx-remote`
     - [x] `software-schema.tsx` `terminal` - Inserts SoftwareApplication schema.org metadata
     - [x] `mdx-table.server.tsx` `blog-article` - Styled table components for MDX
   - [x] **blog-list/**
