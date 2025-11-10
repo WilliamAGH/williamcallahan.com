@@ -10,7 +10,7 @@ import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { getAllPosts } from "@/lib/blog";
 import { investments } from "@/data/investments";
 import { projects } from "@/data/projects";
-import { ServerCacheInstance } from "@/lib/server-cache";
+import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
 import { extractKeywords, extractCrossContentKeywords } from "./keyword-extractor";
 import { extractDomain } from "@/lib/utils";
 import { getBulkBookmarkSlugs } from "@/lib/bookmarks/slug-helpers";
@@ -239,7 +239,8 @@ function normalizeProject(project: Project): NormalizedContent {
 export async function aggregateAllContent(): Promise<NormalizedContent[]> {
   // Check cache first
   const cached = ServerCacheInstance.getAggregatedContent?.();
-  if (cached && cached.timestamp > Date.now() - CACHE_TTL) {
+  const now = getDeterministicTimestamp();
+  if (cached && cached.timestamp > now - CACHE_TTL) {
     return cached.data;
   }
 
@@ -330,7 +331,7 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
     if (normalized.length > 0) {
       ServerCacheInstance.setAggregatedContent?.({
         data: normalized,
-        timestamp: Date.now(),
+        timestamp: getDeterministicTimestamp(),
       });
     }
 
