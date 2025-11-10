@@ -14,8 +14,7 @@ import { stripImageData } from "../bookmarks/utils";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 
 const forceLocalS3Cache = process.env.FORCE_LOCAL_S3_CACHE === "true";
-const shouldSkipLocalS3Cache =
-  !forceLocalS3Cache && process.env.RUNNING_IN_DOCKER === "true" && process.env.NEXT_PHASE !== "phase-production-build";
+const shouldSkipLocalS3Cache = !forceLocalS3Cache && process.env.NEXT_PHASE === "phase-production-build";
 
 let localS3CacheModule: typeof import("@/lib/bookmarks/local-s3-cache") | null = null;
 async function readLocalS3JsonSafe<T>(key: string): Promise<T | null> {

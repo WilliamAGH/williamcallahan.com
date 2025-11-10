@@ -28,12 +28,10 @@ const LOCAL_BOOKMARKS_BY_ID_DIR = path.join(process.cwd(), ".next", "cache", "bo
 
 const forceLocalS3Cache = process.env.FORCE_LOCAL_S3_CACHE === "true";
 const nextPhase = process.env.NEXT_PHASE;
-// Next.js injects PHASE_PRODUCTION_BUILD during compilation and PHASE_PRODUCTION_SERVER at runtime
-// (see node_modules/next/dist/shared/lib/constants.js).  We only disable the local S3 snapshot when
-// the server is running the production phase so Docker builds can stay offline.
-const isProductionServerPhase = nextPhase === "phase-production-server";
-const shouldSkipLocalS3Cache =
-  !forceLocalS3Cache && process.env.RUNNING_IN_DOCKER === "true" && isProductionServerPhase;
+// Only disable the local S3 snapshot during the production build step so runtime containers
+// can continue serving cached data even when S3/CDN is offline.
+const isBuildPhase = nextPhase === "phase-production-build";
+const shouldSkipLocalS3Cache = !forceLocalS3Cache && isBuildPhase;
 
 let localS3CacheModule: typeof import("@/lib/bookmarks/local-s3-cache") | null = null;
 async function readLocalS3JsonSafe<T>(key: string): Promise<T | null> {
