@@ -106,6 +106,17 @@ const gitHash = getGitHash();
 process.env.NEXT_PUBLIC_GIT_HASH = gitHash;
 process.env.SENTRY_RELEASE = gitHash;
 
+const telemetryBundledPackages = [
+  "resolve",
+  "require-in-the-middle",
+  "@opentelemetry/api",
+  "@opentelemetry/instrumentation",
+  "@opentelemetry/context-async-hooks",
+];
+
+const baseTranspilePackages = process.env.NODE_ENV === "production" ? ["next-mdx-remote", "swr"] : [];
+const transpilePackages = Array.from(new Set([...baseTranspilePackages, ...telemetryBundledPackages]));
+
 const nextConfig = {
   // We run our own rigorous validation pipeline (`bun run validate`).
   // TypeScript checks remain but eslint config is removed in Next.js 16
@@ -151,6 +162,14 @@ const nextConfig = {
       ...(process.env.NODE_ENV === "development" ? { "@aws-sdk/client-s3": "./lib/stubs/aws-s3-stub.ts" } : {}),
     },
   },
+  /**
+   * Force Turbopack/Next to bundle the OTEL + Sentry dependency stack (and their nested `resolve` versions)
+   * instead of trying to externalize them. This avoids the build-time "Package resolve can't be external"
+   * warnings that happen because the project root uses `resolve@2.0.0-next.5` while Sentry's OTEL helpers
+   * depend on `resolve@1.22.8`. Bundling keeps both versions isolated and silences the noisy warnings
+   * without sacrificing server-side tracing or Sentry instrumentation.
+   */
+  transpilePackages,
 
   /**
    * Proxy Umami tracker and API through the same origin to avoid ad-blockers and CORS issues.
@@ -262,7 +281,6 @@ const nextConfig = {
   // Transpile ESM-only dependencies that need CJS compatibility in production.
   // Dev builds can skip this to preserve fast refresh because both packages ship
   // dev-friendly bundles that work without transpilation (see PR #XXXX review).
-  transpilePackages: process.env.NODE_ENV === "production" ? ["next-mdx-remote", "swr"] : [],
   // Enable Cache Components (formerly experimental.useCache in Next.js 15)
   // This is the new way to enable 'use cache' directive in Next.js 16
   cacheComponents: true,
