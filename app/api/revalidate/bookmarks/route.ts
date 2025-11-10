@@ -1,16 +1,18 @@
 import { envLogger } from "@/lib/utils/env-logger";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
  * Cache invalidation endpoint for bookmarks
  * Called by the scheduler after successful bookmark refresh to ensure fresh data is served
  */
-export function POST(request: NextRequest) {
+export function POST(_request: NextRequest) {
   console.log(`[Cache Invalidation] Bookmarks revalidation endpoint called at ${new Date().toISOString()}`);
 
   // Verify authorization
-  const authHeader = request.headers.get("Authorization") || request.headers.get("authorization");
+  const headerStore = headers();
+  const authHeader = headerStore.get("authorization");
   const expectedToken = process.env.BOOKMARK_CRON_REFRESH_SECRET;
 
   if (!expectedToken) {

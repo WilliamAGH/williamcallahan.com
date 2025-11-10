@@ -20,7 +20,6 @@
  * @see {@link saveAssetToS3} for S3 persistence logic
  */
 
-import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 import { HeadObjectCommand, GetObjectCommand, type GetObjectCommandOutput } from "@aws-sdk/client-s3";
 import { Readable } from "node:stream";
@@ -460,20 +459,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { assetId } = await params;
 
   // Extract context from query parameters for descriptive S3 filenames
-  const requestUrl = await (async () => {
-    const headersList = await headers();
-    const nextUrlHeader = headersList.get("next-url");
-    if (nextUrlHeader) {
-      if (nextUrlHeader.startsWith("http://") || nextUrlHeader.startsWith("https://")) {
-        return new URL(nextUrlHeader);
-      }
-      const protocol = headersList.get("x-forwarded-proto") ?? "https";
-      const host = headersList.get("host") ?? "localhost";
-      const normalizedPath = nextUrlHeader.startsWith("/") ? nextUrlHeader : `/${nextUrlHeader}`;
-      return new URL(`${protocol}://${host}${normalizedPath}`);
-    }
-    return new URL(request.url);
-  })();
+  const requestUrl = request.nextUrl;
   const searchParams = requestUrl.searchParams;
 
   // Validate URL parameter to prevent security issues
