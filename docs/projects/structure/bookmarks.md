@@ -4,38 +4,42 @@
 
 ## Core Purpose
 
-The bookmarks system orchestrates fetching, processing, enriching, and serving bookmark data from an external API (Karakeep). It provides a rich, searchable, and performant bookmark collection with advanced features like pagination, tag filtering, and automatic metadata enrichment.
+The bookmarks system orchestrates fetching, processing, enriching, and serving bookmark data from an external API (Karakeep). It provides a rich, searchable, and performant bookmark collection with advanced features like pagination, tag filtering, and automatic metadata enrichment. **Alongside blog articles, bookmarks is our highest-traffic surface**, so every optimization described here is mandatory, not optional.
 
 ## Architecture Overview
 
 ### Data Flow
 
 ```
-External API → Fetch & Transform → Enrich with OpenGraph → Persist to S3 → Serve to Client
-                                                              ↓
-                                                     Memory Cache (Map-based)
+Karakeep API → Selective Refresh Jobs → JSON in S3 (bookmarks*.json, pages/, tags/)
+                                                   ↓
+                                        Next.js Cache Components (pages, RSCs)
+                                                   ↓
+                                   Clients (lists, detail pages, related content)
+
+API routes → read JSON in S3 → `Cache-Control: no-store`
 ```
 
 ### Key Components
 
-1. **Data Access Layer** (`lib/bookmarks/bookmarks-data-access.server.ts`)
-   - Manages S3 persistence and retrieval
-   - Implements distributed locking for refresh operations
+1. **Refresh & Data Access Layer** (`lib/bookmarks/bookmarks-data-access.server.ts`)
+   - Manages S3 persistence and retrieval (JSON is the source of truth)
+   - Implements distributed locking for refresh operations and selective rewrites
    - Handles request coalescing and deduplication
-   - Provides paginated and tag-filtered data access
+   - Provides paginated and tag-filtered data access directly from S3 JSON
 
 2. **Service Layer** (`lib/bookmarks/service.server.ts`)
    - Business logic orchestration
    - Coordinates between data access and external APIs
    - Manages refresh cycles and cache invalidation
 
-3. **API Endpoints**
-   - `/api/bookmarks` - Paginated bookmark retrieval with tag filtering
-   - `/api/bookmarks/refresh` - Manual refresh trigger
+3. **API Endpoints (always `unstable_noStore`)**
+   - `/api/bookmarks` - Paginated bookmark retrieval with tag filtering (responds with `Cache-Control: no-store`)
+   - `/api/bookmarks/refresh` - Manual refresh trigger (secret protected)
    - `/api/og-image` - Unified OpenGraph image serving
 
-4. **UI Components**
-   - Server components for initial data fetching
+4. **UI Components (Next.js cache consumers)**
+   - Server components for initial data fetching (`"use cache"` + cache tags per page/tag slug)
    - Client components for interactivity and pagination
    - Tag navigation with URL-based routing
    - Share functionality with pre-generated URLs
@@ -45,7 +49,7 @@ External API → Fetch & Transform → Enrich with OpenGraph → Persist to S3 �
 ### Pagination System
 
 - **URL-based**: `/bookmarks/page/2`, `/bookmarks/page/3`
-- **Efficient Loading**: 24 items per page
+- **Efficient Loading**: 24 items per page, served from cached JSON + RSC cache
 - **Dual Modes**: Manual pagination or infinite scroll
 - **SEO Optimized**: Proper canonical, prev/next tags
 - **Sitemap Integration**: All pages included automatically
@@ -55,8 +59,16 @@ External API → Fetch & Transform → Enrich with OpenGraph → Persist to S3 �
 - **URL Routes**: `/bookmarks/tags/[tagSlug]`
 - **Slug Handling**: Converts between slug and display formats
 - **Special Characters**: Handles &, +, and other characters gracefully
-- **S3 Caching**: Pre-computed tag pages for performance
+- **S3 Caching**: Pre-computed tag pages for performance (JSON files per tag and page)
 - **Fallback Logic**: Filters from all bookmarks if cache miss
+
+### Memory & Cache Management
+
+- **Tag JSON Controls**: `ENABLE_TAG_CACHING` and `MAX_TAGS_TO_CACHE` prevent runaway S3 writes when memory pressure is detected.
+- **Health Monitoring**: `/api/health/deep` verifies the first slug from `slug-mapping*.json` resolves via the JSON readers, ensuring no silent corruption.
+- **Next.js Cache Tags**: Bookmark lists/tag pages use `cacheTag("bookmarks")` plus slug-specific tags with 15–60 minute lifetimes. Detail routes tag `bookmark-${slug}`. Related content uses its own tags but still reads the same JSON.
+- **API Responses**: `/api/bookmarks`, `/api/search/*`, `/api/related-content*` call `unstable_noStore()` and return `Cache-Control: no-store` so they always read the freshest JSON without joining the Cache Components layer.
+- **Legacy Map Cache**: Still used for metadata (slug lookups, stats) but never stores full bookmark arrays or buffers.
 
 ### Memory Management
 
@@ -90,21 +102,22 @@ Core data model with fields for:
 ### S3 Storage Layout
 
 ```
-bookmarks/
-├── bookmarks.json          # Full dataset
-├── index.json              # Metadata and counts
-├── pages/
+bookmarks-suffix/
+├── bookmarks-dev.json       # Full dataset (suffix = env)
+├── index-dev.json           # Metadata and counts
+├── slug-mapping-dev.json    # Slug lookup helper
+├── pages-dev/
 │   ├── page-1.json
 │   └── page-2.json
-└── tags/
+└── tags-dev/
     └── [tag-slug]/
         ├── index.json
         └── page-1.json
 ```
 
-Note: As of this update, all persisted bookmark arrays (bookmarks.json, pages/page-_.json, tags/[tag]/page-_.json)
+Note: As of this update, all persisted bookmark arrays (bookmarks*.json, pages/page-*.json, tags/[tag]/page-_.json)
 embed a required `slug` field per item for idempotent internal routing. The centralized slug-mapping file
-(`slug-mapping*.json`) remains the source of truth and is still written for integrity checks and static
+(`slug-mapping_.json`) remains the source of truth and is still written for integrity checks and static
 param generation, but readers now prefer the embedded `slug` when present.
 
 ## Critical Design Decisions

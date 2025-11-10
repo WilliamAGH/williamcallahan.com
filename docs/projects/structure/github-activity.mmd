@@ -1,100 +1,33 @@
 graph TD
-    subgraph "Orchestration Layer"
-        A[GitHub Activity Feature]
+    subgraph "External + Refresh"
+        GHAPI[GitHub APIs<br/>(GraphQL + REST + CSV)]
+        REF[Refresh Jobs / POST /api/github-activity/refresh]
+        LOCK[Distributed Lock]
+        GHAPI --> REF --> LOCK
     end
 
-    subgraph "Core Functionalities"
-        B[json-handling]
-        C[s3-object-storage]
-        D[caching]
+    subgraph "Source of Truth"
+        S3[github_stats_summary*.json,<br/>activity_data.json,<br/>aggregated_weekly_activity.json,<br/>repo_raw_weekly_stats/]
+        LOCK --> S3
     end
 
-    subgraph "External Services"
-        E[GitHub APIs (GraphQL, REST, CSV)]
+    subgraph "Consumers"
+        CACHE[Next.js Cache Components<br/>(cacheTag("github-activity"), ~30 min)]
+        UI[GitHub Activity pages<br/>(calendar, summary cards)]
+        API[/api/github-activity<br/>noStore]
+        S3 --> CACHE --> UI
+        S3 --> API
     end
 
-    A -- "1. Fetch & Process GitHub Data" --> B
-    B -- "Fetches from" --> E
-    B -- "2. Returns Processed JSON" --> A
-    
-    A -- "3. Persist Processed JSON" --> C
-    
-    A -- "Caches results via" --> D
+    subgraph "Supporting"
+        MAPCACHE[ServerCacheInstance<br/>metadata only]
+        HEALTH[/api/health/deep<br/>validates JSON freshness]
+        SCHED[scheduler.ts / cron]
+        REF <-- SCHED
+        MAPCACHE --> UI
+        S3 --> HEALTH
+    end
 
-    style A fill:#e1f5fe,stroke:#333,stroke-width:2px
-    classDef core fill:#d4edda,stroke:#155724
-    class B,C,D core;
-
-    %% Entry Points
-    A["🐙 GitHub Data Request"] --> B{Request Type?}
-    B -->|Homepage| C[getGitHubActivityData]
-    B -->|API Call| D[/api/github-activity]
-    B -->|Background Job| E[Daily Scheduler]
-    
-    %% Core Data Flow - Priority Chain
-    C --> F{Memory Cache?}
-    D --> F
-    
-    F -->|✅ Hit| G["Return Cached (~1ms)"]
-    F -->|❌ Miss| H{S3 Storage?}
-    
-    H -->|✅ Hit| I["Load from S3 + Cache (~50-100ms)"]
-    H -->|❌ Miss| J[Full GitHub API Refresh]
-    
-    %% Background Refresh
-    E --> K[Midnight PT Trigger]
-    K --> L{Acquire Lock?}
-    L -->|✅ Yes| J
-    L -->|❌ No| M["Skip - Already running"]
-    
-    %% GitHub API Integration
-    J --> N[Dual API Strategy]
-    N --> O[GraphQL: User Stats + Calendar]
-    N --> P[REST: Repository Details]
-    N --> Q[CSV: Contribution History]
-    
-    %% Data Processing Pipeline
-    O --> R[Process User Statistics]
-    P --> S[Analyze Repository Languages]
-    Q --> T{CSV Valid?}
-    
-    T -->|✅ Yes| U[Parse Contributions]
-    T -->|❌ No| V[Auto-repair CSV with Regex]
-    V --> U
-    
-    %% Aggregation & Analysis
-    R --> W[Activity Processing]
-    S --> W
-    U --> W
-    
-    W --> X[Calculate Weekly Aggregations]
-    X --> Y[Generate Summaries]
-    Y --> Z[Categorize Code (Frontend/Backend/Data)]
-    
-    %% Storage & Persistence
-    Z --> AA[S3 Storage Operations]
-    AA --> AB["github/activity_data.json"]
-    AA --> AC["github/github_stats_summary.json"]
-    AA --> AD["github/github_stats_summary_all_time.json"]
-    AA --> AE["github/repo_raw_weekly_stats/{repo}.csv"]
-    
-    AB --> AF[Update Memory Cache]
-    AF --> AG[Return Enhanced Data]
-    
-    %% Error Handling
-    O --> AH{API Success?}
-    P --> AH
-    AH -->|❌ No| AI[Exponential Backoff + Retry]
-    AI --> AJ{Max Retries?}
-    AJ -->|❌ No| N
-    AJ -->|✅ Yes| AK[Use Stale Data + Log Error]
-    
-    %% Performance Indicators
-    G --> AL["⚡ Cache: ~1ms"]
-    I --> AM["🏃 S3: ~50-100ms"]
-    AG --> AN["🐌 Full: ~5-10s"]
-    
-    style A fill:#e1f5fe
-    style AL fill:#e8f5e8
-    style AM fill:#fff3e0
-    style AN fill:#fce4ec 
+    style S3 fill:#dff0d8,stroke:#2f6627,stroke-width:2
+    style CACHE fill:#e3f2fd,stroke:#1976d2,stroke-width:2
+    style API fill:#fdecea,stroke:#b71c1c,stroke-width:2

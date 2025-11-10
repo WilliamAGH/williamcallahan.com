@@ -87,12 +87,16 @@ The system provides multiple layers of observability and resilience:
    - Returns 403 Forbidden in production
    - Fixed async operations using `Promise.all`
    - **Issues**: Uses console instead of structured logging
+   - **Runtime Guarantee (2025-02)**: Now exports `dynamic = "force-dynamic"` so bearer auth headers are read at
+     request time without relying on `next/headers()` during prerendering.
 
 2. **`/api/health`**
    - Basic health check endpoint (public)
    - Returns status, timestamp, environment info
    - Includes cache statistics
    - **Issues**: Exposes potentially sensitive information
+   - Metrics companion route (`/api/health/metrics`) now shares the same architecture but requires a bearer token
+     and explicitly forces dynamic rendering so `request.headers` authorization never fails during build-time fetches.
 
 3. **`/api/ip`**
    - Returns client's real IP address (public)
