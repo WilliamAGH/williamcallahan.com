@@ -32,7 +32,7 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   noStore();
-  const requestUrl = request.nextUrl;
+  const requestUrl = new URL(request.url);
   const searchParams = requestUrl.searchParams;
   const website = searchParams.get("website");
   const company = searchParams.get("company");

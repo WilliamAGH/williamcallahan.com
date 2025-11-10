@@ -17,7 +17,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
-function resolveRequestUrl(request: NextRequest, headerStore: Headers): URL {
+function resolveRequestUrl(request: NextRequest): URL {
+  const headerStore = request.headers;
   const nextUrlHeader = headerStore.get("next-url");
   if (nextUrlHeader) {
     if (nextUrlHeader.startsWith("http")) {

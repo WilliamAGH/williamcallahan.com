@@ -42,7 +42,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   noStore();
   console.log("[API Bookmarks] Received GET request for bookmarks");
 
-  const requestUrl = request.nextUrl;
+  const requestUrl = new URL(request.url);
   const searchParams = requestUrl.searchParams;
   const rawPage = Number.parseInt(searchParams.get("page") || "1", 10);
   const page = Number.isNaN(rawPage) ? 1 : Math.max(1, rawPage);
