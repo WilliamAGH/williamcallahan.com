@@ -54,8 +54,9 @@ export async function POST(request: NextRequest) {
       status: upstreamResponse.status,
       headers: responseHeaders,
     });
-  } catch (error) {
-    console.error("Failed to forward Sentry event:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Failed to forward Sentry event:", errorMessage);
     return NextResponse.json({ error: "Failed to forward event" }, { status: 502 });
   }
 }

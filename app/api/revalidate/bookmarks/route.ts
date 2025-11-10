@@ -64,12 +64,13 @@ export function POST(request: NextRequest): NextResponse {
       },
       { status: 200 },
     );
-  } catch (error) {
-    console.error("[Cache Invalidation] Error during revalidation:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[Cache Invalidation] Error during revalidation:", errorMessage);
     return NextResponse.json(
       {
         error: "Cache invalidation failed",
-        details: error instanceof Error ? error.message : String(error),
+        details: errorMessage,
       },
       { status: 500 },
     );
