@@ -38,6 +38,9 @@ const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
 const DRY_RUN = process.env.DRY_RUN === "true";
 // Use canonical public CDN env vars only. Legacy S3_PUBLIC_CDN_URL is no longer referenced.
 const CDN_BASE_URL = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || ""; // Public CDN endpoint
+const FORCE_JSON_CDN_READS = process.env.NEXT_PHASE === "phase-production-build";
+const BUILD_CACHE_BUSTER =
+  process.env.SOURCE_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || process.env.GIT_COMMIT || "build";
 const isS3DebugLoggingEnabled =
   process.env.DEBUG_S3 === "true" ||
   process.env.DEBUG_BOOKMARKS === "true" ||
@@ -273,6 +276,9 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
     logS3Debug("performS3Read called", { key });
   }
 
+  const isJson = key.endsWith(".json");
+  const skipSizeValidation = FORCE_JSON_CDN_READS && isJson;
+
   if (isUnderMemoryPressure() && isBinaryKey(key)) {
     // Allow small binaries (e.g., logos) under pressure, but block anything exceeding MAX_S3_READ_SIZE.
     const canProceed = await validateContentSize(key);
@@ -283,15 +289,20 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
   }
 
   // Validate content size before reading (skip for range requests)
-  if (!options?.range && !(await validateContentSize(key))) {
+  if (!options?.range && !skipSizeValidation && !(await validateContentSize(key))) {
     return null;
   }
 
-  // Bypass public CDN for JSON files to avoid stale cache; only use CDN for non-JSON
-  const isJson = key.endsWith(".json");
-  if (!isJson && CDN_BASE_URL) {
-    const cdnUrl = `${CDN_BASE_URL.replace(/\/+$/, "")}/${key}`;
-    if (isDebug) debug(`[S3Utils] Attempting to read key ${key} via CDN: ${cdnUrl}`);
+  // Default behavior avoids CDN for JSON objects to prevent stale cache. During the
+  // production build phase we intentionally allow CDN reads (with cache-busting)
+  // so that build-time prerenders don't rely on AWS SDK calls that Next.js flags.
+  const shouldUseCdn = CDN_BASE_URL && (!isJson || FORCE_JSON_CDN_READS);
+  if (shouldUseCdn) {
+    const cdnUrl = new URL(`${CDN_BASE_URL.replace(/\/+$/, "")}/${key}`);
+    if (FORCE_JSON_CDN_READS && isJson) {
+      cdnUrl.searchParams.set("build", BUILD_CACHE_BUSTER);
+    }
+    if (isDebug) debug(`[S3Utils] Attempting to read key ${key} via CDN: ${cdnUrl.toString()}`);
 
     // Use AbortController to prevent hanging requests
     const abortController = new AbortController();
@@ -303,6 +314,7 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
         headers: {
           "User-Agent": "S3Utils/1.0", // Identify requests
         },
+        cache: FORCE_JSON_CDN_READS && isJson ? "no-store" : undefined,
       });
 
       clearTimeout(timeoutId);
@@ -331,12 +343,13 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
       }
       if (isDebug)
         debug(
-          `[S3Utils] CDN fetch failed for ${cdnUrl}: ${res.status} ${res.statusText}. Falling back to direct S3 read.`,
+          `[S3Utils] CDN fetch failed for ${cdnUrl.toString()}: ${res.status} ${res.statusText}. Falling back to direct S3 read.`,
         );
     } catch (err) {
       clearTimeout(timeoutId);
       const errorMessage = err instanceof Error ? err.message : String(err);
-      if (isDebug) debug(`[S3Utils] CDN fetch error for ${cdnUrl}: ${errorMessage}. Falling back to direct S3 read.`);
+      if (isDebug)
+        debug(`[S3Utils] CDN fetch error for ${cdnUrl.toString()}: ${errorMessage}. Falling back to direct S3 read.`);
     }
     // Fallback to AWS SDK if CDN fetch fails
   }
