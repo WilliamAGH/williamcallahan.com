@@ -8,23 +8,27 @@
  */
 
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { getSystemMetrics } from "@/lib/health/status-monitor.server";
 import { HealthMetricsResponseSchema, type HealthMetrics } from "@/types/health";
+
+const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+export const fetchCache = "force-no-store";
 
 /**
  * GET /api/health/metrics
  * @description Returns detailed health and performance metrics for the application.
  * @returns {NextResponse}
  */
-export async function GET(request: Request): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   try {
     // Check authorization using existing env variable
-    const authHeader = request.headers.get("authorization");
+    const authHeader = (await headers()).get("authorization");
     const expectedToken = process.env.GITHUB_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
 
     if (!expectedToken || authHeader !== `Bearer ${expectedToken}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS });
     }
     const monitor = getMemoryHealthMonitor();
     const healthStatus = monitor.getHealthStatus();
@@ -92,11 +96,14 @@ export async function GET(request: Request): Promise<NextResponse> {
     // Validate the final response against the Zod schema to ensure type safety
     const parsedResponse = HealthMetricsResponseSchema.parse(response);
 
-    return NextResponse.json(parsedResponse);
+    return NextResponse.json(parsedResponse, { headers: NO_STORE_HEADERS });
   } catch (error: unknown) {
     console.error("Error retrieving health metrics:", error);
     const message =
       error instanceof Error ? error.message : "An unknown error occurred while retrieving health metrics.";
-    return NextResponse.json({ error: "Failed to retrieve health metrics", details: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to retrieve health metrics", details: message },
+      { status: 500, headers: NO_STORE_HEADERS },
+    );
   }
 }

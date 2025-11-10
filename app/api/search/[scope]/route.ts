@@ -11,7 +11,7 @@ import { validateSearchQuery } from "@/lib/validators/search";
 import { type SearchResult, type SearchScope, VALID_SCOPES } from "@/types/search";
 import { NextResponse } from "next/server";
 
-// Ensure this route is not statically cached
+const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
 const ALL_VALID_SCOPES = [...VALID_SCOPES, "all"];
 
@@ -38,7 +38,7 @@ export async function GET(request: Request, { params }: { params: { scope: strin
           error: `Invalid search scope: ${params.scope}`,
           validScopes: ALL_VALID_SCOPES,
         },
-        { status: 400 },
+        { status: 400, headers: NO_STORE_HEADERS },
       );
     }
 
@@ -46,7 +46,13 @@ export async function GET(request: Request, { params }: { params: { scope: strin
     const validation = validateSearchQuery(rawQuery);
 
     if (!validation.isValid) {
-      return NextResponse.json({ error: validation.error || "Invalid search query" }, { status: 400 });
+      return NextResponse.json(
+        { error: validation.error || "Invalid search query" },
+        {
+          status: 400,
+          headers: NO_STORE_HEADERS,
+        },
+      );
     }
 
     const query = validation.sanitized;
@@ -93,21 +99,24 @@ export async function GET(request: Request, { params }: { params: { scope: strin
           ...experienceResults,
           ...educationResults,
           ...bookmarkResults,
-        ].sort((a, b) => b.score - a.score);
+        ].toSorted((a, b) => b.score - a.score);
         break;
       }
     }
 
     // Return results with metadata
-    return NextResponse.json({
-      results,
-      meta: {
-        query: validation.sanitized,
-        scope,
-        count: results.length,
-        timestamp: new Date().toISOString(),
+    return NextResponse.json(
+      {
+        results,
+        meta: {
+          query: validation.sanitized,
+          scope,
+          count: results.length,
+          timestamp: new Date().toISOString(),
+        },
       },
-    });
+      { headers: NO_STORE_HEADERS },
+    );
   } catch (unknownErr) {
     // Handle unknown errors safely without unsafe assignments/calls
     const err = unknownErr instanceof Error ? unknownErr : new Error(String(unknownErr));
@@ -119,7 +128,7 @@ export async function GET(request: Request, { params }: { params: { scope: strin
         details: err.message,
         scope: params.scope,
       },
-      { status: 500 },
+      { status: 500, headers: NO_STORE_HEADERS },
     );
   }
 }

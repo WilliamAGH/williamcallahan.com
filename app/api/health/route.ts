@@ -25,7 +25,7 @@ const SYSTEM_STATUS = {
  * Returns a detailed health check response, including memory status.
  * The status code reflects the system's health for load balancers.
  */
-export async function GET() {
+export function GET() {
   try {
     // Check memory first (quick check)
     const memoryUsage = process.memoryUsage();
@@ -57,44 +57,25 @@ export async function GET() {
       }
     }
 
-    // Create timeout with proper cleanup
-    let timeoutId: NodeJS.Timeout | undefined;
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => {
-        reject(new Error("Health check timeout"));
-      }, 5000);
+    const monitor = getMemoryHealthMonitor();
+    const health = monitor.getHealthStatus();
+    const status = health.status === "unhealthy" ? 503 : 200;
+
+    // Map health to X-System-Status for lightweight HEAD checks
+    const systemStatus: (typeof SYSTEM_STATUS)[keyof typeof SYSTEM_STATUS] =
+      health.status === "unhealthy"
+        ? SYSTEM_STATUS.MEMORY_CRITICAL
+        : health.status === "degraded"
+          ? SYSTEM_STATUS.MEMORY_WARNING
+          : SYSTEM_STATUS.HEALTHY;
+
+    return NextResponse.json(health, {
+      status,
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "X-System-Status": systemStatus,
+      },
     });
-
-    try {
-      // Regular health check with timeout
-      const monitor = await Promise.race([getMemoryHealthMonitor(), timeoutPromise]);
-
-      // Clear timeout if monitor resolves first
-      if (timeoutId) clearTimeout(timeoutId);
-
-      const health = monitor.getHealthStatus();
-      const status = health.status === "unhealthy" ? 503 : 200;
-
-      // Map health to X-System-Status for lightweight HEAD checks
-      const systemStatus: (typeof SYSTEM_STATUS)[keyof typeof SYSTEM_STATUS] =
-        health.status === "unhealthy"
-          ? SYSTEM_STATUS.MEMORY_CRITICAL
-          : health.status === "degraded"
-            ? SYSTEM_STATUS.MEMORY_WARNING
-            : SYSTEM_STATUS.HEALTHY;
-
-      return NextResponse.json(health, {
-        status,
-        headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          "X-System-Status": systemStatus,
-        },
-      });
-    } catch (error: unknown) {
-      // Clear timeout on error
-      if (timeoutId) clearTimeout(timeoutId);
-      throw error;
-    }
   } catch (error) {
     // Timeout or other error. We intentionally default to MEMORY_CRITICAL to follow a fail-safe policy:
     // if health cannot be confirmed, downstream systems must assume the host is unhealthy and shed load.

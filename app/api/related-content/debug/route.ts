@@ -9,6 +9,8 @@ import { aggregateAllContent, getContentById } from "@/lib/content-similarity/ag
 import { calculateSimilarity, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
 import type { RelatedContentType } from "@/types/related-content";
 
+const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -22,13 +24,25 @@ export async function GET(request: NextRequest) {
     const limit = Math.max(1, Math.min(100, Number.isFinite(limitRaw) ? limitRaw : 20));
 
     if (!sourceType || !sourceId) {
-      return NextResponse.json({ error: "Missing required parameters: type and id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required parameters: type and id" },
+        {
+          status: 400,
+          headers: NO_STORE_HEADERS,
+        },
+      );
     }
 
     // Get source content
     const source = await getContentById(sourceType, sourceId);
     if (!source) {
-      return NextResponse.json({ error: `Content not found: ${sourceType}/${sourceId}` }, { status: 404 });
+      return NextResponse.json(
+        { error: `Content not found: ${sourceType}/${sourceId}` },
+        {
+          status: 404,
+          headers: NO_STORE_HEADERS,
+        },
+      );
     }
 
     // Get all content
@@ -54,7 +68,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Sort by score
-    const sorted = scoredItems.sort((a, b) => b.score - a.score);
+    const sorted = scoredItems.toSorted((a, b) => b.score - a.score);
 
     // Group by content type
     const byType = {
@@ -67,49 +81,52 @@ export async function GET(request: NextRequest) {
     // Find top cross-content matches (different types only)
     const crossContent = sorted.filter(i => i.type !== sourceType).slice(0, limit);
 
-    return NextResponse.json({
-      source: {
-        type: source.type,
-        id: source.id,
-        title: source.title,
-        tags: source.tags,
-        domain: source.domain,
-        textPreview: source.text.slice(0, 200) + "...",
-      },
-      statistics: {
-        totalCandidates: candidates.length,
-        byType: {
-          bookmarks: candidates.filter(i => i.type === "bookmark").length,
-          blogs: candidates.filter(i => i.type === "blog").length,
-          investments: candidates.filter(i => i.type === "investment").length,
-          projects: candidates.filter(i => i.type === "project").length,
+    return NextResponse.json(
+      {
+        source: {
+          type: source.type,
+          id: source.id,
+          title: source.title,
+          tags: source.tags,
+          domain: source.domain,
+          textPreview: source.text.slice(0, 200) + "...",
         },
-        topScores: {
-          overall: sorted[0]?.score || 0,
-          crossContent: crossContent[0]?.score || 0,
+        statistics: {
+          totalCandidates: candidates.length,
+          byType: {
+            bookmarks: candidates.filter(i => i.type === "bookmark").length,
+            blogs: candidates.filter(i => i.type === "blog").length,
+            investments: candidates.filter(i => i.type === "investment").length,
+            projects: candidates.filter(i => i.type === "project").length,
+          },
+          topScores: {
+            overall: sorted[0]?.score || 0,
+            crossContent: crossContent[0]?.score || 0,
+          },
+        },
+        topMatches: {
+          overall: sorted.slice(0, 10),
+          byType,
+          crossContent,
+        },
+        weights: DEFAULT_WEIGHTS,
+        debug: {
+          message: "Use this data to understand why content is or isn't matching",
+          interpretation: {
+            tagMatch: "0-1 score for shared tags (Jaccard similarity)",
+            textSimilarity: "0-1 score for text overlap",
+            domainMatch: "0-1 score for same domain (bookmarks)",
+            recency: "0-1 score based on age (newer = higher)",
+          },
         },
       },
-      topMatches: {
-        overall: sorted.slice(0, 10),
-        byType,
-        crossContent,
-      },
-      weights: DEFAULT_WEIGHTS,
-      debug: {
-        message: "Use this data to understand why content is or isn't matching",
-        interpretation: {
-          tagMatch: "0-1 score for shared tags (Jaccard similarity)",
-          textSimilarity: "0-1 score for text overlap",
-          domainMatch: "0-1 score for same domain (bookmarks)",
-          recency: "0-1 score based on age (newer = higher)",
-        },
-      },
-    });
+      { headers: NO_STORE_HEADERS },
+    );
   } catch (error) {
     console.error("Debug endpoint error:", error);
     return NextResponse.json(
       { error: "Internal server error", details: error instanceof Error ? error.message : String(error) },
-      { status: 500 },
+      { status: 500, headers: NO_STORE_HEADERS },
     );
   }
 }

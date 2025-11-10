@@ -16,6 +16,8 @@ import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import type { UnifiedBookmark } from "@/types";
 
+const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -24,11 +26,18 @@ export async function GET(request: Request) {
     // Sanitize / validate like other search routes
     const validation = validateSearchQuery(rawQuery);
     if (!validation.isValid) {
-      return NextResponse.json({ error: validation.error || "Invalid search query" }, { status: 400 });
+      return NextResponse.json(
+        { error: validation.error || "Invalid search query" },
+        {
+          status: 400,
+          headers: NO_STORE_HEADERS,
+        },
+      );
     }
 
     const query = validation.sanitized;
-    if (query.length === 0) return NextResponse.json({ data: [], totalCount: 0, hasMore: false });
+    if (query.length === 0)
+      return NextResponse.json({ data: [], totalCount: 0, hasMore: false }, { headers: NO_STORE_HEADERS });
 
     // Validate pagination params with defaults
     const pageParam = searchParams.get("page");
@@ -38,10 +47,10 @@ export async function GET(request: Request) {
 
     // Validate the parsed values
     if (Number.isNaN(page) || page < 1) {
-      return NextResponse.json({ error: "Invalid page parameter" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid page parameter" }, { status: 400, headers: NO_STORE_HEADERS });
     }
     if (Number.isNaN(limit) || limit < 1 || limit > 100) {
-      return NextResponse.json({ error: "Invalid limit parameter" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid limit parameter" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     // Get IDs of matching bookmarks via MiniSearch index
@@ -61,14 +70,23 @@ export async function GET(request: Request) {
     const start = (page - 1) * limit;
     const paginated = matched.slice(start, start + limit);
 
-    return NextResponse.json({
-      data: paginated,
-      totalCount,
-      hasMore: start + limit < totalCount,
-    });
+    return NextResponse.json(
+      {
+        data: paginated,
+        totalCount,
+        hasMore: start + limit < totalCount,
+      },
+      { headers: NO_STORE_HEADERS },
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[Bookmarks Search API]", message);
-    return NextResponse.json({ error: "Bookmarks search failed", details: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Bookmarks search failed", details: message },
+      {
+        status: 500,
+        headers: NO_STORE_HEADERS,
+      },
+    );
   }
 }

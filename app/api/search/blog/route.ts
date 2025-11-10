@@ -14,7 +14,7 @@ import { searchBlogPostsServerSide } from "@/lib/blog/server-search"; // Import 
 import { NextResponse } from "next/server";
 // import type { SearchResult } from '@/types/search'; // Keep SearchResult type - Removed as unused by ESLint
 
-// Ensure this route is not statically cached
+const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
 /**
  * Server-side API route for blog search.
@@ -33,17 +33,29 @@ export async function GET(request: Request): Promise<NextResponse> {
     const query = searchParams.get("q");
 
     if (!query) {
-      return NextResponse.json({ error: 'Search query parameter "q" is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Search query parameter "q" is required' },
+        {
+          status: 400,
+          headers: NO_STORE_HEADERS,
+        },
+      );
     }
 
     // Call the imported server-side search function
     const searchResults = await searchBlogPostsServerSide(query);
 
-    return NextResponse.json(searchResults);
+    return NextResponse.json(searchResults, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error("Blog search API error:", error);
     // Determine if it's a known error type or generic
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    return NextResponse.json({ error: "Failed to perform blog search", details: errorMessage }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to perform blog search", details: errorMessage },
+      {
+        status: 500,
+        headers: NO_STORE_HEADERS,
+      },
+    );
   }
 }
