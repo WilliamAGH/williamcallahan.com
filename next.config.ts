@@ -333,6 +333,7 @@ const nextConfig = {
     // Bypass image optimization in development to reduce memory pressure
     // Image-worker transforms contribute significantly to webpack memory spikes
     ...(process.env.NODE_ENV === "development" ? { unoptimized: true } : {}),
+    domains: ["s3-storage.callahan.cloud", "williamcallahan.com", "dev.williamcallahan.com"],
     /**
      * Allows Nextjs to optimize SVGs using `next/image`
      * Note: This can have security implications if SVGs are user-uploaded
