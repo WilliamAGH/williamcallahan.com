@@ -12,7 +12,7 @@ import type { OgImageApiResponse } from "@/types";
 
 export async function GET(request: NextRequest) {
   noStore();
-  const requestUrl = request.nextUrl;
+  const requestUrl = new URL(request.url);
   const { searchParams } = requestUrl;
   const url = searchParams.get("url");
 

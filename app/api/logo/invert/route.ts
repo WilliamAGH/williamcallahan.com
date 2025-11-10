@@ -38,7 +38,7 @@ function validateUrl(urlString: string): string {
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   noStore();
-  const requestUrl = request.nextUrl;
+  const requestUrl = new URL(request.url);
   const searchParams = requestUrl.searchParams;
   const domain = searchParams.get("domain");
   const forceRefresh = searchParams.get("forceRefresh") === "true";
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  */
 export async function HEAD(request: NextRequest): Promise<NextResponse> {
   noStore();
-  const requestUrl = request.nextUrl;
+  const requestUrl = new URL(request.url);
   const searchParams = requestUrl.searchParams;
   const urlParam = searchParams.get("url");
   const isDarkTheme = searchParams.get("theme") === "dark";
