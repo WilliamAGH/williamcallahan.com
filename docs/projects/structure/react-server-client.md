@@ -1,10 +1,10 @@
 # React Server/Client Architecture
 
-This document outlines the architectural patterns, best practices, and critical rules for React 19 Server Components (RSC) and Next.js 15 server/client coordination.
+This document outlines the architectural patterns, best practices, and critical rules for React 19 Server Components (RSC) and Next.js 16 server/client coordination. **Use it together with [`next-js-16-usage.md`](./next-js-16-usage.md) for enforcement checklists and framework mandates.**
 
 ## Core Objective
 
-Provide comprehensive guidance for properly implementing server/client boundaries, streaming patterns, environment variable security, and async component patterns in React 19 and Next.js 15 applications.
+Provide comprehensive guidance for properly implementing server/client boundaries, streaming patterns, environment variable security, and async component patterns in React 19 and Next.js 16 applications.
 
 ## Key Components
 
@@ -250,11 +250,11 @@ export default function Page() {
    }
    ```
 
-## Next.js 15 Breaking Changes
+## Next.js 16 Async Request APIs
 
 ### Async Request APIs
 
-All request-specific APIs are now async in Next.js 15:
+All request-specific APIs are now async in Next.js 16:
 
 ```tsx
 // ❌ OLD (Next.js 14)
@@ -263,7 +263,7 @@ export default function Page({ params, searchParams }) {
   const { sort } = searchParams;
 }
 
-// ✅ NEW (Next.js 15)
+// ✅ NEW (Next.js 16)
 export default async function Page({ params, searchParams }) {
   const { id } = await params;
   const { sort } = await searchParams;
@@ -278,7 +278,7 @@ export default async function Page({ params, searchParams }) {
 ### Caching Changes
 
 ```tsx
-// Next.js 15 - No default caching
+// Next.js 16 - No default caching
 const data = await fetch("/api/data"); // Not cached by default
 
 // Opt-in to caching
@@ -345,9 +345,13 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
 - [caching.md](./caching.md) - Caching strategies and implementation
 - [linting-formatting.md](./linting-formatting.md) - Type safety and code quality
 - [state-theme-window-providers.md](./state-theme-window-providers.md) - Client-side state management
+- [next-js-16-usage.md](./next-js-16-usage.md) - Cache Components, async params, and outlawed patterns
+- [testing-config.md](./testing-config.md) - Jest 30 enforcement and testing workflow
 
 ## References
 
 - [React Server Components Documentation](https://react.dev/reference/rsc/server-components)
 - [Next.js App Router Documentation](https://nextjs.org/docs/app)
-- [Next.js 15 Migration Guide](https://nextjs.org/docs/app/building-your-application/upgrading/version-15)
+- [Next.js 16 Upgrade Guide](https://nextjs.org/docs/app/building-your-application/upgrading/version-16)
+- [`next-js-16-usage.md`](./next-js-16-usage.md)
+- [`testing-config.md`](./testing-config.md)

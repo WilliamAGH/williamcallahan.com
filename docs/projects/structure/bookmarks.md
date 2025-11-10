@@ -49,6 +49,7 @@ API routes → read JSON in S3 → `Cache-Control: no-store`
 - `scripts/fetch-bookmarks-public.ts` now auto-detects the active environment via `API_BASE_URL`/`NEXT_PUBLIC_SITE_URL` using `lib/config/environment.ts`, so Docker builds no longer require a `DEPLOYMENT_ENV` override.
 - When CDN variables are missing inside BuildKit, the script falls back to the Spaces origin (`S3_SERVER_URL + S3_BUCKET`) so bookmark snapshots are still hydrated before Next.js prerenders `/bookmarks/**` routes.
 - Coolify provides the same env secrets for runtime and build, so this script is the single place that ensures local shells, Docker builds, and production ingest identical JSON payloads before sitemap/tag generation.
+- The `package.json prebuild` hook runs this script automatically before every `bun run build`, guaranteeing workstation builds populate `lib/data/s3-cache/` before Next.js prerenders bookmarks (no more direct SDK reads during local CI).
 
 ## Key Features
 

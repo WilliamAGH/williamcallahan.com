@@ -503,6 +503,7 @@ File/Path Functionality Description
 
 - [ ] **projects/**
   - [ ] **structure/**
+    - [x] `next-js-16-usage.md` `next-js-16-usage` - Framework enforcement guide for Next.js 16 / React 19 / Jest 30 (2025-11-08)
     - [ ] `*.md` `` - Architecture documentation
   - [ ] `*.md` `` - Project documentation
 - [ ] `*.md` `` - General documentation
