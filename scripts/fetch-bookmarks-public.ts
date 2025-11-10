@@ -15,17 +15,18 @@ import { join, dirname } from "node:path";
 import { normalizeTagsToStrings, tagToSlug } from "../lib/utils/tag-utils";
 import { calculateBookmarksChecksum } from "../lib/bookmarks/utils";
 import { readJsonS3 } from "../lib/s3-utils";
+import { getEnvironment, getEnvironmentSuffix } from "@/lib/config/environment";
 import type { BookmarkS3Record } from "@/types/bookmark";
 
 // Get CDN URL from environment or use default
 const CDN_URL = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
 const ORIGIN_SERVER_URL = process.env.S3_SERVER_URL || "";
 const S3_BUCKET = process.env.S3_BUCKET || "";
-const DEPLOYMENT_ENV = process.env.DEPLOYMENT_ENV || "production";
-
-// Determine environment suffix for S3 paths
-// production = no suffix, development = "-dev", test = "-test"
-const envSuffix = DEPLOYMENT_ENV === "development" ? "-dev" : DEPLOYMENT_ENV === "test" ? "-test" : "";
+const resolvedEnvironment = getEnvironment();
+const envSuffix = getEnvironmentSuffix();
+const originBase = ORIGIN_SERVER_URL ? ORIGIN_SERVER_URL.replace(/\/+$/, "") : "";
+const originBucketBase = originBase && S3_BUCKET ? `${originBase}/${S3_BUCKET}` : "";
+const preferredCdnBase = CDN_URL ? CDN_URL.replace(/\/+$/, "") : originBucketBase;
 
 // S3 paths to fetch
 const BOOKMARKS_PATHS = {
@@ -176,22 +177,28 @@ function buildTagArtifacts(rawBookmarks: unknown, slugMapping: any, tagPrefix: s
  */
 async function main() {
   console.log("🚀 Fetching bookmark data from public S3 CDN...");
-  console.log(`   CDN URL: ${CDN_URL}`);
-  console.log(`   Origin URL: ${ORIGIN_SERVER_URL}`);
-  console.log(`   Environment: ${DEPLOYMENT_ENV}`);
+  console.log(`   CDN URL: ${CDN_URL || "(not set)"}`);
+  console.log(`   Origin URL: ${ORIGIN_SERVER_URL || "(not set)"}`);
+  console.log(`   Environment: ${resolvedEnvironment}`);
 
   let successCount = 0;
   let failureCount = 0;
 
   const candidateUrls = (path: string): string[] => {
     const urls: string[] = [];
-    if (ORIGIN_SERVER_URL && S3_BUCKET) {
-      const originBase = ORIGIN_SERVER_URL.replace(/\/+$/, "");
-      urls.push(`${originBase}/${S3_BUCKET}/${path}`);
-    }
-    if (CDN_URL) {
-      urls.push(`${CDN_URL.replace(/\/+$/, "")}/${path}`);
-    }
+    const seen = new Set<string>();
+
+    const pushUrl = (value: string | undefined): void => {
+      if (!value) return;
+      const normalized = value.replace(/\/+$/, "");
+      if (seen.has(normalized)) return;
+      seen.add(normalized);
+      urls.push(`${normalized}/${path}`);
+    };
+
+    pushUrl(originBucketBase);
+    pushUrl(preferredCdnBase);
+
     return urls;
   };
 

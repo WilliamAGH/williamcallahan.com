@@ -107,6 +107,12 @@ COPY . .
 RUN --mount=type=secret,id=s3_access_key_id,required=false \
     --mount=type=secret,id=s3_secret_access_key,required=false \
     --mount=type=secret,id=s3_session_token,required=false \
+    --mount=type=secret,id=S3_BUCKET,required=false,env=S3_BUCKET \
+    --mount=type=secret,id=S3_SERVER_URL,required=false,env=S3_SERVER_URL \
+    --mount=type=secret,id=S3_CDN_URL,required=false,env=S3_CDN_URL \
+    --mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL,required=false,env=NEXT_PUBLIC_S3_CDN_URL \
+    --mount=type=secret,id=API_BASE_URL,required=false,env=API_BASE_URL \
+    --mount=type=secret,id=NEXT_PUBLIC_SITE_URL,required=false,env=NEXT_PUBLIC_SITE_URL \
     bash -c 'set -euo pipefail \
       && if [ -f /run/secrets/s3_access_key_id ]; then export S3_ACCESS_KEY_ID="$(cat /run/secrets/s3_access_key_id)"; fi \
       && if [ -f /run/secrets/s3_secret_access_key ]; then export S3_SECRET_ACCESS_KEY="$(cat /run/secrets/s3_secret_access_key)"; fi \
@@ -137,6 +143,12 @@ RUN --mount=type=cache,target=/app/.next/cache \
     --mount=type=secret,id=s3_access_key_id,required=false \
     --mount=type=secret,id=s3_secret_access_key,required=false \
     --mount=type=secret,id=s3_session_token,required=false \
+    --mount=type=secret,id=S3_BUCKET,required=false,env=S3_BUCKET \
+    --mount=type=secret,id=S3_SERVER_URL,required=false,env=S3_SERVER_URL \
+    --mount=type=secret,id=S3_CDN_URL,required=false,env=S3_CDN_URL \
+    --mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL,required=false,env=NEXT_PUBLIC_S3_CDN_URL \
+    --mount=type=secret,id=NEXT_PUBLIC_SITE_URL,required=false,env=NEXT_PUBLIC_SITE_URL \
+    --mount=type=secret,id=API_BASE_URL,required=false,env=API_BASE_URL \
     bash -c 'set -euo pipefail && \
       if [ -f /run/secrets/s3_access_key_id ]; then \
         export S3_ACCESS_KEY_ID="$(cat /run/secrets/s3_access_key_id)"; \
