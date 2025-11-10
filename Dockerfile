@@ -68,8 +68,8 @@ ENV NODE_ENV=production
 # Indicate process is running inside Docker container
 ENV RUNNING_IN_DOCKER=true
 ENV CONTAINER=true
-# Enable verbose Sentry logs during build for better diagnostics
-ENV SENTRY_LOG_LEVEL=debug
+# Limit Sentry logging noise during builds (info keeps warnings/errors visible)
+ENV SENTRY_LOG_LEVEL=info
 
 # Accept and propagate public env vars for Next.js build
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
