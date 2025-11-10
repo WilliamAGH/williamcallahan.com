@@ -7,8 +7,7 @@
  * @module app/api/health/metrics
  */
 
-import { NextResponse } from "next/server";
-import { headers } from "next/headers";
+import { NextResponse, type NextRequest } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { getSystemMetrics } from "@/lib/health/status-monitor.server";
@@ -16,16 +15,20 @@ import { HealthMetricsResponseSchema, type HealthMetrics } from "@/types/health"
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
+// Requires bearer auth from the incoming request, so prevent prerendering.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 /**
  * GET /api/health/metrics
  * @description Returns detailed health and performance metrics for the application.
  * @returns {NextResponse}
  */
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   noStore();
   try {
     // Check authorization using existing env variable
-    const authHeader = (await headers()).get("authorization");
+    const authHeader = request.headers.get("authorization");
     const expectedToken = process.env.GITHUB_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
 
     if (!expectedToken || authHeader !== `Bearer ${expectedToken}`) {
