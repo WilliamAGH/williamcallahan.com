@@ -75,7 +75,7 @@ async function buildTagGraph(allContent: Array<{ type: string; id: string; tags?
   for (const [tag, data] of Object.entries(tagData)) {
     // Find most related tags based on co-occurrence
     const relatedTags = Object.entries(data.coOccurrences)
-      .sort(([, a], [, b]) => b - a)
+      .toSorted(([, a], [, b]) => b - a)
       .slice(0, 10)
       .map(([tag]) => tag);
 

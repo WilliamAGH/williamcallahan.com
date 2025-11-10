@@ -187,7 +187,7 @@ class AsyncOperationsMonitor {
   private pruneOldOperations(): void {
     // Sort by start time and keep only the most recent
     const sortedEntries = Array.from(this.operations.entries())
-      .sort(([, a], [, b]) => b.startTime - a.startTime)
+      .toSorted(([, a], [, b]) => b.startTime - a.startTime)
       .slice(0, Math.floor(this.maxOperations * 0.8)); // Keep 80% of max
 
     this.operations.clear();

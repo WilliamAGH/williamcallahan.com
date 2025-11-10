@@ -12,6 +12,9 @@ import type { TruncationOptions } from "@/types/seo";
 import { formatTagDisplay as utilFormatTagDisplay } from "@/lib/utils/tag-utils";
 import { envLogger } from "@/lib/utils/env-logger";
 
+const isSeoDebugLoggingEnabled =
+  process.env.DEBUG_SEO === "true" || process.env.DEBUG === "true" || process.env.VERBOSE === "true";
+
 /**
  * Generates consistent title formatting for dynamic pages
  * @param content - The main content for the title (e.g., post title, tag name)
@@ -90,7 +93,7 @@ export function generateDynamicTitle(
   const result = gradientTruncate(cleanedContent, truncationOptions);
 
   // Log truncation for monitoring
-  if (result.wasTruncated) {
+  if (result.wasTruncated && isSeoDebugLoggingEnabled) {
     envLogger.debug(
       `Title truncated`,
       {

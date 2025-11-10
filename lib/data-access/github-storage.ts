@@ -261,7 +261,7 @@ export async function writeAggregatedWeeklyActivityToS3(data: AggregatedWeeklyAc
 export async function listRepoStatsFiles(): Promise<string[]> {
   try {
     const results = await s3UtilsListS3Objects(REPO_RAW_WEEKLY_STATS_S3_KEY_DIR);
-    return results.filter(key => key.endsWith(".json")).sort();
+    return results.filter(key => key.endsWith(".json")).toSorted();
   } catch (error) {
     debugLog(`Failed to list repo stats files`, "error", {
       error: error instanceof Error ? error.message : String(error),

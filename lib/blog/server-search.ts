@@ -55,7 +55,7 @@ export async function searchBlogPostsServerSide(query: string): Promise<SearchRe
 
   // Map results to the SearchResult format
   return results
-    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+    .toSorted((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     .map(
       post =>
         ({
