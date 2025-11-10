@@ -270,33 +270,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages = {
     "/": {
       priority: 1.0,
-      lastModified: getLatestDate(getPageFileMtime("page.tsx"), getSafeDate(PAGE_METADATA.home.dateModified)),
+      lastModified: getSafeDate(PAGE_METADATA.home.dateModified),
     },
     "/experience": { priority: 0.8, lastModified: getSafeDate(experienceUpdatedAt) },
     "/cv": {
       priority: 0.85,
-      lastModified: getLatestDate(
-        getPageFileMtime("cv/page.tsx"),
-        getSafeDate(PAGE_METADATA.cv?.dateModified),
-        getSafeDate(experienceUpdatedAt),
-      ),
+      lastModified: getLatestDate(getSafeDate(PAGE_METADATA.cv?.dateModified), getSafeDate(experienceUpdatedAt)),
     },
     "/investments": { priority: 0.9, lastModified: getSafeDate(investmentsUpdatedAt) },
     "/education": { priority: 0.7, lastModified: getSafeDate(educationUpdatedAt) }, // Adjusted priority
     "/projects": { priority: 0.9, lastModified: getSafeDate(projectsUpdatedAt) }, // Added projects
     "/bookmarks": {
       priority: 0.7,
-      lastModified: getLatestDate(
-        getPageFileMtime("bookmarks/page.tsx"),
-        getSafeDate(PAGE_METADATA.bookmarks?.dateModified),
-        latestBookmarkUpdateTime,
-      ),
+      lastModified: getLatestDate(getSafeDate(PAGE_METADATA.bookmarks?.dateModified), latestBookmarkUpdateTime),
     },
     "/blog": {
       priority: 0.9,
       lastModified: getLatestDate(
-        // Use latest of blog page mtime, metadata date, or latest post update
-        getPageFileMtime("blog/page.tsx"),
+        // Use latest of metadata date or latest post update
         getSafeDate(PAGE_METADATA.blog.dateModified),
         latestPostUpdateTime,
       ),
@@ -304,7 +295,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/contact": {
       priority: 0.8,
       lastModified: getLatestDate(
-        getPageFileMtime("contact/page.tsx"),
         getSafeDate(PAGE_METADATA.contact?.dateModified),
         new Date(), // If no date is found, use current date to ensure it's included
       ),
@@ -346,17 +336,3 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 }
 
 // Helper function to get mtime of a specific app page file
-const getPageFileMtime = (pagePath: string): Date | undefined => {
-  // Ensure path starts within 'app' directory
-  const safePagePath = pagePath.startsWith("app/") ? pagePath : `app/${pagePath}`;
-  const filePath = path.join(process.cwd(), safePagePath);
-  try {
-    return fs.statSync(filePath).mtime;
-  } catch (statError) {
-    // Don't log error if file simply doesn't exist (e.g., for metadata-based dates)
-    if ((statError as NodeJS.ErrnoException).code !== "ENOENT") {
-      console.error(`Sitemap: Failed to get mtime for page file ${filePath}:`, statError);
-    }
-    return undefined;
-  }
-};

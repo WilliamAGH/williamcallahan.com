@@ -26,12 +26,13 @@ import { processBookmarksInBatches } from "@/lib/bookmarks/enrich-opengraph";
 const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "lib", "data", "bookmarks.json");
 const LOCAL_BOOKMARKS_BY_ID_DIR = path.join(process.cwd(), ".next", "cache", "bookmarks", "by-id");
 
-const isProductionBuildPhase =
-  process.env.NODE_ENV === "production" || process.env.NEXT_PHASE === "phase-production-build";
+const forceLocalS3Cache = process.env.FORCE_LOCAL_S3_CACHE === "true";
+const shouldSkipLocalS3Cache =
+  !forceLocalS3Cache && (process.env.NODE_ENV === "production" || process.env.NEXT_PHASE === "phase-production-build");
 
 let localS3CacheModule: typeof import("@/lib/bookmarks/local-s3-cache") | null = null;
 async function readLocalS3JsonSafe<T>(key: string): Promise<T | null> {
-  if (isProductionBuildPhase) {
+  if (shouldSkipLocalS3Cache) {
     return null;
   }
   if (!localS3CacheModule) {
