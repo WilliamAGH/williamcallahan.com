@@ -50,7 +50,7 @@ function detectCacheCorruption() {
  * GET - Cache health check (deprecated functionality)
  * @deprecated Cache health checks are no longer applicable with Next.js cache
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export function GET(request: NextRequest): NextResponse {
   if (!validateApiKey(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 /**
  * POST - Clear all Next.js caches
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export function POST(request: NextRequest): NextResponse {
   if (!validateApiKey(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

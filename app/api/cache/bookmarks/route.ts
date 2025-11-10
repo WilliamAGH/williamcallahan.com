@@ -129,7 +129,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 /**
  * DELETE handler - Clears the bookmarks cache metadata
  */
-export async function DELETE(request: NextRequest): Promise<NextResponse> {
+export function DELETE(request: NextRequest): NextResponse {
   if (!validateApiKey(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
