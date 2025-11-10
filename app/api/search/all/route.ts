@@ -13,6 +13,9 @@ import type { SearchResult } from "@/types/search";
 import { NextResponse } from "next/server";
 import os from "node:os";
 
+const withNoStoreHeaders = (additional?: Record<string, string>): HeadersInit =>
+  additional ? { "Cache-Control": "no-store", ...additional } : { "Cache-Control": "no-store" };
+
 // Ensure this route is not statically cached
 
 const inFlightSearches = new Map<string, Promise<SearchResult[]>>();
@@ -92,11 +95,11 @@ export async function GET(request: Request) {
         { error: "Too many search requests. Please wait a moment before searching again." },
         {
           status: 429,
-          headers: {
+          headers: withNoStoreHeaders({
             "Retry-After": "60",
             "X-RateLimit-Limit": "10",
             "X-RateLimit-Window": "60s",
-          },
+          }),
         },
       );
     }
@@ -105,14 +108,20 @@ export async function GET(request: Request) {
     const validation = validateSearchQuery(rawQuery);
 
     if (!validation.isValid) {
-      return NextResponse.json({ error: validation.error || "Invalid search query" }, { status: 400 });
+      return NextResponse.json(
+        { error: validation.error || "Invalid search query" },
+        {
+          status: 400,
+          headers: withNoStoreHeaders(),
+        },
+      );
     }
 
     const query = validation.sanitized;
 
     // Early exit if the sanitized query is empty
     if (query.length === 0) {
-      return NextResponse.json([]); // Nothing to search for
+      return NextResponse.json([], { headers: withNoStoreHeaders() }); // Nothing to search for
     }
 
     // Check for critical memory pressure
@@ -121,10 +130,10 @@ export async function GET(request: Request) {
         { error: "Server is under heavy load. Please try again in a moment." },
         {
           status: 503,
-          headers: {
+          headers: withNoStoreHeaders({
             "Retry-After": "30",
             "X-Memory-Pressure": "critical",
-          },
+          }),
         },
       );
     }
@@ -134,7 +143,7 @@ export async function GET(request: Request) {
     if (existingSearch) {
       console.log(`[Search API] Reusing in-flight search for query: "${query}"`);
       const results = await existingSearch;
-      return NextResponse.json(results);
+      return NextResponse.json(results, { headers: withNoStoreHeaders() });
     }
 
     // Create new search promise
@@ -209,10 +218,13 @@ export async function GET(request: Request) {
 
     // Wait for results
     const results = await searchPromise;
-    return NextResponse.json(results);
+    return NextResponse.json(results, { headers: withNoStoreHeaders() });
   } catch (error) {
     console.error("Site-wide search API error:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    return NextResponse.json({ error: "Failed to perform site-wide search", details: errorMessage }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to perform site-wide search", details: errorMessage },
+      { status: 500, headers: withNoStoreHeaders() },
+    );
   }
 }

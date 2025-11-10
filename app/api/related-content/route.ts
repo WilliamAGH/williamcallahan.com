@@ -18,6 +18,8 @@ import type {
   NormalizedContent,
 } from "@/types/related-content";
 
+const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+
 // Default options
 const DEFAULT_MAX_PER_TYPE = 3;
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
@@ -143,7 +145,13 @@ export async function GET(request: NextRequest) {
         sourceId = bookmarkId;
         console.log(`[RelatedContent API] Resolved slug "${sourceSlug}" to bookmark ID "${sourceId}"`);
       } else {
-        return NextResponse.json({ error: `Bookmark not found for slug: ${sourceSlug}` }, { status: 404 });
+        return NextResponse.json(
+          { error: `Bookmark not found for slug: ${sourceSlug}` },
+          {
+            status: 404,
+            headers: NO_STORE_HEADERS,
+          },
+        );
       }
     }
 
@@ -155,7 +163,7 @@ export async function GET(request: NextRequest) {
               ? "Missing required parameters: type and slug"
               : "Missing required parameters: type and id",
         },
-        { status: 400 },
+        { status: 400, headers: NO_STORE_HEADERS },
       );
     }
 
@@ -232,7 +240,7 @@ export async function GET(request: NextRequest) {
     if (!cached) {
       return NextResponse.json(
         { error: `Content not found or failed to compute: ${sourceType}/${sourceId}` },
-        { status: 404 },
+        { status: 404, headers: NO_STORE_HEADERS },
       );
     }
 
@@ -258,7 +266,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const sortedItems = limited.sort((a, b) => b.score - a.score);
+    const sortedItems = limited.toSorted((a, b) => b.score - a.score);
 
     // Apply pagination
     // Remove excluded IDs before pagination
@@ -286,9 +294,9 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error("Error in related content API:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500, headers: NO_STORE_HEADERS });
   }
 }
