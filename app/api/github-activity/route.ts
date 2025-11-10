@@ -12,7 +12,6 @@
  */
 
 import { getGithubActivityCached } from "@/lib/data-access/github";
-import { headers } from "next/headers";
 import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -29,15 +28,7 @@ export async function GET(request: NextRequest) {
 
   // The 'refresh' and 'force-cache' query params are no longer used by this GET endpoint
   // as getGithubActivity is now S3-read-only and refresh is handled by POST /api/github-activity/refresh
-  const headersList = await headers();
-  const nextUrlHeader = headersList.get("next-url");
-  const url = nextUrlHeader
-    ? nextUrlHeader.startsWith("http")
-      ? new URL(nextUrlHeader)
-      : new URL(
-          `${headersList.get("x-forwarded-proto") ?? "https"}://${headersList.get("host") ?? "localhost"}${nextUrlHeader}`,
-        )
-    : new URL(request.url);
+  const url = request.nextUrl;
   const refreshParam = url.searchParams.get("refresh");
   if (refreshParam === "true") {
     console.warn(
