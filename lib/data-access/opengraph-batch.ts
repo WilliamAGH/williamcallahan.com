@@ -14,6 +14,7 @@ import { fetchExternalOpenGraphWithRetry } from "@/lib/opengraph/fetch";
 import { createFallbackResult } from "@/lib/opengraph/fallback";
 import { generateS3Key } from "@/lib/utils/hash-utils";
 import { BatchProcessor, BatchProgressReporter } from "@/lib/batch-processing";
+import { getMonotonicTime } from "@/lib/utils";
 import { isOgResult, type OgResult, type KarakeepImageFallback } from "@/types";
 
 /**
@@ -44,7 +45,7 @@ export async function getOpenGraphDataBatch(
     try {
       const stored = await readJsonS3(s3Key);
       if (isOgResult(stored)) {
-        const age = Date.now() - (stored.timestamp || 0);
+        const age = getMonotonicTime() - (stored.timestamp || 0);
         const isDataFresh = age < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
 
         if (isDataFresh) {

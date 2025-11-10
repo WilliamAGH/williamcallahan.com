@@ -28,6 +28,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { getContentTypeFromExtension, isImageContentType } from "@/lib/utils/content-type";
+import { getMonotonicTime } from "@/lib/utils";
 
 // Environment variables for S3 configuration
 const S3_BUCKET = process.env.S3_BUCKET;
@@ -1074,7 +1075,7 @@ export async function acquireDistributedLock(
   timeoutMs: number = LOCK_TIMEOUT_MS,
   options?: { store?: LockStore; clock?: () => number },
 ): Promise<boolean> {
-  const clock = options?.clock ?? Date.now;
+  const clock = options?.clock ?? getMonotonicTime;
   const store = options?.store ?? s3LockStore;
   const lockPath = `locks/${lockKey}.json`;
   const lockEntry: { instanceId: string; acquiredAt: number; operation: string } = {
@@ -1150,7 +1151,7 @@ export async function cleanupStaleLocks(
   options?: { store?: LockStore; clock?: () => number },
 ): Promise<void> {
   const store = options?.store ?? s3LockStore;
-  const clock = options?.clock ?? Date.now;
+  const clock = options?.clock ?? getMonotonicTime;
   try {
     const locks = await store.list("locks/");
     const now = clock();

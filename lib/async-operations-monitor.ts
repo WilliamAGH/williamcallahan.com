@@ -6,6 +6,7 @@
  */
 
 import type { MonitoredAsyncOperation } from "@/types/lib";
+import { getMonotonicTime } from "@/lib/utils";
 
 class AsyncOperationsMonitor {
   private operations: Map<string, MonitoredAsyncOperation> = new Map();
@@ -38,7 +39,7 @@ class AsyncOperationsMonitor {
   startOperation(id: string, name: string, metadata?: Record<string, unknown>): void {
     this.operations.set(id, {
       name,
-      startTime: Date.now(),
+      startTime: getMonotonicTime(),
       status: "pending",
       metadata,
     });
@@ -50,7 +51,7 @@ class AsyncOperationsMonitor {
   completeOperation(id: string): void {
     const operation = this.operations.get(id);
     if (operation) {
-      operation.endTime = Date.now();
+      operation.endTime = getMonotonicTime();
       operation.status = "completed";
       const duration = operation.endTime - operation.startTime;
       console.log(`[AsyncMonitor] Operation "${operation.name}" completed in ${duration}ms`);
@@ -64,7 +65,7 @@ class AsyncOperationsMonitor {
   failOperation(id: string, error: Error, status: "failed" | "timeout" = "failed"): void {
     const operation = this.operations.get(id);
     if (operation) {
-      operation.endTime = Date.now();
+      operation.endTime = getMonotonicTime();
       operation.status = status;
       operation.error = error.message;
       const duration = operation.endTime - operation.startTime;
@@ -79,7 +80,7 @@ class AsyncOperationsMonitor {
    */
   generateId(): string {
     // Use timestamp + random for uniqueness without external dependencies
-    return `op-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    return `op-${Math.floor(getMonotonicTime())}-${Math.random().toString(36).substring(2, 9)}`;
   }
 
   /**
@@ -161,7 +162,7 @@ class AsyncOperationsMonitor {
         "[AsyncMonitor] Pending operations:",
         pending.map(op => ({
           name: op.name,
-          duration: `${Date.now() - op.startTime}ms`,
+          duration: `${getMonotonicTime() - op.startTime}ms`,
         })),
       );
     }

@@ -12,6 +12,7 @@ import { EventEmitter } from "node:events";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import type { CacheStats } from "@/types/cache";
 import { MEMORY_THRESHOLDS } from "@/lib/constants";
+import { getMonotonicTime } from "@/lib/utils";
 import {
   type HealthCheckResult,
   type MemoryStatus,
@@ -241,7 +242,7 @@ export class MemoryHealthMonitor extends EventEmitter {
     const serverCacheStats = getServerCacheStats();
 
     const snapshot: import("@/types/health").MemoryMetrics = {
-      timestamp: Date.now(),
+      timestamp: getMonotonicTime(),
       rss: usage.rss,
       heapUsed: usage.heapUsed,
       heapTotal: usage.heapTotal,
