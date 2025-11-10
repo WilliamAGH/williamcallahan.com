@@ -64,7 +64,7 @@
     "test:coverage": "NODE_OPTIONS='--max-old-space-size=4096' jest --coverage --config=config/jest/config.ts",
     "test:ci": "NODE_OPTIONS='--max-old-space-size=4096' jest --ci --coverage --config=config/jest/config.ts",
     "test:leaks": "NODE_OPTIONS='--max-old-space-size=4096' jest --detectOpenHandles --config=config/jest/config.ts",
-    "test:smoke": "NODE_OPTIONS='--max-old-space-size=4096' jest --testPathPatterns=smoke --config=config/jest/config.ts",
+    "test:smoke": "NEXT_PUBLIC_CDN_BOOKMARK_BASE=https://williamcallahan-com.sfo3.digitaloceanspaces.com NODE_OPTIONS='--max-old-space-size=4096' jest --testPathPatterns=smoke --config=config/jest/config.ts",
     "test:smoke:blog": "bun run test:smoke -- --testPathPatterns=blog",
     "test:smoke:pages": "bun run test:smoke -- --testPathPatterns=pages",
     "debug:list-s3": "bunx -p dotenv-cli dotenv -e .env -- bun scripts/debug-list-s3.ts",
