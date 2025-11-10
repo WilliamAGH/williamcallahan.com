@@ -20,8 +20,6 @@ import type { UnifiedBookmark } from "@/types";
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-export const runtime = "nodejs";
-
 function resolveRequestUrl(request: NextRequest): URL {
   return request.nextUrl;
 }

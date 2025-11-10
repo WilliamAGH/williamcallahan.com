@@ -20,8 +20,6 @@ const withNoStoreHeaders = (additional?: Record<string, string>): HeadersInit =>
 const inFlightSearches = new Map<string, Promise<SearchResult[]>>();
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-export const runtime = "nodejs";
-
 // ────────────────────────────────────────────────────────────────────────────
 // Memory pressure check (adaptive & configurable)
 //
@@ -227,9 +225,9 @@ export async function GET(request: NextRequest) {
     // Wait for results
     const results = await searchPromise;
     return NextResponse.json(results, { headers: withNoStoreHeaders() });
-  } catch (error) {
-    console.error("Site-wide search API error:", error);
+  } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+    console.error("Site-wide search API error:", errorMessage);
     return NextResponse.json(
       { error: "Failed to perform site-wide search", details: errorMessage },
       { status: 500, headers: withNoStoreHeaders() },

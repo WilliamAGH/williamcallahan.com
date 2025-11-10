@@ -6,8 +6,6 @@ import type { DeepCheckResult } from "@/types/health";
 
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-export const runtime = "nodejs";
-
 async function measure<T>(name: string, fn: () => Promise<T>): Promise<{ result: T | null; check: DeepCheckResult }> {
   const start = performance.now();
   try {

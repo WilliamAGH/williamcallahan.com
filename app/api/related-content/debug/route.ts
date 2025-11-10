@@ -13,8 +13,6 @@ import type { RelatedContentType } from "@/types/related-content";
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-export const runtime = "nodejs";
-
 export async function GET(request: NextRequest) {
   if (isProductionBuild) {
     return NextResponse.json(

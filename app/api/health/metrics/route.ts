@@ -16,8 +16,6 @@ import { HealthMetricsResponseSchema, type HealthMetrics } from "@/types/health"
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-export const runtime = "nodejs";
-
 /**
  * GET /api/health/metrics
  * @description Returns detailed health and performance metrics for the application.
