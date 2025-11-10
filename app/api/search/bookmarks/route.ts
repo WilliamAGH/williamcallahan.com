@@ -17,6 +17,9 @@ import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import type { UnifiedBookmark } from "@/types";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
 function resolveRequestUrl(request: Request): URL {
