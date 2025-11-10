@@ -49,6 +49,15 @@ import type { BlogPost } from "../../types/blog";
 import type { CacheDurationProfile } from "@/types/cache-profile";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 
+const isDevLoggingEnabled =
+  process.env.NODE_ENV === "development" || process.env.DEBUG === "true" || process.env.VERBOSE === "true";
+
+const logCoverImageInfo = (message: string): void => {
+  if (isDevLoggingEnabled) {
+    console.log(`[sanitizeCoverImage] ${message}`);
+  }
+};
+
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
 
@@ -125,10 +134,10 @@ async function sanitizeCoverImage(
             // Build and return CDN URL
             const cdnConfig = getCdnConfigFromEnv();
             const cdnUrl = buildCdnUrl(matchingKey, cdnConfig);
-            console.log(`[sanitizeCoverImage] Mapped ${trimmedValue} to S3 CDN: ${cdnUrl}`);
+            logCoverImageInfo(`Mapped ${trimmedValue} to S3 CDN: ${cdnUrl}`);
             return cdnUrl;
           } else {
-            console.log(`[sanitizeCoverImage] No S3 match found for ${trimmedValue}, using local path`);
+            logCoverImageInfo(`No S3 match found for ${trimmedValue}, using local path`);
           }
         } catch (error) {
           console.warn(`[sanitizeCoverImage] Error mapping to S3 for ${trimmedValue}:`, error);

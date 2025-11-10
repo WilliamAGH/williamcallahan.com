@@ -116,6 +116,13 @@ function setCachedBookmark<T>(cache: Map<string, { data: T; timestamp: number }>
 // In-process short-TTL cache parameters (centralized in lib/cache; local cache removed)
 
 const LOG_PREFIX = "[BookmarksDataAccess]";
+const isDevLoggingEnabled =
+  process.env.NODE_ENV === "development" || process.env.DEBUG === "true" || process.env.VERBOSE === "true";
+
+const logVerboseBookmarkEvent = (message: string): void => {
+  if (!isDevLoggingEnabled) return;
+  console.log(`${LOG_PREFIX} ${message}`);
+};
 const DISTRIBUTED_LOCK_S3_KEY = BOOKMARKS_S3_PATHS.LOCK;
 
 // Parse LOCK_TTL_MS with robust validation
@@ -970,11 +977,14 @@ export async function getBookmarksByTag(
   tagSlug: string,
   pageNumber: number = 1,
 ): Promise<{ bookmarks: UnifiedBookmark[]; totalCount: number; totalPages: number; fromCache: boolean }> {
-  console.log(`${LOG_PREFIX} getBookmarksByTag called with tagSlug: "${tagSlug}", pageNumber: ${pageNumber}`);
+  logVerboseBookmarkEvent(`getBookmarksByTag called with tagSlug: "${tagSlug}", pageNumber: ${pageNumber}`);
   const cachedPage = await getTagBookmarksPage(tagSlug, pageNumber);
   if (cachedPage.length > 0) {
     const index = await getTagBookmarksIndex(tagSlug);
-    console.log(`${LOG_PREFIX} Using cached data for tag "${tagSlug}"`);
+    logVerboseBookmarkEvent(`Using cached data for tag "${tagSlug}"`);
+    console.log(
+      `${LOG_PREFIX} Tag fetch success (tag=${tagSlug}, page=${pageNumber}, source=cache, count=${cachedPage.length})`,
+    );
     return {
       bookmarks: cachedPage,
       totalCount: index?.count || cachedPage.length,
@@ -982,7 +992,7 @@ export async function getBookmarksByTag(
       fromCache: true,
     };
   }
-  console.log(`${LOG_PREFIX} Cache miss for tag "${tagSlug}". Falling back to full bookmark set filtering`);
+  logVerboseBookmarkEvent(`Cache miss for tag "${tagSlug}". Falling back to full bookmark set filtering`);
 
   // Check in-memory runtime cache first to avoid repeated S3 reads.
   // In test environment, bypass the in-process cache so each test can
@@ -1034,7 +1044,9 @@ export async function getBookmarksByTag(
     totalPages = Math.ceil(totalCount / BOOKMARKS_PER_PAGE);
   const start = (pageNumber - 1) * BOOKMARKS_PER_PAGE,
     paginated = filteredBookmarks.slice(start, start + BOOKMARKS_PER_PAGE);
-  console.log(`${LOG_PREFIX} Found ${paginated.length} bookmarks for page ${pageNumber} of tag "${tagSlug}"`);
+  console.log(
+    `${LOG_PREFIX} Tag fetch success (tag=${tagSlug}, page=${pageNumber}, source=filtered, count=${paginated.length})`,
+  );
   return { bookmarks: paginated, totalCount, totalPages, fromCache: false };
 }
 
