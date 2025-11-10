@@ -8,6 +8,7 @@
  * Hierarchy: Memory cache → S3 storage → External fetch → Karakeep fallback
  */
 
+import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client } from "@/lib/s3-utils";
@@ -28,7 +29,16 @@ import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
  * - bookmarkId: Bookmark ID (optional, enables domain fallback for Karakeep assets)
  */
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
+  const headersList = await headers();
+  const nextUrlHeader = headersList.get("next-url");
+  const requestUrl = nextUrlHeader
+    ? nextUrlHeader.startsWith("http")
+      ? new URL(nextUrlHeader)
+      : new URL(
+          `${headersList.get("x-forwarded-proto") ?? "https"}://${headersList.get("host") ?? "localhost"}${nextUrlHeader}`,
+        )
+    : new URL(request.url);
+  const { searchParams } = requestUrl;
   const url = searchParams.get("url");
   const assetId = searchParams.get("assetId");
   const bookmarkId = searchParams.get("bookmarkId");

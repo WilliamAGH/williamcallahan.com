@@ -11,6 +11,7 @@
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search"; // Import the refactored search function
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 // import type { SearchResult } from '@/types/search'; // Keep SearchResult type - Removed as unused by ESLint
 
@@ -29,7 +30,16 @@ const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
  */
 export async function GET(request: Request): Promise<NextResponse> {
   try {
-    const { searchParams } = new URL(request.url);
+    const headersList = await headers();
+    const nextUrlHeader = headersList.get("next-url");
+    const requestUrl = nextUrlHeader
+      ? nextUrlHeader.startsWith("http")
+        ? new URL(nextUrlHeader)
+        : new URL(
+            `${headersList.get("x-forwarded-proto") ?? "https"}://${headersList.get("host") ?? "localhost"}${nextUrlHeader}`,
+          )
+      : new URL(request.url);
+    const searchParams = requestUrl.searchParams;
     const query = searchParams.get("q");
 
     if (!query) {

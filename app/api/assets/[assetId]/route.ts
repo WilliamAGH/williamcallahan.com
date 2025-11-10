@@ -20,8 +20,10 @@
  * @see {@link saveAssetToS3} for S3 persistence logic
  */
 
+import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
-import { HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { HeadObjectCommand, GetObjectCommand, type GetObjectCommandOutput } from "@aws-sdk/client-s3";
+import { Readable } from "node:stream";
 import { s3Client } from "@/lib/s3-utils";
 import { getExtensionFromContentType, IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
 import { IMAGE_S3_PATHS } from "@/lib/constants";
@@ -272,8 +274,7 @@ async function streamFromS3(key: string, contentType: string): Promise<NextRespo
     throw new Error("No body in S3 response");
   }
 
-  // Convert the readable stream to a web stream
-  const stream = response.Body.transformToWebStream();
+  const stream = convertS3BodyToWebStream(response.Body);
 
   return new NextResponse(stream, {
     status: 200,
@@ -281,6 +282,66 @@ async function streamFromS3(key: string, contentType: string): Promise<NextRespo
       "Content-Type": contentType,
       "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400", // 7 days + 1 day stale
       ...IMAGE_SECURITY_HEADERS,
+    },
+  });
+}
+
+function hasTransformToWebStream(body: unknown): body is { transformToWebStream: () => ReadableStream<Uint8Array> } {
+  return typeof (body as { transformToWebStream?: unknown }).transformToWebStream === "function";
+}
+
+function isReadableStream(body: unknown): body is ReadableStream<Uint8Array> {
+  return typeof ReadableStream !== "undefined" && body instanceof ReadableStream;
+}
+
+function isBlob(body: unknown): body is Blob {
+  return typeof Blob !== "undefined" && body instanceof Blob;
+}
+
+function convertS3BodyToWebStream(body: NonNullable<GetObjectCommandOutput["Body"]>): ReadableStream<Uint8Array> {
+  const candidateBody: unknown = body;
+
+  if (hasTransformToWebStream(candidateBody)) {
+    return candidateBody.transformToWebStream() as unknown as ReadableStream<Uint8Array>;
+  }
+
+  if (isReadableStream(candidateBody)) {
+    return candidateBody;
+  }
+
+  if (candidateBody instanceof Readable) {
+    return Readable.toWeb(candidateBody) as unknown as ReadableStream<Uint8Array>;
+  }
+
+  if (isBlob(candidateBody)) {
+    return candidateBody.stream() as unknown as ReadableStream<Uint8Array>;
+  }
+
+  if (candidateBody instanceof Uint8Array) {
+    return createSingleChunkStream(candidateBody);
+  }
+
+  if (typeof candidateBody === "string") {
+    return createSingleChunkStream(new TextEncoder().encode(candidateBody));
+  }
+
+  if (candidateBody instanceof ArrayBuffer) {
+    return createSingleChunkStream(new Uint8Array(candidateBody));
+  }
+
+  if (ArrayBuffer.isView(candidateBody as ArrayBufferView)) {
+    const view = candidateBody as ArrayBufferView;
+    return createSingleChunkStream(new Uint8Array(view.buffer));
+  }
+
+  throw new Error("Unsupported S3 body type for streaming");
+}
+
+function createSingleChunkStream(chunk: Uint8Array): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(chunk);
+      controller.close();
     },
   });
 }
@@ -399,7 +460,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { assetId } = await params;
 
   // Extract context from query parameters for descriptive S3 filenames
-  const searchParams = request.nextUrl.searchParams;
+  const requestUrl = await (async () => {
+    const headersList = await headers();
+    const nextUrlHeader = headersList.get("next-url");
+    if (nextUrlHeader) {
+      if (nextUrlHeader.startsWith("http://") || nextUrlHeader.startsWith("https://")) {
+        return new URL(nextUrlHeader);
+      }
+      const protocol = headersList.get("x-forwarded-proto") ?? "https";
+      const host = headersList.get("host") ?? "localhost";
+      const normalizedPath = nextUrlHeader.startsWith("/") ? nextUrlHeader : `/${nextUrlHeader}`;
+      return new URL(`${protocol}://${host}${normalizedPath}`);
+    }
+    return new URL(request.url);
+  })();
+  const searchParams = requestUrl.searchParams;
 
   // Validate URL parameter to prevent security issues
   let validatedUrl: string | undefined;

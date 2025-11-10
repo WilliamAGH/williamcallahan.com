@@ -6,6 +6,7 @@
  * This route handles image inversion, caching, and serving inverted logos.
  */
 
+import { headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { getUnifiedImageService, type UnifiedImageService } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
@@ -28,6 +29,25 @@ function validateUrl(urlString: string): string {
   }
 }
 
+function buildAbsoluteUrl(value: string, headersList: Awaited<ReturnType<typeof headers>>): URL {
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return new URL(value);
+  }
+  const protocol = headersList.get("x-forwarded-proto") ?? "https";
+  const host = headersList.get("host") ?? "localhost";
+  const normalizedPath = value.startsWith("/") ? value : `/${value}`;
+  return new URL(`${protocol}://${host}${normalizedPath}`);
+}
+
+async function resolveRequestUrl(request: NextRequest): Promise<URL> {
+  const headersList = await headers();
+  const nextUrlHeader = headersList.get("next-url");
+  if (nextUrlHeader) {
+    return buildAbsoluteUrl(nextUrlHeader, headersList);
+  }
+  return new URL(request.url);
+}
+
 /**
  * GET handler for logo inversion
  * @param {NextRequest} request - Incoming request
@@ -36,7 +56,8 @@ function validateUrl(urlString: string): string {
 // Enable dynamic rendering to allow API calls during server-side rendering
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const searchParams = request.nextUrl.searchParams;
+  const requestUrl = await resolveRequestUrl(request);
+  const searchParams = requestUrl.searchParams;
   const domain = searchParams.get("domain");
   const forceRefresh = searchParams.get("forceRefresh") === "true";
 
@@ -85,7 +106,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  * @returns {Promise<NextResponse>} API response with inversion status
  */
 export async function HEAD(request: NextRequest): Promise<NextResponse> {
-  const searchParams = request.nextUrl.searchParams;
+  const requestUrl = await resolveRequestUrl(request);
+  const searchParams = requestUrl.searchParams;
   const urlParam = searchParams.get("url");
   const isDarkTheme = searchParams.get("theme") === "dark";
 

@@ -1,7 +1,27 @@
+import { headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 // Prefer explicit async params typing to avoid thenable duck-typing
 import { sanitizePath, IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
+
+function buildAbsoluteUrl(value: string, headersList: Awaited<ReturnType<typeof headers>>): URL {
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return new URL(value);
+  }
+  const protocol = headersList.get("x-forwarded-proto") ?? "https";
+  const host = headersList.get("host") ?? "localhost";
+  const normalizedPath = value.startsWith("/") ? value : `/${value}`;
+  return new URL(`${protocol}://${host}${normalizedPath}`);
+}
+
+async function resolveRequestUrl(request: NextRequest): Promise<URL> {
+  const headersList = await headers();
+  const nextUrlHeader = headersList.get("next-url");
+  if (nextUrlHeader) {
+    return buildAbsoluteUrl(nextUrlHeader, headersList);
+  }
+  return new URL(request.url);
+}
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   try {
@@ -41,7 +61,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Preserve any query parameters (e.g., format, name)
-    const { search } = request.nextUrl;
+    const { search } = await resolveRequestUrl(request);
     // Use embeddedSearch as fallback for query parameters embedded in the path
     const upstreamUrl = `https://pbs.twimg.com/${pathOnly}${search || embeddedSearch}`;
     console.log(`[Twitter Image Proxy] Attempting to fetch: ${upstreamUrl}`);

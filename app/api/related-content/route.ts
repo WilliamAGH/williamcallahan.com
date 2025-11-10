@@ -5,6 +5,7 @@
  * using similarity scoring across bookmarks, blog posts, investments, and projects.
  */
 
+import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { aggregateAllContent, getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { findMostSimilar, groupByType, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
@@ -19,6 +20,25 @@ import type {
 } from "@/types/related-content";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+
+function buildAbsoluteUrl(value: string, headersList: Awaited<ReturnType<typeof headers>>): URL {
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return new URL(value);
+  }
+  const protocol = headersList.get("x-forwarded-proto") ?? "https";
+  const host = headersList.get("host") ?? "localhost";
+  const normalizedPath = value.startsWith("/") ? value : `/${value}`;
+  return new URL(`${protocol}://${host}${normalizedPath}`);
+}
+
+async function resolveRequestUrl(request: NextRequest): Promise<URL> {
+  const headersList = await headers();
+  const nextUrlHeader = headersList.get("next-url");
+  if (nextUrlHeader) {
+    return buildAbsoluteUrl(nextUrlHeader, headersList);
+  }
+  return new URL(request.url);
+}
 
 // Default options
 const DEFAULT_MAX_PER_TYPE = 3;
@@ -126,7 +146,8 @@ export async function GET(request: NextRequest) {
 
   try {
     // Parse query parameters
-    const searchParams = request.nextUrl.searchParams;
+    const requestUrl = await resolveRequestUrl(request);
+    const searchParams = requestUrl.searchParams;
     const sourceTypeRaw = searchParams.get("type");
     const allowedTypes = new Set<RelatedContentType>(["bookmark", "blog", "investment", "project"]);
     const sourceType = allowedTypes.has(sourceTypeRaw as RelatedContentType)
@@ -252,7 +273,7 @@ export async function GET(request: NextRequest) {
       items = filterByTypes(items, includeTypes, excludeTypes);
     }
     // Honor excludeIds on cache hits
-    const excludeIds = (request.nextUrl.searchParams.get("excludeIds")?.split(",") || []).map(s => s.trim());
+    const excludeIds = (searchParams.get("excludeIds")?.split(",") || []).map(s => s.trim());
     excludeIds.push(sourceId);
 
     // Apply per-type limits
