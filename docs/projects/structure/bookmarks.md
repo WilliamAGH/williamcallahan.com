@@ -71,7 +71,7 @@ External API → Fetch & Transform → Enrich with OpenGraph → Persist to S3 �
 
 - **Request Coalescing**: Prevents duplicate API calls
 - **Multi-layer Caching**: Memory → S3 → External API
-- **Static Generation**: Individual bookmark pages pre-built
+- **Bookmark Detail Cache**: `/bookmarks/[slug]` uses Next.js segment caching with a 2-hour revalidate window and tag-based invalidation tied to `bookmark-${id}` tags, so detail pages are reused across requests without sacrificing freshness
 - **Singleton Pattern**: One initialization per process
 - **Background Refresh**: Non-blocking with 15-minute cooldown
 
