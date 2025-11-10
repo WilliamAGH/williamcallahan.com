@@ -10,7 +10,7 @@
 
 import { BookmarkDetail } from "@/components/features/bookmarks/bookmark-detail";
 import { getBookmarkById, getBookmarks } from "@/lib/bookmarks/service.server";
-import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
+import { DEFAULT_BOOKMARK_OPTIONS, TIME_CONSTANTS } from "@/lib/constants";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
@@ -24,6 +24,8 @@ import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { generateSlugMapping, getBookmarkIdFromSlug } from "@/lib/bookmarks/slug-manager";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { envLogger } from "@/lib/utils/env-logger";
+import { cacheContextGuards } from "@/lib/cache";
+import type { BookmarkPageContext, UnifiedBookmark } from "@/types";
 
 // CRITICAL: generateStaticParams() is INTENTIONALLY DISABLED for individual bookmarks
 // Issue #sitemap-2024: Even though this prevents static generation, sitemap.ts
@@ -35,6 +37,8 @@ import { envLogger } from "@/lib/utils/env-logger";
 // export async function generateStaticParams(): Promise<{ slug: string }[]> {
 //   // Disabled - sitemap.ts handles URL generation separately
 // }
+
+const BOOKMARK_PAGE_CACHE_SECONDS = Math.max(3600, Math.round(TIME_CONSTANTS.BOOKMARKS_PRELOAD_INTERVAL_MS / 1000));
 
 const safeEnsureAbsoluteUrl = (path: string): string => {
   try {
@@ -66,7 +70,7 @@ const getBookmarkHostname = (rawUrl: string | null | undefined): string | null =
 };
 
 // Helper function to find bookmark by slug using pre-computed mappings
-async function findBookmarkBySlug(slug: string): Promise<import("@/types").UnifiedBookmark | null> {
+async function resolveBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null> {
   envLogger.group(
     "Bookmark Lookup Start",
     [
@@ -96,7 +100,7 @@ async function findBookmarkBySlug(slug: string): Promise<import("@/types").Unifi
       envLogger.log(`Slug mapped to ID`, { slug, bookmarkId }, { category: "BookmarkPage" });
       const bookmark = (await getBookmarkById(bookmarkId, {
         includeImageData: true,
-      })) as import("@/types").UnifiedBookmark | null;
+      })) as UnifiedBookmark | null;
 
       if (bookmark) {
         envLogger.log(`Bookmark lookup result`, { bookmarkId, found: true }, { category: "BookmarkPage" });
@@ -114,7 +118,7 @@ async function findBookmarkBySlug(slug: string): Promise<import("@/types").Unifi
         includeImageData: true,
         skipExternalFetch: false,
         force: false,
-      })) as import("@/types").UnifiedBookmark[];
+      })) as UnifiedBookmark[];
       envLogger.log(`Loaded bookmarks for fallback`, allBookmarks?.length || 0, { category: "BookmarkPage" });
       return allBookmarks.find(b => b.id === bookmarkId) || null;
     }
@@ -129,7 +133,7 @@ async function findBookmarkBySlug(slug: string): Promise<import("@/types").Unifi
       includeImageData: true,
       skipExternalFetch: false,
       force: false,
-    })) as import("@/types").UnifiedBookmark[];
+    })) as UnifiedBookmark[];
     envLogger.log(`Loaded bookmarks for dynamic mapping`, allBookmarks?.length || 0, { category: "BookmarkPage" });
 
     if (!allBookmarks || allBookmarks.length === 0) {
@@ -156,6 +160,20 @@ async function findBookmarkBySlug(slug: string): Promise<import("@/types").Unifi
     console.error(`[BookmarkPage] Error finding bookmark by slug "${slug}":`, error);
     return null;
   }
+}
+
+async function findBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null> {
+  "use cache";
+  cacheContextGuards.cacheLife("BookmarkPage", { revalidate: BOOKMARK_PAGE_CACHE_SECONDS });
+  cacheContextGuards.cacheTag("BookmarkPage", "bookmarks", `bookmark-slug-${slug}`);
+
+  const bookmark = await resolveBookmarkBySlug(slug);
+
+  if (bookmark?.id) {
+    cacheContextGuards.cacheTag("BookmarkPage", `bookmark-${bookmark.id}`);
+  }
+
+  return bookmark;
 }
 
 /**
@@ -223,9 +241,6 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     },
   };
 }
-
-import type { BookmarkPageContext } from "@/types";
-
 export default async function BookmarkPage({ params }: BookmarkPageContext) {
   const { slug } = await Promise.resolve(params);
   envLogger.log(`Page rendering`, { slug }, { category: "BookmarkPage" });
