@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
   noStore();
   try {
     const headersList = request.headers;
-    const requestUrl = new URL(request.url);
+    const requestUrl = request.nextUrl;
     const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q");
 
