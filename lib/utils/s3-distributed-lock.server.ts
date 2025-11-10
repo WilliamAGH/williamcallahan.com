@@ -12,6 +12,7 @@
 
 import { readJsonS3, writeJsonS3, deleteFromS3 } from "@/lib/s3-utils";
 import { envLogger } from "@/lib/utils/env-logger";
+import { getMonotonicTime } from "@/lib/utils";
 import type { DistributedLockEntry, LockConfig, LockResult } from "@/types";
 import type { DistributedLock } from "@/types/lib";
 
@@ -52,7 +53,7 @@ export async function acquireDistributedLock(config: LockConfig): Promise<LockRe
     try {
       const existing = await readJsonS3<DistributedLockEntry>(lockKey);
       if (existing && typeof existing === "object") {
-        const age = Date.now() - existing.acquiredAt;
+        const age = getMonotonicTime() - existing.acquiredAt;
         const isExpired = age >= existing.ttlMs;
 
         if (!isExpired) {
@@ -94,7 +95,7 @@ export async function acquireDistributedLock(config: LockConfig): Promise<LockRe
     // Step 2: Attempt to write our lock entry
     const myEntry: DistributedLockEntry = {
       instanceId,
-      acquiredAt: Date.now(),
+      acquiredAt: getMonotonicTime(),
       ttlMs,
     };
 
@@ -188,7 +189,7 @@ export async function cleanupStaleLocks(lockKey: string, logCategory = "Distribu
   try {
     const existingLock = await readJsonS3<DistributedLockEntry>(lockKey);
     if (existingLock && typeof existingLock === "object") {
-      const age = Date.now() - existingLock.acquiredAt;
+      const age = getMonotonicTime() - existingLock.acquiredAt;
       const expired = age >= existingLock.ttlMs;
 
       if (expired) {
@@ -214,7 +215,7 @@ export async function cleanupStaleLocks(lockKey: string, logCategory = "Distribu
  * @returns Object with acquire and release methods
  */
 export function createDistributedLock(config: Omit<LockConfig, "instanceId">): DistributedLock {
-  const instanceId = `instance-${process.pid}-${Date.now()}`;
+  const instanceId = `instance-${process.pid}-${Math.floor(getMonotonicTime())}`;
 
   return {
     instanceId,

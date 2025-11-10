@@ -21,18 +21,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const hasPerformanceClock =
-  typeof globalThis !== "undefined" &&
-  typeof globalThis.performance !== "undefined" &&
-  typeof globalThis.performance.now === "function";
-
 /**
  * Provides a monotonic timestamp without relying on Date.now()
  * to keep Server Components deterministic during prerender.
  */
 export function getMonotonicTime(): number {
-  if (hasPerformanceClock && globalThis.performance) {
-    return Math.floor(globalThis.performance.timeOrigin + globalThis.performance.now());
+  const perf =
+    typeof globalThis !== "undefined" &&
+    typeof globalThis.performance !== "undefined" &&
+    typeof globalThis.performance.now === "function"
+      ? globalThis.performance
+      : undefined;
+
+  if (perf) {
+    return Math.floor(perf.timeOrigin + perf.now());
   }
   return Date.now();
 }
