@@ -37,6 +37,13 @@ const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
 const DRY_RUN = process.env.DRY_RUN === "true";
 // Use canonical public CDN env vars only. Legacy S3_PUBLIC_CDN_URL is no longer referenced.
 const CDN_BASE_URL = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || ""; // Public CDN endpoint
+const isS3DebugLoggingEnabled =
+  process.env.NODE_ENV === "development" || process.env.DEBUG === "true" || process.env.VERBOSE === "true";
+
+const logS3Debug = (message: string, data?: Record<string, unknown>): void => {
+  if (!isS3DebugLoggingEnabled) return;
+  envLogger.log(message, data, { category: "S3Utils" });
+};
 
 // Constants for S3 read retries with exponential backoff and jitter
 const MAX_S3_READ_RETRIES = 3; // Actually do 3 retry attempts
@@ -745,15 +752,15 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
  * @returns Parsed JSON data or null if an error occurs
  */
 export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
-  // Use envLogger for all reads, with special context for refresh-lock
-  if (s3Key.includes("refresh-lock")) {
-    envLogger.log("Checking refresh lock", undefined, { category: "S3Utils" });
+  const isRefreshLockKey = s3Key.includes("refresh-lock");
+  if (isRefreshLockKey) {
+    logS3Debug("Checking refresh lock", { key: s3Key });
   } else {
-    envLogger.service("S3Utils", "readJsonS3", { key: s3Key });
+    logS3Debug("readJsonS3 invoked", { key: s3Key });
   }
 
   if (DRY_RUN) {
-    envLogger.debug(`[DRY RUN] Would read JSON from S3`, { key: s3Key }, { category: "S3Utils" });
+    logS3Debug(`[DRY RUN] Would read JSON from S3`, { key: s3Key });
     return null;
   }
 
@@ -763,19 +770,19 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
 
     if (content === null) {
       // Special handling for refresh-lock: it's normal for it not to exist
-      if (s3Key.includes("refresh-lock")) {
-        envLogger.log("Refresh lock: idle", undefined, { category: "S3Utils" });
+      if (isRefreshLockKey) {
+        logS3Debug("Refresh lock: idle", { key: s3Key });
       } else {
-        envLogger.log("readFromS3 returned null", { key: s3Key }, { category: "S3Utils" });
+        envLogger.log("S3 JSON read returned null", { key: s3Key }, { category: "S3Utils" });
       }
       return null;
     }
 
     if (typeof content === "string") {
-      envLogger.log(`Content loaded`, { type: "string", length: content.length }, { category: "S3Utils" });
+      logS3Debug(`Content loaded`, { type: "string", length: content.length });
       const parsed = safeJsonParse<T>(content);
       if (parsed !== null) {
-        envLogger.log(`Parsed JSON successfully`, { key: s3Key }, { category: "S3Utils" });
+        logS3Debug(`Parsed JSON successfully`, { key: s3Key });
         if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON from S3 key ${s3Key}.`);
       } else {
         envLogger.log(`Failed to parse JSON content`, { key: s3Key }, { category: "S3Utils" });
@@ -784,10 +791,10 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
     }
 
     if (Buffer.isBuffer(content)) {
-      envLogger.log(`Content loaded`, { type: "buffer", size: content.length }, { category: "S3Utils" });
+      logS3Debug(`Content loaded`, { type: "buffer", size: content.length });
       const parsed = parseJsonFromBuffer<T>(content, "utf-8");
       if (parsed !== null) {
-        envLogger.log(`Parsed JSON from buffer`, { key: s3Key }, { category: "S3Utils" });
+        logS3Debug(`Parsed JSON from buffer`, { key: s3Key });
         if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON (from buffer) from S3 key ${s3Key}.`);
       } else {
         envLogger.log(`Failed to parse JSON from buffer`, { key: s3Key }, { category: "S3Utils" });
