@@ -67,10 +67,23 @@ const INDEXNOW_KEY_ENV = process.env.INDEXNOW_KEY ?? "";
 const INDEXNOW_KEY_FILE = INDEXNOW_KEY_ENV ? `${INDEXNOW_KEY_ENV}.txt` : "";
 
 /** Normalizes Google service-account private key from env (handles escaped newlines, base64, or multiline PEM) */
-function processGooglePrivateKey(key?: string): string {
-  if (!key) throw new Error("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY env var is missing.");
+function processGooglePrivateKey(raw?: string): string {
+  if (!raw) throw new Error("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY env var is missing.");
 
-  let processed = key.includes("\\n") ? key.replace(/\\n/g, "\n") : key;
+  let processed = raw.trim();
+
+  const stripQuotePair = (value: string): string => {
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      return value.slice(1, -1);
+    }
+    return value;
+  };
+
+  processed = stripQuotePair(processed);
+  processed = processed.includes("\\n") ? processed.replace(/\\n/g, "\n") : processed;
+
+  // Some shells double-escape quotes inside env values; remove redundant wrapping if still present
+  processed = stripQuotePair(processed.trim());
 
   if (!processed.startsWith("-----BEGIN")) {
     try {
