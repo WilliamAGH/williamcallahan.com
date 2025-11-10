@@ -22,21 +22,23 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Provides a monotonic timestamp without relying on Date.now()
- * to keep Server Components deterministic during prerender.
+ * Provides a monotonic timestamp for cache expiration and timing.
+ * Uses performance.timeOrigin + performance.now() (via perf_hooks in Node) to
+ * avoid backwards jumps, and falls back to an increment-only counter when the
+ * Performance API is unavailable to keep build output deterministic.
  */
-export function getMonotonicTime(): number {
-  const perf =
-    typeof globalThis !== "undefined" &&
-    typeof globalThis.performance !== "undefined" &&
-    typeof globalThis.performance.now === "function"
-      ? globalThis.performance
-      : undefined;
+let fallbackCounter = 0;
 
-  if (perf) {
-    return Math.floor(perf.timeOrigin + perf.now());
+export function getMonotonicTime(): number {
+  if (typeof globalThis !== "undefined") {
+    const perf = globalThis.performance;
+    if (perf && typeof perf.now === "function") {
+      return Math.floor(perf.timeOrigin + perf.now());
+    }
   }
-  return Date.now();
+
+  fallbackCounter += 1;
+  return fallbackCounter;
 }
 
 /**

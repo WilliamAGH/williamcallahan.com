@@ -12,7 +12,7 @@ import { getOpenGraphDataBatch } from "@/lib/data-access/opengraph-batch";
 import { selectBestImage } from "./bookmark-helpers";
 import { extractMarkdownContent, applyExtractedContent } from "./extract-markdown";
 import type { UnifiedBookmark } from "@/types/bookmark";
-import { getDeterministicTimestamp } from "@/lib/server-cache";
+import { getMonotonicTime } from "@/lib/utils";
 
 const LOG_PREFIX = "[Bookmarks OpenGraph]";
 
@@ -64,7 +64,7 @@ export async function processBookmarksInBatches(
   refreshOptions?: { metadataOnly?: boolean; refreshMetadataEvenIfImagePresent?: boolean; maxItems?: number },
 ): Promise<UnifiedBookmark[]> {
   void isDev; // Unused parameter
-  const startTime = getDeterministicTimestamp();
+  const startTime = getMonotonicTime();
   console.log(
     `${LOG_PREFIX} Starting OpenGraph enrichment for ${bookmarks.length} bookmarks${useBatchMode ? " (batch mode)" : ""}${extractContent ? " with content extraction" : ""}`,
   );
@@ -396,7 +396,7 @@ export async function processBookmarksInBatches(
   }
 
   // Log comprehensive summary AFTER processing all bookmarks
-  const totalDuration = getDeterministicTimestamp() - startTime;
+  const totalDuration = getMonotonicTime() - startTime;
   console.log(`${LOG_PREFIX} Completed enrichment in ${totalDuration}ms`);
 
   console.log(`${LOG_PREFIX} ====== OPENGRAPH ENRICHMENT SUMMARY ======`);
