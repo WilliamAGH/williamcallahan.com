@@ -242,9 +242,8 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
 # Use entrypoint to handle data initialization, scheduler startup, and graceful shutdown
 # Note: entrypoint.sh now includes initial data population before starting scheduler
 ENTRYPOINT ["/app/entrypoint.sh"]
-# Use npx next start for Turbopack builds (non-standalone)
-# Note: Using npx since we have Node.js but not Bun in the runner stage
-CMD ["npx", "next", "start"]
+# Run the package.json start script via Bun (available in the base image)
+CMD ["bun", "run", "start"]
 
 ARG BUILDKIT_INLINE_CACHE=1
 LABEL org.opencontainers.image.build=true
