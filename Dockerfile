@@ -81,6 +81,8 @@ ENV DEPLOYMENT_ENV=$DEPLOYMENT_ENV
 
 # --- S3 configuration (build-time and runtime) -------------------------------
 # Only non-secret values as ARGs (bucket name, URLs)
+# Secrets (S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY/optional session token) are
+# supplied via BuildKit secrets so they never persist in intermediate layers.
 ARG S3_BUCKET
 ARG S3_SERVER_URL
 ARG S3_CDN_URL
@@ -129,10 +131,27 @@ RUN echo "📊 Fetching bookmark data from PUBLIC S3 CDN for sitemap generation.
 # Now build the app using bun (Bun) to avoid OOM issues
 # Note: Bun uses JavaScriptCore which auto-manages memory, no --max-old-space-size support
 # The build script in package.json sets NODE_OPTIONS for the Next.js build step
+# Optional BuildKit secrets provide S3 credentials just-in-time for the build so
+# generateStaticParams() can read bookmarks from S3 without leaking secrets.
 RUN --mount=type=cache,target=/app/.next/cache \
-    echo "📦 Building the application..." && bun run build && \
-    # Prune optimiser cache older than 5 days to keep layer small
-    find /app/.next/cache -type f -mtime +5 -delete || true
+    --mount=type=secret,id=s3_access_key_id,required=false \
+    --mount=type=secret,id=s3_secret_access_key,required=false \
+    --mount=type=secret,id=s3_session_token,required=false \
+    bash -c 'set -euo pipefail
+      if [ -f /run/secrets/s3_access_key_id ]; then
+        export S3_ACCESS_KEY_ID="$(cat /run/secrets/s3_access_key_id)";
+      fi
+      if [ -f /run/secrets/s3_secret_access_key ]; then
+        export S3_SECRET_ACCESS_KEY="$(cat /run/secrets/s3_secret_access_key)";
+      fi
+      if [ -f /run/secrets/s3_session_token ]; then
+        export AWS_SESSION_TOKEN="$(cat /run/secrets/s3_session_token)";
+        export S3_SESSION_TOKEN="$AWS_SESSION_TOKEN";
+      fi
+      echo "📦 Building the application..." && bun run build && \
+      # Prune optimiser cache older than 5 days to keep layer small
+      find /app/.next/cache -type f -mtime +5 -delete || true
+    '
 
 # Production image, copy all the files and run next
 FROM base AS runner
