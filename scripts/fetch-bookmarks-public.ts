@@ -10,7 +10,7 @@
  * @see https://github.com/williamcallahan/williamcallahan.com/issues/sitemap-2024
  */
 
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { normalizeTagsToStrings, tagToSlug } from "../lib/utils/tag-utils";
 import { calculateBookmarksChecksum } from "../lib/bookmarks/utils";
@@ -119,6 +119,16 @@ function saveToLocalS3(key: string, data: unknown): void {
   console.log(`   📦 Cached ${key} locally (${fullPath})`);
 }
 
+function loadExistingLocalJson(relativePath: string): unknown | null {
+  const fullPath = join(process.cwd(), relativePath);
+  try {
+    const raw = readFileSync(fullPath, "utf-8");
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+}
+
 function embedSlug(bookmark: BookmarkS3Record, slugMapping: any): BookmarkS3Record {
   if (bookmark.slug) return bookmark;
   const slug = slugMapping?.slugs?.[bookmark.id as string]?.slug;
@@ -218,9 +228,17 @@ async function main() {
   };
 
   // Fetch bookmarks file
-  const bookmarks =
+  let bookmarks: unknown =
     (HAS_S3_CREDENTIALS ? await fetchViaS3(BOOKMARKS_PATHS.FILE) : null) ??
     (await fetchWithFallback(BOOKMARKS_PATHS.FILE));
+
+  if (!bookmarks) {
+    const existing = loadExistingLocalJson(LOCAL_PATHS.BOOKMARKS);
+    if (existing) {
+      console.log("   ♻️  Using existing local bookmarks snapshot (remote fetch failed)");
+      bookmarks = existing;
+    }
+  }
   if (bookmarks) {
     saveToFile(LOCAL_PATHS.BOOKMARKS, bookmarks);
     saveToLocalS3(BOOKMARKS_PATHS.FILE, bookmarks);
@@ -236,9 +254,16 @@ async function main() {
   }
 
   // Fetch index file
-  const index =
+  let index =
     (HAS_S3_CREDENTIALS ? await fetchViaS3(BOOKMARKS_PATHS.INDEX) : null) ??
     (await fetchWithFallback(BOOKMARKS_PATHS.INDEX));
+  if (!index) {
+    const existing = loadExistingLocalJson(LOCAL_PATHS.INDEX);
+    if (existing) {
+      console.log("   ♻️  Using existing local index snapshot (remote fetch failed)");
+      index = existing;
+    }
+  }
   if (index) {
     saveToFile(LOCAL_PATHS.INDEX, index);
     saveToLocalS3(BOOKMARKS_PATHS.INDEX, index);
@@ -259,9 +284,16 @@ async function main() {
   }
 
   // Fetch slug mapping (CRITICAL for sitemap generation)
-  const slugMapping =
+  let slugMapping =
     (HAS_S3_CREDENTIALS ? await fetchViaS3(BOOKMARKS_PATHS.SLUG_MAPPING) : null) ??
     (await fetchWithFallback(BOOKMARKS_PATHS.SLUG_MAPPING));
+  if (!slugMapping) {
+    const existing = loadExistingLocalJson(LOCAL_PATHS.SLUG_MAPPING);
+    if (existing) {
+      console.log("   ♻️  Using existing local slug-mapping snapshot (remote fetch failed)");
+      slugMapping = existing;
+    }
+  }
   if (slugMapping) {
     saveToFile(LOCAL_PATHS.SLUG_MAPPING, slugMapping);
     saveToLocalS3(BOOKMARKS_PATHS.SLUG_MAPPING, slugMapping);
