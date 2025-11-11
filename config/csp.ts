@@ -7,6 +7,8 @@
  * @module config/csp
  */
 
+const RAILWAY_TEST_DEPLOYMENTS = "https://*.up.railway.app";
+
 export const CSP_DIRECTIVES = {
   defaultSrc: ["'self'"],
   scriptSrc: [
@@ -23,6 +25,7 @@ export const CSP_DIRECTIVES = {
     "https://*.x.com",
     "blob:",
     "'unsafe-eval'",
+    RAILWAY_TEST_DEPLOYMENTS,
   ],
   connectSrc: [
     "'self'",
@@ -43,6 +46,7 @@ export const CSP_DIRECTIVES = {
     "https://*.digitaloceanspaces.com",
     "https://*.sfo3.digitaloceanspaces.com",
     "https://williamcallahan-com.sfo3.digitaloceanspaces.com",
+    RAILWAY_TEST_DEPLOYMENTS,
   ],
   workerSrc: ["'self'", "blob:"],
   imgSrc: [
@@ -52,10 +56,25 @@ export const CSP_DIRECTIVES = {
     "https://*.twimg.com",
     "https://react-tweet.vercel.app",
     "https:",
+    RAILWAY_TEST_DEPLOYMENTS,
   ],
-  styleSrc: ["'self'", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com", "'unsafe-inline'"],
-  fontSrc: ["'self'", "data:", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com"],
-  frameSrc: ["https://platform.twitter.com", "https://*.x.com"],
+  styleSrc: [
+    "'self'",
+    "https://platform.twitter.com",
+    "https://*.twimg.com",
+    "https://*.x.com",
+    "'unsafe-inline'",
+    RAILWAY_TEST_DEPLOYMENTS,
+  ],
+  fontSrc: [
+    "'self'",
+    "data:",
+    "https://platform.twitter.com",
+    "https://*.twimg.com",
+    "https://*.x.com",
+    RAILWAY_TEST_DEPLOYMENTS,
+  ],
+  frameSrc: ["https://platform.twitter.com", "https://*.x.com", RAILWAY_TEST_DEPLOYMENTS],
   frameAncestors: ["'none'"],
   baseUri: ["'self'"],
   formAction: ["'self'"],

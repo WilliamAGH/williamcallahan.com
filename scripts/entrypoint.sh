@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -e # Exit on error
 
+ENABLE_BACKGROUND_SERVICES="${ENABLE_BACKGROUND_SERVICES:-1}"
+SCHEDULER_PID=""
+DATA_POPULATOR_PID=""
+TAIL_PID=""
+
 echo "🔑 [Entrypoint] Ensuring cache directory exists..."
 # Ensure the local cache directory exists. Permissions are handled by running as root.
 # This directory should have been created in the Dockerfile runner stage.
@@ -21,55 +26,59 @@ else
     echo "✅ [Entrypoint] Data already exists, skipping initial population"
 fi
 
-echo "🗺️  [Entrypoint] Submitting sitemap..."
-if [ -n "${GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY:-}" ] && [ -n "${GOOGLE_SEARCH_INDEXING_SA_EMAIL:-}" ]; then
-    if bun run submit-sitemap; then
-        echo "✅ [Entrypoint] Sitemap submission completed"
+if [ "${ENABLE_BACKGROUND_SERVICES}" = "1" ]; then
+    echo "🗺️  [Entrypoint] Submitting sitemap..."
+    if [ -n "${GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY:-}" ] && [ -n "${GOOGLE_SEARCH_INDEXING_SA_EMAIL:-}" ]; then
+        if bun run submit-sitemap; then
+            echo "✅ [Entrypoint] Sitemap submission completed"
+        else
+            echo "⚠️  [Entrypoint] Sitemap submission failed; continuing startup"
+        fi
     else
-        echo "⚠️  [Entrypoint] Sitemap submission failed; continuing startup"
+        echo "⚠️  [Entrypoint] Missing Google sitemap credentials; skipping submission"
+    fi
+
+    echo "🕒 [Entrypoint] Starting background services..."
+
+    # Start the background data populator if needed
+    if [ -f /tmp/needs-initial-data-population ]; then
+        echo "📦 [Entrypoint] Starting background data populator..."
+        bun scripts/background-data-populator.ts > /tmp/data-populator.log 2>&1 &
+        DATA_POPULATOR_PID=$!
+        echo "✅ [Entrypoint] Background data populator started (PID: $DATA_POPULATOR_PID)"
+    fi
+
+    # Create a log file for scheduler output (for debugging)
+    SCHEDULER_LOG="/tmp/scheduler.log"
+    echo "[$(date)] Scheduler startup initiated" > $SCHEDULER_LOG
+
+    # Start scheduler directly without pipeline to get correct PID
+    # Redirect output to both stdout and log file
+    bun run scheduler >> $SCHEDULER_LOG 2>&1 &
+    SCHEDULER_PID=$!
+    echo "✅ [Entrypoint] Scheduler started (PID: $SCHEDULER_PID)"
+
+    # Tail the log in background to show scheduler output
+    tail -f $SCHEDULER_LOG 2>/dev/null | sed 's/^/[SCHEDULER] /' &
+    TAIL_PID=$!
+
+    # Verify scheduler is still running after 3 seconds
+    sleep 3
+    if kill -0 $SCHEDULER_PID 2>/dev/null; then
+        echo "✅ [Entrypoint] Scheduler process verified running (PID: $SCHEDULER_PID)"
+        # Show initial scheduler output
+        echo "📋 [Entrypoint] Initial scheduler output:"
+        head -n 10 $SCHEDULER_LOG | sed 's/^/    /'
+    else
+        echo "❌ [Entrypoint] ERROR: Scheduler process died immediately after starting"
+        echo "❌ [Entrypoint] Last output from scheduler:"
+        cat $SCHEDULER_LOG | sed 's/^/    /'
+        echo "❌ [Entrypoint] Debug: Checking if bun exists and scheduler script is accessible"
+        which bun || echo "    bun not found in PATH"
+        ls -la package.json lib/server/scheduler.ts || echo "    scheduler files not found"
     fi
 else
-    echo "⚠️  [Entrypoint] Missing Google sitemap credentials; skipping submission"
-fi
-
-echo "🕒 [Entrypoint] Starting background services..."
-
-# Start the background data populator if needed
-if [ -f /tmp/needs-initial-data-population ]; then
-    echo "📦 [Entrypoint] Starting background data populator..."
-    bun scripts/background-data-populator.ts > /tmp/data-populator.log 2>&1 &
-    DATA_POPULATOR_PID=$!
-    echo "✅ [Entrypoint] Background data populator started (PID: $DATA_POPULATOR_PID)"
-fi
-
-# Create a log file for scheduler output (for debugging)
-SCHEDULER_LOG="/tmp/scheduler.log"
-echo "[$(date)] Scheduler startup initiated" > $SCHEDULER_LOG
-
-# Start scheduler directly without pipeline to get correct PID
-# Redirect output to both stdout and log file
-bun run scheduler >> $SCHEDULER_LOG 2>&1 &
-SCHEDULER_PID=$!
-echo "✅ [Entrypoint] Scheduler started (PID: $SCHEDULER_PID)"
-
-# Tail the log in background to show scheduler output
-tail -f $SCHEDULER_LOG 2>/dev/null | sed 's/^/[SCHEDULER] /' &
-TAIL_PID=$!
-
-# Verify scheduler is still running after 3 seconds
-sleep 3
-if kill -0 $SCHEDULER_PID 2>/dev/null; then
-    echo "✅ [Entrypoint] Scheduler process verified running (PID: $SCHEDULER_PID)"
-    # Show initial scheduler output
-    echo "📋 [Entrypoint] Initial scheduler output:"
-    head -n 10 $SCHEDULER_LOG | sed 's/^/    /'
-else
-    echo "❌ [Entrypoint] ERROR: Scheduler process died immediately after starting"
-    echo "❌ [Entrypoint] Last output from scheduler:"
-    cat $SCHEDULER_LOG | sed 's/^/    /'
-    echo "❌ [Entrypoint] Debug: Checking if bun exists and scheduler script is accessible"
-    which bun || echo "    bun not found in PATH"
-    ls -la package.json lib/server/scheduler.ts || echo "    scheduler files not found"
+    echo "⚠️  [Entrypoint] ENABLE_BACKGROUND_SERVICES=${ENABLE_BACKGROUND_SERVICES}; skipping sitemap submission, scheduler, and background data population"
 fi
 
 # Set up signal handling to properly terminate background processes
