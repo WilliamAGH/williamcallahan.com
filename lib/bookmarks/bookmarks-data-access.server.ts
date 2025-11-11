@@ -26,6 +26,34 @@ import { processBookmarksInBatches } from "@/lib/bookmarks/enrich-opengraph";
 const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "lib", "data", "bookmarks.json");
 const LOCAL_BOOKMARKS_BY_ID_DIR = path.join(process.cwd(), ".next", "cache", "bookmarks", "by-id");
 
+const loadLocalBookmarksSnapshot = async (): Promise<UnifiedBookmark[] | null> => {
+  try {
+    const localData = await fs.readFile(LOCAL_BOOKMARKS_PATH, "utf-8");
+    const bookmarks = JSON.parse(localData) as UnifiedBookmark[];
+    if (!Array.isArray(bookmarks) || bookmarks.length === 0) {
+      return null;
+    }
+    if (bookmarks.length === 1) {
+      const [onlyBookmark] = bookmarks;
+      if (
+        onlyBookmark &&
+        (onlyBookmark.id === "test-1" || onlyBookmark.id === "test" || onlyBookmark.url === "https://example.com")
+      ) {
+        console.warn(
+          "[Bookmarks] Local bookmarks snapshot contains only test data; ignoring local fallback at",
+          LOCAL_BOOKMARKS_PATH,
+        );
+        return null;
+      }
+    }
+    return bookmarks;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[Bookmarks] Local bookmarks cache unavailable (${message}).`);
+    return null;
+  }
+};
+
 const forceLocalS3Cache = process.env.FORCE_LOCAL_S3_CACHE === "true";
 const allowRuntimeFallback = process.env.ALLOW_RUNTIME_S3_FALLBACK !== "false";
 const nextPhase = process.env.NEXT_PHASE;
@@ -833,32 +861,21 @@ async function fetchAndCacheBookmarks(
   const isProductionRuntime =
     getEnvironment() === "production" && !isCliLikeContext() && process.env.NEXT_PHASE !== "phase-production-build";
   const isTestEnvironment = process.env.NODE_ENV === "test" || process.env.JEST_WORKER_ID !== undefined;
+  let localBookmarksSnapshot: UnifiedBookmark[] | null = null;
   if (!isProductionRuntime && !isTestEnvironment) {
-    try {
-      const localData = await fs.readFile(LOCAL_BOOKMARKS_PATH, "utf-8");
-      const bookmarks = JSON.parse(localData) as UnifiedBookmark[];
-
-      // Skip local cache if it only contains test data
-      const isTestData =
-        bookmarks.length === 1 &&
-        (bookmarks[0]?.id === "test-1" || bookmarks[0]?.id === "test" || bookmarks[0]?.url === "https://example.com");
-      if (isTestData) {
-        logBookmarkDataAccessEvent("Local cache contains only test data; skipping to S3");
-      } else if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
-        logBookmarkDataAccessEvent("Loaded bookmarks from local cache", {
-          bookmarkCount: bookmarks.length,
-          path: LOCAL_BOOKMARKS_PATH,
+    localBookmarksSnapshot = await loadLocalBookmarksSnapshot();
+    if (localBookmarksSnapshot) {
+      logBookmarkDataAccessEvent("Loaded bookmarks from local cache", {
+        bookmarkCount: localBookmarksSnapshot.length,
+        path: LOCAL_BOOKMARKS_PATH,
+      });
+      if (!includeImageData) {
+        logBookmarkDataAccessEvent("Stripping image data from local cache bookmarks", {
+          bookmarkCount: localBookmarksSnapshot.length,
         });
-        if (!includeImageData) {
-          logBookmarkDataAccessEvent("Stripping image data from local cache bookmarks", {
-            bookmarkCount: bookmarks.length,
-          });
-          return bookmarks.map(stripImageData);
-        }
-        return bookmarks.map(normalizeBookmarkTags);
+        return localBookmarksSnapshot.map(stripImageData);
       }
-    } catch (error) {
-      console.warn(`[Bookmarks] Local bookmarks cache not found or invalid, proceeding to S3. Error: ${String(error)}`);
+      return localBookmarksSnapshot.map(normalizeBookmarkTags);
     }
   } else if (isProductionRuntime) {
     // Explicitly log that we are skipping local fallback in production runtime to avoid stale snapshots from build layers
@@ -904,6 +921,17 @@ async function fetchAndCacheBookmarks(
       }
     }
     return formatBookmarks(bookmarksFromS3, "S3");
+  }
+
+  if (!localBookmarksSnapshot) {
+    localBookmarksSnapshot = await loadLocalBookmarksSnapshot();
+  }
+  if (localBookmarksSnapshot) {
+    logBookmarkDataAccessEvent("Loaded bookmarks from local cache (post-S3 failure)", {
+      bookmarkCount: localBookmarksSnapshot.length,
+      path: LOCAL_BOOKMARKS_PATH,
+    });
+    return formatBookmarks(localBookmarksSnapshot, "local fallback");
   }
 
   const localS3Snapshot = await readLocalS3JsonSafe<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
