@@ -15,6 +15,12 @@ const POSTS_IMAGE_DIR = path.join(ROOT, "public", "images", "posts");
 const COVER_IMAGE_MAP_PATH = path.join(ROOT, "data", "blog", "cover-image-map.json");
 
 const DRY_RUN = process.argv.includes("--dry-run") || process.env.DRY_RUN === "true";
+const isRailwayEnv = Boolean(
+  process.env.RAILWAY_STATIC_URL ||
+    process.env.RAILWAY_PUBLIC_DOMAIN ||
+    process.env.RAILWAY_PROJECT_ID ||
+    process.env.RAILWAY_ENVIRONMENT_NAME,
+);
 
 const SUPPORTED_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".svg", ".webp", ".gif", ".avif"]);
 
@@ -102,6 +108,15 @@ async function syncCoverImages(): Promise<void> {
 
   const coverImageMap = loadExistingMap();
   const cdnConfig = getCdnConfigFromEnv();
+
+  if (!cdnConfig.cdnBaseUrl && !cdnConfig.s3BucketName) {
+    if (isRailwayEnv) {
+      logger.warn(
+        "⚠️  CDN configuration missing, but Railway environment detected. Skipping blog cover image sync for this build.",
+      );
+      return;
+    }
+  }
 
   let uploaded = 0;
   let skipped = 0;
