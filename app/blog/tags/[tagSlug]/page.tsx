@@ -102,16 +102,16 @@ export async function generateStaticParams(): Promise<{ tagSlug: string }[]> {
 /**
  * Generates metadata for the tag page.
  * @param {object} params - The route parameters.
- * @param {string} params.tagSlug - The slug of the tag.
+ * @param {Promise<{ tagSlug: string }>} params.tagSlug - The slug of the tag.
  * @returns {Promise<Metadata>} The metadata object for the page.
  */
-export function generateMetadata({ params }: { params: { tagSlug: string } }): Metadata {
+export async function generateMetadata({ params }: { params: Promise<{ tagSlug: string }> }): Promise<Metadata> {
   // Await params in Next.js 16
-  const { tagSlug } = params;
+  const { tagSlug } = await params;
   const tagName = formatTagDisplay(deslugify(tagSlug));
   const title = generateDynamicTitle(`${tagName} Posts`, "blog", { isTag: true });
   const description = generateTagDescription(tagName, "blog");
-  const url = ensureAbsoluteUrl(`/blog/tags/${params.tagSlug}`);
+  const url = ensureAbsoluteUrl(`/blog/tags/${tagSlug}`);
 
   return {
     title: title,
@@ -141,13 +141,13 @@ export function generateMetadata({ params }: { params: { tagSlug: string } }): M
 /**
  * Renders the page displaying blog posts filtered by a specific tag.
  * @param {object} params - The route parameters.
- * @param {string} params.tagSlug - The URL-friendly tag slug.
+ * @param {Promise<{ tagSlug: string }>} params.tagSlug - The URL-friendly tag slug.
  * @remarks Schema timestamps are derived from the filtered posts to keep the
  *          page statically renderable without relying on runtime clocks.
  * @returns {JSX.Element} The rendered page component.
  */
-export default async function TagPage({ params }: { params: { tagSlug: string } }): Promise<JSX.Element> {
-  const { tagSlug } = params;
+export default async function TagPage({ params }: { params: Promise<{ tagSlug: string }> }): Promise<JSX.Element> {
+  const { tagSlug } = await params;
   const allPosts = getAllPosts();
 
   const filteredPosts = allPosts.filter(post => post.tags.map((tag: string) => kebabCase(tag)).includes(tagSlug));
