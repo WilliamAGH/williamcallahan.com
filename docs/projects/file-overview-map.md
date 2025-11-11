@@ -462,7 +462,7 @@ File/Path Functionality Description
 - [x] `check-file-naming.ts` `testing-config` - Script to check file naming conventions
 - [x] `consolidate-configs.js` `build` - Script to consolidate configuration files
 - [x] `debug-test-bookmark.ts` `log-error-debug-handling` - Debugging script for bookmarks
-- [x] `fetch-bookmarks-public.ts` `bookmarks` - Docker build helper that now derives env + CDN context from API_BASE_URL without needing DEPLOYMENT_ENV
+- [x] `fetch-bookmarks-public.ts` `bookmarks` - Optional local snapshot helper for offline work (no longer invoked during CI/CD builds)
 - [x] `entrypoint.sh` `deployment` - Docker entrypoint script
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
 - [x] `fix-test-imports.sh` `testing-config` - Script to fix test imports

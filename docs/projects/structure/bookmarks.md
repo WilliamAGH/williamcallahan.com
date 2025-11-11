@@ -44,12 +44,11 @@ API routes → read JSON in S3 → `Cache-Control: no-store`
    - Tag navigation with URL-based routing
    - Share functionality with pre-generated URLs
 
-### Build-Time CDN Sync (2025-11)
+### Runtime Fetch Strategy (2025-11)
 
-- `scripts/fetch-bookmarks-public.ts` now auto-detects the active environment via `API_BASE_URL`/`NEXT_PUBLIC_SITE_URL` using `lib/config/environment.ts`, so Docker builds no longer require a `DEPLOYMENT_ENV` override.
-- When CDN variables are missing inside BuildKit, the script falls back to the Spaces origin (`S3_SERVER_URL + S3_BUCKET`) so bookmark snapshots are still hydrated before Next.js prerenders `/bookmarks/**` routes.
-- Coolify provides the same env secrets for runtime and build, so this script is the single place that ensures local shells, Docker builds, and production ingest identical JSON payloads before sitemap/tag generation.
-- The `package.json prebuild` hook runs this script automatically before every `bun run build`, guaranteeing workstation builds populate `lib/data/s3-cache/` before Next.js prerenders bookmarks (no more direct SDK reads during local CI).
+- Builds no longer hydrate bookmark JSON locally. Docker images and workstation builds rely on streaming S3/CDN reads when pages are requested.
+- `app/sitemap.ts` iterates paginated S3 artifacts via `getBookmarksIndex()` + `getBookmarksPage()` and streams tag snapshots with `listBookmarkTagSlugs()` + `getTagBookmarksIndex()`/`getTagBookmarksPage()` so the sitemap never materializes the full dataset in memory.
+- `bun scripts/fetch-bookmarks-public.ts` is still available for offline development snapshots, but it is **not** part of the default build pipeline.
 
 ## Key Features
 
@@ -72,7 +71,7 @@ API routes → read JSON in S3 → `Cache-Control: no-store`
 ### Memory & Cache Management
 
 - **Tag JSON Controls**: `ENABLE_TAG_CACHING` and `MAX_TAGS_TO_CACHE` prevent runaway S3 writes when memory pressure is detected.
-- **Health Monitoring**: `/api/health/deep` verifies the first slug from `slug-mapping*.json` resolves via the JSON readers, ensuring no silent corruption.
+- **Health Monitoring**: `/api/health/deep` verifies shard lookups (`json/bookmarks/slug-shards*/`) resolve correctly, guaranteeing slug files and mapping stay in sync.
 - **Next.js Cache Tags**: Bookmark lists/tag pages use `cacheTag("bookmarks")` plus slug-specific tags with 15–60 minute lifetimes. Detail routes tag `bookmark-${slug}`. Related content uses its own tags but still reads the same JSON.
 - **API Responses**: `/api/bookmarks`, `/api/search/*`, `/api/related-content*` call `unstable_noStore()` and return `Cache-Control: no-store` so they always read the freshest JSON without joining the Cache Components layer.
 - **Legacy Map Cache**: Still used for metadata (slug lookups, stats) but never stores full bookmark arrays or buffers.
@@ -112,7 +111,12 @@ Core data model with fields for:
 bookmarks-suffix/
 ├── bookmarks-dev.json       # Full dataset (suffix = env)
 ├── index-dev.json           # Metadata and counts
-├── slug-mapping-dev.json    # Slug lookup helper
+├── slug-mapping-dev.json    # Legacy aggregate mapping (integrity + bulk ops)
+├── slug-shards-dev/         # Sharded slug→id lookups (per slug file)
+│   ├── aa/
+│   │   └── apple.json
+│   └── __/
+│       └── 404.json
 ├── pages-dev/
 │   ├── page-1.json
 │   └── page-2.json
@@ -124,8 +128,8 @@ bookmarks-suffix/
 
 Note: As of this update, all persisted bookmark arrays (bookmarks*.json, pages/page-*.json, tags/[tag]/page-_.json)
 embed a required `slug` field per item for idempotent internal routing. The centralized slug-mapping file
-(`slug-mapping_.json`) remains the source of truth and is still written for integrity checks and static
-param generation, but readers now prefer the embedded `slug` when present.
+(`slug-mapping_.json`) remains the integrity checkpoint, while `slug-shards*/\*\*/*.json` provides O(1) slug lookups
+without reading the entire dataset.
 
 ## Critical Design Decisions
 
@@ -300,7 +304,7 @@ This consolidates deployment details for bookmarks data population and scheduler
 - Examples:
   - dev: `json/bookmarks/slug-mapping-dev.json`
   - prod: `json/bookmarks/slug-mapping.json`
-- Docker builds hydrate `lib/data/s3-cache/` snapshots from these paths via `scripts/fetch-bookmarks-public.ts` (supports BuildKit secrets for private buckets).
+  - Optional: developers can hydrate `lib/data/s3-cache/` snapshots with `bun scripts/fetch-bookmarks-public.ts` when offline caching is required. CI/CD skips this step.
 
 ### Redundancy & Fallbacks
 
@@ -311,7 +315,7 @@ This consolidates deployment details for bookmarks data population and scheduler
 - Load fallback order:
   1. Primary (env-specific)
   2. All environment variants
-  3. Local BuildKit snapshot in `lib/data/s3-cache/` (written during Docker builds)
+  3. Local snapshot in `lib/data/s3-cache/` (created manually when needed)
   4. Regenerate dynamically
 
 ### Manual Ops

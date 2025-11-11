@@ -53,7 +53,7 @@ Example schemas:
 | `blog-article`       | Provide all necessary components to render a single blog post page, including content, metadata, and interactive UI elements.                 | [blog-article.md](./blog-article.md)             | [Diagram](./blog-article.mmd)  |
 | `bookmarks`          | Act as the primary orchestration layer for fetching, processing, enriching, and storing bookmark data from external APIs.                     | [bookmarks.md](./bookmarks.md)                   | [Diagram](./bookmarks.mmd)     |
 
-> 2025-11-10: Build-time bookmark hydration now derives its environment from `API_BASE_URL`/`NEXT_PUBLIC_SITE_URL`, so Docker builds no longer depend on a `DEPLOYMENT_ENV` variable (see `scripts/fetch-bookmarks-public.ts`).
+> 2025-11-11: Bookmark routes and the sitemap stream paginated data directly from S3/CDN at runtime. Build steps no longer execute `scripts/fetch-bookmarks-public.ts`; Docker images rely on live fetches instead of local snapshots.
 > | `caching` | Implement high-performance, multi-tiered caching with request coalescing, distributed locking, and memory-safe operations. | [caching.md](./caching.md) | [Diagram](./caching.mmd) |
 > | `code-block` | Provide interactive code display components with syntax highlighting, copy-to-clipboard features, and macOS-style window controls. | [code-block.md](./code-block.md) | |
 > | `config` | Provide centralized configuration management for environment variables, build tools, linting, formatting, and framework settings. | [config.md](./config.md) | [Diagram](./config.mmd) |

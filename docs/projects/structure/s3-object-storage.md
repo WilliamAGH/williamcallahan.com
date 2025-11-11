@@ -590,6 +590,7 @@ The platform automatically prepares and maintains S3 JSON data across environmen
 - Example keys:
   - dev: `json/bookmarks/slug-mapping-dev.json`
   - prod: `json/bookmarks/slug-mapping.json`
+  - slug shard: `json/bookmarks/slug-shards${suffix}/aa/example-slug.json`
 
 ### Redundancy & Fallbacks
 
