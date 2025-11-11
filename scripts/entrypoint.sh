@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 set -e # Exit on error
 
+detect_railway_env() {
+    if [ -n "${RAILWAY_STATIC_URL:-}" ] || [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ] || [ -n "${RAILWAY_PROJECT_ID:-}" ] || [ -n "${RAILWAY_ENVIRONMENT_NAME:-}" ]; then
+        return 0
+    fi
+    return 1
+}
+
+if [ -z "${ENABLE_BACKGROUND_SERVICES+x}" ]; then
+    if detect_railway_env; then
+        ENABLE_BACKGROUND_SERVICES=0
+        echo "⚠️  [Entrypoint] Railway environment detected; disabling background services (set ENABLE_BACKGROUND_SERVICES=1 to override)."
+    else
+        ENABLE_BACKGROUND_SERVICES=1
+    fi
+fi
+
 ENABLE_BACKGROUND_SERVICES="${ENABLE_BACKGROUND_SERVICES:-1}"
 SCHEDULER_PID=""
 DATA_POPULATOR_PID=""
