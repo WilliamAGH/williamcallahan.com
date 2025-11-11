@@ -5,6 +5,7 @@
  * Uses server-side rendering for optimal performance and SEO.
  */
 
+import { connection } from "next/server";
 import { getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { getLazyContentMap, getCachedAllContent } from "@/lib/content-similarity/cached-aggregator";
 import { findMostSimilar, limitByTypeAndTotal } from "@/lib/content-similarity";
@@ -169,6 +170,9 @@ export async function RelatedContent({
   options = {},
   className,
 }: RelatedContentProps) {
+  // Mark this section as request-time so Next.js 16 defers the heavy S3 fetches until runtime.
+  await connection();
+
   try {
     // For bookmarks, prefer slug over ID for idempotency
     let actualSourceId = sourceId;

@@ -17,13 +17,13 @@ const getBookmarksPage = async () => (await import("@/lib/bookmarks/service.serv
 const getBookmarksIndex = async () => (await import("@/lib/bookmarks/service.server")).getBookmarksIndex;
 const normalizeBookmarkTag = async () => (await import("@/lib/bookmarks/utils")).normalizeBookmarkTag;
 const stripImageData = async () => (await import("@/lib/bookmarks/utils")).stripImageData;
+const loadSafeBookmarkSlugResolver = async () => (await import("@/lib/bookmarks/slug-helpers")).getSafeBookmarkSlug;
 import { convertSerializableBookmarksToUnified } from "@/lib/bookmarks/utils";
 
 import type { UnifiedBookmark, BookmarksServerExtendedProps, SerializableBookmark } from "@/types";
 import { BookmarksClientWithWindow } from "./bookmarks-client-with-window";
 
 import type { JSX } from "react";
-import { getBulkBookmarkSlugs } from "@/lib/bookmarks/slug-helpers";
 
 /**
  * Server-side React component that prepares and provides bookmark data to the client component.
@@ -53,7 +53,6 @@ export async function BookmarksServer({
   initialTag,
   tag,
   includeImageData = true,
-  allBookmarksForSlugs,
   totalPages: propsTotalPages,
   totalCount: propsTotalCount,
 }: BookmarksServerExtendedProps): Promise<JSX.Element> {
@@ -62,34 +61,46 @@ export async function BookmarksServer({
   let totalCount = 0;
   const internalHrefs = new Map<string, string>();
 
-  // Helper function to generate slugs for a list of bookmarks using pre-computed mappings
-  const generateHrefs = async (bms: UnifiedBookmark[], allBms?: UnifiedBookmark[]) => {
-    const allBookmarks = allBms || bms;
-    const slugMap = await getBulkBookmarkSlugs(allBookmarks);
+  // Helper function to generate slugs for a list of bookmarks using embedded slugs or cached mappings
+  const assignInternalHrefs = async (bookmarkList: UnifiedBookmark[]) => {
+    if (bookmarkList.length === 0) {
+      return;
+    }
 
-    bms.forEach(bookmark => {
-      const slug = slugMap.get(bookmark.id);
+    const missing: UnifiedBookmark[] = [];
+    for (const bookmark of bookmarkList) {
+      if (bookmark.slug && bookmark.slug.length > 0) {
+        internalHrefs.set(bookmark.id, `/bookmarks/${bookmark.slug}`);
+      } else {
+        missing.push(bookmark);
+      }
+    }
+
+    if (missing.length === 0) {
+      return;
+    }
+
+    let resolveSlug: ((id: string, bookmarks?: UnifiedBookmark[]) => Promise<string | null>) | null = null;
+
+    for (const bookmark of missing) {
+      if (!resolveSlug) {
+        resolveSlug = await loadSafeBookmarkSlugResolver();
+      }
+      const slug = await resolveSlug(bookmark.id, bookmarkList);
       if (slug) {
         internalHrefs.set(bookmark.id, `/bookmarks/${slug}`);
       }
-    });
+    }
   };
 
   // Helper function to sort bookmarks by date (newest first) - removed unused function
 
-  if (propsBookmarks && propsBookmarks.length > 0 && allBookmarksForSlugs) {
-    // Case: We have both bookmarks and allBookmarksForSlugs (paginated scenario)
+  if (propsBookmarks && propsBookmarks.length > 0) {
+    // Case: Bookmarks were provided via props (paginated or tag routes)
     bookmarks = convertSerializableBookmarksToUnified(propsBookmarks);
-    await generateHrefs(bookmarks, allBookmarksForSlugs);
-    totalPages = propsTotalPages || 1;
-    totalCount = propsTotalCount || bookmarks.length;
-  } else if (propsBookmarks && propsBookmarks.length > 0) {
-    // Case: We have bookmarks but need to fetch allBookmarksForSlugs
-    bookmarks = convertSerializableBookmarksToUnified(propsBookmarks);
-    const allBookmarksForSlugsData = (await (await getBookmarks())({ includeImageData: false })) as UnifiedBookmark[];
     totalPages = propsTotalPages || 1;
     totalCount = propsTotalCount || propsBookmarks.length;
-    await generateHrefs(bookmarks, allBookmarksForSlugsData);
+    await assignInternalHrefs(bookmarks);
   } else if (initialPage && initialPage > 1) {
     const getBookmarksPageFunc = await getBookmarksPage();
     const getBookmarksIndexFunc = await getBookmarksIndex();
@@ -98,8 +109,7 @@ export async function BookmarksServer({
     totalPages = indexData?.totalPages ?? 1;
     totalCount = indexData?.count ?? 0;
     if (bookmarks.length > 0) {
-      const allBookmarksForSlugs = (await (await getBookmarks())({ includeImageData: false })) as UnifiedBookmark[];
-      await generateHrefs(bookmarks, allBookmarksForSlugs);
+      await assignInternalHrefs(bookmarks);
     }
   } else {
     // Default to fetching all bookmarks for the main page or if no specific page is set
@@ -109,7 +119,7 @@ export async function BookmarksServer({
       const index = await (await getBookmarksIndex())();
       totalPages = index?.totalPages ?? 1;
       totalCount = index?.count ?? 0;
-      await generateHrefs(bookmarks, allBookmarks);
+      await assignInternalHrefs(bookmarks);
     }
   }
 
