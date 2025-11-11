@@ -414,7 +414,7 @@ function validateApiKey(request: NextRequest): boolean {
 ### API Routes
 
 - `/api/cache/bookmarks` - Authenticated operations
-- `/api/cache/images` - Redirects to CDN URLs
+- `/api/cache/images` - Redirects to CDN URLs and now decodes multi-encoded `url` params coming from `/_next/image` before running `openGraphUrlSchema`
 - `/api/cache/clear` - Authenticated with `x-api-key` header
 - `/api/logo` - Always 301 redirect to CDN
 

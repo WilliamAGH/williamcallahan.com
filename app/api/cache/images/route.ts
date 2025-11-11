@@ -36,13 +36,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!encodedUrl) {
     return NextResponse.json({ error: "URL parameter required" }, { status: 400 });
   }
-  // Decode percent-encoded URL before validation
-  let url: string;
-  try {
-    url = decodeURIComponent(encodedUrl);
-  } catch {
-    url = encodedUrl;
-  }
+  const url = decodeNestedUrl(encodedUrl);
   const width = searchParams.get("width");
   const format = searchParams.get("format") || "webp";
 
@@ -123,4 +117,35 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     console.error("Image cache error:", error);
     return NextResponse.json({ error: "Failed to process image" }, { status: 500 });
   }
+}
+
+/**
+ * Decode a URL string that may have been encoded multiple times.
+ * Next.js Image optimizer re-encodes the entire query string when proxying through /_next/image,
+ * so `/api/cache/images?url=...` arrives double-encoded. We gently decode up to five times until
+ * the value stabilizes or no percent sequences remain.
+ */
+function decodeNestedUrl(value: string, maxPasses = 5): string {
+  let result = value;
+
+  for (let i = 0; i < maxPasses; i += 1) {
+    if (!result.includes("%")) {
+      break;
+    }
+
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(result);
+    } catch {
+      break;
+    }
+
+    if (decoded === result) {
+      break;
+    }
+
+    result = decoded;
+  }
+
+  return result;
 }
