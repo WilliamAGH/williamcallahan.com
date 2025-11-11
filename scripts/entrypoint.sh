@@ -25,14 +25,6 @@ if [ -z "${ENABLE_BACKGROUND_SERVICES+x}" ]; then
     fi
 fi
 
-if [ -z "${ENABLE_BACKGROUND_SERVICES+x}" ]; then
-    if [ -n "${RAILWAY_ENVIRONMENT_NAME:-}" ] || [ -n "${RAILWAY_PROJECT_ID:-}" ] || [ -n "${RAILWAY_SERVICE_ID:-}" ]; then
-        ENABLE_BACKGROUND_SERVICES="0"
-        echo "⚠️  [Entrypoint] Railway environment detected; background services disabled by default"
-    else
-        ENABLE_BACKGROUND_SERVICES="1"
-    fi
-fi
 ENABLE_BACKGROUND_SERVICES="${ENABLE_BACKGROUND_SERVICES}"
 SCHEDULER_PID=""
 DATA_POPULATOR_PID=""
