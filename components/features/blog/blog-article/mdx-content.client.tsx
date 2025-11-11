@@ -24,8 +24,8 @@ import React, {
   useContext,
   type JSX,
 } from "react";
-import * as jsxDevRuntime from "react/jsx-dev-runtime";
 import * as jsxProdRuntime from "react/jsx-runtime";
+import * as jsxDevRuntime from "react/jsx-dev-runtime";
 import { Base64Image } from "@/components/utils/base64-image.client";
 import { CollapseDropdownProvider } from "@/lib/context/collapse-dropdown-context.client";
 import { cn } from "@/lib/utils";
@@ -46,9 +46,21 @@ import { ShellParentTabs, ShellTab } from "../../../ui/shell-parent-tabs.client"
 import { TweetEmbed } from "../tweet-embed";
 import { SoftwareSchema } from "./software-schema";
 
-const jsxRuntime = process.env.NODE_ENV === "development" ? jsxDevRuntime : jsxProdRuntime;
-
 const compiledMdxCache = new Map<string, ComponentType>();
+
+const runtimeHelpers =
+  process.env.NODE_ENV === "development"
+    ? {
+        Fragment: jsxDevRuntime.Fragment,
+        // jsxDEV signature expects key argument; compiled mdx runtime calls with (type, props, key, isStaticChildren, source, self)
+        jsx: jsxDevRuntime.jsxDEV,
+        jsxs: jsxDevRuntime.jsxDEV,
+      }
+    : {
+        Fragment: jsxProdRuntime.Fragment,
+        jsx: jsxProdRuntime.jsx,
+        jsxs: jsxProdRuntime.jsxs,
+      };
 
 const buildMdxComponent = (
   content: import("next-mdx-remote").MDXRemoteSerializeResult<Record<string, unknown>, Record<string, unknown>>,
@@ -66,7 +78,7 @@ const buildMdxComponent = (
       {
         opts: {
           ...mdxRuntime,
-          ...jsxRuntime,
+          ...runtimeHelpers,
         },
       },
       { frontmatter },
@@ -522,11 +534,13 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
           return node;
         };
 
-        const normalizedChildrenArray = React.Children.toArray(children).map((child: React.ReactNode) =>
+        const normalizedChildrenArray = React.Children.map(children, (child: React.ReactNode) =>
           unwrapParagraph(child),
         );
         const normalizedChildren =
-          normalizedChildrenArray.length === 1 ? normalizedChildrenArray[0] : normalizedChildrenArray;
+          normalizedChildrenArray && normalizedChildrenArray.length === 1
+            ? normalizedChildrenArray[0]
+            : normalizedChildrenArray;
         if (!href) {
           return (
             <a {...rest} className={className}>
