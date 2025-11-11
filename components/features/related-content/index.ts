@@ -5,5 +5,5 @@
  */
 
 export { RelatedContent } from "./related-content.server";
-export { RelatedContentSection } from "./related-content-section";
+export { RelatedContentSection, RelatedContentFallback } from "./related-content-section";
 export { RelatedContentCard } from "./related-content-card";

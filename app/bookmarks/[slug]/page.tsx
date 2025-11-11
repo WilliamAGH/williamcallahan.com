@@ -1,3 +1,4 @@
+"use cache";
 /**
  * Domain-specific Bookmark Page with user-friendly URLs
  *
@@ -6,6 +7,7 @@
  * @module app/bookmarks/[slug]/page
  */
 
+import { Suspense } from "react";
 import { BookmarkDetail } from "@/components/features/bookmarks/bookmark-detail";
 import { getBookmarkById } from "@/lib/bookmarks/service.server";
 import { TIME_CONSTANTS } from "@/lib/constants";
@@ -17,7 +19,7 @@ import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { RelatedContent } from "@/components/features/related-content";
+import { RelatedContent, RelatedContentFallback } from "@/components/features/related-content";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { envLogger } from "@/lib/utils/env-logger";
@@ -276,17 +278,21 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
       {/* Enhanced Related Content Section */}
       <div className="bg-gradient-to-b from-background to-secondary/20">
         <div className="max-w-6xl mx-auto px-8 md:px-12 lg:px-16 py-16">
-          <RelatedContent
-            sourceType="bookmark"
-            sourceId={foundBookmark.id}
-            sectionTitle="Discover Similar Content"
-            options={{
-              maxPerType: 4,
-              maxTotal: 12,
-              excludeTypes: [], // Include all content types
-            }}
-            className="relative"
-          />
+          <Suspense
+            fallback={<RelatedContentFallback title="Discover Similar Content" className="relative" cardCount={4} />}
+          >
+            <RelatedContent
+              sourceType="bookmark"
+              sourceId={foundBookmark.id}
+              sectionTitle="Discover Similar Content"
+              options={{
+                maxPerType: 4,
+                maxTotal: 12,
+                excludeTypes: [], // Include all content types
+              }}
+              className="relative"
+            />
+          </Suspense>
         </div>
       </div>
     </>

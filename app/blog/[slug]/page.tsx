@@ -1,3 +1,4 @@
+"use cache";
 /**
  * Blog Post Page
  * @module app/blog/[slug]/page
@@ -6,6 +7,7 @@
  * Implements proper SEO with schema.org structured data.
  */
 
+import { Suspense } from "react";
 import type { BlogPostPageProps } from "@/types/blog";
 // Import getPostBySlug and getAllPosts from the main blog library
 import { getAllPosts, getPostBySlug } from "@/lib/blog.ts";
@@ -17,7 +19,7 @@ import { BlogArticle } from "../../../components/features/blog";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
-import { RelatedContent } from "@/components/features/related-content";
+import { RelatedContent, RelatedContentFallback } from "@/components/features/related-content";
 
 /**
  * Generate static paths for all blog posts at build time
@@ -242,17 +244,27 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
         {/* Similar Content Section */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <RelatedContent
-            sourceType="blog"
-            sourceId={post.id}
-            sectionTitle="Similar Content"
-            options={{
-              maxPerType: 3,
-              maxTotal: 12,
-              excludeTypes: [], // Include all content types
-            }}
-            className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700"
-          />
+          <Suspense
+            fallback={
+              <RelatedContentFallback
+                title="Similar Content"
+                className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700"
+                cardCount={3}
+              />
+            }
+          >
+            <RelatedContent
+              sourceType="blog"
+              sourceId={post.id}
+              sectionTitle="Similar Content"
+              options={{
+                maxPerType: 3,
+                maxTotal: 12,
+                excludeTypes: [], // Include all content types
+              }}
+              className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700"
+            />
+          </Suspense>
         </div>
       </>
     );
