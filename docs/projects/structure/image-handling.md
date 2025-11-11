@@ -65,6 +65,8 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 5. `image-analysis.ts` / `image-compare.ts` flag globe icons, `FailureTracker` writes to `LOGO_BLOCKLIST_S3_PATH` on repeated failures.
 6. Result is persisted/streamed to S3, CDN URL returned, placeholder fallback used only if every source fails.
 
+> **Logo `<Image>` behavior:** Whenever the resolved `src` points at `/api/cache/images` (or any other `/api/*` proxy), `<LogoImage>` sets `unoptimized` so Next.js skips the built-in optimizer. The proxy already resizes/streams logo bytes, and bypassing the optimizer prevents `_next/image` from rejecting nested `/api` URLs (per [Next.js `unoptimized` guidance](https://nextjs.org/docs/app/api-reference/components/image#unoptimized)).
+
 ### Bookmark Cards & Sharing Links
 
 1. `selectBestImage` (bookmarks) or `selectBestOpenGraphImage` (OG fetch path) chooses between CDN hashes, Karakeep `imageAssetId`, `screenshotAssetId`, or standard OG URLs.
