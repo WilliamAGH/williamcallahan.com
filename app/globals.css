@@ -301,6 +301,178 @@ html {
   .break-words-anywhere {
     word-break: break-all; /* More aggressive breaking if needed */
   }
+
+  /* MDX figure percentage width modifiers (5% increments). */
+  .mdx-figure-w-0 {
+    width: 0% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-5 {
+    width: 5% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-10 {
+    width: 10% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-15 {
+    width: 15% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-20 {
+    width: 20% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-25 {
+    width: 25% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-30 {
+    width: 30% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-35 {
+    width: 35% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-40 {
+    width: 40% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-45 {
+    width: 45% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-50 {
+    width: 50% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-55 {
+    width: 55% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-60 {
+    width: 60% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-65 {
+    width: 65% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-70 {
+    width: 70% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-75 {
+    width: 75% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-80 {
+    width: 80% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-85 {
+    width: 85% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-90 {
+    width: 90% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-95 {
+    width: 95% !important;
+    max-width: 100%;
+  }
+  .mdx-figure-w-100 {
+    width: 100% !important;
+    max-width: 100%;
+  }
+
+  /* MDX figure viewport width modifiers (5vw increments). */
+  .mdx-figure-vw-0 {
+    width: 0vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-5 {
+    width: 5vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-10 {
+    width: 10vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-15 {
+    width: 15vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-20 {
+    width: 20vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-25 {
+    width: 25vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-30 {
+    width: 30vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-35 {
+    width: 35vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-40 {
+    width: 40vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-45 {
+    width: 45vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-50 {
+    width: 50vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-55 {
+    width: 55vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-60 {
+    width: 60vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-65 {
+    width: 65vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-70 {
+    width: 70vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-75 {
+    width: 75vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-80 {
+    width: 80vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-85 {
+    width: 85vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-90 {
+    width: 90vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-95 {
+    width: 95vw !important;
+    max-width: 100%;
+  }
+  .mdx-figure-vw-100 {
+    width: 100vw !important;
+    max-width: 100%;
+  }
 }
 
 /* The following fix is no longer needed with our simplified approach */
