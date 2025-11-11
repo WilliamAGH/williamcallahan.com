@@ -214,20 +214,17 @@ The bookmark system fetches and enriches external bookmarks with OpenGraph metad
 
 ### Automatic Bookmark Refresh
 
-#### During Build Process
-When the Docker container is built, bookmarks are fetched from S3:
-1. The `Dockerfile` runs `bun scripts/fetch-bookmarks-public.ts` during the build
-2. This fetches pre-existing bookmark data from the public S3 CDN
-3. Saves it locally for sitemap generation and initial page loads
-4. Note: This does NOT refresh/enrich the bookmarks, it only fetches existing data
-
-#### Runtime Scheduler
-In production, bookmarks are automatically refreshed via the scheduler (`lib/server/scheduler.ts`):
+In production, bookmarks are refreshed via the scheduler (`lib/server/scheduler.ts`):
 - **Frequency**: Every 2 hours (12 times per day)
 - **Process**:
   1. Scheduler triggers `bun run update-s3 -- --bookmarks` via cron pattern `0 */2 * * *`
   2. Updates S3 data with fresh content
   3. Invalidates Next.js cache via `/api/revalidate/bookmarks`
+
+### Build-Time Behavior
+
+- Builds and Docker images **no longer** hydrate bookmark JSON locally. Routes stream paginated data directly from S3/CDN when requested.
+- `bun scripts/fetch-bookmarks-public.ts` remains available for developers who need an offline snapshot, but it is not executed automatically during CI/CD.
   4. Submits updated sitemap to search engines
 
 ### When Bookmark Enrichment Happens

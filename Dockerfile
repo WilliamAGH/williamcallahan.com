@@ -101,34 +101,9 @@ COPY --from=deps --link /app/node_modules ./node_modules
 # Copy entire source code
 COPY . .
 
-# CRITICAL: Fetch bookmark data from S3 (with BuildKit secrets when available) for sitemap generation
-# Issue #sitemap-2024: Sitemap.xml was missing bookmark URLs because bookmarks only exist in S3.
-# The helper script now supports both public CDN fetches and authenticated S3 SDK reads.
-RUN --mount=type=secret,id=s3_access_key_id,required=false \
-    --mount=type=secret,id=s3_secret_access_key,required=false \
-    --mount=type=secret,id=s3_session_token,required=false \
-    --mount=type=secret,id=S3_BUCKET,required=false,env=S3_BUCKET \
-    --mount=type=secret,id=S3_SERVER_URL,required=false,env=S3_SERVER_URL \
-    --mount=type=secret,id=S3_CDN_URL,required=false,env=S3_CDN_URL \
-    --mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL,required=false,env=NEXT_PUBLIC_S3_CDN_URL \
-    --mount=type=secret,id=API_BASE_URL,required=false,env=API_BASE_URL \
-    --mount=type=secret,id=NEXT_PUBLIC_SITE_URL,required=false,env=NEXT_PUBLIC_SITE_URL \
-    bash -c 'set -euo pipefail \
-      && if [ -f /run/secrets/s3_access_key_id ]; then export S3_ACCESS_KEY_ID="$(cat /run/secrets/s3_access_key_id)"; fi \
-      && if [ -f /run/secrets/s3_secret_access_key ]; then export S3_SECRET_ACCESS_KEY="$(cat /run/secrets/s3_secret_access_key)"; fi \
-      && if [ -f /run/secrets/s3_session_token ]; then export AWS_SESSION_TOKEN="$(cat /run/secrets/s3_session_token)"; export S3_SESSION_TOKEN="$AWS_SESSION_TOKEN"; fi \
-      && echo "📊 Fetching bookmark data for sitemap generation..." \
-      && echo "DEPLOYMENT_ENV: ${DEPLOYMENT_ENV:-NOT SET}" \
-      && echo "S3_CDN_URL: ${S3_CDN_URL:-NOT SET}" \
-      && echo "NEXT_PUBLIC_S3_CDN_URL: ${NEXT_PUBLIC_S3_CDN_URL:-NOT SET}" \
-      && if [ -n "$S3_CDN_URL" ] || [ -n "$NEXT_PUBLIC_S3_CDN_URL" ] || [ -n "${S3_ACCESS_KEY_ID:-}" ]; then \
-        echo "✅ Fetching bookmarks snapshot (SDK if credentials, otherwise CDN)..." && \
-        bun scripts/fetch-bookmarks-public.ts || \
-        echo "⚠️  Warning: Bookmark fetch failed. Sitemap may be incomplete."; \
-      else \
-        echo "⚠️  Warning: No CDN URL or S3 credentials configured. Bookmarks cannot be fetched for sitemap generation." && \
-        echo "   Continuing build without bookmarks in sitemap..."; \
-      fi'
+# Previously we materialised the entire bookmark corpus during build. As of 2025-11, sitemap
+# generation and dynamic routes stream paginated data directly from S3/CDN at runtime, so no
+# build-time snapshot is required here.
 
 # Quick connectivity verification so CI/CD logs capture upstream reachability before the Next.js build.
 RUN bash -c 'set -euo pipefail \
