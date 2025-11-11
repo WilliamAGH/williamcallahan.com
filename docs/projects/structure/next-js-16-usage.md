@@ -100,123 +100,208 @@ These are the failure modes that blocked >100 deploy attempts. Follow each check
 - Every framework PR must paste the specific MCP query + node_modules file reference into its description. Example: "Context7 `/vercel/next.js` topic `version-16` (2025-11-12) confirms async sitemap params – see `node_modules/next/dist/server/request/params.js:150-226`."
 - Update this runbook the moment a new failure mode appears; treat it as the incident log.
 
-### 6. Dynamic Rendering: unstable_noStore() Deprecation (CRITICAL - 2025-11-11)
+### 6. Cache Components Rendering Modes (CRITICAL - 2025-11-11)
 
-**Incident Summary:** Production deployment (alpha.williamcallahan.com) experienced catastrophic failures across 4 major page routes after Next.js 16 upgrade. Pages returned `DYNAMIC_SERVER_USAGE` errors and "Internal Server Error" responses.
+**Incident Summary:** Production deployment (alpha.williamcallahan.com) experienced catastrophic failures across 5 page routes after Next.js 16 upgrade. Pages returned `DYNAMIC_SERVER_USAGE` errors, then build failures with "Route segment config 'dynamic' is not compatible with `nextConfig.cacheComponents`" errors.
 
-**Root Cause:** Pages using `unstable_noStore()` are incompatible with `cacheComponents: true` in Next.js 16. The deprecated API attempts to opt out of caching at runtime, but cache components require declarative route-level configuration.
+**Root Cause - Two Sequential Issues:**
 
-**Affected Pages (Pre-Fix):**
+1. **Issue #1:** Pages using `unstable_noStore()` are incompatible with `cacheComponents: true`
+2. **Issue #2:** Using `export const dynamic = "force-dynamic"` is **ALSO INCOMPATIBLE** with `cacheComponents: true`
 
-- `app/education/page.tsx:32` - Called `noStore()` in component body → FAILED
-- `app/bookmarks/page.tsx:31` - Called `noStore()` in component body → FAILED
-- `app/experience/page.tsx:53` - Called `noStore()` in component body → FAILED
-- `app/investments/page.tsx:46` - Called `noStore()` in component body → FAILED
-- `app/bookmarks/page/[pageNumber]/page.tsx:121` - Called `noStore()` in component body → FAILED
+**The Critical Misunderstanding:**
 
-**Working Pages (Control Group):**
+Next.js 16 with Cache Components fundamentally changes the rendering model:
 
-- `app/contact/page.tsx` - No `noStore()` → WORKED
-- `app/blog/page.tsx` - No `noStore()` → WORKED
-- `app/cv/page.tsx` - No `noStore()` → WORKED
-- `app/projects/page.tsx` - No `noStore()` → WORKED (with separate CDN issue)
+- **Old Model (Next.js 15):** Pages are static by default, use `noStore()` or `dynamic = "force-dynamic"` to opt into dynamic
+- **New Model (Next.js 16 + cacheComponents):** Pages are **DYNAMIC BY DEFAULT**, use `'use cache'` to opt into static
 
-**The Failure Pattern:**
+**Affected Pages:**
+
+- `app/education/page.tsx` - Used `noStore()` → FAILED with DYNAMIC_SERVER_USAGE
+- `app/bookmarks/page.tsx` - Used `noStore()` → FAILED with DYNAMIC_SERVER_USAGE
+- `app/experience/page.tsx` - Used `noStore()` → FAILED with DYNAMIC_SERVER_USAGE
+- `app/investments/page.tsx` - Used `noStore()` → FAILED with DYNAMIC_SERVER_USAGE
+- `app/bookmarks/page/[pageNumber]/page.tsx` - Used `noStore()` → FAILED with DYNAMIC_SERVER_USAGE
+
+**Broken "Fix" Attempts:**
 
 ```typescript
-// ❌ BROKEN in Next.js 16 + cacheComponents
+// ❌ BROKEN #1: Runtime API (causes DYNAMIC_SERVER_USAGE error)
 import { unstable_noStore as noStore } from "next/cache";
-
 export default function Page() {
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  noStore();
+  // ...
+}
+
+// ❌ BROKEN #2: Route segment config (causes build error)
+export const dynamic = "force-dynamic";
+export default function Page() {
+  // Error: "Route segment config 'dynamic' is not compatible with `nextConfig.cacheComponents`"
   // ...
 }
 ```
 
-**Error Manifestation:**
+**Correct Patterns for Cache Components:**
+
+```typescript
+// ✅ STATIC PAGE: Use 'use cache' directive
+'use cache';
+
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Static Page" };
+
+export default function StaticPage() {
+  // This page will be pre-rendered and cached
+  return <div>Static content</div>;
+}
+```
+
+```typescript
+// ✅ DYNAMIC PAGE: NO DIRECTIVE NEEDED
+import type { Metadata } from "next";
+
+// Pages are dynamic by default with cacheComponents enabled
+// Just remove all caching/dynamic directives
+
+export default async function DynamicPage() {
+  // This page renders at request time automatically
+  const data = await fetch('/api/data', { cache: 'no-store' });
+  return <div>{data}</div>;
+}
+```
+
+**Key Distinctions Table:**
+
+| Rendering Mode | Next.js 15 Pattern                       | Next.js 16 + cacheComponents Pattern        | Notes                              |
+| -------------- | ---------------------------------------- | ------------------------------------------- | ---------------------------------- |
+| Static         | Default (no exports)                     | `'use cache'` directive at top of file      | Explicitly opt into caching        |
+| Dynamic        | `export const dynamic = 'force-dynamic'` | **NO EXPORT** - dynamic by default          | Just remove all directives         |
+| Dynamic        | `unstable_noStore()` call                | **NO EXPORT** - dynamic by default          | Remove the import and call         |
+| ISR            | `export const revalidate = <seconds>`    | `'use cache'` + `cacheLife()` configuration | Use new caching APIs               |
+| API Routes     | `unstable_noStore()` allowed             | `unstable_noStore()` still works            | API routes exempt from this change |
+
+**Error Manifestations:**
+
+**Phase 1 - Runtime Error (noStore):**
 
 - **Development:** Pages render normally (silent failure)
 - **Production:** Pages fail with `DYNAMIC_SERVER_USAGE` digest
-- **User Experience:** Complete page failure - "Internal Server Error" 500 responses
-- **Production Logs:** Repeated errors:
+- **User Experience:** "Internal Server Error" 500 responses
+- **Production Logs:**
   ```
   [Error: An error occurred in the Server Components render...] {
     digest: 'DYNAMIC_SERVER_USAGE'
   }
   ```
 
-**Correct Pattern for Next.js 16:**
+**Phase 2 - Build Error (export const dynamic):**
+
+- **Build Output:**
+  ```
+  Route segment config "dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+  ```
+- **Impact:** Build completely fails, cannot deploy
+
+**Correct Migration Path:**
+
+**For Static Pages (investments, experience, education):**
+
+1. ❌ Remove `import { unstable_noStore as noStore } from "next/cache"`
+2. ❌ Remove `noStore()` function calls
+3. ✅ Add `'use cache';` at the **TOP** of the file (before imports)
+4. ✅ Keep `export const metadata` as-is
+5. ✅ Add JSDoc comment explaining the Cache Components pattern
+
+**For Dynamic Pages (bookmarks, paginated routes):**
+
+1. ❌ Remove `import { unstable_noStore as noStore } from "next/cache"`
+2. ❌ Remove `noStore()` function calls
+3. ❌ Remove `export const dynamic = "force-dynamic"` (if present)
+4. ✅ Add JSDoc comment: "Pages are dynamic by default with cacheComponents"
+5. ✅ **DO NOT ADD ANY DIRECTIVE** - page is already dynamic
+
+**Search Commands to Find Violations:**
+
+```bash
+# Find old runtime API usage
+grep -r "unstable_noStore\|noStore()" app/ --include="page.tsx" --include="page.ts"
+
+# Find incompatible route segment config
+grep -r "export const dynamic" app/ --include="page.tsx" --include="page.ts"
+```
+
+**Real-World Examples from Codebase:**
+
+**Static Page (investments):**
 
 ```typescript
-// ✅ CORRECT: Route segment configuration
-export const dynamic = "force-dynamic";
+// app/investments/page.tsx
+'use cache';
 
-export default function Page() {
-  // No runtime API call needed
-  // ...
+import type { Metadata } from "next";
+import { Investments } from "@/components/features";
+
+export const metadata: Metadata = getStaticPageMetadata("/investments", "investments");
+
+export default function InvestmentsPage() {
+  // Pre-rendered and cached
+  return <Investments investments={investments} />;
 }
 ```
 
-**Key Distinctions:**
+**Dynamic Page (bookmarks):**
 
-| Context               | Pattern                                  | Status                                               |
-| --------------------- | ---------------------------------------- | ---------------------------------------------------- |
-| Page routes           | `unstable_noStore()`                     | ❌ FORBIDDEN - causes DYNAMIC_SERVER_USAGE error     |
-| Page routes           | `export const dynamic = 'force-dynamic'` | ✅ REQUIRED - declarative route config               |
-| API routes (`/api/*`) | `unstable_noStore()`                     | ✅ ALLOWED - API routes exempt from this restriction |
-| Metadata functions    | `unstable_noStore()`                     | ❌ FORBIDDEN - use route config instead              |
+```typescript
+// app/bookmarks/page.tsx
+import type { Metadata } from "next";
+import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 
-**Why This Failed Silently:**
+// NO 'use cache' - page is dynamic by default
+// NO export const dynamic - incompatible with cacheComponents
 
-1. Next.js 15 allowed runtime opt-out via `noStore()`
-2. Next.js 16 with `cacheComponents` requires declarative configuration
-3. Development mode doesn't enforce production rendering constraints
-4. No TypeScript error - purely a runtime production failure
+export function generateMetadata(): Metadata {
+  return getStaticPageMetadata("/bookmarks", "bookmarks");
+}
 
-**Migration Checklist (Required for ALL pages):**
-
-1. ❌ Remove all `import { unstable_noStore as noStore } from "next/cache"` statements
-2. ❌ Remove all `noStore()` function calls from page component bodies
-3. ✅ Add `export const dynamic = 'force-dynamic'` at module level
-4. ✅ Add JSDoc comment explaining the change
-5. ✅ Test in production build mode (`NODE_ENV=production bun run build`)
-
-**Search Command to Find Violations:**
-
-```bash
-grep -r "unstable_noStore\|noStore()" app/ --include="page.tsx" --include="page.ts"
+export default function BookmarksPage() {
+  // Renders at request time, fetches from S3
+  return (
+    <BookmarksServer
+      title="Bookmarks"
+      description="..."
+      initialPage={1}
+      includeImageData={true}
+    />
+  );
+}
 ```
-
-**Exemptions:**
-
-- API routes (`app/api/**/route.ts`) may continue using `noStore()` - they are exempt
-- Server Actions may use dynamic APIs - they run per-request by nature
-- Middleware is already dynamic - no declaration needed
 
 **Documentation References:**
 
-- Next.js 15 docs: "`connection` is recommended instead [of unstable_noStore]"
-- Context7 `/vercel/next.js/v15.1.8` topic "unstable_noStore dynamic rendering"
-- This incident: 2025-11-11 production failure, 5 pages affected, ~2 hour downtime
+- Context7 `/vercel/next.js` topic "cache components dynamic rendering Next.js 16"
+- Official docs: "When Cache Components are enabled, `dynamic = 'force-dynamic'` is no longer necessary as all pages are dynamic by default."
+- This incident: 2025-11-11 production failure, 5 pages affected, ~3 hour resolution
 
 **Prevention Protocol:**
 
-1. Never use `unstable_noStore()` in page components going forward
-2. Run `grep -r "unstable_noStore" app/ --include="page.tsx"` before every deployment
-3. Always test with `NODE_ENV=production bun run build` locally
-4. Monitor production logs for `DYNAMIC_SERVER_USAGE` digest errors
-5. When adding dynamic rendering, use route segment config exclusively
+1. **NEVER** use `unstable_noStore()` in page components
+2. **NEVER** use `export const dynamic = "force-dynamic"` with cacheComponents enabled
+3. Run search commands before every deployment to catch violations
+4. **Always test with** `NODE_ENV=production bun run build` locally
+5. Monitor production logs for `DYNAMIC_SERVER_USAGE` digest errors
+6. For static pages: Add `'use cache'` directive
+7. For dynamic pages: **Remove all directives** - dynamic by default
 
-**Related Patterns:**
+**Mental Model:**
 
-- Static pages: No export needed (default static)
-- Dynamic pages: `export const dynamic = 'force-dynamic'`
-- ISR pages: `export const revalidate = <seconds>`
-- Mixed rendering: Use `<Suspense>` boundaries with Client Components
+Think of Cache Components as **inverting the default**:
 
-> **CRITICAL MANDATE:** The `unstable_noStore()` API is BANNED in page components. Any PR introducing it will be rejected. Use route segment configuration exclusively.
+- **Before:** Static by default, opt into dynamic
+- **After:** Dynamic by default, opt into static with `'use cache'`
+
+> **CRITICAL MANDATE:** With `cacheComponents: true`, pages are **dynamic by default**. Use `'use cache'` for static pages. Never use `export const dynamic = "force-dynamic"` - it will cause build failures. Any PR introducing these patterns will be rejected.
 
 ## Allowed Patterns (✅)
 
@@ -236,7 +321,8 @@ grep -r "unstable_noStore\|noStore()" app/ --include="page.tsx" --include="page.
 - Dropping Turbopack flags back into scripts—they are redundant and invite drift.
 - Adding polyfills or downgraded packages that conflict with Node 22 native APIs.
 - Introducing React 18-era APIs (`ReactDOM.render`, legacy metadata helpers) without explicit owner approval.
-- **CRITICAL:** Using `unstable_noStore()` in page components when `cacheComponents: true` (see §6 below).
+- **CRITICAL:** Using `unstable_noStore()` in page components when `cacheComponents: true` (see §6).
+- **CRITICAL:** Using `export const dynamic = "force-dynamic"` in page components when `cacheComponents: true` - causes build errors (see §6).
 
 ## Workflow Checklist (mirror AGENTS.md)
 

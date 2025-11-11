@@ -6,6 +6,8 @@
  * Implements proper SEO with schema.org structured data.
  */
 
+"use cache";
+
 import type { Metadata } from "next";
 import { Experience } from "@/components/features";
 import { getStaticPageMetadata } from "@/lib/seo";
@@ -45,10 +47,10 @@ async function mapWithConcurrency<T, R>(
 export const metadata: Metadata = getStaticPageMetadata("/experience", "experience");
 
 /**
- * Force dynamic rendering for this page
- * Replaces deprecated unstable_noStore() usage for Next.js 16 compatibility
+ * Cache policy
+ * Next.js 16 cacheComponents requires cacheable segments to opt in via `'use cache'`;
+ * see https://nextjs.org/docs/app/api-reference/directives/use-cache for the directive contract.
  */
-export const dynamic = "force-dynamic";
 
 /**
  * Experience page component with JSON-LD schema

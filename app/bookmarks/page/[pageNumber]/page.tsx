@@ -27,10 +27,10 @@ import { PageNumberSchema } from "@/types/lib";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 
 /**
- * Force dynamic rendering for this page
- * Replaces deprecated unstable_noStore() usage for Next.js 16 compatibility
+ * Dynamic rendering (Cache Components mode)
+ * With cacheComponents enabled, pages are dynamic by default.
+ * This paginated route fetches bookmarks from S3 at request time - no directive needed.
  */
-export const dynamic = "force-dynamic";
 
 /**
  * Generate metadata for the paginated Bookmarks page
