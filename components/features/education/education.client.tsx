@@ -21,10 +21,10 @@
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client"; // Use new hook
 import { cn } from "@/lib/utils"; // Import cn utility
 import { ChevronDown, ChevronUp, GraduationCap, Search } from "lucide-react"; // Import additional icons
-import Image from "next/image";
 import { useMemo, useState } from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { EducationCardClient } from "./education-card.client";
+import { LogoImage } from "@/components/ui/logo-image.client";
 
 // Define a unique ID for this window instance
 const EDUCATION_WINDOW_ID = "education-window";
@@ -313,13 +313,16 @@ export function EducationClient({
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                           <div className="flex items-center">
                             {item.logoData?.url && (
-                              <Image
-                                src={item.logoData.url}
-                                alt={`${item.institution} logo`}
-                                width={24}
-                                height={24}
-                                className="h-6 w-6 mr-2 object-contain rounded-md"
-                              />
+                              <div className="mr-2">
+                                <LogoImage
+                                  src={item.logoData.url}
+                                  alt={`${item.institution} logo`}
+                                  width={24}
+                                  height={24}
+                                  className="h-6 w-6 object-contain rounded-md"
+                                  needsInversion={item.logoData.needsInversion}
+                                />
+                              </div>
                             )}
                             {(() => {
                               const safeUrl = safeExternalHref(item.website);

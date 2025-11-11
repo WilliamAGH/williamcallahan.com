@@ -35,27 +35,23 @@ import type { CertificationCardClientProps } from "@/types/education";
  * @returns {JSX.Element} Rendered certification card with pre-fetched logo
  */
 export function CertificationCardClient({ certification, className }: CertificationCardClientProps): JSX.Element {
-  const { name, institution, year, website, logoScale } = certification;
-
-  const logoHostname = website ? new URL(website).hostname : "";
-  const logoSrc = logoHostname ? `/api/logo?website=${logoHostname}` : "";
+  const { name, institution, year, website, logoScale, logoData } = certification;
 
   const content = (
     <div className="p-6">
       <div className="flex items-start gap-5">
-        {logoSrc && (
-          <div className="w-12 h-12 relative flex-shrink-0 rounded overflow-hidden flex items-center justify-center">
-            <span className="block w-full h-full" style={{ transform: logoScale ? `scale(${logoScale})` : undefined }}>
-              <LogoImage
-                src={logoSrc}
-                width={48}
-                height={48}
-                className="object-contain w-full h-full"
-                alt={institution}
-              />
-            </span>
-          </div>
-        )}
+        <div className="w-12 h-12 relative flex-shrink-0 rounded overflow-hidden flex items-center justify-center">
+          <span className="block w-full h-full" style={{ transform: logoScale ? `scale(${logoScale})` : undefined }}>
+            <LogoImage
+              src={logoData?.url}
+              width={48}
+              height={48}
+              className="object-contain w-full h-full"
+              alt={institution}
+              needsInversion={logoData?.needsInversion}
+            />
+          </span>
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1">
