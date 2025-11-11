@@ -32,6 +32,8 @@ import type {
 // Import configuration with documented rationale
 import { DEFAULT_MAX_PER_TYPE, DEFAULT_MAX_TOTAL } from "@/config/related-content.config";
 
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+
 /**
  * Convert normalized content to related content item
  */
@@ -171,7 +173,15 @@ export async function RelatedContent({
   className,
 }: RelatedContentProps) {
   // Mark this section as request-time so Next.js 16 defers the heavy S3 fetches until runtime.
-  await connection();
+  if (isBuildPhase) {
+    return null;
+  }
+
+  try {
+    await connection();
+  } catch {
+    // If connection() is unavailable (e.g., during Jest tests), continue without throwing.
+  }
 
   try {
     // For bookmarks, prefer slug over ID for idempotency

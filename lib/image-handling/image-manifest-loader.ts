@@ -12,6 +12,9 @@ import { IMAGE_MANIFEST_S3_PATHS, USE_NEXTJS_CACHE } from "@/lib/constants";
 import type { LogoManifest, ImageManifest, LogoManifestEntry } from "@/types/image";
 import { loadLogoManifestWithCache } from "./cached-manifest-loader";
 
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+const shouldSkipManifestFetchDuringBuild = isBuildPhase && process.env.LOAD_IMAGE_MANIFESTS_DURING_BUILD !== "true";
+
 // In-memory cache for manifests
 let logoManifest: LogoManifest | null = null;
 let opengraphManifest: ImageManifest | null = null;
@@ -51,6 +54,13 @@ export async function loadImageManifests(): Promise<void> {
   // the upfront 150-200 MB cost of loading three large manifest JSON files.
   // By default manifests are loaded at boot. To disable, set
   // `LOAD_IMAGE_MANIFESTS_AT_BOOT=false` in the environment.
+
+  if (shouldSkipManifestFetchDuringBuild) {
+    logoManifest = {};
+    opengraphManifest = [];
+    blogManifest = [];
+    return;
+  }
 
   // Default to loading manifests unless explicitly disabled
   if (process.env.LOAD_IMAGE_MANIFESTS_AT_BOOT === "false") {
@@ -94,7 +104,12 @@ async function ensureManifestsLoaded(): Promise<void> {
   if (logoManifest !== null) {
     return;
   }
-
+  if (shouldSkipManifestFetchDuringBuild) {
+    logoManifest = {};
+    opengraphManifest = [];
+    blogManifest = [];
+    return;
+  }
   // If currently loading, wait for the existing load to complete
   if (isLoading && loadingPromise) {
     return loadingPromise;
@@ -139,6 +154,10 @@ export function getLogoFromManifest(domain: string): LogoManifestEntry | null {
  * @returns Promise that resolves to logo manifest entry if found, null otherwise
  */
 export async function getLogoFromManifestAsync(domain: string): Promise<LogoManifestEntry | null> {
+  if (shouldSkipManifestFetchDuringBuild) {
+    return null;
+  }
+
   if (USE_NEXTJS_CACHE) {
     try {
       // Use the cached manifest loader
