@@ -30,7 +30,7 @@ The application uses Next.js middleware to handle request processing, security h
 
 ## Content Security Policy (CSP)
 
-The Content Security Policy is defined in `lib/constants.ts` and applied in the middleware.
+The Content Security Policy is defined in `config/csp.ts` and applied in the middleware.
 
 ### Key Directives
 
@@ -45,6 +45,7 @@ export const CSP_DIRECTIVES = {
     "https://plausible.iocloudhost.net",
     "https://static.cloudflareinsights.com",
     "https://*.sentry.io",
+    "https://*.up.railway.app",
     // ... other allowed script sources
   ],
   connectSrc: [
@@ -52,16 +53,19 @@ export const CSP_DIRECTIVES = {
     "https://umami.iocloudhost.net",
     "https://plausible.iocloudhost.net",
     "https://*.ingest.sentry.io",
+    "https://*.up.railway.app",
     // ... other allowed connect sources
   ],
   imgSrc: ["'self'", "data:", "https:", "blob:"],
-  styleSrc: ["'self'", "'unsafe-inline'"],
-  fontSrc: ["'self'", "data:"],
-  frameSrc: ["https://platform.twitter.com", "https://*.x.com"],
+  styleSrc: ["'self'", "'unsafe-inline'", "https://*.up.railway.app"],
+  fontSrc: ["'self'", "data:", "https://*.up.railway.app"],
+  frameSrc: ["https://platform.twitter.com", "https://*.x.com", "https://*.up.railway.app"],
   frameAncestors: ["'none'"],
   baseUri: ["'self'"],
   formAction: ["'self'"],
 };
+
+> **Railway test deploys**: `https://*.up.railway.app` is explicitly listed across the script, connect, style, font, image, and frame directives so preview environments such as `williamcallahancom-production.up.railway.app` can load assets or call APIs without CSP violations.
 ```
 
 ## Security Headers
@@ -118,6 +122,8 @@ if (request.method === "OPTIONS") {
   });
 }
 ```
+
+Because the preflight and runtime responses return `Access-Control-Allow-Origin: *`, preview hosts such as `https://*.up.railway.app` automatically have API access without any additional configuration.
 
 ## Caching Strategy
 

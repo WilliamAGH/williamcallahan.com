@@ -25,7 +25,7 @@ COPY scripts/init-csp-hashes.ts ./scripts/init-csp-hashes.ts
 COPY config ./config
 
 # Install dependencies with Bun, skipping third-party postinstall scripts to avoid native crashes
-RUN --mount=type=cache,target=/root/.bun/install bun install --frozen-lockfile --ignore-scripts
+RUN --mount=type=cache,id=bun-install-cache,target=/root/.bun/install bun install --frozen-lockfile --ignore-scripts
 # Ensure CSP hashes file exists early for tooling that might import it
 RUN bun scripts/init-csp-hashes.ts
 
@@ -47,8 +47,8 @@ COPY . .
 # Run linter and type checker with persistent cache mounts so they
 #   do not re-run on every incremental build.
 # Set memory limit for Node.js operations during checks
-RUN --mount=type=cache,target=/app/.eslintcache \
-    --mount=type=cache,target=/app/.tsbuildinfo \
+RUN --mount=type=cache,id=eslint-cache,target=/app/.eslintcache \
+    --mount=type=cache,id=tsbuildinfo-cache,target=/app/.tsbuildinfo \
     NODE_OPTIONS='--max-old-space-size=4096' npm run lint && NODE_OPTIONS='--max-old-space-size=4096' npm run type-check
 
 # --------------------------------------------------
@@ -129,7 +129,7 @@ RUN bash -c 'set -euo pipefail \
 # generateStaticParams() can read bookmarks from S3 without leaking secrets.
 # NOTE: The multiline bash snippet below uses explicit continuations so Docker
 #       treats it as a single RUN instruction during BuildKit parsing.
-RUN --mount=type=cache,target=/app/.next/cache \
+RUN --mount=type=cache,id=next-build-cache,target=/app/.next/cache \
     --mount=type=secret,id=s3_access_key_id,required=false \
     --mount=type=secret,id=s3_secret_access_key,required=false \
     --mount=type=secret,id=s3_session_token,required=false \
