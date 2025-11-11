@@ -13,7 +13,7 @@
 import { revalidateTag } from "next/cache";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
-import type { LogoResult, LogoInversion } from "@/types/logo";
+import type { LogoResult, LogoInversion, LogoData } from "@/types/logo";
 import type { LogoValidationResult } from "@/types/cache";
 import { USE_NEXTJS_CACHE } from "@/lib/cache";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
@@ -90,6 +90,32 @@ export async function getLogo(domain: string): Promise<LogoResult | null> {
     console.error(`[Logos] Error getting logo for domain ${domain}: ${errorMessage}`);
     return null;
   }
+}
+
+/**
+ * Resolve a CDN-safe logo URL directly via UnifiedImageService without using the API proxy.
+ * Returns null when no persistent asset exists.
+ */
+export async function getLogoCdnData(domain: string): Promise<LogoData | null> {
+  if (!domain) {
+    return null;
+  }
+
+  const result = await getLogo(domain);
+  if (!result) {
+    return null;
+  }
+
+  const resolvedUrl = result.cdnUrl ?? result.url ?? null;
+  if (!resolvedUrl) {
+    return null;
+  }
+
+  return {
+    url: resolvedUrl,
+    source: result.source ?? null,
+    needsInversion: result.inversion?.needsDarkInversion ?? false,
+  };
 }
 
 /**
