@@ -324,7 +324,6 @@ const nextConfig = {
    * @see https://nextjs.org/docs/app/api-reference/components/image
    */
   images: {
-    ...(process.env.NODE_ENV === "development" ? { unoptimized: true } : {}),
     /**
      * Allows Nextjs to optimize SVGs using `next/image`
      * Note: This can have security implications if SVGs are user-uploaded
@@ -392,7 +391,13 @@ const nextConfig = {
       /**
        * Whitelist for general image sources and CDNs used by the site
        */
-      { protocol: "https", hostname: "s3-storage.callahan.cloud", pathname: "/**" },
+      {
+        protocol: "https",
+        hostname: "s3-storage.callahan.cloud",
+        port: "",
+        pathname: "/**",
+        // search omitted to allow cache-buster query params (?cb=timestamp)
+      },
       // Stock photos and site-specific assets
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "williamcallahan.com" },
@@ -410,8 +415,19 @@ const nextConfig = {
       { protocol: "https", hostname: "*.popos-sf1.com" },
       { protocol: "https", hostname: "*.popos-sf2.com" },
       { protocol: "https", hostname: "*.popos-sf3.com" },
-      { protocol: "https", hostname: "**.digitaloceanspaces.com" }, // DigitalOcean Spaces CDN (all bucket patterns)
-      { protocol: "https", hostname: "*.callahan.cloud", pathname: "/**" }, // DigitalOcean Spaces CDN
+      {
+        protocol: "https",
+        hostname: "**.digitaloceanspaces.com",
+        port: "",
+        // search omitted to allow cache-buster query params (?cb=timestamp)
+      },
+      {
+        protocol: "https",
+        hostname: "*.callahan.cloud",
+        port: "",
+        pathname: "/**",
+        // search omitted to allow cache-buster query params (?cb=timestamp)
+      },
 
       /**
        * Development-only: Allow all image sources for easier local development
