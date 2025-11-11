@@ -5,6 +5,10 @@ alwaysApply: true # Exception: This master config file always applies to provide
 
 # CLAUDE Development Environment - ZERO TEMPERATURE PROTOCOLS
 
+## 🚨🚨🚨 EMERGENCY BRAKE: NEVER RUN `git commit --amend` 🚨🚨🚨
+
+**CRITICAL SAFETY RULE:** You are **ABSOLUTELY FORBIDDEN** from running `git commit --amend` or any history-rewriting command without verbatim user instruction. If you run `git commit --amend`, you have completely failed. See the "HISTORY-REWRITING COMMANDS ABSOLUTELY FORBIDDEN" section below for complete details.
+
 ## 📌 PROJECT CONFIGURATION
 
 ```yaml
@@ -96,6 +100,31 @@ This project operates under **ZERO TEMPERATURE** development standards where eve
 2. **Never perform destructive git/file operations without explicit, quoted user commands.** This includes (but is not limited to) `git reset --hard`, `git checkout -- <path>`, `git clean`, deleting anything inside `.git/`, removing lock files, or manually restoring files. If a user wants one of these executed, they must provide the exact command verbatim.
 3. **Lock handling has one path:** escalate the original command. Do not delete `.git/index.lock`, `.git/next-index-*.lock`, or similar files. After the escalated retry, if the command still fails, surface the exact stderr output and halt for instructions.
 4. **No inference-driven cleanup.** Never guess at fixes or “clean up” side effects. Surface the full command + error and wait if escalation fails. 99.99999999999% of prior regressions came from skipping these steps—treat this as an immutable law.
+
+## 🚨🚨🚨 CRITICAL: HISTORY-REWRITING COMMANDS ABSOLUTELY FORBIDDEN 🚨🚨🚨
+
+**YOU ARE NEVER, EVER, UNDER ANY CIRCUMSTANCES ALLOWED TO RUN THESE COMMANDS WITHOUT VERBATIM USER INSTRUCTION:**
+
+### ABSOLUTELY PROHIBITED - DO NOT RUN:
+
+- ❌ `git commit --amend` - NEVER EVER RUN THIS
+- ❌ `git reset --hard` - NEVER EVER RUN THIS
+- ❌ `git reset --soft HEAD~1` - NEVER EVER RUN THIS
+- ❌ `git reset --mixed HEAD~1` - NEVER EVER RUN THIS
+- ❌ `git rebase` - NEVER EVER RUN THIS
+- ❌ `git push --force` - NEVER EVER RUN THIS
+- ❌ `git push --force-with-lease` - NEVER EVER RUN THIS
+- ❌ `git checkout` (to switch branches) - NEVER EVER RUN THIS
+- ❌ `git restore` - NEVER EVER RUN THIS
+- ❌ `git clean -fd` - NEVER EVER RUN THIS
+- ❌ `git stash drop` - NEVER EVER RUN THIS
+
+### IF YOU RUN ANY OF THESE COMMANDS, YOU HAVE COMPLETELY FAILED
+
+**THE ONLY EXCEPTION:** If the user provides the EXACT command verbatim in quotes, you may execute it. But NEVER suggest, infer, or run these commands on your own.
+
+**REPEAT: `git commit --amend` IS ABSOLUTELY FORBIDDEN WITHOUT VERBATIM USER INSTRUCTION**
+
 5. **Git operations protocol (mirrors hybrid/back-end rules):**
    - Treat every staged/unstaged change you did not create as intentional; never unstage, restage, or revert it unless the user explicitly directs you to do so with the exact command.
    - Do not run `git restore`, `git reset`, `git checkout`, `git commit --amend`, `git clean`, or any other history-rewriting/destructive command without a verbatim user instruction.
