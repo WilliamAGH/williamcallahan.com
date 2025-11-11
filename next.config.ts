@@ -281,7 +281,7 @@ const nextConfig = {
 
   experimental: {
     taint: true,
-    serverMinification: false,
+    serverMinification: process.env.NODE_ENV === "production",
     preloadEntriesOnStart: false, // Don't preload all pages on server start
     serverSourceMaps: false, // Disable server source maps to save memory
     // Disable package optimization in development to reduce cache entries
