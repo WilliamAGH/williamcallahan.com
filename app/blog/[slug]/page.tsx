@@ -34,8 +34,6 @@ export const generateStaticParams = async () => {
 // Using ISR instead of force-static to allow revalidation
 // Removed conflicting 'dynamic = force-static' directive per GitHub issue #112
 
-// Force dynamic rendering to avoid prerender-time MDX runtime issues for complex components
-
 /**
  * List of blog posts that should use software application schema
  * This helps improve SEO for software-related posts
