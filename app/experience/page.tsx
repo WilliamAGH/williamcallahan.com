@@ -14,7 +14,7 @@ import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { experiences } from "@/data/experience";
-import { getLogo } from "@/lib/data-access/logos";
+import { getLogo, getRuntimeLogoUrl } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
@@ -59,21 +59,28 @@ export default async function ExperiencePage() {
 
   const experienceData = await Promise.all(
     experiences.map(async (exp: ExperienceType): Promise<ProcessedExperienceItem> => {
+      const hasOverrideDomain = Boolean(exp.logoOnlyDomain);
+      const domain = hasOverrideDomain
+        ? normalizeDomain(exp.logoOnlyDomain as string)
+        : exp.website
+          ? normalizeDomain(exp.website)
+          : normalizeDomain(exp.company);
+
       let error: string | undefined;
 
       try {
-        const hasOverrideDomain = Boolean(exp.logoOnlyDomain);
-
         if (!hasOverrideDomain && exp.logo) {
           const staticLogoData: LogoData = { url: exp.logo, source: "static" };
           return { ...exp, logoData: staticLogoData };
         }
 
-        const domain = hasOverrideDomain
-          ? normalizeDomain(exp.logoOnlyDomain as string)
-          : exp.website
-            ? normalizeDomain(exp.website)
-            : normalizeDomain(exp.company);
+        if (!domain) {
+          const fallbackLogoData: LogoData = {
+            url: exp.logo ?? getCompanyPlaceholder(),
+            source: exp.logo ? "static" : null,
+          };
+          return { ...exp, logoData: fallbackLogoData };
+        }
 
         const manifestEntry = await getLogoFromManifestAsync(domain);
         if (manifestEntry?.cdnUrl) {
@@ -86,27 +93,49 @@ export default async function ExperiencePage() {
 
         const logoResult = await getLogo(domain);
 
+        const liveLogoUrl = logoResult?.cdnUrl ?? logoResult?.url;
+
+        if (logoResult && liveLogoUrl) {
+          const resolvedLogoData: LogoData = {
+            url: liveLogoUrl,
+            source: logoResult.source ?? "api",
+          };
+
+          return error ? { ...exp, logoData: resolvedLogoData, error } : { ...exp, logoData: resolvedLogoData };
+        }
+
         if (logoResult?.error) {
           error = `Logo fetch failed: ${logoResult.error}`;
         }
 
-        const remoteOrStaticUrl =
-          logoResult?.cdnUrl ?? logoResult?.url ?? (exp.logo ? exp.logo : getCompanyPlaceholder());
+        const runtimeLogoUrl = getRuntimeLogoUrl(domain, { company: exp.company });
+
+        if (runtimeLogoUrl) {
+          const runtimeLogoData: LogoData = {
+            url: runtimeLogoUrl,
+            source: "api",
+          };
+
+          return error ? { ...exp, logoData: runtimeLogoData, error } : { ...exp, logoData: runtimeLogoData };
+        }
+
+        const remoteOrStaticUrl = exp.logo ? exp.logo : getCompanyPlaceholder();
 
         const resolvedLogoData: LogoData = {
           url: remoteOrStaticUrl,
-          source: logoResult?.source ?? (exp.logo ? "static" : null),
+          source: exp.logo ? "static" : null,
         };
 
         return error ? { ...exp, logoData: resolvedLogoData, error } : { ...exp, logoData: resolvedLogoData };
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Unknown error";
         console.error("[ExperiencePage] Failed to resolve logo:", err);
+        const runtimeLogoUrl = getRuntimeLogoUrl(domain, { company: exp.company });
         return {
           ...exp,
           logoData: {
-            url: getCompanyPlaceholder(),
-            source: null,
+            url: runtimeLogoUrl ?? getCompanyPlaceholder(),
+            source: runtimeLogoUrl ? "api" : null,
           },
           error: `Failed to process logo: ${errorMessage}`,
         };

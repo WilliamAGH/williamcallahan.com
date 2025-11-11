@@ -12,7 +12,7 @@ import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-lo
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import type { LogoData } from "../../../types/logo";
 import type { ReactElement } from "react";
-import { getLogo } from "@/lib/data-access/logos";
+import { getLogo, getRuntimeLogoUrl } from "@/lib/data-access/logos";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 
 /**
@@ -45,6 +45,8 @@ export async function InvestmentCard(
   }
 
   // Attempt manifest lookup using effectiveDomain
+  const runtimeLogoUrl = effectiveDomain ? getRuntimeLogoUrl(effectiveDomain, { company: name }) : null;
+
   if (effectiveDomain) {
     try {
       const logoEntry = await getLogoFromManifestAsync(effectiveDomain);
@@ -82,6 +84,20 @@ export async function InvestmentCard(
 
         return <InvestmentCardClient {...props} logoData={logoData} />;
       }
+
+      if (runtimeLogoUrl) {
+        console.info(`[InvestmentCard] Falling back to runtime logo fetch for ${effectiveDomain}`);
+
+        return (
+          <InvestmentCardClient
+            {...props}
+            logoData={{
+              url: runtimeLogoUrl,
+              source: "api",
+            }}
+          />
+        );
+      }
     } catch (fetchErr) {
       const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
       console.error(`[InvestmentCard] Live logo fetch failed for ${effectiveDomain}:`, msg);
@@ -89,6 +105,18 @@ export async function InvestmentCard(
   }
 
   // Single fallback to placeholder if no logo could be fetched
+  if (runtimeLogoUrl) {
+    return (
+      <InvestmentCardClient
+        {...props}
+        logoData={{
+          url: runtimeLogoUrl,
+          source: "api",
+        }}
+      />
+    );
+  }
+
   return (
     <InvestmentCardClient
       {...props}

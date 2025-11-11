@@ -5,7 +5,7 @@
  */
 import "server-only"; // Ensure this module is never bundled for the client
 
-import { getLogo } from "@/lib/data-access/logos";
+import { getLogo, getRuntimeLogoUrl } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import type { Certification, Class, Education, EducationLogoData } from "@/types/education";
 import { assertServerOnly } from "./utils/ensure-server-only"; // Import the assertion utility
@@ -44,6 +44,7 @@ export async function processEducationItem<T extends Education>(
     } else {
       // Otherwise, fetch by domain
       const domain = website ? normalizeDomain(website) : normalizeDomain(institution);
+      const runtimeLogoUrl = domain ? getRuntimeLogoUrl(domain, { company: institution }) : null;
 
       // Prefer manifest lookup for potential inverted URL
       const manifestEntry = domain ? await getLogoFromManifestAsync(domain) : null;
@@ -55,13 +56,18 @@ export async function processEducationItem<T extends Education>(
       } else {
         const logoResult = await getLogo(domain);
 
-        if (logoResult?.error) {
+        if (logoResult?.cdnUrl) {
+          // Use CDN URL directly from S3
+          logoData = { url: logoResult.cdnUrl, source: logoResult.source };
+        } else if (runtimeLogoUrl) {
+          if (logoResult?.error) {
+            error = `Logo fetch failed: ${logoResult.error}`;
+          }
+          logoData = { url: runtimeLogoUrl, source: "api" };
+        } else if (logoResult?.error) {
           // Capture any error from the logo fetch
           error = `Logo fetch failed: ${logoResult.error}`;
           logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
-        } else if (logoResult?.cdnUrl) {
-          // Use CDN URL directly from S3
-          logoData = { url: logoResult.cdnUrl, source: logoResult.source };
         } else {
           // No logo found, but not an error
           logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
@@ -72,7 +78,13 @@ export async function processEducationItem<T extends Education>(
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
     console.error(`Error processing logo for education item "${institution}":`, err);
     error = `Failed to process logo: ${errorMessage}`;
-    logoData = { url: getPlaceholderSvgUrl(), source: "placeholder-error" };
+    const domain = website ? normalizeDomain(website) : normalizeDomain(institution);
+    const runtimeLogoUrl = domain ? getRuntimeLogoUrl(domain, { company: institution }) : null;
+    if (runtimeLogoUrl) {
+      logoData = { url: runtimeLogoUrl, source: "api" };
+    } else {
+      logoData = { url: getPlaceholderSvgUrl(), source: "placeholder-error" };
+    }
   }
 
   return error ? { ...item, logoData, error } : { ...item, logoData };
@@ -100,6 +112,7 @@ export async function processCertificationItem<T extends Certification | Class>(
       logoData = { url: resolvedUrl, source: null };
     } else {
       const domain = website ? normalizeDomain(website) : normalizeDomain(name);
+      const runtimeLogoUrl = domain ? getRuntimeLogoUrl(domain, { company: name }) : null;
 
       const manifestEntry = domain ? await getLogoFromManifestAsync(domain) : null;
 
@@ -110,13 +123,18 @@ export async function processCertificationItem<T extends Certification | Class>(
       } else {
         const logoResult = await getLogo(domain);
 
-        if (logoResult?.error) {
+        if (logoResult?.cdnUrl) {
+          // Use CDN URL directly from S3
+          logoData = { url: logoResult.cdnUrl, source: logoResult.source };
+        } else if (runtimeLogoUrl) {
+          if (logoResult?.error) {
+            error = `Logo fetch failed: ${logoResult.error}`;
+          }
+          logoData = { url: runtimeLogoUrl, source: "api" };
+        } else if (logoResult?.error) {
           // Capture any error from the logo fetch
           error = `Logo fetch failed: ${logoResult.error}`;
           logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
-        } else if (logoResult?.cdnUrl) {
-          // Use CDN URL directly from S3
-          logoData = { url: logoResult.cdnUrl, source: logoResult.source };
         } else {
           // No logo found, but not an error
           logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
@@ -127,7 +145,13 @@ export async function processCertificationItem<T extends Certification | Class>(
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
     console.error(`Error processing logo for certification item "${name}":`, err);
     error = `Failed to process logo: ${errorMessage}`;
-    logoData = { url: getPlaceholderSvgUrl(), source: "placeholder-error" };
+    const domain = website ? normalizeDomain(website) : normalizeDomain(name);
+    const runtimeLogoUrl = domain ? getRuntimeLogoUrl(domain, { company: name }) : null;
+    if (runtimeLogoUrl) {
+      logoData = { url: runtimeLogoUrl, source: "api" };
+    } else {
+      logoData = { url: getPlaceholderSvgUrl(), source: "placeholder-error" };
+    }
   }
 
   return error ? { ...item, logoData, error } : { ...item, logoData };

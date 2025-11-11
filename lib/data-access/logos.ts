@@ -107,6 +107,34 @@ export function invalidateLogoCache(): void {
 }
 
 /**
+ * Build a runtime logo fetch URL that proxies through the `/api/logo` route.
+ * This is used when a CDN/manifest hit is unavailable during build-time rendering.
+ */
+export function getRuntimeLogoUrl(
+  domain: string | null | undefined,
+  options: { company?: string | null; forceRefresh?: boolean } = {},
+): string | null {
+  const normalizedDomain = domain?.trim();
+  if (!normalizedDomain) {
+    return null;
+  }
+
+  const params = new URLSearchParams();
+  params.set("website", normalizedDomain);
+
+  const { company, forceRefresh = true } = options;
+  if (company && company.trim().length > 0) {
+    params.set("company", company.trim());
+  }
+
+  if (forceRefresh) {
+    params.set("forceRefresh", "true");
+  }
+
+  return `/api/logo?${params.toString()}`;
+}
+
+/**
  * Get logo validation - delegates to ServerCache for backward compatibility
  */
 export function getLogoValidation(imageHash: string): LogoValidationResult | null {
