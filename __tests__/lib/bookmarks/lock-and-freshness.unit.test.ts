@@ -14,94 +14,77 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
   });
 
   it("acquires lock when none exists, writes heartbeat, updates index on unchanged, and releases lock", async () => {
-    await jest.isolateModulesAsync(async () => {
-      // Global accumulators so we observe writes even if module instances differ
-      (globalThis as any).__S3_WRITES__ = [] as string[];
-      (globalThis as any).__S3_DELETES__ = [] as string[];
-      (globalThis as any).__S3_LOCK__ = null as unknown;
+    let lockState: unknown = null;
+    const writes: string[] = [];
+    const deletes: string[] = [];
 
-      jest.doMock("@/lib/s3-utils", () => {
-        const readJsonS3 = jest.fn().mockImplementation((key: string) => {
-          const g: any = globalThis as any;
-          console.log(`readJsonS3 called with key: ${key}`);
-          if (key === BOOKMARKS_S3_PATHS.LOCK) {
-            console.log(`Returning lock value:`, g.__S3_LOCK__);
-            return Promise.resolve(g.__S3_LOCK__);
-          }
-          if (key === BOOKMARKS_S3_PATHS.INDEX) {
-            return Promise.resolve({
-              count: 1,
-              totalPages: 1,
-              pageSize: BOOKMARKS_PER_PAGE,
-              lastModified: new Date().toISOString(),
-              lastFetchedAt: Date.now() - 3600_000,
-              lastAttemptedAt: Date.now() - 3600_000,
-              checksum: "a:2024-01-01T00:00:00.000Z",
-              changeDetected: false,
-            });
-          }
-          return Promise.resolve(null);
-        });
-        const writeJsonS3 = jest.fn().mockImplementation((key: string, value: unknown) => {
-          const g: any = globalThis as any;
-          console.log(`writeJsonS3 called with key: ${key}, value:`, value);
-          g.__S3_WRITES__.push(key);
-          if (key === BOOKMARKS_S3_PATHS.LOCK) {
-            g.__S3_LOCK__ = value;
-            console.log(`Lock saved:`, value);
-          }
-          return Promise.resolve(void 0);
-        });
-        const deleteFromS3 = jest.fn().mockImplementation((key: string) => {
-          const g: any = globalThis as any;
-          g.__S3_DELETES__.push(key);
-          if (key === BOOKMARKS_S3_PATHS.LOCK) g.__S3_LOCK__ = null;
-          return Promise.resolve(void 0);
-        });
-        return { __esModule: true, readJsonS3, writeJsonS3, deleteFromS3 };
-      });
+    jest.doMock("@/lib/s3-utils", () => ({
+      readJsonS3: jest.fn((key: string) => {
+        if (key === BOOKMARKS_S3_PATHS.LOCK) {
+          return Promise.resolve(lockState);
+        }
+        if (key === BOOKMARKS_S3_PATHS.INDEX) {
+          return Promise.resolve({
+            count: 1,
+            totalPages: 1,
+            pageSize: BOOKMARKS_PER_PAGE,
+            lastModified: new Date().toISOString(),
+            lastFetchedAt: Date.now() - 3600_000,
+            lastAttemptedAt: Date.now() - 3600_000,
+            checksum: "a:2024-01-01T00:00:00.000Z",
+            changeDetected: false,
+          });
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: jest.fn((key: string, value: unknown) => {
+        writes.push(key);
+        if (key === BOOKMARKS_S3_PATHS.LOCK) {
+          lockState = value;
+        }
+        return Promise.resolve();
+      }),
+      deleteFromS3: jest.fn((key: string) => {
+        deletes.push(key);
+        if (key === BOOKMARKS_S3_PATHS.LOCK) {
+          lockState = null;
+        }
+        return Promise.resolve();
+      }),
+      listS3Objects: jest.fn(() => Promise.resolve([])),
+    }));
 
-      const { setRefreshBookmarksCallback, refreshAndPersistBookmarks, initializeBookmarksDataAccess } = await import(
-        "../../../lib/bookmarks/bookmarks-data-access.server"
-      );
+    const {
+      setRefreshBookmarksCallback,
+      refreshAndPersistBookmarks,
+      initializeBookmarksDataAccess,
+      cleanupBookmarksDataAccess,
+    } = await import("../../../lib/bookmarks/bookmarks-data-access.server");
 
-      initializeBookmarksDataAccess();
+    initializeBookmarksDataAccess();
 
-      // Provide dataset that will compute checksum "a:2024-01-01T00:00:00.000Z"
-      const testDate = "2024-01-01T00:00:00.000Z";
-      const dataset: Partial<UnifiedBookmark>[] = [
-        {
-          id: "a",
-          url: "https://example.com",
-          title: "Example Bookmark",
-          description: "A valid bookmark for testing",
-          tags: [],
-          dateBookmarked: testDate,
-          sourceUpdatedAt: testDate,
-        },
-      ];
-      setRefreshBookmarksCallback(() => {
-        console.log("Refresh callback called, returning dataset");
-        return dataset as UnifiedBookmark[];
-      });
+    const testDate = "2024-01-01T00:00:00.000Z";
+    const dataset: UnifiedBookmark[] = [
+      {
+        id: "a",
+        url: "https://example.com",
+        title: "Example Bookmark",
+        description: "A valid bookmark for testing",
+        tags: [],
+        dateBookmarked: testDate,
+        sourceUpdatedAt: testDate,
+      } as UnifiedBookmark,
+    ];
 
-      console.log("Calling refreshAndPersistBookmarks...");
-      const result = await refreshAndPersistBookmarks(false);
-      console.log("refreshAndPersistBookmarks result:", result);
+    setRefreshBookmarksCallback(() => dataset);
 
-      const writes = ((globalThis as any).__S3_WRITES__ as string[]) || [];
-      const wroteLock = writes.includes(BOOKMARKS_S3_PATHS.LOCK);
-      const wroteHeartbeat = writes.includes(BOOKMARKS_S3_PATHS.HEARTBEAT);
-      const wroteIndex = writes.includes(BOOKMARKS_S3_PATHS.INDEX);
+    const result = await refreshAndPersistBookmarks(false);
+    cleanupBookmarksDataAccess();
 
-      expect(wroteLock).toBe(true);
-      // Heartbeat must be written; selective path should also update index freshness when unchanged
-      expect(wroteHeartbeat).toBe(true);
-      expect(wroteIndex).toBe(true);
-
-      const deletes = ((globalThis as any).__S3_DELETES__ as string[]) || [];
-      console.log("S3 deletes:", deletes);
-      expect(deletes.includes(BOOKMARKS_S3_PATHS.LOCK)).toBe(true);
-    });
+    expect(result).not.toBeNull();
+    expect(writes).toContain(BOOKMARKS_S3_PATHS.LOCK);
+    expect(writes).toContain(BOOKMARKS_S3_PATHS.HEARTBEAT);
+    expect(writes).toContain(BOOKMARKS_S3_PATHS.INDEX);
+    expect(deletes).toContain(BOOKMARKS_S3_PATHS.LOCK);
   });
 });

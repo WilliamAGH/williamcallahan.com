@@ -11,6 +11,20 @@ import type { AWSError } from "@/types/error";
 // Mock dependencies
 jest.mock("@/lib/s3-utils");
 
+jest.mock("node:fs", () => ({
+  promises: {
+    readFile: jest.fn().mockResolvedValue(JSON.stringify([{ id: "test", url: "https://example.com" }])),
+    writeFile: jest.fn(),
+    mkdir: jest.fn(),
+    readdir: jest.fn().mockResolvedValue([]),
+    rm: jest.fn(),
+  },
+}));
+
+jest.mock("@/lib/bookmarks/local-s3-cache", () => ({
+  readLocalS3Json: jest.fn().mockResolvedValue(null),
+}));
+
 const mockReadJsonS3 = jest.mocked(readJsonS3);
 
 const createTag = (name: string) => ({ id: name, name, slug: name.replace(/\s+/g, "-"), color: undefined });
