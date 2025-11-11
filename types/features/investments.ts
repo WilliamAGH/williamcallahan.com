@@ -60,7 +60,7 @@ export interface InvestmentsProps {
  */
 export interface InvestmentsClientProps {
   /** List of pre-rendered investment cards */
-  investments: InvestmentWithCard[];
+  investments: InvestmentCardExtendedProps[];
 }
 
 /**
@@ -86,14 +86,4 @@ export interface InvestmentCardExtendedProps extends Investment {
   isDarkTheme?: boolean;
   /** Rendered financial metrics */
   renderedMetrics?: JSX.Element;
-}
-
-/**
- * Extended investment type with pre-rendered card
- * @interface
- * @extends {Investment}
- */
-export interface InvestmentWithCard extends Investment {
-  /** Pre-rendered JSX element for the investment card */
-  card: JSX.Element;
 }
