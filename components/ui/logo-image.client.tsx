@@ -15,12 +15,10 @@ import React, { useState, useCallback, useRef } from "react";
 import type { LogoImageProps, OptimizedCardImageProps } from "@/types/ui/image";
 import { getCompanyPlaceholder, COMPANY_PLACEHOLDER_BASE64 } from "@/lib/data-access/placeholder-images";
 import { getMonotonicTime } from "@/lib/utils";
-import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
 
 const LOGO_FILENAME_REGEX = /\/logos\/(?:inverted\/)?([^/?#]+)\.(?:png|jpe?g|webp|svg|ico|avif)$/i;
 const HASH_TOKEN = /^[a-f0-9]{8}$/i;
 const KNOWN_LOGO_SOURCES = new Set(["google", "duckduckgo", "ddg", "clearbit", "direct", "manual", "unknown", "api"]);
-const CDN_CONFIG = getCdnConfigFromEnv();
 
 function deriveDomainFromLogoKey(pathname: string): string | null {
   const match = pathname.match(LOGO_FILENAME_REGEX);
@@ -102,10 +100,11 @@ export function LogoImage({
   const originalSrc = src;
 
   const proxiedSrc = React.useMemo(() => {
-    if (!src || src.startsWith("/") || src.startsWith("data:")) {
+    if (!src || src.startsWith("/") || src.startsWith("data:") || src.startsWith("/api/")) {
       return src;
     }
-    if (isOurCdnUrl(src, CDN_CONFIG)) {
+
+    if (/^https?:\/\//i.test(src)) {
       const params = new URLSearchParams();
       params.set("url", src);
       if (typeof width === "number" && width > 0) {
@@ -113,6 +112,7 @@ export function LogoImage({
       }
       return `/api/cache/images?${params.toString()}`;
     }
+
     return src;
   }, [src, width]);
 
@@ -257,14 +257,16 @@ export function OptimizedCardImage({
   }, []);
 
   const proxiedSrc = React.useMemo(() => {
-    if (!src || src.startsWith("/") || src.startsWith("data:")) {
+    if (!src || src.startsWith("/") || src.startsWith("data:") || src.startsWith("/api/")) {
       return src;
     }
-    if (isOurCdnUrl(src, CDN_CONFIG)) {
+
+    if (/^https?:\/\//i.test(src)) {
       const params = new URLSearchParams();
       params.set("url", src);
       return `/api/cache/images?${params.toString()}`;
     }
+
     return src;
   }, [src]);
 
