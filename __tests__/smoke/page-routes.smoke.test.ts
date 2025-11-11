@@ -21,6 +21,13 @@ import fs from "node:fs";
 import path from "node:path";
 import type { MetadataRoute } from "next";
 import sitemap from "../../app/sitemap";
+import {
+  getBookmarksIndex,
+  getBookmarksPage,
+  listBookmarkTagSlugs,
+  getTagBookmarksIndex,
+  getTagBookmarksPage,
+} from "../../lib/bookmarks/service.server";
 
 const mockBookmarkEntries = [
   {
@@ -36,33 +43,26 @@ const mockBookmarkEntries = [
   },
 ];
 
-jest.mock("../../lib/bookmarks/bookmarks.server", () => ({
-  getBookmarksForStaticBuildAsync: jest.fn(() => Promise.resolve(mockBookmarkEntries)),
-}));
+jest.mock("../../lib/bookmarks/service.server", () => {
+  const mockIndex = jest.fn();
+  const mockPage = jest.fn();
+  const mockList = jest.fn();
+  const mockTagIndex = jest.fn();
+  const mockTagPage = jest.fn();
+  return {
+    getBookmarksIndex: mockIndex,
+    getBookmarksPage: mockPage,
+    listBookmarkTagSlugs: mockList,
+    getTagBookmarksIndex: mockTagIndex,
+    getTagBookmarksPage: mockTagPage,
+  };
+});
 
-const mockSlugMapping = {
-  version: "1",
-  generated: "2024-01-01T00:00:00.000Z",
-  count: mockBookmarkEntries.length,
-  checksum: "d41d8cd98f00b204e9800998ecf8427e",
-  slugs: {
-    "bookmark-1": {
-      id: "bookmark-1",
-      slug: "example-bookmark",
-      url: "https://example.com",
-      title: "Example Bookmark",
-    },
-  },
-  reverseMap: {
-    "example-bookmark": "bookmark-1",
-  },
-};
-
-jest.mock("../../lib/bookmarks/slug-manager", () => ({
-  loadSlugMapping: jest.fn(() => Promise.resolve(mockSlugMapping)),
-  getSlugForBookmark: jest.fn((mapping: typeof mockSlugMapping, id: string) => mapping.slugs[id]?.slug ?? null),
-  generateSlugMapping: jest.fn(() => mockSlugMapping),
-}));
+const mockedGetBookmarksIndex = getBookmarksIndex as jest.MockedFunction<typeof getBookmarksIndex>;
+const mockedGetBookmarksPage = getBookmarksPage as jest.MockedFunction<typeof getBookmarksPage>;
+const mockedListBookmarkTagSlugs = listBookmarkTagSlugs as jest.MockedFunction<typeof listBookmarkTagSlugs>;
+const mockedGetTagBookmarksIndex = getTagBookmarksIndex as jest.MockedFunction<typeof getTagBookmarksIndex>;
+const mockedGetTagBookmarksPage = getTagBookmarksPage as jest.MockedFunction<typeof getTagBookmarksPage>;
 
 // Allow longer-running sitemap validations in CI
 const DEFAULT_TEST_TIMEOUT_MS = 60_000;
@@ -89,6 +89,34 @@ describe("Routes Module", () => {
   // Reset mocks before each test
   beforeEach(() => {
     mockFetch.mockReset();
+    mockedGetBookmarksIndex.mockReset();
+    mockedGetBookmarksPage.mockReset();
+    mockedListBookmarkTagSlugs.mockReset();
+    mockedGetTagBookmarksIndex.mockReset();
+    mockedGetTagBookmarksPage.mockReset();
+    mockedGetBookmarksIndex.mockResolvedValue({
+      count: mockBookmarkEntries.length,
+      totalPages: 1,
+      pageSize: mockBookmarkEntries.length,
+      lastModified: "2024-01-01T00:00:00.000Z",
+      lastFetchedAt: Date.now(),
+      lastAttemptedAt: Date.now(),
+      checksum: "test",
+      changeDetected: true,
+    });
+    mockedGetBookmarksPage.mockResolvedValue(mockBookmarkEntries);
+    mockedListBookmarkTagSlugs.mockResolvedValue(["example-tag"]);
+    mockedGetTagBookmarksIndex.mockResolvedValue({
+      count: mockBookmarkEntries.length,
+      totalPages: 1,
+      pageSize: mockBookmarkEntries.length,
+      lastModified: "2024-01-01T00:00:00.000Z",
+      lastFetchedAt: Date.now(),
+      lastAttemptedAt: Date.now(),
+      checksum: "tag-test",
+      changeDetected: true,
+    });
+    mockedGetTagBookmarksPage.mockImplementation(() => Promise.resolve(mockBookmarkEntries));
   });
 
   // Restore original fetch after all tests
