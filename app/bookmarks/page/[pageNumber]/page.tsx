@@ -14,9 +14,7 @@
 
 import type { Metadata } from "next";
 import { unstable_noStore as noStore } from "next/cache";
-import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { connection } from "next/server";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -121,12 +119,6 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
   // Force request-time rendering under cacheComponents.
   if (typeof noStore === "function") {
     noStore();
-  }
-
-  await headers();
-
-  if (typeof connection === "function") {
-    await connection();
   }
 
   const paramsResolved = await Promise.resolve(params);
