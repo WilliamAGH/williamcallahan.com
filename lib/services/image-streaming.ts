@@ -95,6 +95,7 @@ export async function streamToS3(
         Body: nodeStream.pipe(monitor),
         ContentType: options.contentType,
         CacheControl: "public, max-age=31536000, immutable",
+        ACL: "public-read",
       },
       queueSize: 3, // Limit concurrent parts
       partSize: 5 * 1024 * 1024, // 5MB parts
