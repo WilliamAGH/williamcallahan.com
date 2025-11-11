@@ -5,7 +5,13 @@
  * by using pre-computed mappings instead of generating slugs on-the-fly.
  */
 
-import { loadSlugMapping, generateSlugMapping, getSlugForBookmark, saveSlugMapping } from "./slug-manager";
+import {
+  loadSlugMapping,
+  generateSlugMapping,
+  getSlugForBookmark,
+  saveSlugMapping,
+  getSlugShard,
+} from "./slug-manager";
 import type { UnifiedBookmark } from "@/types";
 import type { CachedSlugMapping } from "@/types/cache";
 import type { BookmarkSlugMapping } from "@/types/bookmark";
@@ -236,6 +242,21 @@ async function loadReverseSlugMap(): Promise<Map<string, string> | null> {
 }
 
 export async function resolveBookmarkIdFromSlug(slug: string): Promise<string | null> {
+  const shardEntry = await getSlugShard(slug);
+  if (shardEntry?.id) {
+    const now = getDeterministicTimestamp();
+    if (cachedReverseMap) {
+      cachedReverseMap.map.set(slug, shardEntry.id);
+      cachedReverseMap.timestamp = now;
+    } else {
+      cachedReverseMap = {
+        map: new Map([[slug, shardEntry.id]]),
+        timestamp: now,
+      };
+    }
+    return shardEntry.id;
+  }
+
   const reverse = await loadReverseSlugMap();
   return reverse?.get(slug) ?? null;
 }

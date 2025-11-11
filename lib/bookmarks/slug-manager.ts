@@ -14,8 +14,8 @@
  */
 
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
-import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
-import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
+import type { UnifiedBookmark, BookmarkSlugMapping, BookmarkSlugEntry } from "@/types";
+import { readJsonS3, writeJsonS3, deleteFromS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import logger from "@/lib/utils/logger";
 import { envLogger } from "@/lib/utils/env-logger";
@@ -56,6 +56,56 @@ const logSlugEnvironmentOnce = (context: string): void => {
   hasLoggedSlugEnvironmentInfo = true;
   logger.info(`[SlugManager] Environment snapshot (${context}): ${formatSlugEnvironmentSnapshot()}`);
 };
+
+const SLUG_SHARD_BATCH_SIZE = 50;
+const SHARD_FALLBACK_CHAR = "_";
+
+const normalizeShardChar = (char: string | undefined): string => {
+  if (!char) return SHARD_FALLBACK_CHAR;
+  const lower = char.toLowerCase();
+  return /[a-z0-9]/.test(lower) ? lower : SHARD_FALLBACK_CHAR;
+};
+
+const getSlugShardBucket = (slug: string): string => {
+  const normalized = slug.trim().toLowerCase();
+  if (normalized.length === 0) {
+    return `${SHARD_FALLBACK_CHAR}${SHARD_FALLBACK_CHAR}`;
+  }
+  const first = normalizeShardChar(normalized[0]);
+  const second = normalizeShardChar(normalized[1]);
+  return `${first}${second}`;
+};
+
+const encodeSlugForKey = (slug: string): string => encodeURIComponent(slug);
+
+const getSlugShardKey = (slug: string): string =>
+  `${BOOKMARKS_S3_PATHS.SLUG_SHARD_PREFIX}${getSlugShardBucket(slug)}/${encodeSlugForKey(slug)}.json`;
+
+const isS3NotFound = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  "$metadata" in error &&
+  typeof (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === "number" &&
+  ((error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode ?? 0) === 404;
+
+async function writeLocalSlugShard(key: string, entry: BookmarkSlugEntry): Promise<void> {
+  if (shouldSkipLocalS3Cache) return;
+  if (!localS3CacheModule) {
+    localS3CacheModule = await import("@/lib/bookmarks/local-s3-cache");
+  }
+  const filePath = localS3CacheModule.getLocalS3Path(key);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, JSON.stringify(entry, null, 2));
+}
+
+async function deleteLocalSlugShard(key: string): Promise<void> {
+  if (shouldSkipLocalS3Cache) return;
+  if (!localS3CacheModule) {
+    localS3CacheModule = await import("@/lib/bookmarks/local-s3-cache");
+  }
+  const filePath = localS3CacheModule.getLocalS3Path(key);
+  await fs.rm(filePath, { force: true });
+}
 
 /**
  * Generate deterministic slug mapping for all bookmarks.
@@ -134,6 +184,116 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
   return mapping;
 }
 
+const collectSlugs = (mapping: BookmarkSlugMapping | null): Set<string> => {
+  const slugs = new Set<string>();
+  if (!mapping) return slugs;
+  if (mapping.reverseMap && Object.keys(mapping.reverseMap).length > 0) {
+    for (const slug of Object.keys(mapping.reverseMap)) {
+      slugs.add(slug);
+    }
+  } else {
+    for (const entry of Object.values(mapping.slugs ?? {})) {
+      if (entry?.slug) {
+        slugs.add(entry.slug);
+      }
+    }
+  }
+  return slugs;
+};
+
+async function persistSlugShards(mapping: BookmarkSlugMapping, previous: BookmarkSlugMapping | null): Promise<void> {
+  const entries = Object.values(mapping.slugs ?? {});
+  const previousSlugs = collectSlugs(previous);
+  const currentSlugs = new Set(entries.map(entry => entry.slug));
+  const staleSlugs: string[] = [];
+
+  if (previousSlugs.size > 0) {
+    for (const slug of previousSlugs) {
+      if (!currentSlugs.has(slug)) {
+        staleSlugs.push(slug);
+      }
+    }
+  }
+
+  if (entries.length > 0) {
+    for (let index = 0; index < entries.length; index += SLUG_SHARD_BATCH_SIZE) {
+      const batch = entries.slice(index, index + SLUG_SHARD_BATCH_SIZE);
+      await Promise.all(
+        batch.map(async entry => {
+          const shardKey = getSlugShardKey(entry.slug);
+          await writeJsonS3(shardKey, entry);
+          try {
+            await writeLocalSlugShard(shardKey, entry);
+          } catch (error) {
+            envLogger.debug(
+              "Failed to persist local slug shard",
+              { key: shardKey, error },
+              { category: "SlugManager" },
+            );
+          }
+        }),
+      );
+    }
+    envLogger.log(
+      "Persisted slug shards",
+      { count: entries.length, checksum: mapping.checksum },
+      { category: "SlugManager" },
+    );
+  }
+
+  if (staleSlugs.length > 0) {
+    for (let index = 0; index < staleSlugs.length; index += SLUG_SHARD_BATCH_SIZE) {
+      const batch = staleSlugs.slice(index, index + SLUG_SHARD_BATCH_SIZE);
+      await Promise.all(
+        batch.map(async slug => {
+          const shardKey = getSlugShardKey(slug);
+          try {
+            await deleteFromS3(shardKey);
+          } catch (error) {
+            if (!isS3NotFound(error)) {
+              envLogger.debug(
+                "Failed to delete stale slug shard",
+                { key: shardKey, error },
+                { category: "SlugManager" },
+              );
+            }
+          }
+          try {
+            await deleteLocalSlugShard(shardKey);
+          } catch (error) {
+            envLogger.debug(
+              "Failed to remove local stale slug shard",
+              { key: shardKey, error },
+              { category: "SlugManager" },
+            );
+          }
+        }),
+      );
+    }
+    envLogger.log("Removed stale slug shards", { count: staleSlugs.length }, { category: "SlugManager" });
+  }
+}
+
+export async function getSlugShard(slug: string): Promise<BookmarkSlugEntry | null> {
+  const shardKey = getSlugShardKey(slug);
+  try {
+    const entry = await readJsonS3<BookmarkSlugEntry>(shardKey);
+    if (entry?.slug === slug) {
+      return entry;
+    }
+  } catch (error) {
+    if (!isS3NotFound(error)) {
+      envLogger.debug("Failed to read slug shard from S3", { key: shardKey, error }, { category: "SlugManager" });
+    }
+  }
+
+  const localEntry = await readLocalS3JsonSafe<BookmarkSlugEntry>(shardKey);
+  if (localEntry?.slug === slug) {
+    return localEntry;
+  }
+  return null;
+}
+
 /**
  * Save slug mapping to S3 (primary) and local file (cache).
  *
@@ -160,6 +320,8 @@ export async function saveSlugMapping(
     const mapping = generateSlugMapping(bookmarks);
     logger.info(`[SlugManager] Generated mapping with ${mapping.count} entries, checksum: ${mapping.checksum}`);
 
+    let previousMapping: BookmarkSlugMapping | null = null;
+
     // Save to local file (ephemeral cache for container lifetime)
     await fs.mkdir(path.dirname(LOCAL_SLUG_MAPPING_PATH), { recursive: true });
     await fs.writeFile(LOCAL_SLUG_MAPPING_PATH, JSON.stringify(mapping, null, 2));
@@ -171,8 +333,8 @@ export async function saveSlugMapping(
       // For overwrites, check if the content has changed
       // to avoid unnecessary writes and potential race conditions
       try {
-        const existing = await readJsonS3<BookmarkSlugMapping>(primaryPath);
-        if (existing && existing.checksum === mapping.checksum) {
+        previousMapping = await readJsonS3<BookmarkSlugMapping>(primaryPath);
+        if (previousMapping && previousMapping.checksum === mapping.checksum) {
           logger.info(`[SlugManager] Slug mapping unchanged (same checksum), skipping write`);
           return;
         }
@@ -185,6 +347,8 @@ export async function saveSlugMapping(
       await writeJsonS3(primaryPath, mapping, { IfNoneMatch: "*" });
     }
     logger.info(`[SlugManager] ✅ Successfully saved to primary path: ${primaryPath}`);
+
+    await persistSlugShards(mapping, previousMapping);
 
     // Cache invalidation after successful save
     // This is critical to prevent stale slug mappings from being served
