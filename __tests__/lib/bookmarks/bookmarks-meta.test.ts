@@ -43,6 +43,20 @@ jest.mock("cheerio", () => ({
   })),
 }));
 
+jest.mock("node:fs", () => ({
+  promises: {
+    readFile: jest.fn().mockResolvedValue(JSON.stringify([{ id: "test", url: "https://example.com" }])),
+    writeFile: jest.fn(),
+    mkdir: jest.fn(),
+    readdir: jest.fn().mockResolvedValue([]),
+    rm: jest.fn(),
+  },
+}));
+
+jest.mock("@/lib/bookmarks/local-s3-cache", () => ({
+  readLocalS3Json: jest.fn().mockResolvedValue(null),
+}));
+
 // Import after mocks
 import { getBookmarks, setRefreshBookmarksCallback } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { ServerCacheInstance } from "@/lib/server-cache";
