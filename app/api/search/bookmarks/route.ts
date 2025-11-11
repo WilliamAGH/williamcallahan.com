@@ -20,8 +20,11 @@ import type { UnifiedBookmark } from "@/types";
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-function resolveRequestUrl(request: NextRequest): URL {
-  return request.nextUrl;
+function resolveRequestUrl(request: NextRequest | { nextUrl?: URL; url: string }): URL {
+  if ("nextUrl" in request && request.nextUrl instanceof URL) {
+    return request.nextUrl;
+  }
+  return new URL(request.url);
 }
 
 export async function GET(request: NextRequest) {
@@ -31,7 +34,9 @@ export async function GET(request: NextRequest) {
       { headers: NO_STORE_HEADERS },
     );
   }
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
   try {
     const requestUrl = resolveRequestUrl(request);
     const searchParams = requestUrl.searchParams;

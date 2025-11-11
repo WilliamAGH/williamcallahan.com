@@ -11,7 +11,9 @@ import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import type { OgImageApiResponse } from "@/types";
 
 export async function GET(request: NextRequest) {
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
   const requestUrl = new URL(request.url);
   const { searchParams } = requestUrl;
   const url = searchParams.get("url");

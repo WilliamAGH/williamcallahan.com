@@ -38,7 +38,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (isProductionBuild) {
     return NextResponse.json([], { headers: NO_STORE_HEADERS });
   }
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
   try {
     const requestUrl = resolveRequestUrl(request);
     const searchParams = requestUrl.searchParams;

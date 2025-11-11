@@ -5,7 +5,9 @@ import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import { sanitizePath, IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
   try {
     // Reconstruct the Twitter image URL from dynamic params
     const { path: pathSegments } = await params;

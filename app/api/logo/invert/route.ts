@@ -37,7 +37,9 @@ function validateUrl(urlString: string): string {
 // Enable dynamic rendering to allow API calls during server-side rendering
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
   const requestUrl = new URL(request.url);
   const searchParams = requestUrl.searchParams;
   const domain = searchParams.get("domain");
@@ -88,7 +90,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  * @returns {Promise<NextResponse>} API response with inversion status
  */
 export async function HEAD(request: NextRequest): Promise<NextResponse> {
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
   const requestUrl = new URL(request.url);
   const searchParams = requestUrl.searchParams;
   const urlParam = searchParams.get("url");

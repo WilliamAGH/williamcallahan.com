@@ -68,7 +68,9 @@ function buildProblemDetails({
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
   const { renderToBuffer } = await rendererModulePromise;
   const correlationId = globalThis.crypto.randomUUID();
   const url = new URL(request.url);

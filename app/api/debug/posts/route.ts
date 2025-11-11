@@ -36,7 +36,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { status: 200, headers: NO_STORE_HEADERS },
     );
   }
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
   try {
     // SECURITY: Require authentication for debug endpoints
     const authHeader = request.headers.get("authorization");

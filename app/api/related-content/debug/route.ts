@@ -23,7 +23,9 @@ export async function GET(request: NextRequest) {
       { status: 200, headers: NO_STORE_HEADERS },
     );
   }
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
   try {
     const searchParams = request.nextUrl.searchParams;
     const sourceTypeRaw = searchParams.get("type");

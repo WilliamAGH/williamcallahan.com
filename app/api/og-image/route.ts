@@ -29,7 +29,9 @@ import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
  * - bookmarkId: Bookmark ID (optional, enables domain fallback for Karakeep assets)
  */
 export async function GET(request: NextRequest) {
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
   const requestUrl = new URL(request.url);
   const { searchParams } = requestUrl;
   const url = searchParams.get("url");

@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: { scope: s
   if (isProductionBuild) {
     return NextResponse.json(
       {
-        results: [],
+        data: [],
         meta: {
           query: "",
           scope: params.scope.toLowerCase(),
@@ -47,7 +47,9 @@ export async function GET(request: NextRequest, { params }: { params: { scope: s
       { headers: NO_STORE_HEADERS },
     );
   }
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
   try {
     const requestUrl = resolveRequestUrl(request);
     const searchParams = requestUrl.searchParams;
