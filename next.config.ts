@@ -458,6 +458,7 @@ const sentryWebpackPluginOptions = {
   org: "williamcallahan-com",
   project: "williamcallahan-com",
   authToken: process.env.SENTRY_AUTH_TOKEN,
+  useRunAfterProductionCompileHook: false,
   release: {
     name: process.env.NEXT_PUBLIC_GIT_HASH || process.env.NEXT_PUBLIC_APP_VERSION,
     deploy: {
