@@ -11,7 +11,7 @@ import { InvestmentCardClient } from "./investment-card.client";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import type { ReactElement } from "react";
-import { getLogo, getRuntimeLogoUrl } from "@/lib/data-access/logos";
+import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import type { InvestmentCardExtendedProps } from "@/types/features/investments";
 
@@ -22,7 +22,7 @@ import type { InvestmentCardExtendedProps } from "@/types/features/investments";
  */
 export async function resolveInvestmentCardData(
   investment: Investment & { logoOnlyDomain?: string | null; isDarkTheme?: boolean },
-): Promise<InvestmentCardExtendedProps & { error?: string }> {
+): Promise<InvestmentCardExtendedProps> {
   const { logo, name, website, logoOnlyDomain, isDarkTheme, ...rest } = investment;
   const normalizedInvestment = {
     ...rest,
@@ -44,8 +44,6 @@ export async function resolveInvestmentCardData(
       logoData: { url: logo, source: "static" },
     };
   }
-
-  let error: string | undefined;
 
   if (!effectiveDomain) {
     return {
@@ -73,59 +71,25 @@ export async function resolveInvestmentCardData(
     console.warn(`[InvestmentCard] Manifest lookup failed for ${effectiveDomain}:`, message);
   }
 
-  try {
-    const liveLogo = await getLogo(effectiveDomain);
-
-    if (liveLogo?.cdnUrl || liveLogo?.url) {
-      return {
-        ...normalizedInvestment,
-        logoData: {
-          url: liveLogo.cdnUrl || liveLogo.url || getCompanyPlaceholder(),
-          source: liveLogo.source || "api",
-        },
-      };
-    }
-
-    if (liveLogo?.error) {
-      error = `Logo fetch failed: ${liveLogo.error}`;
-    }
-  } catch (fetchErr) {
-    const message = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-    error = `Live logo fetch failed: ${message}`;
-    console.error(`[InvestmentCard] Live logo fetch failed for ${effectiveDomain}:`, message);
-  }
-
   const runtimeLogoUrl = getRuntimeLogoUrl(effectiveDomain, { company: name });
 
   if (runtimeLogoUrl) {
-    const resolution: InvestmentCardExtendedProps & { error?: string } = {
+    return {
       ...normalizedInvestment,
       logoData: {
         url: runtimeLogoUrl,
         source: "api",
       },
     };
-
-    if (error) {
-      resolution.error = error;
-    }
-
-    return resolution;
   }
 
-  const fallback: InvestmentCardExtendedProps & { error?: string } = {
+  return {
     ...normalizedInvestment,
     logoData: {
       url: getCompanyPlaceholder(),
       source: null,
     },
   };
-
-  if (error) {
-    fallback.error = error;
-  }
-
-  return fallback;
 }
 
 /**
@@ -137,11 +101,5 @@ export async function InvestmentCard(
   props: Investment & { logoOnlyDomain?: string | null; isDarkTheme?: boolean },
 ): Promise<ReactElement> {
   const resolution = await resolveInvestmentCardData(props);
-  const { error, ...cardProps } = resolution;
-
-  if (error) {
-    console.warn(`[InvestmentCard] ${error}`);
-  }
-
-  return <InvestmentCardClient {...cardProps} />;
+  return <InvestmentCardClient {...resolution} />;
 }

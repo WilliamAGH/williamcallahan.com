@@ -9,7 +9,7 @@ import { resolveInvestmentCardData } from "./investment-card.server";
 
 import type { JSX } from "react";
 
-import type { InvestmentCardExtendedProps, InvestmentsProps } from "@/types";
+import type { InvestmentsProps } from "@/types";
 
 const LOGO_RESOLUTION_BATCH_SIZE = 6;
 
@@ -42,13 +42,9 @@ export async function Investments({ investments = [] }: InvestmentsProps): Promi
     resolveInvestmentCardData,
   );
 
-  const investmentsForClient: InvestmentCardExtendedProps[] = resolvedInvestments.map(
-    ({ error: _error, ...investment }) => investment,
-  );
-
   return (
     <GlobalWindowRegistryProvider>
-      <InvestmentsClient investments={investmentsForClient} />
+      <InvestmentsClient investments={resolvedInvestments} />
     </GlobalWindowRegistryProvider>
   );
 }

@@ -5,7 +5,7 @@
  */
 import "server-only"; // Ensure this module is never bundled for the client
 
-import { getLogo, getRuntimeLogoUrl } from "@/lib/data-access/logos";
+import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import type { Certification, Class, Education, EducationLogoData } from "@/types/education";
 import { assertServerOnly } from "./utils/ensure-server-only"; // Import the assertion utility
@@ -54,22 +54,9 @@ export async function processEducationItem<T extends Education>(
           isDarkTheme && manifestEntry.invertedCdnUrl ? manifestEntry.invertedCdnUrl : manifestEntry.cdnUrl;
         logoData = { url: selectedUrl, source: manifestEntry.originalSource };
       } else {
-        const logoResult = await getLogo(domain);
-
-        if (logoResult?.cdnUrl) {
-          // Use CDN URL directly from S3
-          logoData = { url: logoResult.cdnUrl, source: logoResult.source };
-        } else if (runtimeLogoUrl) {
-          if (logoResult?.error) {
-            error = `Logo fetch failed: ${logoResult.error}`;
-          }
+        if (runtimeLogoUrl) {
           logoData = { url: runtimeLogoUrl, source: "api" };
-        } else if (logoResult?.error) {
-          // Capture any error from the logo fetch
-          error = `Logo fetch failed: ${logoResult.error}`;
-          logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
         } else {
-          // No logo found, but not an error
           logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
         }
       }
@@ -121,22 +108,9 @@ export async function processCertificationItem<T extends Certification | Class>(
           isDarkTheme && manifestEntry.invertedCdnUrl ? manifestEntry.invertedCdnUrl : manifestEntry.cdnUrl;
         logoData = { url: selectedUrl, source: manifestEntry.originalSource };
       } else {
-        const logoResult = await getLogo(domain);
-
-        if (logoResult?.cdnUrl) {
-          // Use CDN URL directly from S3
-          logoData = { url: logoResult.cdnUrl, source: logoResult.source };
-        } else if (runtimeLogoUrl) {
-          if (logoResult?.error) {
-            error = `Logo fetch failed: ${logoResult.error}`;
-          }
+        if (runtimeLogoUrl) {
           logoData = { url: runtimeLogoUrl, source: "api" };
-        } else if (logoResult?.error) {
-          // Capture any error from the logo fetch
-          error = `Logo fetch failed: ${logoResult.error}`;
-          logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
         } else {
-          // No logo found, but not an error
           logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
         }
       }
