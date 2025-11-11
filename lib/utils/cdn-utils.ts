@@ -8,6 +8,14 @@
 import type { CdnConfig } from "@/types/s3-cdn";
 
 /**
+ * Capture CDN URL at module load time for client-side access
+ * Next.js inlines NEXT_PUBLIC_* env vars at build time, so this constant
+ * will have the value available even in client components.
+ * Fallback ensures we have a value even if env var is missing.
+ */
+const CLIENT_CDN_BASE_URL = process.env.NEXT_PUBLIC_S3_CDN_URL || "https://s3-storage.callahan.cloud";
+
+/**
  * Extract S3 hostname from server URL
  */
 export function getS3Host(s3ServerUrl?: string): string {
@@ -117,15 +125,19 @@ export function isOurCdnUrl(url: string, config: CdnConfig): boolean {
 /**
  * Get CDN config from environment variables
  * Handles both server and client environments appropriately
+ *
+ * CRITICAL FIX (2025-11-11): Client-side components now use the module-level
+ * CLIENT_CDN_BASE_URL constant captured at build time, ensuring NEXT_PUBLIC_S3_CDN_URL
+ * is always available even when process.env access is unreliable in Next.js 16.
  */
 export function getCdnConfigFromEnv(): CdnConfig {
   // In client-side environment, only NEXT_PUBLIC_* variables are available
   const isClient = typeof globalThis.window !== "undefined";
 
   if (isClient) {
-    // Client-side: only NEXT_PUBLIC_S3_CDN_URL is available
+    // Client-side: use the build-time captured constant for reliability
     return {
-      cdnBaseUrl: process.env.NEXT_PUBLIC_S3_CDN_URL,
+      cdnBaseUrl: CLIENT_CDN_BASE_URL,
       // These are not available client-side, but buildCdnUrl should use cdnBaseUrl when available
       s3BucketName: undefined,
       s3ServerUrl: undefined,
