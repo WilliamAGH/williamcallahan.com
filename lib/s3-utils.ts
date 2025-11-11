@@ -314,7 +314,7 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
         headers: {
           "User-Agent": "S3Utils/1.0", // Identify requests
         },
-        cache: FORCE_JSON_CDN_READS && isJson ? "no-store" : undefined,
+        next: FORCE_JSON_CDN_READS && isJson ? { revalidate: 3600 } : undefined,
       });
 
       clearTimeout(timeoutId);
@@ -378,6 +378,10 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
       );
       if (isDebug)
         debug(`[S3Utils] CDN fetch error for ${cdnUrl.toString()}: ${message}. Falling back to direct S3 read.`);
+    }
+    // During build we rely exclusively on CDN snapshots to keep prerenders static.
+    if (FORCE_JSON_CDN_READS && isJson) {
+      return null;
     }
     // Fallback to AWS SDK if CDN fetch fails
   }
