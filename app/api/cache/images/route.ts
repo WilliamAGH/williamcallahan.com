@@ -11,12 +11,14 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import { openGraphUrlSchema } from "@/types/schemas/url";
 import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
+import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
 
 // Configure cache duration (1 year in seconds)
 const CACHE_DURATION = 60 * 60 * 24 * 365;
 
 // Valid image formats
 const VALID_IMAGE_FORMATS = new Set(["jpeg", "jpg", "png", "webp", "avif", "gif"]);
+const CDN_CONFIG = getCdnConfigFromEnv();
 
 /**
  * GET handler for image caching
@@ -63,6 +65,26 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     : ("webp" as "jpeg" | "jpg" | "png" | "webp" | "avif" | "gif");
 
   try {
+    if (isOurCdnUrl(url, CDN_CONFIG)) {
+      const upstream = await fetch(url);
+      if (!upstream.ok || !upstream.body) {
+        return new NextResponse(null, {
+          status: upstream.status === 200 ? 502 : upstream.status,
+        });
+      }
+
+      const passthroughHeaders = new Headers({
+        "Content-Type": upstream.headers.get("content-type") ?? "application/octet-stream",
+        "Cache-Control": `public, max-age=${CACHE_DURATION}, immutable`,
+        ...IMAGE_SECURITY_HEADERS,
+      });
+
+      return new NextResponse(upstream.body, {
+        status: 200,
+        headers: passthroughHeaders,
+      });
+    }
+
     const imageService = getUnifiedImageService();
 
     // Use UnifiedImageService to get the image with options

@@ -15,10 +15,12 @@ import React, { useState, useCallback, useRef } from "react";
 import type { LogoImageProps, OptimizedCardImageProps } from "@/types/ui/image";
 import { getCompanyPlaceholder, COMPANY_PLACEHOLDER_BASE64 } from "@/lib/data-access/placeholder-images";
 import { getMonotonicTime } from "@/lib/utils";
+import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
 
 const LOGO_FILENAME_REGEX = /\/logos\/(?:inverted\/)?([^/?#]+)\.(?:png|jpe?g|webp|svg|ico|avif)$/i;
 const HASH_TOKEN = /^[a-f0-9]{8}$/i;
 const KNOWN_LOGO_SOURCES = new Set(["google", "duckduckgo", "ddg", "clearbit", "direct", "manual", "unknown", "api"]);
+const CDN_CONFIG = getCdnConfigFromEnv();
 
 function deriveDomainFromLogoKey(pathname: string): string | null {
   const match = pathname.match(LOGO_FILENAME_REGEX);
@@ -97,6 +99,22 @@ export function LogoImage({
   const [isLoading, setIsLoading] = useState(true);
   const retryInitiated = useRef(false);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const originalSrc = src;
+
+  const proxiedSrc = React.useMemo(() => {
+    if (!src || src.startsWith("/") || src.startsWith("data:")) {
+      return src;
+    }
+    if (isOurCdnUrl(src, CDN_CONFIG)) {
+      const params = new URLSearchParams();
+      params.set("url", src);
+      if (typeof width === "number" && width > 0) {
+        params.set("width", String(width));
+      }
+      return `/api/cache/images?${params.toString()}`;
+    }
+    return src;
+  }, [src, width]);
 
   const handleError = useCallback(() => {
     if (retryInitiated.current) {
@@ -109,7 +127,7 @@ export function LogoImage({
 
     retryInitiated.current = true;
 
-    const domain = src ? extractDomainFromSrc(src) : null;
+    const domain = originalSrc ? extractDomainFromSrc(originalSrc) : null;
     if (domain) {
       // Fire and forget – trigger server fetch/upload with correct parameter and force refresh
       void fetch(`/api/logo?website=${encodeURIComponent(domain)}&forceRefresh=true`).catch(() => {
@@ -141,7 +159,7 @@ export function LogoImage({
     };
   }, []);
 
-  if (!src) {
+  if (!proxiedSrc) {
     // Use company placeholder when no src is provided
     return (
       <Image
@@ -169,7 +187,8 @@ export function LogoImage({
     );
   }
 
-  const displaySrc = reloadKey ? `${src}${src.includes("?") ? "&" : "?"}cb=${reloadKey}` : src;
+  const displaySrc =
+    reloadKey && proxiedSrc ? `${proxiedSrc}${proxiedSrc.includes("?") ? "&" : "?"}cb=${reloadKey}` : proxiedSrc;
 
   // Use next/image with base64 placeholder to prevent broken image flash
   return (
@@ -237,6 +256,18 @@ export function OptimizedCardImage({
     };
   }, []);
 
+  const proxiedSrc = React.useMemo(() => {
+    if (!src || src.startsWith("/") || src.startsWith("data:")) {
+      return src;
+    }
+    if (isOurCdnUrl(src, CDN_CONFIG)) {
+      const params = new URLSearchParams();
+      params.set("url", src);
+      return `/api/cache/images?${params.toString()}`;
+    }
+    return src;
+  }, [src]);
+
   // No source provided - show placeholder (should be rare with proper data)
   if (!src) {
     if (isDev) console.warn(`[OptimizedCardImage] No image source provided, showing placeholder`);
@@ -271,7 +302,22 @@ export function OptimizedCardImage({
   }
 
   // Add cache buster for retries
-  const displaySrc = retryKey > 0 ? `${src}${src.includes("?") ? "&" : "?"}retry=${retryKey}` : src;
+  if (!proxiedSrc) {
+    if (isDev) console.warn("[OptimizedCardImage] Missing proxied src after preprocessing, showing placeholder");
+    return (
+      <Image
+        src={Placeholder}
+        alt={alt}
+        fill
+        placeholder="empty"
+        className="object-cover"
+        {...(priority ? { priority, fetchPriority: "high" } : {})}
+      />
+    );
+  }
+
+  const displaySrc =
+    retryKey > 0 ? `${proxiedSrc}${proxiedSrc.includes("?") ? "&" : "?"}retry=${retryKey}` : proxiedSrc;
 
   // Always use next/image so CDN URLs and proxy paths share the same sizing logic
   return (

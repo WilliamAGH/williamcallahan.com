@@ -423,6 +423,10 @@ const nextConfig = {
         // search omitted to allow cache-buster and context query params
       },
       {
+        pathname: "/api/cache/images",
+        // search omitted to allow width/url query params
+      },
+      {
         pathname: "/api/logo",
         // search omitted to allow website/domain/company query params
       },
