@@ -18,13 +18,13 @@ import {
   Library,
   Quote,
 } from "lucide-react";
-import Image from "next/image";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { formatDate } from "@/lib/utils";
 import { BookmarksWindow } from "./bookmarks-window.client";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import { removeCitations, processSummaryText } from "@/lib/utils/formatters";
 import { safeExternalHref } from "@/lib/utils/url-utils";
+import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 
 const getHostname = (rawUrl: string): string => {
   if (!rawUrl) {
@@ -193,14 +193,11 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                       className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm"
                     >
                       <div className="relative aspect-[16/10] sm:aspect-[16/9] w-full">
-                        <Image
+                        <OptimizedCardImage
                           src={featuredImage}
                           alt={`Preview of ${bookmark.title}`}
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 66vw, 800px"
                           priority
-                          unoptimized
+                          className="!transition-none"
                         />
                         {/* Hover overlay */}
                         <a
