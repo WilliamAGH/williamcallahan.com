@@ -13,6 +13,7 @@ class AsyncOperationsMonitor {
   private timeouts: Map<string, NodeJS.Timeout> = new Map();
   private readonly maxOperations = 1000; // Prevent unbounded growth
   private cleanupInterval: NodeJS.Timeout | null = null;
+  private sequenceCounter = 0;
 
   constructor() {
     // Automatically clean up completed operations every 5 minutes
@@ -79,8 +80,11 @@ class AsyncOperationsMonitor {
    * Generate a unique operation ID
    */
   generateId(): string {
-    // Use timestamp + random for uniqueness without external dependencies
-    return `op-${Math.floor(getMonotonicTime())}-${Math.random().toString(36).substring(2, 9)}`;
+    // Use monotonic timestamp + deterministic counter to avoid Math.random()
+    const timestamp = Math.floor(getMonotonicTime());
+    this.sequenceCounter = (this.sequenceCounter + 1) % Number.MAX_SAFE_INTEGER;
+    const counterSegment = this.sequenceCounter.toString(36);
+    return `op-${timestamp}-${counterSegment}`;
   }
 
   /**
