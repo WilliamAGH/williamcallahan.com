@@ -414,7 +414,7 @@ function validateApiKey(request: NextRequest): boolean {
 ### API Routes
 
 - `/api/cache/bookmarks` - Authenticated operations
-- `/api/cache/images` - Streams CDN bytes (instead of redirecting) so the Next.js optimizer always sees a 200 response, and decodes multi-encoded `url` params coming from `/_next/image` before running `openGraphUrlSchema`
+- `/api/cache/images` - Streams CDN bytes (instead of redirecting) so the Next.js optimizer always sees a 200 response, and decodes multi-encoded `url` params coming from `/_next/image` before running `openGraphUrlSchema` ([Next.js Image Optimization](https://nextjs.org/docs/app/building-your-application/optimizing/images))
 - `/api/cache/clear` - Authenticated with `x-api-key` header
 - `/api/logo` - Always 301 redirect to CDN
 
