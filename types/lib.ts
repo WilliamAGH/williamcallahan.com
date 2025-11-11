@@ -678,6 +678,10 @@ export interface BookmarksS3Paths {
   HEARTBEAT: string;
   /** S3 path to bookmark slug mapping */
   SLUG_MAPPING: string;
+  /** Directory containing slug shard JSON files */
+  SLUG_SHARDS_DIR: string;
+  /** Prefix used to build individual slug shard paths */
+  SLUG_SHARD_PREFIX: string;
 }
 
 /** URL validation result */
