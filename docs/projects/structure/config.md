@@ -20,7 +20,7 @@ To provide centralized configuration management for the application, including e
 ### ✅ REQUIRED MODERN STACK
 
 - **Runtime**: Node 22 LTS (provides native `fetch`, `URL`, `TextEncoder`, etc.)
-- **Framework**: Next.js 15 (uses native APIs and modern transpilation)
+- **Framework**: Next.js 16 (uses native APIs and modern transpilation)
 - **Package Manager**: Bun (for optimal performance and modern module resolution)
 - **Documentation**: Always verify current patterns via Context7/DeepWiki MCPs
 
