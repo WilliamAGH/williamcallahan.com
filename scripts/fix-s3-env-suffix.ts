@@ -22,7 +22,8 @@ async function copyWithSuffix(sourceKey: string, targetKey: string) {
     console.log(`Copying ${sourceKey} -> ${targetKey}`);
     const content = await readFromS3(sourceKey);
     if (content) {
-      await writeToS3(targetKey, content);
+      const contentType = targetKey.endsWith(".json") ? "application/json" : undefined;
+      await writeToS3(targetKey, content, contentType, "public-read");
       console.log(`  ✓ Copied successfully`);
       return true;
     } else {
