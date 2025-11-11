@@ -13,7 +13,6 @@ import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
 import type { MetadataRoute } from "next";
-import { connection } from "next/server";
 
 import {
   getBookmarksIndex,
@@ -34,6 +33,7 @@ const BOOKMARK_CHANGE_FREQUENCY: NonNullable<MetadataRoute.Sitemap[number]["chan
 const BOOKMARK_PRIORITY = 0.65;
 const BOOKMARK_TAG_PRIORITY = 0.6;
 const BOOKMARK_TAG_PAGE_PRIORITY = 0.55;
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
 const sanitizePathSegment = (segment: string): string => segment.replace(/[^\u0020-\u007E]/g, "");
 
@@ -194,8 +194,6 @@ const collectTagSitemapData = async (
 
 // --- Main Sitemap Generation ---
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  await connection();
-
   const siteUrl = siteMetadata.site.url;
   const postsDirectory = path.join(process.cwd(), "data/blog/posts");
 
@@ -265,14 +263,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // --- 2. Process Bookmarks and Bookmark Tags without loading the full dataset ---
-  const {
-    entries: bookmarkEntries,
-    paginatedEntries: paginatedBookmarkEntries,
-    latestBookmarkUpdateTime,
-  } = await collectBookmarkSitemapData(siteUrl);
+  let bookmarkEntries: MetadataRoute.Sitemap = [];
+  let paginatedBookmarkEntries: MetadataRoute.Sitemap = [];
+  let latestBookmarkUpdateTime: Date | undefined;
+  let bookmarkTagEntries: MetadataRoute.Sitemap = [];
+  let paginatedBookmarkTagEntries: MetadataRoute.Sitemap = [];
 
-  const { tagEntries: bookmarkTagEntries, paginatedTagEntries: paginatedBookmarkTagEntries } =
-    await collectTagSitemapData(siteUrl);
+  if (!isBuildPhase) {
+    const bookmarkData = await collectBookmarkSitemapData(siteUrl);
+    bookmarkEntries = bookmarkData.entries;
+    paginatedBookmarkEntries = bookmarkData.paginatedEntries;
+    latestBookmarkUpdateTime = bookmarkData.latestBookmarkUpdateTime;
+
+    const tagData = await collectTagSitemapData(siteUrl);
+    bookmarkTagEntries = tagData.tagEntries;
+    paginatedBookmarkTagEntries = tagData.paginatedTagEntries;
+  } else {
+    console.log("[Sitemap] Skipping bookmark and tag S3 fetch during build phase");
+  }
 
   // --- 3. Process Static Pages ---
   const staticPages = {
