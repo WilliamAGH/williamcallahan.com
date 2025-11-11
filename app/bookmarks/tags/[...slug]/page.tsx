@@ -19,7 +19,6 @@ import { tagToSlug } from "@/lib/utils/tag-utils";
 import type { BookmarkTagPageContext } from "@/types";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 import { redirect, notFound } from "next/navigation";
-import { connection } from "next/server";
 
 /**
  * Parse page number from URL segments
@@ -108,8 +107,6 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
 }
 
 export default async function TagPage({ params }: BookmarkTagPageContext) {
-  await connection();
-
   const { slug = [] } = await Promise.resolve(params);
 
   if (!slug || slug.length === 0) {

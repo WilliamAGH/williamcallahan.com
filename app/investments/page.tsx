@@ -41,7 +41,7 @@ export const metadata: Metadata = getStaticPageMetadata("/investments", "investm
 /**
  * Investments page component with JSON-LD schema
  */
-export default async function InvestmentsPage() {
+export default function InvestmentsPage() {
   if (typeof noStore === "function") {
     noStore();
   }
