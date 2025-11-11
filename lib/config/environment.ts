@@ -39,7 +39,15 @@ export function getEnvironment(): Environment {
   // In Jest, ignore DEPLOYMENT_ENV so tests can control behavior via NODE_ENV
   const deploymentEnv = isJest ? undefined : process.env.DEPLOYMENT_ENV;
   if (deploymentEnv) {
-    const normalized = deploymentEnv.toLowerCase().trim();
+    const normalizedInput = deploymentEnv.toLowerCase().trim();
+    const normalized =
+      normalizedInput === "prod"
+        ? "production"
+        : normalizedInput === "dev"
+          ? "development"
+          : normalizedInput === "testing"
+            ? "test"
+            : normalizedInput;
     if (normalized === "production" || normalized === "development" || normalized === "test") {
       if (loggedExplicitDeploymentEnv !== normalized) {
         logEnvironmentInfo(`[Environment] Using explicit DEPLOYMENT_ENV: ${normalized}`);
