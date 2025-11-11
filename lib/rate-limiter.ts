@@ -109,8 +109,10 @@ export async function waitForPermit(
   );
 
   while (true) {
+    const loopNow = getMonotonicTime();
+
     // Check timeout
-    if (timeoutMs !== undefined && getMonotonicTime() - startTime > timeoutMs) {
+    if (timeoutMs !== undefined && loopNow - startTime > timeoutMs) {
       throw new Error(`Rate limit wait timeout exceeded after ${timeoutMs}ms`);
     }
 
@@ -123,12 +125,12 @@ export async function waitForPermit(
     const record = store?.[contextId];
     let waitTime = effectivePollInterval;
 
-    if (record && record.resetAt > getMonotonicTime() && record.count >= config.maxRequests) {
-      const timeToReset = record.resetAt - getMonotonicTime();
+    if (record && record.resetAt > loopNow && record.count >= config.maxRequests) {
+      const timeToReset = Math.max(0, record.resetAt - loopNow);
 
       // For long waits (>1 second), sleep until reset with small buffer instead of polling
       if (timeToReset > 1000) {
-        waitTime = timeToReset + 50; // Wait until reset + 50ms buffer
+        waitTime = Math.max(1000, timeToReset + 50); // Wait until reset + buffer, enforce minimum sensible delay
       } else {
         // For short waits, use standard poll interval or time to reset, whichever is shorter
         waitTime = Math.min(timeToReset + 10, effectivePollInterval);
