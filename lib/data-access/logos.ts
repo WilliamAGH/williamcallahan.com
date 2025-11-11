@@ -121,6 +121,7 @@ export function getRuntimeLogoUrl(
 
   const params = new URLSearchParams();
   params.set("website", normalizedDomain);
+  params.set("domain", normalizedDomain);
 
   const { company, forceRefresh = true } = options;
   if (company && company.trim().length > 0) {
