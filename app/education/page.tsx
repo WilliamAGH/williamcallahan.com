@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { unstable_noStore as noStore } from "next/cache";
+import { headers } from "next/headers";
+import { connection } from "next/server";
 import { Education } from "@/components/features/education/education.server";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -26,7 +29,17 @@ export const metadata: Metadata = getStaticPageMetadata("/education", "education
 /**
  * Education page component with JSON-LD schema
  */
-export default function EducationPage() {
+export default async function EducationPage() {
+  if (typeof noStore === "function") {
+    noStore();
+  }
+
+  void headers();
+
+  if (typeof connection === "function") {
+    await connection();
+  }
+
   // Generate JSON-LD schema for the education page
   const pageMetadata = PAGE_METADATA.education;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
