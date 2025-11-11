@@ -5,7 +5,7 @@
  * Uses server-side rendering for optimal performance and SEO.
  */
 
-// connection() forces routes to become dynamic; avoid calling it so bookmark/blog pages remain static.
+import { connection } from "next/server";
 import { getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { getLazyContentMap, getCachedAllContent } from "@/lib/content-similarity/cached-aggregator";
 import { findMostSimilar, limitByTypeAndTotal } from "@/lib/content-similarity";
@@ -33,6 +33,7 @@ import type {
 import { DEFAULT_MAX_PER_TYPE, DEFAULT_MAX_TOTAL } from "@/config/related-content.config";
 
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+const shouldAwaitConnection = process.env.NODE_ENV !== "test" && !process.env.JEST_WORKER_ID;
 
 /**
  * Convert normalized content to related content item
@@ -172,9 +173,12 @@ export async function RelatedContent({
   options = {},
   className,
 }: RelatedContentProps) {
-  // Mark this section as request-time so Next.js 16 defers the heavy S3 fetches until runtime.
   if (isBuildPhase) {
     return null;
+  }
+
+  if (shouldAwaitConnection) {
+    await connection();
   }
 
   try {
