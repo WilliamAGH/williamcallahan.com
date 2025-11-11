@@ -5,7 +5,7 @@
  */
 import "server-only"; // Ensure this module is never bundled for the client
 
-import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
+import { getLogoCdnData } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import type { Certification, Class, Education, EducationLogoData } from "@/types/education";
 import { assertServerOnly } from "./utils/ensure-server-only"; // Import the assertion utility
@@ -36,16 +36,14 @@ export async function processEducationItem<T extends Education>(
   let logoData: EducationLogoData;
   let error: string | undefined;
 
+  const domain = website ? normalizeDomain(website) : normalizeDomain(institution);
+
   try {
     if (logo) {
       // If a specific logo path or URL is provided, resolve /images/ paths to CDN via getStaticImageUrl()
       const resolvedUrl = logo.startsWith("/images/") ? getStaticImageUrl(logo) : logo;
       logoData = { url: resolvedUrl, source: null };
     } else {
-      // Otherwise, fetch by domain
-      const domain = website ? normalizeDomain(website) : normalizeDomain(institution);
-      const runtimeLogoUrl = domain ? getRuntimeLogoUrl(domain, { company: institution }) : null;
-
       // Prefer manifest lookup for potential inverted URL
       const manifestEntry = domain ? await getLogoFromManifestAsync(domain) : null;
 
@@ -54,8 +52,9 @@ export async function processEducationItem<T extends Education>(
           isDarkTheme && manifestEntry.invertedCdnUrl ? manifestEntry.invertedCdnUrl : manifestEntry.cdnUrl;
         logoData = { url: selectedUrl, source: manifestEntry.originalSource };
       } else {
-        if (runtimeLogoUrl) {
-          logoData = { url: runtimeLogoUrl, source: "api" };
+        const directLogo = domain ? await getLogoCdnData(domain) : null;
+        if (directLogo) {
+          logoData = directLogo;
         } else {
           logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
         }
@@ -65,10 +64,9 @@ export async function processEducationItem<T extends Education>(
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
     console.error(`Error processing logo for education item "${institution}":`, err);
     error = `Failed to process logo: ${errorMessage}`;
-    const domain = website ? normalizeDomain(website) : normalizeDomain(institution);
-    const runtimeLogoUrl = domain ? getRuntimeLogoUrl(domain, { company: institution }) : null;
-    if (runtimeLogoUrl) {
-      logoData = { url: runtimeLogoUrl, source: "api" };
+    const directLogo = domain ? await getLogoCdnData(domain) : null;
+    if (directLogo) {
+      logoData = directLogo;
     } else {
       logoData = { url: getPlaceholderSvgUrl(), source: "placeholder-error" };
     }
@@ -92,15 +90,14 @@ export async function processCertificationItem<T extends Certification | Class>(
   let logoData: EducationLogoData;
   let error: string | undefined;
 
+  const domain = website ? normalizeDomain(website) : normalizeDomain(name);
+
   try {
     if (logo) {
       // If a specific logo path or URL is provided, resolve /images/ paths to CDN via getStaticImageUrl()
       const resolvedUrl = logo.startsWith("/images/") ? getStaticImageUrl(logo) : logo;
       logoData = { url: resolvedUrl, source: null };
     } else {
-      const domain = website ? normalizeDomain(website) : normalizeDomain(name);
-      const runtimeLogoUrl = domain ? getRuntimeLogoUrl(domain, { company: name }) : null;
-
       const manifestEntry = domain ? await getLogoFromManifestAsync(domain) : null;
 
       if (manifestEntry) {
@@ -108,8 +105,9 @@ export async function processCertificationItem<T extends Certification | Class>(
           isDarkTheme && manifestEntry.invertedCdnUrl ? manifestEntry.invertedCdnUrl : manifestEntry.cdnUrl;
         logoData = { url: selectedUrl, source: manifestEntry.originalSource };
       } else {
-        if (runtimeLogoUrl) {
-          logoData = { url: runtimeLogoUrl, source: "api" };
+        const directLogo = domain ? await getLogoCdnData(domain) : null;
+        if (directLogo) {
+          logoData = directLogo;
         } else {
           logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
         }
@@ -119,10 +117,9 @@ export async function processCertificationItem<T extends Certification | Class>(
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
     console.error(`Error processing logo for certification item "${name}":`, err);
     error = `Failed to process logo: ${errorMessage}`;
-    const domain = website ? normalizeDomain(website) : normalizeDomain(name);
-    const runtimeLogoUrl = domain ? getRuntimeLogoUrl(domain, { company: name }) : null;
-    if (runtimeLogoUrl) {
-      logoData = { url: runtimeLogoUrl, source: "api" };
+    const directLogo = domain ? await getLogoCdnData(domain) : null;
+    if (directLogo) {
+      logoData = directLogo;
     } else {
       logoData = { url: getPlaceholderSvgUrl(), source: "placeholder-error" };
     }

@@ -67,6 +67,7 @@ export function EducationCardClient({ education, className }: EducationCardClien
                   height={48}
                   className="object-contain w-full h-full"
                   alt={institution}
+                  needsInversion={logoData?.needsInversion}
                 />
                 {error && (
                   <div
