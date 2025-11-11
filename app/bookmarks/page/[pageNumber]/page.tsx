@@ -27,9 +27,9 @@ import { PageNumberSchema } from "@/types/lib";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 
 /**
- * Dynamic rendering (Cache Components mode)
- * With cacheComponents enabled, pages are dynamic by default.
- * This paginated route fetches bookmarks from S3 at request time - no directive needed.
+ * Runtime policy
+ * cacheComponents forbids route-level `dynamic` exports (see https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents);
+ * this segment stays fresh because the paginated S3 fetches use runtime `no-store` semantics.
  */
 
 /**

@@ -45,8 +45,10 @@ export const metadata: Metadata = getStaticPageMetadata("/investments", "investm
 
 /**
  * Investments page component with JSON-LD schema
+ * `'use cache'` directives require async exports (see https://nextjs.org/docs/app/api-reference/directives/use-cache),
+ * so this component stays async even though it does not await.
  */
-export default function InvestmentsPage() {
+export default async function InvestmentsPage() {
   // Generate JSON-LD schema for the investments page
   const pageMetadata = PAGE_METADATA.investments;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
@@ -66,7 +68,7 @@ export default function InvestmentsPage() {
     },
   };
 
-  const jsonLdData = generateSchemaGraph(schemaParams);
+  const jsonLdData = await Promise.resolve(generateSchemaGraph(schemaParams));
 
   return (
     <>

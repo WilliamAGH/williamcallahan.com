@@ -33,8 +33,10 @@ export const metadata: Metadata = getStaticPageMetadata("/education", "education
 
 /**
  * Education page component with JSON-LD schema
+ * Next.js requires `'use cache'` exports to be `async` per https://nextjs.org/docs/app/api-reference/directives/use-cache,
+ * so this component remains async even though it renders synchronously.
  */
-export default function EducationPage() {
+export default async function EducationPage() {
   // Generate JSON-LD schema for the education page
   const pageMetadata = PAGE_METADATA.education;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
@@ -60,7 +62,7 @@ export default function EducationPage() {
     },
   };
 
-  const jsonLdData = generateSchemaGraph(schemaParams);
+  const jsonLdData = await Promise.resolve(generateSchemaGraph(schemaParams));
 
   return (
     <>

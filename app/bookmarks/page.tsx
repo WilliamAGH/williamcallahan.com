@@ -26,10 +26,9 @@ export function generateMetadata(): Metadata {
 }
 
 /**
- * Dynamic rendering (Cache Components mode)
- * With cacheComponents enabled, pages are dynamic by default.
- * This page fetches bookmarks from S3 at request time - no export needed.
- * DO NOT add `export const dynamic = "force-dynamic"` - it's incompatible and causes build errors.
+ * Runtime policy
+ * cacheComponents disallows route-level `dynamic` flags (see https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents);
+ * freshness comes from the bookmark data fetches that opt into `no-store` semantics instead of build-time snapshots.
  */
 
 export default function BookmarksPage() {

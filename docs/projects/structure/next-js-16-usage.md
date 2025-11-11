@@ -278,11 +278,42 @@ export default function BookmarksPage() {
 }
 ```
 
-**Documentation References:**
+**Official Documentation References (Verified 2025-11-11):**
 
-- Context7 `/vercel/next.js` topic "cache components dynamic rendering Next.js 16"
-- Official docs: "When Cache Components are enabled, `dynamic = 'force-dynamic'` is no longer necessary as all pages are dynamic by default."
-- This incident: 2025-11-11 production failure, 5 pages affected, ~3 hour resolution
+1. **Cache Components Fundamental Guide**
+   - **URL:** https://github.com/vercel/next.js/blob/canary/docs/01-app/01-getting-started/06-cache-components.mdx
+   - **Source Code:** `node_modules/next/dist/server/config.js:1336-1338` (cacheComponents default behavior)
+   - **Quote:** "When Cache Components are enabled, `dynamic = 'force-dynamic'` is no longer necessary as all pages are dynamic by default. Just remove it."
+   - **Key Pattern:** Pages are **dynamic by default**, use `'use cache'` to opt into static
+
+2. **'use cache' Directive API Reference**
+   - **URL:** https://github.com/vercel/next.js/blob/canary/docs/01-app/03-api-reference/01-directives/use-cache.mdx
+   - **Purpose:** Opt pages/components into static rendering with cacheComponents enabled
+   - **Usage:** Place `'use cache';` at module top (before imports) for static pages
+   - **Applies to:** Entire route segments (page.tsx/layout.tsx) and individual components
+
+3. **unstable_noStore() Deprecation Notice**
+   - **URL:** https://github.com/vercel/next.js/blob/canary/docs/01-app/03-api-reference/04-functions/unstable_noStore.mdx
+   - **Status:** Deprecated for page components with cacheComponents
+   - **Migration:** Use `connection()` from 'next/server' or remove entirely
+   - **Exception:** API routes (`app/api/**/route.ts`) can still use it
+
+4. **Route Segment Config Incompatibility**
+   - **URL:** https://github.com/vercel/next.js/blob/canary/docs/01-app/03-api-reference/03-file-conventions/route-segment-config.mdx
+   - **CRITICAL:** `export const dynamic` is **incompatible** with `cacheComponents: true`
+   - **Error Message:** "Route segment config 'dynamic' is not compatible with `nextConfig.cacheComponents`"
+   - **Resolution:** Remove the export - pages are dynamic by default
+
+5. **React 19 Server Components & Async APIs**
+   - **URL:** https://react.dev/blog/2024/12/05/react-19
+   - **Changes:** All dynamic APIs now return Promises (`params`, `searchParams`, `cookies()`, `headers()`)
+   - **Impact:** Must `await` all dynamic data in Server Components
+   - **Patterns:** Async metadata functions, async page components
+
+6. **Next.js 16 Upgrade Guide (Version 15 → 16)**
+   - **URL:** https://github.com/vercel/next.js/blob/canary/docs/01-app/02-guides/upgrading/version-16.mdx
+   - **Key Migration:** `experimental.dynamicIO` → `cacheComponents: true`
+   - **Breaking Change:** Inverted rendering default (static → dynamic)
 
 **Prevention Protocol:**
 
