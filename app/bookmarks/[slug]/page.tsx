@@ -16,7 +16,6 @@ import { PAGE_METADATA, OG_IMAGE_DIMENSIONS } from "@/data/metadata";
 import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { RelatedContent } from "@/components/features/related-content";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
@@ -201,8 +200,6 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 export default async function BookmarkPage({ params }: BookmarkPageContext) {
-  await connection();
-
   const { slug } = await Promise.resolve(params);
   envLogger.log(`Page rendering`, { slug }, { category: "BookmarkPage" });
   const foundBookmark = await findBookmarkBySlug(slug);
