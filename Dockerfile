@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.16
-
 FROM docker.io/oven/bun:1.3.2-alpine AS base
 
 # Install dependencies only when needed
@@ -25,7 +23,8 @@ COPY scripts/init-csp-hashes.ts ./scripts/init-csp-hashes.ts
 COPY config ./config
 
 # Install dependencies with Bun, skipping third-party postinstall scripts to avoid native crashes
-RUN --mount=type=cache,id=cachekey:bun-install-cache,target=/root/.bun/install bun install --frozen-lockfile --ignore-scripts
+# Cache mounts are avoided so classic docker builds (DOCKER_BUILDKIT=0) continue to work.
+RUN bun install --frozen-lockfile --ignore-scripts
 # Ensure CSP hashes file exists early for tooling that might import it
 RUN bun scripts/init-csp-hashes.ts
 
@@ -38,18 +37,15 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
 
-# Copy installed deps from previous deps stage
-COPY --from=deps --link /app/node_modules ./node_modules
+# Copy installed deps from previous deps stage (no BuildKit-only flags)
+COPY --from=deps /app/node_modules ./node_modules
 
 # Copy source for analysis only (does not affect later build layers)
 COPY . .
 
-# Run linter and type checker with persistent cache mounts so they
-#   do not re-run on every incremental build.
-# Set memory limit for Node.js operations during checks
-RUN --mount=type=cache,id=cachekey:eslint-cache,target=/app/.eslintcache \
-    --mount=type=cache,id=cachekey:tsbuildinfo-cache,target=/app/.tsbuildinfo \
-    NODE_OPTIONS='--max-old-space-size=4096' npm run lint && NODE_OPTIONS='--max-old-space-size=4096' npm run type-check
+# Run linter and type checker. Cache mounts are omitted to keep the Dockerfile
+# compatible with non-BuildKit builders such as Railway's classic Docker engine.
+RUN NODE_OPTIONS='--max-old-space-size=4096' npm run lint && NODE_OPTIONS='--max-old-space-size=4096' npm run type-check
 
 # --------------------------------------------------
 # BUILD STAGE (production build)
@@ -80,23 +76,27 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV DEPLOYMENT_ENV=$DEPLOYMENT_ENV
 
 # --- S3 configuration (build-time and runtime) -------------------------------
-# Only non-secret values as ARGs (bucket name, URLs)
-# Secrets (S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY/optional session token) are
-# supplied via BuildKit secrets so they never persist in intermediate layers.
+# Only non-secret values are exported as ENV vars below. Secrets can be
+# supplied either through BuildKit secrets (when available) or as build args for
+# environments that only support classic docker builds (e.g., Railway).
 ARG S3_BUCKET
 ARG S3_SERVER_URL
 ARG S3_CDN_URL
 ARG NEXT_PUBLIC_S3_CDN_URL
+ARG S3_ACCESS_KEY_ID
+ARG S3_SECRET_ACCESS_KEY
+ARG S3_SESSION_TOKEN
+ARG API_BASE_URL
 # Pass these as ENV for build process
 ENV S3_BUCKET=$S3_BUCKET \
     S3_SERVER_URL=$S3_SERVER_URL \
     S3_CDN_URL=$S3_CDN_URL \
     NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL
-# NOTE: S3 credentials (S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY) remain optional at build time.
-# When provided via BuildKit secrets the helper script uses the S3 SDK; otherwise it falls back to public CDN fetches.
+# NOTE: S3 credentials remain optional. Provide them via BuildKit secrets for
+# secure builds or pass them as --build-arg when using classic docker builders.
 
 # Copy dependencies and source code
-COPY --from=deps --link /app/node_modules ./node_modules
+COPY --from=deps /app/node_modules ./node_modules
 
 # Copy entire source code
 COPY . .
@@ -129,30 +129,20 @@ RUN bash -c 'set -euo pipefail \
 # generateStaticParams() can read bookmarks from S3 without leaking secrets.
 # NOTE: The multiline bash snippet below uses explicit continuations so Docker
 #       treats it as a single RUN instruction during BuildKit parsing.
-RUN --mount=type=cache,id=cachekey:next-build-cache,target=/app/.next/cache \
-    --mount=type=secret,id=s3_access_key_id,required=false \
-    --mount=type=secret,id=s3_secret_access_key,required=false \
-    --mount=type=secret,id=s3_session_token,required=false \
-    --mount=type=secret,id=S3_BUCKET,required=false,env=S3_BUCKET \
-    --mount=type=secret,id=S3_SERVER_URL,required=false,env=S3_SERVER_URL \
-    --mount=type=secret,id=S3_CDN_URL,required=false,env=S3_CDN_URL \
-    --mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL,required=false,env=NEXT_PUBLIC_S3_CDN_URL \
-    --mount=type=secret,id=NEXT_PUBLIC_SITE_URL,required=false,env=NEXT_PUBLIC_SITE_URL \
-    --mount=type=secret,id=API_BASE_URL,required=false,env=API_BASE_URL \
-    bash -c 'set -euo pipefail && \
-      if [ -f /run/secrets/s3_access_key_id ]; then \
-        export S3_ACCESS_KEY_ID="$(cat /run/secrets/s3_access_key_id)"; \
-      fi && \
-      if [ -f /run/secrets/s3_secret_access_key ]; then \
-        export S3_SECRET_ACCESS_KEY="$(cat /run/secrets/s3_secret_access_key)"; \
-      fi && \
-      if [ -f /run/secrets/s3_session_token ]; then \
-        export AWS_SESSION_TOKEN="$(cat /run/secrets/s3_session_token)"; \
-        export S3_SESSION_TOKEN="$AWS_SESSION_TOKEN"; \
-      fi && \
-      echo "📦 Building the application..." && bun run build && \
+RUN /bin/sh -c "set -euo pipefail; \
+      if [ -n \"${S3_ACCESS_KEY_ID:-}\" ]; then export S3_ACCESS_KEY_ID=\"${S3_ACCESS_KEY_ID}\"; fi; \
+      if [ -n \"${S3_SECRET_ACCESS_KEY:-}\" ]; then export S3_SECRET_ACCESS_KEY=\"${S3_SECRET_ACCESS_KEY}\"; fi; \
+      if [ -n \"${S3_SESSION_TOKEN:-}\" ]; then export AWS_SESSION_TOKEN=\"${S3_SESSION_TOKEN}\"; export S3_SESSION_TOKEN=\"${S3_SESSION_TOKEN}\"; fi; \
+      if [ -n \"${API_BASE_URL:-}\" ]; then export API_BASE_URL=\"${API_BASE_URL}\"; fi; \
+      if [ -n \"${BUILDKIT_SANDBOX_HOSTNAME:-}\" ]; then \
+        echo \"⚙️  BuildKit sandbox detected (${BUILDKIT_SANDBOX_HOSTNAME}); proceeding with standard build\"; \
+      else \
+        echo \"⚙️  Classic docker build detected; cache mounts and BuildKit secrets disabled\"; \
+      fi; \
+      echo \"📦 Building the application...\"; \
+      bun run build; \
       # Prune optimiser cache older than 5 days to keep layer small
-      find /app/.next/cache -type f -mtime +5 -delete || true'
+      find /app/.next/cache -type f -mtime +5 -delete || true"
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -195,7 +185,7 @@ COPY --from=builder /app/.next ./.next
 # Ensure local S3 cache path exists at runtime (builder no longer materializes snapshots)
 RUN mkdir -p ./.next/cache/local-s3
 # Copy node_modules for runtime dependencies
-COPY --from=deps --link /app/node_modules ./node_modules
+COPY --from=deps /app/node_modules ./node_modules
 
 # Copy scripts directory (run as root, so no chown needed)
 COPY --from=builder /app/scripts ./scripts

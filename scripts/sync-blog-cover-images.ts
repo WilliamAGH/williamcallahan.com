@@ -15,12 +15,20 @@ const POSTS_IMAGE_DIR = path.join(ROOT, "public", "images", "posts");
 const COVER_IMAGE_MAP_PATH = path.join(ROOT, "data", "blog", "cover-image-map.json");
 
 const DRY_RUN = process.argv.includes("--dry-run") || process.env.DRY_RUN === "true";
-const isRailwayEnv = Boolean(
-  process.env.RAILWAY_STATIC_URL ||
-    process.env.RAILWAY_PUBLIC_DOMAIN ||
-    process.env.RAILWAY_PROJECT_ID ||
-    process.env.RAILWAY_ENVIRONMENT_NAME,
-);
+
+const RAILWAY_ENV_SIGNALS = [
+  "RAILWAY_STATIC_URL",
+  "RAILWAY_PUBLIC_DOMAIN",
+  "RAILWAY_PRIVATE_DOMAIN",
+  "RAILWAY_PROJECT_NAME",
+  "RAILWAY_PROJECT_ID",
+  "RAILWAY_ENVIRONMENT_NAME",
+  "RAILWAY_ENVIRONMENT_ID",
+  "RAILWAY_SERVICE_NAME",
+  "RAILWAY_SERVICE_ID",
+];
+
+const isRailwayEnv = RAILWAY_ENV_SIGNALS.some(name => Boolean(process.env[name]));
 
 const SUPPORTED_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".svg", ".webp", ".gif", ".avif"]);
 

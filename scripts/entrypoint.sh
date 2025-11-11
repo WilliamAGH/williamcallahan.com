@@ -2,7 +2,15 @@
 set -e # Exit on error
 
 detect_railway_env() {
-    if [ -n "${RAILWAY_STATIC_URL:-}" ] || [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ] || [ -n "${RAILWAY_PROJECT_ID:-}" ] || [ -n "${RAILWAY_ENVIRONMENT_NAME:-}" ]; then
+    if [ -n "${RAILWAY_STATIC_URL:-}" ] || \
+       [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ] || \
+       [ -n "${RAILWAY_PRIVATE_DOMAIN:-}" ] || \
+       [ -n "${RAILWAY_PROJECT_NAME:-}" ] || \
+       [ -n "${RAILWAY_PROJECT_ID:-}" ] || \
+       [ -n "${RAILWAY_ENVIRONMENT_NAME:-}" ] || \
+       [ -n "${RAILWAY_ENVIRONMENT_ID:-}" ] || \
+       [ -n "${RAILWAY_SERVICE_NAME:-}" ] || \
+       [ -n "${RAILWAY_SERVICE_ID:-}" ]; then
         return 0
     fi
     return 1
@@ -17,7 +25,15 @@ if [ -z "${ENABLE_BACKGROUND_SERVICES+x}" ]; then
     fi
 fi
 
-ENABLE_BACKGROUND_SERVICES="${ENABLE_BACKGROUND_SERVICES:-1}"
+if [ -z "${ENABLE_BACKGROUND_SERVICES+x}" ]; then
+    if [ -n "${RAILWAY_ENVIRONMENT_NAME:-}" ] || [ -n "${RAILWAY_PROJECT_ID:-}" ] || [ -n "${RAILWAY_SERVICE_ID:-}" ]; then
+        ENABLE_BACKGROUND_SERVICES="0"
+        echo "⚠️  [Entrypoint] Railway environment detected; background services disabled by default"
+    else
+        ENABLE_BACKGROUND_SERVICES="1"
+    fi
+fi
+ENABLE_BACKGROUND_SERVICES="${ENABLE_BACKGROUND_SERVICES}"
 SCHEDULER_PID=""
 DATA_POPULATOR_PID=""
 TAIL_PID=""
