@@ -7,7 +7,6 @@
  */
 
 import type { Metadata } from "next";
-import { unstable_noStore as noStore } from "next/cache";
 import { Experience } from "@/components/features";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -46,13 +45,15 @@ async function mapWithConcurrency<T, R>(
 export const metadata: Metadata = getStaticPageMetadata("/experience", "experience");
 
 /**
+ * Force dynamic rendering for this page
+ * Replaces deprecated unstable_noStore() usage for Next.js 16 compatibility
+ */
+export const dynamic = "force-dynamic";
+
+/**
  * Experience page component with JSON-LD schema
  */
 export default async function ExperiencePage() {
-  if (typeof noStore === "function") {
-    noStore();
-  }
-
   // Generate JSON-LD schema for the experience page
   const pageMetadata = PAGE_METADATA.experience;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);

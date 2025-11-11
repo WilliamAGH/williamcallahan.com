@@ -10,7 +10,6 @@
  */
 
 import type { Metadata } from "next";
-import { unstable_noStore as noStore } from "next/cache";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -26,11 +25,13 @@ export function generateMetadata(): Metadata {
   return getStaticPageMetadata("/bookmarks", "bookmarks");
 }
 
-export default function BookmarksPage() {
-  if (typeof noStore === "function") {
-    noStore();
-  }
+/**
+ * Force dynamic rendering for this page
+ * Replaces deprecated unstable_noStore() usage for Next.js 16 compatibility
+ */
+export const dynamic = "force-dynamic";
 
+export default function BookmarksPage() {
   const pageMetadata = PAGE_METADATA.bookmarks;
 
   // Generate JSON-LD schema for the bookmarks page

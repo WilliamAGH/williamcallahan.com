@@ -10,7 +10,6 @@
  */
 
 import type { Metadata } from "next";
-import { unstable_noStore as noStore } from "next/cache";
 import { Investments } from "@/components/features";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -25,7 +24,11 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
  */
 export const metadata: Metadata = getStaticPageMetadata("/investments", "investments");
 
-// Avoid long static generation by rendering this page dynamically at request time
+/**
+ * Force dynamic rendering for this page
+ * Replaces deprecated unstable_noStore() usage for Next.js 16 compatibility
+ */
+export const dynamic = "force-dynamic";
 
 /**
  * NOTE ON LOGO RESOLUTION
@@ -42,10 +45,6 @@ export const metadata: Metadata = getStaticPageMetadata("/investments", "investm
  * Investments page component with JSON-LD schema
  */
 export default function InvestmentsPage() {
-  if (typeof noStore === "function") {
-    noStore();
-  }
-
   // Generate JSON-LD schema for the investments page
   const pageMetadata = PAGE_METADATA.investments;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
