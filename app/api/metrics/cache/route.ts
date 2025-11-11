@@ -9,6 +9,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
 
 /**
  * GET /api/metrics/cache
@@ -18,6 +19,9 @@ import { NextResponse } from "next/server";
  */
 export function GET(): NextResponse {
   try {
+    if (typeof noStore === "function") {
+      noStore();
+    }
     // Get process memory for context
     const memUsage = process.memoryUsage();
 
