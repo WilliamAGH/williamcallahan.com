@@ -16,7 +16,8 @@ import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
-import { getLogo } from "@/lib/data-access/logos";
+import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
+import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import type {
@@ -99,20 +100,12 @@ async function toRelatedContentItem(
               : undefined;
 
         if (effectiveDomain) {
-          try {
-            const liveLogo = await getLogo(effectiveDomain);
-            if (liveLogo?.cdnUrl || liveLogo?.url) {
-              logoUrl = ensureAbsoluteUrl(liveLogo.cdnUrl || liveLogo.url || getCompanyPlaceholder());
-              const isFromS3 = liveLogo.cdnUrl && liveLogo.cdnUrl.includes("images/logos");
-              const originalSource = liveLogo.source ?? "api";
-              console.info(
-                `[RelatedContent] Logo fetched for investment ${investmentDetails?.name ?? "unknown"} (${effectiveDomain}) from ${isFromS3 ? "S3/CDN" : "external API"} - original source: ${originalSource}`,
-              );
-            }
-          } catch (fetchErr) {
-            const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-            console.error(`[RelatedContent] Logo fetch failed for investment ${effectiveDomain}:`, msg);
-            logoUrl = ensureAbsoluteUrl(getCompanyPlaceholder());
+          const manifestEntry = await getLogoFromManifestAsync(effectiveDomain);
+          if (manifestEntry?.cdnUrl) {
+            logoUrl = ensureAbsoluteUrl(manifestEntry.cdnUrl);
+          } else {
+            const runtimeUrl = getRuntimeLogoUrl(effectiveDomain, { company: investmentDetails?.name });
+            logoUrl = runtimeUrl ? ensureAbsoluteUrl(runtimeUrl) : ensureAbsoluteUrl(getCompanyPlaceholder());
           }
         } else {
           logoUrl = ensureAbsoluteUrl(getCompanyPlaceholder());

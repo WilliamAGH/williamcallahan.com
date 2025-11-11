@@ -6,7 +6,7 @@
  * Uses direct logo fetching to work during build time.
  */
 
-import { getLogo, getRuntimeLogoUrl } from "@/lib/data-access/logos";
+import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
@@ -51,27 +51,9 @@ export async function ExperienceCard(props: Experience & { isDarkTheme?: boolean
         console.warn(`[ExperienceCard] Manifest lookup failed for ${domain}:`, manifestError);
       }
 
-      const logoResult = await getLogo(domain);
-
-      if (logoResult?.cdnUrl) {
-        return (
-          <ExperienceCardClient
-            {...props}
-            logoData={{
-              url: logoResult.cdnUrl,
-              source: logoResult.source ?? null,
-            }}
-          />
-        );
-      }
-
       const runtimeLogoUrl = getRuntimeLogoUrl(domain, { company });
 
       if (runtimeLogoUrl) {
-        if (logoResult?.error) {
-          console.warn(`[ExperienceCard] Live logo fetch failed for ${domain}: ${logoResult.error}`);
-        }
-
         return (
           <ExperienceCardClient
             {...props}
@@ -81,10 +63,6 @@ export async function ExperienceCard(props: Experience & { isDarkTheme?: boolean
             }}
           />
         );
-      }
-
-      if (logoResult?.error) {
-        console.warn(`[ExperienceCard] Failed to fetch logo for ${domain}:`, logoResult.error);
       }
     }
 
