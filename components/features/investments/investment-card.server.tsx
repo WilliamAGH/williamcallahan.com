@@ -11,7 +11,7 @@ import { InvestmentCardClient } from "./investment-card.client";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import type { ReactElement } from "react";
-import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
+import { getLogoCdnData } from "@/lib/data-access/logos";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import type { InvestmentCardExtendedProps } from "@/types/features/investments";
 
@@ -71,15 +71,11 @@ export async function resolveInvestmentCardData(
     console.warn(`[InvestmentCard] Manifest lookup failed for ${effectiveDomain}:`, message);
   }
 
-  const runtimeLogoUrl = getRuntimeLogoUrl(effectiveDomain, { company: name });
-
-  if (runtimeLogoUrl) {
+  const directLogo = await getLogoCdnData(effectiveDomain);
+  if (directLogo) {
     return {
       ...normalizedInvestment,
-      logoData: {
-        url: runtimeLogoUrl,
-        source: "api",
-      },
+      logoData: directLogo,
     };
   }
 
