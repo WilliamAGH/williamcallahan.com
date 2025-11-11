@@ -88,9 +88,32 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       quality: imageFormat === "webp" ? 80 : imageFormat === "avif" ? 75 : 85,
     });
 
-    // If we got a CDN URL, redirect to it
+    // If we got a CDN URL, stream bytes directly so Next.js optimizer receives a 200 response
     if (result.cdnUrl && !result.buffer) {
-      return NextResponse.redirect(result.cdnUrl, { status: 302 });
+      try {
+        const upstream = await fetch(result.cdnUrl);
+        if (!upstream.ok || !upstream.body) {
+          return NextResponse.json(
+            { error: "Failed to fetch cached image", status: upstream.status },
+            { status: upstream.status === 200 ? 502 : upstream.status || 502 },
+          );
+        }
+
+        const passthroughHeaders = new Headers({
+          "Content-Type": upstream.headers.get("content-type") ?? result.contentType ?? "application/octet-stream",
+          "Cache-Control": upstream.headers.get("cache-control") ?? `public, max-age=${CACHE_DURATION}, immutable`,
+          "X-Source": "cdn",
+          ...IMAGE_SECURITY_HEADERS,
+        });
+
+        return new NextResponse(upstream.body, {
+          status: 200,
+          headers: passthroughHeaders,
+        });
+      } catch (cdnError) {
+        console.error("Image cache CDN fetch error:", cdnError);
+        return NextResponse.json({ error: "Failed to fetch cached image" }, { status: 502 });
+      }
     }
 
     // If we have a buffer, return it
