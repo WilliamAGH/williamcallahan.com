@@ -3,7 +3,9 @@
  *
  * A client-side component for displaying a company logo image.
  * Uses next/image for both standard and data URLs to ensure performance
- * and consistency.
+ * and consistency, while marking `/api/*` sources as `unoptimized`
+ * so we stay inside the contract described in
+ * https://nextjs.org/docs/app/api-reference/components/image#unoptimized.
  *
  * @module components/ui/logo-image.client
  */
@@ -325,6 +327,9 @@ export function OptimizedCardImage({
   const displaySrc =
     retryKey > 0 ? `${proxiedSrc}${proxiedSrc.includes("?") ? "&" : "?"}retry=${retryKey}` : proxiedSrc;
 
+  const shouldBypassOptimizer =
+    typeof displaySrc === "string" && (displaySrc.startsWith("/api/") || displaySrc.startsWith("data:"));
+
   // Always use next/image so CDN URLs and proxy paths share the same sizing logic
   return (
     <Image
@@ -337,6 +342,7 @@ export function OptimizedCardImage({
       className={`object-cover transition-opacity duration-200 ${className}`}
       style={{ opacity: loaded ? 1 : 0.2 }}
       {...(priority ? { priority, fetchPriority: "high" as const } : {})}
+      {...(shouldBypassOptimizer ? { unoptimized: true } : {})}
       onLoad={() => {
         setLoaded(true);
         setErrored(false); // Clear error state on successful load

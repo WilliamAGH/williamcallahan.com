@@ -3,6 +3,9 @@
  * @module app/api/cache/images
  * @description
  * Server-side API endpoint for caching and serving optimized images.
+ * Streams CDN bytes (rather than redirecting) so Next.js 16's image optimizer
+ * always receives a 200 response from our `/api` proxy, which aligns with the
+ * official contract in https://nextjs.org/docs/app/building-your-application/optimizing/images.
  * Uses UnifiedImageService for consistent image handling across the application.
  */
 
