@@ -27,8 +27,6 @@ export function cn(...inputs: ClassValue[]) {
  * avoid backwards jumps, and falls back to an increment-only counter when the
  * Performance API is unavailable to keep build output deterministic.
  */
-let fallbackCounter = 0;
-
 export function getMonotonicTime(): number {
   if (typeof globalThis !== "undefined") {
     const perf = globalThis.performance;
@@ -36,9 +34,8 @@ export function getMonotonicTime(): number {
       return Math.floor(perf.timeOrigin + perf.now());
     }
   }
-
-  fallbackCounter += 1;
-  return fallbackCounter;
+  // Fallback to Date.now() to stay aligned with epoch timestamps used elsewhere
+  return Date.now();
 }
 
 /**
