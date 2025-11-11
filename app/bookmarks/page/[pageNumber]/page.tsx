@@ -14,6 +14,7 @@
 
 import type { Metadata } from "next";
 import { unstable_noStore as noStore } from "next/cache";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
@@ -121,6 +122,8 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
   if (typeof noStore === "function") {
     noStore();
   }
+
+  void headers();
 
   if (typeof connection === "function") {
     await connection();
