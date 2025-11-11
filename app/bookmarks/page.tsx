@@ -26,7 +26,7 @@ export function generateMetadata(): Metadata {
   return getStaticPageMetadata("/bookmarks", "bookmarks");
 }
 
-export default async function BookmarksPage() {
+export default function BookmarksPage() {
   if (typeof noStore === "function") {
     noStore();
   }
