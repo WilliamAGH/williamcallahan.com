@@ -13,6 +13,67 @@ import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import { bookmarksIndexSchema, bookmarkSlugMappingSchema } from "@/types/bookmark";
 
+const mockBookmarksData = [
+  {
+    id: "bookmark-1",
+    url: "https://example.com",
+    title: "Example Bookmark",
+    slug: "example-bookmark",
+    tags: ["testing"],
+    dateBookmarked: "2024-01-01T00:00:00.000Z",
+    sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
+  },
+];
+
+const mockSlugMappingData = {
+  version: "1",
+  generated: "2024-01-01T00:00:00.000Z",
+  count: mockBookmarksData.length,
+  checksum: "d41d8cd98f00b204e9800998ecf8427e",
+  slugs: {
+    "bookmark-1": {
+      id: "bookmark-1",
+      slug: "example-bookmark",
+      url: "https://example.com",
+      title: "Example Bookmark",
+    },
+  },
+  reverseMap: {
+    "example-bookmark": "bookmark-1",
+  },
+};
+
+const mockIndexData = {
+  count: mockBookmarksData.length,
+  totalPages: 1,
+  pageSize: 24,
+  lastModified: "2024-01-01T00:00:00.000Z",
+  lastFetchedAt: 1704067200000,
+  lastAttemptedAt: 1704067200000,
+  checksum: "e4d909c290d0fb1ca068ffaddf22cbd0",
+  changeDetected: false,
+};
+
+const mockPageData = [...mockBookmarksData];
+
+jest.mock("@/lib/s3-utils", () => ({
+  readJsonS3: jest.fn((path: string) => {
+    switch (path) {
+      case BOOKMARKS_S3_PATHS.FILE:
+        return Promise.resolve(mockBookmarksData);
+      case BOOKMARKS_S3_PATHS.SLUG_MAPPING:
+        return Promise.resolve(mockSlugMappingData);
+      case BOOKMARKS_S3_PATHS.INDEX:
+        return Promise.resolve(mockIndexData);
+      default:
+        if (path === `${BOOKMARKS_S3_PATHS.PAGE_PREFIX}1.json`) {
+          return Promise.resolve(mockPageData);
+        }
+        return Promise.resolve(null);
+    }
+  }),
+}));
+
 // Skip in CI or when S3 is not fully configured (all three variables needed)
 const SKIP_S3_TESTS =
   !process.env.S3_BUCKET ||

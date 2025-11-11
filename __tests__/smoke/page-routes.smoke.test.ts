@@ -19,8 +19,50 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import sitemap from "../../app/sitemap";
 import type { MetadataRoute } from "next";
+import sitemap from "../../app/sitemap";
+
+const mockBookmarkEntries = [
+  {
+    id: "bookmark-1",
+    slug: "example-bookmark",
+    url: "https://example.com",
+    title: "Example Bookmark",
+    modifiedAt: "2024-01-01T00:00:00.000Z",
+    dateCreated: "2024-01-01T00:00:00.000Z",
+    dateBookmarked: "2024-01-01T00:00:00.000Z",
+    tags: ["Testing"],
+    sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
+  },
+];
+
+jest.mock("../../lib/bookmarks/bookmarks.server", () => ({
+  getBookmarksForStaticBuildAsync: jest.fn(() => Promise.resolve(mockBookmarkEntries)),
+}));
+
+const mockSlugMapping = {
+  version: "1",
+  generated: "2024-01-01T00:00:00.000Z",
+  count: mockBookmarkEntries.length,
+  checksum: "d41d8cd98f00b204e9800998ecf8427e",
+  slugs: {
+    "bookmark-1": {
+      id: "bookmark-1",
+      slug: "example-bookmark",
+      url: "https://example.com",
+      title: "Example Bookmark",
+    },
+  },
+  reverseMap: {
+    "example-bookmark": "bookmark-1",
+  },
+};
+
+jest.mock("../../lib/bookmarks/slug-manager", () => ({
+  loadSlugMapping: jest.fn(() => Promise.resolve(mockSlugMapping)),
+  getSlugForBookmark: jest.fn((mapping: typeof mockSlugMapping, id: string) => mapping.slugs[id]?.slug ?? null),
+  generateSlugMapping: jest.fn(() => mockSlugMapping),
+}));
 
 // Allow longer-running sitemap validations in CI
 const DEFAULT_TEST_TIMEOUT_MS = 60_000;
