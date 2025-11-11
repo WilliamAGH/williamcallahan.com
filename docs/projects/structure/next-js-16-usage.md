@@ -97,8 +97,126 @@ These are the failure modes that blocked >100 deploy attempts. Follow each check
 
 ### 5. Documentation + MCP receipts
 
-- Every framework PR must paste the specific MCP query + node_modules file reference into its description. Example: “Context7 `/vercel/next.js` topic `version-16` (2025-11-12) confirms async sitemap params – see `node_modules/next/dist/server/request/params.js:150-226`.”
+- Every framework PR must paste the specific MCP query + node_modules file reference into its description. Example: "Context7 `/vercel/next.js` topic `version-16` (2025-11-12) confirms async sitemap params – see `node_modules/next/dist/server/request/params.js:150-226`."
 - Update this runbook the moment a new failure mode appears; treat it as the incident log.
+
+### 6. Dynamic Rendering: unstable_noStore() Deprecation (CRITICAL - 2025-11-11)
+
+**Incident Summary:** Production deployment (alpha.williamcallahan.com) experienced catastrophic failures across 4 major page routes after Next.js 16 upgrade. Pages returned `DYNAMIC_SERVER_USAGE` errors and "Internal Server Error" responses.
+
+**Root Cause:** Pages using `unstable_noStore()` are incompatible with `cacheComponents: true` in Next.js 16. The deprecated API attempts to opt out of caching at runtime, but cache components require declarative route-level configuration.
+
+**Affected Pages (Pre-Fix):**
+
+- `app/education/page.tsx:32` - Called `noStore()` in component body → FAILED
+- `app/bookmarks/page.tsx:31` - Called `noStore()` in component body → FAILED
+- `app/experience/page.tsx:53` - Called `noStore()` in component body → FAILED
+- `app/investments/page.tsx:46` - Called `noStore()` in component body → FAILED
+- `app/bookmarks/page/[pageNumber]/page.tsx:121` - Called `noStore()` in component body → FAILED
+
+**Working Pages (Control Group):**
+
+- `app/contact/page.tsx` - No `noStore()` → WORKED
+- `app/blog/page.tsx` - No `noStore()` → WORKED
+- `app/cv/page.tsx` - No `noStore()` → WORKED
+- `app/projects/page.tsx` - No `noStore()` → WORKED (with separate CDN issue)
+
+**The Failure Pattern:**
+
+```typescript
+// ❌ BROKEN in Next.js 16 + cacheComponents
+import { unstable_noStore as noStore } from "next/cache";
+
+export default function Page() {
+  if (typeof noStore === "function") {
+    noStore();
+  }
+  // ...
+}
+```
+
+**Error Manifestation:**
+
+- **Development:** Pages render normally (silent failure)
+- **Production:** Pages fail with `DYNAMIC_SERVER_USAGE` digest
+- **User Experience:** Complete page failure - "Internal Server Error" 500 responses
+- **Production Logs:** Repeated errors:
+  ```
+  [Error: An error occurred in the Server Components render...] {
+    digest: 'DYNAMIC_SERVER_USAGE'
+  }
+  ```
+
+**Correct Pattern for Next.js 16:**
+
+```typescript
+// ✅ CORRECT: Route segment configuration
+export const dynamic = "force-dynamic";
+
+export default function Page() {
+  // No runtime API call needed
+  // ...
+}
+```
+
+**Key Distinctions:**
+
+| Context               | Pattern                                  | Status                                               |
+| --------------------- | ---------------------------------------- | ---------------------------------------------------- |
+| Page routes           | `unstable_noStore()`                     | ❌ FORBIDDEN - causes DYNAMIC_SERVER_USAGE error     |
+| Page routes           | `export const dynamic = 'force-dynamic'` | ✅ REQUIRED - declarative route config               |
+| API routes (`/api/*`) | `unstable_noStore()`                     | ✅ ALLOWED - API routes exempt from this restriction |
+| Metadata functions    | `unstable_noStore()`                     | ❌ FORBIDDEN - use route config instead              |
+
+**Why This Failed Silently:**
+
+1. Next.js 15 allowed runtime opt-out via `noStore()`
+2. Next.js 16 with `cacheComponents` requires declarative configuration
+3. Development mode doesn't enforce production rendering constraints
+4. No TypeScript error - purely a runtime production failure
+
+**Migration Checklist (Required for ALL pages):**
+
+1. ❌ Remove all `import { unstable_noStore as noStore } from "next/cache"` statements
+2. ❌ Remove all `noStore()` function calls from page component bodies
+3. ✅ Add `export const dynamic = 'force-dynamic'` at module level
+4. ✅ Add JSDoc comment explaining the change
+5. ✅ Test in production build mode (`NODE_ENV=production bun run build`)
+
+**Search Command to Find Violations:**
+
+```bash
+grep -r "unstable_noStore\|noStore()" app/ --include="page.tsx" --include="page.ts"
+```
+
+**Exemptions:**
+
+- API routes (`app/api/**/route.ts`) may continue using `noStore()` - they are exempt
+- Server Actions may use dynamic APIs - they run per-request by nature
+- Middleware is already dynamic - no declaration needed
+
+**Documentation References:**
+
+- Next.js 15 docs: "`connection` is recommended instead [of unstable_noStore]"
+- Context7 `/vercel/next.js/v15.1.8` topic "unstable_noStore dynamic rendering"
+- This incident: 2025-11-11 production failure, 5 pages affected, ~2 hour downtime
+
+**Prevention Protocol:**
+
+1. Never use `unstable_noStore()` in page components going forward
+2. Run `grep -r "unstable_noStore" app/ --include="page.tsx"` before every deployment
+3. Always test with `NODE_ENV=production bun run build` locally
+4. Monitor production logs for `DYNAMIC_SERVER_USAGE` digest errors
+5. When adding dynamic rendering, use route segment config exclusively
+
+**Related Patterns:**
+
+- Static pages: No export needed (default static)
+- Dynamic pages: `export const dynamic = 'force-dynamic'`
+- ISR pages: `export const revalidate = <seconds>`
+- Mixed rendering: Use `<Suspense>` boundaries with Client Components
+
+> **CRITICAL MANDATE:** The `unstable_noStore()` API is BANNED in page components. Any PR introducing it will be rejected. Use route segment configuration exclusively.
 
 ## Allowed Patterns (✅)
 
@@ -118,6 +236,7 @@ These are the failure modes that blocked >100 deploy attempts. Follow each check
 - Dropping Turbopack flags back into scripts—they are redundant and invite drift.
 - Adding polyfills or downgraded packages that conflict with Node 22 native APIs.
 - Introducing React 18-era APIs (`ReactDOM.render`, legacy metadata helpers) without explicit owner approval.
+- **CRITICAL:** Using `unstable_noStore()` in page components when `cacheComponents: true` (see §6 below).
 
 ## Workflow Checklist (mirror AGENTS.md)
 
