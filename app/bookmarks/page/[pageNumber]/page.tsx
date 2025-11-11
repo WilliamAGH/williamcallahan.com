@@ -12,12 +12,9 @@
  * @see {@link "https://developers.google.com/search/docs/specialty/ecommerce/pagination"} - Google pagination guidelines
  */
 
-// Configure dynamic rendering
-
-// Incremental Static Regeneration – recache every 30 minutes for fresh-but-fast UX
-
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { connection } from "next/server";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -25,12 +22,10 @@ import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
-import { getBookmarks, getBookmarksPage, getBookmarksIndex } from "@/lib/bookmarks/service.server";
-import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
+import { getBookmarksPage, getBookmarksIndex } from "@/lib/bookmarks/service.server";
 import type { PaginatedBookmarkContext } from "@/types";
 import { PageNumberSchema } from "@/types/lib";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
-import { UnifiedBookmark } from "@/types/bookmark";
 
 /**
  * Generate metadata for the paginated Bookmarks page
@@ -121,6 +116,9 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
 }
 
 export default async function PaginatedBookmarksPage({ params }: PaginatedBookmarkContext) {
+  // Force request-time rendering under cacheComponents.
+  await connection();
+
   const paramsResolved = await Promise.resolve(params);
 
   // Re-use the same Zod schema to validate/parse the page param
@@ -173,14 +171,6 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
   // Fetch the data for the specific page
   const pageBookmarks = await getBookmarksPage(pageNum);
 
-  // Fetch all bookmarks without image data for slug generation
-  const allBookmarks = (await getBookmarks({
-    ...DEFAULT_BOOKMARK_OPTIONS,
-    includeImageData: false,
-    skipExternalFetch: false,
-    force: false,
-  })) as UnifiedBookmark[];
-
   if (pageBookmarks.length === 0 && pageNum > 1) {
     notFound();
   }
@@ -193,7 +183,6 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
           title={pageTitle}
           description={pageDescription}
           bookmarks={convertBookmarksToSerializable(pageBookmarks)}
-          allBookmarksForSlugs={allBookmarks}
           initialPage={pageNum}
           totalPages={totalPages}
           totalCount={index?.count ?? 0}

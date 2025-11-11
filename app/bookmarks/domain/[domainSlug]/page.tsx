@@ -8,6 +8,7 @@
 
 // Configure dynamic rendering
 
+import { connection } from "next/server";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { getDomainSlug } from "@/lib/utils/domain-utils";
@@ -21,6 +22,9 @@ import { redirect } from "next/navigation";
 import type { DomainPageRedirectorProps } from "@/types";
 
 export default async function DomainPageRedirector({ params, searchParams }: DomainPageRedirectorProps) {
+  // Force request-time execution to avoid build-time S3 reads under cacheComponents.
+  await connection();
+
   const allBookmarks = (await getBookmarks({
     ...DEFAULT_BOOKMARK_OPTIONS,
     includeImageData: false,

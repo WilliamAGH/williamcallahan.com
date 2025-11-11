@@ -7,11 +7,8 @@
  * @module app/bookmarks/tags/[tagSlug]/page
  */
 
-// Configure dynamic rendering
-
 import type { Metadata } from "next";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
-import { getBookmarksForStaticBuildAsync } from "@/lib/bookmarks/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
@@ -22,7 +19,7 @@ import { tagToSlug } from "@/lib/utils/tag-utils";
 import type { BookmarkTagPageContext } from "@/types";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 import { redirect, notFound } from "next/navigation";
-import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
+import { connection } from "next/server";
 
 /**
  * Parse page number from URL segments
@@ -36,48 +33,6 @@ function parsePageParam(page: string | undefined, pageNumberStr: string | undefi
         ? Number.parseInt(page, 10)
         : 1;
   return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
-}
-
-/**
- * Generate static paths for tag pages at build time
- *
- * FIX (Issue #sitemap-2024): Changed from sync getBookmarksForStaticBuild() to async version.
- * Sync function always returned empty array, causing tag URLs to be missing from sitemap.
- * Blog tags worked because getAllPosts() reads from local filesystem synchronously.
- *
- * IMPORTANT: Filtering Consistency Requirement
- * getBookmarksForStaticBuildAsync() filters out bookmarks without id/slug fields,
- * while getBookmarksByTag() at runtime includes ALL bookmarks. This ensures we only
- * generate static paths for bookmarks that can actually be rendered (those with slugs).
- * If bookmarks without id/slug exist, runtime will show fewer items per page than expected,
- * but this is preferable to generating paths for bookmarks that cannot be displayed.
- *
- * @see lib/bookmarks/bookmarks.server.ts for why sync vs async matters
- */
-export async function generateStaticParams() {
-  const bookmarks = await getBookmarksForStaticBuildAsync();
-  const tagCounts = new Map<string, number>();
-  bookmarks.forEach(b => {
-    (Array.isArray(b.tags) ? b.tags : []).forEach((t: string | { name: string }) => {
-      const tagName = typeof t === "string" ? t : t.name;
-      const slug = tagToSlug(tagName);
-      tagCounts.set(slug, (tagCounts.get(slug) || 0) + 1);
-    });
-  });
-
-  const params: { slug: string[] }[] = [];
-
-  for (const [tagSlug, count] of tagCounts) {
-    // Calculate totalPages based on bookmarks that have valid id/slug fields
-    // This matches the filtering in getBookmarksForStaticBuildAsync()
-    const totalPages = Math.ceil(count / BOOKMARKS_PER_PAGE);
-    params.push({ slug: [tagSlug] });
-    for (let i = 2; i <= totalPages; i++) {
-      params.push({ slug: [tagSlug, "page", i.toString()] });
-    }
-  }
-
-  return params;
 }
 
 /**
@@ -153,6 +108,8 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
 }
 
 export default async function TagPage({ params }: BookmarkTagPageContext) {
+  await connection();
+
   const { slug = [] } = await Promise.resolve(params);
 
   if (!slug || slug.length === 0) {
