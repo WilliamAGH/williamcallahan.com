@@ -15,18 +15,67 @@ import React, { useState, useCallback, useRef } from "react";
 import type { LogoImageProps, OptimizedCardImageProps } from "@/types/ui/image";
 import { getCompanyPlaceholder, COMPANY_PLACEHOLDER_BASE64 } from "@/lib/data-access/placeholder-images";
 
+const LOGO_FILENAME_REGEX = /\/logos\/(?:inverted\/)?([^/?#]+)\.(?:png|jpe?g|webp|svg|ico|avif)$/i;
+const HASH_TOKEN = /^[a-f0-9]{8}$/i;
+const KNOWN_LOGO_SOURCES = new Set(["google", "duckduckgo", "ddg", "clearbit", "direct", "manual", "unknown", "api"]);
+
+function deriveDomainFromLogoKey(pathname: string): string | null {
+  const match = pathname.match(LOGO_FILENAME_REGEX);
+  if (!match) {
+    return null;
+  }
+
+  const [, filename] = match;
+  if (!filename) {
+    return null;
+  }
+
+  const tokens = filename.split("_").filter(Boolean);
+  if (tokens.length < 2) {
+    return null;
+  }
+
+  const maybeHash = tokens[tokens.length - 1] ?? "";
+  const maybeSource = tokens[tokens.length - 2] ?? "";
+
+  let domainTokens = tokens;
+
+  if (HASH_TOKEN.test(maybeHash) && KNOWN_LOGO_SOURCES.has(maybeSource)) {
+    domainTokens = tokens.slice(0, -2);
+  } else if (KNOWN_LOGO_SOURCES.has(maybeHash)) {
+    domainTokens = tokens.slice(0, -1);
+  }
+
+  if (domainTokens.length < 2) {
+    return null;
+  }
+
+  const tld = domainTokens.pop();
+  if (!tld) {
+    return null;
+  }
+
+  const domainName = domainTokens.join(".");
+  if (!domainName) {
+    return null;
+  }
+
+  return `${domainName}.${tld}`.toLowerCase();
+}
+
 /**
  * Extract domain from a logo src so we can hit the on-demand logo API.
  * Handles both explicit `domain=` query param and CDN paths like `/logos/example.com.png`.
+ * Mirrors the filename contract defined in `generateS3Key` (lib/utils/hash-utils.ts)
+ * so `/api/logo` always receives a canonical hostname instead of the hashed CDN key.
  */
 function extractDomainFromSrc(url: string): string | null {
   try {
     const parsed = new URL(url, typeof window !== "undefined" ? window.location.origin : undefined);
-    const qp = parsed.searchParams.get("domain");
-    if (qp) return qp;
+    const qp = parsed.searchParams.get("domain") ?? parsed.searchParams.get("website");
+    if (qp?.trim()) return qp.trim().toLowerCase();
 
-    const match = parsed.pathname.match(/logos\/(.+?)\./);
-    return match?.[1] ?? null;
+    return deriveDomainFromLogoKey(parsed.pathname);
   } catch {
     return null;
   }

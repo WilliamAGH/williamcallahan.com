@@ -69,6 +69,7 @@ NEXT_PUBLIC_S3_CDN_URL=https://s3-storage.callahan.cloud  # CDN with custom SSL 
   - Always returns 301 redirect to CDN URL
   - Query params: `website`, `company`, `forceRefresh`
   - No buffer serving - all images from CDN
+  - Client fallback (`LogoImage`, `components/ui/logo-image.client.tsx`) now parses hashed CDN keys back into canonical hostnames before calling this route so UnifiedImageService never receives slugs like `company_com_google_ab12cd34`
 
 - **`/api/logo/invert`**: Theme-aware logo inversion
   - GET: Returns 301 redirect to inverted logo CDN URL
