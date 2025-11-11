@@ -34,7 +34,7 @@ export default async function BookmarksPage() {
   }
 
   // Touch request metadata immediately so Next knows this route is dynamic.
-  void headers();
+  await headers();
 
   if (typeof connection === "function") {
     await connection();

@@ -34,7 +34,7 @@ export default async function EducationPage() {
     noStore();
   }
 
-  void headers();
+  await headers();
 
   if (typeof connection === "function") {
     await connection();
