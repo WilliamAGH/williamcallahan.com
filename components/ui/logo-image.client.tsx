@@ -14,6 +14,7 @@ import Image from "next/image";
 import React, { useState, useCallback, useRef } from "react";
 import type { LogoImageProps, OptimizedCardImageProps } from "@/types/ui/image";
 import { getCompanyPlaceholder, COMPANY_PLACEHOLDER_BASE64 } from "@/lib/data-access/placeholder-images";
+import { getMonotonicTime } from "@/lib/utils";
 
 const LOGO_FILENAME_REGEX = /\/logos\/(?:inverted\/)?([^/?#]+)\.(?:png|jpe?g|webp|svg|ico|avif)$/i;
 const HASH_TOKEN = /^[a-f0-9]{8}$/i;
@@ -236,9 +237,6 @@ export function OptimizedCardImage({
     };
   }, []);
 
-  // Detect if this is a proxy URL that needs special handling
-  const isProxyUrl = src?.startsWith("/api/assets/") || src?.startsWith("/api/og-image");
-
   // No source provided - show placeholder (should be rare with proper data)
   if (!src) {
     if (isDev) console.warn(`[OptimizedCardImage] No image source provided, showing placeholder`);
@@ -255,14 +253,11 @@ export function OptimizedCardImage({
   }
 
   // Source provided but errored after retries - show placeholder
-  if (errored && (!isProxyUrl || retryCount >= MAX_RETRIES)) {
-    // Log for debugging but don't spam with proxy URL retries
-    if (!isProxyUrl || retryCount === 0) {
-      if (isDev)
-        console.warn(
-          `[OptimizedCardImage] Failed to load image after ${retryCount} retries: ${src}, showing placeholder`,
-        );
-    }
+  if (errored && retryCount >= MAX_RETRIES) {
+    if (isDev)
+      console.warn(
+        `[OptimizedCardImage] Failed to load image after ${retryCount} retries: ${src}, showing placeholder`,
+      );
     return (
       <Image
         src={Placeholder}
@@ -278,44 +273,7 @@ export function OptimizedCardImage({
   // Add cache buster for retries
   const displaySrc = retryKey > 0 ? `${src}${src.includes("?") ? "&" : "?"}retry=${retryKey}` : src;
 
-  // If we're hitting one of the internal proxy routes, skip next/image entirely.
-  // Even with `unoptimized`, Next 16 still requires localPatterns for every
-  // query string variant, which isn't feasible for `/api/assets`.
-  if (isProxyUrl) {
-    return (
-      <img
-        src={displaySrc ?? undefined}
-        alt={alt}
-        className={`object-cover transition-opacity duration-200 ${className}`}
-        style={{ opacity: loaded ? 1 : 0.2 }}
-        loading={priority ? "eager" : "lazy"}
-        fetchPriority={priority ? "high" : undefined}
-        onLoad={() => {
-          setLoaded(true);
-          setErrored(false);
-          if (retryTimeoutRef.current) {
-            clearTimeout(retryTimeoutRef.current);
-          }
-        }}
-        onError={() => {
-          if (retryCount < MAX_RETRIES) {
-            const backoffDelay = Math.min(1000 * 2 ** retryCount, 5000);
-            if (retryTimeoutRef.current) {
-              clearTimeout(retryTimeoutRef.current);
-            }
-            retryTimeoutRef.current = setTimeout(() => {
-              setRetryCount(prev => prev + 1);
-              setRetryKey(Date.now());
-            }, backoffDelay);
-          } else {
-            setErrored(true);
-          }
-        }}
-      />
-    );
-  }
-
-  // Real image case - includes screenshots and other CDN URLs
+  // Always use next/image so CDN URLs and proxy paths share the same sizing logic
   return (
     <Image
       src={displaySrc}
@@ -336,9 +294,8 @@ export function OptimizedCardImage({
         }
       }}
       onError={() => {
-        // For proxy URLs, retry with exponential backoff
-        if (isProxyUrl && retryCount < MAX_RETRIES) {
-          if (isDev) console.log(`[OptimizedCardImage] Scheduling retry for proxy URL: ${src}`);
+        if (retryCount < MAX_RETRIES) {
+          if (isDev) console.log(`[OptimizedCardImage] Scheduling retry for URL: ${src}`);
           const backoffDelay = Math.min(1000 * 2 ** retryCount, 5000); // 1s, 2s, up to 5s max
 
           if (retryTimeoutRef.current) {
@@ -346,7 +303,7 @@ export function OptimizedCardImage({
           }
           retryTimeoutRef.current = setTimeout(() => {
             setRetryCount(prev => prev + 1);
-            setRetryKey(Date.now()); // Force new URL with cache buster
+            setRetryKey(getMonotonicTime()); // Force new URL with cache buster
           }, backoffDelay);
         } else {
           setErrored(true);
