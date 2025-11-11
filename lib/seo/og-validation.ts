@@ -8,6 +8,7 @@
 
 import { metadata } from "../../data/metadata";
 import type { OGImageValidation, OGImage, OGMetadata } from "../../types/seo/validation";
+import { getMonotonicTime } from "@/lib/utils";
 
 /**
  * Validates an OpenGraph image URL according to platform requirements
@@ -153,22 +154,12 @@ export function validateOpenGraphMetadata(ogData: OGMetadata): OGImageValidation
 export function createCacheBustingUrl(imageUrl: string, forceRefresh = false): string {
   const separator = imageUrl.includes("?") ? "&" : "?";
 
-  // Use a deterministic hash based on the URL for static rendering
-  // This ensures the same URL always produces the same cache-busting value
-  const urlHash = imageUrl.split("").reduce((acc, char) => {
-    return ((acc << 5) - acc + char.charCodeAt(0)) | 0;
-  }, 0);
-
-  // Convert to positive number and modulo for a reasonable range
-  const cacheVersion = Math.abs(urlHash) % 10000;
-
   if (forceRefresh) {
-    // Use a different parameter for forced refresh
-    return `${imageUrl}${separator}cb=${cacheVersion}`;
+    return `${imageUrl}${separator}cb=${getMonotonicTime()}`;
   }
 
-  // Standard cache version
-  return `${imageUrl}${separator}v=${cacheVersion}`;
+  const dailyTimestamp = Math.floor(getMonotonicTime() / (1000 * 60 * 60 * 24));
+  return `${imageUrl}${separator}v=${dailyTimestamp}`;
 }
 
 /**
