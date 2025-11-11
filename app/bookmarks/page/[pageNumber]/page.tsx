@@ -27,6 +27,8 @@ import type { PaginatedBookmarkContext } from "@/types";
 import { PageNumberSchema } from "@/types/lib";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 
+export const fetchCache = "force-no-store";
+
 /**
  * Generate metadata for the paginated Bookmarks page
  */
@@ -117,7 +119,9 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
 
 export default async function PaginatedBookmarksPage({ params }: PaginatedBookmarkContext) {
   // Force request-time rendering under cacheComponents.
-  await connection();
+  if (typeof connection === "function") {
+    await connection();
+  }
 
   const paramsResolved = await Promise.resolve(params);
 
