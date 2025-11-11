@@ -5,12 +5,21 @@
  */
 
 import sitemap from "@/app/sitemap";
-import { getBookmarksForStaticBuildAsync } from "@/lib/bookmarks/bookmarks.server";
+import {
+  getBookmarksIndex,
+  getBookmarksPage,
+  listBookmarkTagSlugs,
+  getTagBookmarksIndex,
+  getTagBookmarksPage,
+} from "@/lib/bookmarks/service.server";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 
-// Mock dependencies
-jest.mock("@/lib/bookmarks/bookmarks.server", () => ({
-  getBookmarksForStaticBuildAsync: jest.fn(),
+jest.mock("@/lib/bookmarks/service.server", () => ({
+  getBookmarksIndex: jest.fn(),
+  getBookmarksPage: jest.fn(),
+  listBookmarkTagSlugs: jest.fn(),
+  getTagBookmarksIndex: jest.fn(),
+  getTagBookmarksPage: jest.fn(),
 }));
 
 jest.mock("@/data/education", () => ({
@@ -33,57 +42,6 @@ jest.mock("@/data/projects", () => ({
   updatedAt: "2024-01-01",
 }));
 
-// Provide a controllable mock for slug manager so sitemap bookmark processing proceeds
-const mockLoadSlugMapping = jest.fn();
-type TestSlugMapping = { slugs?: Record<string, { slug?: string }> } | null | undefined;
-const mockGetSlugForBookmark = jest.fn((mapping: TestSlugMapping, id: string) => mapping?.slugs?.[id]?.slug ?? null);
-const mockGenerateSlugMapping = jest.fn((bookmarks: any[]) => {
-  // Generate a simple slug mapping for testing
-  const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
-  const reverseMap: Record<string, string> = {};
-  for (const bookmark of bookmarks) {
-    const slug = bookmark.slug || `bookmark-${bookmark.id}`;
-    slugs[bookmark.id] = {
-      id: bookmark.id,
-      slug,
-      url: bookmark.url || "",
-      title: bookmark.title || "",
-    };
-    reverseMap[slug] = bookmark.id;
-  }
-  return {
-    slugs,
-    reverseMap,
-    count: bookmarks.length,
-    generatedAt: new Date().toISOString(),
-  };
-});
-jest.mock("@/lib/bookmarks/slug-manager", () => ({
-  loadSlugMapping: () => mockLoadSlugMapping(),
-  getSlugForBookmark: (mapping: TestSlugMapping, id: string) => mockGetSlugForBookmark(mapping, id),
-  generateSlugMapping: (bookmarks: any[]) => mockGenerateSlugMapping(bookmarks),
-}));
-
-// Helper to build consistent slug-mapping payloads for tests
-function buildSlugMappingFrom(bookmarks: Array<{ id: string; url: string; title: string }>, prefix = "example-com-") {
-  const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
-  const reverseMap: Record<string, string> = {};
-  for (const [i, bm] of bookmarks.entries()) {
-    const slug = `${prefix}${i}`;
-    slugs[bm.id] = { id: bm.id, slug, url: bm.url, title: bm.title };
-    reverseMap[slug] = bm.id;
-  }
-  return {
-    version: "1.0.0",
-    generated: "2024-01-01T00:00:00.000Z", // fixed to avoid time drift in snapshots
-    count: bookmarks.length,
-    checksum: "test",
-    slugs,
-    reverseMap,
-  };
-}
-
-// Mock the blog posts loading
 jest.mock("fs", () => ({
   ...jest.requireActual("fs"),
   readdirSync: jest.fn(() => ["test-post.mdx"]),
@@ -97,257 +55,310 @@ Content`,
   ),
 }));
 
+const mockGetBookmarksIndex = getBookmarksIndex as jest.MockedFunction<typeof getBookmarksIndex>;
+const mockGetBookmarksPage = getBookmarksPage as jest.MockedFunction<typeof getBookmarksPage>;
+const mockListBookmarkTagSlugs = listBookmarkTagSlugs as jest.MockedFunction<typeof listBookmarkTagSlugs>;
+const mockGetTagBookmarksIndex = getTagBookmarksIndex as jest.MockedFunction<typeof getTagBookmarksIndex>;
+const mockGetTagBookmarksPage = getTagBookmarksPage as jest.MockedFunction<typeof getTagBookmarksPage>;
+
+const buildBookmark = (
+  id: string,
+  overrides: Partial<{
+    slug: string;
+    url: string;
+    title: string;
+    dateBookmarked?: string;
+    modifiedAt?: string;
+    dateCreated?: string;
+    tags: string[];
+  }> = {},
+) => ({
+  id,
+  slug: overrides.slug ?? `bookmark-${id}`,
+  url: overrides.url ?? `https://example.com/${id}`,
+  title: overrides.title ?? `Bookmark ${id}`,
+  dateBookmarked: overrides.dateBookmarked,
+  modifiedAt: overrides.modifiedAt,
+  dateCreated: overrides.dateCreated,
+  tags: overrides.tags ?? [],
+});
+
 describe("Sitemap Generation", () => {
-  const mockGetBookmarksForStaticBuildAsync = getBookmarksForStaticBuildAsync as jest.MockedFunction<
-    typeof getBookmarksForStaticBuildAsync
-  >;
   let originalSiteUrl: string | undefined;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetBookmarksIndex.mockReset();
+    mockGetBookmarksPage.mockReset();
+    mockListBookmarkTagSlugs.mockReset();
+    mockGetTagBookmarksIndex.mockReset();
+    mockGetTagBookmarksPage.mockReset();
     originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
     process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
+    mockListBookmarkTagSlugs.mockResolvedValue([]);
+    mockGetTagBookmarksIndex.mockResolvedValue(null);
+    mockGetTagBookmarksPage.mockResolvedValue([]);
   });
 
   afterEach(() => {
     process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
   });
 
-  /**
-   * @description Tests bookmark pagination in the sitemap
-   */
   describe("Bookmarks Pagination Logic", () => {
-    /**
-     * @description Generates correct paginated entries based on BOOKMARKS_PER_PAGE
-     */
-    it("should create paginated entries based on BOOKMARKS_PER_PAGE", async () => {
-      // Mock 50 bookmarks to test pagination logic
-      const mockBookmarks = Array.from({ length: 50 }, (_, i) => ({
-        id: `bookmark-${i}`,
-        url: `https://example.com/${i}`,
-        title: `Bookmark ${i}`,
-        dateBookmarked: new Date("2024-01-01").toISOString(),
-        tags: [],
-      }));
+    it("creates paginated entries based on BOOKMARKS_PER_PAGE", async () => {
+      const totalBookmarks = 50;
+      const totalPages = Math.ceil(totalBookmarks / BOOKMARKS_PER_PAGE);
 
-      mockGetBookmarksForStaticBuildAsync.mockResolvedValue(mockBookmarks);
+      mockGetBookmarksIndex.mockResolvedValue({
+        count: totalBookmarks,
+        totalPages,
+        pageSize: BOOKMARKS_PER_PAGE,
+        lastModified: "2024-01-01T00:00:00.000Z",
+        lastFetchedAt: Date.now(),
+        lastAttemptedAt: Date.now(),
+        checksum: "test",
+        changeDetected: true,
+      });
 
-      // Provide full slug mapping for all bookmarks to avoid console errors and ensure correct URLs
-      mockLoadSlugMapping.mockResolvedValue(buildSlugMappingFrom(mockBookmarks));
+      const pageData = new Map<number, ReturnType<typeof buildBookmark>[]>();
+      for (let page = 1; page <= totalPages; page++) {
+        const start = (page - 1) * BOOKMARKS_PER_PAGE;
+        const end = Math.min(start + BOOKMARKS_PER_PAGE, totalBookmarks);
+        const bookmarks: ReturnType<typeof buildBookmark>[] = [];
+        for (let i = start; i < end; i++) {
+          bookmarks.push(
+            buildBookmark(String(i), {
+              slug: `bookmark-${i}`,
+              dateBookmarked: new Date("2024-01-01T00:00:00Z").toISOString(),
+            }),
+          );
+        }
+        pageData.set(page, bookmarks);
+      }
+
+      mockGetBookmarksPage.mockImplementation(pageNumber => Promise.resolve(pageData.get(pageNumber) ?? []));
 
       const sitemapEntries = await sitemap();
 
-      // Calculate expected pages
-      const totalPages = Math.ceil(mockBookmarks.length / BOOKMARKS_PER_PAGE);
-      expect(totalPages).toBe(3); // 50 / BOOKMARKS_PER_PAGE, rounded up
-
-      // Find paginated bookmark entries (pages 2 and 3, since page 1 is /bookmarks)
       const paginatedEntries = sitemapEntries.filter(entry => entry.url.includes("/bookmarks/page/"));
-
-      // Should have entries for pages 2 and 3
-      expect(paginatedEntries).toHaveLength(2);
-      expect(paginatedEntries.map(e => e.url)).toEqual(
-        expect.arrayContaining([
-          "https://williamcallahan.com/bookmarks/page/2",
-          "https://williamcallahan.com/bookmarks/page/3",
-        ]),
+      expect(paginatedEntries).toHaveLength(totalPages - 1);
+      expect(paginatedEntries.map(entry => entry.url)).toEqual(
+        expect.arrayContaining(
+          Array.from({ length: totalPages - 1 }, (_, idx) => `https://williamcallahan.com/bookmarks/page/${idx + 2}`),
+        ),
       );
-
-      // All paginated entries should have proper metadata
       for (const entry of paginatedEntries) {
         expect(entry.changeFrequency).toBe("weekly");
         expect(entry.priority).toBe(0.65);
       }
     });
 
-    /**
-     * @description Handles undefined lastModified gracefully if no dateBookmarked
-     */
-    it("should handle undefined lastModified gracefully", async () => {
-      // Mock bookmarks without dates
-      const mockBookmarks = Array.from({ length: 30 }, (_, i) => ({
-        id: `bookmark-${i}`,
-        url: `https://example.com/${i}`,
-        title: `Bookmark ${i}`,
-        // No dateBookmarked - will result in undefined lastModified
-        tags: [],
-      }));
-
-      mockGetBookmarksForStaticBuildAsync.mockResolvedValue(mockBookmarks);
-
-      mockLoadSlugMapping.mockResolvedValue(buildSlugMappingFrom(mockBookmarks));
-
-      const sitemapEntries = await sitemap();
-
-      // Find paginated bookmark entry
-      const paginatedEntry = sitemapEntries.find(entry => entry.url === "https://williamcallahan.com/bookmarks/page/2");
-
-      expect(paginatedEntry).toBeDefined();
-      // lastModified should not be present when undefined
-      expect(paginatedEntry?.lastModified).toBeUndefined();
-    });
-
-    /**
-     * @description Includes lastModified with the most recent bookmark date
-     */
-    it("should include lastModified when bookmarks have dates", async () => {
-      const testDate = new Date("2024-06-15T10:00:00Z");
-
-      // Mock bookmarks with dates
-      const mockBookmarks = Array.from({ length: 30 }, (_, i) => ({
-        id: `bookmark-${i}`,
-        url: `https://example.com/${i}`,
-        title: `Bookmark ${i}`,
-        dateBookmarked: testDate.toISOString(),
-        tags: [],
-      }));
-
-      mockGetBookmarksForStaticBuildAsync.mockResolvedValue(mockBookmarks);
-
-      mockLoadSlugMapping.mockResolvedValue(buildSlugMappingFrom(mockBookmarks));
-
-      const sitemapEntries = await sitemap();
-
-      // Find paginated bookmark entry
-      const paginatedEntry = sitemapEntries.find(entry => entry.url === "https://williamcallahan.com/bookmarks/page/2");
-
-      expect(paginatedEntry).toBeDefined();
-      expect(paginatedEntry?.lastModified).toEqual(testDate);
-    });
-
-    /**
-     * @description Skips pagination if total bookmarks are less than a single page
-     */
-    it("should not create pagination for a single page of bookmarks", async () => {
-      // Mock only 20 bookmarks (less than BOOKMARKS_PER_PAGE)
-      const mockBookmarks = Array.from({ length: 20 }, (_, i) => ({
-        id: `bookmark-${i}`,
-        url: `https://example.com/${i}`,
-        title: `Bookmark ${i}`,
-        dateBookmarked: new Date("2024-01-01").toISOString(),
-        tags: [],
-      }));
-
-      mockGetBookmarksForStaticBuildAsync.mockResolvedValue(mockBookmarks);
-
-      const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
-      const reverseMap: Record<string, string> = {};
-      for (let i = 0; i < mockBookmarks.length; i++) {
-        const id = `bookmark-${i}`;
-        const slug = `example-com-${i}`;
-        slugs[id] = { id, slug, url: `https://example.com/${i}`, title: `Bookmark ${i}` };
-        reverseMap[slug] = id;
-      }
-      mockLoadSlugMapping.mockResolvedValue({
-        version: "1.0.0",
-        generated: new Date().toISOString(),
-        count: mockBookmarks.length,
+    it("handles undefined lastModified gracefully", async () => {
+      mockGetBookmarksIndex.mockResolvedValue({
+        count: BOOKMARKS_PER_PAGE + 6,
+        totalPages: 2,
+        pageSize: BOOKMARKS_PER_PAGE,
+        lastModified: undefined,
+        lastFetchedAt: Date.now(),
+        lastAttemptedAt: Date.now(),
         checksum: "test",
-        slugs,
-        reverseMap,
+        changeDetected: true,
+      });
+
+      mockGetBookmarksPage.mockImplementation(pageNumber => {
+        if (pageNumber === 1) {
+          return Promise.resolve(
+            Array.from({ length: BOOKMARKS_PER_PAGE }, (_, idx) =>
+              buildBookmark(`page1-${idx}`, { slug: `page1-${idx}` }),
+            ),
+          );
+        }
+        return Promise.resolve(
+          Array.from({ length: 6 }, (_, idx) => buildBookmark(`page2-${idx}`, { slug: `page2-${idx}` })),
+        );
       });
 
       const sitemapEntries = await sitemap();
+      const paginatedEntry = sitemapEntries.find(entry => entry.url === "https://williamcallahan.com/bookmarks/page/2");
 
-      // Should not have any paginated entries
+      expect(paginatedEntry).toBeDefined();
+      expect(paginatedEntry?.lastModified).toBeUndefined();
+    });
+
+    it("includes lastModified when bookmarks provide stable timestamps", async () => {
+      const lastModified = new Date("2024-06-15T10:00:00Z").toISOString();
+
+      mockGetBookmarksIndex.mockResolvedValue({
+        count: BOOKMARKS_PER_PAGE + 2,
+        totalPages: 2,
+        pageSize: BOOKMARKS_PER_PAGE,
+        lastModified,
+        lastFetchedAt: Date.now(),
+        lastAttemptedAt: Date.now(),
+        checksum: "test",
+        changeDetected: true,
+      });
+
+      mockGetBookmarksPage.mockImplementation(pageNumber => {
+        if (pageNumber === 1) {
+          return Promise.resolve(
+            Array.from({ length: BOOKMARKS_PER_PAGE }, (_, idx) =>
+              buildBookmark(`page1-${idx}`, {
+                slug: `page1-${idx}`,
+                modifiedAt: lastModified,
+              }),
+            ),
+          );
+        }
+        return Promise.resolve(
+          Array.from({ length: 2 }, (_, idx) =>
+            buildBookmark(`page2-${idx}`, {
+              slug: `page2-${idx}`,
+              modifiedAt: lastModified,
+            }),
+          ),
+        );
+      });
+
+      const sitemapEntries = await sitemap();
+      const paginatedEntry = sitemapEntries.find(entry => entry.url === "https://williamcallahan.com/bookmarks/page/2");
+
+      expect(paginatedEntry).toBeDefined();
+      expect(paginatedEntry?.lastModified).toEqual(new Date(lastModified));
+    });
+
+    it("skips pagination when there is only one page of bookmarks", async () => {
+      mockGetBookmarksIndex.mockResolvedValue({
+        count: BOOKMARKS_PER_PAGE - 1,
+        totalPages: 1,
+        pageSize: BOOKMARKS_PER_PAGE,
+        lastModified: undefined,
+        lastFetchedAt: Date.now(),
+        lastAttemptedAt: Date.now(),
+        checksum: "test",
+        changeDetected: true,
+      });
+
+      mockGetBookmarksPage.mockResolvedValue(
+        Array.from({ length: BOOKMARKS_PER_PAGE - 1 }, (_, idx) =>
+          buildBookmark(`bookmark-${idx}`, { slug: `bookmark-${idx}` }),
+        ),
+      );
+
+      const sitemapEntries = await sitemap();
       const paginatedEntries = sitemapEntries.filter(entry => entry.url.includes("/bookmarks/page/"));
-
       expect(paginatedEntries).toHaveLength(0);
 
-      // But should still have the main bookmarks page
       const mainBookmarksEntry = sitemapEntries.find(entry => entry.url === "https://williamcallahan.com/bookmarks");
-
       expect(mainBookmarksEntry).toBeDefined();
     });
   });
 
-  /**
-   * @description Tests sitemap entries for individual bookmarks
-   */
   describe("Individual Bookmark Entries", () => {
-    /**
-     * @description Creates a unique sitemap entry for each bookmark with a slug
-     */
-    it("should create entries for individual bookmarks with slugs", async () => {
-      const mockBookmarks = [
-        {
-          id: "bookmark-1",
+    it("creates entries for each bookmark slug", async () => {
+      mockGetBookmarksIndex.mockResolvedValue({
+        count: 2,
+        totalPages: 1,
+        pageSize: BOOKMARKS_PER_PAGE,
+        lastModified: "2024-01-02T00:00:00Z",
+        lastFetchedAt: Date.now(),
+        lastAttemptedAt: Date.now(),
+        checksum: "test",
+        changeDetected: true,
+      });
+
+      mockGetBookmarksPage.mockResolvedValue([
+        buildBookmark("bookmark-1", {
+          slug: "example-com-article",
           url: "https://example.com/article",
           title: "Great Article",
-          dateBookmarked: new Date("2024-01-01").toISOString(),
+          dateBookmarked: "2024-01-01T00:00:00Z",
           tags: ["tech", "web"],
-        },
-        {
-          id: "bookmark-2",
+        }),
+        buildBookmark("bookmark-2", {
+          slug: "another-com-post",
           url: "https://another.com/post",
           title: "Another Post",
-          dateBookmarked: new Date("2024-01-02").toISOString(),
+          dateBookmarked: "2024-01-02T00:00:00Z",
           tags: ["design"],
-        },
-      ];
-
-      mockGetBookmarksForStaticBuildAsync.mockResolvedValue(mockBookmarks);
-
-      // Provide slugs for the two bookmarks used in this test
-      const slugMapping = {
-        version: "1.0.0",
-        generated: "2024-01-01T00:00:00.000Z",
-        count: 2,
-        checksum: "test",
-        slugs: {
-          "bookmark-1": {
-            id: "bookmark-1",
-            slug: "example-com-article",
-            url: "https://example.com/article",
-            title: "Great Article",
-          },
-          "bookmark-2": {
-            id: "bookmark-2",
-            slug: "another-com-post",
-            url: "https://another.com/post",
-            title: "Another Post",
-          },
-        },
-        reverseMap: {
-          "example-com-article": "bookmark-1",
-          "another-com-post": "bookmark-2",
-        },
-      };
-      mockLoadSlugMapping.mockResolvedValue(slugMapping);
+        }),
+      ]);
 
       const sitemapEntries = await sitemap();
-
-      // Should have entries for individual bookmarks
       const bookmarkEntries = sitemapEntries.filter(
         entry => entry.url.includes("/bookmarks/") && !entry.url.includes("/page/"),
       );
 
-      // Should generate slugs based on domain and title
       expect(
-        bookmarkEntries.some(entry => entry.url.includes("/bookmarks/") && entry.url.includes("example-com")),
+        bookmarkEntries.some(entry => entry.url === "https://williamcallahan.com/bookmarks/example-com-article"),
       ).toBe(true);
-
       expect(
-        bookmarkEntries.some(entry => entry.url.includes("/bookmarks/") && entry.url.includes("another-com")),
+        bookmarkEntries.some(entry => entry.url === "https://williamcallahan.com/bookmarks/another-com-post"),
       ).toBe(true);
     });
   });
 
-  /**
-   * @description Tests inclusion of all static pages in the sitemap
-   */
-  describe("Static Page Entries", () => {
-    /**
-     * @description Includes all static pages with correct metadata
-     */
-    it("should include all static pages with correct metadata", async () => {
-      mockGetBookmarksForStaticBuildAsync.mockResolvedValue([]);
+  describe("Tag Entries", () => {
+    it("creates tag sitemap entries by streaming tag pages", async () => {
+      mockGetBookmarksIndex.mockResolvedValue({
+        count: BOOKMARKS_PER_PAGE,
+        totalPages: 1,
+        pageSize: BOOKMARKS_PER_PAGE,
+        lastModified: "2024-01-01T00:00:00Z",
+        lastFetchedAt: Date.now(),
+        lastAttemptedAt: Date.now(),
+        checksum: "bookmark",
+        changeDetected: true,
+      });
 
-      mockLoadSlugMapping.mockResolvedValue(buildSlugMappingFrom([]));
+      mockGetBookmarksPage.mockResolvedValue(
+        Array.from({ length: BOOKMARKS_PER_PAGE }, (_, idx) =>
+          buildBookmark(`bookmark-${idx}`, {
+            slug: `bookmark-${idx}`,
+            dateBookmarked: "2024-01-01T00:00:00Z",
+          }),
+        ),
+      );
+
+      mockListBookmarkTagSlugs.mockResolvedValue(["example-tag"]);
+      mockGetTagBookmarksIndex.mockResolvedValue({
+        count: BOOKMARKS_PER_PAGE + 5,
+        totalPages: 2,
+        pageSize: BOOKMARKS_PER_PAGE,
+        lastModified: "2024-02-01T00:00:00Z",
+        lastFetchedAt: Date.now(),
+        lastAttemptedAt: Date.now(),
+        checksum: "tag",
+        changeDetected: true,
+      });
 
       const sitemapEntries = await sitemap();
 
-      // Check for main static pages
+      expect(sitemapEntries).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ url: "https://williamcallahan.com/bookmarks/tags/example-tag" }),
+          expect.objectContaining({ url: "https://williamcallahan.com/bookmarks/tags/example-tag/page/2" }),
+        ]),
+      );
+
+      expect(mockGetTagBookmarksPage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Static Page Entries", () => {
+    it("includes all static pages with metadata", async () => {
+      mockGetBookmarksIndex.mockResolvedValue({
+        count: 0,
+        totalPages: 0,
+        pageSize: BOOKMARKS_PER_PAGE,
+        lastModified: undefined,
+        lastFetchedAt: Date.now(),
+        lastAttemptedAt: Date.now(),
+        checksum: "test",
+        changeDetected: false,
+      });
+
+      const sitemapEntries = await sitemap();
       const expectedPages = [
         "https://williamcallahan.com/",
         "https://williamcallahan.com/blog",
