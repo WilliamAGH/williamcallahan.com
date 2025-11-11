@@ -190,6 +190,9 @@ export function LogoImage({
   const displaySrc =
     reloadKey && proxiedSrc ? `${proxiedSrc}${proxiedSrc.includes("?") ? "&" : "?"}cb=${reloadKey}` : proxiedSrc;
 
+  const shouldBypassOptimizer =
+    typeof displaySrc === "string" && (displaySrc.startsWith("/api/") || displaySrc.startsWith("data:"));
+
   // Use next/image with base64 placeholder to prevent broken image flash
   return (
     <div style={{ position: "relative", width, height }} className="inline-block">
@@ -217,6 +220,7 @@ export function LogoImage({
         className={`${className} object-contain ${needsInversion ? "dark:invert dark:brightness-90" : ""}`}
         style={{ opacity: isLoading ? 0 : 1, transition: "opacity 0.2s ease-in-out" }}
         {...(priority ? { priority } : {})}
+        {...(shouldBypassOptimizer ? { unoptimized: true } : {})}
         onError={handleError}
         onLoad={() => {
           setIsLoading(false);
