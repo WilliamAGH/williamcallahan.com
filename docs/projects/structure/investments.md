@@ -16,7 +16,7 @@ See [Investments Architecture Diagram](./investments.mmd).
    - For each investment, it calls `InvestmentCardServer` to generate a pre-rendered card.
 3. **Logo Fetching (`InvestmentCardServer`)**:
    - For each card, this component fetches the company's logo.
-   - It uses a direct file read for a placeholder SVG and a `fetchLogo` utility for external logos.
+   - Manifest hits return CDN URLs immediately; fallback now calls `getLogoCdnData()` which talks to `UnifiedImageService` directly (no `/api/logo` proxy) before falling back to the placeholder SVG.
    - The fetched logo (or placeholder) is converted into a `base64` data URL.
    - It then renders an `InvestmentCardClient` component, passing the investment data and the logo data URL as props.
 4. **Client-Side Hydration (`InvestmentsClient`)**:
