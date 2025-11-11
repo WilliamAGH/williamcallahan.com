@@ -192,9 +192,8 @@ ENV S3_BUCKET=$S3_BUCKET \
 
 # Copy Next.js build output (Turbopack doesn't use standalone)
 COPY --from=builder /app/.next ./.next
-# Ensure local S3 snapshot cache is available at runtime
-RUN mkdir -p ./.next/cache
-COPY --from=builder /app/.next/cache/local-s3 ./.next/cache/local-s3
+# Ensure local S3 cache path exists at runtime (builder no longer materializes snapshots)
+RUN mkdir -p ./.next/cache/local-s3
 # Copy node_modules for runtime dependencies
 COPY --from=deps --link /app/node_modules ./node_modules
 
