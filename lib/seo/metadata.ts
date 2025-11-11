@@ -48,7 +48,6 @@ import { adaptNextOpenGraphToOGMetadata } from "../../types/seo/validation";
 export const BASE_METADATA: Metadata = {
   title: SITE_TITLE,
   description: SITE_DESCRIPTION_SHORT,
-  metadataBase: new URL(siteMetadata.site.url),
   twitter: {
     card: "summary_large_image",
     site: siteMetadata.social.twitter,
