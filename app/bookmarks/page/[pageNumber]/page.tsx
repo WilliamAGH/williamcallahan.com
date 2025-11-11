@@ -13,6 +13,7 @@
  */
 
 import type { Metadata } from "next";
+import { unstable_noStore as noStore } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
@@ -26,8 +27,6 @@ import { getBookmarksPage, getBookmarksIndex } from "@/lib/bookmarks/service.ser
 import type { PaginatedBookmarkContext } from "@/types";
 import { PageNumberSchema } from "@/types/lib";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
-
-export const fetchCache = "force-no-store";
 
 /**
  * Generate metadata for the paginated Bookmarks page
@@ -119,6 +118,10 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
 
 export default async function PaginatedBookmarksPage({ params }: PaginatedBookmarkContext) {
   // Force request-time rendering under cacheComponents.
+  if (typeof noStore === "function") {
+    noStore();
+  }
+
   if (typeof connection === "function") {
     await connection();
   }

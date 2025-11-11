@@ -10,6 +10,7 @@
  */
 
 import type { Metadata } from "next";
+import { unstable_noStore as noStore } from "next/cache";
 import { connection } from "next/server";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo";
@@ -27,6 +28,10 @@ export function generateMetadata(): Metadata {
 }
 
 export default async function BookmarksPage() {
+  if (typeof noStore === "function") {
+    noStore();
+  }
+
   if (typeof connection === "function") {
     await connection();
   }
