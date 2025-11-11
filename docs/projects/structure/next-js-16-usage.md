@@ -61,7 +61,7 @@ These are the failure modes that blocked >100 deploy attempts. Follow each check
   - `app/bookmarks/page/[pageNumber]/page.tsx:34-111` – uses `const paramsResolved = await Promise.resolve(params)` for both `generateMetadata` and the page component.
   - `app/blog/[slug]/page.tsx:78-118` – destructures `{ slug } = await params` before any lookups.
   - `app/bookmarks/tags/[...slug]/page.tsx:86-147` and `app/bookmarks/[slug]/page.tsx:182-297` follow the same pattern for complex Zod validation.
-- **Sitemap / metadata builders:** `app/sitemap.ts:63-240` still carries a Next.js 14 comment; the implementation already runs inside `export default async function sitemap()` but every future change must keep `await getBookmarksForStaticBuildAsync()` and any future route params asynchronous.
+- **Sitemap / metadata builders:** `app/sitemap.ts` now enforces `dynamic = "force-dynamic"` and iterates S3 pages sequentially via `getBookmarksPage()` while streaming tag indexes with `listBookmarkTagSlugs()` + `getTagBookmarksIndex()`/`getTagBookmarksPage()`. Never reintroduce a build-time bulk fetch; keep params asynchronous and limit memory by processing one page at a time.
 - **Action items when adding new routes:** copy one of the reference patterns, add a code comment citing this section, and include tests under `__tests__/app/` that cover invalid params so we catch missing `await` calls.
 
 #### 1.a Guarding Date/Time usage (`next-prerender-current-time`)
@@ -86,7 +86,7 @@ These are the failure modes that blocked >100 deploy attempts. Follow each check
 - **Configuration source-of-truth:** `next.config.ts:286` enables `cacheComponents: true`. Never reintroduce `experimental.ppr`, `dynamicIO`, or `force-static` overrides without updating this doc.
 - **Cache helpers:** when a module needs tagging/staleness, import `{ cacheLife, cacheTag }` from `next/cache`. Example: update `lib/server/data-fetch-manager.ts` when we need a new tag rather than reusing `unstable_cache`.
 - **Fetch defaults:** With cache components on, `fetch()` remains uncached unless `next: { revalidate }` is set. Document intent inline (e.g., `// Next 16: do not cache because ...`).
-- **Bookmarks + S3:** `app/sitemap.ts:188-246` shows the approved flow (fetch data via `getBookmarksForStaticBuildAsync`, generate slug mapping, and log diagnostics). Any new cache invalidation must also touch `lib/bookmarks/service.server.ts` so ISR + cache components agree.
+- **Bookmarks + S3:** `app/sitemap.ts` streams bookmarks by page and aggregates tag metadata without loading the full dataset. Any new cache invalidation must also touch `lib/bookmarks/service.server.ts` so ISR + cache components agree. Keep the per-page iteration to protect heap usage.
   - Docker builds now always read the `.next/cache/local-s3` snapshots because `lib/bookmarks/bookmarks-data-access.server.ts` only disables the local fallback when `NEXT_PHASE === "phase-production-server"` (see guard near the top of that file). This keeps `bun run build` offline-safe even when S3 isn’t reachable.
 - **Offline local builds:** CI/CD must hit S3/CDN, so local fallbacks are disabled whenever `NODE_ENV=production` (same state as `bun run build`). To run a production build without network access, set `FORCE_LOCAL_S3_CACHE=true` before invoking the build so `.next/cache/local-s3` is used. Never enable this in Docker/Coolify.
 

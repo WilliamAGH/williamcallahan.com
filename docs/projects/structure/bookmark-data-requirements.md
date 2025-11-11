@@ -55,7 +55,7 @@ aggregateAllContent(); // aggregator.ts - precomputes best image + description
 getCachedBookmarkSlugs(); // request-cache.ts - uses lightweight bookmarks
 
 // For sitemap generation
-getBookmarksForStaticBuildAsync(); // can strip images for memory efficiency
+getBookmarksPage(page); // used by app/sitemap.ts to process 1 page of lightweight bookmarks at a time
 ```
 
 ## Common Regression Pattern

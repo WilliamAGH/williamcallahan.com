@@ -99,12 +99,13 @@ graph TD
   - Validates datasets before persistence using safeguard mechanisms to prevent overwriting with invalid or test data, ensuring data integrity.
   - Provides robust fallback mechanisms to return cached or S3 data in case of fetch failures, enhancing application resilience during API downtime.
 
-#### Server-Side Bookmark Operations (`lib/bookmarks.server.ts`)
+#### Sitemap Bookmark Streaming (`app/sitemap.ts` + `lib/bookmarks/service.server.ts`)
 
-- **Purpose**: Manages server-side only bookmark operations, specifically for static site generation during build time.
+- **Purpose**: Generates the sitemap at request time without loading the entire bookmark corpus into memory.
 - **Key Features**:
-  - Reads bookmarks directly from the file system during the build phase to avoid API calls, enhancing build performance.
-  - Falls back to API fetching for non-build environments to ensure data freshness when needed.
+  - Uses `getBookmarksIndex()` to determine the number of paginated S3 snapshots and then iterates them sequentially with `getBookmarksPage(pageNumber)`.
+  - Aggregates bookmark and tag metadata in small chunks, ensuring builds and runtime requests stay within heap limits.
+  - Respects the same cache tags as the rest of the bookmarks stack so ISR invalidations continue to work end-to-end.
 
 #### Client-Side Bookmark Operations (`lib/bookmarks.client.ts`)
 
