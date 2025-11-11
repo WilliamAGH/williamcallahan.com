@@ -52,7 +52,7 @@ API routes → read JSON in S3 → `Cache-Control: no-store`
 
 ### Rendering Strategy
 
-- Bookmark detail routes (`app/bookmarks/[slug]/page.tsx`) are explicitly marked `dynamic = "force-dynamic"`. This tells Next.js 16 up front that slug resolution, related content, and logo refresh logic are request-time concerns, preventing the static-to-dynamic runtime error while leaving the cache-tagged helpers (`findBookmarkBySlug`, `resolveBookmarkIdFromSlug`) in control of memoization.
+- Bookmark detail routes (`app/bookmarks/[slug]/page.tsx`) keep Cache Components enabled and rely on a `<Suspense>` boundary around `RelatedContent` to stream runtime data. The related content module calls `connection()` internally so S3-backed recommendations wait for the live request, while slug-resolution helpers (`findBookmarkBySlug`, `resolveBookmarkIdFromSlug`) remain cache-tagged for memoization.
 
 ## Key Features
 

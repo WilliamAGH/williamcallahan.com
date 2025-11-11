@@ -35,5 +35,5 @@ The "blog" functionality encompasses components and utilities that manage the di
 ## Notes
 
 - The blog functionality is designed for performance with server-side rendering and ISR, combined with client-side interactivity for a seamless user experience.
-- Individual blog detail routes (`app/blog/[slug]/page.tsx`) explicitly set `dynamic = "force-dynamic"` so the `RelatedContent` server component can call `connection()` and fetch live S3 recommendations at request time without triggering the Next.js 16 static-to-dynamic error.
+- Individual blog detail routes (`app/blog/[slug]/page.tsx`) now keep the default Cache Components behavior and stream recommendations by wrapping `RelatedContent` in a `<Suspense>` boundary. The related content server component calls `connection()` internally so request-time S3 lookups wait for a user navigation without forcing `dynamic = "force-dynamic"`, keeping the rest of the page cachable.
 - Components are modular, allowing reuse across different views, with special attention to accessibility and responsive design as seen in features like collapsible background info boxes.
