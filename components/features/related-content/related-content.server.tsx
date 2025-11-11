@@ -5,7 +5,7 @@
  * Uses server-side rendering for optimal performance and SEO.
  */
 
-import { connection } from "next/server";
+// connection() forces routes to become dynamic; avoid calling it so bookmark/blog pages remain static.
 import { getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { getLazyContentMap, getCachedAllContent } from "@/lib/content-similarity/cached-aggregator";
 import { findMostSimilar, limitByTypeAndTotal } from "@/lib/content-similarity";
@@ -175,12 +175,6 @@ export async function RelatedContent({
   // Mark this section as request-time so Next.js 16 defers the heavy S3 fetches until runtime.
   if (isBuildPhase) {
     return null;
-  }
-
-  try {
-    await connection();
-  } catch {
-    // If connection() is unavailable (e.g., during Jest tests), continue without throwing.
   }
 
   try {

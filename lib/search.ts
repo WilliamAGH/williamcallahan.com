@@ -545,6 +545,14 @@ async function getBookmarksIndex(): Promise<{
     return cached;
   }
 
+  const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+  if (isBuildPhase) {
+    devLog("[getBookmarksIndex] build phase detected, returning empty index");
+    const emptyResult = { index: buildBookmarksIndex([]), bookmarks: [] };
+    ServerCacheInstance.set(cacheKey, emptyResult, BOOKMARK_INDEX_TTL);
+    return emptyResult;
+  }
+
   // Try the fast path: import bookmarks directly when running server-side and not using S3 indexes.
   let bookmarks: Array<{
     id: string;
