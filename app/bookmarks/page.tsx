@@ -26,6 +26,8 @@ export function generateMetadata(): Metadata {
   return getStaticPageMetadata("/bookmarks", "bookmarks");
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function BookmarksPage() {
   // Explicitly mark this route as dynamic under cacheComponents.
   await connection();
