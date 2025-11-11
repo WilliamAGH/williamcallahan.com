@@ -16,7 +16,7 @@ Components:
 
 ## Key Features
 
-- **Idempotent Logo Fetching**: Always fetches from S3 CDN via UnifiedImageService at `lib/education-data-processor.ts:38-45`
+- **Idempotent Logo Fetching**: Manifest-first with a fallback to `getLogoCdnData()` (direct UnifiedImageService call) inside `lib/education-data-processor.ts`, so no `/api/logo` proxy hops are required.
 - **Concurrent Processing**: Promise.all at `education.server.tsx:22-30` for parallel logo fetches
 - **Client-Side Interactivity**: Search/filter/sort at `education.client.tsx:74-127` without re-fetching logos
 - **CV Flagging**: `data/education.ts` applies `cvFeatured` to surface a curated subset on the curriculum vitae page.

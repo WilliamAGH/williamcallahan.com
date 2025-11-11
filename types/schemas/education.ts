@@ -143,7 +143,9 @@ export const educationCardClientPropsSchema = z.object({
  * Schema for certification card client props
  */
 export const certificationCardClientPropsSchema = z.object({
-  certification: certificationSchema,
+  certification: certificationSchema.extend({
+    logoData: educationLogoDataSchema.optional(),
+  }),
   className: z.string().optional(),
 });
 
