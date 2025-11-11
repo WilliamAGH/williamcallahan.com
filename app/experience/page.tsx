@@ -21,6 +21,24 @@ import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-lo
 import type { Experience as ExperienceType, LogoData, ProcessedExperienceItem } from "@/types";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
+const EXPERIENCE_LOGO_BATCH_SIZE = 6;
+
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<R[]> {
+  if (!items.length) return [];
+
+  const results: R[] = [];
+  for (let index = 0; index < items.length; index += limit) {
+    const slice = items.slice(index, index + limit);
+    const mapped = await Promise.all(slice.map(mapper));
+    results.push(...mapped);
+  }
+  return results;
+}
+
 /**
  * Generate metadata for the experience page
  */
@@ -57,8 +75,10 @@ export default async function ExperiencePage() {
 
   const jsonLdData = generateSchemaGraph(schemaParams);
 
-  const experienceData = await Promise.all(
-    experiences.map(async (exp: ExperienceType): Promise<ProcessedExperienceItem> => {
+  const experienceData = await mapWithConcurrency(
+    experiences,
+    EXPERIENCE_LOGO_BATCH_SIZE,
+    async (exp: ExperienceType): Promise<ProcessedExperienceItem> => {
       const hasOverrideDomain = Boolean(exp.logoOnlyDomain);
       const domain = hasOverrideDomain
         ? normalizeDomain(exp.logoOnlyDomain as string)
@@ -140,7 +160,7 @@ export default async function ExperiencePage() {
           error: `Failed to process logo: ${errorMessage}`,
         };
       }
-    }),
+    },
   );
 
   return (
