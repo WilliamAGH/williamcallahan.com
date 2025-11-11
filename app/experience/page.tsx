@@ -14,7 +14,7 @@ import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { experiences } from "@/data/experience";
-import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
+import { getLogoCdnData } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
@@ -109,15 +109,9 @@ export default async function ExperiencePage() {
           return { ...exp, logoData: manifestLogo };
         }
 
-        const runtimeLogoUrl = getRuntimeLogoUrl(domain, { company: exp.company });
-
-        if (runtimeLogoUrl) {
-          const runtimeLogoData: LogoData = {
-            url: runtimeLogoUrl,
-            source: "api",
-          };
-
-          return { ...exp, logoData: runtimeLogoData };
+        const directLogo = await getLogoCdnData(domain);
+        if (directLogo) {
+          return { ...exp, logoData: directLogo };
         }
 
         const remoteOrStaticUrl = exp.logo ? exp.logo : getCompanyPlaceholder();
@@ -131,13 +125,10 @@ export default async function ExperiencePage() {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Unknown error";
         console.error("[ExperiencePage] Failed to resolve logo:", err);
-        const runtimeLogoUrl = getRuntimeLogoUrl(domain, { company: exp.company });
+        const fallbackLogo = domain ? await getLogoCdnData(domain) : null;
         return {
           ...exp,
-          logoData: {
-            url: runtimeLogoUrl ?? getCompanyPlaceholder(),
-            source: runtimeLogoUrl ? "api" : null,
-          },
+          logoData: fallbackLogo ?? { url: getCompanyPlaceholder(), source: null },
           error: `Failed to process logo: ${errorMessage}`,
         };
       }
