@@ -13,7 +13,6 @@
  */
 
 import type { Metadata } from "next";
-import { unstable_noStore as noStore } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo";
@@ -26,6 +25,12 @@ import { getBookmarksPage, getBookmarksIndex } from "@/lib/bookmarks/service.ser
 import type { PaginatedBookmarkContext } from "@/types";
 import { PageNumberSchema } from "@/types/lib";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
+
+/**
+ * Force dynamic rendering for this page
+ * Replaces deprecated unstable_noStore() usage for Next.js 16 compatibility
+ */
+export const dynamic = "force-dynamic";
 
 /**
  * Generate metadata for the paginated Bookmarks page
@@ -116,11 +121,6 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
 }
 
 export default async function PaginatedBookmarksPage({ params }: PaginatedBookmarkContext) {
-  // Force request-time rendering under cacheComponents.
-  if (typeof noStore === "function") {
-    noStore();
-  }
-
   const paramsResolved = await Promise.resolve(params);
 
   // Re-use the same Zod schema to validate/parse the page param

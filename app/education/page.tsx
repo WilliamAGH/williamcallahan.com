@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { unstable_noStore as noStore } from "next/cache";
 import { Education } from "@/components/features/education/education.server";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -25,13 +24,15 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
 export const metadata: Metadata = getStaticPageMetadata("/education", "education");
 
 /**
+ * Force dynamic rendering for this page
+ * Replaces deprecated unstable_noStore() usage for Next.js 16 compatibility
+ */
+export const dynamic = "force-dynamic";
+
+/**
  * Education page component with JSON-LD schema
  */
 export default function EducationPage() {
-  if (typeof noStore === "function") {
-    noStore();
-  }
-
   // Generate JSON-LD schema for the education page
   const pageMetadata = PAGE_METADATA.education;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
