@@ -50,6 +50,10 @@ API routes → read JSON in S3 → `Cache-Control: no-store`
 - `app/sitemap.ts` iterates paginated S3 artifacts via `getBookmarksIndex()` + `getBookmarksPage()` and streams tag snapshots with `listBookmarkTagSlugs()` + `getTagBookmarksIndex()`/`getTagBookmarksPage()` so the sitemap never materializes the full dataset in memory.
 - `bun scripts/fetch-bookmarks-public.ts` is still available for offline development snapshots, but it is **not** part of the default build pipeline.
 
+### Rendering Strategy
+
+- Bookmark detail routes (`app/bookmarks/[slug]/page.tsx`) are explicitly marked `dynamic = "force-dynamic"`. This tells Next.js 16 up front that slug resolution, related content, and logo refresh logic are request-time concerns, preventing the static-to-dynamic runtime error while leaving the cache-tagged helpers (`findBookmarkBySlug`, `resolveBookmarkIdFromSlug`) in control of memoization.
+
 ## Key Features
 
 ### Pagination System

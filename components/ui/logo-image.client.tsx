@@ -202,8 +202,6 @@ export function LogoImage({
           setIsLoading(false);
           if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
         }}
-        // Allow external images from the logo API
-        unoptimized={!!src.includes("/api/logo")}
       />
     </div>
   );
@@ -280,7 +278,44 @@ export function OptimizedCardImage({
   // Add cache buster for retries
   const displaySrc = retryKey > 0 ? `${src}${src.includes("?") ? "&" : "?"}retry=${retryKey}` : src;
 
-  // Real image case - includes screenshots and other proxy URLs
+  // If we're hitting one of the internal proxy routes, skip next/image entirely.
+  // Even with `unoptimized`, Next 16 still requires localPatterns for every
+  // query string variant, which isn't feasible for `/api/assets`.
+  if (isProxyUrl) {
+    return (
+      <img
+        src={displaySrc ?? undefined}
+        alt={alt}
+        className={`object-cover transition-opacity duration-200 ${className}`}
+        style={{ opacity: loaded ? 1 : 0.2 }}
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : undefined}
+        onLoad={() => {
+          setLoaded(true);
+          setErrored(false);
+          if (retryTimeoutRef.current) {
+            clearTimeout(retryTimeoutRef.current);
+          }
+        }}
+        onError={() => {
+          if (retryCount < MAX_RETRIES) {
+            const backoffDelay = Math.min(1000 * 2 ** retryCount, 5000);
+            if (retryTimeoutRef.current) {
+              clearTimeout(retryTimeoutRef.current);
+            }
+            retryTimeoutRef.current = setTimeout(() => {
+              setRetryCount(prev => prev + 1);
+              setRetryKey(Date.now());
+            }, backoffDelay);
+          } else {
+            setErrored(true);
+          }
+        }}
+      />
+    );
+  }
+
+  // Real image case - includes screenshots and other CDN URLs
   return (
     <Image
       src={displaySrc}
@@ -288,8 +323,6 @@ export function OptimizedCardImage({
       fill
       sizes="(max-width:768px) 100vw, 50vw"
       quality={80}
-      // Skip Next.js optimization for external URLs (proxies and direct http(s) sources)
-      unoptimized={isProxyUrl || /^https?:\/\//.test(displaySrc)}
       placeholder="empty"
       className={`object-cover transition-opacity duration-200 ${className}`}
       style={{ opacity: loaded ? 1 : 0.2 }}

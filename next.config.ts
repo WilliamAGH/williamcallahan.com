@@ -117,6 +117,50 @@ const telemetryBundledPackages = [
 const baseTranspilePackages = process.env.NODE_ENV === "production" ? ["next-mdx-remote", "swr"] : [];
 const transpilePackages = Array.from(new Set([...baseTranspilePackages, ...telemetryBundledPackages]));
 
+const CALLAHAN_IMAGE_HOSTS = [
+  "s3-storage.callahan.cloud",
+  "williamcallahan.com",
+  "dev.williamcallahan.com",
+  "alpha.williamcallahan.com",
+  "*.williamcallahan.com",
+  "*.callahan.cloud",
+  "*.digitaloceanspaces.com",
+  "*.sfo3.digitaloceanspaces.com",
+];
+
+const parseHostname = (value?: string | null): string | null => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const url = new URL(trimmed);
+    return url.hostname;
+  } catch {
+    return trimmed.replace(/^https?:\/\//, "");
+  }
+};
+
+const buildBucketHostname = (): string | null => {
+  const bucket = process.env.S3_BUCKET?.trim();
+  const serverUrl = process.env.S3_SERVER_URL?.trim();
+  if (!bucket || !serverUrl) return null;
+
+  const serverHost = parseHostname(serverUrl);
+  if (!serverHost) return null;
+  return `${bucket}.${serverHost}`;
+};
+
+const derivedCallahanHosts = [process.env.NEXT_PUBLIC_S3_CDN_URL, process.env.S3_CDN_URL, buildBucketHostname()]
+  .map(parseHostname)
+  .filter((hostname): hostname is string => Boolean(hostname));
+
+const CDN_REMOTE_PATTERNS = Array.from(new Set([...CALLAHAN_IMAGE_HOSTS, ...derivedCallahanHosts])).map(hostname => ({
+  protocol: "https",
+  hostname,
+  pathname: "/**",
+}));
+
 const nextConfig = {
   // We run our own rigorous validation pipeline (`bun run validate`).
   // TypeScript checks remain but eslint config is removed in Next.js 16
@@ -366,7 +410,33 @@ const nextConfig = {
      * This is a security measure to prevent misuse of the image optimization API
      * @see https://nextjs.org/docs/app/api-reference/components/image#remotepatterns
      */
+    /**
+     * Local image route patterns with query string support
+     * IMPORTANT: Omitting `search` property (or setting to undefined) allows ANY query string
+     * Setting `search: ""` (empty string) ONLY allows URLs WITHOUT query strings
+     * Setting `search: "?foo=bar"` (exact string) ONLY allows that EXACT query string
+     * @see node_modules/next/dist/shared/lib/match-local-pattern.js
+     */
+    localPatterns: [
+      {
+        pathname: "/api/assets/**",
+        // search omitted to allow cache-buster and context query params
+      },
+      {
+        pathname: "/api/logo",
+        // search omitted to allow website/domain/company query params
+      },
+      {
+        pathname: "/api/logo/invert",
+        // search omitted to allow website/domain/company query params
+      },
+      {
+        pathname: "/api/og-image",
+        // search omitted to allow dynamic OG image query params
+      },
+    ],
     remotePatterns: [
+      ...CDN_REMOTE_PATTERNS,
       /**
        * Whitelist for social media content delivery networks (CDNs)
        * Ensures `next/image` can optimize profile pictures and media from these specific services
@@ -391,17 +461,8 @@ const nextConfig = {
       /**
        * Whitelist for general image sources and CDNs used by the site
        */
-      {
-        protocol: "https",
-        hostname: "s3-storage.callahan.cloud",
-        port: "",
-        pathname: "/**",
-        // search omitted to allow cache-buster query params (?cb=timestamp)
-      },
       // Stock photos and site-specific assets
       { protocol: "https", hostname: "images.unsplash.com" },
-      { protocol: "https", hostname: "williamcallahan.com" },
-      { protocol: "https", hostname: "dev.williamcallahan.com" },
       // Icon and search engine image sources
       { protocol: "https", hostname: "icons.duckduckgo.com" },
       { protocol: "https", hostname: "www.google.com" },
@@ -415,37 +476,6 @@ const nextConfig = {
       { protocol: "https", hostname: "*.popos-sf1.com" },
       { protocol: "https", hostname: "*.popos-sf2.com" },
       { protocol: "https", hostname: "*.popos-sf3.com" },
-      {
-        protocol: "https",
-        hostname: "**.digitaloceanspaces.com",
-        port: "",
-        // search omitted to allow cache-buster query params (?cb=timestamp)
-      },
-      {
-        protocol: "https",
-        hostname: "*.callahan.cloud",
-        port: "",
-        pathname: "/**",
-        // search omitted to allow cache-buster query params (?cb=timestamp)
-      },
-
-      /**
-       * Development-only: Allow all image sources for easier local development
-       * This uses a ternary operator to conditionally spread these patterns into the array
-       * if `processenvNODE_ENV` is 'development'
-       */
-      ...(process.env.NODE_ENV === "development"
-        ? [
-            {
-              protocol: "https",
-              hostname: "**", // Allows all HTTPS domains in development
-            },
-            {
-              protocol: "http",
-              hostname: "**", // Allows all HTTP domains in development
-            },
-          ]
-        : []),
     ],
     /**
      * An array of image widths (in pixels) that Nextjs will use to generate different image sizes

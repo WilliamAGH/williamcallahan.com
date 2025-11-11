@@ -52,8 +52,8 @@ NEXT_PUBLIC_S3_CDN_URL=https://s3-storage.callahan.cloud  # CDN with custom SSL 
 
 ### Next.js Optimizer Allowlist
 
-- `next.config.ts:images.domains` must include every CDN host that appears in blog/article metadata. The Next.js image optimizer throws a 400 with `"url" parameter is not allowed` (see `node_modules/next/dist/server/image-optimizer.js:522-546`) whenever the host is missing.
-- Current production list: `s3-storage.callahan.cloud`, `williamcallahan.com`, `dev.williamcallahan.com`, plus wildcard entries for `*.digitaloceanspaces.com` and the region-specific host `*.sfo3.digitaloceanspaces.com` so multi-level Spaces buckets such as `williamcallahan-com.sfo3.digitaloceanspaces.com` pass validation. Add any new Spaces/CDN hostname there **before** shipping content that references it.
+- `next.config.ts:images.remotePatterns` now derives its allowlist from `CALLAHAN_IMAGE_HOSTS` plus any hostnames discovered at runtime (`NEXT_PUBLIC_S3_CDN_URL`, `S3_CDN_URL`, and the `S3_BUCKET` + `S3_SERVER_URL` combination). This ensures dev and production share a single source of truth and prevents the "url parameter is not allowed" failure described in `node_modules/next/dist/server/image-optimizer.js:522-546`.
+- Current static allowlist still covers `s3-storage.callahan.cloud`, `williamcallahan.com`, `dev.williamcallahan.com`, `alpha.williamcallahan.com`, `*.williamcallahan.com`, `*.callahan.cloud`, `*.digitaloceanspaces.com`, and the region-qualified `*.sfo3.digitaloceanspaces.com`. Because the config auto-adds any future CDN host env vars, adding a new CDN endpoint only requires setting the env value and updating CSP.
 - CSP `connect-src` includes `*.callahan.cloud` and DigitalOcean Spaces to keep logo refresh fetches (see `components/ui/logo-image.client.tsx`) unblocked when fallback requests bypass the CDN manifest.
 
 ### Blog Cover Image Workflow
