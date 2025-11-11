@@ -55,7 +55,7 @@ export default async function ExperiencePage() {
     noStore();
   }
 
-  void headers();
+  await headers();
 
   if (typeof connection === "function") {
     await connection();

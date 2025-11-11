@@ -123,7 +123,7 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
     noStore();
   }
 
-  void headers();
+  await headers();
 
   if (typeof connection === "function") {
     await connection();

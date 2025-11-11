@@ -48,7 +48,7 @@ export default async function InvestmentsPage() {
     noStore();
   }
 
-  void headers();
+  await headers();
 
   if (typeof connection === "function") {
     await connection();
