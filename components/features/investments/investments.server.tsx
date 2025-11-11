@@ -4,12 +4,30 @@
  */
 
 import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-registry-context.client";
-import { InvestmentCardServer } from "./index";
 import { InvestmentsClient } from "./investments.client";
+import { resolveInvestmentCardData } from "./investment-card.server";
 
 import type { JSX } from "react";
 
-import type { InvestmentWithCard, InvestmentsProps } from "@/types";
+import type { InvestmentCardExtendedProps, InvestmentsProps } from "@/types";
+
+const LOGO_RESOLUTION_BATCH_SIZE = 6;
+
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<R[]> {
+  if (!items.length) return [];
+
+  const results: R[] = [];
+  for (let index = 0; index < items.length; index += limit) {
+    const slice = items.slice(index, index + limit);
+    const mapped = await Promise.all(slice.map(mapper));
+    results.push(...mapped);
+  }
+  return results;
+}
 
 /**
  * Server-side React component that pre-renders investment cards and provides them to the client component within a global context.
@@ -18,16 +36,19 @@ import type { InvestmentWithCard, InvestmentsProps } from "@/types";
  * @returns A JSX element containing the client-side investments component wrapped in a global window registry provider.
  */
 export async function Investments({ investments = [] }: InvestmentsProps): Promise<JSX.Element> {
-  const investmentCardPromises = investments.map(async investment => ({
-    ...investment,
-    card: await InvestmentCardServer(investment),
-  }));
+  const resolvedInvestments = await mapWithConcurrency(
+    investments,
+    LOGO_RESOLUTION_BATCH_SIZE,
+    resolveInvestmentCardData,
+  );
 
-  const investmentsWithCards = (await Promise.all(investmentCardPromises)) as InvestmentWithCard[];
+  const investmentsForClient: InvestmentCardExtendedProps[] = resolvedInvestments.map(
+    ({ error: _error, ...investment }) => investment,
+  );
 
   return (
     <GlobalWindowRegistryProvider>
-      <InvestmentsClient investments={investmentsWithCards} />
+      <InvestmentsClient investments={investmentsForClient} />
     </GlobalWindowRegistryProvider>
   );
 }
