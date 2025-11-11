@@ -31,7 +31,9 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
  */
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
   const requestUrl = new URL(request.url);
   const searchParams = requestUrl.searchParams;
   const website = searchParams.get("website");

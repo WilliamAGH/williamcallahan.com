@@ -10,7 +10,7 @@ import { searchBookmarks, searchEducation, searchExperience, searchInvestments, 
 import { validateSearchQuery } from "@/lib/validators/search";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import type { SearchResult } from "@/types/search";
-import { unstable_noStore as noStore } from "next/cache";
+import { unstable_noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import os from "node:os";
 
@@ -84,7 +84,10 @@ export async function GET(request: NextRequest) {
   if (isProductionBuild) {
     return NextResponse.json([], { headers: withNoStoreHeaders({ "X-Search-Build-Phase": "true" }) });
   }
-  noStore();
+  const disableCache = unstable_noStore as (() => void) | undefined;
+  if (typeof disableCache === "function") {
+    disableCache();
+  }
   try {
     const headersList = request.headers;
     const requestUrl = request.nextUrl;

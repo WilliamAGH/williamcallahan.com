@@ -24,7 +24,9 @@ import { NextResponse, type NextRequest } from "next/server";
  */
 export async function GET(request: NextRequest) {
   console.log("[API GET /github-activity] Received request.");
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
 
   // The 'refresh' and 'force-cache' query params are no longer used by this GET endpoint
   // as getGithubActivity is now S3-read-only and refresh is handled by POST /api/github-activity/refresh

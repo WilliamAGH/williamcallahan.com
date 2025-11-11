@@ -142,7 +142,9 @@ export async function GET(request: NextRequest) {
       { headers: NO_STORE_HEADERS },
     );
   }
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
   const startTime = getMonotonicTime();
 
   try {

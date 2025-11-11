@@ -32,7 +32,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { status: 200, headers: NO_STORE_HEADERS },
     );
   }
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
   try {
     // Check authorization using existing env variable
     const authHeader = request.headers.get("authorization");

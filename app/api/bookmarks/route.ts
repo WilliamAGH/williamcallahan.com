@@ -40,7 +40,9 @@ function buildInternalHrefs(
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  noStore();
+  if (typeof noStore === "function") {
+    noStore();
+  }
   console.log("[API Bookmarks] Received GET request for bookmarks");
 
   const requestUrl = new URL(request.url);
