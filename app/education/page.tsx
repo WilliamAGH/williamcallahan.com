@@ -1,3 +1,5 @@
+"use cache";
+
 import type { Metadata } from "next";
 import { Education } from "@/components/features/education/education.server";
 import { getStaticPageMetadata } from "@/lib/seo";
@@ -24,10 +26,10 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
 export const metadata: Metadata = getStaticPageMetadata("/education", "education");
 
 /**
- * Force dynamic rendering for this page
- * Replaces deprecated unstable_noStore() usage for Next.js 16 compatibility
+ * Cache policy
+ * `'use cache'` is required when cacheComponents is enabled to keep this route prerenderable;
+ * see https://nextjs.org/docs/app/api-reference/directives/use-cache for the official guidance.
  */
-export const dynamic = "force-dynamic";
 
 /**
  * Education page component with JSON-LD schema

@@ -26,10 +26,11 @@ export function generateMetadata(): Metadata {
 }
 
 /**
- * Force dynamic rendering for this page
- * Replaces deprecated unstable_noStore() usage for Next.js 16 compatibility
+ * Dynamic rendering (Cache Components mode)
+ * With cacheComponents enabled, pages are dynamic by default.
+ * This page fetches bookmarks from S3 at request time - no export needed.
+ * DO NOT add `export const dynamic = "force-dynamic"` - it's incompatible and causes build errors.
  */
-export const dynamic = "force-dynamic";
 
 export default function BookmarksPage() {
   const pageMetadata = PAGE_METADATA.bookmarks;

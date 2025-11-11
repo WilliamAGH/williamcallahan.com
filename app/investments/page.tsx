@@ -9,6 +9,8 @@
  * @see {@link "https://schema.org/Dataset"} - Schema.org Dataset specification
  */
 
+"use cache";
+
 import type { Metadata } from "next";
 import { Investments } from "@/components/features";
 import { getStaticPageMetadata } from "@/lib/seo";
@@ -25,10 +27,10 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
 export const metadata: Metadata = getStaticPageMetadata("/investments", "investments");
 
 /**
- * Force dynamic rendering for this page
- * Replaces deprecated unstable_noStore() usage for Next.js 16 compatibility
+ * Cache policy
+ * File-level `'use cache'` satisfies the Next.js 16 cacheComponents requirement for static segments;
+ * see https://nextjs.org/docs/app/api-reference/directives/use-cache for the canonical rules.
  */
-export const dynamic = "force-dynamic";
 
 /**
  * NOTE ON LOGO RESOLUTION
