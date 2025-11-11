@@ -20,6 +20,7 @@ import Link from "next/link";
 import { type JSX, useEffect } from "react";
 import { WindowControls } from "../../../components/ui/navigation/window-controls";
 import type { InvestmentsClientProps } from "@/types/features/investments";
+import { InvestmentCardClient } from "./investment-card.client";
 import { ExternalLink } from "../../ui/external-link.client";
 
 // Define a unique ID for this window instance
@@ -202,7 +203,7 @@ export function InvestmentsClient({ investments = [] }: InvestmentsClientProps):
             <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Investment Portfolio</h2>
             <div className="space-y-6">
               {investments.map(investment => (
-                <div key={`${investment.id}-${investment.invested_year}`}>{investment.card}</div>
+                <InvestmentCardClient key={`${investment.id}-${investment.invested_year}`} {...investment} />
               ))}
             </div>
           </>
