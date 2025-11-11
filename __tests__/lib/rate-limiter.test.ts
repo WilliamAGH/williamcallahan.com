@@ -1,6 +1,16 @@
 /**
  * Tests for Rate Limiter
  */
+let mockedMonotonicNow = 0;
+
+jest.mock("@/lib/utils", () => {
+  const actual = jest.requireActual("@/lib/utils");
+  return {
+    ...actual,
+    getMonotonicTime: jest.fn(() => mockedMonotonicNow),
+  };
+});
+
 import { isOperationAllowed, waitForPermit } from "@/lib/rate-limiter";
 import {
   API_ENDPOINT_STORE_NAME,
@@ -11,8 +21,14 @@ import {
 } from "@/lib/constants";
 
 describe("Rate Limiter", () => {
+  const advanceTime = (ms: number) => {
+    mockedMonotonicNow += ms;
+    jest.advanceTimersByTime(ms);
+  };
+
   beforeEach(() => {
     jest.useFakeTimers();
+    mockedMonotonicNow = 0;
   });
 
   afterEach(() => {
@@ -46,7 +62,7 @@ describe("Rate Limiter", () => {
       expect(isOperationAllowed("test-store-3", clientId, config)).toBe(false);
 
       // Advance time past the window
-      jest.advanceTimersByTime(61000);
+      advanceTime(61000);
 
       expect(isOperationAllowed("test-store-3", clientId, config)).toBe(true);
     });
@@ -97,7 +113,7 @@ describe("Rate Limiter", () => {
       isOperationAllowed("test-store-7", "client-3", config);
 
       // Advance time past window
-      jest.advanceTimersByTime(2000);
+      advanceTime(2000);
 
       // New operations should work (old entries cleaned up)
       expect(isOperationAllowed("test-store-7", "client-1", config)).toBe(true);
@@ -135,12 +151,12 @@ describe("Rate Limiter", () => {
       });
 
       // Advance time partially
-      jest.advanceTimersByTime(500);
+      advanceTime(500);
       await Promise.resolve(); // Allow promises to flush
       expect(resolved).toBe(false);
 
       // Advance time past window
-      jest.advanceTimersByTime(600);
+      advanceTime(600);
       await Promise.resolve();
 
       // Should now be resolved
@@ -160,7 +176,7 @@ describe("Rate Limiter", () => {
       const waiter2 = waitForPermit("wait-store-3", "client", config);
 
       // Advance time past window
-      jest.advanceTimersByTime(1100);
+      advanceTime(1100);
 
       // Both should resolve
       await expect(Promise.race([waiter1, waiter2])).resolves.toBeUndefined();
@@ -200,7 +216,7 @@ describe("Rate Limiter", () => {
       expect(lastCallWaitTime).toBeGreaterThan(1000); // Should wait more than 1 second
 
       // Clean up
-      jest.advanceTimersByTime(5100);
+      advanceTime(5100);
       await waitPromise;
       setTimeoutSpy.mockRestore();
     });
@@ -259,7 +275,7 @@ describe("Rate Limiter", () => {
       ).toBe(false);
 
       // After 1 second, should be allowed again
-      jest.advanceTimersByTime(1100);
+      advanceTime(1100);
       expect(
         isOperationAllowed(
           OPENGRAPH_FETCH_STORE_NAME,
