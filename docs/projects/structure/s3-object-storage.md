@@ -109,3 +109,11 @@ Keys are immutable once written (content-hash suffix or deterministic domain has
 - **Next.js 16 constraints** – `docs/projects/structure/next-js-16-usage.md` defines experimental flags, Cache Components expectations, and outlawed APIs that indirectly impact storage access.
 
 Keep this file current whenever you add a new prefix, manifest, or lock artifact. If an S3 command path is missing documentation here, it is considered unofficial and subject to removal.
+
+## Next.js Integration Notes
+
+- **CDN URLs are the only optimizer inputs.** The React surfaces call `/api/cache/images` with `<Image unoptimized>` while any CDN URLs must still match `images.remotePatterns`, in line with the [Next.js Image Optimization requirements](https://nextjs.org/docs/app/building-your-application/optimizing/images).
+- **Proxy endpoints stream, not redirect.** `/api/cache/images` fetches the CDN resource server-side, decodes multi-encoded `url` parameters, and streams the bytes so `_next/image` always sees a 200 response. ([Image Component docs](https://nextjs.org/docs/app/api-reference/components/image#unoptimized))
+- **Add hosts to `next.config.ts` before storing assets.** If you introduce a new Spaces endpoint or CDN hostname, update `CALLAHAN_IMAGE_HOSTS` and `images.remotePatterns` at the same time or `_next/image` will throw 400s in production.
+
+Changes to this contract must be mirrored in `image-handling.md`, `s3-image-unified-stack.md`, and `next-js-16-usage.md`.

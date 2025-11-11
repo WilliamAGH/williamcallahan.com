@@ -90,10 +90,13 @@ These are the failure modes that blocked >100 deploy attempts. Follow each check
   - Docker builds now always read the `.next/cache/local-s3` snapshots because `lib/bookmarks/bookmarks-data-access.server.ts` only disables the local fallback when `NEXT_PHASE === "phase-production-server"` (see guard near the top of that file). This keeps `bun run build` offline-safe even when S3 isn’t reachable.
 - **Offline local builds:** CI/CD must hit S3/CDN, so local fallbacks are disabled whenever `NODE_ENV=production` (same state as `bun run build`). To run a production build without network access, set `FORCE_LOCAL_S3_CACHE=true` before invoking the build so `.next/cache/local-s3` is used. Never enable this in Docker/Coolify.
 
-### 4. Image redirect + asset consistency
+### 4. Image optimizer contract (do not deviate)
 
-- Node 22 + Next 16 limit remote image redirects to 3 (`node_modules/next/dist/shared/lib/image-config.js:37-73`). If a provider needs more, document the `images.maximumRedirects` override inside `next.config.ts` plus the evidence (HTTP trace) in this file.
-- When Turbopack reports `Missing image response meta`, inspect `/app/(.*)/opengraph-image.tsx` handlers first—they now receive async params, so you must `await` before building OG data.
+1. **Only CDN URLs go through `_next/image`.** Any `<Image>` pointing at `/api/*` (e.g., `/api/cache/images`, `/api/logo`) **must** set `unoptimized` so the proxy handles the fetch directly, per the [Next.js Image Component spec](https://nextjs.org/docs/app/api-reference/components/image#unoptimized).
+2. **Local/remote patterns stay exact.** `/api/cache/images`, `/api/assets`, `/api/logo`, and `/api/og-image` remain in `images.localPatterns`, and every CDN hostname we touch must be present in `images.remotePatterns`. This aligns with the [Next.js Image Optimization rules](https://nextjs.org/docs/app/building-your-application/optimizing/images). PRs that add a new host or path must update `next.config.ts`, this doc, and `image-handling.md`.
+3. **Proxy routes stream bytes, not redirects.** `/api/cache/images` resolves CDN redirects server-side, decodes double-encoded `url` params, and streams the body back so `_next/image` always receives a 200. Returning a 301/302 from these routes will immediately trip the optimizer’s “url parameter is not allowed” guard.
+4. **Redirect limit awareness.** Node 22 + Next 16 limit remote image redirects to 3 (`node_modules/next/dist/shared/lib/image-config.js:37-73`). Override `images.maximumRedirects` only with a captured HTTP trace and documented rationale here.
+5. **Await OG/image params.** When Turbopack reports `Missing image response meta`, inspect `/app/(.*)/opengraph-image.tsx` handlers first—they now receive async params, so you must `await` before building OG data.
 
 ### 5. Documentation + MCP receipts
 
