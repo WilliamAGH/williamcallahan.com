@@ -5,7 +5,6 @@
  * Uses server-side rendering for optimal performance and SEO.
  */
 
-import { connection } from "next/server";
 import { getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { getLazyContentMap, getCachedAllContent } from "@/lib/content-similarity/cached-aggregator";
 import { findMostSimilar, limitByTypeAndTotal } from "@/lib/content-similarity";
@@ -33,7 +32,6 @@ import type {
 import { DEFAULT_MAX_PER_TYPE, DEFAULT_MAX_TOTAL } from "@/config/related-content.config";
 
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
-const shouldAwaitConnection = process.env.NODE_ENV !== "test" && !process.env.JEST_WORKER_ID;
 
 /**
  * Convert normalized content to related content item
@@ -175,10 +173,6 @@ export async function RelatedContent({
 }: RelatedContentProps) {
   if (isBuildPhase) {
     return null;
-  }
-
-  if (shouldAwaitConnection) {
-    await connection();
   }
 
   try {
