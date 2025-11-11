@@ -173,107 +173,131 @@ export class UnifiedImageService {
         if (cachedResult?.s3Key && (this.isReadOnly || !options.forceRefresh)) {
           return { ...cachedResult, cdnUrl: this.getCdnUrl(cachedResult.s3Key) };
         }
+
+        /**
+         * 🔍 S3 CDN Read Operations (ALLOWED during builds)
+         *
+         * These operations check if logos already exist in S3/CDN and are safe to run
+         * during build phase. They only perform read operations (HEAD requests, list operations)
+         * and never write to S3.
+         *
+         * Benefits:
+         * - Allows builds to serve existing logos from CDN
+         * - No S3 write operations = no build-time mutations
+         * - Respects the private/public CDN setup
+         */
+
+        // First check for existing hashed logo files using deterministic key generation
+        const { checkIfS3ObjectExists } = await import("@/lib/s3-utils");
+
+        for (const source of ["direct", "google", "duckduckgo", "clearbit"] as LogoSource[]) {
+          // Check common logo extensions
+          for (const extension of ["png", "jpg", "jpeg", "svg", "ico", "webp"]) {
+            const hashedKey = generateS3Key({
+              type: "logo",
+              domain,
+              source,
+              extension,
+            });
+
+            try {
+              const exists = await checkIfS3ObjectExists(hashedKey);
+              if (exists) {
+                console.log(`[UnifiedImageService] Found existing hashed logo: ${hashedKey}`);
+
+                const contentType =
+                  extension === "svg" ? "image/svg+xml" : extension === "ico" ? "image/x-icon" : `image/${extension}`;
+
+                const cachedResult: LogoFetchResult = {
+                  domain,
+                  s3Key: hashedKey,
+                  cdnUrl: this.getCdnUrl(hashedKey),
+                  url: undefined,
+                  source,
+                  contentType,
+                  timestamp: getDeterministicTimestamp(),
+                  isValid: true,
+                } as LogoFetchResult;
+
+                ServerCacheInstance.setLogoFetch(domain, cachedResult);
+                return cachedResult;
+              }
+            } catch {
+              // File doesn't exist, continue to next extension/source
+            }
+          }
+        }
+
+        // If no hashed files found, check for legacy files (without hashes)
+        const { findLegacyLogoKey } = await import("../utils/hash-utils");
+        const { listS3Objects } = await import("../s3-utils");
+        const legacyKey = await findLegacyLogoKey(domain, listS3Objects);
+
+        if (legacyKey) {
+          console.log(`[UnifiedImageService] Found existing legacy logo: ${legacyKey}`);
+
+          // Extract metadata from key
+          const parsed = parseS3Key(legacyKey);
+          const source = parsed.source as LogoSource;
+          const ext = parsed.extension || "png";
+          const contentType = ext === "svg" ? "image/svg+xml" : ext === "ico" ? "image/x-icon" : `image/${ext}`;
+
+          /**
+           * 🚫 S3 Write Operations (BLOCKED during builds)
+           *
+           * Logo migration/hashing requires S3 writes and must only run at runtime
+           * or during data-updater scripts. During builds, we return the legacy key
+           * as-is without migration.
+           */
+          let finalKey = legacyKey;
+          if (!parsed.hash && !this.isReadOnly) {
+            const { readBinaryS3, writeBinaryS3, deleteFromS3 } = await import("../s3-utils");
+            const migrated = await hashAndArchiveManualLogo(domain, {
+              listS3Objects,
+              readBinaryS3,
+              writeBinaryS3,
+              deleteFromS3,
+            });
+            if (migrated) {
+              finalKey = migrated;
+              console.log(`[UnifiedImageService] Manual logo migrated → ${migrated}`);
+            }
+          }
+
+          const cachedResult: LogoFetchResult = {
+            domain,
+            s3Key: finalKey,
+            cdnUrl: this.getCdnUrl(finalKey),
+            url: undefined,
+            source,
+            contentType,
+            timestamp: getDeterministicTimestamp(),
+            isValid: true,
+          } as LogoFetchResult;
+
+          ServerCacheInstance.setLogoFetch(domain, cachedResult);
+          return cachedResult;
+        }
+
+        /**
+         * 🚫 No Logo Found in CDN
+         *
+         * If we reach this point during a build (read-only mode), we cannot fetch
+         * from external sources as that would require uploading to S3. Return an
+         * error that indicates the logo needs to be fetched during runtime.
+         */
         if (this.isReadOnly) {
           if (this.isDev) {
-            console.info(`[UnifiedImageService] Read-only miss for logo domain '${domain}'`);
+            console.info(`[UnifiedImageService] Read-only: logo not found in CDN for domain '${domain}'`);
           }
           return {
             domain,
             source: null,
             contentType: "image/png",
-            error: "Logo not available in read-only mode",
+            error: "Logo not available in CDN (fetch required at runtime)",
             timestamp: getDeterministicTimestamp(),
             isValid: false,
           };
-        }
-
-        // 🔍 S3 Pre-flight check: Check for existing hashed files first, then legacy files
-        if (!this.isReadOnly) {
-          // First check for existing hashed logo files using deterministic key generation
-          const { checkIfS3ObjectExists } = await import("@/lib/s3-utils");
-
-          for (const source of ["direct", "google", "duckduckgo", "clearbit"] as LogoSource[]) {
-            // Check common logo extensions
-            for (const extension of ["png", "jpg", "jpeg", "svg", "ico", "webp"]) {
-              const hashedKey = generateS3Key({
-                type: "logo",
-                domain,
-                source,
-                extension,
-              });
-
-              try {
-                const exists = await checkIfS3ObjectExists(hashedKey);
-                if (exists) {
-                  console.log(`[UnifiedImageService] Found existing hashed logo: ${hashedKey}`);
-
-                  const contentType =
-                    extension === "svg" ? "image/svg+xml" : extension === "ico" ? "image/x-icon" : `image/${extension}`;
-
-                  const cachedResult: LogoFetchResult = {
-                    domain,
-                    s3Key: hashedKey,
-                    cdnUrl: this.getCdnUrl(hashedKey),
-                    url: undefined,
-                    source,
-                    contentType,
-                    timestamp: getDeterministicTimestamp(),
-                    isValid: true,
-                  } as LogoFetchResult;
-
-                  ServerCacheInstance.setLogoFetch(domain, cachedResult);
-                  return cachedResult;
-                }
-              } catch {
-                // File doesn't exist, continue to next extension/source
-              }
-            }
-          }
-
-          // If no hashed files found, check for legacy files (without hashes)
-          const { findLegacyLogoKey } = await import("../utils/hash-utils");
-          const { listS3Objects } = await import("../s3-utils");
-          const legacyKey = await findLegacyLogoKey(domain, listS3Objects);
-
-          if (legacyKey) {
-            console.log(`[UnifiedImageService] Found existing legacy logo: ${legacyKey}`);
-
-            // Extract metadata from key
-            const parsed = parseS3Key(legacyKey);
-            const source = parsed.source as LogoSource;
-            const ext = parsed.extension || "png";
-            const contentType = ext === "svg" ? "image/svg+xml" : ext === "ico" ? "image/x-icon" : `image/${ext}`;
-
-            // If key lacks hash, migrate it (hashAndArchiveManualLogo handles ACL)
-            let finalKey = legacyKey;
-            if (!parsed.hash) {
-              const { readBinaryS3, writeBinaryS3, deleteFromS3 } = await import("../s3-utils");
-              const migrated = await hashAndArchiveManualLogo(domain, {
-                listS3Objects,
-                readBinaryS3,
-                writeBinaryS3,
-                deleteFromS3,
-              });
-              if (migrated) {
-                finalKey = migrated;
-                console.log(`[UnifiedImageService] Manual logo migrated → ${migrated}`);
-              }
-            }
-
-            const cachedResult: LogoFetchResult = {
-              domain,
-              s3Key: finalKey,
-              cdnUrl: this.getCdnUrl(finalKey),
-              url: undefined,
-              source,
-              contentType,
-              timestamp: getDeterministicTimestamp(),
-              isValid: true,
-            } as LogoFetchResult;
-
-            ServerCacheInstance.setLogoFetch(domain, cachedResult);
-            return cachedResult;
-          }
         }
 
         // Not found in S3, try external sources
