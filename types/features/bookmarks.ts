@@ -188,7 +188,6 @@ export interface BookmarksWindowContentProps {
  */
 export interface BookmarksServerExtendedProps {
   bookmarks?: SerializableBookmark[];
-  allBookmarksForSlugs?: UnifiedBookmark[];
   title?: string;
   description?: string;
   searchAllBookmarks?: boolean;
