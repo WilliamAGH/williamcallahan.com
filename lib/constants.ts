@@ -47,6 +47,8 @@ export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
   TAG_INDEX_PREFIX: `json/bookmarks/tags${envSuffix}/`,
   HEARTBEAT: `json/bookmarks/heartbeat${envSuffix}.json`,
   SLUG_MAPPING: `json/bookmarks/slug-mapping${envSuffix}.json`,
+  SLUG_SHARDS_DIR: `json/bookmarks/slug-shards${envSuffix}`,
+  SLUG_SHARD_PREFIX: `json/bookmarks/slug-shards${envSuffix}/`,
 } as const;
 
 export const LOGO_BLOCKLIST_S3_PATH = `json/rate-limit/logo-failed-domains${envSuffix}.json`;
