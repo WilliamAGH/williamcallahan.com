@@ -91,8 +91,13 @@ const buildMdxComponent = (
       ...fnArgs: unknown[]
     ) => { default: ComponentType };
     const { default: Component } = hydrateFn.apply(hydrateFn, values) as { default: ComponentType };
-    compiledMdxCache.set(content.compiledSource, Component);
-    return Component;
+    const SafeComponent: ComponentType = componentProps => {
+      const rendered = <Component {...componentProps} />;
+      const normalizedChildren = React.Children.toArray(rendered as React.ReactNode);
+      return <>{normalizedChildren}</>;
+    };
+    compiledMdxCache.set(content.compiledSource, SafeComponent);
+    return SafeComponent;
   } catch (error) {
     console.error("[MDXContent] Failed to evaluate compiled MDX source", error);
     const Fallback: ComponentType = () => (
@@ -238,24 +243,23 @@ const MdxImage = ({
       height={800}
       loading={priority ? "eager" : "lazy"}
       className="rounded-lg shadow-md w-full h-auto"
-      style={{ width: "100%", height: "auto" }}
     />
   );
 
-  // Inline width constraints when specified
-  const figureStyle: React.CSSProperties = {};
+  const clampToStep = (value: number) => {
+    const clamped = Math.max(0, Math.min(100, value));
+    return Math.round(clamped / 5) * 5;
+  };
+
+  let widthModifierClass: string | undefined;
   if (typeof vwPct === "number" && !Number.isNaN(vwPct)) {
-    const clamped = Math.max(0, Math.min(100, vwPct));
-    figureStyle.width = `${clamped}vw`;
-    figureStyle.maxWidth = "100%"; // never overflow the article container
+    widthModifierClass = `mdx-figure-vw-${clampToStep(vwPct)}`;
   } else if (typeof widthPct === "number" && !Number.isNaN(widthPct)) {
-    const clamped = Math.max(0, Math.min(100, widthPct));
-    figureStyle.width = `${clamped}%`;
-    figureStyle.maxWidth = "100%";
+    widthModifierClass = `mdx-figure-w-${clampToStep(widthPct)}`;
   }
 
   return (
-    <figure className={`${widthClass} mx-auto my-6`} style={figureStyle}>
+    <figure className={cn(widthClass, "mx-auto my-6", widthModifierClass)}>
       {content}
       {caption && <figcaption className="mt-3 text-center text-sm text-muted-foreground">{caption}</figcaption>}
     </figure>
