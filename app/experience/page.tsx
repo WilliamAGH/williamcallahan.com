@@ -8,8 +8,6 @@
 
 import type { Metadata } from "next";
 import { unstable_noStore as noStore } from "next/cache";
-import { headers } from "next/headers";
-import { connection } from "next/server";
 import { Experience } from "@/components/features";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -53,12 +51,6 @@ export const metadata: Metadata = getStaticPageMetadata("/experience", "experien
 export default async function ExperiencePage() {
   if (typeof noStore === "function") {
     noStore();
-  }
-
-  await headers();
-
-  if (typeof connection === "function") {
-    await connection();
   }
 
   // Generate JSON-LD schema for the experience page
