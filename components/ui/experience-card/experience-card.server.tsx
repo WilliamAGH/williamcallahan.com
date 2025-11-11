@@ -6,7 +6,7 @@
  * Uses direct logo fetching to work during build time.
  */
 
-import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
+import { getLogoCdnData } from "@/lib/data-access/logos";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
@@ -51,18 +51,9 @@ export async function ExperienceCard(props: Experience & { isDarkTheme?: boolean
         console.warn(`[ExperienceCard] Manifest lookup failed for ${domain}:`, manifestError);
       }
 
-      const runtimeLogoUrl = getRuntimeLogoUrl(domain, { company });
-
-      if (runtimeLogoUrl) {
-        return (
-          <ExperienceCardClient
-            {...props}
-            logoData={{
-              url: runtimeLogoUrl,
-              source: "api",
-            }}
-          />
-        );
+      const directLogo = await getLogoCdnData(domain);
+      if (directLogo) {
+        return <ExperienceCardClient {...props} logoData={directLogo} />;
       }
     }
 
