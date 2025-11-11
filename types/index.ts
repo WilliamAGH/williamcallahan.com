@@ -75,7 +75,6 @@ export type {
   InvestmentsClientProps,
   InvestmentsServerProps,
   InvestmentCardExtendedProps,
-  InvestmentWithCard,
 } from "./features/investments";
 export * from "./features/projects";
 export * from "./features/seo";
