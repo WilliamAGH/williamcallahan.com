@@ -1085,6 +1085,25 @@ export async function getTagBookmarksIndex(tagSlug: string): Promise<BookmarksIn
   return getTagBookmarksIndexDirect(tagSlug);
 }
 
+export async function listTagSlugs(): Promise<string[]> {
+  const prefix = BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX;
+  const keys = await listS3Objects(prefix);
+  if (keys.length === 0) {
+    return [];
+  }
+
+  const slugs = new Set<string>();
+  for (const key of keys) {
+    const normalized = key.startsWith(prefix) ? key.slice(prefix.length) : key;
+    const match = normalized.match(/^([^/]+)\/index\.json$/);
+    if (match && match[1]) {
+      slugs.add(match[1]);
+    }
+  }
+
+  return Array.from(slugs).toSorted();
+}
+
 async function getBookmarksIndexDirect(): Promise<BookmarksIndex | null> {
   try {
     const rawIndex = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);

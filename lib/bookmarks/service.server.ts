@@ -11,6 +11,9 @@ import {
   refreshAndPersistBookmarks,
   setRefreshBookmarksCallback,
   initializeBookmarksDataAccess,
+  getTagBookmarksIndex as getTagBookmarksIndexInternal,
+  getTagBookmarksPage as getTagBookmarksPageInternal,
+  listTagSlugs as listTagSlugsInternal,
 } from "./bookmarks-data-access.server";
 import { refreshBookmarksData } from "./bookmarks";
 import type { UnifiedBookmark } from "@/types";
@@ -87,4 +90,19 @@ export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookm
 export async function getBookmarksIndex() {
   initializeBookmarksDataAccess();
   return getBookmarksIndexInternal();
+}
+
+export async function getTagBookmarksIndex(tagSlug: string) {
+  initializeBookmarksDataAccess();
+  return getTagBookmarksIndexInternal(tagSlug);
+}
+
+export async function getTagBookmarksPage(tagSlug: string, pageNumber: number): Promise<UnifiedBookmark[]> {
+  initializeBookmarksDataAccess();
+  return getTagBookmarksPageInternal(tagSlug, pageNumber);
+}
+
+export async function listBookmarkTagSlugs(): Promise<string[]> {
+  initializeBookmarksDataAccess();
+  return listTagSlugsInternal();
 }
