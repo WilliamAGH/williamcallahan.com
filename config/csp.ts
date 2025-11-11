@@ -39,6 +39,10 @@ export const CSP_DIRECTIVES = {
     "https://twitter.com",
     "https://platform.twitter.com",
     "https://*.x.com",
+    "https://*.callahan.cloud",
+    "https://*.digitaloceanspaces.com",
+    "https://*.sfo3.digitaloceanspaces.com",
+    "https://williamcallahan-com.sfo3.digitaloceanspaces.com",
   ],
   workerSrc: ["'self'", "blob:"],
   imgSrc: [
