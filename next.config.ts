@@ -410,7 +410,8 @@ const nextConfig = {
       { protocol: "https", hostname: "*.popos-sf1.com" },
       { protocol: "https", hostname: "*.popos-sf2.com" },
       { protocol: "https", hostname: "*.popos-sf3.com" },
-      { protocol: "https", hostname: "*.digitaloceanspaces.com" }, // DigitalOcean Spaces CDN
+      { protocol: "https", hostname: "*.digitaloceanspaces.com" }, // DigitalOcean Spaces CDN (single-level)
+      { protocol: "https", hostname: "**.digitaloceanspaces.com" }, // Multi-level DigitalOcean subdomains (e.g., williamcallahan-com.sfo3.digitaloceanspaces.com)
       { protocol: "https", hostname: "*.callahan.cloud", pathname: "/**" }, // DigitalOcean Spaces CDN
 
       /**
