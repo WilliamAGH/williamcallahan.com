@@ -2,7 +2,7 @@ import { ExternalLink } from "@/components/ui/external-link.client";
 import type { ProjectCardServerProps } from "@/types/features/projects";
 import Image from "next/image";
 import { type JSX } from "react";
-import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 
 const MAX_DISPLAY_TECH_ITEMS = 10;
 
@@ -63,11 +63,13 @@ function PlaceholderImageTop() {
 export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Element {
   const { name, description, url, imageKey, tags, techStack } = project;
   const imageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
+  const proxiedImageUrl = imageUrl ? buildCachedImageUrl(imageUrl) : undefined;
 
   // Derive a technology stack from tags if explicit techStack is not provided
-  const displayTech = (
-    (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags))
-  ).slice(0, MAX_DISPLAY_TECH_ITEMS);
+  const displayTech = (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)).slice(
+    0,
+    MAX_DISPLAY_TECH_ITEMS,
+  );
 
   return (
     // Redesigned card for horizontal layout on medium screens and up
@@ -85,9 +87,9 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
           showIcon={false}
           className="block w-full h-full" // Ensure link covers the area
         >
-          {imageUrl ? (
+          {proxiedImageUrl ? (
             <Image
-              src={imageUrl}
+              src={proxiedImageUrl}
               alt={`${name} screenshot`}
               fill
               quality={80}
@@ -96,6 +98,7 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
               blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFdwI2QJIiBQAAAABJRU5ErkJggg=="
               // Subtle zoom on hover
               className="object-cover w-full h-full transition-transform duration-300 ease-in-out group-hover:scale-105" // Ensure object-cover for aspect ratio
+              unoptimized
             />
           ) : (
             <PlaceholderImageTop />

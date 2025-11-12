@@ -151,3 +151,18 @@ export function getCdnConfigFromEnv(): CdnConfig {
     s3ServerUrl: process.env.S3_SERVER_URL,
   };
 }
+
+/**
+ * Build a local `/api/cache/images` proxy URL for a CDN resource.
+ * Mirrors the logic inside `components/ui/logo-image.client.tsx` so both
+ * server and client consumers hit the exact same trusted proxy before passing
+ * the response to `<Image>`.
+ */
+export function buildCachedImageUrl(cdnUrl: string, width?: number): string {
+  const params = new URLSearchParams();
+  params.set("url", cdnUrl);
+  if (typeof width === "number" && width > 0) {
+    params.set("width", String(width));
+  }
+  return `/api/cache/images?${params.toString()}`;
+}

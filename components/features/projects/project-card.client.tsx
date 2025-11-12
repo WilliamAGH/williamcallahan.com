@@ -3,7 +3,7 @@
 import { ExternalLink } from "@/components/ui/external-link.client";
 import type { ProjectCardProps } from "@/types/features/projects";
 import Image from "next/image";
-import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { type JSX, useState, useEffect } from "react";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { kebabCase } from "@/lib/utils/formatters";
@@ -68,19 +68,20 @@ function PlaceholderImageTop() {
 export function ProjectCard({ project, isPriority = false }: ProjectCardProps): JSX.Element {
   const { name, description, url, imageKey, tags, techStack } = project;
   const initialImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
+  const initialProxiedUrl = initialImageUrl ? buildCachedImageUrl(initialImageUrl) : undefined;
 
   // Generate a URL-safe ID from the project name for anchor linking
   const projectId = kebabCase(name);
 
-  const [imageUrl, setImageUrl] = useState(initialImageUrl);
+  const [imageUrl, setImageUrl] = useState(initialProxiedUrl);
   const [hasError, setHasError] = useState(false);
 
   const placeholderUrl = getStaticImageUrl("/images/opengraph-placeholder.png");
 
   useEffect(() => {
-    setImageUrl(initialImageUrl);
+    setImageUrl(initialProxiedUrl);
     setHasError(false);
-  }, [initialImageUrl]);
+  }, [initialProxiedUrl]);
 
   const handleImageError = () => {
     if (imageUrl !== placeholderUrl) {
@@ -127,6 +128,7 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
                   blurDataURL={getStaticImageUrl("/images/opengraph-placeholder.png")}
                   onError={handleImageError}
                   className="object-cover w-full h-full transition-transform duration-300 ease-in-out group-hover:scale-105"
+                  unoptimized
                 />
               </div>
             ) : (
