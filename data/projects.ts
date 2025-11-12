@@ -93,7 +93,7 @@ export const projects: Project[] = [
     name: "ComposerAI",
     description:
       "AI-native email client. Indexes every message in Qdrant for semantic search (embeddings and BM25/BM42 (RAG) search). Powerful full mailbox search, and automatically writes and generates replies that cite prior conversations, and suggests follow-up tasks from context. Built with Svelte + Vite and Spring Boot.",
-    shortSummary: "AI email client / mailbox for agentic search and tasks.",
+    shortSummary: "AI email client / mailbox for agentic search and tasks",
     url: "https://composerai.app",
     imageKey: "images/other/projects/composerai-app.png",
     tags: ["AI", "Email Client", "LLM", "Productivity", "Task Automation", "Vector Search", "Web App", "Svelte"],
