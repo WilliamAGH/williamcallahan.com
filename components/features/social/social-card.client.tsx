@@ -1,13 +1,13 @@
-"use client";
-
 /**
  * Social Card Client Component
  * @module components/features/social/social-card.client
  * @description
- * Client component that displays a beautiful card for a social media profile.
- * Uses a similar card design to the bookmarks feature.
- * Fetches OpenGraph images for profile and banner, with fallbacks.
+ * Client component that displays a card for a social media profile.
+ * All profile and banner images are resolved through proxy CDN URLs
+ * using `buildCdnUrl` + `buildCachedImageUrl` for consistent caching.
  */
+
+"use client";
 
 import { ExternalLink } from "@/components/ui/external-link.client";
 import Image from "next/image";
@@ -51,7 +51,6 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
   } else if (domain) {
     const parts = domain.split(".");
     serviceName = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : "";
-    if (!serviceName) serviceName = "";
   }
 
   if (serviceName === "X") serviceName = "Twitter";
@@ -63,96 +62,119 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
   }, []);
 
   /**
-   * Retrieves a fallback URL for a profile image based on the social network label.
-   * Uses S3 CDN URLs directly without static-image-mapping.json dependency.
-   * @param {string} networkLabel - The label of the social network.
-   * @returns {string} The URL of the fallback profile image.
+   * Wraps `buildCachedImageUrl` for consistent proxying.
+   * All image URLs emitted from this component should flow through here.
    */
-  const proxyCdnUrl = useCallback((url: string, width?: number) => buildCachedImageUrl(url, width), []);
+  const proxyCdnUrl = useCallback((url: string, width?: number): string => {
+    return buildCachedImageUrl(url, width);
+  }, []);
 
+  /**
+   * Returns proxy-backed fallback profile image URL for a given social label.
+   */
   const getProfileFallbackImage = useCallback(
     (networkLabel: string): string => {
       const cdnConfig = getCdnConfigFromEnv();
+
+      const safeDefault = (): string =>
+        proxyCdnUrl(buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig), 64);
 
       try {
         if (networkLabel.includes("GitHub")) {
           const usernameMatch = networkLabel.match(/@(\w+)/);
           const username = usernameMatch?.[1] || "WilliamAGH";
-          // 1️⃣ direct avatar (fast, cached by GitHub)
+
+          // GitHub avatar also goes through proxy for consistency
           return proxyCdnUrl(`https://avatars.githubusercontent.com/${username}?s=256&v=4`, 64);
         }
-        if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
+
+        if (networkLabel.includes("X") || networkLabel.includes("Twitter")) {
           return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig), 64);
-        if (networkLabel.includes("LinkedIn"))
+        }
+
+        if (networkLabel.includes("LinkedIn")) {
           return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig), 64);
+        }
+
         if (networkLabel.includes("Bluesky")) {
-          // Use personal avatar from CDN
           return proxyCdnUrl(buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig), 64);
         }
-        if (networkLabel.includes("Discord"))
+
+        if (networkLabel.includes("Discord")) {
           return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig), 64);
+        }
       } catch (error: unknown) {
         void error;
-        console.error(`Error getting profile image for ${networkLabel}:`);
-        if (networkLabel.includes("GitHub"))
-          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/github_72193247.jpg", cdnConfig), 64);
-        if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
-          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig), 64);
-        if (networkLabel.includes("LinkedIn"))
-          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig), 64);
-        if (networkLabel.includes("Bluesky"))
-          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/bluesky_5a093069.jpg", cdnConfig), 64);
-        if (networkLabel.includes("Discord"))
-          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig), 64);
+        console.error(`Error getting profile image for ${networkLabel}`);
       }
-      return proxyCdnUrl(buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig), 64);
+
+      // Fallback chain (still proxy-backed)
+      if (networkLabel.includes("GitHub")) {
+        return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/github_72193247.jpg", cdnConfig), 64);
+      }
+      if (networkLabel.includes("X") || networkLabel.includes("Twitter")) {
+        return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig), 64);
+      }
+      if (networkLabel.includes("LinkedIn")) {
+        return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig), 64);
+      }
+      if (networkLabel.includes("Bluesky")) {
+        return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/bluesky_5a093069.jpg", cdnConfig), 64);
+      }
+      if (networkLabel.includes("Discord")) {
+        return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig), 64);
+      }
+
+      return safeDefault();
     },
     [proxyCdnUrl],
   );
 
   /**
-   * Retrieves a fallback URL for a domain/banner image based on the social network label.
-   * Uses S3 CDN URLs directly without static-image-mapping.json dependency.
-   * @param {string} networkLabel - The label of the social network.
-   * @returns {string} The URL of the fallback domain/banner image.
+   * Returns proxy-backed fallback banner/domain image URL for a given social label.
    */
   const getDomainFallbackImage = useCallback(
     (networkLabel: string): string => {
       const cdnConfig = getCdnConfigFromEnv();
 
-      if (networkLabel.includes("GitHub"))
+      if (networkLabel.includes("GitHub")) {
         return proxyCdnUrl(buildCdnUrl("images/social-media/banners/github_87b6d92e.svg", cdnConfig));
-      if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
+      }
+      if (networkLabel.includes("X") || networkLabel.includes("Twitter")) {
         return proxyCdnUrl(buildCdnUrl("images/social-media/banners/twitter-x_4830ec25.svg", cdnConfig));
-      if (networkLabel.includes("LinkedIn"))
+      }
+      if (networkLabel.includes("LinkedIn")) {
         return proxyCdnUrl(buildCdnUrl("images/social-media/banners/linkedin_02a7ce76.svg", cdnConfig));
-      if (networkLabel.includes("Discord"))
+      }
+      if (networkLabel.includes("Discord")) {
         return proxyCdnUrl(buildCdnUrl("images/social-media/banners/discord_783c1e2b.svg", cdnConfig));
-      if (networkLabel.includes("Bluesky"))
+      }
+      if (networkLabel.includes("Bluesky")) {
         return proxyCdnUrl(buildCdnUrl("images/social-media/banners/bluesky_9310c7f9.png", cdnConfig));
+      }
+
       return proxyCdnUrl(buildCdnUrl("images/other/placeholders/company_90296cb3.svg", cdnConfig));
     },
     [proxyCdnUrl],
   );
 
   /**
-   * Fetches social media OpenGraph (OG) images.
+   * Resolves and sets the profile and domain images via proxy URLs.
    */
   const fetchSocialImages = useCallback(() => {
-    // Skip API calls entirely - use static images for all social profiles
-    setProfileImageUrl(getProfileFallbackImage(label));
-    setDomainImageUrl(getDomainFallbackImage(label));
+    const profile = getProfileFallbackImage(label);
+    const domainBanner = getDomainFallbackImage(label);
+
+    setProfileImageUrl(profile);
+    setDomainImageUrl(domainBanner);
     setIsLoading(false);
     setImageError(false);
   }, [label, getProfileFallbackImage, getDomainFallbackImage]);
 
   useEffect(() => {
-    if (mounted) {
-      setImageError(false);
-      setDomainImageUrl(getDomainFallbackImage(label));
-      fetchSocialImages();
-    }
-  }, [label, mounted, fetchSocialImages, getDomainFallbackImage]);
+    if (!mounted) return;
+    fetchSocialImages();
+  }, [mounted, fetchSocialImages]);
 
   if (!mounted) {
     return (
@@ -322,8 +344,6 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
 
 /**
  * Extracts a user handle from a social media URL.
- * @param {string} url - The URL of the social media profile.
- * @returns {string} The extracted user handle, prefixed with "@" where appropriate, or an empty string.
  */
 function getUserHandle(url: string): string {
   if (!url) return "";
