@@ -14,7 +14,7 @@ import Image from "next/image";
 import React, { type JSX, useCallback, useEffect, useState } from "react";
 import type { SocialCardProps } from "@/types/features/social";
 import { cn } from "@/lib/utils";
-import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 
 /**
  * Client-side component for rendering a social media profile card.
@@ -68,42 +68,47 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
    * @param {string} networkLabel - The label of the social network.
    * @returns {string} The URL of the fallback profile image.
    */
-  const getProfileFallbackImage = useCallback((networkLabel: string): string => {
-    const cdnConfig = getCdnConfigFromEnv();
+  const proxyCdnUrl = useCallback((url: string, width?: number) => buildCachedImageUrl(url, width), []);
 
-    try {
-      if (networkLabel.includes("GitHub")) {
-        const usernameMatch = networkLabel.match(/@(\w+)/);
-        const username = usernameMatch?.[1] || "WilliamAGH";
-        // 1️⃣ direct avatar (fast, cached by GitHub)
-        return `https://avatars.githubusercontent.com/${username}?s=256&v=4`;
+  const getProfileFallbackImage = useCallback(
+    (networkLabel: string): string => {
+      const cdnConfig = getCdnConfigFromEnv();
+
+      try {
+        if (networkLabel.includes("GitHub")) {
+          const usernameMatch = networkLabel.match(/@(\w+)/);
+          const username = usernameMatch?.[1] || "WilliamAGH";
+          // 1️⃣ direct avatar (fast, cached by GitHub)
+          return proxyCdnUrl(`https://avatars.githubusercontent.com/${username}?s=256&v=4`, 64);
+        }
+        if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
+          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig), 64);
+        if (networkLabel.includes("LinkedIn"))
+          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig), 64);
+        if (networkLabel.includes("Bluesky")) {
+          // Use personal avatar from CDN
+          return proxyCdnUrl(buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig), 64);
+        }
+        if (networkLabel.includes("Discord"))
+          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig), 64);
+      } catch (error: unknown) {
+        void error;
+        console.error(`Error getting profile image for ${networkLabel}:`);
+        if (networkLabel.includes("GitHub"))
+          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/github_72193247.jpg", cdnConfig), 64);
+        if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
+          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig), 64);
+        if (networkLabel.includes("LinkedIn"))
+          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig), 64);
+        if (networkLabel.includes("Bluesky"))
+          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/bluesky_5a093069.jpg", cdnConfig), 64);
+        if (networkLabel.includes("Discord"))
+          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig), 64);
       }
-      if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
-        return buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig);
-      if (networkLabel.includes("LinkedIn"))
-        return buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig);
-      if (networkLabel.includes("Bluesky")) {
-        // Use personal avatar from CDN
-        return buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig);
-      }
-      if (networkLabel.includes("Discord"))
-        return buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig);
-    } catch (error: unknown) {
-      void error;
-      console.error(`Error getting profile image for ${networkLabel}:`);
-      if (networkLabel.includes("GitHub"))
-        return buildCdnUrl("images/social-media/profiles/github_72193247.jpg", cdnConfig);
-      if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
-        return buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig);
-      if (networkLabel.includes("LinkedIn"))
-        return buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig);
-      if (networkLabel.includes("Bluesky"))
-        return buildCdnUrl("images/social-media/profiles/bluesky_5a093069.jpg", cdnConfig);
-      if (networkLabel.includes("Discord"))
-        return buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig);
-    }
-    return buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig);
-  }, []);
+      return proxyCdnUrl(buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig), 64);
+    },
+    [proxyCdnUrl],
+  );
 
   /**
    * Retrieves a fallback URL for a domain/banner image based on the social network label.
@@ -111,21 +116,24 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
    * @param {string} networkLabel - The label of the social network.
    * @returns {string} The URL of the fallback domain/banner image.
    */
-  const getDomainFallbackImage = useCallback((networkLabel: string): string => {
-    const cdnConfig = getCdnConfigFromEnv();
+  const getDomainFallbackImage = useCallback(
+    (networkLabel: string): string => {
+      const cdnConfig = getCdnConfigFromEnv();
 
-    if (networkLabel.includes("GitHub"))
-      return buildCdnUrl("images/social-media/banners/github_87b6d92e.svg", cdnConfig);
-    if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
-      return buildCdnUrl("images/social-media/banners/twitter-x_4830ec25.svg", cdnConfig);
-    if (networkLabel.includes("LinkedIn"))
-      return buildCdnUrl("images/social-media/banners/linkedin_02a7ce76.svg", cdnConfig);
-    if (networkLabel.includes("Discord"))
-      return buildCdnUrl("images/social-media/banners/discord_783c1e2b.svg", cdnConfig);
-    if (networkLabel.includes("Bluesky"))
-      return buildCdnUrl("images/social-media/banners/bluesky_9310c7f9.png", cdnConfig);
-    return buildCdnUrl("images/other/placeholders/company_90296cb3.svg", cdnConfig);
-  }, []);
+      if (networkLabel.includes("GitHub"))
+        return proxyCdnUrl(buildCdnUrl("images/social-media/banners/github_87b6d92e.svg", cdnConfig));
+      if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
+        return proxyCdnUrl(buildCdnUrl("images/social-media/banners/twitter-x_4830ec25.svg", cdnConfig));
+      if (networkLabel.includes("LinkedIn"))
+        return proxyCdnUrl(buildCdnUrl("images/social-media/banners/linkedin_02a7ce76.svg", cdnConfig));
+      if (networkLabel.includes("Discord"))
+        return proxyCdnUrl(buildCdnUrl("images/social-media/banners/discord_783c1e2b.svg", cdnConfig));
+      if (networkLabel.includes("Bluesky"))
+        return proxyCdnUrl(buildCdnUrl("images/social-media/banners/bluesky_9310c7f9.png", cdnConfig));
+      return proxyCdnUrl(buildCdnUrl("images/other/placeholders/company_90296cb3.svg", cdnConfig));
+    },
+    [proxyCdnUrl],
+  );
 
   /**
    * Fetches social media OpenGraph (OG) images.
