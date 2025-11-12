@@ -42,6 +42,9 @@ const educationBaseSchema = z.object({
     .min(0.1, "Logo scale must be at least 0.1")
     .max(2.0, "Logo scale must be at most 2.0")
     .optional(),
+
+  /** Optional flag to surface items prominently on the CV page */
+  cvFeatured: z.boolean().optional(),
 });
 
 /**
@@ -140,7 +143,9 @@ export const educationCardClientPropsSchema = z.object({
  * Schema for certification card client props
  */
 export const certificationCardClientPropsSchema = z.object({
-  certification: certificationSchema,
+  certification: certificationSchema.extend({
+    logoData: educationLogoDataSchema.optional(),
+  }),
   className: z.string().optional(),
 });
 

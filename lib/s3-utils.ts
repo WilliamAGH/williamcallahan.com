@@ -28,6 +28,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { getContentTypeFromExtension, isImageContentType } from "@/lib/utils/content-type";
+import { getMonotonicTime } from "@/lib/utils";
 
 // Environment variables for S3 configuration
 const S3_BUCKET = process.env.S3_BUCKET;
@@ -37,6 +38,19 @@ const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
 const DRY_RUN = process.env.DRY_RUN === "true";
 // Use canonical public CDN env vars only. Legacy S3_PUBLIC_CDN_URL is no longer referenced.
 const CDN_BASE_URL = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || ""; // Public CDN endpoint
+const FORCE_JSON_CDN_READS = process.env.NEXT_PHASE === "phase-production-build";
+const BUILD_CACHE_BUSTER =
+  process.env.SOURCE_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || process.env.GIT_COMMIT || "build";
+const isS3DebugLoggingEnabled =
+  process.env.DEBUG_S3 === "true" ||
+  process.env.DEBUG_BOOKMARKS === "true" ||
+  process.env.DEBUG === "true" ||
+  process.env.VERBOSE === "true";
+
+const logS3Debug = (message: string, data?: Record<string, unknown>): void => {
+  if (!isS3DebugLoggingEnabled) return;
+  envLogger.log(message, data, { category: "S3Utils" });
+};
 
 // Constants for S3 read retries with exponential backoff and jitter
 const MAX_S3_READ_RETRIES = 3; // Actually do 3 retry attempts
@@ -93,6 +107,7 @@ if (!S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
 
 // Lazy initialization of S3 client to ensure environment variables are loaded
 let s3ClientInstance: S3Client | null = null;
+let hasLoggedS3ClientInitialization = false;
 
 // Export a function to reset client for testing
 export function resetS3Client(): void {
@@ -120,12 +135,14 @@ export function getS3Client(): S3Client | null {
       retryMode: "adaptive" as const,
     };
     s3ClientInstance = endpoint ? new S3Client({ ...baseConfig, endpoint }) : new S3Client(baseConfig);
-    // Structured, one-line init summary for diagnostics
-    envLogger.log(
-      `S3 client initialized`,
-      { bucket, endpoint: endpoint || "SDK default", region },
-      { category: "S3Utils" },
-    );
+    const initDetails = { bucket, endpoint: endpoint || "SDK default", region } as const;
+    if (!hasLoggedS3ClientInitialization) {
+      // Structured, one-line init summary for diagnostics (first call only)
+      envLogger.log(`S3 client initialized`, initDetails, { category: "S3Utils" });
+      hasLoggedS3ClientInitialization = true;
+    } else {
+      envLogger.debug(`S3 client already initialized`, initDetails, { category: "S3Utils" });
+    }
     if (isDebug)
       debug(`[S3Utils] S3-compatible client initialized (${endpoint ? "custom endpoint" : "sdk default endpoint"}).`);
   } else {
@@ -256,8 +273,11 @@ export async function readFromS3(
 async function performS3Read(key: string, options?: { range?: string }): Promise<Buffer | string | null> {
   // Skip debug logging for refresh-lock checks to reduce noise
   if (!key.includes("refresh-lock")) {
-    envLogger.debug(`performS3Read called`, { key }, { category: "S3Utils" });
+    logS3Debug("performS3Read called", { key });
   }
+
+  const isJson = key.endsWith(".json");
+  const skipSizeValidation = FORCE_JSON_CDN_READS && isJson;
 
   if (isUnderMemoryPressure() && isBinaryKey(key)) {
     // Allow small binaries (e.g., logos) under pressure, but block anything exceeding MAX_S3_READ_SIZE.
@@ -269,15 +289,20 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
   }
 
   // Validate content size before reading (skip for range requests)
-  if (!options?.range && !(await validateContentSize(key))) {
+  if (!options?.range && !skipSizeValidation && !(await validateContentSize(key))) {
     return null;
   }
 
-  // Bypass public CDN for JSON files to avoid stale cache; only use CDN for non-JSON
-  const isJson = key.endsWith(".json");
-  if (!isJson && CDN_BASE_URL) {
-    const cdnUrl = `${CDN_BASE_URL.replace(/\/+$/, "")}/${key}`;
-    if (isDebug) debug(`[S3Utils] Attempting to read key ${key} via CDN: ${cdnUrl}`);
+  // Default behavior avoids CDN for JSON objects to prevent stale cache. During the
+  // production build phase we intentionally allow CDN reads (with cache-busting)
+  // so that build-time prerenders don't rely on AWS SDK calls that Next.js flags.
+  const shouldUseCdn = CDN_BASE_URL && (!isJson || FORCE_JSON_CDN_READS);
+  if (shouldUseCdn) {
+    const cdnUrl = new URL(`${CDN_BASE_URL.replace(/\/+$/, "")}/${key}`);
+    if (FORCE_JSON_CDN_READS && isJson) {
+      cdnUrl.searchParams.set("build", BUILD_CACHE_BUSTER);
+    }
+    if (isDebug) debug(`[S3Utils] Attempting to read key ${key} via CDN: ${cdnUrl.toString()}`);
 
     // Use AbortController to prevent hanging requests
     const abortController = new AbortController();
@@ -289,6 +314,7 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
         headers: {
           "User-Agent": "S3Utils/1.0", // Identify requests
         },
+        next: FORCE_JSON_CDN_READS && isJson ? { revalidate: 3600 } : undefined,
       });
 
       clearTimeout(timeoutId);
@@ -317,12 +343,45 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
       }
       if (isDebug)
         debug(
-          `[S3Utils] CDN fetch failed for ${cdnUrl}: ${res.status} ${res.statusText}. Falling back to direct S3 read.`,
+          `[S3Utils] CDN fetch failed for ${cdnUrl.toString()}: ${res.status} ${res.statusText}. Falling back to direct S3 read.`,
         );
     } catch (err) {
       clearTimeout(timeoutId);
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      if (isDebug) debug(`[S3Utils] CDN fetch error for ${cdnUrl}: ${errorMessage}. Falling back to direct S3 read.`);
+      const message = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error && err.stack ? err.stack : undefined;
+      let cause: string | undefined;
+      if (err instanceof Error && err.cause !== undefined) {
+        if (err.cause instanceof Error) {
+          cause = err.cause.message;
+        } else if (typeof err.cause === "string") {
+          cause = err.cause;
+        } else if (typeof err.cause === "number" || typeof err.cause === "boolean") {
+          cause = String(err.cause);
+        } else {
+          try {
+            cause = JSON.stringify(err.cause);
+          } catch {
+            cause = undefined;
+          }
+        }
+      }
+      envLogger.log(
+        "CDN fetch failed",
+        {
+          key,
+          url: cdnUrl.toString(),
+          message,
+          stack,
+          cause,
+        },
+        { category: "S3Utils" },
+      );
+      if (isDebug)
+        debug(`[S3Utils] CDN fetch error for ${cdnUrl.toString()}: ${message}. Falling back to direct S3 read.`);
+    }
+    // During build we rely exclusively on CDN snapshots to keep prerenders static.
+    if (FORCE_JSON_CDN_READS && isJson) {
+      return null;
     }
     // Fallback to AWS SDK if CDN fetch fails
   }
@@ -745,15 +804,15 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
  * @returns Parsed JSON data or null if an error occurs
  */
 export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
-  // Use envLogger for all reads, with special context for refresh-lock
-  if (s3Key.includes("refresh-lock")) {
-    envLogger.log("Checking refresh lock", undefined, { category: "S3Utils" });
+  const isRefreshLockKey = s3Key.includes("refresh-lock");
+  if (isRefreshLockKey) {
+    logS3Debug("Checking refresh lock", { key: s3Key });
   } else {
-    envLogger.service("S3Utils", "readJsonS3", { key: s3Key });
+    logS3Debug("readJsonS3 invoked", { key: s3Key });
   }
 
   if (DRY_RUN) {
-    envLogger.debug(`[DRY RUN] Would read JSON from S3`, { key: s3Key }, { category: "S3Utils" });
+    logS3Debug(`[DRY RUN] Would read JSON from S3`, { key: s3Key });
     return null;
   }
 
@@ -763,19 +822,19 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
 
     if (content === null) {
       // Special handling for refresh-lock: it's normal for it not to exist
-      if (s3Key.includes("refresh-lock")) {
-        envLogger.log("Refresh lock: idle", undefined, { category: "S3Utils" });
+      if (isRefreshLockKey) {
+        logS3Debug("Refresh lock: idle", { key: s3Key });
       } else {
-        envLogger.log("readFromS3 returned null", { key: s3Key }, { category: "S3Utils" });
+        envLogger.log("S3 JSON read returned null", { key: s3Key }, { category: "S3Utils" });
       }
       return null;
     }
 
     if (typeof content === "string") {
-      envLogger.log(`Content loaded`, { type: "string", length: content.length }, { category: "S3Utils" });
+      logS3Debug(`Content loaded`, { type: "string", length: content.length });
       const parsed = safeJsonParse<T>(content);
       if (parsed !== null) {
-        envLogger.log(`Parsed JSON successfully`, { key: s3Key }, { category: "S3Utils" });
+        logS3Debug(`Parsed JSON successfully`, { key: s3Key });
         if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON from S3 key ${s3Key}.`);
       } else {
         envLogger.log(`Failed to parse JSON content`, { key: s3Key }, { category: "S3Utils" });
@@ -784,10 +843,10 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
     }
 
     if (Buffer.isBuffer(content)) {
-      envLogger.log(`Content loaded`, { type: "buffer", size: content.length }, { category: "S3Utils" });
+      logS3Debug(`Content loaded`, { type: "buffer", size: content.length });
       const parsed = parseJsonFromBuffer<T>(content, "utf-8");
       if (parsed !== null) {
-        envLogger.log(`Parsed JSON from buffer`, { key: s3Key }, { category: "S3Utils" });
+        logS3Debug(`Parsed JSON from buffer`, { key: s3Key });
         if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON (from buffer) from S3 key ${s3Key}.`);
       } else {
         envLogger.log(`Failed to parse JSON from buffer`, { key: s3Key }, { category: "S3Utils" });
@@ -1061,7 +1120,7 @@ export async function acquireDistributedLock(
   timeoutMs: number = LOCK_TIMEOUT_MS,
   options?: { store?: LockStore; clock?: () => number },
 ): Promise<boolean> {
-  const clock = options?.clock ?? Date.now;
+  const clock = options?.clock ?? getMonotonicTime;
   const store = options?.store ?? s3LockStore;
   const lockPath = `locks/${lockKey}.json`;
   const lockEntry: { instanceId: string; acquiredAt: number; operation: string } = {
@@ -1137,7 +1196,7 @@ export async function cleanupStaleLocks(
   options?: { store?: LockStore; clock?: () => number },
 ): Promise<void> {
   const store = options?.store ?? s3LockStore;
-  const clock = options?.clock ?? Date.now;
+  const clock = options?.clock ?? getMonotonicTime;
   try {
     const locks = await store.list("locks/");
     const now = clock();

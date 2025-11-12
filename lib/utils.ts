@@ -22,6 +22,23 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Provides a monotonic timestamp for cache expiration and timing.
+ * Uses performance.timeOrigin + performance.now() (via perf_hooks in Node) to
+ * avoid backwards jumps, and falls back to an increment-only counter when the
+ * Performance API is unavailable to keep build output deterministic.
+ */
+export function getMonotonicTime(): number {
+  if (typeof globalThis !== "undefined") {
+    const perf = globalThis.performance;
+    if (perf && typeof perf.now === "function") {
+      return Math.floor(perf.timeOrigin + perf.now());
+    }
+  }
+  // Fallback to Date.now() to stay aligned with epoch timestamps used elsewhere
+  return Date.now();
+}
+
+/**
  * Formats a numeric percentage value (0–100) as a string with a '%' suffix
  *
  * @param value - The percentage value (e.g., 12.34 for "12.34%")

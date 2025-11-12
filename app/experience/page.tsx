@@ -6,6 +6,8 @@
  * Implements proper SEO with schema.org structured data.
  */
 
+"use cache";
+
 import type { Metadata } from "next";
 import { Experience } from "@/components/features";
 import { getStaticPageMetadata } from "@/lib/seo";
@@ -14,19 +16,41 @@ import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { experiences } from "@/data/experience";
-import { getLogo } from "@/lib/data-access/logos";
+import { getLogoCdnData } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import type { Experience as ExperienceType, LogoData, ProcessedExperienceItem } from "@/types";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
-export const dynamic = "force-dynamic";
+const EXPERIENCE_LOGO_BATCH_SIZE = 6;
+
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<R[]> {
+  if (!items.length) return [];
+
+  const results: R[] = [];
+  for (let index = 0; index < items.length; index += limit) {
+    const slice = items.slice(index, index + limit);
+    const mapped = await Promise.all(slice.map(mapper));
+    results.push(...mapped);
+  }
+  return results;
+}
 
 /**
  * Generate metadata for the experience page
  */
 export const metadata: Metadata = getStaticPageMetadata("/experience", "experience");
+
+/**
+ * Cache policy
+ * Next.js 16 cacheComponents requires cacheable segments to opt in via `'use cache'`;
+ * see https://nextjs.org/docs/app/api-reference/directives/use-cache for the directive contract.
+ */
 
 /**
  * Experience page component with JSON-LD schema
@@ -59,23 +83,30 @@ export default async function ExperiencePage() {
 
   const jsonLdData = generateSchemaGraph(schemaParams);
 
-  const experienceData = await Promise.all(
-    experiences.map(async (exp: ExperienceType): Promise<ProcessedExperienceItem> => {
-      let error: string | undefined;
+  const experienceData = await mapWithConcurrency(
+    experiences,
+    EXPERIENCE_LOGO_BATCH_SIZE,
+    async (exp: ExperienceType): Promise<ProcessedExperienceItem> => {
+      const hasOverrideDomain = Boolean(exp.logoOnlyDomain);
+      const domain = hasOverrideDomain
+        ? normalizeDomain(exp.logoOnlyDomain as string)
+        : exp.website
+          ? normalizeDomain(exp.website)
+          : normalizeDomain(exp.company);
 
       try {
-        const hasOverrideDomain = Boolean(exp.logoOnlyDomain);
-
         if (!hasOverrideDomain && exp.logo) {
           const staticLogoData: LogoData = { url: exp.logo, source: "static" };
           return { ...exp, logoData: staticLogoData };
         }
 
-        const domain = hasOverrideDomain
-          ? normalizeDomain(exp.logoOnlyDomain as string)
-          : exp.website
-            ? normalizeDomain(exp.website)
-            : normalizeDomain(exp.company);
+        if (!domain) {
+          const fallbackLogoData: LogoData = {
+            url: exp.logo ?? getCompanyPlaceholder(),
+            source: exp.logo ? "static" : null,
+          };
+          return { ...exp, logoData: fallbackLogoData };
+        }
 
         const manifestEntry = await getLogoFromManifestAsync(domain);
         if (manifestEntry?.cdnUrl) {
@@ -86,34 +117,30 @@ export default async function ExperiencePage() {
           return { ...exp, logoData: manifestLogo };
         }
 
-        const logoResult = await getLogo(domain);
-
-        if (logoResult?.error) {
-          error = `Logo fetch failed: ${logoResult.error}`;
+        const directLogo = await getLogoCdnData(domain);
+        if (directLogo) {
+          return { ...exp, logoData: directLogo };
         }
 
-        const remoteOrStaticUrl =
-          logoResult?.cdnUrl ?? logoResult?.url ?? (exp.logo ? exp.logo : getCompanyPlaceholder());
+        const remoteOrStaticUrl = exp.logo ? exp.logo : getCompanyPlaceholder();
 
         const resolvedLogoData: LogoData = {
           url: remoteOrStaticUrl,
-          source: logoResult?.source ?? (exp.logo ? "static" : null),
+          source: exp.logo ? "static" : null,
         };
 
-        return error ? { ...exp, logoData: resolvedLogoData, error } : { ...exp, logoData: resolvedLogoData };
+        return { ...exp, logoData: resolvedLogoData };
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Unknown error";
         console.error("[ExperiencePage] Failed to resolve logo:", err);
+        const fallbackLogo = domain ? await getLogoCdnData(domain) : null;
         return {
           ...exp,
-          logoData: {
-            url: getCompanyPlaceholder(),
-            source: null,
-          },
+          logoData: fallbackLogo ?? { url: getCompanyPlaceholder(), source: null },
           error: `Failed to process logo: ${errorMessage}`,
         };
       }
-    }),
+    },
   );
 
   return (

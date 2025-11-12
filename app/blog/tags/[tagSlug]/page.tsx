@@ -4,7 +4,7 @@ import { BlogList } from "@/components/features/blog/blog-list";
 import { Blog } from "@/components/features/blog/blog.client";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
-import { metadata } from "@/data/metadata";
+import { metadata, PAGE_METADATA } from "@/data/metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
 import { deslugify, kebabCase } from "@/lib/utils/formatters";
@@ -74,7 +74,7 @@ function getAllPosts(): BlogPost[] {
         } as BlogPost;
       })
       .filter((post): post is BlogPost => post !== null)
-      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+      .toSorted((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
     return posts;
   } catch (error) {
@@ -102,15 +102,16 @@ export async function generateStaticParams(): Promise<{ tagSlug: string }[]> {
 /**
  * Generates metadata for the tag page.
  * @param {object} params - The route parameters.
- * @param {string} params.tagSlug - The slug of the tag.
+ * @param {Promise<{ tagSlug: string }>} params.tagSlug - The slug of the tag.
  * @returns {Promise<Metadata>} The metadata object for the page.
  */
-export async function generateMetadata({ params }: { params: { tagSlug: string } }): Promise<Metadata> {
-  // Use Promise.resolve to satisfy require-await rule
-  const tagName = await Promise.resolve(formatTagDisplay(deslugify(params.tagSlug)));
+export async function generateMetadata({ params }: { params: Promise<{ tagSlug: string }> }): Promise<Metadata> {
+  // Await params in Next.js 16
+  const { tagSlug } = await params;
+  const tagName = formatTagDisplay(deslugify(tagSlug));
   const title = generateDynamicTitle(`${tagName} Posts`, "blog", { isTag: true });
   const description = generateTagDescription(tagName, "blog");
-  const url = ensureAbsoluteUrl(`/blog/tags/${params.tagSlug}`);
+  const url = ensureAbsoluteUrl(`/blog/tags/${tagSlug}`);
 
   return {
     title: title,
@@ -140,11 +141,13 @@ export async function generateMetadata({ params }: { params: { tagSlug: string }
 /**
  * Renders the page displaying blog posts filtered by a specific tag.
  * @param {object} params - The route parameters.
- * @param {string} params.tagSlug - The URL-friendly tag slug.
+ * @param {Promise<{ tagSlug: string }>} params.tagSlug - The URL-friendly tag slug.
+ * @remarks Schema timestamps are derived from the filtered posts to keep the
+ *          page statically renderable without relying on runtime clocks.
  * @returns {JSX.Element} The rendered page component.
  */
-export default async function TagPage({ params }: { params: { tagSlug: string } }): Promise<JSX.Element> {
-  const { tagSlug } = params;
+export default async function TagPage({ params }: { params: Promise<{ tagSlug: string }> }): Promise<JSX.Element> {
+  const { tagSlug } = await params;
   const allPosts = getAllPosts();
 
   const filteredPosts = allPosts.filter(post => post.tags.map((tag: string) => kebabCase(tag)).includes(tagSlug));
@@ -159,16 +162,23 @@ export default async function TagPage({ params }: { params: { tagSlug: string } 
     position: idx + 1,
   }));
 
-  const nowIso = new Date().toISOString();
+  // Derive deterministic timestamps from the underlying content so the
+  // collection can stay static under Next.js' prerender timing rules.
+  const fallbackCollectionMetadata = PAGE_METADATA.blog;
+  const newestPost = filteredPosts[0];
+  const oldestPost = filteredPosts[filteredPosts.length - 1];
+  const datePublished = oldestPost?.publishedAt ?? fallbackCollectionMetadata.dateCreated;
+  const dateModified = newestPost?.updatedAt ?? newestPost?.publishedAt ?? fallbackCollectionMetadata.dateModified;
 
   const jsonLdData = generateSchemaGraph({
     path: `/blog/tags/${tagSlug}`,
     title,
     description,
-    datePublished: nowIso,
-    dateModified: nowIso,
+    datePublished,
+    dateModified,
     type: "collection",
-    itemList,
+    // Only pass itemList if there are actually items to list
+    ...(itemList.length > 0 ? { itemList } : {}),
     breadcrumbs: [
       { path: "/", name: "Home" },
       { path: "/blog", name: "Blog" },

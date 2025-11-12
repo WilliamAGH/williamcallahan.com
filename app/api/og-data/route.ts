@@ -5,12 +5,17 @@
  * Used by social cards to fetch profile images with S3 persistence
  */
 
+import { unstable_noStore as noStore } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import type { OgImageApiResponse } from "@/types";
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
+  if (typeof noStore === "function") {
+    noStore();
+  }
+  const requestUrl = new URL(request.url);
+  const { searchParams } = requestUrl;
   const url = searchParams.get("url");
 
   if (!url) {

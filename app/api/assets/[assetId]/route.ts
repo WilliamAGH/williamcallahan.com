@@ -21,12 +21,16 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { HeadObjectCommand, GetObjectCommand, type GetObjectCommandOutput } from "@aws-sdk/client-s3";
+import { Readable } from "node:stream";
 import { s3Client } from "@/lib/s3-utils";
 import { getExtensionFromContentType, IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
 import { IMAGE_S3_PATHS } from "@/lib/constants";
 import { assetIdSchema } from "@/types/schemas/url";
 import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
+
+const MAX_ASSET_SIZE_BYTES = 50 * 1024 * 1024; // 50MB limit
+const ASSET_STREAM_TIMEOUT_MS = 20_000; // 20 seconds
 
 /**
  * In-memory set to track ongoing S3 write operations.
@@ -38,6 +42,115 @@ import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
  * multiple server instances.
  */
 const ongoingS3Writes = new Set<string>();
+
+async function readWithTimeout<T>(promise: Promise<T>, assetId: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`Read timeout exceeded for asset ${assetId}`));
+    }, ASSET_STREAM_TIMEOUT_MS);
+
+    promise
+      .then(result => {
+        clearTimeout(timeoutId);
+        resolve(result);
+      })
+      .catch(error => {
+        clearTimeout(timeoutId);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      });
+  });
+}
+
+function createMonitoredStream(
+  source: ReadableStream<Uint8Array>,
+  assetId: string,
+  onViolation?: (error: Error) => void,
+): ReadableStream<Uint8Array> {
+  const reader = source.getReader();
+  let processedBytes = 0;
+
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { done, value } = await readWithTimeout(reader.read(), assetId);
+
+        if (done) {
+          controller.close();
+          return;
+        }
+
+        if (value) {
+          processedBytes += value.byteLength;
+          if (processedBytes > MAX_ASSET_SIZE_BYTES) {
+            const sizeError = new Error(
+              `Image too large: ${processedBytes} bytes exceeds ${MAX_ASSET_SIZE_BYTES} byte limit for asset ${assetId}`,
+            );
+            onViolation?.(sizeError);
+            try {
+              await reader.cancel(sizeError);
+            } catch {
+              // ignore cancel failures
+            }
+            controller.error(sizeError);
+            return;
+          }
+
+          controller.enqueue(value);
+        }
+      } catch (error) {
+        const normalizedError = error instanceof Error ? error : new Error(String(error));
+        onViolation?.(normalizedError);
+        try {
+          await reader.cancel(normalizedError);
+        } catch {
+          // ignore cancel failures
+        }
+        controller.error(normalizedError);
+      }
+    },
+    cancel(reason) {
+      reader.cancel(reason).catch(() => {});
+    },
+  });
+}
+
+async function streamToBufferWithLimits(stream: ReadableStream<Uint8Array>, assetId: string): Promise<Buffer> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalSize = 0;
+
+  try {
+    for (
+      let result = await readWithTimeout(reader.read(), assetId);
+      !result.done;
+      result = await readWithTimeout(reader.read(), assetId)
+    ) {
+      const value = result.value;
+      if (!value) {
+        continue;
+      }
+
+      totalSize += value.byteLength;
+      if (totalSize > MAX_ASSET_SIZE_BYTES) {
+        const sizeError = new Error(
+          `Image too large: ${totalSize} bytes exceeds ${MAX_ASSET_SIZE_BYTES} byte limit for asset ${assetId}`,
+        );
+        try {
+          await reader.cancel(sizeError);
+        } catch {
+          // ignore cancel failures
+        }
+        throw sizeError;
+      }
+
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return Buffer.concat(chunks);
+}
 
 /**
  * Extracts the base URL from a bookmarks API URL more robustly
@@ -160,8 +273,7 @@ async function streamFromS3(key: string, contentType: string): Promise<NextRespo
     throw new Error("No body in S3 response");
   }
 
-  // Convert the readable stream to a web stream
-  const stream = response.Body.transformToWebStream();
+  const stream = convertS3BodyToWebStream(response.Body);
 
   return new NextResponse(stream, {
     status: 200,
@@ -169,6 +281,66 @@ async function streamFromS3(key: string, contentType: string): Promise<NextRespo
       "Content-Type": contentType,
       "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400", // 7 days + 1 day stale
       ...IMAGE_SECURITY_HEADERS,
+    },
+  });
+}
+
+function hasTransformToWebStream(body: unknown): body is { transformToWebStream: () => ReadableStream<Uint8Array> } {
+  return typeof (body as { transformToWebStream?: unknown }).transformToWebStream === "function";
+}
+
+function isReadableStream(body: unknown): body is ReadableStream<Uint8Array> {
+  return typeof ReadableStream !== "undefined" && body instanceof ReadableStream;
+}
+
+function isBlob(body: unknown): body is Blob {
+  return typeof Blob !== "undefined" && body instanceof Blob;
+}
+
+function convertS3BodyToWebStream(body: NonNullable<GetObjectCommandOutput["Body"]>): ReadableStream<Uint8Array> {
+  const candidateBody: unknown = body;
+
+  if (hasTransformToWebStream(candidateBody)) {
+    return candidateBody.transformToWebStream() as unknown as ReadableStream<Uint8Array>;
+  }
+
+  if (isReadableStream(candidateBody)) {
+    return candidateBody;
+  }
+
+  if (candidateBody instanceof Readable) {
+    return Readable.toWeb(candidateBody) as unknown as ReadableStream<Uint8Array>;
+  }
+
+  if (isBlob(candidateBody)) {
+    return candidateBody.stream() as unknown as ReadableStream<Uint8Array>;
+  }
+
+  if (candidateBody instanceof Uint8Array) {
+    return createSingleChunkStream(candidateBody);
+  }
+
+  if (typeof candidateBody === "string") {
+    return createSingleChunkStream(new TextEncoder().encode(candidateBody));
+  }
+
+  if (candidateBody instanceof ArrayBuffer) {
+    return createSingleChunkStream(new Uint8Array(candidateBody));
+  }
+
+  if (ArrayBuffer.isView(candidateBody as ArrayBufferView)) {
+    const view = candidateBody as ArrayBufferView;
+    return createSingleChunkStream(new Uint8Array(view.buffer));
+  }
+
+  throw new Error("Unsupported S3 body type for streaming");
+}
+
+function createSingleChunkStream(chunk: Uint8Array): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(chunk);
+      controller.close();
     },
   });
 }
@@ -287,7 +459,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { assetId } = await params;
 
   // Extract context from query parameters for descriptive S3 filenames
-  const searchParams = request.nextUrl.searchParams;
+  const requestUrl = new URL(request.url);
+  const searchParams = requestUrl.searchParams;
 
   // Validate URL parameter to prevent security issues
   let validatedUrl: string | undefined;
@@ -409,92 +582,70 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     // Get the content type from the response
     const contentType = response.headers.get("content-type") || "application/octet-stream";
+    const contentLengthHeader = response.headers.get("content-length");
 
-    // STEP 3: For images, buffer and save to S3, otherwise stream directly
-    if (contentType.startsWith("image/") && process.env.S3_BUCKET && s3Client) {
-      try {
-        // Set a timeout for reading the response body
-        const readController = new AbortController();
-        const readTimeoutId = setTimeout(() => readController.abort(), 20000); // 20 second read timeout
-
-        const chunks: Uint8Array[] = [];
-        let totalSize = 0;
-        const MAX_SIZE = 50 * 1024 * 1024; // 50MB limit
-        const reader = response.body?.getReader();
-
-        if (!reader) {
-          throw new Error("No response body");
-        }
-
-        while (true) {
-          const readPromise = reader.read();
-
-          const timeoutPromise = new Promise<never>((_, reject) => {
-            const abortHandler = () => reject(new Error("Read timeout"));
-            // The `{ once: true }` option guarantees we attach the handler
-            // only for this iteration and it is removed automatically after
-            // the first invocation – prevents listener accumulation.
-            readController.signal.addEventListener("abort", abortHandler, {
-              once: true,
-            });
-          });
-
+    if (contentLengthHeader) {
+      const contentLength = Number(contentLengthHeader);
+      if (Number.isFinite(contentLength) && contentLength > MAX_ASSET_SIZE_BYTES) {
+        console.error(
+          `[Assets API] Asset ${assetId} rejected: content-length ${contentLength} exceeds ${MAX_ASSET_SIZE_BYTES} byte limit`,
+        );
+        if (response.body) {
           try {
-            const { done, value } = await Promise.race([readPromise, timeoutPromise]);
-            if (done) break;
-            if (value) {
-              totalSize += value.length;
-              if (totalSize > MAX_SIZE) {
-                await reader.cancel();
-                throw new Error(`Image too large: ${totalSize} bytes exceeds ${MAX_SIZE} byte limit`);
-              }
-              chunks.push(value);
-            }
-          } catch (error) {
-            // Ensure the reader is promptly canceled to free resources
-            if (typeof reader.cancel === "function") {
-              await reader.cancel();
-            }
-            throw error;
+            await response.body.cancel();
+          } catch {
+            // ignore cancel failures
           }
         }
-
-        // All chunks read successfully – clean-up resources
-        reader.releaseLock();
-        clearTimeout(readTimeoutId);
-
-        const buffer = Buffer.concat(chunks);
-
-        // Save to S3 in the background (don't block the response)
-        // Only save if we're in data updater mode to avoid conflicts
-        if (process.env.IS_DATA_UPDATER === "true") {
-          saveAssetToS3(assetId, buffer, contentType, context).catch(error => {
-            console.error(`[Assets API] Failed to save asset ${assetId} to S3:`, error);
-          });
-        }
-
-        // Return the asset
-        return new NextResponse(buffer, {
-          status: 200,
-          headers: {
-            "Content-Type": contentType,
-            "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400", // 7 days + 1 day stale
-            ...IMAGE_SECURITY_HEADERS,
+        return NextResponse.json(
+          {
+            error: "Asset exceeds maximum allowed size",
+            assetId,
           },
-        });
-      } catch (error) {
-        console.error(`[Assets API] Error reading asset ${assetId}:`, error);
+          { status: 413 },
+        );
+      }
+    }
+
+    // STEP 3: For images, stream to the client and optionally persist to S3
+    if (contentType.startsWith("image/")) {
+      const upstreamBody = response.body;
+
+      if (!upstreamBody) {
+        console.error(`[Assets API] No response body when fetching asset ${assetId}`);
         return NextResponse.json(
           {
             error: "Failed to read asset",
             assetId,
           },
-          { status: 504 }, // Gateway Timeout
+          { status: 502 },
         );
       }
-    } else {
-      // For non-images or when S3 is not configured, stream directly
-      return new NextResponse(response.body, {
+
+      const shouldPersist =
+        process.env.IS_DATA_UPDATER === "true" && Boolean(process.env.S3_BUCKET) && Boolean(s3Client);
+      let clientStream: ReadableStream<Uint8Array> = upstreamBody;
+      let persistStream: ReadableStream<Uint8Array> | null = null;
+
+      if (shouldPersist) {
+        const [streamForClient, streamForPersistence] = upstreamBody.tee();
+        clientStream = streamForClient;
+        persistStream = streamForPersistence;
+      }
+
+      const monitoredStream = createMonitoredStream(clientStream, assetId, error => {
+        console.error(`[Assets API] Streaming error for asset ${assetId}:`, error.message);
+      });
+
+      if (shouldPersist && persistStream) {
+        void streamToBufferWithLimits(persistStream, assetId)
+          .then(buffer => saveAssetToS3(assetId, buffer, contentType, context))
+          .catch(error => {
+            console.error(`[Assets API] Failed to save asset ${assetId} to S3:`, error);
+          });
+      }
+
+      return new NextResponse(monitoredStream, {
         status: 200,
         headers: {
           "Content-Type": contentType,
@@ -503,6 +654,27 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         },
       });
     }
+
+    // For non-images stream the upstream body directly
+    if (!response.body) {
+      console.error(`[Assets API] No response body for non-image asset ${assetId}`);
+      return NextResponse.json(
+        {
+          error: "Failed to read asset",
+          assetId,
+        },
+        { status: 502 },
+      );
+    }
+
+    return new NextResponse(response.body, {
+      status: 200,
+      headers: {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400", // 7 days + 1 day stale
+        ...IMAGE_SECURITY_HEADERS,
+      },
+    });
   } catch (error) {
     console.error(`[Assets API] Error for asset ${assetId}:`, error instanceof Error ? error.message : String(error));
     return NextResponse.json(

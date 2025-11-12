@@ -11,6 +11,7 @@
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
 import logger from "@/lib/utils/logger";
+import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
@@ -28,12 +29,14 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
  * - Retry logic with exponential backoff
  * - Placeholder fallback for unavailable logos
  */
-export const dynamic = "force-dynamic";
-export const revalidate = 3600;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const searchParams = request.nextUrl.searchParams;
-  const website = searchParams.get("website");
+  if (typeof noStore === "function") {
+    noStore();
+  }
+  const requestUrl = new URL(request.url);
+  const searchParams = requestUrl.searchParams;
+  const website = searchParams.get("website") ?? searchParams.get("domain");
   const company = searchParams.get("company");
   const forceRefresh = searchParams.get("forceRefresh") === "true";
 
@@ -45,10 +48,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     let domain: string;
     if (website) {
       try {
-        domain = new URL(website).hostname.replace("www.", "");
+        // First try to parse as a URL when we detect a scheme.
+        if (/^[a-z]+:\/\//i.test(website)) {
+          domain = new URL(website).hostname.replace(/^www\./, "");
+        } else {
+          // Treat incoming strings (including CDN cache keys) as raw hostnames by stripping query fragments
+          domain = website.split("?")[0]?.replace(/^www\./, "") ?? "";
+        }
       } catch {
-        // If URL parsing fails, try using the website string directly
-        domain = website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0] ?? "";
+        // If URL parsing fails, fall back to a best-effort hostname extraction
+        domain = website.replace(/^https?:\/\/(www\.)?/, "").split(/[/?#]/)[0] ?? "";
       }
     } else if (company) {
       domain = company.toLowerCase().replace(/\s+/g, "");

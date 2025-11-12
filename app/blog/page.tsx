@@ -24,7 +24,6 @@ export const metadata: Metadata = getStaticPageMetadata("/blog", "blog");
  * Enable static generation with revalidation
  * This generates static HTML at build time and revalidates periodically
  */
-export const revalidate = 3600; // Revalidate every hour
 
 /**
  * Blog index page component with JSON-LD schema

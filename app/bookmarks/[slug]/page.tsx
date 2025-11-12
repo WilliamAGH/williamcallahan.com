@@ -1,3 +1,4 @@
+"use cache";
 /**
  * Domain-specific Bookmark Page with user-friendly URLs
  *
@@ -6,14 +7,10 @@
  * @module app/bookmarks/[slug]/page
  */
 
-// Configure for dynamic rendering - consistent with all other bookmark routes
-export const dynamic = "force-dynamic";
-// Revalidate cache every 30 minutes - consistent with other bookmark routes
-export const revalidate = 1800;
-
+import { Suspense } from "react";
 import { BookmarkDetail } from "@/components/features/bookmarks/bookmark-detail";
-import { getBookmarks } from "@/lib/bookmarks/service.server";
-import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
+import { getBookmarkById } from "@/lib/bookmarks/service.server";
+import { TIME_CONSTANTS } from "@/lib/constants";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
@@ -22,21 +19,23 @@ import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { RelatedContent } from "@/components/features/related-content";
+import { RelatedContent, RelatedContentFallback } from "@/components/features/related-content";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
-import { loadSlugMapping, generateSlugMapping, getBookmarkIdFromSlug } from "@/lib/bookmarks/slug-manager";
+import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { envLogger } from "@/lib/utils/env-logger";
+import { cacheContextGuards } from "@/lib/cache";
+import type { BookmarkPageContext, UnifiedBookmark } from "@/types";
 
-// CRITICAL: generateStaticParams() is INTENTIONALLY DISABLED for individual bookmarks
-// Issue #sitemap-2024: Even though this prevents static generation, sitemap.ts
-// MANUALLY adds all bookmark URLs by calling getBookmarksForStaticBuildAsync().
-// This hybrid approach allows dynamic rendering (no build-time S3 dependency)
-// while still including URLs in sitemap. Blog posts use full static generation
-// because they read from local files. Bookmarks can't because S3 is async-only.
+// CRITICAL: generateStaticParams() remains intentionally disabled for bookmarks.
+// The sitemap now streams paginated S3 data at request time, so the build no longer
+// enumerates bookmark slugs up-front. This keeps rendering dynamic while still
+// producing full SEO coverage.
 //
 // export async function generateStaticParams(): Promise<{ slug: string }[]> {
 //   // Disabled - sitemap.ts handles URL generation separately
 // }
+
+const BOOKMARK_PAGE_CACHE_SECONDS = Math.max(3600, Math.round(TIME_CONSTANTS.BOOKMARKS_PRELOAD_INTERVAL_MS / 1000));
 
 const safeEnsureAbsoluteUrl = (path: string): string => {
   try {
@@ -68,8 +67,7 @@ const getBookmarkHostname = (rawUrl: string | null | undefined): string | null =
 };
 
 // Helper function to find bookmark by slug using pre-computed mappings
-async function findBookmarkBySlug(slug: string): Promise<import("@/types").UnifiedBookmark | null> {
-  // Enhanced logging for environment detection issues
+async function resolveBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null> {
   envLogger.group(
     "Bookmark Lookup Start",
     [
@@ -92,86 +90,50 @@ async function findBookmarkBySlug(slug: string): Promise<import("@/types").Unifi
   );
 
   try {
-    // Try to load the pre-computed slug mapping
-    envLogger.log("Loading slug mapping from S3", undefined, { category: "BookmarkPage" });
-    let mapping = await loadSlugMapping();
-
-    // If no mapping exists, generate it (this should only happen during build)
-    if (!mapping) {
-      envLogger.log("No slug mapping found in S3, generating dynamically...", undefined, { category: "BookmarkPage" });
-      // Fetch with image data once so we can reuse for the final lookup
-      const allBookmarks = (await getBookmarks({
-        ...DEFAULT_BOOKMARK_OPTIONS,
-        includeImageData: true,
-        skipExternalFetch: false,
-        force: false,
-      })) as import("@/types").UnifiedBookmark[];
-      envLogger.log(`Loaded bookmarks for dynamic mapping`, allBookmarks?.length || 0, { category: "BookmarkPage" });
-
-      if (!allBookmarks || allBookmarks.length === 0) {
-        console.error(`[BookmarkPage] No bookmarks available to generate mapping`);
-        return null;
-      }
-      mapping = generateSlugMapping(allBookmarks);
-      envLogger.log(
-        `Generated mapping`,
-        { slugCount: Object.keys(mapping.slugs).length },
-        { category: "BookmarkPage" },
-      );
-
-      // We can return immediately if the slug is found, reusing allBookmarks
-      const bookmarkIdFromGenerated = getBookmarkIdFromSlug(mapping, slug);
-      envLogger.log(
-        `Slug lookup in generated mapping`,
-        { slug, foundId: bookmarkIdFromGenerated || "none" },
-        { category: "BookmarkPage" },
-      );
-      return bookmarkIdFromGenerated ? allBookmarks.find(b => b.id === bookmarkIdFromGenerated) || null : null;
-    }
-
-    envLogger.log(
-      "Loaded slug mapping",
-      {
-        entries: Object.keys(mapping.slugs).length,
-        version: mapping.version,
-        generated: mapping.generated,
-      },
-      { category: "BookmarkPage" },
-    );
-
-    // Look up the bookmark ID from the slug
-    const bookmarkId = getBookmarkIdFromSlug(mapping, slug);
-    envLogger.log(`Slug mapped to ID`, { slug, bookmarkId: bookmarkId || "NOT FOUND" }, { category: "BookmarkPage" });
+    envLogger.log("Resolving slug via cached mapping", undefined, { category: "BookmarkPage" });
+    const bookmarkId = await resolveBookmarkIdFromSlug(slug);
 
     if (!bookmarkId) {
-      console.error(`[BookmarkPage] No bookmark ID found for slug "${slug}"`);
-      envLogger.debug(
-        "Available slugs (first 10)",
-        Object.values(mapping.slugs)
-          .slice(0, 10)
-          .map(e => e.slug),
-        { category: "BookmarkPage" },
-      );
+      envLogger.log(`Slug not found in mappings`, { slug }, { category: "BookmarkPage" });
       return null;
     }
 
-    // Load all bookmarks and find the one with matching ID
-    envLogger.log(`Loading bookmarks to find ID`, bookmarkId, { category: "BookmarkPage" });
-    const allBookmarks = (await getBookmarks({
-      ...DEFAULT_BOOKMARK_OPTIONS,
-      includeImageData: true,
-      skipExternalFetch: false,
-      force: false,
-    })) as import("@/types").UnifiedBookmark[];
-    envLogger.log(`Loaded bookmarks`, allBookmarks?.length || 0, { category: "BookmarkPage" });
+    envLogger.log(`Slug mapped to ID`, { slug, bookmarkId }, { category: "BookmarkPage" });
 
-    const foundBookmark = allBookmarks.find(b => b.id === bookmarkId);
-    envLogger.log(`Bookmark lookup result`, { bookmarkId, found: !!foundBookmark }, { category: "BookmarkPage" });
-    return foundBookmark || null;
+    const bookmark = (await getBookmarkById(bookmarkId, {
+      includeImageData: true,
+    })) as UnifiedBookmark | null;
+
+    if (bookmark) {
+      envLogger.log(`Bookmark lookup result`, { bookmarkId, found: true }, { category: "BookmarkPage" });
+      return bookmark;
+    }
+
+    envLogger.log(
+      "Per-ID bookmark JSON missing; returning null instead of scanning full dataset",
+      { bookmarkId },
+      { category: "BookmarkPage" },
+    );
+
+    return null;
   } catch (error) {
     console.error(`[BookmarkPage] Error finding bookmark by slug "${slug}":`, error);
     return null;
   }
+}
+
+async function findBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null> {
+  "use cache";
+  cacheContextGuards.cacheLife("BookmarkPage", { revalidate: BOOKMARK_PAGE_CACHE_SECONDS });
+  cacheContextGuards.cacheTag("BookmarkPage", "bookmarks", `bookmark-slug-${slug}`);
+
+  const bookmark = await resolveBookmarkBySlug(slug);
+
+  if (bookmark?.id) {
+    cacheContextGuards.cacheTag("BookmarkPage", `bookmark-${bookmark.id}`);
+  }
+
+  return bookmark;
 }
 
 /**
@@ -239,9 +201,6 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     },
   };
 }
-
-import type { BookmarkPageContext } from "@/types";
-
 export default async function BookmarkPage({ params }: BookmarkPageContext) {
   const { slug } = await Promise.resolve(params);
   envLogger.log(`Page rendering`, { slug }, { category: "BookmarkPage" });
@@ -319,17 +278,21 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
       {/* Enhanced Related Content Section */}
       <div className="bg-gradient-to-b from-background to-secondary/20">
         <div className="max-w-6xl mx-auto px-8 md:px-12 lg:px-16 py-16">
-          <RelatedContent
-            sourceType="bookmark"
-            sourceId={foundBookmark.id}
-            sectionTitle="Discover Similar Content"
-            options={{
-              maxPerType: 4,
-              maxTotal: 12,
-              excludeTypes: [], // Include all content types
-            }}
-            className="relative"
-          />
+          <Suspense
+            fallback={<RelatedContentFallback title="Discover Similar Content" className="relative" cardCount={4} />}
+          >
+            <RelatedContent
+              sourceType="bookmark"
+              sourceId={foundBookmark.id}
+              sectionTitle="Discover Similar Content"
+              options={{
+                maxPerType: 4,
+                maxTotal: 12,
+                excludeTypes: [], // Include all content types
+              }}
+              className="relative"
+            />
+          </Suspense>
         </div>
       </div>
     </>

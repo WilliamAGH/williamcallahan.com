@@ -53,10 +53,13 @@
     "components/**/*",
     "app/**/*",
     "lib/**/*",
+    "lib/bookmarks/local-s3-cache.ts",
     "types/**/*",
     "eslint.config.ts",
     "instrumentation.ts",
-    "middleware.ts"
+    "middleware.ts",
+    ".next/dev/types/**/*.ts",
+    ".next/dev/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

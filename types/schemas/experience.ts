@@ -44,6 +44,9 @@ const experienceBaseSchema = z.object({
   /** Company location */
   location: z.string().optional(),
 
+  /** Flag entries that should be highlighted on the CV page */
+  cvFeatured: z.boolean().optional(),
+
   /**
    * Domain to be used solely for logo and data-matching operations.
    * This is never rendered to end-users. If present it overrides

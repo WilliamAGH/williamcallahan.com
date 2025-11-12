@@ -4,7 +4,6 @@
  * Displays a section of related content items organized by type
  */
 
-import React from "react";
 import { RelatedContentCard } from "./related-content-card";
 import type { RelatedContentItem, RelatedContentType, RelatedContentSectionProps } from "@/types/related-content";
 
@@ -48,8 +47,8 @@ export function RelatedContentSection({
   className = "",
   showScores = false,
 }: RelatedContentSectionProps) {
-  const grouped = React.useMemo(() => groupItemsByType(items), [items]);
-  const hasMultipleTypes = React.useMemo(() => Object.keys(grouped).length > 1, [grouped]);
+  const grouped = groupItemsByType(items);
+  const hasMultipleTypes = Object.keys(grouped).length > 1;
 
   if (items.length === 0) {
     return null;
@@ -83,6 +82,35 @@ export function RelatedContentSection({
           ))}
         </div>
       )}
+    </section>
+  );
+}
+
+export function RelatedContentFallback({
+  title = "Similar Content",
+  className = "",
+  cardCount = 3,
+}: {
+  title?: string;
+  className?: string;
+  cardCount?: number;
+}) {
+  const skeletons = Array.from({ length: cardCount }, (_, index) => index);
+  return (
+    <section className={`related-content-section ${className}`} aria-live="polite" aria-busy="true" role="status">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">{title}</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {skeletons.map(key => (
+          <div
+            key={key}
+            className="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 space-y-3 animate-pulse"
+          >
+            <div className="h-4 w-3/4 bg-gray-200 dark:bg-gray-700 rounded" />
+            <div className="h-3 w-full bg-gray-200 dark:bg-gray-800 rounded" />
+            <div className="h-3 w-2/3 bg-gray-200 dark:bg-gray-800 rounded" />
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

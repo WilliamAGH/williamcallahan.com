@@ -76,4 +76,3 @@ lib/data/bookmarks.json
 # Allow the sample files for reference
 !lib/data/bookmarks.sample.json
 !lib/data/slug-mapping.sample.json
-

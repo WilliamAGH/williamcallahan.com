@@ -14,14 +14,12 @@ import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
-export const dynamic = "force-static";
 export const metadata: Metadata = getStaticPageMetadata("/contact", "contact");
 
 /**
  * Enable ISR for contact page with hourly revalidation
  * This generates static HTML at build time and revalidates periodically
  */
-export const revalidate = 3600; // Revalidate every hour
 
 export default function ContactPage() {
   // Generate JSON-LD schema for the contact page

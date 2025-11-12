@@ -6,6 +6,7 @@
  * This route handles image inversion, caching, and serving inverted logos.
  */
 
+import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import { getUnifiedImageService, type UnifiedImageService } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
@@ -34,11 +35,13 @@ function validateUrl(urlString: string): string {
  * @returns {Promise<NextResponse>} API response with inverted image
  */
 // Enable dynamic rendering to allow API calls during server-side rendering
-export const dynamic = "force-dynamic";
-export const revalidate = 3600; // Cache for 1 hour
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const searchParams = request.nextUrl.searchParams;
+  if (typeof noStore === "function") {
+    noStore();
+  }
+  const requestUrl = new URL(request.url);
+  const searchParams = requestUrl.searchParams;
   const domain = searchParams.get("domain");
   const forceRefresh = searchParams.get("forceRefresh") === "true";
 
@@ -87,7 +90,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  * @returns {Promise<NextResponse>} API response with inversion status
  */
 export async function HEAD(request: NextRequest): Promise<NextResponse> {
-  const searchParams = request.nextUrl.searchParams;
+  if (typeof noStore === "function") {
+    noStore();
+  }
+  const requestUrl = new URL(request.url);
+  const searchParams = requestUrl.searchParams;
   const urlParam = searchParams.get("url");
   const isDarkTheme = searchParams.get("theme") === "dark";
 

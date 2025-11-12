@@ -1,0 +1,415 @@
+---
+title: "Attempting to Design a Back-end with Cleaner Architecture Rules and Boundaries"
+slug: "attempting-cleaner-architecture-boundaries-backend-refactor"
+excerpt: "How I'm learning to build with better software architecture design principles (while 'moving fast and breaking things')."
+publishedAt: "2025-11-09"
+updatedAt: "2025-11-09"
+author: "william-callahan"
+tags:
+  [
+    "backend",
+    "architecture",
+    "spring boot",
+    "clean architecture",
+    "refactoring",
+    "java",
+    "api design",
+    "boundaries"
+  ]
+coverImage: "/images/posts/clean-software-architecture-boundaries.png"
+---
+
+I've been writing code with hygiene and type safety in mind for a while now (or at least trying to). Every function gets explicit return types (even in languages where it's not required), objects get validated, repository methods get tested. But I've noticed I'm not quite strict enough about the *other* boundaries.
+
+Principles of _modularity_ (e.g., in the 'lego blocks' or 'IKEA furniture' sense) and _abstraction_ always came more naturally to me, but for whatever reason the principles of clean _encapsulation_ and _inheritance_ (other pillars of Object-Oriented Programming) and their boundaries were less intuitive to me, so I find I have to pause and reflect a bit more about them to ensure they are well defined and enforced.
+
+---
+
+## The scope creep
+
+Recently, after a flurry of new code/features being pushed, I did my customary practice of reflecting on what went well and what could be improved. So I decided to revisit the [book Clean Architecture](https://amzn.to/3LryYC9) for a fresh look/reflection... and _oh my god I just realized that the author, Robert Martin, is "Uncle Bob"!_ (the humorous Twitter sensation I've been watching for years, but never put two-and-two together). He has a [great blog](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html), too.
+
+Mostly I knew where the trouble spots were even before I revisited Clean Architecture. I was growing rather concerned with the growth of the controllers, repositories, services, and router files, and knew their boundaries weren't clean/clear enough.
+
+Note: I'll show some examples below from my own Java + Spring Boot repo... but most of the ideas I've written here, Java examples aside, are agnostic and repo/framework/language-independent.
+
+```java
+// In PeopleV1Controller - boundary violation example
+@PutMapping("/detail")
+public ResponseEntity<Map<String, Object>> updatePersonDetail(
+    @RequestParam(required = false) String id,
+    @RequestParam(required = false) String slug,
+    @RequestBody Map<String, Object> body) {
+
+    String personId = resolveIdOrThrow(id, slug, s -> personService.resolveIdBySlug(s));
+    String normalizedSlug = RequestValidation.normalizeOptionalSlug(body.get("slug"), "slug");
+    if (normalizedSlug != null) {
+        body.put("slug", normalizedSlug);
+    }
+    var updated = personService.update(personId, body);
+    return ResponseEntity.ok(updated);
+}
+```
+
+I think it would have been better to have put the identifier resolution and slug normalization in a use-case layer, not in the HTTP adapter.
+
+**Potential improvements**
+- `resolveIdOrThrow()` → belongs in a `PersonIdentifierResolver` use-case service
+- `normalizeOptionalSlug()` → belongs in a `SlugNormalizationService` domain service
+- `body.put("slug", ...)` → should happen in the use-case layer, not the controller
+- The controller should just be translating HTTP → command and return the response
+
+Another one:
+
+```java
+// In PersonRepository - web concerns in a data layer
+public String create(Map<String, Object> request) {
+    String slug = ControllerParameterUtils.normalizeSlugStrict(toStr(request.get("slug")));
+    if (slug == null || slug.isBlank()) {
+        slug = SlugUtils.slugify(first, last);
+    }
+    if (slug == null || slug.isBlank()) {
+        slug = IdGenerator.generate(8).toLowerCase(Locale.ROOT);
+    }
+    slug = SlugUtils.ensureUniqueSlug(slug, null, (candidate, ignored) -> existsBySlug(candidate));
+    request.put("slug", slug);
+    // ... JDBC insert follows
+}
+```
+
+**Potential improvements**
+- `ControllerParameterUtils.normalizeSlugStrict()` → should use a domain `SlugNormalizer` instead
+- `SlugUtils.slugify()` → belongs in a `PersonNameSlugGenerator` domain service
+- `ensureUniqueSlug()` → belongs in a `UniqueSlugValidator` use-case service
+- The repository should only persist validated entities, not generate business rules
+
+Each shortcut created a new dependency direction. But, say, changing the email validation rules requires touching both the controller and the repository, plus every test that had come to depend on this specific behavior.
+
+_As mentioned, the 'elephant in the room' of a lot of these examples is that the controller, repository, and service layers are all doing too much. They should be focused on their primary responsibilities: things like translating HTTP requests to commands and returning responses, persisting data, and executing business logic._
+
+Here is a model for cleaner, clearer boundaries for the highest risk areas I found having their definitions conflated:
+
+| Layer | Knows About | Doesn't Know About | Key Question | Example from aVenture.vc |
+|-------|-------------|-------------------|--------------|--------------------------|
+| **Controller** | HTTP, JSON, request/response | Business rules, database | "What did the user request?" | `PeopleV1Controller` maps `POST /api/people` to `CreatePersonCommand` |
+| **Use Case** | Business flow, transaction boundaries | HTTP, SQL specifics | "What does this operation do?" | `CreatePersonUseCase` coordinates duplicate check, domain creation, persistence |
+| **Domain Service** | Business rules, domain logic | HTTP, persistence | "Is this valid by business rules?" | `DuplicateEmailChecker` validates email uniqueness against business rules |
+| **Repository** | Persistence, queries | Business logic, HTTP | "How do I store/retrieve this?" | `PersonRepository` saves/retrieves `Person` entities using JDBC/JPA |
+| **Domain Entity** | Its own invariants | Everything else | "Am I in a valid state?" | `Person` enforces required name/email and valid email format |
+
+Here are a few more examples of boundary violations I found:
+
+```java
+// BaseDomainService.java - 200+ lines of abstractions
+public abstract class BaseDomainService<T, ID> extends BaseListService {
+    protected final String domainName;
+    protected final BaseDomainRepository<T, ID> baseRepository;
+
+    // Now includes: caching, circuit breakers, generic CRUD,
+    // domain column mappings, string column handling, etc.
+    @Cacheable("domain:list")
+    @CircuitBreaker(name = "domain-operations")
+    public List<T> findPage(FilterParams.Where where, String order, String direction, int limit, int offset) {
+        return baseRepository.findPage(where, order, direction, limit, offset);
+    }
+
+    // Plus more "convenience" methods...
+}
+```
+
+The problem shows up when I need to create a `PersonService` that doesn't need caching but does need custom validation. I end up with:
+
+```java
+@Service
+public class PersonService extends BaseDomainService<PersonDTO, String> {
+    // Inherits 200+ lines I don't need
+    // But still need to override half the methods
+    // And now debugging requires understanding the entire hierarchy
+}
+```
+
+Or here:
+
+```java
+// Controller layer
+@PutMapping("/detail")
+public ResponseEntity<Map<String, Object>> updatePersonDetail(
+    @RequestBody Map<String, Object> body) // Untyped Map
+
+// Service layer - accepts Map
+public PersonDTO update(String id, Map<String, Object> request) {
+    int rows = personRepository.update(id, request);
+
+// Repository layer - still Map-based
+public int update(String id, Map<String, Object> request) {
+    if (request.containsKey("nameFirst")) {
+        updates.add("name_first = ?");
+        args.add(toStr(request.get("nameFirst")));
+    }
+```
+
+**Potential improvements**
+- Controller should accept a typed `UpdatePersonRequest` DTO
+- Service should accept a `UpdatePersonCommand` use-case object
+- Repository should accept a `Person` domain entity
+- All three should share a single validation schema, not three separate Map key interpretations
+
+When I add a new field like `linkedinUrl`, I currently have to update:
+1. OpenAPI annotations in the controller
+2. Map key handling in the service
+3. Column mapping in the repository
+4. Frontend expecting specific JSON structure
+
+---
+
+## So what went wrong, exactly?
+
+The issue truly was remembering the strict boundaries for each layer (knowing exactly where one ends and one should begin). You can't see it from this blog post, but there *were/are* a lot of clean boundaries in the codebase already, but the examples given were some of the worst 'all-in-one' files that I should have put strict boundaries on right out of the gate to prevent them from this level of scope creep.
+
+This leads to a particular kind of technical debt that’s hard to spot early or measure objectively. It’s also the dominant style of code I've often seen online and from AI/LLMs. The code runs. Tests pass. The API responds. But the code is messy, hard to understand, and difficult to maintain.
+
+## Sidebar to my past profession
+
+In finance, I became allergic to the phrase “best practices.” In reality it usually meant “common practices” at best, and “things people confidently repeat without understanding” at worst. Software engineering has a similar problem.
+
+So you have to be unusually discerning about which “best practices” you accept. So this is salient to me now as I write this reflection, as I am trying to identify what constitutes 'objectively' _clean architecture_ and what is just being pedantic about subjective coding practices.
+
+## Rethinking the approach
+
+Ultimately, the way I 'move the needle' for myself (and when collaborating on repos with others) is to (discuss and) set agreed upon boundaries on the repo, and then set some guardrails, often a coarse linting barrier. The goal isn’t perfect layers. The goal is to make it easier to respect boundaries than to violate them.
+
+---
+
+### Adding architectural guardrails (pragmatically)
+
+I wanted to add [ArchUnit tests](https://www.archunit.org/userguide/) to prevent future violations, but existing code would fail immediately. The solution: use `FreezingArchRule` to baseline current violations while preventing new ones:
+
+```java
+import com.tngtech.archunit.junit.FreezingArchRule;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.*;
+
+@ArchTest
+private final ArchRule controllers_should_not_depend_on_repositories =
+    FreezingArchRule.freeze(
+        noClasses()
+            .that().resideInAnyPackage("..controller..")
+            .should().dependOnClassesThat()
+            .resideInAnyPackage("..repository..")
+    );
+
+@ArchTest
+private final ArchRule new_use_cases_follow_clean_architecture =
+    classes()
+        .that().resideInAnyPackage("..application.usecase..")
+        .should().onlyDependOnClassesThat()
+        .resideInAnyPackage(
+            "..domain..",
+            "java..",
+            "org.slf4j.."
+        );
+```
+
+This required adding `archunit.properties`:
+```properties
+freeze.store.default.path=archunit_store
+freeze.allow.store.creation=true
+```
+
+Now the build tracks violations in `archunit_store/` files (gitignored). New violations fail, existing ones are tolerated until refactored.
+
+### Introducing a use-case layer
+
+With guardrails in place, I'm refactoring the most problematic areas by introducing a use-case layer. This addresses the core issue: business logic scattered across controllers, services, and repositories. Each use case is one class with one clear responsibility.
+
+#### Before: Service layer doing everything
+
+The service layer demonstrates all the problems in one place. Here's a typical create method with mixed concerns:
+
+```java
+// PersonService.createPerson() - Mixed concerns everywhere
+public Map<String, Object> createPerson(Map<String, Object> request) {
+    // Validation mixed with normalization
+    String email = toStr(request.get("email"));
+    if (!EmailValidator.isValid(email)) {
+        throw new BadRequestException("Invalid email");
+    }
+
+    // Business rule enforcement scattered
+    if (personRepository.existsByEmail(email)) {
+        throw new ConflictException("Email already exists");
+    }
+
+    // Slug generation (domain logic) in service layer
+    String slug = SlugUtils.slugify(
+        toStr(request.get("nameFirst")),
+        toStr(request.get("nameLast"))
+    );
+    request.put("slug", slug);
+
+    // Direct repository call with untyped Map
+    String id = personRepository.create(request);
+
+    // Event publishing mixed with business logic
+    eventPublisher.publishEvent(new GenericEvent("person.created", id));
+
+    // Manual response mapping
+    return Map.of("id", id, "email", email, "slug", slug);
+}
+```
+
+**The core problems:**
+- Business rules scattered across layers
+- No clear transaction boundaries
+- Hard to test individual business operations in isolation
+- Mixed concerns make changes risky
+
+#### After: Clean use-case with single responsibility
+
+```java
+// CreatePersonUseCase.java - One class, one business action
+@Component
+public class CreatePersonUseCase implements CreatePerson {
+    private final DuplicateEmailChecker duplicateCheck;
+    private final PersonRepository repository;
+    private final DomainEventPublisher events;
+
+    @Override
+    public Person handle(CreatePersonCommand command) {
+        // Clear business rule enforcement
+        if (duplicateCheck.exists(command.email())) {
+            throw new DuplicatePersonException(command.email());
+        }
+
+        // Domain object creation with invariants
+        var person = Person.create(command.name(), command.email());
+
+        // Simple persistence of valid entity
+        repository.save(person);
+
+        // Explicit event with strong typing
+        events.publish(new PersonCreatedEvent(person.id()));
+
+        return person;
+    }
+}
+```
+
+```java
+// Inbound Port - The contract this use case fulfills
+public interface CreatePerson {
+    Person handle(CreatePersonCommand command);
+}
+
+// Strongly typed command object
+public record CreatePersonCommand(
+    String name,
+    String email
+) {
+    // Validation happens at construction time
+    public CreatePersonCommand {
+        Objects.requireNonNull(name, "Name is required");
+        Objects.requireNonNull(email, "Email is required");
+        if (!EmailValidator.isValid(email)) {
+            throw new InvalidCommandException("Invalid email format");
+        }
+    }
+}
+```
+
+**Benefits of this approach:**
+- Each use case is 20-50 lines of focused logic
+- Business rules are explicit and testable
+- Strong typing catches errors at compile time
+- Easy to understand what each operation does
+- Dependencies are minimal and clear
+- Can compose use cases for complex workflows
+
+### Standardizing the error contract
+
+I'm also gradually replacing ad-hoc error responses with [RFC 9457 Problem Details](https://blog.frankel.ch/problem-details-http-apis/). The goal is making client integration more predictable and reducing the countless _Sentry_ error regression alerts that turn out to be false alarms.
+
+This includes things like mapping constraint violations from [Jakarta Bean Validation](https://beanvalidation.org/). In JavaScript, my favorite is [Zod](https://zod.dev/) for validation and automatic type inference (TypeScript).
+
+In Spring, [ProblemDetail](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/http/ProblemDetail.html) provides a built-in structure for these responses:
+
+```java
+@RestControllerAdvice
+class ApiExceptionHandler {
+    @ExceptionHandler(DupulicatePersonException.class)
+    ProblemDetail handleDuplicate(DuplicatePersonException ex) {
+        return ProblemDetail.forStatusAndDetail(
+            HttpStatus.CONFLICT,
+            "Person with email " + ex.email() + " already exists"
+        );
+    }
+
+}
+```
+
+### Trying compile-time mapping with MapStruct
+
+Instead of hand-rolled mappers that seem to drift over time, I've also experimented with [MapStruct](https://mapstruct.org/) to generate type-safe mappings between layers:
+
+```java
+public interface PersonWebMapper {
+    CreatePersonCommand toCommand(CreatePersonRequest request);
+    PersonResponse toResponse(Person person);
+}
+```
+
+This seems to eliminate a category of bugs where DTOs and domain models get out of sync.
+
+---
+
+## A cleaner repo file tree might look something like this
+
+```markdown
+src/ [...]
+├── boot/                   # entry + typed config (in this example, for Spring Boot)
+├── domain/                 # Business types (minimal framework deps)
+│   ├── model/              # Value objects and aggregates
+│   ├── service/            # Domain rules and calculations
+│   └── port/               # Repository interfaces
+├── application/            # Use cases (transactional boundaries)
+│   ├── usecase/            # One class per business action
+│   └── dto/                # Input/output records for use cases
+├── adapters/
+│   ├── in/web/             # HTTP layer (controllers, DTOs, mappers)
+│   └── out/persistence/    # Database layer (repositories, entities)
+└── shared/                 # Cross-cutting utilities
+```
+
+---
+
+### Having Clear Boundaries
+
+The right amount of friction appears to prevent the wrong shortcuts without noticeably slowing legitimate development.
+
+On a team, once boundaries are agreed upon and set, they're enforced by tests rather than convention, and then architecture debates happen a lot less often. The code either compiles and finishes the CI/CD pipeline or it doesn't. Discussions are shifting from "where should this logic live?" to "what's the right business rule?"
+
+---
+
+## How a Request Flows Through Clean Architecture
+
+Using the `CreatePerson` use case as an example, here's how data flows through the clean boundaries:
+
+```
+POST /api/people {"name": "Alice", "email": "alice@example.com"}
+  ↓
+PeopleController (HTTP → Command)
+  ↓
+CreatePersonUseCase.handle(CreatePersonCommand)
+  ↓
+Person.create() + DuplicateEmailChecker (Domain Logic)
+  ↓
+PersonRepository.save(Person) (Outbound Port)
+  ↓
+JpaPersonRepository (Adapter → SQL)
+  ↓
+Database
+
+Result flows back the same path, with mappers at each boundary:
+Database Entity → Domain Person → PersonResponse → JSON
+```
+
+My mental model is roughly: Dependencies point inward. Controllers depend on use cases, use cases depend on domain, but the domain never knows about HTTP, databases, or frameworks. This is enforced through ports (interfaces) and adapters (implementations), which is a rough [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/) approach/example.

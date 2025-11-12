@@ -5,6 +5,7 @@ import { monitoredAsync } from "@/lib/async-operations-monitor";
 import { retryWithOptions } from "@/lib/utils/retry";
 import { waitForPermit } from "@/lib/rate-limiter";
 import { debugLog } from "@/lib/utils/debug";
+import { getMonotonicTime } from "@/lib/utils";
 import type { BatchProcessorOptions, BatchResult, LogLevel } from "@/types/batch-processing";
 
 // Re-export types for backward compatibility
@@ -35,7 +36,7 @@ export class BatchProcessor<T, R> {
    * Process items in batches with all safety features
    */
   async processBatch(items: T[]): Promise<BatchResult<T, R>> {
-    const startTime = Date.now();
+    const startTime = getMonotonicTime();
     const successful = new Map<T, R>();
     const failed = new Map<T, Error>();
     const skipped: T[] = [];
@@ -145,7 +146,7 @@ export class BatchProcessor<T, R> {
       successful,
       failed,
       skipped,
-      totalTime: Date.now() - startTime,
+      totalTime: getMonotonicTime() - startTime,
       memoryPressureEvents,
     };
   }
@@ -221,7 +222,7 @@ export class BatchProgressReporter {
 
   createProgressHandler(logLevel: LogLevel = "info") {
     return (current: number, total: number, failed: number) => {
-      const now = Date.now();
+      const now = getMonotonicTime();
       const shouldReport =
         current === total || // Always report completion
         now - this.lastReportTime >= this.reportInterval; // Or on interval

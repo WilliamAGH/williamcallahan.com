@@ -19,7 +19,6 @@ import { generateImageSignature, compareSignatures } from "@/lib/image-handling/
 let GLOBE_ICON_BUFFER: Buffer | null = null;
 
 // Enable dynamic rendering to allow API calls during server-side rendering
-export const dynamic = "force-dynamic";
 
 /**
  * POST handler for logo validation

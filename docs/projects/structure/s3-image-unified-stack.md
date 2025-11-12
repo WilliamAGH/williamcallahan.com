@@ -1,126 +1,130 @@
-# S3 & Image Handling Unified Stack Architecture
+# S3 & Image Unified Stack
 
-## Core Purpose
+**Functionality:** `s3-image-unified-stack`
 
-Comprehensive S3-based storage and image handling system with multi-layered architecture, memory-safe operations, CDN-optimized delivery, and unified service orchestration. This document consolidates the S3 object storage and image handling domains into a single architectural reference.
+## Mission & Boundaries
 
-## Architecture Overview
+Provide a single, verifiable description of how UI components, Next.js runtime features, API routes, shared services, and DigitalOcean Spaces cooperate to fetch, validate, process, persist, and deliver every image rendered on williamcallahan.com. This document is the canonical “map” that ties together the `image-handling` and `s3-object-storage` domains; update it first whenever a new image flow or storage rule appears.
 
-Data Flow: External Sources → UnifiedImageService → S3 Persistence → CDN Delivery
-Components:
+## Canonical Flow Map
 
-- **UnifiedImageService** (`lib/services/unified-image-service.ts:1-1046`): Central orchestrator for all image operations
-- **S3 Utils** (`lib/s3-utils.ts:1-762`): Low-level S3 operations with AWS SDK v3
-- **Persistence Layer** (`lib/persistence/s3-persistence.ts:1-380`): Unified write interface with ACL management
-- **Image Processing** (`lib/image-handling/shared-image-processing.ts:1-197`): Format detection and optimization
-
-## Key Features
-
-- **Memory-Safe Operations**: Stream support for images >5MB, memory pressure detection
-- **CDN-First Delivery**: ~50ms CDN vs ~100-200ms direct S3
-- **Request Coalescing**: Prevents duplicate concurrent operations
-- **Circuit Breaker**: Domain session management prevents infinite loops
-- **Format Preservation**: Maintains SVG, GIF, WebP animations
-
-## Data Structures
-
-```typescript
-// From types/image.ts
-export interface ImageResult extends BaseImageData {
-  buffer?: Buffer;
-  s3Key?: string;
-  s3Url?: string;
-  cdnUrl?: string;
-  source: ImageSource;
-  contentType: string;
-}
-
-// From types/logo.ts
-export interface LogoResult {
-  s3Key?: string;
-  url?: string | null;
-  cdnUrl?: string;
-  source: LogoSource;
-  contentType: string;
-  buffer?: Buffer;
-}
+```
+┌───────────────┐      ┌────────────────────┐      ┌─────────────────────────┐
+│Client Surfaces│      │Next/Image Runtime   │      │API Surface (app/api/*)  │
+│LogoImage,      ├──HTTP│/_next/image,        ├──RPC │logo, logo/invert         │
+│OptimizedCard...│      │remotePatterns guard │      │cache/images, og-image,  │
+└──────┬────────┘      └──────────┬──────────┘      │twitter-image, assets     │
+       │                          │                 └──────────┬──────────────┘
+       │                          │                            │calls
+       ▼                          ▼                            ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│                   UnifiedImageService & Helpers                            │
+│ lib/services/unified-image-service.ts                                      │
+│  • Request dedupe • domain circuit breaker • image/logo routing            │
+│  • fetchWithTimeout + DEFAULT_IMAGE_HEADERS                                │
+│  • maybeStreamImageToS3 (lib/services/image-streaming.ts)                  │
+│  • shared-image-processing.ts / image-analysis.ts / image-compare.ts      │
+│  • cdn-utils.ts + hash-utils.ts + url-utils.ts                             │
+└──────────┬─────────────────────────────────────────────────────────────────┘
+           │ writes/reads via
+           ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│S3 Access Layer                                                             │
+│ lib/s3-utils.ts (AWS SDK v3 client, retries, memory guards, locks)         │
+│ lib/image-handling/image-s3-utils.ts (idempotent persists, manifests)      │
+│ lib/persistence/s3-persistence.ts (JSON/Binary ACL control)                │
+└──────────┬─────────────────────────────────────────────────────────────────┘
+           │stores keys under
+           ▼
+┌────────────────────┐      ┌──────────────────────────┐      ┌──────────────┐
+│DigitalOcean Spaces │──────│CDN (NEXT_PUBLIC_S3_CDN_URL)│────│Browser Cache │
+│ buckets/images/**  │      │+ Next minimumCacheTTL     │      │(per response)│
+└────────────────────┘      └──────────────────────────┘      └──────────────┘
 ```
 
-## Design Decisions
+## Layer Inventory
 
-1. **No Memory Caching**: All images served directly from S3/CDN for scalability
-2. **Deterministic Keys**: Domain-based naming prevents duplicates (`lib/utils/s3-key-generator.ts:62`)
-3. **Session Management**: 30-minute circuit breaker prevents resource exhaustion (`lib/services/unified-image-service.ts:54-61`)
-4. **Stream Threshold**: 5MB images streamed directly to S3 (`lib/services/unified-image-service.ts:715-726`)
+| Layer              | Primary Modules                                                                                                                                                           | Responsibilities                                                                                                                                                                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Client rendering   | `components/ui/logo-image.client.tsx`, `components/features/*/bookmark-card.client.tsx`, `components/features/home/profile-image.tsx`                                     | Choose image source, trigger retries, call `/api/logo` on failure, honor placeholders, rely on `<Image>` with config-mandated widths/qualities.                                                                                                 |
+| Next runtime       | `next.config.ts` (`images.localPatterns/remotePatterns/qualities/formats`)                                                                                                | Define which URLs `_next/image` may fetch, enforce `minimumCacheTTL`, `dangerouslyAllowSVG`, and remote host allowlists derived from env-driven CALLAHAN hosts.                                                                                 |
+| HTTP surface       | `app/api/logo`, `app/api/logo/invert`, `app/api/cache/images`, `app/api/og-image`, `app/api/assets/[assetId]`, `app/api/twitter-image/[...path]`, `app/api/validate-logo` | Normalize params, validate with Zod schemas, send cache headers, short-circuit to CDN, and delegate to the service or S3 utils.                                                                                                                 |
+| Service core       | `lib/services/unified-image-service.ts`, `lib/services/image-streaming.ts`, `lib/image-handling/*.ts`, `lib/utils/*.ts`                                                   | Domain-aware routing (logos vs OG vs generic), memory/circuit safeguards, stream >5 MB downloads directly to S3, metadata extraction, inversion analysis, manifest lookups, deterministic S3 key generation, CDN URL building, SSRF prevention. |
+| Persistence        | `lib/s3-utils.ts`, `lib/image-handling/image-s3-utils.ts`, `lib/persistence/s3-persistence.ts`, `lib/data-access/images.server.ts`                                        | Execute AWS SDK reads/writes with retries, lock coordination, request coalescing, JSON and binary helpers, cache tagging, and environment-aware CDN fallback.                                                                                   |
+| Storage & delivery | DigitalOcean Spaces buckets + CDN edge + browser cache                                                                                                                    | Keep immutable assets, respect `Cache-Control` configured via Next + API responses, propagate hashed keys for safe long-lived caching.                                                                                                          |
 
-## External Integrations
+## Lifecycle Examples
 
-- **AWS SDK v3.840.0**: S3 client with retry logic, exponential backoff
-- **DigitalOcean Spaces**: S3-compatible storage with forced public ACLs
-- **CloudFront CDN**: Global content delivery
-- **Logo Sources**: Google, DuckDuckGo, Clearbit APIs with fallback chain
+### 1. Bookmark Card Preview
 
-## Performance & Security
+1. `selectBestImage()` (`lib/bookmarks/bookmark-helpers.ts`) prefers CDN URLs, then `/api/assets/{id}` with context query params, finally OG fallbacks.
+2. `<OptimizedCardImage>` renders the chosen URL via `<Image>`; `next/image` validates against `remotePatterns` before calling `_next/image`.
+3. `_next/image` either serves from its cache or fetches the remote URL (e.g., `/api/assets/...`).
+4. `/api/assets/[assetId]` validates UUID + query context, checks S3 using `HeadObjectCommand`, streams upstream content with `createMonitoredStream`, and persists via `writeBinaryS3` if missing.
+5. UnifiedImageService is not involved unless the upstream asset requires additional processing; CDN URLs are returned immediately for repeat views.
 
-- CDN hit: ~50ms, S3 direct: ~100-200ms
-- Memory limit: 50MB per operation
-- Stream timeout: 30 seconds
-- Request coalescing window: prevents duplicate S3 reads
-- **🔴 CRITICAL SSRF**: `/api/cache/images` open proxy vulnerability
-- **🔴 Path Traversal**: Multiple endpoints vulnerable
+### 2. Logo Rendering & Auto-Healing
 
-## Operations & Testing
+1. `<LogoImage>` receives a CDN path (`/logos/foo_com_google_ab12cd34.png`). If loading fails, it derives the domain via `extractDomainFromSrc()`, fires `/api/logo?website=foo.com&forceRefresh=true`, and retries with a cache buster.
+2. `/api/logo` normalizes `website`/`company`, then calls `getLogo()` on UnifiedImageService.
+3. UnifiedImageService checks `ServerCacheInstance`, manifest entries, and existing S3 objects (`generateS3Key` per source). If missing and writes allowed, it fans out to Google/DuckDuckGo/Clearbit, analyzes the buffer, streams to S3 if large, and records CDN URLs.
+4. Response is always a redirect to CDN (or placeholder via `getStaticImageUrl`). Future loads hit the CDN and skip the service entirely.
 
-- Health: `/api/health`, `/api/health/metrics`
-- Tests: `__tests__/lib/image-processing/`, `__tests__/lib/utils/` (coverage varies)
-- Commands: `bun run update-s3`, `bun run migrate-static-images`, `bun run fix:s3-acl-public`
+### 3. OG Image Fetch via `/api/og-image`
 
-## 🐛 Bugs & Improvements Inventory
+1. Route inspects `url`, `assetId`, `bookmarkId`, performing validation via `openGraphUrlSchema` and bookmark manifests.
+2. Karakeep asset IDs redirect to `/api/assets/{id}`; raw S3 keys are checked with `HeadObjectCommand` before redirecting to CDN.
+3. If an external URL must be fetched, the route builds a normalized request, then relies on UnifiedImageService’s `getImage()` for processing/persistence.
+4. Headers enforce long-lived caching plus `IMAGE_SECURITY_HEADERS`.
 
-### Type/Validation Issues (PRIORITY)
+## Data Artifacts & Mapping
 
-1. **Missing Zod Validation** - `lib/s3-utils.ts:179`: External S3 responses without validation
-2. **Type Duplication** - `types/image.ts` & `types/logo.ts`: 80%+ similar interfaces (ImageResult, LogoResult)
-3. **No Runtime Validation** - `lib/services/unified-image-service.ts:842-946`: External API responses unvalidated
-4. **Type Assertions** - `lib/s3.ts:44`: Unsafe cast bypasses type safety
-5. **Similar Source Types** - `types/image.ts:5-16` & `types/logo.ts:65`: ImageSource vs LogoSource
+| Artifact                                                         | Purpose                                                         | Produced by                                        | Consumed by                                             |
+| ---------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------- |
+| `static-image-mapping.json` (`lib/data-access/static-images.ts`) | Maps legacy `/public/images/**` to hashed CDN URLs.             | `scripts/sync-blog-cover-images.ts` (during CI)    | Placeholder utilities, SEO defaults, API fallbacks.     |
+| Logo manifest (`IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST`)         | Cached set of known domains → CDN URLs (and inverted variants). | Instrumentation warm-up via `loadImageManifests()` | UnifiedImageService, `/api/logo`, analytics dashboards. |
+| Bookmark/OG JSON snapshots (`bucket/json/**`)                    | Provide data for API selection + caching.                       | Background batch processors                        | `/api/og-image`, bookmark rendering.                    |
+| Domain blocklist (`LOGO_BLOCKLIST_S3_PATH`)                      | Prevents repeated fetch attempts against failing domains.       | `FailureTracker` inside UnifiedImageService        | All logo requests.                                      |
 
-### Environment Issues (CRITICAL)
+## Cache & CDN Rules
 
-1. **NEXT*PUBLIC* Misuse** - `lib/services/unified-image-service.ts:48,104,148`: Server code using client prefix
-2. **NEXT*PUBLIC* Misuse** - `lib/persistence/s3-persistence.ts:294,296,349,362`: Persistence layer exposure
-3. **NEXT*PUBLIC* Misuse** - `lib/s3-utils.ts:39`: Utility code with client prefix
+- **Next Image Optimizer**: `qualities: [75,80,90,100]`, `minimumCacheTTL: 7 days`, local patterns for `/api/assets`, `/api/logo`, `/api/logo/invert`, `/api/og-image` ensure `_next/image` can only wrap approved endpoints.
+- **API Responses**: Logos default to `301` (immutable CDN), cache/images to `Cache-Control: public, max-age=31536000, immutable`, Twitter proxy to `stale-while-revalidate` for a week.
+- **Manifests & Data**: `cacheLife("Images", "weeks")` and granular `cacheTag` names allow targeted invalidation via `revalidateTag()`.
+- **CDN + Browser**: hashed keys (e.g., `logos/foo_com_google_ab12cd34.png`) guarantee safe `max-age=31536000` across CDN and browser caches.
 
-### Security Issues (CRITICAL)
+## Security & Validation Checklist
 
-1. **SSRF Vulnerability** - `/api/cache/images`: Open proxy accepting any URL
-2. **SSRF Vulnerability** - `/api/og-image/route.ts:282-293`: No URL validation before fetch
-3. **Path Traversal** - `/api/twitter-image/[...path]/route.ts`: Regex allows `.` character
-4. **No Private IP Blocking** - `lib/services/unified-image-service.ts`: Allows localhost/internal IPs
+1. **URL Guardrails** – `openGraphUrlSchema`, `assetIdSchema`, `sanitizePath()`, and the SSRF blockers inside `url-utils` ensure only HTTP/S public hosts are reachable.
+2. **Host Allowlists** – Remote hosts must exist in `CALLAHAN_IMAGE_HOSTS`, derived env hosts, or explicit social/CDN patterns defined in `next.config.ts`.
+3. **Private Network Blocking** – UnifiedImageService rejects private IPs before fetch; `ImageAnalysis` enforces buffer size limits (<512 KB for validation endpoints).
+4. **Content-Type Enforcement** – `IMAGE_SECURITY_HEADERS`, `guessImageContentType`, and `processImageBufferSimple` stop non-image payloads from reaching clients.
+5. **Memory Pressure Controls** – `getMemoryHealthMonitor()` gates fetches/uploads; streaming path keeps peak usage bounded.
+6. **Placeholder Safety** – If any stage fails, we redirect to data URI or `/images/opengraph-placeholder.png` via `getStaticImageUrl` to avoid broken UI.
 
-### Performance Issues
+## Operations & Runbooks
 
-1. **Sequential Loading** - `lib/services/unified-image-service.ts:932-943`: Logo sources checked serially
-2. **Full Directory Scans** - `lib/image-handling/image-s3-utils.ts:findImageInS3`: O(n) S3 listing
-3. **Unbounded Maps** - `lib/services/unified-image-service.ts:51-62`: Memory leak risk
-4. **No Connection Pooling** - Multiple S3 client instances created
+| Task                         | Command / File                                                                                                                     | Notes                                                                                                    |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Refresh blog cover mappings  | `bun scripts/sync-blog-cover-images.ts`                                                                                            | Uploads `/public/images/posts/**`, regenerates `data/blog/cover-image-map.json`, warns about collisions. |
+| Validate Next image config   | `bun run validate` + manual review of `next.config.ts`                                                                             | Ensure new CDNs/domains are added to `remotePatterns`.                                                   |
+| Inspect manifests at runtime | `instrumentation-node.ts` logs manifest counts after `loadImageManifests()`                                                        | Verify via `console.log` or `bun run dev` startup output.                                                |
+| Purge specific CDN asset     | Use `invalidateImageCache('images/...')` or delete S3 key; Next/Image caches must also be cleared if `_next/image` served the URL. |
+| Investigate logo issues      | Hit `/api/logo?website=foo.com&forceRefresh=true` and inspect headers (`x-logo-error`, `x-logo-domain`).                           |
 
-### Memory Issues
+## Cross-References
 
-1. **Unbounded Sets** - `lib/services/unified-image-service.ts:55-56`: sessionProcessedDomains grows indefinitely
-2. **No LRU Eviction** - `lib/services/unified-image-service.ts:62`: inFlightLogoRequests Map
-3. **Missing Cleanup** - `lib/services/unified-image-service.ts:51`: migrationLocks never cleared
+- **Image domain details** → [`docs/projects/structure/image-handling.md`](./image-handling.md)
+- **Raw storage policies** → [`docs/projects/structure/s3-object-storage.md`](./s3-object-storage.md)
+- **CSP + Next.js guardrails** → `docs/projects/structure/next-js-16-usage.md`
 
-### British English
+Keep this document synchronized with the other two structure docs whenever you introduce a new image input, a new storage directory, or change CDN/Next settings.
 
-- `lib/env.ts:11`: "behaviour" → "behavior"
-- `lib/rate-limiter.ts:33`: "behaviour" → "behavior"
-- `lib/services/memory-aware-scheduler.ts:315-316,323`: "cancelled" → "canceled"
-- `types/lib.ts:57`: "cancelled" → "canceled"
+## Next.js Optimizer Contract
 
-## Related Documentation
+1. **Only CDN URLs go through `_next/image`.** Any `/api/*` proxy uses `<Image unoptimized>` so the browser hits the proxy directly while CDN URLs remain constrained to `images.remotePatterns`, matching the [Next.js Image Optimization rules](https://nextjs.org/docs/app/building-your-application/optimizing/images).
+2. **Local patterns are explicit.** `/api/cache/images`, `/api/assets`, `/api/logo`, and `/api/og-image` stay whitelisted in `images.localPatterns`. When we purposely point `_next/image` at those routes, we know they already validate Zod schemas and stream bytes back. Everyone else is rejected immediately.
+3. **Proxies stream bytes, never redirects.** `/api/cache/images` fetches CDN resources server-side, decodes multi-encoded `url` params, and streams the response body so `_next/image` always receives a 200 + valid `Content-Type` (no more 400s from redirect chains). ([Next.js Image Component Reference](https://nextjs.org/docs/app/api-reference/components/image))
+4. **Static imports stay static.** Assets in `public/` are statically imported so Next infers width/height, aligned with the Image component guidance.
 
-- `s3-object-storage.mmd` - S3 architecture diagram
-- `image-handling.mmd` - Image pipeline visualization
-- `caching.md` - Multi-tier caching strategy
-- `memory-mgmt.md` - Memory safety protocols
+Any change to these rules must update this section, `image-handling.md`, and `next-js-16-usage.md` in the same PR.

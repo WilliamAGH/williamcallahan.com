@@ -9,12 +9,13 @@ import { BOOKMARKS_PER_PAGE, BOOKMARKS_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from
 import type { BookmarksIndex } from "@/types/bookmark";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
+import { unstable_noStore as noStore } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
+import { getMonotonicTime } from "@/lib/utils";
 
 // This route can leverage the caching within getBookmarks
-export const dynamic = "force-dynamic";
 
 function buildInternalHrefs(
   items: Array<{ id: string } & Record<string, unknown>>,
@@ -39,9 +40,13 @@ function buildInternalHrefs(
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  if (typeof noStore === "function") {
+    noStore();
+  }
   console.log("[API Bookmarks] Received GET request for bookmarks");
 
-  const searchParams = request.nextUrl.searchParams;
+  const requestUrl = new URL(request.url);
+  const searchParams = requestUrl.searchParams;
   const rawPage = Number.parseInt(searchParams.get("page") || "1", 10);
   const page = Number.isNaN(rawPage) ? 1 : Math.max(1, rawPage);
 
@@ -66,7 +71,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       if (indexResult.success) {
         const indexData = indexResult.data;
-        const { totalPages, count: total, lastFetchedAt = Date.now() } = indexData;
+        const { totalPages, count: total, lastFetchedAt = getMonotonicTime() } = indexData;
 
         if (page <= totalPages) {
           // Load just the requested page
@@ -113,7 +118,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
     // Try to get metadata from S3 index
-    let lastFetchedAt = Date.now();
+    let lastFetchedAt = getMonotonicTime();
     try {
       const rawIndex: unknown = await import("@/lib/s3-utils").then(m =>
         m.readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX),

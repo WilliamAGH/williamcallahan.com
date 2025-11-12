@@ -39,6 +39,7 @@ export const LOGO_CACHE_DURATION = { SUCCESS: 30 * 24 * 60 * 60, FAILURE: 24 * 6
 export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
   DIR: "json/bookmarks",
   FILE: `json/bookmarks/bookmarks${envSuffix}.json`,
+  BY_ID_DIR: `json/bookmarks/by-id${envSuffix}`,
   LOCK: `json/bookmarks/refresh-lock${envSuffix}.json`,
   INDEX: `json/bookmarks/index${envSuffix}.json`,
   PAGE_PREFIX: `json/bookmarks/pages${envSuffix}/page-`,
@@ -46,6 +47,8 @@ export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
   TAG_INDEX_PREFIX: `json/bookmarks/tags${envSuffix}/`,
   HEARTBEAT: `json/bookmarks/heartbeat${envSuffix}.json`,
   SLUG_MAPPING: `json/bookmarks/slug-mapping${envSuffix}.json`,
+  SLUG_SHARDS_DIR: `json/bookmarks/slug-shards${envSuffix}`,
+  SLUG_SHARD_PREFIX: `json/bookmarks/slug-shards${envSuffix}/`,
 } as const;
 
 export const LOGO_BLOCKLIST_S3_PATH = `json/rate-limit/logo-failed-domains${envSuffix}.json`;
@@ -360,9 +363,56 @@ export const UNIFIED_IMAGE_SERVICE_CONFIG = {
 /** Memory thresholds (bytes) */
 const GB = 1024 * 1024 * 1024,
   MB = 1024 * 1024;
-const totalBudget = Number(
-  process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? (process.env.NODE_ENV === "production" ? 3.75 * GB : 4 * GB),
-);
+// Auto-detect container memory limit (cgroups) to set accurate process budgets.
+// Falls back to env override or sane defaults.
+function detectCgroupMemoryLimitBytes(): number | null {
+  try {
+    // Guard against Edge/runtime environments without Node APIs
+    if (typeof process === "undefined" || !process.versions?.node) return null;
+
+    // Use dynamic require to avoid bundling issues in edge contexts
+
+    const fs = require("node:fs") as typeof import("node:fs");
+
+    const candidates = [
+      "/sys/fs/cgroup/memory.max", // cgroup v2
+      "/sys/fs/cgroup/memory/memory.limit_in_bytes", // cgroup v1
+    ];
+
+    for (const p of candidates) {
+      try {
+        if (fs.existsSync(p)) {
+          const raw = fs.readFileSync(p, "utf8").trim();
+          if (!raw || raw === "max") continue; // "max" means no limit enforced
+          const parsed = Number(raw);
+          if (Number.isFinite(parsed) && parsed > 0) return parsed;
+        }
+      } catch {
+        // Continue to next candidate
+      }
+    }
+  } catch {
+    // Ignore detection errors
+  }
+  return null;
+}
+
+const envBudgetRaw = process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES;
+const envBudget = envBudgetRaw != null ? Number(envBudgetRaw) : NaN;
+const cgroupLimitBytes = detectCgroupMemoryLimitBytes();
+const defaultBudget = process.env.NODE_ENV === "production" ? 3.75 * GB : 4 * GB;
+
+// Prefer explicit env override, then cgroup limit (with 5% safety headroom), else defaults.
+let cgroupBudget: number | null = null;
+if (cgroupLimitBytes && cgroupLimitBytes > 0) {
+  const safetyAdjusted = Math.floor(cgroupLimitBytes * 0.95);
+  const minimumWhenAvailable = 512 * MB;
+  const adjusted =
+    cgroupLimitBytes >= minimumWhenAvailable ? Math.max(safetyAdjusted, minimumWhenAvailable) : safetyAdjusted;
+  cgroupBudget = Math.min(adjusted, cgroupLimitBytes);
+}
+
+const totalBudget = Number.isFinite(envBudget) && envBudget > 0 ? envBudget : (cgroupBudget ?? defaultBudget);
 
 export const MEMORY_THRESHOLDS = {
   TOTAL_PROCESS_MEMORY_BUDGET_BYTES: totalBudget,

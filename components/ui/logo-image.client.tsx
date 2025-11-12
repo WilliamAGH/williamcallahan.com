@@ -3,7 +3,9 @@
  *
  * A client-side component for displaying a company logo image.
  * Uses next/image for both standard and data URLs to ensure performance
- * and consistency.
+ * and consistency, while marking `/api/*` sources as `unoptimized`
+ * so we stay inside the contract described in
+ * https://nextjs.org/docs/app/api-reference/components/image#unoptimized.
  *
  * @module components/ui/logo-image.client
  */
@@ -14,19 +16,69 @@ import Image from "next/image";
 import React, { useState, useCallback, useRef } from "react";
 import type { LogoImageProps, OptimizedCardImageProps } from "@/types/ui/image";
 import { getCompanyPlaceholder, COMPANY_PLACEHOLDER_BASE64 } from "@/lib/data-access/placeholder-images";
+import { getMonotonicTime } from "@/lib/utils";
+
+const LOGO_FILENAME_REGEX = /\/logos\/(?:inverted\/)?([^/?#]+)\.(?:png|jpe?g|webp|svg|ico|avif)$/i;
+const HASH_TOKEN = /^[a-f0-9]{8}$/i;
+const KNOWN_LOGO_SOURCES = new Set(["google", "duckduckgo", "ddg", "clearbit", "direct", "manual", "unknown", "api"]);
+
+function deriveDomainFromLogoKey(pathname: string): string | null {
+  const match = pathname.match(LOGO_FILENAME_REGEX);
+  if (!match) {
+    return null;
+  }
+
+  const [, filename] = match;
+  if (!filename) {
+    return null;
+  }
+
+  const tokens = filename.split("_").filter(Boolean);
+  if (tokens.length < 2) {
+    return null;
+  }
+
+  const maybeHash = tokens[tokens.length - 1] ?? "";
+  const maybeSource = tokens[tokens.length - 2] ?? "";
+
+  let domainTokens = tokens;
+
+  if (HASH_TOKEN.test(maybeHash) && KNOWN_LOGO_SOURCES.has(maybeSource)) {
+    domainTokens = tokens.slice(0, -2);
+  } else if (KNOWN_LOGO_SOURCES.has(maybeHash)) {
+    domainTokens = tokens.slice(0, -1);
+  }
+
+  if (domainTokens.length < 2) {
+    return null;
+  }
+
+  const tld = domainTokens.pop();
+  if (!tld) {
+    return null;
+  }
+
+  const domainName = domainTokens.join(".");
+  if (!domainName) {
+    return null;
+  }
+
+  return `${domainName}.${tld}`.toLowerCase();
+}
 
 /**
  * Extract domain from a logo src so we can hit the on-demand logo API.
  * Handles both explicit `domain=` query param and CDN paths like `/logos/example.com.png`.
+ * Mirrors the filename contract defined in `generateS3Key` (lib/utils/hash-utils.ts)
+ * so `/api/logo` always receives a canonical hostname instead of the hashed CDN key.
  */
 function extractDomainFromSrc(url: string): string | null {
   try {
     const parsed = new URL(url, typeof window !== "undefined" ? window.location.origin : undefined);
-    const qp = parsed.searchParams.get("domain");
-    if (qp) return qp;
+    const qp = parsed.searchParams.get("domain") ?? parsed.searchParams.get("website");
+    if (qp?.trim()) return qp.trim().toLowerCase();
 
-    const match = parsed.pathname.match(/logos\/(.+?)\./);
-    return match?.[1] ?? null;
+    return deriveDomainFromLogoKey(parsed.pathname);
   } catch {
     return null;
   }
@@ -47,6 +99,24 @@ export function LogoImage({
   const [isLoading, setIsLoading] = useState(true);
   const retryInitiated = useRef(false);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const originalSrc = src;
+
+  const proxiedSrc = React.useMemo(() => {
+    if (!src || src.startsWith("/") || src.startsWith("data:") || src.startsWith("/api/")) {
+      return src;
+    }
+
+    if (/^https?:\/\//i.test(src)) {
+      const params = new URLSearchParams();
+      params.set("url", src);
+      if (typeof width === "number" && width > 0) {
+        params.set("width", String(width));
+      }
+      return `/api/cache/images?${params.toString()}`;
+    }
+
+    return src;
+  }, [src, width]);
 
   const handleError = useCallback(() => {
     if (retryInitiated.current) {
@@ -59,7 +129,7 @@ export function LogoImage({
 
     retryInitiated.current = true;
 
-    const domain = src ? extractDomainFromSrc(src) : null;
+    const domain = originalSrc ? extractDomainFromSrc(originalSrc) : null;
     if (domain) {
       // Fire and forget – trigger server fetch/upload with correct parameter and force refresh
       void fetch(`/api/logo?website=${encodeURIComponent(domain)}&forceRefresh=true`).catch(() => {
@@ -91,7 +161,7 @@ export function LogoImage({
     };
   }, []);
 
-  if (!src) {
+  if (!proxiedSrc) {
     // Use company placeholder when no src is provided
     return (
       <Image
@@ -119,7 +189,11 @@ export function LogoImage({
     );
   }
 
-  const displaySrc = reloadKey ? `${src}${src.includes("?") ? "&" : "?"}cb=${reloadKey}` : src;
+  const displaySrc =
+    reloadKey && proxiedSrc ? `${proxiedSrc}${proxiedSrc.includes("?") ? "&" : "?"}cb=${reloadKey}` : proxiedSrc;
+
+  const shouldBypassOptimizer =
+    typeof displaySrc === "string" && (displaySrc.startsWith("/api/") || displaySrc.startsWith("data:"));
 
   // Use next/image with base64 placeholder to prevent broken image flash
   return (
@@ -148,13 +222,12 @@ export function LogoImage({
         className={`${className} object-contain ${needsInversion ? "dark:invert dark:brightness-90" : ""}`}
         style={{ opacity: isLoading ? 0 : 1, transition: "opacity 0.2s ease-in-out" }}
         {...(priority ? { priority } : {})}
+        {...(shouldBypassOptimizer ? { unoptimized: true } : {})}
         onError={handleError}
         onLoad={() => {
           setIsLoading(false);
           if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
         }}
-        // Allow external images from the logo API
-        unoptimized={!!src.includes("/api/logo")}
       />
     </div>
   );
@@ -166,7 +239,12 @@ export function LogoImage({
 
 import Placeholder from "@/public/images/opengraph-placeholder.png";
 
-export function OptimizedCardImage({ src, alt, className = "" }: OptimizedCardImageProps): React.JSX.Element {
+export function OptimizedCardImage({
+  src,
+  alt,
+  className = "",
+  priority = false,
+}: OptimizedCardImageProps): React.JSX.Element {
   const isDev = process.env.NODE_ENV === "development";
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
@@ -184,31 +262,75 @@ export function OptimizedCardImage({ src, alt, className = "" }: OptimizedCardIm
     };
   }, []);
 
-  // Detect if this is a proxy URL that needs special handling
-  const isProxyUrl = src?.startsWith("/api/assets/") || src?.startsWith("/api/og-image");
+  const proxiedSrc = React.useMemo(() => {
+    if (!src || src.startsWith("/") || src.startsWith("data:") || src.startsWith("/api/")) {
+      return src;
+    }
+
+    if (/^https?:\/\//i.test(src)) {
+      const params = new URLSearchParams();
+      params.set("url", src);
+      return `/api/cache/images?${params.toString()}`;
+    }
+
+    return src;
+  }, [src]);
 
   // No source provided - show placeholder (should be rare with proper data)
   if (!src) {
     if (isDev) console.warn(`[OptimizedCardImage] No image source provided, showing placeholder`);
-    return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
+    return (
+      <Image
+        src={Placeholder}
+        alt={alt}
+        fill
+        placeholder="empty"
+        className="object-cover"
+        {...(priority ? { priority, fetchPriority: "high" } : {})}
+      />
+    );
   }
 
   // Source provided but errored after retries - show placeholder
-  if (errored && (!isProxyUrl || retryCount >= MAX_RETRIES)) {
-    // Log for debugging but don't spam with proxy URL retries
-    if (!isProxyUrl || retryCount === 0) {
-      if (isDev)
-        console.warn(
-          `[OptimizedCardImage] Failed to load image after ${retryCount} retries: ${src}, showing placeholder`,
-        );
-    }
-    return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
+  if (errored && retryCount >= MAX_RETRIES) {
+    if (isDev)
+      console.warn(
+        `[OptimizedCardImage] Failed to load image after ${retryCount} retries: ${src}, showing placeholder`,
+      );
+    return (
+      <Image
+        src={Placeholder}
+        alt={alt}
+        fill
+        placeholder="empty"
+        className="object-cover"
+        {...(priority ? { priority, fetchPriority: "high" } : {})}
+      />
+    );
   }
 
   // Add cache buster for retries
-  const displaySrc = retryKey > 0 ? `${src}${src.includes("?") ? "&" : "?"}retry=${retryKey}` : src;
+  if (!proxiedSrc) {
+    if (isDev) console.warn("[OptimizedCardImage] Missing proxied src after preprocessing, showing placeholder");
+    return (
+      <Image
+        src={Placeholder}
+        alt={alt}
+        fill
+        placeholder="empty"
+        className="object-cover"
+        {...(priority ? { priority, fetchPriority: "high" } : {})}
+      />
+    );
+  }
 
-  // Real image case - includes screenshots and other proxy URLs
+  const displaySrc =
+    retryKey > 0 ? `${proxiedSrc}${proxiedSrc.includes("?") ? "&" : "?"}retry=${retryKey}` : proxiedSrc;
+
+  const shouldBypassOptimizer =
+    typeof displaySrc === "string" && (displaySrc.startsWith("/api/") || displaySrc.startsWith("data:"));
+
+  // Always use next/image so CDN URLs and proxy paths share the same sizing logic
   return (
     <Image
       src={displaySrc}
@@ -216,11 +338,11 @@ export function OptimizedCardImage({ src, alt, className = "" }: OptimizedCardIm
       fill
       sizes="(max-width:768px) 100vw, 50vw"
       quality={80}
-      // Skip Next.js optimization for external URLs (proxies and direct http(s) sources)
-      unoptimized={isProxyUrl || /^https?:\/\//.test(displaySrc)}
       placeholder="empty"
       className={`object-cover transition-opacity duration-200 ${className}`}
       style={{ opacity: loaded ? 1 : 0.2 }}
+      {...(priority ? { priority, fetchPriority: "high" as const } : {})}
+      {...(shouldBypassOptimizer ? { unoptimized: true } : {})}
       onLoad={() => {
         setLoaded(true);
         setErrored(false); // Clear error state on successful load
@@ -230,9 +352,8 @@ export function OptimizedCardImage({ src, alt, className = "" }: OptimizedCardIm
         }
       }}
       onError={() => {
-        // For proxy URLs, retry with exponential backoff
-        if (isProxyUrl && retryCount < MAX_RETRIES) {
-          if (isDev) console.log(`[OptimizedCardImage] Scheduling retry for proxy URL: ${src}`);
+        if (retryCount < MAX_RETRIES) {
+          if (isDev) console.log(`[OptimizedCardImage] Scheduling retry for URL: ${src}`);
           const backoffDelay = Math.min(1000 * 2 ** retryCount, 5000); // 1s, 2s, up to 5s max
 
           if (retryTimeoutRef.current) {
@@ -240,7 +361,7 @@ export function OptimizedCardImage({ src, alt, className = "" }: OptimizedCardIm
           }
           retryTimeoutRef.current = setTimeout(() => {
             setRetryCount(prev => prev + 1);
-            setRetryKey(Date.now()); // Force new URL with cache buster
+            setRetryKey(getMonotonicTime()); // Force new URL with cache buster
           }, backoffDelay);
         } else {
           setErrored(true);

@@ -14,6 +14,7 @@ export const navigationLinks: NavigationLink[] = [
   { name: "Home", path: "/" },
   { name: "Experience", path: "/experience" },
   { name: "Education", path: "/education" },
+  { name: "CV", path: "/cv" },
   { name: "Projects", path: "/projects" },
   { name: "Bookmarks", path: "/bookmarks" },
   { name: "Investments", path: "/investments" },

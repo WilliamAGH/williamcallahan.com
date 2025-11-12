@@ -7,14 +7,8 @@
  * @module app/bookmarks/tags/[tagSlug]/page
  */
 
-// Configure dynamic rendering
-export const dynamic = "force-dynamic";
-// Force dynamic rendering and disable Next.js Data Cache for heavy tag list pages (we use our own cache via lib/image-memory-manager.ts)
-export const fetchCache = "default-no-store";
-
 import type { Metadata } from "next";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
-import { getBookmarksForStaticBuildAsync } from "@/lib/bookmarks/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
@@ -25,7 +19,6 @@ import { tagToSlug } from "@/lib/utils/tag-utils";
 import type { BookmarkTagPageContext } from "@/types";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 import { redirect, notFound } from "next/navigation";
-import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 
 /**
  * Parse page number from URL segments
@@ -42,52 +35,10 @@ function parsePageParam(page: string | undefined, pageNumberStr: string | undefi
 }
 
 /**
- * Generate static paths for tag pages at build time
- *
- * FIX (Issue #sitemap-2024): Changed from sync getBookmarksForStaticBuild() to async version.
- * Sync function always returned empty array, causing tag URLs to be missing from sitemap.
- * Blog tags worked because getAllPosts() reads from local filesystem synchronously.
- *
- * IMPORTANT: Filtering Consistency Requirement
- * getBookmarksForStaticBuildAsync() filters out bookmarks without id/slug fields,
- * while getBookmarksByTag() at runtime includes ALL bookmarks. This ensures we only
- * generate static paths for bookmarks that can actually be rendered (those with slugs).
- * If bookmarks without id/slug exist, runtime will show fewer items per page than expected,
- * but this is preferable to generating paths for bookmarks that cannot be displayed.
- *
- * @see lib/bookmarks/bookmarks.server.ts for why sync vs async matters
- */
-export async function generateStaticParams() {
-  const bookmarks = await getBookmarksForStaticBuildAsync();
-  const tagCounts = new Map<string, number>();
-  bookmarks.forEach(b => {
-    (Array.isArray(b.tags) ? b.tags : []).forEach((t: string | { name: string }) => {
-      const tagName = typeof t === "string" ? t : t.name;
-      const slug = tagToSlug(tagName);
-      tagCounts.set(slug, (tagCounts.get(slug) || 0) + 1);
-    });
-  });
-
-  const params: { slug: string[] }[] = [];
-
-  for (const [tagSlug, count] of tagCounts) {
-    // Calculate totalPages based on bookmarks that have valid id/slug fields
-    // This matches the filtering in getBookmarksForStaticBuildAsync()
-    const totalPages = Math.ceil(count / BOOKMARKS_PER_PAGE);
-    params.push({ slug: [tagSlug] });
-    for (let i = 2; i <= totalPages; i++) {
-      params.push({ slug: [tagSlug, "page", i.toString()] });
-    }
-  }
-
-  return params;
-}
-
-/**
  * Generate metadata for this tag page
  */
 export async function generateMetadata({ params }: BookmarkTagPageContext): Promise<Metadata> {
-  const { slug } = params;
+  const { slug } = await Promise.resolve(params);
   const [tagSlug, page, pageNumberStr] = slug;
 
   if (!tagSlug) {
@@ -131,8 +82,7 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
     isTag: true,
   });
   const baseDescription = generateTagDescription(displayTag, "bookmarks");
-  const customDescription =
-    effectivePage > 1 ? `${baseDescription} — Page ${effectivePage}.` : baseDescription;
+  const customDescription = effectivePage > 1 ? `${baseDescription} — Page ${effectivePage}.` : baseDescription;
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
   return {
@@ -157,7 +107,7 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
 }
 
 export default async function TagPage({ params }: BookmarkTagPageContext) {
-  const { slug = [] } = params;
+  const { slug = [] } = await Promise.resolve(params);
 
   if (!slug || slug.length === 0) {
     redirect("/bookmarks");
@@ -233,8 +183,7 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
     currentPage > 1 ? `Bookmarks for ${displayTag} (Page ${currentPage})` : `Bookmarks for ${displayTag}`;
 
   const pageBaseDescription = generateTagDescription(displayTag, "bookmarks");
-  const pageDescription =
-    currentPage > 1 ? `${pageBaseDescription} — Page ${currentPage}.` : pageBaseDescription;
+  const pageDescription = currentPage > 1 ? `${pageBaseDescription} — Page ${currentPage}.` : pageBaseDescription;
 
   // Generate schema for this tagged bookmarks page
   let path = `/bookmarks/tags/${sanitizedSlug}`;

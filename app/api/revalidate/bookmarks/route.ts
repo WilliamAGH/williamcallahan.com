@@ -6,11 +6,11 @@ import { NextRequest, NextResponse } from "next/server";
  * Cache invalidation endpoint for bookmarks
  * Called by the scheduler after successful bookmark refresh to ensure fresh data is served
  */
-export function POST(request: NextRequest) {
+export function POST(request: NextRequest): NextResponse {
   console.log(`[Cache Invalidation] Bookmarks revalidation endpoint called at ${new Date().toISOString()}`);
 
   // Verify authorization
-  const authHeader = request.headers.get("Authorization") || request.headers.get("authorization");
+  const authHeader = request.headers.get("authorization");
   const expectedToken = process.env.BOOKMARK_CRON_REFRESH_SECRET;
 
   if (!expectedToken) {
@@ -47,12 +47,12 @@ export function POST(request: NextRequest) {
     revalidatePath("/bookmarks/domain/[domainSlug]", "page");
 
     // Tag-based revalidation for all bookmark-related content
-    revalidateTag("bookmarks");
+    revalidateTag("bookmarks", "default");
     // Ensure the function-level full dataset cache is also invalidated
     // This tag is used by fetchAndCacheBookmarks() when loading the S3 dataset
-    revalidateTag("bookmarks-s3-full");
+    revalidateTag("bookmarks-s3-full", "default");
     // Invalidate index-specific cache when present
-    revalidateTag("bookmarks-index");
+    revalidateTag("bookmarks-index", "default");
 
     console.log("[Cache Invalidation] ✅ Successfully invalidated all bookmark caches");
 
@@ -64,12 +64,13 @@ export function POST(request: NextRequest) {
       },
       { status: 200 },
     );
-  } catch (error) {
-    console.error("[Cache Invalidation] Error during revalidation:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[Cache Invalidation] Error during revalidation:", errorMessage);
     return NextResponse.json(
       {
         error: "Cache invalidation failed",
-        details: error instanceof Error ? error.message : String(error),
+        details: errorMessage,
       },
       { status: 500 },
     );

@@ -128,6 +128,7 @@ export const SEO_IMAGES = {
   ogBlogIndex: getStaticImageUrl("/images/og/blog-og.png"),
   /** Static pages */
   ogExperience: getStaticImageUrl("/images/og/experience-og.png"),
+  ogCv: getStaticImageUrl("/images/og/experience-og.png"),
   ogEducation: getStaticImageUrl("/images/og/education-og.png"),
   ogInvestments: getStaticImageUrl("/images/og/investments-og.png"),
   ogContact: getStaticImageUrl("/images/og/contact-og.png"),
@@ -145,7 +146,7 @@ export const PAGE_METADATA = {
     title: SITE_TITLE,
     description: SITE_DESCRIPTION_OG,
     dateCreated: "2025-02-10T12:42:00",
-    dateModified: "2025-02-10T12:42:00",
+    dateModified: "2025-11-04T12:42:00",
     bio: SITE_DESCRIPTION_SHORT,
     interactionStats: {
       follows: 500,
@@ -159,7 +160,7 @@ export const PAGE_METADATA = {
     title: `Professional Experience - ${SITE_NAME}`,
     description: `Explore ${SITE_NAME}'s professional experience, including roles in software engineering, entrepreneurship, and technology leadership.`,
     dateCreated: "2025-02-10T12:42:00",
-    dateModified: "2025-02-10T12:42:00",
+    dateModified: "2025-11-07T12:42:00",
     bio: "Software engineer, startup investor, and Techstars founder based in San Francisco.",
     interactionStats: {
       follows: 200,
@@ -169,17 +170,26 @@ export const PAGE_METADATA = {
     alternateName: "williamcallahan",
     profileImage: getStaticImageUrl("/images/william-callahan-san-francisco.png"),
   } as ProfilePageMetadata,
+  cv: {
+    title: `Curriculum Vitae - ${SITE_NAME}`,
+    description: `${SITE_NAME}'s curriculum vitae, including highlighted experience, education, certifications, and technical capabilities.`,
+    dateCreated: "2025-11-07T00:00:00",
+    dateModified: "2025-11-07T00:00:00",
+    bio: "Investor, founder, and engineer building cloud/web applications in San Francisco.",
+    alternateName: "williamcallahan",
+    profileImage: getStaticImageUrl("/images/william-callahan-san-francisco.png"),
+  } as ProfilePageMetadata,
   investments: {
     title: `Investment Portfolio - ${SITE_NAME}`,
     description: `View ${SITE_NAME}'s investment portfolio, including ventures, startups, and technology investments.`,
     dateCreated: "2025-02-10T12:42:00",
-    dateModified: "2025-02-10T12:42:00",
+    dateModified: "2025-11-04T12:42:00",
   } as CollectionPageMetadata,
   education: {
     title: `Education & Certifications - ${SITE_NAME}`,
     description: `Learn about ${SITE_NAME}'s educational background, certifications, and continuous learning journey.`,
     dateCreated: "2025-02-10T12:42:00",
-    dateModified: "2025-02-10T12:42:00",
+    dateModified: "2025-11-04T12:42:00",
     bio: "Lifelong learner with a focus on technology, finance, and entrepreneurship.",
     interactionStats: {
       follows: 150,
@@ -192,25 +202,25 @@ export const PAGE_METADATA = {
     title: `Bookmarks & Resources - ${SITE_NAME}`,
     description: `An upcoming list and curated collection of ${SITE_NAME}'s favorite resources, articles, and tools.`,
     dateCreated: "2025-02-10T12:42:00",
-    dateModified: "2025-02-10T12:42:00",
+    dateModified: "2025-11-04T12:42:00",
   } as CollectionPageMetadata,
   blog: {
     title: `Blog - ${SITE_NAME}`,
     description: `Articles and insights from ${SITE_NAME} on technology, startups, and software engineering.`,
     dateCreated: "2025-02-10T12:42:00",
-    dateModified: "2025-02-10T12:42:00",
+    dateModified: "2025-11-04T12:42:00",
   } as CollectionPageMetadata,
   projects: {
-    title: `Project Sandbox - ${SITE_NAME}`, // Changed title
+    title: `Projects - ${SITE_NAME}`,
     description: `A selection of projects ${SITE_NAME} has worked on or contributed to.`,
     dateCreated: "2025-04-07T10:11:00",
-    dateModified: "2025-04-07T10:58:00", // Update modified date
+    dateModified: "2025-11-04T10:58:00",
   } as CollectionPageMetadata,
   contact: {
     title: `Contact & Social Media - ${SITE_NAME}`,
     description: `Connect with ${SITE_NAME} on various social media platforms and professional networks.`,
     dateCreated: "2025-05-03T15:00:00",
-    dateModified: "2025-05-03T15:00:00",
+    dateModified: "2025-11-04T15:00:00",
   } as CollectionPageMetadata,
 } as const;
 
@@ -238,6 +248,7 @@ export const OG_IMAGE_DIMENSIONS = {
 export const PAGE_OG_ASPECT: Record<keyof typeof PAGE_METADATA, keyof typeof OG_IMAGE_DIMENSIONS> = {
   home: "legacy",
   experience: "legacy",
+  cv: "legacy",
   investments: "modern",
   education: "legacy",
   bookmarks: "legacy", // collection page keeps legacy (1440×900 asset fits 1.91:1)

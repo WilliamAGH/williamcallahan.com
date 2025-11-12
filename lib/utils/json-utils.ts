@@ -206,7 +206,7 @@ export function sortJsonKeys<T>(obj: T): T {
   }
 
   const sorted: Record<string, unknown> = {};
-  const keys = Object.keys(obj).sort();
+  const keys = Object.keys(obj).toSorted();
 
   for (const key of keys) {
     sorted[key] = sortJsonKeys((obj as Record<string, unknown>)[key]);

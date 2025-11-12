@@ -5,18 +5,53 @@
  * by using pre-computed mappings instead of generating slugs on-the-fly.
  */
 
-import { loadSlugMapping, generateSlugMapping, getSlugForBookmark, saveSlugMapping } from "./slug-manager";
+import {
+  loadSlugMapping,
+  generateSlugMapping,
+  getSlugForBookmark,
+  saveSlugMapping,
+  getSlugShard,
+} from "./slug-manager";
 import type { UnifiedBookmark } from "@/types";
 import type { CachedSlugMapping } from "@/types/cache";
+import type { BookmarkSlugMapping } from "@/types/bookmark";
 import logger from "@/lib/utils/logger";
+import { getDeterministicTimestamp } from "@/lib/server-cache";
 
 // Cache the slug mapping with TTL for automatic invalidation
 let cachedMapping: CachedSlugMapping | null = null;
+let cachedReverseMap: { map: Map<string, string>; timestamp: number } | null = null;
 
 // Import cache TTL from configuration
 import { getSlugCacheTTL } from "@/config/related-content.config";
 
 const CACHE_TTL_MS = getSlugCacheTTL();
+
+const normalizeReverseMap = (mapping: BookmarkSlugMapping): { normalized: BookmarkSlugMapping; rebuilt: boolean } => {
+  if (mapping.reverseMap && Object.keys(mapping.reverseMap).length > 0) {
+    return { normalized: mapping, rebuilt: false };
+  }
+
+  const rebuilt: Record<string, string> = {};
+  for (const entry of Object.values(mapping.slugs ?? {})) {
+    if (!entry?.slug || !entry?.id) continue;
+    if (!(entry.slug in rebuilt)) {
+      rebuilt[entry.slug] = entry.id;
+    }
+  }
+
+  logger.warn(
+    `[SlugHelpers] reverseMap missing or empty; rebuilt ${Object.keys(rebuilt).length} entries from forward mapping`,
+  );
+
+  return {
+    normalized: {
+      ...mapping,
+      reverseMap: rebuilt as Readonly<Record<string, string>>,
+    },
+    rebuilt: true,
+  };
+};
 
 /**
  * Safely extract an embedded slug from an unknown bookmark-like object.
@@ -40,13 +75,12 @@ export function tryGetEmbeddedSlug(input: unknown): string | null {
 export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: UnifiedBookmark[]): Promise<string | null> {
   // Try to use cached mapping first (check TTL)
   if (cachedMapping) {
-    const age = Date.now() - cachedMapping.timestamp;
+    const age = getDeterministicTimestamp() - cachedMapping.timestamp;
     if (age < CACHE_TTL_MS) {
       return getSlugForBookmark(cachedMapping.data, bookmarkId);
-    } else {
-      // Cache expired, clear it
-      cachedMapping = null;
     }
+    cachedMapping = null;
+    cachedReverseMap = null;
   }
 
   // If bookmarks supplied, try embedded slug first
@@ -86,8 +120,9 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
   if (mapping) {
     cachedMapping = {
       data: mapping,
-      timestamp: Date.now(),
+      timestamp: getDeterministicTimestamp(),
     };
+    cachedReverseMap = null;
   }
 
   return mapping ? getSlugForBookmark(mapping, bookmarkId) : null;
@@ -121,9 +156,8 @@ export async function getBulkBookmarkSlugs(bookmarks: UnifiedBookmark[]): Promis
 
   // Check cache next (with TTL)
   if (cachedMapping) {
-    const age = Date.now() - cachedMapping.timestamp;
+    const age = getDeterministicTimestamp() - cachedMapping.timestamp;
     if (age < CACHE_TTL_MS) {
-      // Use cached mapping
       for (const bookmark of bookmarks) {
         const slug = getSlugForBookmark(cachedMapping.data, bookmark.id);
         if (slug) {
@@ -131,10 +165,9 @@ export async function getBulkBookmarkSlugs(bookmarks: UnifiedBookmark[]): Promis
         }
       }
       return slugMap;
-    } else {
-      // Cache expired
-      cachedMapping = null;
     }
+    cachedMapping = null;
+    cachedReverseMap = null;
   }
 
   // Load or generate the mapping
@@ -157,8 +190,9 @@ export async function getBulkBookmarkSlugs(bookmarks: UnifiedBookmark[]): Promis
   if (mapping) {
     cachedMapping = {
       data: mapping,
-      timestamp: Date.now(),
+      timestamp: getDeterministicTimestamp(),
     };
+    cachedReverseMap = null;
   }
 
   // Build the map
@@ -177,4 +211,52 @@ export async function getBulkBookmarkSlugs(bookmarks: UnifiedBookmark[]): Promis
  */
 export function resetSlugCache(): void {
   cachedMapping = null;
+  cachedReverseMap = null;
+}
+
+async function loadReverseSlugMap(): Promise<Map<string, string> | null> {
+  const now = getDeterministicTimestamp();
+  if (cachedReverseMap && cachedMapping && now - cachedReverseMap.timestamp < CACHE_TTL_MS) {
+    return cachedReverseMap.map;
+  }
+
+  let mappingData: CachedSlugMapping["data"] | null = null;
+  if (cachedMapping && now - cachedMapping.timestamp < CACHE_TTL_MS) {
+    mappingData = cachedMapping.data;
+  } else {
+    const mapping = await loadSlugMapping();
+    if (!mapping) return null;
+    cachedMapping = { data: mapping, timestamp: now };
+    mappingData = mapping;
+  }
+
+  const { normalized, rebuilt } = normalizeReverseMap(mappingData);
+  if (rebuilt) {
+    const timestamp = cachedMapping?.timestamp ?? now;
+    cachedMapping = { data: normalized, timestamp };
+  }
+
+  const reverse = new Map<string, string>(Object.entries(normalized.reverseMap));
+  cachedReverseMap = { map: reverse, timestamp: now };
+  return reverse;
+}
+
+export async function resolveBookmarkIdFromSlug(slug: string): Promise<string | null> {
+  const shardEntry = await getSlugShard(slug);
+  if (shardEntry?.id) {
+    const now = getDeterministicTimestamp();
+    if (cachedReverseMap) {
+      cachedReverseMap.map.set(slug, shardEntry.id);
+      cachedReverseMap.timestamp = now;
+    } else {
+      cachedReverseMap = {
+        map: new Map([[slug, shardEntry.id]]),
+        timestamp: now,
+      };
+    }
+    return shardEntry.id;
+  }
+
+  const reverse = await loadReverseSlugMap();
+  return reverse?.get(slug) ?? null;
 }

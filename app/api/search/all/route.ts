@@ -10,14 +10,15 @@ import { searchBookmarks, searchEducation, searchExperience, searchInvestments, 
 import { validateSearchQuery } from "@/lib/validators/search";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import type { SearchResult } from "@/types/search";
-import { NextResponse } from "next/server";
+import { unstable_noStore } from "next/cache";
+import { NextResponse, type NextRequest } from "next/server";
 import os from "node:os";
 
-// Ensure this route is not statically cached
-export const dynamic = "force-dynamic";
+const withNoStoreHeaders = (additional?: Record<string, string>): HeadersInit =>
+  additional ? { "Cache-Control": "no-store", ...additional } : { "Cache-Control": "no-store" };
 
-// Request coalescing to prevent duplicate concurrent searches
 const inFlightSearches = new Map<string, Promise<SearchResult[]>>();
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Memory pressure check (adaptive & configurable)
@@ -79,13 +80,22 @@ function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
  * @param request - The HTTP request object.
  * @returns A JSON response containing the search results or an error message.
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  if (isProductionBuild) {
+    return NextResponse.json([], { headers: withNoStoreHeaders({ "X-Search-Build-Phase": "true" }) });
+  }
+  const disableCache = unstable_noStore as (() => void) | undefined;
+  if (typeof disableCache === "function") {
+    disableCache();
+  }
   try {
-    const { searchParams } = new URL(request.url);
+    const headersList = request.headers;
+    const requestUrl = request.nextUrl;
+    const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q");
 
     // Extract client IP for rate limiting
-    const forwardedFor = request.headers.get("x-forwarded-for");
+    const forwardedFor = headersList.get("x-forwarded-for");
     const clientIp = forwardedFor ? forwardedFor.split(",")[0]?.trim() || "anonymous" : "anonymous";
 
     // Apply rate limiting: 10 searches per minute per IP
@@ -94,11 +104,11 @@ export async function GET(request: Request) {
         { error: "Too many search requests. Please wait a moment before searching again." },
         {
           status: 429,
-          headers: {
+          headers: withNoStoreHeaders({
             "Retry-After": "60",
             "X-RateLimit-Limit": "10",
             "X-RateLimit-Window": "60s",
-          },
+          }),
         },
       );
     }
@@ -107,14 +117,20 @@ export async function GET(request: Request) {
     const validation = validateSearchQuery(rawQuery);
 
     if (!validation.isValid) {
-      return NextResponse.json({ error: validation.error || "Invalid search query" }, { status: 400 });
+      return NextResponse.json(
+        { error: validation.error || "Invalid search query" },
+        {
+          status: 400,
+          headers: withNoStoreHeaders(),
+        },
+      );
     }
 
     const query = validation.sanitized;
 
     // Early exit if the sanitized query is empty
     if (query.length === 0) {
-      return NextResponse.json([]); // Nothing to search for
+      return NextResponse.json([], { headers: withNoStoreHeaders() }); // Nothing to search for
     }
 
     // Check for critical memory pressure
@@ -123,10 +139,10 @@ export async function GET(request: Request) {
         { error: "Server is under heavy load. Please try again in a moment." },
         {
           status: 503,
-          headers: {
+          headers: withNoStoreHeaders({
             "Retry-After": "30",
             "X-Memory-Pressure": "critical",
-          },
+          }),
         },
       );
     }
@@ -136,7 +152,7 @@ export async function GET(request: Request) {
     if (existingSearch) {
       console.log(`[Search API] Reusing in-flight search for query: "${query}"`);
       const results = await existingSearch;
-      return NextResponse.json(results);
+      return NextResponse.json(results, { headers: withNoStoreHeaders() });
     }
 
     // Create new search promise
@@ -211,10 +227,13 @@ export async function GET(request: Request) {
 
     // Wait for results
     const results = await searchPromise;
-    return NextResponse.json(results);
-  } catch (error) {
-    console.error("Site-wide search API error:", error);
+    return NextResponse.json(results, { headers: withNoStoreHeaders() });
+  } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    return NextResponse.json({ error: "Failed to perform site-wide search", details: errorMessage }, { status: 500 });
+    console.error("Site-wide search API error:", errorMessage);
+    return NextResponse.json(
+      { error: "Failed to perform site-wide search", details: errorMessage },
+      { status: 500, headers: withNoStoreHeaders() },
+    );
   }
 }

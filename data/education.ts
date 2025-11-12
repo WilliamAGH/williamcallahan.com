@@ -3,7 +3,7 @@
  */
 
 // Remember to update this date whenever the education data or the Education page design changes
-export const updatedAt = "2025-10-30";
+export const updatedAt = "2025-11-07";
 
 import {
   type Certification,
@@ -23,6 +23,7 @@ const recentCoursesData: Class[] = [
     website: "https://www.stanford.edu",
     location: "Stanford, California",
     year: 2024,
+    cvFeatured: true,
   },
   {
     id: "stanford-llm",
@@ -31,6 +32,7 @@ const recentCoursesData: Class[] = [
     website: "https://www.stanford.edu",
     location: "Stanford, California",
     year: 2024,
+    cvFeatured: true,
   },
   {
     id: "stanford-ai-design",
@@ -39,6 +41,7 @@ const recentCoursesData: Class[] = [
     website: "https://www.stanford.edu",
     location: "Stanford, California",
     year: 2024,
+    cvFeatured: true,
   },
   {
     id: "san-mateo-programming-methods-java",
@@ -47,6 +50,7 @@ const recentCoursesData: Class[] = [
     website: "https://collegeofsanmateo.edu",
     location: "San Mateo, California",
     year: 2025,
+    cvFeatured: true,
   },
   {
     id: "san-mateo-object-oriented-java",
@@ -55,6 +59,7 @@ const recentCoursesData: Class[] = [
     website: "https://collegeofsanmateo.edu",
     location: "San Mateo, California",
     year: 2025,
+    cvFeatured: true,
   },
   {
     id: "san-mateo-college-python",
@@ -63,6 +68,7 @@ const recentCoursesData: Class[] = [
     website: "https://collegeofsanmateo.edu",
     location: "San Mateo, California",
     year: 2025,
+    cvFeatured: true,
   },
   {
     id: "san-mateo-college-unix-linux",
@@ -71,6 +77,16 @@ const recentCoursesData: Class[] = [
     website: "https://collegeofsanmateo.edu",
     location: "San Mateo, California",
     year: 2025,
+    cvFeatured: true,
+  },
+  {
+    id: "san-mateo-data-structures-algorithms",
+    institution: "College of San Mateo",
+    name: "Data Structures & Algorithms",
+    website: "https://collegeofsanmateo.edu",
+    location: "San Mateo, California",
+    year: 2025,
+    cvFeatured: true,
   },
   // University of California Berkeley — Then others
   {
@@ -80,6 +96,7 @@ const recentCoursesData: Class[] = [
     website: "https://www.berkeley.edu",
     location: "Berkeley, California",
     year: 2025,
+    cvFeatured: true,
   },
   // Creighton University — Courses from MIMFA/MBA programs (2014–2016)
   {
@@ -231,6 +248,7 @@ const educationData: Education[] = [
     website: "https://www.creighton.edu",
     location: "Omaha, Nebraska",
     logoScale: 1.0,
+    cvFeatured: true,
   },
   {
     id: "creighton-mba",
@@ -240,6 +258,7 @@ const educationData: Education[] = [
     website: "https://www.creighton.edu",
     location: "Omaha, Nebraska",
     logoScale: 1.0,
+    cvFeatured: true,
   },
   {
     id: "uno-bsba",
@@ -248,6 +267,7 @@ const educationData: Education[] = [
     year: 2011,
     website: "https://www.unomaha.edu",
     location: "Omaha, Nebraska",
+    cvFeatured: true,
   },
 ];
 
@@ -261,6 +281,7 @@ const certificationsData: Certification[] = [
     year: 2022,
     website: "https://gsb.columbia.edu",
     location: "New York, New York",
+    cvFeatured: true,
   },
   {
     id: "berkeley-vc",
@@ -269,6 +290,7 @@ const certificationsData: Certification[] = [
     year: 2022,
     website: "https://www.berkeley.edu",
     location: "Berkeley, California",
+    cvFeatured: true,
   },
   {
     id: "cfa",
@@ -277,6 +299,7 @@ const certificationsData: Certification[] = [
     year: 2016,
     website: "https://www.cfainstitute.org",
     location: "Charlottesville, Virginia",
+    cvFeatured: true,
   },
   {
     id: "cfp",
@@ -285,6 +308,7 @@ const certificationsData: Certification[] = [
     year: 2012,
     website: "https://www.cfp.net",
     location: "Washington, District of Columbia",
+    cvFeatured: true,
   },
 ];
 

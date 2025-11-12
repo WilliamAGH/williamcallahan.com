@@ -79,10 +79,24 @@ export function InvestmentCardClient({
               <div className="w-12 h-12 relative flex-shrink-0">
                 {website ? (
                   <ExternalLink href={website} title={name} rawTitle={true} showIcon={false}>
-                    <LogoImage src={logoData.url} width={48} height={48} className="object-contain" alt={name} />
+                    <LogoImage
+                      src={logoData.url}
+                      width={48}
+                      height={48}
+                      className="object-contain"
+                      alt={name}
+                      needsInversion={logoData.needsInversion}
+                    />
                   </ExternalLink>
                 ) : (
-                  <LogoImage src={logoData.url} width={48} height={48} className="object-contain" alt={name} />
+                  <LogoImage
+                    src={logoData.url}
+                    width={48}
+                    height={48}
+                    className="object-contain"
+                    alt={name}
+                    needsInversion={logoData.needsInversion}
+                  />
                 )}
               </div>
               <div>

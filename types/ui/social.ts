@@ -25,6 +25,11 @@ export interface BaseIconProps extends React.SVGProps<SVGSVGElement> {
 export interface SocialIconsProps {
   className?: string;
   showXOnly?: boolean;
+  /**
+   * Optional list of platform slugs to exclude from rendering.
+   * Valid values: "github" | "x" | "discord" | "linkedin" | "bluesky"
+   */
+  excludePlatforms?: Array<"github" | "x" | "discord" | "linkedin" | "bluesky">;
 }
 
 export interface SocialIconGridProps {

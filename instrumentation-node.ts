@@ -5,11 +5,20 @@
 // Indicate this module should be evaluated only in the Node.js runtime so Turbopack skips Edge bundling.
 export const runtime = "nodejs";
 
+// Singleton guard to prevent duplicate registration during Next.js HMR in development
+declare global {
+  var INSTRUMENTATION_NODE_INSTALLED: boolean | undefined;
+}
+
 export async function register(): Promise<void> {
   const releaseVersion =
     process.env.SENTRY_RELEASE || process.env.NEXT_PUBLIC_GIT_HASH || process.env.NEXT_PUBLIC_APP_VERSION;
   const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
   if (isBuildPhase) return;
+
+  // If we've already registered in this process (e.g., due to HMR), skip re-registering
+  if (globalThis.INSTRUMENTATION_NODE_INSTALLED) return;
+  globalThis.INSTRUMENTATION_NODE_INSTALLED = true;
 
   /** ------------------------------------------------------------------
    * Configure Node core behaviors & diagnostics
@@ -100,14 +109,18 @@ export async function register(): Promise<void> {
     };
   }
 
-  /** Schedule bookmark preloads (production only) **/
-  if (process.env.NODE_ENV === "production") {
+  /** Schedule bookmark preloads (production runtime only, skip during phase-production-build) **/
+  const isProductionRuntime =
+    process.env.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build";
+  if (isProductionRuntime) {
     try {
       const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
       bookmarksModule.initializeBookmarksDataAccess?.();
     } catch {
       /* ignore bookmark preload failure */
     }
+  } else if (process.env.NODE_ENV === "production") {
+    console.info("[Instrumentation] Skipping bookmarks preload during build phase.");
   }
 }
 

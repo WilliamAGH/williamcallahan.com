@@ -9,14 +9,13 @@
  */
 "use client";
 
-import { Base64Image } from "@/components/utils/base64-image.client";
-import { CollapseDropdownProvider } from "@/lib/context/collapse-dropdown-context.client";
-import { cn } from "@/lib/utils";
-import { processSvgTransforms } from "@/lib/image-handling/svg-transform-fix";
-import { MDXRemote, type MDXRemoteProps } from "next-mdx-remote";
+import { MDXProvider } from "@mdx-js/react";
+import * as mdxRuntime from "@mdx-js/react";
+import type { MDXComponents } from "mdx/types";
 import Link from "next/link";
 import React, {
   type ComponentProps,
+  type ComponentType,
   type ReactElement,
   isValidElement,
   useEffect,
@@ -25,6 +24,12 @@ import React, {
   useContext,
   type JSX,
 } from "react";
+import * as jsxProdRuntime from "react/jsx-runtime";
+import * as jsxDevRuntime from "react/jsx-dev-runtime";
+import { Base64Image } from "@/components/utils/base64-image.client";
+import { CollapseDropdownProvider } from "@/lib/context/collapse-dropdown-context.client";
+import { cn } from "@/lib/utils";
+import { processSvgTransforms } from "@/lib/image-handling/svg-transform-fix";
 import type { ArticleImageProps, ArticleGalleryProps, MDXContentProps } from "@/types/features";
 import type { MetricsGroupProps } from "@/types/ui";
 import { BackgroundInfo } from "../../../ui/background-info.client";
@@ -40,6 +45,90 @@ import { MacOSCodeWindow, MacOSWindow } from "../../../ui/macos-window.client";
 import { ShellParentTabs, ShellTab } from "../../../ui/shell-parent-tabs.client";
 import { TweetEmbed } from "../tweet-embed";
 import { SoftwareSchema } from "./software-schema";
+
+const compiledMdxCache = new Map<string, ComponentType>();
+
+const withKeyedChildren = (children: React.ReactNode, prefix: string): React.ReactNode => {
+  let index = 0;
+  return React.Children.map(children, child => {
+    if (!isValidElement(child)) {
+      return child;
+    }
+    if (child.key != null) {
+      return child;
+    }
+    const key = `${prefix}-${index++}`;
+    return React.cloneElement(child, { key });
+  });
+};
+
+const toKeyed = (children: React.ReactNode) => React.Children.toArray(children);
+
+const devJsx = (...args: Parameters<typeof jsxDevRuntime.jsxDEV>) => {
+  const [type, props, key, , source, self] = args;
+  return jsxDevRuntime.jsxDEV(type, props, key, false, source, self);
+};
+
+const devJsxs = (...args: Parameters<typeof jsxDevRuntime.jsxDEV>) => {
+  const [type, props, key, , source, self] = args;
+  return jsxDevRuntime.jsxDEV(type, props, key, true, source, self);
+};
+
+const runtimeHelpers =
+  process.env.NODE_ENV === "development"
+    ? {
+        Fragment: jsxDevRuntime.Fragment,
+        jsx: devJsx,
+        jsxs: devJsxs,
+      }
+    : {
+        Fragment: jsxProdRuntime.Fragment,
+        jsx: jsxProdRuntime.jsx,
+        jsxs: jsxProdRuntime.jsxs,
+      };
+
+const buildMdxComponent = (
+  content: import("next-mdx-remote").MDXRemoteSerializeResult<Record<string, unknown>, Record<string, unknown>>,
+): ComponentType => {
+  const cached = compiledMdxCache.get(content.compiledSource);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const scope = content.scope ?? {};
+    const frontmatter = content.frontmatter ?? {};
+
+    const fullScope: Record<string, unknown> = Object.assign(
+      {
+        opts: {
+          ...mdxRuntime,
+          ...runtimeHelpers,
+        },
+      },
+      { frontmatter },
+      scope,
+    );
+
+    const keys = Object.keys(fullScope);
+    const values = Object.values(fullScope);
+    const hydrateFn = Reflect.construct(Function, keys.concat(`${content.compiledSource}`)) as (
+      ...fnArgs: unknown[]
+    ) => { default: ComponentType };
+    const { default: Component } = hydrateFn.apply(hydrateFn, values) as { default: ComponentType };
+    const SafeComponent: ComponentType = componentProps => <Component {...componentProps} />;
+    compiledMdxCache.set(content.compiledSource, SafeComponent);
+    return SafeComponent;
+  } catch (error) {
+    console.error("[MDXContent] Failed to evaluate compiled MDX source", error);
+    const Fallback: ComponentType = () => (
+      <p className="text-red-600 dark:text-red-400">
+        Unable to render this portion of the article. Please refresh or contact support if the issue persists.
+      </p>
+    );
+    return Fallback;
+  }
+};
 
 /**
  * Hook to check if we're currently inside a macOS frame
@@ -175,24 +264,23 @@ const MdxImage = ({
       height={800}
       loading={priority ? "eager" : "lazy"}
       className="rounded-lg shadow-md w-full h-auto"
-      style={{ width: "100%", height: "auto" }}
     />
   );
 
-  // Inline width constraints when specified
-  const figureStyle: React.CSSProperties = {};
+  const clampToStep = (value: number) => {
+    const clamped = Math.max(0, Math.min(100, value));
+    return Math.round(clamped / 5) * 5;
+  };
+
+  let widthModifierClass: string | undefined;
   if (typeof vwPct === "number" && !Number.isNaN(vwPct)) {
-    const clamped = Math.max(0, Math.min(100, vwPct));
-    figureStyle.width = `${clamped}vw`;
-    figureStyle.maxWidth = "100%"; // never overflow the article container
+    widthModifierClass = `mdx-figure-vw-${clampToStep(vwPct)}`;
   } else if (typeof widthPct === "number" && !Number.isNaN(widthPct)) {
-    const clamped = Math.max(0, Math.min(100, widthPct));
-    figureStyle.width = `${clamped}%`;
-    figureStyle.maxWidth = "100%";
+    widthModifierClass = `mdx-figure-w-${clampToStep(widthPct)}`;
   }
 
   return (
-    <figure className={`${widthClass} mx-auto my-6`} style={figureStyle}>
+    <figure className={cn(widthClass, "mx-auto my-6", widthModifierClass)}>
       {content}
       {caption && <figcaption className="mt-3 text-center text-sm text-muted-foreground">{caption}</figcaption>}
     </figure>
@@ -212,7 +300,7 @@ const MdxImage = ({
 const ArticleGallery = ({ children, className = "" }: ArticleGalleryProps): JSX.Element => {
   return (
     <div className={`flow-root space-y-8 my-6 p-4 bg-gray-50 dark:bg-gray-800/30 rounded-lg ${className}`}>
-      {children}
+      {toKeyed(children)}
     </div>
   );
 };
@@ -310,10 +398,9 @@ const TweetEmbedRenderer = (props: ComponentProps<typeof TweetEmbed>) => (
  *
  * @param {MDXContentProps} props - The properties for the MDXContent component.
  * @param {MDXRemoteSerializeResult} props.content - The serialized MDX data to render.
- * @param {string} [props.nonce] - CSP nonce for inline scripts.
  * @returns {JSX.Element} The rendered MDX content, structured within an `<article>` tag with applied prose styling.
  */
-export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
+export function MDXContent({ content }: MDXContentProps): JSX.Element {
   const contentRef = useRef<HTMLDivElement>(null);
 
   /**
@@ -386,14 +473,7 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
    * (e.g., `MetricsGroup`, `ArticleGallery`). The value is the React component that will be used
    * to render that element when encountered in the MDX source.
    */
-  const components: MDXRemoteProps["components"] = useMemo(() => {
-    // SoftwareSchemaRenderer needs access to nonce from props
-    const SoftwareSchemaRenderer = (props: ComponentProps<typeof SoftwareSchema>) => (
-      <div>
-        <SoftwareSchema {...props} nonce={nonce} />
-      </div>
-    );
-
+  const components: MDXComponents = useMemo(() => {
     return {
       /** Custom renderer for `<pre>` elements using the PreRenderer component that can access context */
       pre: PreRenderer,
@@ -452,7 +532,7 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
       /** Renderer for `MDXCodeBlock` if used directly as a component tag in MDX (as opposed to via a `<pre>` tag). */
       MDXCodeBlock: MDXCodeBlockRenderer,
       /** Renderer for the custom `SoftwareSchema` component, typically for structured data. */
-      SoftwareSchema: SoftwareSchemaRenderer,
+      SoftwareSchema,
       /**
        * Custom renderer for anchor `<a>` tags.
        * This function intelligently handles different types of links:
@@ -466,8 +546,6 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
       a: (props: ComponentProps<"a">) => {
         const { href, children, className, ...rest } = props;
 
-        // Normalize children to avoid invalid <a><p>…</p></a> blocks that MDX can emit
-        // when a component is used inside list items. If the only child is a <p>, unwrap it.
         const unwrapParagraph = (node: React.ReactNode): React.ReactNode => {
           if (
             isValidElement<{ children?: React.ReactNode }>(node) &&
@@ -479,17 +557,15 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
           return node;
         };
 
-        const normalizedChildrenArray = React.Children.toArray(children).map((child: React.ReactNode) =>
-          unwrapParagraph(child),
+        const normalizedChildren = toKeyed(
+          React.Children.map(children, (child: React.ReactNode) => unwrapParagraph(child)) ?? [],
         );
-        const normalizedChildren =
-          normalizedChildrenArray.length === 1 ? normalizedChildrenArray[0] : normalizedChildrenArray;
         if (!href) {
           return (
             <a {...rest} className={className}>
               {normalizedChildren}
             </a>
-          ); // Fallback for missing href
+          );
         }
 
         // Treat footnote-style anchors (#fn*, #ref*) specially: keep them clickable
@@ -543,23 +619,29 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
       // Remove custom <p> renderer to avoid ever creating nested <p> inside raw HTML structures.
       // Let Tailwind Typography's prose styles handle paragraph styling globally.
       /** Renderer for `<ul>` (unordered list) elements. Styling primarily handled by `prose`. */
-      ul: (props: ComponentProps<"ul">) => (
-        <ul className="pl-6 list-disc text-gray-700 dark:text-gray-300 text-base" {...props} />
+      ul: ({ className, children, ...rest }: ComponentProps<"ul">) => (
+        <ul {...rest} className={cn("pl-6 list-disc text-gray-700 dark:text-gray-300 text-base", className)}>
+          {withKeyedChildren(children, "li")}
+        </ul>
       ),
       /** Renderer for `<ol>` (ordered list) elements. Styling primarily handled by `prose`. */
-      ol: (props: ComponentProps<"ol">) => (
-        <ol className="pl-6 list-decimal text-gray-700 dark:text-gray-300 text-base" {...props} />
+      ol: ({ className, children, ...rest }: ComponentProps<"ol">) => (
+        <ol {...rest} className={cn("pl-6 list-decimal text-gray-700 dark:text-gray-300 text-base", className)}>
+          {withKeyedChildren(children, "li")}
+        </ol>
       ),
       /** Renderer for `<li>` (list item) elements. Includes a small bottom margin for spacing. Styling primarily handled by `prose`. */
       li: (props: ComponentProps<"li">) => (
         <li className="mb-1 pl-1 text-gray-700 dark:text-gray-300 text-base" {...props} />
       ),
       /** Renderer for `<blockquote>` elements, applying distinct styling for visual emphasis. */
-      blockquote: (props: ComponentProps<"blockquote">) => (
+      blockquote: ({ children, ...rest }: ComponentProps<"blockquote">) => (
         <blockquote
           className="pl-4 border-l-4 border-blue-500 dark:border-blue-400 italic text-gray-700 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/20 py-3 px-4 rounded-r-md shadow-sm text-base"
-          {...props}
-        />
+          {...rest}
+        >
+          {toKeyed(children)}
+        </blockquote>
       ),
       /** Renderer for `<hr>` (horizontal rule) elements. Currently styled to be hidden. */
       hr: (props: ComponentProps<"hr">) => <hr className="hidden" {...props} />,
@@ -582,13 +664,28 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
                 className,
               )}
             >
-              {children}
+              {toKeyed(children)}
             </table>
           </div>
         );
       },
+      tbody: (props: ComponentProps<"tbody">) => {
+        const { children, ...rest } = props;
+        return <tbody {...rest}>{toKeyed(children)}</tbody>;
+      },
+      tr: (props: ComponentProps<"tr">) => {
+        const { children, ...rest } = props;
+        return <tr {...rest}>{toKeyed(children)}</tr>;
+      },
       /** Renderer for `<thead>` (table head) elements, applying background styling. */
-      thead: (props: ComponentProps<"thead">) => <thead className="bg-gray-50 dark:bg-gray-800" {...props} />,
+      thead: (props: ComponentProps<"thead">) => {
+        const { children, ...rest } = props;
+        return (
+          <thead className="bg-gray-50 dark:bg-gray-800" {...rest}>
+            {toKeyed(children)}
+          </thead>
+        );
+      },
       /** Renderer for `<th>` (table header cell) elements, applying text, padding, and alignment styling. */
       th: (props: ComponentProps<"th">) => (
         <th
@@ -608,7 +705,8 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
        */
       TweetEmbed: TweetEmbedRenderer,
     };
-  }, [nonce]);
+  }, []);
+  const CompiledMdxComponent = useMemo(() => buildMdxComponent(content), [content.compiledSource]);
 
   return (
     <CollapseDropdownProvider>
@@ -635,9 +733,11 @@ export function MDXContent({ content, nonce }: MDXContentProps): JSX.Element {
           "prose-spacing-override", // Custom class to potentially override prose's default vertical spacing for direct children
         )}
       >
-        {/* Wrapper div to enforce consistent vertical spacing between direct children of MDXRemote output */}
+        {/* Wrapper div to enforce consistent vertical spacing between direct children of MDX content */}
         <div className="flex flex-col space-y-5">
-          <MDXRemote {...content} components={components} />
+          <MDXProvider components={components}>
+            <CompiledMdxComponent />
+          </MDXProvider>
         </div>
       </article>
     </CollapseDropdownProvider>

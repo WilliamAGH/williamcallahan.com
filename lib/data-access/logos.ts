@@ -12,8 +12,8 @@
 
 import { revalidateTag } from "next/cache";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
-import { ServerCacheInstance } from "@/lib/server-cache";
-import type { LogoResult, LogoInversion } from "@/types/logo";
+import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
+import type { LogoResult, LogoInversion, LogoData } from "@/types/logo";
 import type { LogoValidationResult } from "@/types/cache";
 import { USE_NEXTJS_CACHE } from "@/lib/cache";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
@@ -57,7 +57,7 @@ export async function getLogo(domain: string): Promise<LogoResult | null> {
         retrieval: "api",
         error: logoResult.error,
         contentType: "image/png",
-        timestamp: Date.now(),
+        timestamp: getDeterministicTimestamp(),
       };
     }
 
@@ -93,6 +93,32 @@ export async function getLogo(domain: string): Promise<LogoResult | null> {
 }
 
 /**
+ * Resolve a CDN-safe logo URL directly via UnifiedImageService without using the API proxy.
+ * Returns null when no persistent asset exists.
+ */
+export async function getLogoCdnData(domain: string): Promise<LogoData | null> {
+  if (!domain) {
+    return null;
+  }
+
+  const result = await getLogo(domain);
+  if (!result) {
+    return null;
+  }
+
+  const resolvedUrl = result.cdnUrl ?? result.url ?? null;
+  if (!resolvedUrl) {
+    return null;
+  }
+
+  return {
+    url: resolvedUrl,
+    source: result.source ?? null,
+    needsInversion: result.inversion?.needsDarkInversion ?? false,
+  };
+}
+
+/**
  * Invalidate all logo cache entries
  */
 export function invalidateLogoCache(): void {
@@ -104,6 +130,35 @@ export function invalidateLogoCache(): void {
     ServerCacheInstance.clearAllLogoFetches();
     console.info("[Logos] Legacy cache cleared for all logos");
   }
+}
+
+/**
+ * Build a runtime logo fetch URL that proxies through the `/api/logo` route.
+ * This is used when a CDN/manifest hit is unavailable during build-time rendering.
+ */
+export function getRuntimeLogoUrl(
+  domain: string | null | undefined,
+  options: { company?: string | null; forceRefresh?: boolean } = {},
+): string | null {
+  const normalizedDomain = domain?.trim();
+  if (!normalizedDomain) {
+    return null;
+  }
+
+  const params = new URLSearchParams();
+  params.set("website", normalizedDomain);
+  params.set("domain", normalizedDomain);
+
+  const { company, forceRefresh = true } = options;
+  if (company && company.trim().length > 0) {
+    params.set("company", company.trim());
+  }
+
+  if (forceRefresh) {
+    params.set("forceRefresh", "true");
+  }
+
+  return `/api/logo?${params.toString()}`;
 }
 
 /**

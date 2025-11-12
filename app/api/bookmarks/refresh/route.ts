@@ -17,21 +17,21 @@ import {
 import { readJsonS3 } from "@/lib/s3-utils";
 import { logEnvironmentConfig } from "@/lib/config/environment";
 import logger from "@/lib/utils/logger";
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import type { BookmarksIndex } from "@/types/bookmark";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { getMonotonicTime } from "@/lib/utils";
 
 // Ensure this route is not statically cached
-export const dynamic = "force-dynamic";
 
-// Simple in-memory flag to prevent concurrent refreshes
 let isRefreshInProgress = false;
 
 /**
  * POST handler - Refreshes the bookmarks
  */
-export async function POST(request: Request): Promise<NextResponse> {
-  const authorizationHeader = request.headers.get("Authorization");
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const headerStore = request.headers;
+  const authorizationHeader = headerStore.get("authorization");
   const cronRefreshSecret = process.env.BOOKMARK_CRON_REFRESH_SECRET;
 
   let isCronJob = false;
@@ -51,7 +51,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   // Get client IP for rate limiting (only if not an authenticated cron job)
   if (!isCronJob) {
-    const forwardedFor: string = request.headers.get("x-forwarded-for") || "unknown";
+    const forwardedFor: string = headerStore.get("x-forwarded-for") || "unknown";
     const clientIp = forwardedFor?.split(",")[0]?.trim() || "unknown_ip"; // Ensure clientIp is never empty
     console.log(`[API Trigger] Regular request from IP: ${clientIp}`);
     if (!isOperationAllowed(API_ENDPOINT_STORE_NAME, clientIp, DEFAULT_API_ENDPOINT_LIMIT_CONFIG)) {
@@ -112,7 +112,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
 
       if (index?.lastFetchedAt) {
-        const timeSinceLastFetch = Date.now() - new Date(index.lastFetchedAt).getTime();
+        const timeSinceLastFetch = getMonotonicTime() - new Date(index.lastFetchedAt).getTime();
         const revalidationThreshold = BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
 
         if (timeSinceLastFetch <= revalidationThreshold) {
@@ -185,7 +185,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             revalidatePath("/bookmarks/[slug]", "page");
             revalidatePath("/bookmarks/page/[pageNumber]", "page");
             revalidatePath("/bookmarks/domain/[domainSlug]", "page");
-            revalidateTag("bookmarks");
+            revalidateTag("bookmarks", "default");
             console.log("[API Trigger] ✅ Cache invalidated successfully");
           } catch (cacheError) {
             console.error("[API Trigger] Failed to invalidate cache:", cacheError);
@@ -250,7 +250,7 @@ export async function GET(): Promise<NextResponse> {
     // Check if refresh is needed based on timing
     let needsRefresh = true;
     if (index?.lastFetchedAt) {
-      const timeSinceLastFetch = Date.now() - new Date(index.lastFetchedAt).getTime();
+      const timeSinceLastFetch = getMonotonicTime() - new Date(index.lastFetchedAt).getTime();
       const revalidationThreshold = BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
       needsRefresh = timeSinceLastFetch > revalidationThreshold;
     }

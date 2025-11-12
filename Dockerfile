@@ -1,6 +1,4 @@
-# syntax=docker/dockerfile:1.16
-
-FROM docker.io/oven/bun:1.2.22-alpine AS base
+FROM docker.io/oven/bun:1.3.2-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -25,7 +23,8 @@ COPY scripts/init-csp-hashes.ts ./scripts/init-csp-hashes.ts
 COPY config ./config
 
 # Install dependencies with Bun, skipping third-party postinstall scripts to avoid native crashes
-RUN --mount=type=cache,target=/root/.bun/install bun install --frozen-lockfile --ignore-scripts
+# Cache mounts are avoided so classic docker builds (DOCKER_BUILDKIT=0) continue to work.
+RUN bun install --frozen-lockfile --ignore-scripts
 # Ensure CSP hashes file exists early for tooling that might import it
 RUN bun scripts/init-csp-hashes.ts
 
@@ -38,18 +37,15 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
 
-# Copy installed deps from previous deps stage
-COPY --from=deps --link /app/node_modules ./node_modules
+# Copy installed deps from previous deps stage (no BuildKit-only flags)
+COPY --from=deps /app/node_modules ./node_modules
 
 # Copy source for analysis only (does not affect later build layers)
 COPY . .
 
-# Run linter and type checker with persistent cache mounts so they
-#   do not re-run on every incremental build.
-# Set memory limit for Node.js operations during checks
-RUN --mount=type=cache,target=/app/.eslintcache \
-    --mount=type=cache,target=/app/.tsbuildinfo \
-    NODE_OPTIONS='--max-old-space-size=4096' npm run lint && NODE_OPTIONS='--max-old-space-size=4096' npm run type-check
+# Run linter and type checker. Cache mounts are omitted to keep the Dockerfile
+# compatible with non-BuildKit builders such as Railway's classic Docker engine.
+RUN NODE_OPTIONS='--max-old-space-size=4096' npm run lint && NODE_OPTIONS='--max-old-space-size=4096' npm run type-check
 
 # --------------------------------------------------
 # BUILD STAGE (production build)
@@ -68,8 +64,8 @@ ENV NODE_ENV=production
 # Indicate process is running inside Docker container
 ENV RUNNING_IN_DOCKER=true
 ENV CONTAINER=true
-# Enable verbose Sentry logs during build for better diagnostics
-ENV SENTRY_LOG_LEVEL=debug
+# Limit Sentry logging noise during builds (info keeps warnings/errors visible)
+ENV SENTRY_LOG_LEVEL=info
 
 # Accept and propagate public env vars for Next.js build
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
@@ -80,66 +76,80 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV DEPLOYMENT_ENV=$DEPLOYMENT_ENV
 
 # --- S3 configuration (build-time and runtime) -------------------------------
-# Only non-secret values as ARGs (bucket name, URLs)
+# Only non-secret values are exported as ENV vars below. Secrets can be
+# supplied either through BuildKit secrets (when available) or as build args for
+# environments that only support classic docker builds (e.g., Railway).
 ARG S3_BUCKET
 ARG S3_SERVER_URL
 ARG S3_CDN_URL
 ARG NEXT_PUBLIC_S3_CDN_URL
+ARG S3_ACCESS_KEY_ID
+ARG S3_SECRET_ACCESS_KEY
+ARG S3_SESSION_TOKEN
+ARG API_BASE_URL
 # Pass these as ENV for build process
 ENV S3_BUCKET=$S3_BUCKET \
     S3_SERVER_URL=$S3_SERVER_URL \
     S3_CDN_URL=$S3_CDN_URL \
     NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL
-# NOTE: S3 credentials (S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY) are NOT needed at build time
-# We fetch bookmarks from the PUBLIC S3 CDN URL which doesn't require authentication
+# NOTE: S3 credentials remain optional. Provide them via BuildKit secrets for
+# secure builds or pass them as --build-arg when using classic docker builders.
 
 # Copy dependencies and source code
-COPY --from=deps --link /app/node_modules ./node_modules
+COPY --from=deps /app/node_modules ./node_modules
 
 # Copy entire source code
 COPY . .
 
-# CRITICAL: Fetch bookmark data from PUBLIC S3 CDN for sitemap generation
-# Issue #sitemap-2024: Sitemap.xml was missing bookmark URLs in production because:
-# 1. Next.js generates sitemap at BUILD time (during 'next build')
-# 2. Bookmarks are in S3 (async-only), not local files like blog posts
-# 3. Without this step, sitemap.ts gets empty data and generates no bookmark URLs
-# @see app/sitemap.ts:149 - Calls getBookmarksForStaticBuildAsync()
-# @see scripts/entrypoint.sh:14-23 - Runtime fetch is TOO LATE for sitemap
-# 
-# SOLUTION: Use PUBLIC S3 CDN URLs - no credentials needed!
-# The S3 bucket is configured for public read access via CDN
-RUN echo "📊 Fetching bookmark data from PUBLIC S3 CDN for sitemap generation..." && \
-    echo "DEPLOYMENT_ENV: ${DEPLOYMENT_ENV:-NOT SET}" && \
-    echo "S3_CDN_URL: ${S3_CDN_URL:-NOT SET}" && \
-    echo "NEXT_PUBLIC_S3_CDN_URL: ${NEXT_PUBLIC_S3_CDN_URL:-NOT SET}" && \
-    # Use public CDN URL to fetch bookmarks - no credentials needed!
-    if [ -n "$S3_CDN_URL" ] || [ -n "$NEXT_PUBLIC_S3_CDN_URL" ]; then \
-      echo "✅ CDN URL available, fetching bookmarks from public S3..." && \
-      bun scripts/fetch-bookmarks-public.ts || \
-      echo "⚠️  Warning: Bookmark fetch failed. Sitemap may be incomplete."; \
-    else \
-      echo "⚠️  Warning: No CDN URL configured (S3_CDN_URL or NEXT_PUBLIC_S3_CDN_URL)." && \
-      echo "   Bookmarks cannot be fetched for sitemap generation." && \
-      echo "   Continuing build without bookmarks in sitemap..."; \
-    fi
+# Previously we materialised the entire bookmark corpus during build. As of 2025-11, sitemap
+# generation and dynamic routes stream paginated data directly from S3/CDN at runtime, so no
+# build-time snapshot is required here.
+
+# Quick connectivity verification so CI/CD logs capture upstream reachability before the Next.js build.
+RUN bash -c 'set -euo pipefail \
+  && if [ -n "${S3_SERVER_URL:-}" ]; then \
+       echo "🔍 Checking S3 server connectivity at ${S3_SERVER_URL}" && \
+       curl -fsSIL "${S3_SERVER_URL%%/}" >/dev/null; \
+     else \
+       echo "⚠️  S3_SERVER_URL not set; skipping server connectivity check"; \
+     fi \
+  && if [ -n "${NEXT_PUBLIC_S3_CDN_URL:-}" ]; then \
+       echo "🔍 Checking CDN connectivity at ${NEXT_PUBLIC_S3_CDN_URL}" && \
+       curl -fsSIL "${NEXT_PUBLIC_S3_CDN_URL%%/}" >/dev/null; \
+     else \
+       echo "⚠️  NEXT_PUBLIC_S3_CDN_URL not set; skipping CDN connectivity check"; \
+     fi'
 
 # Pre-build checks disabled to avoid network hang during build
 
 # Now build the app using bun (Bun) to avoid OOM issues
 # Note: Bun uses JavaScriptCore which auto-manages memory, no --max-old-space-size support
 # The build script in package.json sets NODE_OPTIONS for the Next.js build step
-RUN --mount=type=cache,target=/app/.next/cache \
-    echo "📦 Building the application..." && bun run build && \
-    # Prune optimiser cache older than 5 days to keep layer small
-    find /app/.next/cache -type f -mtime +5 -delete || true
+# Optional BuildKit secrets provide S3 credentials just-in-time for the build so
+# generateStaticParams() can read bookmarks from S3 without leaking secrets.
+# NOTE: The multiline bash snippet below uses explicit continuations so Docker
+#       treats it as a single RUN instruction during BuildKit parsing.
+RUN /bin/sh -c "set -euo pipefail; \
+      if [ -n \"${S3_ACCESS_KEY_ID:-}\" ]; then export S3_ACCESS_KEY_ID=\"${S3_ACCESS_KEY_ID}\"; fi; \
+      if [ -n \"${S3_SECRET_ACCESS_KEY:-}\" ]; then export S3_SECRET_ACCESS_KEY=\"${S3_SECRET_ACCESS_KEY}\"; fi; \
+      if [ -n \"${S3_SESSION_TOKEN:-}\" ]; then export AWS_SESSION_TOKEN=\"${S3_SESSION_TOKEN}\"; export S3_SESSION_TOKEN=\"${S3_SESSION_TOKEN}\"; fi; \
+      if [ -n \"${API_BASE_URL:-}\" ]; then export API_BASE_URL=\"${API_BASE_URL}\"; fi; \
+      if [ -n \"${BUILDKIT_SANDBOX_HOSTNAME:-}\" ]; then \
+        echo \"⚙️  BuildKit sandbox detected (${BUILDKIT_SANDBOX_HOSTNAME}); proceeding with standard build\"; \
+      else \
+        echo \"⚙️  Classic docker build detected; cache mounts and BuildKit secrets disabled\"; \
+      fi; \
+      echo \"📦 Building the application...\"; \
+      bun run build; \
+      # Prune optimiser cache older than 5 days to keep layer small
+      find /app/.next/cache -type f -mtime +5 -delete || true"
 
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
 
-# Install runtime dependencies including Node.js for Next.js standalone compatibility
-# Note: We need Node.js to run the Next.js standalone server even though Bun is available
+# Install runtime dependencies including Node.js for the Next.js production server
+# Note: We still need Node.js to run `next start` even though Bun is available
 # Also installing vips for Sharp image processing, curl for healthchecks, and bash for scripts
 # libc6-compat is required for Sharp/vips native bindings to work properly
 RUN apk add --no-cache nodejs vips curl bash libc6-compat
@@ -170,11 +180,12 @@ ENV S3_BUCKET=$S3_BUCKET \
     NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
-# Copy standalone output and required assets (run as root, so no chown needed)
-COPY --from=builder /app/.next/standalone ./
-# Ensure all node_modules (including those for scripts like scheduler) are available
-COPY --from=deps --link /app/node_modules ./node_modules
-COPY --from=builder /app/.next/static ./.next/static
+# Copy Next.js build output (Turbopack doesn't use standalone)
+COPY --from=builder /app/.next ./.next
+# Ensure local S3 cache path exists at runtime (builder no longer materializes snapshots)
+RUN mkdir -p ./.next/cache/local-s3
+# Copy node_modules for runtime dependencies
+COPY --from=deps /app/node_modules ./node_modules
 
 # Copy scripts directory (run as root, so no chown needed)
 COPY --from=builder /app/scripts ./scripts
@@ -195,7 +206,7 @@ COPY --from=builder /app/tsconfig*.json ./
 
 # Runtime helper scripts (`scripts/*.ts`) import source modules directly from the
 # repository (e.g. `@/lib/*`, `@/types/*`). These folders are *not* included in
-# the Next.js standalone output, so we need to copy them into the final image
+# the Next.js production build output, so we need to copy them into the final image
 # as well.
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/types ./types
@@ -243,8 +254,8 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
 # Use entrypoint to handle data initialization, scheduler startup, and graceful shutdown
 # Note: entrypoint.sh now includes initial data population before starting scheduler
 ENTRYPOINT ["/app/entrypoint.sh"]
-# Node.js will respect NODE_OPTIONS env var for memory limit
-CMD ["node", "server.js"]
+# Run the package.json start script via Bun (available in the base image)
+CMD ["bun", "run", "start"]
 
 ARG BUILDKIT_INLINE_CACHE=1
 LABEL org.opencontainers.image.build=true

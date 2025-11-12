@@ -16,12 +16,12 @@ const CACHE_HEADERS = {
  * @param request - The Next.js request object
  * @returns The real client IP or 'unknown'
  */
-function getRealIp(request: NextRequest): string {
+function getRealIp(headerStore: Headers): string {
   return (
-    request.headers.get("True-Client-IP") ||
-    request.headers.get("CF-Connecting-IP") ||
-    request.headers.get("X-Forwarded-For")?.split(",")[0] ||
-    request.headers.get("X-Real-IP") ||
+    headerStore.get("True-Client-IP") ||
+    headerStore.get("CF-Connecting-IP") ||
+    headerStore.get("X-Forwarded-For")?.split(",")[0] ||
+    headerStore.get("X-Real-IP") ||
     "unknown"
   );
 }
@@ -35,7 +35,7 @@ function getRealIp(request: NextRequest): string {
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // Use Promise.resolve to satisfy require-await rule
-  const ip = await Promise.resolve(getRealIp(request));
+  const ip = await Promise.resolve(getRealIp(request.headers));
 
   return new NextResponse(ip, {
     headers: CACHE_HEADERS,

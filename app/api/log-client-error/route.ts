@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
   try {
     // Cast the parsed JSON to our defined type
     const errorData = ClientErrorSchema.parse(await request.json());
+    const headerStore = request.headers;
 
     // Add server timestamp and request details
     const enrichedErrorData: ClientErrorPayload & {
@@ -22,8 +23,8 @@ export async function POST(request: NextRequest) {
     } = {
       ...errorData,
       server_timestamp: new Date().toISOString(),
-      ip: request.headers.get("x-forwarded-for") || "unknown",
-      user_agent: request.headers.get("user-agent") || "unknown",
+      ip: headerStore.get("x-forwarded-for") || "unknown",
+      user_agent: headerStore.get("user-agent") || "unknown",
     };
 
     try {
@@ -70,12 +71,13 @@ export async function POST(request: NextRequest) {
     console.error("==================================================================\n");
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     // Log server-side errors but don't expose details to client
     console.error("\n==================================================================");
     console.error("[ERROR_LOGGING_FAILURE] Failed to process client error report");
     console.error("------------------------------------------------------------------");
-    console.error(error);
+    console.error(errorMessage);
     console.error("==================================================================\n");
 
     return NextResponse.json({ success: false, message: "Error processing log" }, { status: 500 });

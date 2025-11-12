@@ -35,7 +35,6 @@ export function SoftwareSchema({
   screenshot,
   authorName,
   authorUrl,
-  nonce,
 }: SoftwareSchemaProps) {
   // Generate a suitable @id fragment
   const idFragment = kebabCase(name);
@@ -100,5 +99,5 @@ export function SoftwareSchema({
     ...(author && { author }),
   };
 
-  return <JsonLdScript data={schema} nonce={nonce} />;
+  return <JsonLdScript data={schema} />;
 }

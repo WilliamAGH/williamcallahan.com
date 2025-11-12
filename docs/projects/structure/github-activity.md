@@ -45,16 +45,16 @@ See `github-activity.mmd` for a visual diagram illustrating how this feature orc
 
 ## Orchestration Flow
 
-The GitHub Activity system coordinates several modules to produce its final output:
+The GitHub Activity system coordinates several modules to produce its final output. **Like bookmarks (our other highest-traffic feature), GitHub activity relies on JSON files in S3 plus Next.js Cache Components**—we do not hit the GitHub APIs from React components or public API routes.
 
 1. **Data Fetching & Processing (`json-handling`)**:
-   - The process is initiated by invoking the `json-handling` functionality.
-   - This core service is responsible for the complex task of fetching data from multiple GitHub sources (GraphQL API, REST API, and a CSV export fallback).
-   - It handles the aggregation and processing of this raw data, producing a structured JSON object containing contribution calendars, language statistics, and repository breakdowns.
+   - A scheduler or authorized refresh endpoint kicks off `json-handling` to gather data from GitHub’s GraphQL API, REST API, and CSV fallback.
+   - The module aggregates raw data into a structured JSON payload (trailing year + all time).
+   - The resulting JSON is the **source of truth** persisted to S3 before any cache is updated.
 
 2. **Persistence (`s3-object-storage`)**:
-   - Once the `json-handling` module returns the final, processed JSON data, the GitHub Activity orchestrator passes it to the `s3-object-storage` service.
-   - This service is responsible for writing the `github_stats_summary.json` and related files to the S3 bucket, ensuring the data is stored persistently.
+   - Writes `github_stats_summary*.json`, `aggregated_weekly_activity.json`, and repo CSVs to S3.
+   - Each environment uses suffixed filenames (e.g., `github_stats_summary-dev.json`).
 
 3. **Caching (`caching`)**:
    - To ensure performance, the final JSON data is cached in the in-memory `ServerCacheInstance`. This is managed by the `caching` module.
@@ -67,17 +67,17 @@ This orchestration model allows the GitHub Activity feature to focus on its spec
 The system uses a three-tier caching hierarchy:
 
 ```
-GitHub APIs (GraphQL + REST)
-  ↓ (fetchWithRetry, CSV repair)
-Server process (Next.js)
-  ↓ writes
-S3 Storage
-  ↑ reads (getGithubActivity)
-In-memory Cache (ServerCacheInstance)
-  → GET /api/github-activity
-    → React components (client)
-      → UI rendering
+GitHub APIs → Refresh jobs / authorized POST → JSON in S3 → Next.js Cache Components → UI
+                                                              ↓
+                                                API routes (noStore, read JSON fresh)
 ```
+
+| Layer                            | Purpose                                                                                      |
+| -------------------------------- | -------------------------------------------------------------------------------------------- |
+| S3 JSON                          | Source of truth (`github_stats_summary*.json`, `aggregated_weekly_activity.json`, repo CSVs) |
+| Next.js Cache Components         | `cacheTag("github-activity")` with ~30 min lifetime for pages/cards                          |
+| API (`GET /api/github-activity`) | Calls `unstable_noStore()`, reads JSON, returns immediately                                  |
+| Legacy ServerCache               | Metadata-only; still used for instrumentation, not for trailing-year JSON                    |
 
 ### Current Caching Issues
 
@@ -137,7 +137,7 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 ### API Endpoints
 
 - **`app/api/github-activity/route.ts`**
-  - Read-only endpoint for cached data
+  - Read-only endpoint for cached data (calls `unstable_noStore()` and reads JSON directly)
   - Never triggers refresh
 - **`app/api/github-activity/refresh/route.ts`**
   - Protected refresh endpoint
@@ -147,7 +147,7 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 ### UI Components
 
 - **`components/features/github/github-activity.client.tsx`**
-  - Main activity display
+  - Main activity display (consumes cached JSON via `cacheTag("github-activity")`)
   - Contribution calendar
   - **Issue**: References build-time env var at runtime
 

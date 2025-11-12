@@ -187,7 +187,7 @@ class CircularDependencyAnalyzer {
       }
     }
 
-    return cycles.sort((a, b) => b.impactEstimate - a.impactEstimate);
+    return cycles.toSorted((a, b) => b.impactEstimate - a.impactEstimate);
   }
 
   private dfs(

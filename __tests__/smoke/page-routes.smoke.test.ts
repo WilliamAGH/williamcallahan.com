@@ -19,8 +19,54 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import sitemap from "../../app/sitemap";
 import type { MetadataRoute } from "next";
+import sitemap from "../../app/sitemap";
+import {
+  getBookmarksIndex,
+  getBookmarksPage,
+  listBookmarkTagSlugs,
+  getTagBookmarksIndex,
+  getTagBookmarksPage,
+} from "../../lib/bookmarks/service.server";
+
+const mockBookmarkEntries = [
+  {
+    id: "bookmark-1",
+    slug: "example-bookmark",
+    url: "https://example.com",
+    title: "Example Bookmark",
+    modifiedAt: "2024-01-01T00:00:00.000Z",
+    dateCreated: "2024-01-01T00:00:00.000Z",
+    dateBookmarked: "2024-01-01T00:00:00.000Z",
+    tags: ["Testing"],
+    sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
+  },
+];
+
+jest.mock("../../lib/bookmarks/service.server", () => {
+  const mockIndex = jest.fn();
+  const mockPage = jest.fn();
+  const mockList = jest.fn();
+  const mockTagIndex = jest.fn();
+  const mockTagPage = jest.fn();
+  return {
+    getBookmarksIndex: mockIndex,
+    getBookmarksPage: mockPage,
+    listBookmarkTagSlugs: mockList,
+    getTagBookmarksIndex: mockTagIndex,
+    getTagBookmarksPage: mockTagPage,
+  };
+});
+
+const mockedGetBookmarksIndex = getBookmarksIndex as jest.MockedFunction<typeof getBookmarksIndex>;
+const mockedGetBookmarksPage = getBookmarksPage as jest.MockedFunction<typeof getBookmarksPage>;
+const mockedListBookmarkTagSlugs = listBookmarkTagSlugs as jest.MockedFunction<typeof listBookmarkTagSlugs>;
+const mockedGetTagBookmarksIndex = getTagBookmarksIndex as jest.MockedFunction<typeof getTagBookmarksIndex>;
+const mockedGetTagBookmarksPage = getTagBookmarksPage as jest.MockedFunction<typeof getTagBookmarksPage>;
+
+// Allow longer-running sitemap validations in CI
+const DEFAULT_TEST_TIMEOUT_MS = 60_000;
+jest.setTimeout(DEFAULT_TEST_TIMEOUT_MS);
 
 // Store original fetch
 const originalFetch = global.fetch;
@@ -43,6 +89,34 @@ describe("Routes Module", () => {
   // Reset mocks before each test
   beforeEach(() => {
     mockFetch.mockReset();
+    mockedGetBookmarksIndex.mockReset();
+    mockedGetBookmarksPage.mockReset();
+    mockedListBookmarkTagSlugs.mockReset();
+    mockedGetTagBookmarksIndex.mockReset();
+    mockedGetTagBookmarksPage.mockReset();
+    mockedGetBookmarksIndex.mockResolvedValue({
+      count: mockBookmarkEntries.length,
+      totalPages: 1,
+      pageSize: mockBookmarkEntries.length,
+      lastModified: "2024-01-01T00:00:00.000Z",
+      lastFetchedAt: Date.now(),
+      lastAttemptedAt: Date.now(),
+      checksum: "test",
+      changeDetected: true,
+    });
+    mockedGetBookmarksPage.mockResolvedValue(mockBookmarkEntries);
+    mockedListBookmarkTagSlugs.mockResolvedValue(["example-tag"]);
+    mockedGetTagBookmarksIndex.mockResolvedValue({
+      count: mockBookmarkEntries.length,
+      totalPages: 1,
+      pageSize: mockBookmarkEntries.length,
+      lastModified: "2024-01-01T00:00:00.000Z",
+      lastFetchedAt: Date.now(),
+      lastAttemptedAt: Date.now(),
+      checksum: "tag-test",
+      changeDetected: true,
+    });
+    mockedGetTagBookmarksPage.mockImplementation(() => Promise.resolve(mockBookmarkEntries));
   });
 
   // Restore original fetch after all tests

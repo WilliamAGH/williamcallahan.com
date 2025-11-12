@@ -9,12 +9,16 @@ import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
 import { searchBookmarks, searchExperience, searchEducation, searchInvestments, searchProjects } from "@/lib/search";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { type SearchResult, type SearchScope, VALID_SCOPES } from "@/types/search";
-import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
+import { NextResponse, type NextRequest } from "next/server";
 
-// Ensure this route is not statically cached
-export const dynamic = "force-dynamic";
+const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-// Add "all" to the list of valid scopes for validation purposes
+function resolveRequestUrl(request: NextRequest): URL {
+  return new URL(request.url);
+}
+
 const ALL_VALID_SCOPES = [...VALID_SCOPES, "all"];
 
 /**
@@ -27,9 +31,28 @@ const ALL_VALID_SCOPES = [...VALID_SCOPES, "all"];
  * @param params - Route parameters including the search scope.
  * @returns A JSON response containing the search results or an error message.
  */
-export async function GET(request: Request, { params }: { params: { scope: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { scope: string } }) {
+  if (isProductionBuild) {
+    return NextResponse.json(
+      {
+        data: [],
+        meta: {
+          query: "",
+          scope: params.scope.toLowerCase(),
+          count: 0,
+          timestamp: new Date().toISOString(),
+          buildPhase: true,
+        },
+      },
+      { headers: NO_STORE_HEADERS },
+    );
+  }
+  if (typeof noStore === "function") {
+    noStore();
+  }
   try {
-    const { searchParams } = new URL(request.url);
+    const requestUrl = resolveRequestUrl(request);
+    const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q") ?? "";
     const scope = params.scope.toLowerCase() as SearchScope;
 
@@ -40,7 +63,7 @@ export async function GET(request: Request, { params }: { params: { scope: strin
           error: `Invalid search scope: ${params.scope}`,
           validScopes: ALL_VALID_SCOPES,
         },
-        { status: 400 },
+        { status: 400, headers: NO_STORE_HEADERS },
       );
     }
 
@@ -48,7 +71,13 @@ export async function GET(request: Request, { params }: { params: { scope: strin
     const validation = validateSearchQuery(rawQuery);
 
     if (!validation.isValid) {
-      return NextResponse.json({ error: validation.error || "Invalid search query" }, { status: 400 });
+      return NextResponse.json(
+        { error: validation.error || "Invalid search query" },
+        {
+          status: 400,
+          headers: NO_STORE_HEADERS,
+        },
+      );
     }
 
     const query = validation.sanitized;
@@ -95,21 +124,24 @@ export async function GET(request: Request, { params }: { params: { scope: strin
           ...experienceResults,
           ...educationResults,
           ...bookmarkResults,
-        ].sort((a, b) => b.score - a.score);
+        ].toSorted((a, b) => b.score - a.score);
         break;
       }
     }
 
     // Return results with metadata
-    return NextResponse.json({
-      results,
-      meta: {
-        query: validation.sanitized,
-        scope,
-        count: results.length,
-        timestamp: new Date().toISOString(),
+    return NextResponse.json(
+      {
+        results,
+        meta: {
+          query: validation.sanitized,
+          scope,
+          count: results.length,
+          timestamp: new Date().toISOString(),
+        },
       },
-    });
+      { headers: NO_STORE_HEADERS },
+    );
   } catch (unknownErr) {
     // Handle unknown errors safely without unsafe assignments/calls
     const err = unknownErr instanceof Error ? unknownErr : new Error(String(unknownErr));
@@ -121,7 +153,7 @@ export async function GET(request: Request, { params }: { params: { scope: strin
         details: err.message,
         scope: params.scope,
       },
-      { status: 500 },
+      { status: 500, headers: NO_STORE_HEADERS },
     );
   }
 }

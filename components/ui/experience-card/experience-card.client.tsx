@@ -73,6 +73,7 @@ export function ExperienceCardClient({
                   height={48}
                   className="object-contain rounded-lg"
                   alt={company}
+                  needsInversion={logoData.needsInversion}
                 />
               </ExternalLink>
             ) : (
@@ -82,6 +83,7 @@ export function ExperienceCardClient({
                 height={48}
                 className="object-contain rounded-lg"
                 alt={company}
+                needsInversion={logoData.needsInversion}
               />
             )}
           </div>

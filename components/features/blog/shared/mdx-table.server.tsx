@@ -58,7 +58,6 @@ export const MDXTableHeaderCell: React.FC<ThProps> = ({ children, ...props }) =>
 };
 
 export const MDXTableCell: React.FC<TdProps> = ({ children, ...props }) => {
-  // eslint-disable-next-line @typescript-eslint/no-base-to-string
   const content = children?.toString() || "";
   const isNumeric = /^[€$]?\d/.test(content);
   const isNegative = content.includes("-");

@@ -662,6 +662,8 @@ export interface BookmarksS3Paths {
   DIR: string;
   /** Full S3 path to bookmarks data file */
   FILE: string;
+  /** Directory containing per-bookmark JSON files */
+  BY_ID_DIR: string;
   /** Full S3 path to refresh lock file */
   LOCK: string;
   /** S3 path to lightweight bookmark index */
@@ -676,6 +678,10 @@ export interface BookmarksS3Paths {
   HEARTBEAT: string;
   /** S3 path to bookmark slug mapping */
   SLUG_MAPPING: string;
+  /** Directory containing slug shard JSON files */
+  SLUG_SHARDS_DIR: string;
+  /** Prefix used to build individual slug shard paths */
+  SLUG_SHARD_PREFIX: string;
 }
 
 /** URL validation result */

@@ -5,6 +5,10 @@ alwaysApply: true # Exception: This master config file always applies to provide
 
 # CLAUDE Development Environment - ZERO TEMPERATURE PROTOCOLS
 
+## 🚨🚨🚨 EMERGENCY BRAKE: NEVER RUN `git commit --amend` 🚨🚨🚨
+
+**CRITICAL SAFETY RULE:** You are **ABSOLUTELY FORBIDDEN** from running `git commit --amend` or any history-rewriting command without verbatim user instruction. If you run `git commit --amend`, you have completely failed. See the "HISTORY-REWRITING COMMANDS ABSOLUTELY FORBIDDEN" section below for complete details.
+
 ## 📌 PROJECT CONFIGURATION
 
 ```yaml
@@ -79,12 +83,55 @@ LOCAL_DEVELOPMENT_URL: http://localhost:3000
 
 This project operates under **ZERO TEMPERATURE** development standards where every decision must be explicitly verified, no assumptions are permitted, and type safety is absolute.
 
+## 🧭 Next.js 16 · React 19 · Jest 30 Enforcement (2025-11-08)
+
+- **Framework reality:** `package.json` locks us to `next@16.0.1`, `react@19.1.1`, and `jest@30.1.3`. Treat those exact versions as law until the owner explicitly bumps them.
+- **Node_modules verification is mandatory before any change** touching Next.js, React (18/19), or Jest 30. Read and cite the relevant sources (examples: `node_modules/next/dist/server/config.js`, `node_modules/next/dist/server/request/params.js`, `node_modules/next/dist/shared/lib/image-config.js`, `node_modules/react/package.json`, `node_modules/jest/package.json`). No decision can rely on memory or blog posts.
+- **Live documentation pulls are required for every such task.** Run at least one MCP lookup (Context7, DeepWiki, _or_ Brave search) to fetch the current Next.js/React guidance. Capture the URL or reference inside your notes and final response.
+- **`docs/projects/structure/next-js-16-usage.md` is required reading** before modifying framework-level code. Align behavior with its “Allowed Patterns” vs “Outlawed Patterns” tables and update that doc if your change alters expectations.
+- **Cache Components + React 19 primitives are default expectations.** Confirm whether your change respects `cacheComponents` (see `node_modules/next/dist/server/config.js`) and new async params/metadata flows (`node_modules/next/dist/server/request/params.js`). Reject any proposal that reintroduces legacy behavior (e.g., `next/legacy/image`, synchronous `cookies()` shims, `unstable_cache*` aliases).
+- **Jest 30 compliance:** Any test harness change must note the Jest 30 runtime (`node_modules/jest/package.json`) and reference the project’s `config/jest/` stack. Never add tooling that downgrades or polyfills Jest APIs without written approval.
+
+> **Enforcement:** If you cannot point to a specific source file for a framework claim, you do not understand it. Halt, investigate, and only continue once the evidence is cited.
+
 ## 🔒 Command Execution Guardrails — Non‑Negotiable
 
 1. **Escalate the failing command first.** When any command errors because of permission issues, `.git/index.lock`, or related filesystem gating, immediately re-run the _same command_ with `with_escalated_permissions=true` and include a one-sentence justification. Do this before attempting any alternative command.
 2. **Never perform destructive git/file operations without explicit, quoted user commands.** This includes (but is not limited to) `git reset --hard`, `git checkout -- <path>`, `git clean`, deleting anything inside `.git/`, removing lock files, or manually restoring files. If a user wants one of these executed, they must provide the exact command verbatim.
 3. **Lock handling has one path:** escalate the original command. Do not delete `.git/index.lock`, `.git/next-index-*.lock`, or similar files. After the escalated retry, if the command still fails, surface the exact stderr output and halt for instructions.
 4. **No inference-driven cleanup.** Never guess at fixes or “clean up” side effects. Surface the full command + error and wait if escalation fails. 99.99999999999% of prior regressions came from skipping these steps—treat this as an immutable law.
+
+## 🚨🚨🚨 CRITICAL: HISTORY-REWRITING COMMANDS ABSOLUTELY FORBIDDEN 🚨🚨🚨
+
+**YOU ARE NEVER, EVER, UNDER ANY CIRCUMSTANCES ALLOWED TO RUN THESE COMMANDS WITHOUT VERBATIM USER INSTRUCTION:**
+
+### ABSOLUTELY PROHIBITED - DO NOT RUN:
+
+- ❌ `git commit --amend` - NEVER EVER RUN THIS
+- ❌ `git reset --hard` - NEVER EVER RUN THIS
+- ❌ `git reset --soft HEAD~1` - NEVER EVER RUN THIS
+- ❌ `git reset --mixed HEAD~1` - NEVER EVER RUN THIS
+- ❌ `git rebase` - NEVER EVER RUN THIS
+- ❌ `git push --force` - NEVER EVER RUN THIS
+- ❌ `git push --force-with-lease` - NEVER EVER RUN THIS
+- ❌ `git checkout` (to switch branches) - NEVER EVER RUN THIS
+- ❌ `git restore` - NEVER EVER RUN THIS
+- ❌ `git clean -fd` - NEVER EVER RUN THIS
+- ❌ `git stash drop` - NEVER EVER RUN THIS
+
+### IF YOU RUN ANY OF THESE COMMANDS, YOU HAVE COMPLETELY FAILED
+
+**THE ONLY EXCEPTION:** If the user provides the EXACT command verbatim in quotes, you may execute it. But NEVER suggest, infer, or run these commands on your own.
+
+**REPEAT: `git commit --amend` IS ABSOLUTELY FORBIDDEN WITHOUT VERBATIM USER INSTRUCTION**
+
+5. **Git operations protocol (mirrors hybrid/back-end rules):**
+   - Treat every staged/unstaged change you did not create as intentional; never unstage, restage, or revert it unless the user explicitly directs you to do so with the exact command.
+   - Do not run `git restore`, `git reset`, `git checkout`, `git commit --amend`, `git clean`, or any other history-rewriting/destructive command without a verbatim user instruction.
+   - Never assume hooks or tooling staged files; verify with `git status`/`git diff` and ask the user before acting on unfamiliar changes.
+   - Keep commits tightly scoped to files you modified during the current task, and state that scope before committing so the user can confirm.
+   - If an unexpected file is staged (or touched by hooks), pause and surface the diff to the user—do not attempt to fix it on your own.
+   - **When invoking git via Codex tools, always set `with_escalated_permissions=true`** so every git command (status, add, commit, etc.) is explicitly authorized; never run git through a non-escalated shell.
 
 ## 🎯 COMMUNICATION PRINCIPLES - TRUTH THROUGH VERIFICATION
 

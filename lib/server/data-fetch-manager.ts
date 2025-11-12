@@ -12,6 +12,7 @@ import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
 loadEnvironmentWithMultilineSupport();
 
 import logger from "@/lib/utils/logger";
+import { getMonotonicTime } from "@/lib/utils";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
 import { KNOWN_DOMAINS, SEARCH_S3_PATHS, IMAGE_MANIFEST_S3_PATHS, IMAGE_S3_PATHS } from "@/lib/constants";
@@ -101,7 +102,7 @@ export class DataFetchManager {
    * @returns Promise resolving to operation summary
    */
   private async fetchBookmarks(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
-    const startTime = Date.now();
+    const startTime = getMonotonicTime();
     logger.info("[DataFetchManager] Starting bookmarks fetch...");
 
     try {
@@ -148,7 +149,7 @@ export class DataFetchManager {
         // non-fatal
       }
 
-      const duration = (Date.now() - startTime) / 1000;
+      const duration = (getMonotonicTime() - startTime) / 1000;
       return {
         success: true,
         operation: "bookmarks",
@@ -164,7 +165,7 @@ export class DataFetchManager {
         success: false,
         operation: "bookmarks",
         error: error.message,
-        duration: (Date.now() - startTime) / 1000,
+        duration: (getMonotonicTime() - startTime) / 1000,
       };
     }
   }
@@ -175,7 +176,7 @@ export class DataFetchManager {
    * @returns Promise resolving to operation summary
    */
   private async fetchGithubActivity(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
-    const startTime = Date.now();
+    const startTime = getMonotonicTime();
     void config; // Explicitly mark as unused per project convention
     logger.info("[DataFetchManager] Starting GitHub activity fetch...");
 
@@ -193,7 +194,7 @@ export class DataFetchManager {
       // Re-aggregate stats
       await calculateAndStoreAggregatedWeeklyActivity();
 
-      const duration = (Date.now() - startTime) / 1000;
+      const duration = (getMonotonicTime() - startTime) / 1000;
       return {
         success: true,
         operation: "github-activity",
@@ -207,7 +208,7 @@ export class DataFetchManager {
         success: false,
         operation: "github-activity",
         error: error.message,
-        duration: (Date.now() - startTime) / 1000,
+        duration: (getMonotonicTime() - startTime) / 1000,
       };
     }
   }
@@ -218,7 +219,7 @@ export class DataFetchManager {
    * @returns Promise resolving to operation summary
    */
   private async fetchLogos(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
-    const startTime = Date.now();
+    const startTime = getMonotonicTime();
     logger.info("[DataFetchManager] Starting logos fetch...");
 
     try {
@@ -246,7 +247,7 @@ export class DataFetchManager {
         const successCount = Array.from(results.values()).filter(r => !r.error).length;
         const failureCount = results.size - successCount;
 
-        const duration = (Date.now() - startTime) / 1000;
+        const duration = (getMonotonicTime() - startTime) / 1000;
         logger.info(`[DataFetchManager] Logo batch complete. Success: ${successCount}, Failures: ${failureCount}`);
         return {
           success: true,
@@ -262,7 +263,7 @@ export class DataFetchManager {
           "bulk logo update",
         );
 
-        const duration = (Date.now() - startTime) / 1000;
+        const duration = (getMonotonicTime() - startTime) / 1000;
         logger.info(
           `[DataFetchManager] ${"bulk logo update"} batches complete. Success: ${successCount}, Failures: ${failureCount}`,
         );
@@ -280,7 +281,7 @@ export class DataFetchManager {
         success: false,
         operation: "logos",
         error: error.message,
-        duration: (Date.now() - startTime) / 1000,
+        duration: (getMonotonicTime() - startTime) / 1000,
       };
     }
   }
@@ -438,7 +439,7 @@ export class DataFetchManager {
    * @returns Promise resolving to operation summary
    */
   private async buildSearchIndexes(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
-    const startTime = Date.now();
+    const startTime = getMonotonicTime();
     void config; // Explicitly mark as unused per project convention
     logger.info("[DataFetchManager] Starting search index build...");
 
@@ -484,7 +485,7 @@ export class DataFetchManager {
 
       logger.info("[DataFetchManager] Search indexes built and uploaded successfully");
 
-      const duration = (Date.now() - startTime) / 1000;
+      const duration = (getMonotonicTime() - startTime) / 1000;
       return {
         success: true,
         operation: "searchIndexes",
@@ -498,7 +499,7 @@ export class DataFetchManager {
         success: false,
         operation: "searchIndexes",
         error: error.message,
-        duration: (Date.now() - startTime) / 1000,
+        duration: (getMonotonicTime() - startTime) / 1000,
       };
     }
   }
@@ -526,7 +527,7 @@ export class DataFetchManager {
    * @returns Promise resolving to operation summary
    */
   private async buildImageManifests(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
-    const startTime = Date.now();
+    const startTime = getMonotonicTime();
     void config; // Explicitly mark as unused per project convention
     logger.info("[DataFetchManager] Starting image manifest build...");
 
@@ -557,7 +558,7 @@ export class DataFetchManager {
       const totalImages = logos.length + opengraph.length + blog.length;
       logger.info(`[DataFetchManager] Image manifests built successfully. Total images: ${totalImages}`);
 
-      const duration = (Date.now() - startTime) / 1000;
+      const duration = (getMonotonicTime() - startTime) / 1000;
       return {
         success: true,
         operation: "imageManifests",
@@ -571,7 +572,7 @@ export class DataFetchManager {
         success: false,
         operation: "imageManifests",
         error: error.message,
-        duration: (Date.now() - startTime) / 1000,
+        duration: (getMonotonicTime() - startTime) / 1000,
       };
     }
   }

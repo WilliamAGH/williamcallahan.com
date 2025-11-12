@@ -5,19 +5,27 @@
  * using similarity scoring across bookmarks, blog posts, investments, and projects.
  */
 
+import { unstable_noStore as noStore } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { aggregateAllContent, getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { findMostSimilar, groupByType, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
 import { ServerCacheInstance } from "@/lib/server-cache";
-import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { requestLock } from "@/lib/server/request-lock";
+import { getMonotonicTime } from "@/lib/utils";
 import type {
   RelatedContentItem,
   RelatedContentType,
   SimilarityWeights,
   NormalizedContent,
 } from "@/types/related-content";
-import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types/bookmark";
+
+const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+function resolveRequestUrl(request: NextRequest): URL {
+  return request.nextUrl;
+}
 
 // Default options
 const DEFAULT_MAX_PER_TYPE = 3;
@@ -25,12 +33,9 @@ const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 /**
  * Convert normalized content to related content item
- * Returns null if a bookmark doesn't have a pre-computed slug (critical for idempotency)
  */
-function toRelatedContentItem(
-  content: NormalizedContent & { score: number },
-  slugMapping: BookmarkSlugMapping | null,
-): RelatedContentItem | null {
+function toRelatedContentItem(content: NormalizedContent & { score: number }): RelatedContentItem | null {
+  const display = content.display;
   const baseMetadata: RelatedContentItem["metadata"] = {
     tags: content.tags,
     domain: content.domain,
@@ -40,48 +45,34 @@ function toRelatedContentItem(
   // Add type-specific metadata
   switch (content.type) {
     case "bookmark": {
-      const bookmark = content.source as UnifiedBookmark;
-      // Use pre-computed slug for URL - REQUIRED for idempotency
-      if (!slugMapping) {
-        console.error(`[RelatedContent API] CRITICAL: No slug mapping loaded`);
-        return null; // Skip this item rather than generate incorrect URL
-      }
-      const slug = slugMapping.slugs[content.id]?.slug;
-      if (!slug) {
-        console.error(`[RelatedContent API] CRITICAL: No slug found for bookmark ${content.id}`);
-        console.error(`[RelatedContent API] Title: ${content.title}, URL: ${bookmark.url}`);
-        return null; // Skip this item rather than generate incorrect URL
-      }
-      const url = `/bookmarks/${slug}`;
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
-        imageUrl: bookmark.ogImage || bookmark.content?.imageUrl || undefined,
+        imageUrl: display?.imageUrl,
       };
       return {
         type: content.type,
         id: content.id,
         title: content.title,
-        description: bookmark.description || "",
-        url,
+        description: display?.description || "",
+        url: content.url,
         score: content.score,
         metadata,
       };
     }
 
     case "blog": {
-      const blog = content.source as import("@/types/blog").BlogPost;
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
-        readingTime: blog.readingTime,
-        imageUrl: blog.coverImage,
-        author: blog.author ? { name: blog.author.name, avatar: blog.author.avatar } : undefined,
+        readingTime: display?.readingTime,
+        imageUrl: display?.imageUrl,
+        author: display?.author,
       };
 
       return {
         type: content.type,
         id: content.id,
         title: content.title,
-        description: blog.excerpt || "",
+        description: display?.description || "",
         url: content.url,
         score: content.score,
         metadata,
@@ -89,19 +80,18 @@ function toRelatedContentItem(
     }
 
     case "investment": {
-      const investment = content.source as import("@/types/investment").Investment;
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
-        stage: investment.stage,
-        category: investment.category,
-        imageUrl: investment.logo || undefined,
+        stage: display?.stage,
+        category: display?.category,
+        imageUrl: display?.imageUrl,
       };
 
       return {
         type: content.type,
         id: content.id,
         title: content.title,
-        description: investment.description,
+        description: display?.description || "",
         url: content.url,
         score: content.score,
         metadata,
@@ -109,17 +99,16 @@ function toRelatedContentItem(
     }
 
     case "project": {
-      const project = content.source as import("@/types/project").Project;
-      // Use S3 image key to construct URL
-      const metadata: RelatedContentItem["metadata"] = project.imageKey
-        ? { ...baseMetadata, imageUrl: `/api/s3/${project.imageKey}` }
+      const imageKey = display?.project?.imageKey;
+      const metadata: RelatedContentItem["metadata"] = imageKey
+        ? { ...baseMetadata, imageUrl: `/api/s3/${imageKey}` }
         : baseMetadata;
 
       return {
         type: content.type,
         id: content.id,
         title: content.title,
-        description: project.shortSummary || project.description,
+        description: display?.description || content.text,
         url: content.url,
         score: content.score,
         metadata,
@@ -140,11 +129,28 @@ function toRelatedContentItem(
 }
 
 export async function GET(request: NextRequest) {
-  const startTime = Date.now();
+  if (isProductionBuild) {
+    return NextResponse.json(
+      {
+        data: [],
+        meta: {
+          pagination: { total: 0, totalPages: 0, page: 1, limit: 0, hasNext: false, hasPrev: false },
+          computeTime: 0,
+          buildPhase: true,
+        },
+      },
+      { headers: NO_STORE_HEADERS },
+    );
+  }
+  if (typeof noStore === "function") {
+    noStore();
+  }
+  const startTime = getMonotonicTime();
 
   try {
     // Parse query parameters
-    const searchParams = request.nextUrl.searchParams;
+    const requestUrl = resolveRequestUrl(request);
+    const searchParams = requestUrl.searchParams;
     const sourceTypeRaw = searchParams.get("type");
     const allowedTypes = new Set<RelatedContentType>(["bookmark", "blog", "investment", "project"]);
     const sourceType = allowedTypes.has(sourceTypeRaw as RelatedContentType)
@@ -158,18 +164,18 @@ export async function GET(request: NextRequest) {
 
     // If this is a bookmark request with a slug, convert it to ID
     if (sourceType === "bookmark" && sourceSlug) {
-      const slugMapping = await loadSlugMapping();
-      if (slugMapping) {
-        // Find the bookmark ID from the slug
-        const bookmarkId = slugMapping.reverseMap[sourceSlug];
-        if (bookmarkId) {
-          sourceId = bookmarkId;
-          console.log(`[RelatedContent API] Resolved slug "${sourceSlug}" to bookmark ID "${sourceId}"`);
-        } else {
-          return NextResponse.json({ error: `Bookmark not found for slug: ${sourceSlug}` }, { status: 404 });
-        }
+      const bookmarkId = await resolveBookmarkIdFromSlug(sourceSlug);
+      if (bookmarkId) {
+        sourceId = bookmarkId;
+        console.log(`[RelatedContent API] Resolved slug "${sourceSlug}" to bookmark ID "${sourceId}"`);
       } else {
-        return NextResponse.json({ error: "Slug mapping not available" }, { status: 500 });
+        return NextResponse.json(
+          { error: `Bookmark not found for slug: ${sourceSlug}` },
+          {
+            status: 404,
+            headers: NO_STORE_HEADERS,
+          },
+        );
       }
     }
 
@@ -181,7 +187,7 @@ export async function GET(request: NextRequest) {
               ? "Missing required parameters: type and slug"
               : "Missing required parameters: type and id",
         },
-        { status: 400 },
+        { status: 400, headers: NO_STORE_HEADERS },
       );
     }
 
@@ -223,7 +229,8 @@ export async function GET(request: NextRequest) {
     let cached = ServerCacheInstance.getRelatedContent(sourceType, sourceId);
 
     // If cache is stale/missing, or custom weights/debug requested, compute it (with a lock)
-    if (!cached || cached.timestamp <= Date.now() - CACHE_TTL || debug || hasCustomWeights) {
+    const now = getMonotonicTime();
+    if (!cached || now - cached.timestamp >= CACHE_TTL || debug || hasCustomWeights) {
       await requestLock.run({
         key: lockKey,
         work: async () => {
@@ -246,7 +253,7 @@ export async function GET(request: NextRequest) {
           if (!debug && !hasCustomWeights) {
             ServerCacheInstance.setRelatedContent(sourceType, sourceId, {
               items: similar,
-              timestamp: Date.now(),
+              timestamp: now,
             });
           }
         },
@@ -258,7 +265,7 @@ export async function GET(request: NextRequest) {
     if (!cached) {
       return NextResponse.json(
         { error: `Content not found or failed to compute: ${sourceType}/${sourceId}` },
-        { status: 404 },
+        { status: 404, headers: NO_STORE_HEADERS },
       );
     }
 
@@ -270,7 +277,7 @@ export async function GET(request: NextRequest) {
       items = filterByTypes(items, includeTypes, excludeTypes);
     }
     // Honor excludeIds on cache hits
-    const excludeIds = (request.nextUrl.searchParams.get("excludeIds")?.split(",") || []).map(s => s.trim());
+    const excludeIds = (searchParams.get("excludeIds")?.split(",") || []).map(s => s.trim());
     excludeIds.push(sourceId);
 
     // Apply per-type limits
@@ -284,7 +291,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const sortedItems = limited.sort((a, b) => b.score - a.score);
+    const sortedItems = limited.toSorted((a, b) => b.score - a.score);
 
     // Apply pagination
     // Remove excluded IDs before pagination
@@ -293,17 +300,8 @@ export async function GET(request: NextRequest) {
     const totalPages = Math.ceil(totalItems / limit);
     const paginatedItems = withoutExcluded.slice((page - 1) * limit, page * limit);
 
-    // Get slug mapping if needed for bookmark URLs
-    let slugMapping: BookmarkSlugMapping | null = null;
-    if (paginatedItems.some(item => item.type === "bookmark")) {
-      slugMapping = await loadSlugMapping();
-      if (!slugMapping) {
-        console.error("[RelatedContent API] Failed to load slug mapping - bookmarks will be skipped");
-      }
-    }
-
     const responseData = paginatedItems
-      .map(item => toRelatedContentItem(item, slugMapping))
+      .map(item => toRelatedContentItem(item))
       .filter((item): item is RelatedContentItem => item !== null);
 
     const response = {
@@ -317,13 +315,13 @@ export async function GET(request: NextRequest) {
           hasNext: page < totalPages,
           hasPrev: page > 1,
         },
-        computeTime: Date.now() - startTime,
+        computeTime: getMonotonicTime() - startTime,
       },
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error("Error in related content API:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500, headers: NO_STORE_HEADERS });
   }
 }

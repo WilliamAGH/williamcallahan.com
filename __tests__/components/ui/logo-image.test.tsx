@@ -1,5 +1,5 @@
 import type { MockImageProps } from "@/types/test";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, jest } from "@jest/globals";
 import "@testing-library/jest-dom";
 
@@ -41,6 +41,11 @@ describe("LogoImage Conditional Rendering", () => {
     src: "data:image/svg+xml;base64,abc123", // Use a sample SVG data URL
     width: 50,
     height: 50,
+  };
+  const cdnUrlProps = {
+    src: "https://s3-storage.callahan.cloud/images/logos/aescape_com_google_ae8818cb.png",
+    width: 96,
+    height: 32,
   };
 
   describe("Regular URL Rendering (uses next/image)", () => {
@@ -137,6 +142,44 @@ describe("LogoImage Conditional Rendering", () => {
 
       // Check priority attribute is set correctly
       expect(mainImage).toHaveAttribute("data-priority", "true");
+    });
+  });
+
+  describe("Logo retry handling", () => {
+    let fetchSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      if (typeof global.fetch !== "function") {
+        global.fetch = (() => Promise.resolve({ ok: true } as Response)) as typeof fetch;
+      }
+      fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({ ok: true } as Response);
+    });
+
+    afterEach(() => {
+      fetchSpy?.mockRestore();
+      jest.useRealTimers();
+    });
+
+    it("calls /api/logo with canonical domain when CDN key fails", () => {
+      render(<LogoImage {...cdnUrlProps} />);
+      const images = screen.getAllByTestId("next-image-mock");
+      const mainImage = images.find(img => img.getAttribute("src") === cdnUrlProps.src);
+      expect(mainImage).toBeTruthy();
+
+      if (!mainImage) throw new Error("Main image not found");
+
+      fireEvent.error(mainImage);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const requestedUrl = fetchSpy.mock.calls[0]?.[0];
+      expect(typeof requestedUrl).toBe("string");
+      if (typeof requestedUrl !== "string") throw new Error("Fetch was not invoked with a URL string");
+
+      const parsed = new URL(requestedUrl, "http://localhost");
+      expect(parsed.pathname).toBe("/api/logo");
+      expect(parsed.searchParams.get("website")).toBe("aescape.com");
+      expect(parsed.searchParams.get("forceRefresh")).toBe("true");
     });
   });
 });

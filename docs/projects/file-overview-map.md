@@ -54,7 +54,7 @@ File/Path Functionality Description
     - [x] `blog-article.client.tsx` `blog-article` - Renders article content and metadata
     - [x] `blog-wrapper.tsx` `blog-article` - Dynamic import wrapper for hydration
     - [x] `index.ts` `blog-article` - Blog article components barrel file
-    - [x] `mdx-content.tsx` `blog-article` - MDX renderer with styled elements
+    - [x] `mdx-content.tsx` `blog-article` - Server wrapper for the MDX renderer, now delegating to a React 19-safe cached evaluator instead of `next-mdx-remote`
     - [x] `software-schema.tsx` `terminal` - Inserts SoftwareApplication schema.org metadata
     - [x] `mdx-table.server.tsx` `blog-article` - Styled table components for MDX
   - [x] **blog-list/**
@@ -265,7 +265,6 @@ File/Path Functionality Description
   - [x] `bookmarks-preloader.ts` `bookmarks` - Server-side bookmark preloading orchestrator
   - [x] `data-fetch-manager.ts` `batch-fetch-update` - Centralized data fetching orchestrator with CLI handler
   - [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates
-  - [x] `mem-guard.ts` `memory-mgmt` - Lightweight RSS watchdog for cache flushing
 - [x] **server-cache/**
   - [x] `index.ts` `caching` - Barrel file for server cache
 - [x] **test-utils/**
@@ -406,21 +405,27 @@ File/Path Functionality Description
     - [x] **bookmarks/`route.ts`** `bookmarks` - Bookmarks cache API
     - [x] **clear/`route.ts`** `caching` - Clear cache API
     - [x] **images/`route.ts`** `image-handling` - Images cache API
-  - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts
+  - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts (force-dynamic bearer auth)
   - [x] **github-activity/**
     - [x] `route.ts` `github-activity` - GitHub activity API
     - [x] **refresh/`route.ts`** `github-activity` - Refresh GitHub activity API
   - [x] **health/`route.ts`** `log-error-debug-handling` - Health check API
+  - [x] **health/metrics/`route.ts`** `log-error-debug-handling` - Authenticated health metrics API (force-dynamic)
   - [x] **ip/`route.ts`** `log-error-debug-handling` - IP address API
   - [x] **log-client-error/`route.ts`** `log-error-debug-handling` - API endpoint for logging client-side errors
   - [ ] **logo/**
     - [x] `route.ts` `image-handling` - Logo API
     - [x] **invert/`route.ts`** `image-handling` - Invert logo API
   - [x] **og-image/`route.ts`** `opengraph` - Universal OpenGraph image endpoint (2025-06 rewrite)
+  - [x] **related-content/**
+    - [x] `route.ts` `search` - Related content recommender (force-dynamic, request header aware)
+    - [x] **debug/`route.ts`** `search` - Related content scoring debugger (force-dynamic)
   - [x] **posts/`route.ts`** `blog-article` - Posts API
   - [x] **search/**
-    - [x] **all/`route.ts`** `search` - Global search API
-    - [x] **blog/`route.ts`** `search` - Blog search API
+    - [x] **all/`route.ts`** `search` - Global search API (force-dynamic rate limiting)
+    - [x] **blog/`route.ts`** `search` - Blog search API (force-dynamic URL resolver)
+    - [x] **bookmarks/`route.ts`** `search` - Bookmark search API (force-dynamic pagination)
+    - [x] **[scope]/`route.ts`** `search` - Scoped search API (force-dynamic)
   - [x] **sentry-example-api/`route.ts`** `log-error-debug-handling` - Sentry example API (debug endpoint)
   - [x] **tunnel/`route.ts`** `log-error-debug-handling` - Sentry tunnel API
   - [x] **twitter-image/[...path]/`route.ts`** `blog-article` - Twitter image proxy API
@@ -442,6 +447,8 @@ File/Path Functionality Description
   - [x] `page.tsx` `education` - Education page (ISR)
 - [x] **experience/**
   - [x] `page.tsx` `experience` - Experience page (ISR)
+- [x] **cv/**
+  - [x] `page.tsx` `experience` - Curriculum vitae page reusing `cvFeatured` subsets from experience, education, and projects
 - [x] **investments/**
   - [x] `page.tsx` `investments` - Investments page (ISR)
 - [x] **projects/**
@@ -455,6 +462,7 @@ File/Path Functionality Description
 - [x] `check-file-naming.ts` `testing-config` - Script to check file naming conventions
 - [x] `consolidate-configs.js` `build` - Script to consolidate configuration files
 - [x] `debug-test-bookmark.ts` `log-error-debug-handling` - Debugging script for bookmarks
+- [x] `fetch-bookmarks-public.ts` `bookmarks` - Optional local snapshot helper for offline work (no longer invoked during CI/CD builds)
 - [x] `entrypoint.sh` `deployment` - Docker entrypoint script
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
 - [x] `fix-test-imports.sh` `testing-config` - Script to fix test imports
@@ -495,6 +503,7 @@ File/Path Functionality Description
 
 - [ ] **projects/**
   - [ ] **structure/**
+    - [x] `next-js-16-usage.md` `next-js-16-usage` - Framework enforcement guide for Next.js 16 / React 19 / Jest 30 (2025-11-08)
     - [ ] `*.md` `` - Architecture documentation
   - [ ] `*.md` `` - Project documentation
 - [ ] `*.md` `` - General documentation

@@ -6,7 +6,7 @@
  * Uses direct logo fetching to work during build time.
  */
 
-import { getLogo } from "@/lib/data-access/logos";
+import { getLogoCdnData } from "@/lib/data-access/logos";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
@@ -24,15 +24,12 @@ export async function ExperienceCard(props: Experience & { isDarkTheme?: boolean
   const { website, company, logo, isDarkTheme } = props;
 
   try {
-    // If a logo URL is explicitly provided, prefer it.
     if (logo) {
       return <ExperienceCardClient {...props} logoData={{ url: logo, source: null }} />;
     }
 
-    // Otherwise resolve by domain through UnifiedImageService
     const domain = website ? normalizeDomain(website) : normalizeDomain(company);
 
-    // Prefer manifest lookup to leverage possible inverted CDN URL.
     if (domain) {
       try {
         const manifestEntry = await getLogoFromManifestAsync(domain);
@@ -50,26 +47,16 @@ export async function ExperienceCard(props: Experience & { isDarkTheme?: boolean
             />
           );
         }
-      } catch (e) {
-        console.warn(`[ExperienceCard] Manifest lookup failed for ${domain}:`, e);
+      } catch (manifestError) {
+        console.warn(`[ExperienceCard] Manifest lookup failed for ${domain}:`, manifestError);
+      }
+
+      const directLogo = await getLogoCdnData(domain);
+      if (directLogo) {
+        return <ExperienceCardClient {...props} logoData={directLogo} />;
       }
     }
 
-    const logoResult = await getLogo(domain);
-
-    if (logoResult?.cdnUrl) {
-      return (
-        <ExperienceCardClient
-          {...props}
-          logoData={{
-            url: logoResult.cdnUrl,
-            source: logoResult.source ?? null,
-          }}
-        />
-      );
-    }
-
-    // Fallback to placeholder when UnifiedImageService cannot provide one
     return <ExperienceCardClient {...props} logoData={{ url: getCompanyPlaceholder(), source: null }} />;
   } catch (error) {
     console.error("[ExperienceCard] Failed to resolve logo:", error);

@@ -9,6 +9,8 @@
  * @see {@link "https://schema.org/Dataset"} - Schema.org Dataset specification
  */
 
+"use cache";
+
 import type { Metadata } from "next";
 import { Investments } from "@/components/features";
 import { getStaticPageMetadata } from "@/lib/seo";
@@ -24,8 +26,11 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
  */
 export const metadata: Metadata = getStaticPageMetadata("/investments", "investments");
 
-// Avoid long static generation by rendering this page dynamically at request time
-export const dynamic = "force-dynamic";
+/**
+ * Cache policy
+ * File-level `'use cache'` satisfies the Next.js 16 cacheComponents requirement for static segments;
+ * see https://nextjs.org/docs/app/api-reference/directives/use-cache for the canonical rules.
+ */
 
 /**
  * NOTE ON LOGO RESOLUTION
@@ -40,8 +45,10 @@ export const dynamic = "force-dynamic";
 
 /**
  * Investments page component with JSON-LD schema
+ * `'use cache'` directives require async exports (see https://nextjs.org/docs/app/api-reference/directives/use-cache),
+ * so this component stays async even though it does not await.
  */
-export default function InvestmentsPage() {
+export default async function InvestmentsPage() {
   // Generate JSON-LD schema for the investments page
   const pageMetadata = PAGE_METADATA.investments;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
@@ -61,7 +68,7 @@ export default function InvestmentsPage() {
     },
   };
 
-  const jsonLdData = generateSchemaGraph(schemaParams);
+  const jsonLdData = await Promise.resolve(generateSchemaGraph(schemaParams));
 
   return (
     <>

@@ -7,11 +7,15 @@
 import type { LogoValidationResult, LogoFetchResult, InvertedLogoEntry, ICache } from "@/types/cache";
 import type { LogoInversion } from "@/types/logo";
 import { LOGO_CACHE_DURATION } from "@/lib/constants";
+import { getMonotonicTime } from "@/lib/utils";
 
 const LOGO_VALIDATION_PREFIX = "logo-validation:";
 const LOGO_FETCH_PREFIX = "logo-fetch:";
 const INVERTED_LOGO_PREFIX = "logo-inverted:";
 const LOGO_ANALYSIS_PREFIX = "logo-analysis:";
+
+const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+const getCacheTimestamp = (): number => (isProductionBuildPhase ? 0 : getMonotonicTime());
 
 export function getLogoValidation(this: ICache, imageHash: string): LogoValidationResult | undefined {
   const key = LOGO_VALIDATION_PREFIX + imageHash;
@@ -22,7 +26,7 @@ export function setLogoValidation(this: ICache, imageHash: string, isGlobeIcon: 
   const key = LOGO_VALIDATION_PREFIX + imageHash;
   this.set(key, {
     isGlobeIcon,
-    timestamp: Date.now(),
+    timestamp: getCacheTimestamp(),
   });
 }
 
@@ -35,7 +39,7 @@ export function setLogoFetch(this: ICache, domain: string, result: Partial<LogoF
   const key = LOGO_FETCH_PREFIX + domain;
   const entryToCache = {
     ...result,
-    timestamp: Date.now(),
+    timestamp: getCacheTimestamp(),
   };
 
   // Ensure buffer is not cached
@@ -67,7 +71,7 @@ export function setInvertedLogo(this: ICache, cacheKey: string, entry: Omit<Inve
   const key = INVERTED_LOGO_PREFIX + cacheKey;
   this.set(key, {
     ...entry,
-    timestamp: Date.now(),
+    timestamp: getCacheTimestamp(),
   });
 }
 

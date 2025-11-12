@@ -11,23 +11,22 @@ import { ServerCacheInstance } from "@/lib/server-cache";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { DataFetchOperationSummary } from "@/types/lib";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import type { BookmarksIndex } from "@/types/bookmark";
 import { invalidateBookmarksCache } from "@/lib/bookmarks/bookmarks-data-access.server";
 
 // Ensure this route is not statically cached
-export const dynamic = "force-dynamic";
 
 /**
  * API Key validation middleware
  * @param request - The HTTP request
  * @returns Boolean indicating if the request has a valid API key
  */
-function validateApiKey(request: Request): boolean {
+function validateApiKey(request: NextRequest): boolean {
   const apiKey = process.env.ADMIN_API_KEY;
   if (!apiKey) return false;
 
-  const authHeader = request.headers.get("Authorization");
+  const authHeader = request.headers.get("authorization");
   if (!authHeader) return false;
 
   // Check 'Bearer TOKEN' format
@@ -40,7 +39,7 @@ function validateApiKey(request: Request): boolean {
 /**
  * GET handler - Returns current status of the bookmarks
  */
-export async function GET(request: Request): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!validateApiKey(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -81,7 +80,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 /**
  * POST handler - Forces a refresh of the bookmarks
  */
-export async function POST(request: Request): Promise<NextResponse> {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!validateApiKey(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -130,7 +129,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 /**
  * DELETE handler - Clears the bookmarks cache metadata
  */
-export function DELETE(request: Request): NextResponse {
+export function DELETE(request: NextRequest): NextResponse {
   if (!validateApiKey(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

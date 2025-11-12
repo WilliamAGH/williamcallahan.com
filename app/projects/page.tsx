@@ -15,12 +15,12 @@ import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { projects } from "@/data/projects";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
+import { getCdnConfigFromEnv, buildCdnUrl } from "@/lib/utils/cdn-utils";
 
 /**
  * Enable ISR for projects page with hourly revalidation
  * This generates static HTML at build time and revalidates periodically
  */
-export const revalidate = 3600; // Revalidate every hour
 
 export function generateMetadata(): Metadata {
   return getStaticPageMetadata("/projects", "projects");
@@ -65,7 +65,7 @@ export default function ProjectsPage() {
       publisher: { "@id": ensureAbsoluteUrl("/#person") },
       author: { "@id": ensureAbsoluteUrl("/#person") },
       ...(project.imageKey && {
-        screenshot: ensureAbsoluteUrl(`/${project.imageKey.replace(/^\/+/, "")}`),
+        screenshot: buildCdnUrl(project.imageKey, getCdnConfigFromEnv()),
       }),
     });
   });

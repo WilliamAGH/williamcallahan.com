@@ -15,14 +15,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { revalidateTag } from "next/cache";
 import { incrementAndPersist, loadRateLimitStoreFromS3 } from "@/lib/rate-limiter";
 import { envLogger } from "@/lib/utils/env-logger";
+import { getMonotonicTime } from "@/lib/utils";
 
 /**
  * @constant {string} dynamic - Ensures the route is dynamically rendered and not cached.
  * @default 'force-dynamic'
  */
-export const dynamic = "force-dynamic";
 
-// Rate limiting configuration
 const RATE_LIMIT_WINDOW = TIME_CONSTANTS.RATE_LIMIT_WINDOW_MS;
 const RATE_LIMIT_MAX_REQUESTS = 5; // 5 requests per hour per IP
 const RATE_LIMIT_S3_PATH = "json/rate-limits/github-refresh.json";
@@ -75,7 +74,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   await ensureRateLimitsLoaded();
 
   // Check for cron job authentication first
-  const authorizationHeader = request.headers.get("Authorization");
+  const headerStore = request.headers;
+  const authorizationHeader = headerStore.get("authorization");
   const cronRefreshSecret = process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
   let isCronJob = false;
 
@@ -92,8 +92,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Only apply rate limiting if not a cron job
   if (!isCronJob) {
     // Extract IP for rate limiting
-    const forwarded = request.headers.get("x-forwarded-for");
-    const realIp = request.headers.get("x-real-ip");
+    const forwarded = headerStore.get("x-forwarded-for");
+    const realIp = headerStore.get("x-real-ip");
     const ip = forwarded?.split(",")[0] || realIp || "unknown";
     const rateLimitKey = `github-refresh:${ip}`;
 
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
 
     if (!allowed) {
-      const resetTime = Date.now() + RATE_LIMIT_WINDOW;
+      const resetTime = getMonotonicTime() + RATE_LIMIT_WINDOW;
       const resetDate = new Date(resetTime);
       console.warn(`[API Refresh] Rate limit exceeded for IP ${ip}. Limit: ${RATE_LIMIT_MAX_REQUESTS} per hour`);
 
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     } else {
       // Production environment requires authentication
-      const secret = request.headers.get("x-refresh-secret");
+      const secret = headerStore.get("x-refresh-secret");
       const serverSecret = process.env.GITHUB_REFRESH_SECRET;
 
       if (!serverSecret) {
@@ -183,11 +183,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // Invalidate cache layers for GitHub data
       invalidateGitHubCache(); // in-memory
       try {
-        revalidateTag("github-activity"); // Next.js function cache tag
+        revalidateTag("github-activity", "default"); // Next.js function cache tag
       } catch (err) {
         // No-op outside of Next request context
         envLogger.log(
-          "revalidateTag('github-activity') skipped or failed",
+          "revalidateTag('github-activity', 'default') skipped or failed",
           { error: err instanceof Error ? err.message : String(err) },
           { category: "GitHubActivityRefresh" },
         );

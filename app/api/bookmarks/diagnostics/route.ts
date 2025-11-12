@@ -7,14 +7,12 @@
 
 import "server-only";
 
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { BookmarksIndex, BookmarkSlugMapping } from "@/types/bookmark";
 import type { ReadJsonResult } from "@/types/lib";
 import { getEnvironment, getEnvironmentSuffix, logEnvironmentConfig } from "@/lib/config/environment";
-
-export const dynamic = "force-dynamic";
 
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,7 +23,7 @@ function allowWithoutSecret(): boolean {
   return process.env.NODE_ENV !== "production";
 }
 
-function isAuthorized(request: Request): boolean {
+function isAuthorized(request: NextRequest): boolean {
   if (allowWithoutSecret()) return true;
   const auth = request.headers.get("authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -37,13 +35,13 @@ async function tryReadJson<T>(key: string): Promise<ReadJsonResult<T>> {
   try {
     const data = await readJsonS3<T>(key);
     return { key, exists: data !== null, ok: data !== null, parsed: data };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return { key, exists: false, ok: false, error: msg };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { key, exists: false, ok: false, error: message };
   }
 }
 
-export async function GET(request: Request): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!isAuthorized(request)) return unauthorized();
 
   // Log env summary in non-production to aid diagnosis

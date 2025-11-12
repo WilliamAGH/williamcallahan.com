@@ -9,6 +9,7 @@
 import type { RateLimiterConfig, RateLimitRecord, CircuitBreakerState, CircuitBreakerConfig } from "@/types/lib";
 import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
 import { debug, debugWarn } from "@/lib/utils/debug";
+import { getMonotonicTime } from "@/lib/utils";
 
 /**
  * In-memory store for rate limit records.
@@ -49,7 +50,7 @@ export function isOperationAllowed(storeName: string, contextId: string, config:
     rateLimitStores[storeName] = {};
   }
   const store = rateLimitStores[storeName];
-  const now = Date.now();
+  const now = getMonotonicTime();
 
   // Clean up expired entries to prevent unbounded memory growth
   for (const [key, record] of Object.entries(store)) {
@@ -98,7 +99,7 @@ export async function waitForPermit(
   pollIntervalMs = 50,
   timeoutMs?: number,
 ): Promise<void> {
-  const startTime = Date.now();
+  const startTime = getMonotonicTime();
 
   // Ensure pollInterval is sensible, e.g., not too small compared to window
   // Also, ensure it's not excessively large if windowMs is very small.
@@ -108,8 +109,10 @@ export async function waitForPermit(
   );
 
   while (true) {
+    const loopNow = getMonotonicTime();
+
     // Check timeout
-    if (timeoutMs !== undefined && Date.now() - startTime > timeoutMs) {
+    if (timeoutMs !== undefined && loopNow - startTime > timeoutMs) {
       throw new Error(`Rate limit wait timeout exceeded after ${timeoutMs}ms`);
     }
 
@@ -122,12 +125,12 @@ export async function waitForPermit(
     const record = store?.[contextId];
     let waitTime = effectivePollInterval;
 
-    if (record && record.resetAt > Date.now() && record.count >= config.maxRequests) {
-      const timeToReset = record.resetAt - Date.now();
+    if (record && record.resetAt > loopNow && record.count >= config.maxRequests) {
+      const timeToReset = Math.max(0, record.resetAt - loopNow);
 
       // For long waits (>1 second), sleep until reset with small buffer instead of polling
       if (timeToReset > 1000) {
-        waitTime = timeToReset + 50; // Wait until reset + 50ms buffer
+        waitTime = Math.max(1000, timeToReset + 50); // Wait until reset + buffer, enforce minimum sensible delay
       } else {
         // For short waits, use standard poll interval or time to reset, whichever is shorter
         waitTime = Math.min(timeToReset + 10, effectivePollInterval);
@@ -209,7 +212,7 @@ export function isOperationAllowedWithCircuitBreaker(
 
   // Check circuit state
   if (circuitState.state === "open") {
-    const timeSinceFailure = Date.now() - circuitState.lastFailureTime;
+    const timeSinceFailure = getMonotonicTime() - circuitState.lastFailureTime;
     if (timeSinceFailure >= resetTimeout) {
       // Try half-open state
       circuitState.state = "half-open";
@@ -225,7 +228,7 @@ export function isOperationAllowedWithCircuitBreaker(
   // Update circuit breaker state based on result
   if (!allowed) {
     circuitState.failures++;
-    circuitState.lastFailureTime = Date.now();
+    circuitState.lastFailureTime = getMonotonicTime();
 
     if (circuitState.failures >= failureThreshold) {
       circuitState.state = "open";
@@ -266,7 +269,7 @@ export function recordOperationFailure(
   };
 
   circuitState.failures++;
-  circuitState.lastFailureTime = Date.now();
+  circuitState.lastFailureTime = getMonotonicTime();
 
   if (circuitState.failures >= failureThreshold && circuitState.state !== "open") {
     circuitState.state = "open";

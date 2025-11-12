@@ -2,7 +2,7 @@
 
 ## Core Purpose
 
-The Education domain manages display of university degrees, courses, and certifications with idempotent S3 CDN logo fetching at `lib/education-data-processor.ts:25-87` for consistent institution branding across all renders.
+The Education domain manages display of university degrees, courses, and certifications with idempotent S3 CDN logo fetching at `lib/education-data-processor.ts:25-87` for consistent institution branding across all renders. Items flagged with `cvFeatured` populate the condensed education and credential sections on `/cv` without duplicating data structures.
 
 ## Architecture Overview
 
@@ -16,9 +16,10 @@ Components:
 
 ## Key Features
 
-- **Idempotent Logo Fetching**: Always fetches from S3 CDN via UnifiedImageService at `lib/education-data-processor.ts:38-45`
+- **Idempotent Logo Fetching**: Manifest-first with a fallback to `getLogoCdnData()` (direct UnifiedImageService call) inside `lib/education-data-processor.ts`, so no `/api/logo` proxy hops are required.
 - **Concurrent Processing**: Promise.all at `education.server.tsx:22-30` for parallel logo fetches
 - **Client-Side Interactivity**: Search/filter/sort at `education.client.tsx:74-127` without re-fetching logos
+- **CV Flagging**: `data/education.ts` applies `cvFeatured` to surface a curated subset on the curriculum vitae page.
 
 ## Data Structures
 
@@ -32,6 +33,7 @@ interface EducationBase {
   location: string;
   logo?: string; // Static logo path fallback
   logoScale?: number;
+  cvFeatured?: boolean; // Highlighted on the /cv page when true
 }
 
 // types/education.ts:62-65

@@ -25,6 +25,7 @@ export interface OptimizedCardImageProps {
   src: string | null;
   alt: string;
   className?: string;
+  priority?: boolean;
 }
 
 export interface ImgProxyProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> {

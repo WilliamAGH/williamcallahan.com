@@ -4,7 +4,7 @@
  * @module lib/services/unified-image-service
  */
 import { s3Client, writeBinaryS3, checkIfS3ObjectExists } from "../s3-utils";
-import { ServerCacheInstance } from "../server-cache";
+import { ServerCacheInstance, getDeterministicTimestamp } from "../server-cache";
 import { getDomainVariants } from "../utils/domain-utils";
 import {
   parseS3Key,
@@ -47,13 +47,18 @@ export class UnifiedImageService {
   // Migration lock moved to centralized async-lock utility
   private readonly isReadOnly = isS3ReadOnly();
   private readonly isDev = process.env.NODE_ENV !== "production";
+  private readonly devProcessingDisabled =
+    this.isDev &&
+    (process.env.DEV_DISABLE_IMAGE_PROCESSING === "1" || process.env.DEV_DISABLE_IMAGE_PROCESSING === "true");
+  private readonly devStreamImagesToS3 =
+    this.isDev && (process.env.DEV_STREAM_IMAGES_TO_S3 === "1" || process.env.DEV_STREAM_IMAGES_TO_S3 === "true");
 
   // Removed sessionProcessedDomains as it was never used
   private sessionFailedDomains = new Set<string>();
   private domainRetryCount = new Map<string, number>();
   private domainFirstFailureTime = new Map<string, number>(); // Track when domain first failed
-  private sessionStartTime = Date.now();
-  private lastCleanupTime = Date.now();
+  private sessionStartTime = getDeterministicTimestamp();
+  private lastCleanupTime = getDeterministicTimestamp();
 
   // Request deduplication for concurrent logo fetches
   private inFlightLogoRequests = new Map<string, Promise<LogoFetchResult>>();
@@ -86,8 +91,25 @@ export class UnifiedImageService {
 
   /** Fetch image with caching (memory → S3 → origin) */
   async getImage(url: string, options: ImageServiceOptions = {}): Promise<ImageResult> {
+    // Prefer streaming-to-S3 behavior over full processing in development when requested
+    // Note: When enabled, we still attempt normal fetch logic; processing will be skipped in fetchAndProcess.
+    if (!this.devStreamImagesToS3 && this.devProcessingDisabled) {
+      const transparentPngBase64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO3GdQAAAABJRU5ErkJggg==";
+      const placeholder = Buffer.from(transparentPngBase64, "base64");
+      return {
+        buffer: placeholder,
+        contentType: "image/png",
+        source: "placeholder",
+        timestamp: getDeterministicTimestamp(),
+      };
+    }
+
     const memoryMonitor = getMemoryHealthMonitor();
-    if (!memoryMonitor.shouldAcceptNewRequests()) throw new Error("Insufficient memory to process image request");
+    // When streaming mode is enabled for dev, allow the request to proceed; streaming uses bounded memory.
+    if (!this.devStreamImagesToS3 && !memoryMonitor.shouldAcceptNewRequests()) {
+      throw new Error("Insufficient memory to process image request");
+    }
     return monitoredAsync(
       null,
       `get-image-${url}`,
@@ -122,15 +144,15 @@ export class UnifiedImageService {
 
   /** Get logo with validation, optional inversion */
   async getLogo(domain: string, options: ImageServiceOptions = {}): Promise<LogoFetchResult> {
-    // Check memory before starting
+    // Check memory before starting (relaxed when streaming mode is enabled in dev)
     const memoryMonitor = getMemoryHealthMonitor();
-    if (!memoryMonitor.shouldAcceptNewRequests()) {
+    if (!this.devStreamImagesToS3 && !memoryMonitor.shouldAcceptNewRequests()) {
       return {
         domain,
         source: null,
         contentType: "image/png",
         error: "Insufficient memory to process logo request",
-        timestamp: Date.now(),
+        timestamp: getDeterministicTimestamp(),
         isValid: false,
       };
     }
@@ -151,107 +173,131 @@ export class UnifiedImageService {
         if (cachedResult?.s3Key && (this.isReadOnly || !options.forceRefresh)) {
           return { ...cachedResult, cdnUrl: this.getCdnUrl(cachedResult.s3Key) };
         }
+
+        /**
+         * 🔍 S3 CDN Read Operations (ALLOWED during builds)
+         *
+         * These operations check if logos already exist in S3/CDN and are safe to run
+         * during build phase. They only perform read operations (HEAD requests, list operations)
+         * and never write to S3.
+         *
+         * Benefits:
+         * - Allows builds to serve existing logos from CDN
+         * - No S3 write operations = no build-time mutations
+         * - Respects the private/public CDN setup
+         */
+
+        // First check for existing hashed logo files using deterministic key generation
+        const { checkIfS3ObjectExists } = await import("@/lib/s3-utils");
+
+        for (const source of ["direct", "google", "duckduckgo", "clearbit"] as LogoSource[]) {
+          // Check common logo extensions
+          for (const extension of ["png", "jpg", "jpeg", "svg", "ico", "webp"]) {
+            const hashedKey = generateS3Key({
+              type: "logo",
+              domain,
+              source,
+              extension,
+            });
+
+            try {
+              const exists = await checkIfS3ObjectExists(hashedKey);
+              if (exists) {
+                console.log(`[UnifiedImageService] Found existing hashed logo: ${hashedKey}`);
+
+                const contentType =
+                  extension === "svg" ? "image/svg+xml" : extension === "ico" ? "image/x-icon" : `image/${extension}`;
+
+                const cachedResult: LogoFetchResult = {
+                  domain,
+                  s3Key: hashedKey,
+                  cdnUrl: this.getCdnUrl(hashedKey),
+                  url: undefined,
+                  source,
+                  contentType,
+                  timestamp: getDeterministicTimestamp(),
+                  isValid: true,
+                } as LogoFetchResult;
+
+                ServerCacheInstance.setLogoFetch(domain, cachedResult);
+                return cachedResult;
+              }
+            } catch {
+              // File doesn't exist, continue to next extension/source
+            }
+          }
+        }
+
+        // If no hashed files found, check for legacy files (without hashes)
+        const { findLegacyLogoKey } = await import("../utils/hash-utils");
+        const { listS3Objects } = await import("../s3-utils");
+        const legacyKey = await findLegacyLogoKey(domain, listS3Objects);
+
+        if (legacyKey) {
+          console.log(`[UnifiedImageService] Found existing legacy logo: ${legacyKey}`);
+
+          // Extract metadata from key
+          const parsed = parseS3Key(legacyKey);
+          const source = parsed.source as LogoSource;
+          const ext = parsed.extension || "png";
+          const contentType = ext === "svg" ? "image/svg+xml" : ext === "ico" ? "image/x-icon" : `image/${ext}`;
+
+          /**
+           * 🚫 S3 Write Operations (BLOCKED during builds)
+           *
+           * Logo migration/hashing requires S3 writes and must only run at runtime
+           * or during data-updater scripts. During builds, we return the legacy key
+           * as-is without migration.
+           */
+          let finalKey = legacyKey;
+          if (!parsed.hash && !this.isReadOnly) {
+            const { readBinaryS3, writeBinaryS3, deleteFromS3 } = await import("../s3-utils");
+            const migrated = await hashAndArchiveManualLogo(domain, {
+              listS3Objects,
+              readBinaryS3,
+              writeBinaryS3,
+              deleteFromS3,
+            });
+            if (migrated) {
+              finalKey = migrated;
+              console.log(`[UnifiedImageService] Manual logo migrated → ${migrated}`);
+            }
+          }
+
+          const cachedResult: LogoFetchResult = {
+            domain,
+            s3Key: finalKey,
+            cdnUrl: this.getCdnUrl(finalKey),
+            url: undefined,
+            source,
+            contentType,
+            timestamp: getDeterministicTimestamp(),
+            isValid: true,
+          } as LogoFetchResult;
+
+          ServerCacheInstance.setLogoFetch(domain, cachedResult);
+          return cachedResult;
+        }
+
+        /**
+         * 🚫 No Logo Found in CDN
+         *
+         * If we reach this point during a build (read-only mode), we cannot fetch
+         * from external sources as that would require uploading to S3. Return an
+         * error that indicates the logo needs to be fetched during runtime.
+         */
         if (this.isReadOnly) {
           if (this.isDev) {
-            console.info(`[UnifiedImageService] Read-only miss for logo domain '${domain}'`);
+            console.info(`[UnifiedImageService] Read-only: logo not found in CDN for domain '${domain}'`);
           }
           return {
             domain,
             source: null,
             contentType: "image/png",
-            error: "Logo not available in read-only mode",
-            timestamp: Date.now(),
+            error: "Logo not available in CDN (fetch required at runtime)",
+            timestamp: getDeterministicTimestamp(),
             isValid: false,
           };
-        }
-
-        // 🔍 S3 Pre-flight check: Check for existing hashed files first, then legacy files
-        if (!this.isReadOnly) {
-          // First check for existing hashed logo files using deterministic key generation
-          const { checkIfS3ObjectExists } = await import("@/lib/s3-utils");
-
-          for (const source of ["direct", "google", "duckduckgo", "clearbit"] as LogoSource[]) {
-            // Check common logo extensions
-            for (const extension of ["png", "jpg", "jpeg", "svg", "ico", "webp"]) {
-              const hashedKey = generateS3Key({
-                type: "logo",
-                domain,
-                source,
-                extension,
-              });
-
-              try {
-                const exists = await checkIfS3ObjectExists(hashedKey);
-                if (exists) {
-                  console.log(`[UnifiedImageService] Found existing hashed logo: ${hashedKey}`);
-
-                  const contentType =
-                    extension === "svg" ? "image/svg+xml" : extension === "ico" ? "image/x-icon" : `image/${extension}`;
-
-                  const cachedResult: LogoFetchResult = {
-                    domain,
-                    s3Key: hashedKey,
-                    cdnUrl: this.getCdnUrl(hashedKey),
-                    url: undefined,
-                    source,
-                    contentType,
-                    timestamp: Date.now(),
-                    isValid: true,
-                  } as LogoFetchResult;
-
-                  ServerCacheInstance.setLogoFetch(domain, cachedResult);
-                  return cachedResult;
-                }
-              } catch {
-                // File doesn't exist, continue to next extension/source
-              }
-            }
-          }
-
-          // If no hashed files found, check for legacy files (without hashes)
-          const { findLegacyLogoKey } = await import("../utils/hash-utils");
-          const { listS3Objects } = await import("../s3-utils");
-          const legacyKey = await findLegacyLogoKey(domain, listS3Objects);
-
-          if (legacyKey) {
-            console.log(`[UnifiedImageService] Found existing legacy logo: ${legacyKey}`);
-
-            // Extract metadata from key
-            const parsed = parseS3Key(legacyKey);
-            const source = parsed.source as LogoSource;
-            const ext = parsed.extension || "png";
-            const contentType = ext === "svg" ? "image/svg+xml" : ext === "ico" ? "image/x-icon" : `image/${ext}`;
-
-            // If key lacks hash, migrate it (hashAndArchiveManualLogo handles ACL)
-            let finalKey = legacyKey;
-            if (!parsed.hash) {
-              const { readBinaryS3, writeBinaryS3, deleteFromS3 } = await import("../s3-utils");
-              const migrated = await hashAndArchiveManualLogo(domain, {
-                listS3Objects,
-                readBinaryS3,
-                writeBinaryS3,
-                deleteFromS3,
-              });
-              if (migrated) {
-                finalKey = migrated;
-                console.log(`[UnifiedImageService] Manual logo migrated → ${migrated}`);
-              }
-            }
-
-            const cachedResult: LogoFetchResult = {
-              domain,
-              s3Key: finalKey,
-              cdnUrl: this.getCdnUrl(finalKey),
-              url: undefined,
-              source,
-              contentType,
-              timestamp: Date.now(),
-              isValid: true,
-            } as LogoFetchResult;
-
-            ServerCacheInstance.setLogoFetch(domain, cachedResult);
-            return cachedResult;
-          }
         }
 
         // Not found in S3, try external sources
@@ -263,6 +309,41 @@ export class UnifiedImageService {
             logoDebugger.logAttempt(domain, "external-fetch", "All external sources failed", "failed");
             throw new Error("No logo found");
           }
+
+          // In streaming mode for dev: skip heavy validation/inversion and persist the original buffer
+          if (this.devStreamImagesToS3) {
+            const ext = getExtensionFromContentType(logoData.contentType || "image/png");
+            const s3KeyStreaming = generateS3Key({
+              type: "logo",
+              domain,
+              source: logoData.source,
+              url: logoData.url || `https://${domain}/logo.${ext}`,
+              extension: ext,
+            });
+            if (!this.isReadOnly)
+              await this.uploadToS3(s3KeyStreaming, logoData.buffer, logoData.contentType || "image/png");
+            const streamingResult: LogoFetchResult = {
+              domain,
+              url: logoData.url,
+              cdnUrl: this.getCdnUrl(s3KeyStreaming),
+              s3Key: s3KeyStreaming,
+              source: logoData.source,
+              contentType: logoData.contentType,
+              timestamp: getDeterministicTimestamp(),
+              isValid: true,
+            } as LogoFetchResult;
+            ServerCacheInstance.setLogoFetch(domain, streamingResult);
+            logoDebugger.setFinalResult(
+              domain,
+              true,
+              streamingResult.source || undefined,
+              streamingResult.s3Key,
+              streamingResult.cdnUrl,
+            );
+            logoDebugger.printDebugInfo(domain);
+            return streamingResult;
+          }
+
           const validation = await this.validateLogo(logoData.buffer);
           const isValid = !validation.isGlobeIcon;
           let finalBuffer = logoData.buffer;
@@ -322,7 +403,7 @@ export class UnifiedImageService {
             s3Key,
             source: logoData.source,
             contentType: logoData.contentType,
-            timestamp: Date.now(),
+            timestamp: getDeterministicTimestamp(),
             isValid,
             isGlobeIcon: validation.isGlobeIcon,
           };
@@ -336,7 +417,7 @@ export class UnifiedImageService {
             source: null,
             contentType: "image/png",
             error: error instanceof Error ? error.message : "Unknown error",
-            timestamp: Date.now(),
+            timestamp: getDeterministicTimestamp(),
             isValid: false,
           };
           ServerCacheInstance.setLogoFetch(domain, errorResult);
@@ -403,9 +484,16 @@ export class UnifiedImageService {
     url: string,
     options: ImageServiceOptions,
   ): Promise<{ buffer: Buffer; contentType: string; streamedToS3?: boolean }> {
-    // Check memory before fetching
+    // Dev gating: skip fetch/processing entirely when disabled in development
+    if (this.devProcessingDisabled && !this.devStreamImagesToS3) {
+      const transparentPngBase64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO3GdQAAAABJRU5ErkJggg==";
+      return { buffer: Buffer.from(transparentPngBase64, "base64"), contentType: "image/png" };
+    }
+
+    // Check memory before fetching unless we are in streaming mode (streaming uses bounded memory)
     const memoryMonitor = getMemoryHealthMonitor();
-    if (!memoryMonitor.shouldAcceptNewRequests()) {
+    if (!this.devStreamImagesToS3 && !memoryMonitor.shouldAcceptNewRequests()) {
       throw new Error("Insufficient memory to fetch image");
     }
 
@@ -440,8 +528,13 @@ export class UnifiedImageService {
         };
       }
 
+      // If streaming failed and we're in streaming mode, only fall back to buffering if memory allows
+      if (this.devStreamImagesToS3 && !memoryMonitor.shouldAcceptNewRequests()) {
+        throw new Error("Streaming required but unavailable under memory pressure");
+      }
+
       // Check memory again before loading into buffer
-      if (!memoryMonitor.shouldAcceptNewRequests()) {
+      if (!this.devStreamImagesToS3 && !memoryMonitor.shouldAcceptNewRequests()) {
         throw new Error("Insufficient memory to load image into buffer");
       }
 
@@ -449,6 +542,11 @@ export class UnifiedImageService {
       let buffer = Buffer.from(arrayBuffer);
 
       try {
+        // When DEV_STREAM_IMAGES_TO_S3 is enabled, skip any CPU-heavy processing and return original buffer
+        if (this.devStreamImagesToS3) {
+          return { buffer, contentType: contentType || "application/octet-stream" };
+        }
+
         if (options.width || options.format || options.quality) {
           const processed = await this.processImageBuffer(buffer);
           // Clear original buffer after processing
@@ -502,8 +600,14 @@ export class UnifiedImageService {
             this.CONFIG.RETRY_MAX_DELAY,
             this.CONFIG.RETRY_JITTER_FACTOR,
           );
-          const nextRetry = Date.now() + delay;
-          this.uploadRetryQueue.set(key, { sourceUrl, contentType, attempts, lastAttempt: Date.now(), nextRetry });
+          const nextRetry = getDeterministicTimestamp() + delay;
+          this.uploadRetryQueue.set(key, {
+            sourceUrl,
+            contentType,
+            attempts,
+            lastAttempt: getDeterministicTimestamp(),
+            nextRetry,
+          });
           console.log(
             `[UnifiedImageService] S3 upload failed due to memory pressure. Retry ${attempts}/${this.CONFIG.MAX_UPLOAD_RETRIES} scheduled for ${new Date(nextRetry).toISOString()}`,
           );
@@ -538,7 +642,7 @@ export class UnifiedImageService {
   }
 
   private processRetryQueue(): void {
-    const now = Date.now();
+    const now = getDeterministicTimestamp();
     // Use memory health monitor instead of direct memory check
     const memoryMonitor = getMemoryHealthMonitor();
     if (!memoryMonitor.shouldAcceptNewRequests()) {
@@ -662,7 +766,7 @@ export class UnifiedImageService {
     const isBasicValid = await this.validateLogoBuffer(buffer, "");
     if (!isBasicValid) {
       ServerCacheInstance.setLogoValidation(bufferHash, true); // It's a globe/invalid
-      return { isGlobeIcon: true, timestamp: Date.now() };
+      return { isGlobeIcon: true, timestamp: getDeterministicTimestamp() };
     }
 
     // Import analysis functions
@@ -671,7 +775,7 @@ export class UnifiedImageService {
 
     const isGlobeIcon = blankCheck.isBlank || blankCheck.isGlobe;
     ServerCacheInstance.setLogoValidation(bufferHash, isGlobeIcon);
-    return { isGlobeIcon, timestamp: Date.now() };
+    return { isGlobeIcon, timestamp: getDeterministicTimestamp() };
   }
 
   async analyzeLogo(buffer: Buffer, url: string): Promise<LogoInversion> {
@@ -819,6 +923,12 @@ export class UnifiedImageService {
 
       const mockResponse = { headers: new Map([["content-type", responseContentType]]) } as unknown as Response;
 
+      // In streaming mode for dev, skip globe detection and validation; return raw buffer
+      if (this.devStreamImagesToS3) {
+        console.log(`[UnifiedImageService] (dev-stream) Using raw logo for ${originalDomain} from ${name} (${size})`);
+        return { buffer: rawBuffer, source: name, contentType: responseContentType, url };
+      }
+
       if (await this.checkIfGlobeIcon(rawBuffer, url, mockResponse, testDomain, name)) return null;
 
       if (await this.validateLogoBuffer(rawBuffer, url)) {
@@ -934,7 +1044,8 @@ export class UnifiedImageService {
   }
 
   private checkAndResetSession(): void {
-    if (Date.now() - this.sessionStartTime > this.CONFIG.SESSION_MAX_DURATION) this.resetDomainSessionTracking();
+    if (getDeterministicTimestamp() - this.sessionStartTime > this.CONFIG.SESSION_MAX_DURATION)
+      this.resetDomainSessionTracking();
   }
 
   private startPeriodicCleanup(): void {
@@ -942,7 +1053,7 @@ export class UnifiedImageService {
   }
 
   private performMemoryCleanup(): void {
-    const now = Date.now();
+    const now = getDeterministicTimestamp();
 
     for (const [key, retry] of this.uploadRetryQueue.entries()) {
       if (now - retry.lastAttempt > 60 * 60 * 1000) this.uploadRetryQueue.delete(key);
@@ -1017,7 +1128,7 @@ export class UnifiedImageService {
     this.sessionFailedDomains.clear();
     this.domainRetryCount.clear();
     this.domainFirstFailureTime.clear();
-    this.sessionStartTime = Date.now();
+    this.sessionStartTime = getDeterministicTimestamp();
   }
 
   // Legacy migration methods moved to logo-hash-migrator.ts

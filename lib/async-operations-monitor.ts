@@ -6,12 +6,14 @@
  */
 
 import type { MonitoredAsyncOperation } from "@/types/lib";
+import { getMonotonicTime } from "@/lib/utils";
 
 class AsyncOperationsMonitor {
   private operations: Map<string, MonitoredAsyncOperation> = new Map();
   private timeouts: Map<string, NodeJS.Timeout> = new Map();
   private readonly maxOperations = 1000; // Prevent unbounded growth
   private cleanupInterval: NodeJS.Timeout | null = null;
+  private sequenceCounter = 0;
 
   constructor() {
     // Automatically clean up completed operations every 5 minutes
@@ -38,7 +40,7 @@ class AsyncOperationsMonitor {
   startOperation(id: string, name: string, metadata?: Record<string, unknown>): void {
     this.operations.set(id, {
       name,
-      startTime: Date.now(),
+      startTime: getMonotonicTime(),
       status: "pending",
       metadata,
     });
@@ -50,7 +52,7 @@ class AsyncOperationsMonitor {
   completeOperation(id: string): void {
     const operation = this.operations.get(id);
     if (operation) {
-      operation.endTime = Date.now();
+      operation.endTime = getMonotonicTime();
       operation.status = "completed";
       const duration = operation.endTime - operation.startTime;
       console.log(`[AsyncMonitor] Operation "${operation.name}" completed in ${duration}ms`);
@@ -64,7 +66,7 @@ class AsyncOperationsMonitor {
   failOperation(id: string, error: Error, status: "failed" | "timeout" = "failed"): void {
     const operation = this.operations.get(id);
     if (operation) {
-      operation.endTime = Date.now();
+      operation.endTime = getMonotonicTime();
       operation.status = status;
       operation.error = error.message;
       const duration = operation.endTime - operation.startTime;
@@ -78,8 +80,11 @@ class AsyncOperationsMonitor {
    * Generate a unique operation ID
    */
   generateId(): string {
-    // Use timestamp + random for uniqueness without external dependencies
-    return `op-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    // Use monotonic timestamp + deterministic counter to avoid Math.random()
+    const timestamp = Math.floor(getMonotonicTime());
+    this.sequenceCounter = (this.sequenceCounter + 1) % Number.MAX_SAFE_INTEGER;
+    const counterSegment = this.sequenceCounter.toString(36);
+    return `op-${timestamp}-${counterSegment}`;
   }
 
   /**
@@ -161,7 +166,7 @@ class AsyncOperationsMonitor {
         "[AsyncMonitor] Pending operations:",
         pending.map(op => ({
           name: op.name,
-          duration: `${Date.now() - op.startTime}ms`,
+          duration: `${getMonotonicTime() - op.startTime}ms`,
         })),
       );
     }
@@ -187,7 +192,7 @@ class AsyncOperationsMonitor {
   private pruneOldOperations(): void {
     // Sort by start time and keep only the most recent
     const sortedEntries = Array.from(this.operations.entries())
-      .sort(([, a], [, b]) => b.startTime - a.startTime)
+      .toSorted(([, a], [, b]) => b.startTime - a.startTime)
       .slice(0, Math.floor(this.maxOperations * 0.8)); // Keep 80% of max
 
     this.operations.clear();

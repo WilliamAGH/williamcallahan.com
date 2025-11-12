@@ -11,7 +11,6 @@ To provide robust, multi-layered memory management that prevents leaks, ensures 
 - **`lib/image-memory-manager.ts`**: Deprecated component that previously handled image memory management. Now returns false for all set operations and null for all get operations. Maintains request coalescing functionality for preventing redundant fetches. Emits events on memory pressure changes, which are consumed by the `MemoryHealthMonitor`.
 - **`lib/health/memory-health-monitor.ts`**: The central nervous system for memory health. It monitors RSS usage against warning and critical thresholds, maintains a history of memory metrics, and coordinates system-wide responses to memory pressure, such as triggering emergency cleanups.
 - **`lib/middleware/memory-pressure.ts`**: The application's first line of defense. This middleware runs on all incoming requests and, if memory usage is critical, immediately returns a `503 Service Unavailable` response to shed load. It exempts health check endpoints to ensure the system remains observable.
-- **`lib/server/mem-guard.ts`**: A simple, periodic RSS watchdog. It acts as a last-resort safety net, flushing all caches if memory usage unexpectedly spikes beyond the critical threshold.
 - **`lib/async-operations-monitor.ts`**: Tracks all significant asynchronous operations, providing timeouts and visibility into pending tasks. This helps the `MemoryHealthMonitor` to make more informed decisions by knowing if the system is busy with background work.
 - **`lib/constants.ts`**: Defines the `MEMORY_THRESHOLDS` object, which centralizes all memory-related budget and threshold values, ensuring all components operate from a single source of truth.
 
@@ -36,7 +35,7 @@ The system now operates on **coordinated proactive management** rather than inde
      - S3 operations check pressure before reading
      - OpenGraph enrichment skips processing
 3. **Emergency Failsafes** (should rarely trigger):
-   - **90% RSS**: MemGuard critical monitoring validates coordination worked
+   - **90% RSS**: Critical monitoring validates coordination worked
    - **95% RSS**: Nuclear option - full cache flush (coordination failed)
 
 4. **Early Request Rejection**:
@@ -53,14 +52,14 @@ The system now operates on **coordinated proactive management** rather than inde
 6. **Observability**:
    - The `/api/health` endpoint exposes coordinated system status
    - The `/api/health/metrics` endpoint shows cross-system memory coordination
-   - MemGuard logs validate that proactive systems are working
+   - Memory monitoring logs validate that proactive systems are working
 
 ## Critical Issues & Design Decisions
 
 - **Centralized Thresholds**: All memory thresholds are defined in `lib/constants.ts` to prevent configuration drift between the middleware and the health monitor.
 - **Buffer Safety**: The `ImageMemoryManager` always creates a `Buffer.from(copy)` to prevent memory leaks from `Buffer.slice()` holding references to larger parent buffers.
 - **Singleton Pattern**: All core components (`ImageMemoryManager`, `MemoryHealthMonitor`, `ServerCacheInstance`) are implemented as singletons to ensure a single, consistent state across the application.
-- **Non-Blocking Initialization**: The `mem-guard` and other monitoring services are initialized via non-blocking, side-effect imports in `instrumentation.ts` to ensure they do not delay server startup.
+- **Non-Blocking Initialization**: Monitoring services are initialized via non-blocking, side-effect imports in `instrumentation.ts` to ensure they do not delay server startup.
 - **Graceful Degradation**: The system is designed not to fail catastrophically. The multi-stage health status allows it to handle memory pressure gracefully by first warning, then actively shedding load, and finally performing emergency cleanup.
 
 ## Architecture Diagram
@@ -109,7 +108,7 @@ See `memory-mgmt.mmd` for a visual diagram of the memory management flow and saf
 **Root Cause**:
 
 - ImageMemoryManager used heap-based thresholds
-- MemGuard used RSS-based thresholds
+- Memory monitoring uses RSS-based thresholds
 - S3Utils used different pressure calculations
 - ServerCache had no coordination with other memory systems
 - Systems accumulated memory instead of failing early
@@ -120,7 +119,7 @@ See `memory-mgmt.mmd` for a visual diagram of the memory management flow and saf
 - **Event-driven coordination**: ImageMemoryManager triggers ServerCache cleanup at 70% RSS
 - **Early request rejection**: Memory checks before operations start, not after
 - **Consistent pressure detection**: Single source of truth via ImageMemoryManager
-- **MemGuard as validator**: Now monitors coordination effectiveness vs acting independently
+- **Memory monitoring as validator**: Now monitors coordination effectiveness vs acting independently
 
 **Result**: Emergency memory guards should rarely trigger as proactive systems coordinate to prevent pressure buildup.
 
@@ -286,7 +285,7 @@ MEMORY_CRITICAL_THRESHOLD=1932735283          # 1.8GB (90% of 2GB total budget)
 The system now uses **three separate memory budgets**:
 
 1. **Total Process Memory Budget** (`TOTAL_PROCESS_MEMORY_BUDGET_BYTES`):
-   - Used by `mem-guard.ts` to monitor overall RSS usage
+   - Used by memory monitoring systems to monitor overall RSS usage
    - Default: 2GB for containers
    - Prevents false positives on normal Node.js memory usage
 

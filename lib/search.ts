@@ -243,7 +243,7 @@ async function searchPostsDirect(query: string): Promise<BlogPost[]> {
     index,
   );
 
-  return results.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  return results.toSorted((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 }
 
 // Cached version using 'use cache' directive
@@ -545,6 +545,14 @@ async function getBookmarksIndex(): Promise<{
     return cached;
   }
 
+  const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+  if (isBuildPhase) {
+    devLog("[getBookmarksIndex] build phase detected, returning empty index");
+    const emptyResult = { index: buildBookmarksIndex([]), bookmarks: [] };
+    ServerCacheInstance.set(cacheKey, emptyResult, BOOKMARK_INDEX_TTL);
+    return emptyResult;
+  }
+
   // Try the fast path: import bookmarks directly when running server-side and not using S3 indexes.
   let bookmarks: Array<{
     id: string;
@@ -573,41 +581,51 @@ async function getBookmarksIndex(): Promise<{
     bookmarks = all;
     devLog("[getBookmarksIndex] fetched bookmarks via direct import", { count: bookmarks.length });
   } catch (directErr) {
-    devLog("[getBookmarksIndex] falling back to API fetch");
-    envLogger.log(
-      "Direct bookmarks fetch failed, falling back to /api/bookmarks",
-      { error: String(directErr) },
-      { category: "Search" },
-    );
+    const skipApiFallback = process.env.NEXT_PHASE === "phase-production-build";
+    if (skipApiFallback) {
+      envLogger.log(
+        "Direct bookmarks fetch failed during build phase; skipping /api/bookmarks fallback",
+        { error: String(directErr) },
+        { category: "Search" },
+      );
+      bookmarks = [];
+    } else {
+      devLog("[getBookmarksIndex] falling back to API fetch");
+      envLogger.log(
+        "Direct bookmarks fetch failed, falling back to /api/bookmarks",
+        { error: String(directErr) },
+        { category: "Search" },
+      );
 
-    const { getBaseUrl } = await import("@/lib/utils/get-base-url");
-    const apiUrl = `${getBaseUrl()}/api/bookmarks?limit=10000`;
+      const { getBaseUrl } = await import("@/lib/utils/get-base-url");
+      const apiUrl = `${getBaseUrl()}/api/bookmarks?limit=10000`;
 
-    const controller = new AbortController();
-    const FETCH_TIMEOUT_MS = Number(process.env.SEARCH_BOOKMARKS_TIMEOUT_MS) || 30000; // 30s fallback
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    let resp: Response | undefined;
-    try {
-      resp = await fetch(apiUrl, { cache: "no-store", signal: controller.signal });
-    } catch (err) {
+      const controller = new AbortController();
+      const FETCH_TIMEOUT_MS = Number(process.env.SEARCH_BOOKMARKS_TIMEOUT_MS) || 30000; // 30s fallback
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      let resp: Response | undefined;
+      try {
+        resp = await fetch(apiUrl, { cache: "no-store", signal: controller.signal });
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
       clearTimeout(timeoutId);
-      throw err;
-    }
-    clearTimeout(timeoutId);
 
-    // Check response status after successful fetch
-    if (!resp || !resp.ok) {
-      // oxlint-disable-next-line preserve-caught-error -- False positive: Not re-throwing, checking HTTP status
-      throw new Error(`Failed to fetch bookmarks: HTTP ${resp?.status ?? "unknown"} ${resp?.statusText ?? ""}`);
+      // Check response status after successful fetch
+      if (!resp || !resp.ok) {
+        // oxlint-disable-next-line preserve-caught-error -- False positive: Not re-throwing, checking HTTP status
+        throw new Error(`Failed to fetch bookmarks: HTTP ${resp?.status ?? "unknown"} ${resp?.statusText ?? ""}`);
+      }
+      const raw = (await resp.json()) as unknown;
+      if (Array.isArray(raw)) {
+        bookmarks = raw as typeof bookmarks;
+      } else if (typeof raw === "object" && raw !== null) {
+        const obj = raw as Record<string, unknown>;
+        bookmarks = (obj.data ?? obj.bookmarks ?? []) as typeof bookmarks;
+      }
+      devLog("[getBookmarksIndex] fetched bookmarks via API", { count: bookmarks.length });
     }
-    const raw = (await resp.json()) as unknown;
-    if (Array.isArray(raw)) {
-      bookmarks = raw as typeof bookmarks;
-    } else if (typeof raw === "object" && raw !== null) {
-      const obj = raw as Record<string, unknown>;
-      bookmarks = (obj.data ?? obj.bookmarks ?? []) as typeof bookmarks;
-    }
-    devLog("[getBookmarksIndex] fetched bookmarks via API", { count: bookmarks.length });
   }
 
   // At this point `bookmarks` should be populated (possibly empty array)
@@ -792,7 +810,7 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
           score: scoreById.get(b.id) ?? 0,
         }),
       )
-      .sort((a, b) => b.score - a.score);
+      .toSorted((a, b) => b.score - a.score);
 
     devLog("[searchBookmarks] results", { count: results.length });
     // Cache the results

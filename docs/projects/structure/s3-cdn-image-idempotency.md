@@ -157,3 +157,12 @@ return { url, source: logoResult?.source ?? null };
 - `s3-object-storage.md` - S3 configuration and patterns
 - `unified-image-service.md` - Deep dive into image service
 - `caching.md` - Caching strategies and TTLs
+
+## Next.js Handling Rules
+
+1. **Logos only flow through CDN URLs.** `/api/cache/images` streams bytes from `NEXT_PUBLIC_S3_CDN_URL`, and `<LogoImage>` sets `unoptimized` whenever the source is `/api/*` so `_next/image` never rejects our proxy URL. ([Next.js Image Component](https://nextjs.org/docs/app/api-reference/components/image#unoptimized))
+2. **`next.config.ts` drives the allowlist.** Logo domains must either resolve to CDN hosts listed in `images.remotePatterns` or be served from static imports. This keeps us compliant with the [Next.js Image Optimization allowlist](https://nextjs.org/docs/app/building-your-application/optimizing/images).
+3. **All `/api/cache/images` requests decode + validate inputs.** Nested `url` parameters are decoded before running `openGraphUrlSchema`, preventing 400s due to double-encoding.
+4. **CDN responses must be 200s.** Redirects are resolved server-side before streaming back to the optimizer/browser, so `_next/image` never encounters a 3xx to `/api/cache/images`.
+
+Any change to logo delivery must keep these rules in sync with `image-handling.md` and `s3-image-unified-stack.md`.

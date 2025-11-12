@@ -1,3 +1,4 @@
+"use cache";
 /**
  * Blog Post Page
  * @module app/blog/[slug]/page
@@ -6,6 +7,7 @@
  * Implements proper SEO with schema.org structured data.
  */
 
+import { Suspense } from "react";
 import type { BlogPostPageProps } from "@/types/blog";
 // Import getPostBySlug and getAllPosts from the main blog library
 import { getAllPosts, getPostBySlug } from "@/lib/blog.ts";
@@ -13,12 +15,11 @@ import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import type { ExtendedMetadata } from "@/types/seo";
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
 import { BlogArticle } from "../../../components/features/blog";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
-import { RelatedContent } from "@/components/features/related-content";
+import { RelatedContent, RelatedContentFallback } from "@/components/features/related-content";
 
 /**
  * Generate static paths for all blog posts at build time
@@ -34,10 +35,6 @@ export const generateStaticParams = async () => {
 // Set revalidation time for ISR (Incremental Static Regeneration)
 // Using ISR instead of force-static to allow revalidation
 // Removed conflicting 'dynamic = force-static' directive per GitHub issue #112
-export const revalidate = 3600; // Revalidate every hour
-
-// Force dynamic rendering to avoid prerender-time MDX runtime issues for complex components
-export const dynamic = "force-dynamic";
 
 /**
  * List of blog posts that should use software application schema
@@ -237,46 +234,48 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
     const jsonLdData = generateSchemaGraph(schemaParams);
 
-    // Read CSP nonce from middleware-injected header
-    let nonce: string | undefined;
-    try {
-      const headersList = await headers();
-      const nonceValue = headersList.get("x-nonce");
-      if (nonceValue) {
-        nonce = nonceValue;
-      }
-    } catch (error) {
-      // headers() may fail in certain contexts (e.g., static generation)
-      console.warn("Failed to read headers for CSP nonce:", error instanceof Error ? error.message : String(error));
-    }
-
     // Import MDXContent server component here at the page level
     const { MDXContent } = await import("@/components/features/blog/blog-article/mdx-content");
 
     return (
       <>
-        <JsonLdScript data={jsonLdData} nonce={nonce} />
+        <JsonLdScript data={jsonLdData} />
         <BlogArticle post={post} mdxContent={<MDXContent content={post.content} />} />
 
         {/* Similar Content Section */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <RelatedContent
-            sourceType="blog"
-            sourceId={post.id}
-            sectionTitle="Similar Content"
-            options={{
-              maxPerType: 3,
-              maxTotal: 12,
-              excludeTypes: [], // Include all content types
-            }}
-            className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700"
-          />
+          <Suspense
+            fallback={
+              <RelatedContentFallback
+                title="Similar Content"
+                className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700"
+                cardCount={3}
+              />
+            }
+          >
+            <RelatedContent
+              sourceType="blog"
+              sourceId={post.id}
+              sectionTitle="Similar Content"
+              options={{
+                maxPerType: 3,
+                maxTotal: 12,
+                excludeTypes: [], // Include all content types
+              }}
+              className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700"
+            />
+          </Suspense>
         </div>
       </>
     );
-  } catch (error) {
+  } catch (error: unknown) {
     // Log the error with details
-    console.error(`Error rendering blog post ${slug}:`, error);
+    if (error instanceof Error) {
+      console.error(`Error rendering blog post ${slug}:`, error);
+    } else {
+      const errorMessage = String(error);
+      console.error(`Error rendering blog post ${slug}:`, errorMessage);
+    }
 
     // Return 404 page for any error in blog post rendering
     // This prevents server crashes and provides a better user experience

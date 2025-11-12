@@ -12,9 +12,8 @@
  */
 
 import { getGithubActivityCached } from "@/lib/data-access/github";
+import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
-
-export const dynamic = "force-dynamic";
 
 /**
  * Handles GET requests for the GitHub Activity API endpoint, returning pre-processed GitHub activity data.
@@ -25,6 +24,9 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: NextRequest) {
   console.log("[API GET /github-activity] Received request.");
+  if (typeof noStore === "function") {
+    noStore();
+  }
 
   // The 'refresh' and 'force-cache' query params are no longer used by this GET endpoint
   // as getGithubActivity is now S3-read-only and refresh is handled by POST /api/github-activity/refresh

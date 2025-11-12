@@ -1,11 +1,11 @@
+"use client";
+
 /**
  * Expandable Blog Tags Component
  *
  * Displays a list of tags with a "see more" button when tags overflow.
  * Can be used in both article and card views.
  */
-
-"use client";
 
 import { kebabCase } from "@/lib/utils/formatters";
 import { Tag, ChevronDown, ChevronUp } from "lucide-react";

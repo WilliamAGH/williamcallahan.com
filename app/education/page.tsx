@@ -1,3 +1,5 @@
+"use cache";
+
 import type { Metadata } from "next";
 import { Education } from "@/components/features/education/education.server";
 import { getStaticPageMetadata } from "@/lib/seo";
@@ -18,17 +20,23 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
  * @see {@link "https://schema.org/ProfilePage"} - Schema.org ProfilePage specification
  */
 
-export const dynamic = "force-dynamic";
-
 /**
  * Generate metadata for the education page
  */
 export const metadata: Metadata = getStaticPageMetadata("/education", "education");
 
 /**
- * Education page component with JSON-LD schema
+ * Cache policy
+ * `'use cache'` is required when cacheComponents is enabled to keep this route prerenderable;
+ * see https://nextjs.org/docs/app/api-reference/directives/use-cache for the official guidance.
  */
-export default function EducationPage() {
+
+/**
+ * Education page component with JSON-LD schema
+ * Next.js requires `'use cache'` exports to be `async` per https://nextjs.org/docs/app/api-reference/directives/use-cache,
+ * so this component remains async even though it renders synchronously.
+ */
+export default async function EducationPage() {
   // Generate JSON-LD schema for the education page
   const pageMetadata = PAGE_METADATA.education;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
@@ -54,7 +62,7 @@ export default function EducationPage() {
     },
   };
 
-  const jsonLdData = generateSchemaGraph(schemaParams);
+  const jsonLdData = await Promise.resolve(generateSchemaGraph(schemaParams));
 
   return (
     <>

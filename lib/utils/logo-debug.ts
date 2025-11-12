@@ -6,6 +6,7 @@
 
 import { S3Client, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { IMAGE_S3_PATHS } from "@/lib/constants";
+import { getMonotonicTime } from "@/lib/utils";
 import type { LogoDebugInfo } from "@/types/logo";
 
 // Moved interface to @/types/logo.ts
@@ -31,7 +32,7 @@ class LogoDebugger {
 
     this.debugInfo.set(domain, {
       domain,
-      timestamp: Date.now(),
+      timestamp: getMonotonicTime(),
       attempts: [],
       finalResult: {
         found: false,

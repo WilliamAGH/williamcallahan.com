@@ -16,8 +16,12 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { BlogAuthorProps } from "@/types/features";
 
+import { buildCachedImageUrl } from "@/lib/utils/cdn-utils";
+
 export function BlogAuthor({ author }: BlogAuthorProps) {
   const [isMounted, setIsMounted] = useState(false);
+
+  const proxiedAvatar = author.avatar ? buildCachedImageUrl(author.avatar, 64) : undefined;
 
   useEffect(() => {
     setIsMounted(true);
@@ -31,12 +35,13 @@ export function BlogAuthor({ author }: BlogAuthorProps) {
       {author.avatar && isMounted && (
         <div className="relative w-14 h-14 rounded-full overflow-hidden ring-2 ring-blue-200 dark:ring-blue-900/50 shadow-inner">
           <Image
-            src={author.avatar}
+            src={proxiedAvatar ?? author.avatar}
             alt={author.name}
             fill
             sizes="56px"
             className="rounded-full object-cover"
             priority
+            unoptimized
           />
         </div>
       )}

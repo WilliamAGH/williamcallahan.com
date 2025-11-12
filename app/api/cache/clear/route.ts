@@ -78,7 +78,7 @@ export function GET(request: NextRequest): NextResponse {
 /**
  * POST - Clear all Next.js caches
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export function POST(request: NextRequest): NextResponse {
   if (!validateApiKey(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -102,18 +102,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Invalidate each cache tag
     for (const tag of cacheTags) {
-      revalidateTag(tag);
+      revalidateTag(tag, "default");
       console.log(`[Cache Clear] Invalidated cache tag: ${tag}`);
     }
 
     // Call specific invalidation functions
-    await Promise.all([
-      invalidateBlogCache(),
-      invalidateGitHubCache(),
-      invalidateOpenGraphCache(),
-      invalidateLogoCache(),
-      invalidateSearchCache(),
-    ]);
+    const cacheInvalidators: Array<() => void> = [
+      () => invalidateBlogCache(),
+      () => invalidateGitHubCache(),
+      () => invalidateOpenGraphCache(),
+      () => invalidateLogoCache(),
+      () => invalidateSearchCache(),
+    ];
+
+    for (const invalidate of cacheInvalidators) {
+      invalidate();
+    }
 
     console.log("[Cache Clear] All Next.js caches invalidated successfully");
 

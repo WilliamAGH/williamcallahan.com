@@ -5,9 +5,9 @@
  */
 import "server-only"; // Ensure this module is never bundled for the client
 
-import { getLogo } from "@/lib/data-access/logos";
+import { getLogoCdnData } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
-import type { Certification, Class, Education, EducationLogoData } from "../types/education";
+import type { Certification, Class, Education, EducationLogoData } from "@/types/education";
 import { assertServerOnly } from "./utils/ensure-server-only"; // Import the assertion utility
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
@@ -36,15 +36,14 @@ export async function processEducationItem<T extends Education>(
   let logoData: EducationLogoData;
   let error: string | undefined;
 
+  const domain = website ? normalizeDomain(website) : normalizeDomain(institution);
+
   try {
     if (logo) {
       // If a specific logo path or URL is provided, resolve /images/ paths to CDN via getStaticImageUrl()
       const resolvedUrl = logo.startsWith("/images/") ? getStaticImageUrl(logo) : logo;
       logoData = { url: resolvedUrl, source: null };
     } else {
-      // Otherwise, fetch by domain
-      const domain = website ? normalizeDomain(website) : normalizeDomain(institution);
-
       // Prefer manifest lookup for potential inverted URL
       const manifestEntry = domain ? await getLogoFromManifestAsync(domain) : null;
 
@@ -53,17 +52,10 @@ export async function processEducationItem<T extends Education>(
           isDarkTheme && manifestEntry.invertedCdnUrl ? manifestEntry.invertedCdnUrl : manifestEntry.cdnUrl;
         logoData = { url: selectedUrl, source: manifestEntry.originalSource };
       } else {
-        const logoResult = await getLogo(domain);
-
-        if (logoResult?.error) {
-          // Capture any error from the logo fetch
-          error = `Logo fetch failed: ${logoResult.error}`;
-          logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
-        } else if (logoResult?.cdnUrl) {
-          // Use CDN URL directly from S3
-          logoData = { url: logoResult.cdnUrl, source: logoResult.source };
+        const directLogo = domain ? await getLogoCdnData(domain) : null;
+        if (directLogo) {
+          logoData = directLogo;
         } else {
-          // No logo found, but not an error
           logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
         }
       }
@@ -72,7 +64,12 @@ export async function processEducationItem<T extends Education>(
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
     console.error(`Error processing logo for education item "${institution}":`, err);
     error = `Failed to process logo: ${errorMessage}`;
-    logoData = { url: getPlaceholderSvgUrl(), source: "placeholder-error" };
+    const directLogo = domain ? await getLogoCdnData(domain) : null;
+    if (directLogo) {
+      logoData = directLogo;
+    } else {
+      logoData = { url: getPlaceholderSvgUrl(), source: "placeholder-error" };
+    }
   }
 
   return error ? { ...item, logoData, error } : { ...item, logoData };
@@ -93,14 +90,14 @@ export async function processCertificationItem<T extends Certification | Class>(
   let logoData: EducationLogoData;
   let error: string | undefined;
 
+  const domain = website ? normalizeDomain(website) : normalizeDomain(name);
+
   try {
     if (logo) {
       // If a specific logo path or URL is provided, resolve /images/ paths to CDN via getStaticImageUrl()
       const resolvedUrl = logo.startsWith("/images/") ? getStaticImageUrl(logo) : logo;
       logoData = { url: resolvedUrl, source: null };
     } else {
-      const domain = website ? normalizeDomain(website) : normalizeDomain(name);
-
       const manifestEntry = domain ? await getLogoFromManifestAsync(domain) : null;
 
       if (manifestEntry) {
@@ -108,17 +105,10 @@ export async function processCertificationItem<T extends Certification | Class>(
           isDarkTheme && manifestEntry.invertedCdnUrl ? manifestEntry.invertedCdnUrl : manifestEntry.cdnUrl;
         logoData = { url: selectedUrl, source: manifestEntry.originalSource };
       } else {
-        const logoResult = await getLogo(domain);
-
-        if (logoResult?.error) {
-          // Capture any error from the logo fetch
-          error = `Logo fetch failed: ${logoResult.error}`;
-          logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
-        } else if (logoResult?.cdnUrl) {
-          // Use CDN URL directly from S3
-          logoData = { url: logoResult.cdnUrl, source: logoResult.source };
+        const directLogo = domain ? await getLogoCdnData(domain) : null;
+        if (directLogo) {
+          logoData = directLogo;
         } else {
-          // No logo found, but not an error
           logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
         }
       }
@@ -127,7 +117,12 @@ export async function processCertificationItem<T extends Certification | Class>(
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
     console.error(`Error processing logo for certification item "${name}":`, err);
     error = `Failed to process logo: ${errorMessage}`;
-    logoData = { url: getPlaceholderSvgUrl(), source: "placeholder-error" };
+    const directLogo = domain ? await getLogoCdnData(domain) : null;
+    if (directLogo) {
+      logoData = directLogo;
+    } else {
+      logoData = { url: getPlaceholderSvgUrl(), source: "placeholder-error" };
+    }
   }
 
   return error ? { ...item, logoData, error } : { ...item, logoData };

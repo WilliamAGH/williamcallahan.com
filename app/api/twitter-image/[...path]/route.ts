@@ -1,9 +1,13 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 // Prefer explicit async params typing to avoid thenable duck-typing
 import { sanitizePath, IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  if (typeof noStore === "function") {
+    noStore();
+  }
   try {
     // Reconstruct the Twitter image URL from dynamic params
     const { path: pathSegments } = await params;
@@ -41,7 +45,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Preserve any query parameters (e.g., format, name)
-    const { search } = request.nextUrl;
+    const { search } = new URL(request.url);
     // Use embeddedSearch as fallback for query parameters embedded in the path
     const upstreamUrl = `https://pbs.twimg.com/${pathOnly}${search || embeddedSearch}`;
     console.log(`[Twitter Image Proxy] Attempting to fetch: ${upstreamUrl}`);

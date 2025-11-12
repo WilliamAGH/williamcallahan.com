@@ -19,8 +19,8 @@
 export interface JsonLdScriptProps {
   /** JSON-LD data object */
   data: object;
-  /** CSP nonce automatically injected by middleware (optional) */
-  nonce?: string;
+  /** Optional DOM id for deduplication */
+  id?: string;
 }
 
 /**

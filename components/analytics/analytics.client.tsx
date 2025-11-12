@@ -23,10 +23,12 @@ import type { JSX } from "react";
  */
 export function Analytics(): JSX.Element | null {
   // Determine if analytics should run for this render
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   const shouldSkip =
     process.env.NODE_ENV === "development" ||
     !process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID ||
-    !process.env.NEXT_PUBLIC_SITE_URL;
+    !siteUrl ||
+    siteUrl.trim().length === 0;
 
   if (shouldSkip) {
     return null;
@@ -34,7 +36,7 @@ export function Analytics(): JSX.Element | null {
 
   const domain = (() => {
     try {
-      return new URL(process.env.NEXT_PUBLIC_SITE_URL).hostname;
+      return new URL(siteUrl).hostname;
     } catch {
       return "williamcallahan.com";
     }
@@ -61,7 +63,7 @@ export function Analytics(): JSX.Element | null {
           strategy="afterInteractive"
           src="/stats/script.js"
           data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
-          data-host-url={process.env.NEXT_PUBLIC_SITE_URL}
+          data-host-url={siteUrl}
           data-auto-track="true"
         />
       )}

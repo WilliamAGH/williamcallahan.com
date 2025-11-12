@@ -11,40 +11,68 @@
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search"; // Import the refactored search function
-import { NextResponse } from "next/server";
+import { validateSearchQuery } from "@/lib/validators/search";
+import { unstable_noStore as noStore } from "next/cache";
+import { NextResponse, type NextRequest } from "next/server";
 // import type { SearchResult } from '@/types/search'; // Keep SearchResult type - Removed as unused by ESLint
 
-// Ensure this route is not statically cached
-export const dynamic = "force-dynamic";
+const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+function resolveRequestUrl(request: NextRequest): URL {
+  return request.nextUrl;
+}
 
 /**
  * Server-side API route for blog search.
  *
  * This route handles GET requests to search for blog posts based on a query.
- * It extracts the search query from the request URL parameters and passes it
- * to the server-side search function. The results are then returned as a JSON
- * response.
+ * It extracts and sanitizes the search query via validateSearchQuery to prevent
+ * whitespace-only or malicious input before delegating to the server-side search
+ * function. The results are then returned as a JSON response.
  *
  * @param request - The HTTP request object.
  * @returns A JSON response containing the search results or an error message.
  */
-export async function GET(request: Request): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  if (isProductionBuild) {
+    return NextResponse.json([], { headers: NO_STORE_HEADERS });
+  }
+  if (typeof noStore === "function") {
+    noStore();
+  }
   try {
-    const { searchParams } = new URL(request.url);
-    const query = searchParams.get("q");
+    const requestUrl = resolveRequestUrl(request);
+    const searchParams = requestUrl.searchParams;
+    const rawQuery = searchParams.get("q");
+    const validation = validateSearchQuery(rawQuery);
 
-    if (!query) {
-      return NextResponse.json({ error: 'Search query parameter "q" is required' }, { status: 400 });
+    if (!validation.isValid) {
+      return NextResponse.json(
+        { error: validation.error || "Invalid search query" },
+        {
+          status: 400,
+          headers: NO_STORE_HEADERS,
+        },
+      );
     }
 
-    // Call the imported server-side search function
+    const query = validation.sanitized;
+
+    // Call the imported server-side search function with sanitized input to prevent whitespace bypasses
     const searchResults = await searchBlogPostsServerSide(query);
 
-    return NextResponse.json(searchResults);
+    return NextResponse.json(searchResults, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error("Blog search API error:", error);
     // Determine if it's a known error type or generic
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    return NextResponse.json({ error: "Failed to perform blog search", details: errorMessage }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to perform blog search", details: errorMessage },
+      {
+        status: 500,
+        headers: NO_STORE_HEADERS,
+      },
+    );
   }
 }

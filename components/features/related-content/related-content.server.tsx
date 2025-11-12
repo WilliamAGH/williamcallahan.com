@@ -8,17 +8,16 @@
 import { getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { getLazyContentMap, getCachedAllContent } from "@/lib/content-similarity/cached-aggregator";
 import { findMostSimilar, limitByTypeAndTotal } from "@/lib/content-similarity";
-import { ServerCacheInstance } from "@/lib/server-cache";
+import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
 import { RelatedContentSection } from "./related-content-section";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { debug } from "@/lib/utils/debug";
-import { getCachedBookmarksWithSlugs } from "@/lib/bookmarks/request-cache";
-import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
-import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
-import { getLogo } from "@/lib/data-access/logos";
+import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
+import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import type {
@@ -28,70 +27,53 @@ import type {
   NormalizedContent,
   RelatedContentCacheData,
 } from "@/types/related-content";
-import type { UnifiedBookmark } from "@/types/bookmark";
 
 // Import configuration with documented rationale
 import { DEFAULT_MAX_PER_TYPE, DEFAULT_MAX_TOTAL } from "@/config/related-content.config";
 
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+
 /**
  * Convert normalized content to related content item
- * Returns null if a bookmark doesn't have a pre-computed slug (critical for idempotency)
  */
 async function toRelatedContentItem(
   content: NormalizedContent & { score: number },
-  slugMap?: Map<string, string>,
 ): Promise<RelatedContentItem | null> {
+  const display = content.display;
   const baseMetadata: RelatedContentItem["metadata"] = {
     tags: content.tags,
     domain: content.domain,
     date: content.date?.toISOString(),
   };
 
-  // Add type-specific metadata
   switch (content.type) {
     case "bookmark": {
-      const bookmark = content.source as UnifiedBookmark;
-      // Use pre-computed slug from mapping - REQUIRED for idempotency
-      const slug = slugMap?.get(bookmark.id);
-
-      // If no slug in mapping, this is a CRITICAL ERROR
-      // Every bookmark MUST have a pre-computed slug for idempotency
-      if (!slug) {
-        console.error(
-          `[RelatedContent] CRITICAL: Missing slug for bookmark ${bookmark.id}. ` +
-            `Title="${bookmark.title}" URL="${bookmark.url}". ` +
-            `Slug mapping is incomplete or not loaded.`,
-        );
-        // Return null to skip this item rather than generate an incorrect slug
-        return null;
-      }
-
-      const url = `/bookmarks/${slug}`;
-      // Use selectBestImage for consistent image selection logic
-      const bestImage = selectBestImage(bookmark, { includeScreenshots: true });
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
-        imageUrl: bestImage ? ensureAbsoluteUrl(bestImage) : undefined,
+        imageUrl: display?.imageUrl ? ensureAbsoluteUrl(display.imageUrl) : undefined,
       };
+
       return {
         type: content.type,
         id: content.id,
         title: content.title,
-        description: bookmark.description || "",
-        url,
+        description: display?.description || "",
+        url: content.url,
         score: content.score,
         metadata,
       };
     }
 
     case "blog": {
-      const blog = content.source as import("@/types/blog").BlogPost;
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
-        readingTime: blog.readingTime,
-        imageUrl: blog.coverImage ? ensureAbsoluteUrl(blog.coverImage) : undefined,
-        author: blog.author
-          ? { name: blog.author.name, avatar: blog.author.avatar ? ensureAbsoluteUrl(blog.author.avatar) : undefined }
+        readingTime: display?.readingTime,
+        imageUrl: display?.imageUrl ? ensureAbsoluteUrl(display.imageUrl) : undefined,
+        author: display?.author
+          ? {
+              name: display.author.name,
+              avatar: display.author.avatar ? ensureAbsoluteUrl(display.author.avatar) : undefined,
+            }
           : undefined,
       };
 
@@ -99,7 +81,7 @@ async function toRelatedContentItem(
         type: content.type,
         id: content.id,
         title: content.title,
-        description: blog.excerpt || "",
+        description: display?.description || "",
         url: content.url,
         score: content.score,
         metadata,
@@ -107,38 +89,25 @@ async function toRelatedContentItem(
     }
 
     case "investment": {
-      const investment = content.source as import("@/types/investment").Investment;
+      const investmentDetails = display?.investment;
+      let logoUrl = display?.imageUrl ? ensureAbsoluteUrl(display.imageUrl) : undefined;
 
-      // Fetch logo dynamically using the same system as investment cards
-      let logoUrl: string | undefined;
-
-      // If static logo is provided, use it
-      if (investment.logo) {
-        logoUrl = ensureAbsoluteUrl(investment.logo);
-      } else {
-        // Dynamically fetch logo from S3/CDN with fallback to external APIs
-        const effectiveDomain = investment.logoOnlyDomain
-          ? normalizeDomain(investment.logoOnlyDomain)
-          : investment.website
-            ? normalizeDomain(investment.website)
-            : normalizeDomain(investment.name);
+      if (!logoUrl) {
+        const effectiveDomain = investmentDetails?.logoOnlyDomain
+          ? normalizeDomain(investmentDetails.logoOnlyDomain)
+          : investmentDetails?.website
+            ? normalizeDomain(investmentDetails.website)
+            : investmentDetails?.name
+              ? normalizeDomain(investmentDetails.name)
+              : undefined;
 
         if (effectiveDomain) {
-          try {
-            const liveLogo = await getLogo(effectiveDomain);
-            if (liveLogo?.cdnUrl || liveLogo?.url) {
-              logoUrl = ensureAbsoluteUrl(liveLogo.cdnUrl || liveLogo.url || getCompanyPlaceholder());
-              // Log correctly distinguishing between fetch location (S3/CDN) and original source
-              const isFromS3 = liveLogo.cdnUrl && liveLogo.cdnUrl.includes("images/logos");
-              const originalSource = liveLogo.source ?? "api";
-              console.info(
-                `[RelatedContent] Logo fetched for investment ${investment.name} (${effectiveDomain}) from ${isFromS3 ? "S3/CDN" : "external API"} - original source: ${originalSource}`,
-              );
-            }
-          } catch (fetchErr) {
-            const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-            console.error(`[RelatedContent] Logo fetch failed for investment ${effectiveDomain}:`, msg);
-            logoUrl = ensureAbsoluteUrl(getCompanyPlaceholder());
+          const manifestEntry = await getLogoFromManifestAsync(effectiveDomain);
+          if (manifestEntry?.cdnUrl) {
+            logoUrl = ensureAbsoluteUrl(manifestEntry.cdnUrl);
+          } else {
+            const runtimeUrl = getRuntimeLogoUrl(effectiveDomain, { company: investmentDetails?.name });
+            logoUrl = runtimeUrl ? ensureAbsoluteUrl(runtimeUrl) : ensureAbsoluteUrl(getCompanyPlaceholder());
           }
         } else {
           logoUrl = ensureAbsoluteUrl(getCompanyPlaceholder());
@@ -147,17 +116,17 @@ async function toRelatedContentItem(
 
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
-        stage: investment.stage,
-        category: investment.category,
+        stage: display?.stage,
+        category: display?.category,
         imageUrl: logoUrl,
-        aventureUrl: investment.aventure_url ?? undefined,
+        aventureUrl: display?.aventureUrl,
       };
 
       return {
         type: content.type,
         id: content.id,
         title: content.title,
-        description: investment.description,
+        description: display?.description || "",
         url: content.url,
         score: content.score,
         metadata,
@@ -165,16 +134,16 @@ async function toRelatedContentItem(
     }
 
     case "project": {
-      const project = content.source as import("@/types/project").Project;
-      const metadata: RelatedContentItem["metadata"] = project.imageKey
-        ? { ...baseMetadata, imageUrl: buildCdnUrl(project.imageKey, getCdnConfigFromEnv()) }
+      const imageKey = display?.project?.imageKey;
+      const metadata: RelatedContentItem["metadata"] = imageKey
+        ? { ...baseMetadata, imageUrl: buildCdnUrl(imageKey, getCdnConfigFromEnv()) }
         : baseMetadata;
 
       return {
         type: content.type,
         id: content.id,
         title: content.title,
-        description: project.shortSummary || project.description,
+        description: display?.description || content.text,
         url: content.url,
         score: content.score,
         metadata,
@@ -202,28 +171,21 @@ export async function RelatedContent({
   options = {},
   className,
 }: RelatedContentProps) {
+  if (isBuildPhase) {
+    return null;
+  }
+
   try {
     // For bookmarks, prefer slug over ID for idempotency
     let actualSourceId = sourceId;
     if (sourceType === "bookmark" && sourceSlug) {
-      // Load slug mapping to convert slug to ID for internal lookups
-      const slugMapping = await loadSlugMapping();
-      if (slugMapping && typeof sourceSlug === "string") {
-        // Convert to Map to avoid unsafe indexed access and satisfy strict linting
-        const reverse = new Map<string, string>(Object.entries(slugMapping.reverseMap));
-        const bookmarkId = reverse.get(sourceSlug);
-        if (bookmarkId) {
-          actualSourceId = bookmarkId;
-          debug(`[RelatedContent] Using slug "${sourceSlug}" resolved to ID "${bookmarkId}"`);
-        } else {
-          console.error(`[RelatedContent] No bookmark found for slug "${sourceSlug}"`);
-          return null;
-        }
-      } else if (sourceSlug) {
-        console.warn(
-          `[RelatedContent] Slug mapping not loaded; cannot resolve slug "${sourceSlug}" to ID. ` +
-            `Proceeding with sourceId="${sourceId}".`,
-        );
+      const bookmarkId = await resolveBookmarkIdFromSlug(sourceSlug);
+      if (bookmarkId) {
+        actualSourceId = bookmarkId;
+        debug(`[RelatedContent] Using slug "${sourceSlug}" resolved to ID "${bookmarkId}"`);
+      } else {
+        console.error(`[RelatedContent] No bookmark found for slug "${sourceSlug}"`);
+        return null;
       }
     }
 
@@ -276,21 +238,11 @@ export async function RelatedContent({
       const neededTypes = Array.from(new Set(limited.map(item => item.type)));
       const contentMap = await getLazyContentMap(neededTypes);
 
-      // Get slug mappings for bookmarks using request cache
-      let slugMap: Map<string, string> | undefined;
-      if (limited.some(item => item.type === "bookmark")) {
-        const { slugMap: map } = await getCachedBookmarksWithSlugs();
-        slugMap = map;
-      }
-
       // Convert to RelatedContentItem format
       const relatedItemPromises = limited.map(async item => {
         const content = contentMap.get(`${item.type}:${item.id}`);
         if (!content) return null;
-        const relatedItem = await toRelatedContentItem({ ...content, score: item.score }, slugMap);
-        if (!relatedItem) {
-          console.warn(`[RelatedContent] Skipping item ${item.type}:${item.id} due to missing slug`);
-        }
+        const relatedItem = await toRelatedContentItem({ ...content, score: item.score });
         return relatedItem;
       });
 
@@ -328,15 +280,9 @@ export async function RelatedContent({
           const extraSimilar = findMostSimilar(source, candidates, maxTotal * 2, weights);
 
           // Prepare slug mapping only if needed for bookmarks in the extras
-          let extraSlugMap: Map<string, string> | undefined = slugMap;
-          if (!extraSlugMap && extraSimilar.some(item => item.type === "bookmark")) {
-            const { slugMap: map } = await getCachedBookmarksWithSlugs();
-            extraSlugMap = map;
-          }
-
-          const extraItems = (
-            await Promise.all(extraSimilar.map(item => toRelatedContentItem(item, extraSlugMap)))
-          ).filter((i): i is RelatedContentItem => i !== null);
+          const extraItems = (await Promise.all(extraSimilar.map(item => toRelatedContentItem(item)))).filter(
+            (i): i is RelatedContentItem => i !== null,
+          );
 
           // Merge, dedupe, and re-limit per type and total
           const merged: RelatedContentItem[] = [];
@@ -367,7 +313,8 @@ export async function RelatedContent({
     if (getRelatedContent && typeof getRelatedContent === "function") {
       cached = getRelatedContent.call(ServerCacheInstance, sourceType, actualSourceId);
     }
-    if (cached && cached.timestamp > Date.now() - 15 * 60 * 1000 && !debug) {
+    const now = getDeterministicTimestamp();
+    if (cached && cached.timestamp > now - 15 * 60 * 1000 && !debug) {
       // Apply filtering to cached results
       let items = cached.items;
 
@@ -382,18 +329,8 @@ export async function RelatedContent({
       // Apply limits via shared helper
       const finalItems = limitByTypeAndTotal(items, maxPerType, maxTotal);
 
-      // Get pre-computed slug mappings for bookmarks using request cache
-      let slugMap: Map<string, string> | undefined;
-      if (finalItems.some(item => item.type === "bookmark")) {
-        const { slugMap: map } = await getCachedBookmarksWithSlugs();
-        slugMap = map;
-      }
-
       const relatedItemPromises = finalItems.map(async item => {
-        const relatedItem = await toRelatedContentItem(item, slugMap);
-        if (!relatedItem && item.type === "bookmark") {
-          console.warn(`[RelatedContent] Skipping bookmark ${item.id} due to missing slug`);
-        }
+        const relatedItem = await toRelatedContentItem(item);
         return relatedItem;
       });
 
@@ -440,23 +377,13 @@ export async function RelatedContent({
     if (setRelatedContent && typeof setRelatedContent === "function") {
       setRelatedContent.call(ServerCacheInstance, sourceType, actualSourceId, {
         items: finalItems,
-        timestamp: Date.now(),
+        timestamp: getDeterministicTimestamp(),
       });
-    }
-
-    // Get pre-computed slug mappings for bookmarks using request cache
-    let slugMap: Map<string, string> | undefined;
-    if (finalItems.some(item => item.type === "bookmark")) {
-      const { slugMap: map } = await getCachedBookmarksWithSlugs();
-      slugMap = map;
     }
 
     // Convert to RelatedContentItem format
     const relatedItemPromises = finalItems.map(async item => {
-      const relatedItem = await toRelatedContentItem(item, slugMap);
-      if (!relatedItem && item.type === "bookmark") {
-        console.warn(`[RelatedContent] Skipping bookmark ${item.id} due to missing slug`);
-      }
+      const relatedItem = await toRelatedContentItem(item);
       return relatedItem;
     });
 
