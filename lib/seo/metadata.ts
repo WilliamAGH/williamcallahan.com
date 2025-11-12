@@ -64,6 +64,7 @@ export const BASE_METADATA: Metadata = {
   ],
   creator: siteMetadata.author,
   publisher: siteMetadata.article.publisher,
+  metadataBase: siteMetadata.site.url,
   formatDetection: {
     telephone: false,
     address: false,
