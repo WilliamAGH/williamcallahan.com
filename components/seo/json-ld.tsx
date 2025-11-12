@@ -9,7 +9,6 @@
  * @see {@link "https://schema.org/"} - Schema.org Documentation
  */
 
-// eslint-disable react/no-danger
 import type { JSX } from "react";
 import Script from "next/script";
 
