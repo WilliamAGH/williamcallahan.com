@@ -48,6 +48,28 @@ import { SoftwareSchema } from "./software-schema";
 
 const compiledMdxCache = new Map<string, ComponentType>();
 
+const ensureUniqueKeys = (node: React.ReactNode, path: string): React.ReactNode => {
+  if (node === null || typeof node === "boolean" || typeof node === "number" || typeof node === "string") {
+    return node;
+  }
+
+  if (Array.isArray(node)) {
+    const arrayNode = node as React.ReactNode[];
+    return arrayNode.map((child, index) => ensureUniqueKeys(child, `${path}.${index}`));
+  }
+
+  if (isValidElement(node)) {
+    const element = node as React.ReactElement<{ children?: React.ReactNode }>;
+    const children = React.Children.toArray(element.props.children).map((child, index) =>
+      ensureUniqueKeys(child, `${path}.${index}`),
+    );
+    const keyProp = element.key ?? path;
+    return React.cloneElement(element, { key: keyProp }, children);
+  }
+
+  return node;
+};
+
 const runtimeHelpers =
   process.env.NODE_ENV === "development"
     ? {
@@ -93,8 +115,8 @@ const buildMdxComponent = (
     const { default: Component } = hydrateFn.apply(hydrateFn, values) as { default: ComponentType };
     const SafeComponent: ComponentType = componentProps => {
       const rendered = <Component {...componentProps} />;
-      const normalizedChildren = React.Children.toArray(rendered as React.ReactNode);
-      return <>{normalizedChildren}</>;
+      const keyed = ensureUniqueKeys(rendered, "mdx-root");
+      return <>{keyed}</>;
     };
     compiledMdxCache.set(content.compiledSource, SafeComponent);
     return SafeComponent;
