@@ -48,35 +48,38 @@ import { SoftwareSchema } from "./software-schema";
 
 const compiledMdxCache = new Map<string, ComponentType>();
 
-const ensureUniqueKeys = (node: React.ReactNode, path: string): React.ReactNode => {
-  if (node === null || typeof node === "boolean" || typeof node === "number" || typeof node === "string") {
-    return node;
-  }
+const withKeyedChildren = (children: React.ReactNode, prefix: string): React.ReactNode => {
+  let index = 0;
+  return React.Children.map(children, child => {
+    if (!isValidElement(child)) {
+      return child;
+    }
+    if (child.key != null) {
+      return child;
+    }
+    const key = `${prefix}-${index++}`;
+    return React.cloneElement(child, { key });
+  });
+};
 
-  if (Array.isArray(node)) {
-    const arrayNode = node as React.ReactNode[];
-    return arrayNode.map((child, index) => ensureUniqueKeys(child, `${path}.${index}`));
-  }
+const toKeyed = (children: React.ReactNode) => React.Children.toArray(children);
 
-  if (isValidElement(node)) {
-    const element = node as React.ReactElement<{ children?: React.ReactNode }>;
-    const children = React.Children.toArray(element.props.children).map((child, index) =>
-      ensureUniqueKeys(child, `${path}.${index}`),
-    );
-    const keyProp = element.key ?? path;
-    return React.cloneElement(element, { key: keyProp }, children);
-  }
+const devJsx = (...args: Parameters<typeof jsxDevRuntime.jsxDEV>) => {
+  const [type, props, key, , source, self] = args;
+  return jsxDevRuntime.jsxDEV(type, props, key, false, source, self);
+};
 
-  return node;
+const devJsxs = (...args: Parameters<typeof jsxDevRuntime.jsxDEV>) => {
+  const [type, props, key, , source, self] = args;
+  return jsxDevRuntime.jsxDEV(type, props, key, true, source, self);
 };
 
 const runtimeHelpers =
   process.env.NODE_ENV === "development"
     ? {
         Fragment: jsxDevRuntime.Fragment,
-        // jsxDEV signature expects key argument; compiled mdx runtime calls with (type, props, key, isStaticChildren, source, self)
-        jsx: jsxDevRuntime.jsxDEV,
-        jsxs: jsxDevRuntime.jsxDEV,
+        jsx: devJsx,
+        jsxs: devJsxs,
       }
     : {
         Fragment: jsxProdRuntime.Fragment,
@@ -113,11 +116,7 @@ const buildMdxComponent = (
       ...fnArgs: unknown[]
     ) => { default: ComponentType };
     const { default: Component } = hydrateFn.apply(hydrateFn, values) as { default: ComponentType };
-    const SafeComponent: ComponentType = componentProps => {
-      const rendered = <Component {...componentProps} />;
-      const keyed = ensureUniqueKeys(rendered, "mdx-root");
-      return <>{keyed}</>;
-    };
+    const SafeComponent: ComponentType = componentProps => <Component {...componentProps} />;
     compiledMdxCache.set(content.compiledSource, SafeComponent);
     return SafeComponent;
   } catch (error) {
@@ -301,7 +300,7 @@ const MdxImage = ({
 const ArticleGallery = ({ children, className = "" }: ArticleGalleryProps): JSX.Element => {
   return (
     <div className={`flow-root space-y-8 my-6 p-4 bg-gray-50 dark:bg-gray-800/30 rounded-lg ${className}`}>
-      {children}
+      {toKeyed(children)}
     </div>
   );
 };
@@ -547,8 +546,6 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
       a: (props: ComponentProps<"a">) => {
         const { href, children, className, ...rest } = props;
 
-        // Normalize children to avoid invalid <a><p>…</p></a> blocks that MDX can emit
-        // when a component is used inside list items. If the only child is a <p>, unwrap it.
         const unwrapParagraph = (node: React.ReactNode): React.ReactNode => {
           if (
             isValidElement<{ children?: React.ReactNode }>(node) &&
@@ -560,19 +557,15 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
           return node;
         };
 
-        const normalizedChildrenArray = React.Children.map(children, (child: React.ReactNode) =>
-          unwrapParagraph(child),
+        const normalizedChildren = toKeyed(
+          React.Children.map(children, (child: React.ReactNode) => unwrapParagraph(child)) ?? [],
         );
-        const normalizedChildren =
-          normalizedChildrenArray && normalizedChildrenArray.length === 1
-            ? normalizedChildrenArray[0]
-            : normalizedChildrenArray;
         if (!href) {
           return (
             <a {...rest} className={className}>
               {normalizedChildren}
             </a>
-          ); // Fallback for missing href
+          );
         }
 
         // Treat footnote-style anchors (#fn*, #ref*) specially: keep them clickable
@@ -626,23 +619,29 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
       // Remove custom <p> renderer to avoid ever creating nested <p> inside raw HTML structures.
       // Let Tailwind Typography's prose styles handle paragraph styling globally.
       /** Renderer for `<ul>` (unordered list) elements. Styling primarily handled by `prose`. */
-      ul: (props: ComponentProps<"ul">) => (
-        <ul className="pl-6 list-disc text-gray-700 dark:text-gray-300 text-base" {...props} />
+      ul: ({ className, children, ...rest }: ComponentProps<"ul">) => (
+        <ul {...rest} className={cn("pl-6 list-disc text-gray-700 dark:text-gray-300 text-base", className)}>
+          {withKeyedChildren(children, "li")}
+        </ul>
       ),
       /** Renderer for `<ol>` (ordered list) elements. Styling primarily handled by `prose`. */
-      ol: (props: ComponentProps<"ol">) => (
-        <ol className="pl-6 list-decimal text-gray-700 dark:text-gray-300 text-base" {...props} />
+      ol: ({ className, children, ...rest }: ComponentProps<"ol">) => (
+        <ol {...rest} className={cn("pl-6 list-decimal text-gray-700 dark:text-gray-300 text-base", className)}>
+          {withKeyedChildren(children, "li")}
+        </ol>
       ),
       /** Renderer for `<li>` (list item) elements. Includes a small bottom margin for spacing. Styling primarily handled by `prose`. */
       li: (props: ComponentProps<"li">) => (
         <li className="mb-1 pl-1 text-gray-700 dark:text-gray-300 text-base" {...props} />
       ),
       /** Renderer for `<blockquote>` elements, applying distinct styling for visual emphasis. */
-      blockquote: (props: ComponentProps<"blockquote">) => (
+      blockquote: ({ children, ...rest }: ComponentProps<"blockquote">) => (
         <blockquote
           className="pl-4 border-l-4 border-blue-500 dark:border-blue-400 italic text-gray-700 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/20 py-3 px-4 rounded-r-md shadow-sm text-base"
-          {...props}
-        />
+          {...rest}
+        >
+          {toKeyed(children)}
+        </blockquote>
       ),
       /** Renderer for `<hr>` (horizontal rule) elements. Currently styled to be hidden. */
       hr: (props: ComponentProps<"hr">) => <hr className="hidden" {...props} />,
@@ -665,13 +664,28 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
                 className,
               )}
             >
-              {children}
+              {toKeyed(children)}
             </table>
           </div>
         );
       },
+      tbody: (props: ComponentProps<"tbody">) => {
+        const { children, ...rest } = props;
+        return <tbody {...rest}>{toKeyed(children)}</tbody>;
+      },
+      tr: (props: ComponentProps<"tr">) => {
+        const { children, ...rest } = props;
+        return <tr {...rest}>{toKeyed(children)}</tr>;
+      },
       /** Renderer for `<thead>` (table head) elements, applying background styling. */
-      thead: (props: ComponentProps<"thead">) => <thead className="bg-gray-50 dark:bg-gray-800" {...props} />,
+      thead: (props: ComponentProps<"thead">) => {
+        const { children, ...rest } = props;
+        return (
+          <thead className="bg-gray-50 dark:bg-gray-800" {...rest}>
+            {toKeyed(children)}
+          </thead>
+        );
+      },
       /** Renderer for `<th>` (table header cell) elements, applying text, padding, and alignment styling. */
       th: (props: ComponentProps<"th">) => (
         <th
