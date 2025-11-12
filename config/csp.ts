@@ -63,7 +63,15 @@ export const CSP_DIRECTIVES = {
     "https://platform.twitter.com",
     "https://*.twimg.com",
     "https://*.x.com",
+    RAILWAY_TEST_DEPLOYMENTS,
+  ],
+  styleSrcAttr: ["'unsafe-inline'"],
+  styleSrcElem: [
     "'unsafe-inline'",
+    "'self'",
+    "https://platform.twitter.com",
+    "https://*.twimg.com",
+    "https://*.x.com",
     RAILWAY_TEST_DEPLOYMENTS,
   ],
   fontSrc: [
