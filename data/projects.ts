@@ -107,7 +107,7 @@ export const projects: Project[] = [
       "Keyboard-first terminal UI for researching more than 100k private companies. Analysts can search, scan the left-hand result rail, and read structured company dossiers (fundraising, locations, verification, operating status, employee counts) in the detail pane without breaking flow.",
     shortSummary: "Terminal-inspired company research interface with keyboard navigation",
     url: "https://tui.aventure.vc",
-    imageKey: "images/other/projects/company-research-experimental-ai-tool.png",
+    imageKey: "images/other/projects/aventure-tui.png",
     tags: [
       "Terminal UI",
       "Startup Terminal Software",
