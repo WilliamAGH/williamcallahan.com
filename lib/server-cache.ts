@@ -24,10 +24,11 @@ import * as aggregatedContentHelpers from "./server-cache/aggregated-content";
 assertServerOnly();
 
 const isProductionBuildPhase = () => process.env.NEXT_PHASE === "phase-production-build";
+const buildPhaseTimestamp = isProductionBuildPhase() ? getMonotonicTime() : undefined;
 
 export const getDeterministicTimestamp = (): number => {
   if (isProductionBuildPhase()) {
-    return 0;
+    return buildPhaseTimestamp ?? getMonotonicTime();
   }
   return getMonotonicTime();
 };
