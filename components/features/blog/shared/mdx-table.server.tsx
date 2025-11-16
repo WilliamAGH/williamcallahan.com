@@ -6,11 +6,29 @@
  * @module components/ui/mdx-table.server
  */
 
-import type React from "react";
+import { Children, type FC, type ReactNode } from "react";
 
 import type { TableProps, TheadProps, TrProps, ThProps, TdProps } from "@/types";
 
-export const MDXTable: React.FC<TableProps> = ({ children, ...props }) => {
+/**
+ * Extracts plain text from children without forcing Object stringification.
+ * Returns null when children include non-text nodes so formatting stays safe.
+ */
+const getPlainTextContent = (children: ReactNode): string | null => {
+  const normalizedChildren = Children.toArray(children);
+
+  if (normalizedChildren.length === 0) {
+    return null;
+  }
+
+  if (normalizedChildren.every(child => typeof child === "string" || typeof child === "number")) {
+    return normalizedChildren.map(child => child.toString()).join("");
+  }
+
+  return null;
+};
+
+export const MDXTable: FC<TableProps> = ({ children, ...props }) => {
   return (
     <div className="my-8 overflow-hidden rounded-xl bg-white/50 dark:bg-gray-800/50 shadow-xl ring-1 ring-black/5 dark:ring-white/5">
       <div className="overflow-x-auto">
@@ -26,7 +44,7 @@ export const MDXTable: React.FC<TableProps> = ({ children, ...props }) => {
   );
 };
 
-export const MDXTableHeader: React.FC<TheadProps> = ({ children, ...props }) => {
+export const MDXTableHeader: FC<TheadProps> = ({ children, ...props }) => {
   return (
     <thead {...props}>
       <tr className="bg-gray-50/80 dark:bg-gray-800/80">{children}</tr>
@@ -34,7 +52,7 @@ export const MDXTableHeader: React.FC<TheadProps> = ({ children, ...props }) => 
   );
 };
 
-export const MDXTableRow: React.FC<TrProps> = ({ children, ...props }) => {
+export const MDXTableRow: FC<TrProps> = ({ children, ...props }) => {
   return (
     <tr
       {...props}
@@ -45,7 +63,7 @@ export const MDXTableRow: React.FC<TrProps> = ({ children, ...props }) => {
   );
 };
 
-export const MDXTableHeaderCell: React.FC<ThProps> = ({ children, ...props }) => {
+export const MDXTableHeaderCell: FC<ThProps> = ({ children, ...props }) => {
   return (
     <th
       scope="col"
@@ -57,11 +75,13 @@ export const MDXTableHeaderCell: React.FC<ThProps> = ({ children, ...props }) =>
   );
 };
 
-export const MDXTableCell: React.FC<TdProps> = ({ children, ...props }) => {
-  const content = children?.toString() || "";
-  const isNumeric = /^[€$]?\d/.test(content);
-  const isNegative = content.includes("-");
-  const isPositive = content.includes("+");
+export const MDXTableCell: FC<TdProps> = ({ children, ...props }) => {
+  const plainTextContent = getPlainTextContent(children);
+  const normalizedContent = plainTextContent?.trim() ?? "";
+
+  const isNumeric = normalizedContent !== "" && /^[€$]?\d/.test(normalizedContent);
+  const isNegative = isNumeric && normalizedContent.includes("-");
+  const isPositive = isNumeric && normalizedContent.includes("+");
 
   return (
     <td
