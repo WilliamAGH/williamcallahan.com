@@ -8,7 +8,7 @@ import { experiences } from "../data/experience";
 import { investments } from "../data/investments";
 import { projects as projectsData } from "../data/projects";
 import type { BlogPost } from "../types/blog";
-import type { SearchResult, EducationItem, BookmarkIndexItem } from "../types/search";
+import type { SearchResult, EducationItem, BookmarkIndexItem, ScoredResult } from "../types/search";
 import MiniSearch from "minisearch";
 import { ServerCacheInstance } from "./server-cache";
 import { sanitizeSearchQuery } from "./validators/search";
@@ -119,13 +119,15 @@ async function loadOrBuildIndex<T>(
 /**
  * Generic search function that filters items based on a query.
  * Uses MiniSearch for fuzzy matching when available, falls back to substring search.
+ * Returns items with relevance scores for proper ranking.
  *
  * @param items - Array of items to search
  * @param query - Search query string
  * @param getSearchableFields - Function to extract searchable text from an item
  * @param getExactMatchField - Optional function to get field for exact matching
  * @param miniSearchIndex - Optional pre-built MiniSearch index
- * @returns Filtered array of items matching the query
+ * @param getItemId - Optional function to extract ID from item (defaults to item.id)
+ * @returns Filtered array of items with scores, sorted by relevance
  */
 function searchContent<T>(
   items: T[],
@@ -133,10 +135,18 @@ function searchContent<T>(
   getSearchableFields: (item: T) => (string | undefined | null)[],
   getExactMatchField?: (item: T) => string,
   miniSearchIndex?: MiniSearch<T> | null,
-): T[] {
+  getItemId?: (item: T) => string,
+): ScoredResult<T>[] {
   // Sanitize the query first
   const sanitizedQuery = sanitizeSearchQuery(query);
-  if (!sanitizedQuery) return items;
+  if (!sanitizedQuery) return items.map(item => ({ item, score: 0 }));
+
+  // Helper to extract item ID
+  const extractId = (item: T): string => {
+    if (getItemId) return getItemId(item);
+    const itemWithId = item as T & { id?: string | number; name?: string; slug?: string };
+    return String(itemWithId.id ?? itemWithId.name ?? itemWithId.slug ?? item);
+  };
 
   // If we have a MiniSearch index, use it for fuzzy search
   if (miniSearchIndex) {
@@ -151,13 +161,17 @@ function searchContent<T>(
         combineWith: "AND", // All terms must match
       });
 
-      // Map search results back to original items
+      // Reuse pattern from searchBookmarks(): capture scores in a Map
       const resultIds = new Set(searchResults.map(r => String(r.id)));
-      return items.filter(item => {
-        const itemWithId = item as T & { id?: string | number };
-        const itemId = String(itemWithId.id ?? item);
-        return resultIds.has(itemId);
-      });
+      const scoreById = new Map(searchResults.map(r => [String(r.id), r.score ?? 0] as const));
+
+      return items
+        .filter(item => resultIds.has(extractId(item)))
+        .map(item => ({
+          item,
+          score: scoreById.get(extractId(item)) ?? 0,
+        }))
+        .toSorted((a, b) => b.score - a.score);
     } catch (error) {
       envLogger.log(
         "MiniSearch failed, falling back to substring search",
@@ -168,27 +182,37 @@ function searchContent<T>(
     }
   }
 
-  // Fallback: Original substring search implementation
+  // Fallback: Original substring search implementation with basic scoring
   const searchTerms = sanitizedQuery.split(/\s+/).filter(Boolean);
 
-  return items.filter(item => {
-    // First try exact match if exact match field is provided
-    if (getExactMatchField) {
-      const exactField = getExactMatchField(item);
-      if (exactField.toLowerCase() === sanitizedQuery) {
-        return true;
+  return items
+    .filter(item => {
+      // First try exact match if exact match field is provided
+      if (getExactMatchField) {
+        const exactField = getExactMatchField(item);
+        if (exactField.toLowerCase() === sanitizedQuery) {
+          return true;
+        }
       }
-    }
 
-    // Combine all searchable fields into one long string for better matching
-    const allContentText = getSearchableFields(item)
-      .filter((field): field is string => typeof field === "string" && field.length > 0)
-      .join(" ")
-      .toLowerCase();
+      // Combine all searchable fields into one long string for better matching
+      const allContentText = getSearchableFields(item)
+        .filter((field): field is string => typeof field === "string" && field.length > 0)
+        .join(" ")
+        .toLowerCase();
 
-    // Check if all search terms exist in the combined text
-    return searchTerms.every(term => allContentText.includes(term));
-  });
+      // Check if all search terms exist in the combined text
+      return searchTerms.every(term => allContentText.includes(term));
+    })
+    .map(item => {
+      // Calculate a basic relevance score for substring matches
+      const exactField = getExactMatchField?.(item)?.toLowerCase() ?? "";
+      if (exactField === sanitizedQuery) {
+        return { item, score: 1.0 }; // Exact match = highest score
+      }
+      // Partial matches get a lower score
+      return { item, score: 0.5 };
+    });
 }
 
 // --- Helper functions to create MiniSearch indexes ---
@@ -235,15 +259,19 @@ async function getPostsIndex(): Promise<MiniSearch<BlogPost>> {
 // Direct search function (always available)
 async function searchPostsDirect(query: string): Promise<BlogPost[]> {
   const index = await getPostsIndex();
-  const results = searchContent(
+  const scoredResults = searchContent(
     posts,
     query,
     post => [post.title || "", post.excerpt || "", ...(post.tags || []), post.author?.name || ""],
     post => post.title,
     index,
+    post => post.slug, // Use slug as ID (matches MiniSearch idField)
   );
 
-  return results.toSorted((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  // Extract items and sort by date (posts prioritize recency over relevance score)
+  return scoredResults
+    .map(r => r.item)
+    .toSorted((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 }
 
 // Cached version using 'use cache' directive
@@ -332,7 +360,7 @@ export async function searchInvestments(query: string): Promise<SearchResult[]> 
   }
 
   const index = await getInvestmentsIndex();
-  const results = searchContent(
+  const scoredResults = searchContent(
     investments,
     query,
     inv => [
@@ -349,13 +377,13 @@ export async function searchInvestments(query: string): Promise<SearchResult[]> 
     index,
   );
 
-  const searchResults: SearchResult[] = results.map(inv => ({
+  const searchResults: SearchResult[] = scoredResults.map(({ item: inv, score }) => ({
     id: inv.id,
     type: "project",
     title: inv.name,
     description: inv.description,
     url: `/investments#${inv.id}`,
-    score: 0,
+    score,
   }));
 
   // Cache the results
@@ -401,7 +429,7 @@ export async function searchExperience(query: string): Promise<SearchResult[]> {
   }
 
   const index = await getExperienceIndex();
-  const results = searchContent(
+  const scoredResults = searchContent(
     experiences,
     query,
     exp => [exp.company, exp.role, exp.period],
@@ -409,13 +437,13 @@ export async function searchExperience(query: string): Promise<SearchResult[]> {
     index,
   );
 
-  const searchResults: SearchResult[] = results.map(exp => ({
+  const searchResults: SearchResult[] = scoredResults.map(({ item: exp, score }) => ({
     id: exp.id,
     type: "project",
     title: exp.company,
     description: exp.role,
     url: `/experience#${exp.id}`,
-    score: 0,
+    score,
   }));
 
   // Cache the results
@@ -494,7 +522,7 @@ export async function searchEducation(query: string): Promise<SearchResult[]> {
     })),
   ];
 
-  const results = searchContent(
+  const scoredResults = searchContent(
     allItems,
     query,
     item => item.searchableText,
@@ -502,14 +530,14 @@ export async function searchEducation(query: string): Promise<SearchResult[]> {
     index,
   );
 
-  // Remove the temporary searchableText field
-  const searchResults: SearchResult[] = results.map(item => ({
+  // Remove the temporary searchableText field and use relevance scores
+  const searchResults: SearchResult[] = scoredResults.map(({ item, score }) => ({
     id: item.id,
     type: "page",
     title: item.label,
     description: item.description,
     url: item.path,
-    score: 0,
+    score,
   }));
 
   // Cache the results
@@ -878,21 +906,22 @@ export async function searchProjects(query: string): Promise<SearchResult[]> {
   }
 
   const index = await getProjectsIndex();
-  const results = searchContent(
+  const scoredResults = searchContent(
     projectsData,
     query,
     p => [p.name, p.description, (p.tags || []).join(" ")],
     p => p.name,
     index,
+    p => p.name, // Use name as ID (matches MiniSearch idField)
   );
 
-  const searchResults: SearchResult[] = results.map<SearchResult>(p => ({
+  const searchResults: SearchResult[] = scoredResults.map<SearchResult>(({ item: p, score }) => ({
     id: p.name,
     type: "project",
     title: p.name,
     description: p.shortSummary || p.description,
     url: p.url ?? "/projects",
-    score: 0,
+    score,
   }));
 
   // If the query is exactly "projects", add navigation result to Projects page at top
