@@ -191,16 +191,14 @@ describe("Search API Guards", () => {
   });
 
   describe("createSearchErrorResponse", () => {
-    it("includes details in non-production environment", () => {
+    it("includes details in non-production environment", async () => {
       process.env.NODE_ENV = "development";
       const response = createSearchErrorResponse("User message", "Internal details");
 
       expect(response.status).toBe(500);
-      // Parse the response body
-      response.json().then(body => {
-        expect(body.error).toBe("User message");
-        expect(body.details).toBe("Internal details");
-      });
+      const body = await response.json();
+      expect(body.error).toBe("User message");
+      expect(body.details).toBe("Internal details");
     });
 
     it("excludes details in production environment", async () => {

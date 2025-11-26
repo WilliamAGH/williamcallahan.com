@@ -175,7 +175,9 @@ describe("Search Helpers", () => {
     });
 
     it("should return same promise for concurrent requests with same key", async () => {
-      let resolveSearch: (value: string[]) => void;
+      let resolveSearch: (value: string[]) => void = () => {
+        throw new Error("resolveSearch not set");
+      };
       const searchPromise = new Promise<string[]>(resolve => {
         resolveSearch = resolve;
       });
@@ -186,7 +188,7 @@ describe("Search Helpers", () => {
       const promise2 = coalesceSearchRequest("same-key", searchFn);
 
       // Resolve the search
-      resolveSearch!(["result"]);
+      resolveSearch(["result"]);
 
       const [result1, result2] = await Promise.all([promise1, promise2]);
 
@@ -240,8 +242,12 @@ describe("Search Helpers", () => {
     });
 
     it("should handle different keys independently", async () => {
-      let resolveA: (value: string) => void;
-      let resolveB: (value: string) => void;
+      let resolveA: (value: string) => void = () => {
+        throw new Error("resolveA not set");
+      };
+      let resolveB: (value: string) => void = () => {
+        throw new Error("resolveB not set");
+      };
 
       const promiseA = new Promise<string>(resolve => {
         resolveA = resolve;
@@ -257,8 +263,8 @@ describe("Search Helpers", () => {
       const resultB = coalesceSearchRequest("key-b", fnB);
 
       // Resolve in different order
-      resolveB!("B result");
-      resolveA!("A result");
+      resolveB("B result");
+      resolveA("A result");
 
       expect(await resultA).toBe("A result");
       expect(await resultB).toBe("B result");
@@ -350,7 +356,7 @@ describe("Search Helpers", () => {
 
       // Mock crypto.randomUUID
       const mockUUID = "mock-uuid-12345";
-      const originalRandomUUID = crypto.randomUUID;
+      const originalRandomUUID = crypto.randomUUID.bind(crypto);
       crypto.randomUUID = jest.fn().mockReturnValue(mockUUID);
 
       const result = transformSearchResultToTerminalResult(searchResult);
