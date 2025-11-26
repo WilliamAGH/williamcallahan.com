@@ -44,7 +44,7 @@ export const projects: Project[] = [
     id: "williamcallahan.com",
     name: "williamcallahan.com",
     description:
-      "Personal site with dynamically generated graph index of thousands of json documents. Dynamically fetches images (logos, opengraph images) and scrapes/crawls, and parses external websites for external links. Built with Next.js App Router, TypeScript, and Tailwind; Dockerized for cloud deployment, which I do with all my deployments.",
+      "Personal site with graph index of thousands of json documents. Dynamically fetches images (logos, opengraph images) and scrapes/crawls, and parses external websites for external links. Built with Next.js App Router and TypeScript. Dockerized for cloud deployment, which I do with all my deployments.",
     shortSummary: "Interactive personal site with beautiful terminal/code components & other dynamic content",
     url: "https://williamcallahan.com",
     imageKey: "images/other/projects/williamcallahan-com-project.png",
