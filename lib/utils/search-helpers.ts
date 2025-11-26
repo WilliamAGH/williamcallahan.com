@@ -1,11 +1,102 @@
 /**
  * Search Helper Utilities
  *
- * Utility functions for search functionality including deduplication
- * and data normalization
+ * Utility functions for search functionality including deduplication,
+ * data normalization, request coalescing, and result transformation
  *
  * @module utils/search-helpers
  */
+
+import type { SearchResult } from "@/types/search";
+import type { TerminalSearchResult } from "@/types/terminal";
+
+/**
+ * In-flight search request map for request coalescing.
+ * Prevents duplicate concurrent API calls for the same search key.
+ * Key format: "scope:query" for scoped searches or just "query" for site-wide.
+ */
+const inFlightSearches = new Map<string, Promise<unknown>>();
+
+/**
+ * Coalesces concurrent search requests with the same key.
+ * If a search with the same key is already in-flight, returns the existing promise.
+ * Otherwise, executes the search function and caches the promise until completion.
+ *
+ * @template T - The return type of the search function
+ * @param key - Unique key for this search (e.g., "blog:typescript" or "all:react")
+ * @param searchFn - Async function that performs the actual search
+ * @returns Promise resolving to search results
+ *
+ * @example
+ * // For scoped search
+ * const results = await coalesceSearchRequest(
+ *   `${scope}:${query}`,
+ *   () => searchBlogPostsServerSide(query)
+ * );
+ *
+ * @example
+ * // For site-wide search
+ * const results = await coalesceSearchRequest(
+ *   `all:${query}`,
+ *   () => performSiteWideSearch(query)
+ * );
+ */
+export async function coalesceSearchRequest<T>(key: string, searchFn: () => Promise<T>): Promise<T> {
+  // Check for existing in-flight search
+  const existing = inFlightSearches.get(key);
+  if (existing) {
+    console.log(`[Search] Reusing in-flight search for key: "${key}"`);
+    return existing as Promise<T>;
+  }
+
+  // Create new search promise with cleanup
+  const searchPromise = (async () => {
+    try {
+      return await searchFn();
+    } finally {
+      // Always clean up after completion
+      inFlightSearches.delete(key);
+    }
+  })();
+
+  // Store for coalescing
+  inFlightSearches.set(key, searchPromise);
+
+  return searchPromise;
+}
+
+/**
+ * Transforms a SearchResult (API format) to TerminalSearchResult (terminal display format).
+ * Centralizes the mapping between API response format and terminal UI format.
+ *
+ * @param result - The SearchResult from the search API
+ * @returns TerminalSearchResult suitable for terminal display
+ *
+ * @example
+ * const searchResults = await fetch('/api/search/all?q=react').then(r => r.json());
+ * const terminalResults = searchResults.map(transformSearchResultToTerminalResult);
+ */
+export function transformSearchResultToTerminalResult(result: SearchResult): TerminalSearchResult {
+  // Ensure we have a valid ID - SearchResult.id is required by the interface
+  const id = result.id;
+  if (!id) {
+    console.warn("[Search] Search result is missing a stable ID. This may cause rendering issues.", result);
+    // Generate a fallback ID if somehow missing
+    return {
+      id: crypto.randomUUID(),
+      label: result.title || "Untitled",
+      description: result.description || "",
+      path: result.url || "#",
+    };
+  }
+
+  return {
+    id: `${result.type}-${id}`,
+    label: result.title || "Untitled",
+    description: result.description || "",
+    path: result.url || "#",
+  };
+}
 
 /**
  * Deduplicates an array of documents by a unique identifier field

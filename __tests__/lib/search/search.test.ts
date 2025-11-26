@@ -1,9 +1,6 @@
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
-import { searchPosts, searchInvestments, searchExperience, searchEducation, searchProjects } from "@/lib/search";
-import { ServerCacheInstance } from "@/lib/server-cache";
-import { validateSearchQuery } from "@/lib/validators/search";
 
-// Mock the imported data modules using mock.module
+// Mock the imported data modules using mock.module BEFORE imports
 jest.mock("@/data/blog/posts", () => ({
   posts: [
     {
@@ -121,6 +118,10 @@ jest.mock("@/lib/server-cache", () => ({
     clearAllCaches: jest.fn(),
   },
 }));
+
+import { searchPosts, searchInvestments, searchExperience, searchEducation, searchProjects } from "@/lib/search";
+import { ServerCacheInstance } from "@/lib/server-cache";
+import { validateSearchQuery } from "@/lib/validators/search";
 
 describe("search", () => {
   // Clear cache mocks before each test

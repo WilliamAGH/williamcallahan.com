@@ -37,6 +37,9 @@ describe("LogoImage Conditional Rendering", () => {
     height: 100,
   };
 
+  // Expected proxied URL for regularUrlProps - the component transforms external URLs
+  const expectedRegularProxiedUrl = `/api/cache/images?url=${encodeURIComponent(regularUrlProps.src)}&width=${regularUrlProps.width}`;
+
   const dataUrlProps = {
     src: "data:image/svg+xml;base64,abc123", // Use a sample SVG data URL
     width: 50,
@@ -47,20 +50,23 @@ describe("LogoImage Conditional Rendering", () => {
     width: 96,
     height: 32,
   };
+  // Expected proxied URL for cdnUrlProps
+  const expectedCdnProxiedUrl = `/api/cache/images?url=${encodeURIComponent(cdnUrlProps.src)}&width=${cdnUrlProps.width}`;
 
   describe("Regular URL Rendering (uses next/image)", () => {
     it("renders next/image mock and wrapper with correct props", () => {
       render(<LogoImage {...regularUrlProps} />);
       // Get all images and find the main one (not placeholder)
+      // The component proxies external URLs through /api/cache/images
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === regularUrlProps.src);
+      const mainImage = images.find(img => img.getAttribute("src") === expectedRegularProxiedUrl);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
 
       expect(mainImage).toBeInTheDocument();
       // Use basic attribute checks instead of toHaveAttribute
-      expect(mainImage.getAttribute("src")).toBe(regularUrlProps.src);
+      expect(mainImage.getAttribute("src")).toBe(expectedRegularProxiedUrl);
       expect(mainImage.getAttribute("alt")).toBe("Company Logo"); // Default alt
       // The mock sets data-layout and data-object-fit attributes
       expect(mainImage.getAttribute("data-object-fit")).toBeNull(); // attribute should be absent
@@ -72,9 +78,9 @@ describe("LogoImage Conditional Rendering", () => {
 
     it("passes priority prop to next/image mock", () => {
       render(<LogoImage {...regularUrlProps} priority={true} />);
-      // Get all images and find the main one
+      // Get all images and find the main one - the component proxies external URLs
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === regularUrlProps.src);
+      const mainImage = images.find(img => img.getAttribute("src") === expectedRegularProxiedUrl);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -87,7 +93,7 @@ describe("LogoImage Conditional Rendering", () => {
     it("applies custom className to the component wrapper", () => {
       render(<LogoImage {...regularUrlProps} className="custom-class" />);
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === regularUrlProps.src);
+      const mainImage = images.find(img => img.getAttribute("src") === expectedRegularProxiedUrl);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -164,7 +170,8 @@ describe("LogoImage Conditional Rendering", () => {
     it("calls /api/logo with canonical domain when CDN key fails", () => {
       render(<LogoImage {...cdnUrlProps} />);
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === cdnUrlProps.src);
+      // The component proxies external URLs through /api/cache/images
+      const mainImage = images.find(img => img.getAttribute("src") === expectedCdnProxiedUrl);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");

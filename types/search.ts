@@ -3,10 +3,10 @@
  */
 
 import { z } from "zod";
-import type { SearchScope, SearchResult } from "./lib";
+import type { SearchScope, SearchResult, ScoredResult } from "./lib";
 
 // Re-export for convenience so consumers can import directly from "@/types/search"
-export type { SearchScope, SearchResult };
+export type { SearchScope, SearchResult, ScoredResult };
 
 export const VALID_SCOPES = [
   "blog",

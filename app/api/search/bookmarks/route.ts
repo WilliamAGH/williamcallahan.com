@@ -9,15 +9,14 @@
  * `getBookmarks()`.
  */
 
-import { unstable_noStore as noStore } from "next/cache";
-import { NextResponse, type NextRequest } from "next/server";
-import { validateSearchQuery } from "@/lib/validators/search";
-import { searchBookmarks } from "@/lib/search";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
+import { searchBookmarks } from "@/lib/search";
+import { createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
+import { validateSearchQuery } from "@/lib/validators/search";
 import type { UnifiedBookmark } from "@/types";
-
-const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+import { unstable_noStore as noStore } from "next/cache";
+import { NextResponse, type NextRequest } from "next/server";
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
 function resolveRequestUrl(request: NextRequest | { nextUrl?: URL; url: string }): URL {
@@ -31,7 +30,7 @@ export async function GET(request: NextRequest) {
   if (isProductionBuild) {
     return NextResponse.json(
       { data: [], totalCount: 0, hasMore: false, buildPhase: true },
-      { headers: NO_STORE_HEADERS },
+      { headers: withNoStoreHeaders() },
     );
   }
   if (typeof noStore === "function") {
@@ -47,16 +46,13 @@ export async function GET(request: NextRequest) {
     if (!validation.isValid) {
       return NextResponse.json(
         { error: validation.error || "Invalid search query" },
-        {
-          status: 400,
-          headers: NO_STORE_HEADERS,
-        },
+        { status: 400, headers: withNoStoreHeaders() },
       );
     }
 
     const query = validation.sanitized;
     if (query.length === 0)
-      return NextResponse.json({ data: [], totalCount: 0, hasMore: false }, { headers: NO_STORE_HEADERS });
+      return NextResponse.json({ data: [], totalCount: 0, hasMore: false }, { headers: withNoStoreHeaders() });
 
     // Validate pagination params with defaults
     const pageParam = searchParams.get("page");
@@ -66,10 +62,10 @@ export async function GET(request: NextRequest) {
 
     // Validate the parsed values
     if (Number.isNaN(page) || page < 1) {
-      return NextResponse.json({ error: "Invalid page parameter" }, { status: 400, headers: NO_STORE_HEADERS });
+      return NextResponse.json({ error: "Invalid page parameter" }, { status: 400, headers: withNoStoreHeaders() });
     }
     if (Number.isNaN(limit) || limit < 1 || limit > 100) {
-      return NextResponse.json({ error: "Invalid limit parameter" }, { status: 400, headers: NO_STORE_HEADERS });
+      return NextResponse.json({ error: "Invalid limit parameter" }, { status: 400, headers: withNoStoreHeaders() });
     }
 
     // Get IDs of matching bookmarks via MiniSearch index
@@ -95,17 +91,11 @@ export async function GET(request: NextRequest) {
         totalCount,
         hasMore: start + limit < totalCount,
       },
-      { headers: NO_STORE_HEADERS },
+      { headers: withNoStoreHeaders() },
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[Bookmarks Search API]", message);
-    return NextResponse.json(
-      { error: "Bookmarks search failed", details: message },
-      {
-        status: 500,
-        headers: NO_STORE_HEADERS,
-      },
-    );
+    return createSearchErrorResponse("Bookmarks search failed", message);
   }
 }

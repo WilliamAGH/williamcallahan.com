@@ -140,3 +140,45 @@ describe("Update S3 Script Smoke Tests", () => {
     expect(exitCode).toBe(0);
   });
 });
+
+/**
+ * Smoke tests for scheduler and data-updater CLI flag consistency
+ *
+ * CRITICAL: The scheduler spawns data-updater with CLI flags.
+ * If flags don't match, jobs appear to run but do nothing.
+ * This test prevents silent failures from flag mismatches.
+ */
+describe("Scheduler and data-updater flag consistency", () => {
+  /**
+   * Validates scheduler uses correct GitHub flag
+   * Prevents regression where --github-activity was used instead of --github
+   */
+  it("scheduler should use the same GitHub flag as data-updater expects", async () => {
+    const fs = await import("node:fs/promises");
+
+    const schedulerContent = await fs.readFile("lib/server/scheduler.ts", "utf-8");
+    const dataUpdaterContent = await fs.readFile("scripts/data-updater.ts", "utf-8");
+
+    // Scheduler should use DATA_UPDATER_FLAGS.GITHUB, NOT a literal --github-activity string
+    expect(schedulerContent).toContain("DATA_UPDATER_FLAGS.GITHUB");
+    expect(schedulerContent).not.toContain('"--github-activity"');
+
+    // data-updater should use centralized flags
+    expect(dataUpdaterContent).toContain("DATA_UPDATER_FLAGS.GITHUB");
+  });
+
+  /**
+   * Validates all scheduler spawn commands use correct flags via centralized constants
+   * Ensures bookmarks and logos flags are also using DATA_UPDATER_FLAGS
+   */
+  it("scheduler should use correct flags for all job types", async () => {
+    const fs = await import("node:fs/promises");
+
+    const schedulerContent = await fs.readFile("lib/server/scheduler.ts", "utf-8");
+
+    // Verify all spawn commands use centralized flag constants (not hardcoded strings)
+    expect(schedulerContent).toContain("DATA_UPDATER_FLAGS.BOOKMARKS");
+    expect(schedulerContent).toContain("DATA_UPDATER_FLAGS.LOGOS");
+    expect(schedulerContent).toContain("DATA_UPDATER_FLAGS.GITHUB");
+  });
+});

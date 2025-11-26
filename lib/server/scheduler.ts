@@ -41,6 +41,7 @@ console.log(`[Scheduler] Working directory: ${process.cwd()}`);
 import { randomInt } from "node:crypto";
 import rawCron from "node-cron";
 import { spawn } from "node:child_process";
+import { DATA_UPDATER_FLAGS } from "@/lib/constants/cli-flags";
 
 // Verify modules loaded
 console.log("[Scheduler] All required modules loaded successfully");
@@ -89,10 +90,12 @@ cron.schedule(bookmarksCron, () => {
       return;
     }
     runningJobs.add("bookmarks");
-    console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Command: bun run update-s3 -- --bookmarks`);
+    console.log(
+      `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Command: bun run update-s3 -- ${DATA_UPDATER_FLAGS.BOOKMARKS}`,
+    );
     console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Using S3_BUCKET=${process.env.S3_BUCKET}`);
 
-    const updateProcess = spawn("bun", ["run", "update-s3", "--", "--bookmarks"], {
+    const updateProcess = spawn("bun", ["run", "update-s3", "--", DATA_UPDATER_FLAGS.BOOKMARKS], {
       env: process.env,
       stdio: "inherit",
       detached: false,
@@ -184,10 +187,11 @@ cron.schedule(githubCron, () => {
       return;
     }
     runningJobs.add("github");
-    console.log("[Scheduler] [GitHub] Command: bun run update-s3 -- --github-activity");
+    // CRITICAL: Use --github flag, NOT --github-activity (data-updater expects --github)
+    console.log(`[Scheduler] [GitHub] Command: bun run update-s3 -- ${DATA_UPDATER_FLAGS.GITHUB}`);
     console.log(`[Scheduler] [GitHub] Using S3_BUCKET=${process.env.S3_BUCKET}`);
 
-    const updateProcess = spawn("bun", ["run", "update-s3", "--", "--github-activity"], {
+    const updateProcess = spawn("bun", ["run", "update-s3", "--", DATA_UPDATER_FLAGS.GITHUB], {
       env: process.env,
       stdio: "inherit",
       detached: false,
@@ -205,6 +209,44 @@ cron.schedule(githubCron, () => {
         console.error(`[Scheduler] [GitHub] update-s3 script failed (code ${code}).`);
       } else {
         console.log("[Scheduler] [GitHub] update-s3 script completed successfully");
+
+        // Invalidate Next.js cache to serve fresh data (mirrors bookmarks pattern)
+        console.log("[Scheduler] [GitHub] Invalidating Next.js cache for GitHub activity...");
+        const apiUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+        const revalidateUrl = `${apiUrl}/api/revalidate/github-activity`;
+
+        // Only include auth header if secret is configured
+        const headers = process.env.GITHUB_CRON_REFRESH_SECRET
+          ? { Authorization: `Bearer ${process.env.GITHUB_CRON_REFRESH_SECRET}` }
+          : process.env.BOOKMARK_CRON_REFRESH_SECRET
+            ? { Authorization: `Bearer ${process.env.BOOKMARK_CRON_REFRESH_SECRET}` }
+            : undefined;
+
+        // Add timeout using AbortController
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10_000); // 10 second timeout
+
+        fetch(revalidateUrl, {
+          method: "POST",
+          headers,
+          signal: controller.signal,
+        })
+          .then(response => {
+            clearTimeout(timeoutId);
+            if (response.ok) {
+              console.log("[Scheduler] [GitHub] ✅ Cache invalidated successfully");
+            } else {
+              console.error(`[Scheduler] [GitHub] Cache invalidation failed with status ${response.status}`);
+            }
+          })
+          .catch(error => {
+            clearTimeout(timeoutId);
+            if (error instanceof Error && error.name === "AbortError") {
+              console.error("[Scheduler] [GitHub] Cache invalidation timed out after 10 seconds");
+            } else {
+              console.error("[Scheduler] [GitHub] Failed to invalidate cache:", error);
+            }
+          });
       }
     });
   }, jitterGH);
@@ -224,10 +266,10 @@ cron.schedule(logosCron, () => {
       return;
     }
     runningJobs.add("logos");
-    console.log("[Scheduler] [Logos] Command: bun run update-s3 -- --logos");
+    console.log(`[Scheduler] [Logos] Command: bun run update-s3 -- ${DATA_UPDATER_FLAGS.LOGOS}`);
     console.log(`[Scheduler] [Logos] Using S3_BUCKET=${process.env.S3_BUCKET}`);
 
-    const updateProcess = spawn("bun", ["run", "update-s3", "--", "--logos"], {
+    const updateProcess = spawn("bun", ["run", "update-s3", "--", DATA_UPDATER_FLAGS.LOGOS], {
       env: process.env,
       stdio: "inherit",
       detached: false,

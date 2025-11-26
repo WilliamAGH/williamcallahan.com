@@ -5,6 +5,8 @@
  * ReDoS attacks and ensure safe processing.
  */
 
+import { VALID_SCOPES } from "@/types/search";
+
 /**
  * Validates and sanitizes a search query to prevent ReDoS attacks
  * and ensure safe processing.
@@ -80,6 +82,12 @@ export function sanitizeSearchQuery(query: string): string {
 }
 
 /**
+ * All valid scopes including "all" for site-wide search
+ * Derived from VALID_SCOPES (single source of truth in types/search.ts)
+ */
+const ALL_VALID_SCOPES = [...VALID_SCOPES, "all"] as const;
+
+/**
  * Validates search scope parameter
  */
 export function SearchScopeValidator(scope: unknown): {
@@ -94,17 +102,16 @@ export function SearchScopeValidator(scope: unknown): {
     };
   }
 
-  const validScopes = ["blog", "posts", "investments", "experience", "education", "bookmarks", "projects", "all"];
-
-  if (!validScopes.includes(scope.toLowerCase())) {
+  const normalizedScope = scope.toLowerCase();
+  if (!ALL_VALID_SCOPES.includes(normalizedScope as (typeof ALL_VALID_SCOPES)[number])) {
     return {
       isValid: false,
-      error: `Invalid scope. Valid scopes are: ${validScopes.join(", ")}`,
+      error: `Invalid scope. Valid scopes are: ${ALL_VALID_SCOPES.join(", ")}`,
     };
   }
 
   return {
     isValid: true,
-    scope: scope.toLowerCase(),
+    scope: normalizedScope,
   };
 }

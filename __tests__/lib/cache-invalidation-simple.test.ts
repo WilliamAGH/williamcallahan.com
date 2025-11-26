@@ -65,11 +65,11 @@ describe("Cache Invalidation Functions", () => {
       jest.resetModules();
       const githubModule = await import("@/lib/data-access/github");
 
-      expect(githubModule.invalidateGitHubCache).toBeDefined();
-      expect(typeof githubModule.invalidateGitHubCache).toBe("function");
+      expect(githubModule.invalidateAllGitHubCaches).toBeDefined();
+      expect(typeof githubModule.invalidateAllGitHubCaches).toBe("function");
 
       // Test that function can be called without errors
-      expect(() => githubModule.invalidateGitHubCache()).not.toThrow();
+      expect(() => githubModule.invalidateAllGitHubCaches()).not.toThrow();
     });
   });
 });

@@ -117,6 +117,7 @@ This project operates under **ZERO TEMPERATURE** development standards where eve
 - ❌ `git checkout` (to switch branches) - NEVER EVER RUN THIS
 - ❌ `git restore` - NEVER EVER RUN THIS
 - ❌ `git clean -fd` - NEVER EVER RUN THIS
+- ❌ `git stash` - NEVER EVER RUN THIS (hides working changes)
 - ❌ `git stash drop` - NEVER EVER RUN THIS
 
 ### IF YOU RUN ANY OF THESE COMMANDS, YOU HAVE COMPLETELY FAILED
@@ -127,7 +128,7 @@ This project operates under **ZERO TEMPERATURE** development standards where eve
 
 5. **Git operations protocol (mirrors hybrid/back-end rules):**
    - Treat every staged/unstaged change you did not create as intentional; never unstage, restage, or revert it unless the user explicitly directs you to do so with the exact command.
-   - Do not run `git restore`, `git reset`, `git checkout`, `git commit --amend`, `git clean`, or any other history-rewriting/destructive command without a verbatim user instruction.
+   - Do not run `git restore`, `git reset`, `git checkout`, `git commit --amend`, `git clean`, `git stash`, or any other history-rewriting/destructive command without a verbatim user instruction.
    - Never assume hooks or tooling staged files; verify with `git status`/`git diff` and ask the user before acting on unfamiliar changes.
    - Keep commits tightly scoped to files you modified during the current task, and state that scope before committing so the user can confirm.
    - If an unexpected file is staged (or touched by hooks), pause and surface the diff to the user—do not attempt to fix it on your own.

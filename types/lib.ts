@@ -337,6 +337,9 @@ export interface SearchResult {
   metadata?: Record<string, unknown>;
 }
 
+/** Search result with relevance score wrapper (used by searchContent) */
+export type ScoredResult<T> = { item: T; score: number };
+
 /** Search operation response */
 export interface SearchResponse {
   results: SearchResult[];
@@ -526,6 +529,27 @@ export interface DataFetchOperationSummary {
   changeDetected?: boolean;
   lastFetchedAt?: number;
 }
+
+// =============================================================================
+// CLI FLAGS - Command-line interface types
+// =============================================================================
+
+/**
+ * Valid CLI flag values for data updater operations
+ * Used by scheduler, data-updater, and data-fetch-manager
+ */
+export type DataUpdaterFlag =
+  | "--bookmarks"
+  | "--github"
+  | "--logos"
+  | "--search-indexes"
+  | "--force"
+  | "--metadata-only"
+  | "--metadata-limit"
+  | "--testLimit="
+  | "--help"
+  | "-h"
+  | "--allow-build-writes";
 
 // =============================================================================
 // SCHEDULING SYSTEM - Task scheduling infrastructure

@@ -7,19 +7,18 @@
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
 import { searchBookmarks, searchExperience, searchEducation, searchInvestments, searchProjects } from "@/lib/search";
+import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
+import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { validateSearchQuery } from "@/lib/validators/search";
-import { type SearchResult, type SearchScope, VALID_SCOPES } from "@/types/search";
+import { type SearchResult, VALID_SCOPES } from "@/types/search";
 import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 
-const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
 function resolveRequestUrl(request: NextRequest): URL {
   return new URL(request.url);
 }
-
-const ALL_VALID_SCOPES = [...VALID_SCOPES, "all"];
 
 /**
  * Server-side API route for scoped search.
@@ -44,28 +43,35 @@ export async function GET(request: NextRequest, { params }: { params: { scope: s
           buildPhase: true,
         },
       },
-      { headers: NO_STORE_HEADERS },
+      { headers: withNoStoreHeaders({ "X-Search-Build-Phase": "true" }) },
     );
   }
   if (typeof noStore === "function") {
     noStore();
   }
   try {
+    // Apply rate limiting and memory pressure guards
+    const guardResponse = applySearchGuards(request);
+    if (guardResponse) return guardResponse;
+
     const requestUrl = resolveRequestUrl(request);
     const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q") ?? "";
-    const scope = params.scope.toLowerCase() as SearchScope;
+    const scopeParam = params.scope.toLowerCase();
 
-    // Validate scope
-    if (!ALL_VALID_SCOPES.includes(scope)) {
+    // Validate scope (use VALID_SCOPES directly - "all" scope should use /api/search/all endpoint)
+    if (!VALID_SCOPES.includes(scopeParam as (typeof VALID_SCOPES)[number])) {
       return NextResponse.json(
         {
-          error: `Invalid search scope: ${params.scope}`,
-          validScopes: ALL_VALID_SCOPES,
+          error: `Invalid search scope: ${params.scope}. Use /api/search/all for site-wide search.`,
+          validScopes: VALID_SCOPES,
         },
-        { status: 400, headers: NO_STORE_HEADERS },
+        { status: 400, headers: withNoStoreHeaders() },
       );
     }
+
+    // Now we know scope is valid - cast to the scoped search type
+    const scope = scopeParam as (typeof VALID_SCOPES)[number];
 
     // Validate and sanitize the query
     const validation = validateSearchQuery(rawQuery);
@@ -73,61 +79,49 @@ export async function GET(request: NextRequest, { params }: { params: { scope: s
     if (!validation.isValid) {
       return NextResponse.json(
         { error: validation.error || "Invalid search query" },
-        {
-          status: 400,
-          headers: NO_STORE_HEADERS,
-        },
+        { status: 400, headers: withNoStoreHeaders() },
       );
     }
 
     const query = validation.sanitized;
 
-    // Perform the appropriate search based on scope
-    let results: SearchResult[] = [];
-
-    switch (scope) {
-      case "blog":
-      case "posts":
-        // Use searchPosts function
-        results = await searchBlogPostsServerSide(query);
-        break;
-      case "investments":
-        results = await searchInvestments(query);
-        break;
-      case "experience":
-        results = await searchExperience(query);
-        break;
-      case "education":
-        results = await searchEducation(query);
-        break;
-      case "bookmarks":
-        results = await searchBookmarks(query);
-        break;
-      case "projects":
-        results = await searchProjects(query);
-        break;
-      case "all": {
-        // Search across all scopes and aggregate results
-        const [blogResults, investmentResults, experienceResults, educationResults, bookmarkResults] =
-          await Promise.all([
-            searchBlogPostsServerSide(query),
-            searchInvestments(query),
-            searchExperience(query),
-            searchEducation(query),
-            searchBookmarks(query),
-          ]);
-
-        // Combine all results and sort by score (highest first)
-        results = [
-          ...blogResults,
-          ...investmentResults,
-          ...experienceResults,
-          ...educationResults,
-          ...bookmarkResults,
-        ].toSorted((a, b) => b.score - a.score);
-        break;
-      }
+    // Early exit if sanitized query is empty (e.g., only special chars were stripped)
+    if (query.length === 0) {
+      return NextResponse.json(
+        {
+          results: [],
+          meta: {
+            query: "",
+            scope,
+            count: 0,
+            timestamp: new Date().toISOString(),
+          },
+        },
+        { headers: withNoStoreHeaders() },
+      );
     }
+
+    // Perform the appropriate search based on scope with request coalescing
+    const coalesceKey = `${scope}:${query}`;
+    const results = await coalesceSearchRequest<SearchResult[]>(coalesceKey, async () => {
+      switch (scope) {
+        case "blog":
+        case "posts":
+          return searchBlogPostsServerSide(query);
+        case "investments":
+          return searchInvestments(query);
+        case "experience":
+          return searchExperience(query);
+        case "education":
+          return searchEducation(query);
+        case "bookmarks":
+          return searchBookmarks(query);
+        case "projects":
+          return searchProjects(query);
+        default:
+          return [];
+      }
+    });
 
     // Return results with metadata
     return NextResponse.json(
@@ -140,20 +134,12 @@ export async function GET(request: NextRequest, { params }: { params: { scope: s
           timestamp: new Date().toISOString(),
         },
       },
-      { headers: NO_STORE_HEADERS },
+      { headers: withNoStoreHeaders() },
     );
   } catch (unknownErr) {
     // Handle unknown errors safely without unsafe assignments/calls
     const err = unknownErr instanceof Error ? unknownErr : new Error(String(unknownErr));
     console.error(`Scoped search API error for scope ${params.scope}:`, err);
-
-    return NextResponse.json(
-      {
-        error: "Failed to perform search",
-        details: err.message,
-        scope: params.scope,
-      },
-      { status: 500, headers: NO_STORE_HEADERS },
-    );
+    return createSearchErrorResponse(`Failed to perform ${params.scope} search`, err.message);
   }
 }

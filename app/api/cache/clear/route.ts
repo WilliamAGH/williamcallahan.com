@@ -10,11 +10,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { invalidateBlogCache } from "@/lib/blog/mdx";
-import { invalidateGitHubCache } from "@/lib/data-access/github";
 import { invalidateOpenGraphCache } from "@/lib/data-access/opengraph";
 import { invalidateLogoCache } from "@/lib/data-access/logos";
 import { invalidateSearchCache } from "@/lib/search";
 import { revalidateTag } from "next/cache";
+import { GITHUB_CACHE_TAGS, invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
 
 /**
  * Validates API key for cache operations
@@ -90,7 +90,8 @@ export function POST(request: NextRequest): NextResponse {
     // Clear specific cache tags
     const cacheTags = [
       "blog",
-      "github",
+      GITHUB_CACHE_TAGS.PRIMARY,
+      GITHUB_CACHE_TAGS.MAIN,
       "opengraph",
       "logos",
       "search",
@@ -109,7 +110,7 @@ export function POST(request: NextRequest): NextResponse {
     // Call specific invalidation functions
     const cacheInvalidators: Array<() => void> = [
       () => invalidateBlogCache(),
-      () => invalidateGitHubCache(),
+      () => invalidateAllGitHubCaches(),
       () => invalidateOpenGraphCache(),
       () => invalidateLogoCache(),
       () => invalidateSearchCache(),
