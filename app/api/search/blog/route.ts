@@ -10,13 +10,11 @@
  * @see {@link components/features/blog/blog-window.client.tsx} For the terminal search UI
  */
 
-import { searchBlogPostsServerSide } from "@/lib/blog/server-search"; // Import the refactored search function
+import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
+import { createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
-// import type { SearchResult } from '@/types/search'; // Keep SearchResult type - Removed as unused by ESLint
-
-const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
 function resolveRequestUrl(request: NextRequest): URL {
@@ -36,7 +34,7 @@ function resolveRequestUrl(request: NextRequest): URL {
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   if (isProductionBuild) {
-    return NextResponse.json([], { headers: NO_STORE_HEADERS });
+    return NextResponse.json([], { headers: withNoStoreHeaders() });
   }
   if (typeof noStore === "function") {
     noStore();
@@ -50,10 +48,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (!validation.isValid) {
       return NextResponse.json(
         { error: validation.error || "Invalid search query" },
-        {
-          status: 400,
-          headers: NO_STORE_HEADERS,
-        },
+        { status: 400, headers: withNoStoreHeaders() },
       );
     }
 
@@ -62,17 +57,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Call the imported server-side search function with sanitized input to prevent whitespace bypasses
     const searchResults = await searchBlogPostsServerSide(query);
 
-    return NextResponse.json(searchResults, { headers: NO_STORE_HEADERS });
+    return NextResponse.json(searchResults, { headers: withNoStoreHeaders() });
   } catch (error) {
     console.error("Blog search API error:", error);
-    // Determine if it's a known error type or generic
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    return NextResponse.json(
-      { error: "Failed to perform blog search", details: errorMessage },
-      {
-        status: 500,
-        headers: NO_STORE_HEADERS,
-      },
-    );
+    return createSearchErrorResponse("Failed to perform blog search", errorMessage);
   }
 }

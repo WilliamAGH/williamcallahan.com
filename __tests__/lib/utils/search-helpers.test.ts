@@ -2,7 +2,13 @@
  * Tests for search helper utilities
  */
 
-import { dedupeDocuments, prepareDocumentsForIndexing } from "@/lib/utils/search-helpers";
+import {
+  coalesceSearchRequest,
+  dedupeDocuments,
+  prepareDocumentsForIndexing,
+  transformSearchResultToTerminalResult,
+} from "@/lib/utils/search-helpers";
+import type { SearchResult } from "@/types/search";
 
 describe("Search Helpers", () => {
   let consoleWarnSpy: jest.SpyInstance;
@@ -154,6 +160,207 @@ describe("Search Helpers", () => {
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({ code: "ABC", value: 100 });
       expect(result[1]).toEqual({ code: "DEF", value: 200 });
+    });
+  });
+
+  describe("coalesceSearchRequest", () => {
+    it("should execute the search function and return results", async () => {
+      const mockResults = [{ id: "1", title: "Result" }];
+      const searchFn = jest.fn().mockResolvedValue(mockResults);
+
+      const result = await coalesceSearchRequest("test-key", searchFn);
+
+      expect(result).toEqual(mockResults);
+      expect(searchFn).toHaveBeenCalledTimes(1);
+    });
+
+    it("should return same promise for concurrent requests with same key", async () => {
+      let resolveSearch: (value: string[]) => void;
+      const searchPromise = new Promise<string[]>(resolve => {
+        resolveSearch = resolve;
+      });
+      const searchFn = jest.fn().mockReturnValue(searchPromise);
+
+      // Start two concurrent requests with the same key
+      const promise1 = coalesceSearchRequest("same-key", searchFn);
+      const promise2 = coalesceSearchRequest("same-key", searchFn);
+
+      // Resolve the search
+      resolveSearch!(["result"]);
+
+      const [result1, result2] = await Promise.all([promise1, promise2]);
+
+      // Both should get the same result
+      expect(result1).toEqual(["result"]);
+      expect(result2).toEqual(["result"]);
+      // But the search function should only be called once
+      expect(searchFn).toHaveBeenCalledTimes(1);
+    });
+
+    it("should allow new search after previous completes", async () => {
+      const searchFn1 = jest.fn().mockResolvedValue(["first"]);
+      const searchFn2 = jest.fn().mockResolvedValue(["second"]);
+
+      // First search
+      const result1 = await coalesceSearchRequest("reuse-key", searchFn1);
+      expect(result1).toEqual(["first"]);
+
+      // Second search with same key should create new request
+      const result2 = await coalesceSearchRequest("reuse-key", searchFn2);
+      expect(result2).toEqual(["second"]);
+
+      expect(searchFn1).toHaveBeenCalledTimes(1);
+      expect(searchFn2).toHaveBeenCalledTimes(1);
+    });
+
+    it("should clean up after promise resolves", async () => {
+      const searchFn = jest.fn().mockResolvedValue(["result"]);
+
+      await coalesceSearchRequest("cleanup-key", searchFn);
+
+      // A new request with same key should call the function again (not reuse old promise)
+      const searchFn2 = jest.fn().mockResolvedValue(["new-result"]);
+      const result = await coalesceSearchRequest("cleanup-key", searchFn2);
+
+      expect(result).toEqual(["new-result"]);
+      expect(searchFn2).toHaveBeenCalledTimes(1);
+    });
+
+    it("should clean up after promise rejects", async () => {
+      const error = new Error("Search failed");
+      const searchFn = jest.fn().mockRejectedValue(error);
+
+      await expect(coalesceSearchRequest("error-key", searchFn)).rejects.toThrow("Search failed");
+
+      // A new request with same key should work after error
+      const searchFn2 = jest.fn().mockResolvedValue(["recovered"]);
+      const result = await coalesceSearchRequest("error-key", searchFn2);
+
+      expect(result).toEqual(["recovered"]);
+    });
+
+    it("should handle different keys independently", async () => {
+      let resolveA: (value: string) => void;
+      let resolveB: (value: string) => void;
+
+      const promiseA = new Promise<string>(resolve => {
+        resolveA = resolve;
+      });
+      const promiseB = new Promise<string>(resolve => {
+        resolveB = resolve;
+      });
+
+      const fnA = jest.fn().mockReturnValue(promiseA);
+      const fnB = jest.fn().mockReturnValue(promiseB);
+
+      const resultA = coalesceSearchRequest("key-a", fnA);
+      const resultB = coalesceSearchRequest("key-b", fnB);
+
+      // Resolve in different order
+      resolveB!("B result");
+      resolveA!("A result");
+
+      expect(await resultA).toBe("A result");
+      expect(await resultB).toBe("B result");
+      expect(fnA).toHaveBeenCalledTimes(1);
+      expect(fnB).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("transformSearchResultToTerminalResult", () => {
+    it("should transform SearchResult to TerminalSearchResult", () => {
+      const searchResult: SearchResult = {
+        id: "post-123",
+        type: "blog",
+        title: "Test Post",
+        description: "A test description",
+        url: "/blog/test-post",
+        score: 0.95,
+      };
+
+      const result = transformSearchResultToTerminalResult(searchResult);
+
+      expect(result).toEqual({
+        id: "blog-post-123",
+        label: "Test Post",
+        description: "A test description",
+        path: "/blog/test-post",
+      });
+    });
+
+    it("should handle missing optional fields", () => {
+      const searchResult: SearchResult = {
+        id: "item-1",
+        type: "bookmark",
+        title: "",
+        description: "",
+        url: "",
+        score: 0.5,
+      };
+
+      const result = transformSearchResultToTerminalResult(searchResult);
+
+      expect(result).toEqual({
+        id: "bookmark-item-1",
+        label: "Untitled",
+        description: "",
+        path: "#",
+      });
+    });
+
+    it("should handle missing title with fallback", () => {
+      const searchResult = {
+        id: "test-id",
+        type: "investment",
+        title: undefined,
+        description: "Some description",
+        url: "/investments/test",
+        score: 0.8,
+      } as unknown as SearchResult;
+
+      const result = transformSearchResultToTerminalResult(searchResult);
+
+      expect(result.label).toBe("Untitled");
+    });
+
+    it("should handle missing url with fallback", () => {
+      const searchResult = {
+        id: "test-id",
+        type: "experience",
+        title: "Test Title",
+        description: "Description",
+        url: undefined,
+        score: 0.7,
+      } as unknown as SearchResult;
+
+      const result = transformSearchResultToTerminalResult(searchResult);
+
+      expect(result.path).toBe("#");
+    });
+
+    it("should warn and generate fallback ID when id is missing", () => {
+      const searchResult = {
+        id: "",
+        type: "blog",
+        title: "No ID Post",
+        description: "Missing ID",
+        url: "/blog/no-id",
+        score: 0.6,
+      } as SearchResult;
+
+      // Mock crypto.randomUUID
+      const mockUUID = "mock-uuid-12345";
+      const originalRandomUUID = crypto.randomUUID;
+      crypto.randomUUID = jest.fn().mockReturnValue(mockUUID);
+
+      const result = transformSearchResultToTerminalResult(searchResult);
+
+      // Should generate a fallback ID
+      expect(result.id).toBe(mockUUID);
+      expect(result.label).toBe("No ID Post");
+
+      // Restore
+      crypto.randomUUID = originalRandomUUID;
     });
   });
 });
