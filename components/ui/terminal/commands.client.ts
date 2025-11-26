@@ -8,29 +8,7 @@
 
 import type { CommandResult, TerminalSearchResult } from "@/types/terminal";
 import { searchResultsSchema, type SearchResult } from "@/types/search";
-
-// Transform SearchResult from API to TerminalSearchResult format
-function transformSearchResultToSelectionItem(result: SearchResult): TerminalSearchResult {
-  // Ensure we have a valid ID - SearchResult.id is required by the interface
-  const id = result.id;
-  if (!id) {
-    console.warn("Search result is missing a stable ID. This may cause rendering issues.", result);
-    // Generate a fallback ID if somehow missing
-    return {
-      id: crypto.randomUUID(),
-      label: result.title || "Untitled",
-      description: result.description || "",
-      path: result.url || "#",
-    };
-  }
-
-  return {
-    id: `${result.type}-${id}`,
-    label: result.title || "Untitled",
-    description: result.description || "",
-    path: result.url || "#",
-  };
-}
+import { transformSearchResultToTerminalResult } from "@/lib/utils/search-helpers";
 
 // Factory function to create searchByScopeImpl
 function createSearchByScopeImpl() {
@@ -57,7 +35,7 @@ function createSearchByScopeImpl() {
         searchResults = searchResultsSchema.parse(data);
       }
 
-      return searchResults.map(transformSearchResultToSelectionItem);
+      return searchResults.map(transformSearchResultToTerminalResult);
     } catch (error: unknown) {
       console.error(
         `Search API call failed for scope ${scope}:`,
@@ -101,7 +79,7 @@ function createPerformSiteWideSearchImpl() {
       const rawArray = Array.isArray(data) ? data : ((data as { results?: unknown[] })?.results ?? []);
 
       const searchResults: SearchResult[] = searchResultsSchema.parse(rawArray);
-      return searchResults.map(transformSearchResultToSelectionItem);
+      return searchResults.map(transformSearchResultToTerminalResult);
     } catch (error: unknown) {
       console.error(
         "Search API call failed for site-wide search:",
@@ -392,35 +370,27 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
   }
 
   // 3. Check for section-specific search (e.g., "blog javafx")
-  if (command && isValidSection(command) && args.length > 0) {
+  // Searchable sections - single source of truth for which sections support search
+  const SEARCHABLE_SECTIONS = [
+    "blog",
+    "experience",
+    "education",
+    "investments",
+    "projects",
+    "bookmarks",
+    "bookmark",
+  ] as const;
+  const isSearchableSection = (cmd: string): cmd is (typeof SEARCHABLE_SECTIONS)[number] =>
+    SEARCHABLE_SECTIONS.includes(cmd as (typeof SEARCHABLE_SECTIONS)[number]);
+
+  if (command && isValidSection(command) && isSearchableSection(command) && args.length > 0) {
     const searchTerms = args.join(" ");
     const section = command.charAt(0).toUpperCase() + command.slice(1);
+    // Map "bookmark" to "bookmarks" scope, otherwise use command as-is
+    const scope = command === "bookmark" ? "bookmarks" : command;
 
     try {
-      let results: TerminalSearchResult[] = [];
-
-      switch (command) {
-        case "blog": {
-          results = await searchByScope("blog", searchTerms, signal);
-          break;
-        }
-        case "experience":
-          results = await searchByScope("experience", searchTerms, signal);
-          break;
-        case "education":
-          results = await searchByScope("education", searchTerms, signal);
-          break;
-        case "investments":
-          results = await searchByScope("investments", searchTerms, signal);
-          break;
-        case "projects":
-          results = await searchByScope("projects", searchTerms, signal);
-          break;
-        case "bookmarks":
-        case "bookmark": // Support singular form
-          results = await searchByScope("bookmarks", searchTerms, signal);
-          break;
-      }
+      const results = await searchByScope(scope, searchTerms, signal);
 
       if (results.length === 0) {
         return {
