@@ -81,22 +81,29 @@ export interface HistoryProps {
   maxItems?: number;
 }
 
-/** Section key type for terminal navigation sections */
-export type SectionKey =
-  | "home"
-  | "investments"
-  | "experience"
-  | "education"
-  | "projects"
-  | "blog"
-  | "bookmarks"
-  | "bookmark"
-  | "aventure"
-  | "tsbank"
-  | "seekinvest"
-  | "callahan-financial"
-  | "mutual-first"
-  | "morningstar";
+/**
+ * Section keys for terminal navigation - single source of truth
+ * Add new sections here and they'll automatically be available in SectionKey type
+ */
+export const SECTION_KEYS = [
+  "home",
+  "investments",
+  "experience",
+  "education",
+  "projects",
+  "blog",
+  "bookmarks",
+  "bookmark",
+  "aventure",
+  "tsbank",
+  "seekinvest",
+  "callahan-financial",
+  "mutual-first",
+  "morningstar",
+] as const;
+
+/** Section key type for terminal navigation sections - derived from SECTION_KEYS */
+export type SectionKey = (typeof SECTION_KEYS)[number];
 
 import type { WindowStateValue } from "./window";
 
