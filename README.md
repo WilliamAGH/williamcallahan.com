@@ -147,6 +147,17 @@ The app tries to be less fragile about failures:
 - If fetching fails, it might retry. If it keeps failing for a specific domain, it'll cache the error for a bit to avoid hammering APIs.
 - Falls back to a placeholder if it can't get a real logo.
 
+### Memory Pressure Guards
+
+Search API endpoints include memory pressure detection to prevent OOM crashes under heavy load. Configure thresholds via environment variables:
+
+| Variable                  | Description                           | Default |
+| ------------------------- | ------------------------------------- | ------- |
+| `MEMORY_CRITICAL_BYTES`   | Absolute RSS threshold in bytes       | 3GB     |
+| `MEMORY_CRITICAL_PERCENT` | Percentage of total system RAM (1-99) | —       |
+
+If RSS exceeds the threshold, search endpoints return `503 Service Unavailable` with `Retry-After: 30`. The percentage option is useful for containers with variable memory limits.
+
 ### Clear Caches
 
 ```bash
