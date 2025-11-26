@@ -147,7 +147,7 @@ export const terminalCommands = {
   home: "/",
   investments: "/investments",
   experience: "/experience",
-  skills: "/skills",
+  projects: "/projects",
   blog: "/blog",
   aventure: "/experience#aventure",
   tsbank: "/experience#tsbank",
@@ -170,18 +170,19 @@ Navigation:
   investments        Go to investments page
   experience         Go to experience page
   education          Go to education page
+  projects           Go to projects page
   blog               Go to blog page
   bookmark(s)        Go to bookmarks page
 
 Search:
   <section> <terms>  Search within a section
                      Example: investments fintech
+                     Example: projects react
                      Example: bookmarks AI
-                     Example: bookmark AI
 
 Examples:
   investments fintech
-  experience 2020
+  projects typescript
   bookmarks AI
   clear
 `.trim();
@@ -411,6 +412,9 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
           break;
         case "investments":
           results = await searchByScope("investments", searchTerms, signal);
+          break;
+        case "projects":
+          results = await searchByScope("projects", searchTerms, signal);
           break;
         case "bookmarks":
         case "bookmark": // Support singular form

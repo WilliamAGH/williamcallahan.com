@@ -11,7 +11,7 @@ export const sections: Record<SectionKey, string> = {
   investments: "/investments",
   experience: "/experience",
   education: "/education",
-  skills: "/skills",
+  projects: "/projects",
   blog: "/blog",
   bookmarks: "/bookmarks",
   bookmark: "/bookmarks", // allows for singular and plural form

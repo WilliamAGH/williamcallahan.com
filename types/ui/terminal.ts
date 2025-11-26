@@ -87,7 +87,7 @@ export type SectionKey =
   | "investments"
   | "experience"
   | "education"
-  | "skills"
+  | "projects"
   | "blog"
   | "bookmarks"
   | "bookmark"
