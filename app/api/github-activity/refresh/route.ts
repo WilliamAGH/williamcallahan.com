@@ -9,13 +9,13 @@
  * updates the application's data store, and returns statistics about the fetched data.
  */
 
-import { refreshGitHubActivityDataFromApi, invalidateGitHubCache } from "@/lib/data-access/github";
+import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
 import { TIME_CONSTANTS } from "@/lib/constants";
 import { NextResponse, type NextRequest } from "next/server";
-import { revalidateTag } from "next/cache";
 import { incrementAndPersist, loadRateLimitStoreFromS3 } from "@/lib/rate-limiter";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getMonotonicTime } from "@/lib/utils";
+import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
 
 /**
  * @constant {string} dynamic - Ensures the route is dynamically rendered and not cached.
@@ -180,18 +180,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (result) {
       console.log("[API Refresh] GitHub activity data refresh completed successfully");
 
-      // Invalidate cache layers for GitHub data
-      invalidateGitHubCache(); // in-memory
-      try {
-        revalidateTag("github-activity", "default"); // Next.js function cache tag
-      } catch (err) {
-        // No-op outside of Next request context
-        envLogger.log(
-          "revalidateTag('github-activity', 'default') skipped or failed",
-          { error: err instanceof Error ? err.message : String(err) },
-          { category: "GitHubActivityRefresh" },
-        );
-      }
+      // Invalidate cache layers for GitHub data (single source of truth)
+      invalidateAllGitHubCaches();
 
       const responseData = {
         message: `GitHub activity data refresh completed successfully${isCronJob ? " (triggered by cron job)" : ""}.`,
