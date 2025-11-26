@@ -7,7 +7,7 @@
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
 import { searchBookmarks, searchExperience, searchEducation, searchInvestments, searchProjects } from "@/lib/search";
-import { applySearchGuards, withNoStoreHeaders } from "@/lib/search/api-guards";
+import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { type SearchResult, VALID_SCOPES } from "@/types/search";
@@ -140,14 +140,6 @@ export async function GET(request: NextRequest, { params }: { params: { scope: s
     // Handle unknown errors safely without unsafe assignments/calls
     const err = unknownErr instanceof Error ? unknownErr : new Error(String(unknownErr));
     console.error(`Scoped search API error for scope ${params.scope}:`, err);
-
-    return NextResponse.json(
-      {
-        error: "Failed to perform search",
-        details: err.message,
-        scope: params.scope,
-      },
-      { status: 500, headers: withNoStoreHeaders() },
-    );
+    return createSearchErrorResponse(`Failed to perform ${params.scope} search`, err.message);
   }
 }
