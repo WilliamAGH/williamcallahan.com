@@ -123,14 +123,17 @@ export async function GET(request: NextRequest) {
       const MAX_TOTAL_RESULTS = 50;
 
       // Combine all results with limits
-      return [
+      const combined = [
         ...prefixedBlogResults.slice(0, MAX_RESULTS_PER_CATEGORY),
         ...prefixedInvestmentResults.slice(0, MAX_RESULTS_PER_CATEGORY),
         ...prefixedExperienceResults.slice(0, MAX_RESULTS_PER_CATEGORY),
         ...prefixedEducationResults.slice(0, MAX_RESULTS_PER_CATEGORY),
         ...prefixedBookmarkResults.slice(0, MAX_RESULTS_PER_CATEGORY),
         ...prefixedProjectResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-      ].slice(0, MAX_TOTAL_RESULTS);
+      ];
+
+      // Sort by relevance score (highest first) then limit total results
+      return combined.toSorted((a, b) => b.score - a.score).slice(0, MAX_TOTAL_RESULTS);
     });
 
     return NextResponse.json(
