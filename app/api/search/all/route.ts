@@ -7,7 +7,7 @@
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
 import { searchBookmarks, searchEducation, searchExperience, searchInvestments, searchProjects } from "@/lib/search";
-import { applySearchGuards, withNoStoreHeaders } from "@/lib/search/api-guards";
+import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { validateSearchQuery } from "@/lib/validators/search";
 import type { SearchResult } from "@/types/search";
@@ -151,9 +151,6 @@ export async function GET(request: NextRequest) {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     console.error("Site-wide search API error:", errorMessage);
-    return NextResponse.json(
-      { error: "Failed to perform site-wide search", details: errorMessage },
-      { status: 500, headers: withNoStoreHeaders() },
-    );
+    return createSearchErrorResponse("Failed to perform site-wide search", errorMessage);
   }
 }

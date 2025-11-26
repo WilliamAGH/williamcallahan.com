@@ -151,3 +151,24 @@ export function applySearchGuards(request: NextRequest): NextResponse | null {
 
   return null;
 }
+
+/**
+ * Create a production-safe error response for search API errors.
+ * In production, internal error details are omitted to prevent information disclosure.
+ * In development/test, details are included to aid debugging.
+ *
+ * @param userMessage - User-facing error message (always shown)
+ * @param internalError - Internal error details (only shown in non-production)
+ * @param status - HTTP status code (default: 500)
+ * @returns NextResponse with appropriate error details
+ */
+export function createSearchErrorResponse(userMessage: string, internalError: string, status = 500): NextResponse {
+  const isProduction = process.env.NODE_ENV === "production";
+
+  const body = isProduction ? { error: userMessage } : { error: userMessage, details: internalError };
+
+  return NextResponse.json(body, {
+    status,
+    headers: withNoStoreHeaders(),
+  });
+}
