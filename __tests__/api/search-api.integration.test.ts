@@ -9,12 +9,13 @@ import { GET } from "@/app/api/search/all/route";
 // Headers is already available globally via polyfills.js
 
 // Mock search functions to return empty arrays for test environment
+// Note: [Blog] prefix is added by the aggregator, not by searchBlogPostsServerSide
 jest.mock("@/lib/blog/server-search", () => ({
   searchBlogPostsServerSide: jest.fn().mockResolvedValue([
     {
       id: "1",
       type: "post",
-      title: "[Blog] Test Post 1",
+      title: "Test Post 1",
       description: "Test description",
       url: "/blog/test-1",
       score: 1,
@@ -22,7 +23,7 @@ jest.mock("@/lib/blog/server-search", () => ({
     {
       id: "2",
       type: "post",
-      title: "[Blog] Test Post 2",
+      title: "Test Post 2",
       description: "Test description",
       url: "/blog/test-2",
       score: 0.8,
@@ -124,7 +125,7 @@ describe("Search API: GET /api/search/all", () => {
     });
 
     /**
-     * @description Should handle valid query and return results
+     * @description Should handle valid query and return results in standardized format
      */
     it("should process a valid search query and return results", async () => {
       const request = new MockNextRequest("http://localhost:3000/api/search/all?q=test") as any;
@@ -132,10 +133,17 @@ describe("Search API: GET /api/search/all", () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(Array.isArray(data)).toBe(true);
+      // Standardized response format: { results, meta }
+      expect(data).toHaveProperty("results");
+      expect(data).toHaveProperty("meta");
+      expect(Array.isArray(data.results)).toBe(true);
+      expect(data.meta).toHaveProperty("query");
+      expect(data.meta).toHaveProperty("scope", "all");
+      expect(data.meta).toHaveProperty("count");
+      expect(data.meta).toHaveProperty("timestamp");
 
       // Each result should have the required fields
-      for (const result of data) {
+      for (const result of data.results) {
         expect(result).toHaveProperty("title");
         expect(result).toHaveProperty("url");
         expect(typeof result.title).toBe("string");
@@ -185,9 +193,11 @@ describe("Search API: GET /api/search/all", () => {
         expect(response.status).toBe(200);
       }
 
-      // All results should be arrays
+      // All results should have standardized format
       for (const result of results) {
-        expect(Array.isArray(result)).toBe(true);
+        expect(result).toHaveProperty("results");
+        expect(result).toHaveProperty("meta");
+        expect(Array.isArray(result.results)).toBe(true);
       }
     });
   });

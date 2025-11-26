@@ -54,6 +54,7 @@ export async function searchBlogPostsServerSide(query: string): Promise<SearchRe
   });
 
   // Map results to the SearchResult format
+  // Note: [Blog] prefix is added by the aggregator in /api/search/all for consistency
   return results
     .toSorted((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     .map(
@@ -61,7 +62,7 @@ export async function searchBlogPostsServerSide(query: string): Promise<SearchRe
         ({
           id: post.slug,
           type: "blog-post",
-          title: `[Blog] ${post.title || "Untitled Post"}`, // Add prefix
+          title: post.title || "Untitled Post",
           description: post.excerpt || "No excerpt available.",
           url: `/blog/${post.slug}`,
           score: 0,
