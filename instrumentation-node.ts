@@ -72,7 +72,23 @@ export async function register(): Promise<void> {
   /** Sentry (Node) **/
   if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
     const Sentry = await import("@sentry/nextjs");
-    Sentry.init({ dsn: process.env.SENTRY_DSN, release: releaseVersion, tracesSampleRate: 1 });
+    Sentry.init({
+      dsn: process.env.SENTRY_DSN,
+      release: releaseVersion,
+      tracesSampleRate: 1,
+
+      // Server-side integrations for enhanced error context
+      integrations: [
+        // Format Zod validation errors for better readability
+        Sentry.zodErrorsIntegration({ limit: 10 }),
+
+        // Capture error.cause chain for debugging nested errors
+        Sentry.extraErrorDataIntegration({ depth: 3, captureErrorCause: true }),
+
+        // Deduplicate identical errors to reduce noise
+        Sentry.dedupeIntegration(),
+      ],
+    });
   }
 
   /** Image manifest warm-up **/

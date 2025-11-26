@@ -509,6 +509,9 @@ const sentryWebpackPluginOptions = {
   project: "williamcallahan-com",
   authToken: process.env.SENTRY_AUTH_TOKEN,
   useRunAfterProductionCompileHook: false,
+  // Application key for thirdPartyErrorFilterIntegration - marks bundled code
+  // to distinguish it from third-party scripts (browser extensions, injected code)
+  applicationKey: "williamcallahan-com",
   release: {
     name: process.env.NEXT_PUBLIC_GIT_HASH || process.env.NEXT_PUBLIC_APP_VERSION,
     deploy: {

@@ -57,8 +57,54 @@ if (process.env.NODE_ENV === "production") {
     // Associate errors with the correct source map
     release: process.env.NEXT_PUBLIC_GIT_HASH || process.env.NEXT_PUBLIC_APP_VERSION,
 
-    // Add optional integrations for additional features
-    integrations: [Sentry.replayIntegration()],
+    // Integrations for comprehensive error tracking and performance monitoring
+    integrations: [
+      // Session replay for debugging user interactions leading to errors
+      Sentry.replayIntegration(),
+
+      // Filter errors originating exclusively from third-party code (browser extensions, injected scripts)
+      // Uses stack frame analysis with applicationKey from bundler plugin for robust detection
+      // Defense-in-depth: works alongside beforeSend pattern matching below
+      Sentry.thirdPartyErrorFilterIntegration({
+        filterKeys: ["williamcallahan-com"],
+        behaviour: "drop-error-if-exclusively-contains-third-party-frames",
+      }),
+
+      // Format Zod validation errors for better readability in Sentry
+      // Flattens nested paths and provides structured issue display
+      Sentry.zodErrorsIntegration({
+        limit: 10, // Max issues to inline per error
+        saveZodIssuesAsAttachment: false, // Keep payload size reasonable
+      }),
+
+      // Capture additional error properties including error.cause chain
+      // Essential for debugging errors with nested causes
+      Sentry.extraErrorDataIntegration({
+        depth: 3, // Capture up to 3 levels of nested data
+        captureErrorCause: true, // Capture Error.cause for chained errors
+      }),
+
+      // Capture failed HTTP requests (5xx errors) as Sentry events
+      // Targets internal API routes to avoid noise from external failures
+      Sentry.httpClientIntegration({
+        failedRequestStatusCodes: [[500, 599]], // Server errors only
+        failedRequestTargets: [/\/api\//], // Only internal API routes
+      }),
+
+      // Next.js-specific browser tracing for performance monitoring
+      // Captures page loads, navigations, and Web Vitals
+      Sentry.browserTracingIntegration({
+        enableInp: true, // Interaction to Next Paint
+        enableLongTask: true, // Long task detection
+        enableLongAnimationFrame: true, // Long animation frame detection
+      }),
+
+      // Capture browser deprecation warnings and interventions
+      // Helps identify compatibility issues before they become problems
+      Sentry.reportingObserverIntegration({
+        types: ["crash", "deprecation", "intervention"],
+      }),
+    ],
 
     // Production sample rates
     tracesSampleRate: 1,
