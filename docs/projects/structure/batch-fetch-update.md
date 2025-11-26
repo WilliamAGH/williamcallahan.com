@@ -134,7 +134,7 @@ bun scripts/data-updater.ts
 
 # Update specific data types
 bun scripts/data-updater.ts --bookmarks
-bun scripts/data-updater.ts --github-activity --logos
+bun scripts/data-updater.ts --github --logos
 
 # Prefetch for builds
 bun scripts/data-updater.ts --prefetch-build  # Fast (S3 only)
@@ -158,7 +158,7 @@ bun scripts/data-updater.ts --force --bookmarks
 - **lib/server/scheduler.ts**: Long-running process using node-cron
 - **scripts/data-updater.ts**: Unified CLI for all data operations
   - `--bookmarks`: Update bookmarks only
-  - `--github-activity`: Update GitHub activity only
+  - `--github`: Update GitHub activity only
   - `--logos`: Update logos only
   - `--prefetch-build`: Fast build prefetch (S3 only)
   - `--prefetch-dev`: Full development prefetch

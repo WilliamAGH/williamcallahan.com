@@ -10,6 +10,7 @@
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { debug } from "@/lib/utils/debug";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
+import { GITHUB_CACHE_KEYS, GITHUB_CACHE_TAGS } from "@/lib/cache/invalidation";
 import { formatPacificDateTime } from "@/lib/utils/date-format";
 import { getEnvironment } from "@/lib/config/environment";
 import type { GitHubActivityApiResponse, StoredGithubActivityS3, UserActivityView } from "@/types/github";
@@ -20,6 +21,7 @@ import {
   GITHUB_ACTIVITY_S3_KEY_FILE,
   GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK,
 } from "./github-storage";
+import { GITHUB_ACTIVITY_S3_PATHS } from "@/lib/constants";
 // Import detectAndRepairCsvFiles if needed for refreshGitHubActivityDataFromApi
 
 /**
@@ -104,7 +106,7 @@ export async function getGithubActivity(): Promise<UserActivityView> {
   debug("[DataAccess/GitHub:getGithubActivity] Starting GitHub activity fetch");
 
   // Check in-memory cache first
-  const cachedData = ServerCacheInstance.get<UserActivityView>("github-activity");
+  const cachedData = ServerCacheInstance.get<UserActivityView>(GITHUB_CACHE_KEYS.ACTIVITY);
   if (cachedData) {
     debug("[DataAccess/GitHub:getGithubActivity] Returning GitHub activity from in-memory cache.");
     return cachedData;
@@ -146,10 +148,7 @@ export async function getGithubActivity(): Promise<UserActivityView> {
       // If we're in production and both files are missing, try WITHOUT suffix
       // This handles the case where files might be stored without environment suffix
       if (currentEnv === "production" && GITHUB_ACTIVITY_S3_KEY_FILE.includes(".json")) {
-        const baseKey = GITHUB_ACTIVITY_S3_KEY_FILE.replace(
-          /(-dev|-test)?\.json$/,
-          ".json",
-        ) as `json/github-activity/activity_data${string}.json`;
+        const baseKey = GITHUB_ACTIVITY_S3_PATHS.ACTIVITY_DATA_PROD_FALLBACK;
         if (baseKey !== GITHUB_ACTIVITY_S3_KEY_FILE) {
           const baseData = await readGitHubActivityFromS3(baseKey);
           if (baseData && !isEmptyData(baseData)) {
@@ -213,7 +212,7 @@ export async function getGithubActivity(): Promise<UserActivityView> {
   const formattedView = formatActivityView(s3ActivityData, "s3-store", lastRefreshed);
 
   // Cache the result
-  ServerCacheInstance.set("github-activity", formattedView, 60 * 60 * 1000); // 1 hour
+  ServerCacheInstance.set(GITHUB_CACHE_KEYS.ACTIVITY, formattedView, 60 * 60 * 1000); // 1 hour
 
   return formattedView;
 }
@@ -231,7 +230,7 @@ async function getGithubActivityDirect(): Promise<UserActivityView> {
 async function getCachedGithubActivity(): Promise<UserActivityView> {
   "use cache";
   cacheContextGuards.cacheLife("GitHubActivity", "minutes");
-  cacheContextGuards.cacheTag("GitHubActivity", "github-activity", "github-activity-main");
+  cacheContextGuards.cacheTag(GITHUB_CACHE_TAGS.CATEGORY, GITHUB_CACHE_TAGS.PRIMARY, GITHUB_CACHE_TAGS.MAIN);
 
   return getGithubActivityDirect();
 }
@@ -247,24 +246,5 @@ export async function getGithubActivityCached(): Promise<UserActivityView> {
   return withCacheFallback(getCachedGithubActivity, getGithubActivityDirect);
 }
 
-/**
- * Invalidate GitHub cache
- */
-export function invalidateGitHubCache(): void {
-  // Clear in-memory cache
-  ServerCacheInstance.del("github-activity");
-  ServerCacheInstance.del("github-activity-summary");
-  ServerCacheInstance.del("github-activity-weekly");
-
-  // Invalidate Next.js cache tags
-  if (USE_NEXTJS_CACHE) {
-    cacheContextGuards.revalidateTag("GitHubActivity", "github-activity", "github-activity-main");
-  }
-}
-
-/**
- * Alias for invalidateGitHubCache
- */
-export function invalidateGitHubActivityCache(): void {
-  invalidateGitHubCache();
-}
+// Re-export centralized invalidator for consumers
+export { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";

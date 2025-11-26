@@ -16,6 +16,7 @@ import { getMonotonicTime } from "@/lib/utils";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
 import { KNOWN_DOMAINS, SEARCH_S3_PATHS, IMAGE_MANIFEST_S3_PATHS, IMAGE_S3_PATHS } from "@/lib/constants";
+import { DATA_UPDATER_FLAGS, hasFlag, parseTestLimit } from "@/lib/constants/cli-flags";
 import { getLogo } from "@/lib/data-access/logos";
 import { processLogoBatch } from "@/lib/data-access/logos-batch";
 import { refreshBookmarks } from "@/lib/bookmarks/service.server";
@@ -31,7 +32,7 @@ import {
   refreshGitHubActivityDataFromApi,
   resetLogoSessionTracking,
 } from "@/lib/data-access";
-// Content graph import moved to lazy loading to reduce startup overhead
+// Cache invalidation uses dynamic import to reduce startup overhead (see refreshGitHubActivityData)
 
 /**
  * Main data fetch manager class
@@ -193,6 +194,15 @@ export class DataFetchManager {
 
       // Re-aggregate stats
       await calculateAndStoreAggregatedWeeklyActivity();
+
+      // Invalidate caches after successful S3 write (defense in depth)
+      try {
+        const { invalidateAllGitHubCaches } = await import("@/lib/cache/invalidation");
+        invalidateAllGitHubCaches();
+        logger.info("[DataFetchManager] GitHub caches invalidated after data fetch");
+      } catch (cacheError) {
+        logger.warn("[DataFetchManager] Cache invalidation failed (non-fatal):", cacheError);
+      }
 
       const duration = (getMonotonicTime() - startTime) / 1000;
       return {
@@ -659,32 +669,28 @@ if (require.main === module) {
 
   const config: DataFetchConfig = {};
 
-  if (args.includes("--bookmarks")) {
+  // Use centralized CLI flags (single source of truth)
+  if (hasFlag(args, DATA_UPDATER_FLAGS.BOOKMARKS)) {
     config.bookmarks = true;
   }
-  if (args.includes("--logos")) {
+  if (hasFlag(args, DATA_UPDATER_FLAGS.LOGOS)) {
     config.logos = true;
   }
-  if (args.includes("--github")) {
+  if (hasFlag(args, DATA_UPDATER_FLAGS.GITHUB)) {
     config.githubActivity = true;
   }
-  if (args.includes("--search-indexes")) {
+  if (hasFlag(args, DATA_UPDATER_FLAGS.SEARCH_INDEXES)) {
     config.searchIndexes = true;
   }
-  if (args.includes("--force")) {
+  if (hasFlag(args, DATA_UPDATER_FLAGS.FORCE)) {
     config.forceRefresh = true;
   }
 
-  const testLimitArg = args.find(arg => arg.startsWith("--testLimit="));
-  if (testLimitArg) {
-    const limitStr = testLimitArg.split("=")[1];
-    if (limitStr) {
-      const limit = parseInt(limitStr, 10);
-      if (!Number.isNaN(limit)) {
-        config.testLimit = limit;
-        logger.info(`[DataFetchManagerCLI] Applying test limit of ${limit}`);
-      }
-    }
+  // Use centralized test limit parser
+  const testLimit = parseTestLimit(args);
+  if (testLimit !== undefined) {
+    config.testLimit = testLimit;
+    logger.info(`[DataFetchManagerCLI] Applying test limit of ${testLimit}`);
   }
 
   console.log(`[DataFetchManagerCLI] Config:`, JSON.stringify(config, null, 2));
