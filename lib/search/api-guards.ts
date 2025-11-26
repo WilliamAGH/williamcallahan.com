@@ -28,8 +28,11 @@ import os from "node:os";
  */
 export function getCriticalThreshold(): number {
   const bytesEnv = process.env.MEMORY_CRITICAL_BYTES;
-  if (bytesEnv && !Number.isNaN(Number(bytesEnv))) {
-    return Number(bytesEnv);
+  if (bytesEnv) {
+    const parsed = Number(bytesEnv);
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
   }
 
   const percentEnv = process.env.MEMORY_CRITICAL_PERCENT;
