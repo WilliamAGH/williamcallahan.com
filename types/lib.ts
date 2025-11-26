@@ -337,6 +337,9 @@ export interface SearchResult {
   metadata?: Record<string, unknown>;
 }
 
+/** Search result with relevance score wrapper (used by searchContent) */
+export type ScoredResult<T> = { item: T; score: number };
+
 /** Search operation response */
 export interface SearchResponse {
   results: SearchResult[];
