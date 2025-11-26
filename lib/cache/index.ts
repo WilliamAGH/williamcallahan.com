@@ -9,3 +9,8 @@
  * Re-exports all functionalities from the core cache utility file.
  */
 export * from "../cache";
+
+/**
+ * Re-exports cache invalidation utilities for GitHub activity.
+ */
+export * from "./invalidation";

@@ -16,8 +16,7 @@ export {
   getGithubActivity,
   refreshGitHubActivityDataFromApi,
   calculateAndStoreAggregatedWeeklyActivity,
-  invalidateGitHubCache,
-  invalidateGitHubActivityCache,
+  invalidateAllGitHubCaches,
 } from "./github";
 
 // ---- Logo Data Access (explicit public surface) ----

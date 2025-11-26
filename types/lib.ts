@@ -528,6 +528,27 @@ export interface DataFetchOperationSummary {
 }
 
 // =============================================================================
+// CLI FLAGS - Command-line interface types
+// =============================================================================
+
+/**
+ * Valid CLI flag values for data updater operations
+ * Used by scheduler, data-updater, and data-fetch-manager
+ */
+export type DataUpdaterFlag =
+  | "--bookmarks"
+  | "--github"
+  | "--logos"
+  | "--search-indexes"
+  | "--force"
+  | "--metadata-only"
+  | "--metadata-limit"
+  | "--testLimit="
+  | "--help"
+  | "-h"
+  | "--allow-build-writes";
+
+// =============================================================================
 // SCHEDULING SYSTEM - Task scheduling infrastructure
 // =============================================================================
 
