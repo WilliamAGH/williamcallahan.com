@@ -2,11 +2,11 @@
  * Search Utilities
  */
 
-import { posts } from "../data/blog/posts";
-import { certifications, education } from "../data/education";
-import { experiences } from "../data/experience";
-import { investments } from "../data/investments";
-import { projects as projectsData } from "../data/projects";
+import { posts } from "@/data/blog/posts";
+import { certifications, education } from "@/data/education";
+import { experiences } from "@/data/experience";
+import { investments } from "@/data/investments";
+import { projects as projectsData } from "@/data/projects";
 import type { BlogPost } from "../types/blog";
 import type { SearchResult, EducationItem, BookmarkIndexItem, ScoredResult } from "../types/search";
 import MiniSearch from "minisearch";
@@ -222,7 +222,7 @@ function buildPostsIndex(): MiniSearch<BlogPost> {
   const postsIndex = new MiniSearch<BlogPost>({
     fields: ["title", "excerpt", "tags", "authorName"], // Fields to index
     storeFields: ["id", "title", "excerpt", "slug", "publishedAt"], // Fields to return with results
-    idField: "slug", // Unique identifier
+    idField: "id", // Unique identifier - use id for consistency with other search indexes
     searchOptions: {
       boost: { title: 2 }, // Title matches are more important
       fuzzy: 0.1,
@@ -243,8 +243,8 @@ function buildPostsIndex(): MiniSearch<BlogPost> {
     },
   });
 
-  // Deduplicate posts by slug before adding to index
-  const dedupedPosts = prepareDocumentsForIndexing(posts, "Blog Posts", post => post.slug);
+  // Deduplicate posts by id before adding to index
+  const dedupedPosts = prepareDocumentsForIndexing(posts, "Blog Posts", post => post.id);
 
   // Add posts directly - virtual fields are handled by extractField
   postsIndex.addAll(dedupedPosts);
@@ -265,7 +265,7 @@ async function searchPostsDirect(query: string): Promise<BlogPost[]> {
     post => [post.title || "", post.excerpt || "", ...(post.tags || []), post.author?.name || ""],
     post => post.title,
     index,
-    post => post.slug, // Use slug as ID (matches MiniSearch idField)
+    // Default extractId uses item.id which matches MiniSearch idField: "id"
   );
 
   // Extract items and sort by date (posts prioritize recency over relevance score)
