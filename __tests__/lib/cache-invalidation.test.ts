@@ -8,7 +8,7 @@ jest.mock("@/lib/data-access/opengraph");
 
 import { searchPostsAsync, invalidateSearchCache, invalidateSearchQueryCache } from "@/lib/search";
 import { getBookmarksPage, invalidateBookmarksCache } from "@/lib/bookmarks/bookmarks-data-access.server";
-import { getGithubActivity, invalidateGitHubCache } from "@/lib/data-access/github";
+import { getGithubActivity, invalidateAllGitHubCaches } from "@/lib/data-access/github";
 import { getAllPosts } from "@/lib/blog";
 import { invalidateBlogCache } from "@/lib/blog/mdx";
 
@@ -98,7 +98,7 @@ describe("Next.js Cache Invalidation", () => {
         );
 
         // Invalidate cache
-        invalidateGitHubCache();
+        invalidateAllGitHubCaches();
 
         // Third fetch (should be fresh)
         const start2 = Date.now();

@@ -18,6 +18,7 @@ global.fetch = jest.fn();
 
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
 import { getS3ObjectMetadata } from "@/lib/s3-utils";
+import { GITHUB_ACTIVITY_S3_PATHS } from "@/lib/constants";
 
 const mockRefreshGitHubActivityDataFromApi = refreshGitHubActivityDataFromApi;
 const mockGetS3ObjectMetadata = getS3ObjectMetadata;
@@ -147,7 +148,7 @@ describe("lib/data-access/github.ts functionality", () => {
     });
 
     it("should handle S3 metadata retrieval", async () => {
-      const testKey = "json/github-activity/activity_data.json";
+      const testKey = GITHUB_ACTIVITY_S3_PATHS.ACTIVITY_DATA_PROD_FALLBACK;
       const mockMetadata = {
         LastModified: new Date("2024-01-01"),
         ETag: "test-etag",

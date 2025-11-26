@@ -55,7 +55,7 @@ export async function getGithubActivity(): Promise<UserActivityView> {
   return Promise.resolve(mockActivity);
 }
 
-export function invalidateGitHubCache(): void {
+export function invalidateAllGitHubCaches(): void {
   cacheInvalidated = true;
   console.log("[Mock] GitHub cache invalidated");
 }

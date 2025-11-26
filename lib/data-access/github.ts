@@ -72,12 +72,7 @@ export {
 } from "@/lib/constants";
 
 // Re-export public API functions from github-public-api.ts
-export {
-  getGithubActivity,
-  getGithubActivityCached,
-  invalidateGitHubCache,
-  invalidateGitHubActivityCache,
-} from "./github-public-api";
+export { getGithubActivity, getGithubActivityCached, invalidateAllGitHubCaches } from "./github-public-api";
 
 // Re-export processing functions
 export { calculateAndStoreAggregatedWeeklyActivity } from "./github-processing";
