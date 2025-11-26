@@ -13,6 +13,7 @@ import logger from "@/lib/utils/logger";
 import { existsSync } from "node:fs";
 import { writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { DATA_UPDATER_FLAGS, hasFlag, parseTestLimit } from "@/lib/constants/cli-flags";
 
 // Set flag to indicate this is the data updater process
 process.env.IS_DATA_UPDATER = "true";
@@ -26,16 +27,16 @@ const RUN_INTERVAL_HOURS = 12;
 
 async function checkRecentRun(): Promise<boolean> {
   // Only check in development mode and when not forced
-  if (process.env.NODE_ENV !== "development" || args.includes("--force")) {
+  if (process.env.NODE_ENV !== "development" || hasFlag(args, DATA_UPDATER_FLAGS.FORCE)) {
     return false; // Continue with update
   }
 
   // Skip check if specific operations are requested (not the default all operations)
   if (
-    args.includes("--bookmarks") ||
-    args.includes("--github") ||
-    args.includes("--logos") ||
-    args.includes("--search-indexes")
+    hasFlag(args, DATA_UPDATER_FLAGS.BOOKMARKS) ||
+    hasFlag(args, DATA_UPDATER_FLAGS.GITHUB) ||
+    hasFlag(args, DATA_UPDATER_FLAGS.LOGOS) ||
+    hasFlag(args, DATA_UPDATER_FLAGS.SEARCH_INDEXES)
   ) {
     return false; // Continue with update
   }
@@ -93,10 +94,10 @@ async function updateTimestamp(results: DataFetchOperationSummary[]): Promise<vo
 }
 
 // Handle metadata-only refresh mode for bookmarks
-if (args.includes("--metadata-only")) {
+if (hasFlag(args, DATA_UPDATER_FLAGS.METADATA_ONLY)) {
   process.env.BOOKMARK_METADATA_ONLY_REFRESH = "true";
   // Allow custom limit if provided
-  const limitIndex = args.indexOf("--metadata-limit");
+  const limitIndex = args.indexOf(DATA_UPDATER_FLAGS.METADATA_LIMIT);
   if (limitIndex !== -1 && args[limitIndex + 1]) {
     process.env.BOOKMARK_METADATA_REFRESH_LIMIT = args[limitIndex + 1];
   }
@@ -104,7 +105,7 @@ if (args.includes("--metadata-only")) {
 }
 
 // Handle help flag
-if (args.includes("--help") || args.includes("-h")) {
+if (hasFlag(args, DATA_UPDATER_FLAGS.HELP) || hasFlag(args, DATA_UPDATER_FLAGS.HELP_SHORT)) {
   console.log(`Usage: data-fetch-manager [options]
 
 Options:
@@ -130,7 +131,7 @@ Environment Variables:
 logger.info(`[DataFetchManager] CLI execution started. Args: ${args.join(" ")}`);
 
 // Safety check: Prevent S3 writes during build phase
-if (process.env.NEXT_PHASE === "phase-production-build" && !args.includes("--allow-build-writes")) {
+if (process.env.NEXT_PHASE === "phase-production-build" && !hasFlag(args, DATA_UPDATER_FLAGS.ALLOW_BUILD_WRITES)) {
   console.warn("⚠️  WARNING: data-updater called during Next.js build phase");
   console.warn("⚠️  S3 writes during build are now disabled to prevent build-time mutations");
   console.warn("⚠️  Data updates should happen via runtime scheduler or manual execution");
@@ -157,10 +158,10 @@ const config: DataFetchConfig = {};
 
 // Check if any specific operations were requested
 const hasSpecificOperation =
-  args.includes("--bookmarks") ||
-  args.includes("--logos") ||
-  args.includes("--github") ||
-  args.includes("--search-indexes");
+  hasFlag(args, DATA_UPDATER_FLAGS.BOOKMARKS) ||
+  hasFlag(args, DATA_UPDATER_FLAGS.LOGOS) ||
+  hasFlag(args, DATA_UPDATER_FLAGS.GITHUB) ||
+  hasFlag(args, DATA_UPDATER_FLAGS.SEARCH_INDEXES);
 
 // If no specific operations, run all
 if (!hasSpecificOperation) {
@@ -170,37 +171,29 @@ if (!hasSpecificOperation) {
   config.searchIndexes = true;
 } else {
   // Otherwise only run what was requested
-  if (args.includes("--bookmarks")) {
+  if (hasFlag(args, DATA_UPDATER_FLAGS.BOOKMARKS)) {
     config.bookmarks = true;
   }
-  if (args.includes("--logos")) {
+  if (hasFlag(args, DATA_UPDATER_FLAGS.LOGOS)) {
     config.logos = true;
   }
-  if (args.includes("--github")) {
+  if (hasFlag(args, DATA_UPDATER_FLAGS.GITHUB)) {
     config.githubActivity = true;
   }
-  if (args.includes("--search-indexes")) {
+  if (hasFlag(args, DATA_UPDATER_FLAGS.SEARCH_INDEXES)) {
     config.searchIndexes = true;
   }
 }
 
-if (args.includes("--force")) {
+if (hasFlag(args, DATA_UPDATER_FLAGS.FORCE)) {
   config.forceRefresh = true;
 }
 
-const testLimitArg = args.find(arg => arg.startsWith("--testLimit="));
-if (testLimitArg) {
-  const limitStr = testLimitArg.split("=")[1];
-  if (limitStr?.trim()) {
-    const limit = parseInt(limitStr, 10);
-    if (!Number.isNaN(limit) && limit > 0 && limit <= 10000) {
-      config.testLimit = limit;
-      logger.info(`[DataUpdaterCLI] Applying test limit of ${limit}`);
-    } else {
-      logger.error(`[DataUpdaterCLI] Invalid test limit: ${limitStr}. Must be a positive integer <= 10000`);
-      process.exit(1);
-    }
-  }
+// Parse test limit using centralized utility
+const testLimit = parseTestLimit(args);
+if (testLimit !== undefined) {
+  config.testLimit = testLimit;
+  logger.info(`[DataUpdaterCLI] Applying test limit of ${testLimit}`);
 }
 
 // Main execution
