@@ -99,7 +99,7 @@
     "@opentelemetry/instrumentation": "0.207.0",
     "@react-pdf/renderer": "^4.3.1",
     "@sentry/browser": "10.22.0",
-    "@sentry/nextjs": "10.22.0",
+    "@sentry/nextjs": "10.27.0",
     "@sentry/opentelemetry": "10.22.0",
     "@tailwindcss/typography": "0.5.19",
     "cheerio": "^1.1.2",
