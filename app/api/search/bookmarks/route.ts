@@ -18,10 +18,13 @@ import type { UnifiedBookmark } from "@/types";
 import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 
-// CRITICAL: Check build phase AT RUNTIME, not module load time.
-// Module-scope checks are evaluated during build and baked into the bundle,
-// causing the endpoint to permanently return empty results!
-const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
+// CRITICAL: Check build phase AT RUNTIME using dynamic property access.
+// Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
+// during build, permanently baking "phase-production-build" into the bundle.
+// Using bracket notation with a variable key prevents static analysis and inlining.
+const PHASE_ENV_KEY = "NEXT_PHASE" as const;
+const BUILD_PHASE_VALUE = "phase-production-build" as const;
+const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 
 function resolveRequestUrl(request: NextRequest | { nextUrl?: URL; url: string }): URL {
   if ("nextUrl" in request && request.nextUrl instanceof URL) {
@@ -31,14 +34,16 @@ function resolveRequestUrl(request: NextRequest | { nextUrl?: URL; url: string }
 }
 
 export async function GET(request: NextRequest) {
+  // CRITICAL: Call noStore() FIRST to prevent Next.js from caching ANY response
+  // If called after the build phase check, the buildPhase:true response gets cached
+  if (typeof noStore === "function") {
+    noStore();
+  }
   if (isProductionBuildPhase()) {
     return NextResponse.json(
       { data: [], totalCount: 0, hasMore: false, buildPhase: true },
       { headers: withNoStoreHeaders() },
     );
-  }
-  if (typeof noStore === "function") {
-    noStore();
   }
   try {
     const requestUrl = resolveRequestUrl(request);
