@@ -15,7 +15,11 @@ import { createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-
 import { validateSearchQuery } from "@/lib/validators/search";
 import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
-const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+// CRITICAL: Check build phase AT RUNTIME, not module load time.
+// Module-scope checks are evaluated during build and baked into the bundle,
+// causing the endpoint to permanently return empty results!
+const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
 
 function resolveRequestUrl(request: NextRequest): URL {
   return request.nextUrl;
@@ -33,7 +37,7 @@ function resolveRequestUrl(request: NextRequest): URL {
  * @returns A JSON response containing the search results or an error message.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  if (isProductionBuild) {
+  if (isProductionBuildPhase()) {
     return NextResponse.json([], { headers: withNoStoreHeaders() });
   }
   if (typeof noStore === "function") {

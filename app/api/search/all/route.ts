@@ -14,7 +14,10 @@ import type { SearchResult } from "@/types/search";
 import { unstable_noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 
-const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+// CRITICAL: Check build phase AT RUNTIME, not module load time.
+// Module-scope checks are evaluated during build and baked into the bundle,
+// causing the endpoint to permanently return empty results!
+const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
 
 // Helper to safely extract fulfilled values from Promise.allSettled
 function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
@@ -31,7 +34,7 @@ function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
  * @returns A JSON response containing the search results or an error message.
  */
 export async function GET(request: NextRequest) {
-  if (isProductionBuild) {
+  if (isProductionBuildPhase()) {
     return NextResponse.json(
       {
         results: [],
