@@ -18,6 +18,11 @@ import type { UnifiedBookmark } from "@/types";
 import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Force dynamic rendering - prevents Next.js from pre-rendering this route during build
+// and caching the buildPhase:true response. The x-nextjs-cache: HIT issue occurs when
+// a route is statically generated during build; this export opts out entirely.
+export const dynamic = "force-dynamic";
+
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
 // Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
 // during build, permanently baking "phase-production-build" into the bundle.

@@ -14,6 +14,9 @@ import type { SearchResult } from "@/types/search";
 import { unstable_noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Force dynamic rendering - prevents Next.js from pre-rendering this route during build
+export const dynamic = "force-dynamic";
+
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
 // Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
 // during build, permanently baking "phase-production-build" into the bundle.
