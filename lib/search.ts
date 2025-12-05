@@ -552,13 +552,15 @@ async function getBookmarksIndex(): Promise<{
   bookmarks: Array<BookmarkIndexItem & { slug: string }>;
 }> {
   // Memory safety guard – skip rebuild if under critical pressure
+  let shouldBlockForMemoryPressure = false;
   try {
     const { getMemoryHealthMonitor } = await import("@/lib/health/memory-health-monitor");
-    if (!getMemoryHealthMonitor().shouldAcceptNewRequests()) {
-      throw new Error("Memory pressure – aborting bookmarks index build");
-    }
+    shouldBlockForMemoryPressure = !getMemoryHealthMonitor().shouldAcceptNewRequests();
   } catch {
-    /* If monitor not available, continue */
+    /* If monitor not available, continue without blocking */
+  }
+  if (shouldBlockForMemoryPressure) {
+    throw new Error("Memory pressure – aborting bookmarks index build");
   }
 
   devLog("[getBookmarksIndex] Building/Loading bookmarks index. start");
@@ -724,8 +726,15 @@ async function getBookmarksIndex(): Promise<{
     });
   }
 
-  // Cache the index and bookmarks
+  // Cache the index and bookmarks (but warn if empty with valid source data)
   const result = { index: bookmarksIndex, bookmarks: bookmarksForIndex };
+  if (bookmarksForIndex.length === 0 && bookmarksArr.length > 0) {
+    envLogger.log(
+      `[Search] WARNING: Empty bookmarks index despite ${bookmarksArr.length} source bookmarks - possible slug mapping issue`,
+      { sourceCount: bookmarksArr.length, indexedCount: 0 },
+      { category: "Search" },
+    );
+  }
   ServerCacheInstance.set(cacheKey, result, BOOKMARK_INDEX_TTL);
 
   devLog("[getBookmarksIndex] index built", { indexed: bookmarksArr.length });
