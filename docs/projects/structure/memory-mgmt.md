@@ -38,18 +38,22 @@ The system now operates on **coordinated proactive management** rather than inde
    - **90% RSS**: Critical monitoring validates coordination worked
    - **95% RSS**: Nuclear option - full cache flush (coordination failed)
 
-4. **Early Request Rejection**:
+4. **Recovery Phase**:
+   - When RSS drops below warning threshold, circuit breaker begins **5-minute cooldown** before re-enabling normal operations
+   - Ensures memory pressure has genuinely subsided before resuming memory-intensive work
+
+5. **Early Request Rejection**:
    - Memory pressure checks **before** starting operations, not after
    - S3 reads validate size limits and memory state
    - Image processing queued or skipped under pressure
    - Bookmark enrichment degrades gracefully
 
-5. **State Coordination**:
+6. **State Coordination**:
    - **Single source of truth**: ImageMemoryManager memory pressure state
    - **Consistent metrics**: All systems use same RSS thresholds
    - **Event-driven**: Coordination via event emitters, not polling
 
-6. **Observability**:
+7. **Observability**:
    - The `/api/health` endpoint exposes coordinated system status
    - The `/api/health/metrics` endpoint shows cross-system memory coordination
    - Memory monitoring logs validate that proactive systems are working

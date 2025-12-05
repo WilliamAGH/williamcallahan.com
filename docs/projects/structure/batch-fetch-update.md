@@ -16,7 +16,7 @@ The application uses a cron-based scheduler (`scripts/scheduler.ts`) that runs c
 
 2. **Runtime Logo Fetching**: Logos fetched on-demand at runtime with multi-tier caching (not at build time). `bun run build:full` available for complete prefetch if needed.
 
-3. **Centralized Data Fetching**: Single `lib/server/data-fetch-manager.ts` with CLI interface. Entry point: `scripts/data-updater.ts`.
+3. **Centralized Data Fetching**: Single `lib/server/data-fetch-manager.ts` with CLI. Entry point: `scripts/data-updater.ts`.
 
 ## Open Issues
 
