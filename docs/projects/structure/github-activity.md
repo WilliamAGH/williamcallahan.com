@@ -209,7 +209,7 @@ curl -X POST -H "x-refresh-secret: $GITHUB_REFRESH_SECRET" localhost:3000/api/gi
 aws s3 ls s3://$S3_BUCKET/github/
 ```
 
-## Handling GitHub 202 "stats still generating" responses (2024-06 patch)
+## Handling GitHub 202 "stats still generating" responses
 
 GitHub's `/stats/contributors` endpoint often returns **HTTP 202** for several minutes while it prepares a repository's statistics.  
 Our pipeline now recognises this explicitly:
@@ -228,7 +228,7 @@ GITHUB_STATS_PENDING_MAX_ATTEMPTS=4
 GITHUB_STATS_PENDING_DELAY_MS=10000  # 10s starting delay, doubles each retry
 ```
 
-### Handling GitHub 403 rate-limit responses (2024-06 patch)
+### Handling GitHub 403 rate-limit responses
 
 If the `/stats/contributors` endpoint returns **HTTP 403** due to secondary rate limiting:
 

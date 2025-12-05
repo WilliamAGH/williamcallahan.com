@@ -44,7 +44,7 @@ API routes → read JSON in S3 → `Cache-Control: no-store`
    - Tag navigation with URL-based routing
    - Share functionality with pre-generated URLs
 
-### Runtime Fetch Strategy (2025-11)
+### Runtime Fetch Strategy
 
 - Builds no longer hydrate bookmark JSON locally. Docker images and workstation builds rely on streaming S3/CDN reads when pages are requested.
 - `app/sitemap.ts` iterates paginated S3 artifacts via `getBookmarksIndex()` + `getBookmarksPage()` and streams tag snapshots with `listBookmarkTagSlugs()` + `getTagBookmarksIndex()`/`getTagBookmarksPage()` so the sitemap never materializes the full dataset in memory.
@@ -137,7 +137,7 @@ without reading the entire dataset.
 
 ## Critical Design Decisions
 
-### 1. Title-Based Slug Generation for Content-Sharing Domains (2025-01)
+### 1. Title-Based Slug Generation for Content-Sharing Domains
 
 **Problem**: Slug collisions on content-sharing platforms (YouTube, Reddit, etc.) where multiple pieces of content share the same URL structure
 
@@ -208,7 +208,7 @@ youtube.com/watch?v=xyz789 + "React Best Practices" → "youtube-react-best-prac
 - Client skips redundant filtering on tag routes
 - Pagination hook respects server-provided initial data
 
-### 5. Slug Uniqueness Guarantees (2025-01)
+### 5. Slug Uniqueness Guarantees
 
 **Strategy**:
 

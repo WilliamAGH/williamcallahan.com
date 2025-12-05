@@ -35,7 +35,7 @@ See [Projects Architecture Diagram](./projects.mmd).
 - **Data Source**: `data/projects.ts`
 - **Types**: `types/project.ts` (includes optional `cvFeatured` flag for the `/cv` curriculum vitae page)
 
-## Recent Updates
+## Notable Projects
 
-- **2025-11-05** — Added the ComposerAI project (Svelte + Vite email client with Spring Boot/Qdrant/S3 services) to `data/projects.ts`, ensuring its screenshot lives at `images/other/projects/composerai-app.png` for the Projects cards.
-- **2025-11-05** — Introduced `cvFeatured` flags in `data/projects.ts` so `/cv` can reuse the curated project list without duplicating data.
+- **ComposerAI**: Svelte + Vite email client with Spring Boot/Qdrant/S3 services in `data/projects.ts`, screenshot at `images/other/projects/composerai-app.png`.
+- **CV Integration**: `cvFeatured` flags in `data/projects.ts` allow `/cv` to reuse the curated project list without duplicating data.
