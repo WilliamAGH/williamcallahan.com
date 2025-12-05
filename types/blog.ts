@@ -61,8 +61,8 @@ export interface Author {
   name: string;
   /** URL of the author's avatar image (optional) */
   avatar?: string;
-  /** Short biography or description (optional) */
-  bio?: string;
+  /** Short biography or description (optional, supports JSX for inline links) */
+  bio?: React.ReactNode;
   /** URL to author's profile or website (optional) */
   url?: string;
 }
