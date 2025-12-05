@@ -454,11 +454,18 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
       const message = err instanceof Error ? err.message : safeJsonStringify(err) || "Unknown error";
       const code = err.Code ?? err.name ?? "unknown";
       const status = err.$metadata?.httpStatusCode ?? "unknown";
-      envLogger.log(
-        `Error reading from S3`,
-        { key, attempt: `${attempt}/${MAX_S3_READ_RETRIES}`, status, code, message },
-        { category: "S3Utils" },
-      );
+
+      // Suppress AbortError logging for refresh-lock keys in development only
+      // These are expected during Next.js Fast Refresh when requests get cancelled mid-flight
+      const isDev = process.env.NODE_ENV === "development";
+      const isAbortedRefreshLock = isDev && code === "AbortError" && key.includes("refresh-lock");
+      if (!isAbortedRefreshLock) {
+        envLogger.log(
+          `Error reading from S3`,
+          { key, attempt: `${attempt}/${MAX_S3_READ_RETRIES}`, status, code, message },
+          { category: "S3Utils" },
+        );
+      }
       return null;
     }
   }
