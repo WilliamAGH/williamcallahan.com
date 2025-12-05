@@ -6,7 +6,7 @@
  * @component
  * @param {Object} props
  * @param {BlogPost} props.post - The blog post to display
- * @param {boolean} props.isPriority - Optional priority flag
+ * @param {boolean} props.preload - Preload image in document head (Next.js 16+)
  */
 
 import { formatDate } from "@/lib/utils";
@@ -17,9 +17,7 @@ import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 
 import type { BlogCardPropsExtended } from "@/types/features";
 
-// Use extended props from centralized types
-
-export function BlogCard({ post, isPriority = false }: BlogCardPropsExtended) {
+export function BlogCard({ post, preload = false }: BlogCardPropsExtended) {
   return (
     <article className="group flex flex-col h-full rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden bg-gray-50 dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-200">
       {post.coverImage && typeof post.coverImage === "string" && post.coverImage.trim() !== "" && (
@@ -31,7 +29,8 @@ export function BlogCard({ post, isPriority = false }: BlogCardPropsExtended) {
             src={post.coverImage}
             alt={post.title}
             className="transition-transform duration-300 group-hover:scale-105"
-            priority={isPriority}
+            preload={preload}
+            blurDataURL={post.coverImageBlurDataURL}
           />
         </Link>
       )}
@@ -46,7 +45,6 @@ export function BlogCard({ post, isPriority = false }: BlogCardPropsExtended) {
           </Link>
         </h2>
 
-        {/* Tags are interactive and clickable */}
         <BlogTagsExpandable tags={post.tags} interactive={true} />
 
         <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2 mt-3">{post.excerpt}</p>
