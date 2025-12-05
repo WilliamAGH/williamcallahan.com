@@ -40,6 +40,7 @@ export class ServerCache implements ICache {
   private failureCount = 0;
   private readonly maxFailures = 3;
   private disabled = false;
+  private disabledUntil = 0;
   private totalSize = 0;
   private readonly maxSize: number;
   private cleanupInterval: NodeJS.Timeout;
@@ -100,9 +101,14 @@ export class ServerCache implements ICache {
   }
 
   public get<T>(key: string): T | undefined {
-    // If disabled, return undefined - let the system work without cache
+    // If disabled, check if cooldown expired and memory is healthy for auto-recovery
     if (this.disabled) {
-      return undefined;
+      if (Date.now() >= this.disabledUntil) {
+        this.attemptCircuitBreakerRecovery();
+      }
+      if (this.disabled) {
+        return undefined;
+      }
     }
 
     try {
@@ -255,13 +261,48 @@ export class ServerCache implements ICache {
    */
   private handleFailure(): void {
     this.failureCount++;
+    const memUsage = process.memoryUsage();
+    envLogger.log(
+      `Cache operation failed (${this.failureCount}/${this.maxFailures})`,
+      { failureCount: this.failureCount, rssMB: Math.round(memUsage.rss / 1024 / 1024) },
+      { category: "ServerCache", context: { event: "cache-failure" } },
+    );
 
     if (this.failureCount >= this.maxFailures && !this.disabled) {
       this.disabled = true;
+      this.disabledUntil = Date.now() + 5 * 60 * 1000; // 5-minute cooldown
       envLogger.log(
-        `Circuit breaker activated after ${this.failureCount} failures. Cache operations disabled to prevent system instability.`,
-        { failureCount: this.failureCount },
+        `Circuit breaker activated after ${this.failureCount} failures. Will attempt recovery in 5 minutes.`,
+        { failureCount: this.failureCount, disabledUntil: new Date(this.disabledUntil).toISOString() },
         { category: "ServerCache", context: { event: "circuit-breaker-activated" } },
+      );
+    }
+  }
+
+  /**
+   * Attempt to recover the circuit breaker after cooldown period.
+   * Only recovers if memory usage is below safe threshold.
+   */
+  private attemptCircuitBreakerRecovery(): void {
+    const memUsage = process.memoryUsage();
+    const safeThreshold = MEMORY_THRESHOLDS.TOTAL_PROCESS_MEMORY_BUDGET_BYTES * 0.7;
+
+    if (memUsage.rss < safeThreshold) {
+      this.disabled = false;
+      this.failureCount = 0;
+      this.disabledUntil = 0;
+      envLogger.log(
+        `Circuit breaker auto-recovered. Memory ${Math.round(memUsage.rss / 1024 / 1024)}MB is healthy.`,
+        { rssMB: Math.round(memUsage.rss / 1024 / 1024) },
+        { category: "ServerCache", context: { event: "circuit-breaker-auto-recovered" } },
+      );
+    } else {
+      // Extend cooldown if memory still high
+      this.disabledUntil = Date.now() + 5 * 60 * 1000;
+      envLogger.log(
+        `Circuit breaker recovery deferred - memory still high (${Math.round(memUsage.rss / 1024 / 1024)}MB)`,
+        { rssMB: Math.round(memUsage.rss / 1024 / 1024), nextAttempt: new Date(this.disabledUntil).toISOString() },
+        { category: "ServerCache", context: { event: "circuit-breaker-recovery-deferred" } },
       );
     }
   }
