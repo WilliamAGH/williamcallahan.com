@@ -40,11 +40,13 @@ function resolveRequestUrl(request: NextRequest): URL {
  * @returns A JSON response containing the search results or an error message.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  if (isProductionBuildPhase()) {
-    return NextResponse.json([], { headers: withNoStoreHeaders() });
-  }
+  // CRITICAL: Call noStore() FIRST to prevent Next.js from caching ANY response
+  // If called after the build phase check, the buildPhase:true response gets cached
   if (typeof noStore === "function") {
     noStore();
+  }
+  if (isProductionBuildPhase()) {
+    return NextResponse.json([], { headers: withNoStoreHeaders() });
   }
   try {
     const requestUrl = resolveRequestUrl(request);
