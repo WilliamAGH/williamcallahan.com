@@ -5,7 +5,6 @@
  * the blog section of the application.
  */
 
-import type React from "react";
 import type { MDXRemoteSerializeResult } from "next-mdx-remote";
 
 /**
@@ -55,6 +54,17 @@ export interface BlogPost {
 /**
  * Represents an author of blog posts
  */
+export type AuthorBioSegment =
+  | {
+      type: "text";
+      value: string;
+    }
+  | {
+      type: "link";
+      label: string;
+      href: string;
+    };
+
 export interface Author {
   /** Unique identifier for the author */
   id: string;
@@ -62,8 +72,8 @@ export interface Author {
   name: string;
   /** URL of the author's avatar image (optional) */
   avatar?: string;
-  /** Short biography or description (optional, supports JSX for inline links) */
-  bio?: React.ReactNode;
+  /** Short biography or description (optional, represented as serializable segments) */
+  bio?: AuthorBioSegment[];
   /** URL to author's profile or website (optional) */
   url?: string;
 }
