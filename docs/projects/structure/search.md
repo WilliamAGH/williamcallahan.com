@@ -25,6 +25,22 @@ const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 ```
 
+### noStore() Must Precede Build Phase Checks
+
+Call `noStore()` BEFORE any early return—otherwise Next.js caches the build-phase response forever:
+
+```typescript
+// ❌ FORBIDDEN - response gets cached because noStore() is never called
+if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
+noStore();
+
+// ✅ REQUIRED - noStore() first prevents caching
+noStore();
+if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
+```
+
+**Symptom**: `x-nextjs-cache: HIT` with `buildPhase: true` at runtime.
+
 ### Caching Empty Results
 
 **Never** cache empty search results when the underlying index is empty (indicates data unavailability, not "no matches").
