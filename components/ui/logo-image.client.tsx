@@ -23,11 +23,12 @@ const HASH_TOKEN = /^[a-f0-9]{8}$/i;
 const KNOWN_LOGO_SOURCES = new Set(["google", "duckduckgo", "ddg", "clearbit", "direct", "manual", "unknown", "api"]);
 
 /**
- * Proxies external URLs through the image cache API. Local paths, data URLs,
- * and API paths are returned unchanged.
+ * Proxies external URLs through the image cache API. Local paths and data URLs
+ * are returned unchanged.
  */
 function getProxiedImageSrc(src: string | null | undefined, width?: number): string | undefined {
-  if (!src || src.startsWith("/") || src.startsWith("data:") || src.startsWith("/api/")) {
+  // Skip proxying for: empty values, local paths (including /api/*), and data URLs
+  if (!src || src.startsWith("/") || src.startsWith("data:")) {
     return src ?? undefined;
   }
   if (/^https?:\/\//i.test(src)) {

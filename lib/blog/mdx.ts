@@ -61,6 +61,12 @@ const logCoverImageInfo = (message: string): void => {
   }
 };
 
+/** Directory containing MDX blog posts */
+const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
+/** Public directory for static assets */
+const PUBLIC_DIRECTORY = path.join(process.cwd(), "public");
+const coverImageMap: Record<string, string> = coverImageManifest;
+
 /**
  * Generates a blur data URL (LQIP - Low Quality Image Placeholder) for a local image.
  * Used as the blurDataURL prop for Next.js Image component's placeholder="blur".
@@ -76,9 +82,19 @@ async function generateBlurDataURL(localImagePath: string): Promise<string | und
   }
 
   const absolutePath = path.join(PUBLIC_DIRECTORY, localImagePath);
+  const normalizedPath = path.normalize(absolutePath);
+
+  // Defense-in-depth: ensure resolved path stays within PUBLIC_DIRECTORY
+  // Prevents path traversal attacks like "/images/posts/../../../etc/passwd"
+  if (!normalizedPath.startsWith(PUBLIC_DIRECTORY)) {
+    if (isDevLoggingEnabled) {
+      console.warn(`[generateBlurDataURL] Path traversal attempt blocked: ${localImagePath}`);
+    }
+    return undefined;
+  }
 
   try {
-    const imageBuffer = await fs.readFile(absolutePath);
+    const imageBuffer = await fs.readFile(normalizedPath);
     const { base64 } = await getPlaiceholder(imageBuffer, { size: 10 });
     return base64;
   } catch (error) {
@@ -89,12 +105,6 @@ async function generateBlurDataURL(localImagePath: string): Promise<string | und
     return undefined;
   }
 }
-
-/** Directory containing MDX blog posts */
-const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
-/** Public directory for static assets */
-const PUBLIC_DIRECTORY = path.join(process.cwd(), "public");
-const coverImageMap: Record<string, string> = coverImageManifest;
 
 const cacheLife = (profile: CacheDurationProfile): void => {
   cacheContextGuards.cacheLife("BlogMDX", profile);
