@@ -16,12 +16,7 @@ import { createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-
 import { validateSearchQuery } from "@/lib/validators/search";
 import type { UnifiedBookmark } from "@/types";
 import { unstable_noStore as noStore } from "next/cache";
-import { NextResponse, type NextRequest } from "next/server";
-
-// Force dynamic rendering - prevents Next.js from pre-rendering this route during build
-// and caching the buildPhase:true response. The x-nextjs-cache: HIT issue occurs when
-// a route is statically generated during build; this export opts out entirely.
-export const dynamic = "force-dynamic";
+import { NextResponse, connection, type NextRequest } from "next/server";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
 // Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
@@ -39,6 +34,8 @@ function resolveRequestUrl(request: NextRequest | { nextUrl?: URL; url: string }
 }
 
 export async function GET(request: NextRequest) {
+  // connection(): ensure request-time execution under cacheComponents to avoid prerendered buildPhase responses
+  await connection();
   // CRITICAL: Call noStore() FIRST to prevent Next.js from caching ANY response
   // If called after the build phase check, the buildPhase:true response gets cached
   if (typeof noStore === "function") {

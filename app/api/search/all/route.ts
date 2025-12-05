@@ -12,10 +12,7 @@ import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { validateSearchQuery } from "@/lib/validators/search";
 import type { SearchResult } from "@/types/search";
 import { unstable_noStore } from "next/cache";
-import { NextResponse, type NextRequest } from "next/server";
-
-// Force dynamic rendering - prevents Next.js from pre-rendering this route during build
-export const dynamic = "force-dynamic";
+import { NextResponse, connection, type NextRequest } from "next/server";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
 // Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
@@ -40,6 +37,8 @@ function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
  * @returns A JSON response containing the search results or an error message.
  */
 export async function GET(request: NextRequest) {
+  // connection(): ensure this handler stays request-time under cacheComponents
+  await connection();
   // CRITICAL: Call noStore() FIRST to prevent Next.js from caching ANY response
   // If called after the build phase check, the buildPhase:true response gets cached
   const disableCache = unstable_noStore as (() => void) | undefined;
