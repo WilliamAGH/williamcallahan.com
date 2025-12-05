@@ -869,8 +869,19 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
       .toSorted((a, b) => b.score - a.score);
 
     devLog("[searchBookmarks] results", { count: results.length });
-    // Cache the results
-    ServerCacheInstance.setSearchResults("bookmarks", query, results);
+    // CRITICAL: Do NOT cache empty results when the index itself was empty.
+    // If bookmarks.length === 0, it means no bookmarks could be indexed (slug mapping unavailable).
+    // Caching empty results would cause all subsequent searches to fail until cache expires (15 min).
+    // Only cache if the index was healthy (has documents) - empty search results from a healthy index are valid.
+    if (bookmarks.length > 0) {
+      ServerCacheInstance.setSearchResults("bookmarks", query, results);
+    } else if (results.length === 0) {
+      envLogger.log(
+        "[searchBookmarks] SKIPPING RESULT CACHE: Empty results from empty index - slug mapping likely unavailable",
+        { query, indexedBookmarks: bookmarks.length, resultsCount: results.length },
+        { category: "Search" },
+      );
+    }
 
     return results;
   } catch (err) {

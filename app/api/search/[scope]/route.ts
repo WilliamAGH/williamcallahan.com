@@ -14,7 +14,10 @@ import { type SearchResult, VALID_SCOPES } from "@/types/search";
 import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 
-const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+// CRITICAL: Check build phase AT RUNTIME, not module load time.
+// Module-scope checks are evaluated during build and baked into the bundle,
+// causing the endpoint to permanently return empty results!
+const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
 
 function resolveRequestUrl(request: NextRequest): URL {
   return new URL(request.url);
@@ -31,7 +34,7 @@ function resolveRequestUrl(request: NextRequest): URL {
  * @returns A JSON response containing the search results or an error message.
  */
 export async function GET(request: NextRequest, { params }: { params: { scope: string } }) {
-  if (isProductionBuild) {
+  if (isProductionBuildPhase()) {
     return NextResponse.json(
       {
         data: [],

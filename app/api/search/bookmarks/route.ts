@@ -17,7 +17,11 @@ import { validateSearchQuery } from "@/lib/validators/search";
 import type { UnifiedBookmark } from "@/types";
 import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
-const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+// CRITICAL: Check build phase AT RUNTIME, not module load time.
+// Module-scope checks are evaluated during build and baked into the bundle,
+// causing the endpoint to permanently return empty results!
+const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
 
 function resolveRequestUrl(request: NextRequest | { nextUrl?: URL; url: string }): URL {
   if ("nextUrl" in request && request.nextUrl instanceof URL) {
@@ -27,7 +31,7 @@ function resolveRequestUrl(request: NextRequest | { nextUrl?: URL; url: string }
 }
 
 export async function GET(request: NextRequest) {
-  if (isProductionBuild) {
+  if (isProductionBuildPhase()) {
     return NextResponse.json(
       { data: [], totalCount: 0, hasMore: false, buildPhase: true },
       { headers: withNoStoreHeaders() },
