@@ -115,7 +115,7 @@ async function getCachedOpenGraphDataInternal(
   } catch (e) {
     const error = e instanceof Error ? e : new Error(String(e));
     if ("code" in error && error.code === "NoSuchKey") {
-      debug(`[OG-Priority-3] ❌ S3 cache miss for: ${normalizedUrl}`);
+      debug(`[OG-Priority-3] ❌ Not found in S3 storage: ${normalizedUrl}`);
     } else {
       debug(`[OG-Priority-3] ❌ S3 read error for: ${normalizedUrl} - ${error.message}`);
     }
@@ -280,7 +280,7 @@ export async function getOpenGraphData(
   } catch (e) {
     const error = e instanceof Error ? e : new Error(String(e));
     if ("code" in error && error.code === "NoSuchKey") {
-      debug(`[OG-Priority-3] ❌ S3 cache miss for: ${normalizedUrl}`);
+      debug(`[OG-Priority-3] ❌ Not found in S3 storage: ${normalizedUrl}`);
     } else {
       debug(`[OG-Priority-3] ❌ S3 read error for: ${normalizedUrl} - ${error.message}`);
     }
