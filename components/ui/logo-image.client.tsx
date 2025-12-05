@@ -22,6 +22,25 @@ const LOGO_FILENAME_REGEX = /\/logos\/(?:inverted\/)?([^/?#]+)\.(?:png|jpe?g|web
 const HASH_TOKEN = /^[a-f0-9]{8}$/i;
 const KNOWN_LOGO_SOURCES = new Set(["google", "duckduckgo", "ddg", "clearbit", "direct", "manual", "unknown", "api"]);
 
+/**
+ * Proxies external URLs through the image cache API. Local paths, data URLs,
+ * and API paths are returned unchanged.
+ */
+function getProxiedImageSrc(src: string | null | undefined, width?: number): string | undefined {
+  if (!src || src.startsWith("/") || src.startsWith("data:") || src.startsWith("/api/")) {
+    return src ?? undefined;
+  }
+  if (/^https?:\/\//i.test(src)) {
+    const params = new URLSearchParams();
+    params.set("url", src);
+    if (typeof width === "number" && width > 0) {
+      params.set("width", String(width));
+    }
+    return `/api/cache/images?${params.toString()}`;
+  }
+  return src;
+}
+
 function deriveDomainFromLogoKey(pathname: string): string | null {
   const match = pathname.match(LOGO_FILENAME_REGEX);
   if (!match) {
@@ -101,22 +120,7 @@ export function LogoImage({
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const originalSrc = src;
 
-  const proxiedSrc = React.useMemo(() => {
-    if (!src || src.startsWith("/") || src.startsWith("data:") || src.startsWith("/api/")) {
-      return src;
-    }
-
-    if (/^https?:\/\//i.test(src)) {
-      const params = new URLSearchParams();
-      params.set("url", src);
-      if (typeof width === "number" && width > 0) {
-        params.set("width", String(width));
-      }
-      return `/api/cache/images?${params.toString()}`;
-    }
-
-    return src;
-  }, [src, width]);
+  const proxiedSrc = React.useMemo(() => getProxiedImageSrc(src, width), [src, width]);
 
   const handleError = useCallback(() => {
     if (retryInitiated.current) {
@@ -160,22 +164,7 @@ export function LogoImage({
     };
   }, []);
 
-  if (!proxiedSrc) {
-    // Use company placeholder when no src is provided
-    return (
-      <Image
-        src={getCompanyPlaceholder()}
-        alt={alt}
-        width={width}
-        height={height}
-        className={`${className} object-contain`}
-        priority={priority}
-      />
-    );
-  }
-
-  // After an unrecoverable error, show company placeholder
-  if (imageError) {
+  if (!proxiedSrc || imageError) {
     return (
       <Image
         src={getCompanyPlaceholder()}
@@ -194,10 +183,8 @@ export function LogoImage({
   const shouldBypassOptimizer =
     typeof displaySrc === "string" && (displaySrc.startsWith("/api/") || displaySrc.startsWith("data:"));
 
-  // Use next/image with base64 placeholder to prevent broken image flash
   return (
     <div style={{ position: "relative", width, height }} className="inline-block">
-      {/* Base64 placeholder shown immediately while loading */}
       {isLoading && (
         <Image
           src={COMPANY_PLACEHOLDER_BASE64}
@@ -210,7 +197,6 @@ export function LogoImage({
           unoptimized
         />
       )}
-      {/* Actual logo image */}
       <Image
         src={displaySrc}
         alt={alt}
@@ -263,19 +249,7 @@ export function OptimizedCardImage({
     };
   }, []);
 
-  const proxiedSrc = React.useMemo(() => {
-    if (!src || src.startsWith("/") || src.startsWith("data:") || src.startsWith("/api/")) {
-      return src;
-    }
-
-    if (/^https?:\/\//i.test(src)) {
-      const params = new URLSearchParams();
-      params.set("url", src);
-      return `/api/cache/images?${params.toString()}`;
-    }
-
-    return src;
-  }, [src]);
+  const proxiedSrc = React.useMemo(() => getProxiedImageSrc(src), [src]);
 
   if (!src) {
     return (
