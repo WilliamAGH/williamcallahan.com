@@ -570,12 +570,25 @@ async function getBookmarksIndex(): Promise<{
     index: MiniSearch<BookmarkIndexItem>;
     bookmarks: Array<BookmarkIndexItem & { slug: string }>;
   }>(cacheKey);
-  if (cached) {
-    devLog("[getBookmarksIndex] using cached in-memory index", { items: cached.bookmarks.length });
-    return cached;
-  }
 
   const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+
+  if (cached) {
+    // SAFEGUARD: Don't use cached empty indexes outside build phase - they may be stale
+    // from a cold start when slug mapping wasn't yet available. Rebuild instead.
+    if (cached.bookmarks.length === 0 && !isBuildPhase) {
+      devLog("[getBookmarksIndex] cached index is empty outside build phase, attempting rebuild");
+      envLogger.log(
+        "[Search] Cached bookmarks index is empty - rebuilding (possible stale cache from cold start)",
+        {},
+        { category: "Search" },
+      );
+      // Don't return cached - fall through to rebuild
+    } else {
+      devLog("[getBookmarksIndex] using cached in-memory index", { items: cached.bookmarks.length });
+      return cached;
+    }
+  }
   if (isBuildPhase) {
     devLog("[getBookmarksIndex] build phase detected, returning empty index");
     const emptyResult = { index: buildBookmarksIndex([]), bookmarks: [] };
@@ -726,16 +739,22 @@ async function getBookmarksIndex(): Promise<{
     });
   }
 
-  // Cache the index and bookmarks (but warn if empty with valid source data)
+  // Cache the index and bookmarks
   const result = { index: bookmarksIndex, bookmarks: bookmarksForIndex };
+
+  // CRITICAL: Do NOT cache empty indexes when source data exists but couldn't be indexed
+  // This happens when slug mapping is temporarily unavailable (e.g., during cold start).
+  // Caching the empty result would cause all subsequent searches to fail until cache expires.
   if (bookmarksForIndex.length === 0 && bookmarksArr.length > 0) {
     envLogger.log(
-      `[Search] WARNING: Empty bookmarks index despite ${bookmarksArr.length} source bookmarks - possible slug mapping issue`,
+      `[Search] SKIPPING CACHE: Empty bookmarks index despite ${bookmarksArr.length} source bookmarks - slug mapping likely unavailable`,
       { sourceCount: bookmarksArr.length, indexedCount: 0 },
       { category: "Search" },
     );
+    // Return result without caching - next request will retry and may succeed if slug mapping becomes available
+  } else {
+    ServerCacheInstance.set(cacheKey, result, BOOKMARK_INDEX_TTL);
   }
-  ServerCacheInstance.set(cacheKey, result, BOOKMARK_INDEX_TTL);
 
   devLog("[getBookmarksIndex] index built", { indexed: bookmarksArr.length });
 
