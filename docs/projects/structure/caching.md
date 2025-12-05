@@ -379,7 +379,7 @@ curl http://localhost:3000/api/cache/bookmarks
 
 ## Security
 
-### ✅ FIXED: Cache Clear Authentication
+### Cache Clear Authentication
 
 **`/api/cache/clear`** - Now requires authentication (app/api/cache/clear/route.ts:22-31)
 
@@ -479,22 +479,21 @@ function validateApiKey(request: NextRequest): boolean {
 4. **Selective Invalidation**: Invalidate only changed data rather than entire cache
 5. **Event-Driven Updates**: Use webhooks to trigger immediate cache invalidation
 
-## ✅ FIXED Issues
+## Design Decisions
 
-### 2025-08: Cache Invalidation
+### Cache Invalidation
 
-- Implemented `/api/revalidate/bookmarks` endpoint
-- Added authentication for cache operations
-- Fixed local cache corruption (test data detection)
+- `/api/revalidate/bookmarks` endpoint for authenticated invalidation
+- Authentication required for all cache operations
+- Test data detection prevents local cache corruption
 - Automated cache clearing after data refresh
 
-### 2025-06: Memory Management
+### Memory Management Integration
 
-- Memory limits implemented
-- `useClones: true` → `false` (safe now)
+- Memory limits enforced via integration with memory management system
+- `useClones: false` (safe since buffers are not stored directly)
 - Buffer rejection >10MB
 - Batch eviction at 100k keys
-- Integration with memory management
 
 ## Cache Usage Summary
 

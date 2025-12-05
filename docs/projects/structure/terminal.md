@@ -63,7 +63,7 @@ Window Controls → TerminalHeader → GlobalWindowRegistry
 6. **Navigation**: Commands can trigger navigation to different pages; `ai` and `chat` open `https://search-ai.io` in a new browser tab
 7. **API Integration**: Search commands communicate with /api/search endpoints
 
-### CV Page Rendering Exception (2025-11)
+### CV Page Rendering Exception
 
 - `TerminalLoader` now checks `usePathname()` and returns `null` on `/cv` so the curriculum vitae page renders without the terminal window. The provider hierarchy stays mounted which preserves window registry state and keeps restore buttons consistent while hiding the UI surface for that route only.
 
@@ -123,7 +123,7 @@ The SelectionView component implements a modal navigation system similar to term
 - **Dynamic Import**: Terminal is lazy-loaded with Next.js dynamic() and ssr: false for client-side rendering
 - **Consistent Sizing**: Both skeleton and actual terminal use identical padding, margins, and max-height values
 
-### Provider Location & Resilience (2025-08)
+### Provider Location & Resilience
 
 - The `TerminalProvider` is localized to the terminal subtree in `app/layout.tsx` to ensure terminal runtime issues cannot impact unrelated UI (e.g., navigation/hamburger).
 - Terminal history is cleared on route change by listening to the current pathname inside the provider (no coupling to navigation components).

@@ -2,11 +2,9 @@
 
 **Functionality:** `testing-config`
 
-**Last Updated:** June 26, 2025
-
 This document outlines the testing architecture, configurations, and critical best practices for this project. It incorporates recent advancements in Jest, React, and Next.js to ensure a robust, maintainable, and type-safe testing strategy. **Framework-level mandates live in [`next-js-16-usage.md`](./next-js-16-usage.md); read that first, then return here for testing specifics.**
 
-## 🚨 CRITICAL: ANTI-POLYFILL MANDATE (2025)
+## 🚨 CRITICAL: ANTI-POLYFILL MANDATE
 
 **This codebase FORBIDS polyfills.** Next.js 16 + Node 22 LTS provides all necessary APIs natively.
 

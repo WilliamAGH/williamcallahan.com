@@ -6,8 +6,6 @@
 
 Provides comprehensive search engine optimization through metadata generation, structured data (JSON-LD), dynamic sitemap/robots.txt, automated submissions, and a universal OpenGraph image API with multi-tier fallback. Features Zod validation for metadata quality and idempotent operations throughout.
 
-**Last Updated**: 2025-07 - Enhanced Zod validation schemas, URL security improvements, and environment variable corrections.
-
 ## Architecture Overview
 
 ### Data Flow
@@ -236,7 +234,7 @@ return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 30
 
 #### Mitigation Strategies
 
-1. **Proxy Services**: Uses `vxtwitter.com` as fallback (fxtwitter.com deprecated as of 2025)
+1. **Proxy Services**: Uses `vxtwitter.com` as fallback (fxtwitter.com no longer returns profile metadata)
 2. **Multi-Tier Retry**: Attempts direct fetch first, then proxy, then Karakeep fallback
 3. **S3 Persistence**: Stores successful fetches to avoid repeated failures
 4. **Cache Busting**: Implements versioned URLs to force re-fetches
@@ -245,7 +243,7 @@ return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 30
 // From lib/opengraph/fetch.ts
 if (normalizedUrl.includes("twitter.com/") || normalizedUrl.includes("x.com/")) {
   const proxyUrl = normalizedUrl.replace(/https:\/\/(twitter\.com|x\.com)/, "https://vxtwitter.com");
-  // Only use vxtwitter.com - fxtwitter.com returns empty metadata for profiles as of 2025
+  // Only use vxtwitter.com - fxtwitter.com returns empty metadata for profiles
 }
 ```
 
@@ -305,7 +303,7 @@ External URL → Fetch → Validate → Transform → S3 Upload → CDN Serve
   - **Validation Schemas**: `metadataSchema`, `profilePageMetadataSchema`, `collectionPageMetadataSchema`, etc.
   - **Validation Functions**: `validateMetadata()`, `validatePageMetadata()`, `safeValidateMetadata()`
   - **Benefits**: Ensures metadata adheres to SEO best practices, enforces character limits, validates URLs, and provides helpful error messages
-  - **UPDATE (2025-07)**: Enhanced with URL security validation to prevent SSRF attacks in metadata URLs
+  - Enhanced with URL security validation to prevent SSRF attacks in metadata URLs
 
 ### Supporting Files
 
@@ -639,7 +637,7 @@ NODE_ENV=production bun run scripts/submit-sitemap.ts --all
    - Impact: S3 data parsed without runtime validation
    - Current: `readJsonS3<UnifiedBookmark[]>(BOOKMARKS_JSON_S3_KEY)`
    - Fix: Add `UnifiedBookmarkSchema.array().parse()` after read
-   - **⚠️ PARTIAL FIX (2025-07)**: Created schema directory at `types/schemas/` with initial validation schemas. Full S3 response validation still pending.
+   - **⚠️ PARTIAL**: Created schema directory at `types/schemas/` with initial validation schemas. Full S3 response validation still pending.
 
 3. **Confusing Type Re-exports** - `types/seo/metadata.ts:18-30`
    - Impact: Aliased imports create confusion (e.g., `ProfilePageSchema as ProfileSchema`)
@@ -676,7 +674,7 @@ NODE_ENV=production bun run scripts/submit-sitemap.ts --all
 ### ✅ VERIFIED SECURE
 
 - ✅ **Environment Variables**: All use server-only patterns
-  - **UPDATE (2025-07)**: Server code now properly uses `S3_CDN_URL` instead of `NEXT_PUBLIC_S3_CDN_URL`
+  - Server code now properly uses `S3_CDN_URL` instead of `NEXT_PUBLIC_S3_CDN_URL`
 - ✅ **No Hydration Issues**: SEO is server-side only
 - ✅ **No Memory Leaks**: Removed memory caching for OG images
 - ✅ **Async Handling**: No blocking operations found

@@ -6,7 +6,7 @@
 
 To provide centralized configuration management for the application, including environment variables, build tools, linting, formatting, and framework-specific settings. This ensures consistent behavior across development, testing, and production environments.
 
-## 🚨 MODERN DEPENDENCY MANDATE (2025)
+## 🚨 MODERN DEPENDENCY MANDATE
 
 **This project FORBIDS polyfills** and enforces modern tooling practices:
 
@@ -59,7 +59,7 @@ See [`linting-formatting.md`](./linting-formatting.md) for comprehensive documen
 
 ### Deployment Configuration
 
-- **`Dockerfile`**: Multi-stage build for Bun installs, lint/type-check gates, and the production runner. As of 2025-11 it no longer depends on BuildKit-only flags (`RUN --mount`, `COPY --link`) so `docker build` works even when `DOCKER_BUILDKIT=0` (e.g., Railway classic builders). Build-time secrets now rely on standard build args (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_SESSION_TOKEN`, `API_BASE_URL`) when BuildKit secrets are unavailable.
+- **`Dockerfile`**: Multi-stage build for Bun installs, lint/type-check gates, and the production runner. Does not depend on BuildKit-only flags (`RUN --mount`, `COPY --link`) so `docker build` works even when `DOCKER_BUILDKIT=0` (e.g., Railway classic builders). Build-time secrets rely on standard build args (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_SESSION_TOKEN`, `API_BASE_URL`) when BuildKit secrets are unavailable.
 - **`scripts/entrypoint.sh`**: Cache priming plus scheduler/data-populator orchestration. The script now inspects Railway-provided environment variables (`RAILWAY_ENVIRONMENT_NAME`, `RAILWAY_PROJECT_ID`, `RAILWAY_SERVICE_ID`) and automatically disables background services unless `ENABLE_BACKGROUND_SERVICES` is explicitly set.
 - **Package scripts**: `docker:build` auto-detects `docker buildx`. When BuildKit is available it keeps using `docker buildx build --platform=linux/amd64 --load`; otherwise it falls back to `docker build` while passing the same build arguments so legacy builders retain environment propagation.
 

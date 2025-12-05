@@ -73,9 +73,9 @@ The analytics system is responsible for loading and managing third-party trackin
 
 This architecture ensures that analytics are a non-critical, resilient feature that can be safely disabled or fail without impacting the core user experience.
 
-## 2025-06 Hardening Update
+## Same-Origin Proxy Configuration
 
-### Same-origin proxy (`/stats/**`, `/api/send`)
+### Proxy Rewrites (`/stats/**`, `/api/send`)
 
 All Umami traffic is now routed through the site's own domain. The rewrite lives in `next.config.ts`:
 

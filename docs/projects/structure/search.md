@@ -24,38 +24,19 @@ const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-
 
 **Never** cache empty search results when the underlying index is empty (indicates data unavailability, not "no matches").
 
-## Recent Improvements (Issue #120)
+## Architecture Decisions
 
-### ✅ RESOLVED Issues
+1. **Server/Client Boundary**: API-based approach; terminal never imports server modules.
 
-1. **Server/Client Boundary Violation** - FIXED
-   - Moved to API-based approach for all searches
-   - Terminal no longer imports server-side modules
-   - Clean separation of concerns
+2. **Type Consolidation**: Single `SearchResult` type in `types/search.ts`.
 
-2. **Type Duplication** - FIXED
-   - Consolidated `SearchResult` type in `types/search.ts`
-   - Removed duplicate from `types/terminal.ts`
+3. **Generic Search**: `searchContent<T>` function used by all search implementations.
 
-3. **Code Duplication** - FIXED
-   - Created generic `searchContent<T>` function
-   - Eliminated ~100+ lines of duplicated code
-   - All search functions now use the same core algorithm
+4. **Caching**: 15-minute TTL via `ServerCacheInstance`; lazy loading in terminal.
 
-4. **Performance Issues** - FIXED
-   - Added 15-minute cache via `ServerCacheInstance`
-   - Implemented lazy loading in terminal
-   - Search functions preload on user input
+5. **Search Quality**: MiniSearch for fuzzy/typo-tolerant search with substring fallback.
 
-5. **Search Quality** - IMPROVED
-   - Integrated MiniSearch for fuzzy/typo-tolerant search
-   - Falls back to substring search for compatibility
-   - Supports prefix matching and multi-word queries
-
-6. **Security** - ENHANCED
-   - Added query validation and sanitization
-   - Prevents ReDoS attacks
-   - Query length limits (100 chars max)
+6. **Security**: Query validation, ReDoS prevention, 100-char limit.
 
 ## Key Files & Responsibilities
 
@@ -80,9 +61,7 @@ const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-
   - Handles all search scopes dynamically
   - Validates queries before processing
   - Returns consistent response format
-- **Runtime behavior (2025-11)**: Every search API now resolves request metadata from `request.headers` rather than
-  the global `headers()` helper. This prevents the `NEXT_PRERENDER_INTERRUPTED` errors we hit during prerendering,
-  while still keeping rate limiting and pagination logic header-aware under `cacheComponents`.
+- **Runtime behavior**: Search APIs resolve request metadata from `request.headers` (not `headers()` helper) to prevent `NEXT_PRERENDER_INTERRUPTED` errors under `cacheComponents`.
 - **`app/api/search/all/route.ts`**: Site-wide search
   - Aggregates results from all sections
   - Adds section prefixes to results

@@ -22,7 +22,7 @@ This guide is the **single source of truth** for code quality and covers:
 - **Tool-Assisted Debugging**: How to use MCP tools like Context7 and web search to resolve issues.
 - A visual map of the entire validation and development pipeline.
 
-### 📝 NEW: Zod Schema Organization (2025-07)
+### Zod Schema Organization
 
 **All Zod schemas MUST be placed in `/types/schemas/` directory**. This is enforced by ESLint rules. The pattern ensures:
 
@@ -53,7 +53,7 @@ Example schemas:
 | `blog-article`       | Provide all necessary components to render a single blog post page, including content, metadata, and interactive UI elements.                 | [blog-article.md](./blog-article.md)             | [Diagram](./blog-article.mmd)  |
 | `bookmarks`          | Act as the primary orchestration layer for fetching, processing, enriching, and storing bookmark data from external APIs.                     | [bookmarks.md](./bookmarks.md)                   | [Diagram](./bookmarks.mmd)     |
 
-> 2025-11-11: Bookmark routes and the sitemap stream paginated data directly from S3/CDN at runtime. Build steps no longer execute `scripts/fetch-bookmarks-public.ts`; Docker images rely on live fetches instead of local snapshots.
+> **Note:** Bookmark routes and the sitemap stream paginated data directly from S3/CDN at runtime. Build steps no longer execute `scripts/fetch-bookmarks-public.ts`; Docker images rely on live fetches instead of local snapshots.
 > | `caching` | Implement high-performance, multi-tiered caching with request coalescing, distributed locking, and memory-safe operations. | [caching.md](./caching.md) | [Diagram](./caching.mmd) |
 > | `code-block` | Provide interactive code display components with syntax highlighting, copy-to-clipboard features, and macOS-style window controls. | [code-block.md](./code-block.md) | |
 > | `config` | Provide centralized configuration management for environment variables, build tools, linting, formatting, and framework settings. | [config.md](./config.md) | [Diagram](./config.mmd) |
@@ -89,11 +89,6 @@ Example schemas:
 > | `terminal` | Encompass components and utilities that manage the display, interaction, and state of the application's terminal interface. | [terminal.md](./terminal.md) | [Diagram](./terminal.mmd) |
 > | `testing-config` | Configure and set up the testing environment for both Jest and Bun test runners, including mocks, polyfills, and type definitions. | [testing-config.md](./testing-config.md) | [Diagram](./testing-config.mmd) |
 
-### Provider Localization Note (2025-08)
+### Provider Localization Note
 
-- TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for resilience. See “Provider Location & Resilience (2025-08)” in [terminal.md](./terminal.md) for details and guarantees.
-
-## Recent Architecture Notes
-
-- **2025-11-05** — Projects data refreshed with the ComposerAI entry (Svelte + Vite UI with Java 25/Spring Boot, Qdrant, and S3 Object Storage services) so the portfolio accurately reflects the AI email client capabilities described in `data/projects.ts`.
-- **2025-11-05** — Added `/cv` curriculum vitae route powered by existing experience, education, certification, and project datasets via new `cvFeatured` flags.
+- TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for resilience. See "Provider Location & Resilience" in [terminal.md](./terminal.md) for details and guarantees.
