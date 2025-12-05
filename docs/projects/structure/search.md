@@ -25,21 +25,39 @@ const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 ```
 
-### noStore() Must Precede Build Phase Checks
+### Route Handlers Require `dynamic = "force-dynamic"`
 
-Call `noStore()` BEFORE any early return—otherwise Next.js caches the build-phase response forever:
+Route Handlers can be statically pre-rendered at build time even with `noStore()`. **You MUST export `dynamic = "force-dynamic"`**:
 
 ```typescript
-// ❌ FORBIDDEN - response gets cached because noStore() is never called
-if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
-noStore();
+// ❌ FORBIDDEN - noStore() alone doesn't prevent static rendering
+import { unstable_noStore as noStore } from "next/cache";
+export async function GET() {
+  noStore(); // Not enough! Route can still be pre-rendered at build
+}
 
-// ✅ REQUIRED - noStore() first prevents caching
-noStore();
-if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
+// ✅ REQUIRED - explicit opt-out of static rendering
+export const dynamic = "force-dynamic";
+export async function GET() {
+  noStore();
+}
 ```
 
 **Symptom**: `x-nextjs-cache: HIT` with `buildPhase: true` at runtime.
+
+### noStore() Must Precede Build Phase Checks
+
+Call `noStore()` BEFORE any early return—otherwise the build-phase response gets cached:
+
+```typescript
+// ❌ FORBIDDEN - noStore() never called when returning early
+if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
+noStore();
+
+// ✅ REQUIRED - noStore() first
+noStore();
+if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
+```
 
 ### Caching Empty Results
 
