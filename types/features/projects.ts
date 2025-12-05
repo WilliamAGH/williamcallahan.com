@@ -20,12 +20,10 @@ import type { Project } from "../project";
 export type ProjectCardProps = import("../ui").BaseComponentProps & {
   project: Project;
   showTechnologies?: boolean;
-  /**
-   * When true, the image will be rendered with `priority` so Next.js injects a
-   * `<link rel="preload">`, improving LCP for the first, above-the-fold
-   * screenshot.  Optional and defaults to `false`.
-   */
+  /** @deprecated Use `preload` instead (Next.js 16) */
   isPriority?: boolean;
+  /** Preload the image in the document head (Next.js 16+) */
+  preload?: boolean;
 };
 
 // Type extension

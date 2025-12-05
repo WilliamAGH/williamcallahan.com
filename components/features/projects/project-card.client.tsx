@@ -65,7 +65,7 @@ function PlaceholderImageTop() {
   );
 }
 
-export function ProjectCard({ project, isPriority = false }: ProjectCardProps): JSX.Element {
+export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX.Element {
   const { name, description, url, imageKey, tags, techStack } = project;
   const initialImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
   const initialProxiedUrl = initialImageUrl ? buildCachedImageUrl(initialImageUrl) : undefined;
@@ -122,7 +122,7 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
                   alt={`${name} screenshot`}
                   fill
                   quality={hasError ? 70 : 80}
-                  priority={isPriority}
+                  preload={preload}
                   sizes="(max-width: 767px) 100vw, (min-width: 768px) 60vw, (min-width: 1024px) 50vw"
                   placeholder="blur"
                   blurDataURL={getStaticImageUrl("/images/opengraph-placeholder.png")}
