@@ -37,6 +37,12 @@ function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
  * @returns A JSON response containing the search results or an error message.
  */
 export async function GET(request: NextRequest) {
+  // CRITICAL: Call noStore() FIRST to prevent Next.js from caching ANY response
+  // If called after the build phase check, the buildPhase:true response gets cached
+  const disableCache = unstable_noStore as (() => void) | undefined;
+  if (typeof disableCache === "function") {
+    disableCache();
+  }
   if (isProductionBuildPhase()) {
     return NextResponse.json(
       {
@@ -51,10 +57,6 @@ export async function GET(request: NextRequest) {
       },
       { headers: withNoStoreHeaders({ "X-Search-Build-Phase": "true" }) },
     );
-  }
-  const disableCache = unstable_noStore as (() => void) | undefined;
-  if (typeof disableCache === "function") {
-    disableCache();
   }
   try {
     // Apply rate limiting and memory pressure guards
