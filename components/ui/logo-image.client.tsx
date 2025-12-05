@@ -152,7 +152,6 @@ export function LogoImage({
     }, 3000);
   }, [src, isDev]);
 
-  // Cleanup timeout on unmount
   React.useEffect(() => {
     return () => {
       if (retryTimeoutRef.current) {
@@ -302,6 +301,10 @@ export function OptimizedCardImage({
         {...(preload ? { preload, fetchPriority: "high" as const } : {})}
       />
     );
+  }
+
+  if (!proxiedSrc) {
+    return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
   }
 
   const displaySrc =
