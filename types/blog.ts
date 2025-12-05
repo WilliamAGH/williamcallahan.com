@@ -47,6 +47,8 @@ export interface BlogPost {
   readingTime?: number;
   /** URL of the post's cover image (optional) */
   coverImage?: string;
+  /** Base64 blur data URL for cover image placeholder (optional) */
+  coverImageBlurDataURL?: string;
   /** Optional: Original file path of the MDX file */
   filePath?: string;
 }

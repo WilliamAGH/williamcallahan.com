@@ -36,6 +36,7 @@ import type { FrontmatterData } from "@/types/features/blog";
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { getPlaiceholder } from "plaiceholder";
 import rehypePrism from "@mapbox/rehype-prism";
 import matter from "gray-matter";
 import type { MDXRemoteSerializeResult } from "next-mdx-remote";
@@ -60,8 +61,39 @@ const logCoverImageInfo = (message: string): void => {
   }
 };
 
+/**
+ * Generates a blur data URL (LQIP - Low Quality Image Placeholder) for a local image.
+ * Used as the blurDataURL prop for Next.js Image component's placeholder="blur".
+ *
+ * @param localImagePath - The public-relative path (e.g., "/images/posts/my-image.png")
+ * @returns Base64-encoded blur data URL or undefined if generation fails
+ */
+async function generateBlurDataURL(localImagePath: string): Promise<string | undefined> {
+  // Only process local paths starting with /images/posts/
+  // eslint-disable-next-line s3/no-hardcoded-images -- This is a path prefix check, not a hardcoded image
+  if (!localImagePath.startsWith("/images/posts/")) {
+    return undefined;
+  }
+
+  const absolutePath = path.join(PUBLIC_DIRECTORY, localImagePath);
+
+  try {
+    const imageBuffer = await fs.readFile(absolutePath);
+    const { base64 } = await getPlaiceholder(imageBuffer, { size: 10 });
+    return base64;
+  } catch (error) {
+    // Log warning but don't fail - blur placeholder is an enhancement, not critical
+    if (isDevLoggingEnabled) {
+      console.warn(`[generateBlurDataURL] Failed to generate blur for ${localImagePath}:`, error);
+    }
+    return undefined;
+  }
+}
+
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
+/** Public directory for static assets */
+const PUBLIC_DIRECTORY = path.join(process.cwd(), "public");
 const coverImageMap: Record<string, string> = coverImageManifest;
 
 const cacheLife = (profile: CacheDurationProfile): void => {
@@ -258,7 +290,12 @@ export async function getMDXPost(
     const publishedAt = toPacificISOString(frontmatter.publishedAt || fileDates.created);
     const updatedAt = toPacificISOString(frontmatter.updatedAt || frontmatter.modifiedAt || fileDates.modified);
 
-    // Validate coverImage using helper (now async to support S3 lookup)
+    // Generate blur data URL from local image path (before S3 mapping)
+    // This must happen BEFORE sanitizeCoverImage transforms to CDN URL
+    const rawCoverImagePath = typeof frontmatter.coverImage === "string" ? frontmatter.coverImage.trim() : undefined;
+    const coverImageBlurDataURL = rawCoverImagePath ? await generateBlurDataURL(rawCoverImagePath) : undefined;
+
+    // Validate and map coverImage to S3 CDN URL
     const coverImage = sanitizeCoverImage(frontmatter.coverImage, frontmatterSlug, filePathForPost);
 
     // Construct the full blog post object
@@ -275,6 +312,7 @@ export async function getMDXPost(
       tags: frontmatter.tags || [],
       ...(frontmatter.readingTime !== undefined && { readingTime: frontmatter.readingTime }),
       coverImage,
+      coverImageBlurDataURL,
       filePath: filePathForPost,
     };
 
