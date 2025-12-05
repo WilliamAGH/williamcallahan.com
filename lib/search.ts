@@ -571,7 +571,10 @@ async function getBookmarksIndex(): Promise<{
     bookmarks: Array<BookmarkIndexItem & { slug: string }>;
   }>(cacheKey);
 
-  const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+  // CRITICAL: Use bracket notation to prevent Turbopack from inlining NEXT_PHASE at build time
+  const PHASE_KEY = "NEXT_PHASE";
+  const BUILD_VALUE = "phase-production-build";
+  const isBuildPhase = process.env[PHASE_KEY] === BUILD_VALUE;
 
   if (cached) {
     // SAFEGUARD: Don't use cached empty indexes outside build phase - they may be stale
@@ -624,7 +627,8 @@ async function getBookmarksIndex(): Promise<{
     bookmarks = all;
     devLog("[getBookmarksIndex] fetched bookmarks via direct import", { count: bookmarks.length });
   } catch (directErr) {
-    const skipApiFallback = process.env.NEXT_PHASE === "phase-production-build";
+    // Use bracket notation to prevent Turbopack inlining (see PHASE_KEY above)
+    const skipApiFallback = process.env[PHASE_KEY] === BUILD_VALUE;
     if (skipApiFallback) {
       envLogger.log(
         "Direct bookmarks fetch failed during build phase; skipping /api/bookmarks fallback",

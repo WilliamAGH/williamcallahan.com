@@ -10,14 +10,19 @@ The search functionality provides site-wide and section-specific search capabili
 
 ### Module-Scope Build Phase Checks
 
-**Never** check `NEXT_PHASE` at module scope—it gets baked into the bundle during build:
+**Never** check `NEXT_PHASE` using direct property access—Turbopack/webpack inlines `process.env.NEXT_PHASE` at build time, even inside functions:
 
 ```typescript
-// ❌ FORBIDDEN - evaluated at build time, permanently wrong
+// ❌ FORBIDDEN - direct property access gets inlined by bundler
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-// ✅ REQUIRED - evaluated at runtime
+// ❌ STILL FORBIDDEN - function doesn't help, bundler still inlines the value
 const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
+
+// ✅ REQUIRED - bracket notation with variable key prevents static analysis
+const PHASE_ENV_KEY = "NEXT_PHASE" as const;
+const BUILD_PHASE_VALUE = "phase-production-build" as const;
+const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 ```
 
 ### Caching Empty Results
