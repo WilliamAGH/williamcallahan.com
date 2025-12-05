@@ -80,6 +80,8 @@ const runtimeHelpers =
         Fragment: jsxDevRuntime.Fragment,
         jsx: devJsx,
         jsxs: devJsxs,
+        jsxDEV: jsxDevRuntime.jsxDEV,
+        _jsxDEV: jsxDevRuntime.jsxDEV,
       }
     : {
         Fragment: jsxProdRuntime.Fragment,
