@@ -96,46 +96,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
   // Check if this is a software post
   const isSoftwarePost = SOFTWARE_POSTS.has(slug);
 
-  if (isSoftwarePost && SOFTWARE_DETAILS[slug]) {
-    // Use SoftwareApplication schema for software posts
-    const softwareDetails = SOFTWARE_DETAILS[slug];
-
-    const articleMetadata = createSoftwareApplicationMetadata({
-      title: post.title,
-      description: post.excerpt,
-      url: postUrl,
-      image: post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined,
-      datePublished: post.publishedAt,
-      dateModified: post.updatedAt || post.publishedAt,
-      tags: post.tags,
-      articleBody: JSON.stringify(post.content), // Note: content is MDXRemoteSerializeResult, might need rawContent
-      softwareName: softwareDetails.name,
-      operatingSystem: softwareDetails.operatingSystem,
-      applicationCategory: softwareDetails.applicationCategory,
-      isFree: true,
-      downloadUrl: softwareDetails.downloadUrl,
-      softwareVersion: softwareDetails.softwareVersion,
-      screenshot: softwareDetails.screenshot,
-      authors: [
-        {
-          name: post.author.name,
-          url: post.author.url || ensureAbsoluteUrl("/about"), // Assuming /about exists or use a default
-        },
-      ],
-    });
-
-    const metadata: ExtendedMetadata = {
-      title: articleMetadata.title,
-      description: articleMetadata.description,
-      alternates: articleMetadata.alternates,
-      openGraph: articleMetadata.openGraph,
-      twitter: articleMetadata.twitter,
-      ...(articleMetadata.script && { script: articleMetadata.script }),
-    };
-    return metadata;
-  }
-  // Use standard NewsArticle schema for regular blog posts
-  const articleMetadata = createArticleMetadata({
+  const baseArticleParams = {
     title: post.title,
     description: post.excerpt,
     url: postUrl,
@@ -143,15 +104,31 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
     datePublished: post.publishedAt,
     dateModified: post.updatedAt || post.publishedAt,
     tags: post.tags,
-    articleBody: JSON.stringify(post.content), // Note: content is MDXRemoteSerializeResult, might need rawContent
-    useNewsArticle: true,
+    articleBody: post.rawContent ?? post.excerpt,
     authors: [
       {
         name: post.author.name,
         url: post.author.url || ensureAbsoluteUrl("/about"), // Assuming /about exists or use a default
       },
     ],
-  });
+  };
+
+  const articleMetadata =
+    isSoftwarePost && SOFTWARE_DETAILS[slug]
+      ? createSoftwareApplicationMetadata({
+          ...baseArticleParams,
+          softwareName: SOFTWARE_DETAILS[slug].name,
+          operatingSystem: SOFTWARE_DETAILS[slug].operatingSystem,
+          applicationCategory: SOFTWARE_DETAILS[slug].applicationCategory,
+          isFree: true,
+          downloadUrl: SOFTWARE_DETAILS[slug].downloadUrl,
+          softwareVersion: SOFTWARE_DETAILS[slug].softwareVersion,
+          screenshot: SOFTWARE_DETAILS[slug].screenshot,
+        })
+      : createArticleMetadata({
+          ...baseArticleParams,
+          useNewsArticle: true,
+        });
 
   const metadata: ExtendedMetadata = {
     title: articleMetadata.title,
