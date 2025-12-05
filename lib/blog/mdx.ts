@@ -295,10 +295,8 @@ export async function getMDXPost(
     const rawCoverImagePath = typeof frontmatter.coverImage === "string" ? frontmatter.coverImage.trim() : undefined;
     const coverImageBlurDataURL = rawCoverImagePath ? await generateBlurDataURL(rawCoverImagePath) : undefined;
 
-    // Validate and map coverImage to S3 CDN URL
     const coverImage = sanitizeCoverImage(frontmatter.coverImage, frontmatterSlug, filePathForPost);
 
-    // Construct the full blog post object
     const post: BlogPost = {
       id: `mdx-${frontmatterSlug}`,
       title: frontmatter.title,
@@ -318,7 +316,7 @@ export async function getMDXPost(
 
     return post;
   } catch (e) {
-    const error = e as Error; // Type assertion for error object
+    const error = e as Error;
     console.error(
       `Error processing post from file ${filePathForPost} (slug: ${frontmatterSlug}):`,
       error.message,
