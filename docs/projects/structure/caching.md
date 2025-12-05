@@ -32,7 +32,7 @@ See `caching.mmd` for the updated flow showing JSON writers, S3 persistence, Nex
 - `lib/data-access/opengraph.ts` - OpenGraph metadata caching
 - `lib/image-handling/image-manifest-loader.ts` - Image manifest caching
 - `lib/image-handling/cached-manifest-loader.ts` - Cached manifest operations
-- `lib/s3-cache-utils.ts` - S3 cache utilities
+- `lib/s3-cache-utils.ts` - Caching layer for S3 reads
 
 ### Files Using Next.js Cache Functions (7 files)
 

@@ -503,7 +503,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // STEP 1: Check if asset exists in S3
     const s3Asset = await findAssetInS3(assetId, context);
     if (s3Asset) {
-      console.log(`[Assets API] Serving from S3 cache: ${s3Asset.key}`);
+      console.log(`[Assets API] Serving from S3 storage: ${s3Asset.key}`);
       return streamFromS3(s3Asset.key, s3Asset.contentType);
     }
 

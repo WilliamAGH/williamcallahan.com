@@ -971,7 +971,7 @@ async function getBookmarksPageDirect(pageNumber: number): Promise<UnifiedBookma
 
   const fallback = await readLocalS3JsonSafe<UnifiedBookmark[]>(key);
   if (fallback) {
-    logBookmarkDataAccessEvent("Loaded page data from local S3 cache", { pageNumber, source: "local" });
+    logBookmarkDataAccessEvent("Loaded page data from local S3 mirror", { pageNumber, source: "local" });
     return normalizePageBookmarkTags(fallback);
   }
 
@@ -1015,7 +1015,7 @@ async function getTagBookmarksPageDirect(tagSlug: string, pageNumber: number): P
 
   const fallback = await readLocalS3JsonSafe<UnifiedBookmark[]>(key);
   if (fallback) {
-    logBookmarkDataAccessEvent("Loaded tag page data from local S3 cache", {
+    logBookmarkDataAccessEvent("Loaded tag page data from local S3 mirror", {
       pageNumber,
       tagSlug,
       source: "local",
