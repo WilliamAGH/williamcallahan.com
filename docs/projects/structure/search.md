@@ -6,6 +6,24 @@
 
 The search functionality provides site-wide and section-specific search capabilities with fuzzy matching, caching, and security features. It's primarily accessed through the terminal interface and enables users to find content across blog posts, bookmarks, investments, experience, and education sections.
 
+## Forbidden Patterns
+
+### Module-Scope Build Phase Checks
+
+**Never** check `NEXT_PHASE` at module scope—it gets baked into the bundle during build:
+
+```typescript
+// ❌ FORBIDDEN - evaluated at build time, permanently wrong
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+// ✅ REQUIRED - evaluated at runtime
+const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
+```
+
+### Caching Empty Results
+
+**Never** cache empty search results when the underlying index is empty (indicates data unavailability, not "no matches").
+
 ## Recent Improvements (Issue #120)
 
 ### ✅ RESOLVED Issues
