@@ -390,9 +390,10 @@ export class ServerCache implements ICache {
     if (memUsage.rss < safeThreshold) {
       this.disabled = false;
       this.failureCount = 0;
+      this.disabledUntil = 0;
       envLogger.log(
         `Circuit breaker reset. Memory usage ${rssMB}MB is below safe threshold.`,
-        { rssMB },
+        { rssMB, disabledUntil: this.disabledUntil },
         { category: "ServerCache", context: { event: "circuit-breaker-reset" } },
       );
     } else {
