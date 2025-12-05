@@ -357,6 +357,7 @@ Think of Cache Components as **inverting the default**:
 - Introducing React 18-era APIs (`ReactDOM.render`, legacy metadata helpers) without explicit owner approval.
 - **CRITICAL:** Using `unstable_noStore()` in page components when `cacheComponents: true` (see §6).
 - **CRITICAL:** Using `export const dynamic = "force-dynamic"` in page components when `cacheComponents: true` - causes build errors (see §6).
+- **CRITICAL:** Module-scope `NEXT_PHASE` checks (e.g., `const x = process.env.NEXT_PHASE === "..."`) — evaluated at build time and baked into bundle. Use a function: `const x = () => process.env.NEXT_PHASE === "..."`.
 
 ## Workflow Checklist (mirror AGENTS.md)
 
