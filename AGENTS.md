@@ -83,6 +83,29 @@ LOCAL_DEVELOPMENT_URL: http://localhost:3000
 
 This project operates under **ZERO TEMPERATURE** development standards where every decision must be explicitly verified, no assumptions are permitted, and type safety is absolute.
 
+## 🚨🚨🚨 CRITICAL: CLEAN CODE & FILE CREATION REQUIREMENTS 🚨🚨🚨
+
+### FILE CREATION — MANDATORY WORKFLOW
+
+**STOP! BEFORE CREATING ANY NEW FILE YOU MUST:**
+
+1. **SEARCH EXHAUSTIVELY**: Find ALL existing files related to EVERY function, class, method, or component you envision. Use grep, file_glob, and semantic search across the ENTIRE codebase.
+2. **ANALYZE**: Review each discovered file—does the functionality ALREADY EXIST or can it be EXTENDED?
+3. **CONFIRM**: Only after exhaustively confirming NO existing solution may you proceed.
+4. **REQUEST PERMISSION**: Ask explicitly: "Should I create [filename] for [purpose]?" Wait for clear consent.
+5. **COMPLY WITH STANDARDS**: All new files MUST follow the code quality mandates below.
+
+### CODE QUALITY MANDATES (per Robert Martin's Clean Code & Clean Architecture)
+
+| Requirement            | Rule                                                                                                                   | Violation Example                 |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| **Type Safety**        | NEVER use `any`, loose typing, or unguarded `unknown`. Every variable, parameter, and return MUST be explicitly typed. | ❌ `const data: any = response`   |
+| **Clean Code**         | Succinct, single-responsibility functions. NO useless try/catch blocks that swallow errors. NO dead code.              | ❌ `catch (e) { console.log(e) }` |
+| **Clean Architecture** | Dependencies point inward. Domain logic has ZERO framework imports. Respect layer boundaries.                          | ❌ Domain importing from UI layer |
+| **No Suppression**     | NEVER use `@ts-ignore`, `eslint-disable`, or `@SuppressWarnings`. Fix the root cause.                                  | ❌ `// @ts-ignore`                |
+
+**These are NON-NEGOTIABLE requirements, not suggestions.**
+
 ## 🧭 Next.js 16 · React 19 · Jest 30 Enforcement (2025-11-08)
 
 - **Framework reality:** `package.json` locks us to `next@16.0.1`, `react@19.1.1`, and `jest@30.1.3`. Treat those exact versions as law until the owner explicitly bumps them.
@@ -236,12 +259,15 @@ NEVER assume:
 
 ### File Creation Without Consent - ABSOLUTELY FORBIDDEN
 
-**NO NEW FILES WITHOUT EXPLICIT REPEATED CLEAR AFFIRMATIVE CONSENT**
+**🚨🚨🚨 STOP! BEFORE CREATING ANY NEW FILE YOU MUST: 🚨🚨🚨**
 
-- Presumption is NEVER consent - must be explicitly stated
-- Always try to use existing files first
-- Ask for specific permission: "Should I create a new file [filename] for [purpose]?"
-- Wait for clear "yes" before proceeding
+1. **MANDATORY EXISTING FILE SEARCH**: Find ALL existing files related to EVERY function, class, method, or component you are envisioning. Search the ENTIRE codebase using grep, file_glob, and semantic search.
+2. **ANALYZE EXISTING FUNCTIONALITY**: Review each discovered file to determine if the functionality you need ALREADY EXISTS or can be EXTENDED from existing code.
+3. **CONFIRM NO EXISTING SOLUTION**: Only after exhaustively confirming that NO existing file provides the needed functionality may you proceed.
+4. **EXPLICIT PERMISSION REQUIRED**: Ask for specific permission: "Should I create a new file [filename] for [purpose]?" and wait for clear affirmative consent.
+5. **OOP COMPLIANCE**: All new files MUST comply with Object-Oriented Programming best practices (SOLID principles, DRY, separation of concerns) and be idiomatically clean, representative of the best practices for the language being written.
+
+**Presumption is NEVER consent - must be explicitly stated. NEVER create files without this complete workflow.**
 
 ## 🛡️ MANDATORY PRE-TASK WORKFLOW (Required Before Any Code Changes)
 
