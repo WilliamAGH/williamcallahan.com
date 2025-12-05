@@ -5,6 +5,7 @@
  * the blog section of the application.
  */
 
+import type React from "react";
 import type { MDXRemoteSerializeResult } from "next-mdx-remote";
 
 /**
