@@ -14,6 +14,9 @@ import { getMonotonicTime } from "@/lib/utils";
 import type { ICache, CacheStats, CacheValue, ServerCacheMapEntry } from "@/types/cache";
 import { SERVER_CACHE_DURATION, MEMORY_THRESHOLDS } from "./constants";
 
+/** Circuit breaker cooldown period in milliseconds (5 minutes) */
+const CIRCUIT_BREAKER_COOLDOWN_MS = 5 * 60 * 1000;
+
 import * as bookmarkHelpers from "./server-cache/bookmarks";
 import * as githubHelpers from "./server-cache/github";
 import * as logoHelpers from "./server-cache/logo";
@@ -262,15 +265,16 @@ export class ServerCache implements ICache {
   private handleFailure(): void {
     this.failureCount++;
     const memUsage = process.memoryUsage();
+    const rssMB = Math.round(memUsage.rss / 1024 / 1024);
     envLogger.log(
       `Cache operation failed (${this.failureCount}/${this.maxFailures})`,
-      { failureCount: this.failureCount, rssMB: Math.round(memUsage.rss / 1024 / 1024) },
+      { failureCount: this.failureCount, rssMB },
       { category: "ServerCache", context: { event: "cache-failure" } },
     );
 
     if (this.failureCount >= this.maxFailures && !this.disabled) {
       this.disabled = true;
-      this.disabledUntil = Date.now() + 5 * 60 * 1000; // 5-minute cooldown
+      this.disabledUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
       envLogger.log(
         `Circuit breaker activated after ${this.failureCount} failures. Will attempt recovery in 5 minutes.`,
         { failureCount: this.failureCount, disabledUntil: new Date(this.disabledUntil).toISOString() },
@@ -285,6 +289,7 @@ export class ServerCache implements ICache {
    */
   private attemptCircuitBreakerRecovery(): void {
     const memUsage = process.memoryUsage();
+    const rssMB = Math.round(memUsage.rss / 1024 / 1024);
     const safeThreshold = MEMORY_THRESHOLDS.TOTAL_PROCESS_MEMORY_BUDGET_BYTES * 0.7;
 
     if (memUsage.rss < safeThreshold) {
@@ -292,16 +297,16 @@ export class ServerCache implements ICache {
       this.failureCount = 0;
       this.disabledUntil = 0;
       envLogger.log(
-        `Circuit breaker auto-recovered. Memory ${Math.round(memUsage.rss / 1024 / 1024)}MB is healthy.`,
-        { rssMB: Math.round(memUsage.rss / 1024 / 1024) },
+        `Circuit breaker auto-recovered. Memory ${rssMB}MB is healthy.`,
+        { rssMB },
         { category: "ServerCache", context: { event: "circuit-breaker-auto-recovered" } },
       );
     } else {
       // Extend cooldown if memory still high
-      this.disabledUntil = Date.now() + 5 * 60 * 1000;
+      this.disabledUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
       envLogger.log(
-        `Circuit breaker recovery deferred - memory still high (${Math.round(memUsage.rss / 1024 / 1024)}MB)`,
-        { rssMB: Math.round(memUsage.rss / 1024 / 1024), nextAttempt: new Date(this.disabledUntil).toISOString() },
+        `Circuit breaker recovery deferred - memory still high (${rssMB}MB)`,
+        { rssMB, nextAttempt: new Date(this.disabledUntil).toISOString() },
         { category: "ServerCache", context: { event: "circuit-breaker-recovery-deferred" } },
       );
     }
@@ -378,6 +383,7 @@ export class ServerCache implements ICache {
    */
   public resetCircuitBreaker(): void {
     const memUsage = process.memoryUsage();
+    const rssMB = Math.round(memUsage.rss / 1024 / 1024);
     const totalProcessBudget = MEMORY_THRESHOLDS.TOTAL_PROCESS_MEMORY_BUDGET_BYTES;
     const safeThreshold = totalProcessBudget * 0.6; // Only reset if below 60%
 
@@ -385,14 +391,15 @@ export class ServerCache implements ICache {
       this.disabled = false;
       this.failureCount = 0;
       envLogger.log(
-        `Circuit breaker reset. Memory usage ${Math.round(memUsage.rss / 1024 / 1024)}MB is below safe threshold.`,
-        { rssMB: Math.round(memUsage.rss / 1024 / 1024) },
+        `Circuit breaker reset. Memory usage ${rssMB}MB is below safe threshold.`,
+        { rssMB },
         { category: "ServerCache", context: { event: "circuit-breaker-reset" } },
       );
     } else {
+      const safeThresholdMB = Math.round(safeThreshold / 1024 / 1024);
       envLogger.log(
-        `Cannot reset circuit breaker. Memory usage ${Math.round(memUsage.rss / 1024 / 1024)}MB still above safe threshold.`,
-        { rssMB: Math.round(memUsage.rss / 1024 / 1024), safeThresholdMB: Math.round(safeThreshold / 1024 / 1024) },
+        `Cannot reset circuit breaker. Memory usage ${rssMB}MB still above safe threshold.`,
+        { rssMB, safeThresholdMB },
         { category: "ServerCache", context: { event: "circuit-breaker-not-reset" } },
       );
     }
