@@ -47,6 +47,8 @@ export interface BlogPost {
   readingTime?: number;
   /** URL of the post's cover image (optional) */
   coverImage?: string;
+  /** Base64 blur data URL for cover image placeholder (optional) */
+  coverImageBlurDataURL?: string;
   /** Optional: Original file path of the MDX file */
   filePath?: string;
 }
@@ -54,6 +56,17 @@ export interface BlogPost {
 /**
  * Represents an author of blog posts
  */
+export type AuthorBioSegment =
+  | {
+      type: "text";
+      value: string;
+    }
+  | {
+      type: "link";
+      label: string;
+      href: string;
+    };
+
 export interface Author {
   /** Unique identifier for the author */
   id: string;
@@ -61,8 +74,8 @@ export interface Author {
   name: string;
   /** URL of the author's avatar image (optional) */
   avatar?: string;
-  /** Short biography or description (optional) */
-  bio?: string;
+  /** Short biography or description (optional, represented as serializable segments) */
+  bio?: AuthorBioSegment[];
   /** URL to author's profile or website (optional) */
   url?: string;
 }

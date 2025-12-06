@@ -22,6 +22,26 @@ const LOGO_FILENAME_REGEX = /\/logos\/(?:inverted\/)?([^/?#]+)\.(?:png|jpe?g|web
 const HASH_TOKEN = /^[a-f0-9]{8}$/i;
 const KNOWN_LOGO_SOURCES = new Set(["google", "duckduckgo", "ddg", "clearbit", "direct", "manual", "unknown", "api"]);
 
+/**
+ * Proxies external URLs through the image cache API. Local paths and data URLs
+ * are returned unchanged.
+ */
+function getProxiedImageSrc(src: string | null | undefined, width?: number): string | undefined {
+  // Skip proxying for: empty values, local paths (including /api/*), and data URLs
+  if (!src || src.startsWith("/") || src.startsWith("data:")) {
+    return src ?? undefined;
+  }
+  if (/^https?:\/\//i.test(src)) {
+    const params = new URLSearchParams();
+    params.set("url", src);
+    if (typeof width === "number" && width > 0) {
+      params.set("width", String(width));
+    }
+    return `/api/cache/images?${params.toString()}`;
+  }
+  return src;
+}
+
 function deriveDomainFromLogoKey(pathname: string): string | null {
   const match = pathname.match(LOGO_FILENAME_REGEX);
   if (!match) {
@@ -101,22 +121,7 @@ export function LogoImage({
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const originalSrc = src;
 
-  const proxiedSrc = React.useMemo(() => {
-    if (!src || src.startsWith("/") || src.startsWith("data:") || src.startsWith("/api/")) {
-      return src;
-    }
-
-    if (/^https?:\/\//i.test(src)) {
-      const params = new URLSearchParams();
-      params.set("url", src);
-      if (typeof width === "number" && width > 0) {
-        params.set("width", String(width));
-      }
-      return `/api/cache/images?${params.toString()}`;
-    }
-
-    return src;
-  }, [src, width]);
+  const proxiedSrc = React.useMemo(() => getProxiedImageSrc(src, width), [src, width]);
 
   const handleError = useCallback(() => {
     if (retryInitiated.current) {
@@ -152,7 +157,6 @@ export function LogoImage({
     }, 3000);
   }, [src, isDev]);
 
-  // Cleanup timeout on unmount
   React.useEffect(() => {
     return () => {
       if (retryTimeoutRef.current) {
@@ -161,22 +165,7 @@ export function LogoImage({
     };
   }, []);
 
-  if (!proxiedSrc) {
-    // Use company placeholder when no src is provided
-    return (
-      <Image
-        src={getCompanyPlaceholder()}
-        alt={alt}
-        width={width}
-        height={height}
-        className={`${className} object-contain`}
-        priority={priority}
-      />
-    );
-  }
-
-  // After an unrecoverable error, show company placeholder
-  if (imageError) {
+  if (!proxiedSrc || imageError) {
     return (
       <Image
         src={getCompanyPlaceholder()}
@@ -195,10 +184,8 @@ export function LogoImage({
   const shouldBypassOptimizer =
     typeof displaySrc === "string" && (displaySrc.startsWith("/api/") || displaySrc.startsWith("data:"));
 
-  // Use next/image with base64 placeholder to prevent broken image flash
   return (
     <div style={{ position: "relative", width, height }} className="inline-block">
-      {/* Base64 placeholder shown immediately while loading */}
       {isLoading && (
         <Image
           src={COMPANY_PLACEHOLDER_BASE64}
@@ -211,7 +198,6 @@ export function LogoImage({
           unoptimized
         />
       )}
-      {/* Actual logo image */}
       <Image
         src={displaySrc}
         alt={alt}
@@ -243,15 +229,17 @@ export function OptimizedCardImage({
   src,
   alt,
   className = "",
-  priority = false,
+  preload = false,
+  blurDataURL,
 }: OptimizedCardImageProps): React.JSX.Element {
   const isDev = process.env.NODE_ENV === "development";
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [retryKey, setRetryKey] = useState(0);
-  const MAX_RETRIES = 2; // Increased to allow more retry attempts for images
+  const MAX_RETRIES = 2;
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const hasBlur = Boolean(blurDataURL);
 
   // Cleanup timeout on unmount
   React.useEffect(() => {
@@ -262,23 +250,9 @@ export function OptimizedCardImage({
     };
   }, []);
 
-  const proxiedSrc = React.useMemo(() => {
-    if (!src || src.startsWith("/") || src.startsWith("data:") || src.startsWith("/api/")) {
-      return src;
-    }
+  const proxiedSrc = React.useMemo(() => getProxiedImageSrc(src), [src]);
 
-    if (/^https?:\/\//i.test(src)) {
-      const params = new URLSearchParams();
-      params.set("url", src);
-      return `/api/cache/images?${params.toString()}`;
-    }
-
-    return src;
-  }, [src]);
-
-  // No source provided - show placeholder (should be rare with proper data)
   if (!src) {
-    if (isDev) console.warn(`[OptimizedCardImage] No image source provided, showing placeholder`);
     return (
       <Image
         src={Placeholder}
@@ -286,17 +260,12 @@ export function OptimizedCardImage({
         fill
         placeholder="empty"
         className="object-cover"
-        {...(priority ? { priority, fetchPriority: "high" } : {})}
+        {...(preload ? { preload, fetchPriority: "high" as const } : {})}
       />
     );
   }
 
-  // Source provided but errored after retries - show placeholder
   if (errored && retryCount >= MAX_RETRIES) {
-    if (isDev)
-      console.warn(
-        `[OptimizedCardImage] Failed to load image after ${retryCount} retries: ${src}, showing placeholder`,
-      );
     return (
       <Image
         src={Placeholder}
@@ -304,24 +273,13 @@ export function OptimizedCardImage({
         fill
         placeholder="empty"
         className="object-cover"
-        {...(priority ? { priority, fetchPriority: "high" } : {})}
+        {...(preload ? { preload, fetchPriority: "high" as const } : {})}
       />
     );
   }
 
-  // Add cache buster for retries
   if (!proxiedSrc) {
-    if (isDev) console.warn("[OptimizedCardImage] Missing proxied src after preprocessing, showing placeholder");
-    return (
-      <Image
-        src={Placeholder}
-        alt={alt}
-        fill
-        placeholder="empty"
-        className="object-cover"
-        {...(priority ? { priority, fetchPriority: "high" } : {})}
-      />
-    );
+    return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
   }
 
   const displaySrc =
@@ -330,23 +288,22 @@ export function OptimizedCardImage({
   const shouldBypassOptimizer =
     typeof displaySrc === "string" && (displaySrc.startsWith("/api/") || displaySrc.startsWith("data:"));
 
-  // Always use next/image so CDN URLs and proxy paths share the same sizing logic
   return (
     <Image
       src={displaySrc}
       alt={alt}
       fill
-      sizes="(max-width:768px) 100vw, 50vw"
+      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
       quality={80}
-      placeholder="empty"
+      placeholder={hasBlur ? "blur" : "empty"}
+      blurDataURL={blurDataURL}
       className={`object-cover transition-opacity duration-200 ${className}`}
-      style={{ opacity: loaded ? 1 : 0.2 }}
-      {...(priority ? { priority, fetchPriority: "high" as const } : {})}
+      style={{ opacity: loaded || hasBlur ? 1 : 0.2 }}
+      {...(preload ? { preload, fetchPriority: "high" as const } : {})}
       {...(shouldBypassOptimizer ? { unoptimized: true } : {})}
       onLoad={() => {
         setLoaded(true);
-        setErrored(false); // Clear error state on successful load
-        // Clear any pending retry timeout
+        setErrored(false);
         if (retryTimeoutRef.current) {
           clearTimeout(retryTimeoutRef.current);
         }
@@ -354,14 +311,14 @@ export function OptimizedCardImage({
       onError={() => {
         if (retryCount < MAX_RETRIES) {
           if (isDev) console.log(`[OptimizedCardImage] Scheduling retry for URL: ${src}`);
-          const backoffDelay = Math.min(1000 * 2 ** retryCount, 5000); // 1s, 2s, up to 5s max
+          const backoffDelay = Math.min(1000 * 2 ** retryCount, 5000);
 
           if (retryTimeoutRef.current) {
             clearTimeout(retryTimeoutRef.current);
           }
           retryTimeoutRef.current = setTimeout(() => {
             setRetryCount(prev => prev + 1);
-            setRetryKey(getMonotonicTime()); // Force new URL with cache buster
+            setRetryKey(getMonotonicTime());
           }, backoffDelay);
         } else {
           setErrored(true);

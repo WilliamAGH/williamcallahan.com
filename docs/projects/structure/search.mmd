@@ -24,7 +24,8 @@ graph TB
     
     subgraph "API Layer"
         E --> I[/api/search/scope or /api/search/all]
-        I --> J[Query Validation]
+        I --> IA[noStore + Build Phase Guard]
+        IA --> J[Query Validation]
         J --> K{Valid?}
         K -->|No| L[400 Error]
         K -->|Yes| M[Sanitize Query]
@@ -81,7 +82,7 @@ graph TB
     classDef data fill:#fce4ec,stroke:#880e4f,stroke-width:2px
     
     class A,B,C,D,E client
-    class I,J,K,L,M api
+    class I,IA,J,K,L,M api
     class N,O,P,Q,Z cache
     class R,S,T,U,V,W,X,Y search
     class AA,AB,AC,AD,AE data

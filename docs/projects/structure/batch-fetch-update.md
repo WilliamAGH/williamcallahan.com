@@ -10,42 +10,17 @@ This document outlines the automated background refresh schedule and batch proce
 
 The application uses a cron-based scheduler (`scripts/scheduler.ts`) that runs continuously and triggers background data updates at optimized intervals. All scheduling is done in Pacific Time (America/Los_Angeles).
 
-## Critical Issues & Bugs
+## Architecture Decisions
 
-### ✅ FIXED: Blocking Scheduler Architecture (2025-06)
+1. **Async Scheduler**: Uses async `spawn` (not `spawnSync`) with job tracking so jobs run independently without blocking.
 
-- **Previous Issue**: Used `spawnSync` which blocked entire scheduler if one job hung
-- **Solution**:
-  - Replaced all `spawnSync` calls with async `spawn`
-  - Added concurrency protection with job tracking
-  - Jobs now run independently without blocking
-- **Impact**: Scheduler continues running even if individual jobs fail or hang
+2. **Runtime Logo Fetching**: Logos fetched on-demand at runtime with multi-tier caching (not at build time). `bun run build:full` available for complete prefetch if needed.
 
-### ✅ FIXED: Build-Time Logo Prefetch Optimization (2025-06-18)
+3. **Centralized Data Fetching**: Single `lib/server/data-fetch-manager.ts` with CLI. Entry point: `scripts/data-updater.ts`.
 
-- **Previous Issue**: `scripts/prefetch-data.ts` fetched 200+ logos during build, causing 10+ minute build times
-- **Solution**: Created `scripts/prefetch-data-optimized.ts` that skips logo prefetching
-- **Impact**:
-  - Build times reduced from 10+ minutes to < 30 seconds
-  - Logos now fetched on-demand at runtime with multi-tier caching
-  - No user-facing performance impact due to caching
-- **Fallback**: `npm run build:full` still available for complete prefetch if needed
+## Open Issues
 
-### ✅ FIXED: Script Consolidation (2025-06-19)
-
-- **Previous Issue**: 9 duplicate scripts with overlapping functionality
-- **Solution**: Created centralized `lib/server/data-fetch-manager.ts` with built-in CLI
-- **Architecture**:
-  - `DataFetchManager` class handles all data operations
-  - `DataFetchManagerCLI` provides unified command-line interface
-  - Single `scripts/data-updater.ts` entry point for all operations
-  - Scheduler moved to `lib/server/scheduler.ts`
-- **Benefits**:
-  - Eliminated 90% of duplicate code (removed 6 scripts)
-  - Single CLI supports all operations with flags
-  - Consistent behavior and easier maintenance
-
-### 🟠 HIGH Priority Issues
+### 🟠 HIGH Priority
 
 1. **Missing Type Definitions**
    - **Location**: `types/node-cron.d.ts`
@@ -93,7 +68,7 @@ The application uses a cron-based scheduler (`scripts/scheduler.ts`) that runs c
 ### Scheduler Architecture
 
 ```typescript
-// scripts/scheduler.ts - FIXED: Now uses async spawn
+// scripts/scheduler.ts - Uses async spawn
 const updateProcess = spawn("bun", ["run", "update-s3", "--", "--bookmarks"], {
   env: process.env,
   stdio: "inherit",
@@ -166,7 +141,7 @@ bun scripts/data-updater.ts --force --bookmarks
 - **scripts/force-refresh-repo-stats.ts**: Manual GitHub stats refresh
 - **scripts/refresh-opengraph-images.ts**: OpenGraph image backfilling
 
-### Build-Time vs Runtime Data Strategy (2025-06-18)
+### Build-Time vs Runtime Data Strategy
 
 **Build-Time Prefetch (via `prefetch-data-optimized.ts`):**
 
@@ -174,20 +149,20 @@ bun scripts/data-updater.ts --force --bookmarks
 - ✅ GitHub activity data from S3
 - ❌ Logos (skipped for faster builds)
 
-**Runtime Fetching (2025-07 update – streaming uploads):**
+**Runtime Fetching (streaming uploads):**
 
 - Logos fetched on-demand when first requested
-- Multi-tier caching ensures good performance:
+- Multi-tier data access ensures good performance:
   - Memory cache: ~1ms (ServerCacheInstance)
-  - S3 cache: ~10-50ms (30-day TTL)
-  - External API: 100ms-5s (only on cache miss)
+  - S3 storage: ~10-50ms (persistent)
+  - External API: 100ms-5s (only on storage miss)
   - **New:** logo downloads are now streamed directly from the source URL to S3. Memory footprint per logo is constant (~65 KB) because we no longer buffer the entire image in RAM before upload.
 
 **Background Updates (via scheduler):**
 
 - Bookmarks: Every 2 hours
 - GitHub: Daily at midnight
-- Logos: Weekly on Sundays (keeps S3 cache warm)
+- Logos: Weekly on Sundays (keeps S3 storage populated)
 
 ### Environment Configuration
 
@@ -246,7 +221,7 @@ The schedules are deliberately staggered to prevent resource contention:
 ### Execution Logs
 
 ```bash
-[Scheduler] [Bookmarks] Cron triggered at 2/15/2024, 2:00:00 AM. Spawning update-s3...
+[Scheduler] [Bookmarks] Cron triggered at <timestamp>. Spawning update-s3...
 [Scheduler] [Bookmarks] update-s3 script completed successfully
 ```
 

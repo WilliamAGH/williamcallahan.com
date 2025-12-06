@@ -552,13 +552,15 @@ async function getBookmarksIndex(): Promise<{
   bookmarks: Array<BookmarkIndexItem & { slug: string }>;
 }> {
   // Memory safety guard – skip rebuild if under critical pressure
+  let shouldBlockForMemoryPressure = false;
   try {
     const { getMemoryHealthMonitor } = await import("@/lib/health/memory-health-monitor");
-    if (!getMemoryHealthMonitor().shouldAcceptNewRequests()) {
-      throw new Error("Memory pressure – aborting bookmarks index build");
-    }
+    shouldBlockForMemoryPressure = !getMemoryHealthMonitor().shouldAcceptNewRequests();
   } catch {
-    /* If monitor not available, continue */
+    /* If monitor not available, continue without blocking */
+  }
+  if (shouldBlockForMemoryPressure) {
+    throw new Error("Memory pressure – aborting bookmarks index build");
   }
 
   devLog("[getBookmarksIndex] Building/Loading bookmarks index. start");
@@ -568,12 +570,28 @@ async function getBookmarksIndex(): Promise<{
     index: MiniSearch<BookmarkIndexItem>;
     bookmarks: Array<BookmarkIndexItem & { slug: string }>;
   }>(cacheKey);
-  if (cached) {
-    devLog("[getBookmarksIndex] using cached in-memory index", { items: cached.bookmarks.length });
-    return cached;
-  }
 
-  const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+  // CRITICAL: Use bracket notation to prevent Turbopack from inlining NEXT_PHASE at build time
+  const PHASE_KEY = "NEXT_PHASE";
+  const BUILD_VALUE = "phase-production-build";
+  const isBuildPhase = process.env[PHASE_KEY] === BUILD_VALUE;
+
+  if (cached) {
+    // SAFEGUARD: Don't use cached empty indexes outside build phase - they may be stale
+    // from a cold start when slug mapping wasn't yet available. Rebuild instead.
+    if (cached.bookmarks.length === 0 && !isBuildPhase) {
+      devLog("[getBookmarksIndex] cached index is empty outside build phase, attempting rebuild");
+      envLogger.log(
+        "[Search] Cached bookmarks index is empty - rebuilding (possible stale cache from cold start)",
+        {},
+        { category: "Search" },
+      );
+      // Don't return cached - fall through to rebuild
+    } else {
+      devLog("[getBookmarksIndex] using cached in-memory index", { items: cached.bookmarks.length });
+      return cached;
+    }
+  }
   if (isBuildPhase) {
     devLog("[getBookmarksIndex] build phase detected, returning empty index");
     const emptyResult = { index: buildBookmarksIndex([]), bookmarks: [] };
@@ -609,7 +627,8 @@ async function getBookmarksIndex(): Promise<{
     bookmarks = all;
     devLog("[getBookmarksIndex] fetched bookmarks via direct import", { count: bookmarks.length });
   } catch (directErr) {
-    const skipApiFallback = process.env.NEXT_PHASE === "phase-production-build";
+    // Use bracket notation to prevent Turbopack inlining (see PHASE_KEY above)
+    const skipApiFallback = process.env[PHASE_KEY] === BUILD_VALUE;
     if (skipApiFallback) {
       envLogger.log(
         "Direct bookmarks fetch failed during build phase; skipping /api/bookmarks fallback",
@@ -726,7 +745,20 @@ async function getBookmarksIndex(): Promise<{
 
   // Cache the index and bookmarks
   const result = { index: bookmarksIndex, bookmarks: bookmarksForIndex };
-  ServerCacheInstance.set(cacheKey, result, BOOKMARK_INDEX_TTL);
+
+  // CRITICAL: Do NOT cache empty indexes when source data exists but couldn't be indexed
+  // This happens when slug mapping is temporarily unavailable (e.g., during cold start).
+  // Caching the empty result would cause all subsequent searches to fail until cache expires.
+  if (bookmarksForIndex.length === 0 && bookmarksArr.length > 0) {
+    envLogger.log(
+      `[Search] SKIPPING CACHE: Empty bookmarks index despite ${bookmarksArr.length} source bookmarks - slug mapping likely unavailable`,
+      { sourceCount: bookmarksArr.length, indexedCount: 0 },
+      { category: "Search" },
+    );
+    // Return result without caching - next request will retry and may succeed if slug mapping becomes available
+  } else {
+    ServerCacheInstance.set(cacheKey, result, BOOKMARK_INDEX_TTL);
+  }
 
   devLog("[getBookmarksIndex] index built", { indexed: bookmarksArr.length });
 
@@ -841,8 +873,19 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
       .toSorted((a, b) => b.score - a.score);
 
     devLog("[searchBookmarks] results", { count: results.length });
-    // Cache the results
-    ServerCacheInstance.setSearchResults("bookmarks", query, results);
+    // CRITICAL: Do NOT cache empty results when the index itself was empty.
+    // If bookmarks.length === 0, it means no bookmarks could be indexed (slug mapping unavailable).
+    // Caching empty results would cause all subsequent searches to fail until cache expires (15 min).
+    // Only cache if the index was healthy (has documents) - empty search results from a healthy index are valid.
+    if (bookmarks.length > 0) {
+      ServerCacheInstance.setSearchResults("bookmarks", query, results);
+    } else if (results.length === 0) {
+      envLogger.log(
+        "[searchBookmarks] SKIPPING RESULT CACHE: Empty results from empty index - slug mapping likely unavailable",
+        { query, indexedBookmarks: bookmarks.length, resultsCount: results.length },
+        { category: "Search" },
+      );
+    }
 
     return results;
   } catch (err) {

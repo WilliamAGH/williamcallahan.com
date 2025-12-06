@@ -49,7 +49,7 @@ function ProjectsList() {
               key={project.name}
               data-project-tags={project.tags?.join("|||") ?? ""} // custom delimiter preserves spaces
             >
-              <ProjectCard project={project} isPriority={index === 0} />
+              <ProjectCard project={project} preload={index === 0} />
             </div>
           ))}
         </div>

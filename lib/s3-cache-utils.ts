@@ -1,8 +1,8 @@
 /**
- * S3 Cache Utilities
+ * S3 Read Caching Utilities
  *
- * Provides cached versions of S3 operations using Next.js 15's 'use cache' directive
- * for improved performance and reduced S3 API calls.
+ * Provides a caching layer for S3 read operations using Next.js's 'use cache' directive.
+ * This reduces S3 API calls by caching results - S3 itself is persistent storage, NOT a cache.
  *
  * @module lib/s3-cache-utils
  */

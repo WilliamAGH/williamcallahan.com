@@ -4,8 +4,6 @@
 
 This document outlines the data access layer for the William Callahan website, detailing how data retrieval and storage operations are managed within the application.
 
-**Last Updated**: 2025-07 - Enhanced with Zod validation schemas, performance optimizations, and security improvements.
-
 ### Key Components
 
 ```mermaid
@@ -37,7 +35,7 @@ graph TD
   - Utilizes a public CDN URL for non-JSON files to optimize access speed, falling back to direct S3 reads if CDN fetch fails.
   - Configures S3 client using environment variables for bucket, endpoint, credentials, and region, with support for dry runs to simulate operations without actual S3 interaction.
   - Ensures public read access for written objects by setting the appropriate ACL during write operations.
-- **Security Updates (2025-07)**:
+- **Security Features**:
   - All external URLs validated against SSRF attacks before fetch operations
   - Path traversal protection for S3 keys
   - Proper use of `S3_CDN_URL` for server-side code instead of `NEXT_PUBLIC_` variables
@@ -82,7 +80,7 @@ graph TD
   - Handles non-blocking background refreshes to keep the main request flow responsive, updating data without impacting user experience.
   - Manages in-flight promises to avoid duplicate simultaneous fetches of external bookmark data, reducing unnecessary API calls.
   - Persists refreshed data to S3 and updates the server cache, maintaining consistency across storage layers with retry mechanisms for robustness.
-- **Validation Updates (2025-07)**:
+- **Validation Features**:
   - All bookmark URLs validated with Zod schemas before processing
   - External URLs checked against SSRF attack patterns
   - Enhanced data validation with comprehensive schemas in `types/schemas/`
@@ -145,7 +143,7 @@ graph TD
   - Validates logo buffers for size and content, ensuring only valid images are processed.
   - Integrates with a validation API (`/api/validate-logo`) to filter out generic globe icons when available.
   - Processes image buffers to standardize format, converting to PNG if not SVG, and determines content type for correct rendering.
-- **Performance Updates (2025-07)**:
+- **Performance Optimizations**:
   - Parallel fetching with Promise.allSettled() for all logo sources
   - Batch S3 existence checking for multiple logos
   - Reduced worst-case fetch time from 30s to ~6s

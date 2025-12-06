@@ -64,6 +64,7 @@ const config: Config = {
     "^cheerio$": "<rootDir>/__tests__/__mocks__/lib/cheerio.js",
     "^next-mdx-remote/serialize$": "<rootDir>/__tests__/__mocks__/lib/next-mdx-remote.js",
     "^next-mdx-remote$": "<rootDir>/__tests__/__mocks__/lib/next-mdx-remote.js",
+    "^plaiceholder$": "<rootDir>/__tests__/__mocks__/lib/plaiceholder.js",
     // Note: avoid globally mocking markdown plugins; use per-test strategies when needed
     "^@/lib/data-access/github$": "<rootDir>/__tests__/__mocks__/lib/data-access/github.ts",
     // Bookmarks mock

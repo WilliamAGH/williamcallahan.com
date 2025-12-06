@@ -12,9 +12,15 @@ import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { type SearchResult, VALID_SCOPES } from "@/types/search";
 import { unstable_noStore as noStore } from "next/cache";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, connection, type NextRequest } from "next/server";
 
-const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+// CRITICAL: Check build phase AT RUNTIME using dynamic property access.
+// Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
+// during build, permanently baking "phase-production-build" into the bundle.
+// Using bracket notation with a variable key prevents static analysis and inlining.
+const PHASE_ENV_KEY = "NEXT_PHASE" as const;
+const BUILD_PHASE_VALUE = "phase-production-build" as const;
+const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 
 function resolveRequestUrl(request: NextRequest): URL {
   return new URL(request.url);
@@ -31,7 +37,14 @@ function resolveRequestUrl(request: NextRequest): URL {
  * @returns A JSON response containing the search results or an error message.
  */
 export async function GET(request: NextRequest, { params }: { params: { scope: string } }) {
-  if (isProductionBuild) {
+  // connection(): ensure this handler always runs at request time under cacheComponents
+  await connection();
+  // CRITICAL: Call noStore() FIRST to prevent Next.js from caching ANY response
+  // If called after the build phase check, the buildPhase:true response gets cached
+  if (typeof noStore === "function") {
+    noStore();
+  }
+  if (isProductionBuildPhase()) {
     return NextResponse.json(
       {
         data: [],
@@ -45,9 +58,6 @@ export async function GET(request: NextRequest, { params }: { params: { scope: s
       },
       { headers: withNoStoreHeaders({ "X-Search-Build-Phase": "true" }) },
     );
-  }
-  if (typeof noStore === "function") {
-    noStore();
   }
   try {
     // Apply rate limiting and memory pressure guards

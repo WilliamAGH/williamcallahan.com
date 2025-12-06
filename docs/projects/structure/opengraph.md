@@ -4,61 +4,7 @@
 
 ## Core Objective
 
-To provide resilient OpenGraph metadata extraction and image processing for any URL, with comprehensive fallback mechanisms and intelligent caching. The system handles diverse website structures, large HTML pages, and various image metadata standards to ensure maximum data extraction success. As of 2025-06, includes a unified `/api/og-image` route that serves as the single source of truth for ALL OpenGraph images across the application.
-
-## Recently Resolved Issues
-
-### ✅ FIXED: Unified OpenGraph Image Handling (2025-06)
-
-- **Previous Issue**: Multiple endpoints handled OG images differently, causing inconsistencies
-- **Solution**:
-  - Created unified `/api/og-image` route as single source of truth
-  - Handles S3 keys, Karakeep IDs, and external URLs transparently
-  - Implements proper absolute URL redirects (fixed NextResponse.redirect errors)
-  - Background S3 persistence with response streaming
-- **Impact**: Consistent OG image handling across bookmarks, blog posts, and external integrations
-
-### ✅ FIXED: Bookmark Data Structure Mismatch (2025-06)
-
-- **Previous Issue**: Client expected array but API returned `{ data: [...], meta: {...} }`
-- **Solution**: Updated bookmark components to parse `responseData.data`
-- **Impact**: Fixed "bookmarksData.map is not a function" errors
-
-### ✅ FIXED: Distributed Lock Double Release (2025-06)
-
-- **Previous Issue**: Lock release attempted after already deleted, causing warnings
-- **Solution**: Made `releaseDistributedLock` silent when lock doesn't exist
-- **Impact**: Cleaner logs, no spurious warnings
-
-### ✅ FIXED: Large HTML Page Failures (2025-01)
-
-- **Previous Issue**: Sites with HTML >1MB (e.g., railway.app) failed extraction entirely
-- **Solution**:
-  - Increased limit to 5MB
-  - Smart partial parsing extracts just `<head>` section
-  - Falls back to first 512KB if head extraction fails
-- **Impact**: Can now extract OpenGraph data from modern SPAs and large pages
-
-### ✅ FIXED: Limited Image Source Support (2025-01)
-
-- **Previous Issue**: Only checked standard `og:image` tag, missing valid images
-- **Solution**: Implemented priority-based selection from 9+ image sources:
-  1. Platform-specific profile images
-  2. Standard `og:image`
-  3. `og:image:secure_url`
-  4. `og:image:url`
-  5. `twitter:image`
-  6. Schema.org `itemprop="image"`
-  7. MS Application tiles
-  8. Apple touch icons
-  9. Favicons (last resort)
-- **Impact**: Dramatically increased image extraction success rate
-
-### ✅ FIXED: Relative URL Handling (2025-01)
-
-- **Previous Issue**: Relative image URLs (e.g., `/images/logo.png`) were not resolved
-- **Solution**: Automatic resolution to absolute URLs using page base URL
-- **Impact**: Works with sites using relative paths for images
+To provide resilient OpenGraph metadata extraction and image processing for any URL, with comprehensive fallback mechanisms and intelligent caching. The system handles diverse website structures, large HTML pages, and various image metadata standards to ensure maximum data extraction success. Includes a unified `/api/og-image` route that serves as the single source of truth for ALL OpenGraph images across the application.
 
 ## Architecture Overview
 
@@ -71,7 +17,7 @@ Request → Cache Check → S3 Check → External Fetch → Process → Store �
          (Fast)         (Durable)     (Slow)
 ```
 
-## Key Components (2025-06 Refactored)
+## Key Components
 
 ### Data Access Layer
 
@@ -143,11 +89,11 @@ Request → Cache Check → S3 Check → External Fetch → Process → Store �
 - **`lib/utils/image-s3-utils.ts`**: Image persistence
   - Downloads and validates images
   - Stores in S3 with deterministic keys
-  - Serves images from S3 cache
+  - Serves images from S3 storage
 
 ### API Routes
 
-- **`app/api/og-image/route.ts`**: Universal OpenGraph image endpoint (2025-06 rewrite)
+- **`app/api/og-image/route.ts`**: Universal OpenGraph image endpoint
   - Single source of truth for ALL OpenGraph images
   - Multi-input support: S3 keys, Karakeep asset IDs, external URLs
   - Hierarchy: Memory cache → S3 storage → External fetch → Karakeep fallback
@@ -156,7 +102,7 @@ Request → Cache Check → S3 Check → External Fetch → Process → Store �
   - Contextual fallback images (company, person, OpenGraph card)
   - Preserves animated formats (GIF, WebP)
 
-## Unified OG Image Endpoint (2025-06)
+## Unified OG Image Endpoint
 
 The `/api/og-image` route serves as the single source of truth for all OpenGraph images:
 

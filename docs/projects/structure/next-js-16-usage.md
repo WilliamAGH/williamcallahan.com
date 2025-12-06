@@ -39,7 +39,7 @@ Provide a single operational playbook for all work that interacts with our Next.
 - Image fetching now caps redirects at 3 by default (`node_modules/next/dist/shared/lib/image-config.js:37-73`). Override only with documented justification.
 - Cache Components automatically enables the modern `use cache` directive; ensure routes opt-in explicitly when needed.
 
-### React 19 interplay (React.dev 2024-12 release)
+### React 19 Interplay
 
 - Metadata tags (`<title>`, `<meta>`, `<link>`) render directly inside components and hoist to `<head>`.
 - New resource APIs (`prefetchDNS`, `preconnect`, `preload`, `preinit`) live in `react-dom` and should replace ad-hoc script/link injection.
@@ -100,34 +100,24 @@ These are the failure modes that blocked >100 deploy attempts. Follow each check
 
 ### 5. Documentation + MCP receipts
 
-- Every framework PR must paste the specific MCP query + node_modules file reference into its description. Example: "Context7 `/vercel/next.js` topic `version-16` (2025-11-12) confirms async sitemap params – see `node_modules/next/dist/server/request/params.js:150-226`."
-- Update this runbook the moment a new failure mode appears; treat it as the incident log.
+- Every framework PR must paste the specific MCP query + node_modules file reference into its description. Example: "Context7 `/vercel/next.js` topic `version-16` confirms async sitemap params – see `node_modules/next/dist/server/request/params.js:150-226`."
+- Update this runbook when new failure modes appear.
 
-### 6. Cache Components Rendering Modes (CRITICAL - 2025-11-11)
+### 6. Cache Components Rendering Modes (CRITICAL)
 
-**Incident Summary:** Production deployment (alpha.williamcallahan.com) experienced catastrophic failures across 5 page routes after Next.js 16 upgrade. Pages returned `DYNAMIC_SERVER_USAGE` errors, then build failures with "Route segment config 'dynamic' is not compatible with `nextConfig.cacheComponents`" errors.
+**Incompatibilities with `cacheComponents: true`:**
 
-**Root Cause - Two Sequential Issues:**
+1. `unstable_noStore()` in page components → causes `DYNAMIC_SERVER_USAGE` error
+2. `export const dynamic = "force-dynamic"` → causes build error
 
-1. **Issue #1:** Pages using `unstable_noStore()` are incompatible with `cacheComponents: true`
-2. **Issue #2:** Using `export const dynamic = "force-dynamic"` is **ALSO INCOMPATIBLE** with `cacheComponents: true`
-
-**The Critical Misunderstanding:**
+**Key Understanding:**
 
 Next.js 16 with Cache Components fundamentally changes the rendering model:
 
 - **Old Model (Next.js 15):** Pages are static by default, use `noStore()` or `dynamic = "force-dynamic"` to opt into dynamic
 - **New Model (Next.js 16 + cacheComponents):** Pages are **DYNAMIC BY DEFAULT**, use `'use cache'` to opt into static
 
-**Affected Pages:**
-
-- `app/education/page.tsx` - Used `noStore()` → FAILED with DYNAMIC_SERVER_USAGE
-- `app/bookmarks/page.tsx` - Used `noStore()` → FAILED with DYNAMIC_SERVER_USAGE
-- `app/experience/page.tsx` - Used `noStore()` → FAILED with DYNAMIC_SERVER_USAGE
-- `app/investments/page.tsx` - Used `noStore()` → FAILED with DYNAMIC_SERVER_USAGE
-- `app/bookmarks/page/[pageNumber]/page.tsx` - Used `noStore()` → FAILED with DYNAMIC_SERVER_USAGE
-
-**Broken "Fix" Attempts:**
+**Forbidden Patterns:**
 
 ```typescript
 // ❌ BROKEN #1: Runtime API (causes DYNAMIC_SERVER_USAGE error)
@@ -185,45 +175,19 @@ export default async function DynamicPage() {
 | ISR            | `export const revalidate = <seconds>`    | `'use cache'` + `cacheLife()` configuration | Use new caching APIs               |
 | API Routes     | `unstable_noStore()` allowed             | `unstable_noStore()` still works            | API routes exempt from this change |
 
-**Error Manifestations:**
+**Error Symptoms:**
 
-**Phase 1 - Runtime Error (noStore):**
+| Pattern                | Dev Behavior     | Prod Behavior                                      |
+| ---------------------- | ---------------- | -------------------------------------------------- |
+| `noStore()` in page    | Renders (silent) | `DYNAMIC_SERVER_USAGE` 500 error                   |
+| `export const dynamic` | N/A              | Build fails: "not compatible with cacheComponents" |
 
-- **Development:** Pages render normally (silent failure)
-- **Production:** Pages fail with `DYNAMIC_SERVER_USAGE` digest
-- **User Experience:** "Internal Server Error" 500 responses
-- **Production Logs:**
-  ```
-  [Error: An error occurred in the Server Components render...] {
-    digest: 'DYNAMIC_SERVER_USAGE'
-  }
-  ```
+**Required Pattern:**
 
-**Phase 2 - Build Error (export const dynamic):**
-
-- **Build Output:**
-  ```
-  Route segment config "dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.
-  ```
-- **Impact:** Build completely fails, cannot deploy
-
-**Correct Migration Path:**
-
-**For Static Pages (investments, experience, education):**
-
-1. ❌ Remove `import { unstable_noStore as noStore } from "next/cache"`
-2. ❌ Remove `noStore()` function calls
-3. ✅ Add `'use cache';` at the **TOP** of the file (before imports)
-4. ✅ Keep `export const metadata` as-is
-5. ✅ Add JSDoc comment explaining the Cache Components pattern
-
-**For Dynamic Pages (bookmarks, paginated routes):**
-
-1. ❌ Remove `import { unstable_noStore as noStore } from "next/cache"`
-2. ❌ Remove `noStore()` function calls
-3. ❌ Remove `export const dynamic = "force-dynamic"` (if present)
-4. ✅ Add JSDoc comment: "Pages are dynamic by default with cacheComponents"
-5. ✅ **DO NOT ADD ANY DIRECTIVE** - page is already dynamic
+| Page Type | Action                                             |
+| --------- | -------------------------------------------------- |
+| Static    | Add `'use cache';` at top of file (before imports) |
+| Dynamic   | Remove all directives—dynamic is default           |
 
 **Search Commands to Find Violations:**
 
@@ -281,7 +245,7 @@ export default function BookmarksPage() {
 }
 ```
 
-**Official Documentation References (Verified 2025-11-11):**
+**Official Documentation References:**
 
 1. **Cache Components Fundamental Guide**
    - **URL:** https://github.com/vercel/next.js/blob/canary/docs/01-app/01-getting-started/06-cache-components.mdx
@@ -357,6 +321,7 @@ Think of Cache Components as **inverting the default**:
 - Introducing React 18-era APIs (`ReactDOM.render`, legacy metadata helpers) without explicit owner approval.
 - **CRITICAL:** Using `unstable_noStore()` in page components when `cacheComponents: true` (see §6).
 - **CRITICAL:** Using `export const dynamic = "force-dynamic"` in page components when `cacheComponents: true` - causes build errors (see §6).
+- **CRITICAL:** Module-scope `NEXT_PHASE` checks (e.g., `const x = process.env.NEXT_PHASE === "..."`) — evaluated at build time and baked into bundle. Use a function: `const x = () => process.env.NEXT_PHASE === "..."`.
 
 ## Workflow Checklist (mirror AGENTS.md)
 

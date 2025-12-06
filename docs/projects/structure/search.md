@@ -6,38 +6,76 @@
 
 The search functionality provides site-wide and section-specific search capabilities with fuzzy matching, caching, and security features. It's primarily accessed through the terminal interface and enables users to find content across blog posts, bookmarks, investments, experience, and education sections.
 
-## Recent Improvements (Issue #120)
+## Forbidden Patterns
 
-### ✅ RESOLVED Issues
+### Module-Scope Build Phase Checks
 
-1. **Server/Client Boundary Violation** - FIXED
-   - Moved to API-based approach for all searches
-   - Terminal no longer imports server-side modules
-   - Clean separation of concerns
+**Never** check `NEXT_PHASE` using direct property access—Turbopack/webpack inlines `process.env.NEXT_PHASE` at build time, even inside functions:
 
-2. **Type Duplication** - FIXED
-   - Consolidated `SearchResult` type in `types/search.ts`
-   - Removed duplicate from `types/terminal.ts`
+```typescript
+// ❌ FORBIDDEN - direct property access gets inlined by bundler
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-3. **Code Duplication** - FIXED
-   - Created generic `searchContent<T>` function
-   - Eliminated ~100+ lines of duplicated code
-   - All search functions now use the same core algorithm
+// ❌ STILL FORBIDDEN - function doesn't help, bundler still inlines the value
+const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
 
-4. **Performance Issues** - FIXED
-   - Added 15-minute cache via `ServerCacheInstance`
-   - Implemented lazy loading in terminal
-   - Search functions preload on user input
+// ✅ REQUIRED - bracket notation with variable key prevents static analysis
+const PHASE_ENV_KEY = "NEXT_PHASE" as const;
+const BUILD_PHASE_VALUE = "phase-production-build" as const;
+const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
+```
 
-5. **Search Quality** - IMPROVED
-   - Integrated MiniSearch for fuzzy/typo-tolerant search
-   - Falls back to substring search for compatibility
-   - Supports prefix matching and multi-word queries
+### Route Handlers Require `dynamic = "force-dynamic"`
 
-6. **Security** - ENHANCED
-   - Added query validation and sanitization
-   - Prevents ReDoS attacks
-   - Query length limits (100 chars max)
+Route Handlers can be statically pre-rendered at build time even with `noStore()`. **You MUST export `dynamic = "force-dynamic"`**:
+
+```typescript
+// ❌ FORBIDDEN - noStore() alone doesn't prevent static rendering
+import { unstable_noStore as noStore } from "next/cache";
+export async function GET() {
+  noStore(); // Not enough! Route can still be pre-rendered at build
+}
+
+// ✅ REQUIRED - explicit opt-out of static rendering
+export const dynamic = "force-dynamic";
+export async function GET() {
+  noStore();
+}
+```
+
+**Symptom**: `x-nextjs-cache: HIT` with `buildPhase: true` at runtime.
+
+### noStore() Must Precede Build Phase Checks
+
+Call `noStore()` BEFORE any early return—otherwise the build-phase response gets cached:
+
+```typescript
+// ❌ FORBIDDEN - noStore() never called when returning early
+if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
+noStore();
+
+// ✅ REQUIRED - noStore() first
+noStore();
+if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
+```
+
+### Caching Empty Results
+
+**Never** cache empty search results when the underlying index is empty (indicates data unavailability, not "no matches").
+
+## Architecture Decisions
+
+1. **Server/Client Boundary**: API-based approach; terminal never imports server modules.
+
+2. **Type Consolidation**: Single `SearchResult` type in `types/search.ts`.
+
+3. **Generic Search**: `searchContent<T>` function used by all search implementations.
+
+4. **Caching**: 15-minute TTL via `ServerCacheInstance`; lazy loading in terminal.
+
+5. **Search Quality**: MiniSearch for fuzzy/typo-tolerant search with substring fallback.
+
+6. **Security**: Query validation, ReDoS prevention, 100-char limit.
 
 ## Key Files & Responsibilities
 
@@ -62,9 +100,7 @@ The search functionality provides site-wide and section-specific search capabili
   - Handles all search scopes dynamically
   - Validates queries before processing
   - Returns consistent response format
-- **Runtime behavior (2025-11)**: Every search API now resolves request metadata from `request.headers` rather than
-  the global `headers()` helper. This prevents the `NEXT_PRERENDER_INTERRUPTED` errors we hit during prerendering,
-  while still keeping rate limiting and pagination logic header-aware under `cacheComponents`.
+- **Runtime behavior**: Search APIs resolve request metadata from `request.headers` (not `headers()` helper) to prevent `NEXT_PRERENDER_INTERRUPTED` errors under `cacheComponents`.
 - **`app/api/search/all/route.ts`**: Site-wide search
   - Aggregates results from all sections
   - Adds section prefixes to results
