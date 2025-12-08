@@ -250,8 +250,9 @@ ENV HOSTNAME="0.0.0.0"
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Add healthcheck to ensure the container is properly running
-HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
-  CMD curl --silent --show-error --fail http://127.0.0.1:3000/api/health || exit 1
+# Use the PORT env var if provided by the platform; default to 3000 otherwise
+HEALTHCHECK --interval=10s --timeout=5s --start-period=45s --retries=3 \
+  CMD sh -c 'curl --silent --show-error --fail "http://127.0.0.1:${PORT:-3000}/api/health" || exit 1'
 
 # Use entrypoint to handle data initialization, scheduler startup, and graceful shutdown
 # Note: entrypoint.sh now includes initial data population before starting scheduler
