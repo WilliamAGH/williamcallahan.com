@@ -58,9 +58,9 @@ const experiencesData: Experience[] = [
   {
     id: "callahan-financial",
     company: "Callahan Financial Planning",
-    period: "2010 - 2022",
+    period: "2010 - 2021",
     startDate: "2010-02-01T00:00:00Z",
-    endDate: "2022-02-01T00:00:00Z",
+    endDate: "2021-02-01T00:00:00Z",
     role: "Founded and led an SEC-registered investment advisor - Provided comprehensive financial planning and investment advisory services, including proprietary cloud software for managing complex/nuanced data sets in such relationships. Managed $225 million in assets on acquisition.",
     logo: undefined,
     logoOnlyDomain: "callahanplanning.com",
