@@ -72,7 +72,7 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
               margin: "-0.125rem 0",
             }}
             aria-label="Terminal command input"
-            placeholder={disabled ? "Processing..." : "Enter a command"}
+            placeholder={disabled ? "Processing..." : "Enter a command or search the site here"}
             title="Terminal command input"
             disabled={disabled}
           />

@@ -120,10 +120,15 @@ export default {
           "0%, 100%": { transform: "scale(1)" },
           "50%": { transform: "scale(1.4)" },
         },
+        blink: {
+          "0%, 50%": { opacity: "1" },
+          "51%, 100%": { opacity: "0" },
+        },
       },
       animation: {
         "fade-in-up": "fadeInUp 0.5s ease-out forwards",
         pop: "pop 0.4s ease-out",
+        blink: "blink 1.2s ease-in-out infinite",
       },
     },
   },
