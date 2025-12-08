@@ -14,6 +14,7 @@
 
 import React, { Suspense, useEffect } from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
+import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hint";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
 import type { ProjectsWindowClientProps } from "@/types/features/projects";
@@ -57,9 +58,12 @@ function ProjectsWindowContentInner({
       )}
     >
       <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 sticky top-0 z-10">
-        <div className="flex items-center">
-          <WindowControls onClose={onClose} onMinimize={onMinimize} onMaximize={onMaximize} />
-          <h1 className="text-xl font-mono ml-4">~/{title.toLowerCase().replace(/\s+/g, "-")}</h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <WindowControls onClose={onClose} onMinimize={onMinimize} onMaximize={onMaximize} />
+            <h1 className="text-xl font-mono ml-4">~/{title.toLowerCase().replace(/\s+/g, "-")}</h1>
+          </div>
+          <TerminalSearchHint context="projects" />
         </div>
       </div>
 

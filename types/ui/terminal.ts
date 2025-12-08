@@ -44,6 +44,8 @@ export interface TerminalContextType extends TerminalContextValue {
   resetTerminal: () => void;
   addToHistory: (command: TerminalCommand) => void;
   removeFromHistory: (commandId: string) => void;
+  /** Remove all "Found X results for" search messages from history */
+  removeSearchResultMessages: () => void;
 }
 
 export interface TerminalHeaderProps {
@@ -128,5 +130,5 @@ export interface TerminalWindowStateProviderProps {
  */
 export interface TerminalSearchHintProps {
   /** Context determines the content type referenced in the hint text */
-  context?: "bookmarks" | "blog";
+  context?: "bookmarks" | "blog" | "projects";
 }
