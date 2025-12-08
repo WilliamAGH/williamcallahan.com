@@ -201,15 +201,26 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
       }
       tabIndex={0}
     >
-      <div className="text-gray-400 text-xs mb-1">
-        Use ↑↓ to navigate, Enter to select, Esc to cancel
-        {isKeyboardMode && <span className="ml-2 text-blue-400">[Keyboard Mode]</span>}
-        {validItems.length > ITEMS_PER_PAGE && (
-          <>
-            {" • "}Page {page + 1} of {Math.ceil(validItems.length / ITEMS_PER_PAGE)}
-            {" • "}Showing {startIdx + 1}-{endIdx} of {validItems.length}
-          </>
-        )}
+      <div className="flex items-center justify-between text-gray-400 text-xs mb-1">
+        <div>
+          <span className="hidden sm:inline">Use ↑↓ to navigate, Enter to select, Esc to cancel</span>
+          <span className="sm:hidden">Tap to select</span>
+          {isKeyboardMode && <span className="ml-2 text-blue-400">[Keyboard Mode]</span>}
+          {validItems.length > ITEMS_PER_PAGE && (
+            <>
+              {" • "}Page {page + 1} of {Math.ceil(validItems.length / ITEMS_PER_PAGE)}
+              {" • "}Showing {startIdx + 1}-{endIdx} of {validItems.length}
+            </>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onExitAction}
+          className="px-2 py-1 rounded text-gray-400 hover:text-gray-200 hover:bg-gray-700 transition-colors"
+          aria-label="Cancel search"
+        >
+          ✕ Cancel
+        </button>
       </div>
       <div className="group" data-keyboard-mode={isKeyboardMode}>
         {visibleItems.map((item, index) => (
