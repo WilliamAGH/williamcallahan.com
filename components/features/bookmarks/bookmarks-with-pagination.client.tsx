@@ -12,7 +12,7 @@
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import { getErrorMessage, type UnifiedBookmark, type BookmarksWithPaginationClientProps } from "@/types";
 import { Loader2, RefreshCw } from "lucide-react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
@@ -57,7 +57,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   const [isRefreshingProduction, setIsRefreshingProduction] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   // Infinite scroll is active when enabled (search handled via sitewide terminal)
   const infiniteScrollActive = enableInfiniteScroll;
@@ -306,9 +305,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     }
     // `goToPage` is a stable callback from the pagination hook – safe omit.
   }, [pathname, goToPage, currentPage]);
-
-  // searchParams is used for URL state management
-  void searchParams;
 
   // Dev-only hydration guard - only runs in development
   useEffect(() => {
