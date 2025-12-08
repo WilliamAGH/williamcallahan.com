@@ -28,6 +28,8 @@ export function Terminal() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   // Track if terminal is focused
   const [isTerminalFocused, setIsTerminalFocused] = useState(false);
+  // Track pending focus request from ⌘K when terminal was closed/minimized
+  const pendingFocusRef = useRef(false);
 
   // --- Get State from Hooks ---
   // History state from TerminalContext
@@ -44,6 +46,7 @@ export function Terminal() {
     close: closeWindow, // Rename actions for consistency if desired
     minimize: minimizeWindow,
     maximize: maximizeWindow,
+    restore: restoreWindow, // Used by ⌘K shortcut to restore closed/minimized terminal
     isRegistered, // Flag if the window is ready in the context
   } = useRegisteredWindowState(TERMINAL_WINDOW_ID, TerminalSquare, "Restore Terminal", "normal");
 
@@ -152,6 +155,45 @@ export function Terminal() {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isMaximized, maximizeWindow]); // Dependencies: run when isMaximized or maximizeWindow changes
+
+  // Global keyboard shortcut: ⌘K (Mac) or Ctrl+K (Windows/Linux) to focus terminal
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      // Check for Cmd+K (Mac) or Ctrl+K (Windows/Linux)
+      const isCmdOrCtrl = event.metaKey || event.ctrlKey;
+      if (isCmdOrCtrl && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        // If terminal is closed or minimized, restore it first
+        if (windowState === "closed" || windowState === "minimized") {
+          // Mark that we need to focus once the terminal is restored
+          pendingFocusRef.current = true;
+          restoreWindow();
+        } else {
+          // Terminal is already visible, focus immediately
+          focusInput();
+          inputRef.current?.focus();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleGlobalKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleGlobalKeyDown);
+    };
+  }, [windowState, focusInput, inputRef, restoreWindow]);
+
+  // Effect to handle pending focus after terminal is restored from closed/minimized state
+  useEffect(() => {
+    // Only trigger when terminal becomes visible (normal or maximized) and we have a pending focus
+    if (pendingFocusRef.current && windowState !== "closed" && windowState !== "minimized") {
+      pendingFocusRef.current = false;
+      // Use RAF to ensure the input is fully rendered before focusing
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+    }
+  }, [windowState, inputRef]);
 
   // Effect to prevent page scrolling when terminal has focus or is being interacted with
   useEffect(() => {
