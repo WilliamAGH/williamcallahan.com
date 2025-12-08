@@ -44,8 +44,6 @@ export interface TerminalContextType extends TerminalContextValue {
   resetTerminal: () => void;
   addToHistory: (command: TerminalCommand) => void;
   removeFromHistory: (commandId: string) => void;
-  /** Remove all "Found X results for" search messages from history */
-  removeSearchResultMessages: () => void;
 }
 
 export interface TerminalHeaderProps {
