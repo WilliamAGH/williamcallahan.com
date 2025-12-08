@@ -53,7 +53,8 @@ RUN NODE_OPTIONS='--max-old-space-size=4096' npm run lint && NODE_OPTIONS='--max
 # Use Bun image for build stage so `bun` commands are available
 FROM base AS builder
 # Install dependencies for the build
-RUN apk add --no-cache libc6-compat curl bash
+# fontconfig + ttf-dejavu required for @react-pdf/renderer PDF generation during static generation
+RUN apk add --no-cache libc6-compat curl bash fontconfig ttf-dejavu
 WORKDIR /app
 
 # Set environment variables for build
@@ -152,7 +153,8 @@ WORKDIR /app
 # Note: We still need Node.js to run `next start` even though Bun is available
 # Also installing vips for Sharp image processing, curl for healthchecks, and bash for scripts
 # libc6-compat is required for Sharp/vips native bindings to work properly
-RUN apk add --no-cache nodejs vips curl bash libc6-compat
+# fontconfig + ttf-dejavu required for @react-pdf/renderer PDF generation at runtime
+RUN apk add --no-cache nodejs vips curl bash libc6-compat fontconfig ttf-dejavu
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -248,8 +250,9 @@ ENV HOSTNAME="0.0.0.0"
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Add healthcheck to ensure the container is properly running
-HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
-  CMD curl --silent --show-error --fail http://127.0.0.1:3000/api/health || exit 1
+# Use the PORT env var if provided by the platform; default to 3000 otherwise
+HEALTHCHECK --interval=10s --timeout=5s --start-period=45s --retries=3 \
+  CMD sh -c 'curl --silent --show-error --fail "http://127.0.0.1:${PORT:-3000}/api/health" || exit 1'
 
 # Use entrypoint to handle data initialization, scheduler startup, and graceful shutdown
 # Note: entrypoint.sh now includes initial data population before starting scheduler
