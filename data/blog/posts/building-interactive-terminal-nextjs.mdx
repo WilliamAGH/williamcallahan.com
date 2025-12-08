@@ -89,14 +89,14 @@ Component-local state (even with `localStorage`) caused server-client UI mismatc
 <CollapseDropdown summary="2.3: Registration Hook">
   - **Purpose**: Allows individual components (acting as windows) to register with the global context, retrieve their current state, and receive functions to modify that state.
   - **Mechanism**: A custom hook that encapsulates the logic for consuming the context and handling the registration/unregistration lifecycle automatically using `useEffect`.
-  - **Returns**: Provides the component with its specific `windowState`, memoized action functions (`minimize`, `maximize`, `close`, `restore`), and a crucial `isRegistered` boolean flag to ensure rendering only occurs safely after client-side hydration and registration is complete.
+  - **Returns**: Provides the component with its specific `windowState`, memoized action functions (`minimize`, `maximize`, `close`, `restore`), and a required `isRegistered` boolean flag to ensure rendering only occurs safely after client-side hydration and registration is complete.
 </CollapseDropdown>
 
 <BackgroundInfo title="Key Implementation Points">
 - **Hydration Safety**: Always check the `isRegistered` flag from the hook before rendering state-dependent UI to prevent server/client mismatches. Render default/loading state until `isRegistered` is `true`.
 - **Layout Control**: Each window component is responsible for its own layout styling (e.g., `position: fixed`, dimensions, z-index) based on its `windowState`.
 - **Minimized/Closed State**: When minimized or closed, components typically render `null`. The separate `FloatingRestoreButtons` component handles the UI for restoring them.
-- **Targeted Global CSS**: Utilize `body.window-maximized` / `body.window-minimized` classes sparingly to adjust shared elements (like site headers) without interfering with individual window component layouts.
+- **Targeted Global CSS**: Use `body.window-maximized` / `body.window-minimized` classes sparingly to adjust shared elements (like site headers) without interfering with individual window component layouts.
 </BackgroundInfo>
 
 ---
@@ -245,9 +245,9 @@ Using Tailwind's `@apply` directive in global CSS caused linting errors. Replace
 
 ---
 
-<BackgroundInfo title="Summary: Key Takeaways">
+<BackgroundInfo title="Summary">
 - **Global State**: React Context in the root layout is effective for managing shared UI state (like window status) across different routes in the Next.js App Router.
-- **Hydration**: A custom registration hook (like `useRegisteredWindowState`) combined with an `isRegistered` flag is crucial for safely managing client-side state dependent on context, preventing hydration errors.
+- **Hydration**: A custom registration hook (like `useRegisteredWindowState`) combined with an `isRegistered` flag helps safely manage client-side state dependent on context, preventing hydration errors.
 - **Data Flow**: Maintain strict separation between server-side data fetching/processing and client-side rendering. Pass only serializable data from Server to Client Components.
 - **Syntax Highlighting**: When integrating libraries like PrismJS, focus on simplifying DOM structure and providing explicit theme overrides for dark mode compatibility.
 - **CSS Complexity**: Use `!important` flags judiciously when working with third-party CSS that conflicts with your theme. Prefer explicit selectors over complex nesting that can lead to specificity wars.

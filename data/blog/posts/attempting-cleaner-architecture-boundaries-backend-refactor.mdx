@@ -87,7 +87,7 @@ Each shortcut created a new dependency direction. But, say, changing the email v
 
 _As mentioned, the 'elephant in the room' of a lot of these examples is that the controller, repository, and service layers are all doing too much. They should be focused on their primary responsibilities: things like translating HTTP requests to commands and returning responses, persisting data, and executing business logic._
 
-Here is a model for cleaner, clearer boundaries for the highest risk areas I found having their definitions conflated:
+A model for cleaner boundaries in the highest risk areas I found having their definitions conflated:
 
 | Layer | Knows About | Doesn't Know About | Key Question | Example from aVenture.vc |
 |-------|-------------|-------------------|--------------|--------------------------|

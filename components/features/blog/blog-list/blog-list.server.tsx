@@ -11,6 +11,7 @@
  */
 
 import { BlogCard } from "./blog-card";
+import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hint";
 
 import type { JSX } from "react";
 
@@ -25,7 +26,15 @@ import type { BlogListServerProps } from "@/types/features";
  */
 export function BlogListServer({ posts }: BlogListServerProps): JSX.Element {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Header row: article count + search hint */}
+      <div className="flex items-center justify-between">
+        <p className="text-gray-500 dark:text-gray-400">
+          {posts.length} {posts.length === 1 ? "article" : "articles"}
+        </p>
+        <TerminalSearchHint context="blog" />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {posts.map((post, index) => (
           <BlogCard key={post.slug} post={post} preload={index < 2} />

@@ -1,7 +1,7 @@
 ---
 title: "Claude Code: Automatic Linting, Error Analysis, & Custom Commands"
 slug: "claude-code-linting-error-analysis-custom-commands"
-excerpt: "How to leverage Claude Code's error analysis slash-commands and create your own linting commands to automate repetitive CLI tasks."
+excerpt: "How to use Claude Code's error analysis slash-commands and create your own linting commands to automate repetitive CLI tasks."
 publishedAt: "2025-06-16"
 updatedAt: "2025-11-01"
 author: "william-callahan"
@@ -11,7 +11,7 @@ coverImage: "/images/posts/claude-code-linting-commands.png"
 
 Claude Code ships with a CLI that can run slash commands without opening the desktop client. This document records the small set of commands that keep a terminal workflow fast: run lint checks, hand stack traces to `/analyze`, and trigger project-specific helpers.
 
-And while Claude Code has many tools and agentic behaviors of its own built in behind the scenes, commands are a great way (in my opinion) to dip your toes into agentic behavior for coding.
+And while Claude Code has many tools and agentic behaviors of its own built in behind the scenes, commands are a good way to start with agentic behavior for coding.
 
 Below I show how I've been customizing [Claude Code](https://docs.anthropic.com/en/docs/claude-code/quickstart).
 
@@ -37,7 +37,7 @@ Pipe build output into the CLI and ask for `/analyze`:
 bun run test 2>&1 | claude -p "/analyze"
 ```
 
-Claude returns a ranked list of suspected causes plus the files involved. Because the command runs in print mode, the response appears once and exits—ideal for CI transcripts or terminal history.
+Claude returns a ranked list of suspected causes plus the files involved. Because the command runs in print mode, the response appears once and exits—useful for CI transcripts or terminal history.
 
 ## Creating a project lint command
 
