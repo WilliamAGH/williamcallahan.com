@@ -49,6 +49,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   showFilterBar = true,
   searchAllBookmarks = false,
   initialTag,
+  description,
   internalHrefs: initialInternalHrefs,
 }) => {
   // Add mounted state for hydration safety
@@ -378,6 +379,13 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Description row */}
+      {description && (
+        <div className="mb-4">
+          <p className="text-gray-500 dark:text-gray-400 text-sm">{description}</p>
         </div>
       )}
 
