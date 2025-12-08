@@ -195,7 +195,7 @@ export function Terminal() {
     }
   }, [windowState, inputRef]);
 
-  // Global keyboard shortcut: Escape / Ctrl+C / Ctrl+X to cancel search selection from anywhere
+  // Global keyboard shortcut: Escape / Ctrl+C / Ctrl+X / Ctrl+Z to cancel search selection from anywhere
   // This mirrors the global Cmd+K handler pattern - works regardless of focus location
   // cancelSelection() handles clearing history, input, and refocusing - same as "clear" command
   useEffect(() => {
@@ -206,8 +206,19 @@ export function Terminal() {
       const isEscape = event.key === "Escape";
       const isCtrlC = event.ctrlKey && event.key.toLowerCase() === "c";
       const isCtrlX = event.ctrlKey && event.key.toLowerCase() === "x";
+      const isCtrlZ = event.ctrlKey && event.key.toLowerCase() === "z";
 
-      if (isEscape || isCtrlC || isCtrlX) {
+      // For Ctrl+C, Ctrl+X, and Ctrl+Z, check if user has text selected
+      // If they do, let the browser handle the native clipboard/undo operation
+      if (isCtrlC || isCtrlX || isCtrlZ) {
+        const textSelection = window.getSelection();
+        if (textSelection && textSelection.toString().length > 0) {
+          // User has text selected, allow native copy/cut/undo behavior
+          return;
+        }
+      }
+
+      if (isEscape || isCtrlC || isCtrlX || isCtrlZ) {
         event.preventDefault();
         event.stopPropagation();
         cancelSelection();
