@@ -2,21 +2,26 @@
  * useAnchorScrollHandler Hook
  *
  * @module lib/hooks/use-anchor-scroll.client
- * @description Handles scrolling to anchor links (#hash) on page load and navigation,
- *              coordinating with CollapseDropdown components.
+ * @description Handles scrolling to anchor links (#hash) that are inside CollapseDropdown
+ *              components. For regular anchors, Next.js 16's built-in hash scroll handling
+ *              is used (see layout-router.js InnerScrollAndFocusHandler).
+ *
+ * @remarks
+ * This hook only handles anchors that:
+ * 1. Are inside a CollapseDropdown (need to open dropdown first)
+ * 2. Are not initially visible (may be in a closed dropdown)
+ *
+ * Regular visible anchor targets are handled by Next.js's native scroll behavior.
  */
 "use client";
 
-import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { useCollapseDropdownHelpers } from "../context/collapse-dropdown-context.client";
 
 const isDevelopment = process.env.NODE_ENV === "development";
-const INITIAL_DELAY = 250;
-const GENERAL_RETRY_INTERVAL = 300;
-const MAX_GENERAL_RETRIES = 8;
-const EXPONENTIAL_BACKOFF_FACTOR = 1.5;
-const SCROLL_TIMEOUT = 10000; // 10 seconds max for scroll operations
+const INITIAL_DELAY = 100; // Short delay to let Next.js handle visible anchors first
+const DROPDOWN_RETRY_INTERVAL = 200;
+const MAX_DROPDOWN_RETRIES = 5;
 
 function isElementPotentiallyVisible(element: HTMLElement): boolean {
   return !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
@@ -25,13 +30,8 @@ function isElementPotentiallyVisible(element: HTMLElement): boolean {
 const getCurrentHash = () =>
   typeof window !== "undefined" ? (window.location.hash ? window.location.hash.slice(1) : "") : "";
 
-const isFirefox = typeof navigator !== "undefined" && /firefox|fxios/i.test(navigator.userAgent);
-
 export function useAnchorScrollHandler(): void {
-  const pathname = usePathname();
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const { findDropdownForHash, openAndScrollToDropdownAnchor } = useCollapseDropdownHelpers();
 
   const handleAnchorScroll = useCallback(() => {
@@ -40,19 +40,6 @@ export function useAnchorScrollHandler(): void {
       clearTimeout(retryTimerRef.current);
       retryTimerRef.current = null;
     }
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
-      scrollTimeoutRef.current = null;
-    }
-
-    // Abort any ongoing operations
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-
-    // Create new abort controller for this operation
-    abortControllerRef.current = new AbortController();
 
     const hash = getCurrentHash();
     if (!hash) {
@@ -60,142 +47,103 @@ export function useAnchorScrollHandler(): void {
     }
 
     if (isDevelopment) {
-      console.log(`[Anchor Debug] handleAnchorScroll: Running handler for '#${hash}'.`);
-      if (isFirefox) console.log("[Anchor Debug] Running in Firefox browser");
+      console.log(`[Anchor Debug] handleAnchorScroll: Checking if '#${hash}' needs dropdown handling.`);
     }
 
+    // Check if the element is already visible - if so, Next.js has handled it
     const directTargetElement = document.getElementById(hash);
     if (directTargetElement && isElementPotentiallyVisible(directTargetElement)) {
       if (isDevelopment) {
-        console.log(
-          `[Anchor Debug] handleAnchorScroll: Found direct, visible target for '#${hash}'. Scrolling immediately.`,
-        );
+        console.log(`[Anchor Debug] handleAnchorScroll: Target '#${hash}' is already visible. Next.js handled scroll.`);
       }
-      try {
-        const scrollFunction = () => {
-          directTargetElement.scrollIntoView({ behavior: "smooth", block: "start" });
-          if (history.replaceState) {
-            history.replaceState(null, document.title, `${pathname + window.location.search}#${hash}`);
-          }
-        };
-
-        if (isFirefox) {
-          setTimeout(scrollFunction, 50);
-        } else {
-          scrollFunction();
-        }
-      } catch (error) {
-        console.error(`[Anchor Debug] Error scrolling to direct target #${hash}:`, error);
-      }
+      // Next.js already scrolled to this element - do nothing
       return;
     }
 
-    if (directTargetElement) {
-      if (isDevelopment) {
-        console.log(
-          `[Anchor Debug] handleAnchorScroll: Found direct target for '#${hash}' but it's not visible. Assuming it might be in a dropdown.`,
-        );
-      }
-    } else if (isDevelopment) {
-      console.log(`[Anchor Debug] handleAnchorScroll: Direct target for '#${hash}' not found initially.`);
-    }
-
+    // Element not found or not visible - check if it's in a dropdown
     const dropdownElement = findDropdownForHash(hash);
     if (dropdownElement) {
       if (isDevelopment) {
-        console.log(`[Anchor Debug] handleAnchorScroll: Target '#${hash}' is associated with a dropdown. Delegating.`);
+        console.log(`[Anchor Debug] handleAnchorScroll: Target '#${hash}' is in a dropdown. Opening and scrolling.`);
       }
       openAndScrollToDropdownAnchor(dropdownElement, hash);
       return;
     }
+
+    // Element not found and not in a dropdown - retry a few times
+    // (element might be in a dropdown that hasn't registered yet)
     if (isDevelopment) {
-      console.log(`[Anchor Debug] handleAnchorScroll: Target '#${hash}' not associated with any known dropdown.`);
+      console.log(`[Anchor Debug] handleAnchorScroll: Target '#${hash}' not found. Starting retry for dropdown check.`);
     }
 
     let retryAttempts = 0;
-    const retryScroll = () => {
+    const retryDropdownCheck = () => {
       retryAttempts++;
       if (isDevelopment) {
         console.log(
-          `[Anchor Debug] handleAnchorScroll: General Retry #${retryAttempts}/${MAX_GENERAL_RETRIES} for '#${hash}'.`,
+          `[Anchor Debug] handleAnchorScroll: Dropdown retry #${retryAttempts}/${MAX_DROPDOWN_RETRIES} for '#${hash}'.`,
         );
       }
+
+      // Check if element is now visible (maybe rendered by React)
       const targetElement = document.getElementById(hash);
       if (targetElement && isElementPotentiallyVisible(targetElement)) {
         if (isDevelopment) {
+          console.log(`[Anchor Debug] handleAnchorScroll: Target '#${hash}' is now visible. Next.js should handle it.`);
+        }
+        // Element is now visible - Next.js's scroll restoration should handle it
+        // or the element was rendered after initial load
+        return;
+      }
+
+      // Check for dropdown again
+      const dropdown = findDropdownForHash(hash);
+      if (dropdown) {
+        if (isDevelopment) {
           console.log(
-            `[Anchor Debug] handleAnchorScroll: Found target '#${hash}' on general retry ${retryAttempts}. Scrolling.`,
+            `[Anchor Debug] handleAnchorScroll: Found dropdown for '#${hash}' on retry ${retryAttempts}. Opening.`,
           );
         }
-        try {
-          setTimeout(
-            () => {
-              targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
-              if (history.replaceState) {
-                history.replaceState(null, document.title, `${pathname + window.location.search}#${hash}`);
-              }
-            },
-            isFirefox ? 50 : 0,
-          );
-        } catch (error) {
-          console.error(`[Anchor Debug] Error scrolling to target #${hash} on retry:`, error);
-        }
-      } else if (retryAttempts < MAX_GENERAL_RETRIES) {
-        const nextRetryDelay = GENERAL_RETRY_INTERVAL * EXPONENTIAL_BACKOFF_FACTOR ** (retryAttempts - 1);
-        retryTimerRef.current = setTimeout(retryScroll, nextRetryDelay);
+        openAndScrollToDropdownAnchor(dropdown, hash);
+        return;
+      }
+
+      // Continue retrying if not at max
+      if (retryAttempts < MAX_DROPDOWN_RETRIES) {
+        retryTimerRef.current = setTimeout(retryDropdownCheck, DROPDOWN_RETRY_INTERVAL);
       } else if (isDevelopment) {
         console.log(
-          `[Anchor Debug] handleAnchorScroll: Target '#${hash}' not found after ${MAX_GENERAL_RETRIES} general retries. Giving up.`,
+          `[Anchor Debug] handleAnchorScroll: Target '#${hash}' not found after ${MAX_DROPDOWN_RETRIES} retries. Giving up.`,
         );
       }
     };
 
-    if (isDevelopment) {
-      console.log(`[Anchor Debug] handleAnchorScroll: Initiating general fallback retry for '#${hash}'.`);
-    }
-    retryTimerRef.current = setTimeout(retryScroll, isFirefox ? GENERAL_RETRY_INTERVAL * 1.5 : GENERAL_RETRY_INTERVAL);
+    retryTimerRef.current = setTimeout(retryDropdownCheck, DROPDOWN_RETRY_INTERVAL);
+  }, [findDropdownForHash, openAndScrollToDropdownAnchor]);
 
-    // Set overall timeout to prevent infinite retries
-    scrollTimeoutRef.current = setTimeout(() => {
-      if (retryTimerRef.current) {
-        clearTimeout(retryTimerRef.current);
-        retryTimerRef.current = null;
-      }
-      if (isDevelopment) {
-        console.log(`[Anchor Debug] handleAnchorScroll: Timeout reached for '#${hash}'. Stopping retries.`);
-      }
-    }, SCROLL_TIMEOUT);
-  }, [findDropdownForHash, openAndScrollToDropdownAnchor, pathname]);
-
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      // Cleanup all timers
       if (retryTimerRef.current) {
         clearTimeout(retryTimerRef.current);
-      }
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      // Abort any ongoing operations
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
       }
     };
   }, []);
 
+  // Initial anchor handling after short delay
   useEffect(() => {
-    const initialDelay = isFirefox ? INITIAL_DELAY * 1.5 : INITIAL_DELAY;
-    const handlerTimeout = setTimeout(handleAnchorScroll, initialDelay);
-
+    const handlerTimeout = setTimeout(handleAnchorScroll, INITIAL_DELAY);
     return () => {
       clearTimeout(handlerTimeout);
     };
   }, [handleAnchorScroll]);
 
+  // Listen for hash changes (e.g., clicking anchor links)
   useEffect(() => {
     const handleHashChange = () => {
       if (isDevelopment) console.log("[Anchor Debug] handleHashChange: hashchange event detected.");
-      setTimeout(handleAnchorScroll, isFirefox ? 100 : 50);
+      // Short delay to let Next.js handle visible anchors first
+      setTimeout(handleAnchorScroll, INITIAL_DELAY);
     };
 
     window.addEventListener("hashchange", handleHashChange);
