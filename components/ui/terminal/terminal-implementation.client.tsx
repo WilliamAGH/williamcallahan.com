@@ -197,6 +197,7 @@ export function Terminal() {
 
   // Global keyboard shortcut: Escape / Ctrl+C / Ctrl+X to cancel search selection from anywhere
   // This mirrors the global Cmd+K handler pattern - works regardless of focus location
+  // cancelSelection() handles clearing history, input, and refocusing - same as "clear" command
   useEffect(() => {
     const handleGlobalEscape = (event: KeyboardEvent) => {
       // Only handle if selection is active (search results are showing)
@@ -210,14 +211,12 @@ export function Terminal() {
         event.preventDefault();
         event.stopPropagation();
         cancelSelection();
-        // Refocus the input after canceling selection
-        inputRef.current?.focus();
       }
     };
 
     document.addEventListener("keydown", handleGlobalEscape);
     return () => document.removeEventListener("keydown", handleGlobalEscape);
-  }, [selection, cancelSelection, inputRef]);
+  }, [selection, cancelSelection]);
 
   // Effect to handle tap/click outside terminal to dismiss search results (mobile-friendly)
   useEffect(() => {
