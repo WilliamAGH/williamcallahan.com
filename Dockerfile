@@ -53,7 +53,7 @@ RUN NODE_OPTIONS='--max-old-space-size=4096' npm run lint && NODE_OPTIONS='--max
 # Use Bun image for build stage so `bun` commands are available
 FROM base AS builder
 # Install dependencies for the build
-# fontconfig + ttf-dejavu required for @react-pdf/renderer and image processing during static generation
+# fontconfig + ttf-dejavu required for @react-pdf/renderer PDF generation during static generation
 RUN apk add --no-cache libc6-compat curl bash fontconfig ttf-dejavu
 WORKDIR /app
 
@@ -153,7 +153,7 @@ WORKDIR /app
 # Note: We still need Node.js to run `next start` even though Bun is available
 # Also installing vips for Sharp image processing, curl for healthchecks, and bash for scripts
 # libc6-compat is required for Sharp/vips native bindings to work properly
-# fontconfig + ttf-dejavu required for @react-pdf/renderer CV PDF generation at runtime
+# fontconfig + ttf-dejavu required for @react-pdf/renderer PDF generation at runtime
 RUN apk add --no-cache nodejs vips curl bash libc6-compat fontconfig ttf-dejavu
 
 ENV NODE_ENV=production
