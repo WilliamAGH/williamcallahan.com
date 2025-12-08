@@ -14,15 +14,16 @@
 
 import React, { Suspense, useEffect, useMemo, type JSX } from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
+import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hint";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
 import { Bookmark, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import type { 
-  RegisteredWindowState, 
+import type {
+  RegisteredWindowState,
   BookmarksWindowContentProps,
-  BookmarksWindowClientPropsExtended as BookmarksWindowClientProps 
+  BookmarksWindowClientPropsExtended as BookmarksWindowClientProps,
 } from "@/types";
 
 // Define a unique ID for this window instance
@@ -83,13 +84,16 @@ function BookmarksWindowContentInner({
       )}
     >
       <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 sticky top-0 z-10">
-        <div className="flex items-center">
-          <WindowControls onClose={onClose} onMinimize={onMinimize} onMaximize={onMaximize} />
-          <h1 className="text-xl font-mono ml-4">
-            <Link href="/bookmarks" className="hover:underline">
-              {formattedTitle}
-            </Link>
-          </h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <WindowControls onClose={onClose} onMinimize={onMinimize} onMaximize={onMaximize} />
+            <h1 className="text-xl font-mono ml-4">
+              <Link href="/bookmarks" className="hover:underline">
+                {formattedTitle}
+              </Link>
+            </h1>
+          </div>
+          <TerminalSearchHint context="bookmarks" />
         </div>
       </div>
 

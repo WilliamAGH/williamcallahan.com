@@ -14,7 +14,6 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
-import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hint";
 
 // Environment detection helper
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -382,20 +381,10 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         </div>
       )}
 
-      {/* Tags row with search hint - unified horizontal bar */}
+      {/* Tags row */}
       {showFilterBar && allTags.length > 0 && (
-        <div className="flex items-start justify-between gap-4 mb-6">
-          <TagsList tags={allTags} selectedTag={selectedTag} onTagSelectAction={handleTagClick} />
-          <div className="flex-shrink-0 pt-1">
-            <TerminalSearchHint context="bookmarks" />
-          </div>
-        </div>
-      )}
-
-      {/* Fallback: show search hint alone when no tags */}
-      {(!showFilterBar || allTags.length === 0) && (
         <div className="mb-6">
-          <TerminalSearchHint context="bookmarks" />
+          <TagsList tags={allTags} selectedTag={selectedTag} onTagSelectAction={handleTagClick} />
         </div>
       )}
 
