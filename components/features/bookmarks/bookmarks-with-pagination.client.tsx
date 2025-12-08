@@ -16,7 +16,6 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
-import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hint";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControl } from "@/components/ui/pagination-control.client";
 import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
@@ -389,20 +388,10 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         </div>
       )}
 
-      {/* Tags row with search hint - unified horizontal bar */}
+      {/* Tags row */}
       {showFilterBar && allTags.length > 0 && (
-        <div className="flex items-start justify-between gap-4 mb-6">
-          <TagsList tags={allTags} selectedTag={selectedTag} onTagSelectAction={handleTagClick} />
-          <div className="flex-shrink-0 pt-1">
-            <TerminalSearchHint context="bookmarks" />
-          </div>
-        </div>
-      )}
-
-      {/* Fallback: show search hint alone when no tags */}
-      {(!showFilterBar || allTags.length === 0) && (
         <div className="mb-6">
-          <TerminalSearchHint context="bookmarks" />
+          <TagsList tags={allTags} selectedTag={selectedTag} onTagSelectAction={handleTagClick} />
         </div>
       )}
 
