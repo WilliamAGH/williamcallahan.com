@@ -217,9 +217,15 @@ export function useTerminal() {
     [router],
   );
 
+  // Cancel search selection and clear terminal - EXACT same behavior as "clear" command
   const cancelSelection = useCallback(() => {
-    setSelection(null);
-  }, []);
+    flushSync(() => {
+      setSelection(null);
+      clearHistory();
+      setInput("");
+    });
+    inputRef.current?.focus();
+  }, [clearHistory]);
 
   // Cleanup animation frame and abort controller on unmount
   useEffect(() => {
