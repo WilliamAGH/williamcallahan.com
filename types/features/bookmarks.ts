@@ -112,6 +112,7 @@ export type BookmarksWithOptionsClientProps = BaseBookmarkListProps &
   BaseFilterableProps & {
     filterOptions?: FilterOptions;
     className?: string;
+    description?: string;
     readonly internalHrefs?: Readonly<Record<string, string>>;
   };
 
