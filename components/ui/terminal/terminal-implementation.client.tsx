@@ -195,6 +195,51 @@ export function Terminal() {
     }
   }, [windowState, inputRef]);
 
+  // Global keyboard shortcut: Escape / Ctrl+C / Ctrl+X to cancel search selection from anywhere
+  // This mirrors the global Cmd+K handler pattern - works regardless of focus location
+  useEffect(() => {
+    const handleGlobalEscape = (event: KeyboardEvent) => {
+      // Only handle if selection is active (search results are showing)
+      if (!selection) return;
+
+      const isEscape = event.key === "Escape";
+      const isCtrlC = event.ctrlKey && event.key.toLowerCase() === "c";
+      const isCtrlX = event.ctrlKey && event.key.toLowerCase() === "x";
+
+      if (isEscape || isCtrlC || isCtrlX) {
+        event.preventDefault();
+        event.stopPropagation();
+        cancelSelection();
+        // Refocus the input after canceling selection
+        inputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleGlobalEscape);
+    return () => document.removeEventListener("keydown", handleGlobalEscape);
+  }, [selection, cancelSelection, inputRef]);
+
+  // Effect to handle tap/click outside terminal to dismiss search results (mobile-friendly)
+  useEffect(() => {
+    if (!selection) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const terminalContainer = scrollContainerRef.current?.closest('[data-testid="terminal-container"]');
+      if (terminalContainer && !terminalContainer.contains(event.target as Node)) {
+        cancelSelection();
+      }
+    };
+
+    // Use mousedown/touchstart for immediate response (before focus changes)
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [selection, cancelSelection]);
+
   // Effect to prevent page scrolling when terminal has focus or is being interacted with
   useEffect(() => {
     let terminalContainer: Element | null = null;
