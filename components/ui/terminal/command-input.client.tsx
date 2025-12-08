@@ -7,9 +7,12 @@
 
 "use client";
 
-import { forwardRef, useCallback, useRef, useId } from "react";
+import { forwardRef, useCallback, useRef, useId, useState, useEffect } from "react";
 import { preloadSearch } from "./commands.client";
 import type { CommandInputProps } from "@/types";
+
+// Breakpoint for mobile placeholder (matches Tailwind's sm breakpoint)
+const MOBILE_BREAKPOINT = 640;
 
 export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(function CommandInput(
   { value, onChange, onSubmit, disabled = false },
@@ -17,6 +20,16 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
 ) {
   // Generate unique ID for accessibility
   const inputId = useId();
+
+  // Track if we're on a mobile-sized screen for shorter placeholder
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Preload search when user types more than 2 characters
   const hasPreloaded = useRef(false);
@@ -72,7 +85,13 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
               margin: "-0.125rem 0",
             }}
             aria-label="Terminal command input"
-            placeholder={disabled ? "Processing..." : "Enter a command"}
+            placeholder={
+              disabled
+                ? "Processing..."
+                : isMobile
+                  ? "Enter command or search site here"
+                  : "Enter a command or search the site here"
+            }
             title="Terminal command input"
             disabled={disabled}
           />

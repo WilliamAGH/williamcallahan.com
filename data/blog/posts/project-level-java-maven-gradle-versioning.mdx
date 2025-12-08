@@ -17,7 +17,7 @@ coverImage: "/images/posts/java-maven.png"
 
 ## Part 1: OS-Level Tool Installation (The Foundation)
 
-Before diving into project-specific setups, you'll generally need a Java Development Kit (JDK) installed on your system. Optionally, you might install Maven and/or Gradle globally, though for most project work, their respective project-level wrappers (`mvnw`, `gradlew`) are also used.
+For project setups, you'll need a Java Development Kit (JDK) installed on your system. Optionally, you might install Maven and/or Gradle globally, though for most project work, their respective project-level wrappers (`mvnw`, `gradlew`) are also used.
 
 <CollapseDropdown summary="Installing a Java Development Kit (JDK)">
   <div>
@@ -279,7 +279,7 @@ Ensure different projects can use different Java versions without conflict.
 
 ## Part 3: Maven - Project Versioning & Common Commands
 
-Maven is a powerful build automation tool that uses a Project Object Model (POM) file (`pom.xml`) to manage a project's build, reporting, and documentation. Using the Maven Wrapper (`mvnw`) is crucial for project-specific versioning.
+Maven is a build tool that uses a Project Object Model (POM) file (`pom.xml`) to manage a project's build, reporting, and documentation. Use the Maven Wrapper (`mvnw`) to pin the Maven version per project.
 
 <ShellParentTabs>
   <ShellTab label="Maven Wrapper (./mvnw) (Standard)" isDefault={true}>

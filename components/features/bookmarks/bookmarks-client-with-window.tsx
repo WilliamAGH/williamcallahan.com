@@ -77,12 +77,6 @@ export function BookmarksClientWithWindow({
   return (
     <BookmarksWindow titleSlug={titleSlug}>
       <div className="w-full mx-auto py-8">
-        {/* Only show description if provided */}
-        {description && (
-          <div className="px-4 sm:px-6 lg:px-8 mb-4">
-            <p className="text-gray-600 dark:text-gray-300">{description}</p>
-          </div>
-        )}
         <Suspense fallback={<BookmarksLoading />}>
           <BookmarksClient
             bookmarks={unifiedBookmarks}
@@ -97,6 +91,7 @@ export function BookmarksClientWithWindow({
             baseUrl={baseUrl}
             initialTag={initialTag}
             tag={tag}
+            description={description}
             internalHrefs={internalHrefs}
           />
         </Suspense>

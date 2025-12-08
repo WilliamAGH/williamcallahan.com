@@ -33,6 +33,10 @@ export function useTerminal() {
   const animationFrameRef = useRef<number | null>(null);
   const activeCommandController = useRef<AbortController | null>(null);
 
+  // Ref to always access the latest clearHistory function (avoids stale closure in useCallback)
+  const clearHistoryRef = useRef(clearHistory);
+  clearHistoryRef.current = clearHistory;
+
   const focusInput = useCallback((event?: React.MouseEvent<HTMLDivElement>) => {
     // Only focus if the click target is not a button or inside a button
     if (event && event.target instanceof Element) {
@@ -217,8 +221,15 @@ export function useTerminal() {
     [router],
   );
 
+  // Cancel search selection and clear terminal - EXACT same behavior as "clear" command
+  // Uses ref to ensure we always call the latest clearHistory (avoids stale closure)
   const cancelSelection = useCallback(() => {
-    setSelection(null);
+    flushSync(() => {
+      setSelection(null);
+      clearHistoryRef.current();
+      setInput("");
+    });
+    inputRef.current?.focus();
   }, []);
 
   // Cleanup animation frame and abort controller on unmount

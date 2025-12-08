@@ -22,7 +22,7 @@ coverImage: "/images/posts/digitalocean-spaces-s3-object-storage-policy-config.p
 ---
 
 <BackgroundInfo title="What This Post Covers">
-By the end of this guide you'll know:
+This guide covers:
 
 - **Why Per-Bucket Access Keys are the secret villain** behind most `403 Forbidden` policy errors.
 - **The dead-simple ACL approach** that works every time.
@@ -32,7 +32,7 @@ By the end of this guide you'll know:
 
 I thought making a bucket public on DigitalOcean Spaces would be a ten-second checkbox. Instead I burned an afternoon chasing `403 Forbidden` errors and second-guessing my JSON.
 
-Here's the truth I wish I'd known from the start: **if you leave Per-Bucket Access Keys enabled you can't modify most bucket policies—period.** Turn that feature off, switch to a regular all-or-nothing access key, and everything snaps into place.
+The truth I wish I'd known: **if you leave Per-Bucket Access Keys enabled you can't modify most bucket policies—period.** Turn that feature off, switch to a regular all-or-nothing access key, and everything snaps into place.
 
 Below is the exact sequence that finally worked for me, with the false turns called out so you don't repeat them.
 

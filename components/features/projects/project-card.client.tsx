@@ -101,7 +101,8 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
     // Redesigned card for horizontal layout on medium screens and up
     <div
       id={projectId || undefined}
-      className="group rounded-lg border border-gray-300 dark:border-gray-900 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-400 opacity-0 animate-fade-in-up md:grid md:grid-cols-[minmax(0,3fr)_minmax(0,4fr)] flex flex-col"
+      tabIndex={projectId ? -1 : undefined}
+      className="group rounded-lg border border-gray-300 dark:border-gray-900 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-400 opacity-0 animate-fade-in-up md:grid md:grid-cols-[minmax(0,3fr)_minmax(0,4fr)] flex flex-col focus:outline-none"
     >
       {/* Use CSS Grid on desktop for better aspect ratio control */}
       {/* Image Section (Left on desktop, top on mobile) */}

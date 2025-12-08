@@ -60,7 +60,8 @@ export function ExperienceCardClient({
   return (
     <div
       id={id}
-      className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200"
+      tabIndex={-1}
+      className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 focus:outline-none"
     >
       <div className="p-6">
         <div className="flex items-start gap-5">
@@ -88,33 +89,27 @@ export function ExperienceCardClient({
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1">
+            <div className="flex items-start justify-between gap-4 mb-2">
+              <span className="text-xl font-semibold min-w-0">
                 {website ? (
-                  <ExternalLink
+                  <a
                     href={website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                     title={`Visit ${company}'s website`}
-                    showIcon={false}
-                    className="text-xl font-semibold hover:text-gray-600 dark:hover:text-gray-300"
                   >
                     {company}
-                  </ExternalLink>
+                    <ExternalLinkIcon
+                      className="w-4 h-4 inline-block align-middle ml-1.5 text-gray-400"
+                      aria-hidden="true"
+                    />
+                  </a>
                 ) : (
-                  <span className="text-xl font-semibold">{company}</span>
+                  company
                 )}
-                {website && (
-                  <ExternalLink
-                    href={website}
-                    title={`Visit ${company}'s website`}
-                    showIcon={false}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    aria-label={`Visit ${company}'s website`}
-                  >
-                    <ExternalLinkIcon className="w-4 h-4" />
-                  </ExternalLink>
-                )}
-              </div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
+              </span>
+              <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap flex-shrink-0">
                 <time dateTime={startDate}>{period.split(" - ")[0]}</time>
                 {" - "}
                 <time dateTime={endDate || "Present"}>{period.split(" - ")[1]}</time>

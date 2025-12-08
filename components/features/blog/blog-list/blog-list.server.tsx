@@ -25,7 +25,12 @@ import type { BlogListServerProps } from "@/types/features";
  */
 export function BlogListServer({ posts }: BlogListServerProps): JSX.Element {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Article count */}
+      <p className="text-gray-500 dark:text-gray-400">
+        {posts.length} {posts.length === 1 ? "article" : "articles"}
+      </p>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {posts.map((post, index) => (
           <BlogCard key={post.slug} post={post} preload={index < 2} />

@@ -28,6 +28,8 @@ export function Terminal() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   // Track if terminal is focused
   const [isTerminalFocused, setIsTerminalFocused] = useState(false);
+  // Track pending focus request from ⌘K when terminal was closed/minimized
+  const pendingFocusRef = useRef(false);
 
   // --- Get State from Hooks ---
   // History state from TerminalContext
@@ -44,6 +46,7 @@ export function Terminal() {
     close: closeWindow, // Rename actions for consistency if desired
     minimize: minimizeWindow,
     maximize: maximizeWindow,
+    restore: restoreWindow, // Used by ⌘K shortcut to restore closed/minimized terminal
     isRegistered, // Flag if the window is ready in the context
   } = useRegisteredWindowState(TERMINAL_WINDOW_ID, TerminalSquare, "Restore Terminal", "normal");
 
@@ -152,6 +155,100 @@ export function Terminal() {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isMaximized, maximizeWindow]); // Dependencies: run when isMaximized or maximizeWindow changes
+
+  // Global keyboard shortcut: ⌘K (Mac) or Ctrl+K (Windows/Linux) to focus terminal
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      // Check for Cmd+K (Mac) or Ctrl+K (Windows/Linux)
+      const isCmdOrCtrl = event.metaKey || event.ctrlKey;
+      if (isCmdOrCtrl && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        // If terminal is closed or minimized, restore it first
+        if (windowState === "closed" || windowState === "minimized") {
+          // Mark that we need to focus once the terminal is restored
+          pendingFocusRef.current = true;
+          restoreWindow();
+        } else {
+          // Terminal is already visible, focus immediately
+          focusInput();
+          inputRef.current?.focus();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleGlobalKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleGlobalKeyDown);
+    };
+  }, [windowState, focusInput, inputRef, restoreWindow]);
+
+  // Effect to handle pending focus after terminal is restored from closed/minimized state
+  useEffect(() => {
+    // Only trigger when terminal becomes visible (normal or maximized) and we have a pending focus
+    if (pendingFocusRef.current && windowState !== "closed" && windowState !== "minimized") {
+      pendingFocusRef.current = false;
+      // Use RAF to ensure the input is fully rendered before focusing
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+    }
+  }, [windowState, inputRef]);
+
+  // Global keyboard shortcut: Escape / Ctrl+C / Ctrl+X / Ctrl+Z to cancel search selection from anywhere
+  // This mirrors the global Cmd+K handler pattern - works regardless of focus location
+  // cancelSelection() handles clearing history, input, and refocusing - same as "clear" command
+  useEffect(() => {
+    const handleGlobalEscape = (event: KeyboardEvent) => {
+      // Only handle if selection is active (search results are showing)
+      if (!selection) return;
+
+      const isEscape = event.key === "Escape";
+      const isCtrlC = event.ctrlKey && event.key.toLowerCase() === "c";
+      const isCtrlX = event.ctrlKey && event.key.toLowerCase() === "x";
+      const isCtrlZ = event.ctrlKey && event.key.toLowerCase() === "z";
+
+      // For Ctrl+C, Ctrl+X, and Ctrl+Z, check if user has text selected
+      // If they do, let the browser handle the native clipboard/undo operation
+      if (isCtrlC || isCtrlX || isCtrlZ) {
+        const textSelection = window.getSelection();
+        if (textSelection && textSelection.toString().length > 0) {
+          // User has text selected, allow native copy/cut/undo behavior
+          return;
+        }
+      }
+
+      if (isEscape || isCtrlC || isCtrlX || isCtrlZ) {
+        event.preventDefault();
+        event.stopPropagation();
+        cancelSelection();
+      }
+    };
+
+    document.addEventListener("keydown", handleGlobalEscape);
+    return () => document.removeEventListener("keydown", handleGlobalEscape);
+  }, [selection, cancelSelection]);
+
+  // Effect to handle tap/click outside terminal to dismiss search results (mobile-friendly)
+  useEffect(() => {
+    if (!selection) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const terminalContainer = scrollContainerRef.current?.closest('[data-testid="terminal-container"]');
+      if (terminalContainer && !terminalContainer.contains(event.target as Node)) {
+        cancelSelection();
+      }
+    };
+
+    // Use mousedown/touchstart for immediate response (before focus changes)
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [selection, cancelSelection]);
 
   // Effect to prevent page scrolling when terminal has focus or is being interacted with
   useEffect(() => {

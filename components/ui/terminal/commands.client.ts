@@ -137,32 +137,24 @@ export const terminalCommands = {
 
 const HELP_MESSAGE = `
 Available commands:
-  help                Show this help message
+  help               Show this help message
   clear              Clear terminal history
+  ai | chat          Open search-ai.io
 
-AI:
-  ai | chat          Open search-ai.io in a new tab
-
-Navigation:
-  home               Go to home page
-  investments        Go to investments page
-  experience         Go to experience page
-  education          Go to education page
-  projects           Go to projects page
-  blog               Go to blog page
-  bookmark(s)        Go to bookmarks page
+Navigate:
+  home  investments  experience  education
+  projects  blog  bookmarks
 
 Search:
-  <section> <terms>  Search within a section
-                     Example: investments fintech
-                     Example: projects react
-                     Example: bookmarks AI
+  <section> <query>  Search within a section
 
-Examples:
-  investments fintech
-  projects typescript
-  bookmarks AI
-  clear
+  e.g.  investments AI       blog claude
+        projects java        experience techstars
+
+Quick jumps:
+  aventure  morningstar  techstars  ...
+
+Or just type anything to search the entire site.
 `.trim();
 
 /**

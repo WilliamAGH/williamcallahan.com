@@ -93,6 +93,7 @@ export type BookmarksPaginatedClientProps = BaseBookmarkListProps &
     baseUrl?: string;
     initialTag?: string;
     tag?: string;
+    description?: string;
     readonly internalHrefs?: Readonly<Record<string, string>>;
   };
 
@@ -111,6 +112,7 @@ export type BookmarksWithOptionsClientProps = BaseBookmarkListProps &
   BaseFilterableProps & {
     filterOptions?: FilterOptions;
     className?: string;
+    description?: string;
     readonly internalHrefs?: Readonly<Record<string, string>>;
   };
 
@@ -125,6 +127,7 @@ export type BookmarksWithPaginationClientProps = BaseBookmarkListProps &
     baseUrl?: string;
     initialTag?: string;
     tag?: string;
+    description?: string;
     className?: string;
     readonly internalHrefs?: Readonly<Record<string, string>>;
   };
