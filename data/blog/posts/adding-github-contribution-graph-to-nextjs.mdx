@@ -9,13 +9,13 @@ tags: ["nextjs", "github", "graphql", "api", "react", "typescript", "caching"]
 coverImage: "/images/posts/github-commit-graphic-history.png"
 ---
 
-Adding your GitHub contribution graph to a personal site is a nice touch. Since GitHub doesn't offer a direct embed, you'll need a custom solution. This guide shows how to fetch contribution data using GitHub's GraphQL API and display it in your Next.js app.
+GitHub doesn't offer a direct embed for contribution graphs, so you'll need a custom solution. This guide shows how to fetch contribution data using GitHub's GraphQL API and display it in your Next.js app.
 
 ## 1: Fetching Contribution Data with GraphQL
 
-The best way to get contribution data is via GitHub's GraphQL API. You'll need a personal access token with permission to read user contribution data. Store this securely, for example, as an environment variable (`GITHUB_ACCESS_TOKEN_COMMIT_GRAPH`).
+Get contribution data via GitHub's GraphQL API. You'll need a personal access token with permission to read user contribution data. Store this securely, for example, as an environment variable (`GITHUB_ACCESS_TOKEN_COMMIT_GRAPH`).
 
-Here's the query to get the contribution calendar for a specific user and date range:
+The query to get the contribution calendar for a specific user and date range:
 
 ```typescript
 // lib/github.ts (example location)
@@ -119,7 +119,7 @@ This function fetches the data and transforms the `contributionLevel` strings (l
 
 To avoid hitting the GitHub API on every request, cache the results server-side. An in-memory cache like `node-cache` works well for this. Set a reasonable Time-To-Live (TTL), like 24 hours. You can also add a way to manually bust the cache if needed.
 
-Here's an example API route in Next.js:
+Example API route in Next.js:
 
 ```typescript
 // app/api/github-activity/route.ts (example location)

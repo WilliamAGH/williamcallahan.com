@@ -8,7 +8,7 @@ export const projects: Project[] = [
     id: "aVenture.vc",
     name: "aVenture.vc",
     description:
-      "A data platform for researching private startup companies and venture investors. Requires orchestration of 10s of millions of database records across 500+ keys. Live data pipelines and ETL, with near instant processing of news articles, company data, and other to contribute updates daily. Built with Node.js, Next.js, TypeScript, Zod, PostgreSQL and many others.",
+      "Private-market research platform indexing tens of millions of records across 500+ attributes, with live ETL that ingests news, company data, and investor updates daily. Built with Node.js, Next.js, TypeScript, Zod, PostgreSQL, and supporting services.",
     shortSummary: "Data-driven research platform for researching private startup companies and venture investors",
     url: "https://aventure.vc",
     imageKey: "images/other/projects/aventurevc-homepage.png",
@@ -44,7 +44,7 @@ export const projects: Project[] = [
     id: "williamcallahan.com",
     name: "williamcallahan.com",
     description:
-      "Personal site with graph index of thousands of json documents. Dynamically fetches images (logos, opengraph images) and scrapes/crawls, and parses external websites for external links. Built with Next.js App Router and TypeScript. Dockerized for cloud deployment, which I do with all my deployments.",
+      "Personal site with a graph index of thousands of JSON documents that crawls external links to fetch logos and OpenGraph images on demand. Built with the Next.js App Router and TypeScript; Dockerized for cloud deployment.",
     shortSummary: "Interactive personal site with beautiful terminal/code components & other dynamic content",
     url: "https://williamcallahan.com",
     imageKey: "images/other/projects/williamcallahan-com-project.png",
@@ -56,7 +56,7 @@ export const projects: Project[] = [
     id: "SearchAI",
     name: "SearchAI",
     description:
-      "Web app that blends traditional web search with an AI chat assistant. Search, review selected context from results, then ask questions to GPT/Groq/Gemini using that context for grounded answers. Built with Next.js, TypeScript, JavaScript, Convex Database, and Vercel AI SDK. Performs a large amount of scraping/parsing live server-side for enhanced context, with semantic intent observation to return only relevant answers to prevent context pollution.",
+      "Web app that merges search with an AI chat assistant: select results, then ask GPT/Groq/Gemini using that grounded context. Built with Next.js, TypeScript, Convex Database, and Vercel AI SDK, with heavy server-side scraping/parsing to filter only relevant context.",
     shortSummary: "AI-powered web search with a contextual chat assistant",
     url: "https://search-ai.io",
     imageKey: "images/other/projects/searchAI.png",
@@ -92,7 +92,7 @@ export const projects: Project[] = [
     id: "ComposerAI",
     name: "ComposerAI",
     description:
-      "AI-native email client. Indexes every message in Qdrant for semantic search (embeddings and BM25/BM42 (RAG) search). Powerful full mailbox search, and automatically writes and generates replies that cite prior conversations, and suggests follow-up tasks from context. Built with Svelte + Vite and Spring Boot.",
+      "AI-native email client that indexes every message in Qdrant for semantic and BM25/BM42 search. Offers full-mailbox search, drafts cited replies, and surfaces follow-up tasks from context. Built with Svelte + Vite and Spring Boot.",
     shortSummary: "AI email client / mailbox for agentic search and tasks",
     url: "https://composerai.app",
     imageKey: "images/other/projects/composerai-app.png",

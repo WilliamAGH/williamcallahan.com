@@ -1,7 +1,7 @@
 ---
 title: "Automated Sitemap Submissions: Bing & Google Guide"
 slug: "automated-sitemap-submissions-bing-google"
-excerpt: "Configure a Node.js/TypeScript application to automatically submit sitemaps to Bing (IndexNow) and Google Search Console using service account credentials, with robust error handling and development mode awareness."
+excerpt: "Configure a Node.js/TypeScript application to automatically submit sitemaps to Bing (IndexNow) and Google Search Console using service account credentials, with error handling and development mode awareness."
 publishedAt: "2025-06-03"
 updatedAt: "2025-06-04"
 author: "william-callahan"
@@ -10,7 +10,7 @@ coverImage: "/images/posts/google-search-indexing-api-bing-indexnow.png"
 ---
 
 <BackgroundInfo title="Purpose of this Guide">
-Automating sitemap submissions to search engines like Bing (via IndexNow) and Google Search Console ensures they discover your content updates faster. This guide details how to set up a Node.js/TypeScript script for this, including private key handling and development environment considerations.
+Automating sitemap submissions to search engines like Bing (via IndexNow) and Google Search Console helps them discover your content updates faster. This guide details how to set up a Node.js/TypeScript script for this, including private key handling and development environment considerations.
 </BackgroundInfo>
 
 ### Understanding the APIs
@@ -19,7 +19,7 @@ Automating sitemap submissions to search engines like Bing (via IndexNow) and Go
 The Google Search Console API allows programmatic interaction with Google Search Console. For sitemap submission, it enables an application to inform Google about new or updated sitemaps without manual intervention in the Search Console interface, which can help Google schedule crawls more efficiently.
 
 #### 2. Bing IndexNow API
-IndexNow is an initiative by Microsoft Bing, Yandex, and other search engines allowing websites to notify search engines whenever their website content is created, updated, or deleted. Submitting a sitemap URL via IndexNow alerts participating search engines to update their index with the latest changes quickly. Its setup is generally straightforward.
+IndexNow is an initiative by Microsoft Bing, Yandex, and other search engines allowing websites to notify search engines whenever their website content is created, updated, or deleted. Submitting a sitemap URL via IndexNow alerts participating search engines to update their index quickly.
 
 ### Setting Up Sitemap Submissions
 
@@ -60,7 +60,7 @@ npm install googleapis
 ```
 
 #### 2a. Core API Interaction Examples
-Below are simplified excerpts demonstrating core interactions with Google Search Console and Bing's IndexNow API. These functions would typically be part of a larger script incorporating comprehensive error handling, environment checks, and authentication setup.
+Below are simplified excerpts demonstrating core interactions with Google Search Console and Bing's IndexNow API. These functions would typically be part of a larger script with error handling, environment checks, and authentication setup.
 
 **Submitting to Google Search Console:**
 ```typescript
@@ -111,11 +111,11 @@ async function submitSitemapToBing(siteUrl: string, sitemapUrl: string): Promise
   }
 }
 ```
-*Note: The `authClient` for Google requires proper setup with credentials and scopes (e.g., `https://www.googleapis.com/auth/webmasters`). A complete submission script should handle this, along with more comprehensive environment checks.*
+*Note: The `authClient` for Google requires proper setup with credentials and scopes (e.g., `https://www.googleapis.com/auth/webmasters`). A complete submission script should handle this, along with additional environment checks.*
 
 #### 2. Set Up Submission Script Logic
 <BackgroundInfo>
-A well-designed submission script might export primary functions such as:
+A submission script might export primary functions such as:
 
 - **`submitSitemapFilesToSearchEngines()`**: Submits a generated `/sitemap.xml` file to both Google Search Console and Bing (IndexNow), respecting production environment checks.
 - **`submitIndividualUrlsToGoogle()`**: Iterates sitemap entries (e.g., from a Next.js sitemap), selects recently updated pages (e.g., last 14 days), checks Google's last crawl date for each URL, and resubmits only URLs needing an update.
@@ -149,7 +149,7 @@ node path/to/your/submit-sitemap.ts --individual-only
 node path/to/your/submit-sitemap.ts
 ```
 
-> **Note on script logic:** A robust script should include logic to skip submissions if `NODE_ENV` is 'development' AND the `SITE_URL` points to localhost. This prevents accidental submissions during local development. It should also log a warning if `NODE_ENV` is 'production' but the `SITE_URL` doesn't match the intended production site URL.
+> **Note on script logic:** Your script should include logic to skip submissions if `NODE_ENV` is 'development' AND the `SITE_URL` points to localhost. This prevents accidental submissions during local development. It should also log a warning if `NODE_ENV` is 'production' but the `SITE_URL` doesn't match the intended production site URL.
 
 ### Configuration & Environment Details
 
@@ -211,4 +211,4 @@ Example `package.json` script entry:
 ```
 This can then be run, for example, with `npm run submit-sitemaps`.
 
-This setup provides a robust and automated way to manage sitemap submissions to Google and Bing, emphasizing critical aspects like private key formatting and differentiating between development and production environments.
+This setup automates sitemap submissions to Google and Bing, covering private key formatting and the difference between development and production environments.

@@ -200,7 +200,8 @@ export const PAGE_METADATA = {
   } as ProfilePageMetadata,
   bookmarks: {
     title: `Bookmarks & Resources - ${SITE_NAME}`,
-    description: `An upcoming list and curated collection of ${SITE_NAME}'s favorite resources, articles, and tools.`,
+    description:
+      "A live updating directory of things online I found noteworthy and wish to refer back to periodically.",
     dateCreated: "2025-02-10T12:42:00",
     dateModified: "2025-11-04T12:42:00",
   } as CollectionPageMetadata,
