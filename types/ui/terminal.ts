@@ -121,3 +121,12 @@ export interface TerminalWindowStateProviderProps {
   terminalId: string;
   initialState?: WindowStateValue;
 }
+
+/**
+ * Props for the TerminalSearchHint component
+ * Displays a keyboard shortcut badge to hint users to use ⌘K/Ctrl+K
+ */
+export interface TerminalSearchHintProps {
+  /** Context determines the content type referenced in the hint text */
+  context?: "bookmarks" | "blog";
+}

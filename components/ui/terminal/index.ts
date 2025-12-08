@@ -17,6 +17,7 @@ export { History } from "./history";
 // Export client-only components explicitly
 export { CommandInput } from "./command-input.client";
 export { SelectionView } from "./selection-view.client";
+export { TerminalSearchHint } from "./terminal-search-hint";
 
 // Export relevant types
 export type { TerminalCommand, SelectionItem } from "@/types/terminal";
