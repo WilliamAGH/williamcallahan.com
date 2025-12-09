@@ -186,10 +186,7 @@ NODE_ENV="development" # Set to "production" in deployment environments
  
  - Copy the *entire* string value from the `private_key` field in the downloaded Service Account JSON key.
  - This includes `-----BEGIN PRIVATE KEY-----`, all base64 encoded lines, and `-----END PRIVATE KEY-----`.
- - Crucially, all `
-` characters from the JSON string must be preserved as literal `
-` sequences within the value in the `.env` file. If the `.env` parser or shell has issues with this, alternative methods like base64 encoding the key for storage and decoding in the script, or using a secrets manager, may be necessary. Direct string with literal `
-` is often supported.
+ - All `\n` characters from the JSON string must be preserved as literal `\n` sequences within the value in the `.env` file. If the `.env` parser or shell has issues with this, alternative methods like base64 encoding the key for storage and decoding in the script, or using a secrets manager, may be necessary. Direct string with literal `\n` is often supported.
 - The entire value should be enclosed in a *single pair of double quotes* in the `.env` file.
 - The script logic should process this private key string, replacing `\n` with actual newline characters, which is essential for Google Auth libraries.
 
