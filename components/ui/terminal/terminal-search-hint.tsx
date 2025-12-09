@@ -4,6 +4,9 @@
  * A refined keyboard shortcut indicator that guides users to the terminal.
  * Inspired by the elegant shortcut badges in Linear, Raycast, and Notion.
  *
+ * Desktop: Shows ⌘K (Mac) or Ctrl+K (Windows/Linux) keyboard shortcut badge
+ * Mobile: Hidden entirely since physical keyboards aren't available
+ *
  * @module components/ui/terminal/terminal-search-hint
  */
 
@@ -15,6 +18,7 @@ import { useEffect, useState } from "react";
 /**
  * Elegant keyboard shortcut badge that points users to the terminal
  * Features a frosted glass aesthetic with keyboard key visual
+ * Hidden on mobile viewports where keyboard shortcuts are irrelevant
  */
 export function TerminalSearchHint({ context = "bookmarks" }: TerminalSearchHintProps) {
   const [mounted, setMounted] = useState(false);
@@ -27,20 +31,21 @@ export function TerminalSearchHint({ context = "bookmarks" }: TerminalSearchHint
 
   const contextText = context === "bookmarks" ? "bookmarks" : context === "projects" ? "projects" : "articles";
 
-  // SSR placeholder
+  // SSR placeholder - hidden on mobile via CSS to match the mounted state
   if (!mounted) {
-    return <div className="h-7" aria-hidden="true" />;
+    return <div className="hidden md:block h-7" aria-hidden="true" />;
   }
 
   return (
     <div
       className="
+        hidden md:inline-flex
         group
-        inline-flex items-center gap-2
+        items-center gap-2
         cursor-default select-none
       "
       role="note"
-      aria-label={`Type in the terminal above to search ${contextText}`}
+      aria-label={`Press ${isMac ? "Command" : "Control"} K to search ${contextText}`}
     >
       {/* Keyboard key badge */}
       <kbd
@@ -61,7 +66,7 @@ export function TerminalSearchHint({ context = "bookmarks" }: TerminalSearchHint
           dark:group-hover:shadow-[0_1px_0_1px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.08)]
         "
       >
-        {isMac ? "⌘" : "ctrl"}
+        {isMac ? "⌘" : "Ctrl"}
       </kbd>
       <span className="text-gray-300 dark:text-gray-600 text-xs">+</span>
       <kbd
