@@ -21,10 +21,13 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
   // Generate unique ID for accessibility
   const inputId = useId();
 
+  // Track hydration state to prevent SSR/client mismatch
+  const [mounted, setMounted] = useState(false);
   // Track if we're on a mobile-sized screen for shorter placeholder
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const checkMobile = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
     checkMobile();
     window.addEventListener("resize", checkMobile);
@@ -88,7 +91,7 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
             placeholder={
               disabled
                 ? "Processing..."
-                : isMobile
+                : mounted && isMobile
                   ? "Enter command or search site here"
                   : "Enter a command or search the site here"
             }
