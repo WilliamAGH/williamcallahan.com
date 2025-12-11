@@ -13,7 +13,7 @@ import { z } from "zod/v4";
  */
 export const thoughtSchema = z.object({
   id: z.uuid(),
-  slug: z.string(),
+  slug: z.string().min(1),
   title: z.string(),
   content: z.string(),
   createdAt: z.iso.datetime(),
