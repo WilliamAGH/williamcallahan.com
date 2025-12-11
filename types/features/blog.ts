@@ -283,6 +283,8 @@ export interface FrontmatterData {
   tags?: string[];
   readingTime?: number;
   coverImage?: unknown; // Keep as unknown for sanitizeCoverImage to handle
+  /** Whether this post is a draft (hidden from public listings) */
+  draft?: boolean;
 }
 
 /**
