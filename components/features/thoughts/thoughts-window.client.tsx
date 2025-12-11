@@ -102,7 +102,7 @@ function ThoughtsWindowContentInner({
  * Wraps content in a macOS-style window with minimize/maximize/close controls.
  * Uses the global window registry for state management.
  */
-export function ThoughtsWindow({ children, windowTitle, windowId }: ThoughtsWindowProps) {
+export function ThoughtsWindow({ children, windowTitle, windowId }: ThoughtsWindowProps): React.JSX.Element | null {
   const uniqueId = windowId || DEFAULT_THOUGHTS_WINDOW_ID;
   const restoreTitle = "Restore Thoughts";
 
