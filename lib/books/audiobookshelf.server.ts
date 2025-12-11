@@ -170,6 +170,7 @@ async function fetchBooksFresh(
 /**
  * Fetch all books with a resilient fallback to the last-good in-memory snapshot.
  * Defaults to allowing stale data when AudioBookShelf is unavailable.
+ * Never throws - returns empty array if all fallbacks are exhausted.
  */
 export async function fetchBooksWithFallback(
   options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean; allowStale?: boolean } = {},
@@ -194,7 +195,13 @@ export async function fetchBooksWithFallback(
       return { books: snapshotBooks, isFallback: true, fetchedAt: lastBooksSnapshot?.fetchedAt ?? now };
     }
 
-    throw error;
+    // Return empty array instead of throwing - allows page to render gracefully
+    envLogger.log(
+      "AudioBookShelf unavailable and no snapshot - returning empty books list",
+      { error: message },
+      { category: "Books" },
+    );
+    return { books: [], isFallback: true, fetchedAt: now };
   }
 }
 
@@ -210,15 +217,17 @@ export async function fetchBooks(
 
 /**
  * Fetch book list items (minimal data for grids) with fallback to snapshot.
+ * Gracefully handles missing AudioBookShelf config (returns empty array).
  * @param options - Fetch options including blur placeholder generation
  */
 export async function fetchBookListItemsWithFallback(
   options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean } = {},
 ): Promise<{ books: BookListItem[]; isFallback: boolean; fetchedAt: number }> {
-  const { baseUrl, apiKey } = getConfig();
   const { includeBlurPlaceholders = false, ...fetchOptions } = options;
 
   try {
+    // getConfig() can throw if env vars are missing - handle gracefully
+    const { baseUrl, apiKey } = getConfig();
     const items = await fetchAbsLibraryItems(fetchOptions);
     const bookListItems = absItemsToBookListItems(items, { baseUrl, apiKey });
 
@@ -249,6 +258,7 @@ export async function fetchBookListItemsWithFallback(
       { category: "Books" },
     );
 
+    // Try in-memory snapshot first
     const snapshotBooks = getSnapshotBooks(SNAPSHOT_TTL_MS);
     if (snapshotBooks) {
       const books = snapshotBooks.map(({ id, title, authors, coverUrl, coverBlurDataURL }) => ({
@@ -261,7 +271,14 @@ export async function fetchBookListItemsWithFallback(
       return { books, isFallback: true, fetchedAt: lastBooksSnapshot?.fetchedAt ?? Date.now() };
     }
 
-    throw error;
+    // If no snapshot available, return empty array instead of throwing
+    // This allows the page to render with an "unavailable" state
+    envLogger.log(
+      "AudioBookShelf unavailable and no snapshot - returning empty books list",
+      { error: message },
+      { category: "Books" },
+    );
+    return { books: [], isFallback: true, fetchedAt: Date.now() };
   }
 }
 
