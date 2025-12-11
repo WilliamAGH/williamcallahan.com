@@ -143,15 +143,19 @@ export function BookDetail({ book }: BookDetailProps) {
               transition={{ duration: 0.5 }}
               className="lg:col-span-1"
             >
-              <div className="relative aspect-[2/3] w-full max-w-xs mx-auto lg:max-w-none overflow-hidden rounded-xl shadow-2xl">
+              {/* aspect-[4/5] matches typical tech book covers (~0.80 ratio) */}
+              <div className="relative aspect-[4/5] w-full max-w-xs mx-auto lg:max-w-none overflow-hidden rounded-xl shadow-2xl">
                 {book.coverUrl ? (
                   <Image
                     src={book.coverUrl}
                     alt={`Cover of ${book.title}`}
                     fill
                     sizes="(max-width: 1024px) 320px, 280px"
+                    quality={80}
                     className="object-cover"
                     priority
+                    placeholder={book.coverBlurDataURL ? "blur" : "empty"}
+                    blurDataURL={book.coverBlurDataURL}
                   />
                 ) : (
                   <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center">
