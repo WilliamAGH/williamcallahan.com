@@ -89,7 +89,9 @@ async function absApi<T>(path: string, validate: (data: unknown) => T): Promise<
 
   const response = await fetchWithTimeout(url, {
     timeout: 10000,
-    cache: "no-store",
+    // Use time-based revalidation instead of no-store to avoid static-to-dynamic error
+    // 5 minutes cache keeps data reasonably fresh while allowing static prerendering
+    next: { revalidate: 300 },
     headers: {
       Authorization: `Bearer ${apiKey}`,
       Accept: "application/json",
@@ -307,7 +309,8 @@ export async function fetchBookById(
   try {
     const response = await fetchWithTimeout(`${baseUrl}/api/items/${id}?expanded=1`, {
       timeout: 10000,
-      cache: "no-store",
+      // Use time-based revalidation instead of no-store to avoid static-to-dynamic error
+      next: { revalidate: 300 },
       headers: {
         Authorization: `Bearer ${apiKey}`,
         Accept: "application/json",
