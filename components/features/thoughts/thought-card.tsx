@@ -25,9 +25,10 @@ function estimateReadingTime(excerpt: string | undefined): string {
 
 /**
  * Generate URL path for a thought
+ * Note: Route structure is /thoughts/{slug} only - category is not part of the URL
  */
-function getThoughtPath(slug: string, category?: string): string {
-  return category ? `/thoughts/${category}/${slug}` : `/thoughts/${slug}`;
+function getThoughtPath(slug: string, _category?: string): string {
+  return `/thoughts/${slug}`;
 }
 
 /**
@@ -88,7 +89,7 @@ export function ThoughtCard({ thought, preload = false }: ThoughtCardProps) {
             "decoration-zinc-300 dark:decoration-zinc-600 decoration-1 underline-offset-4",
             "hover:underline",
           )}
-          {...(preload ? { rel: "preload" } : {})}
+          prefetch={preload}
         >
           {thought.title}
         </Link>
