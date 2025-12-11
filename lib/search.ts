@@ -1055,7 +1055,7 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
     type: "page",
     title: title ?? "Untitled",
     description: Array.isArray(authors) ? authors.join(", ") : undefined,
-    url: `/books/${generateBookSlug(title ?? "", String(id))}`,
+    url: `/books/${generateBookSlug(title ?? "", String(id), Array.isArray(authors) ? authors : undefined)}`,
     score: scoreById.get(String(id)) ?? 0,
   }));
 

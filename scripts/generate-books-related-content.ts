@@ -44,8 +44,8 @@ function normalizeBookForScript(book: Book): NormalizedContent {
   // Normalize tags to lowercase for consistent similarity
   const enhancedTags = Array.from(new Set(baseTags.map(t => t.toLowerCase().trim())));
 
-  // Generate slug for URL
-  const slug = generateBookSlug(book.title, book.id);
+  // Generate slug for URL (includes authors + ABS ID or ISBN fallback)
+  const slug = generateBookSlug(book.title, book.id, book.authors, book.isbn13, book.isbn10);
 
   // Parse published year to date
   const date = book.publishedYear ? new Date(`${book.publishedYear}-01-01`) : undefined;

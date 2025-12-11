@@ -155,7 +155,7 @@ export async function generateStaticParams(): Promise<Array<{ "book-slug": strin
   try {
     const books = await fetchBooks();
     return books.map(book => ({
-      "book-slug": generateBookSlug(book.title, book.id),
+      "book-slug": generateBookSlug(book.title, book.id, book.authors, book.isbn13, book.isbn10),
     }));
   } catch (error) {
     console.error("[BookPage] Failed to generate static params:", error);
