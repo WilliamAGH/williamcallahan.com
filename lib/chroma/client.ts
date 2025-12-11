@@ -49,12 +49,14 @@ export function getChromaClient(config?: ChromaCloudConfig): CloudClient {
   // Validate configuration
   const validatedConfig = ChromaCloudConfigSchema.parse(effectiveConfig);
 
-  // Return existing instance if config matches
+  // Return existing instance if config matches (including optional host/port)
   if (
     clientInstance &&
     configuredConfig?.apiKey === validatedConfig.apiKey &&
     configuredConfig?.tenant === validatedConfig.tenant &&
-    configuredConfig?.database === validatedConfig.database
+    configuredConfig?.database === validatedConfig.database &&
+    configuredConfig?.host === validatedConfig.host &&
+    configuredConfig?.port === validatedConfig.port
   ) {
     return clientInstance;
   }
