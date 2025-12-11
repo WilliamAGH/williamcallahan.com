@@ -23,12 +23,16 @@ import type { ThoughtPageContext } from "@/types/features/thoughts";
  * Generate a clean excerpt from thought content
  * @param content - Raw thought content (may contain markdown/newlines)
  * @param maxLength - Maximum character length (default: 155 for meta descriptions)
- * @param addEllipsis - Whether to append "..." suffix (default: true)
+ * @param addEllipsis - Whether to append "..." suffix when content is truncated (default: true)
  * @returns Cleaned excerpt string
  */
 function generateExcerpt(content: string, maxLength = 155, addEllipsis = true): string {
-  const cleaned = content.slice(0, maxLength).replace(/\n/g, " ").trim();
-  return addEllipsis ? `${cleaned}...` : cleaned;
+  const cleaned = content.replace(/\n/g, " ").trim();
+  if (cleaned.length <= maxLength) {
+    return cleaned;
+  }
+  const truncated = cleaned.slice(0, maxLength).trim();
+  return addEllipsis ? `${truncated}...` : truncated;
 }
 
 /**
