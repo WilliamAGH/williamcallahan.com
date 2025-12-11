@@ -15,6 +15,7 @@ const CONTENT_TYPE_ORDER: readonly RelatedContentType[] = [
   "bookmark",
   "blog",
   "project",
+  "thought",
   "book",
   "investment",
 ] as const;
@@ -58,6 +59,8 @@ function getTypeLabel(type: RelatedContentType): string {
       return "Related Investments";
     case "project":
       return "Related Projects";
+    case "thought":
+      return "Related Thoughts";
     case "book":
       return "Related Books";
     default:
