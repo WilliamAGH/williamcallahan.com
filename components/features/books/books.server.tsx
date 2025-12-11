@@ -5,9 +5,8 @@
  * Server component that fetches books from AudioBookShelf and renders the grid.
  * Handles data fetching and passes serializable data to client components.
  *
- * Note: This component relies on the parent route (/books) having
- * `export const dynamic = 'force-dynamic'` to prevent static generation
- * attempts that would cause DYNAMIC_SERVER_USAGE errors.
+ * Note: The parent route (/books) is request-time via `connection()` to
+ * avoid cacheComponents static prerendering for live AudioBookShelf data.
  */
 
 import "server-only";
