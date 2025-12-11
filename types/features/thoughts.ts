@@ -35,6 +35,30 @@ export interface ThoughtsWindowContentProps {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Styling Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Category color configuration for ThoughtCard component
+ * Used for category-colored accents (border, text, background)
+ */
+export interface ThoughtCardCategoryColor {
+  border: string;
+  text: string;
+  bg: string;
+}
+
+/**
+ * Category color configuration for ThoughtDetail component
+ * Used for category-colored accents (text, background, ambient glow)
+ */
+export interface ThoughtDetailCategoryColor {
+  text: string;
+  bg: string;
+  glow: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // List Component Props
 // ─────────────────────────────────────────────────────────────────────────────
 
