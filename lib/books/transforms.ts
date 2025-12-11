@@ -7,7 +7,7 @@
  */
 
 import type { AbsLibraryItem, AbsTransformOptions, Book, BookListItem } from "@/types/schemas/book";
-import { stripHtmlToText, containsHtmlTags } from "@/lib/utils/html";
+import { formatBookDescription } from "@/lib/utils/html";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Transform Helpers
@@ -80,16 +80,14 @@ function buildCoverUrl(itemId: string, baseUrl: string, apiKey: string): string 
 }
 
 /**
- * Clean book description from AudioBookShelf.
- * ABS descriptions often contain HTML (e.g., <p> tags) that need stripping.
- * Only processes if HTML is detected to avoid unnecessary work.
+ * Clean and format book description from AudioBookShelf.
+ * Handles HTML stripping, bullet points, section headers, and line breaks.
+ * @see formatBookDescription in lib/utils/html.ts for full processing details
  */
 function cleanDescription(description: string | null | undefined): string | undefined {
   if (!description) return undefined;
-  if (containsHtmlTags(description)) {
-    return stripHtmlToText(description);
-  }
-  return description;
+  const formatted = formatBookDescription(description);
+  return formatted || undefined;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
