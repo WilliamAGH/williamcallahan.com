@@ -140,7 +140,7 @@ async function main(): Promise<void> {
   };
 
   // Step 5: Write to S3 with public-read ACL
-  console.log("Step 4: Writing to S3 with public-read ACL...");
+  console.log("Step 5: Writing to S3 with public-read ACL...");
   const s3Path = CONTENT_GRAPH_S3_PATHS.BOOKS_RELATED_CONTENT;
 
   try {
