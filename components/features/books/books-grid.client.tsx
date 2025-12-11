@@ -9,7 +9,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BookOpen, AlertCircle, Sparkles } from "lucide-react";
+import { BookOpen, AlertCircle } from "lucide-react";
 import type { BooksClientGridProps } from "@/types/features/books";
 import { BooksWindow } from "./books-window.client";
 import { BookCard } from "./book-card.client";
@@ -30,21 +30,15 @@ export function BooksClientGrid({ books, title, description, disclaimer, error }
             )}
           </motion.div>
 
-          {/* Disclaimer */}
+          {/* Disclaimer - Editorial margin note style */}
           {disclaimer && (
             <motion.div
               initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className="mb-8 flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl"
+              className="mb-8 pl-4 border-l-2 border-gray-300 dark:border-gray-600"
             >
-              <div className="flex-shrink-0 mt-0.5">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 text-[10px] font-semibold uppercase tracking-wider">
-                  <Sparkles className="w-3 h-3" />
-                  New Feature
-                </span>
-              </div>
-              <p className="text-sm text-amber-800 dark:text-amber-200 leading-relaxed">{disclaimer}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 italic leading-relaxed">{disclaimer}</p>
             </motion.div>
           )}
 
