@@ -12,6 +12,7 @@
 
 import React, { Suspense, useMemo } from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
+import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hint";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
 import { Lightbulb, type LucideIcon } from "lucide-react";
@@ -74,13 +75,16 @@ function ThoughtsWindowContentInner({
           "p-4 flex-shrink-0 sticky top-0 z-10",
         )}
       >
-        <div className="flex items-center">
-          <WindowControls onClose={onClose} onMinimize={onMinimize} onMaximize={onMaximize} />
-          <h1 className="text-xl font-mono ml-4 text-zinc-800 dark:text-zinc-200">
-            <Link href="/thoughts" className="hover:underline decoration-zinc-400 underline-offset-4">
-              {displayTitle}
-            </Link>
-          </h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <WindowControls onClose={onClose} onMinimize={onMinimize} onMaximize={onMaximize} />
+            <h1 className="text-xl font-mono ml-4 text-zinc-800 dark:text-zinc-200">
+              <Link href="/thoughts" className="hover:underline decoration-zinc-400 underline-offset-4">
+                {displayTitle}
+              </Link>
+            </h1>
+          </div>
+          <TerminalSearchHint context="thoughts" />
         </div>
       </div>
 
