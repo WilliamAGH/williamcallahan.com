@@ -45,6 +45,29 @@ async function getBookBySlug(slug: string): Promise<Book | null> {
   }
 }
 
+/**
+ * Build dynamic OG image URL for a book
+ * Constructs URL to /api/og/books with book metadata as query params
+ */
+function buildBookOgImageUrl(book: Book): string {
+  const params = new URLSearchParams();
+  params.set("title", book.title);
+
+  if (book.authors?.length) {
+    params.set("author", book.authors.join(", "));
+  }
+
+  if (book.coverUrl) {
+    params.set("coverUrl", book.coverUrl);
+  }
+
+  if (book.formats?.length) {
+    params.set("formats", book.formats.join(","));
+  }
+
+  return ensureAbsoluteUrl(`/api/og/books?${params.toString()}`);
+}
+
 export async function generateMetadata({ params }: BookPageProps): Promise<Metadata> {
   const { "book-slug": slug } = await params;
   const path = `/books/${slug}`;
@@ -64,7 +87,8 @@ export async function generateMetadata({ params }: BookPageProps): Promise<Metad
   const customDescription =
     book.description?.slice(0, 155) || `${book.title} by ${authorText}. Part of William's reading list.`;
 
-  const imageUrl = book.coverUrl ? ensureAbsoluteUrl(book.coverUrl) : undefined;
+  // Generate dynamic OG image URL with branded background + book cover
+  const ogImageUrl = buildBookOgImageUrl(book);
 
   return {
     ...baseMetadata,
@@ -76,7 +100,14 @@ export async function generateMetadata({ params }: BookPageProps): Promise<Metad
       description: customDescription,
       type: "book",
       url: ensureAbsoluteUrl(path),
-      images: imageUrl ? [{ url: imageUrl, alt: `Cover of ${book.title}` }] : baseMetadata.openGraph?.images || [],
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${book.title} by ${authorText}`,
+        },
+      ],
       // Book-specific OpenGraph
       ...(book.authors && { authors: book.authors }),
       ...(book.isbn13 && { isbn: book.isbn13 }),
@@ -86,7 +117,14 @@ export async function generateMetadata({ params }: BookPageProps): Promise<Metad
       card: "summary_large_image",
       title: customTitle,
       description: customDescription,
-      images: imageUrl ? [{ url: imageUrl, alt: `Cover of ${book.title}` }] : [],
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${book.title} by ${authorText}`,
+        },
+      ],
     },
     alternates: {
       canonical: ensureAbsoluteUrl(path),
