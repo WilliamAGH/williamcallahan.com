@@ -63,8 +63,8 @@ export async function getRelatedThoughts(
     results.ids[0]
       ?.map((id, index) => ({
         id,
-        slug: results.metadatas[0]?.[index]?.slug as string,
-        title: results.metadatas[0]?.[index]?.title as string,
+        slug: (results.metadatas[0]?.[index]?.slug as string) ?? "",
+        title: (results.metadatas[0]?.[index]?.title as string) ?? "",
         distance: results.distances?.[0]?.[index] ?? 0,
       }))
       .filter(r => r.id !== thoughtId)
@@ -107,8 +107,8 @@ export async function searchThoughts(query: string, options: SearchThoughtsOptio
     results.ids[0]
       ?.map((id, index) => ({
         id,
-        slug: results.metadatas[0]?.[index]?.slug as string,
-        title: results.metadatas[0]?.[index]?.title as string,
+        slug: (results.metadatas[0]?.[index]?.slug as string) ?? "",
+        title: (results.metadatas[0]?.[index]?.title as string) ?? "",
         distance: results.distances?.[0]?.[index] ?? 0,
       }))
       .filter(r => maxDistance === undefined || r.distance <= maxDistance) ?? [];
@@ -160,7 +160,8 @@ export async function suggestCategory(
   const sorted = [...categoryCounts.entries()].toSorted((a, b) => b[1] - a[1]);
   const topEntry = sorted[0];
 
-  if (topEntry && topEntry[1] / totalResults >= minConfidence) {
+  // Guard against division by zero when no results are found
+  if (totalResults > 0 && topEntry && topEntry[1] / totalResults >= minConfidence) {
     return topEntry[0];
   }
 
@@ -237,8 +238,8 @@ export async function findPotentialDuplicates(
     results.ids[0]
       ?.map((id, index) => ({
         id,
-        slug: results.metadatas[0]?.[index]?.slug as string,
-        title: results.metadatas[0]?.[index]?.title as string,
+        slug: (results.metadatas[0]?.[index]?.slug as string) ?? "",
+        title: (results.metadatas[0]?.[index]?.title as string) ?? "",
         distance: results.distances?.[0]?.[index] ?? 0,
       }))
       .filter(r => r.distance <= threshold) ?? []

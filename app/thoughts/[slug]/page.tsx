@@ -20,6 +20,18 @@ import type { ThoughtPageContext } from "@/types/features/thoughts";
 import type { Thought } from "@/types/schemas/thought";
 
 /**
+ * Generate a clean excerpt from thought content
+ * @param content - Raw thought content (may contain markdown/newlines)
+ * @param maxLength - Maximum character length (default: 155 for meta descriptions)
+ * @param addEllipsis - Whether to append "..." suffix (default: true)
+ * @returns Cleaned excerpt string
+ */
+function generateExcerpt(content: string, maxLength = 155, addEllipsis = true): string {
+  const cleaned = content.slice(0, maxLength).replace(/\n/g, " ").trim();
+  return addEllipsis ? `${cleaned}...` : cleaned;
+}
+
+/**
  * Mock data lookup - replace with actual data source
  * TODO: Implement thought lookup in lib/thoughts/service.server.ts
  */
@@ -195,7 +207,7 @@ export async function generateMetadata({ params }: ThoughtPageContext): Promise<
   const customTitle = generateDynamicTitle(thought.title, "thoughts");
 
   // Generate excerpt from content for description
-  const excerpt = thought.content.slice(0, 155).replace(/\n/g, " ").trim() + "...";
+  const excerpt = generateExcerpt(thought.content);
 
   return {
     ...baseMetadata,
@@ -236,7 +248,7 @@ export default async function ThoughtPage({ params }: ThoughtPageContext) {
   const schemaParams = {
     path: thoughtPath,
     title: thought.title,
-    description: thought.content.slice(0, 155).replace(/\n/g, " ").trim(),
+    description: generateExcerpt(thought.content, 155, false),
     datePublished: formatSeoDate(thought.createdAt),
     dateModified: formatSeoDate(thought.updatedAt || thought.createdAt),
     type: "article" as const,

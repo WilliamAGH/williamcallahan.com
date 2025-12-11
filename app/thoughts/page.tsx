@@ -107,15 +107,15 @@ export default async function ThoughtsPage() {
 
   const jsonLdData = generateSchemaGraph(schemaParams);
 
+  // Use uiTitle/uiDescription for on-page display, falling back to meta values
+  const displayTitle = pageMetadata.uiTitle ?? "Thoughts";
+  const displayDescription = pageMetadata.uiDescription ?? pageMetadata.description;
+
   return (
     <>
       <JsonLdScript data={jsonLdData} />
       <ThoughtsWindow windowTitle="~/thoughts">
-        <ThoughtsListServer
-          thoughts={thoughts}
-          title="Thoughts"
-          description="My personal ruminations and thoughts, sometimes fleeting and others retrieved from my long-term memory, that may or may not pass the test of time."
-        />
+        <ThoughtsListServer thoughts={thoughts} title={displayTitle} description={displayDescription} />
       </ThoughtsWindow>
     </>
   );
