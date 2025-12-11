@@ -19,7 +19,7 @@
 
 import { ImageResponse } from "@vercel/og";
 import type { NextRequest } from "next/server";
-import * as sharp from "sharp";
+import sharp from "sharp";
 
 // OG Image dimensions (standard)
 const WIDTH = 1200;
