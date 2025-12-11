@@ -47,29 +47,50 @@ const cloneBook = (book: Book): Book => structuredClone(book);
 
 let lastBooksSnapshot: { booksById: Map<string, Book>; fetchedAt: number } | null = null;
 
+/**
+ * Check if snapshot is fresh within TTL.
+ * Note: When fetchedAt is 0 (prerender-safe value), always returns true
+ * since we can't determine actual age without a real timestamp.
+ */
 const snapshotIsFresh = (
   snapshot: { booksById: Map<string, Book>; fetchedAt: number } | null,
   ttlMs: number,
 ): snapshot is { booksById: Map<string, Book>; fetchedAt: number } => {
   if (!snapshot) return false;
-  return Date.now() - snapshot.fetchedAt <= ttlMs;
+  // If fetchedAt is 0 (prerender-safe), consider it fresh (we can't know real age)
+  if (snapshot.fetchedAt === 0) return true;
+  // Use try-catch since Date.now() can fail during prerendering before data access
+  try {
+    return Date.now() - snapshot.fetchedAt <= ttlMs;
+  } catch {
+    return true; // If Date.now() fails, assume fresh to allow fallback
+  }
 };
 
-const cacheSnapshot = (books: Book[]): void => {
+/**
+ * Cache books snapshot with timestamp.
+ * During prerendering, Date.now() is not allowed before data access,
+ * so we use a stable timestamp of 0 which effectively disables the TTL check.
+ */
+const cacheSnapshot = (books: Book[], timestamp?: number): void => {
   lastBooksSnapshot = {
     booksById: new Map(books.map(book => [book.id, cloneBook(book)])),
-    fetchedAt: Date.now(),
+    fetchedAt: timestamp ?? 0, // Use provided timestamp or 0 (prerender-safe)
   };
 };
 
-const upsertBookIntoSnapshot = (book: Book): void => {
-  const now = Date.now();
+/**
+ * Update a single book in the snapshot.
+ * Uses timestamp of 0 to avoid Date.now() during prerendering.
+ */
+const upsertBookIntoSnapshot = (book: Book, timestamp?: number): void => {
+  const ts = timestamp ?? 0; // prerender-safe
   if (!lastBooksSnapshot) {
-    lastBooksSnapshot = { booksById: new Map([[book.id, cloneBook(book)]]), fetchedAt: now };
+    lastBooksSnapshot = { booksById: new Map([[book.id, cloneBook(book)]]), fetchedAt: ts };
     return;
   }
   lastBooksSnapshot.booksById.set(book.id, cloneBook(book));
-  lastBooksSnapshot.fetchedAt = now;
+  lastBooksSnapshot.fetchedAt = ts;
 };
 
 const getSnapshotBooks = (ttlMs: number): Book[] | null => {
@@ -173,17 +194,18 @@ async function fetchBooksFresh(
  * Fetch all books with a resilient fallback to the last-good in-memory snapshot.
  * Defaults to allowing stale data when AudioBookShelf is unavailable.
  * Never throws - returns empty array if all fallbacks are exhausted.
+ *
+ * Note: fetchedAt returns 0 to be prerender-safe (Date.now() not allowed before data access)
  */
 export async function fetchBooksWithFallback(
   options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean; allowStale?: boolean } = {},
 ): Promise<{ books: Book[]; isFallback: boolean; fetchedAt: number }> {
   const { allowStale = true, ...rest } = options;
-  const now = Date.now();
 
   try {
     const books = await fetchBooksFresh(rest);
     cacheSnapshot(books);
-    return { books, isFallback: false, fetchedAt: now };
+    return { books, isFallback: false, fetchedAt: 0 };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     envLogger.log(
@@ -194,7 +216,7 @@ export async function fetchBooksWithFallback(
 
     const snapshotBooks = allowStale ? getSnapshotBooks(SNAPSHOT_TTL_MS) : null;
     if (snapshotBooks) {
-      return { books: snapshotBooks, isFallback: true, fetchedAt: lastBooksSnapshot?.fetchedAt ?? now };
+      return { books: snapshotBooks, isFallback: true, fetchedAt: lastBooksSnapshot?.fetchedAt ?? 0 };
     }
 
     // Return empty array instead of throwing - allows page to render gracefully
@@ -203,7 +225,7 @@ export async function fetchBooksWithFallback(
       { error: message },
       { category: "Books" },
     );
-    return { books: [], isFallback: true, fetchedAt: now };
+    return { books: [], isFallback: true, fetchedAt: 0 };
   }
 }
 
@@ -220,6 +242,8 @@ export async function fetchBooks(
 /**
  * Fetch book list items (minimal data for grids) with fallback to snapshot.
  * Gracefully handles missing AudioBookShelf config (returns empty array).
+ *
+ * Note: fetchedAt returns 0 to be prerender-safe (Date.now() not allowed before data access)
  * @param options - Fetch options including blur placeholder generation
  */
 export async function fetchBookListItemsWithFallback(
@@ -251,7 +275,7 @@ export async function fetchBookListItemsWithFallback(
     // Keep a snapshot so detail pages can fall back to last-known-good data
     cacheSnapshot(absItemsToBooks(items, { baseUrl, apiKey }));
 
-    return { books: bookListItems, isFallback: false, fetchedAt: Date.now() };
+    return { books: bookListItems, isFallback: false, fetchedAt: 0 };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     envLogger.log(
@@ -270,7 +294,7 @@ export async function fetchBookListItemsWithFallback(
         coverUrl,
         coverBlurDataURL,
       }));
-      return { books, isFallback: true, fetchedAt: lastBooksSnapshot?.fetchedAt ?? Date.now() };
+      return { books, isFallback: true, fetchedAt: lastBooksSnapshot?.fetchedAt ?? 0 };
     }
 
     // If no snapshot available, return empty array instead of throwing
@@ -280,7 +304,7 @@ export async function fetchBookListItemsWithFallback(
       { error: message },
       { category: "Books" },
     );
-    return { books: [], isFallback: true, fetchedAt: Date.now() };
+    return { books: [], isFallback: true, fetchedAt: 0 };
   }
 }
 
