@@ -6,7 +6,15 @@
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
-import { searchBookmarks, searchExperience, searchEducation, searchInvestments, searchProjects } from "@/lib/search";
+import {
+  searchBookmarks,
+  searchExperience,
+  searchEducation,
+  searchInvestments,
+  searchProjects,
+  searchBooks,
+  searchThoughts,
+} from "@/lib/search";
 import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { validateSearchQuery } from "@/lib/validators/search";
@@ -128,6 +136,11 @@ export async function GET(request: NextRequest, { params }: { params: { scope: s
           return searchBookmarks(query);
         case "projects":
           return searchProjects(query);
+        case "books":
+          return searchBooks(query);
+        case "thoughts":
+          // TODO: Add real thoughts search once Chroma vector store is available
+          return searchThoughts(query);
         default:
           return [];
       }

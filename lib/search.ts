@@ -3,12 +3,14 @@
  */
 
 import { posts } from "@/data/blog/posts";
+import { PAGE_METADATA } from "@/data/metadata";
 import { certifications, education } from "@/data/education";
 import { experiences } from "@/data/experience";
 import { investments } from "@/data/investments";
 import { projects as projectsData } from "@/data/projects";
 import type { BlogPost } from "../types/blog";
 import type { SearchResult, EducationItem, BookmarkIndexItem, ScoredResult } from "../types/search";
+import type { BookListItem } from "@/types/schemas/book";
 import MiniSearch from "minisearch";
 import { ServerCacheInstance } from "./server-cache";
 import { sanitizeSearchQuery } from "./validators/search";
@@ -20,6 +22,8 @@ import type { SerializedIndex } from "@/types/search";
 import { loadIndexFromJSON } from "./search/index-builder";
 import type { Project } from "../types/project";
 import { envLogger } from "@/lib/utils/env-logger";
+import { fetchBookListItems } from "@/lib/books/audiobookshelf.server";
+import { generateBookSlug } from "@/lib/books/slug-helpers";
 
 // Add near top of file (after imports) a dev log helper
 const IS_DEV = process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test";
@@ -58,11 +62,13 @@ const SEARCH_INDEX_KEYS = {
   EDUCATION: "search:index:education",
   BOOKMARKS: "search:index:bookmarks",
   PROJECTS: "search:index:projects",
+  BOOKS: "search:index:books",
 } as const;
 
 // TTL for search indexes (1 hour for static, 5 minutes for dynamic)
 const STATIC_INDEX_TTL = 60 * 60; // 1 hour in seconds
 const BOOKMARK_INDEX_TTL = 5 * 60; // 5 minutes in seconds
+const BOOK_INDEX_TTL = 30 * 60; // 30 minutes for slower-changing bookshelf
 
 // Flag to control whether to load indexes from S3 or build in-memory
 const USE_S3_INDEXES = process.env.USE_S3_SEARCH_INDEXES === "true";
@@ -982,4 +988,98 @@ export async function searchProjects(query: string): Promise<SearchResult[]> {
 
   ServerCacheInstance.setSearchResults("projects", query, searchResults);
   return searchResults;
+}
+
+// --- Books Search ---
+
+function buildBooksIndex(books: BookListItem[]): MiniSearch<BookListItem> {
+  const booksIndex = new MiniSearch<BookListItem>({
+    fields: ["title", "authors"],
+    storeFields: ["id", "title", "authors", "coverUrl"],
+    idField: "id",
+    searchOptions: { boost: { title: 2 }, fuzzy: 0.2, prefix: true },
+  });
+
+  const deduped = prepareDocumentsForIndexing(books, "Books");
+  booksIndex.addAll(deduped);
+  return booksIndex;
+}
+
+async function getBooksIndex(): Promise<MiniSearch<BookListItem>> {
+  // Avoid expensive remote fetch when explicitly disabled
+  const cacheKey = SEARCH_INDEX_KEYS.BOOKS;
+  const cached = ServerCacheInstance.get<MiniSearch<BookListItem>>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  let books: BookListItem[] = [];
+  try {
+    books = await fetchBookListItems();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    envLogger.log("[Search] Failed to fetch books for search", { error: message }, { category: "Search" });
+    // Return empty index so search still resolves without throwing
+    const emptyIndex = buildBooksIndex([]);
+    ServerCacheInstance.set(cacheKey, emptyIndex, BOOK_INDEX_TTL);
+    return emptyIndex;
+  }
+
+  const index = buildBooksIndex(books);
+  ServerCacheInstance.set(cacheKey, index, BOOK_INDEX_TTL);
+  return index;
+}
+
+export async function searchBooks(query: string): Promise<SearchResult[]> {
+  const cached = ServerCacheInstance.getSearchResults<SearchResult>("books", query);
+  if (cached && !ServerCacheInstance.shouldRefreshSearch("books", query)) {
+    return cached.results;
+  }
+
+  const index = await getBooksIndex();
+  const sanitizedQuery = sanitizeSearchQuery(query);
+  if (!sanitizedQuery) return [];
+
+  const searchResultsRaw = index.search(sanitizedQuery, {
+    prefix: true,
+    fuzzy: 0.2,
+    boost: { title: 2 },
+    combineWith: "AND",
+  }) as Array<{ id: string | number; title?: string; authors?: string[]; score?: number }>;
+
+  const scoreById = new Map(searchResultsRaw.map(r => [String(r.id), r.score ?? 0] as const));
+
+  // Map back to stored fields
+  const results: SearchResult[] = searchResultsRaw.map(({ id, title, authors }) => ({
+    id: String(id),
+    type: "page",
+    title: title ?? "Untitled",
+    description: Array.isArray(authors) ? authors.join(", ") : undefined,
+    url: `/books/${generateBookSlug(title ?? "", String(id))}`,
+    score: scoreById.get(String(id)) ?? 0,
+  }));
+
+  ServerCacheInstance.setSearchResults("books", query, results);
+  return results;
+}
+
+// --- Thoughts Search (placeholder) ---
+
+export function searchThoughts(query: string): SearchResult[] {
+  // TODO: Replace with Chroma-backed thoughts search when vector store is available
+  const sanitized = sanitizeSearchQuery(query);
+  if (!sanitized) return [];
+  const pageTitle = typeof PAGE_METADATA.thoughts.title === "string" ? PAGE_METADATA.thoughts.title : "Thoughts";
+  const pageDescription =
+    typeof PAGE_METADATA.thoughts.description === "string" ? PAGE_METADATA.thoughts.description : undefined;
+  return [
+    {
+      id: "thoughts-page",
+      type: "page",
+      title: pageTitle,
+      description: pageDescription,
+      url: "/thoughts",
+      score: 0.1,
+    },
+  ];
 }
