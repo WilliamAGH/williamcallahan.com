@@ -12,12 +12,9 @@
  * - May need custom schema generator in lib/seo/schema.ts for book-specific markup
  */
 
-"use cache";
-
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { cacheLife } from "next/cache";
 import { BookDetail } from "@/components/features/books/book-detail";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
@@ -33,9 +30,6 @@ import type { Book } from "@/types/schemas/book";
 import type { BookPageProps } from "@/types/features/books";
 
 async function getBookBySlug(slug: string): Promise<Book | null> {
-  "use cache";
-  cacheLife("hours");
-
   try {
     const books = await fetchBooks();
     return findBookBySlug(slug, books);
