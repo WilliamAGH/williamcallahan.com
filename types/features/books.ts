@@ -85,6 +85,7 @@ export interface BooksClientGridProps {
   description: string;
   disclaimer?: string;
   error?: string | null;
+  isStale?: boolean;
 }
 
 // =============================================================================

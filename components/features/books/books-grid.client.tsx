@@ -14,7 +14,7 @@ import type { BooksClientGridProps } from "@/types/features/books";
 import { BooksWindow } from "./books-window.client";
 import { BookCard } from "./book-card.client";
 
-export function BooksClientGrid({ books, title, description, disclaimer, error }: BooksClientGridProps) {
+export function BooksClientGrid({ books, title, description, disclaimer, error, isStale }: BooksClientGridProps) {
   return (
     <BooksWindow windowTitle="~/books">
       <div className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
@@ -51,6 +51,22 @@ export function BooksClientGrid({ books, title, description, disclaimer, error }
             >
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
               <p>{error}</p>
+            </motion.div>
+          )}
+
+          {/* Stale notice */}
+          {!error && isStale && (
+            <motion.div
+              initial={false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mb-8 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100"
+            >
+              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+              <p className="text-sm">
+                Showing cached book data while the library refreshes. A live update will appear once the source is back
+                online.
+              </p>
             </motion.div>
           )}
 
