@@ -29,7 +29,16 @@ export function TerminalSearchHint({ context = "bookmarks" }: TerminalSearchHint
     setIsMac(navigator.platform.toLowerCase().includes("mac"));
   }, []);
 
-  const contextText = context === "bookmarks" ? "bookmarks" : context === "projects" ? "projects" : "articles";
+  const contextText =
+    context === "bookmarks"
+      ? "bookmarks"
+      : context === "projects"
+        ? "projects"
+        : context === "books"
+          ? "books"
+          : context === "thoughts"
+            ? "thoughts"
+            : "articles";
 
   // SSR placeholder - hidden on mobile via CSS to match the mounted state
   if (!mounted) {
