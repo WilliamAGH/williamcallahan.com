@@ -62,9 +62,9 @@ describe("Thoughts Chroma Sync", () => {
       const collection = await getThoughtsCollection();
 
       expect(collection).toBeDefined();
-      expect(collection.upsert).toBeDefined();
-      expect(collection.add).toBeDefined();
-      expect(collection.delete).toBeDefined();
+      expect(collection).toHaveProperty("upsert");
+      expect(collection).toHaveProperty("add");
+      expect(collection).toHaveProperty("delete");
     });
   });
 

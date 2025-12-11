@@ -23,10 +23,52 @@ const SECTION_HEADERS = [
   "Summary",
   "Foreword",
   "Purchase of the print book",
+  "Appendixes",
+  "Appendix",
 ];
 
 /** Bullet characters to normalize */
 const BULLET_CHARS = ["•", "●", "○", "◦", "▪", "▸", "►", "·"];
+
+/** Action verbs commonly used at start of list items in book descriptions */
+const ACTION_VERBS = [
+  "Master",
+  "Implement",
+  "Build",
+  "Create",
+  "Use",
+  "Utilize",
+  "Handle",
+  "Make",
+  "Learn",
+  "Understand",
+  "Discover",
+  "Explore",
+  "Design",
+  "Write",
+  "Deploy",
+  "Test",
+  "Configure",
+  "Develop",
+  "Set",
+  "Work",
+  "Manage",
+  "Apply",
+  "Practice",
+  "Integrate",
+  "Optimize",
+  "Debug",
+  "Install",
+  "Run",
+  "Execute",
+  "Define",
+  "Establish",
+  "Organize",
+  "Structure",
+  "Plan",
+  "Analyze",
+  "Evaluate",
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core HTML Functions
@@ -121,9 +163,10 @@ function formatBulletPoints(text: string): string {
   // Handle asterisk bullets at line starts
   result = result.replace(/(?:^|\n)\s*\*\s+/g, "\n• ");
 
-  // Fix "…and more!" or similar ending bullets that run into following paragraph
-  // Pattern: bullet line ending with "!" or "." followed by uppercase start of new sentence
-  result = result.replace(/(\n• [^\n]*[!.])\s+([A-Z][a-z])/g, "$1\n\n$2");
+  // Fix bullet items that run into following paragraph text
+  // Specifically target "…and more!" pattern which commonly ends bullet lists
+  // Match: bullet ending with "more!" followed by sentence-starting word
+  result = result.replace(/(\n• .*?more!)\s+([A-Z][a-z])/g, "$1\n\n$2");
 
   return result;
 }
@@ -173,6 +216,144 @@ function formatNumberedLists(text: string): string {
 }
 
 /**
+ * Detects unmarked lists using multiple independent signals.
+ * Returns true only when there's high confidence the text contains a list.
+ *
+ * Detection rule: colonDirectVerb AND (explicitIntro OR knownListSection OR highVerbDensity)
+ *
+ * This requires:
+ * 1. Structural evidence: Colon followed directly by an action verb
+ * 2. Confirming evidence: Explicit intro phrase, known section header, or high verb density
+ */
+function detectUnmarkedList(text: string): boolean {
+  // Skip if already has bullet markers
+  if (/[•●○◦▪▸►·]/.test(text)) {
+    return false;
+  }
+
+  const actionVerbPattern = ACTION_VERBS.join("|");
+
+  // Signal 1: Colon followed DIRECTLY by action verb (not article/preposition)
+  const colonDirectVerb = new RegExp(`:\\s+(${actionVerbPattern})\\b`).test(text);
+  if (!colonDirectVerb) {
+    return false; // Required signal
+  }
+
+  // Signal 2: Explicit list introduction phrase
+  const explicitIntro =
+    /you will learn(?: how to)?:|you(?:'ll| will) (?:learn|discover|master):|what you(?:'ll| will) learn:|in this book,? you will:|features include:|includes?:/i.test(
+      text,
+    );
+
+  // Signal 3: Known list section headers
+  const knownListSection = /what'?s inside:?|key features:?|you(?:'ll| will) (?:learn|get|discover):/i.test(text);
+
+  // Signal 4: High action verb density (4+ verbs AND >5% of words)
+  const verbMatches = text.match(new RegExp(`\\b(${actionVerbPattern})\\b`, "g"));
+  const verbCount = verbMatches?.length ?? 0;
+  const wordCount = text.split(/\s+/).length;
+  const verbDensity = verbCount / wordCount;
+  const highVerbDensity = verbCount >= 4 && verbDensity > 0.05;
+
+  // Require structural signal + at least one confirming signal
+  return explicitIntro || knownListSection || highVerbDensity;
+}
+
+/**
+ * Formats unmarked lists by adding bullets before action verbs.
+ * Only processes text that passes the multi-signal detection.
+ * Detects list end when sentence punctuation is followed by a non-action-verb word.
+ */
+function formatUnmarkedLists(text: string): string {
+  if (!detectUnmarkedList(text)) {
+    return text;
+  }
+
+  const actionVerbPattern = ACTION_VERBS.join("|");
+
+  // Find the colon that introduces the list
+  const colonMatch = text.match(new RegExp(`(:\\s*)(${actionVerbPattern})\\b`));
+  if (!colonMatch || colonMatch.index === undefined) {
+    return text;
+  }
+
+  const colonEnd = colonMatch.index + (colonMatch[1]?.length ?? 0);
+  const beforeList = text.slice(0, colonEnd);
+  const afterColon = text.slice(colonEnd);
+
+  // Find where the list ENDS: sentence punctuation followed by non-action-verb word
+  // Pattern: [.!?] + space + Capital word that is NOT an action verb
+  const listEndPattern = new RegExp(`([.!?])\\s+(?!(${actionVerbPattern})\\b)([A-Z][a-z])`, "g");
+  const listEndMatch = listEndPattern.exec(afterColon);
+
+  let listPart: string;
+  let afterList: string;
+
+  if (listEndMatch && listEndMatch.index !== undefined && listEndMatch[1]) {
+    // Include the punctuation in the list part, then add paragraph break
+    const endIdx = listEndMatch.index + listEndMatch[1].length;
+    listPart = afterColon.slice(0, endIdx);
+    afterList = "\n\n" + afterColon.slice(endIdx).trimStart();
+  } else {
+    // No clear end found, treat entire rest as list
+    listPart = afterColon;
+    afterList = "";
+  }
+
+  // Add bullet before first item (right after colon)
+  let formattedList = listPart.replace(new RegExp(`^(${actionVerbPattern})\\b`), "\n• $1");
+
+  // Words that commonly precede verbs in normal prose (not list boundaries)
+  const nonBoundaryWords = new Set([
+    "in",
+    "with",
+    "for",
+    "to",
+    "from",
+    "by",
+    "on",
+    "of",
+    "about",
+    "using",
+    "into",
+    "through",
+    "a",
+    "an",
+    "the",
+    "and",
+    "or",
+    "can",
+    "will",
+    "should",
+    "must",
+    "may",
+    "could",
+    "would",
+  ]);
+
+  // Use function-based replacement to properly filter non-boundary words
+  const wordVerbPattern = new RegExp(`(\\w+)\\s+(${actionVerbPattern})\\b`, "gi");
+
+  // Iteratively add bullets before action verbs
+  let prev = "";
+  while (formattedList !== prev) {
+    prev = formattedList;
+    formattedList = formattedList.replace(wordVerbPattern, (match: string, word: string, verb: string) => {
+      // Don't add bullet if:
+      // 1. Word is a non-boundary word (preposition, article, etc.)
+      // 2. Already has bullet marker before it
+      if (nonBoundaryWords.has(word.toLowerCase())) {
+        return match;
+      }
+      // Check if this position already has a bullet (don't double-bullet)
+      return `${word}\n• ${verb}`;
+    });
+  }
+
+  return beforeList + formattedList + afterList;
+}
+
+/**
  * Escapes special regex characters in a string.
  */
 function escapeRegex(str: string): string {
@@ -186,9 +367,10 @@ function escapeRegex(str: string): string {
  * Processing order:
  * 1. Strip HTML tags (if present)
  * 2. Format section headers (add paragraph breaks)
- * 3. Format bullet points (normalize and add line breaks)
- * 4. Format numbered lists (Table of Contents)
- * 5. Normalize whitespace (guarantee no double blank lines)
+ * 3. Format unmarked lists (detect and add bullets using multi-signal heuristic)
+ * 4. Format bullet points (normalize existing bullets and add line breaks)
+ * 5. Format numbered lists (Table of Contents)
+ * 6. Normalize whitespace (guarantee no double blank lines)
  *
  * @example
  * formatBookDescription("<p>Great book! • Point 1 • Point 2 About the author John Doe.</p>")
@@ -210,13 +392,16 @@ export function formatBookDescription(description: string): string {
   // Step 2: Format section headers (add breaks before them)
   text = formatSectionHeaders(text);
 
-  // Step 3: Format bullet points
+  // Step 3: Format unmarked lists (using multi-signal detection)
+  text = formatUnmarkedLists(text);
+
+  // Step 4: Format bullet points (normalize existing bullets)
   text = formatBulletPoints(text);
 
-  // Step 4: Format numbered lists
+  // Step 5: Format numbered lists
   text = formatNumberedLists(text);
 
-  // Step 5: Final whitespace normalization (guarantees no double blank lines)
+  // Step 6: Final whitespace normalization (guarantees no double blank lines)
   text = normalizeWhitespace(text);
 
   return text;
