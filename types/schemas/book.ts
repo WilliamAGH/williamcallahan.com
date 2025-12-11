@@ -49,6 +49,8 @@ export const bookSchema = z.object({
 
   // Cover
   coverUrl: z.url().optional(),
+  /** Base64-encoded blur data URL for cover placeholder (LQIP) */
+  coverBlurDataURL: z.string().optional(),
 
   // External links
   findMyBookUrl: z.url().optional(),
@@ -72,6 +74,8 @@ export const bookListItemSchema = z.object({
   title: z.string(),
   authors: z.array(z.string()).optional(),
   coverUrl: z.url().optional(),
+  /** Base64-encoded blur data URL for cover placeholder (LQIP) */
+  coverBlurDataURL: z.string().optional(),
 });
 
 export type BookListItem = z.infer<typeof bookListItemSchema>;
