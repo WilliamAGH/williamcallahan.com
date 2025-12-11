@@ -26,7 +26,7 @@ jest.mock("next/navigation", () => ({
 // Mock the bookmark-helpers functions to return predictable values
 jest.mock("@/lib/bookmarks/bookmark-helpers", () => ({
   getAssetUrl: jest.fn(),
-  selectBestImage: jest.fn((bookmark) => {
+  selectBestImage: jest.fn(bookmark => {
     // Simple mock implementation that mimics the real function's priority
     if (bookmark.ogImage) return bookmark.ogImage;
     if (bookmark.content?.imageAssetId) return `/api/assets/${bookmark.content.imageAssetId}`;

@@ -9,7 +9,16 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Children, type JSX, cloneElement, createContext, isValidElement, useId, useState, type ReactNode } from "react";
+import {
+  Children,
+  type JSX,
+  cloneElement,
+  createContext,
+  isValidElement,
+  useId,
+  useState,
+  type ReactNode,
+} from "react";
 import type { ShellTabProps, ShellParentTabsContextProps } from "@/types/ui";
 
 /**

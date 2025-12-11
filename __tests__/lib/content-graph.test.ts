@@ -290,14 +290,16 @@ describe("Content Graph Pre-computation", () => {
       (getBookmarks as jest.Mock).mockResolvedValue([]);
       // Return mock bookmarks data to ensure the fetch succeeds
       (refreshBookmarks as jest.Mock).mockResolvedValue(
-        Array(50).fill(null).map((_, i) => ({
-          id: `b${i}`,
-          title: `Bookmark ${i}`,
-          url: `https://example${i}.com`,
-          tags: [],
-          description: `Bookmark ${i} description`,
-          dateBookmarked: "2024-01-01",
-        }))
+        Array(50)
+          .fill(null)
+          .map((_, i) => ({
+            id: `b${i}`,
+            title: `Bookmark ${i}`,
+            url: `https://example${i}.com`,
+            tags: [],
+            description: `Bookmark ${i} description`,
+            dateBookmarked: "2024-01-01",
+          })),
       );
       mockWriteJsonS3.mockResolvedValue({
         success: true,
@@ -311,10 +313,8 @@ describe("Content Graph Pre-computation", () => {
       });
 
       // Verify metadata was written (filter out lock-related calls)
-      const metadataCall = mockWriteJsonS3.mock.calls.find(
-        call => call[0] === CONTENT_GRAPH_S3_PATHS.METADATA
-      );
-      
+      const metadataCall = mockWriteJsonS3.mock.calls.find(call => call[0] === CONTENT_GRAPH_S3_PATHS.METADATA);
+
       expect(metadataCall).toBeDefined();
       if (metadataCall) {
         expect(metadataCall[1]).toMatchObject({
