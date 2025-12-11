@@ -8,6 +8,8 @@
 
 import { readJsonS3 } from "@/lib/s3-utils";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
+import { envLogger } from "@/lib/utils/env-logger";
+import { booksRelatedContentDataSchema } from "@/types/schemas/book";
 import type { BooksRelatedContentData, RelatedContentEntry } from "@/types/related-content";
 
 /**
@@ -28,14 +30,25 @@ async function ensureCacheLoaded(): Promise<BooksRelatedContentData | null> {
   }
 
   try {
-    const data = await readJsonS3<BooksRelatedContentData>(CONTENT_GRAPH_S3_PATHS.BOOKS_RELATED_CONTENT);
-    if (data) {
-      cachedData = data;
+    const rawData = await readJsonS3<unknown>(CONTENT_GRAPH_S3_PATHS.BOOKS_RELATED_CONTENT);
+    const validationResult = booksRelatedContentDataSchema.safeParse(rawData);
+    if (validationResult.success) {
+      cachedData = validationResult.data;
       cacheTimestamp = now;
-      return data;
+      return validationResult.data;
+    } else {
+      envLogger.log(
+        "Books related content validation failed",
+        { errors: validationResult.error.issues },
+        { category: "BooksRelatedContent" },
+      );
     }
   } catch (error) {
-    console.error("[BooksRelatedContent] Failed to fetch from S3:", error);
+    envLogger.log(
+      "Failed to fetch books related content from S3",
+      { error: error instanceof Error ? error.message : String(error) },
+      { category: "BooksRelatedContent" },
+    );
   }
   return null;
 }
