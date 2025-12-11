@@ -59,7 +59,7 @@ export function ThoughtCard({ thought, preload = false }: ThoughtCardProps) {
       {thought.category && (
         <div className="mb-3">
           <Link
-            href={`/thoughts?category=${thought.category}`}
+            href={`/thoughts?category=${encodeURIComponent(thought.category)}`}
             className={cn(
               "inline-flex items-center gap-1.5",
               "px-2 py-0.5",
