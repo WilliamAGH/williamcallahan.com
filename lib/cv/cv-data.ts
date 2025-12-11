@@ -12,7 +12,13 @@ import { experiences } from "@/data/experience";
 import { certifications, education, recentCourses } from "@/data/education";
 import { metadata as siteMetadata } from "@/data/metadata";
 import { projects } from "@/data/projects";
-import { CV_CONTACT_LINKS, CV_PROFESSIONAL_SUMMARY, CV_QUALIFICATIONS, CV_TECHNICAL_FOCUS } from "@/data/cv";
+import {
+  CV_CONTACT_LINKS,
+  CV_LAST_UPDATED_DATE,
+  CV_PROFESSIONAL_SUMMARY,
+  CV_QUALIFICATIONS,
+  CV_TECHNICAL_FOCUS,
+} from "@/data/cv";
 import type {
   CvCertificationEntry,
   CvCourseGroup,
@@ -158,12 +164,13 @@ export const getCvData = (): CvData => {
   const aventureHost = toDisplayHost(CV_CONTACT_LINKS.aventureUrl) ?? "aventure.vc";
   const linkedInLabel = toDisplayUrl(CV_CONTACT_LINKS.linkedInUrl) ?? "linkedin.com/in/williamacallahan";
 
+  // Use build-time constant to avoid DYNAMIC_SERVER_USAGE errors in cached components
   const lastUpdatedDisplay = new Intl.DateTimeFormat("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",
     timeZone: "America/Los_Angeles",
-  }).format(new Date());
+  }).format(CV_LAST_UPDATED_DATE);
 
   return {
     professionalSummary: CV_PROFESSIONAL_SUMMARY,
