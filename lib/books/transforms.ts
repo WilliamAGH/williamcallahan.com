@@ -73,10 +73,30 @@ function determineFormats(
 }
 
 /**
- * Build cover URL from AudioBookShelf item ID
+ * Build DIRECT cover URL from AudioBookShelf.
+ * Used for server-side operations like blur placeholder generation.
+ */
+export function buildDirectCoverUrl(itemId: string, baseUrl: string, apiKey: string): string {
+  return `${baseUrl}/api/items/${itemId}/cover?token=${apiKey}`;
+}
+
+/**
+ * Build cover URL from AudioBookShelf item ID.
+ *
+ * Routes through our local /api/cache/images proxy to avoid Next.js
+ * remote pattern configuration issues. The proxy handles fetching
+ * from AudioBookShelf and caching to S3/CDN.
+ *
+ * Why proxy instead of direct URL?
+ * - Next.js Image Optimization remote patterns require exact config matching
+ * - Deployed builds can have stale/mismatched images-manifest.json
+ * - Local API routes always work regardless of remotePatterns config
+ * - Bonus: Automatic CDN caching through UnifiedImageService
  */
 function buildCoverUrl(itemId: string, baseUrl: string, apiKey: string): string {
-  return `${baseUrl}/api/items/${itemId}/cover?token=${apiKey}`;
+  const directUrl = buildDirectCoverUrl(itemId, baseUrl, apiKey);
+  // Return proxied URL through our local image cache API
+  return `/api/cache/images?url=${encodeURIComponent(directUrl)}`;
 }
 
 /**

@@ -3,7 +3,13 @@
  * Tests that AudioBookShelf API data transforms correctly to Book types.
  */
 
-import { absItemToBook, absItemToBookListItem, absItemsToBooks, absItemsToBookListItems } from "@/lib/books/transforms";
+import {
+  absItemToBook,
+  absItemToBookListItem,
+  absItemsToBooks,
+  absItemsToBookListItems,
+  buildDirectCoverUrl,
+} from "@/lib/books/transforms";
 import type { AbsLibraryItem } from "@/types/schemas/book";
 
 const BASE_OPTIONS = { baseUrl: "https://abs.example.com", apiKey: "test-key" };
@@ -117,10 +123,19 @@ describe("Book Transforms", () => {
   });
 
   describe("Cover URL generation", () => {
-    it("builds authenticated cover URL", () => {
+    it("builds proxied cover URL through local API", () => {
       const item = makeAbsItem({ id: "book-123" });
       const book = absItemToBook(item, BASE_OPTIONS);
-      expect(book.coverUrl).toBe("https://abs.example.com/api/items/book-123/cover?token=test-key");
+      // Cover URLs route through our local /api/cache/images proxy
+      // to avoid Next.js Image Optimization remote pattern issues
+      const expectedDirectUrl = "https://abs.example.com/api/items/book-123/cover?token=test-key";
+      expect(book.coverUrl).toBe(`/api/cache/images?url=${encodeURIComponent(expectedDirectUrl)}`);
+    });
+
+    it("buildDirectCoverUrl returns direct AudioBookShelf URL", () => {
+      // Direct URL is used for server-side operations like blur generation
+      const directUrl = buildDirectCoverUrl("book-456", "https://abs.example.com", "test-key");
+      expect(directUrl).toBe("https://abs.example.com/api/items/book-456/cover?token=test-key");
     });
   });
 
@@ -199,11 +214,13 @@ describe("Book Transforms", () => {
       });
       const listItem = absItemToBookListItem(item, BASE_OPTIONS);
 
+      // Cover URL should be proxied through local API
+      const expectedDirectUrl = "https://abs.example.com/api/items/list-item-id/cover?token=test-key";
       expect(listItem).toEqual({
         id: "list-item-id",
         title: "Grid Book",
         authors: ["Jane Doe"],
-        coverUrl: "https://abs.example.com/api/items/list-item-id/cover?token=test-key",
+        coverUrl: `/api/cache/images?url=${encodeURIComponent(expectedDirectUrl)}`,
       });
     });
   });

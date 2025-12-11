@@ -18,7 +18,7 @@ import {
   type BookListItem,
   type FetchAbsLibraryItemsOptions,
 } from "@/types/schemas/book";
-import { absItemToBook, absItemsToBooks, absItemsToBookListItems } from "./transforms";
+import { absItemToBook, absItemsToBooks, absItemsToBookListItems, buildDirectCoverUrl } from "./transforms";
 import { generateBookCoverBlur } from "./image-utils.server";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -171,12 +171,13 @@ async function fetchBooksFresh(
   const books = absItemsToBooks(items, { baseUrl, apiKey });
 
   // Optionally generate blur placeholders (parallel for performance)
+  // Use direct AudioBookShelf URLs for server-side blur generation
   if (includeBlurPlaceholders) {
     const results = await Promise.allSettled(
       books.map(async book => {
-        if (book.coverUrl) {
-          book.coverBlurDataURL = await generateBookCoverBlur(book.coverUrl);
-        }
+        // Use direct URL for server-side fetch (not the proxied coverUrl)
+        const directUrl = buildDirectCoverUrl(book.id, baseUrl, apiKey);
+        book.coverBlurDataURL = await generateBookCoverBlur(directUrl);
       }),
     );
     // Log any failures for debugging without blocking the response
@@ -257,12 +258,13 @@ export async function fetchBookListItemsWithFallback(
     const items = await fetchAbsLibraryItems(fetchOptions);
     const bookListItems = absItemsToBookListItems(items, { baseUrl, apiKey });
 
+    // Use direct AudioBookShelf URLs for server-side blur generation
     if (includeBlurPlaceholders) {
       const results = await Promise.allSettled(
         bookListItems.map(async book => {
-          if (book.coverUrl) {
-            book.coverBlurDataURL = await generateBookCoverBlur(book.coverUrl);
-          }
+          // Use direct URL for server-side fetch (not the proxied coverUrl)
+          const directUrl = buildDirectCoverUrl(book.id, baseUrl, apiKey);
+          book.coverBlurDataURL = await generateBookCoverBlur(directUrl);
         }),
       );
       results.forEach((result, index) => {
@@ -351,9 +353,10 @@ export async function fetchBookById(
     const item = validateAbsLibraryItem(data);
     const book = absItemToBook(item, { baseUrl, apiKey });
 
-    // Optionally generate blur placeholder
-    if (includeBlurPlaceholder && book.coverUrl) {
-      book.coverBlurDataURL = await generateBookCoverBlur(book.coverUrl);
+    // Optionally generate blur placeholder using direct URL
+    if (includeBlurPlaceholder) {
+      const directUrl = buildDirectCoverUrl(id, baseUrl, apiKey);
+      book.coverBlurDataURL = await generateBookCoverBlur(directUrl);
     }
 
     return book;
