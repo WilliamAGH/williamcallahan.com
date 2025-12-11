@@ -7,6 +7,7 @@
  */
 
 import type { Book, BookListItem } from "@/types/schemas/book";
+import type { WindowStateValue } from "@/types/ui/window";
 
 // =============================================================================
 // UTILITY TYPES
@@ -67,7 +68,7 @@ export interface BooksWindowProps {
  */
 export interface BooksWindowContentProps {
   children: React.ReactNode;
-  windowState: string;
+  windowState: WindowStateValue;
   onClose: () => void;
   onMinimize: () => void;
   onMaximize: () => void;

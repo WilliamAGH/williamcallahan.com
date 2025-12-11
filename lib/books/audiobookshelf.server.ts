@@ -110,13 +110,19 @@ export async function fetchBooks(
 
   // Optionally generate blur placeholders (parallel for performance)
   if (includeBlurPlaceholders) {
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       books.map(async book => {
         if (book.coverUrl) {
           book.coverBlurDataURL = await generateBookCoverBlur(book.coverUrl);
         }
       }),
     );
+    // Log any failures for debugging without blocking the response
+    results.forEach((result, index) => {
+      if (result.status === "rejected") {
+        console.warn(`[AudioBookShelf] Blur placeholder failed for book index ${index}:`, result.reason);
+      }
+    });
   }
 
   return books;
@@ -137,13 +143,19 @@ export async function fetchBookListItems(
 
   // Optionally generate blur placeholders (parallel for performance)
   if (includeBlurPlaceholders) {
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       bookListItems.map(async book => {
         if (book.coverUrl) {
           book.coverBlurDataURL = await generateBookCoverBlur(book.coverUrl);
         }
       }),
     );
+    // Log any failures for debugging without blocking the response
+    results.forEach((result, index) => {
+      if (result.status === "rejected") {
+        console.warn(`[AudioBookShelf] Blur placeholder failed for book list item index ${index}:`, result.reason);
+      }
+    });
   }
 
   return bookListItems;

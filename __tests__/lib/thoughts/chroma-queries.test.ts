@@ -231,6 +231,10 @@ describe("Thoughts Chroma Queries", () => {
           queryTexts: ["test"],
         }),
       );
+
+      // Explicitly verify that 'where' filter is NOT applied when includeDrafts is true
+      const callArgs = mockCollection.query.mock.calls[0]?.[0] as Record<string, unknown> | undefined;
+      expect(callArgs?.where).toBeUndefined();
     });
 
     it("should respect maxDistance option", async () => {
