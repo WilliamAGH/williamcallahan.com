@@ -127,12 +127,14 @@ export const terminalCommands = {
   experience: "/experience",
   projects: "/projects",
   blog: "/blog",
+  books: "/books",
   aventure: "/experience#aventure",
   tsbank: "/experience#tsbank",
   seekinvest: "/experience#seekinvest",
   "callahan-financial": "/experience#callahan-financial",
   "mutual-first": "/experience#mutual-first",
   morningstar: "/experience#morningstar",
+  thoughts: "/thoughts",
 } as const;
 
 const HELP_MESSAGE = `
@@ -143,13 +145,13 @@ Available commands:
 
 Navigate:
   home  investments  experience  education
-  projects  blog  bookmarks
+  projects  blog  bookmarks  books  thoughts
 
 Search:
   <section> <query>  Search within a section
 
   e.g.  investments AI       blog claude
-        projects java        experience techstars
+        projects java        books ai safety
 
 Quick jumps:
   aventure  morningstar  techstars  ...
@@ -371,6 +373,8 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
     "projects",
     "bookmarks",
     "bookmark",
+    "books",
+    "thoughts",
   ] as const;
   const isSearchableSection = (cmd: string): cmd is (typeof SEARCHABLE_SECTIONS)[number] =>
     SEARCHABLE_SECTIONS.includes(cmd as (typeof SEARCHABLE_SECTIONS)[number]);
