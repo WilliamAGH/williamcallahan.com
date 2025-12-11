@@ -50,7 +50,7 @@ Default value: `["ebook"]`
 
 ## URL Structure
 
-```
+```text
 /books                # List all books
 /books/{slug}         # Individual book detail
 ```
