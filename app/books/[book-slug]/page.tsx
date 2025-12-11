@@ -188,15 +188,25 @@ export default async function BookPage({ params }: BookPageProps) {
 /**
  * Generate static params for all books
  * Enables static generation of book pages at build time
+ *
+ * Note: Next.js 16 with Cache Components requires at least one result.
+ * When AudioBookShelf is not configured, we return a placeholder that
+ * will trigger notFound() when accessed.
  */
 export async function generateStaticParams(): Promise<Array<{ "book-slug": string }>> {
   try {
     const books = await fetchBooks();
+    if (books.length === 0) {
+      // Return placeholder to satisfy Next.js 16 Cache Components requirement
+      return [{ "book-slug": "__placeholder__" }];
+    }
     return books.map(book => ({
       "book-slug": generateBookSlug(book.title, book.id, book.authors, book.isbn13, book.isbn10),
     }));
   } catch (error) {
     console.error("[BookPage] Failed to generate static params:", error);
-    return [];
+    // Return placeholder to satisfy Next.js 16 Cache Components requirement
+    // The placeholder slug will never match a real book, triggering notFound()
+    return [{ "book-slug": "__placeholder__" }];
   }
 }
