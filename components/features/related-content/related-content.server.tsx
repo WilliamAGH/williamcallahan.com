@@ -11,7 +11,7 @@ import { findMostSimilar, limitByTypeAndTotal } from "@/lib/content-similarity";
 import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
 import { RelatedContentSection } from "./related-content-section";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
-import { debug } from "@/lib/utils/debug";
+import { debug, isDebug } from "@/lib/utils/debug";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
@@ -272,7 +272,7 @@ export async function RelatedContent({
       // compute additional candidates for just the missing types and merge.
       const allAllowedTypes = includeTypes
         ? new Set(includeTypes)
-        : new Set<RelatedContentType>(["bookmark", "blog", "investment", "project", "book"]);
+        : new Set<RelatedContentType>(["bookmark", "blog", "investment", "project", "thought", "book"]);
       const presentTypes = new Set(relatedItems.map(i => i.type));
       const missingTypes = Array.from(allAllowedTypes).filter(t => !presentTypes.has(t));
 
@@ -334,7 +334,7 @@ export async function RelatedContent({
       cached = getRelatedContent.call(ServerCacheInstance, sourceType, actualSourceId);
     }
     const now = getDeterministicTimestamp();
-    if (cached && cached.timestamp > now - 24 * 60 * 60 * 1000 && !debug) {
+    if (cached && cached.timestamp > now - 24 * 60 * 60 * 1000 && !isDebug) {
       // Apply filtering to cached results
       let items = cached.items;
 
