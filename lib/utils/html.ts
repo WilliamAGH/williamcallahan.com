@@ -30,6 +30,55 @@ const SECTION_HEADERS = [
 /** Bullet characters to normalize */
 const BULLET_CHARS = ["•", "●", "○", "◦", "▪", "▸", "►", "·"];
 
+/** Words that commonly start new paragraphs after bullet lists (signals end of list) */
+const PARAGRAPH_STARTERS = [
+  "In",
+  "Whether",
+  "This",
+  "The",
+  "About",
+  "Purchase",
+  "Each",
+  "Every",
+  "All",
+  "Most",
+  "Some",
+  "Many",
+  "These",
+  "Those",
+  "Throughout",
+  "After",
+  "Before",
+  "As",
+  "When",
+  "Because",
+  "Since",
+  "Although",
+  "While",
+  "If",
+  "With",
+  "Without",
+  "By",
+  "Through",
+  "From",
+  "What",
+  "Who",
+  "Why",
+  "How",
+  "Here",
+  "There",
+  "Now",
+  "Today",
+  "Currently",
+  "Previously",
+  "Finally",
+  "Additionally",
+  "Furthermore",
+  "Moreover",
+  "However",
+  "Nevertheless",
+];
+
 /** Action verbs commonly used at start of list items in book descriptions */
 const ACTION_VERBS = [
   "Master",
@@ -163,10 +212,20 @@ function formatBulletPoints(text: string): string {
   // Handle asterisk bullets at line starts
   result = result.replace(/(?:^|\n)\s*\*\s+/g, "\n• ");
 
-  // Fix bullet items that run into following paragraph text
-  // Specifically target "…and more!" pattern which commonly ends bullet lists
-  // Match: bullet ending with "more!" followed by sentence-starting word
-  result = result.replace(/(\n• .*?more!)\s+([A-Z][a-z])/g, "$1\n\n$2");
+  // Ensure line break BEFORE first bullet in a list (if preceded by text)
+  result = result.replace(/([^\n])\n• /g, "$1\n\n• ");
+
+  // Ensure line break AFTER last bullet item
+  // Case 1: bullet item on its own line, followed by non-bullet line
+  result = result.replace(/(\n• [^\n]+)\n([^•\n])/g, "$1\n\n$2");
+
+  // Case 2: bullet item text runs into paragraph text on SAME line
+  // Detect using paragraph-starting words that signal end of list
+  const paragraphStarterPattern = PARAGRAPH_STARTERS.join("|");
+  result = result.replace(
+    new RegExp(`(\\n• [^•\\n]+?)\\s+(${paragraphStarterPattern})\\s+([A-Z])`, "g"),
+    "$1\n\n$2 $3",
+  );
 
   return result;
 }
