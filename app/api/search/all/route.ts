@@ -6,7 +6,15 @@
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
-import { searchBookmarks, searchEducation, searchExperience, searchInvestments, searchProjects } from "@/lib/search";
+import {
+  searchBookmarks,
+  searchEducation,
+  searchExperience,
+  searchInvestments,
+  searchProjects,
+  searchBooks,
+  searchThoughts,
+} from "@/lib/search";
 import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { validateSearchQuery } from "@/lib/validators/search";
@@ -101,6 +109,8 @@ export async function GET(request: NextRequest) {
     // Perform site-wide search with request coalescing
     const results = await coalesceSearchRequest<SearchResult[]>(`all:${query}`, async () => {
       // Perform searches in parallel but tolerate failures in any individual search source
+      // Note: searchThoughts is synchronous but wrapped in Promise.resolve for Promise.allSettled compatibility
+      const thoughtsPromise: Promise<SearchResult[]> = Promise.resolve(searchThoughts(query));
       const settled = await Promise.allSettled([
         searchBlogPostsServerSide(query),
         searchInvestments(query),
@@ -108,17 +118,29 @@ export async function GET(request: NextRequest) {
         searchEducation(query),
         searchBookmarks(query),
         searchProjects(query),
+        searchBooks(query),
+        thoughtsPromise,
       ]);
 
-      const [blogResults, investmentResults, experienceResults, educationResults, bookmarkResults, projectResults] =
-        settled.map(getFulfilled) as [
-          SearchResult[],
-          SearchResult[],
-          SearchResult[],
-          SearchResult[],
-          SearchResult[],
-          SearchResult[],
-        ];
+      const [
+        blogResults,
+        investmentResults,
+        experienceResults,
+        educationResults,
+        bookmarkResults,
+        projectResults,
+        bookResults,
+        thoughtResults,
+      ] = settled.map(getFulfilled) as [
+        SearchResult[],
+        SearchResult[],
+        SearchResult[],
+        SearchResult[],
+        SearchResult[],
+        SearchResult[],
+        SearchResult[],
+        SearchResult[],
+      ];
 
       // Add category prefixes for clarity in terminal (single source of truth for all prefixes)
       const prefixedBlogResults = blogResults.map(r => ({ ...r, title: `[Blog] ${r.title}` }));
@@ -127,6 +149,8 @@ export async function GET(request: NextRequest) {
       const prefixedEducationResults = educationResults.map(r => ({ ...r, title: `[Education] ${r.title}` }));
       const prefixedBookmarkResults = bookmarkResults.map(r => ({ ...r, title: `[Bookmark] ${r.title}` }));
       const prefixedProjectResults = projectResults.map(r => ({ ...r, title: `[Projects] ${r.title}` }));
+      const prefixedBookResults = bookResults.map(r => ({ ...r, title: `[Books] ${r.title}` }));
+      const prefixedThoughtResults = thoughtResults.map(r => ({ ...r, title: `[Thoughts] ${r.title}` }));
 
       // Limit results per category to prevent memory explosion
       const MAX_RESULTS_PER_CATEGORY = 24;
@@ -140,6 +164,8 @@ export async function GET(request: NextRequest) {
         ...prefixedEducationResults.slice(0, MAX_RESULTS_PER_CATEGORY),
         ...prefixedBookmarkResults.slice(0, MAX_RESULTS_PER_CATEGORY),
         ...prefixedProjectResults.slice(0, MAX_RESULTS_PER_CATEGORY),
+        ...prefixedBookResults.slice(0, MAX_RESULTS_PER_CATEGORY),
+        ...prefixedThoughtResults.slice(0, MAX_RESULTS_PER_CATEGORY),
       ];
 
       // Sort by relevance score (highest first) then limit total results

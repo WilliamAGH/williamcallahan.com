@@ -16,6 +16,8 @@ export const VALID_SCOPES = [
   "education",
   "bookmarks",
   "projects",
+  "books",
+  "thoughts",
 ] as const;
 
 export interface EducationItem {
