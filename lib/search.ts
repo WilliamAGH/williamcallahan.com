@@ -1065,7 +1065,7 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
 
 // --- Thoughts Search (placeholder) ---
 
-export function searchThoughts(query: string): SearchResult[] {
+export async function searchThoughts(query: string): Promise<SearchResult[]> {
   // TODO: Replace with Chroma-backed thoughts search when vector store is available
   const sanitized = sanitizeSearchQuery(query);
   if (!sanitized) return [];
