@@ -1,6 +1,6 @@
 /**
  * Server-side function to filter blog posts based on a query.
- * Searches title, excerpt, tags, author name, and raw content.
+ * Builds a cached MiniSearch index over title, excerpt, tags, and author name.
  *
  * @param query - The search query string.
  * @returns A promise that resolves to an array of matching SearchResult objects.
@@ -9,48 +9,50 @@
 import { assertServerOnly } from "../utils/ensure-server-only";
 assertServerOnly(); // Ensure this module runs only on the server
 
+import MiniSearch from "minisearch";
 import type { SearchResult } from "@/types/search";
+import { ServerCacheInstance } from "../server-cache";
+import { sanitizeSearchQuery } from "../validators/search";
+import { prepareDocumentsForIndexing } from "../utils/search-helpers";
 import { getAllMDXPostsForSearch } from "./mdx";
 import type { BlogPost } from "@/types/blog";
 
-/**
- * Calculate relevance score for a blog post based on query match quality.
- * Higher scores indicate better matches.
- *
- * @param post - The blog post to score
- * @param query - The original search query (lowercase)
- * @param searchTerms - Individual search terms (lowercase)
- * @returns Score from 0 to 1, where 1 is a perfect match
- */
-function calculateBlogRelevanceScore(post: BlogPost, query: string, searchTerms: string[]): number {
-  const title = (post.title || "").toLowerCase();
-  const excerpt = (post.excerpt || "").toLowerCase();
-  const tags = (post.tags || []).map(t => t.toLowerCase());
+// Cache key and TTL for blog search index
+const BLOG_INDEX_CACHE_KEY = "search:index:blog-posts";
+const BLOG_INDEX_TTL_SECONDS = 60 * 60; // 1 hour
 
-  // Exact title match = highest score
-  if (title === query) {
-    return 1.0;
-  }
+async function getBlogSearchIndex(): Promise<MiniSearch<BlogPost>> {
+  const cached = ServerCacheInstance.get<MiniSearch<BlogPost>>(BLOG_INDEX_CACHE_KEY);
+  if (cached) return cached;
 
-  let score = 0;
+  const posts = await getAllMDXPostsForSearch();
+  const index = new MiniSearch<BlogPost>({
+    fields: ["title", "excerpt", "tags", "authorName"],
+    storeFields: ["slug", "title", "excerpt", "publishedAt"],
+    idField: "slug",
+    searchOptions: {
+      boost: { title: 2 },
+      fuzzy: 0.1,
+      prefix: true,
+    },
+    extractField: (document, fieldName) => {
+      if (fieldName === "authorName") {
+        return document.author?.name || "";
+      }
+      if (fieldName === "tags") {
+        return Array.isArray(document.tags) ? document.tags.join(" ") : "";
+      }
+      const field = fieldName as keyof BlogPost;
+      const value = document[field];
+      return typeof value === "string" ? value : "";
+    },
+  });
 
-  // Title contains all terms = high score
-  const titleTermMatches = searchTerms.filter(term => title.includes(term)).length;
-  if (titleTermMatches === searchTerms.length) {
-    score += 0.7;
-  } else {
-    score += (titleTermMatches / searchTerms.length) * 0.5;
-  }
+  const dedupedPosts = prepareDocumentsForIndexing(posts, "Blog Posts", post => post.slug);
+  index.addAll(dedupedPosts);
 
-  // Excerpt contains terms = medium score
-  const excerptTermMatches = searchTerms.filter(term => excerpt.includes(term)).length;
-  score += (excerptTermMatches / searchTerms.length) * 0.2;
-
-  // Tags match = bonus
-  const tagMatches = searchTerms.filter(term => tags.some(tag => tag.includes(term))).length;
-  score += (tagMatches / searchTerms.length) * 0.1;
-
-  return Math.min(score, 1.0);
+  ServerCacheInstance.set(BLOG_INDEX_CACHE_KEY, index, BLOG_INDEX_TTL_SECONDS);
+  return index;
 }
 
 /**
@@ -61,63 +63,44 @@ function calculateBlogRelevanceScore(post: BlogPost, query: string, searchTerms:
  * @returns A promise that resolves to an array of matching SearchResult objects.
  */
 export async function searchBlogPostsServerSide(query: string): Promise<SearchResult[]> {
-  // Use lightweight posts without rawContent to reduce memory usage
-  const allPosts = await getAllMDXPostsForSearch();
-
-  if (!query) {
-    return []; // Return empty if no query provided for a search
+  const sanitizedQuery = sanitizeSearchQuery(query);
+  if (!sanitizedQuery) {
+    return [];
   }
 
-  const normalizedQuery = query.toLowerCase();
-  const searchTerms = normalizedQuery.split(/\s+/).filter(Boolean);
+  const index = await getBlogSearchIndex();
 
-  const results = allPosts.filter(post => {
-    if (!post) return false;
+  const rawResults = index.search(sanitizedQuery, {
+    prefix: true,
+    fuzzy: 0.1,
+    boost: { title: 2, excerpt: 1.25, authorName: 1.1 },
+    combineWith: "AND",
+  }) as Array<{
+    id: string | number;
+    slug?: string;
+    title?: string;
+    excerpt?: string;
+    publishedAt?: string;
+    score?: number;
+  }>;
 
-    if (post.title?.toLowerCase() === normalizedQuery) {
-      return true;
-    }
-
-    // Combine all searchable fields into one long string for better matching
-    // NOTE: rawContent excluded to reduce memory usage during search
-    const allContentText = [
-      post.title || "",
-      post.excerpt || "",
-      ...(post.tags || []),
-      post.author?.name || "",
-      // rawContent excluded - was causing memory explosion
-    ]
-      .filter(field => typeof field === "string" && field.length > 0)
-      .join(" ")
-      .toLowerCase();
-
-    // Check if all search terms exist in the combined text
-    return searchTerms.every(term => allContentText.includes(term));
-  });
-
-  // Map results to SearchResult format with relevance scores
-  // Note: [Blog] prefix is added by the aggregator in /api/search/all for consistency
-  return results
-    .map(post => ({
-      post,
-      score: calculateBlogRelevanceScore(post, normalizedQuery, searchTerms),
+  // Map to SearchResult and keep a deterministic sort: score desc, then recency
+  return rawResults
+    .map(result => ({
+      id: String(result.id),
+      type: "blog-post" as const,
+      title: result.title ?? "Untitled Post",
+      description: result.excerpt ?? "No excerpt available.",
+      url: `/blog/${result.slug ?? result.id}`,
+      score: result.score ?? 0,
+      publishedAt: result.publishedAt,
     }))
     .toSorted((a, b) => {
-      // Primary sort: relevance score (descending)
-      // Secondary sort: recency (descending) for same scores
       const scoreDiff = b.score - a.score;
       if (Math.abs(scoreDiff) > 0.01) return scoreDiff;
-      return new Date(b.post.publishedAt).getTime() - new Date(a.post.publishedAt).getTime();
+      const aDate = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const bDate = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+      return bDate - aDate;
     })
-    .map(
-      ({ post, score }) =>
-        ({
-          id: post.slug,
-          type: "blog-post",
-          title: post.title || "Untitled Post",
-          description: post.excerpt || "No excerpt available.",
-          url: `/blog/${post.slug}`,
-          score,
-        }) as SearchResult,
-    );
+    .map(({ publishedAt: _publishedAt, ...rest }) => rest);
 }
