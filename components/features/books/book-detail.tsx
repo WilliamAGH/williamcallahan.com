@@ -26,6 +26,7 @@ import {
   MessageSquareQuote,
   Library,
   Tag,
+  type LucideIcon,
 } from "lucide-react";
 import type { BookFormat } from "@/types/schemas/book";
 import type { BookDetailProps } from "@/types/features/books";
@@ -80,15 +81,7 @@ function FormatBadge({ format, large = false }: { format: BookFormat; large?: bo
   );
 }
 
-function ExternalLinkButton({
-  href,
-  label,
-  icon: Icon,
-}: {
-  href: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}) {
+function ExternalLinkButton({ href, label, icon: Icon }: { href: string; label: string; icon: LucideIcon }) {
   return (
     <a
       href={href}
