@@ -87,6 +87,8 @@ const PAGE_OG_IMAGE_MAP: Record<keyof typeof PAGE_METADATA, keyof typeof SEO_IMA
   education: "ogEducation",
   investments: "ogInvestments",
   contact: "ogContact",
+  books: "ogDefault",
+  thoughts: "ogDefault",
 };
 
 /**
@@ -230,7 +232,9 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
 
   // Determine page type and breadcrumbs
   const isProfilePage = ["home", "experience", "education"].includes(pageKey);
-  const isCollectionPage = ["blog", "investments", "bookmarks", "projects", "contact"].includes(pageKey);
+  const isCollectionPage = ["blog", "investments", "bookmarks", "projects", "contact", "books", "thoughts"].includes(
+    pageKey,
+  );
   const isDatasetPage = pageKey === "investments";
 
   const breadcrumbs =

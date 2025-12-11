@@ -118,6 +118,12 @@ export const profilePageMetadataSchema = basePageMetadataSchema.extend({
  */
 export const collectionPageMetadataSchema = basePageMetadataSchema.extend({
   bio: z.never().optional(), // Explicitly no bio for collection pages
+  /** Optional UI-specific title that differs from meta title (for on-page display) */
+  uiTitle: z.string().optional(),
+  /** Optional UI-specific description that differs from meta description */
+  uiDescription: z.string().optional(),
+  /** Optional disclaimer text shown below the description */
+  disclaimer: z.string().optional(),
 });
 
 /**
@@ -193,12 +199,15 @@ export const metadataSchema = z.object({
 export const pageMetadataSchemas = {
   home: profilePageMetadataSchema,
   experience: profilePageMetadataSchema,
+  cv: profilePageMetadataSchema,
   education: profilePageMetadataSchema,
   investments: collectionPageMetadataSchema,
   bookmarks: collectionPageMetadataSchema,
   blog: collectionPageMetadataSchema,
   projects: collectionPageMetadataSchema,
   contact: collectionPageMetadataSchema,
+  books: collectionPageMetadataSchema,
+  thoughts: collectionPageMetadataSchema,
 } as const;
 
 /**
