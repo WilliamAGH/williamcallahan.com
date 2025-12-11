@@ -9,6 +9,16 @@
 import type { Book, BookListItem } from "@/types/schemas/book";
 
 // =============================================================================
+// UTILITY TYPES
+// =============================================================================
+
+/**
+ * Minimal book fields required for slug generation
+ * Used by lib/books/slug-helpers.ts for type-safe slug operations
+ */
+export type BookSlugInput = Pick<Book, "id" | "title" | "authors" | "isbn13" | "isbn10">;
+
+// =============================================================================
 // PAGE PROPS (Next.js App Router)
 // =============================================================================
 

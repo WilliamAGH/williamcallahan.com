@@ -245,7 +245,7 @@ const collectBookSitemapData = async (
     }
 
     const entries: MetadataRoute.Sitemap = books.map(book => {
-      const slug = generateBookSlug(book.title, book.id);
+      const slug = generateBookSlug(book.title, book.id, book.authors, book.isbn13, book.isbn10);
       return {
         url: `${siteUrl}/books/${slug}`,
         changeFrequency: BOOK_CHANGE_FREQUENCY,
