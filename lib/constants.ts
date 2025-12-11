@@ -61,6 +61,7 @@ export const LOGO_BLOCKLIST_S3_PATH = `json/rate-limit/logo-failed-domains${envS
 export const CONTENT_GRAPH_S3_PATHS = {
   DIR: `json/content-graph${envSuffix}`,
   RELATED_CONTENT: `json/content-graph${envSuffix}/related-content.json`,
+  BOOKS_RELATED_CONTENT: `json/content-graph${envSuffix}/books-related.json`,
   TAG_GRAPH: `json/content-graph${envSuffix}/tag-graph.json`,
   METADATA: `json/content-graph${envSuffix}/metadata.json`,
 } as const;
@@ -297,9 +298,12 @@ export const CACHE_TTL = { DEFAULT: 30 * 24 * 60 * 60, DAILY: 24 * 60 * 60, HOUR
 
 /** SEO Title Suffixes for dynamic pages */
 export const SEO_TITLE_SUFFIXES = {
-  BLOG: "William Callahan's Blog",
-  BOOKMARKS: "William Callahan's Bookmarks",
-  DEFAULT: "William Callahan's Homepage - San Francisco",
+  BLOG: "William Callahan - Blog",
+  BOOKMARKS: "William Callahan - Bookmarks",
+  BOOKS: "William Callahan - Bookshelf (Library)",
+  THOUGHTS: "William Callahan - Thoughts and Ruminations",
+  HOMEPAGE: "William Callahan - San Francisco, California",
+  DEFAULT: "William Callahan",
 } as const;
 
 /** Common redundant prefixes to remove from titles to save space */

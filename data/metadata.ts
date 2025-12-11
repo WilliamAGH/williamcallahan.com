@@ -223,6 +223,23 @@ export const PAGE_METADATA = {
     dateCreated: "2025-05-03T15:00:00",
     dateModified: "2025-11-04T15:00:00",
   } as CollectionPageMetadata,
+  books: {
+    title: `Bookshelf (Reading List) - ${SITE_NAME}`,
+    description: `Explore ${SITE_NAME}'s personal reading list featuring books and audiobooks on technology, engineering, AI, fiction, finance, research, business, and anything else that interests me.`,
+    uiTitle: "Bookshelf (Reading List)",
+    uiDescription:
+      "A sampling from my personal library of books I've read. I regularly and more recently read primarily from the genres of software engineering, fiction (mystery, science, thriller), AI, finance, and research topics.",
+    disclaimer:
+      "Note, if this list seems small and shallow, that's because it is! I plan to add additional API sources of my personal libraries, but it's a bit fragmented between several different libraries at the moment (AudioBookShelf, Audible.com, Kindle, and Libby, among others).",
+    dateCreated: "2025-12-10T00:00:00",
+    dateModified: "2025-12-10T00:00:00",
+  } as CollectionPageMetadata,
+  thoughts: {
+    title: `Thoughts - ${SITE_NAME}`,
+    description: `My personal ruminations and thoughts, sometimes fleeting and others retrieved from my long-term memory, that may or may not pass the test of time.`,
+    dateCreated: "2025-12-10T00:00:00",
+    dateModified: "2025-12-10T00:00:00",
+  } as CollectionPageMetadata,
 } as const;
 
 /**
@@ -256,6 +273,8 @@ export const PAGE_OG_ASPECT: Record<keyof typeof PAGE_METADATA, keyof typeof OG_
   blog: "legacy",
   projects: "modern",
   contact: "legacy",
+  books: "modern",
+  thoughts: "modern",
 } as const;
 
 /**
