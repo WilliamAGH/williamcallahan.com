@@ -4,9 +4,8 @@
  * Provides client-side access to bookmarks with pagination support.
  */
 
-import { BookmarksIndexSchema } from "@/lib/schemas/bookmarks";
+import { bookmarksIndexSchema as BookmarksIndexSchema, type BookmarksIndex } from "@/types/bookmark";
 import { BOOKMARKS_PER_PAGE, BOOKMARKS_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
-import type { BookmarksIndex } from "@/types/bookmark";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import { unstable_noStore as noStore } from "next/cache";
