@@ -51,6 +51,7 @@ async function absApi<T>(path: string, validate: (data: unknown) => T): Promise<
 
   const response = await fetchWithTimeout(url, {
     timeout: 10000,
+    cache: "no-store",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       Accept: "application/json",
@@ -176,6 +177,7 @@ export async function fetchBookById(
   try {
     const response = await fetchWithTimeout(`${baseUrl}/api/items/${id}?expanded=1`, {
       timeout: 10000,
+      cache: "no-store",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         Accept: "application/json",

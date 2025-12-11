@@ -5,15 +5,14 @@
  * Displays personal reading list sourced from AudioBookShelf and other providers.
  * Implements proper SEO with schema.org structured data.
  *
- * Uses PPR (Partial Prerendering) pattern: static shell with JSON-LD and layout
- * is prerendered, while the dynamic book grid is wrapped in Suspense and uses
- * connection() internally to fetch live data at request time.
+ * Runtime policy: cacheComponents disallows route-level `dynamic` flags;
+ * freshness comes from the book data fetches that opt into `no-store` semantics
+ * instead of build-time snapshots.
  *
  * @see {@link "https://nextjs.org/docs/app/api-reference/functions/generate-metadata"} - Next.js Metadata API
  * @see {@link "https://schema.org/CollectionPage"} - Schema.org CollectionPage specification
  */
 
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import { BooksServer } from "@/components/features/books/books.server";
 
@@ -32,16 +31,11 @@ export function generateMetadata(): Metadata {
 }
 
 /**
- * Books page using PPR pattern.
+ * Books page matching the bookmarks pattern.
  *
- * The page shell (JSON-LD, layout wrapper) is static and prerendered.
- * The BooksServer component is wrapped in Suspense and calls connection()
- * internally to create a "dynamic hole" that renders at request time.
- *
- * This pattern allows:
- * - Fast initial page load with static shell
- * - Fresh book data from AudioBookShelf API on each request
- * - Proper handling of bot requests (bots see the static shell + streamed content)
+ * Renders BooksServer directly without Suspense at page level.
+ * The server component handles data fetching using the Cache Components pattern
+ * (cacheLife/cacheTag) rather than PPR/connection().
  */
 export default function BooksPage() {
   const pageMetadata = PAGE_METADATA.books;
@@ -77,21 +71,7 @@ export default function BooksPage() {
     <>
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-6xl mx-auto">
-        <Suspense
-          fallback={
-            <div className="animate-pulse p-8">
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4" />
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mb-8" />
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="h-64 bg-gray-200 dark:bg-gray-700 rounded-lg" />
-                ))}
-              </div>
-            </div>
-          }
-        >
-          <BooksServer title={displayTitle} description={displayDescription} disclaimer={pageMetadata.disclaimer} />
-        </Suspense>
+        <BooksServer title={displayTitle} description={displayDescription} disclaimer={pageMetadata.disclaimer} />
       </div>
     </>
   );
