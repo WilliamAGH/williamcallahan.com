@@ -36,10 +36,9 @@ When creating a thought via `thoughtInputSchema`:
 
 ## URL Structure
 
-```
+```text
 /thoughts                     # List all thoughts
-/thoughts/{slug}              # Individual thought (no category)
-/thoughts/{category}/{slug}   # Individual thought (with category)
+/thoughts/{slug}              # Individual thought
 ```
 
 ## Content Format
