@@ -1,9 +1,14 @@
+"use cache";
 /**
  * Book Detail Page
  * @module app/books/[book-slug]/page
  * @description
  * Displays individual book details with metadata, cover, and personal notes.
  * Uses slug-based routing for SEO-friendly URLs.
+ *
+ * Uses the "use cache" directive for Next.js 16 Cache Components pattern.
+ * This allows the page to be cached while still fetching fresh data based on
+ * cacheLife and cacheTag settings.
  *
  * @todo Investigate Google Search schema.org Book structured data
  * - Consider adding schema.org/Book type for rich search results
@@ -21,6 +26,8 @@ import { RelatedContentFallback } from "@/components/features/related-content/re
 import { fetchBooks } from "@/lib/books/audiobookshelf.server";
 import { findBookBySlug } from "@/lib/books/slug-helpers";
 import { getStaticPageMetadata } from "@/lib/seo";
+import { cacheContextGuards } from "@/lib/cache";
+import { TIME_CONSTANTS } from "@/lib/constants";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
@@ -29,10 +36,23 @@ import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import type { Book } from "@/types/schemas/book";
 import type { BookPageProps } from "@/types/features/books";
 
+// Cache TTL for book pages - 1 hour minimum, or aligned with bookmarks interval
+const BOOK_PAGE_CACHE_SECONDS = Math.max(3600, Math.round(TIME_CONSTANTS.BOOKMARKS_PRELOAD_INTERVAL_MS / 1000));
+
 async function getBookBySlug(slug: string): Promise<Book | null> {
+  "use cache";
+  cacheContextGuards.cacheLife("BookPage", { revalidate: BOOK_PAGE_CACHE_SECONDS });
+  cacheContextGuards.cacheTag("BookPage", "books", `book-slug-${slug}`);
+
   try {
     const books = await fetchBooks();
-    return findBookBySlug(slug, books);
+    const book = findBookBySlug(slug, books);
+
+    if (book?.id) {
+      cacheContextGuards.cacheTag("BookPage", `book-${book.id}`);
+    }
+
+    return book;
   } catch (error) {
     console.error(`[BookPage] Failed to fetch book for slug "${slug}":`, error);
     return null;
@@ -62,8 +82,8 @@ function buildBookOgImageUrl(book: Book): string {
   return ensureAbsoluteUrl(`/api/og/books?${params.toString()}`);
 }
 
-export async function generateMetadata({ params }: BookPageProps): Promise<Metadata> {
-  const { "book-slug": slug } = await params;
+export async function generateMetadata({ params }: { params: { "book-slug": string } }): Promise<Metadata> {
+  const { "book-slug": slug } = await Promise.resolve(params);
   const path = `/books/${slug}`;
   const book = await getBookBySlug(slug);
 
@@ -127,7 +147,7 @@ export async function generateMetadata({ params }: BookPageProps): Promise<Metad
 }
 
 export default async function BookPage({ params }: BookPageProps) {
-  const { "book-slug": slug } = await params;
+  const { "book-slug": slug } = await Promise.resolve(params);
   const book = await getBookBySlug(slug);
 
   if (!book) {
