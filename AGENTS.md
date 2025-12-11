@@ -66,12 +66,13 @@ SCHEMA_VERSION: 4.x
 
 # Directories
 TYPES_DIR: types/
-SCHEMAS_DIR: lib/schemas/
+SCHEMAS_DIR: types/schemas/
 DOCS_DIR: docs/
 COMPONENTS_DIR: components/
 STYLES_DIR: styles/
 PUBLIC_DIR: public/
 CONFIG_DIR: config/
+LIB_DIR: lib/
 
 # CI/CD & Deployment
 CI_PROVIDER: GitHub Actions
@@ -440,6 +441,44 @@ bun run validate
 - Validate external data with Zod schemas
 - Follow strictest TypeScript settings
 - Pass validation with ZERO errors/warnings
+
+### Schema & Type Organization
+
+**Zod schemas define types - NEVER duplicate type definitions manually.**
+
+| Location             | Purpose                                                     |
+| -------------------- | ----------------------------------------------------------- |
+| `types/schemas/*.ts` | Zod v4 schemas with exported inferred types via `z.infer<>` |
+| `types/*.ts`         | Non-schema types (interfaces, enums, utility types)         |
+| `lib/*.ts`           | Transformation logic, data access, business logic           |
+
+**Pattern:**
+
+```typescript
+// types/schemas/thought.ts
+import { z } from "zod/v4";
+
+export const thoughtSchema = z.object({
+  id: z.uuid(),
+  title: z.string(),
+  // ...
+});
+
+// Type is inferred - NEVER manually redefine
+export type Thought = z.infer<typeof thoughtSchema>;
+```
+
+**FORBIDDEN:**
+
+```typescript
+// ❌ NEVER manually duplicate types that exist in schemas
+interface Thought {
+  id: string;
+  title: string;
+}
+```
+
+**`lib/` is for transformation logic, NOT schema definitions.**
 
 ### 🧪 TESTING REQUIREMENTS
 
