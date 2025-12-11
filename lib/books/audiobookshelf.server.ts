@@ -14,6 +14,7 @@
 import { fetchWithTimeout } from "@/lib/utils/http-client";
 import {
   validateAbsLibraryItemsResponse,
+  validateAbsLibraryItem,
   type AbsLibraryItem,
   type AbsSortField,
   type Book,
@@ -175,8 +176,8 @@ export async function fetchBookById(
     }
 
     const data: unknown = await response.json();
-    // Single item response has different shape - validate inline
-    const item = data as AbsLibraryItem;
+    // Validate single item response against schema
+    const item = validateAbsLibraryItem(data);
     const book = absItemToBook(item, { baseUrl, apiKey });
 
     // Optionally generate blur placeholder
