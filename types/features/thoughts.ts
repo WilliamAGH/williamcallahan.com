@@ -7,6 +7,7 @@
  */
 
 import type { ThoughtListItem, Thought } from "@/types/schemas/thought";
+import type { WindowStateValue } from "@/types/ui/window";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Window Component Props
@@ -26,7 +27,7 @@ export interface ThoughtsWindowProps {
  */
 export interface ThoughtsWindowContentProps {
   children: React.ReactNode;
-  windowState: string;
+  windowState: WindowStateValue;
   onClose: () => void;
   onMinimize: () => void;
   onMaximize: () => void;
