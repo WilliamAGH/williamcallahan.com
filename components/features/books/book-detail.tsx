@@ -43,7 +43,7 @@ function formatDuration(seconds: number): string {
 }
 
 function FormatBadge({ format, large = false }: { format: BookFormat; large?: boolean }) {
-  const config = {
+  const config: Record<BookFormat, { icon: typeof Headphones; label: string; className: string }> = {
     audio: {
       icon: Headphones,
       label: "Audiobook",
