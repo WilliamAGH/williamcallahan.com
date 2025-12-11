@@ -94,6 +94,8 @@ export const SECTION_KEYS = [
   "blog",
   "bookmarks",
   "bookmark",
+  "books",
+  "thoughts",
   "aventure",
   "tsbank",
   "seekinvest",

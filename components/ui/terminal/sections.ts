@@ -15,6 +15,8 @@ export const sections: Record<SectionKey, string> = {
   blog: "/blog",
   bookmarks: "/bookmarks",
   bookmark: "/bookmarks", // allows for singular and plural form
+  books: "/books",
+  thoughts: "/thoughts",
   aventure: "/experience#aventure",
   tsbank: "/experience#tsbank",
   seekinvest: "/experience#seekinvest",
