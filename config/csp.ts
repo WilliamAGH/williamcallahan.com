@@ -5,6 +5,18 @@
  * It is used by the middleware to set the Content-Security-Policy header.
  *
  * @module config/csp
+ *
+ * @remarks
+ * Self-hosted infrastructure domains (popos-sf1 through popos-sf7.com):
+ * These hosts run various self-hosted services that this application depends on:
+ * - AudioBookShelf (popos-sf3.com) - Personal reading library API and book cover images
+ * - Media servers and content APIs
+ * - Other self-hosted applications
+ *
+ * All subdomains of popos-sf1.com through popos-sf7.com are whitelisted in:
+ * - connectSrc: For API requests to these services
+ * - imgSrc: For loading images (book covers, thumbnails, etc.)
+ * - next.config.ts remotePatterns: For Next.js Image Optimization
  */
 
 const RAILWAY_TEST_DEPLOYMENTS = "https://*.up.railway.app";
@@ -51,6 +63,14 @@ export const CSP_DIRECTIVES = {
     "https://dev.williamcallahan.com",
     "https://*.williamcallahan.com",
     "https://williamcallahancom-production.up.railway.app",
+    // Self-hosted infrastructure (popos-sf1 through sf7) - AudioBookShelf, media servers, etc.
+    "https://*.popos-sf1.com",
+    "https://*.popos-sf2.com",
+    "https://*.popos-sf3.com",
+    "https://*.popos-sf4.com",
+    "https://*.popos-sf5.com",
+    "https://*.popos-sf6.com",
+    "https://*.popos-sf7.com",
     RAILWAY_TEST_DEPLOYMENTS,
   ],
   workerSrc: ["'self'", "blob:"],
@@ -64,6 +84,14 @@ export const CSP_DIRECTIVES = {
     "https://*.digitaloceanspaces.com",
     "https://*.sfo3.digitaloceanspaces.com",
     "https://williamcallahan-com.sfo3.digitaloceanspaces.com",
+    // Self-hosted infrastructure (popos-sf1 through sf7) - AudioBookShelf covers, media thumbnails, etc.
+    "https://*.popos-sf1.com",
+    "https://*.popos-sf2.com",
+    "https://*.popos-sf3.com",
+    "https://*.popos-sf4.com",
+    "https://*.popos-sf5.com",
+    "https://*.popos-sf6.com",
+    "https://*.popos-sf7.com",
     "https:",
     RAILWAY_TEST_DEPLOYMENTS,
   ],
