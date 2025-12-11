@@ -169,10 +169,42 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">{title}</h3>
             </div>
           </div>
+        ) : type === "book" && metadata.imageUrl && !imageError ? (
+          /* Book covers need vertical orientation - aspect-[4/5] matches typical tech book covers */
+          <div className="flex items-start gap-3 mb-3">
+            <div className="relative w-16 flex-shrink-0 aspect-[4/5] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 shadow-sm">
+              {imageLoading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              <Image
+                src={metadata.imageUrl}
+                alt={title}
+                fill
+                className={`object-cover transition-opacity duration-200 ${imageLoading ? "opacity-0" : "opacity-100"}`}
+                sizes="64px"
+                quality={80}
+                onLoad={() => setImageLoading(false)}
+                onError={() => {
+                  setImageError(true);
+                  setImageLoading(false);
+                  if (process.env.NODE_ENV === "development") {
+                    console.warn(`Failed to load book cover for ${title}: ${metadata.imageUrl}`);
+                  }
+                }}
+                unoptimized={isExternalImage}
+                priority={false}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">{title}</h3>
+            </div>
+          </div>
         ) : (
           <>
-            {/* Regular images for other content types */}
-            {metadata.imageUrl && !imageError && type !== "investment" && (
+            {/* Horizontal images for blog posts and bookmarks */}
+            {metadata.imageUrl && !imageError && type !== "investment" && type !== "book" && (
               <div className="relative w-full h-32 mb-3 rounded overflow-hidden bg-gray-100 dark:bg-gray-700">
                 {imageLoading && (
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -199,8 +231,8 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
               </div>
             )}
 
-            {/* Title for non-investment types or investments without logos */}
-            {type !== "investment" || !metadata.imageUrl || imageError ? (
+            {/* Title for non-investment/non-book types, or when image is missing/errored */}
+            {(type !== "investment" && type !== "book") || !metadata.imageUrl || imageError ? (
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">{title}</h3>
             ) : null}
           </>
