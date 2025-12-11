@@ -19,6 +19,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { cacheLife } from "next/cache";
 import { BookDetail } from "@/components/features/books/book-detail";
+import { RelatedContent } from "@/components/features/related-content/related-content.server";
+import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
 import { fetchBooks } from "@/lib/books/audiobookshelf.server";
 import { findBookBySlug, generateBookSlug } from "@/lib/books/slug-helpers";
 import { getStaticPageMetadata } from "@/lib/seo";
@@ -134,6 +136,12 @@ export default async function BookPage({ params }: BookPageProps) {
         >
           <BookDetail book={book} />
         </Suspense>
+
+        <div className="mt-12">
+          <Suspense fallback={<RelatedContentFallback title="Similar Content" />}>
+            <RelatedContent sourceType="book" sourceId={book.id} sectionTitle="Similar Content" />
+          </Suspense>
+        </div>
       </div>
     </>
   );
