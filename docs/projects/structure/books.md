@@ -143,8 +143,71 @@ Uses `types/lib.ts` standard pagination pattern:
 - Book recommendations via ML
 - RSS/Atom feed for reading activity
 
-## Runtime Strategy (request-time, cacheComponents-safe)
+## Runtime Strategy (static prerender, cacheComponents-safe)
 
-- **Detail pages** resolve slugs by extracting the ABS ID/ISBN first, fetching a single item, and fall back to a last-good in-memory snapshot when AudioBookShelf is unavailable.
-- **List page** fetches at request time with `connection()` and shows a stale banner if it has to serve cached data.
-- **No build-time fetching**: the sitemap skips books during builds, and pages rely purely on request-time data to avoid cacheComponents conflicts.
+### Core Approach
+
+Both `/books` (list) and `/books/[book-slug]` (detail) pages are **statically prerendered** with 5-minute revalidation. No `connection()` bailout is used—this allows pages to be analyzed at build time while fetching fresh data via time-based revalidation.
+
+### Implementation Details
+
+| Route                | Rendering | Revalidation | Fallback                            |
+| -------------------- | --------- | ------------ | ----------------------------------- |
+| `/books`             | Static    | 5 minutes    | Empty state + "unavailable" message |
+| `/books/[book-slug]` | Static    | 5 minutes    | In-memory snapshot (6h TTL) or 404  |
+
+### Key Design Decisions
+
+1. **No `connection()` bailout**: Using `connection()` from `next/server` causes `DYNAMIC_SERVER_USAGE` errors with `cacheComponents: true`. Removed entirely.
+
+2. **Time-based revalidation over `no-store`**: Using `cache: "no-store"` (equivalent to `revalidate: 0`) causes "Page changed from static to dynamic at runtime" errors. Use `next: { revalidate: 300 }` instead.
+
+3. **Prerender-safe timestamps**: `Date.now()` before data access causes `next-prerender-current-time` errors. The snapshot system uses `fetchedAt: 0` as a prerender-safe sentinel value.
+
+4. **Graceful degradation**: When AudioBookShelf is unavailable:
+   - List page returns empty array (renders "unavailable" UI)
+   - Detail pages fall back to in-memory snapshot if within 6-hour TTL
+   - Never throws—pages always render
+
+### Files Involved
+
+| File                                         | Purpose                                                     |
+| -------------------------------------------- | ----------------------------------------------------------- |
+| `components/features/books/books.server.tsx` | Server component (no `connection()`)                        |
+| `lib/books/audiobookshelf.server.ts`         | API client with 5-min revalidation, prerender-safe snapshot |
+| `app/books/page.tsx`                         | List page with Suspense boundary                            |
+| `app/books/[book-slug]/page.tsx`             | Detail page with fallback banner                            |
+
+### Critical Patterns (cacheComponents-safe)
+
+```typescript
+// ✅ CORRECT: Time-based revalidation
+const response = await fetchWithTimeout(url, {
+  next: { revalidate: 300 }, // 5 minutes
+  headers: { Authorization: `Bearer ${apiKey}` },
+});
+
+// ❌ BROKEN: Causes static-to-dynamic error
+const response = await fetch(url, { cache: "no-store" });
+
+// ✅ CORRECT: Prerender-safe timestamp
+const cacheSnapshot = (books: Book[]): void => {
+  lastBooksSnapshot = {
+    booksById: new Map(books.map(book => [book.id, book])),
+    fetchedAt: 0, // prerender-safe sentinel
+  };
+};
+
+// ❌ BROKEN: Causes next-prerender-current-time error
+const cacheSnapshot = (books: Book[]): void => {
+  lastBooksSnapshot = {
+    booksById: new Map(books.map(book => [book.id, book])),
+    fetchedAt: Date.now(), // ❌ Not allowed before data access
+  };
+};
+```
+
+### Sitemap Considerations
+
+- Sitemap skips books during builds to avoid external API dependency
+- Book URLs are generated at runtime when AudioBookShelf is available
