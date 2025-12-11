@@ -10,6 +10,7 @@
  */
 
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { BooksServer } from "@/components/features/books/books.server";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -25,7 +26,10 @@ export function generateMetadata(): Metadata {
   return getStaticPageMetadata("/books", "books");
 }
 
-export default function BooksPage() {
+export default async function BooksPage() {
+  // Mark this route as request-time under cacheComponents to avoid static prerender
+  await connection();
+
   const pageMetadata = PAGE_METADATA.books;
 
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
