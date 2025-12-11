@@ -150,6 +150,26 @@ async function toRelatedContentItem(
       };
     }
 
+    case "book": {
+      const bookDetails = display?.book;
+      const metadata: RelatedContentItem["metadata"] = {
+        ...baseMetadata,
+        imageUrl: display?.imageUrl ? ensureAbsoluteUrl(display.imageUrl) : undefined,
+        authors: bookDetails?.authors,
+        formats: bookDetails?.formats,
+      };
+
+      return {
+        type: content.type,
+        id: content.id,
+        title: content.title,
+        description: display?.description || "",
+        url: content.url,
+        score: content.score,
+        metadata,
+      };
+    }
+
     default:
       return {
         type: content.type,
@@ -248,11 +268,11 @@ export async function RelatedContent({
 
       const relatedItems = (await Promise.all(relatedItemPromises)).filter((i): i is RelatedContentItem => i !== null);
 
-      // If precomputed items exist but are missing some allowed content types (e.g., projects),
+      // If precomputed items exist but are missing some allowed content types (e.g., projects, books),
       // compute additional candidates for just the missing types and merge.
       const allAllowedTypes = includeTypes
         ? new Set(includeTypes)
-        : new Set<RelatedContentType>(["bookmark", "blog", "investment", "project"]);
+        : new Set<RelatedContentType>(["bookmark", "blog", "investment", "project", "book"]);
       const presentTypes = new Set(relatedItems.map(i => i.type));
       const missingTypes = Array.from(allAllowedTypes).filter(t => !presentTypes.has(t));
 
@@ -314,7 +334,7 @@ export async function RelatedContent({
       cached = getRelatedContent.call(ServerCacheInstance, sourceType, actualSourceId);
     }
     const now = getDeterministicTimestamp();
-    if (cached && cached.timestamp > now - 15 * 60 * 1000 && !debug) {
+    if (cached && cached.timestamp > now - 24 * 60 * 60 * 1000 && !debug) {
       // Apply filtering to cached results
       let items = cached.items;
 

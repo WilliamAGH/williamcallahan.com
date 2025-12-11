@@ -2,13 +2,13 @@
  * Related Content Types
  *
  * Type definitions for the related content recommendation system that suggests
- * relevant content across bookmarks, blog posts, investments, and projects.
+ * relevant content across bookmarks, blog posts, investments, projects, and books.
  */
 
 /**
  * Content types that can be related/recommended
  */
-export type RelatedContentType = "bookmark" | "blog" | "investment" | "project";
+export type RelatedContentType = "bookmark" | "blog" | "investment" | "project" | "thought" | "book";
 
 /**
  * Base interface for related content items
@@ -58,6 +58,10 @@ export interface RelatedContentMetadata {
     readonly name: string;
     readonly avatar?: string;
   };
+  /** Authors list (for books) */
+  readonly authors?: readonly string[];
+  /** Book formats (ebook, audio, print) */
+  readonly formats?: readonly string[];
 }
 
 /**
@@ -168,6 +172,11 @@ export interface NormalizedContentDisplay {
   };
   project?: {
     imageKey?: string;
+  };
+  book?: {
+    authors?: string[];
+    formats?: string[];
+    slug: string;
   };
 }
 
