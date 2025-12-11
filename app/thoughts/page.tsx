@@ -15,7 +15,7 @@ import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
-import type { ThoughtListItem } from "@/types/schemas/thought";
+import { getThoughtListItems } from "@/lib/thoughts/service.server";
 
 /**
  * Generate static metadata for the Thoughts page
@@ -23,64 +23,10 @@ import type { ThoughtListItem } from "@/types/schemas/thought";
 export const metadata: Metadata = getStaticPageMetadata("/thoughts", "thoughts");
 
 /**
- * Mock data for development - replace with actual data source
- * TODO: Implement thoughts data access layer (lib/thoughts/service.server.ts)
- */
-function getThoughts(): Promise<ThoughtListItem[]> {
-  // Placeholder data for development and visual testing
-  // This should be replaced with actual data fetching from your data source
-  const mockThoughts: ThoughtListItem[] = [
-    {
-      id: "550e8400-e29b-41d4-a716-446655440001",
-      slug: "subtests-in-pytest",
-      title: "Subtests in pytest 9.0.0+",
-      excerpt:
-        "pytest 9.0.0 introduced native subtest support via the subtests fixture. This is a game-changer for parameterized testing where you want all cases to run even if one fails.",
-      createdAt: "2025-12-04T21:44:04-08:00",
-      category: "python",
-      tags: ["testing", "pytest"],
-    },
-    {
-      id: "550e8400-e29b-41d4-a716-446655440002",
-      slug: "css-has-selector",
-      title: "CSS :has() is finally here",
-      excerpt:
-        "The :has() selector lets you style parents based on their children. After years of waiting, we can finally do things like styling a card differently when it contains an image.",
-      createdAt: "2025-12-03T14:30:00-08:00",
-      category: "css",
-      tags: ["css", "selectors", "frontend"],
-    },
-    {
-      id: "550e8400-e29b-41d4-a716-446655440003",
-      slug: "bun-test-improvements",
-      title: "Bun test runner keeps getting better",
-      excerpt:
-        "The latest Bun release includes significant improvements to the test runner: better Jest compatibility, snapshot testing, and dramatically faster execution times.",
-      createdAt: "2025-12-01T10:15:00-08:00",
-      category: "tooling",
-      tags: ["bun", "testing", "javascript"],
-    },
-    {
-      id: "550e8400-e29b-41d4-a716-446655440004",
-      slug: "typescript-satisfies-operator",
-      title: "TypeScript satisfies is underrated",
-      excerpt:
-        "The satisfies operator lets you validate that an expression matches a type while preserving its narrowed type. Perfect for configuration objects that need both type safety and inference.",
-      createdAt: "2025-11-28T16:20:00-08:00",
-      category: "typescript",
-      tags: ["typescript", "type-safety"],
-    },
-  ];
-
-  // Return via Promise.resolve for future async data source compatibility
-  return Promise.resolve(mockThoughts);
-}
-
-/**
  * Thoughts list page component
  */
 export default async function ThoughtsPage() {
-  const thoughts = await getThoughts();
+  const thoughts = await getThoughtListItems();
 
   // Generate JSON-LD schema for the thoughts page
   const pageMetadata = PAGE_METADATA.thoughts;

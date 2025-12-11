@@ -1,7 +1,7 @@
 /**
  * Content Aggregator
  *
- * Fetches and normalizes content from all data sources (bookmarks, blog, investments, projects, books)
+ * Fetches and normalizes content from all data sources (bookmarks, blog, investments, projects, books, thoughts)
  * for similarity comparison and recommendation generation.
  */
 
@@ -12,6 +12,7 @@ import { investments } from "@/data/investments";
 import { projects } from "@/data/projects";
 import { fetchBooks } from "@/lib/books/audiobookshelf.server";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
+import { getThoughts } from "@/lib/thoughts/service.server";
 import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
 import { extractKeywords, extractCrossContentKeywords } from "./keyword-extractor";
 import { extractDomain } from "@/lib/utils";
@@ -24,6 +25,7 @@ import type { BlogPost } from "@/types/blog";
 import type { Investment } from "@/types/investment";
 import type { Project } from "@/types/project";
 import type { Book } from "@/types/schemas/book";
+import type { Thought } from "@/types/schemas/thought";
 
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours - content changes infrequently
 
@@ -286,6 +288,52 @@ function normalizeBook(book: Book): NormalizedContent {
 }
 
 /**
+ * Normalize a thought for similarity comparison
+ */
+function normalizeThought(thought: Thought): NormalizedContent {
+  // Build text content from thought content (first 1000 chars)
+  const text = thought.content.slice(0, 1000);
+
+  // Build tags from category and tags
+  const baseTags: string[] = [...(thought.tags || [])];
+  if (thought.category) {
+    baseTags.push(thought.category);
+  }
+
+  // Extract keywords to supplement tags
+  const keywords = extractKeywords(thought.title, text, baseTags, 8);
+  // Deduplicate and normalize tags to lowercase for consistent similarity
+  const enhancedTags = Array.from(new Set([...baseTags, ...keywords].map(t => t.toLowerCase().trim())));
+
+  // Parse date
+  const date = parseDate(thought.createdAt);
+
+  // Generate excerpt for display
+  const excerpt = thought.content
+    .replace(/```[\s\S]*?```/g, "") // Remove code blocks
+    .replace(/`[^`]+`/g, "") // Remove inline code
+    .replace(/#{1,6}\s+/g, "") // Remove headings
+    .replace(/\n+/g, " ") // Replace newlines with spaces
+    .trim()
+    .slice(0, 160);
+
+  return {
+    id: thought.id,
+    type: "thought",
+    title: thought.title,
+    text,
+    tags: enhancedTags,
+    url: `/thoughts/${thought.slug}`,
+    domain: undefined,
+    date,
+    display: {
+      description: excerpt,
+      category: thought.category,
+    },
+  };
+}
+
+/**
  * Fetch and normalize all content from all sources
  */
 export async function aggregateAllContent(): Promise<NormalizedContent[]> {
@@ -300,7 +348,7 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
     // Fetch all content in parallel (best-effort with Promise.allSettled)
     // CRITICAL: Must include image data for RelatedContent display
     // Previous regression: includeImageData: false caused missing images in UI
-    const [bookmarksRes, blogPostsRes, booksRes] = await Promise.allSettled([
+    const [bookmarksRes, blogPostsRes, booksRes, thoughtsRes] = await Promise.allSettled([
       getBookmarks({
         ...DEFAULT_BOOKMARK_OPTIONS,
         includeImageData: true,
@@ -309,6 +357,7 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
       }),
       getAllPosts(),
       fetchBooks(),
+      getThoughts(),
     ]);
 
     // Normalize all content
@@ -393,6 +442,22 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
       });
     } else if (booksRes.status === "rejected") {
       console.error("Failed to fetch books:", booksRes.reason);
+    }
+
+    // Process thoughts (from service)
+    const thoughts: Thought[] =
+      thoughtsRes.status === "fulfilled" && Array.isArray(thoughtsRes.value) ? thoughtsRes.value : [];
+
+    if (thoughts.length > 0) {
+      thoughts.forEach(thought => {
+        try {
+          normalized.push(normalizeThought(thought));
+        } catch (error) {
+          console.error(`Failed to normalize thought ${thought.id}:`, error);
+        }
+      });
+    } else if (thoughtsRes.status === "rejected") {
+      console.error("Failed to fetch thoughts:", thoughtsRes.reason);
     }
 
     // Cache the results (avoid locking in empty arrays on transient failures)
