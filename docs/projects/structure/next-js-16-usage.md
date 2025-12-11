@@ -86,6 +86,68 @@ These are the failure modes that blocked >100 deploy attempts. Follow each check
 - **Configuration source-of-truth:** `next.config.ts:286` enables `cacheComponents: true`. Never reintroduce `experimental.ppr`, `dynamicIO`, or `force-static` overrides without updating this doc.
 - **Cache helpers:** when a module needs tagging/staleness, import `{ cacheLife, cacheTag }` from `next/cache`. Example: update `lib/server/data-fetch-manager.ts` when we need a new tag rather than reusing `unstable_cache`.
 - **Fetch defaults:** With cache components on, `fetch()` remains uncached unless `next: { revalidate }` is set. Document intent inline (e.g., `// Next 16: do not cache because ...`).
+
+#### 3.a Static-to-Dynamic Runtime Errors (CRITICAL)
+
+**Problem:** Pages prerendered as static at build time can fail at runtime if they attempt to become dynamic. This manifests as:
+
+```
+Error: Page changed from static to dynamic at runtime /path, reason: revalidate: 0 fetch
+```
+
+**Root Causes:**
+
+1. **`cache: "no-store"` in fetch calls** — equivalent to `revalidate: 0`, which forces dynamic rendering
+2. **`connection()` bailout from `next/server`** — causes `DYNAMIC_SERVER_USAGE` errors
+3. **`Date.now()` before data access** — causes `next-prerender-current-time` errors
+
+**Prevention Protocol:**
+
+| Pattern                   | Status       | Alternative                                      |
+| ------------------------- | ------------ | ------------------------------------------------ |
+| `cache: "no-store"`       | ❌ FORBIDDEN | `next: { revalidate: 300 }` (or appropriate TTL) |
+| `connection()` import     | ❌ FORBIDDEN | Remove entirely—pages are dynamic by default     |
+| `Date.now()` before fetch | ❌ FORBIDDEN | Use `0` sentinel or move after data access       |
+| `revalidate: 0`           | ❌ FORBIDDEN | Use positive revalidation time                   |
+
+**Real-World Fix (Books feature):**
+
+```typescript
+// ❌ BEFORE: Caused static-to-dynamic error
+const response = await fetch(url, { cache: "no-store" });
+
+// ✅ AFTER: Works with cacheComponents
+const response = await fetch(url, { next: { revalidate: 300 } });
+```
+
+```typescript
+// ❌ BEFORE: DYNAMIC_SERVER_USAGE error
+import { connection } from "next/server";
+export async function BooksServer() {
+  await connection(); // Bailout from static rendering
+  // ...
+}
+
+// ✅ AFTER: No bailout needed
+export async function BooksServer() {
+  // Pages are dynamic by default with cacheComponents
+  // ...
+}
+```
+
+**Detection Commands:**
+
+```bash
+# Find no-store usage that could cause issues
+grep -r "cache.*no-store\|no-store" --include="*.ts" --include="*.tsx" lib/ components/ app/
+
+# Find connection() imports
+grep -r "from.*next/server.*connection\|connection.*from.*next/server" --include="*.ts" --include="*.tsx"
+
+# Find revalidate: 0
+grep -r "revalidate.*:.*0" --include="*.ts" --include="*.tsx"
+```
+
 - **Bookmarks + S3:** `app/sitemap.ts` streams bookmarks by page and aggregates tag metadata without loading the full dataset. Any new cache invalidation must also touch `lib/bookmarks/service.server.ts` so ISR + cache components agree. Keep the per-page iteration to protect heap usage.
   - Docker builds now always read the `.next/cache/local-s3` snapshots because `lib/bookmarks/bookmarks-data-access.server.ts` only disables the local fallback when `NEXT_PHASE === "phase-production-server"` (see guard near the top of that file). This keeps `bun run build` offline-safe even when S3 isn’t reachable.
 - **Offline local builds:** CI/CD must hit S3/CDN, so local fallbacks are disabled whenever `NODE_ENV=production` (same state as `bun run build`). To run a production build without network access, set `FORCE_LOCAL_S3_CACHE=true` before invoking the build so `.next/cache/local-s3` is used. Never enable this in Docker/Coolify.
@@ -322,6 +384,9 @@ Think of Cache Components as **inverting the default**:
 - **CRITICAL:** Using `unstable_noStore()` in page components when `cacheComponents: true` (see §6).
 - **CRITICAL:** Using `export const dynamic = "force-dynamic"` in page components when `cacheComponents: true` - causes build errors (see §6).
 - **CRITICAL:** Module-scope `NEXT_PHASE` checks (e.g., `const x = process.env.NEXT_PHASE === "..."`) — evaluated at build time and baked into bundle. Use a function: `const x = () => process.env.NEXT_PHASE === "..."`.
+- **CRITICAL:** Using `connection()` from `next/server` in page/component code—causes `DYNAMIC_SERVER_USAGE` errors at runtime (see §3.a).
+- **CRITICAL:** Using `cache: "no-store"` or `revalidate: 0` in fetch calls for statically prerendered pages—causes "Page changed from static to dynamic" errors (see §3.a).
+- **CRITICAL:** Calling `Date.now()` before any data access (fetch, headers, cookies)—causes `next-prerender-current-time` errors (see §1.a).
 
 ## Workflow Checklist (mirror AGENTS.md)
 
