@@ -1065,14 +1065,14 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
 
 // --- Thoughts Search (placeholder) ---
 
-export async function searchThoughts(query: string): Promise<SearchResult[]> {
+export function searchThoughts(query: string): Promise<SearchResult[]> {
   // TODO: Replace with Chroma-backed thoughts search when vector store is available
   const sanitized = sanitizeSearchQuery(query);
-  if (!sanitized) return [];
+  if (!sanitized) return Promise.resolve([]);
   const pageTitle = typeof PAGE_METADATA.thoughts.title === "string" ? PAGE_METADATA.thoughts.title : "Thoughts";
   const pageDescription =
     typeof PAGE_METADATA.thoughts.description === "string" ? PAGE_METADATA.thoughts.description : undefined;
-  return [
+  return Promise.resolve([
     {
       id: "thoughts-page",
       type: "page",
@@ -1081,5 +1081,5 @@ export async function searchThoughts(query: string): Promise<SearchResult[]> {
       url: "/thoughts",
       score: 0.1,
     },
-  ];
+  ]);
 }
