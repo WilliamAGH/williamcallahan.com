@@ -38,7 +38,7 @@ export function generateMetadata(): Metadata {
   return getStaticPageMetadata("/books", "books");
 }
 
-export default async function BooksPage() {
+export default function BooksPage() {
   const pageMetadata = PAGE_METADATA.books;
 
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
