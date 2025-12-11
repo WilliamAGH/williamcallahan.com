@@ -172,3 +172,66 @@ export interface FetchAbsLibraryItemsOptions {
   /** Sort in descending order - newest/largest first (default: true) */
   desc?: boolean;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Books Related Content S3 Data Schemas
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Content type for related content entries.
+ * Matches RelatedContentType from types/related-content.ts
+ */
+export const relatedContentTypeSchema = z.enum(["bookmark", "blog", "investment", "project", "thought", "book"]);
+
+export type RelatedContentTypeFromSchema = z.infer<typeof relatedContentTypeSchema>;
+
+/**
+ * Metadata for related content display (optional fields)
+ */
+export const relatedContentMetadataSchema = z
+  .object({
+    tags: z.array(z.string()).optional(),
+    domain: z.string().optional(),
+    date: z.string().optional(),
+    imageUrl: z.string().optional(),
+    readingTime: z.number().optional(),
+    stage: z.string().optional(),
+    category: z.string().optional(),
+    aventureUrl: z.string().optional(),
+    author: z
+      .object({
+        name: z.string(),
+        avatar: z.string().optional(),
+      })
+      .optional(),
+    authors: z.array(z.string()).optional(),
+    formats: z.array(z.string()).optional(),
+  })
+  .optional();
+
+/**
+ * Pre-computed related content entry schema.
+ * Validates data fetched from S3 for the books related content graph.
+ */
+export const relatedContentEntrySchema = z.object({
+  type: relatedContentTypeSchema,
+  id: z.string(),
+  score: z.number(),
+  title: z.string(),
+  metadata: relatedContentMetadataSchema,
+});
+
+export type RelatedContentEntryFromSchema = z.infer<typeof relatedContentEntrySchema>;
+
+/**
+ * Books related content data schema.
+ * Validates the full JSON structure fetched from S3.
+ */
+export const booksRelatedContentDataSchema = z.object({
+  version: z.string(),
+  generated: z.string(),
+  booksCount: z.number(),
+  entries: z.record(z.string(), z.array(relatedContentEntrySchema)),
+});
+
+export type BooksRelatedContentDataFromSchema = z.infer<typeof booksRelatedContentDataSchema>;
