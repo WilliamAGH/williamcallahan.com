@@ -237,6 +237,9 @@ export const PAGE_METADATA = {
   thoughts: {
     title: `Thoughts - ${SITE_NAME}`,
     description: `My personal ruminations and thoughts, sometimes fleeting and others retrieved from my long-term memory, that may or may not pass the test of time.`,
+    uiTitle: "Notes & Ruminations",
+    uiDescription:
+      "Some of my fleeting thoughts and learnings that I find helpful to index and organize for later reflection and share with others. Some may pass the test of time, and the others help me improve my knowledge and judgement.",
     dateCreated: "2025-12-10T00:00:00",
     dateModified: "2025-12-10T00:00:00",
   } as CollectionPageMetadata,

@@ -20,6 +20,22 @@ import Link from "next/link";
 import type { ThoughtsWindowProps, ThoughtsWindowContentProps } from "@/types/features/thoughts";
 import type { RegisteredWindowState } from "@/types";
 
+/**
+ * Blinking cursor component for terminal-style aesthetic
+ */
+function BlinkingCursor(): React.JSX.Element {
+  return (
+    <span
+      className={cn(
+        "inline-block ml-0.5 w-[2px] h-[1em] align-middle",
+        "bg-amber-500/70 dark:bg-amber-400/60",
+        "animate-blink",
+      )}
+      aria-hidden="true"
+    />
+  );
+}
+
 const DEFAULT_THOUGHTS_WINDOW_ID = "thoughts-window";
 
 /**
@@ -82,6 +98,7 @@ function ThoughtsWindowContentInner({
               <Link href="/thoughts" className="hover:underline decoration-zinc-400 underline-offset-4">
                 {displayTitle}
               </Link>
+              <BlinkingCursor />
             </h1>
           </div>
           <TerminalSearchHint context="thoughts" />

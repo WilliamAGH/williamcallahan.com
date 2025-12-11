@@ -116,6 +116,10 @@ export default {
           "0%": { opacity: "0", transform: "translateY(10px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        fadeInLeft: {
+          "0%": { opacity: "0", transform: "translateX(-20px)", filter: "blur(4px)" },
+          "100%": { opacity: "1", transform: "translateX(0)", filter: "blur(0px)" },
+        },
         pop: {
           "0%, 100%": { transform: "scale(1)" },
           "50%": { transform: "scale(1.4)" },
@@ -124,11 +128,17 @@ export default {
           "0%, 50%": { opacity: "1" },
           "51%, 100%": { opacity: "0" },
         },
+        gentlePulse: {
+          "0%, 100%": { opacity: "0.3", transform: "scale(1)" },
+          "50%": { opacity: "0.6", transform: "scale(1.05)" },
+        },
       },
       animation: {
         "fade-in-up": "fadeInUp 0.5s ease-out forwards",
+        "fade-in-left": "fadeInLeft 0.4s ease-out forwards",
         pop: "pop 0.4s ease-out",
         blink: "blink 1.2s ease-in-out infinite",
+        "gentle-pulse": "gentlePulse 3s ease-in-out infinite",
       },
     },
   },
