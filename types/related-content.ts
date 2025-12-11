@@ -344,3 +344,17 @@ export interface RelatedContentWithPaginationProps {
   /** Optional limit for items per page */
   limit?: number;
 }
+
+/**
+ * Structure of the books related content JSON stored in S3
+ */
+export interface BooksRelatedContentData {
+  /** Data format version */
+  version: string;
+  /** ISO timestamp when generated */
+  generated: string;
+  /** Total number of books processed */
+  booksCount: number;
+  /** Map of book keys to their related content entries */
+  entries: Record<string, RelatedContentEntry[]>;
+}
