@@ -5,16 +5,15 @@
  * Server component that fetches books from AudioBookShelf and renders the grid.
  * Handles data fetching and passes serializable data to client components.
  *
- * Uses PPR with a request-time boundary to avoid prerender fetches:
- * - Wrapped in Suspense by the parent page
- * - Calls connection() to signal request-time rendering
- * - Data freshness comes from no-store fetches in the underlying service
+ * Strategy: Cache Components pattern (NO connection() bailout)
+ * - Uses fetch with cache: "no-store" for fresh data on each request
+ * - Gracefully handles AudioBookShelf unavailability with empty state
+ * - Compatible with Next.js 16 cacheComponents mode
  */
 
 import "server-only";
 
 import type { JSX } from "react";
-import { connection } from "next/server";
 import type { BookListItem } from "@/types/schemas/book";
 import type { BooksServerProps } from "@/types/features/books";
 import { fetchBookListItemsWithFallback } from "@/lib/books/audiobookshelf.server";
@@ -23,11 +22,11 @@ import { BooksClientGrid } from "./books-grid.client";
 /**
  * Server component that fetches and renders the books grid.
  * Handles data fetching, error states, and passes clean data to client.
+ *
+ * No connection() bailout - this allows the page to be statically analyzed
+ * at build time while still fetching fresh data at runtime via no-store fetches.
  */
 export async function BooksServer({ title, description, disclaimer }: BooksServerProps): Promise<JSX.Element> {
-  // Request-time boundary to prevent prerender from running AudioBookShelf fetches.
-  await connection();
-
   let books: BookListItem[] = [];
   let error: string | null = null;
   let isStale = false;
@@ -37,6 +36,7 @@ export async function BooksServer({ title, description, disclaimer }: BooksServe
     books = result.books;
     isStale = result.isFallback;
   } catch (err) {
+    // Log but don't crash - render empty state gracefully
     console.error("[BooksServer] Failed to fetch books:", err);
     error = "Unable to load books at this time. Please try again later.";
   }
