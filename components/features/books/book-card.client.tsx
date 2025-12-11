@@ -44,11 +44,11 @@ export function BookCard({ book, priority = false }: BookCardProps) {
             alt={`Cover of ${book.title}`}
             fill
             sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 200px"
-            quality={80}
             className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
             priority={priority}
             placeholder={book.coverBlurDataURL ? "blur" : "empty"}
             blurDataURL={book.coverBlurDataURL}
+            unoptimized
           />
         ) : (
           // Placeholder when no cover
