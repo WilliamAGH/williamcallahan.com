@@ -5,13 +5,25 @@
  * Displays personal reading list sourced from AudioBookShelf and other providers.
  * Implements proper SEO with schema.org structured data.
  *
+ * This route is explicitly marked as dynamic because:
+ * 1. Book data is fetched from an external API (AudioBookShelf) at request time
+ * 2. Using `dynamic = 'force-dynamic'` prevents Next.js 16 from attempting
+ *    static generation when bots visit, which would cause DYNAMIC_SERVER_USAGE errors
+ *
  * @see {@link "https://nextjs.org/docs/app/api-reference/functions/generate-metadata"} - Next.js Metadata API
  * @see {@link "https://schema.org/CollectionPage"} - Schema.org CollectionPage specification
  */
 
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { BooksServer } from "@/components/features/books/books.server";
+
+/**
+ * Force dynamic rendering for this route.
+ * This prevents Next.js from attempting static generation when bots visit,
+ * avoiding DYNAMIC_SERVER_USAGE errors in production.
+ */
+export const dynamic = "force-dynamic";
+
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
@@ -27,9 +39,6 @@ export function generateMetadata(): Metadata {
 }
 
 export default async function BooksPage() {
-  // Mark this route as request-time under cacheComponents to avoid static prerender
-  await connection();
-
   const pageMetadata = PAGE_METADATA.books;
 
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
