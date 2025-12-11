@@ -52,7 +52,13 @@ NextResponse.json = function json(data, init = {}) {
   return response;
 };
 
+// Mock connection() - Next.js 16 function to ensure request-time execution
+async function connection() {
+  return Promise.resolve();
+}
+
 module.exports = {
   NextRequest,
   NextResponse,
+  connection,
 };
