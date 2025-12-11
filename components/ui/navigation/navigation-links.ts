@@ -1,20 +1,26 @@
 /**
  * Navigation Configuration
  *
- * This file contains the configuration for the navigation links.
- * It is used to generate the navigation links for the application.
+ * Defines the primary navigation structure for the application.
+ * CV serves as the parent for Experience and Education, which appear
+ * as nested sub-items in a dropdown (desktop) or expandable section (mobile).
  *
  * @module components/ui/navigation/navigation-links
- * It is a shared component (server and client)
+ * Shared between server and client components.
  */
 
 import type { NavigationLink } from "@/types/navigation";
 
 export const navigationLinks: NavigationLink[] = [
   { name: "Home", path: "/" },
-  { name: "Experience", path: "/experience" },
-  { name: "Education", path: "/education" },
-  { name: "CV", path: "/cv" },
+  {
+    name: "CV",
+    path: "/cv",
+    children: [
+      { name: "Experience", path: "/experience" },
+      { name: "Education", path: "/education" },
+    ],
+  },
   { name: "Projects", path: "/projects" },
   { name: "Bookmarks", path: "/bookmarks" },
   { name: "Investments", path: "/investments" },
@@ -24,5 +30,6 @@ export const navigationLinks: NavigationLink[] = [
     path: "/contact",
     responsive: { hideBelow: "xl" },
   },
+  { name: "Bookshelf", path: "/books" },
   { name: "Blog", path: "/blog" },
 ];
