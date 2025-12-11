@@ -8,16 +8,38 @@ import { RelatedContentCard } from "./related-content-card";
 import type { RelatedContentItem, RelatedContentType, RelatedContentSectionProps } from "@/types/related-content";
 
 /**
- * Group items by type for better organization
+ * Preferred display order for content types.
+ * Books and investments are intentionally last as they serve as supplementary context.
+ */
+const CONTENT_TYPE_ORDER: readonly RelatedContentType[] = [
+  "bookmark",
+  "blog",
+  "project",
+  "book",
+  "investment",
+] as const;
+
+/**
+ * Group items by type for better organization.
+ * Returns entries in a consistent order defined by CONTENT_TYPE_ORDER,
+ * ensuring investments always appear last regardless of insertion order.
  */
 function groupItemsByType(items: RelatedContentItem[]): Record<RelatedContentType, RelatedContentItem[]> {
-  const grouped = {} as Record<RelatedContentType, RelatedContentItem[]>;
-
+  // First pass: collect items by type
+  const collected = {} as Record<RelatedContentType, RelatedContentItem[]>;
   for (const item of items) {
-    if (!grouped[item.type]) {
-      grouped[item.type] = [];
+    if (!collected[item.type]) {
+      collected[item.type] = [];
     }
-    grouped[item.type].push(item);
+    collected[item.type].push(item);
+  }
+
+  // Second pass: build ordered result following CONTENT_TYPE_ORDER
+  const grouped = {} as Record<RelatedContentType, RelatedContentItem[]>;
+  for (const type of CONTENT_TYPE_ORDER) {
+    if (collected[type]?.length) {
+      grouped[type] = collected[type];
+    }
   }
 
   return grouped;
@@ -36,6 +58,8 @@ function getTypeLabel(type: RelatedContentType): string {
       return "Related Investments";
     case "project":
       return "Related Projects";
+    case "book":
+      return "Related Books";
     default:
       return "Related Content";
   }

@@ -29,7 +29,7 @@ function resolveRequestUrl(request: NextRequest): URL {
 
 // Default options
 const DEFAULT_MAX_PER_TYPE = 3;
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours - content changes infrequently
 
 /**
  * Convert normalized content to related content item
@@ -115,6 +115,26 @@ function toRelatedContentItem(content: NormalizedContent & { score: number }): R
       };
     }
 
+    case "book": {
+      const bookDetails = display?.book;
+      const metadata: RelatedContentItem["metadata"] = {
+        ...baseMetadata,
+        imageUrl: display?.imageUrl,
+        authors: bookDetails?.authors,
+        formats: bookDetails?.formats,
+      };
+
+      return {
+        type: content.type,
+        id: content.id,
+        title: content.title,
+        description: display?.description || "",
+        url: content.url,
+        score: content.score,
+        metadata,
+      };
+    }
+
     default:
       return {
         type: content.type,
@@ -152,7 +172,7 @@ export async function GET(request: NextRequest) {
     const requestUrl = resolveRequestUrl(request);
     const searchParams = requestUrl.searchParams;
     const sourceTypeRaw = searchParams.get("type");
-    const allowedTypes = new Set<RelatedContentType>(["bookmark", "blog", "investment", "project"]);
+    const allowedTypes = new Set<RelatedContentType>(["bookmark", "blog", "investment", "project", "book"]);
     const sourceType = allowedTypes.has(sourceTypeRaw as RelatedContentType)
       ? (sourceTypeRaw as RelatedContentType)
       : null;
@@ -199,7 +219,7 @@ export async function GET(request: NextRequest) {
     const maxPerType = parseInt(searchParams.get("maxPerType") || String(DEFAULT_MAX_PER_TYPE), 10);
     const parseTypesParam = (value: string | null): RelatedContentType[] | undefined => {
       if (!value) return undefined;
-      const allowed: RelatedContentType[] = ["bookmark", "blog", "investment", "project"];
+      const allowed: RelatedContentType[] = ["bookmark", "blog", "investment", "project", "book"];
       const set = new Set(allowed);
       const parsed = value
         .split(",")
