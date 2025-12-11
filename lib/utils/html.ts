@@ -105,6 +105,7 @@ function normalizeWhitespace(text: string): string {
 /**
  * Converts bullet characters to standard format with line breaks.
  * Handles: • ● ○ ◦ ▪ ▸ ► · and * at line starts
+ * Also detects "…and more!" style ending bullets that continue into following text.
  */
 function formatBulletPoints(text: string): string {
   let result = text;
@@ -119,6 +120,10 @@ function formatBulletPoints(text: string): string {
 
   // Handle asterisk bullets at line starts
   result = result.replace(/(?:^|\n)\s*\*\s+/g, "\n• ");
+
+  // Fix "…and more!" or similar ending bullets that run into following paragraph
+  // Pattern: bullet line ending with "!" or "." followed by uppercase start of new sentence
+  result = result.replace(/(\n• [^\n]*[!.])\s+([A-Z][a-z])/g, "$1\n\n$2");
 
   return result;
 }
@@ -155,7 +160,16 @@ function formatNumberedLists(text: string): string {
   }
 
   // Format numbered items: number followed by capitalized word, when preceded by non-whitespace
-  return text.replace(/(?<=\S)\s+(\d{1,2})\s+([A-Z][a-z])/g, "\n$1. $2");
+  // Pattern must catch items like "world 3 A bookworm's" where the word after the number
+  // may be an article (A, An, The) or a capitalized title word
+  let result = text.replace(/(?<=\S)\s+(\d{1,2})\s+([A-Z])/g, "\n$1. $2");
+
+  // Handle Appendix/Appendixes sections with letter markers (A, B, C, etc.)
+  // Pattern: "Appendix[es] A Title B Title" or after a newline "A Title B Title"
+  result = result.replace(/(?<=Appendix(?:es)?)\s+([A-G])\s+([A-Z][a-z])/gi, "\n$1. $2");
+  result = result.replace(/(?<=\n[A-G]\.\s[^\n]+)\s+([A-G])\s+([A-Z][a-z])/g, "\n$1. $2");
+
+  return result;
 }
 
 /**
