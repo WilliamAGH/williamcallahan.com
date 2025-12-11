@@ -109,8 +109,6 @@ export async function GET(request: NextRequest) {
     // Perform site-wide search with request coalescing
     const results = await coalesceSearchRequest<SearchResult[]>(`all:${query}`, async () => {
       // Perform searches in parallel but tolerate failures in any individual search source
-      // Note: searchThoughts is synchronous but wrapped in Promise.resolve for Promise.allSettled compatibility
-      const thoughtsPromise: Promise<SearchResult[]> = Promise.resolve(searchThoughts(query));
       const settled = await Promise.allSettled([
         searchBlogPostsServerSide(query),
         searchInvestments(query),
@@ -119,7 +117,7 @@ export async function GET(request: NextRequest) {
         searchBookmarks(query),
         searchProjects(query),
         searchBooks(query),
-        thoughtsPromise,
+        searchThoughts(query),
       ]);
 
       const [
