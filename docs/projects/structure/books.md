@@ -142,3 +142,9 @@ Uses `types/lib.ts` standard pagination pattern:
 - Personal ratings and notes
 - Book recommendations via ML
 - RSS/Atom feed for reading activity
+
+## Runtime Strategy (request-time, cacheComponents-safe)
+
+- **Detail pages** resolve slugs by extracting the ABS ID/ISBN first, fetching a single item, and fall back to a last-good in-memory snapshot when AudioBookShelf is unavailable.
+- **List page** fetches at request time with `connection()` and shows a stale banner if it has to serve cached data.
+- **No build-time fetching**: the sitemap skips books during builds, and pages rely purely on request-time data to avoid cacheComponents conflicts.

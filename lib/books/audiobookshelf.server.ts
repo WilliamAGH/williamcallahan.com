@@ -3,15 +3,12 @@
  * @module lib/books/audiobookshelf
  * @description
  * Server-side client for AudioBookShelf API.
- * Fetches library items and transforms to Book types.
- *
- * TODO: Investigate Next.js 16 caching via MCP (nextjs_docs tool) for API content.
- * Goal: Avoid repeated API calls on every page render using modern Next.js patterns
- * such as "use cache", cacheLife(), cacheTag(), or fetch cache options.
- * See: docs/projects/structure/next-js-16-usage.md for project patterns.
+ * Fetches library items and transforms to Book types with a resilient,
+ * request-time strategy and an in-memory last-good snapshot for fallbacks.
  */
 
 import { fetchWithTimeout } from "@/lib/utils/http-client";
+import { envLogger } from "@/lib/utils/env-logger";
 import {
   validateAbsLibraryItemsResponse,
   validateAbsLibraryItem,
@@ -28,6 +25,7 @@ import { generateBookCoverBlur } from "./image-utils.server";
 // Configuration
 // ─────────────────────────────────────────────────────────────────────────────
 
+const SNAPSHOT_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours to keep "last good" data reasonably fresh
 const ABS_BASE_URL = process.env.AUDIOBOOKSHELF_URL;
 const ABS_API_KEY = process.env.AUDIOBOOKSHELF_API_KEY;
 const ABS_LIBRARY_ID = process.env.AUDIOBOOKSHELF_LIBRARY_ID;
@@ -44,6 +42,46 @@ function getConfig() {
 // ─────────────────────────────────────────────────────────────────────────────
 // API Fetcher
 // ─────────────────────────────────────────────────────────────────────────────
+
+const cloneBook = (book: Book): Book => structuredClone(book);
+
+let lastBooksSnapshot: { booksById: Map<string, Book>; fetchedAt: number } | null = null;
+
+const snapshotIsFresh = (
+  snapshot: { booksById: Map<string, Book>; fetchedAt: number } | null,
+  ttlMs: number,
+): snapshot is { booksById: Map<string, Book>; fetchedAt: number } => {
+  if (!snapshot) return false;
+  return Date.now() - snapshot.fetchedAt <= ttlMs;
+};
+
+const cacheSnapshot = (books: Book[]): void => {
+  lastBooksSnapshot = {
+    booksById: new Map(books.map(book => [book.id, cloneBook(book)])),
+    fetchedAt: Date.now(),
+  };
+};
+
+const upsertBookIntoSnapshot = (book: Book): void => {
+  const now = Date.now();
+  if (!lastBooksSnapshot) {
+    lastBooksSnapshot = { booksById: new Map([[book.id, cloneBook(book)]]), fetchedAt: now };
+    return;
+  }
+  lastBooksSnapshot.booksById.set(book.id, cloneBook(book));
+  lastBooksSnapshot.fetchedAt = now;
+};
+
+const getSnapshotBooks = (ttlMs: number): Book[] | null => {
+  if (!snapshotIsFresh(lastBooksSnapshot, ttlMs)) return null;
+  return Array.from(lastBooksSnapshot.booksById.values()).map(cloneBook);
+};
+
+const getSnapshotBookById = (id: string, ttlMs: number): Book | null => {
+  if (!snapshotIsFresh(lastBooksSnapshot, ttlMs)) return null;
+  const book = lastBooksSnapshot.booksById.get(id);
+  return book ? cloneBook(book) : null;
+};
 
 async function absApi<T>(path: string, validate: (data: unknown) => T): Promise<T> {
   const { baseUrl, apiKey } = getConfig();
@@ -97,10 +135,10 @@ export async function fetchAbsLibraryItems(options: FetchAbsLibraryItemsOptions 
 export type { AbsSortField, FetchAbsLibraryItemsOptions };
 
 /**
- * Fetch all books (transformed from AudioBookShelf)
+ * Internal helper to fetch all books (transformed from AudioBookShelf)
  * @param options - Fetch options including blur placeholder generation
  */
-export async function fetchBooks(
+async function fetchBooksFresh(
   options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean } = {},
 ): Promise<Book[]> {
   const { baseUrl, apiKey } = getConfig();
@@ -130,36 +168,111 @@ export async function fetchBooks(
 }
 
 /**
- * Fetch book list items (minimal data for grids)
+ * Fetch all books with a resilient fallback to the last-good in-memory snapshot.
+ * Defaults to allowing stale data when AudioBookShelf is unavailable.
+ */
+export async function fetchBooksWithFallback(
+  options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean; allowStale?: boolean } = {},
+): Promise<{ books: Book[]; isFallback: boolean; fetchedAt: number }> {
+  const { allowStale = true, ...rest } = options;
+  const now = Date.now();
+
+  try {
+    const books = await fetchBooksFresh(rest);
+    cacheSnapshot(books);
+    return { books, isFallback: false, fetchedAt: now };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    envLogger.log(
+      "AudioBookShelf fetch failed, considering fallback snapshot",
+      { error: message },
+      { category: "Books" },
+    );
+
+    const snapshotBooks = allowStale ? getSnapshotBooks(SNAPSHOT_TTL_MS) : null;
+    if (snapshotBooks) {
+      return { books: snapshotBooks, isFallback: true, fetchedAt: lastBooksSnapshot?.fetchedAt ?? now };
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Preserve legacy signature while routing through the resilient fetch.
+ */
+export async function fetchBooks(
+  options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean } = {},
+): Promise<Book[]> {
+  const result = await fetchBooksWithFallback({ ...options, allowStale: true });
+  return result.books;
+}
+
+/**
+ * Fetch book list items (minimal data for grids) with fallback to snapshot.
  * @param options - Fetch options including blur placeholder generation
+ */
+export async function fetchBookListItemsWithFallback(
+  options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean } = {},
+): Promise<{ books: BookListItem[]; isFallback: boolean; fetchedAt: number }> {
+  const { baseUrl, apiKey } = getConfig();
+  const { includeBlurPlaceholders = false, ...fetchOptions } = options;
+
+  try {
+    const items = await fetchAbsLibraryItems(fetchOptions);
+    const bookListItems = absItemsToBookListItems(items, { baseUrl, apiKey });
+
+    if (includeBlurPlaceholders) {
+      const results = await Promise.allSettled(
+        bookListItems.map(async book => {
+          if (book.coverUrl) {
+            book.coverBlurDataURL = await generateBookCoverBlur(book.coverUrl);
+          }
+        }),
+      );
+      results.forEach((result, index) => {
+        if (result.status === "rejected") {
+          console.warn(`[AudioBookShelf] Blur placeholder failed for book list item index ${index}:`, result.reason);
+        }
+      });
+    }
+
+    // Keep a snapshot so detail pages can fall back to last-known-good data
+    cacheSnapshot(absItemsToBooks(items, { baseUrl, apiKey }));
+
+    return { books: bookListItems, isFallback: false, fetchedAt: Date.now() };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    envLogger.log(
+      "AudioBookShelf book list fetch failed, considering fallback snapshot",
+      { error: message },
+      { category: "Books" },
+    );
+
+    const snapshotBooks = getSnapshotBooks(SNAPSHOT_TTL_MS);
+    if (snapshotBooks) {
+      const books = snapshotBooks.map(({ id, title, authors, coverUrl, coverBlurDataURL }) => ({
+        id,
+        title,
+        authors,
+        coverUrl,
+        coverBlurDataURL,
+      }));
+      return { books, isFallback: true, fetchedAt: lastBooksSnapshot?.fetchedAt ?? Date.now() };
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Backwards-compatible wrapper that returns only the list.
  */
 export async function fetchBookListItems(
   options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean } = {},
 ): Promise<BookListItem[]> {
-  const { baseUrl, apiKey } = getConfig();
-  const { includeBlurPlaceholders = false, ...fetchOptions } = options;
-
-  const items = await fetchAbsLibraryItems(fetchOptions);
-  const bookListItems = absItemsToBookListItems(items, { baseUrl, apiKey });
-
-  // Optionally generate blur placeholders (parallel for performance)
-  if (includeBlurPlaceholders) {
-    const results = await Promise.allSettled(
-      bookListItems.map(async book => {
-        if (book.coverUrl) {
-          book.coverBlurDataURL = await generateBookCoverBlur(book.coverUrl);
-        }
-      }),
-    );
-    // Log any failures for debugging without blocking the response
-    results.forEach((result, index) => {
-      if (result.status === "rejected") {
-        console.warn(`[AudioBookShelf] Blur placeholder failed for book list item index ${index}:`, result.reason);
-      }
-    });
-  }
-
-  return bookListItems;
+  const result = await fetchBookListItemsWithFallback(options);
+  return result.books;
 }
 
 /**
@@ -204,4 +317,35 @@ export async function fetchBookById(
     console.error(`[AudioBookShelf] Failed to fetch book ${id}:`, error);
     return null;
   }
+}
+
+/**
+ * Fetch a single book by ID with fallback to the in-memory snapshot.
+ */
+export async function fetchBookByIdWithFallback(
+  id: string,
+  options: { includeBlurPlaceholder?: boolean; allowStale?: boolean } = {},
+): Promise<{ book: Book | null; isFallback: boolean }> {
+  const { allowStale = true, ...rest } = options;
+  try {
+    const book = await fetchBookById(id, rest);
+    if (book) {
+      upsertBookIntoSnapshot(book);
+      return { book, isFallback: false };
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    envLogger.log(
+      "AudioBookShelf single-book fetch failed, considering fallback snapshot",
+      { error: message, id },
+      { category: "Books" },
+    );
+  }
+
+  const cached = allowStale ? getSnapshotBookById(id, SNAPSHOT_TTL_MS) : null;
+  if (cached) {
+    return { book: cached, isFallback: true };
+  }
+
+  return { book: null, isFallback: false };
 }

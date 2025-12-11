@@ -1,4 +1,3 @@
-"use cache";
 /**
  * Book Detail Page
  * @module app/books/[book-slug]/page
@@ -23,11 +22,9 @@ import type { Metadata } from "next";
 import { BookDetail } from "@/components/features/books/book-detail";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
-import { fetchBooks } from "@/lib/books/audiobookshelf.server";
-import { findBookBySlug } from "@/lib/books/slug-helpers";
+import { fetchBookByIdWithFallback, fetchBooksWithFallback } from "@/lib/books/audiobookshelf.server";
+import { extractBookIdFromSlug, findBookBySlug } from "@/lib/books/slug-helpers";
 import { getStaticPageMetadata } from "@/lib/seo";
-import { cacheContextGuards } from "@/lib/cache";
-import { TIME_CONSTANTS } from "@/lib/constants";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
@@ -36,27 +33,19 @@ import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import type { Book } from "@/types/schemas/book";
 import type { BookPageProps } from "@/types/features/books";
 
-// Cache TTL for book pages - 1 hour minimum, or aligned with bookmarks interval
-const BOOK_PAGE_CACHE_SECONDS = Math.max(3600, Math.round(TIME_CONSTANTS.BOOKMARKS_PRELOAD_INTERVAL_MS / 1000));
+async function getBookBySlug(slug: string): Promise<{ book: Book | null; isFallback: boolean }> {
+  const directId = extractBookIdFromSlug(slug);
 
-async function getBookBySlug(slug: string): Promise<Book | null> {
-  "use cache";
-  cacheContextGuards.cacheLife("BookPage", { revalidate: BOOK_PAGE_CACHE_SECONDS });
-  cacheContextGuards.cacheTag("BookPage", "books", `book-slug-${slug}`);
-
-  try {
-    const books = await fetchBooks();
-    const book = findBookBySlug(slug, books);
-
-    if (book?.id) {
-      cacheContextGuards.cacheTag("BookPage", `book-${book.id}`);
+  if (directId) {
+    const byIdResult = await fetchBookByIdWithFallback(directId, { includeBlurPlaceholder: true });
+    if (byIdResult.book) {
+      return { book: byIdResult.book, isFallback: byIdResult.isFallback };
     }
-
-    return book;
-  } catch (error) {
-    console.error(`[BookPage] Failed to fetch book for slug "${slug}":`, error);
-    return null;
   }
+
+  const result = await fetchBooksWithFallback({ includeBlurPlaceholders: true });
+  const book = findBookBySlug(slug, result.books);
+  return { book, isFallback: result.isFallback };
 }
 
 /**
@@ -85,7 +74,7 @@ function buildBookOgImageUrl(book: Book): string {
 export async function generateMetadata({ params }: { params: { "book-slug": string } }): Promise<Metadata> {
   const { "book-slug": slug } = await Promise.resolve(params);
   const path = `/books/${slug}`;
-  const book = await getBookBySlug(slug);
+  const { book } = await getBookBySlug(slug);
 
   if (!book) {
     return {
@@ -148,7 +137,7 @@ export async function generateMetadata({ params }: { params: { "book-slug": stri
 
 export default async function BookPage({ params }: BookPageProps) {
   const { "book-slug": slug } = await Promise.resolve(params);
-  const book = await getBookBySlug(slug);
+  const { book, isFallback } = await getBookBySlug(slug);
 
   if (!book) {
     return notFound();
@@ -179,6 +168,11 @@ export default async function BookPage({ params }: BookPageProps) {
     <>
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-6xl mx-auto">
+        {isFallback && (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            Showing cached book data while the library refreshes.
+          </div>
+        )}
         <Suspense
           fallback={
             <div className="animate-pulse p-8">

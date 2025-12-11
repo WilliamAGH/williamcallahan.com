@@ -17,7 +17,7 @@ import type { JSX } from "react";
 import { connection } from "next/server";
 import type { BookListItem } from "@/types/schemas/book";
 import type { BooksServerProps } from "@/types/features/books";
-import { fetchBookListItems } from "@/lib/books/audiobookshelf.server";
+import { fetchBookListItemsWithFallback } from "@/lib/books/audiobookshelf.server";
 import { BooksClientGrid } from "./books-grid.client";
 
 /**
@@ -30,15 +30,25 @@ export async function BooksServer({ title, description, disclaimer }: BooksServe
 
   let books: BookListItem[] = [];
   let error: string | null = null;
+  let isStale = false;
 
   try {
-    books = await fetchBookListItems();
+    const result = await fetchBookListItemsWithFallback();
+    books = result.books;
+    isStale = result.isFallback;
   } catch (err) {
     console.error("[BooksServer] Failed to fetch books:", err);
     error = "Unable to load books at this time. Please try again later.";
   }
 
   return (
-    <BooksClientGrid books={books} title={title} description={description} disclaimer={disclaimer} error={error} />
+    <BooksClientGrid
+      books={books}
+      title={title}
+      description={description}
+      disclaimer={disclaimer}
+      error={error}
+      isStale={isStale}
+    />
   );
 }
