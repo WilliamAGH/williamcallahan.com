@@ -21,6 +21,7 @@ import {
   type FetchAbsLibraryItemsOptions,
 } from "@/types/schemas/book";
 import { absItemToBook, absItemsToBooks, absItemsToBookListItems } from "./transforms";
+import { generateBookCoverBlur } from "./image-utils.server";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuration
@@ -95,27 +96,69 @@ export type { AbsSortField, FetchAbsLibraryItemsOptions };
 
 /**
  * Fetch all books (transformed from AudioBookShelf)
+ * @param options - Fetch options including blur placeholder generation
  */
-export async function fetchBooks(): Promise<Book[]> {
+export async function fetchBooks(
+  options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean } = {},
+): Promise<Book[]> {
   const { baseUrl, apiKey } = getConfig();
-  const items = await fetchAbsLibraryItems();
-  return absItemsToBooks(items, { baseUrl, apiKey });
+  const { includeBlurPlaceholders = false, ...fetchOptions } = options;
+
+  const items = await fetchAbsLibraryItems(fetchOptions);
+  const books = absItemsToBooks(items, { baseUrl, apiKey });
+
+  // Optionally generate blur placeholders (parallel for performance)
+  if (includeBlurPlaceholders) {
+    await Promise.allSettled(
+      books.map(async book => {
+        if (book.coverUrl) {
+          book.coverBlurDataURL = await generateBookCoverBlur(book.coverUrl);
+        }
+      }),
+    );
+  }
+
+  return books;
 }
 
 /**
  * Fetch book list items (minimal data for grids)
+ * @param options - Fetch options including blur placeholder generation
  */
-export async function fetchBookListItems(): Promise<BookListItem[]> {
+export async function fetchBookListItems(
+  options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean } = {},
+): Promise<BookListItem[]> {
   const { baseUrl, apiKey } = getConfig();
-  const items = await fetchAbsLibraryItems();
-  return absItemsToBookListItems(items, { baseUrl, apiKey });
+  const { includeBlurPlaceholders = false, ...fetchOptions } = options;
+
+  const items = await fetchAbsLibraryItems(fetchOptions);
+  const bookListItems = absItemsToBookListItems(items, { baseUrl, apiKey });
+
+  // Optionally generate blur placeholders (parallel for performance)
+  if (includeBlurPlaceholders) {
+    await Promise.allSettled(
+      bookListItems.map(async book => {
+        if (book.coverUrl) {
+          book.coverBlurDataURL = await generateBookCoverBlur(book.coverUrl);
+        }
+      }),
+    );
+  }
+
+  return bookListItems;
 }
 
 /**
  * Fetch a single book by ID
+ * @param id - AudioBookShelf item ID
+ * @param options - Fetch options including blur placeholder generation
  */
-export async function fetchBookById(id: string): Promise<Book | null> {
+export async function fetchBookById(
+  id: string,
+  options: { includeBlurPlaceholder?: boolean } = {},
+): Promise<Book | null> {
   const { baseUrl, apiKey } = getConfig();
+  const { includeBlurPlaceholder = false } = options;
 
   try {
     const response = await fetchWithTimeout(`${baseUrl}/api/items/${id}?expanded=1`, {
@@ -134,7 +177,14 @@ export async function fetchBookById(id: string): Promise<Book | null> {
     const data: unknown = await response.json();
     // Single item response has different shape - validate inline
     const item = data as AbsLibraryItem;
-    return absItemToBook(item, { baseUrl, apiKey });
+    const book = absItemToBook(item, { baseUrl, apiKey });
+
+    // Optionally generate blur placeholder
+    if (includeBlurPlaceholder && book.coverUrl) {
+      book.coverBlurDataURL = await generateBookCoverBlur(book.coverUrl);
+    }
+
+    return book;
   } catch (error) {
     console.error(`[AudioBookShelf] Failed to fetch book ${id}:`, error);
     return null;
