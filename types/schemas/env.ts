@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 
 /**
  * Define the schema for server-side environment variables.
@@ -16,8 +16,20 @@ export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
   // Public environment variables (available on client-side)
-  NEXT_PUBLIC_S3_CDN_URL: z.string().url().min(1),
+  NEXT_PUBLIC_S3_CDN_URL: z.url(),
 });
 
 // Export a reusable inferred type for validated env
 export type Env = z.infer<typeof envSchema>;
+
+/**
+ * Zod schema for AudioBookShelf environment configuration.
+ * Validates that required env vars are present and properly formatted.
+ */
+export const absConfigSchema = z.object({
+  baseUrl: z.url(),
+  apiKey: z.string().min(1, "API key is required"),
+  libraryId: z.string().min(1, "Library ID is required"),
+});
+
+export type AbsConfig = z.infer<typeof absConfigSchema>;
