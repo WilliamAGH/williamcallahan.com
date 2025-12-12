@@ -21,6 +21,14 @@ import { ImageResponse } from "@vercel/og";
 import type { NextRequest } from "next/server";
 import sharp from "sharp";
 
+import { truncateText } from "@/lib/utils";
+
+/**
+ * Force Node.js runtime - sharp is a native Node.js binding that cannot run on Edge.
+ * Without this export, the route would fail if the project ever sets a default Edge runtime.
+ */
+export const runtime = "nodejs";
+
 // OG Image dimensions (standard)
 const WIDTH = 1200;
 const HEIGHT = 630;
@@ -44,27 +52,40 @@ const FORMAT_CONFIG: Record<string, { label: string; color: string; icon: string
   print: { label: "Print", color: COLORS.printBadge, icon: "📖" },
 };
 
-function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return `${text.slice(0, maxLength - 1).trim()}…`;
-}
-
 /**
  * Converts a potentially relative URL to an absolute URL using the request origin.
  * Node.js fetch() requires absolute URLs, so relative paths like /api/cache/images
  * must be resolved against the request origin.
+ *
+ * Uses URL constructor for proper resolution, avoiding string concatenation pitfalls.
+ * Only allows http/https protocols to prevent SSRF via other schemes (file://, etc.).
+ *
+ * @throws Error if the resolved URL uses an unsupported protocol
  */
 function ensureAbsoluteUrl(url: string, requestOrigin: string): string {
-  if (url.startsWith("http://") || url.startsWith("https://")) {
-    return url;
+  const resolved = new URL(url, requestOrigin);
+  if (resolved.protocol !== "http:" && resolved.protocol !== "https:") {
+    throw new Error(`Unsupported coverUrl protocol: ${resolved.protocol}`);
   }
-  // Relative URL - prepend the request origin
-  return `${requestOrigin}${url.startsWith("/") ? "" : "/"}${url}`;
+  return resolved.toString();
 }
+
+// Security limits for image fetching
+const FETCH_TIMEOUT_MS = 5_000;
+const MAX_IMAGE_SIZE_BYTES = 4 * 1024 * 1024; // 4 MiB
 
 /**
  * Fetches an image and converts it to a base64 PNG data URL
  * Satori only supports PNG, JPEG, and GIF - NOT WebP
+ *
+ * Security hardening against SSRF:
+ * - Timeout: Prevents slow-loris attacks (5s limit)
+ * - Content-Type validation: Only accepts image/* responses
+ * - Size cap: Prevents decompression bombs (4 MiB limit)
+ * - Protocol restriction: Only http/https via ensureAbsoluteUrl
+ *
+ * Note: For same-origin enforcement or allowlist, configure at the infrastructure level
+ * or add URL origin validation if cross-origin covers become a concern.
  */
 async function fetchImageAsDataUrl(url: string, requestOrigin: string): Promise<string | null> {
   try {
@@ -73,6 +94,7 @@ async function fetchImageAsDataUrl(url: string, requestOrigin: string): Promise<
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; OG-Image-Bot/1.0)",
       },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -80,8 +102,37 @@ async function fetchImageAsDataUrl(url: string, requestOrigin: string): Promise<
       return null;
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // Validate content-type is an image
+    const contentType = response.headers.get("content-type");
+    if (!contentType?.startsWith("image/")) {
+      console.error(`[OG-Books] Invalid content-type: ${contentType}`);
+      return null;
+    }
+
+    // Stream with size limit to prevent decompression bombs
+    const reader = response.body?.getReader();
+    if (!reader) {
+      console.error("[OG-Books] No response body reader available");
+      return null;
+    }
+
+    const chunks: Uint8Array[] = [];
+    let totalSize = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      totalSize += value.length;
+      if (totalSize > MAX_IMAGE_SIZE_BYTES) {
+        await reader.cancel();
+        console.error(`[OG-Books] Image exceeds size limit: ${totalSize} > ${MAX_IMAGE_SIZE_BYTES}`);
+        return null;
+      }
+      chunks.push(value);
+    }
+
+    const buffer = Buffer.concat(chunks);
 
     // Use sharp to convert any format (including WebP) to PNG
     const pngBuffer = await sharp(buffer).png().toBuffer();
@@ -89,6 +140,11 @@ async function fetchImageAsDataUrl(url: string, requestOrigin: string): Promise<
     const base64 = pngBuffer.toString("base64");
     return `data:image/png;base64,${base64}`;
   } catch (error) {
+    // Handle timeout gracefully
+    if (error instanceof Error && error.name === "TimeoutError") {
+      console.error(`[OG-Books] Fetch timeout after ${FETCH_TIMEOUT_MS}ms`);
+      return null;
+    }
     console.error(`[OG-Books] Error converting cover image:`, error);
     return null;
   }
