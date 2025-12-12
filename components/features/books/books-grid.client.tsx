@@ -86,9 +86,9 @@ export function BooksClientGrid({ books, title, description, disclaimer, error, 
             </motion.div>
           )}
 
-          {/* Books Grid */}
+          {/* Books Grid - 4 columns max for proper title legibility */}
           {books.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-8">
               {books.map((book, index) => (
                 <BookCard key={book.id} book={book} priority={index < 8} />
               ))}
