@@ -742,7 +742,8 @@ async function getBookmarksIndex(): Promise<{
       id: b.id,
       title: b.title || b.url,
       description: b.description || "",
-      tags: Array.isArray(b.tags) ? b.tags.map(t => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
+      // Use newline delimiter to preserve multi-word tags (e.g., "machine learning")
+      tags: Array.isArray(b.tags) ? b.tags.map(t => (typeof t === "string" ? t : t?.name || "")).join("\n") : "",
       url: b.url,
       author: b.content?.author || "",
       publisher: b.content?.publisher || "",
@@ -806,7 +807,8 @@ function buildBookmarksIndex(
       id: b.id,
       title: b.title || b.url,
       description: b.description || "",
-      tags: Array.isArray(b.tags) ? b.tags.map(t => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
+      // Use newline delimiter to preserve multi-word tags (e.g., "machine learning")
+      tags: Array.isArray(b.tags) ? b.tags.map(t => (typeof t === "string" ? t : t?.name || "")).join("\n") : "",
       url: b.url,
       author: b.content?.author || "",
       publisher: b.content?.publisher || "",
@@ -1179,8 +1181,8 @@ async function getBookmarkTagsWithCounts(): Promise<AggregatedTag[]> {
     const tagCounts = new Map<string, number>();
 
     for (const bookmark of bookmarks) {
-      // tags is a space-separated string in the index
-      const tags = bookmark.tags.split(" ").filter(Boolean);
+      // tags is a newline-separated string in the index (preserves multi-word tags)
+      const tags = bookmark.tags.split("\n").filter(Boolean);
       for (const tag of tags) {
         const normalizedTag = tag.toLowerCase();
         tagCounts.set(normalizedTag, (tagCounts.get(normalizedTag) ?? 0) + 1);
