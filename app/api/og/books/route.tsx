@@ -50,12 +50,26 @@ function truncateText(text: string, maxLength: number): string {
 }
 
 /**
+ * Converts a potentially relative URL to an absolute URL using the request origin.
+ * Node.js fetch() requires absolute URLs, so relative paths like /api/cache/images
+ * must be resolved against the request origin.
+ */
+function ensureAbsoluteUrl(url: string, requestOrigin: string): string {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  // Relative URL - prepend the request origin
+  return `${requestOrigin}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
+/**
  * Fetches an image and converts it to a base64 PNG data URL
  * Satori only supports PNG, JPEG, and GIF - NOT WebP
  */
-async function fetchImageAsDataUrl(url: string): Promise<string | null> {
+async function fetchImageAsDataUrl(url: string, requestOrigin: string): Promise<string | null> {
   try {
-    const response = await fetch(url, {
+    const absoluteUrl = ensureAbsoluteUrl(url, requestOrigin);
+    const response = await fetch(absoluteUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; OG-Image-Bot/1.0)",
       },
@@ -81,7 +95,7 @@ async function fetchImageAsDataUrl(url: string): Promise<string | null> {
 }
 
 export async function GET(request: NextRequest): Promise<ImageResponse> {
-  const { searchParams } = request.nextUrl;
+  const { searchParams, origin } = request.nextUrl;
 
   const title = searchParams.get("title") ?? "Untitled Book";
   const author = searchParams.get("author") ?? "";
@@ -97,9 +111,10 @@ export async function GET(request: NextRequest): Promise<ImageResponse> {
   const displayAuthor = author ? truncateText(author, 45) : "";
 
   // Convert cover image to base64 PNG (Satori doesn't support WebP)
+  // Uses request origin to resolve relative URLs like /api/cache/images
   let coverDataUrl: string | null = null;
   if (coverUrl) {
-    coverDataUrl = await fetchImageAsDataUrl(coverUrl);
+    coverDataUrl = await fetchImageAsDataUrl(coverUrl, origin);
   }
 
   return new ImageResponse(
