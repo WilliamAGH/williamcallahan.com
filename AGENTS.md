@@ -221,7 +221,7 @@ JEST_CONFIG_PATH: config/jest/config.ts
 
 # Code quality (verify in package.json)
 LINTER: Oxlint + ESLint
-FORMATTER: Prettier
+FORMATTER: Biome
 TYPE_CHECKER: TypeScript (tsc)
 SCHEMA_LIB: Zod (see zod/v4 usage in types/schemas/)
 
