@@ -30,6 +30,9 @@ const SECTION_HEADERS = [
 /** Bullet characters to normalize */
 const BULLET_CHARS = ["•", "●", "○", "◦", "▪", "▸", "►", "·"];
 
+/** Separator characters used in Table of Contents entries (number ¦ title) */
+const TOC_SEPARATORS = ["¦", "|", "–", "—", "-"];
+
 /** Words that commonly start new paragraphs after bullet lists (signals end of list) */
 const PARAGRAPH_STARTERS = [
   "In",
@@ -232,6 +235,7 @@ function formatBulletPoints(text: string): string {
 
 /**
  * Adds paragraph breaks before common section headers in book descriptions.
+ * Also adds line break after headers that end with ":" to separate from list content.
  */
 function formatSectionHeaders(text: string): string {
   let result = text;
@@ -240,6 +244,11 @@ function formatSectionHeaders(text: string): string {
     // Case-insensitive match, add double newline before header
     const pattern = new RegExp(`(?<!\\n\\n)(?=\\s*${escapeRegex(header)})`, "gi");
     result = result.replace(pattern, "\n\n");
+
+    // Add line break after header if it ends with ":" and is followed by content
+    // Pattern: "Header:" followed by non-newline content
+    const afterColonPattern = new RegExp(`(${escapeRegex(header)}\\s*:)\\s*(?!\\n)([^\\n])`, "gi");
+    result = result.replace(afterColonPattern, "$1\n$2");
   }
 
   return result;
@@ -247,24 +256,35 @@ function formatSectionHeaders(text: string): string {
 
 /**
  * Formats numbered list items (Table of Contents, chapters).
- * Converts "1 Chapter 2 Chapter" to proper line breaks.
+ * Converts "1 Chapter 2 Chapter" or "1 ¦ Chapter" to proper line breaks.
+ * Handles various TOC separator characters: ¦ | – — -
  * Only triggers when we see consecutive numbers (not standalone "PART 1").
  */
 function formatNumberedLists(text: string): string {
-  // Only format if we detect a Table of Contents pattern (multiple consecutive numbers)
-  // Look for: "word/text N Word M Word" where N and M are sequential or close numbers
-  // This avoids catching standalone "PART 1 - OBJECTS" as a list item
+  let result = text;
+
+  // Build separator pattern from TOC_SEPARATORS
+  const sepPattern = TOC_SEPARATORS.map(escapeRegex).join("|");
+
+  // First, normalize TOC separators: "1 ¦ Title" → "1 Title" (remove separator, keep spaces)
+  // This handles patterns like "1 ¦ Getting familiar" or "1 | Getting familiar"
+  result = result.replace(new RegExp(`(\\d{1,2})\\s*(?:${sepPattern})\\s*`, "g"), "$1 ");
 
   // Check if this looks like a table of contents (has multiple numbered items in sequence)
+  // Look for: "word/text N Word M Word" where N and M are sequential or close numbers
+  // This avoids catching standalone "PART 1 - OBJECTS" as a list item
   const tocPattern = /\d{1,2}\s+[A-Z][a-z]+.*?\d{1,2}\s+[A-Z][a-z]/;
-  if (!tocPattern.test(text)) {
-    return text;
+  if (!tocPattern.test(result)) {
+    return result;
   }
+
+  // Add line break before "PART N" markers within TOC
+  result = result.replace(/(?<=\S)\s+(PART\s+\d+)/gi, "\n\n$1");
 
   // Format numbered items: number followed by capitalized word, when preceded by non-whitespace
   // Pattern must catch items like "world 3 A bookworm's" where the word after the number
   // may be an article (A, An, The) or a capitalized title word
-  let result = text.replace(/(?<=\S)\s+(\d{1,2})\s+([A-Z])/g, "\n$1. $2");
+  result = result.replace(/(?<=\S)\s+(\d{1,2})\s+([A-Z])/g, "\n$1. $2");
 
   // Handle Appendix/Appendixes sections with letter markers (A, B, C, etc.)
   // Pattern: "Appendix[es] A Title B Title" or after a newline "A Title B Title"
