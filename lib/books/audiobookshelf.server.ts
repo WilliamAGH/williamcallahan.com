@@ -18,6 +18,7 @@ import {
   type BookListItem,
   type FetchAbsLibraryItemsOptions,
 } from "@/types/schemas/book";
+import { absConfigSchema, type AbsConfig } from "@/types/schemas/env";
 import { absItemToBook, absItemsToBooks, absItemsToBookListItems, buildDirectCoverUrl } from "./transforms";
 import { generateBookCoverBlur } from "./image-utils.server";
 
@@ -26,17 +27,19 @@ import { generateBookCoverBlur } from "./image-utils.server";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SNAPSHOT_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours to keep "last good" data reasonably fresh
-const ABS_BASE_URL = process.env.AUDIOBOOKSHELF_URL;
-const ABS_API_KEY = process.env.AUDIOBOOKSHELF_API_KEY;
-const ABS_LIBRARY_ID = process.env.AUDIOBOOKSHELF_LIBRARY_ID;
 
-function getConfig() {
-  if (!ABS_BASE_URL || !ABS_API_KEY || !ABS_LIBRARY_ID) {
+function getConfig(): AbsConfig {
+  const baseUrl = process.env.AUDIOBOOKSHELF_URL;
+  const apiKey = process.env.AUDIOBOOKSHELF_API_KEY;
+  const libraryId = process.env.AUDIOBOOKSHELF_LIBRARY_ID;
+
+  if (!baseUrl || !apiKey || !libraryId) {
     throw new Error(
       "AudioBookShelf config missing. Set AUDIOBOOKSHELF_URL, AUDIOBOOKSHELF_API_KEY, AUDIOBOOKSHELF_LIBRARY_ID",
     );
   }
-  return { baseUrl: ABS_BASE_URL, apiKey: ABS_API_KEY, libraryId: ABS_LIBRARY_ID };
+
+  return absConfigSchema.parse({ baseUrl, apiKey, libraryId });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
