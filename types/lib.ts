@@ -314,7 +314,7 @@ export type SearchScope =
   | "experience"
   | "education"
   | "posts";
-export type SearchResultType = "bookmark" | "blog-post" | "project" | "page";
+export type SearchResultType = "bookmark" | "blog-post" | "project" | "page" | "tag";
 
 /** Search query specification */
 export interface SearchQuery {
