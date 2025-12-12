@@ -77,10 +77,29 @@ LIB_DIR: lib/
 # CI/CD & Deployment
 CI_PROVIDER: GitHub Actions
 DEPLOYMENT_PLATFORM: Self-hosted Docker Containers (Coolify and others)
+CDN: Cloudflare (caches static assets aggressively)
 PRODUCTION_URL: https://williamcallahan.com
 DEVELOPMENT_URL: https://dev.williamcallahan.com
 LOCAL_DEVELOPMENT_URL: http://localhost:3000
 ```
+
+## ⚠️ CLOUDFLARE CACHE — DEPLOYMENT VERIFICATION CRITICAL
+
+**Cloudflare aggressively caches static assets (JS chunks, CSS, images).** When verifying deployment fixes:
+
+1. **Local tests passing ≠ Production working.** Cloudflare may serve stale JS bundles for hours.
+2. **After deploying a fix, ALWAYS verify the deployed bundle contains your changes:**
+   ```bash
+   # Check if your code change is in the deployed JS chunk
+   curl -s "https://[domain]/_next/static/chunks/[chunk].js" | grep -c "yourNewCode"
+   ```
+3. **If deployed code doesn't match local:** The issue is Cloudflare cache, NOT your code.
+4. **Cache purge options:**
+   - Cloudflare Dashboard → Caching → Purge Everything
+   - Wait for TTL expiration (can be hours)
+   - Use versioned chunk names (Next.js does this automatically on rebuild)
+
+**RED FLAG:** If `curl` to deployed server shows old behavior but local build works, suspect Cloudflare cache FIRST before debugging further.
 
 This project operates under **ZERO TEMPERATURE** development standards where every decision must be explicitly verified, no assumptions are permitted, and type safety is absolute.
 
