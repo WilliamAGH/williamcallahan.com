@@ -1095,10 +1095,11 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
   return results;
 }
 
-// --- Thoughts Search (placeholder) ---
+// --- Thoughts Search ---
+// Currently returns a navigation result for /thoughts collection page.
+// Will be enhanced with Chroma vector store when available.
 
 export function searchThoughts(query: string): Promise<SearchResult[]> {
-  // TODO: Replace with Chroma-backed thoughts search when vector store is available
   const sanitized = sanitizeSearchQuery(query);
   if (!sanitized) return Promise.resolve([]);
   const pageTitle = typeof PAGE_METADATA.thoughts.title === "string" ? PAGE_METADATA.thoughts.title : "Thoughts";
