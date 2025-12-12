@@ -221,7 +221,7 @@ JEST_CONFIG_PATH: config/jest/config.ts
 
 # Code quality (verify in package.json)
 LINTER: Oxlint + ESLint
-FORMATTER: Biome
+FORMATTER: Biome + Prettier
 TYPE_CHECKER: TypeScript (tsc)
 SCHEMA_LIB: Zod (see zod/v4 usage in types/schemas/)
 
@@ -259,7 +259,7 @@ COMMON_COMMANDS:
 cat package.json | jq '.dependencies'
 
 # Find files over ~400 LOC (warning threshold)
-find . -name "*.ts" -o -name "*.tsx" -exec wc -l {} + | awk '$1 > 400' | sort -n
+find . \( -name "*.ts" -o -name "*.tsx" \) -exec wc -l {} + | awk '$1 > 400' | sort -n
 
 # Search for existing functionality
 grep -r "[keyword]" --include="*.ts" --include="*.tsx" .
