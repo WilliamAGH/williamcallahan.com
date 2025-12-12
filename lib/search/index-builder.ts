@@ -252,8 +252,9 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
       id: b.id,
       title: b.title || b.url,
       description: b.description || "",
+      // Use newline delimiter to preserve multi-word tags (e.g., "machine learning")
       tags: Array.isArray(b.tags)
-        ? b.tags.map(t => (typeof t === "string" ? t : (t as { name?: string })?.name || "")).join(" ")
+        ? b.tags.map(t => (typeof t === "string" ? t : (t as { name?: string })?.name || "")).join("\n")
         : "",
       url: b.url,
       author: b.content?.author || "",
