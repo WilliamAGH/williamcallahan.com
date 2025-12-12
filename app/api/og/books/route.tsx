@@ -27,7 +27,6 @@ import { truncateText } from "@/lib/utils";
  * Force Node.js runtime - sharp is a native Node.js binding that cannot run on Edge.
  * Without this export, the route would fail if the project ever sets a default Edge runtime.
  */
-export const runtime = "nodejs";
 
 // OG Image dimensions (standard)
 const WIDTH = 1200;
