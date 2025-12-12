@@ -104,9 +104,11 @@ function isPrivateHost(hostname: string): boolean {
     if (a === 127) return true; // Loopback 127.0.0.0/8
   }
 
-  // Check for IPv6 loopback/link-local (fe80::, fc00::, fd00::)
-  if (host.startsWith("fe80:") || host.startsWith("fc") || host.startsWith("fd")) {
-    return true;
+  // Check for IPv6 loopback/link-local/ULA (fe80::/10, fc00::/7)
+  // Only apply these checks to actual IPv6 addresses (contain colons)
+  if (host.includes(":")) {
+    if (host.startsWith("fe80:")) return true; // Link-local
+    if (host.startsWith("fc") || host.startsWith("fd")) return true; // ULA fc00::/7
   }
 
   return false;
@@ -118,8 +120,12 @@ function ensureAbsoluteUrl(url: string, requestOrigin: string): string {
     throw new Error(`Unsupported coverUrl protocol: ${resolved.protocol}`);
   }
 
-  // SSRF protection: block internal/private hosts
-  if (isPrivateHost(resolved.hostname)) {
+  // Allow same-origin requests (e.g., /api/cache/images resolved against localhost:3000)
+  // These are safe because we're calling our own server
+  const isSameOrigin = resolved.origin === requestOrigin;
+
+  // SSRF protection: block internal/private hosts for cross-origin requests
+  if (!isSameOrigin && isPrivateHost(resolved.hostname)) {
     throw new Error(`Blocked coverUrl host: ${resolved.hostname}`);
   }
 
