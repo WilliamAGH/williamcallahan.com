@@ -79,5 +79,5 @@ export const CV_CONTACT_LINKS = {
  * Using a fixed timestamp avoids request-time `new Date()` calls inside cached Server Components,
  * which would trigger DYNAMIC_SERVER_USAGE errors in Next.js 16+.
  */
-export const CV_LAST_UPDATED_ISO = "2025-11-07T00:00:00Z";
+export const CV_LAST_UPDATED_ISO = "2025-11-08T12:00:00Z";
 export const CV_LAST_UPDATED_DATE = new Date(CV_LAST_UPDATED_ISO);
