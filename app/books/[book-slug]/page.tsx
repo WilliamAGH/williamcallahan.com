@@ -153,7 +153,7 @@ export default async function BookPage({ params }: BookPageProps) {
     description: book.description || `${book.title} by ${authorText}`,
     datePublished: formatSeoDate(pageMetadata.dateCreated),
     dateModified: formatSeoDate(pageMetadata.dateModified),
-    type: "collection" as const,
+    type: undefined, // Falls back to WebPage until schema.org/Book support is added
     image: book.coverUrl ? { url: ensureAbsoluteUrl(book.coverUrl), width: 400, height: 600 } : undefined,
     breadcrumbs: [
       { path: "/", name: "Home" },
