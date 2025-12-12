@@ -999,6 +999,16 @@ function buildBooksIndex(books: BookListItem[]): MiniSearch<BookListItem> {
     storeFields: ["id", "title", "authors", "coverUrl"],
     idField: "id",
     searchOptions: { boost: { title: 2 }, fuzzy: 0.2, prefix: true },
+    extractField: (document, fieldName) => {
+      // authors is string[] - join for MiniSearch text indexing
+      if (fieldName === "authors") {
+        return Array.isArray(document.authors) ? document.authors.join(" ") : "";
+      }
+      if (fieldName === "title") {
+        return typeof document.title === "string" ? document.title : "";
+      }
+      return "";
+    },
   });
 
   const deduped = prepareDocumentsForIndexing(books, "Books");
