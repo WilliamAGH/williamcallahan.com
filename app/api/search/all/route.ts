@@ -14,6 +14,7 @@ import {
   searchProjects,
   searchBooks,
   searchThoughts,
+  searchTags,
 } from "@/lib/search";
 import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
@@ -118,6 +119,7 @@ export async function GET(request: NextRequest) {
         searchProjects(query),
         searchBooks(query),
         searchThoughts(query),
+        searchTags(query),
       ]);
 
       const [
@@ -129,7 +131,9 @@ export async function GET(request: NextRequest) {
         projectResults,
         bookResults,
         thoughtResults,
+        tagResults,
       ] = settled.map(getFulfilled) as [
+        SearchResult[],
         SearchResult[],
         SearchResult[],
         SearchResult[],
@@ -149,6 +153,8 @@ export async function GET(request: NextRequest) {
       const prefixedProjectResults = projectResults.map(r => ({ ...r, title: `[Projects] ${r.title}` }));
       const prefixedBookResults = bookResults.map(r => ({ ...r, title: `[Books] ${r.title}` }));
       const prefixedThoughtResults = thoughtResults.map(r => ({ ...r, title: `[Thoughts] ${r.title}` }));
+      // Tag results already have hierarchical format: [Blog] > [Tags] > React
+      // No additional prefix needed
 
       // Limit results per category to prevent memory explosion
       const MAX_RESULTS_PER_CATEGORY = 24;
@@ -164,6 +170,7 @@ export async function GET(request: NextRequest) {
         ...prefixedProjectResults.slice(0, MAX_RESULTS_PER_CATEGORY),
         ...prefixedBookResults.slice(0, MAX_RESULTS_PER_CATEGORY),
         ...prefixedThoughtResults.slice(0, MAX_RESULTS_PER_CATEGORY),
+        ...tagResults.slice(0, MAX_RESULTS_PER_CATEGORY),
       ];
 
       // Sort by relevance score (highest first) then limit total results

@@ -9,7 +9,7 @@ import { experiences } from "@/data/experience";
 import { investments } from "@/data/investments";
 import { projects as projectsData } from "@/data/projects";
 import type { BlogPost } from "../types/blog";
-import type { SearchResult, EducationItem, BookmarkIndexItem, ScoredResult } from "../types/search";
+import type { SearchResult, EducationItem, BookmarkIndexItem, ScoredResult, AggregatedTag } from "../types/search";
 import type { BookListItem } from "@/types/schemas/book";
 import MiniSearch from "minisearch";
 import { ServerCacheInstance } from "./server-cache";
@@ -22,8 +22,9 @@ import type { SerializedIndex } from "@/types/search";
 import { loadIndexFromJSON } from "./search/index-builder";
 import type { Project } from "../types/project";
 import { envLogger } from "@/lib/utils/env-logger";
-import { fetchBookListItems } from "@/lib/books/audiobookshelf.server";
+import { fetchBookListItems, fetchBooks } from "@/lib/books/audiobookshelf.server";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
+import { formatTagDisplay, tagToSlug } from "./utils/tag-utils";
 
 // Add near top of file (after imports) a dev log helper
 const IS_DEV = process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test";
@@ -1082,4 +1083,244 @@ export function searchThoughts(query: string): Promise<SearchResult[]> {
       score: 0.1,
     },
   ]);
+}
+
+// --- Tags Search ---
+// Searchable sub-index of tags from Blog, Bookmarks, Projects, and Books
+
+// Cache key and TTL for aggregated tags
+const TAGS_CACHE_KEY = "search:aggregated-tags";
+const TAGS_CACHE_TTL = 10 * 60; // 10 minutes
+
+/**
+ * Get blog post tags with counts
+ */
+function getBlogTagsWithCounts(): AggregatedTag[] {
+  const tagCounts = new Map<string, number>();
+
+  for (const post of posts) {
+    if (!post.tags) continue;
+    for (const tag of post.tags) {
+      const normalizedTag = tag.toLowerCase();
+      tagCounts.set(normalizedTag, (tagCounts.get(normalizedTag) ?? 0) + 1);
+    }
+  }
+
+  return Array.from(tagCounts.entries()).map(([tag, count]) => ({
+    name: tag,
+    slug: tagToSlug(tag),
+    contentType: "blog" as const,
+    count,
+    url: `/blog/tags/${tagToSlug(tag)}`,
+  }));
+}
+
+/**
+ * Get project tags with counts
+ */
+function getProjectTagsWithCounts(): AggregatedTag[] {
+  const tagCounts = new Map<string, number>();
+
+  for (const project of projectsData) {
+    if (!project.tags) continue;
+    for (const tag of project.tags) {
+      const normalizedTag = tag.toLowerCase();
+      tagCounts.set(normalizedTag, (tagCounts.get(normalizedTag) ?? 0) + 1);
+    }
+  }
+
+  return Array.from(tagCounts.entries()).map(([tag, count]) => ({
+    name: tag,
+    slug: tagToSlug(tag),
+    contentType: "projects" as const,
+    count,
+    url: `/projects?tag=${tagToSlug(tag)}`,
+  }));
+}
+
+/**
+ * Get bookmark tags with counts from indexed bookmarks
+ */
+async function getBookmarkTagsWithCounts(): Promise<AggregatedTag[]> {
+  try {
+    const { bookmarks } = await getBookmarksIndex();
+    const tagCounts = new Map<string, number>();
+
+    for (const bookmark of bookmarks) {
+      // tags is a space-separated string in the index
+      const tags = bookmark.tags.split(" ").filter(Boolean);
+      for (const tag of tags) {
+        const normalizedTag = tag.toLowerCase();
+        tagCounts.set(normalizedTag, (tagCounts.get(normalizedTag) ?? 0) + 1);
+      }
+    }
+
+    return Array.from(tagCounts.entries()).map(([tag, count]) => ({
+      name: tag,
+      slug: tagToSlug(tag),
+      contentType: "bookmarks" as const,
+      count,
+      url: `/bookmarks/tags/${tagToSlug(tag)}`,
+    }));
+  } catch (error) {
+    envLogger.log("Failed to get bookmark tags", { error: String(error) }, { category: "Search" });
+    return [];
+  }
+}
+
+/**
+ * Get book genres with counts
+ * Uses fetchBooks (full Book objects) to access genres field
+ */
+async function getBookGenresWithCounts(): Promise<AggregatedTag[]> {
+  try {
+    const books = await fetchBooks();
+    const genreCounts = new Map<string, number>();
+
+    for (const book of books) {
+      if (!book.genres) continue;
+      for (const genre of book.genres) {
+        const normalizedGenre = genre.toLowerCase();
+        genreCounts.set(normalizedGenre, (genreCounts.get(normalizedGenre) ?? 0) + 1);
+      }
+    }
+
+    return Array.from(genreCounts.entries()).map(([genre, count]) => ({
+      name: genre,
+      slug: tagToSlug(genre),
+      contentType: "books" as const,
+      count,
+      url: `/books?genre=${tagToSlug(genre)}`,
+    }));
+  } catch (error) {
+    envLogger.log("Failed to get book genres", { error: String(error) }, { category: "Search" });
+    return [];
+  }
+}
+
+/**
+ * Aggregate all tags from all content types
+ */
+async function aggregateAllTags(): Promise<AggregatedTag[]> {
+  // Check cache first
+  const cached = ServerCacheInstance.get<AggregatedTag[]>(TAGS_CACHE_KEY);
+  if (cached) {
+    return cached;
+  }
+
+  // Gather tags from all sources in parallel
+  const [blogTags, projectTags, bookmarkTags, bookGenres] = await Promise.all([
+    Promise.resolve(getBlogTagsWithCounts()),
+    Promise.resolve(getProjectTagsWithCounts()),
+    getBookmarkTagsWithCounts(),
+    getBookGenresWithCounts(),
+  ]);
+
+  const allTags = [...blogTags, ...projectTags, ...bookmarkTags, ...bookGenres];
+
+  // Cache the aggregated tags
+  ServerCacheInstance.set(TAGS_CACHE_KEY, allTags, TAGS_CACHE_TTL);
+
+  return allTags;
+}
+
+/**
+ * Format tag title for terminal display
+ * Format: [Blog] > [Tags] > React
+ */
+function formatTagTitle(tag: AggregatedTag): string {
+  const categoryLabel: Record<AggregatedTag["contentType"], string> = {
+    blog: "Blog",
+    bookmarks: "Bookmarks",
+    projects: "Projects",
+    books: "Books",
+  };
+
+  const tagTypeLabel = tag.contentType === "books" ? "Genres" : "Tags";
+  const displayName = formatTagDisplay(tag.name);
+
+  return `[${categoryLabel[tag.contentType]}] > [${tagTypeLabel}] > ${displayName}`;
+}
+
+/**
+ * Search tags across all content types
+ * Returns tags matching the query with proper hierarchy display
+ */
+export async function searchTags(query: string): Promise<SearchResult[]> {
+  const sanitizedQuery = sanitizeSearchQuery(query);
+  if (!sanitizedQuery) return [];
+
+  // Check result cache first
+  const cached = ServerCacheInstance.getSearchResults<SearchResult>("tags", sanitizedQuery);
+  if (cached && !ServerCacheInstance.shouldRefreshSearch("tags", sanitizedQuery)) {
+    return cached.results;
+  }
+
+  const allTags = await aggregateAllTags();
+
+  // Filter tags by query using fuzzy substring matching
+  const queryLower = sanitizedQuery.toLowerCase();
+  const queryTerms = queryLower.split(/\s+/).filter(Boolean);
+
+  const matchingTags = allTags
+    .map(tag => {
+      const tagNameLower = tag.name.toLowerCase();
+
+      // Calculate match score
+      let score = 0;
+
+      // Exact match gets highest score
+      if (tagNameLower === queryLower) {
+        score = 1.0;
+      }
+      // Starts with query gets high score
+      else if (tagNameLower.startsWith(queryLower)) {
+        score = 0.8;
+      }
+      // Contains all query terms
+      else if (queryTerms.every(term => tagNameLower.includes(term))) {
+        score = 0.6;
+      }
+      // Contains any query term
+      else if (queryTerms.some(term => tagNameLower.includes(term))) {
+        score = 0.4;
+      }
+      // No match
+      else {
+        return null;
+      }
+
+      // Boost score by count (more items = more relevant tag)
+      const countBoost = Math.min(tag.count / 20, 0.2); // Max 0.2 boost
+      score += countBoost;
+
+      return { tag, score };
+    })
+    .filter((result): result is { tag: AggregatedTag; score: number } => result !== null)
+    .toSorted((a, b) => b.score - a.score);
+
+  // Limit results per content type to prevent overwhelming results
+  const MAX_TAGS_PER_TYPE = 5;
+  const tagsByType = new Map<AggregatedTag["contentType"], number>();
+  const limitedTags = matchingTags.filter(({ tag }) => {
+    const currentCount = tagsByType.get(tag.contentType) ?? 0;
+    if (currentCount >= MAX_TAGS_PER_TYPE) return false;
+    tagsByType.set(tag.contentType, currentCount + 1);
+    return true;
+  });
+
+  // Transform to SearchResult format
+  const results: SearchResult[] = limitedTags.map(({ tag, score }) => ({
+    id: `tag:${tag.contentType}:${tag.slug}`,
+    type: "tag" as const,
+    title: formatTagTitle(tag),
+    description: `${tag.count} ${tag.contentType === "books" ? "books" : tag.contentType === "blog" ? "posts" : "items"}`,
+    url: tag.url,
+    score,
+  }));
+
+  // Cache results
+  ServerCacheInstance.setSearchResults("tags", sanitizedQuery, results);
+
+  return results;
 }
