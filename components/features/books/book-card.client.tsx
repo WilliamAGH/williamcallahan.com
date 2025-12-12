@@ -16,7 +16,7 @@ import type { BookCardProps } from "@/types/features/books";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
 import { cn } from "@/lib/utils";
 
-export function BookCard({ book, priority = false }: BookCardProps) {
+export function BookCard({ book, priority = false }: BookCardProps): React.JSX.Element {
   // Type guard to check if we have full Book data (for ISBN access)
   const isFullBook = (b: BookListItem | Book): b is Book => "formats" in b;
   const fullBook = isFullBook(book) ? book : null;
