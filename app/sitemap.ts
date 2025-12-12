@@ -22,6 +22,7 @@ import {
 } from "@/lib/bookmarks/service.server";
 import { fetchBooks } from "@/lib/books/audiobookshelf.server";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
+import { getThoughtListItems } from "@/lib/thoughts/service.server";
 import { kebabCase } from "@/lib/utils/formatters";
 import type { UnifiedBookmark } from "@/types";
 
@@ -38,6 +39,8 @@ const BOOKMARK_TAG_PAGE_PRIORITY = 0.55;
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 const BOOK_CHANGE_FREQUENCY: NonNullable<MetadataRoute.Sitemap[number]["changeFrequency"]> = "monthly";
 const BOOK_PRIORITY = 0.6;
+const THOUGHT_CHANGE_FREQUENCY: NonNullable<MetadataRoute.Sitemap[number]["changeFrequency"]> = "weekly";
+const THOUGHT_PRIORITY = 0.6;
 
 const sanitizePathSegment = (segment: string): string => segment.replace(/[^\u0020-\u007E]/g, "");
 
@@ -264,6 +267,43 @@ const collectBookSitemapData = async (
   }
 };
 
+const collectThoughtSitemapData = async (
+  siteUrl: string,
+): Promise<{
+  entries: MetadataRoute.Sitemap;
+  latestThoughtUpdateTime?: Date;
+}> => {
+  try {
+    const thoughts = await getThoughtListItems();
+    if (!Array.isArray(thoughts) || thoughts.length === 0) {
+      return { entries: [], latestThoughtUpdateTime: undefined };
+    }
+
+    let latestDate: Date | undefined;
+    const entries: MetadataRoute.Sitemap = thoughts
+      .filter(thought => !thought.draft)
+      .map(thought => {
+        const lastModified = getLatestDate(getSafeDate(thought.updatedAt), getSafeDate(thought.createdAt));
+        latestDate = getLatestDate(latestDate, lastModified);
+        return {
+          url: `${siteUrl}/thoughts/${thought.slug}`,
+          lastModified,
+          changeFrequency: THOUGHT_CHANGE_FREQUENCY,
+          priority: THOUGHT_PRIORITY,
+        } satisfies MetadataRoute.Sitemap[number];
+      });
+
+    return {
+      entries,
+      latestThoughtUpdateTime: latestDate,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[Sitemap] Failed to collect thought sitemap entries:", message);
+    return { entries: [], latestThoughtUpdateTime: undefined };
+  }
+};
+
 // --- Main Sitemap Generation ---
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = siteMetadata.site.url;
@@ -342,6 +382,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let paginatedBookmarkTagEntries: MetadataRoute.Sitemap = [];
   let bookEntries: MetadataRoute.Sitemap = [];
   let latestBookUpdateTime: Date | undefined;
+  let thoughtEntries: MetadataRoute.Sitemap = [];
+  let latestThoughtUpdateTime: Date | undefined;
 
   if (!isBuildPhase) {
     const bookmarkData = await collectBookmarkSitemapData(siteUrl);
@@ -356,8 +398,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const bookData = await collectBookSitemapData(siteUrl);
     bookEntries = bookData.entries;
     latestBookUpdateTime = bookData.latestBookUpdateTime;
+
+    const thoughtData = await collectThoughtSitemapData(siteUrl);
+    thoughtEntries = thoughtData.entries;
+    latestThoughtUpdateTime = thoughtData.latestThoughtUpdateTime;
   } else {
-    console.log("[Sitemap] Skipping bookmark, book, and tag fetch during build phase");
+    console.log("[Sitemap] Skipping bookmark, book, thought, and tag fetch during build phase");
   }
 
   // --- 3. Process Static Pages ---
@@ -387,8 +433,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: getLatestDate(getSafeDate(PAGE_METADATA.books?.dateModified), latestBookUpdateTime),
     },
     "/thoughts": {
-      priority: 0.6,
-      lastModified: getSafeDate(PAGE_METADATA.thoughts?.dateModified),
+      priority: THOUGHT_PRIORITY,
+      lastModified: getLatestDate(getSafeDate(PAGE_METADATA.thoughts?.dateModified), latestThoughtUpdateTime),
     },
     "/contact": {
       priority: 0.8,
@@ -427,6 +473,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...blogPostEntries,
     ...blogTagEntries,
     ...bookEntries,
+    ...thoughtEntries,
     ...bookmarkEntries,
     ...paginatedBookmarkEntries,
     ...bookmarkTagEntries,
