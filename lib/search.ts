@@ -1041,6 +1041,11 @@ async function getBooksIndex(): Promise<MiniSearch<BookListItem>> {
   return index;
 }
 
+/** Type guard to check if value is a non-null object */
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
+}
+
 export async function searchBooks(query: string): Promise<SearchResult[]> {
   const cached = ServerCacheInstance.getSearchResults<SearchResult>("books", query);
   if (cached && !ServerCacheInstance.shouldRefreshSearch("books", query)) {
@@ -1051,12 +1056,28 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) return [];
 
-  const searchResultsRaw = index.search(sanitizedQuery, {
+  const searchResultsUnknown: unknown = index.search(sanitizedQuery, {
     prefix: true,
     fuzzy: 0.2,
     boost: { title: 2 },
     combineWith: "AND",
-  }) as Array<{ id: string | number; title?: string; authors?: string[]; score?: number }>;
+  });
+
+  // Runtime validation of MiniSearch results
+  const hits = Array.isArray(searchResultsUnknown) ? searchResultsUnknown : [];
+  const searchResultsRaw = hits
+    .map(hit => {
+      if (!isRecord(hit)) return null;
+      const id = hit.id;
+      if (typeof id !== "string" && typeof id !== "number") return null;
+      return {
+        id,
+        title: typeof hit.title === "string" ? hit.title : undefined,
+        authors: Array.isArray(hit.authors) ? hit.authors.filter((a): a is string => typeof a === "string") : undefined,
+        score: typeof hit.score === "number" ? hit.score : undefined,
+      };
+    })
+    .filter((v): v is NonNullable<typeof v> => v !== null);
 
   const scoreById = new Map(searchResultsRaw.map(r => [String(r.id), r.score ?? 0] as const));
 
