@@ -21,6 +21,8 @@ import { projects } from "@/data/projects";
 import type { Project } from "@/types/project";
 import { getAllMDXPostsForSearch } from "@/lib/blog/mdx";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
+import { fetchBookListItems } from "@/lib/books/audiobookshelf.server";
+import type { BookListItem } from "@/types/schemas/book";
 import { prepareDocumentsForIndexing } from "@/lib/utils/search-helpers";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
@@ -276,12 +278,55 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
 }
 
 /**
+ * Build search index for books (from AudioBookShelf)
+ */
+async function buildBooksIndex(): Promise<SerializedIndex> {
+  const books = await fetchBookListItems();
+
+  const index = new MiniSearch<BookListItem>({
+    fields: ["title", "authors"],
+    storeFields: ["id", "title", "authors", "coverUrl"],
+    idField: "id",
+    searchOptions: {
+      boost: { title: 2 },
+      fuzzy: 0.2,
+      prefix: true,
+    },
+    extractField: (document, fieldName) => {
+      if (fieldName === "authors") {
+        return Array.isArray(document.authors) ? document.authors.join(" ") : "";
+      }
+      if (fieldName === "title") {
+        return typeof document.title === "string" ? document.title : "";
+      }
+      return "";
+    },
+  });
+
+  const dedupedBooks = prepareDocumentsForIndexing(books, "Books");
+  index.addAll(dedupedBooks);
+
+  return {
+    index: index.toJSON(),
+    metadata: {
+      itemCount: dedupedBooks.length,
+      buildTime: new Date().toISOString(),
+      version: "1.0",
+    },
+  };
+}
+
+/**
  * Build all search indexes
  */
 export async function buildAllSearchIndexes(): Promise<AllSerializedIndexes> {
   console.log("[Search Index Builder] Starting build process...");
 
-  const [postsIndex, bookmarksIndex] = await Promise.all([buildPostsIndex(), buildBookmarksIndex()]);
+  const [postsIndex, bookmarksIndex, booksIndex] = await Promise.all([
+    buildPostsIndex(),
+    buildBookmarksIndex(),
+    buildBooksIndex(),
+  ]);
 
   const investmentsIndex = buildInvestmentsIndex();
   const experienceIndex = buildExperienceIndex();
@@ -301,6 +346,7 @@ export async function buildAllSearchIndexes(): Promise<AllSerializedIndexes> {
   console.log(`  - Education: ${educationIndex.metadata.itemCount}`);
   console.log(`  - Projects: ${projectsIndex.metadata.itemCount}`);
   console.log(`  - Bookmarks: ${bookmarksIndex.metadata.itemCount}`);
+  console.log(`  - Books: ${booksIndex.metadata.itemCount}`);
 
   return {
     posts: postsIndex,
@@ -309,6 +355,7 @@ export async function buildAllSearchIndexes(): Promise<AllSerializedIndexes> {
     education: educationIndex,
     projects: projectsIndex,
     bookmarks: bookmarksIndex,
+    books: booksIndex,
     buildMetadata,
   };
 }

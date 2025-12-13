@@ -2,27 +2,25 @@
  * Search Utilities
  */
 
-import { posts } from "@/data/blog/posts";
 import { PAGE_METADATA } from "@/data/metadata";
 import { certifications, education } from "@/data/education";
 import { experiences } from "@/data/experience";
 import { investments } from "@/data/investments";
 import { projects as projectsData } from "@/data/projects";
-import type { BlogPost } from "../types/blog";
 import type { SearchResult, EducationItem, BookmarkIndexItem, ScoredResult, AggregatedTag } from "../types/search";
-import type { BookListItem } from "@/types/schemas/book";
+import type { Book } from "@/types/schemas/book";
 import MiniSearch from "minisearch";
 import { ServerCacheInstance } from "./server-cache";
 import { sanitizeSearchQuery } from "./validators/search";
 import { prepareDocumentsForIndexing } from "./utils/search-helpers";
-import { USE_NEXTJS_CACHE, cacheContextGuards, withCacheFallback } from "./cache";
+import { cacheContextGuards, USE_NEXTJS_CACHE } from "./cache";
 import { SEARCH_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "./constants";
 import { readJsonS3 } from "./s3-utils";
 import type { SerializedIndex } from "@/types/search";
 import { loadIndexFromJSON } from "./search/index-builder";
 import type { Project } from "../types/project";
 import { envLogger } from "@/lib/utils/env-logger";
-import { fetchBookListItems, fetchBooks } from "@/lib/books/audiobookshelf.server";
+import { fetchBooks } from "@/lib/books/audiobookshelf.server";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
 import { formatTagDisplay, tagToSlug } from "./utils/tag-utils";
 
@@ -32,23 +30,7 @@ const devLog = (...args: unknown[]) => {
   if (IS_DEV) console.log("[SearchDev]", ...args);
 };
 
-// Type-safe wrappers for cache functions to fix ESLint unsafe call errors
-const safeCacheLife = (
-  profile:
-    | "default"
-    | "seconds"
-    | "minutes"
-    | "hours"
-    | "days"
-    | "weeks"
-    | "max"
-    | { stale?: number; revalidate?: number; expire?: number },
-): void => {
-  cacheContextGuards.cacheLife("Search", profile);
-};
-const safeCacheTag = (...tags: string[]): void => {
-  cacheContextGuards.cacheTag("Search", ...tags);
-};
+// Type-safe wrapper for cache tag revalidation
 const safeRevalidateTag = (...tags: string[]): void => {
   cacheContextGuards.revalidateTag("Search", ...tags);
 };
@@ -57,22 +39,25 @@ const safeRevalidateTag = (...tags: string[]): void => {
 
 // Cache keys for MiniSearch indexes
 const SEARCH_INDEX_KEYS = {
-  POSTS: "search:index:posts",
   INVESTMENTS: "search:index:investments",
   EXPERIENCE: "search:index:experience",
   EDUCATION: "search:index:education",
   BOOKMARKS: "search:index:bookmarks",
   PROJECTS: "search:index:projects",
   BOOKS: "search:index:books",
+  BOOKS_DATA: "search:books-data", // Shared cache for full Book[] data
 } as const;
 
 // TTL for search indexes (1 hour for static, 5 minutes for dynamic)
 const STATIC_INDEX_TTL = 60 * 60; // 1 hour in seconds
 const BOOKMARK_INDEX_TTL = 5 * 60; // 5 minutes in seconds
-const BOOK_INDEX_TTL = 30 * 60; // 30 minutes for slower-changing bookshelf
+const BOOK_INDEX_TTL = 2 * 60 * 60; // 2 hours for slower-changing bookshelf
+const BOOKS_DATA_TTL = 2 * 60 * 60; // 2 hours - shared between search index and genre extraction
 
 // Flag to control whether to load indexes from S3 or build in-memory
-const USE_S3_INDEXES = process.env.USE_S3_SEARCH_INDEXES === "true";
+// Default: true (use S3 indexes for reliability and performance)
+// Set USE_S3_SEARCH_INDEXES=false to force live fetching
+const USE_S3_INDEXES = process.env.USE_S3_SEARCH_INDEXES !== "false";
 
 /**
  * Loads a search index from S3 if available, falls back to building in-memory
@@ -223,103 +208,6 @@ function searchContent<T>(
 }
 
 // --- Helper functions to create MiniSearch indexes ---
-
-function buildPostsIndex(): MiniSearch<BlogPost> {
-  // Create new index
-  const postsIndex = new MiniSearch<BlogPost>({
-    fields: ["title", "excerpt", "tags", "authorName"], // Fields to index
-    storeFields: ["id", "title", "excerpt", "slug", "publishedAt"], // Fields to return with results
-    idField: "id", // Unique identifier - use id for consistency with other search indexes
-    searchOptions: {
-      boost: { title: 2 }, // Title matches are more important
-      fuzzy: 0.1,
-      prefix: true,
-    },
-    extractField: (document, fieldName) => {
-      // Handle virtual fields and array conversions
-      if (fieldName === "authorName") {
-        return document.author?.name || "";
-      }
-      if (fieldName === "tags") {
-        return Array.isArray(document.tags) ? document.tags.join(" ") : "";
-      }
-      // Default field extraction
-      const field = fieldName as keyof BlogPost;
-      const value = document[field];
-      return typeof value === "string" ? value : "";
-    },
-  });
-
-  // Deduplicate posts by id before adding to index
-  const dedupedPosts = prepareDocumentsForIndexing(posts, "Blog Posts", post => post.id);
-
-  // Add posts directly - virtual fields are handled by extractField
-  postsIndex.addAll(dedupedPosts);
-
-  return postsIndex;
-}
-
-async function getPostsIndex(): Promise<MiniSearch<BlogPost>> {
-  return loadOrBuildIndex(SEARCH_S3_PATHS.POSTS_INDEX, SEARCH_INDEX_KEYS.POSTS, buildPostsIndex, STATIC_INDEX_TTL);
-}
-
-// Direct search function (always available)
-async function searchPostsDirect(query: string): Promise<BlogPost[]> {
-  const index = await getPostsIndex();
-  const scoredResults = searchContent(
-    posts,
-    query,
-    post => [post.title || "", post.excerpt || "", ...(post.tags || []), post.author?.name || ""],
-    post => post.title,
-    index,
-    // Default extractId uses item.id which matches MiniSearch idField: "id"
-  );
-
-  // Extract items and sort by date (posts prioritize recency over relevance score)
-  return scoredResults
-    .map(r => r.item)
-    .toSorted((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-}
-
-// Cached version using 'use cache' directive
-async function searchPostsCached(query: string): Promise<BlogPost[]> {
-  "use cache";
-
-  safeCacheLife("minutes"); // 15 minute cache for search results
-  safeCacheTag("search");
-  safeCacheTag("posts-search");
-  safeCacheTag(`search-posts-${query.slice(0, 20)}`); // Limit tag length
-
-  return searchPostsDirect(query);
-}
-
-export async function searchPosts(query: string): Promise<BlogPost[]> {
-  // Check legacy cache first
-  const cached = ServerCacheInstance.getSearchResults<BlogPost>("posts", query);
-  if (cached && !ServerCacheInstance.shouldRefreshSearch("posts", query)) {
-    return cached.results;
-  }
-
-  const results = await searchPostsDirect(query);
-
-  // Cache the results in legacy cache
-  ServerCacheInstance.setSearchResults("posts", query, results);
-
-  return results;
-}
-
-// Export async version for consumers that can use it
-export async function searchPostsAsync(query: string): Promise<BlogPost[]> {
-  if (USE_NEXTJS_CACHE) {
-    return withCacheFallback(
-      () => searchPostsCached(query),
-      () => searchPostsDirect(query),
-    );
-  }
-
-  // Fall back to regular search
-  return searchPosts(query);
-}
 
 function buildInvestmentsIndex(): MiniSearch<(typeof investments)[0]> {
   // Create new index
@@ -994,9 +882,43 @@ export async function searchProjects(query: string): Promise<SearchResult[]> {
 }
 
 // --- Books Search ---
+// Uses shared books data cache for both search index and genre extraction
 
-function buildBooksIndex(books: BookListItem[]): MiniSearch<BookListItem> {
-  const booksIndex = new MiniSearch<BookListItem>({
+/**
+ * Shared cache for full Book[] data.
+ * Called by both getBooksIndex() and getBookGenresWithCounts() to avoid duplicate API calls.
+ * This consolidation saves one external API call per cold-start site-wide search.
+ */
+async function getCachedBooksData(): Promise<Book[]> {
+  const cacheKey = SEARCH_INDEX_KEYS.BOOKS_DATA;
+  const cached = ServerCacheInstance.get<Book[]>(cacheKey);
+  if (cached) {
+    devLog("[getCachedBooksData] Using cached books data", { count: cached.length });
+    return cached;
+  }
+
+  let books: Book[] = [];
+  try {
+    devLog("[getCachedBooksData] Fetching full books from AudioBookShelf...");
+    books = await fetchBooks();
+    devLog("[getCachedBooksData] Fetched books", { count: books.length });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    envLogger.log("[Search] Failed to fetch books", { error: message }, { category: "Search" });
+    console.error("[Search] Books fetch failed:", message);
+    return [];
+  }
+
+  if (books.length === 0) {
+    console.warn("[Search] WARNING: No books returned from AudioBookShelf");
+  }
+
+  ServerCacheInstance.set(cacheKey, books, BOOKS_DATA_TTL);
+  return books;
+}
+
+function buildBooksIndex(books: Book[]): MiniSearch<Book> {
+  const booksIndex = new MiniSearch<Book>({
     fields: ["title", "authors"],
     storeFields: ["id", "title", "authors", "coverUrl"],
     idField: "id",
@@ -1018,29 +940,48 @@ function buildBooksIndex(books: BookListItem[]): MiniSearch<BookListItem> {
   return booksIndex;
 }
 
-async function getBooksIndex(): Promise<MiniSearch<BookListItem>> {
-  // Avoid expensive remote fetch when explicitly disabled
+async function getBooksIndex(): Promise<MiniSearch<Book>> {
   const cacheKey = SEARCH_INDEX_KEYS.BOOKS;
-  const cached = ServerCacheInstance.get<MiniSearch<BookListItem>>(cacheKey);
+  const cached = ServerCacheInstance.get<MiniSearch<Book>>(cacheKey);
   if (cached) {
+    devLog("[getBooksIndex] Using cached books index");
     return cached;
   }
 
-  let books: BookListItem[] = [];
-  try {
-    books = await fetchBookListItems();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    envLogger.log("[Search] Failed to fetch books for search", { error: message }, { category: "Search" });
+  let booksIndex: MiniSearch<Book>;
+
+  // Try to load from S3 first (pre-built index)
+  if (USE_S3_INDEXES) {
+    try {
+      devLog("[getBooksIndex] Trying to load books index from S3...");
+      const serializedIndex = await readJsonS3<SerializedIndex>(SEARCH_S3_PATHS.BOOKS_INDEX);
+      if (serializedIndex?.index && serializedIndex.metadata) {
+        booksIndex = loadIndexFromJSON<Book>(serializedIndex);
+        console.log(`[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`);
+        ServerCacheInstance.set(cacheKey, booksIndex, BOOK_INDEX_TTL);
+        return booksIndex;
+      }
+      devLog("[getBooksIndex] S3 index not found or invalid, falling back to shared cache");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      devLog("[getBooksIndex] S3 load failed, falling back to shared cache:", message);
+    }
+  }
+
+  // Use shared books data cache (consolidates with getBookGenresWithCounts)
+  const books = await getCachedBooksData();
+
+  if (books.length === 0) {
     // Return empty index so search still resolves without throwing
     const emptyIndex = buildBooksIndex([]);
     ServerCacheInstance.set(cacheKey, emptyIndex, BOOK_INDEX_TTL);
     return emptyIndex;
   }
 
-  const index = buildBooksIndex(books);
-  ServerCacheInstance.set(cacheKey, index, BOOK_INDEX_TTL);
-  return index;
+  console.log(`[Search] Building books index with ${books.length} books (from shared cache)`);
+  booksIndex = buildBooksIndex(books);
+  ServerCacheInstance.set(cacheKey, booksIndex, BOOK_INDEX_TTL);
+  return booksIndex;
 }
 
 /** Type guard to check if value is a non-null object */
@@ -1049,14 +990,29 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 export async function searchBooks(query: string): Promise<SearchResult[]> {
+  devLog("[searchBooks] Query:", query);
+
   const cached = ServerCacheInstance.getSearchResults<SearchResult>("books", query);
   if (cached && !ServerCacheInstance.shouldRefreshSearch("books", query)) {
+    devLog("[searchBooks] Returning cached results", { count: cached.results.length });
     return cached.results;
   }
 
   const index = await getBooksIndex();
   const sanitizedQuery = sanitizeSearchQuery(query);
-  if (!sanitizedQuery) return [];
+  if (!sanitizedQuery) {
+    devLog("[searchBooks] Empty sanitized query, returning []");
+    return [];
+  }
+
+  // Log index document count for debugging
+  const indexDocCount = index.documentCount;
+  devLog("[searchBooks] Index document count:", indexDocCount);
+
+  if (indexDocCount === 0) {
+    console.warn("[Search] Books index is empty - no books to search");
+    return [];
+  }
 
   const searchResultsUnknown: unknown = index.search(sanitizedQuery, {
     prefix: true,
@@ -1067,6 +1023,8 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
 
   // Runtime validation of MiniSearch results
   const hits = Array.isArray(searchResultsUnknown) ? searchResultsUnknown : [];
+  devLog("[searchBooks] Raw hits from MiniSearch:", hits.length);
+
   const searchResultsRaw = hits
     .map(hit => {
       if (!isRecord(hit)) return null;
@@ -1093,6 +1051,7 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
     score: scoreById.get(String(id)) ?? 0,
   }));
 
+  devLog("[searchBooks] Final results:", results.length);
   ServerCacheInstance.setSearchResults("books", query, results);
   return results;
 }
@@ -1127,26 +1086,33 @@ const TAGS_CACHE_KEY = "search:aggregated-tags";
 const TAGS_CACHE_TTL = 10 * 60; // 10 minutes
 
 /**
- * Get blog post tags with counts
+ * Get blog post tags with counts from MDX posts
  */
-function getBlogTagsWithCounts(): AggregatedTag[] {
-  const tagCounts = new Map<string, number>();
+async function getBlogTagsWithCounts(): Promise<AggregatedTag[]> {
+  try {
+    const { getAllMDXPostsForSearch } = await import("@/lib/blog/mdx");
+    const posts = await getAllMDXPostsForSearch();
+    const tagCounts = new Map<string, number>();
 
-  for (const post of posts) {
-    if (!post.tags) continue;
-    for (const tag of post.tags) {
-      const normalizedTag = tag.toLowerCase();
-      tagCounts.set(normalizedTag, (tagCounts.get(normalizedTag) ?? 0) + 1);
+    for (const post of posts) {
+      if (!post.tags) continue;
+      for (const tag of post.tags) {
+        const normalizedTag = tag.toLowerCase();
+        tagCounts.set(normalizedTag, (tagCounts.get(normalizedTag) ?? 0) + 1);
+      }
     }
-  }
 
-  return Array.from(tagCounts.entries()).map(([tag, count]) => ({
-    name: tag,
-    slug: tagToSlug(tag),
-    contentType: "blog" as const,
-    count,
-    url: `/blog/tags/${tagToSlug(tag)}`,
-  }));
+    return Array.from(tagCounts.entries()).map(([tag, count]) => ({
+      name: tag,
+      slug: tagToSlug(tag),
+      contentType: "blog" as const,
+      count,
+      url: `/blog/tags/${tagToSlug(tag)}`,
+    }));
+  } catch (error) {
+    envLogger.log("Failed to get blog tags", { error: String(error) }, { category: "Search" });
+    return [];
+  }
 }
 
 /**
@@ -1203,12 +1169,13 @@ async function getBookmarkTagsWithCounts(): Promise<AggregatedTag[]> {
 }
 
 /**
- * Get book genres with counts
- * Uses fetchBooks (full Book objects) to access genres field
+ * Get book genres with counts.
+ * Uses shared books data cache to avoid duplicate API calls with getBooksIndex().
  */
 async function getBookGenresWithCounts(): Promise<AggregatedTag[]> {
   try {
-    const books = await fetchBooks();
+    // Use shared cache instead of separate fetchBooks() call
+    const books = await getCachedBooksData();
     const genreCounts = new Map<string, number>();
 
     for (const book of books) {
@@ -1244,7 +1211,7 @@ async function aggregateAllTags(): Promise<AggregatedTag[]> {
 
   // Gather tags from all sources in parallel
   const [blogTags, projectTags, bookmarkTags, bookGenres] = await Promise.all([
-    Promise.resolve(getBlogTagsWithCounts()),
+    getBlogTagsWithCounts(),
     Promise.resolve(getProjectTagsWithCounts()),
     getBookmarkTagsWithCounts(),
     getBookGenresWithCounts(),
