@@ -49,11 +49,20 @@ const COLORS = {
 };
 
 // Format badge configuration
-const FORMAT_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
+const FORMAT_CONFIG = {
   audio: { label: "Audiobook", color: COLORS.audioBadge, icon: "🎧" },
   ebook: { label: "eBook", color: COLORS.ebookBadge, icon: "📱" },
   print: { label: "Print", color: COLORS.printBadge, icon: "📖" },
-};
+} as const satisfies Record<string, { label: string; color: string; icon: string }>;
+
+/**
+ * Type guard to check if a value is a valid format key.
+ * Uses Object.hasOwn() instead of `in` operator to prevent prototype pollution
+ * (e.g., "toString" would pass `in` check but fail hasOwn).
+ */
+function isFormatKey(value: string): value is keyof typeof FORMAT_CONFIG {
+  return Object.hasOwn(FORMAT_CONFIG, value);
+}
 
 /**
  * Converts a potentially relative URL to an absolute URL using the request origin.
@@ -231,8 +240,8 @@ export async function GET(request: NextRequest): Promise<ImageResponse> {
 
   const formats = formatsParam
     .split(",")
-    .map(f => f.trim().toLowerCase())
-    .filter(f => f in FORMAT_CONFIG);
+    .map((f): string => f.trim().toLowerCase())
+    .filter(isFormatKey);
 
   const displayTitle = truncateText(title, 60);
   const displayAuthor = author ? truncateText(author, 45) : "";
