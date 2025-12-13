@@ -135,6 +135,7 @@ function ensureAbsoluteUrl(url: string, requestOrigin: string): string {
 // Security limits for image fetching
 const FETCH_TIMEOUT_MS = 5_000;
 const MAX_IMAGE_SIZE_BYTES = 4 * 1024 * 1024; // 4 MiB
+const MAX_INPUT_PIXELS = 40_000_000; // 40 megapixels - guards against decompression bombs
 
 /**
  * Fetches an image and converts it to a base64 PNG data URL
@@ -143,11 +144,18 @@ const MAX_IMAGE_SIZE_BYTES = 4 * 1024 * 1024; // 4 MiB
  * Security hardening against SSRF:
  * - Timeout: Prevents slow-loris attacks (5s limit)
  * - Content-Type validation: Only accepts image/* responses
- * - Size cap: Prevents decompression bombs (4 MiB limit)
+ * - Size cap: Prevents large file downloads (4 MiB streaming limit)
+ * - Pixel cap: Prevents decompression bombs via sharp limitInputPixels
  * - Protocol restriction: Only http/https via ensureAbsoluteUrl
+ * - Host validation: Blocks private/internal IPs via isPrivateHost
  *
- * Note: For same-origin enforcement or allowlist, configure at the infrastructure level
- * or add URL origin validation if cross-origin covers become a concern.
+ * Defense-in-depth notes:
+ * - DNS-to-private bypass: The isPrivateHost check validates hostnames, not resolved IPs.
+ *   A malicious domain resolving to internal IPs could bypass this check. This is mitigated
+ *   by infrastructure-level egress rules (Vercel/Cloudflare network restrictions) that prevent
+ *   serverless functions from reaching private IP ranges regardless of DNS resolution.
+ * - For additional hardening in untrusted environments, consider DNS resolution validation
+ *   or a strict allowlist of approved cover image domains.
  */
 async function fetchImageAsDataUrl(url: string, requestOrigin: string): Promise<string | null> {
   try {
@@ -197,7 +205,8 @@ async function fetchImageAsDataUrl(url: string, requestOrigin: string): Promise<
     const buffer = Buffer.concat(chunks);
 
     // Use sharp to convert any format (including WebP) to PNG
-    const pngBuffer = await sharp(buffer).png().toBuffer();
+    // limitInputPixels guards against decompression bombs (small file, huge pixel dimensions)
+    const pngBuffer = await sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS }).png().toBuffer();
 
     const base64 = pngBuffer.toString("base64");
     return `data:image/png;base64,${base64}`;
