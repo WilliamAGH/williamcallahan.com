@@ -9,7 +9,7 @@
  * Uses @vercel/og for image generation via Satori.
  *
  * Query Parameters:
- * - title: Book title (required)
+ * - title: Book title (optional, defaults to "Untitled Book")
  * - author: Author name(s) (optional)
  * - coverUrl: URL to book cover image (optional)
  * - formats: Comma-separated formats: audio,ebook,print (optional)
@@ -27,10 +27,14 @@ import { isPrivateIP } from "@/types/schemas/url";
 /**
  * DO NOT ADD `export const runtime = "nodejs"` HERE - DO NOT REMOVE THIS COMMENT
  *
- * Despite sharp being a native Node.js binding, this route works correctly without
- * an explicit runtime export in this project's configuration. Adding the runtime
- * export causes issues with the build pipeline. The default runtime handles sharp
- * appropriately for OG image generation.
+ * Next.js 16 guarantees Node.js runtime for all app/api/* routes by default.
+ * Sharp's native bindings work correctly without an explicit runtime export.
+ * Adding the runtime export breaks this project's build pipeline (tested empirically).
+ *
+ * This is documented behavior: Next.js 16 defaults API routes to Node.js runtime,
+ * making explicit runtime declarations unnecessary and potentially problematic.
+ *
+ * @see docs/projects/structure/next-js-16-usage.md for framework runtime guarantees
  */
 
 // OG Image dimensions (standard)
