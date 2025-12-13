@@ -313,7 +313,10 @@ export type SearchScope =
   | "investments"
   | "experience"
   | "education"
-  | "posts";
+  | "posts"
+  | "books"
+  | "thoughts"
+  | "tags";
 export type SearchResultType = "bookmark" | "blog-post" | "project" | "page" | "tag";
 
 /** Search query specification */

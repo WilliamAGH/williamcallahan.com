@@ -18,6 +18,7 @@ export const VALID_SCOPES = [
   "projects",
   "books",
   "thoughts",
+  "tags",
 ] as const;
 
 export interface EducationItem {
@@ -63,6 +64,7 @@ export interface AllSerializedIndexes {
   education: SerializedIndex;
   projects: SerializedIndex;
   bookmarks: SerializedIndex;
+  books: SerializedIndex;
   buildMetadata: {
     buildTime: string;
     version: string;
