@@ -144,14 +144,6 @@ const mockUseRouter = useRouterImported as jest.Mock;
 
 // Mock search functions using mock.module
 jest.mock("../../../../lib/search", () => ({
-  // Use mock.module
-  searchPosts: jest.fn().mockResolvedValue([
-    {
-      title: "Test Post",
-      excerpt: "Test excerpt",
-      slug: "test-post",
-    },
-  ]),
   searchExperience: jest.fn().mockResolvedValue([]),
   searchEducation: jest.fn().mockResolvedValue([]),
   searchInvestments: jest.fn().mockResolvedValue([]),
