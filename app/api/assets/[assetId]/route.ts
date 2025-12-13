@@ -494,7 +494,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!assetIdValidation.success) {
     console.error(`[Assets API] Invalid asset ID format: ${assetId}`);
     return NextResponse.json(
-      { error: "Invalid asset ID format", details: assetIdValidation.error.errors[0]?.message },
+      { error: "Invalid asset ID format", details: assetIdValidation.error.issues[0]?.message },
       { status: 400 },
     );
   }
