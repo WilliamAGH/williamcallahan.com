@@ -202,7 +202,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {/* Add SVG Transform Fixer */}
             <SvgTransformFixer />
             {/* Revert to direct rendering */}
-            <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
+            {/* Removed transition-colors duration-200 to prevent theme flicker during hydration.
+                Theme transitions are now handled by next-themes disableTransitionOnChange. */}
+            <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100">
               <ErrorBoundary silent>
                 <header className="relative w-full bg-white/80 dark:bg-[#232530]/90 backdrop-blur-sm z-[1000]">
                   {/* overflow-visible allows nav dropdowns to extend beyond header bounds */}

@@ -8,7 +8,7 @@
 
 "use client";
 
-import React, { Suspense, useMemo, type JSX } from "react";
+import React, { Suspense } from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hint";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
@@ -19,18 +19,6 @@ import type { RegisteredWindowState } from "@/types";
 import type { BooksWindowProps, BooksWindowContentProps } from "@/types/features/books";
 
 const DEFAULT_BOOKS_WINDOW_ID = "books-window";
-
-const SkeletonLoader = (): JSX.Element => {
-  const skeletonKeys = useMemo(() => Array.from({ length: 6 }, () => crypto.randomUUID()), []);
-
-  return (
-    <div className="animate-pulse space-y-4 p-6">
-      {skeletonKeys.map(key => (
-        <div key={key} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
-      ))}
-    </div>
-  );
-};
 
 function BooksWindowContentInner({
   children,
@@ -68,7 +56,10 @@ function BooksWindowContentInner({
       </div>
 
       <div className={cn("h-full", isMaximized ? "overflow-y-auto" : "")}>
-        <Suspense fallback={<SkeletonLoader />}>{children}</Suspense>
+        {/* Use a minimal height placeholder to prevent layout collapse during streaming */}
+        <Suspense fallback={<div className="min-h-[400px] animate-pulse p-6" aria-hidden="true" />}>
+          {children}
+        </Suspense>
       </div>
     </div>
   );
@@ -86,23 +77,17 @@ export function BooksWindow({ children, windowTitle, windowId }: BooksWindowProp
     isRegistered,
   }: RegisteredWindowState = useRegisteredWindowState(uniqueId, BookOpen as LucideIcon, restoreTitle, "normal");
 
-  // Return skeleton while waiting for registration - prevents layout shift
-  if (!isRegistered) {
-    return (
-      <div className="relative max-w-5xl mx-auto mt-8 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
-        <SkeletonLoader />
-      </div>
-    );
-  }
-
   // Closed or minimized windows are hidden
   if (windowState === "closed" || windowState === "minimized") {
     return null;
   }
 
+  // Render content immediately with visibility handling to prevent flicker.
+  // Use CSS opacity transition instead of conditional rendering for registration state.
+  // This ensures the same DOM structure is rendered on server and client.
   return (
     <BooksWindowContentInner
-      windowState={windowState}
+      windowState={isRegistered ? windowState : "normal"}
       onClose={closeWindow}
       onMinimize={minimizeWindow}
       onMaximize={maximizeWindow}
