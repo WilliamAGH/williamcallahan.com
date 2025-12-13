@@ -20,6 +20,9 @@ import {
   listBookmarkTagSlugs,
   getTagBookmarksIndex,
 } from "@/lib/bookmarks/service.server";
+import { fetchBooks } from "@/lib/books/audiobookshelf.server";
+import { generateBookSlug } from "@/lib/books/slug-helpers";
+import { getThoughtListItems } from "@/lib/thoughts/service.server";
 import { kebabCase } from "@/lib/utils/formatters";
 import type { UnifiedBookmark } from "@/types";
 
@@ -34,6 +37,10 @@ const BOOKMARK_PRIORITY = 0.65;
 const BOOKMARK_TAG_PRIORITY = 0.6;
 const BOOKMARK_TAG_PAGE_PRIORITY = 0.55;
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+const BOOK_CHANGE_FREQUENCY: NonNullable<MetadataRoute.Sitemap[number]["changeFrequency"]> = "monthly";
+const BOOK_PRIORITY = 0.6;
+const THOUGHT_CHANGE_FREQUENCY: NonNullable<MetadataRoute.Sitemap[number]["changeFrequency"]> = "weekly";
+const THOUGHT_PRIORITY = 0.6;
 
 const sanitizePathSegment = (segment: string): string => segment.replace(/[^\u0020-\u007E]/g, "");
 
@@ -222,6 +229,95 @@ const collectTagSitemapData = async (
   return { tagEntries, paginatedTagEntries };
 };
 
+const collectBookSitemapData = async (
+  siteUrl: string,
+): Promise<{
+  entries: MetadataRoute.Sitemap;
+  latestBookUpdateTime?: Date;
+}> => {
+  // Avoid remote API fetch during build to keep memory safe
+  if (isBuildPhase) {
+    console.log("[Sitemap] Skipping book fetch during build phase");
+    return { entries: [], latestBookUpdateTime: undefined };
+  }
+
+  try {
+    const books = await fetchBooks();
+    if (!Array.isArray(books) || books.length === 0) {
+      return { entries: [], latestBookUpdateTime: undefined };
+    }
+
+    const entries: MetadataRoute.Sitemap = books.map(book => {
+      const slug = generateBookSlug(book.title, book.id, book.authors, book.isbn13, book.isbn10);
+      return {
+        url: `${siteUrl}/books/${slug}`,
+        changeFrequency: BOOK_CHANGE_FREQUENCY,
+        priority: BOOK_PRIORITY,
+      } satisfies MetadataRoute.Sitemap[number];
+    });
+
+    return {
+      entries,
+      latestBookUpdateTime: getSafeDate(PAGE_METADATA.books?.dateModified),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[Sitemap] Failed to collect book sitemap entries:", message);
+    return { entries: [], latestBookUpdateTime: undefined };
+  }
+};
+
+const collectThoughtSitemapData = async (
+  siteUrl: string,
+): Promise<{
+  entries: MetadataRoute.Sitemap;
+  latestThoughtUpdateTime?: Date;
+}> => {
+  try {
+    const thoughts = await getThoughtListItems();
+    if (!Array.isArray(thoughts) || thoughts.length === 0) {
+      return { entries: [], latestThoughtUpdateTime: undefined };
+    }
+
+    let latestDate: Date | undefined;
+    const entries: MetadataRoute.Sitemap = [];
+
+    for (const thought of thoughts) {
+      if (thought.draft) continue;
+
+      // Sanitize and validate slug to prevent malformed URLs
+      const sanitizedSlug = sanitizePathSegment(thought.slug);
+      if (!sanitizedSlug) {
+        console.warn(`[Sitemap] Skipping thought with empty/unsafe slug: ${thought.slug}`);
+        continue;
+      }
+
+      const lastModified = getLatestDate(getSafeDate(thought.updatedAt), getSafeDate(thought.createdAt));
+      latestDate = getLatestDate(latestDate, lastModified);
+
+      // Only include lastModified if defined (prevents empty <lastmod> tags)
+      const entry: MetadataRoute.Sitemap[number] = {
+        url: `${siteUrl}/thoughts/${encodeURIComponent(sanitizedSlug)}`,
+        changeFrequency: THOUGHT_CHANGE_FREQUENCY,
+        priority: THOUGHT_PRIORITY,
+      };
+      if (lastModified) {
+        entry.lastModified = lastModified;
+      }
+      entries.push(entry);
+    }
+
+    return {
+      entries,
+      latestThoughtUpdateTime: latestDate,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[Sitemap] Failed to collect thought sitemap entries:", message);
+    return { entries: [], latestThoughtUpdateTime: undefined };
+  }
+};
+
 // --- Main Sitemap Generation ---
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = siteMetadata.site.url;
@@ -298,6 +394,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let latestBookmarkUpdateTime: Date | undefined;
   let bookmarkTagEntries: MetadataRoute.Sitemap = [];
   let paginatedBookmarkTagEntries: MetadataRoute.Sitemap = [];
+  let bookEntries: MetadataRoute.Sitemap = [];
+  let latestBookUpdateTime: Date | undefined;
+  let thoughtEntries: MetadataRoute.Sitemap = [];
+  let latestThoughtUpdateTime: Date | undefined;
 
   if (!isBuildPhase) {
     const bookmarkData = await collectBookmarkSitemapData(siteUrl);
@@ -308,8 +408,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const tagData = await collectTagSitemapData(siteUrl);
     bookmarkTagEntries = tagData.tagEntries;
     paginatedBookmarkTagEntries = tagData.paginatedTagEntries;
+
+    const bookData = await collectBookSitemapData(siteUrl);
+    bookEntries = bookData.entries;
+    latestBookUpdateTime = bookData.latestBookUpdateTime;
+
+    const thoughtData = await collectThoughtSitemapData(siteUrl);
+    thoughtEntries = thoughtData.entries;
+    latestThoughtUpdateTime = thoughtData.latestThoughtUpdateTime;
   } else {
-    console.log("[Sitemap] Skipping bookmark and tag S3 fetch during build phase");
+    console.log("[Sitemap] Skipping bookmark, book, thought, and tag fetch during build phase");
   }
 
   // --- 3. Process Static Pages ---
@@ -333,6 +441,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/blog": {
       priority: 0.9,
       lastModified: getLatestDate(getSafeDate(PAGE_METADATA.blog.dateModified), latestPostUpdateTime),
+    },
+    "/books": {
+      priority: BOOK_PRIORITY,
+      lastModified: getLatestDate(getSafeDate(PAGE_METADATA.books?.dateModified), latestBookUpdateTime),
+    },
+    "/thoughts": {
+      priority: THOUGHT_PRIORITY,
+      lastModified: getLatestDate(getSafeDate(PAGE_METADATA.thoughts?.dateModified), latestThoughtUpdateTime),
     },
     "/contact": {
       priority: 0.8,
@@ -370,6 +486,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...projectTagEntries,
     ...blogPostEntries,
     ...blogTagEntries,
+    ...bookEntries,
+    ...thoughtEntries,
     ...bookmarkEntries,
     ...paginatedBookmarkEntries,
     ...bookmarkTagEntries,

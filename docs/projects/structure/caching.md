@@ -532,3 +532,100 @@ UnifiedImageService includes session-based domain tracking to prevent infinite l
 6. **Request-time APIs**: Cannot use with cookies() or headers()
 7. **Default Revalidation**: Server-side cache revalidates every 15 minutes by default
 8. **Platform Support**: Node.js and Docker only (not static exports)
+
+## Static-to-Dynamic Error Prevention (cacheComponents)
+
+### The Problem
+
+With `cacheComponents: true`, pages that are prerendered as static at build time will **fail at runtime** if they attempt to become dynamic. This creates a mismatch between build-time and runtime behavior.
+
+**Error Message:**
+
+```
+Error: Page changed from static to dynamic at runtime /path, reason: revalidate: 0 fetch
+```
+
+### Root Causes
+
+| Pattern                   | Effect                      | Error Type                      |
+| ------------------------- | --------------------------- | ------------------------------- |
+| `cache: "no-store"`       | Forces `revalidate: 0`      | Static-to-dynamic runtime error |
+| `connection()` bailout    | Forces dynamic rendering    | `DYNAMIC_SERVER_USAGE`          |
+| `Date.now()` before fetch | Non-deterministic prerender | `next-prerender-current-time`   |
+| `revalidate: 0` in fetch  | Zero TTL = always dynamic   | Static-to-dynamic runtime error |
+
+### Prevention Strategies
+
+#### 1. Use Time-Based Revalidation
+
+```typescript
+// ❌ BROKEN: cache: "no-store" = revalidate: 0
+const response = await fetch(url, { cache: "no-store" });
+
+// ✅ CORRECT: Positive revalidation time
+const response = await fetch(url, { next: { revalidate: 300 } }); // 5 minutes
+```
+
+#### 2. Avoid `connection()` Bailout
+
+```typescript
+// ❌ BROKEN: connection() causes DYNAMIC_SERVER_USAGE
+import { connection } from "next/server";
+await connection();
+
+// ✅ CORRECT: Pages are dynamic by default with cacheComponents
+// Just remove the connection() call entirely
+```
+
+#### 3. Prerender-Safe Timestamps
+
+```typescript
+// ❌ BROKEN: Date.now() before data access
+const snapshot = { data, fetchedAt: Date.now() };
+
+// ✅ CORRECT: Use sentinel value (0) for prerender safety
+const snapshot = { data, fetchedAt: 0 };
+
+// ✅ ALTERNATIVE: Check timestamp freshness with fallback
+const snapshotIsFresh = (snapshot, ttlMs) => {
+  if (!snapshot) return false;
+  if (snapshot.fetchedAt === 0) return true; // prerender-safe sentinel
+  try {
+    return Date.now() - snapshot.fetchedAt <= ttlMs;
+  } catch {
+    return true; // Date.now() failed during prerender
+  }
+};
+```
+
+### Books Feature Case Study
+
+The `/books` routes required all three fixes:
+
+1. **Removed `connection()`** from `components/features/books/books.server.tsx`
+2. **Changed `cache: "no-store"`** to `next: { revalidate: 300 }` in `lib/books/audiobookshelf.server.ts`
+3. **Replaced `Date.now()`** with `0` sentinel in snapshot caching functions
+
+**Result:** Pages prerender as static with 5-minute ISR, gracefully degrade when AudioBookShelf is unavailable.
+
+### Detection Commands
+
+```bash
+# Find cache: no-store usage
+grep -r "cache.*no-store" --include="*.ts" --include="*.tsx" lib/ components/ app/
+
+# Find connection() imports
+grep -r "connection.*from.*next/server" --include="*.ts" --include="*.tsx"
+
+# Find Date.now() in server code
+grep -r "Date\.now()" --include="*.server.ts" --include="*.server.tsx" lib/ components/
+```
+
+### Summary Table
+
+| Scenario                | Old Pattern            | New Pattern                                     |
+| ----------------------- | ---------------------- | ----------------------------------------------- |
+| Fresh data each request | `cache: "no-store"`    | `next: { revalidate: 60 }` (or appropriate TTL) |
+| Force dynamic rendering | `connection()` bailout | Remove—dynamic by default                       |
+| Timestamp for cache TTL | `Date.now()`           | `0` sentinel + safe TTL check                   |
+| API routes              | `unstable_noStore()`   | Still allowed in `/api/*` routes                |

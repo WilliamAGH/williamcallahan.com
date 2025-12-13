@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { BookmarksWithPagination } from "@/components/features/bookmarks/bookmarks-with-pagination.client";
 import { describe, it, expect, jest, beforeEach, afterEach } from "@jest/globals";
 import "@testing-library/jest-dom";
@@ -61,15 +61,9 @@ describe("Search-mode client pagination", () => {
     jest.restoreAllMocks();
   });
 
-  it("renders bookmarks and handles search", async () => {
-    // Mock fetch for search API to return all 66 bookmarks
-    global.fetch = jest.fn(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ data: mockBookmarks }),
-      }),
-    ) as jest.Mock;
-
+  it("renders bookmarks and displays pagination info", async () => {
+    // Note: Search is handled via sitewide terminal, not component-level input.
+    // This test validates rendering and pagination display.
     const { container } = render(
       <BookmarksWithPagination
         initialBookmarks={mockBookmarks.slice(0, 24)}
@@ -81,32 +75,17 @@ describe("Search-mode client pagination", () => {
       />,
     );
 
-    // Helper to check for text in the component
-    const findText = (text: string) => {
-      const elements = container.querySelectorAll("*");
-      return Array.from(elements).some(el => el.textContent?.includes(text));
-    };
-
-    // Verify initial state shows some bookmarks
-    expect(screen.getByPlaceholderText(/search bookmarks/i)).toBeInTheDocument();
-
-    // Type search term
-    fireEvent.change(screen.getByPlaceholderText(/search bookmarks/i), { target: { value: "ai" } });
-
-    // Wait for search to be triggered
+    // Wait for component to mount (hydration)
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/search/bookmarks?q=ai"),
-        expect.any(Object),
-      );
+      // Verify pagination info is displayed (appears in multiple places: pagination control and results count)
+      const showingElements = screen.getAllByText(/showing/i);
+      expect(showingElements.length).toBeGreaterThan(0);
     });
 
-    // Verify search results are displayed
-    await waitFor(() => {
-      expect(findText("for ai")).toBe(true);
-    });
+    // Verify tag filter is shown when showFilterBar is true
+    expect(screen.getByText(/filter by/i)).toBeInTheDocument();
 
-    // The component should show bookmarks
+    // The component should show bookmark placeholders or cards
     const bookmarkElements = container.querySelectorAll('[class*="rounded-3xl"]');
     expect(bookmarkElements.length).toBeGreaterThan(0);
   });

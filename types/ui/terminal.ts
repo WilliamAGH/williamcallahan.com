@@ -94,6 +94,8 @@ export const SECTION_KEYS = [
   "blog",
   "bookmarks",
   "bookmark",
+  "books",
+  "thoughts",
   "aventure",
   "tsbank",
   "seekinvest",
@@ -128,5 +130,5 @@ export interface TerminalWindowStateProviderProps {
  */
 export interface TerminalSearchHintProps {
   /** Context determines the content type referenced in the hint text */
-  context?: "bookmarks" | "blog" | "projects";
+  context?: "bookmarks" | "blog" | "projects" | "books" | "thoughts";
 }

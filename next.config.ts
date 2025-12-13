@@ -476,10 +476,21 @@ const nextConfig = {
       { protocol: "https", hostname: "umami.iocloudhost.net" },
       { protocol: "https", hostname: "plausible.iocloudhost.net" },
       { protocol: "https", hostname: "*.iocloudhost.net" }, // Wildcard for iocloudhost subdomains
-      // Specific hosting provider subdomains
+      /**
+       * Self-hosted infrastructure domains (popos-sf1 through popos-sf7)
+       * These hosts run various self-hosted services including:
+       * - AudioBookShelf (personal reading library API)
+       * - Media servers and content APIs
+       * - Other self-hosted applications
+       * All subdomains (*.popos-sfX.com) are whitelisted for image optimization
+       */
       { protocol: "https", hostname: "*.popos-sf1.com" },
       { protocol: "https", hostname: "*.popos-sf2.com" },
       { protocol: "https", hostname: "*.popos-sf3.com" },
+      { protocol: "https", hostname: "*.popos-sf4.com" },
+      { protocol: "https", hostname: "*.popos-sf5.com" },
+      { protocol: "https", hostname: "*.popos-sf6.com" },
+      { protocol: "https", hostname: "*.popos-sf7.com" },
     ],
     /**
      * An array of image widths (in pixels) that Nextjs will use to generate different image sizes

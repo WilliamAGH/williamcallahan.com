@@ -24,6 +24,9 @@ export * from "./blog";
 // Bookmark feature components
 export * from "./bookmarks";
 
+// Books feature components
+export * from "./books";
+
 // GitHub feature components
 export * from "./github";
 
@@ -41,6 +44,9 @@ export * from "./social";
 
 // Home feature components
 export * from "./home";
+
+// Thoughts feature components
+export * from "./thoughts";
 
 // export * from "./logo";
 // export * from "./terminal";

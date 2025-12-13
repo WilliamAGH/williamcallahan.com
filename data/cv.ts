@@ -72,3 +72,12 @@ export const CV_CONTACT_LINKS = {
   twitterHandle: "@williamcallahan",
   linkedInUrl: "https://linkedin.com/in/williamacallahan",
 } as const satisfies CvContactLinks;
+
+/**
+ * CV "last updated" date computed at build time.
+ * This is a static value that changes only when the CV data is modified and redeployed.
+ * Using a fixed timestamp avoids request-time `new Date()` calls inside cached Server Components,
+ * which would trigger DYNAMIC_SERVER_USAGE errors in Next.js 16+.
+ */
+export const CV_LAST_UPDATED_ISO = "2025-11-08T12:00:00Z";
+export const CV_LAST_UPDATED_DATE = new Date(CV_LAST_UPDATED_ISO);

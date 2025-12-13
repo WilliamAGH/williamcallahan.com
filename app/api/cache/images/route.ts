@@ -47,7 +47,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const urlValidation = openGraphUrlSchema.safeParse(url);
   if (!urlValidation.success) {
     return NextResponse.json(
-      { error: "Invalid or unsafe URL", details: urlValidation.error.errors[0]?.message },
+      { error: "Invalid or unsafe URL", details: urlValidation.error.issues[0]?.message },
       { status: 403 },
     );
   }

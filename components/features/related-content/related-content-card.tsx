@@ -58,6 +58,12 @@ function getTypeBadge(type: RelatedContentCardProps["item"]["type"]): { label: s
         className:
           "bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800",
       };
+    case "book":
+      return {
+        label: "BOOK",
+        className:
+          "bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+      };
     default:
       return {
         label: "DOC",
@@ -111,7 +117,7 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
         <header className="flex items-start justify-between mb-3">
           <span
             className={`
-              inline-flex items-center justify-center px-2 py-0.5 
+              inline-flex items-center justify-center px-2 py-0.5
               text-[10px] font-mono font-semibold tracking-wider
               border rounded ${typeBadge.className}
             `}
@@ -120,7 +126,10 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
             {typeBadge.label}
           </span>
           <div className="flex flex-col items-end text-xs text-gray-500 dark:text-gray-400">
-            {metadata.date && <time dateTime={metadata.date}>{formatDateUtil(metadata.date)}</time>}
+            {/* Hide date for investments in related content view - date shown on dedicated page */}
+            {metadata.date && type !== "investment" && (
+              <time dateTime={metadata.date}>{formatDateUtil(metadata.date)}</time>
+            )}
             {showScore && typeof item.score === "number" && (
               <span className="mt-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">
                 {Math.round(item.score * 100)}% match
@@ -160,10 +169,42 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">{title}</h3>
             </div>
           </div>
+        ) : type === "book" && metadata.imageUrl && !imageError ? (
+          /* Book covers need vertical orientation - aspect-[4/5] matches typical tech book covers */
+          <div className="flex items-start gap-3 mb-3">
+            <div className="relative w-16 flex-shrink-0 aspect-[4/5] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 shadow-sm">
+              {imageLoading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              <Image
+                src={metadata.imageUrl}
+                alt={title}
+                fill
+                className={`object-cover transition-opacity duration-200 ${imageLoading ? "opacity-0" : "opacity-100"}`}
+                sizes="64px"
+                quality={80}
+                onLoad={() => setImageLoading(false)}
+                onError={() => {
+                  setImageError(true);
+                  setImageLoading(false);
+                  if (process.env.NODE_ENV === "development") {
+                    console.warn(`Failed to load book cover for ${title}: ${metadata.imageUrl}`);
+                  }
+                }}
+                unoptimized={isExternalImage}
+                priority={false}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">{title}</h3>
+            </div>
+          </div>
         ) : (
           <>
-            {/* Regular images for other content types */}
-            {metadata.imageUrl && !imageError && type !== "investment" && (
+            {/* Horizontal images for blog posts and bookmarks */}
+            {metadata.imageUrl && !imageError && type !== "investment" && type !== "book" && (
               <div className="relative w-full h-32 mb-3 rounded overflow-hidden bg-gray-100 dark:bg-gray-700">
                 {imageLoading && (
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -190,8 +231,8 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
               </div>
             )}
 
-            {/* Title for non-investment types or investments without logos */}
-            {type !== "investment" || !metadata.imageUrl || imageError ? (
+            {/* Title for non-investment/non-book types, or when image is missing/errored */}
+            {(type !== "investment" && type !== "book") || !metadata.imageUrl || imageError ? (
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">{title}</h3>
             ) : null}
           </>
@@ -270,6 +311,28 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
             {(type === "investment" || type === "project") &&
               metadata.category &&
               !normalizedTagSet.has(String(metadata.category).toLowerCase()) && <span>{metadata.category}</span>}
+
+            {/* Authors for books */}
+            {type === "book" && metadata.authors && metadata.authors.length > 0 && (
+              <span className="truncate">
+                {metadata.authors.slice(0, 2).join(", ")}
+                {metadata.authors.length > 2 && ` +${metadata.authors.length - 2}`}
+              </span>
+            )}
+
+            {/* Formats for books */}
+            {type === "book" && metadata.formats && metadata.formats.length > 0 && (
+              <span className="ml-2 flex items-center gap-1">
+                {metadata.formats.map(format => (
+                  <span
+                    key={format}
+                    className="px-1.5 py-0.5 text-[10px] font-medium uppercase bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded"
+                  >
+                    {format}
+                  </span>
+                ))}
+              </span>
+            )}
 
             {/* aVenture research link for investments - separate external link */}
             {typeof aventureHref === "string" ? (

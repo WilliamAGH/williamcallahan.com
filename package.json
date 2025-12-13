@@ -91,6 +91,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "3.922.0",
     "@aws-sdk/lib-storage": "3.922.0",
+    "@chroma-core/default-embed": "^0.1.9",
     "@fontsource/ibm-plex-mono": "5.2.7",
     "@mapbox/rehype-prism": "^0.9.0",
     "@mdx-js/mdx": "^3.1.1",
@@ -102,7 +103,9 @@
     "@sentry/nextjs": "10.27.0",
     "@sentry/opentelemetry": "10.27.0",
     "@tailwindcss/typography": "0.5.19",
+    "@vercel/og": "^0.8.5",
     "cheerio": "^1.1.2",
+    "chromadb": "^3.1.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

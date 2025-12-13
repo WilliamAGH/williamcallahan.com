@@ -16,7 +16,8 @@ function Providers({ children }: { children: React.ReactNode }) {
   // NOTE: Dark Reader detection and class addition is handled by an inline script in app/layout.tsx
   return (
     <ThemeProvider disableTransitionOnChange enableSystem attribute="class" defaultTheme="system">
-      <Suspense fallback={null}>{children}</Suspense>
+      {/* Use min-h-screen fallback to prevent layout collapse during streaming hydration */}
+      <Suspense fallback={<div className="min-h-screen" aria-hidden="true" />}>{children}</Suspense>
     </ThemeProvider>
   );
 }

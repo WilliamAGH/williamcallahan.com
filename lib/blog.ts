@@ -7,12 +7,17 @@ import type { BlogPost } from "@/types/blog";
 import { getAllMDXPostsCached } from "./blog/mdx";
 import { BlogPostDataError } from "./utils/error-utils";
 
+/** Whether to include draft posts (only in development) */
+const INCLUDE_DRAFTS = process.env.NODE_ENV === "development";
+
 /**
- * Retrieves all blog posts sorted by publish date
+ * Retrieves all blog posts sorted by publish date.
+ * Draft posts are excluded in production but visible in development.
  *
+ * @param includeDrafts - Override to include drafts regardless of environment (for admin use)
  * @throws Error if the posts cannot be retrieved
  */
-export async function getAllPosts(): Promise<BlogPost[]> {
+export async function getAllPosts(includeDrafts = INCLUDE_DRAFTS): Promise<BlogPost[]> {
   try {
     // Get posts from both sources
     const mdxPosts = await getAllMDXPostsCached();
@@ -25,8 +30,11 @@ export async function getAllPosts(): Promise<BlogPost[]> {
     // Combine posts from both sources
     const allPosts = [...(staticPosts || []), ...mdxPosts];
 
+    // Filter out drafts unless explicitly included
+    const visiblePosts = includeDrafts ? allPosts : allPosts.filter(post => !post.draft);
+
     // Sort by date, newest first
-    return allPosts.toSorted((a, b) => {
+    return visiblePosts.toSorted((a, b) => {
       const dateA = new Date(a.publishedAt || 0).getTime();
       const dateB = new Date(b.publishedAt || 0).getTime();
       return dateB - dateA;
@@ -40,7 +48,8 @@ export async function getAllPosts(): Promise<BlogPost[]> {
 }
 
 /**
- * Retrieves a single blog post by its slug
+ * Retrieves a single blog post by its slug.
+ * Includes draft posts since direct URL access is allowed.
  *
  * @returns The found blog post or null if not found
  * @throws BlogPostDataError only for unexpected errors, not for missing posts
@@ -52,11 +61,9 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
   }
 
   try {
-    // Check static posts first
-    // To get a post by slug, we first get all posts (which are cached and use frontmatter slugs)
-    // and then find the one with the matching slug.
-    // This avoids needing to guess filenames or re-implement file iteration logic here.
-    const allPosts = await getAllPosts();
+    // Include drafts when fetching by slug - direct URL access is allowed
+    // This enables preview workflows where authors can share draft URLs
+    const allPosts = await getAllPosts(true);
     const foundPost = allPosts.find(post => post.slug === slug);
 
     if (!foundPost) {

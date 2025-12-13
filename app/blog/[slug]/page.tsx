@@ -1,10 +1,13 @@
-"use cache";
 /**
  * Blog Post Page
  * @module app/blog/[slug]/page
  * @description
  * Renders individual blog posts with full content and metadata.
  * Implements proper SEO with schema.org structured data.
+ *
+ * Note: This dynamic route uses generateStaticParams for static generation at build time.
+ * The "use cache" directive is intentionally NOT used here because params is request-specific
+ * and cannot be accessed inside a cached context in Next.js 16+.
  */
 
 import { Suspense } from "react";

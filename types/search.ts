@@ -16,6 +16,8 @@ export const VALID_SCOPES = [
   "education",
   "bookmarks",
   "projects",
+  "books",
+  "thoughts",
 ] as const;
 
 export interface EducationItem {
@@ -45,6 +47,15 @@ export interface SerializedIndex {
   };
 }
 
+/** Aggregated tag with metadata for tag sub-index search */
+export interface AggregatedTag {
+  name: string;
+  slug: string;
+  contentType: "blog" | "bookmarks" | "projects" | "books";
+  count: number;
+  url: string;
+}
+
 export interface AllSerializedIndexes {
   posts: SerializedIndex;
   investments: SerializedIndex;
@@ -62,7 +73,7 @@ export interface AllSerializedIndexes {
 // Zod schemas moved from lib/schemas/search.ts
 export const searchResultItemSchema = z.object({
   id: z.string().min(1, "Search result ID cannot be empty"),
-  type: z.enum(["bookmark", "blog-post", "project", "page"]),
+  type: z.enum(["bookmark", "blog-post", "project", "page", "tag"]),
   title: z.string(),
   description: z.string().optional(),
   url: z.string(),

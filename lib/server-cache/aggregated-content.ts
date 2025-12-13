@@ -9,7 +9,7 @@ import type { AggregatedContentCacheEntry, RelatedContentCacheData } from "@/typ
 
 const AGGREGATED_CONTENT_KEY = "aggregated-content:all";
 const RELATED_CONTENT_PREFIX = "related-content:";
-const CACHE_TTL_MS = 15 * 60 * 1000;
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours - content changes infrequently
 
 /**
  * Get cached aggregated content
@@ -22,7 +22,7 @@ export function getAggregatedContent(this: ICache): AggregatedContentCacheEntry 
  * Set aggregated content in cache
  */
 export function setAggregatedContent(this: ICache, entry: AggregatedContentCacheEntry): boolean {
-  // Cache for 15 minutes
+  // Cache for 24 hours - content changes infrequently
   return this.set(AGGREGATED_CONTENT_KEY, entry, CACHE_TTL_MS);
 }
 
@@ -55,7 +55,7 @@ export function setRelatedContent(
   entry: RelatedContentCacheData,
 ): boolean {
   const key = `${RELATED_CONTENT_PREFIX}${sourceType}:${sourceId}`;
-  // Cache for 15 minutes
+  // Cache for 24 hours - content changes infrequently
   return this.set(key, entry, CACHE_TTL_MS);
 }
 

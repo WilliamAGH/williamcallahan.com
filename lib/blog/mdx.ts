@@ -322,6 +322,7 @@ export async function getMDXPost(
       coverImage,
       coverImageBlurDataURL,
       filePath: filePathForPost,
+      ...(frontmatter.draft === true && { draft: true }),
     };
 
     return post;

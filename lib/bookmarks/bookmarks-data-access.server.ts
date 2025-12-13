@@ -5,9 +5,13 @@ import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE, DEFAULT_BOOKMARK_OPTIONS } from
 import { envLogger } from "@/lib/utils/env-logger";
 import { createDistributedLock, cleanupStaleLocks } from "@/lib/utils/s3-distributed-lock.server";
 import type { UnifiedBookmark, RefreshBookmarksCallback } from "@/types";
-import type { BookmarksIndex, BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
+import {
+  bookmarksIndexSchema as BookmarksIndexSchema,
+  type BookmarksIndex,
+  type BookmarkLoadOptions,
+  type LightweightBookmark,
+} from "@/types/bookmark";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
-import { BookmarksIndexSchema } from "@/lib/schemas/bookmarks";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import {
   normalizeBookmarkTag,

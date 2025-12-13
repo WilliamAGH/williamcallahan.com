@@ -395,7 +395,10 @@ describe("Tag Navigation with Pagination", () => {
         />,
       );
 
-      expect(screen.getByText(/no bookmarks found/i)).toBeInTheDocument();
+      // Component shows "No bookmarks found" in multiple places (count section and empty state)
+      // Use getAllByText since both are intentional UI elements
+      const noBookmarksElements = screen.getAllByText(/no bookmarks found/i);
+      expect(noBookmarksElements.length).toBeGreaterThan(0);
     });
   });
 });

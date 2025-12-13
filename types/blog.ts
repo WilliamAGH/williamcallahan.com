@@ -51,6 +51,8 @@ export interface BlogPost {
   coverImageBlurDataURL?: string;
   /** Optional: Original file path of the MDX file */
   filePath?: string;
+  /** Whether this post is a draft (hidden from public listings) */
+  draft?: boolean;
 }
 
 /**
