@@ -127,7 +127,7 @@ export function BlogWindow({ children, windowTitle }: BlogWindowClientProps & { 
 
   // Render content immediately with visibility handling to prevent flicker.
   // Use the actual windowState once registered, fallback to "normal" during registration.
-  // This ensures the same DOM structure is rendered on server and client.
+  // This ensures consistent initial rendering during client-side registration.
   return (
     <BlogWindowContent
       windowState={isRegistered ? windowState : "normal"}
