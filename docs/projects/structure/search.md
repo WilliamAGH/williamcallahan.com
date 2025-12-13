@@ -82,12 +82,15 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 ### Core Search Logic
 
 - **`lib/search.ts`**: Unified search functions with caching
-  - `searchContent<T>()`: Generic search algorithm with MiniSearch support
-  - `searchPosts()`: Searches blog posts with caching
   - `searchInvestments()`: Searches investment data with caching
   - `searchExperience()`: Searches work experience with caching
   - `searchEducation()`: Searches education data with caching
   - `searchBookmarks()`: Searches bookmarks via API with caching
+  - `searchProjects()`: Searches projects with caching
+  - `searchBooks()`: Searches books with caching
+
+- **`lib/blog/server-search.ts`**: Blog-specific search
+  - `searchBlogPostsServerSide()`: Searches blog posts with caching
 
 - **`lib/validators/search.ts`**: Query validation
   - `validateSearchQuery()`: Validates and sanitizes input
