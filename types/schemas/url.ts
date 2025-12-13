@@ -7,30 +7,105 @@
 
 import { z } from "zod";
 
-/**
- * Private IP ranges that should be blocked to prevent SSRF
- */
-const PRIVATE_IP_PATTERNS = [
-  /^127\./, // Loopback
-  /^10\./, // Private Class A
-  /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // Private Class B
-  /^192\.168\./, // Private Class C
-  /^169\.254\./, // Link-local
-  /^fc00:/i, // IPv6 Unique Local
-  /^fd[0-9a-f]{2}:/i, // IPv6 Unique Local (fd00::/8)
-  /^fe80:/i, // IPv6 Link-local
-  /^::1$/i, // IPv6 Loopback
-  /^localhost$/i, // Localhost
-  /^.*\.local$/i, // .local domains
+const PRIVATE_HOSTNAME_PATTERNS = [
+  /^localhost$/i,
+  /^.*\.local$/i,
+  /^::1$/i, // IPv6 loopback
+  /^fc/i, // IPv6 ULA fc00::/7
+  /^fd/i, // IPv6 ULA fd00::/8
+  /^fe80:/i, // IPv6 link-local
 ];
 
+const IPV4_REGEX = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+const IPV6_MAPPED_PREFIX = "::ffff:";
+
+function extractMappedIPv4(hostname: string): string | null {
+  if (!hostname.toLowerCase().startsWith(IPV6_MAPPED_PREFIX)) {
+    return null;
+  }
+
+  const suffix = hostname.slice(IPV6_MAPPED_PREFIX.length);
+
+  // ::ffff:127.0.0.1
+  if (suffix.includes(".")) {
+    return suffix;
+  }
+
+  const hextets = suffix.split(":").filter(Boolean);
+
+  // ::ffff:7f00:1
+  if (hextets.length === 2 && hextets.every(h => /^[0-9a-f]{1,4}$/i.test(h))) {
+    const [hiPart, loPart] = hextets;
+    if (!hiPart || !loPart) return null;
+
+    const hi = Number.parseInt(hiPart, 16);
+    const lo = Number.parseInt(loPart, 16);
+    const a = (hi >> 8) & 0xff;
+    const b = hi & 0xff;
+    const c = (lo >> 8) & 0xff;
+    const d = lo & 0xff;
+    return `${a}.${b}.${c}.${d}`;
+  }
+
+  // ::ffff:7f000001
+  if (hextets.length === 1) {
+    const [singleHextet] = hextets;
+    if (!singleHextet || !/^[0-9a-f]{1,8}$/i.test(singleHextet)) {
+      return null;
+    }
+
+    const value = Number.parseInt(singleHextet, 16);
+    const a = (value >> 24) & 0xff;
+    const b = (value >> 16) & 0xff;
+    const c = (value >> 8) & 0xff;
+    const d = value & 0xff;
+    return `${a}.${b}.${c}.${d}`;
+  }
+
+  return null;
+}
+
+function isPrivateIPv4(hostname: string): boolean {
+  const ipv4Match = IPV4_REGEX.exec(hostname);
+  if (!ipv4Match) {
+    return false;
+  }
+
+  const octets = ipv4Match.slice(1).map(Number);
+  if (octets.length !== 4) {
+    return false;
+  }
+  if (octets.some(octet => Number.isNaN(octet) || octet < 0 || octet > 255)) {
+    return false;
+  }
+
+  const [a, b] = octets as [number, number, number, number];
+  if (a === 10) return true; // 10.0.0.0/8
+  if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+  if (a === 192 && b === 168) return true; // 192.168.0.0/16
+  if (a === 169 && b === 254) return true; // 169.254.0.0/16
+  if (a === 127) return true; // 127.0.0.0/8
+  if (hostname === "0.0.0.0") return true; // Unroutable
+
+  return false;
+}
+
 /**
- * Check if hostname is a private IP
+ * Check if hostname is a private or internal IP (IPv4, IPv6, or IPv6-mapped IPv4)
  */
-function isPrivateIP(hostname: string): boolean {
-  // Remove brackets from IPv6 addresses
-  const cleanHostname = hostname.replace(/^\[|\]$/g, "");
-  return PRIVATE_IP_PATTERNS.some(pattern => pattern.test(cleanHostname));
+export function isPrivateIP(hostname: string): boolean {
+  const cleanHostname = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+
+  const mappedIpv4 = extractMappedIPv4(cleanHostname);
+  if (mappedIpv4 && isPrivateIPv4(mappedIpv4)) {
+    return true;
+  }
+
+  if (isPrivateIPv4(cleanHostname)) {
+    return true;
+  }
+
+  return PRIVATE_HOSTNAME_PATTERNS.some(pattern => pattern.test(cleanHostname));
 }
 
 /**
