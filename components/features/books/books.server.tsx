@@ -32,7 +32,8 @@ export async function BooksServer({ title, description, disclaimer }: BooksServe
   let isStale = false;
 
   try {
-    const result = await fetchBookListItemsWithFallback();
+    // Enable blur placeholders for smooth loading experience (prevents B&W appearance)
+    const result = await fetchBookListItemsWithFallback({ includeBlurPlaceholders: true });
     books = result.books;
     isStale = result.isFallback;
   } catch (err) {
