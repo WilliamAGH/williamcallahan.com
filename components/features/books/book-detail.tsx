@@ -28,7 +28,6 @@ import {
   Tag,
   type LucideIcon,
 } from "lucide-react";
-import type { BookFormat } from "@/types/schemas/book";
 import type { BookDetailProps } from "@/types/features/books";
 import { BooksWindow } from "./books-window.client";
 import { cn } from "@/lib/utils";
@@ -41,44 +40,6 @@ function formatDuration(seconds: number): string {
     return minutes > 0 ? `${hours} hr ${minutes} min` : `${hours} hr`;
   }
   return `${minutes} min`;
-}
-
-function FormatBadge({ format, large = false }: { format: BookFormat; large?: boolean }) {
-  const config: Record<BookFormat, { icon: typeof Headphones; label: string; className: string }> = {
-    audio: {
-      icon: Headphones,
-      label: "Audiobook",
-      className:
-        "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800",
-    },
-    ebook: {
-      icon: BookText,
-      label: "eBook",
-      className:
-        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-    },
-    print: {
-      icon: BookText,
-      label: "Print",
-      className:
-        "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
-    },
-  };
-
-  const { icon: Icon, label, className } = config[format];
-
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 border rounded-full font-medium",
-        large ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs",
-        className,
-      )}
-    >
-      <Icon className={large ? "w-4 h-4" : "w-3.5 h-3.5"} />
-      {label}
-    </span>
-  );
 }
 
 function ExternalLinkButton({ href, label, icon: Icon }: { href: string; label: string; icon: LucideIcon }) {
@@ -156,26 +117,12 @@ export function BookDetail({ book }: BookDetailProps) {
                   </div>
                 )}
               </div>
-
-              {/* Format Badges under cover on mobile */}
-              <div className="flex flex-wrap justify-center gap-2 mt-4 lg:hidden">
-                {book.formats?.map(format => (
-                  <FormatBadge key={format} format={format} large />
-                ))}
-              </div>
             </motion.div>
 
             {/* Details Column */}
             <div className="lg:col-span-2 space-y-6">
               {/* Header */}
               <motion.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                {/* Format Badges - Desktop only */}
-                <div className="hidden lg:flex flex-wrap gap-2 mb-3">
-                  {book.formats?.map(format => (
-                    <FormatBadge key={format} format={format} large />
-                  ))}
-                </div>
-
                 {/* Title */}
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
                   {book.title}
