@@ -5,26 +5,42 @@
  * and ensure only allowed domains and protocols are accessed.
  */
 
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const PRIVATE_HOSTNAME_PATTERNS = [
   /^localhost$/i,
   /^.*\.local$/i,
   /^::1$/i, // IPv6 loopback
-  /^fc/i, // IPv6 ULA fc00::/7
-  /^fd/i, // IPv6 ULA fd00::/8
+  /^fc[0-9a-f]{0,2}:/i, // IPv6 ULA fc00::/7 (requires colon to avoid false positives like fdic.gov)
+  /^fd[0-9a-f]{0,2}:/i, // IPv6 ULA fd00::/8 (requires colon to avoid false positives like facebook.com)
   /^fe80:/i, // IPv6 link-local
 ];
 
 const IPV4_REGEX = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
 const IPV6_MAPPED_PREFIX = "::ffff:";
+const IPV6_MAPPED_LONG_PREFIX = "0:0:0:0:0:ffff:";
 
+/**
+ * Extract the IPv4 address from an IPv6-mapped IPv4 address.
+ * Handles both compressed (::ffff:) and expanded (0:0:0:0:0:ffff:) forms.
+ *
+ * @example
+ * extractMappedIPv4("::ffff:127.0.0.1")       // "127.0.0.1"
+ * extractMappedIPv4("::ffff:7f00:1")          // "127.0.0.1"
+ * extractMappedIPv4("0:0:0:0:0:ffff:7f00:1")  // "127.0.0.1"
+ */
 function extractMappedIPv4(hostname: string): string | null {
-  if (!hostname.toLowerCase().startsWith(IPV6_MAPPED_PREFIX)) {
+  const lower = hostname.toLowerCase();
+
+  // Check for both compressed and expanded IPv6-mapped prefixes
+  let suffix: string;
+  if (lower.startsWith(IPV6_MAPPED_PREFIX)) {
+    suffix = hostname.slice(IPV6_MAPPED_PREFIX.length);
+  } else if (lower.startsWith(IPV6_MAPPED_LONG_PREFIX)) {
+    suffix = hostname.slice(IPV6_MAPPED_LONG_PREFIX.length);
+  } else {
     return null;
   }
-
-  const suffix = hostname.slice(IPV6_MAPPED_PREFIX.length);
 
   // ::ffff:127.0.0.1
   if (suffix.includes(".")) {
