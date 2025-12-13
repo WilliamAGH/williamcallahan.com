@@ -23,7 +23,7 @@ export async function validateLogoUrl(url: string): Promise<{
 
   return {
     success: false,
-    error: result.error.errors[0]?.message || "Invalid URL",
+    error: result.error.issues[0]?.message || "Invalid URL",
   };
 }
 
@@ -43,7 +43,7 @@ export async function validateOpenGraphUrl(url: string): Promise<{
 
   return {
     success: false,
-    error: result.error.errors[0]?.message || "Invalid URL",
+    error: result.error.issues[0]?.message || "Invalid URL",
   };
 }
 
