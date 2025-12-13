@@ -362,9 +362,19 @@ export async function buildAllSearchIndexes(): Promise<AllSerializedIndexes> {
 
 /**
  * Load a MiniSearch index from serialized JSON
+ *
+ * Handles both string and object formats for the index:
+ * - When stored to S3, the index is JSON stringified
+ * - When read back from S3, it's parsed into an object
+ * - MiniSearch.loadJSON expects a JSON string, not a parsed object
  */
 export function loadIndexFromJSON<T>(serializedIndex: SerializedIndex): MiniSearch<T> {
-  return MiniSearch.loadJSON(serializedIndex.index as string, {
+  // MiniSearch.loadJSON expects a JSON string, but after reading from S3
+  // the index is already parsed into an object. We need to re-stringify it.
+  const indexData =
+    typeof serializedIndex.index === "string" ? serializedIndex.index : JSON.stringify(serializedIndex.index);
+
+  return MiniSearch.loadJSON(indexData, {
     fields: [], // These are stored in the JSON
     storeFields: [], // These are stored in the JSON
   });
