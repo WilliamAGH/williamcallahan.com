@@ -78,6 +78,7 @@ export const SEARCH_S3_PATHS = {
   EXPERIENCE_INDEX: `json/search/experience-index${envSuffix}.json`,
   EDUCATION_INDEX: `json/search/education-index${envSuffix}.json`,
   PROJECTS_INDEX: `json/search/projects-index${envSuffix}.json`,
+  BOOKS_INDEX: `json/search/books-index${envSuffix}.json`,
   BUILD_METADATA: `json/search/build-metadata${envSuffix}.json`,
 } as const;
 
