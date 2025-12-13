@@ -34,6 +34,9 @@ describe("URL Schema Validation", () => {
         "http://[::1]",
         "http://[fc00::1]",
         "http://[fd00::1]",
+        "http://[::ffff:127.0.0.1]",
+        "http://[::ffff:7f00:1]",
+        "http://[::ffff:7f000001]",
       ];
 
       for (const url of privateUrls) {

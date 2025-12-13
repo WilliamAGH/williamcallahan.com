@@ -22,6 +22,7 @@ import type { NextRequest } from "next/server";
 import sharp from "sharp";
 
 import { truncateText } from "@/lib/utils";
+import { isPrivateIP } from "@/types/schemas/url";
 
 /**
  * DO NOT ADD `export const runtime = "nodejs"` HERE - DO NOT REMOVE THIS COMMENT
@@ -93,34 +94,15 @@ const BLOCKED_HOSTS = new Set([
  * Returns true if the host should be blocked.
  */
 function isPrivateHost(hostname: string): boolean {
-  // Remove brackets from IPv6
-  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  const normalizedHost = hostname.toLowerCase();
+  const bracketStrippedHost = normalizedHost.replace(/^\[|\]$/g, "");
 
-  // Check explicit blocklist
-  if (BLOCKED_HOSTS.has(host)) {
+  if (BLOCKED_HOSTS.has(normalizedHost) || BLOCKED_HOSTS.has(bracketStrippedHost)) {
     return true;
   }
 
-  // Check private IPv4 ranges (10.x.x.x, 172.16-31.x.x, 192.168.x.x)
-  const ipv4Match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
-  if (ipv4Match) {
-    const a = Number(ipv4Match[1]);
-    const b = Number(ipv4Match[2]);
-    if (a === 10) return true; // 10.0.0.0/8
-    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
-    if (a === 192 && b === 168) return true; // 192.168.0.0/16
-    if (a === 169 && b === 254) return true; // Link-local 169.254.0.0/16
-    if (a === 127) return true; // Loopback 127.0.0.0/8
-  }
-
-  // Check for IPv6 loopback/link-local/ULA (fe80::/10, fc00::/7)
-  // Only apply these checks to actual IPv6 addresses (contain colons)
-  if (host.includes(":")) {
-    if (host.startsWith("fe80:")) return true; // Link-local
-    if (host.startsWith("fc") || host.startsWith("fd")) return true; // ULA fc00::/7
-  }
-
-  return false;
+  // Shared helper covers IPv4, IPv6, and IPv6-mapped IPv4 (e.g., ::ffff:127.0.0.1)
+  return isPrivateIP(bracketStrippedHost);
 }
 
 function ensureAbsoluteUrl(url: string, requestOrigin: string): string {
