@@ -47,7 +47,6 @@ export function Terminal() {
     minimize: minimizeWindow,
     maximize: maximizeWindow,
     restore: restoreWindow, // Used by ⌘K shortcut to restore closed/minimized terminal
-    isRegistered, // Flag if the window is ready in the context
   } = useRegisteredWindowState(TERMINAL_WINDOW_ID, TerminalSquare, "Restore Terminal", "normal");
 
   // Local terminal interaction logic (input, selection, etc.)
@@ -364,18 +363,16 @@ export function Terminal() {
 
   // --- Conditional Rendering ---
 
-  // If not yet ready (mounted and registered in context), render nothing.
-  if (!isRegistered) {
-    return null;
-  }
-
-  // Now that we are ready (mounted), render based on the current windowState
-  // If closed or minimized, render null - the FloatingTerminalButton handles this
+  // Closed or minimized windows are hidden - the FloatingTerminalButton handles restoration
   if (windowState === "closed" || windowState === "minimized") {
     return null;
   }
 
-  // Render normal or maximized view (implicit else, because we checked !isReady earlier)
+  // Render content immediately with visibility handling to prevent flicker.
+  // Use CSS opacity transition instead of conditional rendering for registration state.
+  // This ensures the same DOM structure is rendered on server and client.
+
+  // Render normal or maximized view
   // Define class sets for clarity
   const commonTerminalClasses =
     "bg-[#1a1b26] border border-gray-700 font-mono text-sm cursor-text overflow-hidden flex flex-col shadow-xl";
