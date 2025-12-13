@@ -9,12 +9,12 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { BookText, User, Headphones } from "lucide-react";
 import type { BookListItem, Book } from "@/types/schemas/book";
 import type { BookCardProps } from "@/types/features/books";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
 import { cn } from "@/lib/utils";
+import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 
 export function BookCard({ book, priority = false }: BookCardProps): React.JSX.Element {
   // Type guard to check if we have full Book data (for ISBN access)
@@ -41,16 +41,12 @@ export function BookCard({ book, priority = false }: BookCardProps): React.JSX.E
       {/* Cover Image Section - aspect-[2/3] is standard book cover ratio */}
       <div className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900">
         {book.coverUrl ? (
-          <Image
+          <OptimizedCardImage
             src={book.coverUrl}
             alt={`Cover of ${book.title}`}
-            fill
-            sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 22vw"
-            className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-            priority={priority}
-            placeholder={book.coverBlurDataURL ? "blur" : "empty"}
+            className="transition-transform duration-500 group-hover:scale-[1.03]"
+            preload={priority}
             blurDataURL={book.coverBlurDataURL}
-            unoptimized
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">

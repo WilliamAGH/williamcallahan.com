@@ -120,24 +120,17 @@ export function BlogWindow({ children, windowTitle }: BlogWindowClientProps & { 
     }
   }, [windowState, isRegistered]);
 
-  // Render nothing until ready to prevent hydration mismatch
-  if (!isRegistered) {
+  // Handle closed or minimized state
+  if (windowState === "closed" || windowState === "minimized") {
     return null;
   }
 
-  // Handle closed state
-  if (windowState === "closed") {
-    return null;
-  }
-
-  // Handle minimized state
-  if (windowState === "minimized") {
-    return null;
-  }
-
+  // Render content immediately with visibility handling to prevent flicker.
+  // Use the actual windowState once registered, fallback to "normal" during registration.
+  // This ensures the same DOM structure is rendered on server and client.
   return (
     <BlogWindowContent
-      windowState={windowState}
+      windowState={isRegistered ? windowState : "normal"}
       onClose={closeWindow}
       onMinimize={minimizeWindow}
       onMaximize={maximizeWindow}
