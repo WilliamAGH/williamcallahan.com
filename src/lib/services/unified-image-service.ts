@@ -92,6 +92,17 @@ export class UnifiedImageService {
   /** Fetch image with caching (memory → S3 → origin) */
   async getImage(url: string, options: ImageServiceOptions = {}): Promise<ImageResult> {
     const { retainBuffer, timeoutMs, ...imageOptions } = options;
+    const safeUrlForLog = (() => {
+      try {
+        const parsed = new URL(url);
+        parsed.search = "";
+        parsed.hash = "";
+        return parsed.toString();
+      } catch {
+        const noQuery = url.split("?")[0] ?? url;
+        return noQuery.split("#")[0] ?? noQuery;
+      }
+    })();
     // Prefer streaming-to-S3 behavior over full processing in development when requested
     // Note: When enabled, we still attempt normal fetch logic; processing will be skipped in fetchAndProcess.
     if (!this.devStreamImagesToS3 && this.devProcessingDisabled) {
@@ -113,14 +124,14 @@ export class UnifiedImageService {
     }
     return monitoredAsync(
       null,
-      `get-image-${url}`,
+      `get-image-${safeUrlForLog}`,
       async () => {
         const s3Key = this.generateS3Key(url, imageOptions);
         if (!imageOptions.forceRefresh && (await checkIfS3ObjectExists(s3Key))) {
           return { contentType: inferContentTypeFromUrl(url), source: "s3", cdnUrl: this.getCdnUrl(s3Key) };
         }
         if (this.isReadOnly && !imageOptions.skipUpload) {
-          throw new Error(`Image not available in read-only mode: ${url}`);
+          throw new Error(`Image not available in read-only mode: ${safeUrlForLog}`);
         }
 
         let result: { buffer: Buffer; contentType: string; streamedToS3?: boolean } | null = null;
@@ -143,7 +154,7 @@ export class UnifiedImageService {
           result = null;
         }
       },
-      { timeoutMs: timeoutMs ?? this.CONFIG.FETCH_TIMEOUT, metadata: { url, options: imageOptions } },
+      { timeoutMs: timeoutMs ?? this.CONFIG.FETCH_TIMEOUT, metadata: { url: safeUrlForLog, options: imageOptions } },
     );
   }
 
