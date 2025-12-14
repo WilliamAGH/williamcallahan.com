@@ -279,14 +279,14 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
       <div className="bg-gradient-to-b from-background to-secondary/20">
         <div className="max-w-6xl mx-auto px-8 md:px-12 lg:px-16 py-16">
           <Suspense
-            fallback={<RelatedContentFallback title="Discover Similar Content" className="relative" cardCount={4} />}
+            fallback={<RelatedContentFallback title="Discover Similar Content" className="relative" cardCount={3} />}
           >
             <RelatedContent
               sourceType="bookmark"
               sourceId={foundBookmark.id}
               sectionTitle="Discover Similar Content"
               options={{
-                maxPerType: 4,
+                maxPerType: 3,
                 maxTotal: 12,
                 excludeTypes: [], // Include all content types
               }}
