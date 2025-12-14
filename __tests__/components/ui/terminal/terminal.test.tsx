@@ -476,6 +476,9 @@ describe.skip("Terminal Component", () => {
           expect.objectContaining({ signal: expect.any(AbortSignal) }),
         );
       });
+
+      // Restore to beforeAll mock after this test
+      global.fetch = mockFetch as unknown as typeof global.fetch;
     });
   });
 
@@ -541,8 +544,9 @@ describe.skip("Terminal Component", () => {
 
       expect(abortSpy).toHaveBeenCalledTimes(1);
 
-      // Restore original AbortController
+      // Restore original AbortController and fetch mock
       global.AbortController = originalAbortController;
+      global.fetch = mockFetch as unknown as typeof global.fetch;
     });
   });
 });
