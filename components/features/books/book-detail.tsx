@@ -45,9 +45,20 @@ function formatDuration(seconds: number): string {
 }
 
 function ExternalLinkButton({ href, label, icon: Icon }: { href: string; label: string; icon: LucideIcon }) {
+  const safeHref = (() => {
+    try {
+      const url = new URL(href);
+      return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  if (!safeHref) return null;
+
   return (
     <a
-      href={href}
+      href={safeHref}
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
