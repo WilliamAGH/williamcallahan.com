@@ -10,6 +10,9 @@ declare global {
   var INSTRUMENTATION_NODE_INSTALLED: boolean | undefined;
 }
 
+// Cache the Sentry module during register() so onRequestError can use it synchronously
+let SentryModule: typeof import("@sentry/nextjs") | null = null;
+
 export async function register(): Promise<void> {
   const releaseVersion =
     process.env.SENTRY_RELEASE || process.env.NEXT_PUBLIC_GIT_HASH || process.env.NEXT_PUBLIC_APP_VERSION;
@@ -72,6 +75,7 @@ export async function register(): Promise<void> {
   /** Sentry (Node) **/
   if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
     const Sentry = await import("@sentry/nextjs");
+    SentryModule = Sentry; // Cache for synchronous use in onRequestError
     Sentry.init({
       dsn: process.env.SENTRY_DSN,
       release: releaseVersion,
@@ -163,59 +167,56 @@ export function onRequestError(
     | { path: string; method: string; headers: Record<string, string | string[] | undefined> },
   errorContext: Record<string, unknown>,
 ): void {
-  // Lazily import to avoid increasing cold-start time when Sentry is disabled
-  if (!process.env.SENTRY_DSN) return;
+  // Use cached Sentry module for synchronous request context linking
+  // SentryModule is populated during register() when SENTRY_DSN is set
+  if (!SentryModule) return;
 
-  void import("@sentry/nextjs")
-    .then(Sentry => {
-      const normalizeRequest = (
-        req: typeof request,
-      ): { path: string; method: string; headers: Record<string, string | string[] | undefined> } => {
-        if (typeof req === "string") {
-          return { path: req, method: "GET", headers: {} };
-        }
-        if (req instanceof Request) {
-          return {
-            path: new URL(req.url).pathname,
-            method: req.method,
-            headers: Object.fromEntries(req.headers.entries()),
-          };
-        }
-        return req;
+  const Sentry = SentryModule;
+
+  const normalizeRequest = (
+    req: typeof request,
+  ): { path: string; method: string; headers: Record<string, string | string[] | undefined> } => {
+    if (typeof req === "string") {
+      return { path: req, method: "GET", headers: {} };
+    }
+    if (req instanceof Request) {
+      return {
+        path: new URL(req.url).pathname,
+        method: req.method,
+        headers: Object.fromEntries(req.headers.entries()),
       };
+    }
+    return req;
+  };
 
-      const safeRequest = normalizeRequest(request);
-      if (typeof Sentry.captureRequestError === "function") {
-        // Forward all required parameters per SDK typing
-        if (
-          errorContext &&
-          typeof errorContext === "object" &&
-          "routerKind" in errorContext &&
-          "routePath" in errorContext &&
-          "routeType" in errorContext &&
-          typeof (errorContext as { routerKind: unknown }).routerKind === "string" &&
-          typeof (errorContext as { routePath: unknown }).routePath === "string" &&
-          typeof (errorContext as { routeType: unknown }).routeType === "string"
-        ) {
-          Sentry.captureRequestError(
-            error,
-            safeRequest,
-            errorContext as {
-              routerKind: string;
-              routePath: string;
-              routeType: string;
-            },
-          );
-        } else {
-          // Fallback: still capture error without context
-          Sentry.captureException?.(error);
-        }
-      } else {
-        // Fallback to the generic captureException for older SDKs
-        Sentry.captureException?.(error);
-      }
-    })
-    .catch(err => {
-      console.warn("[onRequestError] Failed to load Sentry:", err);
-    });
+  const safeRequest = normalizeRequest(request);
+  if (typeof Sentry.captureRequestError === "function") {
+    // Forward all required parameters per SDK typing
+    if (
+      errorContext &&
+      typeof errorContext === "object" &&
+      "routerKind" in errorContext &&
+      "routePath" in errorContext &&
+      "routeType" in errorContext &&
+      typeof (errorContext as { routerKind: unknown }).routerKind === "string" &&
+      typeof (errorContext as { routePath: unknown }).routePath === "string" &&
+      typeof (errorContext as { routeType: unknown }).routeType === "string"
+    ) {
+      Sentry.captureRequestError(
+        error,
+        safeRequest,
+        errorContext as {
+          routerKind: string;
+          routePath: string;
+          routeType: string;
+        },
+      );
+    } else {
+      // Fallback: still capture error without context
+      Sentry.captureException?.(error);
+    }
+  } else {
+    // Fallback to the generic captureException for older SDKs
+    Sentry.captureException?.(error);
+  }
 }
