@@ -31,7 +31,13 @@ import type {
 // Import configuration with documented rationale
 import { DEFAULT_MAX_PER_TYPE, DEFAULT_MAX_TOTAL, getEnabledContentTypes } from "@/config/related-content.config";
 
-const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+// CRITICAL: Check build phase AT RUNTIME using dynamic property access.
+// Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
+// during build, permanently baking "phase-production-build" into the bundle.
+// Using bracket notation with a variable key prevents static analysis and inlining.
+const PHASE_ENV_KEY = "NEXT_PHASE" as const;
+const BUILD_PHASE_VALUE = "phase-production-build" as const;
+const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 
 /**
  * Convert normalized content to related content item
@@ -40,10 +46,11 @@ async function toRelatedContentItem(
   content: NormalizedContent & { score: number },
 ): Promise<RelatedContentItem | null> {
   const display = content.display;
+  const safeDateIso = content.date && Number.isFinite(content.date.getTime()) ? content.date.toISOString() : undefined;
   const baseMetadata: RelatedContentItem["metadata"] = {
     tags: content.tags,
     domain: content.domain,
-    date: content.date?.toISOString(),
+    date: safeDateIso,
   };
 
   switch (content.type) {
@@ -191,7 +198,7 @@ export async function RelatedContent({
   options = {},
   className,
 }: RelatedContentProps) {
-  if (isBuildPhase) {
+  if (isProductionBuildPhase()) {
     return null;
   }
 
@@ -216,8 +223,16 @@ export async function RelatedContent({
       includeTypes,
       excludeTypes,
       excludeIds = [],
+      excludeTags = [],
       weights, // Don't default - let algorithm choose appropriate weights
     } = options;
+
+    // Helper to check if item has any excluded tags
+    const hasExcludedTag = (tags: readonly string[] | undefined): boolean => {
+      if (excludeTags.length === 0 || !tags) return false;
+      const normalizedExclude = new Set(excludeTags.map(t => t.toLowerCase()));
+      return tags.some(t => normalizedExclude.has(t.toLowerCase()));
+    };
 
     // Try to load pre-computed related content first
     const contentKey = `${sourceType}:${actualSourceId}`;
@@ -266,7 +281,9 @@ export async function RelatedContent({
         return relatedItem;
       });
 
-      const relatedItems = (await Promise.all(relatedItemPromises)).filter((i): i is RelatedContentItem => i !== null);
+      const relatedItems = (await Promise.all(relatedItemPromises))
+        .filter((i): i is RelatedContentItem => i !== null)
+        .filter(i => !hasExcludedTag(i.metadata.tags));
 
       // If precomputed items exist but are missing some allowed content types (e.g., projects, books),
       // compute additional candidates for just the missing types and merge.
@@ -297,7 +314,8 @@ export async function RelatedContent({
           const candidates = allContent
             .filter(item => !(item.type === sourceType && excludeSet.has(item.id)))
             .filter(item => missingTypes.includes(item.type))
-            .filter(item => !precomputedKeys.has(`${item.type}:${item.id}`));
+            .filter(item => !precomputedKeys.has(`${item.type}:${item.id}`))
+            .filter(item => !hasExcludedTag(item.tags));
 
           const extraSimilar = findMostSimilar(source, candidates, maxTotal * 2, weights);
 
@@ -357,6 +375,11 @@ export async function RelatedContent({
         );
       }
 
+      // Filter by excluded tags
+      if (excludeTags.length > 0) {
+        items = items.filter(item => !hasExcludedTag(item.tags));
+      }
+
       // Apply limits via shared helper
       const finalItems = limitByTypeAndTotal(items, maxPerType, maxTotal);
 
@@ -402,7 +425,9 @@ export async function RelatedContent({
     // Exclude the source item and any specified IDs
     const allExcludeIds = new Set([...excludeIds, actualSourceId]);
 
-    const candidates = allContent.filter(item => !(item.type === sourceType && allExcludeIds.has(item.id)));
+    const candidates = allContent
+      .filter(item => !(item.type === sourceType && allExcludeIds.has(item.id)))
+      .filter(item => !hasExcludedTag(item.tags));
 
     // Find similar content
     const similar = findMostSimilar(source, candidates, maxTotal * 2, weights);
