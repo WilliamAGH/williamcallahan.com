@@ -49,6 +49,25 @@ function parseDate(dateStr?: string | null): Date | undefined {
   }
 }
 
+function parseYearToUtcDate(yearInput: unknown): Date | undefined {
+  const year =
+    typeof yearInput === "number"
+      ? Number.isFinite(yearInput)
+        ? Math.trunc(yearInput)
+        : undefined
+      : typeof yearInput === "string"
+        ? /^\d{4}$/.test(yearInput.trim())
+          ? Number.parseInt(yearInput.trim(), 10)
+          : undefined
+        : undefined;
+
+  if (typeof year !== "number" || !Number.isFinite(year) || year < 1000 || year > 3000) {
+    return undefined;
+  }
+
+  return new Date(Date.UTC(year, 0, 1));
+}
+
 /**
  * Normalize a bookmark for similarity comparison
  * @param bookmark - The bookmark to normalize
@@ -191,7 +210,7 @@ function normalizeInvestment(investment: Investment): NormalizedContent {
     tags: enhancedTags,
     url: `/investments#${investment.id}`,
     domain: extractDomain(investment.website || ""),
-    date: investment.invested_year ? new Date(`${investment.invested_year}-01-01`) : undefined,
+    date: parseYearToUtcDate(investment.invested_year),
     display: {
       description: typeof investment.description === "string" ? investment.description : "",
       stage: investment.stage,
@@ -264,7 +283,7 @@ function normalizeBook(book: Book): NormalizedContent {
   const slug = generateBookSlug(book.title, book.id, book.authors, book.isbn13, book.isbn10);
 
   // Parse published year to date
-  const date = book.publishedYear ? new Date(`${book.publishedYear}-01-01`) : undefined;
+  const date = parseYearToUtcDate(book.publishedYear);
 
   return {
     id: book.id,
