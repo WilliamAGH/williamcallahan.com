@@ -5,14 +5,46 @@
 import { GET } from "@/app/api/bookmarks/route";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { readJsonS3 } from "@/lib/s3-utils";
-import type { UnifiedBookmark } from "@/types";
+import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
+import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
 
 // Mock dependencies
 jest.mock("@/lib/bookmarks/service.server");
 jest.mock("@/lib/s3-utils");
+jest.mock("@/lib/bookmarks/slug-manager");
 
 const mockGetBookmarks = jest.mocked(getBookmarks);
 const mockReadJsonS3 = jest.mocked(readJsonS3);
+const mockLoadSlugMapping = jest.mocked(loadSlugMapping);
+
+/**
+ * Helper to generate a mock slug mapping from bookmarks
+ */
+function createMockSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugMapping {
+  const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
+  const reverseMap: Record<string, string> = {};
+
+  for (const bookmark of bookmarks) {
+    if (bookmark.slug) {
+      slugs[bookmark.id] = {
+        id: bookmark.id,
+        slug: bookmark.slug,
+        url: bookmark.url,
+        title: bookmark.title,
+      };
+      reverseMap[bookmark.slug] = bookmark.id;
+    }
+  }
+
+  return {
+    version: "1.0.0",
+    generated: new Date().toISOString(),
+    count: bookmarks.length,
+    checksum: "test-checksum",
+    slugs,
+    reverseMap,
+  };
+}
 
 describe("Bookmark API Tag Filtering", () => {
   const mockBookmarks: UnifiedBookmark[] = [
@@ -48,6 +80,8 @@ describe("Bookmark API Tag Filtering", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     console.log = jest.fn(); // Suppress console logs in tests
+    // Set up default slug mapping mock
+    mockLoadSlugMapping.mockResolvedValue(createMockSlugMapping(mockBookmarks));
   });
 
   afterEach(() => {
@@ -188,6 +222,8 @@ describe("Bookmark API Tag Filtering", () => {
         count: largeSet.length,
         lastFetchedAt: Date.now(),
       });
+      // Override default slug mapping for this test's larger dataset
+      mockLoadSlugMapping.mockResolvedValueOnce(createMockSlugMapping(largeSet));
 
       const request = {
         url: "http://localhost:3000/api/bookmarks?tag=test-tag&page=2&limit=20",

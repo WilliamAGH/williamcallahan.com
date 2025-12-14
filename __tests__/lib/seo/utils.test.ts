@@ -60,9 +60,20 @@ describe("SEO Utilities", () => {
   });
 
   describe("formatSeoDate", () => {
+    let originalTz: string | undefined;
+
     beforeAll(() => {
+      originalTz = process.env.TZ;
       // Mock timezone to America/Los_Angeles
       process.env.TZ = "America/Los_Angeles";
+    });
+
+    afterAll(() => {
+      if (originalTz === undefined) {
+        delete process.env.TZ;
+      } else {
+        process.env.TZ = originalTz;
+      }
     });
 
     it("should format date string with Pacific Time offset during standard time", () => {
