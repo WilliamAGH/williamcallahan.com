@@ -22,6 +22,9 @@ COPY .husky ./.husky
 COPY scripts/init-csp-hashes.ts ./scripts/init-csp-hashes.ts
 COPY config ./config
 
+# Create generated/ directory for build-time generated files (CSP hashes, etc.)
+RUN mkdir -p generated/bookmarks
+
 # Install dependencies with Bun, skipping third-party postinstall scripts to avoid native crashes
 # Cache mounts are avoided so classic docker builds (DOCKER_BUILDKIT=0) continue to work.
 RUN bun install --frozen-lockfile --ignore-scripts
@@ -207,16 +210,18 @@ COPY --from=builder /app/data ./data
 COPY --from=builder /app/tsconfig*.json ./
 
 # Runtime helper scripts (`scripts/*.ts`) import source modules directly from the
-# repository (e.g. `@/lib/*`, `@/types/*`). These folders are *not* included in
-# the Next.js production build output, so we need to copy them into the final image
-# as well.
-COPY --from=builder /app/lib ./lib
-COPY --from=builder /app/types ./types
+# repository (e.g. `@/lib/*`, `@/types/*`). The `@/*` alias maps to `./src/*` in
+# tsconfig.json, so we must copy the src/ subdirectories. These folders are *not*
+# included in the Next.js production build output.
+COPY --from=builder /app/src/lib ./src/lib
+COPY --from=builder /app/src/types ./src/types
 COPY --from=builder /app/config ./config
+# Copy generated files (CSP hashes, bookmark caches for local fallback)
+COPY --from=builder /app/generated ./generated
 
 # Ensure the sitemap generator used by runtime scripts is available.
 # Only the specific file is copied to minimize image size and avoid unnecessary source files.
-COPY --from=builder /app/app/sitemap.ts ./app/sitemap.ts
+COPY --from=builder /app/src/app/sitemap.ts ./src/app/sitemap.ts
 
 # REMOVED: Copying initial data from builder stage - data now lives in S3
 # COPY --from=builder --chown=nextjs:nodejs /app/data/images/logos /app/.initial-logos

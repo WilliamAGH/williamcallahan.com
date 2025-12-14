@@ -6,7 +6,7 @@
  */
 
 import { describe, beforeAll, beforeEach, afterEach, expect, it, jest } from "@jest/globals";
-import type { UnifiedBookmark, BookmarkContent, BookmarkTag } from "../../../types";
+import type { UnifiedBookmark, BookmarkContent, BookmarkTag } from "../../../src/types";
 import { ServerCacheInstance } from "@/lib/server-cache";
 
 // Mock getBaseUrl at the top level with the correct path
@@ -145,7 +145,7 @@ describe("Bookmarks Module (Simplified)", () => {
 
     try {
       // Import module after setting up mocks
-      const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
+      const { fetchBookmarksFromApi } = await import("../../../src/lib/bookmarks/bookmarks.client");
 
       const bookmarks = await fetchBookmarksFromApi();
 
@@ -180,7 +180,7 @@ describe("Bookmarks Module (Simplified)", () => {
 
     try {
       // Import module after setting up mocks
-      const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
+      const { fetchBookmarksFromApi } = await import("../../../src/lib/bookmarks/bookmarks.client");
 
       const bookmarks = await fetchBookmarksFromApi();
 
@@ -215,7 +215,7 @@ describe("Bookmarks Module (Simplified)", () => {
 
     try {
       // Import module after setting up mocks
-      const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
+      const { fetchBookmarksFromApi } = await import("../../../src/lib/bookmarks/bookmarks.client");
 
       const bookmarks = await fetchBookmarksFromApi();
 
@@ -250,7 +250,7 @@ describe("Bookmarks Module (Simplified)", () => {
 
     try {
       // Import module after setting up environment
-      const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
+      const { fetchBookmarksFromApi } = await import("../../../src/lib/bookmarks/bookmarks.client");
 
       const bookmarks = await fetchBookmarksFromApi();
 
@@ -294,7 +294,7 @@ describe("Bookmarks Module (Simplified)", () => {
 
     try {
       // Import module after setting up mocks
-      const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
+      const { fetchBookmarksFromApi } = await import("../../../src/lib/bookmarks/bookmarks.client");
 
       const bookmarks = await fetchBookmarksFromApi();
 

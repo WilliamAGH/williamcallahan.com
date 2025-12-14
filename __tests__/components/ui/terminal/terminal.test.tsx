@@ -26,17 +26,17 @@
 import "@testing-library/jest-dom";
 import React from "react"; // Ensure React is imported first
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { Terminal } from "../../../../components/ui/terminal/terminal-implementation.client";
-import { TerminalProvider } from "../../../../components/ui/terminal/terminal-context.client";
+import { Terminal } from "../../../../src/components/ui/terminal/terminal-implementation.client";
+import { TerminalProvider } from "../../../../src/components/ui/terminal/terminal-context.client";
 import {
   useRegisteredWindowState as useRegisteredWindowStateImported,
   type GlobalWindowRegistryContextType,
   type WindowState,
-} from "../../../../lib/context/global-window-registry-context.client"; // Import types for mocking
-import type { SearchResult } from "../../../../types/search"; // Import SearchResult type
+} from "../../../../src/lib/context/global-window-registry-context.client"; // Import types for mocking
+import type { SearchResult } from "../../../../src/types/search"; // Import SearchResult type
 
 // --- Mock TerminalHeader ---
-jest.mock("../../../../components/ui/terminal/terminal-header", () => ({
+jest.mock("../../../../src/components/ui/terminal/terminal-header", () => ({
   TerminalHeader: ({
     onClose,
     onMinimize,
@@ -93,7 +93,7 @@ const maximizeMock = () => setMockState(mockWindowState === "maximized" ? "norma
 const closeMock = () => setMockState("closed");
 const restoreMock = () => setMockState("normal");
 
-jest.mock("../../../../lib/context/global-window-registry-context.client", () => {
+jest.mock("../../../../src/lib/context/global-window-registry-context.client", () => {
   // Use mock.module
   // Functions defined above
   return {
@@ -143,7 +143,7 @@ const mockUseRegisteredWindowState = useRegisteredWindowStateImported as jest.Mo
 const mockUseRouter = useRouterImported as jest.Mock;
 
 // Mock search functions using mock.module
-jest.mock("../../../../lib/search", () => ({
+jest.mock("../../../../src/lib/search", () => ({
   searchExperience: jest.fn().mockResolvedValue([]),
   searchEducation: jest.fn().mockResolvedValue([]),
   searchInvestments: jest.fn().mockResolvedValue([]),
@@ -476,6 +476,9 @@ describe.skip("Terminal Component", () => {
           expect.objectContaining({ signal: expect.any(AbortSignal) }),
         );
       });
+
+      // Restore to beforeAll mock after this test
+      global.fetch = mockFetch as unknown as typeof global.fetch;
     });
   });
 
@@ -541,8 +544,9 @@ describe.skip("Terminal Component", () => {
 
       expect(abortSpy).toHaveBeenCalledTimes(1);
 
-      // Restore original AbortController
+      // Restore original AbortController and fetch mock
       global.AbortController = originalAbortController;
+      global.fetch = mockFetch as unknown as typeof global.fetch;
     });
   });
 });

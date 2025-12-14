@@ -4,7 +4,7 @@ import {
   GlobalWindowRegistryProvider,
   useWindowRegistry,
   useRegisteredWindowState,
-} from "../../lib/context/global-window-registry-context.client";
+} from "../../src/lib/context/global-window-registry-context.client";
 
 describe("useRegisteredWindowState", () => {
   it("registers on mount, unregisters on unmount, and toggles isRegistered", async () => {

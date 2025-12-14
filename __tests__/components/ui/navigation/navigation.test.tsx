@@ -12,9 +12,7 @@ import { usePathname } from "next/navigation";
 const mockUseWindowSize = jest.fn();
 // const mockUsePathname = jest.fn(); // No longer needed
 
-// Mock the useWindowSize hook using mock.module
-// Use relative path for Jest compatibility
-// import { useWindowSize } from '../../../../lib/hooks/use-window-size.client'; // Remove original import
+// Mock the useWindowSize hook
 jest.mock("@/lib/hooks/use-window-size.client", () => ({
   useWindowSize: () => mockUseWindowSize(),
 }));

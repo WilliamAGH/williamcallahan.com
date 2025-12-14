@@ -199,11 +199,11 @@ const nextConfig = {
       "hoist-non-react-statics$": "./node_modules/hoist-non-react-statics/dist/hoist-non-react-statics.cjs.js",
       // OpenTelemetry polyfill for Edge runtime
       "@opentelemetry/api": {
-        browser: "./lib/edge-polyfills/opentelemetry.ts",
-        edge: "./lib/edge-polyfills/opentelemetry.ts",
+        browser: "./src/lib/edge-polyfills/opentelemetry.ts",
+        edge: "./src/lib/edge-polyfills/opentelemetry.ts",
       },
       // Dev-only: AWS SDK stub
-      ...(process.env.NODE_ENV === "development" ? { "@aws-sdk/client-s3": "./lib/stubs/aws-s3-stub.ts" } : {}),
+      ...(process.env.NODE_ENV === "development" ? { "@aws-sdk/client-s3": "./src/lib/stubs/aws-s3-stub.ts" } : {}),
     },
   },
   /**
@@ -393,7 +393,7 @@ const nextConfig = {
      * Addresses the warning about unconfigured qualities in Next.js 15+
      * @see https://nextjs.org/docs/messages/next-image-unconfigured-qualities
      */
-    qualities: [75, 80, 90, 100], // Support common quality settings
+    qualities: [75, 80, 85, 90, 100], // Support common quality settings (include 85 to silence warnings)
     /**
      * The minimum time (in seconds) an optimized image will be cached by the browser and CDNs
      * This is 7 days

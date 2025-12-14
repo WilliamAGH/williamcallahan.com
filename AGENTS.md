@@ -223,17 +223,23 @@ JEST_CONFIG_PATH: config/jest/config.ts
 LINTER: Oxlint + ESLint
 FORMATTER: Biome + Prettier
 TYPE_CHECKER: TypeScript (tsc)
-SCHEMA_LIB: Zod (see zod/v4 usage in types/schemas/)
+SCHEMA_LIB: Zod (see zod/v4 usage in src/types/schemas/)
 
-# Common directories
-TYPES_DIR: types/
-SCHEMAS_DIR: types/schemas/
-DOCS_DIR: docs/
-COMPONENTS_DIR: components/
-STYLES_DIR: styles/
-PUBLIC_DIR: public/
+# Source directories (inside src/)
+APP_DIR: src/app/
+COMPONENTS_DIR: src/components/
+LIB_DIR: src/lib/
+HOOKS_DIR: src/hooks/
+TYPES_DIR: src/types/
+SCHEMAS_DIR: src/types/schemas/
+STYLES_DIR: src/styles/
+
+# Root-level directories (outside src/)
 CONFIG_DIR: config/
-LIB_DIR: lib/
+DATA_DIR: data/
+DOCS_DIR: docs/
+PUBLIC_DIR: public/
+SCRIPTS_DIR: scripts/
 
 # CI/CD & deployment (verify)
 CI_PROVIDER: GitHub Actions
@@ -274,7 +280,7 @@ bun run type-check
 bun run test
 
 # Review types for a domain
-find types/ -name "*.ts" | xargs rg -n "[domain]"
+find src/types/ -name "*.ts" | xargs rg -n "[domain]"
 ```
 
 ### [CUR1] Rules & Architecture Docs Index (Informational)
@@ -288,18 +294,12 @@ find types/ -name "*.ts" | xargs rg -n "[domain]"
   ---
   ```
 
-### [GIT1] Local Git Setup (Informational; do not run unless asked)
+### [GIT1] Generated Files (Informational)
 
-```bash
-# Ignore local-only files (skip-worktree)
-git update-index --skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
+Generated files are stored in `generated/` and gitignored:
 
-# Unset skip-worktree to pull upstream updates
-git update-index --no-skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
-
-# Refresh your local copies from HEAD after unsetting (destructive; run only with explicit instruction)
-git restore --source=HEAD -- config/csp-hashes.json lib/data/slug-mapping.json
-```
+- `generated/csp-hashes.json` — CSP hashes (created by postbuild)
+- `generated/bookmarks/` — bookmarks, slug mappings, index (created by scripts)
 
 ### [DEPX] Cloudflare Bundle Verification Snippet
 

@@ -1,54 +1,44 @@
-#!/bin/sh
+#!/usr/bin/env sh
+set -eu
+
 echo "🚀 Running pre-push checks..."
 
-# Check if only csp-hashes.json changed in the commits being pushed
-# Get the range of commits being pushed
-REMOTE_REF=$(git rev-parse @{u} 2>/dev/null || git rev-parse origin/$(git branch --show-current) 2>/dev/null || echo "HEAD~1")
-CHANGED_FILES=$(git diff --name-only $REMOTE_REF..HEAD)
+# Flag to track if build is needed
+BUILD_NEEDED=false
 
-# Check if only csp-hashes.json is in the list of changed files
-if [ "$CHANGED_FILES" = "config/csp-hashes.json" ]; then
-  echo "✅ Only CSP hashes changed in commits, skipping build check"
+# Check if .next directory exists
+if [ ! -d ".next" ]; then
+  echo "⚠️  Build directory not found."
+  BUILD_NEEDED=true
 else
-  # Flag to track if build is needed
-  BUILD_NEEDED=false
+  # Check for chunk files
+  CHUNK_COUNT=$(find .next/static/chunks -type f -name "*.js" 2>/dev/null | wc -l)
 
-  # Check if .next directory exists
-  if [ ! -d ".next" ]; then
-    echo "⚠️  Build directory not found."
+  if [ "$CHUNK_COUNT" -lt 5 ]; then
+    echo "⚠️  Missing or insufficient chunk files detected (found: $CHUNK_COUNT)"
     BUILD_NEEDED=true
   else
-    # Check for chunk files
-    CHUNK_COUNT=$(find .next/static/chunks -type f -name "*.js" 2>/dev/null | wc -l)
-    
-    if [ "$CHUNK_COUNT" -lt 5 ]; then
-      echo "⚠️  Missing or insufficient chunk files detected (found: $CHUNK_COUNT)"
-      BUILD_NEEDED=true
-    else
-      # Verify critical chunks exist
-      CRITICAL_CHUNKS=(
-        ".next/static/chunks/webpack.js"
-        ".next/static/chunks/main-app.js"
-        ".next/static/chunks/app-pages-internals.js"
-      )
-      
-      for chunk in "${CRITICAL_CHUNKS[@]}"; do
-        if [ ! -f "$chunk" ]; then
-          echo "⚠️  Critical chunk missing: $chunk"
-          BUILD_NEEDED=true
-          break
-        fi
-      done
-    fi
+    # Verify critical chunks exist (POSIX-compliant loop)
+    for chunk in \
+      ".next/static/chunks/webpack.js" \
+      ".next/static/chunks/main-app.js" \
+      ".next/static/chunks/app-pages-internals.js"
+    do
+      if [ ! -f "$chunk" ]; then
+        echo "⚠️  Critical chunk missing: $chunk"
+        BUILD_NEEDED=true
+        break
+      fi
+    done
   fi
+fi
 
-  # Run build if needed
-  if [ "$BUILD_NEEDED" = true ]; then
-    echo "🔨 Building application..."
-    bun run build || { echo "❌ Build failed!"; exit 1; }
-  else
-    echo "✅ Build artifacts are present"
-  fi
+# Run build if needed
+if [ "$BUILD_NEEDED" = true ]; then
+  echo "🔨 Building application..."
+  bun run build || { echo "❌ Build failed!"; exit 1; }
+else
+  echo "✅ Build artifacts are present"
 fi
 
 # Run validation
@@ -61,7 +51,7 @@ bun run test:smoke || { echo "❌ Smoke tests failed!"; exit 1; }
 
 # Check bookmark integrity
 echo "🔍 Checking bookmark integrity..."
-bun run scripts/bookmark-diagnostics.ts integrity || { 
+bun run scripts/bookmark-diagnostics.ts integrity || {
   echo "❌ Bookmark integrity check failed!"
   echo "📚 Fix the bookmarks listed above before pushing."
   echo "💡 Run 'bun run scripts/bookmark-diagnostics.ts integrity' to see details."

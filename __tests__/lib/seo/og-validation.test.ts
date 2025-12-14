@@ -13,7 +13,7 @@
  * These tests run automatically in CI/CD to catch OpenGraph issues before deployment,
  * ensuring consistent social media preview functionality across the site.
  *
- * @see {@link "../../lib/seo/og-validation.ts"} - Core validation functions
+ * @see {@link "../../src/lib/seo/og-validation.ts"} - Core validation functions
  * @see {@link "../../types/seo/validation.ts"} - Type definitions
  * @see {@link "https://developer.twitter.com/en/docs/twitter-for-websites/cards/guides/troubleshooting-cards"} - Twitter Cards troubleshooting
  */

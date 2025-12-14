@@ -20,14 +20,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { MetadataRoute } from "next";
-import sitemap from "../../app/sitemap";
+import sitemap from "../../src/app/sitemap";
 import {
   getBookmarksIndex,
   getBookmarksPage,
   listBookmarkTagSlugs,
   getTagBookmarksIndex,
   getTagBookmarksPage,
-} from "../../lib/bookmarks/service.server";
+} from "../../src/lib/bookmarks/service.server";
 
 const mockBookmarkEntries = [
   {
@@ -43,7 +43,7 @@ const mockBookmarkEntries = [
   },
 ];
 
-jest.mock("../../lib/bookmarks/service.server", () => {
+jest.mock("../../src/lib/bookmarks/service.server", () => {
   const mockIndex = jest.fn();
   const mockPage = jest.fn();
   const mockList = jest.fn();

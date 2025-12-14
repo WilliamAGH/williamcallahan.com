@@ -4,7 +4,7 @@
  * bookmarks API, fetch data, and handle pagination using cursors.
  * It requires `BOOKMARK_BEARER_TOKEN` and `BOOKMARKS_LIST_ID` environment variables to be set.
  */
-import type { ApiResponse, RawApiBookmark } from "../../../lib/bookmarks";
+import type { ApiResponse, RawApiBookmark } from "../../../src/lib/bookmarks";
 
 /**
  * Test suite for verifying the connection and data retrieval from the external bookmarks API.

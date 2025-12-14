@@ -1,6 +1,6 @@
 import type { UmamiMock, MockScriptProps } from "@/types/test";
 import { render, waitFor, act } from "@testing-library/react";
-import { Analytics } from "../../../components/analytics/analytics.client";
+import { Analytics } from "@/components/analytics/analytics.client";
 import { jest, describe, beforeEach, afterEach, it, expect } from "@jest/globals";
 
 // Create mock functions
@@ -21,7 +21,6 @@ jest.mock("next/script", () => ({
   __esModule: true,
   default: function Script({ id, onLoad, onError }: MockScriptProps) {
     // Use React.useEffect to simulate script loading
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     const React = jest.requireActual("react") as typeof import("react");
     React.useEffect(() => {
       if (mockScriptShouldError) {

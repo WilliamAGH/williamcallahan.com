@@ -6,8 +6,8 @@
  * @module __tests__/lib/bookmarks-validation.test
  */
 
-import { validateBookmarksDataset } from "../../../lib/validators/bookmarks";
-import type { UnifiedBookmark } from "../../../types";
+import { validateBookmarksDataset } from "../../../src/lib/validators/bookmarks";
+import type { UnifiedBookmark } from "../../../src/types";
 
 // Mock console.error to suppress error logs during tests
 jest.spyOn(console, "error").mockImplementation(() => {});

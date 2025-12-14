@@ -8,37 +8,6 @@
 
 To act as the high-level orchestration layer for fetching, processing, and storing comprehensive GitHub activity data. This system coordinates with underlying services to gather data from multiple GitHub API sources, process it into meaningful statistics, and persist it for fast retrieval.
 
-## Critical Security & Performance Issues
-
-### CRITICAL Security Vulnerability
-
-1. **Exposed Refresh Secret**
-   - **Issue**: `NEXT_PUBLIC_GITHUB_REFRESH_SECRET` exposes the refresh secret in client-side code
-   - **Impact**: Anyone can trigger unlimited refreshes, exhausting GitHub API rate limits
-   - **Fix**: Remove public secret, implement server-side scheduled refreshes
-
-### HIGH Priority Issues
-
-2. **Cache Never Expires**
-   - **Issue**: `ServerCacheInstance` has no TTL configuration
-   - **Impact**: Stale data served indefinitely until process restart
-   - **Fix**: Add TTL of 30 minutes for cache entries
-
-3. **No Rate Limiting**
-   - **Issue**: Refresh endpoint has no rate limiting
-   - **Impact**: Vulnerable to DoS attacks
-   - **Fix**: Implement rate limiting middleware
-
-4. **Unbounded API Calls**
-   - **Issue**: Commit counting loop has no upper limit
-   - **Impact**: Large repos can trigger hundreds of API calls
-   - **Fix**: Add MAX_COMMIT_PAGES limit
-
-5. **Data Consistency**
-   - **Issue**: All-time stats can be lower than trailing year
-   - **Impact**: Confusing data display
-   - **Fix**: Ensure all-time stats are always >= trailing year
-
 ## Architecture Diagram
 
 See `github-activity.mmd` for a visual diagram illustrating how this feature orchestrates other core functionalities.
@@ -79,21 +48,6 @@ GitHub APIs -> Refresh jobs / authorized POST -> JSON in S3 -> Next.js Cache Com
 | API (`GET /api/github-activity`) | Calls `unstable_noStore()`, reads JSON, returns immediately                                  |
 | Legacy ServerCache               | Metadata-only; still used for instrumentation, not for trailing-year JSON                    |
 
-### Current Caching Issues
-
-1. **In-Memory Cache**:
-   - **Problem**: No TTL, data never expires
-   - **Current**: Cached indefinitely
-   - **Should be**: 30-minute TTL
-
-2. **S3 Storage**:
-   - Works correctly as persistent storage
-   - ~50-100ms retrieval time
-
-3. **GitHub API**:
-   - **Problem**: No global rate limit protection
-   - **Risk**: Can exhaust 5000 req/hour limit
-
 ## API & Data Source Strategy
 
 A hybrid approach is used to gather comprehensive data:
@@ -128,37 +82,33 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 
 ### Core Data Layer
 
-- **`lib/data-access/github.ts`** (600+ lines - needs refactoring)
+- **`src/lib/data-access/github.ts`**
   - Fetches from GitHub APIs (GraphQL + REST)
   - Manages S3 storage and caching
   - Handles CSV repair and data aggregation
-  - **Issues**: Too large, needs splitting
 
 ### API Endpoints
 
-- **`app/api/github-activity/route.ts`**
+- **`src/app/api/github-activity/route.ts`**
   - Read-only endpoint for cached data (calls `unstable_noStore()` and reads JSON directly)
   - Never triggers refresh
-- **`app/api/github-activity/refresh/route.ts`**
+- **`src/app/api/github-activity/refresh/route.ts`**
   - Protected refresh endpoint
-  - **Issue**: Uses exposed public secret
-  - **Issue**: No rate limiting
 
 ### UI Components
 
-- **`components/features/github/github-activity.client.tsx`**
+- **`src/components/features/github/github-activity.client.tsx`**
   - Main activity display (consumes cached JSON via `cacheTag("github-activity")`)
   - Contribution calendar
-  - **Issue**: References build-time env var at runtime
 
-- **`components/features/github/cumulative-github-stats-cards.tsx`**
+- **`src/components/features/github/cumulative-github-stats-cards.tsx`**
   - Simple stats display cards
 
 ### Supporting Files
 
-- **`scripts/scheduler.ts`**: Cron job scheduling
-- **`scripts/update-s3-data.ts`**: Data refresh script
-- **`types/github.ts`**: Type definitions
+- **`src/lib/server/scheduler.ts`**: Cron job scheduling
+- **`scripts/data-updater.ts`**: Data refresh script
+- **`src/types/github.ts`**: Type definitions
 
 ## Environment Variables
 
@@ -176,26 +126,6 @@ GITHUB_USERNAME=username
 GITHUB_CONTRIBUTION_CSV_URL=https://...
 ```
 
-## Architectural Issues
-
-### Code Quality
-
-1. **Function Length**: `refreshGitHubActivityDataFromApi` is 600+ lines
-2. **Retry Logic**: Retries on 4xx errors (wastes API calls)
-3. **Concurrent Calls**: Can spawn unlimited parallel API calls
-
-### Data Consistency
-
-- All-time stats calculation doesn't ensure consistency
-- Only `totalContributions` is reconciled
-- Lines added/removed can be inconsistent
-
-### Performance
-
-- No request deduplication
-- No health metrics
-- Memory usage unbounded
-
 ## Debugging
 
 ```bash
@@ -212,7 +142,7 @@ aws s3 ls s3://$S3_BUCKET/github/
 ## Handling GitHub 202 "stats still generating" responses
 
 GitHub's `/stats/contributors` endpoint often returns **HTTP 202** for several minutes while it prepares a repository's statistics.  
-Our pipeline now recognises this explicitly:
+Our pipeline now recognizes this explicitly:
 
 - `fetchContributorStats` performs a configurable retry loop (env vars `GITHUB_STATS_PENDING_MAX_ATTEMPTS`, `GITHUB_STATS_PENDING_DELAY_MS`).
   - If the endpoint keeps returning 202 after the configured attempts it throws `GitHubContributorStatsPendingError`.

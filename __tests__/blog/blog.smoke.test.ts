@@ -23,7 +23,7 @@ import matter from "gray-matter";
 jest.unmock("next-mdx-remote/serialize");
 jest.unmock("next-mdx-remote");
 
-import { getMDXPost } from "../../lib/blog/mdx";
+import { getMDXPost } from "../../src/lib/blog/mdx";
 
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
 

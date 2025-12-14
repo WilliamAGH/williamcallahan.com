@@ -1,7 +1,7 @@
 /**
  * Pre-build script to initialize the Content Security Policy (CSP) hash file.
  *
- * This script ensures that an empty `config/csp-hashes.json` file exists before
+ * This script ensures that an empty `generated/csp-hashes.json` file exists before
  * the Next.js build starts. This prevents a "Module not found" error in the
  * middleware, which imports this file, during the initial build when the file
  * has not yet been generated.
@@ -23,13 +23,13 @@ import { writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 const LOG_PREFIX = "[Init CSP Hashes]";
-const outputFile = resolve(process.cwd(), "config/csp-hashes.json");
+const outputFile = resolve(process.cwd(), "generated/csp-hashes.json");
 const outputDir = resolve(outputFile, "..");
 
 /**
  * ALWAYS-RESET GUARANTEE (DO NOT REMOVE)
  * --------------------------------------
- * This script **ALWAYS** overwrites `config/csp-hashes.json` with empty
+ * This script **ALWAYS** overwrites `generated/csp-hashes.json` with empty
  * arrays at the start of every dev *and* production build.
  *
  * Rationale:
