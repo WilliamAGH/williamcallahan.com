@@ -177,6 +177,7 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
                     width={14}
                     height={14}
                     className="inline-block h-3.5 w-3.5"
+                    unoptimized={true}
                   />
                 </ExternalLink>
               )}

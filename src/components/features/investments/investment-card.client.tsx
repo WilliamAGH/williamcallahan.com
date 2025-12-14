@@ -181,6 +181,7 @@ export function InvestmentCardClient({
                   height={24}
                   className="inline-block h-6 w-6"
                   data-testid="aventure-icon"
+                  unoptimized={true}
                 />
               </ExternalLink>
             )}
