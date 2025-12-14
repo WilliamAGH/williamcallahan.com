@@ -1,12 +1,13 @@
 /**
  * Search Types
  *
- * Re-exports from Zod schemas + generic interfaces that can't be Zod schemas.
- * @see {@link @/types/schemas/search} for Zod schema definitions (source of truth)
+ * Public entrypoint for all search-related types and schemas.
+ *
+ * Zod schemas live in `@/types/schemas/search` (runtime validation source of truth).
  */
 
 import type MiniSearch from "minisearch";
-import type { AggregatedTag as AggregatedTagType, SearchResult as SearchResultType } from "./schemas/search";
+import type { AggregatedTag as AggregatedTagShape, SearchResult as SearchResultShape } from "./schemas/search";
 
 // Re-export all types and schemas from the Zod schemas file (source of truth)
 export {
@@ -77,7 +78,7 @@ export interface IndexFieldConfig<T, VirtualFields extends string = never> {
  * @template TDoc - The document type being searched
  * @template TResult - The search result type (extends SearchResult)
  */
-export interface SearchFunctionConfig<TDoc, TResult extends SearchResultType> {
+export interface SearchFunctionConfig<TDoc, TResult extends SearchResultShape> {
   /** Cache key for storing/retrieving results */
   cacheKey: string;
   /** Function to retrieve or build the MiniSearch index */
@@ -106,7 +107,7 @@ export interface TagSource<T> {
   /** Function to extract tag strings from an item */
   getTags: (item: T) => string[] | undefined;
   /** Content type for the aggregated tags */
-  contentType: AggregatedTagType["contentType"];
+  contentType: AggregatedTagShape["contentType"];
   /** URL pattern generator for tag pages */
   urlPattern: (slug: string) => string;
 }
