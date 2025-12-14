@@ -16,12 +16,12 @@ Chroma provides vector similarity search for semantic content discovery. Unlike 
 
 ```
 Content (Thoughts, Bookmarks, etc.)
-         ↓
+         |
    Embedding Function (all-MiniLM-L6-v2, 384D)
-         ↓
+         |
    Chroma Cloud (vector storage)
-         ↓
-   Similarity Queries → Related Content, Categories, Tags
+         |
+   Similarity Queries -> Related Content, Categories, Tags
 ```
 
 ### Key Components

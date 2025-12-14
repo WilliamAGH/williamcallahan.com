@@ -9,7 +9,7 @@ alwaysApply: false
 
 This document provides the minimal, battle-tested core services needed to get AI functionality working. Focus on OpenAI compatibility, proven patterns, and a working MVP.
 
-## 🚨 CRITICAL IMPLEMENTATION RULES
+## CRITICAL IMPLEMENTATION RULES
 
 1. **NO LLM KNOWLEDGE**: Do NOT rely on any LLM training data about these APIs
 2. **LIVE DOCUMENTATION ONLY**: ALL implementations MUST be based on current documentation fetched live
@@ -355,7 +355,7 @@ if (!allowed) {
 }
 ```
 
-## 🔗 Next Steps
+## Next Steps
 
 1. **Step 3**: [Advanced AI Features](./ai-shared-services.md) - Add more providers and production features
 2. **Step 4**: [Self-Hosted Embeddings](../architecture/embeddings-self-hosted.md) - GPU-accelerated embeddings
@@ -365,11 +365,11 @@ if (!allowed) {
 
 This core implementation provides a working AI service with:
 
-- ✅ OpenAI compatibility
-- ✅ Local model support (Ollama)
-- ✅ Streaming and non-streaming
-- ✅ Type safety with Zod
-- ✅ Security built-in
-- ✅ Ready for production
+- OpenAI compatibility
+- Local model support (Ollama)
+- Streaming and non-streaming
+- Type safety with Zod
+- Security built-in
+- Ready for production
 
 Total lines: ~300 (compared to 1,740 in the full document)

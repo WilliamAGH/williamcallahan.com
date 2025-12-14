@@ -38,18 +38,18 @@ The "terminal" functionality encompasses components and utilities that manage th
 ### Command Processing Flow
 
 ```
-User Input → CommandInput → useTerminal → commands.client.ts
-                                  ↓
+User Input -> CommandInput -> useTerminal -> commands.client.ts
+                                  |
                           TerminalContext (history)
-                                  ↓
+                                  |
                               History Component
 ```
 
 ### Window State Management Flow
 
 ```
-Window Controls → TerminalHeader → GlobalWindowRegistry
-                                          ↓
+Window Controls -> TerminalHeader -> GlobalWindowRegistry
+                                          |
                               TerminalImplementation (visibility/state)
 ```
 

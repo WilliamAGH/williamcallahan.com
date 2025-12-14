@@ -10,14 +10,14 @@ To act as the high-level orchestration layer for fetching, processing, and stori
 
 ## Critical Security & Performance Issues
 
-### 🔴 CRITICAL Security Vulnerability
+### CRITICAL Security Vulnerability
 
 1. **Exposed Refresh Secret**
    - **Issue**: `NEXT_PUBLIC_GITHUB_REFRESH_SECRET` exposes the refresh secret in client-side code
    - **Impact**: Anyone can trigger unlimited refreshes, exhausting GitHub API rate limits
    - **Fix**: Remove public secret, implement server-side scheduled refreshes
 
-### 🟠 HIGH Priority Issues
+### HIGH Priority Issues
 
 2. **Cache Never Expires**
    - **Issue**: `ServerCacheInstance` has no TTL configuration
@@ -67,8 +67,8 @@ This orchestration model allows the GitHub Activity feature to focus on its spec
 The system uses a three-tier caching hierarchy:
 
 ```
-GitHub APIs → Refresh jobs / authorized POST → JSON in S3 → Next.js Cache Components → UI
-                                                              ↓
+GitHub APIs -> Refresh jobs / authorized POST -> JSON in S3 -> Next.js Cache Components -> UI
+                                                              |
                                                 API routes (noStore, read JSON fresh)
 ```
 

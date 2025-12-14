@@ -11,8 +11,8 @@ To provide resilient OpenGraph metadata extraction and image processing for any 
 The OpenGraph system operates with a multi-layered approach:
 
 ```
-Request → Cache Check → S3 Check → External Fetch → Process → Store → Return
-           ↓              ↓              ↓
+Request -> Cache Check -> S3 Check -> External Fetch -> Process -> Store -> Return
+           |              |              |
          Memory         Persistent    HTML Fetch
          (Fast)         (Durable)     (Slow)
 ```
@@ -22,7 +22,7 @@ Request → Cache Check → S3 Check → External Fetch → Process → Store �
 ### Data Access Layer
 
 - **`lib/data-access/opengraph.ts`**: Core orchestration and caching logic (~431 LoC)
-  - Multi-tier caching strategy (Memory → S3 → External)
+  - Multi-tier caching strategy (Memory -> S3 -> External)
   - Request coalescing to prevent duplicate fetches
   - Background refresh with stale-while-revalidate
   - Delegates to specialized modules for specific tasks
@@ -96,7 +96,7 @@ Request → Cache Check → S3 Check → External Fetch → Process → Store �
 - **`app/api/og-image/route.ts`**: Universal OpenGraph image endpoint
   - Single source of truth for ALL OpenGraph images
   - Multi-input support: S3 keys, Karakeep asset IDs, external URLs
-  - Hierarchy: Memory cache → S3 storage → External fetch → Karakeep fallback
+  - Hierarchy: Memory cache -> S3 storage -> External fetch -> Karakeep fallback
   - Security: SSRF protection, domain allowlisting, size limits
   - Response streaming with background S3 persistence
   - Contextual fallback images (company, person, OpenGraph card)
@@ -108,9 +108,9 @@ The `/api/og-image` route serves as the single source of truth for all OpenGraph
 
 ### Input Types
 
-1. **S3 Keys**: `opengraph/images/example.png` → Redirect to CDN
-2. **Karakeep Asset IDs**: `abc-123-def` → Proxy to `/api/assets/[id]`
-3. **External URLs**: `https://github.com` → Fetch, stream, and persist
+1. **S3 Keys**: `opengraph/images/example.png` -> Redirect to CDN
+2. **Karakeep Asset IDs**: `abc-123-def` -> Proxy to `/api/assets/[id]`
+3. **External URLs**: `https://github.com` -> Fetch, stream, and persist
 
 ### Request Parameters
 
@@ -130,7 +130,7 @@ The `/api/og-image` route serves as the single source of truth for all OpenGraph
 
 1. Check S3 existence (for S3 keys)
 2. Try Karakeep asset (for asset IDs)
-3. Fetch from OpenGraph data layer (memory → S3 → external)
+3. Fetch from OpenGraph data layer (memory -> S3 -> external)
 4. Direct image fetch if URL points to image
 5. Domain-specific fallbacks (GitHub, Twitter, etc.)
 6. Contextual fallbacks (person, OpenGraph card, company)
@@ -146,9 +146,9 @@ The `/api/og-image` route serves as the single source of truth for all OpenGraph
 
 ```
 app/api/og-image/route.ts
-  ↓
+  |
 lib/data-access/opengraph.ts (orchestrator)
-  ├── lib/opengraph/fetch.ts → lib/opengraph/parser.ts → lib/opengraph/imageSelector.ts
+  ├── lib/opengraph/fetch.ts -> lib/opengraph/parser.ts -> lib/opengraph/imageSelector.ts
   ├── lib/opengraph/fallback.ts
   └── lib/opengraph/persistence.ts
 ```
@@ -159,38 +159,38 @@ lib/data-access/opengraph.ts (orchestrator)
 
 ```typescript
 getOpenGraphData(url, skipExternalFetch?, idempotencyKey?, fallbackImageData?)
-  ↓
-Validate URL → Normalize → Generate hash
+  |
+Validate URL -> Normalize -> Generate hash
 ```
 
 ### 2. Cache Check Phase
 
 ```typescript
 Memory Cache Check (ServerCacheInstance)
-  ↓ (miss)
+  | (miss)
 S3 Metadata Check (opengraph/metadata/{urlHash}.json)
-  ↓ (miss)
+  | (miss)
 External Fetch Required
 ```
 
 ### 3. External Fetch Phase
 
 ```typescript
-Check Circuit Breaker → Rate Limit → Fetch HTML
-  ↓
+Check Circuit Breaker -> Rate Limit -> Fetch HTML
+  |
 Smart HTML Parsing:
   - If >5MB: Extract <head> or first 512KB
   - Otherwise: Parse full HTML
-  ↓
-Extract All Image Types → Select Best by Priority
-  ↓
-Resolve Relative URLs → Validate Images
+  |
+Extract All Image Types -> Select Best by Priority
+  |
+Resolve Relative URLs -> Validate Images
 ```
 
 ### 4. Storage Phase
 
 ```typescript
-Store Metadata in S3 → Persist Images to S3 → Update Memory Cache
+Store Metadata in S3 -> Persist Images to S3 -> Update Memory Cache
 ```
 
 ### 5. Background Operations
