@@ -7,7 +7,14 @@ import { certifications, education } from "@/data/education";
 import { experiences } from "@/data/experience";
 import { investments } from "@/data/investments";
 import { projects as projectsData } from "@/data/projects";
-import type { SearchResult, EducationItem, BookmarkIndexItem, ScoredResult, AggregatedTag } from "../types/search";
+import type {
+  SearchResult,
+  EducationItem,
+  BookmarkIndexItem,
+  ScoredResult,
+  AggregatedTag,
+  MiniSearchStoredFields,
+} from "../types/search";
 import type { Book } from "@/types/schemas/book";
 import MiniSearch from "minisearch";
 import { ServerCacheInstance } from "./server-cache";
@@ -58,6 +65,76 @@ const BOOKS_DATA_TTL = 2 * 60 * 60; // 2 hours - shared between search index and
 // Default: true (use S3 indexes for reliability and performance)
 // Set USE_S3_SEARCH_INDEXES=false to force live fetching
 const USE_S3_INDEXES = process.env.USE_S3_SEARCH_INDEXES !== "false";
+
+function parseSerializedIndexObject(serializedIndex: SerializedIndex): Record<string, unknown> | null {
+  if (typeof serializedIndex.index === "string") {
+    try {
+      const parsed = JSON.parse(serializedIndex.index) as unknown;
+      if (isRecord(parsed)) {
+        return parsed;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  return isRecord(serializedIndex.index) ? serializedIndex.index : null;
+}
+
+function extractBookmarksFromSerializedIndex(
+  serializedIndex: SerializedIndex,
+): Array<BookmarkIndexItem & { slug: string }> {
+  const indexObject = parseSerializedIndexObject(serializedIndex);
+  if (!indexObject) {
+    return [];
+  }
+
+  const documentIdsRaw = (indexObject as { documentIds?: unknown }).documentIds;
+  const storedFieldsRaw = (indexObject as { storedFields?: unknown }).storedFields;
+
+  if (!isRecord(documentIdsRaw) || !isRecord(storedFieldsRaw)) {
+    return [];
+  }
+
+  const bookmarks: Array<BookmarkIndexItem & { slug: string }> = [];
+  for (const [shortId, docId] of Object.entries(documentIdsRaw)) {
+    const stored = storedFieldsRaw[shortId];
+    if (!isRecord(stored)) continue;
+
+    const storedFields = stored as MiniSearchStoredFields;
+    const id =
+      typeof storedFields.id === "string"
+        ? storedFields.id
+        : typeof docId === "string"
+          ? docId
+          : typeof docId === "number"
+            ? String(docId)
+            : null;
+    const slug = typeof storedFields.slug === "string" ? storedFields.slug : null;
+
+    if (!id || !slug) continue;
+
+    const title =
+      typeof storedFields.title === "string" && storedFields.title.length > 0
+        ? storedFields.title
+        : typeof storedFields.url === "string" && storedFields.url.length > 0
+          ? storedFields.url
+          : slug;
+
+    bookmarks.push({
+      id,
+      title,
+      description: typeof storedFields.description === "string" ? storedFields.description : "",
+      tags: "",
+      url: typeof storedFields.url === "string" ? storedFields.url : "",
+      author: "",
+      publisher: "",
+      slug,
+    });
+  }
+
+  return bookmarks;
+}
 
 /**
  * Loads a search index from S3 if available, falls back to building in-memory
@@ -503,6 +580,7 @@ async function getBookmarksIndex(): Promise<{
     tags?: Array<string | { name?: string }>;
     content?: { author?: string | null; publisher?: string | null };
   }> = [];
+  let serializedBookmarksIndex: SerializedIndex | null = null;
 
   try {
     const { getBookmarks } = await import("@/lib/bookmarks/service.server");
@@ -595,6 +673,7 @@ async function getBookmarksIndex(): Promise<{
     try {
       const serializedIndex = await readJsonS3<SerializedIndex>(SEARCH_S3_PATHS.BOOKMARKS_INDEX);
       if (serializedIndex?.index && serializedIndex.metadata) {
+        serializedBookmarksIndex = serializedIndex;
         bookmarksIndex = loadIndexFromJSON<BookmarkIndexItem>(serializedIndex);
         console.log(`[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`);
       } else {
@@ -639,16 +718,34 @@ async function getBookmarksIndex(): Promise<{
     });
   }
 
+  if (bookmarksForIndex.length === 0 && bookmarksArr.length === 0 && serializedBookmarksIndex) {
+    const reconstructed = extractBookmarksFromSerializedIndex(serializedBookmarksIndex);
+    if (reconstructed.length > 0) {
+      bookmarksForIndex.push(...reconstructed);
+      devLog("[getBookmarksIndex] using stored fields from S3 index for mapping", {
+        reconstructed: reconstructed.length,
+        s3Documents: serializedBookmarksIndex.metadata.itemCount,
+      });
+    } else {
+      envLogger.log(
+        "[Search] Unable to reconstruct bookmarks from S3 index stored fields",
+        { itemCount: serializedBookmarksIndex.metadata.itemCount },
+        { category: "Search" },
+      );
+    }
+  }
+
   // Cache the index and bookmarks
   const result = { index: bookmarksIndex, bookmarks: bookmarksForIndex };
 
   // CRITICAL: Do NOT cache empty indexes when source data exists but couldn't be indexed
   // This happens when slug mapping is temporarily unavailable (e.g., during cold start).
   // Caching the empty result would cause all subsequent searches to fail until cache expires.
-  if (bookmarksForIndex.length === 0 && bookmarksArr.length > 0) {
+  const serializedIndexCount = serializedBookmarksIndex?.metadata?.itemCount ?? 0;
+  if (bookmarksForIndex.length === 0 && (bookmarksArr.length > 0 || serializedIndexCount > 0)) {
     envLogger.log(
-      `[Search] SKIPPING CACHE: Empty bookmarks index despite ${bookmarksArr.length} source bookmarks - slug mapping likely unavailable`,
-      { sourceCount: bookmarksArr.length, indexedCount: 0 },
+      "[Search] SKIPPING CACHE: Empty bookmarks index despite available bookmark data (source or S3 index)",
+      { sourceCount: bookmarksArr.length, indexedCount: 0, serializedIndexCount },
       { category: "Search" },
     );
     // Return result without caching - next request will retry and may succeed if slug mapping becomes available
@@ -656,7 +753,11 @@ async function getBookmarksIndex(): Promise<{
     ServerCacheInstance.set(cacheKey, result, BOOKMARK_INDEX_TTL);
   }
 
-  devLog("[getBookmarksIndex] index built", { indexed: bookmarksArr.length });
+  devLog("[getBookmarksIndex] index built", {
+    indexed: bookmarksForIndex.length,
+    sourceBookmarks: bookmarksArr.length,
+    serializedIndexCount,
+  });
 
   return result;
 }
