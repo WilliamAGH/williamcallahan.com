@@ -294,18 +294,12 @@ find src/types/ -name "*.ts" | xargs rg -n "[domain]"
   ---
   ```
 
-### [GIT1] Local Git Setup (Informational; do not run unless asked)
+### [GIT1] Generated Files (Informational)
 
-```bash
-# Ignore local-only files (skip-worktree)
-git update-index --skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
+Generated files are stored in `generated/` and gitignored:
 
-# Unset skip-worktree to pull upstream updates
-git update-index --no-skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
-
-# Refresh your local copies from HEAD after unsetting (destructive; run only with explicit instruction)
-git restore --source=HEAD -- config/csp-hashes.json lib/data/slug-mapping.json
-```
+- `generated/csp-hashes.json` — CSP hashes (created by postbuild)
+- `generated/bookmarks/` — bookmarks, slug mappings, index (created by scripts)
 
 ### [DEPX] Cloudflare Bundle Verification Snippet
 
