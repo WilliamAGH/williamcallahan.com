@@ -11,7 +11,7 @@
  */
 
 import type { MetadataRoute } from "next";
-import { SITE_TITLE, SITE_NAME, SITE_DESCRIPTION, SEO_IMAGES } from "../data/metadata";
+import { SITE_TITLE, SITE_NAME, SITE_DESCRIPTION, SEO_IMAGES } from "@/data/metadata";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {

@@ -6,7 +6,7 @@
  */
 import "server-only"; // Ensure this component also remains server-only
 
-import { certifications, education, recentCourses } from "../../../data/education";
+import { certifications, education, recentCourses } from "@/data/education";
 // Import the new server-only processing functions
 import { processCertificationItem, processEducationItem } from "../../../lib/education-data-processor";
 import { EducationClient } from "./education.client";

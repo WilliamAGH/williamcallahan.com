@@ -27,7 +27,7 @@ import {
   SEO_IMAGES,
   OG_IMAGE_FALLBACK_DIMENSIONS,
   metadata as siteMetadata,
-} from "../../data/metadata";
+} from "@/data/metadata";
 import type { ArticleMetadata, ExtendedMetadata, ArticleParams, SoftwareAppParams } from "../../types/seo";
 import { SEO_DATE_FIELDS } from "@/lib/constants";
 import type { ExtendedOpenGraph } from "../../types/seo/opengraph";

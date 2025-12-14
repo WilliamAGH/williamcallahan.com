@@ -24,7 +24,7 @@
  * - Course (educational content)
  */
 
-import { SITE_NAME, metadata } from "../../data/metadata";
+import { SITE_NAME, metadata } from "@/data/metadata";
 import type {
   ArticleSchema,
   BreadcrumbListSchema,

@@ -26,11 +26,11 @@ import { getThoughtListItems } from "@/lib/thoughts/service.server";
 import { kebabCase } from "@/lib/utils/formatters";
 import type { UnifiedBookmark } from "@/types";
 
-import { updatedAt as educationUpdatedAt } from "../data/education";
-import { updatedAt as experienceUpdatedAt } from "../data/experience";
-import { updatedAt as investmentsUpdatedAt } from "../data/investments";
-import { PAGE_METADATA, metadata as siteMetadata } from "../data/metadata";
-import { updatedAt as projectsUpdatedAt, projects } from "../data/projects";
+import { updatedAt as educationUpdatedAt } from "@/data/education";
+import { updatedAt as experienceUpdatedAt } from "@/data/experience";
+import { updatedAt as investmentsUpdatedAt } from "@/data/investments";
+import { PAGE_METADATA, metadata as siteMetadata } from "@/data/metadata";
+import { updatedAt as projectsUpdatedAt, projects } from "@/data/projects";
 
 const BOOKMARK_CHANGE_FREQUENCY: NonNullable<MetadataRoute.Sitemap[number]["changeFrequency"]> = "weekly";
 const BOOKMARK_PRIORITY = 0.65;

@@ -25,7 +25,7 @@ export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>>
 
   try {
     // Use dynamic import to avoid module loading failures
-    const { investments } = await import("../../data/investments");
+    const { investments } = await import("@/data/investments");
 
     if (investments && Array.isArray(investments)) {
       for (const investment of investments) {

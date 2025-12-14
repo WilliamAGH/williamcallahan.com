@@ -166,8 +166,7 @@ export function onRequestError(
   // Lazily import to avoid increasing cold-start time when Sentry is disabled
   if (!process.env.SENTRY_DSN) return;
 
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises -- fire-and-forget instrumentation
-  import("@sentry/nextjs").then(Sentry => {
+  void import("@sentry/nextjs").then(Sentry => {
     const normalizeRequest = (
       req: typeof request,
     ): { path: string; method: string; headers: Record<string, string | string[] | undefined> } => {

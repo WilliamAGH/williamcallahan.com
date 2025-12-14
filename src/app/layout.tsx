@@ -26,7 +26,7 @@ import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-regist
 // Re-add direct imports
 import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
 // Terminal is lazy-loaded inside TerminalLoader (dynamic import)
-import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, metadata as siteMetadata, SEO_IMAGES } from "../data/metadata";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, metadata as siteMetadata, SEO_IMAGES } from "@/data/metadata";
 import { Providers } from "./providers.client";
 
 import { Analytics } from "@/components/analytics/analytics.client";
