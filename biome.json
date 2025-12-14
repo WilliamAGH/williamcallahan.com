@@ -4,7 +4,7 @@
     "includes": [
       "**/*",
       "!node_modules",
-      "!components/ui/code-block/prism-syntax-highlighting/prism.js",
+      "!src/components/ui/code-block/prism-syntax-highlighting/prism.js",
       "!.next",
       "!coverage",
       "!**/*.mdx",
@@ -118,13 +118,13 @@
       }
     },
     {
-      "includes": ["components/analytics/analytics.client.tsx"],
+      "includes": ["src/components/analytics/analytics.client.tsx"],
       "linter": {
         "rules": {}
       }
     },
     {
-      "includes": ["components/ui/terminal/selection-view.client.tsx"],
+      "includes": ["src/components/ui/terminal/selection-view.client.tsx"],
       "linter": {
         "rules": {
           "a11y": {
@@ -137,7 +137,7 @@
       }
     },
     {
-      "includes": ["components/ui/terminal/terminal-loader.client.tsx"],
+      "includes": ["src/components/ui/terminal/terminal-loader.client.tsx"],
       "linter": {
         "rules": {
           "a11y": {
@@ -157,7 +157,7 @@
       }
     },
     {
-      "includes": ["components/features/blog/blog-article/mdx-content.client.tsx"],
+      "includes": ["src/components/features/blog/blog-article/mdx-content.client.tsx"],
       "linter": {
         "rules": {
           "correctness": {
@@ -167,7 +167,7 @@
       }
     },
     {
-      "includes": ["lib/server-cache.ts", "types/server-cache.d.ts"],
+      "includes": ["src/lib/server-cache.ts", "src/types/server-cache.d.ts"],
       "linter": {
         "rules": {
           "suspicious": {
