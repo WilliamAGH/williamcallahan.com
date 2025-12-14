@@ -12,9 +12,9 @@
 
 import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { normalizeTagsToStrings, tagToSlug } from "../src/lib/utils/tag-utils";
-import { calculateBookmarksChecksum } from "../src/lib/bookmarks/utils";
-import { readJsonS3 } from "../src/lib/s3-utils";
+import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
+import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
+import { readJsonS3 } from "@/lib/s3-utils";
 import { getEnvironment, getEnvironmentSuffix } from "@/lib/config/environment";
 import type { BookmarkS3Record, BookmarkSlugMapping } from "@/types/bookmark";
 
@@ -133,7 +133,9 @@ function loadExistingLocalJson(relativePath: string): unknown | null {
 
 function embedSlug(bookmark: BookmarkS3Record, slugMapping: Partial<BookmarkSlugMapping> | null): BookmarkS3Record {
   if (bookmark.slug) return bookmark;
-  const slug = slugMapping?.slugs?.[bookmark.id as string]?.slug;
+  const id = typeof bookmark.id === "string" ? bookmark.id : null;
+  if (!id) return bookmark;
+  const slug = slugMapping?.slugs?.[id]?.slug;
   return slug ? { ...bookmark, slug } : bookmark;
 }
 
