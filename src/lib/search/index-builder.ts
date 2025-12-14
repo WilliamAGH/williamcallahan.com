@@ -293,6 +293,11 @@ async function buildBooksIndex(): Promise<SerializedIndex> {
       prefix: true,
     },
     extractField: (document, fieldName) => {
+      // CRITICAL: MiniSearch uses extractField for ALL fields including the ID field.
+      // We must return the actual ID, not an empty string, or all docs get duplicate ID "".
+      if (fieldName === "id") {
+        return document.id;
+      }
       if (fieldName === "authors") {
         return Array.isArray(document.authors) ? document.authors.join(" ") : "";
       }

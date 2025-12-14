@@ -6,7 +6,7 @@
  * Based on Twitter Cards troubleshooting guide and OpenGraph best practices
  */
 
-import { metadata } from "../../data/metadata";
+import { metadata } from "@/data/metadata";
 import type { OGImageValidation, OGImage, OGMetadata } from "../../types/seo/validation";
 import { getMonotonicTime } from "@/lib/utils";
 

@@ -45,10 +45,15 @@ const config: Config = {
   moduleDirectories: ["node_modules", "<rootDir>/"],
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
 
-  // Path aliases
+  // Path aliases - must match tsconfig.json paths
   moduleNameMapper: {
-    "^@/(.*)$": "<rootDir>/$1",
-    "^~/(.*)$": "<rootDir>/$1",
+    // Explicit root-level paths (must come before catch-all)
+    "^@/data/(.*)$": "<rootDir>/data/$1",
+    "^@/config/(.*)$": "<rootDir>/config/$1",
+    "^@/public/(.*)$": "<rootDir>/public/$1",
+    // Catch-all for src/ directory
+    "^@/(.*)$": "<rootDir>/src/$1",
+    "^~/(.*)$": "<rootDir>/src/$1",
     // CSS and assets
     "^.+\\.module\\.(css|sass|scss)$": "identity-obj-proxy",
     "^.+\\.(css|sass|scss)$": "<rootDir>/__tests__/__mocks__/lib/style-mock.js",
@@ -78,7 +83,7 @@ const config: Config = {
   testMatch: ["**/__tests__/**/*.(test|spec).(ts|tsx|js|jsx)", "**/?(*.)+(spec|test).(ts|tsx|js|jsx)"],
 
   // Ignore patterns
-  testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/.next/", "<rootDir>/types/test.ts"],
+  testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/.next/", "<rootDir>/src/types/test.ts"],
 
   // Transform configuration for ESM
   transform: {
@@ -137,7 +142,6 @@ const config: Config = {
     "!**/__tests__/**",
     "!**/docs/**",
     "!**/config/**",
-    "!**/middleware/**",
   ],
 
   // General settings

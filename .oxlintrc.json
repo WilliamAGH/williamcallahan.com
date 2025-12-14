@@ -6,7 +6,7 @@
     "**/node_modules/**",
     "**/dist/**",
     "**/out/**",
-    "components/ui/code-block/prism-syntax-highlighting/prism.js",
+    "src/components/ui/code-block/prism-syntax-highlighting/prism.js",
     "**/*.mdx",
     "next-env.d.ts"
   ],

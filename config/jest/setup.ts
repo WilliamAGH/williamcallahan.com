@@ -134,7 +134,7 @@ const originalError: (...data: unknown[]) => void = (...data) => {
   pristineConsoleError(...(data as unknown[]));
 };
 
-// Patterns we always want to silence
+// Patterns we always want to silence (used for both console.error and console.warn)
 const SUPPRESSED_PATTERNS = [
   "Warning: ReactDOM.render",
   "inside a test was not wrapped in act",
@@ -158,6 +158,7 @@ const SUPPRESSED_PATTERNS = [
   "Error searching in section",
   "Search API returned 500",
   "[DataFetchManager] Error collecting domains:",
+  "[MemoryHealthMonitor] ServerCacheInstance.getStats is unavailable",
 ];
 
 // Suppress noisy console.error logs during test runs

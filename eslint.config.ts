@@ -17,7 +17,7 @@ import oxlint from "eslint-plugin-oxlint";
 // ESM-compatible require for loading JSON files
 const requireJson = createRequire(import.meta.url);
 // Single source of truth for the static image mapping JSON path
-const STATIC_IMAGE_MAPPING_REL_PATH = "./lib/data-access/static-image-mapping.json" as const;
+const STATIC_IMAGE_MAPPING_REL_PATH = "./src/lib/data-access/static-image-mapping.json" as const;
 // Local ESLint Rule Types
 import type { Rule } from "eslint";
 
@@ -121,7 +121,7 @@ const config = tseslint.config(
       ".husky/",
       "out/",
       ".jest-pre-compiled/",
-      "components/ui/code-block/prism-syntax-highlighting/prism.js",
+      "src/components/ui/code-block/prism-syntax-highlighting/prism.js",
       "config/.remarkrc.mjs",
       "config/",
       "next-env.d.ts",
@@ -249,7 +249,7 @@ const config = tseslint.config(
   // Enforce centralized type definitions (all types AND Zod schemas must live in @/types or *.d.ts)
   {
     files: ["**/*.{ts,tsx}"],
-    ignores: ["types/**/*", "**/*.d.ts", "**/*.mdx"],
+    ignores: ["src/types/**/*", "**/*.d.ts", "**/*.mdx"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -317,8 +317,7 @@ const config = tseslint.config(
       "config/**/*.ts",
       "next.config.ts",
       "tailwind.config.ts",
-      "middleware.ts",
-      "instrumentation.ts",
+      "src/instrumentation*.ts",
       "sentry.*.config.ts",
       "jest.config.ts",
       "scripts/**/*.ts",
@@ -400,6 +399,8 @@ const config = tseslint.config(
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
       "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/no-unnecessary-type-assertion": "off", // Jest mock casts often flagged incorrectly
+      "@typescript-eslint/no-redundant-type-constituents": "off", // Path resolution issues with @/ aliases
       "no-restricted-syntax": "off",
       "no-underscore-dangle": "off", // Allow underscores in test files for mocking and test utilities
       "@next/next/no-img-element": "off", // Allow <img> in test files for mocking next/image
@@ -458,7 +459,7 @@ const config = tseslint.config(
     },
   },
   {
-    files: ["lib/blog/mdx.ts"],
+    files: ["src/lib/blog/mdx.ts"],
     rules: {
       "@typescript-eslint/no-unsafe-assignment": "off",
     },
@@ -624,11 +625,11 @@ const config = tseslint.config(
   // Disable function-scoping hoist where helpers are intentionally local
   {
     files: [
-      "**/app/status/page.tsx",
-      "**/instrumentation.ts",
-      "**/instrumentation-node.ts",
-      "**/components/features/projects/project-card.client.tsx",
-      "**/components/features/projects/project-card.server.tsx",
+      "src/app/status/page.tsx",
+      "src/instrumentation.ts",
+      "src/instrumentation-node.ts",
+      "src/components/features/projects/project-card.client.tsx",
+      "src/components/features/projects/project-card.server.tsx",
     ],
     rules: {
       "unicorn/consistent-function-scoping": "off",

@@ -25,7 +25,7 @@ export {
   SITE_DESCRIPTION_SHORT,
   PAGE_METADATA,
   metadata,
-} from "../../data/metadata";
+} from "@/data/metadata";
 
 // Re-export types only - no runtime values to avoid circular dependencies
 export type {
@@ -35,7 +35,7 @@ export type {
 } from "../../types/seo/metadata";
 
 import type { Metadata as NextMetadata } from "next";
-import { SITE_NAME, metadata } from "../../data/metadata";
+import { SITE_NAME, metadata } from "@/data/metadata";
 import type { BlogPost } from "../../types/blog";
 import type { ImageSEOMetadata, OpenGraphImage } from "../../types/seo";
 import { createArticleOgMetadata } from "./opengraph";

@@ -46,7 +46,7 @@ import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 import coverImageManifest from "@/data/blog/cover-image-map.json";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
-import { authors } from "../../data/blog/authors";
+import { authors } from "@/data/blog/authors";
 import type { BlogPost } from "../../types/blog";
 
 import type { CacheDurationProfile } from "@/types/cache-profile";

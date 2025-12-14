@@ -4,13 +4,14 @@
     "composite": true,
     "baseUrl": "./",
     "paths": {
-      "@/*": ["../*"],
-      "@/types/*": ["../types/*"],
-      "@/lib/*": ["../lib/*"],
-      "@/components/*": ["../components/*"],
-      "@/app/*": ["../app/*"],
       "@/data/*": ["../data/*"],
-      "@/hooks/*": ["../hooks/*"]
+      "@/config/*": ["../config/*"],
+      "@/types/*": ["../src/types/*"],
+      "@/lib/*": ["../src/lib/*"],
+      "@/components/*": ["../src/components/*"],
+      "@/app/*": ["../src/app/*"],
+      "@/hooks/*": ["../src/hooks/*"],
+      "@/*": ["../src/*"]
     },
     "types": ["react", "react-dom", "react/jsx-runtime", "jest", "@testing-library/jest-dom"],
     "jsx": "react-jsx",
@@ -24,22 +25,22 @@
     "ignoreDeprecations": "5.0"
   },
   "include": [
-    "../app/**/*.ts",
-    "../app/**/*.tsx",
-    "../lib/**/*.ts",
-    "../lib/**/*.tsx",
-    "../components/**/*.ts",
-    "../components/**/*.tsx",
+    "../src/app/**/*.ts",
+    "../src/app/**/*.tsx",
+    "../src/lib/**/*.ts",
+    "../src/lib/**/*.tsx",
+    "../src/components/**/*.ts",
+    "../src/components/**/*.tsx",
     "../data/**/*.ts",
     "../data/**/*.tsx",
-    "../hooks/**/*.ts",
-    "../hooks/**/*.tsx",
+    "../src/hooks/**/*.ts",
+    "../src/hooks/**/*.tsx",
     "**/*.ts",
     "**/*.tsx",
     "**/*.js",
     "**/*.jsx",
-    "../types/**/*.ts",
-    "../types/**/*.tsx"
+    "../src/types/**/*.ts",
+    "../src/types/**/*.tsx"
   ],
   "exclude": ["node_modules", ".next", "out", "dist"]
 }
