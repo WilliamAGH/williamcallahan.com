@@ -1,7 +1,5 @@
 # William Callahan's Personal Website
 
-> Run tests with `bun run test` (Jest), not `bun test`.
-
 Repo for [williamcallahan.com](https://williamcallahan.com). Code at [github.com/WilliamAGH/williamcallahan.com](https://github.com/WilliamAGH/williamcallahan.com).
 
 ## Logo Caching
@@ -116,3 +114,7 @@ Environment suffix from `lib/config/environment.ts`: production (none), test (`-
 See `lib/constants.ts` for path definitions (`BOOKMARKS_S3_PATHS`, `CONTENT_GRAPH_S3_PATHS`, `SEARCH_S3_PATHS`, `GITHUB_ACTIVITY_S3_PATHS`, `IMAGE_MANIFEST_S3_PATHS`).
 
 **Quick reference**: `bun run update-s3 -- --force` (full) | `bun run update-s3 -- --bookmarks` (single) | `bun run scheduler` (production)
+
+---
+
+> Run tests with `bun run test` (Jest), not `bun test`.
