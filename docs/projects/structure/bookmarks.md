@@ -52,7 +52,8 @@ API routes -> read JSON in S3 -> `Cache-Control: no-store`
 
 ### Rendering Strategy
 
-- Bookmark detail routes (`app/bookmarks/[slug]/page.tsx`) keep Cache Components enabled and rely on a `<Suspense>` boundary around `RelatedContent` to stream runtime data. The related content module calls `connection()` internally so S3-backed recommendations wait for the live request, while slug-resolution helpers (`findBookmarkBySlug`, `resolveBookmarkIdFromSlug`) remain cache-tagged for memoization.
+- Bookmark detail routes (`app/bookmarks/[slug]/page.tsx`) keep Cache Components enabled and rely on a `<Suspense>` boundary around `RelatedContent` to stream recommendations. `RelatedContent` does **not** call `connection()`; it avoids build-time execution by returning `null` during the production build phase and performs S3-backed precomputed lookups at request time, with an in-process cache fallback to avoid repeated similarity computation. Slug-resolution helpers (`findBookmarkBySlug`, `resolveBookmarkIdFromSlug`) remain cache-tagged for memoization.
+- Bookmark tag routes (`app/bookmarks/tags/[...slug]/page.tsx`) can display a “Discover More” related-content section sourced from the first bookmark on the page, with the active tag excluded from recommendations.
 
 ## Key Features
 

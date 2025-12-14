@@ -12,10 +12,16 @@ import { getEnabledContentTypes } from "@/config/related-content.config";
 import type { RelatedContentType } from "@/types/related-content";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
-const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+// CRITICAL: Check build phase AT RUNTIME using dynamic property access.
+// Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
+// during build, permanently baking "phase-production-build" into the bundle.
+// Using bracket notation with a variable key prevents static analysis and inlining.
+const PHASE_ENV_KEY = "NEXT_PHASE" as const;
+const BUILD_PHASE_VALUE = "phase-production-build" as const;
+const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 
 export async function GET(request: NextRequest) {
-  if (isProductionBuild) {
+  if (isProductionBuildPhase()) {
     return NextResponse.json(
       {
         buildPhase: true,

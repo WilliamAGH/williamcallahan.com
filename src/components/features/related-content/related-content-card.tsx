@@ -14,6 +14,7 @@ import type { RelatedContentCardProps } from "@/types/related-content";
 import { ExternalLink } from "@/components/ui/external-link.client";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import { kebabCase } from "@/lib/utils/formatters";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 // Local helper to avoid any unsafe function call/type issues in certain editor setups
 function sanitizeExternalHref(raw?: string): string | null {
   if (!raw) return null;
@@ -77,6 +78,8 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
   const { type, title, description, url, metadata } = item;
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
+
+  const aventureIconSrc = getStaticImageUrl("/images/ui-components/aVenture-research-button.png");
 
   // Build tag display (max 6 tags to fill two rows)
   const displayTags = metadata.tags?.slice(0, 6) || [];
@@ -172,11 +175,12 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
                   className="flex-shrink-0 inline-flex items-center bg-slate-100 dark:bg-transparent hover:bg-slate-200 dark:hover:bg-gray-700/50 p-1.5 rounded-full transition-colors pointer-events-auto relative z-10"
                 >
                   <Image
-                    src="https://s3-storage.callahan.cloud/images/ui-components/aVenture-research-button.png"
+                    src={aventureIconSrc}
                     alt="aVenture"
                     width={14}
                     height={14}
                     className="inline-block h-3.5 w-3.5"
+                    unoptimized={true}
                   />
                 </ExternalLink>
               )}

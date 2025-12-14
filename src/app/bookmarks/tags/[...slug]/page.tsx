@@ -8,7 +8,10 @@
  */
 
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
+import { RelatedContent } from "@/components/features/related-content/related-content.server";
+import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
@@ -173,11 +176,16 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
     notFound();
   }
 
-  const tagDisplayName =
-    result.bookmarks[0]?.tags.find(t => typeof t !== "string" && tagToSlug(t.name) === sanitizedSlug) ?? sanitizedSlug;
+  const canonicalTag =
+    result.bookmarks[0]?.tags.find(t => (typeof t === "string" ? tagToSlug(t) : tagToSlug(t.name)) === sanitizedSlug) ??
+    null;
 
-  const finalTagDisplayName = typeof tagDisplayName === "string" ? tagDisplayName : tagDisplayName.name;
-  const displayTag = formatTagDisplay(finalTagDisplayName.replace(/-/g, " "));
+  const canonicalTagName = typeof canonicalTag === "string" ? canonicalTag : canonicalTag ? canonicalTag.name : null;
+
+  // Use canonical name if found, otherwise convert slug back to spaced form for display.
+  const finalTagDisplayName = canonicalTagName ?? sanitizedSlug.replace(/-/g, " ");
+  // formatTagDisplay handles casing; don't replace hyphens again as canonical names may contain them (e.g., "C-suite")
+  const displayTag = formatTagDisplay(finalTagDisplayName);
 
   const pageTitle =
     currentPage > 1 ? `Bookmarks for ${displayTag} (Page ${currentPage})` : `Bookmarks for ${displayTag}`;
@@ -211,6 +219,9 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
   };
   const jsonLdData = generateSchemaGraph(schemaParams);
 
+  // Get first bookmark ID for related content source
+  const firstBookmark = result.bookmarks[0];
+
   return (
     <>
       <JsonLdScript data={jsonLdData} />
@@ -228,6 +239,20 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
             initialTag={finalTagDisplayName}
             tag={finalTagDisplayName}
           />
+          {firstBookmark && (
+            <Suspense fallback={<RelatedContentFallback />}>
+              <RelatedContent
+                sourceType="bookmark"
+                sourceId={firstBookmark.id}
+                sectionTitle="Discover More"
+                options={{
+                  maxPerType: 3,
+                  maxTotal: 12,
+                  excludeTags: canonicalTagName ? [canonicalTagName] : [],
+                }}
+              />
+            </Suspense>
+          )}
         </div>
       </div>
     </>

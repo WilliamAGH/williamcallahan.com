@@ -22,8 +22,15 @@ import type {
 import { getEnabledContentTypes, DEFAULT_MAX_PER_TYPE } from "@/config/related-content.config";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
-const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours - content changes infrequently
+
+// CRITICAL: Check build phase AT RUNTIME using dynamic property access.
+// Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
+// during build, permanently baking "phase-production-build" into the bundle.
+// Using bracket notation with a variable key prevents static analysis and inlining.
+const PHASE_ENV_KEY = "NEXT_PHASE" as const;
+const BUILD_PHASE_VALUE = "phase-production-build" as const;
+const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 
 function resolveRequestUrl(request: NextRequest): URL {
   return request.nextUrl;
@@ -49,10 +56,11 @@ function parseTypesParam(value: string | null): RelatedContentType[] | undefined
  */
 function toRelatedContentItem(content: NormalizedContent & { score: number }): RelatedContentItem | null {
   const display = content.display;
+  const safeDateIso = content.date && Number.isFinite(content.date.getTime()) ? content.date.toISOString() : undefined;
   const baseMetadata: RelatedContentItem["metadata"] = {
     tags: content.tags,
     domain: content.domain,
-    date: content.date?.toISOString(),
+    date: safeDateIso,
   };
 
   // Add type-specific metadata
@@ -162,7 +170,7 @@ function toRelatedContentItem(content: NormalizedContent & { score: number }): R
 }
 
 export async function GET(request: NextRequest) {
-  if (isProductionBuild) {
+  if (isProductionBuildPhase()) {
     return NextResponse.json(
       {
         data: [],

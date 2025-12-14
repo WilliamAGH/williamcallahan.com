@@ -45,16 +45,38 @@ export function TerminalSearchHint({ context = "bookmarks" }: TerminalSearchHint
     return <div className="hidden md:block h-7" aria-hidden="true" />;
   }
 
+  /**
+   * Trigger terminal focus by dispatching a synthetic keyboard event.
+   * The terminal listens globally for ⌘K/Ctrl+K, so we simulate that keypress.
+   */
+  const activateTerminal = () => {
+    const event = new KeyboardEvent("keydown", {
+      key: "k",
+      code: "KeyK",
+      metaKey: isMac,
+      ctrlKey: !isMac,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.dispatchEvent(event);
+  };
+
   return (
-    <div
+    <button
+      type="button"
+      onClick={activateTerminal}
       className="
         hidden md:inline-flex
         group
         items-center gap-2
-        cursor-default select-none
+        cursor-pointer select-none
+        bg-transparent border-none p-0
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent
+        rounded-md
+        transition-transform duration-150 ease-out
+        hover:scale-[1.02] active:scale-[0.98]
       "
-      role="note"
-      aria-label={`Press ${isMac ? "Command" : "Control"} K to search ${contextText}`}
+      aria-label={`Activate search for ${contextText}`}
     >
       {/* Keyboard key badge */}
       <kbd
@@ -110,6 +132,6 @@ export function TerminalSearchHint({ context = "bookmarks" }: TerminalSearchHint
       >
         to search {contextText}
       </span>
-    </div>
+    </button>
   );
 }

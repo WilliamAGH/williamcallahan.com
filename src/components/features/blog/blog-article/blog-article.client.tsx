@@ -66,7 +66,7 @@ export const BlogArticle: React.FC<BlogArticleProps> = ({ post, mdxContent }) =>
         </div>
 
         <BlogAuthor author={post.author} />
-        <BlogTags tags={post.tags} />
+        <BlogTags tags={post.tags} interactive />
       </header>
 
       {/* Cover Image */}
