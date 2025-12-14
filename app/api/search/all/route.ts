@@ -48,13 +48,23 @@ const SOURCE_TIMEOUT_MS = 10000;
  * This prevents slow external services (e.g., Audiobookshelf) from blocking the entire search.
  */
 async function withTimeout<T>(promise: Promise<T[]>, timeoutMs: number, sourceName: string): Promise<T[]> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
   const timeoutPromise = new Promise<T[]>(resolve => {
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
       console.warn(`[Search] ${sourceName} search timed out after ${timeoutMs}ms`);
       resolve([]);
     }, timeoutMs);
   });
-  return Promise.race([promise, timeoutPromise]);
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    // Clear timeout to prevent spurious warning logs when the actual search wins the race
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 // Helper to safely extract fulfilled values from Promise.allSettled
@@ -76,7 +86,7 @@ function parseScopes(scopeParam: string | null): Set<SearchScope> | null {
   const validScopes = new Set<SearchScope>();
 
   for (const scope of requestedScopes) {
-    // Check if scope is in VALID_SCOPES array (excludes "all" and "posts" which are aliases)
+    // Check if scope is in VALID_SCOPES array (excludes "all" which uses this route)
     if ((VALID_SCOPES as readonly string[]).includes(scope)) {
       validScopes.add(scope as SearchScope);
     }
@@ -169,8 +179,9 @@ export async function GET(request: NextRequest) {
     const results = await coalesceSearchRequest<SearchResult[]>(cacheKey, async () => {
       // Only run searches for requested scopes (or all if no scope specified)
       // Each search is wrapped with a timeout to prevent slow sources from blocking
+      // Note: "posts" is an alias for "blog" (handled identically to scoped route)
       const settled = await Promise.allSettled([
-        shouldSearch("blog")
+        shouldSearch("blog") || shouldSearch("posts")
           ? withTimeout(searchBlogPostsServerSide(query), SOURCE_TIMEOUT_MS, "blog")
           : Promise.resolve([]),
         shouldSearch("investments")
