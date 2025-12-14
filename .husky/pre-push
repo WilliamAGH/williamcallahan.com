@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env sh
+set -eu
+
 echo "🚀 Running pre-push checks..."
 
 # Flag to track if build is needed
@@ -16,14 +18,12 @@ else
     echo "⚠️  Missing or insufficient chunk files detected (found: $CHUNK_COUNT)"
     BUILD_NEEDED=true
   else
-    # Verify critical chunks exist
-    CRITICAL_CHUNKS=(
-      ".next/static/chunks/webpack.js"
-      ".next/static/chunks/main-app.js"
+    # Verify critical chunks exist (POSIX-compliant loop)
+    for chunk in \
+      ".next/static/chunks/webpack.js" \
+      ".next/static/chunks/main-app.js" \
       ".next/static/chunks/app-pages-internals.js"
-    )
-
-    for chunk in "${CRITICAL_CHUNKS[@]}"; do
+    do
       if [ ! -f "$chunk" ]; then
         echo "⚠️  Critical chunk missing: $chunk"
         BUILD_NEEDED=true
@@ -51,7 +51,7 @@ bun run test:smoke || { echo "❌ Smoke tests failed!"; exit 1; }
 
 # Check bookmark integrity
 echo "🔍 Checking bookmark integrity..."
-bun run scripts/bookmark-diagnostics.ts integrity || { 
+bun run scripts/bookmark-diagnostics.ts integrity || {
   echo "❌ Bookmark integrity check failed!"
   echo "📚 Fix the bookmarks listed above before pushing."
   echo "💡 Run 'bun run scripts/bookmark-diagnostics.ts integrity' to see details."
