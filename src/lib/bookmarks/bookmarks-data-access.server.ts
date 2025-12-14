@@ -27,7 +27,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { processBookmarksInBatches } from "@/lib/bookmarks/enrich-opengraph";
 
-const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "lib", "data", "bookmarks.json");
+const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "generated", "bookmarks", "bookmarks.json");
 const LOCAL_BOOKMARKS_BY_ID_DIR = path.join(process.cwd(), ".next", "cache", "bookmarks", "by-id");
 
 const loadLocalBookmarksSnapshot = async (): Promise<UnifiedBookmark[] | null> => {

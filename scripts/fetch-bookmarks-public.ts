@@ -40,10 +40,12 @@ const BOOKMARKS_PATHS = {
 };
 
 // Local paths to save fetched data
+// IMPORTANT: These must match the paths in src/lib/bookmarks/bookmarks-data-access.server.ts
+// and src/lib/bookmarks/slug-manager.ts which read from generated/bookmarks/
 const LOCAL_PATHS = {
-  BOOKMARKS: "src/lib/data/bookmarks.json",
-  INDEX: "src/lib/data/bookmarks-index.json",
-  SLUG_MAPPING: "src/lib/data/slug-mapping.json",
+  BOOKMARKS: "generated/bookmarks/bookmarks.json",
+  INDEX: "generated/bookmarks/bookmarks-index.json",
+  SLUG_MAPPING: "generated/bookmarks/slug-mapping.json",
 };
 
 const LOCAL_S3_BASE =

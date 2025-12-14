@@ -73,9 +73,7 @@ Health check: `curl http://localhost:3000/api/health`
 
 ## Local Development
 
-Ignore auto-generated files: `git update-index --skip-worktree config/csp-hashes.json lib/data/slug-mapping.json`
-
-Revert: `git update-index --no-skip-worktree config/csp-hashes.json lib/data/slug-mapping.json`
+Generated files in `generated/` (CSP hashes, bookmarks, slug mappings) are gitignored.
 
 ## Data Refresh
 
@@ -87,7 +85,7 @@ Force refresh: `bun run update-s3 -- --github`
 
 S3 storage with environment-specific paths (production: no suffix, development: `-dev`).
 
-**Automatic**: Scheduler runs every 2 hours (`0 */2 * * *`) via `lib/server/scheduler.ts`
+**Automatic**: Scheduler runs every 2 hours (`0 */2 * * *`) via `src/lib/server/scheduler.ts`
 
 **Manual**: `bun run bookmarks:refresh:dev` / `bookmarks:refresh:prod` / `bookmarks:metadata:dev` / `bookmarks:metadata:prod`
 
@@ -109,12 +107,12 @@ No flags = all operations.
 
 ### S3 Key Paths
 
-Environment suffix from `lib/config/environment.ts`: production (none), test (`-test`), development (`-dev`).
+Environment suffix from `src/lib/config/environment.ts`: production (none), test (`-test`), development (`-dev`).
 
-See `lib/constants.ts` for path definitions (`BOOKMARKS_S3_PATHS`, `CONTENT_GRAPH_S3_PATHS`, `SEARCH_S3_PATHS`, `GITHUB_ACTIVITY_S3_PATHS`, `IMAGE_MANIFEST_S3_PATHS`).
+See `src/lib/constants.ts` for path definitions (`BOOKMARKS_S3_PATHS`, `CONTENT_GRAPH_S3_PATHS`, `SEARCH_S3_PATHS`, `GITHUB_ACTIVITY_S3_PATHS`, `IMAGE_MANIFEST_S3_PATHS`).
 
 **Quick reference**: `bun run update-s3 -- --force` (full) | `bun run update-s3 -- --bookmarks` (single) | `bun run scheduler` (production)
 
 ---
 
-> Run tests with `bun run test` (Jest), not `bun test`.
+> Run tests with `bun run test` (Jest), not `bun test`. List skip-worktree files: `git ls-files -v | grep '^S'`.

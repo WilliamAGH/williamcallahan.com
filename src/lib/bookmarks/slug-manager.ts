@@ -38,7 +38,7 @@ async function readLocalS3JsonSafe<T>(key: string): Promise<T | null> {
 }
 
 // Local file path for ephemeral cache (container-local, not persisted)
-export const LOCAL_SLUG_MAPPING_PATH = path.join(process.cwd(), "lib", "data", "slug-mapping.json");
+export const LOCAL_SLUG_MAPPING_PATH = path.join(process.cwd(), "generated", "bookmarks", "slug-mapping.json");
 
 const formatSlugEnvironmentSnapshot = (): string =>
   `NODE_ENV=${process.env.NODE_ENV || "(not set)"}, DEPLOYMENT_ENV=${process.env.DEPLOYMENT_ENV || "(not set)"}`;

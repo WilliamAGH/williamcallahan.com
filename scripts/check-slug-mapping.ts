@@ -52,7 +52,7 @@ async function checkSlugMapping() {
     console.log("3. LOCAL SLUG MAPPING:");
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
-    const localPath = path.join(process.cwd(), "lib", "data", "slug-mapping.json");
+    const localPath = path.join(process.cwd(), "generated", "bookmarks", "slug-mapping.json");
 
     try {
       const localData = await fs.readFile(localPath, "utf-8");
