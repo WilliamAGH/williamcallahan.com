@@ -1,8 +1,5 @@
-#!/bin/sh
+#!/bin/bash
 echo "🚀 Running pre-push checks..."
-
-# Get the range of commits being pushed
-REMOTE_REF=$(git rev-parse @{u} 2>/dev/null || git rev-parse origin/$(git branch --show-current) 2>/dev/null || echo "HEAD~1")
 
 # Flag to track if build is needed
 BUILD_NEEDED=false
