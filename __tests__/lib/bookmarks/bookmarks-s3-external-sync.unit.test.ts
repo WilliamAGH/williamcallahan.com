@@ -50,13 +50,12 @@ jest.mock("../../../src/lib/bookmarks", () => ({
 
 /**
  * @file bookmarks-s3-external-sync.unit.test.ts
- * @summary **Bookmark Sync Logic (S3 ⇄ External API)**
+ * @summary **Bookmark Sync Logic (S3 ⇄ External API) - Pure Unit Test**
  *
- * This suite **mocks all network & S3 calls by default** so it can execute in a
- * fast, deterministic unit-test environment.  When the required AWS/Notion
- * credentials are _not_ present the tests automatically _skip_ the sections
- * that would otherwise call the live services.  This is intentional because
- * our CI never receives production credentials.
+ * This suite **unconditionally mocks all network & S3 calls** so it executes in a
+ * fast, deterministic unit-test environment. The mocks at the top of this file
+ * intercept all calls to `s3-utils` and `bookmarks` modules regardless of whether
+ * credentials are present.
  *
  * What we cover:
  * 1. Structure of the bookmark-sync orchestration code (happy-path & errors)
@@ -64,23 +63,16 @@ jest.mock("../../../src/lib/bookmarks", () => ({
  * 3. Robust comparison logic between the locally-cached S3 dataset and the
  *    freshly-pulled remote dataset
  *
- * ⚠ **Live-environment usage**
- * -------------------------------------------------------------
- * To execute this test _against real AWS/Notion back-ends_ you must provide
- * the following environment variables _before_ running `bun run test`:
- *  • `S3_BUCKET`                – Target bucket
- *  • `AWS_REGION`               – Bucket region
- *  • `S3_ACCESS_KEY_ID`         – IAM access key (read/write)
- *  • `S3_SECRET_ACCESS_KEY`     – IAM secret
- *  • `BOOKMARK_BEARER_TOKEN`    – Notion integration token
- *
- * If any of these vars are missing we treat the corresponding test as _skipped_
- * rather than failing so that local/CI runs remain green.
+ * **Note on environment variables:**
+ * The environment variable checks in the test code are for documentation purposes
+ * and to maintain parity with production code paths. However, because the mocks
+ * are unconditional, this suite never makes real network calls. For integration
+ * tests against live AWS/Notion services, see the smoke/integration test suites.
  *
  * **Why keep this file in the main unit-test tree?**
  * Keeping the mock-driven variant here ensures the sync algorithm continues to
  * compile & behave as expected while preventing slow end-to-end calls during
- * everyday development.  Full integration coverage lives in the separate
+ * everyday development. Full integration coverage lives in the separate
  * smoke / integration suites that developers can opt-in to locally or in
  * dedicated pipelines.
  */
