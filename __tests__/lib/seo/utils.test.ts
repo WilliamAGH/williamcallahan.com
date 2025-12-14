@@ -8,12 +8,15 @@
  */
 
 import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate } from "@/lib/seo/utils";
-import { NEXT_PUBLIC_SITE_URL } from "@/lib/constants";
 import { isPacificDateString } from "@/types/seo";
 
+// Mock must be defined before importing the mocked module
 jest.mock("@/lib/constants/client", () => ({
-  NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
+  NEXT_PUBLIC_SITE_URL: "https://test.example.com",
 }));
+
+// Import from the same module that's mocked (and used by the implementation)
+import { NEXT_PUBLIC_SITE_URL } from "@/lib/constants/client";
 
 describe("SEO Utilities", () => {
   describe("ensureAbsoluteUrl", () => {

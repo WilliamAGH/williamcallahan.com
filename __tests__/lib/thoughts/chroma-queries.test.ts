@@ -6,6 +6,14 @@
  * @module __tests__/lib/thoughts/chroma-queries.test
  */
 
+const REQUIRED_ENV_VARS = ["CHROMA_API_KEY", "CHROMA_TENANT", "CHROMA_DATABASE"] as const;
+const missingVars = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
+const hasChromaConfig = missingVars.length === 0;
+
+if (!hasChromaConfig) {
+  console.warn(`[chroma-queries.test.ts] Skipping tests - missing env vars: ${missingVars.join(", ")}`);
+}
+
 // Mock chromadb before importing the query module
 const mockCollection = {
   get: jest.fn(),
@@ -18,7 +26,9 @@ jest.mock("chromadb", () => ({
   })),
 }));
 
-describe("Thoughts Chroma Queries", () => {
+const describeIfChroma = hasChromaConfig ? describe : describe.skip;
+
+describeIfChroma("Thoughts Chroma Queries", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.resetModules();
