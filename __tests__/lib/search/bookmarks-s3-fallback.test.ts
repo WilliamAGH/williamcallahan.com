@@ -6,7 +6,8 @@
 import MiniSearch from "minisearch";
 import type { BookmarkIndexItem, SerializedIndex } from "@/types/search";
 
-process.env.USE_S3_SEARCH_INDEXES = "true";
+// Save original env value to restore after tests (prevent leaking to other test files)
+const originalUseS3SearchIndexes = process.env.USE_S3_SEARCH_INDEXES;
 
 const mockReadJsonS3 = jest.fn();
 jest.mock("@/lib/s3-utils", () => ({
@@ -92,6 +93,8 @@ describe("searchBookmarks - S3 fallback mapping", () => {
   })();
 
   beforeEach(() => {
+    // Set env var for each test (Jest reuses process across files)
+    process.env.USE_S3_SEARCH_INDEXES = "true";
     jest.clearAllMocks();
     mockReadJsonS3.mockResolvedValue(serializedIndex);
     mockGetBookmarks.mockResolvedValue([]);
@@ -100,6 +103,11 @@ describe("searchBookmarks - S3 fallback mapping", () => {
     mockTryGetEmbeddedSlug.mockReturnValue(null);
     (ServerCacheInstance.getSearchResults as jest.Mock).mockReturnValue(undefined);
     (ServerCacheInstance.shouldRefreshSearch as jest.Mock).mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    // Restore original env value to prevent leaking to other test files
+    process.env.USE_S3_SEARCH_INDEXES = originalUseS3SearchIndexes;
   });
 
   it("returns results using stored fields when live fetch returns no bookmarks", async () => {
