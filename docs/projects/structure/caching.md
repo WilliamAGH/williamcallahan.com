@@ -259,7 +259,7 @@ Users may see stale data even after successful S3 updates due to multiple cachin
 1. **Next.js Page-Level ISR Cache** (`app/bookmarks/page.tsx`): 30 min TTL
 2. **Function-Level Cache** (`bookmarks-data-access.server.ts`): 1 hour TTL
 3. **In-Memory Runtime Cache** (`fullDatasetMemoryCache`): 5 min TTL
-4. **Local File Cache** (`lib/data/bookmarks.json`): Fallback only
+4. **Local File Cache** (`generated/bookmarks/bookmarks.json`): Fallback only
 
 ### Invalidation Implementation
 
