@@ -107,7 +107,13 @@ describe("searchBookmarks - S3 fallback mapping", () => {
 
   afterEach(() => {
     // Restore original env value to prevent leaking to other test files
-    process.env.USE_S3_SEARCH_INDEXES = originalUseS3SearchIndexes;
+    // Setting process.env.FOO = undefined coerces to the string "undefined" in Node.
+    // Restore by deleting when it was originally unset.
+    if (originalUseS3SearchIndexes === undefined) {
+      delete process.env.USE_S3_SEARCH_INDEXES;
+    } else {
+      process.env.USE_S3_SEARCH_INDEXES = originalUseS3SearchIndexes;
+    }
   });
 
   it("returns results using stored fields when live fetch returns no bookmarks", async () => {
