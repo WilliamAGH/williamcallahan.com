@@ -8,6 +8,10 @@
 
 import { getPlaiceholder } from "plaiceholder";
 import { fetchWithTimeout } from "@/lib/utils/http-client";
+import { getUnifiedImageService } from "@/lib/services/unified-image-service";
+
+const BLUR_FETCH_TIMEOUT_MS = 12_000;
+const BLUR_CONCURRENCY = 3;
 
 const isDevLoggingEnabled =
   process.env.NODE_ENV === "development" || process.env.DEBUG === "true" || process.env.VERBOSE === "true";
@@ -23,31 +27,56 @@ export async function generateBookCoverBlur(coverUrl: string): Promise<string | 
   if (!coverUrl) return undefined;
 
   try {
-    const response = await fetchWithTimeout(coverUrl, {
-      timeout: 10000,
-      headers: {
-        Accept: "image/*",
-      },
+    const imageService = getUnifiedImageService();
+    const result = await imageService.getImage(coverUrl, {
+      forceRefresh: true,
+      type: "book-cover",
+      retainBuffer: true,
+      timeoutMs: BLUR_FETCH_TIMEOUT_MS,
+      skipUpload: true, // Blur generation is read-only; do not persist blurs or source images
     });
 
-    if (!response.ok) {
+    const buffer = result.buffer;
+    if (!buffer || buffer.length === 0) {
       if (isDevLoggingEnabled) {
-        console.warn(`[generateBookCoverBlur] Failed to fetch cover: ${response.status} ${coverUrl}`);
+        console.warn(`[generateBookCoverBlur] No buffer returned from image service for ${coverUrl}`);
       }
       return undefined;
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
     // Generate a tiny 10x10 blur placeholder
     const { base64 } = await getPlaiceholder(buffer, { size: 10 });
     return base64;
-  } catch (error) {
+  } catch (primaryError) {
+    // Fallback: direct fetch with extended timeout to reduce noisy timeouts
     if (isDevLoggingEnabled) {
-      console.warn(`[generateBookCoverBlur] Error generating blur for ${coverUrl}:`, error);
+      console.warn(`[generateBookCoverBlur] Primary method failed for ${coverUrl}:`, primaryError);
     }
-    return undefined;
+    try {
+      const response = await fetchWithTimeout(coverUrl, {
+        timeout: BLUR_FETCH_TIMEOUT_MS,
+        headers: {
+          Accept: "image/*",
+        },
+      });
+
+      if (!response.ok) {
+        if (isDevLoggingEnabled) {
+          console.warn(`[generateBookCoverBlur] Fallback fetch failed: ${response.status} ${coverUrl}`);
+        }
+        return undefined;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const { base64 } = await getPlaiceholder(buffer, { size: 10 });
+      return base64;
+    } catch (fallbackError) {
+      if (isDevLoggingEnabled) {
+        console.warn(`[generateBookCoverBlur] Error generating blur for ${coverUrl}:`, fallbackError);
+      }
+      return undefined;
+    }
   }
 }
 
@@ -62,22 +91,22 @@ export async function generateBookCoverBlursInBatch(
   coverUrls: Map<string, string>,
 ): Promise<Map<string, string | undefined>> {
   const entries = Array.from(coverUrls.entries());
-
-  const results = await Promise.allSettled(
-    entries.map(async ([id, url]) => {
-      const blur = await generateBookCoverBlur(url);
-      return [id, blur] as const;
-    }),
-  );
-
   const blurMap = new Map<string, string | undefined>();
 
-  for (const result of results) {
-    if (result.status === "fulfilled") {
-      const [id, blur] = result.value;
+  let index = 0;
+  const worker = async (): Promise<void> => {
+    while (true) {
+      const current = index++;
+      const entry = entries[current];
+      if (!entry) break;
+      const [id, url] = entry;
+      const blur = await generateBookCoverBlur(url);
       blurMap.set(id, blur);
     }
-  }
+  };
+
+  const workers = Array.from({ length: Math.min(BLUR_CONCURRENCY, entries.length) }, () => worker());
+  await Promise.all(workers);
 
   return blurMap;
 }
