@@ -12,148 +12,93 @@ import { assertServerOnly } from "../utils/ensure-server-only";
 assertServerOnly();
 
 import MiniSearch from "minisearch";
-import type { BlogPost } from "@/types/blog";
-import type { EducationItem, BookmarkIndexItem, SerializedIndex, AllSerializedIndexes } from "@/types/search";
+import type {
+  EducationItem,
+  BookmarkIndexItem,
+  SerializedIndex,
+  AllSerializedIndexes,
+  IndexFieldConfig,
+} from "@/types/search";
+import type { Project } from "@/types/project";
+import type { UnifiedBookmark } from "@/types/bookmark";
 import { investments } from "@/data/investments";
 import { experiences } from "@/data/experience";
 import { education, certifications } from "@/data/education";
 import { projects } from "@/data/projects";
-import type { Project } from "@/types/project";
 import { getAllMDXPostsForSearch } from "@/lib/blog/mdx";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { fetchBookListItems } from "@/lib/books/audiobookshelf.server";
-import type { BookListItem } from "@/types/schemas/book";
 import { prepareDocumentsForIndexing } from "@/lib/utils/search-helpers";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
-import type { UnifiedBookmark } from "@/types/bookmark";
+import { serializeIndex, isRecord } from "./serialization";
+import {
+  POSTS_INDEX_CONFIG,
+  INVESTMENTS_INDEX_CONFIG,
+  EXPERIENCE_INDEX_CONFIG,
+  EDUCATION_INDEX_CONFIG,
+  PROJECTS_INDEX_CONFIG,
+  BOOKMARKS_INDEX_CONFIG,
+  BOOKS_INDEX_CONFIG,
+} from "./config";
+
+/**
+ * Creates an empty MiniSearch instance from a config.
+ * Used by index-builder to create indexes before adding transformed documents.
+ */
+function createEmptyIndex<T, VF extends string = never>(config: IndexFieldConfig<T, VF>): MiniSearch<T> {
+  return new MiniSearch<T>({
+    fields: config.fields as string[],
+    storeFields: config.storeFields,
+    idField: config.idField,
+    searchOptions: {
+      boost: config.boost as { [fieldName: string]: number } | undefined,
+      fuzzy: config.fuzzy,
+      prefix: true,
+    },
+    extractField: config.extractField,
+  });
+}
 
 /**
  * Build search index for blog posts
  */
 async function buildPostsIndex(): Promise<SerializedIndex> {
-  // Get lightweight posts without rawContent
   const allPosts = await getAllMDXPostsForSearch();
-
-  // Create MiniSearch index
-  const index = new MiniSearch<BlogPost>({
-    fields: ["title", "excerpt", "tags", "authorName"],
-    storeFields: ["id", "title", "excerpt", "slug", "publishedAt"],
-    idField: "slug",
-    searchOptions: {
-      boost: { title: 2 },
-      fuzzy: 0.1,
-      prefix: true,
-    },
-    extractField: (document, fieldName) => {
-      if (fieldName === "authorName") {
-        return document.author?.name || "";
-      }
-      if (fieldName === "tags") {
-        return Array.isArray(document.tags) ? document.tags.join(" ") : "";
-      }
-      const field = fieldName as keyof BlogPost;
-      const value = document[field];
-      return typeof value === "string" ? value : "";
-    },
-  });
-
-  // Deduplicate and add to index
+  const index = createEmptyIndex(POSTS_INDEX_CONFIG);
   const dedupedPosts = prepareDocumentsForIndexing(allPosts, "Blog Posts", post => post.slug);
   index.addAll(dedupedPosts);
-
-  return {
-    index: index.toJSON(),
-    metadata: {
-      itemCount: dedupedPosts.length,
-      buildTime: new Date().toISOString(),
-      version: "1.0",
-    },
-  };
+  return serializeIndex(index, dedupedPosts.length);
 }
 
 /**
  * Build search index for investments
  */
 function buildInvestmentsIndex(): SerializedIndex {
-  const index = new MiniSearch<(typeof investments)[0]>({
-    fields: [
-      "name",
-      "description",
-      "type",
-      "status",
-      "founded_year",
-      "invested_year",
-      "acquired_year",
-      "shutdown_year",
-    ],
-    storeFields: ["id", "name", "description"],
-    idField: "id",
-    searchOptions: {
-      boost: { name: 2 },
-      fuzzy: 0.1,
-      prefix: true,
-    },
-  });
-
+  const index = createEmptyIndex(INVESTMENTS_INDEX_CONFIG);
   const dedupedInvestments = prepareDocumentsForIndexing(investments, "Investments");
   index.addAll(dedupedInvestments);
-
-  return {
-    index: index.toJSON(),
-    metadata: {
-      itemCount: dedupedInvestments.length,
-      buildTime: new Date().toISOString(),
-      version: "1.0",
-    },
-  };
+  return serializeIndex(index, dedupedInvestments.length);
 }
 
 /**
  * Build search index for experience
  */
 function buildExperienceIndex(): SerializedIndex {
-  const index = new MiniSearch<(typeof experiences)[0]>({
-    fields: ["company", "role", "period"],
-    storeFields: ["id", "company", "role"],
-    idField: "id",
-    searchOptions: {
-      boost: { company: 2, role: 1.5 },
-      fuzzy: 0.2,
-      prefix: true,
-    },
-  });
-
+  const index = createEmptyIndex(EXPERIENCE_INDEX_CONFIG);
   const dedupedExperiences = prepareDocumentsForIndexing(experiences, "Experience");
   index.addAll(dedupedExperiences);
-
-  return {
-    index: index.toJSON(),
-    metadata: {
-      itemCount: dedupedExperiences.length,
-      buildTime: new Date().toISOString(),
-      version: "1.0",
-    },
-  };
+  return serializeIndex(index, dedupedExperiences.length);
 }
 
 /**
  * Build search index for education
  */
 function buildEducationIndex(): SerializedIndex {
-  const index = new MiniSearch<EducationItem>({
-    fields: ["label", "description"],
-    storeFields: ["id", "label", "description", "path"],
-    idField: "id",
-    searchOptions: {
-      boost: { label: 2 },
-      fuzzy: 0.2,
-      prefix: true,
-    },
-  });
+  const index = createEmptyIndex(EDUCATION_INDEX_CONFIG);
 
   // Combine education and certifications
-  const allEducationItems = [
+  const allEducationItems: EducationItem[] = [
     ...education.map(edu => ({
       id: edu.id,
       label: edu.institution,
@@ -170,78 +115,41 @@ function buildEducationIndex(): SerializedIndex {
 
   const dedupedEducationItems = prepareDocumentsForIndexing(allEducationItems, "Education");
   index.addAll(dedupedEducationItems);
-
-  return {
-    index: index.toJSON(),
-    metadata: {
-      itemCount: dedupedEducationItems.length,
-      buildTime: new Date().toISOString(),
-      version: "1.0",
-    },
-  };
+  return serializeIndex(index, dedupedEducationItems.length);
 }
 
 /**
  * Build search index for projects
  */
 function buildProjectsIndexForBuilder(): SerializedIndex {
-  const index = new MiniSearch<Project>({
-    fields: ["name", "description", "tags"],
-    storeFields: ["name", "description", "url"],
-    idField: "name",
-    searchOptions: { boost: { name: 2 }, fuzzy: 0.2, prefix: true },
-  });
-
-  // Deduplicate by name (assumed unique) - explicitly type for index builder
+  const index = createEmptyIndex(PROJECTS_INDEX_CONFIG);
   const dedupedProjects: Project[] = prepareDocumentsForIndexing(
     projects as Array<Project & { id?: string | number }>,
     "Projects",
     p => p.name,
   );
   index.addAll(dedupedProjects);
-
-  return {
-    index: index.toJSON(),
-    metadata: {
-      itemCount: dedupedProjects.length,
-      buildTime: new Date().toISOString(),
-      version: "1.0",
-    },
-  };
+  return serializeIndex(index, dedupedProjects.length);
 }
 
 /**
  * Build search index for bookmarks
  */
 async function buildBookmarksIndex(): Promise<SerializedIndex> {
-  // Fetch bookmarks from API
   const maybeBookmarks = await getBookmarks({ skipExternalFetch: false });
   if (!Array.isArray(maybeBookmarks)) {
     throw new Error("[Search Index Builder] Unexpected bookmarks payload");
   }
   const bookmarks = maybeBookmarks as UnifiedBookmark[];
 
-  const index = new MiniSearch<BookmarkIndexItem>({
-    fields: ["title", "description", "tags", "author", "publisher", "url"],
-    storeFields: ["id", "title", "description", "url", "slug"],
-    idField: "id",
-    searchOptions: {
-      boost: { title: 2, description: 1.5 },
-      fuzzy: 0.2,
-      prefix: true,
-    },
-  });
-
-  // Load centralized slug mapping (preferred), but allow embedded slug fallback
+  const index = createEmptyIndex(BOOKMARKS_INDEX_CONFIG);
   const slugMapping = await loadSlugMapping();
 
-  // Transform bookmarks for indexing
-  const bookmarksForIndex = bookmarks.map(b => {
-    // Prefer embedded slug when present; fallback to centralized mapping
+  // Transform bookmarks for indexing with slug resolution
+  const bookmarksForIndex: BookmarkIndexItem[] = bookmarks.map(b => {
     const embedded = tryGetEmbeddedSlug(b);
     const slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
 
-    // Every bookmark MUST have a slug for idempotency
     if (!slug) {
       throw new Error(
         `[Search Index Builder] CRITICAL: No slug found for bookmark ${b.id}. ` +
@@ -254,27 +162,18 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
       id: b.id,
       title: b.title || b.url,
       description: b.description || "",
-      // Use newline delimiter to preserve multi-word tags (e.g., "machine learning")
       tags: Array.isArray(b.tags)
         ? b.tags.map(t => (typeof t === "string" ? t : (t as { name?: string })?.name || "")).join("\n")
         : "",
       url: b.url,
       author: b.content?.author || "",
       publisher: b.content?.publisher || "",
-      slug, // slug is required (either embedded or via mapping)
+      slug,
     };
   });
 
   index.addAll(bookmarksForIndex);
-
-  return {
-    index: index.toJSON(),
-    metadata: {
-      itemCount: bookmarksForIndex.length,
-      buildTime: new Date().toISOString(),
-      version: "1.0",
-    },
-  };
+  return serializeIndex(index, bookmarksForIndex.length);
 }
 
 /**
@@ -282,43 +181,10 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
  */
 async function buildBooksIndex(): Promise<SerializedIndex> {
   const books = await fetchBookListItems();
-
-  const index = new MiniSearch<BookListItem>({
-    fields: ["title", "authors"],
-    storeFields: ["id", "title", "authors", "coverUrl"],
-    idField: "id",
-    searchOptions: {
-      boost: { title: 2 },
-      fuzzy: 0.2,
-      prefix: true,
-    },
-    extractField: (document, fieldName) => {
-      // CRITICAL: MiniSearch uses extractField for ALL fields including the ID field.
-      // We must return the actual ID, not an empty string, or all docs get duplicate ID "".
-      if (fieldName === "id") {
-        return document.id;
-      }
-      if (fieldName === "authors") {
-        return Array.isArray(document.authors) ? document.authors.join(" ") : "";
-      }
-      if (fieldName === "title") {
-        return typeof document.title === "string" ? document.title : "";
-      }
-      return "";
-    },
-  });
-
+  const index = createEmptyIndex(BOOKS_INDEX_CONFIG);
   const dedupedBooks = prepareDocumentsForIndexing(books, "Books");
   index.addAll(dedupedBooks);
-
-  return {
-    index: index.toJSON(),
-    metadata: {
-      itemCount: dedupedBooks.length,
-      buildTime: new Date().toISOString(),
-      version: "1.0",
-    },
-  };
+  return serializeIndex(index, dedupedBooks.length);
 }
 
 /**
@@ -374,8 +240,6 @@ export async function buildAllSearchIndexes(): Promise<AllSerializedIndexes> {
  * - MiniSearch.loadJSON expects a JSON string, not a parsed object
  */
 export function loadIndexFromJSON<T>(serializedIndex: SerializedIndex): MiniSearch<T> {
-  // MiniSearch.loadJSON expects a JSON string, but after reading from S3
-  // the index is already parsed into an object. We need to re-stringify it.
   const indexData =
     typeof serializedIndex.index === "string" ? serializedIndex.index : JSON.stringify(serializedIndex.index);
   const { fields, storeFields } = extractFieldsFromSerializedIndex(serializedIndex);
@@ -392,17 +256,17 @@ function extractFieldsFromSerializedIndex(serializedIndex: SerializedIndex): {
 } {
   const raw = typeof serializedIndex.index === "string" ? safeParseIndex(serializedIndex.index) : serializedIndex.index;
 
-  if (!isPlainRecord(raw)) {
+  if (!isRecord(raw)) {
     return { fields: [], storeFields: [] };
   }
 
-  const fields = isPlainRecord(raw.fieldIds) ? Object.keys(raw.fieldIds) : [];
+  const fields = isRecord(raw.fieldIds) ? Object.keys(raw.fieldIds) : [];
 
   let storeFields: string[] = [];
-  if (isPlainRecord(raw.storedFields)) {
+  if (isRecord(raw.storedFields)) {
     const storedValues = Object.values(raw.storedFields);
     for (const value of storedValues) {
-      if (isPlainRecord(value)) {
+      if (isRecord(value)) {
         storeFields = Object.keys(value);
         if (storeFields.length > 0) break;
       }
@@ -415,12 +279,8 @@ function extractFieldsFromSerializedIndex(serializedIndex: SerializedIndex): {
 function safeParseIndex(index: string): Record<string, unknown> | null {
   try {
     const parsed = JSON.parse(index) as unknown;
-    return isPlainRecord(parsed) ? parsed : null;
+    return isRecord(parsed) ? parsed : null;
   } catch {
     return null;
   }
-}
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
