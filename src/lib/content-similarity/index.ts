@@ -110,7 +110,7 @@ function calculateDomainSimilarity(domain1?: string, domain2?: string): number {
  * Calculate recency score (newer content scores higher)
  */
 function calculateRecencyScore(date?: Date): number {
-  if (!date) return 0.5; // Neutral score for undated content
+  if (!date || Number.isNaN(date.getTime())) return 0.5; // Neutral score for undated/invalid content
 
   const now = getDeterministicTimestamp();
   const ageInDays = (now - date.getTime()) / (1000 * 60 * 60 * 24);
