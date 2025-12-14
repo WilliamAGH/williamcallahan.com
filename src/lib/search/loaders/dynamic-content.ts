@@ -6,11 +6,12 @@
  * and S3 index reconstruction.
  *
  * @module lib/search/loaders/dynamic-content
+ * @see {@link ../config} for MiniSearch index configurations
+ * @see {@link ../constants} for cache keys, TTLs, and S3 flags
  */
 
 import MiniSearch from "minisearch";
-import type { BookmarkIndexItem, SerializedIndex } from "@/types/search";
-import type { BookmarkIndexInput } from "@/types/schemas/search";
+import type { BookmarkIndexInput, BookmarkIndexItem, SerializedIndex } from "@/types/search";
 import type { Book } from "@/types/schemas/book";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { SEARCH_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
@@ -22,6 +23,7 @@ import { loadIndexFromJSON } from "../index-builder";
 import { extractBookmarksFromSerializedIndex } from "../serialization";
 import { BOOKMARKS_INDEX_CONFIG, BOOKS_INDEX_CONFIG } from "../config";
 import { SEARCH_INDEX_KEYS, INDEX_TTL, USE_S3_INDEXES } from "../constants";
+import { createIndexWithoutDedup } from "../index-factory";
 
 // Dev log helper (matches original search.ts pattern)
 const IS_DEV = process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test";
@@ -38,17 +40,6 @@ const devLog = (...args: unknown[]) => {
  * @returns MiniSearch index for bookmarks
  */
 export function buildBookmarksIndex(bookmarks: BookmarkIndexInput[]): MiniSearch<BookmarkIndexItem> {
-  const bookmarksIndex = new MiniSearch<BookmarkIndexItem>({
-    fields: BOOKMARKS_INDEX_CONFIG.fields,
-    storeFields: BOOKMARKS_INDEX_CONFIG.storeFields,
-    idField: BOOKMARKS_INDEX_CONFIG.idField,
-    searchOptions: {
-      boost: BOOKMARKS_INDEX_CONFIG.boost as { [fieldName: string]: number } | undefined,
-      fuzzy: BOOKMARKS_INDEX_CONFIG.fuzzy ?? 0.2,
-      prefix: true,
-    },
-  });
-
   // Transform bookmarks for indexing
   const bookmarksForIndex: BookmarkIndexItem[] = [];
   for (const b of bookmarks) {
@@ -67,8 +58,7 @@ export function buildBookmarksIndex(bookmarks: BookmarkIndexInput[]): MiniSearch
     });
   }
 
-  bookmarksIndex.addAll(bookmarksForIndex);
-  return bookmarksIndex;
+  return createIndexWithoutDedup(BOOKMARKS_INDEX_CONFIG, bookmarksForIndex);
 }
 
 /**
