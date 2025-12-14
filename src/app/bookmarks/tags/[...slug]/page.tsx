@@ -176,11 +176,16 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
     notFound();
   }
 
-  const tagDisplayName =
-    result.bookmarks[0]?.tags.find(t => typeof t !== "string" && tagToSlug(t.name) === sanitizedSlug) ?? sanitizedSlug;
+  const canonicalTag =
+    result.bookmarks[0]?.tags.find(t => (typeof t === "string" ? tagToSlug(t) : tagToSlug(t.name)) === sanitizedSlug) ??
+    null;
 
-  const finalTagDisplayName = typeof tagDisplayName === "string" ? tagDisplayName : tagDisplayName.name;
-  const displayTag = formatTagDisplay(finalTagDisplayName.replace(/-/g, " "));
+  const canonicalTagName = typeof canonicalTag === "string" ? canonicalTag : canonicalTag ? canonicalTag.name : null;
+
+  // Use canonical name if found, otherwise convert slug back to spaced form for display.
+  const finalTagDisplayName = canonicalTagName ?? sanitizedSlug.replace(/-/g, " ");
+  // formatTagDisplay handles casing; don't replace hyphens again as canonical names may contain them (e.g., "C-suite")
+  const displayTag = formatTagDisplay(finalTagDisplayName);
 
   const pageTitle =
     currentPage > 1 ? `Bookmarks for ${displayTag} (Page ${currentPage})` : `Bookmarks for ${displayTag}`;
@@ -243,7 +248,7 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
                 options={{
                   maxPerType: 3,
                   maxTotal: 12,
-                  excludeTags: [finalTagDisplayName],
+                  excludeTags: canonicalTagName ? [canonicalTagName] : [],
                 }}
               />
             </Suspense>
