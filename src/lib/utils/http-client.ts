@@ -12,6 +12,18 @@ import type { RetryConfig } from "@/types/lib";
 import type { FetchOptions } from "@/types/http";
 import { logoUrlSchema, openGraphUrlSchema } from "@/types/schemas/url";
 
+function stripQueryAndHash(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    urlObj.search = "";
+    urlObj.hash = "";
+    return urlObj.toString();
+  } catch {
+    const noQuery = url.split("?")[0] ?? url;
+    return noQuery.split("#")[0] ?? noQuery;
+  }
+}
+
 /**
  * Default browser-like headers for image fetching
  */
@@ -65,7 +77,7 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
     proxyUrlObj.pathname = originalUrl.pathname;
     proxyUrlObj.search = originalUrl.search;
     effectiveUrl = proxyUrlObj.toString();
-    debugLog(`Using proxy: ${url} -> ${effectiveUrl}`, "info");
+    debugLog(`Using proxy: ${stripQueryAndHash(url)} -> ${stripQueryAndHash(effectiveUrl)}`, "info");
   }
 
   // Choose appropriate default headers
@@ -102,7 +114,8 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
   } catch (error) {
     if (error instanceof Error) {
       if (error.name === "AbortError") {
-        throw new Error(`Request timeout after ${timeout}ms: ${effectiveUrl}`, { cause: error });
+        // Strip query params to prevent leaking tokens/secrets in error messages
+        throw new Error(`Request timeout after ${timeout}ms: ${stripQueryAndHash(effectiveUrl)}`, { cause: error });
       }
       throw error;
     }
@@ -202,7 +215,7 @@ export function createRetryingFetch(
     const response = await retryWithOptions(async () => fetchWithTimeout(url, options), config);
 
     if (!response) {
-      throw new Error(`All ${maxRetries} retries failed for ${url}`);
+      throw new Error(`All ${maxRetries} retries failed for ${stripQueryAndHash(url)}`);
     }
 
     return response;
@@ -253,7 +266,7 @@ export async function fetchWithRetryAndProxy(
     }
   }
 
-  throw new Error(`All fetch attempts failed for ${url}`);
+  throw new Error(`All fetch attempts failed for ${stripQueryAndHash(url)}`);
 }
 
 /**

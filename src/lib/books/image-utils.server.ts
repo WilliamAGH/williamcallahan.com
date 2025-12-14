@@ -77,7 +77,8 @@ export async function generateBookCoverBlur(coverUrl: string): Promise<string | 
     return base64;
   } catch (error) {
     if (isDevLoggingEnabled) {
-      console.warn(`[generateBookCoverBlur] Error generating blur for ${sanitizeUrlForLogs(coverUrl)}:`, error);
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[generateBookCoverBlur] Error generating blur for ${sanitizeUrlForLogs(coverUrl)}: ${message}`);
     }
     return undefined;
   }
