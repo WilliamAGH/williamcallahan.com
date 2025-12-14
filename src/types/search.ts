@@ -85,3 +85,12 @@ export const searchResultItemSchema = z.object({
 });
 
 export const searchResultsSchema = z.array(searchResultItemSchema);
+
+/** MiniSearch stored fields shape for index deserialization */
+export type MiniSearchStoredFields = {
+  id?: unknown;
+  title?: unknown;
+  description?: unknown;
+  url?: unknown;
+  slug?: unknown;
+};
