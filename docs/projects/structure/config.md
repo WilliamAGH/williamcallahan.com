@@ -28,7 +28,7 @@ To provide centralized configuration management for the application, including e
 
 ### Environment Configuration
 
-- **`types/env.d.ts`**: TypeScript type definitions for environment variables
+- **`src/types/env.d.ts`**: TypeScript type definitions for environment variables
   - Extends `NodeJS.ProcessEnv` interface for type safety
   - Currently defines only 2 variables: `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID`
   - ** ISSUE**: Missing definitions for many other environment variables used in the application (AWS credentials, API keys, secrets, etc.)
