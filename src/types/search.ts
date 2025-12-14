@@ -1,96 +1,112 @@
 /**
  * Search Types
+ *
+ * Re-exports from Zod schemas + generic interfaces that can't be Zod schemas.
+ * @see {@link @/types/schemas/search} for Zod schema definitions (source of truth)
  */
 
-import { z } from "zod";
-import type { SearchScope, SearchResult, ScoredResult } from "./lib";
+import type MiniSearch from "minisearch";
+import type { AggregatedTag as AggregatedTagType, SearchResult as SearchResultType } from "./schemas/search";
 
-// Re-export for convenience so consumers can import directly from "@/types/search"
-export type { SearchScope, SearchResult, ScoredResult };
+// Re-export all types and schemas from the Zod schemas file (source of truth)
+export {
+  // Constants
+  VALID_SCOPES,
+  // Schemas
+  validScopesSchema,
+  searchScopeSchema,
+  searchResultTypeSchema,
+  bookmarkSearchParamsSchema,
+  bookmarkIndexInputSchema,
+  educationItemSchema,
+  bookmarkIndexItemSchema,
+  serializedIndexSchema,
+  allSerializedIndexesSchema,
+  tagContentTypeSchema,
+  aggregatedTagSchema,
+  searchResultSchema,
+  searchResultsSchema,
+  miniSearchStoredFieldsSchema,
+  // Types (z.infer exports)
+  type SearchScope,
+  type SearchResultType,
+  type BookmarkSearchParams,
+  type BookmarkIndexInput,
+  type EducationItem,
+  type BookmarkIndexItem,
+  type SerializedIndex,
+  type AllSerializedIndexes,
+  type TagContentType,
+  type AggregatedTag,
+  type SearchResult,
+  type SearchResults,
+  type MiniSearchStoredFields,
+  type ScoredResult,
+} from "./schemas/search";
 
-export const VALID_SCOPES = [
-  "blog",
-  "posts",
-  "investments",
-  "experience",
-  "education",
-  "bookmarks",
-  "projects",
-  "books",
-  "thoughts",
-  "tags",
-] as const;
+// ─────────────────────────────────────────────────────────────────────────────
+// Generic Interfaces (can't be Zod schemas due to TypeScript generics)
+// ─────────────────────────────────────────────────────────────────────────────
 
-export interface EducationItem {
-  id: string;
-  label: string;
-  description: string;
-  path: string;
+/**
+ * Configuration for a MiniSearch index.
+ * Centralizes the repetitive MiniSearch options used across all index builders.
+ *
+ * @template T - The document type being indexed
+ * @template VirtualFields - Optional virtual field names (extracted via extractField)
+ */
+export interface IndexFieldConfig<T, VirtualFields extends string = never> {
+  /** Fields to index for searching (includes both document keys and virtual fields) */
+  fields: ((keyof T & string) | VirtualFields)[];
+  /** Fields to store in the index for retrieval */
+  storeFields: (keyof T & string)[];
+  /** Field to use as the document ID */
+  idField: keyof T & string;
+  /** Boost factors for specific fields (higher = more weight) */
+  boost?: Partial<Record<(keyof T & string) | VirtualFields, number>>;
+  /** Fuzzy matching tolerance (0-1, default 0.2) */
+  fuzzy?: number;
+  /** Custom field extraction function for complex fields (required when VirtualFields is set) */
+  extractField?: (document: T, fieldName: string) => string;
 }
 
-export interface BookmarkIndexItem {
-  id: string;
-  title: string;
-  description: string;
-  tags: string;
-  url: string;
-  author: string;
-  publisher: string;
-  slug: string; // REQUIRED for idempotent routing
+/**
+ * Configuration for creating a cached search function.
+ * Used by the search factory to generate consistent search implementations.
+ *
+ * @template TDoc - The document type being searched
+ * @template TResult - The search result type (extends SearchResult)
+ */
+export interface SearchFunctionConfig<TDoc, TResult extends SearchResultType> {
+  /** Cache key for storing/retrieving results */
+  cacheKey: string;
+  /** Function to retrieve or build the MiniSearch index */
+  getIndex: () => Promise<MiniSearch<TDoc>>;
+  /** Function to get the source documents */
+  getItems: () => TDoc[] | Promise<TDoc[]>;
+  /** Function to extract searchable text fields from a document */
+  getSearchableFields: (item: TDoc) => (string | undefined | null)[];
+  /** Optional function to get a field for exact matching */
+  getExactMatchField?: (item: TDoc) => string;
+  /** Optional function to extract the document ID */
+  getItemId?: (item: TDoc) => string;
+  /** Function to transform a matched document into a search result */
+  transformResult: (item: TDoc, score: number) => TResult;
 }
 
-export interface SerializedIndex {
-  index: string | Record<string, unknown>; // MiniSearch serialized JSON format
-  metadata: {
-    itemCount: number;
-    buildTime: string;
-    version: string;
-  };
+/**
+ * Configuration for a tag source.
+ * Used by the tag aggregator to collect tags from different content types.
+ *
+ * @template T - The item type containing tags
+ */
+export interface TagSource<T> {
+  /** Items to extract tags from, or async function to get them */
+  items: T[] | (() => Promise<T[]>);
+  /** Function to extract tag strings from an item */
+  getTags: (item: T) => string[] | undefined;
+  /** Content type for the aggregated tags */
+  contentType: AggregatedTagType["contentType"];
+  /** URL pattern generator for tag pages */
+  urlPattern: (slug: string) => string;
 }
-
-/** Aggregated tag with metadata for tag sub-index search */
-export interface AggregatedTag {
-  name: string;
-  slug: string;
-  contentType: "blog" | "bookmarks" | "projects" | "books";
-  count: number;
-  url: string;
-}
-
-export interface AllSerializedIndexes {
-  posts: SerializedIndex;
-  investments: SerializedIndex;
-  experience: SerializedIndex;
-  education: SerializedIndex;
-  projects: SerializedIndex;
-  bookmarks: SerializedIndex;
-  books: SerializedIndex;
-  buildMetadata: {
-    buildTime: string;
-    version: string;
-    environment: string;
-  };
-}
-
-// Zod schemas moved from lib/schemas/search.ts
-export const searchResultItemSchema = z.object({
-  id: z.string().min(1, "Search result ID cannot be empty"),
-  type: z.enum(["bookmark", "blog-post", "project", "page", "tag"]),
-  title: z.string(),
-  description: z.string().optional(),
-  url: z.string(),
-  score: z.number(),
-  highlights: z.array(z.string()).optional(),
-  metadata: z.record(z.unknown()).optional(),
-});
-
-export const searchResultsSchema = z.array(searchResultItemSchema);
-
-/** MiniSearch stored fields shape for index deserialization */
-export type MiniSearchStoredFields = {
-  id?: unknown;
-  title?: unknown;
-  description?: unknown;
-  url?: unknown;
-  slug?: unknown;
-};
