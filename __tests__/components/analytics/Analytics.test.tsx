@@ -1,6 +1,6 @@
 import type { UmamiMock, MockScriptProps } from "@/types/test";
 import { render, waitFor, act } from "@testing-library/react";
-import { Analytics } from "../../../src/components/analytics/analytics.client";
+import { Analytics } from "@/components/analytics/analytics.client";
 import { jest, describe, beforeEach, afterEach, it, expect } from "@jest/globals";
 
 // Create mock functions
