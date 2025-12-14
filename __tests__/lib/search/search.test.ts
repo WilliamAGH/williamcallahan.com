@@ -88,6 +88,11 @@ jest.mock("@/data/projects", () => ({
   ],
 }));
 
+// Mock S3 utils to prevent loading production indexes (forces in-memory index build with mocked data)
+jest.mock("@/lib/s3-utils", () => ({
+  readJsonS3: jest.fn().mockResolvedValue(null),
+}));
+
 // Mock ServerCacheInstance
 jest.mock("@/lib/server-cache", () => ({
   ServerCacheInstance: {
