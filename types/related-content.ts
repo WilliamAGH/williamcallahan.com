@@ -244,6 +244,11 @@ export interface RelatedContentSectionProps {
   className?: string;
   /** Show similarity scores on cards */
   showScores?: boolean;
+  /**
+   * Source content type - items of this type appear first.
+   * Also used to filter out disabled content types in production.
+   */
+  sourceType?: RelatedContentType;
 }
 
 /**

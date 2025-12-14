@@ -8,6 +8,9 @@
  * @module config/related-content
  */
 
+import { getEnvironment } from "@/lib/config/environment";
+import type { RelatedContentType } from "@/types/related-content";
+
 /**
  * Maximum number of related items to show per content type
  *
@@ -87,4 +90,93 @@ export const SLUG_CACHE_TTL_MS = {
 export function getSlugCacheTTL(): number {
   const env = process.env.NODE_ENV || "development";
   return SLUG_CACHE_TTL_MS[env as keyof typeof SLUG_CACHE_TTL_MS] || SLUG_CACHE_TTL_MS.development;
+}
+
+/**
+ * Content types that are hidden in production
+ *
+ * These content types are still in development and should not be
+ * shown to users on the production site. They remain visible in
+ * development and test environments for testing purposes.
+ */
+export const PRODUCTION_HIDDEN_CONTENT_TYPES: readonly RelatedContentType[] = ["thought"] as const;
+
+/**
+ * All available content types in preferred display order
+ *
+ * This order is used when no source type is specified.
+ * Books and investments are last as supplementary context.
+ */
+export const ALL_CONTENT_TYPES: readonly RelatedContentType[] = [
+  "bookmark",
+  "blog",
+  "project",
+  "thought",
+  "book",
+  "investment",
+] as const;
+
+/**
+ * Get the list of content types that should be excluded based on environment
+ *
+ * In production (williamcallahan.com), certain content types like "thought"
+ * are hidden because the feature is not yet complete.
+ *
+ * @returns Array of content types to exclude from display
+ */
+export function getExcludedContentTypes(): RelatedContentType[] {
+  const env = getEnvironment();
+  if (env === "production") {
+    return [...PRODUCTION_HIDDEN_CONTENT_TYPES];
+  }
+  return [];
+}
+
+/**
+ * Get the list of enabled content types for the current environment
+ *
+ * @returns Array of content types that should be shown
+ */
+export function getEnabledContentTypes(): RelatedContentType[] {
+  const excluded = new Set(getExcludedContentTypes());
+  return ALL_CONTENT_TYPES.filter(type => !excluded.has(type));
+}
+
+/**
+ * Check if a specific content type is enabled in the current environment
+ *
+ * @param type - The content type to check
+ * @returns true if the content type should be shown
+ */
+export function isContentTypeEnabled(type: RelatedContentType): boolean {
+  const excluded = new Set(getExcludedContentTypes());
+  return !excluded.has(type);
+}
+
+/**
+ * Get content types ordered with source type first
+ *
+ * When displaying related content, items of the same type as the source
+ * should appear first for better UX (e.g., on a book page, show related
+ * books before other content types).
+ *
+ * @param sourceType - The content type of the current page/item
+ * @returns Array of content types with sourceType first, filtered by environment
+ */
+export function getOrderedContentTypes(sourceType?: RelatedContentType): RelatedContentType[] {
+  const enabled = getEnabledContentTypes();
+
+  if (!sourceType) {
+    return enabled;
+  }
+
+  // Put source type first, then the rest in original order
+  const rest = enabled.filter(type => type !== sourceType);
+
+  // Only include sourceType if it's enabled
+  if (enabled.includes(sourceType)) {
+    return [sourceType, ...rest];
+  }
+
+  return rest;
 }
