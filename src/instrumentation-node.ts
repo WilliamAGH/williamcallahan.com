@@ -169,7 +169,16 @@ export function onRequestError(
 ): void {
   // Use cached Sentry module for synchronous request context linking
   // SentryModule is populated during register() when SENTRY_DSN is set
-  if (!SentryModule) return;
+  if (!SentryModule) {
+    // Fallback: if register() hasn't completed but Sentry is configured,
+    // do a lazy import (loses request context but still captures error)
+    if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
+      void import("@sentry/nextjs").then(Sentry => {
+        Sentry.captureException?.(error);
+      });
+    }
+    return;
+  }
 
   const Sentry = SentryModule;
 
