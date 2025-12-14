@@ -8,7 +8,7 @@
 import { unstable_noStore as noStore } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { aggregateAllContent, getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
-import { findMostSimilar, groupByType, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
+import { findMostSimilar, limitByTypeAndTotal, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { requestLock } from "@/lib/server/request-lock";
@@ -19,18 +19,15 @@ import type {
   SimilarityWeights,
   NormalizedContent,
 } from "@/types/related-content";
-import { getEnabledContentTypes } from "@/config/related-content.config";
+import { getEnabledContentTypes, DEFAULT_MAX_PER_TYPE } from "@/config/related-content.config";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours - content changes infrequently
 
 function resolveRequestUrl(request: NextRequest): URL {
   return request.nextUrl;
 }
-
-// Default options
-const DEFAULT_MAX_PER_TYPE = 3;
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours - content changes infrequently
 
 /**
  * Parse a comma-separated list of content types from query params.
@@ -307,18 +304,8 @@ export async function GET(request: NextRequest) {
     const excludeIds = (searchParams.get("excludeIds")?.split(",") || []).map(s => s.trim());
     excludeIds.push(sourceId);
 
-    // Apply per-type limits
-    const grouped = groupByType(items);
-    const limited: typeof items = [];
-
-    for (const [, typeItems] of Object.entries(grouped)) {
-      if (typeItems) {
-        const limitedTypeItems = typeItems.slice(0, maxPerType);
-        limited.push(...limitedTypeItems);
-      }
-    }
-
-    const sortedItems = limited.toSorted((a, b) => b.score - a.score);
+    // Apply per-type limits using shared utility (maxTotal=1000 is effectively unlimited for pagination)
+    const sortedItems = limitByTypeAndTotal(items, maxPerType, 1000);
 
     // Apply pagination
     // Remove excluded IDs before pagination (type-scoped to avoid cross-type ID collisions)
