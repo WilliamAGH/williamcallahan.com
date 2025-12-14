@@ -25,9 +25,7 @@ coverage
 *.sln
 *.sw?
 .early.coverage/**
-dry_improvements.md
-docs/dry_improvements.md
-
+ 
 tsconfig.tsbuildinfo
 
 # Coverage directory
