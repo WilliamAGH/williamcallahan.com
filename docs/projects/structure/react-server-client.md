@@ -326,19 +326,6 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
 }
 ```
 
-## Performance Optimization Checklist
-
-- [ ] Server Components used for all non-interactive UI
-- [ ] Client Components only where interactivity needed
-- [ ] Suspense boundaries for async content
-- [ ] Parallel data fetching implemented
-- [ ] Preload pattern for critical data
-- [ ] Progressive enhancement with instant shell
-- [ ] No secrets in NEXT*PUBLIC* variables
-- [ ] Error boundaries at appropriate levels
-- [ ] Loading states for all async operations
-- [ ] Streaming configured for large responses
-
 ## Related Documentation
 
 - [app-layout.md](./app-layout.md) - Root layout and provider setup

@@ -73,16 +73,6 @@ getBookmarksPage(page); // used by app/sitemap.ts to process 1 page of lightweig
 - **ALWAYS** check if the data is used for UI display
 - **DOCUMENT** why image data is included/excluded
 
-## Testing Checklist
-
-Before changing any `includeImageData` parameter:
-
-- [ ] Check all consumers of the function
-- [ ] Verify if any UI components use this data
-- [ ] Test RelatedContent section on bookmark/blog pages
-- [ ] Ensure bookmark cards show images
-- [ ] Run build to verify sitemap still generates
-
 ## Architecture Principles
 
 1. **Separate concerns**: Different functions for different purposes
