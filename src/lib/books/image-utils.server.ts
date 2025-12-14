@@ -8,13 +8,34 @@
 
 import { getPlaiceholder } from "plaiceholder";
 import { fetchWithTimeout } from "@/lib/utils/http-client";
-import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 
 const BLUR_FETCH_TIMEOUT_MS = 12_000;
 const BLUR_CONCURRENCY = 3;
 
+/**
+ * Check if we're in build phase where blur generation should be skipped.
+ * During prerendering, fetch() is aborted when the prerender completes,
+ * causing noisy errors. Blur placeholders are a progressive enhancement
+ * that can be generated at runtime instead.
+ */
+const PHASE_ENV_KEY = "NEXT_PHASE" as const;
+const BUILD_PHASE_VALUE = "phase-production-build" as const;
+const isBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
+
 const isDevLoggingEnabled =
   process.env.NODE_ENV === "development" || process.env.DEBUG === "true" || process.env.VERBOSE === "true";
+
+function sanitizeUrlForLogs(url: string): string {
+  if (!url) return url;
+  try {
+    const parsed = new URL(url);
+    parsed.search = "";
+    return parsed.toString();
+  } catch {
+    const idx = url.indexOf("?");
+    return idx === -1 ? url : url.slice(0, idx);
+  }
+}
 
 /**
  * Generate a blur data URL (LQIP) for a book cover image.
@@ -26,57 +47,39 @@ const isDevLoggingEnabled =
 export async function generateBookCoverBlur(coverUrl: string): Promise<string | undefined> {
   if (!coverUrl) return undefined;
 
+  // Skip during build phase to avoid prerender abort errors.
+  // Blur placeholders are a progressive enhancement - the page works without them.
+  if (isBuildPhase()) {
+    return undefined;
+  }
+
   try {
-    const imageService = getUnifiedImageService();
-    const result = await imageService.getImage(coverUrl, {
-      forceRefresh: true,
-      type: "book-cover",
-      retainBuffer: true,
-      timeoutMs: BLUR_FETCH_TIMEOUT_MS,
-      skipUpload: true, // Blur generation is read-only; do not persist blurs or source images
+    const response = await fetchWithTimeout(coverUrl, {
+      timeout: BLUR_FETCH_TIMEOUT_MS,
+      headers: {
+        Accept: "image/*",
+      },
     });
 
-    const buffer = result.buffer;
-    if (!buffer || buffer.length === 0) {
+    if (!response.ok) {
       if (isDevLoggingEnabled) {
-        console.warn(`[generateBookCoverBlur] No buffer returned from image service for ${coverUrl}`);
+        console.warn(
+          `[generateBookCoverBlur] Cover fetch failed: HTTP ${response.status} ${sanitizeUrlForLogs(coverUrl)}`,
+        );
       }
       return undefined;
     }
 
-    // Generate a tiny 10x10 blur placeholder
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    if (buffer.length === 0) return undefined;
     const { base64 } = await getPlaiceholder(buffer, { size: 10 });
     return base64;
-  } catch (primaryError) {
-    // Fallback: direct fetch with extended timeout to reduce noisy timeouts
+  } catch (error) {
     if (isDevLoggingEnabled) {
-      console.warn(`[generateBookCoverBlur] Primary method failed for ${coverUrl}:`, primaryError);
+      console.warn(`[generateBookCoverBlur] Error generating blur for ${sanitizeUrlForLogs(coverUrl)}:`, error);
     }
-    try {
-      const response = await fetchWithTimeout(coverUrl, {
-        timeout: BLUR_FETCH_TIMEOUT_MS,
-        headers: {
-          Accept: "image/*",
-        },
-      });
-
-      if (!response.ok) {
-        if (isDevLoggingEnabled) {
-          console.warn(`[generateBookCoverBlur] Fallback fetch failed: ${response.status} ${coverUrl}`);
-        }
-        return undefined;
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const { base64 } = await getPlaiceholder(buffer, { size: 10 });
-      return base64;
-    } catch (fallbackError) {
-      if (isDevLoggingEnabled) {
-        console.warn(`[generateBookCoverBlur] Error generating blur for ${coverUrl}:`, fallbackError);
-      }
-      return undefined;
-    }
+    return undefined;
   }
 }
 
