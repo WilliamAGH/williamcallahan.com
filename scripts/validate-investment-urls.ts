@@ -11,7 +11,7 @@
  */
 
 import { investments } from "../data/investments";
-import type { Investment } from "../types/investment";
+import type { Investment } from "../src/types/investment";
 import type { InvestmentUrlValidationResult } from "@/types/investment";
 
 /**

@@ -10,7 +10,7 @@
  */
 
 import "dotenv/config";
-import { listS3Objects } from "../lib/s3-utils";
+import { listS3Objects } from "../src/lib/s3-utils";
 
 /**
  * Retrieve CLI prefix argument – defaults to empty string to list full bucket.
