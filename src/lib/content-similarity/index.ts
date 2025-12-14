@@ -254,25 +254,6 @@ export function findMostSimilar(
 }
 
 /**
- * Group similar content by type
- */
-export function groupByType<T extends NormalizedContent & { score: number }>(
-  items: T[],
-): Partial<Record<RelatedContentType, T[]>> {
-  const grouped: Partial<Record<RelatedContentType, T[]>> = {};
-
-  for (const item of items) {
-    const type = item.type;
-    if (!grouped[type]) {
-      grouped[type] = [];
-    }
-    grouped[type].push(item);
-  }
-
-  return grouped;
-}
-
-/**
  * Limit scored items by per-type cap then global cap, preserving highest scores.
  * - Groups by `type`, sorts each group by `score` desc, slices to `maxPerType`
  * - Flattens, sorts globally by `score` desc, slices to `maxTotal`

@@ -337,20 +337,6 @@ export interface BookmarksIndexEntry {
 }
 
 /**
- * Props for RelatedContentWithPagination component
- */
-export interface RelatedContentWithPaginationProps {
-  /** Type of the source content */
-  sourceType: RelatedContentType;
-  /** ID of the source content */
-  sourceId: string;
-  /** Slug of the source content (required for bookmarks to maintain idempotency) */
-  sourceSlug?: string;
-  /** Optional limit for items per page */
-  limit?: number;
-}
-
-/**
  * Structure of the books related content JSON stored in S3
  */
 export interface BooksRelatedContentData {
