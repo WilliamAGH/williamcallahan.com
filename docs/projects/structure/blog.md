@@ -35,5 +35,6 @@ The "blog" functionality encompasses components and utilities that manage the di
 ## Notes
 
 - The blog functionality is designed for performance with server-side rendering and ISR, combined with client-side interactivity for a seamless user experience.
-- Individual blog detail routes (`app/blog/[slug]/page.tsx`) now keep the default Cache Components behavior and stream recommendations by wrapping `RelatedContent` in a `<Suspense>` boundary. The related content server component calls `connection()` internally so request-time S3 lookups wait for a user navigation without forcing `dynamic = "force-dynamic"`, keeping the rest of the page cachable.
+- Individual blog detail routes (`app/blog/[slug]/page.tsx`) keep the default Cache Components behavior and stream recommendations by wrapping `RelatedContent` in a `<Suspense>` boundary. `RelatedContent` does **not** call `connection()`; it avoids build-time execution by returning `null` during the production build phase and performs S3-backed precomputed lookups at request time, with an in-process cache fallback to avoid repeated similarity computation.
+- Blog tag routes (`app/blog/tags/[tagSlug]/page.tsx`) can display a “Discover More” related-content section sourced from the first post on the page, with the active tag excluded from recommendations.
 - Components are modular, allowing reuse across different views, with special attention to accessibility and responsive design as seen in features like collapsible background info boxes.
