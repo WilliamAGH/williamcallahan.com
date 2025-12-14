@@ -78,8 +78,8 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
 
-  // Build tag display (max 3 tags)
-  const displayTags = metadata.tags?.slice(0, 3) || [];
+  // Build tag display (max 6 tags to fill two rows)
+  const displayTags = metadata.tags?.slice(0, 6) || [];
   const typeBadge = getTypeBadge(type);
   const normalizedTagSet = new Set((metadata.tags || []).map(t => t.toLowerCase()));
 
@@ -113,20 +113,16 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
       </Link>
 
       <article className="h-full flex flex-col pointer-events-none">
-        {/* Header with type badge and metadata */}
+        {/* Header with contextual info - type badge moved to tags row for all types */}
         <header className="flex items-start justify-between mb-3">
-          <span
-            className={`
-              inline-flex items-center justify-center px-2 py-0.5
-              text-[10px] font-mono font-semibold tracking-wider
-              border rounded ${typeBadge.className}
-            `}
-            title={`Content type: ${type}`}
-          >
-            {typeBadge.label}
-          </span>
+          {/* Left side: domain for bookmarks, empty for others */}
+          {type === "bookmark" && metadata.domain ? (
+            <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[60%]">{metadata.domain}</span>
+          ) : (
+            <span className="w-0" />
+          )}
+          {/* Right side: date and score */}
           <div className="flex flex-col items-end text-xs text-gray-500 dark:text-gray-400">
-            {/* Hide date for investments in related content view - date shown on dedicated page */}
             {metadata.date && type !== "investment" && (
               <time dateTime={metadata.date}>{formatDateUtil(metadata.date)}</time>
             )}
@@ -165,17 +161,34 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
                 priority={false}
               />
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">{title}</h3>
+            <div className="flex-1 min-w-0 flex items-start gap-2">
+              <h3 className="flex-1 font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">{title}</h3>
+              {/* aVenture research link - inline with company name */}
+              {typeof aventureHref === "string" && (
+                <ExternalLink
+                  href={aventureHref}
+                  title={`${title} - aVenture Startup Research`}
+                  showIcon={false}
+                  className="flex-shrink-0 inline-flex items-center bg-slate-100 dark:bg-transparent hover:bg-slate-200 dark:hover:bg-gray-700/50 p-1.5 rounded-full transition-colors pointer-events-auto relative z-10"
+                >
+                  <Image
+                    src="https://s3-storage.callahan.cloud/images/ui-components/aVenture-research-button.png"
+                    alt="aVenture"
+                    width={14}
+                    height={14}
+                    className="inline-block h-3.5 w-3.5"
+                  />
+                </ExternalLink>
+              )}
             </div>
           </div>
         ) : type === "book" && metadata.imageUrl && !imageError ? (
-          /* Book covers need vertical orientation - aspect-[4/5] matches typical tech book covers */
-          <div className="flex items-start gap-3 mb-3">
-            <div className="relative w-16 flex-shrink-0 aspect-[4/5] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 shadow-sm">
+          /* Book covers: larger display with cover on left, content on right */
+          <div className="flex items-start gap-4 mb-3">
+            <div className="relative w-24 flex-shrink-0 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 shadow-md ring-1 ring-gray-200/50 dark:ring-gray-600/50">
               {imageLoading && (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin" />
                 </div>
               )}
               <Image
@@ -183,8 +196,8 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
                 alt={title}
                 fill
                 className={`object-cover transition-opacity duration-200 ${imageLoading ? "opacity-0" : "opacity-100"}`}
-                sizes="64px"
-                quality={80}
+                sizes="96px"
+                quality={85}
                 onLoad={() => setImageLoading(false)}
                 onError={() => {
                   setImageError(true);
@@ -197,8 +210,17 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
                 priority={false}
               />
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">{title}</h3>
+            <div className="flex-1 min-w-0 pt-1">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-3 text-sm leading-snug">
+                {title}
+              </h3>
+              {/* Authors shown inline with title for books */}
+              {metadata.authors && metadata.authors.length > 0 && (
+                <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+                  {metadata.authors.slice(0, 2).join(", ")}
+                  {metadata.authors.length > 2 && ` +${metadata.authors.length - 2}`}
+                </p>
+              )}
             </div>
           </div>
         ) : (
@@ -243,115 +265,73 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
           {truncateTextUtil(description, 150)}
         </p>
 
-        {/* Footer with tags and metadata */}
+        {/* Footer with tags and type badge */}
         <footer className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-700">
-          {/* Tags */}
-          {displayTags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-2 pointer-events-auto relative z-10">
-              {displayTags.map(tag => {
-                const href =
-                  type === "bookmark"
-                    ? `/bookmarks/tags/${tagToSlug(tag)}`
-                    : type === "blog"
-                      ? `/blog/tags/${kebabCase(tag)}`
-                      : null;
-                const chip = (
-                  <span className="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
-                    {tag}
+          {/* Tags row with type badge - unified for all content types */}
+          <div className="flex items-end gap-2 mb-2">
+            {/* Tags container - allows 2 rows, compact sizing */}
+            {displayTags.length > 0 && (
+              <div className="flex-1 flex flex-wrap gap-1 max-h-[3.25rem] overflow-hidden pointer-events-auto relative z-10">
+                {displayTags.map(tag => {
+                  const href =
+                    type === "bookmark"
+                      ? `/bookmarks/tags/${tagToSlug(tag)}`
+                      : type === "blog"
+                        ? `/blog/tags/${kebabCase(tag)}`
+                        : null;
+                  const chip = (
+                    <span className="px-1.5 py-0.5 text-[11px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded truncate max-w-[7rem]">
+                      {tag}
+                    </span>
+                  );
+                  return href ? (
+                    <Link key={tag} href={href} className="inline-block pointer-events-auto relative z-10">
+                      {chip}
+                    </Link>
+                  ) : (
+                    <span key={tag} className="inline-block">
+                      {chip}
+                    </span>
+                  );
+                })}
+                {metadata.tags && metadata.tags.length > 6 && (
+                  <span className="px-1.5 py-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+                    +{metadata.tags.length - 6}
                   </span>
-                );
-                return href ? (
-                  <Link key={tag} href={href} className="inline-block pointer-events-auto relative z-10">
-                    {chip}
-                  </Link>
-                ) : (
-                  <span key={tag} className="inline-block">
-                    {chip}
-                  </span>
-                );
-              })}
-              {metadata.tags && metadata.tags.length > 3 && (
-                <span className="px-2 py-0.5 text-xs text-gray-400 dark:text-gray-500">
-                  +{metadata.tags.length - 3} more
-                </span>
-              )}
+                )}
+              </div>
+            )}
+            {/* Type badge pinned to bottom right - all content types */}
+            <span
+              className={`
+                flex-shrink-0 self-end inline-flex items-center justify-center px-2 py-0.5
+                text-[10px] font-mono font-semibold tracking-wider
+                border rounded ${typeBadge.className}
+              `}
+            >
+              {typeBadge.label}
+            </span>
+          </div>
+
+          {/* Type-specific metadata row - only shown when there's content */}
+          {((type === "blog" && metadata.readingTime) ||
+            (type === "investment" && (metadata.stage || metadata.category)) ||
+            (type === "project" && metadata.category)) && (
+            <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+              {/* Reading time for blog posts */}
+              {type === "blog" && metadata.readingTime && <span>{metadata.readingTime} min read</span>}
+
+              {/* Stage for investments */}
+              {type === "investment" &&
+                metadata.stage &&
+                !normalizedTagSet.has(String(metadata.stage).toLowerCase()) && <span>{metadata.stage}</span>}
+
+              {/* Category for investments and projects */}
+              {(type === "investment" || type === "project") &&
+                metadata.category &&
+                !normalizedTagSet.has(String(metadata.category).toLowerCase()) && <span>{metadata.category}</span>}
             </div>
           )}
-
-          {/* Type-specific metadata */}
-          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-            {/* Domain for bookmarks */}
-            {type === "bookmark" && metadata.domain && <span className="truncate">{metadata.domain}</span>}
-
-            {/* Author for blog posts */}
-            {type === "blog" && metadata.author && (
-              <span className="flex items-center gap-1">
-                {metadata.author.avatar && (
-                  <Image
-                    src={metadata.author.avatar}
-                    alt={metadata.author.name}
-                    width={16}
-                    height={16}
-                    className="rounded-full"
-                  />
-                )}
-                <span>{metadata.author.name}</span>
-              </span>
-            )}
-
-            {/* Reading time for blog posts */}
-            {type === "blog" && metadata.readingTime && <span>{metadata.readingTime} min read</span>}
-
-            {/* Stage for investments */}
-            {type === "investment" && metadata.stage && !normalizedTagSet.has(String(metadata.stage).toLowerCase()) && (
-              <span>{metadata.stage}</span>
-            )}
-
-            {/* Category for investments and projects */}
-            {(type === "investment" || type === "project") &&
-              metadata.category &&
-              !normalizedTagSet.has(String(metadata.category).toLowerCase()) && <span>{metadata.category}</span>}
-
-            {/* Authors for books */}
-            {type === "book" && metadata.authors && metadata.authors.length > 0 && (
-              <span className="truncate">
-                {metadata.authors.slice(0, 2).join(", ")}
-                {metadata.authors.length > 2 && ` +${metadata.authors.length - 2}`}
-              </span>
-            )}
-
-            {/* Formats for books */}
-            {type === "book" && metadata.formats && metadata.formats.length > 0 && (
-              <span className="ml-2 flex items-center gap-1">
-                {metadata.formats.map(format => (
-                  <span
-                    key={format}
-                    className="px-1.5 py-0.5 text-[10px] font-medium uppercase bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded"
-                  >
-                    {format}
-                  </span>
-                ))}
-              </span>
-            )}
-
-            {/* aVenture research link for investments - separate external link */}
-            {typeof aventureHref === "string" ? (
-              <ExternalLink
-                href={aventureHref}
-                title={`${title} - aVenture Startup Research`}
-                showIcon={false}
-                className="ml-auto inline-flex items-center bg-slate-100 dark:bg-transparent hover:bg-slate-200 dark:hover:bg-gray-700/50 px-2 py-1 rounded-full transition-colors pointer-events-auto relative z-10"
-              >
-                <Image
-                  src="https://s3-storage.callahan.cloud/images/ui-components/aVenture-research-button.png"
-                  alt="aVenture"
-                  width={16}
-                  height={16}
-                  className="inline-block h-4 w-4"
-                />
-              </ExternalLink>
-            ) : null}
-          </div>
         </footer>
       </article>
     </div>

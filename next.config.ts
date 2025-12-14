@@ -393,7 +393,7 @@ const nextConfig = {
      * Addresses the warning about unconfigured qualities in Next.js 15+
      * @see https://nextjs.org/docs/messages/next-image-unconfigured-qualities
      */
-    qualities: [75, 80, 90, 100], // Support common quality settings
+    qualities: [75, 80, 85, 90, 100], // Support common quality settings (include 85 to silence warnings)
     /**
      * The minimum time (in seconds) an optimized image will be cached by the browser and CDNs
      * This is 7 days
