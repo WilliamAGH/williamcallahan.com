@@ -13,8 +13,8 @@ import type { RepoToUpdate } from "@/types/lib";
 import "dotenv/config"; // Load .env variables
 
 import type { GithubContributorStatsEntry, RepoRawWeeklyStat } from "@/types"; // Adjust path as needed
-import { REPO_RAW_WEEKLY_STATS_S3_KEY_DIR } from "../lib/data-access/github"; // Adjust path as needed
-import { writeBinaryS3 } from "../lib/s3-utils"; // Adjust path as needed
+import { REPO_RAW_WEEKLY_STATS_S3_KEY_DIR } from "../src/lib/data-access/github"; // Adjust path as needed
+import { writeBinaryS3 } from "../src/lib/s3-utils"; // Adjust path as needed
 
 // Support both the new preferred env var and legacy common names to reduce mis-config issues.
 const GITHUB_API_TOKEN =

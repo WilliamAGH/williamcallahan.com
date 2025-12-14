@@ -12,9 +12,9 @@
 
 import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { normalizeTagsToStrings, tagToSlug } from "../lib/utils/tag-utils";
-import { calculateBookmarksChecksum } from "../lib/bookmarks/utils";
-import { readJsonS3 } from "../lib/s3-utils";
+import { normalizeTagsToStrings, tagToSlug } from "../src/lib/utils/tag-utils";
+import { calculateBookmarksChecksum } from "../src/lib/bookmarks/utils";
+import { readJsonS3 } from "../src/lib/s3-utils";
 import { getEnvironment, getEnvironmentSuffix } from "@/lib/config/environment";
 import type { BookmarkS3Record } from "@/types/bookmark";
 
@@ -41,9 +41,9 @@ const BOOKMARKS_PATHS = {
 
 // Local paths to save fetched data
 const LOCAL_PATHS = {
-  BOOKMARKS: "lib/data/bookmarks.json",
-  INDEX: "lib/data/bookmarks-index.json",
-  SLUG_MAPPING: "lib/data/slug-mapping.json",
+  BOOKMARKS: "src/lib/data/bookmarks.json",
+  INDEX: "src/lib/data/bookmarks-index.json",
+  SLUG_MAPPING: "src/lib/data/slug-mapping.json",
 };
 
 const LOCAL_S3_BASE =

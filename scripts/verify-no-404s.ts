@@ -17,7 +17,7 @@
  *   --verbose     Show all URL test results
  */
 
-import sitemap from "../app/sitemap";
+import sitemap from "../src/app/sitemap";
 import type { MetadataRoute } from "next";
 
 // Parse command line arguments

@@ -24,7 +24,7 @@ import { JWT } from "google-auth-library";
 import { GaxiosError } from "gaxios";
 import type { GoogleIndexingUrlNotificationMetadata } from "@/types/lib";
 import type { UrlNotification, IndexingApiResponse } from "@/types/api";
-import sitemap from "../app/sitemap";
+import sitemap from "../src/app/sitemap";
 import { loadRateLimitStoreFromS3, incrementAndPersist, persistRateLimitStoreToS3 } from "@/lib/rate-limiter";
 import { INDEXING_RATE_LIMIT_PATH } from "@/lib/constants";
 

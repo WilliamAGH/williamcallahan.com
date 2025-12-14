@@ -118,10 +118,10 @@ class DeploymentVerifier {
     this.log("\n🔍 Checking Route Configuration...", colors.cyan);
 
     const routeFiles = [
-      "app/bookmarks/page.tsx",
-      "app/bookmarks/[slug]/page.tsx",
-      "app/bookmarks/page/[pageNumber]/page.tsx",
-      "app/bookmarks/tags/[...slug]/page.tsx",
+      "src/app/bookmarks/page.tsx",
+      "src/app/bookmarks/[slug]/page.tsx",
+      "src/app/bookmarks/page/[pageNumber]/page.tsx",
+      "src/app/bookmarks/tags/[...slug]/page.tsx",
     ];
 
     const dynamicRoutes: string[] = [];

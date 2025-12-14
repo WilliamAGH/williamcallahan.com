@@ -6,7 +6,7 @@
  * Verifies all S3 paths are accessible and consistent after content graph changes
  */
 
-import { readJsonS3, listS3Objects, getS3Client } from "../lib/s3-utils";
+import { readJsonS3, listS3Objects, getS3Client } from "../src/lib/s3-utils";
 import {
   BOOKMARKS_S3_PATHS,
   IMAGE_S3_PATHS,
@@ -15,12 +15,12 @@ import {
   GITHUB_ACTIVITY_S3_PATHS,
   OPENGRAPH_JSON_S3_PATHS,
   CONTENT_GRAPH_S3_PATHS,
-} from "../lib/constants";
+} from "../src/lib/constants";
 import type { PathCheck } from "@/types/utils/audit";
 import type { BookmarkSlugMapping } from "@/types/bookmark";
 import type { BookmarksIndexEntry, ContentGraphMetadata, RelatedContentEntry } from "@/types/related-content";
-import { ServerCacheInstance } from "../lib/server-cache";
-import { getMemoryHealthMonitor } from "../lib/health/memory-health-monitor";
+import { ServerCacheInstance } from "../src/lib/server-cache";
+import { getMemoryHealthMonitor } from "../src/lib/health/memory-health-monitor";
 
 async function checkPath(path: string): Promise<PathCheck> {
   try {
