@@ -33,17 +33,21 @@ import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import type { Book } from "@/types/schemas/book";
 import type { BookPageProps } from "@/types/features/books";
 
-async function getBookBySlug(slug: string): Promise<{ book: Book | null; isFallback: boolean }> {
+async function getBookBySlug(
+  slug: string,
+  options?: { includeBlurPlaceholders?: boolean },
+): Promise<{ book: Book | null; isFallback: boolean }> {
+  const includeBlurPlaceholders = options?.includeBlurPlaceholders ?? false;
   const directId = extractBookIdFromSlug(slug);
 
   if (directId) {
-    const byIdResult = await fetchBookByIdWithFallback(directId, { includeBlurPlaceholder: true });
+    const byIdResult = await fetchBookByIdWithFallback(directId, { includeBlurPlaceholder: includeBlurPlaceholders });
     if (byIdResult.book) {
       return { book: byIdResult.book, isFallback: byIdResult.isFallback };
     }
   }
 
-  const result = await fetchBooksWithFallback({ includeBlurPlaceholders: true });
+  const result = await fetchBooksWithFallback({ includeBlurPlaceholders });
   const book = findBookBySlug(slug, result.books);
   return { book, isFallback: result.isFallback };
 }
@@ -74,7 +78,7 @@ function buildBookOgImageUrl(book: Book): string {
 export async function generateMetadata({ params }: { params: { "book-slug": string } }): Promise<Metadata> {
   const { "book-slug": slug } = await Promise.resolve(params);
   const path = `/books/${slug}`;
-  const { book } = await getBookBySlug(slug);
+  const { book } = await getBookBySlug(slug, { includeBlurPlaceholders: false });
 
   if (!book) {
     return {
@@ -137,7 +141,7 @@ export async function generateMetadata({ params }: { params: { "book-slug": stri
 
 export default async function BookPage({ params }: BookPageProps) {
   const { "book-slug": slug } = await Promise.resolve(params);
-  const { book, isFallback } = await getBookBySlug(slug);
+  const { book, isFallback } = await getBookBySlug(slug, { includeBlurPlaceholders: true });
 
   if (!book) {
     return notFound();
