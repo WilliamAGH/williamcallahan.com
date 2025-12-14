@@ -247,7 +247,7 @@ export async function RelatedContent({
         items = items.filter(item => !exc.has(item.type));
       }
       if (excludeIds.length > 0) {
-        items = items.filter(item => !excludeIds.includes(item.id));
+        items = items.filter(item => !(item.type === sourceType && excludeIds.includes(item.id)));
       }
 
       // Apply limits via shared helper
