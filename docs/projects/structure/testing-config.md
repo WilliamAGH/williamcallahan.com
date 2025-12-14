@@ -184,7 +184,7 @@ You are encouraged to use **Context7 MCP** for deep, version-specific documentat
 
 - **Example Workflow:** First, find the exact library version from `package.json`. Then, construct the query dynamically: `@mcp_context7 get-library-docs --context7CompatibleLibraryID='/[org]/[project]/[retrieved-version]' --topic='[topic]'`
 
-## 7. Troubleshooting Guide
+## 6. Troubleshooting Guide
 
 **Problem:** `ReferenceError: jest is not defined`
 **Cause:** You ran `bun test` directly.
@@ -202,11 +202,11 @@ You are encouraged to use **Context7 MCP** for deep, version-specific documentat
 **Cause:** You are trying to render it like a Client Component.
 **Solution:** Test its data-fetching logic as a function and test its child Client Components separately with mock props.
 
-## 8. Advanced Topics & Modern Patterns
+## 7. Advanced Topics & Modern Patterns
 
 This section provides deeper insight into complex topics that are critical for maintaining a robust test suite in a modern Next.js environment.
 
-### 8.1. Navigating a 100% ESM Codebase with Jest
+### 7.1. Navigating a 100% ESM Codebase with Jest
 
 While we write our code using ES Modules (`import`/`export`), it's crucial to understand what happens under the hood. Jest traditionally worked in a CommonJS (`require`) environment. **`next/jest` bridges this gap by using the SWC compiler to transpile our ESM code into a format Jest can understand.**
 
@@ -224,7 +224,7 @@ This has several implications:
   ```
 - **Jest 30+ ESM Enhancements:** Jest now natively recognizes `.mts` and `.cts` files, and its internal modules are bundled as ESM. This improves performance but means any unsupported "deep imports" into Jest's internals will break. **Rule: Only use Jest's public, documented APIs.**
 
-### 8.2. Using `node_modules` as a Source of Truth
+### 7.2. Using `node_modules` as a Source of Truth
 
 In a ZERO TEMPERATURE environment, external documentation can be outdated. The code in `node_modules` is the ultimate source of truth.
 
@@ -253,7 +253,7 @@ In a ZERO TEMPERATURE environment, external documentation can be outdated. The c
    find node_modules/some-library -name "*.d.ts" | xargs cat
    ```
 
-### 8.3. Modern Test Environment: Native APIs & Strategic Mocks
+### 7.3. Modern Test Environment: Native APIs & Strategic Mocks
 
 **Node 22 LTS Provides Native Browser APIs**: Our test environment now has built-in `fetch`, `URL`, `TextEncoder`, `ReadableStream`, and other Web APIs. **No polyfills needed.**
 
@@ -265,11 +265,11 @@ In a ZERO TEMPERATURE environment, external documentation can be outdated. The c
   - **`file-mock.js` & `style-mock.js`**: Jest cannot process static assets like images or CSS files. These mocks tell Jest to replace any import of these files with a simple string or an empty object, preventing errors.
   - **`server-only`**: This package throws an error if imported on the client. Our mock makes it a no-op in the test environment, allowing us to test components that use it without crashing.
 
-## 9. Native `fetch` & Advanced Next.js 15 Testing Patterns
+## 8. Native `fetch` & Advanced Next.js 15 Testing Patterns
 
 This section details how to confidently use the modern, native `fetch` API and test the latest Next.js 15 features, ensuring our test suite remains robust and up-to-date.
 
-### 9.1. Confidently Using Native `fetch` in Node.js 22
+### 8.1. Confidently Using Native `fetch` in Node.js 22
 
 As of Node.js v21, the `fetch` API is stable and built-in, powered by the high-performance `undici` client, as noted in the [official Node.js documentation](https://nodejs.org/en/learn/getting-started/fetch) and confirmed by performance benchmarks. For our project on Node 22, this means:
 
@@ -279,7 +279,7 @@ As of Node.js v21, the `fetch` API is stable and built-in, powered by the high-p
 - **Next.js 15 Integration:** Next.js 15 uses this native `fetch` and extends it with its own caching and revalidation semantics
 - **No Import Required:** Never `import fetch` - it's globally available like in browsers
 
-### 9.2. The Canonical Pattern for Mocking `fetch` in Jest Tests
+### 8.2. The Canonical Pattern for Mocking `fetch` in Jest Tests
 
 To achieve 100% confidence and immediate test-passing, we **must** mock the global `fetch` function. This gives us full control over the testing environment, removes network latency, and isolates our code from the Next.js caching layer.
 
@@ -323,7 +323,7 @@ it('should render data fetched from an API', async () => {
 });
 ```
 
-### 9.3. Testing Next.js 14 & 15 Features
+### 8.3. Testing Next.js 14 & 15 Features
 
 #### Experimental Features (`experiments` in `next.config.js`)
 
@@ -354,7 +354,7 @@ You've correctly identified that we have several experimental features enabled. 
 - **Server Actions:**
   - **Testing Strategy:** As documented, treat them as standalone asynchronous functions. Import the action into your test, call it with mock data, and `await` the result to make assertions. Ensure you test both success and error states.
 
-### 9.4. Advanced Type-Level Testing with TypeScript 5.8
+### 8.4. Advanced Type-Level Testing with TypeScript 5.8
 
 Beyond testing the runtime behavior of our code, it's critical to test the _types themselves_. This is especially important for generic utilities, hooks, and complex type definitions to ensure they behave as expected for developers consuming them. As [Matt Pocock highlights](https://www.totaltypescript.com/how-to-test-your-types), this is a key practice for any high-quality library or shared codebase.
 
@@ -436,11 +436,11 @@ import data from "./data.json" with { type: "json" };
 
 Our `bun run validate` command will fail if the old syntax is used, so all developers and tools must use the `with` keyword for such imports to ensure our tests and codebase remain compliant.
 
-## 10. Async Testing Patterns: Critical Do's and Don'ts
+## 9. Async Testing Patterns: Critical Do's and Don'ts
 
 This section addresses the most common async testing mistakes that lead to flaky, unreliable tests. These patterns are based on [proven testing library best practices](https://dev.to/tipsy_dev/testing-library-writing-better-async-tests-c67) and Next.js-specific async behaviors.
 
-### 10.1. CRITICAL VIOLATION: Awaiting Synchronous Methods
+### 9.1. CRITICAL VIOLATION: Awaiting Synchronous Methods
 
 ** WRONG - Awaiting `render()`:**
 
@@ -467,7 +467,7 @@ it('should display user data', async () => {
 - This creates a race condition where your assertion might run before async operations complete
 - In Next.js 15, Server Components and `use()` hooks make this timing even more critical
 
-### 10.2. CRITICAL VIOLATION: Missing `await` on Async Methods
+### 9.2. CRITICAL VIOLATION: Missing `await` on Async Methods
 
 ** WRONG - Missing `await` on `waitFor`:**
 
@@ -498,7 +498,7 @@ it('should handle loading state', async () => {
 });
 ```
 
-### 10.3. CRITICAL VIOLATION: Side Effects in `waitFor`
+### 9.3. CRITICAL VIOLATION: Side Effects in `waitFor`
 
 ** WRONG - Triggering Events Inside `waitFor`:**
 
@@ -531,7 +531,7 @@ it('should show transaction details', async () => {
 });
 ```
 
-### 10.4. Next.js-Specific Async Patterns
+### 9.4. Next.js-Specific Async Patterns
 
 #### Server Actions Testing
 
@@ -604,7 +604,7 @@ it('should render user data with use() hook', async () => {
 });
 ```
 
-### 10.5. Native `fetch` Testing Patterns for Node.js 22
+### 9.5. Native `fetch` Testing Patterns for Node.js 22
 
 ** CORRECT - Comprehensive `fetch` Mocking (No Polyfills):**
 
@@ -654,7 +654,7 @@ it('should handle API errors gracefully', async () => {
 // import 'whatwg-fetch'; // BANNED
 ```
 
-### 10.6. TypeScript 5 Async Type Safety
+### 9.6. TypeScript 5 Async Type Safety
 
 ** CORRECT - Type-Safe Async Testing:**
 
@@ -685,7 +685,7 @@ it('should maintain type safety in async operations', async () => {
 });
 ```
 
-### 10.7. ESLint Rules for Async Testing
+### 9.7. ESLint Rules for Async Testing
 
 These ESLint rules from `eslint-plugin-testing-library` prevent the above mistakes:
 
@@ -700,7 +700,7 @@ These ESLint rules from `eslint-plugin-testing-library` prevent the above mistak
 }
 ```
 
-### 10.8. Quick Reference: Async Testing Checklist
+### 9.8. Quick Reference: Async Testing Checklist
 
 ** DO:**
 
