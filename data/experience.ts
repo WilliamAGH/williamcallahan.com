@@ -5,7 +5,7 @@
  * Used to populate the experience section of the portfolio.
  */
 
-import { type Experience, validateExperienceArray } from "../types/experience";
+import { type Experience, validateExperienceArray } from "../src/types/experience";
 
 // Remember to update this date whenever the experience data or the Experience page design changes
 export const updatedAt = "2025-11-08";

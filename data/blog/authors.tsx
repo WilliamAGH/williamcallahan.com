@@ -1,4 +1,4 @@
-import type { Author } from "../../types/blog";
+import type { Author } from "../../src/types/blog";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 export const authors: Record<string, Author> = {
