@@ -14,6 +14,7 @@ import type { RelatedContentCardProps } from "@/types/related-content";
 import { ExternalLink } from "@/components/ui/external-link.client";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import { kebabCase } from "@/lib/utils/formatters";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 // Local helper to avoid any unsafe function call/type issues in certain editor setups
 function sanitizeExternalHref(raw?: string): string | null {
   if (!raw) return null;
@@ -78,8 +79,7 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
 
-  // Use a stable S3-hosted asset and mark it unoptimized to avoid the Next image optimizer allowlist edge cases.
-  const aventureIconSrc = "https://s3-storage.callahan.cloud/images/ui-components/aVenture-research-button.png";
+  const aventureIconSrc = getStaticImageUrl("/images/ui-components/aVenture-research-button.png");
 
   // Build tag display (max 6 tags to fill two rows)
   const displayTags = metadata.tags?.slice(0, 6) || [];

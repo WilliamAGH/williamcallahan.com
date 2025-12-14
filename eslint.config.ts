@@ -564,7 +564,7 @@ const config = tseslint.config(
                       node,
                       message: isInS3
                         ? `Hardcoded image path "${imagePath}" detected. Use getStaticImageUrl("${imagePath}") to ensure S3/CDN delivery.`
-                        : `New image "${imagePath}" is not in S3. Run 'bun run migrate-static-images:upload' to migrate it, then use getStaticImageUrl("${imagePath}").`,
+                        : `New image "${imagePath}" is not in the static image mapping. Add it to src/lib/data-access/static-image-mapping.json (and ensure the asset is uploaded to S3), then use getStaticImageUrl("${imagePath}").`,
                       fix:
                         isInS3 && hasImport
                           ? function (fixer: any) {
