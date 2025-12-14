@@ -38,7 +38,7 @@ import type { RequestLog } from "@/types/lib";
  */
 async function getCspHashes() {
   try {
-    const hashes = await import("@/config/csp-hashes.json", {
+    const hashes = await import("../generated/csp-hashes.json", {
       assert: { type: "json" },
     });
     return hashes.default;

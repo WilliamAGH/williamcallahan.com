@@ -22,6 +22,9 @@ COPY .husky ./.husky
 COPY scripts/init-csp-hashes.ts ./scripts/init-csp-hashes.ts
 COPY config ./config
 
+# Create generated/ directory for build-time generated files (CSP hashes, etc.)
+RUN mkdir -p generated/bookmarks
+
 # Install dependencies with Bun, skipping third-party postinstall scripts to avoid native crashes
 # Cache mounts are avoided so classic docker builds (DOCKER_BUILDKIT=0) continue to work.
 RUN bun install --frozen-lockfile --ignore-scripts
@@ -213,6 +216,8 @@ COPY --from=builder /app/tsconfig*.json ./
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/types ./types
 COPY --from=builder /app/config ./config
+# Copy generated files (CSP hashes, bookmark caches for local fallback)
+COPY --from=builder /app/generated ./generated
 
 # Ensure the sitemap generator used by runtime scripts is available.
 # Only the specific file is copied to minimize image size and avoid unnecessary source files.
