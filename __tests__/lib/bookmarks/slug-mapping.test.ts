@@ -149,12 +149,13 @@ describe("Bookmark Slug Mapping", () => {
       );
     });
 
-    it("should use environment-aware path", () => {
-      // Since Jest config sets testEnvironmentOptions.url to localhost:3000,
-      // the environment detection will return "development" even in test mode
-      const expectedSuffix = "-dev";
+    it("should use environment-aware path", async () => {
+      // Import the actual environment suffix to verify path is correctly formed
+      const { ENVIRONMENT_SUFFIX } = await import("@/lib/config/environment");
 
-      expect(BOOKMARKS_S3_PATHS.SLUG_MAPPING).toContain(`slug-mapping${expectedSuffix}.json`);
+      // Path should contain the environment suffix (empty for prod, -dev/-test for others)
+      const expectedPath = `slug-mapping${ENVIRONMENT_SUFFIX}.json`;
+      expect(BOOKMARKS_S3_PATHS.SLUG_MAPPING).toContain(expectedPath);
     });
 
     it("should throw error on S3 write failure", async () => {

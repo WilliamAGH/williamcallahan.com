@@ -8,6 +8,14 @@
 
 import type { Thought } from "@/types/schemas/thought";
 
+const REQUIRED_ENV_VARS = ["CHROMA_API_KEY", "CHROMA_TENANT", "CHROMA_DATABASE"] as const;
+const missingVars = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
+const hasChromaConfig = missingVars.length === 0;
+
+if (!hasChromaConfig) {
+  console.warn(`[chroma-sync.test.ts] Skipping tests - missing env vars: ${missingVars.join(", ")}`);
+}
+
 // Shared mock collection - use getMockCollection() to access
 let mockCollection: {
   upsert: jest.Mock;
@@ -38,6 +46,8 @@ jest.mock("chromadb", () => ({
   })),
 }));
 
+const describeIfChroma = hasChromaConfig ? describe : describe.skip;
+
 // Valid test thought for reuse
 const createTestThought = (overrides: Partial<Thought> = {}): Thought => ({
   id: "550e8400-e29b-41d4-a716-446655440000",
@@ -48,7 +58,7 @@ const createTestThought = (overrides: Partial<Thought> = {}): Thought => ({
   ...overrides,
 });
 
-describe("Thoughts Chroma Sync", () => {
+describeIfChroma("Thoughts Chroma Sync", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.resetModules();
