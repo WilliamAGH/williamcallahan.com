@@ -82,33 +82,33 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 
 ### Core Data Layer
 
-- **`lib/data-access/github.ts`**
+- **`src/lib/data-access/github.ts`**
   - Fetches from GitHub APIs (GraphQL + REST)
   - Manages S3 storage and caching
   - Handles CSV repair and data aggregation
 
 ### API Endpoints
 
-- **`app/api/github-activity/route.ts`**
+- **`src/app/api/github-activity/route.ts`**
   - Read-only endpoint for cached data (calls `unstable_noStore()` and reads JSON directly)
   - Never triggers refresh
-- **`app/api/github-activity/refresh/route.ts`**
+- **`src/app/api/github-activity/refresh/route.ts`**
   - Protected refresh endpoint
 
 ### UI Components
 
-- **`components/features/github/github-activity.client.tsx`**
+- **`src/components/features/github/github-activity.client.tsx`**
   - Main activity display (consumes cached JSON via `cacheTag("github-activity")`)
   - Contribution calendar
 
-- **`components/features/github/cumulative-github-stats-cards.tsx`**
+- **`src/components/features/github/cumulative-github-stats-cards.tsx`**
   - Simple stats display cards
 
 ### Supporting Files
 
-- **`scripts/scheduler.ts`**: Cron job scheduling
-- **`scripts/update-s3-data.ts`**: Data refresh script
-- **`types/github.ts`**: Type definitions
+- **`src/lib/server/scheduler.ts`**: Cron job scheduling
+- **`scripts/data-updater.ts`**: Data refresh script
+- **`src/types/github.ts`**: Type definitions
 
 ## Environment Variables
 
@@ -142,7 +142,7 @@ aws s3 ls s3://$S3_BUCKET/github/
 ## Handling GitHub 202 "stats still generating" responses
 
 GitHub's `/stats/contributors` endpoint often returns **HTTP 202** for several minutes while it prepares a repository's statistics.  
-Our pipeline now recognises this explicitly:
+Our pipeline now recognizes this explicitly:
 
 - `fetchContributorStats` performs a configurable retry loop (env vars `GITHUB_STATS_PENDING_MAX_ATTEMPTS`, `GITHUB_STATS_PENDING_DELAY_MS`).
   - If the endpoint keeps returning 202 after the configured attempts it throws `GitHubContributorStatsPendingError`.
