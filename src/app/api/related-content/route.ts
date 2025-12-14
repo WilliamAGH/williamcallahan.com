@@ -227,10 +227,16 @@ export async function GET(request: NextRequest) {
 
     const lockKey = `related-content:${sourceType}:${sourceId}`;
 
-    // Parse optional parameters
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = parseInt(searchParams.get("limit") || "10", 10);
-    const maxPerType = parseInt(searchParams.get("maxPerType") || String(DEFAULT_MAX_PER_TYPE), 10);
+    // Parse optional parameters with validation
+    const pageRaw = parseInt(searchParams.get("page") || "1", 10);
+    const limitRaw = parseInt(searchParams.get("limit") || "10", 10);
+    const maxPerTypeRaw = parseInt(searchParams.get("maxPerType") || String(DEFAULT_MAX_PER_TYPE), 10);
+
+    // Sanitize pagination params to prevent NaN/Infinity/negative values
+    const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= 100 ? limitRaw : 10;
+    const maxPerType =
+      Number.isFinite(maxPerTypeRaw) && maxPerTypeRaw > 0 ? Math.min(maxPerTypeRaw, 500) : DEFAULT_MAX_PER_TYPE;
     // parseTypesParam is now module-level and uses centralized config
     const includeTypes = parseTypesParam(searchParams.get("includeTypes"));
     const excludeTypes = parseTypesParam(searchParams.get("excludeTypes"));
@@ -249,6 +255,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Parse excludeIds early to determine if we should skip caching
+    // (excludeIds affects computed results but shouldn't pollute the cache)
+    const excludeIdsParam = searchParams.get("excludeIds");
+    const hasExcludeIds = Boolean(excludeIdsParam && excludeIdsParam.split(",").some(s => s.trim().length > 0));
+
     // Check cache first
     let cached = ServerCacheInstance.getRelatedContent(sourceType, sourceId);
 
@@ -264,8 +275,12 @@ export async function GET(request: NextRequest) {
           }
 
           const allContent = await aggregateAllContent();
-          // Parse excludeIds for this request
-          const excludeIds = searchParams.get("excludeIds")?.split(",") || [];
+          // Parse excludeIds for this request (use pre-parsed param)
+          const excludeIds =
+            excludeIdsParam
+              ?.split(",")
+              .map(s => s.trim())
+              .filter(Boolean) || [];
           excludeIds.push(sourceId);
 
           const candidates = allContent.filter(item => !(item.type === sourceType && excludeIds.includes(item.id)));
@@ -273,8 +288,10 @@ export async function GET(request: NextRequest) {
           // Get a large number of similar items to allow for pagination
           const similar = findMostSimilar(source, candidates, 100, weights);
 
-          // Only cache canonical computations (no debug/custom weights)
-          if (!debug && !hasCustomWeights) {
+          // Only cache canonical computations (no debug/custom weights/excludeIds)
+          // excludeIds affects the computed candidates, so caching with excludeIds
+          // would pollute the cache with incomplete results for non-excluded requests
+          if (!debug && !hasCustomWeights && !hasExcludeIds) {
             ServerCacheInstance.setRelatedContent(sourceType, sourceId, {
               items: similar,
               timestamp: now,
@@ -301,18 +318,16 @@ export async function GET(request: NextRequest) {
       items = filterByTypes(items, includeTypes, excludeTypes);
     }
     // Honor excludeIds on cache hits - filter BEFORE per-type limiting to avoid under-filled results
-    const excludeIds = (searchParams.get("excludeIds")?.split(",") || []).map(s => s.trim());
+    const excludeIds = (excludeIdsParam?.split(",") || []).map(s => s.trim()).filter(Boolean);
     excludeIds.push(sourceId);
     const excludeSet = new Set(excludeIds);
 
     // Remove excluded IDs first (type-scoped to avoid cross-type ID collisions)
     const eligible = items.filter(i => !(i.type === sourceType && excludeSet.has(i.id)));
 
-    // Sanitize maxPerType to handle malformed query params
-    const safeMaxPerType = Number.isFinite(maxPerType) ? maxPerType : DEFAULT_MAX_PER_TYPE;
-
     // Apply per-type limits using shared utility (maxTotal=1000 is effectively unlimited for pagination)
-    const sortedItems = limitByTypeAndTotal(eligible, safeMaxPerType, 1000);
+    // Note: maxPerType is already sanitized at parse time (positive, finite, capped at 500)
+    const sortedItems = limitByTypeAndTotal(eligible, maxPerType, 1000);
 
     // Apply pagination
     const totalItems = sortedItems.length;
