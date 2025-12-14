@@ -16,7 +16,7 @@ import { normalizeTagsToStrings, tagToSlug } from "../src/lib/utils/tag-utils";
 import { calculateBookmarksChecksum } from "../src/lib/bookmarks/utils";
 import { readJsonS3 } from "../src/lib/s3-utils";
 import { getEnvironment, getEnvironmentSuffix } from "@/lib/config/environment";
-import type { BookmarkS3Record } from "@/types/bookmark";
+import type { BookmarkS3Record, BookmarkSlugMapping } from "@/types/bookmark";
 
 // Get CDN URL from environment or use default
 const CDN_URL = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
@@ -129,15 +129,27 @@ function loadExistingLocalJson(relativePath: string): unknown | null {
   }
 }
 
-function embedSlug(bookmark: BookmarkS3Record, slugMapping: any): BookmarkS3Record {
+function embedSlug(bookmark: BookmarkS3Record, slugMapping: Partial<BookmarkSlugMapping> | null): BookmarkS3Record {
   if (bookmark.slug) return bookmark;
   const slug = slugMapping?.slugs?.[bookmark.id as string]?.slug;
   return slug ? { ...bookmark, slug } : bookmark;
 }
 
-function buildPaginationArtifacts(rawBookmarks: unknown, slugMapping: any, index: any, pagePrefix: string): void {
+function buildPaginationArtifacts(
+  rawBookmarks: unknown,
+  slugMapping: Partial<BookmarkSlugMapping> | null,
+  index: unknown,
+  pagePrefix: string,
+): void {
   if (!Array.isArray(rawBookmarks) || rawBookmarks.length === 0) return;
-  const pageSize = typeof index?.pageSize === "number" && index.pageSize > 0 ? index.pageSize : 24;
+  // Extract pageSize from index with proper type narrowing
+  let pageSize = 24;
+  if (typeof index === "object" && index !== null && "pageSize" in index) {
+    const rawPageSize = (index as Record<string, unknown>).pageSize;
+    if (typeof rawPageSize === "number" && rawPageSize > 0) {
+      pageSize = rawPageSize;
+    }
+  }
   const bookmarks = rawBookmarks.map(b => embedSlug(b as BookmarkS3Record, slugMapping));
   const totalPages = Math.max(1, Math.ceil(bookmarks.length / pageSize));
   for (let page = 1; page <= totalPages; page++) {
@@ -147,7 +159,12 @@ function buildPaginationArtifacts(rawBookmarks: unknown, slugMapping: any, index
   }
 }
 
-function buildTagArtifacts(rawBookmarks: unknown, slugMapping: any, tagPrefix: string, tagIndexPrefix: string): void {
+function buildTagArtifacts(
+  rawBookmarks: unknown,
+  slugMapping: Partial<BookmarkSlugMapping> | null,
+  tagPrefix: string,
+  tagIndexPrefix: string,
+): void {
   if (!Array.isArray(rawBookmarks) || rawBookmarks.length === 0) return;
   const tagBuckets = new Map<string, BookmarkS3Record[]>();
   rawBookmarks.forEach(item => {

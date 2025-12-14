@@ -59,7 +59,7 @@ async function auditS3Paths() {
     checkPath(BOOKMARKS_S3_PATHS.HEARTBEAT),
     checkPath(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}1.json`),
     checkPath(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}2.json`),
-    checkPath("json/bookmarks/slug-mapping.json"), // New slug mapping
+    checkPath(BOOKMARKS_S3_PATHS.SLUG_MAPPING),
   ]);
 
   // 2. Check Content Graph Paths (NEW)
@@ -186,7 +186,7 @@ async function auditS3Paths() {
   // Check slug mapping
   console.log("\n🔗 SLUG MAPPING CHECK:");
   try {
-    const slugMapping = await readJsonS3<BookmarkSlugMapping>("json/bookmarks/slug-mapping.json");
+    const slugMapping = await readJsonS3<BookmarkSlugMapping>(BOOKMARKS_S3_PATHS.SLUG_MAPPING);
     if (slugMapping) {
       const slugCount = Object.keys(slugMapping.slugs || {}).length;
       const reverseCount = Object.keys(slugMapping.reverseMap || {}).length;
