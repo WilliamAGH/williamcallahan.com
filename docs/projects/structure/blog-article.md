@@ -14,7 +14,6 @@ The "blog-article" functionality encompasses components and utilities that manag
 - **components/features/blog/blog-article/blog-wrapper.tsx**: Dynamic import wrapper for hydration optimization of blog articles.
 - **components/features/blog/blog-article/index.ts**: Barrel file for blog article components.
 - **components/features/blog/blog-article/mdx-content.tsx**: MDX renderer with styled elements for blog article content. Uses an internal, cached evaluator (not `next-mdx-remote`'s hook-driven renderer) so React 19 server renders don't trip the `useState` dispatcher error.
-  - ** CRITICAL**: XSS vulnerability in link handling - accepts `javascript:` URLs
 - **components/features/blog/blog-article/software-schema.tsx**: Inserts SoftwareApplication schema.org metadata for SEO in blog articles.
 - **components/features/blog/blog-article/mdx-table.server.tsx**: Server-side component for styled table rendering in MDX content.
 - **components/ui/simple-tabs.client.tsx**: A client-side component that enhances tab functionality for MDX content in blog articles, adding interactivity to switch between tabs dynamically.
@@ -29,7 +28,6 @@ The "blog-article" functionality encompasses components and utilities that manag
   - Returns posts array with count
   - Handles errors with proper formatting
 - **app/api/twitter-image/[...path]/route.ts**: API route for proxying Twitter images used in blog article embeds.
-  - ** HIGH**: Path traversal vulnerability - regex allows `..` in paths
   - Implements retry logic with exponential backoff
   - Caches images for 24 hours with stale-while-revalidate
   - Validates against specific Twitter CDN path patterns
@@ -38,13 +36,9 @@ The "blog-article" functionality encompasses components and utilities that manag
 ### Pages
 
 - **app/blog/[slug]/page.tsx**: Individual blog post page
-  - ** HIGH**: Incorrectly serializes MDX object for SEO instead of raw content
   - Implements ISR with 1-hour revalidation
   - Special handling for software-related posts
 - **app/blog/tags/[tagSlug]/page.tsx**: Tag filtering page
-  - ** HIGH**: Inefficient synchronous file I/O and code duplication
-  - Blocks Node.js event loop with `readFileSync`
-  - Duplicates logic from centralized blog utilities
 
 ### Content Files
 
@@ -61,7 +55,6 @@ The "blog-article" functionality encompasses components and utilities that manag
   - Combines posts from multiple sources
   - Proper error handling and logging
 - **lib/blog/mdx.ts**: MDX processing utilities
-  - ** LOW**: Uses `@ts-nocheck` hiding potential type issues
   - Excellent caching strategy with file modification checks
   - Robust error handling with fallbacks
 - **lib/blog/validation.ts**: Blog post validation
@@ -103,59 +96,6 @@ The components work together to enrich static MDX content with dynamic, client-s
 - **Styling (`simple-tabs.css`):**
   - The CSS uses the `data-active-tab` attribute to control the visibility of the corresponding tab panel (`display: block`).
   - **Limitation:** The CSS selectors are hardcoded to specific tab IDs (`pnpm`, `bun`, `npm`, `yarn`), meaning the component only works for these exact tabs out-of-the-box.
-
-## Security Issues & Vulnerabilities
-
-### CRITICAL Issues
-
-1. **XSS in MDX Link Rendering** (`components/features/blog/blog-article/mdx-content.tsx:410`)
-   - The custom `<a>` tag renderer doesn't sanitize `href` attributes
-   - Allows dangerous protocols like `javascript:` and `data:`
-   - **Impact**: Arbitrary JavaScript execution via malicious links in MDX content
-   - **Fix**: Block unsafe protocols, only allow `http`, `https`, `mailto`, `tel`
-
-### HIGH Priority Issues
-
-1. **Path Traversal in Twitter Image Proxy** (`app/api/twitter-image/[...path]/route.ts:80`)
-   - Regex validation allows `.` characters without restriction
-   - Enables path traversal using `../` patterns
-   - **Impact**: Potential access to unintended resources on pbs.twimg.com
-   - **Fix**: Explicitly check for and reject paths containing `..`
-
-2. **Inefficient Synchronous File I/O** (`app/blog/tags/[tagSlug]/page.tsx:47`)
-   - Uses `fs.readFileSync` blocking the Node.js event loop
-   - Duplicates logic from centralized blog utilities
-   - **Impact**: Performance degradation, maintenance burden
-   - **Fix**: Use centralized async `getAllPosts` from `lib/blog.ts`
-
-3. **Incorrect SEO Data Serialization** (`app/blog/[slug]/page.tsx:121,148`)
-   - Serializes MDXRemoteSerializeResult object instead of raw content
-   - **Impact**: Useless JSON in structured data, harming SEO
-   - **Fix**: Use `post.rawContent` for `articleBody` field
-
-### MEDIUM Priority Issues
-
-1. **Duplicate Metadata Generation Logic** (`app/blog/[slug]/page.tsx`)
-   - Nearly identical code for software vs regular posts
-   - **Impact**: Code maintainability and readability
-   - **Fix**: Refactor common logic into single return path
-
-2. **Brittle Query Parameter Parsing** (`app/api/twitter-image/[...path]/route.ts:85`)
-   - Manual string splitting by `?` is error-prone
-   - **Impact**: Edge case handling issues
-   - **Fix**: Use URL API for robust parsing
-
-### LOW Priority Issues
-
-1. **TypeScript Checking Disabled** (`lib/blog/mdx.ts:4`)
-   - File-level `@ts-nocheck` hides potential type errors
-   - **Impact**: Technical debt, hidden type issues
-   - **Fix**: Use targeted `@ts-expect-error` comments
-
-2. **Hardcoded Post Type List** (`app/blog/[slug]/page.tsx:46`)
-   - `SOFTWARE_POSTS` array requires code changes for new posts
-   - **Impact**: Poor scalability
-   - **Fix**: Move to frontmatter field like `postType: 'software'`
 
 ## Performance Considerations
 

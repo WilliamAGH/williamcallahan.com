@@ -173,16 +173,7 @@ The testing setup is highly configured to enforce our standards. All test-relate
 
 With the [Jest extension for VSCode](https://marketplace.visualstudio.com/items?itemName=Orta.vscode-jest), you can run and debug tests directly from your editor. The extension should automatically detect and use our Jest configuration.
 
-## 5. Security & Performance Issues
-
-This section is retained from previous documentation for awareness.
-
-### MEDIUM Priority Issues
-
-1. **Shell Injection Risk** (`scripts/setup-test-alias.sh`): Uses unescaped shell expansion. **Fix**: Use proper quoting or safer methods if this script is ever modified.
-2. **Synchronous File Operations** (`scripts/check-file-naming.ts`): Uses sync file system calls. **Fix**: Refactor to use async `fs.promises` if performance becomes an issue.
-
-## 6. Documentation & Further Learning
+## 5. Documentation & Further Learning
 
 Staying current is critical. Use these resources to find the latest information.
 
