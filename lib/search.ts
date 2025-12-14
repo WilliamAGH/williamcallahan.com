@@ -924,6 +924,11 @@ function buildBooksIndex(books: Book[]): MiniSearch<Book> {
     idField: "id",
     searchOptions: { boost: { title: 2 }, fuzzy: 0.2, prefix: true },
     extractField: (document, fieldName) => {
+      // CRITICAL: MiniSearch uses extractField for ALL fields including the ID field.
+      // We must return the actual ID, not an empty string, or all docs get duplicate ID "".
+      if (fieldName === "id") {
+        return document.id;
+      }
       // authors is string[] - join for MiniSearch text indexing
       if (fieldName === "authors") {
         return Array.isArray(document.authors) ? document.authors.join(" ") : "";
