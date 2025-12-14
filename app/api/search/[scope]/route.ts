@@ -44,7 +44,7 @@ function resolveRequestUrl(request: NextRequest): URL {
  * @param params - Route parameters including the search scope.
  * @returns A JSON response containing the search results or an error message.
  */
-export async function GET(request: NextRequest, { params }: { params: { scope: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ scope: string }> }) {
   // connection(): ensure this handler always runs at request time under cacheComponents
   await connection();
   // CRITICAL: Call noStore() FIRST to prevent Next.js from caching ANY response
@@ -52,13 +52,15 @@ export async function GET(request: NextRequest, { params }: { params: { scope: s
   if (typeof noStore === "function") {
     noStore();
   }
+  // Next.js 16: params is a Promise that must be awaited
+  const resolvedParams = await params;
   if (isProductionBuildPhase()) {
     return NextResponse.json(
       {
         data: [],
         meta: {
           query: "",
-          scope: params.scope.toLowerCase(),
+          scope: resolvedParams.scope.toLowerCase(),
           count: 0,
           timestamp: new Date().toISOString(),
           buildPhase: true,
@@ -75,13 +77,13 @@ export async function GET(request: NextRequest, { params }: { params: { scope: s
     const requestUrl = resolveRequestUrl(request);
     const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q") ?? "";
-    const scopeParam = params.scope.toLowerCase();
+    const scopeParam = resolvedParams.scope.toLowerCase();
 
     // Validate scope (use VALID_SCOPES directly - "all" scope should use /api/search/all endpoint)
     if (!VALID_SCOPES.includes(scopeParam as (typeof VALID_SCOPES)[number])) {
       return NextResponse.json(
         {
-          error: `Invalid search scope: ${params.scope}. Use /api/search/all for site-wide search.`,
+          error: `Invalid search scope: ${resolvedParams.scope}. Use /api/search/all for site-wide search.`,
           validScopes: VALID_SCOPES,
         },
         { status: 400, headers: withNoStoreHeaders() },
@@ -162,7 +164,7 @@ export async function GET(request: NextRequest, { params }: { params: { scope: s
   } catch (unknownErr) {
     // Handle unknown errors safely without unsafe assignments/calls
     const err = unknownErr instanceof Error ? unknownErr : new Error(String(unknownErr));
-    console.error(`Scoped search API error for scope ${params.scope}:`, err);
-    return createSearchErrorResponse(`Failed to perform ${params.scope} search`, err.message);
+    console.error(`Scoped search API error for scope ${resolvedParams.scope}:`, err);
+    return createSearchErrorResponse(`Failed to perform ${resolvedParams.scope} search`, err.message);
   }
 }

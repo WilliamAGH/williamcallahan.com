@@ -38,7 +38,10 @@ const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 
 // Per-source timeout in milliseconds (prevents slow sources from blocking entire search)
-const SOURCE_TIMEOUT_MS = 3000;
+// Note: Cold starts require S3 index loading which takes 2-4 seconds. A 3-second timeout
+// causes all searches to fail on cold starts. Using 10 seconds to accommodate S3 load time
+// while still protecting against hung external services (like Audiobookshelf API).
+const SOURCE_TIMEOUT_MS = 10000;
 
 /**
  * Wraps a promise with a timeout. Returns empty array if timeout is exceeded.
