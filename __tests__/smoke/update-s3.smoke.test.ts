@@ -156,7 +156,7 @@ describe("Scheduler and data-updater flag consistency", () => {
   it("scheduler should use the same GitHub flag as data-updater expects", async () => {
     const fs = await import("node:fs/promises");
 
-    const schedulerContent = await fs.readFile("lib/server/scheduler.ts", "utf-8");
+    const schedulerContent = await fs.readFile("src/lib/server/scheduler.ts", "utf-8");
     const dataUpdaterContent = await fs.readFile("scripts/data-updater.ts", "utf-8");
 
     // Scheduler should use DATA_UPDATER_FLAGS.GITHUB, NOT a literal --github-activity string
@@ -174,7 +174,7 @@ describe("Scheduler and data-updater flag consistency", () => {
   it("scheduler should use correct flags for all job types", async () => {
     const fs = await import("node:fs/promises");
 
-    const schedulerContent = await fs.readFile("lib/server/scheduler.ts", "utf-8");
+    const schedulerContent = await fs.readFile("src/lib/server/scheduler.ts", "utf-8");
 
     // Verify all spawn commands use centralized flag constants (not hardcoded strings)
     expect(schedulerContent).toContain("DATA_UPDATER_FLAGS.BOOKMARKS");

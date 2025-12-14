@@ -1,7 +1,7 @@
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 import { renderToString } from "react-dom/server";
 import React, { type JSX } from "react";
-import { GlobalWindowRegistryProvider } from "../../lib/context/global-window-registry-context.client";
+import { GlobalWindowRegistryProvider } from "../../src/lib/context/global-window-registry-context.client";
 import type { PageComponentModule } from "@/types/test";
 // The import is correct - we're importing the component, not using it as a type
 

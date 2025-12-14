@@ -1,7 +1,7 @@
 // Mock only the generateUniqueSlug function
-jest.mock("../../../lib/utils/domain-utils", () => {
-  const actual = jest.requireActual<typeof import("../../../lib/utils/domain-utils")>(
-    "../../../lib/utils/domain-utils",
+jest.mock("../../../src/lib/utils/domain-utils", () => {
+  const actual = jest.requireActual<typeof import("../../../src/lib/utils/domain-utils")>(
+    "../../../src/lib/utils/domain-utils",
   );
   return {
     ...actual,
@@ -24,8 +24,8 @@ import {
   slugToDomain,
   getDisplayDomain,
   titleToSlug,
-} from "../../../lib/utils/domain-utils";
-import { isContentSharingDomain } from "../../../lib/config/content-sharing-domains";
+} from "../../../src/lib/utils/domain-utils";
+import { isContentSharingDomain } from "../../../src/lib/config/content-sharing-domains";
 
 describe("Domain Utilities", () => {
   describe("normalizeDomain", () => {

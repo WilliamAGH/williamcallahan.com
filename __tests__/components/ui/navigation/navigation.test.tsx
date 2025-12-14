@@ -14,7 +14,7 @@ const mockUseWindowSize = jest.fn();
 
 // Mock the useWindowSize hook using mock.module
 // Use relative path for Jest compatibility
-// import { useWindowSize } from '../../../../lib/hooks/use-window-size.client'; // Remove original import
+// import { useWindowSize } from '../../../../src/lib/hooks/use-window-size.client'; // Remove original import
 jest.mock("@/lib/hooks/use-window-size.client", () => ({
   useWindowSize: () => mockUseWindowSize(),
 }));

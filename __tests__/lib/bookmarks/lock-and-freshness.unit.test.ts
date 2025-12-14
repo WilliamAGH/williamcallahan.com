@@ -59,7 +59,7 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
       refreshAndPersistBookmarks,
       initializeBookmarksDataAccess,
       cleanupBookmarksDataAccess,
-    } = await import("../../../lib/bookmarks/bookmarks-data-access.server");
+    } = await import("../../../src/lib/bookmarks/bookmarks-data-access.server");
 
     initializeBookmarksDataAccess();
 
