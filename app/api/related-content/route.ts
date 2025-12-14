@@ -19,6 +19,7 @@ import type {
   SimilarityWeights,
   NormalizedContent,
 } from "@/types/related-content";
+import { getEnabledContentTypes } from "@/config/related-content.config";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
@@ -30,6 +31,21 @@ function resolveRequestUrl(request: NextRequest): URL {
 // Default options
 const DEFAULT_MAX_PER_TYPE = 3;
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours - content changes infrequently
+
+/**
+ * Parse a comma-separated list of content types from query params.
+ * Filters to only enabled types in current environment.
+ */
+function parseTypesParam(value: string | null): RelatedContentType[] | undefined {
+  if (!value) return undefined;
+  const enabledTypes = new Set(getEnabledContentTypes());
+  const parsed = value
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean)
+    .filter((t): t is RelatedContentType => enabledTypes.has(t as RelatedContentType));
+  return parsed.length ? parsed : undefined;
+}
 
 /**
  * Convert normalized content to related content item
@@ -172,8 +188,9 @@ export async function GET(request: NextRequest) {
     const requestUrl = resolveRequestUrl(request);
     const searchParams = requestUrl.searchParams;
     const sourceTypeRaw = searchParams.get("type");
-    const allowedTypes = new Set<RelatedContentType>(["bookmark", "blog", "investment", "project", "book"]);
-    const sourceType = allowedTypes.has(sourceTypeRaw as RelatedContentType)
+    // Use centralized config for enabled content types (filters production-hidden types)
+    const enabledTypes = new Set(getEnabledContentTypes());
+    const sourceType = enabledTypes.has(sourceTypeRaw as RelatedContentType)
       ? (sourceTypeRaw as RelatedContentType)
       : null;
 
@@ -217,17 +234,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "10", 10);
     const maxPerType = parseInt(searchParams.get("maxPerType") || String(DEFAULT_MAX_PER_TYPE), 10);
-    const parseTypesParam = (value: string | null): RelatedContentType[] | undefined => {
-      if (!value) return undefined;
-      const allowed: RelatedContentType[] = ["bookmark", "blog", "investment", "project", "book"];
-      const set = new Set(allowed);
-      const parsed = value
-        .split(",")
-        .map(s => s.trim())
-        .filter(Boolean)
-        .filter((t): t is RelatedContentType => set.has(t as RelatedContentType));
-      return parsed.length ? parsed : undefined;
-    };
+    // parseTypesParam is now module-level and uses centralized config
     const includeTypes = parseTypesParam(searchParams.get("includeTypes"));
     const excludeTypes = parseTypesParam(searchParams.get("excludeTypes"));
     const debug = searchParams.get("debug") === "true";

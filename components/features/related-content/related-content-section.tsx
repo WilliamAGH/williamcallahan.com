@@ -1,43 +1,43 @@
 /**
  * RelatedContentSection Component
  *
- * Displays a section of related content items organized by type
+ * Displays a section of related content items organized by type.
+ * Content types are ordered dynamically: same type as source appears first,
+ * and production-hidden types (like thoughts) are filtered out automatically.
  */
 
 import { RelatedContentCard } from "./related-content-card";
+import { getOrderedContentTypes, isContentTypeEnabled } from "@/config/related-content.config";
 import type { RelatedContentItem, RelatedContentType, RelatedContentSectionProps } from "@/types/related-content";
 
 /**
- * Preferred display order for content types.
- * Books and investments are intentionally last as they serve as supplementary context.
- */
-const CONTENT_TYPE_ORDER: readonly RelatedContentType[] = [
-  "bookmark",
-  "blog",
-  "project",
-  "thought",
-  "book",
-  "investment",
-] as const;
-
-/**
  * Group items by type for better organization.
- * Returns entries in a consistent order defined by CONTENT_TYPE_ORDER,
- * ensuring investments always appear last regardless of insertion order.
+ * Returns entries in a consistent order based on sourceType and environment.
+ * Same content type as source appears first for better UX.
  */
-function groupItemsByType(items: RelatedContentItem[]): Record<RelatedContentType, RelatedContentItem[]> {
-  // First pass: collect items by type
+function groupItemsByType(
+  items: RelatedContentItem[],
+  sourceType?: RelatedContentType,
+): Record<RelatedContentType, RelatedContentItem[]> {
+  // Get the ordered content types (filtered by environment, sourceType first)
+  const orderedTypes = getOrderedContentTypes(sourceType);
+
+  // First pass: collect items by type (only enabled types)
   const collected = {} as Record<RelatedContentType, RelatedContentItem[]>;
   for (const item of items) {
+    // Skip items of disabled content types
+    if (!isContentTypeEnabled(item.type)) {
+      continue;
+    }
     if (!collected[item.type]) {
       collected[item.type] = [];
     }
     collected[item.type].push(item);
   }
 
-  // Second pass: build ordered result following CONTENT_TYPE_ORDER
+  // Second pass: build ordered result following dynamic type order
   const grouped = {} as Record<RelatedContentType, RelatedContentItem[]>;
-  for (const type of CONTENT_TYPE_ORDER) {
+  for (const type of orderedTypes) {
     if (collected[type]?.length) {
       grouped[type] = collected[type];
     }
@@ -73,8 +73,9 @@ export function RelatedContentSection({
   items,
   className = "",
   showScores = false,
+  sourceType,
 }: RelatedContentSectionProps) {
-  const grouped = groupItemsByType(items);
+  const grouped = groupItemsByType(items, sourceType);
   const hasMultipleTypes = Object.keys(grouped).length > 1;
 
   if (items.length === 0) {
