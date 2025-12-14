@@ -71,7 +71,12 @@ class AsyncOperationsMonitor {
       operation.error = error.message;
       const duration = operation.endTime - operation.startTime;
       const statusText = status === "timeout" ? "timed out" : "failed";
-      console.error(`[AsyncMonitor] Operation "${operation.name}" ${statusText} after ${duration}ms:`, error.message);
+      // Suppress prerender abort errors - these are expected when Next.js completes prerendering
+      // before async operations finish. They're not true failures, just lifecycle terminations.
+      const isPrerenderAbort = error.message.includes("During prerendering, fetch() rejects");
+      if (!isPrerenderAbort) {
+        console.error(`[AsyncMonitor] Operation "${operation.name}" ${statusText} after ${duration}ms:`, error.message);
+      }
     }
     this.clearTimeout(id);
   }
