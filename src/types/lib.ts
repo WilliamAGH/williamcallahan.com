@@ -302,22 +302,14 @@ export interface CircuitBreakerConfig {
 }
 
 // =============================================================================
-// SEARCH SYSTEM - Generic search infrastructure
+// SEARCH SYSTEM - Re-export from schemas + infrastructure types
 // =============================================================================
 
-export type SearchScope =
-  | "all"
-  | "bookmarks"
-  | "blog"
-  | "projects"
-  | "investments"
-  | "experience"
-  | "education"
-  | "posts"
-  | "books"
-  | "thoughts"
-  | "tags";
-export type SearchResultType = "bookmark" | "blog-post" | "project" | "page" | "tag";
+// Core search types from Zod schemas (source of truth)
+export type { SearchScope, SearchResultType, SearchResult, ScoredResult } from "./schemas/search";
+
+// Import for use in local interfaces
+import type { SearchScope, SearchResult } from "./schemas/search";
 
 /** Search query specification */
 export interface SearchQuery {
@@ -327,21 +319,6 @@ export interface SearchQuery {
   offset?: number;
   includeHighlights?: boolean;
 }
-
-/** Individual search result */
-export interface SearchResult {
-  id: string;
-  type: SearchResultType;
-  title: string;
-  description?: string;
-  url: string;
-  score: number;
-  highlights?: string[];
-  metadata?: Record<string, unknown>;
-}
-
-/** Search result with relevance score wrapper (used by searchContent) */
-export type ScoredResult<T> = { item: T; score: number };
 
 /** Search operation response */
 export interface SearchResponse {
