@@ -78,6 +78,9 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
 
+  // Use a stable S3-hosted asset and mark it unoptimized to avoid the Next image optimizer allowlist edge cases.
+  const aventureIconSrc = "https://s3-storage.callahan.cloud/images/ui-components/aVenture-research-button.png";
+
   // Build tag display (max 6 tags to fill two rows)
   const displayTags = metadata.tags?.slice(0, 6) || [];
   const typeBadge = getTypeBadge(type);
@@ -164,7 +167,6 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
             <div className="flex-1 min-w-0 flex items-start gap-2">
               <h3 className="flex-1 font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">{title}</h3>
               {/* aVenture research link - inline with company name */}
-              {/* Using plain <img> to avoid hydration mismatch with next/image unoptimized prop */}
               {typeof aventureHref === "string" && (
                 <ExternalLink
                   href={aventureHref}
@@ -172,14 +174,13 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
                   showIcon={false}
                   className="flex-shrink-0 inline-flex items-center bg-slate-100 dark:bg-transparent hover:bg-slate-200 dark:hover:bg-gray-700/50 p-1.5 rounded-full transition-colors pointer-events-auto relative z-10"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="https://s3-storage.callahan.cloud/images/ui-components/aVenture-research-button.png"
+                  <Image
+                    src={aventureIconSrc}
                     alt="aVenture"
                     width={14}
                     height={14}
                     className="inline-block h-3.5 w-3.5"
-                    loading="lazy"
+                    unoptimized={true}
                   />
                 </ExternalLink>
               )}
