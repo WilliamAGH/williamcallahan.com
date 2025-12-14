@@ -300,19 +300,24 @@ export async function GET(request: NextRequest) {
     if (includeTypes || excludeTypes) {
       items = filterByTypes(items, includeTypes, excludeTypes);
     }
-    // Honor excludeIds on cache hits
+    // Honor excludeIds on cache hits - filter BEFORE per-type limiting to avoid under-filled results
     const excludeIds = (searchParams.get("excludeIds")?.split(",") || []).map(s => s.trim());
     excludeIds.push(sourceId);
+    const excludeSet = new Set(excludeIds);
+
+    // Remove excluded IDs first (type-scoped to avoid cross-type ID collisions)
+    const eligible = items.filter(i => !(i.type === sourceType && excludeSet.has(i.id)));
+
+    // Sanitize maxPerType to handle malformed query params
+    const safeMaxPerType = Number.isFinite(maxPerType) ? maxPerType : DEFAULT_MAX_PER_TYPE;
 
     // Apply per-type limits using shared utility (maxTotal=1000 is effectively unlimited for pagination)
-    const sortedItems = limitByTypeAndTotal(items, maxPerType, 1000);
+    const sortedItems = limitByTypeAndTotal(eligible, safeMaxPerType, 1000);
 
     // Apply pagination
-    // Remove excluded IDs before pagination (type-scoped to avoid cross-type ID collisions)
-    const withoutExcluded = sortedItems.filter(i => !(i.type === sourceType && excludeIds.includes(i.id)));
-    const totalItems = withoutExcluded.length;
+    const totalItems = sortedItems.length;
     const totalPages = Math.ceil(totalItems / limit);
-    const paginatedItems = withoutExcluded.slice((page - 1) * limit, page * limit);
+    const paginatedItems = sortedItems.slice((page - 1) * limit, page * limit);
 
     const responseData = paginatedItems
       .map(item => toRelatedContentItem(item))
