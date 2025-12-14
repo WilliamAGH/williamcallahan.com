@@ -856,26 +856,50 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     // Map search results back to SearchResult format
     const resultIds = new Set(searchResults.map(r => String(r.id)));
     const scoreById = new Map(searchResults.map(r => [String(r.id), r.score ?? 0] as const));
-    const results: SearchResult[] = bookmarks
-      .filter(b => resultIds.has(b.id))
-      .map(
-        (b): SearchResult => ({
-          id: b.id,
-          type: "bookmark" as const,
-          title: b.title,
-          description: b.description,
-          url: `/bookmarks/${b.slug}`,
-          score: scoreById.get(b.id) ?? 0,
-        }),
-      )
-      .toSorted((a, b) => b.score - a.score);
+    let results: SearchResult[];
+
+    if (bookmarks.length > 0) {
+      results = bookmarks
+        .filter(b => resultIds.has(b.id))
+        .map(
+          (b): SearchResult => ({
+            id: b.id,
+            type: "bookmark" as const,
+            title: b.title,
+            description: b.description,
+            url: `/bookmarks/${b.slug}`,
+            score: scoreById.get(b.id) ?? 0,
+          }),
+        )
+        .toSorted((a, b) => b.score - a.score);
+    } else {
+      const mappedHits = searchResults
+        .map(hit => {
+          if (!isRecord(hit)) return null;
+          const id = typeof hit.id === "string" ? hit.id : typeof hit.id === "number" ? String(hit.id) : null;
+          const slug = typeof hit.slug === "string" ? hit.slug : null;
+          if (!id || !slug) return null;
+
+          return {
+            id,
+            type: "bookmark" as const,
+            title: typeof hit.title === "string" && hit.title.length > 0 ? hit.title : slug,
+            description: typeof hit.description === "string" ? hit.description : "",
+            url: `/bookmarks/${slug}`,
+            score: typeof hit.score === "number" ? hit.score : (scoreById.get(id) ?? 0),
+          };
+        })
+        .filter((r): r is NonNullable<typeof r> => r !== null);
+
+      results = mappedHits.toSorted((a, b) => b.score - a.score);
+    }
 
     devLog("[searchBookmarks] results", { count: results.length });
     // CRITICAL: Do NOT cache empty results when the index itself was empty.
     // If bookmarks.length === 0, it means no bookmarks could be indexed (slug mapping unavailable).
     // Caching empty results would cause all subsequent searches to fail until cache expires (15 min).
     // Only cache if the index was healthy (has documents) - empty search results from a healthy index are valid.
-    if (bookmarks.length > 0) {
+    if (bookmarks.length > 0 || results.length > 0) {
       ServerCacheInstance.setSearchResults("bookmarks", query, results);
     } else if (results.length === 0) {
       envLogger.log(
