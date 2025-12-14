@@ -91,6 +91,7 @@ export class UnifiedImageService {
 
   /** Fetch image with caching (memory → S3 → origin) */
   async getImage(url: string, options: ImageServiceOptions = {}): Promise<ImageResult> {
+    const { retainBuffer, timeoutMs, ...imageOptions } = options;
     // Prefer streaming-to-S3 behavior over full processing in development when requested
     // Note: When enabled, we still attempt normal fetch logic; processing will be skipped in fetchAndProcess.
     if (!this.devStreamImagesToS3 && this.devProcessingDisabled) {
@@ -114,20 +115,24 @@ export class UnifiedImageService {
       null,
       `get-image-${url}`,
       async () => {
-        const s3Key = this.generateS3Key(url, options);
-        if (!options.forceRefresh && (await checkIfS3ObjectExists(s3Key))) {
+        const s3Key = this.generateS3Key(url, imageOptions);
+        if (!imageOptions.forceRefresh && (await checkIfS3ObjectExists(s3Key))) {
           return { contentType: inferContentTypeFromUrl(url), source: "s3", cdnUrl: this.getCdnUrl(s3Key) };
         }
-        if (this.isReadOnly) throw new Error(`Image not available in read-only mode: ${url}`);
+        if (this.isReadOnly && !imageOptions.skipUpload) {
+          throw new Error(`Image not available in read-only mode: ${url}`);
+        }
 
         let result: { buffer: Buffer; contentType: string; streamedToS3?: boolean } | null = null;
         try {
-          result = await this.fetchAndProcess(url, options);
-          if (!result.streamedToS3 && !this.isReadOnly) {
+          result = await this.fetchAndProcess(url, imageOptions);
+          if (!imageOptions.skipUpload && !result.streamedToS3 && !this.isReadOnly) {
             await this.uploadToS3(s3Key, result.buffer, result.contentType);
           }
+          const bufferForReturn =
+            retainBuffer && result.buffer ? Buffer.from(result.buffer) : (result.buffer ?? undefined);
           return {
-            buffer: result.buffer,
+            buffer: bufferForReturn,
             contentType: result.contentType,
             source: "origin",
             cdnUrl: this.getCdnUrl(s3Key),
@@ -138,7 +143,7 @@ export class UnifiedImageService {
           result = null;
         }
       },
-      { timeoutMs: this.CONFIG.FETCH_TIMEOUT, metadata: { url, options } },
+      { timeoutMs: timeoutMs ?? this.CONFIG.FETCH_TIMEOUT, metadata: { url, options: imageOptions } },
     );
   }
 
@@ -484,6 +489,7 @@ export class UnifiedImageService {
     url: string,
     options: ImageServiceOptions,
   ): Promise<{ buffer: Buffer; contentType: string; streamedToS3?: boolean }> {
+    const fetchTimeout = options.timeoutMs ?? this.CONFIG.FETCH_TIMEOUT;
     // Dev gating: skip fetch/processing entirely when disabled in development
     if (this.devProcessingDisabled && !this.devStreamImagesToS3) {
       const transparentPngBase64 =
@@ -507,7 +513,7 @@ export class UnifiedImageService {
 
     const response = await fetchWithTimeout(url, {
       headers: DEFAULT_IMAGE_HEADERS,
-      timeout: this.CONFIG.FETCH_TIMEOUT,
+      timeout: fetchTimeout,
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const contentType = response.headers.get("content-type");
@@ -515,17 +521,19 @@ export class UnifiedImageService {
 
     try {
       const s3Key = this.generateS3Key(url, options);
-      const streamed = await maybeStreamImageToS3(response, {
-        bucket: process.env.S3_BUCKET || "",
-        key: s3Key,
-        s3Client,
-      });
-      if (streamed) {
-        return {
-          buffer: Buffer.alloc(0),
-          contentType: contentType || "application/octet-stream",
-          streamedToS3: true,
-        };
+      if (!options.skipUpload) {
+        const streamed = await maybeStreamImageToS3(response, {
+          bucket: process.env.S3_BUCKET || "",
+          key: s3Key,
+          s3Client,
+        });
+        if (streamed) {
+          return {
+            buffer: Buffer.alloc(0),
+            contentType: contentType || "application/octet-stream",
+            streamedToS3: true,
+          };
+        }
       }
 
       // If streaming failed and we're in streaming mode, only fall back to buffering if memory allows

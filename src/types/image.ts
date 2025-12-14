@@ -86,6 +86,12 @@ export interface ImageServiceOptions {
   quality?: number;
   format?: "jpeg" | "jpg" | "png" | "webp" | "avif" | "gif";
   width?: number;
+  /** Skip S3 uploads (useful in dev/stubbed environments). */
+  skipUpload?: boolean;
+  /** Optional timeout override for fetch/process pipeline (milliseconds). */
+  timeoutMs?: number;
+  /** When true, returns a cloned buffer so callers can safely read it after internal zero-fill. */
+  retainBuffer?: boolean;
   /**
    * Logical grouping for the image (e.g. 'opengraph', 'logo').
    * Used exclusively for deterministic S3 key generation.
