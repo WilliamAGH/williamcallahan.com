@@ -378,9 +378,49 @@ export function loadIndexFromJSON<T>(serializedIndex: SerializedIndex): MiniSear
   // the index is already parsed into an object. We need to re-stringify it.
   const indexData =
     typeof serializedIndex.index === "string" ? serializedIndex.index : JSON.stringify(serializedIndex.index);
+  const { fields, storeFields } = extractFieldsFromSerializedIndex(serializedIndex);
 
   return MiniSearch.loadJSON(indexData, {
-    fields: [], // These are stored in the JSON
-    storeFields: [], // These are stored in the JSON
+    fields,
+    storeFields,
   });
+}
+
+function extractFieldsFromSerializedIndex(serializedIndex: SerializedIndex): {
+  fields: string[];
+  storeFields: string[];
+} {
+  const raw = typeof serializedIndex.index === "string" ? safeParseIndex(serializedIndex.index) : serializedIndex.index;
+
+  if (!isPlainRecord(raw)) {
+    return { fields: [], storeFields: [] };
+  }
+
+  const fields = isPlainRecord(raw.fieldIds) ? Object.keys(raw.fieldIds) : [];
+
+  let storeFields: string[] = [];
+  if (isPlainRecord(raw.storedFields)) {
+    const storedValues = Object.values(raw.storedFields);
+    for (const value of storedValues) {
+      if (isPlainRecord(value)) {
+        storeFields = Object.keys(value);
+        if (storeFields.length > 0) break;
+      }
+    }
+  }
+
+  return { fields, storeFields };
+}
+
+function safeParseIndex(index: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(index) as unknown;
+    return isPlainRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
