@@ -321,8 +321,8 @@ export async function GET(request: NextRequest) {
     const sortedItems = limited.toSorted((a, b) => b.score - a.score);
 
     // Apply pagination
-    // Remove excluded IDs before pagination
-    const withoutExcluded = sortedItems.filter(i => !excludeIds.includes(i.id));
+    // Remove excluded IDs before pagination (type-scoped to avoid cross-type ID collisions)
+    const withoutExcluded = sortedItems.filter(i => !(i.type === sourceType && excludeIds.includes(i.id)));
     const totalItems = withoutExcluded.length;
     const totalPages = Math.ceil(totalItems / limit);
     const paginatedItems = withoutExcluded.slice((page - 1) * limit, page * limit);
