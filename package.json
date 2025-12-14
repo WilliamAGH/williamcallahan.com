@@ -12,7 +12,7 @@
   },
   "scripts": {
     "update-s3": "bun scripts/data-updater.ts",
-    "scheduler": "bun lib/server/scheduler.ts",
+    "scheduler": "bun src/lib/server/scheduler.ts",
     "submit-sitemap": "bun scripts/submit-sitemap.ts",
     "analyze": "NODE_OPTIONS='--max-old-space-size=4096' ANALYZE=true next build",
     "prefetch": "bun scripts/data-updater.ts --bookmarks --github --logos",
@@ -35,7 +35,7 @@
     "docker:start": "docker run --platform=linux/amd64 -p 3010:3000 -e NODE_ENV=production -e NODE_OPTIONS='--max-old-space-size=3072 --max-semi-space-size=64 --expose-gc' williamcallahan-web:latest",
     "docker:prefetch": "docker run --platform=linux/amd64 -p 3010:3000 -e NODE_ENV=production -e CONTAINER=true williamcallahan-web:latest bun scripts/data-updater.ts --bookmarks --github --logos",
     "docker:populate-data": "docker run --platform=linux/amd64 -p 3010:3000 -e NODE_ENV=production -e CONTAINER=true williamcallahan-web:latest bun scripts/data-updater.ts --bookmarks --github --logos",
-    "monitor:status": "bun lib/health/status-monitor.server.ts",
+    "monitor:status": "bun src/lib/health/status-monitor.server.ts",
     "deploy:verify": "bun scripts/verify-deployment-readiness.ts",
     "deploy:verify:dev": "bun scripts/verify-deployment-readiness.ts development",
     "deploy:smoke-test": "bun scripts/smoke-test-production.ts",
