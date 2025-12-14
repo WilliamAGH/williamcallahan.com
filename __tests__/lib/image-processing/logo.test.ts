@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, jest, beforeEach, afterEach } from "@jest/globals";
-import { normalizeDomain } from "../../../lib/utils/domain-utils";
+import { normalizeDomain } from "../../../src/lib/utils/domain-utils";
 
 // Mock fetch globally
 global.fetch = jest.fn() as jest.MockedFunction<typeof fetch>;

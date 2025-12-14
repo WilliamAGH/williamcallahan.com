@@ -17,10 +17,10 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, beforeAll globally
-import type { GitHubActivityApiResponse } from "../../../../types/github";
+import type { GitHubActivityApiResponse } from "../../../../src/types/github";
 
 // Mock the server-cache module with inline functions
-jest.mock("../../../../lib/server-cache", () => ({
+jest.mock("../../../../src/lib/server-cache", () => ({
   ServerCacheInstance: {
     setGithubActivity: jest.fn(),
     getGithubActivity: jest.fn(),
@@ -37,7 +37,7 @@ jest.mock("../../../../lib/server-cache", () => ({
 }));
 
 // Import the mocked ServerCacheInstance after the mock is defined
-import { ServerCacheInstance } from "../../../../lib/server-cache";
+import { ServerCacheInstance } from "../../../../src/lib/server-cache";
 
 // Get references to the mocked functions
 const mockSetGithubActivity = ServerCacheInstance.setGithubActivity as jest.MockedFunction<

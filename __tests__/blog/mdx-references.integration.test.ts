@@ -13,7 +13,7 @@ jest.unmock("next-mdx-remote");
 import fs from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
-import { getMDXPost } from "../../lib/blog/mdx";
+import { getMDXPost } from "../../src/lib/blog/mdx";
 
 const POSTS_DIR = path.join(process.cwd(), "data/blog/posts");
 const FILE = path.join(POSTS_DIR, "how-much-does-techstars-invest.mdx");

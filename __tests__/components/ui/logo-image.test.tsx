@@ -28,7 +28,7 @@ jest.mock("next/image", () => ({
 // Static import after mocking
 // import Image from 'next/image'; // This import is no longer needed
 
-import { LogoImage } from "../../../components/ui/logo-image.client";
+import { LogoImage } from "../../../src/components/ui/logo-image.client";
 
 describe("LogoImage Conditional Rendering", () => {
   const regularUrlProps = {

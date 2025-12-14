@@ -1,22 +1,22 @@
 import "dotenv/config";
 import { describe, expect, it, jest, beforeAll, beforeEach } from "@jest/globals";
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
-import { refreshBookmarksData } from "../../../lib/bookmarks"; // This calls the actual external API
-import type { UnifiedBookmark } from "../../../types";
-import { BOOKMARKS_S3_PATHS } from "../../../lib/constants"; // To get the S3 file key
-import { readJsonS3 } from "../../../lib/s3-utils";
+import { refreshBookmarksData } from "../../../src/lib/bookmarks"; // This calls the actual external API
+import type { UnifiedBookmark } from "../../../src/types";
+import { BOOKMARKS_S3_PATHS } from "../../../src/lib/constants"; // To get the S3 file key
+import { readJsonS3 } from "../../../src/lib/s3-utils";
 
 // Response is already available globally via polyfills.js
 
 // Mock the S3 utilities
-jest.mock("../../../lib/s3-utils", () => ({
+jest.mock("../../../src/lib/s3-utils", () => ({
   readJsonS3: jest.fn(() => Promise.resolve([])),
   writeJsonS3: jest.fn(() => Promise.resolve()),
   deleteFromS3: jest.fn(() => Promise.resolve()),
 }));
 
 // Mock refreshBookmarksData to return mock data
-jest.mock("../../../lib/bookmarks", () => ({
+jest.mock("../../../src/lib/bookmarks", () => ({
   refreshBookmarksData: jest.fn(() =>
     Promise.resolve([
       {
