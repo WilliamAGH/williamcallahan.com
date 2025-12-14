@@ -435,9 +435,12 @@ export async function RelatedContent({
     // Apply limits via shared helper
     const finalItems = limitByTypeAndTotal(similar, maxPerType, maxTotal);
 
-    // Cache the results
+    // Cache the results only if no ID or tag filtering was applied
+    // excludeIds/excludeTags affect computed candidates, so caching with them
+    // would pollute the cache with incomplete results for non-excluded requests
     const setRelatedContent = ServerCacheInstance.setRelatedContent;
-    if (setRelatedContent && typeof setRelatedContent === "function") {
+    const hasExcludeFilters = excludeIds.length > 0 || excludeTags.length > 0;
+    if (setRelatedContent && typeof setRelatedContent === "function" && !hasExcludeFilters) {
       setRelatedContent.call(ServerCacheInstance, sourceType, actualSourceId, {
         items: finalItems,
         timestamp: getDeterministicTimestamp(),
