@@ -8,7 +8,22 @@ This document provides a high-level architectural overview of the repository for
 
 ## 1. Core Application Architecture
 
-The application follows a layered architecture with a clear separation of concerns, built around a central root layout.
+The application follows a layered architecture with a clear separation of concerns, built around a central root layout. All source code is organized under the `src/` directory:
+
+- `src/app/` - Next.js App Router pages and API routes
+- `src/components/` - React components (features, UI, shared)
+- `src/lib/` - Utility functions, services, and business logic
+- `src/hooks/` - Custom React hooks
+- `src/types/` - TypeScript types and Zod schemas
+- `src/styles/` - Global CSS and Tailwind configuration
+
+Root-level directories that remain outside `src/`:
+
+- `config/` - Build and tool configuration files
+- `data/` - Static data files and metadata
+- `public/` - Static assets served by Next.js
+- `scripts/` - Build and maintenance scripts
+- `docs/` - Project documentation
 
 ### Root Layout
 
@@ -44,19 +59,19 @@ High-level overview of the main application features. For detailed maps, see the
 
 The repository uses a standardized approach for component organization, leveraging "barrel files" to create clean, maintainable import/export APIs for different component modules.
 
-### Shared UI Components (`components/ui/`)
+### Shared UI Components (`src/components/ui/`)
 
-The `components/ui/` directory contains foundational, reusable UI components that provide consistent styling and interaction patterns across the application (e.g., `Card`, `CollapseDropdown`). This directory uses a barrel file (`components/ui/index.ts`) to simplify imports.
+The `src/components/ui/` directory contains foundational, reusable UI components that provide consistent styling and interaction patterns across the application (e.g., `Card`, `CollapseDropdown`). This directory uses a barrel file (`src/components/ui/index.ts`) to simplify imports.
 
 - **Responsibility:** To collect and re-export all shared, reusable UI components.
 - **Benefit:** Allows other parts of the application to import multiple UI components from a single, consistent path (e.g., `import { Card, Logo } from '@/components/ui'`) instead of referencing the full path to each component file.
 
-### Feature Components (`components/features/`)
+### Feature Components (`src/components/features/`)
 
-The `components/features/` directory contains high-level components that encapsulate major sections of the site (e.g., `Blog`, `Experience`, `Projects`). This directory also uses a barrel file (`components/features/index.ts`) as the main entry point for all major feature components.
+The `src/components/features/` directory contains high-level components that encapsulate major sections of the site (e.g., `Blog`, `Experience`, `Projects`). This directory also uses a barrel file (`src/components/features/index.ts`) as the main entry point for all major feature components.
 
-- **Purpose**: Instead of importing features from their deep file paths (e.g., `~/components/features/blog/blog.client`), other modules can import them directly from `~/components/features`.
-- **Benefit**: This simple pattern significantly cleans up import statements in the `app/` directory and other places where these high-level components are used.
+- **Purpose**: Instead of importing features from their deep file paths (e.g., `@/components/features/blog/blog.client`), other modules can import them directly from `@/components/features`.
+- **Benefit**: This simple pattern significantly cleans up import statements in the `src/app/` directory and other places where these high-level components are used.
 
 ### Implementation Note
 
