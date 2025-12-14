@@ -2,39 +2,21 @@
 
 Repo for [williamcallahan.com](https://williamcallahan.com). Code at [github.com/WilliamAGH/williamcallahan.com](https://github.com/WilliamAGH/williamcallahan.com).
 
-## Logo Caching
-
-Three-tier caching for company logos:
-
-1. **Memory** — Clears on restart
-2. **Filesystem** — `/app/data/images/logos` in container. Persists with Docker volume, otherwise ephemeral. Format: `{md5(domain)}-{source}.png`
-3. **External** — Fetches from Google, Clearbit, DuckDuckGo. Validates against placeholder detection, converts to PNG
-
-### Persistent Logo Storage
-
-Volume: `logo_storage` -> `/app/data/images/logos`
-
-```bash
-docker volume create logo_storage
-docker run -v logo_storage:/app/data/images/logos williamcallahan-website
-docker run --rm -v logo_storage:/data alpine chown -R 1001:1001 /data  # fix permissions
-```
-
 ## Running the Site
 
 ### Docker (ephemeral logos)
 
 ```bash
-docker build -t williamcallahan-website .
-docker run -d -p 3000:3000 --name williamcallahan-website williamcallahan-website
+docker build -t williamcallahan-com .
+docker run -d -p 3000:3000 --name williamcallahan-com williamcallahan-com
 ```
 
 ### Docker (persistent logos)
 
 ```bash
 docker volume create logo_storage
-docker build -t williamcallahan-website .
-docker run -d -p 3000:3000 -v logo_storage:/app/data/images/logos --name williamcallahan-website williamcallahan-website
+docker build -t williamcallahan-com .
+docker run -d -p 3000:3000 -v logo_storage:/app/data/images/logos --name williamcallahan-com williamcallahan-com
 ```
 
 ## Terminal Component
@@ -50,6 +32,24 @@ Interactive terminal with:
 
 State: React Context for history, global state for window position.
 
+## Logo Caching
+
+Three-tier caching for company logos:
+
+1. **Memory** — Clears on restart
+2. **Filesystem** — `/app/data/images/logos` in container. Persists with Docker volume, otherwise ephemeral. Format: `{md5(domain)}-{source}.png`
+3. **External** — Fetches from Google, Clearbit, DuckDuckGo. Validates against placeholder detection, converts to PNG
+
+### Persistent Logo Storage
+
+Volume: `logo_storage` -> `/app/data/images/logos`
+
+```bash
+docker volume create logo_storage
+docker run -v logo_storage:/app/data/images/logos williamcallahan-com
+docker run --rm -v logo_storage:/data alpine chown -R 1001:1001 /data  # fix permissions
+```
+
 ### Cache Management
 
 Clear in-memory: `curl -X POST http://localhost:3000/api/cache/clear`
@@ -57,9 +57,9 @@ Clear in-memory: `curl -X POST http://localhost:3000/api/cache/clear`
 Reset disk cache:
 
 ```bash
-docker stop williamcallahan-website
+docker stop williamcallahan-com
 docker volume rm logo_storage && docker volume create logo_storage
-docker start williamcallahan-website
+docker start williamcallahan-com
 ```
 
 ### Backup/Restore Logos
