@@ -12,7 +12,7 @@ alwaysApply: false
 
 This document extends the core AI services with additional providers, web search capabilities, and advanced patterns for production use.
 
-## 🚨 CRITICAL IMPLEMENTATION RULES
+## CRITICAL IMPLEMENTATION RULES
 
 Same as [Step 2](./ai-core-services.md#critical-implementation-rules), plus:
 
@@ -49,7 +49,7 @@ lib/
 
 For web search capabilities, see [Step 5: AI Web Search & Grounding](./ai-web-search-grounding.md).
 
-## 🎯 Documentation References
+## Documentation References
 
 **CRITICAL**: Always fetch current docs before implementing:
 
@@ -566,7 +566,7 @@ GROQ_API_KEY=gsk_...
 AWS_REGION=us-east-1
 ```
 
-## 🔗 Next Steps
+## Next Steps
 
 1. **Step 4**: [Self-Hosted Embeddings](../architecture/embeddings-self-hosted.md) - GPU-accelerated embeddings
 2. **Step 5**: [AI Web Search & Grounding](./ai-web-search-grounding.md) - Real-time search integration

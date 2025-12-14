@@ -6,7 +6,7 @@ The "navigation" functionality encompasses components and utilities that manage 
 
 ## Critical Issues & Bugs
 
-### 🔴 CRITICAL Issues
+### CRITICAL Issues
 
 1. **Production Console Log**
    - **Location**: `navigation-link.client.tsx:90-99`
@@ -20,7 +20,7 @@ The "navigation" functionality encompasses components and utilities that manage 
    - **Impact**: React hydration errors and UI flashing
    - **Fix**: Use CSS for responsive behavior instead
 
-### 🟠 HIGH Priority Issues
+### HIGH Priority Issues
 
 1. **Intentional Hydration Mismatch**
    - **Location**: `navigation.client.tsx:28-30`
@@ -83,31 +83,31 @@ The "navigation" functionality encompasses components and utilities that manage 
 ### Navigation Rendering Flow
 
 ```
-Navigation.tsx → navigation-links.ts → NavigationLink.tsx → next/link
+Navigation.tsx -> navigation-links.ts -> NavigationLink.tsx -> next/link
 
-                                      ↓
+                                      |
                          TerminalProvider observes pathname change
-                                      ↓
+                                      |
                             Clears terminal history centrally
 ```
 
 ### Anchor Scrolling Flow
 
 ```
-URL Hash Change → useAnchorScrollHandler → findDropdownForHash
-                        ↓                         ↓
+URL Hash Change -> useAnchorScrollHandler -> findDropdownForHash
+                        |                         |
                   Direct scroll          openAndScrollToDropdownAnchor
-                        ↓                         ↓
-                  Retry with backoff     Open dropdown → Scroll to anchor
+                        |                         |
+                  Retry with backoff     Open dropdown -> Scroll to anchor
 ```
 
 ### Dropdown Registration
 
 ```
-CollapseDropdown mount → registerDropdown(id, instance)
-                              ↓
+CollapseDropdown mount -> registerDropdown(id, instance)
+                              |
                         Global registry
-                              ↓
+                              |
                    Available for anchor scrolling
 ```
 

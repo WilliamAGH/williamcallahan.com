@@ -8,6 +8,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { aggregateAllContent, getContentById } from "@/lib/content-similarity/aggregator";
 import { calculateSimilarity, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
+import { getEnabledContentTypes } from "@/config/related-content.config";
 import type { RelatedContentType } from "@/types/related-content";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
@@ -31,8 +32,10 @@ export async function GET(request: NextRequest) {
     const sourceTypeRaw = searchParams.get("type");
     const sourceId = searchParams.get("id");
     const limitRaw = parseInt(searchParams.get("limit") || "20", 10);
-    const allowedTypes = new Set<RelatedContentType>(["bookmark", "blog", "investment", "project"]);
-    const sourceType = allowedTypes.has(sourceTypeRaw as RelatedContentType)
+    // Use centralized config for enabled content types
+    const enabledTypes = getEnabledContentTypes();
+    const enabledTypesSet = new Set<RelatedContentType>(enabledTypes);
+    const sourceType = enabledTypesSet.has(sourceTypeRaw as RelatedContentType)
       ? (sourceTypeRaw as RelatedContentType)
       : null;
     const limit = Math.max(1, Math.min(100, Number.isFinite(limitRaw) ? limitRaw : 20));
@@ -84,13 +87,13 @@ export async function GET(request: NextRequest) {
     // Sort by score
     const sorted = scoredItems.toSorted((a, b) => b.score - a.score);
 
-    // Group by content type
-    const byType = {
-      bookmark: sorted.filter(i => i.type === "bookmark").slice(0, limit),
-      blog: sorted.filter(i => i.type === "blog").slice(0, limit),
-      investment: sorted.filter(i => i.type === "investment").slice(0, limit),
-      project: sorted.filter(i => i.type === "project").slice(0, limit),
-    };
+    // Group by content type dynamically
+    const byType: Record<string, typeof scoredItems> = {};
+    const byTypeStats: Record<string, number> = {};
+    for (const type of enabledTypes) {
+      byType[type] = sorted.filter(i => i.type === type).slice(0, limit);
+      byTypeStats[type] = candidates.filter(i => i.type === type).length;
+    }
 
     // Find top cross-content matches (different types only)
     const crossContent = sorted.filter(i => i.type !== sourceType).slice(0, limit);
@@ -107,12 +110,7 @@ export async function GET(request: NextRequest) {
         },
         statistics: {
           totalCandidates: candidates.length,
-          byType: {
-            bookmarks: candidates.filter(i => i.type === "bookmark").length,
-            blogs: candidates.filter(i => i.type === "blog").length,
-            investments: candidates.filter(i => i.type === "investment").length,
-            projects: candidates.filter(i => i.type === "project").length,
-          },
+          byType: byTypeStats,
           topScores: {
             overall: sorted[0]?.score || 0,
             crossContent: crossContent[0]?.score || 0,

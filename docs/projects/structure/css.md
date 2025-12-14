@@ -203,10 +203,10 @@ The styling system relies on a small build pipeline that stitches together Tailw
 
 ### PostCSS Pipeline _(defined in `package.json`)_
 
-- `tailwindcss/nesting` → Enables native nesting syntax so authored CSS can be closer to SCSS style without another pre-processor.
-- `tailwindcss` → Generates the utility classes.
-- `autoprefixer` → Adds vendor prefixes.
-- `postcss-preset-env` → Polyfills modern CSS features (custom media queries, logical properties, etc.).
+- `tailwindcss/nesting` -> Enables native nesting syntax so authored CSS can be closer to SCSS style without another pre-processor.
+- `tailwindcss` -> Generates the utility classes.
+- `autoprefixer` -> Adds vendor prefixes.
+- `postcss-preset-env` -> Polyfills modern CSS features (custom media queries, logical properties, etc.).
 
 ### Runtime Utilities
 

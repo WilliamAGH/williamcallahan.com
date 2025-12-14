@@ -86,9 +86,9 @@ The hooks infrastructure provides essential React utilities for UI interactions,
 
 These hooks integrate with the application's provider hierarchy:
 
-- **Window hooks** → `GlobalWindowRegistryProvider`
-- **Theme utilities** → `ThemeProvider`
-- **Terminal features** → `TerminalProvider`
+- **Window hooks** -> `GlobalWindowRegistryProvider`
+- **Theme utilities** -> `ThemeProvider`
+- **Terminal features** -> `TerminalProvider`
 
 See [`state-theme-window-providers.md`](./state-theme-window-providers.md) for provider details.
 

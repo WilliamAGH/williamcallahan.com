@@ -6,7 +6,7 @@ The Education domain manages display of university degrees, courses, and certifi
 
 ## Architecture Overview
 
-Data Flow: Static Data → Server Processing → Logo Fetch → Client Render
+Data Flow: Static Data -> Server Processing -> Logo Fetch -> Client Render
 Components:
 
 - **Data Layer** (`data/education.ts:1-85`): Static arrays of education, courses, certifications
@@ -55,7 +55,7 @@ export interface EducationLogoData {
 
 - **UnifiedImageService v1**: Logo fetching via `lib/data-access/logos.ts` facade
 - **S3 CDN**: All logos served from `NEXT_PUBLIC_S3_CDN_URL` environment variable
-- **Domain Utils**: `lib/utils/domain-utils.ts` for URL → domain extraction
+- **Domain Utils**: `lib/utils/domain-utils.ts` for URL -> domain extraction
 
 ## Performance & Security
 
@@ -69,7 +69,7 @@ export interface EducationLogoData {
 - Tests: None found for education domain specifically
 - Ops: `bun run validate` for type checking
 
-## 🐛 Bugs & Improvements Inventory
+## Bugs & Improvements Inventory
 
 ### Type/Validation Issues (PRIORITY)
 

@@ -6,18 +6,18 @@
 
 To provide centralized configuration management for the application, including environment variables, build tools, linting, formatting, and framework-specific settings. This ensures consistent behavior across development, testing, and production environments.
 
-## 🚨 MODERN DEPENDENCY MANDATE
+## MODERN DEPENDENCY MANDATE
 
 **This project FORBIDS polyfills** and enforces modern tooling practices:
 
-### ❌ BANNED DEPENDENCIES
+### BANNED DEPENDENCIES
 
 - `core-js`, `@babel/polyfill`, `react-app-polyfill`, `polyfill.io`
 - `whatwg-fetch`, `isomorphic-fetch`, `cross-fetch`, `node-fetch`
 - Any package that patches global objects or provides legacy browser support
 - Any "kitchen-sink" polyfills for outdated runtimes
 
-### ✅ REQUIRED MODERN STACK
+### REQUIRED MODERN STACK
 
 - **Runtime**: Node 22 LTS (provides native `fetch`, `URL`, `TextEncoder`, etc.)
 - **Framework**: Next.js 16 (uses native APIs and modern transpilation)
@@ -31,7 +31,7 @@ To provide centralized configuration management for the application, including e
 - **`types/env.d.ts`**: TypeScript type definitions for environment variables
   - Extends `NodeJS.ProcessEnv` interface for type safety
   - Currently defines only 2 variables: `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID`
-  - **🟡 ISSUE**: Missing definitions for many other environment variables used in the application (AWS credentials, API keys, secrets, etc.)
+  - ** ISSUE**: Missing definitions for many other environment variables used in the application (AWS credentials, API keys, secrets, etc.)
 
 ### Build Tools Configuration
 
@@ -100,7 +100,7 @@ See [`testing-config.md`](./testing-config.md) for comprehensive testing configu
 
 ## Security Considerations
 
-### 🔴 CRITICAL Priority Issues
+### CRITICAL Priority Issues
 
 1. **Public Debug Endpoints in Production**
    - `app/api/sentry-example-api/route.ts` - Debug endpoint accessible in production
@@ -112,7 +112,7 @@ See [`testing-config.md`](./testing-config.md) for comprehensive testing configu
    - Anyone can trigger expensive refresh operations
    - **Fix**: Move to server-only environment variable
 
-### 🟡 MEDIUM Priority Issues
+### MEDIUM Priority Issues
 
 1. **Incomplete Environment Type Definitions** (`types/env.d.ts`)
    - Only 2 of many environment variables are typed

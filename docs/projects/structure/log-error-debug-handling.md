@@ -52,7 +52,7 @@ The system provides multiple layers of observability and resilience:
   - `GitHubActivityError`: Specialized error for GitHub API operations
   - Type guards: `hasLastFetched()`, `hasLastFetchedTimestamp()`
   - Utility functions: `getErrorMessage()`, `getErrorTimestamp()`
-  - **🟡 ISSUES**:
+  - ** ISSUES**:
     - Duplicate timestamp properties (`lastFetched` vs `lastFetchedTimestamp`)
     - Inconsistent naming conventions
     - Type guards should be in separate utility file
@@ -142,7 +142,7 @@ The system provides multiple layers of observability and resilience:
   - Implements exponential backoff strategy
   - Crucial for handling transient network errors
   - Improves application resilience for API calls
-  - **🟡 ISSUES**:
+  - ** ISSUES**:
     - Returns null on failure, losing error context
     - Should throw errors to preserve failure information
 
@@ -170,15 +170,15 @@ The system provides multiple layers of observability and resilience:
 
 ## State & Data Flow
 
-- **Normal Operation**: Component calls `logger.warn("Warning")` → Logger checks `isSilent` is false → Calls `console.warn`
-- **Test Operation**: Setup calls `logger.setSilent(true)` → Logger checks fail → No console output
-- **Error Flow**: Error thrown → Caught by boundary → Logged to Sentry → User sees fallback UI
-- **Debug Flow**: Debug mode check → Conditional output → Development-only logging
-- **Network Retry Flow**: API call fails → Retry with exponential backoff → Success or final failure → Return result or null
+- **Normal Operation**: Component calls `logger.warn("Warning")` -> Logger checks `isSilent` is false -> Calls `console.warn`
+- **Test Operation**: Setup calls `logger.setSilent(true)` -> Logger checks fail -> No console output
+- **Error Flow**: Error thrown -> Caught by boundary -> Logged to Sentry -> User sees fallback UI
+- **Debug Flow**: Debug mode check -> Conditional output -> Development-only logging
+- **Network Retry Flow**: API call fails -> Retry with exponential backoff -> Success or final failure -> Return result or null
 
 ## Security Considerations
 
-### 🔴 CRITICAL Priority Issues
+### CRITICAL Priority Issues
 
 1. **Server/Client Boundary Violations**
    - `lib/search.ts` imports from `.bookmarks.client` causing production crashes
@@ -188,7 +188,7 @@ The system provides multiple layers of observability and resilience:
    - Widespread use of `console.log/error` instead of centralized logger
    - **Fix**: Replace all console statements with structured logger
 
-### 🟡 MEDIUM Priority Issues
+### MEDIUM Priority Issues
 
 1. **Ambiguous Error Handling**
    - `lib/imageCompare.ts` returns false for both errors and mismatches
@@ -204,7 +204,7 @@ The system provides multiple layers of observability and resilience:
    - No rate limiting on any debug/monitoring endpoints
    - **Fix**: Add rate limiting middleware
 
-### 🟢 LOW Priority Issues
+### LOW Priority Issues
 
 1. **Stack Trace Information**
    - Full stack traces visible in development

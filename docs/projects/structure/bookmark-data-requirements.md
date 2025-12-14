@@ -2,7 +2,7 @@
 
 ## Critical: Image Data Requirements by Use Case
 
-### ⚠️ REGRESSION WARNING
+### REGRESSION WARNING
 
 **The most common regression in this codebase is missing images in UI components due to `includeImageData: false`**
 

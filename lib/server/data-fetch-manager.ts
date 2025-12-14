@@ -488,6 +488,8 @@ export class DataFetchManager {
         writeJsonS3(SEARCH_S3_PATHS.EXPERIENCE_INDEX, indexes.experience),
         writeJsonS3(SEARCH_S3_PATHS.EDUCATION_INDEX, indexes.education),
         writeJsonS3(SEARCH_S3_PATHS.BOOKMARKS_INDEX, indexes.bookmarks),
+        writeJsonS3(SEARCH_S3_PATHS.PROJECTS_INDEX, indexes.projects),
+        writeJsonS3(SEARCH_S3_PATHS.BOOKS_INDEX, indexes.books),
         writeJsonS3(SEARCH_S3_PATHS.BUILD_METADATA, indexes.buildMetadata),
       ];
 
@@ -499,7 +501,7 @@ export class DataFetchManager {
       return {
         success: true,
         operation: "searchIndexes",
-        itemsProcessed: 6, // Number of indexes uploaded
+        itemsProcessed: 8, // Number of indexes uploaded
         duration,
       };
     } catch (e: unknown) {

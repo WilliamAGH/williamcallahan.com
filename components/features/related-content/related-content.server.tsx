@@ -29,7 +29,7 @@ import type {
 } from "@/types/related-content";
 
 // Import configuration with documented rationale
-import { DEFAULT_MAX_PER_TYPE, DEFAULT_MAX_TOTAL } from "@/config/related-content.config";
+import { DEFAULT_MAX_PER_TYPE, DEFAULT_MAX_TOTAL, getEnabledContentTypes } from "@/config/related-content.config";
 
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
@@ -247,7 +247,7 @@ export async function RelatedContent({
         items = items.filter(item => !exc.has(item.type));
       }
       if (excludeIds.length > 0) {
-        items = items.filter(item => !excludeIds.includes(item.id));
+        items = items.filter(item => !(item.type === sourceType && excludeIds.includes(item.id)));
       }
 
       // Apply limits via shared helper
@@ -270,9 +270,11 @@ export async function RelatedContent({
 
       // If precomputed items exist but are missing some allowed content types (e.g., projects, books),
       // compute additional candidates for just the missing types and merge.
+      // Use centralized config to get enabled types (filters out production-hidden types like "thought")
+      const enabledTypes = getEnabledContentTypes();
       const allAllowedTypes = includeTypes
-        ? new Set(includeTypes)
-        : new Set<RelatedContentType>(["bookmark", "blog", "investment", "project", "thought", "book"]);
+        ? new Set(includeTypes.filter(t => enabledTypes.includes(t)))
+        : new Set(enabledTypes);
       const presentTypes = new Set(relatedItems.map(i => i.type));
       const missingTypes = Array.from(allAllowedTypes).filter(t => !presentTypes.has(t));
 
@@ -317,13 +319,22 @@ export async function RelatedContent({
 
           const final = limitByTypeAndTotal(merged, maxPerType, maxTotal);
           if (final.length > 0) {
-            return <RelatedContentSection title={sectionTitle} items={final} className={className} />;
+            return (
+              <RelatedContentSection title={sectionTitle} items={final} className={className} sourceType={sourceType} />
+            );
           }
         }
       }
 
       if (relatedItems.length > 0) {
-        return <RelatedContentSection title={sectionTitle} items={relatedItems} className={className} />;
+        return (
+          <RelatedContentSection
+            title={sectionTitle}
+            items={relatedItems}
+            className={className}
+            sourceType={sourceType}
+          />
+        );
       }
     }
 
@@ -359,7 +370,14 @@ export async function RelatedContent({
       if (relatedItems.length === 0) {
         return null;
       }
-      return <RelatedContentSection title={sectionTitle} items={relatedItems} className={className} />;
+      return (
+        <RelatedContentSection
+          title={sectionTitle}
+          items={relatedItems}
+          className={className}
+          sourceType={sourceType}
+        />
+      );
     }
 
     // Get source content
@@ -414,7 +432,9 @@ export async function RelatedContent({
       return null;
     }
 
-    return <RelatedContentSection title={sectionTitle} items={relatedItems} className={className} />;
+    return (
+      <RelatedContentSection title={sectionTitle} items={relatedItems} className={className} sourceType={sourceType} />
+    );
   } catch (error) {
     console.error("Error fetching related content:", error);
     return null;

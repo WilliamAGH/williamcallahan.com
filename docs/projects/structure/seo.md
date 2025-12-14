@@ -11,10 +11,10 @@ Provides comprehensive search engine optimization through metadata generation, s
 ### Data Flow
 
 ```
-1. Content (Blog/Pages) → Metadata Generation → Next.js Head
-2. External URLs → OG Fetch → Multi-tier Fallback → S3 Persistence
-3. Sitemap Build → Automated Submission → Search Engines
-4. Social Crawlers → og-image API → Optimized Delivery
+1. Content (Blog/Pages) -> Metadata Generation -> Next.js Head
+2. External URLs -> OG Fetch -> Multi-tier Fallback -> S3 Persistence
+3. Sitemap Build -> Automated Submission -> Search Engines
+4. Social Crawlers -> og-image API -> Optimized Delivery
 ```
 
 ### Key Design Decisions
@@ -250,12 +250,12 @@ if (normalizedUrl.includes("twitter.com/") || normalizedUrl.includes("x.com/")) 
 ### Image Persistence Flow
 
 ```
-External URL → Fetch → Validate → Transform → S3 Upload → CDN Serve
-                 ↓ (fail)
+External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
+                 | (fail)
              Proxy Fetch
-                 ↓ (fail)
+                 | (fail)
             Karakeep Assets
-                 ↓ (fail)
+                 | (fail)
             Domain Fallback
 ```
 
@@ -289,7 +289,7 @@ External URL → Fetch → Validate → Transform → S3 Upload → CDN Serve
     - Retry mechanism with exponential backoff
     - Command line options: `--sitemaps-only`, `--individual-only`, `--all`
 - **`scripts/scheduler.ts`**: Orchestrates automated tasks
-  - Bookmark refresh: Every 2 hours → triggers sitemap submission
+  - Bookmark refresh: Every 2 hours -> triggers sitemap submission
   - **Distributed-Lock Aware**: Before starting a refresh it attempts to acquire the `bookmarks/refresh-lock*.json` object in S3. If another
     instance already holds the lock the scheduler skips this cycle to avoid double-refreshing and duplicate sitemap submissions.
   - GitHub activity: Daily at midnight PT
@@ -549,10 +549,10 @@ The `tagToSlug` function handles special characters in tags to generate SEO-frie
 ### Data Flow Overview
 
 ```
-1. Page Request → Next.js Metadata API
-2. Metadata Generation → Schema.org JSON-LD + OpenGraph tags
-3. Image Resolution → og-image API → Multi-tier fallback
-4. Social Platform → Crawler → Cache → Display
+1. Page Request -> Next.js Metadata API
+2. Metadata Generation -> Schema.org JSON-LD + OpenGraph tags
+3. Image Resolution -> og-image API -> Multi-tier fallback
+4. Social Platform -> Crawler -> Cache -> Display
 ```
 
 ### Critical Design Decisions
@@ -625,7 +625,7 @@ NODE_ENV=production bun run scripts/submit-sitemap.ts --all
 - **Streaming HTML parsing** for external OpenGraph
 - **Batch processing** uses sync mode to control memory
 
-## 🐛 Bugs & Improvements Inventory
+## Bugs & Improvements Inventory
 
 ### Type/Validation Issues (HIGH PRIORITY)
 
@@ -637,7 +637,7 @@ NODE_ENV=production bun run scripts/submit-sitemap.ts --all
    - Impact: S3 data parsed without runtime validation
    - Current: `readJsonS3<UnifiedBookmark[]>(BOOKMARKS_JSON_S3_KEY)`
    - Fix: Add `UnifiedBookmarkSchema.array().parse()` after read
-   - **⚠️ PARTIAL**: Created schema directory at `types/schemas/` with initial validation schemas. Full S3 response validation still pending.
+   - ** PARTIAL**: Created schema directory at `types/schemas/` with initial validation schemas. Full S3 response validation still pending.
 
 3. **Confusing Type Re-exports** - `types/seo/metadata.ts:18-30`
    - Impact: Aliased imports create confusion (e.g., `ProfilePageSchema as ProfileSchema`)
@@ -671,15 +671,15 @@ NODE_ENV=production bun run scripts/submit-sitemap.ts --all
    - `/images/og/dynamic-fallback.png` (line 89)
    - `/favicon.svg` (line 94)
 
-### ✅ VERIFIED SECURE
+### VERIFIED SECURE
 
-- ✅ **Environment Variables**: All use server-only patterns
-  - Server code now properly uses `S3_CDN_URL` instead of `NEXT_PUBLIC_S3_CDN_URL`
-- ✅ **No Hydration Issues**: SEO is server-side only
-- ✅ **No Memory Leaks**: Removed memory caching for OG images
-- ✅ **Async Handling**: No blocking operations found
-- ✅ **URL Validation**: All external URLs validated against SSRF attacks
-- ✅ **Path Traversal Protection**: All file paths sanitized
+- **Environment Variables**: All use server-only patterns
+- Server code now properly uses `S3_CDN_URL` instead of `NEXT_PUBLIC_S3_CDN_URL`
+- **No Hydration Issues**: SEO is server-side only
+- **No Memory Leaks**: Removed memory caching for OG images
+- **Async Handling**: No blocking operations found
+- **URL Validation**: All external URLs validated against SSRF attacks
+- **Path Traversal Protection**: All file paths sanitized
 
 ## Operations & Monitoring
 

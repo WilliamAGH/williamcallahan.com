@@ -13,7 +13,7 @@ alwaysApply: false
 
 This document provides web search capabilities to ground AI responses with real-time information, implementing multiple search providers with a unified interface.
 
-## 🚨 CRITICAL IMPLEMENTATION RULES
+## CRITICAL IMPLEMENTATION RULES
 
 Same as [Step 2](./ai-core-services.md#critical-implementation-rules), plus:
 
@@ -45,7 +45,7 @@ lib/
 │   └── unified-search-service.ts  # Unified search service
 ```
 
-## 🎯 Documentation References
+## Documentation References
 
 **CRITICAL**: Always fetch current docs before implementing:
 
@@ -638,7 +638,7 @@ duckduckgoRequests: { kind: "fixed window", rate: 200, period: MINUTE },
 perplexitySearchRequests: { kind: "fixed window", rate: 50, period: MINUTE },
 ```
 
-## 🔗 Next Steps
+## Next Steps
 
 Consider implementing:
 

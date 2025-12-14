@@ -141,7 +141,7 @@ sequenceDiagram
             Cache-->>API: Cached results
             API-->>Terminal: Return results
         else Cache miss or stale
-            API->>Search: searchPosts(sanitizedQuery)
+            API->>Search: searchBlogPostsServerSide(sanitizedQuery)
             
             %% Search execution
             Search->>Search: Check MiniSearch index

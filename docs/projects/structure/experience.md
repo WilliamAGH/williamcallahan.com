@@ -6,7 +6,7 @@ The Experience domain displays professional work history with idempotent S3 CDN 
 
 ## Architecture Overview
 
-Data Flow: Static Data → Request-Time Processing → Manifest Check → S3 CDN Fetch → Client Render
+Data Flow: Static Data -> Request-Time Processing -> Manifest Check -> S3 CDN Fetch -> Client Render
 Components:
 
 - **Data Layer** (`data/experience.ts:1-45`): Static array of work experiences with optional logoOnlyDomain
@@ -17,7 +17,7 @@ Components:
 ## Key Features
 
 - **logoOnlyDomain Override**: `types/experience.ts:37-43` allows separate domain for logo fetching vs website link, which should override the normal domain url (for logo purposes)
-- **3-Tier Logo Resolution**: Manifest → `getLogoCdnData()` (direct UnifiedImageService call) → Static fallback at `page.tsx`
+- **3-Tier Logo Resolution**: Manifest -> `getLogoCdnData()` (direct UnifiedImageService call) -> Static fallback at `page.tsx`
 - **Idempotent Fetching**: Always returns same CDN URL for given domain via UnifiedImageService
 - **CV Flagging**: `data/experience.ts` sets `cvFeatured` for items surfaced on the `/cv` curriculum vitae route without duplicating records.
 - **CV Narrative Balance**: `/cv` now renders highlighted technical projects directly after qualifications (`app/cv/page.tsx:134-190`) so engineering initiatives lead into the finance-oriented experience list.
@@ -74,7 +74,7 @@ export interface LogoData {
 - Tests: None found for experience domain
 - Ops: `bun run validate` for type checking
 
-## 🐛 Bugs & Improvements Inventory
+## Bugs & Improvements Inventory
 
 ### Type/Validation Issues (PRIORITY)
 

@@ -26,9 +26,10 @@ import {
   MessageSquareQuote,
   Library,
   Tag,
+  ChevronLeft,
+  ChevronDown,
   type LucideIcon,
 } from "lucide-react";
-import type { BookFormat } from "@/types/schemas/book";
 import type { BookDetailProps } from "@/types/features/books";
 import { BooksWindow } from "./books-window.client";
 import { cn } from "@/lib/utils";
@@ -43,48 +44,21 @@ function formatDuration(seconds: number): string {
   return `${minutes} min`;
 }
 
-function FormatBadge({ format, large = false }: { format: BookFormat; large?: boolean }) {
-  const config: Record<BookFormat, { icon: typeof Headphones; label: string; className: string }> = {
-    audio: {
-      icon: Headphones,
-      label: "Audiobook",
-      className:
-        "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800",
-    },
-    ebook: {
-      icon: BookText,
-      label: "eBook",
-      className:
-        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-    },
-    print: {
-      icon: BookText,
-      label: "Print",
-      className:
-        "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
-    },
-  };
-
-  const { icon: Icon, label, className } = config[format];
-
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 border rounded-full font-medium",
-        large ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs",
-        className,
-      )}
-    >
-      <Icon className={large ? "w-4 h-4" : "w-3.5 h-3.5"} />
-      {label}
-    </span>
-  );
-}
-
 function ExternalLinkButton({ href, label, icon: Icon }: { href: string; label: string; icon: LucideIcon }) {
+  const safeHref = (() => {
+    try {
+      const url = new URL(href);
+      return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  if (!safeHref) return null;
+
   return (
     <a
-      href={href}
+      href={safeHref}
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
@@ -116,12 +90,13 @@ export function BookDetail({ book }: BookDetailProps) {
     <BooksWindow windowTitle="~/books" windowId={`book-detail-${book.id}`}>
       <div className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
-          {/* Library Context */}
+          {/* Library Navigation */}
           <div className="mb-4">
             <Link
               href="/books"
-              className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 inline-flex items-center gap-1.5 transition-colors"
+              className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 inline-flex items-center gap-1 transition-colors group"
             >
+              <ChevronLeft className="w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors -ml-1" />
               <Library className="w-3.5 h-3.5" />
               <span>William&apos;s Reading List</span>
             </Link>
@@ -156,26 +131,12 @@ export function BookDetail({ book }: BookDetailProps) {
                   </div>
                 )}
               </div>
-
-              {/* Format Badges under cover on mobile */}
-              <div className="flex flex-wrap justify-center gap-2 mt-4 lg:hidden">
-                {book.formats?.map(format => (
-                  <FormatBadge key={format} format={format} large />
-                ))}
-              </div>
             </motion.div>
 
             {/* Details Column */}
             <div className="lg:col-span-2 space-y-6">
               {/* Header */}
               <motion.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                {/* Format Badges - Desktop only */}
-                <div className="hidden lg:flex flex-wrap gap-2 mb-3">
-                  {book.formats?.map(format => (
-                    <FormatBadge key={format} format={format} large />
-                  ))}
-                </div>
-
                 {/* Title */}
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
                   {book.title}
@@ -193,99 +154,121 @@ export function BookDetail({ book }: BookDetailProps) {
                 )}
               </motion.div>
 
-              {/* Metadata Grid */}
-              <motion.div
-                initial={false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700"
-              >
-                {book.publisher && (
-                  <div className="flex items-start gap-2.5">
-                    <Building2 className="w-4 h-4 text-gray-400 mt-0.5" />
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Publisher</p>
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{book.publisher}</p>
-                    </div>
-                  </div>
-                )}
+              {/* Collapsible Book Metadata - Secondary catalog details */}
+              <details className="group border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                <summary
+                  className={cn(
+                    "flex items-center justify-between gap-2 px-4 py-3 cursor-pointer select-none",
+                    "bg-gray-50 dark:bg-gray-800/50",
+                    "text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400",
+                    "hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors",
+                    "[&::-webkit-details-marker]:hidden",
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <Hash className="w-3.5 h-3.5" />
+                    Book Metadata
+                  </span>
+                  <ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" />
+                </summary>
 
-                {book.publishedYear && (
-                  <div className="flex items-start gap-2.5">
-                    <Calendar className="w-4 h-4 text-gray-400 mt-0.5" />
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Published</p>
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{book.publishedYear}</p>
-                    </div>
-                  </div>
-                )}
+                <div className="p-4 bg-white dark:bg-gray-900/50 space-y-4">
+                  {/* Metadata Grid */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {book.publisher && (
+                      <div className="flex items-start gap-2.5">
+                        <Building2 className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Publisher</p>
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200 break-words">
+                            {book.publisher}
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
-                {hasAudio && book.audioDurationSeconds && (
-                  <div className="flex items-start gap-2.5">
-                    <Headphones className="w-4 h-4 text-gray-400 mt-0.5" />
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Duration</p>
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                        {formatDuration(book.audioDurationSeconds)}
+                    {book.publishedYear && (
+                      <div className="flex items-start gap-2.5">
+                        <Calendar className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Published</p>
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{book.publishedYear}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {hasAudio && book.audioDurationSeconds && (
+                      <div className="flex items-start gap-2.5">
+                        <Headphones className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Duration</p>
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                            {formatDuration(book.audioDurationSeconds)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {hasAudio && book.audioNarrators && book.audioNarrators.length > 0 && (
+                      <div className="flex items-start gap-2.5">
+                        <Headphones className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            Narrated by
+                          </p>
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200 break-words">
+                            {book.audioNarrators.join(", ")}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {(book.isbn13 || book.isbn10) && (
+                      <div className="flex items-start gap-2.5">
+                        <Hash className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">ISBN</p>
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200 font-mono text-xs">
+                            {book.isbn13 || book.isbn10}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {book.asin && (
+                      <div className="flex items-start gap-2.5">
+                        <Hash className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">ASIN</p>
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200 font-mono text-xs">
+                            {book.asin}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Genres */}
+                  {book.genres && book.genres.length > 0 && (
+                    <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
+                      <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1.5">
+                        <Tag className="w-3.5 h-3.5" />
+                        Genres
                       </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {book.genres.map(genre => (
+                          <span
+                            key={genre}
+                            className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded text-xs"
+                          >
+                            {genre}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-
-                {hasAudio && book.audioNarrators && book.audioNarrators.length > 0 && (
-                  <div className="flex items-start gap-2.5">
-                    <Headphones className="w-4 h-4 text-gray-400 mt-0.5" />
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Narrated by</p>
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                        {book.audioNarrators.join(", ")}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {(book.isbn13 || book.isbn10) && (
-                  <div className="flex items-start gap-2.5">
-                    <Hash className="w-4 h-4 text-gray-400 mt-0.5" />
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">ISBN</p>
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200 font-mono">
-                        {book.isbn13 || book.isbn10}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {book.asin && (
-                  <div className="flex items-start gap-2.5">
-                    <Hash className="w-4 h-4 text-gray-400 mt-0.5" />
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">ASIN</p>
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200 font-mono">{book.asin}</p>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-
-              {/* Genres */}
-              {book.genres && book.genres.length > 0 && (
-                <motion.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-2">
-                    <Tag className="w-4 h-4" />
-                    Genres
-                  </h2>
-                  <div className="flex flex-wrap gap-2">
-                    {book.genres.map(genre => (
-                      <span
-                        key={genre}
-                        className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-md text-sm"
-                      >
-                        {genre}
-                      </span>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
+                  )}
+                </div>
+              </details>
 
               {/* Description */}
               {book.description && (
@@ -359,22 +342,6 @@ export function BookDetail({ book }: BookDetailProps) {
                   )}
                 </motion.div>
               )}
-
-              {/* Back to Library */}
-              <motion.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                <Link
-                  href="/books"
-                  className={cn(
-                    "inline-flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-3",
-                    "bg-gray-900 dark:bg-white text-white dark:text-gray-900",
-                    "font-medium rounded-lg",
-                    "hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors",
-                  )}
-                >
-                  <Library className="w-4 h-4" />
-                  <span>Back to Reading List</span>
-                </Link>
-              </motion.div>
             </div>
           </div>
         </div>

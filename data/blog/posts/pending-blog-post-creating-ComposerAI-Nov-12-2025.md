@@ -80,7 +80,7 @@ What I define:
 - Typed config (`@ConfigurationProperties`) for API key, base URL, model, prompts, timeouts
 - DTOs (`ChatRequest`, `ChatResponse`) with validation
 - A single `OpenAiChatService` that builds `ResponseCreateParams`, adds system and context messages, and either returns text or streams SSE events to the client
-- A thin `ChatController` (and optional catalog/command controller) that only translates HTTP ↔ DTOs and delegates
+- A thin `ChatController` (and optional catalog/command controller) that only translates HTTP <-> DTOs and delegates
 - Optional vector search service (Qdrant) and a small `ContextBuilder`
 
 ## Configuration (single source of truth)
@@ -166,7 +166,7 @@ public class ChatRequest {
 // ChatResponse.java
 public class ChatResponse {
   private String response;          // raw text
-  private String sanitizedHtml;     // markdown → safe HTML (server-side)
+  private String sanitizedHtml;     // markdown -> safe HTML (server-side)
   private String conversationId;
   private java.time.LocalDateTime timestamp = java.time.LocalDateTime.now();
   // optional context preview list
@@ -222,7 +222,7 @@ public class OpenAiChatService {
     try (var stream = client.responses().createStreaming(params)) {
       stream.stream().forEach(ev -> {
         ev.outputTextDelta().ifPresent(delta -> onEvent.accept(StreamEvent.rawText(delta.delta())));
-        // optionally map reasoning events → UI-friendly payloads
+        // optionally map reasoning events -> UI-friendly payloads
       });
       onComplete.run();
     } catch (Exception e) { onError.accept(e); }
@@ -319,7 +319,7 @@ If you want retrieval, embed the query and hit Qdrant. Keep it off by default so
 public class VectorSearchService {
   private final io.qdrant.client.QdrantClient qdrant; private final boolean enabled;
   public VectorSearchService(io.qdrant.client.QdrantClient q, QdrantProperties p){ this.qdrant=q; this.enabled=p.isEnabled(); }
-  public java.util.List<ChatResponse.EmailContext> searchSimilarEmails(float[] query, int limit){ if(!enabled||query==null||query.length==0) return java.util.List.of(); /* build SearchPoints, map payload → EmailContext */ return java.util.List.of(); }
+  public java.util.List<ChatResponse.EmailContext> searchSimilarEmails(float[] query, int limit){ if(!enabled||query==null||query.length==0) return java.util.List.of(); /* build SearchPoints, map payload -> EmailContext */ return java.util.List.of(); }
 }
 ```
 

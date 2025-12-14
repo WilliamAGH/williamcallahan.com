@@ -3,6 +3,12 @@
  *
  * Aggregates search results from various sections of the site (blog, investments,
  * experience, education, bookmarks) based on a single query.
+ *
+ * Query parameters:
+ * - q: Search query string (required)
+ * - scope: Comma-separated list of sources to search (optional)
+ *   Valid scopes: blog, investments, experience, education, bookmarks, projects, books, thoughts, tags
+ *   Example: ?q=react&scope=blog,projects
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
@@ -19,7 +25,7 @@ import {
 import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { validateSearchQuery } from "@/lib/validators/search";
-import type { SearchResult } from "@/types/search";
+import { VALID_SCOPES, type SearchResult, type SearchScope } from "@/types/search";
 import { unstable_noStore } from "next/cache";
 import { NextResponse, connection, type NextRequest } from "next/server";
 
@@ -31,9 +37,62 @@ const PHASE_ENV_KEY = "NEXT_PHASE" as const;
 const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 
+// Per-source timeout in milliseconds (prevents slow sources from blocking entire search)
+// Note: Cold starts require S3 index loading which takes 2-4 seconds. A 3-second timeout
+// causes all searches to fail on cold starts. Using 10 seconds to accommodate S3 load time
+// while still protecting against hung external services (like Audiobookshelf API).
+const SOURCE_TIMEOUT_MS = 10000;
+
+/**
+ * Wraps a promise with a timeout. Returns empty array if timeout is exceeded.
+ * This prevents slow external services (e.g., Audiobookshelf) from blocking the entire search.
+ */
+async function withTimeout<T>(promise: Promise<T[]>, timeoutMs: number, sourceName: string): Promise<T[]> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<T[]>(resolve => {
+    timeoutId = setTimeout(() => {
+      console.warn(`[Search] ${sourceName} search timed out after ${timeoutMs}ms`);
+      resolve([]);
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    // Clear timeout to prevent spurious warning logs when the actual search wins the race
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 // Helper to safely extract fulfilled values from Promise.allSettled
 function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
   return result.status === "fulfilled" ? result.value : [];
+}
+
+/**
+ * Parse and validate scope parameter.
+ * Returns null to search all scopes, or a Set of specific scopes to search.
+ */
+function parseScopes(scopeParam: string | null): Set<SearchScope> | null {
+  if (!scopeParam) return null; // null = search all
+
+  const requestedScopes = scopeParam
+    .toLowerCase()
+    .split(",")
+    .map(s => s.trim());
+  const validScopes = new Set<SearchScope>();
+
+  for (const scope of requestedScopes) {
+    // Check if scope is in VALID_SCOPES array (excludes "all" which uses this route)
+    if ((VALID_SCOPES as readonly string[]).includes(scope)) {
+      validScopes.add(scope as SearchScope);
+    }
+  }
+
+  return validScopes.size > 0 ? validScopes : null;
 }
 
 /**
@@ -91,6 +150,11 @@ export async function GET(request: NextRequest) {
 
     const query = validation.sanitized;
 
+    // Parse optional scope parameter
+    const scopeParam = request.nextUrl.searchParams.get("scope");
+    const scopes = parseScopes(scopeParam);
+    const shouldSearch = (scope: SearchScope): boolean => scopes === null || scopes.has(scope);
+
     // Early exit if the sanitized query is empty
     if (query.length === 0) {
       return NextResponse.json(
@@ -98,7 +162,7 @@ export async function GET(request: NextRequest) {
           results: [],
           meta: {
             query: "",
-            scope: "all",
+            scope: scopes ? Array.from(scopes).join(",") : "all",
             count: 0,
             timestamp: new Date().toISOString(),
           },
@@ -107,19 +171,39 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Build cache key including scope for proper coalescing
+    const scopeKey = scopes ? Array.from(scopes).toSorted().join(",") : "all";
+    const cacheKey = `${scopeKey}:${query}`;
+
     // Perform site-wide search with request coalescing
-    const results = await coalesceSearchRequest<SearchResult[]>(`all:${query}`, async () => {
-      // Perform searches in parallel but tolerate failures in any individual search source
+    const results = await coalesceSearchRequest<SearchResult[]>(cacheKey, async () => {
+      // Only run searches for requested scopes (or all if no scope specified)
+      // Each search is wrapped with a timeout to prevent slow sources from blocking
+      // Note: "posts" is an alias for "blog" (handled identically to scoped route)
       const settled = await Promise.allSettled([
-        searchBlogPostsServerSide(query),
-        searchInvestments(query),
-        searchExperience(query),
-        searchEducation(query),
-        searchBookmarks(query),
-        searchProjects(query),
-        searchBooks(query),
-        searchThoughts(query),
-        searchTags(query),
+        shouldSearch("blog") || shouldSearch("posts")
+          ? withTimeout(searchBlogPostsServerSide(query), SOURCE_TIMEOUT_MS, "blog")
+          : Promise.resolve([]),
+        shouldSearch("investments")
+          ? withTimeout(searchInvestments(query), SOURCE_TIMEOUT_MS, "investments")
+          : Promise.resolve([]),
+        shouldSearch("experience")
+          ? withTimeout(searchExperience(query), SOURCE_TIMEOUT_MS, "experience")
+          : Promise.resolve([]),
+        shouldSearch("education")
+          ? withTimeout(searchEducation(query), SOURCE_TIMEOUT_MS, "education")
+          : Promise.resolve([]),
+        shouldSearch("bookmarks")
+          ? withTimeout(searchBookmarks(query), SOURCE_TIMEOUT_MS, "bookmarks")
+          : Promise.resolve([]),
+        shouldSearch("projects")
+          ? withTimeout(searchProjects(query), SOURCE_TIMEOUT_MS, "projects")
+          : Promise.resolve([]),
+        shouldSearch("books") ? withTimeout(searchBooks(query), SOURCE_TIMEOUT_MS, "books") : Promise.resolve([]),
+        shouldSearch("thoughts")
+          ? withTimeout(searchThoughts(query), SOURCE_TIMEOUT_MS, "thoughts")
+          : Promise.resolve([]),
+        shouldSearch("tags") ? withTimeout(searchTags(query), SOURCE_TIMEOUT_MS, "tags") : Promise.resolve([]),
       ]);
 
       const [
@@ -182,7 +266,7 @@ export async function GET(request: NextRequest) {
         results,
         meta: {
           query,
-          scope: "all",
+          scope: scopeKey,
           count: results.length,
           timestamp: new Date().toISOString(),
         },

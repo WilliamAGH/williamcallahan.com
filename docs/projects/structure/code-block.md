@@ -77,10 +77,10 @@ The `code-block` functionality provides interactive code display components with
 
 ## Key Interactions
 
-- **CodeBlock** ↔ **CopyButton**: `CodeBlock` positions `CopyButton` within its layout, passing filtered content for copying.
-- **CodeBlock** ↔ **WindowControls**: `CodeBlock` manages state for window controls, affecting its rendering mode.
-- **MDXCodeBlock** ↔ **CodeBlock**: `MDXCodeBlock` wraps `CodeBlock`, providing context (e.g., embedded mode) from MDX structure.
-- **Rehype-Prism** ↔ **PrismJS**: Build-time processing uses PrismJS logic to apply syntax highlighting classes to code content.
+- **CodeBlock** <-> **CopyButton**: `CodeBlock` positions `CopyButton` within its layout, passing filtered content for copying.
+- **CodeBlock** <-> **WindowControls**: `CodeBlock` manages state for window controls, affecting its rendering mode.
+- **MDXCodeBlock** <-> **CodeBlock**: `MDXCodeBlock` wraps `CodeBlock`, providing context (e.g., embedded mode) from MDX structure.
+- **Rehype-Prism** <-> **PrismJS**: Build-time processing uses PrismJS logic to apply syntax highlighting classes to code content.
 
 ## Notes
 

@@ -52,7 +52,10 @@ const config: Config = {
     // CSS and assets
     "^.+\\.module\\.(css|sass|scss)$": "identity-obj-proxy",
     "^.+\\.(css|sass|scss)$": "<rootDir>/__tests__/__mocks__/lib/style-mock.js",
-    "^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i": "<rootDir>/__tests__/__mocks__/lib/file-mock.js",
+    // Image mocks - must match Next.js's exact patterns to override their 40x40 default
+    // Next.js patterns from node_modules/next/dist/build/jest/jest.js
+    "^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$": "<rootDir>/__tests__/__mocks__/lib/file-mock.js",
+    "^.+\\.(svg)$": "<rootDir>/__tests__/__mocks__/lib/file-mock.js",
     // Next.js mocks
     "^next/navigation$": "<rootDir>/__tests__/__mocks__/next/navigation.js",
     "^next/image$": "<rootDir>/__tests__/__mocks__/next/image.js",

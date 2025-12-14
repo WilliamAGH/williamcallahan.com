@@ -8,12 +8,15 @@
  */
 
 import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate } from "@/lib/seo/utils";
-import { NEXT_PUBLIC_SITE_URL } from "@/lib/constants";
 import { isPacificDateString } from "@/types/seo";
 
+// Mock must be defined before importing the mocked module
 jest.mock("@/lib/constants/client", () => ({
-  NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
+  NEXT_PUBLIC_SITE_URL: "https://test.example.com",
 }));
+
+// Import from the same module that's mocked (and used by the implementation)
+import { NEXT_PUBLIC_SITE_URL } from "@/lib/constants/client";
 
 describe("SEO Utilities", () => {
   describe("ensureAbsoluteUrl", () => {
@@ -57,9 +60,20 @@ describe("SEO Utilities", () => {
   });
 
   describe("formatSeoDate", () => {
+    let originalTz: string | undefined;
+
     beforeAll(() => {
+      originalTz = process.env.TZ;
       // Mock timezone to America/Los_Angeles
       process.env.TZ = "America/Los_Angeles";
+    });
+
+    afterAll(() => {
+      if (originalTz === undefined) {
+        delete process.env.TZ;
+      } else {
+        process.env.TZ = originalTz;
+      }
     });
 
     it("should format date string with Pacific Time offset during standard time", () => {
