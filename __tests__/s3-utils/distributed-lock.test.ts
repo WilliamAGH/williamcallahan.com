@@ -13,7 +13,7 @@ process.env = {
 };
 
 // Import module under test
-import * as s3Utils from "../../src/lib/s3-utils";
+import * as s3Utils from "@/lib/s3-utils";
 import type { LockStore } from "@/types/lib";
 
 // Restore environment variables after all tests
