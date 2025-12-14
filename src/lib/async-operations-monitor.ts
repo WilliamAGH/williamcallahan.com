@@ -303,7 +303,8 @@ export async function monitoredAsync<T>(
     // Use atomic check-and-set to avoid race conditions
     const operation = asyncMonitor.getOperation(operationId);
     if (operation && operation.status === "pending") {
-      asyncMonitor.failOperation(operationId, error as Error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      asyncMonitor.failOperation(operationId, err);
     }
     throw error;
   }
@@ -329,10 +330,14 @@ export function nonBlockingAsync<T>(
       timeoutMs: options.timeoutMs,
       metadata: options.metadata,
     }).catch(error => {
+      const err = error instanceof Error ? error : new Error(String(error));
       if (options.onError) {
-        options.onError(error as Error);
+        options.onError(err);
       } else {
-        console.error(`[AsyncMonitor] Non-blocking operation "${name}" failed:`, error);
+        const isPrerenderAbort = err.message.includes("During prerendering, fetch() rejects");
+        if (!isPrerenderAbort) {
+          console.error(`[AsyncMonitor] Non-blocking operation "${name}" failed:`, err);
+        }
       }
     });
   });
