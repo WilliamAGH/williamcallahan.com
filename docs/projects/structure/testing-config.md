@@ -119,7 +119,7 @@ The following sections summarize key changes and their implications for our test
   1. **Treating them as pure functions:** For Server Components that primarily fetch data and pass it to Client Components, we test the data-fetching logic separately and then test the child Client Components with mocked props.
   2. **Using `next/jest`:** The `next/jest` plugin provides the necessary transforms to handle Server Component syntax in a test environment.
 
-### 2.3. Next.js 14 & 15 Testing Context
+### 2.3. Next.js 16 Testing Context
 
 - **App Router & `next/navigation`:** When testing components that use hooks like `useRouter`, `usePathname`, or `useSearchParams`, you **must** mock the `next/navigation` module.
   ```typescript
@@ -132,9 +132,9 @@ The following sections summarize key changes and their implications for our test
   };
   ```
 - **Server Actions:** Test Server Actions as if they were regular async functions. You can import them directly into your test file, call them with test data, and assert their return value.
-- **Caching (`unstable_cache`, `React.cache`):** Next.js and React caching functions can interfere with tests by returning stale data.
+- **Cache Components:** Next.js 16 introduces Cache Components with `"use cache"` directives. Test the underlying data-fetching functions directly; the caching behavior is framework-managed.
   - **Best Practice:** Structure your code to allow injection of cached functions as dependencies, so you can provide un-cached versions in tests.
-  - **Alternative:** Use `jest.requireActual` to bypass mocks for specific tests where you need to test the caching behavior itself.
+  - **Source of Truth:** Use `node_modules/next/` and Next.js MCP tools (`nextjs_index`, `nextjs_call`) to verify current caching behavior.
 
 ## 3. Testing Strategy & Best Practices
 
@@ -180,9 +180,12 @@ Staying current is critical. Use these resources to find the latest information.
 - **Official Next.js Testing Docs:** [https://nextjs.org/docs/pages/guides/testing/jest](https://nextjs.org/docs/pages/guides/testing/jest)
 - **Official Jest Docs:** [https://jestjs.io/docs/tutorial-react](https://jestjs.io/docs/tutorial-react)
 
-You are encouraged to use **Context7 MCP** for deep, version-specific documentation searches.
+**Preferred MCP Tools for Documentation:**
 
-- **Example Workflow:** First, find the exact library version from `package.json`. Then, construct the query dynamically: `@mcp_context7 get-library-docs --context7CompatibleLibraryID='/[org]/[project]/[retrieved-version]' --topic='[topic]'`
+- **Next.js MCP** (primary for Next.js 16): Use `nextjs_docs` to search and retrieve official documentation, `nextjs_index` to discover running servers, and `nextjs_call` for runtime introspection.
+- **Context7 MCP**: For deep, version-specific documentation searches across other libraries.
+
+**Example Workflow:** First, find the exact library version from `package.json`. For Next.js, prefer `nextjs_docs`. For other libraries, use Context7: `@mcp_context7 get-library-docs --context7CompatibleLibraryID='/[org]/[project]/[retrieved-version]' --topic='[topic]'`
 
 ## 6. Troubleshooting Guide
 
@@ -224,9 +227,9 @@ This has several implications:
   ```
 - **Jest 30+ ESM Enhancements:** Jest now natively recognizes `.mts` and `.cts` files, and its internal modules are bundled as ESM. This improves performance but means any unsupported "deep imports" into Jest's internals will break. **Rule: Only use Jest's public, documented APIs.**
 
-### 7.2. Using `node_modules` as a Source of Truth
+### 7.2. Using `node_modules` and Next.js MCP as Sources of Truth
 
-In a ZERO TEMPERATURE environment, external documentation can be outdated. The code in `node_modules` is the ultimate source of truth.
+In a ZERO TEMPERATURE environment, external documentation can be outdated. The code in `node_modules` and runtime introspection via Next.js MCP are the ultimate sources of truth.
 
 **Mandatory Verification Workflow:**
 
@@ -248,10 +251,18 @@ In a ZERO TEMPERATURE environment, external documentation can be outdated. The c
    ```
 
 3. **Inspect Type Definitions (`.d.ts`):** For absolute clarity on types, read the declaration files directly. This is non-negotiable for ensuring type safety.
+
    ```bash
    # Find and read the type declaration files
    find node_modules/some-library -name "*.d.ts" | xargs cat
    ```
+
+4. **Use Next.js MCP for Runtime Verification:** Next.js 16 exposes an MCP endpoint at `/_next/mcp` automatically when the dev server runs. Use these tools for live introspection:
+   - `nextjs_index`: Discover running Next.js servers and available MCP tools
+   - `nextjs_call`: Execute specific MCP tools (get errors, list routes, check build status)
+   - `nextjs_docs`: Search and retrieve official Next.js documentation
+
+   This provides authoritative, version-specific information directly from the running framework.
 
 ### 7.3. Modern Test Environment: Native APIs & Strategic Mocks
 
@@ -265,9 +276,9 @@ In a ZERO TEMPERATURE environment, external documentation can be outdated. The c
   - **`file-mock.js` & `style-mock.js`**: Jest cannot process static assets like images or CSS files. These mocks tell Jest to replace any import of these files with a simple string or an empty object, preventing errors.
   - **`server-only`**: This package throws an error if imported on the client. Our mock makes it a no-op in the test environment, allowing us to test components that use it without crashing.
 
-## 8. Native `fetch` & Advanced Next.js 15 Testing Patterns
+## 8. Native `fetch` & Advanced Next.js 16 Testing Patterns
 
-This section details how to confidently use the modern, native `fetch` API and test the latest Next.js 15 features, ensuring our test suite remains robust and up-to-date.
+This section details how to confidently use the modern, native `fetch` API and test the latest Next.js 16 features, ensuring our test suite remains robust and up-to-date. Always verify patterns against `node_modules/next/` source and Next.js MCP tools.
 
 ### 8.1. Confidently Using Native `fetch` in Node.js 22
 
@@ -276,7 +287,7 @@ As of Node.js v21, the `fetch` API is stable and built-in, powered by the high-p
 - **ZERO POLYFILLS NEEDED:** Node 22 provides native `fetch`, `URL`, `TextEncoder`, `ReadableStream`, and other Web APIs
 - **Legacy Package Removal:** Any `node-fetch`, `whatwg-fetch`, or similar packages should be removed from dependencies
 - **Native Code Mandate:** All application and test code MUST use the global, native `fetch` API
-- **Next.js 15 Integration:** Next.js 15 uses this native `fetch` and extends it with its own caching and revalidation semantics
+- **Next.js 16 Integration:** Next.js 16 uses this native `fetch` and extends it with Cache Components and revalidation semantics
 - **No Import Required:** Never `import fetch` - it's globally available like in browsers
 
 ### 8.2. The Canonical Pattern for Mocking `fetch` in Jest Tests
@@ -323,7 +334,7 @@ it('should render data fetched from an API', async () => {
 });
 ```
 
-### 8.3. Testing Next.js 14 & 15 Features
+### 8.3. Testing Next.js 16 Features
 
 #### Experimental Features (`experiments` in `next.config.js`)
 
@@ -465,7 +476,7 @@ it('should display user data', async () => {
 
 - `render()` is synchronous but returns a value that JavaScript converts to a resolved Promise when awaited
 - This creates a race condition where your assertion might run before async operations complete
-- In Next.js 15, Server Components and `use()` hooks make this timing even more critical
+- In Next.js 16, Server Components, Cache Components, and `use()` hooks make this timing even more critical
 
 ### 9.2. CRITICAL VIOLATION: Missing `await` on Async Methods
 
