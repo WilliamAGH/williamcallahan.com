@@ -92,6 +92,8 @@ export interface RelatedContentOptions {
   readonly excludeTypes?: readonly RelatedContentType[];
   /** IDs to exclude from results */
   readonly excludeIds?: readonly string[];
+  /** Tags to exclude - items with any of these tags are filtered out */
+  readonly excludeTags?: readonly string[];
   /** Custom similarity weights */
   readonly weights?: Partial<SimilarityWeights>;
   /** Include debug information in results */
