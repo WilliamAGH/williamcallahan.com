@@ -11,13 +11,13 @@ The bookmarks system orchestrates fetching, processing, enriching, and serving b
 ### Data Flow
 
 ```
-Karakeep API → Selective Refresh Jobs → JSON in S3 (bookmarks*.json, pages/, tags/)
-                                                   ↓
+Karakeep API -> Selective Refresh Jobs -> JSON in S3 (bookmarks*.json, pages/, tags/)
+                                                   |
                                         Next.js Cache Components (pages, RSCs)
-                                                   ↓
+                                                   |
                                    Clients (lists, detail pages, related content)
 
-API routes → read JSON in S3 → `Cache-Control: no-store`
+API routes -> read JSON in S3 -> `Cache-Control: no-store`
 ```
 
 ### Key Components
@@ -92,7 +92,7 @@ API routes → read JSON in S3 → `Cache-Control: no-store`
 ### Performance Optimizations
 
 - **Request Coalescing**: Prevents duplicate API calls
-- **Multi-layer Caching**: Memory → S3 → External API
+- **Multi-layer Caching**: Memory -> S3 -> External API
 - **Bookmark Detail Cache**: `/bookmarks/[slug]` uses Next.js segment caching with a 2-hour revalidate window and tag-based invalidation tied to `bookmark-${id}` tags, so detail pages are reused across requests without sacrificing freshness
 - **Singleton Pattern**: One initialization per process
 - **Background Refresh**: Non-blocking with 15-minute cooldown
@@ -116,7 +116,7 @@ bookmarks-suffix/
 ├── bookmarks-dev.json       # Full dataset (suffix = env)
 ├── index-dev.json           # Metadata and counts
 ├── slug-mapping-dev.json    # Legacy aggregate mapping (integrity + bulk ops)
-├── slug-shards-dev/         # Sharded slug→id lookups (per slug file)
+├── slug-shards-dev/         # Sharded slug->id lookups (per slug file)
 │   ├── aa/
 │   │   └── apple.json
 │   └── __/
@@ -144,8 +144,8 @@ without reading the entire dataset.
 **Previous Behavior**:
 
 ```text
-youtube.com/watch?v=abc123 → "youtube-com-watch"
-youtube.com/watch?v=xyz789 → "youtube-com-watch-2" ❌ Collision with numeric suffix
+youtube.com/watch?v=abc123 -> "youtube-com-watch"
+youtube.com/watch?v=xyz789 -> "youtube-com-watch-2"  Collision with numeric suffix
 ```
 
 **Solution**: Domain whitelist with title-based natural language slugs
@@ -153,8 +153,8 @@ youtube.com/watch?v=xyz789 → "youtube-com-watch-2" ❌ Collision with numeric 
 **New Behavior**:
 
 ```text
-youtube.com/watch?v=abc123 + "How to Use OpenAI" → "youtube-how-to-use-openai"
-youtube.com/watch?v=xyz789 + "React Best Practices" → "youtube-react-best-practices"
+youtube.com/watch?v=abc123 + "How to Use OpenAI" -> "youtube-how-to-use-openai"
+youtube.com/watch?v=xyz789 + "React Best Practices" -> "youtube-react-best-practices"
 ```
 
 **Implementation**:
@@ -227,10 +227,10 @@ youtube.com/watch?v=xyz789 + "React Best Practices" → "youtube-react-best-prac
 
 **Edge Cases Handled**:
 
-- Empty titles on content-sharing domains → Fall back to domain + path
-- Identical titles on same platform → Numeric suffix applied
-- Very long titles → Truncated at 60 characters at word boundary
-- Special characters in titles → Sanitized to URL-safe format
+- Empty titles on content-sharing domains -> Fall back to domain + path
+- Identical titles on same platform -> Numeric suffix applied
+- Very long titles -> Truncated at 60 characters at word boundary
+- Special characters in titles -> Sanitized to URL-safe format
 
 ## Security Considerations
 

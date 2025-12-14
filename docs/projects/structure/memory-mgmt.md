@@ -177,7 +177,7 @@ Consolidates all image operations:
 
 Health monitoring and graceful degradation:
 
-- **Multi-Level Status**: healthy → warning → critical
+- **Multi-Level Status**: healthy -> warning -> critical
 - **Load Balancer Integration**: Returns 503 when critical
 - **Emergency Cleanup**: Automatic cache clearing
 - **Metrics Tracking**: Memory trend analysis
@@ -348,23 +348,23 @@ The system now uses **three separate memory budgets**:
 ### Buffer Handling
 
 ```typescript
-// ❌ NEVER use Buffer.slice() - retains parent
+//  NEVER use Buffer.slice() - retains parent
 const bad = buffer.slice(0, 1024);
 
-// ✅ Use toString with offset/length
+//  Use toString with offset/length
 const good = buffer.toString("utf-8", 0, 1024);
 
-// ✅ Or create a copy if buffer needed
+//  Or create a copy if buffer needed
 const copy = Buffer.from(buffer.subarray(0, 1024));
 ```
 
 ### Cache Storage
 
 ```typescript
-// ❌ Don't store buffers in ServerCache
+//  Don't store buffers in ServerCache
 ServerCacheInstance.set("key", largeBuffer);
 
-// ✅ Store metadata only
+//  Store metadata only
 ServerCacheInstance.set("key", {
   s3Key: "images/abc123.png",
   cdnUrl: "https://cdn.example.com/images/abc123.png",

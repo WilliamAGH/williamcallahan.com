@@ -68,7 +68,7 @@ The "theming" functionality group is responsible for managing the application's 
 - `ThemeProvider` contains a `ThemeExpiryHandler` that checks this timestamp on mount. If the user's choice is older than 24 hours, it reverts the theme to 'system', otherwise, it respects the user's choice.
 - The provider applies the theme by adding a `class="dark"` to the `<html>` element, which is then used by Tailwind CSS for dark mode styling.
 
-### 2. Terminal State (→ terminal.md)
+### 2. Terminal State (-> terminal.md)
 
 - **Provider**: `TerminalProvider`
 - **Storage**: sessionStorage for history

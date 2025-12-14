@@ -13,13 +13,13 @@ The search functionality provides site-wide and section-specific search capabili
 **Never** check `NEXT_PHASE` using direct property access—Turbopack/webpack inlines `process.env.NEXT_PHASE` at build time, even inside functions:
 
 ```typescript
-// ❌ FORBIDDEN - direct property access gets inlined by bundler
+//  FORBIDDEN - direct property access gets inlined by bundler
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-// ❌ STILL FORBIDDEN - function doesn't help, bundler still inlines the value
+//  STILL FORBIDDEN - function doesn't help, bundler still inlines the value
 const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
 
-// ✅ REQUIRED - bracket notation with variable key prevents static analysis
+//  REQUIRED - bracket notation with variable key prevents static analysis
 const PHASE_ENV_KEY = "NEXT_PHASE" as const;
 const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
@@ -30,13 +30,13 @@ const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUI
 Route Handlers can be statically pre-rendered at build time even with `noStore()`. **You MUST export `dynamic = "force-dynamic"`**:
 
 ```typescript
-// ❌ FORBIDDEN - noStore() alone doesn't prevent static rendering
+//  FORBIDDEN - noStore() alone doesn't prevent static rendering
 import { unstable_noStore as noStore } from "next/cache";
 export async function GET() {
   noStore(); // Not enough! Route can still be pre-rendered at build
 }
 
-// ✅ REQUIRED - explicit opt-out of static rendering
+//  REQUIRED - explicit opt-out of static rendering
 export const dynamic = "force-dynamic";
 export async function GET() {
   noStore();
@@ -50,11 +50,11 @@ export async function GET() {
 Call `noStore()` BEFORE any early return—otherwise the build-phase response gets cached:
 
 ```typescript
-// ❌ FORBIDDEN - noStore() never called when returning early
+//  FORBIDDEN - noStore() never called when returning early
 if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 noStore();
 
-// ✅ REQUIRED - noStore() first
+//  REQUIRED - noStore() first
 noStore();
 if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 ```
@@ -152,25 +152,25 @@ See [search.mmd](./search.mmd) for detailed architecture diagrams including:
 ### Simplified Flow
 
 ```
-User Input → Terminal → Preload Search → API Request → Validation
-                                              ↓
+User Input -> Terminal -> Preload Search -> API Request -> Validation
+                                              |
                                         Cache Check
-                                         ↙        ↘
+                                         /        \
                                     Cached    Not Cached
-                                      ↓           ↓
+                                      |           |
                                    Return    Search Function
-                                              ↓
+                                              |
                                          MiniSearch
-                                         ↙        ↘
+                                         /        \
                                    Success    Fallback
-                                      ↓           ↓
+                                      |           |
                                    Fuzzy     Substring
                                    Search     Search
-                                      ↘         ↙
+                                      \         /
                                        Results
-                                          ↓
+                                          |
                                     Cache Store
-                                          ↓
+                                          |
                                       Response
 ```
 
@@ -266,10 +266,10 @@ function searchContent<T>(
 
 ```
 Current:
-Runtime indexing → Memory usage → API-based search
+Runtime indexing -> Memory usage -> API-based search
 
 Future:
-Build-time index → Static files → Edge caching → Instant search
+Build-time index -> Static files -> Edge caching -> Instant search
 ```
 
 ## Migration Notes

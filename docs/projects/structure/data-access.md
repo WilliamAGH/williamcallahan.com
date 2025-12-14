@@ -72,7 +72,7 @@ graph TD
 
 ### Bookmarks Data Access (`lib/data-access/bookmarks.ts`)
 
-- **Purpose**: Manages the retrieval, caching, and persistence of bookmark data using a hierarchical access pattern (in-memory cache → S3 storage → external API).
+- **Purpose**: Manages the retrieval, caching, and persistence of bookmark data using a hierarchical access pattern (in-memory cache -> S3 storage -> external API).
 - **Key Features**:
   - Implements a tiered access strategy, prioritizing in-memory cache, then S3 storage, and finally an external API as a fallback to optimize performance.
   - Utilizes S3-based distributed locking to coordinate refresh operations across multiple instances, preventing concurrent refreshes and ensuring data consistency.

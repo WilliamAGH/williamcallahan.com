@@ -75,7 +75,7 @@ graph TD
     - `icon`: Component reference (typed as `any` due to Zod limitations)
     - `emphasized`: Optional boolean for visual prominence
   - `SocialIconProps` / `SocialLink`: TypeScript types derived from schema
-  - **🟡 ISSUE**: Icon property typed as `z.any()` loses type safety for icon components
+  - ** ISSUE**: Icon property typed as `z.any()` loses type safety for icon components
 
 ## Social Icons
 
@@ -117,14 +117,14 @@ graph TD
 
 ## Security & Quality Issues
 
-### 🟡 MEDIUM Priority Issues
+### MEDIUM Priority Issues
 
 1. **Type Safety Loss** (`types/social.ts`)
    - Icon property typed as `z.any()` due to Zod limitations
    - Loses compile-time type checking for icon components
    - **Fix**: Create custom type guard or use discriminated union
 
-### 🟢 LOW Priority Issues
+### LOW Priority Issues
 
 1. **CSS Dead Code** (`styles/social-styles.css`)
    - Hover effects set `height: 0` for ::after elements

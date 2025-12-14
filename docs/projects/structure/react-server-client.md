@@ -29,7 +29,7 @@ Provide comprehensive guidance for properly implementing server/client boundarie
 
 ## Critical Do's and Don'ts
 
-### ✅ DO's - Server/Client Coordination
+### DO's - Server/Client Coordination
 
 1. **DO fetch data in Server Components**
 
@@ -90,12 +90,12 @@ Provide comprehensive guidance for properly implementing server/client boundarie
    const publicUrl = process.env.NEXT_PUBLIC_API_URL;
    ```
 
-### ❌ DON'Ts - Common Pitfalls
+### DON'Ts - Common Pitfalls
 
 1. **DON'T use hooks in Server Components**
 
    ```tsx
-   // ❌ WRONG - Server Component
+   //  WRONG - Server Component
    export default function ServerComponent() {
      const [state, setState] = useState(); // Error!
      useEffect(() => {}); // Error!
@@ -105,11 +105,11 @@ Provide comprehensive guidance for properly implementing server/client boundarie
 2. **DON'T expose secrets with NEXT*PUBLIC***
 
    ```tsx
-   // ❌ NEVER DO THIS
+   //  NEVER DO THIS
    NEXT_PUBLIC_DATABASE_URL=postgres://...
    NEXT_PUBLIC_API_SECRET=sk_live_...
 
-   // ✅ Keep secrets server-only
+   //  Keep secrets server-only
    DATABASE_URL=postgres://...
    API_SECRET=sk_live_...
    ```
@@ -117,10 +117,10 @@ Provide comprehensive guidance for properly implementing server/client boundarie
 3. **DON'T pass non-serializable props from Server to Client**
 
    ```tsx
-   // ❌ WRONG - Functions can't be serialized
+   //  WRONG - Functions can't be serialized
    <ClientComponent onClick={() => console.log("error")} />;
 
-   // ✅ RIGHT - Handle events client-side
+   //  RIGHT - Handle events client-side
    ("use client");
    function ClientComponent() {
      const handleClick = () => console.log("works");
@@ -131,13 +131,13 @@ Provide comprehensive guidance for properly implementing server/client boundarie
 4. **DON'T make Client Components async**
 
    ```tsx
-   // ❌ WRONG
+   //  WRONG
    "use client";
    export default async function ClientComponent() {
      const data = await fetch(); // Error!
    }
 
-   // ✅ RIGHT - Use useEffect or SWR/React Query
+   //  RIGHT - Use useEffect or SWR/React Query
    ("use client");
    export default function ClientComponent() {
      const { data } = useSWR("/api/data", fetcher);
@@ -147,13 +147,13 @@ Provide comprehensive guidance for properly implementing server/client boundarie
 5. **DON'T await Promises on the server that should stream**
 
    ```tsx
-   // ❌ Blocks entire component
+   //  Blocks entire component
    export default async function Page() {
      const slowData = await fetchSlowData(); // Blocks!
      return <div>{slowData}</div>;
    }
 
-   // ✅ Stream with Suspense
+   //  Stream with Suspense
    export default function Page() {
      return (
        <Suspense fallback={<Loading />}>
@@ -167,8 +167,8 @@ Provide comprehensive guidance for properly implementing server/client boundarie
 
 | Variable Type   | Server Access | Client Access | Build-Time Inlined | Use Cases                           |
 | --------------- | ------------- | ------------- | ------------------ | ----------------------------------- |
-| `PRIVATE_KEY`   | ✅ Yes        | ❌ No         | ❌ No              | API keys, secrets, passwords        |
-| `NEXT_PUBLIC_*` | ✅ Yes        | ✅ Yes        | ✅ Yes             | Public API endpoints, analytics IDs |
+| `PRIVATE_KEY`   | Yes           | No            | No                 | API keys, secrets, passwords        |
+| `NEXT_PUBLIC_*` | Yes           | Yes           | Yes                | Public API endpoints, analytics IDs |
 
 ### Security Rules
 
@@ -257,13 +257,13 @@ export default function Page() {
 All request-specific APIs are now async in Next.js 16:
 
 ```tsx
-// ❌ OLD (Next.js 14)
+//  OLD (Next.js 14)
 export default function Page({ params, searchParams }) {
   const { id } = params;
   const { sort } = searchParams;
 }
 
-// ✅ NEW (Next.js 16)
+//  NEW (Next.js 16)
 export default async function Page({ params, searchParams }) {
   const { id } = await params;
   const { sort } = await searchParams;

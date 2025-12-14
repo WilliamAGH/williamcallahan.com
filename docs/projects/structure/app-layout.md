@@ -21,21 +21,21 @@ Root layout wrapper providing global styles, providers, and consistent UI struct
 
 ```
 <html lang="en">
-  <Providers>                              → See state-theme-window-providers.md
-    <GlobalWindowRegistryProvider>         → See state-theme-window-providers.md
+  <Providers>                              -> See state-theme-window-providers.md
+    <GlobalWindowRegistryProvider>         -> See state-theme-window-providers.md
       <Header>
-        <Navigation />                     → See navigation.md
-        <SocialIcons />                    → See social-links.md
-        <ThemeToggle />                    → See state-theme-window-providers.md
+        <Navigation />                     -> See navigation.md
+        <SocialIcons />                    -> See social-links.md
+        <ThemeToggle />                    -> See state-theme-window-providers.md
       </Header>
       <Main>
-        <ClientTerminal />                 → See terminal.md
+        <ClientTerminal />                 -> See terminal.md
         {children}
       </Main>
-      <FloatingRestoreButtons />          → See state-theme-window-providers.md
+      <FloatingRestoreButtons />          -> See state-theme-window-providers.md
     </GlobalWindowRegistryProvider>
   </Providers>
-  <Analytics />                           → See analytics.md
+  <Analytics />                           -> See analytics.md
 </html>
 ```
 
@@ -55,7 +55,7 @@ Root layout wrapper providing global styles, providers, and consistent UI struct
 
 - Mobile: Shows X icon only
 - Desktop: Full social icon set in bordered container
-- Max widths: 95% → 1400px (xl) → 1800px (2xl)
+- Max widths: 95% -> 1400px (xl) -> 1800px (2xl)
 
 ## SEO Metadata
 
@@ -66,12 +66,12 @@ Root layout wrapper providing global styles, providers, and consistent UI struct
 
 ## Integration Points
 
-- **Navigation** → See [`navigation.md`](./navigation.md)
-- **Theming** → See [`state-theme-window-providers.md`](./state-theme-window-providers.md)
-- **Window Management** → See [`state-theme-window-providers.md`](./state-theme-window-providers.md)
-- **Hooks** → See [`hooks.md`](./hooks.md) for anchor scrolling, SVG transforms, and other utilities
-- **Analytics** → See [`analytics.md`](./analytics.md)
-- **Error Handling** → See [`log-error-debug-handling.md`](./log-error-debug-handling.md) (multiple boundaries)
+- **Navigation** -> See [`navigation.md`](./navigation.md)
+- **Theming** -> See [`state-theme-window-providers.md`](./state-theme-window-providers.md)
+- **Window Management** -> See [`state-theme-window-providers.md`](./state-theme-window-providers.md)
+- **Hooks** -> See [`hooks.md`](./hooks.md) for anchor scrolling, SVG transforms, and other utilities
+- **Analytics** -> See [`analytics.md`](./analytics.md)
+- **Error Handling** -> See [`log-error-debug-handling.md`](./log-error-debug-handling.md) (multiple boundaries)
 
 ## Accessibility
 
@@ -89,10 +89,10 @@ Root layout wrapper providing global styles, providers, and consistent UI struct
 
 ## Security
 
-- CSP headers → Handled by Next.js config
-- XSS prevention → React's built-in protections
-- External links → See [`interactive-containers.md`](./interactive-containers.md)
-- CORS → Proper crossOrigin attributes on resource hints
+- CSP headers -> Handled by Next.js config
+- XSS prevention -> React's built-in protections
+- External links -> See [`interactive-containers.md`](./interactive-containers.md)
+- CORS -> Proper crossOrigin attributes on resource hints
 
 ## Architecture Diagram
 

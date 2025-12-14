@@ -12,7 +12,7 @@ See `caching.mmd` for the updated flow showing JSON writers, S3 persistence, Nex
 
 ## Caching Implementation Inventory
 
-### JSON ➜ Next.js Cache Responsibilities (high-traffic flows)
+### JSON Next.js Cache Responsibilities (high-traffic flows)
 
 | Domain                          | JSON writers (cron/scripts)                                                                             | JSON readers (Next.js cache)                                                                    | Cache tags & TTL                                                      |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
@@ -154,12 +154,12 @@ export function invalidateDataCache() {
 
 ```
 External APIs (Karakeep, GitHub, etc.)
-  ↓ periodic refresh jobs / scripts
+  | periodic refresh jobs / scripts
 JSON in S3 (bookmarks.json, github_stats_summary.json, ...)
-  ↓ Next.js Cache Components (per page/section)
+  | Next.js Cache Components (per page/section)
 Client responses (RSCs / React Server Actions)
 
-API routes (REST/GraphQL endpoints) → `unstable_noStore()` → always read S3 JSON fresh
+API routes (REST/GraphQL endpoints) -> `unstable_noStore()` -> always read S3 JSON fresh
 ```
 
 ## Caching Patterns
@@ -173,17 +173,17 @@ API routes (REST/GraphQL endpoints) → `unstable_noStore()` → always read S3 
 ### Request Coalescing
 
 ```
-Multiple requests for same resource → Share single fetch promise
-                                    ↓
+Multiple requests for same resource -> Share single fetch promise
+                                    |
                                 Return same result to all
 ```
 
 ### Distributed Locking (Bookmarks)
 
 ```
-Request → Check S3 Lock → Locked? Wait
-                      ↓ Available
-                   Acquire → Fetch → Update → Release
+Request -> Check S3 Lock -> Locked? Wait
+                      | Available
+                   Acquire -> Fetch -> Update -> Release
 ```
 
 ## Cache Durations
@@ -559,34 +559,34 @@ Error: Page changed from static to dynamic at runtime /path, reason: revalidate:
 #### 1. Use Time-Based Revalidation
 
 ```typescript
-// ❌ BROKEN: cache: "no-store" = revalidate: 0
+//  BROKEN: cache: "no-store" = revalidate: 0
 const response = await fetch(url, { cache: "no-store" });
 
-// ✅ CORRECT: Positive revalidation time
+//  CORRECT: Positive revalidation time
 const response = await fetch(url, { next: { revalidate: 300 } }); // 5 minutes
 ```
 
 #### 2. Avoid `connection()` Bailout
 
 ```typescript
-// ❌ BROKEN: connection() causes DYNAMIC_SERVER_USAGE
+//  BROKEN: connection() causes DYNAMIC_SERVER_USAGE
 import { connection } from "next/server";
 await connection();
 
-// ✅ CORRECT: Pages are dynamic by default with cacheComponents
+//  CORRECT: Pages are dynamic by default with cacheComponents
 // Just remove the connection() call entirely
 ```
 
 #### 3. Prerender-Safe Timestamps
 
 ```typescript
-// ❌ BROKEN: Date.now() before data access
+//  BROKEN: Date.now() before data access
 const snapshot = { data, fetchedAt: Date.now() };
 
-// ✅ CORRECT: Use sentinel value (0) for prerender safety
+//  CORRECT: Use sentinel value (0) for prerender safety
 const snapshot = { data, fetchedAt: 0 };
 
-// ✅ ALTERNATIVE: Check timestamp freshness with fallback
+//  ALTERNATIVE: Check timestamp freshness with fallback
 const snapshotIsFresh = (snapshot, ttlMs) => {
   if (!snapshot) return false;
   if (snapshot.fetchedAt === 0) return true; // prerender-safe sentinel

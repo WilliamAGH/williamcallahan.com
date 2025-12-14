@@ -6,7 +6,7 @@ Ensures education and experience domains ALWAYS fetch institution/company logos 
 
 ## Architecture Overview
 
-Data Flow: Domain → UnifiedImageService → Memory Cache → S3 Check → External APIs → S3 Upload → CDN URL
+Data Flow: Domain -> UnifiedImageService -> Memory Cache -> S3 Check -> External APIs -> S3 Upload -> CDN URL
 Components:
 
 - **UnifiedImageService** (`lib/services/unified-image-service.ts:41-943`): Singleton service managing all logo operations
@@ -18,7 +18,7 @@ Components:
 
 - **Idempotent S3 Keys**: `lib/utils/s3-key-generator.ts` generates deterministic keys from domain+source
 - **In-Flight Deduplication**: `unified-image-service.ts:170-177` prevents concurrent fetches for same domain
-- **3-Tier Cache**: Memory (15min) → S3 (permanent) → External APIs (fallback)
+- **3-Tier Cache**: Memory (15min) -> S3 (permanent) -> External APIs (fallback)
 - **CDN-First Delivery**: All logos served via `NEXT_PUBLIC_S3_CDN_URL` for performance
 
 ## Data Structures
@@ -109,7 +109,7 @@ const url = logoResult?.cdnUrl ?? logoResult?.url ?? getCompanyPlaceholder();
 return { url, source: logoResult?.source ?? null };
 ```
 
-## 🐛 Critical Issues for Idempotency
+## Critical Issues for Idempotency
 
 ### Environment Variable Issues (CRITICAL)
 

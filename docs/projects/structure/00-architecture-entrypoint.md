@@ -4,15 +4,15 @@ This document serves as the master index for all architectural documentation in 
 
 **Start here** to understand the structure and responsibilities of different parts of the application.
 
-## 🚨 CRITICAL: TypeScript, Next.js & React Guidance
+## CRITICAL: TypeScript, Next.js & React Guidance
 
 This project enforces **100% strict TypeScript type safety** and adherence to modern Next.js and React best practices. All code must pass `bun run validate` before any commit. This is non-negotiable.
 
-👉 **Framework guardrails live in [`next-js-16-usage.md`](./next-js-16-usage.md).** Read it before changing anything tied to Next.js 16, React 19, or Jest 30.
+**Framework guardrails live in [`next-js-16-usage.md`](./next-js-16-usage.md).** Read it before changing anything tied to Next.js 16, React 19, or Jest 30.
 
 For a comprehensive guide on how to diagnose and fix type errors, and for crucial framework guidance, see the master playbook:
 
-**[➡️ Architecting for 100% Type Safety: A Guide for Developers & LLMs](./linting-formatting.md)**
+**[ Architecting for 100% Type Safety: A Guide for Developers & LLMs](./linting-formatting.md)**
 
 This guide is the **single source of truth** for code quality and covers:
 

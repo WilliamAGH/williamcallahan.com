@@ -20,7 +20,7 @@ The application uses a cron-based scheduler (`scripts/scheduler.ts`) that runs c
 
 ## Open Issues
 
-### 🟠 HIGH Priority
+### HIGH Priority
 
 1. **Missing Type Definitions**
    - **Location**: `types/node-cron.d.ts`
@@ -44,20 +44,20 @@ The application uses a cron-based scheduler (`scripts/scheduler.ts`) that runs c
 
 ## Refresh Frequencies
 
-### 📖 Bookmarks: Every 2 Hours (12x/day)
+### Bookmarks: Every 2 Hours (12x/day)
 
 - **Schedule**: `0 */2 * * *` (at minute 0 of every 2nd hour)
 - **Frequency**: 12 times per day
 - **Rationale**: Bookmarks are actively consumed content that benefits from frequent updates
 - **Times**: 12:00 AM, 2:00 AM, 4:00 AM, 6:00 AM, 8:00 AM, 10:00 AM, 12:00 PM, 2:00 PM, 4:00 PM, 6:00 PM, 8:00 PM, 10:00 PM
 
-### 🐙 GitHub Activity: Daily (1x/day)
+### GitHub Activity: Daily (1x/day)
 
 - **Schedule**: `0 0 * * *` (at midnight)
 - **Frequency**: Once per day
 - **Rationale**: GitHub contribution data changes daily and doesn't require more frequent updates
 
-### 🎨 Logos: Weekly (1x/week)
+### Logos: Weekly (1x/week)
 
 - **Schedule**: `0 1 * * 0` (Sunday at 1:00 AM)
 - **Frequency**: Once per week
@@ -145,9 +145,9 @@ bun scripts/data-updater.ts --force --bookmarks
 
 **Build-Time Prefetch (via `prefetch-data-optimized.ts`):**
 
-- ✅ Bookmarks JSON from S3
-- ✅ GitHub activity data from S3
-- ❌ Logos (skipped for faster builds)
+- Bookmarks JSON from S3
+- GitHub activity data from S3
+- Logos (skipped for faster builds)
 
 **Runtime Fetching (streaming uploads):**
 
@@ -268,7 +268,7 @@ class CircuitBreaker {
 
 3. **Implement Job Locking**
 
-**⚠️ WARNING: The following example is for educational purposes only and demonstrates the concept. It is NOT safe for production multi-instance deployments due to race conditions (TOCTOU) and local filesystem dependencies.**
+** WARNING: The following example is for educational purposes only and demonstrates the concept. It is NOT safe for production multi-instance deployments due to race conditions (TOCTOU) and local filesystem dependencies.**
 
 ```typescript
 // EDUCATIONAL EXAMPLE - Single Instance Only

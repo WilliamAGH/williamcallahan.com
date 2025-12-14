@@ -4,18 +4,18 @@
 
 This document outlines the testing architecture, configurations, and critical best practices for this project. It incorporates recent advancements in Jest, React, and Next.js to ensure a robust, maintainable, and type-safe testing strategy. **Framework-level mandates live in [`next-js-16-usage.md`](./next-js-16-usage.md); read that first, then return here for testing specifics.**
 
-## 🚨 CRITICAL: ANTI-POLYFILL MANDATE
+## CRITICAL: ANTI-POLYFILL MANDATE
 
 **This codebase FORBIDS polyfills.** Next.js 16 + Node 22 LTS provides all necessary APIs natively.
 
-### ❌ BANNED PACKAGES & PATTERNS
+### BANNED PACKAGES & PATTERNS
 
 - `core-js`, `@babel/polyfill`, `react-app-polyfill`, `polyfill.io`
 - `whatwg-fetch`, `isomorphic-fetch`, `cross-fetch`
 - Any package that patches `globalThis`, `window`, or `global`
 - Any "kitchen-sink" polyfills for legacy browser support
 
-### ✅ MODERN ALTERNATIVES ONLY
+### MODERN ALTERNATIVES ONLY
 
 - **Native APIs**: Use Node 22's built-in `fetch`, `URL`, `TextEncoder`, `ReadableStream`
 - **Ponyfills**: Import-only modules that don't mutate globals
@@ -23,7 +23,7 @@ This document outlines the testing architecture, configurations, and critical be
 - **Server-First**: Move processing to Server Components/Edge Functions
 - **Current Documentation**: Always verify patterns via Context7/DeepWiki MCPs
 
-## 1. 🚨 Core Principle: We Use Jest, Not Bun's Native Runner
+## 1. Core Principle: We Use Jest, Not Bun's Native Runner
 
 This project exclusively uses **Jest** as its test runner, executed via `bun run` scripts. This is a non-negotiable standard.
 
@@ -42,24 +42,24 @@ Using `bun test` directly **is a critical violation** that bypasses our entire J
 - Missing JSDOM environment (`document is not defined`)
 - Failure to load mocks and test environment setup
 
-### 1.3. ✅ Mandatory Test Execution Commands
+### 1.3. Mandatory Test Execution Commands
 
 **ALWAYS** use these `bun run` scripts. They are the only valid way to run tests.
 
 ```bash
-# ✅ Run all tests with proper Jest configuration
+#  Run all tests with proper Jest configuration
 bun run test
 
-# ✅ Run tests in watch mode
+#  Run tests in watch mode
 bun run test:watch
 
-# ✅ Generate a coverage report
+#  Generate a coverage report
 bun run test:coverage
 
-# ✅ Run tests in a CI environment
+#  Run tests in a CI environment
 bun run test:ci
 
-# ✅ Run a specific test file or directory
+#  Run a specific test file or directory
 bun run test -- __tests__/components/ui/code-block.test.tsx
 ```
 
@@ -162,7 +162,7 @@ The testing setup is highly configured to enforce our standards. All test-relate
 
 - **`config/jest/config.ts`**: The single source of truth for Jest configuration.
 - **`config/jest/setup.ts`**: Global setup file. Imports `@testing-library/jest-dom` and other initializers.
-- **`config/jest/polyfills.js`**: ⚠️ **LEGACY FILE**: Contains browser API shims for older Node versions. **Will be removed** as Node 22 provides these natively.
+- **`config/jest/polyfills.js`**: **LEGACY FILE**: Contains browser API shims for older Node versions. **Will be removed** as Node 22 provides these natively.
 - **`__tests__/tsconfig.json`**: A separate TypeScript configuration for the test environment.
 
 ### 4.2. Mocking System
@@ -177,7 +177,7 @@ With the [Jest extension for VSCode](https://marketplace.visualstudio.com/items?
 
 This section is retained from previous documentation for awareness.
 
-### 🟡 MEDIUM Priority Issues
+### MEDIUM Priority Issues
 
 1. **Shell Injection Risk** (`scripts/setup-test-alias.sh`): Uses unescaped shell expansion. **Fix**: Use proper quoting or safer methods if this script is ever modified.
 2. **Synchronous File Operations** (`scripts/check-file-naming.ts`): Uses sync file system calls. **Fix**: Refactor to use async `fs.promises` if performance becomes an issue.
@@ -266,7 +266,7 @@ In a ZERO TEMPERATURE environment, external documentation can be outdated. The c
 
 **Node 22 LTS Provides Native Browser APIs**: Our test environment now has built-in `fetch`, `URL`, `TextEncoder`, `ReadableStream`, and other Web APIs. **No polyfills needed.**
 
-- **Legacy Polyfills (`config/jest/polyfills.js`):** ⚠️ **SCHEDULED FOR REMOVAL**. Node 22 makes this file obsolete. Any remaining browser API gaps should be handled with targeted mocks, not polyfills.
+- **Legacy Polyfills (`config/jest/polyfills.js`):** **SCHEDULED FOR REMOVAL**. Node 22 makes this file obsolete. Any remaining browser API gaps should be handled with targeted mocks, not polyfills.
 
 - **Manual Mocks (`__tests__/__mocks__/`):** This directory is essential for controlling the test environment.
   - **`next/navigation`**: **The most important mock.** Required for any component using App Router hooks like `useRouter`, `usePathname`, etc. We provide a mock implementation that returns default values and mock functions.
@@ -449,24 +449,24 @@ Our `bun run validate` command will fail if the old syntax is used, so all devel
 
 This section addresses the most common async testing mistakes that lead to flaky, unreliable tests. These patterns are based on [proven testing library best practices](https://dev.to/tipsy_dev/testing-library-writing-better-async-tests-c67) and Next.js-specific async behaviors.
 
-### 10.1. 🚨 CRITICAL VIOLATION: Awaiting Synchronous Methods
+### 10.1. CRITICAL VIOLATION: Awaiting Synchronous Methods
 
-**❌ WRONG - Awaiting `render()`:**
+** WRONG - Awaiting `render()`:**
 
 ```typescript
 // This creates false positives and timing-dependent failures
 it('should display user data', async () => {
-  await render(<UserProfile userId="123" />); // ❌ render() is synchronous!
+  await render(<UserProfile userId="123" />); //  render() is synchronous!
   expect(screen.getByText('John Doe')).toBeInTheDocument(); // May fail due to timing
 });
 ```
 
-**✅ CORRECT - Using Async Queries:**
+** CORRECT - Using Async Queries:**
 
 ```typescript
 it('should display user data', async () => {
-  render(<UserProfile userId="123" />); // ✅ No await on render
-  expect(await screen.findByText('John Doe')).toBeInTheDocument(); // ✅ Await the async query
+  render(<UserProfile userId="123" />); //  No await on render
+  expect(await screen.findByText('John Doe')).toBeInTheDocument(); //  Await the async query
 });
 ```
 
@@ -476,16 +476,16 @@ it('should display user data', async () => {
 - This creates a race condition where your assertion might run before async operations complete
 - In Next.js 15, Server Components and `use()` hooks make this timing even more critical
 
-### 10.2. 🚨 CRITICAL VIOLATION: Missing `await` on Async Methods
+### 10.2. CRITICAL VIOLATION: Missing `await` on Async Methods
 
-**❌ WRONG - Missing `await` on `waitFor`:**
+** WRONG - Missing `await` on `waitFor`:**
 
 ```typescript
 // This test will always pass, even when it should fail
 it('should handle loading state', async () => {
   render(<AsyncComponent />);
 
-  // ❌ Missing await - test completes before assertion runs
+  //  Missing await - test completes before assertion runs
   waitFor(() => {
     expect(screen.getByText('Loading complete')).toBeInTheDocument();
   });
@@ -494,22 +494,22 @@ it('should handle loading state', async () => {
 });
 ```
 
-**✅ CORRECT - Proper `await` Usage:**
+** CORRECT - Proper `await` Usage:**
 
 ```typescript
 it('should handle loading state', async () => {
   render(<AsyncComponent />);
 
-  // ✅ Properly awaited - test waits for assertion
+  //  Properly awaited - test waits for assertion
   await waitFor(() => {
     expect(screen.getByText('Loading complete')).toBeInTheDocument();
   });
 });
 ```
 
-### 10.3. 🚨 CRITICAL VIOLATION: Side Effects in `waitFor`
+### 10.3. CRITICAL VIOLATION: Side Effects in `waitFor`
 
-**❌ WRONG - Triggering Events Inside `waitFor`:**
+** WRONG - Triggering Events Inside `waitFor`:**
 
 ```typescript
 // This creates infinite loops and unpredictable behavior
@@ -517,23 +517,23 @@ it('should show transaction details', async () => {
   render(<TransactionList />);
 
   await waitFor(() => {
-    fireEvent.click(screen.getByText('Transaction #1')); // ❌ Side effect in waitFor
+    fireEvent.click(screen.getByText('Transaction #1')); //  Side effect in waitFor
     expect(screen.getByText('Details: Coffee purchase')).toBeInTheDocument();
   });
 });
 ```
 
-**✅ CORRECT - Side Effects Outside `waitFor`:**
+** CORRECT - Side Effects Outside `waitFor`:**
 
 ```typescript
 it('should show transaction details', async () => {
   render(<TransactionList />);
 
-  // ✅ Wait for element to appear, then interact
+  //  Wait for element to appear, then interact
   const transaction = await screen.findByText('Transaction #1');
   fireEvent.click(transaction);
 
-  // ✅ Then wait for the result
+  //  Then wait for the result
   await waitFor(() => {
     expect(screen.getByText('Details: Coffee purchase')).toBeInTheDocument();
   });
@@ -544,7 +544,7 @@ it('should show transaction details', async () => {
 
 #### Server Actions Testing
 
-**✅ CORRECT - Testing Server Actions as Functions:**
+** CORRECT - Testing Server Actions as Functions:**
 
 ```typescript
 import { updateUserProfile } from "@/app/actions";
@@ -559,7 +559,7 @@ it("should update user profile", async () => {
   formData.append("name", "New Name");
   formData.append("userId", "123");
 
-  // ✅ Test the Server Action directly
+  //  Test the Server Action directly
   const result = await updateUserProfile(formData);
 
   expect(result).toEqual({ id: "123", name: "Updated Name" });
@@ -568,7 +568,7 @@ it("should update user profile", async () => {
 
 #### Components Using Server Actions
 
-**✅ CORRECT - Testing Form Components with Actions:**
+** CORRECT - Testing Form Components with Actions:**
 
 ```typescript
 import { updateUserProfile } from '@/app/actions';
@@ -592,14 +592,14 @@ it('should submit form and show success', async () => {
 
 #### Testing `use()` Hook Components (React 19)
 
-**✅ CORRECT - Mocking Promise-Based Data:**
+** CORRECT - Mocking Promise-Based Data:**
 
 ```typescript
 import { fetchUserData } from '@/lib/api';
 jest.mock('@/lib/api');
 
 it('should render user data with use() hook', async () => {
-  // ✅ Mock the promise that use() will consume
+  //  Mock the promise that use() will consume
   jest.mocked(fetchUserData).mockResolvedValue({
     name: 'William',
     email: 'william@example.com'
@@ -607,7 +607,7 @@ it('should render user data with use() hook', async () => {
 
   render(<UserProfileWithUse userId="123" />);
 
-  // ✅ Wait for the promise to resolve and component to render
+  //  Wait for the promise to resolve and component to render
   expect(await screen.findByText('William')).toBeInTheDocument();
   expect(screen.getByText('william@example.com')).toBeInTheDocument();
 });
@@ -615,10 +615,10 @@ it('should render user data with use() hook', async () => {
 
 ### 10.5. Native `fetch` Testing Patterns for Node.js 22
 
-**✅ CORRECT - Comprehensive `fetch` Mocking (No Polyfills):**
+** CORRECT - Comprehensive `fetch` Mocking (No Polyfills):**
 
 ```typescript
-// ✅ MODERN: Global setup for native fetch mocking (Node 22 LTS)
+//  MODERN: Global setup for native fetch mocking (Node 22 LTS)
 beforeEach(() => {
   global.fetch = jest.fn();
 });
@@ -628,7 +628,7 @@ afterEach(() => {
 });
 
 it('should handle successful API response', async () => {
-  // ✅ Mock successful response using native fetch types
+  //  Mock successful response using native fetch types
   jest.mocked(global.fetch).mockResolvedValueOnce({
     ok: true,
     status: 200,
@@ -644,7 +644,7 @@ it('should handle successful API response', async () => {
 });
 
 it('should handle API errors gracefully', async () => {
-  // ✅ Mock error response using native Response constructor
+  //  Mock error response using native Response constructor
   jest.mocked(global.fetch).mockResolvedValueOnce({
     ok: false,
     status: 500,
@@ -658,14 +658,14 @@ it('should handle API errors gracefully', async () => {
   expect(await screen.findByText('Error loading data')).toBeInTheDocument();
 });
 
-// ❌ NEVER DO THIS: Import fetch polyfills
+//  NEVER DO THIS: Import fetch polyfills
 // import fetch from 'node-fetch'; // BANNED
 // import 'whatwg-fetch'; // BANNED
 ```
 
 ### 10.6. TypeScript 5 Async Type Safety
 
-**✅ CORRECT - Type-Safe Async Testing:**
+** CORRECT - Type-Safe Async Testing:**
 
 ```typescript
 // Define expected response types
@@ -682,7 +682,7 @@ it('should maintain type safety in async operations', async () => {
     email: 'william@example.com'
   };
 
-  // ✅ TypeScript ensures mock matches expected interface
+  //  TypeScript ensures mock matches expected interface
   jest.mocked(global.fetch).mockResolvedValueOnce({
     ok: true,
     json: async (): Promise<UserResponse> => mockResponse,
@@ -711,7 +711,7 @@ These ESLint rules from `eslint-plugin-testing-library` prevent the above mistak
 
 ### 10.8. Quick Reference: Async Testing Checklist
 
-**✅ DO:**
+** DO:**
 
 - Use `await` with `findBy*`, `waitFor`, `waitForElementToBeRemoved`
 - Trigger side effects (clicks, inputs) outside of `waitFor`
@@ -720,7 +720,7 @@ These ESLint rules from `eslint-plugin-testing-library` prevent the above mistak
 - Use proper TypeScript types for all mock responses
 - Verify current patterns via Context7/DeepWiki MCPs before implementing
 
-**❌ NEVER:**
+** NEVER:**
 
 - `await render()` or other synchronous functions
 - Put `fireEvent` or `user` interactions inside `waitFor`
@@ -730,16 +730,16 @@ These ESLint rules from `eslint-plugin-testing-library` prevent the above mistak
 - **Import any fetch polyfills** (`node-fetch`, `whatwg-fetch`, etc.)
 - **Add polyfills for modern Node 22 APIs** (they're native)
 
-**⚠️ IMMEDIATE ACTION REQUIRED:**
+** IMMEDIATE ACTION REQUIRED:**
 
 If you find ANY of these imports in test files, remove them immediately:
 
 ```typescript
-// ❌ DELETE THESE LINES
+//  DELETE THESE LINES
 import fetch from "node-fetch";
 import "whatwg-fetch";
 import "isomorphic-fetch";
-// ✅ Use global.fetch instead (native in Node 22)
+//  Use global.fetch instead (native in Node 22)
 ```
 
 This guidance ensures reliable, maintainable tests that accurately reflect user behavior while leveraging modern runtime capabilities.

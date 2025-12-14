@@ -13,7 +13,7 @@ alwaysApply: false
 
 This document outlines the architecture for self-hosted embeddings generation using GPU-accelerated Docker containers deployed via Coolify and similar platforms. The system provides OpenAI-compatible API endpoints while maintaining complete control over data privacy and processing costs.
 
-## 🎯 Design Goals
+## Design Goals
 
 1. **OpenAI API Compatibility**: Drop-in replacement for OpenAI embeddings API
 2. **GPU Acceleration**: Leverage NVIDIA GPUs for high-performance inference
@@ -22,7 +22,7 @@ This document outlines the architecture for self-hosted embeddings generation us
 5. **Cost Efficiency**: Reduce embeddings costs by 90%+ vs cloud providers
 6. **High Availability**: Multi-container deployment with load balancing
 
-## 🏗️ Architecture Components
+## Architecture Components
 
 ### 1. Embedding Models Selection
 
@@ -526,7 +526,7 @@ http {
 
 ### 4. Database Integration
 
-> **📊 Complete Documentation**: Database schemas, rate limiting, and analytics functions are documented in [Step 1: Convex Database Foundation](../structure/convex-database.md#embeddings-service-tables).
+> ** Complete Documentation**: Database schemas, rate limiting, and analytics functions are documented in [Step 1: Convex Database Foundation](../structure/convex-database.md#embeddings-service-tables).
 
 The embeddings service uses the same Convex infrastructure from Step 1:
 
@@ -669,7 +669,7 @@ Prometheus scrapes metrics every 5s from `embeddings-api:8080/metrics`.
 
 This architecture provides a production-ready, cost-effective solution for self-hosted embeddings generation with full OpenAI API compatibility. The system can reduce embedding costs by 95%+ while providing better latency and complete data privacy.
 
-## 🔄 Integration with Steps 1-3
+## Integration with Steps 1-3
 
 This embeddings service builds on the foundation from previous steps:
 

@@ -32,10 +32,10 @@ Below variables are derived from Convex self-hosting docs and mirrored in ([Cont
 
 ### Optional (project-specific)
 
-| Key                                                                          | Notes                                                       |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `DATABASE_URL`                                                               | Switch backend persistence from SQLite → external Postgres. |
-| `RATE_LIMIT_GLOBAL_REQUESTS`, `RATE_LIMIT_WINDOW_HOURS`, `RATE_LIMIT_SHARDS` | Feed the custom AI rate-limiter included in this repo.      |
+| Key                                                                          | Notes                                                        |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `DATABASE_URL`                                                               | Switch backend persistence from SQLite -> external Postgres. |
+| `RATE_LIMIT_GLOBAL_REQUESTS`, `RATE_LIMIT_WINDOW_HOURS`, `RATE_LIMIT_SHARDS` | Feed the custom AI rate-limiter included in this repo.       |
 
 > **Convention check**: All _Required_ + _Recommended_ keys are documented in the Convex self-hosting guide and Context7 mirror — we haven't invented proprietary names.
 
@@ -43,8 +43,8 @@ Below variables are derived from Convex self-hosting docs and mirrored in ([Cont
 
 Convex exposes **two public endpoints** out of one process:
 
-1. `CONVEX_CLOUD_ORIGIN` → WebSocket / data plane (default `:3210`). The value is surfaced to functions as `process.env.CONVEX_CLOUD_URL` and is baked into generated Convex clients.
-2. `CONVEX_SITE_ORIGIN` → HTTP-actions plane (default `:3211/http`). This host is used by `action()` fetch URLs and any third-party web-hooks.
+1. `CONVEX_CLOUD_ORIGIN` -> WebSocket / data plane (default `:3210`). The value is surfaced to functions as `process.env.CONVEX_CLOUD_URL` and is baked into generated Convex clients.
+2. `CONVEX_SITE_ORIGIN` -> HTTP-actions plane (default `:3211/http`). This host is used by `action()` fetch URLs and any third-party web-hooks.
 
 The backend refuses to boot if either is missing. Our `docker-compose.yml` injects sensible localhost defaults, but **override them when you run behind a reverse-proxy or on Fly.io** (see [Stack article "Self-hosting setup"](https://stack.convex.dev/self-hosted-develop-and-deploy)).
 
@@ -56,7 +56,7 @@ The backend refuses to boot if either is missing. Our `docker-compose.yml` injec
 
 This document provides the complete database foundation for all AI services, including schemas, rate limiting, and real-time data management. All subsequent AI services depend on this infrastructure.
 
-## 🚨 CRITICAL IMPLEMENTATION RULES
+## CRITICAL IMPLEMENTATION RULES
 
 ### ABSOLUTE REQUIREMENTS - JUNE 2025
 
@@ -95,7 +95,7 @@ convex/
     └── server.d.ts             # Server function types
 ```
 
-## 📊 Master Database Schema
+## Master Database Schema
 
 ### Combined Schema Definition
 
@@ -213,7 +213,7 @@ export default defineSchema({
 });
 ```
 
-## 🚀 Component Configuration
+## Component Configuration
 
 ### Rate Limiter Setup
 
@@ -270,7 +270,7 @@ export const aiRateLimiter = new RateLimiter(components.rateLimiter, {
 });
 ```
 
-## 📝 Convex Functions
+## Convex Functions
 
 ### AI Service Analytics
 
@@ -471,7 +471,7 @@ export const logAuthFailure = mutation({
 });
 ```
 
-## 🔌 Next.js 15 Integration
+## Next.js 15 Integration
 
 ### Client Provider Setup
 
@@ -523,7 +523,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
 }
 ```
 
-## 📊 Usage Patterns
+## Usage Patterns
 
 ### Rate Limiting Check
 
@@ -596,7 +596,7 @@ const botEvents = await fetchQuery(api.ai.analytics.getBotEvents, {
 });
 ```
 
-## 🔐 Security Best Practices
+## Security Best Practices
 
 ### API Key Management
 
@@ -622,7 +622,7 @@ export function generateRequestFingerprint(req: Request): string {
 }
 ```
 
-## 🚀 Deployment Configuration
+## Deployment Configuration
 
 ### Environment Variables
 
@@ -686,14 +686,14 @@ npx convex dev
 npx convex deploy
 ```
 
-> ⚠️ **Never** set `CONVEX_DEPLOY_KEY` when self-hosting – that flag is only for the managed Convex cloud.
+> **Never** set `CONVEX_DEPLOY_KEY` when self-hosting – that flag is only for the managed Convex cloud.
 
 ### Scaling & Upgrades
 
 - Images above are **single-node**. Horizontal scaling requires building a custom multi-service topology from the open-source repo.
 - Always pin to a semver tag (`v0.Y.Z`) and follow [Convex migration docs](https://docs.convex.dev/self-hosting) before upgrading.
 
-## 📈 Performance Optimization
+## Performance Optimization
 
 ### Index Optimization
 
@@ -704,7 +704,7 @@ All queries use indexes for O(log n) performance:
 - `by_fingerprint`: User tracking
 - `by_api_key`: Authentication lookups
 
-## 🔄 Migration Commands
+## Migration Commands
 
 ```bash
 # Initialize Convex in project
@@ -720,7 +720,7 @@ npx convex run migrations:v1_to_v2
 npx convex codegen
 ```
 
-## 📋 Implementation Checklist
+## Implementation Checklist
 
 ### Core Setup
 
@@ -757,7 +757,7 @@ npx convex codegen
 - [ ] Set up caching layer
 - [ ] Monitor query performance
 
-## 🚀 Complete Deployment Guide
+## Complete Deployment Guide
 
 ### Step-by-Step Deployment
 

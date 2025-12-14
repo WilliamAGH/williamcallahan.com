@@ -181,16 +181,16 @@ Both `/books` (list) and `/books/[book-slug]` (detail) pages are **statically pr
 ### Critical Patterns (cacheComponents-safe)
 
 ```typescript
-// ✅ CORRECT: Time-based revalidation
+//  CORRECT: Time-based revalidation
 const response = await fetchWithTimeout(url, {
   next: { revalidate: 300 }, // 5 minutes
   headers: { Authorization: `Bearer ${apiKey}` },
 });
 
-// ❌ BROKEN: Causes static-to-dynamic error
+//  BROKEN: Causes static-to-dynamic error
 const response = await fetch(url, { cache: "no-store" });
 
-// ✅ CORRECT: Prerender-safe timestamp
+//  CORRECT: Prerender-safe timestamp
 const cacheSnapshot = (books: Book[]): void => {
   lastBooksSnapshot = {
     booksById: new Map(books.map(book => [book.id, book])),
@@ -198,11 +198,11 @@ const cacheSnapshot = (books: Book[]): void => {
   };
 };
 
-// ❌ BROKEN: Causes next-prerender-current-time error
+//  BROKEN: Causes next-prerender-current-time error
 const cacheSnapshot = (books: Book[]): void => {
   lastBooksSnapshot = {
     booksById: new Map(books.map(book => [book.id, book])),
-    fetchedAt: Date.now(), // ❌ Not allowed before data access
+    fetchedAt: Date.now(), //  Not allowed before data access
   };
 };
 ```

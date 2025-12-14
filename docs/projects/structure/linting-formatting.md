@@ -13,7 +13,7 @@ bun run validate  # Golden rule - runs Biome, ESLint, and tsc
 ## Forbidden Practices
 
 ```typescript
-// ❌ NEVER USE - No exceptions
+//  NEVER USE - No exceptions
 // @ts-ignore
 // @ts-expect-error
 // eslint-disable-next-line
@@ -23,10 +23,10 @@ const _unused = value; // No underscore prefixes
 ### Handling Unused Variables
 
 ```typescript
-// ❌ DON'T
+//  DON'T
 const { buffer: _, ...metadata } = s3Result;
 
-// ✅ DO
+//  DO
 const { buffer, ...metadata } = s3Result;
 void buffer; // Explicitly mark as unused
 ```
@@ -36,11 +36,11 @@ void buffer; // Explicitly mark as unused
 ### 1. The `any` Trap
 
 ```typescript
-// ❌ DON'T
+//  DON'T
 const data: any = JSON.parse(jsonString);
 console.log(data.property); // No type safety
 
-// ✅ DO
+//  DO
 const data: unknown = JSON.parse(jsonString);
 if (typeof data === "object" && data && "property" in data) {
   console.log((data as { property: unknown }).property);
@@ -50,12 +50,12 @@ if (typeof data === "object" && data && "property" in data) {
 ### 2. Unsafe Operations
 
 ```typescript
-// ❌ DON'T
+//  DON'T
 function process(data: any) {
   console.log(data.name.toUpperCase());
 }
 
-// ✅ DO - Validate with Zod
+//  DO - Validate with Zod
 const DataSchema = z.object({ name: z.string() });
 function process(data: unknown) {
   const validatedData = DataSchema.parse(data);
@@ -66,20 +66,20 @@ function process(data: unknown) {
 ### 3. Null/Undefined Handling
 
 ```typescript
-// ❌ DON'T
+//  DON'T
 const city = user.address.city;
 
-// ✅ DO
+//  DO
 const city = user?.address?.city ?? "Default City";
 ```
 
 ### 4. Type Assertions
 
 ```typescript
-// ❌ DON'T
+//  DON'T
 const value = (e.target as HTMLInputElement).value;
 
-// ✅ DO
+//  DO
 if (e.target instanceof HTMLInputElement) {
   const value = e.target.value;
 }
@@ -92,11 +92,11 @@ if (e.target instanceof HTMLInputElement) {
 ### 6. Unchecked Array Access
 
 ```typescript
-// ❌ DON'T
+//  DON'T
 const item = myArray[0];
 console.log(item.toUpperCase()); // Could crash
 
-// ✅ DO
+//  DO
 const item = myArray[0];
 if (item !== undefined) {
   console.log(item.toUpperCase());
@@ -106,7 +106,7 @@ if (item !== undefined) {
 ### 7. Function Context
 
 ```typescript
-// ❌ DON'T
+//  DON'T
 class MyClass {
   doSomething() {
     setTimeout(function () {
@@ -115,7 +115,7 @@ class MyClass {
   }
 }
 
-// ✅ DO
+//  DO
 class MyClass {
   doSomething(): void {
     setTimeout(() => {
@@ -128,12 +128,12 @@ class MyClass {
 ### 8. Generic Constraints
 
 ```typescript
-// ❌ DON'T
+//  DON'T
 function logLength<T>(arg: T): void {
   console.log(arg.length); // Error: T might not have length
 }
 
-// ✅ DO
+//  DO
 function logLength<T extends { length: number }>(arg: T): void {
   console.log(arg.length);
 }
@@ -142,11 +142,11 @@ function logLength<T extends { length: number }>(arg: T): void {
 ### 9. Literal Types
 
 ```typescript
-// ❌ DON'T
+//  DON'T
 const req = { url: "...", method: "GET" };
 handleRequest(req.url, req.method); // method is string, not "GET"
 
-// ✅ DO
+//  DO
 const req = { url: "...", method: "GET" } as const;
 handleRequest(req.url, req.method); // method is "GET"
 ```
@@ -161,7 +161,7 @@ handleRequest(req.url, req.method); // method is "GET"
 ### 11. Template Literal Never Types
 
 ```typescript
-// ❌ Problem: TypeScript narrows to 'never'
+//  Problem: TypeScript narrows to 'never'
 if (typeof imageUrl === "string" && imageUrl) {
   if (isValidImageUrl(imageUrl)) {
     return imageUrl;
@@ -170,10 +170,10 @@ if (typeof imageUrl === "string" && imageUrl) {
   }
 }
 
-// ✅ Solution 1: String conversion
+//  Solution 1: String conversion
 console.log(`Invalid URL: ${String(imageUrl)}`);
 
-// ✅ Solution 2: Restructure control flow
+//  Solution 2: Restructure control flow
 if (typeof imageUrl !== "string" || !imageUrl) {
   console.log(`Invalid URL type: ${typeof imageUrl}`);
   continue;
@@ -188,13 +188,13 @@ return imageUrl;
 ### 12. Complex Type Inference
 
 ```typescript
-// ❌ DON'T - Complex chains fail inference
+//  DON'T - Complex chains fail inference
 const checkedTypes = imagePriority
   .filter(key => metadata[key] && typeof metadata[key] === "string")
   .map(key => `${key}="${metadata[key] as string}"`)
   .join(", ");
 
-// ✅ DO - Explicit loops
+//  DO - Explicit loops
 const checkedTypes: string[] = [];
 for (const key of imagePriority) {
   const value = metadata[key];
@@ -211,7 +211,7 @@ for (const key of imagePriority) {
 **Problem:** TypeScript flags assignments of `unknown` error values as unsafe, even with type checks.
 
 ```typescript
-// ❌ DON'T - Triggers @typescript-eslint/no-unsafe-assignment
+//  DON'T - Triggers @typescript-eslint/no-unsafe-assignment
 try {
   await riskyOperation();
 } catch (error: unknown) {
@@ -225,7 +225,7 @@ try {
 **Solutions:**
 
 ```typescript
-// ✅ SOLUTION 1: Explicit conditional handling (RECOMMENDED)
+//  SOLUTION 1: Explicit conditional handling (RECOMMENDED)
 try {
   await riskyOperation();
 } catch (error: unknown) {
@@ -236,7 +236,7 @@ try {
   }
 }
 
-// ✅ SOLUTION 2: Type guard function
+//  SOLUTION 2: Type guard function
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
@@ -248,7 +248,7 @@ try {
   console.error("Operation failed:", getErrorMessage(error));
 }
 
-// ✅ SOLUTION 3: Explicit type assertion with validation
+//  SOLUTION 3: Explicit type assertion with validation
 try {
   await riskyOperation();
 } catch (error: unknown) {
@@ -262,7 +262,7 @@ try {
 **Problem:** TypeScript narrows types to `never` in complex find/filter operations.
 
 ```typescript
-// ❌ DON'T - Causes type narrowing issues
+//  DON'T - Causes type narrowing issues
 let parsedCandidate: ReturnType<typeof parseS3Key> | null = null;
 const candidate = keys.find(k => {
   const parsed = parseS3Key(k);
@@ -275,13 +275,13 @@ const candidate = keys.find(k => {
 
 if (!candidate || !parsedCandidate) return null;
 // parsedCandidate is now 'never' type - TypeScript lost track
-const source = parsedCandidate.source; // ❌ Error: Property 'source' does not exist on type 'never'
+const source = parsedCandidate.source; //  Error: Property 'source' does not exist on type 'never'
 ```
 
 **Solution:** Use explicit mapping to maintain type information.
 
 ```typescript
-// ✅ DO - Explicit mapping preserves types
+//  DO - Explicit mapping preserves types
 const candidateInfo = keys
   .map(k => ({ key: k, parsed: parseS3Key(k) }))
   .find(({ key, parsed }) => {
@@ -292,7 +292,7 @@ if (!candidateInfo) return null;
 
 const { key: candidate, parsed: parsedCandidate } = candidateInfo;
 // parsedCandidate maintains proper typing
-const source = parsedCandidate.source; // ✅ Works perfectly
+const source = parsedCandidate.source; //  Works perfectly
 ```
 
 ### 28. Error Object Creation Patterns
@@ -300,17 +300,17 @@ const source = parsedCandidate.source; // ✅ Works perfectly
 **Problem:** Creating Error objects from unknown values.
 
 ```typescript
-// ❌ DON'T - Unsafe patterns
+//  DON'T - Unsafe patterns
 catch (err: unknown) {
-  throw new Error(err);  // ❌ Unsafe - err might not be string
-  console.error("Failed:", err.message);  // ❌ Unsafe - err might not have message
+  throw new Error(err);  //  Unsafe - err might not be string
+  console.error("Failed:", err.message);  //  Unsafe - err might not have message
 }
 ```
 
 **Solutions:**
 
 ```typescript
-// ✅ DO - Safe error handling patterns
+//  DO - Safe error handling patterns
 catch (err: unknown) {
   // Pattern 1: Conditional logging
   if (err instanceof Error) {
@@ -322,7 +322,7 @@ catch (err: unknown) {
   }
 }
 
-// ✅ DO - Utility function approach
+//  DO - Utility function approach
 function ensureError(value: unknown): Error {
   if (value instanceof Error) return value;
   return new Error(String(value));
@@ -415,14 +415,14 @@ export async function POST(request: Request) {
 ### 14. Single Source of Truth
 
 ```typescript
-// ❌ DON'T - Duplicate definitions
+//  DON'T - Duplicate definitions
 interface User {
   id: string;
   name: string;
 }
 const UserSchema = z.object({ id: z.string(), name: z.string() });
 
-// ✅ DO - Infer from schema
+//  DO - Infer from schema
 export const UserSchema = z.object({ id: z.string(), name: z.string() });
 export type User = z.infer<typeof UserSchema>;
 ```
@@ -440,12 +440,12 @@ if (!result.success) {
 ### 16. Zod v4 Top-Level Validators
 
 ```typescript
-// ✅ DO - v4 pattern (tree-shakeable)
+//  DO - v4 pattern (tree-shakeable)
 z.email();
 z.uuid();
 z.url();
 
-// ❌ DON'T - Old pattern (deprecated)
+//  DON'T - Old pattern (deprecated)
 z.string().email();
 z.string().uuid();
 ```
@@ -502,10 +502,10 @@ export async function GET(request: NextRequest) {
 ### 20. Fetch Caching Changes
 
 ```typescript
-// ❌ OLD - Cached by default in v14
+//  OLD - Cached by default in v14
 const res = await fetch("https://api.example.com/data");
 
-// ✅ NEW - Explicit caching in v15
+//  NEW - Explicit caching in v15
 const cached = await fetch("https://api.example.com/data", {
   next: { revalidate: 3600 }, // Cache for 1 hour
 });
@@ -521,7 +521,7 @@ const cached = await fetch("https://api.example.com/data", {
 ### 22. Data Fetching
 
 ```typescript
-// ✅ DO - Parallel fetching in Server Components
+//  DO - Parallel fetching in Server Components
 const [users, posts] = await Promise.all([
   fetch("/api/users").then(r => r.json()),
   fetch("/api/posts").then(r => r.json()),
@@ -531,10 +531,10 @@ const [users, posts] = await Promise.all([
 ### 23. State Immutability
 
 ```typescript
-// ❌ DON'T
+//  DON'T
 state.items.push(newItem);
 
-// ✅ DO
+//  DO
 setState([...state.items, newItem]);
 ```
 
@@ -613,7 +613,7 @@ Key settings enforcing our rules:
 
 When stuck, use:
 
-1. **Context7**: `resolve-library-id` → `get-library-docs` for library docs
+1. **Context7**: `resolve-library-id` -> `get-library-docs` for library docs
 2. **Web Search**: Brave Search for novel errors
 3. **Script**: `analyze-circular-deps.ts` for dependency analysis
 
@@ -621,14 +621,14 @@ When stuck, use:
 
 ### Type Safety Checklist
 
-| Rule                   | Check                    |
-| ---------------------- | ------------------------ |
-| No `any` types         | ✓ Replace with `unknown` |
-| No `@ts-ignore`        | ✓ Fix root cause         |
-| No underscore prefixes | ✓ Use `void` operator    |
-| Validate external data | ✓ Use Zod schemas        |
-| Check array access     | ✓ Handle undefined       |
-| Type function returns  | ✓ Explicit return types  |
+| Rule                   | Check                  |
+| ---------------------- | ---------------------- |
+| No `any` types         | Replace with `unknown` |
+| No `@ts-ignore`        | Fix root cause         |
+| No underscore prefixes | Use `void` operator    |
+| Validate external data | Use Zod schemas        |
+| Check array access     | Handle undefined       |
+| Type function returns  | Explicit return types  |
 
 ### Zod v4 Migration
 
@@ -649,7 +649,7 @@ When stuck, use:
 
 +### Error Handling Patterns
 
-- +| Problem | ❌ DON'T | ✅ DO |
+- +| Problem | DON'T | DO |
   +|---------|----------|-------|
   +| Unsafe assignment | `const msg = err instanceof Error ? err.message : String(err);` | `if (err instanceof Error) { console.log(err.message); } else { console.log(String(err)); }` |
   +| Type narrowing | `let parsed = null; const found = items.find(i => { parsed = parse(i); return true; });` | `const found = items.map(i => ({item: i, parsed: parse(i)})).find(...)` |

@@ -79,12 +79,12 @@ Provide a single, verifiable description of how UI components, Next.js runtime f
 
 ## Data Artifacts & Mapping
 
-| Artifact                                                         | Purpose                                                         | Produced by                                        | Consumed by                                             |
-| ---------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------- |
-| `static-image-mapping.json` (`lib/data-access/static-images.ts`) | Maps legacy `/public/images/**` to hashed CDN URLs.             | `scripts/sync-blog-cover-images.ts` (during CI)    | Placeholder utilities, SEO defaults, API fallbacks.     |
-| Logo manifest (`IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST`)         | Cached set of known domains → CDN URLs (and inverted variants). | Instrumentation warm-up via `loadImageManifests()` | UnifiedImageService, `/api/logo`, analytics dashboards. |
-| Bookmark/OG JSON snapshots (`bucket/json/**`)                    | Provide data for API selection + caching.                       | Background batch processors                        | `/api/og-image`, bookmark rendering.                    |
-| Domain blocklist (`LOGO_BLOCKLIST_S3_PATH`)                      | Prevents repeated fetch attempts against failing domains.       | `FailureTracker` inside UnifiedImageService        | All logo requests.                                      |
+| Artifact                                                         | Purpose                                                          | Produced by                                        | Consumed by                                             |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------- |
+| `static-image-mapping.json` (`lib/data-access/static-images.ts`) | Maps legacy `/public/images/**` to hashed CDN URLs.              | `scripts/sync-blog-cover-images.ts` (during CI)    | Placeholder utilities, SEO defaults, API fallbacks.     |
+| Logo manifest (`IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST`)         | Cached set of known domains -> CDN URLs (and inverted variants). | Instrumentation warm-up via `loadImageManifests()` | UnifiedImageService, `/api/logo`, analytics dashboards. |
+| Bookmark/OG JSON snapshots (`bucket/json/**`)                    | Provide data for API selection + caching.                        | Background batch processors                        | `/api/og-image`, bookmark rendering.                    |
+| Domain blocklist (`LOGO_BLOCKLIST_S3_PATH`)                      | Prevents repeated fetch attempts against failing domains.        | `FailureTracker` inside UnifiedImageService        | All logo requests.                                      |
 
 ## Cache & CDN Rules
 
@@ -114,9 +114,9 @@ Provide a single, verifiable description of how UI components, Next.js runtime f
 
 ## Cross-References
 
-- **Image domain details** → [`docs/projects/structure/image-handling.md`](./image-handling.md)
-- **Raw storage policies** → [`docs/projects/structure/s3-object-storage.md`](./s3-object-storage.md)
-- **CSP + Next.js guardrails** → `docs/projects/structure/next-js-16-usage.md`
+- **Image domain details** -> [`docs/projects/structure/image-handling.md`](./image-handling.md)
+- **Raw storage policies** -> [`docs/projects/structure/s3-object-storage.md`](./s3-object-storage.md)
+- **CSP + Next.js guardrails** -> `docs/projects/structure/next-js-16-usage.md`
 
 Keep this document synchronized with the other two structure docs whenever you introduce a new image input, a new storage directory, or change CDN/Next settings.
 

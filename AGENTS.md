@@ -30,7 +30,7 @@ alwaysApply: true
 - [DEP1a-d] Cloudflare cache: deployment verification workflow
 - [VR1a-g] Verification loops: validate/lint/type-check/build/test (and deploy readiness)
 - [TST1a-e] Testing protocols: use `bun run test*`, never `bun test`
-- [CP1a-d] Task completion: verify → request confirmation → cleanup/commit (no AI attribution)
+- [CP1a-d] Task completion: verify -> request confirmation -> cleanup/commit (no AI attribution)
 - [TMP1a-c] Temporary files: /tmp only, cleanup after user confirmation
 - [ENV1a-c] Environment variables: no new required vars without explicit approval
 - [LG1a-b] Language: American English only
@@ -38,7 +38,7 @@ alwaysApply: true
 ## [ZT1] ZERO TEMPERATURE: Evidence, No Assumptions, Halt Protocol
 
 - [ZT1a] Assumptions are violations. Verify by reading the codebase and docs first.
-- [ZT1b] Source of truth order: repo code/docs → `package.json` versions → `node_modules/` sources → MCP/live docs (capture the URL/reference).
+- [ZT1b] Source of truth order: repo code/docs -> `package.json` versions -> `node_modules/` sources -> MCP/live docs (capture the URL/reference).
 - [ZT1c] If you cannot support a claim with a concrete source (file path or doc), stop and investigate before proceeding.
 - [ZT1d] If a zero-tolerance violation is present (or would be introduced), stop, alert the user with specifics, and wait for instruction.
 - [ZT1e] Why-first mandate: state the precise reason for change before editing behavior; keep a working note; update docstrings/JSDoc when intent changes.
@@ -74,7 +74,7 @@ alwaysApply: true
 ## [FS1] File Creation & Edit Discipline
 
 - [FS1a] Prefer editing existing files; do not create new files unless necessary for the task goal.
-- [FS1b] Before creating any file: search exhaustively → analyze existing solutions → confirm no extension path → request explicit permission.
+- [FS1b] Before creating any file: search exhaustively -> analyze existing solutions -> confirm no extension path -> request explicit permission.
 - [FS1c] Read the entire target file before editing; integrate changes with existing structure (don’t blindly append).
 - [FS1d] Clean code: single-responsibility changes; follow SOLID/DRY best practices; no dead code; no empty try/catch blocks that swallow errors.
 - [FS1e] Clean architecture: dependencies point inward; domain logic must not import from UI/framework layers.
@@ -310,7 +310,7 @@ curl -s "https://[domain]/_next/static/chunks/[chunk].js" | grep -c "yourUniqueT
 
 ### [DEP2] Cloudflare Cache Purge Options (Informational)
 
-- Cloudflare Dashboard → Caching → Purge Everything
+- Cloudflare Dashboard -> Caching -> Purge Everything
 - Wait for TTL expiration (can be hours)
 - Rebuild/deploy to get new hashed chunk names (Next.js outputs versioned chunk filenames)
 
@@ -342,7 +342,7 @@ git commit -m "fix: <specific description>"
 ### [BPX] Boilerplate Violation Template
 
 ```text
-🚨 CRITICAL VIOLATION DETECTED 🚨
+ CRITICAL VIOLATION DETECTED
 Boilerplate/example code found in: [file:line]
 Code pattern: [description]
 Source: [where it likely came from]

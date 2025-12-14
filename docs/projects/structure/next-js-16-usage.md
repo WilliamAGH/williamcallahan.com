@@ -20,7 +20,7 @@ Provide a single operational playbook for all work that interacts with our Next.
 
 ## Version Change Log
 
-### Next.js 14 ➜ 15 (Context7 `version-15.mdx`)
+### Next.js 14 15 (Context7 `version-15.mdx`)
 
 - `experimental.serverComponentsExternalPackages` is now `serverExternalPackages`.
 - `experimental.bundlePagesExternals` is now `bundlePagesRouterDependencies`.
@@ -28,7 +28,7 @@ Provide a single operational playbook for all work that interacts with our Next.
 - Temporary `UnsafeUnwrapped` shims existed for synchronous `cookies()`/`headers()` access—**they are disallowed going forward** because Next.js 16 enforces async semantics.
 - `@next/codemod@canary upgrade latest` remains the sanctioned codemod path for sweeping migrations.
 
-### Next.js 15 ➜ 16 (Context7 `version-16.mdx` + node_modules inspection)
+### Next.js 15 16 (Context7 `version-16.mdx` + node_modules inspection)
 
 - Turbopack is now default; script flags like `next dev --turbopack` are redundant.
 - `experimental.dynamicIO` and `experimental.ppr` have been folded into `cacheComponents` (`node_modules/next/dist/server/config.js:325-338`). Do **not** add new experimental flags—set `cacheComponents: true` instead.
@@ -103,32 +103,32 @@ Error: Page changed from static to dynamic at runtime /path, reason: revalidate:
 
 **Prevention Protocol:**
 
-| Pattern                   | Status       | Alternative                                      |
-| ------------------------- | ------------ | ------------------------------------------------ |
-| `cache: "no-store"`       | ❌ FORBIDDEN | `next: { revalidate: 300 }` (or appropriate TTL) |
-| `connection()` import     | ❌ FORBIDDEN | Remove entirely—pages are dynamic by default     |
-| `Date.now()` before fetch | ❌ FORBIDDEN | Use `0` sentinel or move after data access       |
-| `revalidate: 0`           | ❌ FORBIDDEN | Use positive revalidation time                   |
+| Pattern                   | Status    | Alternative                                      |
+| ------------------------- | --------- | ------------------------------------------------ |
+| `cache: "no-store"`       | FORBIDDEN | `next: { revalidate: 300 }` (or appropriate TTL) |
+| `connection()` import     | FORBIDDEN | Remove entirely—pages are dynamic by default     |
+| `Date.now()` before fetch | FORBIDDEN | Use `0` sentinel or move after data access       |
+| `revalidate: 0`           | FORBIDDEN | Use positive revalidation time                   |
 
 **Real-World Fix (Books feature):**
 
 ```typescript
-// ❌ BEFORE: Caused static-to-dynamic error
+//  BEFORE: Caused static-to-dynamic error
 const response = await fetch(url, { cache: "no-store" });
 
-// ✅ AFTER: Works with cacheComponents
+//  AFTER: Works with cacheComponents
 const response = await fetch(url, { next: { revalidate: 300 } });
 ```
 
 ```typescript
-// ❌ BEFORE: DYNAMIC_SERVER_USAGE error
+//  BEFORE: DYNAMIC_SERVER_USAGE error
 import { connection } from "next/server";
 export async function BooksServer() {
   await connection(); // Bailout from static rendering
   // ...
 }
 
-// ✅ AFTER: No bailout needed
+//  AFTER: No bailout needed
 export async function BooksServer() {
   // Pages are dynamic by default with cacheComponents
   // ...
@@ -169,8 +169,8 @@ grep -r "revalidate.*:.*0" --include="*.ts" --include="*.tsx"
 
 **Incompatibilities with `cacheComponents: true`:**
 
-1. `unstable_noStore()` in page components → causes `DYNAMIC_SERVER_USAGE` error
-2. `export const dynamic = "force-dynamic"` → causes build error
+1. `unstable_noStore()` in page components -> causes `DYNAMIC_SERVER_USAGE` error
+2. `export const dynamic = "force-dynamic"` -> causes build error
 
 **Key Understanding:**
 
@@ -182,14 +182,14 @@ Next.js 16 with Cache Components fundamentally changes the rendering model:
 **Forbidden Patterns:**
 
 ```typescript
-// ❌ BROKEN #1: Runtime API (causes DYNAMIC_SERVER_USAGE error)
+//  BROKEN #1: Runtime API (causes DYNAMIC_SERVER_USAGE error)
 import { unstable_noStore as noStore } from "next/cache";
 export default function Page() {
   noStore();
   // ...
 }
 
-// ❌ BROKEN #2: Route segment config (causes build error)
+//  BROKEN #2: Route segment config (causes build error)
 export const dynamic = "force-dynamic";
 export default function Page() {
   // Error: "Route segment config 'dynamic' is not compatible with `nextConfig.cacheComponents`"
@@ -200,7 +200,7 @@ export default function Page() {
 **Correct Patterns for Cache Components:**
 
 ```typescript
-// ✅ STATIC PAGE: Use 'use cache' directive
+//  STATIC PAGE: Use 'use cache' directive
 'use cache';
 
 import type { Metadata } from "next";
@@ -214,7 +214,7 @@ export default function StaticPage() {
 ```
 
 ```typescript
-// ✅ DYNAMIC PAGE: NO DIRECTIVE NEEDED
+//  DYNAMIC PAGE: NO DIRECTIVE NEEDED
 import type { Metadata } from "next";
 
 // Pages are dynamic by default with cacheComponents enabled
@@ -339,10 +339,10 @@ export default function BookmarksPage() {
    - **Impact:** Must `await` all dynamic data in Server Components
    - **Patterns:** Async metadata functions, async page components
 
-6. **Next.js 16 Upgrade Guide (Version 15 → 16)**
+6. **Next.js 16 Upgrade Guide (Version 15 -> 16)**
    - **URL:** https://github.com/vercel/next.js/blob/canary/docs/01-app/02-guides/upgrading/version-16.mdx
-   - **Key Migration:** `experimental.dynamicIO` → `cacheComponents: true`
-   - **Breaking Change:** Inverted rendering default (static → dynamic)
+   - **Key Migration:** `experimental.dynamicIO` -> `cacheComponents: true`
+   - **Breaking Change:** Inverted rendering default (static -> dynamic)
 
 **Prevention Protocol:**
 
@@ -363,7 +363,7 @@ Think of Cache Components as **inverting the default**:
 
 > **CRITICAL MANDATE:** With `cacheComponents: true`, pages are **dynamic by default**. Use `'use cache'` for static pages. Never use `export const dynamic = "force-dynamic"` - it will cause build failures. Any PR introducing these patterns will be rejected.
 
-## Allowed Patterns (✅)
+## Allowed Patterns ()
 
 | Area         | Requirement                                                                                      |
 | ------------ | ------------------------------------------------------------------------------------------------ |
@@ -374,7 +374,7 @@ Think of Cache Components as **inverting the default**:
 | Tests        | Reference `config/jest/config.ts` and Jest 30 APIs directly; document any mock shims.            |
 | Tooling      | Run `bun run validate` plus at least one MCP doc fetch + node_modules citation per task.         |
 
-## Outlawed Patterns (🚫)
+## Outlawed Patterns ()
 
 - Using `next/legacy/image`, `experimental.ppr`, `experimental.dynamicIO`, or `unstable_cache*` aliases.
 - Writing synchronous wrappers around `cookies()`, `headers()`, `params`, or `id` instead of awaiting the provided promise.
