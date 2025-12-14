@@ -227,11 +227,15 @@ export async function RelatedContent({
       weights, // Don't default - let algorithm choose appropriate weights
     } = options;
 
+    const normalizeTagForComparison = (tag: string): string =>
+      tag.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+
+    const normalizedExcludeTags = new Set(excludeTags.map(normalizeTagForComparison).filter(Boolean));
+
     // Helper to check if item has any excluded tags
     const hasExcludedTag = (tags: readonly string[] | undefined): boolean => {
-      if (excludeTags.length === 0 || !tags) return false;
-      const normalizedExclude = new Set(excludeTags.map(t => t.toLowerCase()));
-      return tags.some(t => normalizedExclude.has(t.toLowerCase()));
+      if (normalizedExcludeTags.size === 0 || !tags) return false;
+      return tags.some(tag => normalizedExcludeTags.has(normalizeTagForComparison(tag)));
     };
 
     // Try to load pre-computed related content first
@@ -265,25 +269,26 @@ export async function RelatedContent({
         items = items.filter(item => !(item.type === sourceType && excludeIds.includes(item.id)));
       }
 
-      // Apply limits via shared helper
-      const limited = limitByTypeAndTotal(items, maxPerType, maxTotal);
-
-      // Get all content for mapping
+      // Get all content for mapping BEFORE limiting - we need tags to filter by excludeTags
       // Use lazy loading to reduce memory pressure
-      const neededTypes = Array.from(new Set(limited.map(item => item.type)));
+      const neededTypes = Array.from(new Set(items.map(item => item.type)));
       const contentMap = await getLazyContentMap(neededTypes);
 
       // Convert to RelatedContentItem format
-      const relatedItemPromises = limited.map(async item => {
+      const relatedItemPromises = items.map(async item => {
         const content = contentMap.get(`${item.type}:${item.id}`);
         if (!content) return null;
         const relatedItem = await toRelatedContentItem({ ...content, score: item.score });
         return relatedItem;
       });
 
-      const relatedItems = (await Promise.all(relatedItemPromises))
+      // Filter by excludeTags BEFORE applying limits to ensure we get the requested count
+      const filteredItems = (await Promise.all(relatedItemPromises))
         .filter((i): i is RelatedContentItem => i !== null)
         .filter(i => !hasExcludedTag(i.metadata.tags));
+
+      // Apply limits via shared helper AFTER excludeTags filtering
+      const relatedItems = limitByTypeAndTotal(filteredItems, maxPerType, maxTotal);
 
       // If precomputed items exist but are missing some allowed content types (e.g., projects, books),
       // compute additional candidates for just the missing types and merge.
