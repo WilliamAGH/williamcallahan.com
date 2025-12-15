@@ -225,10 +225,13 @@ export async function POST(
             { once: true },
           );
 
+          let sseStartedAtMs: number | undefined;
+
           void task.started
             .then(() => {
+              sseStartedAtMs = Date.now();
               clearInterval(interval);
-              send("started", { ...queue.snapshot, upstreamKey, queueWaitMs: Date.now() - enqueuedAtMs });
+              send("started", { ...queue.snapshot, upstreamKey, queueWaitMs: sseStartedAtMs - enqueuedAtMs });
             })
             .catch(() => {
               clearInterval(interval);
@@ -237,7 +240,7 @@ export async function POST(
           void task.result
             .then(assistantMessage => {
               const durationMs = Date.now() - start;
-              const queueWaitMs = Date.now() - enqueuedAtMs;
+              const queueWaitMs = sseStartedAtMs ? sseStartedAtMs - enqueuedAtMs : 0;
 
               // Log the SSE chat message with full context
               logChatMessage({
@@ -264,6 +267,7 @@ export async function POST(
             })
             .catch((error: unknown) => {
               const durationMs = Date.now() - start;
+              const queueWaitMs = sseStartedAtMs ? sseStartedAtMs - enqueuedAtMs : 0;
               const errorMessage = error instanceof Error ? error.message : String(error);
 
               // Log the failed SSE chat message
@@ -277,7 +281,7 @@ export async function POST(
                 messages,
                 metrics: {
                   durationMs,
-                  queueWaitMs: Date.now() - enqueuedAtMs,
+                  queueWaitMs,
                   model: config.model,
                   statusCode: 502,
                   priority,
