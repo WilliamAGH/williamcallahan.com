@@ -10,6 +10,7 @@ import {
 } from "@/lib/ai/openai-compatible/feature-config";
 import { callOpenAiCompatibleChatCompletions } from "@/lib/ai/openai-compatible/openai-compatible-client";
 import { getUpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
+import { logChatMessage } from "@/lib/ai/openai-compatible/chat-message-logger";
 import logger from "@/lib/utils/logger";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
@@ -78,6 +79,18 @@ function getRequestOriginHostname(request: NextRequest): string | null {
   return null;
 }
 
+function getRequestPagePath(request: NextRequest): string | null {
+  const referer = request.headers.get("referer");
+  if (referer) {
+    try {
+      return new URL(referer).pathname;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 function getBearerToken(request: NextRequest): string | null {
   const auth = request.headers.get("authorization");
   if (!auth) return null;
@@ -106,6 +119,7 @@ export async function POST(
   const { feature } = await context.params;
 
   const clientIp = getClientIp(request);
+  const pagePath = getRequestPagePath(request);
   const rateKey = `${feature}:${clientIp}`;
   if (!isOperationAllowed("ai-chat", rateKey, CHAT_RATE_LIMIT)) {
     return NextResponse.json(
@@ -221,12 +235,57 @@ export async function POST(
             });
 
           void task.result
-            .then(message => {
-              send("done", { message });
+            .then(assistantMessage => {
+              const durationMs = Date.now() - start;
+              const queueWaitMs = Date.now() - enqueuedAtMs;
+
+              // Log the SSE chat message with full context
+              logChatMessage({
+                feature,
+                conversationId: parsedBody.conversationId,
+                clientIp,
+                userAgent,
+                originHost: originHost ?? undefined,
+                pagePath: pagePath ?? undefined,
+                messages,
+                assistantMessage,
+                metrics: {
+                  durationMs,
+                  queueWaitMs,
+                  model: config.model,
+                  statusCode: 200,
+                  priority,
+                },
+                success: true,
+              });
+
+              send("done", { message: assistantMessage });
               controller.close();
             })
             .catch((error: unknown) => {
+              const durationMs = Date.now() - start;
               const errorMessage = error instanceof Error ? error.message : String(error);
+
+              // Log the failed SSE chat message
+              logChatMessage({
+                feature,
+                conversationId: parsedBody.conversationId,
+                clientIp,
+                userAgent,
+                originHost: originHost ?? undefined,
+                pagePath: pagePath ?? undefined,
+                messages,
+                metrics: {
+                  durationMs,
+                  queueWaitMs: Date.now() - enqueuedAtMs,
+                  model: config.model,
+                  statusCode: 502,
+                  priority,
+                },
+                success: false,
+                errorMessage,
+              });
+
               const safeMessage =
                 process.env.NODE_ENV === "production"
                   ? "Upstream AI service error"
@@ -275,21 +334,51 @@ export async function POST(
 
     const durationMs = Date.now() - start;
     const queueWaitMs = startedAtMs ? Math.max(0, startedAtMs - enqueuedAtMs) : 0;
-    const conversationIdLog = parsedBody.conversationId ? ` conversationId=${parsedBody.conversationId}` : "";
-    logger.info(
-      `[AI Chat] feature=${feature} model=${config.model} status=200 durationMs=${durationMs} queueWaitMs=${queueWaitMs}${conversationIdLog}`,
-    );
+
+    // Log the chat message with full context
+    logChatMessage({
+      feature,
+      conversationId: parsedBody.conversationId,
+      clientIp,
+      userAgent,
+      originHost: originHost ?? undefined,
+      pagePath: pagePath ?? undefined,
+      messages,
+      assistantMessage: assistantText,
+      metrics: {
+        durationMs,
+        queueWaitMs,
+        model: config.model,
+        statusCode: 200,
+        priority,
+      },
+      success: true,
+    });
 
     return NextResponse.json({ message: assistantText }, { status: 200, headers: NO_STORE_HEADERS });
   } catch (error: unknown) {
     const durationMs = Date.now() - start;
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    const conversationIdLog = parsedBody.conversationId ? ` conversationId=${parsedBody.conversationId}` : "";
-    logger.error(
-      `[AI Chat] feature=${feature} model=${config.model} status=502 durationMs=${durationMs}${conversationIdLog}`,
+    // Log the failed chat message
+    logChatMessage({
+      feature,
+      conversationId: parsedBody.conversationId,
+      clientIp,
+      userAgent,
+      originHost: originHost ?? undefined,
+      pagePath: pagePath ?? undefined,
+      messages,
+      metrics: {
+        durationMs,
+        queueWaitMs: 0,
+        model: config.model,
+        statusCode: 502,
+        priority,
+      },
+      success: false,
       errorMessage,
-    );
+    });
 
     const safeMessage =
       process.env.NODE_ENV === "production"
