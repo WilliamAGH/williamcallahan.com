@@ -92,7 +92,7 @@ export function BookDetail({ book }: BookDetailProps) {
       <div className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           {/* Library Navigation */}
-          <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="mb-3 sm:mb-4 space-y-1">
             <Link
               href="/books"
               className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 inline-flex items-center gap-1 transition-colors group"
@@ -101,8 +101,9 @@ export function BookDetail({ book }: BookDetailProps) {
               <Library className="w-3.5 h-3.5" />
               <span>William&apos;s Reading List</span>
             </Link>
-            <span className="text-gray-300 dark:text-gray-600">·</span>
-            <TerminalContext type="book" />
+            <div>
+              <TerminalContext type="book" />
+            </div>
           </div>
 
           {/* Main Content Grid */}
