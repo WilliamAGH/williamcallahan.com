@@ -14,7 +14,7 @@ jest.mock("@/lib/s3-utils", () => ({
 }));
 
 // Mock fetch globally
-const fetchMock = Object.assign(jest.fn(), { preconnect: jest.fn() });
+const fetchMock = jest.fn();
 global.fetch = fetchMock as unknown as typeof fetch;
 
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
