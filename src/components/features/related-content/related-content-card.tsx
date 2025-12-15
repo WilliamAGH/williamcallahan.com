@@ -174,7 +174,6 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
                   showIcon={false}
                   className="flex-shrink-0 inline-flex items-center bg-slate-100 dark:bg-transparent hover:bg-slate-200 dark:hover:bg-gray-700/50 p-1.5 rounded-full transition-colors pointer-events-auto relative z-10"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element -- Plain img avoids hydration mismatch for small static icon */}
                   <img
                     src={aventureIconSrc}
                     alt="aVenture"
