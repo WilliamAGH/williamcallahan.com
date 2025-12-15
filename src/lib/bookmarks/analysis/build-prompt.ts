@@ -3,6 +3,7 @@
  * @module lib/bookmarks/analysis/build-prompt
  * @description
  * Constructs system and user prompts for LLM bookmark analysis.
+ * Domain-agnostic: works for any topic (tech, recipes, art, finance, etc.)
  */
 
 import type { BookmarkAnalysisContext } from "@/types/bookmark-ai-analysis";
@@ -16,7 +17,7 @@ import type { BookmarkAnalysisContext } from "@/types/bookmark-ai-analysis";
  * Instructs the LLM to act as a bookmark analyst and return JSON.
  */
 export function buildBookmarkAnalysisSystemPrompt(): string {
-  return `You are a bookmark analyst. Given bookmark metadata and content, provide a comprehensive analysis. Be factual, concise, and extract meaningful insights. Always respond with valid JSON only, no markdown formatting or code blocks.`;
+  return `You analyze bookmarked content and extract structured insights. Bookmarks can be about any topic: software, cooking, art, finance, travel, music, science, etc. Adapt your analysis to fit the content's domain. Respond with valid JSON only—no markdown, no code blocks.`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,20 +75,18 @@ export function buildBookmarkAnalysisUserPrompt(context: BookmarkAnalysisContext
 
   // Response format section
   sections.push("");
-  sections.push("RESPONSE FORMAT:");
+  sections.push("EXPECTED JSON RESPONSE:");
   sections.push(`{
-  "summary": "2-3 sentence overview of what this bookmark is about",
-  "category": "Framework|Library|Development Tool|Service|Platform|Article|Documentation|Tutorial|Reference|Community|News|Research|Product|Other",
-  "keyFeatures": ["list of 3-5 main features or capabilities"],
-  "useCases": ["list of 2-4 practical use cases"],
-  "technicalDetails": {
-    "language": "primary programming language if applicable, or null",
-    "platform": "supported platforms, or null",
-    "installMethod": "how to install/access if mentioned, or null"
+  "summary": "2-3 sentence overview of what this content is about",
+  "category": "a concise category label appropriate to the content (e.g., 'Python Library', 'Recipe', 'Research Paper', 'Design Tool', 'Travel Guide', 'Album Review')",
+  "highlights": ["3-5 key points, notable aspects, or main takeaways"],
+  "contextualDetails": {
+    "primaryDomain": "main subject area (e.g., 'Machine Learning', 'Italian Cuisine', 'Jazz Music') or null if not applicable",
+    "format": "content format (e.g., 'interactive tool', 'long-form article', 'video tutorial', 'podcast') or null",
+    "accessMethod": "how to access (e.g., 'free online', 'open source', 'subscription required') or null"
   },
-  "relatedProjects": ["any mentioned related tools or projects"],
-  "targetAudience": "who would benefit from this",
-  "personalRelevance": "why a developer might bookmark this"
+  "relatedResources": ["any related topics, tools, or references mentioned"],
+  "targetAudience": "who would find this valuable or interesting"
 }`);
 
   return sections.join("\n");

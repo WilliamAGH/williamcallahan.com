@@ -359,56 +359,43 @@ export function BookmarkAiAnalysis({
             {analysis.summary}
           </AnalysisSection>
 
-          {/* Key Features */}
-          {analysis.keyFeatures.length > 0 && (
-            <AnalysisSection label="Key Features" index={1} accentColor="#9ece6a">
+          {/* Highlights */}
+          {analysis.highlights.length > 0 && (
+            <AnalysisSection label="Highlights" index={1} accentColor="#9ece6a">
               <ul className="space-y-1.5 mt-1">
-                {analysis.keyFeatures.map((feature, idx) => (
+                {analysis.highlights.map((highlight, idx) => (
                   <TerminalListItem key={idx} index={idx}>
-                    {feature}
+                    {highlight}
                   </TerminalListItem>
                 ))}
               </ul>
             </AnalysisSection>
           )}
 
-          {/* Use Cases */}
-          {analysis.useCases.length > 0 && (
-            <AnalysisSection label="Use Cases" index={2} accentColor="#e0af68">
-              <ul className="space-y-1.5 mt-1">
-                {analysis.useCases.map((useCase, idx) => (
-                  <TerminalListItem key={idx} index={idx}>
-                    {useCase}
-                  </TerminalListItem>
-                ))}
-              </ul>
-            </AnalysisSection>
-          )}
-
-          {/* Technical Details */}
-          {(analysis.technicalDetails.language ||
-            analysis.technicalDetails.platform ||
-            analysis.technicalDetails.installMethod) && (
-            <AnalysisSection label="Technical" index={3} accentColor="#bb9af7">
+          {/* Contextual Details */}
+          {(analysis.contextualDetails.primaryDomain ||
+            analysis.contextualDetails.format ||
+            analysis.contextualDetails.accessMethod) && (
+            <AnalysisSection label="Details" index={2} accentColor="#bb9af7">
               <div className="space-y-1 mt-1 bg-black/20 rounded p-3 border border-[#3d4f70]/50">
-                {analysis.technicalDetails.language && (
-                  <TechDetail label="lang" value={analysis.technicalDetails.language} />
+                {analysis.contextualDetails.primaryDomain && (
+                  <TechDetail label="domain" value={analysis.contextualDetails.primaryDomain} />
                 )}
-                {analysis.technicalDetails.platform && (
-                  <TechDetail label="platform" value={analysis.technicalDetails.platform} />
+                {analysis.contextualDetails.format && (
+                  <TechDetail label="format" value={analysis.contextualDetails.format} />
                 )}
-                {analysis.technicalDetails.installMethod && (
-                  <TechDetail label="install" value={analysis.technicalDetails.installMethod} />
+                {analysis.contextualDetails.accessMethod && (
+                  <TechDetail label="access" value={analysis.contextualDetails.accessMethod} />
                 )}
               </div>
             </AnalysisSection>
           )}
 
-          {/* Related Projects - compact chips */}
-          {analysis.relatedProjects.length > 0 && (
-            <AnalysisSection label="Related" index={4} accentColor="#73daca">
+          {/* Related Resources - compact chips */}
+          {analysis.relatedResources.length > 0 && (
+            <AnalysisSection label="Related" index={3} accentColor="#73daca">
               <div className="flex flex-wrap gap-1.5 mt-1">
-                {analysis.relatedProjects.map((project, idx) => (
+                {analysis.relatedResources.map((resource, idx) => (
                   <motion.span
                     key={idx}
                     initial={{ opacity: 0, scale: 0.9 }}
@@ -416,7 +403,7 @@ export function BookmarkAiAnalysis({
                     transition={{ delay: idx * 0.05 }}
                     className="px-2 py-0.5 text-xs font-mono bg-[#73daca]/10 text-[#73daca] rounded border border-[#73daca]/20"
                   >
-                    {project}
+                    {resource}
                   </motion.span>
                 ))}
               </div>
