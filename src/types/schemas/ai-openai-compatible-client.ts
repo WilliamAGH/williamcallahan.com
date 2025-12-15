@@ -51,3 +51,15 @@ export const aiChatQueueUpdateSchema = z.union([
 ]);
 
 export type AiChatQueueUpdate = z.infer<typeof aiChatQueueUpdateSchema>;
+
+/**
+ * Schema for /api/ai/queue/[feature] response.
+ * Lightweight validation for queue stats used in auto-trigger decisions.
+ */
+export const aiQueueStatsSchema = z.object({
+  running: z.number().int().nonnegative(),
+  pending: z.number().int().nonnegative(),
+  maxParallel: z.number().int().positive(),
+});
+
+export type AiQueueStats = z.infer<typeof aiQueueStatsSchema>;
