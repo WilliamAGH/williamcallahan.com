@@ -86,13 +86,18 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
 
   const controller = new AbortController();
 
+  // Track if abort was caused by external signal (user cancellation) vs internal timeout
+  let abortedByExternalSignal = false;
+
   if (signal) {
     if (signal.aborted) {
+      abortedByExternalSignal = true;
       controller.abort(signal.reason);
     } else {
       signal.addEventListener(
         "abort",
         () => {
+          abortedByExternalSignal = true;
           controller.abort(signal.reason);
         },
         { once: true },
@@ -130,6 +135,12 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
   } catch (error) {
     if (error instanceof Error) {
       if (error.name === "AbortError") {
+        // If aborted by external signal (user cancellation), re-throw as AbortError
+        // so callers can distinguish from timeout and skip retries
+        if (abortedByExternalSignal) {
+          throw new DOMException("Request aborted", "AbortError");
+        }
+        // Internal timeout - wrap with timeout message
         // Strip query params to prevent leaking tokens/secrets in error messages
         throw new Error(`Request timeout after ${timeout}ms: ${stripQueryAndHash(effectiveUrl)}`, { cause: error });
       }
