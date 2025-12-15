@@ -13,6 +13,7 @@ export const openAiCompatibleChatCompletionsRequestSchema = z.object({
   model: z.string().min(1),
   messages: z.array(openAiCompatibleChatMessageSchema).min(1),
   temperature: z.number().min(0).max(2).optional(),
+  max_tokens: z.number().int().min(1).max(128000).optional(),
 });
 
 export type OpenAiCompatibleChatCompletionsRequest = z.infer<typeof openAiCompatibleChatCompletionsRequestSchema>;
