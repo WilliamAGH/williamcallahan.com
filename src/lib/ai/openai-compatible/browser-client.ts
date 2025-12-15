@@ -32,6 +32,20 @@ function parseSseMessage(raw: string): { event: string; data: string } | null {
   return { event, data };
 }
 
+/**
+ * Safely parse JSON from SSE data, providing a clear error message on failure.
+ * @param data - The raw SSE data string to parse
+ * @param eventType - The SSE event type for error context
+ * @throws Error with context if parsing fails
+ */
+function safeParseJson(data: string, eventType: string): unknown {
+  try {
+    return JSON.parse(data);
+  } catch {
+    throw new Error(`Malformed JSON in SSE '${eventType}' event`);
+  }
+}
+
 async function readSseStream(args: {
   response: Response;
   signal?: AbortSignal;
@@ -66,18 +80,18 @@ async function readSseStream(args: {
         if (!msg) continue;
 
         if (msg.event === "done") {
-          const parsed: unknown = JSON.parse(msg.data);
+          const parsed = safeParseJson(msg.data, "done");
           return aiChatResponseSchema.parse(parsed).message;
         }
 
         if (msg.event === "error") {
-          const parsed: unknown = JSON.parse(msg.data);
+          const parsed = safeParseJson(msg.data, "error");
           const errorObj = aiChatStreamErrorSchema.parse(parsed);
           throw new Error(errorObj.error);
         }
 
         if (msg.event === "queued" || msg.event === "queue") {
-          const parsed: unknown = JSON.parse(msg.data);
+          const parsed = safeParseJson(msg.data, msg.event);
           const position = aiChatQueuePositionSchema.parse(parsed);
           onQueueUpdate?.({
             event: msg.event,
@@ -90,7 +104,7 @@ async function readSseStream(args: {
         }
 
         if (msg.event === "started") {
-          const parsed: unknown = JSON.parse(msg.data);
+          const parsed = safeParseJson(msg.data, "started");
           const started = aiChatQueuePositionSchema.parse(parsed);
           onQueueUpdate?.({
             event: "started",
