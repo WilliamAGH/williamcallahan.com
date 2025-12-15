@@ -2,50 +2,30 @@
  * Bookmark AI Analysis Schemas
  * @module types/schemas/bookmark-ai-analysis
  * @description
- * Zod v4 schemas for the AI-generated bookmark analysis response.
+ * Zod v4 schemas for AI-generated bookmark analysis.
+ * Domain-agnostic: works for any topic (tech, recipes, art, finance, etc.)
  */
 
 import { z } from "zod/v4";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Category Schema
+// Contextual Details Schema
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Valid categories for bookmark classification */
-export const bookmarkAiAnalysisCategorySchema = z.enum([
-  "Framework",
-  "Library",
-  "Development Tool",
-  "Service",
-  "Platform",
-  "Article",
-  "Documentation",
-  "Tutorial",
-  "Reference",
-  "Community",
-  "News",
-  "Research",
-  "Product",
-  "Other",
-]);
-
-export type BookmarkAiAnalysisCategory = z.infer<typeof bookmarkAiAnalysisCategorySchema>;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Technical Details Schema
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Technical details extracted from the bookmark */
-export const bookmarkAiAnalysisTechnicalDetailsSchema = z.object({
-  /** Primary programming language if applicable */
-  language: z.string().nullable(),
-  /** Supported platforms */
-  platform: z.string().nullable(),
-  /** Installation or access method if mentioned */
-  installMethod: z.string().nullable(),
+/**
+ * Contextual details - meanings adapt to content domain.
+ * Examples: primaryDomain could be "Python" for code, "Thai cuisine" for recipes.
+ */
+export const bookmarkAiAnalysisContextualDetailsSchema = z.object({
+  /** Primary subject area (e.g., "React", "French cooking", "Jazz history") */
+  primaryDomain: z.string().nullable(),
+  /** Content format/medium (e.g., "interactive tool", "video series", "blog post") */
+  format: z.string().nullable(),
+  /** How to access (e.g., "free online", "subscription required", "open source") */
+  accessMethod: z.string().nullable(),
 });
 
-export type BookmarkAiAnalysisTechnicalDetails = z.infer<typeof bookmarkAiAnalysisTechnicalDetailsSchema>;
+export type BookmarkAiAnalysisContextualDetails = z.infer<typeof bookmarkAiAnalysisContextualDetailsSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Full Response Schema
@@ -55,20 +35,16 @@ export type BookmarkAiAnalysisTechnicalDetails = z.infer<typeof bookmarkAiAnalys
 export const bookmarkAiAnalysisResponseSchema = z.object({
   /** 2-3 sentence overview of what this bookmark is about */
   summary: z.string().min(1),
-  /** Primary category classification */
-  category: bookmarkAiAnalysisCategorySchema,
-  /** List of 3-5 main features or capabilities */
-  keyFeatures: z.array(z.string()).min(1).max(6),
-  /** List of 2-4 practical use cases */
-  useCases: z.array(z.string()).min(1).max(5),
-  /** Technical details if applicable */
-  technicalDetails: bookmarkAiAnalysisTechnicalDetailsSchema,
-  /** Any mentioned related tools or projects */
-  relatedProjects: z.array(z.string()),
-  /** Who would benefit from this */
+  /** LLM-determined category appropriate to the content (free-form) */
+  category: z.string().min(1),
+  /** 3-5 key points, notable aspects, or main takeaways */
+  highlights: z.array(z.string()).min(1).max(6),
+  /** Contextual details adapted to the content domain */
+  contextualDetails: bookmarkAiAnalysisContextualDetailsSchema,
+  /** Related topics, resources, or references mentioned */
+  relatedResources: z.array(z.string()),
+  /** Who would find this valuable or interesting */
   targetAudience: z.string().min(1),
-  /** Why a developer might bookmark this */
-  personalRelevance: z.string().min(1),
 });
 
 export type BookmarkAiAnalysisResponse = z.infer<typeof bookmarkAiAnalysisResponseSchema>;
