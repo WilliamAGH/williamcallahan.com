@@ -24,8 +24,13 @@ const RETRY_JITTER = 0.2;
 
 /**
  * Determine if an error is retryable (transient) vs permanent.
- * We only retry on network/timeout issues, specific HTTP status codes,
- * and JSON parse errors (which can indicate truncated responses).
+ *
+ * For AI/LLM calls, we're more liberal with retries because:
+ * 1. Network/gateway errors are transient
+ * 2. JSON parse errors could be truncated responses
+ * 3. Schema validation errors could be LLM non-determinism (might work next time)
+ *
+ * We still don't retry: user aborts, auth errors (401/403), bad requests (400)
  */
 function isRetryableUpstreamError(error: unknown, httpStatus?: number): boolean {
   // Never retry if request was aborted by user
@@ -35,7 +40,7 @@ function isRetryableUpstreamError(error: unknown, httpStatus?: number): boolean 
 
   // Retry on specific HTTP status codes
   if (httpStatus !== undefined) {
-    // 429 = rate limit, 502/503/504 = gateway errors, 408 = timeout
+    // 429 = rate limit, 502/503/504 = gateway errors, 408 = timeout, 500 = server error
     if ([408, 429, 500, 502, 503, 504].includes(httpStatus)) {
       return true;
     }
@@ -50,8 +55,14 @@ function isRetryableUpstreamError(error: unknown, httpStatus?: number): boolean 
     return true;
   }
 
-  // Retry on network errors
   if (error instanceof Error) {
+    // Retry on Zod validation errors - LLMs are non-deterministic,
+    // a malformed response structure might succeed on retry
+    if (error.name === "ZodError") {
+      return true;
+    }
+
+    // Retry on network errors
     const msg = error.message.toLowerCase();
     if (
       msg.includes("econnreset") ||
@@ -133,17 +144,12 @@ export async function callOpenAiCompatibleChatCompletions(args: {
       const json: unknown = text ? JSON.parse(text) : {};
       return openAiCompatibleChatCompletionsResponseSchema.parse(json);
     } catch (error) {
-      // Don't retry abort errors
+      // Don't retry abort errors - user explicitly cancelled
       if (error instanceof DOMException && error.name === "AbortError") {
         throw error;
       }
 
-      // Don't retry Zod validation errors (schema mismatch = permanent failure)
-      if (error instanceof Error && error.name === "ZodError") {
-        throw error;
-      }
-
-      // Check if retryable
+      // Check if retryable (includes ZodError for LLM non-determinism)
       if (isRetryableUpstreamError(error, undefined) && attempt < MAX_RETRIES) {
         lastError = error instanceof Error ? error : new Error(String(error));
         attempt++;
