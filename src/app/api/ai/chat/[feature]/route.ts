@@ -210,9 +210,6 @@ export async function POST(
             }
           };
 
-          // Alias so existing send() calls don't need to change
-          const send = safeSend;
-
           const enqueuedAtMs = Date.now();
           const task = queue.enqueue({
             priority,
@@ -229,13 +226,13 @@ export async function POST(
           });
 
           const initialPosition = queue.getPosition(task.id);
-          send("queued", { ...initialPosition, upstreamKey });
+          safeSend("queued", { ...initialPosition, upstreamKey });
 
           const intervalMs = 350;
           const interval = setInterval(() => {
             const position = queue.getPosition(task.id);
             if (!position.inQueue) return;
-            send("queue", { ...position, upstreamKey });
+            safeSend("queue", { ...position, upstreamKey });
           }, intervalMs);
 
           request.signal.addEventListener(
@@ -253,7 +250,7 @@ export async function POST(
             .then(() => {
               sseStartedAtMs = Date.now();
               clearInterval(interval);
-              send("started", { ...queue.snapshot, upstreamKey, queueWaitMs: sseStartedAtMs - enqueuedAtMs });
+              safeSend("started", { ...queue.snapshot, upstreamKey, queueWaitMs: sseStartedAtMs - enqueuedAtMs });
             })
             .catch(() => {
               clearInterval(interval);
@@ -284,7 +281,7 @@ export async function POST(
                 success: true,
               });
 
-              send("done", { message: assistantMessage });
+              safeSend("done", { message: assistantMessage });
               safeClose();
             })
             .catch((error: unknown) => {
@@ -316,7 +313,7 @@ export async function POST(
                 process.env.NODE_ENV === "production"
                   ? "Upstream AI service error"
                   : `Upstream AI service error: ${errorMessage}`;
-              send("error", { error: safeMessage });
+              safeSend("error", { error: safeMessage });
               safeClose();
             })
             .finally(() => {
