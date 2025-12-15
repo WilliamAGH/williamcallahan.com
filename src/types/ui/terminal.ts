@@ -79,6 +79,12 @@ export interface HistoryProps {
   history: TerminalCommand[];
   /** Maximum number of commands to show */
   maxItems?: number;
+  /**
+   * Display mode for filtering history
+   * - "default": Show all command types (standard terminal mode)
+   * - "chat": Show only chat messages (AI chat mode)
+   */
+  mode?: "default" | "chat";
 }
 
 /**
@@ -131,4 +137,28 @@ export interface TerminalWindowStateProviderProps {
 export interface TerminalSearchHintProps {
   /** Context determines the content type referenced in the hint text */
   context?: "bookmarks" | "blog" | "projects" | "books" | "thoughts";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Chat TUI Component Props
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Props for the AI Chat header bar with exit button */
+export interface AiChatHeaderProps {
+  /** Callback to clear chat history and exit chat mode */
+  onClearAndExit: () => void;
+}
+
+/** Props for the AI Chat input field and thinking indicator */
+export interface AiChatInputProps {
+  /** Whether a request is currently in progress */
+  isSubmitting: boolean;
+  /** Optional queue status message */
+  queueMessage?: string | null;
+  /** Callback to send a chat message */
+  onSend: (userText: string) => Promise<void> | void;
+  /** Callback to clear and exit chat mode */
+  onClearAndExit: () => void;
+  /** Callback to cancel the current request */
+  onCancelRequest: () => void;
 }
