@@ -31,6 +31,13 @@ import { jsonrepair } from "jsonrepair";
 
 const AI_FEATURE_NAME = "bookmark-analysis";
 
+/**
+ * Maximum queue depth before auto-trigger is skipped.
+ * If the queue has more than this many pending requests,
+ * the component will show a manual trigger button instead.
+ */
+const AUTO_TRIGGER_QUEUE_THRESHOLD = 5;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // JSON Parsing Utilities
 // ─────────────────────────────────────────────────────────────────────────────
@@ -233,11 +240,32 @@ export function BookmarkAiAnalysis({
   }, [bookmark]);
 
   // Auto-trigger analysis on mount (implicit UX)
+  // Checks queue depth first to avoid overwhelming the AI service
   useEffect(() => {
-    if (autoTrigger && !hasTriggered.current && state.status === "idle") {
-      hasTriggered.current = true;
-      void generateAnalysis();
+    if (!autoTrigger || hasTriggered.current || state.status !== "idle") return;
+
+    hasTriggered.current = true;
+
+    async function checkQueueAndTrigger() {
+      try {
+        const response = await fetch(`/api/ai/queue/${AI_FEATURE_NAME}`);
+        if (response.ok) {
+          const stats = (await response.json()) as { pending: number };
+          if (stats.pending > AUTO_TRIGGER_QUEUE_THRESHOLD) {
+            // Queue is busy - revert to idle so user can manually trigger
+            hasTriggered.current = false;
+            return;
+          }
+        }
+        // Queue is acceptable or check failed (proceed anyway)
+        void generateAnalysis();
+      } catch {
+        // Queue check failed - proceed with analysis anyway
+        void generateAnalysis();
+      }
     }
+
+    void checkQueueAndTrigger();
   }, [autoTrigger, state.status, generateAnalysis]);
 
   // Cycle through loading messages
