@@ -156,6 +156,8 @@ export enum ErrorCategory {
   RATE_LIMIT = "rate_limit",
   MEMORY_PRESSURE = "memory_pressure",
   TIMEOUT = "timeout",
+  /** User-initiated abort (DOMException AbortError) - should NOT be retried */
+  ABORT = "abort",
   VALIDATION = "validation",
   SYSTEM = "system",
   UNKNOWN = "unknown",
