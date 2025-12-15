@@ -187,9 +187,31 @@ export async function POST(
       const encoder = new TextEncoder();
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
-          const send = (event: string, data: unknown) => {
-            controller.enqueue(encoder.encode(formatSseEvent({ event, data })));
+          // Guard against race conditions when abort closes controller before promise handlers run
+          let controllerClosed = false;
+
+          const safeSend = (event: string, data: unknown) => {
+            if (controllerClosed) return;
+            try {
+              controller.enqueue(encoder.encode(formatSseEvent({ event, data })));
+            } catch {
+              // Controller was closed (e.g., by abort) - mark as closed to prevent further attempts
+              controllerClosed = true;
+            }
           };
+
+          const safeClose = () => {
+            if (controllerClosed) return;
+            controllerClosed = true;
+            try {
+              controller.close();
+            } catch {
+              // Already closed - ignore
+            }
+          };
+
+          // Alias so existing send() calls don't need to change
+          const send = safeSend;
 
           const enqueuedAtMs = Date.now();
           const task = queue.enqueue({
@@ -220,7 +242,7 @@ export async function POST(
             "abort",
             () => {
               clearInterval(interval);
-              controller.close();
+              safeClose();
             },
             { once: true },
           );
@@ -263,7 +285,7 @@ export async function POST(
               });
 
               send("done", { message: assistantMessage });
-              controller.close();
+              safeClose();
             })
             .catch((error: unknown) => {
               const durationMs = Date.now() - start;
@@ -295,7 +317,7 @@ export async function POST(
                   ? "Upstream AI service error"
                   : `Upstream AI service error: ${errorMessage}`;
               send("error", { error: safeMessage });
-              controller.close();
+              safeClose();
             })
             .finally(() => {
               clearInterval(interval);
