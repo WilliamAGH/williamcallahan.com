@@ -177,67 +177,84 @@ export function BookmarkAiAnalysis({
   const [loadingMessage, setLoadingMessage] = useState<string>(LOADING_MESSAGES[0] ?? "Analyzing...");
   const [queueMessage, setQueueMessage] = useState<string | null>(null);
   const hasTriggered = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const generateAnalysis = useCallback(async () => {
-    setState({ status: "loading", analysis: null, error: null });
-    setQueueMessage(null);
+  const generateAnalysis = useCallback(
+    async (signal?: AbortSignal) => {
+      setState({ status: "loading", analysis: null, error: null });
+      setQueueMessage(null);
 
-    try {
-      // Extract context from bookmark
-      const context = extractBookmarkAnalysisContext(bookmark);
+      try {
+        // Extract context from bookmark
+        const context = extractBookmarkAnalysisContext(bookmark);
 
-      // Build prompts
-      const systemPrompt = buildBookmarkAnalysisSystemPrompt();
-      const userPrompt = buildBookmarkAnalysisUserPrompt(context);
+        // Build prompts
+        const systemPrompt = buildBookmarkAnalysisSystemPrompt();
+        const userPrompt = buildBookmarkAnalysisUserPrompt(context);
 
-      // Call AI service
-      const responseText = await aiChat(
-        AI_FEATURE_NAME,
-        {
-          system: systemPrompt,
-          userText: userPrompt,
-          priority: 0,
-        },
-        {
-          onQueueUpdate: update => {
-            if (update.event === "queued" || update.event === "queue") {
-              if (update.position) {
-                setQueueMessage(`Queued (position ${update.position})`);
-              } else {
+        // Call AI service
+        const responseText = await aiChat(
+          AI_FEATURE_NAME,
+          {
+            system: systemPrompt,
+            userText: userPrompt,
+            priority: 0,
+          },
+          {
+            signal,
+            onQueueUpdate: update => {
+              if (update.event === "queued" || update.event === "queue") {
+                if (update.position) {
+                  setQueueMessage(`Queued (position ${update.position})`);
+                } else {
+                  setQueueMessage(null);
+                }
+                return;
+              }
+
+              if (update.event === "started") {
                 setQueueMessage(null);
               }
-              return;
-            }
-
-            if (update.event === "started") {
-              setQueueMessage(null);
-            }
+            },
           },
-        },
-      );
+        );
 
-      // Parse JSON response using jsonrepair for robustness
-      let parsedJson: unknown;
-      try {
-        parsedJson = parseLlmJson(responseText);
+        // Parse JSON response using jsonrepair for robustness
+        let parsedJson: unknown;
+        try {
+          parsedJson = parseLlmJson(responseText);
+        } catch (error) {
+          console.error("Failed to parse AI response:", responseText, error);
+          throw new Error("Invalid JSON response from AI service", { cause: error });
+        }
+
+        // Validate with Zod schema
+        const parseResult = bookmarkAiAnalysisResponseSchema.safeParse(parsedJson);
+        if (!parseResult.success) {
+          console.error("AI response validation failed:", parseResult.error);
+          throw new Error("AI response did not match expected format");
+        }
+
+        setState({ status: "success", analysis: parseResult.data, error: null });
       } catch (error) {
-        console.error("Failed to parse AI response:", responseText, error);
-        throw new Error("Invalid JSON response from AI service", { cause: error });
+        // Don't update state if request was aborted (component likely unmounted)
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+        const message = error instanceof Error ? error.message : "Failed to generate analysis";
+        setState({ status: "error", analysis: null, error: message });
       }
+    },
+    [bookmark],
+  );
 
-      // Validate with Zod schema
-      const parseResult = bookmarkAiAnalysisResponseSchema.safeParse(parsedJson);
-      if (!parseResult.success) {
-        console.error("AI response validation failed:", parseResult.error);
-        throw new Error("AI response did not match expected format");
-      }
-
-      setState({ status: "success", analysis: parseResult.data, error: null });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to generate analysis";
-      setState({ status: "error", analysis: null, error: message });
-    }
-  }, [bookmark]);
+  // Wrapper for manual triggers (retry, idle, regenerate buttons)
+  const handleManualTrigger = useCallback(() => {
+    // Abort any in-flight request before starting a new one
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+    void generateAnalysis(abortControllerRef.current.signal);
+  }, [generateAnalysis]);
 
   // Auto-trigger analysis on mount (implicit UX)
   // Checks queue depth first to avoid overwhelming the AI service
@@ -246,9 +263,13 @@ export function BookmarkAiAnalysis({
 
     hasTriggered.current = true;
 
+    // Create abort controller for this request
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     async function checkQueueAndTrigger() {
       try {
-        const response = await fetch(`/api/ai/queue/${AI_FEATURE_NAME}`);
+        const response = await fetch(`/api/ai/queue/${AI_FEATURE_NAME}`, { signal });
         if (response.ok) {
           const stats = (await response.json()) as { pending: number };
           if (stats.pending > AUTO_TRIGGER_QUEUE_THRESHOLD) {
@@ -258,14 +279,23 @@ export function BookmarkAiAnalysis({
           }
         }
         // Queue is acceptable or check failed (proceed anyway)
-        void generateAnalysis();
-      } catch {
+        void generateAnalysis(signal);
+      } catch (error) {
+        // If aborted, don't proceed
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
         // Queue check failed - proceed with analysis anyway
-        void generateAnalysis();
+        void generateAnalysis(signal);
       }
     }
 
     void checkQueueAndTrigger();
+
+    // Cleanup: abort in-flight request on unmount
+    return () => {
+      abortControllerRef.current?.abort();
+    };
   }, [autoTrigger, state.status, generateAnalysis]);
 
   // Cycle through loading messages
@@ -310,7 +340,7 @@ export function BookmarkAiAnalysis({
           </div>
           <button
             type="button"
-            onClick={generateAnalysis}
+            onClick={handleManualTrigger}
             className="mt-3 flex items-center gap-1.5 text-xs text-[#7aa2f7] hover:text-[#9ece6a] transition-colors font-mono"
           >
             <RotateCcw className="w-3 h-3" />
@@ -326,7 +356,7 @@ export function BookmarkAiAnalysis({
     return (
       <button
         type="button"
-        onClick={generateAnalysis}
+        onClick={handleManualTrigger}
         className={`group flex items-center gap-3 w-full bg-[#1a1b26] border border-[#3d4f70] hover:border-[#7aa2f7] rounded-lg p-4 sm:p-5 transition-all ${className}`}
       >
         <div className="flex items-center justify-center w-8 h-8 rounded bg-[#7aa2f7]/10 text-[#7aa2f7] group-hover:bg-[#7aa2f7]/20 transition-colors">
@@ -371,7 +401,7 @@ export function BookmarkAiAnalysis({
             </span>
             <button
               type="button"
-              onClick={generateAnalysis}
+              onClick={handleManualTrigger}
               className="text-gray-500 hover:text-[#7aa2f7] transition-colors p-1"
               title="Regenerate analysis"
             >
