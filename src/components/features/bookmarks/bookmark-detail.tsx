@@ -17,14 +17,17 @@ import {
   Bookmark,
   Library,
   Quote,
+  ChevronLeft,
 } from "lucide-react";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { formatDate } from "@/lib/utils";
 import { BookmarksWindow } from "./bookmarks-window.client";
+import { BookmarkAiAnalysis } from "./bookmark-ai-analysis.client";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import { removeCitations, processSummaryText } from "@/lib/utils/formatters";
 import { safeExternalHref } from "@/lib/utils/url-utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
+import { TerminalContext } from "@/components/ui/context-notes/terminal-context.client";
 
 const getHostname = (rawUrl: string): string => {
   if (!rawUrl) {
@@ -95,15 +98,19 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
     <BookmarksWindow windowTitle="~/bookmarks" windowId={`bookmark-detail-${bookmark.id}`}>
       <div className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
-          {/* Library Context - Subtle ownership indicator */}
-          <div className="mb-3 sm:mb-4">
+          {/* Library Context */}
+          <div className="mb-3 sm:mb-4 space-y-1">
             <Link
               href="/bookmarks"
-              className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 inline-flex items-center gap-1.5 transition-colors"
+              className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 inline-flex items-center gap-1 transition-colors group"
             >
+              <ChevronLeft className="w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors -ml-1" />
               <Bookmark className="w-3.5 h-3.5" />
               <span>William&apos;s Bookmark Library</span>
             </Link>
+            <div>
+              <TerminalContext type="bookmark" />
+            </div>
           </div>
 
           {/* Header Section */}
@@ -287,6 +294,15 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                   <p className="text-sm mt-2">Visit the original site to explore the content.</p>
                 </div>
               )}
+
+              {/* AI Analysis - Full width in main content for rich output */}
+              <motion.section
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.5 }}
+              >
+                <BookmarkAiAnalysis bookmark={bookmark} />
+              </motion.section>
             </div>
 
             {/* Sidebar Column - Shows first on mobile, 1/3 on large screens */}
