@@ -19,6 +19,7 @@ import { SelectionView } from "./selection-view.client";
 import { useTerminalContext } from "./terminal-context.client";
 import { TerminalHeader } from "./terminal-header";
 import { useTerminal } from "./use-terminal.client";
+import { AiChatHeader, AiChatInput, AiChatEmptyState } from "./ai-chat-tui.client";
 
 // Define a unique ID for this instance of a window-like component
 const TERMINAL_WINDOW_ID = "main-terminal";
@@ -61,6 +62,11 @@ export function Terminal() {
     inputRef,
     focusInput,
     isSubmitting,
+    activeApp,
+    clearAndExitChat,
+    sendChatMessage,
+    cancelActiveRequest,
+    aiQueueMessage,
   } = useTerminal();
 
   // Effect to scroll to bottom when history changes
@@ -268,6 +274,12 @@ export function Terminal() {
         checkAndSetup();
       }
 
+      const activeElement = document.activeElement;
+      const isTextEntryFocused =
+        activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLTextAreaElement ||
+        (activeElement instanceof HTMLElement && activeElement.isContentEditable);
+
       // If the terminal is focused or contains the active element, prevent arrow key scrolling
       const isTerminalActive =
         terminalContainer &&
@@ -276,6 +288,10 @@ export function Terminal() {
           isTerminalFocused);
 
       if (isTerminalActive) {
+        if (isTextEntryFocused) {
+          return;
+        }
+
         // Prevent default for navigation keys to stop page scrolling
         if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End"].includes(e.key)) {
           e.preventDefault();
@@ -284,10 +300,7 @@ export function Terminal() {
 
         // Allow typing spaces when input is focused; otherwise prevent page scroll
         if (e.key === " ") {
-          const isInputFocused = document.activeElement === inputRef.current;
-          if (!isInputFocused) {
-            e.preventDefault();
-          }
+          e.preventDefault();
         }
       }
     };
@@ -436,15 +449,25 @@ export function Terminal() {
           className={cn(commonScrollClasses, isMaximized ? maximizedScrollClasses : normalScrollClasses)}
           ref={scrollContainerRef}
           onClick={() => {
-            // Only focus input if SelectionView is not active
-            if (!selection) {
+            // Only focus command input in normal terminal mode
+            if (!selection && activeApp !== "ai-chat") {
               focusInput();
             }
           }}
           onKeyDown={e => {
-            // Only prevent space key default behavior if the input is not focused
-            // This allows typing spaces in the input while preventing scroll when clicking elsewhere
-            if (e.key === " " && document.activeElement !== inputRef.current) {
+            const target = e.target;
+            const isTextEntry =
+              target instanceof HTMLInputElement ||
+              target instanceof HTMLTextAreaElement ||
+              (target instanceof HTMLElement && target.isContentEditable);
+
+            // Only prevent space key default behavior when not in a text field (prevents page scroll)
+            if (
+              e.key === " " &&
+              !isTextEntry &&
+              activeApp !== "ai-chat" &&
+              document.activeElement !== inputRef.current
+            ) {
               e.preventDefault(); // Prevent default space scroll
               focusInput();
             }
@@ -453,13 +476,33 @@ export function Terminal() {
           aria-label="Terminal content area"
         >
           <div className="whitespace-pre-wrap break-words select-text">
-            <History history={terminalHistory} />
+            {/* AI Chat Mode: Header at top */}
+            {activeApp === "ai-chat" && <AiChatHeader onClearAndExit={clearAndExitChat} />}
+
+            {/* History: Always rendered, mode determines filtering */}
+            {/* In chat mode, shows only chat messages; otherwise shows all */}
+            <History history={terminalHistory} mode={activeApp === "ai-chat" ? "chat" : "default"} />
+
+            {/* AI Chat Mode: Empty state when no messages */}
+            {activeApp === "ai-chat" && terminalHistory.filter(h => h.type === "chat").length === 0 && (
+              <AiChatEmptyState />
+            )}
+
+            {/* Selection view OR Input (mutually exclusive) */}
             {selection ? (
               <SelectionView
                 items={selection}
                 onSelectAction={handleSelection}
                 onExitAction={cancelSelection}
                 scrollContainerRef={scrollContainerRef}
+              />
+            ) : activeApp === "ai-chat" ? (
+              <AiChatInput
+                isSubmitting={isSubmitting}
+                queueMessage={aiQueueMessage}
+                onSend={sendChatMessage}
+                onClearAndExit={clearAndExitChat}
+                onCancelRequest={cancelActiveRequest}
               />
             ) : (
               <CommandInput

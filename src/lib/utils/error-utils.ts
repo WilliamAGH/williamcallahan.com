@@ -227,6 +227,8 @@ export function isRetryableError(error: unknown, domain?: string): boolean {
     case ErrorCategory.GITHUB_API:
       return isRetryableGitHubError(error);
 
+    // User-initiated aborts should NEVER be retried
+    case ErrorCategory.ABORT:
     case ErrorCategory.VALIDATION:
     case ErrorCategory.SYSTEM:
       return false;
@@ -244,6 +246,13 @@ export function categorizeError(error: unknown, domain?: string): ErrorCategory 
     return ErrorCategory.UNKNOWN;
   }
 
+  // User-initiated abort (DOMException with AbortError) - NOT retryable
+  // Must check BEFORE timeout to distinguish user cancellation from internal timeouts
+  // See: openai-compatible-client.ts for the canonical pattern
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return ErrorCategory.ABORT;
+  }
+
   const message = error.message.toLowerCase();
 
   // Network-related errors
@@ -258,7 +267,7 @@ export function categorizeError(error: unknown, domain?: string): ErrorCategory 
     return ErrorCategory.NETWORK;
   }
 
-  // Timeout errors
+  // Timeout errors (internal timeouts, NOT user-initiated aborts)
   if (message.includes("timeout") || message.includes("aborted") || error.name === "AbortError") {
     return ErrorCategory.TIMEOUT;
   }

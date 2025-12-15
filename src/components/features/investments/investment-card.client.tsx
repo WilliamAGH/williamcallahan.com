@@ -20,8 +20,8 @@ import { LogoImage } from "@/components/ui";
 import { ExternalLink } from "@/components/ui/external-link.client";
 import { ExternalLink as ExternalLinkIcon } from "lucide-react";
 import type { InvestmentCardExtendedProps } from "@/types/features/investments";
-import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import Image from "next/image";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 import type { JSX } from "react";
 
