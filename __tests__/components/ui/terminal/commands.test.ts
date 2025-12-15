@@ -2,6 +2,7 @@
  * Terminal Commands Tests
  */
 import { handleCommand } from "@/components/ui/terminal/commands.client";
+import { isChatCommand } from "@/types";
 
 // Store original fetch and window
 const originalFetch = global.fetch;
@@ -54,7 +55,10 @@ describe("Terminal Commands", () => {
   describe("Basic Commands", () => {
     it("should return help information", async () => {
       const result = await handleCommand("help");
-      expect(result.results?.[0]?.output).toContain("Available commands:");
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining("Available commands:"),
+      });
     });
 
     it("should handle clear command", async () => {
@@ -63,14 +67,80 @@ describe("Terminal Commands", () => {
       expect(result.results).toEqual([]);
     });
 
+    it("should enter AI chat mode when called without args", async () => {
+      const result = await handleCommand("ai");
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining("Entering AI chat"),
+      });
+    });
+
     // Schema.org command tests are skipped due to DOM mocking complexity
+  });
+
+  describe("AI Chat Commands", () => {
+    it("should perform one-shot AI chat when args are provided", async () => {
+      const tokenResponse = {
+        ok: true,
+        status: 200,
+        json: jest.fn().mockResolvedValue({
+          token: "test-token",
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        }),
+      };
+
+      const chatResponse = {
+        ok: true,
+        status: 200,
+        json: jest.fn().mockResolvedValue({ message: "Hello from the assistant." }),
+      };
+
+      (fetch as unknown as jest.Mock).mockResolvedValueOnce(tokenResponse).mockResolvedValueOnce(chatResponse);
+
+      const result = await handleCommand("ai hello world");
+
+      expect(fetch).toHaveBeenNthCalledWith(
+        1,
+        "/api/ai/token",
+        expect.objectContaining({
+          method: "GET",
+          credentials: "include",
+        }),
+      );
+
+      expect(fetch).toHaveBeenNthCalledWith(
+        2,
+        "/api/ai/chat/terminal_chat",
+        expect.objectContaining({
+          method: "POST",
+          credentials: "include",
+          headers: expect.objectContaining({
+            "Content-Type": "application/json",
+            Authorization: "Bearer test-token",
+          }),
+        }),
+      );
+
+      expect(result.results).toHaveLength(2);
+      const first = result.results[0];
+      const second = result.results[1];
+      expect(isChatCommand(first)).toBe(true);
+      expect(isChatCommand(second)).toBe(true);
+      if (isChatCommand(first) && isChatCommand(second)) {
+        expect(first.role).toBe("user");
+        expect(second.role).toBe("assistant");
+      }
+    });
   });
 
   describe("Navigation Commands", () => {
     it("should navigate to valid sections", async () => {
       const result = await handleCommand("blog");
       expect(result.navigation).toBe("/blog");
-      expect(result.results?.[0]?.output).toBe("Navigating to blog...");
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: "Navigating to blog...",
+      });
     });
   });
 
@@ -98,7 +168,10 @@ describe("Terminal Commands", () => {
         expect.objectContaining({ signal: undefined }),
       );
       expect(result.selectionItems).toHaveLength(1);
-      expect(result.results?.[0]?.output).toContain("Found 1 results in Blog");
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining("Found 1 results in Blog"),
+      });
     });
 
     it("should handle blog search API failure", async () => {
@@ -106,7 +179,10 @@ describe("Terminal Commands", () => {
 
       const result = await handleCommand("blog test query");
 
-      expect(result.results?.[0]?.output).toContain('No results found in Blog for "test query"');
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining('No results found in Blog for "test query"'),
+      });
     });
 
     it("should handle blog search with non-200 response", async () => {
@@ -118,7 +194,10 @@ describe("Terminal Commands", () => {
 
       const result = await handleCommand("blog test query");
 
-      expect(result.results?.[0]?.output).toContain('No results found in Blog for "test query"');
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining('No results found in Blog for "test query"'),
+      });
     });
 
     it("should handle no search results", async () => {
@@ -130,7 +209,10 @@ describe("Terminal Commands", () => {
 
       const result = await handleCommand("blog no-results");
 
-      expect(result.results?.[0]?.output).toContain("No results found");
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining("No results found"),
+      });
       expect(result.selectionItems).toBeUndefined();
     });
 
@@ -143,7 +225,10 @@ describe("Terminal Commands", () => {
       (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
 
       const result = await handleCommand("experience test query");
-      expect(result.results?.[0]?.output).toContain("No results found");
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining("No results found"),
+      });
     });
   });
 
@@ -179,7 +264,10 @@ describe("Terminal Commands", () => {
         expect.objectContaining({ signal: undefined }),
       );
       expect(result.selectionItems).toHaveLength(2);
-      expect(result.results?.[0]?.output).toContain("Found 2 site-wide results");
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining("Found 2 site-wide results"),
+      });
     });
 
     it("should show not recognized message when no results found", async () => {
@@ -195,7 +283,10 @@ describe("Terminal Commands", () => {
         "/api/search/all?q=unknown%20command",
         expect.objectContaining({ signal: undefined }),
       );
-      expect(result.results?.[0]?.output).toContain("Command not recognized");
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining("Command not recognized"),
+      });
       expect(result.selectionItems).toBeUndefined();
     });
 
@@ -204,7 +295,10 @@ describe("Terminal Commands", () => {
 
       const result = await handleCommand("unknown command");
 
-      expect(result.results?.[0]?.output).toContain("Command not recognized");
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining("Command not recognized"),
+      });
     });
 
     it("should handle unknown errors in site-wide search", async () => {
@@ -212,7 +306,10 @@ describe("Terminal Commands", () => {
 
       const result = await handleCommand("unknown command");
 
-      expect(result.results?.[0]?.output).toContain("Command not recognized");
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining("Command not recognized"),
+      });
     });
   });
 
@@ -261,7 +358,10 @@ describe("Terminal Commands", () => {
       const result = await handleCommand("blog test", controller.signal);
 
       // When aborted, handleCommand returns empty results
-      expect(result.results?.[0]?.output).toContain('No results found in Blog for "test"');
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining('No results found in Blog for "test"'),
+      });
     });
 
     it("should propagate AbortSignal through all search paths", async () => {

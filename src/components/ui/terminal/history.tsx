@@ -5,8 +5,13 @@
  * prevents unwanted text truncation on mobile devices.
  *
  * This is a shared component that can be used in both client and server contexts.
+ *
+ * Supports two modes:
+ * - "default": Shows all command types (standard terminal mode)
+ * - "chat": Shows only chat messages (AI chat mode, for inline rendering)
  */
 
+import { cn } from "@/lib/utils";
 import {
   type HistoryProps,
   type TerminalCommand,
@@ -17,9 +22,13 @@ import {
   isHelpCommand,
   isSelectionCommand,
   isSearchingCommand,
+  isChatCommand,
 } from "@/types";
 
-export function History({ history }: HistoryProps) {
+export function History({ history, mode = "default" }: HistoryProps) {
+  // Filter history based on mode
+  const filteredHistory = Array.isArray(history) ? (mode === "chat" ? history.filter(isChatCommand) : history) : [];
+
   const getOutputContent = (line: TerminalCommand): string | null => {
     if (isTextCommand(line) || isNavigationCommand(line) || isClearCommand(line)) {
       return line.output;
@@ -41,26 +50,52 @@ export function History({ history }: HistoryProps) {
         : `⏳ Searching website for all results related to "${line.query}"...`;
       return searchText;
     }
+    if (isChatCommand(line)) {
+      return line.content;
+    }
     return null;
   };
 
+  // Don't render anything if history is empty
+  if (filteredHistory.length === 0) {
+    return null;
+  }
+
   return (
-    <div className="space-y-1 mb-4">
-      {Array.isArray(history) &&
-        history.map((line: TerminalCommand, i) => {
-          const outputContent = getOutputContent(line);
-          return (
-            <div key={`${line.input}-${line.id}-${i}`}>
-              {line.input && !isSearchingCommand(line) && (
-                <div className="flex items-start">
-                  <span className="text-[#7aa2f7] select-none mr-2 shrink-0">$</span>
-                  <span className="text-gray-300 break-words">{line.input}</span>
+    <div className={cn("mb-4", mode === "chat" ? "space-y-2" : "space-y-1")}>
+      {filteredHistory.map((line: TerminalCommand, i) => {
+        const outputContent = getOutputContent(line);
+        const isChat = isChatCommand(line);
+        const chatLabel = isChat ? (line.role === "user" ? "User" : "Assistant") : null;
+
+        return (
+          <div key={`${line.input}-${line.id}-${i}`}>
+            {/* Command input line (not shown for chat or searching) */}
+            {line.input && !isSearchingCommand(line) && !isChat && (
+              <div className="flex items-start">
+                <span className="text-[#7aa2f7] select-none mr-2 shrink-0">$</span>
+                <span className="text-gray-300 break-words">{line.input}</span>
+              </div>
+            )}
+
+            {/* Output content */}
+            {outputContent &&
+              (isChat ? (
+                <div
+                  className={cn(
+                    "rounded-md border px-3 py-2",
+                    line.role === "user" ? "border-blue-500/30 bg-blue-500/10" : "border-gray-700/70 bg-black/20",
+                  )}
+                >
+                  <div className="text-xs tracking-wide text-gray-400 select-none mb-1">{chatLabel}</div>
+                  <div className="text-gray-200 whitespace-pre-wrap break-words">{outputContent}</div>
                 </div>
-              )}
-              {outputContent && <div className="text-gray-300 whitespace-pre-wrap break-words">{outputContent}</div>}
-            </div>
-          );
-        })}
+              ) : (
+                <div className="text-gray-300 whitespace-pre-wrap break-words">{outputContent}</div>
+              ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
