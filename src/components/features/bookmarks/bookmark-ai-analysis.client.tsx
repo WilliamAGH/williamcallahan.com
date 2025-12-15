@@ -178,6 +178,8 @@ export function BookmarkAiAnalysis({
   const [queueMessage, setQueueMessage] = useState<string | null>(null);
   const hasTriggered = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Ref to hold latest generateAnalysis without triggering effect re-runs
+  const generateAnalysisRef = useRef<((signal?: AbortSignal) => Promise<void>) | null>(null);
 
   const generateAnalysis = useCallback(
     async (signal?: AbortSignal) => {
@@ -248,6 +250,9 @@ export function BookmarkAiAnalysis({
     [bookmark],
   );
 
+  // Keep ref in sync with latest generateAnalysis
+  generateAnalysisRef.current = generateAnalysis;
+
   // Wrapper for manual triggers (retry, idle, regenerate buttons)
   const handleManualTrigger = useCallback(() => {
     // Abort any in-flight request before starting a new one
@@ -258,18 +263,22 @@ export function BookmarkAiAnalysis({
 
   // Auto-trigger analysis on mount (implicit UX)
   // Checks queue depth first to avoid overwhelming the AI service
+  // Note: Uses ref for generateAnalysis to avoid effect re-runs when bookmark changes
   useEffect(() => {
-    if (!autoTrigger || hasTriggered.current || state.status !== "idle") return;
+    // Only run once when conditions are met - hasTriggered ref prevents re-runs
+    if (!autoTrigger || hasTriggered.current) return;
+    // Additional guard: only trigger from idle state
+    if (state.status !== "idle") return;
 
     hasTriggered.current = true;
 
     // Create abort controller for this request
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     async function checkQueueAndTrigger() {
       try {
-        const response = await fetch(`/api/ai/queue/${AI_FEATURE_NAME}`, { signal });
+        const response = await fetch(`/api/ai/queue/${AI_FEATURE_NAME}`, { signal: controller.signal });
         if (response.ok) {
           const stats = (await response.json()) as { pending: number };
           if (stats.pending > AUTO_TRIGGER_QUEUE_THRESHOLD) {
@@ -279,24 +288,28 @@ export function BookmarkAiAnalysis({
           }
         }
         // Queue is acceptable or check failed (proceed anyway)
-        void generateAnalysis(signal);
+        // Use ref to get latest function without re-triggering effect
+        void generateAnalysisRef.current?.(controller.signal);
       } catch (error) {
         // If aborted, don't proceed
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
         }
         // Queue check failed - proceed with analysis anyway
-        void generateAnalysis(signal);
+        void generateAnalysisRef.current?.(controller.signal);
       }
     }
 
     void checkQueueAndTrigger();
+    // No cleanup here - abort only on unmount (see separate effect below)
+  }, [autoTrigger]);
 
-    // Cleanup: abort in-flight request on unmount
+  // Cleanup effect: abort in-flight request on unmount only
+  useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
     };
-  }, [autoTrigger, state.status, generateAnalysis]);
+  }, []);
 
   // Cycle through loading messages
   useEffect(() => {
