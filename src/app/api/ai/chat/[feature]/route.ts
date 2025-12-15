@@ -349,9 +349,13 @@ export async function POST(
     });
 
     let startedAtMs: number | null = null;
-    void task.started.then(() => {
-      startedAtMs = Date.now();
-    });
+    void task.started
+      .then(() => {
+        startedAtMs = Date.now();
+      })
+      .catch(() => {
+        // Rejection is handled by await task.result below - this prevents unhandled rejection warnings
+      });
 
     const assistantText = await task.result;
 
