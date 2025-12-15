@@ -115,7 +115,7 @@ export function AiChatHeader({ onClearAndExit }: AiChatHeaderProps) {
 export function AiChatEmptyState() {
   return (
     <div className="text-gray-400 text-sm whitespace-pre-wrap mb-4">
-      Type a message to start chatting. Use `ai &lt;message&gt;` for one-shot replies from the normal prompt.
+      Type a message to start chatting. Use `ai {"<"}message{">"}` for one-shot replies from the normal prompt.
     </div>
   );
 }
