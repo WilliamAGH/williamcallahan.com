@@ -16,10 +16,10 @@ export type AiChatResponse = z.infer<typeof aiChatResponseSchema>;
 export const aiChatQueuePositionSchema = z
   .object({
     position: z.number().int().nullable().optional(),
-    running: z.number().int(),
-    pending: z.number().int(),
-    maxParallel: z.number().int(),
-    queueWaitMs: z.number().int().optional(),
+    running: z.number().int().nonnegative(),
+    pending: z.number().int().nonnegative(),
+    maxParallel: z.number().int().positive(),
+    queueWaitMs: z.number().int().nonnegative().optional(),
   })
   .passthrough();
 
@@ -37,16 +37,16 @@ export const aiChatQueueUpdateSchema = z.union([
   z.object({
     event: z.enum(["queued", "queue"]),
     position: z.number().int().nullable(),
-    running: z.number().int(),
-    pending: z.number().int(),
-    maxParallel: z.number().int(),
+    running: z.number().int().nonnegative(),
+    pending: z.number().int().nonnegative(),
+    maxParallel: z.number().int().positive(),
   }),
   z.object({
     event: z.literal("started"),
-    running: z.number().int(),
-    pending: z.number().int(),
-    maxParallel: z.number().int(),
-    queueWaitMs: z.number().int(),
+    running: z.number().int().nonnegative(),
+    pending: z.number().int().nonnegative(),
+    maxParallel: z.number().int().positive(),
+    queueWaitMs: z.number().int().nonnegative(),
   }),
 ]);
 

@@ -312,7 +312,7 @@ export function BookmarkAiAnalysis({
 
     void checkQueueAndTrigger();
     // No cleanup here - abort only on unmount (see separate effect below)
-  }, [autoTrigger]);
+  }, [autoTrigger, bookmark.id]);
 
   // Cleanup effect: abort in-flight request on unmount only
   useEffect(() => {
