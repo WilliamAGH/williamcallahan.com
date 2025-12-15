@@ -274,10 +274,8 @@ export function BookmarkAiAnalysis({
   // Checks queue depth first to avoid overwhelming the AI service
   // Note: Uses ref for generateAnalysis to avoid effect re-runs when bookmark changes
   useEffect(() => {
-    // Only run once when conditions are met - hasTriggered ref prevents re-runs
+    // hasTriggered ref prevents double-triggers; reset effect sets it to false on bookmark change
     if (!autoTrigger || hasTriggered.current) return;
-    // Additional guard: only trigger from idle state
-    if (state.status !== "idle") return;
 
     hasTriggered.current = true;
 
