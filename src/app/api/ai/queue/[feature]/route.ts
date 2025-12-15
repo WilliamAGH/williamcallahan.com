@@ -1,6 +1,7 @@
 import "server-only";
 
 import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod/v4";
 import {
   buildChatCompletionsUrl,
   resolveOpenAiCompatibleFeatureConfig,
@@ -8,6 +9,12 @@ import {
 import { getUpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+
+const featureParamSchema = z
+  .string()
+  .min(1)
+  .max(50)
+  .regex(/^[a-z0-9-]+$/);
 
 /**
  * GET /api/ai/queue/[feature]
@@ -17,17 +24,28 @@ const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
  * based on current queue load.
  *
  * Response: { running: number, pending: number, maxParallel: number }
+ *
+ * Note: This endpoint is intentionally unauthenticated as it only exposes
+ * queue depth counts (integers), not sensitive data. Similar to health checks.
  */
 export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ feature: string }> },
 ): Promise<NextResponse> {
-  const { feature } = await context.params;
+  try {
+    const { feature } = await context.params;
+    const validatedFeature = featureParamSchema.parse(feature);
 
-  const config = resolveOpenAiCompatibleFeatureConfig(feature);
-  const url = buildChatCompletionsUrl(config.baseUrl);
-  const upstreamKey = `${url}::${config.model}`;
-  const queue = getUpstreamRequestQueue({ key: upstreamKey, maxParallel: config.maxParallel });
+    const config = resolveOpenAiCompatibleFeatureConfig(validatedFeature);
+    const url = buildChatCompletionsUrl(config.baseUrl);
+    const upstreamKey = `${url}::${config.model}`;
+    const queue = getUpstreamRequestQueue({ key: upstreamKey, maxParallel: config.maxParallel });
 
-  return NextResponse.json(queue.snapshot, { status: 200, headers: NO_STORE_HEADERS });
+    return NextResponse.json(queue.snapshot, { status: 200, headers: NO_STORE_HEADERS });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Invalid feature parameter" }, { status: 400, headers: NO_STORE_HEADERS });
+    }
+    return NextResponse.json({ error: "Internal server error" }, { status: 500, headers: NO_STORE_HEADERS });
+  }
 }
