@@ -66,6 +66,7 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
     proxyUrl,
     handle202Retry = false,
     useBrowserHeaders = false,
+    signal,
     ...fetchOptions
   } = options;
 
@@ -84,6 +85,21 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
   const defaultHeaders = useBrowserHeaders ? BROWSER_HEADERS : DEFAULT_IMAGE_HEADERS;
 
   const controller = new AbortController();
+
+  if (signal) {
+    if (signal.aborted) {
+      controller.abort(signal.reason);
+    } else {
+      signal.addEventListener(
+        "abort",
+        () => {
+          controller.abort(signal.reason);
+        },
+        { once: true },
+      );
+    }
+  }
+
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {

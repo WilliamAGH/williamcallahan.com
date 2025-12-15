@@ -9,7 +9,7 @@
 import { getPlaiceholder } from "plaiceholder";
 import { fetchWithTimeout } from "@/lib/utils/http-client";
 
-const BLUR_FETCH_TIMEOUT_MS = 12_000;
+const BLUR_FETCH_TIMEOUT_MS = 30_000;
 const BLUR_CONCURRENCY = 3;
 
 /**
