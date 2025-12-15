@@ -6,7 +6,7 @@
  */
 
 import { describe, beforeAll, beforeEach, afterEach, expect, it, jest } from "@jest/globals";
-import type { UnifiedBookmark, BookmarkContent, BookmarkTag } from "../../../src/types";
+import type { UnifiedBookmark, BookmarkContent } from "../../../src/types";
 import { ServerCacheInstance } from "@/lib/server-cache";
 
 // Mock getBaseUrl at the top level with the correct path
@@ -33,21 +33,19 @@ void mockedCache; // Explicitly mark as intentionally unused
 const mockApiResponse: UnifiedBookmark[] = [
   {
     id: "bookmark1",
-    createdAt: "2023-01-01T12:00:00Z",
     modifiedAt: "2023-01-01T12:00:00Z",
     title: "Test Bookmark 1",
     url: "https://example.com/article1",
     description: "This is a test article description",
     archived: false,
-    favourited: true,
+    isFavorite: true,
     taggingStatus: "success",
     note: null,
     summary: "Test summary",
     dateBookmarked: "2023-01-01T12:00:00Z",
-    tags: [
-      { id: "tag1", name: "JavaScript", attachedBy: "user" } as BookmarkTag,
-      { id: "tag2", name: "Web Development", attachedBy: "ai" } as BookmarkTag,
-    ],
+    sourceUpdatedAt: "2023-01-01T12:00:00Z",
+    slug: "test-bookmark-1",
+    tags: ["javascript", "web-development"],
     content: {
       type: "link",
       url: "https://example.com/article1",
@@ -62,18 +60,19 @@ const mockApiResponse: UnifiedBookmark[] = [
   },
   {
     id: "bookmark2",
-    createdAt: "2023-01-02T12:00:00Z",
     modifiedAt: "2023-01-02T12:00:00Z",
     title: "Test Article 2",
     url: "https://example.com/article2",
     description: "Description placeholder",
     archived: false,
-    favourited: false,
+    isFavorite: false,
     taggingStatus: "success",
     note: "My notes",
     summary: null,
     dateBookmarked: "2023-01-02T12:00:00Z",
-    tags: [{ id: "tag3", name: "React", attachedBy: "user" } as BookmarkTag],
+    sourceUpdatedAt: "2023-01-02T12:00:00Z",
+    slug: "test-article-2",
+    tags: ["react"],
     content: {
       type: "link",
       url: "https://example.com/article2",
@@ -111,7 +110,8 @@ describe("Bookmarks Module (Simplified)", () => {
   beforeAll(() => {
     // Ensure fetch is defined on globalThis before tests run
     if (!globalThis.fetch) {
-      globalThis.fetch = jest.fn();
+      const fetchMock = Object.assign(jest.fn(), { preconnect: jest.fn() });
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
     }
   });
 
@@ -270,18 +270,14 @@ describe("Bookmarks Module (Simplified)", () => {
     const minimalResponse = [
       {
         id: "minimal",
-        createdAt: "2023-01-01T12:00:00Z",
         modifiedAt: "2023-01-01T12:00:00Z",
-        title: null,
-        archived: false,
-        favourited: false,
-        taggingStatus: "success",
+        title: "Minimal bookmark",
+        url: "https://example.com/minimal",
+        description: "",
+        dateBookmarked: "2023-01-01T12:00:00Z",
+        sourceUpdatedAt: "2023-01-01T12:00:00Z",
+        slug: "minimal",
         tags: [],
-        content: {
-          type: "link",
-          url: "https://example.com/minimal",
-        },
-        assets: [],
       },
     ];
 

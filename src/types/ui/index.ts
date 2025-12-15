@@ -55,5 +55,7 @@ export type {
   SectionKey,
   TerminalWindowStateContextType,
   TerminalWindowStateProviderProps,
+  AiChatHeaderProps,
+  AiChatInputProps,
 } from "./terminal";
 export * from "./window";
