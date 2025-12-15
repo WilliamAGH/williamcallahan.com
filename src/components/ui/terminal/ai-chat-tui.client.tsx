@@ -186,16 +186,23 @@ export function AiChatInput({ isSubmitting, queueMessage, onSend, onClearAndExit
       {/* Input field */}
       <div className="flex items-center gap-2">
         <span className="text-[#7aa2f7] select-none shrink-0">&gt;</span>
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          disabled={isSubmitting}
-          className="bg-transparent w-full focus:outline-none text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          placeholder={isSubmitting ? "Waiting for response..." : "Send a message"}
-          aria-label="AI chat message input"
-        />
+        <div className="relative flex-1 transform-gpu">
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            disabled={isSubmitting}
+            className="bg-transparent w-full focus:outline-none text-gray-200 caret-gray-200
+                text-[16px] transform-gpu scale-[0.875] origin-left disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              /* Offset the larger font size to maintain layout */
+              margin: "-0.125rem 0",
+            }}
+            placeholder={isSubmitting ? "Waiting for response..." : "Send a message"}
+            aria-label="AI chat message input"
+          />
+        </div>
       </div>
     </div>
   );
