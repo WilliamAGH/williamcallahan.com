@@ -17,6 +17,7 @@ import {
   type BookmarkAiAnalysisProps,
 } from "@/types/bookmark-ai-analysis";
 import { bookmarkAiAnalysisResponseSchema } from "@/types/schemas/bookmark-ai-analysis";
+import { aiQueueStatsSchema } from "@/types/schemas/ai-openai-compatible-client";
 import { extractBookmarkAnalysisContext } from "@/lib/bookmarks/analysis/extract-context";
 import {
   buildBookmarkAnalysisSystemPrompt,
@@ -253,6 +254,14 @@ export function BookmarkAiAnalysis({
   // Keep ref in sync with latest generateAnalysis
   generateAnalysisRef.current = generateAnalysis;
 
+  // Reset state when bookmark changes (defensive: handles prop changes without remount)
+  useEffect(() => {
+    setState(INITIAL_BOOKMARK_ANALYSIS_STATE);
+    hasTriggered.current = false;
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+  }, [bookmark.id]);
+
   // Wrapper for manual triggers (retry, idle, regenerate buttons)
   const handleManualTrigger = useCallback(() => {
     // Abort any in-flight request before starting a new one
@@ -280,14 +289,15 @@ export function BookmarkAiAnalysis({
       try {
         const response = await fetch(`/api/ai/queue/${AI_FEATURE_NAME}`, { signal: controller.signal });
         if (response.ok) {
-          const stats = (await response.json()) as { pending: number };
-          if (stats.pending > AUTO_TRIGGER_QUEUE_THRESHOLD) {
+          const data: unknown = await response.json();
+          const parseResult = aiQueueStatsSchema.safeParse(data);
+          if (parseResult.success && parseResult.data.pending > AUTO_TRIGGER_QUEUE_THRESHOLD) {
             // Queue is busy - revert to idle so user can manually trigger
             hasTriggered.current = false;
             return;
           }
+          // Validation failed or queue acceptable - proceed with analysis
         }
-        // Queue is acceptable or check failed (proceed anyway)
         // Use ref to get latest function without re-triggering effect
         void generateAnalysisRef.current?.(controller.signal);
       } catch (error) {
