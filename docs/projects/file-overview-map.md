@@ -165,7 +165,13 @@ File/Path Functionality Description
 
 ## Lib Directory
 
-- [ ] **ai/** `ai-shared-services` - Unified AI provider and web search services
+- [~] **ai/** `ai-shared-services` - Unified AI provider and web search services
+  - [x] **openai-compatible/**
+    - [x] `feature-config.ts` `ai-shared-services` - Per-feature env resolution + upstream URL builder
+    - [x] `gate-token.ts` `ai-shared-services` - HMAC-signed short-lived token helpers
+    - [x] `browser-client.ts` `ai-shared-services` - Browser helper to mint token + call AI chat route
+    - [x] `openai-compatible-client.ts` `ai-shared-services` - Fetch-based `/v1/chat/completions` client
+    - [x] `upstream-request-queue.ts` `ai-shared-services` - Per-upstream priority queue (max parallel + position)
   - [ ] **providers/**
     - [ ] `openai.ts` `ai-shared-services` - OpenAI provider implementation
     - [ ] `openrouter.ts` `ai-shared-services` - OpenRouter provider implementation
