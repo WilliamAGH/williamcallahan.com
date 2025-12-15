@@ -77,7 +77,7 @@ describe("S3 Utils Actual Export", () => {
 // __tests__/scripts/update-s3-data.smoke.test.ts so that we have ONE
 // place to configure live-AWS behavior during CI runs.
 
-const S3_TEST_MODE = process.env.S3_TEST_MODE || "NORMAL"; // DRY | NORMAL | FULL
+const S3_TEST_MODE = process.env.S3_TEST_MODE || "DRY"; // DRY | NORMAL | FULL
 
 const IS_S3_CONFIGURED = Boolean(
   process.env.S3_BUCKET && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY,

@@ -14,15 +14,18 @@ jest.mock("@/lib/s3-utils", () => ({
 }));
 
 // Mock fetch globally
-global.fetch = jest.fn();
+const fetchMock = Object.assign(jest.fn(), { preconnect: jest.fn() });
+global.fetch = fetchMock as unknown as typeof fetch;
 
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
 import { getS3ObjectMetadata } from "@/lib/s3-utils";
 import { GITHUB_ACTIVITY_S3_PATHS } from "@/lib/constants";
 
-const mockRefreshGitHubActivityDataFromApi = refreshGitHubActivityDataFromApi;
-const mockGetS3ObjectMetadata = getS3ObjectMetadata;
-const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
+const mockRefreshGitHubActivityDataFromApi = jest.mocked(refreshGitHubActivityDataFromApi);
+const mockGetS3ObjectMetadata = jest.mocked(getS3ObjectMetadata);
+const mockFetch = fetchMock as unknown as jest.MockedFunction<typeof fetch>;
+
+type RefreshGitHubActivityResult = NonNullable<Awaited<ReturnType<typeof refreshGitHubActivityDataFromApi>>>;
 
 describe("lib/data-access/github.ts functionality", () => {
   beforeEach(() => {
@@ -116,10 +119,20 @@ describe("lib/data-access/github.ts functionality", () => {
 
   describe("direct refresh functionality", () => {
     it("should handle successful refresh", async () => {
-      const mockResult = {
-        trailingYearData: { totalContributions: 365 },
-        allTimeData: { totalContributions: 1000 },
-        timestamp: Date.now(),
+      const mockResult: RefreshGitHubActivityResult = {
+        trailingYearData: {
+          source: "api",
+          data: [],
+          totalContributions: 365,
+          dataComplete: true,
+        },
+        allTimeData: {
+          source: "api",
+          data: [],
+          totalContributions: 1000,
+          dataComplete: true,
+          allTimeTotalContributions: 1000,
+        },
       };
 
       mockRefreshGitHubActivityDataFromApi.mockResolvedValue(mockResult);

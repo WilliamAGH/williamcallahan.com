@@ -4,7 +4,7 @@
  * bookmarks API, fetch data, and handle pagination using cursors.
  * It requires `BOOKMARK_BEARER_TOKEN` and `BOOKMARKS_LIST_ID` environment variables to be set.
  */
-import type { ApiResponse, RawApiBookmark } from "../../../src/lib/bookmarks";
+import type { BookmarksApiResponse, RawApiBookmark } from "@/types/bookmark";
 
 /**
  * Test suite for verifying the connection and data retrieval from the external bookmarks API.
@@ -61,7 +61,7 @@ describe.skip("Bookmarks API Backend Connection", () => {
 
         const jsonResponse: unknown = await response.json();
         // Explicitly assert the type on a new line
-        const data = jsonResponse as ApiResponse;
+        const data = jsonResponse as BookmarksApiResponse;
 
         expect(Array.isArray(data.bookmarks)).toBe(true);
 
