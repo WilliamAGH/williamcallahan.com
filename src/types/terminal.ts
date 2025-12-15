@@ -71,6 +71,12 @@ export interface SearchingCommand extends BaseTerminalCommand {
   scope?: string;
 }
 
+export interface ChatCommand extends BaseTerminalCommand {
+  type: "chat";
+  role: "user" | "assistant";
+  content: string;
+}
+
 /**
  * Discriminated union for all terminal command types
  */
@@ -81,7 +87,8 @@ export type TerminalCommand =
   | ErrorCommand
   | ClearCommand
   | HelpCommand
-  | SearchingCommand;
+  | SearchingCommand
+  | ChatCommand;
 
 /**
  * Legacy terminal command interface for backward compatibility
@@ -131,6 +138,10 @@ export function isSearchingCommand(command: TerminalCommand): command is Searchi
   return command.type === "searching";
 }
 
+export function isChatCommand(command: TerminalCommand): command is ChatCommand {
+  return command.type === "chat";
+}
+
 export function isTerminalCommand(item: unknown): item is TerminalCommand {
   if (typeof item !== "object" || item === null) return false;
 
@@ -162,6 +173,8 @@ export function isTerminalCommand(item: unknown): item is TerminalCommand {
       return isHelpCommand(cmd);
     case "searching":
       return isSearchingCommand(cmd);
+    case "chat":
+      return isChatCommand(cmd);
     default:
       return false;
   }

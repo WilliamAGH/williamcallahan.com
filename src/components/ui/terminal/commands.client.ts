@@ -9,6 +9,7 @@
 import type { CommandResult, TerminalSearchResult } from "@/types/terminal";
 import { searchResultsSchema, type SearchResult } from "@/types/search";
 import { transformSearchResultToTerminalResult } from "@/lib/utils/search-helpers";
+import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
 
 // Factory function to create searchByScopeImpl
 function createSearchByScopeImpl() {
@@ -141,7 +142,7 @@ const HELP_MESSAGE = `
 Available commands:
   help               Show this help message
   clear              Clear terminal history
-  ai | chat          Open search-ai.io
+  ai | chat | ai-chat AI chat (modal or one-shot)
 
 Navigate:
   home  investments  experience  education
@@ -149,44 +150,17 @@ Navigate:
 
 Search:
   <section> <query>  Search within a section
+  ai <message>       One-shot AI reply (no modal)
 
   e.g.  investments AI       blog claude
         projects java        books ai safety
+        ai explain cache components
 
 Quick jumps:
   aventure  morningstar  techstars  ...
 
 Or just type anything to search the entire site.
 `.trim();
-
-/**
- * Safely open a URL in a new tab using an anchor click. This avoids
- * relying on the return value of window.open and prevents tabnabbing
- * with rel="noopener". Keep this synchronous within the user gesture
- * for best compatibility on mobile browsers.
- */
-function openInNewTabSafe(rawUrl: string): void {
-  let url: URL;
-  try {
-    url = new URL(rawUrl);
-  } catch {
-    console.error("Invalid URL provided to openInNewTabSafe:", rawUrl);
-    return;
-  }
-
-  if (url.protocol !== "https:" && url.protocol !== "http:") {
-    console.error("Blocked non-http(s) protocol for openInNewTabSafe:", url.protocol);
-    return;
-  }
-
-  const anchor = document.createElement("a");
-  anchor.href = url.toString();
-  anchor.target = "_blank";
-  anchor.rel = "noopener"; // prevent window.opener access
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-}
 
 /**
  * Get the Schema.org data for the current page
@@ -296,25 +270,78 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
     };
   }
 
-  // Open external AI search in a new tab
-  if (command === "ai" || command === "chat") {
-    try {
-      // Open via safe anchor click; avoid Safari's null return behavior with noreferrer
-      openInNewTabSafe("https://search-ai.io");
-    } catch (err) {
-      console.error("Failed to open external URL:", err);
+  if (command === "ai" || command === "chat" || command === "ai-chat") {
+    if (args.length === 0) {
+      return {
+        results: [
+          {
+            type: "text",
+            id: crypto.randomUUID(),
+            input: "",
+            output: "Entering AI chat… (Tip: use `ai <message>` for a one-shot reply.)",
+            timestamp: Date.now(),
+          },
+        ],
+      };
     }
-    return {
-      results: [
-        {
-          type: "text",
-          id: crypto.randomUUID(),
-          input: "",
-          output: "Opening https://search-ai.io in a new tab…",
-          timestamp: Date.now(),
-        },
-      ],
-    };
+
+    const userText = args.join(" ").trim();
+    if (!userText) {
+      return {
+        results: [
+          {
+            type: "text",
+            id: crypto.randomUUID(),
+            input: "",
+            output: "No message provided.",
+            timestamp: Date.now(),
+          },
+        ],
+      };
+    }
+
+    try {
+      const assistantText = await aiChat(
+        "terminal_chat",
+        { messages: [{ role: "user", content: userText }], priority: 10 },
+        { signal },
+      );
+
+      return {
+        results: [
+          {
+            type: "chat",
+            id: crypto.randomUUID(),
+            input: "",
+            role: "user",
+            content: userText,
+            timestamp: Date.now(),
+          },
+          {
+            type: "chat",
+            id: crypto.randomUUID(),
+            input: "",
+            role: "assistant",
+            content: assistantText,
+            timestamp: Date.now(),
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return {
+        results: [
+          {
+            type: "error",
+            id: crypto.randomUUID(),
+            input: "",
+            error: "AI chat failed.",
+            details: message,
+            timestamp: Date.now(),
+          },
+        ],
+      };
+    }
   }
 
   // Clear command

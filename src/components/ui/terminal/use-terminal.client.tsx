@@ -6,13 +6,28 @@
 
 "use client";
 
-import type { SelectionItem } from "@/types/terminal";
+import { isChatCommand, type SelectionItem } from "@/types/terminal";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { handleCommand } from "./commands.client";
 import { useTerminalContext } from "./terminal-context.client";
 import { sections } from "./sections";
+import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
+
+const ABORT_REASON_USER_CANCEL = "user_cancel";
+const ABORT_REASON_SUPERSEDED = "superseded";
+const ABORT_REASON_CLEAR_EXIT = "clear_exit";
+const ABORT_REASON_UNMOUNT = "unmount";
+
+function isExpectedAbortReason(reason: unknown): boolean {
+  return (
+    reason === ABORT_REASON_USER_CANCEL ||
+    reason === ABORT_REASON_SUPERSEDED ||
+    reason === ABORT_REASON_CLEAR_EXIT ||
+    reason === ABORT_REASON_UNMOUNT
+  );
+}
 
 export function useTerminal() {
   // Get only history functions from TerminalContext
@@ -26,12 +41,16 @@ export function useTerminal() {
   const [input, setInput] = useState("");
   const [selection, setSelection] = useState<SelectionItem[] | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [aiQueueMessage, setAiQueueMessage] = useState<string | null>(null);
+  const [activeApp, setActiveApp] = useState<null | "ai-chat">(null);
+  const [aiChatConversationId, setAiChatConversationId] = useState<string>(() => crypto.randomUUID());
   // Flag to indicate whether a selection list is currently active
   const isSelecting = selection !== null;
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const animationFrameRef = useRef<number | null>(null);
   const activeCommandController = useRef<AbortController | null>(null);
+  const TERMINAL_CHAT_FEATURE = "terminal_chat";
 
   // Ref to always access the latest clearHistory function (avoids stale closure in useCallback)
   const clearHistoryRef = useRef(clearHistory);
@@ -47,17 +66,175 @@ export function useTerminal() {
     inputRef.current?.focus();
   }, []);
 
+  const exitActiveApp = useCallback(() => {
+    setActiveApp(null);
+    inputRef.current?.focus();
+  }, []);
+
+  const clearAndExitChat = useCallback(() => {
+    activeCommandController.current?.abort(ABORT_REASON_CLEAR_EXIT);
+    flushSync(() => {
+      clearHistoryRef.current();
+      setSelection(null);
+      setInput("");
+      setActiveApp(null);
+      setAiChatConversationId(crypto.randomUUID());
+    });
+    inputRef.current?.focus();
+  }, []);
+
+  const cancelActiveRequest = useCallback(() => {
+    activeCommandController.current?.abort(ABORT_REASON_USER_CANCEL);
+  }, []);
+
+  function parseAiPrefixedCommand(raw: string): { isAiCommand: boolean; userText: string | null } {
+    const trimmed = raw.trim();
+    if (!trimmed) return { isAiCommand: false, userText: null };
+
+    const firstSpace = trimmed.search(/\s/);
+    const cmd = (firstSpace === -1 ? trimmed : trimmed.slice(0, firstSpace)).toLowerCase();
+
+    if (cmd !== "ai" && cmd !== "chat" && cmd !== "ai-chat") return { isAiCommand: false, userText: null };
+
+    if (firstSpace === -1) return { isAiCommand: true, userText: null };
+    const remainder = trimmed.slice(firstSpace).trim();
+    return { isAiCommand: true, userText: remainder || null };
+  }
+
+  async function sendChatMessageInternal(userText: string, signal?: AbortSignal): Promise<void> {
+    const now = Date.now();
+    addToHistory({
+      type: "chat",
+      id: crypto.randomUUID(),
+      input: "",
+      role: "user",
+      content: userText,
+      timestamp: now,
+    });
+
+    const priorChatMessages = Array.isArray(history) ? history.filter(isChatCommand) : [];
+    const messages = [
+      ...priorChatMessages.slice(-19).map(msg => ({
+        role: msg.role === "assistant" ? ("assistant" as const) : ("user" as const),
+        content: msg.content,
+      })),
+      { role: "user" as const, content: userText },
+    ];
+
+    setAiQueueMessage(null);
+    const assistantText = await aiChat(
+      TERMINAL_CHAT_FEATURE,
+      { messages, conversationId: aiChatConversationId, priority: 10 },
+      {
+        signal,
+        onQueueUpdate: update => {
+          if (update.event === "queued" || update.event === "queue") {
+            if (update.position) {
+              setAiQueueMessage(
+                `Queued (position ${update.position}, ${update.running}/${update.maxParallel} running)`,
+              );
+            } else {
+              setAiQueueMessage(null);
+            }
+            return;
+          }
+
+          if (update.event === "started") {
+            setAiQueueMessage(null);
+          }
+        },
+      },
+    );
+
+    if (assistantText.trim().length === 0) {
+      throw new Error("AI chat returned an empty response");
+    }
+
+    addToHistory({
+      type: "chat",
+      id: crypto.randomUUID(),
+      input: "",
+      role: "assistant",
+      content: assistantText,
+      timestamp: Date.now(),
+    });
+  }
+
+  // Wrapper for TUI context that manages isSubmitting state
+  async function sendChatMessage(userText: string): Promise<void> {
+    if (isSubmitting) return;
+
+    // Abort any previous request
+    if (activeCommandController.current) {
+      activeCommandController.current.abort(ABORT_REASON_SUPERSEDED);
+    }
+
+    const controller = new AbortController();
+    activeCommandController.current = controller;
+
+    setIsSubmitting(true);
+    setAiQueueMessage(null);
+
+    try {
+      await sendChatMessageInternal(userText, controller.signal);
+    } catch (error: unknown) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        const reason: unknown = controller.signal.reason;
+        if (isExpectedAbortReason(reason)) {
+          return;
+        }
+        addToHistory({
+          type: "error",
+          id: crypto.randomUUID(),
+          input: "",
+          error: "AI chat request was aborted.",
+          details: "The request was aborted unexpectedly.",
+          timestamp: Date.now(),
+        });
+        return;
+      }
+      const message = error instanceof Error ? error.message : "Unknown error";
+      addToHistory({
+        type: "error",
+        id: crypto.randomUUID(),
+        input: "",
+        error: "AI chat failed.",
+        details: message,
+        timestamp: Date.now(),
+      });
+    } finally {
+      if (activeCommandController.current === controller) {
+        activeCommandController.current = null;
+      }
+      setIsSubmitting(false);
+      setAiQueueMessage(null);
+    }
+  }
+
   const handleSubmit = async () => {
     if (!input.trim() || isSubmitting) return;
 
     const commandInput = input.trim();
     const trimmedInput = commandInput.toLowerCase().trim();
 
+    const aiParsed = parseAiPrefixedCommand(commandInput);
+    if (aiParsed.isAiCommand && !aiParsed.userText) {
+      flushSync(() => {
+        setInput("");
+        setSelection(null);
+        setActiveApp("ai-chat");
+        setAiChatConversationId(crypto.randomUUID());
+      });
+      inputRef.current?.focus();
+      return;
+    }
+
     // Handle synchronous 'clear' command separately for atomic update
     if (trimmedInput === "clear") {
       flushSync(() => {
         clearHistory();
         setInput("");
+        setAiChatConversationId(crypto.randomUUID());
       });
       // After the synchronous update, the DOM is stable. We can safely focus.
       inputRef.current?.focus();
@@ -66,7 +243,7 @@ export function useTerminal() {
 
     // Abort any previous command still in progress
     if (activeCommandController.current) {
-      activeCommandController.current.abort();
+      activeCommandController.current.abort(ABORT_REASON_SUPERSEDED);
     }
 
     // Create new controller for this command
@@ -74,6 +251,55 @@ export function useTerminal() {
     activeCommandController.current = controller;
 
     setIsSubmitting(true);
+
+    if (aiParsed.isAiCommand && aiParsed.userText) {
+      const pendingId = crypto.randomUUID();
+      try {
+        flushSync(() => {
+          setInput("");
+        });
+        addToHistory({
+          type: "text",
+          id: pendingId,
+          input: "",
+          output: "Thinking…",
+          timestamp: Date.now(),
+        });
+        await sendChatMessageInternal(aiParsed.userText, controller.signal);
+      } catch (error: unknown) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          const reason: unknown = controller.signal.reason;
+          if (!isExpectedAbortReason(reason)) {
+            addToHistory({
+              type: "error",
+              id: crypto.randomUUID(),
+              input: "",
+              error: "AI chat request was aborted.",
+              details: "The request was aborted unexpectedly.",
+              timestamp: Date.now(),
+            });
+          }
+          return;
+        }
+        const message = error instanceof Error ? error.message : "Unknown error";
+        addToHistory({
+          type: "error",
+          id: crypto.randomUUID(),
+          input: "",
+          error: "AI chat failed.",
+          details: message,
+          timestamp: Date.now(),
+        });
+      } finally {
+        removeFromHistory(pendingId);
+        if (activeCommandController.current === controller) {
+          activeCommandController.current = null;
+        }
+        setIsSubmitting(false);
+        inputRef.current?.focus();
+      }
+      return;
+    }
 
     const parts = trimmedInput.split(" ");
     const command = parts[0] || "";
@@ -144,7 +370,16 @@ export function useTerminal() {
     } catch (error: unknown) {
       // Handle abort specifically
       if (error instanceof DOMException && error.name === "AbortError") {
-        console.log("Command execution was aborted.");
+        const reason: unknown = controller.signal.reason;
+        if (!isExpectedAbortReason(reason)) {
+          addToHistory({
+            type: "error",
+            id: crypto.randomUUID(),
+            input: commandInput,
+            error: "Request was aborted unexpectedly.",
+            timestamp: Date.now(),
+          });
+        }
         // Remove the temporary searching message if we added one
         if (isSearchCommand) {
           removeFromHistory(commandId);
@@ -228,6 +463,7 @@ export function useTerminal() {
       setSelection(null);
       clearHistoryRef.current();
       setInput("");
+      setAiChatConversationId(crypto.randomUUID());
     });
     inputRef.current?.focus();
   }, []);
@@ -239,7 +475,7 @@ export function useTerminal() {
         cancelAnimationFrame(animationFrameRef.current);
       }
       if (activeCommandController.current) {
-        activeCommandController.current.abort();
+        activeCommandController.current.abort(ABORT_REASON_UNMOUNT);
       }
     };
   }, []);
@@ -257,5 +493,12 @@ export function useTerminal() {
     focusInput,
     isSelecting,
     isSubmitting,
+    activeApp,
+    exitActiveApp,
+    clearAndExitChat,
+    sendChatMessage,
+    cancelActiveRequest,
+    aiChatConversationId,
+    aiQueueMessage,
   };
 }
