@@ -18,6 +18,7 @@ import { ArrowLeft, Share2 } from "lucide-react";
 import { formatDate, cn } from "@/lib/utils";
 import { ThoughtsWindow } from "./thoughts-window.client";
 import type { ThoughtDetailProps, ThoughtDetailCategoryColor } from "@/types/features/thoughts";
+import { TerminalContext } from "@/components/ui/context-notes/terminal-context.client";
 
 /**
  * Default category colors (used for fallback)
@@ -197,6 +198,10 @@ export function ThoughtDetail({ thought }: ThoughtDetailProps) {
               <span className="text-xs">
                 <span className="text-amber-500/70">~</span> {readingTime} min read
               </span>
+
+              {/* Terminal Context - Code comment context */}
+              <span className="text-zinc-300 dark:text-zinc-700">·</span>
+              <TerminalContext type="thought" />
             </div>
           </motion.header>
 
