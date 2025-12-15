@@ -21,6 +21,7 @@ import { ExternalLink } from "@/components/ui/external-link.client";
 import { ExternalLink as ExternalLinkIcon } from "lucide-react";
 import type { InvestmentCardExtendedProps } from "@/types/features/investments";
 import Image from "next/image";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 import type { JSX } from "react";
 
@@ -175,7 +176,7 @@ export function InvestmentCardClient({
                 className="flex items-center bg-slate-100 dark:bg-transparent hover:bg-slate-200 dark:hover:bg-gray-700/50 px-3 py-2 rounded-full transition-colors"
               >
                 <Image
-                  src="https://s3-storage.callahan.cloud/images/ui-components/aVenture-research-button.png"
+                  src={getStaticImageUrl("/images/ui-components/aVenture-research-button.png")}
                   alt="aVenture"
                   width={24}
                   height={24}
