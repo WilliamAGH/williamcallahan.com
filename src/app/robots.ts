@@ -24,26 +24,32 @@ export default function robots(): MetadataRoute.Robots {
   const isProd = process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
 
   // Define common problematic paths to disallow in production
+  // NOTE: Order matters - more specific paths should come first
   const disallowedProdPaths = [
-    "/api/",
-    "/api/debug/", // Explicitly block debug endpoints
+    "/api/debug/", // Block debug endpoints
+    "/api/send", // Block analytics proxy (Plausible)
+    "/api/tunnel", // Block error tracking proxy (Sentry)
+    "/api/cache-images", // Block internal cache endpoint
     "/opt/",
     "/Library/",
     "/Applications/",
     "/bin/",
     "/etc/",
     "/comments/feed/",
-    // Add specific old/invalid paths if needed, though redirects might be better
     "/legacy-homepage/",
-    "/author/", // Disallow author base
+    "/author/",
   ];
+
+  // Paths that should be explicitly allowed for crawling
+  // /api/assets/ serves bookmark preview images that should be indexable
+  const allowedProdPaths = ["/", "/api/assets/"];
 
   return {
     rules: {
       userAgent: "*",
       ...(isProd
         ? {
-            allow: "/",
+            allow: allowedProdPaths,
             disallow: disallowedProdPaths,
           }
         : {
