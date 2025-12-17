@@ -29,7 +29,7 @@ export default function robots(): MetadataRoute.Robots {
     "/api/debug/", // Block debug endpoints
     "/api/send", // Block analytics proxy (Plausible)
     "/api/tunnel", // Block error tracking proxy (Sentry)
-    "/api/cache-images", // Block internal cache endpoint
+    "/api/cache/images", // Block internal cache endpoint
     "/opt/",
     "/Library/",
     "/Applications/",
