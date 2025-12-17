@@ -79,7 +79,7 @@ export async function register(): Promise<void> {
     Sentry.init({
       dsn: process.env.SENTRY_DSN,
       release: releaseVersion,
-      tracesSampleRate: 1,
+      tracesSampleRate: 0.25,
 
       // Server-side integrations for enhanced error context
       integrations: [
