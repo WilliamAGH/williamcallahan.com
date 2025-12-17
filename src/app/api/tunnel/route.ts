@@ -43,6 +43,25 @@ export async function POST(request: NextRequest) {
       body,
     });
 
+    // Handle Sentry rate limiting with a descriptive error
+    if (upstreamResponse.status === 429) {
+      const retryAfter = upstreamResponse.headers.get("retry-after");
+      console.warn(
+        `[Sentry Tunnel] Rate limited by Sentry (429). Logs not sent.${retryAfter ? ` Retry-After: ${retryAfter}s` : ""}`,
+      );
+      return NextResponse.json(
+        {
+          error: "Sentry rate limit exceeded",
+          message: "Sentry logs were not sent due to rate limiting. Check your Sentry quota and sample rates.",
+          retryAfter: retryAfter ? Number.parseInt(retryAfter, 10) : null,
+        },
+        {
+          status: 429,
+          headers: retryAfter ? { "Retry-After": retryAfter } : undefined,
+        },
+      );
+    }
+
     // Mirror status and headers (omit length-restricted headers)
     const responseHeaders = new Headers();
     upstreamResponse.headers.forEach((value, key) => {

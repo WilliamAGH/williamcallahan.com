@@ -106,8 +106,8 @@ if (process.env.NODE_ENV === "production") {
       }),
     ],
 
-    // Production sample rates
-    tracesSampleRate: 1,
+    // Production sample rates (0.25 = 25% of transactions to avoid Sentry rate limits)
+    tracesSampleRate: 0.25,
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
 
