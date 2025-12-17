@@ -24,7 +24,7 @@ export default function robots(): MetadataRoute.Robots {
   const isProd = process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
 
   // Define common problematic paths to disallow in production
-  // NOTE: Order matters - more specific paths should come first
+  // NOTE: In robots.txt, the most specific matching rule takes precedence; order here is for readability only
   const disallowedProdPaths = [
     "/api/debug/", // Block debug endpoints
     "/api/send", // Block analytics proxy (Plausible)
