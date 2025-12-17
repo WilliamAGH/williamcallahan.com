@@ -27,7 +27,7 @@ export default function robots(): MetadataRoute.Robots {
   // NOTE: In robots.txt, the most specific matching rule takes precedence; order here is for readability only
   const disallowedProdPaths = [
     "/api/debug/", // Block debug endpoints
-    "/api/send", // Block analytics proxy (Plausible)
+    "/api/send", // Block analytics proxy (Umami)
     "/api/tunnel", // Block error tracking proxy (Sentry)
     "/api/cache/images", // Block internal cache endpoint
     "/opt/",
