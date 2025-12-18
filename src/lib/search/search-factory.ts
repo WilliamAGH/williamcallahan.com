@@ -1,8 +1,8 @@
 /**
  * Search Factory
  *
- * Factory function for creating cached search functions.
- * Eliminates the repetitive cache-check -> search -> transform -> cache-set pattern.
+ * Factory function for creating cached search functions with stale-while-revalidate.
+ * Returns cached results immediately (even if stale), then refreshes in the background.
  *
  * @module lib/search/search-factory
  */
@@ -10,6 +10,59 @@
 import type { SearchResult, SearchFunctionConfig } from "@/types/search";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { searchContent } from "./search-content";
+
+/**
+ * Track in-flight background refreshes to prevent duplicate work.
+ * Key format: `${cacheKey}:${query}`
+ */
+const backgroundRefreshInFlight = new Set<string>();
+
+/**
+ * Execute a search and cache the results. Used for both foreground and background refresh.
+ */
+async function executeSearch<TDoc, TResult extends SearchResult>(
+  config: SearchFunctionConfig<TDoc, TResult>,
+  query: string,
+): Promise<TResult[]> {
+  const index = await config.getIndex();
+  const items = await Promise.resolve(config.getItems());
+  const scoredResults = searchContent(
+    items,
+    query,
+    config.getSearchableFields,
+    config.getExactMatchField,
+    index,
+    config.getItemId,
+  );
+  const results = scoredResults.map(({ item, score }) => config.transformResult(item, score));
+  ServerCacheInstance.setSearchResults(config.cacheKey, query, results);
+  return results;
+}
+
+/**
+ * Trigger a background refresh for a stale cache entry.
+ * Non-blocking - fires and forgets. Dedupes concurrent refresh requests.
+ */
+function triggerBackgroundRefresh<TDoc, TResult extends SearchResult>(
+  config: SearchFunctionConfig<TDoc, TResult>,
+  query: string,
+): void {
+  const refreshKey = `${config.cacheKey}:${query}`;
+  if (backgroundRefreshInFlight.has(refreshKey)) {
+    return; // Already refreshing this query
+  }
+
+  backgroundRefreshInFlight.add(refreshKey);
+
+  // Fire-and-forget: don't await, don't block
+  void executeSearch(config, query)
+    .catch(err => {
+      console.error(`[SWR] Background refresh failed for ${config.cacheKey}:`, err);
+    })
+    .finally(() => {
+      backgroundRefreshInFlight.delete(refreshKey);
+    });
+}
 
 /**
  * Factory for creating cached search functions.
@@ -50,34 +103,19 @@ export function createCachedSearchFunction<TDoc, TResult extends SearchResult>(
   config: SearchFunctionConfig<TDoc, TResult>,
 ): (query: string) => Promise<TResult[]> {
   return async (query: string): Promise<TResult[]> => {
-    // 1. Check cache
+    // Check cache (even stale entries are usable with SWR)
     const cached = ServerCacheInstance.getSearchResults<TResult>(config.cacheKey, query);
-    if (cached && !ServerCacheInstance.shouldRefreshSearch(config.cacheKey, query)) {
+    const isStale = cached && ServerCacheInstance.shouldRefreshSearch(config.cacheKey, query);
+
+    // SWR: Return stale cache immediately, trigger background refresh
+    if (cached) {
+      if (isStale) {
+        triggerBackgroundRefresh(config, query);
+      }
       return cached.results;
     }
 
-    // 2. Get index
-    const index = await config.getIndex();
-
-    // 3. Get items
-    const items = await Promise.resolve(config.getItems());
-
-    // 4. Search
-    const scoredResults = searchContent(
-      items,
-      query,
-      config.getSearchableFields,
-      config.getExactMatchField,
-      index,
-      config.getItemId,
-    );
-
-    // 5. Transform results
-    const results = scoredResults.map(({ item, score }) => config.transformResult(item, score));
-
-    // 6. Cache results
-    ServerCacheInstance.setSearchResults(config.cacheKey, query, results);
-
-    return results;
+    // No cache: must fetch synchronously (cold start)
+    return executeSearch(config, query);
   };
 }
