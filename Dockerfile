@@ -25,9 +25,11 @@ COPY config ./config
 # Create generated/ directory for build-time generated files (CSP hashes, etc.)
 RUN mkdir -p generated/bookmarks
 
-# Install dependencies with Bun, skipping third-party postinstall scripts to avoid native crashes
+# Install dependencies with Bun, skipping third-party postinstall scripts to avoid native crashes.
+# Note: --frozen-lockfile is intentionally omitted so Docker rebuilds can pick up newer
+# semver-compatible versions (e.g., CVE patches for next/react) without requiring a new commit.
 # Cache mounts are avoided so classic docker builds (DOCKER_BUILDKIT=0) continue to work.
-RUN bun install --frozen-lockfile --ignore-scripts
+RUN bun install --ignore-scripts
 # Ensure CSP hashes file exists early for tooling that might import it
 RUN bun scripts/init-csp-hashes.ts
 
@@ -159,6 +161,11 @@ WORKDIR /app
 # fontconfig + ttf-dejavu required for @react-pdf/renderer PDF generation at runtime
 RUN apk add --no-cache nodejs vips curl bash libc6-compat fontconfig ttf-dejavu
 
+# Create non-root user for security (UID 1001 is standard for Next.js containers)
+# This ensures consistent permissions with Coolify and other container orchestrators
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 --ingroup nodejs nextjs
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 # Indicate process is running inside Docker container
@@ -185,28 +192,28 @@ ENV S3_BUCKET=$S3_BUCKET \
     NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
-# Copy Next.js build output (Turbopack doesn't use standalone)
-COPY --from=builder /app/.next ./.next
-# Ensure local S3 cache path exists at runtime (builder no longer materializes snapshots)
-RUN mkdir -p ./.next/cache/local-s3
-# Copy node_modules for runtime dependencies
+# Copy Next.js build output with ownership set to nextjs user
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+# Ensure local S3 cache path exists at runtime with proper ownership
+RUN mkdir -p ./.next/cache/local-s3 && chown -R nextjs:nodejs ./.next/cache
+
+# Copy node_modules for runtime dependencies (read-only, no chown needed)
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copy scripts directory (run as root, so no chown needed)
-COPY --from=builder /app/scripts ./scripts
+# Copy scripts directory
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 
 # Copy script package definitions so the scheduler can run
-COPY --from=builder /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
-# Copy public directory (run as root, so no chown needed)
+# Copy public directory (read-only static assets)
 COPY --from=builder /app/public ./public
 
-# Copy data directory with all static data files
+# Copy data directory with all static data files (read-only)
 COPY --from=builder /app/data ./data
 
 # Ensure TypeScript path-mapping files are available at runtime so that Bun can
 # resolve "@/*" import aliases used by our standalone scripts (e.g. update-s3).
-# We copy any root-level tsconfig variants that might contain the "paths" map.
 COPY --from=builder /app/tsconfig*.json ./
 
 # Runtime helper scripts (`scripts/*.ts`) import source modules directly from the
@@ -217,34 +224,21 @@ COPY --from=builder /app/src/lib ./src/lib
 COPY --from=builder /app/src/types ./src/types
 COPY --from=builder /app/config ./config
 # Copy generated files (CSP hashes, bookmark caches for local fallback)
-COPY --from=builder /app/generated ./generated
+COPY --from=builder --chown=nextjs:nodejs /app/generated ./generated
 
 # Ensure the sitemap generator used by runtime scripts is available.
-# Only the specific file is copied to minimize image size and avoid unnecessary source files.
 COPY --from=builder /app/src/app/sitemap.ts ./src/app/sitemap.ts
 
-# REMOVED: Copying initial data from builder stage - data now lives in S3
-# COPY --from=builder --chown=nextjs:nodejs /app/data/images/logos /app/.initial-logos
-# COPY --from=builder --chown=nextjs:nodejs /app/data/github-activity /app/.initial-github-activity
-# COPY --from=builder /app/data/bookmarks /app/.initial-bookmarks
+# Create writable cache directory with proper ownership for non-root user
+RUN mkdir -p /app/cache/s3_data && chown -R nextjs:nodejs /app/cache
 
-# Ensure the local S3 cache directory exists with proper permissions
-RUN mkdir -p /app/cache/s3_data
-# REMOVED: Creating persistent data directories - data now lives in S3
-# RUN mkdir -p /app/data/images/logos
-# RUN mkdir -p /app/data/github-activity
-# RUN mkdir -p /app/data/bookmarks
-
-# Copy entrypoint script (run as root, so no chown needed)
-COPY scripts/entrypoint.sh /app/entrypoint.sh
+# Copy entrypoint script and make executable
+COPY --chown=nextjs:nodejs scripts/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-# REMOVED: VOLUME directives for data now in S3
-# VOLUME /app/data/images/logos
-# VOLUME /app/data/github-activity
-# VOLUME /app/data/bookmarks
-
-# REMOVED: USER directive - will run as root
+# Switch to non-root user for security
+# UID 1001 is standard for Next.js and works reliably with Coolify
+USER nextjs
 
 EXPOSE 3000
 
