@@ -31,13 +31,13 @@ DATA_POPULATOR_PID=""
 TAIL_PID=""
 
 echo "🔑 [Entrypoint] Ensuring cache directory exists..."
-# Ensure the local cache directory exists. Permissions are handled by running as root.
-# This directory should have been created in the Dockerfile runner stage.
+# Ensure the local cache directory exists. The directory is owned by nextjs:nodejs
+# and was created with proper permissions in the Dockerfile runner stage.
 mkdir -p /app/cache/s3_data
 echo "✅ [Entrypoint] Cache directory /app/cache/s3_data ensured."
 
-# REMOVED: Volume seeding logic as data is now in S3
-# REMOVED: User switching logic - running as root
+# NOTE: Container runs as non-root user 'nextjs' (UID 1001) for security.
+# All writable directories are pre-created with proper ownership in Dockerfile.
 
 echo "📊 [Entrypoint] Checking for initial data population..."
 # Check if critical data exists, if not mark for background population
@@ -137,6 +137,7 @@ trap cleanup SIGTERM SIGINT SIGQUIT
 
 echo "🚀 [Entrypoint] Starting main application..."
 
-# Execute the command passed to the entrypoint (CMD in Dockerfile) directly as root
-# The "$@" here expands to the CMD specified in the Dockerfile (e.g., ["npx", "next", "start"])
+# Execute the command passed to the entrypoint (CMD in Dockerfile)
+# The "$@" expands to the CMD specified in the Dockerfile (e.g., ["bun", "run", "start"])
+# Running as non-root user 'nextjs' (UID 1001) for security
 exec "$@"
