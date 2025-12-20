@@ -11,6 +11,7 @@ import {
 import { callOpenAiCompatibleChatCompletions } from "@/lib/ai/openai-compatible/openai-compatible-client";
 import { getUpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
 import { logChatMessage } from "@/lib/ai/openai-compatible/chat-message-logger";
+import { buildChatMessages } from "@/lib/ai/openai-compatible/chat-messages";
 import logger from "@/lib/utils/logger";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
@@ -21,6 +22,18 @@ const CHAT_RATE_LIMIT = {
   maxRequests: 20,
   windowMs: 60_000,
 } as const;
+
+// Feature-specific system prompts injected server-side
+const FEATURE_SYSTEM_PROMPTS: Record<string, string> = {
+  terminal_chat: `You are a helpful assistant in a terminal interface on williamcallahan.com, the personal website of William Callahan (software engineer, investor, entrepreneur).
+
+Response style:
+- Keep responses short and conversational (2-4 sentences typical, expand only when necessary)
+- Use plain text only - no markdown, no HTML, no formatting symbols like ** or #
+- For lists, use simple dashes: "- item one" on new lines
+- Be friendly but concise - this is a terminal, not a document
+- When asked about William or the site, share relevant context naturally`,
+};
 
 const requestBodySchema = z
   .object({
@@ -170,10 +183,12 @@ export async function POST(
     );
   }
 
-  const messages = parsedBody.messages ?? [
-    ...(parsedBody.system ? [{ role: "system" as const, content: parsedBody.system }] : []),
-    { role: "user" as const, content: parsedBody.userText ?? "" },
-  ];
+  const messages = buildChatMessages({
+    featureSystemPrompt: FEATURE_SYSTEM_PROMPTS[feature],
+    system: parsedBody.system,
+    messages: parsedBody.messages,
+    userText: parsedBody.userText,
+  });
 
   const config = resolveOpenAiCompatibleFeatureConfig(feature);
   const url = buildChatCompletionsUrl(config.baseUrl);

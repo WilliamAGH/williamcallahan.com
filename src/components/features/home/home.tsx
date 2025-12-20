@@ -17,8 +17,8 @@ export function Home() {
 
           <section className="mb-8">
             <p className="text-lg mb-4">
-              Hello there -- I&apos;m William. I&apos;m a lifelong builder and entrepreneur who finds meaning in making
-              things better, and in helping others.
+              Hello there -- I&apos;m William. I&apos;m a lifelong builder and aspiring polymath who finds meaning in
+              making things better, and in helping others.
             </p>
             <p className="text-lg mb-4">
               My background is in finance and technology. Today I live and work in San Francisco / Silicon Valley. I
@@ -37,7 +37,7 @@ export function Home() {
             </p>
             <p className="text-lg mb-4">
               (The neighboring sister town of Council Bluffs, Iowa, where I went to school, is now more famously known
-              globally as <code>us-central1</code> for its recent Google Cloud data center additions.)
+              globally as <code>us-central1</code> for its Google Cloud data centers.)
             </p>
           </section>
 
@@ -54,8 +54,8 @@ export function Home() {
               >
                 aVenture
               </a>
-              , a platform designed to bring greater transparency and data-driven safety to the world of private startup
-              investing.
+              , a platform designed to bring greater transparency to private markets investing by using AI to analyze
+              millions of data points about companies, their people, and investors.
             </p>
           </section>
 
