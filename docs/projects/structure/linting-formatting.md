@@ -87,7 +87,7 @@ if (e.target instanceof HTMLInputElement) {
 
 ### 5. Duplicate Types
 
-**Rule:** All shared types MUST be in `types/` directory. Check existing types before creating new ones.
+**Rule (lint warning):** All shared types MUST be in `types/` directory. Check existing types before creating new ones.
 
 ### 6. Unchecked Array Access
 
