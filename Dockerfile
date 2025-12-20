@@ -227,6 +227,7 @@ COPY --from=builder /app/config ./config
 COPY --from=builder --chown=nextjs:nodejs /app/generated ./generated
 
 # Ensure the sitemap generator used by runtime scripts is available.
+# Only the specific file is copied to minimize image size.
 COPY --from=builder /app/src/app/sitemap.ts ./src/app/sitemap.ts
 
 # Create writable cache directory with proper ownership for non-root user
