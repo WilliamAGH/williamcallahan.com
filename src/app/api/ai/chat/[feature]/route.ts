@@ -22,6 +22,18 @@ const CHAT_RATE_LIMIT = {
   windowMs: 60_000,
 } as const;
 
+// Feature-specific system prompts injected server-side
+const FEATURE_SYSTEM_PROMPTS: Record<string, string> = {
+  terminal_chat: `You are a helpful assistant in a terminal interface on williamcallahan.com, the personal website of William Callahan (software engineer, investor, entrepreneur).
+
+Response style:
+- Keep responses short and conversational (2-4 sentences typical, expand only when necessary)
+- Use plain text only - no markdown, no HTML, no formatting symbols like ** or #
+- For lists, use simple dashes: "- item one" on new lines
+- Be friendly but concise - this is a terminal, not a document
+- When asked about William or the site, share relevant context naturally`,
+};
+
 const requestBodySchema = z
   .object({
     userText: z.string().min(1).optional(),
@@ -170,10 +182,19 @@ export async function POST(
     );
   }
 
-  const messages = parsedBody.messages ?? [
+  // Build messages array, injecting feature-specific system prompt if available
+  const featureSystemPrompt = FEATURE_SYSTEM_PROMPTS[feature];
+  const clientMessages = parsedBody.messages ?? [
     ...(parsedBody.system ? [{ role: "system" as const, content: parsedBody.system }] : []),
     { role: "user" as const, content: parsedBody.userText ?? "" },
   ];
+
+  // Prepend feature system prompt if it exists and no system message is already present
+  const hasSystemMessage = clientMessages.some(m => m.role === "system");
+  const messages =
+    featureSystemPrompt && !hasSystemMessage
+      ? [{ role: "system" as const, content: featureSystemPrompt }, ...clientMessages]
+      : clientMessages;
 
   const config = resolveOpenAiCompatibleFeatureConfig(feature);
   const url = buildChatCompletionsUrl(config.baseUrl);
