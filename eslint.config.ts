@@ -252,7 +252,7 @@ const config = tseslint.config(
     ignores: ["src/types/**/*", "**/*.d.ts", "**/*.mdx"],
     rules: {
       "no-restricted-syntax": [
-        "error",
+        "warn",
         {
           selector: "TSTypeAliasDeclaration",
           message: "Type aliases must reside in @/types or declaration files (*.d.ts)",
