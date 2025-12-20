@@ -11,6 +11,7 @@ import {
 import { callOpenAiCompatibleChatCompletions } from "@/lib/ai/openai-compatible/openai-compatible-client";
 import { getUpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
 import { logChatMessage } from "@/lib/ai/openai-compatible/chat-message-logger";
+import { buildChatMessages } from "@/lib/ai/openai-compatible/chat-messages";
 import logger from "@/lib/utils/logger";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
@@ -182,19 +183,12 @@ export async function POST(
     );
   }
 
-  // Build messages array, injecting feature-specific system prompt if available
-  const featureSystemPrompt = FEATURE_SYSTEM_PROMPTS[feature];
-  const clientMessages = parsedBody.messages ?? [
-    ...(parsedBody.system ? [{ role: "system" as const, content: parsedBody.system }] : []),
-    { role: "user" as const, content: parsedBody.userText ?? "" },
-  ];
-
-  // Prepend feature system prompt if it exists and no system message is already present
-  const hasSystemMessage = clientMessages.some(m => m.role === "system");
-  const messages =
-    featureSystemPrompt && !hasSystemMessage
-      ? [{ role: "system" as const, content: featureSystemPrompt }, ...clientMessages]
-      : clientMessages;
+  const messages = buildChatMessages({
+    featureSystemPrompt: FEATURE_SYSTEM_PROMPTS[feature],
+    system: parsedBody.system,
+    messages: parsedBody.messages,
+    userText: parsedBody.userText,
+  });
 
   const config = resolveOpenAiCompatibleFeatureConfig(feature);
   const url = buildChatCompletionsUrl(config.baseUrl);

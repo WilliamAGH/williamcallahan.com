@@ -3,8 +3,66 @@ import {
   buildChatCompletionsUrl,
   resolveOpenAiCompatibleFeatureConfig,
 } from "@/lib/ai/openai-compatible/feature-config";
+import { buildChatMessages } from "@/lib/ai/openai-compatible/chat-messages";
 
 describe("OpenAI-Compatible AI Utilities", () => {
+  describe("chat-messages", () => {
+    it("respects `system` even when `messages` is provided", () => {
+      const messages = buildChatMessages({
+        system: "client-system",
+        messages: [{ role: "user", content: "hi" }],
+      });
+
+      expect(messages).toEqual([
+        { role: "system", content: "client-system" },
+        { role: "user", content: "hi" },
+      ]);
+    });
+
+    it("prepends feature system prompt before client system prompt", () => {
+      const messages = buildChatMessages({
+        featureSystemPrompt: "feature-system",
+        system: "client-system",
+        messages: [{ role: "user", content: "hi" }],
+      });
+
+      expect(messages).toEqual([
+        { role: "system", content: "feature-system" },
+        { role: "system", content: "client-system" },
+        { role: "user", content: "hi" },
+      ]);
+    });
+
+    it("does not duplicate client `system` when identical system message already exists in `messages`", () => {
+      const messages = buildChatMessages({
+        system: "client-system",
+        messages: [
+          { role: "system", content: "client-system" },
+          { role: "user", content: "hi" },
+        ],
+      });
+
+      expect(messages).toEqual([
+        { role: "system", content: "client-system" },
+        { role: "user", content: "hi" },
+      ]);
+    });
+
+    it("falls back to userText when messages is absent (and still includes system prompts)", () => {
+      const messages = buildChatMessages({
+        featureSystemPrompt: "feature-system",
+        system: "client-system",
+        userText: "hello",
+      });
+
+      expect(messages).toEqual([
+        { role: "system", content: "feature-system" },
+        { role: "system", content: "client-system" },
+        { role: "user", content: "hello" },
+      ]);
+    });
+  });
+
   describe("gate-token", () => {
     it("creates and verifies a valid token", () => {
       const secret = "test-secret";
