@@ -5,8 +5,21 @@
  * Generates sitemap.xml without enumerating every dynamic bookmark route at build time.
  * The sitemap now streams bookmark pages on-demand so builds stay memory safe even when the dataset grows.
  *
+ * @remarks
+ * **Dual-purpose module**: This file serves two roles:
+ * 1. **Next.js route** - Compiled into `.next/` to serve `/sitemap.xml` endpoint
+ * 2. **Runtime import** - Directly imported by `scripts/submit-sitemap.ts` and
+ *    `scripts/verify-no-404s.ts` which call `sitemap()` to get URLs for search
+ *    engine submission and link validation
+ *
+ * Because of (2), the source file is explicitly copied to the Docker image
+ * (see Dockerfile line ~230). Moving or renaming this file requires updating
+ * both the Dockerfile and the importing scripts.
+ *
  * @see {@link "https://nextjs.org/docs/app/api-reference/file-conventions/metadata/sitemap"} - Next.js Sitemap API
  * @see {@link "../data/metadata.ts"} - Source of page metadata including dates
+ * @see {@link "../../scripts/submit-sitemap.ts"} - Google/Bing sitemap submission
+ * @see {@link "../../scripts/verify-no-404s.ts"} - Production URL verification
  */
 
 import fs from "node:fs";
