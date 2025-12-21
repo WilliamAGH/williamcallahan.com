@@ -221,11 +221,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <div className="flex items-center gap-2 ml-2 min-w-0 relative z-[1050]">
                       {/* Social Icons: Render condensed below lg, full above lg */}
 
-                      {/* Condensed Version (X Only) - Hidden on lg and up */}
+                      {/* Condensed Version (GitHub + X) - Hidden on lg and up */}
                       <div className="lg:hidden">
                         <Suspense fallback={null}>
-                          {/* Render X icon only via prop */}
-                          <SocialIcons showXOnly={true} />
+                          {/* Render GitHub + X only (condensed header) */}
+                          <SocialIcons excludePlatforms={["discord", "linkedin", "bluesky"]} />
                         </Suspense>
                       </div>
 

@@ -18,7 +18,7 @@ export const X = forwardRef<SVGSVGElement, LucideProps>(function X(props, ref) {
       {...baseIconProps}
       {...props}
       className={`${props.className || ""} x-icon`}
-      viewBox="0 0 24 24"
+      viewBox="4 3 17 18"
       data-transform-fix="true"
       aria-label="X (Twitter)"
       style={{
@@ -28,7 +28,7 @@ export const X = forwardRef<SVGSVGElement, LucideProps>(function X(props, ref) {
       }}
     >
       <title>X (Twitter)</title>
-      {/* Adjusted paths with better centering */}
+      {/* Paths unchanged; viewBox tightened to crop around actual content */}
       <path d="M5 4l11.733 16h3.267l-11.733 -16z" />
       <path d="M5 20l6.768 -6.768m2.46 -2.46l5.772 -6.772" />
     </svg>

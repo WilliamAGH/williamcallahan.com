@@ -12,6 +12,7 @@
 import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { SocialIcons } from "@/components/ui/social-icons/social-icons.client";
 import { ExpandableNavItem } from "./expandable-nav-item.client";
 import { NavigationLink } from "./navigation-link.client";
 import { navigationLinks } from "./navigation-links";
@@ -82,6 +83,13 @@ export function Navigation() {
               />
             );
           })}
+
+          {/* Mobile menu social icons */}
+          <div className="px-4 pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-center">
+              <SocialIcons excludePlatforms={["discord", "bluesky"]} />
+            </div>
+          </div>
         </div>
       )}
     </nav>

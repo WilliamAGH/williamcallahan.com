@@ -42,7 +42,7 @@ export function SocialIcons({ className = "", showXOnly = false, excludePlatform
 
   // Icon button styling
   const iconButtonClasses =
-    "p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all duration-200 ease-in-out hover:scale-110 active:scale-100";
+    "flex items-center justify-center p-1 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all duration-200 ease-in-out hover:scale-110 active:scale-100";
 
   // Compute links to render based on props
   const linksToShow = React.useMemo(() => {
@@ -54,27 +54,31 @@ export function SocialIcons({ className = "", showXOnly = false, excludePlatform
   // During server rendering and before hydration completes on client,
   // just render nothing with suppressHydrationWarning
   if (!hasMounted) {
-    return <div className={`flex ${className}`} suppressHydrationWarning />;
+    return <div className={`flex items-center ${className}`} suppressHydrationWarning />;
   }
 
   // Only render the full component after mounting on the client
+  // Using a very small gap to vastly reduce space as requested
+  const spacingClass = className.includes("gap-") ? "" : "gap-0.5";
+
   return (
-    <div className={`flex items-center space-x-1 ${className}`}>
+    <div className={`flex items-center justify-center ${spacingClass} ${className}`}>
       {linksToShow.map(link => (
-        <ErrorBoundary key={link.href} silent>
-          <Link
-            href={link.href}
-            className={iconButtonClasses}
-            target="_blank"
-            // rel="noopener noreferrer" is the common practice, but noreferrer is
-            // intentionally omitted to allow for referrer-based analytics on my own projects.
-            rel="noopener"
-            aria-label={link.label}
-            title={link.label}
-          >
-            <IconWrapper icon={link.icon as LucideIcon} className="w-5 h-5" />
-          </Link>
-        </ErrorBoundary>
+        <Link
+          key={link.href}
+          href={link.href}
+          className={iconButtonClasses}
+          target="_blank"
+          // rel="noopener noreferrer" is the common practice, but noreferrer is
+          // intentionally omitted to allow for referrer-based analytics on my own projects.
+          rel="noopener"
+          aria-label={link.label}
+          title={link.label}
+        >
+          <ErrorBoundary silent>
+            <IconWrapper icon={link.icon as LucideIcon} className="w-6 h-6" />
+          </ErrorBoundary>
+        </Link>
       ))}
     </div>
   );
