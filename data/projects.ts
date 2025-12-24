@@ -1,7 +1,7 @@
 import type { Project } from "@/types/project";
 
 // Remember to update this date whenever the projects data or the Projects page design changes
-export const updatedAt = "2025-11-08";
+export const updatedAt = "2025-12-18";
 
 export const projects: Project[] = [
   {
@@ -119,6 +119,17 @@ export const projects: Project[] = [
       "Analytics",
     ],
     techStack: ["Next.js", "TypeScript", "Tailwind CSS", "Zod", "Node.js", "Railway"],
+  },
+  {
+    id: "brief",
+    name: "Brief",
+    description:
+      "Terminal-first chat client with a slash-command palette, local tool execution (e.g., API calls for live data) for chatting with any AI/LLM (e.g., OpenAI, OpenRouter,Groq, Gemini, etc.). Built with Latte TUI—a Java port of the popular Go library BubbleTea from Charm. Available via Homebrew.",
+    shortSummary: "Terminal UI chat client built with Latte TUI (BubbleTea for Java)",
+    url: "https://github.com/WilliamAGH/brief",
+    imageKey: "images/other/projects/brief.png",
+    tags: ["Terminal UI", "CLI", "Chat Client", "OpenAI", "Java", "Open Source", "Developer Tools", "TUI"],
+    techStack: ["Java 25", "Gradle", "Latte TUI", "OpenAI API"],
   },
   {
     id: "Book Finder (findmybook.net)",
