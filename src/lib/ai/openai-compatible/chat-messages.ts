@@ -1,7 +1,4 @@
-export type ChatMessage = {
-  role: "system" | "user" | "assistant";
-  content: string;
-};
+import type { OpenAiCompatibleChatMessage } from "@/types/schemas/ai-openai-compatible";
 
 /**
  * Builds the OpenAI-compatible `messages` array from a mixed client payload:
@@ -16,13 +13,13 @@ export type ChatMessage = {
 export function buildChatMessages(args: {
   featureSystemPrompt?: string | undefined;
   system?: string | undefined;
-  messages?: ChatMessage[] | undefined;
+  messages?: OpenAiCompatibleChatMessage[] | undefined;
   userText?: string | undefined;
-}): ChatMessage[] {
-  const baseMessages: ChatMessage[] =
+}): OpenAiCompatibleChatMessage[] {
+  const baseMessages: OpenAiCompatibleChatMessage[] =
     args.messages && args.messages.length > 0 ? args.messages : [{ role: "user", content: args.userText ?? "" }];
 
-  const out: ChatMessage[] = [];
+  const out: OpenAiCompatibleChatMessage[] = [];
 
   if (args.featureSystemPrompt) {
     out.push({ role: "system", content: args.featureSystemPrompt });
