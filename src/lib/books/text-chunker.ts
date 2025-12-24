@@ -32,7 +32,7 @@ const CHUNKING_DEFAULTS = {
   TARGET_WORDS: 500,
   /** Maximum words per chunk - prevents oversized chunks */
   MAX_WORDS: 750,
-  /** Minimum words per chunk - smaller chunks are merged with neighbors */
+  /** Minimum words per chunk - smaller chunks are dropped to avoid noise */
   MIN_WORDS: 100,
   /** Overlap words between chunks - preserves context at boundaries */
   OVERLAP_WORDS: 50,
