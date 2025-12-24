@@ -19,20 +19,21 @@ import { cn } from "@/lib/utils";
 import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { RegisteredWindowState } from "@/types";
-import type { WindowStateValue } from "@/types/ui/window";
 import { FILE_TYPE_CONFIGS, validateFileForType, type UploadFileType } from "@/types/schemas/upload";
+import type {
+  UploadStatus,
+  UploadWindowProps,
+  UploadWindowContentProps,
+  FileTypeSelectorProps,
+  DropZoneProps,
+  UploadProgressIndicatorProps,
+} from "@/types/features/upload";
 
 const DEFAULT_UPLOAD_WINDOW_ID = "upload-window";
 
 // =============================================================================
 // FILE TYPE SELECTOR
 // =============================================================================
-
-interface FileTypeSelectorProps {
-  value: UploadFileType;
-  onChange: (value: UploadFileType) => void;
-  isDisabled?: boolean;
-}
 
 function FileTypeSelector({ value, onChange, isDisabled }: FileTypeSelectorProps) {
   const options = Object.values(FILE_TYPE_CONFIGS);
@@ -84,15 +85,6 @@ function FileTypeSelector({ value, onChange, isDisabled }: FileTypeSelectorProps
 // =============================================================================
 // DROP ZONE
 // =============================================================================
-
-interface DropZoneProps {
-  onFileDrop: (file: File) => void;
-  acceptedExtensions: string[];
-  acceptedMimeTypes: string[];
-  isDisabled?: boolean;
-  selectedFile: File | null;
-  validationError: string | null;
-}
 
 function DropZone({
   onFileDrop,
@@ -279,15 +271,7 @@ function DropZone({
 // UPLOAD PROGRESS
 // =============================================================================
 
-type UploadStatus = "idle" | "validating" | "uploading" | "processing" | "success" | "error";
-
-interface UploadProgressProps {
-  status: UploadStatus;
-  progress: number;
-  message: string;
-}
-
-function UploadProgressIndicator({ status, progress, message }: UploadProgressProps) {
+function UploadProgressIndicator({ status, progress, message }: UploadProgressIndicatorProps) {
   if (status === "idle") return null;
 
   const getStatusIcon = () => {
@@ -360,14 +344,6 @@ function UploadProgressIndicator({ status, progress, message }: UploadProgressPr
 // =============================================================================
 // UPLOAD WINDOW CONTENT
 // =============================================================================
-
-interface UploadWindowContentProps {
-  windowState: WindowStateValue;
-  onClose: () => void;
-  onMinimize: () => void;
-  onMaximize: () => void;
-  windowTitle?: string;
-}
 
 function UploadWindowContentInner({
   windowState,
@@ -626,11 +602,6 @@ function UploadWindowContentInner({
 // =============================================================================
 // UPLOAD WINDOW (Main Export)
 // =============================================================================
-
-interface UploadWindowProps {
-  windowTitle?: string;
-  windowId?: string;
-}
 
 export function UploadWindow({ windowTitle, windowId }: UploadWindowProps) {
   const uniqueId = windowId ?? DEFAULT_UPLOAD_WINDOW_ID;

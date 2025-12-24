@@ -12,6 +12,8 @@
  * - Preserve chapter boundaries when provided
  */
 
+import type { TextChunk, ChunkingOptions } from "@/types/books/parsing";
+
 // =============================================================================
 // CONSTANTS
 // =============================================================================
@@ -37,60 +39,6 @@ const CHUNKING_DEFAULTS = {
   /** Search range multiplier for break point detection (in words) */
   BREAK_SEARCH_RANGE_WORDS: 100,
 } as const;
-
-// =============================================================================
-// TYPES
-// =============================================================================
-
-/**
- * A single text chunk with metadata
- */
-export interface TextChunk {
-  /** Unique index of this chunk within the source */
-  index: number;
-  /** The chunk text content */
-  text: string;
-  /** Word count of this chunk */
-  wordCount: number;
-  /** Starting character offset in original text */
-  startOffset: number;
-  /** Ending character offset in original text */
-  endOffset: number;
-  /** Optional chapter/section identifier */
-  chapterId?: string;
-  /** Optional chapter/section title */
-  chapterTitle?: string;
-}
-
-/**
- * Configuration for text chunking
- */
-export interface ChunkingOptions {
-  /**
-   * Target number of words per chunk (default: 500)
-   */
-  targetWords?: number;
-  /**
-   * Maximum words per chunk (default: 750)
-   */
-  maxWords?: number;
-  /**
-   * Minimum words per chunk - smaller chunks are merged (default: 100)
-   */
-  minWords?: number;
-  /**
-   * Number of words to overlap between chunks (default: 50)
-   */
-  overlapWords?: number;
-  /**
-   * Chapter/section identifier to attach to chunks
-   */
-  chapterId?: string;
-  /**
-   * Chapter/section title to attach to chunks
-   */
-  chapterTitle?: string;
-}
 
 // =============================================================================
 // CHUNKING IMPLEMENTATION
@@ -121,9 +69,10 @@ function findBreakPoint(text: string, targetPos: number, searchRange: number): n
   // Look for sentence break (period, exclamation, question mark followed by space)
   const sentencePattern = /[.!?]\s/g;
   let lastSentenceEnd = -1;
-  let match;
-  while ((match = sentencePattern.exec(searchText)) !== null) {
-    lastSentenceEnd = match.index + 1;
+  // Explicitly type regex match result to avoid unsafe-any warnings
+  let regexMatch: globalThis.RegExpExecArray | null;
+  while ((regexMatch = sentencePattern.exec(searchText)) !== null) {
+    lastSentenceEnd = regexMatch.index + 1;
   }
   if (lastSentenceEnd !== -1) {
     return start + lastSentenceEnd + 1;
