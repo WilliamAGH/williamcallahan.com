@@ -274,7 +274,6 @@ const proxy = clerkMiddleware(
   },
   {
     signInUrl: "/sign-in",
-    signUpUrl: "/sign-up",
   },
 );
 
