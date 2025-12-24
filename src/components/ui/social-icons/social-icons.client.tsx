@@ -64,21 +64,20 @@ export function SocialIcons({ className = "", showXOnly = false, excludePlatform
   return (
     <div className={`flex items-center justify-center ${spacingClass} ${className}`}>
       {linksToShow.map(link => (
-        <Link
-          key={link.href}
-          href={link.href}
-          className={iconButtonClasses}
-          target="_blank"
-          // rel="noopener noreferrer" is the common practice, but noreferrer is
-          // intentionally omitted to allow for referrer-based analytics on my own projects.
-          rel="noopener"
-          aria-label={link.label}
-          title={link.label}
-        >
-          <ErrorBoundary silent>
+        <ErrorBoundary key={link.href} silent>
+          <Link
+            href={link.href}
+            className={iconButtonClasses}
+            target="_blank"
+            // rel="noopener noreferrer" is the common practice, but noreferrer is
+            // intentionally omitted to allow for referrer-based analytics on my own projects.
+            rel="noopener"
+            aria-label={link.label}
+            title={link.label}
+          >
             <IconWrapper icon={link.icon as LucideIcon} className="w-5 h-5" />
-          </ErrorBoundary>
-        </Link>
+          </Link>
+        </ErrorBoundary>
       ))}
     </div>
   );
