@@ -124,7 +124,7 @@ export const projects: Project[] = [
     id: "brief",
     name: "Brief",
     description:
-      "Terminal-first chat client with a slash-command palette, local tool execution (e.g., API calls for live data) for chatting with any AI/LLM (e.g., OpenAI, OpenRouter,Groq, Gemini, etc.). Built with Latte TUI—a Java port of the popular Go library BubbleTea from Charm. Available via Homebrew.",
+      "Terminal-first chat client with a slash-command palette, local tool execution (e.g., API calls for live data) for chatting with any AI/LLM (e.g., OpenAI, OpenRouter, Groq, Gemini, etc.). Built with Latte TUI—a Java port of the popular Go library BubbleTea from Charm. Available via Homebrew.",
     shortSummary: "Terminal UI chat client built with Latte TUI (BubbleTea for Java)",
     url: "https://github.com/WilliamAGH/brief",
     imageKey: "images/other/projects/brief.png",

@@ -372,7 +372,18 @@ export function useTerminal() {
 
       // Handle special actions (e.g., signOut)
       if (result.action === "signOut") {
-        await signOut({ redirectUrl: "/" });
+        try {
+          await signOut({ redirectUrl: "/" });
+        } catch (signOutError) {
+          console.error("[Terminal] Sign out failed:", signOutError);
+          addToHistory({
+            type: "error",
+            id: crypto.randomUUID(),
+            input: commandInput,
+            error: "Failed to sign out. Please try again or refresh the page.",
+            timestamp: Date.now(),
+          });
+        }
       }
     } catch (error: unknown) {
       // Handle abort specifically

@@ -77,9 +77,9 @@ const config: Config = {
     "^@/lib/data-access/github$": "<rootDir>/__tests__/__mocks__/lib/data-access/github.ts",
     // Bookmarks mock
     "^@/lib/bookmarks/bookmarks-data-access.server$": "<rootDir>/__tests__/__mocks__/lib/data-access/bookmarks.ts",
-    // Auth mocks
+    // Auth mocks - client and server have different exports
     "^@clerk/nextjs$": "<rootDir>/__tests__/__mocks__/@clerk/nextjs.js",
-    "^@clerk/nextjs/server$": "<rootDir>/__tests__/__mocks__/@clerk/nextjs.js",
+    "^@clerk/nextjs/server$": "<rootDir>/__tests__/__mocks__/@clerk/nextjs-server.js",
   },
 
   // Test patterns
