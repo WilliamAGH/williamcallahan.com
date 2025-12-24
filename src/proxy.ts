@@ -1,10 +1,13 @@
 /**
- * Proxy for handling request logging and security headers (Next.js 16)
+ * Proxy for handling request logging, security headers, and authentication (Next.js 16)
  * @module proxy
  * @description
- * Handles request logging and security headers for all non-static routes
- * Applies security headers and caching headers for static assets and analytics scripts
+ * Handles Clerk authentication, request logging, and security headers for all non-static routes.
+ * Applies security headers and caching headers for static assets and analytics scripts.
+ * Protected routes (/admin/*, /api/admin/*) require authentication.
  * Note: Renamed from middleware.ts to proxy.ts in Next.js 16
+ *
+ * @see https://clerk.com/docs/references/nextjs/clerk-middleware
  */
 
 // Runtime configuration for middleware (Edge)
@@ -12,9 +15,24 @@
 // See: https://github.com/vercel/next.js/blob/canary/docs/01-app/03-api-reference/03-file-conventions/middleware.mdx
 // Using `edge` here (not deprecated `experimental-edge`).
 
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { CSP_DIRECTIVES } from "@/config/csp";
 import { NextResponse, type NextRequest } from "next/server";
 import { memoryPressureMiddleware } from "@/lib/middleware/memory-pressure";
+
+/**
+ * Routes that require Clerk authentication.
+ * Users accessing these routes without being signed in will be redirected to sign-in.
+ */
+const isProtectedRoute = createRouteMatcher([
+  "/admin(.*)",
+  "/api/admin(.*)",
+  // TODO: Re-enable after local testing concludes
+  // "/api/books/upload",
+  // "/api/books/ingest",
+  // "/upload-file(.*)",
+  // "/api/upload(.*)",
+]);
 
 import type { RequestLog } from "@/types/lib";
 
@@ -65,12 +83,13 @@ function getRealIp(request: NextRequest): string {
 }
 
 /**
- * Middleware to handle request logging and security headers
- * Runs on all non-static routes as defined in the matcher
+ * Internal proxy handler for request logging and security headers.
+ * This function is wrapped by clerkMiddleware for authentication.
+ * Runs on all non-static routes as defined in the matcher.
  * @param request - The incoming Nextjs request
  * @returns The modified response with added headers
  */
-async function proxy(request: NextRequest): Promise<NextResponse> {
+async function proxyHandler(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   // Check memory pressure first (before any expensive operations)
@@ -239,8 +258,30 @@ async function proxy(request: NextRequest): Promise<NextResponse> {
 }
 
 /**
+ * Clerk-wrapped proxy handler.
+ * Checks authentication for protected routes before running security/caching logic.
+ * Unauthenticated requests to protected routes are redirected to sign-in.
+ */
+const proxy = clerkMiddleware(
+  async (auth, request) => {
+    // Check auth for protected routes first (before expensive CSP/caching operations)
+    if (isProtectedRoute(request)) {
+      await auth.protect();
+    }
+
+    // Run existing proxy logic (security headers, CSP, caching, logging)
+    return proxyHandler(request);
+  },
+  {
+    signInUrl: "/sign-in",
+    signUpUrl: "/sign-up",
+  },
+);
+
+/**
  * Route matcher configuration
- * Includes image optimization routes and excludes other static files from middleware processing
+ * Includes image optimization routes and API routes for Clerk authentication.
+ * Excludes static files from proxy processing.
  */
 // Export both named and default exports for Next.js 16 proxy compatibility
 export { proxy };
@@ -257,13 +298,15 @@ export const config = {
      * - favicon.ico (favicon file)
      * - robots.txt
      * - sitemap.xml
+     * - api/upload (file uploads - must bypass proxy to preserve request body)
      * But include:
+     * - api routes (for Clerk auth and other APIs)
      * - api/debug (for security checks)
      * - _next/image (image optimization files)
      * - all other paths
      */
-    "/api/debug(.*)",
-    "/((?!api|_next/static|favicon.ico|robots.txt|sitemap.xml).*)",
+    "/((?!_next/static|favicon.ico|robots.txt|sitemap.xml|api/upload|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api(?!/upload)|trpc)(.*)",
     "/_next/image(.*)",
   ],
 };
