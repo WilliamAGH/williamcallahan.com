@@ -76,7 +76,7 @@ export function SocialIcons({ className = "", showXOnly = false, excludePlatform
           title={link.label}
         >
           <ErrorBoundary silent>
-            <IconWrapper icon={link.icon as LucideIcon} className="w-6 h-6" />
+            <IconWrapper icon={link.icon as LucideIcon} className="w-5 h-5" />
           </ErrorBoundary>
         </Link>
       ))}
