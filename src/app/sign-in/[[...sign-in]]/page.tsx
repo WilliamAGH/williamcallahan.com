@@ -8,8 +8,19 @@
  */
 
 import { SignIn } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
+
+/**
+ * Check if Clerk is configured (publishable key available)
+ */
+const isClerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
 export default function SignInPage() {
+  // Redirect to home if Clerk isn't configured
+  if (!isClerkConfigured) {
+    redirect("/");
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-background">
       <SignIn

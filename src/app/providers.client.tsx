@@ -14,11 +14,23 @@ import { ThemeProvider, useTheme } from "@/components/ui/theme/theme-provider.cl
 import { Suspense } from "react";
 
 /**
+ * Check if Clerk is configured (publishable key available)
+ * This is a build-time constant since NEXT_PUBLIC_ vars are inlined
+ */
+const isClerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+
+/**
  * Inner providers that need access to theme context
+ * Conditionally wraps with ClerkProvider only if configured
  */
 function ThemedClerkProvider({ children }: { children: React.ReactNode }) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+
+  // Skip Clerk if not configured (missing publishable key)
+  if (!isClerkConfigured) {
+    return <>{children}</>;
+  }
 
   return (
     <ClerkProvider
