@@ -11,78 +11,8 @@ import { writeFile, unlink, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import EPub from "epub2";
-
-// =============================================================================
-// TYPES
-// =============================================================================
-
-/**
- * Metadata extracted from an ePub file
- * Based on Dublin Core, EPUB 3 spec, and common calibre extensions
- */
-export interface EpubMetadata {
-  // Core Dublin Core metadata
-  title: string;
-  author: string;
-  authorFileAs?: string;
-  publisher?: string;
-  language?: string;
-  description?: string;
-  date?: string;
-  subjects?: string[];
-
-  // Identifiers
-  isbn?: string;
-  uuid?: string;
-
-  // Series information
-  series?: string;
-  seriesIndex?: number;
-
-  // Additional metadata
-  rights?: string;
-  contributors?: string[];
-  coverId?: string;
-
-  // Raw metadata for debugging/extension
-  rawMetadata?: Record<string, unknown>;
-}
-
-/**
- * A chapter extracted from an ePub file
- */
-export interface EpubChapter {
-  id: string;
-  title?: string;
-  order: number;
-  htmlContent: string;
-  textContent: string;
-  wordCount: number;
-}
-
-/**
- * Complete parsed result from an ePub file
- */
-export interface ParsedEpub {
-  metadata: EpubMetadata;
-  chapters: EpubChapter[];
-  totalWordCount: number;
-  totalChapters: number;
-}
-
-/**
- * Options for parsing an ePub
- */
-export interface EpubParseOptions {
-  /**
-   * Maximum number of chapters to extract (default: all)
-   */
-  maxChapters?: number;
-  /**
-   * Whether to include HTML content in output (default: false)
-   */
-  includeHtml?: boolean;
-}
+import type { TocElement, IMetadata } from "epub2/lib/epub/const";
+import type { EpubMetadata, EpubChapter, ParsedEpub, EpubParseOptions } from "@/types/books/parsing";
 
 // =============================================================================
 // HTML TO TEXT CONVERSION
@@ -112,8 +42,8 @@ function htmlToText(html: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)));
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCharCode(parseInt(code, 16)));
 
   // Normalize whitespace
   text = text
@@ -188,54 +118,55 @@ function formatChapterIdAsTitle(id: string): string {
  * @returns Complete EpubMetadata object
  */
 function extractMetadataFromEpub(epub: EPub): EpubMetadata {
-  const rawMeta = epub.metadata as Record<string, unknown>;
+  // epub.metadata is typed as IMetadata which has [key: string]: any for extension fields
+  const rawMeta: IMetadata = epub.metadata;
 
-  // Extract series information from various sources
-  const series =
-    (rawMeta["belongs-to-collection"] as string) ||
-    (rawMeta["calibre:series"] as string) ||
-    (rawMeta.series as string) ||
-    undefined;
+  // Extract series information from various sources (IMetadata has [key: string]: any index signature)
+  // Use explicit unknown type to force type narrowing
+  const seriesRaw: unknown = rawMeta["belongs-to-collection"] ?? rawMeta["calibre:series"] ?? rawMeta.series;
+  const series: string | undefined = typeof seriesRaw === "string" ? seriesRaw : undefined;
 
-  // Series index can be in different formats
-  const seriesIndexRaw = rawMeta["group-position"] || rawMeta["calibre:series_index"] || rawMeta.seriesIndex;
-  const seriesIndex = seriesIndexRaw ? Number(seriesIndexRaw) : undefined;
+  // Series index can be in different formats (IMetadata has [key: string]: any index signature)
+  // Use explicit unknown type to force type narrowing
+  const seriesIndexRaw: unknown = rawMeta["group-position"] ?? rawMeta["calibre:series_index"] ?? rawMeta.seriesIndex;
+  const seriesIndex =
+    typeof seriesIndexRaw === "string" || typeof seriesIndexRaw === "number" ? Number(seriesIndexRaw) : undefined;
 
-  // Handle contributors (can be string or array)
-  const contributorRaw = rawMeta.contributor;
-  const contributors = Array.isArray(contributorRaw)
-    ? contributorRaw
-    : contributorRaw
-      ? [String(contributorRaw)]
+  // Handle contributors (can be string or array of strings) - use unknown to force type narrowing
+  const contributorRaw: unknown = rawMeta.contributor;
+  const contributors: string[] | undefined = Array.isArray(contributorRaw)
+    ? contributorRaw.filter((c): c is string => typeof c === "string")
+    : typeof contributorRaw === "string"
+      ? [contributorRaw]
       : undefined;
+
+  // Extract rights with type narrowing
+  const rightsRaw: unknown = rawMeta.rights;
+  const rights: string | undefined = typeof rightsRaw === "string" ? rightsRaw : undefined;
 
   const metadata: EpubMetadata = {
     // Core Dublin Core
-    title: epub.metadata.title ?? "Unknown Title",
-    author: epub.metadata.creator ?? "Unknown Author",
-    authorFileAs: epub.metadata.creatorFileAs,
-    publisher: epub.metadata.publisher,
-    language: epub.metadata.language,
-    description: epub.metadata.description,
-    date: epub.metadata.date,
-    subjects: Array.isArray(epub.metadata.subject)
-      ? epub.metadata.subject
-      : epub.metadata.subject
-        ? [epub.metadata.subject]
-        : undefined,
+    title: rawMeta.title ?? "Unknown Title",
+    author: rawMeta.creator ?? "Unknown Author",
+    authorFileAs: rawMeta.creatorFileAs,
+    publisher: rawMeta.publisher,
+    language: rawMeta.language,
+    description: rawMeta.description,
+    date: rawMeta.date,
+    subjects: Array.isArray(rawMeta.subject) ? rawMeta.subject : rawMeta.subject ? [rawMeta.subject] : undefined,
 
     // Identifiers
-    isbn: epub.metadata.ISBN,
-    uuid: epub.metadata.UUID,
+    isbn: rawMeta.ISBN,
+    uuid: rawMeta.UUID,
 
     // Series
     series,
     seriesIndex: Number.isFinite(seriesIndex) ? seriesIndex : undefined,
 
     // Additional
-    rights: rawMeta.rights as string | undefined,
+    rights,
     contributors,
-    coverId: rawMeta.cover as string | undefined,
+    coverId: typeof rawMeta.cover === "string" ? rawMeta.cover : undefined,
 
     // Raw for debugging (filter out symbols and undefined values)
     rawMetadata: Object.fromEntries(
@@ -277,21 +208,24 @@ export async function parseEpubFromBuffer(buffer: Buffer, options: EpubParseOpti
     // Write buffer to temp file (epub2 requires a file path)
     await writeFile(tempFilePath, buffer);
 
-    // Parse the ePub file
-    const epub = await EPub.createAsync(tempFilePath);
+    // Parse the ePub file - epub2.createAsync returns Promise<any>, cast to EPub
+    const epub = (await EPub.createAsync(tempFilePath)) as EPub;
 
     // Extract comprehensive metadata
     const metadata = extractMetadataFromEpub(epub);
 
     // Extract chapters
     const chapters: EpubChapter[] = [];
-    const flow = epub.flow;
+    // epub.flow is typed as ISpineContents (extends Array<TocElement>)
+    const flow: TocElement[] = epub.flow;
 
     // Build a map from chapter ID to TOC title for fallback
     // The TOC often has better titles than the spine/flow
     const tocTitleMap = new Map<string, string>();
-    if (epub.toc && Array.isArray(epub.toc)) {
-      for (const tocItem of epub.toc) {
+    // epub.toc is typed as ISpineContents (extends Array<TocElement>)
+    const toc: TocElement[] = epub.toc;
+    if (toc && Array.isArray(toc)) {
+      for (const tocItem of toc) {
         if (tocItem.id && tocItem.title) {
           tocTitleMap.set(tocItem.id, tocItem.title);
         }
@@ -299,7 +233,7 @@ export async function parseEpubFromBuffer(buffer: Buffer, options: EpubParseOpti
     }
 
     if (process.env.NODE_ENV === "development") {
-      console.log("[EpubParser] TOC entries:", epub.toc?.length ?? 0);
+      console.log("[EpubParser] TOC entries:", toc?.length ?? 0);
       console.log("[EpubParser] Flow entries:", flow.length);
     }
 
@@ -311,8 +245,8 @@ export async function parseEpubFromBuffer(buffer: Buffer, options: EpubParseOpti
       if (!chapter?.id) continue;
 
       try {
-        // Get chapter HTML content
-        const htmlContent = await epub.getChapterAsync(chapter.id);
+        // Get chapter HTML content - epub.getChapterAsync returns Promise<any>, cast to string
+        const htmlContent = (await epub.getChapterAsync(chapter.id)) as string;
 
         // Convert to plain text
         const textContent = htmlToText(htmlContent);
@@ -321,7 +255,7 @@ export async function parseEpubFromBuffer(buffer: Buffer, options: EpubParseOpti
         if (textContent.length < 10) continue;
 
         // Get title: prefer flow title, fallback to TOC title, then generate from ID
-        const title = chapter.title || tocTitleMap.get(chapter.id) || formatChapterIdAsTitle(chapter.id);
+        const title = chapter.title ?? tocTitleMap.get(chapter.id) ?? formatChapterIdAsTitle(chapter.id);
 
         chapters.push({
           id: chapter.id,
@@ -369,7 +303,8 @@ export async function extractEpubMetadata(buffer: Buffer): Promise<EpubMetadata>
 
   try {
     await writeFile(tempFilePath, buffer);
-    const epub = await EPub.createAsync(tempFilePath);
+    // EPub.createAsync returns bluebird Promise<EPub> - cast to fix type compatibility
+    const epub = (await EPub.createAsync(tempFilePath)) as EPub;
     return extractMetadataFromEpub(epub);
   } finally {
     try {

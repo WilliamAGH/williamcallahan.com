@@ -4,18 +4,17 @@
  * @description
  * Type definitions for the file upload feature components.
  * Supports uploading books (PDF, ePub) for processing into the Chroma vector store.
+ *
+ * Note: UploadFileType is the canonical type from @/types/schemas/upload.
+ * Import directly from there, not from this file.
  */
 
 import type { WindowStateValue } from "@/types/ui/window";
+import type { UploadFileType } from "@/types/schemas/upload";
 
 // =============================================================================
 // FILE TYPE DEFINITIONS
 // =============================================================================
-
-/**
- * Supported file types for upload
- */
-export type UploadFileType = "book-pdf" | "book-epub";
 
 /**
  * File type option for the dropdown selector
@@ -29,12 +28,12 @@ export interface FileTypeOption {
 }
 
 /**
- * Upload status states
+ * Upload status states - shared across upload components
  */
 export type UploadStatus = "idle" | "validating" | "uploading" | "processing" | "success" | "error";
 
 /**
- * Upload progress information
+ * Upload progress information (used by state management)
  */
 export interface UploadProgress {
   status: UploadStatus;
@@ -93,16 +92,6 @@ export interface UploadWindowContentProps {
 }
 
 /**
- * Props for the DropZone component
- */
-export interface DropZoneProps {
-  onFileDrop: (file: File) => void;
-  acceptedTypes: string[];
-  isDisabled?: boolean;
-  isDragActive?: boolean;
-}
-
-/**
  * Props for the FileTypeSelector component
  */
 export interface FileTypeSelectorProps {
@@ -112,11 +101,24 @@ export interface FileTypeSelectorProps {
 }
 
 /**
- * Props for the UploadProgress component
+ * Props for the DropZone component
  */
-export interface UploadProgressProps {
-  progress: UploadProgress;
-  fileName?: string;
+export interface DropZoneProps {
+  onFileDrop: (file: File) => void;
+  acceptedExtensions: string[];
+  acceptedMimeTypes: string[];
+  isDisabled?: boolean;
+  selectedFile: File | null;
+  validationError: string | null;
+}
+
+/**
+ * Props for the UploadProgressIndicator component
+ */
+export interface UploadProgressIndicatorProps {
+  status: UploadStatus;
+  progress: number;
+  message: string;
 }
 
 // =============================================================================

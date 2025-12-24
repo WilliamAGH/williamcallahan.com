@@ -8,59 +8,13 @@
  */
 
 import { PDFParse } from "pdf-parse";
-import type { EpubMetadata } from "./epub-parser";
-
-// =============================================================================
-// TYPES
-// =============================================================================
-
-/**
- * PDF Info dictionary from pdf-parse (loosely typed by library)
- */
-interface PdfInfoDictionary {
-  Title?: string;
-  Author?: string;
-  Publisher?: string;
-  Subject?: string;
-  CreationDate?: string;
-  ModDate?: string;
-  [key: string]: unknown;
-}
+import type { EpubMetadata, PdfInfoDictionary, PdfPage, ParsedPdf, PdfParseOptions } from "@/types/books/parsing";
 
 /**
  * Type guard to safely extract string from PDF info field
  */
 function getInfoString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
-}
-
-/**
- * A page extracted from a PDF file
- */
-export interface PdfPage {
-  pageNumber: number;
-  textContent: string;
-  wordCount: number;
-}
-
-/**
- * Complete parsed result from a PDF file
- */
-export interface ParsedPdf {
-  metadata: EpubMetadata;
-  pages: PdfPage[];
-  totalWordCount: number;
-  totalPages: number;
-}
-
-/**
- * Options for parsing a PDF
- */
-export interface PdfParseOptions {
-  /**
-   * Maximum number of pages to extract (default: all)
-   */
-  maxPages?: number;
 }
 
 // =============================================================================
