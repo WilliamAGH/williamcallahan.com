@@ -367,6 +367,38 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
     };
   }
 
+  // Auth commands: sign-in / auth / login
+  if (command === "auth" || command === "sign-in" || command === "signin" || command === "login") {
+    return {
+      results: [
+        {
+          type: "text",
+          id: crypto.randomUUID(),
+          input: "",
+          output: "Redirecting to sign in...",
+          timestamp: Date.now(),
+        },
+      ],
+      navigation: "/sign-in",
+    };
+  }
+
+  // Sign-out command: sign-out / signout / logout
+  if (command === "sign-out" || command === "signout" || command === "logout") {
+    return {
+      results: [
+        {
+          type: "text",
+          id: crypto.randomUUID(),
+          input: "",
+          output: "Signing out...",
+          timestamp: Date.now(),
+        },
+      ],
+      action: "signOut",
+    };
+  }
+
   // 2. Check for navigation commands (e.g., "blog")
 
   // Type guard for valid section
