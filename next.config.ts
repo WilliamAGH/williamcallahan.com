@@ -202,8 +202,10 @@ const nextConfig = {
         browser: "./src/lib/edge-polyfills/opentelemetry.ts",
         edge: "./src/lib/edge-polyfills/opentelemetry.ts",
       },
-      // Dev-only: AWS SDK stub
-      ...(process.env.NODE_ENV === "development" ? { "@aws-sdk/client-s3": "./src/lib/stubs/aws-s3-stub.ts" } : {}),
+      // Dev-only: AWS SDK stub (bypass with S3_FORCE_WRITE=true)
+      ...(process.env.NODE_ENV === "development" && process.env.S3_FORCE_WRITE !== "true"
+        ? { "@aws-sdk/client-s3": "./src/lib/stubs/aws-s3-stub.ts" }
+        : {}),
     },
   },
   /**
@@ -323,9 +325,17 @@ const nextConfig = {
   // This is the new way to enable 'use cache' directive in Next.js 16
   cacheComponents: true,
 
+  // Exclude packages with problematic source files from Turbopack bundling
+  serverExternalPackages: ["@chroma-core/default-embed", "chromadb"],
+
   experimental: {
     taint: true,
     serverMinification: process.env.NODE_ENV === "production",
+    // Allow large file uploads (100MB) through proxy and route handlers
+    proxyClientMaxBodySize: "100mb",
+    serverActions: {
+      bodySizeLimit: "100mb",
+    },
     preloadEntriesOnStart: false, // Don't preload all pages on server start
     serverSourceMaps: false, // Disable server source maps to save memory
     // Disable package optimization in development to reduce cache entries
