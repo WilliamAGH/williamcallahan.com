@@ -431,7 +431,17 @@ function UploadWindowContentInner({
 
         xhr.addEventListener("load", () => {
           if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
+            try {
+              const response = JSON.parse(xhr.responseText) as { success?: boolean; error?: string };
+              if (response.success === false) {
+                reject(new Error(response.error || "Upload failed"));
+                return;
+              }
+              resolve();
+            } catch {
+              // If response isn't JSON, treat 2xx as success
+              resolve();
+            }
           } else {
             reject(new Error(xhr.responseText || "Upload failed"));
           }
@@ -443,13 +453,7 @@ function UploadWindowContentInner({
         xhr.send(formData);
       });
 
-      setUploadStatus("processing");
       setUploadProgress(100);
-      setStatusMessage("Processing document for vector storage...");
-
-      // Simulate processing delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
       setUploadStatus("success");
       setStatusMessage("Document uploaded and indexed successfully!");
     } catch (error) {

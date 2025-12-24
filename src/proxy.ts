@@ -4,7 +4,7 @@
  * @description
  * Handles Clerk authentication, request logging, and security headers for all non-static routes.
  * Applies security headers and caching headers for static assets and analytics scripts.
- * Protected routes (/admin/*, /api/admin/*) require authentication.
+ * Protected routes (/admin/*, /api/admin/*) require authentication when Clerk is configured.
  * Note: Renamed from middleware.ts to proxy.ts in Next.js 16
  *
  * @see https://clerk.com/docs/references/nextjs/clerk-middleware
@@ -15,24 +15,15 @@
 // See: https://github.com/vercel/next.js/blob/canary/docs/01-app/03-api-reference/03-file-conventions/middleware.mdx
 // Using `edge` here (not deprecated `experimental-edge`).
 
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { CSP_DIRECTIVES } from "@/config/csp";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest, type NextMiddleware, type NextFetchEvent } from "next/server";
 import { memoryPressureMiddleware } from "@/lib/middleware/memory-pressure";
 
 /**
- * Routes that require Clerk authentication.
- * Users accessing these routes without being signed in will be redirected to sign-in.
+ * Check if Clerk is configured (publishable key available)
+ * This must be checked before importing Clerk modules to avoid runtime errors
  */
-const isProtectedRoute = createRouteMatcher([
-  "/admin(.*)",
-  "/api/admin(.*)",
-  // TODO: Re-enable after local testing concludes
-  // "/api/books/upload",
-  // "/api/books/ingest",
-  // "/upload-file(.*)",
-  // "/api/upload(.*)",
-]);
+const isClerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
 import type { RequestLog } from "@/types/lib";
 
@@ -258,24 +249,61 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
 }
 
 /**
- * Clerk-wrapped proxy handler.
- * Checks authentication for protected routes before running security/caching logic.
- * Unauthenticated requests to protected routes are redirected to sign-in.
+ * Create the proxy handler - conditionally wraps with Clerk if configured.
+ * When Clerk is not configured, protected routes are accessible without auth.
  */
-const proxy = clerkMiddleware(
-  async (auth, request) => {
-    // Check auth for protected routes first (before expensive CSP/caching operations)
-    if (isProtectedRoute(request)) {
-      await auth.protect();
-    }
+async function createProxy(): Promise<NextMiddleware> {
+  if (!isClerkConfigured) {
+    // No Clerk - just run the proxy handler directly (wrap to match NextMiddleware signature)
+    return (request: NextRequest) => proxyHandler(request);
+  }
 
-    // Run existing proxy logic (security headers, CSP, caching, logging)
-    return proxyHandler(request);
-  },
-  {
-    signInUrl: "/sign-in",
-  },
-);
+  // Clerk is configured - dynamically import and wrap with auth
+  const { clerkMiddleware, createRouteMatcher } = await import("@clerk/nextjs/server");
+
+  const isProtectedRoute = createRouteMatcher([
+    "/admin(.*)",
+    "/api/admin(.*)",
+    // TODO: Re-enable after local testing concludes
+    // "/api/books/upload",
+    // "/api/books/ingest",
+    // "/upload-file(.*)",
+    // "/api/upload(.*)",
+  ]);
+
+  return clerkMiddleware(
+    async (auth, request) => {
+      // Check auth for protected routes first (before expensive CSP/caching operations)
+      if (isProtectedRoute(request)) {
+        await auth.protect();
+      }
+
+      // Run existing proxy logic (security headers, CSP, caching, logging)
+      return proxyHandler(request);
+    },
+    {
+      signInUrl: "/sign-in",
+    },
+  );
+}
+
+// Lazy-initialize the proxy on first request
+let proxyInstance: NextMiddleware | null = null;
+
+/**
+ * Main proxy export - handles lazy initialization of Clerk middleware
+ */
+async function proxy(request: NextRequest, event: NextFetchEvent): Promise<NextResponse> {
+  if (!proxyInstance) {
+    proxyInstance = await createProxy();
+  }
+  const result = await proxyInstance(request, event);
+  // NextMiddleware can return void, Response, or NextResponse - ensure we return NextResponse
+  if (!result) {
+    return NextResponse.next();
+  }
+  return result as NextResponse;
+}
 
 /**
  * Route matcher configuration
