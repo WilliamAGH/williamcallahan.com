@@ -325,7 +325,8 @@ const nextConfig = {
   // This is the new way to enable 'use cache' directive in Next.js 16
   cacheComponents: true,
 
-  // Exclude packages with problematic source files from Turbopack bundling
+  // Exclude Chroma packages from Turbopack bundling
+  // Note: @chroma-core/default-embed has a .d.cts bug fixed by postinstall script
   serverExternalPackages: ["@chroma-core/default-embed", "chromadb"],
 
   experimental: {
