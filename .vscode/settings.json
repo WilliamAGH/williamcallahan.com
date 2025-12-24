@@ -51,6 +51,7 @@
   "eslint.format.enable": false,
   "oxc.enable": true,
   "oxc.lint.run": "onSave",
+  "oxc.path.oxlint": "./node_modules/.bin/oxc_language_server",
   "oxc.exclude": ["**/*.mdx"],
   "typescript.disableAutomaticTypeAcquisition": true,
   "github-actions.use-enterprise": true,
