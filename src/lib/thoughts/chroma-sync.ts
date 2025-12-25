@@ -14,10 +14,9 @@
  */
 
 import { getChromaClient } from "@/lib/chroma/client";
-import { DefaultEmbeddingFunction } from "@chroma-core/default-embed";
 import type { Thought } from "@/types/schemas/thought";
 import type { ThoughtChromaMetadata } from "@/types/thoughts-chroma";
-import type { Collection } from "chromadb";
+import type { Collection, EmbeddingFunction } from "chromadb";
 
 // Re-export for convenience
 export type { ThoughtChromaMetadata } from "@/types/thoughts-chroma";
@@ -31,11 +30,14 @@ const COLLECTION_VERSION = "1";
 /**
  * Singleton embedding function instance.
  * Uses ONNX-based MiniLM-L6-v2 model that runs locally without API calls.
+ * Loaded dynamically to avoid Turbopack bundling issues with native ONNX bindings.
  */
-let embeddingFunction: DefaultEmbeddingFunction | null = null;
+let embeddingFunction: EmbeddingFunction | null = null;
 
-function getEmbeddingFunction(): DefaultEmbeddingFunction {
+async function getEmbeddingFunction(): Promise<EmbeddingFunction> {
   if (!embeddingFunction) {
+    // Dynamic import to avoid build-time evaluation of ONNX native bindings
+    const { DefaultEmbeddingFunction } = await import("@chroma-core/default-embed");
     embeddingFunction = new DefaultEmbeddingFunction();
   }
   return embeddingFunction;
@@ -49,6 +51,7 @@ function getEmbeddingFunction(): DefaultEmbeddingFunction {
  */
 export async function getThoughtsCollection(): Promise<Collection> {
   const client = getChromaClient();
+  const ef = await getEmbeddingFunction();
   return client.getOrCreateCollection({
     name: COLLECTION_NAME,
     metadata: {
@@ -56,7 +59,7 @@ export async function getThoughtsCollection(): Promise<Collection> {
       contentType: "thought",
       version: COLLECTION_VERSION,
     },
-    embeddingFunction: getEmbeddingFunction(),
+    embeddingFunction: ef,
   });
 }
 
