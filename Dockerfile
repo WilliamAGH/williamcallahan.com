@@ -59,8 +59,9 @@ RUN NODE_OPTIONS='--max-old-space-size=4096' npm run lint && NODE_OPTIONS='--max
 # Use Bun image for build stage so `bun` commands are available
 FROM base AS builder
 # Install dependencies for the build
+# ca-certificates required for HTTPS connectivity checks (S3, CDN)
 # fontconfig + fonts-dejavu required for @react-pdf/renderer PDF generation during static generation
-RUN apt-get update && apt-get install -y --no-install-recommends curl bash fontconfig fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl bash fontconfig fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Set environment variables for build
