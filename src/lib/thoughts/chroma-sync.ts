@@ -14,6 +14,7 @@
  */
 
 import { getChromaClient } from "@/lib/chroma/client";
+import { EmbeddingFunctionError } from "@/lib/chroma/embedding-error";
 import type { Thought } from "@/types/schemas/thought";
 import type { ThoughtChromaMetadata } from "@/types/thoughts-chroma";
 import type { Collection, EmbeddingFunction } from "chromadb";
@@ -37,25 +38,6 @@ const COLLECTION_VERSION = "1";
  * or use @chroma-core/openai for API-based embeddings.
  */
 let embeddingFunction: EmbeddingFunction | null = null;
-
-/**
- * Error thrown when embedding function fails to load.
- * Provides actionable guidance for common failure scenarios.
- */
-class EmbeddingFunctionError extends Error {
-  constructor(cause: unknown) {
-    const originalMessage = cause instanceof Error ? cause.message : String(cause);
-    const isMuslError = originalMessage.includes("symbol not found") || originalMessage.includes("libonnxruntime");
-
-    const guidance = isMuslError
-      ? "ONNX runtime requires glibc. Alpine Linux (musl) is not supported. " +
-        "Options: (1) Use Debian-based Docker image, (2) Install @chroma-core/openai for API-based embeddings"
-      : "Failed to load embedding function. Ensure @chroma-core/default-embed is installed.";
-
-    super(`[Chroma] ${guidance} Original error: ${originalMessage}`);
-    this.name = "EmbeddingFunctionError";
-  }
-}
 
 async function getEmbeddingFunction(): Promise<EmbeddingFunction> {
   if (!embeddingFunction) {
