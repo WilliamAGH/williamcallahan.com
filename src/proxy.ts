@@ -16,8 +16,9 @@
 // Using `edge` here (not deprecated `experimental-edge`).
 
 import { CSP_DIRECTIVES } from "@/config/csp";
-import { NextResponse, type NextRequest, type NextMiddleware, type NextFetchEvent } from "next/server";
+import { NextResponse, type NextRequest, type NextMiddleware } from "next/server";
 import { memoryPressureMiddleware } from "@/lib/middleware/memory-pressure";
+import type { ClerkMiddlewareAuth } from "@clerk/nextjs/server";
 
 /**
  * Check if Clerk is configured (publishable key available)
@@ -272,7 +273,7 @@ async function createProxy(): Promise<NextMiddleware> {
   ]);
 
   return clerkMiddleware(
-    async (auth, request) => {
+    async (auth: ClerkMiddlewareAuth, request: NextRequest) => {
       // Check auth for protected routes first (before expensive CSP/caching operations)
       if (isProtectedRoute(request)) {
         await auth.protect();
@@ -292,17 +293,28 @@ let proxyInstance: NextMiddleware | null = null;
 
 /**
  * Main proxy export - handles lazy initialization of Clerk middleware
+ * Note: Next.js 16 proxy handlers receive only NextRequest, not NextFetchEvent
  */
-async function proxy(request: NextRequest, event: NextFetchEvent): Promise<NextResponse> {
+async function proxy(request: NextRequest): Promise<NextResponse> {
   if (!proxyInstance) {
     proxyInstance = await createProxy();
   }
-  const result = await proxyInstance(request, event);
+  // NextMiddleware signature requires two args, but the second (event) is not used by our handler
+  const result = await proxyInstance(request, {} as Parameters<NextMiddleware>[1]);
   // NextMiddleware can return void, Response, or NextResponse - ensure we return NextResponse
   if (!result) {
     return NextResponse.next();
   }
-  return result as NextResponse;
+  // Handle both Response and NextResponse - wrap plain Response in NextResponse if needed
+  if (result instanceof NextResponse) {
+    return result;
+  }
+  // For plain Response objects, create a NextResponse with the same properties
+  return new NextResponse(result.body, {
+    status: result.status,
+    statusText: result.statusText,
+    headers: result.headers,
+  });
 }
 
 /**
