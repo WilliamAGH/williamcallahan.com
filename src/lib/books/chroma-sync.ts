@@ -13,6 +13,7 @@
  */
 
 import { getChromaClient } from "@/lib/chroma/client";
+import { DefaultEmbeddingFunction } from "@chroma-core/default-embed";
 import type { Collection, Metadata, Where } from "chromadb";
 import type { TextChunk, EpubMetadata, BookChunkMetadata, BookIndexData, BookIndexResult } from "@/types/books/parsing";
 
@@ -40,7 +41,21 @@ export function parseChromaArray(value: string | undefined | null): string[] {
 }
 
 /**
+ * Singleton embedding function instance.
+ * Uses ONNX-based MiniLM-L6-v2 model that runs locally without API calls.
+ */
+let embeddingFunction: DefaultEmbeddingFunction | null = null;
+
+function getEmbeddingFunction(): DefaultEmbeddingFunction {
+  if (!embeddingFunction) {
+    embeddingFunction = new DefaultEmbeddingFunction();
+  }
+  return embeddingFunction;
+}
+
+/**
  * Gets or creates the books collection with standard configuration.
+ * Uses the DefaultEmbeddingFunction for local ONNX-based embeddings.
  *
  * @returns Configured books collection
  */
@@ -53,6 +68,7 @@ export async function getBooksCollection(): Promise<Collection> {
       contentType: "book-chunk",
       version: COLLECTION_VERSION,
     },
+    embeddingFunction: getEmbeddingFunction(),
   });
 }
 

@@ -14,6 +14,7 @@
  */
 
 import { getChromaClient } from "@/lib/chroma/client";
+import { DefaultEmbeddingFunction } from "@chroma-core/default-embed";
 import type { Thought } from "@/types/schemas/thought";
 import type { ThoughtChromaMetadata } from "@/types/thoughts-chroma";
 import type { Collection } from "chromadb";
@@ -28,7 +29,21 @@ const COLLECTION_NAME = "thoughts";
 const COLLECTION_VERSION = "1";
 
 /**
+ * Singleton embedding function instance.
+ * Uses ONNX-based MiniLM-L6-v2 model that runs locally without API calls.
+ */
+let embeddingFunction: DefaultEmbeddingFunction | null = null;
+
+function getEmbeddingFunction(): DefaultEmbeddingFunction {
+  if (!embeddingFunction) {
+    embeddingFunction = new DefaultEmbeddingFunction();
+  }
+  return embeddingFunction;
+}
+
+/**
  * Gets or creates the thoughts collection with standard configuration.
+ * Uses the DefaultEmbeddingFunction for local ONNX-based embeddings.
  *
  * @returns Configured thoughts collection
  */
@@ -41,6 +56,7 @@ export async function getThoughtsCollection(): Promise<Collection> {
       contentType: "thought",
       version: COLLECTION_VERSION,
     },
+    embeddingFunction: getEmbeddingFunction(),
   });
 }
 
