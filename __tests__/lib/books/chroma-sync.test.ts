@@ -66,7 +66,7 @@ const createTestIndexData = (overrides: Partial<BookIndexData> = {}): BookIndexD
   bookId: "test-book-id",
   metadata: createTestMetadata(),
   chunks: [createTestChunk()],
-  fileType: "pdf",
+  fileType: "book-pdf",
   ...overrides,
 });
 
