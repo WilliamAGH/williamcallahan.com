@@ -37,8 +37,8 @@ RUN bun scripts/init-csp-hashes.ts
 # --------------------------------------------------
 # PRE-CHECKS STAGE (lint + type-check, cached)
 # --------------------------------------------------
-FROM node:22-alpine AS checks
-RUN apk add --no-cache libc6-compat bash
+FROM node:22-bookworm-slim AS checks
+RUN apt-get update && apt-get install -y --no-install-recommends bash && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
@@ -59,8 +59,8 @@ RUN NODE_OPTIONS='--max-old-space-size=4096' npm run lint && NODE_OPTIONS='--max
 # Use Bun image for build stage so `bun` commands are available
 FROM base AS builder
 # Install dependencies for the build
-# fontconfig + ttf-dejavu required for @react-pdf/renderer PDF generation during static generation
-RUN apk add --no-cache libc6-compat curl bash fontconfig ttf-dejavu
+# fontconfig + fonts-dejavu required for @react-pdf/renderer PDF generation during static generation
+RUN apt-get update && apt-get install -y --no-install-recommends curl bash fontconfig fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Set environment variables for build
@@ -157,15 +157,16 @@ WORKDIR /app
 
 # Install runtime dependencies including Node.js for the Next.js production server
 # Note: We still need Node.js to run `next start` even though Bun is available
-# Also installing vips for Sharp image processing, curl for healthchecks, and bash for scripts
-# libc6-compat is required for Sharp/vips native bindings to work properly
-# fontconfig + ttf-dejavu required for @react-pdf/renderer PDF generation at runtime
-RUN apk add --no-cache nodejs vips curl bash libc6-compat fontconfig ttf-dejavu
+# Also installing libvips for Sharp image processing, curl for healthchecks, and bash for scripts
+# fontconfig + fonts-dejavu required for @react-pdf/renderer PDF generation at runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nodejs libvips42 curl bash fontconfig fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security (UID 1001 is standard for Next.js containers)
 # This ensures consistent permissions with Coolify and other container orchestrators
-RUN addgroup --system --gid 1001 nodejs \
-    && adduser --system --uid 1001 --ingroup nodejs nextjs
+RUN groupadd --system --gid 1001 nodejs \
+    && useradd --system --uid 1001 --gid nodejs nextjs
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
