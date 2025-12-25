@@ -10,7 +10,7 @@ import { isChatCommand, type SelectionItem } from "@/types/terminal";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { useClerk } from "@clerk/nextjs";
+import { useClerkSafe } from "@/hooks/use-clerk-safe.client";
 import { handleCommand } from "./commands.client";
 import { useTerminalContext } from "./terminal-context.client";
 import { sections } from "./sections";
@@ -48,7 +48,7 @@ export function useTerminal() {
   // Flag to indicate whether a selection list is currently active
   const isSelecting = selection !== null;
   const router = useRouter();
-  const { signOut } = useClerk();
+  const { signOut } = useClerkSafe();
   const inputRef = useRef<HTMLInputElement>(null);
   const animationFrameRef = useRef<number | null>(null);
   const activeCommandController = useRef<AbortController | null>(null);
