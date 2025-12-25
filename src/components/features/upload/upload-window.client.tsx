@@ -19,7 +19,12 @@ import { cn } from "@/lib/utils";
 import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { RegisteredWindowState } from "@/types";
-import { FILE_TYPE_CONFIGS, validateFileForType, type UploadFileType } from "@/types/schemas/upload";
+import {
+  FILE_TYPE_CONFIGS,
+  validateFileForType,
+  UploadResponseSchema,
+  type UploadFileType,
+} from "@/types/schemas/upload";
 import type {
   UploadStatus,
   UploadWindowProps,
