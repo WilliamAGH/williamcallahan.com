@@ -1,9 +1,10 @@
-FROM docker.io/oven/bun:1.3.2-alpine AS base
+# Using Debian instead of Alpine because @chroma-core/default-embed uses ONNX runtime
+# which requires glibc (Alpine uses musl libc which is incompatible).
+# TODO: Revert to Alpine when switching to self-hosted embeddings API or @chroma-core/openai
+FROM docker.io/oven/bun:1.3.2-debian AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-# Install dependencies required for packages like Sharp
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Set environment variable for Bun
