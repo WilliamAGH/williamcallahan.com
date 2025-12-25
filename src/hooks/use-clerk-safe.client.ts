@@ -15,24 +15,14 @@ import { useClerk as useClerkOriginal } from "@clerk/nextjs";
 const isClerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
 /**
- * No-op Clerk interface for when Clerk is not configured
+ * No-op Clerk interface for when Clerk is not configured.
+ * Only includes methods actually used by the codebase.
  */
 const noOpClerk = {
-  signOut: async () => {
+  signOut: () => {
     console.warn("[Clerk] signOut called but Clerk is not configured");
+    return Promise.resolve();
   },
-  openSignIn: () => {
-    console.warn("[Clerk] openSignIn called but Clerk is not configured");
-  },
-  openSignUp: () => {
-    console.warn("[Clerk] openSignUp called but Clerk is not configured");
-  },
-  openUserProfile: () => {
-    console.warn("[Clerk] openUserProfile called but Clerk is not configured");
-  },
-  session: null,
-  user: null,
-  loaded: true,
 } as const;
 
 /**
