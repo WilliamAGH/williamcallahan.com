@@ -280,7 +280,7 @@ export async function deleteBooksCollection(): Promise<boolean> {
  *
  * @param query - Search query text
  * @param options - Search options
- * @returns Matching chunks with scores
+ * @returns Matching chunks with scores, or empty array on error
  */
 export async function searchBookChunks(
   query: string,
@@ -291,45 +291,54 @@ export async function searchBookChunks(
   } = {},
 ): Promise<Array<{ id: string; text: string; metadata: BookChunkMetadata; distance: number }>> {
   const { limit = 10, bookId, fileType } = options;
-  const collection = await getBooksCollection();
 
-  // Build where clause - Chroma Where type supports { [key: string]: value }
-  const whereClause: Record<string, string> = {};
-  if (bookId) {
-    whereClause.bookId = bookId;
-  }
-  if (fileType) {
-    whereClause.fileType = fileType;
-  }
-  const where: Where | undefined = Object.keys(whereClause).length > 0 ? whereClause : undefined;
+  try {
+    const collection = await getBooksCollection();
 
-  const results = await collection.query({
-    queryTexts: [query],
-    nResults: limit,
-    where,
-    include: ["documents", "metadatas", "distances"],
-  });
+    // Build where clause - Chroma Where type supports { [key: string]: value }
+    const whereClause: Record<string, string> = {};
+    if (bookId) {
+      whereClause.bookId = bookId;
+    }
+    if (fileType) {
+      whereClause.fileType = fileType;
+    }
+    const where: Where | undefined = Object.keys(whereClause).length > 0 ? whereClause : undefined;
 
-  // Format results
-  const formatted: Array<{ id: string; text: string; metadata: BookChunkMetadata; distance: number }> = [];
+    const results = await collection.query({
+      queryTexts: [query],
+      nResults: limit,
+      where,
+      include: ["documents", "metadatas", "distances"],
+    });
 
-  if (results.ids[0]) {
-    for (let i = 0; i < results.ids[0].length; i++) {
-      const id = results.ids[0][i];
-      const text = results.documents?.[0]?.[i];
-      const metadata = results.metadatas?.[0]?.[i];
-      const distance = results.distances?.[0]?.[i];
+    // Format results
+    const formatted: Array<{ id: string; text: string; metadata: BookChunkMetadata; distance: number }> = [];
 
-      if (id && text && metadata) {
-        formatted.push({
-          id,
-          text,
-          metadata: metadata as unknown as BookChunkMetadata,
-          distance: distance ?? 0,
-        });
+    if (results.ids[0]) {
+      for (let i = 0; i < results.ids[0].length; i++) {
+        const id = results.ids[0][i];
+        const text = results.documents?.[0]?.[i];
+        const metadata = results.metadatas?.[0]?.[i];
+        const distance = results.distances?.[0]?.[i];
+
+        if (id && text && metadata) {
+          formatted.push({
+            id,
+            text,
+            metadata: metadata as unknown as BookChunkMetadata,
+            distance: distance ?? 0,
+          });
+        }
       }
     }
-  }
 
-  return formatted;
+    return formatted;
+  } catch (error) {
+    // Log the error for debugging but return empty results to avoid breaking the UI
+    // Network issues, Chroma service unavailability, or malformed queries should
+    // gracefully degrade to showing no results rather than crashing
+    console.error("[Chroma] Search failed:", error);
+    return [];
+  }
 }
