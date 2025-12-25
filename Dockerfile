@@ -1,9 +1,10 @@
-FROM docker.io/oven/bun:1.3.2-alpine AS base
+# Using Debian instead of Alpine because @chroma-core/default-embed uses ONNX runtime
+# which requires glibc (Alpine uses musl libc which is incompatible).
+# TODO: Revert to Alpine when switching to self-hosted embeddings API or @chroma-core/openai
+FROM docker.io/oven/bun:1.3.2-debian AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-# Install dependencies required for packages like Sharp
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Set environment variable for Bun
@@ -36,8 +37,8 @@ RUN bun scripts/init-csp-hashes.ts
 # --------------------------------------------------
 # PRE-CHECKS STAGE (lint + type-check, cached)
 # --------------------------------------------------
-FROM node:22-alpine AS checks
-RUN apk add --no-cache libc6-compat bash
+FROM node:22-bookworm-slim AS checks
+RUN apt-get update && apt-get install -y --no-install-recommends bash && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
@@ -58,8 +59,9 @@ RUN NODE_OPTIONS='--max-old-space-size=4096' npm run lint && NODE_OPTIONS='--max
 # Use Bun image for build stage so `bun` commands are available
 FROM base AS builder
 # Install dependencies for the build
-# fontconfig + ttf-dejavu required for @react-pdf/renderer PDF generation during static generation
-RUN apk add --no-cache libc6-compat curl bash fontconfig ttf-dejavu
+# ca-certificates required for HTTPS connectivity checks (S3, CDN)
+# fontconfig + fonts-dejavu required for @react-pdf/renderer PDF generation during static generation
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl bash fontconfig fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Set environment variables for build
@@ -135,7 +137,7 @@ RUN bash -c 'set -euo pipefail \
 # generateStaticParams() can read bookmarks from S3 without leaking secrets.
 # NOTE: The multiline bash snippet below uses explicit continuations so Docker
 #       treats it as a single RUN instruction during BuildKit parsing.
-RUN /bin/sh -c "set -euo pipefail; \
+RUN bash -c "set -euo pipefail; \
       if [ -n \"${S3_ACCESS_KEY_ID:-}\" ]; then export S3_ACCESS_KEY_ID=\"${S3_ACCESS_KEY_ID}\"; fi; \
       if [ -n \"${S3_SECRET_ACCESS_KEY:-}\" ]; then export S3_SECRET_ACCESS_KEY=\"${S3_SECRET_ACCESS_KEY}\"; fi; \
       if [ -n \"${S3_SESSION_TOKEN:-}\" ]; then export AWS_SESSION_TOKEN=\"${S3_SESSION_TOKEN}\"; export S3_SESSION_TOKEN=\"${S3_SESSION_TOKEN}\"; fi; \
@@ -156,15 +158,16 @@ WORKDIR /app
 
 # Install runtime dependencies including Node.js for the Next.js production server
 # Note: We still need Node.js to run `next start` even though Bun is available
-# Also installing vips for Sharp image processing, curl for healthchecks, and bash for scripts
-# libc6-compat is required for Sharp/vips native bindings to work properly
-# fontconfig + ttf-dejavu required for @react-pdf/renderer PDF generation at runtime
-RUN apk add --no-cache nodejs vips curl bash libc6-compat fontconfig ttf-dejavu
+# Also installing libvips for Sharp image processing, curl for healthchecks, and bash for scripts
+# fontconfig + fonts-dejavu required for @react-pdf/renderer PDF generation at runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nodejs libvips42 curl bash fontconfig fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security (UID 1001 is standard for Next.js containers)
 # This ensures consistent permissions with Coolify and other container orchestrators
-RUN addgroup --system --gid 1001 nodejs \
-    && adduser --system --uid 1001 --ingroup nodejs nextjs
+RUN groupadd --system --gid 1001 nodejs \
+    && useradd --system --uid 1001 --gid nodejs nextjs
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

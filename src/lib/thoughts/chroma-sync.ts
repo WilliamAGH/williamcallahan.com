@@ -14,9 +14,10 @@
  */
 
 import { getChromaClient } from "@/lib/chroma/client";
+import { EmbeddingFunctionError } from "@/lib/chroma/embedding-error";
 import type { Thought } from "@/types/schemas/thought";
 import type { ThoughtChromaMetadata } from "@/types/thoughts-chroma";
-import type { Collection } from "chromadb";
+import type { Collection, EmbeddingFunction } from "chromadb";
 
 // Re-export for convenience
 export type { ThoughtChromaMetadata } from "@/types/thoughts-chroma";
@@ -28,12 +29,38 @@ const COLLECTION_NAME = "thoughts";
 const COLLECTION_VERSION = "1";
 
 /**
+ * Singleton embedding function instance.
+ * Uses ONNX-based MiniLM-L6-v2 model that runs locally without API calls.
+ * Loaded dynamically to avoid Turbopack bundling issues with native ONNX bindings.
+ *
+ * IMPORTANT: This requires glibc. Alpine Linux (musl) is NOT supported.
+ * If you see "symbol not found" errors, switch to a Debian-based Docker image
+ * or use @chroma-core/openai for API-based embeddings.
+ */
+let embeddingFunction: EmbeddingFunction | null = null;
+
+async function getEmbeddingFunction(): Promise<EmbeddingFunction> {
+  if (!embeddingFunction) {
+    try {
+      // Dynamic import to avoid build-time evaluation of ONNX native bindings
+      const { DefaultEmbeddingFunction } = await import("@chroma-core/default-embed");
+      embeddingFunction = new DefaultEmbeddingFunction();
+    } catch (error) {
+      throw new EmbeddingFunctionError(error);
+    }
+  }
+  return embeddingFunction;
+}
+
+/**
  * Gets or creates the thoughts collection with standard configuration.
+ * Uses the DefaultEmbeddingFunction for local ONNX-based embeddings.
  *
  * @returns Configured thoughts collection
  */
 export async function getThoughtsCollection(): Promise<Collection> {
   const client = getChromaClient();
+  const ef = await getEmbeddingFunction();
   return client.getOrCreateCollection({
     name: COLLECTION_NAME,
     metadata: {
@@ -41,6 +68,7 @@ export async function getThoughtsCollection(): Promise<Collection> {
       contentType: "thought",
       version: COLLECTION_VERSION,
     },
+    embeddingFunction: ef,
   });
 }
 

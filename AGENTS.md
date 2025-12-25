@@ -5,6 +5,8 @@ alwaysApply: true
 
 # williamcallahan.com Agent Rules
 
+> **Next.js 16**: Middleware is `src/proxy.ts` (not `middleware.ts`). This file handles Clerk auth, CSP, and request logging.
+
 ## Document Organization [ORG]
 
 - [ORG1] Purpose: keep every critical rule within the first ~250 lines; move long examples/config to Appendix.
@@ -30,6 +32,7 @@ alwaysApply: true
 - [DEP1a-d] Cloudflare cache: deployment verification workflow
 - [VR1a-g] Verification loops: validate/lint/type-check/build/test (and deploy readiness)
 - [TST1a-e] Testing protocols: use `bun run test*`, never `bun test`
+- [TST2a-d] Test coverage & authoring: mandatory for new/modified code; discover patterns; test outcomes not implementations
 - [CP1a-d] Task completion: verify -> request confirmation -> cleanup/commit (no AI attribution)
 - [TMP1a-c] Temporary files: /tmp only, cleanup after user confirmation
 - [ENV1a-c] Environment variables: no new required vars without explicit approval
@@ -170,6 +173,13 @@ alwaysApply: true
 - [TST1c] Direct `bun test` bypasses the project config and causes missing `jest.mock`, module resolution failures, and DOM/JSDOM issues—treat this as a violation.
 - [TST1d] Do not “fix” test issues by adding polyfills/downgrading Jest; fix the setup/configuration correctly.
 - [TST1e] Keep tests observable and deterministic; if mocking is required, set it up explicitly (do not rely on ambient behavior).
+
+## [TST2] Test Coverage & Authoring
+
+- [TST2a] Test coverage is mandatory: new functionality and significant modifications require corresponding tests before task completion.
+- [TST2b] Discovery-first: before writing tests, locate existing test files (`__tests__/`, `*.test.ts`, colocated specs) and follow established patterns.
+- [TST2c] Test outcomes, not implementations: assert on outputs, return values, side effects, and observable behavior—never on internal method calls, call counts, or implementation details that could change during refactoring.
+- [TST2d] Refactor-resilient tests: if behavior is unchanged, tests must pass regardless of how internals are restructured; tests coupled to implementation are defects.
 
 ## [CP1] Task Completion & Commit Protocol
 

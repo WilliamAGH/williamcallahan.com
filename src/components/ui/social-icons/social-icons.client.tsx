@@ -42,7 +42,7 @@ export function SocialIcons({ className = "", showXOnly = false, excludePlatform
 
   // Icon button styling
   const iconButtonClasses =
-    "p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all duration-200 ease-in-out hover:scale-110 active:scale-100";
+    "flex items-center justify-center p-1 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all duration-200 ease-in-out hover:scale-110 active:scale-100";
 
   // Compute links to render based on props
   const linksToShow = React.useMemo(() => {
@@ -54,12 +54,15 @@ export function SocialIcons({ className = "", showXOnly = false, excludePlatform
   // During server rendering and before hydration completes on client,
   // just render nothing with suppressHydrationWarning
   if (!hasMounted) {
-    return <div className={`flex ${className}`} suppressHydrationWarning />;
+    return <div className={`flex items-center ${className}`} suppressHydrationWarning />;
   }
 
   // Only render the full component after mounting on the client
+  // Using a very small gap to vastly reduce space as requested
+  const spacingClass = className.includes("gap-") ? "" : "gap-0.5";
+
   return (
-    <div className={`flex items-center space-x-1 ${className}`}>
+    <div className={`flex items-center justify-center ${spacingClass} ${className}`}>
       {linksToShow.map(link => (
         <ErrorBoundary key={link.href} silent>
           <Link

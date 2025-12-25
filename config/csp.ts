@@ -21,6 +21,19 @@
 
 const RAILWAY_TEST_DEPLOYMENTS = "https://*.up.railway.app";
 
+// Clerk authentication domains
+// @see https://clerk.com/docs/security/clerk-csp
+const CLERK_DOMAINS = {
+  // Clerk Frontend API and authentication endpoints
+  api: ["https://*.clerk.accounts.dev", "https://*.clerk.com"],
+  // Clerk user profile images and assets
+  images: ["https://img.clerk.com", "https://images.clerk.dev"],
+  // Clerk scripts and styles
+  scripts: ["https://*.clerk.accounts.dev", "https://*.clerk.com"],
+  // Clerk modals, sign-in popups, and embedded UI
+  frames: ["https://*.clerk.accounts.dev", "https://*.clerk.com"],
+};
+
 export const CSP_DIRECTIVES = {
   defaultSrc: ["'self'"],
   scriptSrc: [
@@ -35,6 +48,7 @@ export const CSP_DIRECTIVES = {
     "https://in.getclicky.com",
     "https://platform.twitter.com",
     "https://*.x.com",
+    ...CLERK_DOMAINS.scripts,
     "blob:",
     "'unsafe-eval'",
     RAILWAY_TEST_DEPLOYMENTS,
@@ -54,6 +68,7 @@ export const CSP_DIRECTIVES = {
     "https://twitter.com",
     "https://platform.twitter.com",
     "https://*.x.com",
+    ...CLERK_DOMAINS.api,
     "https://*.callahan.cloud",
     "https://*.digitaloceanspaces.com",
     "https://*.sfo3.digitaloceanspaces.com",
@@ -80,6 +95,7 @@ export const CSP_DIRECTIVES = {
     "https://pbs.twimg.com",
     "https://*.twimg.com",
     "https://react-tweet.vercel.app",
+    ...CLERK_DOMAINS.images,
     "https://*.callahan.cloud",
     "https://*.digitaloceanspaces.com",
     "https://*.sfo3.digitaloceanspaces.com",
@@ -100,6 +116,7 @@ export const CSP_DIRECTIVES = {
     "https://platform.twitter.com",
     "https://*.twimg.com",
     "https://*.x.com",
+    ...CLERK_DOMAINS.scripts,
     RAILWAY_TEST_DEPLOYMENTS,
   ],
   styleSrcAttr: ["'unsafe-inline'"],
@@ -109,6 +126,7 @@ export const CSP_DIRECTIVES = {
     "https://platform.twitter.com",
     "https://*.twimg.com",
     "https://*.x.com",
+    ...CLERK_DOMAINS.scripts,
     RAILWAY_TEST_DEPLOYMENTS,
   ],
   fontSrc: [
@@ -119,7 +137,7 @@ export const CSP_DIRECTIVES = {
     "https://*.x.com",
     RAILWAY_TEST_DEPLOYMENTS,
   ],
-  frameSrc: ["https://platform.twitter.com", "https://*.x.com", RAILWAY_TEST_DEPLOYMENTS],
+  frameSrc: ["https://platform.twitter.com", "https://*.x.com", ...CLERK_DOMAINS.frames, RAILWAY_TEST_DEPLOYMENTS],
   frameAncestors: ["'none'"],
   baseUri: ["'self'"],
   formAction: ["'self'"],

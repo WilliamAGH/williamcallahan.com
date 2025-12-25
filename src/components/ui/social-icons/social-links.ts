@@ -9,15 +9,8 @@ import { GitHub } from "./github-icon";
 import { LinkedIn } from "./linkedin-icon";
 import { X } from "./x-icon";
 
-// Define the social links data - Reordered X to be after GitHub
+// Define the social links data - X, LinkedIn, GitHub, then others
 const socialLinksData = [
-  {
-    platform: "github",
-    href: "https://github.com/WilliamAGH",
-    label: "GitHub",
-    icon: GitHub,
-    emphasized: true,
-  },
   {
     platform: "x",
     href: "https://x.com/williamcallahan",
@@ -26,16 +19,23 @@ const socialLinksData = [
     emphasized: true,
   },
   {
-    platform: "discord",
-    href: "https://discord.com/users/WilliamDscord",
-    label: "Discord",
-    icon: Discord,
-  },
-  {
     platform: "linkedin",
     href: "https://linkedin.com/in/williamacallahan",
     label: "LinkedIn",
     icon: LinkedIn,
+  },
+  {
+    platform: "github",
+    href: "https://github.com/WilliamAGH",
+    label: "GitHub",
+    icon: GitHub,
+    emphasized: true,
+  },
+  {
+    platform: "discord",
+    href: "https://discord.com/users/WilliamDscord",
+    label: "Discord",
+    icon: Discord,
   },
   {
     platform: "bluesky",

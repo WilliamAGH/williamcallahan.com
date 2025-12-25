@@ -84,3 +84,6 @@ lib/data/bookmarks.json
 src/lib/data/slug-mapping.json
 src/lib/data/bookmarks.json
 config/csp-hashes.json
+
+# clerk configuration (can include secrets)
+/.clerk/
