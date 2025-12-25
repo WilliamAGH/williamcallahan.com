@@ -432,15 +432,25 @@ function UploadWindowContentInner({
         xhr.addEventListener("load", () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
-              const response = JSON.parse(xhr.responseText) as { success?: boolean; error?: string };
+              const parsed: unknown = JSON.parse(xhr.responseText);
+              const result = UploadResponseSchema.safeParse(parsed);
+
+              if (!result.success) {
+                // Invalid response format - log for debugging but reject clearly
+                console.error("[Upload] Invalid response format:", result.error);
+                reject(new Error("Invalid response format from server"));
+                return;
+              }
+
+              const response = result.data;
               if (response.success === false) {
-                reject(new Error(response.error || "Upload failed"));
+                reject(new Error(response.error ?? "Upload failed"));
                 return;
               }
               resolve();
             } catch {
-              // If response isn't JSON, treat 2xx as success
-              resolve();
+              // Non-JSON response on 2xx is unexpected - reject with clear error
+              reject(new Error("Server returned invalid response format"));
             }
           } else {
             reject(new Error(xhr.responseText || "Upload failed"));
