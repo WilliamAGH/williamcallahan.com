@@ -14,7 +14,8 @@
 
 import { getChromaClient } from "@/lib/chroma/client";
 import { EmbeddingFunctionError } from "@/lib/chroma/embedding-error";
-import type { Collection, EmbeddingFunction, Metadata, Where } from "chromadb";
+import { getEmbeddingFunction } from "@/lib/chroma/embedding-function";
+import type { Collection, Metadata, Where } from "chromadb";
 import type { TextChunk, EpubMetadata, BookChunkMetadata, BookIndexData, BookIndexResult } from "@/types/books/parsing";
 
 // =============================================================================
@@ -38,30 +39,6 @@ const COLLECTION_VERSION = "2";
 export function parseChromaArray(value: string | undefined | null): string[] {
   if (!value) return [];
   return value.split(",").filter(s => s.trim().length > 0);
-}
-
-/**
- * Singleton embedding function instance.
- * Uses ONNX-based MiniLM-L6-v2 model that runs locally without API calls.
- * Loaded dynamically to avoid Turbopack bundling issues with native ONNX bindings.
- *
- * IMPORTANT: This requires glibc. Alpine Linux (musl) is NOT supported.
- * If you see "symbol not found" errors, switch to a Debian-based Docker image
- * or use @chroma-core/openai for API-based embeddings.
- */
-let embeddingFunction: EmbeddingFunction | null = null;
-
-async function getEmbeddingFunction(): Promise<EmbeddingFunction> {
-  if (!embeddingFunction) {
-    try {
-      // Dynamic import to avoid build-time evaluation of ONNX native bindings
-      const { DefaultEmbeddingFunction } = await import("@chroma-core/default-embed");
-      embeddingFunction = new DefaultEmbeddingFunction();
-    } catch (error) {
-      throw new EmbeddingFunctionError(error);
-    }
-  }
-  return embeddingFunction;
 }
 
 /**
