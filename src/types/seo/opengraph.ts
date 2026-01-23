@@ -64,6 +64,10 @@ export type ExtendedOpenGraph = ArticleOpenGraph | ProfileOpenGraph | WebsiteOpe
 const urlSchema = z.string().url().optional().or(z.literal(""));
 const stringOrNullSchema = z.string().nullable().optional();
 const timestampSchema = z.number().int().positive();
+const nonEmptyStringSchema = z.string().min(1);
+const nullableUrlSchema = z.string().url().nullable().optional();
+const ogMetadataRecordSchema = z.record(z.string(), stringOrNullSchema);
+const socialProfilesSchema = z.record(z.string(), z.string());
 
 /**
  * Schema for raw OpenGraph metadata from external APIs
@@ -96,12 +100,27 @@ export const ogFetchResultSchema = z.object({
 /**
  * Schema for enhanced OpenGraph results with caching metadata
  */
-export const ogResultSchema = ogFetchResultSchema.extend({
-  timestamp: timestampSchema,
-  source: z.enum(["cache", "external", "fallback"]),
-  retryCount: z.number().int().min(0).optional(),
-  actualUrl: urlSchema,
-});
+export const ogResultSchema = ogFetchResultSchema
+  .extend({
+    url: nonEmptyStringSchema,
+    finalUrl: nullableUrlSchema,
+    title: stringOrNullSchema,
+    description: stringOrNullSchema,
+    siteName: stringOrNullSchema,
+    locale: stringOrNullSchema,
+    timestamp: timestampSchema,
+    source: z.enum(["cache", "s3", "external", "fallback"]),
+    urlHash: z.string().optional(),
+    errorDetails: z.unknown().optional(),
+    imageAssetId: z.string().optional(),
+    screenshotAssetId: z.string().optional(),
+    socialProfiles: socialProfilesSchema.optional(),
+    retryCount: z.number().int().min(0).optional(),
+    actualUrl: nullableUrlSchema,
+    profileImageUrl: z.string().nullable().optional(),
+    ogMetadata: ogMetadataRecordSchema.optional(),
+  })
+  .passthrough();
 
 /**
  * Schema for Karakeep image fallback data

@@ -26,6 +26,7 @@ Request -> Cache Check -> S3 Check -> External Fetch -> Process -> Store -> Retu
   - Request coalescing to prevent duplicate fetches
   - Background refresh with stale-while-revalidate
   - Delegates to specialized modules for specific tasks
+  - Cache validation preserves optional metadata fields (title/description/siteName) while still enforcing schema correctness
 
 ### OpenGraph Modules
 
