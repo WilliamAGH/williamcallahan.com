@@ -210,6 +210,13 @@ function extractMetadataFromEpub(epub: EPub): EpubMetadata {
 export async function parseEpubFromBuffer(buffer: Buffer, options: EpubParseOptions = {}): Promise<ParsedEpub> {
   const { maxChapters, includeHtml = false } = options;
 
+  // Normalize maxChapters: only use if it's a finite positive integer
+  // A value of 0 would mean "no chapters" which is likely a mistake, so treat as undefined
+  const normalizedMaxChapters =
+    typeof maxChapters === "number" && Number.isFinite(maxChapters) && maxChapters > 0
+      ? Math.floor(maxChapters)
+      : undefined;
+
   // Create a temporary directory for the file
   const tempDir = await mkdtemp(join(tmpdir(), "epub-"));
   const tempFilePath = join(tempDir, "book.epub");
@@ -248,15 +255,23 @@ export async function parseEpubFromBuffer(buffer: Buffer, options: EpubParseOpti
     }
 
     // Determine how many chapters to process
-    const chaptersToProcess = maxChapters ? flow.slice(0, maxChapters) : flow;
+    const chaptersToProcess = normalizedMaxChapters ? flow.slice(0, normalizedMaxChapters) : flow;
 
     for (let i = 0; i < chaptersToProcess.length; i++) {
       const chapter = chaptersToProcess[i];
       if (!chapter?.id) continue;
 
       try {
-        // Get chapter HTML content - epub.getChapterAsync returns Promise<any>, cast to string
-        const htmlContent = (await epub.getChapterAsync(chapter.id)) as string;
+        // Get chapter HTML content - epub.getChapterAsync returns Promise<any>
+        // Validate the result is actually a string before processing
+        const htmlContentRaw: unknown = await epub.getChapterAsync(chapter.id);
+        const htmlContent =
+          typeof htmlContentRaw === "string"
+            ? htmlContentRaw
+            : Buffer.isBuffer(htmlContentRaw)
+              ? htmlContentRaw.toString("utf-8")
+              : "";
+        if (!htmlContent) continue;
 
         // Convert to plain text
         const textContent = htmlToText(htmlContent);
