@@ -218,31 +218,26 @@ describeIfChroma("Books Chroma Sync", () => {
   });
 
   describe("removeBookFromChroma", () => {
-    it("should remove all chunks for a book", async () => {
+    it("should delete chunks using where clause", async () => {
       const { removeBookFromChroma } = await import("@/lib/books/chroma-sync");
-
-      mockCollection.get.mockResolvedValueOnce({
-        ids: ["book_chunk_00000", "book_chunk_00001", "book_chunk_00002"],
-        embeddings: [],
-        metadatas: [],
-        documents: [],
-      });
 
       await removeBookFromChroma("test-book");
 
-      expect(mockCollection.get).toHaveBeenCalledWith({ where: { bookId: "test-book" }, limit: 10000 });
+      // Now uses direct where-based delete (no get+delete round-trip)
       expect(mockCollection.delete).toHaveBeenCalledWith({
-        ids: ["book_chunk_00000", "book_chunk_00001", "book_chunk_00002"],
+        where: { bookId: "test-book" },
       });
     });
 
-    it("should not delete if no chunks found", async () => {
+    it("should call delete even for nonexistent book (Chroma handles gracefully)", async () => {
       const { removeBookFromChroma } = await import("@/lib/books/chroma-sync");
 
-      // Default mock returns empty ids
       await removeBookFromChroma("nonexistent-book");
 
-      expect(mockCollection.delete).not.toHaveBeenCalled();
+      // Direct where-based delete is always called; Chroma handles no-match gracefully
+      expect(mockCollection.delete).toHaveBeenCalledWith({
+        where: { bookId: "nonexistent-book" },
+      });
     });
   });
 
