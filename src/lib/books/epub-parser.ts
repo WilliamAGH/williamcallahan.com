@@ -42,8 +42,15 @@ function htmlToText(html: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCharCode(parseInt(code, 16)));
+    .replace(/&#(\d+);/g, (_, code: string) => {
+      const value = Number(code);
+      // Use fromCodePoint to handle non-BMP characters (emoji, etc.) above 0xFFFF
+      return Number.isFinite(value) && value >= 0 && value <= 0x10ffff ? String.fromCodePoint(value) : "";
+    })
+    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => {
+      const value = Number.parseInt(code, 16);
+      return Number.isFinite(value) && value >= 0 && value <= 0x10ffff ? String.fromCodePoint(value) : "";
+    });
 
   // Normalize whitespace
   text = text
