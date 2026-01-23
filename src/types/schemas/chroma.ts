@@ -119,3 +119,56 @@ export const ChromaCollectionConfigSchema = z.object({
 });
 
 export type ChromaCollectionConfig = z.infer<typeof ChromaCollectionConfigSchema>;
+
+// =============================================================================
+// BOOK CHUNK METADATA SCHEMA
+// =============================================================================
+
+/**
+ * Schema for validating book chunk metadata from Chroma query results.
+ * Matches the BookChunkMetadata interface in types/books/parsing.ts.
+ *
+ * This validates data at the Chroma query boundary - even though we index
+ * well-formed metadata, query results come from an external database and
+ * should be validated to catch schema drift or data corruption.
+ */
+export const bookChunkMetadataSchema = z.object({
+  /** Book identifier (S3 key or UUID) */
+  bookId: z.string(),
+  /** Book title */
+  title: z.string(),
+  /** Book author */
+  author: z.string(),
+  /** ISBN if available (empty string if not) */
+  isbn: z.string(),
+  /** File type (pdf, epub) */
+  fileType: z.string(),
+  /** Chapter ID within the book */
+  chapterId: z.string(),
+  /** Chapter title if available */
+  chapterTitle: z.string(),
+  /** Chunk index within the book */
+  chunkIndex: z.number().int().nonnegative(),
+  /** Total chunks in the book */
+  totalChunks: z.number().int().positive(),
+  /** Word count of this chunk */
+  wordCount: z.number().int().nonnegative(),
+  /** Content type for cross-collection queries */
+  contentType: z.literal("book-chunk"),
+  /** Timestamp when indexed */
+  indexedAt: z.string(),
+  /** Subjects/genres as comma-separated string */
+  subjects: z.string(),
+  /** Publisher if available */
+  publisher: z.string(),
+  /** Publication date if available */
+  publishedDate: z.string(),
+  /** Language code (e.g., "en") */
+  language: z.string(),
+  /** Series name if part of a series */
+  series: z.string(),
+  /** Position in series (as string for Chroma compatibility) */
+  seriesIndex: z.string(),
+});
+
+export type BookChunkMetadataFromSchema = z.infer<typeof bookChunkMetadataSchema>;
