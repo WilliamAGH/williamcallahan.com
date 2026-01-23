@@ -47,7 +47,7 @@ export const epubMetadataSchema = z.object({
   rawMetadata: z.record(z.string(), z.unknown()).optional(),
 });
 
-export type EpubMetadataFromSchema = z.infer<typeof epubMetadataSchema>;
+export type EpubMetadata = z.infer<typeof epubMetadataSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core Book Schemas
