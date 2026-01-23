@@ -249,6 +249,24 @@ export interface BookIndexResult {
   error?: string;
 }
 
+/**
+ * A single search result from book chunk search
+ */
+export interface BookSearchHit {
+  id: string;
+  text: string;
+  metadata: BookChunkMetadata;
+  distance: number;
+}
+
+/**
+ * Result from searching book chunks - discriminated union for explicit error handling
+ * Callers must check `success` to distinguish between "no matches" and "search failed"
+ */
+export type BookSearchResult =
+  | { success: true; results: BookSearchHit[] }
+  | { success: false; error: string; results: [] };
+
 // =============================================================================
 // EPUB2 LIBRARY TYPE AUGMENTATION
 // =============================================================================
