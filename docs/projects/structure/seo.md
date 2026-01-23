@@ -308,7 +308,7 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
 ### Supporting Files
 
 - **`lib/seo/constants.ts`**: Centralizes constant values, such as standard field names for metadata, to ensure consistency.
-- **`lib/seo/utils.ts`**: Provides helper functions for date formatting (`formatSeoDate`) and URL normalization (`ensureAbsoluteUrl`).
+- **`lib/seo/utils.ts`**: Provides helper functions for date formatting (`formatSeoDate`) and URL normalization (`ensureAbsoluteUrl`). `formatSeoDate` formats using Pacific time via `Intl.DateTimeFormat` so server timezone does not skew SEO timestamps.
 - **`components/seo/json-ld.tsx`**: A simple React component that renders the `JSON-LD` schema into a `<script>` tag in the page's head.
 - **Type Definitions (`types/seo/*.ts`)**: A suite of type files that ensure type safety across the entire SEO module. `types/seo.ts` serves as an aggregator, re-exporting types from the other files in its directory.
 
