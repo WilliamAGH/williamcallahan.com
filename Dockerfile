@@ -191,8 +191,15 @@ WORKDIR /app
 # Note: We still need Node.js to run `next start` even though Bun is available
 # Also installing libvips for Sharp image processing, curl for healthchecks, and bash for scripts
 # fontconfig + fonts-dejavu required for @react-pdf/renderer PDF generation at runtime
+# IMPORTANT: Debian Bookworm ships Node.js 18.x but Next.js 16 requires >=20.9.0.
+# We install Node.js 22.x LTS from NodeSource to meet this requirement.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nodejs libvips42 curl bash fontconfig fonts-dejavu-core \
+    ca-certificates curl gnupg libvips42 bash fontconfig fonts-dejavu-core \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security (UID 1001 is standard for Next.js containers)
