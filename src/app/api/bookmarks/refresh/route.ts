@@ -185,7 +185,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             revalidatePath("/bookmarks/[slug]", "page");
             revalidatePath("/bookmarks/page/[pageNumber]", "page");
             revalidatePath("/bookmarks/domain/[domainSlug]", "page");
-            revalidateTag("bookmarks", "default");
+            revalidateTag("bookmarks", "max");
             console.log("[API Trigger] ✅ Cache invalidated successfully");
           } catch (cacheError) {
             console.error("[API Trigger] Failed to invalidate cache:", cacheError);

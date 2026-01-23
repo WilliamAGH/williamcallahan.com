@@ -23,6 +23,16 @@ jest.mock("@/lib/server-cache", () => ({
   ServerCacheInstance: {
     get: jest.fn(),
     set: jest.fn(),
+    getStats: jest.fn().mockReturnValue({
+      keys: 0,
+      hits: 0,
+      misses: 0,
+      ksize: 0,
+      vsize: 0,
+      sizeBytes: 0,
+      maxSizeBytes: 0,
+      utilizationPercent: 0,
+    }),
   },
 }));
 
@@ -304,5 +314,29 @@ describe("Bookmarks Module (Simplified)", () => {
     } finally {
       fetchSpy.mockRestore();
     }
+  });
+
+  describe("handleBookmarkApiResponse", () => {
+    it("should return data from { data: [...] } responses", async () => {
+      const { handleBookmarkApiResponse } = await import("../../../src/lib/bookmarks/api-client");
+      const response = createMockResponse({
+        ok: true,
+        json: () => Promise.resolve({ data: mockApiResponse }),
+      });
+
+      const result = await handleBookmarkApiResponse(response, "test-data-wrapper");
+      expect(result).toEqual(mockApiResponse);
+    });
+
+    it("should return data from { bookmarks: [...] } responses", async () => {
+      const { handleBookmarkApiResponse } = await import("../../../src/lib/bookmarks/api-client");
+      const response = createMockResponse({
+        ok: true,
+        json: () => Promise.resolve({ bookmarks: mockApiResponse }),
+      });
+
+      const result = await handleBookmarkApiResponse(response, "test-bookmarks-wrapper");
+      expect(result).toEqual(mockApiResponse);
+    });
   });
 });

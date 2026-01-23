@@ -25,11 +25,16 @@ export async function handleBookmarkApiResponse(response: Response, context: str
     throw new Error(`API request ${context} failed with status ${response.status}: ${errorText}`);
   }
 
-  const data = (await response.json()) as UnifiedBookmark[] | { bookmarks?: UnifiedBookmark[] };
+  const data = (await response.json()) as
+    | UnifiedBookmark[]
+    | { bookmarks?: UnifiedBookmark[]; data?: UnifiedBookmark[] };
 
   // Handle both array and object response formats
   if (Array.isArray(data)) {
     return data;
+  }
+  if (data && Array.isArray(data.data)) {
+    return data.data;
   }
   if (data && Array.isArray(data.bookmarks)) {
     return data.bookmarks;

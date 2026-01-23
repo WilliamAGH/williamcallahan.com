@@ -103,7 +103,7 @@ export function POST(request: NextRequest): NextResponse {
 
     // Invalidate each cache tag
     for (const tag of cacheTags) {
-      revalidateTag(tag, "default");
+      revalidateTag(tag, "max");
       console.log(`[Cache Clear] Invalidated cache tag: ${tag}`);
     }
 

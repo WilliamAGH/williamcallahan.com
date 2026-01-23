@@ -48,9 +48,7 @@ import type { RequestLog } from "@/types/lib";
  */
 async function getCspHashes() {
   try {
-    const hashes = await import("../generated/csp-hashes.json", {
-      assert: { type: "json" },
-    });
+    const hashes = await import("../generated/csp-hashes.json");
     return hashes.default;
   } catch (error) {
     console.warn("[CSP] Could not load csp-hashes.json. This is expected on the first build.", error);

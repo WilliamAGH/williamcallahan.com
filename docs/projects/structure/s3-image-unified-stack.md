@@ -66,7 +66,7 @@ Provide a single, verifiable description of how UI components, Next.js runtime f
 ### 2. Logo Rendering & Auto-Healing
 
 1. `<LogoImage>` receives a CDN path (`/logos/foo_com_google_ab12cd34.png`). If loading fails, it derives the domain via `extractDomainFromSrc()`, fires `/api/logo?website=foo.com&forceRefresh=true`, and retries with a cache buster.
-2. `/api/logo` normalizes `website`/`company`, then calls `getLogo()` on UnifiedImageService.
+2. `/api/logo` normalizes `website`/`company` (rejects non-FQDN company fallbacks), then calls `getLogo()` on UnifiedImageService.
 3. UnifiedImageService checks `ServerCacheInstance`, manifest entries, and existing S3 objects (`generateS3Key` per source). If missing and writes allowed, it fans out to Google/DuckDuckGo/Clearbit, analyzes the buffer, streams to S3 if large, and records CDN URLs.
 4. Response is always a redirect to CDN (or placeholder via `getStaticImageUrl`). Future loads hit the CDN and skip the service entirely.
 
