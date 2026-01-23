@@ -82,7 +82,7 @@ const SOFTWARE_DETAILS: Record<
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<ExtendedMetadata> {
   // params is already resolved here by Next.js
   const { slug } = await params;
-  // Use getPostBySlug which handles finding the post correctly using the canonical frontmatter slug
+  // Use getPostMetaBySlug for lightweight metadata (skips MDX compilation + blur generation)
   const post = await getPostMetaBySlug(slug);
 
   if (!post) {
