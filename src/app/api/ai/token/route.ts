@@ -53,6 +53,52 @@ function getRequestOriginHostname(request: NextRequest): string | null {
   return null;
 }
 
+function parseJsonValue(value: string): unknown {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function isSecureRequest(request: NextRequest): boolean {
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  if (forwardedProto) {
+    return forwardedProto.split(",")[0]?.trim().toLowerCase() === "https";
+  }
+
+  const forwarded = request.headers.get("forwarded");
+  if (forwarded) {
+    const first = forwarded.split(",")[0] ?? "";
+    const match = first.match(/proto=([^;]+)/i);
+    if (match) {
+      return match[1]?.trim().toLowerCase() === "https";
+    }
+  }
+
+  const forwardedSsl = request.headers.get("x-forwarded-ssl");
+  if (forwardedSsl && forwardedSsl.toLowerCase() === "on") {
+    return true;
+  }
+
+  const cfVisitor = request.headers.get("cf-visitor");
+  if (cfVisitor) {
+    try {
+      const parsed = parseJsonValue(cfVisitor);
+      if (parsed && typeof parsed === "object") {
+        const schemeValue = (parsed as Record<string, unknown>).scheme;
+        if (typeof schemeValue === "string") {
+          return schemeValue.toLowerCase() === "https";
+        }
+      }
+    } catch {
+      // Ignore malformed cf-visitor values
+    }
+  }
+
+  return request.nextUrl.protocol === "https:";
+}
+
 export function GET(request: NextRequest): NextResponse {
   const originHost = getRequestOriginHostname(request);
   if (!originHost || !isAllowedHostname(originHost)) {
@@ -98,7 +144,7 @@ export function GET(request: NextRequest): NextResponse {
     { status: 200, headers: NO_STORE_HEADERS },
   );
 
-  const isHttps = request.nextUrl.protocol === "https:";
+  const isHttps = isSecureRequest(request);
   const cookieName = isHttps ? HTTPS_COOKIE_NAME : HTTP_COOKIE_NAME;
 
   response.cookies.set({

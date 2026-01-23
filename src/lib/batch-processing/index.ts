@@ -103,9 +103,10 @@ export class BatchProcessor<T, R> {
             { timeoutMs: this.options.timeout },
           );
 
-          if (result !== null) {
-            successful.set(item, result);
+          if (result === null) {
+            throw new Error(`[${this.name}] Retry exhausted or non-retryable error`);
           }
+          successful.set(item, result);
         } catch (error: unknown) {
           const err = error instanceof Error ? error : new Error(String(error));
           failed.set(item, err);

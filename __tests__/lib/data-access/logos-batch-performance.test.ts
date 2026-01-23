@@ -231,4 +231,29 @@ describe("Logos Batch Performance Optimizations", () => {
       }
     });
   });
+
+  describe("BatchProcessor Result Tracking", () => {
+    it("records failures when retryWithOptions returns null", async () => {
+      const { BatchProcessor } = await import("@/lib/batch-processing");
+
+      const processor = new BatchProcessor<string, string>(
+        "batch-null-result",
+        () => {
+          throw new Error("Non-retryable failure");
+        },
+        {
+          retryOptions: {
+            maxRetries: 0,
+            isRetryable: () => false,
+          },
+        },
+      );
+
+      const result = await processor.processBatch(["item-1"]);
+
+      expect(result.successful.size).toBe(0);
+      expect(result.failed.size).toBe(1);
+      expect(result.skipped.length).toBe(0);
+    });
+  });
 });

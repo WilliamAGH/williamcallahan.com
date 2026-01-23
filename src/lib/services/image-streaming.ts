@@ -67,14 +67,22 @@ export async function streamToS3(
   const monitor = new StreamMonitor();
   let nodeStream: Readable | null = null;
   let timeoutId: NodeJS.Timeout | null = null;
+  let upload: Upload | null = null;
+  let timeoutError: Error | null = null;
 
   try {
     // Set timeout to prevent hanging streams
     const STREAM_TIMEOUT_MS = 300000; // 5 minutes
     timeoutId = setTimeout(() => {
-      console.error(`[ImageStreaming] Stream timeout after ${STREAM_TIMEOUT_MS}ms`);
+      timeoutError = new Error(`[ImageStreaming] Stream timeout after ${STREAM_TIMEOUT_MS}ms`);
+      console.error(timeoutError.message);
+      if (upload) {
+        void upload.abort().catch(error => {
+          console.warn("[ImageStreaming] Failed to abort S3 upload after timeout:", error);
+        });
+      }
       if (nodeStream) {
-        nodeStream.destroy();
+        nodeStream.destroy(timeoutError);
       }
     }, STREAM_TIMEOUT_MS);
 
@@ -87,7 +95,7 @@ export async function streamToS3(
     }
 
     // Use AWS SDK v3 Upload for streaming
-    const upload = new Upload({
+    upload = new Upload({
       client: options.s3Client,
       params: {
         Bucket: options.bucket,
@@ -126,10 +134,11 @@ export async function streamToS3(
       bytesStreamed: monitor.getBytesStreamed(),
     };
   } catch (error: unknown) {
-    console.error(`[ImageStreaming] Failed to stream to S3:`, error);
+    const reportedError = timeoutError ?? (error instanceof Error ? error : new Error(String(error)));
+    console.error(`[ImageStreaming] Failed to stream to S3:`, reportedError);
     return {
       success: false,
-      error: error instanceof Error ? error : new Error(String(error)),
+      error: reportedError,
       bytesStreamed: monitor.getBytesStreamed(),
     };
   } finally {

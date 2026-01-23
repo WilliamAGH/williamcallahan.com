@@ -15,6 +15,8 @@ import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
+import { normalizeDomain } from "@/lib/utils/domain-utils";
+import { parseS3Key } from "@/lib/utils/hash-utils";
 
 /**
  * GET handler for logo fetching
@@ -45,22 +47,41 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
+    const resolveDomainInput = (input: string): string | null => {
+      const trimmed = input.trim();
+      if (!trimmed) return null;
+
+      const normalized = normalizeDomain(trimmed);
+      if (normalized.includes(".")) {
+        return normalized.toLowerCase();
+      }
+
+      const cleaned = trimmed.split("?")[0]?.split("#")[0] ?? trimmed;
+      const normalizedKey = cleaned.startsWith("logos/") || cleaned.startsWith("logo/") ? `/${cleaned}` : cleaned;
+      const parsed = parseS3Key(normalizedKey);
+      if (parsed.type === "logo" && parsed.domain?.includes(".")) {
+        return parsed.domain.toLowerCase();
+      }
+
+      return null;
+    };
+
     let domain: string;
     if (website) {
-      try {
-        // First try to parse as a URL when we detect a scheme.
-        if (/^[a-z]+:\/\//i.test(website)) {
-          domain = new URL(website).hostname.replace(/^www\./, "");
-        } else {
-          // Treat incoming strings (including CDN cache keys) as raw hostnames by stripping query fragments
-          domain = website.split("?")[0]?.replace(/^www\./, "") ?? "";
-        }
-      } catch {
-        // If URL parsing fails, fall back to a best-effort hostname extraction
-        domain = website.replace(/^https?:\/\/(www\.)?/, "").split(/[/?#]/)[0] ?? "";
+      const resolved = resolveDomainInput(website);
+      if (!resolved) {
+        return NextResponse.json({ error: "Website must include a valid domain" }, { status: 400 });
       }
+      domain = resolved;
     } else if (company) {
-      domain = company.toLowerCase().replace(/\s+/g, "");
+      const resolved = resolveDomainInput(company);
+      if (!resolved) {
+        return NextResponse.json(
+          { error: "Company fallback requires a domain (e.g., example.com) or a website parameter" },
+          { status: 400 },
+        );
+      }
+      domain = resolved;
     } else {
       throw new Error("Website or company name required");
     }

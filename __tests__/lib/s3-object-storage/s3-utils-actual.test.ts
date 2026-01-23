@@ -39,6 +39,7 @@ import {
   getS3ObjectMetadata,
   s3Client,
 } from "@/lib/s3-utils";
+import { isS3ReadOnly } from "@/lib/utils/s3-read-only";
 import { Readable } from "node:stream";
 let mockClient: ((c: any) => any) | null = null;
 try {
@@ -70,6 +71,24 @@ describe("S3 Utils Actual Export", () => {
     expect(typeof checkIfS3ObjectExists).toBe("function");
     expect(typeof getS3ObjectMetadata).toBe("function");
     expect(s3Client).toBeDefined();
+  });
+});
+
+describe("S3 Read-Only Detection", () => {
+  const originalEnv = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  it("treats production build phase as read-only when set at call time", () => {
+    process.env.NEXT_PHASE = "phase-production-build";
+    expect(isS3ReadOnly()).toBe(true);
+  });
+
+  it("respects explicit read-only override", () => {
+    process.env.S3_READ_ONLY = "false";
+    expect(isS3ReadOnly()).toBe(false);
   });
 });
 

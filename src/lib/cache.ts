@@ -79,7 +79,7 @@ export const cacheContextGuards = {
   }),
   revalidateTag: withGuard("revalidateTag", (_category: string, ...tags: string[]) => {
     if (typeof nextRevalidateTag === "function" && !isCliLikeCacheContext()) {
-      for (const tag of new Set(tags)) nextRevalidateTag(tag, "default");
+      for (const tag of new Set(tags)) nextRevalidateTag(tag, "max");
     }
   }),
 };

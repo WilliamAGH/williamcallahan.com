@@ -11,6 +11,31 @@ import { isDebug } from "../utils/debug";
 import type { ProcessedImageResult } from "@/types/image";
 import { extractBasicImageMeta } from "./image-metadata";
 
+const detectContentTypeFromMagicNumbers = (buffer: Buffer, logContext: string): string | null => {
+  const magicNumbers = {
+    gif: buffer.slice(0, 3).toString() === "GIF",
+    png: buffer.slice(1, 4).toString() === "PNG",
+    jpeg: buffer[0] === 0xff && buffer[1] === 0xd8,
+    webp: buffer.slice(0, 4).toString() === "RIFF" && buffer.slice(8, 12).toString() === "WEBP",
+  };
+
+  const contentType = magicNumbers.gif
+    ? "image/gif"
+    : magicNumbers.png
+      ? "image/png"
+      : magicNumbers.jpeg
+        ? "image/jpeg"
+        : magicNumbers.webp
+          ? "image/webp"
+          : null;
+
+  if (contentType) {
+    console.warn(`[${logContext}] Detected ${contentType} from magic numbers.`);
+  }
+
+  return contentType;
+};
+
 /**
  * Processes an image buffer to determine format and preserve animated images.
  * This is the shared implementation used across the codebase.
@@ -42,6 +67,17 @@ export async function processImageBuffer(buffer: Buffer, logContext = "ImageProc
     const meta = await extractBasicImageMeta(buffer);
     const rawFormat = meta.format;
     const format = typeof rawFormat === "string" ? rawFormat.toLowerCase() : "";
+
+    if (!format) {
+      const detected = detectContentTypeFromMagicNumbers(buffer, logContext);
+      if (detected) {
+        return {
+          processedBuffer: buffer,
+          isSvg: false,
+          contentType: detected,
+        };
+      }
+    }
 
     if (format === "svg") {
       if (isDebug) console.log(`[${logContext}] Detected SVG via edge-compatible parser.`);
@@ -84,25 +120,7 @@ export async function processImageBuffer(buffer: Buffer, logContext = "ImageProc
       };
     }
 
-    // Detect format from magic numbers
-    const magicNumbers = {
-      gif: buffer.slice(0, 3).toString() === "GIF",
-      png: buffer.slice(1, 4).toString() === "PNG",
-      jpeg: buffer[0] === 0xff && buffer[1] === 0xd8,
-      webp: buffer.slice(0, 4).toString() === "RIFF" && buffer.slice(8, 12).toString() === "WEBP",
-    };
-
-    const contentType = magicNumbers.gif
-      ? "image/gif"
-      : magicNumbers.png
-        ? "image/png"
-        : magicNumbers.jpeg
-          ? "image/jpeg"
-          : magicNumbers.webp
-            ? "image/webp"
-            : "image/png";
-
-    console.warn(`[${logContext}] Detected ${contentType} from magic numbers.`);
+    const contentType = detectContentTypeFromMagicNumbers(buffer, logContext) ?? "image/png";
     return {
       processedBuffer: buffer,
       isSvg: false,

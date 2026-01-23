@@ -329,7 +329,7 @@ export const metadata = {
     github: "WilliamAGH",
     profiles: [
       "https://twitter.com/williamcallahan",
-      "https://github.com/williamcallahan",
+      "https://github.com/WilliamAGH",
       "https://linkedin.com/in/williamacallahan",
     ],
   },

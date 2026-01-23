@@ -7,10 +7,17 @@
 // Determine if we're running on the server once at module load time
 const isServer = typeof globalThis.window === "undefined";
 
+const trimTrailingSlash = (value: string): string => value.trim().replace(/\/+$/, "");
+
 export function getBaseUrl(): string {
   // 1. Client-side: always use relative paths
   if (!isServer) {
     return "";
+  }
+
+  const apiBaseUrl = process.env.API_BASE_URL;
+  if (apiBaseUrl?.trim()) {
+    return trimTrailingSlash(apiBaseUrl);
   }
 
   // 2. Server-side in Production:
@@ -19,19 +26,13 @@ export function getBaseUrl(): string {
 
     // Use NEXT_PUBLIC_SITE_URL if it's a valid, non-local URL
     if (publicSiteUrl && !publicSiteUrl.includes("localhost") && !publicSiteUrl.includes("0.0.0.0")) {
-      return publicSiteUrl.replace(/\/$/, "");
+      return trimTrailingSlash(publicSiteUrl);
     }
     // Otherwise, always fall back to the canonical production URL as a safety net
     return "https://williamcallahan.com";
   }
 
-  // 3. Server-side in Development:
-  // Prioritize API_BASE_URL for local development, then fall back to localhost.
-  const apiBase = process.env.API_BASE_URL;
-  if (apiBase) {
-    return apiBase.replace(/\/$/, "");
-  }
-
+  // 3. Server-side in Development: fall back to localhost.
   const port = process.env.PORT || 3000;
   return `http://localhost:${port}`;
 }

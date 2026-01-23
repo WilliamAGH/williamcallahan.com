@@ -54,8 +54,8 @@ export function validateSearchQuery(query: unknown): {
   // Replace multiple consecutive spaces with single space
   sanitized = sanitized.replace(/\s+/g, " ");
 
-  // Remove leading/trailing special characters
-  sanitized = sanitized.replace(/^[^\w]+|[^\w]+$/g, "");
+  // Remove leading/trailing special characters (Unicode-aware)
+  sanitized = sanitized.replace(/^[^\p{L}\p{N}\p{M}_]+|[^\p{L}\p{N}\p{M}_]+$/gu, "");
 
   // Final check after sanitization
   if (sanitized.length === 0) {

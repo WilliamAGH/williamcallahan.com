@@ -116,8 +116,8 @@ export async function memoryPressureMiddleware(request: NextRequest): Promise<Ne
 
   // Secondary check: Health endpoint (with fallback)
   let healthStatus = { critical: false, warning: false };
-  if (!envCritical && !envWarning) {
-    // Only check health endpoint if env flags are not set
+  if (!envCritical) {
+    // Only skip the health check when critical is already known via env flags
     try {
       healthStatus = await checkMemoryViaHealthEndpoint();
     } catch {
