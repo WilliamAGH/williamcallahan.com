@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { invalidateBlogCache } from "@/lib/blog/mdx";
+import { clearBlogSlugMemos } from "@/lib/blog";
 import { invalidateOpenGraphCache } from "@/lib/data-access/opengraph";
 import { invalidateLogoCache } from "@/lib/data-access/logos";
 import { invalidateSearchCache } from "@/lib/search";
@@ -110,6 +111,7 @@ export function POST(request: NextRequest): NextResponse {
     // Call specific invalidation functions
     const cacheInvalidators: Array<() => void> = [
       () => invalidateBlogCache(),
+      () => clearBlogSlugMemos(),
       () => invalidateAllGitHubCaches(),
       () => invalidateOpenGraphCache(),
       () => invalidateLogoCache(),
