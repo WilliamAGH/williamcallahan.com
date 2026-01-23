@@ -13,6 +13,16 @@ jest.mock("@/lib/s3-utils", () => ({
 
 jest.mock("@/lib/server-cache", () => {
   const mockCache = {
+    getStats: jest.fn().mockReturnValue({
+      keys: 0,
+      hits: 0,
+      misses: 0,
+      ksize: 0,
+      vsize: 0,
+      sizeBytes: 0,
+      maxSizeBytes: 0,
+      utilizationPercent: 0,
+    }),
     getBookmarks: jest.fn(),
     setBookmarks: jest.fn(),
     shouldRefreshBookmarks: jest.fn(),
