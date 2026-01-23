@@ -102,6 +102,9 @@ ENV RUNNING_IN_DOCKER=true
 ENV CONTAINER=true
 # Limit Sentry logging noise during builds (info keeps warnings/errors visible)
 ENV SENTRY_LOG_LEVEL=info
+# Disable Next.js "use cache" during build to prevent prerender timeouts
+# The cache directive has strict timeouts that cause failures during SSG
+ENV USE_NEXTJS_CACHE=false
 
 # Accept and propagate public env vars for Next.js build
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
