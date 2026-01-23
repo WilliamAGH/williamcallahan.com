@@ -36,6 +36,13 @@ describe("getBaseUrl", () => {
     expect(result).toBe("https://api.example.com");
   });
 
+  it("trims API_BASE_URL whitespace and trailing slashes", async () => {
+    process.env.API_BASE_URL = " https://api.example.com/ ";
+    const { getBaseUrl } = await import("@/lib/utils/get-base-url");
+    const result = getBaseUrl();
+    expect(result).toBe("https://api.example.com");
+  });
+
   /**
    * Verifies fallback to NEXT_PUBLIC_SITE_URL and trailing slash removal
    */

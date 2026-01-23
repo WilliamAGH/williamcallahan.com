@@ -93,33 +93,53 @@ export function getImageTypeFromUrl(url: string): string | undefined {
   }
 }
 
-/**
- * Checks if a date is in Pacific Daylight Time (PDT)
- *
- * @param date - The date to check
- * @returns True if the date is in PDT, false if in PST
- */
-function isPacificDaylightTime(date: Date): boolean {
-  // Create a date in January (PST) and July (PDT) to get the timezone offset
-  const jan = new Date(date.getFullYear(), 0, 1);
-  const jul = new Date(date.getFullYear(), 6, 1);
+const PACIFIC_TIME_ZONE = "America/Los_Angeles";
 
-  // Get the timezone offset in minutes
-  const janOffset = jan.getTimezoneOffset();
-  const julOffset = jul.getTimezoneOffset();
+const PACIFIC_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: PACIFIC_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+  hourCycle: "h23",
+});
 
-  // The larger offset indicates the timezone is in DST (PDT)
-  return Math.max(janOffset, julOffset) !== date.getTimezoneOffset();
+function formatOffset(totalMinutes: number): string {
+  const sign = totalMinutes <= 0 ? "-" : "+";
+  const absMinutes = Math.abs(totalMinutes);
+  const hours = String(Math.floor(absMinutes / 60)).padStart(2, "0");
+  const minutes = String(absMinutes % 60).padStart(2, "0");
+  return `${sign}${hours}:${minutes}`;
 }
 
-/**
- * Gets the Pacific Time offset string (-08:00 for PST, -07:00 for PDT)
- *
- * @param date - The date to check
- * @returns The timezone offset string
- */
-function getPacificOffset(date: Date): string {
-  return isPacificDaylightTime(date) ? "-07:00" : "-08:00";
+function getPacificDateParts(date: Date): {
+  year: string;
+  month: string;
+  day: string;
+  hours: string;
+  minutes: string;
+  seconds: string;
+  offset: string;
+} {
+  const parts = PACIFIC_DATE_FORMATTER.formatToParts(date);
+  const partMap = new Map(parts.map(part => [part.type, part.value]));
+  const year = partMap.get("year") ?? "0000";
+  const month = partMap.get("month") ?? "01";
+  const day = partMap.get("day") ?? "01";
+  const hours = partMap.get("hour") ?? "00";
+  const minutes = partMap.get("minute") ?? "00";
+  const seconds = partMap.get("second") ?? "00";
+  const offsetMinutes = Math.round(
+    (Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hours), Number(minutes), Number(seconds)) -
+      date.getTime()) /
+      60000,
+  );
+  const offset = formatOffset(offsetMinutes);
+
+  return { year, month, day, hours, minutes, seconds, offset };
 }
 
 /**
@@ -154,20 +174,7 @@ export function formatSeoDate(date: string | Date | undefined | number): Pacific
     throw new Error("Invalid date provided to formatSeoDate");
   }
 
-  // Get the offset based on the actual date
-  const offset = getPacificOffset(d);
+  const pacific = getPacificDateParts(d);
 
-  // If it's a string with time component, use the exact time but update the timezone
-  // Use 'd' (the Date object) for consistent formatting, not the original 'date' string
-  // The original 'date' string might have a different timezone or format that we want to override with Pacific Time.
-
-  // Format with components from the Date object 'd'
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const hours = String(d.getHours()).padStart(2, "0");
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  const seconds = String(d.getSeconds()).padStart(2, "0");
-
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offset}`;
+  return `${pacific.year}-${pacific.month}-${pacific.day}T${pacific.hours}:${pacific.minutes}:${pacific.seconds}${pacific.offset}`;
 }

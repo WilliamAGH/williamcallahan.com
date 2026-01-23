@@ -1,7 +1,7 @@
 import type { Project } from "@/types/project";
 
 // Remember to update this date whenever the projects data or the Projects page design changes
-export const updatedAt = "2025-11-08";
+export const updatedAt = "2026-01-22";
 
 export const projects: Project[] = [
   {
@@ -119,6 +119,62 @@ export const projects: Project[] = [
       "Analytics",
     ],
     techStack: ["Next.js", "TypeScript", "Tailwind CSS", "Zod", "Node.js", "Railway"],
+  },
+  {
+    id: "brief",
+    name: "Brief",
+    description:
+      "Terminal ChatGPT client for fast, keyboard-first chat. Includes slash commands, tool execution, and support for OpenAI-compatible providers (OpenRouter, Ollama, LMStudio). Location features powered by Apple Maps Java. Built with TUI4J and available via Homebrew.",
+    shortSummary: "Terminal ChatGPT client with slash commands and tool execution",
+    url: "https://github.com/WilliamAGH/brief",
+    imageKey: "images/other/projects/brief-screenshot.png",
+    tags: ["Terminal UI", "CLI", "Chat Client", "OpenAI", "Java", "Open Source", "Developer Tools", "TUI", "Homebrew"],
+    techStack: ["Java 25", "Gradle", "TUI4J", "Apple Maps Java", "OpenAI API"],
+    cvFeatured: true,
+  },
+  {
+    id: "tui4j",
+    name: "TUI4J",
+    description:
+      "A Java terminal user interface framework inspired by Charm's BubbleTea (Go). Implements The Elm Architecture with Model/init/update/view patterns. Includes ports of bubbles (UI components), lipgloss (styling), and harmonica (spring physics animations). Published on Maven Central.",
+    shortSummary: "Terminal UI framework for Java — a port of BubbleTea from Go",
+    url: "https://github.com/WilliamAGH/tui4j",
+    imageKey: "images/other/projects/Pulse_TUI4J_Screenshot.png",
+    tags: [
+      "Terminal UI",
+      "TUI",
+      "Java",
+      "Open Source",
+      "Developer Tools",
+      "Framework",
+      "Library",
+      "Elm Architecture",
+      "BubbleTea",
+    ],
+    techStack: ["Java", "Gradle", "Maven Central"],
+    cvFeatured: true,
+  },
+  {
+    id: "apple-maps-java",
+    name: "Apple Maps Java SDK",
+    description:
+      "A lightweight, unofficial Java SDK for the Apple Maps Server API. Provides geocoding, search, autocomplete, directions, ETA, and place lookup for backend/JVM applications. Automatically exchanges long-lived JWT tokens for short-lived access tokens with refresh. Published on Maven Central.",
+    shortSummary: "Java SDK for Apple Maps Server API — geocoding, search, directions",
+    url: "https://github.com/WilliamAGH/apple-maps-java",
+    imageKey: "images/other/projects/apple-maps-java-screenshot.png",
+    tags: [
+      "Java",
+      "SDK",
+      "Apple Maps",
+      "Geocoding",
+      "REST API",
+      "Open Source",
+      "Maven Central",
+      "Developer Tools",
+      "Library",
+    ],
+    techStack: ["Java 17", "Gradle", "Maven Central"],
+    cvFeatured: true,
   },
   {
     id: "Book Finder (findmybook.net)",

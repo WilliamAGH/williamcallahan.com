@@ -364,8 +364,10 @@ export async function fetchBookById(
 
     return book;
   } catch (error) {
-    console.error(`[AudioBookShelf] Failed to fetch book ${id}:`, error);
-    return null;
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(String(error), { cause: error });
   }
 }
 

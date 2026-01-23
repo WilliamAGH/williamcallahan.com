@@ -180,6 +180,49 @@ describe("ServerCache", () => {
     });
   });
 
+  describe("OpenGraph Cache", () => {
+    it("should preserve OpenGraph metadata fields when caching", () => {
+      const url = "https://example.com";
+      const data: OgResult = {
+        url,
+        timestamp: Date.now(),
+        source: "external",
+        imageUrl: "https://example.com/og.png",
+        title: "Example Title",
+        description: "Example Description",
+        siteName: "Example Site",
+        profileImageUrl: "https://example.com/profile.png",
+        ogMetadata: {
+          "og:type": "website",
+          "og:image": null,
+        },
+        socialProfiles: {
+          GitHub: "https://github.com/example",
+        },
+      };
+
+      cache.setOpenGraphData(url, data);
+      const cached = cache.getOpenGraphData(url);
+
+      expect(cached?.data).toEqual(
+        expect.objectContaining({
+          url,
+          title: "Example Title",
+          description: "Example Description",
+          siteName: "Example Site",
+          profileImageUrl: "https://example.com/profile.png",
+          ogMetadata: {
+            "og:type": "website",
+            "og:image": null,
+          },
+          socialProfiles: {
+            GitHub: "https://github.com/example",
+          },
+        }),
+      );
+    });
+  });
+
   describe("GitHub Activity", () => {
     const mockActivity: GitHubActivityApiResponse = {
       commitCount: 100,
@@ -229,8 +272,11 @@ describe("ServerCache", () => {
     const mockOgData: OgResult = {
       title: "Test Page",
       description: "Test description",
-      image: "https://example.com/image.png",
+      imageUrl: "https://example.com/image.png",
+      siteName: "Example Site",
       url: "https://example.com",
+      timestamp: Date.now(),
+      source: "external",
     };
 
     it("should cache and retrieve OpenGraph data", () => {
@@ -240,6 +286,7 @@ describe("ServerCache", () => {
       const result = cache.getOpenGraphData(url);
       expect(result).toBeDefined();
       expect(result?.data.title).toBe("Test Page");
+      expect(result?.data.siteName).toBe("Example Site");
       expect(result?.lastFetchedAt).toBeDefined();
     });
 

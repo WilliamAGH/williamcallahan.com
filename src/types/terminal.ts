@@ -100,11 +100,18 @@ export interface LegacyTerminalCommand {
   timestamp?: number;
 }
 
+/**
+ * Special actions that require client-side handling beyond navigation
+ */
+export type TerminalAction = "signOut";
+
 export interface CommandResult {
   results: TerminalCommand[];
   selectionItems?: SelectionItem[];
   navigation?: string;
   clear?: boolean;
+  /** Special action to execute (e.g., signOut requires Clerk hook) */
+  action?: TerminalAction;
 }
 
 /**

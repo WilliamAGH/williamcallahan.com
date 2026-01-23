@@ -108,7 +108,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 ## Security & Reliability Invariants
 
 1. **SSRF Defense** – `openGraphUrlSchema`, `assetIdSchema`, `sanitizePath`, `isLogoUrl`, and `url-utils` block private IP ranges, non-HTTP schemes, credentials, suspicious ports.
-2. **Hostname Allowing** – All remote origins must appear in `CALLAHAN_IMAGE_HOSTS` or explicit `remotePatterns`. Adding a CDN requires updating env vars + `next.config.ts`.
+2. **Hostname Allowing** – All remote origins must appear in `CALLAHAN_IMAGE_HOSTS` or explicit `remotePatterns`. CDN URL validation compares parsed host + base path to prevent prefix spoofing before proxying requests. Adding a CDN requires updating env vars + `next.config.ts`.
 3. **Memory Headroom** – `getMemoryHealthMonitor().shouldAcceptNewRequests()` gate exists in `getImage`, `getLogo`, streaming fallback, and S3 writes to prevent OOMs.
 4. **Circuit Breaker** – `FailureTracker` + session maps block domains after repeated failures for 30 minutes, preventing infinite loops (e.g., recursive redirects).
 5. **Cache Safety** – Hashed filenames, `Cache-Control` invariants, and Next’s `minimumCacheTTL` ensure once persisted assets remain stable. Placeholders always available locally.
@@ -138,6 +138,7 @@ Keep this document synchronized with real code: every new image entry point, val
 - **Optimizer only touches CDN URLs.** The only values that flow through `<Image>`'s optimizer are HTTPS URLs that already live on our CDN and conform to `images.remotePatterns`. Any `/api/*` proxy (e.g., `/api/cache/images`, `/api/logo`, `/api/og-image`) sets `unoptimized` so the Image component treats the resource like a regular `<img>` and we avoid `_next/image` rejecting the request as “not allowed.” ([Next.js Image Component docs](https://nextjs.org/docs/app/api-reference/components/image))
 - **`next.config.ts` is the source of truth.** `images.localPatterns` **must** keep `/api/cache/images` and `/api/assets` listed, and we only add real CDN hostnames to `images.remotePatterns`. This satisfies the [Next.js Image Optimization requirements](https://nextjs.org/docs/app/building-your-application/optimizing/images) and ensures the optimizer never fetches untrusted origins.
 - **API routes always stream bytes.** `/api/cache/images` resolves CDN redirects server-side, decodes double-encoded `url` params, and streams the body so `_next/image` never receives a 302 or malformed query string. If the CDN request fails, we return an explicit 5xx with context.
+- **Streaming fallback for empty buffers.** When the image service streams directly to S3 and returns an empty buffer, `/api/cache/images` treats it as a CDN-backed response and streams the CDN bytes instead of returning a 0-byte body.
 - **Placeholders stay static.** Anything under `/images/**` in `public/` is imported statically so Next infers width/height and we skip runtime optimization entirely, per the Image component spec.
 
 Document every policy change here **before** merging code. If a future regression appears, first check this section and `next-js-16-usage.md` to keep the rules consistent.

@@ -85,10 +85,10 @@ function ProjectsWindowContentInner({
 }
 
 /**
- * Dynamic import of the window content component to prevent server-side rendering
- * This ensures any layout effects or DOM manipulations only run on the client
+ * Dynamic import of the window content component.
+ * SSR is enabled to ensure project IDs are in initial HTML for anchor link support.
  */
-const ProjectsWindowContent = dynamic(() => Promise.resolve({ default: ProjectsWindowContentInner }), { ssr: false });
+const ProjectsWindowContent = dynamic(() => Promise.resolve({ default: ProjectsWindowContentInner }));
 
 /**
  * ProjectsWindow Client Component

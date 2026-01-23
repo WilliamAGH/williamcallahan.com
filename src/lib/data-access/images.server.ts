@@ -17,7 +17,7 @@ const safeRevalidateTag = (...args: Parameters<typeof cacheContextGuards.revalid
   cacheContextGuards.revalidateTag(...args);
 };
 
-const s3Client = new S3Client({ region: env.AWS_REGION });
+const s3Client = new S3Client({ region: env.S3_REGION });
 
 /**
  * Fetches an image buffer from S3 storage and caches the result.

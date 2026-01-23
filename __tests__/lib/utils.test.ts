@@ -14,6 +14,8 @@ import {
   truncateText,
   randomString,
 } from "@/lib/utils";
+import { extractS3KeyFromUrl, isOurCdnUrl } from "@/lib/utils/cdn-utils";
+import type { CdnConfig } from "@/types/s3-cdn";
 
 describe("formatMultiple", () => {
   it("formats numbers correctly", () => {
@@ -248,6 +250,34 @@ describe("randomString", () => {
       const s2 = randomString(5);
       expect(s1).toBe(s2);
       spy.mockRestore();
+    });
+  });
+
+  describe("cdn-utils", () => {
+    const config: CdnConfig = {
+      cdnBaseUrl: "https://cdn.example.com/assets",
+      s3BucketName: "media-bucket",
+      s3ServerUrl: "https://sfo3.digitaloceanspaces.com",
+    };
+
+    it("accepts URLs matching the configured CDN host and base path", () => {
+      expect(isOurCdnUrl("https://cdn.example.com/assets/image.png", config)).toBe(true);
+    });
+
+    it("rejects CDN prefix spoofing", () => {
+      expect(isOurCdnUrl("https://cdn.example.com.evil.com/assets/image.png", config)).toBe(false);
+    });
+
+    it("rejects mismatched CDN base paths", () => {
+      expect(isOurCdnUrl("https://cdn.example.com/other/image.png", config)).toBe(false);
+    });
+
+    it("accepts virtual-hosted S3 URLs with the expected host", () => {
+      expect(isOurCdnUrl("https://media-bucket.sfo3.digitaloceanspaces.com/path/image.png", config)).toBe(true);
+    });
+
+    it("extracts S3 keys from CDN URLs with base paths", () => {
+      expect(extractS3KeyFromUrl("https://cdn.example.com/assets/folder/image.png", config)).toBe("folder/image.png");
     });
   });
 });

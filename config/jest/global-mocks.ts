@@ -5,20 +5,29 @@
  * Note: Fetch polyfills are handled by polyfills.js which loads before this file.
  */
 
+import { jest } from "@jest/globals";
+
+type MockCache = {
+  match: ReturnType<typeof jest.fn>;
+  put: ReturnType<typeof jest.fn>;
+  delete: ReturnType<typeof jest.fn>;
+};
+
 // Mock caches API (Edge Runtime/Cloudflare Workers API)
-const mockCache = {
+const mockCache: MockCache = {
   match: jest.fn(),
   put: jest.fn(),
   delete: jest.fn(),
 };
 
+const openCache = jest.fn() as jest.MockedFunction<(cacheName: string) => Promise<MockCache>>;
+openCache.mockResolvedValue(mockCache);
+
 const cachesMock = {
   default: mockCache,
-  open: jest.fn().mockResolvedValue(mockCache),
+  open: openCache,
 };
 
-// @ts-expect-error - Mock Edge Runtime caches API
-global.caches = cachesMock;
 Object.defineProperty(globalThis, "caches", {
   value: cachesMock,
   writable: true,

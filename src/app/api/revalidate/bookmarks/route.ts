@@ -47,12 +47,12 @@ export function POST(request: NextRequest): NextResponse {
     revalidatePath("/bookmarks/domain/[domainSlug]", "page");
 
     // Tag-based revalidation for all bookmark-related content
-    revalidateTag("bookmarks", "default");
+    revalidateTag("bookmarks", "max");
     // Ensure the function-level full dataset cache is also invalidated
     // This tag is used by fetchAndCacheBookmarks() when loading the S3 dataset
-    revalidateTag("bookmarks-s3-full", "default");
+    revalidateTag("bookmarks-s3-full", "max");
     // Invalidate index-specific cache when present
-    revalidateTag("bookmarks-index", "default");
+    revalidateTag("bookmarks-index", "max");
 
     console.log("[Cache Invalidation] ✅ Successfully invalidated all bookmark caches");
 

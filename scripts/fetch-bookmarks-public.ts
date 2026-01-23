@@ -7,7 +7,7 @@
  * AWS credentials. Used during Docker build to populate data for sitemap generation.
  *
  * CRITICAL: This enables sitemap generation without exposing S3 credentials in build.
- * @see https://github.com/williamcallahan/williamcallahan.com/issues/sitemap-2024
+ * @see https://github.com/WilliamAGH/williamcallahan.com/issues/sitemap-2024
  */
 
 import { writeFileSync, mkdirSync, readFileSync } from "node:fs";

@@ -28,9 +28,34 @@ export function setOpenGraphData(this: ICache, url: string, data: OgResult, isFa
   const existing = getOpenGraphData.call(this, url);
 
   const validationResult = ogResultSchema.safeParse(data);
-  const validatedData: OgResult = validationResult.success
-    ? { ...validationResult.data, url: data.url }
-    : { ...data, timestamp: data.timestamp || now };
+  const normalizedData: OgResult = {
+    ...data,
+    finalUrl: data.finalUrl ?? undefined,
+    title: data.title ?? undefined,
+    description: data.description ?? undefined,
+    siteName: data.siteName ?? undefined,
+    locale: data.locale ?? undefined,
+    actualUrl: data.actualUrl ?? undefined,
+  };
+  let validatedData: OgResult;
+  if (validationResult.success) {
+    const validated = validationResult.data;
+    validatedData = {
+      ...normalizedData,
+      ...validated,
+      url: data.url,
+      timestamp: validationResult.data.timestamp ?? normalizedData.timestamp ?? now,
+      finalUrl: validationResult.data.finalUrl ?? normalizedData.finalUrl,
+      title: validationResult.data.title ?? normalizedData.title,
+      description: validationResult.data.description ?? normalizedData.description,
+      siteName: validationResult.data.siteName ?? normalizedData.siteName,
+      locale: validationResult.data.locale ?? normalizedData.locale,
+      actualUrl: validationResult.data.actualUrl ?? normalizedData.actualUrl,
+      errorDetails: normalizedData.errorDetails,
+    };
+  } else {
+    validatedData = { ...normalizedData, timestamp: normalizedData.timestamp || now };
+  }
 
   if (!validationResult.success) {
     envLogger.log(

@@ -1,9 +1,37 @@
-FROM docker.io/oven/bun:1.3.2-alpine AS base
+# Using Debian instead of Alpine because @chroma-core/default-embed uses ONNX runtime
+# which requires glibc (Alpine uses musl libc which is incompatible).
+# TODO: Revert to Alpine when switching to self-hosted embeddings API or @chroma-core/openai
+#
+# IMPORTANT: Base images use public.ecr.aws to avoid Docker Hub authentication issues.
+# Bun is installed from GitHub releases to avoid oven/bun Docker Hub dependency.
+FROM public.ecr.aws/debian/debian:bookworm-slim AS base
+
+# Install Bun from GitHub releases (avoids Docker Hub dependency on oven/bun image)
+# Pin to specific version for reproducibility. Supports both x86_64 and arm64.
+ARG BUN_VERSION=1.3.2
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl unzip ca-certificates \
+    && ARCH=$(dpkg --print-architecture) \
+    && case "${ARCH}" in \
+         amd64) BUN_ARCH="x64" ;; \
+         arm64) BUN_ARCH="aarch64" ;; \
+         *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
+       esac \
+    && curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-${BUN_ARCH}.zip" -o /tmp/bun.zip \
+    && unzip /tmp/bun.zip -d /tmp \
+    && mv /tmp/bun-linux-${BUN_ARCH}/bun /usr/local/bin/bun \
+    && chmod +x /usr/local/bin/bun \
+    && ln -s /usr/local/bin/bun /usr/local/bin/bunx \
+    && rm -rf /tmp/bun.zip /tmp/bun-linux-${BUN_ARCH} \
+    && apt-get purge -y unzip \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Verify Bun installation
+RUN bun --version
 
 # Install dependencies only when needed
 FROM base AS deps
-# Install dependencies required for packages like Sharp
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Set environment variable for Bun
@@ -12,9 +40,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
 
 # Copy only package files first
-# Copying bun.lockb separately ensures Docker caches the layer correctly
+# Copying lock file separately ensures Docker caches the layer correctly
 COPY package.json ./
-COPY bun.lockb* ./
+COPY bun.lock* ./
 COPY .husky ./.husky
 
 # Copy the init-csp-hashes script and config directory needed by postinstall
@@ -36,8 +64,9 @@ RUN bun scripts/init-csp-hashes.ts
 # --------------------------------------------------
 # PRE-CHECKS STAGE (lint + type-check, cached)
 # --------------------------------------------------
-FROM node:22-alpine AS checks
-RUN apk add --no-cache libc6-compat bash
+# Use base image (which has Bun) and run checks with Bun instead of npm
+# This avoids the Docker Hub dependency on node:22-bookworm-slim
+FROM base AS checks
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
@@ -48,9 +77,9 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy source for analysis only (does not affect later build layers)
 COPY . .
 
-# Run linter and type checker. Cache mounts are omitted to keep the Dockerfile
-# compatible with non-BuildKit builders such as Railway's classic Docker engine.
-RUN NODE_OPTIONS='--max-old-space-size=4096' npm run lint && NODE_OPTIONS='--max-old-space-size=4096' npm run type-check
+# Run linter and type checker using Bun (Bun can run npm scripts).
+# Cache mounts are omitted to keep the Dockerfile compatible with non-BuildKit builders.
+RUN bun run lint && bun run type-check
 
 # --------------------------------------------------
 # BUILD STAGE (production build)
@@ -58,8 +87,9 @@ RUN NODE_OPTIONS='--max-old-space-size=4096' npm run lint && NODE_OPTIONS='--max
 # Use Bun image for build stage so `bun` commands are available
 FROM base AS builder
 # Install dependencies for the build
-# fontconfig + ttf-dejavu required for @react-pdf/renderer PDF generation during static generation
-RUN apk add --no-cache libc6-compat curl bash fontconfig ttf-dejavu
+# ca-certificates required for HTTPS connectivity checks (S3, CDN)
+# fontconfig + fonts-dejavu required for @react-pdf/renderer PDF generation during static generation
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl bash fontconfig fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Set environment variables for build
@@ -72,6 +102,9 @@ ENV RUNNING_IN_DOCKER=true
 ENV CONTAINER=true
 # Limit Sentry logging noise during builds (info keeps warnings/errors visible)
 ENV SENTRY_LOG_LEVEL=info
+# Disable Next.js "use cache" during build to prevent prerender timeouts
+# The cache directive has strict timeouts that cause failures during SSG
+ENV USE_NEXTJS_CACHE=false
 
 # Accept and propagate public env vars for Next.js build
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
@@ -135,7 +168,7 @@ RUN bash -c 'set -euo pipefail \
 # generateStaticParams() can read bookmarks from S3 without leaking secrets.
 # NOTE: The multiline bash snippet below uses explicit continuations so Docker
 #       treats it as a single RUN instruction during BuildKit parsing.
-RUN /bin/sh -c "set -euo pipefail; \
+RUN bash -c "set -euo pipefail; \
       if [ -n \"${S3_ACCESS_KEY_ID:-}\" ]; then export S3_ACCESS_KEY_ID=\"${S3_ACCESS_KEY_ID}\"; fi; \
       if [ -n \"${S3_SECRET_ACCESS_KEY:-}\" ]; then export S3_SECRET_ACCESS_KEY=\"${S3_SECRET_ACCESS_KEY}\"; fi; \
       if [ -n \"${S3_SESSION_TOKEN:-}\" ]; then export AWS_SESSION_TOKEN=\"${S3_SESSION_TOKEN}\"; export S3_SESSION_TOKEN=\"${S3_SESSION_TOKEN}\"; fi; \
@@ -156,15 +189,23 @@ WORKDIR /app
 
 # Install runtime dependencies including Node.js for the Next.js production server
 # Note: We still need Node.js to run `next start` even though Bun is available
-# Also installing vips for Sharp image processing, curl for healthchecks, and bash for scripts
-# libc6-compat is required for Sharp/vips native bindings to work properly
-# fontconfig + ttf-dejavu required for @react-pdf/renderer PDF generation at runtime
-RUN apk add --no-cache nodejs vips curl bash libc6-compat fontconfig ttf-dejavu
+# Also installing libvips for Sharp image processing, curl for healthchecks, and bash for scripts
+# fontconfig + fonts-dejavu required for @react-pdf/renderer PDF generation at runtime
+# IMPORTANT: Debian Bookworm ships Node.js 18.x but Next.js 16 requires >=20.9.0.
+# We install Node.js 22.x LTS from NodeSource to meet this requirement.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl gnupg libvips42 bash fontconfig fonts-dejavu-core \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security (UID 1001 is standard for Next.js containers)
 # This ensures consistent permissions with Coolify and other container orchestrators
-RUN addgroup --system --gid 1001 nodejs \
-    && adduser --system --uid 1001 --ingroup nodejs nextjs
+RUN groupadd --system --gid 1001 nodejs \
+    && useradd --system --uid 1001 --gid nodejs nextjs
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

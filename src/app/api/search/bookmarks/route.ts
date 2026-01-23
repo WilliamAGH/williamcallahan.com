@@ -12,7 +12,7 @@
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { searchBookmarks } from "@/lib/search";
-import { createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
+import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
 import { validateSearchQuery } from "@/lib/validators/search";
 import type { UnifiedBookmark } from "@/types";
 import { unstable_noStore as noStore } from "next/cache";
@@ -52,6 +52,10 @@ export async function GET(request: NextRequest) {
     const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q");
 
+    // Apply rate limiting and memory pressure guards
+    const guardResponse = applySearchGuards(request);
+    if (guardResponse) return guardResponse;
+
     // Sanitize / validate like other search routes
     const validation = validateSearchQuery(rawQuery);
     if (!validation.isValid) {
@@ -79,9 +83,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid limit parameter" }, { status: 400, headers: withNoStoreHeaders() });
     }
 
-    // Get IDs of matching bookmarks via MiniSearch index
+    // Get IDs of matching bookmarks via MiniSearch index (already score-sorted)
     const searchResults = await searchBookmarks(query);
-    const matchingIds = new Set(searchResults.map(r => String(r.id)));
 
     // Pull full bookmark objects (includeImageData=false for lighter payload)
     const fullDataset = (await getBookmarks({
@@ -90,11 +93,14 @@ export async function GET(request: NextRequest) {
       skipExternalFetch: false,
       force: false,
     })) as UnifiedBookmark[];
-    const matched = fullDataset.filter(b => matchingIds.has(b.id));
+    const bookmarksById = new Map(fullDataset.map(bookmark => [bookmark.id, bookmark]));
+    const orderedMatches = searchResults
+      .map(result => bookmarksById.get(String(result.id)))
+      .filter((bookmark): bookmark is UnifiedBookmark => Boolean(bookmark));
 
-    const totalCount = matched.length;
+    const totalCount = orderedMatches.length;
     const start = (page - 1) * limit;
-    const paginated = matched.slice(start, start + limit);
+    const paginated = orderedMatches.slice(start, start + limit);
 
     return NextResponse.json(
       {

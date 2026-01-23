@@ -91,8 +91,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       quality: imageFormat === "webp" ? 80 : imageFormat === "avif" ? 75 : 85,
     });
 
+    const bufferLength = result.buffer?.byteLength ?? 0;
+
     // If we got a CDN URL, stream bytes directly so Next.js optimizer receives a 200 response
-    if (result.cdnUrl && !result.buffer) {
+    if (result.cdnUrl && bufferLength === 0) {
       try {
         const upstream = await fetch(result.cdnUrl);
         if (!upstream.ok || !upstream.body) {
@@ -120,7 +122,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // If we have a buffer, return it
-    if (result.buffer) {
+    if (result.buffer && bufferLength > 0) {
       return new NextResponse(new Uint8Array(result.buffer), {
         headers: {
           "Content-Type": result.contentType,

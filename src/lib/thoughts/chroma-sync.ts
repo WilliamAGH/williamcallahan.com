@@ -14,6 +14,7 @@
  */
 
 import { getChromaClient } from "@/lib/chroma/client";
+import { getEmbeddingFunction } from "@/lib/chroma/embedding-function";
 import type { Thought } from "@/types/schemas/thought";
 import type { ThoughtChromaMetadata } from "@/types/thoughts-chroma";
 import type { Collection } from "chromadb";
@@ -29,11 +30,13 @@ const COLLECTION_VERSION = "1";
 
 /**
  * Gets or creates the thoughts collection with standard configuration.
+ * Uses the DefaultEmbeddingFunction for local ONNX-based embeddings.
  *
  * @returns Configured thoughts collection
  */
 export async function getThoughtsCollection(): Promise<Collection> {
   const client = getChromaClient();
+  const ef = await getEmbeddingFunction();
   return client.getOrCreateCollection({
     name: COLLECTION_NAME,
     metadata: {
@@ -41,6 +44,7 @@ export async function getThoughtsCollection(): Promise<Collection> {
       contentType: "thought",
       version: COLLECTION_VERSION,
     },
+    embeddingFunction: ef,
   });
 }
 

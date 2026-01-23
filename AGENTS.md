@@ -5,6 +5,8 @@ alwaysApply: true
 
 # williamcallahan.com Agent Rules
 
+> **Next.js 16**: Middleware is `src/proxy.ts` (not `middleware.ts`). This file handles Clerk auth, CSP, and request logging.
+
 ## Document Organization [ORG]
 
 - [ORG1] Purpose: keep every critical rule within the first ~250 lines; move long examples/config to Appendix.
@@ -17,7 +19,7 @@ alwaysApply: true
 - [CM1a-b] Communication: no filler; investigate then cite evidence
 - [GT1a-j] Git safety: no history rewrite/destructive ops; no lock deletion; no hook/signing bypass; no AI attribution
 - [CMD1a-d] Command execution guardrails: retry with escalation; no inference cleanup
-- [FS1a-f] File creation & edit discipline: existing-first, permission required, clean code/architecture, dedupe
+- [FS1a-k] File creation & edit discipline: existing-first, no shims/barrels/aliases, no duplication, no error swallowing, no silent fallbacks
 - [SZ1a-b] File size limit (500 LOC) & refactor gating
 - [UP1a-d] Comprehensive update protocol: update _all_ usages (imports/calls/types/tests/docs)
 - [TS1a-f] Type safety & validation: no `any`, no suppression, Zod at boundaries
@@ -30,6 +32,7 @@ alwaysApply: true
 - [DEP1a-d] Cloudflare cache: deployment verification workflow
 - [VR1a-g] Verification loops: validate/lint/type-check/build/test (and deploy readiness)
 - [TST1a-e] Testing protocols: use `bun run test*`, never `bun test`
+- [TST2a-d] Test coverage & authoring: mandatory for new/modified code; discover patterns; test outcomes not implementations
 - [CP1a-d] Task completion: verify -> request confirmation -> cleanup/commit (no AI attribution)
 - [TMP1a-c] Temporary files: /tmp only, cleanup after user confirmation
 - [ENV1a-c] Environment variables: no new required vars without explicit approval
@@ -75,10 +78,15 @@ alwaysApply: true
 
 - [FS1a] Prefer editing existing files; do not create new files unless necessary for the task goal.
 - [FS1b] Before creating any file: search exhaustively -> analyze existing solutions -> confirm no extension path -> request explicit permission.
-- [FS1c] Read the entire target file before editing; integrate changes with existing structure (don’t blindly append).
-- [FS1d] Clean code: single-responsibility changes; follow SOLID/DRY best practices; no dead code; no empty try/catch blocks that swallow errors.
+- [FS1c] Read the entire target file before editing; integrate changes with existing structure (don't blindly append).
+- [FS1d] Clean code: single-responsibility changes; follow SOLID/DRY best practices; no dead code.
 - [FS1e] Clean architecture: dependencies point inward; domain logic must not import from UI/framework layers.
-- [FS1f] Efficiency mandate: nearly all edits should result in the same or fewer lines by removing duplication/redundant logic.
+- [FS1f] No shims or barrel files: no compatibility shims, no `index.ts` re-export barrels, no wrapper modules.
+- [FS1g] No duplicate code: extract shared logic; if code is repeated, refactor to a single source.
+- [FS1h] No aliases or re-exports: import from the source module directly; no proxy re-exports.
+- [FS1i] No error swallowing: no empty catch blocks, no catch-and-ignore, no silent `try/catch` that hides failures.
+- [FS1j] No silent fallbacks: no `?? defaultValue` or `|| fallback` that masks errors; fail explicitly or log the fallback.
+- [FS1k] Efficiency mandate: nearly all edits should result in the same or fewer lines by removing duplication/redundant logic.
 
 ## [SZ1] File Size Limit
 
@@ -171,6 +179,13 @@ alwaysApply: true
 - [TST1d] Do not “fix” test issues by adding polyfills/downgrading Jest; fix the setup/configuration correctly.
 - [TST1e] Keep tests observable and deterministic; if mocking is required, set it up explicitly (do not rely on ambient behavior).
 
+## [TST2] Test Coverage & Authoring
+
+- [TST2a] Test coverage is mandatory: new functionality and significant modifications require corresponding tests before task completion.
+- [TST2b] Discovery-first: before writing tests, locate existing test files (`__tests__/`, `*.test.ts`, colocated specs) and follow established patterns.
+- [TST2c] Test outcomes, not implementations: assert on outputs, return values, side effects, and observable behavior—never on internal method calls, call counts, or implementation details that could change during refactoring.
+- [TST2d] Refactor-resilient tests: if behavior is unchanged, tests must pass regardless of how internals are restructured; tests coupled to implementation are defects.
+
 ## [CP1] Task Completion & Commit Protocol
 
 - [CP1a] After implementing changes, offer to help verify the fix with concrete commands and checks.
@@ -202,7 +217,7 @@ alwaysApply: true
 ```yaml
 REPO_NAME: williamcallahan.com
 GITHUB_URL: https://github.com/WilliamAGH/williamcallahan.com
-# Previous docs referenced: https://github.com/williamcallahan/williamcallahan.com
+# Previous docs referenced: https://github.com/WilliamAGH/williamcallahan.com
 DEFAULT_BRANCH: dev (see refs/remotes/origin/HEAD)
 
 PACKAGE_MANAGER: bun (see package.json#packageManager)

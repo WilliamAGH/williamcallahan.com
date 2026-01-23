@@ -10,6 +10,7 @@ import {
   absItemsToBookListItems,
   buildDirectCoverUrl,
 } from "@/lib/books/transforms";
+import { fetchBookById } from "@/lib/books/audiobookshelf.server";
 import type { AbsLibraryItem } from "@/types/schemas/book";
 
 const BASE_OPTIONS = { baseUrl: "https://abs.example.com", apiKey: "test-key" };
@@ -246,6 +247,49 @@ describe("Book Transforms", () => {
       expect(listItems).toHaveLength(2);
       expect(listItems[0].title).toBe("Book 1");
       expect(listItems[1].title).toBe("Book 2");
+    });
+  });
+
+  describe("AudioBookShelf fetchBookById error handling", () => {
+    const originalEnv = { ...process.env };
+    const originalFetch = globalThis.fetch;
+
+    beforeEach(() => {
+      process.env = {
+        ...originalEnv,
+        AUDIOBOOKSHELF_URL: "https://abs.example.com",
+        AUDIOBOOKSHELF_API_KEY: "test-api-key",
+        AUDIOBOOKSHELF_LIBRARY_ID: "test-library",
+      };
+    });
+
+    afterEach(() => {
+      process.env = { ...originalEnv };
+      globalThis.fetch = originalFetch;
+    });
+
+    it("throws on non-404 responses", async () => {
+      globalThis.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: "Server Error",
+        headers: new Headers(),
+        json: jest.fn(),
+      }) as unknown as typeof fetch;
+
+      await expect(fetchBookById("book-500")).rejects.toThrow("AudioBookShelf API error");
+    });
+
+    it("returns null on 404 responses", async () => {
+      globalThis.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+        headers: new Headers(),
+        json: jest.fn(),
+      }) as unknown as typeof fetch;
+
+      await expect(fetchBookById("book-404")).resolves.toBeNull();
     });
   });
 });

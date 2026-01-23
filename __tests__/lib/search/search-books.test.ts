@@ -19,6 +19,16 @@ jest.mock("@/lib/server-cache", () => ({
   ServerCacheInstance: {
     get: jest.fn(),
     set: jest.fn(),
+    getStats: jest.fn().mockReturnValue({
+      keys: 0,
+      hits: 0,
+      misses: 0,
+      ksize: 0,
+      vsize: 0,
+      sizeBytes: 0,
+      maxSizeBytes: 0,
+      utilizationPercent: 0,
+    }),
     getSearchResults: jest.fn(),
     setSearchResults: jest.fn(),
     shouldRefreshSearch: jest.fn(),

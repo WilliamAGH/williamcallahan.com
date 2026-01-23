@@ -5,6 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import { createAiGateToken, hashUserAgent } from "@/lib/ai/openai-compatible/gate-token";
 import logger from "@/lib/utils/logger";
+import { safeJsonParse } from "@/lib/utils/json-utils";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
@@ -53,6 +54,37 @@ function getRequestOriginHostname(request: NextRequest): string | null {
   return null;
 }
 
+function isSecureRequest(request: NextRequest): boolean {
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  if (forwardedProto) {
+    return forwardedProto.split(",")[0]?.trim().toLowerCase() === "https";
+  }
+
+  const forwarded = request.headers.get("forwarded");
+  if (forwarded) {
+    const first = forwarded.split(",")[0] ?? "";
+    const match = first.match(/proto=([^;]+)/i);
+    if (match) {
+      return match[1]?.trim().toLowerCase() === "https";
+    }
+  }
+
+  const forwardedSsl = request.headers.get("x-forwarded-ssl");
+  if (forwardedSsl && forwardedSsl.toLowerCase() === "on") {
+    return true;
+  }
+
+  const cfVisitor = request.headers.get("cf-visitor");
+  if (cfVisitor) {
+    const parsed = safeJsonParse<{ scheme?: string }>(cfVisitor);
+    if (parsed?.scheme && typeof parsed.scheme === "string") {
+      return parsed.scheme.toLowerCase() === "https";
+    }
+  }
+
+  return request.nextUrl.protocol === "https:";
+}
+
 export function GET(request: NextRequest): NextResponse {
   const originHost = getRequestOriginHostname(request);
   if (!originHost || !isAllowedHostname(originHost)) {
@@ -98,7 +130,7 @@ export function GET(request: NextRequest): NextResponse {
     { status: 200, headers: NO_STORE_HEADERS },
   );
 
-  const isHttps = request.nextUrl.protocol === "https:";
+  const isHttps = isSecureRequest(request);
   const cookieName = isHttps ? HTTPS_COOKIE_NAME : HTTP_COOKIE_NAME;
 
   response.cookies.set({

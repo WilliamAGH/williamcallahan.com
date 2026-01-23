@@ -119,6 +119,28 @@ describe("SEO Utilities", () => {
     });
   });
 
+  describe("formatSeoDate in non-Pacific time zones", () => {
+    let originalTz: string | undefined;
+
+    beforeAll(() => {
+      originalTz = process.env.TZ;
+      process.env.TZ = "UTC";
+    });
+
+    afterAll(() => {
+      if (originalTz === undefined) {
+        delete process.env.TZ;
+      } else {
+        process.env.TZ = originalTz;
+      }
+    });
+
+    it("should format Pacific time even when server timezone is UTC", () => {
+      const formatted = formatSeoDate("2025-01-01T12:00:00Z");
+      expect(formatted).toBe("2025-01-01T04:00:00-08:00");
+    });
+  });
+
   describe("isPacificDateString", () => {
     it("should validate correct Pacific Time format during standard time", () => {
       expect(isPacificDateString("2025-01-01T12:00:00-08:00")).toBe(true);
@@ -177,12 +199,12 @@ describe("SEO Utilities", () => {
 
     it("correctly shifts offset at DST start boundary", () => {
       // Just before DST start (PST)
-      const before = new Date("2025-03-09T01:59:59");
+      const before = new Date("2025-03-09T01:59:59-08:00");
       const formattedBefore = formatSeoDate(before);
       expect(formattedBefore).toMatch(/-08:00$/);
 
       // Just after DST start (PDT)
-      const after = new Date("2025-03-09T03:00:00");
+      const after = new Date("2025-03-09T03:00:00-07:00");
       const formattedAfter = formatSeoDate(after);
       expect(formattedAfter).toMatch(/-07:00$/);
     });

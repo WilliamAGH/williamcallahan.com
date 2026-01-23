@@ -9,6 +9,47 @@
 import { z } from "zod/v4";
 
 // ─────────────────────────────────────────────────────────────────────────────
+// EPUB Metadata Schema (for parsing validation)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Schema for validating EPUB metadata extracted from user-uploaded files.
+ * Matches the EpubMetadata interface in types/books/parsing.ts.
+ *
+ * This validates data at the IO boundary - EPUB files are external untrusted
+ * input that should be validated after parsing to catch malformed metadata.
+ */
+export const epubMetadataSchema = z.object({
+  // Core Dublin Core metadata
+  title: z.string(),
+  author: z.string(),
+  authorFileAs: z.string().optional(),
+  publisher: z.string().optional(),
+  language: z.string().optional(),
+  description: z.string().optional(),
+  date: z.string().optional(),
+  subjects: z.array(z.string()).optional(),
+
+  // Identifiers
+  isbn: z.string().optional(),
+  uuid: z.string().optional(),
+
+  // Series information
+  series: z.string().optional(),
+  seriesIndex: z.number().optional(),
+
+  // Additional metadata
+  rights: z.string().optional(),
+  contributors: z.array(z.string()).optional(),
+  coverId: z.string().optional(),
+
+  // Raw metadata for debugging/extension
+  rawMetadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type EpubMetadata = z.infer<typeof epubMetadataSchema>;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Core Book Schemas
 // ─────────────────────────────────────────────────────────────────────────────
 

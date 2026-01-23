@@ -1,10 +1,13 @@
 /**
- * Proxy for handling request logging and security headers (Next.js 16)
+ * Proxy for handling request logging, security headers, and authentication (Next.js 16)
  * @module proxy
  * @description
- * Handles request logging and security headers for all non-static routes
- * Applies security headers and caching headers for static assets and analytics scripts
+ * Handles Clerk authentication, request logging, and security headers for all non-static routes.
+ * Applies security headers and caching headers for static assets and analytics scripts.
+ * Protected routes (/admin/*, /api/admin/*) require authentication when Clerk is configured.
  * Note: Renamed from middleware.ts to proxy.ts in Next.js 16
+ *
+ * @see https://clerk.com/docs/references/nextjs/clerk-middleware
  */
 
 // Runtime configuration for middleware (Edge)
@@ -13,8 +16,15 @@
 // Using `edge` here (not deprecated `experimental-edge`).
 
 import { CSP_DIRECTIVES } from "@/config/csp";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest, type NextMiddleware } from "next/server";
 import { memoryPressureMiddleware } from "@/lib/middleware/memory-pressure";
+import type { ClerkMiddlewareAuth } from "@clerk/nextjs/server";
+
+/**
+ * Check if Clerk is configured (publishable key available)
+ * This must be checked before importing Clerk modules to avoid runtime errors
+ */
+const isClerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
 import type { RequestLog } from "@/types/lib";
 
@@ -38,9 +48,7 @@ import type { RequestLog } from "@/types/lib";
  */
 async function getCspHashes() {
   try {
-    const hashes = await import("../generated/csp-hashes.json", {
-      assert: { type: "json" },
-    });
+    const hashes = await import("../generated/csp-hashes.json");
     return hashes.default;
   } catch (error) {
     console.warn("[CSP] Could not load csp-hashes.json. This is expected on the first build.", error);
@@ -65,12 +73,13 @@ function getRealIp(request: NextRequest): string {
 }
 
 /**
- * Middleware to handle request logging and security headers
- * Runs on all non-static routes as defined in the matcher
+ * Internal proxy handler for request logging and security headers.
+ * This function is wrapped by clerkMiddleware for authentication.
+ * Runs on all non-static routes as defined in the matcher.
  * @param request - The incoming Nextjs request
  * @returns The modified response with added headers
  */
-async function proxy(request: NextRequest): Promise<NextResponse> {
+async function proxyHandler(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   // Check memory pressure first (before any expensive operations)
@@ -239,8 +248,88 @@ async function proxy(request: NextRequest): Promise<NextResponse> {
 }
 
 /**
+ * Create the proxy handler - conditionally wraps with Clerk if configured.
+ * When Clerk is not configured, protected routes are accessible without auth.
+ */
+async function createProxy(): Promise<NextMiddleware> {
+  if (!isClerkConfigured) {
+    // No Clerk - just run the proxy handler directly (wrap to match NextMiddleware signature)
+    return (request: NextRequest) => proxyHandler(request);
+  }
+
+  // Clerk is configured - dynamically import and wrap with auth
+  const { clerkMiddleware, createRouteMatcher } = await import("@clerk/nextjs/server");
+
+  const isProtectedRoute = createRouteMatcher([
+    "/admin(.*)",
+    "/api/admin(.*)",
+    // TODO: Re-enable after local testing concludes
+    // "/api/books/upload",
+    // "/api/books/ingest",
+    // "/upload-file(.*)",
+    // "/api/upload(.*)",
+  ]);
+
+  return clerkMiddleware(
+    async (auth: ClerkMiddlewareAuth, request: NextRequest) => {
+      // Check auth for protected routes first (before expensive CSP/caching operations)
+      if (isProtectedRoute(request)) {
+        await auth.protect();
+      }
+
+      // Run existing proxy logic (security headers, CSP, caching, logging)
+      return proxyHandler(request);
+    },
+    {
+      signInUrl: "/sign-in",
+    },
+  );
+}
+
+// Lazy-initialize the proxy on first request
+// Uses promise-based guard to prevent race conditions when multiple concurrent
+// requests arrive before initialization completes
+let proxyInstance: NextMiddleware | null = null;
+let proxyInitPromise: Promise<NextMiddleware> | null = null;
+
+/**
+ * Main proxy export - handles lazy initialization of Clerk middleware
+ * Note: Next.js 16 proxy handlers receive only NextRequest, not NextFetchEvent
+ */
+async function proxy(request: NextRequest): Promise<NextResponse> {
+  // Fast path: already initialized
+  if (proxyInstance) {
+    // Skip to using the instance
+  } else if (proxyInitPromise) {
+    // Another request is initializing - wait for it
+    proxyInstance = await proxyInitPromise;
+  } else {
+    // We're the first request - start initialization
+    proxyInitPromise = createProxy();
+    proxyInstance = await proxyInitPromise;
+  }
+  // NextMiddleware signature requires two args, but the second (event) is not used by our handler
+  const result = await proxyInstance(request, {} as Parameters<NextMiddleware>[1]);
+  // NextMiddleware can return void, Response, or NextResponse - ensure we return NextResponse
+  if (!result) {
+    return NextResponse.next();
+  }
+  // Handle both Response and NextResponse - wrap plain Response in NextResponse if needed
+  if (result instanceof NextResponse) {
+    return result;
+  }
+  // For plain Response objects, create a NextResponse with the same properties
+  return new NextResponse(result.body, {
+    status: result.status,
+    statusText: result.statusText,
+    headers: result.headers,
+  });
+}
+
+/**
  * Route matcher configuration
- * Includes image optimization routes and excludes other static files from middleware processing
+ * Includes image optimization routes and API routes for Clerk authentication.
+ * Excludes static files from proxy processing.
  */
 // Export both named and default exports for Next.js 16 proxy compatibility
 export { proxy };
@@ -257,13 +346,15 @@ export const config = {
      * - favicon.ico (favicon file)
      * - robots.txt
      * - sitemap.xml
+     * - api/upload (file uploads - must bypass proxy to preserve request body)
      * But include:
+     * - api routes (for Clerk auth and other APIs)
      * - api/debug (for security checks)
      * - _next/image (image optimization files)
      * - all other paths
      */
-    "/api/debug(.*)",
-    "/((?!api|_next/static|favicon.ico|robots.txt|sitemap.xml).*)",
+    "/((?!_next/static|favicon.ico|robots.txt|sitemap.xml|api/upload|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api(?!/upload)|trpc)(.*)",
     "/_next/image(.*)",
   ],
 };

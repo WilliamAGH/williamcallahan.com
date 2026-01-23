@@ -115,14 +115,16 @@ The following environment variables are **REQUIRED** for proper image delivery:
    - Purpose: S3 bucket name for storing images and assets
    - Used as fallback when CDN URL is not available (server-side only)
 
-3. **`AWS_ACCESS_KEY_ID`** and **`AWS_SECRET_ACCESS_KEY`** (Required for S3 writes)
+3. **`S3_ACCESS_KEY_ID`** and **`S3_SECRET_ACCESS_KEY`** (Required for S3 writes)
    - Type: String
-   - Purpose: AWS credentials for S3 operations
+   - Purpose: Credentials for S3-compatible operations
    - Only needed if writing to S3 (not needed for read-only mode)
+   - **AWS CLI compatibility**: `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` are accepted aliases for tooling
 
-4. **`AWS_REGION`** (Required for S3 operations)
+4. **`S3_REGION`** (Required for S3 operations)
    - Type: String (e.g., `us-east-1`)
-   - Purpose: AWS region where S3 bucket is located
+   - Purpose: Region where the S3 bucket is located
+   - **Fallback**: `AWS_REGION` can be used by CLI tools, but app validation keys off `S3_REGION`
 
 ### Environment Variable Validation
 

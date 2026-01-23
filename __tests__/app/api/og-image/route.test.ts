@@ -175,3 +175,15 @@ describe("Production URL Validation", () => {
     expect(baseUrl).not.toMatch(/0\.0\.0\.0/);
   });
 });
+
+describe("Logo API Route Validation", () => {
+  it("rejects company fallback without a domain", async () => {
+    const { GET } = await import("@/app/api/logo/route");
+    const request = new MockNextRequest("http://localhost/api/logo?company=OpenAI") as any;
+
+    const response = await GET(request);
+    expect(response.status).toBe(400);
+    const payload = (await response.json()) as { error?: string };
+    expect(payload.error).toMatch(/Company fallback requires a domain/i);
+  });
+});
