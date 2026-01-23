@@ -13,6 +13,7 @@ import { join } from "node:path";
 import EPub from "epub2";
 import type { TocElement, IMetadata } from "epub2/lib/epub/const";
 import type { EpubMetadata, EpubChapter, ParsedEpub, EpubParseOptions } from "@/types/books/parsing";
+import { epubMetadataSchema } from "@/types/schemas/book";
 
 // =============================================================================
 // HTML TO TEXT CONVERSION
@@ -193,7 +194,9 @@ function extractMetadataFromEpub(epub: EPub): EpubMetadata {
     });
   }
 
-  return metadata;
+  // Validate at the IO boundary - EPUB files are untrusted external input
+  // This catches malformed metadata and ensures type safety at runtime
+  return epubMetadataSchema.parse(metadata) as EpubMetadata;
 }
 
 // =============================================================================
