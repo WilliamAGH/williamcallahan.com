@@ -76,18 +76,26 @@ describe("Search API Guards", () => {
       expect(threshold).toBe(4 * 1024 * 1024 * 1024);
     });
 
-    it("clamps MEMORY_CRITICAL_PERCENT between 1-99", () => {
+    it("clamps MEMORY_CRITICAL_PERCENT above 99", () => {
       // Test clamping at 99
       process.env.MEMORY_CRITICAL_PERCENT = "150";
       const threshold = getCriticalThreshold();
       // Clamped to 99% of 8GB
       expect(threshold).toBe(0.99 * 8 * 1024 * 1024 * 1024);
+    });
 
-      // Test clamping at 1
+    it("ignores MEMORY_CRITICAL_PERCENT when zero, negative, or whitespace", () => {
+      process.env.MEMORY_CRITICAL_PERCENT = "0";
+      const threshold = getCriticalThreshold();
+      expect(threshold).toBe(3 * 1024 * 1024 * 1024);
+
       process.env.MEMORY_CRITICAL_PERCENT = "-50";
       const threshold2 = getCriticalThreshold();
-      // Clamped to 1% of 8GB
-      expect(threshold2).toBe(0.01 * 8 * 1024 * 1024 * 1024);
+      expect(threshold2).toBe(3 * 1024 * 1024 * 1024);
+
+      process.env.MEMORY_CRITICAL_PERCENT = "   ";
+      const threshold3 = getCriticalThreshold();
+      expect(threshold3).toBe(3 * 1024 * 1024 * 1024);
     });
 
     it("prefers MEMORY_CRITICAL_BYTES over MEMORY_CRITICAL_PERCENT", () => {

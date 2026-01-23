@@ -73,9 +73,9 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 
 4. **Caching**: 15-minute TTL via `ServerCacheInstance`; lazy loading in terminal.
 
-5. **Search Quality**: MiniSearch for fuzzy/typo-tolerant search with substring fallback.
+5. **Search Quality**: MiniSearch for fuzzy/typo-tolerant search with substring fallback. Bookmarks API preserves MiniSearch score ordering when hydrating full bookmark objects.
 
-6. **Security**: Query validation, ReDoS prevention, 100-char limit.
+6. **Security**: Query validation (Unicode-aware), ReDoS prevention, 100-char limit, and shared rate limiting via `applySearchGuards()` across search routes.
 
 ## Key Files & Responsibilities
 
@@ -95,7 +95,7 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 - **`lib/validators/search.ts`**: Query validation
   - `validateSearchQuery()`: Validates and sanitizes input
   - `sanitizeSearchQuery()`: Simple sanitization helper
-  - Prevents ReDoS attacks and dangerous patterns
+  - Prevents ReDoS attacks and dangerous patterns, preserves Unicode letter queries
 
 ### API Endpoints
 
@@ -110,7 +110,10 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
   - Uses query validation
 - **`app/api/search/blog/route.ts`**: Legacy blog-specific search
   - Maintained for backward compatibility
-  - Routes through server-side search
+  - Routes through server-side search and shares `applySearchGuards()` protections
+- **`app/api/search/bookmarks/route.ts`**: Bookmarks-only search
+  - Preserves MiniSearch relevance ordering when returning hydrated bookmarks
+  - Shares `applySearchGuards()` protections
 
 ### Caching Layer
 

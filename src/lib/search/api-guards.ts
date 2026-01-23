@@ -35,15 +35,18 @@ export function getCriticalThreshold(): number {
     }
   }
 
-  const percentEnv = process.env.MEMORY_CRITICAL_PERCENT;
-  if (percentEnv && !Number.isNaN(Number(percentEnv))) {
-    const percent = Math.min(Math.max(Number(percentEnv), 1), 99);
-    try {
-      const total = os.totalmem();
-      return (percent / 100) * total;
-    } catch {
-      /* istanbul ignore next */
-      // Fallback handled below
+  const percentEnv = process.env.MEMORY_CRITICAL_PERCENT?.trim();
+  if (percentEnv) {
+    const parsed = Number(percentEnv);
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      const percent = Math.min(Math.max(parsed, 1), 99);
+      try {
+        const total = os.totalmem();
+        return (percent / 100) * total;
+      } catch {
+        /* istanbul ignore next */
+        // Fallback handled below
+      }
     }
   }
 

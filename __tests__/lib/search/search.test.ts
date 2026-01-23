@@ -98,6 +98,16 @@ jest.mock("@/lib/server-cache", () => ({
   ServerCacheInstance: {
     get: jest.fn(),
     set: jest.fn(),
+    getStats: jest.fn().mockReturnValue({
+      keys: 0,
+      hits: 0,
+      misses: 0,
+      ksize: 0,
+      vsize: 0,
+      sizeBytes: 0,
+      maxSizeBytes: 0,
+      utilizationPercent: 0,
+    }),
     getSearchResults: jest.fn(),
     setSearchResults: jest.fn(),
     shouldRefreshSearch: jest.fn(),
@@ -143,6 +153,18 @@ describe("search", () => {
       const result = validateSearchQuery("test.*query[abc]");
       expect(result.isValid).toBe(true);
       expect(result.sanitized).toBe("test query abc");
+    });
+
+    it("should preserve Unicode letters in search queries", () => {
+      const result = validateSearchQuery("こんにちは 世界");
+      expect(result.isValid).toBe(true);
+      expect(result.sanitized).toBe("こんにちは 世界");
+    });
+
+    it("should trim Unicode queries with surrounding symbols", () => {
+      const result = validateSearchQuery("###日本語###");
+      expect(result.isValid).toBe(true);
+      expect(result.sanitized).toBe("日本語");
     });
 
     it("should handle queries with only special characters", () => {
