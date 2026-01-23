@@ -6,41 +6,15 @@
  * Used by lib/books/* modules for parsing and indexing book content.
  */
 
+import type { EpubMetadata } from "@/types/schemas/book";
+
 // =============================================================================
 // EPUB TYPES
 // =============================================================================
 
-/**
- * Metadata extracted from an ePub file
- * Based on Dublin Core, EPUB 3 spec, and common calibre extensions
- */
-export interface EpubMetadata {
-  // Core Dublin Core metadata
-  title: string;
-  author: string;
-  authorFileAs?: string;
-  publisher?: string;
-  language?: string;
-  description?: string;
-  date?: string;
-  subjects?: string[];
-
-  // Identifiers
-  isbn?: string;
-  uuid?: string;
-
-  // Series information
-  series?: string;
-  seriesIndex?: number;
-
-  // Additional metadata
-  rights?: string;
-  contributors?: string[];
-  coverId?: string;
-
-  // Raw metadata for debugging/extension
-  rawMetadata?: Record<string, unknown>;
-}
+// EpubMetadata is defined in types/schemas/book.ts via Zod schema inference
+// Re-export here for backward compatibility with existing imports
+export type { EpubMetadata };
 
 /**
  * A chapter extracted from an ePub file
