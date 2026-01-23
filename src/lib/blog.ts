@@ -16,6 +16,17 @@ const INCLUDE_DRAFTS = process.env.NODE_ENV === "development";
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
 
+/**
+ * Valid slug pattern: lowercase alphanumeric with hyphens, 1-200 chars.
+ * This prevents path traversal attacks (e.g., "../../../etc/passwd") and
+ * limits memory growth from arbitrary slug requests.
+ */
+const VALID_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,198}[a-z0-9]$|^[a-z0-9]$/;
+
+function isValidSlug(slug: string): boolean {
+  return VALID_SLUG_PATTERN.test(slug) && !slug.includes("--");
+}
+
 let mdxSlugIndexPromise: Promise<Map<string, { filePath: string }>> | null = null;
 const getMdxSlugIndex = async (): Promise<Map<string, { filePath: string }>> => {
   if (mdxSlugIndexPromise) return mdxSlugIndexPromise;
@@ -63,7 +74,25 @@ const getMdxSlugIndex = async (): Promise<Map<string, { filePath: string }>> => 
 const postBySlugMemo = new Map<string, Promise<BlogPost | null>>();
 const postMetaBySlugMemo = new Map<string, Promise<BlogPost | null>>();
 
+/**
+ * Clears the process-level memoization caches for blog posts.
+ * Should be called when blog cache is invalidated to prevent stale data
+ * in long-running processes.
+ */
+export function clearBlogSlugMemos(): void {
+  postBySlugMemo.clear();
+  postMetaBySlugMemo.clear();
+  mdxSlugIndexPromise = null;
+  console.log("[Blog] Cleared process-level slug memoization caches");
+}
+
 async function getPostBySlugInternal(slug: string, skipHeavyProcessing: boolean): Promise<BlogPost | null> {
+  // Security: validate slug to prevent path traversal and limit memory growth
+  if (!isValidSlug(slug)) {
+    console.warn(`[getPostBySlugInternal] Invalid slug rejected: "${slug}"`);
+    return null;
+  }
+
   // Optimization: try the conventional path first (filename === slug)
   const directFilePath = path.join(POSTS_DIRECTORY, `${slug}.mdx`);
   const directPost = await getMDXPostCached(slug, directFilePath, undefined, skipHeavyProcessing);
@@ -126,10 +155,19 @@ export async function getAllPostsMeta(includeDrafts = INCLUDE_DRAFTS): Promise<B
 /**
  * Retrieves lightweight metadata for a single blog post by slug (skips MDX compilation + blur generation).
  * Prefer this for `generateMetadata()` and other SEO-only contexts.
+ *
+ * Note: Only successful lookups are memoized to prevent unbounded memory growth
+ * from requests with arbitrary/invalid slugs.
  */
 export async function getPostMetaBySlug(slug: string): Promise<BlogPost | null> {
   if (!slug) {
     console.warn("Blog post slug is empty or undefined");
+    return null;
+  }
+
+  // Early rejection for invalid slugs (prevents memoization of bad inputs)
+  if (!isValidSlug(slug)) {
+    console.warn(`[getPostMetaBySlug] Invalid slug rejected: "${slug}"`);
     return null;
   }
 
@@ -144,6 +182,8 @@ export async function getPostMetaBySlug(slug: string): Promise<BlogPost | null> 
     const post = await getPostBySlugInternal(slug, true);
     if (!post) {
       console.log(`[getPostMetaBySlug] Blog post not found with slug: ${slug}`);
+      // Don't memoize null results to prevent memory growth from random slug attacks
+      postMetaBySlugMemo.delete(slug);
       return null;
     }
     return post;
@@ -160,12 +200,21 @@ export async function getPostMetaBySlug(slug: string): Promise<BlogPost | null> 
  * Retrieves a single blog post by its slug.
  * Includes draft posts since direct URL access is allowed.
  *
+ * Note: Only successful lookups are memoized to prevent unbounded memory growth
+ * from requests with arbitrary/invalid slugs.
+ *
  * @returns The found blog post or null if not found
  * @throws BlogPostDataError only for unexpected errors, not for missing posts
  */
 export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
   if (!slug) {
     console.warn("Blog post slug is empty or undefined");
+    return null;
+  }
+
+  // Early rejection for invalid slugs (prevents memoization of bad inputs)
+  if (!isValidSlug(slug)) {
+    console.warn(`[getPostBySlug] Invalid slug rejected: "${slug}"`);
     return null;
   }
 
@@ -181,6 +230,8 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
       const post = await getPostBySlugInternal(slug, false);
       if (!post) {
         console.log(`[getPostBySlug] Blog post not found with slug: ${slug}`);
+        // Don't memoize null results to prevent memory growth from random slug attacks
+        postBySlugMemo.delete(slug);
         return null;
       }
       return post;
