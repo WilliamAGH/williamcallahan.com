@@ -7,6 +7,22 @@
 
 import type { CdnConfig } from "@/types/s3-cdn";
 
+const SUPPORTED_PROTOCOLS = new Set(["http:", "https:"]);
+
+function parseAbsoluteUrl(value?: string): URL | null {
+  if (!value) return null;
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeBasePath(pathname: string): string {
+  if (!pathname || pathname === "/") return "/";
+  return pathname.endsWith("/") ? pathname : `${pathname}/`;
+}
+
 /**
  * Capture CDN URL at module load time for client-side access
  * Next.js inlines NEXT_PUBLIC_* env vars at build time, so this constant
@@ -79,19 +95,32 @@ export function extractS3KeyFromUrl(url: string, config: CdnConfig): string | nu
   const { cdnBaseUrl, s3BucketName, s3ServerUrl } = config;
 
   try {
+    const parsed = parseAbsoluteUrl(url);
+    if (!parsed || !SUPPORTED_PROTOCOLS.has(parsed.protocol)) {
+      return null;
+    }
+
     // Check if it's a CDN URL
-    if (cdnBaseUrl && url.startsWith(cdnBaseUrl)) {
-      const key = url.slice(cdnBaseUrl.length);
-      return key.startsWith("/") ? key.slice(1) : key;
+    const cdnBase = parseAbsoluteUrl(cdnBaseUrl);
+    if (cdnBase && parsed.host === cdnBase.host && parsed.protocol === cdnBase.protocol) {
+      const basePath = normalizeBasePath(cdnBase.pathname);
+      if (basePath === "/" || parsed.pathname.startsWith(basePath)) {
+        const key = basePath === "/" ? parsed.pathname.slice(1) : parsed.pathname.slice(basePath.length);
+        return key.startsWith("/") ? key.slice(1) : key;
+      }
     }
 
     // Check if it's an S3 URL
     if (s3BucketName) {
       const s3Host = getS3Host(s3ServerUrl);
-      const s3UrlPrefix = `https://${s3BucketName}.${s3Host}/`;
-
-      if (url.startsWith(s3UrlPrefix)) {
-        return url.slice(s3UrlPrefix.length);
+      const s3Base = parseAbsoluteUrl(s3ServerUrl);
+      const expectedHost = s3Base?.port ? `${s3BucketName}.${s3Host}:${s3Base.port}` : `${s3BucketName}.${s3Host}`;
+      if (parsed.host === expectedHost) {
+        const s3Protocol = s3Base?.protocol ?? "https:";
+        if (!SUPPORTED_PROTOCOLS.has(s3Protocol) || parsed.protocol !== s3Protocol) {
+          return null;
+        }
+        return parsed.pathname.startsWith("/") ? parsed.pathname.slice(1) : parsed.pathname;
       }
     }
 
@@ -106,17 +135,35 @@ export function extractS3KeyFromUrl(url: string, config: CdnConfig): string | nu
  */
 export function isOurCdnUrl(url: string, config: CdnConfig): boolean {
   const { cdnBaseUrl, s3BucketName, s3ServerUrl } = config;
+  const parsed = parseAbsoluteUrl(url);
+  if (!parsed || !SUPPORTED_PROTOCOLS.has(parsed.protocol)) {
+    return false;
+  }
 
   // Check CDN URL
-  if (cdnBaseUrl && url.startsWith(cdnBaseUrl)) {
-    return true;
+  const cdnBase = parseAbsoluteUrl(cdnBaseUrl);
+  if (cdnBase && parsed.host === cdnBase.host && parsed.protocol === cdnBase.protocol) {
+    const basePath = normalizeBasePath(cdnBase.pathname);
+    if (basePath === "/" || parsed.pathname.startsWith(basePath)) {
+      return true;
+    }
   }
 
   // Check S3 URL
   if (s3BucketName) {
     const s3Host = getS3Host(s3ServerUrl);
-    const s3UrlPrefix = `https://${s3BucketName}.${s3Host}/`;
-    return url.startsWith(s3UrlPrefix);
+    const s3Base = parseAbsoluteUrl(s3ServerUrl);
+    const expectedHost = s3Base?.port ? `${s3BucketName}.${s3Host}:${s3Base.port}` : `${s3BucketName}.${s3Host}`;
+    if (parsed.host !== expectedHost) {
+      return false;
+    }
+
+    const s3Protocol = s3Base?.protocol ?? "https:";
+    if (!SUPPORTED_PROTOCOLS.has(s3Protocol)) {
+      return false;
+    }
+
+    return parsed.protocol === s3Protocol;
   }
 
   return false;
