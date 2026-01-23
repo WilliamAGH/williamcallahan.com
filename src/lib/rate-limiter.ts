@@ -238,7 +238,12 @@ export function isOperationAllowedWithCircuitBreaker(
     // Success in half-open state, close the circuit
     circuitState.state = "closed";
     circuitState.failures = 0;
+    circuitState.lastFailureTime = 0;
     debug(`[RateLimiter] Circuit closed for ${storeName}/${contextId}`);
+  } else if (circuitState.failures > 0) {
+    // Reset failure counter after a successful operation in closed state
+    circuitState.failures = 0;
+    circuitState.lastFailureTime = 0;
   }
 
   // Store updated state

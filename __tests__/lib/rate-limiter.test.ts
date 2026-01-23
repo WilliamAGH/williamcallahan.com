@@ -11,7 +11,12 @@ jest.mock("@/lib/utils", () => {
   };
 });
 
-import { isOperationAllowed, waitForPermit } from "@/lib/rate-limiter";
+import {
+  getCircuitBreakerState,
+  isOperationAllowed,
+  isOperationAllowedWithCircuitBreaker,
+  waitForPermit,
+} from "@/lib/rate-limiter";
 import {
   API_ENDPOINT_STORE_NAME,
   DEFAULT_API_ENDPOINT_LIMIT_CONFIG,
@@ -301,6 +306,32 @@ describe("Rate Limiter", () => {
 
       expect(allowedCount).toBe(5);
       expect(blockedCount).toBe(5);
+    });
+  });
+
+  describe("Circuit Breaker Behavior", () => {
+    it("should reset failure count after a successful closed-state operation", () => {
+      const storeName = "circuit-test-store";
+      const contextId = "circuit-test-context";
+      const rateConfig = { maxRequests: 1, windowMs: 1000 };
+
+      // First request should be allowed
+      expect(isOperationAllowedWithCircuitBreaker(storeName, contextId, rateConfig)).toBe(true);
+
+      // Second request within the window should be blocked and increment failure count
+      expect(isOperationAllowedWithCircuitBreaker(storeName, contextId, rateConfig)).toBe(false);
+      const afterFailure = getCircuitBreakerState(storeName, contextId);
+      expect(afterFailure?.failures).toBe(1);
+      expect(afterFailure?.state).toBe("closed");
+
+      // Advance time to reset the rate limit window
+      advanceTime(1100);
+
+      // Next allowed call should reset failures
+      expect(isOperationAllowedWithCircuitBreaker(storeName, contextId, rateConfig)).toBe(true);
+      const afterSuccess = getCircuitBreakerState(storeName, contextId);
+      expect(afterSuccess?.failures).toBe(0);
+      expect(afterSuccess?.state).toBe("closed");
     });
   });
 });
