@@ -521,6 +521,9 @@ const nextConfig = {
    * In development we allow defaults to reduce filesystem cache churn.
    */
   ...(process.env.NODE_ENV === "production" ? { cacheMaxMemorySize: 0 } : {}),
+
+  // Increase static generation timeout to prevent build failures for pages with many images/assets
+  staticPageGenerationTimeout: 300,
 };
 
 const sentryWebpackPluginOptions = {
