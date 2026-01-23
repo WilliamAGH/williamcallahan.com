@@ -711,3 +711,9 @@ export interface GoogleIndexingUrlNotificationMetadata {
     notifyTime: string;
   };
 }
+
+/**
+ * Result of processing a Google service-account private key.
+ * Used by sitemap submission script to validate PEM keys from env vars.
+ */
+export type GooglePrivateKeyProcessingResult = { success: true; key: string } | { success: false; error: string };
