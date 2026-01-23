@@ -62,40 +62,45 @@ jest.mock("@/data/blog/posts", () => ({
 }));
 
 // Mock MDX functionality using mock.module
+const mockMdxPosts = [
+  {
+    id: "test-post-1",
+    title: "Test Post 1",
+    slug: "test-post-1",
+    excerpt: "Test excerpt 1",
+    content: "Test content 1",
+    publishedAt: "2024-03-14T12:00:00Z",
+    author: {
+      id: "william-callahan",
+      name: "William Callahan",
+    },
+    coverImage: "https://example.com/image1.jpg",
+    tags: ["test"],
+  },
+  {
+    id: "test-post-2",
+    title: "Test Post 2",
+    slug: "test-post-2",
+    excerpt: "Test excerpt 2",
+    content: "Test content 2",
+    publishedAt: "2024-03-13T12:00:00Z",
+    author: {
+      id: "william-callahan",
+      name: "William Callahan",
+    },
+    coverImage: "https://example.com/image2.jpg",
+    tags: ["test"],
+  },
+];
+
 jest.mock("@/lib/blog/mdx", () => ({
   getAllMDXPostsCached: jest.fn().mockResolvedValue([]),
   getMDXPost: jest.fn().mockImplementation((slug: string) => {
-    const posts = [
-      {
-        id: "test-post-1",
-        title: "Test Post 1",
-        slug: "test-post-1",
-        excerpt: "Test excerpt 1",
-        content: "Test content 1",
-        publishedAt: "2024-03-14T12:00:00Z",
-        author: {
-          id: "william-callahan",
-          name: "William Callahan",
-        },
-        coverImage: "https://example.com/image1.jpg",
-        tags: ["test"],
-      },
-      {
-        id: "test-post-2",
-        title: "Test Post 2",
-        slug: "test-post-2",
-        excerpt: "Test excerpt 2",
-        content: "Test content 2",
-        publishedAt: "2024-03-13T12:00:00Z",
-        author: {
-          id: "william-callahan",
-          name: "William Callahan",
-        },
-        coverImage: "https://example.com/image2.jpg",
-        tags: ["test"],
-      },
-    ];
-    const post = posts.find(p => p.slug === slug);
+    const post = mockMdxPosts.find(p => p.slug === slug);
+    return Promise.resolve(post || null);
+  }),
+  getMDXPostCached: jest.fn().mockImplementation((slug: string) => {
+    const post = mockMdxPosts.find(p => p.slug === slug);
     return Promise.resolve(post || null);
   }),
 }));
