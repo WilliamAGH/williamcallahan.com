@@ -317,10 +317,11 @@ describeIfChroma("Books Chroma Sync", () => {
         distances: [[0.1, 0.2]],
       });
 
-      const results = await searchBookChunks("test query");
+      const result = await searchBookChunks("test query");
 
-      expect(results).toHaveLength(2);
-      expect(results[0]).toMatchObject({
+      expect(result.success).toBe(true);
+      expect(result.results).toHaveLength(2);
+      expect(result.results[0]).toMatchObject({
         id: "chunk1",
         text: "First chunk text",
         distance: 0.1,
@@ -363,13 +364,28 @@ describeIfChroma("Books Chroma Sync", () => {
       );
     });
 
-    it("should handle empty results", async () => {
+    it("should handle empty results as success with empty array", async () => {
       const { searchBookChunks } = await import("@/lib/books/chroma-sync");
 
       // Default mock returns empty
-      const results = await searchBookChunks("query with no results");
+      const result = await searchBookChunks("query with no results");
 
-      expect(results).toEqual([]);
+      expect(result.success).toBe(true);
+      expect(result.results).toEqual([]);
+    });
+
+    it("should return error result on query failure", async () => {
+      const { searchBookChunks } = await import("@/lib/books/chroma-sync");
+
+      mockCollection.query.mockRejectedValueOnce(new Error("Network timeout"));
+
+      const result = await searchBookChunks("failing query");
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBe("Network timeout");
+      }
+      expect(result.results).toEqual([]);
     });
   });
 });

@@ -16,7 +16,15 @@ import { getChromaClient } from "@/lib/chroma/client";
 import { EmbeddingFunctionError } from "@/lib/chroma/embedding-error";
 import { getEmbeddingFunction } from "@/lib/chroma/embedding-function";
 import type { Collection, Metadata, Where } from "chromadb";
-import type { TextChunk, EpubMetadata, BookChunkMetadata, BookIndexData, BookIndexResult } from "@/types/books/parsing";
+import type {
+  TextChunk,
+  EpubMetadata,
+  BookChunkMetadata,
+  BookIndexData,
+  BookIndexResult,
+  BookSearchResult,
+  BookSearchHit,
+} from "@/types/books/parsing";
 
 // =============================================================================
 // COLLECTION MANAGEMENT
@@ -263,7 +271,8 @@ export async function deleteBooksCollection(): Promise<boolean> {
  *
  * @param query - Search query text
  * @param options - Search options
- * @returns Matching chunks with scores, or empty array on error
+ * @returns Discriminated union: success with results, or failure with error message
+ *          Callers must check `success` to distinguish "no matches" from "search failed"
  */
 export async function searchBookChunks(
   query: string,
@@ -272,7 +281,7 @@ export async function searchBookChunks(
     bookId?: string;
     fileType?: string;
   } = {},
-): Promise<Array<{ id: string; text: string; metadata: BookChunkMetadata; distance: number }>> {
+): Promise<BookSearchResult> {
   const { limit = 10, bookId, fileType } = options;
 
   try {
@@ -296,7 +305,7 @@ export async function searchBookChunks(
     });
 
     // Format results
-    const formatted: Array<{ id: string; text: string; metadata: BookChunkMetadata; distance: number }> = [];
+    const formatted: BookSearchHit[] = [];
 
     if (results.ids[0]) {
       for (let i = 0; i < results.ids[0].length; i++) {
@@ -316,12 +325,11 @@ export async function searchBookChunks(
       }
     }
 
-    return formatted;
+    return { success: true, results: formatted };
   } catch (error) {
-    // Log the error for debugging but return empty results to avoid breaking the UI
-    // Network issues, Chroma service unavailability, or malformed queries should
-    // gracefully degrade to showing no results rather than crashing
+    // Return error result so callers can distinguish "no matches" from "search failed"
+    const errorMessage = error instanceof Error ? error.message : "Unknown search error";
     console.error("[Chroma] Search failed:", error);
-    return [];
+    return { success: false, error: errorMessage, results: [] };
   }
 }
