@@ -69,6 +69,7 @@ describe("Bookmarks Search API", () => {
   it("returns matched bookmarks for query", async () => {
     const request = {
       url: "http://localhost:3000/api/search/bookmarks?q=sdk&page=1&limit=24",
+      headers: new Headers([["x-forwarded-for", "127.0.0.1"]]),
     } as any;
 
     const response = await GET(request);
@@ -83,8 +84,7 @@ describe("Bookmarks Search API", () => {
     expect(body.totalCount).toBe(2);
     expect(body.hasMore).toBe(false);
     const ids = body.data.map((b: UnifiedBookmark) => b.id);
-    expect(ids).toContain(idMatch1);
-    expect(ids).toContain(idMatch2);
+    expect(ids).toEqual([idMatch1, idMatch2]);
   });
 });
 

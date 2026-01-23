@@ -11,7 +11,7 @@
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
-import { createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
+import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse, connection, type NextRequest } from "next/server";
@@ -51,6 +51,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json([], { headers: withNoStoreHeaders() });
   }
   try {
+    // Apply rate limiting and memory pressure guards
+    const guardResponse = applySearchGuards(request);
+    if (guardResponse) return guardResponse;
+
     const requestUrl = resolveRequestUrl(request);
     const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q");
