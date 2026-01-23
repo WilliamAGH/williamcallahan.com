@@ -22,7 +22,7 @@ loadEnvironmentWithMultilineSupport();
 
 import { JWT } from "google-auth-library";
 import { GaxiosError } from "gaxios";
-import type { GoogleIndexingUrlNotificationMetadata, GooglePrivateKeyProcessingResult } from "@/types/lib";
+import type { GoogleIndexingUrlNotificationMetadata } from "@/types/lib";
 import type { UrlNotification, IndexingApiResponse } from "@/types/api";
 import sitemap from "../src/app/sitemap";
 import { loadRateLimitStoreFromS3, incrementAndPersist, persistRateLimitStoreToS3 } from "@/lib/rate-limiter";
@@ -66,10 +66,53 @@ const INDEXNOW_KEY_ENV = process.env.INDEXNOW_KEY ?? "";
  */
 const INDEXNOW_KEY_FILE = INDEXNOW_KEY_ENV ? `${INDEXNOW_KEY_ENV}.txt` : "";
 
-/** Normalizes Google service-account private key from env (handles escaped newlines, base64, or multiline PEM) */
-function processGooglePrivateKey(raw: string | undefined): GooglePrivateKeyProcessingResult {
+/**
+ * Error thrown when Google credentials are missing or invalid.
+ * Contains diagnostic information for debugging env var issues.
+ */
+class GoogleCredentialError extends Error {
+  constructor(
+    message: string,
+    public readonly diagnostics?: {
+      rawLength?: number;
+      hasBackslashN?: boolean;
+      hasRealNewline?: boolean;
+      previewCensored?: string;
+      base64DecodeReason?: string;
+    },
+  ) {
+    super(message);
+    this.name = "GoogleCredentialError";
+  }
+
+  /** Format error with diagnostics for logging */
+  formatWithDiagnostics(): string {
+    if (!this.diagnostics) return this.message;
+    const d = this.diagnostics;
+    const lines = [this.message];
+    if (d.previewCensored) lines.push(`  Received (first 60 chars, censored): "${d.previewCensored}"`);
+    if (d.rawLength !== undefined) lines.push(`  Raw length: ${d.rawLength}`);
+    if (d.hasBackslashN !== undefined) lines.push(`  Contains literal \\n: ${d.hasBackslashN}`);
+    if (d.hasRealNewline !== undefined) lines.push(`  Contains newlines: ${d.hasRealNewline}`);
+    if (d.base64DecodeReason) lines.push(`  Base64 decode attempt: ${d.base64DecodeReason}`);
+    lines.push(
+      `  Hint: Ensure the key is either:`,
+      `    1. PEM format with escaped \\n (e.g., "-----BEGIN...\\nMIIE...\\n...")`,
+      `    2. Base64-encoded PEM (encode the entire PEM including headers)`,
+      `    3. Raw PEM with actual newlines (if your orchestrator supports multiline env vars)`,
+    );
+    return lines.join("\n");
+  }
+}
+
+/**
+ * Normalizes Google service-account private key from env.
+ * Handles escaped newlines, base64, or multiline PEM formats.
+ * @throws GoogleCredentialError if key is missing or invalid
+ */
+function processGooglePrivateKey(raw: string | undefined): string {
   if (!raw) {
-    return { success: false, error: "GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY env var is missing." };
+    throw new GoogleCredentialError("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY env var is missing.");
   }
 
   let processed = raw.trim();
@@ -89,96 +132,63 @@ function processGooglePrivateKey(raw: string | undefined): GooglePrivateKeyProce
   processed = stripQuotePair(processed.trim());
 
   // Attempt base64 decoding if the value doesn't look like PEM
+  let base64DecodeReason: string | undefined;
   if (!processed.startsWith("-----BEGIN")) {
-    const decodeResult = attemptBase64Decode(processed);
-    if (decodeResult.decoded) {
-      if (DEBUG_MODE) {
-        console.info(`${LOG_PREFIX.google} Private key was base64-encoded; decoded successfully.`);
+    try {
+      const decoded = Buffer.from(processed, "base64").toString("utf-8");
+      if (decoded.startsWith("-----BEGIN")) {
+        processed = decoded;
+      } else {
+        base64DecodeReason = "Decoded content does not start with PEM header";
       }
-      processed = decodeResult.value;
-    } else if (DEBUG_MODE && decodeResult.reason) {
-      console.info(`${LOG_PREFIX.google} Base64 decode attempted but failed: ${decodeResult.reason}`);
+    } catch (err) {
+      base64DecodeReason = `Base64 decode failed: ${err instanceof Error ? err.message : "Unknown error"}`;
     }
   }
 
   if (!processed.startsWith("-----BEGIN PRIVATE KEY-----")) {
-    // Provide diagnostic info (censored) to help debug env var issues
-    const preview = processed.slice(0, 60).replace(/[A-Za-z0-9+/=]/g, "X");
-    const hasBackslashN = raw.includes("\\n");
-    const hasRealNewline = raw.includes("\n");
-    return {
-      success: false,
-      error:
-        `GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY does not appear to be a valid PEM formatted private key.\n` +
-        `  Expected: starts with "-----BEGIN PRIVATE KEY-----"\n` +
-        `  Received (first 60 chars, censored): "${preview}"\n` +
-        `  Raw length: ${raw.length}, contains literal \\n: ${hasBackslashN}, contains newlines: ${hasRealNewline}\n` +
-        `  Hint: Ensure the key is either:\n` +
-        `    1. PEM format with escaped \\n (e.g., "-----BEGIN...\\nMIIE...\\n...")\n` +
-        `    2. Base64-encoded PEM (encode the entire PEM including headers)\n` +
-        `    3. Raw PEM with actual newlines (if your orchestrator supports multiline env vars)`,
-    };
+    throw new GoogleCredentialError("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY is not a valid PEM formatted private key.", {
+      rawLength: raw.length,
+      hasBackslashN: raw.includes("\\n"),
+      hasRealNewline: raw.includes("\n"),
+      previewCensored: processed.slice(0, 60).replace(/[A-Za-z0-9+/=]/g, "X"),
+      base64DecodeReason,
+    });
   }
 
-  return { success: true, key: processed };
-}
-
-/** Attempts to decode a base64 string. Returns decoded value if it looks like a PEM key. */
-function attemptBase64Decode(value: string): { decoded: boolean; value: string; reason?: string } {
-  try {
-    const decoded = Buffer.from(value, "base64").toString("utf-8");
-    if (decoded.startsWith("-----BEGIN")) {
-      return { decoded: true, value: decoded };
-    }
-    return { decoded: false, value, reason: "Decoded content does not start with PEM header" };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return { decoded: false, value, reason: `Base64 decode failed: ${message}` };
-  }
+  return processed;
 }
 
 /**
- * Validates Google credentials and returns an auth client if valid.
- * Call this early in main() to fail fast with clear error messages.
+ * Creates and validates a Google auth client.
+ * @throws GoogleCredentialError if credentials are missing or invalid
  */
-function validateAndCreateAuthClient(): JWT | null {
-  if (!process.env.GOOGLE_SEARCH_INDEXING_SA_EMAIL) {
-    if (DEBUG_MODE) {
-      console.warn(`${LOG_PREFIX.google} GOOGLE_SEARCH_INDEXING_SA_EMAIL env var is missing.`);
-    }
-    return null;
+function createAuthClient(): JWT {
+  const email = process.env.GOOGLE_SEARCH_INDEXING_SA_EMAIL;
+  if (!email) {
+    throw new GoogleCredentialError("GOOGLE_SEARCH_INDEXING_SA_EMAIL env var is missing.");
   }
 
-  const keyResult = processGooglePrivateKey(process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY);
-  if (!keyResult.success) {
-    console.error(`${LOG_PREFIX.google} ${keyResult.error}`);
-    return null;
-  }
+  const key = processGooglePrivateKey(process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY);
 
   return new JWT({
-    email: process.env.GOOGLE_SEARCH_INDEXING_SA_EMAIL,
-    key: keyResult.key,
+    email,
+    key,
     scopes: [
       "https://www.googleapis.com/auth/indexing",
       "https://www.googleapis.com/auth/webmasters", // required for Search Console sitemap submission
     ],
-    subject: process.env.GOOGLE_SEARCH_INDEXING_SA_EMAIL,
+    subject: email,
   });
 }
 
-// Auth client validated and created at startup in main()
-let authClient: JWT | null = null;
-
 async function notifyGoogle(
+  client: JWT,
   url: string,
   type: "URL_UPDATED" | "URL_DELETED",
 ): Promise<GoogleIndexingUrlNotificationMetadata | null> {
-  if (!authClient) {
-    console.error(`${LOG_PREFIX.google} Cannot notify: auth client not initialized`);
-    return null;
-  }
   try {
-    const response = await authClient.request<IndexingApiResponse>({
+    const response = await client.request<IndexingApiResponse>({
       url: "https://indexing.googleapis.com/v3/urlNotifications:publish",
       method: "POST",
       data: { url, type } as UrlNotification,
@@ -206,13 +216,9 @@ if (GOOGLE_ONLY && INDEXNOW_ONLY) {
   console.warn("Both --google-only and --indexnow-only supplied – defaulting to sending to both.");
 }
 
-async function submitGoogleSitemap(sitemapUrl: string, siteUrl: string): Promise<void> {
-  if (!authClient) {
-    console.error(`${LOG_PREFIX.google} Cannot submit sitemap: auth client not initialized`);
-    return;
-  }
+async function submitGoogleSitemap(client: JWT, sitemapUrl: string, siteUrl: string): Promise<void> {
   try {
-    const res = await authClient.request({
+    const res = await client.request({
       url: `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/sitemaps/${encodeURIComponent(sitemapUrl)}`,
       method: "PUT",
     });
@@ -228,19 +234,26 @@ async function submitGoogleSitemap(sitemapUrl: string, siteUrl: string): Promise
 }
 
 const main = async (): Promise<void> => {
-  // Eagerly validate Google credentials at startup (fail fast with clear error)
+  // Initialize auth client if Google submission is enabled
+  // authClient being non-null is the single source of truth for "Google enabled"
+  let authClient: JWT | null = null;
+
   if (!SKIP_GOOGLE) {
-    authClient = validateAndCreateAuthClient();
-    if (!authClient) {
-      console.warn(`${LOG_PREFIX.google} Google submission disabled due to missing/invalid credentials.`);
+    try {
+      authClient = createAuthClient();
+    } catch (err) {
+      if (err instanceof GoogleCredentialError) {
+        console.error(`${LOG_PREFIX.google} ${err.formatWithDiagnostics()}`);
+        console.warn(`${LOG_PREFIX.google} Google submission disabled due to credential error.`);
+      } else {
+        throw err; // Re-throw unexpected errors
+      }
     }
   }
 
-  // Handle URL indexing if enabled
+  // Handle URL indexing if enabled (requires valid auth client)
   if (URL_INDEXING_ENABLED && authClient) {
-    await processUrlIndexing();
-  } else if (DEBUG_MODE && URL_INDEXING_ENABLED) {
-    console.info(`${LOG_PREFIX.google} Per-URL Indexing-API submission disabled – no valid auth client`);
+    await processUrlIndexing(authClient);
   } else if (DEBUG_MODE) {
     console.info(`${LOG_PREFIX.google} Per-URL Indexing-API submission disabled – sitemap ping only`);
   }
@@ -274,16 +287,19 @@ const main = async (): Promise<void> => {
     );
   }
 
-  // Submit to Google
-  if (!SKIP_GOOGLE) await submitToGoogle(sitemapUrl, siteUrlCanonical);
-  else if (DEBUG_MODE) console.info(`${LOG_PREFIX.google} Skipped due to CLI flag.`);
+  // Submit to Google (only if auth client was successfully initialized)
+  if (authClient) {
+    await submitGoogleSitemap(authClient, sitemapUrl, process.env.GOOGLE_SEARCH_CONSOLE_PROPERTY ?? siteUrlCanonical);
+  } else if (DEBUG_MODE) {
+    console.info(`${LOG_PREFIX.google} Skipped – credentials not available or CLI flag set.`);
+  }
 
   // Submit to IndexNow
   if (!SKIP_INDEXNOW) await submitToIndexNow(siteUrlCanonical);
   else if (DEBUG_MODE) console.info(`${LOG_PREFIX.indexNow} Skipped due to CLI flag.`);
 };
 
-async function processUrlIndexing(): Promise<void> {
+async function processUrlIndexing(client: JWT): Promise<void> {
   await loadRateLimitStoreFromS3(GOOGLE_STORE, INDEXING_RATE_LIMIT_PATH);
 
   const sitemapData = await sitemap();
@@ -313,7 +329,7 @@ async function processUrlIndexing(): Promise<void> {
     console.info(`${LOG_PREFIX.google} Submitting batch ${i / batchSize + 1}`);
 
     for (const url of batch) {
-      const result = await notifyGoogle(url, "URL_UPDATED");
+      const result = await notifyGoogle(client, url, "URL_UPDATED");
       if (result) {
         console.info(`${LOG_PREFIX.google} Successfully submitted ${url}`);
         await persistRateLimitStoreToS3(GOOGLE_STORE, INDEXING_RATE_LIMIT_PATH);
@@ -325,16 +341,6 @@ async function processUrlIndexing(): Promise<void> {
     }
   }
   console.info(`${LOG_PREFIX.google} URL-level submission complete`);
-}
-
-async function submitToGoogle(sitemapUrl: string, siteUrlCanonical: string): Promise<void> {
-  if (!authClient) {
-    if (DEBUG_MODE) {
-      console.warn(`${LOG_PREFIX.google} Skipping sitemap submission – auth client not available.`);
-    }
-    return;
-  }
-  await submitGoogleSitemap(sitemapUrl, process.env.GOOGLE_SEARCH_CONSOLE_PROPERTY ?? siteUrlCanonical);
 }
 
 /**
