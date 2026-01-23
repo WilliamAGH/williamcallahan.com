@@ -15,6 +15,7 @@
 import { getChromaClient } from "@/lib/chroma/client";
 import { EmbeddingFunctionError } from "@/lib/chroma/embedding-error";
 import { getEmbeddingFunction } from "@/lib/chroma/embedding-function";
+import { bookChunkMetadataSchema } from "@/types/schemas/chroma";
 import type { Collection, Metadata, Where } from "chromadb";
 import type {
   TextChunk,
@@ -296,23 +297,39 @@ export async function searchBookChunks(
       include: ["documents", "metadatas", "distances"],
     });
 
-    // Format results
+    // Format results with schema validation at the query boundary
     const formatted: BookSearchHit[] = [];
 
     if (results.ids[0]) {
       for (let i = 0; i < results.ids[0].length; i++) {
         const id = results.ids[0][i];
         const text = results.documents?.[0]?.[i];
-        const metadata = results.metadatas?.[0]?.[i];
+        const rawMetadata = results.metadatas?.[0]?.[i];
         const distance = results.distances?.[0]?.[i];
 
-        if (id && text && metadata) {
-          formatted.push({
-            id,
-            text,
-            metadata: metadata as unknown as BookChunkMetadata,
-            distance: distance ?? 0,
-          });
+        if (id && text && rawMetadata) {
+          // Validate metadata at the Chroma query boundary
+          // Even though we index well-formed data, query results come from
+          // an external database and should be validated
+          const parseResult = bookChunkMetadataSchema.safeParse(rawMetadata);
+
+          if (parseResult.success) {
+            formatted.push({
+              id,
+              text,
+              metadata: parseResult.data as BookChunkMetadata,
+              distance: distance ?? 0,
+            });
+          } else {
+            // Log validation failure but continue with other results
+            // This catches schema drift or data corruption without crashing
+            console.warn(
+              `[Chroma] Invalid book chunk metadata for id=${id}:`,
+              parseResult.error.errors,
+              "Raw metadata:",
+              rawMetadata,
+            );
+          }
         }
       }
     }
