@@ -287,15 +287,26 @@ async function createProxy(): Promise<NextMiddleware> {
 }
 
 // Lazy-initialize the proxy on first request
+// Uses promise-based guard to prevent race conditions when multiple concurrent
+// requests arrive before initialization completes
 let proxyInstance: NextMiddleware | null = null;
+let proxyInitPromise: Promise<NextMiddleware> | null = null;
 
 /**
  * Main proxy export - handles lazy initialization of Clerk middleware
  * Note: Next.js 16 proxy handlers receive only NextRequest, not NextFetchEvent
  */
 async function proxy(request: NextRequest): Promise<NextResponse> {
-  if (!proxyInstance) {
-    proxyInstance = await createProxy();
+  // Fast path: already initialized
+  if (proxyInstance) {
+    // Skip to using the instance
+  } else if (proxyInitPromise) {
+    // Another request is initializing - wait for it
+    proxyInstance = await proxyInitPromise;
+  } else {
+    // We're the first request - start initialization
+    proxyInitPromise = createProxy();
+    proxyInstance = await proxyInitPromise;
   }
   // NextMiddleware signature requires two args, but the second (event) is not used by our handler
   const result = await proxyInstance(request, {} as Parameters<NextMiddleware>[1]);
