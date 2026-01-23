@@ -7,7 +7,7 @@
  * vector embedding in Chroma.
  */
 
-import { writeFile, unlink, mkdtemp } from "node:fs/promises";
+import { writeFile, unlink, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import EPub from "epub2";
@@ -281,12 +281,12 @@ export async function parseEpubFromBuffer(buffer: Buffer, options: EpubParseOpti
       totalChapters: chapters.length,
     };
   } finally {
-    // Clean up temp file
+    // Clean up temp file and directory
     try {
       await unlink(tempFilePath);
-      // Note: Temp directory cleanup is handled by OS
+      await rm(tempDir, { recursive: true, force: true });
     } catch {
-      // Ignore cleanup errors
+      // Ignore cleanup errors - temp dir may already be cleaned
     }
   }
 }
@@ -307,10 +307,12 @@ export async function extractEpubMetadata(buffer: Buffer): Promise<EpubMetadata>
     const epub = (await EPub.createAsync(tempFilePath)) as EPub;
     return extractMetadataFromEpub(epub);
   } finally {
+    // Clean up temp file and directory
     try {
       await unlink(tempFilePath);
+      await rm(tempDir, { recursive: true, force: true });
     } catch {
-      // Ignore cleanup errors
+      // Ignore cleanup errors - temp dir may already be cleaned
     }
   }
 }
