@@ -185,4 +185,30 @@ describe("Environment Variable Configuration", () => {
       expect(process.env[varName]).toBeUndefined();
     });
   });
+
+  describe("Environment Schema Validation", () => {
+    it("accepts S3 credentials without AWS aliases", async () => {
+      const { envSchema } = await import("@/types/schemas/env");
+      const result = envSchema.safeParse({
+        S3_BUCKET: "test-bucket",
+        S3_ACCESS_KEY_ID: "test-access-key",
+        S3_SECRET_ACCESS_KEY: "test-secret-key",
+        S3_REGION: "us-east-1",
+        NEXT_PUBLIC_S3_CDN_URL: "https://cdn.example.com",
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects missing S3 credentials", async () => {
+      const { envSchema } = await import("@/types/schemas/env");
+      const result = envSchema.safeParse({
+        S3_BUCKET: "test-bucket",
+        S3_REGION: "us-east-1",
+        NEXT_PUBLIC_S3_CDN_URL: "https://cdn.example.com",
+      });
+
+      expect(result.success).toBe(false);
+    });
+  });
 });

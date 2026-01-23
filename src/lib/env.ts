@@ -23,9 +23,12 @@ loadEnvironmentWithMultilineSupport();
  * facilitating testing and local UI development.
  */
 const testDefaults: Env = {
+  S3_BUCKET: "test-bucket",
+  S3_ACCESS_KEY_ID: "test-access-key",
+  S3_SECRET_ACCESS_KEY: "test-secret-key",
+  S3_REGION: "us-east-1",
   AWS_ACCESS_KEY_ID: "test-access-key",
   AWS_SECRET_ACCESS_KEY: "test-secret-key",
-  S3_BUCKET: "test-bucket",
   AWS_REGION: "us-east-1",
   NODE_ENV: "test",
   NEXT_PUBLIC_S3_CDN_URL: "https://test-cdn.example.com",
