@@ -1,6 +1,7 @@
 // Load environment variables first
 import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
 import { getMonotonicTime } from "@/lib/utils";
+import { getBaseUrl } from "@/lib/utils/get-base-url";
 loadEnvironmentWithMultilineSupport();
 
 // Log startup immediately to verify process is running
@@ -116,8 +117,8 @@ cron.schedule(bookmarksCron, () => {
 
         // Invalidate Next.js cache to serve fresh data
         console.log("[Scheduler] [Bookmarks] Invalidating Next.js cache for bookmarks...");
-        const apiUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-        const revalidateUrl = `${apiUrl}/api/revalidate/bookmarks`;
+        const apiUrl = getBaseUrl();
+        const revalidateUrl = new URL("/api/revalidate/bookmarks", apiUrl).toString();
 
         // Only include auth header if secret is configured
         const headers = process.env.BOOKMARK_CRON_REFRESH_SECRET
@@ -212,8 +213,8 @@ cron.schedule(githubCron, () => {
 
         // Invalidate Next.js cache to serve fresh data (mirrors bookmarks pattern)
         console.log("[Scheduler] [GitHub] Invalidating Next.js cache for GitHub activity...");
-        const apiUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-        const revalidateUrl = `${apiUrl}/api/revalidate/github-activity`;
+        const apiUrl = getBaseUrl();
+        const revalidateUrl = new URL("/api/revalidate/github-activity", apiUrl).toString();
 
         // Only include auth header if secret is configured
         const headers = process.env.GITHUB_CRON_REFRESH_SECRET
