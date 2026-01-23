@@ -191,16 +191,8 @@ export async function indexBookToChroma(data: BookIndexData): Promise<BookIndexR
  */
 export async function removeBookFromChroma(bookId: string): Promise<void> {
   const collection = await getBooksCollection();
-
-  // Find all chunks for this book
-  const results = await collection.get({
-    where: { bookId },
-    limit: 10000, // Get all chunks
-  });
-
-  if (results.ids.length > 0) {
-    await collection.delete({ ids: results.ids });
-  }
+  // Delete directly by where clause - no limit issues, single round-trip
+  await collection.delete({ where: { bookId } });
 }
 
 /**
