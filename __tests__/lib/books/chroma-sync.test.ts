@@ -300,13 +300,35 @@ describeIfChroma("Books Chroma Sync", () => {
     it("should search and format results", async () => {
       const { searchBookChunks } = await import("@/lib/books/chroma-sync");
 
+      // Provide complete metadata that passes bookChunkMetadataSchema validation
+      const validMetadata = {
+        bookId: "book1",
+        title: "Book 1",
+        author: "Author 1",
+        isbn: "",
+        fileType: "epub",
+        chapterId: "ch1",
+        chapterTitle: "Chapter 1",
+        chunkIndex: 0,
+        totalChunks: 2,
+        wordCount: 100,
+        contentType: "book-chunk" as const,
+        indexedAt: new Date().toISOString(),
+        subjects: "",
+        publisher: "",
+        publishedDate: "",
+        language: "en",
+        series: "",
+        seriesIndex: "",
+      };
+
       mockCollection.query.mockResolvedValueOnce({
         ids: [["chunk1", "chunk2"]],
         documents: [["First chunk text", "Second chunk text"]],
         metadatas: [
           [
-            { bookId: "book1", title: "Book 1", author: "Author 1" },
-            { bookId: "book1", title: "Book 1", author: "Author 1" },
+            { ...validMetadata, chunkIndex: 0 },
+            { ...validMetadata, chunkIndex: 1 },
           ],
         ],
         distances: [[0.1, 0.2]],
