@@ -86,13 +86,10 @@ export function clearBlogSlugMemos(): void {
   console.log("[Blog] Cleared process-level slug memoization caches");
 }
 
-async function getPostBySlugInternal(slug: string, skipHeavyProcessing: boolean): Promise<BlogPost | null> {
-  // Security: validate slug to prevent path traversal and limit memory growth
-  if (!isValidSlug(slug)) {
-    console.warn(`[getPostBySlugInternal] Invalid slug rejected: "${slug}"`);
-    return null;
-  }
-
+/**
+ * Internal lookup for MDX posts by slug. Assumes slug is pre-validated.
+ */
+async function lookupMdxPost(slug: string, skipHeavyProcessing: boolean): Promise<BlogPost | null> {
   // Optimization: try the conventional path first (filename === slug)
   const directFilePath = path.join(POSTS_DIRECTORY, `${slug}.mdx`);
   const directPost = await getMDXPostCached(slug, directFilePath, undefined, skipHeavyProcessing);
@@ -104,6 +101,46 @@ async function getPostBySlugInternal(slug: string, skipHeavyProcessing: boolean)
   if (!entry) return null;
 
   return getMDXPostCached(slug, entry.filePath, undefined, skipHeavyProcessing);
+}
+
+/**
+ * Core memoized post lookup. Extracts common pattern used by both
+ * getPostBySlug and getPostMetaBySlug to eliminate duplication.
+ *
+ * @param slug - The post slug (must be pre-validated by caller)
+ * @param memo - The memoization map to use
+ * @param skipHeavyProcessing - Whether to skip MDX serialization/blur
+ * @param fnName - Function name for logging
+ */
+async function memoizedPostLookup(
+  slug: string,
+  memo: Map<string, Promise<BlogPost | null>>,
+  skipHeavyProcessing: boolean,
+  fnName: string,
+): Promise<BlogPost | null> {
+  const memoized = memo.get(slug);
+  if (memoized) return memoized;
+
+  const promise = (async (): Promise<BlogPost | null> => {
+    // Prefer static posts first (fast path)
+    const staticMatch = staticPosts?.find(post => post.slug === slug);
+    if (staticMatch) return staticMatch;
+
+    const post = await lookupMdxPost(slug, skipHeavyProcessing);
+    if (!post) {
+      console.log(`[${fnName}] Blog post not found with slug: ${slug}`);
+      // Don't memoize null results to prevent memory growth from random slug attacks
+      memo.delete(slug);
+      return null;
+    }
+    return post;
+  })().catch(error => {
+    memo.delete(slug);
+    throw error;
+  });
+
+  memo.set(slug, promise);
+  return promise;
 }
 
 /**
@@ -160,44 +197,17 @@ export async function getAllPostsMeta(includeDrafts = INCLUDE_DRAFTS): Promise<B
  * from requests with arbitrary/invalid slugs.
  */
 export async function getPostMetaBySlug(slug: string): Promise<BlogPost | null> {
-  if (!slug) {
-    console.warn("Blog post slug is empty or undefined");
-    return null;
-  }
-
-  // Early rejection for invalid slugs (prevents memoization of bad inputs)
+  // Security: validate slug to prevent path traversal and limit memory growth
   if (!isValidSlug(slug)) {
     console.warn(`[getPostMetaBySlug] Invalid slug rejected: "${slug}"`);
     return null;
   }
 
-  const memoized = postMetaBySlugMemo.get(slug);
-  if (memoized) return memoized;
-
-  const promise = (async (): Promise<BlogPost | null> => {
-    // Prefer static posts first (fast path)
-    const staticMatch = staticPosts?.find(post => post.slug === slug);
-    if (staticMatch) return staticMatch;
-
-    const post = await getPostBySlugInternal(slug, true);
-    if (!post) {
-      console.log(`[getPostMetaBySlug] Blog post not found with slug: ${slug}`);
-      // Don't memoize null results to prevent memory growth from random slug attacks
-      postMetaBySlugMemo.delete(slug);
-      return null;
-    }
-    return post;
-  })().catch(error => {
-    postMetaBySlugMemo.delete(slug);
-    throw error;
-  });
-
-  postMetaBySlugMemo.set(slug, promise);
-  return promise;
+  return memoizedPostLookup(slug, postMetaBySlugMemo, true, "getPostMetaBySlug");
 }
 
 /**
- * Retrieves a single blog post by its slug.
+ * Retrieves a single blog post by its slug (includes full MDX content).
  * Includes draft posts since direct URL access is allowed.
  *
  * Note: Only successful lookups are memoized to prevent unbounded memory growth
@@ -207,50 +217,22 @@ export async function getPostMetaBySlug(slug: string): Promise<BlogPost | null> 
  * @throws BlogPostDataError only for unexpected errors, not for missing posts
  */
 export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
-  if (!slug) {
-    console.warn("Blog post slug is empty or undefined");
-    return null;
-  }
-
-  // Early rejection for invalid slugs (prevents memoization of bad inputs)
+  // Security: validate slug to prevent path traversal and limit memory growth
   if (!isValidSlug(slug)) {
     console.warn(`[getPostBySlug] Invalid slug rejected: "${slug}"`);
     return null;
   }
 
-  const memoized = postBySlugMemo.get(slug);
-  if (memoized) return memoized;
-
   try {
-    const promise = (async (): Promise<BlogPost | null> => {
-      // Prefer static posts first (fast path)
-      const staticMatch = staticPosts?.find(post => post.slug === slug);
-      if (staticMatch) return staticMatch;
-
-      const post = await getPostBySlugInternal(slug, false);
-      if (!post) {
-        console.log(`[getPostBySlug] Blog post not found with slug: ${slug}`);
-        // Don't memoize null results to prevent memory growth from random slug attacks
-        postBySlugMemo.delete(slug);
-        return null;
-      }
-      return post;
-    })().catch(error => {
-      postBySlugMemo.delete(slug);
-      throw error;
-    });
-
-    postBySlugMemo.set(slug, promise);
-    return await promise;
+    return await memoizedPostLookup(slug, postBySlugMemo, false, "getPostBySlug");
   } catch (error) {
     // Log the error but don't crash the server
     console.error(`[getPostBySlug] Error retrieving post by slug "${slug}":`, error);
 
-    // For unexpected errors, we still throw to allow API error handling
+    // For unexpected errors, wrap in BlogPostDataError for API error handling
     if (!(error instanceof BlogPostDataError)) {
       throw new BlogPostDataError(`Error retrieving blog post: ${slug}`, slug, error);
     }
-    // If we reach here, error is already a BlogPostDataError, so rethrow it
     throw error;
   }
 }
