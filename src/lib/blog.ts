@@ -3,7 +3,7 @@
  */
 
 import { posts as staticPosts } from "@/data/blog/posts";
-import type { BlogPost } from "@/types/blog";
+import type { BlogPost, PostLookupResult, MemoizedLookupResult } from "@/types/blog";
 import { getAllMDXPostsCached, getMDXPostCached } from "./blog/mdx";
 import { BlogPostDataError } from "./utils/error-utils";
 import fs from "node:fs/promises";
@@ -71,8 +71,16 @@ const getMdxSlugIndex = async (): Promise<Map<string, { filePath: string }>> => 
   return mdxSlugIndexPromise;
 };
 
-const postBySlugMemo = new Map<string, Promise<BlogPost | null>>();
-const postMetaBySlugMemo = new Map<string, Promise<BlogPost | null>>();
+// Note: MemoizedLookupResult type is defined later in file (after lookupMdxPost)
+// Using deferred type annotation pattern to avoid forward reference
+const postBySlugMemo = new Map<
+  string,
+  Promise<{ status: "found"; post: BlogPost } | { status: "not_found" } | { status: "error"; error: Error }>
+>();
+const postMetaBySlugMemo = new Map<
+  string,
+  Promise<{ status: "found"; post: BlogPost } | { status: "not_found" } | { status: "error"; error: Error }>
+>();
 
 /**
  * Clears the process-level memoization caches for blog posts.
@@ -88,19 +96,37 @@ export function clearBlogSlugMemos(): void {
 
 /**
  * Internal lookup for MDX posts by slug. Assumes slug is pre-validated.
+ *
+ * @returns A discriminated union that clearly distinguishes between:
+ *   - Post found successfully
+ *   - Post not found (no matching slug in filesystem or index)
+ *   - Error during lookup (file access error, parsing error, etc.)
  */
-async function lookupMdxPost(slug: string, skipHeavyProcessing: boolean): Promise<BlogPost | null> {
-  // Optimization: try the conventional path first (filename === slug)
-  const directFilePath = path.join(POSTS_DIRECTORY, `${slug}.mdx`);
-  const directPost = await getMDXPostCached(slug, directFilePath, undefined, skipHeavyProcessing);
-  if (directPost) return directPost;
+async function lookupMdxPost(slug: string, skipHeavyProcessing: boolean): Promise<PostLookupResult> {
+  try {
+    // Optimization: try the conventional path first (filename === slug)
+    const directFilePath = path.join(POSTS_DIRECTORY, `${slug}.mdx`);
+    const directPost = await getMDXPostCached(slug, directFilePath, undefined, skipHeavyProcessing);
+    if (directPost) return { found: true, post: directPost };
 
-  // Fallback: resolve slug via frontmatter index (handles slug !== filename)
-  const mdxIndex = await getMdxSlugIndex();
-  const entry = mdxIndex.get(slug);
-  if (!entry) return null;
+    // Fallback: resolve slug via frontmatter index (handles slug !== filename)
+    const mdxIndex = await getMdxSlugIndex();
+    const entry = mdxIndex.get(slug);
+    if (!entry) return { found: false, reason: "not_found" };
 
-  return getMDXPostCached(slug, entry.filePath, undefined, skipHeavyProcessing);
+    const indexedPost = await getMDXPostCached(slug, entry.filePath, undefined, skipHeavyProcessing);
+    if (indexedPost) return { found: true, post: indexedPost };
+
+    // File existed in index but getMDXPostCached returned null (parsing/validation failed)
+    return { found: false, reason: "not_found" };
+  } catch (error) {
+    // Unexpected error during lookup - preserve for caller to handle
+    return {
+      found: false,
+      reason: "error",
+      error: error instanceof Error ? error : new Error(String(error)),
+    };
+  }
 }
 
 /**
@@ -111,32 +137,46 @@ async function lookupMdxPost(slug: string, skipHeavyProcessing: boolean): Promis
  * @param memo - The memoization map to use
  * @param skipHeavyProcessing - Whether to skip MDX serialization/blur
  * @param fnName - Function name for logging
+ * @returns Discriminated union with explicit status for found/not_found/error cases
  */
 async function memoizedPostLookup(
   slug: string,
-  memo: Map<string, Promise<BlogPost | null>>,
+  memo: Map<string, Promise<MemoizedLookupResult>>,
   skipHeavyProcessing: boolean,
   fnName: string,
-): Promise<BlogPost | null> {
+): Promise<MemoizedLookupResult> {
   const memoized = memo.get(slug);
   if (memoized) return memoized;
 
-  const promise = (async (): Promise<BlogPost | null> => {
+  const promise = (async (): Promise<MemoizedLookupResult> => {
     // Prefer static posts first (fast path)
     const staticMatch = staticPosts?.find(post => post.slug === slug);
-    if (staticMatch) return staticMatch;
+    if (staticMatch) return { status: "found", post: staticMatch };
 
-    const post = await lookupMdxPost(slug, skipHeavyProcessing);
-    if (!post) {
-      console.log(`[${fnName}] Blog post not found with slug: ${slug}`);
-      // Don't memoize null results to prevent memory growth from random slug attacks
-      memo.delete(slug);
-      return null;
+    const result = await lookupMdxPost(slug, skipHeavyProcessing);
+
+    if (result.found) {
+      return { status: "found", post: result.post };
     }
-    return post;
-  })().catch(error => {
+
+    if (result.reason === "error") {
+      console.error(`[${fnName}] Error during lookup for slug "${slug}":`, result.error);
+      // Don't memoize error results - allow retry on next request
+      memo.delete(slug);
+      console.log(`[${fnName}] Cleared memo for slug "${slug}" due to lookup error`);
+      return { status: "error", error: result.error };
+    }
+
+    // Not found case - log and don't memoize to prevent memory growth
+    console.log(`[${fnName}] Blog post not found with slug: ${slug}`);
     memo.delete(slug);
-    throw error;
+    return { status: "not_found" };
+  })().catch((error): MemoizedLookupResult => {
+    // Unexpected error - clear memo and return error result
+    memo.delete(slug);
+    const normalizedError = error instanceof Error ? error : new Error(String(error));
+    console.error(`[${fnName}] Unexpected error for slug "${slug}", memo cleared:`, normalizedError);
+    return { status: "error", error: normalizedError };
   });
 
   memo.set(slug, promise);
@@ -195,6 +235,10 @@ export async function getAllPostsMeta(includeDrafts = INCLUDE_DRAFTS): Promise<B
  *
  * Note: Only successful lookups are memoized to prevent unbounded memory growth
  * from requests with arbitrary/invalid slugs.
+ *
+ * @param slug - The blog post slug to look up
+ * @returns The blog post if found, null if not found or invalid slug
+ * @throws BlogPostDataError if an unexpected error occurs during lookup
  */
 export async function getPostMetaBySlug(slug: string): Promise<BlogPost | null> {
   // Security: validate slug to prevent path traversal and limit memory growth
@@ -203,7 +247,19 @@ export async function getPostMetaBySlug(slug: string): Promise<BlogPost | null> 
     return null;
   }
 
-  return memoizedPostLookup(slug, postMetaBySlugMemo, true, "getPostMetaBySlug");
+  const result = await memoizedPostLookup(slug, postMetaBySlugMemo, true, "getPostMetaBySlug");
+
+  switch (result.status) {
+    case "found":
+      return result.post;
+    case "not_found":
+      return null;
+    case "error":
+      // For metadata lookups, we typically want to fail gracefully for SEO contexts
+      // Log but return null to avoid breaking page generation
+      console.error(`[getPostMetaBySlug] Returning null due to error for slug "${slug}":`, result.error);
+      return null;
+  }
 }
 
 /**
@@ -213,8 +269,9 @@ export async function getPostMetaBySlug(slug: string): Promise<BlogPost | null> 
  * Note: Only successful lookups are memoized to prevent unbounded memory growth
  * from requests with arbitrary/invalid slugs.
  *
- * @returns The found blog post or null if not found
- * @throws BlogPostDataError only for unexpected errors, not for missing posts
+ * @param slug - The blog post slug to look up
+ * @returns The found blog post or null if not found (including invalid slugs)
+ * @throws BlogPostDataError for unexpected errors during post retrieval (file access, parsing, etc.)
  */
 export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
   // Security: validate slug to prevent path traversal and limit memory growth
@@ -223,17 +280,16 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
     return null;
   }
 
-  try {
-    return await memoizedPostLookup(slug, postBySlugMemo, false, "getPostBySlug");
-  } catch (error) {
-    // Log the error but don't crash the server
-    console.error(`[getPostBySlug] Error retrieving post by slug "${slug}":`, error);
+  const result = await memoizedPostLookup(slug, postBySlugMemo, false, "getPostBySlug");
 
-    // For unexpected errors, wrap in BlogPostDataError for API error handling
-    if (!(error instanceof BlogPostDataError)) {
-      throw new BlogPostDataError(`Error retrieving blog post: ${slug}`, slug, error);
-    }
-    throw error;
+  switch (result.status) {
+    case "found":
+      return result.post;
+    case "not_found":
+      return null;
+    case "error":
+      // For full post retrieval, propagate errors to allow API layer to handle
+      throw new BlogPostDataError(`Error retrieving blog post "${slug}": ${result.error.message}`, slug, result.error);
   }
 }
 
