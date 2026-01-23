@@ -125,19 +125,22 @@ export async function indexBookToChroma(data: BookIndexData): Promise<BookIndexR
     };
   }
 
-  try {
-    const collection = await getBooksCollection();
-    const totalChunks = chunks.length;
+  const collection = await getBooksCollection();
+  const totalChunks = chunks.length;
 
-    // Prepare batch data
-    const ids = chunks.map(chunk => generateChunkId(bookId, chunk.index));
-    const documents = chunks.map(chunk => chunk.text);
-    const metadatas = chunks.map(chunk => toChromaMetadata(bookId, metadata, chunk, totalChunks, fileType));
+  // Prepare batch data
+  const ids = chunks.map(chunk => generateChunkId(bookId, chunk.index));
+  const documents = chunks.map(chunk => chunk.text);
+  const metadatas = chunks.map(chunk => toChromaMetadata(bookId, metadata, chunk, totalChunks, fileType));
 
-    // Upsert in batches (Chroma has limits)
-    const batchSize = 100;
-    for (let i = 0; i < ids.length; i += batchSize) {
-      const batchEnd = Math.min(i + batchSize, ids.length);
+  // Track successfully indexed chunks for accurate reporting on partial failure
+  let chunksIndexed = 0;
+
+  // Upsert in batches (Chroma has limits)
+  const batchSize = 100;
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batchEnd = Math.min(i + batchSize, ids.length);
+    try {
       await collection.upsert({
         ids: ids.slice(i, batchEnd),
         documents: documents.slice(i, batchEnd),
@@ -145,29 +148,32 @@ export async function indexBookToChroma(data: BookIndexData): Promise<BookIndexR
         // (strings, numbers) but lacks index signature that Metadata requires
         metadatas: metadatas.slice(i, batchEnd) as unknown as Metadata[],
       });
-    }
+      // Only count as indexed after successful upsert
+      chunksIndexed = batchEnd;
+    } catch (error) {
+      // Re-throw infrastructure errors (embedding function failures) - these should not be silently converted to failed results
+      if (error instanceof EmbeddingFunctionError) {
+        throw error;
+      }
 
-    return {
-      success: true,
-      bookId,
-      chunksIndexed: chunks.length,
-      collectionName: COLLECTION_NAME,
-    };
-  } catch (error) {
-    // Re-throw infrastructure errors (embedding function failures) - these should not be silently converted to failed results
-    if (error instanceof EmbeddingFunctionError) {
-      throw error;
+      // For data/network errors, return a failed result with accurate chunk count
+      // This allows callers to know partial indexing occurred and handle accordingly
+      return {
+        success: false,
+        bookId,
+        chunksIndexed,
+        collectionName: COLLECTION_NAME,
+        error: error instanceof Error ? error.message : "Unknown error during indexing",
+      };
     }
-
-    // For data/network errors, return a failed result with the error message preserved
-    return {
-      success: false,
-      bookId,
-      chunksIndexed: 0,
-      collectionName: COLLECTION_NAME,
-      error: error instanceof Error ? error.message : "Unknown error during indexing",
-    };
   }
+
+  return {
+    success: true,
+    bookId,
+    chunksIndexed: chunks.length,
+    collectionName: COLLECTION_NAME,
+  };
 }
 
 /**
