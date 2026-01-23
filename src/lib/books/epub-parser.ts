@@ -196,7 +196,7 @@ function extractMetadataFromEpub(epub: EPub): EpubMetadata {
 
   // Validate at the IO boundary - EPUB files are untrusted external input
   // This catches malformed metadata and ensures type safety at runtime
-  return epubMetadataSchema.parse(metadata) as EpubMetadata;
+  return epubMetadataSchema.parse(metadata);
 }
 
 // =============================================================================
