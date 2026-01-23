@@ -1,7 +1,34 @@
 # Using Debian instead of Alpine because @chroma-core/default-embed uses ONNX runtime
 # which requires glibc (Alpine uses musl libc which is incompatible).
 # TODO: Revert to Alpine when switching to self-hosted embeddings API or @chroma-core/openai
-FROM docker.io/oven/bun:1.3.2-debian AS base
+#
+# IMPORTANT: Base images use public.ecr.aws to avoid Docker Hub authentication issues.
+# Bun is installed from GitHub releases to avoid oven/bun Docker Hub dependency.
+FROM public.ecr.aws/debian/debian:bookworm-slim AS base
+
+# Install Bun from GitHub releases (avoids Docker Hub dependency on oven/bun image)
+# Pin to specific version for reproducibility. Supports both x86_64 and arm64.
+ARG BUN_VERSION=1.3.2
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl unzip ca-certificates \
+    && ARCH=$(dpkg --print-architecture) \
+    && case "${ARCH}" in \
+         amd64) BUN_ARCH="x64" ;; \
+         arm64) BUN_ARCH="aarch64" ;; \
+         *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
+       esac \
+    && curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-${BUN_ARCH}.zip" -o /tmp/bun.zip \
+    && unzip /tmp/bun.zip -d /tmp \
+    && mv /tmp/bun-linux-${BUN_ARCH}/bun /usr/local/bin/bun \
+    && chmod +x /usr/local/bin/bun \
+    && ln -s /usr/local/bin/bun /usr/local/bin/bunx \
+    && rm -rf /tmp/bun.zip /tmp/bun-linux-${BUN_ARCH} \
+    && apt-get purge -y unzip \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Verify Bun installation
+RUN bun --version
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -13,9 +40,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
 
 # Copy only package files first
-# Copying bun.lockb separately ensures Docker caches the layer correctly
+# Copying lock file separately ensures Docker caches the layer correctly
 COPY package.json ./
-COPY bun.lockb* ./
+COPY bun.lock* ./
 COPY .husky ./.husky
 
 # Copy the init-csp-hashes script and config directory needed by postinstall
@@ -37,8 +64,9 @@ RUN bun scripts/init-csp-hashes.ts
 # --------------------------------------------------
 # PRE-CHECKS STAGE (lint + type-check, cached)
 # --------------------------------------------------
-FROM node:22-bookworm-slim AS checks
-RUN apt-get update && apt-get install -y --no-install-recommends bash && rm -rf /var/lib/apt/lists/*
+# Use base image (which has Bun) and run checks with Bun instead of npm
+# This avoids the Docker Hub dependency on node:22-bookworm-slim
+FROM base AS checks
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
@@ -49,9 +77,9 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy source for analysis only (does not affect later build layers)
 COPY . .
 
-# Run linter and type checker. Cache mounts are omitted to keep the Dockerfile
-# compatible with non-BuildKit builders such as Railway's classic Docker engine.
-RUN NODE_OPTIONS='--max-old-space-size=4096' npm run lint && NODE_OPTIONS='--max-old-space-size=4096' npm run type-check
+# Run linter and type checker using Bun (Bun can run npm scripts).
+# Cache mounts are omitted to keep the Dockerfile compatible with non-BuildKit builders.
+RUN bun run lint && bun run type-check
 
 # --------------------------------------------------
 # BUILD STAGE (production build)
