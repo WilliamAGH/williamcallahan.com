@@ -5,6 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import { createAiGateToken, hashUserAgent } from "@/lib/ai/openai-compatible/gate-token";
 import logger from "@/lib/utils/logger";
+import { safeJsonParse } from "@/lib/utils/json-utils";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 
@@ -53,14 +54,6 @@ function getRequestOriginHostname(request: NextRequest): string | null {
   return null;
 }
 
-function parseJsonValue(value: string): unknown {
-  try {
-    return JSON.parse(value) as unknown;
-  } catch {
-    return null;
-  }
-}
-
 function isSecureRequest(request: NextRequest): boolean {
   const forwardedProto = request.headers.get("x-forwarded-proto");
   if (forwardedProto) {
@@ -83,16 +76,9 @@ function isSecureRequest(request: NextRequest): boolean {
 
   const cfVisitor = request.headers.get("cf-visitor");
   if (cfVisitor) {
-    try {
-      const parsed = parseJsonValue(cfVisitor);
-      if (parsed && typeof parsed === "object") {
-        const schemeValue = (parsed as Record<string, unknown>).scheme;
-        if (typeof schemeValue === "string") {
-          return schemeValue.toLowerCase() === "https";
-        }
-      }
-    } catch {
-      // Ignore malformed cf-visitor values
+    const parsed = safeJsonParse<{ scheme?: string }>(cfVisitor);
+    if (parsed?.scheme && typeof parsed.scheme === "string") {
+      return parsed.scheme.toLowerCase() === "https";
     }
   }
 
