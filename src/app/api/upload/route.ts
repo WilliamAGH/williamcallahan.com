@@ -31,6 +31,16 @@ import { z } from "zod/v4";
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
 /**
+ * CORS headers for cross-origin requests
+ * Required on all responses, not just OPTIONS preflight
+ */
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+} as const;
+
+/**
  * Generate S3 key for uploaded file
  */
 function generateS3Key(fileType: UploadFileType, fileName: string): string {
@@ -144,13 +154,16 @@ export async function POST(request: Request): Promise<Response> {
 
     // Validate file presence
     if (!file || !(file instanceof File)) {
-      return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "No file provided" }, { status: 400, headers: CORS_HEADERS });
     }
 
     // Validate file type parameter
     const fileTypeResult = UploadFileTypeSchema.safeParse(fileTypeRaw);
     if (!fileTypeResult.success) {
-      return NextResponse.json({ success: false, error: "Invalid file type specified" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Invalid file type specified" },
+        { status: 400, headers: CORS_HEADERS },
+      );
     }
     const fileType = fileTypeResult.data;
 
@@ -158,14 +171,14 @@ export async function POST(request: Request): Promise<Response> {
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { success: false, error: `File size exceeds maximum of ${MAX_FILE_SIZE / (1024 * 1024)}MB` },
-        { status: 400 },
+        { status: 400, headers: CORS_HEADERS },
       );
     }
 
     // Validate file against type configuration
     const validation = validateFileForType(file, fileType);
     if (!validation.valid) {
-      return NextResponse.json({ success: false, error: validation.error }, { status: 400 });
+      return NextResponse.json({ success: false, error: validation.error }, { status: 400, headers: CORS_HEADERS });
     }
 
     // Generate S3 key
@@ -188,33 +201,42 @@ export async function POST(request: Request): Promise<Response> {
       processingResult = await processPdfFile(buffer, s3Key);
     } else {
       // Shouldn't happen due to validation, but handle gracefully
-      return NextResponse.json({
-        success: true,
-        s3Key,
-        message: "File uploaded but not processed (unsupported type for indexing)",
-        chromaStatus: "skipped",
-      });
+      return NextResponse.json(
+        {
+          success: true,
+          s3Key,
+          message: "File uploaded but not processed (unsupported type for indexing)",
+          chromaStatus: "skipped",
+        },
+        { headers: CORS_HEADERS },
+      );
     }
 
     const processingTimeMs = Date.now() - startTime;
 
-    return NextResponse.json({
-      success: true,
-      s3Key,
-      message: "File uploaded and indexed successfully",
-      chromaStatus: "indexed",
-      stats: {
-        chunksIndexed: processingResult.chunksIndexed,
-        totalWords: processingResult.totalWords,
-        processingTimeMs,
+    return NextResponse.json(
+      {
+        success: true,
+        s3Key,
+        message: "File uploaded and indexed successfully",
+        chromaStatus: "indexed",
+        stats: {
+          chunksIndexed: processingResult.chunksIndexed,
+          totalWords: processingResult.totalWords,
+          processingTimeMs,
+        },
       },
-    });
+      { headers: CORS_HEADERS },
+    );
   } catch (error) {
     console.error("[Upload API] Error:", error);
 
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ success: false, error: "Validation error", details: error.issues }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Validation error", details: error.issues },
+        { status: 400, headers: CORS_HEADERS },
+      );
     }
 
     // Handle other errors
@@ -223,7 +245,7 @@ export async function POST(request: Request): Promise<Response> {
         success: false,
         error: error instanceof Error ? error.message : "Upload failed",
       },
-      { status: 500 },
+      { status: 500, headers: CORS_HEADERS },
     );
   }
 }
@@ -234,10 +256,6 @@ export async function POST(request: Request): Promise<Response> {
 export function OPTIONS(): Response {
   return new Response(null, {
     status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    },
+    headers: CORS_HEADERS,
   });
 }
