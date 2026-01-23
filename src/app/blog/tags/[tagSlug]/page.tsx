@@ -7,7 +7,7 @@ import { metadata, PAGE_METADATA } from "@/data/metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
 import { deslugify, kebabCase } from "@/lib/utils/formatters";
-import { getAllPosts } from "@/lib/blog";
+import { getAllPosts, getAllPostsMeta } from "@/lib/blog";
 import type { Metadata } from "next";
 import { RelatedContent, RelatedContentFallback } from "@/components/features/related-content";
 
@@ -16,7 +16,8 @@ import { RelatedContent, RelatedContentFallback } from "@/components/features/re
  * @returns {Promise<{ tagSlug: string }[]>} An array of objects containing tag slugs.
  */
 export async function generateStaticParams(): Promise<{ tagSlug: string }[]> {
-  const posts = await getAllPosts();
+  // Use getAllPostsMeta to skip heavy processing
+  const posts = await getAllPostsMeta();
   const tags = new Set<string>();
   for (const post of posts) {
     for (const tag of post.tags) {

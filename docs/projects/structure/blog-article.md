@@ -103,6 +103,7 @@ The components work together to enrich static MDX content with dynamic, client-s
    - In-memory cache with file modification checks
    - Concurrent post processing with `Promise.allSettled`
    - Fallback content for MDX compilation failures
+   - `generateMetadata()` should use `getPostMetaBySlug()` (skips MDX compilation + blur generation)
 
 2. **Image Handling**
    - Twitter image proxy with 24-hour cache
@@ -111,7 +112,7 @@ The components work together to enrich static MDX content with dynamic, client-s
 
 3. **Static Generation**
    - ISR with 1-hour revalidation
-   - Static params generation for all posts and tags
+   - `generateStaticParams()` uses `getAllPostsMeta()` to avoid heavy MDX work at build time
    - Proper use of Next.js `notFound()` for missing content
 
 ## Data Flow & State Management
