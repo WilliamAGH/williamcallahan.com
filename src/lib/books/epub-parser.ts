@@ -128,43 +128,46 @@ function extractMetadataFromEpub(epub: EPub): EpubMetadata {
   // epub.metadata is typed as IMetadata which has [key: string]: any for extension fields
   const rawMeta: IMetadata = epub.metadata;
 
-  // Extract series information from various sources (IMetadata has [key: string]: any index signature)
-  // Use explicit unknown type to force type narrowing
-  const seriesRaw: unknown = rawMeta["belongs-to-collection"] ?? rawMeta["calibre:series"] ?? rawMeta.series;
-  const series: string | undefined = typeof seriesRaw === "string" ? seriesRaw : undefined;
+  // Type guard helpers for IMetadata boundary validation
+  // IMetadata has [key: string]: any, so any field could be non-string
+  const asString = (value: unknown): string | undefined =>
+    typeof value === "string" && value.trim().length > 0 ? value : undefined;
+  const asStringArray = (value: unknown): string[] | undefined =>
+    Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === "string" && item.length > 0)
+      : typeof value === "string" && value.length > 0
+        ? [value]
+        : undefined;
 
-  // Series index can be in different formats (IMetadata has [key: string]: any index signature)
-  // Use explicit unknown type to force type narrowing
+  // Extract series information from various sources
+  const seriesRaw: unknown = rawMeta["belongs-to-collection"] ?? rawMeta["calibre:series"] ?? rawMeta.series;
+  const series = asString(seriesRaw);
+
+  // Series index can be in different formats
   const seriesIndexRaw: unknown = rawMeta["group-position"] ?? rawMeta["calibre:series_index"] ?? rawMeta.seriesIndex;
   const seriesIndex =
     typeof seriesIndexRaw === "string" || typeof seriesIndexRaw === "number" ? Number(seriesIndexRaw) : undefined;
 
-  // Handle contributors (can be string or array of strings) - use unknown to force type narrowing
-  const contributorRaw: unknown = rawMeta.contributor;
-  const contributors: string[] | undefined = Array.isArray(contributorRaw)
-    ? contributorRaw.filter((c): c is string => typeof c === "string")
-    : typeof contributorRaw === "string"
-      ? [contributorRaw]
-      : undefined;
+  // Handle contributors (can be string or array of strings)
+  const contributors = asStringArray(rawMeta.contributor);
 
   // Extract rights with type narrowing
-  const rightsRaw: unknown = rawMeta.rights;
-  const rights: string | undefined = typeof rightsRaw === "string" ? rightsRaw : undefined;
+  const rights = asString(rawMeta.rights);
 
   const metadata: EpubMetadata = {
-    // Core Dublin Core
-    title: rawMeta.title ?? "Unknown Title",
-    author: rawMeta.creator ?? "Unknown Author",
-    authorFileAs: rawMeta.creatorFileAs,
-    publisher: rawMeta.publisher,
-    language: rawMeta.language,
-    description: rawMeta.description,
-    date: rawMeta.date,
-    subjects: Array.isArray(rawMeta.subject) ? rawMeta.subject : rawMeta.subject ? [rawMeta.subject] : undefined,
+    // Core Dublin Core - apply type guards at boundary
+    title: asString(rawMeta.title) ?? "Unknown Title",
+    author: asString(rawMeta.creator) ?? "Unknown Author",
+    authorFileAs: asString(rawMeta.creatorFileAs),
+    publisher: asString(rawMeta.publisher),
+    language: asString(rawMeta.language),
+    description: asString(rawMeta.description),
+    date: asString(rawMeta.date),
+    subjects: asStringArray(rawMeta.subject),
 
     // Identifiers
-    isbn: rawMeta.ISBN,
-    uuid: rawMeta.UUID,
+    isbn: asString(rawMeta.ISBN),
+    uuid: asString(rawMeta.UUID),
 
     // Series
     series,
@@ -173,7 +176,7 @@ function extractMetadataFromEpub(epub: EPub): EpubMetadata {
     // Additional
     rights,
     contributors,
-    coverId: typeof rawMeta.cover === "string" ? rawMeta.cover : undefined,
+    coverId: asString(rawMeta.cover),
 
     // Raw for debugging (filter out symbols and undefined values)
     rawMetadata: Object.fromEntries(
