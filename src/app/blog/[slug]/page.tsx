@@ -12,7 +12,7 @@
  */
 
 import { Suspense } from "react";
-import type { BlogPostPageProps } from "@/types/blog";
+import type { BlogPostPageProps, SoftwarePostDetails } from "@/types/blog";
 // Import blog post retrieval utilities from the main blog library
 import { getPostBySlug, getPostMetaBySlug } from "@/lib/blog.ts";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/seo/metadata.ts";
@@ -26,26 +26,10 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { RelatedContent, RelatedContentFallback } from "@/components/features/related-content";
 
 /**
- * List of blog posts that should use software application schema
- * This helps improve SEO for software-related posts
+ * Software application details by slug.
+ * Posts with entries here will use SoftwareApplication schema instead of NewsArticle.
  */
-const SOFTWARE_POSTS = new Set(["introducing-flag-deprecated-files-vscode-extension"]);
-
-/**
- * Software application details by slug
- * Provides schema.org SoftwareApplication metadata for specific posts
- */
-const SOFTWARE_DETAILS: Record<
-  string,
-  {
-    name: string;
-    operatingSystem: string;
-    applicationCategory: string;
-    downloadUrl: string;
-    softwareVersion?: string;
-    screenshot?: string;
-  }
-> = {
+const SOFTWARE_DETAILS: Record<string, SoftwarePostDetails> = {
   "introducing-flag-deprecated-files-vscode-extension": {
     name: "Flag Deprecated Files",
     operatingSystem: "Windows, macOS, Linux",
@@ -55,6 +39,14 @@ const SOFTWARE_DETAILS: Record<
     screenshot: getStaticImageUrl("/images/posts/filey-flag-deprecated-files.png"),
   },
 };
+
+/**
+ * Get software details for a blog post slug if it's a software post.
+ * Returns undefined for regular blog posts.
+ */
+function getSoftwareDetails(slug: string): SoftwarePostDetails | undefined {
+  return SOFTWARE_DETAILS[slug];
+}
 
 /**
  * Generate metadata for blog post pages
@@ -82,8 +74,8 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
   // Full URL for the blog post
   const postUrl = ensureAbsoluteUrl(`/blog/${post.slug}`);
 
-  // Check if this is a software post
-  const isSoftwarePost = SOFTWARE_POSTS.has(slug);
+  // Check if this is a software post (single lookup, cached)
+  const softwareDetails = getSoftwareDetails(slug);
 
   const baseArticleParams = {
     title: post.title,
@@ -97,27 +89,26 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
     authors: [
       {
         name: post.author.name,
-        url: post.author.url || ensureAbsoluteUrl("/about"), // Assuming /about exists or use a default
+        url: post.author.url || ensureAbsoluteUrl("/about"),
       },
     ],
   };
 
-  const articleMetadata =
-    isSoftwarePost && SOFTWARE_DETAILS[slug]
-      ? createSoftwareApplicationMetadata({
-          ...baseArticleParams,
-          softwareName: SOFTWARE_DETAILS[slug].name,
-          operatingSystem: SOFTWARE_DETAILS[slug].operatingSystem,
-          applicationCategory: SOFTWARE_DETAILS[slug].applicationCategory,
-          isFree: true,
-          downloadUrl: SOFTWARE_DETAILS[slug].downloadUrl,
-          softwareVersion: SOFTWARE_DETAILS[slug].softwareVersion,
-          screenshot: SOFTWARE_DETAILS[slug].screenshot,
-        })
-      : createArticleMetadata({
-          ...baseArticleParams,
-          useNewsArticle: true,
-        });
+  const articleMetadata = softwareDetails
+    ? createSoftwareApplicationMetadata({
+        ...baseArticleParams,
+        softwareName: softwareDetails.name,
+        operatingSystem: softwareDetails.operatingSystem,
+        applicationCategory: softwareDetails.applicationCategory,
+        isFree: true,
+        downloadUrl: softwareDetails.downloadUrl,
+        softwareVersion: softwareDetails.softwareVersion,
+        screenshot: softwareDetails.screenshot,
+      })
+    : createArticleMetadata({
+        ...baseArticleParams,
+        useNewsArticle: true,
+      });
 
   const metadata: ExtendedMetadata = {
     title: articleMetadata.title,
@@ -151,9 +142,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     }
 
     // Build JSON-LD schema graph (Next.js metadata script tag not reliable for bots)
-    const isSoftwarePost = SOFTWARE_POSTS.has(slug);
-
-    const pageType: "software" | "article" = isSoftwarePost ? "software" : "article";
+    const softwareDetails = getSoftwareDetails(slug);
+    const pageType: "software" | "article" = softwareDetails ? "software" : "article";
 
     const absoluteImageUrl = post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined;
 
@@ -185,14 +175,14 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           url: post.author.url || ensureAbsoluteUrl("/about"),
         },
       ],
-      ...(isSoftwarePost && {
+      ...(softwareDetails && {
         softwareMetadata: {
-          name: SOFTWARE_DETAILS[slug]?.name ?? post.title,
-          operatingSystem: SOFTWARE_DETAILS[slug]?.operatingSystem ?? "Windows, macOS, Linux",
-          applicationCategory: SOFTWARE_DETAILS[slug]?.applicationCategory ?? "DeveloperApplication",
-          downloadUrl: SOFTWARE_DETAILS[slug]?.downloadUrl,
-          softwareVersion: SOFTWARE_DETAILS[slug]?.softwareVersion,
-          screenshot: SOFTWARE_DETAILS[slug]?.screenshot,
+          name: softwareDetails.name,
+          operatingSystem: softwareDetails.operatingSystem,
+          applicationCategory: softwareDetails.applicationCategory,
+          downloadUrl: softwareDetails.downloadUrl,
+          softwareVersion: softwareDetails.softwareVersion,
+          screenshot: softwareDetails.screenshot,
           isFree: true,
         },
       }),
