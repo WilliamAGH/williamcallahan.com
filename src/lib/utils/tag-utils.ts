@@ -151,3 +151,19 @@ export function slugToTagDisplay(slug: string): string {
 
   return formatTagDisplay(slug.replace(/-/g, " "));
 }
+
+/**
+ * Normalizes and deduplicates a list of tag strings.
+ * Converts to lowercase, trims whitespace, removes duplicates.
+ *
+ * @param tags - Array of tag strings to normalize
+ * @returns Deduplicated array of normalized (lowercase, trimmed) tags
+ *
+ * @example
+ * normalizeAndDeduplicateTags(['React', ' react ', 'Vue'])
+ * // Returns ['react', 'vue']
+ */
+export function normalizeAndDeduplicateTags(tags: string[]): string[] {
+  if (!Array.isArray(tags)) return [];
+  return Array.from(new Set(tags.map(t => t.toLowerCase().trim())));
+}
