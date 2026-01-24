@@ -282,7 +282,9 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
                       ? `/bookmarks/tags/${tagToSlug(tag)}`
                       : type === "blog"
                         ? `/blog/tags/${kebabCase(tag)}`
-                        : null;
+                        : type === "project"
+                          ? `/projects?tag=${encodeURIComponent(tag)}`
+                          : null;
                   const chip = (
                     <span className="px-1.5 py-0.5 text-[11px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded truncate max-w-[7rem]">
                       {tag}

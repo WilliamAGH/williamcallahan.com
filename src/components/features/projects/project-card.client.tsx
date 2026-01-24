@@ -1,13 +1,13 @@
 "use client";
 
-import { ExternalLink } from "@/components/ui/external-link.client";
+import Link from "next/link";
 import type { ProjectCardProps } from "@/types/features/projects";
 import Image from "next/image";
 import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { type JSX, useState, useEffect } from "react";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
-import { kebabCase } from "@/lib/utils/formatters";
 import { AlertTriangle } from "lucide-react";
+import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 
 const MAX_DISPLAY_TECH_ITEMS = 10;
 
@@ -62,12 +62,13 @@ function PlaceholderImageTop() {
 }
 
 export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX.Element {
-  const { name, description, url, imageKey, tags, techStack } = project;
+  const { name, description, imageKey, tags, techStack } = project;
   const initialImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
   const initialProxiedUrl = initialImageUrl ? buildCachedImageUrl(initialImageUrl) : undefined;
 
-  // Generate a URL-safe ID from the project name for anchor linking
-  const projectId = kebabCase(name);
+  // Generate slug for internal detail page link
+  const projectSlug = generateProjectSlug(name, project.id);
+  const detailPageUrl = `/projects/${projectSlug}`;
 
   const [imageUrl, setImageUrl] = useState(initialProxiedUrl);
   const [hasError, setHasError] = useState(false);
@@ -96,19 +97,13 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
   return (
     // Redesigned card for horizontal layout on medium screens and up
     <div
-      id={projectId || undefined}
-      tabIndex={projectId ? -1 : undefined}
+      id={projectSlug || undefined}
+      tabIndex={projectSlug ? -1 : undefined}
       className="group rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden bg-white dark:bg-gray-900 transition-all duration-300 ease-in-out hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-gray-900/50 hover:border-blue-400/50 dark:hover:border-blue-500/50 opacity-0 animate-fade-in-up md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] flex flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
     >
       {/* Image Section (Left on desktop, top on mobile) */}
       <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center min-h-[140px] md:min-h-[180px]">
-        <ExternalLink
-          href={url}
-          title={`Visit ${name}'s website`}
-          rawTitle={true}
-          showIcon={false}
-          className="block w-full h-full"
-        >
+        <Link href={detailPageUrl} title={`View ${name} details`} className="block w-full h-full">
           {imageUrl ? (
             <div className="relative w-full h-full flex items-center justify-center p-3 md:p-4">
               <Image
@@ -131,7 +126,7 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
               <PlaceholderImageTop />
             </div>
           )}
-        </ExternalLink>
+        </Link>
       </div>
       {/* Content Section (Right on desktop, bottom on mobile) */}
       <div className="p-5 md:p-6 flex flex-col">
@@ -140,14 +135,13 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
           <div className="space-y-3">
             {/* Header */}
             <h3 className="text-xl font-mono font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              <ExternalLink
-                href={url}
-                title={`Visit ${name}'s website`}
-                showIcon={false}
+              <Link
+                href={detailPageUrl}
+                title={`View ${name} details`}
                 className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
               >
                 {name}
-              </ExternalLink>
+              </Link>
             </h3>
             {/* Code Snippet */}
             <pre className="bg-gray-900 dark:bg-gray-950 text-green-400 p-3 rounded-lg text-sm font-mono whitespace-pre-wrap leading-relaxed border border-gray-800">

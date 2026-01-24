@@ -18,6 +18,7 @@ import {
   Library,
   Quote,
   ChevronLeft,
+  Github,
 } from "lucide-react";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { formatDate } from "@/lib/utils";
@@ -57,6 +58,19 @@ function toDisplayDate(date?: string | Date | number | null): string | null {
   return text === "Invalid Date" ? null : text;
 }
 
+/**
+ * Check if a URL is a GitHub URL
+ */
+function isGitHubUrl(url: string): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
+    return parsed.hostname === "github.com" || parsed.hostname === "www.github.com";
+  } catch {
+    return false;
+  }
+}
+
 export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
   const [mounted, setMounted] = useState(false);
   const { scrollY } = useScroll();
@@ -73,6 +87,9 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
 
   // Sanitize URL using the shared utility
   const safeUrl = useMemo(() => safeExternalHref(bookmark.url), [bookmark.url]);
+
+  // Check if this is a GitHub URL for special styling
+  const isGitHub = useMemo(() => isGitHubUrl(bookmark.url), [bookmark.url]);
 
   // Calculate reading time display
   const readingTimeDisplay = useMemo(() => {
@@ -371,9 +388,14 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                   href={safeUrl ?? "/bookmarks"}
                   target={safeUrl ? "_blank" : undefined}
                   rel={safeUrl ? "noopener noreferrer" : undefined}
-                  className="flex items-center justify-center gap-2 w-full px-5 py-3 sm:py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors group"
+                  className={`flex items-center justify-center gap-2 w-full px-5 py-3 sm:py-2.5 font-medium rounded-lg transition-colors group ${
+                    isGitHub
+                      ? "bg-[#24292f] dark:bg-[#f0f3f6] text-white dark:text-[#24292f] hover:bg-[#32383f] dark:hover:bg-[#d8dee4]"
+                      : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100"
+                  }`}
                 >
-                  <span>Visit Site</span>
+                  {isGitHub ? <Github className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
+                  <span>{isGitHub ? "View on GitHub" : "Visit Site"}</span>
                   <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </a>
 

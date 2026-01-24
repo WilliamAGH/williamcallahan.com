@@ -12,12 +12,12 @@ import { investments } from "@/data/investments";
 import { projects } from "@/data/projects";
 import { fetchBooks } from "@/lib/books/audiobookshelf.server";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
+import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 import { getThoughts } from "@/lib/thoughts/service.server";
 import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
 import { extractKeywords, extractCrossContentKeywords } from "./keyword-extractor";
 import { extractDomain } from "@/lib/utils";
 import { getBulkBookmarkSlugs } from "@/lib/bookmarks/slug-helpers";
-import { kebabCase } from "@/lib/utils/formatters";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import type { NormalizedContent, RelatedContentType } from "@/types/related-content";
 import type { UnifiedBookmark } from "@/types/bookmark";
@@ -239,19 +239,23 @@ function normalizeProject(project: Project): NormalizedContent {
   // Deduplicate and normalize tags to lowercase for consistent similarity
   const enhancedTags = Array.from(new Set([...tags, ...keywords].map(t => t.toLowerCase().trim())));
 
+  // Generate slug for URL path
+  const slug = generateProjectSlug(project.name, project.id);
+
   return {
     id: project.id || project.name,
     type: "project",
     title: project.name,
     text,
     tags: enhancedTags,
-    url: `/projects#${kebabCase(String(project.id || project.name))}`,
+    url: `/projects/${slug}`,
     domain: extractDomain(project.url),
     date: undefined, // Projects don't have dates in current schema
     display: {
       description: project.shortSummary || project.description,
       project: {
         imageKey: project.imageKey ?? undefined,
+        slug,
       },
     },
   };
