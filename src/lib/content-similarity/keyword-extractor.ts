@@ -5,6 +5,8 @@
  * tags for better content matching and discovery.
  */
 
+import { normalizeAndDeduplicateTags } from "@/lib/utils/tag-utils";
+
 /**
  * Common English stop words to filter out
  */
@@ -406,7 +408,7 @@ export function extractKeywords(
   }
 
   // Filter out existing tags to avoid duplicates
-  const existingTagsNormalized = new Set(existingTags.map(tag => tag.toLowerCase().trim()));
+  const existingTagsNormalized = new Set(normalizeAndDeduplicateTags(existingTags));
 
   for (const tag of existingTagsNormalized) {
     scores.delete(tag);
