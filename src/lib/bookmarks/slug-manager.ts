@@ -14,6 +14,7 @@
  */
 
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
+import { normalizeString } from "@/lib/utils";
 import type { UnifiedBookmark, BookmarkSlugMapping, BookmarkSlugEntry } from "@/types";
 import { readJsonS3, writeJsonS3, deleteFromS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
@@ -67,7 +68,7 @@ const normalizeShardChar = (char: string | undefined): string => {
 };
 
 const getSlugShardBucket = (slug: string): string => {
-  const normalized = slug.trim().toLowerCase();
+  const normalized = normalizeString(slug);
   if (normalized.length === 0) {
     return `${SHARD_FALLBACK_CHAR}${SHARD_FALLBACK_CHAR}`;
   }

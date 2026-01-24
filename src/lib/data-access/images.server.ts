@@ -2,6 +2,7 @@ import "server-only";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { env } from "@/lib/env";
 import { cacheContextGuards } from "@/lib/cache";
+import { sanitizeCacheTag } from "@/lib/utils/sanitize";
 
 // S3 is PERSISTENT STORAGE, not a cache!
 // This module caches data retrieved FROM S3 to reduce storage reads.
@@ -32,7 +33,7 @@ export async function getImageFromS3StorageForCache(key: string): Promise<Buffer
 
   safeCacheLife("Images", "weeks"); // Use predefined profile for consistency
   safeCacheTag("Images", "image");
-  const imageKeyTag = `image-key-${key.replace(/[^a-zA-Z0-9-]/g, "-")}`;
+  const imageKeyTag = `image-key-${sanitizeCacheTag(key)}`;
   safeCacheTag("Images", imageKeyTag);
 
   const command = new GetObjectCommand({
@@ -56,7 +57,7 @@ export async function getImageFromS3StorageForCache(key: string): Promise<Buffer
 export function invalidateImageCache(key?: string): void {
   if (key) {
     // Invalidate specific image
-    const imageKeyTag = `image-key-${key.replace(/[^a-zA-Z0-9-]/g, "-")}`;
+    const imageKeyTag = `image-key-${sanitizeCacheTag(key)}`;
     safeRevalidateTag("Images", imageKeyTag);
     console.log(`[Images] Cache invalidated for image: ${key}`);
   } else {
