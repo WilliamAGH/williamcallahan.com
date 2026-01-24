@@ -28,6 +28,18 @@ import type { Project } from "@/types/project";
 import type { ProjectPageProps } from "@/types/features/projects";
 
 /**
+ * Tag patterns mapped to schema.org applicationCategory values.
+ * Order matters - first match wins (more specific patterns first).
+ */
+const TAG_CATEGORY_MAPPINGS: Array<{ patterns: string[]; category: string }> = [
+  { patterns: ["terminal", "tui", "cli"], category: "DeveloperApplication" },
+  { patterns: ["vs code", "extension", "ide"], category: "DeveloperApplication" },
+  { patterns: ["sdk", "library", "framework"], category: "DeveloperApplication" },
+  { patterns: ["web app", "saas"], category: "WebApplication" },
+  { patterns: ["mobile"], category: "MobileApplication" },
+];
+
+/**
  * Derive schema.org applicationCategory from project tags.
  * Maps semantic tags to appropriate schema.org SoftwareApplication categories.
  *
@@ -36,23 +48,12 @@ import type { ProjectPageProps } from "@/types/features/projects";
 function deriveApplicationCategory(tags: string[]): string {
   const lowerTags = tags.map(t => t.toLowerCase());
 
-  // Priority order matters - more specific categories first
-  if (lowerTags.some(t => t.includes("terminal") || t.includes("tui") || t.includes("cli"))) {
-    return "DeveloperApplication";
+  for (const { patterns, category } of TAG_CATEGORY_MAPPINGS) {
+    if (lowerTags.some(tag => patterns.some(pattern => tag.includes(pattern)))) {
+      return category;
+    }
   }
-  if (lowerTags.some(t => t.includes("vs code") || t.includes("extension") || t.includes("ide"))) {
-    return "DeveloperApplication";
-  }
-  if (lowerTags.some(t => t.includes("sdk") || t.includes("library") || t.includes("framework"))) {
-    return "DeveloperApplication";
-  }
-  if (lowerTags.some(t => t.includes("web app") || t.includes("saas"))) {
-    return "WebApplication";
-  }
-  if (lowerTags.some(t => t.includes("mobile"))) {
-    return "MobileApplication";
-  }
-  // Default fallback for general software
+
   return "Application";
 }
 
@@ -143,7 +144,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     type: "software" as const,
     image: project.imageKey
       ? {
-          url: ensureAbsoluteUrl(`/cdn/${project.imageKey}`),
+          url: buildProjectOgImageUrl(project),
           width: 1200,
           height: 630,
         }
