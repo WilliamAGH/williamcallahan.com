@@ -7,25 +7,9 @@ import { metadata, PAGE_METADATA } from "@/data/metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
 import { deslugify, kebabCase } from "@/lib/utils/formatters";
-import { getAllPosts, getAllPostsMeta } from "@/lib/blog";
+import { getAllPosts } from "@/lib/blog";
 import type { Metadata } from "next";
 import { RelatedContent, RelatedContentFallback } from "@/components/features/related-content";
-
-/**
- * Generates static paths for all unique tags.
- * @returns {Promise<{ tagSlug: string }[]>} An array of objects containing tag slugs.
- */
-export async function generateStaticParams(): Promise<{ tagSlug: string }[]> {
-  // Use getAllPostsMeta to skip heavy processing
-  const posts = await getAllPostsMeta();
-  const tags = new Set<string>();
-  for (const post of posts) {
-    for (const tag of post.tags) {
-      tags.add(kebabCase(tag));
-    }
-  }
-  return Array.from(tags).map(tag => ({ tagSlug: tag }));
-}
 
 /**
  * Generates metadata for the tag page.
