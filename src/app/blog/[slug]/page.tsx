@@ -13,7 +13,7 @@
 
 import { Suspense } from "react";
 import type { BlogPostPageProps } from "@/types/blog";
-// Import getPostBySlug and getAllPostsMeta from the main blog library
+// Import blog post retrieval utilities from the main blog library
 import { getPostBySlug, getPostMetaBySlug } from "@/lib/blog.ts";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/seo/metadata.ts";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
