@@ -222,7 +222,7 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     // Check if this might be a project slug
     if (slug.startsWith("project-") || slug.includes("-project-")) {
       envLogger.log(
-        `Potential project slug detected in bookmark route: ${slug}. User should be redirected to /projects#${slug}`,
+        `Potential project slug detected in bookmark route: ${slug}. User should be redirected to /projects/${slug}`,
         undefined,
         { category: "BookmarkPage" },
       );
