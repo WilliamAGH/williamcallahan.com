@@ -26,49 +26,15 @@ import { BookmarksWindow } from "./bookmarks-window.client";
 import { BookmarkAiAnalysis } from "./bookmark-ai-analysis.client";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import { removeCitations, processSummaryText } from "@/lib/utils/formatters";
-import { safeExternalHref } from "@/lib/utils/url-utils";
+import { safeExternalHref, getDisplayHostname, isGitHubUrl } from "@/lib/utils/url-utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 import { TerminalContext } from "@/components/ui/context-notes/terminal-context.client";
-
-const getHostname = (rawUrl: string): string => {
-  if (!rawUrl) {
-    return "website";
-  }
-
-  const candidate = rawUrl.trim();
-  if (!candidate) {
-    return "website";
-  }
-
-  const withScheme = /^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`;
-
-  try {
-    const url = new URL(withScheme);
-    const hostname = url.hostname.replace(/^www\./, "").trim();
-    return hostname || "website";
-  } catch {
-    return "website";
-  }
-};
 
 // Helper to avoid rendering the literal "Invalid Date"
 function toDisplayDate(date?: string | Date | number | null): string | null {
   if (date == null) return null;
   const text = formatDate(date);
   return text === "Invalid Date" ? null : text;
-}
-
-/**
- * Check if a URL is a GitHub URL
- */
-function isGitHubUrl(url: string): boolean {
-  if (!url) return false;
-  try {
-    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
-    return parsed.hostname === "github.com" || parsed.hostname === "www.github.com";
-  } catch {
-    return false;
-  }
 }
 
 export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
@@ -83,7 +49,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
   }, []);
 
   // Extract domain for display with case-insensitive scheme detection
-  const domain = useMemo(() => getHostname(bookmark.url), [bookmark.url]);
+  const domain = useMemo(() => getDisplayHostname(bookmark.url), [bookmark.url]);
 
   // Sanitize URL using the shared utility
   const safeUrl = useMemo(() => safeExternalHref(bookmark.url), [bookmark.url]);

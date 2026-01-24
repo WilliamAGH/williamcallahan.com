@@ -59,8 +59,14 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
   const customTitle = generateDynamicTitle(project.name, "projects");
   const customDescription = project.shortSummary || project.description.slice(0, 155);
 
-  // Use project screenshot for OG image
+  // Use project screenshot for OG image - shared between openGraph and twitter
   const ogImageUrl = buildProjectOgImageUrl(project);
+  const ogImage = {
+    url: ogImageUrl,
+    width: 1200,
+    height: 630,
+    alt: `Screenshot of ${project.name}`,
+  };
 
   return {
     ...baseMetadata,
@@ -72,28 +78,14 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
       description: customDescription,
       type: "website",
       url: ensureAbsoluteUrl(path),
-      images: [
-        {
-          url: ogImageUrl,
-          width: 1200,
-          height: 630,
-          alt: `Screenshot of ${project.name}`,
-        },
-      ],
+      images: [ogImage],
     },
     twitter: {
       ...baseMetadata.twitter,
       card: "summary_large_image",
       title: customTitle,
       description: customDescription,
-      images: [
-        {
-          url: ogImageUrl,
-          width: 1200,
-          height: 630,
-          alt: `Screenshot of ${project.name}`,
-        },
-      ],
+      images: [ogImage],
     },
     alternates: {
       canonical: ensureAbsoluteUrl(path),

@@ -8,22 +8,9 @@ import { type JSX, useState, useEffect } from "react";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { AlertTriangle, ExternalLink, Github } from "lucide-react";
 import { generateProjectSlug } from "@/lib/projects/slug-helpers";
-import { safeExternalHref } from "@/lib/utils/url-utils";
+import { safeExternalHref, isGitHubUrl } from "@/lib/utils/url-utils";
 
 const MAX_DISPLAY_TECH_ITEMS = 10;
-
-/**
- * Check if a URL is a GitHub URL for special icon treatment
- */
-function isGitHubUrl(url: string): boolean {
-  if (!url) return false;
-  try {
-    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
-    return parsed.hostname === "github.com" || parsed.hostname === "www.github.com";
-  } catch {
-    return false;
-  }
-}
 
 // Hoisted helper to satisfy consistent-function-scoping
 function deriveTechFromTags(tagList: string[] | undefined): string[] {
