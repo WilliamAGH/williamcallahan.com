@@ -8,12 +8,11 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { unstable_noStore as noStore } from "next/cache";
+import { preventCaching, validateAuthSecret, createErrorResponse, NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { getSystemMetrics } from "@/lib/health/status-monitor.server";
 import { HealthMetricsResponseSchema, type HealthMetrics } from "@/types/health";
 
-const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
 /**
@@ -32,16 +31,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { status: 200, headers: NO_STORE_HEADERS },
     );
   }
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  preventCaching();
   try {
     // Check authorization using existing env variable
-    const authHeader = request.headers.get("authorization");
     const expectedToken = process.env.GITHUB_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
 
-    if (!expectedToken || authHeader !== `Bearer ${expectedToken}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS });
+    if (!validateAuthSecret(request, expectedToken)) {
+      return createErrorResponse("Unauthorized", 401);
     }
     const monitor = getMemoryHealthMonitor();
     const healthStatus = monitor.getHealthStatus();
@@ -112,11 +108,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(parsedResponse, { headers: NO_STORE_HEADERS });
   } catch (error: unknown) {
     console.error("Error retrieving health metrics:", error);
-    const message =
-      error instanceof Error ? error.message : "An unknown error occurred while retrieving health metrics.";
-    return NextResponse.json(
-      { error: "Failed to retrieve health metrics", details: message },
-      { status: 500, headers: NO_STORE_HEADERS },
-    );
+    return createErrorResponse("Failed to retrieve health metrics", 500, undefined);
   }
 }

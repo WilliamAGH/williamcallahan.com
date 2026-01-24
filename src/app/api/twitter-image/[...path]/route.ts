@@ -1,13 +1,11 @@
-import { unstable_noStore as noStore } from "next/cache";
+import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 // Prefer explicit async params typing to avoid thenable duck-typing
 import { sanitizePath, IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  preventCaching();
   try {
     // Reconstruct the Twitter image URL from dynamic params
     const { path: pathSegments } = await params;

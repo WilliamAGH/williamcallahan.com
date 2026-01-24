@@ -5,28 +5,26 @@
  * Used by social cards to fetch profile images with S3 persistence
  */
 
-import { unstable_noStore as noStore } from "next/cache";
+import { preventCaching, createErrorResponse } from "@/lib/utils/api-utils";
 import { NextRequest, NextResponse } from "next/server";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import type { OgImageApiResponse } from "@/types";
 
 export async function GET(request: NextRequest) {
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  preventCaching();
   const requestUrl = new URL(request.url);
   const { searchParams } = requestUrl;
   const url = searchParams.get("url");
 
   if (!url) {
-    return NextResponse.json({ error: "URL parameter is required" }, { status: 400 });
+    return createErrorResponse("URL parameter is required", 400);
   }
 
   try {
     // Validate URL without side effects
     if (!URL.canParse(url)) throw new Error("invalid");
   } catch {
-    return NextResponse.json({ error: "Invalid URL format" }, { status: 400 });
+    return createErrorResponse("Invalid URL format", 400);
   }
 
   try {
@@ -34,7 +32,7 @@ export async function GET(request: NextRequest) {
     const ogData = await getOpenGraphData(url);
 
     if (!ogData) {
-      return NextResponse.json({ error: "Failed to fetch OpenGraph data" }, { status: 404 });
+      return createErrorResponse("Failed to fetch OpenGraph data", 404);
     }
 
     // Return data in the format expected by SocialCardClient
@@ -50,6 +48,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("[OG-Data API] Error fetching OpenGraph data:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return createErrorResponse("Internal server error", 500);
   }
 }

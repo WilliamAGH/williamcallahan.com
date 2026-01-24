@@ -9,7 +9,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { unstable_noStore as noStore } from "next/cache";
+import { preventCaching, createErrorResponse } from "@/lib/utils/api-utils";
 
 /**
  * GET /api/metrics/cache
@@ -19,9 +19,7 @@ import { unstable_noStore as noStore } from "next/cache";
  */
 export function GET(): NextResponse {
   try {
-    if (typeof noStore === "function") {
-      noStore();
-    }
+    preventCaching();
     // Get process memory for context
     const memUsage = process.memoryUsage();
 
@@ -69,6 +67,6 @@ export function GET(): NextResponse {
     return NextResponse.json(response);
   } catch (error) {
     console.error("Error retrieving metrics:", error);
-    return NextResponse.json({ error: "Failed to retrieve metrics" }, { status: 500 });
+    return createErrorResponse("Failed to retrieve metrics", 500);
   }
 }
