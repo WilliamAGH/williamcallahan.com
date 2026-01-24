@@ -71,6 +71,10 @@ export async function resolveInvestmentCardData(
     console.warn(`[InvestmentCard] Manifest lookup failed for ${effectiveDomain}:`, message);
   }
 
+  // Build-time logo resolution strategy: During static generation (phase-production-build),
+  // avoid blocking async I/O by deferring to runtime logo service endpoint instead of
+  // awaiting getLogoCdnData. The client will resolve the actual logo at request time.
+  // This sets source: null and needsInversion: false to mark it as deferred resolution.
   const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
   if (isProductionBuildPhase) {
     const runtimeLogoUrl = getRuntimeLogoUrl(effectiveDomain, { company: name, forceRefresh: false });
