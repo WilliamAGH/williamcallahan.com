@@ -160,8 +160,9 @@ async function lookupMdxPost(slug: string, skipHeavyProcessing: boolean): Promis
       const directPost = await getMDXPostCached(slug, directFilePath, undefined, skipHeavyProcessing);
       if (directPost) return { found: true, post: directPost };
     } catch (error) {
+      // Only suppress ENOENT (file not found) - propagate all other errors
       const code = (error as NodeJS.ErrnoException | null)?.code;
-      if (code && code !== "ENOENT") {
+      if (code !== "ENOENT") {
         throw error;
       }
     }
