@@ -7,6 +7,7 @@
 
 import type { NormalizedContent, SimilarityWeights, RelatedContentType } from "@/types/related-content";
 import { getDeterministicTimestamp } from "@/lib/server-cache";
+import { getRootDomain } from "@/lib/utils/url-utils";
 import { hasInvestmentContext } from "./keyword-extractor";
 import { calculateSemanticTagSimilarity } from "./tag-ontology";
 
@@ -80,17 +81,6 @@ function calculateTextSimilarity(text1: string, text2: string): number {
 }
 
 /**
- * Extract main domain from a full domain string
- */
-function extractMainDomain(domain: string): string {
-  const parts = domain.split(".");
-  if (parts.length >= 2) {
-    return parts.slice(-2).join(".");
-  }
-  return domain;
-}
-
-/**
  * Calculate domain similarity for bookmarks
  */
 function calculateDomainSimilarity(domain1?: string, domain2?: string): number {
@@ -100,8 +90,8 @@ function calculateDomainSimilarity(domain1?: string, domain2?: string): number {
   if (domain1 === domain2) return 1;
 
   // Subdomain match (e.g., blog.example.com and www.example.com)
-  const main1 = extractMainDomain(domain1);
-  const main2 = extractMainDomain(domain2);
+  const main1 = getRootDomain(domain1);
+  const main2 = getRootDomain(domain2);
 
   return main1 === main2 ? 0.7 : 0;
 }

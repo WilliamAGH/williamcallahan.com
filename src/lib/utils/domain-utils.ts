@@ -9,7 +9,8 @@
  */
 
 import { isContentSharingDomain } from "@/lib/config/content-sharing-domains";
-import { ensureProtocol, stripWwwPrefix } from "@/lib/utils/url-utils";
+import { ensureProtocol, stripWwwPrefix, getRootDomain } from "@/lib/utils/url-utils";
+import { sanitizeControlChars, sanitizeTitleSlug } from "@/lib/utils/sanitize";
 
 /**
  * Converts a title string into a URL-safe slug.
@@ -39,9 +40,10 @@ export function titleToSlug(title: string, maxLength: number = 60): string {
     // Remove apostrophes and quotes
     .replace(/['"]/g, "")
     // Replace ampersands with 'and'
-    .replace(/&/g, "and")
-    // Remove all non-alphanumeric characters except spaces and hyphens
-    .replace(/[^\w\s-]/g, "")
+    .replace(/&/g, "and");
+
+  // Remove all non-alphanumeric characters except spaces and hyphens
+  slug = sanitizeTitleSlug(slug)
     // Replace whitespace with hyphens
     .replace(/\s+/g, "-")
     // Replace multiple consecutive hyphens with a single hyphen
@@ -212,18 +214,18 @@ function getBaseSlugFromUrl(url: string, title?: string): string {
     // If there's a meaningful path, include it
     const path = urlObj.pathname;
     if (path && path !== "/" && path.length > 1) {
-      const cleanPath = path
-        .toLowerCase()
-        // Strip Unicode control characters first
-        .replace(/[\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, "")
+      const cleanPath = path.toLowerCase();
+
+      // Strip Unicode control characters first
+      const sanitizedPath = sanitizeControlChars(cleanPath)
         .replace(/^\/|\/$/g, "") // Remove leading/trailing slashes
         .replace(/\//g, "-") // Replace slashes with dashes
         .replace(/[^a-zA-Z0-9-]/g, "-") // Replace non-alphanumeric with dashes
         .replace(/-+/g, "-") // Replace multiple dashes with single dash
         .replace(/-+$/g, ""); // Remove trailing dashes
 
-      if (cleanPath) {
-        slug = `${slug}-${cleanPath}`;
+      if (sanitizedPath) {
+        slug = `${slug}-${sanitizedPath}`;
       }
     }
     return slug;
@@ -360,7 +362,7 @@ export function getDomainVariants(domain: string): string[] {
   // If it's a subdomain, also try the root domain
   const parts: string[] = domain.split(".");
   if (parts.length > 2) {
-    const rootDomain: string = parts.slice(-2).join(".");
+    const rootDomain = getRootDomain(domain);
     if (rootDomain !== domain) {
       variants.push(rootDomain);
     }

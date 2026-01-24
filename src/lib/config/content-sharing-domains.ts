@@ -17,7 +17,7 @@
  * @see {@link @/lib/utils/url-utils} for canonical URL extraction utilities
  */
 
-import { ensureProtocol, stripWwwPrefix } from "@/lib/utils/url-utils";
+import { ensureProtocol, stripWwwPrefix, getRootDomain } from "@/lib/utils/url-utils";
 
 /**
  * Readonly array of domains where content is shared across many URLs.
@@ -136,7 +136,7 @@ export function isContentSharingDomain(domain: string): boolean {
   const parts = normalized.split(".");
   if (parts.length >= 3) {
     // Extract parent domain (last two parts: domain.tld)
-    const parentDomain = parts.slice(-2).join(".");
+    const parentDomain = getRootDomain(normalized);
     if (CONTENT_SHARING_DOMAINS.includes(parentDomain as (typeof CONTENT_SHARING_DOMAINS)[number])) {
       return true;
     }

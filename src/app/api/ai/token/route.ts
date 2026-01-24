@@ -6,6 +6,7 @@ import { isOperationAllowed } from "@/lib/rate-limiter";
 import { createAiGateToken, hashUserAgent } from "@/lib/ai/openai-compatible/gate-token";
 import { getClientIp } from "@/lib/utils/request-utils";
 import logger from "@/lib/utils/logger";
+import { normalizeString } from "@/lib/utils";
 import { safeJsonParse } from "@/lib/utils/json-utils";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
@@ -20,7 +21,7 @@ const HTTPS_COOKIE_NAME = "__Host-ai_gate_nonce";
 const HTTP_COOKIE_NAME = "ai_gate_nonce";
 
 function isAllowedHostname(hostname: string): boolean {
-  const lower = hostname.toLowerCase();
+  const lower = normalizeString(hostname);
   if (lower === "williamcallahan.com" || lower.endsWith(".williamcallahan.com")) return true;
   if (process.env.NODE_ENV !== "production" && (lower === "localhost" || lower === "127.0.0.1")) return true;
   return false;
@@ -51,7 +52,7 @@ function getRequestOriginHostname(request: NextRequest): string | null {
 function isSecureRequest(request: NextRequest): boolean {
   const forwardedProto = request.headers.get("x-forwarded-proto");
   if (forwardedProto) {
-    return forwardedProto.split(",")[0]?.trim().toLowerCase() === "https";
+    return normalizeString(forwardedProto.split(",")[0] ?? "") === "https";
   }
 
   const forwarded = request.headers.get("forwarded");
@@ -59,12 +60,12 @@ function isSecureRequest(request: NextRequest): boolean {
     const first = forwarded.split(",")[0] ?? "";
     const match = first.match(/proto=([^;]+)/i);
     if (match) {
-      return match[1]?.trim().toLowerCase() === "https";
+      return normalizeString(match[1] ?? "") === "https";
     }
   }
 
   const forwardedSsl = request.headers.get("x-forwarded-ssl");
-  if (forwardedSsl && forwardedSsl.toLowerCase() === "on") {
+  if (forwardedSsl && normalizeString(forwardedSsl) === "on") {
     return true;
   }
 
@@ -72,7 +73,7 @@ function isSecureRequest(request: NextRequest): boolean {
   if (cfVisitor) {
     const parsed = safeJsonParse<{ scheme?: string }>(cfVisitor);
     if (parsed?.scheme && typeof parsed.scheme === "string") {
-      return parsed.scheme.toLowerCase() === "https";
+      return normalizeString(parsed.scheme) === "https";
     }
   }
 

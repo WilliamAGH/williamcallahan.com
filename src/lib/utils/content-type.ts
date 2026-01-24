@@ -5,6 +5,8 @@
  * Used across image services, S3 operations, and HTTP responses
  */
 
+import { normalizeString } from "@/lib/utils";
+
 /**
  * Image MIME type mapping
  */
@@ -114,7 +116,7 @@ export function getExtensionFromContentType(contentType: string | null): string 
   if (!contentType) return "jpg"; // Default fallback
 
   // Extract the base content type (remove charset and other parameters)
-  const baseType = contentType.split(";")[0]?.trim().toLowerCase() || "";
+  const baseType = normalizeString(contentType.split(";")[0] ?? "");
 
   // Use the comprehensive mapping
   return CONTENT_TYPE_TO_EXTENSION[baseType] || "jpg";
@@ -144,7 +146,7 @@ export function isImageContentType(contentType: string): boolean {
  * Normalize content type (remove parameters, lowercase)
  */
 export function normalizeContentType(contentType: string): string {
-  return contentType.toLowerCase().split(";")[0]?.trim() || "";
+  return normalizeString(contentType.split(";")[0] ?? "");
 }
 
 /**
