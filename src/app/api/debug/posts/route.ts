@@ -11,10 +11,9 @@ import path from "node:path";
 import { authors } from "@/data/blog/authors";
 import { posts as staticPosts } from "@/data/blog/posts";
 import { getAllMDXPosts } from "@/lib/blog/mdx";
-import { unstable_noStore as noStore } from "next/cache";
+import { preventCaching, NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
 
-const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
 // Only allow this endpoint in development
@@ -36,9 +35,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { status: 200, headers: NO_STORE_HEADERS },
     );
   }
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  preventCaching();
   try {
     // SECURITY: Require authentication for debug endpoints
     const authHeader = request.headers.get("authorization");

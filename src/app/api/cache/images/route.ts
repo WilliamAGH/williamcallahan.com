@@ -9,7 +9,7 @@
  * Uses UnifiedImageService for consistent image handling across the application.
  */
 
-import { unstable_noStore as noStore } from "next/cache";
+import { preventCaching, createErrorResponse } from "@/lib/utils/api-utils";
 import { type NextRequest, NextResponse } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import { openGraphUrlSchema } from "@/types/schemas/url";
@@ -30,14 +30,12 @@ const CDN_CONFIG = getCdnConfigFromEnv();
  */
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  preventCaching();
   const requestUrl = new URL(request.url);
   const searchParams = requestUrl.searchParams;
   const encodedUrl = searchParams.get("url");
   if (!encodedUrl) {
-    return NextResponse.json({ error: "URL parameter required" }, { status: 400 });
+    return createErrorResponse("URL parameter required", 400);
   }
   const url = decodeNestedUrl(encodedUrl);
   const width = searchParams.get("width");
@@ -46,10 +44,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // SECURITY: Validate URL to prevent SSRF attacks
   const urlValidation = openGraphUrlSchema.safeParse(url);
   if (!urlValidation.success) {
-    return NextResponse.json(
-      { error: "Invalid or unsafe URL", details: urlValidation.error.issues[0]?.message },
-      { status: 403 },
-    );
+    return createErrorResponse("Invalid or unsafe URL", 403);
   }
 
   // Validate and sanitize width
@@ -136,14 +131,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // If we have an error, return it
     if (result.error) {
-      return NextResponse.json({ error: result.error }, { status: 500 });
+      return createErrorResponse(result.error, 500);
     }
 
     // Fallback error
-    return NextResponse.json({ error: "Failed to process image" }, { status: 500 });
+    return createErrorResponse("Failed to process image", 500);
   } catch (error) {
     console.error("Image cache error:", error);
-    return NextResponse.json({ error: "Failed to process image" }, { status: 500 });
+    return createErrorResponse("Failed to process image", 500);
   }
 }
 

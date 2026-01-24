@@ -11,7 +11,7 @@
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
 import logger from "@/lib/utils/logger";
-import { unstable_noStore as noStore } from "next/cache";
+import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
@@ -33,9 +33,7 @@ import { parseS3Key } from "@/lib/utils/hash-utils";
  */
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  preventCaching();
   const requestUrl = new URL(request.url);
   const searchParams = requestUrl.searchParams;
   const website = searchParams.get("website") ?? searchParams.get("domain");

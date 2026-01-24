@@ -19,7 +19,7 @@ import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { type SearchResult, VALID_SCOPES } from "@/types/search";
-import { unstable_noStore as noStore } from "next/cache";
+import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, connection, type NextRequest } from "next/server";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
@@ -49,9 +49,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   await connection();
   // CRITICAL: Call noStore() FIRST to prevent Next.js from caching ANY response
   // If called after the build phase check, the buildPhase:true response gets cached
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  preventCaching();
   // Next.js 16: params is a Promise that must be awaited
   const resolvedParams = await params;
   if (isProductionBuildPhase()) {

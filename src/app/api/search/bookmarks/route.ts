@@ -15,7 +15,7 @@ import { searchBookmarks } from "@/lib/search";
 import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
 import { validateSearchQuery } from "@/lib/validators/search";
 import type { UnifiedBookmark } from "@/types";
-import { unstable_noStore as noStore } from "next/cache";
+import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, connection, type NextRequest } from "next/server";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
@@ -38,9 +38,7 @@ export async function GET(request: NextRequest) {
   await connection();
   // CRITICAL: Call noStore() FIRST to prevent Next.js from caching ANY response
   // If called after the build phase check, the buildPhase:true response gets cached
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  preventCaching();
   if (isProductionBuildPhase()) {
     return NextResponse.json(
       { data: [], totalCount: 0, hasMore: false, buildPhase: true },

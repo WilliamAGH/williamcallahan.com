@@ -2,7 +2,7 @@ import React from "react";
 import { TextDecoder as PolyfillTextDecoder } from "@sinonjs/text-encoding";
 import CvPdfDocument from "@/components/features/cv/CvPdfDocument";
 import logger from "@/lib/utils/logger";
-import { unstable_noStore as noStore } from "next/cache";
+import { preventCaching } from "@/lib/utils/api-utils";
 import { type NextRequest } from "next/server";
 
 const ensureWindows1252TextDecoder = (() => {
@@ -68,9 +68,7 @@ function buildProblemDetails({
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  preventCaching();
   const { renderToBuffer } = await rendererModulePromise;
   const correlationId = globalThis.crypto.randomUUID();
   const url = new URL(request.url);

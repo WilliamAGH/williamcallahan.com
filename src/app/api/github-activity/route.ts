@@ -12,7 +12,7 @@
  */
 
 import { getGithubActivityCached } from "@/lib/data-access/github";
-import { unstable_noStore as noStore } from "next/cache";
+import { preventCaching, createErrorResponse } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
@@ -24,9 +24,7 @@ import { NextResponse, type NextRequest } from "next/server";
  */
 export async function GET(request: NextRequest) {
   console.log("[API GET /github-activity] Received request.");
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  preventCaching();
 
   // The 'refresh' and 'force-cache' query params are no longer used by this GET endpoint
   // as getGithubActivity is now S3-read-only and refresh is handled by POST /api/github-activity/refresh
@@ -57,24 +55,6 @@ export async function GET(request: NextRequest) {
     console.error("[API GET /github-activity] Error fetching GitHub activity data:", errorMessage);
 
     // Provide a consistent structure even in error cases
-    return NextResponse.json(
-      {
-        error: "Failed to retrieve GitHub activity data.",
-        details: errorMessage,
-        source: "error",
-        trailingYearData: {
-          data: [],
-          totalContributions: 0,
-          dataComplete: false,
-        },
-        allTimeStats: {
-          totalContributions: 0,
-          linesAdded: 0,
-          linesRemoved: 0,
-        },
-        lastRefreshed: null,
-      },
-      { status: 500 },
-    );
+    return createErrorResponse("Failed to retrieve GitHub activity data.", 500, undefined);
   }
 }
