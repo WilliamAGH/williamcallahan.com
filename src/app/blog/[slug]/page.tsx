@@ -5,7 +5,8 @@
  * Renders individual blog posts with full content and metadata.
  * Implements proper SEO with schema.org structured data.
  *
- * Note: This dynamic route uses generateStaticParams for static generation at build time.
+ * Note: This dynamic route is rendered on-demand (no generateStaticParams) to avoid
+ * expensive build-time generation in low-resource CI environments.
  * The "use cache" directive is intentionally NOT used here because params is request-specific
  * and cannot be accessed inside a cached context in Next.js 16+.
  */
@@ -13,7 +14,7 @@
 import { Suspense } from "react";
 import type { BlogPostPageProps } from "@/types/blog";
 // Import getPostBySlug and getAllPostsMeta from the main blog library
-import { getAllPostsMeta, getPostBySlug, getPostMetaBySlug } from "@/lib/blog.ts";
+import { getPostBySlug, getPostMetaBySlug } from "@/lib/blog.ts";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/seo/metadata.ts";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import type { ExtendedMetadata } from "@/types/seo";
@@ -23,22 +24,6 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { RelatedContent, RelatedContentFallback } from "@/components/features/related-content";
-
-/**
- * Generate static paths for all blog posts at build time
- * with ISR revalidation for newer content
- */
-export const generateStaticParams = async () => {
-  // Use getAllPostsMeta to skip heavy processing (serialization/blur)
-  const posts = await getAllPostsMeta();
-  return posts.map(post => ({
-    slug: post.slug,
-  }));
-};
-
-// Set revalidation time for ISR (Incremental Static Regeneration)
-// Using ISR instead of force-static to allow revalidation
-// Removed conflicting 'dynamic = force-static' directive per GitHub issue #112
 
 /**
  * List of blog posts that should use software application schema
