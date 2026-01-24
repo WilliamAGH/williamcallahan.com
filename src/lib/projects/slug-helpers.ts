@@ -61,10 +61,11 @@ export function findProjectBySlug(slug: string, projects: Project[]): Project | 
   const normalizedSlug = slug.toLowerCase();
 
   // Pre-compute all slugs once for efficiency
+  // Note: idSlug uses 30-char limit to match generateProjectSlug's ID truncation
   const projectSlugs = projects.map(project => ({
     project,
     generated: generateProjectSlug(project.name, project.id),
-    idSlug: titleToSlug(project.id ?? project.name, 50),
+    idSlug: titleToSlug(project.id ?? project.name, 30),
     nameSlug: titleToSlug(project.name, 50),
   }));
 
