@@ -132,3 +132,17 @@ export type MemoizedLookupResult =
   | { status: "found"; post: BlogPost }
   | { status: "not_found" }
   | { status: "error"; error: Error };
+
+/**
+ * Parameters for memoized post lookup operations.
+ */
+export interface MemoizedLookupParams {
+  /** The post slug (must be pre-validated by caller) */
+  slug: string;
+  /** The memoization map to use */
+  memo: Map<string, Promise<MemoizedLookupResult>>;
+  /** Whether to skip MDX serialization/blur */
+  skipHeavyProcessing: boolean;
+  /** Function name for logging */
+  fnName: string;
+}
