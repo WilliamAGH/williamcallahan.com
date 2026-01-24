@@ -18,13 +18,13 @@ const isSeoDebugLoggingEnabled =
 /**
  * Generates consistent title formatting for dynamic pages
  * @param content - The main content for the title (e.g., post title, tag name)
- * @param type - The content type ('blog', 'bookmarks', 'books', 'thoughts', or 'default')
+ * @param type - The content type ('blog', 'bookmarks', 'books', 'projects', 'thoughts', or 'default')
  * @param options - Additional options for title formatting
  * @returns Formatted title string with appropriate suffix
  */
 export function generateDynamicTitle(
   content: string,
-  type: "blog" | "bookmarks" | "books" | "thoughts" | "default",
+  type: "blog" | "bookmarks" | "books" | "projects" | "thoughts" | "default",
   options?: { isTag?: boolean; isPaginated?: boolean; pageNumber?: number },
 ): string {
   const suffix =
@@ -34,9 +34,11 @@ export function generateDynamicTitle(
         ? SEO_TITLE_SUFFIXES.BOOKMARKS
         : type === "books"
           ? SEO_TITLE_SUFFIXES.BOOKS
-          : type === "thoughts"
-            ? SEO_TITLE_SUFFIXES.THOUGHTS
-            : SEO_TITLE_SUFFIXES.DEFAULT;
+          : type === "projects"
+            ? SEO_TITLE_SUFFIXES.PROJECTS
+            : type === "thoughts"
+              ? SEO_TITLE_SUFFIXES.THOUGHTS
+              : SEO_TITLE_SUFFIXES.DEFAULT;
 
   // Remove redundant prefixes to save space
   let cleanedContent = content;

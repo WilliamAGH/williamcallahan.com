@@ -61,3 +61,13 @@ export type ProjectsWindowClientProps = ProjectsWindowProps & {
   onMinimize?: () => void;
   onMaximize?: () => void;
 };
+
+// Props for the project detail page (dynamic route)
+export type ProjectPageProps = {
+  params: Promise<{ slug: string }>;
+};
+
+// Props for the ProjectDetail component
+export type ProjectDetailProps = {
+  project: Project;
+};
