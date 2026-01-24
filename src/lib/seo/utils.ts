@@ -11,6 +11,7 @@
 
 import type { PacificDateString } from "../../types/seo/shared";
 import { NEXT_PUBLIC_SITE_URL } from "../constants/client";
+import { IMAGE_MIME_TYPES } from "../utils/content-type";
 
 /**
  * Ensures a URL is absolute by prepending the site URL if necessary
@@ -74,23 +75,8 @@ export function getImageTypeFromUrl(url: string): string | undefined {
 
   if (!extension) return undefined;
 
-  switch (extension) {
-    case "jpg":
-    case "jpeg":
-      return "image/jpeg";
-    case "png":
-      return "image/png";
-    case "gif":
-      return "image/gif";
-    case "webp":
-      return "image/webp";
-    case "svg":
-      return "image/svg+xml";
-    case "ico":
-      return "image/x-icon";
-    default:
-      return undefined; // Return undefined for unsupported extensions
-  }
+  // Use shared MIME type mapping (returns undefined for unsupported extensions)
+  return IMAGE_MIME_TYPES[extension];
 }
 
 const PACIFIC_TIME_ZONE = "America/Los_Angeles";
