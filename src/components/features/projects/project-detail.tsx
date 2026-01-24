@@ -13,38 +13,9 @@ import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import type { ProjectDetailProps } from "@/types/features/projects";
 import { Globe, ExternalLink, ArrowUpRight, FolderKanban, ChevronLeft, AlertTriangle, Code2, Tag } from "lucide-react";
-import { safeExternalHref } from "@/lib/utils/url-utils";
+import { safeExternalHref, getDisplayHostname } from "@/lib/utils/url-utils";
 import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
-
-/**
- * Extract hostname from URL for display
- */
-function getHostname(rawUrl: string): string {
-  if (!rawUrl) {
-    return "website";
-  }
-
-  const candidate = rawUrl.trim();
-  if (!candidate) {
-    return "website";
-  }
-
-  // Handle internal URLs
-  if (candidate.startsWith("/")) {
-    return "williamcallahan.com";
-  }
-
-  const withScheme = /^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`;
-
-  try {
-    const url = new URL(withScheme);
-    const hostname = url.hostname.replace(/^www\./, "").trim();
-    return hostname || "website";
-  } catch {
-    return "website";
-  }
-}
 
 /**
  * Check if URL is internal (starts with /)
@@ -96,7 +67,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
   }, []);
 
   // Extract domain for display
-  const domain = useMemo(() => getHostname(project.url), [project.url]);
+  const domain = useMemo(() => getDisplayHostname(project.url), [project.url]);
 
   // Check if URL is internal
   const isInternal = useMemo(() => isInternalUrl(project.url), [project.url]);

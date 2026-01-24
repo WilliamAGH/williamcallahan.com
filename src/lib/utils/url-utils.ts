@@ -334,3 +334,59 @@ export function safeHref(href: string): string {
   const safeUrl = safeExternalHref(href);
   return safeUrl || "#";
 }
+
+/**
+ * Check if a URL is a GitHub URL.
+ * Used for special icon treatment (GitHub logo vs generic external link).
+ *
+ * @param url - The URL to check
+ * @returns true if the URL points to github.com
+ */
+export function isGitHubUrl(url: string): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
+    return parsed.hostname === "github.com" || parsed.hostname === "www.github.com";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Extract hostname from URL for display purposes.
+ * Strips www. prefix and handles edge cases gracefully.
+ *
+ * @param rawUrl - The URL to extract hostname from
+ * @param fallback - Fallback value if extraction fails (default: "website")
+ * @returns The extracted hostname or fallback
+ *
+ * @example
+ * getDisplayHostname('https://www.example.com/path') // Returns 'example.com'
+ * getDisplayHostname('/internal/path') // Returns 'williamcallahan.com'
+ * getDisplayHostname('') // Returns 'website'
+ */
+export function getDisplayHostname(rawUrl: string, fallback = "website"): string {
+  if (!rawUrl) {
+    return fallback;
+  }
+
+  const candidate = rawUrl.trim();
+  if (!candidate) {
+    return fallback;
+  }
+
+  // Handle internal URLs
+  if (candidate.startsWith("/")) {
+    return "williamcallahan.com";
+  }
+
+  const withScheme = /^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`;
+
+  try {
+    const url = new URL(withScheme);
+    const hostname = url.hostname.replace(/^www\./, "").trim();
+    return hostname || fallback;
+  } catch {
+    return fallback;
+  }
+}
