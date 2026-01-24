@@ -42,6 +42,7 @@ import {
   GitHubContributorStatsRateLimitError,
   isGitHubApiConfigured,
   getGitHubUsername,
+  getGitHubApiToken,
   githubHttpClient,
 } from "./github-api";
 
@@ -50,6 +51,8 @@ import {
   ALL_TIME_SUMMARY_S3_KEY_FILE,
   REPO_RAW_WEEKLY_STATS_S3_KEY_DIR,
   GITHUB_ACTIVITY_S3_KEY_FILE,
+  GITHUB_API_RATE_LIMIT_CONFIG,
+  GITHUB_REFRESH_RATE_LIMIT_CONFIG,
 } from "@/lib/constants";
 
 import {
@@ -58,18 +61,8 @@ import {
   calculateAndStoreAggregatedWeeklyActivity,
   filterContributorStats,
   repairCsvData,
+  createEmptyCategoryStats,
 } from "./github-processing";
-
-// Re-export S3 paths for backward compatibility
-export {
-  GITHUB_ACTIVITY_S3_KEY_DIR,
-  GITHUB_ACTIVITY_S3_KEY_FILE,
-  GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK,
-  GITHUB_STATS_SUMMARY_S3_KEY_FILE,
-  ALL_TIME_SUMMARY_S3_KEY_FILE,
-  REPO_RAW_WEEKLY_STATS_S3_KEY_DIR,
-  AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE,
-} from "@/lib/constants";
 
 // Re-export public API functions from github-public-api.ts
 export { getGithubActivity, getGithubActivityCached, invalidateAllGitHubCaches } from "./github-public-api";
@@ -79,9 +72,6 @@ export { calculateAndStoreAggregatedWeeklyActivity } from "./github-processing";
 
 // Configuration
 const GITHUB_REPO_OWNER = getGitHubUsername();
-const GITHUB_API_TOKEN =
-  process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH || process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN;
-
 const CONCURRENT_REPO_LIMIT = 5; // Limit for concurrent repository processing
 
 // --- Helper Functions ---
@@ -152,8 +142,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   console.log(`[DataAccess/GitHub] Initiating GitHub activity refresh from API for ${GITHUB_REPO_OWNER}...`);
 
   // Check if we're rate limited before starting expensive operations
-  const rateLimitConfig = { maxRequests: 1000, windowMs: 60 * 60 * 1000 }; // 1000 requests per hour
-  if (!isOperationAllowed("github-api", "global", rateLimitConfig)) {
+  if (!isOperationAllowed("github-api", "global", GITHUB_REFRESH_RATE_LIMIT_CONFIG)) {
     console.warn("[DataAccess/GitHub] Skipping refresh due to rate limit. Will retry later.");
     return null;
   }
@@ -209,12 +198,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
 
   let yearLinesAdded = 0;
   let yearLinesRemoved = 0;
-  const yearCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"] = {
-    frontend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-    backend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-    dataEngineer: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-    other: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-  };
+  const yearCategoryStats = createEmptyCategoryStats();
 
   const olderThanYearCommitStats: CommitsOlderThanYearSummary = {
     totalCommits: 0,
@@ -231,12 +215,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   let allTimeTotalCommits = 0;
   let allTimeOverallDataComplete = true; // Assume complete until proven otherwise
   let yearOverallDataComplete = true; // Track if all repositories were processed successfully for the trailing year
-  const allTimeCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"] = {
-    frontend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-    backend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-    dataEngineer: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-    other: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-  };
+  const allTimeCategoryStats = createEmptyCategoryStats();
 
   // Use batch processor for repository processing
   const repoProcessor = new BatchProcessor<
@@ -528,14 +507,11 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
         try {
           // Use retry logic for each page request to handle transient failures
           const res = await retryWithDomainConfig(async () => {
-            await waitForPermit("github-rest", "github-api-call", {
-              maxRequests: 5000,
-              windowMs: 60 * 60 * 1000,
-            });
+            await waitForPermit("github-rest", "github-api-call", GITHUB_API_RATE_LIMIT_CONFIG);
 
             return await githubHttpClient(commitsUrl, {
               headers: {
-                Authorization: `Bearer ${GITHUB_API_TOKEN}`,
+                Authorization: `Bearer ${getGitHubApiToken()}`,
                 Accept: "application/vnd.github.v3+json",
               },
               timeout: 30000,
@@ -715,12 +691,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
 
   try {
     // Recalculate allTimeCategoryStats.repoCount based on uniqueRepoArray and their contributions
-    const finalAllTimeCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"] = {
-      frontend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-      backend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-      dataEngineer: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-      other: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-    };
+    const finalAllTimeCategoryStats = createEmptyCategoryStats();
 
     // For a more accurate allTimeCategoryStats.repoCount, we would need to know which repos contributed to which category over all time.
     // The current `allTimeCategoryStats` has summed lines correctly.
@@ -895,14 +866,11 @@ async function detectAndRepairCsvFiles(): Promise<{
 
         // Use retry logic for CSV repair API calls
         const statsResponse = await retryWithDomainConfig(async () => {
-          await waitForPermit("github-rest", "github-api-call", {
-            maxRequests: 5000,
-            windowMs: 60 * 60 * 1000,
-          });
+          await waitForPermit("github-rest", "github-api-call", GITHUB_API_RATE_LIMIT_CONFIG);
 
           return await githubHttpClient(`https://api.github.com/repos/${repoOwner}/${repoName}/stats/contributors`, {
             headers: {
-              Authorization: `Bearer ${GITHUB_API_TOKEN}`,
+              Authorization: `Bearer ${getGitHubApiToken()}`,
               Accept: "application/vnd.github.v3+json",
             },
             timeout: 30000,

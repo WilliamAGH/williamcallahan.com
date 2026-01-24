@@ -11,11 +11,8 @@ import { readJsonS3, writeJsonS3, listS3Objects as s3UtilsListS3Objects, getS3Ob
 
 import { debugLog } from "@/lib/utils/debug";
 import {
-  GITHUB_ACTIVITY_S3_KEY_DIR,
   GITHUB_ACTIVITY_S3_KEY_FILE,
-  GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK,
   GITHUB_STATS_SUMMARY_S3_KEY_FILE,
-  ALL_TIME_SUMMARY_S3_KEY_FILE,
   REPO_RAW_WEEKLY_STATS_S3_KEY_DIR,
   AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE,
 } from "@/lib/constants";
@@ -26,17 +23,6 @@ import type {
   RepoWeeklyStatCache,
   AggregatedWeeklyActivity,
 } from "@/types/github";
-
-// Re-export S3 paths for backward compatibility
-export {
-  GITHUB_ACTIVITY_S3_KEY_DIR,
-  GITHUB_ACTIVITY_S3_KEY_FILE,
-  GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK,
-  GITHUB_STATS_SUMMARY_S3_KEY_FILE,
-  ALL_TIME_SUMMARY_S3_KEY_FILE,
-  REPO_RAW_WEEKLY_STATS_S3_KEY_DIR,
-  AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE,
-};
 
 /**
  * Read GitHub activity data from S3

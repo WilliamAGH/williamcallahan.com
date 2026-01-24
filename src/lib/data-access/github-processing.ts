@@ -16,11 +16,25 @@ import type {
   RepoRawWeeklyStat,
   AggregatedWeeklyActivity,
   GithubContributorStatsEntry,
+  GitHubActivitySummary,
 } from "@/types/github";
 import { debug } from "@/lib/utils/debug";
 import { readBinaryS3 } from "@/lib/s3-utils";
 import { listRepoStatsFiles, writeAggregatedWeeklyActivityToS3 } from "./github-storage";
 import { AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, REPO_RAW_WEEKLY_STATS_S3_KEY_DIR } from "@/lib/constants";
+
+/**
+ * Creates an empty category stats object for LOC tracking
+ * @see {@link src/lib/data-access/github-processing.ts} - Single source of truth
+ */
+export function createEmptyCategoryStats(): GitHubActivitySummary["linesOfCodeByCategory"] {
+  return {
+    frontend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
+    backend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
+    dataEngineer: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
+    other: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
+  };
+}
 
 // Type-safe global override declarations
 declare global {
