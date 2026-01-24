@@ -4,14 +4,13 @@
  * This endpoint helps diagnose why certain content types are or aren't matching
  */
 
+import { preventCaching, createErrorResponse, NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
-import { unstable_noStore as noStore } from "next/cache";
 import { aggregateAllContent, getContentById } from "@/lib/content-similarity/aggregator";
 import { calculateSimilarity, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
 import { getEnabledContentTypes } from "@/config/related-content.config";
 import type { RelatedContentType } from "@/types/related-content";
 
-const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
 // Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
 // during build, permanently baking "phase-production-build" into the bundle.
@@ -30,9 +29,7 @@ export async function GET(request: NextRequest) {
       { status: 200, headers: NO_STORE_HEADERS },
     );
   }
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  preventCaching();
   try {
     const searchParams = request.nextUrl.searchParams;
     const sourceTypeRaw = searchParams.get("type");
@@ -47,25 +44,13 @@ export async function GET(request: NextRequest) {
     const limit = Math.max(1, Math.min(100, Number.isFinite(limitRaw) ? limitRaw : 20));
 
     if (!sourceType || !sourceId) {
-      return NextResponse.json(
-        { error: "Missing required parameters: type and id" },
-        {
-          status: 400,
-          headers: NO_STORE_HEADERS,
-        },
-      );
+      return createErrorResponse("Missing required parameters: type and id", 400);
     }
 
     // Get source content
     const source = await getContentById(sourceType, sourceId);
     if (!source) {
-      return NextResponse.json(
-        { error: `Content not found: ${sourceType}/${sourceId}` },
-        {
-          status: 404,
-          headers: NO_STORE_HEADERS,
-        },
-      );
+      return createErrorResponse(`Content not found: ${sourceType}/${sourceId}`, 404);
     }
 
     // Get all content
@@ -141,10 +126,8 @@ export async function GET(request: NextRequest) {
       { headers: NO_STORE_HEADERS },
     );
   } catch (error) {
-    console.error("Debug endpoint error:", error);
-    return NextResponse.json(
-      { error: "Internal server error", details: error instanceof Error ? error.message : String(error) },
-      { status: 500, headers: NO_STORE_HEADERS },
-    );
+    const details = error instanceof Error ? error.message : String(error);
+    console.error("Debug endpoint error:", details);
+    return createErrorResponse(`Internal server error: ${details}`, 500);
   }
 }
