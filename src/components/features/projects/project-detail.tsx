@@ -14,6 +14,7 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import type { ProjectDetailProps } from "@/types/features/projects";
 import { Globe, ExternalLink, ArrowUpRight, FolderKanban, ChevronLeft, AlertTriangle, Code2, Tag } from "lucide-react";
 import { safeExternalHref } from "@/lib/utils/url-utils";
+import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 
 /**
@@ -108,6 +109,13 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
     return safeExternalHref(project.url);
   }, [project.url, isInternal]);
 
+  // Transform imageKey (S3 path) to CDN URL for Next.js Image
+  const imageUrl = useMemo(() => {
+    if (!project.imageKey) return null;
+    const cdnUrl = buildCdnUrl(project.imageKey, getCdnConfigFromEnv());
+    return buildCachedImageUrl(cdnUrl);
+  }, [project.imageKey]);
+
   if (!mounted) return null;
 
   return (
@@ -163,7 +171,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
           {/* Main Content Column - Takes up 2/3 on large screens */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Featured Image - Full width at top of content */}
-            {project.imageKey && (
+            {imageUrl && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -177,7 +185,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
                   >
                     <div className="relative aspect-[16/10] sm:aspect-[16/9] w-full">
                       <OptimizedCardImage
-                        src={project.imageKey}
+                        src={imageUrl}
                         alt={`Screenshot of ${project.name}`}
                         priority
                         className="!transition-none"
@@ -235,7 +243,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
             )}
 
             {/* If no content is available, show a placeholder */}
-            {!project.description && !project.imageKey && (
+            {!project.description && !imageUrl && (
               <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                 <FolderKanban className="w-12 h-12 mx-auto mb-4 opacity-20" />
                 <p>No additional details available for this project.</p>
