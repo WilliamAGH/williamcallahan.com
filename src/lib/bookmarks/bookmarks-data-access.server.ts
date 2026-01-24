@@ -14,18 +14,28 @@ import {
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import {
-  normalizeBookmarkTag,
+  normalizeBookmarkTags,
   calculateBookmarksChecksum,
   stripImageData,
   normalizePageBookmarkTags,
 } from "@/lib/bookmarks/utils";
 import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
+import {
+  isBookmarkServiceLoggingEnabled,
+  shouldSkipLocalS3Cache,
+  ENABLE_TAG_PERSISTENCE,
+  MAX_TAGS_TO_PERSIST,
+  LOG_PREFIX,
+  BOOKMARK_SERVICE_LOG_CATEGORY,
+} from "@/lib/bookmarks/config";
 import { getEnvironment } from "@/lib/config/environment";
 import { USE_NEXTJS_CACHE, cacheContextGuards, isCliLikeCacheContext, withCacheFallback } from "@/lib/cache";
 import { getDeterministicTimestamp } from "@/lib/server-cache";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { processBookmarksInBatches } from "@/lib/bookmarks/enrich-opengraph";
+import { readLocalS3JsonSafe } from "@/lib/bookmarks/local-s3-cache";
+import { isS3NotFound } from "@/lib/bookmarks/s3-helpers";
 
 const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "generated", "bookmarks", "bookmarks.json");
 const LOCAL_BOOKMARKS_BY_ID_DIR = path.join(process.cwd(), ".next", "cache", "bookmarks", "by-id");
@@ -58,29 +68,6 @@ const loadLocalBookmarksSnapshot = async (): Promise<UnifiedBookmark[] | null> =
   }
 };
 
-const forceLocalS3Cache = process.env.FORCE_LOCAL_S3_CACHE === "true";
-const allowRuntimeFallback = process.env.ALLOW_RUNTIME_S3_FALLBACK !== "false";
-const nextPhase = process.env.NEXT_PHASE;
-// Only disable the local S3 snapshot during the production build step by default so runtime
-// containers can continue serving cached data even when S3/CDN is offline. Setting
-// ALLOW_RUNTIME_S3_FALLBACK=false restores the old behavior where Docker runtimes skip the cache.
-const isBuildPhase = nextPhase === "phase-production-build";
-const isRuntimePhase = !isBuildPhase;
-const shouldSkipLocalS3Cache =
-  !forceLocalS3Cache &&
-  (isBuildPhase || (!allowRuntimeFallback && process.env.RUNNING_IN_DOCKER === "true" && isRuntimePhase));
-
-let localS3CacheModule: typeof import("@/lib/bookmarks/local-s3-cache") | null = null;
-async function readLocalS3JsonSafe<T>(key: string): Promise<T | null> {
-  if (shouldSkipLocalS3Cache) {
-    return null;
-  }
-  if (!localS3CacheModule) {
-    localS3CacheModule = await import("@/lib/bookmarks/local-s3-cache");
-  }
-  return localS3CacheModule.readLocalS3Json<T>(key);
-}
-
 // Runtime-safe cache wrappers for experimental Next.js APIs
 // These functions are only available in Next.js request context with experimental.useCache enabled
 // They will be no-ops when called from CLI scripts or outside request context
@@ -109,22 +96,6 @@ const safeRevalidateTag = (...tags: string[]): void => {
   cacheContextGuards.revalidateTag("BookmarksDataAccess", ...tags);
 };
 
-const ENABLE_TAG_PERSISTENCE = process.env.ENABLE_TAG_PERSISTENCE !== "false";
-
-// Default to no limit (persist all tags) when env var not set or invalid
-const RAW_MAX_TAGS = process.env.MAX_TAGS_TO_PERSIST;
-const PARSED_MAX_TAGS = RAW_MAX_TAGS != null ? Number(RAW_MAX_TAGS) : Number.NaN;
-const MAX_TAGS_TO_PERSIST =
-  Number.isFinite(PARSED_MAX_TAGS) && PARSED_MAX_TAGS > 0 ? Math.floor(PARSED_MAX_TAGS) : Number.MAX_SAFE_INTEGER;
-
-if (RAW_MAX_TAGS && (!Number.isFinite(PARSED_MAX_TAGS) || PARSED_MAX_TAGS <= 0)) {
-  envLogger.debug(
-    "MAX_TAGS_TO_PERSIST is invalid or <= 0; defaulting to unlimited persistence",
-    { RAW_MAX_TAGS },
-    { category: "BookmarksDataAccess" },
-  );
-}
-
 async function saveSlugMappingOrThrow(bookmarks: UnifiedBookmark[], logSuffix: string): Promise<void> {
   try {
     await saveSlugMapping(bookmarks, true, false);
@@ -133,6 +104,26 @@ async function saveSlugMappingOrThrow(bookmarks: UnifiedBookmark[], logSuffix: s
     const normalizedError = error instanceof Error ? error : new Error(String(error));
     console.error(`${LOG_PREFIX} CRITICAL: Failed to save slug mapping ${logSuffix}:`, normalizedError);
     throw new Error(`Failed to save slug mapping: ${normalizedError.message}`, { cause: error });
+  }
+}
+
+/**
+ * Write bookmarks to local filesystem cache for fallback serving.
+ * Non-blocking: errors are logged but don't propagate.
+ */
+async function writeLocalBookmarksCache(bookmarks: UnifiedBookmark[], context: string): Promise<void> {
+  try {
+    await fs.mkdir(path.dirname(LOCAL_BOOKMARKS_PATH), { recursive: true });
+    await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarks, null, 2));
+    logBookmarkDataAccessEvent(`Saved bookmarks to local fallback path${context ? ` (${context})` : ""}`, {
+      path: LOCAL_BOOKMARKS_PATH,
+      bookmarkCount: bookmarks.length,
+    });
+  } catch (error) {
+    console.error(
+      `${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path${context ? ` (${context})` : ""}:`,
+      error,
+    );
   }
 }
 
@@ -171,14 +162,6 @@ function setCachedBookmark<T>(cache: Map<string, { data: T; timestamp: number }>
 
 // In-process short-TTL cache parameters (centralized in lib/cache; local cache removed)
 
-const LOG_PREFIX = "[BookmarksDataAccess]";
-const BOOKMARK_SERVICE_LOG_CATEGORY = "BookmarksDataAccess";
-const isBookmarkServiceLoggingEnabled =
-  process.env.DEBUG_BOOKMARKS === "true" ||
-  process.env.DEBUG_BOOKMARKS_SERVICE === "true" ||
-  process.env.DEBUG === "true" ||
-  process.env.VERBOSE === "true";
-
 const logBookmarkDataAccessEvent = (message: string, data?: Record<string, unknown>): void => {
   if (!isBookmarkServiceLoggingEnabled) return;
   envLogger.log(message, data, { category: BOOKMARK_SERVICE_LOG_CATEGORY });
@@ -213,9 +196,6 @@ let isRefreshLocked = false;
 let lockCleanupInterval: NodeJS.Timeout | null = null;
 let inFlightGetPromise: Promise<UnifiedBookmark[] | LightweightBookmark[]> | null = null;
 let inFlightRefreshPromise: Promise<UnifiedBookmark[] | null> | null = null;
-
-const isS3Error = (err: unknown): err is { $metadata?: { httpStatusCode?: number } } =>
-  typeof err === "object" && err !== null && "$metadata" in err;
 
 // Compute a lightweight signature over display metadata that affect list/detail rendering
 function computeDisplaySignature(bookmarks: UnifiedBookmark[]): string {
@@ -629,18 +609,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         changeDetected: true,
       });
 
-      // --- START LOCAL CACHE WRITE ---
-      try {
-        await fs.mkdir(path.dirname(LOCAL_BOOKMARKS_PATH), { recursive: true });
-        await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarksWithSlugs, null, 2));
-        logBookmarkDataAccessEvent("Saved bookmarks to local fallback path (metadata refresh)", {
-          path: LOCAL_BOOKMARKS_PATH,
-          bookmarkCount: bookmarksWithSlugs.length,
-        });
-      } catch (error) {
-        console.error(`${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path (metadata refresh):`, error);
-      }
-      // --- END LOCAL CACHE WRITE ---
+      await writeLocalBookmarksCache(bookmarksWithSlugs, "metadata refresh");
 
       return bookmarksWithSlugs;
     }
@@ -656,21 +625,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
       });
       await writeBookmarkMasterFiles(bookmarksWithSlugs);
 
-      // --- START LOCAL CACHE WRITE ---
-      try {
-        await fs.mkdir(path.dirname(LOCAL_BOOKMARKS_PATH), { recursive: true });
-        await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarksWithSlugs, null, 2));
-        logBookmarkDataAccessEvent("Saved bookmarks to local fallback path (change-detected path)", {
-          path: LOCAL_BOOKMARKS_PATH,
-          bookmarkCount: bookmarksWithSlugs.length,
-        });
-      } catch (error) {
-        console.error(
-          `${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path (change-detected path):`,
-          error,
-        );
-      }
-      // --- END LOCAL CACHE WRITE ---
+      await writeLocalBookmarksCache(bookmarksWithSlugs, "change-detected path");
     }
     await persistTagFilteredBookmarksToS3(allIncomingBookmarks);
     return allIncomingBookmarks;
@@ -757,18 +712,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                 // This prevents 120+ S3 writes when only metadata changed
               }
 
-              // --- START LOCAL CACHE WRITE ---
-              try {
-                await fs.mkdir(path.dirname(LOCAL_BOOKMARKS_PATH), { recursive: true });
-                await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarksWithSlugs, null, 2));
-                logBookmarkDataAccessEvent("Saved bookmarks to local fallback path", {
-                  path: LOCAL_BOOKMARKS_PATH,
-                  bookmarkCount: bookmarksWithSlugs.length,
-                });
-              } catch (error) {
-                console.error(`${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path:`, error);
-              }
-              // --- END LOCAL CACHE WRITE ---
+              await writeLocalBookmarksCache(bookmarksWithSlugs, "");
             }
             // Heartbeat write (tiny file)
             void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
@@ -853,14 +797,6 @@ async function fetchAndCacheBookmarks(
   const { skipExternalFetch = false, includeImageData = true, force = false } = options;
   logBookmarkDataAccessEvent("fetchAndCacheBookmarks", { skipExternalFetch, includeImageData, force });
 
-  // Define normalizeBookmarkTags function before usage
-  const normalizeBookmarkTags = (bookmark: UnifiedBookmark) => ({
-    ...bookmark,
-    tags: (bookmark.tags || [])
-      .filter(tag => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
-      .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
-  });
-
   // --- 1. Prefer S3 in production runtime; use local fallback only in dev/test/CLI contexts ---
   const isProductionRuntime =
     getEnvironment() === "production" && !isCliLikeContext() && process.env.NEXT_PHASE !== "phase-production-build";
@@ -906,7 +842,7 @@ async function fetchAndCacheBookmarks(
       bookmarksFromS3 = s3Data;
     }
   } catch (e: unknown) {
-    if (!isS3Error(e) || e.$metadata?.httpStatusCode !== 404) {
+    if (!isS3NotFound(e)) {
       console.error(`${LOG_PREFIX} Error reading bookmarks file:`, String(e));
     }
   }
@@ -938,7 +874,7 @@ async function fetchAndCacheBookmarks(
     return formatBookmarks(localBookmarksSnapshot, "local fallback");
   }
 
-  const localS3Snapshot = await readLocalS3JsonSafe<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+  const localS3Snapshot = await readLocalS3JsonSafe<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE, shouldSkipLocalS3Cache);
   if (localS3Snapshot && Array.isArray(localS3Snapshot) && localS3Snapshot.length > 0) {
     logBookmarkDataAccessEvent("Loaded bookmarks from local S3 snapshot", {
       bookmarkCount: localS3Snapshot.length,
@@ -968,12 +904,12 @@ async function getBookmarksPageDirect(pageNumber: number): Promise<UnifiedBookma
       return normalizePageBookmarkTags(pageData);
     }
   } catch (error) {
-    if (!isS3Error(error) || error.$metadata?.httpStatusCode !== 404) {
+    if (!isS3NotFound(error)) {
       console.error(`${LOG_PREFIX} S3 service error loading page ${pageNumber}:`, error);
     }
   }
 
-  const fallback = await readLocalS3JsonSafe<UnifiedBookmark[]>(key);
+  const fallback = await readLocalS3JsonSafe<UnifiedBookmark[]>(key, shouldSkipLocalS3Cache);
   if (fallback) {
     logBookmarkDataAccessEvent("Loaded page data from local S3 mirror", { pageNumber, source: "local" });
     return normalizePageBookmarkTags(fallback);
@@ -1012,12 +948,12 @@ async function getTagBookmarksPageDirect(tagSlug: string, pageNumber: number): P
       return normalizePageBookmarkTags(pageData);
     }
   } catch (error) {
-    if (!isS3Error(error) || error.$metadata?.httpStatusCode !== 404) {
+    if (!isS3NotFound(error)) {
       console.error(`${LOG_PREFIX} S3 service error loading tag page ${tagSlug}/${pageNumber}:`, error);
     }
   }
 
-  const fallback = await readLocalS3JsonSafe<UnifiedBookmark[]>(key);
+  const fallback = await readLocalS3JsonSafe<UnifiedBookmark[]>(key, shouldSkipLocalS3Cache);
   if (fallback) {
     logBookmarkDataAccessEvent("Loaded tag page data from local S3 mirror", {
       pageNumber,
@@ -1057,7 +993,7 @@ async function getTagBookmarksIndexDirect(tagSlug: string): Promise<BookmarksInd
   try {
     return await readJsonS3<BookmarksIndex>(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`);
   } catch (error) {
-    if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) return null;
+    if (isS3NotFound(error)) return null;
     console.error(`${LOG_PREFIX} S3 service error loading tag index ${tagSlug}:`, error);
     return null;
   }
@@ -1116,7 +1052,7 @@ async function getBookmarksIndexDirect(): Promise<BookmarksIndex | null> {
     console.warn(`${LOG_PREFIX} Main bookmarks index failed validation`, validation.error);
     return null;
   } catch (error) {
-    if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) return null;
+    if (isS3NotFound(error)) return null;
     console.error(`${LOG_PREFIX} S3 service error loading main bookmarks index:`, error);
     return null;
   }

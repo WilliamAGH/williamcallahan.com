@@ -12,7 +12,7 @@
  */
 
 import { getGithubActivityCached } from "@/lib/data-access/github";
-import { preventCaching, createErrorResponse } from "@/lib/utils/api-utils";
+import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
@@ -54,7 +54,22 @@ export async function GET(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     console.error("[API GET /github-activity] Error fetching GitHub activity data:", errorMessage);
 
-    // Provide a consistent structure even in error cases
-    return createErrorResponse("Failed to retrieve GitHub activity data.", 500, undefined);
+    // Return UserActivityView-compatible error structure to prevent client crashes
+    // The client expects trailingYearData.data, allTimeStats, etc. - not a simple { error } object
+    const errorView = {
+      source: "error" as const,
+      error: "Failed to retrieve GitHub activity data.",
+      trailingYearData: {
+        data: [],
+        totalContributions: 0,
+        dataComplete: false,
+      },
+      allTimeStats: {
+        totalContributions: 0,
+        linesAdded: 0,
+        linesRemoved: 0,
+      },
+    };
+    return NextResponse.json(errorView, { status: 500 });
   }
 }
