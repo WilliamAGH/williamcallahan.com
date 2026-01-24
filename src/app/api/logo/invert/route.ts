@@ -10,6 +10,7 @@ import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
 import { getUnifiedImageService, type UnifiedImageService } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
+import logger from "@/lib/utils/logger";
 
 /**
  * Safely parse and validate URL
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error(`[API Logo Invert] Error for domain ${domain}:`, errorMessage);
+    logger.error(`[API Logo Invert] Error for domain ${domain}:`, errorMessage);
     return new NextResponse(null, {
       status: 500,
       headers: { "x-logo-error": errorMessage },
@@ -129,7 +130,7 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error analyzing logo:", errorMessage);
+    logger.error("Error analyzing logo:", errorMessage);
     return new NextResponse(null, {
       status: 500,
       headers: {
