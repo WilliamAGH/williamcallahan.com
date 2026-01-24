@@ -12,8 +12,8 @@
 
 import { Suspense } from "react";
 import type { BlogPostPageProps } from "@/types/blog";
-// Import getPostBySlug and getAllPosts from the main blog library
-import { getAllPosts, getPostBySlug } from "@/lib/blog.ts";
+// Import getPostBySlug and getAllPostsMeta from the main blog library
+import { getAllPostsMeta, getPostBySlug, getPostMetaBySlug } from "@/lib/blog.ts";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/seo/metadata.ts";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import type { ExtendedMetadata } from "@/types/seo";
@@ -29,7 +29,8 @@ import { RelatedContent, RelatedContentFallback } from "@/components/features/re
  * with ISR revalidation for newer content
  */
 export const generateStaticParams = async () => {
-  const posts = await getAllPosts();
+  // Use getAllPostsMeta to skip heavy processing (serialization/blur)
+  const posts = await getAllPostsMeta();
   return posts.map(post => ({
     slug: post.slug,
   }));
@@ -81,8 +82,8 @@ const SOFTWARE_DETAILS: Record<
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<ExtendedMetadata> {
   // params is already resolved here by Next.js
   const { slug } = await params;
-  // Use getPostBySlug which handles finding the post correctly using the canonical frontmatter slug
-  const post = await getPostBySlug(slug);
+  // Use getPostMetaBySlug for lightweight metadata (skips MDX compilation + blur generation)
+  const post = await getPostMetaBySlug(slug);
 
   if (!post) {
     console.warn(`[generateMetadata] Post not found for slug: ${slug}. Returning empty metadata.`);

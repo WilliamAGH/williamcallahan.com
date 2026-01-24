@@ -110,3 +110,25 @@ export interface BlogPageFrontmatter {
   updatedAt?: string | Date;
   coverImage?: string;
 }
+
+// ============================================================================
+// Post Lookup Result Types
+// ============================================================================
+
+/**
+ * Result of looking up an MDX post by slug in the internal lookup function.
+ * Distinguishes between "not found" (expected) and errors (unexpected).
+ */
+export type PostLookupResult =
+  | { found: true; post: BlogPost }
+  | { found: false; reason: "not_found" }
+  | { found: false; reason: "error"; error: Error };
+
+/**
+ * Result type for memoized post lookup operations.
+ * Provides explicit semantics for callers about lookup outcomes.
+ */
+export type MemoizedLookupResult =
+  | { status: "found"; post: BlogPost }
+  | { status: "not_found" }
+  | { status: "error"; error: Error };

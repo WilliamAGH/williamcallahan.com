@@ -187,6 +187,7 @@ export async function getMDXPost(
   frontmatterSlug: string, // Renamed from identifier
   filePathForPost: string,
   fileContentOverride?: string,
+  skipHeavyProcessing = false,
 ): Promise<BlogPost | null> {
   try {
     let fileContents: string;
@@ -270,30 +271,39 @@ export async function getMDXPost(
      * - rehypeAutolinkHeadings: Makes headings clickable with anchor links
      */
     let mdxSource: MDXRemoteSerializeResult<Record<string, unknown>, Record<string, unknown>>;
-    try {
-      // Normalize code block language labels to Prism-compatible names
-      // This avoids MDX compile errors from rehype-prism when encountering unknown languages
-      const normalizedContent = content
-        .replace(/```cmd\b/g, "```batch")
-        .replace(/```dos\b/g, "```batch")
-        .replace(/```ps\b/g, "```powershell")
-        .replace(/```ps1\b/g, "```powershell");
 
-      mdxSource = await serialize(normalizedContent, {
-        mdxOptions: {
-          remarkPlugins: [remarkGfm],
-          rehypePlugins: [rehypePrism, rehypeSlug, rehypeAutolinkHeadings],
-        },
+    if (skipHeavyProcessing) {
+      mdxSource = {
+        compiledSource: "",
         scope: {},
-        parseFrontmatter: false,
-      });
-    } catch (mdxError) {
-      console.error(`[getMDXPost] MDX compile error for slug "${frontmatterSlug}":`, mdxError);
-      // Fallback minimal content to prevent crash
-      mdxSource = await serialize("<p>Unable to render content due to MDX errors.</p>", {
-        scope: {},
-        parseFrontmatter: false,
-      });
+        frontmatter: {},
+      };
+    } else {
+      try {
+        // Normalize code block language labels to Prism-compatible names
+        // This avoids MDX compile errors from rehype-prism when encountering unknown languages
+        const normalizedContent = content
+          .replace(/```cmd\b/g, "```batch")
+          .replace(/```dos\b/g, "```batch")
+          .replace(/```ps\b/g, "```powershell")
+          .replace(/```ps1\b/g, "```powershell");
+
+        mdxSource = await serialize(normalizedContent, {
+          mdxOptions: {
+            remarkPlugins: [remarkGfm],
+            rehypePlugins: [rehypePrism, rehypeSlug, rehypeAutolinkHeadings],
+          },
+          scope: {},
+          parseFrontmatter: false,
+        });
+      } catch (mdxError) {
+        console.error(`[getMDXPost] MDX compile error for slug "${frontmatterSlug}":`, mdxError);
+        // Fallback minimal content to prevent crash
+        mdxSource = await serialize("<p>Unable to render content due to MDX errors.</p>", {
+          scope: {},
+          parseFrontmatter: false,
+        });
+      }
     }
 
     // Use frontmatter dates, ensuring they are Pacific Time ISO strings
@@ -303,7 +313,8 @@ export async function getMDXPost(
     // Generate blur data URL from local image path (before S3 mapping)
     // This must happen BEFORE sanitizeCoverImage transforms to CDN URL
     const rawCoverImagePath = typeof frontmatter.coverImage === "string" ? frontmatter.coverImage.trim() : undefined;
-    const coverImageBlurDataURL = rawCoverImagePath ? await generateBlurDataURL(rawCoverImagePath) : undefined;
+    const coverImageBlurDataURL =
+      rawCoverImagePath && !skipHeavyProcessing ? await generateBlurDataURL(rawCoverImagePath) : undefined;
 
     const coverImage = sanitizeCoverImage(frontmatter.coverImage, frontmatterSlug, filePathForPost);
 
@@ -342,12 +353,17 @@ async function getMDXPostDirect(
   frontmatterSlug: string,
   filePathForPost: string,
   fileContentOverride?: string,
+  skipHeavyProcessing = false,
 ): Promise<BlogPost | null> {
-  return getMDXPost(frontmatterSlug, filePathForPost, fileContentOverride);
+  return getMDXPost(frontmatterSlug, filePathForPost, fileContentOverride, skipHeavyProcessing);
 }
 
 // Cached version using 'use cache' directive
-async function getCachedMDXPost(frontmatterSlug: string, filePathForPost: string): Promise<BlogPost | null> {
+async function getCachedMDXPost(
+  frontmatterSlug: string,
+  filePathForPost: string,
+  skipHeavyProcessing = false,
+): Promise<BlogPost | null> {
   "use cache";
 
   // Set cache profile for blog posts
@@ -356,7 +372,7 @@ async function getCachedMDXPost(frontmatterSlug: string, filePathForPost: string
   cacheTag("blog-mdx");
   cacheTag(`blog-post-${frontmatterSlug}`);
 
-  return getMDXPostDirect(frontmatterSlug, filePathForPost);
+  return getMDXPostDirect(frontmatterSlug, filePathForPost, undefined, skipHeavyProcessing);
 }
 
 // Updated export to use caching when enabled
@@ -364,22 +380,23 @@ export async function getMDXPostCached(
   frontmatterSlug: string,
   filePathForPost: string,
   fileContentOverride?: string,
+  skipHeavyProcessing = false,
 ): Promise<BlogPost | null> {
   // Don't use cache if content override is provided
   if (fileContentOverride) {
-    return getMDXPostDirect(frontmatterSlug, filePathForPost, fileContentOverride);
+    return getMDXPostDirect(frontmatterSlug, filePathForPost, fileContentOverride, skipHeavyProcessing);
   }
 
   // If caching is enabled, try to use it with fallback to direct
   if (USE_NEXTJS_CACHE) {
     return withCacheFallback(
-      () => getCachedMDXPost(frontmatterSlug, filePathForPost),
-      () => getMDXPostDirect(frontmatterSlug, filePathForPost),
+      () => getCachedMDXPost(frontmatterSlug, filePathForPost, skipHeavyProcessing),
+      () => getMDXPostDirect(frontmatterSlug, filePathForPost, undefined, skipHeavyProcessing),
     );
   }
 
   // Default: Always use direct read
-  return getMDXPostDirect(frontmatterSlug, filePathForPost);
+  return getMDXPostDirect(frontmatterSlug, filePathForPost, undefined, skipHeavyProcessing);
 }
 
 /**
@@ -388,7 +405,7 @@ export async function getMDXPostCached(
  *
  * @returns {Promise<BlogPost[]>} Array of all processed blog posts
  */
-export async function getAllMDXPosts(): Promise<BlogPost[]> {
+export async function getAllMDXPosts(skipHeavyProcessing = false): Promise<BlogPost[]> {
   const processedPosts: BlogPost[] = [];
   const seenSlugs = new Set<string>();
 
@@ -416,7 +433,7 @@ export async function getAllMDXPosts(): Promise<BlogPost[]> {
 
         // Now fully process the post using its frontmatter slug as the identifier,
         // and pass the fullPath and pre-read fileContents.
-        return await getMDXPost(frontmatterSlug, fullPath, fileContents);
+        return await getMDXPost(frontmatterSlug, fullPath, fileContents, skipHeavyProcessing);
       } catch (fileError) {
         console.error(
           `[getAllMDXPosts] Error initially processing file ${fileName} (slug: ${frontmatterSlug ?? "unknown"}):`,
@@ -457,12 +474,12 @@ export async function getAllMDXPosts(): Promise<BlogPost[]> {
 }
 
 // Internal direct read function for all MDX posts (always available)
-async function getAllMDXPostsDirect(): Promise<BlogPost[]> {
-  return getAllMDXPosts();
+async function getAllMDXPostsDirect(skipHeavyProcessing = false): Promise<BlogPost[]> {
+  return getAllMDXPosts(skipHeavyProcessing);
 }
 
 // Cached version using 'use cache' directive
-async function getCachedAllMDXPosts(): Promise<BlogPost[]> {
+async function getCachedAllMDXPosts(skipHeavyProcessing = false): Promise<BlogPost[]> {
   "use cache";
 
   // Set cache profile for blog posts
@@ -473,21 +490,21 @@ async function getCachedAllMDXPosts(): Promise<BlogPost[]> {
   cacheTag("mdx");
   cacheTag("blog-posts-all");
 
-  return getAllMDXPostsDirect();
+  return getAllMDXPostsDirect(skipHeavyProcessing);
 }
 
 // Updated export to use caching when enabled
-export async function getAllMDXPostsCached(): Promise<BlogPost[]> {
+export async function getAllMDXPostsCached(skipHeavyProcessing = false): Promise<BlogPost[]> {
   // If caching is enabled, try to use it with fallback to direct
   if (USE_NEXTJS_CACHE) {
     return withCacheFallback(
-      () => getCachedAllMDXPosts(),
-      () => getAllMDXPostsDirect(),
+      () => getCachedAllMDXPosts(skipHeavyProcessing),
+      () => getAllMDXPostsDirect(skipHeavyProcessing),
     );
   }
 
   // Default: Always use direct read
-  return getAllMDXPostsDirect();
+  return getAllMDXPostsDirect(skipHeavyProcessing);
 }
 
 /**
