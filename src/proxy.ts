@@ -18,6 +18,7 @@
 import { CSP_DIRECTIVES } from "@/config/csp";
 import { NextResponse, type NextRequest, type NextMiddleware } from "next/server";
 import { memoryPressureMiddleware } from "@/lib/middleware/memory-pressure";
+import { getClientIp } from "@/lib/utils/request-utils";
 import type { ClerkMiddlewareAuth } from "@clerk/nextjs/server";
 
 /**
@@ -54,22 +55,6 @@ async function getCspHashes() {
     console.warn("[CSP] Could not load csp-hashes.json. This is expected on the first build.", error);
     return { scriptSrc: [], styleSrc: [] };
   }
-}
-
-/**
- * Gets the real client IP from various headers
- * Prioritizes Cloudflare headers, then standard proxy headers
- * @param request - The Nextjs request object
- * @returns The real client IP or 'unknown'
- */
-function getRealIp(request: NextRequest): string {
-  return (
-    request.headers.get("True-Client-IP") ||
-    request.headers.get("CF-Connecting-IP") ||
-    request.headers.get("X-Forwarded-For")?.split(",")[0] ||
-    request.headers.get("X-Real-IP") ||
-    "unknown"
-  );
 }
 
 /**
@@ -113,7 +98,7 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
   }
 
   const response = NextResponse.next();
-  const ip = getRealIp(request);
+  const ip = getClientIp(request.headers);
 
   // Set security and CORS headers
   const securityHeaders = {
