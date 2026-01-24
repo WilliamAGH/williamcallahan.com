@@ -12,6 +12,7 @@ import { callOpenAiCompatibleChatCompletions } from "@/lib/ai/openai-compatible/
 import { getUpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
 import { logChatMessage } from "@/lib/ai/openai-compatible/chat-message-logger";
 import { buildChatMessages } from "@/lib/ai/openai-compatible/chat-messages";
+import { getClientIp } from "@/lib/utils/request-utils";
 import logger from "@/lib/utils/logger";
 
 const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
@@ -55,13 +56,6 @@ const requestBodySchema = z
   .refine(value => Boolean(value.messages) || Boolean(value.userText), {
     message: "Provide either messages or userText",
   });
-
-function getClientIp(request: NextRequest): string {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  const cfConnectingIp = request.headers.get("cf-connecting-ip");
-  const raw = forwardedFor?.split(",")[0]?.trim() || cfConnectingIp?.trim();
-  return raw || "anonymous";
-}
 
 function isAllowedHostname(hostname: string): boolean {
   const lower = hostname.toLowerCase();
@@ -131,7 +125,7 @@ export async function POST(
 
   const { feature } = await context.params;
 
-  const clientIp = getClientIp(request);
+  const clientIp = getClientIp(request.headers, { fallback: "anonymous" });
   const pagePath = getRequestPagePath(request);
   const rateKey = `${feature}:${clientIp}`;
   if (!isOperationAllowed("ai-chat", rateKey, CHAT_RATE_LIMIT)) {

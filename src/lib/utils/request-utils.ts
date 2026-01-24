@@ -14,16 +14,6 @@
 const IP_HEADERS = ["True-Client-IP", "CF-Connecting-IP", "X-Forwarded-For", "X-Real-IP"] as const;
 
 /**
- * Options for client IP extraction
- */
-export interface GetClientIpOptions {
-  /** Custom header precedence order (defaults to standard Cloudflare + proxy headers) */
-  headerPrecedence?: readonly string[];
-  /** Fallback value when no IP is found (defaults to "unknown") */
-  fallback?: string;
-}
-
-/**
  * Extracts the first IP address from a comma-separated header value.
  * X-Forwarded-For headers often contain multiple IPs: "client, proxy1, proxy2"
  *
@@ -55,7 +45,10 @@ export function getFirstIpFromHeader(headerValue: string | null): string | null 
  * // With custom fallback:
  * const ip = getClientIp(request.headers, { fallback: "anonymous" });
  */
-export function getClientIp(headers: Headers, options: GetClientIpOptions = {}): string {
+export function getClientIp(
+  headers: Headers,
+  options: { headerPrecedence?: readonly string[]; fallback?: string } = {},
+): string {
   const { headerPrecedence = IP_HEADERS, fallback = "unknown" } = options;
 
   for (const header of headerPrecedence) {
