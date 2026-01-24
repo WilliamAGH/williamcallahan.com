@@ -6,10 +6,24 @@ import Image from "next/image";
 import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { type JSX, useState, useEffect } from "react";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ExternalLink, Github } from "lucide-react";
 import { generateProjectSlug } from "@/lib/projects/slug-helpers";
+import { safeExternalHref } from "@/lib/utils/url-utils";
 
 const MAX_DISPLAY_TECH_ITEMS = 10;
+
+/**
+ * Check if a URL is a GitHub URL for special icon treatment
+ */
+function isGitHubUrl(url: string): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
+    return parsed.hostname === "github.com" || parsed.hostname === "www.github.com";
+  } catch {
+    return false;
+  }
+}
 
 // Hoisted helper to satisfy consistent-function-scoping
 function deriveTechFromTags(tagList: string[] | undefined): string[] {
@@ -62,13 +76,17 @@ function PlaceholderImageTop() {
 }
 
 export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX.Element {
-  const { name, description, imageKey, tags, techStack } = project;
+  const { name, description, url, imageKey, tags, techStack } = project;
   const initialImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
   const initialProxiedUrl = initialImageUrl ? buildCachedImageUrl(initialImageUrl) : undefined;
 
   // Generate slug for internal detail page link
   const projectSlug = generateProjectSlug(name, project.id);
   const detailPageUrl = `/projects/${projectSlug}`;
+
+  // External project URL (GitHub, website, etc.)
+  const externalUrl = safeExternalHref(url);
+  const isGitHub = isGitHubUrl(url);
 
   const [imageUrl, setImageUrl] = useState(initialProxiedUrl);
   const [hasError, setHasError] = useState(false);
@@ -133,16 +151,34 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
         <div className="flex flex-col h-full justify-between gap-4">
           {/* Top content group */}
           <div className="space-y-3">
-            {/* Header */}
-            <h3 className="text-xl font-mono font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              <Link
-                href={detailPageUrl}
-                title={`View ${name} details`}
-                className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-              >
-                {name}
-              </Link>
-            </h3>
+            {/* Header with external link */}
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-xl font-mono font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                <Link
+                  href={detailPageUrl}
+                  title={`View ${name} details`}
+                  className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                >
+                  {name}
+                </Link>
+              </h3>
+              {externalUrl && (
+                <a
+                  href={externalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={isGitHub ? `View ${name} on GitHub` : `Visit ${name} website`}
+                  className={`flex-shrink-0 p-1.5 rounded-md transition-colors ${
+                    isGitHub
+                      ? "text-gray-500 hover:text-[#24292f] dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                      : "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  }`}
+                  onClick={e => e.stopPropagation()}
+                >
+                  {isGitHub ? <Github className="w-5 h-5" /> : <ExternalLink className="w-5 h-5" />}
+                </a>
+              )}
+            </div>
             {/* Code Snippet */}
             <pre className="bg-gray-900 dark:bg-gray-950 text-green-400 p-3 rounded-lg text-sm font-mono whitespace-pre-wrap leading-relaxed border border-gray-800">
               <code>{`// ${project.shortSummary}`}</code>
