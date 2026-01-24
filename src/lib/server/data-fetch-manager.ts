@@ -13,6 +13,7 @@ loadEnvironmentWithMultilineSupport();
 
 import logger from "@/lib/utils/logger";
 import { getMonotonicTime } from "@/lib/utils";
+import { stripWwwPrefix } from "@/lib/utils/url-utils";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
 import { KNOWN_DOMAINS, SEARCH_S3_PATHS, IMAGE_MANIFEST_S3_PATHS, IMAGE_S3_PATHS } from "@/lib/constants";
@@ -327,7 +328,7 @@ export class DataFetchManager {
         if (exp.website) {
           try {
             const url = new URL(exp.website);
-            const domain = url.hostname.replace(/^www\./, "");
+            const domain = stripWwwPrefix(url.hostname);
             domains.add(domain);
           } catch {
             logger.warn(`[DataFetchManager] Could not parse domain from experience URL: ${exp.website}`);
@@ -341,7 +342,7 @@ export class DataFetchManager {
         if (edu.website) {
           try {
             const url = new URL(edu.website);
-            const domain = url.hostname.replace(/^www\./, "");
+            const domain = stripWwwPrefix(url.hostname);
             domains.add(domain);
           } catch {
             logger.warn(`[DataFetchManager] Could not parse domain from education URL: ${edu.website}`);

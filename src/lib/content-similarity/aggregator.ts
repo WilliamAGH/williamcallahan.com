@@ -16,7 +16,8 @@ import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 import { getThoughts } from "@/lib/thoughts/service.server";
 import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
 import { extractKeywords, extractCrossContentKeywords } from "./keyword-extractor";
-import { extractDomain } from "@/lib/utils";
+import { normalizeCompanyOrDomain } from "@/lib/utils";
+import { normalizeAndDeduplicateTags } from "@/lib/utils/tag-utils";
 import { getBulkBookmarkSlugs } from "@/lib/bookmarks/slug-helpers";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import type { NormalizedContent, RelatedContentType } from "@/types/related-content";
@@ -98,7 +99,7 @@ function normalizeBookmark(bookmark: UnifiedBookmark, slugMap?: Map<string, stri
   // Extract keywords to supplement tags
   const keywords = extractKeywords(title, text, tags, 8);
   // Deduplicate and normalize tags to lowercase for consistent similarity
-  const enhancedTags = Array.from(new Set([...tags, ...keywords].map(t => t.toLowerCase().trim())));
+  const enhancedTags = normalizeAndDeduplicateTags([...tags, ...keywords]);
 
   // Get slug from mapping - REQUIRED for idempotency
   const slug = slugMap?.get(bookmark.id);
@@ -119,7 +120,7 @@ function normalizeBookmark(bookmark: UnifiedBookmark, slugMap?: Map<string, stri
     text,
     tags: enhancedTags,
     url: `/bookmarks/${slug}`, // Use actual slug from mapping
-    domain: extractDomain(bookmark.url),
+    domain: normalizeCompanyOrDomain(bookmark.url),
     date: parseDate(bookmark.dateBookmarked),
     display: {
       description: bookmark.description || "",
@@ -145,7 +146,7 @@ function normalizeBlogPost(post: BlogPost): NormalizedContent {
   // Extract keywords to supplement tags
   const keywords = extractKeywords(post.title, text, tags, 8);
   // Deduplicate and normalize tags to lowercase for consistent similarity
-  const enhancedTags = Array.from(new Set([...tags, ...keywords].map(t => t.toLowerCase().trim())));
+  const enhancedTags = normalizeAndDeduplicateTags([...tags, ...keywords]);
 
   return {
     id: post.id,
@@ -199,7 +200,7 @@ function normalizeInvestment(investment: Investment): NormalizedContent {
   );
 
   // Deduplicate and normalize tags to lowercase for consistent similarity
-  const enhancedTags = Array.from(new Set([...tags, ...keywords].map(t => t.toLowerCase().trim())));
+  const enhancedTags = normalizeAndDeduplicateTags([...tags, ...keywords]);
 
   const text = typeof investment.description === "string" ? investment.description.slice(0, 1000) : "";
   return {
@@ -209,7 +210,7 @@ function normalizeInvestment(investment: Investment): NormalizedContent {
     text,
     tags: enhancedTags,
     url: `/investments#${investment.id}`,
-    domain: extractDomain(investment.website || ""),
+    domain: normalizeCompanyOrDomain(investment.website || ""),
     date: parseYearToUtcDate(investment.invested_year),
     display: {
       description: typeof investment.description === "string" ? investment.description : "",
@@ -237,7 +238,7 @@ function normalizeProject(project: Project): NormalizedContent {
   // Extract keywords to supplement tags
   const keywords = extractKeywords(project.name, text, tags, 8);
   // Deduplicate and normalize tags to lowercase for consistent similarity
-  const enhancedTags = Array.from(new Set([...tags, ...keywords].map(t => t.toLowerCase().trim())));
+  const enhancedTags = normalizeAndDeduplicateTags([...tags, ...keywords]);
 
   // Generate slug for URL path
   const slug = generateProjectSlug(project.name, project.id);
@@ -249,7 +250,7 @@ function normalizeProject(project: Project): NormalizedContent {
     text,
     tags: enhancedTags,
     url: `/projects/${slug}`,
-    domain: extractDomain(project.url),
+    domain: normalizeCompanyOrDomain(project.url),
     date: undefined, // Projects don't have dates in current schema
     display: {
       description: project.shortSummary || project.description,
@@ -281,7 +282,7 @@ function normalizeBook(book: Book): NormalizedContent {
   // Extract keywords to supplement tags
   const keywords = extractKeywords(book.title, text, baseTags, 8);
   // Deduplicate and normalize tags to lowercase for consistent similarity
-  const enhancedTags = Array.from(new Set([...baseTags, ...keywords].map(t => t.toLowerCase().trim())));
+  const enhancedTags = normalizeAndDeduplicateTags([...baseTags, ...keywords]);
 
   // Generate slug for URL (includes authors + ABS ID or ISBN fallback)
   const slug = generateBookSlug(book.title, book.id, book.authors, book.isbn13, book.isbn10);
@@ -326,7 +327,7 @@ function normalizeThought(thought: Thought): NormalizedContent {
   // Extract keywords to supplement tags
   const keywords = extractKeywords(thought.title, text, baseTags, 8);
   // Deduplicate and normalize tags to lowercase for consistent similarity
-  const enhancedTags = Array.from(new Set([...baseTags, ...keywords].map(t => t.toLowerCase().trim())));
+  const enhancedTags = normalizeAndDeduplicateTags([...baseTags, ...keywords]);
 
   // Parse date
   const date = parseDate(thought.createdAt);

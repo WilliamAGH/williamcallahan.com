@@ -2,10 +2,72 @@
  * URL Parsing and Analysis Utilities
  *
  * Common URL operations for detecting content types,
- * extracting domains, and analyzing URL patterns
+ * extracting domains, and analyzing URL patterns.
+ *
+ * @module lib/utils/url-utils
+ * @see {@link @/types/schemas/url} for security-focused URL validation (SSRF protection)
+ * @see {@link @/lib/validators/url} for validation wrapper functions
  */
 
 import { IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
+
+/**
+ * Ensures a URL string has a protocol prefix for parsing.
+ * Adds https:// if no http/https prefix exists.
+ *
+ * This is the canonical implementation - use this instead of inline
+ * `url.startsWith("http") ? url : \`https://${url}\`` patterns.
+ *
+ * @param url - The URL string that may or may not have a protocol
+ * @returns URL string guaranteed to have http:// or https:// prefix
+ *
+ * @example
+ * ensureProtocol("example.com") // "https://example.com"
+ * ensureProtocol("http://example.com") // "http://example.com"
+ * ensureProtocol("https://example.com") // "https://example.com"
+ */
+export function ensureProtocol(url: string): string {
+  if (!url) return url;
+  return url.startsWith("http") ? url : `https://${url}`;
+}
+
+/**
+ * Strips the "www." prefix from a hostname.
+ *
+ * This is the canonical implementation for www-stripping.
+ * Use this instead of inline `.replace(/^www\./, "")` patterns.
+ *
+ * @param hostname - The hostname to strip www. from
+ * @returns Hostname without www. prefix
+ *
+ * @example
+ * stripWwwPrefix("www.example.com") // "example.com"
+ * stripWwwPrefix("example.com") // "example.com"
+ * stripWwwPrefix("www.sub.example.com") // "sub.example.com"
+ */
+export function stripWwwPrefix(hostname: string): string {
+  if (!hostname) return hostname;
+  return hostname.replace(/^www\./, "");
+}
+
+/**
+ * Extracts the hostname from a URL and strips the www. prefix.
+ *
+ * Combines URL parsing with www-stripping in a single operation.
+ * This is the most common use case for domain extraction.
+ *
+ * @param url - The URL to extract domain from
+ * @returns Hostname without www. prefix, or original string if not a valid URL
+ *
+ * @example
+ * extractDomainWithoutWww("https://www.example.com/path") // "example.com"
+ * extractDomainWithoutWww("http://example.com") // "example.com"
+ * extractDomainWithoutWww("not-a-url") // "not-a-url"
+ */
+export function extractDomainWithoutWww(url: string): string {
+  const hostname = extractDomain(url);
+  return stripWwwPrefix(hostname);
+}
 
 /**
  * Check if URL likely points to a logo or favicon
@@ -345,9 +407,11 @@ export function safeHref(href: string): string {
 export function isGitHubUrl(url: string): boolean {
   if (!url) return false;
   try {
-    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
-    return parsed.hostname === "github.com" || parsed.hostname === "www.github.com";
+    const parsed = new URL(ensureProtocol(url));
+    const hostname = stripWwwPrefix(parsed.hostname);
+    return hostname === "github.com";
   } catch {
+    // Unparseable URLs are definitionally not GitHub URLs - return false is correct
     return false;
   }
 }
@@ -356,14 +420,22 @@ export function isGitHubUrl(url: string): boolean {
  * Extract hostname from URL for display purposes.
  * Strips www. prefix and handles edge cases gracefully.
  *
+ * **Error Handling:** This function uses graceful degradation - it returns
+ * the fallback value instead of throwing when URL parsing fails. This is
+ * intentional for UI display where showing "website" is preferable to errors.
+ *
  * @param rawUrl - The URL to extract hostname from
  * @param fallback - Fallback value if extraction fails (default: "website")
- * @returns The extracted hostname or fallback
+ * @returns The extracted hostname, or `fallback` if:
+ *   - `rawUrl` is empty/falsy
+ *   - URL parsing fails
+ *   - Hostname is empty after extraction
  *
  * @example
  * getDisplayHostname('https://www.example.com/path') // Returns 'example.com'
  * getDisplayHostname('/internal/path') // Returns 'williamcallahan.com'
  * getDisplayHostname('') // Returns 'website'
+ * getDisplayHostname('not-a-url') // Returns 'website' (graceful fallback)
  */
 export function getDisplayHostname(rawUrl: string, fallback = "website"): string {
   if (!rawUrl) {
@@ -380,13 +452,12 @@ export function getDisplayHostname(rawUrl: string, fallback = "website"): string
     return "williamcallahan.com";
   }
 
-  const withScheme = /^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`;
-
   try {
-    const url = new URL(withScheme);
-    const hostname = url.hostname.replace(/^www\./, "").trim();
+    const url = new URL(ensureProtocol(candidate));
+    const hostname = stripWwwPrefix(url.hostname).trim();
     return hostname || fallback;
   } catch {
+    // Graceful degradation: return fallback for UI display rather than propagating errors
     return fallback;
   }
 }

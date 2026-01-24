@@ -8,7 +8,7 @@
 import { createHash } from "node:crypto";
 import { IMAGE_S3_PATHS, OPENGRAPH_METADATA_S3_DIR } from "@/lib/constants";
 import { getExtensionFromContentType } from "./content-type";
-import { extractTld } from "./url-utils";
+import { extractTld, stripWwwPrefix } from "./url-utils";
 import type { S3KeyOptions } from "@/types/s3-cdn";
 import type { LogoSource } from "@/types/logo";
 
@@ -119,7 +119,7 @@ export function getFileExtension(url?: string, contentType?: string): string {
 export function generateOpenGraphImageKey(url: string, bookmarkId: string, extension: string): string {
   const hash = getShortHash(`${url}:${bookmarkId}`);
   // Sanitize the domain from the URL to create a clean filename
-  const domain = new URL(url).hostname.replace(/^www\./, "").replace(/\./g, "-");
+  const domain = stripWwwPrefix(new URL(url).hostname).replace(/\./g, "-");
   const filename = `${domain}-${hash}.${extension}`;
   return `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${filename}`;
 }

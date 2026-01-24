@@ -30,6 +30,7 @@ import type {
 } from "@/types/cv";
 import { validateExperienceArray } from "@/types/experience";
 import { validateCertificationArray, validateClassArray, validateEducationArray } from "@/types/education";
+import { stripWwwPrefix } from "@/lib/utils/url-utils";
 
 const validatedExperiences = validateExperienceArray(experiences);
 const validatedProjects = projects;
@@ -60,7 +61,7 @@ const toDisplayHost = (href?: string | null) => {
   }
 
   try {
-    const hostname = new URL(href).hostname.replace(/^www\./, "");
+    const hostname = stripWwwPrefix(new URL(href).hostname);
     return hostname || href;
   } catch {
     return href;
@@ -74,7 +75,7 @@ const toDisplayUrl = (href?: string | null) => {
 
   try {
     const url = new URL(href);
-    const host = url.hostname.replace(/^www\./, "");
+    const host = stripWwwPrefix(url.hostname);
     const path = url.pathname === "/" ? "" : url.pathname;
     return `${host}${path}`;
   } catch {

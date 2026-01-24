@@ -28,6 +28,7 @@ import { getExtensionFromContentType, IMAGE_EXTENSIONS } from "@/lib/utils/conte
 import { IMAGE_S3_PATHS } from "@/lib/constants";
 import { assetIdSchema } from "@/types/schemas/url";
 import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
+import { stripWwwPrefix } from "@/lib/utils/url-utils";
 
 const MAX_ASSET_SIZE_BYTES = 50 * 1024 * 1024; // 50MB limit
 const ASSET_STREAM_TIMEOUT_MS = 20_000; // 20 seconds
@@ -206,7 +207,7 @@ async function findAssetInS3(
     // We need to compute the actual hash, not use "dummy"
     const { hashImageContent } = await import("@/lib/utils/opengraph-utils");
     const hash = hashImageContent(Buffer.from(`${context.url}:${context.bookmarkId}`)).substring(0, 8);
-    const domain = new URL(context.url).hostname.replace(/^www\./, "").replace(/\./g, "-");
+    const domain = stripWwwPrefix(new URL(context.url).hostname).replace(/\./g, "-");
 
     for (const ext of extensions) {
       const descriptiveKey = `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${domain}-${hash}${ext}`;

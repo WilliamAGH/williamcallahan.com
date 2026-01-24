@@ -11,6 +11,7 @@
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getMonotonicTime } from "@/lib/utils";
+import { stripWwwPrefix } from "@/lib/utils/url-utils";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import {
   getCachedJinaHtml,
@@ -409,7 +410,7 @@ async function fetchExternalOpenGraph(
     envLogger.log(`Found profile image`, { profileImageUrl }, { category: "OpenGraph" });
 
     // Determine platform-specific directory for better organization
-    const hostname = new URL(url).hostname.replace(/^www\./, "");
+    const hostname = stripWwwPrefix(new URL(url).hostname);
     let profileImageDirectory = "social-avatars";
     if (hostname === "github.com") {
       profileImageDirectory = "social-avatars/github";
