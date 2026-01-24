@@ -12,6 +12,7 @@ import { preventCaching } from "@/lib/utils/api-utils";
 import { type NextRequest, NextResponse } from "next/server";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client } from "@/lib/s3-utils";
+import logger from "@/lib/utils/logger";
 import { getDomainType } from "@/lib/utils/opengraph-utils";
 import { getDomainFallbackImage, getContextualFallbackImage } from "@/lib/opengraph/fallback";
 import { OPENGRAPH_IMAGES_S3_DIR } from "@/lib/constants";
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
   const baseUrl = getBaseUrl();
 
   if (!url) {
-    console.warn("[OG-Image] No URL parameter provided");
+    logger.warn("[OG-Image] No URL parameter provided");
     const fallbackImage = getDomainFallbackImage("unknown");
     return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), {
       status: 302,
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
   try {
     // Check for invalid URLs early
     if (url.startsWith("undefined") || url === "null" || url === "") {
-      console.warn("[OG-Image] Invalid URL parameter:", url);
+      logger.warn("[OG-Image] Invalid URL parameter:", url);
       const fallbackImage = getDomainFallbackImage("unknown");
       return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), { status: 302 });
     }
@@ -61,14 +62,14 @@ export async function GET(request: NextRequest) {
     // Check if it's a relative asset URL like /api/assets/{id}
     if (url.startsWith("/api/assets/")) {
       const assetId = url.replace("/api/assets/", "");
-      console.log(`[OG-Image] Detected relative asset URL, extracting ID: ${assetId}`);
+      logger.info(`[OG-Image] Detected relative asset URL, extracting ID: ${assetId}`);
 
       // Validate it's a proper asset ID (UUID format with or without hyphens)
       if (/^[a-f0-9-]{36}$/.test(assetId) || /^[a-f0-9]{32}$/.test(assetId)) {
         // Always use API proxy to ensure correct content-type
         return NextResponse.redirect(new URL(url, baseUrl).toString(), { status: 302 });
       } else {
-        console.warn(`[OG-Image] Invalid asset ID format in URL: ${assetId}`);
+        logger.warn(`[OG-Image] Invalid asset ID format in URL: ${assetId}`);
         const fallbackImage = getDomainFallbackImage("unknown");
         return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), { status: 302 });
       }
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
 
     // Check if it's a Karakeep asset ID (UUID format with or without hyphens)
     if (/^[a-f0-9-]{36}$/.test(url) || /^[a-f0-9]{32}$/.test(url)) {
-      console.log(`[OG-Image] Detected Karakeep asset ID: ${url}`);
+      logger.info(`[OG-Image] Detected Karakeep asset ID: ${url}`);
       // Always use API proxy to ensure correct content-type
       const assetUrl = `/api/assets/${url}`;
       return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
       try {
         if (!URL.canParse(url)) throw new Error("invalid");
       } catch (urlError) {
-        console.warn("[OG-Image] Invalid URL format:", url, urlError);
+        logger.warn("[OG-Image] Invalid URL format:", url, urlError);
         const fallbackImage = getDomainFallbackImage("unknown");
         return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), {
           status: 302,
@@ -100,7 +101,7 @@ export async function GET(request: NextRequest) {
 
     // Check if it's an S3 key (starts with s3:// or is a simple path)
     if (url.startsWith("s3://") || (!url.startsWith("http") && !url.includes("."))) {
-      console.log(`[OG-Image] Detected S3 key: ${url}`);
+      logger.info(`[OG-Image] Detected S3 key: ${url}`);
       const s3Key = url.startsWith("s3://") ? url.slice(5) : url;
 
       // Check if S3 object exists
@@ -151,7 +152,7 @@ export async function GET(request: NextRequest) {
     if (assetId || bookmarkId) {
       // If we have an assetId directly, use it
       if (assetId) {
-        console.log(`[OG-Image] Checking Karakeep assetId BEFORE OpenGraph: ${assetId}`);
+        logger.info(`[OG-Image] Checking Karakeep assetId BEFORE OpenGraph: ${assetId}`);
         // Always use API proxy to ensure correct content-type
         const assetUrl = `/api/assets/${assetId}`;
         return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
@@ -167,7 +168,7 @@ export async function GET(request: NextRequest) {
             // Validate the data with Zod
             const validatedBookmarks = unifiedBookmarkSchema.array().safeParse(bookmarksData);
             if (!validatedBookmarks.success) {
-              console.error("[OG-Image] Invalid bookmark data:", validatedBookmarks.error);
+              logger.error("[OG-Image] Invalid bookmark data:", validatedBookmarks.error);
               throw new Error("Invalid bookmark data format");
             }
             const bookmark = validatedBookmarks.data.find(b => b.id === bookmarkId);
@@ -175,7 +176,7 @@ export async function GET(request: NextRequest) {
             if (bookmark) {
               // PRIORITY: Karakeep bannerImage (imageAssetId) takes precedence over OpenGraph
               if (bookmark.content?.imageAssetId) {
-                console.log(
+                logger.info(
                   `[OG-Priority-KARAKEEP] 🎯 Found Karakeep bannerImage (imageAssetId), using INSTEAD of OpenGraph: ${bookmark.content.imageAssetId}`,
                 );
                 // Always use API proxy to ensure correct content-type
@@ -188,14 +189,14 @@ export async function GET(request: NextRequest) {
                 imageAssetId: bookmark.content?.imageAssetId || undefined,
                 screenshotAssetId: bookmark.content?.screenshotAssetId || undefined,
               };
-              console.log(
+              logger.info(
                 `[OG-Image] No Karakeep bannerImage found, proceeding to OpenGraph with fallback data:`,
                 fallbackImageData,
               );
             }
           }
         } catch (s3Error) {
-          console.error("[OG-Image] Failed to read bookmarks for Karakeep priority check:", s3Error);
+          logger.error("[OG-Image] Failed to read bookmarks for Karakeep priority check:", s3Error);
         }
       }
     }
@@ -210,12 +211,12 @@ export async function GET(request: NextRequest) {
       isOwnDomainImage = parsedUrl.hostname === siteHostname && parsedUrl.pathname.startsWith(`/images/`);
     } catch (error) {
       // Invalid URL, treat as not own domain
-      console.warn(`[OG-Image] Invalid URL for own domain check: ${url}`, error);
+      logger.warn(`[OG-Image] Invalid URL for own domain check: ${url}`, error);
       isOwnDomainImage = false;
     }
 
     if (isOwnDomainImage) {
-      console.log(`[OG-Image] Detected static image from own domain: ${url}`);
+      logger.info(`[OG-Image] Detected static image from own domain: ${url}`);
       // For static images from our own domain, redirect directly without processing
       // This prevents self-referencing fetches that cause timeouts
       return NextResponse.redirect(url, {
@@ -261,19 +262,19 @@ export async function GET(request: NextRequest) {
         },
       });
     } catch {
-      console.log(`[OG-Image] S3 image not found, checking Karakeep fallback before external fetch`);
+      logger.info(`[OG-Image] S3 image not found, checking Karakeep fallback before external fetch`);
 
       // Check for Karakeep fallback BEFORE trying external fetch
       if (fallbackImageData) {
         // Try imageUrl first (this is the Karakeep API response image URL)
         if (fallbackImageData.imageUrl) {
-          console.log(`[OG-Image] Using Karakeep imageUrl instead of fetching: ${fallbackImageData.imageUrl}`);
+          logger.info(`[OG-Image] Using Karakeep imageUrl instead of fetching: ${fallbackImageData.imageUrl}`);
           return NextResponse.redirect(fallbackImageData.imageUrl, { status: 302 });
         }
 
         // Try screenshotAssetId as second option
         if (fallbackImageData.screenshotAssetId) {
-          console.log(
+          logger.info(
             `[OG-Image] Using Karakeep screenshot instead of fetching: ${fallbackImageData.screenshotAssetId}`,
           );
           // Always use API proxy to ensure correct content-type
@@ -286,7 +287,7 @@ export async function GET(request: NextRequest) {
     // Validate URL before fetching to prevent SSRF
     const urlValidation = openGraphUrlSchema.safeParse(url);
     if (!urlValidation.success) {
-      console.error(`[OG-Image] Invalid or unsafe URL: ${url}`, urlValidation.error);
+      logger.error(`[OG-Image] Invalid or unsafe URL: ${url}`, urlValidation.error);
       const fallbackImage = getContextualFallbackImage("company", url);
       return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), {
         status: 302,
@@ -298,7 +299,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch external image
-    console.log(`[OG-Image] Fetching external image: ${url}`);
+    logger.info(`[OG-Image] Fetching external image: ${url}`);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
 
@@ -328,7 +329,7 @@ export async function GET(request: NextRequest) {
       const urlHash = url.replace(/[^a-zA-Z0-9.-]/g, "_");
       const idempotencyKey = `og-image-${urlHash}`;
 
-      console.log(`[OG-Image] 📋 Scheduling background image persistence for: ${url}`);
+      logger.info(`[OG-Image] 📋 Scheduling background image persistence for: ${url}`);
       scheduleImagePersistence(url, OPENGRAPH_IMAGES_S3_DIR, "OG-Image-API", idempotencyKey, url);
 
       // For immediate response, return the original URL
@@ -341,21 +342,21 @@ export async function GET(request: NextRequest) {
       });
     } catch (fetchError) {
       clearTimeout(timeout);
-      console.error(`[OG-Image] Failed to fetch ${url}:`, fetchError);
+      logger.error(`[OG-Image] Failed to fetch ${url}:`, fetchError);
 
       // Check for Karakeep fallback images
       if (fallbackImageData) {
-        console.log("[OG-Image] Checking Karakeep fallback images...");
+        logger.info("[OG-Image] Checking Karakeep fallback images...");
 
         // Try imageUrl first
         if (fallbackImageData.imageUrl) {
-          console.log(`[OG-Image] Using Karakeep imageUrl fallback: ${fallbackImageData.imageUrl}`);
+          logger.info(`[OG-Image] Using Karakeep imageUrl fallback: ${fallbackImageData.imageUrl}`);
           return NextResponse.redirect(fallbackImageData.imageUrl, { status: 302 });
         }
 
         // Try imageAssetId
         if (fallbackImageData.imageAssetId) {
-          console.log(`[OG-Image] Using Karakeep imageAssetId fallback: ${fallbackImageData.imageAssetId}`);
+          logger.info(`[OG-Image] Using Karakeep imageAssetId fallback: ${fallbackImageData.imageAssetId}`);
           // Always use API proxy to ensure correct content-type
           const assetUrl = `/api/assets/${fallbackImageData.imageAssetId}`;
           return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
@@ -363,7 +364,7 @@ export async function GET(request: NextRequest) {
 
         // Try screenshotAssetId
         if (fallbackImageData.screenshotAssetId) {
-          console.log(`[OG-Image] Using Karakeep screenshotAssetId fallback: ${fallbackImageData.screenshotAssetId}`);
+          logger.info(`[OG-Image] Using Karakeep screenshotAssetId fallback: ${fallbackImageData.screenshotAssetId}`);
           // Always use API proxy to ensure correct content-type
           const assetUrl = `/api/assets/${fallbackImageData.screenshotAssetId}`;
           return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
@@ -381,7 +382,7 @@ export async function GET(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error("[OG-Image] Unexpected error:", error);
+    logger.error("[OG-Image] Unexpected error:", error);
     const fallbackImage = getDomainFallbackImage("unknown");
     return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), {
       status: 302,
