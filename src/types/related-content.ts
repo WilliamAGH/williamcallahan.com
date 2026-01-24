@@ -174,6 +174,7 @@ export interface NormalizedContentDisplay {
   };
   project?: {
     imageKey?: string;
+    slug?: string;
   };
   book?: {
     authors?: string[];

@@ -302,6 +302,7 @@ export const SEO_TITLE_SUFFIXES = {
   BLOG: "William Callahan - Blog",
   BOOKMARKS: "William Callahan - Bookmarks",
   BOOKS: "William Callahan - Bookshelf (Library)",
+  PROJECTS: "William Callahan - Projects",
   THOUGHTS: "William Callahan - Thoughts and Ruminations",
   HOMEPAGE: "William Callahan - San Francisco, California",
   DEFAULT: "William Callahan",
