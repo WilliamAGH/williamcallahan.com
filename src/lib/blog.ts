@@ -133,10 +133,20 @@ export function clearBlogSlugMemos(): void {
  */
 async function lookupMdxPost(slug: string, skipHeavyProcessing: boolean): Promise<PostLookupResult> {
   try {
-    // Optimization: try the conventional path first (filename === slug)
+    // Optimization: try the conventional path first (filename === slug).
+    // Avoid calling getMDXPostCached when the file doesn't exist, since that logs a warning
+    // and is expected for slugs whose filenames differ from their frontmatter slugs.
     const directFilePath = path.join(POSTS_DIRECTORY, `${slug}.mdx`);
-    const directPost = await getMDXPostCached(slug, directFilePath, undefined, skipHeavyProcessing);
-    if (directPost) return { found: true, post: directPost };
+    try {
+      await fs.stat(directFilePath);
+      const directPost = await getMDXPostCached(slug, directFilePath, undefined, skipHeavyProcessing);
+      if (directPost) return { found: true, post: directPost };
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException | null)?.code;
+      if (code && code !== "ENOENT") {
+        throw error;
+      }
+    }
 
     // Fallback: resolve slug via frontmatter index (handles slug !== filename)
     const mdxIndex = await getMdxSlugIndex();
