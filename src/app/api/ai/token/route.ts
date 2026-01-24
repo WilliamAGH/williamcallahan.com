@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import { createAiGateToken, hashUserAgent } from "@/lib/ai/openai-compatible/gate-token";
+import { getClientIp } from "@/lib/utils/request-utils";
 import logger from "@/lib/utils/logger";
 import { safeJsonParse } from "@/lib/utils/json-utils";
 
@@ -17,13 +18,6 @@ const TOKEN_RATE_LIMIT = {
 const TOKEN_TTL_MS = 60_000;
 const HTTPS_COOKIE_NAME = "__Host-ai_gate_nonce";
 const HTTP_COOKIE_NAME = "ai_gate_nonce";
-
-function getClientIp(request: NextRequest): string {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  const cfConnectingIp = request.headers.get("cf-connecting-ip");
-  const raw = forwardedFor?.split(",")[0]?.trim() || cfConnectingIp?.trim();
-  return raw || "anonymous";
-}
 
 function isAllowedHostname(hostname: string): boolean {
   const lower = hostname.toLowerCase();
@@ -91,7 +85,7 @@ export function GET(request: NextRequest): NextResponse {
     return NextResponse.json({ error: "Forbidden" }, { status: 403, headers: NO_STORE_HEADERS });
   }
 
-  const clientIp = getClientIp(request);
+  const clientIp = getClientIp(request.headers, { fallback: "anonymous" });
   if (!isOperationAllowed("ai-token", clientIp, TOKEN_RATE_LIMIT)) {
     return NextResponse.json(
       { error: "Rate limit exceeded. Try again shortly." },
