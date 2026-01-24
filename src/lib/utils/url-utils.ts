@@ -12,6 +12,22 @@
 import { IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
 
 /**
+ * Extracts the root domain (eTLD+1) from a domain string.
+ * e.g., "docs.google.com" -> "google.com"
+ *
+ * @param domain - The domain to extract from
+ * @returns The root domain
+ */
+export function getRootDomain(domain: string): string {
+  if (!domain) return "";
+  const parts = domain.split(".");
+  if (parts.length > 2) {
+    return parts.slice(-2).join(".");
+  }
+  return domain;
+}
+
+/**
  * Ensures a URL string has a protocol prefix for parsing.
  * Adds https:// if no http/https prefix exists.
  *

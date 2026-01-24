@@ -12,6 +12,18 @@ import { twMerge } from "tailwind-merge";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
 
 /**
+ * Normalizes a string by trimming and converting to lowercase.
+ * Useful for case-insensitive comparisons and standardized input processing.
+ *
+ * @param str - The string to normalize
+ * @returns The trimmed and lowercased string
+ */
+export function normalizeString(str: string): string {
+  if (!str) return "";
+  return str.trim().toLowerCase();
+}
+
+/**
  * Combines multiple class name values into a single optimized string
  *
  * Merges class names using clsx and resolves Tailwind CSS conflicts with tailwind-merge
@@ -177,7 +189,7 @@ export function normalizeCompanyOrDomain(urlOrCompany: string | number): string 
   if (!inputStr) return "";
 
   // First, normalize the input by trimming and lowercasing
-  const normalizedInput = inputStr.trim().toLowerCase();
+  const normalizedInput = normalizeString(inputStr);
 
   // Only attempt to parse as URL if it looks like a URL
   if (normalizedInput.includes(".") || normalizedInput.includes(":")) {
