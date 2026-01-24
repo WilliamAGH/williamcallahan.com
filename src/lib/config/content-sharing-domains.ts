@@ -17,7 +17,7 @@
  * @see {@link @/lib/utils/url-utils} for canonical URL extraction utilities
  */
 
-import { ensureProtocol, stripWwwPrefix, getRootDomain } from "@/lib/utils/url-utils";
+import { stripWwwPrefix, getRootDomain } from "@/lib/utils/url-utils";
 
 /**
  * Readonly array of domains where content is shared across many URLs.
@@ -143,30 +143,4 @@ export function isContentSharingDomain(domain: string): boolean {
   }
 
   return false;
-}
-
-/**
- * Extract domain from URL for content-sharing domain detection.
- *
- * **Nullability Contract:** Returns `null` when URL parsing fails. Callers
- * should handle null appropriately (e.g., skip content-sharing checks).
- *
- * @param url - The URL to extract domain from
- * @returns Normalized domain string, or `null` if URL is unparseable
- *
- * @example
- * extractDomainForContentCheck("https://www.youtube.com/watch?v=abc") // → "youtube.com"
- * extractDomainForContentCheck("http://reddit.com/r/programming") // → "reddit.com"
- * extractDomainForContentCheck("invalid") // → null
- *
- * @see {@link @/lib/utils/url-utils#extractDomain} for the canonical domain extraction utility
- */
-export function extractDomainForContentCheck(url: string): string | null {
-  try {
-    const urlObj = new URL(ensureProtocol(url));
-    return stripWwwPrefix(urlObj.hostname);
-  } catch {
-    // URL parsing failed - return null to signal caller should handle this case
-    return null;
-  }
 }
