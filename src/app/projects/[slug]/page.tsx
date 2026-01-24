@@ -35,7 +35,7 @@ const TAG_CATEGORY_MAPPINGS: Array<{ patterns: string[]; category: string }> = [
   { patterns: ["terminal", "tui", "cli"], category: "DeveloperApplication" },
   { patterns: ["vs code", "extension", "ide"], category: "DeveloperApplication" },
   { patterns: ["sdk", "library", "framework"], category: "DeveloperApplication" },
-  { patterns: ["web app", "saas"], category: "WebApplication" },
+  { patterns: ["web app", "web application", "webapp", "saas"], category: "WebApplication" },
   { patterns: ["mobile"], category: "MobileApplication" },
 ];
 
