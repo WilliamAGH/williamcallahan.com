@@ -83,6 +83,39 @@ const postMetaBySlugMemo = new Map<
 >();
 
 /**
+ * Short-lived negative cache for not-found slugs.
+ *
+ * Why: We intentionally avoid permanently memoizing not-found results to prevent unbounded memory growth from arbitrary
+ * slug requests. However, under high-traffic 404s, clearing the in-flight promise immediately after resolution causes
+ * repeated filesystem work. This bounded TTL cache reduces duplicate work while keeping memory growth controlled.
+ */
+const NOT_FOUND_SLUG_NEGATIVE_CACHE_TTL_MS = 30_000;
+const NOT_FOUND_SLUG_NEGATIVE_CACHE_MAX_ENTRIES = 500;
+const notFoundSlugUntilMs = new Map<string, number>();
+
+function isNegativelyCachedNotFoundSlug(slug: string): boolean {
+  const untilMs = notFoundSlugUntilMs.get(slug);
+  if (!untilMs) return false;
+
+  const nowMs = Date.now();
+  if (untilMs <= nowMs) {
+    notFoundSlugUntilMs.delete(slug);
+    return false;
+  }
+
+  return true;
+}
+
+function setNegativelyCachedNotFoundSlug(slug: string): void {
+  notFoundSlugUntilMs.set(slug, Date.now() + NOT_FOUND_SLUG_NEGATIVE_CACHE_TTL_MS);
+
+  if (notFoundSlugUntilMs.size <= NOT_FOUND_SLUG_NEGATIVE_CACHE_MAX_ENTRIES) return;
+
+  const oldestKey = notFoundSlugUntilMs.keys().next().value;
+  if (typeof oldestKey === "string") notFoundSlugUntilMs.delete(oldestKey);
+}
+
+/**
  * Clears the process-level memoization caches for blog posts.
  * Should be called when blog cache is invalidated to prevent stale data
  * in long-running processes.
@@ -91,6 +124,7 @@ export function clearBlogSlugMemos(): void {
   postBySlugMemo.clear();
   postMetaBySlugMemo.clear();
   mdxSlugIndexPromise = null;
+  notFoundSlugUntilMs.clear();
   console.log("[Blog] Cleared process-level slug memoization caches");
 }
 
@@ -148,6 +182,8 @@ async function memoizedPostLookup(
   const memoized = memo.get(slug);
   if (memoized) return memoized;
 
+  if (isNegativelyCachedNotFoundSlug(slug)) return Promise.resolve({ status: "not_found" });
+
   const promise = (async (): Promise<MemoizedLookupResult> => {
     // Prefer static posts first (fast path)
     const staticMatch = staticPosts?.find(post => post.slug === slug);
@@ -167,8 +203,9 @@ async function memoizedPostLookup(
       return { status: "error", error: result.error };
     }
 
-    // Not found case - log and don't memoize to prevent memory growth
+    // Not found case - bounded, short-lived negative cache to reduce repeated filesystem work under high-traffic 404s.
     console.log(`[${fnName}] Blog post not found with slug: ${slug}`);
+    setNegativelyCachedNotFoundSlug(slug);
     memo.delete(slug);
     return { status: "not_found" };
   })().catch((error): MemoizedLookupResult => {
@@ -233,8 +270,8 @@ export async function getAllPostsMeta(includeDrafts = INCLUDE_DRAFTS): Promise<B
  * Retrieves lightweight metadata for a single blog post by slug (skips MDX compilation + blur generation).
  * Prefer this for `generateMetadata()` and other SEO-only contexts.
  *
- * Note: Only successful lookups are memoized to prevent unbounded memory growth
- * from requests with arbitrary/invalid slugs.
+ * Note: Successful lookups are memoized; not-found slugs are cached briefly (bounded) to reduce repeated 404 work while
+ * keeping memory growth controlled.
  *
  * @param slug - The blog post slug to look up
  * @returns The blog post if found, null if not found or invalid slug
@@ -266,8 +303,8 @@ export async function getPostMetaBySlug(slug: string): Promise<BlogPost | null> 
  * Retrieves a single blog post by its slug (includes full MDX content).
  * Includes draft posts since direct URL access is allowed.
  *
- * Note: Only successful lookups are memoized to prevent unbounded memory growth
- * from requests with arbitrary/invalid slugs.
+ * Note: Successful lookups are memoized; not-found slugs are cached briefly (bounded) to reduce repeated 404 work while
+ * keeping memory growth controlled.
  *
  * @param slug - The blog post slug to look up
  * @returns The found blog post or null if not found (including invalid slugs)
