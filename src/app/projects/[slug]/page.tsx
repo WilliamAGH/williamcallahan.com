@@ -28,6 +28,35 @@ import type { Project } from "@/types/project";
 import type { ProjectPageProps } from "@/types/features/projects";
 
 /**
+ * Derive schema.org applicationCategory from project tags.
+ * Maps semantic tags to appropriate schema.org SoftwareApplication categories.
+ *
+ * @see {@link "https://schema.org/SoftwareApplication"} - SoftwareApplication specification
+ */
+function deriveApplicationCategory(tags: string[]): string {
+  const lowerTags = tags.map(t => t.toLowerCase());
+
+  // Priority order matters - more specific categories first
+  if (lowerTags.some(t => t.includes("terminal") || t.includes("tui") || t.includes("cli"))) {
+    return "DeveloperApplication";
+  }
+  if (lowerTags.some(t => t.includes("vs code") || t.includes("extension") || t.includes("ide"))) {
+    return "DeveloperApplication";
+  }
+  if (lowerTags.some(t => t.includes("sdk") || t.includes("library") || t.includes("framework"))) {
+    return "DeveloperApplication";
+  }
+  if (lowerTags.some(t => t.includes("web app") || t.includes("saas"))) {
+    return "WebApplication";
+  }
+  if (lowerTags.some(t => t.includes("mobile"))) {
+    return "MobileApplication";
+  }
+  // Default fallback for general software
+  return "Application";
+}
+
+/**
  * Build dynamic OG image URL for a project
  * Uses the project screenshot image if available
  */
@@ -127,7 +156,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     // Software-specific metadata for SoftwareApplication schema
     softwareMetadata: {
       name: project.name,
-      applicationCategory: "WebApplication",
+      applicationCategory: deriveApplicationCategory(project.tags ?? []),
       operatingSystem: "Cross-platform",
       isFree: true,
     },
