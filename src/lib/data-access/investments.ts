@@ -8,6 +8,7 @@
  */
 
 import { investments } from "@/data/investments";
+import { stripWwwPrefix } from "@/lib/utils/url-utils";
 
 /**
  * Retrieves a map linking investment domain names to their corresponding investment IDs
@@ -29,7 +30,7 @@ export function getInvestmentDomainsAndIds(): Promise<Map<string, string>> {
     if (investment.id && investment.website) {
       try {
         const url = new URL(investment.website);
-        const domain = url.hostname.replace(/^www\./, "");
+        const domain = stripWwwPrefix(url.hostname);
         domainToIdMap.set(domain, investment.id);
       } catch {
         /* ignore invalid URLs */

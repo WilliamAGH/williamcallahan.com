@@ -14,7 +14,10 @@
  * - youtube.com/watch?v=xyz789 + "React Best Practices" → "youtube-react-best-practices"
  *
  * @module lib/config/content-sharing-domains
+ * @see {@link @/lib/utils/url-utils} for canonical URL extraction utilities
  */
+
+import { ensureProtocol, stripWwwPrefix } from "@/lib/utils/url-utils";
 
 /**
  * Readonly array of domains where content is shared across many URLs.
@@ -121,7 +124,7 @@ export const CONTENT_SHARING_DOMAINS = [
  * isContentSharingDomain("example.com") // → false
  */
 export function isContentSharingDomain(domain: string): boolean {
-  const normalized = domain.toLowerCase().replace(/^www\./, "");
+  const normalized = stripWwwPrefix(domain.toLowerCase());
 
   // First, check for exact match (handles explicit subdomain entries like docs.google.com)
   if (CONTENT_SHARING_DOMAINS.includes(normalized as (typeof CONTENT_SHARING_DOMAINS)[number])) {
@@ -145,18 +148,25 @@ export function isContentSharingDomain(domain: string): boolean {
 /**
  * Extract domain from URL for content-sharing domain detection.
  *
+ * **Nullability Contract:** Returns `null` when URL parsing fails. Callers
+ * should handle null appropriately (e.g., skip content-sharing checks).
+ *
  * @param url - The URL to extract domain from
- * @returns Normalized domain string or null if invalid URL
+ * @returns Normalized domain string, or `null` if URL is unparseable
  *
  * @example
- * extractDomain("https://www.youtube.com/watch?v=abc") // → "youtube.com"
- * extractDomain("http://reddit.com/r/programming") // → "reddit.com"
+ * extractDomainForContentCheck("https://www.youtube.com/watch?v=abc") // → "youtube.com"
+ * extractDomainForContentCheck("http://reddit.com/r/programming") // → "reddit.com"
+ * extractDomainForContentCheck("invalid") // → null
+ *
+ * @see {@link @/lib/utils/url-utils#extractDomain} for the canonical domain extraction utility
  */
-export function extractDomain(url: string): string | null {
+export function extractDomainForContentCheck(url: string): string | null {
   try {
-    const urlObj = new URL(url.startsWith("http") ? url : `https://${url}`);
-    return urlObj.hostname.replace(/^www\./, "");
+    const urlObj = new URL(ensureProtocol(url));
+    return stripWwwPrefix(urlObj.hostname);
   } catch {
+    // URL parsing failed - return null to signal caller should handle this case
     return null;
   }
 }

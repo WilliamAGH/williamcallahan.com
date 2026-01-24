@@ -10,6 +10,7 @@
  */
 
 import { generateHash, getBufferHash } from "./hash-utils";
+import { stripWwwPrefix } from "./url-utils";
 import type { OgMetadata } from "@/types";
 
 /**
@@ -92,7 +93,7 @@ export function getOgImageS3Key(
     try {
       // Import at top of file instead - for now, just inline the logic
       const hash = hashImageContent(Buffer.from(`${pageUrl}:${idempotencyKey}`)).substring(0, 8);
-      const domain = new URL(pageUrl).hostname.replace(/^www\./, "").replace(/\./g, "-");
+      const domain = stripWwwPrefix(new URL(pageUrl).hostname).replace(/\./g, "-");
       const filename = `${domain}-${hash}.${extension}`;
       return `${s3Directory}/${filename}`;
     } catch {

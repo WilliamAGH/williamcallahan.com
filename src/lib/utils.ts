@@ -9,6 +9,7 @@
 
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { stripWwwPrefix } from "@/lib/utils/url-utils";
 
 /**
  * Combines multiple class name values into a single optimized string
@@ -153,15 +154,19 @@ export function isValidUrl(url: string): boolean {
 }
 
 /**
- * Extracts the domain name from a URL or cleans a company name string
+ * Extracts a domain from a URL or normalizes a company name string.
  *
- * For valid URLs, returns hostname without "www." prefix
- * For non-URLs, returns lowercased, whitespace-free version with common suffixes removed
+ * This function serves a dual purpose:
+ * - For valid URLs: Returns hostname without "www." prefix
+ * - For non-URLs (company names): Returns lowercased, whitespace-free version with common suffixes removed
  *
  * @param urlOrCompany - The URL or company name to process
  * @returns The extracted domain or cleaned company name
+ *
+ * @see {@link @/lib/utils/url-utils#extractDomain} for pure URL hostname extraction
+ * @see {@link @/lib/utils/url-utils#extractDomainWithoutWww} for URL extraction with www stripping
  */
-export function extractDomain(urlOrCompany: string | number): string {
+export function normalizeCompanyOrDomain(urlOrCompany: string | number): string {
   // Handle null or undefined input
   if (urlOrCompany === undefined || urlOrCompany === null) {
     return "";
@@ -193,7 +198,7 @@ export function extractDomain(urlOrCompany: string | number): string {
         const isLocalhost = parsedUrl.hostname === "localhost";
 
         if (isIpAddress || hasTld || isLocalhost) {
-          return parsedUrl.hostname.replace(/^www\./, "");
+          return stripWwwPrefix(parsedUrl.hostname);
         }
       }
     } catch (error: unknown) {

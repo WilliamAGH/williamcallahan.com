@@ -7,6 +7,17 @@
 
 import { z } from "zod/v4";
 
+/**
+ * Allowed ports for external URL fetching.
+ * Restricts to standard web ports to prevent port scanning attacks.
+ *
+ * - 80: Standard HTTP
+ * - 443: Standard HTTPS
+ * - 8080: Common alternate HTTP port (dev servers, proxies)
+ * - 3000: Common development server port (Next.js, React, etc.)
+ */
+const ALLOWED_PORTS = new Set(["80", "443", "8080", "3000"]);
+
 const PRIVATE_HOSTNAME_PATTERNS = [
   /^localhost$/i,
   /^.*\.local$/i,
@@ -151,9 +162,9 @@ export const safeUrlSchema = z
           return false;
         }
 
-        // Block suspicious ports
+        // Block suspicious ports (only allow standard web ports)
         const port = parsed.port;
-        if (port && !["80", "443", "8080", "3000"].includes(port)) {
+        if (port && !ALLOWED_PORTS.has(port)) {
           return false;
         }
 

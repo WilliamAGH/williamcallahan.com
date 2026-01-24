@@ -15,6 +15,7 @@ import React, { type JSX, useCallback, useEffect, useState } from "react";
 import type { SocialCardProps } from "@/types/features/social";
 import { cn } from "@/lib/utils";
 import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { stripWwwPrefix } from "@/lib/utils/url-utils";
 
 /**
  * Client-side component for rendering a social media profile card.
@@ -37,11 +38,11 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
   let domain = "";
   try {
     const urlObj = new URL(href);
-    domain = urlObj.hostname.replace(/^www\./, "");
+    domain = stripWwwPrefix(urlObj.hostname);
   } catch (error: unknown) {
     void error;
     console.error(`Invalid URL format: ${href}`);
-    domain = href.replace(/^https?:\/\/|www\./g, "").split("/")[0] ?? "unknown";
+    domain = stripWwwPrefix(href.replace(/^https?:\/\//g, "")).split("/")[0] ?? "unknown";
   }
 
   let serviceName = "";

@@ -9,6 +9,7 @@
 
 import type { UnifiedBookmark, BookmarkContent, KarakeepImageFallback } from "@/types";
 import type { ImageSelectionOptions } from "@/types/features/bookmarks";
+import { stripWwwPrefix } from "@/lib/utils/url-utils";
 
 /**
  * Constructs a consistent asset URL for Karakeep assets.
@@ -101,7 +102,7 @@ export function selectBestImage(
   // Prepare context for asset URL generation (for descriptive S3 filenames)
   let domain: string | undefined;
   try {
-    domain = bookmark.url ? new URL(bookmark.url).hostname.replace(/^www\./, "") : undefined;
+    domain = bookmark.url ? stripWwwPrefix(new URL(bookmark.url).hostname) : undefined;
   } catch {
     domain = undefined;
   }
