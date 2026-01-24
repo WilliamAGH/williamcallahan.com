@@ -11,7 +11,7 @@ import { InvestmentCardClient } from "./investment-card.client";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import type { ReactElement } from "react";
-import { getLogoCdnData } from "@/lib/data-access/logos";
+import { getLogoCdnData, getRuntimeLogoUrl } from "@/lib/data-access/logos";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import type { InvestmentCardExtendedProps } from "@/types/features/investments";
 
@@ -69,6 +69,24 @@ export async function resolveInvestmentCardData(
   } catch (manifestError) {
     const message = manifestError instanceof Error ? manifestError.message : String(manifestError);
     console.warn(`[InvestmentCard] Manifest lookup failed for ${effectiveDomain}:`, message);
+  }
+
+  // Build-time logo resolution strategy: During static generation (phase-production-build),
+  // avoid blocking async I/O by deferring to runtime logo service endpoint instead of
+  // awaiting getLogoCdnData. The client will resolve the actual logo at request time.
+  // This sets source: null and needsInversion: false to mark it as deferred resolution.
+  const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+  if (isProductionBuildPhase) {
+    const runtimeLogoUrl = getRuntimeLogoUrl(effectiveDomain, { company: name, forceRefresh: false });
+
+    return {
+      ...normalizedInvestment,
+      logoData: {
+        url: runtimeLogoUrl ?? getCompanyPlaceholder(),
+        source: null,
+        needsInversion: false,
+      },
+    };
   }
 
   const directLogo = await getLogoCdnData(effectiveDomain);

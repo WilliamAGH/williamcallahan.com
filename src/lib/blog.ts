@@ -3,7 +3,7 @@
  */
 
 import { posts as staticPosts } from "@/data/blog/posts";
-import type { BlogPost, PostLookupResult, MemoizedLookupResult } from "@/types/blog";
+import type { BlogPost, PostLookupResult, MemoizedLookupResult, MemoizedLookupParams } from "@/types/blog";
 import { getAllMDXPostsCached, getMDXPostCached } from "./blog/mdx";
 import { BlogPostDataError } from "./utils/error-utils";
 import fs from "node:fs/promises";
@@ -28,19 +28,18 @@ function isValidSlug(slug: string): boolean {
 }
 
 let mdxSlugIndexPromise: Promise<Map<string, { filePath: string }>> | null = null;
+/**
+ * Builds and caches an index mapping slugs to their MDX file paths.
+ * Uses warn-and-skip for missing/duplicate slugs (consistent with getAllMDXPosts in mdx.ts).
+ * Filesystem errors clear the cached promise to allow recovery after transient failures.
+ */
 const getMdxSlugIndex = async (): Promise<Map<string, { filePath: string }>> => {
   if (mdxSlugIndexPromise) return mdxSlugIndexPromise;
 
   mdxSlugIndexPromise = (async () => {
     const slugToEntry = new Map<string, { filePath: string }>();
 
-    let files: string[];
-    try {
-      files = await fs.readdir(POSTS_DIRECTORY);
-    } catch (error) {
-      console.error(`[getMdxSlugIndex] Failed to read ${POSTS_DIRECTORY}:`, error);
-      return slugToEntry;
-    }
+    const files = await fs.readdir(POSTS_DIRECTORY);
 
     for (const fileName of files) {
       if (!fileName.endsWith(".mdx")) continue;
@@ -51,22 +50,35 @@ const getMdxSlugIndex = async (): Promise<Map<string, { filePath: string }>> => 
         const parsed = matter(fileContents);
         const data = parsed.data as Record<string, unknown>;
         const slug = typeof data.slug === "string" ? data.slug.trim() : "";
+
+        // Warn-and-skip for missing slugs (consistent with getAllMDXPosts in mdx.ts:428-431)
         if (!slug) {
-          console.warn(`[getMdxSlugIndex] Missing or invalid slug in ${filePath}. Skipping.`);
+          console.warn(`[getMdxSlugIndex] MDX file ${fileName} has missing or invalid slug in frontmatter. Skipping.`);
           continue;
         }
+
+        // Warn-and-skip for duplicate slugs, keep first occurrence (consistent with getAllMDXPosts in mdx.ts:454-457)
         if (slugToEntry.has(slug)) {
-          console.warn(`[getMdxSlugIndex] Duplicate slug "${slug}" detected. Keeping first, skipping ${filePath}.`);
+          console.warn(
+            `[getMdxSlugIndex] Duplicate slug "${slug}" detected in ${fileName} (already defined elsewhere). Skipping subsequent instance.`,
+          );
           continue;
         }
+
         slugToEntry.set(slug, { filePath });
-      } catch (error) {
-        console.error(`[getMdxSlugIndex] Failed to index ${filePath}:`, error);
+      } catch (fileError) {
+        // Log per-file errors but continue processing other files
+        console.error(`[getMdxSlugIndex] Error reading file ${fileName}:`, fileError);
       }
     }
 
     return slugToEntry;
-  })();
+  })().catch(error => {
+    // Clear cached promise on rejection to allow recovery after transient failures
+    // (e.g., filesystem issues, POSTS_DIRECTORY not found during startup)
+    mdxSlugIndexPromise = null;
+    throw error;
+  });
 
   return mdxSlugIndexPromise;
 };
@@ -111,6 +123,7 @@ function setNegativelyCachedNotFoundSlug(slug: string): void {
 
   if (notFoundSlugUntilMs.size <= NOT_FOUND_SLUG_NEGATIVE_CACHE_MAX_ENTRIES) return;
 
+  // Safe: all entries share the same TTL, so insertion order === expiration order (FIFO eviction)
   const oldestKey = notFoundSlugUntilMs.keys().next().value;
   if (typeof oldestKey === "string") notFoundSlugUntilMs.delete(oldestKey);
 }
@@ -138,10 +151,21 @@ export function clearBlogSlugMemos(): void {
  */
 async function lookupMdxPost(slug: string, skipHeavyProcessing: boolean): Promise<PostLookupResult> {
   try {
-    // Optimization: try the conventional path first (filename === slug)
+    // Optimization: try the conventional path first (filename === slug).
+    // Avoid calling getMDXPostCached when the file doesn't exist, since that logs a warning
+    // and is expected for slugs whose filenames differ from their frontmatter slugs.
     const directFilePath = path.join(POSTS_DIRECTORY, `${slug}.mdx`);
-    const directPost = await getMDXPostCached(slug, directFilePath, undefined, skipHeavyProcessing);
-    if (directPost) return { found: true, post: directPost };
+    try {
+      await fs.stat(directFilePath);
+      const directPost = await getMDXPostCached(slug, directFilePath, undefined, skipHeavyProcessing);
+      if (directPost) return { found: true, post: directPost };
+    } catch (error) {
+      // Only suppress ENOENT (file not found) - propagate all other errors
+      const code = (error as NodeJS.ErrnoException | null)?.code;
+      if (code !== "ENOENT") {
+        throw error;
+      }
+    }
 
     // Fallback: resolve slug via frontmatter index (handles slug !== filename)
     const mdxIndex = await getMdxSlugIndex();
@@ -167,18 +191,14 @@ async function lookupMdxPost(slug: string, skipHeavyProcessing: boolean): Promis
  * Core memoized post lookup. Extracts common pattern used by both
  * getPostBySlug and getPostMetaBySlug to eliminate duplication.
  *
- * @param slug - The post slug (must be pre-validated by caller)
- * @param memo - The memoization map to use
- * @param skipHeavyProcessing - Whether to skip MDX serialization/blur
- * @param fnName - Function name for logging
  * @returns Discriminated union with explicit status for found/not_found/error cases
  */
-async function memoizedPostLookup(
-  slug: string,
-  memo: Map<string, Promise<MemoizedLookupResult>>,
-  skipHeavyProcessing: boolean,
-  fnName: string,
-): Promise<MemoizedLookupResult> {
+async function memoizedPostLookup({
+  slug,
+  memo,
+  skipHeavyProcessing,
+  fnName,
+}: MemoizedLookupParams): Promise<MemoizedLookupResult> {
   const memoized = memo.get(slug);
   if (memoized) return memoized;
 
@@ -284,7 +304,12 @@ export async function getPostMetaBySlug(slug: string): Promise<BlogPost | null> 
     return null;
   }
 
-  const result = await memoizedPostLookup(slug, postMetaBySlugMemo, true, "getPostMetaBySlug");
+  const result = await memoizedPostLookup({
+    slug,
+    memo: postMetaBySlugMemo,
+    skipHeavyProcessing: true,
+    fnName: "getPostMetaBySlug",
+  });
 
   switch (result.status) {
     case "found":
@@ -317,7 +342,12 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
     return null;
   }
 
-  const result = await memoizedPostLookup(slug, postBySlugMemo, false, "getPostBySlug");
+  const result = await memoizedPostLookup({
+    slug,
+    memo: postBySlugMemo,
+    skipHeavyProcessing: false,
+    fnName: "getPostBySlug",
+  });
 
   switch (result.status) {
     case "found":
