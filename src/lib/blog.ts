@@ -30,7 +30,8 @@ function isValidSlug(slug: string): boolean {
 let mdxSlugIndexPromise: Promise<Map<string, { filePath: string }>> | null = null;
 /**
  * Builds and caches an index mapping slugs to their MDX file paths.
- * Throws on filesystem errors to ensure callers are aware of failures.
+ * Uses warn-and-skip for missing/duplicate slugs (consistent with getAllMDXPosts in mdx.ts).
+ * Filesystem errors clear the cached promise to allow recovery after transient failures.
  */
 const getMdxSlugIndex = async (): Promise<Map<string, { filePath: string }>> => {
   if (mdxSlugIndexPromise) return mdxSlugIndexPromise;
@@ -38,29 +39,46 @@ const getMdxSlugIndex = async (): Promise<Map<string, { filePath: string }>> => 
   mdxSlugIndexPromise = (async () => {
     const slugToEntry = new Map<string, { filePath: string }>();
 
-    // Let errors propagate - caller (lookupMdxPost) handles via discriminated union
     const files = await fs.readdir(POSTS_DIRECTORY);
 
     for (const fileName of files) {
       if (!fileName.endsWith(".mdx")) continue;
       const filePath = path.join(POSTS_DIRECTORY, fileName);
 
-      // Let errors propagate - malformed files should fail fast in dev, be pre-validated in prod
-      const fileContents = await fs.readFile(filePath, "utf8");
-      const parsed = matter(fileContents);
-      const data = parsed.data as Record<string, unknown>;
-      const slug = typeof data.slug === "string" ? data.slug.trim() : "";
-      if (!slug) {
-        throw new Error(`[getMdxSlugIndex] Missing or invalid slug in ${filePath}`);
+      try {
+        const fileContents = await fs.readFile(filePath, "utf8");
+        const parsed = matter(fileContents);
+        const data = parsed.data as Record<string, unknown>;
+        const slug = typeof data.slug === "string" ? data.slug.trim() : "";
+
+        // Warn-and-skip for missing slugs (consistent with getAllMDXPosts in mdx.ts:428-431)
+        if (!slug) {
+          console.warn(`[getMdxSlugIndex] MDX file ${fileName} has missing or invalid slug in frontmatter. Skipping.`);
+          continue;
+        }
+
+        // Warn-and-skip for duplicate slugs, keep first occurrence (consistent with getAllMDXPosts in mdx.ts:454-457)
+        if (slugToEntry.has(slug)) {
+          console.warn(
+            `[getMdxSlugIndex] Duplicate slug "${slug}" detected in ${fileName} (already defined elsewhere). Skipping subsequent instance.`,
+          );
+          continue;
+        }
+
+        slugToEntry.set(slug, { filePath });
+      } catch (fileError) {
+        // Log per-file errors but continue processing other files
+        console.error(`[getMdxSlugIndex] Error reading file ${fileName}:`, fileError);
       }
-      if (slugToEntry.has(slug)) {
-        throw new Error(`[getMdxSlugIndex] Duplicate slug "${slug}" in ${filePath} (already defined elsewhere)`);
-      }
-      slugToEntry.set(slug, { filePath });
     }
 
     return slugToEntry;
-  })();
+  })().catch(error => {
+    // Clear cached promise on rejection to allow recovery after transient failures
+    // (e.g., filesystem issues, POSTS_DIRECTORY not found during startup)
+    mdxSlugIndexPromise = null;
+    throw error;
+  });
 
   return mdxSlugIndexPromise;
 };
