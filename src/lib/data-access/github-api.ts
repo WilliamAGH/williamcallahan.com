@@ -270,6 +270,14 @@ export function getGitHubUsername(): string {
 }
 
 /**
+ * Get GitHub API token from environment
+ * @see {@link src/lib/data-access/github-api.ts} - Single source of truth for GitHub auth
+ */
+export function getGitHubApiToken(): string | undefined {
+  return GITHUB_API_TOKEN;
+}
+
+/**
  * Fetch with advanced retry logic for critical operations
  * Similar to opengraph/fetch.ts but tailored for GitHub API
  */

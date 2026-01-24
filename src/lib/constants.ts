@@ -274,6 +274,12 @@ export const OPENGRAPH_CACHE_DURATION = { SUCCESS: 24 * 60 * 60, FAILURE: 60 * 6
 export const JINA_FETCH_CONFIG: RateLimiterConfig = { maxRequests: 10, windowMs: 24 * 60 * 60 * 1000 };
 /** Default API endpoint rate limit: 5 requests per minute */
 export const DEFAULT_API_ENDPOINT_LIMIT_CONFIG: RateLimiterConfig = { maxRequests: 5, windowMs: 60 * 1000 };
+
+/** GitHub API rate limit - 5000 requests per hour (GitHub's standard limit) */
+export const GITHUB_API_RATE_LIMIT_CONFIG: RateLimiterConfig = { maxRequests: 5000, windowMs: 60 * 60 * 1000 };
+
+/** GitHub refresh operation rate limit - conservative for batch operations */
+export const GITHUB_REFRESH_RATE_LIMIT_CONFIG: RateLimiterConfig = { maxRequests: 1000, windowMs: 60 * 60 * 1000 };
 export const API_ENDPOINT_STORE_NAME = "apiEndpoints";
 /** OpenGraph fetch rate limit: 10 requests per second */
 export const DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG: RateLimiterConfig = { maxRequests: 10, windowMs: 1000 };
