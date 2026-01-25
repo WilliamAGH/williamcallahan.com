@@ -28,6 +28,8 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import type { Project } from "@/types/project";
 import type { ProjectPageProps } from "@/types/features/projects";
 
+const DEFAULT_PROJECT_OG_IMAGE = "/images/og/projects-og.png"; // eslint-disable-line s3/no-hardcoded-images
+
 /**
  * Tag patterns mapped to schema.org applicationCategory values.
  * Order matters - first match wins (more specific patterns first).
@@ -69,13 +71,14 @@ function buildProjectOgImageUrl(project: Project): string {
     try {
       // Convert S3 key to CDN URL
       return buildCdnUrl(project.imageKey, getCdnConfigFromEnv());
-    } catch {
+    } catch (error) {
+      console.warn(`[ProjectMetadata] Failed to build CDN URL for project ${project.name}, using fallback`, error);
       // Fallback if CDN config is missing (e.g. in dev without env vars)
-      return ensureAbsoluteUrl(getStaticImageUrl("/images/og/projects-og.png"));
+      return ensureAbsoluteUrl(getStaticImageUrl(DEFAULT_PROJECT_OG_IMAGE));
     }
   }
   // Fallback to default projects OG image
-  return ensureAbsoluteUrl(getStaticImageUrl("/images/og/projects-og.png"));
+  return ensureAbsoluteUrl(getStaticImageUrl(DEFAULT_PROJECT_OG_IMAGE));
 }
 
 export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {
