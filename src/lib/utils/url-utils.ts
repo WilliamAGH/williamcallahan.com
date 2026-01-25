@@ -13,18 +13,20 @@ import { IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
 
 /**
  * Extracts the root domain (eTLD+1) from a domain string.
+ * Handles complex TLDs like co.uk, com.br, etc.
  * e.g., "docs.google.com" -> "google.com"
+ * e.g., "example.co.uk" -> "example.co.uk"
  *
  * @param domain - The domain to extract from
  * @returns The root domain
  */
 export function getRootDomain(domain: string): string {
   if (!domain) return "";
-  const parts = domain.split(".");
-  if (parts.length > 2) {
-    return parts.slice(-2).join(".");
-  }
-  return domain;
+  const { name, tld } = extractTld(domain);
+  if (!tld) return domain;
+  const nameParts = name.split(".");
+  const baseName = nameParts[nameParts.length - 1] || name;
+  return `${baseName}.${tld}`;
 }
 
 /**
