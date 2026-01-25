@@ -12,7 +12,17 @@ import { useMemo, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import type { ProjectDetailProps } from "@/types/features/projects";
-import { Globe, ExternalLink, ArrowUpRight, FolderKanban, ChevronLeft, AlertTriangle, Code2, Tag } from "lucide-react";
+import {
+  Globe,
+  ExternalLink,
+  ArrowUpRight,
+  FolderKanban,
+  ChevronLeft,
+  AlertTriangle,
+  Code2,
+  Tag,
+  Github,
+} from "lucide-react";
 import { safeExternalHref, getDisplayHostname } from "@/lib/utils/url-utils";
 import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
@@ -289,6 +299,18 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
                 <span>{isInternal ? "View Content" : "Visit Project"}</span>
                 <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </SmartLink>
+
+              {project.githubUrl && project.githubUrl !== project.url && (
+                <a
+                  href={project.githubUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full px-5 py-3 sm:py-2.5 bg-[#24292f] text-white font-medium rounded-lg hover:bg-[#24292f]/90 transition-colors"
+                >
+                  <Github className="w-4 h-4" />
+                  <span>View Source</span>
+                </a>
+              )}
 
               <Link
                 href="/projects"
