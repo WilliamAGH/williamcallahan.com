@@ -1,8 +1,10 @@
 /**
  * Data access layer re-exports - unified import point
  *
- * Re-exports: bookmarks, logos, investments, github
- * Usage: import { getLogo, getBookmarks } from '@/lib/data-access'
+ * Re-exports: logos, investments, github
+ * Usage: import { getLogo } from '@/lib/data-access'
+ *
+ * Note: Bookmarks should be imported directly from '@/lib/bookmarks/bookmarks-data-access.server'
  *
  * @module lib/data-access
  */
