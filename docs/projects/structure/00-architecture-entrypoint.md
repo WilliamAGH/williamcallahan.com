@@ -36,6 +36,7 @@ Example schemas:
 - `/src/types/schemas/url.ts` - URL validation with SSRF protection
 - `/src/types/schemas/education.ts` - Education data validation
 - `/src/types/schemas/experience.ts` - Experience data validation
+- `/src/types/schemas/related-content.ts` - Related content debug param validation
 
 ---
 

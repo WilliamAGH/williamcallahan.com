@@ -318,6 +318,8 @@ File/Path Functionality Description
 - [x] `seo.ts` `seo` - Types for SEO and metadata
 - [x] `social.ts` `social-links` - Types for social links
 - [x] `terminal.ts` `terminal` - Types for terminal components
+- [ ] **schemas/**
+  - [x] `related-content.ts` `search` - Zod schemas for related content debug params and content types
 - [ ] **global/**
   - [x] `bun-test-globals.d.ts` `testing-config` - Global type definitions for Bun tests
   - [x] `matchers.d.ts` `testing-config` - Custom matcher type definitions

@@ -7,6 +7,7 @@
  */
 
 import { z } from "zod/v4";
+import { relatedContentTypeSchema } from "./related-content";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EPUB Metadata Schema (for parsing validation)
@@ -217,14 +218,6 @@ export interface FetchAbsLibraryItemsOptions {
 // ─────────────────────────────────────────────────────────────────────────────
 // Books Related Content S3 Data Schemas
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Content type for related content entries.
- * Matches RelatedContentType from types/related-content.ts
- */
-export const relatedContentTypeSchema = z.enum(["bookmark", "blog", "investment", "project", "thought", "book"]);
-
-export type RelatedContentTypeFromSchema = z.infer<typeof relatedContentTypeSchema>;
 
 /**
  * Metadata for related content display (optional fields)

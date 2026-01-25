@@ -9,6 +9,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { aggregateAllContent, getContentById } from "@/lib/content-similarity/aggregator";
 import { calculateSimilarity, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
 import { getEnabledContentTypes } from "@/config/related-content.config";
+import { createRelatedContentDebugParamsSchema } from "@/types/schemas/related-content";
 import type {
   RelatedContentType,
   NormalizedContent,
@@ -34,24 +35,36 @@ const TEXT_PREVIEW_LENGTH = 200;
  * @returns Validated params or null if validation fails
  */
 function parseDebugParams(searchParams: URLSearchParams): DebugParams | null {
-  const sourceTypeRaw = searchParams.get("type");
-  const sourceId = searchParams.get("id");
-  const limitRaw = parseInt(searchParams.get("limit") || String(DEFAULT_LIMIT), 10);
+  const sourceTypeRaw = searchParams.get("type") ?? undefined;
+  const sourceId = searchParams.get("id") ?? undefined;
+  const limitParam = searchParams.get("limit");
+  const limitRaw = limitParam?.trim() ? limitParam : undefined;
 
   const enabledTypes = getEnabledContentTypes();
-  const enabledTypesSet = new Set<RelatedContentType>(enabledTypes);
+  const enabledTypesSet = new Set<string>(enabledTypes);
+  const isEnabledType = (value: string): value is RelatedContentType => enabledTypesSet.has(value);
 
-  const sourceType = enabledTypesSet.has(sourceTypeRaw as RelatedContentType)
-    ? (sourceTypeRaw as RelatedContentType)
-    : null;
+  const schema = createRelatedContentDebugParamsSchema({
+    maxLimit: MAX_LIMIT,
+    defaultLimit: DEFAULT_LIMIT,
+    isEnabledType,
+  });
 
-  const limit = Math.max(1, Math.min(MAX_LIMIT, Number.isFinite(limitRaw) ? limitRaw : DEFAULT_LIMIT));
-
-  if (!sourceType || !sourceId) {
+  const parsed = schema.safeParse({ type: sourceTypeRaw, id: sourceId, limit: limitRaw });
+  if (!parsed.success) {
     return null;
   }
 
-  return { sourceType, sourceId, limit, enabledTypes };
+  if (!isEnabledType(parsed.data.type)) {
+    return null;
+  }
+
+  return {
+    sourceType: parsed.data.type,
+    sourceId: parsed.data.id,
+    limit: parsed.data.limit,
+    enabledTypes,
+  };
 }
 
 /**

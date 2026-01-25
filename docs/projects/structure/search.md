@@ -103,6 +103,8 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
   - Handles all search scopes dynamically
   - Validates queries before processing
   - Returns consistent response format
+- **`app/api/related-content/debug/route.ts`**: Related content debug endpoint
+  - Validates query params with `types/schemas/related-content.ts`
 - **Runtime behavior**: Search APIs resolve request metadata from `request.headers` (not `headers()` helper) to prevent `NEXT_PRERENDER_INTERRUPTED` errors under `cacheComponents`.
 - **`app/api/search/all/route.ts`**: Site-wide search
   - Aggregates results from all sections
