@@ -15,19 +15,14 @@ import {
   writeJsonS3,
   writeToS3,
   s3Client as s3UtilsClient,
+  isS3FullyConfigured,
 } from "@/lib/s3-utils";
 import type { S3ClientWrapper } from "@/types/s3-cdn";
 import type { S3Client as AwsS3Client } from "@aws-sdk/client-s3";
 
-// Environment variables for S3 configuration
-const bucket = process.env.S3_BUCKET || "";
-const accessKeyId = process.env.S3_ACCESS_KEY_ID || "";
-const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || "";
-
-if (!bucket || !accessKeyId || !secretAccessKey) {
-  console.warn(
-    "[lib/s3] Missing required S3 environment variables (S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY).",
-  );
+// Log warning if S3 credentials are missing (using shared check from s3-utils)
+if (!isS3FullyConfigured()) {
+  console.warn("[lib/s3] S3 not fully configured. See s3-utils for details.");
 }
 
 // Export a Bun-compatible S3 client wrapper using the singleton from s3-utils
