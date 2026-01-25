@@ -17,6 +17,9 @@ export default {
   },
   theme: {
     extend: {
+      colors: {
+        github: "#24292f",
+      },
       fontFamily: {
         mono: [
           "IBM Plex Mono",

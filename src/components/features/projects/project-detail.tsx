@@ -305,7 +305,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
                   href={project.githubUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full px-5 py-3 sm:py-2.5 bg-[#24292f] text-white font-medium rounded-lg hover:bg-[#24292f]/90 transition-colors"
+                  className="flex items-center justify-center gap-2 w-full px-5 py-3 sm:py-2.5 bg-github text-white font-medium rounded-lg hover:bg-github/90 transition-colors"
                 >
                   <Github className="w-4 h-4" />
                   <span>View Source</span>
