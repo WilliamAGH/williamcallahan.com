@@ -9,7 +9,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { aggregateAllContent, getContentById } from "@/lib/content-similarity/aggregator";
 import { calculateSimilarity, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
 import { getEnabledContentTypes } from "@/config/related-content.config";
-import type { RelatedContentType, NormalizedContent, DebugParams, ScoredItem } from "@/types/related-content";
+import type {
+  RelatedContentType,
+  NormalizedContent,
+  DebugParams,
+  ScoredItem,
+  DebugResponseArgs,
+} from "@/types/related-content";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
 // Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
@@ -19,6 +25,10 @@ const PHASE_ENV_KEY = "NEXT_PHASE" as const;
 const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+const TEXT_PREVIEW_LENGTH = 200;
+
 /**
  * Parse and validate request parameters for the debug endpoint.
  * @returns Validated params or null if validation fails
@@ -26,7 +36,7 @@ const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUI
 function parseDebugParams(searchParams: URLSearchParams): DebugParams | null {
   const sourceTypeRaw = searchParams.get("type");
   const sourceId = searchParams.get("id");
-  const limitRaw = parseInt(searchParams.get("limit") || "20", 10);
+  const limitRaw = parseInt(searchParams.get("limit") || String(DEFAULT_LIMIT), 10);
 
   const enabledTypes = getEnabledContentTypes();
   const enabledTypesSet = new Set<RelatedContentType>(enabledTypes);
@@ -35,7 +45,7 @@ function parseDebugParams(searchParams: URLSearchParams): DebugParams | null {
     ? (sourceTypeRaw as RelatedContentType)
     : null;
 
-  const limit = Math.max(1, Math.min(100, Number.isFinite(limitRaw) ? limitRaw : 20));
+  const limit = Math.max(1, Math.min(MAX_LIMIT, Number.isFinite(limitRaw) ? limitRaw : DEFAULT_LIMIT));
 
   if (!sourceType || !sourceId) {
     return null;
@@ -86,14 +96,7 @@ function groupByType(
 /**
  * Build the debug response payload.
  */
-function buildDebugResponse(
-  source: NormalizedContent,
-  sorted: ScoredItem[],
-  candidates: NormalizedContent[],
-  byType: Record<string, ScoredItem[]>,
-  byTypeStats: Record<string, number>,
-  crossContent: ScoredItem[],
-) {
+function buildDebugResponse({ source, sorted, candidates, byType, byTypeStats, crossContent }: DebugResponseArgs) {
   return {
     source: {
       type: source.type,
@@ -101,7 +104,7 @@ function buildDebugResponse(
       title: source.title,
       tags: source.tags,
       domain: source.domain,
-      textPreview: source.text.slice(0, 200) + "...",
+      textPreview: source.text.slice(0, TEXT_PREVIEW_LENGTH) + "...",
     },
     statistics: {
       totalCandidates: candidates.length,
@@ -167,7 +170,14 @@ export async function GET(request: NextRequest) {
     const crossContent = sorted.filter(i => i.type !== sourceType).slice(0, limit);
 
     // Build and return response
-    const responsePayload = buildDebugResponse(source, sorted, candidates, byType, byTypeStats, crossContent);
+    const responsePayload = buildDebugResponse({
+      source,
+      sorted,
+      candidates,
+      byType,
+      byTypeStats,
+      crossContent,
+    });
     return NextResponse.json(responsePayload, { headers: NO_STORE_HEADERS });
   } catch (error) {
     const details = error instanceof Error ? error.message : String(error);

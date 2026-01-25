@@ -376,3 +376,15 @@ export interface ScoredItem {
   breakdown: Record<string, number>;
   matchedTags: string[];
 }
+
+/**
+ * Arguments for building the debug response
+ */
+export interface DebugResponseArgs {
+  source: NormalizedContent;
+  sorted: ScoredItem[];
+  candidates: NormalizedContent[];
+  byType: Record<string, ScoredItem[]>;
+  byTypeStats: Record<string, number>;
+  crossContent: ScoredItem[];
+}
