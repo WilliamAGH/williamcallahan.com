@@ -35,6 +35,9 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
+
+    // Use fixed time for deterministic testing
+    jest.spyOn(Date, "now").mockReturnValue(1000000);
   });
 
   afterEach(() => {
@@ -326,7 +329,7 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
       readJsonS3: jest
         .fn()
         .mockImplementationOnce(() => Promise.reject(new Error("S3 read error")))
-        .mockImplementation((key: string) => {
+        .mockImplementation((key: any) => {
           if (key === lockKey) {
             return Promise.resolve(lockState);
           }
