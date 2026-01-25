@@ -22,6 +22,7 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import type { Project } from "@/types/project";
@@ -65,8 +66,13 @@ function buildProjectOgImageUrl(project: Project): string {
   // For projects, we use the screenshot image directly
   // The imageKey is already an S3 path like "images/other/projects/..."
   if (project.imageKey) {
-    // Convert S3 key to CDN URL
-    return ensureAbsoluteUrl(`/cdn/${project.imageKey}`);
+    try {
+      // Convert S3 key to CDN URL
+      return buildCdnUrl(project.imageKey, getCdnConfigFromEnv());
+    } catch {
+      // Fallback if CDN config is missing (e.g. in dev without env vars)
+      return ensureAbsoluteUrl(getStaticImageUrl("/images/og/projects-og.png"));
+    }
   }
   // Fallback to default projects OG image
   return ensureAbsoluteUrl(getStaticImageUrl("/images/og/projects-og.png"));
