@@ -18,6 +18,7 @@ import { OgError, isOgResult } from "@/types/opengraph";
 import { ContentCategory } from "@/types/s3-cdn";
 import { isS3ReadOnly } from "@/lib/utils/s3-read-only";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
+import { isS3NotFound } from "@/lib/utils/s3-error-guards";
 
 /**
  * Determine content category based on content type and path
@@ -172,7 +173,7 @@ export async function getCachedJinaHtml(url: string): Promise<string | null> {
       return Buffer.isBuffer(result) ? result.toString("utf-8") : result;
     }
   } catch (err) {
-    if (err instanceof Error && "code" in err && (err as { code: string }).code === "NoSuchKey") {
+    if (isS3NotFound(err)) {
       debug(`[DataAccess/OpenGraph] No cached Jina HTML found in S3 for ${url}`);
     } else {
       const error = err instanceof Error ? err : new Error(String(err));
@@ -202,7 +203,7 @@ export async function getCachedJinaMarkdown(url: string): Promise<string | null>
       return Buffer.isBuffer(result) ? result.toString("utf-8") : result;
     }
   } catch (err) {
-    if (err instanceof Error && "code" in err && (err as { code: string }).code === "NoSuchKey") {
+    if (isS3NotFound(err)) {
       debug(`[DataAccess/OpenGraph] No cached Jina markdown found in S3 for ${url}`);
     } else {
       const error = err instanceof Error ? err : new Error(String(err));
@@ -237,7 +238,7 @@ export async function getS3Override(url: string): Promise<OgResult | null> {
       debug(`[DataAccess/OpenGraph] Malformed S3 override for ${url}`);
     }
   } catch (err) {
-    if (!(err instanceof Error && "code" in err && (err as { code: string }).code === "NoSuchKey")) {
+    if (!isS3NotFound(err)) {
       const error = err instanceof Error ? err : new Error(String(err));
       const ogError = new OgError(`Error reading S3 override for ${url}`, "s3-read-override", {
         originalError: error,

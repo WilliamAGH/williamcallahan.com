@@ -29,6 +29,7 @@ import {
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { getContentTypeFromExtension, isImageContentType } from "@/lib/utils/content-type";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
+import { isS3NotFound } from "@/lib/utils/s3-error-guards";
 
 // Environment variables for S3 configuration
 const S3_BUCKET = process.env.S3_BUCKET;
@@ -435,7 +436,7 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
       return null; // Should not happen if Body is present and Readable
     } catch (error: unknown) {
       const err = error as { name?: string; $metadata?: { httpStatusCode?: number }; Code?: string };
-      if (err.name === "NotFound" || err.name === "NoSuchKey" || err.$metadata?.httpStatusCode === 404) {
+      if (isS3NotFound(error)) {
         if (isDebug) debug(`[S3Utils] readFromS3: Key ${key} not found (attempt ${attempt}/${MAX_S3_READ_RETRIES}).`);
         if (attempt < MAX_S3_READ_RETRIES) {
           // Calculate exponential backoff with jitter
@@ -622,12 +623,11 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
     if (isDebug) debug(`[S3Utils] S3 key ${key} exists.`);
     return true;
   } catch (error: unknown) {
-    const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
-    if (err.name === "NotFound" || err.name === "NoSuchKey" || err.$metadata?.httpStatusCode === 404) {
+    if (isS3NotFound(error)) {
       if (isDebug) debug(`[S3Utils] S3 key ${key} does not exist (NotFound).`);
       return false;
     }
-    const message = err instanceof Error ? err.message : safeJsonStringify(err) || "Unknown error";
+    const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
     envLogger.log(`Error checking S3 object existence`, { key, message }, { category: "S3Utils" });
     return false;
   }
@@ -665,12 +665,11 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
       LastModified: response.LastModified,
     };
   } catch (error: unknown) {
-    const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
-    if (err.name === "NotFound" || err.name === "NoSuchKey" || err.$metadata?.httpStatusCode === 404) {
+    if (isS3NotFound(error)) {
       if (isDebug) debug(`[S3Utils] Metadata not found for S3 key ${key} (NotFound).`);
       return null;
     }
-    const message = err instanceof Error ? err.message : safeJsonStringify(err) || "Unknown error";
+    const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
     envLogger.log(`Error getting S3 object metadata`, { key, message }, { category: "S3Utils" });
     return null;
   }

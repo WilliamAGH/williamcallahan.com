@@ -20,6 +20,8 @@ import { getBaseUrl } from "@/lib/utils/get-base-url";
 import { metadata } from "@/data/metadata";
 import { openGraphUrlSchema } from "@/types/schemas/url";
 import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
+import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { isS3Error } from "@/lib/utils/s3-error-guards";
 
 /**
  * Main handler for OpenGraph image requests
@@ -121,7 +123,7 @@ export async function GET(request: NextRequest) {
         );
 
         // Object exists, redirect to S3 URL
-        const s3Url = `${process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL}/${OPENGRAPH_IMAGES_S3_DIR}/${s3Key}`;
+        const s3Url = buildCdnUrl(`${OPENGRAPH_IMAGES_S3_DIR}/${s3Key}`, getCdnConfigFromEnv());
         return NextResponse.redirect(s3Url, {
           status: 302,
           headers: {
@@ -129,6 +131,9 @@ export async function GET(request: NextRequest) {
           },
         });
       } catch (s3Error) {
+        if (!isS3Error(s3Error)) {
+          throw s3Error;
+        }
         console.warn(`[OG-Image] S3 object not found: ${s3Key}`, s3Error);
         const fallbackImage = getDomainFallbackImage("unknown");
         return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), {
@@ -250,7 +255,7 @@ export async function GET(request: NextRequest) {
         }),
       );
 
-      s3ImageUrl = `${process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL}/${s3Key}`;
+      s3ImageUrl = buildCdnUrl(s3Key, getCdnConfigFromEnv());
       console.log(`[OG-Image] S3 image found: ${s3ImageUrl}`);
 
       // S3 image found, no need for memory cache
@@ -261,7 +266,10 @@ export async function GET(request: NextRequest) {
           "Cache-Control": "public, max-age=86400",
         },
       });
-    } catch {
+    } catch (s3Error) {
+      if (!isS3Error(s3Error)) {
+        throw s3Error;
+      }
       logger.info(`[OG-Image] S3 image not found, checking Karakeep fallback before external fetch`);
 
       // Check for Karakeep fallback BEFORE trying external fetch

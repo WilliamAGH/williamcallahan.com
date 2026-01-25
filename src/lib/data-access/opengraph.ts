@@ -26,6 +26,7 @@ import {
 } from "@/lib/constants";
 import { fetchExternalOpenGraphWithRetry } from "@/lib/opengraph/fetch";
 import { createFallbackResult } from "@/lib/opengraph/fallback";
+import { isS3NotFound } from "@/lib/utils/s3-error-guards";
 import type { OgResult } from "@/types";
 import { isOgResult, OgError } from "@/types/opengraph";
 import { karakeepImageFallbackSchema, type KarakeepImageFallback } from "@/types/seo/opengraph";
@@ -113,10 +114,10 @@ async function getCachedOpenGraphDataInternal(
     }
     debug(`[OG-Priority-3] ❌ No valid data in S3 storage for: ${normalizedUrl}`);
   } catch (e) {
-    const error = e instanceof Error ? e : new Error(String(e));
-    if ("code" in error && error.code === "NoSuchKey") {
+    if (isS3NotFound(e)) {
       debug(`[OG-Priority-3] ❌ Not found in S3 storage: ${normalizedUrl}`);
     } else {
+      const error = e instanceof Error ? e : new Error(String(e));
       debug(`[OG-Priority-3] ❌ S3 read error for: ${normalizedUrl} - ${error.message}`);
     }
   }
@@ -278,10 +279,10 @@ export async function getOpenGraphData(
     }
     debug(`[OG-Priority-3] ❌ No valid data in S3 storage for: ${normalizedUrl}`);
   } catch (e) {
-    const error = e instanceof Error ? e : new Error(String(e));
-    if ("code" in error && error.code === "NoSuchKey") {
+    if (isS3NotFound(e)) {
       debug(`[OG-Priority-3] ❌ Not found in S3 storage: ${normalizedUrl}`);
     } else {
+      const error = e instanceof Error ? e : new Error(String(e));
       debug(`[OG-Priority-3] ❌ S3 read error for: ${normalizedUrl} - ${error.message}`);
     }
   }
