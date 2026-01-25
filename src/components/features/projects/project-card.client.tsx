@@ -157,6 +157,7 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
                     href={sanitizedGithubUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    aria-label={`View ${name} source code on GitHub`}
                     title={`View ${name} source code on GitHub`}
                     className="flex-shrink-0 p-1.5 rounded-md transition-colors text-gray-500 hover:text-github dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
                     onClick={e => e.stopPropagation()}
@@ -169,6 +170,7 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
                     href={externalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    aria-label={isGitHub ? `View ${name} on GitHub` : `Visit ${name} website`}
                     title={isGitHub ? `View ${name} on GitHub` : `Visit ${name} website`}
                     className={`flex-shrink-0 p-1.5 rounded-md transition-colors ${
                       isGitHub
