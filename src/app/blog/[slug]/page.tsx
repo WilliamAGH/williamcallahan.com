@@ -77,6 +77,11 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
   // Check if this is a software post (use canonical post.slug, not route param)
   const softwareDetails = getSoftwareDetails(post.slug);
 
+  const authorUrl = post.author.url ? ensureAbsoluteUrl(post.author.url) : undefined;
+  if (!authorUrl) {
+    console.warn(`[generateMetadata] Missing author URL for post: ${post.slug}.`);
+  }
+
   const baseArticleParams = {
     title: post.title,
     description: post.excerpt,
@@ -89,7 +94,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
     authors: [
       {
         name: post.author.name,
-        url: post.author.url || ensureAbsoluteUrl("/about"),
+        url: authorUrl ?? ensureAbsoluteUrl("/about"),
       },
     ],
   };
@@ -148,6 +153,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
     const absoluteImageUrl = post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined;
 
+    const authorUrl = post.author.url ? ensureAbsoluteUrl(post.author.url) : undefined;
+    if (!authorUrl) {
+      console.warn(`[BlogPostPage] Missing author URL for post: ${post.slug}.`);
+    }
+
     const schemaParams = {
       path: `/blog/${post.slug}`,
       title: post.title,
@@ -173,7 +183,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       authors: [
         {
           name: post.author.name,
-          url: post.author.url || ensureAbsoluteUrl("/about"),
+          url: authorUrl ?? ensureAbsoluteUrl("/about"),
         },
       ],
       ...(softwareDetails && {
