@@ -39,17 +39,6 @@ import { getDeterministicTimestamp } from "@/lib/server-cache";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { processBookmarksInBatches } from "@/lib/bookmarks/enrich-opengraph";
-import {
-  invalidateBookmarkByIdCaches,
-  safeCacheLife,
-  safeCacheTag,
-  safeRevalidateTag,
-} from "@/lib/bookmarks/cache-management.server";
-import {
-  writePaginatedBookmarks,
-  writeBookmarkMasterFiles,
-  persistTagFilteredBookmarksToS3,
-} from "@/lib/bookmarks/persistence.server";
 import { readLocalS3JsonSafe } from "@/lib/bookmarks/local-s3-cache";
 import { isS3NotFound } from "@/lib/utils/s3-error-guards";
 
