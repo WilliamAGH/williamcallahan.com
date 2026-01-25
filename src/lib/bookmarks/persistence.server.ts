@@ -65,8 +65,6 @@ export async function writePaginatedBookmarks(
     checksum: calculateBookmarksChecksum(bookmarks),
     changeDetected: true,
   };
-  await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, index);
-
   // Write pages with bookmarks ensuring they have embedded slugs
   for (let page = 1; page <= totalPages; page++) {
     const start = (page - 1) * pageSize;
@@ -79,6 +77,7 @@ export async function writePaginatedBookmarks(
     });
     await writeJsonS3(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${page}.json`, slice);
   }
+  await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, index);
   logBookmarkDataAccessEvent("Wrote bookmarks pages with embedded slugs", { totalPages });
 
   // Save slug mapping for backward compatibility and static generation
@@ -344,8 +343,6 @@ export async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark
       checksum: calculateBookmarksChecksum(tagBookmarks),
       changeDetected: true,
     };
-    await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`, tagIndex);
-
     for (let page = 1; page <= totalPages; page++) {
       const start = (page - 1) * pageSize;
       const slice = tagBookmarks.slice(start, start + pageSize).map(b => {
@@ -357,6 +354,7 @@ export async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark
       });
       await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${page}.json`, slice);
     }
+    await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`, tagIndex);
   }
 
   envLogger.log(
