@@ -149,22 +149,36 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
                   {name}
                 </Link>
               </h3>
-              {externalUrl && (
-                <a
-                  href={externalUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={isGitHub ? `View ${name} on GitHub` : `Visit ${name} website`}
-                  className={`flex-shrink-0 p-1.5 rounded-md transition-colors ${
-                    isGitHub
-                      ? "text-gray-500 hover:text-[#24292f] dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
-                      : "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-                  }`}
-                  onClick={e => e.stopPropagation()}
-                >
-                  {isGitHub ? <Github className="w-5 h-5" /> : <ExternalLink className="w-5 h-5" />}
-                </a>
-              )}
+              <div className="flex items-center gap-1">
+                {project.githubUrl && project.githubUrl !== url && (
+                  <a
+                    href={project.githubUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`View ${name} source code on GitHub`}
+                    className="flex-shrink-0 p-1.5 rounded-md transition-colors text-gray-500 hover:text-[#24292f] dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <Github className="w-5 h-5" />
+                  </a>
+                )}
+                {externalUrl && (
+                  <a
+                    href={externalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={isGitHub ? `View ${name} on GitHub` : `Visit ${name} website`}
+                    className={`flex-shrink-0 p-1.5 rounded-md transition-colors ${
+                      isGitHub
+                        ? "text-gray-500 hover:text-[#24292f] dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                        : "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    }`}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {isGitHub ? <Github className="w-5 h-5" /> : <ExternalLink className="w-5 h-5" />}
+                  </a>
+                )}
+              </div>
             </div>
             {/* Code Snippet */}
             <pre className="bg-gray-900 dark:bg-gray-950 text-green-400 p-3 rounded-lg text-sm font-mono whitespace-pre-wrap leading-relaxed border border-gray-800">
