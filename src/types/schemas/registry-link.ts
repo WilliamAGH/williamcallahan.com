@@ -6,7 +6,8 @@
  * Enables projects and bookmarks to link to their package distributions.
  */
 
-import { z } from "zod";
+import type { ComponentType } from "react";
+import { z } from "zod/v4";
 
 /**
  * Supported package registry types.
@@ -28,14 +29,24 @@ export const registryTypeSchema = z.enum([
 /**
  * A link to a package registry or distribution platform.
  */
-export const registryLinkSchema = z.object({
-  /** The type of registry (determines icon and default label) */
-  type: registryTypeSchema,
-  /** Full URL to the package on the registry */
-  url: z.string().url(),
-  /** Optional custom label (required for 'other' type, overrides default for known types) */
-  label: z.string().optional(),
-});
+export const registryLinkSchema = z
+  .object({
+    /** The type of registry (determines icon and default label) */
+    type: registryTypeSchema,
+    /** Full URL to the package on the registry */
+    url: z.string().url(),
+    /** Optional custom label (required for 'other' type, overrides default for known types) */
+    label: z.string().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.type === "other" && !value.label?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "label is required when type is 'other'",
+        path: ["label"],
+      });
+    }
+  });
 
 /**
  * Type exports using z.infer for single source of truth
@@ -60,7 +71,7 @@ export const validateRegistryLinks = (data: unknown): RegistryLink[] => {
  */
 export type RegistryConfig = {
   /** Lucide icon component to use (technically LucideIcon type, kept generic for flexibility) */
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   /** Default display label (e.g., "npm", "PyPI") */
   defaultLabel: string;
   /** Tailwind classes for light mode background */
