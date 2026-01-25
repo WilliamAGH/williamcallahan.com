@@ -27,6 +27,11 @@ import {
   MAX_TAGS_TO_PERSIST,
   LOG_PREFIX,
   BOOKMARK_SERVICE_LOG_CATEGORY,
+  FULL_DATASET_MEMORY_CACHE_TTL_MS,
+  BOOKMARK_BY_ID_CACHE_TTL_MS,
+  BOOKMARK_BY_ID_CACHE_LIMIT,
+  BOOKMARK_WRITE_BATCH_SIZE,
+  METADATA_REFRESH_MAX_ITEMS,
 } from "@/lib/bookmarks/config";
 import { getEnvironment } from "@/lib/config/environment";
 import { USE_NEXTJS_CACHE, cacheContextGuards, isCliLikeCacheContext, withCacheFallback } from "@/lib/cache";
@@ -34,8 +39,19 @@ import { getDeterministicTimestamp } from "@/lib/server-cache";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { processBookmarksInBatches } from "@/lib/bookmarks/enrich-opengraph";
+import {
+  invalidateBookmarkByIdCaches,
+  safeCacheLife,
+  safeCacheTag,
+  safeRevalidateTag,
+} from "@/lib/bookmarks/cache-management.server";
+import {
+  writePaginatedBookmarks,
+  writeBookmarkMasterFiles,
+  persistTagFilteredBookmarksToS3,
+} from "@/lib/bookmarks/persistence.server";
 import { readLocalS3JsonSafe } from "@/lib/bookmarks/local-s3-cache";
-import { isS3NotFound } from "@/lib/bookmarks/s3-helpers";
+import { isS3NotFound } from "@/lib/utils/s3-error-guards";
 
 const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "generated", "bookmarks", "bookmarks.json");
 const LOCAL_BOOKMARKS_BY_ID_DIR = path.join(process.cwd(), ".next", "cache", "bookmarks", "by-id");
@@ -109,9 +125,15 @@ async function saveSlugMappingOrThrow(bookmarks: UnifiedBookmark[], logSuffix: s
 
 /**
  * Write bookmarks to local filesystem cache for fallback serving.
- * Non-blocking: errors are logged but don't propagate.
+ *
+ * @param bookmarks - The bookmarks to cache
+ * @param context - Description of why this write is happening (for logging)
+ * @returns WriteResult indicating success or failure with error details
  */
-async function writeLocalBookmarksCache(bookmarks: UnifiedBookmark[], context: string): Promise<void> {
+async function writeLocalBookmarksCache(
+  bookmarks: UnifiedBookmark[],
+  context: string,
+): Promise<import("@/types/lib").WriteResult> {
   try {
     await fs.mkdir(path.dirname(LOCAL_BOOKMARKS_PATH), { recursive: true });
     await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarks, null, 2));
@@ -119,21 +141,21 @@ async function writeLocalBookmarksCache(bookmarks: UnifiedBookmark[], context: s
       path: LOCAL_BOOKMARKS_PATH,
       bookmarkCount: bookmarks.length,
     });
+    return { success: true };
   } catch (error) {
+    const normalizedError = error instanceof Error ? error : new Error(String(error));
     console.error(
       `${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path${context ? ` (${context})` : ""}:`,
       error,
     );
+    return { success: false, error: normalizedError };
   }
 }
 
 // In-memory runtime cache for the full bookmarks dataset to prevent repeated S3 reads
 // This is a temporary runtime cache, NOT S3 persistence
-const FULL_DATASET_MEMORY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 let fullDatasetMemoryCache: { data: UnifiedBookmark[]; timestamp: number } | null = null;
 
-const BOOKMARK_BY_ID_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const BOOKMARK_BY_ID_CACHE_LIMIT = 1024;
 const bookmarkByIdCache = new Map<string, { data: UnifiedBookmark; timestamp: number }>();
 const lightweightBookmarkByIdCache = new Map<string, { data: LightweightBookmark; timestamp: number }>();
 
@@ -145,7 +167,7 @@ function invalidateBookmarkByIdCaches(): void {
 function getCachedBookmark<T>(cache: Map<string, { data: T; timestamp: number }>, key: string): T | null {
   const entry = cache.get(key);
   if (!entry) return null;
-  if (getDeterministicTimestamp() - entry.timestamp > BOOKMARK_BY_ID_CACHE_TTL) {
+  if (getDeterministicTimestamp() - entry.timestamp > BOOKMARK_BY_ID_CACHE_TTL_MS) {
     cache.delete(key);
     return null;
   }
@@ -216,7 +238,7 @@ async function refreshMetadataIfNeeded(
   const updated = await processBookmarksInBatches(input, false, true, false, {
     metadataOnly: true,
     refreshMetadataEvenIfImagePresent: true,
-    maxItems: 50,
+    maxItems: METADATA_REFRESH_MAX_ITEMS,
   });
   const afterSig = computeDisplaySignature(updated);
   return { changed: beforeSig !== afterSig, updated };
@@ -345,9 +367,8 @@ async function writePaginatedBookmarks(
 
 async function writeBookmarksByIdFiles(bookmarks: UnifiedBookmark[]): Promise<void> {
   if (bookmarks.length === 0) return;
-  const batchSize = 25;
-  for (let i = 0; i < bookmarks.length; i += batchSize) {
-    const batch = bookmarks.slice(i, i + batchSize);
+  for (let i = 0; i < bookmarks.length; i += BOOKMARK_WRITE_BATCH_SIZE) {
+    const batch = bookmarks.slice(i, i + BOOKMARK_WRITE_BATCH_SIZE);
     await Promise.all(
       batch.map(async bookmark => {
         if (!bookmark.slug) {
@@ -609,7 +630,15 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         changeDetected: true,
       });
 
-      await writeLocalBookmarksCache(bookmarksWithSlugs, "metadata refresh");
+      // Local cache write is best-effort; S3 is the primary store
+      const localCacheResult = await writeLocalBookmarksCache(bookmarksWithSlugs, "metadata refresh");
+      if (!localCacheResult.success) {
+        envLogger.debug(
+          "Local cache write failed during metadata refresh",
+          { error: localCacheResult.error?.message },
+          { category: LOG_PREFIX },
+        );
+      }
 
       return bookmarksWithSlugs;
     }
@@ -625,7 +654,15 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
       });
       await writeBookmarkMasterFiles(bookmarksWithSlugs);
 
-      await writeLocalBookmarksCache(bookmarksWithSlugs, "change-detected path");
+      // Local cache write is best-effort; S3 is the primary store
+      const localCacheResult = await writeLocalBookmarksCache(bookmarksWithSlugs, "change-detected path");
+      if (!localCacheResult.success) {
+        envLogger.debug(
+          "Local cache write failed during change-detected path",
+          { error: localCacheResult.error?.message },
+          { category: LOG_PREFIX },
+        );
+      }
     }
     await persistTagFilteredBookmarksToS3(allIncomingBookmarks);
     return allIncomingBookmarks;
@@ -712,7 +749,15 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                 // This prevents 120+ S3 writes when only metadata changed
               }
 
-              await writeLocalBookmarksCache(bookmarksWithSlugs, "");
+              // Local cache write is best-effort; S3 is the primary store
+              const localCacheResult = await writeLocalBookmarksCache(bookmarksWithSlugs, "no-change path");
+              if (!localCacheResult.success) {
+                envLogger.debug(
+                  "Local cache write failed during no-change path",
+                  { error: localCacheResult.error?.message },
+                  { category: LOG_PREFIX },
+                );
+              }
             }
             // Heartbeat write (tiny file)
             void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
@@ -1171,7 +1216,7 @@ export async function getBookmarksByTag(
   if (
     !bypassMemoryCache &&
     fullDatasetMemoryCache &&
-    now - fullDatasetMemoryCache.timestamp < FULL_DATASET_MEMORY_CACHE_TTL
+    now - fullDatasetMemoryCache.timestamp < FULL_DATASET_MEMORY_CACHE_TTL_MS
   ) {
     envLogger.log(
       "Using in-memory runtime cache for full bookmarks dataset",

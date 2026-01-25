@@ -274,12 +274,20 @@ export const toLightweightBookmarks = (bookmarks: UnifiedBookmark[]): Lightweigh
   return lightweight;
 };
 
+/**
+ * Normalize tags for a single bookmark.
+ * Filters out empty/whitespace tags and normalizes remaining ones.
+ */
+export const normalizeBookmarkTags = (bookmark: UnifiedBookmark): UnifiedBookmark => ({
+  ...bookmark,
+  tags: ((bookmark.tags ?? []) as (string | BookmarkTag)[])
+    .filter(tag => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
+    .map(normalizeBookmarkTag),
+});
+
 /** Normalize tags for a page of bookmarks */
 export const normalizePageBookmarkTags = (bookmarks: UnifiedBookmark[]): UnifiedBookmark[] =>
-  bookmarks.map(b => ({
-    ...b,
-    tags: ((b.tags ?? []) as (string | BookmarkTag)[]).map(normalizeBookmarkTag),
-  }));
+  bookmarks.map(normalizeBookmarkTags);
 
 /**
  * Checks if a bookmark's source data has been updated.
