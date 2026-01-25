@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ExtendedError } from "./error";
+import { registryLinkSchema } from "./schemas/registry-link";
 
 /** Bookmarks API Types */
 
@@ -154,6 +155,8 @@ export const unifiedBookmarkSchema = z.object({
   isPrivate: z.boolean().optional(),
   isFavorite: z.boolean().optional(),
   ogImageExternal: z.string().optional(),
+  /** Optional links to package registries where the bookmarked resource is distributed */
+  registryLinks: z.array(registryLinkSchema).optional(),
 });
 
 export type UnifiedBookmark = z.infer<typeof unifiedBookmarkSchema>;

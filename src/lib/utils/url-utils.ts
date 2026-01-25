@@ -10,6 +10,7 @@
  */
 
 import { IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
+import type { RegistryType } from "@/types/schemas/registry-link";
 
 /**
  * Extracts the root domain (eTLD+1) from a domain string.
@@ -478,4 +479,44 @@ export function getDisplayHostname(rawUrl: string, fallback = "website"): string
     // Graceful degradation: return fallback for UI display rather than propagating errors
     return fallback;
   }
+}
+
+/**
+ * URL patterns for detecting package registry types.
+ * Maps registry types to regex patterns that match their URLs.
+ */
+const REGISTRY_PATTERNS: Record<Exclude<RegistryType, "other">, RegExp[]> = {
+  npm: [/npmjs\.com/i, /npm\.im/i],
+  maven: [/mvnrepository\.com/i, /search\.maven\.org/i, /central\.sonatype\.com/i],
+  vscode: [/marketplace\.visualstudio\.com/i],
+  openvsx: [/open-vsx\.org/i],
+  pypi: [/pypi\.org/i],
+  nuget: [/nuget\.org/i],
+  crates: [/crates\.io/i],
+  homebrew: [/formulae\.brew\.sh/i, /brew\.sh/i],
+  github: [/github\.com/i],
+};
+
+/**
+ * Detect the registry type from a URL.
+ * Useful for auto-detecting registry type when creating registry links.
+ *
+ * @param url - The URL to analyze
+ * @returns The detected registry type, or 'other' if not recognized
+ *
+ * @example
+ * detectRegistryType('https://www.npmjs.com/package/react') // Returns 'npm'
+ * detectRegistryType('https://pypi.org/project/requests/') // Returns 'pypi'
+ * detectRegistryType('https://example.com/my-package') // Returns 'other'
+ */
+export function detectRegistryType(url: string): RegistryType {
+  if (!url) return "other";
+
+  for (const [type, patterns] of Object.entries(REGISTRY_PATTERNS)) {
+    if (patterns.some(pattern => pattern.test(url))) {
+      return type as RegistryType;
+    }
+  }
+
+  return "other";
 }
