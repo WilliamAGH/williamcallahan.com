@@ -65,6 +65,8 @@ jest.mock("node:fs", () => ({
 
 jest.mock("@/lib/bookmarks/local-s3-cache", () => ({
   readLocalS3Json: jest.fn().mockResolvedValue(null),
+  readLocalS3JsonSafe: jest.fn().mockResolvedValue(null),
+  getLocalS3Path: jest.fn().mockReturnValue("/tmp/test"),
 }));
 
 // Import after mocks
