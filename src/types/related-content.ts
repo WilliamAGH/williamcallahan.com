@@ -352,3 +352,27 @@ export interface BooksRelatedContentData {
   /** Map of book keys to their related content entries */
   entries: Record<string, RelatedContentEntry[]>;
 }
+
+/**
+ * Parsed and validated debug request parameters
+ */
+export interface DebugParams {
+  sourceType: RelatedContentType;
+  sourceId: string;
+  limit: number;
+  enabledTypes: RelatedContentType[];
+}
+
+/**
+ * Scored content item with similarity breakdown
+ */
+export interface ScoredItem {
+  type: RelatedContentType;
+  id: string;
+  title: string;
+  tags: string[];
+  domain: string | undefined;
+  score: number;
+  breakdown: Record<string, number>;
+  matchedTags: string[];
+}
