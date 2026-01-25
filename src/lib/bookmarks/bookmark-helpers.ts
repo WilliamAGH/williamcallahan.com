@@ -10,6 +10,7 @@
 import type { UnifiedBookmark, BookmarkContent, KarakeepImageFallback } from "@/types";
 import type { ImageSelectionOptions } from "@/types/features/bookmarks";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
+import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 
 /**
  * Constructs a consistent asset URL for Karakeep assets.
@@ -97,7 +98,7 @@ export function selectBestImage(
 
   const { content } = bookmark;
   const noImageResult = returnUndefined ? undefined : null;
-  const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL || "";
+  const s3CdnUrl = getS3CdnUrl();
 
   // Prepare context for asset URL generation (for descriptive S3 filenames)
   let domain: string | undefined;

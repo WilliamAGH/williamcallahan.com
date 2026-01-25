@@ -30,10 +30,16 @@ import {
   isRetryableHttpError,
 } from "../utils/http-client";
 import { retryWithOptions, computeExponentialDelay } from "../utils/retry";
+import { safeStringifyValue } from "../utils/error-utils";
 import { FailureTracker } from "../utils/failure-tracker";
 import { isOperationAllowedWithCircuitBreaker, recordOperationFailure } from "../rate-limiter";
-import { inferContentTypeFromUrl, getExtensionFromContentType, IMAGE_EXTENSIONS } from "../utils/content-type";
-import { buildCdnUrl } from "../utils/cdn-utils";
+import {
+  inferContentTypeFromUrl,
+  getExtensionFromContentType,
+  getContentTypeFromExtension,
+  IMAGE_EXTENSIONS,
+} from "../utils/content-type";
+import { buildCdnUrl, getCdnConfigFromEnv } from "../utils/cdn-utils";
 import { isLogoUrl, extractDomain } from "../utils/url-utils";
 import { getMemoryHealthMonitor, wipeBuffer } from "../health/memory-health-monitor";
 
@@ -52,6 +58,12 @@ export class UnifiedImageService {
     (process.env.DEV_DISABLE_IMAGE_PROCESSING === "1" || process.env.DEV_DISABLE_IMAGE_PROCESSING === "true");
   private readonly devStreamImagesToS3 =
     this.isDev && (process.env.DEV_STREAM_IMAGES_TO_S3 === "1" || process.env.DEV_STREAM_IMAGES_TO_S3 === "true");
+
+  /** 1x1 transparent PNG placeholder - used when image processing is disabled */
+  private static readonly TRANSPARENT_PNG_PLACEHOLDER = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO3GdQAAAABJRU5ErkJggg==",
+    "base64",
+  );
 
   // Removed sessionProcessedDomains as it was never used
   private sessionFailedDomains = new Set<string>();
@@ -84,9 +96,119 @@ export class UnifiedImageService {
     if (process.env.NODE_ENV === "production" && !process.env.S3_CDN_URL && !process.env.S3_BUCKET) {
       throw new Error("UnifiedImageService: Either S3_CDN_URL or S3_BUCKET must be set in production.");
     }
-    console.log(`[UnifiedImageService] Initialized in ${this.isReadOnly ? "READ-ONLY" : "READ-WRITE"} mode`);
+    logger.info(`Initialized in ${this.isReadOnly ? "READ-ONLY" : "READ-WRITE"} mode`, {
+      service: "UnifiedImageService",
+    });
     this.startRetryProcessing();
     void this.domainFailureTracker.load();
+  }
+
+  /**
+   * Check if service should accept new requests based on memory health.
+   * In dev streaming mode, always allow requests (streaming uses bounded memory).
+   */
+  private shouldAcceptRequests(): boolean {
+    if (this.devStreamImagesToS3) return true;
+    return getMemoryHealthMonitor().shouldAcceptNewRequests();
+  }
+
+  /** Get file extension from content type, defaulting to "png" */
+  private getLogoExtension(contentType?: string | null): string {
+    return getExtensionFromContentType(contentType || "image/png");
+  }
+
+  /** Generate S3 key for logo storage with consistent parameters */
+  private generateLogoS3Key(
+    domain: string,
+    source: LogoSource,
+    options: { url?: string | null; extension?: string; inverted?: boolean } = {},
+  ): string {
+    const ext = options.extension ?? "png";
+    return generateS3Key({
+      type: "logo",
+      domain,
+      source,
+      url: options.url || `https://${domain}/logo.${ext}`,
+      extension: ext,
+      inverted: options.inverted,
+    });
+  }
+
+  /** Build a LogoFetchResult with standard fields populated */
+  private buildLogoFetchResult(
+    domain: string,
+    options: {
+      s3Key?: string;
+      url?: string | null;
+      source: LogoSource;
+      contentType?: string;
+      isValid?: boolean;
+      isGlobeIcon?: boolean;
+      error?: string;
+    },
+  ): LogoFetchResult {
+    return {
+      domain,
+      s3Key: options.s3Key,
+      cdnUrl: options.s3Key ? this.getCdnUrl(options.s3Key) : undefined,
+      url: options.url ?? undefined,
+      source: options.source,
+      contentType: options.contentType ?? "image/png",
+      timestamp: getDeterministicTimestamp(),
+      isValid: options.isValid ?? false,
+      isGlobeIcon: options.isGlobeIcon,
+      error: options.error,
+    };
+  }
+
+  /** Cache result and log debug info, then return the result */
+  private finalizeLogoResult(result: LogoFetchResult): LogoFetchResult {
+    if (result.domain) ServerCacheInstance.setLogoFetch(result.domain, result);
+    if (result.isValid) {
+      logoDebugger.setFinalResult(result.domain ?? "", true, result.source ?? undefined, result.s3Key, result.cdnUrl);
+    } else {
+      logoDebugger.setFinalResult(result.domain ?? "", false);
+    }
+    logoDebugger.printDebugInfo(result.domain ?? "");
+    return result;
+  }
+
+  /** Build prioritized logo source list from LOGO_SOURCES config */
+  private getLogoSourcePriority(): Array<{
+    name: LogoSource;
+    urlFn: (d: string) => string;
+    size: string;
+  }> {
+    const direct = LOGO_SOURCES.direct;
+    const google = LOGO_SOURCES.google;
+    const duckduckgo = LOGO_SOURCES.duckduckgo;
+    const clearbit = LOGO_SOURCES.clearbit;
+
+    // Define sources in priority order: high-quality direct → standard direct → third-party
+    const rawSources: Array<{ name: LogoSource; urlFn?: (d: string) => string; size: string }> = [
+      // High-quality direct icons
+      { name: "direct", urlFn: direct.androidChrome512, size: "android-512" },
+      { name: "direct", urlFn: direct.androidChrome192, size: "android-192" },
+      { name: "direct", urlFn: direct.appleTouchIcon180, size: "apple-180" },
+      { name: "direct", urlFn: direct.appleTouchIcon152, size: "apple-152" },
+      { name: "direct", urlFn: direct.appleTouchIcon, size: "apple-touch" },
+      { name: "direct", urlFn: direct.appleTouchIconPrecomposed, size: "apple-touch-precomposed" },
+      // Standard favicon formats
+      { name: "direct", urlFn: direct.faviconSvg, size: "favicon-svg" },
+      { name: "direct", urlFn: direct.faviconPng, size: "favicon-png" },
+      { name: "direct", urlFn: direct.favicon32, size: "favicon-32" },
+      { name: "direct", urlFn: direct.favicon16, size: "favicon-16" },
+      { name: "direct", urlFn: direct.favicon, size: "favicon-ico" },
+      // Third-party services
+      { name: "google", urlFn: google?.hd, size: "hd" },
+      { name: "google", urlFn: google?.md, size: "md" },
+      { name: "duckduckgo", urlFn: duckduckgo?.hd, size: "hd" },
+      { name: "clearbit", urlFn: clearbit?.hd, size: "hd" },
+    ];
+
+    return rawSources.filter(
+      (s): s is { name: LogoSource; urlFn: (d: string) => string; size: string } => s.urlFn !== undefined,
+    );
   }
 
   /** Fetch image with caching (memory → S3 → origin) */
@@ -106,20 +228,15 @@ export class UnifiedImageService {
     // Prefer streaming-to-S3 behavior over full processing in development when requested
     // Note: When enabled, we still attempt normal fetch logic; processing will be skipped in fetchAndProcess.
     if (!this.devStreamImagesToS3 && this.devProcessingDisabled) {
-      const transparentPngBase64 =
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO3GdQAAAABJRU5ErkJggg==";
-      const placeholder = Buffer.from(transparentPngBase64, "base64");
       return {
-        buffer: placeholder,
+        buffer: UnifiedImageService.TRANSPARENT_PNG_PLACEHOLDER,
         contentType: "image/png",
         source: "placeholder",
         timestamp: getDeterministicTimestamp(),
       };
     }
 
-    const memoryMonitor = getMemoryHealthMonitor();
-    // When streaming mode is enabled for dev, allow the request to proceed; streaming uses bounded memory.
-    if (!this.devStreamImagesToS3 && !memoryMonitor.shouldAcceptNewRequests()) {
+    if (!this.shouldAcceptRequests()) {
       throw new Error("Insufficient memory to process image request");
     }
     return monitoredAsync(
@@ -161,8 +278,7 @@ export class UnifiedImageService {
   /** Get logo with validation, optional inversion */
   async getLogo(domain: string, options: ImageServiceOptions = {}): Promise<LogoFetchResult> {
     // Check memory before starting (relaxed when streaming mode is enabled in dev)
-    const memoryMonitor = getMemoryHealthMonitor();
-    if (!this.devStreamImagesToS3 && !memoryMonitor.shouldAcceptNewRequests()) {
+    if (!this.shouldAcceptRequests()) {
       return {
         domain,
         source: null,
@@ -220,21 +336,12 @@ export class UnifiedImageService {
               const exists = await checkIfS3ObjectExists(hashedKey);
               if (exists) {
                 console.log(`[UnifiedImageService] Found existing hashed logo: ${hashedKey}`);
-
-                const contentType =
-                  extension === "svg" ? "image/svg+xml" : extension === "ico" ? "image/x-icon" : `image/${extension}`;
-
-                const cachedResult: LogoFetchResult = {
-                  domain,
+                const cachedResult = this.buildLogoFetchResult(domain, {
                   s3Key: hashedKey,
-                  cdnUrl: this.getCdnUrl(hashedKey),
-                  url: undefined,
                   source,
-                  contentType,
-                  timestamp: getDeterministicTimestamp(),
+                  contentType: getContentTypeFromExtension(extension),
                   isValid: true,
-                } as LogoFetchResult;
-
+                });
                 ServerCacheInstance.setLogoFetch(domain, cachedResult);
                 return cachedResult;
               }
@@ -256,7 +363,7 @@ export class UnifiedImageService {
           const parsed = parseS3Key(legacyKey);
           const source = parsed.source as LogoSource;
           const ext = parsed.extension || "png";
-          const contentType = ext === "svg" ? "image/svg+xml" : ext === "ico" ? "image/x-icon" : `image/${ext}`;
+          const contentType = getContentTypeFromExtension(ext);
 
           /**
            * 🚫 S3 Write Operations (BLOCKED during builds)
@@ -280,17 +387,12 @@ export class UnifiedImageService {
             }
           }
 
-          const cachedResult: LogoFetchResult = {
-            domain,
+          const cachedResult = this.buildLogoFetchResult(domain, {
             s3Key: finalKey,
-            cdnUrl: this.getCdnUrl(finalKey),
-            url: undefined,
             source,
             contentType,
-            timestamp: getDeterministicTimestamp(),
             isValid: true,
-          } as LogoFetchResult;
-
+          });
           ServerCacheInstance.setLogoFetch(domain, cachedResult);
           return cachedResult;
         }
@@ -328,52 +430,38 @@ export class UnifiedImageService {
 
           // In streaming mode for dev: skip heavy validation/inversion and persist the original buffer
           if (this.devStreamImagesToS3) {
-            const ext = getExtensionFromContentType(logoData.contentType || "image/png");
-            const s3KeyStreaming = generateS3Key({
-              type: "logo",
-              domain,
-              source: logoData.source,
-              url: logoData.url || `https://${domain}/logo.${ext}`,
+            const ext = this.getLogoExtension(logoData.contentType);
+            const s3KeyStreaming = this.generateLogoS3Key(domain, logoData.source, {
+              url: logoData.url,
               extension: ext,
             });
             if (!this.isReadOnly)
               await this.uploadToS3(s3KeyStreaming, logoData.buffer, logoData.contentType || "image/png");
-            const streamingResult: LogoFetchResult = {
-              domain,
-              url: logoData.url,
-              cdnUrl: this.getCdnUrl(s3KeyStreaming),
+            const streamingResult = this.buildLogoFetchResult(domain, {
               s3Key: s3KeyStreaming,
+              url: logoData.url,
               source: logoData.source,
-              contentType: logoData.contentType,
-              timestamp: getDeterministicTimestamp(),
+              contentType: logoData.contentType ?? undefined,
               isValid: true,
-            } as LogoFetchResult;
-            ServerCacheInstance.setLogoFetch(domain, streamingResult);
-            logoDebugger.setFinalResult(
-              domain,
-              true,
-              streamingResult.source || undefined,
-              streamingResult.s3Key,
-              streamingResult.cdnUrl,
-            );
-            logoDebugger.printDebugInfo(domain);
-            return streamingResult;
+            });
+            return this.finalizeLogoResult(streamingResult);
           }
 
           const validation = await this.validateLogo(logoData.buffer);
           const isValid = !validation.isGlobeIcon;
           let finalBuffer = logoData.buffer;
-          let s3Key: string;
+          const ext = this.getLogoExtension(logoData.contentType);
+
+          // Start with base S3 key (non-inverted)
+          let s3Key = this.generateLogoS3Key(domain, logoData.source, { url: logoData.url, extension: ext });
+
+          // Attempt inversion if requested and logo is valid
           if (isValid && options.invertColors) {
             const inverted = await this.invertLogo(logoData.buffer, domain);
             if (inverted.buffer) {
               finalBuffer = inverted.buffer;
-              const ext = getExtensionFromContentType(logoData.contentType || "image/png");
-              s3Key = generateS3Key({
-                type: "logo",
-                domain,
-                source: logoData.source,
-                url: logoData.url || `https://${domain}/logo.${ext}`,
+              s3Key = this.generateLogoS3Key(domain, logoData.source, {
+                url: logoData.url,
                 extension: ext,
                 inverted: true,
               });
@@ -390,56 +478,25 @@ export class UnifiedImageService {
                 },
                 contentType: logoData.contentType || "image/png",
               });
-            } else {
-              // If inversion failed but was requested, still generate the key for non-inverted version
-              const ext = getExtensionFromContentType(logoData.contentType || "image/png");
-              s3Key = generateS3Key({
-                type: "logo",
-                domain,
-                source: logoData.source,
-                url: logoData.url || `https://${domain}/logo.${ext}`,
-                extension: ext,
-              });
             }
-          } else {
-            const ext = getExtensionFromContentType(logoData.contentType || "image/png");
-            s3Key = generateS3Key({
-              type: "logo",
-              domain,
-              source: logoData.source,
-              url: logoData.url || `https://${domain}/logo.${ext}`,
-              extension: ext,
-            });
           }
+
           if (!this.isReadOnly) await this.uploadToS3(s3Key, finalBuffer, logoData.contentType || "image/png");
-          const result: LogoFetchResult = {
-            domain,
-            url: logoData.url,
-            cdnUrl: this.getCdnUrl(s3Key),
+          const result = this.buildLogoFetchResult(domain, {
             s3Key,
+            url: logoData.url,
             source: logoData.source,
-            contentType: logoData.contentType,
-            timestamp: getDeterministicTimestamp(),
+            contentType: logoData.contentType ?? undefined,
             isValid,
             isGlobeIcon: validation.isGlobeIcon,
-          };
-          ServerCacheInstance.setLogoFetch(domain, result);
-          logoDebugger.setFinalResult(domain, true, result.source || undefined, result.s3Key, result.cdnUrl);
-          logoDebugger.printDebugInfo(domain);
-          return result;
+          });
+          return this.finalizeLogoResult(result);
         } catch (error) {
-          const errorResult: LogoFetchResult = {
-            domain,
+          const errorResult = this.buildLogoFetchResult(domain, {
             source: null,
-            contentType: "image/png",
-            error: error instanceof Error ? error.message : "Unknown error",
-            timestamp: getDeterministicTimestamp(),
-            isValid: false,
-          };
-          ServerCacheInstance.setLogoFetch(domain, errorResult);
-          logoDebugger.setFinalResult(domain, false);
-          logoDebugger.printDebugInfo(domain);
-          return errorResult;
+            error: safeStringifyValue(error),
+          });
+          return this.finalizeLogoResult(errorResult);
         }
       },
       { timeoutMs: this.CONFIG.FETCH_TIMEOUT, metadata: { domain, options } },
@@ -503,14 +560,11 @@ export class UnifiedImageService {
     const fetchTimeout = options.timeoutMs ?? this.CONFIG.FETCH_TIMEOUT;
     // Dev gating: skip fetch/processing entirely when disabled in development
     if (this.devProcessingDisabled && !this.devStreamImagesToS3) {
-      const transparentPngBase64 =
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO3GdQAAAABJRU5ErkJggg==";
-      return { buffer: Buffer.from(transparentPngBase64, "base64"), contentType: "image/png" };
+      return { buffer: UnifiedImageService.TRANSPARENT_PNG_PLACEHOLDER, contentType: "image/png" };
     }
 
     // Check memory before fetching unless we are in streaming mode (streaming uses bounded memory)
-    const memoryMonitor = getMemoryHealthMonitor();
-    if (!this.devStreamImagesToS3 && !memoryMonitor.shouldAcceptNewRequests()) {
+    if (!this.shouldAcceptRequests()) {
       throw new Error("Insufficient memory to fetch image");
     }
 
@@ -548,12 +602,12 @@ export class UnifiedImageService {
       }
 
       // If streaming failed and we're in streaming mode, only fall back to buffering if memory allows
-      if (this.devStreamImagesToS3 && !memoryMonitor.shouldAcceptNewRequests()) {
+      if (this.devStreamImagesToS3 && !getMemoryHealthMonitor().shouldAcceptNewRequests()) {
         throw new Error("Streaming required but unavailable under memory pressure");
       }
 
       // Check memory again before loading into buffer
-      if (!this.devStreamImagesToS3 && !memoryMonitor.shouldAcceptNewRequests()) {
+      if (!this.shouldAcceptRequests()) {
         throw new Error("Insufficient memory to load image into buffer");
       }
 
@@ -601,10 +655,10 @@ export class UnifiedImageService {
       for (const k of keys) {
         this.uploadRetryQueue.delete(k);
       }
-      console.log(`[UnifiedImageService] Retry queue limit reached, removed ${entriesToRemove} oldest entries`);
+      logger.warn("Retry queue limit reached", { service: "UnifiedImageService", removed: entriesToRemove });
     }
 
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = safeStringifyValue(error);
     const isMemoryPressure = errorMessage.includes("Insufficient memory headroom");
     if (isMemoryPressure) {
       const sourceUrl = this.extractSourceUrlFromKey(key);
@@ -750,11 +804,7 @@ export class UnifiedImageService {
 
   /** Get CDN URL for S3 key */
   getCdnUrl(s3Key: string): string {
-    return buildCdnUrl(s3Key, {
-      cdnBaseUrl: process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "",
-      s3BucketName: process.env.S3_BUCKET || "",
-      s3ServerUrl: process.env.S3_SERVER_URL,
-    });
+    return buildCdnUrl(s3Key, getCdnConfigFromEnv());
   }
 
   /** Analyze logo from URL for inversion needs */
@@ -808,91 +858,23 @@ export class UnifiedImageService {
 
   private async fetchExternalLogo(domain: string): Promise<ExternalFetchResult | null> {
     if (await this.domainFailureTracker.shouldSkip(domain)) {
-      console.log(`[UnifiedImageService] Domain ${domain} is permanently blocked or in cooldown, skipping`);
+      logger.debug(`Domain ${domain} is permanently blocked or in cooldown, skipping`, {
+        service: "UnifiedImageService",
+      });
       logoDebugger.logAttempt(domain, "external-fetch", "Domain is blocked or in cooldown", "failed");
       return null;
     }
     if (this.hasDomainFailedTooManyTimes(domain)) {
-      console.log(`[UnifiedImageService] Domain ${domain} has failed too many times in this session, skipping`);
+      logger.debug(`Domain ${domain} has failed too many times in this session, skipping`, {
+        service: "UnifiedImageService",
+      });
       logoDebugger.logAttempt(domain, "external-fetch", "Domain has failed too many times", "failed");
       return null;
     }
     const domainVariants = getDomainVariants(domain);
-    for (const testDomain of domainVariants) {
-      // Type-safe access to LOGO_SOURCES with proper null checks
-      const directSources = LOGO_SOURCES.direct;
-      const googleSources = LOGO_SOURCES.google;
-      const duckduckgoSources = LOGO_SOURCES.duckduckgo;
-      const clearbitSources = LOGO_SOURCES.clearbit;
-      const rawSources: Array<{ name: LogoSource; urlFn: ((d: string) => string) | undefined; size: string }> = [
-        // Try high-quality icons first
-        {
-          name: "direct" as LogoSource,
-          urlFn: directSources.androidChrome512,
-          size: "android-512",
-        },
-        {
-          name: "direct" as LogoSource,
-          urlFn: directSources.androidChrome192,
-          size: "android-192",
-        },
-        {
-          name: "direct" as LogoSource,
-          urlFn: directSources.appleTouchIcon180,
-          size: "apple-180",
-        },
-        {
-          name: "direct" as LogoSource,
-          urlFn: directSources.appleTouchIcon152,
-          size: "apple-152",
-        },
-        {
-          name: "direct" as LogoSource,
-          urlFn: directSources.appleTouchIcon,
-          size: "apple-touch",
-        },
-        {
-          name: "direct" as LogoSource,
-          urlFn: directSources.appleTouchIconPrecomposed,
-          size: "apple-touch-precomposed",
-        },
-        // Try standard favicon formats
-        {
-          name: "direct" as LogoSource,
-          urlFn: directSources.faviconSvg,
-          size: "favicon-svg",
-        },
-        {
-          name: "direct" as LogoSource,
-          urlFn: directSources.faviconPng,
-          size: "favicon-png",
-        },
-        {
-          name: "direct" as LogoSource,
-          urlFn: directSources.favicon32,
-          size: "favicon-32",
-        },
-        {
-          name: "direct" as LogoSource,
-          urlFn: directSources.favicon16,
-          size: "favicon-16",
-        },
-        {
-          name: "direct" as LogoSource,
-          urlFn: directSources.favicon,
-          size: "favicon-ico",
-        },
-        // Then try third-party services
-        { name: "google", urlFn: googleSources?.hd, size: "hd" },
-        { name: "google", urlFn: googleSources?.md, size: "md" },
-        { name: "duckduckgo", urlFn: duckduckgoSources?.hd, size: "hd" },
-        { name: "clearbit", urlFn: clearbitSources?.hd, size: "hd" },
-      ];
-      const sources = rawSources.filter(
-        (source): source is { name: LogoSource; urlFn: (d: string) => string; size: string } =>
-          source.urlFn !== undefined,
-      );
+    const sources = this.getLogoSourcePriority();
 
+    for (const testDomain of domainVariants) {
       for (const { name, urlFn, size } of sources) {
         const result = await this.tryFetchLogo(testDomain, name, urlFn, size, domain);
         if (result) {
@@ -967,7 +949,7 @@ export class UnifiedImageService {
     } catch (error) {
       // Direct fetches have different error patterns - be more forgiving
       if (name === "direct") {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage = safeStringifyValue(error);
         if (
           errorMessage.includes("ENOTFOUND") ||
           errorMessage.includes("ECONNREFUSED") ||
@@ -978,7 +960,10 @@ export class UnifiedImageService {
           errorMessage.includes("403")
         ) {
           if (isDebug)
-            console.log(`[UnifiedImageService] Expected error for direct fetch from ${testDomain}: ${errorMessage}`);
+            logger.debug(`Expected error for direct fetch from ${testDomain}`, {
+              service: "UnifiedImageService",
+              error: errorMessage,
+            });
           logoDebugger.logAttempt(originalDomain, "external-fetch", `Direct fetch failed: ${errorMessage}`, "failed");
           return null;
         }
@@ -986,14 +971,15 @@ export class UnifiedImageService {
 
       // Use isRetryableHttpError to check if this error is worth retrying
       if (!isRetryableHttpError(error)) {
-        console.warn(
-          `[UnifiedImageService] Non-retryable error fetching logo for ${testDomain} from ${name} (${size}) at ${url}: ${error instanceof Error ? error.message : String(error)}`,
-        );
+        logger.warn(`Non-retryable error fetching logo for ${testDomain} from ${name} (${size}) at ${url}`, {
+          service: "UnifiedImageService",
+          error: safeStringifyValue(error),
+        });
       }
       logoDebugger.logAttempt(
         originalDomain,
         "external-fetch",
-        `${name} fetch error: ${error instanceof Error ? error.message : String(error)}`,
+        `${name} fetch error: ${safeStringifyValue(error)}`,
         "failed",
       );
     }
@@ -1045,10 +1031,10 @@ export class UnifiedImageService {
       const metadata = await extractBasicImageMeta(buffer);
       return Boolean(
         metadata.width &&
-          metadata.height &&
-          metadata.width >= this.CONFIG.MIN_LOGO_SIZE &&
-          metadata.height >= this.CONFIG.MIN_LOGO_SIZE &&
-          Math.abs(metadata.width / metadata.height - 1) < this.CONFIG.ASPECT_RATIO_TOLERANCE,
+        metadata.height &&
+        metadata.width >= this.CONFIG.MIN_LOGO_SIZE &&
+        metadata.height >= this.CONFIG.MIN_LOGO_SIZE &&
+        Math.abs(metadata.width / metadata.height - 1) < this.CONFIG.ASPECT_RATIO_TOLERANCE,
       );
     } catch (error) {
       logger.error("[UnifiedImageService] Logo validation failed", error, { url });
