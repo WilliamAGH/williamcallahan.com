@@ -152,6 +152,8 @@ export class S3Operations {
     }
     for (const [key, retry] of this.uploadRetryQueue.entries()) {
       if (retry.nextRetry <= now) {
+        // Mark as in-flight to prevent overlapping retry chains
+        this.uploadRetryQueue.set(key, { ...retry, nextRetry: now + CONFIG.RETRY_MAX_DELAY });
         logger.info(
           `[S3Operations] Retrying S3 upload for ${key} (attempt ${retry.attempts}/${CONFIG.MAX_UPLOAD_RETRIES})`,
         );
