@@ -9,20 +9,15 @@ const React = require("react");
 module.exports = {
   __esModule: true,
   default: props => {
-    const {
-      src,
-      alt,
-      priority,
-      fill,
-      // Next.js-specific props (not valid HTML attributes) - prefixed with _ to indicate intentional exclusion
-      unoptimized,
-      quality: _quality,
-      placeholder: _placeholder,
-      blurDataURL: _blurDataURL,
-      loader: _loader,
-      onLoadingComplete: _onLoadingComplete,
-      ...rest
-    } = props;
+    const { src, alt, priority, fill, unoptimized, ...rest } = props;
+
+    // Remove Next.js-specific props (not valid HTML attributes)
+    delete rest.quality;
+    delete rest.placeholder;
+    delete rest.blurDataURL;
+    delete rest.loader;
+    delete rest.onLoadingComplete;
+
     return React.createElement("img", {
       src,
       alt,
