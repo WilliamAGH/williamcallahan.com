@@ -128,6 +128,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const details = error instanceof Error ? error.message : String(error);
     console.error("Debug endpoint error:", details);
-    return createErrorResponse(`Internal server error: ${details}`, 500);
+    // Only expose detailed error messages in development
+    const message =
+      process.env.NODE_ENV === "development" ? `Internal server error: ${details}` : "Internal server error";
+    return createErrorResponse(message, 500);
   }
 }
