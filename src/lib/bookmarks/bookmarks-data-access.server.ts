@@ -68,7 +68,7 @@ import {
   invalidateNextJsBookmarksCache,
   invalidatePageCache,
   invalidateTagCache as invalidateTagCacheInternal,
-  invalidateBookmarkCache as invalidateBookmarkCacheInternal,
+  invalidateBookmarkMemoryCache as invalidateBookmarkCacheInternal,
 } from "@/lib/bookmarks/cache-management.server";
 
 const isCliLikeContext = isCliLikeCacheContext;
