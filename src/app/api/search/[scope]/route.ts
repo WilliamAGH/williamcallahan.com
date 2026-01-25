@@ -47,7 +47,7 @@ function resolveRequestUrl(request: NextRequest): URL {
 export async function GET(request: NextRequest, { params }: { params: Promise<{ scope: string }> }) {
   // connection(): ensure this handler always runs at request time under cacheComponents
   await connection();
-  // CRITICAL: Call noStore() FIRST to prevent Next.js from caching ANY response
+  // CRITICAL: Call preventCaching() FIRST to prevent Next.js from caching ANY response
   // If called after the build phase check, the buildPhase:true response gets cached
   preventCaching();
   // Next.js 16: params is a Promise that must be awaited
