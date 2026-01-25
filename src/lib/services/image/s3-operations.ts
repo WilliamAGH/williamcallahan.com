@@ -245,6 +245,15 @@ export class S3Operations {
    * Get CDN URL for S3 key
    */
   getCdnUrl(s3Key: string): string {
-    return buildCdnUrl(s3Key, getCdnConfigFromEnv());
+    try {
+      return buildCdnUrl(s3Key, getCdnConfigFromEnv());
+    } catch (error) {
+      logger.warn(`[S3Operations] CDN config missing; returning empty CDN URL`, {
+        service: "S3Operations",
+        s3Key,
+        error: safeStringifyValue(error),
+      });
+      return "";
+    }
   }
 }
