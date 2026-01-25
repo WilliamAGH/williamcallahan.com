@@ -424,26 +424,9 @@ export class UnifiedImageService {
       }
 
       const arrayBuffer = await response.arrayBuffer();
-      let buffer = Buffer.from(arrayBuffer);
+      const buffer = Buffer.from(arrayBuffer);
 
-      try {
-        // When DEV_STREAM_IMAGES_TO_S3 is enabled, skip any CPU-heavy processing and return original buffer
-        if (this.devStreamImagesToS3) {
-          return { buffer, contentType: contentType || "application/octet-stream" };
-        }
-
-        if (options.width || options.format || options.quality) {
-          const processed = await this.validators.processImageBuffer(buffer);
-          // Clear original buffer after processing
-          buffer = Buffer.alloc(0);
-          return { buffer: processed.processedBuffer, contentType: processed.contentType };
-        }
-        return { buffer, contentType: contentType || "application/octet-stream" };
-      } catch (error) {
-        // Clear buffer on error
-        buffer = Buffer.alloc(0);
-        throw error;
-      }
+      return { buffer, contentType: contentType || "application/octet-stream" };
     } catch (error) {
       throw error instanceof Error ? error : new Error("Failed to fetch image");
     }
