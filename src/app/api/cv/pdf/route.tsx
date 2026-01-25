@@ -2,7 +2,7 @@ import React from "react";
 import { TextDecoder as PolyfillTextDecoder } from "@sinonjs/text-encoding";
 import CvPdfDocument from "@/components/features/cv/CvPdfDocument";
 import logger from "@/lib/utils/logger";
-import { preventCaching } from "@/lib/utils/api-utils";
+import { NO_STORE_HEADERS, preventCaching } from "@/lib/utils/api-utils";
 import { type NextRequest } from "next/server";
 
 const ensureWindows1252TextDecoder = (() => {
@@ -83,9 +83,9 @@ export async function GET(request: NextRequest): Promise<Response> {
     return new Response(pdfArray, {
       status: 200,
       headers: {
+        ...NO_STORE_HEADERS,
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="william-callahan-cv-${fileSuffix}.pdf"`,
-        "Cache-Control": "no-store",
         "X-Correlation-ID": correlationId,
       },
     });
@@ -109,8 +109,8 @@ export async function GET(request: NextRequest): Promise<Response> {
     return new Response(JSON.stringify(problem), {
       status,
       headers: {
+        ...NO_STORE_HEADERS,
         "Content-Type": "application/problem+json",
-        "Cache-Control": "no-store",
         "X-Correlation-ID": correlationId,
       },
     });

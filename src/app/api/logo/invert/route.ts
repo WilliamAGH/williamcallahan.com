@@ -6,7 +6,7 @@
  * This route handles image inversion, caching, and serving inverted logos.
  */
 
-import { preventCaching } from "@/lib/utils/api-utils";
+import { NO_STORE_HEADERS, preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
 import { getUnifiedImageService, type UnifiedImageService } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
@@ -98,9 +98,7 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
   if (!urlParam) {
     return new NextResponse(null, {
       status: 400,
-      headers: {
-        "Cache-Control": "no-store",
-      },
+      headers: NO_STORE_HEADERS,
     });
   }
 
@@ -114,9 +112,7 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
     if (!analysis) {
       return new NextResponse(null, {
         status: 404,
-        headers: {
-          "Cache-Control": "no-store",
-        },
+        headers: NO_STORE_HEADERS,
       });
     }
 
@@ -133,9 +129,7 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
     logger.error("Error analyzing logo:", errorMessage);
     return new NextResponse(null, {
       status: 500,
-      headers: {
-        "Cache-Control": "no-store",
-      },
+      headers: NO_STORE_HEADERS,
     });
   }
 }
