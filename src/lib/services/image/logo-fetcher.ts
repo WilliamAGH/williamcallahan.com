@@ -314,7 +314,8 @@ export class LogoFetcher {
       }
 
       // Persist inverted logo to dedicated S3 path for cache-friendly retrieval
-      const s3Key = `images/logos/inverted/${domain}.${inverted.contentType.split("/")[1] || "png"}`;
+      const extension = getExtensionFromContentType(inverted.contentType || "image/png");
+      const s3Key = `images/logos/inverted/${domain}.${extension}`;
 
       if (!this.isReadOnly) {
         await this.s3Ops.uploadToS3(s3Key, invertedBuffer, inverted.contentType);
