@@ -31,6 +31,7 @@ import {
 import { invalidateBookmarkByIdCaches, clearFullDatasetCache } from "@/lib/bookmarks/cache-management.server";
 
 const LOCAL_BOOKMARKS_BY_ID_DIR = path.join(process.cwd(), ".next", "cache", "bookmarks", "by-id");
+const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "generated", "bookmarks", "bookmarks.json");
 
 const logBookmarkDataAccessEvent = (message: string, data?: Record<string, unknown>): void => {
   if (!isBookmarkServiceLoggingEnabled) return;
@@ -90,6 +91,35 @@ export async function writePaginatedBookmarks(
   }
 
   return mapping;
+}
+
+/**
+ * Write bookmarks to local filesystem cache for fallback serving.
+ *
+ * @param bookmarks - The bookmarks to cache
+ * @param context - Description of why this write is happening (for logging)
+ * @returns WriteResult indicating success or failure with error details
+ */
+export async function writeLocalBookmarksCache(
+  bookmarks: UnifiedBookmark[],
+  context: string,
+): Promise<import("@/types/lib").WriteResult> {
+  try {
+    await fs.mkdir(path.dirname(LOCAL_BOOKMARKS_PATH), { recursive: true });
+    await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarks, null, 2));
+    logBookmarkDataAccessEvent(`Saved bookmarks to local fallback path${context ? ` (${context})` : ""}`, {
+      path: LOCAL_BOOKMARKS_PATH,
+      bookmarkCount: bookmarks.length,
+    });
+    return { success: true };
+  } catch (error) {
+    const normalizedError = error instanceof Error ? error : new Error(String(error));
+    console.error(
+      `${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path${context ? ` (${context})` : ""}:`,
+      error,
+    );
+    return { success: false, error: normalizedError };
+  }
 }
 
 /**
