@@ -36,7 +36,7 @@ function resolveRequestUrl(request: NextRequest | { nextUrl?: URL; url: string }
 export async function GET(request: NextRequest) {
   // connection(): ensure request-time execution under cacheComponents to avoid prerendered buildPhase responses
   await connection();
-  // CRITICAL: Call noStore() FIRST to prevent Next.js from caching ANY response
+  // CRITICAL: Call preventCaching() FIRST to prevent Next.js from caching ANY response
   // If called after the build phase check, the buildPhase:true response gets cached
   preventCaching();
   if (isProductionBuildPhase()) {
