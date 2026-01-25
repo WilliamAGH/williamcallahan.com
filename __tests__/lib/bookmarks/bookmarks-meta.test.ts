@@ -70,7 +70,8 @@ jest.mock("@/lib/bookmarks/local-s3-cache", () => ({
 }));
 
 // Import after mocks
-import { getBookmarks, setRefreshBookmarksCallback } from "@/lib/bookmarks/bookmarks-data-access.server";
+import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
+import { setRefreshBookmarksCallback } from "@/lib/bookmarks/refresh-logic.server";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { readJsonS3 } from "@/lib/s3-utils";
 
