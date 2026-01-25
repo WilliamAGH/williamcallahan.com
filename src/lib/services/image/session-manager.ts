@@ -19,6 +19,7 @@ const CONFIG = UNIFIED_IMAGE_SERVICE_CONFIG;
  * Session and domain failure tracking manager
  */
 export class SessionManager {
+  private cleanupTimerId: NodeJS.Timeout | null = null;
   private sessionFailedDomains = new Set<string>();
   private domainRetryCount = new Map<string, number>();
   private domainFirstFailureTime = new Map<string, number>();
@@ -162,7 +163,19 @@ export class SessionManager {
    * Start periodic memory cleanup
    */
   private startPeriodicCleanup(): void {
-    setInterval(() => this.performMemoryCleanup(), CONFIG.CLEANUP_INTERVAL);
+    if (this.cleanupTimerId) return; // Already running
+    this.cleanupTimerId = setInterval(() => this.performMemoryCleanup(), CONFIG.CLEANUP_INTERVAL);
+    if (process.env.NODE_ENV !== "test") process.on("beforeExit", () => this.stopPeriodicCleanup());
+  }
+
+  /**
+   * Stop periodic memory cleanup
+   */
+  stopPeriodicCleanup(): void {
+    if (this.cleanupTimerId) {
+      clearInterval(this.cleanupTimerId);
+      this.cleanupTimerId = null;
+    }
   }
 
   /**
