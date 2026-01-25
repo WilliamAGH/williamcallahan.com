@@ -84,13 +84,6 @@ let inFlightGetPromise: Promise<UnifiedBookmark[] | LightweightBookmark[]> | nul
 
 import { refreshAndPersistBookmarks, releaseRefreshLock } from "@/lib/bookmarks/refresh-logic.server";
 
-export {
-  setRefreshBookmarksCallback,
-  initializeBookmarksDataAccess,
-  cleanupBookmarksDataAccess,
-  refreshAndPersistBookmarks,
-} from "@/lib/bookmarks/refresh-logic.server";
-
 /**
  * Fetches bookmarks with Next.js caching layer.
  * Cache duration: 1 hour (coordinated with 2-hour scheduler to minimize staleness).
