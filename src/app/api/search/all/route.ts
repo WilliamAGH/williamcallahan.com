@@ -24,9 +24,9 @@ import {
 } from "@/lib/search";
 import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
+import { preventCaching } from "@/lib/utils/api-utils";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { VALID_SCOPES, type SearchResult, type SearchScope } from "@/types/search";
-import { unstable_noStore } from "next/cache";
 import { NextResponse, connection, type NextRequest } from "next/server";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
@@ -110,12 +110,9 @@ function parseScopes(scopeParam: string | null): Set<SearchScope> | null {
 export async function GET(request: NextRequest) {
   // connection(): ensure this handler stays request-time under cacheComponents
   await connection();
-  // CRITICAL: Call noStore() FIRST to prevent Next.js from caching ANY response
+  // CRITICAL: Call preventCaching() FIRST to prevent Next.js from caching ANY response
   // If called after the build phase check, the buildPhase:true response gets cached
-  const disableCache = unstable_noStore as (() => void) | undefined;
-  if (typeof disableCache === "function") {
-    disableCache();
-  }
+  preventCaching();
   if (isProductionBuildPhase()) {
     return NextResponse.json(
       {

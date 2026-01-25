@@ -16,6 +16,7 @@ import { incrementAndPersist, loadRateLimitStoreFromS3 } from "@/lib/rate-limite
 import { envLogger } from "@/lib/utils/env-logger";
 import { getMonotonicTime } from "@/lib/utils";
 import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
+import { getClientIp } from "@/lib/utils/request-utils";
 
 /**
  * @constant {string} dynamic - Ensures the route is dynamically rendered and not cached.
@@ -92,9 +93,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Only apply rate limiting if not a cron job
   if (!isCronJob) {
     // Extract IP for rate limiting
-    const forwarded = headerStore.get("x-forwarded-for");
-    const realIp = headerStore.get("x-real-ip");
-    const ip = forwarded?.split(",")[0] || realIp || "unknown";
+    const ip = getClientIp(headerStore, { fallback: "unknown" });
     const rateLimitKey = `github-refresh:${ip}`;
 
     // Check and increment rate limit using S3-backed persistent storage

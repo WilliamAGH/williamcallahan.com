@@ -7,8 +7,7 @@ import {
   resolveOpenAiCompatibleFeatureConfig,
 } from "@/lib/ai/openai-compatible/feature-config";
 import { getUpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
-
-const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+import { NO_STORE_HEADERS, preventCaching } from "@/lib/utils/api-utils";
 
 const featureParamSchema = z
   .string()
@@ -32,6 +31,7 @@ export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ feature: string }> },
 ): Promise<NextResponse> {
+  preventCaching();
   try {
     const { feature } = await context.params;
     const validatedFeature = featureParamSchema.parse(feature);

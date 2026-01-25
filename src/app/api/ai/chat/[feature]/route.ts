@@ -13,9 +13,9 @@ import { getUpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-req
 import { logChatMessage } from "@/lib/ai/openai-compatible/chat-message-logger";
 import { buildChatMessages } from "@/lib/ai/openai-compatible/chat-messages";
 import { getClientIp } from "@/lib/utils/request-utils";
+import { NO_STORE_HEADERS, preventCaching } from "@/lib/utils/api-utils";
 import logger from "@/lib/utils/logger";
 
-const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 const HTTPS_COOKIE_NAME = "__Host-ai_gate_nonce";
 const HTTP_COOKIE_NAME = "ai_gate_nonce";
 
@@ -118,6 +118,7 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ feature: string }> },
 ): Promise<NextResponse> {
+  preventCaching();
   const originHost = getRequestOriginHostname(request);
   if (!originHost || !isAllowedHostname(originHost)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403, headers: NO_STORE_HEADERS });

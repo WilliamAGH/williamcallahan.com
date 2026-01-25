@@ -8,8 +8,7 @@ import { getClientIp } from "@/lib/utils/request-utils";
 import logger from "@/lib/utils/logger";
 import { normalizeString } from "@/lib/utils";
 import { safeJsonParse } from "@/lib/utils/json-utils";
-
-const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+import { NO_STORE_HEADERS, preventCaching } from "@/lib/utils/api-utils";
 
 const TOKEN_RATE_LIMIT = {
   maxRequests: 30,
@@ -81,6 +80,7 @@ function isSecureRequest(request: NextRequest): boolean {
 }
 
 export function GET(request: NextRequest): NextResponse {
+  preventCaching();
   const originHost = getRequestOriginHostname(request);
   if (!originHost || !isAllowedHostname(originHost)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403, headers: NO_STORE_HEADERS });
