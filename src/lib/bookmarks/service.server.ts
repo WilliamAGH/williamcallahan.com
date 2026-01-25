@@ -8,14 +8,16 @@ import {
   getBookmarksIndex as getBookmarksIndexInternal,
   getBookmarksPage as getBookmarksPageInternal,
   getBookmarkById as getBookmarkByIdInternal,
-  refreshAndPersistBookmarks,
-  setRefreshBookmarksCallback,
-  initializeBookmarksDataAccess,
   getTagBookmarksIndex as getTagBookmarksIndexInternal,
   getTagBookmarksPage as getTagBookmarksPageInternal,
   listTagSlugs as listTagSlugsInternal,
 } from "./bookmarks-data-access.server";
 import { refreshBookmarksData } from "./bookmarks";
+import {
+  refreshAndPersistBookmarks,
+  setRefreshBookmarksCallback,
+  initializeBookmarksDataAccess,
+} from "./refresh-logic.server";
 import type { UnifiedBookmark } from "@/types";
 import type { BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
 import { envLogger } from "@/lib/utils/env-logger";

@@ -403,9 +403,16 @@ export async function getBookmarkById(
 ): Promise<UnifiedBookmark | LightweightBookmark | null> {
   const includeImageData = options.includeImageData ?? true;
   // Check memory cache first
-  const cached = getCachedBookmarkById<UnifiedBookmark | LightweightBookmark>(bookmarkId, !includeImageData);
-  if (cached) {
-    return cached;
+  if (includeImageData) {
+    const cached = getCachedBookmarkById(bookmarkId, false);
+    if (cached) {
+      return cached;
+    }
+  } else {
+    const cached = getCachedBookmarkById(bookmarkId, true);
+    if (cached) {
+      return cached;
+    }
   }
 
   const localFilePath = path.join(LOCAL_BOOKMARKS_BY_ID_DIR, `${bookmarkId}.json`);

@@ -5,11 +5,7 @@
  */
 
 // Bookmarks exports are now in @/lib/bookmarks (server-specific)
-export {
-  getBookmarks,
-  initializeBookmarksDataAccess,
-  cleanupBookmarksDataAccess,
-} from "@/lib/bookmarks/bookmarks-data-access.server";
+export { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 
 // ---- GitHub Data Access (explicit public surface) ----
 export {
