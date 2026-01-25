@@ -28,7 +28,11 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import type { Project } from "@/types/project";
 import type { ProjectPageProps } from "@/types/features/projects";
 
-const DEFAULT_PROJECT_OG_IMAGE = "/images/og/projects-og.png"; // eslint-disable-line s3/no-hardcoded-images
+/**
+ * Pre-resolved default OG image URL for projects.
+ * Resolved once at module load to avoid repeated processing.
+ */
+const DEFAULT_PROJECT_OG_IMAGE = getStaticImageUrl("/images/og/projects-og.png");
 
 /**
  * Tag patterns mapped to schema.org applicationCategory values.
@@ -74,11 +78,11 @@ function buildProjectOgImageUrl(project: Project): string {
     } catch (error) {
       console.warn(`[ProjectMetadata] Failed to build CDN URL for project ${project.name}, using fallback`, error);
       // Fallback if CDN config is missing (e.g. in dev without env vars)
-      return ensureAbsoluteUrl(getStaticImageUrl(DEFAULT_PROJECT_OG_IMAGE));
+      return ensureAbsoluteUrl(DEFAULT_PROJECT_OG_IMAGE);
     }
   }
   // Fallback to default projects OG image
-  return ensureAbsoluteUrl(getStaticImageUrl(DEFAULT_PROJECT_OG_IMAGE));
+  return ensureAbsoluteUrl(DEFAULT_PROJECT_OG_IMAGE);
 }
 
 export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {
