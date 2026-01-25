@@ -1,5 +1,6 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 import type { ExtendedError } from "./error";
+import { registryLinkSchema } from "./schemas/registry-link";
 
 /** Bookmarks API Types */
 
@@ -154,6 +155,8 @@ export const unifiedBookmarkSchema = z.object({
   isPrivate: z.boolean().optional(),
   isFavorite: z.boolean().optional(),
   ogImageExternal: z.string().optional(),
+  /** Optional links to package registries where the bookmarked resource is distributed */
+  registryLinks: z.array(registryLinkSchema).optional(),
 });
 
 export type UnifiedBookmark = z.infer<typeof unifiedBookmarkSchema>;
@@ -377,6 +380,6 @@ export const bookmarkSlugMappingSchema = z.object({
   generated: z.string().datetime(), // ISO8601
   count: z.number().int().min(0),
   checksum: z.string().regex(/^[a-f0-9]{32}$/), // MD5 hex
-  slugs: z.record(bookmarkSlugEntrySchema),
-  reverseMap: z.record(z.string()),
+  slugs: z.record(z.string(), bookmarkSlugEntrySchema),
+  reverseMap: z.record(z.string(), z.string()),
 });

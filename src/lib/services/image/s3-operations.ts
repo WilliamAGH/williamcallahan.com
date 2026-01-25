@@ -51,7 +51,6 @@ export class S3Operations {
     try {
       await writeBinaryS3(key, buffer, contentType);
     } catch (error) {
-      logger.error("[S3Operations] S3 upload failed", error);
       this.trackFailedUpload(key, buffer, contentType, error);
     }
   }

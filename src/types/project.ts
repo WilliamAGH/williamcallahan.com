@@ -1,3 +1,5 @@
+import type { RegistryLink } from "./schemas/registry-link";
+
 export interface Project {
   /** Unique identifier for the project (typically same as name) */
   id?: string;
@@ -23,4 +25,9 @@ export interface Project {
   note?: string;
   /** Flag projects that should appear on the CV page */
   cvFeatured?: boolean;
+  /**
+   * Optional links to package registries (npm, PyPI, VS Code marketplace, etc.)
+   * where this project is distributed.
+   */
+  registryLinks?: RegistryLink[];
 }

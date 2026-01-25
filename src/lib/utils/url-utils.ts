@@ -10,7 +10,6 @@
  */
 
 import { IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
-
 /**
  * Extracts the root domain (eTLD+1) from a domain string.
  * Handles complex TLDs like co.uk, com.br, etc.

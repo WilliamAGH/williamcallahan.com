@@ -26,6 +26,7 @@ import {
 import { safeExternalHref, getDisplayHostname } from "@/lib/utils/url-utils";
 import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
+import { RegistryLinks } from "@/components/ui/registry-links.client";
 
 /**
  * Check if URL is internal (starts with /)
@@ -311,6 +312,9 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
                   <span>View Source</span>
                 </a>
               )}
+
+              {/* Registry Links (npm, PyPI, etc.) */}
+              <RegistryLinks links={project.registryLinks} />
 
               <Link
                 href="/projects"
