@@ -76,8 +76,11 @@ export function isFullDatasetCacheValid(bypassForTest: boolean = false): boolean
 // Bookmark-by-ID Memory Cache
 // ============================================================================
 
-const bookmarkByIdCache = new Map<string, { data: UnifiedBookmark; timestamp: number }>();
-const lightweightBookmarkByIdCache = new Map<string, { data: LightweightBookmark; timestamp: number }>();
+const bookmarkByIdCache = new Map<string, { data: UnifiedBookmark | LightweightBookmark; timestamp: number }>();
+const lightweightBookmarkByIdCache = new Map<
+  string,
+  { data: UnifiedBookmark | LightweightBookmark; timestamp: number }
+>();
 
 /**
  * Clear both bookmark-by-id caches.
@@ -93,10 +96,10 @@ export function invalidateBookmarkByIdCaches(): void {
  * @param lightweight - Whether to get from the lightweight cache
  * @returns Cached bookmark or null if not found/stale
  */
-export function getCachedBookmarkById<T extends UnifiedBookmark | LightweightBookmark>(
-  key: string,
-  lightweight: boolean,
-): T | null {
+export function getCachedBookmarkById(key: string, lightweight: true): LightweightBookmark | null;
+export function getCachedBookmarkById(key: string, lightweight: false): UnifiedBookmark | null;
+export function getCachedBookmarkById(key: string, lightweight: boolean): UnifiedBookmark | LightweightBookmark | null;
+export function getCachedBookmarkById(key: string, lightweight: boolean): UnifiedBookmark | LightweightBookmark | null {
   const cache = lightweight ? lightweightBookmarkByIdCache : bookmarkByIdCache;
   const entry = cache.get(key);
   if (!entry) return null;
@@ -104,7 +107,7 @@ export function getCachedBookmarkById<T extends UnifiedBookmark | LightweightBoo
     cache.delete(key);
     return null;
   }
-  return entry.data as T;
+  return entry.data;
 }
 
 /**
@@ -113,13 +116,15 @@ export function getCachedBookmarkById<T extends UnifiedBookmark | LightweightBoo
  * @param value - Bookmark to cache
  * @param lightweight - Whether to store in the lightweight cache
  */
-export function setCachedBookmarkById<T extends UnifiedBookmark | LightweightBookmark>(
+export function setCachedBookmarkById(key: string, value: LightweightBookmark, lightweight: true): void;
+export function setCachedBookmarkById(key: string, value: UnifiedBookmark, lightweight: false): void;
+export function setCachedBookmarkById(
   key: string,
-  value: T,
+  value: UnifiedBookmark | LightweightBookmark,
   lightweight: boolean,
 ): void {
   const cache = lightweight ? lightweightBookmarkByIdCache : bookmarkByIdCache;
-  cache.set(key, { data: value as UnifiedBookmark & LightweightBookmark, timestamp: getDeterministicTimestamp() });
+  cache.set(key, { data: value, timestamp: getDeterministicTimestamp() });
   if (cache.size > BOOKMARK_BY_ID_CACHE_LIMIT) {
     const oldestKey = cache.keys().next().value;
     if (oldestKey) cache.delete(oldestKey);

@@ -29,11 +29,11 @@ import type { LogoManifest } from "@/types/image";
 
 import {
   calculateAndStoreAggregatedWeeklyActivity,
-  initializeBookmarksDataAccess,
   invalidateLogoS3Cache,
   refreshGitHubActivityDataFromApi,
   resetLogoSessionTracking,
 } from "@/lib/data-access";
+import { initializeBookmarksDataAccess } from "@/lib/bookmarks/refresh-logic.server";
 // Cache invalidation uses dynamic import to reduce startup overhead (see refreshGitHubActivityData)
 
 /**
