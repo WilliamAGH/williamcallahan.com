@@ -25,12 +25,13 @@
 process.env.NODE_ENV = "test";
 
 // Storage API mock (not available in Node.js)
+const createMockFn = () => () => undefined;
 const mockStorage = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
-  key: jest.fn(),
+  getItem: createMockFn(),
+  setItem: createMockFn(),
+  removeItem: createMockFn(),
+  clear: createMockFn(),
+  key: createMockFn(),
   length: 0,
 };
 
