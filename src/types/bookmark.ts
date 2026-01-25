@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 import type { ExtendedError } from "./error";
 import { registryLinkSchema } from "./schemas/registry-link";
 
@@ -380,6 +380,6 @@ export const bookmarkSlugMappingSchema = z.object({
   generated: z.string().datetime(), // ISO8601
   count: z.number().int().min(0),
   checksum: z.string().regex(/^[a-f0-9]{32}$/), // MD5 hex
-  slugs: z.record(bookmarkSlugEntrySchema),
-  reverseMap: z.record(z.string()),
+  slugs: z.record(z.string(), bookmarkSlugEntrySchema),
+  reverseMap: z.record(z.string(), z.string()),
 });
