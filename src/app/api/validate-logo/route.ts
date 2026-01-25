@@ -14,6 +14,7 @@ import { setLogoValidation } from "@/lib/data-access/logos";
 import { type NextRequest, NextResponse } from "next/server";
 import { isBlankOrPlaceholder } from "@/lib/image-handling/image-analysis";
 import { generateImageSignature, compareSignatures } from "@/lib/image-handling/image-compare";
+import { NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 
 /** Reference globe icon buffer - loaded once and reused */
 let GLOBE_ICON_BUFFER: Buffer | null = null;
@@ -58,9 +59,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           { error: result.error || "Failed to fetch image" },
           {
             status: 500,
-            headers: {
-              "Cache-Control": "no-store",
-            },
+            headers: NO_STORE_HEADERS,
           },
         );
       }
@@ -71,9 +70,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { error: "No image provided" },
         {
           status: 400,
-          headers: {
-            "Cache-Control": "no-store",
-          },
+          headers: NO_STORE_HEADERS,
         },
       );
     }
@@ -188,9 +185,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { error: "Failed to validate logo" },
       {
         status: 500,
-        headers: {
-          "Cache-Control": "no-store",
-        },
+        headers: NO_STORE_HEADERS,
       },
     );
   }
