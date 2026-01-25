@@ -2,7 +2,7 @@ import { describe, it, expect, jest, beforeEach, afterEach } from "@jest/globals
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { DistributedLockEntry } from "@/types";
 
-const loadBookmarksModule = async () => import("@/lib/bookmarks/bookmarks-data-access.server");
+const loadBookmarksModule = async () => import("@/lib/bookmarks/refresh-logic.server");
 
 describe("Distributed lock contention (unit)", () => {
   beforeEach(() => {

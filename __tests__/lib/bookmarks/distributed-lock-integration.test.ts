@@ -128,7 +128,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
     it("should acquire lock, perform refresh, and release lock in atomic operation", async () => {
       setupS3Mocks();
 
-      const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
+      const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
 
       const testBookmarks: UnifiedBookmark[] = [
         {
@@ -197,7 +197,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         }),
       });
 
-      const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
+      const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
 
       bookmarksModule.setRefreshBookmarksCallback(() =>
         Promise.resolve([
@@ -257,7 +257,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         }),
       });
 
-      const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
+      const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
 
       bookmarksModule.setRefreshBookmarksCallback(() =>
         Promise.resolve([
@@ -324,7 +324,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         }),
       });
 
-      const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
+      const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
 
       bookmarksModule.setRefreshBookmarksCallback(() =>
         Promise.resolve([
@@ -353,7 +353,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
     it("should correctly paginate and persist bookmarks", async () => {
       setupS3Mocks();
 
-      const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
+      const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
 
       const manyBookmarks: UnifiedBookmark[] = Array.from({ length: BOOKMARKS_PER_PAGE + 5 }, (_, i) => ({
         id: `bookmark-${i}`,
@@ -409,7 +409,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         }),
       });
 
-      const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
+      const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
 
       bookmarksModule.setRefreshBookmarksCallback(() => {
         operationLog.push("REFRESH_CALLBACK");

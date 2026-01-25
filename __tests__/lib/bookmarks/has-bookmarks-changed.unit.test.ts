@@ -40,7 +40,7 @@ describe("hasBookmarksChanged() function (unit)", () => {
       listS3Objects: jest.fn(() => Promise.resolve([])),
     }));
 
-    const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
+    const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
 
     const mockBookmarks: UnifiedBookmark[] = [
       {
@@ -113,7 +113,7 @@ describe("hasBookmarksChanged() function (unit)", () => {
       listS3Objects: jest.fn(() => Promise.resolve([])),
     }));
 
-    const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
+    const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
 
     const mockBookmarks: UnifiedBookmark[] = [
       {
@@ -205,7 +205,7 @@ describe("hasBookmarksChanged() function (unit)", () => {
       listS3Objects: jest.fn(() => Promise.resolve([])),
     }));
 
-    const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
+    const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
 
     const mockBookmarks: UnifiedBookmark[] = [
       {
@@ -293,7 +293,7 @@ describe("hasBookmarksChanged() function (unit)", () => {
       processBookmarksInBatches: jest.fn((bookmarks: UnifiedBookmark[]) => Promise.resolve(bookmarks)),
     }));
 
-    const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
+    const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
 
     const mockBookmarks: UnifiedBookmark[] = [
       {
@@ -368,7 +368,7 @@ describe("hasBookmarksChanged() function (unit)", () => {
       listS3Objects: jest.fn(() => Promise.resolve([])),
     }));
 
-    const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
+    const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
 
     const mockBookmarks: UnifiedBookmark[] = [
       {
