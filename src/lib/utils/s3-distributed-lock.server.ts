@@ -15,13 +15,7 @@ import { envLogger } from "@/lib/utils/env-logger";
 import { getMonotonicTime } from "@/lib/utils";
 import type { DistributedLockEntry, LockConfig, LockResult } from "@/types";
 import type { DistributedLock } from "@/types/lib";
-
-/**
- * Check if an error is an S3 error with metadata
- */
-function isS3Error(error: unknown): error is { $metadata?: { httpStatusCode?: number } } {
-  return typeof error === "object" && error !== null && "$metadata" in error;
-}
+import { isS3Error } from "@/lib/utils/s3-error-guards";
 
 /**
  * Implements exponential backoff with jitter
