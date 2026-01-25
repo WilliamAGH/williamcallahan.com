@@ -9,6 +9,7 @@
 
 import type { LogoResult, LogoSource } from "@/types/logo";
 import { writeBinaryS3, checkIfS3ObjectExists, listS3Objects } from "@/lib/s3-utils";
+import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 import { getDomainVariants, normalizeDomain } from "@/lib/utils/domain-utils";
 import { LOGO_SOURCES, LOGO_BLOCKLIST_S3_PATH } from "@/lib/constants";
 import { FailureTracker } from "@/lib/utils/failure-tracker";
@@ -31,7 +32,7 @@ const domainFailureTracker = new FailureTracker<string>(domain => domain, {
  */
 export async function getLogoBatch(domain: string): Promise<LogoResult> {
   const normalizedDomain = normalizeDomain(domain);
-  const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+  const cdnUrl = getS3CdnUrl();
 
   // Check if domain should be skipped due to previous failures
   if (await domainFailureTracker.shouldSkip(normalizedDomain)) {

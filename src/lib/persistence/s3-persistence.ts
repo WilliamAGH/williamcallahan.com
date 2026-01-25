@@ -17,6 +17,7 @@ import type { OgResult, PersistImageResult } from "@/types";
 import { OgError, isOgResult } from "@/types/opengraph";
 import { ContentCategory } from "@/types/s3-cdn";
 import { isS3ReadOnly } from "@/lib/utils/s3-read-only";
+import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 
 /**
  * Determine content category based on content type and path
@@ -345,7 +346,7 @@ export async function persistImageAndGetS3Url(
   try {
     const s3Key = await persistImageToS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
     if (s3Key) {
-      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL;
+      const cdnUrl = getS3CdnUrl();
       if (!cdnUrl) {
         console.error("[OpenGraph S3] ❌ S3_CDN_URL not configured");
         return null;
@@ -443,7 +444,7 @@ export async function persistImageAndGetS3UrlWithStatus(
     const existingKey = await findImageInS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
 
     if (existingKey) {
-      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL;
+      const cdnUrl = getS3CdnUrl();
       if (!cdnUrl) {
         console.error("[OpenGraph S3] ❌ S3_CDN_URL not configured");
         return { s3Url: null, wasNewlyPersisted: false };
@@ -456,7 +457,7 @@ export async function persistImageAndGetS3UrlWithStatus(
     // Image doesn't exist, persist it
     const s3Key = await persistImageToS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
     if (s3Key) {
-      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL;
+      const cdnUrl = getS3CdnUrl();
       if (!cdnUrl) {
         console.error("[OpenGraph S3] ❌ S3_CDN_URL not configured");
         return { s3Url: null, wasNewlyPersisted: false };
@@ -522,7 +523,7 @@ export async function persistImageBufferToS3(
     await writeBinaryS3(s3Key, processedBuffer, contentType);
 
     // Return the S3 CDN URL
-    const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL;
+    const cdnUrl = getS3CdnUrl();
     if (!cdnUrl) {
       console.error("[OpenGraph S3] ❌ S3_CDN_URL not configured");
       return null;

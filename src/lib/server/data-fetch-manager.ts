@@ -24,6 +24,7 @@ import { refreshBookmarks } from "@/lib/bookmarks/service.server";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 import { writeJsonS3, listS3Objects } from "@/lib/s3-utils";
+import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 import type { LogoManifest } from "@/types/image";
 
 import {
@@ -597,7 +598,7 @@ export class DataFetchManager {
    */
   private createLogoManifest(s3Keys: string[]): LogoManifest {
     const manifest: LogoManifest = {};
-    const cdnBase = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+    const cdnBase = getS3CdnUrl();
 
     for (const key of s3Keys) {
       // Detect inverted logos
@@ -655,7 +656,7 @@ export class DataFetchManager {
    * @returns Array of CDN URLs
    */
   private createImageManifest(s3Keys: string[]): string[] {
-    const cdnBase = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+    const cdnBase = getS3CdnUrl();
     return s3Keys.map(key => `${cdnBase}/${key}`);
   }
 

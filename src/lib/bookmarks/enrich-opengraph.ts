@@ -13,6 +13,7 @@ import { selectBestImage } from "./bookmark-helpers";
 import { extractMarkdownContent, applyExtractedContent } from "./extract-markdown";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import { getMonotonicTime } from "@/lib/utils";
+import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 
 const LOG_PREFIX = "[Bookmarks OpenGraph]";
 
@@ -89,7 +90,7 @@ export async function processBookmarksInBatches(
 
   // Process sequentially with a small delay between requests
   const enrichedBookmarks: UnifiedBookmark[] = [];
-  const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL;
+  const s3CdnUrl = getS3CdnUrl();
 
   for (let i = 0; i < bookmarks.length; i++) {
     const bookmark = bookmarks[i];

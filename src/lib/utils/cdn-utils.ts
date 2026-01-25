@@ -9,6 +9,20 @@ import type { CdnConfig } from "@/types/s3-cdn";
 
 const SUPPORTED_PROTOCOLS = new Set(["http:", "https:"]);
 
+/**
+ * Get S3 CDN base URL with consistent fallback chain
+ *
+ * Server-side: S3_CDN_URL takes precedence (not exposed to client)
+ * Client-side: Falls back to NEXT_PUBLIC_S3_CDN_URL
+ *
+ * Returns empty string if neither is configured.
+ *
+ * @see {@link getCdnConfigFromEnv} for full configuration object
+ */
+export function getS3CdnUrl(): string {
+  return process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+}
+
 function parseAbsoluteUrl(value?: string): URL | null {
   if (!value) return null;
   try {
