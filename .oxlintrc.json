@@ -29,6 +29,12 @@
       "rules": {
         "typescript/*": "off"
       }
+    },
+    {
+      "files": ["src/lib/utils/sanitize.ts"],
+      "rules": {
+        "no-control-regex": "off"
+      }
     }
   ]
 }

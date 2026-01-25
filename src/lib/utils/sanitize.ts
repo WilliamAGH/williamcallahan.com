@@ -59,6 +59,5 @@ export function sanitizeTitleSlug(title: string): string {
  */
 export function sanitizeControlChars(str: string): string {
   if (!str) return "";
-  // eslint-disable-next-line no-control-regex -- Intentionally matching control characters
   return str.replace(/[\x00-\x1F\x7F-\x9F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, "");
 }
