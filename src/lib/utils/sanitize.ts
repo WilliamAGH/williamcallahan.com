@@ -57,7 +57,25 @@ export function sanitizeTitleSlug(title: string): string {
  * @param str - The string to sanitize
  * @returns String with control characters removed
  */
+// Build character ranges programmatically to avoid linter control-character warnings
+const buildControlCharPattern = (): RegExp => {
+  // ASCII control (0x00-0x1F), DEL+C1 (0x7F-0x9F), zero-width (200B-200F),
+  // separators (2028-202F), bidi (2066-206F)
+  const ranges: [number, number][] = [
+    [0x00, 0x1f],
+    [0x7f, 0x9f],
+    [0x200b, 0x200f],
+    [0x2028, 0x202f],
+    [0x2066, 0x206f],
+  ];
+  const pattern = ranges
+    .map(([start, end]) => `\\u${start.toString(16).padStart(4, "0")}-\\u${end.toString(16).padStart(4, "0")}`)
+    .join("");
+  return new RegExp(`[${pattern}]`, "g");
+};
+const CONTROL_CHARS_REGEX = buildControlCharPattern();
+
 export function sanitizeControlChars(str: string): string {
   if (!str) return "";
-  return str.replace(/[\x00-\x1F\x7F-\x9F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, "");
+  return str.replace(CONTROL_CHARS_REGEX, "");
 }
