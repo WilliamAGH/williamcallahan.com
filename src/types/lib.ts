@@ -144,6 +144,8 @@ export interface S3Error {
   $metadata?: {
     httpStatusCode?: number;
   };
+  name?: string;
+  code?: string;
 }
 
 /**
