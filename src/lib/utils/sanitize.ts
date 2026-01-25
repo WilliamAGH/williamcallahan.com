@@ -9,7 +9,7 @@
 
 /**
  * Sanitizes a string for use as a cache key or tag.
- * Allows alphanumeric characters and hyphens.
+ * Allows alphanumeric characters, colons, underscores, and hyphens.
  * Replaces invalid characters with a hyphen.
  *
  * @param tag - The tag to sanitize
@@ -17,7 +17,7 @@
  */
 export function sanitizeCacheTag(tag: string): string {
   if (!tag) return "";
-  return tag.replace(/[^a-zA-Z0-9-]/g, "-");
+  return tag.replace(/[^a-zA-Z0-9:_-]/g, "-");
 }
 
 /**
@@ -34,7 +34,7 @@ export function sanitizeFilename(filename: string): string {
 
 /**
  * Sanitizes a title for use in a slug.
- * Allows alphanumeric characters, whitespace, and hyphens.
+ * Allows alphanumeric characters, underscores, whitespace, and hyphens.
  *
  * @param title - The title to sanitize
  * @returns Sanitized title string
@@ -47,11 +47,18 @@ export function sanitizeTitleSlug(title: string): string {
 /**
  * Removes common Unicode control characters from a string.
  *
+ * Ranges removed:
+ * - \x00-\x1F: ASCII control characters (NUL, SOH, STX, etc.)
+ * - \x7F-\x9F: DEL and C1 control characters
+ * - \u200B-\u200F: Zero-width spaces and joiners
+ * - \u2028-\u202F: Line/paragraph separators and narrow no-break space
+ * - \u2066-\u206F: Bidirectional formatting characters
+ *
  * @param str - The string to sanitize
  * @returns String with control characters removed
  */
 export function sanitizeControlChars(str: string): string {
   if (!str) return "";
-  // Range covers common control characters including zero-width spaces, etc.
-  return str.replace(/[\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, "");
+  // eslint-disable-next-line no-control-regex -- Intentionally matching control characters
+  return str.replace(/[\x00-\x1F\x7F-\x9F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, "");
 }
