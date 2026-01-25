@@ -10,7 +10,7 @@ import {
   formatPercentage,
   formatDate,
   isValidUrl,
-  extractDomain,
+  normalizeCompanyOrDomain,
   truncateText,
   randomString,
 } from "@/lib/utils";
@@ -97,15 +97,15 @@ describe("isValidUrl", () => {
   });
 });
 
-describe("extractDomain", () => {
+describe("normalizeCompanyOrDomain", () => {
   it("extracts domains from URLs", () => {
-    expect(extractDomain("https://www.example.com")).toBe("example.com");
-    expect(extractDomain("http://sub.example.com")).toBe("sub.example.com");
+    expect(normalizeCompanyOrDomain("https://www.example.com")).toBe("example.com");
+    expect(normalizeCompanyOrDomain("http://sub.example.com")).toBe("sub.example.com");
   });
 
   it("handles company names", () => {
-    expect(extractDomain("Example Company")).toBe("examplecompany");
-    expect(extractDomain("Company Name LLC")).toBe("companyname"); // Updated expectation
+    expect(normalizeCompanyOrDomain("Example Company")).toBe("examplecompany");
+    expect(normalizeCompanyOrDomain("Company Name LLC")).toBe("companyname"); // Updated expectation
   });
 });
 
@@ -202,17 +202,17 @@ describe("randomString", () => {
     });
   });
 
-  describe("extractDomain - ports, paths, and casing", () => {
+  describe("normalizeCompanyOrDomain - ports, paths, and casing", () => {
     it("extracts domain without port", () => {
-      expect(extractDomain("https://example.com:8080/path")).toBe("example.com");
+      expect(normalizeCompanyOrDomain("https://example.com:8080/path")).toBe("example.com");
     });
 
     it("handles uppercase domains and www prefix", () => {
-      expect(extractDomain("HTTPS://WWW.TEST-DOMAIN.COM")).toBe("test-domain.com");
+      expect(normalizeCompanyOrDomain("HTTPS://WWW.TEST-DOMAIN.COM")).toBe("test-domain.com");
     });
 
     it("falls back to raw input for non-URL types", () => {
-      expect(extractDomain(12345)).toBe("12345");
+      expect(normalizeCompanyOrDomain(12345)).toBe("12345");
     });
   });
 

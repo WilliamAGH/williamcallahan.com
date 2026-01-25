@@ -28,7 +28,8 @@ import {
 } from "@aws-sdk/client-s3";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { getContentTypeFromExtension, isImageContentType } from "@/lib/utils/content-type";
-import { getMonotonicTime } from "@/lib/utils";
+import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
+import { isS3NotFound } from "@/lib/utils/s3-error-guards";
 
 // Environment variables for S3 configuration
 const S3_BUCKET = process.env.S3_BUCKET;
@@ -36,8 +37,8 @@ const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
 const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
 // S3_REGION variable moved into getS3Client function
 const DRY_RUN = process.env.DRY_RUN === "true";
-// Use canonical public CDN env vars only. Legacy S3_PUBLIC_CDN_URL is no longer referenced.
-const CDN_BASE_URL = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || ""; // Public CDN endpoint
+// Public CDN endpoint from centralized helper
+const CDN_BASE_URL = getS3CdnUrl();
 const FORCE_JSON_CDN_READS = process.env.NEXT_PHASE === "phase-production-build";
 const BUILD_CACHE_BUSTER =
   process.env.SOURCE_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || process.env.GIT_COMMIT || "build";
@@ -64,8 +65,15 @@ const MAX_S3_READ_SIZE = 50 * 1024 * 1024; // 50MB max read size to prevent memo
 // Request coalescing for duplicate S3 reads
 const inFlightReads = new Map<string, Promise<Buffer | string | null>>();
 
-// Helper: check if S3 is fully configured (now a function for dynamic checking)
-function isS3FullyConfigured(): boolean {
+/**
+ * Check if S3 is fully configured with required credentials
+ *
+ * This is a dynamic check that re-reads environment variables,
+ * allowing it to work correctly even if env vars are set after module load.
+ *
+ * @returns true if S3_BUCKET, S3_ACCESS_KEY_ID, and S3_SECRET_ACCESS_KEY are all set
+ */
+export function isS3FullyConfigured(): boolean {
   return Boolean(process.env.S3_BUCKET && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY);
 }
 
@@ -428,7 +436,7 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
       return null; // Should not happen if Body is present and Readable
     } catch (error: unknown) {
       const err = error as { name?: string; $metadata?: { httpStatusCode?: number }; Code?: string };
-      if (err.name === "NotFound" || err.name === "NoSuchKey" || err.$metadata?.httpStatusCode === 404) {
+      if (isS3NotFound(error)) {
         if (isDebug) debug(`[S3Utils] readFromS3: Key ${key} not found (attempt ${attempt}/${MAX_S3_READ_RETRIES}).`);
         if (attempt < MAX_S3_READ_RETRIES) {
           // Calculate exponential backoff with jitter
@@ -615,12 +623,11 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
     if (isDebug) debug(`[S3Utils] S3 key ${key} exists.`);
     return true;
   } catch (error: unknown) {
-    const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
-    if (err.name === "NotFound" || err.name === "NoSuchKey" || err.$metadata?.httpStatusCode === 404) {
+    if (isS3NotFound(error)) {
       if (isDebug) debug(`[S3Utils] S3 key ${key} does not exist (NotFound).`);
       return false;
     }
-    const message = err instanceof Error ? err.message : safeJsonStringify(err) || "Unknown error";
+    const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
     envLogger.log(`Error checking S3 object existence`, { key, message }, { category: "S3Utils" });
     return false;
   }
@@ -658,12 +665,11 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
       LastModified: response.LastModified,
     };
   } catch (error: unknown) {
-    const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
-    if (err.name === "NotFound" || err.name === "NoSuchKey" || err.$metadata?.httpStatusCode === 404) {
+    if (isS3NotFound(error)) {
       if (isDebug) debug(`[S3Utils] Metadata not found for S3 key ${key} (NotFound).`);
       return null;
     }
-    const message = err instanceof Error ? err.message : safeJsonStringify(err) || "Unknown error";
+    const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
     envLogger.log(`Error getting S3 object metadata`, { key, message }, { category: "S3Utils" });
     return null;
   }
@@ -981,36 +987,6 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
   }
 }
 
-// ----------------------------------------------------------------------------
-// Lock store abstraction for deterministic testing and alternative backends
-// ----------------------------------------------------------------------------
-
-import type { LockStore, LockEntry } from "@/types/lib";
-
-const s3LockStore: LockStore = {
-  async read(key) {
-    return await readJsonS3<LockEntry>(key);
-  },
-  async createIfAbsent(key, value) {
-    try {
-      await writeJsonS3(key, value, { IfNoneMatch: "*" });
-      return true;
-    } catch (error: unknown) {
-      if (error && typeof error === "object" && "$metadata" in error) {
-        const metadata = (error as { $metadata?: { httpStatusCode?: number } }).$metadata;
-        if (metadata?.httpStatusCode === 412) return false;
-      }
-      throw error;
-    }
-  },
-  async delete(key) {
-    await deleteFromS3(key);
-  },
-  async list(prefix) {
-    return await listS3Objects(prefix);
-  },
-};
-
 /**
  * Reads a binary file (e.g., an image) from S3
  *
@@ -1114,112 +1090,6 @@ export async function writeBinaryS3(s3Key: string, data: Buffer | Readable, cont
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
     envLogger.log(`Failed to write binary file to S3`, { key: s3Key, message }, { category: "S3Utils" });
     throw error; // Re-throw to let callers handle the error appropriately
-  }
-}
-
-const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-
-/** Acquire a distributed lock using S3 for coordination */
-export async function acquireDistributedLock(
-  lockKey: string,
-  instanceId: string,
-  operation: string,
-  timeoutMs: number = LOCK_TIMEOUT_MS,
-  options?: { store?: LockStore; clock?: () => number },
-): Promise<boolean> {
-  const clock = options?.clock ?? getMonotonicTime;
-  const store = options?.store ?? s3LockStore;
-  const lockPath = `locks/${lockKey}.json`;
-  const lockEntry: { instanceId: string; acquiredAt: number; operation: string } = {
-    instanceId,
-    acquiredAt: clock(),
-    operation,
-  };
-
-  try {
-    const existingLock = await store.read(lockPath);
-    if (existingLock) {
-      const age = clock() - existingLock.acquiredAt;
-      if (age < timeoutMs) {
-        return false; // Lock still active
-      }
-      // Stale lock: attempt best-effort cleanup before acquiring
-      try {
-        await store.delete(lockPath);
-      } catch {
-        // Ignore cleanup errors and proceed to conditional create
-      }
-    }
-  } catch {
-    // Lock doesn't exist, proceed to acquire
-  }
-
-  try {
-    const created = await store.createIfAbsent(lockPath, lockEntry);
-    if (!created) return false;
-    // Read-back verification to confirm we own the lock after any concurrent writes
-    const current = await store.read(lockPath);
-    if (current && current.instanceId === lockEntry.instanceId && current.acquiredAt === lockEntry.acquiredAt) {
-      return true;
-    }
-    // Someone else won the race
-    return false;
-  } catch (error: unknown) {
-    // Check if it's a precondition failure (lock already exists)
-    if (error && typeof error === "object" && "$metadata" in error) {
-      const metadata = error.$metadata as { httpStatusCode?: number };
-      if (metadata.httpStatusCode === 412) {
-        // Another process holds the lock - this is expected, not an error
-        return false;
-      }
-    }
-    envLogger.log(`Failed to acquire lock`, { lockKey, error }, { category: "S3Utils" });
-    return false;
-  }
-}
-
-/** Release a distributed lock */
-export async function releaseDistributedLock(
-  lockKey: string,
-  instanceId: string,
-  options?: { store?: LockStore },
-): Promise<void> {
-  const store = options?.store ?? s3LockStore;
-  const lockPath = `locks/${lockKey}.json`;
-
-  try {
-    const existingLock = await store.read(lockPath);
-    if (existingLock?.instanceId === instanceId) {
-      await store.delete(lockPath);
-    }
-  } catch (error) {
-    envLogger.log(`Failed to release lock`, { lockKey, error }, { category: "S3Utils" });
-  }
-}
-
-/** Clean up stale locks older than timeout */
-export async function cleanupStaleLocks(
-  timeoutMs: number = LOCK_TIMEOUT_MS,
-  options?: { store?: LockStore; clock?: () => number },
-): Promise<void> {
-  const store = options?.store ?? s3LockStore;
-  const clock = options?.clock ?? getMonotonicTime;
-  try {
-    const locks = await store.list("locks/");
-    const now = clock();
-
-    for (const lockKey of locks) {
-      try {
-        const lockData = await store.read(lockKey);
-        if (lockData && now - lockData.acquiredAt > timeoutMs) {
-          await store.delete(lockKey);
-        }
-      } catch {
-        // Ignore errors for individual lock cleanup
-      }
-    }
-  } catch (error) {
-    envLogger.log("Failed to cleanup stale locks", { error }, { category: "S3Utils" });
   }
 }
 

@@ -16,6 +16,7 @@ import {
 } from "@/lib/constants";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { logEnvironmentConfig } from "@/lib/config/environment";
+import { getClientIp } from "@/lib/utils/request-utils";
 import logger from "@/lib/utils/logger";
 import { type NextRequest, NextResponse } from "next/server";
 import type { BookmarksIndex } from "@/types/bookmark";
@@ -51,8 +52,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   // Get client IP for rate limiting (only if not an authenticated cron job)
   if (!isCronJob) {
-    const forwardedFor: string = headerStore.get("x-forwarded-for") || "unknown";
-    const clientIp = forwardedFor?.split(",")[0]?.trim() || "unknown_ip"; // Ensure clientIp is never empty
+    const clientIp = getClientIp(headerStore, { fallback: "unknown_ip" });
     console.log(`[API Trigger] Regular request from IP: ${clientIp}`);
     if (!isOperationAllowed(API_ENDPOINT_STORE_NAME, clientIp, DEFAULT_API_ENDPOINT_LIMIT_CONFIG)) {
       console.log(`[API Trigger] ❌ Rate limit exceeded for IP: ${clientIp}`);

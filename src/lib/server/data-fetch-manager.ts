@@ -13,6 +13,7 @@ loadEnvironmentWithMultilineSupport();
 
 import logger from "@/lib/utils/logger";
 import { getMonotonicTime } from "@/lib/utils";
+import { stripWwwPrefix } from "@/lib/utils/url-utils";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
 import { KNOWN_DOMAINS, SEARCH_S3_PATHS, IMAGE_MANIFEST_S3_PATHS, IMAGE_S3_PATHS } from "@/lib/constants";
@@ -23,15 +24,16 @@ import { refreshBookmarks } from "@/lib/bookmarks/service.server";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 import { writeJsonS3, listS3Objects } from "@/lib/s3-utils";
+import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 import type { LogoManifest } from "@/types/image";
 
 import {
   calculateAndStoreAggregatedWeeklyActivity,
-  initializeBookmarksDataAccess,
   invalidateLogoS3Cache,
   refreshGitHubActivityDataFromApi,
   resetLogoSessionTracking,
 } from "@/lib/data-access";
+import { initializeBookmarksDataAccess } from "@/lib/bookmarks/refresh-logic.server";
 // Cache invalidation uses dynamic import to reduce startup overhead (see refreshGitHubActivityData)
 
 /**
@@ -327,7 +329,7 @@ export class DataFetchManager {
         if (exp.website) {
           try {
             const url = new URL(exp.website);
-            const domain = url.hostname.replace(/^www\./, "");
+            const domain = stripWwwPrefix(url.hostname);
             domains.add(domain);
           } catch {
             logger.warn(`[DataFetchManager] Could not parse domain from experience URL: ${exp.website}`);
@@ -341,7 +343,7 @@ export class DataFetchManager {
         if (edu.website) {
           try {
             const url = new URL(edu.website);
-            const domain = url.hostname.replace(/^www\./, "");
+            const domain = stripWwwPrefix(url.hostname);
             domains.add(domain);
           } catch {
             logger.warn(`[DataFetchManager] Could not parse domain from education URL: ${edu.website}`);
@@ -596,7 +598,7 @@ export class DataFetchManager {
    */
   private createLogoManifest(s3Keys: string[]): LogoManifest {
     const manifest: LogoManifest = {};
-    const cdnBase = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+    const cdnBase = getS3CdnUrl();
 
     for (const key of s3Keys) {
       // Detect inverted logos
@@ -654,7 +656,7 @@ export class DataFetchManager {
    * @returns Array of CDN URLs
    */
   private createImageManifest(s3Keys: string[]): string[] {
-    const cdnBase = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+    const cdnBase = getS3CdnUrl();
     return s3Keys.map(key => `${cdnBase}/${key}`);
   }
 

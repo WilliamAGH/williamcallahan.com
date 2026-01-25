@@ -134,7 +134,7 @@ export async function register(): Promise<void> {
     process.env.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build";
   if (isProductionRuntime) {
     try {
-      const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
+      const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
       bookmarksModule.initializeBookmarksDataAccess?.();
     } catch {
       /* ignore bookmark preload failure */

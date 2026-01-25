@@ -14,7 +14,10 @@
  * - youtube.com/watch?v=xyz789 + "React Best Practices" → "youtube-react-best-practices"
  *
  * @module lib/config/content-sharing-domains
+ * @see {@link @/lib/utils/url-utils} for canonical URL extraction utilities
  */
+
+import { stripWwwPrefix, getRootDomain } from "@/lib/utils/url-utils";
 
 /**
  * Readonly array of domains where content is shared across many URLs.
@@ -121,7 +124,7 @@ export const CONTENT_SHARING_DOMAINS = [
  * isContentSharingDomain("example.com") // → false
  */
 export function isContentSharingDomain(domain: string): boolean {
-  const normalized = domain.toLowerCase().replace(/^www\./, "");
+  const normalized = stripWwwPrefix(domain.toLowerCase());
 
   // First, check for exact match (handles explicit subdomain entries like docs.google.com)
   if (CONTENT_SHARING_DOMAINS.includes(normalized as (typeof CONTENT_SHARING_DOMAINS)[number])) {
@@ -133,30 +136,11 @@ export function isContentSharingDomain(domain: string): boolean {
   const parts = normalized.split(".");
   if (parts.length >= 3) {
     // Extract parent domain (last two parts: domain.tld)
-    const parentDomain = parts.slice(-2).join(".");
+    const parentDomain = getRootDomain(normalized);
     if (CONTENT_SHARING_DOMAINS.includes(parentDomain as (typeof CONTENT_SHARING_DOMAINS)[number])) {
       return true;
     }
   }
 
   return false;
-}
-
-/**
- * Extract domain from URL for content-sharing domain detection.
- *
- * @param url - The URL to extract domain from
- * @returns Normalized domain string or null if invalid URL
- *
- * @example
- * extractDomain("https://www.youtube.com/watch?v=abc") // → "youtube.com"
- * extractDomain("http://reddit.com/r/programming") // → "reddit.com"
- */
-export function extractDomain(url: string): string | null {
-  try {
-    const urlObj = new URL(url.startsWith("http") ? url : `https://${url}`);
-    return urlObj.hostname.replace(/^www\./, "");
-  } catch {
-    return null;
-  }
 }

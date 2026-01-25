@@ -18,10 +18,12 @@ import {
   readGitHubActivityFromS3,
   isOldFlatStoredGithubActivityS3Format,
   getGitHubActivityMetadata,
+} from "./github-storage";
+import {
+  GITHUB_ACTIVITY_S3_PATHS,
   GITHUB_ACTIVITY_S3_KEY_FILE,
   GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK,
-} from "./github-storage";
-import { GITHUB_ACTIVITY_S3_PATHS } from "@/lib/constants";
+} from "@/lib/constants";
 // Import detectAndRepairCsvFiles if needed for refreshGitHubActivityDataFromApi
 
 /**

@@ -91,8 +91,8 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
     });
   }
 
-  const domain = normalizeDomain(url);
-  const domainWithoutWWW = domain.replace(/^www\./, "");
+  // normalizeDomain already strips www prefix via stripWwwPrefix()
+  const domainWithoutWWW = normalizeDomain(url);
 
   // Process tags using shared utilities for consistency
   const rawTags = normalizeTagsToStrings(tags || []);

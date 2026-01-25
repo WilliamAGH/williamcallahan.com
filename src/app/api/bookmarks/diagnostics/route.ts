@@ -13,6 +13,7 @@ import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { BookmarksIndex, BookmarkSlugMapping } from "@/types/bookmark";
 import type { ReadJsonResult } from "@/types/lib";
 import { getEnvironment, getEnvironmentSuffix, logEnvironmentConfig } from "@/lib/config/environment";
+import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -105,7 +106,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       bucketSet: Boolean(process.env.S3_BUCKET),
       endpointSet: Boolean(process.env.S3_SERVER_URL),
       region: process.env.S3_REGION || process.env.AWS_REGION || "(unset)",
-      cdnUrl: process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || null,
+      cdnUrl: getS3CdnUrl() || null,
     },
     keys,
     checks: {

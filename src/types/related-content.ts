@@ -174,6 +174,7 @@ export interface NormalizedContentDisplay {
   };
   project?: {
     imageKey?: string;
+    slug?: string;
   };
   book?: {
     authors?: string[];
@@ -350,4 +351,40 @@ export interface BooksRelatedContentData {
   booksCount: number;
   /** Map of book keys to their related content entries */
   entries: Record<string, RelatedContentEntry[]>;
+}
+
+/**
+ * Parsed and validated debug request parameters
+ */
+export interface DebugParams {
+  sourceType: RelatedContentType;
+  sourceId: string;
+  limit: number;
+  enabledTypes: RelatedContentType[];
+}
+
+/**
+ * Scored content item with similarity breakdown
+ */
+export interface ScoredItem {
+  type: RelatedContentType;
+  id: string;
+  title: string;
+  tags: string[];
+  domain: string | undefined;
+  score: number;
+  breakdown: Record<string, number>;
+  matchedTags: string[];
+}
+
+/**
+ * Arguments for building the debug response
+ */
+export interface DebugResponseArgs {
+  source: NormalizedContent;
+  sorted: ScoredItem[];
+  candidates: NormalizedContent[];
+  byType: Record<string, ScoredItem[]>;
+  byTypeStats: Record<string, number>;
+  crossContent: ScoredItem[];
 }

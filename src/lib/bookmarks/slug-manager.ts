@@ -14,28 +14,21 @@
  */
 
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
+import { normalizeString } from "@/lib/utils";
 import type { UnifiedBookmark, BookmarkSlugMapping, BookmarkSlugEntry } from "@/types";
 import { readJsonS3, writeJsonS3, deleteFromS3 } from "@/lib/s3-utils";
+import { readLocalS3JsonSafe, getLocalS3Path } from "@/lib/bookmarks/local-s3-cache";
+import { isS3NotFound } from "@/lib/utils/s3-error-guards";
 import { BOOKMARKS_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import logger from "@/lib/utils/logger";
 import { envLogger } from "@/lib/utils/env-logger";
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-const forceLocalS3Cache = process.env.FORCE_LOCAL_S3_CACHE === "true";
-const shouldSkipLocalS3Cache =
-  !forceLocalS3Cache && process.env.RUNNING_IN_DOCKER === "true" && process.env.NEXT_PHASE !== "phase-production-build";
-
-let localS3CacheModule: typeof import("@/lib/bookmarks/local-s3-cache") | null = null;
-async function readLocalS3JsonSafe<T>(key: string): Promise<T | null> {
-  if (shouldSkipLocalS3Cache) {
-    return null;
-  }
-  if (!localS3CacheModule) {
-    localS3CacheModule = await import("@/lib/bookmarks/local-s3-cache");
-  }
-  return localS3CacheModule.readLocalS3Json<T>(key);
-}
+import {
+  shouldSkipLocalS3CacheForSlugManager as shouldSkipLocalS3Cache,
+  isSlugManagerLoggingEnabled,
+} from "@/lib/bookmarks/config";
 
 // Local file path for ephemeral cache (container-local, not persisted)
 export const LOCAL_SLUG_MAPPING_PATH = path.join(process.cwd(), "generated", "bookmarks", "slug-mapping.json");
@@ -43,16 +36,10 @@ export const LOCAL_SLUG_MAPPING_PATH = path.join(process.cwd(), "generated", "bo
 const formatSlugEnvironmentSnapshot = (): string =>
   `NODE_ENV=${process.env.NODE_ENV || "(not set)"}, DEPLOYMENT_ENV=${process.env.DEPLOYMENT_ENV || "(not set)"}`;
 
-const shouldLogSlugEnvironmentInfo =
-  process.env.NODE_ENV === "production" ||
-  process.env.DEBUG_SLUG_MANAGER === "true" ||
-  process.env.DEBUG === "true" ||
-  process.env.VERBOSE === "true";
-
 let hasLoggedSlugEnvironmentInfo = false;
 
 const logSlugEnvironmentOnce = (context: string): void => {
-  if (!shouldLogSlugEnvironmentInfo || hasLoggedSlugEnvironmentInfo) return;
+  if (!isSlugManagerLoggingEnabled || hasLoggedSlugEnvironmentInfo) return;
   hasLoggedSlugEnvironmentInfo = true;
   logger.info(`[SlugManager] Environment snapshot (${context}): ${formatSlugEnvironmentSnapshot()}`);
 };
@@ -67,7 +54,7 @@ const normalizeShardChar = (char: string | undefined): string => {
 };
 
 const getSlugShardBucket = (slug: string): string => {
-  const normalized = slug.trim().toLowerCase();
+  const normalized = normalizeString(slug);
   if (normalized.length === 0) {
     return `${SHARD_FALLBACK_CHAR}${SHARD_FALLBACK_CHAR}`;
   }
@@ -81,29 +68,16 @@ const encodeSlugForKey = (slug: string): string => encodeURIComponent(slug);
 const getSlugShardKey = (slug: string): string =>
   `${BOOKMARKS_S3_PATHS.SLUG_SHARD_PREFIX}${getSlugShardBucket(slug)}/${encodeSlugForKey(slug)}.json`;
 
-const isS3NotFound = (error: unknown): boolean =>
-  typeof error === "object" &&
-  error !== null &&
-  "$metadata" in error &&
-  typeof (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === "number" &&
-  ((error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode ?? 0) === 404;
-
 async function writeLocalSlugShard(key: string, entry: BookmarkSlugEntry): Promise<void> {
   if (shouldSkipLocalS3Cache) return;
-  if (!localS3CacheModule) {
-    localS3CacheModule = await import("@/lib/bookmarks/local-s3-cache");
-  }
-  const filePath = localS3CacheModule.getLocalS3Path(key);
+  const filePath = getLocalS3Path(key);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, JSON.stringify(entry, null, 2));
 }
 
 async function deleteLocalSlugShard(key: string): Promise<void> {
   if (shouldSkipLocalS3Cache) return;
-  if (!localS3CacheModule) {
-    localS3CacheModule = await import("@/lib/bookmarks/local-s3-cache");
-  }
-  const filePath = localS3CacheModule.getLocalS3Path(key);
+  const filePath = getLocalS3Path(key);
   await fs.rm(filePath, { force: true });
 }
 
@@ -287,7 +261,7 @@ export async function getSlugShard(slug: string): Promise<BookmarkSlugEntry | nu
     }
   }
 
-  const localEntry = await readLocalS3JsonSafe<BookmarkSlugEntry>(shardKey);
+  const localEntry = await readLocalS3JsonSafe<BookmarkSlugEntry>(shardKey, shouldSkipLocalS3Cache);
   if (localEntry?.slug === slug) {
     return localEntry;
   }
@@ -448,7 +422,7 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
       logger.info(`[SlugManager] Successfully loaded slug mapping with ${data.count} entries from primary path`);
       return data;
     }
-    const localS3Data = await readLocalS3JsonSafe<BookmarkSlugMapping>(primaryPath);
+    const localS3Data = await readLocalS3JsonSafe<BookmarkSlugMapping>(primaryPath, shouldSkipLocalS3Cache);
     if (localS3Data) {
       logger.info(
         `[SlugManager] Loaded slug mapping from local cache mirror (${primaryPath}) with ${localS3Data.count} entries`,

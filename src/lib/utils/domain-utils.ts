@@ -5,9 +5,12 @@
  * Provides domain extraction, slug generation, and display formatting
  *
  * @module lib/utils/domain-utils
+ * @see {@link @/lib/utils/url-utils} for canonical URL parsing utilities
  */
 
 import { isContentSharingDomain } from "@/lib/config/content-sharing-domains";
+import { ensureProtocol, stripWwwPrefix, getRootDomain } from "@/lib/utils/url-utils";
+import { sanitizeControlChars, sanitizeTitleSlug } from "@/lib/utils/sanitize";
 
 /**
  * Converts a title string into a URL-safe slug.
@@ -37,9 +40,10 @@ export function titleToSlug(title: string, maxLength: number = 60): string {
     // Remove apostrophes and quotes
     .replace(/['"]/g, "")
     // Replace ampersands with 'and'
-    .replace(/&/g, "and")
-    // Remove all non-alphanumeric characters except spaces and hyphens
-    .replace(/[^\w\s-]/g, "")
+    .replace(/&/g, "and");
+
+  // Remove all non-alphanumeric characters except spaces and hyphens
+  slug = sanitizeTitleSlug(slug)
     // Replace whitespace with hyphens
     .replace(/\s+/g, "-")
     // Replace multiple consecutive hyphens with a single hyphen
@@ -86,29 +90,19 @@ export function normalizeDomain(input: string): string {
 
     if (looksLikeUrl) {
       // Ensure we have a protocol for URL parsing
-      let urlToParse = s;
-      if (!urlToParse.includes("://")) {
-        // Add https:// if no protocol
-        urlToParse = `https://${urlToParse}`;
-      }
+      const urlToParse = s.includes("://") ? s : `https://${s}`;
 
-      // Parse and extract hostname
+      // Parse and extract hostname, stripping www. prefix
       const urlObj = new URL(urlToParse);
-      let hostname = urlObj.hostname;
-
-      // Remove www. prefix if present
-      hostname = hostname.replace(/^www\./, "");
-
-      // Return clean FQDN
-      return hostname;
+      return stripWwwPrefix(urlObj.hostname);
     }
 
     // If it doesn't look like a URL/domain, return as-is
     // This preserves company names like "moves" or "oliverspace"
     return s;
   } catch {
-    // If URL parsing fails, try to extract domain manually
-    // Handle edge cases like malformed URLs
+    // URL constructor failed - attempt manual extraction for edge cases
+    // like malformed URLs that still contain useful domain information
     try {
       // Remove protocol if present
       let domain = s.replace(/^https?:\/\//, "");
@@ -117,27 +111,36 @@ export function normalizeDomain(input: string): string {
       // Remove port if present
       domain = domain.split(":")[0] ?? "";
       // Remove www if present
-      domain = domain.replace(/^www\./, "");
+      domain = stripWwwPrefix(domain);
 
-      // If we got something that looks like a domain, return it
+      // If we extracted something that looks like a domain, return it
       if (domain.includes(".")) {
         return domain;
       }
     } catch {
-      // Fallback - return original input
+      // Manual extraction also failed - fall through to return original input
+      // This handles truly pathological inputs where even string operations fail
     }
 
-    // Last resort - return original input
+    // Graceful degradation: return original input when all extraction methods fail
+    // This is safe for UI contexts where showing the original is better than failing
     return s;
   }
 }
 
 /**
- * Extracts a clean domain from a URL and formats it for use in URLs
- * Handles any URL format and converts to slug format
+ * Extracts a clean domain from a URL and formats it for use in URLs.
+ * Handles any URL format and converts to slug format.
  *
- * @param url The full URL to extract domain from
- * @returns A cleaned domain slug suitable for use in URLs
+ * **Error Handling:** Returns "unknown-domain" for unparseable inputs.
+ * Errors are logged to console in non-test environments for debugging.
+ *
+ * @param url - The full URL to extract domain from
+ * @returns A cleaned domain slug suitable for use in URLs, or "unknown-domain" on failure
+ *
+ * @example
+ * getDomainSlug("https://www.example.com/path") // → "example-com"
+ * getDomainSlug("invalid-input") // → "unknown-domain" (logged in dev)
  */
 export function getDomainSlug(url: string): string {
   try {
@@ -179,15 +182,18 @@ export function getDomainSlug(url: string): string {
  * - Content-sharing domains (YouTube, Reddit, etc.): Use title-based slugs
  * - Regular domains: Use domain + path-based slugs
  *
+ * **Error Handling:** Returns "unknown-url" for unparseable URLs. This is
+ * a safe fallback that allows bookmark processing to continue even with
+ * malformed URLs.
+ *
  * @param url - The URL to generate a slug from
  * @param title - Optional title for content-sharing domains
- * @returns Base slug string
+ * @returns Base slug string, or "unknown-url" if URL cannot be parsed
  */
 function getBaseSlugFromUrl(url: string, title?: string): string {
   try {
-    const urlToProcess = url.startsWith("http") ? url : `https://${url}`;
-    const urlObj = new URL(urlToProcess);
-    const domain = urlObj.hostname.replace(/^www\./, "");
+    const urlObj = new URL(ensureProtocol(url));
+    const domain = stripWwwPrefix(urlObj.hostname);
 
     // Check if this is a content-sharing domain
     if (isContentSharingDomain(domain) && title) {
@@ -208,22 +214,23 @@ function getBaseSlugFromUrl(url: string, title?: string): string {
     // If there's a meaningful path, include it
     const path = urlObj.pathname;
     if (path && path !== "/" && path.length > 1) {
-      const cleanPath = path
-        .toLowerCase()
-        // Strip Unicode control characters first
-        .replace(/[\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, "")
+      const cleanPath = path.toLowerCase();
+
+      // Strip Unicode control characters first
+      const sanitizedPath = sanitizeControlChars(cleanPath)
         .replace(/^\/|\/$/g, "") // Remove leading/trailing slashes
         .replace(/\//g, "-") // Replace slashes with dashes
         .replace(/[^a-zA-Z0-9-]/g, "-") // Replace non-alphanumeric with dashes
         .replace(/-+/g, "-") // Replace multiple dashes with single dash
         .replace(/-+$/g, ""); // Remove trailing dashes
 
-      if (cleanPath) {
-        slug = `${slug}-${cleanPath}`;
+      if (sanitizedPath) {
+        slug = `${slug}-${sanitizedPath}`;
       }
     }
     return slug;
   } catch {
+    // URL parsing failed - use sentinel value that's safe for slugs
     return "unknown-url";
   }
 }
@@ -234,11 +241,14 @@ function getBaseSlugFromUrl(url: string, title?: string): string {
  * For content-sharing domains (YouTube, Reddit, etc.), uses title-based slugs.
  * For regular domains, uses domain + path-based slugs.
  *
- * @param url The URL to generate a slug for
- * @param allBookmarks All bookmarks to check for uniqueness (must include title for content-sharing domains)
- * @param currentBookmarkId The ID of the current bookmark (to exclude from uniqueness check)
- * @param title Optional title for title-based slug generation on content-sharing domains
- * @returns A unique slug for the URL
+ * **Error Handling:** Returns "unknown-url" for unparseable URLs.
+ * Warnings are logged in non-test environments for debugging.
+ *
+ * @param url - The URL to generate a slug for
+ * @param allBookmarks - All bookmarks to check for uniqueness (must include title for content-sharing domains)
+ * @param currentBookmarkId - The ID of the current bookmark (to exclude from uniqueness check)
+ * @param title - Optional title for title-based slug generation on content-sharing domains
+ * @returns A unique slug for the URL, or "unknown-url" if URL cannot be parsed
  */
 export function generateUniqueSlug(
   url: string,
@@ -247,10 +257,7 @@ export function generateUniqueSlug(
   title?: string,
 ): string {
   try {
-    let processedUrl = url;
-    if (!processedUrl.startsWith("http://") && !processedUrl.startsWith("https://")) {
-      processedUrl = `https://${processedUrl}`;
-    }
+    const processedUrl = ensureProtocol(url);
 
     // Compute the base slug once using the helper (with title for content-sharing domains)
     const baseSlug = getBaseSlugFromUrl(processedUrl, title);
@@ -310,11 +317,18 @@ export function slugToDomain(slug: string): string {
 }
 
 /**
- * Gets a display name from a URL or domain
- * Handles any URL format and returns clean domain for display
+ * Gets a display name from a URL or domain.
+ * Handles any URL format and returns clean domain for display.
  *
- * @param url The URL or domain to format
- * @returns A nicely formatted domain for display
+ * **Error Handling:** Uses graceful degradation - returns the original
+ * input on parsing errors. Errors are logged in non-test environments.
+ *
+ * @param url - The URL or domain to format
+ * @returns A nicely formatted domain for display, or original input on failure
+ *
+ * @example
+ * getDisplayDomain("https://www.example.com/path") // → "example.com"
+ * getDisplayDomain("invalid") // → "invalid" (original returned, error logged)
  */
 export function getDisplayDomain(url: string): string {
   try {
@@ -348,7 +362,7 @@ export function getDomainVariants(domain: string): string[] {
   // If it's a subdomain, also try the root domain
   const parts: string[] = domain.split(".");
   if (parts.length > 2) {
-    const rootDomain: string = parts.slice(-2).join(".");
+    const rootDomain = getRootDomain(domain);
     if (rootDomain !== domain) {
       variants.push(rootDomain);
     }

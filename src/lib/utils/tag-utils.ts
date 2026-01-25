@@ -8,6 +8,8 @@
  */
 
 import type { BookmarkTag } from "@/types";
+import { normalizeString } from "@/lib/utils";
+import { sanitizeControlChars } from "@/lib/utils/sanitize";
 
 /**
  * Format tag for display: Title Case unless mixed-case proper nouns
@@ -64,10 +66,7 @@ export function normalizeTagsToStrings(tags: Array<string | BookmarkTag>): strin
  * @returns Sanitized string without Unicode control characters
  */
 export function sanitizeUnicode(text: string): string {
-  if (!text) return "";
-
-  // Strip Unicode control characters (including bidi controls)
-  return text.replace(/[\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, "");
+  return sanitizeControlChars(text);
 }
 
 /**
@@ -150,4 +149,20 @@ export function slugToTagDisplay(slug: string): string {
   if (!slug) return "";
 
   return formatTagDisplay(slug.replace(/-/g, " "));
+}
+
+/**
+ * Normalizes and deduplicates a list of tag strings.
+ * Converts to lowercase, trims whitespace, removes duplicates.
+ *
+ * @param tags - Array of tag strings to normalize
+ * @returns Deduplicated array of normalized (lowercase, trimmed) tags
+ *
+ * @example
+ * normalizeAndDeduplicateTags(['React', ' react ', 'Vue'])
+ * // Returns ['react', 'vue']
+ */
+export function normalizeAndDeduplicateTags(tags: string[]): string[] {
+  if (!Array.isArray(tags)) return [];
+  return Array.from(new Set(tags.map(t => normalizeString(t))));
 }

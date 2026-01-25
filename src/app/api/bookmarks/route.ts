@@ -8,7 +8,7 @@ import { bookmarksIndexSchema as BookmarksIndexSchema, type BookmarksIndex } fro
 import { BOOKMARKS_PER_PAGE, BOOKMARKS_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import { unstable_noStore as noStore } from "next/cache";
+import { preventCaching } from "@/lib/utils/api-utils";
 import { type NextRequest, NextResponse } from "next/server";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
@@ -39,9 +39,7 @@ function buildInternalHrefs(
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  preventCaching();
   console.log("[API Bookmarks] Received GET request for bookmarks");
 
   const requestUrl = new URL(request.url);

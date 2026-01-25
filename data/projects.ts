@@ -47,6 +47,7 @@ export const projects: Project[] = [
       "Personal site with a graph index of thousands of JSON documents that crawls external links to fetch logos and OpenGraph images on demand. Built with the Next.js App Router and TypeScript; Dockerized for cloud deployment.",
     shortSummary: "Interactive personal site with beautiful terminal/code components & other dynamic content",
     url: "https://williamcallahan.com",
+    githubUrl: "https://github.com/WilliamAGH/williamcallahan.com",
     imageKey: "images/other/projects/williamcallahan-com-project.png",
     tags: ["Graph Index", "S3 Object Storage", "Interactive App", "Terminal UI", "MDX Blog", "Search"],
     techStack: ["Next.js", "TypeScript", "Tailwind CSS", "Zod", "Bun", "Docker", "Fly.io"],
@@ -71,6 +72,7 @@ export const projects: Project[] = [
       "A VS Code extension (compatible with Cursor, Windsurf, etc.) that visually flags deprecated files based on customizable configuration settings.",
     shortSummary: "VS Code extension for flagging deprecated files",
     url: "/blog/introducing-flag-deprecated-files-vscode-extension/",
+    githubUrl: "https://github.com/WilliamAGH/vscode-flag-deprecated-files-extension",
     imageKey: "images/other/projects/filey-flag-deprecated-files.png",
     tags: [
       "VS Code",
@@ -95,6 +97,7 @@ export const projects: Project[] = [
       "AI-native email client that indexes every message in Qdrant for semantic and BM25/BM42 search. Offers full-mailbox search, drafts cited replies, and surfaces follow-up tasks from context. Built with Svelte + Vite and Spring Boot.",
     shortSummary: "AI email client / mailbox for agentic search and tasks",
     url: "https://composerai.app",
+    githubUrl: "https://github.com/WilliamAGH/ComposerAI",
     imageKey: "images/other/projects/composerai-app.png",
     tags: ["AI", "Email Client", "LLM", "Productivity", "Task Automation", "Vector Search", "Web App", "Svelte"],
     techStack: ["Svelte", "Vite", "Java 25", "Spring Boot", "Qdrant", "S3 Object Storage"],

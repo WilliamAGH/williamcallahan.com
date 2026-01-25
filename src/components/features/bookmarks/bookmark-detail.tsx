@@ -18,6 +18,7 @@ import {
   Library,
   Quote,
   ChevronLeft,
+  Github,
 } from "lucide-react";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { formatDate } from "@/lib/utils";
@@ -25,30 +26,9 @@ import { BookmarksWindow } from "./bookmarks-window.client";
 import { BookmarkAiAnalysis } from "./bookmark-ai-analysis.client";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import { removeCitations, processSummaryText } from "@/lib/utils/formatters";
-import { safeExternalHref } from "@/lib/utils/url-utils";
+import { safeExternalHref, getDisplayHostname, isGitHubUrl } from "@/lib/utils/url-utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 import { TerminalContext } from "@/components/ui/context-notes/terminal-context.client";
-
-const getHostname = (rawUrl: string): string => {
-  if (!rawUrl) {
-    return "website";
-  }
-
-  const candidate = rawUrl.trim();
-  if (!candidate) {
-    return "website";
-  }
-
-  const withScheme = /^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`;
-
-  try {
-    const url = new URL(withScheme);
-    const hostname = url.hostname.replace(/^www\./, "").trim();
-    return hostname || "website";
-  } catch {
-    return "website";
-  }
-};
 
 // Helper to avoid rendering the literal "Invalid Date"
 function toDisplayDate(date?: string | Date | number | null): string | null {
@@ -69,10 +49,13 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
   }, []);
 
   // Extract domain for display with case-insensitive scheme detection
-  const domain = useMemo(() => getHostname(bookmark.url), [bookmark.url]);
+  const domain = useMemo(() => getDisplayHostname(bookmark.url), [bookmark.url]);
 
   // Sanitize URL using the shared utility
   const safeUrl = useMemo(() => safeExternalHref(bookmark.url), [bookmark.url]);
+
+  // Check if this is a GitHub URL for special styling
+  const isGitHub = useMemo(() => isGitHubUrl(bookmark.url), [bookmark.url]);
 
   // Calculate reading time display
   const readingTimeDisplay = useMemo(() => {
@@ -371,9 +354,14 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                   href={safeUrl ?? "/bookmarks"}
                   target={safeUrl ? "_blank" : undefined}
                   rel={safeUrl ? "noopener noreferrer" : undefined}
-                  className="flex items-center justify-center gap-2 w-full px-5 py-3 sm:py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors group"
+                  className={`flex items-center justify-center gap-2 w-full px-5 py-3 sm:py-2.5 font-medium rounded-lg transition-colors group ${
+                    isGitHub
+                      ? "bg-[#24292f] dark:bg-[#f0f3f6] text-white dark:text-[#24292f] hover:bg-[#32383f] dark:hover:bg-[#d8dee4]"
+                      : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100"
+                  }`}
                 >
-                  <span>Visit Site</span>
+                  {isGitHub ? <Github className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
+                  <span>{isGitHub ? "View on GitHub" : "Visit Site"}</span>
                   <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </a>
 

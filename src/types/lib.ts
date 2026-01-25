@@ -82,6 +82,17 @@ export interface OperationResult<T = unknown, E = Error> {
   duration: number;
 }
 
+/**
+ * Lightweight result type for write operations where duration tracking isn't needed.
+ * Use this when callers need awareness of success/failure but don't need performance metrics.
+ */
+export interface WriteResult {
+  /** Whether the write operation succeeded */
+  success: boolean;
+  /** Error details if the operation failed */
+  error?: Error;
+}
+
 /** Generic configuration interface for operations with retry logic */
 export interface RetryConfig {
   /** Maximum number of retry attempts (default: 3) */
@@ -124,6 +135,18 @@ export interface RequestContext {
 
 /** A function that can be executed as a job in the async queue */
 export type Job = () => Promise<void> | void;
+
+/**
+ * S3 error shape - AWS SDK errors include metadata with HTTP status codes.
+ * Used for type-safe error handling across S3 operations.
+ */
+export interface S3Error {
+  $metadata?: {
+    httpStatusCode?: number;
+  };
+  name?: string;
+  code?: string;
+}
 
 /**
  * S3-based distributed lock for coordinating refreshes across multiple instances.
@@ -171,24 +194,6 @@ export type DistributedLock = {
   release(force?: boolean): Promise<void>;
   cleanup(): Promise<void>;
 };
-
-/** Lock entry shape used by S3-based distributed lock */
-export interface LockEntry {
-  instanceId: string;
-  acquiredAt: number;
-  operation: string;
-}
-
-/**
- * Abstraction for distributed lock persistence.
- * Default implementation is S3-backed; tests may inject an in-memory store.
- */
-export interface LockStore {
-  read(key: string): Promise<LockEntry | null>;
-  createIfAbsent(key: string, value: LockEntry): Promise<boolean>;
-  delete(key: string): Promise<void>;
-  list(prefix: string): Promise<string[]>;
-}
 
 /**
  * Callback function type for refreshing bookmarks data.

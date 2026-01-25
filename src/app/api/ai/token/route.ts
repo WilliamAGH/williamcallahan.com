@@ -4,10 +4,11 @@ import crypto from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import { createAiGateToken, hashUserAgent } from "@/lib/ai/openai-compatible/gate-token";
+import { getClientIp } from "@/lib/utils/request-utils";
 import logger from "@/lib/utils/logger";
+import { normalizeString } from "@/lib/utils";
 import { safeJsonParse } from "@/lib/utils/json-utils";
-
-const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+import { NO_STORE_HEADERS, preventCaching } from "@/lib/utils/api-utils";
 
 const TOKEN_RATE_LIMIT = {
   maxRequests: 30,
@@ -18,15 +19,8 @@ const TOKEN_TTL_MS = 60_000;
 const HTTPS_COOKIE_NAME = "__Host-ai_gate_nonce";
 const HTTP_COOKIE_NAME = "ai_gate_nonce";
 
-function getClientIp(request: NextRequest): string {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  const cfConnectingIp = request.headers.get("cf-connecting-ip");
-  const raw = forwardedFor?.split(",")[0]?.trim() || cfConnectingIp?.trim();
-  return raw || "anonymous";
-}
-
 function isAllowedHostname(hostname: string): boolean {
-  const lower = hostname.toLowerCase();
+  const lower = normalizeString(hostname);
   if (lower === "williamcallahan.com" || lower.endsWith(".williamcallahan.com")) return true;
   if (process.env.NODE_ENV !== "production" && (lower === "localhost" || lower === "127.0.0.1")) return true;
   return false;
@@ -57,7 +51,7 @@ function getRequestOriginHostname(request: NextRequest): string | null {
 function isSecureRequest(request: NextRequest): boolean {
   const forwardedProto = request.headers.get("x-forwarded-proto");
   if (forwardedProto) {
-    return forwardedProto.split(",")[0]?.trim().toLowerCase() === "https";
+    return normalizeString(forwardedProto.split(",")[0] ?? "") === "https";
   }
 
   const forwarded = request.headers.get("forwarded");
@@ -65,12 +59,12 @@ function isSecureRequest(request: NextRequest): boolean {
     const first = forwarded.split(",")[0] ?? "";
     const match = first.match(/proto=([^;]+)/i);
     if (match) {
-      return match[1]?.trim().toLowerCase() === "https";
+      return normalizeString(match[1] ?? "") === "https";
     }
   }
 
   const forwardedSsl = request.headers.get("x-forwarded-ssl");
-  if (forwardedSsl && forwardedSsl.toLowerCase() === "on") {
+  if (forwardedSsl && normalizeString(forwardedSsl) === "on") {
     return true;
   }
 
@@ -78,7 +72,7 @@ function isSecureRequest(request: NextRequest): boolean {
   if (cfVisitor) {
     const parsed = safeJsonParse<{ scheme?: string }>(cfVisitor);
     if (parsed?.scheme && typeof parsed.scheme === "string") {
-      return parsed.scheme.toLowerCase() === "https";
+      return normalizeString(parsed.scheme) === "https";
     }
   }
 
@@ -86,12 +80,13 @@ function isSecureRequest(request: NextRequest): boolean {
 }
 
 export function GET(request: NextRequest): NextResponse {
+  preventCaching();
   const originHost = getRequestOriginHostname(request);
   if (!originHost || !isAllowedHostname(originHost)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403, headers: NO_STORE_HEADERS });
   }
 
-  const clientIp = getClientIp(request);
+  const clientIp = getClientIp(request.headers, { fallback: "anonymous" });
   if (!isOperationAllowed("ai-token", clientIp, TOKEN_RATE_LIMIT)) {
     return NextResponse.json(
       { error: "Rate limit exceeded. Try again shortly." },

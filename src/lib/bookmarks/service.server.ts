@@ -8,23 +8,20 @@ import {
   getBookmarksIndex as getBookmarksIndexInternal,
   getBookmarksPage as getBookmarksPageInternal,
   getBookmarkById as getBookmarkByIdInternal,
-  refreshAndPersistBookmarks,
-  setRefreshBookmarksCallback,
-  initializeBookmarksDataAccess,
   getTagBookmarksIndex as getTagBookmarksIndexInternal,
   getTagBookmarksPage as getTagBookmarksPageInternal,
   listTagSlugs as listTagSlugsInternal,
 } from "./bookmarks-data-access.server";
 import { refreshBookmarksData } from "./bookmarks";
+import {
+  refreshAndPersistBookmarks,
+  setRefreshBookmarksCallback,
+  initializeBookmarksDataAccess,
+} from "./refresh-logic.server";
 import type { UnifiedBookmark } from "@/types";
 import type { BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
 import { envLogger } from "@/lib/utils/env-logger";
-
-const isBookmarkServiceLoggingEnabled =
-  process.env.DEBUG_BOOKMARKS === "true" ||
-  process.env.DEBUG_BOOKMARKS_SERVICE === "true" ||
-  process.env.DEBUG === "true" ||
-  process.env.VERBOSE === "true";
+import { isBookmarkServiceLoggingEnabled } from "@/lib/bookmarks/config";
 
 // Initialize the refresh callback
 setRefreshBookmarksCallback((force?: boolean) => refreshBookmarksData(force));

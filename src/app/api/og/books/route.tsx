@@ -21,7 +21,7 @@ import { ImageResponse } from "@vercel/og";
 import type { NextRequest } from "next/server";
 import sharp from "sharp";
 
-import { truncateText } from "@/lib/utils";
+import { truncateText, normalizeString } from "@/lib/utils";
 import { isPrivateIP } from "@/types/schemas/url";
 
 /**
@@ -98,7 +98,7 @@ const BLOCKED_HOSTS = new Set([
  * Returns true if the host should be blocked.
  */
 function isPrivateHost(hostname: string): boolean {
-  const normalizedHost = hostname.toLowerCase();
+  const normalizedHost = normalizeString(hostname);
   const bracketStrippedHost = normalizedHost.replace(/^\[|\]$/g, "");
 
   if (BLOCKED_HOSTS.has(normalizedHost) || BLOCKED_HOSTS.has(bracketStrippedHost)) {
@@ -226,7 +226,7 @@ export async function GET(request: NextRequest): Promise<ImageResponse> {
 
   const formats = formatsParam
     .split(",")
-    .map((f): string => f.trim().toLowerCase())
+    .map((f): string => normalizeString(f))
     .filter(isFormatKey);
 
   const displayTitle = truncateText(title, 60);
@@ -240,196 +240,187 @@ export async function GET(request: NextRequest): Promise<ImageResponse> {
   }
 
   return new ImageResponse(
-    (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        width: "100%",
+        height: "100%",
+        backgroundColor: COLORS.background,
+        backgroundImage: `linear-gradient(135deg, ${COLORS.background} 0%, ${COLORS.backgroundAlt} 100%)`,
+        fontFamily: "system-ui, sans-serif",
+        padding: 56,
+      }}
+    >
+      {/* Main content row - top aligned */}
       <div
         style={{
           display: "flex",
-          flexDirection: "column",
-          width: "100%",
-          height: "100%",
-          backgroundColor: COLORS.background,
-          backgroundImage: `linear-gradient(135deg, ${COLORS.background} 0%, ${COLORS.backgroundAlt} 100%)`,
-          fontFamily: "system-ui, sans-serif",
-          padding: 56,
+          flexDirection: "row",
+          flex: 1,
+          alignItems: "flex-start",
         }}
       >
-        {/* Main content row - top aligned */}
+        {/* Book cover section */}
         <div
           style={{
             display: "flex",
-            flexDirection: "row",
-            flex: 1,
             alignItems: "flex-start",
+            justifyContent: "center",
+            width: 340,
+            flexShrink: 0,
           }}
         >
-          {/* Book cover section */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              justifyContent: "center",
-              width: 340,
-              flexShrink: 0,
-            }}
-          >
-            {coverDataUrl ? (
-              <img
-                src={coverDataUrl}
-                alt=""
-                width={320}
-                height={420}
-                style={{
-                  width: 320,
-                  height: 420,
-                  objectFit: "cover",
-                  borderRadius: 16,
-                  boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  display: "flex",
-                  width: 320,
-                  height: 420,
-                  borderRadius: 16,
-                  backgroundColor: COLORS.backgroundAlt,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                }}
-              >
-                <svg
-                  width="100"
-                  height="100"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke={COLORS.textMuted}
-                  strokeWidth="1.5"
-                >
-                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                </svg>
-              </div>
-            )}
-          </div>
-
-          {/* Text content section - top aligned */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              flex: 1,
-              paddingLeft: 48,
-              justifyContent: "flex-start",
-            }}
-          >
-            {/* Title */}
+          {coverDataUrl ? (
+            <img
+              src={coverDataUrl}
+              alt=""
+              width={320}
+              height={420}
+              style={{
+                width: 320,
+                height: 420,
+                objectFit: "cover",
+                borderRadius: 16,
+                boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+              }}
+            />
+          ) : (
             <div
               style={{
                 display: "flex",
-                fontSize: 56,
-                fontWeight: 700,
-                color: COLORS.text,
-                lineHeight: 1.15,
-                marginBottom: 20,
+                width: 320,
+                height: 420,
+                borderRadius: 16,
+                backgroundColor: COLORS.backgroundAlt,
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
               }}
             >
-              {displayTitle}
+              <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke={COLORS.textMuted} strokeWidth="1.5">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              </svg>
             </div>
-
-            {/* Author */}
-            {displayAuthor && (
-              <div
-                style={{
-                  display: "flex",
-                  fontSize: 32,
-                  fontWeight: 500,
-                  color: COLORS.textMuted,
-                  marginBottom: 32,
-                }}
-              >
-                by {displayAuthor}
-              </div>
-            )}
-
-            {/* Format badges */}
-            {formats.length > 0 && (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  gap: 16,
-                  flexWrap: "wrap",
-                }}
-              >
-                {formats.map(format => {
-                  const config = FORMAT_CONFIG[format];
-                  if (!config) return null;
-                  return (
-                    <div
-                      key={format}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "14px 24px",
-                        borderRadius: 999,
-                        backgroundColor: `${config.color}22`,
-                        border: `2px solid ${config.color}`,
-                      }}
-                    >
-                      <span style={{ fontSize: 24 }}>{config.icon}</span>
-                      <span
-                        style={{
-                          fontSize: 22,
-                          fontWeight: 600,
-                          color: config.color,
-                        }}
-                      >
-                        {config.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
-        {/* Site branding at bottom - larger */}
+        {/* Text content section - top aligned */}
         <div
           style={{
             display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-            gap: 12,
-            marginTop: 16,
+            flexDirection: "column",
+            flex: 1,
+            paddingLeft: 48,
+            justifyContent: "flex-start",
           }}
         >
+          {/* Title */}
           <div
             style={{
               display: "flex",
-              width: 12,
-              height: 12,
-              borderRadius: 6,
-              backgroundColor: COLORS.accent,
-            }}
-          />
-          <span
-            style={{
-              fontSize: 28,
-              fontWeight: 500,
-              color: COLORS.textMuted,
+              fontSize: 56,
+              fontWeight: 700,
+              color: COLORS.text,
+              lineHeight: 1.15,
+              marginBottom: 20,
             }}
           >
-            williamcallahan.com
-          </span>
+            {displayTitle}
+          </div>
+
+          {/* Author */}
+          {displayAuthor && (
+            <div
+              style={{
+                display: "flex",
+                fontSize: 32,
+                fontWeight: 500,
+                color: COLORS.textMuted,
+                marginBottom: 32,
+              }}
+            >
+              by {displayAuthor}
+            </div>
+          )}
+
+          {/* Format badges */}
+          {formats.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                gap: 16,
+                flexWrap: "wrap",
+              }}
+            >
+              {formats.map(format => {
+                const config = FORMAT_CONFIG[format];
+                if (!config) return null;
+                return (
+                  <div
+                    key={format}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "14px 24px",
+                      borderRadius: 999,
+                      backgroundColor: `${config.color}22`,
+                      border: `2px solid ${config.color}`,
+                    }}
+                  >
+                    <span style={{ fontSize: 24 }}>{config.icon}</span>
+                    <span
+                      style={{
+                        fontSize: 22,
+                        fontWeight: 600,
+                        color: config.color,
+                      }}
+                    >
+                      {config.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
-    ),
+
+      {/* Site branding at bottom - larger */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          gap: 12,
+          marginTop: 16,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            width: 12,
+            height: 12,
+            borderRadius: 6,
+            backgroundColor: COLORS.accent,
+          }}
+        />
+        <span
+          style={{
+            fontSize: 28,
+            fontWeight: 500,
+            color: COLORS.textMuted,
+          }}
+        >
+          williamcallahan.com
+        </span>
+      </div>
+    </div>,
     {
       width: WIDTH,
       height: HEIGHT,

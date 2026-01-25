@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { getClientIp } from "@/lib/utils/request-utils";
 
 /**
  * Cache control headers to prevent IP caching
@@ -11,22 +12,6 @@ const CACHE_HEADERS = {
 } as const;
 
 /**
- * Gets the real client IP from various headers
- * Prioritizes Cloudflare headers, then standard proxy headers
- * @param request - The Next.js request object
- * @returns The real client IP or 'unknown'
- */
-function getRealIp(headerStore: Headers): string {
-  return (
-    headerStore.get("True-Client-IP") ||
-    headerStore.get("CF-Connecting-IP") ||
-    headerStore.get("X-Forwarded-For")?.split(",")[0] ||
-    headerStore.get("X-Real-IP") ||
-    "unknown"
-  );
-}
-
-/**
  * API Route handler for /api/ip
  * Returns the real client IP address as plain text
  * Uses various headers to determine the true client IP, prioritizing Cloudflare headers
@@ -35,7 +20,7 @@ function getRealIp(headerStore: Headers): string {
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // Use Promise.resolve to satisfy require-await rule
-  const ip = await Promise.resolve(getRealIp(request.headers));
+  const ip = await Promise.resolve(getClientIp(request.headers));
 
   return new NextResponse(ip, {
     headers: CACHE_HEADERS,

@@ -8,6 +8,8 @@
 
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import { NextResponse, type NextRequest } from "next/server";
+import { getClientIp as getClientIpFromHeaders } from "@/lib/utils/request-utils";
+import { NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 import os from "node:os";
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -74,15 +76,14 @@ export function isMemoryCritical(): boolean {
  * Extract client IP from request headers for rate limiting.
  */
 export function getClientIp(request: NextRequest): string {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  return forwardedFor ? forwardedFor.split(",")[0]?.trim() || "anonymous" : "anonymous";
+  return getClientIpFromHeaders(request.headers, { fallback: "anonymous" });
 }
 
 /**
  * Helper to create no-store headers with optional additional headers.
  */
 export function withNoStoreHeaders(additional?: Record<string, string>): HeadersInit {
-  return additional ? { "Cache-Control": "no-store", ...additional } : { "Cache-Control": "no-store" };
+  return additional ? { ...NO_STORE_HEADERS, ...additional } : NO_STORE_HEADERS;
 }
 
 /**

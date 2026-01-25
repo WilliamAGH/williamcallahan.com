@@ -146,3 +146,22 @@ export interface MemoizedLookupParams {
   /** Function name for logging */
   fnName: string;
 }
+
+/**
+ * Software application metadata for blog posts about software/extensions.
+ * Posts with entries matching this interface will use SoftwareApplication schema.
+ */
+export interface SoftwarePostDetails {
+  /** Software application name */
+  name: string;
+  /** Supported operating systems */
+  operatingSystem: string;
+  /** schema.org application category (e.g., "DeveloperApplication") */
+  applicationCategory: string;
+  /** URL to download the software */
+  downloadUrl: string;
+  /** Software version (optional) */
+  softwareVersion?: string;
+  /** URL to screenshot image (optional) */
+  screenshot?: string;
+}

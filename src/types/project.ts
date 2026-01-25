@@ -5,6 +5,8 @@ export interface Project {
   description: string;
   shortSummary: string; // Short summary for concise display
   url: string;
+  /** Optional GitHub repository URL */
+  githubUrl?: string;
   /**
    * S3 object key for the project screenshot, e.g.
    * "images/projects/book-finder-findmybook-net.png"

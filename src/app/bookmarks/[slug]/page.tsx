@@ -24,6 +24,7 @@ import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { envLogger } from "@/lib/utils/env-logger";
 import { cacheContextGuards } from "@/lib/cache";
+import { ensureProtocol, stripWwwPrefix } from "@/lib/utils/url-utils";
 import type { BookmarkPageContext, UnifiedBookmark } from "@/types";
 
 // CRITICAL: generateStaticParams() remains intentionally disabled for bookmarks.
@@ -55,11 +56,9 @@ const getBookmarkHostname = (rawUrl: string | null | undefined): string | null =
     return null;
   }
 
-  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-
   try {
-    const url = new URL(candidate);
-    const hostname = url.hostname.replace(/^www\./, "").trim();
+    const url = new URL(ensureProtocol(trimmed));
+    const hostname = stripWwwPrefix(url.hostname).trim();
     return hostname || null;
   } catch {
     return null;
@@ -222,7 +221,7 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     // Check if this might be a project slug
     if (slug.startsWith("project-") || slug.includes("-project-")) {
       envLogger.log(
-        `Potential project slug detected in bookmark route: ${slug}. User should be redirected to /projects#${slug}`,
+        `Potential project slug detected in bookmark route: ${slug}. User should be redirected to /projects/${slug}`,
         undefined,
         { category: "BookmarkPage" },
       );

@@ -21,6 +21,7 @@ import {
   type GraphQLUserContributionsResponse,
   type GithubContributorStatsEntry,
 } from "@/types/github";
+import { GITHUB_API_RATE_LIMIT_CONFIG } from "@/lib/constants";
 // GitHub API configuration
 const GITHUB_API_TOKEN =
   process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH || process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN;
@@ -74,10 +75,7 @@ export async function fetchContributedRepositories(username: string): Promise<{
   userId: string;
   repositories: GithubRepoNode[];
 }> {
-  await waitForPermit("github-graphql", "contributed-repos", {
-    maxRequests: 5000,
-    windowMs: 60 * 60 * 1000, // 1 hour
-  });
+  await waitForPermit("github-graphql", "contributed-repos", GITHUB_API_RATE_LIMIT_CONFIG);
 
   const client = getGitHubGraphQLClient();
   const rawResponse = await client.query<unknown>(
@@ -121,10 +119,7 @@ export async function fetchContributionCalendar(
   from?: string,
   to?: string,
 ): Promise<GraphQLUserContributionsResponse> {
-  await waitForPermit("github-graphql", "contribution-calendar", {
-    maxRequests: 5000,
-    windowMs: 60 * 60 * 1000,
-  });
+  await waitForPermit("github-graphql", "contribution-calendar", GITHUB_API_RATE_LIMIT_CONFIG);
 
   const client = getGitHubGraphQLClient();
   const rawResponse = await client.query<unknown>(
@@ -156,10 +151,7 @@ export async function fetchContributionCalendar(
  * Fetch commit count for a repository
  */
 export async function fetchRepositoryCommitCount(owner: string, name: string, authorId: string): Promise<number> {
-  await waitForPermit("github-graphql", "commit-count", {
-    maxRequests: 5000,
-    windowMs: 60 * 60 * 1000,
-  });
+  await waitForPermit("github-graphql", "commit-count", GITHUB_API_RATE_LIMIT_CONFIG);
 
   const client = getGitHubGraphQLClient();
   const rawResponse = await client.query<unknown>(
@@ -195,10 +187,7 @@ export async function fetchContributorStats(owner: string, name: string): Promis
 
   while (attempt < maxAttempts) {
     attempt++;
-    await waitForPermit("github-rest", "contributor-stats", {
-      maxRequests: 5000,
-      windowMs: 60 * 60 * 1000,
-    });
+    await waitForPermit("github-rest", "contributor-stats", GITHUB_API_RATE_LIMIT_CONFIG);
 
     const url = `https://api.github.com/repos/${owner}/${name}/stats/contributors`;
     const response = await githubHttpClient(url, {
@@ -267,6 +256,14 @@ export function isGitHubApiConfigured(): boolean {
  */
 export function getGitHubUsername(): string {
   return GITHUB_REPO_OWNER;
+}
+
+/**
+ * Get GitHub API token from environment
+ * @see {@link src/lib/data-access/github-api.ts} - Single source of truth for GitHub auth
+ */
+export function getGitHubApiToken(): string | undefined {
+  return GITHUB_API_TOKEN;
 }
 
 /**

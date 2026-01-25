@@ -1,15 +1,11 @@
 /**
  * Data access directory index - fallback for module resolution
  *
+ * Note: Bookmarks data access should be imported directly from
+ * '@/lib/bookmarks/bookmarks-data-access.server' per FS1h (no aliases/re-exports)
+ *
  * @module lib/data-access/index
  */
-
-// Bookmarks exports are now in @/lib/bookmarks (server-specific)
-export {
-  getBookmarks,
-  initializeBookmarksDataAccess,
-  cleanupBookmarksDataAccess,
-} from "@/lib/bookmarks/bookmarks-data-access.server";
 
 // ---- GitHub Data Access (explicit public surface) ----
 export {

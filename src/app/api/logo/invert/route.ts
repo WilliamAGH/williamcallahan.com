@@ -6,10 +6,11 @@
  * This route handles image inversion, caching, and serving inverted logos.
  */
 
-import { unstable_noStore as noStore } from "next/cache";
+import { NO_STORE_HEADERS, preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
 import { getUnifiedImageService, type UnifiedImageService } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
+import logger from "@/lib/utils/logger";
 
 /**
  * Safely parse and validate URL
@@ -37,9 +38,7 @@ function validateUrl(urlString: string): string {
 // Enable dynamic rendering to allow API calls during server-side rendering
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  preventCaching();
   const requestUrl = new URL(request.url);
   const searchParams = requestUrl.searchParams;
   const domain = searchParams.get("domain");
@@ -76,7 +75,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error(`[API Logo Invert] Error for domain ${domain}:`, errorMessage);
+    logger.error(`[API Logo Invert] Error for domain ${domain}:`, errorMessage);
     return new NextResponse(null, {
       status: 500,
       headers: { "x-logo-error": errorMessage },
@@ -90,9 +89,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  * @returns {Promise<NextResponse>} API response with inversion status
  */
 export async function HEAD(request: NextRequest): Promise<NextResponse> {
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  preventCaching();
   const requestUrl = new URL(request.url);
   const searchParams = requestUrl.searchParams;
   const urlParam = searchParams.get("url");
@@ -101,9 +98,7 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
   if (!urlParam) {
     return new NextResponse(null, {
       status: 400,
-      headers: {
-        "Cache-Control": "no-store",
-      },
+      headers: NO_STORE_HEADERS,
     });
   }
 
@@ -117,9 +112,7 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
     if (!analysis) {
       return new NextResponse(null, {
         status: 404,
-        headers: {
-          "Cache-Control": "no-store",
-        },
+        headers: NO_STORE_HEADERS,
       });
     }
 
@@ -133,12 +126,10 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error analyzing logo:", errorMessage);
+    logger.error("Error analyzing logo:", errorMessage);
     return new NextResponse(null, {
       status: 500,
-      headers: {
-        "Cache-Control": "no-store",
-      },
+      headers: NO_STORE_HEADERS,
     });
   }
 }

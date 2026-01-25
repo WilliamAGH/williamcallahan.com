@@ -6,6 +6,7 @@
  */
 
 import logger from "@/lib/utils/logger";
+import { normalizeString } from "@/lib/utils";
 import type { Environment } from "@/types/config";
 
 const shouldLogEnvironmentInfo =
@@ -39,7 +40,7 @@ export function getEnvironment(): Environment {
   // In Jest, ignore DEPLOYMENT_ENV so tests can control behavior via NODE_ENV
   const deploymentEnv = isJest ? undefined : process.env.DEPLOYMENT_ENV;
   if (deploymentEnv) {
-    const normalizedInput = deploymentEnv.toLowerCase().trim();
+    const normalizedInput = normalizeString(deploymentEnv);
     const normalized =
       normalizedInput === "prod"
         ? "production"
@@ -66,7 +67,7 @@ export function getEnvironment(): Environment {
   // Prefer explicit env vars. In Jest, allow jsdom location only when NODE_ENV is 'test',
   // so tests that switch NODE_ENV to 'production' can validate production behavior.
   let apiUrl: string | undefined = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL;
-  if (!apiUrl && isJest && (process.env.NODE_ENV || "test").toLowerCase().trim() === "test") {
+  if (!apiUrl && isJest && normalizeString(process.env.NODE_ENV || "test") === "test") {
     try {
       const loc = (globalThis as unknown as { location?: { href?: string; origin?: string } }).location;
       apiUrl = loc?.origin || loc?.href || undefined;
@@ -113,7 +114,7 @@ export function getEnvironment(): Environment {
   }
 
   // Normalize NODE_ENV variations
-  const normalized = env.toLowerCase().trim();
+  const normalized = normalizeString(env);
 
   switch (normalized) {
     case "production":

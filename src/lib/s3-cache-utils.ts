@@ -11,6 +11,7 @@ import { readJsonS3, checkIfS3ObjectExists } from "./s3-utils";
 import { USE_NEXTJS_CACHE } from "./constants";
 import { withCacheFallback } from "./cache";
 import { cacheContextGuards } from "@/lib/cache";
+import { sanitizeCacheTag } from "@/lib/utils/sanitize";
 
 // Runtime-safe wrappers for cache functions
 const safeCacheLife = (
@@ -31,11 +32,6 @@ const safeCacheTag = (tag: string): void => {
 };
 
 /**
- * Normalizes a tag string for use as a cache tag
- */
-const normalizeTag = (t: string) => t.replace(/[^a-zA-Z0-9-]/g, "-");
-
-/**
  * Cached JSON read from S3 with 'use cache' directive
  * @template T The expected type of the JSON data
  * @param s3Key - The S3 key to read
@@ -52,8 +48,8 @@ async function getCachedJsonS3<T>(
 
   safeCacheLife(cacheProfile);
   safeCacheTag("s3-json");
-  safeCacheTag(`s3-key-${s3Key.replace(/[^a-zA-Z0-9-]/g, "-")}`);
-  tags.forEach(tag => safeCacheTag(normalizeTag(tag)));
+  safeCacheTag(`s3-key-${sanitizeCacheTag(s3Key)}`);
+  tags.forEach(tag => safeCacheTag(sanitizeCacheTag(tag)));
 
   return readJsonS3<T>(s3Key);
 }
@@ -97,7 +93,7 @@ function getCachedS3Exists(s3Key: string, cacheProfile: "minutes" | "hours" | "d
 
   safeCacheLife(cacheProfile);
   safeCacheTag("s3-exists");
-  safeCacheTag(`s3-exists-${s3Key.replace(/[^a-zA-Z0-9-]/g, "-")}`);
+  safeCacheTag(`s3-exists-${sanitizeCacheTag(s3Key)}`);
 
   return checkIfS3ObjectExists(s3Key);
 }

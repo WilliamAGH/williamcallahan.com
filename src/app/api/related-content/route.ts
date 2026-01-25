@@ -5,7 +5,7 @@
  * using similarity scoring across bookmarks, blog posts, investments, and projects.
  */
 
-import { unstable_noStore as noStore } from "next/cache";
+import { preventCaching, createErrorResponse, NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 import { NextRequest, NextResponse } from "next/server";
 import { aggregateAllContent, getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { findMostSimilar, limitByTypeAndTotal, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
@@ -21,7 +21,6 @@ import type {
 } from "@/types/related-content";
 import { getEnabledContentTypes, DEFAULT_MAX_PER_TYPE } from "@/config/related-content.config";
 
-const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours - content changes infrequently
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
@@ -183,9 +182,7 @@ export async function GET(request: NextRequest) {
       { headers: NO_STORE_HEADERS },
     );
   }
-  if (typeof noStore === "function") {
-    noStore();
-  }
+  preventCaching();
   const startTime = getMonotonicTime();
 
   try {
@@ -211,25 +208,16 @@ export async function GET(request: NextRequest) {
         sourceId = bookmarkId;
         console.log(`[RelatedContent API] Resolved slug "${sourceSlug}" to bookmark ID "${sourceId}"`);
       } else {
-        return NextResponse.json(
-          { error: `Bookmark not found for slug: ${sourceSlug}` },
-          {
-            status: 404,
-            headers: NO_STORE_HEADERS,
-          },
-        );
+        return createErrorResponse(`Bookmark not found for slug: ${sourceSlug}`, 404);
       }
     }
 
     if (!sourceType || !sourceId) {
-      return NextResponse.json(
-        {
-          error:
-            sourceType === "bookmark"
-              ? "Missing required parameters: type and slug"
-              : "Missing required parameters: type and id",
-        },
-        { status: 400, headers: NO_STORE_HEADERS },
+      return createErrorResponse(
+        sourceType === "bookmark"
+          ? "Missing required parameters: type and slug"
+          : "Missing required parameters: type and id",
+        400,
       );
     }
 
@@ -312,10 +300,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!cached) {
-      return NextResponse.json(
-        { error: `Content not found or failed to compute: ${sourceType}/${sourceId}` },
-        { status: 404, headers: NO_STORE_HEADERS },
-      );
+      return createErrorResponse(`Content not found or failed to compute: ${sourceType}/${sourceId}`, 404);
     }
 
     // Apply filtering to cached results
@@ -364,6 +349,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(response, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error("Error in related content API:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500, headers: NO_STORE_HEADERS });
+    return createErrorResponse("Internal server error", 500);
   }
 }
