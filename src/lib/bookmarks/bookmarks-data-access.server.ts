@@ -65,6 +65,7 @@ import {
   getFullDatasetCache,
   setFullDatasetCache,
   clearFullDatasetCache,
+  invalidateBookmarkByIdCaches,
   invalidateNextJsBookmarksCache,
   invalidatePageCache,
   invalidateTagCache as invalidateTagCacheInternal,
@@ -519,8 +520,9 @@ export async function getBookmarksByTag(
 
 /** Cache invalidation functions (Next.js cache and in-memory runtime cache) */
 export const invalidateBookmarksCache = (): void => {
-  // Clear in-memory runtime cache
+  // Clear in-memory runtime cache (full dataset and per-ID caches)
   clearFullDatasetCache();
+  invalidateBookmarkByIdCaches();
   invalidateNextJsBookmarksCache();
 };
 export const invalidateBookmarksPageCache = (pageNumber: number): void => {
