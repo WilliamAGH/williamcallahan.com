@@ -132,8 +132,17 @@ export class SessionManager {
     this.inFlightLogoRequests.set(domain, promise);
 
     // Clean up after completion (success or failure)
+    // Capture the promise reference for identity check to avoid removing newer requests
+    const capturedPromise = promise;
     promise
-      .finally(() => setTimeout(() => this.inFlightLogoRequests.delete(domain), 100))
+      .finally(() =>
+        setTimeout(() => {
+          // Only delete if the current entry is still the same promise (identity check)
+          if (this.inFlightLogoRequests.get(domain) === capturedPromise) {
+            this.inFlightLogoRequests.delete(domain);
+          }
+        }, 100),
+      )
       .catch((error: unknown) => {
         const message = getErrorMessage(error);
         logger.debug("[SessionManager] In-flight request cleanup error", { domain, message });
