@@ -38,6 +38,11 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
 
     // Use fixed time for deterministic testing
     jest.spyOn(Date, "now").mockReturnValue(1000000);
+
+    // Mock getMonotonicTime to match Date.now()
+    jest.doMock("@/lib/utils", () => ({
+      getMonotonicTime: () => 1000000,
+    }));
   });
 
   afterEach(() => {
