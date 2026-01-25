@@ -34,3 +34,28 @@ export async function readLocalS3Json<T>(s3Key: string): Promise<T | null> {
     return null;
   }
 }
+
+/**
+ * Safe wrapper for readLocalS3Json that respects skip conditions.
+ * Use this when you need to conditionally skip local cache reads based on environment.
+ *
+ * @param s3Key - The S3 key to read from local cache
+ * @param shouldSkip - Whether to skip the local cache read
+ * @returns The parsed JSON data, or `null` in these cases:
+ *   - `shouldSkip` is true (cache intentionally bypassed)
+ *   - File does not exist at the expected path (cache miss)
+ *   - File exists but JSON parsing fails (logged as warning, returns null)
+ * @example
+ * ```ts
+ * const data = await readLocalS3JsonSafe<MyType>(key, shouldSkipLocalS3Cache);
+ * if (data === null) {
+ *   // Handle cache miss - fetch from S3 or other source
+ * }
+ * ```
+ */
+export async function readLocalS3JsonSafe<T>(s3Key: string, shouldSkip: boolean): Promise<T | null> {
+  if (shouldSkip) {
+    return null;
+  }
+  return readLocalS3Json<T>(s3Key);
+}
