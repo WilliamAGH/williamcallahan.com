@@ -13,6 +13,15 @@
 /** 📦 BOOKMARK DOMAIN (types/bookmark.ts) - Core entities, validation, API types */
 export * from "./bookmark";
 
+/** 📦 REGISTRY LINK DOMAIN (types/schemas/registry-link.ts) - Package registry links for projects/bookmarks */
+export type { RegistryType, RegistryLink, RegistryConfig } from "./schemas/registry-link";
+export {
+  registryTypeSchema,
+  registryLinkSchema,
+  validateRegistryLink,
+  validateRegistryLinks,
+} from "./schemas/registry-link";
+
 /** 🐙 GITHUB DOMAIN (types/github.ts) - Activity data, repository stats, API responses */
 export * from "./github";
 

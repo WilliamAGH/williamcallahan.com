@@ -89,6 +89,16 @@ export const projects: Project[] = [
       "File Management",
     ],
     techStack: ["TypeScript", "VS Code API", "Node.js"],
+    registryLinks: [
+      {
+        type: "vscode",
+        url: "https://marketplace.visualstudio.com/items?itemName=WilliamCallahan.flag-deprecated-files",
+      },
+      {
+        type: "openvsx",
+        url: "https://open-vsx.org/extension/williamcallahan/flag-deprecated-files",
+      },
+    ],
   },
   {
     id: "ComposerAI",
@@ -156,6 +166,12 @@ export const projects: Project[] = [
     ],
     techStack: ["Java", "Gradle", "Maven Central"],
     cvFeatured: true,
+    registryLinks: [
+      {
+        type: "maven",
+        url: "https://central.sonatype.com/artifact/com.williamcallahan/tui4j",
+      },
+    ],
   },
   {
     id: "apple-maps-java",
@@ -178,6 +194,12 @@ export const projects: Project[] = [
     ],
     techStack: ["Java 17", "Gradle", "Maven Central"],
     cvFeatured: true,
+    registryLinks: [
+      {
+        type: "maven",
+        url: "https://central.sonatype.com/artifact/com.williamcallahan/apple-maps-java",
+      },
+    ],
   },
   {
     id: "Book Finder (findmybook.net)",

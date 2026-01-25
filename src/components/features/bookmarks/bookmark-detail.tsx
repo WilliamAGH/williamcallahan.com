@@ -29,6 +29,7 @@ import { removeCitations, processSummaryText } from "@/lib/utils/formatters";
 import { safeExternalHref, getDisplayHostname, isGitHubUrl } from "@/lib/utils/url-utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 import { TerminalContext } from "@/components/ui/context-notes/terminal-context.client";
+import { RegistryLinks } from "@/components/ui/registry-links.client";
 
 // Helper to avoid rendering the literal "Invalid Date"
 function toDisplayDate(date?: string | Date | number | null): string | null {
@@ -364,6 +365,9 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                   <span>{isGitHub ? "View on GitHub" : "Visit Site"}</span>
                   <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </a>
+
+                {/* Registry Links (npm, PyPI, etc.) */}
+                <RegistryLinks links={bookmark.registryLinks} />
 
                 <Link
                   href="/bookmarks"

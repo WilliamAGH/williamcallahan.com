@@ -69,3 +69,13 @@ export interface CollapseDropdownContextType {
   findDropdownForHash: (hash: string) => HTMLDetailsElement | null;
   openAndScrollToDropdownAnchor: (dropdownElement: HTMLDetailsElement, hash: string) => void;
 }
+
+/**
+ * Props for the RegistryLinks component
+ */
+export interface RegistryLinksProps {
+  /** Array of registry links to display */
+  links?: import("../schemas/registry-link").RegistryLink[];
+  /** Optional CSS class for the container */
+  className?: string;
+}
