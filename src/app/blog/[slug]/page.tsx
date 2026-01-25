@@ -74,8 +74,8 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
   // Full URL for the blog post
   const postUrl = ensureAbsoluteUrl(`/blog/${post.slug}`);
 
-  // Check if this is a software post (single lookup, cached)
-  const softwareDetails = getSoftwareDetails(slug);
+  // Check if this is a software post (use canonical post.slug, not route param)
+  const softwareDetails = getSoftwareDetails(post.slug);
 
   const baseArticleParams = {
     title: post.title,
@@ -142,7 +142,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     }
 
     // Build JSON-LD schema graph (Next.js metadata script tag not reliable for bots)
-    const softwareDetails = getSoftwareDetails(slug);
+    // Use canonical post.slug for consistency (not route param)
+    const softwareDetails = getSoftwareDetails(post.slug);
     const pageType: "software" | "article" = softwareDetails ? "software" : "article";
 
     const absoluteImageUrl = post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined;
