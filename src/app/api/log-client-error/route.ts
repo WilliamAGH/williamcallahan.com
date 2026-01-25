@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { type NextRequest, NextResponse } from "next/server";
 import { ClientErrorSchema, type ClientErrorPayload } from "@/types/error";
+import { getClientIp } from "@/lib/utils/request-utils";
 
 /**
  * API route to receive and log client-side errors
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     } = {
       ...errorData,
       server_timestamp: new Date().toISOString(),
-      ip: headerStore.get("x-forwarded-for") || "unknown",
+      ip: getClientIp(headerStore, { fallback: "unknown" }),
       user_agent: headerStore.get("user-agent") || "unknown",
     };
 
