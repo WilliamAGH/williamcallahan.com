@@ -271,6 +271,8 @@ File/Path Functionality Description
   - [x] `bookmarks-preloader.ts` `bookmarks` - Server-side bookmark preloading orchestrator
   - [x] `data-fetch-manager.ts` `batch-fetch-update` - Centralized data fetching orchestrator with CLI handler
   - [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates
+- [x] **s3-reset/**
+  - [x] `index.ts` `s3-object-storage` - Factory functions and category config for S3 reset scripts
 - [x] **server-cache/**
   - [x] `index.ts` `caching` - Barrel file for server cache
 - [x] **test-utils/**

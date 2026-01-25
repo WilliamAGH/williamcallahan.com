@@ -57,16 +57,17 @@ import { promises as fs } from "node:fs";
 import { join } from "node:path";
 import readline from "node:readline";
 
-// Import all S3 path constants
+// S3 path constants are now encapsulated in CATEGORY_CONFIG from @/lib/s3-reset
+import type { DeletionStats, RegenerationStats, AuditLog, CategoryKey } from "@/types/s3-reset";
+
+// Import DRY utilities for category management and stats factories
 import {
-  BOOKMARKS_S3_PATHS,
-  GITHUB_ACTIVITY_S3_PATHS,
-  SEARCH_S3_PATHS,
-  CONTENT_GRAPH_S3_PATHS,
-  IMAGE_MANIFEST_S3_PATHS,
-  OPENGRAPH_JSON_S3_PATHS,
-} from "@/lib/constants";
-import type { DeletionStats, RegenerationStats, AuditLog, CategoryKey, CategoryName } from "@/types/s3-reset";
+  CATEGORY_CONFIG,
+  getCategoryForFile,
+  categorizeFiles,
+  createEmptyDeletionStats,
+  createEmptyRegenerationStats,
+} from "@/lib/s3-reset";
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -106,59 +107,10 @@ const AUDIT_FILE = join(AUDIT_DIR, `reset-audit-${new Date().toISOString().repla
 const BACKUP_MANIFEST = join(AUDIT_DIR, `backup-manifest-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
 
 /**
- * Category mappings for include/exclude functionality
+ * Category mappings for include/exclude functionality.
+ * Re-exported from centralized CATEGORY_CONFIG for backward compatibility.
  */
-const CATEGORY_MAPPINGS = {
-  bookmarks: {
-    name: "Bookmarks",
-    paths: [BOOKMARKS_S3_PATHS.DIR + "/"],
-    regenerate: true,
-  },
-  github: {
-    name: "GitHub Activity",
-    paths: [GITHUB_ACTIVITY_S3_PATHS.DIR + "/"],
-    regenerate: true,
-  },
-  search: {
-    name: "Search Indexes",
-    paths: [SEARCH_S3_PATHS.DIR + "/"],
-    regenerate: true,
-  },
-  content: {
-    name: "Content Graph",
-    paths: [
-      CONTENT_GRAPH_S3_PATHS.DIR + "/",
-      // Also include any stray content-graph files
-      "json/content-graph/",
-    ],
-    regenerate: true,
-  },
-  images: {
-    name: "Image Manifests",
-    paths: [IMAGE_MANIFEST_S3_PATHS.DIR + "/"],
-    regenerate: false, // Handled by logos
-  },
-  opengraph: {
-    name: "OpenGraph",
-    paths: [OPENGRAPH_JSON_S3_PATHS.DIR + "/"],
-    regenerate: false, // Regenerated with bookmarks
-  },
-  ratelimit: {
-    name: "Rate Limiting",
-    paths: ["json/rate-limit/"],
-    regenerate: false, // Will be recreated as needed
-  },
-  locks: {
-    name: "Locks",
-    paths: ["locks/"],
-    regenerate: false, // Will be recreated as needed
-  },
-  logos: {
-    name: "Logos",
-    paths: [], // Logos are in image manifests
-    regenerate: true,
-  },
-} as const;
+const CATEGORY_MAPPINGS = CATEGORY_CONFIG;
 
 /**
  * Get all JSON file patterns that should be deleted
@@ -201,28 +153,14 @@ function getAllJsonPatterns(): string[] {
 }
 
 /**
- * Check if a file belongs to an included category
+ * Check if a file belongs to an included category.
+ * Uses centralized getCategoryForFile() to eliminate duplicate path-matching logic.
  */
 function shouldIncludeFile(file: string): boolean {
-  // Determine which category this file belongs to
-  if (file.startsWith(BOOKMARKS_S3_PATHS.DIR)) {
-    return shouldIncludeCategory("bookmarks");
-  } else if (file.startsWith(GITHUB_ACTIVITY_S3_PATHS.DIR)) {
-    return shouldIncludeCategory("github");
-  } else if (file.startsWith(SEARCH_S3_PATHS.DIR)) {
-    return shouldIncludeCategory("search");
-  } else if (file.startsWith(CONTENT_GRAPH_S3_PATHS.DIR) || file.includes("content-graph")) {
-    return shouldIncludeCategory("content");
-  } else if (file.startsWith(IMAGE_MANIFEST_S3_PATHS.DIR)) {
-    return shouldIncludeCategory("images");
-  } else if (file.startsWith(OPENGRAPH_JSON_S3_PATHS.DIR)) {
-    return shouldIncludeCategory("opengraph");
-  } else if (file.startsWith("json/rate-limit/")) {
-    return shouldIncludeCategory("ratelimit");
-  } else if (file.startsWith("locks/")) {
-    return shouldIncludeCategory("locks");
+  const category = getCategoryForFile(file);
+  if (category) {
+    return shouldIncludeCategory(category);
   }
-
   // Unknown files - include if no specific filter is set
   return onlyCategories.length === 0 && excludeCategories.length === 0;
 }
@@ -301,13 +239,7 @@ async function createBackupManifest(files: string[]): Promise<void> {
  * Delete all JSON files from S3
  */
 async function deleteJsonFiles(): Promise<DeletionStats> {
-  const stats: DeletionStats = {
-    totalFiles: 0,
-    deletedFiles: 0,
-    failedFiles: 0,
-    skippedFiles: 0,
-    errors: [],
-  };
+  const stats = createEmptyDeletionStats();
 
   logger.info("🔍 Scanning for JSON files to delete...");
 
@@ -366,41 +298,8 @@ async function deleteJsonFiles(): Promise<DeletionStats> {
   // Show all files to be deleted (organized by category)
   logger.info("\n📝 Files to be deleted:");
 
-  // Organize files by category for better readability
-  const filesByCategory: Record<CategoryName, string[]> = {
-    Bookmarks: [],
-    "GitHub Activity": [],
-    "Search Indexes": [],
-    "Content Graph": [],
-    "Image Manifests": [],
-    OpenGraph: [],
-    "Rate Limiting": [],
-    Locks: [],
-    Other: [],
-  };
-
-  // Categorize files
-  fileList.forEach(file => {
-    if (file.startsWith(BOOKMARKS_S3_PATHS.DIR)) {
-      filesByCategory.Bookmarks.push(file);
-    } else if (file.startsWith(GITHUB_ACTIVITY_S3_PATHS.DIR)) {
-      filesByCategory["GitHub Activity"].push(file);
-    } else if (file.startsWith(SEARCH_S3_PATHS.DIR)) {
-      filesByCategory["Search Indexes"].push(file);
-    } else if (file.startsWith(CONTENT_GRAPH_S3_PATHS.DIR) || file.includes("content-graph")) {
-      filesByCategory["Content Graph"].push(file);
-    } else if (file.startsWith(IMAGE_MANIFEST_S3_PATHS.DIR)) {
-      filesByCategory["Image Manifests"].push(file);
-    } else if (file.startsWith(OPENGRAPH_JSON_S3_PATHS.DIR)) {
-      filesByCategory.OpenGraph.push(file);
-    } else if (file.startsWith("json/rate-limit/")) {
-      filesByCategory["Rate Limiting"].push(file);
-    } else if (file.startsWith("locks/")) {
-      filesByCategory.Locks.push(file);
-    } else {
-      filesByCategory.Other.push(file);
-    }
-  });
+  // Organize files by category using centralized utility
+  const filesByCategory = categorizeFiles(fileList);
 
   // Display files by category
   for (const [category, files] of Object.entries(filesByCategory)) {
@@ -494,14 +393,7 @@ async function deleteJsonFiles(): Promise<DeletionStats> {
  * Regenerate all data
  */
 async function regenerateData(): Promise<RegenerationStats> {
-  const stats: RegenerationStats = {
-    bookmarks: { success: false, count: 0 },
-    slugMappings: { success: false, count: 0 },
-    github: { success: false, count: 0 },
-    search: { success: false, count: 0 },
-    contentGraph: { success: false, count: 0 },
-    logos: { success: false, count: 0 },
-  };
+  const stats = createEmptyRegenerationStats();
 
   logger.info("\n🔄 Starting data regeneration...");
 
@@ -644,7 +536,10 @@ async function regenerateData(): Promise<RegenerationStats> {
       stats.search = { success: true, count: 0 };
     }
   } catch (error) {
-    logger.error("Fatal error during regeneration:", error);
+    // Log the fatal error and re-throw to ensure caller knows regeneration failed
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Fatal error during regeneration: ${errorMessage}`);
+    throw new Error(`Regeneration failed: ${errorMessage}`, { cause: error });
   }
 
   return stats;
@@ -763,22 +658,8 @@ async function main() {
   }
   logger.info("=".repeat(60));
 
-  let deletionStats: DeletionStats = {
-    totalFiles: 0,
-    deletedFiles: 0,
-    failedFiles: 0,
-    skippedFiles: 0,
-    errors: [],
-  };
-
-  let regenerationStats: RegenerationStats = {
-    bookmarks: { success: false, count: 0 },
-    slugMappings: { success: false, count: 0 },
-    github: { success: false, count: 0 },
-    search: { success: false, count: 0 },
-    contentGraph: { success: false, count: 0 },
-    logos: { success: false, count: 0 },
-  };
+  let deletionStats = createEmptyDeletionStats();
+  let regenerationStats = createEmptyRegenerationStats();
 
   try {
     // Phase 1: Delete JSON files

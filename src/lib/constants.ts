@@ -58,12 +58,17 @@ export const LOGO_BLOCKLIST_S3_PATH = `json/rate-limit/logo-failed-domains${envS
  * Note: DIR includes the environment suffix and leaf files are unsuffixed by design.
  * This keeps the content-graph directory environment-scoped while file names stay stable.
  */
+/** Base prefix for content graph paths (environment-agnostic, for pattern matching) */
+export const CONTENT_GRAPH_BASE_PREFIX = "json/content-graph" as const;
+
 export const CONTENT_GRAPH_S3_PATHS = {
-  DIR: `json/content-graph${envSuffix}`,
-  RELATED_CONTENT: `json/content-graph${envSuffix}/related-content.json`,
-  BOOKS_RELATED_CONTENT: `json/content-graph${envSuffix}/books-related.json`,
-  TAG_GRAPH: `json/content-graph${envSuffix}/tag-graph.json`,
-  METADATA: `json/content-graph${envSuffix}/metadata.json`,
+  /** Environment-agnostic base prefix for pattern matching across environments */
+  BASE_PREFIX: CONTENT_GRAPH_BASE_PREFIX,
+  DIR: `${CONTENT_GRAPH_BASE_PREFIX}${envSuffix}`,
+  RELATED_CONTENT: `${CONTENT_GRAPH_BASE_PREFIX}${envSuffix}/related-content.json`,
+  BOOKS_RELATED_CONTENT: `${CONTENT_GRAPH_BASE_PREFIX}${envSuffix}/books-related.json`,
+  TAG_GRAPH: `${CONTENT_GRAPH_BASE_PREFIX}${envSuffix}/tag-graph.json`,
+  METADATA: `${CONTENT_GRAPH_BASE_PREFIX}${envSuffix}/metadata.json`,
 } as const;
 
 /**
@@ -113,6 +118,12 @@ export const IMAGE_MANIFEST_S3_PATHS = {
 
 /** S3 storage paths for OpenGraph JSON data (environment-aware) */
 export const OPENGRAPH_JSON_S3_PATHS = { DIR: "json/opengraph" } as const;
+
+/** S3 storage paths for rate limiting data */
+export const RATE_LIMIT_S3_PATHS = { DIR: "json/rate-limit" } as const;
+
+/** S3 storage paths for distributed locks */
+export const LOCKS_S3_PATHS = { DIR: "locks" } as const;
 
 /** S3 storage paths for actual image files (PNG, JPG, etc) */
 export const IMAGE_S3_PATHS = {
