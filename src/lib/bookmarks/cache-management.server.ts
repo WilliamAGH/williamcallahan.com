@@ -130,7 +130,7 @@ export function setCachedBookmarkById<T extends UnifiedBookmark | LightweightBoo
  * Remove a specific bookmark from both caches.
  * @param bookmarkId - ID of bookmark to remove
  */
-export function invalidateBookmarkCache(bookmarkId: string): void {
+export function invalidateBookmarkMemoryCache(bookmarkId: string): void {
   bookmarkByIdCache.delete(bookmarkId);
   lightweightBookmarkByIdCache.delete(bookmarkId);
 }
