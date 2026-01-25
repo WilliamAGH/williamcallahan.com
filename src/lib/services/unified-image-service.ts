@@ -122,7 +122,11 @@ export class UnifiedImageService {
       async () => {
         const s3Key = this.s3Ops.generateS3Key(url, imageOptions);
         if (!imageOptions.forceRefresh && (await checkIfS3ObjectExists(s3Key))) {
-          return { contentType: inferContentTypeFromUrl(url), source: "s3", cdnUrl: this.getCdnUrl(s3Key) };
+          return {
+            contentType: inferContentTypeFromUrl(url),
+            source: "s3",
+            cdnUrl: this.getCdnUrl(s3Key) || undefined,
+          };
         }
         if (this.isReadOnly && !imageOptions.skipUpload) {
           throw new Error(`Image not available in read-only mode: ${safeUrlForLog}`);
@@ -180,7 +184,7 @@ export class UnifiedImageService {
       async () => {
         const cachedResult = ServerCacheInstance.getLogoFetch(domain);
         if (cachedResult?.s3Key && (this.isReadOnly || !options.forceRefresh)) {
-          return { ...cachedResult, cdnUrl: this.getCdnUrl(cachedResult.s3Key) };
+          return { ...cachedResult, cdnUrl: this.getCdnUrl(cachedResult.s3Key) || undefined };
         }
 
         // First check for existing hashed logo files using deterministic key generation
@@ -320,7 +324,7 @@ export class UnifiedImageService {
               });
               ServerCacheInstance.setInvertedLogo(domain, {
                 s3Key,
-                cdnUrl: this.getCdnUrl(s3Key),
+                cdnUrl: this.getCdnUrl(s3Key) || undefined,
                 analysis: inverted.analysis || {
                   needsDarkInversion: false,
                   needsLightInversion: false,

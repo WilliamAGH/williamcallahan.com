@@ -92,7 +92,7 @@ export class LogoFetcher {
     return {
       domain,
       s3Key: options.s3Key,
-      cdnUrl: options.s3Key ? this.s3Ops.getCdnUrl(options.s3Key) : undefined,
+      cdnUrl: options.s3Key ? this.s3Ops.getCdnUrl(options.s3Key) || undefined : undefined,
       url: options.url ?? undefined,
       source: options.source,
       contentType: options.contentType ?? "image/png",
