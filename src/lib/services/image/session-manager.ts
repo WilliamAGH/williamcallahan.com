@@ -9,6 +9,7 @@ import { FailureTracker } from "@/lib/utils/failure-tracker";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { isOperationAllowedWithCircuitBreaker, recordOperationFailure } from "@/lib/rate-limiter";
 import logger from "@/lib/utils/logger";
+import { getErrorMessage } from "@/types/error";
 
 import type { LogoFetchResult } from "@/types/cache";
 
@@ -130,7 +131,12 @@ export class SessionManager {
     this.inFlightLogoRequests.set(domain, promise);
 
     // Clean up after completion (success or failure)
-    promise.finally(() => setTimeout(() => this.inFlightLogoRequests.delete(domain), 100)).catch(() => {});
+    promise
+      .finally(() => setTimeout(() => this.inFlightLogoRequests.delete(domain), 100))
+      .catch((error: unknown) => {
+        const message = getErrorMessage(error);
+        logger.debug("[SessionManager] In-flight request cleanup error", { domain, message });
+      });
   }
 
   /**

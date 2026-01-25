@@ -74,6 +74,8 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
   // External project URL (GitHub, website, etc.)
   const externalUrl = safeExternalHref(url);
   const isGitHub = isGitHubUrl(url);
+  const sanitizedGithubUrl = project.githubUrl ? safeExternalHref(project.githubUrl) : null;
+  const shouldShowGithub = Boolean(sanitizedGithubUrl && sanitizedGithubUrl !== externalUrl);
 
   const [imageUrl, setImageUrl] = useState(initialProxiedUrl);
   const [hasError, setHasError] = useState(false);
@@ -150,9 +152,9 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
                 </Link>
               </h3>
               <div className="flex items-center gap-1">
-                {project.githubUrl && project.githubUrl !== url && (
+                {shouldShowGithub && sanitizedGithubUrl && (
                   <a
-                    href={project.githubUrl}
+                    href={sanitizedGithubUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     title={`View ${name} source code on GitHub`}
