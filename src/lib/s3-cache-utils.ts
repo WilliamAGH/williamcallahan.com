@@ -32,12 +32,6 @@ const safeCacheTag = (tag: string): void => {
 };
 
 /**
- * Normalizes a tag string for use as a cache tag
- * @deprecated Use sanitizeCacheTag from @/lib/utils/sanitize instead
- */
-export const normalizeTag = sanitizeCacheTag;
-
-/**
  * Cached JSON read from S3 with 'use cache' directive
  * @template T The expected type of the JSON data
  * @param s3Key - The S3 key to read
