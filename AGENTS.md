@@ -20,7 +20,8 @@ alwaysApply: true
 - [GT1a-j] Git safety: no history rewrite/destructive ops; no lock deletion; no hook/signing bypass; no AI attribution
 - [CMD1a-d] Command execution guardrails: retry with escalation; no inference cleanup
 - [FS1a-k] File creation & edit discipline: existing-first, no shims/barrels/aliases, no duplication, no error swallowing, no silent fallbacks
-- [SZ1a-b] File size limit (500 LOC) & refactor gating
+- [LOC1a-d] Line Count Ceiling (350 lines max; SRP enforcer; zero tolerance)
+- [MO1a-g] No Monoliths (Strict SRP; Decision Logic; Extension/OCP)
 - [UP1a-d] Comprehensive update protocol: update _all_ usages (imports/calls/types/tests/docs)
 - [TS1a-f] Type safety & validation: no `any`, no suppression, Zod at boundaries
 - [SC1a-d] Schema/type organization: Zod schemas are the source of truth
@@ -88,10 +89,22 @@ alwaysApply: true
 - [FS1j] No silent fallbacks: no `?? defaultValue` or `|| fallback` that masks errors; fail explicitly or log the fallback.
 - [FS1k] Efficiency mandate: nearly all edits should result in the same or fewer lines by removing duplication/redundant logic.
 
-## [SZ1] File Size Limit
+## [LOC1] Line Count Ceiling (Repo-Wide)
 
-- [SZ1a] 500 lines is a hard maximum for a single file.
-- [SZ1b] If a file approaches the limit, stop adding features and extract cohesive modules (create a refactor task if needed).
+- [LOC1a] All written, non-generated source files in this repository MUST be <= 350 lines (`wc -l`), including `AGENTS.md`
+- [LOC1b] SRP Enforcer: This 350-line "stick" forces modularity (DDD/SRP); > 350 lines = too many responsibilities (see [MO1d])
+- [LOC1c] **Enforcement**: `npm run lint:loc` MUST pass. `npm run validate` MUST include `lint:loc` and fail if any non-generated file exceeds the limit.
+- [LOC1d] Exempt files: generated content (lockfiles, builds, artifacts)
+
+## [MO1] No Monoliths
+
+- [MO1a] No monoliths: avoid multi-concern files and catch-all modules
+- [MO1b] New work starts in new files; when touching a monolith, extract at least one seam
+- [MO1c] If safe extraction impossible, halt and ask
+- [MO1d] Strict SRP: each unit serves one actor; separate logic that changes for different reasons
+- [MO1e] Boundary rule: cross-module interaction happens only through explicit, typed contracts with dependencies pointing inward; don’t reach into other modules’ internals or mix web/use-case/domain/persistence concerns in one unit
+- [MO1f] Decision Logic: New feature → New file; Bug fix → Edit existing; Logic change → Extract/Replace
+- [MO1g] Extension (OCP): Add functionality via new classes/composition; do not modify stable code to add features; see `docs/contracts/code-change.md`
 
 ## [UP1] Comprehensive Code Update Protocol
 
@@ -210,185 +223,10 @@ alwaysApply: true
 - [LG1a] All code, comments, docs, and commit messages must use American English spelling.
 - [LG1b] If British spelling is detected, correct it immediately.
 
-## Appendix [APP]
+## [APP] Reference Contracts
 
-### [CFG1] Project Configuration (Informational; verify in `package.json`)
-
-```yaml
-REPO_NAME: williamcallahan.com
-GITHUB_URL: https://github.com/WilliamAGH/williamcallahan.com
-# Previous docs referenced: https://github.com/WilliamAGH/williamcallahan.com
-DEFAULT_BRANCH: dev (see refs/remotes/origin/HEAD)
-
-PACKAGE_MANAGER: bun (see package.json#packageManager)
-LOCKFILE: bun.lock
-PACKAGE_MANAGER_INSTALL: bun install
-PACKAGE_MANAGER_ADD: bun add
-PACKAGE_MANAGER_REMOVE: bun remove
-
-# Stack (verify in package.json)
-FRAMEWORK: Next.js
-RUNTIME: Node.js
-
-# Testing
-TEST_RUNNER: Jest
-JEST_CONFIG_PATH: config/jest/config.ts
-
-# Code quality (verify in package.json)
-LINTER: Oxlint + ESLint
-FORMATTER: Biome + Prettier
-TYPE_CHECKER: TypeScript (tsc)
-SCHEMA_LIB: Zod (see zod/v4 usage in src/types/schemas/)
-
-# Source directories (inside src/)
-APP_DIR: src/app/
-COMPONENTS_DIR: src/components/
-LIB_DIR: src/lib/
-HOOKS_DIR: src/hooks/
-TYPES_DIR: src/types/
-SCHEMAS_DIR: src/types/schemas/
-STYLES_DIR: src/styles/
-
-# Root-level directories (outside src/)
-CONFIG_DIR: config/
-DATA_DIR: data/
-DOCS_DIR: docs/
-PUBLIC_DIR: public/
-SCRIPTS_DIR: scripts/
-
-# CI/CD & deployment (verify)
-CI_PROVIDER: GitHub Actions
-CDN: Cloudflare
-PRODUCTION_URL: https://williamcallahan.com
-LOCAL_DEVELOPMENT_URL: http://localhost:3000
-
-COMMON_COMMANDS:
-  dev: bun run dev
-  build: bun run build
-  build_only: bun run build:only
-  validate: bun run validate
-  lint: bun run lint
-  type_check: bun run type-check
-  format: bun run format
-  tests: bun run test
-```
-
-### [VC1] Verification Commands (Quick Reference)
-
-```bash
-# Check current dependency versions
-cat package.json | jq '.dependencies'
-
-# Find files over ~400 LOC (warning threshold)
-find . \( -name "*.ts" -o -name "*.tsx" \) -exec wc -l {} + | awk '$1 > 400' | sort -n
-
-# Search for existing functionality
-grep -r "[keyword]" --include="*.ts" --include="*.tsx" .
-
-# Validate the codebase
-bun run validate
-
-# Typecheck
-bun run type-check
-
-# Tests (never run `bun test` directly)
-bun run test
-
-# Review types for a domain
-find src/types/ -name "*.ts" | xargs rg -n "[domain]"
-```
-
-### [CUR1] Rules & Architecture Docs Index (Informational)
-
-- Start at `docs/projects/structure/00-architecture-entrypoint.md` to find the relevant domain document.
-- If you add additional rule files, include YAML front matter:
-  ```yaml
-  ---
-  description: "Brief, specific description"
-  alwaysApply: false
-  ---
-  ```
-
-### [GIT1] Generated Files (Informational)
-
-Generated files are stored in `generated/` and gitignored:
-
-- `generated/csp-hashes.json` — CSP hashes (created by postbuild)
-- `generated/bookmarks/` — bookmarks, slug mappings, index (created by scripts)
-
-### [DEPX] Cloudflare Bundle Verification Snippet
-
-```bash
-# Check whether your code change is present in a deployed chunk (replace placeholders)
-curl -s "https://[domain]/_next/static/chunks/[chunk].js" | grep -c "yourUniqueToken"
-```
-
-### [DEP2] Cloudflare Cache Purge Options (Informational)
-
-- Cloudflare Dashboard -> Caching -> Purge Everything
-- Wait for TTL expiration (can be hours)
-- Rebuild/deploy to get new hashed chunk names (Next.js outputs versioned chunk filenames)
-
-### [FWX] Node_modules Evidence Checklist (Examples)
-
-- Next.js config/runtime: `node_modules/next/dist/server/config.js`
-- Async params/metadata flows: `node_modules/next/dist/server/request/params.js`
-- Image config: `node_modules/next/dist/shared/lib/image-config.js`
-- React version: `node_modules/react/package.json`
-- Jest runtime: `node_modules/jest/package.json`
-
-### [TSTX] Why `bun run test*` Scripts Are Required (Informational)
-
-- They load `config/jest/config.ts` (direct `bun test` bypasses it).
-- They ensure Jest setup files + mocking/globals are applied consistently.
-- They prevent common failures (module resolution, jsdom/DOM issues, `jest.mock` problems).
-
-### [CPX] Cleanup & Commit Example (Run only if user asked)
-
-```bash
-# Remove temporary files you created in /tmp (be specific)
-rm /tmp/<your-temp-file>
-
-# Stage & commit (only if the user explicitly asked for a commit)
-git add -A
-git commit -m "fix: <specific description>"
-```
-
-### [BPX] Boilerplate Violation Template
-
-```text
- CRITICAL VIOLATION DETECTED
-Boilerplate/example code found in: [file:line]
-Code pattern: [description]
-Source: [where it likely came from]
-Required action: Manual review and replacement
-```
-
-### [SCX] Zod Schema Pattern (Example)
-
-```ts
-// types/schemas/example.ts
-import { z } from "zod/v4";
-
-export const exampleSchema = z.object({
-  id: z.string(),
-});
-
-export type Example = z.infer<typeof exampleSchema>;
-```
-
-### [UPX] Search Strategies for “Update All Usages” (Examples)
-
-```bash
-# Imports
-grep -r "import.*Thing" --include="*.ts" --include="*.tsx" .
-
-# Call sites
-grep -r "thing(" --include="*.ts" --include="*.tsx" .
-
-# Types
-grep -r "Thing" --include="*.ts" --include="*.tsx" .
-
-# Tests
-grep -r "Thing" --include="*.test.ts" --include="*.spec.ts" .
-```
+- **Project Config**: `docs/contracts/project-config.md` ([CFG1], [VC1])
+- **Framework Evidence**: `docs/contracts/framework-evidence.md` ([FWX])
+- **Type Policy**: `docs/contracts/type-policy.md` ([SCX])
+- **Testing Protocols**: `docs/contracts/testing.md` ([TSTX])
+- **Deployment**: `docs/domains/deployment-verification.md` ([DEPX])
