@@ -1,13 +1,24 @@
+##
+## Multi-stage build for Next.js application with Bun
+## Note: Requires DOCKER_BUILDKIT=1 for optimal cache mount support
+## Base registry defaults to AWS ECR Public mirror but can be overridden
+## Some alternatives:
+##   - docker.io/library
+##   - ghcr.io/debian
+##
+ARG BASE_REGISTRY=public.ecr.aws/debian
+##
+
 # Using Debian instead of Alpine because @chroma-core/default-embed uses ONNX runtime
 # which requires glibc (Alpine uses musl libc which is incompatible).
 # TODO: Revert to Alpine when switching to self-hosted embeddings API or @chroma-core/openai
 #
-# IMPORTANT: Base images use public.ecr.aws to avoid Docker Hub authentication issues.
+# ---------- Base stage ----------
 # Bun is installed from GitHub releases to avoid oven/bun Docker Hub dependency.
-FROM public.ecr.aws/debian/debian:bookworm-slim AS base
+FROM ${BASE_REGISTRY}/debian:bookworm-slim AS base
 
-# Install Bun from GitHub releases (avoids Docker Hub dependency on oven/bun image)
-# Pin to specific version for reproducibility. Supports both x86_64 and arm64.
+# 1. Install Bun from GitHub releases (avoids Docker Hub dependency on oven/bun image)
+#    Pin to specific version for reproducibility. Supports both x86_64 and arm64.
 ARG BUN_VERSION=1.3.2
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl unzip ca-certificates \
@@ -27,9 +38,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Verify Bun installation
+# 2. Verify Bun installation
 RUN bun --version
 
+# ---------- Dependencies stage ----------
 # Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
@@ -39,31 +51,30 @@ ENV BUN_INSTALL_CACHE=/root/.bun/install/cache
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
 
-# Copy only package files first
-# Copying lock file separately ensures Docker caches the layer correctly
+# 1. Copy only package files first (rarely changes)
+#    Copying lock file separately ensures Docker caches the layer correctly
 COPY package.json ./
 COPY bun.lock* ./
 COPY .husky ./.husky
 
-# Copy the init-csp-hashes script and config directory needed by postinstall
-# This is required because postinstall runs during bun install
+# 2. Copy the init-csp-hashes script and config directory needed by postinstall
+#    This is required because postinstall runs during bun install
 COPY scripts/init-csp-hashes.ts ./scripts/init-csp-hashes.ts
 COPY config ./config
 
-# Create generated/ directory for build-time generated files (CSP hashes, etc.)
+# 3. Create generated/ directory for build-time generated files (CSP hashes, etc.)
 RUN mkdir -p generated/bookmarks
 
-# Install dependencies with Bun, skipping third-party postinstall scripts to avoid native crashes.
-# Note: --frozen-lockfile is intentionally omitted so Docker rebuilds can pick up newer
-# semver-compatible versions (e.g., CVE patches for next/react) without requiring a new commit.
-# Cache mounts are avoided so classic docker builds (DOCKER_BUILDKIT=0) continue to work.
+# 4. Install dependencies with Bun, skipping third-party postinstall scripts to avoid native crashes.
+#    Note: --frozen-lockfile is intentionally omitted so Docker rebuilds can pick up newer
+#    semver-compatible versions (e.g., CVE patches for next/react) without requiring a new commit.
+#    Cache mounts are avoided so classic docker builds (DOCKER_BUILDKIT=0) continue to work.
 RUN bun install --ignore-scripts
-# Ensure CSP hashes file exists early for tooling that might import it
+
+# 5. Ensure CSP hashes file exists early for tooling that might import it
 RUN bun scripts/init-csp-hashes.ts
 
-# --------------------------------------------------
-# PRE-CHECKS STAGE (lint + type-check, cached)
-# --------------------------------------------------
+# ---------- Pre-checks stage (lint + type-check, cached) ----------
 # Use base image (which has Bun) and run checks with Bun instead of npm
 # This avoids the Docker Hub dependency on node:22-bookworm-slim
 FROM base AS checks
@@ -71,31 +82,29 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
 
-# Copy installed deps from previous deps stage (no BuildKit-only flags)
+# 1. Copy installed deps from previous deps stage (no BuildKit-only flags)
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copy source for analysis only (does not affect later build layers)
+# 2. Copy source for analysis only (does not affect later build layers)
 COPY . .
 
-# Run linter and type checker using Bun (Bun can run npm scripts).
-# Cache mounts are omitted to keep the Dockerfile compatible with non-BuildKit builders.
+# 3. Run linter and type checker using Bun (Bun can run npm scripts).
+#    Cache mounts are omitted to keep the Dockerfile compatible with non-BuildKit builders.
 RUN bun run lint && bun run type-check
 
-# --------------------------------------------------
-# BUILD STAGE (production build)
-# --------------------------------------------------
+# ---------- Build stage (production build) ----------
 # Use Bun image for build stage so `bun` commands are available
 FROM base AS builder
-# Install dependencies for the build
-# ca-certificates required for HTTPS connectivity checks (S3, CDN)
-# fontconfig + fonts-dejavu required for @react-pdf/renderer PDF generation during static generation
+
+# 1. System packages (rarely changes) - FIRST for maximum cache reuse
+#    ca-certificates required for HTTPS connectivity checks (S3, CDN)
+#    fontconfig + fonts-dejavu required for @react-pdf/renderer PDF generation during static generation
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl bash fontconfig fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
-# Set environment variables for build
+# 2. Static environment variables (rarely changes)
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
-# Set NODE_ENV for the build process
 ENV NODE_ENV=production
 # Indicate process is running inside Docker container
 ENV RUNNING_IN_DOCKER=true
@@ -106,7 +115,7 @@ ENV SENTRY_LOG_LEVEL=info
 # The cache directive has strict timeouts that cause failures during SSG
 ENV USE_NEXTJS_CACHE=false
 
-# Accept and propagate public env vars for Next.js build
+# 3. Accept and propagate public env vars for Next.js build (changes occasionally)
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
 ARG NEXT_PUBLIC_SITE_URL
 ARG DEPLOYMENT_ENV
@@ -140,9 +149,8 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy entire source code
 COPY . .
 
-# Previously we materialised the entire bookmark corpus during build. As of 2025-11, sitemap
-# generation and dynamic routes stream paginated data directly from S3/CDN at runtime, so no
-# build-time snapshot is required here.
+# Sitemap generation and dynamic routes stream paginated data directly from S3/CDN at runtime,
+# so no build-time bookmark snapshot is required.
 
 # Quick connectivity verification so CI/CD logs capture upstream reachability before the Next.js build.
 RUN bash -c 'set -euo pipefail \
@@ -158,8 +166,6 @@ RUN bash -c 'set -euo pipefail \
      else \
        echo "⚠️  NEXT_PUBLIC_S3_CDN_URL not set; skipping CDN connectivity check"; \
      fi'
-
-# Pre-build checks disabled to avoid network hang during build
 
 # Now build the app using bun (Bun) to avoid OOM issues
 # Note: Bun uses JavaScriptCore which auto-manages memory, no --max-old-space-size support
@@ -183,16 +189,17 @@ RUN bash -c "set -euo pipefail; \
       # Prune optimiser cache older than 5 days to keep layer small
       find /app/.next/cache -type f -mtime +5 -delete || true"
 
+# ---------- Runtime stage ----------
 # Production image, copy all the files and run next
+# Layer order optimized: static/rarely-changing layers first, frequently-changing last
 FROM base AS runner
 WORKDIR /app
 
-# Install runtime dependencies including Node.js for the Next.js production server
-# Note: We still need Node.js to run `next start` even though Bun is available
-# Also installing libvips for Sharp image processing, curl for healthchecks, and bash for scripts
-# fontconfig + fonts-dejavu required for @react-pdf/renderer PDF generation at runtime
-# IMPORTANT: Debian Bookworm ships Node.js 18.x but Next.js 16 requires >=20.9.0.
-# We install Node.js 22.x LTS from NodeSource to meet this requirement.
+# 1. System packages (never changes) - FIRST for maximum cache reuse
+#    Node.js for the Next.js production server, libvips for Sharp image processing,
+#    curl for healthchecks, fontconfig + fonts-dejavu for @react-pdf/renderer
+#    IMPORTANT: Debian Bookworm ships Node.js 18.x but Next.js 16 requires >=20.9.0.
+#    We install Node.js 22.x LTS from NodeSource to meet this requirement.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl gnupg libvips42 bash fontconfig fonts-dejavu-core \
     && mkdir -p /etc/apt/keyrings \
@@ -202,16 +209,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user for security (UID 1001 is standard for Next.js containers)
-# This ensures consistent permissions with Coolify and other container orchestrators
+# 2. Create non-root user (never changes) - standard UID 1001 for Next.js containers
+#    Ensures consistent permissions with Coolify and other container orchestrators
 RUN groupadd --system --gid 1001 nodejs \
     && useradd --system --uid 1001 --gid nodejs nextjs
 
+# 3. Static environment variables (rarely changes)
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-# Indicate process is running inside Docker container
 ENV RUNNING_IN_DOCKER=true
 ENV CONTAINER=true
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+# Memory configuration for Node.js (used by Next.js server)
+# Bun doesn't support this flag but Node.js respects it
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
+# 4. Build arguments and environment (rarely changes, but after static layers)
+#    Optionally inject the git commit at build time for release tracking:
+#    docker build --build-arg GIT_SHA=$(git rev-parse --short HEAD) ...
+ARG GIT_SHA=unknown
+ENV GIT_SHA=${GIT_SHA}
+LABEL org.opencontainers.image.revision=$GIT_SHA
 
 # Re-declare the build args so we can forward them (ARG values are scoped per stage)
 ARG S3_BUCKET
@@ -233,73 +252,56 @@ ENV S3_BUCKET=$S3_BUCKET \
     NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
-# Copy Next.js build output with ownership set to nextjs user
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
-# Ensure local S3 cache path exists at runtime with proper ownership
-RUN mkdir -p ./.next/cache/local-s3 && chown -R nextjs:nodejs ./.next/cache
-
-# Copy node_modules for runtime dependencies (read-only, no chown needed)
+# 5. Static dependencies (changes occasionally - when deps update)
+#    Copy node_modules for runtime dependencies (read-only, no chown needed)
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copy scripts directory
-COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
-
-# Copy script package definitions so the scheduler can run
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
-
-# Copy public directory (read-only static assets)
+# 6. Static assets and config (changes occasionally)
+#    Copy public directory (read-only static assets)
 COPY --from=builder /app/public ./public
-
-# Copy data directory with all static data files (read-only)
+#    Copy data directory with all static data files (read-only)
 COPY --from=builder /app/data ./data
-
-# Ensure TypeScript path-mapping files are available at runtime so that Bun can
-# resolve "@/*" import aliases used by our standalone scripts (e.g. update-s3).
+#    Ensure TypeScript path-mapping files are available at runtime so that Bun can
+#    resolve "@/*" import aliases used by our standalone scripts (e.g. update-s3).
 COPY --from=builder /app/tsconfig*.json ./
-
-# Runtime helper scripts (`scripts/*.ts`) import source modules directly from the
-# repository (e.g. `@/lib/*`, `@/types/*`). The `@/*` alias maps to `./src/*` in
-# tsconfig.json, so we must copy the src/ subdirectories. These folders are *not*
-# included in the Next.js production build output.
+#    Runtime helper scripts (`scripts/*.ts`) import source modules directly from the
+#    repository (e.g. `@/lib/*`, `@/types/*`). The `@/*` alias maps to `./src/*` in
+#    tsconfig.json, so we must copy the src/ subdirectories.
 COPY --from=builder /app/src/lib ./src/lib
 COPY --from=builder /app/src/types ./src/types
 COPY --from=builder /app/config ./config
-# Copy generated files (CSP hashes, bookmark caches for local fallback)
-COPY --from=builder --chown=nextjs:nodejs /app/generated ./generated
-
-# Ensure the sitemap generator used by runtime scripts is available.
-# Only the specific file is copied to minimize image size.
+#    Ensure the sitemap generator used by runtime scripts is available.
 COPY --from=builder /app/src/app/sitemap.ts ./src/app/sitemap.ts
 
-# Create writable cache directory with proper ownership for non-root user
-RUN mkdir -p /app/cache/s3_data && chown -R nextjs:nodejs /app/cache
-
-# Copy entrypoint script and make executable
+# 7. Scripts and package definitions (changes occasionally)
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --chown=nextjs:nodejs scripts/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-# Switch to non-root user for security
-# UID 1001 is standard for Next.js and works reliably with Coolify
+# 8. Create writable directories (after static copies, before dynamic content)
+RUN mkdir -p /app/cache/s3_data && chown -R nextjs:nodejs /app/cache
+
+# 9. Application build output (changes every build) - LAST for optimal caching
+#    Copy Next.js build output with ownership set to nextjs user
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+#    Copy generated files (CSP hashes, bookmark caches for local fallback)
+COPY --from=builder --chown=nextjs:nodejs /app/generated ./generated
+#    Ensure local S3 cache path exists at runtime with proper ownership
+RUN mkdir -p ./.next/cache/local-s3 && chown -R nextjs:nodejs ./.next/cache
+
+# 10. Finalize permissions and switch to non-root user
 USER nextjs
 
 EXPOSE 3000
 
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-# Memory configuration for Node.js (used by Next.js server)
-# Bun doesn't support this flag but Node.js respects it
-ENV NODE_OPTIONS="--max-old-space-size=4096"
-
-# Add healthcheck to ensure the container is properly running
-# Use the PORT env var if provided by the platform; default to 3000 otherwise
-HEALTHCHECK --interval=10s --timeout=5s --start-period=45s --retries=3 \
-  CMD sh -c 'curl --silent --show-error --fail "http://127.0.0.1:${PORT:-3000}/api/health" || exit 1'
+# Lightweight, robust healthcheck with response verification
+# Uses health endpoint and verifies valid JSON response
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
+  CMD curl -fsS --connect-timeout 2 --max-time 3 "http://127.0.0.1:${PORT:-3000}/api/health" \
+    | grep -q '"status"' || exit 1
 
 # Use entrypoint to handle data initialization, scheduler startup, and graceful shutdown
-# Note: entrypoint.sh now includes initial data population before starting scheduler
 ENTRYPOINT ["/app/entrypoint.sh"]
 # Run the package.json start script via Bun (available in the base image)
 CMD ["bun", "run", "start"]
-
-ARG BUILDKIT_INLINE_CACHE=1
-LABEL org.opencontainers.image.build=true
