@@ -93,7 +93,7 @@ alwaysApply: true
 
 - [LOC1a] All written, non-generated source files in this repository MUST be <= 350 lines (`wc -l`), including `AGENTS.md`
 - [LOC1b] SRP Enforcer: This 350-line "stick" forces modularity (DDD/SRP); > 350 lines = too many responsibilities (see [MO1d])
-- [LOC1c] **Enforcement**: `npm run lint:loc` MUST pass. `npm run validate` MUST include `lint:loc` and fail if any non-generated file exceeds the limit.
+- [LOC1c] **Enforcement**: `bun run validate` MUST include line count validation and fail if any non-generated file exceeds the limit.
 - [LOC1d] Exempt files: generated content (lockfiles, builds, artifacts)
 
 ## [MO1] No Monoliths
