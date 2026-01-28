@@ -443,9 +443,9 @@ CHROMA_DATABASE=your-database-name
 
 ## Related Documentation
 
-- See `thoughts.md` for the Thoughts content type that will use Chroma
-- See `bookmarks.md` for bookmark architecture (potential future Chroma integration)
-- See `search.md` for current keyword-based search implementation
+- See [`thoughts.md`](../features/thoughts.md) for the Thoughts content type that will use Chroma
+- See [`bookmarks.md`](../features/bookmarks.md) for bookmark architecture (potential future Chroma integration)
+- See [`search.md`](../features/search.md) for current keyword-based search implementation
 
 ## Future Considerations
 

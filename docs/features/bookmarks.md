@@ -282,6 +282,36 @@ curl http://localhost:3000/api/bookmarks/status
 - See `s3-object-storage.md` for storage patterns
 - See `opengraph.md` for metadata enrichment
 
+## Data Requirements & Regression Warnings
+
+### Critical: Image Data Requirements by Use Case
+
+**The most common regression in this codebase is missing images in UI components due to `includeImageData: false`**
+
+#### UI Components (MUST include image data)
+
+1.  **RelatedContent Component** (`components/features/related-content/`):
+    - Data sources: `aggregateAllContent()` (precomputes preview metadata + best image URL) and `getCachedBookmarks()` (lightweight unless overridden).
+    - Why: Displays bookmark thumbnails in "Discover Similar Content".
+
+2.  **Bookmark Cards/Lists**: Any component rendering bookmark cards with visual previews.
+
+#### Build-Time Operations (can exclude image data)
+
+These operations only need metadata and can safely use `includeImageData: false`:
+
+1.  **Sitemap Generation** (`app/sitemap.ts`): Only needs URLs and slugs.
+2.  **Slug Mapping Generation**: Only needs bookmark IDs and titles.
+3.  **Search Index Building**: Only needs text content.
+
+#### Common Regression Pattern
+
+1.  Developer sees memory usage during build.
+2.  Adds `includeImageData: false` to optimize.
+3.  UI components lose their images (missing thumbnails).
+
+**Solution**: NEVER change `includeImageData` without checking all consumers.
+
 ## Deployment & Automatic Data Population (Integrated)
 
 This consolidates deployment details for bookmarks data population and scheduler behavior.

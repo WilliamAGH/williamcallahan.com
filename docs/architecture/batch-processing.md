@@ -155,6 +155,14 @@ S3_GITHUB_CRON="0 0 * * *"
 S3_LOGOS_CRON="0 1 * * 0"
 ```
 
+### Environment Detection
+
+The system detects the environment in this order:
+
+1. `DEPLOYMENT_ENV` env var
+2. URL detection (`API_BASE_URL` / `NEXT_PUBLIC_SITE_URL`)
+3. `NODE_ENV`
+
 ### Staggered Execution
 
 The schedules are deliberately staggered to prevent resource contention:
