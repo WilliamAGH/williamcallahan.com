@@ -665,3 +665,34 @@ When stuck, use:
   +| `@typescript-eslint/no-explicit-any` | `const x: any = ...` | Replace with `unknown` and validate |
 
 Remember: **Zero tolerance for type safety violations. Every line must be provably correct.**
+
+## Utility Commands
+
+### Codebase Analysis
+
+```bash
+# Find files over ~400 LOC (warning threshold)
+find . \( -name "*.ts" -o -name "*.tsx" \) -exec wc -l {} + | awk '$1 > 400' | sort -n
+
+# Search for existing functionality
+grep -r "[keyword]" --include="*.ts" --include="*.tsx" .
+
+# Review types for a domain
+find src/types/ -name "*.ts" | xargs rg -n "[domain]"
+```
+
+### Search Strategies for "Update All Usages"
+
+```bash
+# Imports
+grep -r "import.*Thing" --include="*.ts" --include="*.tsx" .
+
+# Call sites
+grep -r "thing(" --include="*.ts" --include="*.tsx" .
+
+# Types
+grep -r "Thing" --include="*.ts" --include="*.tsx" .
+
+# Tests
+grep -r "Thing" --include="*.test.ts" --include="*.spec.ts" .
+```

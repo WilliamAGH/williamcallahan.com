@@ -104,7 +104,7 @@ alwaysApply: true
 - [MO1d] Strict SRP: each unit serves one actor; separate logic that changes for different reasons
 - [MO1e] Boundary rule: cross-module interaction happens only through explicit, typed contracts with dependencies pointing inward; don’t reach into other modules’ internals or mix web/use-case/domain/persistence concerns in one unit
 - [MO1f] Decision Logic: New feature → New file; Bug fix → Edit existing; Logic change → Extract/Replace
-- [MO1g] Extension (OCP): Add functionality via new classes/composition; do not modify stable code to add features; see `docs/contracts/code-change.md`
+- [MO1g] Extension (OCP): Add functionality via new classes/composition; do not modify stable code to add features; see `docs/standards/code-change.md`
 
 ## [UP1] Comprehensive Code Update Protocol
 
@@ -144,7 +144,7 @@ alwaysApply: true
 ## [AR1] Mandatory Pre-Task Workflow (Before Any Code Changes)
 
 - [AR1a] Purpose alignment: state the “why” and confirm intended behavior before editing.
-- [AR1b] Architecture discovery: read `docs/projects/structure/00-architecture-entrypoint.md`, then the relevant domain doc, any related `.mmd` diagrams, and `docs/projects/file-overview-map.md`.
+- [AR1b] Architecture discovery: read `docs/architecture/README.md`, then the relevant domain doc, any related `.mmd` diagrams, and `docs/file-map.md`.
 - [AR1c] Type review: read the relevant definitions in `types/` and `types/schemas/` before changing/adding types.
 - [AR1d] Existing-first: search the codebase for existing implementations before writing new ones.
 - [AR1e] Version verification: confirm dependency versions via `package.json`; consult `node_modules/<package>/{package.json,README.md,CHANGELOG.md}` and/or source where relevant; for Next/React/Jest specifics, also follow [FW1].
@@ -152,9 +152,9 @@ alwaysApply: true
 ## [DOC1] Documentation & Architecture Sync
 
 - [DOC1a] When you create/delete/move/significantly change files, update:
-  - `docs/projects/structure/00-architecture-entrypoint.md`
-  - `docs/projects/file-overview-map.md`
-  - the relevant `docs/projects/structure/[domain].md`
+  - `docs/architecture/README.md`
+  - `docs/file-map.md`
+  - the relevant `docs/features/[domain].md` or `docs/architecture/[domain].md`
 - [DOC1b] Verify changes do not violate documented architecture/patterns; fix stale docs immediately.
 
 ## [FW1] Next.js / React / Jest Enforcement (Evidence Required)
@@ -163,7 +163,7 @@ alwaysApply: true
   - Verify current versions in `package.json` before you act (then confirm via `node_modules/<pkg>/package.json` when needed).
 - [FW1b] Before any change touching Next.js/React/Jest behavior, verify by reading relevant `node_modules/` sources; do not rely on memory or blog posts.
 - [FW1c] For such tasks, perform at least one MCP lookup (Context7/DeepWiki/Brave) for current guidance and retain the URL/reference in your notes/final answer.
-- [FW1d] Required reading: `docs/projects/structure/next-js-16-usage.md` before framework-level changes; update it if your work changes expectations.
+- [FW1d] Required reading: `docs/standards/nextjs-framework.md` before framework-level changes; update it if your work changes expectations.
 - [FW1e] Default expectations: Cache Components + React 19 primitives + modern async params/metadata flows; confirm behavior against `cacheComponents` and related Next internals (see `node_modules/next/dist/server/config.js` and `node_modules/next/dist/server/request/params.js`); reject legacy patterns unless explicitly approved (e.g., `next/legacy/image`, synchronous `cookies()` shims, `unstable_cache*` aliases).
 - [FW1f] Jest compliance: any test harness change must reference `config/jest/` and verify the Jest runtime (see `node_modules/jest/package.json`); never add tooling that downgrades Jest APIs or adds polyfills to “make tests pass”.
 
@@ -225,8 +225,8 @@ alwaysApply: true
 
 ## [APP] Reference Contracts
 
-- **Project Config**: `docs/contracts/project-config.md` ([CFG1], [VC1])
-- **Framework Evidence**: `docs/contracts/framework-evidence.md` ([FWX])
-- **Type Policy**: `docs/contracts/type-policy.md` ([SCX])
-- **Testing Protocols**: `docs/contracts/testing.md` ([TSTX])
-- **Deployment**: `docs/domains/deployment-verification.md` ([DEPX])
+- **Project Config**: `docs/standards/project-config.md` ([CFG1], [VC1])
+- **Framework Evidence**: `docs/standards/nextjs-framework.md` ([FWX])
+- **Type Policy**: `docs/standards/type-policy.md` ([SCX])
+- **Testing Protocols**: `docs/standards/testing.md` ([TSTX])
+- **Deployment**: `docs/ops/verification.md` ([DEPX])

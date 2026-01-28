@@ -131,6 +131,23 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 - **Unified stack map**: The holistic flow (client -> Next -> API -> service -> S3/CDN) lives in [`s3-image-unified-stack.md`](./s3-image-unified-stack.md).
 - **Next.js 16 policies**: See `docs/projects/structure/next-js-16-usage.md` for caching, cache components, and outlawed patterns before changing API routes or components.
 
+## Idempotency & Determinism (Deep Dive)
+
+Ensures education and experience domains ALWAYS fetch institution/company logos from S3 CDN idempotently - same domain input always produces same CDN URL output, preventing duplicate fetches and ensuring consistent branding.
+
+### Key Mechanisms
+
+1.  **Deterministic S3 Keys**: `lib/utils/s3-key-generator.ts` generates deterministic keys from domain+source+hash (`unified-image-service.ts:575-582`).
+2.  **In-Flight Deduplication**: `unified-image-service.ts:170-177` prevents concurrent fetches for the same domain by sharing Promises.
+3.  **Pre-flight S3 Check**: `unified-image-service.ts:201-238` checks existing S3 keys before external fetch to avoid unnecessary API calls.
+4.  **Domain Normalization**: `lib/utils/domain-utils.ts` normalizes URLs to consistent domains (case-insensitive) for consistent caching.
+
+### Idempotency Risks & Mitigations
+
+- **Non-Deterministic Hash**: Uses both SHA-256 (preferred) and MD5 (legacy support).
+- **Multiple Sources**: Same domain may have different S3 keys for google vs duckduckgo sources.
+- **Session Tracking**: `unified-image-service.ts:48-52` prevents repeated failures in the same session (30min reset).
+
 Keep this document synchronized with real code: every new image entry point, validator, or S3 directory must be recorded here with file references so future debugging starts from truth instead of guesswork.
 
 ## Next.js Optimizer Guardrails

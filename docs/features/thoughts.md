@@ -151,3 +151,26 @@ For filtering UI and category counts:
 - Search indexing
 - Related content via embedding similarity
 - RSS/Atom feed generation
+
+## Chroma Integration (Semantic Features)
+
+Thoughts are integrated with Chroma vector store to enable semantic features: related content discovery, auto-categorization, and tag suggestions (see [Chroma Architecture](../architecture/chroma.md)).
+
+### Design Principles
+
+1.  **Per-type collections**: Thoughts live in a `thoughts` collection.
+2.  **Source of Truth**: Primary store (JSON/S3) owns content; Chroma is a derived index.
+3.  **Embedding Strategy**: `title + " " + content` (full semantic capture).
+
+### Sync Operations (`lib/thoughts/chroma-sync.ts`)
+
+- **`syncThoughtToChroma(thought)`**: Upserts a thought (ID, embeddings, metadata) to Chroma. Metadata includes `slug`, `title`, `category`, `tags` (comma-separated string), `createdAt`, and `draft`.
+- **`removeThoughtFromChroma(thoughtId)`**: Deletes a thought from the index.
+- **`fullSyncThoughtsToChroma(thoughts)`**: Clears and repopulates the collection (useful for rebuilds).
+
+### Semantic Queries (`lib/thoughts/chroma-queries.ts`)
+
+- **`getRelatedThoughts(thoughtId, limit)`**: Finds semantically similar thoughts (excludes source and drafts).
+- **`searchThoughts(query, options)`**: Semantic search across thoughts with filters for category/drafts.
+- **`suggestCategory(content, title)`**: Suggests a category based on similar existing thoughts.
+- **`suggestTags(content, title)`**: Suggests tags based on similar thoughts (weighted by distance).

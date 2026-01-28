@@ -1,10 +1,7 @@
 # Repository Files Review Tracker
 
 > **Functionality Column Guidance:**
-> The `Functionality` column is crucial for keeping our documentation synchronized. Each value in this column should directly correspond to the base filename of an architecture document in `docs/projects/structure/` (e.g., a `Functionality` of `github-activity` maps to `docs/projects/structure/github-activity.md`). This creates a direct link between the code and its documentation.
->
-> **Renaming and Stability:**
-> You can and should rename the documentation files in `docs/projects/structure/` if their names no longer accurately reflect their content. When you do, be sure to update the corresponding `Functionality` values in this checklist to maintain the link. While we aim for stability, clarity is more important.
+> The `Functionality` column maps to the documentation files in `docs/features/`, `docs/architecture/`, `docs/standards/`, or `docs/ops/`. Each value corresponds to the base filename of the relevant documentation (e.g., `github-activity` maps to `docs/features/github-activity.md`).
 
 ## Contents
 
@@ -511,12 +508,17 @@ File/Path Functionality Description
 
 ## Docs Directory
 
-- [ ] **projects/**
-  - [ ] **structure/**
-    - [x] `next-js-16-usage.md` `next-js-16-usage` - Framework enforcement guide for Next.js 16 / React 19 / Jest 30 (2025-11-08)
-    - [ ] `*.md` `` - Architecture documentation
-  - [ ] `*.md` `` - Project documentation
-- [ ] `*.md` `` - General documentation
+- [ ] **architecture/**
+  - [x] `README.md` `overview` - Architecture entrypoint
+  - [x] `*.md` `` - System architecture documentation
+- [ ] **features/**
+  - [x] `*.md` `` - Feature-specific documentation
+- [ ] **standards/**
+  - [x] `coding-standards.md` `linting-formatting` - Code style and linting rules
+  - [x] `nextjs-framework.md` `next-js-16-usage` - Framework enforcement guide
+  - [x] `testing.md` `testing-config` - Testing protocols
+- [ ] **ops/**
+  - [x] `*.md` `` - Operations and deployment guides
 
 ## Tests Directory
 
