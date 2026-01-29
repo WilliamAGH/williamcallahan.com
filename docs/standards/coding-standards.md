@@ -679,8 +679,8 @@ Remember: **Zero tolerance for type safety violations. Every line must be provab
 ### Codebase Analysis
 
 ```bash
-# Find files over ~400 LOC (warning threshold)
-find . \( -name "*.ts" -o -name "*.tsx" \) -exec wc -l {} + | awk '$1 > 400' | sort -n
+# Find files over ~350 LOC (warning threshold aligns with ceiling)
+find . \( -name "*.ts" -o -name "*.tsx" \) -exec wc -l {} + | awk '$1 > 350' | sort -n
 
 # Search for existing functionality
 grep -r "[keyword]" --include="*.ts" --include="*.tsx" .
