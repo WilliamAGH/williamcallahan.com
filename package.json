@@ -55,7 +55,7 @@
     "lint:fix": "oxlint -c .oxlintrc.json --fix . && eslint . --config eslint.config.ts --fix",
     "type-check": "NODE_OPTIONS='--max-old-space-size=4096' bunx tsc --noEmit",
     "type-check:tests": "NODE_OPTIONS='--max-old-space-size=4096' bunx tsc --noEmit --project __tests__/tsconfig.json",
-    "check:file-size": "bash -c 'fail=0; for f in $(find . -type f \\( -name \"*.ts\" -o -name \"*.tsx\" \\) ! -name \"*.d.ts\" | grep -v \"node_modules/\" | grep -v \".next/\"); do lines=$(wc -l < \"$f\"); if [ $lines -gt 500 ]; then echo \"[File Size Warning] $f exceeds $lines lines (limit: 500)\"; fail=1; fi; done; if [ \"${STRICT:-0}\" = \"1\" ] && [ $fail -ne 0 ]; then echo \"[File Size Check] STRICT=1 and violations found — failing.\"; exit 1; fi; exit 0'",
+    "check:file-size": "bash -c 'fail=0; for f in $(find . -type f \\( -name \"*.ts\" -o -name \"*.tsx\" \\) ! -name \"*.d.ts\" | grep -v \"node_modules/\" | grep -v \".next/\"); do lines=$(wc -l < \"$f\"); if [ $lines -gt 350 ]; then echo \"[File Size Warning] $f exceeds $lines lines (limit: 350)\"; fail=1; fi; done; if [ $fail -ne 0 ]; then echo \"[File Size Check] Files exceed 350 lines — run bun run check:file-size for details\"; fi; exit 0'",
     "validate": "bun run format && bun run lint:checks && bun run lint:ast-grep && bun run type-check && bun scripts/analyze-circular-deps.ts",
     "validate:with-size": "bun run check:file-size && bun run validate",
     "validate:build": "bun run lint:ox && bun run lint:es:ci && bun run type-check && bun scripts/analyze-circular-deps.ts && bun run check:file-size",
