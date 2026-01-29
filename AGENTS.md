@@ -91,9 +91,9 @@ alwaysApply: true
 
 ## [LOC1] Line Count Ceiling (Repo-Wide)
 
-- [LOC1a] All written, non-generated source files in this repository MUST be <= 350 lines (`wc -l`), including `AGENTS.md`
+- [LOC1a] All written, non-generated source files in this repository SHOULD be <= 350 lines (`wc -l`), including `AGENTS.md`
 - [LOC1b] SRP Enforcer: This 350-line "stick" forces modularity (DDD/SRP); > 350 lines = too many responsibilities (see [MO1d])
-- [LOC1c] **Enforcement**: `bun run validate` MUST include line count validation and fail if any non-generated file exceeds the limit.
+- [LOC1c] **Enforcement**: `bun run check:file-size` reports violations (warnings); `bun run validate:with-size` includes the check. Legacy files may exceed the limit; new code MUST comply.
 - [LOC1d] Exempt files: generated content (lockfiles, builds, artifacts)
 
 ## [MO1] No Monoliths
@@ -225,8 +225,8 @@ alwaysApply: true
 
 ## [APP] Reference Contracts
 
-- **Project Config**: `docs/standards/project-config.md` ([CFG1], [VC1])
-- **Framework Evidence**: `docs/standards/nextjs-framework.md` ([FWX])
-- **Type Policy**: `docs/standards/type-policy.md` ([SCX])
-- **Testing Protocols**: `docs/standards/testing.md` ([TSTX])
-- **Deployment**: `docs/ops/verification.md` ([DEPX])
+- **Code Change Policy**: `docs/standards/code-change.md` ([LOC1], [MO1], [FS1])
+- **Framework Evidence**: `docs/standards/nextjs-framework.md` ([FW1])
+- **Type Policy**: `docs/standards/type-policy.md` ([SC1])
+- **Testing Protocols**: `docs/standards/testing.md` ([TST1])
+- **Deployment**: `docs/ops/verification.md` ([DEP1])
