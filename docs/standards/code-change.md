@@ -75,5 +75,5 @@ A file contains either:
 
 ## Verification gates (do not skip)
 
-- LOC enforcement: `npm run lint:loc` (if available) or strict manual check ([LOC1c]).
+- LOC enforcement: `bun run check:file-size` reports violations ([LOC1c]).
 - Validation: `bun run validate` ([VR1a]).
