@@ -187,7 +187,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                         <OptimizedCardImage
                           src={featuredImage}
                           alt={`Preview of ${bookmark.title}`}
-                          priority
+                          preload
                           className="!transition-none"
                         />
                         {/* Hover overlay */}

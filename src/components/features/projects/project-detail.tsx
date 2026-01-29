@@ -169,7 +169,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
                       <OptimizedCardImage
                         src={imageUrl}
                         alt={`Screenshot of ${project.name}`}
-                        priority
+                        preload
                         className="!transition-none"
                       />
                       {/* Hover overlay */}
