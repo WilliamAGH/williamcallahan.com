@@ -8,7 +8,7 @@
  */
 
 import "dotenv/config"; // Make sure all environment variables are loaded
-import type { UnifiedBookmark } from "@/types";
+import { unifiedBookmarksArraySchema, type UnifiedBookmark } from "@/types/bookmark";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import { isValidImageUrl } from "@/lib/utils/opengraph-utils";
@@ -35,10 +35,16 @@ async function refreshAllOpenGraphImages() {
 
   try {
     // 1. Fetch all bookmarks from your persistent storage (S3), skipping a full remote refresh.
-    const bookmarks = (await getBookmarks({
+    const rawBookmarks = await getBookmarks({
       skipExternalFetch: true,
       includeImageData: true,
-    })) as UnifiedBookmark[];
+    });
+    const parseResult = unifiedBookmarksArraySchema.safeParse(rawBookmarks);
+    if (!parseResult.success) {
+      console.error("Failed to parse bookmarks as UnifiedBookmark[]:", parseResult.error.message);
+      process.exit(1);
+    }
+    const bookmarks: UnifiedBookmark[] = parseResult.data;
     console.log(`Found ${bookmarks.length} bookmarks to process.`);
 
     if (bookmarks.length === 0) {
