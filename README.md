@@ -23,19 +23,19 @@ docker build -t williamcallahan-com .
 docker run -d -p 3000:3000 williamcallahan-com
 ```
 
-For production deployment with persistent storage, see the [Docker Deployment Guide](docs/operations/docker-deployment-guide.md).
+For production deployment with persistent storage, see the [Deployment Guide](docs/ops/deployment.md).
 
 ## Documentation
 
-- **Architecture Overview**: [Entry Point](docs/projects/structure/00-architecture-entrypoint.md)
-- **File Structure Map**: [File Overview](docs/projects/file-overview-map.md)
+- **Architecture Overview**: [docs/architecture/README.md](docs/architecture/README.md)
+- **Feature Documentation**: [docs/features/](docs/features/)
 - **Agent Rules**: [AGENTS.md](AGENTS.md)
 
 ## Operations & Runbooks
 
-- [Docker Deployment Guide](docs/operations/docker-deployment-guide.md)
-- [Data Pipeline Operations](docs/operations/data-pipeline-operations.md)
-- [Logo Cache Operations](docs/operations/logo-cache-operations.md)
+- [Deployment Guide](docs/ops/deployment.md)
+- [Observability & Monitoring](docs/ops/observability.md)
+- [Verification](docs/ops/verification.md)
 
 ## Core Features
 
