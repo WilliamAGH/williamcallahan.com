@@ -113,7 +113,9 @@ async function toRelatedContentItem(
           if (manifestEntry?.cdnUrl) {
             logoUrl = ensureAbsoluteUrl(manifestEntry.cdnUrl);
           } else {
-            const runtimeUrl = getRuntimeLogoUrl(effectiveDomain, { company: investmentDetails?.name });
+            const runtimeUrl = getRuntimeLogoUrl(effectiveDomain, {
+              company: investmentDetails?.name,
+            });
             logoUrl = runtimeUrl ? ensureAbsoluteUrl(runtimeUrl) : ensureAbsoluteUrl(getCompanyPlaceholder());
           }
         } else {
@@ -283,7 +285,8 @@ export async function RelatedContent({
       });
 
       // Filter by excludeTags BEFORE applying limits to ensure we get the requested count
-      const filteredItems = (await Promise.all(relatedItemPromises))
+      const resolvedItems = await Promise.all(relatedItemPromises);
+      const filteredItems = resolvedItems
         .filter((i): i is RelatedContentItem => i !== null)
         .filter(i => !hasExcludedTag(i.metadata.tags));
 
@@ -325,9 +328,8 @@ export async function RelatedContent({
           const extraSimilar = findMostSimilar(source, candidates, maxTotal * 2, weights);
 
           // Prepare slug mapping only if needed for bookmarks in the extras
-          const extraItems = (await Promise.all(extraSimilar.map(item => toRelatedContentItem(item)))).filter(
-            (i): i is RelatedContentItem => i !== null,
-          );
+          const extraItemsResolved = await Promise.all(extraSimilar.map(item => toRelatedContentItem(item)));
+          const extraItems = extraItemsResolved.filter((i): i is RelatedContentItem => i !== null);
 
           // Merge, dedupe, and re-limit per type and total
           const merged: RelatedContentItem[] = [];
@@ -393,7 +395,8 @@ export async function RelatedContent({
         return relatedItem;
       });
 
-      const relatedItems = (await Promise.all(relatedItemPromises)).filter((i): i is RelatedContentItem => i !== null);
+      const resolvedRelatedItems = await Promise.all(relatedItemPromises);
+      const relatedItems = resolvedRelatedItems.filter((i): i is RelatedContentItem => i !== null);
 
       if (relatedItems.length === 0) {
         return null;
@@ -458,7 +461,8 @@ export async function RelatedContent({
       return relatedItem;
     });
 
-    const relatedItems = (await Promise.all(relatedItemPromises)).filter((i): i is RelatedContentItem => i !== null);
+    const resolvedItems = await Promise.all(relatedItemPromises);
+    const relatedItems = resolvedItems.filter((i): i is RelatedContentItem => i !== null);
 
     // Return nothing if no related items found
     if (relatedItems.length === 0) {

@@ -26,5 +26,4 @@ export function extractMarkdownContent(): Promise<ExtractedContent | null> {
  */
 export function applyExtractedContent(): void {
   // Function disabled - no content extraction or application
-  return;
 }

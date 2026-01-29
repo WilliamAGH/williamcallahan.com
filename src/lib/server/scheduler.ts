@@ -141,6 +141,7 @@ cron.schedule(bookmarksCron, () => {
             } else {
               console.error(`[Scheduler] [Bookmarks] Cache invalidation failed with status ${response.status}`);
             }
+            return null;
           })
           .catch(error => {
             clearTimeout(timeoutId);
@@ -239,6 +240,7 @@ cron.schedule(githubCron, () => {
             } else {
               console.error(`[Scheduler] [GitHub] Cache invalidation failed with status ${response.status}`);
             }
+            return null;
           })
           .catch(error => {
             clearTimeout(timeoutId);

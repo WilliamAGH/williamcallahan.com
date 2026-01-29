@@ -230,13 +230,31 @@ export async function GET(request: NextRequest) {
 
       // Add category prefixes for clarity in terminal (single source of truth for all prefixes)
       const prefixedBlogResults = blogResults.map(r => ({ ...r, title: `[Blog] ${r.title}` }));
-      const prefixedInvestmentResults = investmentResults.map(r => ({ ...r, title: `[Investments] ${r.title}` }));
-      const prefixedExperienceResults = experienceResults.map(r => ({ ...r, title: `[Experience] ${r.title}` }));
-      const prefixedEducationResults = educationResults.map(r => ({ ...r, title: `[Education] ${r.title}` }));
-      const prefixedBookmarkResults = bookmarkResults.map(r => ({ ...r, title: `[Bookmark] ${r.title}` }));
-      const prefixedProjectResults = projectResults.map(r => ({ ...r, title: `[Projects] ${r.title}` }));
+      const prefixedInvestmentResults = investmentResults.map(r => ({
+        ...r,
+        title: `[Investments] ${r.title}`,
+      }));
+      const prefixedExperienceResults = experienceResults.map(r => ({
+        ...r,
+        title: `[Experience] ${r.title}`,
+      }));
+      const prefixedEducationResults = educationResults.map(r => ({
+        ...r,
+        title: `[Education] ${r.title}`,
+      }));
+      const prefixedBookmarkResults = bookmarkResults.map(r => ({
+        ...r,
+        title: `[Bookmark] ${r.title}`,
+      }));
+      const prefixedProjectResults = projectResults.map(r => ({
+        ...r,
+        title: `[Projects] ${r.title}`,
+      }));
       const prefixedBookResults = bookResults.map(r => ({ ...r, title: `[Books] ${r.title}` }));
-      const prefixedThoughtResults = thoughtResults.map(r => ({ ...r, title: `[Thoughts] ${r.title}` }));
+      const prefixedThoughtResults = thoughtResults.map(r => ({
+        ...r,
+        title: `[Thoughts] ${r.title}`,
+      }));
       // Tag results already have hierarchical format: [Blog] > [Tags] > React
       // No additional prefix needed
 

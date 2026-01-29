@@ -257,7 +257,12 @@ describeIfChroma("Thoughts Chroma Sync", () => {
 
       // Simulate existing documents in collection
       mockCollection.get
-        .mockResolvedValueOnce({ ids: ["existing-1", "existing-2"], embeddings: [], metadatas: [], documents: [] })
+        .mockResolvedValueOnce({
+          ids: ["existing-1", "existing-2"],
+          embeddings: [],
+          metadatas: [],
+          documents: [],
+        })
         .mockResolvedValueOnce({ ids: [], embeddings: [], metadatas: [], documents: [] });
 
       const thoughts = [createTestThought()];

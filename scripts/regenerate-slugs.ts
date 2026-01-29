@@ -14,7 +14,7 @@ import type { UnifiedBookmark } from "@/types";
  */
 function validateBookmarks(data: unknown): UnifiedBookmark[] {
   if (!Array.isArray(data)) {
-    throw new Error("[SlugRegen] Expected array of bookmarks, got: " + typeof data);
+    throw new TypeError("[SlugRegen] Expected array of bookmarks, got: " + typeof data);
   }
 
   // Validate essential fields exist on each bookmark

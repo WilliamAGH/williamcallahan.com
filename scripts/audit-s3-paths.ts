@@ -238,7 +238,7 @@ async function auditS3Paths() {
 }
 
 // Run the audit
-auditS3Paths()
+await auditS3Paths()
   .catch(err => {
     console.error(err);
   })

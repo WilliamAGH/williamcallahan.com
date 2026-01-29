@@ -170,7 +170,10 @@ export async function POST(request: Request): Promise<Response> {
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { success: false, error: `File size exceeds maximum of ${MAX_FILE_SIZE / (1024 * 1024)}MB` },
+        {
+          success: false,
+          error: `File size exceeds maximum of ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
+        },
         { status: 400, headers: CORS_HEADERS },
       );
     }

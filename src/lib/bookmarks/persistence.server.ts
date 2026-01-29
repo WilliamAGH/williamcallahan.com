@@ -83,7 +83,9 @@ export async function writePaginatedBookmarks(
   // Save slug mapping for backward compatibility and static generation
   try {
     await saveSlugMapping(bookmarks, true, false);
-    logBookmarkDataAccessEvent("Saved slug mapping after writing pages", { bookmarkCount: bookmarks.length });
+    logBookmarkDataAccessEvent("Saved slug mapping after writing pages", {
+      bookmarkCount: bookmarks.length,
+    });
   } catch (error) {
     console.error(`${LOG_PREFIX} Warning: Failed to save slug mapping (bookmarks have embedded slugs):`, error);
     // Not critical since bookmarks have embedded slugs
@@ -280,7 +282,9 @@ export async function writeBookmarkMasterFiles(bookmarksWithSlugs: UnifiedBookma
  */
 export async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark[]): Promise<void> {
   if (!ENABLE_TAG_PERSISTENCE) {
-    envLogger.log("Tag persistence disabled by environment variable", undefined, { category: LOG_PREFIX });
+    envLogger.log("Tag persistence disabled by environment variable", undefined, {
+      category: LOG_PREFIX,
+    });
     return;
   }
 
@@ -322,7 +326,11 @@ export async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark
 
   envLogger.log(
     `Persisting ${tagsToProcess.length} of ${allTags.length} tags to S3 storage`,
-    { totalTags: allTags.length, persistingCount: tagsToProcess.length, limit: MAX_TAGS_TO_PERSIST },
+    {
+      totalTags: allTags.length,
+      persistingCount: tagsToProcess.length,
+      limit: MAX_TAGS_TO_PERSIST,
+    },
     { category: LOG_PREFIX },
   );
 

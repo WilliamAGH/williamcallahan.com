@@ -79,7 +79,10 @@ const resolveFontFamily = (() => {
         ];
 
         const missingFiles = serverFonts
-          .map(definition => ({ ...definition, absolutePath: path.join(fontsDir, definition.filename) }))
+          .map(definition => ({
+            ...definition,
+            absolutePath: path.join(fontsDir, definition.filename),
+          }))
           .filter(definition => !existsSync(definition.absolutePath));
 
         if (missingFiles.length > 0) {

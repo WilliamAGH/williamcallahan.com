@@ -393,9 +393,10 @@ export async function persistImageAndGetS3UrlWithStatus(
     if (!isInternalAsset && !isDataUrl) {
       try {
         // Try HEAD first, then gracefully fall back to a 1-byte GET if HEAD is blocked.
-        const headResult = await fetch(imageUrl, { method: "HEAD", signal: AbortSignal.timeout(5000) }).catch(
-          () => null,
-        );
+        const headResult = await fetch(imageUrl, {
+          method: "HEAD",
+          signal: AbortSignal.timeout(5000),
+        }).catch(() => null);
         let headOk = !!(headResult?.ok && headResult.headers.get("content-type")?.startsWith("image/"));
 
         if (!headOk && headResult && [405, 501].includes(headResult.status)) {

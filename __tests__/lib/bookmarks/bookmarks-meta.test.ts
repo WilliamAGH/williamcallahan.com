@@ -75,7 +75,12 @@ import { setRefreshBookmarksCallback } from "@/lib/bookmarks/refresh-logic.serve
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { readJsonS3 } from "@/lib/s3-utils";
 
-const createTag = (name: string) => ({ id: name, name, slug: name.replace(/\s+/g, "-"), color: undefined });
+const createTag = (name: string) => ({
+  id: name,
+  name,
+  slug: name.replace(/\s+/g, "-"),
+  color: undefined,
+});
 
 const mockBookmarks: UnifiedBookmark[] = [
   {

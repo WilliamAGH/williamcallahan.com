@@ -153,6 +153,7 @@ describe("Rate Limiter", () => {
       let resolved = false;
       void waitPromise.then(() => {
         resolved = true;
+        return undefined;
       });
 
       // Advance time partially

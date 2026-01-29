@@ -105,7 +105,9 @@ export async function getBookmarksIndex(): Promise<{
         { category: "Search" },
       );
     } else {
-      devLog("[getBookmarksIndex] using cached in-memory index", { items: cached.bookmarks.length });
+      devLog("[getBookmarksIndex] using cached in-memory index", {
+        items: cached.bookmarks.length,
+      });
       return cached;
     }
   }

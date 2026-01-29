@@ -277,3 +277,30 @@ export interface TruncationMetrics {
   /** Whether Unicode-aware processing was used */
   unicodeAware: boolean;
 }
+
+/**
+ * Parameters for creating a truncation result
+ * Consolidates createResult function parameters into a single object
+ */
+export interface CreateResultParams {
+  /** The original input text */
+  original: string;
+  /** The final truncated text */
+  text: string;
+  /** Whether truncation was applied */
+  wasTruncated: boolean;
+  /** The strategy used for truncation */
+  strategy: TruncationResult["strategy"];
+  /** Length of the original text (Unicode-aware) */
+  originalLength: number;
+  /** Number of characters over the soft limit */
+  overage: number;
+  /** Time when truncation started (performance.now()) */
+  startTime: number;
+  /** Whether Unicode-aware processing was used (default: true) */
+  unicodeAware?: boolean;
+  /** Target length for truncation */
+  softLimit?: number;
+  /** Absolute maximum length before hard truncation */
+  hardLimit?: number;
+}

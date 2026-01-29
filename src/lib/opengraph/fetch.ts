@@ -290,7 +290,9 @@ async function fetchExternalOpenGraph(
           ...headers,
           // Try Googlebot UA if we've had issues before
           ...(imageService.hasDomainFailedTooManyTimes(domain)
-            ? { "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)" }
+            ? {
+                "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+              }
             : {}),
         },
       });
@@ -466,7 +468,9 @@ async function fetchExternalOpenGraph(
     envLogger.log(`Found banner image`, { bannerImageUrl }, { category: "OpenGraph" });
 
     if (isBatchMode) {
-      envLogger.log(`Batch mode: Persisting banner image synchronously`, undefined, { category: "OpenGraph" });
+      envLogger.log(`Batch mode: Persisting banner image synchronously`, undefined, {
+        category: "OpenGraph",
+      });
       const s3BannerUrl = await persistImageAndGetS3Url(
         bannerImageUrl,
         "social-banners",

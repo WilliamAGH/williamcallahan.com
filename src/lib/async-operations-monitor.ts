@@ -274,7 +274,7 @@ export async function monitoredAsync<T>(
 
     if (options.timeoutMs) {
       // Create a timeout promise that rejects after the specified time
-      const timeoutPromise = new Promise<never>((_, reject) => {
+      const timeoutPromise = new Promise<never>((_resolve, reject) => {
         timeoutId = setTimeout(() => {
           const error = new Error(`Operation "${name}" timed out after ${options.timeoutMs}ms`);
           asyncMonitor.failOperation(operationId, error, "timeout");

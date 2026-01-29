@@ -123,8 +123,18 @@ describeIfChroma("Books Chroma Sync", () => {
           publisher: "Test Publisher",
         }),
         chunks: [
-          createTestChunk({ index: 0, text: "Chapter 1 content", chapterId: "ch1", chapterTitle: "Introduction" }),
-          createTestChunk({ index: 1, text: "Chapter 2 content", chapterId: "ch2", chapterTitle: "Getting Started" }),
+          createTestChunk({
+            index: 0,
+            text: "Chapter 1 content",
+            chapterId: "ch1",
+            chapterTitle: "Introduction",
+          }),
+          createTestChunk({
+            index: 1,
+            text: "Chapter 2 content",
+            chapterId: "ch2",
+            chapterTitle: "Getting Started",
+          }),
         ],
       });
 
@@ -255,7 +265,10 @@ describeIfChroma("Books Chroma Sync", () => {
       const exists = await bookExistsInChroma("existing-book");
 
       expect(exists).toBe(true);
-      expect(mockCollection.get).toHaveBeenCalledWith({ where: { bookId: "existing-book" }, limit: 1 });
+      expect(mockCollection.get).toHaveBeenCalledWith({
+        where: { bookId: "existing-book" },
+        limit: 1,
+      });
     });
 
     it("should return false when book has no chunks", async () => {

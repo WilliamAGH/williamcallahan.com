@@ -202,7 +202,10 @@ async function fetchBooksFresh(
  * Note: fetchedAt returns 0 to be prerender-safe (Date.now() not allowed before data access)
  */
 export async function fetchBooksWithFallback(
-  options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean; allowStale?: boolean } = {},
+  options: FetchAbsLibraryItemsOptions & {
+    includeBlurPlaceholders?: boolean;
+    allowStale?: boolean;
+  } = {},
 ): Promise<{ books: Book[]; isFallback: boolean; fetchedAt: number }> {
   const { allowStale = true, ...rest } = options;
 
@@ -220,7 +223,11 @@ export async function fetchBooksWithFallback(
 
     const snapshotBooks = allowStale ? getSnapshotBooks(SNAPSHOT_TTL_MS) : null;
     if (snapshotBooks) {
-      return { books: snapshotBooks, isFallback: true, fetchedAt: lastBooksSnapshot?.fetchedAt ?? 0 };
+      return {
+        books: snapshotBooks,
+        isFallback: true,
+        fetchedAt: lastBooksSnapshot?.fetchedAt ?? 0,
+      };
     }
 
     // Return empty array instead of throwing - allows page to render gracefully

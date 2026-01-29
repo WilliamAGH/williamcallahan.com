@@ -435,7 +435,11 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
         );
       return null; // Should not happen if Body is present and Readable
     } catch (error: unknown) {
-      const err = error as { name?: string; $metadata?: { httpStatusCode?: number }; Code?: string };
+      const err = error as {
+        name?: string;
+        $metadata?: { httpStatusCode?: number };
+        Code?: string;
+      };
       if (isS3NotFound(error)) {
         if (isDebug) debug(`[S3Utils] readFromS3: Key ${key} not found (attempt ${attempt}/${MAX_S3_READ_RETRIES}).`);
         if (attempt < MAX_S3_READ_RETRIES) {
@@ -963,7 +967,9 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
       if (!isConfigured || !client) {
         // If conditional write is requested but S3 is not configured, log error and return
         // Don't throw to maintain backward compatibility with tests
-        envLogger.log("Cannot perform conditional write: S3 client not configured", undefined, { category: "S3Utils" });
+        envLogger.log("Cannot perform conditional write: S3 client not configured", undefined, {
+          category: "S3Utils",
+        });
         return;
       }
       const { PutObjectCommand } = await import("@aws-sdk/client-s3");

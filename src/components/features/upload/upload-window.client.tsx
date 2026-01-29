@@ -165,12 +165,16 @@ function DropZone({
 
   return (
     <div className="relative">
-      <label className="block text-xs font-mono uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+      <label
+        htmlFor="file-upload-input"
+        className="block text-xs font-mono uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2"
+      >
         Select File
       </label>
 
       {/* Hidden file input */}
       <input
+        id="file-upload-input"
         ref={inputRef}
         type="file"
         accept={acceptedMimeTypes.join(",")}
@@ -181,8 +185,8 @@ function DropZone({
       />
 
       {/* Drop zone */}
-      <div
-        role="button"
+      <button
+        type="button"
         tabIndex={isDisabled ? -1 : 0}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
@@ -267,7 +271,7 @@ function DropZone({
             </>
           )}
         </div>
-      </div>
+      </button>
     </div>
   );
 }
@@ -661,5 +665,5 @@ function formatFileSize(bytes: number): string {
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
 }

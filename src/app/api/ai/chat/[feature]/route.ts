@@ -260,7 +260,12 @@ export async function POST(
             .then(() => {
               sseStartedAtMs = Date.now();
               clearInterval(interval);
-              safeSend("started", { ...queue.snapshot, upstreamKey, queueWaitMs: sseStartedAtMs - enqueuedAtMs });
+              safeSend("started", {
+                ...queue.snapshot,
+                upstreamKey,
+                queueWaitMs: sseStartedAtMs - enqueuedAtMs,
+              });
+              return undefined;
             })
             .catch(() => {
               clearInterval(interval);
@@ -293,6 +298,7 @@ export async function POST(
 
               safeSend("done", { message: assistantMessage });
               safeClose();
+              return undefined;
             })
             .catch((error: unknown) => {
               const durationMs = Date.now() - start;
@@ -362,6 +368,7 @@ export async function POST(
     void task.started
       .then(() => {
         startedAtMs = Date.now();
+        return undefined;
       })
       .catch(() => {
         // Rejection is handled by await task.result below - this prevents unhandled rejection warnings

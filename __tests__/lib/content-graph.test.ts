@@ -214,7 +214,10 @@ describe("Content Graph Pre-computation", () => {
       const tagGraphCall = mockWriteJsonS3.mock.calls.find(call => call[0] === CONTENT_GRAPH_S3_PATHS.TAG_GRAPH);
 
       if (tagGraphCall) {
-        const tagGraph = tagGraphCall[1] as { tags: Record<string, any>; tagHierarchy: Record<string, string[]> };
+        const tagGraph = tagGraphCall[1] as {
+          tags: Record<string, any>;
+          tagHierarchy: Record<string, string[]>;
+        };
 
         // Should have tag data
         expect(tagGraph.tags).toHaveProperty("javascript");

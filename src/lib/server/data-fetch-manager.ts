@@ -110,7 +110,9 @@ export class DataFetchManager {
 
     try {
       // Get current cached bookmarks to compare for new additions
-      const previousBookmarks = (await getBookmarks({ skipExternalFetch: false })) as UnifiedBookmark[];
+      const previousBookmarks = (await getBookmarks({
+        skipExternalFetch: false,
+      })) as UnifiedBookmark[];
       const previousCount = previousBookmarks.length;
       // const previousBookmarkIds = new Set(previousBookmarks.map((b: UnifiedBookmark) => b.id));
 
@@ -426,6 +428,7 @@ export class DataFetchManager {
             } else {
               failureCount++;
             }
+            return undefined;
           })
           .catch(() => {
             failureCount++;
@@ -710,6 +713,7 @@ if (require.main === module) {
           logger.error(`  - ${result.operation}: Failed (${result.error})`);
         }
       });
+      return undefined;
     })
     .catch((error: unknown) => {
       logger.error("[DataFetchManagerCLI] An unexpected error occurred:", error);

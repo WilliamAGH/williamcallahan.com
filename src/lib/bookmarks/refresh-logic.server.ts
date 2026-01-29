@@ -164,7 +164,10 @@ async function hasBookmarksChanged(newBookmarks: UnifiedBookmark[]): Promise<boo
 async function saveSlugMappingOrThrow(bookmarks: UnifiedBookmark[], logSuffix: string): Promise<void> {
   try {
     await saveSlugMapping(bookmarks, true, false);
-    logBookmarkDataAccessEvent("Saved slug mapping", { context: logSuffix, bookmarkCount: bookmarks.length });
+    logBookmarkDataAccessEvent("Saved slug mapping", {
+      context: logSuffix,
+      bookmarkCount: bookmarks.length,
+    });
   } catch (error) {
     const normalizedError = error instanceof Error ? error : new Error(String(error));
     console.error(`${LOG_PREFIX} CRITICAL: Failed to save slug mapping ${logSuffix}:`, normalizedError);

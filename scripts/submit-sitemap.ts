@@ -337,7 +337,7 @@ async function processUrlIndexing(client: JWT): Promise<void> {
     }
 
     if (i + batchSize < allowedUrls.length) {
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
   console.info(`${LOG_PREFIX.google} URL-level submission complete`);

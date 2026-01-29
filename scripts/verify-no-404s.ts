@@ -122,6 +122,7 @@ async function processBatch(
             const status = result.status || "ERR";
             console.log(`${icon} [${status}] ${result.url} (${result.responseTime}ms)`);
           }
+          return undefined;
         })
         .finally(() => {
           activePromises.delete(promise);

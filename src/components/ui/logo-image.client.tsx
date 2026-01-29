@@ -119,7 +119,6 @@ export function LogoImage({
   const [isLoading, setIsLoading] = useState(true);
   const retryInitiated = useRef(false);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const originalSrc = src;
 
   const proxiedSrc = React.useMemo(() => getProxiedImageSrc(src, width), [src, width]);
 
@@ -134,7 +133,7 @@ export function LogoImage({
 
     retryInitiated.current = true;
 
-    const domain = originalSrc ? extractDomainFromSrc(originalSrc) : null;
+    const domain = src ? extractDomainFromSrc(src) : null;
     if (domain) {
       // Fire and forget – trigger server fetch/upload with correct parameter and force refresh
       void fetch(`/api/logo?website=${encodeURIComponent(domain)}&forceRefresh=true`).catch(() => {

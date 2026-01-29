@@ -18,25 +18,16 @@ import {
   type UnifiedBookmark,
   type RawApiBookmark,
   type BookmarksApiResponse as ApiResponse,
+  type BookmarksApiContext,
+  type ChecksumResult,
   bookmarksApiResponseSchema,
 } from "@/types/bookmark";
 
+// Re-export types for backward compatibility
+export type { BookmarksApiContext, ChecksumResult };
+
 // S3 prefix for raw API snapshots (environment-suffixed for isolation)
 const RAW_CACHE_PREFIX = "json/bookmarks/raw";
-
-/** Validated API configuration for bookmark fetching */
-export interface BookmarksApiContext {
-  apiUrl: string;
-  requestHeaders: { Accept: string; Authorization: string };
-}
-
-/** Result of checksum validation - either cached data or null to proceed */
-export interface ChecksumResult {
-  cached: UnifiedBookmark[] | null;
-  checksum: string;
-  latestKey: string;
-  envSuffix: string;
-}
 
 /** Validates required environment configuration and returns API context */
 export function validateApiConfig(): BookmarksApiContext {

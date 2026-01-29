@@ -174,7 +174,14 @@ export async function GET(request: NextRequest) {
       {
         data: [],
         meta: {
-          pagination: { total: 0, totalPages: 0, page: 1, limit: 0, hasNext: false, hasPrev: false },
+          pagination: {
+            total: 0,
+            totalPages: 0,
+            page: 1,
+            limit: 0,
+            hasNext: false,
+            hasPrev: false,
+          },
           computeTime: 0,
           buildPhase: true,
         },

@@ -173,9 +173,10 @@ export function onRequestError(
     // Fallback: if register() hasn't completed but Sentry is configured,
     // do a lazy import (loses request context but still captures error)
     if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
-      void import("@sentry/nextjs").then(Sentry => {
+      void (async () => {
+        const Sentry = await import("@sentry/nextjs");
         Sentry.captureException?.(error);
-      });
+      })();
     }
     return;
   }

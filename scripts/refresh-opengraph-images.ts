@@ -31,7 +31,10 @@ async function refreshAllOpenGraphImages() {
 
   try {
     // 1. Fetch all bookmarks from your persistent storage (S3), skipping a full remote refresh.
-    const bookmarks = (await getBookmarks({ skipExternalFetch: true, includeImageData: true })) as UnifiedBookmark[];
+    const bookmarks = (await getBookmarks({
+      skipExternalFetch: true,
+      includeImageData: true,
+    })) as UnifiedBookmark[];
     console.log(`Found ${bookmarks.length} bookmarks to process.`);
 
     if (bookmarks.length === 0) {

@@ -183,6 +183,7 @@ async function syncCoverImages(): Promise<void> {
 syncCoverImages()
   .then(() => {
     logger.info("Blog cover image sync complete.");
+    return undefined;
   })
   .catch(error => {
     logger.error("Blog cover image sync failed:", error);

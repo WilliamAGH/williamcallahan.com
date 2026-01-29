@@ -336,8 +336,12 @@ describe("Sitemap Generation", () => {
 
       expect(sitemapEntries).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ url: "https://williamcallahan.com/bookmarks/tags/example-tag" }),
-          expect.objectContaining({ url: "https://williamcallahan.com/bookmarks/tags/example-tag/page/2" }),
+          expect.objectContaining({
+            url: "https://williamcallahan.com/bookmarks/tags/example-tag",
+          }),
+          expect.objectContaining({
+            url: "https://williamcallahan.com/bookmarks/tags/example-tag/page/2",
+          }),
         ]),
       );
 

@@ -424,7 +424,9 @@ export function invalidateOpenGraphCache(): void {
   } else {
     // Legacy: clear memory cache
     ServerCacheInstance.deleteOpenGraphData("*");
-    envLogger.log("Legacy cache cleared for all OpenGraph data", undefined, { category: "OpenGraph" });
+    envLogger.log("Legacy cache cleared for all OpenGraph data", undefined, {
+      category: "OpenGraph",
+    });
   }
 }
 

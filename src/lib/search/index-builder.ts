@@ -138,7 +138,7 @@ function buildProjectsIndexForBuilder(): SerializedIndex {
 async function buildBookmarksIndex(): Promise<SerializedIndex> {
   const maybeBookmarks = await getBookmarks({ skipExternalFetch: false });
   if (!Array.isArray(maybeBookmarks)) {
-    throw new Error("[Search Index Builder] Unexpected bookmarks payload");
+    throw new TypeError("[Search Index Builder] Unexpected bookmarks payload");
   }
   const bookmarks = maybeBookmarks as UnifiedBookmark[];
 

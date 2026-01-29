@@ -9,14 +9,38 @@
  */
 
 import { EventEmitter } from "node:events";
-// import { ImageMemoryManager, ImageMemoryManagerInstance } from "@/lib/image-memory-manager";
-// import {
-//   MemoryHealthMonitor,
-//   getMemoryHealthMonitor,
-//   memoryHealthCheckMiddleware,
-//   memoryPressureMiddleware,
-// } from "@/lib/health/memory-health-monitor";
 import { MEMORY_THRESHOLDS } from "@/lib/constants";
+
+// Stub classes for skipped tests (actual modules not yet implemented)
+// These stubs allow the file to be linted without errors while tests remain skipped
+class ImageMemoryManager extends EventEmitter {
+  setMaxListeners(_n: number) {
+    return this;
+  }
+  getMetrics() {
+    return { cacheSize: 0, cacheBytes: 0, memoryPressure: false };
+  }
+  destroy() {
+    /* no-op */
+  }
+  setMemoryPressure(_v: boolean) {
+    /* no-op */
+  }
+}
+const ImageMemoryManagerInstance = new ImageMemoryManager();
+
+class MemoryHealthMonitor {
+  getCurrentStatus() {
+    return { isHealthy: true, memoryPressure: "none" as const };
+  }
+  checkHealth() {
+    return { isHealthy: true };
+  }
+}
+const getMemoryHealthMonitor = () => new MemoryHealthMonitor();
+const memoryHealthCheckMiddleware = jest.fn();
+const memoryPressureMiddleware = jest.fn();
+
 import type { ImageCacheEntry } from "@/types/cache";
 import type { ImageMemoryMetrics } from "@/types/image";
 import type { MemoryMetrics } from "@/types/health";

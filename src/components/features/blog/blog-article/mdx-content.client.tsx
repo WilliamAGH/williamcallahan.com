@@ -438,7 +438,12 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
           const outerId = outer?.getAttribute("id") || "";
           const outerClass = outer?.getAttribute("class") || "";
           const innerClass = (node as HTMLElement).className || "";
-          return { outerId, outerClass, innerClass, innerHTML: (node as HTMLElement).innerHTML.slice(0, 120) };
+          return {
+            outerId,
+            outerClass,
+            innerClass,
+            innerHTML: (node as HTMLElement).innerHTML.slice(0, 120),
+          };
         });
       // Group logs (development only)
       console.groupCollapsed(
@@ -453,8 +458,14 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     if (footnoteAnchors.length > 0) {
       const sample = Array.from(footnoteAnchors)
         .slice(0, 10)
-        .map(a => ({ href: (a as HTMLAnchorElement).getAttribute("href"), text: a.textContent?.slice(0, 60) }));
-      console.debug("[MDX Diagnostics] Footnote anchors detected:", { count: footnoteAnchors.length, sample });
+        .map(a => ({
+          href: (a as HTMLAnchorElement).getAttribute("href"),
+          text: a.textContent?.slice(0, 60),
+        }));
+      console.debug("[MDX Diagnostics] Footnote anchors detected:", {
+        count: footnoteAnchors.length,
+        sample,
+      });
     }
 
     // 3) Superscripts inventory
@@ -552,7 +563,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
           if (
             isValidElement<{ children?: React.ReactNode }>(node) &&
             node.type === "p" &&
-            Object.prototype.hasOwnProperty.call(node, "props")
+            Object.hasOwn(node, "props")
           ) {
             return (node as React.ReactElement<{ children?: React.ReactNode }>).props.children;
           }
@@ -607,16 +618,22 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
         </sup>
       ),
       /** Renderer for `<h1>` elements, applying specific Tailwind CSS classes for styling. */
-      h1: (props: ComponentProps<"h1">) => (
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight" {...props} />
+      h1: ({ children, ...props }: ComponentProps<"h1">) => (
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight" {...props}>
+          {children}
+        </h1>
       ),
       /** Renderer for `<h2>` elements, applying specific Tailwind CSS classes for styling. */
-      h2: (props: ComponentProps<"h2">) => (
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight" {...props} />
+      h2: ({ children, ...props }: ComponentProps<"h2">) => (
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight" {...props}>
+          {children}
+        </h2>
       ),
       /** Renderer for `<h3>` elements, applying specific Tailwind CSS classes for styling. */
-      h3: (props: ComponentProps<"h3">) => (
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight" {...props} />
+      h3: ({ children, ...props }: ComponentProps<"h3">) => (
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight" {...props}>
+          {children}
+        </h3>
       ),
       // Remove custom <p> renderer to avoid ever creating nested <p> inside raw HTML structures.
       // Let Tailwind Typography's prose styles handle paragraph styling globally.
@@ -708,7 +725,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
       TweetEmbed: TweetEmbedRenderer,
     };
   }, []);
-  const CompiledMdxComponent = useMemo(() => buildMdxComponent(content), [content.compiledSource]);
+  const CompiledMdxComponent = useMemo(() => buildMdxComponent(content), [content]);
 
   return (
     <CollapseDropdownProvider>

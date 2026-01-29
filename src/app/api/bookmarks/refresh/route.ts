@@ -170,7 +170,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     // Handle errors in background without blocking response
-    refreshPromise
+    void refreshPromise
       .then(results => {
         const bookmarkResult = results.find(r => r.operation === "bookmarks");
         if (bookmarkResult?.success) {
@@ -194,6 +194,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           console.log(`[API Trigger] ❌ Refresh failed: ${bookmarkResult?.error}`);
           logger.error(`[API Bookmarks Refresh] Background refresh failed:`, bookmarkResult?.error);
         }
+        return undefined;
       })
       .catch(error => {
         console.log(`[API Trigger] ❌ Refresh error: ${error}`);

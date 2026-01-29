@@ -33,7 +33,10 @@ function sanitizeExternalHref(raw?: string): string | null {
 /**
  * Get type badge configuration
  */
-function getTypeBadge(type: RelatedContentCardProps["item"]["type"]): { label: string; className: string } {
+function getTypeBadge(type: RelatedContentCardProps["item"]["type"]): {
+  label: string;
+  className: string;
+} {
   switch (type) {
     case "bookmark":
       return {

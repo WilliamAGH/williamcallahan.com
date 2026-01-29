@@ -142,7 +142,9 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     // Return cached results if available on error (even if stale)
     const cached = ServerCacheInstance.getSearchResults<SearchResult>("bookmarks", query);
     if (cached?.results) {
-      devLog("[searchBookmarks] returning cached results on error", { count: cached.results.length });
+      devLog("[searchBookmarks] returning cached results on error", {
+        count: cached.results.length,
+      });
       return cached.results;
     }
     return [];

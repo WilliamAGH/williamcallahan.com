@@ -41,7 +41,9 @@ export function POST(request: NextRequest): NextResponse {
   })();
 
   if (presentedToken !== expectedToken) {
-    envLogger.log("Unauthorized GitHub revalidation attempt", undefined, { category: "CacheInvalidation" });
+    envLogger.log("Unauthorized GitHub revalidation attempt", undefined, {
+      category: "CacheInvalidation",
+    });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

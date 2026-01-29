@@ -32,7 +32,7 @@ export function assertServerOnly(moduleName?: string): void {
  */
 export function assertClientOnly(featureName: string): void {
   if (typeof window === "undefined") {
-    throw new Error(
+    throw new TypeError(
       `'${featureName}' can only be used in client components. Add 'use client' directive or move to a .client.tsx file.`,
     );
   }

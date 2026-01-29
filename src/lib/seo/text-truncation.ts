@@ -6,7 +6,7 @@
  * as text approaches hard limits. Includes Unicode-safe string operations.
  */
 
-import type { TruncationOptions, TruncationResult, TruncationMetrics } from "@/types/seo";
+import type { TruncationOptions, TruncationResult, TruncationMetrics, CreateResultParams } from "@/types/seo";
 
 /**
  * Unicode-safe string operations using Intl.Segmenter
@@ -140,7 +140,18 @@ export function gradientTruncate(text: string | null | undefined, options: Trunc
 
   // Handle empty/null input
   if (!text || typeof text !== "string") {
-    return createResult("", String(text ?? ""), false, "none", 0, 0, startTime, true, 0, 0);
+    return createResult({
+      original: "",
+      text: String(text ?? ""),
+      wasTruncated: false,
+      strategy: "none",
+      originalLength: 0,
+      overage: 0,
+      startTime,
+      unicodeAware: true,
+      softLimit: 0,
+      hardLimit: 0,
+    });
   }
 
   // Normalize and create safe string
@@ -149,18 +160,18 @@ export function gradientTruncate(text: string | null | undefined, options: Trunc
 
   // No truncation needed
   if (safeString.length <= options.softLimit) {
-    return createResult(
-      normalized,
-      normalized,
-      false,
-      "none",
-      safeString.length,
-      0,
+    return createResult({
+      original: normalized,
+      text: normalized,
+      wasTruncated: false,
+      strategy: "none",
+      originalLength: safeString.length,
+      overage: 0,
       startTime,
-      safeString.isUnicodeAware,
-      options.softLimit,
-      options.hardLimit ?? options.softLimit + 20,
-    );
+      unicodeAware: safeString.isUnicodeAware,
+      softLimit: options.softLimit,
+      hardLimit: options.hardLimit ?? options.softLimit + 20,
+    });
   }
 
   // Calculate overage
@@ -193,18 +204,18 @@ export function gradientTruncate(text: string | null | undefined, options: Trunc
     method = truncated === hardTruncatedResult ? "hard" : "keyword";
   }
 
-  return createResult(
-    normalized,
-    truncated,
-    true,
-    method,
-    safeString.length,
+  return createResult({
+    original: normalized,
+    text: truncated,
+    wasTruncated: true,
+    strategy: method,
+    originalLength: safeString.length,
     overage,
     startTime,
-    safeString.isUnicodeAware,
-    options.softLimit,
+    unicodeAware: safeString.isUnicodeAware,
+    softLimit: options.softLimit,
     hardLimit,
-  );
+  });
 }
 
 /**
@@ -306,35 +317,25 @@ function hardTruncate(text: SafeString, limit: number, options: TruncationOption
 /**
  * Create a truncation result object
  */
-function createResult(
-  original: string,
-  text: string,
-  wasTruncated: boolean,
-  strategy: TruncationResult["strategy"],
-  originalLength: number,
-  overage: number,
-  startTime: number,
-  unicodeAware = true,
-  softLimit?: number,
-  hardLimit?: number,
-): TruncationResult {
+function createResult(opts: CreateResultParams): TruncationResult {
+  const { softLimit, hardLimit, unicodeAware = true } = opts;
   const metrics: TruncationMetrics = {
-    originalLength,
-    finalLength: new SafeString(text).length,
-    overage,
+    originalLength: opts.originalLength,
+    finalLength: new SafeString(opts.text).length,
+    overage: opts.overage,
     overageRatio:
-      overage > 0 && softLimit && hardLimit && hardLimit !== softLimit
-        ? overage / Math.max(hardLimit - softLimit, 1e-6)
+      opts.overage > 0 && softLimit && hardLimit && hardLimit !== softLimit
+        ? opts.overage / Math.max(hardLimit - softLimit, 1e-6)
         : 0,
-    processingTime: performance.now() - startTime,
+    processingTime: performance.now() - opts.startTime,
     unicodeAware,
   };
 
   return {
-    text,
-    original,
-    wasTruncated,
-    strategy,
+    text: opts.text,
+    original: opts.original,
+    wasTruncated: opts.wasTruncated,
+    strategy: opts.strategy,
     metrics,
   };
 }

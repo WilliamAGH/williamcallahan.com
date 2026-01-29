@@ -17,25 +17,25 @@ const LOGO_ANALYSIS_PREFIX = "logo-analysis:";
 const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 const getCacheTimestamp = (): number => (isProductionBuildPhase ? 0 : getMonotonicTime());
 
-export function getLogoValidation(this: ICache, imageHash: string): LogoValidationResult | undefined {
+export function getLogoValidation(cache: ICache, imageHash: string): LogoValidationResult | undefined {
   const key = LOGO_VALIDATION_PREFIX + imageHash;
-  return this.get<LogoValidationResult>(key);
+  return cache.get<LogoValidationResult>(key);
 }
 
-export function setLogoValidation(this: ICache, imageHash: string, isGlobeIcon: boolean): void {
+export function setLogoValidation(cache: ICache, imageHash: string, isGlobeIcon: boolean): void {
   const key = LOGO_VALIDATION_PREFIX + imageHash;
-  this.set(key, {
+  cache.set(key, {
     isGlobeIcon,
     timestamp: getCacheTimestamp(),
   });
 }
 
-export function getLogoFetch(this: ICache, domain: string): LogoFetchResult | undefined {
+export function getLogoFetch(cache: ICache, domain: string): LogoFetchResult | undefined {
   const key = LOGO_FETCH_PREFIX + domain;
-  return this.get<LogoFetchResult>(key);
+  return cache.get<LogoFetchResult>(key);
 }
 
-export function setLogoFetch(this: ICache, domain: string, result: Partial<LogoFetchResult>): void {
+export function setLogoFetch(cache: ICache, domain: string, result: Partial<LogoFetchResult>): void {
   const key = LOGO_FETCH_PREFIX + domain;
   const entryToCache = {
     ...result,
@@ -47,40 +47,40 @@ export function setLogoFetch(this: ICache, domain: string, result: Partial<LogoF
     delete (entryToCache as Partial<LogoFetchResult>).buffer;
   }
 
-  this.set(key, entryToCache, result.error ? LOGO_CACHE_DURATION.FAILURE : LOGO_CACHE_DURATION.SUCCESS);
+  cache.set(key, entryToCache, result.error ? LOGO_CACHE_DURATION.FAILURE : LOGO_CACHE_DURATION.SUCCESS);
 }
 
-export function clearLogoFetch(this: ICache, domain: string): void {
+export function clearLogoFetch(cache: ICache, domain: string): void {
   const key = LOGO_FETCH_PREFIX + domain;
-  this.del(key);
+  cache.del(key);
 }
 
-export function clearAllLogoFetches(this: ICache): void {
-  const keys = this.keys().filter(key => key.startsWith(LOGO_FETCH_PREFIX));
+export function clearAllLogoFetches(cache: ICache): void {
+  const keys = cache.keys().filter(key => key.startsWith(LOGO_FETCH_PREFIX));
   for (const key of keys) {
-    this.del(key);
+    cache.del(key);
   }
 }
 
-export function getInvertedLogo(this: ICache, cacheKey: string): InvertedLogoEntry | undefined {
+export function getInvertedLogo(cache: ICache, cacheKey: string): InvertedLogoEntry | undefined {
   const key = INVERTED_LOGO_PREFIX + cacheKey;
-  return this.get<InvertedLogoEntry>(key);
+  return cache.get<InvertedLogoEntry>(key);
 }
 
-export function setInvertedLogo(this: ICache, cacheKey: string, entry: Omit<InvertedLogoEntry, "timestamp">): void {
+export function setInvertedLogo(cache: ICache, cacheKey: string, entry: Omit<InvertedLogoEntry, "timestamp">): void {
   const key = INVERTED_LOGO_PREFIX + cacheKey;
-  this.set(key, {
+  cache.set(key, {
     ...entry,
     timestamp: getCacheTimestamp(),
   });
 }
 
-export function getLogoAnalysis(this: ICache, cacheKey: string): LogoInversion | undefined {
+export function getLogoAnalysis(cache: ICache, cacheKey: string): LogoInversion | undefined {
   const key = LOGO_ANALYSIS_PREFIX + cacheKey;
-  return this.get<LogoInversion>(key);
+  return cache.get<LogoInversion>(key);
 }
 
-export function setLogoAnalysis(this: ICache, cacheKey: string, analysis: LogoInversion): void {
+export function setLogoAnalysis(cache: ICache, cacheKey: string, analysis: LogoInversion): void {
   const key = LOGO_ANALYSIS_PREFIX + cacheKey;
-  this.set(key, analysis);
+  cache.set(key, analysis);
 }
