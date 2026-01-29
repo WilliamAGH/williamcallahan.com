@@ -13,7 +13,9 @@ jest.mock("@/lib/s3-utils");
 
 jest.mock("node:fs", () => ({
   promises: {
-    readFile: jest.fn().mockResolvedValue(JSON.stringify([{ id: "test", url: "https://example.com" }])),
+    readFile: jest
+      .fn()
+      .mockResolvedValue(JSON.stringify([{ id: "test", url: "https://example.com" }])),
     writeFile: jest.fn(),
     mkdir: jest.fn(),
     readdir: jest.fn().mockResolvedValue([]),
@@ -37,7 +39,7 @@ const createTag = (name: string) => ({
 });
 
 const simplify = (bookmarks: UnifiedBookmark[]) =>
-  bookmarks.map(b => ({ ...b, tags: b.tags.map(t => (typeof t === "string" ? t : t.name)) }));
+  bookmarks.map((b) => ({ ...b, tags: b.tags.map((t) => (typeof t === "string" ? t : t.name)) }));
 
 describe("Tag Route Functionality", () => {
   beforeEach(() => {
@@ -99,8 +101,12 @@ describe("Tag Route Functionality", () => {
         fromCache: true,
       });
 
-      expect(mockReadJsonS3).toHaveBeenCalledWith(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}web-development/page-1.json`);
-      expect(mockReadJsonS3).toHaveBeenCalledWith(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}web-development/index.json`);
+      expect(mockReadJsonS3).toHaveBeenCalledWith(
+        `${BOOKMARKS_S3_PATHS.TAG_PREFIX}web-development/page-1.json`,
+      );
+      expect(mockReadJsonS3).toHaveBeenCalledWith(
+        `${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}web-development/index.json`,
+      );
     });
 
     it("should fall back to filtering all bookmarks when cache miss", async () => {
@@ -128,7 +134,9 @@ describe("Tag Route Functionality", () => {
       });
 
       // Verify S3 was called for cache check and then for full bookmarks
-      expect(mockReadJsonS3).toHaveBeenCalledWith(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}web-development/page-1.json`);
+      expect(mockReadJsonS3).toHaveBeenCalledWith(
+        `${BOOKMARKS_S3_PATHS.TAG_PREFIX}web-development/page-1.json`,
+      );
       expect(mockReadJsonS3).toHaveBeenCalledWith(BOOKMARKS_S3_PATHS.FILE);
     });
 
@@ -321,7 +329,9 @@ describe("Tag Route Functionality", () => {
       ];
 
       // Test 1: Popular tag (cached in S3)
-      const cachedReactBookmarks = allBookmarks.filter(b => b.tags.includes("react")).slice(0, 24); // First page
+      const cachedReactBookmarks = allBookmarks
+        .filter((b) => b.tags.includes("react"))
+        .slice(0, 24); // First page
 
       const reactIndex: BookmarksIndex = {
         count: 20,
@@ -355,8 +365,12 @@ describe("Tag Route Functionality", () => {
       });
 
       // Verify S3 was queried for the cached tag
-      expect(mockReadJsonS3).toHaveBeenCalledWith(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}react/page-1.json`);
-      expect(mockReadJsonS3).toHaveBeenCalledWith(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}react/index.json`);
+      expect(mockReadJsonS3).toHaveBeenCalledWith(
+        `${BOOKMARKS_S3_PATHS.TAG_PREFIX}react/page-1.json`,
+      );
+      expect(mockReadJsonS3).toHaveBeenCalledWith(
+        `${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}react/index.json`,
+      );
 
       // Verify only cache reads were called, not the full bookmarks file
       expect(mockReadJsonS3).toHaveBeenCalledTimes(2); // Only page and index
@@ -401,7 +415,9 @@ describe("Tag Route Functionality", () => {
       });
 
       // Verify S3 was queried first (checking for cache)
-      expect(mockReadJsonS3).toHaveBeenCalledWith(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}obscure-framework/page-1.json`);
+      expect(mockReadJsonS3).toHaveBeenCalledWith(
+        `${BOOKMARKS_S3_PATHS.TAG_PREFIX}obscure-framework/page-1.json`,
+      );
 
       // Verify it read the full bookmarks file from S3 for non-cached tag
       expect(mockReadJsonS3).toHaveBeenCalledWith(BOOKMARKS_S3_PATHS.FILE);
@@ -468,12 +484,16 @@ describe("Tag Route Functionality", () => {
       });
 
       // CRITICAL VERIFICATION: Top-10 tags ARE served from S3 object storage
-      expect(mockReadJsonS3).toHaveBeenCalledWith(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}popular-tag/page-1.json`);
-      expect(mockReadJsonS3).toHaveBeenCalledWith(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}popular-tag/index.json`);
+      expect(mockReadJsonS3).toHaveBeenCalledWith(
+        `${BOOKMARKS_S3_PATHS.TAG_PREFIX}popular-tag/page-1.json`,
+      );
+      expect(mockReadJsonS3).toHaveBeenCalledWith(
+        `${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}popular-tag/index.json`,
+      );
 
       // Verify data was successfully retrieved from S3
       expect(result.bookmarks).toHaveLength(24);
-      const firstTags = result.bookmarks[0].tags.map(t => (typeof t === "string" ? t : t.name));
+      const firstTags = result.bookmarks[0].tags.map((t) => (typeof t === "string" ? t : t.name));
       expect(firstTags).toContain("popular tag");
 
       // Verify ONLY S3 tag cache was used, not the full bookmarks file

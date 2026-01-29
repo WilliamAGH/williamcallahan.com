@@ -76,17 +76,25 @@ const config: Config = {
     // Note: avoid globally mocking markdown plugins; use per-test strategies when needed
     "^@/lib/data-access/github$": "<rootDir>/__tests__/__mocks__/lib/data-access/github.ts",
     // Bookmarks mock
-    "^@/lib/bookmarks/bookmarks-data-access.server$": "<rootDir>/__tests__/__mocks__/lib/data-access/bookmarks.ts",
+    "^@/lib/bookmarks/bookmarks-data-access.server$":
+      "<rootDir>/__tests__/__mocks__/lib/data-access/bookmarks.ts",
     // Auth mocks - client and server have different exports
     "^@clerk/nextjs$": "<rootDir>/__tests__/__mocks__/@clerk/nextjs.js",
     "^@clerk/nextjs/server$": "<rootDir>/__tests__/__mocks__/@clerk/nextjs-server.js",
   },
 
   // Test patterns
-  testMatch: ["**/__tests__/**/*.(test|spec).(ts|tsx|js|jsx)", "**/?(*.)+(spec|test).(ts|tsx|js|jsx)"],
+  testMatch: [
+    "**/__tests__/**/*.(test|spec).(ts|tsx|js|jsx)",
+    "**/?(*.)+(spec|test).(ts|tsx|js|jsx)",
+  ],
 
   // Ignore patterns
-  testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/.next/", "<rootDir>/src/types/test.ts"],
+  testPathIgnorePatterns: [
+    "<rootDir>/node_modules/",
+    "<rootDir>/.next/",
+    "<rootDir>/src/types/test.ts",
+  ],
 
   // Transform configuration for ESM
   transform: {

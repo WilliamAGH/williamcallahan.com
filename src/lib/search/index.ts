@@ -8,7 +8,12 @@
  */
 
 // Search functions for different content types
-export { searchInvestments, searchExperience, searchEducation, searchProjects } from "./searchers/static-searchers";
+export {
+  searchInvestments,
+  searchExperience,
+  searchEducation,
+  searchProjects,
+} from "./searchers/static-searchers";
 
 export { searchBookmarks, searchBooks } from "./searchers/dynamic-searchers";
 
@@ -22,4 +27,9 @@ export { invalidateSearchCache, invalidateSearchQueryCache } from "./cache-inval
 export { buildAllSearchIndexes, loadIndexFromJSON } from "./index-builder";
 
 // Re-export key types for consumers
-export type { SearchResult, AggregatedTag, SerializedIndex, AllSerializedIndexes } from "@/types/search";
+export type {
+  SearchResult,
+  AggregatedTag,
+  SerializedIndex,
+  AllSerializedIndexes,
+} from "@/types/search";

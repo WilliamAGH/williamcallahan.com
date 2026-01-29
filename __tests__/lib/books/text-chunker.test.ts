@@ -160,7 +160,7 @@ describe("Text Chunker", () => {
       // Long chapter should produce multiple chunks
       expect(chunks.length).toBeGreaterThan(2);
       // All chunks from long chapter should have same chapterId
-      const longChunks = chunks.filter(c => c.chapterId === "long");
+      const longChunks = chunks.filter((c) => c.chapterId === "long");
       expect(longChunks.length).toBeGreaterThan(1);
     });
 
@@ -174,7 +174,7 @@ describe("Text Chunker", () => {
       const chunks = chunkChapters(chapters);
 
       // Empty chapter should produce no chunks
-      expect(chunks.find(c => c.chapterId === "ch2")).toBeUndefined();
+      expect(chunks.find((c) => c.chapterId === "ch2")).toBeUndefined();
     });
 
     it("should preserve chapter title when provided", () => {
@@ -185,8 +185,8 @@ describe("Text Chunker", () => {
 
       const chunks = chunkChapters(chapters);
 
-      expect(chunks.find(c => c.chapterId === "ch1")?.chapterTitle).toBe("The Beginning");
-      expect(chunks.find(c => c.chapterId === "ch2")?.chapterTitle).toBeUndefined();
+      expect(chunks.find((c) => c.chapterId === "ch1")?.chapterTitle).toBe("The Beginning");
+      expect(chunks.find((c) => c.chapterId === "ch2")?.chapterTitle).toBeUndefined();
     });
   });
 
@@ -245,8 +245,8 @@ describe("Text Chunker", () => {
       const chunks = chunkText(original, { overlapWords: 0, targetWords: 200, maxWords: 300 });
 
       // Each word in original should appear in at least one chunk
-      const allChunkText = chunks.map(c => c.text).join(" ");
-      expect(allChunkText.split(/\s+/).filter(w => w === "test").length).toBeGreaterThanOrEqual(
+      const allChunkText = chunks.map((c) => c.text).join(" ");
+      expect(allChunkText.split(/\s+/).filter((w) => w === "test").length).toBeGreaterThanOrEqual(
         original.split(/\s+/).length * 0.9, // Allow some variance due to trimming
       );
     });

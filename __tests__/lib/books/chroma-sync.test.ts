@@ -8,11 +8,13 @@ import type { TextChunk, EpubMetadata, BookIndexData } from "@/types/books/parsi
 
 // Check for required Chroma env vars
 const REQUIRED_ENV_VARS = ["CHROMA_API_KEY", "CHROMA_TENANT", "CHROMA_DATABASE"] as const;
-const missingVars = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
+const missingVars = REQUIRED_ENV_VARS.filter((v) => !process.env[v]);
 const hasChromaConfig = missingVars.length === 0;
 
 if (!hasChromaConfig) {
-  console.warn(`[chroma-sync.test.ts] Skipping tests - missing env vars: ${missingVars.join(", ")}`);
+  console.warn(
+    `[chroma-sync.test.ts] Skipping tests - missing env vars: ${missingVars.join(", ")}`,
+  );
 }
 
 // Shared mock collection
@@ -30,7 +32,9 @@ function initMockCollection() {
     get: jest.fn().mockResolvedValue({ ids: [], embeddings: [], metadatas: [], documents: [] }),
     delete: jest.fn().mockResolvedValue(undefined),
     count: jest.fn().mockResolvedValue(0),
-    query: jest.fn().mockResolvedValue({ ids: [[]], documents: [[]], metadatas: [[]], distances: [[]] }),
+    query: jest
+      .fn()
+      .mockResolvedValue({ ids: [[]], documents: [[]], metadatas: [[]], distances: [[]] }),
   };
 }
 
@@ -81,7 +85,11 @@ describeIfChroma("Books Chroma Sync", () => {
     it("should parse comma-separated string into array", async () => {
       const { parseChromaArray } = await import("@/lib/books/chroma-sync");
 
-      expect(parseChromaArray("fiction,science,adventure")).toEqual(["fiction", "science", "adventure"]);
+      expect(parseChromaArray("fiction,science,adventure")).toEqual([
+        "fiction",
+        "science",
+        "adventure",
+      ]);
     });
 
     it("should return empty array for null/undefined", async () => {
@@ -161,7 +169,9 @@ describeIfChroma("Books Chroma Sync", () => {
       const { indexBookToChroma } = await import("@/lib/books/chroma-sync");
 
       // Create 250 chunks (should require 3 batches at 100 per batch)
-      const chunks = Array.from({ length: 250 }, (_, i) => createTestChunk({ index: i, text: `Chunk ${i} content` }));
+      const chunks = Array.from({ length: 250 }, (_, i) =>
+        createTestChunk({ index: i, text: `Chunk ${i} content` }),
+      );
 
       const data = createTestIndexData({ chunks });
 

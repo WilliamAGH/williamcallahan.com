@@ -49,7 +49,8 @@ export default function NotFound() {
       </h2>
 
       <p className="mt-4 text-xl text-gray-600 dark:text-gray-400 max-w-lg">
-        I couldn&apos;t find what you were looking for. Maybe it was moved or never existed in the first place?
+        I couldn&apos;t find what you were looking for. Maybe it was moved or never existed in the
+        first place?
       </p>
 
       <div className="mt-12">

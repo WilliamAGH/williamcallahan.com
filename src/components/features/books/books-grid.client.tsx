@@ -14,14 +14,28 @@ import type { BooksClientGridProps } from "@/types/features/books";
 import { BooksWindow } from "./books-window.client";
 import { BookCard } from "./book-card.client";
 
-export function BooksClientGrid({ books, title, description, disclaimer, error, isStale }: BooksClientGridProps) {
+export function BooksClientGrid({
+  books,
+  title,
+  description,
+  disclaimer,
+  error,
+  isStale,
+}: BooksClientGridProps) {
   return (
     <BooksWindow windowTitle="~/books">
       <div className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <motion.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="mb-8">
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3">{title}</h1>
+          <motion.div
+            initial={false}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mb-8"
+          >
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+              {title}
+            </h1>
             <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400">{description}</p>
             {books.length > 0 && (
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">
@@ -38,7 +52,9 @@ export function BooksClientGrid({ books, title, description, disclaimer, error, 
               transition={{ duration: 0.3 }}
               className="mb-8 pl-4 border-l-2 border-gray-300 dark:border-gray-600"
             >
-              <p className="text-sm text-gray-600 dark:text-gray-400 italic leading-relaxed">{disclaimer}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 italic leading-relaxed">
+                {disclaimer}
+              </p>
             </motion.div>
           )}
 
@@ -64,8 +80,8 @@ export function BooksClientGrid({ books, title, description, disclaimer, error, 
             >
               <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
               <p className="text-sm">
-                Showing cached book data while the library refreshes. A live update will appear once the source is back
-                online.
+                Showing cached book data while the library refreshes. A live update will appear once
+                the source is back online.
               </p>
             </motion.div>
           )}
@@ -79,7 +95,9 @@ export function BooksClientGrid({ books, title, description, disclaimer, error, 
               className="text-center py-16"
             >
               <BookOpen className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-              <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No books yet</h2>
+              <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                No books yet
+              </h2>
               <p className="text-gray-500 dark:text-gray-400">
                 Books will appear here once they&apos;re added to the library.
               </p>

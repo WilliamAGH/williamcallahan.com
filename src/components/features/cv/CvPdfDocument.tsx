@@ -79,16 +79,16 @@ const resolveFontFamily = (() => {
         ];
 
         const missingFiles = serverFonts
-          .map(definition => ({
+          .map((definition) => ({
             ...definition,
             absolutePath: path.join(fontsDir, definition.filename),
           }))
-          .filter(definition => !existsSync(definition.absolutePath));
+          .filter((definition) => !existsSync(definition.absolutePath));
 
         if (missingFiles.length > 0) {
           logger.error(
             "[CV PDF] Missing IBM Plex Mono font files, falling back to system font:",
-            missingFiles.map(definition => definition.filename),
+            missingFiles.map((definition) => definition.filename),
           );
           cachedFamily = FALLBACK_FAMILY;
           return cachedFamily;
@@ -96,7 +96,7 @@ const resolveFontFamily = (() => {
 
         Font.register({
           family: PRIMARY_FAMILY,
-          fonts: serverFonts.map(definition => ({
+          fonts: serverFonts.map((definition) => ({
             src: path.join(fontsDir, definition.filename),
             fontWeight: definition.fontWeight,
             fontStyle: definition.fontStyle,
@@ -472,7 +472,10 @@ const GlobePdfIcon = (): React.ReactElement => (
 
 const LinkedinPdfIcon = (): React.ReactElement => (
   <ContactIconFrame>
-    <Path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" fillOpacity="0" />
+    <Path
+      d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"
+      fillOpacity="0"
+    />
     <Rect width="4" height="12" x="2" y="9" fillOpacity="0" />
     <Circle cx="4" cy="4" r="2" fillOpacity="0" />
   </ContactIconFrame>
@@ -569,10 +572,10 @@ const CvPdfDocument = (): React.ReactElement => {
           <View style={[styles.section, styles.sectionSpacing]}>
             <Text style={styles.sectionTitle}>Distinguished Qualifications</Text>
             <View style={styles.cardGrid}>
-              {qualifications.map(item => (
+              {qualifications.map((item) => (
                 <View key={item.id} style={styles.qualificationCard}>
                   <Text style={styles.qualificationTitle}>{item.title}</Text>
-                  {item.meta.map(line => (
+                  {item.meta.map((line) => (
                     <Text key={line} style={styles.qualificationMeta}>
                       {line.toUpperCase()}
                     </Text>
@@ -586,7 +589,7 @@ const CvPdfDocument = (): React.ReactElement => {
         {experiences.length > 0 ? (
           <View style={[styles.section, styles.sectionSpacing]}>
             <Text style={styles.sectionTitle}>Professional Experience</Text>
-            {experiences.map(experienceItem => (
+            {experiences.map((experienceItem) => (
               <View key={experienceItem.id} style={styles.experienceItem}>
                 <View style={styles.experienceHeader}>
                   <Text style={styles.experienceCompany}>{experienceItem.company}</Text>
@@ -615,13 +618,18 @@ const CvPdfDocument = (): React.ReactElement => {
                           {experienceItem.location ? (
                             <View style={styles.experienceMetaSecondarySegment}>
                               <Text style={styles.experienceMetaSecondarySeparator}>·</Text>
-                              <Text style={styles.experienceMetaSecondaryText}>{experienceItem.location}</Text>
+                              <Text style={styles.experienceMetaSecondaryText}>
+                                {experienceItem.location}
+                              </Text>
                             </View>
                           ) : null}
-                          {secondarySegments.map(segment => (
+                          {secondarySegments.map((segment) => (
                             <View key={segment.key} style={styles.experienceMetaSecondarySegment}>
                               <Text style={styles.experienceMetaSecondarySeparator}>·</Text>
-                              <Link src={segment.href} style={[styles.contactLink, styles.experienceMetaSecondaryLink]}>
+                              <Link
+                                src={segment.href}
+                                style={[styles.contactLink, styles.experienceMetaSecondaryLink]}
+                              >
                                 {segment.content}
                               </Link>
                             </View>
@@ -633,7 +641,7 @@ const CvPdfDocument = (): React.ReactElement => {
                 })()}
                 {experienceItem.bullets.length > 0 ? (
                   <View style={styles.bulletList}>
-                    {experienceItem.bullets.map(bullet => (
+                    {experienceItem.bullets.map((bullet) => (
                       <View key={`${experienceItem.id}-${bullet}`} style={styles.bulletItem}>
                         <Text style={styles.bulletMarker}>•</Text>
                         <Text>{bullet}</Text>
@@ -652,7 +660,7 @@ const CvPdfDocument = (): React.ReactElement => {
           <View style={[styles.section, styles.sectionSpacing]}>
             {/* Force projects onto a fresh page so printed copies preserve a clear section boundary. */}
             <Text style={styles.sectionTitle}>Highlighted Technical Projects</Text>
-            {projects.map(project => (
+            {projects.map((project) => (
               <View key={project.id} style={styles.projectCard}>
                 <View style={styles.projectHeader}>
                   <Text style={styles.projectName}>{project.name}</Text>
@@ -664,7 +672,7 @@ const CvPdfDocument = (): React.ReactElement => {
                 </View>
                 {project.tags.length > 0 ? (
                   <View style={styles.tagList}>
-                    {project.tags.map(tag => (
+                    {project.tags.map((tag) => (
                       <View key={`${project.id}-${tag}`} style={styles.tagBadge}>
                         <Text style={styles.tagBadgeText}>{tag.toUpperCase()}</Text>
                       </View>
@@ -681,7 +689,7 @@ const CvPdfDocument = (): React.ReactElement => {
           <View style={[styles.section, styles.sectionSpacing]}>
             {/* Education should start on a new page to mirror the CV layout strategy discussed with stakeholders. */}
             <Text style={styles.sectionTitle}>Education</Text>
-            {degrees.map(degree => (
+            {degrees.map((degree) => (
               <View key={degree.id} style={styles.educationItem}>
                 <View style={styles.educationHeader}>
                   <Text>{degree.institution}</Text>
@@ -695,10 +703,10 @@ const CvPdfDocument = (): React.ReactElement => {
             {groupedCourses.length > 0 ? (
               <View style={[styles.section, styles.sectionSpacing]}>
                 <Text style={styles.sectionTitle}>Continuing Education (Selected)</Text>
-                {groupedCourses.map(group => (
+                {groupedCourses.map((group) => (
                   <View key={group.institution} style={styles.courseGroup}>
                     <Text style={styles.courseHeader}>{group.institution}</Text>
-                    {group.courses.map(course => (
+                    {group.courses.map((course) => (
                       <View key={course.id} style={styles.courseRow}>
                         <Text>{course.name}</Text>
                         <Text>{course.year}</Text>
@@ -714,7 +722,7 @@ const CvPdfDocument = (): React.ReactElement => {
         {certifications.length > 0 ? (
           <View style={[styles.section, styles.sectionSpacing]}>
             <Text style={styles.sectionTitle}>Certifications & Professional Development</Text>
-            {certifications.map(certificationItem => (
+            {certifications.map((certificationItem) => (
               <View key={certificationItem.id} style={styles.certificationItem}>
                 <Text style={styles.certificationName}>{certificationItem.name}</Text>
                 <View style={styles.certificationMeta}>
@@ -730,11 +738,11 @@ const CvPdfDocument = (): React.ReactElement => {
         {technicalFocus.length > 0 ? (
           <View style={[styles.section, styles.sectionSpacing]}>
             <Text style={styles.sectionTitle}>Technical Focus</Text>
-            {technicalFocus.map(section => (
+            {technicalFocus.map((section) => (
               <View key={section.id} style={styles.focusCard} wrap={false}>
                 <Text style={styles.focusTitle}>{section.title}</Text>
                 <View style={styles.bulletList}>
-                  {section.bullets.map(item => (
+                  {section.bullets.map((item) => (
                     <View key={`${section.id}-${item}`} style={styles.bulletItem}>
                       <Text style={styles.bulletMarker}>•</Text>
                       <Text>{item}</Text>

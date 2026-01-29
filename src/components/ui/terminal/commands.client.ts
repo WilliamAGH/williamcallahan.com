@@ -13,7 +13,11 @@ import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
 
 // Factory function to create searchByScopeImpl
 function createSearchByScopeImpl() {
-  return async (scope: string, query: string, signal?: AbortSignal): Promise<TerminalSearchResult[]> => {
+  return async (
+    scope: string,
+    query: string,
+    signal?: AbortSignal,
+  ): Promise<TerminalSearchResult[]> => {
     try {
       const response = await fetch(`/api/search/${scope}?q=${encodeURIComponent(query)}`, {
         signal,
@@ -56,7 +60,11 @@ let searchByScopeImpl:
   | null = null;
 
 // Helper function to call the consolidated search API with lazy loading
-async function searchByScope(scope: string, query: string, signal?: AbortSignal): Promise<TerminalSearchResult[]> {
+async function searchByScope(
+  scope: string,
+  query: string,
+  signal?: AbortSignal,
+): Promise<TerminalSearchResult[]> {
   // Lazy load the implementation on first use
   if (!searchByScopeImpl) {
     searchByScopeImpl = createSearchByScopeImpl();
@@ -79,7 +87,9 @@ function createPerformSiteWideSearchImpl() {
 
       // The site-wide search API may return either an array or
       // an object of shape { results: SearchResult[] }. Handle both.
-      const rawArray = Array.isArray(data) ? data : ((data as { results?: unknown[] })?.results ?? []);
+      const rawArray = Array.isArray(data)
+        ? data
+        : ((data as { results?: unknown[] })?.results ?? []);
 
       const searchResults: SearchResult[] = searchResultsSchema.parse(rawArray);
       return searchResults.map(transformSearchResultToTerminalResult);
@@ -95,10 +105,15 @@ function createPerformSiteWideSearchImpl() {
 }
 
 // Lazy-loaded site-wide search function
-let performSiteWideSearchImpl: ((query: string, signal?: AbortSignal) => Promise<TerminalSearchResult[]>) | null = null;
+let performSiteWideSearchImpl:
+  | ((query: string, signal?: AbortSignal) => Promise<TerminalSearchResult[]>)
+  | null = null;
 
 // Helper function to perform site-wide search with lazy loading
-async function performSiteWideSearch(query: string, signal?: AbortSignal): Promise<TerminalSearchResult[]> {
+async function performSiteWideSearch(
+  query: string,
+  signal?: AbortSignal,
+): Promise<TerminalSearchResult[]> {
   // Lazy load the implementation on first use
   if (!performSiteWideSearchImpl) {
     performSiteWideSearchImpl = createPerformSiteWideSearchImpl();
@@ -179,7 +194,7 @@ function getSchemaOrgData(includeDebug = false): string {
     }
 
     // Collect all JSON-LD data from scripts
-    const schemas: unknown[] = Array.from(scripts).map(script => {
+    const schemas: unknown[] = Array.from(scripts).map((script) => {
       try {
         const parsed: unknown = JSON.parse(script.textContent ?? "{}");
         return parsed;
@@ -192,10 +207,12 @@ function getSchemaOrgData(includeDebug = false): string {
     });
 
     // Collect OpenGraph metadata (e.g., <meta property="og:title" content="..." />)
-    const ogMetaElements = document.querySelectorAll<HTMLMetaElement>('meta[property^="og:"], meta[name^="og:"]');
+    const ogMetaElements = document.querySelectorAll<HTMLMetaElement>(
+      'meta[property^="og:"], meta[name^="og:"]',
+    );
 
     const ogMetadata: Record<string, string> = {};
-    ogMetaElements.forEach(meta => {
+    ogMetaElements.forEach((meta) => {
       const key = meta.getAttribute("property") ?? meta.getAttribute("name");
       const value = meta.getAttribute("content") ?? "";
       if (key && value) {
@@ -225,7 +242,10 @@ function getSchemaOrgData(includeDebug = false): string {
     // Return formatted JSON with debug header
     return `Schema.org Diagnostics for ${path}:\n\n${JSON.stringify(debugOutput, null, 2)}`;
   } catch (error: unknown) {
-    console.error("Error retrieving schema data:", error instanceof Error ? error.message : "Unknown error");
+    console.error(
+      "Error retrieving schema data:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
     return "Error retrieving Schema.org data. Check the console for details.";
   }
 }
@@ -477,7 +497,8 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
         selectionItems: results,
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred while searching.";
+      const errorMessage =
+        error instanceof Error ? error.message : "An unknown error occurred while searching.";
       console.error(`Error searching in section ${command}:`, errorMessage);
       return {
         results: [
@@ -513,7 +534,7 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
         console.log(
           `[Terminal Search] Sample result titles: ${allResults
             .slice(0, 3)
-            .map(r => r.label ?? "Untitled")
+            .map((r) => r.label ?? "Untitled")
             .join(", ")}`,
         );
       }
@@ -549,9 +570,13 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
       selectionItems: allResults,
     };
   } catch (error: unknown) {
-    console.error("Site-wide search API call failed:", error instanceof Error ? error.message : "Unknown error");
+    console.error(
+      "Site-wide search API call failed:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
     // Type check for error before accessing message
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during the search.";
+    const errorMessage =
+      error instanceof Error ? error.message : "An unknown error occurred during the search.";
     return {
       results: [
         {

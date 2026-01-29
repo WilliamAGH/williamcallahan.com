@@ -25,7 +25,9 @@ const mockRefreshGitHubActivityDataFromApi = jest.mocked(refreshGitHubActivityDa
 const mockGetS3ObjectMetadata = jest.mocked(getS3ObjectMetadata);
 const mockFetch = fetchMock as unknown as jest.MockedFunction<typeof fetch>;
 
-type RefreshGitHubActivityResult = NonNullable<Awaited<ReturnType<typeof refreshGitHubActivityDataFromApi>>>;
+type RefreshGitHubActivityResult = NonNullable<
+  Awaited<ReturnType<typeof refreshGitHubActivityDataFromApi>>
+>;
 
 describe("lib/data-access/github.ts functionality", () => {
   beforeEach(() => {
@@ -277,7 +279,8 @@ describe("lib/data-access/github.ts functionality", () => {
       process.env.GITHUB_CRON_REFRESH_SECRET = secrets.cronSecret;
       process.env.BOOKMARK_CRON_REFRESH_SECRET = "fallback-secret";
 
-      const cronSecret = process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+      const cronSecret =
+        process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
       expect(cronSecret).toBe(secrets.cronSecret);
 
       // Test refresh secret
@@ -290,7 +293,8 @@ describe("lib/data-access/github.ts functionality", () => {
       process.env.GITHUB_CRON_REFRESH_SECRET = "";
       process.env.BOOKMARK_CRON_REFRESH_SECRET = "fallback-secret";
 
-      const cronSecret = process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+      const cronSecret =
+        process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
       expect(cronSecret).toBe("fallback-secret");
     });
   });
@@ -299,14 +303,18 @@ describe("lib/data-access/github.ts functionality", () => {
     it("should handle network errors gracefully", async () => {
       mockFetch.mockRejectedValue(new Error("Network error"));
 
-      await expect(fetch("http://localhost:3000/api/github-activity/refresh")).rejects.toThrow("Network error");
+      await expect(fetch("http://localhost:3000/api/github-activity/refresh")).rejects.toThrow(
+        "Network error",
+      );
     });
 
     it("should handle refresh function errors", async () => {
       const testError = new Error("GitHub API rate limit exceeded");
       mockRefreshGitHubActivityDataFromApi.mockRejectedValue(testError);
 
-      await expect(refreshGitHubActivityDataFromApi()).rejects.toThrow("GitHub API rate limit exceeded");
+      await expect(refreshGitHubActivityDataFromApi()).rejects.toThrow(
+        "GitHub API rate limit exceeded",
+      );
     });
 
     it("should handle S3 metadata errors", async () => {

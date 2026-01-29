@@ -190,8 +190,8 @@ return imageUrl;
 ```typescript
 //  DON'T - Complex chains fail inference
 const checkedTypes = imagePriority
-  .filter(key => metadata[key] && typeof metadata[key] === "string")
-  .map(key => `${key}="${metadata[key] as string}"`)
+  .filter((key) => metadata[key] && typeof metadata[key] === "string")
+  .map((key) => `${key}="${metadata[key] as string}"`)
   .join(", ");
 
 //  DO - Explicit loops
@@ -264,7 +264,7 @@ try {
 ```typescript
 //  DON'T - Causes type narrowing issues
 let parsedCandidate: ReturnType<typeof parseS3Key> | null = null;
-const candidate = keys.find(k => {
+const candidate = keys.find((k) => {
   const parsed = parseS3Key(k);
   if (parsed.type === "logo" && parsed.domain === domain) {
     parsedCandidate = parsed; // Type narrowing confusion
@@ -283,9 +283,14 @@ const source = parsedCandidate.source; //  Error: Property 'source' does not exi
 ```typescript
 //  DO - Explicit mapping preserves types
 const candidateInfo = keys
-  .map(k => ({ key: k, parsed: parseS3Key(k) }))
+  .map((k) => ({ key: k, parsed: parseS3Key(k) }))
   .find(({ key, parsed }) => {
-    return key.toLowerCase().startsWith(prefix) && parsed.type === "logo" && parsed.domain === domain && !parsed.hash;
+    return (
+      key.toLowerCase().startsWith(prefix) &&
+      parsed.type === "logo" &&
+      parsed.domain === domain &&
+      !parsed.hash
+    );
   });
 
 if (!candidateInfo) return null;
@@ -494,7 +499,10 @@ export async function GET(request: NextRequest) {
   const result = QuerySchema.safeParse(searchParams);
 
   if (!result.success) {
-    return Response.json({ error: "Invalid query parameters", issues: result.error.flatten() }, { status: 400 });
+    return Response.json(
+      { error: "Invalid query parameters", issues: result.error.flatten() },
+      { status: 400 },
+    );
   }
 }
 ```
@@ -523,8 +531,8 @@ const cached = await fetch("https://api.example.com/data", {
 ```typescript
 //  DO - Parallel fetching in Server Components
 const [users, posts] = await Promise.all([
-  fetch("/api/users").then(r => r.json()),
-  fetch("/api/posts").then(r => r.json()),
+  fetch("/api/users").then((r) => r.json()),
+  fetch("/api/posts").then((r) => r.json()),
 ]);
 ```
 

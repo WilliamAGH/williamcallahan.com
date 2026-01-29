@@ -72,7 +72,10 @@ function ProjectsWindowContentInner({
           fallback={
             <div className="animate-pulse space-y-4 p-6">
               {Array.from({ length: 3 }, () => (
-                <div key={crypto.randomUUID()} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
+                <div
+                  key={crypto.randomUUID()}
+                  className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg"
+                />
               ))}
             </div>
           }
@@ -88,7 +91,9 @@ function ProjectsWindowContentInner({
  * Dynamic import of the window content component.
  * SSR is enabled to ensure project IDs are in initial HTML for anchor link support.
  */
-const ProjectsWindowContent = dynamic(() => Promise.resolve({ default: ProjectsWindowContentInner }));
+const ProjectsWindowContent = dynamic(() =>
+  Promise.resolve({ default: ProjectsWindowContentInner }),
+);
 
 /**
  * ProjectsWindow Client Component
@@ -99,7 +104,12 @@ const ProjectsWindowContent = dynamic(() => Promise.resolve({ default: ProjectsW
  * @param {ProjectsWindowProps} props - Component props
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
  */
-export function ProjectsWindow({ title = "Projects", onClose, onMinimize, onMaximize }: ProjectsWindowClientProps) {
+export function ProjectsWindow({
+  title = "Projects",
+  onClose,
+  onMinimize,
+  onMaximize,
+}: ProjectsWindowClientProps) {
   const {
     windowState,
     close: closeWindow,
@@ -164,7 +174,7 @@ function TagVisibilityController() {
 
   React.useEffect(() => {
     const projectNodes = document.querySelectorAll<HTMLElement>("[data-project-tags]");
-    projectNodes.forEach(node => {
+    projectNodes.forEach((node) => {
       const tags = node.getAttribute("data-project-tags")?.split("|||") ?? [];
       const shouldShow = selectedTag === "All" || tags.includes(selectedTag);
       node.style.display = shouldShow ? "" : "none";

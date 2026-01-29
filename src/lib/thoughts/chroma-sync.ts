@@ -107,7 +107,7 @@ export async function syncThoughtsToChroma(thoughts: Thought[]): Promise<void> {
   const collection = await getThoughtsCollection();
 
   await collection.upsert({
-    ids: thoughts.map(t => t.id),
+    ids: thoughts.map((t) => t.id),
     documents: thoughts.map(toDocumentText),
     metadatas: thoughts.map(toChromaMetadata),
   });
@@ -164,14 +164,14 @@ export async function fullSyncThoughtsToChroma(
   }
 
   // Filter thoughts based on options
-  const thoughtsToSync = includeDrafts ? thoughts : thoughts.filter(t => !t.draft);
+  const thoughtsToSync = includeDrafts ? thoughts : thoughts.filter((t) => !t.draft);
 
   if (thoughtsToSync.length === 0) {
     return { synced: 0, skipped: thoughts.length };
   }
 
   await collection.add({
-    ids: thoughtsToSync.map(t => t.id),
+    ids: thoughtsToSync.map((t) => t.id),
     documents: thoughtsToSync.map(toDocumentText),
     metadatas: thoughtsToSync.map(toChromaMetadata),
   });

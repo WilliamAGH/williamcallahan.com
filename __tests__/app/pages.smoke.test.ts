@@ -22,7 +22,8 @@ beforeAll(() => {
   // Create a mock fetch function that includes the preconnect method required by Bun
 
   const mockFetch = (input: RequestInfo | URL, _init?: RequestInit): Promise<Response> => {
-    const urlString = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const urlString =
+      typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 
     if (urlString.startsWith("/api/logo")) {
       console.log(`[MOCK FETCH] Intercepted call to ${urlString}`);
@@ -108,7 +109,11 @@ describe("App Router Page Smoke Tests (Static Routes)", () => {
           if (pageInfo.needsProvider) {
             // Wrap the valid element with the provider using React.createElement
             // instead of JSX syntax to avoid parsing issues in .ts files
-            elementToRender = React.createElement(GlobalWindowRegistryProvider, null, elementToRender);
+            elementToRender = React.createElement(
+              GlobalWindowRegistryProvider,
+              null,
+              elementToRender,
+            );
           }
         } else if (pageComponentInstance === null) {
           console.error(`PageComponentInstance for ${pageInfo.name} is null.`);
@@ -116,7 +121,9 @@ describe("App Router Page Smoke Tests (Static Routes)", () => {
           return;
         } else {
           // Handle unexpected return types (like boolean) - fail the test
-          console.error(`PageComponent for ${pageInfo.name} returned unexpected type: ${typeof pageComponentInstance}`);
+          console.error(
+            `PageComponent for ${pageInfo.name} returned unexpected type: ${typeof pageComponentInstance}`,
+          );
           expect(typeof pageComponentInstance).toBe("object"); // Fail test if not object or null
         }
 
@@ -128,7 +135,9 @@ describe("App Router Page Smoke Tests (Static Routes)", () => {
           expect(html.length).toBeGreaterThan(0);
         } else {
           // This case should ideally not be hit due to the checks above
-          console.error(`Skipping renderToString for ${pageInfo.name} due to invalid element type.`);
+          console.error(
+            `Skipping renderToString for ${pageInfo.name} due to invalid element type.`,
+          );
           // Optionally fail the test here
           expect(elementToRender).not.toBeUndefined();
         }

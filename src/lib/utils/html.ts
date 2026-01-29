@@ -325,7 +325,8 @@ function detectUnmarkedList(text: string): boolean {
     );
 
   // Signal 3: Known list section headers
-  const knownListSection = /what'?s inside:?|key features:?|you(?:'ll| will) (?:learn|get|discover):/i.test(text);
+  const knownListSection =
+    /what'?s inside:?|key features:?|you(?:'ll| will) (?:learn|get|discover):/i.test(text);
 
   // Signal 4: High action verb density (4+ verbs AND >5% of words)
   const verbMatches = text.match(new RegExp(`\\b(${actionVerbPattern})\\b`, "g"));
@@ -417,16 +418,19 @@ function formatUnmarkedLists(text: string): string {
   let prev = "";
   while (formattedList !== prev) {
     prev = formattedList;
-    formattedList = formattedList.replace(wordVerbPattern, (match: string, word: string, verb: string) => {
-      // Don't add bullet if:
-      // 1. Word is a non-boundary word (preposition, article, etc.)
-      // 2. Already has bullet marker before it
-      if (nonBoundaryWords.has(word.toLowerCase())) {
-        return match;
-      }
-      // Check if this position already has a bullet (don't double-bullet)
-      return `${word}\n• ${verb}`;
-    });
+    formattedList = formattedList.replace(
+      wordVerbPattern,
+      (match: string, word: string, verb: string) => {
+        // Don't add bullet if:
+        // 1. Word is a non-boundary word (preposition, article, etc.)
+        // 2. Already has bullet marker before it
+        if (nonBoundaryWords.has(word.toLowerCase())) {
+          return match;
+        }
+        // Check if this position already has a bullet (don't double-bullet)
+        return `${word}\n• ${verb}`;
+      },
+    );
   }
 
   return beforeList + formattedList + afterList;

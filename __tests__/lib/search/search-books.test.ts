@@ -139,7 +139,7 @@ describe("Books Search", () => {
       const results = await searchBooks("TypeScript");
 
       expect(results.length).toBeGreaterThanOrEqual(1);
-      expect(results.some(r => r.title.toLowerCase().includes("typescript"))).toBe(true);
+      expect(results.some((r) => r.title.toLowerCase().includes("typescript"))).toBe(true);
     });
 
     it("should find books by author", async () => {
@@ -154,7 +154,7 @@ describe("Books Search", () => {
 
       expect(results.length).toBeGreaterThanOrEqual(1);
       // Should find the Java book
-      expect(results.some(r => r.title.toLowerCase().includes("java"))).toBe(true);
+      expect(results.some((r) => r.title.toLowerCase().includes("java"))).toBe(true);
     });
 
     it("should return results for JavaScript searches", async () => {
@@ -239,7 +239,11 @@ describe("Books Search", () => {
 
     it("should not throw on concurrent searches", async () => {
       // Simulate multiple concurrent searches
-      const searches = Promise.all([searchBooks("typescript"), searchBooks("java"), searchBooks("react")]);
+      const searches = Promise.all([
+        searchBooks("typescript"),
+        searchBooks("java"),
+        searchBooks("react"),
+      ]);
 
       await expect(searches).resolves.toBeDefined();
     });

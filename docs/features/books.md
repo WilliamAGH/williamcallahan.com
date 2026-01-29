@@ -193,7 +193,7 @@ const response = await fetch(url, { cache: "no-store" });
 //  CORRECT: Prerender-safe timestamp
 const cacheSnapshot = (books: Book[]): void => {
   lastBooksSnapshot = {
-    booksById: new Map(books.map(book => [book.id, book])),
+    booksById: new Map(books.map((book) => [book.id, book])),
     fetchedAt: 0, // prerender-safe sentinel
   };
 };
@@ -201,7 +201,7 @@ const cacheSnapshot = (books: Book[]): void => {
 //  BROKEN: Causes next-prerender-current-time error
 const cacheSnapshot = (books: Book[]): void => {
   lastBooksSnapshot = {
-    booksById: new Map(books.map(book => [book.id, book])),
+    booksById: new Map(books.map((book) => [book.id, book])),
     fetchedAt: Date.now(), //  Not allowed before data access
   };
 };

@@ -210,7 +210,9 @@ describe.skip("Analytics", () => {
 
     await waitFor(() => {
       // Check for the new warning message format
-      expect(consoleSpy).toHaveBeenCalledWith("[Analytics] Failed to load Umami script - continuing without analytics");
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "[Analytics] Failed to load Umami script - continuing without analytics",
+      );
     });
   });
 });

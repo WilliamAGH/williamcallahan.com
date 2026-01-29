@@ -71,7 +71,9 @@ describe("usePagination", () => {
       isLoading: false,
     } as any);
 
-    const { result } = renderHook(() => usePagination<UnifiedBookmark>({ apiUrl: mockApiUrl, limit: 24 }));
+    const { result } = renderHook(() =>
+      usePagination<UnifiedBookmark>({ apiUrl: mockApiUrl, limit: 24 }),
+    );
 
     expect(result.current.items).toHaveLength(24);
     expect(result.current.totalPages).toBe(3);

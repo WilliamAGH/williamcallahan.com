@@ -79,7 +79,7 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
             ref={ref}
             type="text"
             value={value}
-            onChange={e => handleChange(e.target.value)}
+            onChange={(e) => handleChange(e.target.value)}
             onKeyDown={handleKeyDown}
             className="bg-transparent w-full focus:outline-none text-gray-300 caret-gray-300
                 text-[16px] transform-gpu scale-[0.875] origin-left disabled:opacity-50 disabled:cursor-not-allowed"

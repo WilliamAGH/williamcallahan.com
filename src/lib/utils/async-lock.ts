@@ -38,7 +38,7 @@ export class AsyncLock {
 
     // Create new lock
     let releaseLock: (() => void) | undefined;
-    const lockPromise = new Promise<void>(resolve => {
+    const lockPromise = new Promise<void>((resolve) => {
       releaseLock = resolve;
     });
 

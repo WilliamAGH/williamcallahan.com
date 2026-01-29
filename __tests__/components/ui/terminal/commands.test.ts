@@ -95,7 +95,9 @@ describe("Terminal Commands", () => {
         json: jest.fn().mockResolvedValue({ message: "Hello from the assistant." }),
       };
 
-      (fetch as unknown as jest.Mock).mockResolvedValueOnce(tokenResponse).mockResolvedValueOnce(chatResponse);
+      (fetch as unknown as jest.Mock)
+        .mockResolvedValueOnce(tokenResponse)
+        .mockResolvedValueOnce(chatResponse);
 
       const result = await handleCommand("ai hello world");
 

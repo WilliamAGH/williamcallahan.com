@@ -15,12 +15,20 @@
  * - Typical "very similar" threshold: distance < 0.3
  */
 
-import type { GetRelatedThoughtsOptions, RelatedThought, SearchThoughtsOptions } from "@/types/thoughts-chroma";
+import type {
+  GetRelatedThoughtsOptions,
+  RelatedThought,
+  SearchThoughtsOptions,
+} from "@/types/thoughts-chroma";
 import type { Where } from "chromadb";
 import { getThoughtsCollection } from "./chroma-sync";
 
 // Re-export types for convenience
-export type { GetRelatedThoughtsOptions, RelatedThought, SearchThoughtsOptions } from "@/types/thoughts-chroma";
+export type {
+  GetRelatedThoughtsOptions,
+  RelatedThought,
+  SearchThoughtsOptions,
+} from "@/types/thoughts-chroma";
 
 /**
  * Finds thoughts semantically similar to the given thought.
@@ -67,8 +75,8 @@ export async function getRelatedThoughts(
         title: (results.metadatas[0]?.[index]?.title as string) ?? "",
         distance: results.distances?.[0]?.[index] ?? 0,
       }))
-      .filter(r => r.id !== thoughtId)
-      .filter(r => maxDistance === undefined || r.distance <= maxDistance)
+      .filter((r) => r.id !== thoughtId)
+      .filter((r) => maxDistance === undefined || r.distance <= maxDistance)
       .slice(0, limit) ?? [];
 
   return related;
@@ -82,7 +90,10 @@ export async function getRelatedThoughts(
  * @param options - Search options
  * @returns Array of matching thoughts sorted by relevance
  */
-export async function searchThoughts(query: string, options: SearchThoughtsOptions = {}): Promise<RelatedThought[]> {
+export async function searchThoughts(
+  query: string,
+  options: SearchThoughtsOptions = {},
+): Promise<RelatedThought[]> {
   const { limit = 10, category, includeDrafts = false, maxDistance } = options;
   const collection = await getThoughtsCollection();
 
@@ -111,7 +122,7 @@ export async function searchThoughts(query: string, options: SearchThoughtsOptio
         title: (results.metadatas[0]?.[index]?.title as string) ?? "",
         distance: results.distances?.[0]?.[index] ?? 0,
       }))
-      .filter(r => maxDistance === undefined || r.distance <= maxDistance) ?? [];
+      .filter((r) => maxDistance === undefined || r.distance <= maxDistance) ?? [];
 
   return thoughts;
 }
@@ -177,7 +188,11 @@ export async function suggestCategory(
  * @param maxTags - Maximum number of tags to suggest (default: 5)
  * @returns Array of suggested tags sorted by relevance
  */
-export async function suggestTags(content: string, title: string, maxTags: number = 5): Promise<string[]> {
+export async function suggestTags(
+  content: string,
+  title: string,
+  maxTags: number = 5,
+): Promise<string[]> {
   const collection = await getThoughtsCollection();
 
   const results = await collection.query({
@@ -196,7 +211,7 @@ export async function suggestTags(content: string, title: string, maxTags: numbe
     const weight = 1 / (1 + distance); // Higher weight for closer matches
 
     if (tagsString) {
-      tagsString.split(",").forEach(tag => {
+      tagsString.split(",").forEach((tag) => {
         const trimmed = tag.trim();
         if (trimmed) {
           tagScores.set(trimmed, (tagScores.get(trimmed) ?? 0) + weight);
@@ -242,7 +257,7 @@ export async function findPotentialDuplicates(
         title: (results.metadatas[0]?.[index]?.title as string) ?? "",
         distance: results.distances?.[0]?.[index] ?? 0,
       }))
-      .filter(r => r.distance <= threshold) ?? []
+      .filter((r) => r.distance <= threshold) ?? []
   );
 }
 
@@ -269,7 +284,7 @@ export async function getCategoryDistribution(): Promise<Map<string, number>> {
       include: ["metadatas"],
     });
 
-    results.metadatas?.forEach(meta => {
+    results.metadatas?.forEach((meta) => {
       const category = (meta?.category as string) || "(uncategorized)";
       distribution.set(category, (distribution.get(category) ?? 0) + 1);
     });
@@ -305,10 +320,10 @@ export async function getTagDistribution(limit: number = 20): Promise<Array<[str
       include: ["metadatas"],
     });
 
-    results.metadatas?.forEach(meta => {
+    results.metadatas?.forEach((meta) => {
       const tagsString = meta?.tags as string;
       if (tagsString) {
-        tagsString.split(",").forEach(tag => {
+        tagsString.split(",").forEach((tag) => {
           const trimmed = tag.trim();
           if (trimmed) {
             tagCounts.set(trimmed, (tagCounts.get(trimmed) ?? 0) + 1);

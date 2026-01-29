@@ -16,7 +16,12 @@ import { getMonotonicTime } from "@/lib/utils";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
-import { KNOWN_DOMAINS, SEARCH_S3_PATHS, IMAGE_MANIFEST_S3_PATHS, IMAGE_S3_PATHS } from "@/lib/constants";
+import {
+  KNOWN_DOMAINS,
+  SEARCH_S3_PATHS,
+  IMAGE_MANIFEST_S3_PATHS,
+  IMAGE_S3_PATHS,
+} from "@/lib/constants";
 import { DATA_UPDATER_FLAGS, hasFlag, parseTestLimit } from "@/lib/constants/cli-flags";
 import { getLogo } from "@/lib/data-access/logos";
 import { processLogoBatch } from "@/lib/data-access/logos-batch";
@@ -127,7 +132,9 @@ export class DataFetchManager {
         throw new Error("Empty bookmarks array returned from refresh");
       }
 
-      logger.info(`[DataFetchManager] Fetched ${bookmarks.length} bookmarks (previous: ${previousCount})`);
+      logger.info(
+        `[DataFetchManager] Fetched ${bookmarks.length} bookmarks (previous: ${previousCount})`,
+      );
 
       // DISABLED FOR BOOKMARKS: Don't fetch logos for bookmarks
       // Bookmarks should only use OpenGraph images, not logos/favicons
@@ -145,7 +152,9 @@ export class DataFetchManager {
       try {
         const { readJsonS3 } = await import("@/lib/s3-utils");
         const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
-        const index = await readJsonS3<import("@/types/bookmark").BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+        const index = await readJsonS3<import("@/types/bookmark").BookmarksIndex>(
+          BOOKMARKS_S3_PATHS.INDEX,
+        );
         if (index) {
           changeDetected = index.changeDetected ?? undefined;
           lastFetchedAt = index.lastFetchedAt;
@@ -258,11 +267,13 @@ export class DataFetchManager {
           },
         });
 
-        const successCount = Array.from(results.values()).filter(r => !r.error).length;
+        const successCount = Array.from(results.values()).filter((r) => !r.error).length;
         const failureCount = results.size - successCount;
 
         const duration = (getMonotonicTime() - startTime) / 1000;
-        logger.info(`[DataFetchManager] Logo batch complete. Success: ${successCount}, Failures: ${failureCount}`);
+        logger.info(
+          `[DataFetchManager] Logo batch complete. Success: ${successCount}, Failures: ${failureCount}`,
+        );
         return {
           success: true,
           operation: "logos",
@@ -310,16 +321,20 @@ export class DataFetchManager {
 
     try {
       // Parallelize data collection for better performance
-      const [investmentData, { experiences }, { education, certifications, recentCourses }, bookmarks] =
-        await Promise.all([
-          getInvestmentDomainsAndIds(),
-          import("@/data/experience"),
-          import("@/data/education"),
-          getBookmarks({
-            skipExternalFetch: false,
-            includeImageData: false,
-          }) as Promise<UnifiedBookmark[]>,
-        ]);
+      const [
+        investmentData,
+        { experiences },
+        { education, certifications, recentCourses },
+        bookmarks,
+      ] = await Promise.all([
+        getInvestmentDomainsAndIds(),
+        import("@/data/experience"),
+        import("@/data/education"),
+        getBookmarks({
+          skipExternalFetch: false,
+          includeImageData: false,
+        }) as Promise<UnifiedBookmark[]>,
+      ]);
 
       // Process investment domains
       for (const [domain] of investmentData) {
@@ -334,7 +349,9 @@ export class DataFetchManager {
             const domain = stripWwwPrefix(url.hostname);
             domains.add(domain);
           } catch {
-            logger.warn(`[DataFetchManager] Could not parse domain from experience URL: ${exp.website}`);
+            logger.warn(
+              `[DataFetchManager] Could not parse domain from experience URL: ${exp.website}`,
+            );
           }
         }
       }
@@ -348,7 +365,9 @@ export class DataFetchManager {
             const domain = stripWwwPrefix(url.hostname);
             domains.add(domain);
           } catch {
-            logger.warn(`[DataFetchManager] Could not parse domain from education URL: ${edu.website}`);
+            logger.warn(
+              `[DataFetchManager] Could not parse domain from education URL: ${edu.website}`,
+            );
           }
         }
       }
@@ -420,9 +439,9 @@ export class DataFetchManager {
         )} (size: ${batch.length})`,
       );
 
-      const promises = batch.map(domain =>
+      const promises = batch.map((domain) =>
         getLogo(domain)
-          .then(result => {
+          .then((result) => {
             if (result && !result.error) {
               successCount++;
             } else {
@@ -438,7 +457,7 @@ export class DataFetchManager {
       await Promise.all(promises);
 
       if (i + batchConfig.size < domains.length) {
-        await new Promise(resolve => setTimeout(resolve, batchConfig.delay));
+        await new Promise((resolve) => setTimeout(resolve, batchConfig.delay));
       }
     }
 
@@ -461,7 +480,9 @@ export class DataFetchManager {
     try {
       // CRITICAL: Ensure slug mappings are saved before building search indexes
       // This prevents race conditions where search indexes use stale or missing slug mappings
-      logger.info("[DataFetchManager] Ensuring slug mappings are up-to-date before building search indexes...");
+      logger.info(
+        "[DataFetchManager] Ensuring slug mappings are up-to-date before building search indexes...",
+      );
 
       const { loadSlugMapping, saveSlugMapping } = await import("@/lib/bookmarks/slug-manager");
       const { getBookmarks } = await import("@/lib/bookmarks/service.server");
@@ -469,7 +490,9 @@ export class DataFetchManager {
       // Check if slug mappings exist and are current
       const existingMapping = await loadSlugMapping();
       if (!existingMapping) {
-        logger.warn("[DataFetchManager] No slug mapping found, generating before search index build...");
+        logger.warn(
+          "[DataFetchManager] No slug mapping found, generating before search index build...",
+        );
         const bookmarks = (await getBookmarks({
           skipExternalFetch: false,
           includeImageData: false,
@@ -573,7 +596,9 @@ export class DataFetchManager {
       await Promise.all(uploadPromises);
 
       const totalImages = logos.length + opengraph.length + blog.length;
-      logger.info(`[DataFetchManager] Image manifests built successfully. Total images: ${totalImages}`);
+      logger.info(
+        `[DataFetchManager] Image manifests built successfully. Total images: ${totalImages}`,
+      );
 
       const duration = (getMonotonicTime() - startTime) / 1000;
       return {
@@ -660,7 +685,7 @@ export class DataFetchManager {
    */
   private createImageManifest(s3Keys: string[]): string[] {
     const cdnBase = getS3CdnUrl();
-    return s3Keys.map(key => `${cdnBase}/${key}`);
+    return s3Keys.map((key) => `${cdnBase}/${key}`);
   }
 
   private async runContentGraphBuild(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
@@ -704,9 +729,9 @@ if (require.main === module) {
 
   manager
     .fetchData(config)
-    .then(results => {
+    .then((results) => {
       logger.info(`[DataFetchManagerCLI] All tasks complete. Results count: ${results.length}`);
-      results.forEach(result => {
+      results.forEach((result) => {
         if (result.success) {
           logger.info(`  - ${result.operation}: Success (${result.itemsProcessed} items)`);
         } else {

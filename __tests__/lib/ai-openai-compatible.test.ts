@@ -1,4 +1,8 @@
-import { createAiGateToken, hashUserAgent, verifyAiGateToken } from "@/lib/ai/openai-compatible/gate-token";
+import {
+  createAiGateToken,
+  hashUserAgent,
+  verifyAiGateToken,
+} from "@/lib/ai/openai-compatible/gate-token";
 import {
   buildChatCompletionsUrl,
   resolveOpenAiCompatibleFeatureConfig,
@@ -76,7 +80,12 @@ describe("OpenAI-Compatible AI Utilities", () => {
       };
 
       const token = createAiGateToken(secret, payload);
-      const result = verifyAiGateToken(secret, token, { ip: "1.2.3.4", ua: payload.ua, nonce: "nonce" }, now);
+      const result = verifyAiGateToken(
+        secret,
+        token,
+        { ip: "1.2.3.4", ua: payload.ua, nonce: "nonce" },
+        now,
+      );
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -96,7 +105,12 @@ describe("OpenAI-Compatible AI Utilities", () => {
         ua: hashUserAgent("ua"),
       });
 
-      const result = verifyAiGateToken(secret, token, { ip: "1.2.3.4", ua: hashUserAgent("ua"), nonce: "nonce" }, now);
+      const result = verifyAiGateToken(
+        secret,
+        token,
+        { ip: "1.2.3.4", ua: hashUserAgent("ua"), nonce: "nonce" },
+        now,
+      );
       expect(result.ok).toBe(false);
       expect(result).toMatchObject({ ok: false, reason: "expired" });
     });
@@ -112,7 +126,12 @@ describe("OpenAI-Compatible AI Utilities", () => {
         ua: hashUserAgent("ua"),
       });
 
-      const result = verifyAiGateToken(secret, token, { ip: "9.9.9.9", ua: hashUserAgent("ua"), nonce: "nonce" }, now);
+      const result = verifyAiGateToken(
+        secret,
+        token,
+        { ip: "9.9.9.9", ua: hashUserAgent("ua"), nonce: "nonce" },
+        now,
+      );
       expect(result.ok).toBe(false);
       expect(result).toMatchObject({ ok: false, reason: "mismatch" });
     });
@@ -150,12 +169,18 @@ describe("OpenAI-Compatible AI Utilities", () => {
     });
 
     it("builds chat completions URL with /v1 appended", () => {
-      expect(buildChatCompletionsUrl("https://example.com")).toBe("https://example.com/v1/chat/completions");
+      expect(buildChatCompletionsUrl("https://example.com")).toBe(
+        "https://example.com/v1/chat/completions",
+      );
     });
 
     it("builds chat completions URL when baseUrl already ends with /v1", () => {
-      expect(buildChatCompletionsUrl("https://example.com/v1")).toBe("https://example.com/v1/chat/completions");
-      expect(buildChatCompletionsUrl("https://example.com/v1/")).toBe("https://example.com/v1/chat/completions");
+      expect(buildChatCompletionsUrl("https://example.com/v1")).toBe(
+        "https://example.com/v1/chat/completions",
+      );
+      expect(buildChatCompletionsUrl("https://example.com/v1/")).toBe(
+        "https://example.com/v1/chat/completions",
+      );
     });
 
     it("resolves feature-specific variables, then default, then built-in fallback", () => {

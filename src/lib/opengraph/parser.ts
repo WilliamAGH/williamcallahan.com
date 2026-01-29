@@ -10,7 +10,11 @@
 
 import * as cheerio from "cheerio";
 import { debug, debugWarn } from "@/lib/utils/debug";
-import { getDomainType, isValidImageUrl, constructKarakeepAssetUrl } from "@/lib/utils/opengraph-utils";
+import {
+  getDomainType,
+  isValidImageUrl,
+  constructKarakeepAssetUrl,
+} from "@/lib/utils/opengraph-utils";
 import { OPENGRAPH_FETCH_CONFIG } from "@/lib/constants";
 import { karakeepImageFallbackSchema, type KarakeepImageFallback } from "@/types";
 import { SOCIAL_PLATFORMS } from "@/types/social";
@@ -128,7 +132,10 @@ export function extractOpenGraphTags(
       result.profileImage = extractBlueskyProfileImage($);
     }
   } catch (error) {
-    debugWarn(`[DataAccess/OpenGraph] Error during platform-specific extraction for ${domain}:`, error);
+    debugWarn(
+      `[DataAccess/OpenGraph] Error during platform-specific extraction for ${domain}:`,
+      error,
+    );
   }
 
   // Add Karakeep fallback images if provided (for bookmarks)
@@ -152,7 +159,9 @@ export function extractOpenGraphTags(
     }
     if (validatedFallbackData.screenshotAssetId) {
       try {
-        result.karakeepScreenshotImage = constructKarakeepAssetUrl(validatedFallbackData.screenshotAssetId);
+        result.karakeepScreenshotImage = constructKarakeepAssetUrl(
+          validatedFallbackData.screenshotAssetId,
+        );
       } catch {
         // Silently ignore invalid asset IDs
       }

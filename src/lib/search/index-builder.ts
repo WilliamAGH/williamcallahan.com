@@ -46,7 +46,9 @@ import {
  * Creates an empty MiniSearch instance from a config.
  * Used by index-builder to create indexes before adding transformed documents.
  */
-function createEmptyIndex<T, VF extends string = never>(config: IndexFieldConfig<T, VF>): MiniSearch<T> {
+function createEmptyIndex<T, VF extends string = never>(
+  config: IndexFieldConfig<T, VF>,
+): MiniSearch<T> {
   return new MiniSearch<T>({
     fields: config.fields as string[],
     storeFields: config.storeFields,
@@ -66,7 +68,7 @@ function createEmptyIndex<T, VF extends string = never>(config: IndexFieldConfig
 async function buildPostsIndex(): Promise<SerializedIndex> {
   const allPosts = await getAllMDXPostsForSearch();
   const index = createEmptyIndex(POSTS_INDEX_CONFIG);
-  const dedupedPosts = prepareDocumentsForIndexing(allPosts, "Blog Posts", post => post.slug);
+  const dedupedPosts = prepareDocumentsForIndexing(allPosts, "Blog Posts", (post) => post.slug);
   index.addAll(dedupedPosts);
   return serializeIndex(index, dedupedPosts.length);
 }
@@ -99,13 +101,13 @@ function buildEducationIndex(): SerializedIndex {
 
   // Combine education and certifications
   const allEducationItems: EducationItem[] = [
-    ...education.map(edu => ({
+    ...education.map((edu) => ({
       id: edu.id,
       label: edu.institution,
       description: edu.degree,
       path: `/education#${edu.id}`,
     })),
-    ...certifications.map(cert => ({
+    ...certifications.map((cert) => ({
       id: cert.id,
       label: cert.institution,
       description: cert.name,
@@ -126,7 +128,7 @@ function buildProjectsIndexForBuilder(): SerializedIndex {
   const dedupedProjects: Project[] = prepareDocumentsForIndexing(
     projects as Array<Project & { id?: string | number }>,
     "Projects",
-    p => p.name,
+    (p) => p.name,
   );
   index.addAll(dedupedProjects);
   return serializeIndex(index, dedupedProjects.length);
@@ -146,7 +148,7 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
   const slugMapping = await loadSlugMapping();
 
   // Transform bookmarks for indexing with slug resolution
-  const bookmarksForIndex: BookmarkIndexItem[] = bookmarks.map(b => {
+  const bookmarksForIndex: BookmarkIndexItem[] = bookmarks.map((b) => {
     const embedded = tryGetEmbeddedSlug(b);
     const slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
 
@@ -163,7 +165,9 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
       title: b.title || b.url,
       description: b.description || "",
       tags: Array.isArray(b.tags)
-        ? b.tags.map(t => (typeof t === "string" ? t : (t as { name?: string })?.name || "")).join("\n")
+        ? b.tags
+            .map((t) => (typeof t === "string" ? t : (t as { name?: string })?.name || ""))
+            .join("\n")
         : "",
       url: b.url,
       author: b.content?.author || "",
@@ -241,7 +245,9 @@ export async function buildAllSearchIndexes(): Promise<AllSerializedIndexes> {
  */
 export function loadIndexFromJSON<T>(serializedIndex: SerializedIndex): MiniSearch<T> {
   const indexData =
-    typeof serializedIndex.index === "string" ? serializedIndex.index : JSON.stringify(serializedIndex.index);
+    typeof serializedIndex.index === "string"
+      ? serializedIndex.index
+      : JSON.stringify(serializedIndex.index);
   const { fields, storeFields } = extractFieldsFromSerializedIndex(serializedIndex);
 
   return MiniSearch.loadJSON(indexData, {
@@ -254,7 +260,10 @@ function extractFieldsFromSerializedIndex(serializedIndex: SerializedIndex): {
   fields: string[];
   storeFields: string[];
 } {
-  const raw = typeof serializedIndex.index === "string" ? safeParseIndex(serializedIndex.index) : serializedIndex.index;
+  const raw =
+    typeof serializedIndex.index === "string"
+      ? safeParseIndex(serializedIndex.index)
+      : serializedIndex.index;
 
   if (!isRecord(raw)) {
     return { fields: [], storeFields: [] };

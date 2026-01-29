@@ -44,21 +44,25 @@ export const ImageWindow = ({
 
   // Determine the appropriate control size based on screen width
   const controlSize =
-    windowSize.width && windowSize.width < 640 ? "sm" : windowSize.width && windowSize.width > 1280 ? "lg" : "md";
+    windowSize.width && windowSize.width < 640
+      ? "sm"
+      : windowSize.width && windowSize.width > 1280
+        ? "lg"
+        : "md";
 
   // Handler functions for window controls
   const handleClose = () => {
-    setIsVisible(prev => !prev); // Toggle visibility
+    setIsVisible((prev) => !prev); // Toggle visibility
   };
 
   const handleMinimize = () => {
-    setIsMinimized(prev => !prev);
+    setIsMinimized((prev) => !prev);
     if (isMaximized) setIsMaximized(false); // Exit maximized mode if active
   };
 
   // Wrap in useCallback to prevent recreation on each render
   const handleMaximize = useCallback(() => {
-    setIsMaximized(prev => !prev);
+    setIsMaximized((prev) => !prev);
     if (isMinimized) setIsMinimized(false); // Exit minimized mode if active
   }, [isMinimized]); // Add dependencies
 
@@ -92,7 +96,9 @@ export const ImageWindow = ({
   // Return early if window is closed
   if (!isVisible) {
     return (
-      <div className={cn("relative group mx-auto max-w-full", !noMargin && "my-6", wrapperClassName)}>
+      <div
+        className={cn("relative group mx-auto max-w-full", !noMargin && "my-6", wrapperClassName)}
+      >
         <button
           type="button"
           className={cn(
@@ -105,7 +111,7 @@ export const ImageWindow = ({
             borderRadius: "8px",
           }}
           onClick={handleClose}
-          onKeyUp={e => {
+          onKeyUp={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               handleClose();
             }
@@ -118,7 +124,10 @@ export const ImageWindow = ({
             size={controlSize}
           />
           {/* Optional: Add title or filename here if available */}
-          <div className="ml-2 sm:ml-4 flex-shrink min-w-0 text-xs text-gray-400 truncate" title={alt}>
+          <div
+            className="ml-2 sm:ml-4 flex-shrink min-w-0 text-xs text-gray-400 truncate"
+            title={alt}
+          >
             {" "}
             {/* Allow shrinking */}
             {alt || "Image"}

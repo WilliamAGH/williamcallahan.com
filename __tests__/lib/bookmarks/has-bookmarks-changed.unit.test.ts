@@ -61,8 +61,10 @@ describe("hasBookmarksChanged() function (unit)", () => {
     bookmarksModule.cleanupBookmarksDataAccess();
 
     const writeCalls = writeJsonS3Mock.mock.calls;
-    const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-    const pageWrite = writeCalls.find(call => typeof call[0] === "string" && call[0].includes("page-1.json"));
+    const indexWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.INDEX);
+    const pageWrite = writeCalls.find(
+      (call) => typeof call[0] === "string" && call[0].includes("page-1.json"),
+    );
 
     expect(indexWrite).toBeDefined();
     expect(pageWrite).toBeDefined();
@@ -152,8 +154,10 @@ describe("hasBookmarksChanged() function (unit)", () => {
     bookmarksModule.cleanupBookmarksDataAccess();
 
     const writeCalls = writeJsonS3Mock.mock.calls;
-    const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-    const pageWrite = writeCalls.find(call => typeof call[0] === "string" && call[0].includes("page-1.json"));
+    const indexWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.INDEX);
+    const pageWrite = writeCalls.find(
+      (call) => typeof call[0] === "string" && call[0].includes("page-1.json"),
+    );
 
     expect(indexWrite).toBeDefined();
     expect(pageWrite).toBeDefined();
@@ -235,8 +239,10 @@ describe("hasBookmarksChanged() function (unit)", () => {
     bookmarksModule.cleanupBookmarksDataAccess();
 
     const writeCalls = writeJsonS3Mock.mock.calls;
-    const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-    const pageWrite = writeCalls.find(call => typeof call[0] === "string" && call[0].includes("page-1.json"));
+    const indexWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.INDEX);
+    const pageWrite = writeCalls.find(
+      (call) => typeof call[0] === "string" && call[0].includes("page-1.json"),
+    );
 
     expect(indexWrite).toBeDefined();
     expect(pageWrite).toBeDefined();
@@ -290,7 +296,9 @@ describe("hasBookmarksChanged() function (unit)", () => {
     }));
 
     jest.doMock("@/lib/bookmarks/enrich-opengraph", () => ({
-      processBookmarksInBatches: jest.fn((bookmarks: UnifiedBookmark[]) => Promise.resolve(bookmarks)),
+      processBookmarksInBatches: jest.fn((bookmarks: UnifiedBookmark[]) =>
+        Promise.resolve(bookmarks),
+      ),
     }));
 
     const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
@@ -325,12 +333,15 @@ describe("hasBookmarksChanged() function (unit)", () => {
     bookmarksModule.cleanupBookmarksDataAccess();
 
     const writeCalls = writeJsonS3Mock.mock.calls;
-    const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-    const heartbeatWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.HEARTBEAT);
+    const indexWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.INDEX);
+    const heartbeatWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.HEARTBEAT);
 
     expect(indexWrite).toBeDefined();
     expect(heartbeatWrite).toBeDefined();
-    const [, indexPayload] = indexWrite as [string, { changeDetected: boolean; count: number; lastFetchedAt: number }];
+    const [, indexPayload] = indexWrite as [
+      string,
+      { changeDetected: boolean; count: number; lastFetchedAt: number },
+    ];
     expect(indexPayload.changeDetected).toBe(false);
     expect(indexPayload.count).toBe(2);
     expect(indexPayload.lastFetchedAt).toBeGreaterThan(existingIndex.lastFetchedAt ?? 0);
@@ -389,8 +400,10 @@ describe("hasBookmarksChanged() function (unit)", () => {
     bookmarksModule.cleanupBookmarksDataAccess();
 
     const writeCalls = writeJsonS3Mock.mock.calls;
-    const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-    const pageWrite = writeCalls.find(call => typeof call[0] === "string" && call[0].includes("page-1.json"));
+    const indexWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.INDEX);
+    const pageWrite = writeCalls.find(
+      (call) => typeof call[0] === "string" && call[0].includes("page-1.json"),
+    );
 
     expect(indexWrite).toBeDefined();
     expect(pageWrite).toBeDefined();

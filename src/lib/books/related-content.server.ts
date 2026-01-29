@@ -70,7 +70,7 @@ export async function getRelatedContentForBook(bookId: string): Promise<RelatedC
 export async function getBookIdsWithRelatedContent(): Promise<string[]> {
   const data = await ensureCacheLoaded();
   if (!data) return [];
-  return Object.keys(data.entries).map(key => key.replace("book:", ""));
+  return Object.keys(data.entries).map((key) => key.replace("book:", ""));
 }
 
 /**

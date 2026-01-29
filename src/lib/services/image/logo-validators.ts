@@ -102,22 +102,28 @@ export class LogoValidators {
     try {
       const formData = new FormData();
       const contentType =
-        response.headers instanceof Map ? response.headers.get("content-type") : response.headers.get("content-type");
+        response.headers instanceof Map
+          ? response.headers.get("content-type")
+          : response.headers.get("content-type");
       formData.append(
         "image",
         new Blob([new Uint8Array(rawBuffer)], { type: contentType ?? "application/octet-stream" }),
         "logo-to-validate",
       );
       formData.append("url", url);
-      const validateResponse = await fetchWithTimeout(new URL("/api/validate-logo", baseUrl).toString(), {
-        method: "POST",
-        body: formData,
-        timeout: 5000,
-      });
+      const validateResponse = await fetchWithTimeout(
+        new URL("/api/validate-logo", baseUrl).toString(),
+        {
+          method: "POST",
+          body: formData,
+          timeout: 5000,
+        },
+      );
       if (validateResponse.ok) {
         const { isGlobeIcon } = (await validateResponse.json()) as { isGlobeIcon: boolean };
         if (isGlobeIcon) {
-          if (isDebug) logger.debug(`[LogoValidators] ${name} detected as globe icon for ${testDomain}`);
+          if (isDebug)
+            logger.debug(`[LogoValidators] ${name} detected as globe icon for ${testDomain}`);
           return true;
         }
       }
@@ -133,7 +139,9 @@ export class LogoValidators {
   /**
    * Process image buffer (resize, optimize)
    */
-  async processImageBuffer(buffer: Buffer): Promise<{ processedBuffer: Buffer; isSvg: boolean; contentType: string }> {
+  async processImageBuffer(
+    buffer: Buffer,
+  ): Promise<{ processedBuffer: Buffer; isSvg: boolean; contentType: string }> {
     return sharedProcessImageBuffer(buffer, "LogoValidators");
   }
 }

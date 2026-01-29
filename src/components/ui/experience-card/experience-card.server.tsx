@@ -20,7 +20,9 @@ import type { JSX } from "react";
  * @param {Experience} props - Experience entry properties
  * @returns {Promise<JSX.Element>} Pre-rendered experience card with fetched logo
  */
-export async function ExperienceCard(props: Experience & { isDarkTheme?: boolean }): Promise<JSX.Element> {
+export async function ExperienceCard(
+  props: Experience & { isDarkTheme?: boolean },
+): Promise<JSX.Element> {
   const { website, company, logo, isDarkTheme } = props;
 
   try {
@@ -35,7 +37,9 @@ export async function ExperienceCard(props: Experience & { isDarkTheme?: boolean
         const manifestEntry = await getLogoFromManifestAsync(domain);
         if (manifestEntry) {
           const selectedUrl =
-            isDarkTheme && manifestEntry.invertedCdnUrl ? manifestEntry.invertedCdnUrl : manifestEntry.cdnUrl;
+            isDarkTheme && manifestEntry.invertedCdnUrl
+              ? manifestEntry.invertedCdnUrl
+              : manifestEntry.cdnUrl;
 
           return (
             <ExperienceCardClient
@@ -57,9 +61,13 @@ export async function ExperienceCard(props: Experience & { isDarkTheme?: boolean
       }
     }
 
-    return <ExperienceCardClient {...props} logoData={{ url: getCompanyPlaceholder(), source: null }} />;
+    return (
+      <ExperienceCardClient {...props} logoData={{ url: getCompanyPlaceholder(), source: null }} />
+    );
   } catch (error) {
     console.error("[ExperienceCard] Failed to resolve logo:", error);
-    return <ExperienceCardClient {...props} logoData={{ url: getCompanyPlaceholder(), source: null }} />;
+    return (
+      <ExperienceCardClient {...props} logoData={{ url: getCompanyPlaceholder(), source: null }} />
+    );
   }
 }

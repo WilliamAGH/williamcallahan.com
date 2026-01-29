@@ -48,7 +48,7 @@ const CHUNKING_DEFAULTS = {
  * Count words in text
  */
 function countWords(text: string): number {
-  return text.split(/\s+/).filter(word => word.length > 0).length;
+  return text.split(/\s+/).filter((word) => word.length > 0).length;
 }
 
 /**
@@ -226,7 +226,10 @@ export function chunkChapters(
  * @param targetWords - Target words per chunk
  * @returns Estimated number of chunks
  */
-export function estimateChunkCount(totalWords: number, targetWords = CHUNKING_DEFAULTS.TARGET_WORDS): number {
+export function estimateChunkCount(
+  totalWords: number,
+  targetWords = CHUNKING_DEFAULTS.TARGET_WORDS,
+): number {
   // Single chunk if text is small (within 1.5x target)
   const SINGLE_CHUNK_THRESHOLD = 1.5;
   if (totalWords <= targetWords * SINGLE_CHUNK_THRESHOLD) {

@@ -189,7 +189,7 @@ describe("Pre-computation Pipeline Integration", () => {
         ],
       };
 
-      mockReadJsonS3.mockImplementation(path => {
+      mockReadJsonS3.mockImplementation((path) => {
         if (path === CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT) {
           return Promise.resolve(mockRelatedContent);
         }
@@ -224,7 +224,9 @@ describe("Pre-computation Pipeline Integration", () => {
         process.env.NODE_ENV = "production";
         jest.isolateModules(() => {
           const prodConstants = require("@/lib/constants");
-          expect(prodConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe("json/content-graph/related-content.json");
+          expect(prodConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe(
+            "json/content-graph/related-content.json",
+          );
         });
 
         // Test development paths
@@ -262,7 +264,7 @@ describe("Pre-computation Pipeline Integration", () => {
 
     it("should not interfere between environments", async () => {
       // Mock different data for different environments
-      mockReadJsonS3.mockImplementation(path => {
+      mockReadJsonS3.mockImplementation((path) => {
         if (path.includes("-dev")) {
           return Promise.resolve({ env: "development" });
         }
@@ -312,7 +314,9 @@ describe("Pre-computation Pipeline Integration", () => {
       (refreshBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
 
       const { buildAllSearchIndexes } = await import("@/lib/search/index-builder");
-      (buildAllSearchIndexes as jest.Mock).mockRejectedValue(new Error("Search index build failed"));
+      (buildAllSearchIndexes as jest.Mock).mockRejectedValue(
+        new Error("Search index build failed"),
+      );
 
       // Prevent slug-mapping pre-step from failing with undefined bookmarks
       const { getBookmarks: getServiceBookmarks } = await import("@/lib/bookmarks/service.server");
@@ -409,7 +413,7 @@ describe("Pre-computation Pipeline Integration", () => {
 
       // Verify slug mapping was created for all bookmarks
       const slugMappingCall = (writeJsonS3 as jest.Mock).mock.calls.find(
-        call => call[0] === BOOKMARKS_S3_PATHS.SLUG_MAPPING,
+        (call) => call[0] === BOOKMARKS_S3_PATHS.SLUG_MAPPING,
       );
 
       // Skip this assertion if slug mapping wasn't created
@@ -457,11 +461,11 @@ describe("Pre-computation Pipeline Integration", () => {
       // Check metadata consistency
       const { writeJsonS3 } = await import("@/lib/s3-utils");
       const metadataCall = (writeJsonS3 as jest.Mock).mock.calls.find(
-        call => call[0] === CONTENT_GRAPH_S3_PATHS.METADATA,
+        (call) => call[0] === CONTENT_GRAPH_S3_PATHS.METADATA,
       );
 
       const relatedContentCall = (writeJsonS3 as jest.Mock).mock.calls.find(
-        call => call[0] === CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
+        (call) => call[0] === CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
       );
 
       if (metadataCall && relatedContentCall) {

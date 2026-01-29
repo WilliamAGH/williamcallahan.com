@@ -74,13 +74,16 @@ function parseYearToUtcDate(yearInput: unknown): Date | undefined {
  * @param bookmark - The bookmark to normalize
  * @param slugMap - Optional map of bookmark IDs to slugs
  */
-function normalizeBookmark(bookmark: UnifiedBookmark, slugMap?: Map<string, string>): NormalizedContent {
+function normalizeBookmark(
+  bookmark: UnifiedBookmark,
+  slugMap?: Map<string, string>,
+): NormalizedContent {
   // Extract tags (known schema) and de-duplicate
   const tags = Array.isArray(bookmark.tags)
     ? Array.from(
         new Set(
           bookmark.tags
-            .map(t => {
+            .map((t) => {
               if (typeof t === "string") return t;
               if (t && typeof t === "object" && "name" in t) return (t as { name?: string }).name;
               return undefined;
@@ -91,7 +94,12 @@ function normalizeBookmark(bookmark: UnifiedBookmark, slugMap?: Map<string, stri
     : [];
 
   // Build text content for similarity matching
-  const textParts = [bookmark.description, bookmark.note, bookmark.summary, bookmark.ogDescription].filter(Boolean);
+  const textParts = [
+    bookmark.description,
+    bookmark.note,
+    bookmark.summary,
+    bookmark.ogDescription,
+  ].filter(Boolean);
 
   const text = textParts.join(" ").slice(0, 1000); // Cap at 1000 chars to avoid bloated vectors
   const title = bookmark.title || "Untitled";
@@ -111,7 +119,8 @@ function normalizeBookmark(bookmark: UnifiedBookmark, slugMap?: Map<string, stri
     );
   }
 
-  const bestImage = selectBestImage(bookmark, { includeScreenshots: true, returnUndefined: true }) ?? undefined;
+  const bestImage =
+    selectBestImage(bookmark, { includeScreenshots: true, returnUndefined: true }) ?? undefined;
 
   return {
     id: bookmark.id,
@@ -160,7 +169,9 @@ function normalizeBlogPost(post: BlogPost): NormalizedContent {
     display: {
       description: post.excerpt || "",
       imageUrl: post.coverImage || undefined,
-      author: post.author ? { name: post.author.name, avatar: post.author.avatar || undefined } : undefined,
+      author: post.author
+        ? { name: post.author.name, avatar: post.author.avatar || undefined }
+        : undefined,
       readingTime: post.readingTime,
     },
   };
@@ -179,7 +190,7 @@ function normalizeInvestment(investment: Investment): NormalizedContent {
   // Add accelerator tags
   if (investment.accelerator) {
     if (Array.isArray(investment.accelerator)) {
-      investment.accelerator.forEach(acc => {
+      investment.accelerator.forEach((acc) => {
         if (acc && typeof acc === "object" && "name" in acc) {
           const accObj = acc as { name: string };
           tags.push(accObj.name);
@@ -202,7 +213,8 @@ function normalizeInvestment(investment: Investment): NormalizedContent {
   // Deduplicate and normalize tags to lowercase for consistent similarity
   const enhancedTags = normalizeAndDeduplicateTags([...tags, ...keywords]);
 
-  const text = typeof investment.description === "string" ? investment.description.slice(0, 1000) : "";
+  const text =
+    typeof investment.description === "string" ? investment.description.slice(0, 1000) : "";
   return {
     id: investment.id,
     type: "investment",
@@ -402,13 +414,15 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
       }
 
       if (slugMap) {
-        bookmarks.forEach(bookmark => {
+        bookmarks.forEach((bookmark) => {
           try {
             normalized.push(normalizeBookmark(bookmark, slugMap));
           } catch (error) {
             // Skip missing slug errors instead of throwing
             if (error instanceof MissingSlugError) {
-              console.error(`Skipping bookmark ${bookmark.id} due to missing slug: ${error.message}`);
+              console.error(
+                `Skipping bookmark ${bookmark.id} due to missing slug: ${error.message}`,
+              );
               return;
             }
             console.error(`Failed to normalize bookmark ${bookmark.id}:`, error);
@@ -421,10 +435,12 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
 
     // Process blog posts
     const blogPosts: BlogPost[] =
-      blogPostsRes.status === "fulfilled" && Array.isArray(blogPostsRes.value) ? blogPostsRes.value : [];
+      blogPostsRes.status === "fulfilled" && Array.isArray(blogPostsRes.value)
+        ? blogPostsRes.value
+        : [];
 
     if (blogPosts.length > 0) {
-      blogPosts.forEach(post => {
+      blogPosts.forEach((post) => {
         try {
           normalized.push(normalizeBlogPost(post));
         } catch (error) {
@@ -436,7 +452,7 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
     }
 
     // Process investments (static data)
-    investments.forEach(investment => {
+    investments.forEach((investment) => {
       try {
         normalized.push(normalizeInvestment(investment));
       } catch (error) {
@@ -445,7 +461,7 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
     });
 
     // Process projects (static data)
-    projects.forEach(project => {
+    projects.forEach((project) => {
       try {
         normalized.push(normalizeProject(project));
       } catch (error) {
@@ -454,10 +470,11 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
     });
 
     // Process books (from AudioBookShelf API)
-    const books: Book[] = booksRes.status === "fulfilled" && Array.isArray(booksRes.value) ? booksRes.value : [];
+    const books: Book[] =
+      booksRes.status === "fulfilled" && Array.isArray(booksRes.value) ? booksRes.value : [];
 
     if (books.length > 0) {
-      books.forEach(book => {
+      books.forEach((book) => {
         try {
           normalized.push(normalizeBook(book));
         } catch (error) {
@@ -470,10 +487,12 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
 
     // Process thoughts (from service)
     const thoughts: Thought[] =
-      thoughtsRes.status === "fulfilled" && Array.isArray(thoughtsRes.value) ? thoughtsRes.value : [];
+      thoughtsRes.status === "fulfilled" && Array.isArray(thoughtsRes.value)
+        ? thoughtsRes.value
+        : [];
 
     if (thoughts.length > 0) {
-      thoughts.forEach(thought => {
+      thoughts.forEach((thought) => {
         try {
           normalized.push(normalizeThought(thought));
         } catch (error) {
@@ -503,9 +522,12 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
 /**
  * Get content by type and ID
  */
-export async function getContentById(type: RelatedContentType, id: string): Promise<NormalizedContent | null> {
+export async function getContentById(
+  type: RelatedContentType,
+  id: string,
+): Promise<NormalizedContent | null> {
   const allContent = await aggregateAllContent();
-  return allContent.find(item => item.type === type && item.id === id) || null;
+  return allContent.find((item) => item.type === type && item.id === id) || null;
 }
 
 /**
@@ -518,7 +540,7 @@ export function filterByTypes<T extends NormalizedContent>(
 ): T[] {
   const include = includeTypes && includeTypes.length > 0 ? new Set(includeTypes) : undefined;
   const exclude = excludeTypes && excludeTypes.length > 0 ? new Set(excludeTypes) : undefined;
-  return content.filter(item => {
+  return content.filter((item) => {
     if (include && !include.has(item.type)) return false;
     if (exclude?.has(item.type)) return false;
     return true;

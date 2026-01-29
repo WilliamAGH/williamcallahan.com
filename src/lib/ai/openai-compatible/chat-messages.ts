@@ -17,7 +17,9 @@ export function buildChatMessages(args: {
   userText?: string | undefined;
 }): OpenAiCompatibleChatMessage[] {
   const baseMessages: OpenAiCompatibleChatMessage[] =
-    args.messages && args.messages.length > 0 ? args.messages : [{ role: "user", content: args.userText ?? "" }];
+    args.messages && args.messages.length > 0
+      ? args.messages
+      : [{ role: "user", content: args.userText ?? "" }];
 
   const out: OpenAiCompatibleChatMessage[] = [];
 
@@ -26,7 +28,9 @@ export function buildChatMessages(args: {
   }
 
   if (args.system) {
-    const alreadyIncluded = baseMessages.some(m => m.role === "system" && m.content === args.system);
+    const alreadyIncluded = baseMessages.some(
+      (m) => m.role === "system" && m.content === args.system,
+    );
     if (!alreadyIncluded) {
       out.push({ role: "system", content: args.system });
     }

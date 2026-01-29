@@ -28,7 +28,10 @@ import type { ZodSchema } from "zod/v4";
  */
 export async function readLocalS3Json<T>(s3Key: string, schema: ZodSchema<T>): Promise<T | null>;
 export async function readLocalS3Json(s3Key: string): Promise<unknown>;
-export async function readLocalS3Json<T>(s3Key: string, schema?: ZodSchema<T>): Promise<T | unknown | null> {
+export async function readLocalS3Json<T>(
+  s3Key: string,
+  schema?: ZodSchema<T>,
+): Promise<T | unknown | null> {
   const filePath = getLocalS3Path(s3Key);
   try {
     const raw = await fs.readFile(filePath, "utf-8");

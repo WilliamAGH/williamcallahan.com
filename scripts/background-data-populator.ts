@@ -36,7 +36,7 @@ async function runDataUpdater(): Promise<void> {
 
     let stderr = "";
 
-    child.stdout?.on("data", data => {
+    child.stdout?.on("data", (data) => {
       const output = data.toString();
       // Log important lines in real-time
       if (output.includes("✅") || output.includes("❌") || output.includes("Summary")) {
@@ -44,13 +44,13 @@ async function runDataUpdater(): Promise<void> {
       }
     });
 
-    child.stderr?.on("data", data => {
+    child.stderr?.on("data", (data) => {
       const output = data.toString();
       stderr += output;
       console.error(`[DataUpdater ERROR] ${output.trim()}`);
     });
 
-    child.on("close", code => {
+    child.on("close", (code) => {
       if (code === 0) {
         logger.info("[BackgroundPopulator] Data updater completed successfully");
         resolve();
@@ -63,7 +63,7 @@ async function runDataUpdater(): Promise<void> {
       }
     });
 
-    child.on("error", error => {
+    child.on("error", (error) => {
       logger.error("[BackgroundPopulator] Failed to start data updater:", error);
       reject(error);
     });
@@ -104,7 +104,7 @@ async function main(): Promise<void> {
   logger.info(`[BackgroundPopulator] Waiting ${INITIAL_DELAY / 1000}s for server to stabilize...`);
 
   // Wait for server to fully start and stabilize
-  await new Promise(resolve => setTimeout(resolve, INITIAL_DELAY));
+  await new Promise((resolve) => setTimeout(resolve, INITIAL_DELAY));
 
   logger.info("[BackgroundPopulator] Beginning monitoring for data population needs");
 
@@ -132,7 +132,7 @@ async function main(): Promise<void> {
 
 // Start the monitoring if run directly
 if (import.meta.main) {
-  main().catch(error => {
+  main().catch((error) => {
     logger.error("[BackgroundPopulator] Fatal error:", error);
     process.exit(1);
   });

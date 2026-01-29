@@ -180,7 +180,8 @@ export const validateBook = (data: unknown): Book => bookSchema.parse(data);
 
 export const validateBookListItem = (data: unknown): BookListItem => bookListItemSchema.parse(data);
 
-export const validateAbsLibraryItem = (data: unknown): AbsLibraryItem => absLibraryItemSchema.parse(data);
+export const validateAbsLibraryItem = (data: unknown): AbsLibraryItem =>
+  absLibraryItemSchema.parse(data);
 
 export const validateAbsLibraryItemsResponse = (data: unknown): AbsLibraryItemsResponse =>
   absLibraryItemsResponseSchema.parse(data);

@@ -89,7 +89,7 @@ describe("PDF Parser", () => {
       const result = await parsePdfFromBuffer(buffer);
 
       expect(result.pages).toHaveLength(2);
-      expect(result.pages.map(p => p.pageNumber)).toEqual([1, 3]);
+      expect(result.pages.map((p) => p.pageNumber)).toEqual([1, 3]);
     });
 
     it("should respect maxPages option", async () => {

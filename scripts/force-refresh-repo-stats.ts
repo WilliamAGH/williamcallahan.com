@@ -18,7 +18,9 @@ import { writeBinaryS3 } from "../src/lib/s3-utils"; // Adjust path as needed
 
 // Support both the new preferred env var and legacy common names to reduce mis-config issues.
 const GITHUB_API_TOKEN =
-  process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH || process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN;
+  process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH ||
+  process.env.GITHUB_API_TOKEN ||
+  process.env.GITHUB_TOKEN;
 const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || "WilliamAGH";
 
 const REPOS_TO_PROCESS: RepoToUpdate[] = [
@@ -58,7 +60,7 @@ async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWe
       const contributors = (await response.json()) as GithubContributorStatsEntry[];
       const ownerLoginLower = GITHUB_REPO_OWNER.toLowerCase();
       const userStatsEntry = Array.isArray(contributors)
-        ? contributors.find(c => c.author && c.author.login.toLowerCase() === ownerLoginLower)
+        ? contributors.find((c) => c.author && c.author.login.toLowerCase() === ownerLoginLower)
         : null;
 
       if (userStatsEntry?.weeks && Array.isArray(userStatsEntry.weeks)) {
@@ -69,7 +71,9 @@ async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWe
           .map((w: RepoRawWeeklyStat) => ({ w: w.w, a: w.a, d: w.d, c: w.c }))
           .toSorted((a, b) => a.w - b.w);
       }
-      console.log(`[Script] No specific stats found for user ${GITHUB_REPO_OWNER} in ${owner}/${name}.`);
+      console.log(
+        `[Script] No specific stats found for user ${GITHUB_REPO_OWNER} in ${owner}/${name}.`,
+      );
       return [];
     }
 
@@ -77,12 +81,14 @@ async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWe
       console.log(
         `[Script] GitHub API returned 202 (Accepted) for ${owner}/${name}. Data is being prepared. Waiting ${delay / 1000}s before retry (${attempt}/${maxAttempts}).`,
       );
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
       delay *= 2; // Exponential backoff
       continue;
     }
 
-    console.error(`[Script] Error fetching stats for ${owner}/${name}: ${response.status} ${await response.text()}`);
+    console.error(
+      `[Script] Error fetching stats for ${owner}/${name}: ${response.status} ${await response.text()}`,
+    );
     return []; // Return empty on persistent error
   }
   console.warn(`[Script] Max retries reached for ${owner}/${name}. Could not fetch stats.`);
@@ -103,7 +109,7 @@ async function processRepo(repo: RepoToUpdate) {
   const weeklyStats = await fetchStatsForRepo(repo.owner, repo.name);
 
   if (weeklyStats.length > 0) {
-    const csvContent = weeklyStats.map(s => `${s.w},${s.a},${s.d},${s.c}`).join("\n");
+    const csvContent = weeklyStats.map((s) => `${s.w},${s.a},${s.d},${s.c}`).join("\n");
     try {
       await writeBinaryS3(s3Key, Buffer.from(csvContent), "text/csv");
       console.log(
@@ -137,7 +143,9 @@ async function main() {
     return;
   }
 
-  console.log("[Script] Starting forceful refresh of specified repo stats from /stats/contributors API...");
+  console.log(
+    "[Script] Starting forceful refresh of specified repo stats from /stats/contributors API...",
+  );
   for (const repo of REPOS_TO_PROCESS) {
     await processRepo(repo);
   }
@@ -147,7 +155,7 @@ async function main() {
   );
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error("[Script] Unhandled error in main execution:", error);
   process.exit(1);
 });

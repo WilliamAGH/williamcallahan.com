@@ -34,7 +34,8 @@ const SOFTWARE_DETAILS: Record<string, SoftwarePostDetails> = {
     name: "Flag Deprecated Files",
     operatingSystem: "Windows, macOS, Linux",
     applicationCategory: "DeveloperApplication",
-    downloadUrl: "https://marketplace.visualstudio.com/items?itemName=WilliamCallahan.flag-deprecated-files",
+    downloadUrl:
+      "https://marketplace.visualstudio.com/items?itemName=WilliamCallahan.flag-deprecated-files",
     softwareVersion: "1.0.0",
     screenshot: getStaticImageUrl("/images/posts/filey-flag-deprecated-files.png"),
   },

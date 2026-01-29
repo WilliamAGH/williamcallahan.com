@@ -25,7 +25,11 @@ import { GaxiosError } from "gaxios";
 import type { GoogleIndexingUrlNotificationMetadata } from "@/types/lib";
 import type { UrlNotification, IndexingApiResponse } from "@/types/api";
 import sitemap from "../src/app/sitemap";
-import { loadRateLimitStoreFromS3, incrementAndPersist, persistRateLimitStoreToS3 } from "@/lib/rate-limiter";
+import {
+  loadRateLimitStoreFromS3,
+  incrementAndPersist,
+  persistRateLimitStoreToS3,
+} from "@/lib/rate-limiter";
 import { INDEXING_RATE_LIMIT_PATH } from "@/lib/constants";
 
 // Configuration constants
@@ -90,7 +94,8 @@ class GoogleCredentialError extends Error {
     if (!this.diagnostics) return this.message;
     const d = this.diagnostics;
     const lines = [this.message];
-    if (d.previewCensored) lines.push(`  Received (first 60 chars, censored): "${d.previewCensored}"`);
+    if (d.previewCensored)
+      lines.push(`  Received (first 60 chars, censored): "${d.previewCensored}"`);
     if (d.rawLength !== undefined) lines.push(`  Raw length: ${d.rawLength}`);
     if (d.hasBackslashN !== undefined) lines.push(`  Contains literal \\n: ${d.hasBackslashN}`);
     if (d.hasRealNewline !== undefined) lines.push(`  Contains newlines: ${d.hasRealNewline}`);
@@ -118,7 +123,10 @@ function processGooglePrivateKey(raw: string | undefined): string {
   let processed = raw.trim();
 
   const stripQuotePair = (value: string): string => {
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
       return value.slice(1, -1);
     }
     return value;
@@ -147,13 +155,16 @@ function processGooglePrivateKey(raw: string | undefined): string {
   }
 
   if (!processed.startsWith("-----BEGIN PRIVATE KEY-----")) {
-    throw new GoogleCredentialError("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY is not a valid PEM formatted private key.", {
-      rawLength: raw.length,
-      hasBackslashN: raw.includes("\\n"),
-      hasRealNewline: raw.includes("\n"),
-      previewCensored: processed.slice(0, 60).replace(/[A-Za-z0-9+/=]/g, "X"),
-      base64DecodeReason,
-    });
+    throw new GoogleCredentialError(
+      "GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY is not a valid PEM formatted private key.",
+      {
+        rawLength: raw.length,
+        hasBackslashN: raw.includes("\\n"),
+        hasRealNewline: raw.includes("\n"),
+        previewCensored: processed.slice(0, 60).replace(/[A-Za-z0-9+/=]/g, "X"),
+        base64DecodeReason,
+      },
+    );
   }
 
   return processed;
@@ -216,7 +227,11 @@ if (GOOGLE_ONLY && INDEXNOW_ONLY) {
   console.warn("Both --google-only and --indexnow-only supplied – defaulting to sending to both.");
 }
 
-async function submitGoogleSitemap(client: JWT, sitemapUrl: string, siteUrl: string): Promise<void> {
+async function submitGoogleSitemap(
+  client: JWT,
+  sitemapUrl: string,
+  siteUrl: string,
+): Promise<void> {
   try {
     const res = await client.request({
       url: `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/sitemaps/${encodeURIComponent(sitemapUrl)}`,
@@ -224,7 +239,9 @@ async function submitGoogleSitemap(client: JWT, sitemapUrl: string, siteUrl: str
     });
 
     if (res.status === 200 || res.status === 204) {
-      console.info(`${LOG_PREFIX.google} Sitemap submitted successfully via Search Console API → ${sitemapUrl}`);
+      console.info(
+        `${LOG_PREFIX.google} Sitemap submitted successfully via Search Console API → ${sitemapUrl}`,
+      );
     } else {
       console.error(`${LOG_PREFIX.google} Sitemap submission failed. Status: ${res.status}`);
     }
@@ -255,7 +272,9 @@ const main = async (): Promise<void> => {
   if (URL_INDEXING_ENABLED && authClient) {
     await processUrlIndexing(authClient);
   } else if (DEBUG_MODE) {
-    console.info(`${LOG_PREFIX.google} Per-URL Indexing-API submission disabled – sitemap ping only`);
+    console.info(
+      `${LOG_PREFIX.google} Per-URL Indexing-API submission disabled – sitemap ping only`,
+    );
   }
 
   // Validate environment before proceeding
@@ -268,7 +287,9 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  const siteUrlCanonical = submissionSiteUrl.endsWith("/") ? submissionSiteUrl : `${submissionSiteUrl}/`;
+  const siteUrlCanonical = submissionSiteUrl.endsWith("/")
+    ? submissionSiteUrl
+    : `${submissionSiteUrl}/`;
   const sitemapUrl = `${siteUrlCanonical}sitemap.xml`;
 
   // -----------------------------------------------------------------------
@@ -289,7 +310,11 @@ const main = async (): Promise<void> => {
 
   // Submit to Google (only if auth client was successfully initialized)
   if (authClient) {
-    await submitGoogleSitemap(authClient, sitemapUrl, process.env.GOOGLE_SEARCH_CONSOLE_PROPERTY ?? siteUrlCanonical);
+    await submitGoogleSitemap(
+      authClient,
+      sitemapUrl,
+      process.env.GOOGLE_SEARCH_CONSOLE_PROPERTY ?? siteUrlCanonical,
+    );
   } else if (DEBUG_MODE) {
     console.info(`${LOG_PREFIX.google} Skipped – credentials not available or CLI flag set.`);
   }
@@ -303,14 +328,21 @@ async function processUrlIndexing(client: JWT): Promise<void> {
   await loadRateLimitStoreFromS3(GOOGLE_STORE, INDEXING_RATE_LIMIT_PATH);
 
   const sitemapData = await sitemap();
-  const allUrls = sitemapData.map(u => u.url);
+  const allUrls = sitemapData.map((u) => u.url);
   const totalUrls = allUrls.length;
   console.info(`Found ${totalUrls} URLs to process.`);
 
   // Filter URLs based on remaining quota
   const allowedUrls: string[] = [];
   for (const url of allUrls) {
-    if (incrementAndPersist(GOOGLE_STORE, GOOGLE_CONTEXT, DAILY_GOOGLE_LIMIT_CONFIG, INDEXING_RATE_LIMIT_PATH)) {
+    if (
+      incrementAndPersist(
+        GOOGLE_STORE,
+        GOOGLE_CONTEXT,
+        DAILY_GOOGLE_LIMIT_CONFIG,
+        INDEXING_RATE_LIMIT_PATH,
+      )
+    ) {
       allowedUrls.push(url);
     } else {
       console.warn(`${LOG_PREFIX.google} Daily limit reached – skipping remaining URLs.`);
@@ -337,7 +369,7 @@ async function processUrlIndexing(client: JWT): Promise<void> {
     }
 
     if (i + batchSize < allowedUrls.length) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
   console.info(`${LOG_PREFIX.google} URL-level submission complete`);
@@ -362,7 +394,9 @@ async function submitToIndexNow(siteUrlCanonical: string): Promise<void> {
     return;
   }
   if (!/^[a-f0-9-]{32,}$/i.test(INDEXNOW_KEY)) {
-    console.error(`${LOG_PREFIX.indexNow} Invalid INDEXNOW_KEY format – must be a valid UUID or similar identifier.`);
+    console.error(
+      `${LOG_PREFIX.indexNow} Invalid INDEXNOW_KEY format – must be a valid UUID or similar identifier.`,
+    );
     return;
   }
 
@@ -375,7 +409,7 @@ async function submitToIndexNow(siteUrlCanonical: string): Promise<void> {
 
   try {
     const sitemapData = await sitemap();
-    const urlList = sitemapData.map(u => u.url);
+    const urlList = sitemapData.map((u) => u.url);
 
     // Build payload per IndexNow spec
     const payload: Record<string, unknown> = {
@@ -388,7 +422,10 @@ async function submitToIndexNow(siteUrlCanonical: string): Promise<void> {
     payload.keyLocation = keyLocationUrl;
 
     if (DEBUG_MODE) {
-      console.info(`${LOG_PREFIX.indexNow} Submitting with payload:`, JSON.stringify(payload, null, 2));
+      console.info(
+        `${LOG_PREFIX.indexNow} Submitting with payload:`,
+        JSON.stringify(payload, null, 2),
+      );
     }
 
     const aggregatorEndpoint = "https://api.indexnow.org/indexnow";
@@ -416,7 +453,9 @@ async function submitToIndexNow(siteUrlCanonical: string): Promise<void> {
       console.info(`${LOG_PREFIX.indexNow} Payload accepted. Submitted ${urlList.length} URLs`);
     } else {
       const bodyText = await res.text().catch(() => "<body unavailable>");
-      console.error(`${LOG_PREFIX.indexNow} Submission failed. Status: ${res.status}. Response: ${bodyText}`);
+      console.error(
+        `${LOG_PREFIX.indexNow} Submission failed. Status: ${res.status}. Response: ${bodyText}`,
+      );
     }
   } catch (err) {
     console.error(`${LOG_PREFIX.indexNow} Error while submitting payload:`, err);
@@ -444,7 +483,10 @@ async function verifyIndexNowKey(keyLocationUrl: string, expectedKey: string): P
 
     return true;
   } catch (verifyErr) {
-    console.error(`${LOG_PREFIX.indexNow} Failed to verify keyLocation (${keyLocationUrl}):`, verifyErr);
+    console.error(
+      `${LOG_PREFIX.indexNow} Failed to verify keyLocation (${keyLocationUrl}):`,
+      verifyErr,
+    );
     return false;
   }
 }
@@ -456,7 +498,7 @@ main()
     // completion; failures are handled in the catch below.
     process.exit(0);
   })
-  .catch(err => {
+  .catch((err) => {
     console.error("An unexpected error occurred in the main process:", err);
     process.exit(1);
   });

@@ -55,7 +55,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
 
       const cleaned = trimmed.split("?")[0]?.split("#")[0] ?? trimmed;
-      const normalizedKey = cleaned.startsWith("logos/") || cleaned.startsWith("logo/") ? `/${cleaned}` : cleaned;
+      const normalizedKey =
+        cleaned.startsWith("logos/") || cleaned.startsWith("logo/") ? `/${cleaned}` : cleaned;
       const parsed = parseS3Key(normalizedKey);
       if (parsed.type === "logo" && parsed.domain?.includes(".")) {
         return parsed.domain.toLowerCase();

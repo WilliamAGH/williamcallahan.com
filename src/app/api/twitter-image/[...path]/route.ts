@@ -4,7 +4,10 @@ import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 // Prefer explicit async params typing to avoid thenable duck-typing
 import { sanitizePath, IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> },
+) {
   preventCaching();
   try {
     // Reconstruct the Twitter image URL from dynamic params
@@ -36,7 +39,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Allow common avatar/media roots; keep strict filename extension check
     // Allow dots in segments (e.g., versioned directories like v1.2/media/...),
     // while remaining SSRF-safe due to prior sanitizePath which strips '../' and './'
-    const validPathPattern = /^(profile_images|ext_tw_video_thumb|media)\/[A-Za-z0-9._\-/]+\.(jpg|jpeg|png|gif|webp)$/i;
+    const validPathPattern =
+      /^(profile_images|ext_tw_video_thumb|media)\/[A-Za-z0-9._\-/]+\.(jpg|jpeg|png|gif|webp)$/i;
     if (!validPathPattern.test(pathOnly)) {
       console.log(`[Twitter Image Proxy] Invalid path rejected: ${fullPath}`);
       return new NextResponse(null, { status: 400 });

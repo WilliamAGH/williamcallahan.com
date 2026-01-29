@@ -76,13 +76,17 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
     alternates: {
       ...baseMetadata.alternates,
       canonical:
-        effectivePage === 1 ? ensureAbsoluteUrl("/bookmarks") : ensureAbsoluteUrl(`/bookmarks/page/${effectivePage}`),
+        effectivePage === 1
+          ? ensureAbsoluteUrl("/bookmarks")
+          : ensureAbsoluteUrl(`/bookmarks/page/${effectivePage}`),
     },
     openGraph: {
       ...baseMetadata.openGraph,
       title,
       url:
-        effectivePage === 1 ? ensureAbsoluteUrl("/bookmarks") : ensureAbsoluteUrl(`/bookmarks/page/${effectivePage}`),
+        effectivePage === 1
+          ? ensureAbsoluteUrl("/bookmarks")
+          : ensureAbsoluteUrl(`/bookmarks/page/${effectivePage}`),
     },
     robots: {
       index: true,
@@ -153,7 +157,8 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
   }
 
   const pageTitle = "Bookmarks";
-  const pageDescription = "A collection of articles, websites, and resources I've bookmarked for future reference.";
+  const pageDescription =
+    "A collection of articles, websites, and resources I've bookmarked for future reference.";
 
   // Generate schema for this paginated bookmarks page
   const path = `/bookmarks/page/${pageNum}`;

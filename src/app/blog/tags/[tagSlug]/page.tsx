@@ -5,7 +5,11 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { metadata, PAGE_METADATA } from "@/data/metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
-import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
+import {
+  generateDynamicTitle,
+  generateTagDescription,
+  formatTagDisplay,
+} from "@/lib/seo/dynamic-metadata";
 import { deslugify, kebabCase } from "@/lib/utils/formatters";
 import { getAllPosts } from "@/lib/blog";
 import type { Metadata } from "next";
@@ -17,7 +21,11 @@ import { RelatedContent, RelatedContentFallback } from "@/components/features/re
  * @param {Promise<{ tagSlug: string }>} params.tagSlug - The slug of the tag.
  * @returns {Promise<Metadata>} The metadata object for the page.
  */
-export async function generateMetadata({ params }: { params: Promise<{ tagSlug: string }> }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ tagSlug: string }>;
+}): Promise<Metadata> {
   // Await params in Next.js 16
   const { tagSlug } = await params;
   const tagName = formatTagDisplay(deslugify(tagSlug));
@@ -58,13 +66,19 @@ export async function generateMetadata({ params }: { params: Promise<{ tagSlug: 
  *          page statically renderable without relying on runtime clocks.
  * @returns {JSX.Element} The rendered page component.
  */
-export default async function TagPage({ params }: { params: Promise<{ tagSlug: string }> }): Promise<JSX.Element> {
+export default async function TagPage({
+  params,
+}: {
+  params: Promise<{ tagSlug: string }>;
+}): Promise<JSX.Element> {
   const { tagSlug } = await params;
   const allPosts = await getAllPosts();
 
-  const filteredPosts = allPosts.filter(post => post.tags.some(tag => kebabCase(tag) === tagSlug));
+  const filteredPosts = allPosts.filter((post) =>
+    post.tags.some((tag) => kebabCase(tag) === tagSlug),
+  );
   const firstPost = filteredPosts[0];
-  const canonicalTag = firstPost?.tags.find(tag => kebabCase(tag) === tagSlug);
+  const canonicalTag = firstPost?.tags.find((tag) => kebabCase(tag) === tagSlug);
 
   const tagName = formatTagDisplay(deslugify(tagSlug));
   const title = generateDynamicTitle(`${tagName} Posts`, "blog", { isTag: true });
@@ -81,7 +95,8 @@ export default async function TagPage({ params }: { params: Promise<{ tagSlug: s
   const newestPost = filteredPosts[0];
   const oldestPost = filteredPosts[filteredPosts.length - 1];
   const datePublished = oldestPost?.publishedAt ?? fallbackCollectionMetadata.dateCreated;
-  const dateModified = newestPost?.updatedAt ?? newestPost?.publishedAt ?? fallbackCollectionMetadata.dateModified;
+  const dateModified =
+    newestPost?.updatedAt ?? newestPost?.publishedAt ?? fallbackCollectionMetadata.dateModified;
 
   const jsonLdData = generateSchemaGraph({
     path: `/blog/tags/${tagSlug}`,
@@ -110,7 +125,11 @@ export default async function TagPage({ params }: { params: Promise<{ tagSlug: s
           <h1 className="mb-8 text-3xl font-bold leading-tight tracking-tighter text-primary md:text-5xl">
             <span className="capitalize">{tagName}</span> Posts
           </h1>
-          {filteredPosts.length > 0 ? <BlogList posts={filteredPosts} /> : <p>No posts found for this tag.</p>}
+          {filteredPosts.length > 0 ? (
+            <BlogList posts={filteredPosts} />
+          ) : (
+            <p>No posts found for this tag.</p>
+          )}
 
           {firstPost && (
             <Suspense fallback={<RelatedContentFallback title="Discover More" />}>

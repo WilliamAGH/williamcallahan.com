@@ -19,9 +19,12 @@ export function searchThoughts(query: string): Promise<SearchResult[]> {
   const sanitized = sanitizeSearchQuery(query);
   if (!sanitized) return Promise.resolve([]);
 
-  const pageTitle = typeof PAGE_METADATA.thoughts.title === "string" ? PAGE_METADATA.thoughts.title : "Thoughts";
+  const pageTitle =
+    typeof PAGE_METADATA.thoughts.title === "string" ? PAGE_METADATA.thoughts.title : "Thoughts";
   const pageDescription =
-    typeof PAGE_METADATA.thoughts.description === "string" ? PAGE_METADATA.thoughts.description : undefined;
+    typeof PAGE_METADATA.thoughts.description === "string"
+      ? PAGE_METADATA.thoughts.description
+      : undefined;
 
   return Promise.resolve([
     {

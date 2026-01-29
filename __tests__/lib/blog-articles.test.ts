@@ -96,11 +96,11 @@ const mockMdxPosts = [
 jest.mock("@/lib/blog/mdx", () => ({
   getAllMDXPostsCached: jest.fn().mockResolvedValue([]),
   getMDXPost: jest.fn().mockImplementation((slug: string) => {
-    const post = mockMdxPosts.find(p => p.slug === slug);
+    const post = mockMdxPosts.find((p) => p.slug === slug);
     return Promise.resolve(post || null);
   }),
   getMDXPostCached: jest.fn().mockImplementation((slug: string) => {
-    const post = mockMdxPosts.find(p => p.slug === slug);
+    const post = mockMdxPosts.find((p) => p.slug === slug);
     return Promise.resolve(post || null);
   }),
 }));
@@ -131,7 +131,7 @@ describe("Blog Module", () => {
       }
 
       // Verify sorting
-      const dates = posts.map(post => new Date(post.publishedAt).getTime());
+      const dates = posts.map((post) => new Date(post.publishedAt).getTime());
       expect(dates).toEqual([...dates].toSorted((a, b) => b - a));
     });
   });

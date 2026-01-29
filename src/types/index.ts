@@ -35,7 +35,13 @@ export * from "./investment";
 export * from "./blog";
 
 /** 🖼️ OPENGRAPH DOMAIN (types/opengraph.ts) - OpenGraph data, errors, and cache entries */
-export type { OgResult, KarakeepImageFallback, OgCacheEntry, OgMetadata, PersistImageResult } from "./opengraph";
+export type {
+  OgResult,
+  KarakeepImageFallback,
+  OgCacheEntry,
+  OgMetadata,
+  PersistImageResult,
+} from "./opengraph";
 export { OgError, isOgResult } from "./opengraph";
 
 /** 🖼️ IMAGE DOMAIN (types/image.ts) - Image processing, memory management, and service types */

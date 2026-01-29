@@ -176,7 +176,7 @@ export async function GET(request: NextRequest) {
               logger.error("[OG-Image] Invalid bookmark data:", validatedBookmarks.error);
               throw new Error("Invalid bookmark data format");
             }
-            const bookmark = validatedBookmarks.data.find(b => b.id === bookmarkId);
+            const bookmark = validatedBookmarks.data.find((b) => b.id === bookmarkId);
 
             if (bookmark) {
               // PRIORITY: Karakeep bannerImage (imageAssetId) takes precedence over OpenGraph
@@ -209,13 +209,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if this is a static image from our own domain
-    const siteUrl = metadata.site.url || process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
+    const siteUrl =
+      metadata.site.url || process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
     let isOwnDomainImage = false;
 
     try {
       const parsedUrl = new URL(url, siteUrl); // Handle relative URLs
       const siteHostname = new URL(siteUrl).hostname;
-      isOwnDomainImage = parsedUrl.hostname === siteHostname && parsedUrl.pathname.startsWith(`/images/`);
+      isOwnDomainImage =
+        parsedUrl.hostname === siteHostname && parsedUrl.pathname.startsWith(`/images/`);
     } catch (error) {
       // Invalid URL, treat as not own domain
       logger.warn(`[OG-Image] Invalid URL for own domain check: ${url}`, error);
@@ -272,13 +274,17 @@ export async function GET(request: NextRequest) {
       if (!isS3Error(s3Error)) {
         throw s3Error;
       }
-      logger.info(`[OG-Image] S3 image not found, checking Karakeep fallback before external fetch`);
+      logger.info(
+        `[OG-Image] S3 image not found, checking Karakeep fallback before external fetch`,
+      );
 
       // Check for Karakeep fallback BEFORE trying external fetch
       if (fallbackImageData) {
         // Try imageUrl first (this is the Karakeep API response image URL)
         if (fallbackImageData.imageUrl) {
-          logger.info(`[OG-Image] Using Karakeep imageUrl instead of fetching: ${fallbackImageData.imageUrl}`);
+          logger.info(
+            `[OG-Image] Using Karakeep imageUrl instead of fetching: ${fallbackImageData.imageUrl}`,
+          );
           return NextResponse.redirect(fallbackImageData.imageUrl, { status: 302 });
         }
 
@@ -366,7 +372,9 @@ export async function GET(request: NextRequest) {
 
         // Try imageAssetId
         if (fallbackImageData.imageAssetId) {
-          logger.info(`[OG-Image] Using Karakeep imageAssetId fallback: ${fallbackImageData.imageAssetId}`);
+          logger.info(
+            `[OG-Image] Using Karakeep imageAssetId fallback: ${fallbackImageData.imageAssetId}`,
+          );
           // Always use API proxy to ensure correct content-type
           const assetUrl = `/api/assets/${fallbackImageData.imageAssetId}`;
           return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
@@ -374,7 +382,9 @@ export async function GET(request: NextRequest) {
 
         // Try screenshotAssetId
         if (fallbackImageData.screenshotAssetId) {
-          logger.info(`[OG-Image] Using Karakeep screenshotAssetId fallback: ${fallbackImageData.screenshotAssetId}`);
+          logger.info(
+            `[OG-Image] Using Karakeep screenshotAssetId fallback: ${fallbackImageData.screenshotAssetId}`,
+          );
           // Always use API proxy to ensure correct content-type
           const assetUrl = `/api/assets/${fallbackImageData.screenshotAssetId}`;
           return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });

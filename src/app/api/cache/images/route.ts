@@ -100,8 +100,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         }
 
         const passthroughHeaders = new Headers({
-          "Content-Type": upstream.headers.get("content-type") ?? result.contentType ?? "application/octet-stream",
-          "Cache-Control": upstream.headers.get("cache-control") ?? `public, max-age=${CACHE_DURATION}, immutable`,
+          "Content-Type":
+            upstream.headers.get("content-type") ??
+            result.contentType ??
+            "application/octet-stream",
+          "Cache-Control":
+            upstream.headers.get("cache-control") ?? `public, max-age=${CACHE_DURATION}, immutable`,
           "X-Source": "cdn",
           ...IMAGE_SECURITY_HEADERS,
         });

@@ -90,19 +90,31 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
         }
 
         if (networkLabel.includes("X") || networkLabel.includes("Twitter")) {
-          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig), 64);
+          return proxyCdnUrl(
+            buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig),
+            64,
+          );
         }
 
         if (networkLabel.includes("LinkedIn")) {
-          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig), 64);
+          return proxyCdnUrl(
+            buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig),
+            64,
+          );
         }
 
         if (networkLabel.includes("Bluesky")) {
-          return proxyCdnUrl(buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig), 64);
+          return proxyCdnUrl(
+            buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig),
+            64,
+          );
         }
 
         if (networkLabel.includes("Discord")) {
-          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig), 64);
+          return proxyCdnUrl(
+            buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig),
+            64,
+          );
         }
       } catch (error: unknown) {
         void error;
@@ -111,19 +123,34 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
 
       // Fallback chain (still proxy-backed)
       if (networkLabel.includes("GitHub")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/github_72193247.jpg", cdnConfig), 64);
+        return proxyCdnUrl(
+          buildCdnUrl("images/social-media/profiles/github_72193247.jpg", cdnConfig),
+          64,
+        );
       }
       if (networkLabel.includes("X") || networkLabel.includes("Twitter")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig), 64);
+        return proxyCdnUrl(
+          buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig),
+          64,
+        );
       }
       if (networkLabel.includes("LinkedIn")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig), 64);
+        return proxyCdnUrl(
+          buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig),
+          64,
+        );
       }
       if (networkLabel.includes("Bluesky")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/bluesky_5a093069.jpg", cdnConfig), 64);
+        return proxyCdnUrl(
+          buildCdnUrl("images/social-media/profiles/bluesky_5a093069.jpg", cdnConfig),
+          64,
+        );
       }
       if (networkLabel.includes("Discord")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig), 64);
+        return proxyCdnUrl(
+          buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig),
+          64,
+        );
       }
 
       return safeDefault();
@@ -139,19 +166,29 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
       const cdnConfig = getCdnConfigFromEnv();
 
       if (networkLabel.includes("GitHub")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/banners/github_87b6d92e.svg", cdnConfig));
+        return proxyCdnUrl(
+          buildCdnUrl("images/social-media/banners/github_87b6d92e.svg", cdnConfig),
+        );
       }
       if (networkLabel.includes("X") || networkLabel.includes("Twitter")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/banners/twitter-x_4830ec25.svg", cdnConfig));
+        return proxyCdnUrl(
+          buildCdnUrl("images/social-media/banners/twitter-x_4830ec25.svg", cdnConfig),
+        );
       }
       if (networkLabel.includes("LinkedIn")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/banners/linkedin_02a7ce76.svg", cdnConfig));
+        return proxyCdnUrl(
+          buildCdnUrl("images/social-media/banners/linkedin_02a7ce76.svg", cdnConfig),
+        );
       }
       if (networkLabel.includes("Discord")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/banners/discord_783c1e2b.svg", cdnConfig));
+        return proxyCdnUrl(
+          buildCdnUrl("images/social-media/banners/discord_783c1e2b.svg", cdnConfig),
+        );
       }
       if (networkLabel.includes("Bluesky")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/banners/bluesky_9310c7f9.png", cdnConfig));
+        return proxyCdnUrl(
+          buildCdnUrl("images/social-media/banners/bluesky_9310c7f9.png", cdnConfig),
+        );
       }
 
       return proxyCdnUrl(buildCdnUrl("images/other/placeholders/company_90296cb3.svg", cdnConfig));
@@ -188,7 +225,10 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
       ? "linkedin-card"
       : label.includes("GitHub") || domain.includes("github")
         ? "github-card"
-        : label.includes("X") || label.includes("Twitter") || domain.includes("twitter") || domain.includes("x.com")
+        : label.includes("X") ||
+            label.includes("Twitter") ||
+            domain.includes("twitter") ||
+            domain.includes("x.com")
           ? "twitter-card"
           : label.includes("Bluesky") || domain.includes("bsky")
             ? "bluesky-card"
@@ -200,10 +240,17 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
   const { accentHex, accentRgb } = (() => {
     if (label.includes("LinkedIn") || domain.includes("linkedin"))
       return { accentHex: "#0a66c2", accentRgb: "10 102 194" };
-    if (label.includes("GitHub") || domain.includes("github")) return { accentHex: "#6e5494", accentRgb: "110 84 148" };
-    if (label.includes("X") || label.includes("Twitter") || domain.includes("twitter") || domain.includes("x.com"))
+    if (label.includes("GitHub") || domain.includes("github"))
+      return { accentHex: "#6e5494", accentRgb: "110 84 148" };
+    if (
+      label.includes("X") ||
+      label.includes("Twitter") ||
+      domain.includes("twitter") ||
+      domain.includes("x.com")
+    )
       return { accentHex: "#1da1f2", accentRgb: "29 161 242" };
-    if (label.includes("Bluesky") || domain.includes("bsky")) return { accentHex: "#0099ff", accentRgb: "0 153 255" };
+    if (label.includes("Bluesky") || domain.includes("bsky"))
+      return { accentHex: "#0099ff", accentRgb: "0 153 255" };
     if (label.includes("Discord") || domain.includes("discord"))
       return { accentHex: "#7289da", accentRgb: "114 137 218" };
     return { accentHex: "#3b82f6", accentRgb: "59 130 246" }; // default blue-500
@@ -236,7 +283,9 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
         )}
         {imageError && (
           <div className="absolute inset-0 flex items-center justify-center bg-red-100/50 dark:bg-red-900/30">
-            <p className="text-xs font-semibold text-red-600 dark:text-red-400">Image failed to load</p>
+            <p className="text-xs font-semibold text-red-600 dark:text-red-400">
+              Image failed to load
+            </p>
           </div>
         )}
         {domainImageUrl && !imageError && (
@@ -276,9 +325,11 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
                 }}
               />
             )}
-            {!(domain.includes("github") || domain.includes("twitter") || domain.includes("x.com")) && (
-              <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
-            )}
+            {!(
+              domain.includes("github") ||
+              domain.includes("twitter") ||
+              domain.includes("x.com")
+            ) && <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />}
           </a>
         )}
       </div>
@@ -323,7 +374,9 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
               <Icon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">{serviceName}</h3>
             </a>
-            <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">{getUserHandle(href)}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+              {getUserHandle(href)}
+            </p>
           </div>
         </div>
 
@@ -334,7 +387,11 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
               Primary
             </span>
           )}
-          <ExternalLink href={href} showIcon={true} className={cn("text-xs", emphasized ? "" : "ml-auto")}>
+          <ExternalLink
+            href={href}
+            showIcon={true}
+            className={cn("text-xs", emphasized ? "" : "ml-auto")}
+          >
             {domain}
           </ExternalLink>
         </div>

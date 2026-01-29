@@ -184,7 +184,9 @@ describe("SEO Metadata", () => {
 
       // Verify JSON-LD dates
       const jsonLd = JSON.parse(metadata.script?.[0]?.text || "{}") as SchemaGraph;
-      const webPage = jsonLd["@graph"]?.find((entity): entity is WebPageBase => entity["@type"] === "WebPage");
+      const webPage = jsonLd["@graph"]?.find(
+        (entity): entity is WebPageBase => entity["@type"] === "WebPage",
+      );
       expect(webPage).toBeDefined();
       if (webPage) {
         expect(webPage.datePublished).toBe(created);
@@ -201,7 +203,7 @@ describe("SEO Metadata", () => {
         experienceMetadata.script?.[0]?.text || "{}",
       ) as SchemaGraph;
       const webPageExp = parsedExperienceJsonLd["@graph"]?.find(
-        entity => entity["@type"] === "WebPage" || entity["@type"] === "ProfilePage",
+        (entity) => entity["@type"] === "WebPage" || entity["@type"] === "ProfilePage",
       );
       expect(webPageExp).toBeDefined();
       if (webPageExp) {
@@ -213,7 +215,9 @@ describe("SEO Metadata", () => {
       const blogMetadata = getStaticPageMetadata("/blog", "blog");
       expect(blogMetadata.script).toBeDefined();
       expect(blogMetadata.script?.[0]?.type).toBe("application/ld+json");
-      const parsedBlogJsonLd: SchemaGraph = JSON.parse(blogMetadata.script?.[0]?.text || "{}") as SchemaGraph;
+      const parsedBlogJsonLd: SchemaGraph = JSON.parse(
+        blogMetadata.script?.[0]?.text || "{}",
+      ) as SchemaGraph;
       const collectionPage = parsedBlogJsonLd["@graph"]?.find(
         (entity): entity is CollectionPageSchema => entity["@type"] === "CollectionPage",
       );
@@ -229,7 +233,7 @@ describe("SEO Metadata", () => {
       const dates = metadata.other || {};
       const jsonLd = JSON.parse(metadata.script?.[0]?.text || "{}") as SchemaGraph;
       const webPage = jsonLd["@graph"]?.find(
-        entity => entity["@type"] === "WebPage" || entity["@type"] === "ProfilePage",
+        (entity) => entity["@type"] === "WebPage" || entity["@type"] === "ProfilePage",
       );
 
       expect(webPage).toBeDefined();
@@ -327,7 +331,9 @@ describe("SEO Metadata", () => {
       if (typeof webPage.dateModified === "string") {
         expect(webPage.dateModified).toBe(modified);
       } else {
-        throw new Error(`Test Error: Expected dateModified to be a string, but got ${typeof webPage.dateModified}`);
+        throw new Error(
+          `Test Error: Expected dateModified to be a string, but got ${typeof webPage.dateModified}`,
+        );
       }
 
       if (created) {

@@ -364,7 +364,11 @@ export function safeExternalHref(raw: string): string | null {
   const isProtocolRelative = input.startsWith("//");
 
   try {
-    const candidate = hasScheme ? input : isProtocolRelative ? `https:${input}` : `https://${input}`;
+    const candidate = hasScheme
+      ? input
+      : isProtocolRelative
+        ? `https:${input}`
+        : `https://${input}`;
     const url = new URL(candidate);
 
     // Only allow http and https protocols

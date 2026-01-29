@@ -24,7 +24,9 @@ import {
 import { GITHUB_API_RATE_LIMIT_CONFIG } from "@/lib/constants";
 // GitHub API configuration
 const GITHUB_API_TOKEN =
-  process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH || process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN;
+  process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH ||
+  process.env.GITHUB_API_TOKEN ||
+  process.env.GITHUB_TOKEN;
 
 const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || "WilliamAGH";
 
@@ -150,7 +152,11 @@ export async function fetchContributionCalendar(
 /**
  * Fetch commit count for a repository
  */
-export async function fetchRepositoryCommitCount(owner: string, name: string, authorId: string): Promise<number> {
+export async function fetchRepositoryCommitCount(
+  owner: string,
+  name: string,
+  authorId: string,
+): Promise<number> {
   await waitForPermit("github-graphql", "commit-count", GITHUB_API_RATE_LIMIT_CONFIG);
 
   const client = getGitHubGraphQLClient();
@@ -178,7 +184,10 @@ export async function fetchRepositoryCommitCount(owner: string, name: string, au
 /**
  * Fetch contributor stats from REST API
  */
-export async function fetchContributorStats(owner: string, name: string): Promise<GithubContributorStatsEntry[]> {
+export async function fetchContributorStats(
+  owner: string,
+  name: string,
+): Promise<GithubContributorStatsEntry[]> {
   const maxAttempts = Number(process.env.GITHUB_STATS_PENDING_MAX_ATTEMPTS ?? "4");
   const initialDelayMs = Number(process.env.GITHUB_STATS_PENDING_DELAY_MS ?? "10000"); // 10s default
 
@@ -270,7 +279,10 @@ export function getGitHubApiToken(): string | undefined {
  * Fetch with advanced retry logic for critical operations
  * Similar to opengraph/fetch.ts but tailored for GitHub API
  */
-export async function fetchWithAdvancedRetry<T>(operation: () => Promise<T>, context: string): Promise<T | null> {
+export async function fetchWithAdvancedRetry<T>(
+  operation: () => Promise<T>,
+  context: string,
+): Promise<T | null> {
   return retryWithOptions(operation, {
     ...RETRY_CONFIGS.GITHUB_API,
     onRetry: (error: unknown, attempt: number) => {

@@ -55,7 +55,8 @@ export async function POST(request: NextRequest) {
     const resource = typeof errorData.resource === "string" ? errorData.resource : "unknown";
     const errorType = typeof errorData.type === "string" ? errorData.type : "unknown";
     const url = typeof errorData.url === "string" ? errorData.url : "unknown";
-    const message = typeof errorData.message === "string" ? errorData.message : "No message provided";
+    const message =
+      typeof errorData.message === "string" ? errorData.message : "No message provided";
     const buildId = typeof errorData.buildId === "string" ? errorData.buildId : "unknown";
 
     // Create a prominent, easy-to-spot log entry

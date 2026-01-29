@@ -33,7 +33,7 @@ describe("Blog MDX Smoke Tests", () => {
   beforeAll(async () => {
     try {
       const files = await fs.readdir(POSTS_DIRECTORY);
-      mdxFiles = files.filter(file => file.endsWith(".mdx"));
+      mdxFiles = files.filter((file) => file.endsWith(".mdx"));
       console.log(`Found ${mdxFiles.length} MDX files in ${POSTS_DIRECTORY}`);
     } catch (error) {
       console.error("Failed to read blog posts directory:", POSTS_DIRECTORY, error);
@@ -51,7 +51,7 @@ describe("Blog MDX Smoke Tests", () => {
 
   it("all blog posts have valid frontmatter", async () => {
     await Promise.all(
-      mdxFiles.map(async fileName => {
+      mdxFiles.map(async (fileName) => {
         const fullPath = path.join(POSTS_DIRECTORY, fileName);
         let fileContents: string;
 
@@ -73,7 +73,7 @@ describe("Blog MDX Smoke Tests", () => {
 
   it("all blog posts can be processed by getMDXPost", async () => {
     await Promise.all(
-      mdxFiles.map(async fileName => {
+      mdxFiles.map(async (fileName) => {
         const fullPath = path.join(POSTS_DIRECTORY, fileName);
         const fileContents = await fs.readFile(fullPath, "utf8");
         const { data: frontmatter } = matter(fileContents) as unknown as { data: BlogFrontmatter };

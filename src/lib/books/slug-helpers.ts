@@ -32,7 +32,7 @@ export function generateBookSlug(
   // Authors slug (max 2 authors, 20 chars each)
   const authorsSlug = authors
     ?.slice(0, 2)
-    .map(a => titleToSlug(a, 20))
+    .map((a) => titleToSlug(a, 20))
     .filter(Boolean)
     .join("-");
 
@@ -73,10 +73,9 @@ export function extractBookIdFromSlug(slug: string): string | null {
  * Find a book by its slug from a list of books.
  * Matches by generated slug or by ID/ISBN suffix.
  */
-export function findBookBySlug<T extends Pick<Book, "id" | "title" | "authors" | "isbn13" | "isbn10">>(
-  slug: string,
-  books: T[],
-): T | null {
+export function findBookBySlug<
+  T extends Pick<Book, "id" | "title" | "authors" | "isbn13" | "isbn10">,
+>(slug: string, books: T[]): T | null {
   // Try exact slug match first
   for (const book of books) {
     const generated = generateBookSlug(book.title, book.id, book.authors, book.isbn13, book.isbn10);

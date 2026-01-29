@@ -7,7 +7,9 @@ import path from "node:path";
 const SCRIPT_PATH = path.join(process.cwd(), "scripts/data-updater.ts");
 // S3 Bucket name from environment for log verification
 const S3_BUCKET = process.env.S3_BUCKET;
-const IS_S3_CONFIGURED = Boolean(S3_BUCKET && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY);
+const IS_S3_CONFIGURED = Boolean(
+  S3_BUCKET && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY,
+);
 
 describe("scripts/data-updater.ts Smoke Test", () => {
   // Support three test modes:

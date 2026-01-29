@@ -12,7 +12,9 @@ jest.mock("@/components/features/cv/CvPdfDownloadButton", () => ({
 import CvPage from "@/app/cv/page";
 import CvPdfDownloadButtonEnhancer from "@/components/features/cv/CvPdfDownloadButton";
 
-const mockEnhancer = CvPdfDownloadButtonEnhancer as jest.MockedFunction<typeof CvPdfDownloadButtonEnhancer>;
+const mockEnhancer = CvPdfDownloadButtonEnhancer as jest.MockedFunction<
+  typeof CvPdfDownloadButtonEnhancer
+>;
 
 describe("CvPage", () => {
   afterEach(() => {
@@ -31,7 +33,9 @@ describe("CvPage", () => {
     render(page);
 
     expect(screen.getByRole("heading", { name: "Professional Summary" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Highlighted Technical Projects" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Highlighted Technical Projects" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Professional Experience" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Education" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Technical Focus" })).toBeInTheDocument();
@@ -56,7 +60,9 @@ describe("CvPage", () => {
       "https://williamcallahan.com",
     );
     const aventureLinks = screen.getAllByRole("link", { name: "aventure.vc" });
-    expect(aventureLinks.some(link => link.getAttribute("href") === "https://aventure.vc")).toBe(true);
+    expect(aventureLinks.some((link) => link.getAttribute("href") === "https://aventure.vc")).toBe(
+      true,
+    );
     expect(screen.getByRole("link", { name: "@williamcallahan" })).toHaveAttribute(
       "href",
       "https://twitter.com/williamcallahan",

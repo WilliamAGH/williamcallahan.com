@@ -19,7 +19,11 @@ import { cn } from "../../../lib/utils";
  * @param {CopyButtonProps} props - The component props
  * @returns {JSX.Element} A button that copies text to clipboard
  */
-export const CopyButton: React.FC<CopyButtonProps> = ({ content, className, parentIsPadded = false }) => {
+export const CopyButton: React.FC<CopyButtonProps> = ({
+  content,
+  className,
+  parentIsPadded = false,
+}) => {
   /** State to track if content was copied */
   const [copied, setCopied] = useState(false);
 

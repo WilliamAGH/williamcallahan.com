@@ -246,7 +246,7 @@ export default function Page() {
    ("use client");
    function CommentsList({ commentsPromise }) {
      const comments = use(commentsPromise); // Suspends here
-     return comments.map(c => <Comment key={c.id} {...c} />);
+     return comments.map((c) => <Comment key={c.id} {...c} />);
    }
    ```
 
@@ -299,7 +299,13 @@ const getCachedData = unstable_cache(async () => fetchData(), ["cache-key"], { r
 ```tsx
 // app/error.tsx - Catches errors in server components
 "use client";
-export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   return (
     <div>
       <h2>Something went wrong!</h2>
@@ -314,7 +320,13 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
 ```tsx
 // app/global-error.tsx - Catches root layout errors
 "use client";
-export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function GlobalError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   return (
     <html>
       <body>

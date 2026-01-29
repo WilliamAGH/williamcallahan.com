@@ -44,8 +44,14 @@ export async function GET(
     return NextResponse.json(queue.snapshot, { status: 200, headers: NO_STORE_HEADERS });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid feature parameter" }, { status: 400, headers: NO_STORE_HEADERS });
+      return NextResponse.json(
+        { error: "Invalid feature parameter" },
+        { status: 400, headers: NO_STORE_HEADERS },
+      );
     }
-    return NextResponse.json({ error: "Internal server error" }, { status: 500, headers: NO_STORE_HEADERS });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500, headers: NO_STORE_HEADERS },
+    );
   }
 }

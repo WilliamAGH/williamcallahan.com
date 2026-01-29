@@ -15,7 +15,9 @@ let SentryModule: typeof import("@sentry/nextjs") | null = null;
 
 export async function register(): Promise<void> {
   const releaseVersion =
-    process.env.SENTRY_RELEASE || process.env.NEXT_PUBLIC_GIT_HASH || process.env.NEXT_PUBLIC_APP_VERSION;
+    process.env.SENTRY_RELEASE ||
+    process.env.NEXT_PUBLIC_GIT_HASH ||
+    process.env.NEXT_PUBLIC_APP_VERSION;
   const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
   if (isBuildPhase) return;
 
@@ -106,7 +108,8 @@ export async function register(): Promise<void> {
   /** Load global Jina AI rate-limit store **/
   try {
     const { loadRateLimitStoreFromS3 } = await import("@/lib/rate-limiter");
-    const { JINA_FETCH_STORE_NAME, JINA_FETCH_RATE_LIMIT_S3_PATH } = await import("@/lib/constants");
+    const { JINA_FETCH_STORE_NAME, JINA_FETCH_RATE_LIMIT_S3_PATH } =
+      await import("@/lib/constants");
     await loadRateLimitStoreFromS3(JINA_FETCH_STORE_NAME, JINA_FETCH_RATE_LIMIT_S3_PATH);
   } catch (err) {
     console.warn("[Instrumentation] Unable to load Jina rate-limit store:", err);

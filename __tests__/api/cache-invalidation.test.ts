@@ -5,7 +5,10 @@
 import { describe, expect, it, jest, beforeAll, beforeEach } from "@jest/globals";
 import { createMocks } from "node-mocks-http";
 import { POST as clearCacheHandler } from "@/app/api/cache/clear/route";
-import { POST as invalidateBookmarksHandler, DELETE as clearBookmarksHandler } from "@/app/api/cache/bookmarks/route";
+import {
+  POST as invalidateBookmarksHandler,
+  DELETE as clearBookmarksHandler,
+} from "@/app/api/cache/bookmarks/route";
 import { NextRequest } from "next/server";
 
 // Mock the cache library
@@ -43,14 +46,16 @@ jest.mock("@/lib/bookmarks/bookmarks-data-access.server", () => {
 // Mock refresh function
 jest.mock("@/lib/bookmarks", () => {
   return {
-    refreshBookmarksData: jest.fn<() => Promise<{ status: string; phases: any }>>().mockResolvedValue({
-      status: "COMPLETE_SUCCESS",
-      phases: {
-        primaryFetch: { status: "SUCCESS", recordCount: 10 },
-        s3Fallback: { status: "NOT_ATTEMPTED" },
-        finalOutcome: { status: "PRIMARY_SUCCESS", bookmarksServed: 10 },
-      },
-    }),
+    refreshBookmarksData: jest
+      .fn<() => Promise<{ status: string; phases: any }>>()
+      .mockResolvedValue({
+        status: "COMPLETE_SUCCESS",
+        phases: {
+          primaryFetch: { status: "SUCCESS", recordCount: 10 },
+          s3Fallback: { status: "NOT_ATTEMPTED" },
+          finalOutcome: { status: "PRIMARY_SUCCESS", bookmarksServed: 10 },
+        },
+      }),
   };
 });
 

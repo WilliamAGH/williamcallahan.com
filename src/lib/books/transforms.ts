@@ -34,13 +34,13 @@ function extractAuthors(
 ): string[] | undefined {
   // Prefer structured authors array if it has entries
   if (authors && authors.length > 0) {
-    return authors.map(a => a.name);
+    return authors.map((a) => a.name);
   }
   // Fallback to authorName string (may contain comma-separated names)
   if (authorName) {
     return authorName
       .split(",")
-      .map(s => s.trim())
+      .map((s) => s.trim())
       .filter(Boolean);
   }
   return undefined;
@@ -135,7 +135,7 @@ export function absItemToBook(item: AbsLibraryItem, options: AbsTransformOptions
     asin: meta.asin ?? undefined,
     ...isbns,
     formats,
-    audioNarrators: hasAudio ? meta.narrators?.map(n => n.name) : undefined,
+    audioNarrators: hasAudio ? meta.narrators?.map((n) => n.name) : undefined,
     audioDurationSeconds: hasAudio ? item.media.duration : undefined,
     audioChapterCount: hasAudio ? item.media.chapters?.length : undefined,
     coverUrl: buildCoverUrl(item.id, options.baseUrl, options.apiKey),
@@ -145,7 +145,10 @@ export function absItemToBook(item: AbsLibraryItem, options: AbsTransformOptions
 /**
  * Transform AudioBookShelf item to BookListItem
  */
-export function absItemToBookListItem(item: AbsLibraryItem, options: AbsTransformOptions): BookListItem {
+export function absItemToBookListItem(
+  item: AbsLibraryItem,
+  options: AbsTransformOptions,
+): BookListItem {
   const meta = item.media.metadata;
   return {
     id: item.id,
@@ -159,12 +162,15 @@ export function absItemToBookListItem(item: AbsLibraryItem, options: AbsTransfor
  * Transform array of AudioBookShelf items to Books
  */
 export function absItemsToBooks(items: AbsLibraryItem[], options: AbsTransformOptions): Book[] {
-  return items.map(item => absItemToBook(item, options));
+  return items.map((item) => absItemToBook(item, options));
 }
 
 /**
  * Transform array of AudioBookShelf items to BookListItems
  */
-export function absItemsToBookListItems(items: AbsLibraryItem[], options: AbsTransformOptions): BookListItem[] {
-  return items.map(item => absItemToBookListItem(item, options));
+export function absItemsToBookListItems(
+  items: AbsLibraryItem[],
+  options: AbsTransformOptions,
+): BookListItem[] {
+  return items.map((item) => absItemToBookListItem(item, options));
 }

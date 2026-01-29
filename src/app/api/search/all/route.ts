@@ -22,7 +22,11 @@ import {
   searchThoughts,
   searchTags,
 } from "@/lib/search";
-import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
+import {
+  applySearchGuards,
+  createSearchErrorResponse,
+  withNoStoreHeaders,
+} from "@/lib/search/api-guards";
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { validateSearchQuery } from "@/lib/validators/search";
@@ -50,10 +54,14 @@ const SOURCE_TIMEOUT_MS = Number(process.env.SEARCH_SOURCE_TIMEOUT_MS) || 20_000
  * Wraps a promise with a timeout. Returns empty array if timeout is exceeded.
  * This prevents slow external services (e.g., Audiobookshelf) from blocking the entire search.
  */
-async function withTimeout<T>(promise: Promise<T[]>, timeoutMs: number, sourceName: string): Promise<T[]> {
+async function withTimeout<T>(
+  promise: Promise<T[]>,
+  timeoutMs: number,
+  sourceName: string,
+): Promise<T[]> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
-  const timeoutPromise = new Promise<T[]>(resolve => {
+  const timeoutPromise = new Promise<T[]>((resolve) => {
     timeoutId = setTimeout(() => {
       console.warn(`[Search] ${sourceName} search timed out after ${timeoutMs}ms`);
       resolve([]);
@@ -85,7 +93,7 @@ function parseScopes(scopeParam: string | null): Set<SearchScope> | null {
   const requestedScopes = scopeParam
     .toLowerCase()
     .split(",")
-    .map(s => s.trim());
+    .map((s) => s.trim());
   const validScopes = new Set<SearchScope>();
 
   for (const scope of requestedScopes) {
@@ -199,11 +207,15 @@ export async function GET(request: NextRequest) {
         shouldSearch("projects")
           ? withTimeout(searchProjects(query), SOURCE_TIMEOUT_MS, "projects")
           : Promise.resolve([]),
-        shouldSearch("books") ? withTimeout(searchBooks(query), SOURCE_TIMEOUT_MS, "books") : Promise.resolve([]),
+        shouldSearch("books")
+          ? withTimeout(searchBooks(query), SOURCE_TIMEOUT_MS, "books")
+          : Promise.resolve([]),
         shouldSearch("thoughts")
           ? withTimeout(searchThoughts(query), SOURCE_TIMEOUT_MS, "thoughts")
           : Promise.resolve([]),
-        shouldSearch("tags") ? withTimeout(searchTags(query), SOURCE_TIMEOUT_MS, "tags") : Promise.resolve([]),
+        shouldSearch("tags")
+          ? withTimeout(searchTags(query), SOURCE_TIMEOUT_MS, "tags")
+          : Promise.resolve([]),
       ]);
 
       const [
@@ -229,29 +241,29 @@ export async function GET(request: NextRequest) {
       ];
 
       // Add category prefixes for clarity in terminal (single source of truth for all prefixes)
-      const prefixedBlogResults = blogResults.map(r => ({ ...r, title: `[Blog] ${r.title}` }));
-      const prefixedInvestmentResults = investmentResults.map(r => ({
+      const prefixedBlogResults = blogResults.map((r) => ({ ...r, title: `[Blog] ${r.title}` }));
+      const prefixedInvestmentResults = investmentResults.map((r) => ({
         ...r,
         title: `[Investments] ${r.title}`,
       }));
-      const prefixedExperienceResults = experienceResults.map(r => ({
+      const prefixedExperienceResults = experienceResults.map((r) => ({
         ...r,
         title: `[Experience] ${r.title}`,
       }));
-      const prefixedEducationResults = educationResults.map(r => ({
+      const prefixedEducationResults = educationResults.map((r) => ({
         ...r,
         title: `[Education] ${r.title}`,
       }));
-      const prefixedBookmarkResults = bookmarkResults.map(r => ({
+      const prefixedBookmarkResults = bookmarkResults.map((r) => ({
         ...r,
         title: `[Bookmark] ${r.title}`,
       }));
-      const prefixedProjectResults = projectResults.map(r => ({
+      const prefixedProjectResults = projectResults.map((r) => ({
         ...r,
         title: `[Projects] ${r.title}`,
       }));
-      const prefixedBookResults = bookResults.map(r => ({ ...r, title: `[Books] ${r.title}` }));
-      const prefixedThoughtResults = thoughtResults.map(r => ({
+      const prefixedBookResults = bookResults.map((r) => ({ ...r, title: `[Books] ${r.title}` }));
+      const prefixedThoughtResults = thoughtResults.map((r) => ({
         ...r,
         title: `[Thoughts] ${r.title}`,
       }));

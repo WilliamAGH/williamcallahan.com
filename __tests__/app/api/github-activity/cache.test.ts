@@ -44,7 +44,9 @@ const mockSetGithubActivity = ServerCacheInstance.setGithubActivity as jest.Mock
 const mockGetGithubActivity = ServerCacheInstance.getGithubActivity as jest.MockedFunction<
   () => GitHubActivityApiResponse | undefined
 >;
-const mockClearGithubActivity = ServerCacheInstance.clearGithubActivity as jest.MockedFunction<() => void>;
+const mockClearGithubActivity = ServerCacheInstance.clearGithubActivity as jest.MockedFunction<
+  () => void
+>;
 const mockGetStats = ServerCacheInstance.getStats as jest.MockedFunction<
   () => {
     hits: number;
@@ -135,7 +137,9 @@ describe("GitHub Activity API Cache Tests", () => {
 
     // Verify the result
     expect(result).toBeDefined();
-    expect(result?.trailingYearData.data).toHaveLength(MOCK_GITHUB_ACTIVITY.trailingYearData.data.length);
+    expect(result?.trailingYearData.data).toHaveLength(
+      MOCK_GITHUB_ACTIVITY.trailingYearData.data.length,
+    );
   });
 
   it("should clear GitHub activity", () => {
@@ -196,7 +200,7 @@ describe("GitHub Activity API Cache Tests", () => {
 
   it("should handle concurrent access to cache", async () => {
     // Reset mock implementation to track concurrent calls
-    mockSetGithubActivity.mockImplementation(data => {
+    mockSetGithubActivity.mockImplementation((data) => {
       // Simulate some work
       mockGithubActivity.current = data;
     });
@@ -207,7 +211,7 @@ describe("GitHub Activity API Cache Tests", () => {
         ...MOCK_GITHUB_ACTIVITY,
         trailingYearData: {
           ...MOCK_GITHUB_ACTIVITY.trailingYearData,
-          data: MOCK_GITHUB_ACTIVITY.trailingYearData.data.map(item => ({
+          data: MOCK_GITHUB_ACTIVITY.trailingYearData.data.map((item) => ({
             ...item,
             count: i, // Each concurrent call gets a different count
           })),

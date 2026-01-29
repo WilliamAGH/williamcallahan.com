@@ -33,4 +33,5 @@ import { useEffect, useLayoutEffect } from "react";
  * - Uses useLayoutEffect in the browser for synchronous DOM updates
  * - Falls back to useEffect on the server to avoid warning messages
  */
-export const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+export const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;

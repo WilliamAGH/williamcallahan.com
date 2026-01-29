@@ -77,7 +77,10 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
     proxyUrlObj.pathname = originalUrl.pathname;
     proxyUrlObj.search = originalUrl.search;
     effectiveUrl = proxyUrlObj.toString();
-    debugLog(`Using proxy: ${stripQueryAndHash(url)} -> ${stripQueryAndHash(effectiveUrl)}`, "info");
+    debugLog(
+      `Using proxy: ${stripQueryAndHash(url)} -> ${stripQueryAndHash(effectiveUrl)}`,
+      "info",
+    );
   }
 
   // Choose appropriate default headers
@@ -259,7 +262,7 @@ export async function fetchWithRetryAndProxy(
   const { proxies = [], maxRetries = 3, baseDelay = 1000, ...fetchOptions } = options;
 
   // Try direct fetch first, then proxies if provided
-  const urlsToTry = [url, ...proxies.map(proxy => ({ url, proxy }))];
+  const urlsToTry = [url, ...proxies.map((proxy) => ({ url, proxy }))];
 
   for (const urlConfig of urlsToTry) {
     const targetUrl = typeof urlConfig === "string" ? urlConfig : urlConfig.url;

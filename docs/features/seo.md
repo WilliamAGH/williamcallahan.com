@@ -242,7 +242,10 @@ return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 30
 ```typescript
 // From lib/opengraph/fetch.ts
 if (normalizedUrl.includes("twitter.com/") || normalizedUrl.includes("x.com/")) {
-  const proxyUrl = normalizedUrl.replace(/https:\/\/(twitter\.com|x\.com)/, "https://vxtwitter.com");
+  const proxyUrl = normalizedUrl.replace(
+    /https:\/\/(twitter\.com|x\.com)/,
+    "https://vxtwitter.com",
+  );
   // Only use vxtwitter.com - fxtwitter.com returns empty metadata for profiles
 }
 ```

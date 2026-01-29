@@ -42,7 +42,9 @@ import {
  * @throws If critical steps fail and S3 fallback is unavailable
  */
 export async function refreshBookmarksData(force = false): Promise<UnifiedBookmark[]> {
-  console.log(`[refreshBookmarksData] Starting refresh cycle from external API... (force: ${force})`);
+  console.log(
+    `[refreshBookmarksData] Starting refresh cycle from external API... (force: ${force})`,
+  );
 
   try {
     // Test environment short-circuit

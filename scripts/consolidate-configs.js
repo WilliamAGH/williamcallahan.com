@@ -54,7 +54,7 @@ async function analyzeConfigs() {
     process.exit(1);
   }
 
-  const configFiles = files.filter(file => {
+  const configFiles = files.filter((file) => {
     // More specific patterns for actual config files
     return (
       /^\.(?!git|next|env)/.test(file) || // dot files excluding common non-config ones
@@ -87,7 +87,7 @@ async function createConsolidationPlan() {
 
   console.log("\n🔴 MUST STAY IN ROOT:");
   for (const pattern of ROOT_REQUIRED) {
-    const matching = configs.filter(file =>
+    const matching = configs.filter((file) =>
       pattern.includes("*") ? file.startsWith(pattern.replace("*", "")) : file === pattern,
     );
     for (const file of matching) {
@@ -104,7 +104,9 @@ async function createConsolidationPlan() {
 }
 
 function executeConsolidation() {
-  console.log("\n🚀 Would you like to execute this consolidation? (This script just shows the plan)\n");
+  console.log(
+    "\n🚀 Would you like to execute this consolidation? (This script just shows the plan)\n",
+  );
   console.log("Next steps:");
   console.log("1. Review the plan above");
   console.log("2. Manually move safe files to config/");

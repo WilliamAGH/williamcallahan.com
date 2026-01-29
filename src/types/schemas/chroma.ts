@@ -78,7 +78,13 @@ export type ChromaDocument = z.infer<typeof ChromaDocumentSchema>;
 /**
  * Include enum values for query results.
  */
-export const ChromaIncludeSchema = z.enum(["distances", "documents", "embeddings", "metadatas", "uris"]);
+export const ChromaIncludeSchema = z.enum([
+  "distances",
+  "documents",
+  "embeddings",
+  "metadatas",
+  "uris",
+]);
 
 export type ChromaInclude = z.infer<typeof ChromaIncludeSchema>;
 
@@ -100,7 +106,7 @@ export const ChromaQueryParamsSchema = z
     /** Fields to include in results */
     include: z.array(ChromaIncludeSchema).optional(),
   })
-  .refine(data => data.queryEmbedding !== undefined || data.queryText !== undefined, {
+  .refine((data) => data.queryEmbedding !== undefined || data.queryText !== undefined, {
     message: "Either queryEmbedding or queryText is required",
   });
 

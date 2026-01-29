@@ -65,7 +65,11 @@ export function debugError(...args: unknown[]): void {
 /**
  * Unified debug logger with leveled output.
  */
-export function debugLog(message: string, level: "info" | "warn" | "error" = "info", meta?: unknown): void {
+export function debugLog(
+  message: string,
+  level: "info" | "warn" | "error" = "info",
+  meta?: unknown,
+): void {
   const payload = meta ? [message, meta] : [message];
   switch (level) {
     case "warn":

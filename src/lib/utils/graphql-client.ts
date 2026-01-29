@@ -30,7 +30,11 @@ export class GraphQLClient {
     };
 
     // Create a retrying fetch function
-    const retryingHttpFetch = createRetryingFetch(this.config.maxRetries, 1000, this.config.retryConfig);
+    const retryingHttpFetch = createRetryingFetch(
+      this.config.maxRetries,
+      1000,
+      this.config.retryConfig,
+    );
 
     // Wrap it to return JSON - callers must validate response structure
     this.retryingFetch = async <T>(url: string, options?: FetchOptions): Promise<T> => {
@@ -70,7 +74,7 @@ export class GraphQLClient {
       });
 
       if (response.errors && response.errors.length > 0) {
-        const errorMessages = response.errors.map(e => e.message).join(", ");
+        const errorMessages = response.errors.map((e) => e.message).join(", ");
 
         if (this.config.debug) {
           debugLog("GraphQL Errors", "error", { errors: response.errors });
@@ -167,7 +171,10 @@ export async function graphqlRequest<T = unknown>(
  * GitHub-specific GraphQL client factory
  * Creates a pre-configured client for GitHub's GraphQL API
  */
-export function createGitHubGraphQLClient(token: string, options?: Partial<GraphQLClientConfig>): GraphQLClient {
+export function createGitHubGraphQLClient(
+  token: string,
+  options?: Partial<GraphQLClientConfig>,
+): GraphQLClient {
   return new GraphQLClient({
     endpoint: "https://api.github.com/graphql",
     headers: {

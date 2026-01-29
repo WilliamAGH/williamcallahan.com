@@ -77,7 +77,12 @@ export const BlogArticle: React.FC<BlogArticleProps> = ({ post, mdxContent }) =>
           }
         >
           <div className="relative aspect-[2/1] mb-6 sm:mb-8 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
-            <OptimizedCardImage src={post.coverImage} alt={post.title} className="object-cover" preload />
+            <OptimizedCardImage
+              src={post.coverImage}
+              alt={post.title}
+              className="object-cover"
+              preload
+            />
           </div>
         </ErrorBoundary>
       )}

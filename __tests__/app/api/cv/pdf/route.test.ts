@@ -31,7 +31,10 @@ class TestResponse {
   readonly status: number;
   readonly headers: HeaderBag;
 
-  constructor(body: string | Buffer | Uint8Array | null, init?: { status?: number; headers?: ResponseHeadersInit }) {
+  constructor(
+    body: string | Buffer | Uint8Array | null,
+    init?: { status?: number; headers?: ResponseHeadersInit },
+  ) {
     if (body instanceof Buffer) {
       this.body = body;
     } else if (body instanceof Uint8Array) {
@@ -57,7 +60,8 @@ class TestResponse {
 }
 
 if (typeof globalThis.Response === "undefined") {
-  (globalThis as { Response?: typeof TestResponse }).Response = TestResponse as unknown as typeof globalThis.Response;
+  (globalThis as { Response?: typeof TestResponse }).Response =
+    TestResponse as unknown as typeof globalThis.Response;
 }
 
 const renderToBufferMock = jest.fn<Promise<Buffer>, [ReactElement]>();
@@ -115,7 +119,9 @@ describe("GET /api/cv/pdf", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("application/pdf");
     expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(response.headers.get("Content-Disposition")).toBe('attachment; filename="william-callahan-cv-20251108.pdf"');
+    expect(response.headers.get("Content-Disposition")).toBe(
+      'attachment; filename="william-callahan-cv-20251108.pdf"',
+    );
 
     const bodyBuffer = Buffer.from(await response.arrayBuffer());
     expect(bodyBuffer.equals(pdfPayload)).toBe(true);

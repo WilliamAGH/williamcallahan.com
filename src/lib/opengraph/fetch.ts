@@ -42,7 +42,10 @@ import type { OgResult, KarakeepImageFallback } from "@/types";
  * In-memory map to track ongoing OpenGraph fetch requests
  * Used for request deduplication to prevent duplicate fetches
  */
-const ongoingRequests = new Map<string, Promise<OgResult | { networkFailure: true; lastError: Error | null } | null>>();
+const ongoingRequests = new Map<
+  string,
+  Promise<OgResult | { networkFailure: true; lastError: Error | null } | null>
+>();
 
 /**
  * Fetches OpenGraph data from external source with retry logic and request deduplication
@@ -85,7 +88,8 @@ async function performFetchWithRetry(
   fallbackImageData?: KarakeepImageFallback,
 ): Promise<OgResult | { networkFailure: true; lastError: Error | null } | null> {
   const originalUrl = new URL(url);
-  const isTwitter = originalUrl.hostname.endsWith("twitter.com") || originalUrl.hostname.endsWith("x.com");
+  const isTwitter =
+    originalUrl.hostname.endsWith("twitter.com") || originalUrl.hostname.endsWith("x.com");
   // Only use vxtwitter.com - fxtwitter.com returns empty metadata for profiles as of 2025
   const proxies = isTwitter ? ["vxtwitter.com"] : [];
 
@@ -98,7 +102,7 @@ async function performFetchWithRetry(
         // Try direct fetch first, then proxies
         const urlsToTry = [
           url,
-          ...proxies.map(proxy => {
+          ...proxies.map((proxy) => {
             const proxyUrl = new URL(url);
             proxyUrl.hostname = proxy;
             return proxyUrl.toString();
@@ -168,7 +172,10 @@ async function performFetchWithRetry(
             }
           } catch (error: unknown) {
             lastAttemptError = error instanceof Error ? error : new Error(String(error));
-            debugWarn(`[DataAccess/OpenGraph] Failed to fetch ${effectiveUrl}:`, lastAttemptError.message);
+            debugWarn(
+              `[DataAccess/OpenGraph] Failed to fetch ${effectiveUrl}:`,
+              lastAttemptError.message,
+            );
           }
         }
 
@@ -222,11 +229,15 @@ async function performFetchWithRetry(
 async function fetchExternalOpenGraph(
   url: string,
   fallbackImageData?: KarakeepImageFallback,
-): Promise<OgResult | { permanentFailure: true; status: number } | { blocked: true; status: number } | null> {
+): Promise<
+  OgResult | { permanentFailure: true; status: number } | { blocked: true; status: number } | null
+> {
   const domain = getDomainType(url);
   const imageService = getUnifiedImageService();
   if (imageService.hasDomainFailedTooManyTimes(domain)) {
-    debugWarn(`[DataAccess/OpenGraph] Skipping ${url} - domain ${domain} has failed too many times`);
+    debugWarn(
+      `[DataAccess/OpenGraph] Skipping ${url} - domain ${domain} has failed too many times`,
+    );
     return null;
   }
 
@@ -280,7 +291,11 @@ async function fetchExternalOpenGraph(
     debug(`[DataAccess/OpenGraph] Falling back to direct fetch for ${url}`);
 
     try {
-      await waitForPermit(OPENGRAPH_FETCH_STORE_NAME, OPENGRAPH_FETCH_CONTEXT_ID, DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG);
+      await waitForPermit(
+        OPENGRAPH_FETCH_STORE_NAME,
+        OPENGRAPH_FETCH_CONTEXT_ID,
+        DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG,
+      );
 
       // Use shared fetch utility with timeout and browser headers
       const headers = getBrowserHeaders();
@@ -291,7 +306,8 @@ async function fetchExternalOpenGraph(
           // Try Googlebot UA if we've had issues before
           ...(imageService.hasDomainFailedTooManyTimes(domain)
             ? {
-                "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+                "User-Agent":
+                  "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
               }
             : {}),
         },
@@ -309,7 +325,9 @@ async function fetchExternalOpenGraph(
 
       html = await response.text();
       finalUrl = response.url;
-      debug(`[DataAccess/OpenGraph] Successfully fetched HTML via direct fetch (${html.length} bytes) from: ${url}`);
+      debug(
+        `[DataAccess/OpenGraph] Successfully fetched HTML via direct fetch (${html.length} bytes) from: ${url}`,
+      );
     } catch (fetchError) {
       imageService.markDomainAsFailed(domain);
       throw fetchError;
@@ -337,7 +355,8 @@ async function fetchExternalOpenGraph(
 
   // Select the best image from OpenGraph metadata
   // Note: selectBestImage is for bookmark objects with Karakeep content, not raw OpenGraph fetch
-  const ogImageValue = validatedMetadata.image || validatedMetadata.profileImage || validatedMetadata.twitterImage;
+  const ogImageValue =
+    validatedMetadata.image || validatedMetadata.profileImage || validatedMetadata.twitterImage;
   const bestImageUrl: string | undefined = ogImageValue || undefined;
 
   // Log what we found
@@ -364,7 +383,11 @@ async function fetchExternalOpenGraph(
   if (bestImageUrl && fallbackImageData?.idempotencyKey) {
     if (isBatchMode) {
       // In batch mode, persist synchronously and get S3 URL
-      envLogger.log(`Batch mode: Persisting image synchronously`, { bestImageUrl }, { category: "OpenGraph" });
+      envLogger.log(
+        `Batch mode: Persisting image synchronously`,
+        { bestImageUrl },
+        { category: "OpenGraph" },
+      );
       const s3Url = await persistImageAndGetS3Url(
         bestImageUrl,
         OPENGRAPH_IMAGES_S3_DIR,
@@ -377,11 +400,19 @@ async function fetchExternalOpenGraph(
         finalImageUrl = s3Url;
         envLogger.log(`Image persisted to S3`, { s3Url }, { category: "OpenGraph" });
       } else {
-        envLogger.log(`Failed to persist image to S3, keeping original`, { bestImageUrl }, { category: "OpenGraph" });
+        envLogger.log(
+          `Failed to persist image to S3, keeping original`,
+          { bestImageUrl },
+          { category: "OpenGraph" },
+        );
       }
     } else {
       // In runtime mode, schedule background persistence
-      envLogger.log(`Scheduling background image persistence`, { bestImageUrl }, { category: "OpenGraph" });
+      envLogger.log(
+        `Scheduling background image persistence`,
+        { bestImageUrl },
+        { category: "OpenGraph" },
+      );
       scheduleImagePersistence(
         bestImageUrl,
         OPENGRAPH_IMAGES_S3_DIR,
@@ -451,7 +482,11 @@ async function fetchExternalOpenGraph(
         );
       }
     } else {
-      envLogger.log(`Scheduling profile image persistence`, { dir: profileImageDirectory }, { category: "OpenGraph" });
+      envLogger.log(
+        `Scheduling profile image persistence`,
+        { dir: profileImageDirectory },
+        { category: "OpenGraph" },
+      );
       scheduleImagePersistence(
         profileImageUrl,
         profileImageDirectory,

@@ -8,7 +8,12 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { preventCaching, validateAuthSecret, createErrorResponse, NO_STORE_HEADERS } from "@/lib/utils/api-utils";
+import {
+  preventCaching,
+  validateAuthSecret,
+  createErrorResponse,
+  NO_STORE_HEADERS,
+} from "@/lib/utils/api-utils";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { getSystemMetrics } from "@/lib/health/status-monitor.server";
 import { HealthMetricsResponseSchema, type HealthMetrics } from "@/types/health";
@@ -34,7 +39,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   preventCaching();
   try {
     // Check authorization using existing env variable
-    const expectedToken = process.env.GITHUB_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+    const expectedToken =
+      process.env.GITHUB_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
 
     if (!validateAuthSecret(request, expectedToken)) {
       return createErrorResponse("Unauthorized", 401);
@@ -55,8 +61,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const allocatorDiagnostics = monitor.getAllocatorDiagnostics();
 
     // Safely access budget and threshold with optional chaining
-    const rawBudget = typeof healthStatus.details?.budget === "number" ? healthStatus.details.budget : null;
-    const rawThreshold = typeof healthStatus.details?.threshold === "number" ? healthStatus.details.threshold : null;
+    const rawBudget =
+      typeof healthStatus.details?.budget === "number" ? healthStatus.details.budget : null;
+    const rawThreshold =
+      typeof healthStatus.details?.threshold === "number" ? healthStatus.details.threshold : null;
     const budget = rawBudget ?? 0;
     const threshold = rawThreshold ?? 0;
 

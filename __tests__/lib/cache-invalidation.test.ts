@@ -8,7 +8,10 @@ jest.mock("@/lib/data-access/opengraph");
 
 import { invalidateSearchCache, invalidateSearchQueryCache } from "@/lib/search";
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
-import { getBookmarksPage, invalidateBookmarksCache } from "@/lib/bookmarks/bookmarks-data-access.server";
+import {
+  getBookmarksPage,
+  invalidateBookmarksCache,
+} from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getGithubActivity, invalidateAllGitHubCaches } from "@/lib/data-access/github";
 import { getAllPosts } from "@/lib/blog";
 import { invalidateBlogCache } from "@/lib/blog/mdx";

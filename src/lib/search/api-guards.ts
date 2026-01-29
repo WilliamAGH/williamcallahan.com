@@ -166,10 +166,16 @@ export function applySearchGuards(request: NextRequest): NextResponse | null {
  * @param status - HTTP status code (default: 500)
  * @returns NextResponse with appropriate error details
  */
-export function createSearchErrorResponse(userMessage: string, internalError: string, status = 500): NextResponse {
+export function createSearchErrorResponse(
+  userMessage: string,
+  internalError: string,
+  status = 500,
+): NextResponse {
   const isProduction = process.env.NODE_ENV === "production";
 
-  const body = isProduction ? { error: userMessage } : { error: userMessage, details: internalError };
+  const body = isProduction
+    ? { error: userMessage }
+    : { error: userMessage, details: internalError };
 
   return NextResponse.json(body, {
     status,

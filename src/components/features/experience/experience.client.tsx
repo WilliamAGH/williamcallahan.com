@@ -50,7 +50,10 @@ export function Experience({ data }: ExperienceProps): React.JSX.Element | null 
   useEffect(() => {
     if (isRegistered) {
       // Check isRegistered
-      console.log(`Experience Component Render (${EXPERIENCE_WINDOW_ID}) - Window State:`, windowState);
+      console.log(
+        `Experience Component Render (${EXPERIENCE_WINDOW_ID}) - Window State:`,
+        windowState,
+      );
     }
   }, [windowState, isRegistered]); // Dependency on isRegistered
 
@@ -91,7 +94,11 @@ export function Experience({ data }: ExperienceProps): React.JSX.Element | null 
       {/* Sticky Header */}
       <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 flex-shrink-0 sticky top-0 z-10">
         <div className="flex items-center">
-          <WindowControls onClose={closeWindow} onMinimize={minimizeWindow} onMaximize={maximizeWindow} />
+          <WindowControls
+            onClose={closeWindow}
+            onMinimize={minimizeWindow}
+            onMaximize={maximizeWindow}
+          />
           <h1 className="text-xl font-mono ml-4">~/experience</h1>
         </div>
       </div>
@@ -100,7 +107,7 @@ export function Experience({ data }: ExperienceProps): React.JSX.Element | null 
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-6">Experience</h2>
           <div className="space-y-6">
-            {data.map(item => (
+            {data.map((item) => (
               <ExperienceCardClient key={item.id} {...item} />
             ))}
           </div>

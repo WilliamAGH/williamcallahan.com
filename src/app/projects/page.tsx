@@ -56,7 +56,7 @@ export default function ProjectsPage() {
 
   const jsonLdData = generateSchemaGraph(schemaParams);
 
-  projects.forEach(project => {
+  projects.forEach((project) => {
     jsonLdData["@graph"].push({
       "@type": "SoftwareApplication",
       "@id": `${ensureAbsoluteUrl(project.url)}#software`,

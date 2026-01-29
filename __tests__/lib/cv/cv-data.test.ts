@@ -23,11 +23,13 @@ describe("getCvData", () => {
     freezeTime("2025-11-08T12:34:56Z");
 
     const data = getCvData();
-    const expectedFeaturedCount = experiences.filter(experienceItem => experienceItem.cvFeatured).length;
+    const expectedFeaturedCount = experiences.filter(
+      (experienceItem) => experienceItem.cvFeatured,
+    ).length;
 
     expect(data.experiences).toHaveLength(expectedFeaturedCount);
 
-    const callahan = data.experiences.find(item => item.id === "callahan-financial");
+    const callahan = data.experiences.find((item) => item.id === "callahan-financial");
     expect(callahan).toBeDefined();
     expect(callahan?.headline).toBe("Founded and led an SEC-registered investment advisor");
     expect(callahan?.bullets).toContain("Managed $225 million in assets on acquisition");
@@ -50,16 +52,22 @@ describe("getCvData", () => {
 
     const data = getCvData();
 
-    const aventureProject = data.projects.find(project => project.id === "aVenture.vc");
+    const aventureProject = data.projects.find((project) => project.id === "aVenture.vc");
     expect(aventureProject).toBeDefined();
     expect(aventureProject?.tags).toHaveLength(6);
 
-    const institutions = data.groupedCourses.map(group => group.institution);
-    expect(institutions).toEqual(["Stanford University", "College of San Mateo", "University of California Berkeley"]);
+    const institutions = data.groupedCourses.map((group) => group.institution);
+    expect(institutions).toEqual([
+      "Stanford University",
+      "College of San Mateo",
+      "University of California Berkeley",
+    ]);
 
-    const collegeOfSanMateo = data.groupedCourses.find(group => group.institution === "College of San Mateo");
+    const collegeOfSanMateo = data.groupedCourses.find(
+      (group) => group.institution === "College of San Mateo",
+    );
     expect(collegeOfSanMateo).toBeDefined();
-    expect(collegeOfSanMateo?.courses.every(course => course.year === "2025")).toBe(true);
+    expect(collegeOfSanMateo?.courses.every((course) => course.year === "2025")).toBe(true);
   });
 
   it("falls back to raw values when URLs cannot be parsed", async () => {

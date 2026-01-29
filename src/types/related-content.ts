@@ -8,7 +8,13 @@
 /**
  * Content types that can be related/recommended
  */
-export type RelatedContentType = "bookmark" | "blog" | "investment" | "project" | "thought" | "book";
+export type RelatedContentType =
+  | "bookmark"
+  | "blog"
+  | "investment"
+  | "project"
+  | "thought"
+  | "book";
 
 /**
  * Base interface for related content items
@@ -198,7 +204,9 @@ export interface AggregatedContentCacheEntry {
  */
 export interface RelatedContentCacheData {
   /** Related items with scores */
-  items: Array<NormalizedContent & { score: number; breakdown: Record<keyof SimilarityWeights, number> }>;
+  items: Array<
+    NormalizedContent & { score: number; breakdown: Record<keyof SimilarityWeights, number> }
+  >;
   /** Timestamp when cached */
   timestamp: number;
 }

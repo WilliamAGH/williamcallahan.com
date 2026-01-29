@@ -75,7 +75,10 @@ class AsyncOperationsMonitor {
       // before async operations finish. They're not true failures, just lifecycle terminations.
       const isPrerenderAbort = error.message.includes("During prerendering, fetch() rejects");
       if (!isPrerenderAbort) {
-        console.error(`[AsyncMonitor] Operation "${operation.name}" ${statusText} after ${duration}ms:`, error.message);
+        console.error(
+          `[AsyncMonitor] Operation "${operation.name}" ${statusText} after ${duration}ms:`,
+          error.message,
+        );
       }
     }
     this.clearTimeout(id);
@@ -121,7 +124,7 @@ class AsyncOperationsMonitor {
    * Get operations by status
    */
   getOperationsByStatus(status: MonitoredAsyncOperation["status"]): MonitoredAsyncOperation[] {
-    return this.getOperations().filter(op => op.status === status);
+    return this.getOperations().filter((op) => op.status === status);
   }
 
   /**
@@ -136,7 +139,7 @@ class AsyncOperationsMonitor {
     averageDuration: number;
   } {
     const operations = this.getOperations();
-    const completed = operations.filter(op => op.status === "completed" && op.endTime);
+    const completed = operations.filter((op) => op.status === "completed" && op.endTime);
 
     const totalDuration = completed.reduce((sum, op) => {
       if (op.endTime !== undefined) {
@@ -147,10 +150,10 @@ class AsyncOperationsMonitor {
 
     return {
       total: operations.length,
-      pending: operations.filter(op => op.status === "pending").length,
+      pending: operations.filter((op) => op.status === "pending").length,
       completed: completed.length,
-      failed: operations.filter(op => op.status === "failed").length,
-      timeout: operations.filter(op => op.status === "timeout").length,
+      failed: operations.filter((op) => op.status === "failed").length,
+      timeout: operations.filter((op) => op.status === "timeout").length,
       averageDuration: completed.length > 0 ? Math.round(totalDuration / completed.length) : 0,
     };
   }
@@ -169,7 +172,7 @@ class AsyncOperationsMonitor {
     if (pending.length > 0) {
       console.log(
         "[AsyncMonitor] Pending operations:",
-        pending.map(op => ({
+        pending.map((op) => ({
           name: op.name,
           duration: `${getMonotonicTime() - op.startTime}ms`,
         })),
@@ -329,7 +332,7 @@ export function nonBlockingAsync<T>(
     monitoredAsync(id, name, operation, {
       timeoutMs: options.timeoutMs,
       metadata: options.metadata,
-    }).catch(error => {
+    }).catch((error) => {
       const err = error instanceof Error ? error : new Error(String(error));
       if (options.onError) {
         options.onError(err);

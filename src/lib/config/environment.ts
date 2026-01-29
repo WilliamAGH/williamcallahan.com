@@ -10,7 +10,9 @@ import { normalizeString } from "@/lib/utils";
 import type { Environment } from "@/types/config";
 
 const shouldLogEnvironmentInfo =
-  process.env.DEBUG_ENVIRONMENT === "true" || process.env.DEBUG === "true" || process.env.VERBOSE === "true";
+  process.env.DEBUG_ENVIRONMENT === "true" ||
+  process.env.DEBUG === "true" ||
+  process.env.VERBOSE === "true";
 
 let loggedExplicitDeploymentEnv: string | null = null;
 let loggedInvalidDeploymentWarning = false;
@@ -58,7 +60,9 @@ export function getEnvironment(): Environment {
     }
     // Log warning for invalid DEPLOYMENT_ENV values
     if (!loggedInvalidDeploymentWarning) {
-      logger.warn(`[Environment] Invalid DEPLOYMENT_ENV value: '${deploymentEnv}', falling back to URL detection`);
+      logger.warn(
+        `[Environment] Invalid DEPLOYMENT_ENV value: '${deploymentEnv}', falling back to URL detection`,
+      );
       loggedInvalidDeploymentWarning = true;
     }
   }
@@ -69,7 +73,8 @@ export function getEnvironment(): Environment {
   let apiUrl: string | undefined = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL;
   if (!apiUrl && isJest && normalizeString(process.env.NODE_ENV || "test") === "test") {
     try {
-      const loc = (globalThis as unknown as { location?: { href?: string; origin?: string } }).location;
+      const loc = (globalThis as unknown as { location?: { href?: string; origin?: string } })
+        .location;
       apiUrl = loc?.origin || loc?.href || undefined;
     } catch {
       // ignore
@@ -179,7 +184,9 @@ export function validateEnvironmentPath(path: string): boolean {
     // OR in the directory path (e.g., pages-dev/page-1.json)
     if (!path.includes(expectedEnding) && !path.includes(expectedDir)) {
       logger.error(`[Environment] Path missing ${env} suffix: ${path}`);
-      logger.error(`[Environment] Expected '${expectedEnding}' in filename OR '${expectedDir}' in directory`);
+      logger.error(
+        `[Environment] Expected '${expectedEnding}' in filename OR '${expectedDir}' in directory`,
+      );
       return false;
     }
   }

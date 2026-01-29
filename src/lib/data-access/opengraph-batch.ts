@@ -61,11 +61,18 @@ export async function getOpenGraphDataBatch(
 
   // Step 2: Fetch fresh data from external source
   try {
-    const result = await fetchExternalOpenGraphWithRetry(normalizedUrl, fallbackImageData || undefined);
+    const result = await fetchExternalOpenGraphWithRetry(
+      normalizedUrl,
+      fallbackImageData || undefined,
+    );
 
     // Check if result is null or a network failure
     if (!result) {
-      return createFallbackResult(normalizedUrl, "Failed to fetch OpenGraph data", fallbackImageData);
+      return createFallbackResult(
+        normalizedUrl,
+        "Failed to fetch OpenGraph data",
+        fallbackImageData,
+      );
     }
 
     if ("networkFailure" in result) {
@@ -98,9 +105,12 @@ export async function processOpenGraphBatch(
   const progressReporter = new BatchProgressReporter("OpenGraph Batch", 10000); // Report every 10 seconds
 
   // Create batch processor with lower concurrency for OpenGraph (to be polite to external sites)
-  const processor = new BatchProcessor<{ url: string; fallback?: KarakeepImageFallback | null }, OgResult>(
+  const processor = new BatchProcessor<
+    { url: string; fallback?: KarakeepImageFallback | null },
+    OgResult
+  >(
     "opengraph-batch",
-    async item => getOpenGraphDataBatch(item.url, item.fallback, options.forceRefresh),
+    async (item) => getOpenGraphDataBatch(item.url, item.fallback, options.forceRefresh),
     {
       batchSize: options.batchSize || 5, // Lower concurrency for external sites
       batchDelay: 100, // Small delay between batches
@@ -130,12 +140,18 @@ export async function processOpenGraphBatch(
 
   // Add failed results
   for (const [item, error] of result.failed) {
-    ogResults.set(item.url, createFallbackResult(item.url, error.message || "Processing failed", item.fallback));
+    ogResults.set(
+      item.url,
+      createFallbackResult(item.url, error.message || "Processing failed", item.fallback),
+    );
   }
 
   // Add skipped results (due to memory pressure)
   for (const item of result.skipped) {
-    ogResults.set(item.url, createFallbackResult(item.url, "Skipped due to memory pressure", item.fallback));
+    ogResults.set(
+      item.url,
+      createFallbackResult(item.url, "Skipped due to memory pressure", item.fallback),
+    );
   }
 
   // Log summary

@@ -109,11 +109,14 @@ describe("Content Graph Pre-computation", () => {
       });
 
       // Verify related content was written
-      expect(mockWriteJsonS3).toHaveBeenCalledWith(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT, expect.any(Object));
+      expect(mockWriteJsonS3).toHaveBeenCalledWith(
+        CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
+        expect.any(Object),
+      );
 
       // Verify the structure of related content
       const relatedContentCall = mockWriteJsonS3.mock.calls.find(
-        call => call[0] === CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
+        (call) => call[0] === CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
       );
 
       if (relatedContentCall) {
@@ -208,10 +211,15 @@ describe("Content Graph Pre-computation", () => {
       });
 
       // Verify tag graph was written
-      expect(mockWriteJsonS3).toHaveBeenCalledWith(CONTENT_GRAPH_S3_PATHS.TAG_GRAPH, expect.any(Object));
+      expect(mockWriteJsonS3).toHaveBeenCalledWith(
+        CONTENT_GRAPH_S3_PATHS.TAG_GRAPH,
+        expect.any(Object),
+      );
 
       // Check tag graph structure
-      const tagGraphCall = mockWriteJsonS3.mock.calls.find(call => call[0] === CONTENT_GRAPH_S3_PATHS.TAG_GRAPH);
+      const tagGraphCall = mockWriteJsonS3.mock.calls.find(
+        (call) => call[0] === CONTENT_GRAPH_S3_PATHS.TAG_GRAPH,
+      );
 
       if (tagGraphCall) {
         const tagGraph = tagGraphCall[1] as {
@@ -316,7 +324,9 @@ describe("Content Graph Pre-computation", () => {
       });
 
       // Verify metadata was written (filter out lock-related calls)
-      const metadataCall = mockWriteJsonS3.mock.calls.find(call => call[0] === CONTENT_GRAPH_S3_PATHS.METADATA);
+      const metadataCall = mockWriteJsonS3.mock.calls.find(
+        (call) => call[0] === CONTENT_GRAPH_S3_PATHS.METADATA,
+      );
 
       expect(metadataCall).toBeDefined();
       if (metadataCall) {
@@ -347,12 +357,12 @@ describe("Content Graph Pre-computation", () => {
       });
 
       // Should return error result for bookmarks
-      const bookmarkResult = result.find(r => r.operation === "bookmarks");
+      const bookmarkResult = result.find((r) => r.operation === "bookmarks");
       expect(bookmarkResult?.success).toBe(false);
       expect(bookmarkResult?.error).toContain("API Error");
 
       // Content graph should also fail gracefully
-      const graphResult = result.find(r => r.operation === "content-graph");
+      const graphResult = result.find((r) => r.operation === "content-graph");
       expect(graphResult?.success).toBe(false);
     });
   });
@@ -363,7 +373,9 @@ describe("Content Graph Pre-computation", () => {
       const { ENVIRONMENT_SUFFIX } = await import("@/lib/config/environment");
 
       // Paths should contain the environment suffix (empty for prod, -dev/-test for others)
-      expect(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toContain(`content-graph${ENVIRONMENT_SUFFIX}`);
+      expect(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toContain(
+        `content-graph${ENVIRONMENT_SUFFIX}`,
+      );
       expect(CONTENT_GRAPH_S3_PATHS.TAG_GRAPH).toContain(`content-graph${ENVIRONMENT_SUFFIX}`);
       expect(CONTENT_GRAPH_S3_PATHS.METADATA).toContain(`content-graph${ENVIRONMENT_SUFFIX}`);
     });

@@ -263,7 +263,8 @@ const educationData: Education[] = [
   {
     id: "uno-bsba",
     institution: "University of Nebraska",
-    degree: "BSBA in Corporate Finance, Banking & Financial Markets, Investment Science & Portfolio Management",
+    degree:
+      "BSBA in Corporate Finance, Banking & Financial Markets, Investment Science & Portfolio Management",
     year: 2011,
     website: "https://www.unomaha.edu",
     location: "Omaha, Nebraska",

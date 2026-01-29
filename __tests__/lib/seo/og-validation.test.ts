@@ -114,7 +114,9 @@ describe("OpenGraph Validation", () => {
      * configuration can be properly processed and converted to absolute URLs.
      */
     test("validates all page-specific image URLs", () => {
-      const ogEntries = Object.entries(SEO_IMAGES).filter(([key, url]) => key.startsWith("og") && url);
+      const ogEntries = Object.entries(SEO_IMAGES).filter(
+        ([key, url]) => key.startsWith("og") && url,
+      );
 
       // Ensure we have OG images to test
       expect(ogEntries.length).toBeGreaterThan(0);
@@ -122,7 +124,9 @@ describe("OpenGraph Validation", () => {
       ogEntries.forEach(([_key, url]) => {
         const processedUrl = prepareOGImageUrl(url);
         // Images are now served from S3 CDN
-        expect(processedUrl).toMatch(/https:\/\/(s3-storage\.callahan\.cloud|williamcallahan\.com)/);
+        expect(processedUrl).toMatch(
+          /https:\/\/(s3-storage\.callahan\.cloud|williamcallahan\.com)/,
+        );
         expect(processedUrl).toContain("v="); // Should have cache busting
       });
     });
@@ -145,7 +149,8 @@ describe("OpenGraph Validation", () => {
         expect(hasFallback).toBe(true);
 
         // Assert fallback exists (test will fail above if not)
-        const dimensions = OG_IMAGE_FALLBACK_DIMENSIONS[url as keyof typeof OG_IMAGE_FALLBACK_DIMENSIONS];
+        const dimensions =
+          OG_IMAGE_FALLBACK_DIMENSIONS[url as keyof typeof OG_IMAGE_FALLBACK_DIMENSIONS];
         expect(dimensions.width).toBeGreaterThan(0);
         expect(dimensions.height).toBeGreaterThan(0);
       });

@@ -60,7 +60,9 @@ async function loadOrBuildIndex<T>(
       const serializedIndex = await readJsonS3<SerializedIndex>(s3Path);
       if (serializedIndex?.index && serializedIndex.metadata) {
         index = loadIndexFromJSON<T>(serializedIndex);
-        console.log(`[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`);
+        console.log(
+          `[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`,
+        );
       } else {
         // Fall back to building in-memory
         envLogger.log(`Failed to load ${cacheKey} from S3, building in-memory`, undefined, {
@@ -134,13 +136,13 @@ export { experiences };
  */
 export function getEducationItems(): EducationItem[] {
   return [
-    ...education.map(edu => ({
+    ...education.map((edu) => ({
       id: edu.id,
       label: edu.institution,
       description: edu.degree,
       path: `/education#${edu.id}`,
     })),
-    ...certifications.map(cert => ({
+    ...certifications.map((cert) => ({
       id: cert.id,
       label: cert.institution,
       description: cert.name,
@@ -170,7 +172,7 @@ export async function getEducationIndex(): Promise<MiniSearch<EducationItem>> {
 // --- Projects ---
 
 function buildProjectsIndex(): MiniSearch<Project> {
-  return createIndex(PROJECTS_INDEX_CONFIG, projectsData, "Projects", p => p.name);
+  return createIndex(PROJECTS_INDEX_CONFIG, projectsData, "Projects", (p) => p.name);
 }
 
 /**

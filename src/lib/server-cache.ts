@@ -210,7 +210,7 @@ export class ServerCache implements Cache {
 
   public del(key: string | string[]): void {
     if (Array.isArray(key)) {
-      key.forEach(k => {
+      key.forEach((k) => {
         const entry = this.cache.get(k);
         if (entry && typeof entry === "object" && "size" in entry) {
           this.cache.delete(k);
@@ -446,7 +446,11 @@ export class ServerCache implements Cache {
  * - Follows MDN and OWASP security best practices for prototype extension
  * - Prevents accidental exposure of internal state through prototype chain
  */
-function attachHelpers<T extends Record<string, unknown>>(prototype: object, helpers: T, helperName: string) {
+function attachHelpers<T extends Record<string, unknown>>(
+  prototype: object,
+  helpers: T,
+  helperName: string,
+) {
   for (const [key, value] of Object.entries(helpers)) {
     // Only attach functions to avoid polluting the prototype with constants/objects
     if (typeof value !== "function") continue;

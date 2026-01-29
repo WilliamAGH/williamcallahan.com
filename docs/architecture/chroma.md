@@ -88,7 +88,10 @@ await collection.modify({
 // Text documents (auto-embedded by default function)
 await collection.add({
   ids: ["thought-1", "thought-2"],
-  documents: ["TypeScript adds static typing to JavaScript", "Python excels at data science and ML"],
+  documents: [
+    "TypeScript adds static typing to JavaScript",
+    "Python excels at data science and ML",
+  ],
   metadatas: [
     // Note: "metadatas" is Chroma's API convention
     { category: "programming", slug: "typescript-intro" },
@@ -305,9 +308,9 @@ async function syncAllThoughts(thoughts: Thought[]) {
   await collection.delete({ where: {} }); // Delete all
 
   await collection.add({
-    ids: thoughts.map(t => t.id),
-    documents: thoughts.map(t => t.content),
-    metadatas: thoughts.map(t => ({
+    ids: thoughts.map((t) => t.id),
+    documents: thoughts.map((t) => t.content),
+    metadatas: thoughts.map((t) => ({
       slug: t.slug,
       category: t.category ?? "",
       createdAt: t.createdAt,

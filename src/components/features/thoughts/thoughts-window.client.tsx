@@ -46,7 +46,7 @@ function SkeletonLoader(): React.JSX.Element {
 
   return (
     <div className="animate-pulse space-y-4 p-6">
-      {skeletonKeys.map(key => (
+      {skeletonKeys.map((key) => (
         <div key={key} className="space-y-3">
           <div className="bg-zinc-200 dark:bg-zinc-700 h-4 w-24 rounded" />
           <div className="bg-zinc-200 dark:bg-zinc-700 h-6 w-3/4 rounded" />
@@ -95,7 +95,10 @@ function ThoughtsWindowContentInner({
           <div className="flex items-center">
             <WindowControls onClose={onClose} onMinimize={onMinimize} onMaximize={onMaximize} />
             <h1 className="text-xl font-mono ml-4 text-zinc-800 dark:text-zinc-200">
-              <Link href="/thoughts" className="hover:underline decoration-zinc-400 underline-offset-4">
+              <Link
+                href="/thoughts"
+                className="hover:underline decoration-zinc-400 underline-offset-4"
+              >
                 {displayTitle}
               </Link>
               <BlinkingCursor />
@@ -119,7 +122,11 @@ function ThoughtsWindowContentInner({
  * Wraps content in a macOS-style window with minimize/maximize/close controls.
  * Uses the global window registry for state management.
  */
-export function ThoughtsWindow({ children, windowTitle, windowId }: ThoughtsWindowProps): React.JSX.Element | null {
+export function ThoughtsWindow({
+  children,
+  windowTitle,
+  windowId,
+}: ThoughtsWindowProps): React.JSX.Element | null {
   const uniqueId = windowId || DEFAULT_THOUGHTS_WINDOW_ID;
   const restoreTitle = "Restore Thoughts";
 
@@ -129,7 +136,12 @@ export function ThoughtsWindow({ children, windowTitle, windowId }: ThoughtsWind
     minimize: minimizeWindow,
     maximize: maximizeWindow,
     isRegistered,
-  }: RegisteredWindowState = useRegisteredWindowState(uniqueId, Lightbulb as LucideIcon, restoreTitle, "normal");
+  }: RegisteredWindowState = useRegisteredWindowState(
+    uniqueId,
+    Lightbulb as LucideIcon,
+    restoreTitle,
+    "normal",
+  );
 
   // Return skeleton while waiting for registration - prevents layout shift
   if (!isRegistered) {

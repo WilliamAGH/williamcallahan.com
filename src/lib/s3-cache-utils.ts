@@ -49,7 +49,7 @@ async function getCachedJsonS3<T>(
   safeCacheLife(cacheProfile);
   safeCacheTag("s3-json");
   safeCacheTag(`s3-key-${sanitizeCacheTag(s3Key)}`);
-  tags.forEach(tag => safeCacheTag(sanitizeCacheTag(tag)));
+  tags.forEach((tag) => safeCacheTag(sanitizeCacheTag(tag)));
 
   return readJsonS3<T>(s3Key);
 }
@@ -70,7 +70,11 @@ export async function readJsonS3Cached<T>(
   } = {},
 ): Promise<T | null> {
   // Default to true unless explicitly set to false
-  const { useCache = options.useCache !== false && USE_NEXTJS_CACHE, cacheProfile = "hours", tags = [] } = options;
+  const {
+    useCache = options.useCache !== false && USE_NEXTJS_CACHE,
+    cacheProfile = "hours",
+    tags = [],
+  } = options;
 
   if (useCache) {
     return withCacheFallback<T | null>(
@@ -88,7 +92,10 @@ export async function readJsonS3Cached<T>(
  * @param cacheProfile - Cache duration profile
  * @returns Promise resolving to true if the object exists
  */
-function getCachedS3Exists(s3Key: string, cacheProfile: "minutes" | "hours" | "days" = "hours"): Promise<boolean> {
+function getCachedS3Exists(
+  s3Key: string,
+  cacheProfile: "minutes" | "hours" | "days" = "hours",
+): Promise<boolean> {
   "use cache";
 
   safeCacheLife(cacheProfile);
@@ -112,7 +119,8 @@ export async function checkS3ExistsCached(
   } = {},
 ): Promise<boolean> {
   // Default to true unless explicitly set to false
-  const { useCache = options.useCache !== false && USE_NEXTJS_CACHE, cacheProfile = "hours" } = options;
+  const { useCache = options.useCache !== false && USE_NEXTJS_CACHE, cacheProfile = "hours" } =
+    options;
 
   if (useCache) {
     return withCacheFallback<boolean>(
@@ -138,5 +146,5 @@ export async function batchReadJsonS3Cached<T>(
     tags?: string[];
   } = {},
 ): Promise<(T | null)[]> {
-  return Promise.all(s3Keys.map(key => readJsonS3Cached<T>(key, options)));
+  return Promise.all(s3Keys.map((key) => readJsonS3Cached<T>(key, options)));
 }

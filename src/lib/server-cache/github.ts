@@ -19,18 +19,26 @@ export function getGithubActivity(cache: Cache): GitHubActivityCacheEntry | unde
   return cache.get<GitHubActivityCacheEntry>(key);
 }
 
-export function setGithubActivity(cache: Cache, activityData: GitHubActivityApiResponse, isFailure = false): void {
+export function setGithubActivity(
+  cache: Cache,
+  activityData: GitHubActivityApiResponse,
+  isFailure = false,
+): void {
   const key = GITHUB_ACTIVITY_CACHE_KEY;
   const isDataComplete = activityData?.trailingYearData?.dataComplete === true;
 
   const payload: GitHubActivityCacheEntry = {
     data: activityData,
-    lastFetchedAt: isFailure ? (getGithubActivity(cache)?.lastFetchedAt ?? getCacheTimestamp()) : getCacheTimestamp(),
+    lastFetchedAt: isFailure
+      ? (getGithubActivity(cache)?.lastFetchedAt ?? getCacheTimestamp())
+      : getCacheTimestamp(),
     lastAttemptedAt: getCacheTimestamp(),
   };
 
   const ttl =
-    isFailure || !isDataComplete ? GITHUB_ACTIVITY_CACHE_DURATION.FAILURE : GITHUB_ACTIVITY_CACHE_DURATION.SUCCESS;
+    isFailure || !isDataComplete
+      ? GITHUB_ACTIVITY_CACHE_DURATION.FAILURE
+      : GITHUB_ACTIVITY_CACHE_DURATION.SUCCESS;
 
   const success = cache.set(key, payload, ttl);
 

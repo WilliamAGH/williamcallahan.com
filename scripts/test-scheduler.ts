@@ -81,7 +81,9 @@ try {
 
   if (response.ok) {
     const data = await response.json();
-    console.log(`  ✅ API connection successful. Response has ${data.bookmarks?.length || 0} bookmarks.`);
+    console.log(
+      `  ✅ API connection successful. Response has ${data.bookmarks?.length || 0} bookmarks.`,
+    );
   } else {
     console.log(`  ❌ API returned error: ${response.status} ${response.statusText}`);
     process.exit(1);
@@ -104,12 +106,12 @@ try {
     stdio: "inherit",
   });
 
-  updateProcess.on("error", err => {
+  updateProcess.on("error", (err) => {
     console.error(`  ❌ Failed to start update process: ${err}`);
     process.exit(1);
   });
 
-  updateProcess.on("close", code => {
+  updateProcess.on("close", (code) => {
     if (code === 0) {
       console.log("\n✅ SCHEDULER TEST SUCCESSFUL!");
       console.log("   The scheduler should work correctly with these settings.");

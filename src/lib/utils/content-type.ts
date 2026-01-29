@@ -129,7 +129,9 @@ export function getExtensionFromContentType(contentType: string | null): string 
  */
 export function getContentTypeFromExtension(extension: string): string {
   // Normalize extension (remove dot if present)
-  const ext = extension.startsWith(".") ? extension.slice(1).toLowerCase() : extension.toLowerCase();
+  const ext = extension.startsWith(".")
+    ? extension.slice(1).toLowerCase()
+    : extension.toLowerCase();
 
   // Use IMAGE_MIME_TYPES mapping
   return IMAGE_MIME_TYPES[ext] || "application/octet-stream";
@@ -153,7 +155,9 @@ export function normalizeContentType(contentType: string): string {
  * Read-only array of supported image file extensions (lower-case, no dot)
  * Derived automatically from IMAGE_MIME_TYPES so there is a single source of truth.
  */
-export const IMAGE_EXTENSIONS: readonly string[] = Object.keys(IMAGE_MIME_TYPES) as readonly string[];
+export const IMAGE_EXTENSIONS: readonly string[] = Object.keys(
+  IMAGE_MIME_TYPES,
+) as readonly string[];
 
 /**
  * Guess the MIME type for an image based on a response header value and/or the URL path.

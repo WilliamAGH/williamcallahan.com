@@ -16,7 +16,9 @@ import { callBookmarksApi, getLogPrefix } from "./api-client";
  * @param endpoint - The API endpoint to call (defaults to /api/bookmarks)
  * @returns Promise resolving to array of bookmarks
  */
-export async function fetchBookmarksFromApi(endpoint = "/api/bookmarks"): Promise<UnifiedBookmark[]> {
+export async function fetchBookmarksFromApi(
+  endpoint = "/api/bookmarks",
+): Promise<UnifiedBookmark[]> {
   console.log(`${getLogPrefix("Client")} Fetching bookmarks from API endpoint (${endpoint})`);
 
   try {

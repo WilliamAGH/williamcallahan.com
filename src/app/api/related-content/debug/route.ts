@@ -71,7 +71,7 @@ function parseDebugParams(searchParams: URLSearchParams): DebugParams | null {
  * Calculate similarity scores for all candidates against the source content.
  */
 function scoreCandidates(source: NormalizedContent, candidates: NormalizedContent[]): ScoredItem[] {
-  return candidates.map(candidate => {
+  return candidates.map((candidate) => {
     const { total, breakdown } = calculateSimilarity(source, candidate, DEFAULT_WEIGHTS);
     return {
       type: candidate.type,
@@ -81,7 +81,9 @@ function scoreCandidates(source: NormalizedContent, candidates: NormalizedConten
       domain: candidate.domain,
       score: total,
       breakdown,
-      matchedTags: source.tags.filter(tag => candidate.tags.some(t => t.toLowerCase() === tag.toLowerCase())),
+      matchedTags: source.tags.filter((tag) =>
+        candidate.tags.some((t) => t.toLowerCase() === tag.toLowerCase()),
+      ),
     };
   });
 }
@@ -99,8 +101,8 @@ function groupByType(
   const byTypeStats: Record<string, number> = {};
 
   for (const type of enabledTypes) {
-    byType[type] = sorted.filter(i => i.type === type).slice(0, limit);
-    byTypeStats[type] = candidates.filter(i => i.type === type).length;
+    byType[type] = sorted.filter((i) => i.type === type).slice(0, limit);
+    byTypeStats[type] = candidates.filter((i) => i.type === type).length;
   }
 
   return { byType, byTypeStats };
@@ -109,7 +111,14 @@ function groupByType(
 /**
  * Build the debug response payload.
  */
-function buildDebugResponse({ source, sorted, candidates, byType, byTypeStats, crossContent }: DebugResponseArgs) {
+function buildDebugResponse({
+  source,
+  sorted,
+  candidates,
+  byType,
+  byTypeStats,
+  crossContent,
+}: DebugResponseArgs) {
   return {
     source: {
       type: source.type,
@@ -172,7 +181,9 @@ export async function GET(request: NextRequest) {
 
     // Get all content and filter out source
     const allContent = await aggregateAllContent();
-    const candidates = allContent.filter(item => !(item.type === sourceType && item.id === sourceId));
+    const candidates = allContent.filter(
+      (item) => !(item.type === sourceType && item.id === sourceId),
+    );
 
     // Calculate similarity scores
     const scoredItems = scoreCandidates(source, candidates);
@@ -180,7 +191,7 @@ export async function GET(request: NextRequest) {
 
     // Group by type and find cross-content matches
     const { byType, byTypeStats } = groupByType(sorted, candidates, enabledTypes, limit);
-    const crossContent = sorted.filter(i => i.type !== sourceType).slice(0, limit);
+    const crossContent = sorted.filter((i) => i.type !== sourceType).slice(0, limit);
 
     // Build and return response
     const responsePayload = buildDebugResponse({
@@ -196,7 +207,9 @@ export async function GET(request: NextRequest) {
     const details = error instanceof Error ? error.message : String(error);
     console.error("Debug endpoint error:", details);
     const message =
-      process.env.NODE_ENV === "development" ? `Internal server error: ${details}` : "Internal server error";
+      process.env.NODE_ENV === "development"
+        ? `Internal server error: ${details}`
+        : "Internal server error";
     return createErrorResponse(message, 500);
   }
 }

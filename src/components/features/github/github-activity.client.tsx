@@ -5,12 +5,18 @@
 
 "use client";
 
-import type { CommitsOlderThanYearSummary, ContributionDay, UserActivityView } from "@/types/github";
+import type {
+  CommitsOlderThanYearSummary,
+  ContributionDay,
+  UserActivityView,
+} from "@/types/github";
 import { formatDistanceToNow } from "date-fns";
 import { Code, RefreshCw } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
-import ActivityCalendarComponent, { type ThemeInput as ReactActivityCalendarThemeInput } from "react-activity-calendar";
+import ActivityCalendarComponent, {
+  type ThemeInput as ReactActivityCalendarThemeInput,
+} from "react-activity-calendar";
 import CumulativeGitHubStatsCards from "./cumulative-github-stats-cards";
 import type { ApiError } from "@/types/features/github";
 
@@ -58,14 +64,16 @@ const GitHubActivity = () => {
   const [allTimeLinesAdded, setAllTimeLinesAdded] = useState<number | null>(null); // All-time lines added
   const [allTimeLinesRemoved, setAllTimeLinesRemoved] = useState<number | null>(null); // All-time lines removed
   const [allTimeTotalContributions, setAllTimeTotalContributions] = useState<number | null>(null); // All-time total contributions
-  const [commitsOlderThanYear, setCommitsOlderThanYear] = useState<CommitsOlderThanYearSummary | null>(null); // Older-than-year commit stats
+  const [commitsOlderThanYear, setCommitsOlderThanYear] =
+    useState<CommitsOlderThanYearSummary | null>(null); // Older-than-year commit stats
 
   const [dataComplete, setDataComplete] = useState<boolean>(true); // Flag indicating if the fetched data is complete
   const [lastRefreshed, setLastRefreshed] = useState<string | null>(null); // Timestamp of the last data refresh
   const [showCrossEnvRefresh, setShowCrossEnvRefresh] = useState(false); // Show option to refresh other environments
   const [isRefreshingProduction, setIsRefreshingProduction] = useState(false); // Loading state for production refresh
   const lifetimeContributionTotal =
-    allTimeTotalContributions ?? (totalContributions ?? 0) + (commitsOlderThanYear?.totalCommits ?? 0);
+    allTimeTotalContributions ??
+    (totalContributions ?? 0) + (commitsOlderThanYear?.totalCommits ?? 0);
 
   // Determine if refresh buttons should be shown based on environment
   // Show refresh button for non-production environments (development, test, staging)
@@ -106,7 +114,7 @@ const GitHubActivity = () => {
     // Initial measurement
     updateSize(el.clientWidth);
 
-    const observer = new ResizeObserver(entries => {
+    const observer = new ResizeObserver((entries) => {
       if (!entries[0]) return;
       updateSize(entries[0].contentRect.width);
     });
@@ -148,7 +156,9 @@ const GitHubActivity = () => {
       try {
         if (refresh) {
           setIsRefreshing(true);
-          console.log("[Client] Requesting GitHub data refresh via POST /api/github-activity/refresh");
+          console.log(
+            "[Client] Requesting GitHub data refresh via POST /api/github-activity/refresh",
+          );
           const refreshResponse = await fetch("/api/github-activity/refresh", {
             method: "POST",
             headers: {
@@ -247,7 +257,9 @@ const GitHubActivity = () => {
         }
       } catch (err: unknown) {
         console.error("Failed to fetch or parse GitHub activity:", err); // Log the full error object
-        setError(err instanceof Error ? err.message : "An unknown error occurred while fetching data.");
+        setError(
+          err instanceof Error ? err.message : "An unknown error occurred while fetching data.",
+        );
         resetState(); // Full reset on critical fetch/parse error
       } finally {
         setIsLoading(false);
@@ -287,7 +299,10 @@ const GitHubActivity = () => {
 
       if (!response.ok) {
         const errorData = (await response.json().catch(() => null)) as { message?: string } | null;
-        console.error("[Client] Production refresh failed:", errorData?.message || response.statusText);
+        console.error(
+          "[Client] Production refresh failed:",
+          errorData?.message || response.statusText,
+        );
       } else {
         console.log("[Client] Production refresh initiated successfully");
       }
@@ -313,7 +328,7 @@ const GitHubActivity = () => {
     if (activityData.length === 0) return; // Avoid on first empty render
     const svg = document.querySelector<SVGSVGElement>(".react-activity-calendar__svg");
     if (!svg) return;
-    svg.querySelectorAll<SVGRectElement>("rect[data-date]").forEach(rect => {
+    svg.querySelectorAll<SVGRectElement>("rect[data-date]").forEach((rect) => {
       rect.setAttribute("stroke", "none");
     });
   }, [activityData]);
@@ -340,7 +355,10 @@ const GitHubActivity = () => {
             className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             title="Refresh GitHub data"
           >
-            <RefreshCw size={16} className={`${isRefreshing ? "animate-spin text-blue-500" : "text-gray-500"}`} />
+            <RefreshCw
+              size={16}
+              className={`${isRefreshing ? "animate-spin text-blue-500" : "text-gray-500"}`}
+            />
           </button>
         )}
       </div>
@@ -388,18 +406,18 @@ const GitHubActivity = () => {
         </div>
       )}
 
-      {error &&
-        !isLoading && ( // Show error only if not currently loading
-          <div className="text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
-            <p className="font-medium">Error fetching GitHub activity:</p>
-            <p className="text-sm">{error}</p>
-            <p className="text-sm mt-1">Try refreshing, or check data source availability.</p>
-          </div>
-        )}
+      {error && !isLoading && ( // Show error only if not currently loading
+        <div className="text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
+          <p className="font-medium">Error fetching GitHub activity:</p>
+          <p className="text-sm">{error}</p>
+          <p className="text-sm mt-1">Try refreshing, or check data source availability.</p>
+        </div>
+      )}
 
       {!isLoading && !error && (
         <>
-          {activityData.length === 0 && (totalContributions === null || totalContributions === 0) ? (
+          {activityData.length === 0 &&
+          (totalContributions === null || totalContributions === 0) ? (
             <div className="text-center py-10 text-gray-500 dark:text-gray-400">
               <p>No contribution activity found for the trailing year.</p>
               {dataComplete === false && lastRefreshed && (
@@ -428,7 +446,9 @@ const GitHubActivity = () => {
                 </div>
               </div>
               {isMobile && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">← Swipe to view full year →</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
+                  ← Swipe to view full year →
+                </p>
               )}
             </div>
           )}
@@ -472,24 +492,26 @@ const GitHubActivity = () => {
               <span className="font-semibold">{lifetimeContributionTotal.toLocaleString()}</span>
               {commitsOlderThanYear && totalContributions !== null && (
                 <span className="ml-1 text-gray-500 dark:text-gray-400">
-                  (Prior years: {commitsOlderThanYear.totalCommits.toLocaleString()} + Trailing year:{" "}
-                  {totalContributions.toLocaleString()})
+                  (Prior years: {commitsOlderThanYear.totalCommits.toLocaleString()} + Trailing
+                  year: {totalContributions.toLocaleString()})
                 </span>
               )}
             </div>
           )}
-          {allTimeLinesAdded !== null && allTimeLinesRemoved !== null && allTimeTotalContributions !== null && (
-            <div className="mt-6">
-              <CumulativeGitHubStatsCards
-                stats={{
-                  totalContributions: allTimeTotalContributions,
-                  linesAdded: allTimeLinesAdded,
-                  linesRemoved: allTimeLinesRemoved,
-                  netLinesOfCode: allTimeLinesAdded - allTimeLinesRemoved,
-                }}
-              />
-            </div>
-          )}
+          {allTimeLinesAdded !== null &&
+            allTimeLinesRemoved !== null &&
+            allTimeTotalContributions !== null && (
+              <div className="mt-6">
+                <CumulativeGitHubStatsCards
+                  stats={{
+                    totalContributions: allTimeTotalContributions,
+                    linesAdded: allTimeLinesAdded,
+                    linesRemoved: allTimeLinesRemoved,
+                    netLinesOfCode: allTimeLinesAdded - allTimeLinesRemoved,
+                  }}
+                />
+              </div>
+            )}
         </>
       )}
     </div>

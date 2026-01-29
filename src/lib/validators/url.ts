@@ -5,7 +5,12 @@
  * from the type system to prevent SSRF attacks and ensure security.
  */
 
-import { logoUrlSchema, openGraphUrlSchema, s3KeySchema, safePathSchema } from "@/types/schemas/url";
+import {
+  logoUrlSchema,
+  openGraphUrlSchema,
+  s3KeySchema,
+  safePathSchema,
+} from "@/types/schemas/url";
 
 /**
  * Validate URL for logo fetching
@@ -84,5 +89,6 @@ export const IMAGE_SECURITY_HEADERS = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "X-XSS-Protection": "1; mode=block",
-  "Content-Security-Policy": "default-src 'none'; img-src 'self' data: https:; style-src 'unsafe-inline'",
+  "Content-Security-Policy":
+    "default-src 'none'; img-src 'self' data: https:; style-src 'unsafe-inline'",
 } as const;

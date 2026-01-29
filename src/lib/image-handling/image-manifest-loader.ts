@@ -13,7 +13,8 @@ import type { LogoManifest, ImageManifest, LogoManifestEntry } from "@/types/ima
 import { loadLogoManifestWithCache } from "./cached-manifest-loader";
 
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
-const shouldSkipManifestFetchDuringBuild = isBuildPhase && process.env.LOAD_IMAGE_MANIFESTS_DURING_BUILD !== "true";
+const shouldSkipManifestFetchDuringBuild =
+  isBuildPhase && process.env.LOAD_IMAGE_MANIFESTS_DURING_BUILD !== "true";
 
 // In-memory cache for manifests
 let logoManifest: LogoManifest | null = null;
@@ -85,7 +86,9 @@ export async function loadImageManifests(): Promise<void> {
     const logoCount = Object.keys(logoManifest).length;
     const totalImages = logoCount + (opengraphManifest?.length || 0) + (blogManifest?.length || 0);
 
-    console.log(`[ImageManifestLoader] Loaded ${totalImages} images from manifests (${logoCount} logos)`);
+    console.log(
+      `[ImageManifestLoader] Loaded ${totalImages} images from manifests (${logoCount} logos)`,
+    );
   } catch (error) {
     console.error("[ImageManifestLoader] Failed to load image manifests:", error);
     // Initialize with empty manifests on error
@@ -132,7 +135,9 @@ async function ensureManifestsLoaded(): Promise<void> {
  */
 export function getLogoFromManifest(domain: string): LogoManifestEntry | null {
   if (!logoManifest) {
-    console.warn(`[ImageManifestLoader] Logo manifest not loaded when looking up domain: ${domain}`);
+    console.warn(
+      `[ImageManifestLoader] Logo manifest not loaded when looking up domain: ${domain}`,
+    );
     // Instead of warning every time, return null silently
     // The manifest will be loaded on demand if needed
     return null;
@@ -165,7 +170,10 @@ export async function getLogoFromManifestAsync(domain: string): Promise<LogoMani
       logoManifest = manifest; // Update in-memory cache
       return manifest[domain] || null;
     } catch (error) {
-      console.warn("[ImageManifestLoader] Cache function failed for logo lookup, using direct load:", error);
+      console.warn(
+        "[ImageManifestLoader] Cache function failed for logo lookup, using direct load:",
+        error,
+      );
       await ensureManifestsLoaded();
       return getLogoFromManifest(domain);
     }

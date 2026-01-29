@@ -28,7 +28,9 @@ class StreamMonitor extends Transform {
 
     // Check for size limits to prevent memory exhaustion
     if (this.bytesStreamed > this.maxSize) {
-      const error = new Error(`Stream too large: ${this.bytesStreamed} bytes exceeds ${this.maxSize} bytes`);
+      const error = new Error(
+        `Stream too large: ${this.bytesStreamed} bytes exceeds ${this.maxSize} bytes`,
+      );
       this.destroy(error);
       callback(error);
       return;
@@ -77,7 +79,7 @@ export async function streamToS3(
       timeoutError = new Error(`[ImageStreaming] Stream timeout after ${STREAM_TIMEOUT_MS}ms`);
       console.error(timeoutError.message);
       if (upload) {
-        void upload.abort().catch(error => {
+        void upload.abort().catch((error) => {
           console.warn("[ImageStreaming] Failed to abort S3 upload after timeout:", error);
         });
       }
@@ -91,7 +93,9 @@ export async function streamToS3(
       nodeStream = responseStream;
     } else {
       // Web ReadableStream to Node.js Readable
-      nodeStream = Readable.fromWeb(responseStream as unknown as import("stream/web").ReadableStream);
+      nodeStream = Readable.fromWeb(
+        responseStream as unknown as import("stream/web").ReadableStream,
+      );
     }
 
     // Use AWS SDK v3 Upload for streaming
@@ -117,7 +121,8 @@ export async function streamToS3(
           console.log(`[ImageStreaming] Upload progress for ${options.key}: ${percent}%`);
         }
       } catch (progressError) {
-        const errorMessage = progressError instanceof Error ? progressError.message : String(progressError);
+        const errorMessage =
+          progressError instanceof Error ? progressError.message : String(progressError);
         console.warn(`[ImageStreaming] Error logging progress: ${errorMessage}`);
       }
     });
@@ -134,7 +139,8 @@ export async function streamToS3(
       bytesStreamed: monitor.getBytesStreamed(),
     };
   } catch (error: unknown) {
-    const reportedError = timeoutError ?? (error instanceof Error ? error : new Error(String(error)));
+    const reportedError =
+      timeoutError ?? (error instanceof Error ? error : new Error(String(error)));
     console.error(`[ImageStreaming] Failed to stream to S3:`, reportedError);
     return {
       success: false,

@@ -44,7 +44,9 @@ export function useTerminal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiQueueMessage, setAiQueueMessage] = useState<string | null>(null);
   const [activeApp, setActiveApp] = useState<null | "ai-chat">(null);
-  const [aiChatConversationId, setAiChatConversationId] = useState<string>(() => crypto.randomUUID());
+  const [aiChatConversationId, setAiChatConversationId] = useState<string>(() =>
+    crypto.randomUUID(),
+  );
   // Flag to indicate whether a selection list is currently active
   const isSelecting = selection !== null;
   const router = useRouter();
@@ -96,7 +98,8 @@ export function useTerminal() {
     const firstSpace = trimmed.search(/\s/);
     const cmd = (firstSpace === -1 ? trimmed : trimmed.slice(0, firstSpace)).toLowerCase();
 
-    if (cmd !== "ai" && cmd !== "chat" && cmd !== "ai-chat") return { isAiCommand: false, userText: null };
+    if (cmd !== "ai" && cmd !== "chat" && cmd !== "ai-chat")
+      return { isAiCommand: false, userText: null };
 
     if (firstSpace === -1) return { isAiCommand: true, userText: null };
     const remainder = trimmed.slice(firstSpace).trim();
@@ -116,7 +119,7 @@ export function useTerminal() {
 
     const priorChatMessages = Array.isArray(history) ? history.filter(isChatCommand) : [];
     const messages = [
-      ...priorChatMessages.slice(-19).map(msg => ({
+      ...priorChatMessages.slice(-19).map((msg) => ({
         role: msg.role === "assistant" ? ("assistant" as const) : ("user" as const),
         content: msg.content,
       })),
@@ -129,7 +132,7 @@ export function useTerminal() {
       { messages, conversationId: aiChatConversationId, priority: 10 },
       {
         signal,
-        onQueueUpdate: update => {
+        onQueueUpdate: (update) => {
           if (update.event === "queued" || update.event === "queue") {
             if (update.position) {
               setAiQueueMessage(
@@ -313,14 +316,17 @@ export function useTerminal() {
     // Check if this is a search command
     const isSearchCommand =
       (command && isValidSection(command) && args.length > 0) || // Section search
-      (command && !["help", "clear", "schema", "schema.org"].includes(command) && !isValidSection(command)); // Site-wide search
+      (command &&
+        !["help", "clear", "schema", "schema.org"].includes(command) &&
+        !isValidSection(command)); // Site-wide search
 
     // Generate a unique ID for this command/search
     const commandId = crypto.randomUUID();
 
     // Add temporary "Searching..." message for search commands
     if (isSearchCommand) {
-      const searchTerms = isValidSection(command) && args.length > 0 ? args.join(" ") : trimmedInput;
+      const searchTerms =
+        isValidSection(command) && args.length > 0 ? args.join(" ") : trimmedInput;
 
       const scope = isValidSection(command) && args.length > 0 ? command : undefined;
 
@@ -405,7 +411,10 @@ export function useTerminal() {
         return; // Exit early without setting error message
       }
 
-      console.error("Command execution error:", error instanceof Error ? error.message : "Unknown error");
+      console.error(
+        "Command execution error:",
+        error instanceof Error ? error.message : "Unknown error",
+      );
 
       // Remove the temporary searching message if we added one
       if (isSearchCommand) {

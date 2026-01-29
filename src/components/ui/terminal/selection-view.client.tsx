@@ -58,7 +58,12 @@ function ensureRowVisible(row: HTMLElement, container: HTMLElement) {
   // If item is within the safe zone, don't scroll at all
 }
 
-export function SelectionView({ items, onSelectAction, onExitAction, scrollContainerRef }: SelectionViewProps) {
+export function SelectionView({
+  items,
+  onSelectAction,
+  onExitAction,
+  scrollContainerRef,
+}: SelectionViewProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [page, setPage] = useState(0);
   const ITEMS_PER_PAGE = 24;
@@ -119,10 +124,10 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
 
         // Skip pagination buttons - only navigate through actual items
         if (selectedIndex > 0) {
-          setSelectedIndex(i => i - 1);
+          setSelectedIndex((i) => i - 1);
         } else if (hasPrev) {
           // Seamlessly load previous page and position cursor at last item
-          setPage(p => p - 1);
+          setPage((p) => p - 1);
           // Calculate the last item index on the previous page
           const prevPageStartIdx = (page - 1) * ITEMS_PER_PAGE;
           const prevPageEndIdx = Math.min(prevPageStartIdx + ITEMS_PER_PAGE, validItems.length);
@@ -137,10 +142,10 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
       case "ArrowDown": {
         // Skip pagination buttons - only navigate through actual items
         if (selectedIndex < visibleItems.length - 1) {
-          setSelectedIndex(i => i + 1);
+          setSelectedIndex((i) => i + 1);
         } else if (hasMoreResults) {
           // Seamlessly load next page and position cursor at first item
-          setPage(p => p + 1);
+          setPage((p) => p + 1);
           setSelectedIndex(0);
         } else {
           // At the very last item - stay there
@@ -181,7 +186,12 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
   };
 
   // Handle mouse click on an item - this should exit keyboard mode
-  const handleItemClick = (item: { id: string; label: string; description: string; path: string }) => {
+  const handleItemClick = (item: {
+    id: string;
+    label: string;
+    description: string;
+    path: string;
+  }) => {
     if (isKeyboardMode) {
       setIsKeyboardMode(false);
     }
@@ -197,13 +207,17 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
       role="listbox"
       aria-label="Search results"
       aria-activedescendant={
-        selectedIndex >= 0 && visibleItems[selectedIndex] ? `option-${visibleItems[selectedIndex].id}` : undefined
+        selectedIndex >= 0 && visibleItems[selectedIndex]
+          ? `option-${visibleItems[selectedIndex].id}`
+          : undefined
       }
       tabIndex={0}
     >
       <div className="flex items-center justify-between text-gray-400 text-xs mb-1">
         <div>
-          <span className="hidden sm:inline">Use ↑↓ to navigate, Enter to select, Esc to cancel</span>
+          <span className="hidden sm:inline">
+            Use ↑↓ to navigate, Enter to select, Esc to cancel
+          </span>
           <span className="sm:hidden">Tap to select</span>
           {isKeyboardMode && <span className="ml-2 text-blue-400">[Keyboard Mode]</span>}
           {validItems.length > ITEMS_PER_PAGE && (
@@ -258,7 +272,7 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
             type="button"
             className="px-2 py-1 rounded cursor-pointer hover:bg-gray-800 hover:text-gray-400"
             onClick={() => {
-              setPage(p => p - 1);
+              setPage((p) => p - 1);
               // Keep cursor at last item of previous page
               const prevPageStartIdx = (page - 1) * ITEMS_PER_PAGE;
               const prevPageEndIdx = Math.min(prevPageStartIdx + ITEMS_PER_PAGE, validItems.length);
@@ -276,7 +290,7 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
             type="button"
             className="px-2 py-1 rounded cursor-pointer hover:bg-gray-800 hover:text-gray-400"
             onClick={() => {
-              setPage(p => p + 1);
+              setPage((p) => p + 1);
               setSelectedIndex(0);
             }}
             aria-label={`Show next ${Math.min(ITEMS_PER_PAGE, validItems.length - endIdx)} results`}

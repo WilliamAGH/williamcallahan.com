@@ -8,7 +8,13 @@
  */
 
 import { PDFParse } from "pdf-parse";
-import type { EpubMetadata, PdfInfoDictionary, PdfPage, ParsedPdf, PdfParseOptions } from "@/types/books/parsing";
+import type {
+  EpubMetadata,
+  PdfInfoDictionary,
+  PdfPage,
+  ParsedPdf,
+  PdfParseOptions,
+} from "@/types/books/parsing";
 
 /**
  * Type guard to safely extract string from PDF info field
@@ -25,7 +31,7 @@ function getInfoString(value: unknown): string | undefined {
  * Count words in text
  */
 function countWords(text: string): number {
-  return text.split(/\s+/).filter(word => word.length > 0).length;
+  return text.split(/\s+/).filter((word) => word.length > 0).length;
 }
 
 /**
@@ -51,7 +57,10 @@ function normalizeText(text: string): string {
  * @param options - Parsing options
  * @returns Parsed PDF content with metadata and pages
  */
-export async function parsePdfFromBuffer(buffer: Buffer, options: PdfParseOptions = {}): Promise<ParsedPdf> {
+export async function parsePdfFromBuffer(
+  buffer: Buffer,
+  options: PdfParseOptions = {},
+): Promise<ParsedPdf> {
   const { maxPages } = options;
 
   // Create parser with buffer data
@@ -170,7 +179,10 @@ export async function extractPdfMetadata(buffer: Buffer): Promise<EpubMetadata> 
  * @param options - Parsing options
  * @returns Combined text content with metadata header
  */
-export async function getPdfFullText(buffer: Buffer, options: PdfParseOptions = {}): Promise<string> {
+export async function getPdfFullText(
+  buffer: Buffer,
+  options: PdfParseOptions = {},
+): Promise<string> {
   const parsed = await parsePdfFromBuffer(buffer, options);
 
   // Build header with metadata
@@ -189,7 +201,7 @@ export async function getPdfFullText(buffer: Buffer, options: PdfParseOptions = 
 
   // Combine pages
   const body = parsed.pages
-    .map(p => {
+    .map((p) => {
       const pageHeader = `## Page ${p.pageNumber}\n\n`;
       return pageHeader + p.textContent;
     })

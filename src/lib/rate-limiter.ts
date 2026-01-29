@@ -6,7 +6,12 @@
  * @module lib/rate-limiter
  */
 
-import type { RateLimiterConfig, RateLimitRecord, CircuitBreakerState, CircuitBreakerConfig } from "@/types/lib";
+import type {
+  RateLimiterConfig,
+  RateLimitRecord,
+  CircuitBreakerState,
+  CircuitBreakerConfig,
+} from "@/types/lib";
 import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { getMonotonicTime } from "@/lib/utils";
@@ -34,7 +39,11 @@ const circuitBreakerStates: Record<string, Record<string, CircuitBreakerState>> 
  * @param config - The rate limit configuration (maxRequests, windowMs).
  * @returns True if the operation is allowed, false otherwise.
  */
-export function isOperationAllowed(storeName: string, contextId: string, config: RateLimiterConfig): boolean {
+export function isOperationAllowed(
+  storeName: string,
+  contextId: string,
+  config: RateLimiterConfig,
+): boolean {
   // ---------------------------------------------------------------------------
   // Validate configuration – throw early for clearly invalid settings so that
   // callers (and tests) can rely on deterministic behavior.
@@ -137,7 +146,7 @@ export async function waitForPermit(
       }
     }
 
-    await new Promise(resolve => setTimeout(resolve, Math.max(10, waitTime))); // Ensure waitTime is not too small or negative
+    await new Promise((resolve) => setTimeout(resolve, Math.max(10, waitTime))); // Ensure waitTime is not too small or negative
   }
 }
 
@@ -232,7 +241,9 @@ export function isOperationAllowedWithCircuitBreaker(
 
     if (circuitState.failures >= failureThreshold) {
       circuitState.state = "open";
-      debugWarn(`[RateLimiter] Circuit opened for ${storeName}/${contextId} after ${circuitState.failures} failures`);
+      debugWarn(
+        `[RateLimiter] Circuit opened for ${storeName}/${contextId} after ${circuitState.failures} failures`,
+      );
     }
   } else if (circuitState.state === "half-open") {
     // Success in half-open state, close the circuit
@@ -297,6 +308,9 @@ export function resetCircuitBreaker(storeName: string, contextId: string): void 
 /**
  * Get circuit breaker state for monitoring
  */
-export function getCircuitBreakerState(storeName: string, contextId: string): CircuitBreakerState | undefined {
+export function getCircuitBreakerState(
+  storeName: string,
+  contextId: string,
+): CircuitBreakerState | undefined {
   return circuitBreakerStates[storeName]?.[contextId];
 }

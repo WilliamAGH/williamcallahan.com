@@ -36,7 +36,10 @@ import type { CumulativeGitHubStatsCardsProps } from "@/types";
  * />
  * ```
  */
-const CumulativeGitHubStatsCards: React.FC<CumulativeGitHubStatsCardsProps> = ({ stats, className }) => {
+const CumulativeGitHubStatsCards: React.FC<CumulativeGitHubStatsCardsProps> = ({
+  stats,
+  className,
+}) => {
   const statCards = [
     {
       title: "Total Contributions",
@@ -67,14 +70,16 @@ const CumulativeGitHubStatsCards: React.FC<CumulativeGitHubStatsCardsProps> = ({
   return (
     <div className={cn("w-full py-4 sm:py-6", className)}>
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {statCards.map(card => (
+        {statCards.map((card) => (
           <Card
             key={card.title}
             className="p-4 sm:p-6 border border-border bg-background hover:shadow-md transition-shadow"
           >
             <div className="flex flex-col space-y-1 sm:space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs sm:text-sm font-medium text-muted-foreground truncate pr-1">{card.title}</h3>
+                <h3 className="text-xs sm:text-sm font-medium text-muted-foreground truncate pr-1">
+                  {card.title}
+                </h3>
                 <div className="flex-shrink-0">{card.icon}</div>
               </div>
               <p className="text-xl sm:text-3xl font-bold">{card.value}</p>

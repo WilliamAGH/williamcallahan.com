@@ -16,7 +16,9 @@ export const openAiCompatibleChatCompletionsRequestSchema = z.object({
   max_tokens: z.number().int().min(1).max(128000).optional(),
 });
 
-export type OpenAiCompatibleChatCompletionsRequest = z.infer<typeof openAiCompatibleChatCompletionsRequestSchema>;
+export type OpenAiCompatibleChatCompletionsRequest = z.infer<
+  typeof openAiCompatibleChatCompletionsRequestSchema
+>;
 
 const openAiCompatibleChatCompletionsChoiceSchema = z.object({
   message: openAiCompatibleChatMessageSchema,
@@ -27,4 +29,6 @@ export const openAiCompatibleChatCompletionsResponseSchema = z.object({
   choices: z.array(openAiCompatibleChatCompletionsChoiceSchema).min(1),
 });
 
-export type OpenAiCompatibleChatCompletionsResponse = z.infer<typeof openAiCompatibleChatCompletionsResponseSchema>;
+export type OpenAiCompatibleChatCompletionsResponse = z.infer<
+  typeof openAiCompatibleChatCompletionsResponseSchema
+>;

@@ -20,7 +20,7 @@ class NextRequest {
     const originalSet = this.headers.set.bind(this.headers);
 
     // Override get method to be case-insensitive
-    this.headers.get = name => originalGet(name.toLowerCase());
+    this.headers.get = (name) => originalGet(name.toLowerCase());
     // Override set method to normalize keys
     this.headers.set = (name, value) => originalSet(String(name).toLowerCase(), value);
   }
@@ -50,7 +50,7 @@ class NextResponse {
     const originalSet = this.headers.set.bind(this.headers);
 
     // Override get method to be case-insensitive
-    this.headers.get = name => originalGet(name.toLowerCase());
+    this.headers.get = (name) => originalGet(name.toLowerCase());
     // Override set method to normalize keys
     this.headers.set = (name, value) => originalSet(String(name).toLowerCase(), value);
   }

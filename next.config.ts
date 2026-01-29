@@ -33,7 +33,10 @@ function getPackageVersion(): string {
   // During build time only, read package.json
   // This is acceptable because builds happen in a controlled environment
   // and this code doesn't run during request handling
-  if (process.env.NODE_ENV === "production" || process.env.NEXT_PHASE === "phase-production-build") {
+  if (
+    process.env.NODE_ENV === "production" ||
+    process.env.NEXT_PHASE === "phase-production-build"
+  ) {
     try {
       const { readFileSync } = require("node:fs");
       const { resolve } = require("node:path");
@@ -56,8 +59,16 @@ function getPackageVersion(): string {
 function getGitHash(): string {
   // Priority 1: Use environment variable if available (e.g., from CI/CD)
   // Railway and other platforms should set this during build
-  if (process.env.GIT_HASH || process.env.NEXT_PUBLIC_GIT_HASH || process.env.RAILWAY_GIT_COMMIT_SHA) {
-    const hash = process.env.GIT_HASH || process.env.NEXT_PUBLIC_GIT_HASH || process.env.RAILWAY_GIT_COMMIT_SHA || "";
+  if (
+    process.env.GIT_HASH ||
+    process.env.NEXT_PUBLIC_GIT_HASH ||
+    process.env.RAILWAY_GIT_COMMIT_SHA
+  ) {
+    const hash =
+      process.env.GIT_HASH ||
+      process.env.NEXT_PUBLIC_GIT_HASH ||
+      process.env.RAILWAY_GIT_COMMIT_SHA ||
+      "";
     // Railway provides full SHA, truncate to short version
     return hash.slice(0, 7);
   }
@@ -114,8 +125,11 @@ const telemetryBundledPackages = [
   "@opentelemetry/context-async-hooks",
 ];
 
-const baseTranspilePackages = process.env.NODE_ENV === "production" ? ["next-mdx-remote", "swr"] : [];
-const transpilePackages = Array.from(new Set([...baseTranspilePackages, ...telemetryBundledPackages]));
+const baseTranspilePackages =
+  process.env.NODE_ENV === "production" ? ["next-mdx-remote", "swr"] : [];
+const transpilePackages = Array.from(
+  new Set([...baseTranspilePackages, ...telemetryBundledPackages]),
+);
 
 const CALLAHAN_IMAGE_HOSTS = [
   "s3-storage.callahan.cloud",
@@ -151,11 +165,17 @@ const buildBucketHostname = (): string | null => {
   return `${bucket}.${serverHost}`;
 };
 
-const derivedCallahanHosts = [process.env.NEXT_PUBLIC_S3_CDN_URL, process.env.S3_CDN_URL, buildBucketHostname()]
+const derivedCallahanHosts = [
+  process.env.NEXT_PUBLIC_S3_CDN_URL,
+  process.env.S3_CDN_URL,
+  buildBucketHostname(),
+]
   .map(parseHostname)
   .filter((hostname): hostname is string => Boolean(hostname));
 
-const CDN_REMOTE_PATTERNS = Array.from(new Set([...CALLAHAN_IMAGE_HOSTS, ...derivedCallahanHosts])).map(hostname => ({
+const CDN_REMOTE_PATTERNS = Array.from(
+  new Set([...CALLAHAN_IMAGE_HOSTS, ...derivedCallahanHosts]),
+).map((hostname) => ({
   protocol: "https",
   hostname,
   pathname: "/**",
@@ -196,7 +216,8 @@ const nextConfig = {
       "swr/infinite": "./node_modules/swr/infinite/dist/index.js",
       "swr/_internal": "./node_modules/swr/_internal/dist/index.js",
       // Fix hoist-non-react-statics for Sentry
-      "hoist-non-react-statics$": "./node_modules/hoist-non-react-statics/dist/hoist-non-react-statics.cjs.js",
+      "hoist-non-react-statics$":
+        "./node_modules/hoist-non-react-statics/dist/hoist-non-react-statics.cjs.js",
       // OpenTelemetry polyfill for Edge runtime
       "@opentelemetry/api": {
         browser: "./src/lib/edge-polyfills/opentelemetry.ts",
@@ -340,7 +361,8 @@ const nextConfig = {
     preloadEntriesOnStart: false, // Don't preload all pages on server start
     serverSourceMaps: false, // Disable server source maps to save memory
     // Disable package optimization in development to reduce cache entries
-    optimizePackageImports: process.env.NODE_ENV === "production" ? ["lucide-react", "@sentry/nextjs"] : [],
+    optimizePackageImports:
+      process.env.NODE_ENV === "production" ? ["lucide-react", "@sentry/nextjs"] : [],
     // DISABLED EXPERIMENTAL FEATURES THAT COULD CAUSE MEMORY ISSUES:
     // webpackLayers: true, // DISABLED - experimental layer system
     // webpackPersistentCache: true, // DISABLED - experimental caching that could leak

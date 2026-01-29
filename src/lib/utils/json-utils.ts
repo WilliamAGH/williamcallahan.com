@@ -72,7 +72,10 @@ export function safeJsonStringify(
 
     return JSON.stringify(value, internalReplacer, space);
   } catch (error) {
-    debugLog(`Failed to stringify JSON: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
+    debugLog(
+      `Failed to stringify JSON: ${error instanceof Error ? error.message : "Unknown error"}`,
+      "error",
+    );
     return null;
   }
 }
@@ -117,7 +120,9 @@ export function parseJsonFromBuffer<T>(
 ): T | unknown | null {
   const actualEncoding = typeof schemaOrEncoding === "string" ? schemaOrEncoding : encoding;
   const schema =
-    typeof schemaOrEncoding === "object" && schemaOrEncoding !== null ? (schemaOrEncoding as ZodSchema<T>) : undefined;
+    typeof schemaOrEncoding === "object" && schemaOrEncoding !== null
+      ? (schemaOrEncoding as ZodSchema<T>)
+      : undefined;
 
   const text = Buffer.isBuffer(data) ? data.toString(actualEncoding) : data;
   if (schema) {
@@ -208,7 +213,11 @@ export function getJsonSizeInBytes(value: unknown): number {
  * Truncate large JSON objects for logging
  * Useful for debugging without flooding logs
  */
-export function truncateJson(value: unknown, maxLength = 1000, placeholder = "...[truncated]"): string {
+export function truncateJson(
+  value: unknown,
+  maxLength = 1000,
+  placeholder = "...[truncated]",
+): string {
   const stringified = safeJsonStringify(value, 2);
   if (!stringified) return "[Unable to stringify]";
 

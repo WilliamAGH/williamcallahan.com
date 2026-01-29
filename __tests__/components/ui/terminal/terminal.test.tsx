@@ -246,7 +246,9 @@ describe.skip("Terminal Component", () => {
 
       await waitFor(() => {
         // Look for the "command not recognized" message instead of "no site-wide results"
-        expect(screen.getByText(/Command not recognized. Type "help" for available commands./i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/Command not recognized. Type "help" for available commands./i),
+        ).toBeInTheDocument();
       });
     });
   });
@@ -527,7 +529,9 @@ describe.skip("Terminal Component", () => {
       const input = screen.getByRole("textbox");
 
       // Mock slow fetch
-      global.fetch = jest.fn().mockImplementation(() => new Promise(resolve => setTimeout(resolve, 1000)));
+      global.fetch = jest
+        .fn()
+        .mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 1000)));
 
       // Submit first search
       fireEvent.change(input, { target: { value: "blog first" } });

@@ -63,7 +63,8 @@ export async function getLogo(domain: string): Promise<LogoResult | null> {
 
     // Guarantee cdnUrl when we have an s3Key
     const resolvedCdnUrl =
-      logoResult.cdnUrl || (logoResult.s3Key ? buildCdnUrl(logoResult.s3Key, getCdnConfigFromEnv()) : undefined);
+      logoResult.cdnUrl ||
+      (logoResult.s3Key ? buildCdnUrl(logoResult.s3Key, getCdnConfigFromEnv()) : undefined);
 
     const result: LogoResult = {
       s3Key: logoResult.s3Key,

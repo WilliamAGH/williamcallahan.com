@@ -34,22 +34,22 @@ if git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(js|jsx|ts|tsx)
   }
 fi
 
-# Run prettier on applicable files if any
-if git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(js|jsx|ts|tsx|json|md|mdx|yml|yaml|css)$' >/dev/null 2>&1; then
-  echo "✨ Running prettier on staged files..."
+# Run oxfmt on applicable files if any
+if git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(js|jsx|ts|tsx|json|md|yml|yaml|css)$' >/dev/null 2>&1; then
+  echo "✨ Running oxfmt on staged files..."
   git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
     case "$file" in
-      *.js|*.jsx|*.ts|*.tsx|*.json|*.md|*.mdx|*.yml|*.yaml|*.css) printf '%s\0' "$file" ;;
+      *.js|*.jsx|*.ts|*.tsx|*.json|*.md|*.yml|*.yaml|*.css) printf '%s\0' "$file" ;;
     esac
-  done | xargs -0 "$RUNNER" prettier --write || {
-    echo "❌ Prettier failed!"
+  done | xargs -0 "$RUNNER" oxfmt --write || {
+    echo "❌ Oxfmt failed!"
     exit 1
   }
 
-  # Re-add files that were modified by prettier
+  # Re-add files that were modified by oxfmt
   git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
     case "$file" in
-      *.js|*.jsx|*.ts|*.tsx|*.json|*.md|*.mdx|*.yml|*.yaml|*.css) printf '%s\0' "$file" ;;
+      *.js|*.jsx|*.ts|*.tsx|*.json|*.md|*.yml|*.yaml|*.css) printf '%s\0' "$file" ;;
     esac
   done | xargs -0 git add --
 fi

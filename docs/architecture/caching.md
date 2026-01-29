@@ -126,7 +126,11 @@ See `caching.mmd` for the updated flow showing JSON writers, S3 persistence, Nex
 **Implementation Pattern:**
 
 ```typescript
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
+import {
+  unstable_cacheLife as cacheLife,
+  unstable_cacheTag as cacheTag,
+  revalidateTag,
+} from "next/cache";
 
 export async function getCachedData() {
   "use cache";
@@ -215,7 +219,11 @@ const nextConfig: NextConfig = {
 
 ```typescript
 // Always use unstable_ prefixed imports with aliases
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
+import {
+  unstable_cacheLife as cacheLife,
+  unstable_cacheTag as cacheTag,
+  revalidateTag,
+} from "next/cache";
 ```
 
 ### Cache Lifetime Profiles
@@ -301,7 +309,7 @@ The codebase uses wrapper functions to handle cache operations gracefully in dif
 
 ```typescript
 // lib/bookmarks/bookmarks-data-access.server.ts:54-94
-const safeCacheLife = profile => {
+const safeCacheLife = (profile) => {
   if (typeof cacheLife === "function" && !isCliLikeContext()) {
     cacheLife(profile);
   }

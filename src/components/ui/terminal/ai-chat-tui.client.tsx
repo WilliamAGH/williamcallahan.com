@@ -46,7 +46,7 @@ export function ThinkingIndicator({ queueMessage }: { queueMessage?: string | nu
   // Fast spinner animation (80ms per frame)
   useEffect(() => {
     const interval = setInterval(() => {
-      setSpinnerIndex(prev => (prev + 1) % SPINNER_FRAMES.length);
+      setSpinnerIndex((prev) => (prev + 1) % SPINNER_FRAMES.length);
     }, 80);
     return () => clearInterval(interval);
   }, []);
@@ -54,7 +54,7 @@ export function ThinkingIndicator({ queueMessage }: { queueMessage?: string | nu
   // Slower message cycling (3s per message)
   useEffect(() => {
     const interval = setInterval(() => {
-      setMessageIndex(prev => (prev + 1) % LOADING_MESSAGES.length);
+      setMessageIndex((prev) => (prev + 1) % LOADING_MESSAGES.length);
     }, 3000);
     return () => clearInterval(interval);
   }, []);
@@ -62,7 +62,7 @@ export function ThinkingIndicator({ queueMessage }: { queueMessage?: string | nu
   // Animated dots (500ms per dot)
   useEffect(() => {
     const interval = setInterval(() => {
-      setDots(prev => (prev.length >= 3 ? "" : prev + "."));
+      setDots((prev) => (prev.length >= 3 ? "" : prev + "."));
     }, 500);
     return () => clearInterval(interval);
   }, []);
@@ -115,7 +115,8 @@ export function AiChatHeader({ onClearAndExit }: AiChatHeaderProps) {
 export function AiChatEmptyState() {
   return (
     <div className="text-gray-400 text-sm whitespace-pre-wrap mb-4">
-      Type a message to start chatting. Use `ai {"<"}message{">"}` for one-shot replies from the normal prompt.
+      Type a message to start chatting. Use `ai {"<"}message{">"}` for one-shot replies from the
+      normal prompt.
     </div>
   );
 }
@@ -125,7 +126,13 @@ export function AiChatEmptyState() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Input field and thinking indicator for AI chat mode */
-export function AiChatInput({ isSubmitting, queueMessage, onSend, onClearAndExit, onCancelRequest }: AiChatInputProps) {
+export function AiChatInput({
+  isSubmitting,
+  queueMessage,
+  onSend,
+  onClearAndExit,
+  onCancelRequest,
+}: AiChatInputProps) {
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -191,7 +198,7 @@ export function AiChatInput({ isSubmitting, queueMessage, onSend, onClearAndExit
             ref={inputRef}
             type="text"
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={(e) => setInput(e.target.value)}
             disabled={isSubmitting}
             className="bg-transparent w-full focus:outline-none text-gray-200 caret-gray-200
                 text-[16px] transform-gpu scale-[0.875] origin-left disabled:opacity-50 disabled:cursor-not-allowed"

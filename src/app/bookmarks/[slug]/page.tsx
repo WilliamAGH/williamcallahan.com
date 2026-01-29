@@ -36,7 +36,10 @@ import type { BookmarkPageContext, UnifiedBookmark } from "@/types";
 //   // Disabled - sitemap.ts handles URL generation separately
 // }
 
-const BOOKMARK_PAGE_CACHE_SECONDS = Math.max(3600, Math.round(TIME_CONSTANTS.BOOKMARKS_PRELOAD_INTERVAL_MS / 1000));
+const BOOKMARK_PAGE_CACHE_SECONDS = Math.max(
+  3600,
+  Math.round(TIME_CONSTANTS.BOOKMARKS_PRELOAD_INTERVAL_MS / 1000),
+);
 
 const safeEnsureAbsoluteUrl = (path: string): string => {
   try {
@@ -104,7 +107,11 @@ async function resolveBookmarkBySlug(slug: string): Promise<UnifiedBookmark | nu
     })) as UnifiedBookmark | null;
 
     if (bookmark) {
-      envLogger.log(`Bookmark lookup result`, { bookmarkId, found: true }, { category: "BookmarkPage" });
+      envLogger.log(
+        `Bookmark lookup result`,
+        { bookmarkId, found: true },
+        { category: "BookmarkPage" },
+      );
       return bookmark;
     }
 
@@ -138,7 +145,11 @@ async function findBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null>
 /**
  * Generate metadata for this bookmark page
  */
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
   const { slug } = await Promise.resolve(params);
   const path = `/bookmarks/${slug}`;
   const bookmark = await findBookmarkBySlug(slug);
@@ -278,7 +289,13 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
       <div className="bg-gradient-to-b from-background to-secondary/20">
         <div className="max-w-6xl mx-auto px-8 md:px-12 lg:px-16 py-16">
           <Suspense
-            fallback={<RelatedContentFallback title="Discover Similar Content" className="relative" cardCount={3} />}
+            fallback={
+              <RelatedContentFallback
+                title="Discover Similar Content"
+                className="relative"
+                cardCount={3}
+              />
+            }
           >
             <RelatedContent
               sourceType="bookmark"

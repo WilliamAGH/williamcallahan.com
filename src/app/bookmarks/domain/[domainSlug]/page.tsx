@@ -20,7 +20,10 @@ import { redirect } from "next/navigation";
 
 import type { DomainPageRedirectorProps } from "@/types";
 
-export default async function DomainPageRedirector({ params, searchParams }: DomainPageRedirectorProps) {
+export default async function DomainPageRedirector({
+  params,
+  searchParams,
+}: DomainPageRedirectorProps) {
   const allBookmarks = (await getBookmarks({
     ...DEFAULT_BOOKMARK_OPTIONS,
     includeImageData: false,
@@ -44,7 +47,7 @@ export default async function DomainPageRedirector({ params, searchParams }: Dom
 
   // If ID is provided, find that specific bookmark
   if (id) {
-    const bookmark = allBookmarks.find(b => b.id === id);
+    const bookmark = allBookmarks.find((b) => b.id === id);
     if (bookmark) {
       const uniqueSlug = getSlugForBookmark(slugMapping, bookmark.id);
       if (uniqueSlug) {
@@ -56,7 +59,7 @@ export default async function DomainPageRedirector({ params, searchParams }: Dom
   }
 
   // Otherwise, find the first bookmark matching this domain
-  const bookmarkWithDomain = allBookmarks.find(bookmark => {
+  const bookmarkWithDomain = allBookmarks.find((bookmark) => {
     try {
       return getDomainSlug(bookmark.url) === domainSlug;
     } catch {

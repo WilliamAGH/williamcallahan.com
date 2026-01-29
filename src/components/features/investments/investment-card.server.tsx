@@ -36,7 +36,8 @@ export async function resolveInvestmentCardData(
     return input ? normalizeDomain(input) : null;
   };
 
-  const effectiveDomain = normalizeForLookup(logoOnlyDomain) ?? normalizeForLookup(website) ?? normalizeForLookup(name);
+  const effectiveDomain =
+    normalizeForLookup(logoOnlyDomain) ?? normalizeForLookup(website) ?? normalizeForLookup(name);
 
   if (logo) {
     return {
@@ -56,7 +57,9 @@ export async function resolveInvestmentCardData(
     const manifestEntry = await getLogoFromManifestAsync(effectiveDomain);
     if (manifestEntry) {
       const selectedUrl =
-        isDarkTheme && manifestEntry.invertedCdnUrl ? manifestEntry.invertedCdnUrl : manifestEntry.cdnUrl;
+        isDarkTheme && manifestEntry.invertedCdnUrl
+          ? manifestEntry.invertedCdnUrl
+          : manifestEntry.cdnUrl;
 
       return {
         ...normalizedInvestment,

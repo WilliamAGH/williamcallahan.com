@@ -45,7 +45,15 @@ function formatDuration(seconds: number): string {
   return `${minutes} min`;
 }
 
-function ExternalLinkButton({ href, label, icon: Icon }: { href: string; label: string; icon: LucideIcon }) {
+function ExternalLinkButton({
+  href,
+  label,
+  icon: Icon,
+}: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+}) {
   const safeHref = (() => {
     try {
       const url = new URL(href);
@@ -79,7 +87,8 @@ function ExternalLinkButton({ href, label, icon: Icon }: { href: string; label: 
 
 export function BookDetail({ book }: BookDetailProps) {
   const hasAudio = book.formats?.includes("audio");
-  const hasExternalLinks = book.amazonUrl || book.audibleUrl || book.bookshopUrl || book.findMyBookUrl;
+  const hasExternalLinks =
+    book.amazonUrl || book.audibleUrl || book.bookshopUrl || book.findMyBookUrl;
 
   // Process AI summary into paragraphs
   const summaryParagraphs = useMemo(() => {
@@ -140,14 +149,20 @@ export function BookDetail({ book }: BookDetailProps) {
             {/* Details Column */}
             <div className="lg:col-span-2 space-y-6">
               {/* Header */}
-              <motion.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+              <motion.div
+                initial={false}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
                 {/* Title */}
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
                   {book.title}
                 </h1>
 
                 {/* Subtitle */}
-                {book.subtitle && <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">{book.subtitle}</p>}
+                {book.subtitle && (
+                  <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">{book.subtitle}</p>
+                )}
 
                 {/* Authors */}
                 {book.authors && book.authors.length > 0 && (
@@ -183,7 +198,9 @@ export function BookDetail({ book }: BookDetailProps) {
                       <div className="flex items-start gap-2.5">
                         <Building2 className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Publisher</p>
+                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            Publisher
+                          </p>
                           <p className="text-sm font-medium text-gray-800 dark:text-gray-200 break-words">
                             {book.publisher}
                           </p>
@@ -195,8 +212,12 @@ export function BookDetail({ book }: BookDetailProps) {
                       <div className="flex items-start gap-2.5">
                         <Calendar className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Published</p>
-                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{book.publishedYear}</p>
+                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            Published
+                          </p>
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                            {book.publishedYear}
+                          </p>
                         </div>
                       </div>
                     )}
@@ -205,7 +226,9 @@ export function BookDetail({ book }: BookDetailProps) {
                       <div className="flex items-start gap-2.5">
                         <Headphones className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Duration</p>
+                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            Duration
+                          </p>
                           <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
                             {formatDuration(book.audioDurationSeconds)}
                           </p>
@@ -231,7 +254,9 @@ export function BookDetail({ book }: BookDetailProps) {
                       <div className="flex items-start gap-2.5">
                         <Hash className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">ISBN</p>
+                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            ISBN
+                          </p>
                           <p className="text-sm font-medium text-gray-800 dark:text-gray-200 font-mono text-xs">
                             {book.isbn13 || book.isbn10}
                           </p>
@@ -243,7 +268,9 @@ export function BookDetail({ book }: BookDetailProps) {
                       <div className="flex items-start gap-2.5">
                         <Hash className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">ASIN</p>
+                          <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            ASIN
+                          </p>
                           <p className="text-sm font-medium text-gray-800 dark:text-gray-200 font-mono text-xs">
                             {book.asin}
                           </p>
@@ -260,7 +287,7 @@ export function BookDetail({ book }: BookDetailProps) {
                         Genres
                       </p>
                       <div className="flex flex-wrap gap-1.5">
-                        {book.genres.map(genre => (
+                        {book.genres.map((genre) => (
                           <span
                             key={genre}
                             className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded text-xs"
@@ -338,11 +365,21 @@ export function BookDetail({ book }: BookDetailProps) {
                   transition={{ duration: 0.3 }}
                   className="flex flex-wrap gap-3"
                 >
-                  {book.amazonUrl && <ExternalLinkButton href={book.amazonUrl} label="Amazon" icon={ExternalLink} />}
-                  {book.audibleUrl && <ExternalLinkButton href={book.audibleUrl} label="Audible" icon={Headphones} />}
-                  {book.bookshopUrl && <ExternalLinkButton href={book.bookshopUrl} label="Bookshop" icon={BookText} />}
+                  {book.amazonUrl && (
+                    <ExternalLinkButton href={book.amazonUrl} label="Amazon" icon={ExternalLink} />
+                  )}
+                  {book.audibleUrl && (
+                    <ExternalLinkButton href={book.audibleUrl} label="Audible" icon={Headphones} />
+                  )}
+                  {book.bookshopUrl && (
+                    <ExternalLinkButton href={book.bookshopUrl} label="Bookshop" icon={BookText} />
+                  )}
                   {book.findMyBookUrl && (
-                    <ExternalLinkButton href={book.findMyBookUrl} label="Find My Book" icon={ExternalLink} />
+                    <ExternalLinkButton
+                      href={book.findMyBookUrl}
+                      label="Find My Book"
+                      icon={ExternalLink}
+                    />
                   )}
                 </motion.div>
               )}

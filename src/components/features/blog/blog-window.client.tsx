@@ -100,7 +100,10 @@ const BlogWindowContent = dynamic(() => Promise.resolve({ default: BlogWindowCon
  * @param {BlogWindowClientProps} props - Component props
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
  */
-export function BlogWindow({ children, windowTitle }: BlogWindowClientProps & { windowTitle?: string }) {
+export function BlogWindow({
+  children,
+  windowTitle,
+}: BlogWindowClientProps & { windowTitle?: string }) {
   // Ref for the content container
   const contentRef = useRef<HTMLDivElement>(null);
 

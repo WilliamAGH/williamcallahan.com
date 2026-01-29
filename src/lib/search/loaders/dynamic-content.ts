@@ -39,7 +39,9 @@ const devLog = (...args: unknown[]) => {
  * @param bookmarks - Array of raw bookmarks
  * @returns MiniSearch index for bookmarks
  */
-export function buildBookmarksIndex(bookmarks: BookmarkIndexInput[]): MiniSearch<BookmarkIndexItem> {
+export function buildBookmarksIndex(
+  bookmarks: BookmarkIndexInput[],
+): MiniSearch<BookmarkIndexItem> {
   // Transform bookmarks for indexing
   const bookmarksForIndex: BookmarkIndexItem[] = [];
   for (const b of bookmarks) {
@@ -50,7 +52,9 @@ export function buildBookmarksIndex(bookmarks: BookmarkIndexInput[]): MiniSearch
       id: b.id,
       title: b.title || b.url,
       description: b.description || "",
-      tags: Array.isArray(b.tags) ? b.tags.map(t => (typeof t === "string" ? t : t?.name || "")).join("\n") : "",
+      tags: Array.isArray(b.tags)
+        ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join("\n")
+        : "",
       url: b.url,
       author: b.content?.author || "",
       publisher: b.content?.publisher || "",
@@ -166,9 +170,12 @@ export async function getBookmarksIndex(): Promise<{
       clearTimeout(timeoutId);
 
       if (!resp || !resp.ok) {
-        throw new Error(`Failed to fetch bookmarks: HTTP ${resp?.status ?? "unknown"} ${resp?.statusText ?? ""}`, {
-          cause: directErr,
-        });
+        throw new Error(
+          `Failed to fetch bookmarks: HTTP ${resp?.status ?? "unknown"} ${resp?.statusText ?? ""}`,
+          {
+            cause: directErr,
+          },
+        );
       }
       const raw = (await resp.json()) as unknown;
       if (Array.isArray(raw)) {
@@ -197,7 +204,9 @@ export async function getBookmarksIndex(): Promise<{
       if (serializedIndex?.index && serializedIndex.metadata) {
         serializedBookmarksIndex = serializedIndex;
         bookmarksIndex = loadIndexFromJSON<BookmarkIndexItem>(serializedIndex);
-        console.log(`[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`);
+        console.log(
+          `[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`,
+        );
       } else {
         bookmarksIndex = buildBookmarksIndex(bookmarks);
       }
@@ -217,7 +226,11 @@ export async function getBookmarksIndex(): Promise<{
     const slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
 
     if (!slug) {
-      envLogger.log("No slug found for bookmark", { id: b.id, title: b.title, url: b.url }, { category: "Search" });
+      envLogger.log(
+        "No slug found for bookmark",
+        { id: b.id, title: b.title, url: b.url },
+        { category: "Search" },
+      );
       continue;
     }
 
@@ -225,7 +238,9 @@ export async function getBookmarksIndex(): Promise<{
       id: b.id,
       title: b.title || b.url,
       description: b.description || "",
-      tags: Array.isArray(b.tags) ? b.tags.map(t => (typeof t === "string" ? t : t?.name || "")).join("\n") : "",
+      tags: Array.isArray(b.tags)
+        ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join("\n")
+        : "",
       url: b.url,
       author: b.content?.author || "",
       publisher: b.content?.publisher || "",
@@ -353,7 +368,9 @@ export async function getBooksIndex(): Promise<MiniSearch<Book>> {
       const serializedIndex = await readJsonS3<SerializedIndex>(SEARCH_S3_PATHS.BOOKS_INDEX);
       if (serializedIndex?.index && serializedIndex.metadata) {
         booksIndex = loadIndexFromJSON<Book>(serializedIndex);
-        console.log(`[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`);
+        console.log(
+          `[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`,
+        );
         ServerCacheInstance.set(cacheKey, booksIndex, INDEX_TTL.BOOKS);
         return booksIndex;
       }

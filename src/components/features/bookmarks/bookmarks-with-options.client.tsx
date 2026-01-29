@@ -8,7 +8,11 @@
 "use client";
 
 import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
-import { getErrorMessage, type UnifiedBookmark, type BookmarksWithOptionsClientProps } from "@/types";
+import {
+  getErrorMessage,
+  type UnifiedBookmark,
+  type BookmarksWithOptionsClientProps,
+} from "@/types";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -39,7 +43,10 @@ function isUnifiedBookmarkArray(x: unknown): x is UnifiedBookmark[] {
   return (
     Array.isArray(x) &&
     x.every(
-      b => b && typeof (b as { id?: unknown }).id === "string" && typeof (b as { url?: unknown }).url === "string",
+      (b) =>
+        b &&
+        typeof (b as { id?: unknown }).id === "string" &&
+        typeof (b as { url?: unknown }).url === "string",
     )
   );
 }
@@ -59,7 +66,9 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   const [allBookmarks, setAllBookmarks] = useState<UnifiedBookmark[]>(bookmarks);
   const [isRefreshing, setIsRefreshing] = useState(false);
   // Store internal hrefs mapping (critical for preventing 404s)
-  const [internalHrefs, setInternalHrefs] = useState<Record<string, string>>(initialInternalHrefs ?? {});
+  const [internalHrefs, setInternalHrefs] = useState<Record<string, string>>(
+    initialInternalHrefs ?? {},
+  );
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [dataSource, setDataSource] = useState<"server" | "client">("server");
   const [refreshError, setRefreshError] = useState<string | null>(null);
@@ -154,7 +163,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
 
   // Extract all unique tags from all available bookmarks
   const allTags = (searchAllBookmarks ? allBookmarks : bookmarks)
-    .flatMap(bookmark => {
+    .flatMap((bookmark) => {
       return getTagsAsStringArray(bookmark.tags);
     })
     .filter((tag, index, self) => tag && self.indexOf(tag) === index)
@@ -165,7 +174,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
 
   // Filter bookmarks by selected tag only (search is handled via sitewide terminal)
   const filteredBookmarks = selectedTag
-    ? bookmarksToFilter.filter(bookmark => {
+    ? bookmarksToFilter.filter((bookmark) => {
         const tagsAsString = getTagsAsStringArray(bookmark.tags);
         return tagsAsString.includes(selectedTag);
       })
@@ -209,7 +218,9 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       if (!response.ok) {
         const errorData = (await response
           .json()
-          .catch(() => ({ error: null }) as import("@/types").ErrorResponse)) as import("@/types").ErrorResponse;
+          .catch(
+            () => ({ error: null }) as import("@/types").ErrorResponse,
+          )) as import("@/types").ErrorResponse;
         const errorMessage = errorData.error || `Refresh failed: ${response.status}`;
         throw new Error(errorMessage);
       }
@@ -343,7 +354,11 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
                 aria-label="Refresh Bookmarks"
                 style={{ visibility: mounted ? "visible" : "hidden" }}
               >
-                {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                {isRefreshing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
               </button>
             </div>
           )}
@@ -398,7 +413,9 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
 
       {/* Section Header */}
       {!selectedTag && (
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Bookmarks Collection</h2>
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+          Bookmarks Collection
+        </h2>
       )}
 
       {/* Results count */}
@@ -446,7 +463,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
-            {filteredBookmarks.map(bookmark => {
+            {filteredBookmarks.map((bookmark) => {
               // Use pre-computed href from server if available
               // CRITICAL: Never fallback to using bookmark.id in the URL!
               const internalHref = internalHrefs?.[bookmark.id] ?? bookmark.url;
@@ -467,14 +484,16 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
                   content: bookmark.content,
                 });
               }
-              return <BookmarkCardClient key={bookmark.id} {...bookmark} internalHref={internalHref} />;
+              return (
+                <BookmarkCardClient key={bookmark.id} {...bookmark} internalHref={internalHref} />
+              );
             })}
           </div>
         )
       ) : (
         /* Server-side placeholder with hydration suppression */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6" suppressHydrationWarning>
-          {bookmarks.slice(0, 6).map(bookmark => (
+          {bookmarks.slice(0, 6).map((bookmark) => (
             <div
               key={bookmark.id}
               className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg h-96"

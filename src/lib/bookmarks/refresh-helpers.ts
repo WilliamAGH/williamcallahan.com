@@ -33,13 +33,17 @@ const RAW_CACHE_PREFIX = "json/bookmarks/raw";
 export function validateApiConfig(): BookmarksApiContext {
   const bookmarksListId = BOOKMARKS_API_CONFIG.LIST_ID;
   if (!bookmarksListId) {
-    console.error("[refreshBookmarksData] CRITICAL_CONFIG: BOOKMARKS_LIST_ID environment variable is not set.");
+    console.error(
+      "[refreshBookmarksData] CRITICAL_CONFIG: BOOKMARKS_LIST_ID environment variable is not set.",
+    );
     throw new Error("CRITICAL_CONFIG: BOOKMARKS_LIST_ID environment variable is not set.");
   }
 
   const bearerToken = BOOKMARKS_API_CONFIG.BEARER_TOKEN;
   if (!bearerToken) {
-    console.error("[refreshBookmarksData] CRITICAL_CONFIG: BOOKMARK_BEARER_TOKEN environment variable is not set.");
+    console.error(
+      "[refreshBookmarksData] CRITICAL_CONFIG: BOOKMARK_BEARER_TOKEN environment variable is not set.",
+    );
     throw new Error("CRITICAL_CONFIG: BOOKMARK_BEARER_TOKEN environment variable is not set.");
   }
 
@@ -101,7 +105,9 @@ export async function fetchAllPagesFromApi(ctx: BookmarksApiContext): Promise<Ra
 
     if (!pageResponse.ok) {
       const responseText = await pageResponse.text();
-      throw new Error(`API request to ${pageUrl} failed with status ${pageResponse.status}: ${responseText}`);
+      throw new Error(
+        `API request to ${pageUrl} failed with status ${pageResponse.status}: ${responseText}`,
+      );
     }
 
     const raw = (await pageResponse.json()) as unknown;
@@ -109,13 +115,15 @@ export async function fetchAllPagesFromApi(ctx: BookmarksApiContext): Promise<Ra
     if (!parsed.success) {
       console.error(
         "[refreshBookmarksData] Invalid API response shape:",
-        parsed.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("; "),
+        parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
       );
       throw new Error("Invalid bookmarks API response shape");
     }
 
     const data: ApiResponse = parsed.data;
-    console.log(`[refreshBookmarksData] Retrieved ${data.bookmarks.length} bookmarks from page ${pageCount}.`);
+    console.log(
+      `[refreshBookmarksData] Retrieved ${data.bookmarks.length} bookmarks from page ${pageCount}.`,
+    );
     allRawBookmarks.push(...data.bookmarks);
     cursor = data.nextCursor;
   } while (cursor);
@@ -147,13 +155,15 @@ export async function validateChecksumAndGetCached(
       const cached = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
 
       if (cached && cached.length === allRawBookmarks.length) {
-        const hasSlugs = cached.every(b => {
+        const hasSlugs = cached.every((b) => {
           if (typeof b !== "object" || b === null || !("slug" in b)) return false;
           const s = (b as Record<string, unknown>).slug;
           return typeof s === "string" && s.length > 0;
         });
         if (hasSlugs) {
-          console.log(`[refreshBookmarksData] Raw checksum unchanged (${rawChecksum}) – reuse cached.`);
+          console.log(
+            `[refreshBookmarksData] Raw checksum unchanged (${rawChecksum}) – reuse cached.`,
+          );
           return { cached, checksum: rawChecksum, latestKey, envSuffix: ENVIRONMENT_SUFFIX };
         }
         console.warn("[refreshBookmarksData] Cached manifest lacks slugs; regenerating.");
@@ -171,9 +181,13 @@ export async function validateChecksumAndGetCached(
 }
 
 /** Normalizes bookmarks and embeds slugs into each bookmark object */
-export async function normalizeAndGenerateSlugs(rawBookmarks: RawApiBookmark[]): Promise<UnifiedBookmark[]> {
+export async function normalizeAndGenerateSlugs(
+  rawBookmarks: RawApiBookmark[],
+): Promise<UnifiedBookmark[]> {
   const normalizedBookmarks = normalizeBookmarks(rawBookmarks);
-  console.log(`[refreshBookmarksData] Successfully normalized ${normalizedBookmarks.length} bookmarks.`);
+  console.log(
+    `[refreshBookmarksData] Successfully normalized ${normalizedBookmarks.length} bookmarks.`,
+  );
 
   const { generateSlugMapping, saveSlugMapping } = await import("@/lib/bookmarks/slug-manager");
   const slugMapping = generateSlugMapping(normalizedBookmarks);
@@ -185,7 +199,9 @@ export async function normalizeAndGenerateSlugs(rawBookmarks: RawApiBookmark[]):
     }
     bookmark.slug = slugEntry.slug;
   }
-  console.log(`[refreshBookmarksData] Generated slugs for ${normalizedBookmarks.length} bookmarks.`);
+  console.log(
+    `[refreshBookmarksData] Generated slugs for ${normalizedBookmarks.length} bookmarks.`,
+  );
 
   try {
     await saveSlugMapping(normalizedBookmarks);
@@ -198,7 +214,9 @@ export async function normalizeAndGenerateSlugs(rawBookmarks: RawApiBookmark[]):
 }
 
 /** Applies optional test limit and enriches bookmarks with OpenGraph data */
-export async function enrichWithOpenGraph(normalizedBookmarks: UnifiedBookmark[]): Promise<UnifiedBookmark[]> {
+export async function enrichWithOpenGraph(
+  normalizedBookmarks: UnifiedBookmark[],
+): Promise<UnifiedBookmark[]> {
   // Apply test limit if configured
   const isNonProd = process.env.NODE_ENV !== "production";
   let testLimit = 0;
@@ -215,7 +233,9 @@ export async function enrichWithOpenGraph(normalizedBookmarks: UnifiedBookmark[]
     );
   }
 
-  console.log(`[refreshBookmarksData] Starting OpenGraph enrichment for ${bookmarksToProcess.length} bookmarks...`);
+  console.log(
+    `[refreshBookmarksData] Starting OpenGraph enrichment for ${bookmarksToProcess.length} bookmarks...`,
+  );
 
   const isDev = process.env.NODE_ENV === "development";
   const isBatchMode = process.env.IS_DATA_UPDATER === "true";
@@ -231,7 +251,9 @@ export async function enrichWithOpenGraph(normalizedBookmarks: UnifiedBookmark[]
     : undefined;
 
   if (metadataOnlyMode) {
-    console.log(`[refreshBookmarksData] Metadata-only refresh mode (limit: ${refreshOptions?.maxItems || 50})`);
+    console.log(
+      `[refreshBookmarksData] Metadata-only refresh mode (limit: ${refreshOptions?.maxItems || 50})`,
+    );
   }
 
   const enrichedBookmarks = await processBookmarksInBatches(
@@ -242,7 +264,9 @@ export async function enrichWithOpenGraph(normalizedBookmarks: UnifiedBookmark[]
     refreshOptions,
   );
 
-  console.log(`[refreshBookmarksData] OpenGraph enrichment completed for ${enrichedBookmarks.length} bookmarks.`);
+  console.log(
+    `[refreshBookmarksData] OpenGraph enrichment completed for ${enrichedBookmarks.length} bookmarks.`,
+  );
   return enrichedBookmarks;
 }
 
@@ -265,7 +289,10 @@ export async function persistToS3(
     await writeJsonS3(latestKey, { checksum, key: rawDataKey });
     console.log(`[refreshBookmarksData] Raw snapshot saved to S3 (checksum: ${checksum}).`);
   } catch (err) {
-    console.warn("[refreshBookmarksData] Failed to persist raw snapshot (non-critical):", String(err));
+    console.warn(
+      "[refreshBookmarksData] Failed to persist raw snapshot (non-critical):",
+      String(err),
+    );
   }
 }
 
@@ -275,7 +302,9 @@ export async function loadS3Fallback(): Promise<UnifiedBookmark[] | null> {
     console.log("[refreshBookmarksData] API failed, loading from S3 (primary storage)...");
     const s3Backup = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
     if (Array.isArray(s3Backup) && s3Backup.length > 0) {
-      console.log(`[refreshBookmarksData] S3_FALLBACK_SUCCESS: Returning ${s3Backup.length} bookmarks.`);
+      console.log(
+        `[refreshBookmarksData] S3_FALLBACK_SUCCESS: Returning ${s3Backup.length} bookmarks.`,
+      );
       return s3Backup;
     }
     console.warn("[refreshBookmarksData] S3_FALLBACK_EMPTY: S3 storage contains no bookmarks.");
