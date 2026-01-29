@@ -181,7 +181,8 @@ function getSchemaOrgData(includeDebug = false): string {
     // Collect all JSON-LD data from scripts
     const schemas: unknown[] = Array.from(scripts).map(script => {
       try {
-        return JSON.parse(script.textContent ?? "{}") as unknown; // Explicitly cast to unknown
+        const parsed: unknown = JSON.parse(script.textContent ?? "{}");
+        return parsed;
       } catch (err: unknown) {
         return {
           error: "Invalid JSON in schema",

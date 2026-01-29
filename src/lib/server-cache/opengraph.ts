@@ -4,7 +4,7 @@
  * These methods are intended to be attached to the ServerCache prototype.
  */
 
-import type { ICache } from "@/types/cache";
+import type { Cache } from "@/types/cache";
 import type { OgResult, OgCacheEntry } from "@/types/opengraph";
 import { ogResultSchema } from "@/types/seo/opengraph";
 import { OPENGRAPH_CACHE_DURATION, TIME_CONSTANTS } from "@/lib/constants";
@@ -17,12 +17,12 @@ const REFRESH_COOLDOWN_MS = TIME_CONSTANTS.FIVE_MINUTES_MS; // 5 minutes between
 const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 const getCacheTimestamp = (): number => (isProductionBuildPhase ? 0 : getMonotonicTime());
 
-export function getOpenGraphData(cache: ICache, url: string): OgCacheEntry | undefined {
+export function getOpenGraphData(cache: Cache, url: string): OgCacheEntry | undefined {
   const key = OPENGRAPH_PREFIX + url;
   return cache.get<OgCacheEntry>(key);
 }
 
-export function setOpenGraphData(cache: ICache, url: string, data: OgResult, isFailure = false): void {
+export function setOpenGraphData(cache: Cache, url: string, data: OgResult, isFailure = false): void {
   const key = OPENGRAPH_PREFIX + url;
   const now = getCacheTimestamp();
   const existing = getOpenGraphData(cache, url);
@@ -75,7 +75,7 @@ export function setOpenGraphData(cache: ICache, url: string, data: OgResult, isF
   cache.set(key, cacheEntry, isFailure ? OPENGRAPH_CACHE_DURATION.FAILURE : OPENGRAPH_CACHE_DURATION.SUCCESS);
 }
 
-export function shouldRefreshOpenGraph(cache: ICache, url: string): boolean {
+export function shouldRefreshOpenGraph(cache: Cache, url: string): boolean {
   const cached = getOpenGraphData(cache, url);
   if (!cached) {
     return true;
@@ -90,7 +90,7 @@ export function shouldRefreshOpenGraph(cache: ICache, url: string): boolean {
   return timeSinceLastFetch > OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
 }
 
-export function clearOpenGraphData(cache: ICache, url?: string): void {
+export function clearOpenGraphData(cache: Cache, url?: string): void {
   if (url) {
     const key = OPENGRAPH_PREFIX + url;
     cache.del(key);
@@ -105,7 +105,7 @@ export function clearOpenGraphData(cache: ICache, url?: string): void {
 /**
  * Delete specific OpenGraph cache entry (for corruption recovery)
  */
-export function deleteOpenGraphData(cache: ICache, url: string): void {
+export function deleteOpenGraphData(cache: Cache, url: string): void {
   const key = OPENGRAPH_PREFIX + url;
   cache.del(key);
   envLogger.log(`Deleted corrupted OpenGraph cache entry`, { url }, { category: "ServerCache" });
@@ -115,7 +115,7 @@ export function deleteOpenGraphData(cache: ICache, url: string): void {
  * Invalidate OpenGraph cache when image URLs become stale (e.g., 404s)
  * This automatically triggers a background refresh to get updated image URLs
  */
-export function invalidateStaleOpenGraphData(cache: ICache, pageUrl: string, reason: string): boolean {
+export function invalidateStaleOpenGraphData(cache: Cache, pageUrl: string, reason: string): boolean {
   const refreshKey = REFRESH_TRACKING_PREFIX + pageUrl;
   const lastRefresh = cache.get<number>(refreshKey);
   const now = getCacheTimestamp();

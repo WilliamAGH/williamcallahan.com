@@ -16,6 +16,7 @@
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import { normalizeString } from "@/lib/utils";
 import type { UnifiedBookmark, BookmarkSlugMapping, BookmarkSlugEntry } from "@/types";
+import { bookmarkSlugMappingSchema } from "@/types/bookmark";
 import { readJsonS3, writeJsonS3, deleteFromS3 } from "@/lib/s3-utils";
 import { readLocalS3JsonSafe, getLocalS3Path } from "@/lib/bookmarks/local-s3-cache";
 import { isS3NotFound } from "@/lib/utils/s3-error-guards";
@@ -389,7 +390,13 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
   // --- 1. Try loading from local cache first ---
   try {
     const localData = await fs.readFile(LOCAL_SLUG_MAPPING_PATH, "utf-8");
-    const mapping = JSON.parse(localData) as BookmarkSlugMapping;
+    const parsed: unknown = JSON.parse(localData);
+    const validation = bookmarkSlugMappingSchema.safeParse(parsed);
+    if (!validation.success) {
+      logger.warn(`[SlugManager] Local cache failed validation: ${validation.error.message}`);
+      throw new Error("Local cache validation failed");
+    }
+    const mapping = validation.data;
 
     // Skip local cache if it only contains test data
     const isTestData = mapping?.count === 1 && mapping?.slugs?.["test-1"]?.id === "test-1";

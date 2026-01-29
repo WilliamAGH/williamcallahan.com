@@ -161,6 +161,9 @@ export const unifiedBookmarkSchema = z.object({
 
 export type UnifiedBookmark = z.infer<typeof unifiedBookmarkSchema>;
 
+// Array schema for validating bookmark collections
+export const unifiedBookmarksArraySchema = z.array(unifiedBookmarkSchema);
+
 // Base bookmark schema with common fields
 const baseBookmarkSchema = z.object({
   id: z.string(),

@@ -13,12 +13,8 @@ import { ServerCacheInstance } from "@/lib/server-cache";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { requestLock } from "@/lib/server/request-lock";
 import { getMonotonicTime } from "@/lib/utils";
-import type {
-  RelatedContentItem,
-  RelatedContentType,
-  SimilarityWeights,
-  NormalizedContent,
-} from "@/types/related-content";
+import type { RelatedContentItem, RelatedContentType, NormalizedContent } from "@/types/related-content";
+import { similarityWeightsSchema } from "@/types/schemas/related-content";
 import { getEnabledContentTypes, DEFAULT_MAX_PER_TYPE } from "@/config/related-content.config";
 
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours - content changes infrequently
@@ -251,10 +247,18 @@ export async function GET(request: NextRequest) {
     const hasCustomWeights = Boolean(customWeights);
     if (customWeights) {
       try {
-        const parsed = JSON.parse(customWeights) as Partial<SimilarityWeights>;
-        weights = { ...DEFAULT_WEIGHTS, ...parsed };
-      } catch {
-        // Use default weights if parsing fails
+        const parsed: unknown = JSON.parse(customWeights);
+        const validation = similarityWeightsSchema.safeParse(parsed);
+        if (validation.success) {
+          weights = { ...DEFAULT_WEIGHTS, ...validation.data };
+        } else {
+          console.warn(`[RelatedContent] Custom weights validation failed: ${validation.error.message}`);
+        }
+      } catch (error) {
+        console.warn(
+          `[RelatedContent] Failed to parse custom weights JSON:`,
+          error instanceof Error ? error.message : "Invalid JSON",
+        );
       }
     }
 

@@ -4,7 +4,7 @@
  * These methods are intended to be attached to the ServerCache prototype.
  */
 
-import type { ICache } from "@/types/cache";
+import type { Cache } from "@/types/cache";
 import type { AggregatedContentCacheEntry, RelatedContentCacheData } from "@/types/related-content";
 
 const AGGREGATED_CONTENT_KEY = "aggregated-content:all";
@@ -14,14 +14,14 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours - content changes infreque
 /**
  * Get cached aggregated content
  */
-export function getAggregatedContent(cache: ICache): AggregatedContentCacheEntry | undefined {
+export function getAggregatedContent(cache: Cache): AggregatedContentCacheEntry | undefined {
   return cache.get<AggregatedContentCacheEntry>(AGGREGATED_CONTENT_KEY);
 }
 
 /**
  * Set aggregated content in cache
  */
-export function setAggregatedContent(cache: ICache, entry: AggregatedContentCacheEntry): boolean {
+export function setAggregatedContent(cache: Cache, entry: AggregatedContentCacheEntry): boolean {
   // Cache for 24 hours - content changes infrequently
   return cache.set(AGGREGATED_CONTENT_KEY, entry, CACHE_TTL_MS);
 }
@@ -29,7 +29,7 @@ export function setAggregatedContent(cache: ICache, entry: AggregatedContentCach
 /**
  * Clear aggregated content cache
  */
-export function clearAggregatedContent(cache: ICache): void {
+export function clearAggregatedContent(cache: Cache): void {
   cache.del(AGGREGATED_CONTENT_KEY);
 }
 
@@ -37,7 +37,7 @@ export function clearAggregatedContent(cache: ICache): void {
  * Get cached related content for a specific source
  */
 export function getRelatedContent(
-  cache: ICache,
+  cache: Cache,
   sourceType: string,
   sourceId: string,
 ): RelatedContentCacheData | undefined {
@@ -49,7 +49,7 @@ export function getRelatedContent(
  * Set related content in cache
  */
 export function setRelatedContent(
-  cache: ICache,
+  cache: Cache,
   sourceType: string,
   sourceId: string,
   entry: RelatedContentCacheData,
@@ -62,7 +62,7 @@ export function setRelatedContent(
 /**
  * Clear related content cache for a specific source
  */
-export function clearRelatedContent(cache: ICache, sourceType: string, sourceId: string): void {
+export function clearRelatedContent(cache: Cache, sourceType: string, sourceId: string): void {
   const key = `${RELATED_CONTENT_PREFIX}${sourceType}:${sourceId}`;
   cache.del(key);
 }
@@ -70,7 +70,7 @@ export function clearRelatedContent(cache: ICache, sourceType: string, sourceId:
 /**
  * Clear all related content caches
  */
-export function clearAllRelatedContent(cache: ICache): void {
+export function clearAllRelatedContent(cache: Cache): void {
   const keys = cache.keys();
   const relatedKeys = keys.filter(key => key.startsWith(RELATED_CONTENT_PREFIX));
   if (relatedKeys.length > 0) {

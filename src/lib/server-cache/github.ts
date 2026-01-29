@@ -4,7 +4,7 @@
  * These methods are intended to be attached to the ServerCache prototype.
  */
 
-import type { GitHubActivityCacheEntry, ICache } from "@/types/cache";
+import type { GitHubActivityCacheEntry, Cache } from "@/types/cache";
 import type { GitHubActivityApiResponse } from "@/types/github";
 import { GITHUB_ACTIVITY_CACHE_DURATION } from "@/lib/constants";
 import { getMonotonicTime } from "@/lib/utils";
@@ -14,12 +14,12 @@ const getCacheTimestamp = (): number => (isProductionBuildPhase ? 0 : getMonoton
 
 const GITHUB_ACTIVITY_CACHE_KEY = "github-activity-data";
 
-export function getGithubActivity(cache: ICache): GitHubActivityCacheEntry | undefined {
+export function getGithubActivity(cache: Cache): GitHubActivityCacheEntry | undefined {
   const key = GITHUB_ACTIVITY_CACHE_KEY;
   return cache.get<GitHubActivityCacheEntry>(key);
 }
 
-export function setGithubActivity(cache: ICache, activityData: GitHubActivityApiResponse, isFailure = false): void {
+export function setGithubActivity(cache: Cache, activityData: GitHubActivityApiResponse, isFailure = false): void {
   const key = GITHUB_ACTIVITY_CACHE_KEY;
   const isDataComplete = activityData?.trailingYearData?.dataComplete === true;
 
@@ -39,11 +39,11 @@ export function setGithubActivity(cache: ICache, activityData: GitHubActivityApi
   }
 }
 
-export function clearGithubActivity(cache: ICache): void {
+export function clearGithubActivity(cache: Cache): void {
   cache.del(GITHUB_ACTIVITY_CACHE_KEY);
 }
 
-export function shouldRefreshGithubActivity(cache: ICache): boolean {
+export function shouldRefreshGithubActivity(cache: Cache): boolean {
   const cached = getGithubActivity(cache);
   if (!cached?.lastFetchedAt) {
     return true;

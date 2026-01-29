@@ -61,7 +61,7 @@ type FunctionKeys<T> = {
 
 /**
  * Utility type to remove the first argument from a function signature.
- * This is used to map the helper functions (which now take `cache: ICache` as first arg)
+ * This is used to map the helper functions (which now take `cache: Cache` as first arg)
  * to instance methods (where `this` is implicit and not part of the call signature).
  */
 type RemoveFirstArg<T> = T extends (first: any, ...args: infer A) => infer R ? (...args: A) => R : T;
