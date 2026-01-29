@@ -7,8 +7,8 @@ import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cac
 import { generateS3Key } from "@/lib/utils/hash-utils";
 import { getDomainVariants } from "@/lib/utils/domain-utils";
 import { LOGO_SOURCES, UNIFIED_IMAGE_SERVICE_CONFIG } from "@/lib/constants";
-import { fetchBinary, DEFAULT_IMAGE_HEADERS, getBrowserHeaders, isRetryableHttpError } from "@/lib/utils/http-client";
-import { safeStringifyValue } from "@/lib/utils/error-utils";
+import { fetchBinary, DEFAULT_IMAGE_HEADERS, getBrowserHeaders } from "@/lib/utils/http-client";
+import { safeStringifyValue, isRetryableError } from "@/lib/utils/error-utils";
 import { getExtensionFromContentType } from "@/lib/utils/content-type";
 import { extractBasicImageMeta } from "@/lib/image-handling/image-metadata";
 import { isDebug } from "@/lib/utils/debug";
@@ -229,7 +229,9 @@ export class LogoFetcher {
         return null;
       }
 
-      const mockResponse = { headers: new Map([["content-type", responseContentType]]) } as unknown as Response;
+      const mockResponse = {
+        headers: new Map([["content-type", responseContentType]]),
+      } as unknown as Response;
 
       // In streaming mode for dev, skip globe detection and validation; return raw buffer
       if (this.devStreamImagesToS3) {
@@ -274,8 +276,8 @@ export class LogoFetcher {
         }
       }
 
-      // Use isRetryableHttpError to check if this error is worth retrying
-      if (!isRetryableHttpError(error)) {
+      // Use isRetryableError to check if this error is worth retrying
+      if (!isRetryableError(error)) {
         logger.warn(`Non-retryable error fetching logo for ${testDomain} from ${name} (${size}) at ${url}`, {
           service: "LogoFetcher",
           error: safeStringifyValue(error),

@@ -37,7 +37,6 @@ export type ImageSource =
 /**
  * Base interface for all image data
  * This is the foundation for image-related types across the system
- * @deprecated Use BaseMediaResult for new code - kept for backward compatibility
  */
 export interface BaseImageData {
   /** MIME content type (e.g., 'image/png', 'image/svg+xml') */

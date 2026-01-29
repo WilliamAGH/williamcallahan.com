@@ -20,8 +20,6 @@ import type { Project } from "../project";
 export type ProjectCardProps = import("../ui").BaseComponentProps & {
   project: Project;
   showTechnologies?: boolean;
-  /** @deprecated Use `preload` instead (Next.js 16) */
-  isPriority?: boolean;
   /** Preload the image in the document head (Next.js 16+) */
   preload?: boolean;
 };
