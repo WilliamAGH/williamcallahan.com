@@ -440,20 +440,26 @@ describe("ServerCache", () => {
   describe("Clear Operations", () => {
     it("should clear all caches with clearAllCaches", () => {
       cache.setLogoValidation("hash", true);
-      cache.setBookmarks([]);
+      // Note: setBookmarks/getBookmarks were removed when bookmarks moved to S3 persistence
+      // Test with a generic cache entry instead
+      cache.set("test-entry", { data: "test" });
       cache.clearAllCaches();
       // Logo validation should be preserved (documented behavior)
       expect(cache.getLogoValidation("hash")).toBeDefined();
-      expect(cache.getBookmarks()).toBeUndefined();
+      // Other entries should be cleared
+      expect(cache.get("test-entry")).toBeUndefined();
     });
 
     it("should clear all caches with flushAll", () => {
       cache.setLogoValidation("hash", true);
-      cache.setBookmarks([]);
+      // Note: setBookmarks/getBookmarks were removed when bookmarks moved to S3 persistence
+      // Test with a generic cache entry instead
+      cache.set("test-entry", { data: "test" });
       cache.flushAll();
       // Logo validation should be preserved (documented behavior)
       expect(cache.getLogoValidation("hash")).toBeDefined();
-      expect(cache.getBookmarks()).toBeUndefined();
+      // Other entries should be cleared
+      expect(cache.get("test-entry")).toBeUndefined();
     });
   });
 

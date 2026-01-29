@@ -39,9 +39,8 @@ describe("ServerCache Tests", () => {
       expect(typeof ServerCacheInstance.clearLogoFetch).toBe("function");
       expect(typeof ServerCacheInstance.clearAllLogoFetches).toBe("function");
 
-      // Test basic bookmarks methods
-      expect(typeof ServerCacheInstance.getBookmarks).toBe("function");
-      expect(typeof ServerCacheInstance.setBookmarks).toBe("function");
+      // Test basic bookmarks methods (only metadata tracking methods exist - data is in S3)
+      // Note: getBookmarks/setBookmarks were removed when bookmarks moved to S3 persistence
       expect(typeof ServerCacheInstance.clearBookmarks).toBe("function");
       expect(typeof ServerCacheInstance.shouldRefreshBookmarks).toBe("function");
     });
