@@ -8,11 +8,10 @@ import { getDeterministicTimestamp } from "@/lib/server-cache";
 import { parseS3Key, generateS3Key as generateS3KeyUtil, getFileExtension } from "@/lib/utils/hash-utils";
 import { UNIFIED_IMAGE_SERVICE_CONFIG } from "@/lib/constants";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
-import { safeStringifyValue } from "@/lib/utils/error-utils";
+import { safeStringifyValue, isRetryableError } from "@/lib/utils/error-utils";
 import { computeExponentialDelay, retryWithOptions } from "@/lib/utils/retry";
 import { getExtensionFromContentType, IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
-import { isRetryableHttpError } from "@/lib/utils/http-client";
 import logger from "@/lib/utils/logger";
 
 import type { LogoSource } from "@/types/logo";
@@ -67,7 +66,10 @@ export class S3Operations {
       for (const k of keys) {
         this.uploadRetryQueue.delete(k);
       }
-      logger.warn("Retry queue limit reached", { service: "S3Operations", removed: entriesToRemove });
+      logger.warn("Retry queue limit reached", {
+        service: "S3Operations",
+        removed: entriesToRemove,
+      });
     }
 
     const errorMessage = safeStringifyValue(error);
@@ -168,7 +170,7 @@ export class S3Operations {
           {
             maxRetries: CONFIG.MAX_UPLOAD_RETRIES - retry.attempts,
             baseDelay: CONFIG.RETRY_BASE_DELAY,
-            isRetryable: error => isRetryableHttpError(error),
+            isRetryable: error => isRetryableError(error),
             onRetry: (error, attempt) => {
               void error; // Explicitly mark as unused per project convention
               logger.info(`[S3Operations] Retry ${attempt + retry.attempts}/${CONFIG.MAX_UPLOAD_RETRIES} for ${key}`);
@@ -180,6 +182,7 @@ export class S3Operations {
               this.uploadRetryQueue.delete(key);
               logger.info(`[S3Operations] Retry successful for ${key}`);
             }
+            return undefined;
           })
           .catch(error => {
             logger.error("[S3Operations] All retries failed", error, { key });
@@ -204,7 +207,12 @@ export class S3Operations {
    */
   generateS3Key(
     url: string,
-    options: ImageServiceOptions & { type?: string; source?: LogoSource; domain?: string; contentType?: string },
+    options: ImageServiceOptions & {
+      type?: string;
+      source?: LogoSource;
+      domain?: string;
+      contentType?: string;
+    },
   ): string {
     if (options.type === "logo" && options.domain && options.source) {
       // For logos, extract extension from the filename in the URL, not from the domain

@@ -102,8 +102,6 @@ export interface BlogCardProps {
  * @usage - Blog cards that need performance optimization
  */
 export interface BlogCardPropsExtended extends BlogCardProps {
-  /** @deprecated Use `preload` instead (Next.js 16) */
-  isPriority?: boolean;
   /** Preload the image in the document head (Next.js 16+) */
   preload?: boolean;
 }

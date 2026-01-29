@@ -91,16 +91,6 @@ export type TerminalCommand =
   | ChatCommand;
 
 /**
- * Legacy terminal command interface for backward compatibility
- * @deprecated Use discriminated TerminalCommand types instead
- */
-export interface LegacyTerminalCommand {
-  input: string;
-  output: string;
-  timestamp?: number;
-}
-
-/**
  * Special actions that require client-side handling beyond navigation
  */
 export type TerminalAction = "signOut";

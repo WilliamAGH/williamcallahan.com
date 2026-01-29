@@ -207,34 +207,3 @@ export function AiChatInput({ isSubmitting, queueMessage, onSend, onClearAndExit
     </div>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Legacy export for backward compatibility (if needed during transition)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * @deprecated Use AiChatHeader, AiChatInput, and History separately
- * This wrapper is provided for backward compatibility during transition
- */
-export function AiChatTui(props: {
-  isSubmitting: boolean;
-  queueMessage?: string | null;
-  onExit: () => void;
-  onClearAndExit: () => void;
-  onSend: (userText: string) => Promise<void> | void;
-  onCancelRequest: () => void;
-}) {
-  return (
-    <div data-testid="ai-chat-tui">
-      <AiChatHeader onClearAndExit={props.onClearAndExit} />
-      <AiChatEmptyState />
-      <AiChatInput
-        isSubmitting={props.isSubmitting}
-        queueMessage={props.queueMessage}
-        onSend={props.onSend}
-        onClearAndExit={props.onClearAndExit}
-        onCancelRequest={props.onCancelRequest}
-      />
-    </div>
-  );
-}
