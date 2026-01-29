@@ -117,7 +117,9 @@ describeConditional("S3 Schema Validation Smoke Tests", () => {
       const result = relaxedSchema.safeParse(bookmarksData);
       if (!result.success) {
         // Log first few errors for debugging
-        const errors = result.error.issues.slice(0, 5).map(issue => `${issue.path.join(".")} - ${issue.message}`);
+        const errors = result.error.issues
+          .slice(0, 5)
+          .map((issue) => `${issue.path.join(".")} - ${issue.message}`);
         console.error("Schema validation errors:", errors);
       }
 
@@ -135,7 +137,9 @@ describeConditional("S3 Schema Validation Smoke Tests", () => {
 
       const result = bookmarkSlugMappingSchema.safeParse(slugMappingData);
       if (!result.success) {
-        const errors = result.error.issues.slice(0, 5).map(issue => `${issue.path.join(".")} - ${issue.message}`);
+        const errors = result.error.issues
+          .slice(0, 5)
+          .map((issue) => `${issue.path.join(".")} - ${issue.message}`);
         console.error("Slug mapping validation errors:", errors);
       }
 
@@ -156,7 +160,9 @@ describeConditional("S3 Schema Validation Smoke Tests", () => {
 
       const result = bookmarksIndexSchema.safeParse(indexData);
       if (!result.success) {
-        const errors = result.error.issues.slice(0, 5).map(issue => `${issue.path.join(".")} - ${issue.message}`);
+        const errors = result.error.issues
+          .slice(0, 5)
+          .map((issue) => `${issue.path.join(".")} - ${issue.message}`);
         console.error("Index validation errors:", errors);
       }
 
@@ -176,7 +182,8 @@ describeConditional("S3 Schema Validation Smoke Tests", () => {
       }
 
       // Every bookmark should have a slug field
-      const bookmarksWithoutSlugs = bookmarksData?.filter((b: any) => !b.slug || typeof b.slug !== "string") || [];
+      const bookmarksWithoutSlugs =
+        bookmarksData?.filter((b: any) => !b.slug || typeof b.slug !== "string") || [];
 
       if (bookmarksWithoutSlugs.length > 0) {
         console.error(
@@ -219,7 +226,10 @@ describeConditional("S3 Schema Validation Smoke Tests", () => {
         .map(([slug]) => slug);
 
       if (orphanedSlugs.length > 0) {
-        console.warn(`Found ${orphanedSlugs.length} orphaned slugs in reverse map:`, orphanedSlugs.slice(0, 3));
+        console.warn(
+          `Found ${orphanedSlugs.length} orphaned slugs in reverse map:`,
+          orphanedSlugs.slice(0, 3),
+        );
       }
 
       // Orphaned slugs are warnings, not errors
@@ -249,7 +259,7 @@ describeConditional("S3 Schema Validation Smoke Tests", () => {
       expect((firstPageData as any[]).length).toBeLessThanOrEqual(indexData.pageSize || 24);
 
       // CRITICAL: Each item MUST have a slug for routing to work
-      const itemsWithoutSlugs = (firstPageData as any[]).filter(item => !item.slug);
+      const itemsWithoutSlugs = (firstPageData as any[]).filter((item) => !item.slug);
 
       if (itemsWithoutSlugs.length > 0) {
         console.warn(
@@ -281,7 +291,8 @@ describeConditional("S3 Schema Validation Smoke Tests", () => {
 
       // Check for test bookmark
       const testBookmarks =
-        bookmarksData?.filter((b: any) => b.id === "test-1" || b.url === "https://example.com") || [];
+        bookmarksData?.filter((b: any) => b.id === "test-1" || b.url === "https://example.com") ||
+        [];
 
       if (testBookmarks.length > 0) {
         console.warn("Found test bookmarks in S3 data:", testBookmarks);

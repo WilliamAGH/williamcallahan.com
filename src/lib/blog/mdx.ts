@@ -53,7 +53,9 @@ import type { CacheDurationProfile } from "@/types/cache-profile";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 
 const isDevLoggingEnabled =
-  process.env.NODE_ENV === "development" || process.env.DEBUG === "true" || process.env.VERBOSE === "true";
+  process.env.NODE_ENV === "development" ||
+  process.env.DEBUG === "true" ||
+  process.env.VERBOSE === "true";
 
 const logCoverImageInfo = (message: string): void => {
   if (isDevLoggingEnabled) {
@@ -199,7 +201,9 @@ export async function getMDXPost(
       try {
         stats = await fs.stat(filePathForPost);
       } catch {
-        console.warn(`[getMDXPost] Could not stat file ${filePathForPost} even with content override`);
+        console.warn(
+          `[getMDXPost] Could not stat file ${filePathForPost} even with content override`,
+        );
         stats = {
           mtime: new Date(0),
           birthtime: new Date(0),
@@ -244,7 +248,9 @@ export async function getMDXPost(
     const authorId = frontmatter.author;
     const author = authors[authorId];
     if (!author) {
-      console.error(`Author not found: ${authorId} in post with slug "${frontmatterSlug}" (file: ${filePathForPost})`);
+      console.error(
+        `Author not found: ${authorId} in post with slug "${frontmatterSlug}" (file: ${filePathForPost})`,
+      );
       return null;
     }
 
@@ -308,13 +314,18 @@ export async function getMDXPost(
 
     // Use frontmatter dates, ensuring they are Pacific Time ISO strings
     const publishedAt = toPacificISOString(frontmatter.publishedAt || fileDates.created);
-    const updatedAt = toPacificISOString(frontmatter.updatedAt || frontmatter.modifiedAt || fileDates.modified);
+    const updatedAt = toPacificISOString(
+      frontmatter.updatedAt || frontmatter.modifiedAt || fileDates.modified,
+    );
 
     // Generate blur data URL from local image path (before S3 mapping)
     // This must happen BEFORE sanitizeCoverImage transforms to CDN URL
-    const rawCoverImagePath = typeof frontmatter.coverImage === "string" ? frontmatter.coverImage.trim() : undefined;
+    const rawCoverImagePath =
+      typeof frontmatter.coverImage === "string" ? frontmatter.coverImage.trim() : undefined;
     const coverImageBlurDataURL =
-      rawCoverImagePath && !skipHeavyProcessing ? await generateBlurDataURL(rawCoverImagePath) : undefined;
+      rawCoverImagePath && !skipHeavyProcessing
+        ? await generateBlurDataURL(rawCoverImagePath)
+        : undefined;
 
     const coverImage = sanitizeCoverImage(frontmatter.coverImage, frontmatterSlug, filePathForPost);
 
@@ -384,7 +395,12 @@ export async function getMDXPostCached(
 ): Promise<BlogPost | null> {
   // Don't use cache if content override is provided
   if (fileContentOverride) {
-    return getMDXPostDirect(frontmatterSlug, filePathForPost, fileContentOverride, skipHeavyProcessing);
+    return getMDXPostDirect(
+      frontmatterSlug,
+      filePathForPost,
+      fileContentOverride,
+      skipHeavyProcessing,
+    );
   }
 
   // If caching is enabled, try to use it with fallback to direct
@@ -411,10 +427,10 @@ export async function getAllMDXPosts(skipHeavyProcessing = false): Promise<BlogP
 
   try {
     const files = await fs.readdir(POSTS_DIRECTORY);
-    const mdxFiles = files.filter(file => file.endsWith(".mdx"));
+    const mdxFiles = files.filter((file) => file.endsWith(".mdx"));
 
     // Map filenames to promises that read/parse frontmatter and then fully process
-    const postPromises = mdxFiles.map(async fileName => {
+    const postPromises = mdxFiles.map(async (fileName) => {
       const fullPath = path.join(POSTS_DIRECTORY, fileName);
       let frontmatterSlug: string | null = null;
       try {
@@ -425,8 +441,14 @@ export async function getAllMDXPosts(skipHeavyProcessing = false): Promise<BlogP
           content: string;
         };
 
-        if (!frontmatter.slug || typeof frontmatter.slug !== "string" || frontmatter.slug.trim() === "") {
-          console.warn(`[getAllMDXPosts] MDX file ${fileName} has missing or invalid slug in frontmatter. Skipping.`);
+        if (
+          !frontmatter.slug ||
+          typeof frontmatter.slug !== "string" ||
+          frontmatter.slug.trim() === ""
+        ) {
+          console.warn(
+            `[getAllMDXPosts] MDX file ${fileName} has missing or invalid slug in frontmatter. Skipping.`,
+          );
           return null; // Skip this file
         }
         frontmatterSlug = frontmatter.slug.trim();
@@ -516,7 +538,7 @@ export async function getAllMDXPostsCached(skipHeavyProcessing = false): Promise
 export async function getAllMDXPostsForSearch(): Promise<BlogPost[]> {
   const posts = await getAllMDXPosts();
   // Return posts without rawContent to save memory
-  return posts.map(post => {
+  return posts.map((post) => {
     // Destructure to exclude rawContent - intentionally unused to save memory
     const { rawContent, ...lightweightPost } = post;
     void rawContent; // Explicitly mark as intentionally unused

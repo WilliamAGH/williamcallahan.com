@@ -164,7 +164,8 @@ export function createKarakeepFallback(
   return {
     imageUrl: typeof content.imageUrl === "string" ? content.imageUrl : null,
     imageAssetId: typeof content.imageAssetId === "string" ? content.imageAssetId : null,
-    screenshotAssetId: typeof content.screenshotAssetId === "string" ? content.screenshotAssetId : null,
+    screenshotAssetId:
+      typeof content.screenshotAssetId === "string" ? content.screenshotAssetId : null,
     karakeepBaseUrl: baseUrl,
     idempotencyKey: idempotencyKey || undefined,
   };

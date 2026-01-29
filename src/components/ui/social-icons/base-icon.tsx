@@ -18,7 +18,12 @@ export const baseIconProps = {
   strokeLinejoin: "round",
 } as const;
 
-export function BaseIcon({ className = "", viewBox = "0 0 24 24", children, ...props }: BaseIconProps) {
+export function BaseIcon({
+  className = "",
+  viewBox = "0 0 24 24",
+  children,
+  ...props
+}: BaseIconProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

@@ -79,7 +79,11 @@ export class OgError extends Error {
   /** The original error that was caught */
   public originalError?: unknown;
 
-  constructor(message: string, source: string, options?: ErrorOptions & { originalError?: unknown }) {
+  constructor(
+    message: string,
+    source: string,
+    options?: ErrorOptions & { originalError?: unknown },
+  ) {
     super(message, options);
     this.name = "OgError";
     this.source = source;

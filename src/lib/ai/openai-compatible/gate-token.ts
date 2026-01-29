@@ -1,7 +1,10 @@
 import "server-only";
 
 import crypto from "node:crypto";
-import type { AiGateTokenPayloadV1, AiGateTokenVerificationResult } from "@/types/ai-openai-compatible";
+import type {
+  AiGateTokenPayloadV1,
+  AiGateTokenVerificationResult,
+} from "@/types/ai-openai-compatible";
 
 function base64UrlEncode(input: Buffer | string): string {
   const buffer = typeof input === "string" ? Buffer.from(input, "utf8") : input;
@@ -54,7 +57,8 @@ export function verifyAiGateToken(
   const expectedBuf = base64UrlDecodeToBuffer(expectedSig);
   if (!sigBuf || !expectedBuf) return { ok: false, reason: "invalid_signature" };
   if (sigBuf.length !== expectedBuf.length) return { ok: false, reason: "invalid_signature" };
-  if (!crypto.timingSafeEqual(sigBuf, expectedBuf)) return { ok: false, reason: "invalid_signature" };
+  if (!crypto.timingSafeEqual(sigBuf, expectedBuf))
+    return { ok: false, reason: "invalid_signature" };
 
   const payloadBuf = base64UrlDecodeToBuffer(payloadB64);
   if (!payloadBuf) return { ok: false, reason: "invalid_format" };

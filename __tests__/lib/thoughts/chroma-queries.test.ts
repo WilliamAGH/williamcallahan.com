@@ -7,11 +7,13 @@
  */
 
 const REQUIRED_ENV_VARS = ["CHROMA_API_KEY", "CHROMA_TENANT", "CHROMA_DATABASE"] as const;
-const missingVars = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
+const missingVars = REQUIRED_ENV_VARS.filter((v) => !process.env[v]);
 const hasChromaConfig = missingVars.length === 0;
 
 if (!hasChromaConfig) {
-  console.warn(`[chroma-queries.test.ts] Skipping tests - missing env vars: ${missingVars.join(", ")}`);
+  console.warn(
+    `[chroma-queries.test.ts] Skipping tests - missing env vars: ${missingVars.join(", ")}`,
+  );
 }
 
 // Mock chromadb before importing the query module
@@ -95,7 +97,7 @@ describeIfChroma("Thoughts Chroma Queries", () => {
 
       // Should exclude source thought
       expect(related).toHaveLength(2);
-      expect(related.map(r => r.id)).not.toContain(sourceId);
+      expect(related.map((r) => r.id)).not.toContain(sourceId);
       expect(related[0]).toEqual({
         id: "related-1",
         slug: "related-1-slug",
@@ -132,7 +134,7 @@ describeIfChroma("Thoughts Chroma Queries", () => {
       const related = await getRelatedThoughts(sourceId, { maxDistance: 0.3 });
 
       expect(related).toHaveLength(2);
-      expect(related.map(r => r.slug)).toEqual(["close-1", "close-2"]);
+      expect(related.map((r) => r.slug)).toEqual(["close-1", "close-2"]);
     });
 
     it("should respect limit option", async () => {
@@ -243,7 +245,9 @@ describeIfChroma("Thoughts Chroma Queries", () => {
       );
 
       // Explicitly verify that 'where' filter is NOT applied when includeDrafts is true
-      const callArgs = mockCollection.query.mock.calls[0]?.[0] as Record<string, unknown> | undefined;
+      const callArgs = mockCollection.query.mock.calls[0]?.[0] as
+        | Record<string, unknown>
+        | undefined;
       expect(callArgs?.where).toBeUndefined();
     });
 
@@ -276,7 +280,15 @@ describeIfChroma("Thoughts Chroma Queries", () => {
 
       mockCollection.query.mockResolvedValue({
         ids: [["t1", "t2", "t3", "t4", "t5"]],
-        metadatas: [[{ category: "a" }, { category: "b" }, { category: "c" }, { category: "d" }, { category: "e" }]],
+        metadatas: [
+          [
+            { category: "a" },
+            { category: "b" },
+            { category: "c" },
+            { category: "d" },
+            { category: "e" },
+          ],
+        ],
         distances: [[0.1, 0.2, 0.3, 0.4, 0.5]],
         embeddings: [[]],
         documents: [[]],
@@ -452,7 +464,7 @@ describeIfChroma("Thoughts Chroma Queries", () => {
       const duplicates = await findPotentialDuplicates("content", "title");
 
       expect(duplicates).toHaveLength(2);
-      expect(duplicates.map(d => d.slug)).toEqual(["dup1-slug", "dup2-slug"]);
+      expect(duplicates.map((d) => d.slug)).toEqual(["dup1-slug", "dup2-slug"]);
     });
 
     it("should respect custom threshold", async () => {
@@ -566,7 +578,11 @@ describeIfChroma("Thoughts Chroma Queries", () => {
 
       mockCollection.get.mockResolvedValue({
         ids: ["t1", "t2", "t3"],
-        metadatas: [{ tags: "javascript,testing" }, { tags: "javascript,react" }, { tags: "testing" }],
+        metadatas: [
+          { tags: "javascript,testing" },
+          { tags: "javascript,react" },
+          { tags: "testing" },
+        ],
         embeddings: [],
         documents: [],
       });

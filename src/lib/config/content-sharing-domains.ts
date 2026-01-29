@@ -137,7 +137,9 @@ export function isContentSharingDomain(domain: string): boolean {
   if (parts.length >= 3) {
     // Extract parent domain (last two parts: domain.tld)
     const parentDomain = getRootDomain(normalized);
-    if (CONTENT_SHARING_DOMAINS.includes(parentDomain as (typeof CONTENT_SHARING_DOMAINS)[number])) {
+    if (
+      CONTENT_SHARING_DOMAINS.includes(parentDomain as (typeof CONTENT_SHARING_DOMAINS)[number])
+    ) {
       return true;
     }
   }

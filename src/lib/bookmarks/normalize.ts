@@ -20,7 +20,11 @@ import { processSummaryText, removeCitations } from "@/lib/utils/formatters";
  */
 export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBookmark | null {
   if (!raw || typeof raw !== "object") {
-    envLogger.log(`Invalid raw bookmark data`, { index, rawType: typeof raw }, { category: "BookmarksNormalize" });
+    envLogger.log(
+      `Invalid raw bookmark data`,
+      { index, rawType: typeof raw },
+      { category: "BookmarksNormalize" },
+    );
     return null;
   }
 
@@ -30,7 +34,7 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
     const bestDescription = raw.content?.description || raw.summary || "No description available.";
 
     const normalizedTags = Array.isArray(raw.tags)
-      ? raw.tags.map(tag => ({
+      ? raw.tags.map((tag) => ({
           id: tag.id,
           name: tag.name,
           slug: tag.name.toLowerCase().replace(/\s+/g, "-"),
@@ -41,8 +45,8 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       : [];
 
     // Include asset IDs from raw.assets if raw.content fields are missing
-    const screenshotAsset = raw.assets?.find(asset => asset.assetType === "screenshot");
-    const bannerAsset = raw.assets?.find(asset => asset.assetType === "bannerImage");
+    const screenshotAsset = raw.assets?.find((asset) => asset.assetType === "screenshot");
+    const bannerAsset = raw.assets?.find((asset) => asset.assetType === "bannerImage");
 
     const unifiedContent: BookmarkContent = {
       ...(raw.content ? omitHtmlContent(raw.content) : {}),

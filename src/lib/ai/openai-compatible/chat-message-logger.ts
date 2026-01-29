@@ -34,7 +34,9 @@ function categorizeSource(feature: string): AiChatSource {
 /**
  * Extracts the last user message from an array of messages
  */
-function extractLastUserMessage(messages: Array<{ role: string; content: string }>): string | undefined {
+function extractLastUserMessage(
+  messages: Array<{ role: string; content: string }>,
+): string | undefined {
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
     if (msg?.role === "user") {
@@ -70,7 +72,7 @@ function extractBookmarkContext(
 ): AiChatBookmarkContext {
   if (source !== "bookmark-analysis") return undefined;
 
-  const systemMessage = messages.find(m => m.role === "system");
+  const systemMessage = messages.find((m) => m.role === "system");
   if (!systemMessage?.content) return undefined;
 
   // Try to extract URL from system prompt

@@ -30,7 +30,7 @@ export class SessionManager {
   private inFlightLogoRequests = new Map<string, Promise<LogoFetchResult>>();
 
   // Use FailureTracker for domain blocklist management
-  readonly domainFailureTracker = new FailureTracker<string>(domain => domain, {
+  readonly domainFailureTracker = new FailureTracker<string>((domain) => domain, {
     s3Path: LOGO_BLOCKLIST_S3_PATH,
     maxRetries: CONFIG.PERMANENT_FAILURE_THRESHOLD,
     cooldownMs: 24 * 60 * 60 * 1000, // 24 hours
@@ -77,7 +77,9 @@ export class SessionManager {
    */
   markDomainAsFailed(domain: string): void {
     if (this.sessionFailedDomains.size >= CONFIG.MAX_SESSION_DOMAINS) {
-      logger.info(`[SessionManager] Session domain limit reached (${CONFIG.MAX_SESSION_DOMAINS}), resetting session`);
+      logger.info(
+        `[SessionManager] Session domain limit reached (${CONFIG.MAX_SESSION_DOMAINS}), resetting session`,
+      );
       this.resetDomainSessionTracking();
     }
 
@@ -90,8 +92,13 @@ export class SessionManager {
     this.domainRetryCount.set(domain, currentCount);
 
     if (currentCount >= CONFIG.PERMANENT_FAILURE_THRESHOLD) {
-      logger.info(`[SessionManager] Domain ${domain} has failed ${currentCount} times, adding to permanent blocklist`);
-      void this.domainFailureTracker.recordFailure(domain, `Failed ${currentCount} times across sessions`);
+      logger.info(
+        `[SessionManager] Domain ${domain} has failed ${currentCount} times, adding to permanent blocklist`,
+      );
+      void this.domainFailureTracker.recordFailure(
+        domain,
+        `Failed ${currentCount} times across sessions`,
+      );
     }
   }
 
@@ -201,7 +208,9 @@ export class SessionManager {
       const toKeep = entries.slice(-Math.floor(CONFIG.MAX_IN_FLIGHT_REQUESTS / 2));
       this.inFlightLogoRequests.clear();
       toKeep.forEach(([k, v]) => this.inFlightLogoRequests.set(k, v));
-      logger.warn(`[SessionManager] Reduced in-flight requests from ${entries.length} to ${toKeep.length}`);
+      logger.warn(
+        `[SessionManager] Reduced in-flight requests from ${entries.length} to ${toKeep.length}`,
+      );
     }
 
     if (now - this.lastCleanupTime > CONFIG.CLEANUP_INTERVAL) {

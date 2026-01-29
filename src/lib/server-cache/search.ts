@@ -25,7 +25,12 @@ export function getSearchResults<T = unknown>(
   return cache.get<SearchCacheEntry<T>>(key);
 }
 
-export function setSearchResults<T>(cache: Cache, dataType: string, query: string, results: T[]): void {
+export function setSearchResults<T>(
+  cache: Cache,
+  dataType: string,
+  query: string,
+  results: T[],
+): void {
   const key = getSearchKey(dataType, query);
   const entry: SearchCacheEntry<T> = {
     results,
@@ -47,7 +52,7 @@ export function shouldRefreshSearch(cache: Cache, dataType: string, query: strin
 
 export function clearSearchCache(cache: Cache, dataType?: string): void {
   const prefix = dataType ? `${SEARCH_PREFIX}${dataType}:` : SEARCH_PREFIX;
-  const keys = cache.keys().filter(key => key.startsWith(prefix));
+  const keys = cache.keys().filter((key) => key.startsWith(prefix));
   for (const key of keys) {
     cache.del(key);
   }

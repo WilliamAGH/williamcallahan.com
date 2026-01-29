@@ -13,7 +13,11 @@ import {
   type LightweightBookmark,
 } from "@/types/bookmark";
 import { tagToSlug } from "@/lib/utils/tag-utils";
-import { normalizeBookmarkTags, stripImageData, normalizePageBookmarkTags } from "@/lib/bookmarks/utils";
+import {
+  normalizeBookmarkTags,
+  stripImageData,
+  normalizePageBookmarkTags,
+} from "@/lib/bookmarks/utils";
 import {
   isBookmarkServiceLoggingEnabled,
   shouldSkipLocalS3Cache,
@@ -47,7 +51,9 @@ const loadLocalBookmarksSnapshot = async (): Promise<UnifiedBookmark[] | null> =
       const [onlyBookmark] = bookmarks;
       if (
         onlyBookmark &&
-        (onlyBookmark.id === "test-1" || onlyBookmark.id === "test" || onlyBookmark.url === "https://example.com")
+        (onlyBookmark.id === "test-1" ||
+          onlyBookmark.id === "test" ||
+          onlyBookmark.url === "https://example.com")
       ) {
         console.warn(
           "[Bookmarks] Local bookmarks snapshot contains only test data; ignoring local fallback at",
@@ -91,7 +97,10 @@ let inFlightGetPromise: Promise<UnifiedBookmark[] | LightweightBookmark[]> | nul
 
 // Cache logic moved to cache-management.server.ts
 
-import { refreshAndPersistBookmarks, releaseRefreshLock } from "@/lib/bookmarks/refresh-logic.server";
+import {
+  refreshAndPersistBookmarks,
+  releaseRefreshLock,
+} from "@/lib/bookmarks/refresh-logic.server";
 
 /**
  * Fetches bookmarks with Next.js caching layer.
@@ -117,8 +126,11 @@ async function fetchAndCacheBookmarks(
 
   // --- 1. Prefer S3 in production runtime; use local fallback only in dev/test/CLI contexts ---
   const isProductionRuntime =
-    getEnvironment() === "production" && !isCliLikeContext() && process.env.NEXT_PHASE !== "phase-production-build";
-  const isTestEnvironment = process.env.NODE_ENV === "test" || process.env.JEST_WORKER_ID !== undefined;
+    getEnvironment() === "production" &&
+    !isCliLikeContext() &&
+    process.env.NEXT_PHASE !== "phase-production-build";
+  const isTestEnvironment =
+    process.env.NODE_ENV === "test" || process.env.JEST_WORKER_ID !== undefined;
   let localBookmarksSnapshot: UnifiedBookmark[] | null = null;
   if (!isProductionRuntime && !isTestEnvironment) {
     localBookmarksSnapshot = await loadLocalBookmarksSnapshot();
@@ -137,9 +149,13 @@ async function fetchAndCacheBookmarks(
     }
   } else if (isProductionRuntime) {
     // Explicitly log that we are skipping local fallback in production runtime to avoid stale snapshots from build layers
-    envLogger.log("Skipping local bookmarks fallback in production runtime; using S3-first strategy", undefined, {
-      category: LOG_PREFIX,
-    });
+    envLogger.log(
+      "Skipping local bookmarks fallback in production runtime; using S3-first strategy",
+      undefined,
+      {
+        category: LOG_PREFIX,
+      },
+    );
   }
 
   // --- 2. Fallback to S3 (with local snapshot) ---
@@ -170,7 +186,7 @@ async function fetchAndCacheBookmarks(
       bookmarkCount: bookmarksFromS3.length,
     });
     if (process.env.DEBUG_BOOKMARKS === "true") {
-      const cliBookmark = bookmarksFromS3.find(b => b.id === "yz7g8v8vzprsd2bm1w1cjc4y");
+      const cliBookmark = bookmarksFromS3.find((b) => b.id === "yz7g8v8vzprsd2bm1w1cjc4y");
       if (cliBookmark) {
         logBookmarkDataAccessEvent("CLI bookmark content exists", {
           hasContent: !!cliBookmark.content,
@@ -194,7 +210,10 @@ async function fetchAndCacheBookmarks(
     return formatBookmarks(localBookmarksSnapshot, "local fallback");
   }
 
-  const localS3Snapshot = await readLocalS3JsonSafe<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE, shouldSkipLocalS3Cache);
+  const localS3Snapshot = await readLocalS3JsonSafe<UnifiedBookmark[]>(
+    BOOKMARKS_S3_PATHS.FILE,
+    shouldSkipLocalS3Cache,
+  );
   if (localS3Snapshot && Array.isArray(localS3Snapshot) && localS3Snapshot.length > 0) {
     logBookmarkDataAccessEvent("Loaded bookmarks from local S3 snapshot", {
       bookmarkCount: localS3Snapshot.length,
@@ -263,7 +282,10 @@ export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookm
     : getBookmarksPageDirect(pageNumber);
 }
 
-async function getTagBookmarksPageDirect(tagSlug: string, pageNumber: number): Promise<UnifiedBookmark[]> {
+async function getTagBookmarksPageDirect(
+  tagSlug: string,
+  pageNumber: number,
+): Promise<UnifiedBookmark[]> {
   const key = `${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${pageNumber}.json`;
   try {
     const pageData = await readJsonS3<UnifiedBookmark[]>(key);
@@ -272,7 +294,10 @@ async function getTagBookmarksPageDirect(tagSlug: string, pageNumber: number): P
     }
   } catch (error) {
     if (!isS3NotFound(error)) {
-      console.error(`${LOG_PREFIX} S3 service error loading tag page ${tagSlug}/${pageNumber}:`, error);
+      console.error(
+        `${LOG_PREFIX} S3 service error loading tag page ${tagSlug}/${pageNumber}:`,
+        error,
+      );
     }
   }
 
@@ -296,14 +321,24 @@ async function getTagBookmarksPageDirect(tagSlug: string, pageNumber: number): P
  * @param pageNumber - Page number within tag results
  * @returns Bookmarks matching the tag
  */
-async function getCachedTagBookmarksPage(tagSlug: string, pageNumber: number): Promise<UnifiedBookmark[]> {
+async function getCachedTagBookmarksPage(
+  tagSlug: string,
+  pageNumber: number,
+): Promise<UnifiedBookmark[]> {
   "use cache";
   safeCacheLife({ revalidate: 3600 }); // 1 hour - aligned with main bookmark cache
-  safeCacheTag("bookmarks", `bookmarks-tag-${tagSlug}`, `bookmarks-tag-${tagSlug}-page-${pageNumber}`);
+  safeCacheTag(
+    "bookmarks",
+    `bookmarks-tag-${tagSlug}`,
+    `bookmarks-tag-${tagSlug}-page-${pageNumber}`,
+  );
   return getTagBookmarksPageDirect(tagSlug, pageNumber);
 }
 
-export async function getTagBookmarksPage(tagSlug: string, pageNumber: number): Promise<UnifiedBookmark[]> {
+export async function getTagBookmarksPage(
+  tagSlug: string,
+  pageNumber: number,
+): Promise<UnifiedBookmark[]> {
   return USE_NEXTJS_CACHE
     ? withCacheFallback(
         () => getCachedTagBookmarksPage(tagSlug, pageNumber),
@@ -314,7 +349,9 @@ export async function getTagBookmarksPage(tagSlug: string, pageNumber: number): 
 
 async function getTagBookmarksIndexDirect(tagSlug: string): Promise<BookmarksIndex | null> {
   try {
-    return await readJsonS3<BookmarksIndex>(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`);
+    return await readJsonS3<BookmarksIndex>(
+      `${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`,
+    );
   } catch (error) {
     if (isS3NotFound(error)) return null;
     console.error(`${LOG_PREFIX} S3 service error loading tag index ${tagSlug}:`, error);
@@ -441,7 +478,9 @@ export async function getBookmarkById(
   }
 
   if (!bookmark) {
-    bookmark = await readJsonS3<UnifiedBookmark>(`${BOOKMARKS_S3_PATHS.BY_ID_DIR}/${bookmarkId}.json`);
+    bookmark = await readJsonS3<UnifiedBookmark>(
+      `${BOOKMARKS_S3_PATHS.BY_ID_DIR}/${bookmarkId}.json`,
+    );
   }
 
   if (!bookmark) {
@@ -455,7 +494,7 @@ export async function getBookmarkById(
       skipExternalFetch: options.skipExternalFetch ?? DEFAULT_BOOKMARK_OPTIONS.skipExternalFetch,
       force: options.force ?? DEFAULT_BOOKMARK_OPTIONS.force,
     })) as UnifiedBookmark[];
-    bookmark = allBookmarks.find(b => b.id === bookmarkId) ?? null;
+    bookmark = allBookmarks.find((b) => b.id === bookmarkId) ?? null;
   }
 
   if (!bookmark) {
@@ -532,9 +571,9 @@ export async function getBookmarksByTag(
       setFullDatasetCache(allBookmarks);
     }
   }
-  const filteredBookmarks = allBookmarks.filter(b => {
+  const filteredBookmarks = allBookmarks.filter((b) => {
     const tags = Array.isArray(b.tags) ? b.tags : [];
-    return tags.some(t => {
+    return tags.some((t) => {
       const tagName = typeof t === "string" ? t : (t as { name: string }).name;
       return tagToSlug(tagName) === tagSlug;
     });
@@ -587,5 +626,7 @@ export async function getBookmarksIndex(): Promise<BookmarksIndex | null> {
 
 // Cleanup cache and locks on process exit
 process.on("SIGTERM", () => {
-  releaseRefreshLock().catch(error => console.error("[Bookmarks] Failed to release lock on cleanup:", String(error)));
+  releaseRefreshLock().catch((error) =>
+    console.error("[Bookmarks] Failed to release lock on cleanup:", String(error)),
+  );
 });

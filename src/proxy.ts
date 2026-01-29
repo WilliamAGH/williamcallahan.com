@@ -52,7 +52,10 @@ async function getCspHashes() {
     const hashes = await import("../generated/csp-hashes.json");
     return hashes.default;
   } catch (error) {
-    console.warn("[CSP] Could not load csp-hashes.json. This is expected on the first build.", error);
+    console.warn(
+      "[CSP] Could not load csp-hashes.json. This is expected on the first build.",
+      error,
+    );
     return { scriptSrc: [], styleSrc: [] };
   }
 }
@@ -140,7 +143,7 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
 
   const csp = Object.entries(cspDirectives)
     .map(([key, sources]) => {
-      const directive = key.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`);
+      const directive = key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
       return `${directive} ${sources.join(" ")}`;
     })
     .join("; ");

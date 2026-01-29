@@ -5,7 +5,11 @@ import { getBaseUrl } from "@/lib/utils/get-base-url";
 
 function renderValue(value: unknown) {
   if (typeof value === "object" && value !== null) {
-    return <pre className="text-sm bg-gray-800 p-2 rounded-md overflow-x-auto">{JSON.stringify(value, null, 2)}</pre>;
+    return (
+      <pre className="text-sm bg-gray-800 p-2 rounded-md overflow-x-auto">
+        {JSON.stringify(value, null, 2)}
+      </pre>
+    );
   }
   return <span className="text-green-400">{String(value)}</span>;
 }
@@ -13,11 +17,15 @@ function renderValue(value: unknown) {
 function renderSection(title: string, sectionData: object) {
   return (
     <div className="mb-8">
-      <h2 className="text-2xl font-bold text-gray-100 border-b-2 border-gray-700 pb-2 mb-4">{title}</h2>
+      <h2 className="text-2xl font-bold text-gray-100 border-b-2 border-gray-700 pb-2 mb-4">
+        {title}
+      </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {Object.entries(sectionData).map(([key, value]) => (
           <div key={key} className="bg-gray-900 p-4 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold text-gray-300 mb-2 capitalize">{key.replace(/([A-Z])/g, " $1")}</h3>
+            <h3 className="text-lg font-semibold text-gray-300 mb-2 capitalize">
+              {key.replace(/([A-Z])/g, " $1")}
+            </h3>
             {renderValue(value)}
           </div>
         ))}
@@ -75,7 +83,9 @@ const StatusPage: NextPage = async () => {
         <main>
           <div className="bg-gray-900 p-4 rounded-lg shadow-md">
             <h3 className="text-lg font-semibold text-red-400 mb-2">Error Details</h3>
-            <pre className="text-sm text-gray-300 bg-gray-800 p-2 rounded-md overflow-x-auto">{message}</pre>
+            <pre className="text-sm text-gray-300 bg-gray-800 p-2 rounded-md overflow-x-auto">
+              {message}
+            </pre>
           </div>
         </main>
       </div>

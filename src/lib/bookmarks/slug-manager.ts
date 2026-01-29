@@ -32,7 +32,12 @@ import {
 } from "@/lib/bookmarks/config";
 
 // Local file path for ephemeral cache (container-local, not persisted)
-export const LOCAL_SLUG_MAPPING_PATH = path.join(process.cwd(), "generated", "bookmarks", "slug-mapping.json");
+export const LOCAL_SLUG_MAPPING_PATH = path.join(
+  process.cwd(),
+  "generated",
+  "bookmarks",
+  "slug-mapping.json",
+);
 
 const formatSlugEnvironmentSnapshot = (): string =>
   `NODE_ENV=${process.env.NODE_ENV || "(not set)"}, DEPLOYMENT_ENV=${process.env.DEPLOYMENT_ENV || "(not set)"}`;
@@ -42,7 +47,9 @@ let hasLoggedSlugEnvironmentInfo = false;
 const logSlugEnvironmentOnce = (context: string): void => {
   if (!isSlugManagerLoggingEnabled || hasLoggedSlugEnvironmentInfo) return;
   hasLoggedSlugEnvironmentInfo = true;
-  logger.info(`[SlugManager] Environment snapshot (${context}): ${formatSlugEnvironmentSnapshot()}`);
+  logger.info(
+    `[SlugManager] Environment snapshot (${context}): ${formatSlugEnvironmentSnapshot()}`,
+  );
 };
 
 const SLUG_SHARD_BATCH_SIZE = 50;
@@ -99,8 +106,8 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
 
   // Build candidates array once (performance optimization: avoids O(n²) array rebuilding)
   const candidates = sortedBookmarks
-    .map(b => ({ id: b.id, url: b.url, title: b.title }))
-    .filter(c => typeof c.url === "string" && c.url.length > 0);
+    .map((b) => ({ id: b.id, url: b.url, title: b.title }))
+    .filter((c) => typeof c.url === "string" && c.url.length > 0);
 
   for (const bookmark of sortedBookmarks) {
     // Pass bookmark title for content-sharing domains (YouTube, Reddit, etc.)
@@ -135,7 +142,7 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
   }
 
   // Validate that every bookmark has a slug
-  const missingSlugIds = bookmarks.filter(b => !slugs[b.id]).map(b => b.id);
+  const missingSlugIds = bookmarks.filter((b) => !slugs[b.id]).map((b) => b.id);
   if (missingSlugIds.length > 0) {
     throw new Error(
       `[SlugManager] CRITICAL: ${missingSlugIds.length} bookmarks missing slugs: ${missingSlugIds.join(", ")}`,
@@ -145,7 +152,7 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
   // Generate checksum for change detection based on [id, slug] pairs in a stable order
   const checksumPayload = Object.keys(slugs)
     .toSorted((a, b) => a.localeCompare(b))
-    .map(id => [id, slugs[id]?.slug]);
+    .map((id) => [id, slugs[id]?.slug]);
   const checksum = createHash("md5").update(JSON.stringify(checksumPayload)).digest("hex");
 
   const mapping: BookmarkSlugMapping = {
@@ -176,10 +183,13 @@ const collectSlugs = (mapping: BookmarkSlugMapping | null): Set<string> => {
   return slugs;
 };
 
-async function persistSlugShards(mapping: BookmarkSlugMapping, previous: BookmarkSlugMapping | null): Promise<void> {
+async function persistSlugShards(
+  mapping: BookmarkSlugMapping,
+  previous: BookmarkSlugMapping | null,
+): Promise<void> {
   const entries = Object.values(mapping.slugs ?? {});
   const previousSlugs = collectSlugs(previous);
-  const currentSlugs = new Set(entries.map(entry => entry.slug));
+  const currentSlugs = new Set(entries.map((entry) => entry.slug));
   const staleSlugs: string[] = [];
 
   if (previousSlugs.size > 0) {
@@ -194,7 +204,7 @@ async function persistSlugShards(mapping: BookmarkSlugMapping, previous: Bookmar
     for (let index = 0; index < entries.length; index += SLUG_SHARD_BATCH_SIZE) {
       const batch = entries.slice(index, index + SLUG_SHARD_BATCH_SIZE);
       await Promise.all(
-        batch.map(async entry => {
+        batch.map(async (entry) => {
           const shardKey = getSlugShardKey(entry.slug);
           await writeJsonS3(shardKey, entry);
           try {
@@ -220,7 +230,7 @@ async function persistSlugShards(mapping: BookmarkSlugMapping, previous: Bookmar
     for (let index = 0; index < staleSlugs.length; index += SLUG_SHARD_BATCH_SIZE) {
       const batch = staleSlugs.slice(index, index + SLUG_SHARD_BATCH_SIZE);
       await Promise.all(
-        batch.map(async slug => {
+        batch.map(async (slug) => {
           const shardKey = getSlugShardKey(slug);
           try {
             await deleteFromS3(shardKey);
@@ -245,7 +255,11 @@ async function persistSlugShards(mapping: BookmarkSlugMapping, previous: Bookmar
         }),
       );
     }
-    envLogger.log("Removed stale slug shards", { count: staleSlugs.length }, { category: "SlugManager" });
+    envLogger.log(
+      "Removed stale slug shards",
+      { count: staleSlugs.length },
+      { category: "SlugManager" },
+    );
   }
 }
 
@@ -258,7 +272,11 @@ export async function getSlugShard(slug: string): Promise<BookmarkSlugEntry | nu
     }
   } catch (error) {
     if (!isS3NotFound(error)) {
-      envLogger.debug("Failed to read slug shard from S3", { key: shardKey, error }, { category: "SlugManager" });
+      envLogger.debug(
+        "Failed to read slug shard from S3",
+        { key: shardKey, error },
+        { category: "SlugManager" },
+      );
     }
   }
 
@@ -293,7 +311,9 @@ export async function saveSlugMapping(
 
   try {
     const mapping = generateSlugMapping(bookmarks);
-    logger.info(`[SlugManager] Generated mapping with ${mapping.count} entries, checksum: ${mapping.checksum}`);
+    logger.info(
+      `[SlugManager] Generated mapping with ${mapping.count} entries, checksum: ${mapping.checksum}`,
+    );
 
     let previousMapping: BookmarkSlugMapping | null = null;
 
@@ -346,7 +366,7 @@ export async function saveSlugMapping(
       // Use programmatic path generation to avoid hardcoding
       const basePath = "json/bookmarks/slug-mapping";
       const envSuffixes = ["", "-dev", "-test"] as const;
-      const allPaths = envSuffixes.map(suffix => `${basePath}${suffix}.json`);
+      const allPaths = envSuffixes.map((suffix) => `${basePath}${suffix}.json`);
 
       for (const path of allPaths) {
         if (path !== primaryPath) {
@@ -354,7 +374,11 @@ export async function saveSlugMapping(
             await writeJsonS3(path, mapping);
             envLogger.debug(`Saved to redundant path`, path, { category: "SlugManager" });
           } catch (error) {
-            envLogger.debug(`Could not save to redundant path`, { path, error }, { category: "SlugManager" });
+            envLogger.debug(
+              `Could not save to redundant path`,
+              { path, error },
+              { category: "SlugManager" },
+            );
           }
         }
       }
@@ -362,7 +386,9 @@ export async function saveSlugMapping(
   } catch (error) {
     // CRITICAL ERROR: Slug mapping failures are critical and must be propagated
     logger.error(`[SlugManager] [CRITICAL ERROR] Failed to save slug mapping:`, error);
-    logger.error(`[SlugManager] [CRITICAL] This is a critical failure that will prevent bookmark navigation`);
+    logger.error(
+      `[SlugManager] [CRITICAL] This is a critical failure that will prevent bookmark navigation`,
+    );
 
     // Emit critical error metrics if available
     if (typeof process !== "undefined" && process.env.NODE_ENV === "production") {
@@ -402,14 +428,21 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
     const isTestData = mapping?.count === 1 && mapping?.slugs?.["test-1"]?.id === "test-1";
     // Skip local cache if it's empty (count is 0 or slugs is empty)
     const isEmpty =
-      !mapping?.count || mapping.count === 0 || !mapping?.slugs || Object.keys(mapping.slugs).length === 0;
+      !mapping?.count ||
+      mapping.count === 0 ||
+      !mapping?.slugs ||
+      Object.keys(mapping.slugs).length === 0;
 
     if (isTestData) {
       logger.info(`[SlugManager] Local cache contains only test data, skipping to S3`);
     } else if (isEmpty) {
-      logger.info(`[SlugManager] Local cache is empty (count: ${mapping?.count || 0}), skipping to S3`);
+      logger.info(
+        `[SlugManager] Local cache is empty (count: ${mapping?.count || 0}), skipping to S3`,
+      );
     } else if (mapping?.slugs) {
-      logger.info(`[SlugManager] Successfully loaded slug mapping from local cache: ${LOCAL_SLUG_MAPPING_PATH}`);
+      logger.info(
+        `[SlugManager] Successfully loaded slug mapping from local cache: ${LOCAL_SLUG_MAPPING_PATH}`,
+      );
       return mapping;
     }
   } catch (error) {
@@ -428,10 +461,15 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
     // Try primary path first
     const data = await readJsonS3<BookmarkSlugMapping>(primaryPath);
     if (data) {
-      logger.info(`[SlugManager] Successfully loaded slug mapping with ${data.count} entries from primary path`);
+      logger.info(
+        `[SlugManager] Successfully loaded slug mapping with ${data.count} entries from primary path`,
+      );
       return data;
     }
-    const localS3Data = await readLocalS3JsonSafe<BookmarkSlugMapping>(primaryPath, shouldSkipLocalS3Cache);
+    const localS3Data = await readLocalS3JsonSafe<BookmarkSlugMapping>(
+      primaryPath,
+      shouldSkipLocalS3Cache,
+    );
     if (localS3Data) {
       logger.info(
         `[SlugManager] Loaded slug mapping from local cache mirror (${primaryPath}) with ${localS3Data.count} entries`,
@@ -466,7 +504,9 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
       logger.info(`[SlugManager] Trying fallback path: ${fallbackPath}`);
       const data = await readJsonS3<BookmarkSlugMapping>(fallbackPath);
       if (data) {
-        logger.warn(`[SlugManager] ⚠️ Loaded mapping from fallback path: ${fallbackPath} (expected: ${primaryPath})`);
+        logger.warn(
+          `[SlugManager] ⚠️ Loaded mapping from fallback path: ${fallbackPath} (expected: ${primaryPath})`,
+        );
         logger.info(`[SlugManager] Consider running data-updater to sync paths`);
         return data;
       }
@@ -483,7 +523,10 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
 /**
  * Get slug for a bookmark ID
  */
-export function getSlugForBookmark(mapping: BookmarkSlugMapping, bookmarkId: string): string | null {
+export function getSlugForBookmark(
+  mapping: BookmarkSlugMapping,
+  bookmarkId: string,
+): string | null {
   const entry = mapping.slugs[bookmarkId];
   return entry?.slug || null;
 }
@@ -521,7 +564,7 @@ export async function getBookmarkBySlug(slug: string): Promise<UnifiedBookmark |
     force: false,
   });
 
-  const bookmark = bookmarks.find(b => b.id === bookmarkId);
+  const bookmark = bookmarks.find((b) => b.id === bookmarkId);
   if (!bookmark) {
     logger.warn(`[SlugManager] Bookmark with ID ${bookmarkId} not found in bookmarks data`);
     return null;
@@ -536,7 +579,7 @@ export async function getBookmarkBySlug(slug: string): Promise<UnifiedBookmark |
  */
 export function generateBookmarkRoutes(mapping: BookmarkSlugMapping): string[] {
   return Object.values(mapping.slugs)
-    .map(entry => entry.slug)
+    .map((entry) => entry.slug)
     .toSorted((a, b) => a.localeCompare(b))
-    .map(slug => `/bookmarks/${slug}`);
+    .map((slug) => `/bookmarks/${slug}`);
 }

@@ -46,7 +46,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (token === cronRefreshSecret) {
       isCronJob = true;
       console.log("[API Trigger] ✅ Authenticated as external cron job via bearer token");
-      logger.info("[API Bookmarks Refresh] Authenticated as cron job via BOOKMARK_CRON_REFRESH_SECRET.");
+      logger.info(
+        "[API Bookmarks Refresh] Authenticated as cron job via BOOKMARK_CRON_REFRESH_SECRET.",
+      );
     }
   }
 
@@ -93,7 +95,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       if (memoryUsedMB > memoryLimitMB * 0.8) {
         console.log(`[API Trigger] ⚠️  High memory usage: ${memoryUsedMB}MB, deferring refresh`);
-        logger.warn(`[API Bookmarks Refresh] High memory usage: ${memoryUsedMB}MB, deferring refresh`);
+        logger.warn(
+          `[API Bookmarks Refresh] High memory usage: ${memoryUsedMB}MB, deferring refresh`,
+        );
         return NextResponse.json({
           status: "success",
           message: "Refresh deferred due to high memory usage",
@@ -123,7 +127,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             data: {
               refreshed: false,
               bookmarksCount: index?.count || 0,
-              lastFetchedAt: index?.lastFetchedAt ? new Date(index.lastFetchedAt).toISOString() : null,
+              lastFetchedAt: index?.lastFetchedAt
+                ? new Date(index.lastFetchedAt).toISOString()
+                : null,
               lastFetchedAtTs: index?.lastFetchedAt ?? null,
               changeDetected: index?.changeDetected ?? null,
             },
@@ -171,11 +177,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Handle errors in background without blocking response
     void refreshPromise
-      .then(results => {
-        const bookmarkResult = results.find(r => r.operation === "bookmarks");
+      .then((results) => {
+        const bookmarkResult = results.find((r) => r.operation === "bookmarks");
         if (bookmarkResult?.success) {
           const newCount = bookmarkResult.itemsProcessed || 0;
-          console.log(`[API Trigger] ✅ Refresh completed: ${newCount} bookmarks (was ${previousCount})`);
+          console.log(
+            `[API Trigger] ✅ Refresh completed: ${newCount} bookmarks (was ${previousCount})`,
+          );
           logger.info(`[API Bookmarks Refresh] Background refresh completed successfully`);
 
           // Invalidate Next.js cache to serve fresh data
@@ -196,13 +204,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
         return undefined;
       })
-      .catch(error => {
+      .catch((error) => {
         console.log(`[API Trigger] ❌ Refresh error: ${error}`);
         logger.error(`[API Bookmarks Refresh] Background refresh error:`, error);
         // Check if memory related
         if ((error as Error).message?.includes("memory")) {
-          console.log(`[API Trigger] ⚠️  Memory exhaustion detected - container restart may be needed`);
-          logger.error(`[API Bookmarks Refresh] Memory exhaustion detected. Container restart may be needed.`);
+          console.log(
+            `[API Trigger] ⚠️  Memory exhaustion detected - container restart may be needed`,
+          );
+          logger.error(
+            `[API Bookmarks Refresh] Memory exhaustion detected. Container restart may be needed.`,
+          );
         }
       })
       .finally(() => {
@@ -223,7 +235,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         refreshStarted: true,
         previousCount,
         changeDetected: previousIndex?.changeDetected ?? null,
-        lastFetchedAt: previousIndex?.lastFetchedAt ? new Date(previousIndex.lastFetchedAt).toISOString() : null,
+        lastFetchedAt: previousIndex?.lastFetchedAt
+          ? new Date(previousIndex.lastFetchedAt).toISOString()
+          : null,
         lastFetchedAtTs: previousIndex?.lastFetchedAt ?? null,
       },
     });
@@ -262,7 +276,9 @@ export async function GET(): Promise<NextResponse> {
         needsRefresh,
         bookmarksCount: index?.count || 0,
         lastFetchedAt: index?.lastFetchedAt ? new Date(index.lastFetchedAt).toISOString() : null,
-        lastAttemptedAt: index?.lastAttemptedAt ? new Date(index.lastAttemptedAt).toISOString() : null,
+        lastAttemptedAt: index?.lastAttemptedAt
+          ? new Date(index.lastAttemptedAt).toISOString()
+          : null,
         lastFetchedAtTs: index?.lastFetchedAt ?? null,
         lastAttemptedAtTs: index?.lastAttemptedAt ?? null,
         changeDetected: index?.changeDetected ?? null,

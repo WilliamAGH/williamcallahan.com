@@ -19,7 +19,12 @@ import {
   type FetchAbsLibraryItemsOptions,
 } from "@/types/schemas/book";
 import { absConfigSchema, type AbsConfig } from "@/types/schemas/env";
-import { absItemToBook, absItemsToBooks, absItemsToBookListItems, buildDirectCoverUrl } from "./transforms";
+import {
+  absItemToBook,
+  absItemsToBooks,
+  absItemsToBookListItems,
+  buildDirectCoverUrl,
+} from "./transforms";
 import { generateBookCoverBlur } from "./image-utils.server";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -77,7 +82,7 @@ const snapshotIsFresh = (
  */
 const cacheSnapshot = (books: Book[], timestamp?: number): void => {
   lastBooksSnapshot = {
-    booksById: new Map(books.map(book => [book.id, cloneBook(book)])),
+    booksById: new Map(books.map((book) => [book.id, cloneBook(book)])),
     fetchedAt: timestamp ?? 0, // Use provided timestamp or 0 (prerender-safe)
   };
 };
@@ -139,7 +144,9 @@ async function absApi<T>(path: string, validate: (data: unknown) => T): Promise<
  * @param options - Optional sorting configuration
  * @returns Array of library items, sorted by addedAt descending by default (newest first)
  */
-export async function fetchAbsLibraryItems(options: FetchAbsLibraryItemsOptions = {}): Promise<AbsLibraryItem[]> {
+export async function fetchAbsLibraryItems(
+  options: FetchAbsLibraryItemsOptions = {},
+): Promise<AbsLibraryItem[]> {
   const { libraryId } = getConfig();
   const { sort = "addedAt", desc = true } = options;
 
@@ -177,7 +184,7 @@ async function fetchBooksFresh(
   // Use direct AudioBookShelf URLs for server-side blur generation
   if (includeBlurPlaceholders) {
     const results = await Promise.allSettled(
-      books.map(async book => {
+      books.map(async (book) => {
         // Use direct URL for server-side fetch (not the proxied coverUrl)
         const directUrl = buildDirectCoverUrl(book.id, baseUrl, apiKey);
         book.coverBlurDataURL = await generateBookCoverBlur(directUrl);
@@ -186,7 +193,10 @@ async function fetchBooksFresh(
     // Log any failures for debugging without blocking the response
     results.forEach((result, index) => {
       if (result.status === "rejected") {
-        console.warn(`[AudioBookShelf] Blur placeholder failed for book index ${index}:`, result.reason);
+        console.warn(
+          `[AudioBookShelf] Blur placeholder failed for book index ${index}:`,
+          result.reason,
+        );
       }
     });
   }
@@ -271,7 +281,7 @@ export async function fetchBookListItemsWithFallback(
     // Use direct AudioBookShelf URLs for server-side blur generation
     if (includeBlurPlaceholders) {
       const results = await Promise.allSettled(
-        bookListItems.map(async book => {
+        bookListItems.map(async (book) => {
           // Use direct URL for server-side fetch (not the proxied coverUrl)
           const directUrl = buildDirectCoverUrl(book.id, baseUrl, apiKey);
           book.coverBlurDataURL = await generateBookCoverBlur(directUrl);
@@ -279,7 +289,10 @@ export async function fetchBookListItemsWithFallback(
       );
       results.forEach((result, index) => {
         if (result.status === "rejected") {
-          console.warn(`[AudioBookShelf] Blur placeholder failed for book list item index ${index}:`, result.reason);
+          console.warn(
+            `[AudioBookShelf] Blur placeholder failed for book list item index ${index}:`,
+            result.reason,
+          );
         }
       });
     }

@@ -156,7 +156,9 @@ describe("Search API: GET /api/search/all", () => {
      */
     it("should handle queries with special characters", async () => {
       const specialQuery = encodeURIComponent("test & special <characters>");
-      const request = new MockNextRequest(`http://localhost:3000/api/search/all?q=${specialQuery}`) as any;
+      const request = new MockNextRequest(
+        `http://localhost:3000/api/search/all?q=${specialQuery}`,
+      ) as any;
       const response = await GET(request);
 
       expect(response.status).toBe(200);
@@ -168,7 +170,9 @@ describe("Search API: GET /api/search/all", () => {
      */
     it("should return 400 for queries exceeding maximum length", async () => {
       const longQuery = "a".repeat(1000);
-      const request = new MockNextRequest(`http://localhost:3000/api/search/all?q=${longQuery}`) as any;
+      const request = new MockNextRequest(
+        `http://localhost:3000/api/search/all?q=${longQuery}`,
+      ) as any;
       const response = await GET(request);
       const data = await response.json();
 
@@ -183,10 +187,12 @@ describe("Search API: GET /api/search/all", () => {
      */
     it("should successfully manage concurrent requests", async () => {
       const queries = ["test1", "test2", "test3"];
-      const requests = queries.map(q => GET(new MockNextRequest(`http://localhost:3000/api/search/all?q=${q}`) as any));
+      const requests = queries.map((q) =>
+        GET(new MockNextRequest(`http://localhost:3000/api/search/all?q=${q}`) as any),
+      );
 
       const responses = await Promise.all(requests);
-      const results = await Promise.all(responses.map(r => r.json()));
+      const results = await Promise.all(responses.map((r) => r.json()));
 
       // All requests should succeed
       for (const response of responses) {

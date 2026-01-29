@@ -48,14 +48,18 @@ export function BackgroundInfo({
       setTimeout(() => {
         // Ensures layout is stable
         if (contentRef.current) {
-          const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+          const rootFontSize =
+            Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
           const collapsedHeightThreshold = 9 * rootFontSize; // max-h-36 == 9rem
           const lh = Number.parseFloat(getComputedStyle(contentRef.current).lineHeight);
           const buffer = Number.isFinite(lh) ? lh : 1 * rootFontSize; // scalable buffer
-          const isContentSignificantlyTaller = contentRef.current.scrollHeight > collapsedHeightThreshold + buffer;
+          const isContentSignificantlyTaller =
+            contentRef.current.scrollHeight > collapsedHeightThreshold + buffer;
 
           // Only update if the value actually changes to prevent unnecessary re-renders
-          setShowToggleButton(prev => (prev !== isContentSignificantlyTaller ? isContentSignificantlyTaller : prev));
+          setShowToggleButton((prev) =>
+            prev !== isContentSignificantlyTaller ? isContentSignificantlyTaller : prev,
+          );
         }
       }, 0);
     };
@@ -110,7 +114,12 @@ export function BackgroundInfo({
       </div>
 
       {/* Content: suppressHydrationWarning might still be helpful as a fallback */}
-      <div id={contentId} ref={contentRef} className={contentClasses} suppressHydrationWarning={true}>
+      <div
+        id={contentId}
+        ref={contentRef}
+        className={contentClasses}
+        suppressHydrationWarning={true}
+      >
         {children}
       </div>
 
@@ -127,7 +136,11 @@ export function BackgroundInfo({
             aria-controls={contentId}
           >
             {isExpanded ? "Read less" : "Read more"}
-            {isExpanded ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />}
+            {isExpanded ? (
+              <ChevronUp className="ml-1 h-4 w-4" />
+            ) : (
+              <ChevronDown className="ml-1 h-4 w-4" />
+            )}
           </button>
         </div>
       )}

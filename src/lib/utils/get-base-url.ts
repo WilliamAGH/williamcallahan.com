@@ -25,7 +25,11 @@ export function getBaseUrl(): string {
     const publicSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
     // Use NEXT_PUBLIC_SITE_URL if it's a valid, non-local URL
-    if (publicSiteUrl && !publicSiteUrl.includes("localhost") && !publicSiteUrl.includes("0.0.0.0")) {
+    if (
+      publicSiteUrl &&
+      !publicSiteUrl.includes("localhost") &&
+      !publicSiteUrl.includes("0.0.0.0")
+    ) {
       return trimTrailingSlash(publicSiteUrl);
     }
     // Otherwise, always fall back to the canonical production URL as a safety net

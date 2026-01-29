@@ -31,8 +31,14 @@ const loadCvPdfDocument = async () => {
     jest.doMock("@react-pdf/renderer", () => {
       const React = require("react");
       const createPrimitive = (tag: string) => {
-        const Primitive = ({ children, wrap: _wrap, ...props }: { children?: React.ReactNode; wrap?: unknown }) =>
-          React.createElement(tag, props, children);
+        const Primitive = ({
+          children,
+          wrap: _wrap,
+          ...props
+        }: {
+          children?: React.ReactNode;
+          wrap?: unknown;
+        }) => React.createElement(tag, props, children);
         Primitive.displayName = `Mock${tag.charAt(0).toUpperCase() + tag.slice(1)}`;
         return Primitive;
       };

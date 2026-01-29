@@ -97,7 +97,12 @@ export interface WindowInstanceInfo {
 
 export interface GlobalWindowRegistryContextType {
   windows: Record<string, WindowInstanceInfo>;
-  registerWindow: (id: string, icon: LucideIcon, title: string, initialState?: WindowStateValue) => void;
+  registerWindow: (
+    id: string,
+    icon: LucideIcon,
+    title: string,
+    initialState?: WindowStateValue,
+  ) => void;
   unregisterWindow: (id: string) => void;
   setWindowState: (id: string, state: WindowStateValue) => void;
   minimizeWindow: (id: string) => void;

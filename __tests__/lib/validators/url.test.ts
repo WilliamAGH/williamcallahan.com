@@ -91,7 +91,12 @@ describe("URL Validation Functions", () => {
     });
 
     it("should reject unsafe S3 keys", () => {
-      const invalidKeys = ["../../../etc/passwd", "/root/.ssh/id_rsa", "images/../../../secrets", "file\x00.txt"];
+      const invalidKeys = [
+        "../../../etc/passwd",
+        "/root/.ssh/id_rsa",
+        "images/../../../secrets",
+        "file\x00.txt",
+      ];
 
       for (const key of invalidKeys) {
         expect(validateS3Key(key)).toBe(false);
@@ -151,7 +156,8 @@ describe("URL Validation Functions", () => {
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
         "X-XSS-Protection": "1; mode=block",
-        "Content-Security-Policy": "default-src 'none'; img-src 'self' data: https:; style-src 'unsafe-inline'",
+        "Content-Security-Policy":
+          "default-src 'none'; img-src 'self' data: https:; style-src 'unsafe-inline'",
       });
     });
   });

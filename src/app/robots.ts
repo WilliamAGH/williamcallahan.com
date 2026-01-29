@@ -22,7 +22,8 @@ import type { MetadataRoute } from "next";
  */
 export default function robots(): MetadataRoute.Robots {
   const isProd =
-    process.env.DEPLOYMENT_ENV === "production" || process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
+    process.env.DEPLOYMENT_ENV === "production" ||
+    process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
 
   // Define common problematic paths to disallow in production
   // NOTE: In robots.txt, the most specific matching rule takes precedence; order here is for readability only

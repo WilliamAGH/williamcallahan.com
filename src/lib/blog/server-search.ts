@@ -48,7 +48,7 @@ async function getBlogSearchIndex(): Promise<MiniSearch<BlogPost>> {
     },
   });
 
-  const dedupedPosts = prepareDocumentsForIndexing(posts, "Blog Posts", post => post.slug);
+  const dedupedPosts = prepareDocumentsForIndexing(posts, "Blog Posts", (post) => post.slug);
   index.addAll(dedupedPosts);
 
   ServerCacheInstance.set(BLOG_INDEX_CACHE_KEY, index, BLOG_INDEX_TTL_SECONDS);
@@ -86,7 +86,7 @@ export async function searchBlogPostsServerSide(query: string): Promise<SearchRe
 
   // Map to SearchResult and keep a deterministic sort: score desc, then recency
   return rawResults
-    .map(result => ({
+    .map((result) => ({
       id: String(result.id),
       type: "blog-post" as const,
       title: result.title ?? "Untitled Post",

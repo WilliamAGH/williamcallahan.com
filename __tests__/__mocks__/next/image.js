@@ -8,7 +8,7 @@ const React = require("react");
 
 module.exports = {
   __esModule: true,
-  default: props => {
+  default: (props) => {
     const { src, alt, priority, fill, unoptimized, ...rest } = props;
 
     // Remove Next.js-specific props (not valid HTML attributes)

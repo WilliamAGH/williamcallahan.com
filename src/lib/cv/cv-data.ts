@@ -29,7 +29,11 @@ import type {
   CvProjectEntry,
 } from "@/types/cv";
 import { validateExperienceArray } from "@/types/experience";
-import { validateCertificationArray, validateClassArray, validateEducationArray } from "@/types/education";
+import {
+  validateCertificationArray,
+  validateClassArray,
+  validateEducationArray,
+} from "@/types/education";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
 
 const validatedExperiences = validateExperienceArray(experiences);
@@ -49,7 +53,7 @@ const parseExperienceRole = (role: string) => {
   const summary = rest.join(" - ").trim();
   const bullets = summary
     .split(/\.\s+/)
-    .map(item => item.trim().replace(/\.$/, ""))
+    .map((item) => item.trim().replace(/\.$/, ""))
     .filter(Boolean);
 
   return { headline, summary, bullets };
@@ -85,7 +89,7 @@ const toDisplayUrl = (href?: string | null) => {
 
 const buildExperienceEntries = (): readonly CvExperienceEntry[] =>
   validatedExperiences
-    .filter(experienceItem => experienceItem.cvFeatured)
+    .filter((experienceItem) => experienceItem.cvFeatured)
     .map((experienceItem): CvExperienceEntry => {
       const parsed = parseExperienceRole(experienceItem.role);
 
@@ -105,7 +109,7 @@ const buildExperienceEntries = (): readonly CvExperienceEntry[] =>
 
 const buildProjectEntries = (): readonly CvProjectEntry[] =>
   validatedProjects
-    .filter(project => project.cvFeatured)
+    .filter((project) => project.cvFeatured)
     .map(
       (project): CvProjectEntry => ({
         id: project.id ?? project.name,
@@ -118,7 +122,7 @@ const buildProjectEntries = (): readonly CvProjectEntry[] =>
 
 const buildDegreeEntries = (): readonly CvDegreeEntry[] =>
   validatedEducationEntries
-    .filter(degree => degree.cvFeatured)
+    .filter((degree) => degree.cvFeatured)
     .map(
       (degree): CvDegreeEntry => ({
         id: degree.id,
@@ -131,7 +135,7 @@ const buildDegreeEntries = (): readonly CvDegreeEntry[] =>
 
 const buildCertificationEntries = (): readonly CvCertificationEntry[] =>
   validatedCertifications
-    .filter(certificationItem => certificationItem.cvFeatured)
+    .filter((certificationItem) => certificationItem.cvFeatured)
     .map(
       (certificationItem): CvCertificationEntry => ({
         id: certificationItem.id,
@@ -143,13 +147,16 @@ const buildCertificationEntries = (): readonly CvCertificationEntry[] =>
     );
 
 const buildCourseGroups = (): readonly CvCourseGroup[] => {
-  const featuredCourses = validatedRecentCourses.filter(course => course.cvFeatured);
-  const coursesByInstitution = featuredCourses.reduce<Map<string, CvCourseSummary[]>>((acc, course) => {
-    const current = acc.get(course.institution) ?? [];
-    current.push({ id: course.id, name: course.name, year: String(course.year) });
-    acc.set(course.institution, current);
-    return acc;
-  }, new Map());
+  const featuredCourses = validatedRecentCourses.filter((course) => course.cvFeatured);
+  const coursesByInstitution = featuredCourses.reduce<Map<string, CvCourseSummary[]>>(
+    (acc, course) => {
+      const current = acc.get(course.institution) ?? [];
+      current.push({ id: course.id, name: course.name, year: String(course.year) });
+      acc.set(course.institution, current);
+      return acc;
+    },
+    new Map(),
+  );
 
   return Array.from(coursesByInstitution.entries()).map(
     ([institution, courseList]): CvCourseGroup => ({
@@ -163,7 +170,8 @@ export const getCvData = (): CvData => {
   const siteUrl = siteMetadata.site?.url ?? "https://williamcallahan.com";
   const personalSiteHost = toDisplayHost(siteUrl) ?? "williamcallahan.com";
   const aventureHost = toDisplayHost(CV_CONTACT_LINKS.aventureUrl) ?? "aventure.vc";
-  const linkedInLabel = toDisplayUrl(CV_CONTACT_LINKS.linkedInUrl) ?? "linkedin.com/in/williamacallahan";
+  const linkedInLabel =
+    toDisplayUrl(CV_CONTACT_LINKS.linkedInUrl) ?? "linkedin.com/in/williamacallahan";
 
   // Use build-time constant to avoid DYNAMIC_SERVER_USAGE errors in cached components
   const lastUpdatedDisplay = new Intl.DateTimeFormat("en-US", {

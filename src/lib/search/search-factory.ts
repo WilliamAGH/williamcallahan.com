@@ -56,7 +56,7 @@ function triggerBackgroundRefresh<TDoc, TResult extends SearchResult>(
 
   // Fire-and-forget: don't await, don't block
   void executeSearch(config, query)
-    .catch(err => {
+    .catch((err) => {
       console.error(`[SWR] Background refresh failed for ${config.cacheKey}:`, err);
     })
     .finally(() => {

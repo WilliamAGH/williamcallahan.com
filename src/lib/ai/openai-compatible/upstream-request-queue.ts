@@ -1,7 +1,10 @@
 import "server-only";
 
 import crypto from "node:crypto";
-import type { AiUpstreamQueuePosition, AiUpstreamQueueSnapshot } from "@/types/ai-openai-compatible";
+import type {
+  AiUpstreamQueuePosition,
+  AiUpstreamQueueSnapshot,
+} from "@/types/ai-openai-compatible";
 
 function createDeferred<T>(): {
   promise: Promise<T>;
@@ -70,7 +73,7 @@ export class UpstreamRequestQueue {
     for (const priority of this.prioritiesDesc) {
       const tasks = this.pendingByPriority.get(priority);
       if (!tasks || tasks.length === 0) continue;
-      const index = tasks.findIndex(task => task.id === taskId);
+      const index = tasks.findIndex((task) => task.id === taskId);
       if (index !== -1) {
         return {
           ...this.snapshot,
@@ -158,7 +161,7 @@ export class UpstreamRequestQueue {
     for (const priority of this.prioritiesDesc) {
       const tasks = this.pendingByPriority.get(priority);
       if (!tasks || tasks.length === 0) continue;
-      const next = tasks.filter(task => task.id !== taskId);
+      const next = tasks.filter((task) => task.id !== taskId);
       if (next.length !== tasks.length) {
         removed = true;
         if (next.length === 0) {
@@ -232,11 +235,11 @@ export class UpstreamRequestQueue {
 
         void task
           .run()
-          .then(value => {
+          .then((value) => {
             task.result.resolve(value);
             return undefined;
           })
-          .catch(error => {
+          .catch((error) => {
             task.result.reject(error);
           })
           .finally(() => {
@@ -252,7 +255,10 @@ export class UpstreamRequestQueue {
 
 const queues = new Map<string, UpstreamRequestQueue>();
 
-export function getUpstreamRequestQueue(args: { key: string; maxParallel: number }): UpstreamRequestQueue {
+export function getUpstreamRequestQueue(args: {
+  key: string;
+  maxParallel: number;
+}): UpstreamRequestQueue {
   const existing = queues.get(args.key);
   if (existing) {
     existing.setMaxParallel(args.maxParallel);

@@ -7,7 +7,10 @@
  */
 
 import type MiniSearch from "minisearch";
-import type { AggregatedTag as AggregatedTagShape, SearchResult as SearchResultShape } from "./schemas/search";
+import type {
+  AggregatedTag as AggregatedTagShape,
+  SearchResult as SearchResultShape,
+} from "./schemas/search";
 
 // Re-export all types and schemas from the Zod schemas file (source of truth)
 export {

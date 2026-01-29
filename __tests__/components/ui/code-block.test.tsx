@@ -73,12 +73,18 @@ const x = 1;
 const y = 2;`}
         </CodeBlock>,
       );
-      expect(screen.getByTestId("copy-button")).toHaveAttribute("data-content", "const x = 1;\nconst y = 2;");
+      expect(screen.getByTestId("copy-button")).toHaveAttribute(
+        "data-content",
+        "const x = 1;\nconst y = 2;",
+      );
     });
 
     it("handles array of children", () => {
       render(<CodeBlock>{["const x = 1;", <span key="span">const y = 2;</span>]}</CodeBlock>);
-      expect(screen.getByTestId("copy-button")).toHaveAttribute("data-content", "const x = 1;const y = 2;");
+      expect(screen.getByTestId("copy-button")).toHaveAttribute(
+        "data-content",
+        "const x = 1;const y = 2;",
+      );
     });
 
     it("handles null and undefined children", () => {
@@ -136,7 +142,10 @@ const y = 2;`}
           <div>{"first line\nsecond line"}</div>
         </CodeBlock>,
       );
-      expect(screen.getByTestId("copy-button")).toHaveAttribute("data-content", "first line\nsecond line");
+      expect(screen.getByTestId("copy-button")).toHaveAttribute(
+        "data-content",
+        "first line\nsecond line",
+      );
     });
   });
 

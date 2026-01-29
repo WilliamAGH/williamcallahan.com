@@ -43,12 +43,18 @@ export interface ResponsiveTableContainerProps extends React.HTMLAttributes<HTML
 }
 
 // MDX Table Component Types
-export type TableProps = React.DetailedHTMLProps<React.TableHTMLAttributes<HTMLTableElement>, HTMLTableElement>;
+export type TableProps = React.DetailedHTMLProps<
+  React.TableHTMLAttributes<HTMLTableElement>,
+  HTMLTableElement
+>;
 export type TheadProps = React.DetailedHTMLProps<
   React.HTMLAttributes<HTMLTableSectionElement>,
   HTMLTableSectionElement
 >;
-export type TrProps = React.DetailedHTMLProps<React.HTMLAttributes<HTMLTableRowElement>, HTMLTableRowElement>;
+export type TrProps = React.DetailedHTMLProps<
+  React.HTMLAttributes<HTMLTableRowElement>,
+  HTMLTableRowElement
+>;
 export type ThProps = React.DetailedHTMLProps<
   React.ThHTMLAttributes<HTMLTableHeaderCellElement>,
   HTMLTableHeaderCellElement

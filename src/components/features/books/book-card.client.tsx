@@ -21,7 +21,13 @@ export function BookCard({ book, priority = false }: BookCardProps): React.JSX.E
   const isFullBook = (b: BookListItem | Book): b is Book => "formats" in b;
   const fullBook = isFullBook(book) ? book : null;
 
-  const slug = generateBookSlug(book.title, book.id, book.authors, fullBook?.isbn13, fullBook?.isbn10);
+  const slug = generateBookSlug(
+    book.title,
+    book.id,
+    book.authors,
+    fullBook?.isbn13,
+    fullBook?.isbn10,
+  );
   const href = `/books/${slug}`;
 
   return (
@@ -73,7 +79,9 @@ export function BookCard({ book, priority = false }: BookCardProps): React.JSX.E
               <span className="line-clamp-2">{book.authors.join(", ")}</span>
             </p>
           ) : (
-            <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 italic">Unknown author</p>
+            <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 italic">
+              Unknown author
+            </p>
           )}
         </div>
 

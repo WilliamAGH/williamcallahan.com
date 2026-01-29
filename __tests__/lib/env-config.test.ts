@@ -177,7 +177,7 @@ describe("Environment Variable Configuration", () => {
      * Validates graceful handling of missing critical environment variables
      * Ensures application doesn't crash when essential config is absent but handles degradation properly
      */
-    it.each(criticalVars)("should handle missing %s gracefully", varName => {
+    it.each(criticalVars)("should handle missing %s gracefully", (varName) => {
       Reflect.deleteProperty(process.env, varName);
 
       /** The application should not crash when these are missing */

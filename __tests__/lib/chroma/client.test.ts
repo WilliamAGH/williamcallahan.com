@@ -8,7 +8,7 @@ import { ChromaCloudConfigSchema } from "@/types/schemas/chroma";
 
 // Mock chromadb before importing the client
 jest.mock("chromadb", () => ({
-  CloudClient: jest.fn().mockImplementation(config => ({
+  CloudClient: jest.fn().mockImplementation((config) => ({
     _config: config,
     getOrCreateCollection: jest.fn().mockResolvedValue({
       name: "test-collection",

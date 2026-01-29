@@ -139,7 +139,7 @@ export function getExcludedContentTypes(): RelatedContentType[] {
  */
 export function getEnabledContentTypes(): RelatedContentType[] {
   const excluded = new Set(getExcludedContentTypes());
-  return ALL_CONTENT_TYPES.filter(type => !excluded.has(type));
+  return ALL_CONTENT_TYPES.filter((type) => !excluded.has(type));
 }
 
 /**
@@ -171,7 +171,7 @@ export function getOrderedContentTypes(sourceType?: RelatedContentType): Related
   }
 
   // Put source type first, then the rest in original order
-  const rest = enabled.filter(type => type !== sourceType);
+  const rest = enabled.filter((type) => type !== sourceType);
 
   // Only include sourceType if it's enabled
   if (enabled.includes(sourceType)) {

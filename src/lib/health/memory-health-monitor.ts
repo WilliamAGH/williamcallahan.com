@@ -86,7 +86,11 @@ export class MemoryHealthMonitor extends EventEmitter {
 
     // Determine status based on current RSS
     const status =
-      usage.rss > this.criticalThreshold ? "critical" : usage.rss > this.warningThreshold ? "warning" : "healthy";
+      usage.rss > this.criticalThreshold
+        ? "critical"
+        : usage.rss > this.warningThreshold
+          ? "warning"
+          : "healthy";
 
     // Return 503 for critical status (remove from load balancer)
     if (status === "critical") {
@@ -268,7 +272,8 @@ export class MemoryHealthMonitor extends EventEmitter {
     const usage = process.memoryUsage();
 
     // Calculate memory fragmentation
-    const heapFragmentation = usage.heapTotal > 0 ? ((usage.heapTotal - usage.heapUsed) / usage.heapTotal) * 100 : 0;
+    const heapFragmentation =
+      usage.heapTotal > 0 ? ((usage.heapTotal - usage.heapUsed) / usage.heapTotal) * 100 : 0;
 
     // External memory ratio (buffers, C++ objects)
     const externalRatio = usage.rss > 0 ? (usage.external / usage.rss) * 100 : 0;
@@ -296,7 +301,8 @@ export class MemoryHealthMonitor extends EventEmitter {
             external: memoryUsage.external,
             arrayBuffers: memoryUsage.arrayBuffers,
             // Calculate derived metrics
-            heapUtilization: memoryUsage.heapTotal > 0 ? (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100 : 0,
+            heapUtilization:
+              memoryUsage.heapTotal > 0 ? (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100 : 0,
             // V8 version info
             v8Version: process.versions.v8,
           };
@@ -327,7 +333,11 @@ export class MemoryHealthMonitor extends EventEmitter {
         // Memory pressure indicators
         isUnderPressure: usage.rss > this.warningThreshold,
         pressureLevel:
-          usage.rss > this.criticalThreshold ? "critical" : usage.rss > this.warningThreshold ? "warning" : "normal",
+          usage.rss > this.criticalThreshold
+            ? "critical"
+            : usage.rss > this.warningThreshold
+              ? "warning"
+              : "normal",
         // Memory growth rate (if history available)
         growthRate: this.calculateMemoryGrowthRate(),
       },
@@ -439,7 +449,10 @@ export function getMemoryHealthMonitor(): MemoryHealthMonitor {
  * Adds an `X-Memory-Status` header to each response to surface current memory
  * state and returns the underlying `HealthCheckResult` for optional logging.
  */
-export function memoryHealthCheckMiddleware(req: MiddlewareRequest, res: MiddlewareResponse): HealthCheckResult {
+export function memoryHealthCheckMiddleware(
+  req: MiddlewareRequest,
+  res: MiddlewareResponse,
+): HealthCheckResult {
   void req; // Explicitly mark as unused per project convention
   const monitor = getMemoryHealthMonitor();
   const health = monitor.getHealthStatus();

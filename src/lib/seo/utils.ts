@@ -47,7 +47,9 @@ export function ensureAbsoluteUrl(path: string): string {
   const cleanPath = path.replace(/^\/+/, "");
 
   // Prepend the site URL (with trailing slash if needed)
-  const baseUrl = NEXT_PUBLIC_SITE_URL.endsWith("/") ? NEXT_PUBLIC_SITE_URL : `${NEXT_PUBLIC_SITE_URL}/`;
+  const baseUrl = NEXT_PUBLIC_SITE_URL.endsWith("/")
+    ? NEXT_PUBLIC_SITE_URL
+    : `${NEXT_PUBLIC_SITE_URL}/`;
 
   return `${baseUrl}${cleanPath}`;
 }
@@ -111,7 +113,7 @@ function getPacificDateParts(date: Date): {
   offset: string;
 } {
   const parts = PACIFIC_DATE_FORMATTER.formatToParts(date);
-  const partMap = new Map(parts.map(part => [part.type, part.value]));
+  const partMap = new Map(parts.map((part) => [part.type, part.value]));
   const year = partMap.get("year") ?? "0000";
   const month = partMap.get("month") ?? "01";
   const day = partMap.get("day") ?? "01";
@@ -119,7 +121,14 @@ function getPacificDateParts(date: Date): {
   const minutes = partMap.get("minute") ?? "00";
   const seconds = partMap.get("second") ?? "00";
   const offsetMinutes = Math.round(
-    (Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hours), Number(minutes), Number(seconds)) -
+    (Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hours),
+      Number(minutes),
+      Number(seconds),
+    ) -
       date.getTime()) /
       60000,
   );
@@ -140,7 +149,9 @@ function getPacificDateParts(date: Date): {
 export function formatSeoDate(date: string | Date | undefined | number): PacificDateString {
   let inputDate = date;
   if (typeof inputDate === "number") {
-    throw new TypeError("Numeric timestamp inputs are not supported by formatSeoDate. Provide string or Date.");
+    throw new TypeError(
+      "Numeric timestamp inputs are not supported by formatSeoDate. Provide string or Date.",
+    );
   }
   if (!inputDate) {
     inputDate = new Date();

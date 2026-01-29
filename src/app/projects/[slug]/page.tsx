@@ -53,10 +53,10 @@ const TAG_CATEGORY_MAPPINGS: Array<{ patterns: string[]; category: string }> = [
  * @see {@link "https://schema.org/SoftwareApplication"} - SoftwareApplication specification
  */
 function deriveApplicationCategory(tags: string[]): string {
-  const lowerTags = tags.map(t => t.toLowerCase());
+  const lowerTags = tags.map((t) => t.toLowerCase());
 
   for (const { patterns, category } of TAG_CATEGORY_MAPPINGS) {
-    if (lowerTags.some(tag => patterns.some(pattern => tag.includes(pattern)))) {
+    if (lowerTags.some((tag) => patterns.some((pattern) => tag.includes(pattern)))) {
       return category;
     }
   }
@@ -76,7 +76,10 @@ function buildProjectOgImageUrl(project: Project): string {
       // Convert S3 key to CDN URL
       return buildCdnUrl(project.imageKey, getCdnConfigFromEnv());
     } catch (error) {
-      console.warn(`[ProjectMetadata] Failed to build CDN URL for project ${project.name}, using fallback`, error);
+      console.warn(
+        `[ProjectMetadata] Failed to build CDN URL for project ${project.name}, using fallback`,
+        error,
+      );
       // Fallback if CDN config is missing (e.g. in dev without env vars)
       return ensureAbsoluteUrl(DEFAULT_PROJECT_OG_IMAGE);
     }
@@ -194,7 +197,11 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
         <div className="mt-12">
           <Suspense fallback={<RelatedContentFallback title="Related Content" />}>
-            <RelatedContent sourceType="project" sourceId={projectId} sectionTitle="Related Content" />
+            <RelatedContent
+              sourceType="project"
+              sourceId={projectId}
+              sectionTitle="Related Content"
+            />
           </Suspense>
         </div>
       </div>

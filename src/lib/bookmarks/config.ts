@@ -52,7 +52,8 @@ const isRunningInDocker = process.env.RUNNING_IN_DOCKER === "true";
  * This ensures Docker runtimes can serve cached data even when S3/CDN is offline.
  */
 export const shouldSkipLocalS3Cache =
-  !forceLocalS3Cache && (isBuildPhase || (!allowRuntimeFallback && isRunningInDocker && isRuntimePhase));
+  !forceLocalS3Cache &&
+  (isBuildPhase || (!allowRuntimeFallback && isRunningInDocker && isRuntimePhase));
 
 /**
  * Simplified skip check for slug-manager (original behavior).
@@ -80,7 +81,9 @@ const PARSED_MAX_TAGS = RAW_MAX_TAGS != null ? Number(RAW_MAX_TAGS) : Number.NaN
  * Defaults to unlimited (MAX_SAFE_INTEGER) when not set or invalid.
  */
 export const MAX_TAGS_TO_PERSIST =
-  Number.isFinite(PARSED_MAX_TAGS) && PARSED_MAX_TAGS > 0 ? Math.floor(PARSED_MAX_TAGS) : Number.MAX_SAFE_INTEGER;
+  Number.isFinite(PARSED_MAX_TAGS) && PARSED_MAX_TAGS > 0
+    ? Math.floor(PARSED_MAX_TAGS)
+    : Number.MAX_SAFE_INTEGER;
 
 // Log warning for invalid MAX_TAGS_TO_PERSIST values
 if (RAW_MAX_TAGS && (!Number.isFinite(PARSED_MAX_TAGS) || PARSED_MAX_TAGS <= 0)) {

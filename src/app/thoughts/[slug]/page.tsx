@@ -123,7 +123,11 @@ export default async function ThoughtPage({ params }: ThoughtPageContext) {
       {/* Related Content Section */}
       <div className="bg-gradient-to-b from-transparent to-zinc-50/50 dark:to-zinc-900/30">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-          <Suspense fallback={<RelatedContentFallback title="Related Thoughts" className="relative" cardCount={3} />}>
+          <Suspense
+            fallback={
+              <RelatedContentFallback title="Related Thoughts" className="relative" cardCount={3} />
+            }
+          >
             <RelatedContent
               sourceType="thought"
               sourceId={thought.id}

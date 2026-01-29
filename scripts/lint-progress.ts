@@ -39,7 +39,9 @@ function parseLintOutput(output: string): LintStats {
   };
 
   // Parse the summary line (e.g., "✖ 20 problems (8 errors, 12 warnings)")
-  const summaryMatch = output.match(/✖\s+(\d+)\s+problems?\s+\((\d+)\s+errors?,\s+(\d+)\s+warnings?\)/);
+  const summaryMatch = output.match(
+    /✖\s+(\d+)\s+problems?\s+\((\d+)\s+errors?,\s+(\d+)\s+warnings?\)/,
+  );
   if (summaryMatch) {
     stats.totalIssues = parseInt(summaryMatch[1] || "0", 10);
     stats.errors = parseInt(summaryMatch[2] || "0", 10);
@@ -116,7 +118,9 @@ function formatOutput(current: LintStats, previous?: LintStats): void {
     console.log(
       `   Total: ${totalDiff >= 0 ? "+" : ""}${totalDiff} (${previous.totalIssues} → ${current.totalIssues})`,
     );
-    console.log(`   Errors: ${errorDiff >= 0 ? "+" : ""}${errorDiff} (${previous.errors} → ${current.errors})`);
+    console.log(
+      `   Errors: ${errorDiff >= 0 ? "+" : ""}${errorDiff} (${previous.errors} → ${current.errors})`,
+    );
     console.log(
       `   Warnings: ${warningDiff >= 0 ? "+" : ""}${warningDiff} (${previous.warnings} → ${current.warnings})`,
     );

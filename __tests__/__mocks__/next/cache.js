@@ -33,7 +33,7 @@ const cache = unstableCache;
 if (typeof jest !== "undefined") {
   jest.mock("react", () => ({
     ...jest.requireActual("react"),
-    cache: jest.fn(fn => fn), // Pass-through for tests
+    cache: jest.fn((fn) => fn), // Pass-through for tests
   }));
 }
 

@@ -12,7 +12,11 @@ import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { BookmarksIndex, BookmarkSlugMapping } from "@/types/bookmark";
 import type { ReadJsonResult } from "@/types/lib";
-import { getEnvironment, getEnvironmentSuffix, logEnvironmentConfig } from "@/lib/config/environment";
+import {
+  getEnvironment,
+  getEnvironmentSuffix,
+  logEnvironmentConfig,
+} from "@/lib/config/environment";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 
 function unauthorized() {
@@ -71,20 +75,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   ]);
 
   // If index shows multiple pages, spot-check next 2 pages
-  const totalPages = typeof indexRes.parsed?.totalPages === "number" ? indexRes.parsed.totalPages : 0;
+  const totalPages =
+    typeof indexRes.parsed?.totalPages === "number" ? indexRes.parsed.totalPages : 0;
   const extraPageKeys: string[] = [];
   if (totalPages >= 2) extraPageKeys.push(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}2.json`);
   if (totalPages >= 3) extraPageKeys.push(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}3.json`);
 
   const extraPageChecks: ReadonlyArray<ReadJsonResult<unknown>> = extraPageKeys.length
-    ? await Promise.all(extraPageKeys.map(k => tryReadJson<unknown>(k)))
+    ? await Promise.all(extraPageKeys.map((k) => tryReadJson<unknown>(k)))
     : [];
 
   // Compute health flags
   const datasetOk = fileRes.ok;
   const indexOk = indexRes.ok && typeof indexRes.parsed?.totalPages === "number";
   const firstPageOk = page1Res.ok || totalPages === 0; // If no pages expected, don’t fail on page-1
-  const extraPagesOk = extraPageChecks.every(r => r.ok) || totalPages <= 1;
+  const extraPagesOk = extraPageChecks.every((r) => r.ok) || totalPages <= 1;
   const slugMapOk =
     slugMapRes.ok &&
     slugMapRes.parsed != null &&

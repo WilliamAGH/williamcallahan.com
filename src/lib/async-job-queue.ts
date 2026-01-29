@@ -17,7 +17,9 @@ export class AsyncJobQueue extends EventEmitter {
       // throw new Error('Queue is full. Cannot add more jobs.');
 
       // Option 2: Log a warning and drop the job
-      console.warn(`[AsyncJobQueue] Queue is full (max size: ${this.maxQueueSize}). Dropping new job.`);
+      console.warn(
+        `[AsyncJobQueue] Queue is full (max size: ${this.maxQueueSize}). Dropping new job.`,
+      );
       return;
 
       // Option 3: Implement a more sophisticated backpressure mechanism if needed

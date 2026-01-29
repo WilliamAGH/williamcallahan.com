@@ -19,12 +19,17 @@ import { getErrorMessage } from "@/types/api-responses";
 export async function POST(): Promise<NextResponse> {
   // Check if we're in a non-production environment
   const isProduction =
-    process.env.DEPLOYMENT_ENV === "production" || process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
+    process.env.DEPLOYMENT_ENV === "production" ||
+    process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
 
   if (isProduction) {
-    envLogger.log("Production refresh endpoint called from production environment - not allowed", undefined, {
-      category: "BookmarksRefresh",
-    });
+    envLogger.log(
+      "Production refresh endpoint called from production environment - not allowed",
+      undefined,
+      {
+        category: "BookmarksRefresh",
+      },
+    );
     return NextResponse.json(
       { message: "This endpoint is only available in non-production environments" },
       { status: 403 },
@@ -32,13 +37,21 @@ export async function POST(): Promise<NextResponse> {
   }
 
   // Get the production refresh secret
-  const refreshSecret = process.env.BOOKMARK_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+  const refreshSecret =
+    process.env.BOOKMARK_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
 
   if (!refreshSecret) {
-    envLogger.log("BOOKMARK_REFRESH_SECRET not configured - cannot trigger production refresh", undefined, {
-      category: "BookmarksRefresh",
-    });
-    return NextResponse.json({ message: "Server configuration error: refresh secret not set" }, { status: 500 });
+    envLogger.log(
+      "BOOKMARK_REFRESH_SECRET not configured - cannot trigger production refresh",
+      undefined,
+      {
+        category: "BookmarksRefresh",
+      },
+    );
+    return NextResponse.json(
+      { message: "Server configuration error: refresh secret not set" },
+      { status: 500 },
+    );
   }
 
   try {
@@ -83,7 +96,11 @@ export async function POST(): Promise<NextResponse> {
 
     const result: unknown = await response.json();
 
-    envLogger.log("Production bookmarks refresh triggered successfully", { result }, { category: "BookmarksRefresh" });
+    envLogger.log(
+      "Production bookmarks refresh triggered successfully",
+      { result },
+      { category: "BookmarksRefresh" },
+    );
 
     return NextResponse.json({
       message: "Production bookmarks refresh initiated successfully",

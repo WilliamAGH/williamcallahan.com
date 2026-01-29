@@ -10,7 +10,11 @@
 import type { CacheDurationProfile } from "@/types/cache-profile";
 import { CACHE_TTL, USE_NEXTJS_CACHE } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
-import { cacheLife as nextCacheLife, cacheTag as nextCacheTag, revalidateTag as nextRevalidateTag } from "next/cache";
+import {
+  cacheLife as nextCacheLife,
+  cacheTag as nextCacheTag,
+  revalidateTag as nextRevalidateTag,
+} from "next/cache";
 
 // Re-export for backward compatibility
 export { CACHE_TTL, USE_NEXTJS_CACHE };
@@ -27,14 +31,22 @@ export const isCliLikeCacheContext = (): boolean => {
   );
 };
 
-const logCacheError = (category: string, action: "cacheLife" | "cacheTag" | "revalidateTag", error: unknown): void => {
+const logCacheError = (
+  category: string,
+  action: "cacheLife" | "cacheTag" | "revalidateTag",
+  error: unknown,
+): void => {
   const message = error instanceof Error ? error.message : String(error);
   const isDevelopment = process.env.NODE_ENV === "development";
   const isCliContext = isCliLikeCacheContext();
 
   // Always log cache errors, but use appropriate level
   if (isDevelopment && !isCliContext && !process.env.SUPPRESS_CACHE_WARNINGS) {
-    envLogger.debug("Cache API unavailable", { action, error: message }, { category: `Cache:${category}` });
+    envLogger.debug(
+      "Cache API unavailable",
+      { action, error: message },
+      { category: `Cache:${category}` },
+    );
   } else if (!isCliContext) {
     // In production, still log for monitoring
     envLogger.log("Cache API error", { action, error: message }, { category: `Cache:${category}` });
@@ -97,7 +109,10 @@ export function getCacheProfile(ttlSeconds: number): CacheDurationProfile {
 /**
  * Error boundary for cache fallbacks
  */
-export async function withCacheFallback<T>(cachedFn: () => Promise<T>, fallbackFn: () => Promise<T>): Promise<T> {
+export async function withCacheFallback<T>(
+  cachedFn: () => Promise<T>,
+  fallbackFn: () => Promise<T>,
+): Promise<T> {
   try {
     return await cachedFn();
   } catch (error) {

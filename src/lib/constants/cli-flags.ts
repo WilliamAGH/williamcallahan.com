@@ -80,7 +80,7 @@ export function hasFlag(args: readonly string[], flag: DataUpdaterFlag): boolean
  * ```
  */
 export function getFlagValue(args: readonly string[], flagPrefix: string): string | undefined {
-  const arg = args.find(a => a.startsWith(flagPrefix));
+  const arg = args.find((a) => a.startsWith(flagPrefix));
   return arg?.split("=")[1];
 }
 

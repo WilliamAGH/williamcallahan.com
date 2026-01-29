@@ -71,7 +71,9 @@ export class UploadPartCommand {
   ) {}
 }
 export class CompleteMultipartUploadCommand {
-  constructor(public input: { Bucket: string; Key: string; UploadId: string; MultipartUpload?: unknown }) {}
+  constructor(
+    public input: { Bucket: string; Key: string; UploadId: string; MultipartUpload?: unknown },
+  ) {}
 }
 export class AbortMultipartUploadCommand {
   constructor(public input: { Bucket: string; Key: string; UploadId: string }) {}
@@ -115,7 +117,8 @@ export class S3Client {
     // Multipart upload commands - all blocked in dev
     if (cmd instanceof CreateMultipartUploadCommand) return this.handleCreateMultipartUpload(cmd);
     if (cmd instanceof UploadPartCommand) return this.handleUploadPart(cmd);
-    if (cmd instanceof CompleteMultipartUploadCommand) return this.handleCompleteMultipartUpload(cmd);
+    if (cmd instanceof CompleteMultipartUploadCommand)
+      return this.handleCompleteMultipartUpload(cmd);
     if (cmd instanceof AbortMultipartUploadCommand) return this.handleAbortMultipartUpload(cmd);
     if (cmd instanceof PutObjectTaggingCommand) return this.handlePutObjectTagging(cmd);
     throw new Error("Unsupported S3 command in dev stub");

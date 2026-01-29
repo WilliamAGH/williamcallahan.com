@@ -36,7 +36,10 @@ export function getBufferHash(buffer: Buffer): string {
  * Generate cache key from multiple inputs
  * Filters out falsy values and joins with delimiter
  */
-export function getCacheKey(inputs: (string | number | boolean | undefined | null)[], delimiter = ":"): string {
+export function getCacheKey(
+  inputs: (string | number | boolean | undefined | null)[],
+  delimiter = ":",
+): string {
   const filtered = inputs.filter(Boolean);
   const combined = filtered.join(delimiter);
   return generateHash(combined);
@@ -116,7 +119,11 @@ export function getFileExtension(url?: string, contentType?: string): string {
  * @param extension - The file extension of the image.
  * @returns The full S3 key for the OpenGraph image.
  */
-export function generateOpenGraphImageKey(url: string, bookmarkId: string, extension: string): string {
+export function generateOpenGraphImageKey(
+  url: string,
+  bookmarkId: string,
+  extension: string,
+): string {
   const hash = getShortHash(`${url}:${bookmarkId}`);
   // Sanitize the domain from the URL to create a clean filename
   const domain = stripWwwPrefix(new URL(url).hostname).replace(/\./g, "-");
@@ -240,7 +247,10 @@ export function parseS3Key(key: string): import("@/types/s3-cdn").ParsedS3Key {
  * Type guard to verify a string is a valid LogoSource.
  */
 const isLogoSource = (value: unknown): value is LogoSource => {
-  return typeof value === "string" && ["google", "duckduckgo", "clearbit", "direct", "unknown"].includes(value);
+  return (
+    typeof value === "string" &&
+    ["google", "duckduckgo", "clearbit", "direct", "unknown"].includes(value)
+  );
 };
 
 /**
@@ -258,7 +268,7 @@ export async function findLegacyLogoKey(
   const prefix = `${IMAGE_S3_PATHS.LOGOS_DIR}/`;
   const keys = await listS3Objects(prefix);
   return (
-    keys.find(key => {
+    keys.find((key) => {
       const parsed = parseS3Key(key);
       return parsed.type === "logo" && parsed.domain === domain && !parsed.hash;
     }) || null
@@ -304,7 +314,10 @@ export async function hashAndArchiveManualLogo(
     console.log(`[LogoHashMigrator] Migrated manual logo ${candidateKey} → ${newKey}`);
     return newKey;
   } catch (err: unknown) {
-    console.error("[LogoHashMigrator] migration error:", err instanceof Error ? err : new Error(String(err)));
+    console.error(
+      "[LogoHashMigrator] migration error:",
+      err instanceof Error ? err : new Error(String(err)),
+    );
     return null;
   }
 }

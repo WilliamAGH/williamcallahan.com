@@ -29,9 +29,11 @@ export class UnifiedImageService {
   private readonly isDev = process.env.NODE_ENV !== "production";
   private readonly devProcessingDisabled =
     this.isDev &&
-    (process.env.DEV_DISABLE_IMAGE_PROCESSING === "1" || process.env.DEV_DISABLE_IMAGE_PROCESSING === "true");
+    (process.env.DEV_DISABLE_IMAGE_PROCESSING === "1" ||
+      process.env.DEV_DISABLE_IMAGE_PROCESSING === "true");
   private readonly devStreamImagesToS3 =
-    this.isDev && (process.env.DEV_STREAM_IMAGES_TO_S3 === "1" || process.env.DEV_STREAM_IMAGES_TO_S3 === "true");
+    this.isDev &&
+    (process.env.DEV_STREAM_IMAGES_TO_S3 === "1" || process.env.DEV_STREAM_IMAGES_TO_S3 === "true");
 
   /** 1x1 transparent PNG placeholder - used when image processing is disabled */
   private static readonly TRANSPARENT_PNG_PLACEHOLDER = Buffer.from(
@@ -49,8 +51,14 @@ export class UnifiedImageService {
 
   constructor() {
     // S3 utils already validate environment on first use
-    if (process.env.NODE_ENV === "production" && !process.env.S3_CDN_URL && !process.env.S3_BUCKET) {
-      throw new Error("UnifiedImageService: Either S3_CDN_URL or S3_BUCKET must be set in production.");
+    if (
+      process.env.NODE_ENV === "production" &&
+      !process.env.S3_CDN_URL &&
+      !process.env.S3_BUCKET
+    ) {
+      throw new Error(
+        "UnifiedImageService: Either S3_CDN_URL or S3_BUCKET must be set in production.",
+      );
     }
 
     // Initialize specialist modules
@@ -139,7 +147,9 @@ export class UnifiedImageService {
             await this.s3Ops.uploadToS3(s3Key, result.buffer, result.contentType);
           }
           const bufferForReturn =
-            retainBuffer && result.buffer ? Buffer.from(result.buffer) : (result.buffer ?? undefined);
+            retainBuffer && result.buffer
+              ? Buffer.from(result.buffer)
+              : (result.buffer ?? undefined);
           return {
             buffer: bufferForReturn,
             contentType: result.contentType,
@@ -263,7 +273,9 @@ export class UnifiedImageService {
         // No logo found in CDN - return error in read-only mode
         if (this.isReadOnly) {
           if (this.isDev) {
-            logger.info(`[UnifiedImageService] Read-only: logo not found in CDN for domain '${domain}'`);
+            logger.info(
+              `[UnifiedImageService] Read-only: logo not found in CDN for domain '${domain}'`,
+            );
           }
           return {
             domain,
@@ -281,7 +293,12 @@ export class UnifiedImageService {
         try {
           const logoData = await this.logoFetcher.fetchExternalLogo(domain);
           if (!logoData?.buffer) {
-            logoDebugger.logAttempt(domain, "external-fetch", "All external sources failed", "failed");
+            logoDebugger.logAttempt(
+              domain,
+              "external-fetch",
+              "All external sources failed",
+              "failed",
+            );
             throw new Error("No logo found");
           }
 
@@ -293,7 +310,11 @@ export class UnifiedImageService {
               extension: ext,
             });
             if (!this.isReadOnly)
-              await this.s3Ops.uploadToS3(s3KeyStreaming, logoData.buffer, logoData.contentType || "image/png");
+              await this.s3Ops.uploadToS3(
+                s3KeyStreaming,
+                logoData.buffer,
+                logoData.contentType || "image/png",
+              );
             const streamingResult = this.logoFetcher.buildLogoFetchResult(domain, {
               s3Key: s3KeyStreaming,
               url: logoData.url,
@@ -341,7 +362,8 @@ export class UnifiedImageService {
             }
           }
 
-          if (!this.isReadOnly) await this.s3Ops.uploadToS3(s3Key, finalBuffer, logoData.contentType || "image/png");
+          if (!this.isReadOnly)
+            await this.s3Ops.uploadToS3(s3Key, finalBuffer, logoData.contentType || "image/png");
           const result = this.logoFetcher.buildLogoFetchResult(domain, {
             s3Key,
             url: logoData.url,

@@ -122,7 +122,10 @@ export function ShareButton({ shareUrl }: BookmarkShareButtonProps): JSX.Element
           await clipboard.writeText(bookmarkUrl);
           copySucceeded = true;
         } catch (clipboardError) {
-          console.warn("navigator.clipboard.writeText failed, falling back to execCommand", clipboardError);
+          console.warn(
+            "navigator.clipboard.writeText failed, falling back to execCommand",
+            clipboardError,
+          );
         }
       }
 

@@ -27,7 +27,9 @@ import { getSlugCacheTTL } from "@/config/related-content.config";
 
 const CACHE_TTL_MS = getSlugCacheTTL();
 
-const normalizeReverseMap = (mapping: BookmarkSlugMapping): { normalized: BookmarkSlugMapping; rebuilt: boolean } => {
+const normalizeReverseMap = (
+  mapping: BookmarkSlugMapping,
+): { normalized: BookmarkSlugMapping; rebuilt: boolean } => {
   if (mapping.reverseMap && Object.keys(mapping.reverseMap).length > 0) {
     return { normalized: mapping, rebuilt: false };
   }
@@ -72,7 +74,10 @@ export function tryGetEmbeddedSlug(input: unknown): string | null {
  * @param bookmarks - Optional array of all bookmarks (used to generate mapping if needed)
  * @returns The slug for the bookmark, or null if not found
  */
-export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: UnifiedBookmark[]): Promise<string | null> {
+export async function getSafeBookmarkSlug(
+  bookmarkId: string,
+  bookmarks?: UnifiedBookmark[],
+): Promise<string | null> {
   // Try to use cached mapping first (check TTL)
   if (cachedMapping) {
     const age = getDeterministicTimestamp() - cachedMapping.timestamp;
@@ -85,7 +90,7 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
 
   // If bookmarks supplied, try embedded slug first
   if (bookmarks && Array.isArray(bookmarks)) {
-    const found = bookmarks.find(b => b.id === bookmarkId);
+    const found = bookmarks.find((b) => b.id === bookmarkId);
     const embeddedSlug = tryGetEmbeddedSlug(found);
     if (embeddedSlug) return embeddedSlug;
   }
@@ -134,7 +139,9 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
  * @param bookmarks - Array of bookmarks to get slugs for
  * @returns Map of bookmark ID to slug
  */
-export async function getBulkBookmarkSlugs(bookmarks: UnifiedBookmark[]): Promise<Map<string, string>> {
+export async function getBulkBookmarkSlugs(
+  bookmarks: UnifiedBookmark[],
+): Promise<Map<string, string>> {
   const slugMap = new Map<string, string>();
 
   // Fast path: use embedded slugs when present

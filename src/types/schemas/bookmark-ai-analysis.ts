@@ -25,7 +25,9 @@ export const bookmarkAiAnalysisContextualDetailsSchema = z.object({
   accessMethod: z.string().nullable(),
 });
 
-export type BookmarkAiAnalysisContextualDetails = z.infer<typeof bookmarkAiAnalysisContextualDetailsSchema>;
+export type BookmarkAiAnalysisContextualDetails = z.infer<
+  typeof bookmarkAiAnalysisContextualDetailsSchema
+>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Full Response Schema

@@ -40,9 +40,14 @@ export function Navigation() {
       {/* Desktop Navigation - keep sm:flex for test compatibility */}
       <div className="hidden sm:flex items-center">
         <div className="flex flex-wrap whitespace-nowrap space-x-1 items-center">
-          {navigationLinks.map(link =>
+          {navigationLinks.map((link) =>
             link.children && link.children.length > 0 ? (
-              <ExpandableNavItem key={link.path} link={link} currentPath={pathname} isMobile={false} />
+              <ExpandableNavItem
+                key={link.path}
+                link={link}
+                currentPath={pathname}
+                isMobile={false}
+              />
             ) : (
               <NavigationLink key={link.path} currentPath={pathname} {...link} />
             ),
@@ -56,9 +61,10 @@ export function Navigation() {
           data-testid="mobile-menu"
           className="sm:hidden absolute top-full left-0 right-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-2 z-[1005]"
         >
-          {navigationLinks.map(link => {
+          {navigationLinks.map((link) => {
             // Override responsive settings for Contact in mobile menu
-            const mobileProps = link.path === "/contact" ? { ...link, responsive: undefined } : link;
+            const mobileProps =
+              link.path === "/contact" ? { ...link, responsive: undefined } : link;
 
             // Render expandable items for links with children
             if (link.children && link.children.length > 0) {

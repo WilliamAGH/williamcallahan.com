@@ -9,7 +9,14 @@ import { z } from "zod/v4";
  * Content types that can be related/recommended.
  * Matches RelatedContentType from types/related-content.ts
  */
-export const relatedContentTypeSchema = z.enum(["bookmark", "blog", "investment", "project", "thought", "book"]);
+export const relatedContentTypeSchema = z.enum([
+  "bookmark",
+  "blog",
+  "investment",
+  "project",
+  "thought",
+  "book",
+]);
 
 export type RelatedContentTypeFromSchema = z.infer<typeof relatedContentTypeSchema>;
 

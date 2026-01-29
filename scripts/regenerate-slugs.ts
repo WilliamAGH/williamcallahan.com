@@ -6,7 +6,11 @@
 
 import "dotenv/config";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
-import { generateSlugMapping, saveSlugMapping, LOCAL_SLUG_MAPPING_PATH } from "@/lib/bookmarks/slug-manager";
+import {
+  generateSlugMapping,
+  saveSlugMapping,
+  LOCAL_SLUG_MAPPING_PATH,
+} from "@/lib/bookmarks/slug-manager";
 import type { UnifiedBookmark } from "@/types";
 
 /**
@@ -34,7 +38,11 @@ function validateBookmarks(data: unknown): UnifiedBookmark[] {
       throw new Error("[SlugRegen] Invalid bookmark: missing or invalid 'url' field");
     }
 
-    if (typeof bookmark.title !== "string" && bookmark.title !== null && bookmark.title !== undefined) {
+    if (
+      typeof bookmark.title !== "string" &&
+      bookmark.title !== null &&
+      bookmark.title !== undefined
+    ) {
       throw new Error("[SlugRegen] Invalid bookmark: 'title' must be string or null/undefined");
     }
   }
@@ -66,7 +74,7 @@ async function regenerateSlugs() {
     console.log("3. Sample mappings (first 5):");
     Object.values(mapping.slugs)
       .slice(0, 5)
-      .forEach(entry => {
+      .forEach((entry) => {
         console.log(`   ${entry.slug} -> ${entry.id}`);
       });
 

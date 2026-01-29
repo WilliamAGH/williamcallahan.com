@@ -75,7 +75,12 @@ export function BooksWindow({ children, windowTitle, windowId }: BooksWindowProp
     minimize: minimizeWindow,
     maximize: maximizeWindow,
     isRegistered,
-  }: RegisteredWindowState = useRegisteredWindowState(uniqueId, BookOpen as LucideIcon, restoreTitle, "normal");
+  }: RegisteredWindowState = useRegisteredWindowState(
+    uniqueId,
+    BookOpen as LucideIcon,
+    restoreTitle,
+    "normal",
+  );
 
   // Closed or minimized windows are hidden
   if (windowState === "closed" || windowState === "minimized") {

@@ -24,7 +24,9 @@ import type { JSX } from "react";
  * @param {ProjectsListServerProps} props - Component props
  * @returns {JSX.Element} Server-rendered projects list
  */
-export function ProjectsListServer({ projects: projectsProp }: ProjectsListServerProps): JSX.Element {
+export function ProjectsListServer({
+  projects: projectsProp,
+}: ProjectsListServerProps): JSX.Element {
   // Use provided projects or default to all projects
   const projectsToRender = projectsProp || projects;
 
@@ -32,8 +34,8 @@ export function ProjectsListServer({ projects: projectsProp }: ProjectsListServe
     <div className="p-6 sm:p-4">
       <div className="prose dark:prose-invert max-w-none mb-8 text-sm sm:text-base">
         <p>
-          Welcome to my coding lab! Here, I experiment with building things, share works-in-progress, and share my
-          current and past projects.{" "}
+          Welcome to my coding lab! Here, I experiment with building things, share
+          works-in-progress, and share my current and past projects.{" "}
         </p>
       </div>
 
@@ -42,7 +44,7 @@ export function ProjectsListServer({ projects: projectsProp }: ProjectsListServe
 
       {/* Projects List */}
       <div className="space-y-8 mt-8">
-        {projectsToRender.map(project => (
+        {projectsToRender.map((project) => (
           <div key={project.name}>
             <ProjectCardServer project={project} />
           </div>

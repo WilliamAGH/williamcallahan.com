@@ -21,7 +21,10 @@ import type {
 import { debug } from "@/lib/utils/debug";
 import { readBinaryS3 } from "@/lib/s3-utils";
 import { listRepoStatsFiles, writeAggregatedWeeklyActivityToS3 } from "./github-storage";
-import { AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, REPO_RAW_WEEKLY_STATS_S3_KEY_DIR } from "@/lib/constants";
+import {
+  AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE,
+  REPO_RAW_WEEKLY_STATS_S3_KEY_DIR,
+} from "@/lib/constants";
 
 /**
  * Creates an empty category stats object for LOC tracking
@@ -67,7 +70,9 @@ export function mapGraphQLContributionLevelToNumeric(
 /**
  * Convert GraphQL contribution calendar to flat array
  */
-export function flattenContributionCalendar(calendar: GraphQLContributionCalendar): ContributionDay[] {
+export function flattenContributionCalendar(
+  calendar: GraphQLContributionCalendar,
+): ContributionDay[] {
   const contributions: ContributionDay[] = [];
 
   for (const week of calendar.weeks) {
@@ -116,13 +121,15 @@ export function filterContributorStats(
   username: string,
 ): GithubContributorStatsEntry | undefined {
   const lowercaseUsername = username.toLowerCase();
-  return stats.find(stat => stat.author.login.toLowerCase() === lowercaseUsername);
+  return stats.find((stat) => stat.author.login.toLowerCase() === lowercaseUsername);
 }
 
 /**
  * Aggregate weekly stats across multiple repositories
  */
-export function aggregateWeeklyStats(repoStats: Array<{ stats: RepoRawWeeklyStat[] }>): AggregatedWeeklyActivity[] {
+export function aggregateWeeklyStats(
+  repoStats: Array<{ stats: RepoRawWeeklyStat[] }>,
+): AggregatedWeeklyActivity[] {
   const weeklyMap = new Map<string, { linesAdded: number; linesRemoved: number }>();
 
   for (const repo of repoStats) {
@@ -148,7 +155,9 @@ export function aggregateWeeklyStats(repoStats: Array<{ stats: RepoRawWeeklyStat
 /**
  * Categorize repository by type based on name patterns
  */
-export function categorizeRepository(repoName: string): "frontend" | "backend" | "dataEngineer" | "other" {
+export function categorizeRepository(
+  repoName: string,
+): "frontend" | "backend" | "dataEngineer" | "other" {
   const name = repoName.toLowerCase();
 
   // Frontend patterns
@@ -204,18 +213,23 @@ const DEFAULT_CSV_REPAIR_VALUES = { w: 0, a: 0, d: 0, c: 0 };
 /**
  * Repair CSV data by handling empty values
  */
-export function repairCsvData(csvContent: string, defaultValues = DEFAULT_CSV_REPAIR_VALUES): string {
+export function repairCsvData(
+  csvContent: string,
+  defaultValues = DEFAULT_CSV_REPAIR_VALUES,
+): string {
   const stats = parseGitHubStatsCSV(csvContent);
 
   // Check if repair is needed
-  const needsRepair = stats.some(stat => Object.values(stat).some(val => val === undefined || val === null));
+  const needsRepair = stats.some((stat) =>
+    Object.values(stat).some((val) => val === undefined || val === null),
+  );
 
   if (!needsRepair) {
     return csvContent;
   }
 
   // Repair by filling in defaults
-  const repaired = stats.map(stat => ({
+  const repaired = stats.map((stat) => ({
     w: stat.w ?? defaultValues.w,
     a: stat.a ?? defaultValues.a,
     d: stat.d ?? defaultValues.d,
@@ -234,7 +248,7 @@ export function validateContributionData(data: ContributionDay[]): boolean {
   }
 
   return data.every(
-    day =>
+    (day) =>
       typeof day.date === "string" &&
       typeof day.count === "number" &&
       typeof day.level === "number" &&
@@ -263,7 +277,7 @@ export function calculateContributionSummary(
 
   const filteredContributions =
     startDate && endDate
-      ? contributions.filter(day => {
+      ? contributions.filter((day) => {
           const date = new Date(day.date);
           return isDateInRange(date, startDate, endDate);
         })
@@ -320,7 +334,9 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
   const today = new Date();
   let s3StatFileKeys: string[] = [];
   try {
-    console.log(`[DataAccess/GitHub-S3] Listing objects in S3 with prefix: ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/`);
+    console.log(
+      `[DataAccess/GitHub-S3] Listing objects in S3 with prefix: ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/`,
+    );
     s3StatFileKeys = await listRepoStatsFiles();
     debug(`[DataAccess/GitHub-S3] Found ${s3StatFileKeys.length} potential stat files in S3.`);
   } catch (listError: unknown) {
@@ -332,7 +348,7 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
     await writeAggregatedWeeklyActivityToS3([]); // Write empty if listing fails
     return { aggregatedActivity: [], overallDataComplete: false };
   }
-  s3StatFileKeys = s3StatFileKeys.filter(key => key.endsWith(".csv"));
+  s3StatFileKeys = s3StatFileKeys.filter((key) => key.endsWith(".csv"));
   if (s3StatFileKeys.length === 0) {
     debug(
       `[DataAccess/GitHub-S3] Aggregation: No raw weekly stat files found in S3 path ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/. Nothing to aggregate.`,

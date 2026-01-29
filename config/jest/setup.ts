@@ -26,7 +26,7 @@ jest.mock("react", () => {
   const actual = jest.requireActual("react");
   return {
     ...actual,
-    cache: jest.fn(fn => fn), // Pass through function
+    cache: jest.fn((fn) => fn), // Pass through function
   };
 });
 
@@ -45,7 +45,7 @@ if (typeof ReactModule.act !== "function") {
 if (typeof window !== "undefined") {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
-    value: jest.fn().mockImplementation(query => ({
+    value: jest.fn().mockImplementation((query) => ({
       matches: false,
       media: query,
       onchange: null,
@@ -163,9 +163,11 @@ const SUPPRESSED_PATTERNS = [
 
 // Suppress noisy console.error logs during test runs
 const suppressedConsoleError = (...data: unknown[]) => {
-  const message = data.map(item => (typeof item === "string" ? item : JSON.stringify(item))).join(" ");
+  const message = data
+    .map((item) => (typeof item === "string" ? item : JSON.stringify(item)))
+    .join(" ");
 
-  const shouldSuppress = SUPPRESSED_PATTERNS.some(pattern => message.includes(pattern));
+  const shouldSuppress = SUPPRESSED_PATTERNS.some((pattern) => message.includes(pattern));
 
   if (!shouldSuppress) {
     originalError(...data);

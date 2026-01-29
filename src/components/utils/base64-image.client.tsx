@@ -10,7 +10,13 @@
 import Image, { type ImageProps } from "next/image";
 import { type JSX, useEffect, useState } from "react";
 
-export function Base64Image({ className = "", alt = "", width, height, ...props }: ImageProps): JSX.Element {
+export function Base64Image({
+  className = "",
+  alt = "",
+  width,
+  height,
+  ...props
+}: ImageProps): JSX.Element {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {

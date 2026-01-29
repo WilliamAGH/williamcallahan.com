@@ -21,7 +21,10 @@ export function generateRequestId(): string {
 /**
  * Run a function with a request context
  */
-export async function withRequestContext<T>(context: RequestContext, fn: () => Promise<T>): Promise<T> {
+export async function withRequestContext<T>(
+  context: RequestContext,
+  fn: () => Promise<T>,
+): Promise<T> {
   return asyncLocalStorage.run(context, fn);
 }
 
@@ -78,7 +81,8 @@ export function logWithContext(
   const entry = createLogEntry(level, message, data);
 
   // Use appropriate console method based on level
-  const logMethod = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
+  const logMethod =
+    level === "error" ? console.error : level === "warn" ? console.warn : console.log;
 
   if (process.env.NODE_ENV === "production") {
     // In production, log as JSON for better parsing

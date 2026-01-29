@@ -12,7 +12,11 @@
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { searchBookmarks } from "@/lib/search";
-import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
+import {
+  applySearchGuards,
+  createSearchErrorResponse,
+  withNoStoreHeaders,
+} from "@/lib/search/api-guards";
 import { validateSearchQuery } from "@/lib/validators/search";
 import type { UnifiedBookmark } from "@/types";
 import { preventCaching } from "@/lib/utils/api-utils";
@@ -65,7 +69,10 @@ export async function GET(request: NextRequest) {
 
     const query = validation.sanitized;
     if (query.length === 0)
-      return NextResponse.json({ data: [], totalCount: 0, hasMore: false }, { headers: withNoStoreHeaders() });
+      return NextResponse.json(
+        { data: [], totalCount: 0, hasMore: false },
+        { headers: withNoStoreHeaders() },
+      );
 
     // Validate pagination params with defaults
     const pageParam = searchParams.get("page");
@@ -75,10 +82,16 @@ export async function GET(request: NextRequest) {
 
     // Validate the parsed values
     if (Number.isNaN(page) || page < 1) {
-      return NextResponse.json({ error: "Invalid page parameter" }, { status: 400, headers: withNoStoreHeaders() });
+      return NextResponse.json(
+        { error: "Invalid page parameter" },
+        { status: 400, headers: withNoStoreHeaders() },
+      );
     }
     if (Number.isNaN(limit) || limit < 1 || limit > 100) {
-      return NextResponse.json({ error: "Invalid limit parameter" }, { status: 400, headers: withNoStoreHeaders() });
+      return NextResponse.json(
+        { error: "Invalid limit parameter" },
+        { status: 400, headers: withNoStoreHeaders() },
+      );
     }
 
     // Get IDs of matching bookmarks via MiniSearch index (already score-sorted)
@@ -91,9 +104,9 @@ export async function GET(request: NextRequest) {
       skipExternalFetch: false,
       force: false,
     })) as UnifiedBookmark[];
-    const bookmarksById = new Map(fullDataset.map(bookmark => [bookmark.id, bookmark]));
+    const bookmarksById = new Map(fullDataset.map((bookmark) => [bookmark.id, bookmark]));
     const orderedMatches = searchResults
-      .map(result => bookmarksById.get(String(result.id)))
+      .map((result) => bookmarksById.get(String(result.id)))
       .filter((bookmark): bookmark is UnifiedBookmark => Boolean(bookmark));
 
     const totalCount = orderedMatches.length;

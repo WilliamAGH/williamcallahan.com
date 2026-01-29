@@ -34,9 +34,13 @@ import type { EducationCardClientProps } from "@/types/education";
  * @param {EducationCardClientProps} props - Component properties
  * @returns {JSX.Element} Rendered education card with pre-fetched logo
  */
-export function EducationCardClient({ education, className }: EducationCardClientProps): JSX.Element {
+export function EducationCardClient({
+  education,
+  className,
+}: EducationCardClientProps): JSX.Element {
   const { degree, institution, year, website, location, logoScale, logoData } = education;
-  const error: string | undefined = "error" in education ? (education as { error?: string }).error : undefined;
+  const error: string | undefined =
+    "error" in education ? (education as { error?: string }).error : undefined;
 
   const logoSrc = logoData?.url;
 
@@ -107,7 +111,11 @@ export function EducationCardClient({ education, className }: EducationCardClien
             </div>
             <div className="space-y-1">
               <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{degree}</p>
-              {location && <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{location}</p>}
+              {location && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                  {location}
+                </p>
+              )}
             </div>
           </div>
         </div>

@@ -9,11 +9,13 @@
 import type { Thought } from "@/types/schemas/thought";
 
 const REQUIRED_ENV_VARS = ["CHROMA_API_KEY", "CHROMA_TENANT", "CHROMA_DATABASE"] as const;
-const missingVars = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
+const missingVars = REQUIRED_ENV_VARS.filter((v) => !process.env[v]);
 const hasChromaConfig = missingVars.length === 0;
 
 if (!hasChromaConfig) {
-  console.warn(`[chroma-sync.test.ts] Skipping tests - missing env vars: ${missingVars.join(", ")}`);
+  console.warn(
+    `[chroma-sync.test.ts] Skipping tests - missing env vars: ${missingVars.join(", ")}`,
+  );
 }
 
 // Shared mock collection - use getMockCollection() to access
@@ -167,8 +169,8 @@ describeIfChroma("Thoughts Chroma Sync", () => {
 
       expect(mockCollection.upsert).toHaveBeenCalledTimes(1);
       expect(mockCollection.upsert).toHaveBeenCalledWith({
-        ids: thoughts.map(t => t.id),
-        documents: thoughts.map(t => `${t.title}\n\n${t.content}`),
+        ids: thoughts.map((t) => t.id),
+        documents: thoughts.map((t) => `${t.title}\n\n${t.content}`),
         metadatas: expect.arrayContaining([
           expect.objectContaining({ slug: "thought-1" }),
           expect.objectContaining({ slug: "thought-2" }),

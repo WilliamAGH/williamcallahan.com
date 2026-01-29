@@ -18,7 +18,10 @@ export interface ProbeOptions {
 }
 
 declare module "probe-image-size" {
-  function probe(input: string | Buffer | NodeJS.ReadableStream, options?: ProbeOptions): Promise<ProbeResult>;
+  function probe(
+    input: string | Buffer | NodeJS.ReadableStream,
+    options?: ProbeOptions,
+  ): Promise<ProbeResult>;
 
   namespace probe {
     function sync(input: Buffer): ProbeResult | null;

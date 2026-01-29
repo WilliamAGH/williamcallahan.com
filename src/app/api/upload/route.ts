@@ -65,12 +65,15 @@ function getContentType(fileType: UploadFileType): string {
 /**
  * Process ePub file: parse and index to Chroma
  */
-async function processEpubFile(buffer: Buffer, s3Key: string): Promise<{ chunksIndexed: number; totalWords: number }> {
+async function processEpubFile(
+  buffer: Buffer,
+  s3Key: string,
+): Promise<{ chunksIndexed: number; totalWords: number }> {
   // Parse ePub
   const parsed = await parseEpubFromBuffer(buffer, { includeHtml: false });
 
   // Convert chapters to chunkable format
-  const chapterData = parsed.chapters.map(ch => ({
+  const chapterData = parsed.chapters.map((ch) => ({
     id: ch.id,
     title: ch.title,
     text: ch.textContent,
@@ -104,12 +107,15 @@ async function processEpubFile(buffer: Buffer, s3Key: string): Promise<{ chunksI
 /**
  * Process PDF file: parse and index to Chroma
  */
-async function processPdfFile(buffer: Buffer, s3Key: string): Promise<{ chunksIndexed: number; totalWords: number }> {
+async function processPdfFile(
+  buffer: Buffer,
+  s3Key: string,
+): Promise<{ chunksIndexed: number; totalWords: number }> {
   // Parse PDF
   const parsed = await parsePdfFromBuffer(buffer);
 
   // Convert pages to chunkable format (treating pages like chapters)
-  const pageData = parsed.pages.map(p => ({
+  const pageData = parsed.pages.map((p) => ({
     id: `page-${p.pageNumber}`,
     title: `Page ${p.pageNumber}`,
     text: p.textContent,
@@ -154,7 +160,10 @@ export async function POST(request: Request): Promise<Response> {
 
     // Validate file presence
     if (!file || !(file instanceof File)) {
-      return NextResponse.json({ success: false, error: "No file provided" }, { status: 400, headers: CORS_HEADERS });
+      return NextResponse.json(
+        { success: false, error: "No file provided" },
+        { status: 400, headers: CORS_HEADERS },
+      );
     }
 
     // Validate file type parameter
@@ -181,7 +190,10 @@ export async function POST(request: Request): Promise<Response> {
     // Validate file against type configuration
     const validation = validateFileForType(file, fileType);
     if (!validation.valid) {
-      return NextResponse.json({ success: false, error: validation.error }, { status: 400, headers: CORS_HEADERS });
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400, headers: CORS_HEADERS },
+      );
     }
 
     // Generate S3 key

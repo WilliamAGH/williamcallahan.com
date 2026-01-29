@@ -47,7 +47,7 @@ const COLLECTION_VERSION = "2";
  */
 export function parseChromaArray(value: string | undefined | null): string[] {
   if (!value) return [];
-  return value.split(",").filter(s => s.trim().length > 0);
+  return value.split(",").filter((s) => s.trim().length > 0);
 }
 
 /**
@@ -138,9 +138,11 @@ export async function indexBookToChroma(data: BookIndexData): Promise<BookIndexR
   const totalChunks = chunks.length;
 
   // Prepare batch data
-  const ids = chunks.map(chunk => generateChunkId(bookId, chunk.index));
-  const documents = chunks.map(chunk => chunk.text);
-  const metadatas = chunks.map(chunk => toChromaMetadata(bookId, metadata, chunk, totalChunks, fileType));
+  const ids = chunks.map((chunk) => generateChunkId(bookId, chunk.index));
+  const documents = chunks.map((chunk) => chunk.text);
+  const metadatas = chunks.map((chunk) =>
+    toChromaMetadata(bookId, metadata, chunk, totalChunks, fileType),
+  );
 
   // Track successfully indexed chunks for accurate reporting on partial failure
   let chunksIndexed = 0;

@@ -46,13 +46,18 @@ export async function invertLogoBuffer(
 
     // Type-safe format validation for image-js toBuffer
     const validFormats = ["png", "jpg", "jpeg", "webp"] as const;
-    const safeFormat = validFormats.includes(format as (typeof validFormats)[number]) ? format : "png";
+    const safeFormat = validFormats.includes(format as (typeof validFormats)[number])
+      ? format
+      : "png";
 
     const invertedBuffer = Buffer.from(inverted.toBuffer({ format: safeFormat }));
     return { buffer: invertedBuffer, contentType };
   } catch (error) {
     // On failure, return the original buffer to avoid breaking pipeline
-    console.warn(`[${logContext}] Inversion failed – returning original buffer:`, (error as Error).message);
+    console.warn(
+      `[${logContext}] Inversion failed – returning original buffer:`,
+      (error as Error).message,
+    );
     return { buffer: processedBuffer, contentType };
   }
 }

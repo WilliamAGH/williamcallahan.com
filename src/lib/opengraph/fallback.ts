@@ -68,13 +68,17 @@ export function createFallbackResult(
           const assetUrl = new URL(`/api/assets/${assetId}`, baseUrl).toString();
           if (isValidImageUrl(assetUrl)) {
             imageUrl = assetUrl;
-            console.log(`[OG-Priority-6] ✅ Using Karakeep imageAssetId, constructed URL: ${imageUrl}`);
+            console.log(
+              `[OG-Priority-6] ✅ Using Karakeep imageAssetId, constructed URL: ${imageUrl}`,
+            );
 
             // No persistence during runtime - only during data-updater runs
           }
         }
       } catch (error) {
-        console.error(`[OG-Fallback] Error constructing URL for assetId ${assetId}: ${String(error)}`);
+        console.error(
+          `[OG-Fallback] Error constructing URL for assetId ${assetId}: ${String(error)}`,
+        );
       }
     } else if (!imageUrl) {
       console.log(`[OG-Priority-6] ❌ Karakeep imageAssetId not found`);
@@ -90,7 +94,9 @@ export function createFallbackResult(
           const screenshotUrl = new URL(`/api/assets/${screenshotAssetId}`, baseUrl).toString();
           if (isValidImageUrl(screenshotUrl)) {
             imageUrl = screenshotUrl;
-            console.log(`[OG-Priority-7] ✅ Using Karakeep screenshot, constructed URL: ${imageUrl}`);
+            console.log(
+              `[OG-Priority-7] ✅ Using Karakeep screenshot, constructed URL: ${imageUrl}`,
+            );
 
             // No persistence during runtime - only during data-updater runs
           }
@@ -137,11 +143,14 @@ export function createFallbackResult(
 export function getFallbackImageForDomain(domain: string): string | null {
   switch (domain) {
     case SOCIAL_PLATFORMS.GITHUB:
-      return process.env.FALLBACK_IMAGE_GITHUB || "https://avatars.githubusercontent.com/u/99231285?v=4";
+      return (
+        process.env.FALLBACK_IMAGE_GITHUB || "https://avatars.githubusercontent.com/u/99231285?v=4"
+      );
     case SOCIAL_PLATFORMS.X:
     case SOCIAL_PLATFORMS.TWITTER:
       return (
-        process.env.FALLBACK_IMAGE_X || "https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg"
+        process.env.FALLBACK_IMAGE_X ||
+        "https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg"
       );
     case SOCIAL_PLATFORMS.LINKEDIN:
       return (
@@ -158,7 +167,10 @@ export function getFallbackImageForDomain(domain: string): string | null {
     // Generic websites or unrecognized domains should show a generic OpenGraph card placeholder
     // to make it clear the image represents a link preview, not a personal/company avatar.
     default:
-      return process.env.FALLBACK_IMAGE_OPENGRAPH || getStaticImageUrl("/images/opengraph-placeholder.png");
+      return (
+        process.env.FALLBACK_IMAGE_OPENGRAPH ||
+        getStaticImageUrl("/images/opengraph-placeholder.png")
+      );
   }
 }
 

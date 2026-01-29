@@ -151,7 +151,10 @@ export interface BlogClientProps {
  * MDX image component props for blog articles
  * @usage - Images within blog article content
  */
-export interface ArticleImageProps extends Omit<React.ComponentProps<"img">, "height" | "width" | "loading" | "style"> {
+export interface ArticleImageProps extends Omit<
+  React.ComponentProps<"img">,
+  "height" | "width" | "loading" | "style"
+> {
   /** Optional caption to display below the image */
   caption?: string;
   /** Display size presets of the image (ignored when widthPct or vwPct are provided) */

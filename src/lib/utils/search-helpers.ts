@@ -41,7 +41,10 @@ const inFlightSearches = new Map<string, Promise<unknown>>();
  *   () => performSiteWideSearch(query)
  * );
  */
-export async function coalesceSearchRequest<T>(key: string, searchFn: () => Promise<T>): Promise<T> {
+export async function coalesceSearchRequest<T>(
+  key: string,
+  searchFn: () => Promise<T>,
+): Promise<T> {
   // Check for existing in-flight search
   const existing = inFlightSearches.get(key);
   if (existing) {
@@ -80,7 +83,10 @@ export function transformSearchResultToTerminalResult(result: SearchResult): Ter
   // Ensure we have a valid ID - SearchResult.id is required by the interface
   const id = result.id;
   if (!id) {
-    console.warn("[Search] Search result is missing a stable ID. This may cause rendering issues.", result);
+    console.warn(
+      "[Search] Search result is missing a stable ID. This may cause rendering issues.",
+      result,
+    );
     // Generate a fallback ID if somehow missing
     return {
       id: crypto.randomUUID(),
@@ -125,7 +131,7 @@ export function transformSearchResultToTerminalResult(result: SearchResult): Ter
  */
 export function dedupeDocuments<T extends { id?: string | number }>(
   documents: T[],
-  getIdField: (doc: T) => string = doc => String(doc.id ?? ""),
+  getIdField: (doc: T) => string = (doc) => String(doc.id ?? ""),
 ): T[] {
   const seen = new Set<string>();
   const deduped: T[] = [];

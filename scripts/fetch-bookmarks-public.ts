@@ -52,7 +52,9 @@ const LOCAL_S3_BASE =
   (process.env.LOCAL_S3_CACHE_DIR && process.env.LOCAL_S3_CACHE_DIR.trim()) ||
   join(process.cwd(), ".next", "cache", "local-s3");
 const HAS_S3_CREDENTIALS =
-  Boolean(process.env.S3_BUCKET) && Boolean(process.env.S3_ACCESS_KEY_ID) && Boolean(process.env.S3_SECRET_ACCESS_KEY);
+  Boolean(process.env.S3_BUCKET) &&
+  Boolean(process.env.S3_ACCESS_KEY_ID) &&
+  Boolean(process.env.S3_SECRET_ACCESS_KEY);
 
 /**
  * Fetch JSON data from public CDN URL
@@ -131,7 +133,10 @@ function loadExistingLocalJson(relativePath: string): unknown | null {
   }
 }
 
-function embedSlug(bookmark: BookmarkS3Record, slugMapping: Partial<BookmarkSlugMapping> | null): BookmarkS3Record {
+function embedSlug(
+  bookmark: BookmarkS3Record,
+  slugMapping: Partial<BookmarkSlugMapping> | null,
+): BookmarkS3Record {
   if (bookmark.slug) return bookmark;
   const id = typeof bookmark.id === "string" ? bookmark.id : null;
   if (!id) return bookmark;
@@ -154,7 +159,7 @@ function buildPaginationArtifacts(
       pageSize = rawPageSize;
     }
   }
-  const bookmarks = rawBookmarks.map(b => embedSlug(b as BookmarkS3Record, slugMapping));
+  const bookmarks = rawBookmarks.map((b) => embedSlug(b as BookmarkS3Record, slugMapping));
   const totalPages = Math.max(1, Math.ceil(bookmarks.length / pageSize));
   for (let page = 1; page <= totalPages; page++) {
     const start = (page - 1) * pageSize;
@@ -171,10 +176,10 @@ function buildTagArtifacts(
 ): void {
   if (!Array.isArray(rawBookmarks) || rawBookmarks.length === 0) return;
   const tagBuckets = new Map<string, BookmarkS3Record[]>();
-  rawBookmarks.forEach(item => {
+  rawBookmarks.forEach((item) => {
     const bookmark = embedSlug(item as BookmarkS3Record, slugMapping);
     const tagNames = normalizeTagsToStrings((bookmark.tags as Array<string>) || []);
-    tagNames.forEach(tagName => {
+    tagNames.forEach((tagName) => {
       const slug = tagToSlug(tagName);
       if (!slug) return;
       if (!tagBuckets.has(slug)) tagBuckets.set(slug, []);
@@ -323,11 +328,17 @@ async function main() {
     let mappingCount = 0;
     if (typeof slugMapping === "object" && slugMapping !== null) {
       // Check for 'count' property
-      if ("count" in slugMapping && typeof (slugMapping as Record<string, unknown>).count === "number") {
+      if (
+        "count" in slugMapping &&
+        typeof (slugMapping as Record<string, unknown>).count === "number"
+      ) {
         mappingCount = (slugMapping as Record<string, unknown>).count as number;
       }
       // Fallback: count the 'slugs' object keys if present
-      else if ("slugs" in slugMapping && typeof (slugMapping as Record<string, unknown>).slugs === "object") {
+      else if (
+        "slugs" in slugMapping &&
+        typeof (slugMapping as Record<string, unknown>).slugs === "object"
+      ) {
         const slugs = (slugMapping as Record<string, unknown>).slugs;
         if (slugs && typeof slugs === "object") {
           mappingCount = Object.keys(slugs).length;
@@ -362,7 +373,12 @@ async function main() {
   // Build local pagination + tag artifacts for fallback
   if (bookmarks) {
     buildPaginationArtifacts(bookmarks, slugMapping || {}, index, BOOKMARKS_PATHS.PAGE_PREFIX);
-    buildTagArtifacts(bookmarks, slugMapping || {}, BOOKMARKS_PATHS.TAG_PREFIX, BOOKMARKS_PATHS.TAG_INDEX_PREFIX);
+    buildTagArtifacts(
+      bookmarks,
+      slugMapping || {},
+      BOOKMARKS_PATHS.TAG_PREFIX,
+      BOOKMARKS_PATHS.TAG_INDEX_PREFIX,
+    );
   }
 
   // Summary
@@ -381,7 +397,7 @@ async function main() {
 
 // Run if executed directly
 if (import.meta.main) {
-  main().catch(error => {
+  main().catch((error) => {
     console.error("❌ Fatal error:", error);
     process.exit(1);
   });

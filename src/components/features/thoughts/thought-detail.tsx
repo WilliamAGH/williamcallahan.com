@@ -111,7 +111,10 @@ export function ThoughtDetail({ thought }: ThoughtDetailProps) {
   const colors = getCategoryColors(thought.category);
 
   return (
-    <ThoughtsWindow windowTitle={`~/thoughts/${thought.slug}`} windowId={`thought-detail-${thought.id}`}>
+    <ThoughtsWindow
+      windowTitle={`~/thoughts/${thought.slug}`}
+      windowId={`thought-detail-${thought.id}`}
+    >
       <article className="relative py-8 sm:py-12 px-4 sm:px-8 lg:px-12">
         {/* Ambient Glow Effect - Creates "spotlight" feeling */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
@@ -128,7 +131,12 @@ export function ThoughtDetail({ thought }: ThoughtDetailProps) {
 
         <div className="relative max-w-2xl mx-auto">
           {/* Back Navigation */}
-          <motion.div initial={false} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }} className="mb-10">
+          <motion.div
+            initial={false}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mb-10"
+          >
             <Link
               href="/thoughts"
               className={cn(
@@ -181,7 +189,11 @@ export function ThoughtDetail({ thought }: ThoughtDetailProps) {
 
             {/* Metadata as quiet caption */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-zinc-500 dark:text-zinc-500">
-              <time dateTime={thought.createdAt} className="font-mono text-xs tracking-wide" suppressHydrationWarning>
+              <time
+                dateTime={thought.createdAt}
+                className="font-mono text-xs tracking-wide"
+                suppressHydrationWarning
+              >
                 {formatDate(thought.createdAt)}
               </time>
 
@@ -268,7 +280,7 @@ export function ThoughtDetail({ thought }: ThoughtDetailProps) {
                 Topics
               </h2>
               <div className="flex flex-wrap gap-2">
-                {thought.tags.map(tag => (
+                {thought.tags.map((tag) => (
                   <Link
                     key={tag}
                     href={`/thoughts?tag=${encodeURIComponent(tag)}`}

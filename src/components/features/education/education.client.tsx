@@ -59,7 +59,11 @@ const SortIndicator = ({
   sortDirection: "asc" | "desc";
 }) => {
   if (sortField !== field) return null;
-  return sortDirection === "asc" ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />;
+  return sortDirection === "asc" ? (
+    <ChevronUp className="w-4 h-4 ml-1" />
+  ) : (
+    <ChevronDown className="w-4 h-4 ml-1" />
+  );
 };
 
 /**
@@ -96,7 +100,7 @@ export function EducationClient({
   // Filter and sort the table data
   const filteredTableData = useMemo(() => {
     return tableData
-      .filter(item => {
+      .filter((item) => {
         // Type filter
         if (selectedType !== "all" && item.type !== selectedType) {
           return false;
@@ -106,7 +110,7 @@ export function EducationClient({
         if (searchQuery) {
           const searchTerms = searchQuery.toLowerCase().split(" ").filter(Boolean);
           const itemText = `${item.name} ${item.institution} ${item.year || ""}`.toLowerCase();
-          return searchTerms.every(term => itemText.includes(term));
+          return searchTerms.every((term) => itemText.includes(term));
         }
 
         return true;
@@ -136,7 +140,7 @@ export function EducationClient({
   // Toggle sort direction and field
   const toggleSort = (field: "name" | "institution" | "year") => {
     if (sortField === field) {
-      setSortDirection(prev => (prev === "asc" ? "desc" : "asc"));
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
       setSortDirection("asc");
@@ -184,7 +188,11 @@ export function EducationClient({
       {/* Sticky Header (remains the same) */}
       <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 flex-shrink-0 sticky top-0 z-10">
         <div className="flex items-center">
-          <WindowControls onClose={closeWindow} onMinimize={minimizeWindow} onMaximize={maximizeWindow} />
+          <WindowControls
+            onClose={closeWindow}
+            onMinimize={minimizeWindow}
+            onMaximize={maximizeWindow}
+          />
           <h1 className="text-xl font-mono ml-4">~/education</h1>
         </div>
       </div>
@@ -202,7 +210,7 @@ export function EducationClient({
           <h2 className="text-2xl font-bold mb-6">University Degrees</h2>
           <div className="space-y-6">
             {/* Render EducationCardClient directly with processed data */}
-            {education.map(edu => (
+            {education.map((edu) => (
               <EducationCardClient key={edu.id} education={edu} />
             ))}
           </div>
@@ -222,7 +230,7 @@ export function EducationClient({
                 type="text"
                 placeholder="Search courses and certifications..."
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
                            text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -230,7 +238,9 @@ export function EducationClient({
 
             <select
               value={selectedType}
-              onChange={e => setSelectedType(e.target.value as "all" | "course" | "certification")}
+              onChange={(e) =>
+                setSelectedType(e.target.value as "all" | "course" | "certification")
+              }
               className="px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
                          text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Filter by type"
@@ -257,7 +267,11 @@ export function EducationClient({
                       aria-label="Sort by name"
                     >
                       Name
-                      <SortIndicator field="name" sortField={sortField} sortDirection={sortDirection} />
+                      <SortIndicator
+                        field="name"
+                        sortField={sortField}
+                        sortDirection={sortDirection}
+                      />
                     </button>
                   </th>
                   <th
@@ -271,7 +285,11 @@ export function EducationClient({
                       aria-label="Sort by institution or issuer"
                     >
                       Institution
-                      <SortIndicator field="institution" sortField={sortField} sortDirection={sortDirection} />
+                      <SortIndicator
+                        field="institution"
+                        sortField={sortField}
+                        sortDirection={sortDirection}
+                      />
                     </button>
                   </th>
                   <th
@@ -285,7 +303,11 @@ export function EducationClient({
                       aria-label="Sort by year"
                     >
                       Year
-                      <SortIndicator field="year" sortField={sortField} sortDirection={sortDirection} />
+                      <SortIndicator
+                        field="year"
+                        sortField={sortField}
+                        sortDirection={sortDirection}
+                      />
                     </button>
                   </th>
                   <th
@@ -299,14 +321,20 @@ export function EducationClient({
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-800">
                 {filteredTableData.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <td
+                      colSpan={4}
+                      className="px-6 py-8 text-center text-gray-500 dark:text-gray-400"
+                    >
                       No results found. Try adjusting your search or filters.
                     </td>
                   </tr>
                 ) : (
-                  filteredTableData.map(item => {
+                  filteredTableData.map((item) => {
                     return (
-                      <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                      <tr
+                        key={item.id}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                      >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                           {item.name}
                         </td>
@@ -357,7 +385,9 @@ export function EducationClient({
                                 : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
                             )}
                           >
-                            {item.type ? item.type.charAt(0).toUpperCase() + item.type.slice(1) : ""}
+                            {item.type
+                              ? item.type.charAt(0).toUpperCase() + item.type.slice(1)
+                              : ""}
                           </span>
                         </td>
                       </tr>

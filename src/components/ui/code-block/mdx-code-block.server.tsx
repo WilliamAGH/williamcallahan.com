@@ -10,7 +10,9 @@ import { CodeBlock } from "./code-block.client";
  */
 import { cn } from "@/lib/utils"; // Import cn utility
 
-export function MDXCodeBlockFallback(props: DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>) {
+export function MDXCodeBlockFallback(
+  props: DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>,
+) {
   // Destructure className and children from props
   const { children, className, ...rest } = props;
 

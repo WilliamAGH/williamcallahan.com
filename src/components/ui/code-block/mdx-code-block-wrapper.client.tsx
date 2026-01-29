@@ -30,7 +30,9 @@ import { CodeBlock } from "./code-block.client";
  * @param props - Standard HTML pre element props
  * @returns A minimally styled pre element wrapped in a div
  */
-export function MDXCodeBlockFallback(props: DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>) {
+export function MDXCodeBlockFallback(
+  props: DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>,
+) {
   const { children, className, ...rest } = props;
 
   // Define default classes for the PRE tag - make sure they match the CodeBlock component

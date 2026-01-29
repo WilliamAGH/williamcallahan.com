@@ -4,7 +4,12 @@
  * These methods are intended to be attached to the ServerCache prototype.
  */
 
-import type { LogoValidationResult, LogoFetchResult, InvertedLogoEntry, Cache } from "@/types/cache";
+import type {
+  LogoValidationResult,
+  LogoFetchResult,
+  InvertedLogoEntry,
+  Cache,
+} from "@/types/cache";
 import type { LogoInversion } from "@/types/logo";
 import { LOGO_CACHE_DURATION } from "@/lib/constants";
 import { getMonotonicTime } from "@/lib/utils";
@@ -17,7 +22,10 @@ const LOGO_ANALYSIS_PREFIX = "logo-analysis:";
 const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 const getCacheTimestamp = (): number => (isProductionBuildPhase ? 0 : getMonotonicTime());
 
-export function getLogoValidation(cache: Cache, imageHash: string): LogoValidationResult | undefined {
+export function getLogoValidation(
+  cache: Cache,
+  imageHash: string,
+): LogoValidationResult | undefined {
   const key = LOGO_VALIDATION_PREFIX + imageHash;
   return cache.get<LogoValidationResult>(key);
 }
@@ -47,7 +55,11 @@ export function setLogoFetch(cache: Cache, domain: string, result: Partial<LogoF
     delete (entryToCache as Partial<LogoFetchResult>).buffer;
   }
 
-  cache.set(key, entryToCache, result.error ? LOGO_CACHE_DURATION.FAILURE : LOGO_CACHE_DURATION.SUCCESS);
+  cache.set(
+    key,
+    entryToCache,
+    result.error ? LOGO_CACHE_DURATION.FAILURE : LOGO_CACHE_DURATION.SUCCESS,
+  );
 }
 
 export function clearLogoFetch(cache: Cache, domain: string): void {
@@ -56,7 +68,7 @@ export function clearLogoFetch(cache: Cache, domain: string): void {
 }
 
 export function clearAllLogoFetches(cache: Cache): void {
-  const keys = cache.keys().filter(key => key.startsWith(LOGO_FETCH_PREFIX));
+  const keys = cache.keys().filter((key) => key.startsWith(LOGO_FETCH_PREFIX));
   for (const key of keys) {
     cache.del(key);
   }
@@ -67,7 +79,11 @@ export function getInvertedLogo(cache: Cache, cacheKey: string): InvertedLogoEnt
   return cache.get<InvertedLogoEntry>(key);
 }
 
-export function setInvertedLogo(cache: Cache, cacheKey: string, entry: Omit<InvertedLogoEntry, "timestamp">): void {
+export function setInvertedLogo(
+  cache: Cache,
+  cacheKey: string,
+  entry: Omit<InvertedLogoEntry, "timestamp">,
+): void {
   const key = INVERTED_LOGO_PREFIX + cacheKey;
   cache.set(key, {
     ...entry,

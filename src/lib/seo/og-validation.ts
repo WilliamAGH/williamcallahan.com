@@ -17,19 +17,29 @@ import { getMonotonicTime } from "@/lib/utils";
  * @param height - Image height in pixels
  * @returns Validation result with errors and recommendations
  */
-export function validateOGImage(imageUrl: string, width?: number, height?: number): OGImageValidation {
+export function validateOGImage(
+  imageUrl: string,
+  width?: number,
+  height?: number,
+): OGImageValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
   const recommendations: string[] = [];
 
   // Check if URL is absolute
-  if (!imageUrl.startsWith("http://") && !imageUrl.startsWith("https://") && !imageUrl.startsWith("/")) {
+  if (
+    !imageUrl.startsWith("http://") &&
+    !imageUrl.startsWith("https://") &&
+    !imageUrl.startsWith("/")
+  ) {
     errors.push("Image URL must be absolute or root-relative");
   }
 
   // Check if URL is publicly accessible (basic validation)
   if (imageUrl.includes("localhost") || imageUrl.includes("127.0.0.1")) {
-    errors.push("Image URL appears to be localhost - social media crawlers cannot access local URLs");
+    errors.push(
+      "Image URL appears to be localhost - social media crawlers cannot access local URLs",
+    );
   }
 
   // Validate dimensions
@@ -61,7 +71,7 @@ export function validateOGImage(imageUrl: string, width?: number, height?: numbe
   // Check file extension
   const supportedFormats = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
   const urlPath = imageUrl.split("?")[0]?.split("#")[0] ?? imageUrl;
-  const hasValidExtension = supportedFormats.some(ext => urlPath.toLowerCase().endsWith(ext));
+  const hasValidExtension = supportedFormats.some((ext) => urlPath.toLowerCase().endsWith(ext));
 
   if (!hasValidExtension) {
     warnings.push("Image format may not be supported - use JPG, PNG, GIF, or WebP");
@@ -69,7 +79,9 @@ export function validateOGImage(imageUrl: string, width?: number, height?: numbe
 
   // Check for cache busting
   if (!imageUrl.includes("?") && !imageUrl.includes("#")) {
-    recommendations.push("Consider adding cache-busting parameters to force social media re-crawling");
+    recommendations.push(
+      "Consider adding cache-busting parameters to force social media re-crawling",
+    );
   }
 
   return {
@@ -119,11 +131,13 @@ export function validateOpenGraphMetadata(ogData: OGMetadata): OGImageValidation
       const imageValidation = validateOGImage(image.url, image.width, image.height);
 
       if (!imageValidation.isValid) {
-        errors.push(...imageValidation.errors.map(err => `Image ${index + 1}: ${err}`));
+        errors.push(...imageValidation.errors.map((err) => `Image ${index + 1}: ${err}`));
       }
 
-      warnings.push(...imageValidation.warnings.map(warn => `Image ${index + 1}: ${warn}`));
-      recommendations.push(...imageValidation.recommendations.map(rec => `Image ${index + 1}: ${rec}`));
+      warnings.push(...imageValidation.warnings.map((warn) => `Image ${index + 1}: ${warn}`));
+      recommendations.push(
+        ...imageValidation.recommendations.map((rec) => `Image ${index + 1}: ${rec}`),
+      );
     });
   }
 
@@ -170,7 +184,12 @@ export function createCacheBustingUrl(imageUrl: string, forceRefresh = false): s
  * @param forceRefresh - Whether to force cache refresh
  * @returns Processed and validated image URL
  */
-export function prepareOGImageUrl(imageUrl: string, width?: number, height?: number, forceRefresh = false): string {
+export function prepareOGImageUrl(
+  imageUrl: string,
+  width?: number,
+  height?: number,
+  forceRefresh = false,
+): string {
   // Handle URLs - they might already be absolute S3 CDN URLs
   let processedUrl = imageUrl;
 
@@ -186,7 +205,9 @@ export function prepareOGImageUrl(imageUrl: string, width?: number, height?: num
     console.warn("OpenGraph image validation failed:", validation.errors);
     // Fall back to default image - check if it's already an S3 URL
     const defaultImageUrl = metadata.defaultImage.url;
-    processedUrl = defaultImageUrl.startsWith("http") ? defaultImageUrl : `${metadata.site.url}${defaultImageUrl}`;
+    processedUrl = defaultImageUrl.startsWith("http")
+      ? defaultImageUrl
+      : `${metadata.site.url}${defaultImageUrl}`;
   }
 
   // Add cache busting

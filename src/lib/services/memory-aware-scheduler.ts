@@ -115,7 +115,9 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
    */
   getMetrics(): SchedulerMetrics {
     const avgWaitTime =
-      this.waitTimes.length > 0 ? this.waitTimes.reduce((sum, time) => sum + time, 0) / this.waitTimes.length : 0;
+      this.waitTimes.length > 0
+        ? this.waitTimes.reduce((sum, time) => sum + time, 0) / this.waitTimes.length
+        : 0;
 
     return {
       queueSize: this.requestQueue.length,
@@ -200,9 +202,12 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
       this.emit("memory-pressure-throttle", { memoryUsage, memoryStatus });
 
       // Apply exponential backoff during memory pressure
-      const backoffMs = Math.min(this.backoffBase * 2 ** (this.memoryPressureActivations % 10), this.maxBackoffMs);
+      const backoffMs = Math.min(
+        this.backoffBase * 2 ** (this.memoryPressureActivations % 10),
+        this.maxBackoffMs,
+      );
 
-      await new Promise(resolve => setTimeout(resolve, backoffMs));
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
       return;
     }
 

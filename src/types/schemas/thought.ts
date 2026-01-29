@@ -30,20 +30,24 @@ export type Thought = z.infer<typeof thoughtSchema>;
  * Input schema - only title and content required
  * id, slug, createdAt auto-generated if omitted
  */
-export const thoughtInputSchema = thoughtSchema.omit({ id: true, slug: true, createdAt: true }).extend({
-  id: z.uuid().optional(),
-  slug: z.string().optional(),
-  createdAt: z.iso.datetime().optional(),
-});
+export const thoughtInputSchema = thoughtSchema
+  .omit({ id: true, slug: true, createdAt: true })
+  .extend({
+    id: z.uuid().optional(),
+    slug: z.string().optional(),
+    createdAt: z.iso.datetime().optional(),
+  });
 
 export type ThoughtInput = z.infer<typeof thoughtInputSchema>;
 
 /**
  * List item schema - no content, adds excerpt for previews
  */
-export const thoughtListItemSchema = thoughtSchema.omit({ content: true, relatedThoughts: true }).extend({
-  excerpt: z.string().optional(),
-});
+export const thoughtListItemSchema = thoughtSchema
+  .omit({ content: true, relatedThoughts: true })
+  .extend({
+    excerpt: z.string().optional(),
+  });
 
 export type ThoughtListItem = z.infer<typeof thoughtListItemSchema>;
 
@@ -66,4 +70,5 @@ export const validateThought = (data: unknown): Thought => thoughtSchema.parse(d
 
 export const validateThoughtInput = (data: unknown): ThoughtInput => thoughtInputSchema.parse(data);
 
-export const validateThoughtListItem = (data: unknown): ThoughtListItem => thoughtListItemSchema.parse(data);
+export const validateThoughtListItem = (data: unknown): ThoughtListItem =>
+  thoughtListItemSchema.parse(data);

@@ -177,7 +177,8 @@ export const GITHUB_ACTIVITY_CACHE_DURATION = {
 export const SEARCH_CACHE_DURATION = { SUCCESS: 15 * 60, FAILURE: 60, REVALIDATION: 10 * 60 };
 
 /** Base URLs */
-export const NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
+export const NEXT_PUBLIC_SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || NEXT_PUBLIC_SITE_URL;
 /** API endpoints */
 export const ENDPOINTS = {
@@ -469,16 +470,23 @@ if (cgroupLimitBytes && cgroupLimitBytes > 0) {
   const safetyAdjusted = Math.floor(cgroupLimitBytes * 0.95);
   const minimumWhenAvailable = 512 * MB;
   const adjusted =
-    cgroupLimitBytes >= minimumWhenAvailable ? Math.max(safetyAdjusted, minimumWhenAvailable) : safetyAdjusted;
+    cgroupLimitBytes >= minimumWhenAvailable
+      ? Math.max(safetyAdjusted, minimumWhenAvailable)
+      : safetyAdjusted;
   cgroupBudget = Math.min(adjusted, cgroupLimitBytes);
 }
 
-const totalBudget = Number.isFinite(envBudget) && envBudget > 0 ? envBudget : (cgroupBudget ?? defaultBudget);
+const totalBudget =
+  Number.isFinite(envBudget) && envBudget > 0 ? envBudget : (cgroupBudget ?? defaultBudget);
 
 export const MEMORY_THRESHOLDS = {
   TOTAL_PROCESS_MEMORY_BUDGET_BYTES: totalBudget,
-  IMAGE_RAM_BUDGET_BYTES: Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15)),
-  SERVER_CACHE_BUDGET_BYTES: Number(process.env.SERVER_CACHE_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15)),
+  IMAGE_RAM_BUDGET_BYTES: Number(
+    process.env.IMAGE_RAM_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15),
+  ),
+  SERVER_CACHE_BUDGET_BYTES: Number(
+    process.env.SERVER_CACHE_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15),
+  ),
   MEMORY_WARNING_THRESHOLD: Number(process.env.MEMORY_WARNING_THRESHOLD ?? totalBudget * 0.7),
   MEMORY_CRITICAL_THRESHOLD: Number(process.env.MEMORY_CRITICAL_THRESHOLD ?? totalBudget * 0.9),
   IMAGE_STREAM_THRESHOLD_BYTES: Number(process.env.IMAGE_STREAM_THRESHOLD_BYTES ?? 5 * MB),

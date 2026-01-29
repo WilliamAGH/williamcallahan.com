@@ -216,7 +216,8 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                           )}
                           {bookmark.content?.publisher && (
                             <span className="text-gray-500 dark:text-gray-400">
-                              {bookmark.content?.author ? " · " : ""}via {bookmark.content.publisher}
+                              {bookmark.content?.author ? " · " : ""}via{" "}
+                              {bookmark.content.publisher}
                             </span>
                           )}
                         </p>
@@ -302,7 +303,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                     Topics
                   </h2>
                   <div className="flex flex-wrap gap-2">
-                    {bookmark.tags.map(tag => {
+                    {bookmark.tags.map((tag) => {
                       const isString = typeof tag === "string";
                       const tagName = isString ? tag : (tag as BookmarkTag).name;
                       const tagSlug = isString
@@ -337,7 +338,10 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                   </h2>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500 dark:text-gray-400">Updated</span>
-                    <span className="font-medium text-gray-900 dark:text-gray-100" suppressHydrationWarning>
+                    <span
+                      className="font-medium text-gray-900 dark:text-gray-100"
+                      suppressHydrationWarning
+                    >
                       {updatedDate}
                     </span>
                   </div>

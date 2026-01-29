@@ -67,7 +67,9 @@ export function hasLastFetched(error: unknown): error is ExtendedError & { lastF
 /**
  * Type guard to check if an error has the lastFetchedTimestamp property
  */
-export function hasLastFetchedTimestamp(error: unknown): error is ExtendedError & { lastFetchedTimestamp: number } {
+export function hasLastFetchedTimestamp(
+  error: unknown,
+): error is ExtendedError & { lastFetchedTimestamp: number } {
   return (
     typeof error === "object" &&
     error !== null &&
@@ -202,6 +204,10 @@ export interface ErrorBoundaryComponentProps {
 }
 
 // Re-export UI boundary types for convenience
-export type { ErrorBoundaryProps, ErrorBoundaryState, LocalErrorBoundaryProps } from "@/types/ui/boundaries";
+export type {
+  ErrorBoundaryProps,
+  ErrorBoundaryState,
+  LocalErrorBoundaryProps,
+} from "@/types/ui/boundaries";
 
 // Generic error/response interfaces removed - use specific response types from API modules

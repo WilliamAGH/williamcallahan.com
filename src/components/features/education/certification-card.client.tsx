@@ -34,14 +34,20 @@ import type { CertificationCardClientProps } from "@/types/education";
  * @param {CertificationCardClientProps} props - Component properties
  * @returns {JSX.Element} Rendered certification card with pre-fetched logo
  */
-export function CertificationCardClient({ certification, className }: CertificationCardClientProps): JSX.Element {
+export function CertificationCardClient({
+  certification,
+  className,
+}: CertificationCardClientProps): JSX.Element {
   const { name, institution, year, website, logoScale, logoData } = certification;
 
   const content = (
     <div className="p-6">
       <div className="flex items-start gap-5">
         <div className="w-12 h-12 relative flex-shrink-0 rounded overflow-hidden flex items-center justify-center">
-          <span className="block w-full h-full" style={{ transform: logoScale ? `scale(${logoScale})` : undefined }}>
+          <span
+            className="block w-full h-full"
+            style={{ transform: logoScale ? `scale(${logoScale})` : undefined }}
+          >
             <LogoImage
               src={logoData?.url}
               width={48}

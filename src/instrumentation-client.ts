@@ -11,7 +11,10 @@ import * as Sentry from "@sentry/nextjs";
  * Common browser extension error patterns to filter from error reporting
  * Prevents unnecessary noise from extension conflicts
  */
-const NON_CRITICAL_ERROR_PATTERNS = ['can\'t redefine non-configurable property "ethereum"', "Load failed"];
+const NON_CRITICAL_ERROR_PATTERNS = [
+  'can\'t redefine non-configurable property "ethereum"',
+  "Load failed",
+];
 
 const BROWSER_EXTENSION_ERROR_PATTERNS = [
   "runtime.sendMessage",
@@ -128,13 +131,13 @@ const matchesNonCriticalPattern = (message: string | undefined): boolean => {
   }
 
   const normalized = message.toLowerCase();
-  return NON_CRITICAL_ERROR_PATTERNS.some(pattern => normalized.includes(pattern.toLowerCase()));
+  return NON_CRITICAL_ERROR_PATTERNS.some((pattern) => normalized.includes(pattern.toLowerCase()));
 };
 
 if (typeof window !== "undefined") {
   window.addEventListener(
     "error",
-    event => {
+    (event) => {
       if (matchesNonCriticalPattern(event.message)) {
         event.preventDefault();
       }
@@ -142,7 +145,7 @@ if (typeof window !== "undefined") {
     true,
   );
 
-  window.addEventListener("unhandledrejection", event => {
+  window.addEventListener("unhandledrejection", (event) => {
     const reason = event.reason as unknown;
     const message =
       typeof reason === "string"

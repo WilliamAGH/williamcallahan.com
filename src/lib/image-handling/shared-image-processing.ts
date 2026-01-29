@@ -45,7 +45,10 @@ const detectContentTypeFromMagicNumbers = (buffer: Buffer, logContext: string): 
  * @param logContext - Context string for logging (e.g., "UnifiedImageService", "OpenGraph")
  * @returns Processed buffer with content type and SVG flag
  */
-export async function processImageBuffer(buffer: Buffer, logContext = "ImageProcessor"): Promise<ProcessedImageResult> {
+export async function processImageBuffer(
+  buffer: Buffer,
+  logContext = "ImageProcessor",
+): Promise<ProcessedImageResult> {
   // Ensure at least one awaited expression at the top level for eslint/require-await compliance
   await Promise.resolve();
 

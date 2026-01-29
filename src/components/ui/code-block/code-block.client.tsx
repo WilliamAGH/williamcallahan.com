@@ -16,7 +16,16 @@
 
 "use client";
 
-import { type JSX, isValidElement, useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react"; // Import useEffect, useRef, useCallback, isValidElement, useId
+import {
+  type JSX,
+  isValidElement,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react"; // Import useEffect, useRef, useCallback, isValidElement, useId
 import { useWindowSize } from "../../../lib/hooks/use-window-size.client";
 import { cn } from "../../../lib/utils";
 import { WindowControls } from "../navigation/window-controls";
@@ -46,7 +55,7 @@ const filterComments = (text: string): string => {
   if (typeof text !== "string") return "";
   return text
     .split("\n")
-    .filter(line => !line.trim().startsWith("#"))
+    .filter((line) => !line.trim().startsWith("#"))
     .join("\n")
     .trim();
 };
@@ -69,7 +78,11 @@ const getTextContent = (node: ReactNode): string => {
   // Check if it's a valid React element that might have children
   if (isValidElement(node)) {
     const props: unknown = node.props;
-    if (typeof props === "object" && props !== null && "children" in (props as Record<string, unknown>)) {
+    if (
+      typeof props === "object" &&
+      props !== null &&
+      "children" in (props as Record<string, unknown>)
+    ) {
       return getTextContent((props as { children?: ReactNode }).children);
     }
     return "";
@@ -115,20 +128,24 @@ export const CodeBlock = ({
 
   // Determine the appropriate control size based on screen width
   const controlSize =
-    windowSize.width && windowSize.width < 640 ? "sm" : windowSize.width && windowSize.width > 1280 ? "lg" : "md";
+    windowSize.width && windowSize.width < 640
+      ? "sm"
+      : windowSize.width && windowSize.width > 1280
+        ? "lg"
+        : "md";
 
   /**
    * Handler function for close button - toggles visibility
    */
   const handleClose = () => {
-    setIsVisible(prev => !prev); // Toggle visibility
+    setIsVisible((prev) => !prev); // Toggle visibility
   };
 
   /**
    * Handler function for minimize button - toggles minimized state
    */
   const handleMinimize = () => {
-    setIsMinimized(prev => !prev);
+    setIsMinimized((prev) => !prev);
     if (isMaximized) setIsMaximized(false); // Exit maximized mode if active
   };
 
@@ -137,7 +154,7 @@ export const CodeBlock = ({
    * Wrapped in useCallback to prevent recreation on each render
    */
   const handleMaximize = useCallback(() => {
-    setIsMaximized(prev => !prev);
+    setIsMaximized((prev) => !prev);
     if (isMinimized) setIsMinimized(false); // Exit minimized mode if active
   }, [isMinimized]); // Add dependencies
 
@@ -186,13 +203,16 @@ export const CodeBlock = ({
   });
 
   // Extract the text content
-  const content = Array.isArray(children) ? children.map(getTextContent).join("") : getTextContent(children);
+  const content = Array.isArray(children)
+    ? children.map(getTextContent).join("")
+    : getTextContent(children);
 
   // Preserve original content for display but filter comments for copy functionality
   const filteredContent = filterComments(content);
 
   // Prepare display content: remove leading/trailing blank lines that add invisible space
-  const displayContent = typeof children === "string" ? children.replace(/^\n+|\n+$/g, "") : children;
+  const displayContent =
+    typeof children === "string" ? children.replace(/^\n+|\n+$/g, "") : children;
 
   // Count lines from the actually displayed text content
   const visibleText = typeof displayContent === "string" ? displayContent : content;
@@ -204,7 +224,12 @@ export const CodeBlock = ({
   if (!isVisible) {
     // Common content for both button and div versions
     const contentSection = (
-      <div className={cn("text-gray-400", embeddedInTabFrame ? "w-full text-center" : "ml-1.5 sm:ml-2.5 md:ml-3.5")}>
+      <div
+        className={cn(
+          "text-gray-400",
+          embeddedInTabFrame ? "w-full text-center" : "ml-1.5 sm:ml-2.5 md:ml-3.5",
+        )}
+      >
         <span>Code block hidden (click to show)</span>
         {language && !embeddedInTabFrame && (
           <span style={{ fontSize: "12px" }} className="not-prose ml-1 sm:ml-2 opacity-75">
@@ -310,7 +335,12 @@ export const CodeBlock = ({
         {/* Content (pre + CopyButton) */}
         {/* Ensure this div is present and `relative group` for CopyButton positioning */}
         {!isMinimized && (
-          <div className={cn("relative group", isMaximized && !embeddedInTabFrame && "flex-1 overflow-hidden")}>
+          <div
+            className={cn(
+              "relative group",
+              isMaximized && !embeddedInTabFrame && "flex-1 overflow-hidden",
+            )}
+          >
             <pre
               id={collapsibleRegionId}
               role="region"
@@ -330,7 +360,10 @@ export const CodeBlock = ({
                 "[&_*]:!bg-transparent [&_*]:!leading-relaxed font-mono",
                 isMaximized && !embeddedInTabFrame && "overflow-auto max-h-full",
                 // Auto-collapse long code blocks unless maximized
-                isCollapsed && !isMaximized && isLongCode && "overflow-hidden max-h-64 sm:max-h-72 md:max-h-80",
+                isCollapsed &&
+                  !isMaximized &&
+                  isLongCode &&
+                  "overflow-hidden max-h-64 sm:max-h-72 md:max-h-80",
                 className, // From MDX (e.g., language-bash)
               )}
               {...props}

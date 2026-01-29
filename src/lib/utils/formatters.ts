@@ -11,7 +11,7 @@
 export const kebabCase = (str: string): string =>
   str
     ?.match(/[A-Z]{2,}(?=[A-Z][a-z]+[0-9]*|\b)|[A-Z]?[a-z]+[0-9]*|[A-Z]|[0-9]+/g)
-    ?.map(x => x.toLowerCase())
+    ?.map((x) => x.toLowerCase())
     ?.join("-") || "";
 
 /**
@@ -23,7 +23,7 @@ export const kebabCase = (str: string): string =>
 export const deslugify = (slug: string): string =>
   slug
     ?.split("-")
-    ?.map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    ?.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     ?.join(" ") || "";
 
 /**
@@ -81,18 +81,18 @@ export const formatTextWithParagraphs = (text: string, sentencesPerParagraph = 2
 
   // Replace abbreviation periods with a placeholder to protect them
   let protectedText = cleanText;
-  abbreviations.forEach(abbrev => {
+  abbreviations.forEach((abbrev) => {
     const pattern = new RegExp(`\\b${abbrev.replace(/\./g, "\\.")}\\b`, "gi");
-    protectedText = protectedText.replace(pattern, match => match.replace(/\./g, "<!DOT!>"));
+    protectedText = protectedText.replace(pattern, (match) => match.replace(/\./g, "<!DOT!>"));
   });
 
   // Split by sentence-ending punctuation
   // Look for . ! ? followed by space and uppercase letter, or end of string
   const sentences = protectedText
     .split(/(?<=[.!?])\s+(?=[A-Z])|(?<=[.!?])$/)
-    .map(s => s.trim())
-    .filter(s => s.length > 0)
-    .map(s => s.replace(/<!DOT!>/g, ".")); // Restore dots in abbreviations
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+    .map((s) => s.replace(/<!DOT!>/g, ".")); // Restore dots in abbreviations
 
   if (sentences.length === 0) return "";
 
@@ -103,7 +103,9 @@ export const formatTextWithParagraphs = (text: string, sentencesPerParagraph = 2
 
   // Group remaining sentences into paragraphs of N sentences each
   for (let i = 1; i < sentences.length; i += sentencesPerParagraph) {
-    const paragraphSentences = sentences.slice(i, Math.min(i + sentencesPerParagraph, sentences.length)).join(" ");
+    const paragraphSentences = sentences
+      .slice(i, Math.min(i + sentencesPerParagraph, sentences.length))
+      .join(" ");
     if (paragraphSentences) {
       paragraphs.push(paragraphSentences);
     }

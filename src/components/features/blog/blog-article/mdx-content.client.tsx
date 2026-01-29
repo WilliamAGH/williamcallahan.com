@@ -50,7 +50,7 @@ const compiledMdxCache = new Map<string, ComponentType>();
 
 const withKeyedChildren = (children: React.ReactNode, prefix: string): React.ReactNode => {
   let index = 0;
-  return React.Children.map(children, child => {
+  return React.Children.map(children, (child) => {
     if (!isValidElement(child)) {
       return child;
     }
@@ -90,7 +90,10 @@ const runtimeHelpers =
       };
 
 const buildMdxComponent = (
-  content: import("next-mdx-remote").MDXRemoteSerializeResult<Record<string, unknown>, Record<string, unknown>>,
+  content: import("next-mdx-remote").MDXRemoteSerializeResult<
+    Record<string, unknown>,
+    Record<string, unknown>
+  >,
 ): ComponentType => {
   const cached = compiledMdxCache.get(content.compiledSource);
   if (cached) {
@@ -118,14 +121,15 @@ const buildMdxComponent = (
       ...fnArgs: unknown[]
     ) => { default: ComponentType };
     const { default: Component } = hydrateFn.apply(hydrateFn, values) as { default: ComponentType };
-    const SafeComponent: ComponentType = componentProps => <Component {...componentProps} />;
+    const SafeComponent: ComponentType = (componentProps) => <Component {...componentProps} />;
     compiledMdxCache.set(content.compiledSource, SafeComponent);
     return SafeComponent;
   } catch (error) {
     console.error("[MDXContent] Failed to evaluate compiled MDX source", error);
     const Fallback: ComponentType = () => (
       <p className="text-red-600 dark:text-red-400">
-        Unable to render this portion of the article. Please refresh or contact support if the issue persists.
+        Unable to render this portion of the article. Please refresh or contact support if the issue
+        persists.
       </p>
     );
     return Fallback;
@@ -163,7 +167,9 @@ const PreRenderer = (props: ComponentProps<"pre">) => {
   // Check 1: Class on the <pre> tag itself (e.g., from Rehype Pretty Code) or data attributes
   if (
     hasCodeBlockAttrs ||
-    (props.className && typeof props.className === "string" && props.className.includes("language-"))
+    (props.className &&
+      typeof props.className === "string" &&
+      props.className.includes("language-"))
   ) {
     isProperCodeBlock = true;
   }
@@ -172,7 +178,7 @@ const PreRenderer = (props: ComponentProps<"pre">) => {
   if (
     !isProperCodeBlock &&
     React.Children.toArray(props.children).some(
-      child =>
+      (child) =>
         isValidElement<{ className?: string }>(child) &&
         child.type === "code" &&
         typeof child.props.className === "string" &&
@@ -197,14 +203,18 @@ const PreRenderer = (props: ComponentProps<"pre">) => {
   // Extract className from the first code child element for proper syntax highlighting
   // Defensively find the first <code> element to handle cases where MDX emits multiple children
   const firstCodeChild = React.Children.toArray(props.children).find(
-    child => isValidElement<{ className?: string }>(child) && child.type === "code",
+    (child) => isValidElement<{ className?: string }>(child) && child.type === "code",
   ) as ReactElement<{ className?: string }> | undefined;
 
   const childClassName =
-    typeof firstCodeChild?.props?.className === "string" ? firstCodeChild.props.className : undefined;
+    typeof firstCodeChild?.props?.className === "string"
+      ? firstCodeChild.props.className
+      : undefined;
 
   // Use context to determine if we're in a macOS frame
-  return <MDXCodeBlock {...props} embeddedInTabFrame={isInMacOSFrame} className={cn(childClassName)} />;
+  return (
+    <MDXCodeBlock {...props} embeddedInTabFrame={isInMacOSFrame} className={cn(childClassName)} />
+  );
 };
 
 /**
@@ -284,7 +294,11 @@ const MdxImage = ({
   return (
     <figure className={cn(widthClass, "mx-auto my-6", widthModifierClass)}>
       {content}
-      {caption && <figcaption className="mt-3 text-center text-sm text-muted-foreground">{caption}</figcaption>}
+      {caption && (
+        <figcaption className="mt-3 text-center text-sm text-muted-foreground">
+          {caption}
+        </figcaption>
+      )}
     </figure>
   );
 };
@@ -301,7 +315,9 @@ const MdxImage = ({
  */
 const ArticleGallery = ({ children, className = "" }: ArticleGalleryProps): JSX.Element => {
   return (
-    <div className={`flow-root space-y-8 my-6 p-4 bg-gray-50 dark:bg-gray-800/30 rounded-lg ${className}`}>
+    <div
+      className={`flow-root space-y-8 my-6 p-4 bg-gray-50 dark:bg-gray-800/30 rounded-lg ${className}`}
+    >
       {toKeyed(children)}
     </div>
   );
@@ -433,7 +449,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
       // Log a concise report with surrounding context
       const report = Array.from(nestedParagraphs)
         .slice(0, 10)
-        .map(node => {
+        .map((node) => {
           const outer = node.closest("p");
           const outerId = outer?.getAttribute("id") || "";
           const outerClass = outer?.getAttribute("class") || "";
@@ -458,7 +474,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     if (footnoteAnchors.length > 0) {
       const sample = Array.from(footnoteAnchors)
         .slice(0, 10)
-        .map(a => ({
+        .map((a) => ({
           href: (a as HTMLAnchorElement).getAttribute("href"),
           text: a.textContent?.slice(0, 60),
         }));
@@ -639,13 +655,19 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
       // Let Tailwind Typography's prose styles handle paragraph styling globally.
       /** Renderer for `<ul>` (unordered list) elements. Styling primarily handled by `prose`. */
       ul: ({ className, children, ...rest }: ComponentProps<"ul">) => (
-        <ul {...rest} className={cn("pl-6 list-disc text-gray-700 dark:text-gray-300 text-base", className)}>
+        <ul
+          {...rest}
+          className={cn("pl-6 list-disc text-gray-700 dark:text-gray-300 text-base", className)}
+        >
           {withKeyedChildren(children, "li")}
         </ul>
       ),
       /** Renderer for `<ol>` (ordered list) elements. Styling primarily handled by `prose`. */
       ol: ({ className, children, ...rest }: ComponentProps<"ol">) => (
-        <ol {...rest} className={cn("pl-6 list-decimal text-gray-700 dark:text-gray-300 text-base", className)}>
+        <ol
+          {...rest}
+          className={cn("pl-6 list-decimal text-gray-700 dark:text-gray-300 text-base", className)}
+        >
           {withKeyedChildren(children, "li")}
         </ol>
       ),
@@ -715,7 +737,10 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
       ),
       /** Renderer for `<td>` (table data cell) elements, applying text and padding styling. */
       td: (props: ComponentProps<"td">) => (
-        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap" {...props} />
+        <td
+          className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap"
+          {...props}
+        />
       ),
       /**
        * Renderer for the custom `TweetEmbed` component.

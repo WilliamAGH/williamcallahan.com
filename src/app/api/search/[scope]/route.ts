@@ -15,7 +15,11 @@ import {
   searchBooks,
   searchThoughts,
 } from "@/lib/search";
-import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
+import {
+  applySearchGuards,
+  createSearchErrorResponse,
+  withNoStoreHeaders,
+} from "@/lib/search/api-guards";
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { type SearchResult, VALID_SCOPES } from "@/types/search";
@@ -44,7 +48,10 @@ function resolveRequestUrl(request: NextRequest): URL {
  * @param params - Route parameters including the search scope.
  * @returns A JSON response containing the search results or an error message.
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ scope: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ scope: string }> },
+) {
   // connection(): ensure this handler always runs at request time under cacheComponents
   await connection();
   // CRITICAL: Call preventCaching() FIRST to prevent Next.js from caching ANY response
@@ -163,6 +170,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Handle unknown errors safely without unsafe assignments/calls
     const err = unknownErr instanceof Error ? unknownErr : new Error(String(unknownErr));
     console.error(`Scoped search API error for scope ${resolvedParams.scope}:`, err);
-    return createSearchErrorResponse(`Failed to perform ${resolvedParams.scope} search`, err.message);
+    return createSearchErrorResponse(
+      `Failed to perform ${resolvedParams.scope} search`,
+      err.message,
+    );
   }
 }

@@ -102,7 +102,9 @@ describe.skip("ImageMemoryManager", () => {
         configurable: true,
       });
 
-      expect(() => new ImageMemoryManager()).toThrow("IMAGE_RAM_BUDGET_BYTES must be a positive number");
+      expect(() => new ImageMemoryManager()).toThrow(
+        "IMAGE_RAM_BUDGET_BYTES must be a positive number",
+      );
 
       // Restore original value
       Object.defineProperty(MEMORY_THRESHOLDS, "IMAGE_RAM_BUDGET_BYTES", {
@@ -203,7 +205,7 @@ describe.skip("ImageMemoryManager", () => {
       // Wait for completion and cleanup
       await fetchPromise;
       // Add a small delay to ensure cleanup has happened
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Should be cleaned up
       expect(manager.isFetching("coalesce-test")).toBe(false);
@@ -219,7 +221,9 @@ describe.skip("ImageMemoryManager", () => {
       const consoleSpy = jest.spyOn(console, "warn").mockImplementation();
       manager.registerFetch("over-limit", Promise.resolve(Buffer.from("test")));
 
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("In-flight fetch limit reached"));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("In-flight fetch limit reached"),
+      );
 
       consoleSpy.mockRestore();
     });
@@ -286,7 +290,7 @@ describe.skip("ImageMemoryManager", () => {
       expect(typeof metrics.memoryPressure).toBe("boolean");
     });
 
-    it("should emit metrics events", done => {
+    it("should emit metrics events", (done) => {
       manager.on("metrics", (metrics: ImageMemoryMetrics) => {
         expect(metrics).toHaveProperty("cacheSize");
         expect(metrics).toHaveProperty("memoryPressure");
@@ -592,7 +596,7 @@ describe.skip("Integration Tests", () => {
     manager.setMemoryPressure(true);
 
     // Allow event propagation with a small delay or use event-based waiting
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // The manager's own metrics should reflect the pressure state
     const managerMetrics = manager.getMetrics();
@@ -605,7 +609,7 @@ describe.skip("Integration Tests", () => {
     manager.setMemoryPressure(false);
 
     // Allow cleanup to propagate
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Verify cleanup worked
     expect(monitor.shouldAllowImageOperations()).toBe(true);

@@ -19,7 +19,16 @@ import type { BlogPost } from "@/types/blog";
  * @see {@link @/data/investments} for source data
  */
 export const INVESTMENTS_INDEX_CONFIG: IndexFieldConfig<Investment> = {
-  fields: ["name", "description", "type", "status", "founded_year", "invested_year", "acquired_year", "shutdown_year"],
+  fields: [
+    "name",
+    "description",
+    "type",
+    "status",
+    "founded_year",
+    "invested_year",
+    "acquired_year",
+    "shutdown_year",
+  ],
   storeFields: ["id", "name", "description"],
   idField: "id",
   boost: { name: 2 },

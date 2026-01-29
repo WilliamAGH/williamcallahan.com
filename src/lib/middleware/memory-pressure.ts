@@ -106,7 +106,7 @@ export async function memoryPressureMiddleware(request: NextRequest): Promise<Ne
   const pathname = request.nextUrl.pathname;
 
   // Always allow health checks through
-  if (HEALTH_CHECK_PATHS.some(path => pathname.startsWith(path))) {
+  if (HEALTH_CHECK_PATHS.some((path) => pathname.startsWith(path))) {
     return null; // Continue to next middleware
   }
 
@@ -130,7 +130,9 @@ export async function memoryPressureMiddleware(request: NextRequest): Promise<Ne
 
   // Check memory pressure
   if (isCritical) {
-    console.warn(`[MemoryPressure] Shedding load due to memory pressure: ${pathname} ${request.method}`);
+    console.warn(
+      `[MemoryPressure] Shedding load due to memory pressure: ${pathname} ${request.method}`,
+    );
 
     // Return 503 with proper headers
     return NextResponse.json(

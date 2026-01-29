@@ -104,7 +104,10 @@ export function sanitizeSystemInfo(obj: Record<string, unknown>): Record<string,
             return sanitizeRecursive(item as Record<string, unknown>);
           }
           // Check if string looks like a URL and sanitize it
-          if (typeof item === "string" && (item.startsWith("http://") || item.startsWith("https://"))) {
+          if (
+            typeof item === "string" &&
+            (item.startsWith("http://") || item.startsWith("https://"))
+          ) {
             return sanitizeUrl(item);
           }
           return item;
@@ -113,7 +116,10 @@ export function sanitizeSystemInfo(obj: Record<string, unknown>): Record<string,
       } else if (typeof value === "object" && !Array.isArray(value)) {
         // Handle nested objects
         sanitized[key] = sanitizeRecursive(value as Record<string, unknown>);
-      } else if (typeof value === "string" && (value.startsWith("http://") || value.startsWith("https://"))) {
+      } else if (
+        typeof value === "string" &&
+        (value.startsWith("http://") || value.startsWith("https://"))
+      ) {
         // Sanitize URL strings to remove credentials
         sanitized[key] = sanitizeUrl(value);
       }

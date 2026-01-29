@@ -39,7 +39,7 @@ const SkeletonLoader = (): JSX.Element => {
 
   return (
     <div className="animate-pulse space-y-4 p-6">
-      {skeletonKeys.map(key => (
+      {skeletonKeys.map((key) => (
         <div key={key} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
       ))}
     </div>
@@ -69,7 +69,11 @@ function BookmarksWindowContentInner({
   const isMaximized = windowState === "maximized";
 
   // Format the title slug for display
-  const formattedTitle = windowTitle ? windowTitle : titleSlug ? `~/${titleSlug}/bookmarks` : "~/bookmarks";
+  const formattedTitle = windowTitle
+    ? windowTitle
+    : titleSlug
+      ? `~/${titleSlug}/bookmarks`
+      : "~/bookmarks";
 
   return (
     <div
@@ -118,9 +122,15 @@ const BookmarksWindowContent = dynamic<BookmarksWindowContentProps>(
  * @param {BookmarksWindowClientProps} props - Component props
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
  */
-export function BookmarksWindow({ children, titleSlug, windowTitle, windowId }: BookmarksWindowClientProps) {
+export function BookmarksWindow({
+  children,
+  titleSlug,
+  windowTitle,
+  windowId,
+}: BookmarksWindowClientProps) {
   // Generate a unique windowId if a slug is provided
-  const uniqueId = windowId || (titleSlug ? `bookmarks-${titleSlug}-window` : DEFAULT_BOOKMARKS_WINDOW_ID);
+  const uniqueId =
+    windowId || (titleSlug ? `bookmarks-${titleSlug}-window` : DEFAULT_BOOKMARKS_WINDOW_ID);
 
   // Add display title for restore button
   const restoreTitle = titleSlug ? `Restore ${titleSlug} Bookmarks` : "Restore Bookmarks";
@@ -131,7 +141,12 @@ export function BookmarksWindow({ children, titleSlug, windowTitle, windowId }: 
     minimize: minimizeWindow,
     maximize: maximizeWindow,
     isRegistered,
-  }: RegisteredWindowState = useRegisteredWindowState(uniqueId, Bookmark as LucideIcon, restoreTitle, "normal");
+  }: RegisteredWindowState = useRegisteredWindowState(
+    uniqueId,
+    Bookmark as LucideIcon,
+    restoreTitle,
+    "normal",
+  );
 
   // Log state changes for debugging purposes
   useEffect(() => {

@@ -21,7 +21,11 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { HeadObjectCommand, GetObjectCommand, type GetObjectCommandOutput } from "@aws-sdk/client-s3";
+import {
+  HeadObjectCommand,
+  GetObjectCommand,
+  type GetObjectCommandOutput,
+} from "@aws-sdk/client-s3";
 import { Readable } from "node:stream";
 import { s3Client } from "@/lib/s3-utils";
 import { getExtensionFromContentType, IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
@@ -51,12 +55,12 @@ async function readWithTimeout<T>(promise: Promise<T>, assetId: string): Promise
     }, ASSET_STREAM_TIMEOUT_MS);
 
     promise
-      .then(result => {
+      .then((result) => {
         clearTimeout(timeoutId);
         resolve(result);
         return null;
       })
-      .catch(error => {
+      .catch((error) => {
         clearTimeout(timeoutId);
         reject(error instanceof Error ? error : new Error(String(error)));
       });
@@ -116,7 +120,10 @@ function createMonitoredStream(
   });
 }
 
-async function streamToBufferWithLimits(stream: ReadableStream<Uint8Array>, assetId: string): Promise<Buffer> {
+async function streamToBufferWithLimits(
+  stream: ReadableStream<Uint8Array>,
+  assetId: string,
+): Promise<Buffer> {
   const reader = stream.getReader();
   const chunks: Uint8Array[] = [];
   let totalSize = 0;
@@ -200,14 +207,17 @@ async function findAssetInS3(
   }
 
   // Build list once from central IMAGE_EXTENSIONS
-  const extensions = IMAGE_EXTENSIONS.map(e => `.${e}`);
+  const extensions = IMAGE_EXTENSIONS.map((e) => `.${e}`);
 
   // First, try to find with descriptive filename if context is available
   if (context?.bookmarkId && context?.url) {
     // Generate the expected descriptive key pattern
     // We need to compute the actual hash, not use "dummy"
     const { hashImageContent } = await import("@/lib/utils/opengraph-utils");
-    const hash = hashImageContent(Buffer.from(`${context.url}:${context.bookmarkId}`)).substring(0, 8);
+    const hash = hashImageContent(Buffer.from(`${context.url}:${context.bookmarkId}`)).substring(
+      0,
+      8,
+    );
     const domain = stripWwwPrefix(new URL(context.url).hostname).replace(/\./g, "-");
 
     for (const ext of extensions) {
@@ -287,7 +297,9 @@ async function streamFromS3(key: string, contentType: string): Promise<NextRespo
   });
 }
 
-function hasTransformToWebStream(body: unknown): body is { transformToWebStream: () => ReadableStream<Uint8Array> } {
+function hasTransformToWebStream(
+  body: unknown,
+): body is { transformToWebStream: () => ReadableStream<Uint8Array> } {
   return typeof (body as { transformToWebStream?: unknown }).transformToWebStream === "function";
 }
 
@@ -299,7 +311,9 @@ function isBlob(body: unknown): body is Blob {
   return typeof Blob !== "undefined" && body instanceof Blob;
 }
 
-function convertS3BodyToWebStream(body: NonNullable<GetObjectCommandOutput["Body"]>): ReadableStream<Uint8Array> {
+function convertS3BodyToWebStream(
+  body: NonNullable<GetObjectCommandOutput["Body"]>,
+): ReadableStream<Uint8Array> {
   const candidateBody: unknown = body;
 
   if (hasTransformToWebStream(candidateBody)) {
@@ -418,7 +432,9 @@ async function saveAssetToS3(
   ongoingS3Writes.add(key);
 
   try {
-    console.log(`[Assets API] Saving new asset to S3: ${key} (${buffer.length} bytes, ${contentType})`);
+    console.log(
+      `[Assets API] Saving new asset to S3: ${key} (${buffer.length} bytes, ${contentType})`,
+    );
 
     // Always use centralized persistence function for consistency
     const { persistBinaryToS3 } = await import("@/lib/persistence/s3-persistence");
@@ -457,7 +473,10 @@ async function saveAssetToS3(
  * @param params - Route parameters containing assetId
  * @returns Image response or error
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ assetId: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ assetId: string }> },
+) {
   const { assetId } = await params;
 
   // Extract context from query parameters for descriptive S3 filenames
@@ -513,7 +532,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     console.log(`[Assets API] Asset not in S3, fetching from Karakeep: ${assetId}`);
 
     // Get the external bookmarks API URL
-    const bookmarksApiUrl = process.env.BOOKMARKS_API_URL ?? "https://bookmark.iocloudhost.net/api/v1";
+    const bookmarksApiUrl =
+      process.env.BOOKMARKS_API_URL ?? "https://bookmark.iocloudhost.net/api/v1";
     // More robust base URL extraction
     const baseUrl = getAssetBaseUrl(bookmarksApiUrl);
     const bearerToken = process.env.BOOKMARK_BEARER_TOKEN;
@@ -625,7 +645,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
 
       const shouldPersist =
-        process.env.IS_DATA_UPDATER === "true" && Boolean(process.env.S3_BUCKET) && Boolean(s3Client);
+        process.env.IS_DATA_UPDATER === "true" &&
+        Boolean(process.env.S3_BUCKET) &&
+        Boolean(s3Client);
       let clientStream: ReadableStream<Uint8Array> = upstreamBody;
       let persistStream: ReadableStream<Uint8Array> | null = null;
 
@@ -635,14 +657,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         persistStream = streamForPersistence;
       }
 
-      const monitoredStream = createMonitoredStream(clientStream, assetId, error => {
+      const monitoredStream = createMonitoredStream(clientStream, assetId, (error) => {
         console.error(`[Assets API] Streaming error for asset ${assetId}:`, error.message);
       });
 
       if (shouldPersist && persistStream) {
         void streamToBufferWithLimits(persistStream, assetId)
-          .then(buffer => saveAssetToS3(assetId, buffer, contentType, context))
-          .catch(error => {
+          .then((buffer) => saveAssetToS3(assetId, buffer, contentType, context))
+          .catch((error) => {
             console.error(`[Assets API] Failed to save asset ${assetId} to S3:`, error);
           });
       }
@@ -678,7 +700,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
     });
   } catch (error) {
-    console.error(`[Assets API] Error for asset ${assetId}:`, error instanceof Error ? error.message : String(error));
+    console.error(
+      `[Assets API] Error for asset ${assetId}:`,
+      error instanceof Error ? error.message : String(error),
+    );
     return NextResponse.json(
       {
         error: "Internal server error",

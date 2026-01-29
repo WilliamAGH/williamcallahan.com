@@ -53,7 +53,14 @@ describe("NavigationLink", () => {
   });
 
   it("applies custom className when provided", () => {
-    render(<NavigationLink path="/test" name="Test Link" currentPath="/other" className="custom-class" />);
+    render(
+      <NavigationLink
+        path="/test"
+        name="Test Link"
+        currentPath="/other"
+        className="custom-class"
+      />,
+    );
 
     const link = screen.getByRole("link");
     expect(link).toHaveClass("custom-class");
@@ -109,7 +116,13 @@ describe("NavigationLink", () => {
 
   describe("prefix matching for routes with child pages", () => {
     it("applies active styles to bookmarks tab when on child route", () => {
-      render(<NavigationLink path="/bookmarks" name="Bookmarks" currentPath="/bookmarks/textualize-io" />);
+      render(
+        <NavigationLink
+          path="/bookmarks"
+          name="Bookmarks"
+          currentPath="/bookmarks/textualize-io"
+        />,
+      );
 
       const link = screen.getByRole("link");
       expect(link).toHaveAttribute("aria-current", "page");
@@ -125,7 +138,9 @@ describe("NavigationLink", () => {
     });
 
     it("applies active styles to projects tab when on child route", () => {
-      render(<NavigationLink path="/projects" name="Projects" currentPath="/projects/my-project" />);
+      render(
+        <NavigationLink path="/projects" name="Projects" currentPath="/projects/my-project" />,
+      );
 
       const link = screen.getByRole("link");
       expect(link).toHaveAttribute("aria-current", "page");
@@ -133,7 +148,13 @@ describe("NavigationLink", () => {
     });
 
     it("applies active styles to bookmarks tab when on nested tag route", () => {
-      render(<NavigationLink path="/bookmarks" name="Bookmarks" currentPath="/bookmarks/tags/javascript" />);
+      render(
+        <NavigationLink
+          path="/bookmarks"
+          name="Bookmarks"
+          currentPath="/bookmarks/tags/javascript"
+        />,
+      );
 
       const link = screen.getByRole("link");
       expect(link).toHaveAttribute("aria-current", "page");

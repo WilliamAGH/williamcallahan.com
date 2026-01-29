@@ -70,7 +70,7 @@ function truncateText(text: string, maxLength: number): string {
 function extractTagNames(tags: (string | BookmarkTag)[] | undefined): string[] {
   if (!tags || tags.length === 0) return [];
 
-  return tags.map(tag => (typeof tag === "string" ? tag : tag.name));
+  return tags.map((tag) => (typeof tag === "string" ? tag : tag.name));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

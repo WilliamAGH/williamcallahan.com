@@ -43,7 +43,8 @@ function normalizeBasePath(pathname: string): string {
  * will have the value available even in client components.
  * Fallback ensures we have a value even if env var is missing.
  */
-const CLIENT_CDN_BASE_URL = process.env.NEXT_PUBLIC_S3_CDN_URL || "https://s3-storage.callahan.cloud";
+const CLIENT_CDN_BASE_URL =
+  process.env.NEXT_PUBLIC_S3_CDN_URL || "https://s3-storage.callahan.cloud";
 
 /**
  * Extract S3 hostname from server URL
@@ -119,7 +120,8 @@ export function extractS3KeyFromUrl(url: string, config: CdnConfig): string | nu
     if (cdnBase && parsed.host === cdnBase.host && parsed.protocol === cdnBase.protocol) {
       const basePath = normalizeBasePath(cdnBase.pathname);
       if (basePath === "/" || parsed.pathname.startsWith(basePath)) {
-        const key = basePath === "/" ? parsed.pathname.slice(1) : parsed.pathname.slice(basePath.length);
+        const key =
+          basePath === "/" ? parsed.pathname.slice(1) : parsed.pathname.slice(basePath.length);
         return key.startsWith("/") ? key.slice(1) : key;
       }
     }
@@ -128,7 +130,9 @@ export function extractS3KeyFromUrl(url: string, config: CdnConfig): string | nu
     if (s3BucketName) {
       const s3Host = getS3Host(s3ServerUrl);
       const s3Base = parseAbsoluteUrl(s3ServerUrl);
-      const expectedHost = s3Base?.port ? `${s3BucketName}.${s3Host}:${s3Base.port}` : `${s3BucketName}.${s3Host}`;
+      const expectedHost = s3Base?.port
+        ? `${s3BucketName}.${s3Host}:${s3Base.port}`
+        : `${s3BucketName}.${s3Host}`;
       if (parsed.host === expectedHost) {
         const s3Protocol = s3Base?.protocol ?? "https:";
         if (!SUPPORTED_PROTOCOLS.has(s3Protocol) || parsed.protocol !== s3Protocol) {
@@ -167,7 +171,9 @@ export function isOurCdnUrl(url: string, config: CdnConfig): boolean {
   if (s3BucketName) {
     const s3Host = getS3Host(s3ServerUrl);
     const s3Base = parseAbsoluteUrl(s3ServerUrl);
-    const expectedHost = s3Base?.port ? `${s3BucketName}.${s3Host}:${s3Base.port}` : `${s3BucketName}.${s3Host}`;
+    const expectedHost = s3Base?.port
+      ? `${s3BucketName}.${s3Host}:${s3Base.port}`
+      : `${s3BucketName}.${s3Host}`;
     if (parsed.host !== expectedHost) {
       return false;
     }

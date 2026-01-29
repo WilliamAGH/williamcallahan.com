@@ -189,13 +189,13 @@ describe("Rate Limiter", () => {
     });
 
     it("should validate configuration", async () => {
-      await expect(waitForPermit("test", "client", { maxRequests: 0, windowMs: 1000 })).rejects.toThrow(
-        "Invalid maxRequests",
-      );
+      await expect(
+        waitForPermit("test", "client", { maxRequests: 0, windowMs: 1000 }),
+      ).rejects.toThrow("Invalid maxRequests");
 
-      await expect(waitForPermit("test", "client", { maxRequests: 1, windowMs: 0 })).rejects.toThrow(
-        "Invalid windowMs",
-      );
+      await expect(
+        waitForPermit("test", "client", { maxRequests: 1, windowMs: 0 }),
+      ).rejects.toThrow("Invalid windowMs");
     });
 
     it("should use intelligent wait times for long windows", async () => {
@@ -252,11 +252,15 @@ describe("Rate Limiter", () => {
 
       // Simulate 5 requests from same IP
       for (let i = 0; i < 5; i++) {
-        expect(isOperationAllowed(API_ENDPOINT_STORE_NAME, ipAddress, DEFAULT_API_ENDPOINT_LIMIT_CONFIG)).toBe(true);
+        expect(
+          isOperationAllowed(API_ENDPOINT_STORE_NAME, ipAddress, DEFAULT_API_ENDPOINT_LIMIT_CONFIG),
+        ).toBe(true);
       }
 
       // 6th request should be blocked
-      expect(isOperationAllowed(API_ENDPOINT_STORE_NAME, ipAddress, DEFAULT_API_ENDPOINT_LIMIT_CONFIG)).toBe(false);
+      expect(
+        isOperationAllowed(API_ENDPOINT_STORE_NAME, ipAddress, DEFAULT_API_ENDPOINT_LIMIT_CONFIG),
+      ).toBe(false);
     });
 
     it("should handle OpenGraph fetch rate limiting correctly", () => {
@@ -302,8 +306,8 @@ describe("Rate Limiter", () => {
         .fill(null)
         .map(() => isOperationAllowed("concurrent-store", clientId, config));
 
-      const allowedCount = results.filter(result => result === true).length;
-      const blockedCount = results.filter(result => result === false).length;
+      const allowedCount = results.filter((result) => result === true).length;
+      const blockedCount = results.filter((result) => result === false).length;
 
       expect(allowedCount).toBe(5);
       expect(blockedCount).toBe(5);

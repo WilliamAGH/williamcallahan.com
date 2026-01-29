@@ -17,7 +17,8 @@ class LogoDebugger {
   private isDebugEnabled: boolean;
 
   private constructor() {
-    this.isDebugEnabled = process.env.NODE_ENV === "development" || process.env.DEBUG_LOGOS === "true";
+    this.isDebugEnabled =
+      process.env.NODE_ENV === "development" || process.env.DEBUG_LOGOS === "true";
   }
 
   static getInstance(): LogoDebugger {
@@ -60,7 +61,11 @@ class LogoDebugger {
     });
   }
 
-  async performS3Search(domain: string, s3Client: S3Client | null, bucket: string | undefined): Promise<void> {
+  async performS3Search(
+    domain: string,
+    s3Client: S3Client | null,
+    bucket: string | undefined,
+  ): Promise<void> {
     if (!this.isDebugEnabled || !s3Client || !bucket) return;
 
     const info = this.debugInfo.get(domain);
@@ -108,7 +113,7 @@ class LogoDebugger {
       info.s3Results = {
         totalLogos: objects.length,
         matchingDomains: matchingDomain.slice(0, 10), // Limit to 10 for readability
-        potentialMatches: similarDomain.slice(0, 10).map(filename => ({
+        potentialMatches: similarDomain.slice(0, 10).map((filename) => ({
           key: filename,
           extractedDomain: filename.split("_")[0] || filename,
           similarity: 0.5, // Placeholder similarity score
@@ -132,7 +137,13 @@ class LogoDebugger {
     }
   }
 
-  setFinalResult(domain: string, found: boolean, source?: string, cdnUrl?: string, error?: string): void {
+  setFinalResult(
+    domain: string,
+    found: boolean,
+    source?: string,
+    cdnUrl?: string,
+    error?: string,
+  ): void {
     if (!this.isDebugEnabled) return;
 
     const info = this.debugInfo.get(domain);
@@ -182,7 +193,9 @@ class LogoDebugger {
       if (info.s3Results.potentialMatches.length > 0) {
         console.log(`  Potential matches:`);
         for (const match of info.s3Results.potentialMatches) {
-          console.log(`    - ${match.key} (domain: ${match.extractedDomain}, similarity: ${match.similarity})`);
+          console.log(
+            `    - ${match.key} (domain: ${match.extractedDomain}, similarity: ${match.similarity})`,
+          );
         }
       }
     }
@@ -213,7 +226,12 @@ class LogoDebugger {
 export const logoDebugger = LogoDebugger.getInstance();
 
 // Helper function to format hash attempts for debugging
-export function formatHashAttempt(domain: string, hash: string, source: string, extension: string): string {
+export function formatHashAttempt(
+  domain: string,
+  hash: string,
+  source: string,
+  extension: string,
+): string {
   const filename = `${domain}_${source}_${hash}.${extension}`;
   return `${filename} (domain: ${domain}, hash: ${hash})`;
 }

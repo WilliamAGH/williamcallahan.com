@@ -49,7 +49,9 @@ export async function processEducationItem<T extends Education>(
 
       if (manifestEntry) {
         const selectedUrl =
-          isDarkTheme && manifestEntry.invertedCdnUrl ? manifestEntry.invertedCdnUrl : manifestEntry.cdnUrl;
+          isDarkTheme && manifestEntry.invertedCdnUrl
+            ? manifestEntry.invertedCdnUrl
+            : manifestEntry.cdnUrl;
         logoData = { url: selectedUrl, source: manifestEntry.originalSource };
       } else {
         const directLogo = domain ? await getLogoCdnData(domain) : null;
@@ -102,7 +104,9 @@ export async function processCertificationItem<T extends Certification | Class>(
 
       if (manifestEntry) {
         const selectedUrl =
-          isDarkTheme && manifestEntry.invertedCdnUrl ? manifestEntry.invertedCdnUrl : manifestEntry.cdnUrl;
+          isDarkTheme && manifestEntry.invertedCdnUrl
+            ? manifestEntry.invertedCdnUrl
+            : manifestEntry.cdnUrl;
         logoData = { url: selectedUrl, source: manifestEntry.originalSource };
       } else {
         const directLogo = domain ? await getLogoCdnData(domain) : null;

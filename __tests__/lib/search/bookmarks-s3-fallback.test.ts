@@ -134,7 +134,8 @@ describe("searchBookmarks - S3 fallback mapping", () => {
     expect(cacheArgs?.bookmarks?.length ?? 0).toBeGreaterThan(0);
     expect(typeof cacheArgs?.index?.documentCount).toBe("number");
     expect(cacheArgs?.index?.documentCount ?? 0).toBeGreaterThan(0);
-    const debugHits = (cacheArgs?.index as MiniSearch<BookmarkIndexItem> | undefined)?.search("sdk") ?? [];
+    const debugHits =
+      (cacheArgs?.index as MiniSearch<BookmarkIndexItem> | undefined)?.search("sdk") ?? [];
     expect(debugHits.length).toBeGreaterThan(0);
     expect(results).toHaveLength(1);
     expect(results[0]?.id).toBe("bk-1");

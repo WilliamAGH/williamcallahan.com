@@ -27,7 +27,11 @@ import {
 
 export function History({ history, mode = "default" }: HistoryProps) {
   // Filter history based on mode
-  const filteredHistory = Array.isArray(history) ? (mode === "chat" ? history.filter(isChatCommand) : history) : [];
+  const filteredHistory = Array.isArray(history)
+    ? mode === "chat"
+      ? history.filter(isChatCommand)
+      : history
+    : [];
 
   const getOutputContent = (line: TerminalCommand): string | null => {
     if (isTextCommand(line) || isNavigationCommand(line) || isClearCommand(line)) {
@@ -38,11 +42,11 @@ export function History({ history, mode = "default" }: HistoryProps) {
     }
     if (isHelpCommand(line)) {
       return line.commands
-        .map(cmd => `${cmd.name}: ${cmd.description}${cmd.usage ? ` (${cmd.usage})` : ""}`)
+        .map((cmd) => `${cmd.name}: ${cmd.description}${cmd.usage ? ` (${cmd.usage})` : ""}`)
         .join("\n");
     }
     if (isSelectionCommand(line)) {
-      return line.items.map(item => `${item.label}: ${item.description}`).join("\n");
+      return line.items.map((item) => `${item.label}: ${item.description}`).join("\n");
     }
     if (isSearchingCommand(line)) {
       const searchText = line.scope
@@ -84,11 +88,17 @@ export function History({ history, mode = "default" }: HistoryProps) {
                 <div
                   className={cn(
                     "rounded-md border px-3 py-2",
-                    line.role === "user" ? "border-blue-500/30 bg-blue-500/10" : "border-gray-700/70 bg-black/20",
+                    line.role === "user"
+                      ? "border-blue-500/30 bg-blue-500/10"
+                      : "border-gray-700/70 bg-black/20",
                   )}
                 >
-                  <div className="text-xs tracking-wide text-gray-400 select-none mb-1">{chatLabel}</div>
-                  <div className="text-gray-200 whitespace-pre-wrap break-words">{outputContent}</div>
+                  <div className="text-xs tracking-wide text-gray-400 select-none mb-1">
+                    {chatLabel}
+                  </div>
+                  <div className="text-gray-200 whitespace-pre-wrap break-words">
+                    {outputContent}
+                  </div>
                 </div>
               ) : (
                 <div className="text-gray-300 whitespace-pre-wrap break-words">{outputContent}</div>

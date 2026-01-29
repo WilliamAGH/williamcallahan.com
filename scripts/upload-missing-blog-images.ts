@@ -124,7 +124,7 @@ async function uploadMissingImages() {
 }
 
 // Run the upload
-uploadMissingImages().catch(error => {
+uploadMissingImages().catch((error) => {
   logger.error("Fatal error:", error);
   process.exit(1);
 });

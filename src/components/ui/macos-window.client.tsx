@@ -71,7 +71,7 @@ export function MacOSWindow({
             role="tablist"
             aria-label="Window tabs"
           >
-            {tabs.map(tab => (
+            {tabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
@@ -140,7 +140,9 @@ export function MacOSCodeWindow({
       contentClassName={cn("!p-0 text-gray-100", contentClassName)}
     >
       {typeof children === "string" ? (
-        <CodeBlock className={cn(language ? `language-${language}` : "", "!my-0 !shadow-none !border-0")}>
+        <CodeBlock
+          className={cn(language ? `language-${language}` : "", "!my-0 !shadow-none !border-0")}
+        >
           {children}
         </CodeBlock>
       ) : (

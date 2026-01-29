@@ -109,7 +109,13 @@ export class LogoFetcher {
   finalizeLogoResult(result: LogoFetchResult): LogoFetchResult {
     if (result.domain) ServerCacheInstance.setLogoFetch(result.domain, result);
     if (result.isValid) {
-      logoDebugger.setFinalResult(result.domain ?? "", true, result.source ?? undefined, result.s3Key, result.cdnUrl);
+      logoDebugger.setFinalResult(
+        result.domain ?? "",
+        true,
+        result.source ?? undefined,
+        result.s3Key,
+        result.cdnUrl,
+      );
     } else {
       logoDebugger.setFinalResult(result.domain ?? "", false);
     }
@@ -153,7 +159,8 @@ export class LogoFetcher {
     ];
 
     return rawSources.filter(
-      (s): s is { name: LogoSource; urlFn: (d: string) => string; size: string } => s.urlFn !== undefined,
+      (s): s is { name: LogoSource; urlFn: (d: string) => string; size: string } =>
+        s.urlFn !== undefined,
     );
   }
 
@@ -165,14 +172,24 @@ export class LogoFetcher {
       logger.debug(`Domain ${domain} is permanently blocked or in cooldown, skipping`, {
         service: "LogoFetcher",
       });
-      logoDebugger.logAttempt(domain, "external-fetch", "Domain is blocked or in cooldown", "failed");
+      logoDebugger.logAttempt(
+        domain,
+        "external-fetch",
+        "Domain is blocked or in cooldown",
+        "failed",
+      );
       return null;
     }
     if (this.sessionMgr.hasDomainFailedTooManyTimes(domain)) {
       logger.debug(`Domain ${domain} has failed too many times in this session, skipping`, {
         service: "LogoFetcher",
       });
-      logoDebugger.logAttempt(domain, "external-fetch", "Domain has failed too many times", "failed");
+      logoDebugger.logAttempt(
+        domain,
+        "external-fetch",
+        "Domain has failed too many times",
+        "failed",
+      );
       return null;
     }
     const domainVariants = getDomainVariants(domain);
@@ -184,7 +201,12 @@ export class LogoFetcher {
         if (result) {
           // Success - remove from failure tracker if it was there
           this.sessionMgr.removeDomainFailure(domain);
-          logoDebugger.logAttempt(domain, "external-fetch", `Successfully fetched from ${name} (${size})`, "success");
+          logoDebugger.logAttempt(
+            domain,
+            "external-fetch",
+            `Successfully fetched from ${name} (${size})`,
+            "success",
+          );
           return result;
         }
       }
@@ -208,7 +230,12 @@ export class LogoFetcher {
     const url = urlFn(testDomain);
     try {
       if (isDebug) logger.debug(`[LogoFetcher] Attempting ${name} (${size}) fetch: ${url}`);
-      logoDebugger.logAttempt(originalDomain, "external-fetch", `Trying ${name} (${size}): ${url}`, "success");
+      logoDebugger.logAttempt(
+        originalDomain,
+        "external-fetch",
+        `Trying ${name} (${size}): ${url}`,
+        "success",
+      );
 
       const fetchOptions = {
         headers: { ...DEFAULT_IMAGE_HEADERS, ...getBrowserHeaders() },
@@ -235,15 +262,21 @@ export class LogoFetcher {
 
       // In streaming mode for dev, skip globe detection and validation; return raw buffer
       if (this.devStreamImagesToS3) {
-        logger.info(`[LogoFetcher] (dev-stream) Using raw logo for ${originalDomain} from ${name} (${size})`);
+        logger.info(
+          `[LogoFetcher] (dev-stream) Using raw logo for ${originalDomain} from ${name} (${size})`,
+        );
         return { buffer: rawBuffer, source: name, contentType: responseContentType, url };
       }
 
-      if (await this.validators.checkIfGlobeIcon(rawBuffer, url, mockResponse, testDomain, name)) return null;
+      if (await this.validators.checkIfGlobeIcon(rawBuffer, url, mockResponse, testDomain, name))
+        return null;
 
       if (await this.validators.validateLogoBuffer(rawBuffer, url)) {
-        const { processedBuffer, contentType } = await this.validators.processImageBuffer(rawBuffer);
-        logger.info(`[LogoFetcher] Fetched logo for ${originalDomain} from ${name} (${size}) using ${testDomain}`);
+        const { processedBuffer, contentType } =
+          await this.validators.processImageBuffer(rawBuffer);
+        logger.info(
+          `[LogoFetcher] Fetched logo for ${originalDomain} from ${name} (${size}) using ${testDomain}`,
+        );
         return { buffer: processedBuffer, source: name, contentType, url };
       }
 
@@ -271,17 +304,25 @@ export class LogoFetcher {
               service: "LogoFetcher",
               error: errorMessage,
             });
-          logoDebugger.logAttempt(originalDomain, "external-fetch", `Direct fetch failed: ${errorMessage}`, "failed");
+          logoDebugger.logAttempt(
+            originalDomain,
+            "external-fetch",
+            `Direct fetch failed: ${errorMessage}`,
+            "failed",
+          );
           return null;
         }
       }
 
       // Use isRetryableError to check if this error is worth retrying
       if (!isRetryableError(error)) {
-        logger.warn(`Non-retryable error fetching logo for ${testDomain} from ${name} (${size}) at ${url}`, {
-          service: "LogoFetcher",
-          error: safeStringifyValue(error),
-        });
+        logger.warn(
+          `Non-retryable error fetching logo for ${testDomain} from ${name} (${size}) at ${url}`,
+          {
+            service: "LogoFetcher",
+            error: safeStringifyValue(error),
+          },
+        );
       }
       logoDebugger.logAttempt(
         originalDomain,

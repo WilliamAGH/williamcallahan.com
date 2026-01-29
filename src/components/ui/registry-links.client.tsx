@@ -169,7 +169,11 @@ export function RegistryLinks({ links, className = "" }: RegistryLinksProps): JS
             `}
             title={`View on ${label}`}
           >
-            {link.type === "github" ? <GithubIcon className="w-4 h-4" /> : Icon ? <Icon className="w-4 h-4" /> : null}
+            {link.type === "github" ? (
+              <GithubIcon className="w-4 h-4" />
+            ) : Icon ? (
+              <Icon className="w-4 h-4" />
+            ) : null}
             <span>{label}</span>
             <ExternalLink className="w-3.5 h-3.5 opacity-60" />
           </a>

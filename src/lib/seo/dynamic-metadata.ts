@@ -13,7 +13,9 @@ import { formatTagDisplay as utilFormatTagDisplay } from "@/lib/utils/tag-utils"
 import { envLogger } from "@/lib/utils/env-logger";
 
 const isSeoDebugLoggingEnabled =
-  process.env.DEBUG_SEO === "true" || process.env.DEBUG === "true" || process.env.VERBOSE === "true";
+  process.env.DEBUG_SEO === "true" ||
+  process.env.DEBUG === "true" ||
+  process.env.VERBOSE === "true";
 
 /**
  * Generates consistent title formatting for dynamic pages
@@ -126,7 +128,11 @@ export function generateDynamicTitle(
  * @param customTemplate - Optional custom template with {tag} placeholder
  * @returns SEO-friendly description string
  */
-export function generateTagDescription(tagName: string, type: "blog" | "bookmarks", customTemplate?: string): string {
+export function generateTagDescription(
+  tagName: string,
+  type: "blog" | "bookmarks",
+  customTemplate?: string,
+): string {
   // Build the description
   let description: string;
 
@@ -198,7 +204,7 @@ export function generateDynamicDescription(
       ellipsis: "...",
       contentType: "description",
       // Extract important keywords from variables
-      importantKeywords: Object.values(variables).filter(v => v.length > 3),
+      importantKeywords: Object.values(variables).filter((v) => v.length > 3),
     };
 
     const truncationResult = gradientTruncate(result, truncationOptions);

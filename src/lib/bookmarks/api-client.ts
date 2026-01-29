@@ -19,7 +19,10 @@ export function getLogPrefix(operation?: string): string {
 /**
  * Standard response handler for bookmark API calls
  */
-export async function handleBookmarkApiResponse(response: Response, context: string): Promise<UnifiedBookmark[]> {
+export async function handleBookmarkApiResponse(
+  response: Response,
+  context: string,
+): Promise<UnifiedBookmark[]> {
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`API request ${context} failed with status ${response.status}: ${errorText}`);
@@ -40,14 +43,19 @@ export async function handleBookmarkApiResponse(response: Response, context: str
     return data.bookmarks;
   }
 
-  console.warn(`${getLogPrefix()} Received non-standard data from ${context}, returning empty array.`);
+  console.warn(
+    `${getLogPrefix()} Received non-standard data from ${context}, returning empty array.`,
+  );
   return [];
 }
 
 /**
  * Makes a request to the bookmarks API endpoint
  */
-export async function callBookmarksApi(endpoint: string, options?: RequestInit): Promise<UnifiedBookmark[]> {
+export async function callBookmarksApi(
+  endpoint: string,
+  options?: RequestInit,
+): Promise<UnifiedBookmark[]> {
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}${endpoint}`;
 

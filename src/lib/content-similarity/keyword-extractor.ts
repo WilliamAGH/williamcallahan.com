@@ -272,7 +272,7 @@ function extractWords(text: string): Map<string, number> {
     .replace(/\s+/g, " ");
 
   // Split into tokens
-  const tokens = normalized.split(" ").filter(token => token.length > 2);
+  const tokens = normalized.split(" ").filter((token) => token.length > 2);
 
   // Count word frequency
   for (const token of tokens) {
@@ -291,7 +291,10 @@ function extractWords(text: string): Map<string, number> {
 /**
  * Calculate TF-IDF-like scores for keywords
  */
-function scoreKeywords(titleWords: Map<string, number>, descWords: Map<string, number>): Map<string, number> {
+function scoreKeywords(
+  titleWords: Map<string, number>,
+  descWords: Map<string, number>,
+): Map<string, number> {
   const scores = new Map<string, number>();
 
   // Title words get higher weight (3x)
@@ -329,7 +332,7 @@ function extractBigrams(text: string): string[] {
     .replace(/[^\w\s-]/g, " ")
     .replace(/\s+/g, " ");
 
-  const words = normalized.split(" ").filter(w => w.length > 1);
+  const words = normalized.split(" ").filter((w) => w.length > 1);
   const bigrams: string[] = [];
 
   for (let i = 0; i < words.length - 1; i++) {
@@ -458,15 +461,17 @@ export function extractCrossContentKeywords(
       /\b(react|vue|angular|nextjs|next.js|django|rails|spring|nodejs|node.js|python|java|typescript|javascript|golang|rust)\b/gi,
     );
   if (techMatches) {
-    keywords.push(...techMatches.map(t => t.toLowerCase()));
+    keywords.push(...techMatches.map((t) => t.toLowerCase()));
   }
 
   // Extract business terms
   const businessMatches = (title + " " + description)
     .toLowerCase()
-    .match(/\b(startup|saas|b2b|b2c|marketplace|platform|fintech|edtech|healthtech|enterprise|sme)\b/gi);
+    .match(
+      /\b(startup|saas|b2b|b2c|marketplace|platform|fintech|edtech|healthtech|enterprise|sme)\b/gi,
+    );
   if (businessMatches) {
-    keywords.push(...businessMatches.map(t => t.toLowerCase()));
+    keywords.push(...businessMatches.map((t) => t.toLowerCase()));
   }
 
   // Remove duplicates and return
@@ -492,7 +497,7 @@ export function hasInvestmentContext(text: string): boolean {
   ];
 
   const lowercased = text.toLowerCase();
-  if (investmentTerms.some(term => lowercased.includes(term))) {
+  if (investmentTerms.some((term) => lowercased.includes(term))) {
     return true;
   }
 
@@ -520,5 +525,5 @@ export function hasTechnicalContext(text: string): boolean {
   ];
 
   const lowercased = text.toLowerCase();
-  return techTerms.some(term => lowercased.includes(term));
+  return techTerms.some((term) => lowercased.includes(term));
 }

@@ -216,7 +216,8 @@ describe("Book Transforms", () => {
       const listItem = absItemToBookListItem(item, BASE_OPTIONS);
 
       // Cover URL should be proxied through local API
-      const expectedDirectUrl = "https://abs.example.com/api/items/list-item-id/cover?token=test-key";
+      const expectedDirectUrl =
+        "https://abs.example.com/api/items/list-item-id/cover?token=test-key";
       expect(listItem).toEqual({
         id: "list-item-id",
         title: "Grid Book",

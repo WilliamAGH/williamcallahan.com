@@ -49,7 +49,10 @@ const CONTENT: Record<ContextType, ContextContent> = {
   },
   thought: {
     what: "a thought I write down for later reflection",
-    why: ["It's probably not polished enough for a blog post.", "But worth putting somewhere for later access."],
+    why: [
+      "It's probably not polished enough for a blog post.",
+      "But worth putting somewhere for later access.",
+    ],
     more: [
       "Thoughts are rougher, quicker, more raw, and not always polished.",
       "If you're reading this, you're seeing the unfiltered version.",
@@ -123,7 +126,10 @@ export function TerminalContext({ type, className }: TerminalContextProps) {
 
   const { displayedText: whatText, isTyping: whatTyping } = useTypingAnimation(
     content.what,
-    phase === "what-typing" || phase === "what-done" || phase === "why-expanded" || phase === "more-expanded",
+    phase === "what-typing" ||
+      phase === "what-done" ||
+      phase === "why-expanded" ||
+      phase === "more-expanded",
     handleWhatComplete,
   );
 
@@ -177,14 +183,18 @@ export function TerminalContext({ type, className }: TerminalContextProps) {
           {phase !== "idle" && (
             <span className="font-mono text-[0.7rem] mx-1 text-zinc-500 dark:text-zinc-400">
               {whatText}
-              {whatTyping && <span className="animate-pulse text-amber-400 dark:text-amber-500">▊</span>}
+              {whatTyping && (
+                <span className="animate-pulse text-amber-400 dark:text-amber-500">▊</span>
+              )}
             </span>
           )}
 
           {/* What done: "Why?" trigger */}
           {phase === "what-done" && (
             <>
-              <span className="font-mono text-[0.7rem] text-zinc-300 dark:text-zinc-600 mx-0.5">—</span>
+              <span className="font-mono text-[0.7rem] text-zinc-300 dark:text-zinc-600 mx-0.5">
+                —
+              </span>
               <button
                 type="button"
                 onClick={handleWhyClick}

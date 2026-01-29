@@ -34,7 +34,7 @@ export function formatTagDisplay(tag: string): string {
 
   return tag
     .split(/[\s-]+/)
-    .map(word => {
+    .map((word) => {
       // Preserve all-caps for short acronyms such as "AI", "ML", "VR", etc.
       const isPotentialAcronym = word.length <= 2 && word === word.toLowerCase();
       if (isPotentialAcronym) {
@@ -56,7 +56,9 @@ export function formatTagDisplay(tag: string): string {
 export function normalizeTagsToStrings(tags: Array<string | BookmarkTag>): string[] {
   if (!Array.isArray(tags)) return [];
 
-  return tags.map(tag => (typeof tag === "string" ? tag : tag && "name" in tag ? tag.name : "")).filter(Boolean);
+  return tags
+    .map((tag) => (typeof tag === "string" ? tag : tag && "name" in tag ? tag.name : ""))
+    .filter(Boolean);
 }
 
 /**
@@ -120,7 +122,7 @@ export function tagToSlug(tag: string): string {
   // Using character code checks to avoid character class issues
   const normalized = cleanTag.normalize("NFD");
   const withoutDiacritics = Array.from(normalized)
-    .filter(char => {
+    .filter((char) => {
       const code = char.charCodeAt(0);
       // Filter out combining diacritical marks (U+0300 to U+036F)
       return code < 0x0300 || code > 0x036f;
@@ -164,5 +166,5 @@ export function slugToTagDisplay(slug: string): string {
  */
 export function normalizeAndDeduplicateTags(tags: string[]): string[] {
   if (!Array.isArray(tags)) return [];
-  return Array.from(new Set(tags.map(t => normalizeString(t))));
+  return Array.from(new Set(tags.map((t) => normalizeString(t))));
 }

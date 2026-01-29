@@ -32,7 +32,9 @@ export function TerminalSkeleton() {
             <div className="space-y-1 mb-4">
               {/* Welcome message that always appears on load */}
               <div className="flex items-start">
-                <span className="text-gray-400 opacity-60">Welcome! Type &quot;help&quot; for available commands.</span>
+                <span className="text-gray-400 opacity-60">
+                  Welcome! Type &quot;help&quot; for available commands.
+                </span>
               </div>
             </div>
 
@@ -61,10 +63,13 @@ export function TerminalSkeleton() {
 }
 
 // Lazy load the Terminal implementation directly to avoid circular imports
-const TerminalImpl = dynamic(() => import("./terminal-implementation.client").then(mod => mod.Terminal), {
-  loading: () => <TerminalSkeleton />,
-  ssr: false, // Now allowed in Client Component
-});
+const TerminalImpl = dynamic(
+  () => import("./terminal-implementation.client").then((mod) => mod.Terminal),
+  {
+    loading: () => <TerminalSkeleton />,
+    ssr: false, // Now allowed in Client Component
+  },
+);
 
 // Export the loader component
 export function TerminalLoader() {

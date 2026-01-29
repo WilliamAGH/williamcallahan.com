@@ -59,7 +59,7 @@ describe("LogoImage Conditional Rendering", () => {
       // Get all images and find the main one (not placeholder)
       // The component proxies external URLs through /api/cache/images
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === expectedRegularProxiedUrl);
+      const mainImage = images.find((img) => img.getAttribute("src") === expectedRegularProxiedUrl);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -80,7 +80,7 @@ describe("LogoImage Conditional Rendering", () => {
       render(<LogoImage {...regularUrlProps} priority={true} />);
       // Get all images and find the main one - the component proxies external URLs
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === expectedRegularProxiedUrl);
+      const mainImage = images.find((img) => img.getAttribute("src") === expectedRegularProxiedUrl);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -93,7 +93,7 @@ describe("LogoImage Conditional Rendering", () => {
     it("applies custom className to the component wrapper", () => {
       render(<LogoImage {...regularUrlProps} className="custom-class" />);
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === expectedRegularProxiedUrl);
+      const mainImage = images.find((img) => img.getAttribute("src") === expectedRegularProxiedUrl);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -108,7 +108,7 @@ describe("LogoImage Conditional Rendering", () => {
       render(<LogoImage {...dataUrlProps} />);
       // Check if next/image was rendered for data URL
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === dataUrlProps.src);
+      const mainImage = images.find((img) => img.getAttribute("src") === dataUrlProps.src);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -128,7 +128,7 @@ describe("LogoImage Conditional Rendering", () => {
     it("applies custom className to next/image for data URLs", () => {
       render(<LogoImage {...dataUrlProps} className="custom-img-class" />);
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === dataUrlProps.src);
+      const mainImage = images.find((img) => img.getAttribute("src") === dataUrlProps.src);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -141,7 +141,7 @@ describe("LogoImage Conditional Rendering", () => {
     it("handles priority prop for data URLs with next/image", () => {
       render(<LogoImage {...dataUrlProps} priority={true} />);
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === dataUrlProps.src);
+      const mainImage = images.find((img) => img.getAttribute("src") === dataUrlProps.src);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -171,7 +171,7 @@ describe("LogoImage Conditional Rendering", () => {
       render(<LogoImage {...cdnUrlProps} />);
       const images = screen.getAllByTestId("next-image-mock");
       // The component proxies external URLs through /api/cache/images
-      const mainImage = images.find(img => img.getAttribute("src") === expectedCdnProxiedUrl);
+      const mainImage = images.find((img) => img.getAttribute("src") === expectedCdnProxiedUrl);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -181,7 +181,8 @@ describe("LogoImage Conditional Rendering", () => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const requestedUrl = fetchSpy.mock.calls[0]?.[0];
       expect(typeof requestedUrl).toBe("string");
-      if (typeof requestedUrl !== "string") throw new Error("Fetch was not invoked with a URL string");
+      if (typeof requestedUrl !== "string")
+        throw new Error("Fetch was not invoked with a URL string");
 
       const parsed = new URL(requestedUrl, "http://localhost");
       expect(parsed.pathname).toBe("/api/logo");

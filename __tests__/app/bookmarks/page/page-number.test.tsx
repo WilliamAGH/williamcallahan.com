@@ -32,7 +32,9 @@ describe("Bookmarks PageNumber", () => {
 
   it("should render the bookmarks page without crashing", async () => {
     // Update the mock implementation for this test
-    mockGetBookmarks.mockResolvedValue([{ id: "1", title: "Test Bookmark", url: "https://example.com" }]);
+    mockGetBookmarks.mockResolvedValue([
+      { id: "1", title: "Test Bookmark", url: "https://example.com" },
+    ]);
 
     // Call the async component as a function (workaround for Jest with async components)
     const PageComponent = await Page({ params: { pageNumber: "1" } });

@@ -19,7 +19,10 @@ import { stripImageData } from "./utils";
  * This prevents the N+1 query pattern when multiple components need bookmarks
  */
 export const getCachedBookmarks = cache(
-  async (options?: { skipExternalFetch?: boolean; includeImageData?: boolean }): Promise<UnifiedBookmark[]> => {
+  async (options?: {
+    skipExternalFetch?: boolean;
+    includeImageData?: boolean;
+  }): Promise<UnifiedBookmark[]> => {
     const bookmarks = (await getBookmarks({
       ...DEFAULT_BOOKMARK_OPTIONS,
       includeImageData: options?.includeImageData ?? false,

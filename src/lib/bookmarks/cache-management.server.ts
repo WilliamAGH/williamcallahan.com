@@ -50,7 +50,11 @@ export function setFullDatasetCache(bookmarks: UnifiedBookmark[]): void {
     data: bookmarks,
     timestamp: getDeterministicTimestamp(),
   };
-  envLogger.log("Updated in-memory runtime cache", { bookmarkCount: bookmarks.length }, { category: LOG_PREFIX });
+  envLogger.log(
+    "Updated in-memory runtime cache",
+    { bookmarkCount: bookmarks.length },
+    { category: LOG_PREFIX },
+  );
 }
 
 /**
@@ -76,7 +80,10 @@ export function isFullDatasetCacheValid(bypassForTest: boolean = false): boolean
 // Bookmark-by-ID Memory Cache
 // ============================================================================
 
-const bookmarkByIdCache = new Map<string, { data: UnifiedBookmark | LightweightBookmark; timestamp: number }>();
+const bookmarkByIdCache = new Map<
+  string,
+  { data: UnifiedBookmark | LightweightBookmark; timestamp: number }
+>();
 const lightweightBookmarkByIdCache = new Map<
   string,
   { data: UnifiedBookmark | LightweightBookmark; timestamp: number }
@@ -98,8 +105,14 @@ export function invalidateBookmarkByIdCaches(): void {
  */
 export function getCachedBookmarkById(key: string, lightweight: true): LightweightBookmark | null;
 export function getCachedBookmarkById(key: string, lightweight: false): UnifiedBookmark | null;
-export function getCachedBookmarkById(key: string, lightweight: boolean): UnifiedBookmark | LightweightBookmark | null;
-export function getCachedBookmarkById(key: string, lightweight: boolean): UnifiedBookmark | LightweightBookmark | null {
+export function getCachedBookmarkById(
+  key: string,
+  lightweight: boolean,
+): UnifiedBookmark | LightweightBookmark | null;
+export function getCachedBookmarkById(
+  key: string,
+  lightweight: boolean,
+): UnifiedBookmark | LightweightBookmark | null {
   const cache = lightweight ? lightweightBookmarkByIdCache : bookmarkByIdCache;
   const entry = cache.get(key);
   if (!entry) return null;
@@ -116,8 +129,16 @@ export function getCachedBookmarkById(key: string, lightweight: boolean): Unifie
  * @param value - Bookmark to cache
  * @param lightweight - Whether to store in the lightweight cache
  */
-export function setCachedBookmarkById(key: string, value: LightweightBookmark, lightweight: true): void;
-export function setCachedBookmarkById(key: string, value: UnifiedBookmark, lightweight: false): void;
+export function setCachedBookmarkById(
+  key: string,
+  value: LightweightBookmark,
+  lightweight: true,
+): void;
+export function setCachedBookmarkById(
+  key: string,
+  value: UnifiedBookmark,
+  lightweight: false,
+): void;
 export function setCachedBookmarkById(
   key: string,
   value: UnifiedBookmark | LightweightBookmark,

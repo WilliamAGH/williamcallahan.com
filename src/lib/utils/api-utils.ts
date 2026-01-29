@@ -56,7 +56,11 @@ export function validateAuthSecret(request: NextRequest, secret: string | undefi
  * @param additionalHeaders - Optional extra headers
  * @returns NextResponse with error JSON
  */
-export function createErrorResponse(message: string, status = 500, additionalHeaders?: HeadersInit): NextResponse {
+export function createErrorResponse(
+  message: string,
+  status = 500,
+  additionalHeaders?: HeadersInit,
+): NextResponse {
   return NextResponse.json(
     { error: message },
     {

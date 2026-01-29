@@ -194,7 +194,7 @@ export function getThoughts(): Promise<Thought[]> {
  */
 export async function getThoughtListItems(): Promise<ThoughtListItem[]> {
   const thoughts = await getThoughts();
-  return thoughts.map(thought => ({
+  return thoughts.map((thought) => ({
     id: thought.id,
     slug: thought.slug,
     title: thought.title,
@@ -212,7 +212,7 @@ export async function getThoughtListItems(): Promise<ThoughtListItem[]> {
  */
 export async function getThoughtBySlug(slug: string): Promise<Thought | null> {
   const thoughts = await getThoughts();
-  return thoughts.find(t => t.slug === slug) ?? null;
+  return thoughts.find((t) => t.slug === slug) ?? null;
 }
 
 /**
@@ -220,13 +220,15 @@ export async function getThoughtBySlug(slug: string): Promise<Thought | null> {
  */
 export async function getThoughtById(id: string): Promise<Thought | null> {
   const thoughts = await getThoughts();
-  return thoughts.find(t => t.id === id) ?? null;
+  return thoughts.find((t) => t.id === id) ?? null;
 }
 
 /**
  * Get all unique categories with counts
  */
-export async function getThoughtCategories(): Promise<Array<{ id: string; name: string; count: number }>> {
+export async function getThoughtCategories(): Promise<
+  Array<{ id: string; name: string; count: number }>
+> {
   const thoughts = await getThoughts();
   const categoryCounts = new Map<string, number>();
 

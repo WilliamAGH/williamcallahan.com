@@ -70,7 +70,9 @@ export function isPlaceholderImage(imagePath: string): boolean {
     ...Object.values(PLACEHOLDER_IMAGES.SOCIAL_BANNERS),
   ];
 
-  return placeholderPaths.some(placeholder => typeof placeholder === "string" && imagePath.includes(placeholder));
+  return placeholderPaths.some(
+    (placeholder) => typeof placeholder === "string" && imagePath.includes(placeholder),
+  );
 }
 
 /**

@@ -5,7 +5,11 @@
 
 import { writeBinaryS3 } from "@/lib/s3-utils";
 import { getDeterministicTimestamp } from "@/lib/server-cache";
-import { parseS3Key, generateS3Key as generateS3KeyUtil, getFileExtension } from "@/lib/utils/hash-utils";
+import {
+  parseS3Key,
+  generateS3Key as generateS3KeyUtil,
+  getFileExtension,
+} from "@/lib/utils/hash-utils";
 import { UNIFIED_IMAGE_SERVICE_CONFIG } from "@/lib/constants";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { safeStringifyValue, isRetryableError } from "@/lib/utils/error-utils";
@@ -99,7 +103,9 @@ export class S3Operations {
             `[S3Operations] S3 upload failed due to memory pressure. Retry ${attempts}/${CONFIG.MAX_UPLOAD_RETRIES} scheduled for ${new Date(nextRetry).toISOString()}`,
           );
         } else {
-          logger.info(`[S3Operations] S3 upload failed after ${CONFIG.MAX_UPLOAD_RETRIES} attempts`);
+          logger.info(
+            `[S3Operations] S3 upload failed after ${CONFIG.MAX_UPLOAD_RETRIES} attempts`,
+          );
           this.uploadRetryQueue.delete(key);
         }
       }
@@ -170,21 +176,23 @@ export class S3Operations {
           {
             maxRetries: CONFIG.MAX_UPLOAD_RETRIES - retry.attempts,
             baseDelay: CONFIG.RETRY_BASE_DELAY,
-            isRetryable: error => isRetryableError(error),
+            isRetryable: (error) => isRetryableError(error),
             onRetry: (error, attempt) => {
               void error; // Explicitly mark as unused per project convention
-              logger.info(`[S3Operations] Retry ${attempt + retry.attempts}/${CONFIG.MAX_UPLOAD_RETRIES} for ${key}`);
+              logger.info(
+                `[S3Operations] Retry ${attempt + retry.attempts}/${CONFIG.MAX_UPLOAD_RETRIES} for ${key}`,
+              );
             },
           },
         )
-          .then(result => {
+          .then((result) => {
             if (result?.cdnUrl) {
               this.uploadRetryQueue.delete(key);
               logger.info(`[S3Operations] Retry successful for ${key}`);
             }
             return undefined;
           })
-          .catch(error => {
+          .catch((error) => {
             logger.error("[S3Operations] All retries failed", error, { key });
             this.uploadRetryQueue.delete(key);
           });

@@ -273,11 +273,15 @@ describe("randomString", () => {
     });
 
     it("accepts virtual-hosted S3 URLs with the expected host", () => {
-      expect(isOurCdnUrl("https://media-bucket.sfo3.digitaloceanspaces.com/path/image.png", config)).toBe(true);
+      expect(
+        isOurCdnUrl("https://media-bucket.sfo3.digitaloceanspaces.com/path/image.png", config),
+      ).toBe(true);
     });
 
     it("extracts S3 keys from CDN URLs with base paths", () => {
-      expect(extractS3KeyFromUrl("https://cdn.example.com/assets/folder/image.png", config)).toBe("folder/image.png");
+      expect(extractS3KeyFromUrl("https://cdn.example.com/assets/folder/image.png", config)).toBe(
+        "folder/image.png",
+      );
     });
   });
 });

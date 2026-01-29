@@ -13,7 +13,11 @@ import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/c
 import { GITHUB_CACHE_KEYS, GITHUB_CACHE_TAGS } from "@/lib/cache/invalidation";
 import { formatPacificDateTime } from "@/lib/utils/date-format";
 import { getEnvironment } from "@/lib/config/environment";
-import type { GitHubActivityApiResponse, StoredGithubActivityS3, UserActivityView } from "@/types/github";
+import type {
+  GitHubActivityApiResponse,
+  StoredGithubActivityS3,
+  UserActivityView,
+} from "@/types/github";
 import {
   readGitHubActivityFromS3,
   isOldFlatStoredGithubActivityS3Format,
@@ -37,7 +41,8 @@ function isEmptyData(data: unknown): boolean {
 
   // Don't treat zero contributions as "empty" - users can legitimately have 0 contributions
   const hasSeries = Array.isArray(ty.data) && ty.data.length > 0;
-  const hasCount = typeof ty.totalContributions === "number" && Number.isFinite(ty.totalContributions);
+  const hasCount =
+    typeof ty.totalContributions === "number" && Number.isFinite(ty.totalContributions);
 
   // Empty only if we have neither series data nor a known count
   return !hasSeries && !hasCount;
@@ -181,14 +186,20 @@ export async function getGithubActivity(): Promise<UserActivityView> {
   }
 
   const s3Metadata = await getGitHubActivityMetadata(metadataKey);
-  const lastRefreshed = s3Metadata?.lastModified ? formatPacificDateTime(s3Metadata.lastModified) : undefined;
+  const lastRefreshed = s3Metadata?.lastModified
+    ? formatPacificDateTime(s3Metadata.lastModified)
+    : undefined;
 
   if (!s3ActivityData) {
-    debug("[DataAccess/GitHub:getGithubActivity] No S3 data found. Attempting to refresh from GitHub API...");
+    debug(
+      "[DataAccess/GitHub:getGithubActivity] No S3 data found. Attempting to refresh from GitHub API...",
+    );
     try {
       // TODO: Implement API refresh logic here to avoid circular dependency
       // For now, return empty data
-      console.warn("[DataAccess/GitHub:getGithubActivity] API refresh not yet implemented in public API module");
+      console.warn(
+        "[DataAccess/GitHub:getGithubActivity] API refresh not yet implemented in public API module",
+      );
       return formatActivityView(null, "error");
     } catch (error) {
       console.error(
@@ -232,7 +243,11 @@ async function getGithubActivityDirect(): Promise<UserActivityView> {
 async function getCachedGithubActivity(): Promise<UserActivityView> {
   "use cache";
   cacheContextGuards.cacheLife("GitHubActivity", "minutes");
-  cacheContextGuards.cacheTag(GITHUB_CACHE_TAGS.CATEGORY, GITHUB_CACHE_TAGS.PRIMARY, GITHUB_CACHE_TAGS.MAIN);
+  cacheContextGuards.cacheTag(
+    GITHUB_CACHE_TAGS.CATEGORY,
+    GITHUB_CACHE_TAGS.PRIMARY,
+    GITHUB_CACHE_TAGS.MAIN,
+  );
 
   return getGithubActivityDirect();
 }

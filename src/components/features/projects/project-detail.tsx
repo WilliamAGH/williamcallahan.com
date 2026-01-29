@@ -60,7 +60,13 @@ function SmartLink({
     );
   }
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className={className} aria-label={ariaLabel}>
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={className}
+      aria-label={ariaLabel}
+    >
       {children}
     </a>
   );
@@ -143,7 +149,9 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
             >
               <Globe className="w-3.5 h-3.5" />
               <span>{domain}</span>
-              {!isInternal && <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />}
+              {!isInternal && (
+                <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              )}
             </SmartLink>
           </div>
         </div>
@@ -177,7 +185,9 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
                         href={safeUrl ?? "/projects"}
                         isInternal={isInternal}
                         className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center"
-                        ariaLabel={isInternal ? `View ${project.name}` : `View ${project.name} on ${domain}`}
+                        ariaLabel={
+                          isInternal ? `View ${project.name}` : `View ${project.name} on ${domain}`
+                        }
                       >
                         <div className="absolute top-4 right-4 p-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                           <ArrowUpRight className="w-5 h-5" />
@@ -248,7 +258,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
                   Tech Stack
                 </h2>
                 <div className="flex flex-wrap gap-2">
-                  {project.techStack.map(tech => (
+                  {project.techStack.map((tech) => (
                     <span
                       key={tech}
                       className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-md text-xs font-medium"
@@ -272,7 +282,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
                   Tags
                 </h2>
                 <div className="flex flex-wrap gap-2">
-                  {project.tags.map(tag => (
+                  {project.tags.map((tag) => (
                     <Link
                       key={tag}
                       href={`/projects?tag=${encodeURIComponent(tag)}`}

@@ -44,6 +44,12 @@ export const contextContentSchema = z.object({
 export type ContextContent = z.infer<typeof contextContentSchema>;
 
 /** Phase states for the three-phase interaction */
-export const terminalContextPhaseSchema = z.enum(["idle", "what-typing", "what-done", "why-expanded", "more-expanded"]);
+export const terminalContextPhaseSchema = z.enum([
+  "idle",
+  "what-typing",
+  "what-done",
+  "why-expanded",
+  "more-expanded",
+]);
 
 export type TerminalContextPhase = z.infer<typeof terminalContextPhaseSchema>;

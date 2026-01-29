@@ -12,7 +12,7 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
  */
 
 // Dynamic import to prevent SSR hydration issues
-const Tweet = dynamic(() => import("react-tweet").then(mod => mod.Tweet), {
+const Tweet = dynamic(() => import("react-tweet").then((mod) => mod.Tweet), {
   ssr: false,
   loading: () => (
     <div className="mx-auto max-w-xl flex justify-center">

@@ -60,9 +60,15 @@ jest.mock("../../src/lib/bookmarks/service.server", () => {
 
 const mockedGetBookmarksIndex = getBookmarksIndex as jest.MockedFunction<typeof getBookmarksIndex>;
 const mockedGetBookmarksPage = getBookmarksPage as jest.MockedFunction<typeof getBookmarksPage>;
-const mockedListBookmarkTagSlugs = listBookmarkTagSlugs as jest.MockedFunction<typeof listBookmarkTagSlugs>;
-const mockedGetTagBookmarksIndex = getTagBookmarksIndex as jest.MockedFunction<typeof getTagBookmarksIndex>;
-const mockedGetTagBookmarksPage = getTagBookmarksPage as jest.MockedFunction<typeof getTagBookmarksPage>;
+const mockedListBookmarkTagSlugs = listBookmarkTagSlugs as jest.MockedFunction<
+  typeof listBookmarkTagSlugs
+>;
+const mockedGetTagBookmarksIndex = getTagBookmarksIndex as jest.MockedFunction<
+  typeof getTagBookmarksIndex
+>;
+const mockedGetTagBookmarksPage = getTagBookmarksPage as jest.MockedFunction<
+  typeof getTagBookmarksPage
+>;
 
 // Allow longer-running sitemap validations in CI
 const DEFAULT_TEST_TIMEOUT_MS = 60_000;
@@ -82,7 +88,7 @@ const BLOG_POSTS_DIR = path.join(process.cwd(), "data", "blog", "posts");
 // Helper to get all blog post slugs from MDX files
 const getBlogSlugs = (): string[] => {
   const files = fs.readdirSync(BLOG_POSTS_DIR);
-  return files.filter(file => file.endsWith(".mdx")).map(file => file.replace(".mdx", ""));
+  return files.filter((file) => file.endsWith(".mdx")).map((file) => file.replace(".mdx", ""));
 };
 
 describe("Routes Module", () => {
@@ -138,7 +144,7 @@ describe("Routes Module", () => {
      */
     const nonExistentRoutes = ["/this-page-does-not-exist", "/blog/non-existent-post"];
 
-    test.each(nonExistentRoutes)("route %s returns 404", async route => {
+    test.each(nonExistentRoutes)("route %s returns 404", async (route) => {
       // Mock 404 response for non-existent routes
       mockFetch.mockImplementationOnce(() =>
         Promise.resolve({
@@ -167,7 +173,7 @@ describe("Routes Module", () => {
      */
     const routes = ["/", "/blog", "/bookmarks", "/education", "/experience", "/investments"];
 
-    test.each(routes)("route %s returns 200", async route => {
+    test.each(routes)("route %s returns 200", async (route) => {
       // Mock 200 response for existing routes
       mockFetch.mockImplementationOnce(() =>
         Promise.resolve({
@@ -196,7 +202,7 @@ describe("Routes Module", () => {
      */
     const slugs = getBlogSlugs();
 
-    test.each(slugs)("blog post %s returns 200", async slug => {
+    test.each(slugs)("blog post %s returns 200", async (slug) => {
       // Mock 200 response for existing blog posts
       mockFetch.mockImplementationOnce(() =>
         Promise.resolve({
@@ -230,7 +236,7 @@ describe("Routes Module", () => {
       const sitemapEntries: MetadataRoute.Sitemap = await sitemap();
 
       // Extract just the URLs
-      const urls = sitemapEntries.map(entry => entry.url);
+      const urls = sitemapEntries.map((entry) => entry.url);
 
       console.log(`🔍 Testing ${urls.length} sitemap URLs for 200 responses...`);
 
@@ -269,7 +275,7 @@ describe("Routes Module", () => {
       }
 
       // Assert all URLs returned 200
-      const failedUrls = results.filter(r => r.status !== 200);
+      const failedUrls = results.filter((r) => r.status !== 200);
       if (failedUrls.length > 0) {
         console.error("\n🚨 Failed URLs:");
         failedUrls.forEach(({ url, status }) => {
@@ -294,8 +300,8 @@ describe("Routes Module", () => {
 
       // Filter for bookmark detail pages (not pagination)
       const bookmarkUrls = sitemapEntries
-        .map(e => e.url)
-        .filter(url => url.includes("/bookmarks/") && !url.includes("/page/"));
+        .map((e) => e.url)
+        .filter((url) => url.includes("/bookmarks/") && !url.includes("/page/"));
 
       console.log(`🔖 Testing ${bookmarkUrls.length} bookmark detail pages...`);
 

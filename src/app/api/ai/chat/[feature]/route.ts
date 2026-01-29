@@ -53,14 +53,15 @@ const requestBodySchema = z
       .min(1)
       .optional(),
   })
-  .refine(value => Boolean(value.messages) || Boolean(value.userText), {
+  .refine((value) => Boolean(value.messages) || Boolean(value.userText), {
     message: "Provide either messages or userText",
   });
 
 function isAllowedHostname(hostname: string): boolean {
   const lower = hostname.toLowerCase();
   if (lower === "williamcallahan.com" || lower.endsWith(".williamcallahan.com")) return true;
-  if (process.env.NODE_ENV !== "production" && (lower === "localhost" || lower === "127.0.0.1")) return true;
+  if (process.env.NODE_ENV !== "production" && (lower === "localhost" || lower === "127.0.0.1"))
+    return true;
   return false;
 }
 
@@ -147,10 +148,14 @@ export async function POST(
   const secret = process.env.AI_TOKEN_SIGNING_SECRET?.trim();
   if (!secret) {
     logger.error("[AI Chat] AI_TOKEN_SIGNING_SECRET is not configured");
-    return NextResponse.json({ error: "AI chat service not configured" }, { status: 503, headers: NO_STORE_HEADERS });
+    return NextResponse.json(
+      { error: "AI chat service not configured" },
+      { status: 503, headers: NO_STORE_HEADERS },
+    );
   }
 
-  const nonceCookie = request.cookies.get(HTTPS_COOKIE_NAME)?.value ?? request.cookies.get(HTTP_COOKIE_NAME)?.value;
+  const nonceCookie =
+    request.cookies.get(HTTPS_COOKIE_NAME)?.value ?? request.cookies.get(HTTP_COOKIE_NAME)?.value;
   const bearerToken = getBearerToken(request);
   if (!nonceCookie || !bearerToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS });
@@ -272,7 +277,7 @@ export async function POST(
             });
 
           void task.result
-            .then(assistantMessage => {
+            .then((assistantMessage) => {
               const durationMs = Date.now() - start;
               const queueWaitMs = sseStartedAtMs ? sseStartedAtMs - enqueuedAtMs : 0;
 
@@ -399,7 +404,10 @@ export async function POST(
       success: true,
     });
 
-    return NextResponse.json({ message: assistantText }, { status: 200, headers: NO_STORE_HEADERS });
+    return NextResponse.json(
+      { message: assistantText },
+      { status: 200, headers: NO_STORE_HEADERS },
+    );
   } catch (error: unknown) {
     const durationMs = Date.now() - start;
     const errorMessage = error instanceof Error ? error.message : String(error);

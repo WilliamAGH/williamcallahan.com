@@ -72,7 +72,7 @@ export function clearRelatedContent(cache: Cache, sourceType: string, sourceId: 
  */
 export function clearAllRelatedContent(cache: Cache): void {
   const keys = cache.keys();
-  const relatedKeys = keys.filter(key => key.startsWith(RELATED_CONTENT_PREFIX));
+  const relatedKeys = keys.filter((key) => key.startsWith(RELATED_CONTENT_PREFIX));
   if (relatedKeys.length > 0) {
     cache.del(relatedKeys);
   }

@@ -8,7 +8,15 @@
 
 import { useFixSvgTransforms } from "@/lib/hooks/use-fix-svg-transforms";
 import type { LucideIcon } from "lucide-react"; // Assuming lucide-react for icons
-import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from "react";
 import type {
   WindowStateValue,
   WindowInstanceInfo,
@@ -18,7 +26,9 @@ import type {
 } from "@/types/ui/window";
 
 // Create the context
-const GlobalWindowRegistryContext = createContext<GlobalWindowRegistryContextType | undefined>(undefined);
+const GlobalWindowRegistryContext = createContext<GlobalWindowRegistryContextType | undefined>(
+  undefined,
+);
 
 // Referentially stable no-op registry for safety when provider is missing
 const NOOP_WINDOW_REGISTRY: GlobalWindowRegistryContextType = {
@@ -40,7 +50,7 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
   const registerWindow = useCallback(
     (id: string, icon: LucideIcon, title: string, initialState: WindowStateValue = "normal") => {
       // Registration logging removed to keep development console clean
-      setWindows(prev => {
+      setWindows((prev) => {
         // Avoid re-registering if already present with the same info
         // Don't compare icon since React components are recreated on each render
         if (prev[id] && prev[id].state === initialState && prev[id].title === title) {
@@ -56,7 +66,7 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
   );
 
   const unregisterWindow = useCallback((id: string) => {
-    setWindows(prev => {
+    setWindows((prev) => {
       // Destructure to get all windows except the one we're removing
       const { [id]: removedWindow, ...rest } = prev; // Extract removed window for cleanup
       void removedWindow; // Explicitly acknowledge unused variable
@@ -66,19 +76,22 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
   }, []);
 
   const setWindowState = useCallback((id: string, state: WindowStateValue) => {
-    setWindows(prev => {
+    setWindows((prev) => {
       if (!prev[id] || prev[id].state === state) return prev; // No change needed
       // TODO: Persist to sessionStorage here?
       return { ...prev, [id]: { ...prev[id], state } };
     });
   }, []);
 
-  const minimizeWindow = useCallback((id: string) => setWindowState(id, "minimized"), [setWindowState]);
+  const minimizeWindow = useCallback(
+    (id: string) => setWindowState(id, "minimized"),
+    [setWindowState],
+  );
   const closeWindow = useCallback((id: string) => setWindowState(id, "closed"), [setWindowState]);
   const restoreWindow = useCallback((id: string) => setWindowState(id, "normal"), [setWindowState]);
 
   const maximizeWindow = useCallback((id: string) => {
-    setWindows(prev => {
+    setWindows((prev) => {
       if (!prev[id]) return prev;
       const newState = prev[id].state === "maximized" ? "normal" : "maximized";
       // TODO: Persist to sessionStorage here?
@@ -188,6 +201,15 @@ export const useRegisteredWindowState = (
       setState: (state: WindowStateValue) => setWindowState(id, state),
       isRegistered: Boolean(windowInfo),
     }),
-    [id, windowInfo, initialState, minimizeWindow, maximizeWindow, closeWindow, restoreWindow, setWindowState],
+    [
+      id,
+      windowInfo,
+      initialState,
+      minimizeWindow,
+      maximizeWindow,
+      closeWindow,
+      restoreWindow,
+      setWindowState,
+    ],
   );
 };

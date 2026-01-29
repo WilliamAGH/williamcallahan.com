@@ -68,7 +68,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Skip during build phase to prevent blocking
   if (process.env.NEXT_PHASE === "phase-production-build") {
     console.log("[API Refresh] Build phase detected - skipping GitHub activity refresh");
-    return NextResponse.json({ message: "Skipping refresh during build phase", buildPhase: true }, { status: 200 });
+    return NextResponse.json(
+      { message: "Skipping refresh during build phase", buildPhase: true },
+      { status: 200 },
+    );
   }
 
   // Ensure rate limits are loaded from S3
@@ -77,7 +80,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Check for cron job authentication first
   const headerStore = request.headers;
   const authorizationHeader = headerStore.get("authorization");
-  const cronRefreshSecret = process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+  const cronRefreshSecret =
+    process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
   let isCronJob = false;
 
   if (cronRefreshSecret && authorizationHeader && authorizationHeader.startsWith("Bearer ")) {
@@ -107,7 +111,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!allowed) {
       const resetTime = getMonotonicTime() + RATE_LIMIT_WINDOW;
       const resetDate = new Date(resetTime);
-      console.warn(`[API Refresh] Rate limit exceeded for IP ${ip}. Limit: ${RATE_LIMIT_MAX_REQUESTS} per hour`);
+      console.warn(
+        `[API Refresh] Rate limit exceeded for IP ${ip}. Limit: ${RATE_LIMIT_MAX_REQUESTS} per hour`,
+      );
 
       return NextResponse.json(
         {
@@ -132,7 +138,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!isCronJob) {
     // Allow unauthenticated refresh in non-production environments
     const isProduction =
-      process.env.DEPLOYMENT_ENV === "production" || process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
+      process.env.DEPLOYMENT_ENV === "production" ||
+      process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
 
     if (!isProduction) {
       envLogger.log(
@@ -147,7 +154,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       if (!serverSecret) {
         console.error("[API Refresh] GITHUB_REFRESH_SECRET is not set – refusing to run refresh.");
-        return NextResponse.json({ message: "Server mis-configuration: secret missing." }, { status: 500 });
+        return NextResponse.json(
+          { message: "Server mis-configuration: secret missing." },
+          { status: 500 },
+        );
       }
 
       if (secret !== serverSecret) {
@@ -206,7 +216,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    console.error("[API Refresh] Critical error during GitHub activity data refresh:", errorMessage);
+    console.error(
+      "[API Refresh] Critical error during GitHub activity data refresh:",
+      errorMessage,
+    );
     return NextResponse.json(
       { message: "Failed to refresh GitHub activity data.", error: errorMessage },
       { status: 500 },

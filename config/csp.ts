@@ -137,7 +137,12 @@ export const CSP_DIRECTIVES = {
     "https://*.x.com",
     RAILWAY_TEST_DEPLOYMENTS,
   ],
-  frameSrc: ["https://platform.twitter.com", "https://*.x.com", ...CLERK_DOMAINS.frames, RAILWAY_TEST_DEPLOYMENTS],
+  frameSrc: [
+    "https://platform.twitter.com",
+    "https://*.x.com",
+    ...CLERK_DOMAINS.frames,
+    RAILWAY_TEST_DEPLOYMENTS,
+  ],
   frameAncestors: ["'none'"],
   baseUri: ["'self'"],
   formAction: ["'self'"],

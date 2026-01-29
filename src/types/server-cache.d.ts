@@ -64,7 +64,9 @@ type FunctionKeys<T> = {
  * This is used to map the helper functions (which now take `cache: Cache` as first arg)
  * to instance methods (where `this` is implicit and not part of the call signature).
  */
-type RemoveFirstArg<T> = T extends (first: any, ...args: infer A) => infer R ? (...args: A) => R : T;
+type RemoveFirstArg<T> = T extends (first: any, ...args: infer A) => infer R
+  ? (...args: A) => R
+  : T;
 
 /**
  * Transforms a module's exports into bound methods by removing the first argument.

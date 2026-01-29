@@ -12,12 +12,14 @@ import type { UsePaginationOptions, UsePaginationReturn, PaginatedResponse } fro
 // The fetcher is now defined inside the hook to capture the apiUrl.
 const createFetcher =
   <T>(apiUrl: string): Fetcher<PaginatedResponse<T>, string> =>
-  async url => {
+  async (url) => {
     const response = await fetch(url);
 
     if (!response.ok) {
       const errorBody = await response.text();
-      throw new Error(`Failed to fetch data from ${apiUrl}: ${response.status} ${response.statusText} - ${errorBody}`);
+      throw new Error(
+        `Failed to fetch data from ${apiUrl}: ${response.status} ${response.statusText} - ${errorBody}`,
+      );
     }
 
     const json: unknown = await response.json();
@@ -35,7 +37,10 @@ export function usePagination<T>({
 }: UsePaginationOptions<T>): UsePaginationReturn<T> {
   const [currentPage, setCurrentPage] = useState(initialPage);
 
-  const getKey = (pageIndex: number, previousPageData: PaginatedResponse<T> | null): string | null => {
+  const getKey = (
+    pageIndex: number,
+    previousPageData: PaginatedResponse<T> | null,
+  ): string | null => {
     const page = pageIndex + 1;
     if (previousPageData && !previousPageData.meta.pagination.hasNext) return null;
 
@@ -47,10 +52,13 @@ export function usePagination<T>({
     const params = new URLSearchParams({
       page: String(page),
       limit: String(limit),
-      ...Object.fromEntries(Object.entries(queryParams).map(([key, value]) => [key, String(value)])),
+      ...Object.fromEntries(
+        Object.entries(queryParams).map(([key, value]) => [key, String(value)]),
+      ),
     });
 
-    if (!initialTotalPages && initialTotalCount && pageIndex * limit >= initialTotalCount) return null;
+    if (!initialTotalPages && initialTotalCount && pageIndex * limit >= initialTotalCount)
+      return null;
 
     return `${apiUrl}?${params.toString()}`;
   };
@@ -92,7 +100,7 @@ export function usePagination<T>({
         : [],
   });
 
-  const items: T[] = data ? data.flatMap(page => page?.data ?? []) : [];
+  const items: T[] = data ? data.flatMap((page) => page?.data ?? []) : [];
   const isLoading = swrIsLoading;
   const isLoadingMore = swrIsLoading && size > 1;
   const totalItems = initialTotalCount ?? data?.[0]?.meta.pagination.total ?? 0;

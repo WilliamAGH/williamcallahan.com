@@ -7,7 +7,12 @@
  * @module data-access/github-storage
  */
 
-import { readJsonS3, writeJsonS3, listS3Objects as s3UtilsListS3Objects, getS3ObjectMetadata } from "@/lib/s3-utils";
+import {
+  readJsonS3,
+  writeJsonS3,
+  listS3Objects as s3UtilsListS3Objects,
+  getS3ObjectMetadata,
+} from "@/lib/s3-utils";
 
 import { debugLog } from "@/lib/utils/debug";
 import {
@@ -85,9 +90,13 @@ export async function writeGitHubActivityToS3(
   try {
     // 1) Never write during Next.js build phase – build reads from public CDN only
     if (process.env.NEXT_PHASE === "phase-production-build") {
-      debugLog(`Skipping GitHub activity write during build phase (NEXT_PHASE=phase-production-build)`, "warn", {
-        key,
-      });
+      debugLog(
+        `Skipping GitHub activity write during build phase (NEXT_PHASE=phase-production-build)`,
+        "warn",
+        {
+          key,
+        },
+      );
       return true; // treat as successful no-op
     }
 
@@ -214,7 +223,9 @@ export async function writeRepoWeeklyStatsToS3(
 /**
  * Read aggregated weekly activity from S3
  */
-export async function readAggregatedWeeklyActivityFromS3(): Promise<AggregatedWeeklyActivity[] | null> {
+export async function readAggregatedWeeklyActivityFromS3(): Promise<
+  AggregatedWeeklyActivity[] | null
+> {
   try {
     return await readJsonS3<AggregatedWeeklyActivity[]>(AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE);
   } catch (error) {
@@ -228,7 +239,9 @@ export async function readAggregatedWeeklyActivityFromS3(): Promise<AggregatedWe
 /**
  * Write aggregated weekly activity to S3
  */
-export async function writeAggregatedWeeklyActivityToS3(data: AggregatedWeeklyActivity[]): Promise<boolean> {
+export async function writeAggregatedWeeklyActivityToS3(
+  data: AggregatedWeeklyActivity[],
+): Promise<boolean> {
   try {
     await writeJsonS3(AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, data);
     debugLog(`Successfully wrote aggregated weekly activity to S3`, "info");
@@ -247,7 +260,7 @@ export async function writeAggregatedWeeklyActivityToS3(data: AggregatedWeeklyAc
 export async function listRepoStatsFiles(): Promise<string[]> {
   try {
     const results = await s3UtilsListS3Objects(REPO_RAW_WEEKLY_STATS_S3_KEY_DIR);
-    return results.filter(key => key.endsWith(".json")).toSorted();
+    return results.filter((key) => key.endsWith(".json")).toSorted();
   } catch (error) {
     debugLog(`Failed to list repo stats files`, "error", {
       error: error instanceof Error ? error.message : String(error),
@@ -259,7 +272,9 @@ export async function listRepoStatsFiles(): Promise<string[]> {
 /**
  * Get metadata for GitHub activity file
  */
-export async function getGitHubActivityMetadata(key: string = GITHUB_ACTIVITY_S3_KEY_FILE): Promise<{
+export async function getGitHubActivityMetadata(
+  key: string = GITHUB_ACTIVITY_S3_KEY_FILE,
+): Promise<{
   lastModified?: Date;
 } | null> {
   try {

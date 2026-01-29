@@ -8,7 +8,7 @@
  * @returns {function(object): object} A function that returns the syntax tree unchanged
  */
 function dummyPlugin() {
-  return _tree => _tree;
+  return (_tree) => _tree;
 }
 
 module.exports = dummyPlugin;

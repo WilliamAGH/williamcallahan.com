@@ -100,7 +100,8 @@ async function getCachedOpenGraphDataInternal(
     if (isOgResult(stored)) {
       // Check if S3 data is fresh enough
       const isDataFresh =
-        stored.timestamp && getOgTimestamp() - stored.timestamp < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
+        stored.timestamp &&
+        getOgTimestamp() - stored.timestamp < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
 
       if (isDataFresh) {
         debug(
@@ -124,13 +125,19 @@ async function getCachedOpenGraphDataInternal(
 
   // If skipping external fetch, return fallback now
   if (skipExternalFetch) {
-    debug(`[DataAccess/OpenGraph] 🚫 Skipping external fetch, returning fallback: ${normalizedUrl}`);
+    debug(
+      `[DataAccess/OpenGraph] 🚫 Skipping external fetch, returning fallback: ${normalizedUrl}`,
+    );
     return createFallbackResult(normalizedUrl, "Skipped external fetch", validatedFallback);
   }
 
   // PRIORITY LEVEL 4: Fetch from external source
   debug(`[OG-Priority-4] 🔍 Attempting external OpenGraph fetch for: ${normalizedUrl}`);
-  const externalResult = await refreshOpenGraphData(normalizedUrl, idempotencyKey, validatedFallback);
+  const externalResult = await refreshOpenGraphData(
+    normalizedUrl,
+    idempotencyKey,
+    validatedFallback,
+  );
 
   if (externalResult) {
     debug(`[OG-Priority-4] ✅ External OpenGraph fetch succeeded for: ${normalizedUrl}`);
@@ -174,7 +181,12 @@ export async function getOpenGraphData(
 
   // Use Next.js cache when enabled and in a Next.js request context (not CLI)
   if (USE_NEXTJS_CACHE && !isCliLikeContext()) {
-    return getCachedOpenGraphDataInternal(normalizedUrl, skipExternalFetch, idempotencyKey, validatedFallback);
+    return getCachedOpenGraphDataInternal(
+      normalizedUrl,
+      skipExternalFetch,
+      idempotencyKey,
+      validatedFallback,
+    );
   }
 
   // Legacy path - still using ServerCacheInstance
@@ -200,11 +212,18 @@ export async function getOpenGraphData(
   // PRIORITY LEVEL 2: Check metadata cache first
   debug(`[OG-Priority-2] 🔍 Checking metadata cache for: ${normalizedUrl}`);
   const cached = ServerCacheInstance.getOpenGraphData(normalizedUrl);
-  if (cached && getOgTimestamp() - (cached.data.timestamp ?? 0) < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000) {
+  if (
+    cached &&
+    getOgTimestamp() - (cached.data.timestamp ?? 0) < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000
+  ) {
     debug(`[OG-Priority-2] ✅ Found valid metadata cache for: ${normalizedUrl}`);
 
     // Validate cached data integrity
-    if (!cached.data.url || !cached.data.title || (cached.data.error && typeof cached.data.error !== "string")) {
+    if (
+      !cached.data.url ||
+      !cached.data.title ||
+      (cached.data.error && typeof cached.data.error !== "string")
+    ) {
       envLogger.log(
         "Cached data appears corrupted, invalidating cache",
         { url: normalizedUrl },
@@ -229,9 +248,11 @@ export async function getOpenGraphData(
 
   // If we have stale in-memory cache and should refresh, start background refresh
   if (cached && !skipExternalFetch) {
-    debug(`[DataAccess/OpenGraph] Using stale metadata cache while refreshing in background: ${normalizedUrl}`);
+    debug(
+      `[DataAccess/OpenGraph] Using stale metadata cache while refreshing in background: ${normalizedUrl}`,
+    );
 
-    refreshOpenGraphData(normalizedUrl, idempotencyKey, validatedFallback).catch(error => {
+    refreshOpenGraphData(normalizedUrl, idempotencyKey, validatedFallback).catch((error) => {
       const ogError = new OgError(`Background refresh failed for ${normalizedUrl}`, "refresh", {
         originalError: error,
       });
@@ -260,7 +281,8 @@ export async function getOpenGraphData(
     if (isOgResult(stored)) {
       // Check if S3 data is fresh enough
       const isDataFresh =
-        stored.timestamp && getOgTimestamp() - stored.timestamp < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
+        stored.timestamp &&
+        getOgTimestamp() - stored.timestamp < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
 
       if (!isDataFresh) {
         debug(
@@ -289,13 +311,19 @@ export async function getOpenGraphData(
 
   // If skipping external fetch, return fallback now
   if (skipExternalFetch) {
-    debug(`[DataAccess/OpenGraph] 🚫 Skipping external fetch, returning fallback: ${normalizedUrl}`);
+    debug(
+      `[DataAccess/OpenGraph] 🚫 Skipping external fetch, returning fallback: ${normalizedUrl}`,
+    );
     return createFallbackResult(normalizedUrl, "Skipped external fetch", validatedFallback);
   }
 
   // PRIORITY LEVEL 4: Fetch from external source if not in cache or S3
   debug(`[OG-Priority-4] 🔍 Attempting external OpenGraph fetch for: ${normalizedUrl}`);
-  const externalResult = await refreshOpenGraphData(normalizedUrl, idempotencyKey, validatedFallback);
+  const externalResult = await refreshOpenGraphData(
+    normalizedUrl,
+    idempotencyKey,
+    validatedFallback,
+  );
 
   if (externalResult) {
     debug(`[OG-Priority-4] ✅ External OpenGraph fetch succeeded for: ${normalizedUrl}`);
@@ -333,20 +361,27 @@ export async function refreshOpenGraphData(
     return promise;
   }
 
-  const validatedFallback = fallbackImageData ? karakeepImageFallbackSchema.safeParse(fallbackImageData).data : null;
+  const validatedFallback = fallbackImageData
+    ? karakeepImageFallbackSchema.safeParse(fallbackImageData).data
+    : null;
 
   promise = (async () => {
     try {
       // Check for S3 override first - even during refresh, overrides take precedence
       const s3Override = await getS3Override(normalizedUrl);
       if (s3Override) {
-        debug(`[OpenGraph Refresh] 🛡️ S3 override found during refresh, skipping external fetch: ${normalizedUrl}`);
+        debug(
+          `[OpenGraph Refresh] 🛡️ S3 override found during refresh, skipping external fetch: ${normalizedUrl}`,
+        );
         ServerCacheInstance.setOpenGraphData(normalizedUrl, s3Override, false);
         return s3Override;
       }
 
       debug(`[OpenGraph Refresh] 🚀 Starting automatic refresh for: ${normalizedUrl}`);
-      const result = await fetchExternalOpenGraphWithRetry(normalizedUrl, validatedFallback || undefined);
+      const result = await fetchExternalOpenGraphWithRetry(
+        normalizedUrl,
+        validatedFallback || undefined,
+      );
 
       // Handle successful result
       if (result && typeof result === "object" && "url" in result) {
@@ -361,7 +396,11 @@ export async function refreshOpenGraphData(
       // Handle network failure (expected scenario)
       if (result && typeof result === "object" && "networkFailure" in result) {
         debug(`[OpenGraph Refresh] 🌐 Network unavailable for: ${normalizedUrl}, using fallback`);
-        const fallback = createFallbackResult(normalizedUrl, "Network connectivity issue", validatedFallback);
+        const fallback = createFallbackResult(
+          normalizedUrl,
+          "Network connectivity issue",
+          validatedFallback,
+        );
         // Cache the fallback for a shorter duration to retry sooner
         ServerCacheInstance.setOpenGraphData(normalizedUrl, fallback, true);
         return fallback;
@@ -369,14 +408,22 @@ export async function refreshOpenGraphData(
 
       // Handle null result (permanent failure or blocked)
       debug(`[OpenGraph Refresh] ❌ External source unavailable for: ${normalizedUrl}`);
-      const fallback = createFallbackResult(normalizedUrl, "External source unavailable", validatedFallback);
+      const fallback = createFallbackResult(
+        normalizedUrl,
+        "External source unavailable",
+        validatedFallback,
+      );
       ServerCacheInstance.setOpenGraphData(normalizedUrl, fallback, true);
       return fallback;
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      const ogError = new OgError(`Failed to refresh OpenGraph data for ${normalizedUrl}`, "refresh", {
-        originalError: error,
-      });
+      const ogError = new OgError(
+        `Failed to refresh OpenGraph data for ${normalizedUrl}`,
+        "refresh",
+        {
+          originalError: error,
+        },
+      );
       envLogger.log(
         ogError.message,
         {
@@ -407,7 +454,9 @@ export async function refreshOpenGraphData(
  * @param s3Key - S3 key for the image
  * @returns Promise resolving to image buffer and content type, or null if not found
  */
-export async function serveOpenGraphImage(s3Key: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+export async function serveOpenGraphImage(
+  s3Key: string,
+): Promise<{ buffer: Buffer; contentType: string } | null> {
   return serveImageFromS3(s3Key, "OpenGraph");
 }
 
@@ -443,6 +492,10 @@ export function invalidateOpenGraphCacheForUrl(url: string): void {
   } else {
     // Legacy: clear specific entry from memory cache
     ServerCacheInstance.deleteOpenGraphData(normalizedUrl);
-    envLogger.log("Legacy cache cleared for URL", { url: normalizedUrl }, { category: "OpenGraph" });
+    envLogger.log(
+      "Legacy cache cleared for URL",
+      { url: normalizedUrl },
+      { category: "OpenGraph" },
+    );
   }
 }

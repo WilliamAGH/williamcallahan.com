@@ -34,7 +34,7 @@ function deriveTechFromTags(tagList: string[] | undefined): string[] {
     "Groq",
     "Gemini",
   ]);
-  return tagList.filter(t => TECH_KEYWORDS.has(t));
+  return tagList.filter((t) => TECH_KEYWORDS.has(t));
 }
 
 // Placeholder for centered top image with gradient
@@ -96,10 +96,9 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
 
   // Derive a technology stack from tags if explicit techStack is not provided
 
-  const displayTech = (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)).slice(
-    0,
-    MAX_DISPLAY_TECH_ITEMS,
-  );
+  const displayTech = (
+    techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)
+  ).slice(0, MAX_DISPLAY_TECH_ITEMS);
 
   return (
     // Redesigned card for horizontal layout on medium screens and up
@@ -160,7 +159,7 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
                     aria-label={`View ${name} source code on GitHub`}
                     title={`View ${name} source code on GitHub`}
                     className="flex-shrink-0 p-1.5 rounded-md transition-colors text-gray-500 hover:text-github dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
-                    onClick={e => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <Github className="w-5 h-5" />
                   </a>
@@ -177,9 +176,13 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
                         ? "text-gray-500 hover:text-github dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
                         : "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800"
                     }`}
-                    onClick={e => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    {isGitHub ? <Github className="w-5 h-5" /> : <ExternalLink className="w-5 h-5" />}
+                    {isGitHub ? (
+                      <Github className="w-5 h-5" />
+                    ) : (
+                      <ExternalLink className="w-5 h-5" />
+                    )}
                   </a>
                 )}
               </div>
@@ -189,7 +192,11 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
               <code>{`// ${project.shortSummary}`}</code>
             </pre>
             {/* Description */}
-            {description && <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-sm">{description}</p>}
+            {description && (
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-sm">
+                {description}
+              </p>
+            )}
             {project.note && (
               <div className="flex items-start gap-2 rounded-lg border border-amber-300/70 bg-amber-50 px-3 py-2.5 text-amber-900 text-sm shadow-sm dark:border-amber-400/40 dark:bg-amber-500/10 dark:text-amber-100">
                 <AlertTriangle
@@ -208,7 +215,7 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
                   Tech Stack
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {displayTech.map(tech => (
+                  {displayTech.map((tech) => (
                     <span
                       key={tech}
                       className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
@@ -223,7 +230,7 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
           {/* Tags (Bottom aligned) */}
           {tags && tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-4 border-t border-gray-200 dark:border-gray-800">
-              {tags.map(tag => (
+              {tags.map((tag) => (
                 <span
                   key={tag}
                   className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"

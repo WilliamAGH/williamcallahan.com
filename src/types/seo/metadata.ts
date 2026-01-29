@@ -48,7 +48,7 @@ export const SEO_LIMITS = {
  * ISO 8601 date string validator
  * Ensures dates are properly formatted for SEO
  */
-const isoDateString = z.string().refine(val => !Number.isNaN(Date.parse(val)), {
+const isoDateString = z.string().refine((val) => !Number.isNaN(Date.parse(val)), {
   message: "Must be a valid ISO 8601 date string",
 });
 
@@ -59,7 +59,7 @@ const isoDateString = z.string().refine(val => !Number.isNaN(Date.parse(val)), {
 const httpsUrl = z
   .string()
   .url()
-  .refine(url => url.startsWith("https://"), { message: "URLs must use HTTPS protocol" });
+  .refine((url) => url.startsWith("https://"), { message: "URLs must use HTTPS protocol" });
 
 /**
  * Social media handle validator
@@ -75,7 +75,10 @@ export const basePageMetadataSchema = z.object({
   title: z
     .string()
     .min(SEO_LIMITS.MIN_LENGTH, `Title must be at least ${SEO_LIMITS.MIN_LENGTH} characters`)
-    .max(SEO_LIMITS.TITLE_MAX, `Title should be under ${SEO_LIMITS.TITLE_MAX} characters for optimal SEO`),
+    .max(
+      SEO_LIMITS.TITLE_MAX,
+      `Title should be under ${SEO_LIMITS.TITLE_MAX} characters for optimal SEO`,
+    ),
 
   description: z
     .string()
@@ -97,7 +100,10 @@ export const profilePageMetadataSchema = basePageMetadataSchema.extend({
   bio: z
     .string()
     .min(SEO_LIMITS.MIN_LENGTH)
-    .max(SEO_LIMITS.OG_DESCRIPTION_MAX, `Bio should be under ${SEO_LIMITS.OG_DESCRIPTION_MAX} characters`),
+    .max(
+      SEO_LIMITS.OG_DESCRIPTION_MAX,
+      `Bio should be under ${SEO_LIMITS.OG_DESCRIPTION_MAX} characters`,
+    ),
 
   interactionStats: z
     .object({
@@ -243,7 +249,7 @@ export function safeValidateMetadata(metadata: unknown) {
 
   if (!result.success) {
     // Format errors for better readability
-    const errors = result.error.errors.map(err => ({
+    const errors = result.error.errors.map((err) => ({
       path: err.path.join("."),
       message: err.message,
       code: err.code,

@@ -70,7 +70,7 @@ export function SvgTransformFixer() {
     fixAllSvgs();
 
     // Set up a MutationObserver to fix SVGs added dynamically
-    const observer = new MutationObserver(mutations => {
+    const observer = new MutationObserver((mutations) => {
       let hasSvgs = false;
 
       // Check if any mutations involve SVGs
@@ -79,7 +79,8 @@ export function SvgTransformFixer() {
           for (const node of mutation.addedNodes) {
             if (
               node instanceof SVGElement ||
-              (node.nodeType === Node.ELEMENT_NODE && (node as Element).querySelectorAll("svg").length > 0)
+              (node.nodeType === Node.ELEMENT_NODE &&
+                (node as Element).querySelectorAll("svg").length > 0)
             ) {
               hasSvgs = true;
             }

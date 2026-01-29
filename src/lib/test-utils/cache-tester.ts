@@ -7,7 +7,10 @@ import { ServerCacheInstance } from "../server-cache";
 /**
  * Verifies a cache hit for the specified endpoint
  */
-export async function verifyCacheHit(endpoint: string, params: Record<string, string> = {}): Promise<boolean> {
+export async function verifyCacheHit(
+  endpoint: string,
+  params: Record<string, string> = {},
+): Promise<boolean> {
   const queryString = new URLSearchParams(params).toString();
   const fullUrl = queryString ? `${endpoint}?${queryString}` : endpoint;
 

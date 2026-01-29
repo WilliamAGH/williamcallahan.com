@@ -47,14 +47,18 @@ export function useAnchorScrollHandler(): void {
     }
 
     if (isDevelopment) {
-      console.log(`[Anchor Debug] handleAnchorScroll: Checking if '#${hash}' needs dropdown handling.`);
+      console.log(
+        `[Anchor Debug] handleAnchorScroll: Checking if '#${hash}' needs dropdown handling.`,
+      );
     }
 
     // Check if the element is already visible - if so, Next.js has handled it
     const directTargetElement = document.getElementById(hash);
     if (directTargetElement && isElementPotentiallyVisible(directTargetElement)) {
       if (isDevelopment) {
-        console.log(`[Anchor Debug] handleAnchorScroll: Target '#${hash}' is already visible. Next.js handled scroll.`);
+        console.log(
+          `[Anchor Debug] handleAnchorScroll: Target '#${hash}' is already visible. Next.js handled scroll.`,
+        );
       }
       // Next.js already scrolled to this element - do nothing
       return;
@@ -64,7 +68,9 @@ export function useAnchorScrollHandler(): void {
     const dropdownElement = findDropdownForHash(hash);
     if (dropdownElement) {
       if (isDevelopment) {
-        console.log(`[Anchor Debug] handleAnchorScroll: Target '#${hash}' is in a dropdown. Opening and scrolling.`);
+        console.log(
+          `[Anchor Debug] handleAnchorScroll: Target '#${hash}' is in a dropdown. Opening and scrolling.`,
+        );
       }
       openAndScrollToDropdownAnchor(dropdownElement, hash);
       return;
@@ -73,7 +79,9 @@ export function useAnchorScrollHandler(): void {
     // Element not found and not in a dropdown - retry a few times
     // (element might be in a dropdown that hasn't registered yet)
     if (isDevelopment) {
-      console.log(`[Anchor Debug] handleAnchorScroll: Target '#${hash}' not found. Starting retry for dropdown check.`);
+      console.log(
+        `[Anchor Debug] handleAnchorScroll: Target '#${hash}' not found. Starting retry for dropdown check.`,
+      );
     }
 
     let retryAttempts = 0;
@@ -89,7 +97,9 @@ export function useAnchorScrollHandler(): void {
       const targetElement = document.getElementById(hash);
       if (targetElement && isElementPotentiallyVisible(targetElement)) {
         if (isDevelopment) {
-          console.log(`[Anchor Debug] handleAnchorScroll: Target '#${hash}' is now visible. Next.js should handle it.`);
+          console.log(
+            `[Anchor Debug] handleAnchorScroll: Target '#${hash}' is now visible. Next.js should handle it.`,
+          );
         }
         // Element is now visible - Next.js's scroll restoration should handle it
         // or the element was rendered after initial load

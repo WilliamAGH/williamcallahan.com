@@ -128,12 +128,20 @@ export async function callOpenAiCompatibleChatCompletions(args: {
         if (isRetryableUpstreamError(error, response.status) && attempt < MAX_RETRIES) {
           lastError = error;
           attempt++;
-          const delay = computeExponentialDelay(attempt, RETRY_BASE_DELAY_MS, RETRY_MAX_DELAY_MS, RETRY_JITTER);
-          logger.warn(`[AI] Retrying upstream request (attempt ${attempt}/${MAX_RETRIES}) after ${delay}ms`, {
-            status: response.status,
-            error: error.message.slice(0, 200),
-          });
-          await new Promise(resolve => setTimeout(resolve, delay));
+          const delay = computeExponentialDelay(
+            attempt,
+            RETRY_BASE_DELAY_MS,
+            RETRY_MAX_DELAY_MS,
+            RETRY_JITTER,
+          );
+          logger.warn(
+            `[AI] Retrying upstream request (attempt ${attempt}/${MAX_RETRIES}) after ${delay}ms`,
+            {
+              status: response.status,
+              error: error.message.slice(0, 200),
+            },
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
 
@@ -153,11 +161,19 @@ export async function callOpenAiCompatibleChatCompletions(args: {
       if (isRetryableUpstreamError(error, undefined) && attempt < MAX_RETRIES) {
         lastError = error instanceof Error ? error : new Error(String(error));
         attempt++;
-        const delay = computeExponentialDelay(attempt, RETRY_BASE_DELAY_MS, RETRY_MAX_DELAY_MS, RETRY_JITTER);
-        logger.warn(`[AI] Retrying upstream request (attempt ${attempt}/${MAX_RETRIES}) after ${delay}ms`, {
-          error: lastError.message.slice(0, 200),
-        });
-        await new Promise(resolve => setTimeout(resolve, delay));
+        const delay = computeExponentialDelay(
+          attempt,
+          RETRY_BASE_DELAY_MS,
+          RETRY_MAX_DELAY_MS,
+          RETRY_JITTER,
+        );
+        logger.warn(
+          `[AI] Retrying upstream request (attempt ${attempt}/${MAX_RETRIES}) after ${delay}ms`,
+          {
+            error: lastError.message.slice(0, 200),
+          },
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
 

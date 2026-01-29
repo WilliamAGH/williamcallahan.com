@@ -77,7 +77,11 @@ export function createArticleOgMetadata({
 
   // Use validation-aware image preparation for articles too
   const imageUrl = image || metadata.defaultImage.url;
-  const preparedImageUrl = prepareOGImageUrl(imageUrl, metadata.defaultImage.width, metadata.defaultImage.height);
+  const preparedImageUrl = prepareOGImageUrl(
+    imageUrl,
+    metadata.defaultImage.width,
+    metadata.defaultImage.height,
+  );
 
   const imageDescriptor = {
     url: preparedImageUrl,

@@ -29,7 +29,10 @@ import { isValidImageUrl, getDomainType } from "@/lib/utils/opengraph-utils";
  * @param url - Optional URL for domain type detection
  * @returns The best available image URL or null
  */
-export function selectBestOpenGraphImage(metadata: Record<string, unknown>, url?: string): string | null {
+export function selectBestOpenGraphImage(
+  metadata: Record<string, unknown>,
+  url?: string,
+): string | null {
   // Determine if this is a social media platform
   const domainType = url ? getDomainType(url) : "Website";
   const isSocialPlatform = ["GitHub", "X", "LinkedIn", "Bluesky"].includes(domainType);
@@ -57,7 +60,9 @@ export function selectBestOpenGraphImage(metadata: Record<string, unknown>, url?
 
     // Special handling for profileImage on non-social sites
     if (imageKey === "profileImage" && !isSocialPlatform) {
-      debug(`[OG-Priority-4.${imageKey}] Skipping profileImage check for non-social site (${domainType})`);
+      debug(
+        `[OG-Priority-4.${imageKey}] Skipping profileImage check for non-social site (${domainType})`,
+      );
       continue;
     }
 
@@ -66,7 +71,9 @@ export function selectBestOpenGraphImage(metadata: Record<string, unknown>, url?
     // Skip if undefined, null, or not a valid string
     if (typeof imageUrl !== "string" || !imageUrl) {
       const typeInfo = typeof imageUrl;
-      console.log(`[OG-Priority-4.${imageKey}] ❌ ${imageKey} not valid: ${typeInfo} - ${imageUrlString}`);
+      console.log(
+        `[OG-Priority-4.${imageKey}] ❌ ${imageKey} not valid: ${typeInfo} - ${imageUrlString}`,
+      );
       continue;
     }
 

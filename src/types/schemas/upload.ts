@@ -148,7 +148,7 @@ export function validateFileForType(
 
   // Check extension
   const fileName = file.name.toLowerCase();
-  const hasValidExtension = config.extensions.some(ext => fileName.endsWith(ext));
+  const hasValidExtension = config.extensions.some((ext) => fileName.endsWith(ext));
   if (!hasValidExtension) {
     return {
       valid: false,

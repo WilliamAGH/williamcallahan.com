@@ -5,7 +5,9 @@ import { getMonotonicTime } from "@/lib/utils";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 
 // This function was moved from DataFetchManager
-async function buildTagGraph(allContent: Array<{ type: string; id: string; tags?: string[] }>): Promise<{
+async function buildTagGraph(
+  allContent: Array<{ type: string; id: string; tags?: string[] }>,
+): Promise<{
   tags: Record<
     string,
     {
@@ -30,7 +32,7 @@ async function buildTagGraph(allContent: Array<{ type: string; id: string; tags?
   for (let i = 0; i < allContent.length; i++) {
     // Yield control periodically to prevent blocking
     if (i > 0 && i % 20 === 0) {
-      await new Promise(resolve => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
     }
 
     const content = allContent[i];
@@ -103,7 +105,9 @@ async function buildTagGraph(allContent: Array<{ type: string; id: string; tags?
 }
 
 // This function was moved from DataFetchManager
-export async function buildContentGraph(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
+export async function buildContentGraph(
+  config: DataFetchConfig,
+): Promise<DataFetchOperationSummary> {
   const startTime = getMonotonicTime();
   void config; // Mark as acknowledged per project convention
   logger.info("[DataFetchManager] Starting content graph build...");
@@ -152,11 +156,13 @@ export async function buildContentGraph(config: DataFetchConfig): Promise<DataFe
     for (let i = 0; i < allContent.length; i++) {
       // Yield control periodically to allow HTTP requests to be processed
       if (i > 0 && i % YIELD_INTERVAL === 0) {
-        await new Promise(resolve => setImmediate(resolve));
+        await new Promise((resolve) => setImmediate(resolve));
 
         // Log progress for visibility
         if (i % 50 === 0) {
-          logger.info(`[DataFetchManager] Content graph progress: ${i}/${allContent.length} items processed`);
+          logger.info(
+            `[DataFetchManager] Content graph progress: ${i}/${allContent.length} items processed`,
+          );
         }
       }
 
@@ -165,14 +171,16 @@ export async function buildContentGraph(config: DataFetchConfig): Promise<DataFe
       const contentKey = `${sourceContent.type}:${sourceContent.id}`;
 
       // Find similar content (excluding self)
-      const candidates = allContent.filter(item => !(item.type === sourceContent.type && item.id === sourceContent.id));
+      const candidates = allContent.filter(
+        (item) => !(item.type === sourceContent.type && item.id === sourceContent.id),
+      );
 
       const similar = findMostSimilar(sourceContent, candidates, MAX_RELATED, DEFAULT_WEIGHTS);
 
       // Store with minimal data needed for hydration
       // Note: Bookmark slugs will be resolved at render time using slug mappings
       // to ensure consistency and avoid hydration issues
-      relatedContentMappings[contentKey] = similar.map(item => ({
+      relatedContentMappings[contentKey] = similar.map((item) => ({
         type: item.type,
         id: item.id,
         score: item.score,
@@ -185,7 +193,9 @@ export async function buildContentGraph(config: DataFetchConfig): Promise<DataFe
       buildTagGraph(allContent),
       writeJsonS3(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT, relatedContentMappings),
     ]);
-    logger.info(`[DataFetchManager] Saved ${Object.keys(relatedContentMappings).length} related content mappings`);
+    logger.info(
+      `[DataFetchManager] Saved ${Object.keys(relatedContentMappings).length} related content mappings`,
+    );
 
     // Save metadata
     const metadata = {
@@ -195,7 +205,7 @@ export async function buildContentGraph(config: DataFetchConfig): Promise<DataFe
         total: allContent.length,
         blogPosts: blogPosts.length,
         projects: projectsData.length,
-        bookmarks: allContent.filter(c => c.type === "bookmark").length,
+        bookmarks: allContent.filter((c) => c.type === "bookmark").length,
       },
     };
 
@@ -204,7 +214,9 @@ export async function buildContentGraph(config: DataFetchConfig): Promise<DataFe
       writeJsonS3(CONTENT_GRAPH_S3_PATHS.TAG_GRAPH, tagGraph),
       writeJsonS3(CONTENT_GRAPH_S3_PATHS.METADATA, metadata),
     ]);
-    logger.info(`[DataFetchManager] Saved tag graph with ${Object.keys(tagGraph.tags).length} tags`);
+    logger.info(
+      `[DataFetchManager] Saved tag graph with ${Object.keys(tagGraph.tags).length} tags`,
+    );
 
     const duration = ((getMonotonicTime() - startTime) / 1000).toFixed(2);
     logger.info(`[DataFetchManager] Content graph built in ${duration}s`);

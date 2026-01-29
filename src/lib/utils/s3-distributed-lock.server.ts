@@ -23,7 +23,7 @@ import { isS3Error } from "@/lib/utils/s3-error-guards";
 async function backoffWithJitter(attempt: number): Promise<void> {
   const baseDelay = 100 + 2 ** attempt * 50;
   const jitter = Math.floor(Math.random() * 50);
-  await new Promise(resolve => setTimeout(resolve, baseDelay + jitter));
+  await new Promise((resolve) => setTimeout(resolve, baseDelay + jitter));
 }
 
 /**
@@ -111,7 +111,11 @@ export async function acquireDistributedLock(config: LockConfig): Promise<LockRe
     // Step 3: Read back and verify ownership
     try {
       const current = await readJsonS3<DistributedLockEntry>(lockKey);
-      if (current && current.instanceId === myEntry.instanceId && current.acquiredAt === myEntry.acquiredAt) {
+      if (
+        current &&
+        current.instanceId === myEntry.instanceId &&
+        current.acquiredAt === myEntry.acquiredAt
+      ) {
         envLogger.log("Lock acquired", { instanceId }, { category: logCategory });
         return { success: true, lockEntry: myEntry };
       }
@@ -161,7 +165,11 @@ export async function releaseDistributedLock(
     const existingLock = await readJsonS3<DistributedLockEntry>(lockKey);
     if (existingLock?.instanceId === instanceId || force) {
       await deleteFromS3(lockKey);
-      envLogger.log(force ? "Lock force-released" : "Lock released", { instanceId }, { category: logCategory });
+      envLogger.log(
+        force ? "Lock force-released" : "Lock released",
+        { instanceId },
+        { category: logCategory },
+      );
     } else if (existingLock) {
       envLogger.log(
         "Attempted to release lock owned by another instance",
@@ -185,7 +193,10 @@ export async function releaseDistributedLock(
  * @param logCategory - Category for logging
  * @returns Promise that resolves when cleanup is complete
  */
-export async function cleanupStaleLocks(lockKey: string, logCategory = "DistributedLock"): Promise<void> {
+export async function cleanupStaleLocks(
+  lockKey: string,
+  logCategory = "DistributedLock",
+): Promise<void> {
   try {
     const existingLock = await readJsonS3<DistributedLockEntry>(lockKey);
     if (existingLock && typeof existingLock === "object") {
@@ -228,7 +239,10 @@ export function createDistributedLock(config: Omit<LockConfig, "instanceId">): D
     },
 
     async release(force = false): Promise<void> {
-      await releaseDistributedLock({ lockKey: config.lockKey, instanceId, logCategory: config.logCategory }, force);
+      await releaseDistributedLock(
+        { lockKey: config.lockKey, instanceId, logCategory: config.logCategory },
+        force,
+      );
     },
 
     async cleanup(): Promise<void> {

@@ -57,9 +57,15 @@ Content`,
 
 const mockGetBookmarksIndex = getBookmarksIndex as jest.MockedFunction<typeof getBookmarksIndex>;
 const mockGetBookmarksPage = getBookmarksPage as jest.MockedFunction<typeof getBookmarksPage>;
-const mockListBookmarkTagSlugs = listBookmarkTagSlugs as jest.MockedFunction<typeof listBookmarkTagSlugs>;
-const mockGetTagBookmarksIndex = getTagBookmarksIndex as jest.MockedFunction<typeof getTagBookmarksIndex>;
-const mockGetTagBookmarksPage = getTagBookmarksPage as jest.MockedFunction<typeof getTagBookmarksPage>;
+const mockListBookmarkTagSlugs = listBookmarkTagSlugs as jest.MockedFunction<
+  typeof listBookmarkTagSlugs
+>;
+const mockGetTagBookmarksIndex = getTagBookmarksIndex as jest.MockedFunction<
+  typeof getTagBookmarksIndex
+>;
+const mockGetTagBookmarksPage = getTagBookmarksPage as jest.MockedFunction<
+  typeof getTagBookmarksPage
+>;
 
 const buildBookmark = (
   id: string,
@@ -136,15 +142,22 @@ describe("Sitemap Generation", () => {
         pageData.set(page, bookmarks);
       }
 
-      mockGetBookmarksPage.mockImplementation(pageNumber => Promise.resolve(pageData.get(pageNumber) ?? []));
+      mockGetBookmarksPage.mockImplementation((pageNumber) =>
+        Promise.resolve(pageData.get(pageNumber) ?? []),
+      );
 
       const sitemapEntries = await sitemap();
 
-      const paginatedEntries = sitemapEntries.filter(entry => entry.url.includes("/bookmarks/page/"));
+      const paginatedEntries = sitemapEntries.filter((entry) =>
+        entry.url.includes("/bookmarks/page/"),
+      );
       expect(paginatedEntries).toHaveLength(totalPages - 1);
-      expect(paginatedEntries.map(entry => entry.url)).toEqual(
+      expect(paginatedEntries.map((entry) => entry.url)).toEqual(
         expect.arrayContaining(
-          Array.from({ length: totalPages - 1 }, (_, idx) => `https://williamcallahan.com/bookmarks/page/${idx + 2}`),
+          Array.from(
+            { length: totalPages - 1 },
+            (_, idx) => `https://williamcallahan.com/bookmarks/page/${idx + 2}`,
+          ),
         ),
       );
       for (const entry of paginatedEntries) {
@@ -165,7 +178,7 @@ describe("Sitemap Generation", () => {
         changeDetected: true,
       });
 
-      mockGetBookmarksPage.mockImplementation(pageNumber => {
+      mockGetBookmarksPage.mockImplementation((pageNumber) => {
         if (pageNumber === 1) {
           return Promise.resolve(
             Array.from({ length: BOOKMARKS_PER_PAGE }, (_, idx) =>
@@ -174,12 +187,16 @@ describe("Sitemap Generation", () => {
           );
         }
         return Promise.resolve(
-          Array.from({ length: 6 }, (_, idx) => buildBookmark(`page2-${idx}`, { slug: `page2-${idx}` })),
+          Array.from({ length: 6 }, (_, idx) =>
+            buildBookmark(`page2-${idx}`, { slug: `page2-${idx}` }),
+          ),
         );
       });
 
       const sitemapEntries = await sitemap();
-      const paginatedEntry = sitemapEntries.find(entry => entry.url === "https://williamcallahan.com/bookmarks/page/2");
+      const paginatedEntry = sitemapEntries.find(
+        (entry) => entry.url === "https://williamcallahan.com/bookmarks/page/2",
+      );
 
       expect(paginatedEntry).toBeDefined();
       expect(paginatedEntry?.lastModified).toBeUndefined();
@@ -199,7 +216,7 @@ describe("Sitemap Generation", () => {
         changeDetected: true,
       });
 
-      mockGetBookmarksPage.mockImplementation(pageNumber => {
+      mockGetBookmarksPage.mockImplementation((pageNumber) => {
         if (pageNumber === 1) {
           return Promise.resolve(
             Array.from({ length: BOOKMARKS_PER_PAGE }, (_, idx) =>
@@ -221,7 +238,9 @@ describe("Sitemap Generation", () => {
       });
 
       const sitemapEntries = await sitemap();
-      const paginatedEntry = sitemapEntries.find(entry => entry.url === "https://williamcallahan.com/bookmarks/page/2");
+      const paginatedEntry = sitemapEntries.find(
+        (entry) => entry.url === "https://williamcallahan.com/bookmarks/page/2",
+      );
 
       expect(paginatedEntry).toBeDefined();
       expect(paginatedEntry?.lastModified).toEqual(new Date(lastModified));
@@ -246,10 +265,14 @@ describe("Sitemap Generation", () => {
       );
 
       const sitemapEntries = await sitemap();
-      const paginatedEntries = sitemapEntries.filter(entry => entry.url.includes("/bookmarks/page/"));
+      const paginatedEntries = sitemapEntries.filter((entry) =>
+        entry.url.includes("/bookmarks/page/"),
+      );
       expect(paginatedEntries).toHaveLength(0);
 
-      const mainBookmarksEntry = sitemapEntries.find(entry => entry.url === "https://williamcallahan.com/bookmarks");
+      const mainBookmarksEntry = sitemapEntries.find(
+        (entry) => entry.url === "https://williamcallahan.com/bookmarks",
+      );
       expect(mainBookmarksEntry).toBeDefined();
     });
   });
@@ -286,14 +309,18 @@ describe("Sitemap Generation", () => {
 
       const sitemapEntries = await sitemap();
       const bookmarkEntries = sitemapEntries.filter(
-        entry => entry.url.includes("/bookmarks/") && !entry.url.includes("/page/"),
+        (entry) => entry.url.includes("/bookmarks/") && !entry.url.includes("/page/"),
       );
 
       expect(
-        bookmarkEntries.some(entry => entry.url === "https://williamcallahan.com/bookmarks/example-com-article"),
+        bookmarkEntries.some(
+          (entry) => entry.url === "https://williamcallahan.com/bookmarks/example-com-article",
+        ),
       ).toBe(true);
       expect(
-        bookmarkEntries.some(entry => entry.url === "https://williamcallahan.com/bookmarks/another-com-post"),
+        bookmarkEntries.some(
+          (entry) => entry.url === "https://williamcallahan.com/bookmarks/another-com-post",
+        ),
       ).toBe(true);
     });
   });
@@ -374,7 +401,7 @@ describe("Sitemap Generation", () => {
       ];
 
       for (const expectedUrl of expectedPages) {
-        const entry = sitemapEntries.find(e => e.url === expectedUrl);
+        const entry = sitemapEntries.find((e) => e.url === expectedUrl);
         expect(entry).toBeDefined();
         expect(entry?.changeFrequency).toBeDefined();
         expect(entry?.priority).toBeDefined();

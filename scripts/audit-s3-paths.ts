@@ -18,7 +18,11 @@ import {
 } from "../src/lib/constants";
 import type { PathCheck } from "@/types/utils/audit";
 import type { BookmarkSlugMapping } from "@/types/bookmark";
-import type { BookmarksIndexEntry, ContentGraphMetadata, RelatedContentEntry } from "@/types/related-content";
+import type {
+  BookmarksIndexEntry,
+  ContentGraphMetadata,
+  RelatedContentEntry,
+} from "@/types/related-content";
 import { ServerCacheInstance } from "../src/lib/server-cache";
 import { getMemoryHealthMonitor } from "../src/lib/health/memory-health-monitor";
 
@@ -239,7 +243,7 @@ async function auditS3Paths() {
 
 // Run the audit
 await auditS3Paths()
-  .catch(err => {
+  .catch((err) => {
     console.error(err);
   })
   .finally(() => {

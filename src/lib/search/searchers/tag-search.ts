@@ -30,9 +30,9 @@ async function getBlogTagsWithCounts(): Promise<AggregatedTag[]> {
 
     return aggregateTags({
       items: posts,
-      getTags: post => post.tags,
+      getTags: (post) => post.tags,
       contentType: "blog",
-      urlPattern: slug => `/blog/tags/${slug}`,
+      urlPattern: (slug) => `/blog/tags/${slug}`,
     });
   } catch (error) {
     envLogger.log("Failed to get blog tags", { error: String(error) }, { category: "Search" });
@@ -46,9 +46,9 @@ async function getBlogTagsWithCounts(): Promise<AggregatedTag[]> {
 function getProjectTagsWithCounts(): AggregatedTag[] {
   return aggregateTags({
     items: projectsData,
-    getTags: p => p.tags,
+    getTags: (p) => p.tags,
     contentType: "projects",
-    urlPattern: slug => `/projects?tag=${slug}`,
+    urlPattern: (slug) => `/projects?tag=${slug}`,
   }) as unknown as AggregatedTag[]; // Sync version returns directly
 }
 
@@ -61,9 +61,9 @@ async function getBookmarkTagsWithCounts(): Promise<AggregatedTag[]> {
 
     return aggregateTags({
       items: bookmarks,
-      getTags: bookmark => bookmark.tags.split("\n").filter(Boolean),
+      getTags: (bookmark) => bookmark.tags.split("\n").filter(Boolean),
       contentType: "bookmarks",
-      urlPattern: slug => `/bookmarks/tags/${slug}`,
+      urlPattern: (slug) => `/bookmarks/tags/${slug}`,
     });
   } catch (error) {
     envLogger.log("Failed to get bookmark tags", { error: String(error) }, { category: "Search" });
@@ -80,9 +80,9 @@ async function getBookGenresWithCounts(): Promise<AggregatedTag[]> {
 
     return aggregateTags({
       items: books,
-      getTags: book => book.genres,
+      getTags: (book) => book.genres,
       contentType: "books",
-      urlPattern: slug => `/books?genre=${slug}`,
+      urlPattern: (slug) => `/books?genre=${slug}`,
     });
   } catch (error) {
     envLogger.log("Failed to get book genres", { error: String(error) }, { category: "Search" });
@@ -155,7 +155,7 @@ export async function searchTags(query: string): Promise<SearchResult[]> {
   const queryTerms = queryLower.split(/\s+/).filter(Boolean);
 
   const matchingTags = allTags
-    .map(tag => {
+    .map((tag) => {
       const tagNameLower = tag.name.toLowerCase();
 
       // Calculate match score
@@ -170,11 +170,11 @@ export async function searchTags(query: string): Promise<SearchResult[]> {
         score = 0.8;
       }
       // Contains all query terms
-      else if (queryTerms.every(term => tagNameLower.includes(term))) {
+      else if (queryTerms.every((term) => tagNameLower.includes(term))) {
         score = 0.6;
       }
       // Contains any query term
-      else if (queryTerms.some(term => tagNameLower.includes(term))) {
+      else if (queryTerms.some((term) => tagNameLower.includes(term))) {
         score = 0.4;
       }
       // No match

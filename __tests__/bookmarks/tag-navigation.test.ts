@@ -41,7 +41,7 @@ describe("Tag Navigation URLs", () => {
       const baseUrl = "https://williamcallahan.com";
       const tags = ["React", "AI & ML", "C++", ".NET"];
 
-      const urls = tags.map(tag => `${baseUrl}/bookmarks/tags/${tagToSlug(tag)}`);
+      const urls = tags.map((tag) => `${baseUrl}/bookmarks/tags/${tagToSlug(tag)}`);
 
       expect(urls).toEqual([
         "https://williamcallahan.com/bookmarks/tags/react",
@@ -61,7 +61,9 @@ describe("Tag Navigation URLs", () => {
       const tag = "React Native";
       const slug = tagToSlug(tag);
 
-      const paginatedUrls = [2, 3, 4, 5].map(page => `${baseUrl}/bookmarks/tags/${slug}/page/${page}`);
+      const paginatedUrls = [2, 3, 4, 5].map(
+        (page) => `${baseUrl}/bookmarks/tags/${slug}/page/${page}`,
+      );
 
       expect(paginatedUrls).toEqual([
         "https://williamcallahan.com/bookmarks/tags/react-native/page/2",

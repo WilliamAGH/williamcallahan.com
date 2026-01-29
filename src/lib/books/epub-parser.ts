@@ -12,7 +12,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import EPub from "epub2";
 import type { TocElement, IMetadata } from "epub2/lib/epub/const";
-import type { EpubMetadata, EpubChapter, ParsedEpub, EpubParseOptions } from "@/types/books/parsing";
+import type {
+  EpubMetadata,
+  EpubChapter,
+  ParsedEpub,
+  EpubParseOptions,
+} from "@/types/books/parsing";
 import { epubMetadataSchema } from "@/types/schemas/book";
 
 // =============================================================================
@@ -46,11 +51,15 @@ function htmlToText(html: string): string {
     .replace(/&#(\d+);/g, (_, code: string) => {
       const value = Number(code);
       // Use fromCodePoint to handle non-BMP characters (emoji, etc.) above 0xFFFF
-      return Number.isFinite(value) && value >= 0 && value <= 0x10ffff ? String.fromCodePoint(value) : "";
+      return Number.isFinite(value) && value >= 0 && value <= 0x10ffff
+        ? String.fromCodePoint(value)
+        : "";
     })
     .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => {
       const value = Number.parseInt(code, 16);
-      return Number.isFinite(value) && value >= 0 && value <= 0x10ffff ? String.fromCodePoint(value) : "";
+      return Number.isFinite(value) && value >= 0 && value <= 0x10ffff
+        ? String.fromCodePoint(value)
+        : "";
     });
 
   // Normalize whitespace
@@ -68,7 +77,7 @@ function htmlToText(html: string): string {
  * Count words in text
  */
 function countWords(text: string): number {
-  return text.split(/\s+/).filter(word => word.length > 0).length;
+  return text.split(/\s+/).filter((word) => word.length > 0).length;
 }
 
 /**
@@ -111,7 +120,7 @@ function formatChapterIdAsTitle(id: string): string {
   }
 
   // Fallback: just return the ID cleaned up
-  return id.replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  return id.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // =============================================================================
@@ -141,13 +150,17 @@ function extractMetadataFromEpub(epub: EPub): EpubMetadata {
         : undefined;
 
   // Extract series information from various sources
-  const seriesRaw: unknown = rawMeta["belongs-to-collection"] ?? rawMeta["calibre:series"] ?? rawMeta.series;
+  const seriesRaw: unknown =
+    rawMeta["belongs-to-collection"] ?? rawMeta["calibre:series"] ?? rawMeta.series;
   const series = asString(seriesRaw);
 
   // Series index can be in different formats
-  const seriesIndexRaw: unknown = rawMeta["group-position"] ?? rawMeta["calibre:series_index"] ?? rawMeta.seriesIndex;
+  const seriesIndexRaw: unknown =
+    rawMeta["group-position"] ?? rawMeta["calibre:series_index"] ?? rawMeta.seriesIndex;
   const seriesIndex =
-    typeof seriesIndexRaw === "string" || typeof seriesIndexRaw === "number" ? Number(seriesIndexRaw) : undefined;
+    typeof seriesIndexRaw === "string" || typeof seriesIndexRaw === "number"
+      ? Number(seriesIndexRaw)
+      : undefined;
 
   // Handle contributors (can be string or array of strings)
   const contributors = asStringArray(rawMeta.contributor);
@@ -210,7 +223,10 @@ function extractMetadataFromEpub(epub: EPub): EpubMetadata {
  * @param options - Parsing options
  * @returns Parsed ePub content with metadata and chapters
  */
-export async function parseEpubFromBuffer(buffer: Buffer, options: EpubParseOptions = {}): Promise<ParsedEpub> {
+export async function parseEpubFromBuffer(
+  buffer: Buffer,
+  options: EpubParseOptions = {},
+): Promise<ParsedEpub> {
   const { maxChapters, includeHtml = false } = options;
 
   // Normalize maxChapters: only use if it's a finite positive integer
@@ -283,7 +299,8 @@ export async function parseEpubFromBuffer(buffer: Buffer, options: EpubParseOpti
         if (textContent.length < 10) continue;
 
         // Get title: prefer flow title, fallback to TOC title, then generate from ID
-        const title = chapter.title ?? tocTitleMap.get(chapter.id) ?? formatChapterIdAsTitle(chapter.id);
+        const title =
+          chapter.title ?? tocTitleMap.get(chapter.id) ?? formatChapterIdAsTitle(chapter.id);
 
         chapters.push({
           id: chapter.id,
@@ -353,7 +370,10 @@ export async function extractEpubMetadata(buffer: Buffer): Promise<EpubMetadata>
  * @param options - Parsing options
  * @returns Combined text content with metadata header
  */
-export async function getEpubFullText(buffer: Buffer, options: EpubParseOptions = {}): Promise<string> {
+export async function getEpubFullText(
+  buffer: Buffer,
+  options: EpubParseOptions = {},
+): Promise<string> {
   const parsed = await parseEpubFromBuffer(buffer, options);
 
   // Build header with metadata
@@ -373,7 +393,7 @@ export async function getEpubFullText(buffer: Buffer, options: EpubParseOptions 
 
   // Combine chapters with titles
   const body = parsed.chapters
-    .map(ch => {
+    .map((ch) => {
       const title = ch.title ? `## ${ch.title}\n\n` : "";
       return title + ch.textContent;
     })

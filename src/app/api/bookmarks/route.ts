@@ -4,7 +4,10 @@
  * Provides client-side access to bookmarks with pagination support.
  */
 
-import { bookmarksIndexSchema as BookmarksIndexSchema, type BookmarksIndex } from "@/types/bookmark";
+import {
+  bookmarksIndexSchema as BookmarksIndexSchema,
+  type BookmarksIndex,
+} from "@/types/bookmark";
 import { BOOKMARKS_PER_PAGE, BOOKMARKS_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
@@ -32,7 +35,9 @@ function buildInternalHrefs(
       if (mapped) res[item.id] = `/bookmarks/${mapped}`;
       else console.error(`[API Bookmarks] WARNING: No slug for bookmark ${item.id}`);
     } else {
-      console.error("[API Bookmarks] CRITICAL: No slug mapping and no embedded slug - URLs may 404");
+      console.error(
+        "[API Bookmarks] CRITICAL: No slug mapping and no embedded slug - URLs may 404",
+      );
     }
   }
   return res;
@@ -60,7 +65,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // will miss results that live beyond page 1.
     if (!tagFilter && page > 0 && limit <= BOOKMARKS_PER_PAGE) {
       const { getBookmarksPage } = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      const rawIndex: unknown = await import("@/lib/s3-utils").then(m =>
+      const rawIndex: unknown = await import("@/lib/s3-utils").then((m) =>
         m.readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX),
       );
 
@@ -73,7 +78,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         if (page <= totalPages) {
           // Load just the requested page
           const paginatedBookmarks = await getBookmarksPage(page);
-          console.log(`[API Bookmarks] Loaded page ${page} directly (${paginatedBookmarks.length} items)`);
+          console.log(
+            `[API Bookmarks] Loaded page ${page} directly (${paginatedBookmarks.length} items)`,
+          );
 
           // CRITICAL: Generate slug mappings for fast-path too
           const slugMapping = await loadSlugMapping();
@@ -117,7 +124,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Try to get metadata from S3 index
     let lastFetchedAt = getMonotonicTime();
     try {
-      const rawIndex: unknown = await import("@/lib/s3-utils").then(m =>
+      const rawIndex: unknown = await import("@/lib/s3-utils").then((m) =>
         m.readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX),
       );
       const indexResult = BookmarksIndexSchema.safeParse(rawIndex);
@@ -134,11 +141,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (tagFilter) {
       // Decode and normalize to slug for stable comparison
       const decodedTag = decodeURIComponent(tagFilter);
-      const normalizedQuerySlug = (decodedTag.includes("-") ? decodedTag : tagToSlug(decodedTag)).toLowerCase();
+      const normalizedQuerySlug = (
+        decodedTag.includes("-") ? decodedTag : tagToSlug(decodedTag)
+      ).toLowerCase();
 
-      filteredBookmarks = allBookmarks.filter(bookmark => {
+      filteredBookmarks = allBookmarks.filter((bookmark) => {
         const tags = normalizeTagsToStrings(bookmark.tags);
-        return tags.some(tag => tagToSlug(tag).toLowerCase() === normalizedQuerySlug);
+        return tags.some((tag) => tagToSlug(tag).toLowerCase() === normalizedQuerySlug);
       });
 
       console.log(

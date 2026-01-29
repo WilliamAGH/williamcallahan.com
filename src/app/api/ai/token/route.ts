@@ -22,7 +22,8 @@ const HTTP_COOKIE_NAME = "ai_gate_nonce";
 function isAllowedHostname(hostname: string): boolean {
   const lower = normalizeString(hostname);
   if (lower === "williamcallahan.com" || lower.endsWith(".williamcallahan.com")) return true;
-  if (process.env.NODE_ENV !== "production" && (lower === "localhost" || lower === "127.0.0.1")) return true;
+  if (process.env.NODE_ENV !== "production" && (lower === "localhost" || lower === "127.0.0.1"))
+    return true;
   return false;
 }
 
@@ -105,7 +106,10 @@ export function GET(request: NextRequest): NextResponse {
   const secret = process.env.AI_TOKEN_SIGNING_SECRET?.trim();
   if (!secret) {
     logger.error("[AI Token] AI_TOKEN_SIGNING_SECRET is not configured");
-    return NextResponse.json({ error: "AI token service not configured" }, { status: 503, headers: NO_STORE_HEADERS });
+    return NextResponse.json(
+      { error: "AI token service not configured" },
+      { status: 503, headers: NO_STORE_HEADERS },
+    );
   }
 
   const nonce = crypto.randomUUID();

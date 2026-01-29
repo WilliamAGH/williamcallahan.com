@@ -21,7 +21,11 @@ import type { ThoughtsListProps } from "@/types/features/thoughts";
  * Features warm amber accents, decorative elements, and
  * a personality-rich header section.
  */
-export function ThoughtsListServer({ thoughts, title, description }: ThoughtsListProps): React.JSX.Element {
+export function ThoughtsListServer({
+  thoughts,
+  title,
+  description,
+}: ThoughtsListProps): React.JSX.Element {
   const isEmpty = !thoughts || thoughts.length === 0;
 
   return (
@@ -59,7 +63,13 @@ export function ThoughtsListServer({ thoughts, title, description }: ThoughtsLis
 
           {/* Description - plain text (no quotes) */}
           {description && (
-            <p className={cn("text-base sm:text-lg", "text-zinc-600 dark:text-zinc-400", "max-w-2xl leading-relaxed")}>
+            <p
+              className={cn(
+                "text-base sm:text-lg",
+                "text-zinc-600 dark:text-zinc-400",
+                "max-w-2xl leading-relaxed",
+              )}
+            >
               {description}
             </p>
           )}
@@ -137,7 +147,13 @@ export function ThoughtsListServer({ thoughts, title, description }: ThoughtsLis
             </div>
           </div>
 
-          <h2 className={cn("text-xl sm:text-2xl font-semibold", "text-zinc-900 dark:text-zinc-100", "mb-3")}>
+          <h2
+            className={cn(
+              "text-xl sm:text-2xl font-semibold",
+              "text-zinc-900 dark:text-zinc-100",
+              "mb-3",
+            )}
+          >
             The mind wanders...
           </h2>
           <p className="text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto leading-relaxed">

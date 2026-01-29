@@ -98,7 +98,9 @@ export async function BookmarksServer({
       return;
     }
 
-    let resolveSlug: ((id: string, bookmarks?: UnifiedBookmark[]) => Promise<string | null>) | null = null;
+    let resolveSlug:
+      | ((id: string, bookmarks?: UnifiedBookmark[]) => Promise<string | null>)
+      | null = null;
 
     for (const bookmark of missing) {
       if (!resolveSlug) {
@@ -122,7 +124,10 @@ export async function BookmarksServer({
   } else if (initialPage && initialPage > 1) {
     const getBookmarksPageFunc = await getBookmarksPage();
     const getBookmarksIndexFunc = await getBookmarksIndex();
-    const [pageData, indexData] = await Promise.all([getBookmarksPageFunc(initialPage), getBookmarksIndexFunc()]);
+    const [pageData, indexData] = await Promise.all([
+      getBookmarksPageFunc(initialPage),
+      getBookmarksIndexFunc(),
+    ]);
     bookmarks = pageData ?? [];
     totalPages = indexData?.totalPages ?? 1;
     totalCount = indexData?.count ?? 0;
@@ -152,7 +157,7 @@ export async function BookmarksServer({
   const normalizeFunc = await normalizeBookmarkTag();
   const stripImageDataFunc = await stripImageData();
 
-  const serializableBookmarks: SerializableBookmark[] = bookmarks.map(bookmark => {
+  const serializableBookmarks: SerializableBookmark[] = bookmarks.map((bookmark) => {
     // When includeImageData is false, use the standardized stripImageData utility
     if (!includeImageData) {
       const lightweight = stripImageDataFunc(bookmark);

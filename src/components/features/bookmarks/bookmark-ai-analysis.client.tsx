@@ -175,7 +175,9 @@ export function BookmarkAiAnalysis({
   autoTrigger = true,
 }: BookmarkAiAnalysisProps & { autoTrigger?: boolean }) {
   const [state, setState] = useState<BookmarkAnalysisState>(INITIAL_BOOKMARK_ANALYSIS_STATE);
-  const [loadingMessage, setLoadingMessage] = useState<string>(LOADING_MESSAGES[0] ?? "Analyzing...");
+  const [loadingMessage, setLoadingMessage] = useState<string>(
+    LOADING_MESSAGES[0] ?? "Analyzing...",
+  );
   const [queueMessage, setQueueMessage] = useState<string | null>(null);
   const hasTriggered = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -205,7 +207,7 @@ export function BookmarkAiAnalysis({
           },
           {
             signal,
-            onQueueUpdate: update => {
+            onQueueUpdate: (update) => {
               if (update.event === "queued" || update.event === "queue") {
                 if (update.position) {
                   setQueueMessage(`Queued (position ${update.position})`);
@@ -341,7 +343,9 @@ export function BookmarkAiAnalysis({
   if (state.status === "loading") {
     return (
       <div className={`bg-[#1a1b26] border border-[#3d4f70] rounded-lg p-4 sm:p-5 ${className}`}>
-        <TerminalLoading message={queueMessage ? `${queueMessage} — ${loadingMessage}` : loadingMessage} />
+        <TerminalLoading
+          message={queueMessage ? `${queueMessage} — ${loadingMessage}` : loadingMessage}
+        />
       </div>
     );
   }

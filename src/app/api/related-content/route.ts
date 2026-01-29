@@ -7,13 +7,21 @@
 
 import { preventCaching, createErrorResponse, NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 import { NextRequest, NextResponse } from "next/server";
-import { aggregateAllContent, getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
+import {
+  aggregateAllContent,
+  getContentById,
+  filterByTypes,
+} from "@/lib/content-similarity/aggregator";
 import { findMostSimilar, limitByTypeAndTotal, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { requestLock } from "@/lib/server/request-lock";
 import { getMonotonicTime } from "@/lib/utils";
-import type { RelatedContentItem, RelatedContentType, NormalizedContent } from "@/types/related-content";
+import type {
+  RelatedContentItem,
+  RelatedContentType,
+  NormalizedContent,
+} from "@/types/related-content";
 import { similarityWeightsSchema } from "@/types/schemas/related-content";
 import { getEnabledContentTypes, DEFAULT_MAX_PER_TYPE } from "@/config/related-content.config";
 
@@ -40,7 +48,7 @@ function parseTypesParam(value: string | null): RelatedContentType[] | undefined
   const enabledTypes = new Set(getEnabledContentTypes());
   const parsed = value
     .split(",")
-    .map(s => s.trim())
+    .map((s) => s.trim())
     .filter(Boolean)
     .filter((t): t is RelatedContentType => enabledTypes.has(t as RelatedContentType));
   return parsed.length ? parsed : undefined;
@@ -49,9 +57,14 @@ function parseTypesParam(value: string | null): RelatedContentType[] | undefined
 /**
  * Convert normalized content to related content item
  */
-function toRelatedContentItem(content: NormalizedContent & { score: number }): RelatedContentItem | null {
+function toRelatedContentItem(
+  content: NormalizedContent & { score: number },
+): RelatedContentItem | null {
   const display = content.display;
-  const safeDateIso = content.date && Number.isFinite(content.date.getTime()) ? content.date.toISOString() : undefined;
+  const safeDateIso =
+    content.date && Number.isFinite(content.date.getTime())
+      ? content.date.toISOString()
+      : undefined;
   const baseMetadata: RelatedContentItem["metadata"] = {
     tags: content.tags,
     domain: content.domain,
@@ -209,7 +222,9 @@ export async function GET(request: NextRequest) {
       const bookmarkId = await resolveBookmarkIdFromSlug(sourceSlug);
       if (bookmarkId) {
         sourceId = bookmarkId;
-        console.log(`[RelatedContent API] Resolved slug "${sourceSlug}" to bookmark ID "${sourceId}"`);
+        console.log(
+          `[RelatedContent API] Resolved slug "${sourceSlug}" to bookmark ID "${sourceId}"`,
+        );
       } else {
         return createErrorResponse(`Bookmark not found for slug: ${sourceSlug}`, 404);
       }
@@ -229,13 +244,18 @@ export async function GET(request: NextRequest) {
     // Parse optional parameters with validation
     const pageRaw = parseInt(searchParams.get("page") || "1", 10);
     const limitRaw = parseInt(searchParams.get("limit") || "10", 10);
-    const maxPerTypeRaw = parseInt(searchParams.get("maxPerType") || String(DEFAULT_MAX_PER_TYPE), 10);
+    const maxPerTypeRaw = parseInt(
+      searchParams.get("maxPerType") || String(DEFAULT_MAX_PER_TYPE),
+      10,
+    );
 
     // Sanitize pagination params to prevent NaN/Infinity/negative values
     const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= 100 ? limitRaw : 10;
     const maxPerType =
-      Number.isFinite(maxPerTypeRaw) && maxPerTypeRaw > 0 ? Math.min(maxPerTypeRaw, 500) : DEFAULT_MAX_PER_TYPE;
+      Number.isFinite(maxPerTypeRaw) && maxPerTypeRaw > 0
+        ? Math.min(maxPerTypeRaw, 500)
+        : DEFAULT_MAX_PER_TYPE;
     // parseTypesParam is now module-level and uses centralized config
     const includeTypes = parseTypesParam(searchParams.get("includeTypes"));
     const excludeTypes = parseTypesParam(searchParams.get("excludeTypes"));
@@ -252,7 +272,9 @@ export async function GET(request: NextRequest) {
         if (validation.success) {
           weights = { ...DEFAULT_WEIGHTS, ...validation.data };
         } else {
-          console.warn(`[RelatedContent] Custom weights validation failed: ${validation.error.message}`);
+          console.warn(
+            `[RelatedContent] Custom weights validation failed: ${validation.error.message}`,
+          );
         }
       } catch (error) {
         console.warn(
@@ -265,7 +287,9 @@ export async function GET(request: NextRequest) {
     // Parse excludeIds early to determine if we should skip caching
     // (excludeIds affects computed results but shouldn't pollute the cache)
     const excludeIdsParam = searchParams.get("excludeIds");
-    const hasExcludeIds = Boolean(excludeIdsParam && excludeIdsParam.split(",").some(s => s.trim().length > 0));
+    const hasExcludeIds = Boolean(
+      excludeIdsParam && excludeIdsParam.split(",").some((s) => s.trim().length > 0),
+    );
 
     // Check cache first
     let cached = ServerCacheInstance.getRelatedContent(sourceType, sourceId);
@@ -286,11 +310,13 @@ export async function GET(request: NextRequest) {
           const excludeIds =
             excludeIdsParam
               ?.split(",")
-              .map(s => s.trim())
+              .map((s) => s.trim())
               .filter(Boolean) || [];
           excludeIds.push(sourceId);
 
-          const candidates = allContent.filter(item => !(item.type === sourceType && excludeIds.includes(item.id)));
+          const candidates = allContent.filter(
+            (item) => !(item.type === sourceType && excludeIds.includes(item.id)),
+          );
 
           // Get a large number of similar items to allow for pagination
           const similar = findMostSimilar(source, candidates, 100, weights);
@@ -311,7 +337,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (!cached) {
-      return createErrorResponse(`Content not found or failed to compute: ${sourceType}/${sourceId}`, 404);
+      return createErrorResponse(
+        `Content not found or failed to compute: ${sourceType}/${sourceId}`,
+        404,
+      );
     }
 
     // Apply filtering to cached results
@@ -322,12 +351,12 @@ export async function GET(request: NextRequest) {
       items = filterByTypes(items, includeTypes, excludeTypes);
     }
     // Honor excludeIds on cache hits - filter BEFORE per-type limiting to avoid under-filled results
-    const excludeIds = (excludeIdsParam?.split(",") || []).map(s => s.trim()).filter(Boolean);
+    const excludeIds = (excludeIdsParam?.split(",") || []).map((s) => s.trim()).filter(Boolean);
     excludeIds.push(sourceId);
     const excludeSet = new Set(excludeIds);
 
     // Remove excluded IDs first (type-scoped to avoid cross-type ID collisions)
-    const eligible = items.filter(i => !(i.type === sourceType && excludeSet.has(i.id)));
+    const eligible = items.filter((i) => !(i.type === sourceType && excludeSet.has(i.id)));
 
     // Apply per-type limits using shared utility (maxTotal=1000 is effectively unlimited for pagination)
     // Note: maxPerType is already sanitized at parse time (positive, finite, capped at 500)
@@ -339,7 +368,7 @@ export async function GET(request: NextRequest) {
     const paginatedItems = sortedItems.slice((page - 1) * limit, page * limit);
 
     const responseData = paginatedItems
-      .map(item => toRelatedContentItem(item))
+      .map((item) => toRelatedContentItem(item))
       .filter((item): item is RelatedContentItem => item !== null);
 
     const response = {

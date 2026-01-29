@@ -25,7 +25,9 @@ function readOptionalTrimmedEnv(key: string): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
-export function resolveOpenAiCompatibleFeatureConfig(feature: string): OpenAiCompatibleFeatureConfig {
+export function resolveOpenAiCompatibleFeatureConfig(
+  feature: string,
+): OpenAiCompatibleFeatureConfig {
   const normalized = normalizeFeatureEnvKey(feature);
 
   const featureBaseUrl = readOptionalTrimmedEnv(`AI_${normalized}_OPENAI_BASE_URL`);
@@ -41,7 +43,9 @@ export function resolveOpenAiCompatibleFeatureConfig(feature: string): OpenAiCom
   const baseUrl = baseUrlSchema.parse(featureBaseUrl ?? defaultBaseUrl ?? DEFAULT_BASE_URL);
   const model = modelSchema.parse(featureModel ?? defaultModel ?? DEFAULT_MODEL);
   const apiKey = featureApiKey ?? defaultApiKey;
-  const maxParallel = maxParallelSchema.parse(Number(featureMaxParallel ?? defaultMaxParallel ?? DEFAULT_MAX_PARALLEL));
+  const maxParallel = maxParallelSchema.parse(
+    Number(featureMaxParallel ?? defaultMaxParallel ?? DEFAULT_MAX_PARALLEL),
+  );
 
   return apiKey ? { baseUrl, model, apiKey, maxParallel } : { baseUrl, model, maxParallel };
 }

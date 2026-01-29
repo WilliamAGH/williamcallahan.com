@@ -10,7 +10,11 @@
 "use client";
 
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import { getErrorMessage, type UnifiedBookmark, type BookmarksWithPaginationClientProps } from "@/types";
+import {
+  getErrorMessage,
+  type UnifiedBookmark,
+  type BookmarksWithPaginationClientProps,
+} from "@/types";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
@@ -336,7 +340,11 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
               aria-label="Refresh Bookmarks"
               style={{ visibility: mounted ? "visible" : "hidden" }}
             >
-              {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              {isRefreshing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
             </button>
           )}
         </div>
@@ -430,7 +438,9 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
                 // When the user is filtering by tag, we use the filtered total
                 const isFilteredView = !!selectedTag;
 
-                const totalCount = isFilteredView ? (displayBookmarks?.length ?? 0) : (totalItems ?? initialTotalCount);
+                const totalCount = isFilteredView
+                  ? (displayBookmarks?.length ?? 0)
+                  : (totalItems ?? initialTotalCount);
 
                 if (totalCount === 0) {
                   return "No bookmarks found";
@@ -479,7 +489,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
               {Array.isArray(displayBookmarks) &&
-                paginatedSlice(displayBookmarks).map(bookmark => {
+                paginatedSlice(displayBookmarks).map((bookmark) => {
                   // Debug: Log bookmark data for CLI bookmark
                   if (bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
                     console.log("[BookmarksWithPagination] CLI bookmark data:", {
@@ -492,14 +502,22 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
                     });
                   }
                   return (
-                    <BookmarkCardClient key={bookmark.id} {...bookmark} internalHref={internalHrefs?.[bookmark.id]} />
+                    <BookmarkCardClient
+                      key={bookmark.id}
+                      {...bookmark}
+                      internalHref={internalHrefs?.[bookmark.id]}
+                    />
                   );
                 })}
             </div>
 
             {/* Infinite scroll sentinel */}
             {infiniteScrollActive && (
-              <InfiniteScrollSentinel onIntersect={loadMore} loading={isLoadingMore} hasMore={hasMore} />
+              <InfiniteScrollSentinel
+                onIntersect={loadMore}
+                loading={isLoadingMore}
+                hasMore={hasMore}
+              />
             )}
           </>
         )
@@ -509,7 +527,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           {Array.isArray(initialBookmarks) &&
             initialBookmarks
               .slice(0, 6)
-              .map(bookmark => (
+              .map((bookmark) => (
                 <div
                   key={bookmark.id}
                   className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg h-96"

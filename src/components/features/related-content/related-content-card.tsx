@@ -77,7 +77,11 @@ function getTypeBadge(type: RelatedContentCardProps["item"]["type"]): {
   }
 }
 
-export function RelatedContentCard({ item, className = "", showScore = false }: RelatedContentCardProps) {
+export function RelatedContentCard({
+  item,
+  className = "",
+  showScore = false,
+}: RelatedContentCardProps) {
   const { type, title, description, url, metadata } = item;
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
@@ -87,7 +91,7 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
   // Build tag display (max 6 tags to fill two rows)
   const displayTags = metadata.tags?.slice(0, 6) || [];
   const typeBadge = getTypeBadge(type);
-  const normalizedTagSet = new Set((metadata.tags || []).map(t => t.toLowerCase()));
+  const normalizedTagSet = new Set((metadata.tags || []).map((t) => t.toLowerCase()));
 
   // Determine if image is from external source that might need unoptimized
   const isExternalImage = !!(
@@ -123,7 +127,9 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
         <header className="flex items-start justify-between mb-3">
           {/* Left side: domain for bookmarks, empty for others */}
           {type === "bookmark" && metadata.domain ? (
-            <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[60%]">{metadata.domain}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[60%]">
+              {metadata.domain}
+            </span>
           ) : (
             <span className="w-0" />
           )}
@@ -160,7 +166,9 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
                   setImageError(true);
                   setImageLoading(false);
                   if (process.env.NODE_ENV === "development") {
-                    console.warn(`Failed to load investment logo for ${title}: ${metadata.imageUrl}`);
+                    console.warn(
+                      `Failed to load investment logo for ${title}: ${metadata.imageUrl}`,
+                    );
                   }
                 }}
                 unoptimized={isExternalImage}
@@ -168,7 +176,9 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
               />
             </div>
             <div className="flex-1 min-w-0 flex items-start gap-2">
-              <h3 className="flex-1 font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">{title}</h3>
+              <h3 className="flex-1 font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
+                {title}
+              </h3>
               {/* aVenture research link - inline with company name */}
               {typeof aventureHref === "string" && (
                 <ExternalLink
@@ -262,7 +272,9 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
 
             {/* Title for non-investment/non-book types, or when image is missing/errored */}
             {(type !== "investment" && type !== "book") || !metadata.imageUrl || imageError ? (
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">{title}</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
+                {title}
+              </h3>
             ) : null}
           </>
         )}
@@ -279,7 +291,7 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
             {/* Tags container - allows 2 rows, compact sizing */}
             {displayTags.length > 0 && (
               <div className="flex-1 flex flex-wrap gap-1 max-h-[3.25rem] overflow-hidden pointer-events-auto relative z-10">
-                {displayTags.map(tag => {
+                {displayTags.map((tag) => {
                   const href =
                     type === "bookmark"
                       ? `/bookmarks/tags/${tagToSlug(tag)}`
@@ -294,7 +306,11 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
                     </span>
                   );
                   return href ? (
-                    <Link key={tag} href={href} className="inline-block pointer-events-auto relative z-10">
+                    <Link
+                      key={tag}
+                      href={href}
+                      className="inline-block pointer-events-auto relative z-10"
+                    >
                       {chip}
                     </Link>
                   ) : (
@@ -328,17 +344,23 @@ export function RelatedContentCard({ item, className = "", showScore = false }: 
             (type === "project" && metadata.category)) && (
             <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
               {/* Reading time for blog posts */}
-              {type === "blog" && metadata.readingTime && <span>{metadata.readingTime} min read</span>}
+              {type === "blog" && metadata.readingTime && (
+                <span>{metadata.readingTime} min read</span>
+              )}
 
               {/* Stage for investments */}
               {type === "investment" &&
                 metadata.stage &&
-                !normalizedTagSet.has(String(metadata.stage).toLowerCase()) && <span>{metadata.stage}</span>}
+                !normalizedTagSet.has(String(metadata.stage).toLowerCase()) && (
+                  <span>{metadata.stage}</span>
+                )}
 
               {/* Category for investments and projects */}
               {(type === "investment" || type === "project") &&
                 metadata.category &&
-                !normalizedTagSet.has(String(metadata.category).toLowerCase()) && <span>{metadata.category}</span>}
+                !normalizedTagSet.has(String(metadata.category).toLowerCase()) && (
+                  <span>{metadata.category}</span>
+                )}
             </div>
           )}
         </footer>

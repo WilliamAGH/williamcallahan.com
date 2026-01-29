@@ -62,7 +62,7 @@ export function findProjectBySlug(slug: string, projects: Project[]): Project | 
 
   // Pre-compute all slugs once for efficiency
   // Note: idSlug uses 30-char limit to match generateProjectSlug's ID truncation
-  const projectSlugs = projects.map(project => ({
+  const projectSlugs = projects.map((project) => ({
     project,
     generated: generateProjectSlug(project.name, project.id),
     idSlug: titleToSlug(project.id ?? project.name, 30),
@@ -70,15 +70,15 @@ export function findProjectBySlug(slug: string, projects: Project[]): Project | 
   }));
 
   // Priority 1: exact generated slug match
-  const exactMatch = projectSlugs.find(p => p.generated === normalizedSlug);
+  const exactMatch = projectSlugs.find((p) => p.generated === normalizedSlug);
   if (exactMatch) return exactMatch.project;
 
   // Priority 2: ID slug match
-  const idMatch = projectSlugs.find(p => p.idSlug === normalizedSlug);
+  const idMatch = projectSlugs.find((p) => p.idSlug === normalizedSlug);
   if (idMatch) return idMatch.project;
 
   // Priority 3: name slug match
-  const nameMatch = projectSlugs.find(p => p.nameSlug === normalizedSlug);
+  const nameMatch = projectSlugs.find((p) => p.nameSlug === normalizedSlug);
   if (nameMatch) return nameMatch.project;
 
   return null;
@@ -91,7 +91,7 @@ export function findProjectBySlug(slug: string, projects: Project[]): Project | 
  * @returns Array of slug objects for generateStaticParams
  */
 export function getAllProjectSlugs(projects: Project[]): Array<{ slug: string }> {
-  return projects.map(project => ({
+  return projects.map((project) => ({
     slug: generateProjectSlug(project.name, project.id),
   }));
 }

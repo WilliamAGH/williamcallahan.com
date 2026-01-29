@@ -10,7 +10,8 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   useEffect(() => console.error("Error in /bookmarks page:", error), [error]);
 
   // Handle ChunkLoadError specifically
-  const isChunkLoadError = error.name === "ChunkLoadError" || error.message.includes("Loading chunk");
+  const isChunkLoadError =
+    error.name === "ChunkLoadError" || error.message.includes("Loading chunk");
   const [maxReloadReached, setMaxReloadReached] = useState(false);
 
   // Auto-reload for chunk load errors with session-based protection
@@ -28,7 +29,12 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
         if (storedData) {
           const parsed: unknown = JSON.parse(storedData);
           // Validate the structure
-          if (parsed && typeof parsed === "object" && "attempts" in parsed && "lastReset" in parsed) {
+          if (
+            parsed &&
+            typeof parsed === "object" &&
+            "attempts" in parsed &&
+            "lastReset" in parsed
+          ) {
             const data = parsed as { attempts: unknown; lastReset: unknown };
             if (Array.isArray(data.attempts) && typeof data.lastReset === "number") {
               reloadData = data as { attempts: number[]; lastReset: number };

@@ -122,7 +122,12 @@ export function safeStringifyValue(value: unknown): string {
   } catch {
     // Fallback for objects that cannot be stringified (e.g., circular references)
     let constructorName = "unknown type";
-    if (typeof value === "object" && value !== null && value.constructor && value.constructor.name) {
+    if (
+      typeof value === "object" &&
+      value !== null &&
+      value.constructor &&
+      value.constructor.name
+    ) {
       constructorName = value.constructor.name;
     }
     return `[Unstringifiable ${constructorName} value]`;
@@ -163,7 +168,10 @@ export function wrapError<T extends Error>(
 /**
  * Check if an error is of a specific custom error type
  */
-export function isErrorOfType<T extends Error>(error: unknown, errorType: new (...args: unknown[]) => T): error is T {
+export function isErrorOfType<T extends Error>(
+  error: unknown,
+  errorType: new (...args: unknown[]) => T,
+): error is T {
   return error instanceof errorType;
 }
 
@@ -351,7 +359,11 @@ function isRetryableS3Error(error: unknown): boolean {
   }
 
   // Permanent failures
-  if (message.includes("nosuchkey") || message.includes("access denied") || message.includes("invalid")) {
+  if (
+    message.includes("nosuchkey") ||
+    message.includes("access denied") ||
+    message.includes("invalid")
+  ) {
     return false;
   }
 

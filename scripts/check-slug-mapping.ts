@@ -40,7 +40,13 @@ async function checkSlugMapping() {
     console.log("");
     console.log("2. SAMPLE SLUGS (first 5):");
     slugEntries.slice(0, 5).forEach(([id, entry]) => {
-      if (typeof entry === "object" && entry !== null && "slug" in entry && "title" in entry && "url" in entry) {
+      if (
+        typeof entry === "object" &&
+        entry !== null &&
+        "slug" in entry &&
+        "title" in entry &&
+        "url" in entry
+      ) {
         console.log(`   ${entry.slug} -> ${id}`);
         console.log(`      Title: ${entry.title}`);
         console.log(`      URL: ${entry.url}`);

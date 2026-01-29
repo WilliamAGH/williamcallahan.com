@@ -85,7 +85,9 @@ export function BlogAuthor({ author }: BlogAuthorProps) {
         <div className="font-semibold text-gray-900 dark:text-white text-lg">{author.name}</div>
       </Link>
       {author.bio && (
-        <p className="text-sm text-gray-700 dark:text-gray-400 mt-2 ml-[4.5rem]">{renderBioSegments(author.bio)}</p>
+        <p className="text-sm text-gray-700 dark:text-gray-400 mt-2 ml-[4.5rem]">
+          {renderBioSegments(author.bio)}
+        </p>
       )}
     </div>
   );

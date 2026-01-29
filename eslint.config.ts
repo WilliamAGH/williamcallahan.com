@@ -404,7 +404,8 @@ const config = tseslint.config(
             meta: {
               type: "problem",
               docs: {
-                description: "Disallow hardcoded /images/ paths - use getStaticImageUrl() for S3/CDN delivery",
+                description:
+                  "Disallow hardcoded /images/ paths - use getStaticImageUrl() for S3/CDN delivery",
               },
               fixable: "code",
               schema: [],
@@ -438,7 +439,10 @@ const config = tseslint.config(
                   if (node.type === "ImportDeclaration") {
                     if (node.source.value === "@/lib/data-access/static-images") {
                       for (const specifier of node.specifiers) {
-                        if (specifier.type === "ImportSpecifier" && specifier.imported.name === "getStaticImageUrl") {
+                        if (
+                          specifier.type === "ImportSpecifier" &&
+                          specifier.imported.name === "getStaticImageUrl"
+                        ) {
                           return true;
                         }
                       }

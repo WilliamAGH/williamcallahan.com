@@ -26,7 +26,11 @@ import { BooksClientGrid } from "./books-grid.client";
  * No connection() bailout - this allows the page to be statically analyzed
  * at build time while still fetching fresh data at runtime via no-store fetches.
  */
-export async function BooksServer({ title, description, disclaimer }: BooksServerProps): Promise<JSX.Element> {
+export async function BooksServer({
+  title,
+  description,
+  disclaimer,
+}: BooksServerProps): Promise<JSX.Element> {
   let books: BookListItem[] = [];
   let error: string | null = null;
   let isStale = false;

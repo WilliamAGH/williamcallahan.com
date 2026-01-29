@@ -31,14 +31,19 @@ export function isJinaFetchAllowed(): boolean {
     const now = getDeterministicTimestamp();
 
     // Reset if the window has expired or state is invalid
-    if (!isJinaLimiterState(state) || now - state.windowStartTimestamp > JINA_FETCH_CONFIG.windowMs) {
+    if (
+      !isJinaLimiterState(state) ||
+      now - state.windowStartTimestamp > JINA_FETCH_CONFIG.windowMs
+    ) {
       debug("[JinaLimiter] Resetting Jina fetch limit window.");
       const newState: JinaLimiterState = {
         count: 1,
         windowStartTimestamp: now,
       };
       ServerCacheInstance.set(JINA_LIMITER_CACHE_KEY, newState);
-      debug(`[JinaLimiter] Jina AI fetch permitted. Count is now ${newState.count}/${JINA_FETCH_CONFIG.maxRequests}.`);
+      debug(
+        `[JinaLimiter] Jina AI fetch permitted. Count is now ${newState.count}/${JINA_FETCH_CONFIG.maxRequests}.`,
+      );
       return true;
     }
 
@@ -55,7 +60,9 @@ export function isJinaFetchAllowed(): boolean {
       count: state.count + 1,
     };
     ServerCacheInstance.set(JINA_LIMITER_CACHE_KEY, newState);
-    debug(`[JinaLimiter] Jina AI fetch permitted. Count is now ${newState.count}/${JINA_FETCH_CONFIG.maxRequests}.`);
+    debug(
+      `[JinaLimiter] Jina AI fetch permitted. Count is now ${newState.count}/${JINA_FETCH_CONFIG.maxRequests}.`,
+    );
 
     return true;
   } catch (err) {

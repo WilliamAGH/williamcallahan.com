@@ -28,7 +28,12 @@ import {
   OG_IMAGE_FALLBACK_DIMENSIONS,
   metadata as siteMetadata,
 } from "@/data/metadata";
-import type { ArticleMetadata, ExtendedMetadata, ArticleParams, SoftwareAppParams } from "../../types/seo";
+import type {
+  ArticleMetadata,
+  ExtendedMetadata,
+  ArticleParams,
+  SoftwareAppParams,
+} from "../../types/seo";
 import { SEO_DATE_FIELDS } from "@/lib/constants";
 import type { ExtendedOpenGraph } from "../../types/seo/opengraph";
 import type { SchemaParams } from "../../types/seo/schema";
@@ -126,9 +131,15 @@ export function createArticleMetadata({
     const baseImageUrl = ensureAbsoluteUrl(image);
     // Create different image aspect ratios (1:1, 4:3, 16:9) for Google's rich results
     imageVariations = [
-      image.endsWith(".jpg") ? baseImageUrl.replace(".jpg", "-1x1.jpg") : `${baseImageUrl}?format=1x1`,
-      image.endsWith(".jpg") ? baseImageUrl.replace(".jpg", "-4x3.jpg") : `${baseImageUrl}?format=4x3`,
-      image.endsWith(".jpg") ? baseImageUrl.replace(".jpg", "-16x9.jpg") : `${baseImageUrl}?format=16x9`,
+      image.endsWith(".jpg")
+        ? baseImageUrl.replace(".jpg", "-1x1.jpg")
+        : `${baseImageUrl}?format=1x1`,
+      image.endsWith(".jpg")
+        ? baseImageUrl.replace(".jpg", "-4x3.jpg")
+        : `${baseImageUrl}?format=4x3`,
+      image.endsWith(".jpg")
+        ? baseImageUrl.replace(".jpg", "-16x9.jpg")
+        : `${baseImageUrl}?format=16x9`,
     ];
   }
 
@@ -225,16 +236,25 @@ export function createArticleMetadata({
  * @param {keyof typeof PAGE_METADATA} pageKey - The key for the page's metadata in PAGE_METADATA
  * @returns {ExtendedMetadata} Next.js metadata object for the page
  */
-export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_METADATA): ExtendedMetadata {
+export function getStaticPageMetadata(
+  path: string,
+  pageKey: keyof typeof PAGE_METADATA,
+): ExtendedMetadata {
   const pageMetadata = PAGE_METADATA[pageKey];
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
 
   // Determine page type and breadcrumbs
   const isProfilePage = ["home", "experience", "education"].includes(pageKey);
-  const isCollectionPage = ["blog", "investments", "bookmarks", "projects", "contact", "books", "thoughts"].includes(
-    pageKey,
-  );
+  const isCollectionPage = [
+    "blog",
+    "investments",
+    "bookmarks",
+    "projects",
+    "contact",
+    "books",
+    "thoughts",
+  ].includes(pageKey);
   const isDatasetPage = pageKey === "investments";
 
   const breadcrumbs =
@@ -256,13 +276,16 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
   // Type assertion is safe here because LOCAL_OG_ASSETS keys are the compile-time
   // image paths defined in data/metadata.ts. If the path exists, we can rely on
   // Next.js-provided width/height for perfect accuracy.
-  const maybeLocal = (LOCAL_OG_ASSETS as Record<string, { width: number; height: number }>)[ogImagePath];
+  const maybeLocal = (LOCAL_OG_ASSETS as Record<string, { width: number; height: number }>)[
+    ogImagePath
+  ];
   if (maybeLocal?.width && maybeLocal.height) {
     ogWidth = maybeLocal.width;
     ogHeight = maybeLocal.height;
   } else {
     // Fallback to predefined dimensions if Next.js import doesn't provide them
-    const fallbackDimensions = OG_IMAGE_FALLBACK_DIMENSIONS[ogImagePath as keyof typeof OG_IMAGE_FALLBACK_DIMENSIONS];
+    const fallbackDimensions =
+      OG_IMAGE_FALLBACK_DIMENSIONS[ogImagePath as keyof typeof OG_IMAGE_FALLBACK_DIMENSIONS];
     if (fallbackDimensions) {
       ogWidth = fallbackDimensions.width;
       ogHeight = fallbackDimensions.height;
@@ -287,7 +310,13 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
     description: pageMetadata.description,
     datePublished: formattedCreated,
     dateModified: formattedModified,
-    type: isProfilePage ? "profile" : isDatasetPage ? "dataset" : isCollectionPage ? "collection" : undefined,
+    type: isProfilePage
+      ? "profile"
+      : isDatasetPage
+        ? "dataset"
+        : isCollectionPage
+          ? "collection"
+          : undefined,
     breadcrumbs,
     image: {
       url: siteMetadata.defaultImage.url,
@@ -309,8 +338,9 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
             profileImage: (pageMetadata as { profileImage: string }).profileImage,
           }),
           ...("interactionStats" in pageMetadata && {
-            interactionStats: (pageMetadata as { interactionStats: { follows: number; posts: number } })
-              .interactionStats,
+            interactionStats: (
+              pageMetadata as { interactionStats: { follows: number; posts: number } }
+            ).interactionStats,
           }),
         },
       }),

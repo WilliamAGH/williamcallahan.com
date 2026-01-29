@@ -117,7 +117,11 @@ export function ExperienceCardClient({
             </div>
             <div className="space-y-1">
               <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{role}</p>
-              {location && <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{location}</p>}
+              {location && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                  {location}
+                </p>
+              )}
             </div>
           </div>
         </div>

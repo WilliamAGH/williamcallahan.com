@@ -6,7 +6,7 @@ import coverImageMap from "@/data/blog/cover-image-map.json";
 describe("blog cover image manifest", () => {
   it("contains an entry for every local MDX cover image", () => {
     const postsDir = path.join(process.cwd(), "data", "blog", "posts");
-    const files = fs.readdirSync(postsDir).filter(file => file.endsWith(".mdx"));
+    const files = fs.readdirSync(postsDir).filter((file) => file.endsWith(".mdx"));
 
     const missing: string[] = [];
 

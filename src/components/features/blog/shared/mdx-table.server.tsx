@@ -21,8 +21,8 @@ const getPlainTextContent = (children: ReactNode): string | null => {
     return null;
   }
 
-  if (normalizedChildren.every(child => typeof child === "string" || typeof child === "number")) {
-    return normalizedChildren.map(child => child.toString()).join("");
+  if (normalizedChildren.every((child) => typeof child === "string" || typeof child === "number")) {
+    return normalizedChildren.map((child) => child.toString()).join("");
   }
 
   return null;

@@ -16,7 +16,7 @@ describe("limitByTypeAndTotal", () => {
       { id: "c", type: "blog", score: 0.5 },
     ];
     const out = limitByTypeAndTotal(items, 5, 10);
-    expect(out.map(i => i.id)).toEqual(["b", "c", "a"]);
+    expect(out.map((i) => i.id)).toEqual(["b", "c", "a"]);
   });
 
   it("applies per-type cap before global cap", () => {
@@ -34,7 +34,7 @@ describe("limitByTypeAndTotal", () => {
 
     const out = limitByTypeAndTotal(items, 2, 4);
     // Per-type caps -> bookmark: [b1,b2], blog: [g1,g2], project: [p1] then global 4 highest
-    expect(out.map(i => i.id)).toEqual(["g1", "b1", "b2", "p1"]);
+    expect(out.map((i) => i.id)).toEqual(["g1", "b1", "b2", "p1"]);
   });
 
   it("handles equal scores; does not throw and returns correct count", () => {
@@ -46,7 +46,7 @@ describe("limitByTypeAndTotal", () => {
     const out = limitByTypeAndTotal(items, 2, 2);
     expect(out).toHaveLength(2);
     // Order for equal scores is not asserted; only cardinality and presence type
-    expect(out.every(i => i.type === "blog")).toBe(true);
+    expect(out.every((i) => i.type === "blog")).toBe(true);
   });
 
   it("treats non-positive limits as zero (returns empty)", () => {

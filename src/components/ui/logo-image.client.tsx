@@ -15,12 +15,24 @@
 import Image from "next/image";
 import React, { useState, useCallback, useRef } from "react";
 import type { LogoImageProps, OptimizedCardImageProps } from "@/types/ui/image";
-import { getCompanyPlaceholder, COMPANY_PLACEHOLDER_BASE64 } from "@/lib/data-access/placeholder-images";
+import {
+  getCompanyPlaceholder,
+  COMPANY_PLACEHOLDER_BASE64,
+} from "@/lib/data-access/placeholder-images";
 import { getMonotonicTime } from "@/lib/utils";
 
 const LOGO_FILENAME_REGEX = /\/logos\/(?:inverted\/)?([^/?#]+)\.(?:png|jpe?g|webp|svg|ico|avif)$/i;
 const HASH_TOKEN = /^[a-f0-9]{8}$/i;
-const KNOWN_LOGO_SOURCES = new Set(["google", "duckduckgo", "ddg", "clearbit", "direct", "manual", "unknown", "api"]);
+const KNOWN_LOGO_SOURCES = new Set([
+  "google",
+  "duckduckgo",
+  "ddg",
+  "clearbit",
+  "direct",
+  "manual",
+  "unknown",
+  "api",
+]);
 
 /**
  * Proxies external URLs through the image cache API. Local paths and data URLs
@@ -178,10 +190,13 @@ export function LogoImage({
   }
 
   const displaySrc =
-    reloadKey && proxiedSrc ? `${proxiedSrc}${proxiedSrc.includes("?") ? "&" : "?"}cb=${reloadKey}` : proxiedSrc;
+    reloadKey && proxiedSrc
+      ? `${proxiedSrc}${proxiedSrc.includes("?") ? "&" : "?"}cb=${reloadKey}`
+      : proxiedSrc;
 
   const shouldBypassOptimizer =
-    typeof displaySrc === "string" && (displaySrc.startsWith("/api/") || displaySrc.startsWith("data:"));
+    typeof displaySrc === "string" &&
+    (displaySrc.startsWith("/api/") || displaySrc.startsWith("data:"));
 
   return (
     <div style={{ position: "relative", width, height }} className="inline-block">
@@ -282,10 +297,13 @@ export function OptimizedCardImage({
   }
 
   const displaySrc =
-    retryKey > 0 ? `${proxiedSrc}${proxiedSrc.includes("?") ? "&" : "?"}retry=${retryKey}` : proxiedSrc;
+    retryKey > 0
+      ? `${proxiedSrc}${proxiedSrc.includes("?") ? "&" : "?"}retry=${retryKey}`
+      : proxiedSrc;
 
   const shouldBypassOptimizer =
-    typeof displaySrc === "string" && (displaySrc.startsWith("/api/") || displaySrc.startsWith("data:"));
+    typeof displaySrc === "string" &&
+    (displaySrc.startsWith("/api/") || displaySrc.startsWith("data:"));
 
   return (
     <Image
@@ -316,7 +334,7 @@ export function OptimizedCardImage({
             clearTimeout(retryTimeoutRef.current);
           }
           retryTimeoutRef.current = setTimeout(() => {
-            setRetryCount(prev => prev + 1);
+            setRetryCount((prev) => prev + 1);
             setRetryKey(getMonotonicTime());
           }, backoffDelay);
         } else {

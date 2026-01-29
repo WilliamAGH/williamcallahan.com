@@ -64,14 +64,19 @@ export default function BooksPage() {
   const jsonLdData = generateSchemaGraph(schemaParams);
 
   // Use uiTitle/uiDescription for on-page display, falling back to meta values
-  const displayTitle = pageMetadata.uiTitle ?? pageMetadata.title.replace(" - William Callahan", "");
+  const displayTitle =
+    pageMetadata.uiTitle ?? pageMetadata.title.replace(" - William Callahan", "");
   const displayDescription = pageMetadata.uiDescription ?? pageMetadata.description;
 
   return (
     <>
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-6xl mx-auto">
-        <BooksServer title={displayTitle} description={displayDescription} disclaimer={pageMetadata.disclaimer} />
+        <BooksServer
+          title={displayTitle}
+          description={displayDescription}
+          disclaimer={pageMetadata.disclaimer}
+        />
       </div>
     </>
   );

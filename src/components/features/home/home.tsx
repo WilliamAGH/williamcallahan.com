@@ -17,13 +17,13 @@ export function Home() {
 
           <section className="mb-8">
             <p className="text-lg mb-4">
-              Hello there -- I&apos;m William. I&apos;m a lifelong builder and aspiring polymath who finds meaning in
-              making things better, and in helping others.
+              Hello there -- I&apos;m William. I&apos;m a lifelong builder and aspiring polymath who
+              finds meaning in making things better, and in helping others.
             </p>
             <p className="text-lg mb-4">
-              My background is in finance and technology. Today I live and work in San Francisco / Silicon Valley. I
-              grew up in the small midwestern US town of Carter Lake—a one-square-mile Iowa exclave, famed for two cases
-              on its location reaching the{" "}
+              My background is in finance and technology. Today I live and work in San Francisco /
+              Silicon Valley. I grew up in the small midwestern US town of Carter Lake—a
+              one-square-mile Iowa exclave, famed for two cases on its location reaching the{" "}
               <a
                 href="https://en.wikipedia.org/wiki/Carter_Lake,_Iowa"
                 className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
@@ -36,13 +36,16 @@ export function Home() {
               .
             </p>
             <p className="text-lg mb-4">
-              (The neighboring sister town of Council Bluffs, Iowa, where I went to school, is now more famously known
-              globally as <code>us-central1</code> for its Google Cloud data centers.)
+              (The neighboring sister town of Council Bluffs, Iowa, where I went to school, is now
+              more famously known globally as <code>us-central1</code> for its Google Cloud data
+              centers.)
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Current Work</h2>
+            <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">
+              Current Work
+            </h2>
             <p className="text-lg mb-4">
               I&apos;m currently building{" "}
               <a
@@ -54,13 +57,16 @@ export function Home() {
               >
                 aVenture
               </a>
-              , a platform designed to bring greater transparency to private markets investing by using AI to analyze
-              millions of data points about companies, their people, and investors.
+              , a platform designed to bring greater transparency to private markets investing by
+              using AI to analyze millions of data points about companies, their people, and
+              investors.
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Projects & Resources</h2>
+            <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">
+              Projects & Resources
+            </h2>
             <p className="text-lg mb-4">
               If you&apos;re curious about what I&apos;m tinkering with these days, my{" "}
               <Link
@@ -70,8 +76,8 @@ export function Home() {
               >
                 projects page
               </Link>{" "}
-              serves as a public sandbox for my latest experiments and passion projects. I also regularly bookmark what
-              I&apos;m reading, which you can find on my{" "}
+              serves as a public sandbox for my latest experiments and passion projects. I also
+              regularly bookmark what I&apos;m reading, which you can find on my{" "}
               <Link
                 href="/bookmarks"
                 className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"

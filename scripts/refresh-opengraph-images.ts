@@ -21,8 +21,12 @@ import { BOOKMARKS_API_CONFIG } from "@/lib/constants";
  * @param timeoutValue - Value to return if timeout occurs
  * @returns Promise that resolves to either the result or timeout value
  */
-async function processWithTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutValue: T): Promise<T> {
-  const timeout = new Promise<T>(resolve => setTimeout(() => resolve(timeoutValue), timeoutMs));
+async function processWithTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutValue: T,
+): Promise<T> {
+  const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(timeoutValue), timeoutMs));
   return Promise.race([promise, timeout]);
 }
 
@@ -60,12 +64,14 @@ async function refreshAllOpenGraphImages() {
       console.log(`\nProcessing batch ${batchNumber}/${totalBatches} (${batch.length} items)`);
 
       // Process batch items in parallel with timeout protection
-      const batchPromises = batch.map(async bookmark => {
+      const batchPromises = batch.map(async (bookmark) => {
         processedCount++;
         const itemNumber = processedCount;
 
         if (!bookmark.url) {
-          console.log(`[${itemNumber}/${bookmarks.length}] Skipping bookmark ${bookmark.id} (no URL)`);
+          console.log(
+            `[${itemNumber}/${bookmarks.length}] Skipping bookmark ${bookmark.id} (no URL)`,
+          );
           return { status: "skipped" };
         }
 
@@ -87,7 +93,12 @@ async function refreshAllOpenGraphImages() {
           }
 
           // Wrap the OpenGraph fetch in a timeout
-          const ogDataPromise = getOpenGraphData(bookmark.url, false, bookmark.id, karakeepFallback);
+          const ogDataPromise = getOpenGraphData(
+            bookmark.url,
+            false,
+            bookmark.id,
+            karakeepFallback,
+          );
           const ogData = await processWithTimeout(ogDataPromise, ITEM_TIMEOUT_MS, null);
 
           if (!ogData) {
@@ -98,7 +109,9 @@ async function refreshAllOpenGraphImages() {
 
           // Check what we actually have/did
           const hasKarakeepImage =
-            bookmark.content?.imageUrl || bookmark.content?.imageAssetId || bookmark.content?.screenshotAssetId;
+            bookmark.content?.imageUrl ||
+            bookmark.content?.imageAssetId ||
+            bookmark.content?.screenshotAssetId;
 
           if (hasKarakeepImage) {
             const imageType = bookmark.content?.imageUrl
@@ -120,7 +133,9 @@ async function refreshAllOpenGraphImages() {
           }
 
           console.warn(`  ⚠️ No image available for ${bookmark.url}`);
-          console.warn(`     └─ Reason: ${ogData?.error || "No Karakeep data and no OpenGraph image found"}`);
+          console.warn(
+            `     └─ Reason: ${ogData?.error || "No Karakeep data and no OpenGraph image found"}`,
+          );
           failureCount++;
           return { status: "failed" };
         } catch (error) {
@@ -135,7 +150,7 @@ async function refreshAllOpenGraphImages() {
 
       // Add a small delay between batches to prevent overwhelming services
       if (i + BATCH_SIZE < bookmarks.length) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
 

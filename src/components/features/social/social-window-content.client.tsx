@@ -51,7 +51,10 @@ export function SocialWindowContent({
           fallback={
             <div className="animate-pulse space-y-4 p-6">
               {Array.from({ length: 3 }, () => (
-                <div key={crypto.randomUUID()} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
+                <div
+                  key={crypto.randomUUID()}
+                  className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg"
+                />
               ))}
             </div>
           }

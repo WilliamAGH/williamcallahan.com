@@ -266,19 +266,20 @@ export const OG_IMAGE_DIMENSIONS = {
  * This ensures a single place to change sizing decisions without scattering
  * magic numbers throughout the codebase.
  */
-export const PAGE_OG_ASPECT: Record<keyof typeof PAGE_METADATA, keyof typeof OG_IMAGE_DIMENSIONS> = {
-  home: "legacy",
-  experience: "legacy",
-  cv: "legacy",
-  investments: "modern",
-  education: "legacy",
-  bookmarks: "legacy", // collection page keeps legacy (1440×900 asset fits 1.91:1)
-  blog: "legacy",
-  projects: "modern",
-  contact: "legacy",
-  books: "modern",
-  thoughts: "modern",
-} as const;
+export const PAGE_OG_ASPECT: Record<keyof typeof PAGE_METADATA, keyof typeof OG_IMAGE_DIMENSIONS> =
+  {
+    home: "legacy",
+    experience: "legacy",
+    cv: "legacy",
+    investments: "modern",
+    education: "legacy",
+    bookmarks: "legacy", // collection page keeps legacy (1440×900 asset fits 1.91:1)
+    blog: "legacy",
+    projects: "modern",
+    contact: "legacy",
+    books: "modern",
+    thoughts: "modern",
+  } as const;
 
 /**
  * Fallback dimensions for OpenGraph images when Next.js imports don't provide them
