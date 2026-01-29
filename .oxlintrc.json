@@ -1,15 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "env": { "browser": true, "es2023": true },
-  "ignorePatterns": [
-    "**/.next/**",
-    "**/node_modules/**",
-    "**/dist/**",
-    "**/out/**",
-    "src/components/ui/code-block/prism-syntax-highlighting/prism.js",
-    "**/*.mdx",
-    "next-env.d.ts"
-  ],
+  "env": { "browser": true, "node": true, "es2023": true },
   "categories": {
     "correctness": "error",
     "suspicious": "error",
@@ -18,10 +9,184 @@
     "pedantic": "off"
   },
   "rules": {
-    "no-duplicate-imports": "error",
+    "typescript/no-unsafe-type-assertion": "off",
+    "typescript/no-redundant-type-constituents": "warn",
+    "typescript/no-unnecessary-type-assertion": "warn",
+    "typescript/no-base-to-string": "off",
+    "typescript/no-unnecessary-type-arguments": "warn",
+    "typescript/no-floating-promises": "off",
+    "typescript/restrict-template-expressions": "off",
+    "typescript/no-unnecessary-boolean-literal-compare": "warn",
+    "import/order": "error",
+    "import/no-unassigned-import": "warn",
+    "import/no-mutable-exports": "error",
+    "import/no-duplicates": "error",
+    "import/no-empty-named-blocks": "error",
+    "import/no-cycle": "warn",
+    "import/no-self-import": "error",
+    "import/no-named-as-default": "warn",
+    "import/no-named-as-default-member": "warn",
+    "no-unused-vars": [
+      "error",
+      {
+        "args": "all",
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrors": "all",
+        "caughtErrorsIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "no-unused-labels": "error",
+    "no-unused-private-class-members": "error",
+    "no-unused-expressions": [
+      "error",
+      {
+        "allowShortCircuit": true,
+        "allowTernary": true,
+        "allowTaggedTemplates": true
+      }
+    ],
     "no-unreachable": "error",
+    "no-empty": ["error", { "allowEmptyCatch": false }],
+    "no-empty-function": [
+      "warn",
+      {
+        "allow": ["arrowFunctions", "constructors"]
+      }
+    ],
+    "no-empty-pattern": "error",
+    "no-empty-static-block": "warn",
+    "no-useless-constructor": "error",
+    "unicorn/no-empty-file": "warn",
+    "default-param-last": "error",
+    "max-params": ["warn", { "max": 9 }],
+    "func-style": ["warn", "declaration", { "allowArrowFunctions": true }],
+    "prefer-rest-params": "error",
+    "no-func-assign": "error",
+    "typescript/no-explicit-any": "warn",
+    "typescript/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "typescript/no-useless-empty-export": "error",
+    "typescript/no-unnecessary-parameter-property-assignment": "error",
+    "typescript/no-unnecessary-type-constraint": "error",
+    "typescript/no-duplicate-enum-values": "error",
+    "typescript/no-extra-non-null-assertion": "error",
+    "typescript/no-misused-new": "error",
+    "typescript/no-unsafe-declaration-merging": "error",
+    "typescript/no-misused-promises": "warn",
+    "typescript/no-confusing-non-null-assertion": "warn",
+    "typescript/no-extraneous-class": [
+      "warn",
+      {
+        "allowEmpty": false,
+        "allowConstructorOnly": false,
+        "allowStaticOnly": false,
+        "allowWithDecorator": true
+      }
+    ],
+    "prefer-const": "error",
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
+    "no-console": "off",
+    "no-debugger": "error",
+    "no-alert": "warn",
+    "no-var": "error",
+    "no-eval": "error",
+    "no-implied-eval": "error",
+    "no-new-func": "error",
+    "no-return-await": "error",
+    "no-throw-literal": "error",
+    "no-useless-concat": "error",
+    "no-useless-return": "error",
+    "no-void": ["error", { "allowAsStatement": true }],
+    "no-with": "error",
+    "radix": "error",
+    "yoda": ["error", "never"],
+    "no-shadow-restricted-names": "error",
+    "no-undef": "error",
+    "no-undef-init": "error",
+    "no-undefined": "off",
+    "no-use-before-define": [
+      "error",
+      {
+        "functions": false,
+        "classes": true,
+        "variables": true
+      }
+    ],
+    "react/jsx-no-target-blank": "error",
+    "react/prop-types": "off",
+    "react/react-in-jsx-scope": "off",
+    "react/no-unknown-property": ["error"],
+    "react/no-unused-state": "warn",
+    "react/jsx-no-useless-fragment": "off",
+    "react/jsx-pascal-case": "error",
+    "react/jsx-no-duplicate-props": "error",
+    "react/no-array-index-key": "off",
+    "react/no-children-prop": "error",
+    "react/no-danger-with-children": "error",
+    "react/no-deprecated": "warn",
+    "react/no-direct-mutation-state": "error",
+    "react/no-find-dom-node": "error",
+    "react/no-is-mounted": "error",
+    "react/no-render-return-value": "error",
+    "react/no-string-refs": "error",
+    "react/no-unescaped-entities": "warn",
+    "react/no-unsafe": "warn",
+    "react/require-render-return": "error",
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
+    "react-perf/jsx-no-new-array-as-prop": "off",
+    "react-perf/jsx-no-new-function-as-prop": "off",
+    "react-perf/jsx-no-new-object-as-prop": "off",
+    "react-perf/jsx-no-jsx-as-prop": "off",
+    "nextjs/no-img-element": "warn",
+    "nextjs/no-html-link-for-pages": "error",
+    "nextjs/no-sync-scripts": "error",
+    "nextjs/google-font-display": "warn",
+    "nextjs/google-font-preconnect": "warn",
+    "nextjs/inline-script-id": "error",
+    "nextjs/no-head-element": "error",
+    "nextjs/no-page-custom-font": "warn",
+    "nextjs/no-script-component-in-head": "error",
+    "nextjs/no-title-in-document-head": "error",
+    "nextjs/no-typos": "warn",
+    "nextjs/no-unwanted-polyfillio": "error",
+    "oxc/no-map-spread": "off",
+    "unicorn/no-null": "off",
+    "unicorn/no-useless-undefined": "off",
+    "unicorn/no-useless-fallback-in-spread": "error",
+    "unicorn/no-useless-length-check": "error",
+    "unicorn/no-useless-spread": "error",
+    "unicorn/no-unnecessary-await": "error",
+    "unicorn/no-object-as-default-parameter": "error",
+    "unicorn/no-await-expression-member": "warn",
+    "unicorn/no-instanceof-array": "error",
+    "unicorn/prefer-array-find": "error",
+    "unicorn/prefer-array-flat": "error",
+    "unicorn/prefer-array-flat-map": "error",
+    "unicorn/prefer-array-index-of": "error",
+    "unicorn/prefer-array-some": "error",
+    "unicorn/prefer-includes": "error",
+    "unicorn/prefer-set-has": "warn",
+    "unicorn/prefer-string-starts-ends-with": "error",
+    "unicorn/prefer-type-error": "warn",
+    "unicorn/prefer-add-event-listener": "off",
+    "unicorn/consistent-function-scoping": "off",
+    "promise/catch-or-return": "error",
+    "promise/no-return-wrap": "error",
+    "promise/param-names": "error",
+    "promise/no-promise-in-callback": "warn",
     "no-await-in-loop": "off",
-    "unicorn/consistent-function-scoping": "off"
+    "no-duplicate-imports": "error",
+    "typescript/tsconfig-error": "off"
   },
   "overrides": [
     {
@@ -31,10 +196,71 @@
       }
     },
     {
+      "files": ["**/*.{test,spec}.{js,jsx,ts,tsx}", "**/__tests__/**/*.{js,jsx,ts,tsx}"],
+      "env": {
+        "jest": true
+      },
+      "rules": {
+        "unicorn/consistent-function-scoping": "off",
+        "unicorn/prefer-type-error": "off",
+        "unicorn/prefer-set-has": "off",
+        "no-new": "off",
+        "no-await-in-loop": "off",
+        "max-params": "off",
+        "typescript/no-explicit-any": "off",
+        "jest/no-conditional-expect": "off",
+        "jest/require-to-throw-message": "off",
+        "jest/no-disabled-tests": "off"
+      }
+    },
+    {
+      "files": ["scripts/**/*.ts"],
+      "rules": {
+        "no-await-in-loop": "off",
+        "typescript/no-explicit-any": "off"
+      }
+    },
+    {
       "files": ["src/lib/utils/sanitize.ts"],
       "rules": {
         "no-control-regex": "off"
       }
+    },
+    {
+      "files": ["eslint.config.ts", "*.config.ts", "config/**/*.ts"],
+      "rules": {
+        "typescript/no-explicit-any": "off",
+        "no-use-before-define": "off"
+      }
+    },
+    {
+      "files": ["config/jest/**/*.{ts,js}"],
+      "env": {
+        "jest": true
+      },
+      "rules": {
+        "no-undef": "off"
+      }
+    },
+    {
+      "files": ["src/hooks/use-clerk-safe.client.ts"],
+      "rules": {
+        "react-hooks/rules-of-hooks": "off"
+      }
     }
+  ],
+  "ignorePatterns": [
+    "**/.next/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/out/**",
+    "**/*.d.ts",
+    "**/*.mdx",
+    "next-env.d.ts",
+    "src/components/ui/code-block/prism-syntax-highlighting/prism.js",
+    ".husky/**",
+    ".jest-pre-compiled/**",
+    "public/**",
+    "coverage/**"
   ]
 }

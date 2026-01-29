@@ -23,7 +23,10 @@ const config = {
     // https://www.npmjs.com/package/remark-lint-unordered-list-marker-style
     [remarkLintUnorderedListMarkerStyle, "consistent"],
     // https://www.npmjs.com/package/remark-lint-no-undefined-references
-    [remarkLintNoUndefinedReferences, { allow: ["!NOTE", "!TIP", "!IMPORTANT", "!WARNING", "!CAUTION", " ", "x"] }],
+    [
+      remarkLintNoUndefinedReferences,
+      { allow: ["!NOTE", "!TIP", "!IMPORTANT", "!WARNING", "!CAUTION", " ", "x"] },
+    ],
     // https://www.npmjs.com/package/remark-lint-link-title-style
     [remarkLintLinkTitleStyle, "'"],
     // https://www.npmjs.com/package/remark-lint-maximum-line-length

@@ -1,15 +1,15 @@
 {
   "name": "william-callahan-dot-com",
-  "type": "module",
   "version": "0.2.0",
   "homepage": "https://williamcallahan.com",
+  "bugs": {
+    "url": "https://github.com/WilliamAGH/williamcallahan.com/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/WilliamAGH/williamcallahan.com.git"
   },
-  "bugs": {
-    "url": "https://github.com/WilliamAGH/williamcallahan.com/issues"
-  },
+  "type": "module",
   "scripts": {
     "update-s3": "bun scripts/data-updater.ts",
     "scheduler": "bun src/lib/server/scheduler.ts",
@@ -39,23 +39,27 @@
     "deploy:verify": "bun scripts/verify-deployment-readiness.ts",
     "deploy:verify:dev": "bun scripts/verify-deployment-readiness.ts development",
     "deploy:smoke-test": "bun scripts/smoke-test-production.ts",
-    "lint": "bun run lint:ox && bun run lint:es",
+    "lint": "bun run format && bun run lint:checks",
+    "lint:checks": "bun run lint:ox && bun run lint:es",
     "lint:es": "eslint . --config eslint.config.ts --format stylish",
-    "lint:es:ci": "eslint . --config eslint.config.ts --format stylish --max-warnings 0 || (echo '⚠️  Linting issues detected but build continues (warnings only)' && exit 0)",
+    "lint:es:ci": "eslint . --config eslint.config.ts --format stylish --max-warnings 0 || (echo 'Linting issues detected but build continues (warnings only)' && exit 0)",
     "lint:errors": "eslint . --config eslint.config.ts --quiet --format stylish",
     "lint:progress": "bun scripts/lint-progress.ts",
     "lint:css": "stylelint --fix 'app/**/*.css' 'styles/**/*.css'",
-    "format": "prettier -w .",
-    "format:check": "prettier -c .",
-    "lint:ox": "bunx oxlint .",
-    "lint:ox:typeaware": "bunx oxlint --type-aware .",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "lint:ox": "oxlint -c .oxlintrc.json --react-plugin --jsx-a11y-plugin --promise-plugin --jest-plugin .",
+    "lint:oxlint": "oxlint -c .oxlintrc.json .",
+    "lint:ox:typeaware": "oxlint -c .oxlintrc.json --type-aware .",
+    "lint:fix": "oxlint -c .oxlintrc.json --fix . && eslint . --config eslint.config.ts --fix",
     "type-check": "NODE_OPTIONS='--max-old-space-size=4096' bunx tsc --noEmit",
     "type-check:tests": "NODE_OPTIONS='--max-old-space-size=4096' bunx tsc --noEmit --project __tests__/tsconfig.json",
     "check:file-size": "bash -c 'fail=0; for f in $(find . -type f \\( -name \"*.ts\" -o -name \"*.tsx\" \\) ! -name \"*.d.ts\" | grep -v \"node_modules/\" | grep -v \".next/\"); do lines=$(wc -l < \"$f\"); if [ $lines -gt 500 ]; then echo \"[File Size Warning] $f exceeds $lines lines (limit: 500)\"; fail=1; fi; done; if [ \"${STRICT:-0}\" = \"1\" ] && [ $fail -ne 0 ]; then echo \"[File Size Check] STRICT=1 and violations found — failing.\"; exit 1; fi; exit 0'",
-    "validate": "bun run lint && bun run type-check && bun scripts/analyze-circular-deps.ts",
+    "validate": "bun run format && bun run lint:checks && bun run type-check && bun scripts/analyze-circular-deps.ts",
     "validate:with-size": "bun run check:file-size && bun run validate",
-    "validate:build": "bun run lint:es:ci && bun run type-check && bun scripts/analyze-circular-deps.ts && bun run check:file-size",
+    "validate:build": "bun run lint:ox && bun run lint:es:ci && bun run type-check && bun scripts/analyze-circular-deps.ts && bun run check:file-size",
     "validate:full": "bun run lint && bun run type-check && bun run format:check",
+    "validate:ci": "bun run format:check && bun run lint:checks && bun run type-check",
     "clean": "rm -rf .next out node_modules",
     "cleanCache": "rm -rf .next/cache",
     "test": "NODE_OPTIONS='--max-old-space-size=4096' jest --config=config/jest/config.ts",
@@ -175,11 +179,10 @@
     "dotenv": "17.0.0",
     "eslint": "9.30.0",
     "eslint-config-next": "16.0.1",
-    "eslint-config-prettier": "10.1.8",
     "eslint-formatter-compact": "9.0.1",
     "eslint-plugin-jest": "^29.2.1",
     "eslint-plugin-mdx": "3.6.2",
-    "eslint-plugin-oxlint": "1.26.0",
+    "eslint-plugin-oxlint": "1.42.0",
     "eslint-plugin-react": "7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "16.4.0",
@@ -191,10 +194,11 @@
     "jsdom": "^26.1.0",
     "lint-staged": "16.1.2",
     "node-mocks-http": "^1.17.2",
-    "oxlint": "1.26.0",
+    "oxfmt": "^0.27.0",
+    "oxlint": "1.42.0",
+    "oxlint-tsgolint": "^0.11.3",
     "postcss": "^8.5.6",
     "postcss-preset-env": "10.2.4",
-    "prettier": "^3.6.2",
     "rehype-autolink-headings": "^6.1.1",
     "rehype-slug": "^5.1.0",
     "remark-lint-link-title-style": "^4.0.1",
@@ -217,26 +221,22 @@
     "typescript": "5.9.3",
     "typescript-eslint": "8.46.3"
   },
+  "resolutions": {
+    "ansi-styles": "4.3.0"
+  },
+  "overrides": {
+    "import-in-the-middle": "1.14.4"
+  },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx}": [
-      "oxlint --fix",
-      "prettier -w"
-    ],
-    "*.{json,md,mdx,yml,yaml,css}": [
-      "prettier -w"
+    "*.{ts,tsx,js,jsx}": [
+      "oxlint -c .oxlintrc.json --type-aware"
     ]
   },
+  "packageManager": "bun@1.3.2",
   "trustedDependencies": [
     "@sentry/cli",
     "@swc/core",
     "sharp",
     "unrs-resolver"
-  ],
-  "overrides": {
-    "import-in-the-middle": "1.14.4"
-  },
-  "resolutions": {
-    "ansi-styles": "4.3.0"
-  },
-  "packageManager": "bun@1.3.2"
+  ]
 }
