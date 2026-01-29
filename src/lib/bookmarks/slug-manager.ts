@@ -335,7 +335,9 @@ export async function saveSlugMapping(
       envLogger.log(`Cache invalidated for bookmark tags`, undefined, { category: "SlugManager" });
     } catch (cacheError) {
       // Cache invalidation failure is non-fatal but should be logged
-      envLogger.debug(`Cache invalidation failed (non-fatal)`, cacheError, { category: "SlugManager" });
+      envLogger.debug(`Cache invalidation failed (non-fatal)`, cacheError, {
+        category: "SlugManager",
+      });
     }
 
     // Optionally save to all environment paths for redundancy

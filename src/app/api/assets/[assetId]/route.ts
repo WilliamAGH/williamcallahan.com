@@ -54,6 +54,7 @@ async function readWithTimeout<T>(promise: Promise<T>, assetId: string): Promise
       .then(result => {
         clearTimeout(timeoutId);
         resolve(result);
+        return null;
       })
       .catch(error => {
         clearTimeout(timeoutId);

@@ -181,6 +181,7 @@ async function processBatch(
         .then(result => {
           results.push(result);
           console.log(`Tested ${results.length}/${investments.length}: ${investment.name}`);
+          return undefined;
         })
         .finally(() => {
           activePromises.delete(promise);

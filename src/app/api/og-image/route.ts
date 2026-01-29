@@ -186,7 +186,9 @@ export async function GET(request: NextRequest) {
                 );
                 // Always use API proxy to ensure correct content-type
                 const assetUrl = `/api/assets/${bookmark.content.imageAssetId}`;
-                return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
+                return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), {
+                  status: 302,
+                });
               }
 
               fallbackImageData = {

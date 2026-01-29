@@ -75,7 +75,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const resolved = resolveDomainInput(company);
       if (!resolved) {
         return NextResponse.json(
-          { error: "Company fallback requires a domain (e.g., example.com) or a website parameter" },
+          {
+            error: "Company fallback requires a domain (e.g., example.com) or a website parameter",
+          },
           { status: 400 },
         );
       }

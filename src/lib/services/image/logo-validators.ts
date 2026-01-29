@@ -122,7 +122,10 @@ export class LogoValidators {
         }
       }
     } catch (validateError) {
-      if (isDebug) logger.debug(`[LogoValidators] validate-logo API error for ${testDomain}`, { validateError });
+      if (isDebug)
+        logger.debug(`[LogoValidators] validate-logo API error for ${testDomain}`, {
+          validateError,
+        });
     }
     return false;
   }

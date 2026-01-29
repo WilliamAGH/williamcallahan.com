@@ -77,7 +77,10 @@ export async function resolveInvestmentCardData(
   // This sets source: null and needsInversion: false to mark it as deferred resolution.
   const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
   if (isProductionBuildPhase) {
-    const runtimeLogoUrl = getRuntimeLogoUrl(effectiveDomain, { company: name, forceRefresh: false });
+    const runtimeLogoUrl = getRuntimeLogoUrl(effectiveDomain, {
+      company: name,
+      forceRefresh: false,
+    });
 
     return {
       ...normalizedInvestment,

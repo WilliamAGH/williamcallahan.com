@@ -205,13 +205,25 @@ const opentelemetryApi = {
 export default opentelemetryApi;
 
 // For @opentelemetry/instrumentation compatibility
-export const registerInstrumentations = () => {};
+export const registerInstrumentations = () => {
+  /* no-op stub for Edge runtime */
+};
 export const InstrumentationBase = class {
-  enable() {}
-  disable() {}
-  setTracerProvider() {}
-  setMeterProvider() {}
-  setLoggerProvider() {}
+  enable() {
+    /* no-op stub for Edge runtime */
+  }
+  disable() {
+    /* no-op stub for Edge runtime */
+  }
+  setTracerProvider() {
+    /* no-op stub for Edge runtime */
+  }
+  setMeterProvider() {
+    /* no-op stub for Edge runtime */
+  }
+  setLoggerProvider() {
+    /* no-op stub for Edge runtime */
+  }
   getTracer() {
     return trace.getTracer();
   }

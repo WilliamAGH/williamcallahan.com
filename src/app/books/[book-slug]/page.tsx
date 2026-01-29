@@ -41,7 +41,9 @@ async function getBookBySlug(
   const directId = extractBookIdFromSlug(slug);
 
   if (directId) {
-    const byIdResult = await fetchBookByIdWithFallback(directId, { includeBlurPlaceholder: includeBlurPlaceholders });
+    const byIdResult = await fetchBookByIdWithFallback(directId, {
+      includeBlurPlaceholder: includeBlurPlaceholders,
+    });
     if (byIdResult.book) {
       return { book: byIdResult.book, isFallback: byIdResult.isFallback };
     }

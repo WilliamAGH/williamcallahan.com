@@ -62,7 +62,11 @@ export async function processBookmarksInBatches(
   isDev: boolean,
   useBatchMode = false,
   extractContent = false,
-  refreshOptions?: { metadataOnly?: boolean; refreshMetadataEvenIfImagePresent?: boolean; maxItems?: number },
+  refreshOptions?: {
+    metadataOnly?: boolean;
+    refreshMetadataEvenIfImagePresent?: boolean;
+    maxItems?: number;
+  },
 ): Promise<UnifiedBookmark[]> {
   void isDev; // Unused parameter
   const startTime = getMonotonicTime();

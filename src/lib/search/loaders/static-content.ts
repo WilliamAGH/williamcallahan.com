@@ -63,7 +63,9 @@ async function loadOrBuildIndex<T>(
         console.log(`[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`);
       } else {
         // Fall back to building in-memory
-        envLogger.log(`Failed to load ${cacheKey} from S3, building in-memory`, undefined, { category: "Search" });
+        envLogger.log(`Failed to load ${cacheKey} from S3, building in-memory`, undefined, {
+          category: "Search",
+        });
         index = buildFn();
       }
     } catch (error) {

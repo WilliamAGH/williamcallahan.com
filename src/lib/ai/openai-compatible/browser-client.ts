@@ -191,7 +191,11 @@ export async function aiChat(
     }
 
     if (wantsQueueUpdates) {
-      return readSseStream({ response: retry, signal: options.signal, onQueueUpdate: options.onQueueUpdate });
+      return readSseStream({
+        response: retry,
+        signal: options.signal,
+        onQueueUpdate: options.onQueueUpdate,
+      });
     }
 
     const data: unknown = await retry.json();
@@ -204,7 +208,11 @@ export async function aiChat(
   }
 
   if (wantsQueueUpdates) {
-    return readSseStream({ response, signal: options.signal, onQueueUpdate: options.onQueueUpdate });
+    return readSseStream({
+      response,
+      signal: options.signal,
+      onQueueUpdate: options.onQueueUpdate,
+    });
   }
 
   const data: unknown = await response.json();

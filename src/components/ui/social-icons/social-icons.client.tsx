@@ -32,13 +32,12 @@ function useHasMounted() {
   return hasMounted;
 }
 
+const PLATFORM_SLUGS = ["github", "x", "discord", "linkedin", "bluesky"] as const;
+const isPlatformSlug = (value: string): value is (typeof PLATFORM_SLUGS)[number] =>
+  (PLATFORM_SLUGS as readonly string[]).includes(value);
+
 export function SocialIcons({ className = "", showXOnly = false, excludePlatforms = [] }: SocialIconsProps) {
   const hasMounted = useHasMounted();
-
-  // Local type guard to keep filtering type-safe without using `any`
-  const PLATFORM_SLUGS = ["github", "x", "discord", "linkedin", "bluesky"] as const;
-  const isPlatformSlug = (value: string): value is (typeof PLATFORM_SLUGS)[number] =>
-    (PLATFORM_SLUGS as readonly string[]).includes(value);
 
   // Icon button styling
   const iconButtonClasses =

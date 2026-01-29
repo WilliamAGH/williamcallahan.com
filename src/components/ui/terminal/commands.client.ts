@@ -15,7 +15,9 @@ import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
 function createSearchByScopeImpl() {
   return async (scope: string, query: string, signal?: AbortSignal): Promise<TerminalSearchResult[]> => {
     try {
-      const response = await fetch(`/api/search/${scope}?q=${encodeURIComponent(query)}`, { signal });
+      const response = await fetch(`/api/search/${scope}?q=${encodeURIComponent(query)}`, {
+        signal,
+      });
       if (!response.ok) {
         console.error(`Search API returned ${response.status} for scope ${scope}`);
         // Return empty array instead of throwing to prevent terminal from breaking

@@ -285,7 +285,9 @@ export function BookmarkAiAnalysis({
 
     async function checkQueueAndTrigger() {
       try {
-        const response = await fetch(`/api/ai/queue/${AI_FEATURE_NAME}`, { signal: controller.signal });
+        const response = await fetch(`/api/ai/queue/${AI_FEATURE_NAME}`, {
+          signal: controller.signal,
+        });
         if (response.ok) {
           const data: unknown = await response.json();
           const parseResult = aiQueueStatsSchema.safeParse(data);

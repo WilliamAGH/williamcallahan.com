@@ -2,7 +2,6 @@
  * Navigation Link Component
  */
 "use client"; // Add "use client" as it uses hooks
-
 import type { NavigationLinkProps } from "@/types/navigation";
 import Link from "next/link";
 import { useEffect, useRef, useState, type MouseEvent } from "react";

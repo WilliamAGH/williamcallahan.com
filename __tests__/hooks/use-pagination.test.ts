@@ -86,7 +86,14 @@ describe("usePagination", () => {
       {
         data: mockItems.slice(0, 24),
         meta: {
-          pagination: { page: 1, limit: 24, total: 50, totalPages: 3, hasNext: true, hasPrev: false },
+          pagination: {
+            page: 1,
+            limit: 24,
+            total: 50,
+            totalPages: 3,
+            hasNext: true,
+            hasPrev: false,
+          },
         },
       },
     ];
@@ -116,7 +123,14 @@ describe("usePagination", () => {
       {
         data: mockItems.slice(0, 24),
         meta: {
-          pagination: { page: 1, limit: 24, total: 50, totalPages: 3, hasNext: true, hasPrev: false },
+          pagination: {
+            page: 1,
+            limit: 24,
+            total: 50,
+            totalPages: 3,
+            hasNext: true,
+            hasPrev: false,
+          },
         },
       },
     ];

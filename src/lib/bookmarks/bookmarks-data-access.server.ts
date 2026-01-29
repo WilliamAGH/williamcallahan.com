@@ -101,7 +101,11 @@ async function fetchAndCacheBookmarks(
   safeCacheLife({ revalidate: 3600 }); // 1 hour
   safeCacheTag("bookmarks-s3-full");
   const { skipExternalFetch = false, includeImageData = true, force = false } = options;
-  logBookmarkDataAccessEvent("fetchAndCacheBookmarks", { skipExternalFetch, includeImageData, force });
+  logBookmarkDataAccessEvent("fetchAndCacheBookmarks", {
+    skipExternalFetch,
+    includeImageData,
+    force,
+  });
 
   // --- 1. Prefer S3 in production runtime; use local fallback only in dev/test/CLI contexts ---
   const isProductionRuntime =
@@ -154,7 +158,9 @@ async function fetchAndCacheBookmarks(
   }
 
   if (bookmarksFromS3) {
-    logBookmarkDataAccessEvent("Loaded bookmarks from S3", { bookmarkCount: bookmarksFromS3.length });
+    logBookmarkDataAccessEvent("Loaded bookmarks from S3", {
+      bookmarkCount: bookmarksFromS3.length,
+    });
     if (process.env.DEBUG_BOOKMARKS === "true") {
       const cliBookmark = bookmarksFromS3.find(b => b.id === "yz7g8v8vzprsd2bm1w1cjc4y");
       if (cliBookmark) {
@@ -217,7 +223,10 @@ async function getBookmarksPageDirect(pageNumber: number): Promise<UnifiedBookma
 
   const fallback = await readLocalS3JsonSafe<UnifiedBookmark[]>(key, shouldSkipLocalS3Cache);
   if (fallback) {
-    logBookmarkDataAccessEvent("Loaded page data from local S3 mirror", { pageNumber, source: "local" });
+    logBookmarkDataAccessEvent("Loaded page data from local S3 mirror", {
+      pageNumber,
+      source: "local",
+    });
     return normalizePageBookmarkTags(fallback);
   }
 
@@ -455,7 +464,12 @@ export async function getBookmarkById(
 export async function getBookmarksByTag(
   tagSlug: string,
   pageNumber: number = 1,
-): Promise<{ bookmarks: UnifiedBookmark[]; totalCount: number; totalPages: number; fromCache: boolean }> {
+): Promise<{
+  bookmarks: UnifiedBookmark[];
+  totalCount: number;
+  totalPages: number;
+  fromCache: boolean;
+}> {
   logBookmarkDataAccessEvent("getBookmarksByTag invoked", { tagSlug, pageNumber });
   const cachedPage = await getTagBookmarksPage(tagSlug, pageNumber);
   if (cachedPage.length > 0) {
@@ -472,7 +486,10 @@ export async function getBookmarksByTag(
       fromCache: true,
     };
   }
-  logBookmarkDataAccessEvent("Tag page cache miss, filtering full dataset", { tagSlug, pageNumber });
+  logBookmarkDataAccessEvent("Tag page cache miss, filtering full dataset", {
+    tagSlug,
+    pageNumber,
+  });
 
   // Check in-memory runtime cache first to avoid repeated S3 reads.
   // In test environment, bypass the in-process cache so each test can
@@ -484,10 +501,14 @@ export async function getBookmarksByTag(
 
   if (cachedDataset) {
     // Note: getFullDatasetCache handles TTL internally
-    envLogger.log("Using in-memory runtime cache for full bookmarks dataset", undefined, { category: LOG_PREFIX });
+    envLogger.log("Using in-memory runtime cache for full bookmarks dataset", undefined, {
+      category: LOG_PREFIX,
+    });
     allBookmarks = cachedDataset;
   } else {
-    envLogger.log("Reading full bookmarks dataset from S3 persistence", undefined, { category: LOG_PREFIX });
+    envLogger.log("Reading full bookmarks dataset from S3 persistence", undefined, {
+      category: LOG_PREFIX,
+    });
     allBookmarks = (await getBookmarks({
       includeImageData: true,
       skipExternalFetch: false,

@@ -406,7 +406,10 @@ export function normalizeError(error: unknown, context?: Record<string, unknown>
     const message = "message" in error ? String(error.message) : "Unknown error";
     const err = new Error(message);
     if (context) {
-      (err as Error & { context?: Record<string, unknown> }).context = { ...context, originalError: error };
+      (err as Error & { context?: Record<string, unknown> }).context = {
+        ...context,
+        originalError: error,
+      };
     }
     return err;
   }

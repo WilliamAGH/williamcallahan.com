@@ -11,7 +11,7 @@ export const IndividualIcon = ({ href, label, icon: Icon }: SocialIconProps) => 
     <a
       href={href}
       target="_blank"
-      rel="noopener"
+      rel="noopener noreferrer"
       className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors"
       aria-label={label}
     >

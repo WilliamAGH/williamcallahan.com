@@ -159,16 +159,14 @@ describe("Navigation", () => {
       // Check desktop view
       const desktopView = nav.querySelector<HTMLElement>(".sm\\:flex");
       expect(desktopView).not.toBeNull();
-      if (desktopView) {
-        expect(within(desktopView).queryByTestId("window-controls")).not.toBeInTheDocument();
-      }
+      // Assert desktopView exists (test will fail above if not)
+      expect(within(desktopView!).queryByTestId("window-controls")).not.toBeInTheDocument();
 
       // Check mobile view
       const mobileView = nav.querySelector<HTMLElement>(".sm\\:hidden");
       expect(mobileView).not.toBeNull();
-      if (mobileView) {
-        expect(within(mobileView).queryByTestId("window-controls")).not.toBeInTheDocument();
-      }
+      // Assert mobileView exists (test will fail above if not)
+      expect(within(mobileView!).queryByTestId("window-controls")).not.toBeInTheDocument();
     });
   });
 

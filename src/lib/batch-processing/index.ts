@@ -95,7 +95,9 @@ export class BatchProcessor<T, R> {
                 onRetry: (error: unknown, attempt: number) => {
                   if (debug) {
                     const errorMessage = error instanceof Error ? error.message : String(error);
-                    debugLog(`[${this.name}] Retry ${attempt} for item`, "warn", { error: errorMessage });
+                    debugLog(`[${this.name}] Retry ${attempt} for item`, "warn", {
+                      error: errorMessage,
+                    });
                   }
                 },
               });

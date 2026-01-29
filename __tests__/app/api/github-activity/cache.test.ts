@@ -14,8 +14,6 @@
  * external dependencies, aligning with the testing requirements in caching.md.
  */
 
-/* eslint-disable @typescript-eslint/unbound-method */
-
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, beforeAll globally
 import type { GitHubActivityApiResponse } from "../../../../src/types/github";
 
@@ -217,6 +215,7 @@ describe("GitHub Activity API Cache Tests", () => {
       };
       return Promise.resolve().then(() => {
         ServerCacheInstance.setGithubActivity(mockData);
+        return undefined;
       });
     });
 

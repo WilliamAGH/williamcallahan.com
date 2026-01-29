@@ -72,7 +72,9 @@ export async function acquireDistributedLock(config: LockConfig): Promise<LockRe
         // Delete the stale lock
         try {
           await deleteFromS3(lockKey);
-          envLogger.debug("Expired lock deleted successfully", undefined, { category: logCategory });
+          envLogger.debug("Expired lock deleted successfully", undefined, {
+            category: logCategory,
+          });
         } catch (cleanupError) {
           // Best-effort cleanup; proceed to write and let retries handle contention
           envLogger.debug(`Failed to delete expired lock: ${String(cleanupError)}`, undefined, {
@@ -125,7 +127,9 @@ export async function acquireDistributedLock(config: LockConfig): Promise<LockRe
         reason: `Lost race to ${current?.instanceId}`,
       };
     } catch (error: unknown) {
-      envLogger.log(`Error verifying lock ownership: ${String(error)}`, undefined, { category: logCategory });
+      envLogger.log(`Error verifying lock ownership: ${String(error)}`, undefined, {
+        category: logCategory,
+      });
       // Clean up our potentially orphaned lock
       try {
         await deleteFromS3(lockKey);
@@ -167,7 +171,9 @@ export async function releaseDistributedLock(
     }
   } catch (error: unknown) {
     if (!isS3Error(error) || error.$metadata?.httpStatusCode !== 404) {
-      envLogger.log(`Error during lock release: ${String(error)}`, undefined, { category: logCategory });
+      envLogger.log(`Error during lock release: ${String(error)}`, undefined, {
+        category: logCategory,
+      });
     }
   }
 }
@@ -197,7 +203,9 @@ export async function cleanupStaleLocks(lockKey: string, logCategory = "Distribu
     }
   } catch (error: unknown) {
     if (!isS3Error(error) || error.$metadata?.httpStatusCode !== 404) {
-      envLogger.debug(`Error checking for stale locks: ${String(error)}`, undefined, { category: logCategory });
+      envLogger.debug(`Error checking for stale locks: ${String(error)}`, undefined, {
+        category: logCategory,
+      });
     }
   }
 }

@@ -383,3 +383,17 @@ export const bookmarkSlugMappingSchema = z.object({
   slugs: z.record(z.string(), bookmarkSlugEntrySchema),
   reverseMap: z.record(z.string(), z.string()),
 });
+
+/** Validated API configuration for bookmark fetching */
+export interface BookmarksApiContext {
+  apiUrl: string;
+  requestHeaders: { Accept: string; Authorization: string };
+}
+
+/** Result of checksum validation - either cached data or null to proceed */
+export interface ChecksumResult {
+  cached: UnifiedBookmark[] | null;
+  checksum: string;
+  latestKey: string;
+  envSuffix: string;
+}

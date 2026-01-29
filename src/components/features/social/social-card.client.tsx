@@ -243,7 +243,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
           <a
             href={href}
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
             className="absolute inset-0 z-10 w-full h-full cursor-pointer block"
             title={`Visit ${profileName} profile page`}
             style={
@@ -290,7 +290,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
           <a
             href={href}
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
             className="block relative w-16 h-16 cursor-pointer rounded-full"
             title={`Visit ${profileName} profile page`}
           >
@@ -316,7 +316,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
             <a
               href={href}
               target="_blank"
-              rel="noopener"
+              rel="noopener noreferrer"
               className="flex items-center gap-2 group/title"
               title={`Visit ${profileName} profile page`}
             >

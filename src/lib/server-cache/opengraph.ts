@@ -17,15 +17,15 @@ const REFRESH_COOLDOWN_MS = TIME_CONSTANTS.FIVE_MINUTES_MS; // 5 minutes between
 const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 const getCacheTimestamp = (): number => (isProductionBuildPhase ? 0 : getMonotonicTime());
 
-export function getOpenGraphData(this: ICache, url: string): OgCacheEntry | undefined {
+export function getOpenGraphData(cache: ICache, url: string): OgCacheEntry | undefined {
   const key = OPENGRAPH_PREFIX + url;
-  return this.get<OgCacheEntry>(key);
+  return cache.get<OgCacheEntry>(key);
 }
 
-export function setOpenGraphData(this: ICache, url: string, data: OgResult, isFailure = false): void {
+export function setOpenGraphData(cache: ICache, url: string, data: OgResult, isFailure = false): void {
   const key = OPENGRAPH_PREFIX + url;
   const now = getCacheTimestamp();
-  const existing = getOpenGraphData.call(this, url);
+  const existing = getOpenGraphData(cache, url);
 
   const validationResult = ogResultSchema.safeParse(data);
   const normalizedData: OgResult = {
@@ -72,11 +72,11 @@ export function setOpenGraphData(this: ICache, url: string, data: OgResult, isFa
     isFailure,
   };
 
-  this.set(key, cacheEntry, isFailure ? OPENGRAPH_CACHE_DURATION.FAILURE : OPENGRAPH_CACHE_DURATION.SUCCESS);
+  cache.set(key, cacheEntry, isFailure ? OPENGRAPH_CACHE_DURATION.FAILURE : OPENGRAPH_CACHE_DURATION.SUCCESS);
 }
 
-export function shouldRefreshOpenGraph(this: ICache, url: string): boolean {
-  const cached = getOpenGraphData.call(this, url);
+export function shouldRefreshOpenGraph(cache: ICache, url: string): boolean {
+  const cached = getOpenGraphData(cache, url);
   if (!cached) {
     return true;
   }
@@ -90,14 +90,14 @@ export function shouldRefreshOpenGraph(this: ICache, url: string): boolean {
   return timeSinceLastFetch > OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
 }
 
-export function clearOpenGraphData(this: ICache, url?: string): void {
+export function clearOpenGraphData(cache: ICache, url?: string): void {
   if (url) {
     const key = OPENGRAPH_PREFIX + url;
-    this.del(key);
+    cache.del(key);
   } else {
-    const keys = this.keys().filter(key => key.startsWith(OPENGRAPH_PREFIX));
+    const keys = cache.keys().filter(key => key.startsWith(OPENGRAPH_PREFIX));
     for (const key of keys) {
-      this.del(key);
+      cache.del(key);
     }
   }
 }
@@ -105,9 +105,9 @@ export function clearOpenGraphData(this: ICache, url?: string): void {
 /**
  * Delete specific OpenGraph cache entry (for corruption recovery)
  */
-export function deleteOpenGraphData(this: ICache, url: string): void {
+export function deleteOpenGraphData(cache: ICache, url: string): void {
   const key = OPENGRAPH_PREFIX + url;
-  this.del(key);
+  cache.del(key);
   envLogger.log(`Deleted corrupted OpenGraph cache entry`, { url }, { category: "ServerCache" });
 }
 
@@ -115,9 +115,9 @@ export function deleteOpenGraphData(this: ICache, url: string): void {
  * Invalidate OpenGraph cache when image URLs become stale (e.g., 404s)
  * This automatically triggers a background refresh to get updated image URLs
  */
-export function invalidateStaleOpenGraphData(this: ICache, pageUrl: string, reason: string): boolean {
+export function invalidateStaleOpenGraphData(cache: ICache, pageUrl: string, reason: string): boolean {
   const refreshKey = REFRESH_TRACKING_PREFIX + pageUrl;
-  const lastRefresh = this.get<number>(refreshKey);
+  const lastRefresh = cache.get<number>(refreshKey);
   const now = getCacheTimestamp();
 
   // Check if we recently attempted a refresh (cooldown period)
@@ -133,7 +133,7 @@ export function invalidateStaleOpenGraphData(this: ICache, pageUrl: string, reas
 
   // Invalidate the cached OpenGraph data
   try {
-    deleteOpenGraphData.call(this, pageUrl);
+    deleteOpenGraphData(cache, pageUrl);
   } catch (error) {
     envLogger.log(
       `Failed to delete OpenGraph data for ${pageUrl}`,
@@ -144,7 +144,7 @@ export function invalidateStaleOpenGraphData(this: ICache, pageUrl: string, reas
   }
 
   // Track this refresh attempt
-  this.set(refreshKey, now, REFRESH_COOLDOWN_MS / 1000);
+  cache.set(refreshKey, now, REFRESH_COOLDOWN_MS / 1000);
 
   envLogger.log(
     `OpenGraph Auto-Recovery: Invalidated stale cache`,

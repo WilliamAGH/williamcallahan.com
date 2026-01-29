@@ -26,18 +26,46 @@ afterEach(() => {
 const duplicateTestResults: SearchResult[] = [
   { id: "1", type: "post", title: "Test 1", description: "Description 1", url: "/test1", score: 1 },
   { id: "1", type: "post", title: "Test 1", description: "Description 1", url: "/test1", score: 1 }, // duplicate
-  { id: "2", type: "post", title: "Test 2", description: "Description 2", url: "/test2", score: 0.9 },
+  {
+    id: "2",
+    type: "post",
+    title: "Test 2",
+    description: "Description 2",
+    url: "/test2",
+    score: 0.9,
+  },
 ];
 
 const edgeCaseResults: SearchResult[] = [
   { id: "", type: "post", title: "Empty ID", description: "Description", url: "/empty", score: 1 },
-  { id: "null", type: "post", title: "Null-like ID", description: "Description", url: "/null", score: 0.8 },
+  {
+    id: "null",
+    type: "post",
+    title: "Null-like ID",
+    description: "Description",
+    url: "/null",
+    score: 0.8,
+  },
 ];
 
 const searchResults: SearchResult[] = [
   { id: "1", type: "post", title: "Post 1", description: "Description 1", url: "/post1", score: 1 },
-  { id: "2", type: "project", title: "Project 2", description: "Description 2", url: "/project2", score: 0.9 },
-  { id: "3", type: "post", title: "Post 3", description: "Description 3", url: "/post3", score: 0.8 },
+  {
+    id: "2",
+    type: "project",
+    title: "Project 2",
+    description: "Description 2",
+    url: "/project2",
+    score: 0.9,
+  },
+  {
+    id: "3",
+    type: "post",
+    title: "Post 3",
+    description: "Description 3",
+    url: "/post3",
+    score: 0.8,
+  },
 ];
 
 // Simple deduplication function for testing

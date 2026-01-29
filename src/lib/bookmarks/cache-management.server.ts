@@ -182,7 +182,9 @@ export function invalidateNextJsBookmarksCache(): void {
   if (USE_NEXTJS_CACHE) {
     safeRevalidateTag("bookmarks");
     safeRevalidateTag("bookmarks-s3-full");
-    envLogger.log("Next.js cache invalidated for bookmarks tags", undefined, { category: "Bookmarks" });
+    envLogger.log("Next.js cache invalidated for bookmarks tags", undefined, {
+      category: "Bookmarks",
+    });
   }
 }
 

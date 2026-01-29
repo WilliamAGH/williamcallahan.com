@@ -29,7 +29,12 @@ jest.mock("@/lib/bookmarks/local-s3-cache", () => ({
 
 const mockReadJsonS3 = jest.mocked(readJsonS3);
 
-const createTag = (name: string) => ({ id: name, name, slug: name.replace(/\s+/g, "-"), color: undefined });
+const createTag = (name: string) => ({
+  id: name,
+  name,
+  slug: name.replace(/\s+/g, "-"),
+  color: undefined,
+});
 
 const simplify = (bookmarks: UnifiedBookmark[]) =>
   bookmarks.map(b => ({ ...b, tags: b.tags.map(t => (typeof t === "string" ? t : t.name)) }));

@@ -325,7 +325,7 @@ const GitHubActivity = () => {
           <a
             href="https://github.com/WilliamAGH/"
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
             className="flex items-center gap-2 hover:underline"
           >
             <Code size={20} className="text-blue-500 group-hover:scale-110 transition-transform" />

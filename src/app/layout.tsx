@@ -121,7 +121,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </>
         )}
         {/* Next.js automatically handles font preloading */}
-        {/* 
+        {/*
           Add meta tag to signal native theme handling.
           NOTE: This is not supported by Internet Explorer, which is fine as the browser is deprecated.
           This is important for modern browsers to respect user's theme preference.

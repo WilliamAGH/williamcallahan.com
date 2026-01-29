@@ -222,7 +222,7 @@ async function fixMissingOgImages() {
 
     let fixed = 0;
     const updated = bookmarks.map(bookmark => {
-      if (!toProcess.find(b => b.id === bookmark.id)) {
+      if (!toProcess.some(b => b.id === bookmark.id)) {
         return bookmark;
       }
 
@@ -290,7 +290,7 @@ async function fixDirectScreenshots() {
 
     let fixed = 0;
     const updated = bookmarks.map(bookmark => {
-      if (!toProcess.find(b => b.id === bookmark.id)) {
+      if (!toProcess.some(b => b.id === bookmark.id)) {
         return bookmark;
       }
 

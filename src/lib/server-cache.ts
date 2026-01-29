@@ -277,7 +277,10 @@ export class ServerCache implements ICache {
       this.disabledUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
       envLogger.log(
         `Circuit breaker activated after ${this.failureCount} failures. Will attempt recovery in 5 minutes.`,
-        { failureCount: this.failureCount, disabledUntil: new Date(this.disabledUntil).toISOString() },
+        {
+          failureCount: this.failureCount,
+          disabledUntil: new Date(this.disabledUntil).toISOString(),
+        },
         { category: "ServerCache", context: { event: "circuit-breaker-activated" } },
       );
     }
@@ -457,7 +460,11 @@ function attachHelpers<T extends Record<string, unknown>>(prototype: object, hel
     // Define non-enumerable to keep prototype surface tidy
     Object.defineProperty(prototype, key, {
       // Narrow to callable without using 'any'
-      value: value as (...args: unknown[]) => unknown,
+      // WRAPPER: Convert the method call (this.foo()) into a function call with 'this' as first arg (foo(this))
+      // This allows the helper functions to be standard functions (cache: ICache, ...args) instead of using 'this' context
+      value: function (this: ICache, ...args: unknown[]) {
+        return (value as (cache: ICache, ...args: unknown[]) => unknown)(this, ...args);
+      },
       configurable: true,
       writable: true,
       enumerable: false,

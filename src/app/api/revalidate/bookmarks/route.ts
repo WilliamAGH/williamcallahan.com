@@ -26,7 +26,9 @@ export function POST(request: NextRequest): NextResponse {
   })();
 
   if (presentedToken !== expectedToken) {
-    envLogger.log("Unauthorized revalidation attempt", undefined, { category: "CacheInvalidation" });
+    envLogger.log("Unauthorized revalidation attempt", undefined, {
+      category: "CacheInvalidation",
+    });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

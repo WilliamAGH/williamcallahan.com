@@ -80,7 +80,9 @@ export class GraphQLClient {
       return response;
     } catch (error) {
       if (this.config.debug) {
-        debugLog("GraphQL Request Failed", "error", { error: error instanceof Error ? error.message : String(error) });
+        debugLog("GraphQL Request Failed", "error", {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
       throw error;
     }

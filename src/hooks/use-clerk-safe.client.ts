@@ -58,6 +58,9 @@ export function useClerkSafe(): ClerkSafeInterface {
 
   // Clerk IS configured - ClerkProvider is in the tree, safe to use hook
   // The useClerkOriginal import only triggers when this branch is taken
+  // NOTE: Hook called conditionally is safe here because IS_CLERK_CONFIGURED is a
+  // build-time constant (NEXT_PUBLIC_ var inlined by Next.js at build time).
+  // The condition never changes between renders, ensuring consistent hook call order.
   const clerk = useClerkOriginal();
 
   // Wrap to match our minimal interface, passing through options

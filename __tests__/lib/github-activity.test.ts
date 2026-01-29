@@ -299,26 +299,14 @@ describe("lib/data-access/github.ts functionality", () => {
     it("should handle network errors gracefully", async () => {
       mockFetch.mockRejectedValue(new Error("Network error"));
 
-      try {
-        await fetch("http://localhost:3000/api/github-activity/refresh");
-        // Should not reach here
-        expect(true).toBe(false);
-      } catch (error) {
-        expect(error).toBeInstanceOf(Error);
-        expect((error as Error).message).toBe("Network error");
-      }
+      await expect(fetch("http://localhost:3000/api/github-activity/refresh")).rejects.toThrow("Network error");
     });
 
     it("should handle refresh function errors", async () => {
       const testError = new Error("GitHub API rate limit exceeded");
       mockRefreshGitHubActivityDataFromApi.mockRejectedValue(testError);
 
-      try {
-        await refreshGitHubActivityDataFromApi();
-        expect(true).toBe(false); // Should not reach here
-      } catch (error) {
-        expect(error).toEqual(testError);
-      }
+      await expect(refreshGitHubActivityDataFromApi()).rejects.toThrow("GitHub API rate limit exceeded");
     });
 
     it("should handle S3 metadata errors", async () => {

@@ -126,10 +126,9 @@ describe("Terminal Commands", () => {
       const second = result.results[1];
       expect(isChatCommand(first)).toBe(true);
       expect(isChatCommand(second)).toBe(true);
-      if (isChatCommand(first) && isChatCommand(second)) {
-        expect(first.role).toBe("user");
-        expect(second.role).toBe("assistant");
-      }
+      // Assert both are chat commands (tests will fail above if not)
+      expect((first as { role: string }).role).toBe("user");
+      expect((second as { role: string }).role).toBe("assistant");
     });
   });
 

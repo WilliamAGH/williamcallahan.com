@@ -65,7 +65,10 @@ export class SessionManager {
       "domain-failures",
       domain,
       { maxRequests: CONFIG.MAX_RETRIES_PER_SESSION, windowMs: CONFIG.SESSION_MAX_DURATION },
-      { failureThreshold: CONFIG.PERMANENT_FAILURE_THRESHOLD, resetTimeout: CONFIG.SESSION_MAX_DURATION },
+      {
+        failureThreshold: CONFIG.PERMANENT_FAILURE_THRESHOLD,
+        resetTimeout: CONFIG.SESSION_MAX_DURATION,
+      },
     );
   }
 

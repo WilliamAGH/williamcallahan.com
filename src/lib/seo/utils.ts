@@ -140,7 +140,7 @@ function getPacificDateParts(date: Date): {
 export function formatSeoDate(date: string | Date | undefined | number): PacificDateString {
   let inputDate = date;
   if (typeof inputDate === "number") {
-    throw new Error("Numeric timestamp inputs are not supported by formatSeoDate. Provide string or Date.");
+    throw new TypeError("Numeric timestamp inputs are not supported by formatSeoDate. Provide string or Date.");
   }
   if (!inputDate) {
     inputDate = new Date();
@@ -157,7 +157,7 @@ export function formatSeoDate(date: string | Date | undefined | number): Pacific
   const d = new Date(dateInputForConstructor);
 
   if (Number.isNaN(d.getTime())) {
-    throw new Error("Invalid date provided to formatSeoDate");
+    throw new TypeError("Invalid date provided to formatSeoDate");
   }
 
   const pacific = getPacificDateParts(d);

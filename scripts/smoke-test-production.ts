@@ -248,7 +248,12 @@ class ProductionSmokeTests {
       validateResponse: (data: unknown) => {
         if (!data || typeof data !== "object") return false;
         const obj = data as {
-          checks?: { datasetOk?: unknown; indexOk?: unknown; firstPageOk?: unknown; slugMapOk?: unknown };
+          checks?: {
+            datasetOk?: unknown;
+            indexOk?: unknown;
+            firstPageOk?: unknown;
+            slugMapOk?: unknown;
+          };
           environment?: { resolved?: unknown };
         };
         if (!obj.checks) return false;

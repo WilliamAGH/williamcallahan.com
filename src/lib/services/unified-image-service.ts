@@ -152,7 +152,10 @@ export class UnifiedImageService {
           result = null;
         }
       },
-      { timeoutMs: timeoutMs ?? this.CONFIG.FETCH_TIMEOUT, metadata: { url: safeUrlForLog, options: imageOptions } },
+      {
+        timeoutMs: timeoutMs ?? this.CONFIG.FETCH_TIMEOUT,
+        metadata: { url: safeUrlForLog, options: imageOptions },
+      },
     );
   }
 
@@ -383,7 +386,10 @@ export class UnifiedImageService {
     if (isLogoUrl(url)) {
       const logoResult = await this.logoFetcher.fetchExternalLogo(extractDomain(url));
       if (!logoResult?.buffer) throw new Error("Failed to fetch logo");
-      const result = { buffer: logoResult.buffer, contentType: logoResult.contentType || "image/png" };
+      const result = {
+        buffer: logoResult.buffer,
+        contentType: logoResult.contentType || "image/png",
+      };
       logoResult.buffer = Buffer.alloc(0);
       return result;
     }

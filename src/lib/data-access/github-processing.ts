@@ -198,10 +198,13 @@ export function categorizeRepository(repoName: string): "frontend" | "backend" |
   return "other";
 }
 
+/** Default values for CSV repair operations */
+const DEFAULT_CSV_REPAIR_VALUES = { w: 0, a: 0, d: 0, c: 0 };
+
 /**
  * Repair CSV data by handling empty values
  */
-export function repairCsvData(csvContent: string, defaultValues = { w: 0, a: 0, d: 0, c: 0 }): string {
+export function repairCsvData(csvContent: string, defaultValues = DEFAULT_CSV_REPAIR_VALUES): string {
   const stats = parseGitHubStatsCSV(csvContent);
 
   // Check if repair is needed
