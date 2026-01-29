@@ -3,6 +3,9 @@
  *
  * Provides condensed logging in production and verbose logging in development.
  * Uses DEPLOYMENT_ENV to determine the current environment.
+ *
+ * During Jest tests, verbose logging is disabled by default to reduce noise.
+ * Set VERBOSE_TEST_LOGS=true to enable verbose logging in tests.
  */
 
 import { getEnvironment } from "@/lib/config/environment";
@@ -14,21 +17,49 @@ const STRING_TRUNCATE_LENGTH = 50;
 const TITLE_PREVIEW_LENGTH = 30;
 const ELLIPSIS = "...";
 
+// Detect Jest environment - all envLogger output is suppressed during tests by default
+// Set VERBOSE_TEST_LOGS=true to enable logging in tests for debugging
+const isJestEnvironment = typeof process !== "undefined" && !!process.env.JEST_WORKER_ID;
+const verboseTestLogsEnabled = process.env.VERBOSE_TEST_LOGS === "true";
+const isSilentInTests = isJestEnvironment && !verboseTestLogsEnabled;
+
+/**
+ * Safely stringify data, handling Proxy objects (Jest mocks) and circular references
+ */
+function safeStringify(data: unknown, indent?: number): string {
+  try {
+    return JSON.stringify(data, null, indent);
+  } catch {
+    // Handle circular references or Proxy objects that can't be serialized
+    if (typeof data === "object" && data !== null) {
+      const keys = Object.keys(data as Record<string, unknown>);
+      return `{${keys.length} props: ${keys.slice(0, 3).join(", ")}${keys.length > 3 ? "..." : ""}}`;
+    }
+    return String(data);
+  }
+}
+
 class EnvLogger {
   private readonly isDevelopment: boolean;
   private readonly environment: Environment;
 
   constructor() {
     this.environment = getEnvironment();
-    this.isDevelopment = this.environment === "development";
+    // In Jest, default to non-verbose unless VERBOSE_TEST_LOGS is set
+    this.isDevelopment =
+      this.environment === "development" && (!isJestEnvironment || verboseTestLogsEnabled);
   }
 
   /**
    * Log a message with environment-aware formatting
    * In production: Single line with essential info
    * In development: Detailed multi-line output
+   * In Jest tests: Silent by default (set VERBOSE_TEST_LOGS=true to enable)
    */
   log(message: string, data?: unknown, options: LogOptions = {}): void {
+    // Silent in Jest unless explicitly enabled
+    if (isSilentInTests) return;
+
     const { forceVerbose = false, context = {}, category } = options;
     const prefix = category ? `[${category}]` : "";
     const shouldBeVerbose = this.isDevelopment || forceVerbose;
@@ -37,7 +68,7 @@ class EnvLogger {
       // Development mode: Verbose logging
       console.log(`${prefix} ${message}`);
       if (typeof data === "object" && data !== null) {
-        console.log(JSON.stringify(data, null, 2));
+        console.log(safeStringify(data, 2));
       } else {
         console.log(data);
       }
@@ -57,15 +88,19 @@ class EnvLogger {
   /**
    * Log verbose details only in development
    * Completely silent in production unless forceVerbose is true
+   * In Jest tests: Silent by default (set VERBOSE_TEST_LOGS=true to enable)
    */
   debug(message: string, data?: unknown, options: LogOptions = {}): void {
+    // Silent in Jest unless explicitly enabled
+    if (isSilentInTests) return;
+
     const { forceVerbose = false, category } = options;
 
     if (this.isDevelopment || forceVerbose) {
       const prefix = category ? `[${category}]` : "";
       console.log(`${prefix} ${message}`);
       if (data !== undefined) {
-        console.log(JSON.stringify(data, null, 2));
+        console.log(safeStringify(data, 2));
       }
     }
   }
@@ -74,8 +109,16 @@ class EnvLogger {
    * Log a group of related messages
    * In development: Shows all messages with separators
    * In production: Shows only the summary
+   * In Jest tests: Silent by default (set VERBOSE_TEST_LOGS=true to enable)
    */
-  group(summary: string, details: Array<{ message: string; data?: unknown }>, options: LogOptions = {}): void {
+  group(
+    summary: string,
+    details: Array<{ message: string; data?: unknown }>,
+    options: LogOptions = {},
+  ): void {
+    // Silent in Jest unless explicitly enabled
+    if (isSilentInTests) return;
+
     const { category } = options;
     const prefix = category ? `[${category}]` : "";
 
@@ -84,7 +127,7 @@ class EnvLogger {
       details.forEach(({ message, data }) => {
         console.log(`${prefix} ${message}`);
         if (data !== undefined) {
-          console.log(JSON.stringify(data, null, 2));
+          console.log(safeStringify(data, 2));
         }
       });
       console.log(`${prefix} ${"=".repeat(summary.length + 22)}`);
@@ -92,8 +135,8 @@ class EnvLogger {
       // In production, just log a summary
       const detailCount = details.length;
       const dataPoints = details
-        .filter(d => d.data !== undefined)
-        .map(d => this.condenseData(d.data))
+        .filter((d) => d.data !== undefined)
+        .map((d) => this.condenseData(d.data))
         .filter(Boolean)
         .slice(0, 2); // Only show first 2 data points in production
 
@@ -106,12 +149,21 @@ class EnvLogger {
    * Log structured data (like service calls)
    * In development: Multi-line with indentation
    * In production: Single line with key info
+   * In Jest tests: Silent by default (set VERBOSE_TEST_LOGS=true to enable)
    */
-  service(serviceName: string, method: string, data?: Record<string, unknown>, result?: unknown): void {
+  service(
+    serviceName: string,
+    method: string,
+    data?: Record<string, unknown>,
+    result?: unknown,
+  ): void {
+    // Silent in Jest unless explicitly enabled
+    if (isSilentInTests) return;
+
     if (this.isDevelopment) {
       console.log(`[${serviceName}] ${method} called${data ? " with options:" : ""}`);
       if (data) {
-        console.log(JSON.stringify(data, null, 2));
+        console.log(safeStringify(data, 2));
       }
       if (result !== undefined) {
         console.log(`[${serviceName}] ${method} result:`, result);
@@ -126,11 +178,15 @@ class EnvLogger {
 
   /**
    * Special method for analytics/pageview logs that should remain detailed
+   * In Jest tests: Silent by default (set VERBOSE_TEST_LOGS=true to enable)
    */
   analytics(data: Record<string, unknown>): void {
+    // Silent in Jest unless explicitly enabled
+    if (isSilentInTests) return;
+
     // Analytics logs should always be detailed for monitoring
     console.log(
-      JSON.stringify({
+      safeStringify({
         timestamp: new Date().toISOString(),
         type: "server_pageview",
         data,
