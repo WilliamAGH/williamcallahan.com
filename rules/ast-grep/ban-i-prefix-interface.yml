@@ -1,0 +1,24 @@
+# [NAM1] Ban I-prefix on interfaces
+# Hungarian notation is an anti-pattern.
+
+id: ban-i-prefix-interface
+language: typescript
+severity: error
+message: "[NAM1] I-prefix banned. Fix: IUser → User"
+
+rule:
+  kind: interface_declaration
+  has:
+    kind: type_identifier
+    regex: ^I[A-Z][a-zA-Z0-9]*$
+
+files:
+  - "src/**/*.ts"
+  - "src/**/*.tsx"
+  - "app/**/*.ts"
+  - "app/**/*.tsx"
+  - "lib/**/*.ts"
+
+ignores:
+  - "node_modules/**"
+  - "**/*.d.ts"

@@ -1,0 +1,41 @@
+# [LNT1] No Unsafe Casts or Suppressions
+#
+# Production code must not use 'any' or 'as unknown as T' casts.
+# External data (JSON.parse, .json()) must use Zod validation, not type casts.
+# Fix types upstream rather than silencing errors with unsafe casts.
+#
+# Test files are excluded because mocking infrastructure (Vitest)
+# may require casts for mock implementations.
+
+id: no-unsafe-casts
+language: typescript
+severity: error
+message: "[LNT1] Unsafe cast. Fix: use Zod schema.safeParse() for external data, fix types upstream for internal code"
+
+ignores:
+  - "**/__tests__/**"
+  - "**/__mocks__/**"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"
+
+rule:
+  any:
+    # Match 'any' type node
+    - kind: predefined_type
+      regex: ^any$
+    # Double cast 'as unknown as'
+    - pattern: "$_ as unknown as $_"
+    # JSON.parse with type assertion - use Zod instead
+    - pattern: "JSON.parse($DATA) as $TYPE"
+    # Response.json() with type assertion - use Zod instead
+    - pattern: "$_.json() as $TYPE"
+    # await response.json() as Type
+    - pattern: "await $_.json() as $TYPE"
+
+files:
+  - "src/**/*.ts"
+  - "src/**/*.tsx"
+  - "app/**/*.ts"
+  - "app/**/*.tsx"
+  - "lib/**/*.ts"
