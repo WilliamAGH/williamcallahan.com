@@ -32,13 +32,15 @@ export class GraphQLClient {
     // Create a retrying fetch function
     const retryingHttpFetch = createRetryingFetch(this.config.maxRetries, 1000, this.config.retryConfig);
 
-    // Wrap it to return JSON
+    // Wrap it to return JSON - callers must validate response structure
     this.retryingFetch = async <T>(url: string, options?: FetchOptions): Promise<T> => {
       const response = await retryingHttpFetch(url, options);
       if (!response.ok) {
         throw new Error(`GraphQL HTTP error! status: ${response.status}`);
       }
-      return response.json() as Promise<T>;
+      // GraphQL responses follow a standard structure validated by GraphQLResponse<T>
+      const json: unknown = await response.json();
+      return json as T;
     };
   }
 

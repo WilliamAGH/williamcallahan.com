@@ -7,7 +7,7 @@
  * These methods now only track metadata about the last fetch.
  */
 
-import type { BookmarksCacheEntry, ICache } from "@/types/cache";
+import type { BookmarksCacheEntry, Cache } from "@/types/cache";
 import { BOOKMARKS_CACHE_DURATION } from "@/lib/constants";
 import { getMonotonicTime } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ const BOOKMARKS_METADATA_KEY = "bookmarks:metadata";
  * Check if bookmarks should be refreshed
  * This method checks the age of cached metadata
  */
-export function shouldRefreshBookmarks(cache: ICache): boolean {
+export function shouldRefreshBookmarks(cache: Cache): boolean {
   const cached = cache.get<BookmarksCacheEntry>(BOOKMARKS_METADATA_KEY);
   if (!cached) {
     return true;
@@ -38,6 +38,6 @@ export function shouldRefreshBookmarks(cache: ICache): boolean {
   return timeSinceLastFetch > revalidationThreshold;
 }
 
-export function clearBookmarks(cache: ICache): void {
+export function clearBookmarks(cache: Cache): void {
   cache.del(BOOKMARKS_METADATA_KEY);
 }

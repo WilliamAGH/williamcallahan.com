@@ -58,7 +58,7 @@ export interface InvertedLogoEntry {
  * This allows splitting the ServerCache class logic into multiple files
  * while maintaining type safety for the `this` context in the helper methods.
  */
-export interface ICache {
+export interface Cache {
   get<T>(key: string): T | undefined;
   set<T extends CacheValue>(key: string, value: T, ttl?: number): boolean;
   del(key: string | string[]): void;

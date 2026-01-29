@@ -278,7 +278,7 @@ function extractFieldsFromSerializedIndex(serializedIndex: SerializedIndex): {
 
 function safeParseIndex(index: string): Record<string, unknown> | null {
   try {
-    const parsed = JSON.parse(index) as unknown;
+    const parsed: unknown = JSON.parse(index);
     return isRecord(parsed) ? parsed : null;
   } catch {
     return null;

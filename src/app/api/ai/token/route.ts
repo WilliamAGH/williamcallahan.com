@@ -70,7 +70,7 @@ function isSecureRequest(request: NextRequest): boolean {
 
   const cfVisitor = request.headers.get("cf-visitor");
   if (cfVisitor) {
-    const parsed = safeJsonParse<{ scheme?: string }>(cfVisitor);
+    const parsed = safeJsonParse(cfVisitor) as { scheme?: string } | null;
     if (parsed?.scheme && typeof parsed.scheme === "string") {
       return normalizeString(parsed.scheme) === "https";
     }

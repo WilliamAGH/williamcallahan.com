@@ -5,20 +5,37 @@
  * with proper error handling and type safety
  */
 
+import type { ZodSchema } from "zod/v4";
 import { debugLog } from "./debug";
 
 /**
- * Safe JSON parse with error handling
- * Returns null if parsing fails instead of throwing
+ * Safe JSON parse with optional Zod validation
+ * Returns null if parsing fails or validation fails (when schema provided)
+ *
+ * @overload With schema - validates and returns typed result
+ * @overload Without schema - returns unknown for caller to validate
  */
-export function safeJsonParse<T = unknown>(text: string, fallback: T | null = null): T | null {
+export function safeJsonParse<T>(text: string, schema: ZodSchema<T>): T | null;
+export function safeJsonParse(text: string): unknown;
+export function safeJsonParse<T>(text: string, schema?: ZodSchema<T>): T | unknown | null {
   try {
-    return JSON.parse(text) as T;
+    const parsed: unknown = JSON.parse(text);
+    if (schema) {
+      const result = schema.safeParse(parsed);
+      if (result.success) {
+        return result.data;
+      }
+      debugLog(`JSON validation failed: ${result.error.message}`, "error", {
+        preview: text.substring(0, 100),
+      });
+      return null;
+    }
+    return parsed;
   } catch (error) {
     debugLog(`Failed to parse JSON: ${(error as Error).message ?? "Unknown error"}`, "error", {
       preview: text.substring(0, 100),
     });
-    return fallback;
+    return null;
   }
 }
 
@@ -69,22 +86,44 @@ export function prettyJson(value: unknown, indent = 2): string {
 }
 
 /**
- * Deep clone an object using JSON methods
+ * Deep clone an object using JSON methods with optional schema validation
  * Note: This will lose functions, undefined values, and symbols
  */
-export function jsonClone<T>(obj: T): T | null {
+export function jsonClone<T>(obj: T, schema?: ZodSchema<T>): T | null {
   const stringified = safeJsonStringify(obj);
   if (!stringified) return null;
 
-  return safeJsonParse<T>(stringified);
+  if (schema) {
+    return safeJsonParse(stringified, schema);
+  }
+  // Without schema, we trust the input type since we're cloning
+  const parsed = safeJsonParse(stringified);
+  return parsed as T | null;
 }
 
 /**
- * Parse JSON from Buffer or string
+ * Parse JSON from Buffer or string with optional schema validation
  */
-export function parseJsonFromBuffer<T = unknown>(data: Buffer | string, encoding: BufferEncoding = "utf-8"): T | null {
-  const text = Buffer.isBuffer(data) ? data.toString(encoding) : data;
-  return safeJsonParse<T>(text);
+export function parseJsonFromBuffer<T>(
+  data: Buffer | string,
+  schema: ZodSchema<T>,
+  encoding?: BufferEncoding,
+): T | null;
+export function parseJsonFromBuffer(data: Buffer | string, encoding?: BufferEncoding): unknown;
+export function parseJsonFromBuffer<T>(
+  data: Buffer | string,
+  schemaOrEncoding?: ZodSchema<T> | BufferEncoding,
+  encoding: BufferEncoding = "utf-8",
+): T | unknown | null {
+  const actualEncoding = typeof schemaOrEncoding === "string" ? schemaOrEncoding : encoding;
+  const schema =
+    typeof schemaOrEncoding === "object" && schemaOrEncoding !== null ? (schemaOrEncoding as ZodSchema<T>) : undefined;
+
+  const text = Buffer.isBuffer(data) ? data.toString(actualEncoding) : data;
+  if (schema) {
+    return safeJsonParse(text, schema);
+  }
+  return safeJsonParse(text);
 }
 
 /**

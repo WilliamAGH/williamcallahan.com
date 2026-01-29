@@ -11,7 +11,7 @@ import { assertServerOnly } from "./utils";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getMonotonicTime } from "@/lib/utils";
 
-import type { ICache, CacheStats, CacheValue, ServerCacheMapEntry } from "@/types/cache";
+import type { Cache, CacheStats, CacheValue, ServerCacheMapEntry } from "@/types/cache";
 import { SERVER_CACHE_DURATION, MEMORY_THRESHOLDS } from "./constants";
 
 /** Circuit breaker cooldown period in milliseconds (5 minutes) */
@@ -36,7 +36,7 @@ export const getDeterministicTimestamp = (): number => {
   return getMonotonicTime();
 };
 
-export class ServerCache implements ICache {
+export class ServerCache implements Cache {
   private readonly cache = new Map<string, ServerCacheMapEntry>();
   private hits = 0;
   private misses = 0;
@@ -461,9 +461,9 @@ function attachHelpers<T extends Record<string, unknown>>(prototype: object, hel
     Object.defineProperty(prototype, key, {
       // Narrow to callable without using 'any'
       // WRAPPER: Convert the method call (this.foo()) into a function call with 'this' as first arg (foo(this))
-      // This allows the helper functions to be standard functions (cache: ICache, ...args) instead of using 'this' context
-      value: function (this: ICache, ...args: unknown[]) {
-        return (value as (cache: ICache, ...args: unknown[]) => unknown)(this, ...args);
+      // This allows the helper functions to be standard functions (cache: Cache, ...args) instead of using 'this' context
+      value: function (this: Cache, ...args: unknown[]) {
+        return (value as (cache: Cache, ...args: unknown[]) => unknown)(this, ...args);
       },
       configurable: true,
       writable: true,

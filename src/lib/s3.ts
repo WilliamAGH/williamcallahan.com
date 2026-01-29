@@ -46,15 +46,28 @@ export const s3Client: S3ClientWrapper = (() => {
     let parts: (string | Buffer)[] = [];
     return {
       key,
-      async json<T = unknown>(): Promise<T | null> {
+      async json(): Promise<unknown> {
         try {
           const body = await readFromS3(key);
-          if (typeof body === "string") return JSON.parse(body) as T;
-          if (body instanceof Buffer) return JSON.parse(body.toString("utf-8")) as T;
-        } catch {
-          // ignore JSON parse or read errors
+          let text: string | null = null;
+          if (typeof body === "string") text = body;
+          else if (body instanceof Buffer) text = body.toString("utf-8");
+          if (text) {
+            // Returns unknown - callers must validate with Zod at the boundary
+            const parsed: unknown = JSON.parse(text);
+            return parsed;
+          }
+          // No text content available
+          console.warn(`[S3] No text content available for key: ${key}`);
+          return null;
+        } catch (error) {
+          // Log the error for debugging - could be S3 read failure or JSON parse failure
+          console.warn(
+            `[S3] Failed to read/parse JSON for key ${key}:`,
+            error instanceof Error ? error.message : "Unknown error",
+          );
+          return null;
         }
-        return null;
       },
       async text(): Promise<string> {
         const body = await readFromS3(key);

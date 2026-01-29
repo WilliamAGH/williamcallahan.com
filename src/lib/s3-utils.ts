@@ -849,7 +849,8 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
 
     if (typeof content === "string") {
       logS3Debug(`Content loaded`, { type: "string", length: content.length });
-      const parsed = safeJsonParse<T>(content);
+      // Parse as unknown, callers must validate at the boundary
+      const parsed = safeJsonParse(content) as T | null;
       if (parsed !== null) {
         logS3Debug(`Parsed JSON successfully`, { key: s3Key });
         if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON from S3 key ${s3Key}.`);
@@ -861,7 +862,8 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
 
     if (Buffer.isBuffer(content)) {
       logS3Debug(`Content loaded`, { type: "buffer", size: content.length });
-      const parsed = parseJsonFromBuffer<T>(content, "utf-8");
+      // Parse as unknown, callers must validate at the boundary
+      const parsed = parseJsonFromBuffer(content, "utf-8") as T | null;
       if (parsed !== null) {
         logS3Debug(`Parsed JSON from buffer`, { key: s3Key });
         if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON (from buffer) from S3 key ${s3Key}.`);

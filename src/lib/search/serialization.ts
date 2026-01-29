@@ -56,7 +56,7 @@ export function serializeIndex<T>(index: MiniSearch<T>, itemCount: number): Seri
 export function parseSerializedIndexObject(serializedIndex: SerializedIndex): Record<string, unknown> | null {
   if (typeof serializedIndex.index === "string") {
     try {
-      const parsed = JSON.parse(serializedIndex.index) as unknown;
+      const parsed: unknown = JSON.parse(serializedIndex.index);
       if (isRecord(parsed)) {
         return parsed;
       }

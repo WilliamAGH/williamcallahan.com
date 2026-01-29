@@ -17,15 +17,31 @@ export function getLocalS3Path(s3Key: string): string {
   return path.join(LOCAL_S3_CACHE_DIR, normalizedKey);
 }
 
+import type { ZodSchema } from "zod/v4";
+
 /**
  * Read JSON content for a given S3 key from the local cache directory.
  * Returns null when the cached file does not exist.
+ *
+ * @overload With schema - validates and returns typed result
+ * @overload Without schema - returns unknown for caller to validate
  */
-export async function readLocalS3Json<T>(s3Key: string): Promise<T | null> {
+export async function readLocalS3Json<T>(s3Key: string, schema: ZodSchema<T>): Promise<T | null>;
+export async function readLocalS3Json(s3Key: string): Promise<unknown>;
+export async function readLocalS3Json<T>(s3Key: string, schema?: ZodSchema<T>): Promise<T | unknown | null> {
   const filePath = getLocalS3Path(s3Key);
   try {
     const raw = await fs.readFile(filePath, "utf-8");
-    return JSON.parse(raw) as T;
+    const parsed: unknown = JSON.parse(raw);
+    if (schema) {
+      const result = schema.safeParse(parsed);
+      if (result.success) {
+        return result.data;
+      }
+      console.warn(`[LocalS3Cache] Validation failed for ${s3Key}:`, result.error.message);
+      return null;
+    }
+    return parsed;
   } catch (error) {
     const code = (error as NodeJS.ErrnoException)?.code;
     if (code !== "ENOENT") {
@@ -41,21 +57,32 @@ export async function readLocalS3Json<T>(s3Key: string): Promise<T | null> {
  *
  * @param s3Key - The S3 key to read from local cache
  * @param shouldSkip - Whether to skip the local cache read
+ * @param schema - Optional Zod schema for validation (recommended for type safety)
  * @returns The parsed JSON data, or `null` in these cases:
  *   - `shouldSkip` is true (cache intentionally bypassed)
  *   - File does not exist at the expected path (cache miss)
  *   - File exists but JSON parsing fails (logged as warning, returns null)
+ *   - Schema validation fails (when schema provided)
  * @example
  * ```ts
+ * // With schema (recommended - provides runtime validation)
+ * const data = await readLocalS3JsonSafe(key, shouldSkipLocalS3Cache, mySchema);
+ *
+ * // Without schema (caller assumes type - use with caution)
  * const data = await readLocalS3JsonSafe<MyType>(key, shouldSkipLocalS3Cache);
- * if (data === null) {
- *   // Handle cache miss - fetch from S3 or other source
- * }
  * ```
  */
-export async function readLocalS3JsonSafe<T>(s3Key: string, shouldSkip: boolean): Promise<T | null> {
+export async function readLocalS3JsonSafe<T>(
+  s3Key: string,
+  shouldSkip: boolean,
+  schema?: ZodSchema<T>,
+): Promise<T | null> {
   if (shouldSkip) {
     return null;
   }
-  return readLocalS3Json<T>(s3Key);
+  if (schema) {
+    return readLocalS3Json(s3Key, schema);
+  }
+  // Without schema, caller is responsible for type safety
+  return readLocalS3Json(s3Key) as T | null;
 }

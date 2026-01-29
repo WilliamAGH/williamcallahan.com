@@ -13,6 +13,23 @@ export const relatedContentTypeSchema = z.enum(["bookmark", "blog", "investment"
 
 export type RelatedContentTypeFromSchema = z.infer<typeof relatedContentTypeSchema>;
 
+/**
+ * Configuration for similarity scoring weights.
+ * All values should be between 0 and 1.
+ */
+export const similarityWeightsSchema = z.object({
+  /** Weight for tag matches (0-1) */
+  tagMatch: z.number().min(0).max(1).optional(),
+  /** Weight for text similarity (0-1) */
+  textSimilarity: z.number().min(0).max(1).optional(),
+  /** Weight for domain matches (0-1) */
+  domainMatch: z.number().min(0).max(1).optional(),
+  /** Weight for recency (0-1) */
+  recency: z.number().min(0).max(1).optional(),
+});
+
+export type SimilarityWeightsFromSchema = z.infer<typeof similarityWeightsSchema>;
+
 export const createRelatedContentDebugParamsSchema = ({
   maxLimit,
   defaultLimit,

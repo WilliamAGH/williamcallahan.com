@@ -4,7 +4,7 @@
  * These methods are intended to be attached to the ServerCache prototype.
  */
 
-import type { SearchCacheEntry, ICache } from "@/types/cache";
+import type { SearchCacheEntry, Cache } from "@/types/cache";
 import { SEARCH_CACHE_DURATION } from "@/lib/constants";
 import { getMonotonicTime } from "@/lib/utils";
 
@@ -17,7 +17,7 @@ function getSearchKey(dataType: string, query: string): string {
 }
 
 export function getSearchResults<T = unknown>(
-  cache: ICache,
+  cache: Cache,
   dataType: string,
   query: string,
 ): SearchCacheEntry<T> | undefined {
@@ -25,7 +25,7 @@ export function getSearchResults<T = unknown>(
   return cache.get<SearchCacheEntry<T>>(key);
 }
 
-export function setSearchResults<T>(cache: ICache, dataType: string, query: string, results: T[]): void {
+export function setSearchResults<T>(cache: Cache, dataType: string, query: string, results: T[]): void {
   const key = getSearchKey(dataType, query);
   const entry: SearchCacheEntry<T> = {
     results,
@@ -36,7 +36,7 @@ export function setSearchResults<T>(cache: ICache, dataType: string, query: stri
   cache.set(key, entry, SEARCH_CACHE_DURATION.SUCCESS);
 }
 
-export function shouldRefreshSearch(cache: ICache, dataType: string, query: string): boolean {
+export function shouldRefreshSearch(cache: Cache, dataType: string, query: string): boolean {
   const cached = getSearchResults(cache, dataType, query);
   if (!cached) {
     return true;
@@ -45,7 +45,7 @@ export function shouldRefreshSearch(cache: ICache, dataType: string, query: stri
   return timeSinceLastFetch > SEARCH_CACHE_DURATION.REVALIDATION * 1000;
 }
 
-export function clearSearchCache(cache: ICache, dataType?: string): void {
+export function clearSearchCache(cache: Cache, dataType?: string): void {
   const prefix = dataType ? `${SEARCH_PREFIX}${dataType}:` : SEARCH_PREFIX;
   const keys = cache.keys().filter(key => key.startsWith(prefix));
   for (const key of keys) {

@@ -6,6 +6,8 @@ import { envLogger } from "@/lib/utils/env-logger";
 import type { UnifiedBookmark } from "@/types";
 import {
   bookmarksIndexSchema as BookmarksIndexSchema,
+  unifiedBookmarkSchema,
+  unifiedBookmarksArraySchema,
   type BookmarksIndex,
   type BookmarkLoadOptions,
   type LightweightBookmark,
@@ -31,8 +33,14 @@ const LOCAL_BOOKMARKS_BY_ID_DIR = path.join(process.cwd(), ".next", "cache", "bo
 const loadLocalBookmarksSnapshot = async (): Promise<UnifiedBookmark[] | null> => {
   try {
     const localData = await fs.readFile(LOCAL_BOOKMARKS_PATH, "utf-8");
-    const bookmarks = JSON.parse(localData) as UnifiedBookmark[];
-    if (!Array.isArray(bookmarks) || bookmarks.length === 0) {
+    const parsed: unknown = JSON.parse(localData);
+    const validation = unifiedBookmarksArraySchema.safeParse(parsed);
+    if (!validation.success) {
+      console.warn(`[Bookmarks] Local bookmarks validation failed: ${validation.error.message}`);
+      return null;
+    }
+    const bookmarks = validation.data;
+    if (bookmarks.length === 0) {
       return null;
     }
     if (bookmarks.length === 1) {
@@ -423,7 +431,11 @@ export async function getBookmarkById(
 
   try {
     const localData = await fs.readFile(localFilePath, "utf-8");
-    bookmark = JSON.parse(localData) as UnifiedBookmark;
+    const parsed: unknown = JSON.parse(localData);
+    const validation = unifiedBookmarkSchema.safeParse(parsed);
+    if (validation.success) {
+      bookmark = validation.data;
+    }
   } catch {
     // Ignore local cache misses
   }
