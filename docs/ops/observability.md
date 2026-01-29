@@ -255,7 +255,10 @@ logger.error("Operation failed", {
 ### Network Retry
 
 ```typescript
-const result = await retryOperation(async () => await fetchAPI(url), { maxRetries: 3, delay: 1000 });
+const result = await retryOperation(async () => await fetchAPI(url), {
+  maxRetries: 3,
+  delay: 1000,
+});
 if (!result) {
   // Handle final failure
 }
