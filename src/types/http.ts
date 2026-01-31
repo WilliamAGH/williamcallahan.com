@@ -22,3 +22,15 @@ export interface FetchOptions extends RequestInit {
   /** Whether to use browser-like headers */
   useBrowserHeaders?: boolean;
 }
+
+export interface CloudflareHeaderValidation {
+  isValid: boolean;
+  reasons: string[];
+  details: {
+    host?: string;
+    cfRay?: string;
+    cfConnectingIp?: string;
+    trueClientIp?: string;
+    forwardedProto?: string;
+  };
+}

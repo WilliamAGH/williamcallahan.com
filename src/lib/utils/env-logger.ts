@@ -75,7 +75,7 @@ class EnvLogger {
     } else {
       // Production mode: Condensed single-line logging
       const condensedData = this.condenseData(data);
-      const contextStr = Object.keys(context).length > 0 ? ` | ${JSON.stringify(context)}` : "";
+      const contextStr = Object.keys(context).length > 0 ? ` | ${safeStringify(context)}` : "";
 
       if (condensedData) {
         console.log(`${prefix} ${message}: ${condensedData}${contextStr}`);
@@ -230,7 +230,7 @@ class EnvLogger {
               ? rawTitle
               : typeof rawTitle === "number" || typeof rawTitle === "boolean"
                 ? String(rawTitle)
-                : JSON.stringify(rawTitle);
+                : safeStringify(rawTitle);
         const title = titleValue.substring(0, TITLE_PREVIEW_LENGTH);
         return `id=${String(obj.id)}, title="${title}${titleValue.length > TITLE_PREVIEW_LENGTH ? ELLIPSIS : ""}"`;
       }
@@ -248,7 +248,7 @@ class EnvLogger {
     }
 
     // For any remaining types (symbols, functions, etc.)
-    return typeof data === "string" ? data : JSON.stringify(data);
+    return typeof data === "string" ? data : safeStringify(data);
   }
 
   /**

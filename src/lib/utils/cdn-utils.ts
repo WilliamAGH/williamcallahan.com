@@ -127,7 +127,7 @@ export function extractS3KeyFromUrl(url: string, config: CdnConfig): string | nu
     }
 
     // Check if it's an S3 URL
-    if (s3BucketName) {
+    if (s3BucketName && s3ServerUrl) {
       const s3Host = getS3Host(s3ServerUrl);
       const s3Base = parseAbsoluteUrl(s3ServerUrl);
       const expectedHost = s3Base?.port
@@ -168,7 +168,7 @@ export function isOurCdnUrl(url: string, config: CdnConfig): boolean {
   }
 
   // Check S3 URL
-  if (s3BucketName) {
+  if (s3BucketName && s3ServerUrl) {
     const s3Host = getS3Host(s3ServerUrl);
     const s3Base = parseAbsoluteUrl(s3ServerUrl);
     const expectedHost = s3Base?.port

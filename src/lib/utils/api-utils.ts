@@ -9,6 +9,9 @@
 
 import { unstable_noStore as noStore } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
+import { getEnvironment } from "@/lib/config/environment";
+import logger from "@/lib/utils/logger";
+import { validateCloudflareHeaders } from "@/lib/utils/request-utils";
 
 /**
  * Standard headers to prevent caching in the response.
@@ -71,4 +74,26 @@ export function createErrorResponse(
       },
     },
   );
+}
+
+export function requireCloudflareHeaders(
+  headers: Headers,
+  options: { route: string; additionalHeaders?: HeadersInit },
+): NextResponse | null {
+  if (getEnvironment() !== "production") {
+    return null;
+  }
+
+  const validation = validateCloudflareHeaders(headers);
+  if (validation.isValid) {
+    return null;
+  }
+
+  logger.warn(`[Cloudflare] Blocking request with missing/invalid Cloudflare headers`, {
+    route: options.route,
+    reasons: validation.reasons,
+    details: validation.details,
+  });
+
+  return createErrorResponse("Forbidden", 403, options.additionalHeaders);
 }

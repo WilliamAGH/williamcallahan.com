@@ -1,5 +1,10 @@
 import { z } from "zod/v4";
 
+const optionalNonEmptyString = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.string().min(1).optional(),
+);
+
 /**
  * Define the schema for server-side environment variables.
  * Using Zod ensures that the environment variables are correctly typed and that
@@ -13,9 +18,9 @@ export const envSchema = z.object({
   S3_REGION: z.string().min(1),
 
   // Optional AWS-style aliases (used by AWS CLI tooling and legacy integrations)
-  AWS_ACCESS_KEY_ID: z.string().min(1).optional(),
-  AWS_SECRET_ACCESS_KEY: z.string().min(1).optional(),
-  AWS_REGION: z.string().min(1).optional(),
+  AWS_ACCESS_KEY_ID: optionalNonEmptyString,
+  AWS_SECRET_ACCESS_KEY: optionalNonEmptyString,
+  AWS_REGION: optionalNonEmptyString,
 
   // Add other server-side environment variables here
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
