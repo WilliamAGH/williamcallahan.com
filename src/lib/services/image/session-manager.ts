@@ -184,6 +184,8 @@ export class SessionManager {
   private startPeriodicCleanup(): void {
     if (this.cleanupTimerId) return; // Already running
     this.cleanupTimerId = setInterval(() => this.performMemoryCleanup(), CONFIG.CLEANUP_INTERVAL);
+    // Prevent interval from keeping Node.js alive (especially in tests)
+    this.cleanupTimerId.unref();
     if (process.env.NODE_ENV !== "test") process.on("beforeExit", () => this.stopPeriodicCleanup());
   }
 
