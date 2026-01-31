@@ -51,16 +51,18 @@ async function runDataUpdater(): Promise<void> {
       console.error(`[DataUpdater ERROR] ${output.trim()}`);
     });
 
-    child.on("close", (code) => {
+    child.on("close", (code, signal) => {
       if (code === 0) {
         logger.info("[BackgroundPopulator] Data updater completed successfully");
         resolve();
       } else {
-        logger.error(`[BackgroundPopulator] Data updater failed with exit code ${code}`);
+        const exitReason = signal ? `signal ${signal}` : `exit code ${code}`;
+        logger.error(`[BackgroundPopulator] Data updater failed with ${exitReason}`);
         if (stderr) {
           logger.error(`[BackgroundPopulator] stderr: ${stderr}`);
         }
-        reject(new Error(`Data updater exited with code ${code}`));
+        const details = stderr ? `\n${stderr}` : "";
+        reject(new Error(`Data updater exited with ${exitReason}.${details}`));
       }
     });
 

@@ -24,6 +24,7 @@ const requireJson = createRequire(import.meta.url);
 const STATIC_IMAGE_MAPPING_REL_PATH = "./src/lib/data-access/static-image-mapping.json" as const;
 // Local ESLint Rule Types
 import type { Rule } from "eslint";
+import type { TSESTree } from "@typescript-eslint/utils";
 
 /**
  * ESLint rule to disallow duplicate TypeScript type definitions (type aliases, interfaces, enums)
@@ -58,7 +59,7 @@ const noDuplicateTypesRule: Rule.RuleModule & { duplicateTypeTracker?: Map<strin
     }
 
     /** Records the location of first declaration and reports on duplicates */
-    const record = (idNode: any) => {
+    const record = (idNode: TSESTree.Identifier) => {
       const name: string = idNode.name;
       const currentLocation = `${context.getFilename()}:${idNode.loc.start.line}`;
 
@@ -80,13 +81,13 @@ const noDuplicateTypesRule: Rule.RuleModule & { duplicateTypeTracker?: Map<strin
     };
 
     return {
-      TSTypeAliasDeclaration(node: any) {
+      TSTypeAliasDeclaration(node: TSESTree.TSTypeAliasDeclaration) {
         record(node.id);
       },
-      TSInterfaceDeclaration(node: any) {
+      TSInterfaceDeclaration(node: TSESTree.TSInterfaceDeclaration) {
         record(node.id);
       },
-      TSEnumDeclaration(node: any) {
+      TSEnumDeclaration(node: TSESTree.TSEnumDeclaration) {
         record(node.id);
       },
     };
@@ -97,16 +98,16 @@ const noDuplicateTypesRule: Rule.RuleModule & { duplicateTypeTracker?: Map<strin
  * Returns true if the given AST node is nested within a getStaticImageUrl(...) call.
  * Hoisted to module scope to satisfy consistent-function-scoping and avoid recreating on each invocation.
  */
-function isInsideGetStaticImageUrl(node: any): boolean {
-  let current = node?.parent;
+function isInsideGetStaticImageUrl(node: TSESTree.Node): boolean {
+  let current: TSESTree.Node | undefined = node.parent;
   while (current) {
     if (current.type === "CallExpression") {
       const { callee } = current;
       if (
         (callee.type === "Identifier" && callee.name === "getStaticImageUrl") ||
         (callee.type === "MemberExpression" &&
-          callee.property?.type === "Identifier" &&
-          callee.property?.name === "getStaticImageUrl")
+          callee.property.type === "Identifier" &&
+          callee.property.name === "getStaticImageUrl")
       ) {
         return true;
       }
@@ -411,7 +412,7 @@ const config = tseslint.config(
               fixable: "code",
               schema: [],
             },
-            create(context: any) {
+            create(context: Rule.RuleContext) {
               // Import the static mapping at the top of the file
               let staticMapping: Record<string, string> | null = null;
               try {
@@ -423,8 +424,11 @@ const config = tseslint.config(
                   delete (requireJson as any).cache[resolved as unknown as string];
                 }
                 staticMapping = requireJson(resolved);
-              } catch {
-                // If we can't load the mapping, we'll still report errors but can't check if images exist
+              } catch (error) {
+                console.warn(
+                  "[eslint/no-hardcoded-images] Failed to load static image mapping:",
+                  error,
+                );
               }
 
               // Use module-scoped helper to satisfy consistent-function-scoping
@@ -442,6 +446,7 @@ const config = tseslint.config(
                       for (const specifier of node.specifiers) {
                         if (
                           specifier.type === "ImportSpecifier" &&
+                          specifier.imported.type === "Identifier" &&
                           specifier.imported.name === "getStaticImageUrl"
                         ) {
                           return true;
@@ -454,7 +459,7 @@ const config = tseslint.config(
               }
 
               return {
-                Literal(node: any) {
+                Literal(node: TSESTree.Literal) {
                   if (
                     typeof node.value === "string" &&
                     node.value.match(/^\/images\//) &&
@@ -467,7 +472,7 @@ const config = tseslint.config(
                     !context.getFilename().includes("check-new-images.ts")
                   ) {
                     // Skip if the string literal ultimately lives inside a getStaticImageUrl(...) call
-                    if (isInsideGetStaticImageUrl(node)) {
+                    if (isInsideGetStaticImageUrl(node as unknown as TSESTree.Node)) {
                       return;
                     }
 
@@ -482,7 +487,7 @@ const config = tseslint.config(
                         : `New image "${imagePath}" is not in the static image mapping. Add it to src/lib/data-access/static-image-mapping.json (and ensure the asset is uploaded to S3), then use getStaticImageUrl("${imagePath}").`,
                       fix:
                         isInS3 && hasImport
-                          ? function (fixer: any) {
+                          ? function (fixer: Rule.RuleFixer) {
                               // Safer replacement that works across parsers
                               const source = context.getSourceCode();
                               const text = source.getText(node); // includes original quotes

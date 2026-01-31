@@ -296,15 +296,18 @@ const main = async (): Promise<void> => {
   if (authClient) {
     const property = process.env.GOOGLE_SEARCH_CONSOLE_PROPERTY;
     if (!property) {
-      throw new Error(
+      const msg =
         "GOOGLE_SEARCH_CONSOLE_PROPERTY env var is missing. Set it to your " +
-          "Search Console property ID (e.g. 'sc-domain:williamcallahan.com' " +
-          "or 'https://williamcallahan.com/') before running the sitemap " +
-          "submission script.",
-      );
+        "Search Console property ID (e.g. 'sc-domain:williamcallahan.com' " +
+        "or 'https://williamcallahan.com/') before running the sitemap " +
+        "submission script.";
+      if (GOOGLE_ONLY) {
+        throw new Error(msg);
+      }
+      console.warn(`${LOG_PREFIX.google} ${msg} Skipping Google submission.`);
+    } else {
+      await submitGoogleSitemap(authClient, sitemapUrl, property);
     }
-
-    await submitGoogleSitemap(authClient, sitemapUrl, property);
   } else if (DEBUG_MODE) {
     console.info(`${LOG_PREFIX.google} Skipped – credentials not available or CLI flag set.`);
   }
