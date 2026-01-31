@@ -243,17 +243,38 @@ export async function buildAllSearchIndexes(): Promise<AllSerializedIndexes> {
  * - When read back from S3, it's parsed into an object
  * - MiniSearch.loadJSON expects a JSON string, not a parsed object
  */
-export function loadIndexFromJSON<T>(serializedIndex: SerializedIndex): MiniSearch<T> {
+export function loadIndexFromJSON<T>(
+  serializedIndex: SerializedIndex,
+  config?: IndexFieldConfig<T>,
+): MiniSearch<T> {
   const indexData =
     typeof serializedIndex.index === "string"
       ? serializedIndex.index
       : JSON.stringify(serializedIndex.index);
-  const { fields, storeFields } = extractFieldsFromSerializedIndex(serializedIndex);
+  const { fields: serializedFields, storeFields: serializedStoreFields } =
+    extractFieldsFromSerializedIndex(serializedIndex);
+  const fields = config?.fields ?? serializedFields;
+  const storeFields = config?.storeFields ?? serializedStoreFields;
 
-  return MiniSearch.loadJSON(indexData, {
+  const baseOptions = {
     fields,
     storeFields,
-  });
+    ...(config?.idField ? { idField: config.idField } : {}),
+    ...(config
+      ? {
+          searchOptions: {
+            boost: config.boost as { [fieldName: string]: number } | undefined,
+            fuzzy: config.fuzzy ?? 0.2,
+            prefix: true,
+          },
+        }
+      : {}),
+  };
+
+  return MiniSearch.loadJSON(
+    indexData,
+    config?.extractField ? { ...baseOptions, extractField: config.extractField } : baseOptions,
+  );
 }
 
 function extractFieldsFromSerializedIndex(serializedIndex: SerializedIndex): {

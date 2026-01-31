@@ -10,7 +10,7 @@
 import MiniSearch from "minisearch";
 import type { Investment } from "@/types/investment";
 import type { Experience } from "@/types/experience";
-import type { EducationItem, SerializedIndex } from "@/types/search";
+import type { EducationItem, IndexFieldConfig, SerializedIndex } from "@/types/search";
 import type { Project } from "@/types/project";
 import { investments } from "@/data/investments";
 import { experiences } from "@/data/experience";
@@ -45,6 +45,7 @@ async function loadOrBuildIndex<T>(
   cacheKey: string,
   buildFn: () => MiniSearch<T>,
   ttl: number,
+  config?: IndexFieldConfig<T>,
 ): Promise<MiniSearch<T>> {
   // Try to get from cache first
   const cached = ServerCacheInstance.get<MiniSearch<T>>(cacheKey);
@@ -59,7 +60,7 @@ async function loadOrBuildIndex<T>(
       // Try to load from S3
       const serializedIndex = await readJsonS3<SerializedIndex>(s3Path);
       if (serializedIndex?.index && serializedIndex.metadata) {
-        index = loadIndexFromJSON<T>(serializedIndex);
+        index = loadIndexFromJSON<T>(serializedIndex, config);
         console.log(
           `[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`,
         );
@@ -101,6 +102,7 @@ export async function getInvestmentsIndex(): Promise<MiniSearch<Investment>> {
     SEARCH_INDEX_KEYS.INVESTMENTS,
     buildInvestmentsIndex,
     INDEX_TTL.STATIC,
+    INVESTMENTS_INDEX_CONFIG,
   );
 }
 
@@ -123,6 +125,7 @@ export async function getExperienceIndex(): Promise<MiniSearch<Experience>> {
     SEARCH_INDEX_KEYS.EXPERIENCE,
     buildExperienceIndex,
     INDEX_TTL.STATIC,
+    EXPERIENCE_INDEX_CONFIG,
   );
 }
 
@@ -166,6 +169,7 @@ export async function getEducationIndex(): Promise<MiniSearch<EducationItem>> {
     SEARCH_INDEX_KEYS.EDUCATION,
     buildEducationIndex,
     INDEX_TTL.STATIC,
+    EDUCATION_INDEX_CONFIG,
   );
 }
 
@@ -185,6 +189,7 @@ export async function getProjectsIndex(): Promise<MiniSearch<Project>> {
     SEARCH_INDEX_KEYS.PROJECTS,
     buildProjectsIndex,
     INDEX_TTL.STATIC,
+    PROJECTS_INDEX_CONFIG,
   );
 }
 

@@ -6,6 +6,7 @@
 import { createArticleOgMetadata, BASE_OG_METADATA } from "@/lib/seo/opengraph";
 import { metadata as siteMetadata } from "@/data/metadata";
 import { isPacificDateString, type OpenGraphImage } from "@/types/seo";
+import { ogMetadataSchema } from "@/types/seo/opengraph";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
@@ -140,6 +141,38 @@ describe("OpenGraph Metadata", () => {
       expect(metadata.siteName).toBe(siteMetadata.openGraph.siteName);
       expect(typeof metadata.locale).toBe("string");
       expect(typeof metadata.siteName).toBe("string");
+    });
+  });
+
+  describe("ogMetadataSchema", () => {
+    it("accepts valid https URLs and empty values", () => {
+      const result = ogMetadataSchema.safeParse({
+        image: "https://example.com/image.png",
+        twitterImage: "",
+        profileImage: null,
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects unsafe or invalid URL schemes", () => {
+      const javascriptResult = ogMetadataSchema.safeParse({
+        image: "javascript:alert(1)",
+      });
+      const dataResult = ogMetadataSchema.safeParse({
+        twitterImage: "data:text/html;base64,PHNjcmlwdD4=",
+      });
+
+      expect(javascriptResult.success).toBe(false);
+      expect(dataResult.success).toBe(false);
+    });
+
+    it("rejects relative URLs", () => {
+      const result = ogMetadataSchema.safeParse({
+        url: "/relative/path",
+      });
+
+      expect(result.success).toBe(false);
     });
   });
 });
