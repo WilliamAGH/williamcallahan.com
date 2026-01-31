@@ -258,6 +258,7 @@
     "**/*.mdx",
     "next-env.d.ts",
     "src/components/ui/code-block/prism-syntax-highlighting/prism.js",
+    "config/jest/polyfills.js",
     ".husky/**",
     ".jest-pre-compiled/**",
     "public/**",

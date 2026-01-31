@@ -128,6 +128,7 @@ const config = tseslint.config(
       "src/components/ui/code-block/prism-syntax-highlighting/prism.js",
       "config/.remarkrc.mjs",
       "config/",
+      "config/jest/polyfills.js", // Jest timer compatibility - intentionally extends Number.prototype for Undici
       "next-env.d.ts",
       "**/*.mdx", // Skip MDX files entirely - the parser doesn't handle JSX in lists correctly
     ],
