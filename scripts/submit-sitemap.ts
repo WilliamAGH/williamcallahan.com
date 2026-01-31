@@ -292,29 +292,19 @@ const main = async (): Promise<void> => {
     : `${submissionSiteUrl}/`;
   const sitemapUrl = `${siteUrlCanonical}sitemap.xml`;
 
-  // -----------------------------------------------------------------------
-  // Safety-guard: refuse to proceed when the Search-Console property ID is
-  // not provided explicitly through the environment.  Relying on the
-  // URL-prefix fallback would trigger a permission error if the service
-  // account is only added to the **Domain** property.  Making this an
-  // explicit runtime error prevents silent regressions.
-  // -----------------------------------------------------------------------
-  if (!process.env.GOOGLE_SEARCH_CONSOLE_PROPERTY) {
-    throw new Error(
-      "GOOGLE_SEARCH_CONSOLE_PROPERTY env var is missing. Set it to your " +
-        "Search Console property ID (e.g. 'sc-domain:williamcallahan.com' " +
-        "or 'https://williamcallahan.com/') before running the sitemap " +
-        "submission script.",
-    );
-  }
-
   // Submit to Google (only if auth client was successfully initialized)
   if (authClient) {
-    await submitGoogleSitemap(
-      authClient,
-      sitemapUrl,
-      process.env.GOOGLE_SEARCH_CONSOLE_PROPERTY ?? siteUrlCanonical,
-    );
+    const property = process.env.GOOGLE_SEARCH_CONSOLE_PROPERTY;
+    if (!property) {
+      throw new Error(
+        "GOOGLE_SEARCH_CONSOLE_PROPERTY env var is missing. Set it to your " +
+          "Search Console property ID (e.g. 'sc-domain:williamcallahan.com' " +
+          "or 'https://williamcallahan.com/') before running the sitemap " +
+          "submission script.",
+      );
+    }
+
+    await submitGoogleSitemap(authClient, sitemapUrl, property);
   } else if (DEBUG_MODE) {
     console.info(`${LOG_PREFIX.google} Skipped – credentials not available or CLI flag set.`);
   }

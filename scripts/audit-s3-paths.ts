@@ -256,13 +256,13 @@ await auditS3Paths()
     // Tear down process-wide intervals/singletons created via imports
     try {
       ServerCacheInstance.destroy();
-    } catch {
-      // Ignore cleanup errors
+    } catch (error) {
+      console.warn("Server cache cleanup failed:", error);
     }
     try {
       const monitor = getMemoryHealthMonitor();
       monitor.destroy();
-    } catch {
-      // Ignore cleanup errors
+    } catch (error) {
+      console.warn("Memory health monitor cleanup failed:", error);
     }
   });
