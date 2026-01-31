@@ -8,6 +8,7 @@ import { getClientIp } from "@/lib/utils/request-utils";
 import logger from "@/lib/utils/logger";
 import { normalizeString } from "@/lib/utils";
 import { safeJsonParse } from "@/lib/utils/json-utils";
+import { cfVisitorSchema } from "@/types/schemas/api";
 import { NO_STORE_HEADERS, preventCaching, requireCloudflareHeaders } from "@/lib/utils/api-utils";
 
 const TOKEN_RATE_LIMIT = {
@@ -52,8 +53,8 @@ function getRequestOriginHostname(request: NextRequest): string | null {
 function isSecureRequest(request: NextRequest): boolean {
   const cfVisitor = request.headers.get("cf-visitor");
   if (cfVisitor) {
-    const parsed = safeJsonParse(cfVisitor) as { scheme?: string } | null;
-    if (parsed?.scheme && typeof parsed.scheme === "string") {
+    const parsed = safeJsonParse(cfVisitor, cfVisitorSchema);
+    if (parsed?.scheme) {
       return normalizeString(parsed.scheme) === "https";
     }
   }
