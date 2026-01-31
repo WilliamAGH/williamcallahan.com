@@ -121,7 +121,7 @@ async function findAssetInS3(
           contentType: response.ContentType || `image/${ext.substring(1)}`,
         };
       } catch {
-        // Continue checking other patterns
+        // S3 object not found with this extension, continue checking other patterns
       }
     }
   }
@@ -281,8 +281,9 @@ async function saveAssetToS3(
   // Generate descriptive filename if context is available
   if (context?.bookmarkId && context?.url) {
     const { getOgImageS3Key, hashImageContent } = await import("@/lib/utils/opengraph-utils");
+    // Include extension in the synthetic URL so getOgImageS3Key extracts the correct extension
     key = getOgImageS3Key(
-      `karakeep-asset-${assetId}`,
+      `karakeep-asset-${assetId}.${extension}`,
       IMAGE_S3_PATHS.OPENGRAPH_DIR,
       context.url,
       context.bookmarkId,
