@@ -14,8 +14,10 @@ import {
   truncateText,
   randomString,
 } from "@/lib/utils";
+import { safeJsonStringify } from "@/lib/utils/json-utils";
 import { extractS3KeyFromUrl, isOurCdnUrl } from "@/lib/utils/cdn-utils";
 import type { CdnConfig } from "@/types/s3-cdn";
+import { CSP_DIRECTIVES } from "@/config/csp";
 
 describe("formatMultiple", () => {
   it("formats numbers correctly", () => {
@@ -282,6 +284,61 @@ describe("randomString", () => {
       expect(extractS3KeyFromUrl("https://cdn.example.com/assets/folder/image.png", config)).toBe(
         "folder/image.png",
       );
+    });
+
+    it("returns false/null when s3ServerUrl is missing", () => {
+      const incompleteConfig: CdnConfig = {
+        cdnBaseUrl: "",
+        s3BucketName: "media-bucket",
+        s3ServerUrl: undefined,
+      };
+
+      expect(
+        isOurCdnUrl(
+          "https://media-bucket.sfo3.digitaloceanspaces.com/path/image.png",
+          incompleteConfig,
+        ),
+      ).toBe(false);
+      expect(
+        extractS3KeyFromUrl(
+          "https://media-bucket.sfo3.digitaloceanspaces.com/path/image.png",
+          incompleteConfig,
+        ),
+      ).toBeNull();
+    });
+  });
+
+  describe("safeJsonStringify", () => {
+    it("preserves shared references without marking them circular", () => {
+      const shared = { value: 1 };
+      const payload = { first: shared, second: shared };
+      const result = safeJsonStringify(payload);
+
+      expect(result).not.toBeNull();
+      const value = result ?? "";
+      expect(value).toContain('"first":{"value":1}');
+      expect(value).toContain('"second":{"value":1}');
+      expect(value).not.toContain("[Circular]");
+    });
+
+    it("replaces circular references with [Circular]", () => {
+      const payload: { self?: unknown } = {};
+      payload.self = payload;
+      const result = safeJsonStringify(payload);
+
+      expect(result).not.toBeNull();
+      const value = result ?? "";
+      expect(value).toContain("[Circular]");
+    });
+  });
+
+  describe("CSP_DIRECTIVES", () => {
+    it("includes unsafe-inline in styleSrc for Clerk compatibility", () => {
+      expect(CSP_DIRECTIVES.styleSrc).toContain("'unsafe-inline'");
+    });
+
+    it("does not allow blanket https: sources for imgSrc", () => {
+      expect(CSP_DIRECTIVES.imgSrc).not.toContain("https:");
     });
   });
 });

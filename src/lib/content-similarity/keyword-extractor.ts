@@ -415,11 +415,6 @@ export function extractKeywords(
 
   for (const tag of existingTagsNormalized) {
     scores.delete(tag);
-    // Also remove individual words if they're part of a tag
-    const words = tag.split(" ");
-    for (const word of words) {
-      scores.delete(word);
-    }
   }
 
   // Sort by score and return top keywords

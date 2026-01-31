@@ -423,6 +423,7 @@ export class UnifiedImageService {
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const contentType = response.headers.get("content-type");
     if (!contentType?.startsWith("image/")) throw new Error("Response is not an image");
+    let effectiveContentType = contentType || "application/octet-stream";
 
     try {
       const s3Key = this.s3Ops.generateS3Key(url, options);
@@ -451,10 +452,23 @@ export class UnifiedImageService {
         throw new Error("Insufficient memory to load image into buffer");
       }
 
-      const arrayBuffer = await response.arrayBuffer();
+      let bufferResponse = response;
+      if (response.bodyUsed) {
+        bufferResponse = await fetchWithTimeout(url, {
+          headers: DEFAULT_IMAGE_HEADERS,
+          timeout: fetchTimeout,
+        });
+        if (!bufferResponse.ok)
+          throw new Error(`HTTP ${bufferResponse.status}: ${bufferResponse.statusText}`);
+        const fallbackContentType = bufferResponse.headers.get("content-type");
+        if (!fallbackContentType?.startsWith("image/")) throw new Error("Response is not an image");
+        effectiveContentType = fallbackContentType || "application/octet-stream";
+      }
+
+      const arrayBuffer = await bufferResponse.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      return { buffer, contentType: contentType || "application/octet-stream" };
+      return { buffer, contentType: effectiveContentType };
     } catch (error) {
       throw error instanceof Error ? error : new Error("Failed to fetch image");
     }

@@ -33,9 +33,10 @@ import { IMAGE_S3_PATHS } from "@/lib/constants";
 import { assetIdSchema } from "@/types/schemas/url";
 import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
+import { createMonitoredStream, streamToBufferWithLimits } from "@/lib/utils/stream-utils";
 
 const MAX_ASSET_SIZE_BYTES = 50 * 1024 * 1024; // 50MB limit
-const ASSET_STREAM_TIMEOUT_MS = 20_000; // 20 seconds
+const DEFAULT_BOOKMARKS_API_URL = "https://bookmark.iocloudhost.net/api/v1";
 
 /**
  * In-memory set to track ongoing S3 write operations.
@@ -48,123 +49,6 @@ const ASSET_STREAM_TIMEOUT_MS = 20_000; // 20 seconds
  */
 const ongoingS3Writes = new Set<string>();
 
-async function readWithTimeout<T>(promise: Promise<T>, assetId: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      reject(new Error(`Read timeout exceeded for asset ${assetId}`));
-    }, ASSET_STREAM_TIMEOUT_MS);
-
-    promise
-      .then((result) => {
-        clearTimeout(timeoutId);
-        resolve(result);
-        return null;
-      })
-      .catch((error) => {
-        clearTimeout(timeoutId);
-        reject(error instanceof Error ? error : new Error(String(error)));
-      });
-  });
-}
-
-function createMonitoredStream(
-  source: ReadableStream<Uint8Array>,
-  assetId: string,
-  onViolation?: (error: Error) => void,
-): ReadableStream<Uint8Array> {
-  const reader = source.getReader();
-  let processedBytes = 0;
-
-  return new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      try {
-        const { done, value } = await readWithTimeout(reader.read(), assetId);
-
-        if (done) {
-          controller.close();
-          return;
-        }
-
-        if (value) {
-          processedBytes += value.byteLength;
-          if (processedBytes > MAX_ASSET_SIZE_BYTES) {
-            const sizeError = new Error(
-              `Image too large: ${processedBytes} bytes exceeds ${MAX_ASSET_SIZE_BYTES} byte limit for asset ${assetId}`,
-            );
-            onViolation?.(sizeError);
-            try {
-              await reader.cancel(sizeError);
-            } catch {
-              // ignore cancel failures
-            }
-            controller.error(sizeError);
-            return;
-          }
-
-          controller.enqueue(value);
-        }
-      } catch (error) {
-        const normalizedError = error instanceof Error ? error : new Error(String(error));
-        onViolation?.(normalizedError);
-        try {
-          await reader.cancel(normalizedError);
-        } catch {
-          // ignore cancel failures
-        }
-        controller.error(normalizedError);
-      }
-    },
-    cancel(reason) {
-      reader.cancel(reason).catch(() => {});
-    },
-  });
-}
-
-async function streamToBufferWithLimits(
-  stream: ReadableStream<Uint8Array>,
-  assetId: string,
-): Promise<Buffer> {
-  const reader = stream.getReader();
-  const chunks: Uint8Array[] = [];
-  let totalSize = 0;
-
-  try {
-    for (
-      let result = await readWithTimeout(reader.read(), assetId);
-      !result.done;
-      result = await readWithTimeout(reader.read(), assetId)
-    ) {
-      const value = result.value;
-      if (!value) {
-        continue;
-      }
-
-      totalSize += value.byteLength;
-      if (totalSize > MAX_ASSET_SIZE_BYTES) {
-        const sizeError = new Error(
-          `Image too large: ${totalSize} bytes exceeds ${MAX_ASSET_SIZE_BYTES} byte limit for asset ${assetId}`,
-        );
-        try {
-          await reader.cancel(sizeError);
-        } catch {
-          // ignore cancel failures
-        }
-        throw sizeError;
-      }
-
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  return Buffer.concat(chunks);
-}
-
-/**
- * Extracts the base URL from a bookmarks API URL more robustly
- * Handles various URL patterns and preserves path components other than /api/v1
- */
 function getAssetBaseUrl(apiUrl: string): string {
   try {
     const url = new URL(apiUrl);
@@ -532,8 +416,13 @@ export async function GET(
     console.log(`[Assets API] Asset not in S3, fetching from Karakeep: ${assetId}`);
 
     // Get the external bookmarks API URL
-    const bookmarksApiUrl =
-      process.env.BOOKMARKS_API_URL ?? "https://bookmark.iocloudhost.net/api/v1";
+    const envBookmarksApiUrl = process.env.BOOKMARKS_API_URL;
+    if (!envBookmarksApiUrl) {
+      console.warn(
+        `[Assets API] BOOKMARKS_API_URL env var is missing. Using fallback: ${DEFAULT_BOOKMARKS_API_URL}`,
+      );
+    }
+    const bookmarksApiUrl = envBookmarksApiUrl ?? DEFAULT_BOOKMARKS_API_URL;
     // More robust base URL extraction
     const baseUrl = getAssetBaseUrl(bookmarksApiUrl);
     const bearerToken = process.env.BOOKMARK_BEARER_TOKEN;

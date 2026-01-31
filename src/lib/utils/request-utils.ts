@@ -7,11 +7,17 @@
  * @module lib/utils/request-utils
  */
 
+import { isIP } from "node:net";
+import type { CloudflareHeaderValidation } from "@/types/http";
+
 /**
  * Standard IP header precedence order.
  * Cloudflare headers are prioritized, followed by standard proxy headers.
  */
 const IP_HEADERS = ["True-Client-IP", "CF-Connecting-IP", "X-Forwarded-For", "X-Real-IP"] as const;
+
+const CLOUDFLARE_REQUIRED_HEADERS = ["CF-Ray"] as const;
+const CLOUDFLARE_IP_HEADERS = ["CF-Connecting-IP", "True-Client-IP"] as const;
 
 /**
  * Extracts the first IP address from a comma-separated header value.
@@ -63,4 +69,48 @@ export function getClientIp(
   }
 
   return fallback;
+}
+
+function normalizeHeaderValue(value: string | null): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function normalizeIpHeader(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const first = value.split(",")[0]?.trim();
+  return first || undefined;
+}
+
+export function validateCloudflareHeaders(headers: Headers): CloudflareHeaderValidation {
+  const host = normalizeHeaderValue(headers.get("host"));
+  const cfRay = normalizeHeaderValue(headers.get(CLOUDFLARE_REQUIRED_HEADERS[0]));
+  const cfConnectingIp = normalizeHeaderValue(headers.get(CLOUDFLARE_IP_HEADERS[0]));
+  const trueClientIp = normalizeHeaderValue(headers.get(CLOUDFLARE_IP_HEADERS[1]));
+  const forwardedProto = normalizeHeaderValue(headers.get("x-forwarded-proto"));
+  const candidateIp = normalizeIpHeader(cfConnectingIp ?? trueClientIp);
+
+  const reasons: string[] = [];
+
+  if (!cfRay) {
+    reasons.push("missing_cf_ray");
+  }
+
+  if (!candidateIp) {
+    reasons.push("missing_cf_ip");
+  } else if (isIP(candidateIp) === 0) {
+    reasons.push("invalid_cf_ip");
+  }
+
+  return {
+    isValid: reasons.length === 0,
+    reasons,
+    details: {
+      host,
+      cfRay,
+      cfConnectingIp,
+      trueClientIp,
+      forwardedProto,
+    },
+  };
 }

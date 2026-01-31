@@ -48,18 +48,19 @@ export function safeJsonStringify(
   replacer?: (key: string, value: unknown) => unknown,
 ): string | null {
   try {
-    const seen = new WeakSet();
+    const stack: unknown[] = [];
 
-    // Create internal replacer that handles both circular refs and custom replacer
-    const internalReplacer = (key: string, val: unknown): unknown => {
-      // Handle circular references
+    // Create internal replacer that tracks the current traversal path.
+    function internalReplacer(this: unknown, key: string, val: unknown): unknown {
       if (typeof val === "object" && val !== null) {
-        // Type guard for WeakKey compatibility
-        if (typeof val === "object" || typeof val === "function") {
-          if (seen.has(val as WeakKey)) {
-            return "[Circular]";
-          }
-          seen.add(val as WeakKey);
+        const parentIndex = stack.indexOf(this);
+        if (parentIndex === -1) {
+          stack.push(this);
+        } else {
+          stack.length = parentIndex + 1;
+        }
+        if (stack.includes(val)) {
+          return "[Circular]";
         }
       }
 
@@ -68,7 +69,7 @@ export function safeJsonStringify(
         return replacer(key, val);
       }
       return val;
-    };
+    }
 
     return JSON.stringify(value, internalReplacer, space);
   } catch (error) {
