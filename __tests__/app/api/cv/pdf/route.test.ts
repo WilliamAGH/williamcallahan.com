@@ -1,4 +1,7 @@
 /**
+ * @jest-environment node
+ */
+/**
  * CV PDF API route tests
  */
 
@@ -103,7 +106,16 @@ describe("GET /api/cv/pdf", () => {
   it("returns a PDF buffer with cache-control headers", async () => {
     jest.useFakeTimers({
       now: new Date("2025-11-08T00:00:00Z"),
-      doNotFake: ["nextTick", "performance"],
+      doNotFake: [
+        "nextTick",
+        "performance",
+        "setTimeout",
+        "clearTimeout",
+        "setImmediate",
+        "clearImmediate",
+        "setInterval",
+        "clearInterval",
+      ],
     });
 
     const pdfPayload = Buffer.from("%PDF-1.4 test payload");
