@@ -186,7 +186,7 @@ RUN bash -c "set -euo pipefail; \
       fi; \
       echo \"📦 Building the application...\"; \
       bun run build; \
-      # Prune optimizer cache older than 5 days to keep layer small
+      echo \"🧹 Pruning optimizer cache older than 5 days...\"; \
       find /app/.next/cache -type f -mtime +5 -delete || true"
 
 # ---------- Runtime stage ----------
@@ -296,10 +296,11 @@ USER nextjs
 EXPOSE 3000
 
 # Lightweight, robust healthcheck with response verification
-# Uses health endpoint and verifies JSON response contains "status": "healthy"
+# Uses health endpoint and verifies JSON response contains an acceptable status
+# Accepts "healthy" or "degraded" (both return HTTP 200); only "unhealthy" fails
 HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
   CMD curl -fsS --connect-timeout 2 --max-time 3 "http://127.0.0.1:${PORT:-3000}/api/health" \
-    | grep -q '"status"[[:space:]]*:[[:space:]]*"healthy"' || exit 1
+    | grep -qE '"status"[[:space:]]*:[[:space:]]*"(healthy|degraded)"' || exit 1
 
 # Use entrypoint to handle data initialization, scheduler startup, and graceful shutdown
 ENTRYPOINT ["/app/entrypoint.sh"]

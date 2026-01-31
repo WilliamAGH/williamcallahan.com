@@ -10,6 +10,7 @@
  */
 
 import type { MetadataRoute } from "next";
+import { getEnvironment } from "@/lib/config/environment";
 
 /**
  * Generate robots.txt for the application
@@ -21,9 +22,7 @@ import type { MetadataRoute } from "next";
  * @see https://nextjs.org/docs/app/api-reference/file-conventions/metadata/robots
  */
 export default function robots(): MetadataRoute.Robots {
-  const isProd =
-    process.env.DEPLOYMENT_ENV === "production" ||
-    process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
+  const isProd = getEnvironment() === "production";
 
   // Define common problematic paths to disallow in production
   // NOTE: In robots.txt, the most specific matching rule takes precedence; order here is for readability only

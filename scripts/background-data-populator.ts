@@ -20,6 +20,7 @@ const INITIAL_DELAY = 30000; // Wait 30 seconds after server start
 
 /**
  * Run the data updater script in a child process
+ * Rejects if the updater exits non-zero so failures surface to the caller.
  */
 async function runDataUpdater(): Promise<void> {
   return new Promise((resolve, reject) => {

@@ -231,7 +231,7 @@ if (testLimit !== undefined) {
       results.map((r) => ({
         Operation: r.operation,
         Success: r.success ? "✅" : "❌",
-        "Items Processed": r.itemsProcessed || "N/A",
+        "Items Processed": r.itemsProcessed ?? "N/A",
         "Duration (s)": r.duration,
         Error: r.error || "None",
       })),

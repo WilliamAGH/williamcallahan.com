@@ -108,11 +108,11 @@ export const CSP_DIRECTIVES = {
     "https://*.popos-sf5.com",
     "https://*.popos-sf6.com",
     "https://*.popos-sf7.com",
-    "https:",
     RAILWAY_TEST_DEPLOYMENTS,
   ],
   styleSrc: [
     "'self'",
+    "'unsafe-inline'",
     "https://platform.twitter.com",
     "https://*.twimg.com",
     "https://*.x.com",
