@@ -203,7 +203,10 @@ export async function getBookmarksIndex(): Promise<{
       const serializedIndex = await readJsonS3<SerializedIndex>(SEARCH_S3_PATHS.BOOKMARKS_INDEX);
       if (serializedIndex?.index && serializedIndex.metadata) {
         serializedBookmarksIndex = serializedIndex;
-        bookmarksIndex = loadIndexFromJSON<BookmarkIndexItem>(serializedIndex);
+        bookmarksIndex = loadIndexFromJSON<BookmarkIndexItem>(
+          serializedIndex,
+          BOOKMARKS_INDEX_CONFIG,
+        );
         console.log(
           `[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`,
         );
@@ -367,7 +370,7 @@ export async function getBooksIndex(): Promise<MiniSearch<Book>> {
       devLog("[getBooksIndex] Trying to load books index from S3...");
       const serializedIndex = await readJsonS3<SerializedIndex>(SEARCH_S3_PATHS.BOOKS_INDEX);
       if (serializedIndex?.index && serializedIndex.metadata) {
-        booksIndex = loadIndexFromJSON<Book>(serializedIndex);
+        booksIndex = loadIndexFromJSON<Book>(serializedIndex, BOOKS_INDEX_CONFIG);
         console.log(
           `[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`,
         );

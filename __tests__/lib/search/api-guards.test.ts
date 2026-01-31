@@ -59,6 +59,13 @@ describe("Search API Guards", () => {
       expect(threshold).toBe(3 * 1024 * 1024 * 1024);
     });
 
+    it("falls back to default when MEMORY_CRITICAL_BYTES is invalid even if percent is set", () => {
+      process.env.MEMORY_CRITICAL_BYTES = "invalid";
+      process.env.MEMORY_CRITICAL_PERCENT = "90";
+      const threshold = getCriticalThreshold();
+      expect(threshold).toBe(3 * 1024 * 1024 * 1024);
+    });
+
     it("ignores MEMORY_CRITICAL_BYTES when zero or negative", () => {
       process.env.MEMORY_CRITICAL_BYTES = "0";
       const threshold = getCriticalThreshold();

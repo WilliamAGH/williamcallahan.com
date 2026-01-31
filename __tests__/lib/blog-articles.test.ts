@@ -21,10 +21,21 @@ console.log("[TEST FILE] blog.test.ts starting");
  */
 
 import { getAllPosts, getPostBySlug } from "@/lib/blog";
+import { cacheContextGuards } from "@/lib/cache";
+import { GET as getPostsApi } from "@/app/api/posts/route";
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 // Explicitly mock assertServerOnly for this test file
 jest.mock("@/lib/utils/ensure-server-only", () => ({
   assertServerOnly: jest.fn(() => undefined),
+}));
+
+jest.mock("@/lib/cache", () => ({
+  USE_NEXTJS_CACHE: true,
+  cacheContextGuards: {
+    cacheLife: jest.fn(),
+    cacheTag: jest.fn(),
+    revalidateTag: jest.fn(),
+  },
 }));
 
 // Mock static posts using mock.module
@@ -106,6 +117,14 @@ jest.mock("@/lib/blog/mdx", () => ({
 }));
 
 describe("Blog Module", () => {
+  const cacheLifeSpy = cacheContextGuards.cacheLife as jest.MockedFunction<
+    typeof cacheContextGuards.cacheLife
+  >;
+
+  beforeEach(() => {
+    cacheLifeSpy.mockClear();
+  });
+
   describe("getAllPosts", () => {
     /**
      * Test: Post Retrieval and Sorting
@@ -159,6 +178,14 @@ describe("Blog Module", () => {
     it("returns null for non-existent slug", async () => {
       const post = await getPostBySlug("non-existent");
       expect(post).toBeNull();
+    });
+  });
+
+  describe("Posts API caching", () => {
+    it("applies cacheLife when serving posts", async () => {
+      const response = await getPostsApi();
+      expect(response.status).toBe(200);
+      expect(cacheLifeSpy).toHaveBeenCalledWith("PostsAPI", "hours");
     });
   });
 });

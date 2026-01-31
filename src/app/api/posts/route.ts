@@ -3,10 +3,16 @@
  */
 
 import { getAllPosts } from "@/lib/blog";
+import { cacheContextGuards } from "@/lib/cache";
 import { sanitizeBlogPosts, sanitizeError } from "@/lib/utils/api-sanitization";
 import { NextResponse } from "next/server";
 
-// Set cache options for API - revalidate every 1 hour (3600 seconds)
+// Cache posts in Cache Components mode; route handlers remain dynamic.
+const getCachedPosts = async () => {
+  "use cache";
+  cacheContextGuards.cacheLife("PostsAPI", "hours");
+  return getAllPosts();
+};
 
 /**
  * Formats error details for API response
@@ -19,7 +25,7 @@ function formatErrorResponse(error: unknown) {
 // GET handler for blog posts
 export async function GET() {
   try {
-    const posts = await getAllPosts();
+    const posts = await getCachedPosts();
 
     // Sanitize posts to remove sensitive fields (filePath, rawContent, etc.)
     const sanitizedPosts = sanitizeBlogPosts(posts);

@@ -10,7 +10,7 @@
 
 import MiniSearch from "minisearch";
 import { loadIndexFromJSON } from "@/lib/search/index-builder";
-import type { SerializedIndex } from "@/types/search";
+import type { IndexFieldConfig, SerializedIndex } from "@/types/search";
 
 describe("Search Index Serialization", () => {
   // Sample data for creating test indexes
@@ -74,6 +74,49 @@ describe("Search Index Serialization", () => {
       expect(() => {
         loadIndexFromJSON<(typeof sampleDocuments)[0]>(serializedIndex);
       }).not.toThrow();
+    });
+
+    it("should preserve searchOptions when config is provided", () => {
+      const config: IndexFieldConfig<(typeof sampleDocuments)[0]> = {
+        fields: ["title", "description"],
+        storeFields: ["id", "title", "description"],
+        idField: "id",
+        boost: { title: 2 },
+        fuzzy: 0.1,
+      };
+
+      const originalIndex = new MiniSearch<(typeof sampleDocuments)[0]>({
+        fields: config.fields,
+        storeFields: config.storeFields,
+        idField: config.idField,
+        searchOptions: {
+          boost: config.boost as { [fieldName: string]: number } | undefined,
+          fuzzy: config.fuzzy,
+          prefix: true,
+        },
+      });
+      originalIndex.addAll(sampleDocuments);
+
+      const serializedIndex: SerializedIndex = {
+        index: originalIndex.toJSON(),
+        metadata: {
+          itemCount: sampleDocuments.length,
+          buildTime: new Date().toISOString(),
+          version: "1.0",
+        },
+      };
+
+      const loadedIndex = loadIndexFromJSON<(typeof sampleDocuments)[0]>(serializedIndex, config);
+      const originalResults = originalIndex.search("React");
+      const loadedResults = loadedIndex.search("React");
+
+      expect(loadedResults.map((result) => result.id)).toEqual(
+        originalResults.map((result) => result.id),
+      );
+      loadedResults.forEach((result, index) => {
+        const originalScore = originalResults[index]?.score ?? 0;
+        expect(result.score).toBeCloseTo(originalScore, 6);
+      });
     });
 
     it("should load index when serialized.index is an object (S3 round-trip)", () => {

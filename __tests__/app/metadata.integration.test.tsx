@@ -182,6 +182,28 @@ describe("Metadata Integration Tests", () => {
     });
   });
 
+  describe("Robots.txt Environment Detection", () => {
+    const originalEnv = { ...process.env };
+
+    afterEach(() => {
+      process.env = { ...originalEnv };
+    });
+
+    it("treats API_BASE_URL production as production even when NEXT_PUBLIC_SITE_URL differs", async () => {
+      process.env.API_BASE_URL = "https://williamcallahan.com";
+      process.env.NEXT_PUBLIC_SITE_URL = "https://dev.williamcallahan.com";
+
+      const { default: robots } = await import("@/app/robots");
+      const result = robots();
+
+      expect(result.rules).toMatchObject({
+        userAgent: "*",
+        allow: expect.arrayContaining(["/"]),
+      });
+      expect(result.sitemap).toBe("https://williamcallahan.com/sitemap.xml");
+    });
+  });
+
   describe("Sitemap Integration", () => {
     // Note: We can't directly test the sitemap function due to its dependencies,
     // but we can test that our constants are used correctly
