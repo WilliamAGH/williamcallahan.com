@@ -22,6 +22,11 @@ describe("Bookmarks Validation", () => {
     process.env = { ...originalEnv };
   });
 
+  afterEach(() => {
+    // Reset process.env to prevent cross-test bleed
+    process.env = { ...originalEnv };
+  });
+
   afterAll(() => {
     process.env = originalEnv;
     jest.restoreAllMocks();
