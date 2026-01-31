@@ -16,10 +16,12 @@ export async function register() {
   // Only run instrumentation in server/node runtime
   if (process.env.NEXT_RUNTIME === "nodejs") {
     // Dynamically import Node.js specific instrumentation
-    await import("./instrumentation-node");
+    const mod = await import("./instrumentation-node");
+    await mod.register();
   } else if (process.env.NEXT_RUNTIME === "edge") {
     // Dynamically import Edge runtime specific instrumentation
-    await import("./instrumentation-edge");
+    const mod = await import("./instrumentation-edge");
+    await mod.register();
   }
 }
 

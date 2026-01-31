@@ -34,7 +34,10 @@ const BROWSER_EXTENSION_ERROR_PATTERNS = [
  * @param errorMessage - The error message to check
  * @returns true if the error should be filtered out, false otherwise
  */
-export function shouldFilterError(errorMessage: string): boolean {
+export function shouldFilterError(errorMessage: unknown): boolean {
+  if (typeof errorMessage !== "string") {
+    return false;
+  }
   const normalizedMessage = errorMessage.toLowerCase();
   // Check for known browser extension error patterns
   for (const pattern of BROWSER_EXTENSION_ERROR_PATTERNS) {

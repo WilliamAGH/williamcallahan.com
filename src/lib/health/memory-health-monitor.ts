@@ -195,7 +195,8 @@ export class MemoryHealthMonitor extends EventEmitter {
    * Check if image operations should be allowed
    */
   shouldAllowImageOperations(): boolean {
-    return true;
+    const health = this.getHealthStatus();
+    return health.statusCode !== 503;
   }
 
   /**
