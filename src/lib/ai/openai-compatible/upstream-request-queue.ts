@@ -39,6 +39,7 @@ export class UpstreamRequestQueue {
       run: () => Promise<string>;
     }>
   >();
+  private readonly runningTasks = new Map<string, ReturnType<typeof createDeferred<string>>>();
   private readonly prioritiesDesc: number[] = [];
   private draining = false;
 
@@ -125,6 +126,13 @@ export class UpstreamRequestQueue {
         const abortError = new DOMException("Request aborted", "AbortError");
         started.reject(abortError);
         result.reject(abortError);
+        return;
+      }
+
+      const running = this.runningTasks.get(id);
+      if (running) {
+        const abortError = new DOMException("Request aborted", "AbortError");
+        running.reject(abortError);
       }
     };
 
@@ -231,6 +239,7 @@ export class UpstreamRequestQueue {
         }
 
         this.running += 1;
+        this.runningTasks.set(task.id, task.result);
         task.started.resolve();
 
         void task
@@ -243,6 +252,7 @@ export class UpstreamRequestQueue {
             task.result.reject(error);
           })
           .finally(() => {
+            this.runningTasks.delete(task.id);
             this.running -= 1;
             this.drain();
           });
