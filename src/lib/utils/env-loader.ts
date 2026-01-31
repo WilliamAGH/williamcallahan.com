@@ -48,18 +48,27 @@ export function loadEnvironmentWithMultilineSupport(): void {
       for (const line of cleanLines) {
         const match = line.match(/^([^=]+)=(.*)$/);
         if (match) {
-          const [, key, value] = match;
-          if (key && !process.env[key]) {
-            let processedValue = value || "";
-            // Remove surrounding quotes if present
-            if (
-              (processedValue.startsWith('"') && processedValue.endsWith('"')) ||
-              (processedValue.startsWith("'") && processedValue.endsWith("'"))
-            ) {
-              processedValue = processedValue.slice(1, -1);
-            }
-            process.env[key] = processedValue;
+          const key = match[1];
+          const value = match[2];
+          if (!key) {
+            continue;
           }
+          const normalizedKey = key.trim();
+          if (!normalizedKey || process.env[normalizedKey]) {
+            continue;
+          }
+          if (value === undefined) {
+            continue;
+          }
+          let processedValue = value;
+          // Remove surrounding quotes if present
+          if (
+            (processedValue.startsWith('"') && processedValue.endsWith('"')) ||
+            (processedValue.startsWith("'") && processedValue.endsWith("'"))
+          ) {
+            processedValue = processedValue.slice(1, -1);
+          }
+          process.env[normalizedKey] = processedValue;
         }
       }
       if (privateKeyVal && !process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY) {

@@ -186,6 +186,30 @@ describe("Environment Variable Configuration", () => {
     });
   });
 
+  describe("Environment Loader", () => {
+    it("trims whitespace around keys when loading .env", async () => {
+      const fs = await import("node:fs");
+      const path = await import("node:path");
+      const { loadEnvironmentWithMultilineSupport } = await import("@/lib/utils/env-loader");
+
+      const originalCwd = process.cwd();
+      const tempDir = fs.mkdtempSync(path.join("/tmp", "env-loader-"));
+      const envPath = path.join(tempDir, ".env");
+
+      fs.writeFileSync(envPath, "TRIMMED_KEY =trimmed-value\n", "utf-8");
+      Reflect.deleteProperty(process.env, "TRIMMED_KEY");
+
+      try {
+        process.chdir(tempDir);
+        loadEnvironmentWithMultilineSupport();
+        expect(process.env.TRIMMED_KEY).toBe("trimmed-value");
+      } finally {
+        process.chdir(originalCwd);
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+  });
+
   describe("Environment Schema Validation", () => {
     it("accepts S3 credentials without AWS aliases", async () => {
       const { envSchema } = await import("@/types/schemas/env");
@@ -195,6 +219,22 @@ describe("Environment Variable Configuration", () => {
         S3_SECRET_ACCESS_KEY: "test-secret-key",
         S3_REGION: "us-east-1",
         NEXT_PUBLIC_S3_CDN_URL: "https://cdn.example.com",
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts empty AWS alias values when optional", async () => {
+      const { envSchema } = await import("@/types/schemas/env");
+      const result = envSchema.safeParse({
+        S3_BUCKET: "test-bucket",
+        S3_ACCESS_KEY_ID: "test-access-key",
+        S3_SECRET_ACCESS_KEY: "test-secret-key",
+        S3_REGION: "us-east-1",
+        NEXT_PUBLIC_S3_CDN_URL: "https://cdn.example.com",
+        AWS_ACCESS_KEY_ID: "",
+        AWS_SECRET_ACCESS_KEY: "   ",
+        AWS_REGION: "",
       });
 
       expect(result.success).toBe(true);

@@ -147,8 +147,8 @@ export async function register(): Promise<void> {
   }
 }
 
-// DO NOT call register() immediately - it should only be called by Next.js instrumentation hook
-// The register() function will be called by Next.js when importing this module from instrumentation.ts
+// DO NOT call register() immediately - it should only be invoked by the
+// instrumentation hook in src/instrumentation.ts after the dynamic import.
 
 /**
  * onRequestError hook – invoked by the Sentry SDK (Next.js ≥15.4)

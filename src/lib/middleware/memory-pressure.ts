@@ -91,9 +91,10 @@ async function checkMemoryViaHealthEndpoint(): Promise<{ critical: boolean; warn
       critical: systemStatus === "MEMORY_CRITICAL",
       warning: systemStatus === "MEMORY_WARNING",
     };
-  } catch {
-    // If health check fails, assume no memory pressure
-    return { critical: false, warning: false };
+  } catch (error) {
+    console.warn("[MemoryPressure] Health endpoint check failed; failing safe.", error);
+    // Fail-safe: if health cannot be confirmed, assume critical pressure
+    return { critical: true, warning: true };
   }
 }
 
