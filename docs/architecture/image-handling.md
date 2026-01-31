@@ -146,8 +146,8 @@ Ensures education and experience domains ALWAYS fetch institution/company logos 
 ### Idempotency Risks & Mitigations
 
 - **Non-Deterministic Hash**: Uses both SHA-256 (preferred) and MD5 (legacy support).
-- **Multiple Sources**: Same domain may have different S3 keys for google vs duckduckgo sources.
-- **Session Tracking**: `unified-image-service.ts:48-52` prevents repeated failures in the same session (30min reset).
+- **Multiple Sources**: Same domain may have different S3 keys for Google vs DuckDuckGo sources.
+- **Session Tracking**: `unified-image-service.ts:48-52` prevents repeated failures in the same session (30-minute reset).
 
 Keep this document synchronized with real code: every new image entry point, validator, or S3 directory must be recorded here with file references so future debugging starts from truth instead of guesswork.
 
