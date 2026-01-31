@@ -62,23 +62,23 @@ Keys are immutable once written (content-hash suffix or deterministic domain has
 
 ## Environment Configuration
 
-| Variable                                                         | Purpose                                                                                      |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `S3_BUCKET`                                                      | Base bucket name (per environment).                                                          |
-| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_SESSION_TOKEN` | Credentials for DigitalOcean Spaces or AWS.                                                  |
-| `S3_REGION` / `AWS_REGION`                                       | Region (default `us-east-1`).                                                                |
-| `S3_SERVER_URL`                                                  | Required for Spaces; without it `cdn-utils` throws (prevents accidental AWS hostname usage). |
-| `S3_CDN_URL`                                                     | Server-side CDN base (preferred), used for route handlers when reconstructing URLs.          |
-| `NEXT_PUBLIC_S3_CDN_URL`                                         | Client-side CDN base captured at build time for React components.                            |
-| `IMAGE_STREAM_THRESHOLD_BYTES`                                   | Optional override of 5 MB streaming trigger.                                                 |
-| `LOAD_IMAGE_MANIFESTS_DURING_BUILD`                              | If `true`, instrumentation loads manifests even during `phase-production-build`.             |
-| `DRY_RUN`                                                        | Skip writes (scripts, local testing).                                                        |
-| `DEV_DISABLE_IMAGE_PROCESSING` / `DEV_STREAM_IMAGES_TO_S3`       | Debug flags controlling UnifiedImageService behavior.                                        |
+| Variable                                                         | Purpose                                                                                                                                                 |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `S3_BUCKET`                                                      | Base bucket name (per environment).                                                                                                                     |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_SESSION_TOKEN` | Credentials for DigitalOcean Spaces or AWS.                                                                                                             |
+| `S3_REGION` / `AWS_REGION`                                       | Region (default `us-east-1`).                                                                                                                           |
+| `S3_SERVER_URL`                                                  | Optional for Spaces; required only when constructing or validating direct S3 URLs. Without it, `cdn-utils` skips S3 host checks and returns null/false. |
+| `S3_CDN_URL`                                                     | Server-side CDN base (preferred), used for route handlers when reconstructing URLs.                                                                     |
+| `NEXT_PUBLIC_S3_CDN_URL`                                         | Client-side CDN base captured at build time for React components.                                                                                       |
+| `IMAGE_STREAM_THRESHOLD_BYTES`                                   | Optional override of 5 MB streaming trigger.                                                                                                            |
+| `LOAD_IMAGE_MANIFESTS_DURING_BUILD`                              | If `true`, instrumentation loads manifests even during `phase-production-build`.                                                                        |
+| `DRY_RUN`                                                        | Skip writes (scripts, local testing).                                                                                                                   |
+| `DEV_DISABLE_IMAGE_PROCESSING` / `DEV_STREAM_IMAGES_TO_S3`       | Debug flags controlling UnifiedImageService behavior.                                                                                                   |
 
 ## Security Controls
 
 1. **Path Normalization** – `sanitizePath` and key validators prevent directory traversal and `..` segments before any S3 command.
-2. **Protocol & Host Enforcement** – All writers/readers operate on normalized `https://` URLs; `cdn-utils` fails fast when env vars are missing to avoid dropping back to AWS defaults.
+2. **Protocol & Host Enforcement** – All writers/readers operate on normalized `https://` URLs; `cdn-utils` avoids AWS defaults by skipping direct S3 URL reconstruction when `S3_SERVER_URL` is missing.
 3. **SSRF Protection** – Upper layers validate URLs before calling persistence helpers; this doc inherits those guarantees but never bypasses them (no blind fetches).
 4. **Private IP Blocking** – `url-utils` rejects RFC1918/loopback ranges before handing off to persistence.
 5. **Consistent ACLs** – Public assets always `public-read`; private JSON never exposed because `cdnBaseUrl` is omitted for their prefixes.

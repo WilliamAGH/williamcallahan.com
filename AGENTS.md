@@ -20,7 +20,7 @@ alwaysApply: true
 - [GT1a-j] Git safety: no history rewrite/destructive ops; no lock deletion; no hook/signing bypass; no AI attribution
 - [CMD1a-d] Command execution guardrails: retry with escalation; no inference cleanup
 - [FS1a-k] File creation & edit discipline: existing-first, no shims/barrels/aliases, no duplication, no error swallowing, no silent fallbacks
-- [LOC1a-d] Line Count Ceiling (350 lines max; SRP enforcer; zero tolerance)
+- [LOC1a-d] Line Count Ceiling (350 lines max; SRP enforcer; strict enforcement with limited legacy-warning allowances)
 - [MO1a-g] No Monoliths (Strict SRP; Decision Logic; Extension/OCP)
 - [UP1a-d] Comprehensive update protocol: update _all_ usages (imports/calls/types/tests/docs)
 - [TS1a-f] Type safety & validation: no `any`, no suppression, Zod at boundaries

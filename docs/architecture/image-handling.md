@@ -110,10 +110,11 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 1. **SSRF Defense** – `openGraphUrlSchema`, `assetIdSchema`, `sanitizePath`, `isLogoUrl`, and `url-utils` block private IP ranges, non-HTTP schemes, credentials, suspicious ports.
 2. **Hostname Allowing** – All remote origins must appear in `CALLAHAN_IMAGE_HOSTS` or explicit `remotePatterns`. CDN URL validation compares parsed host + base path to prevent prefix spoofing before proxying requests. Adding a CDN requires updating env vars + `next.config.ts`.
 3. **Memory Headroom** – `getMemoryHealthMonitor().shouldAcceptNewRequests()` gate exists in `getImage`, `getLogo`, streaming fallback, and S3 writes to prevent OOMs.
-4. **Circuit Breaker** – `FailureTracker` + session maps block domains after repeated failures for 30 minutes, preventing infinite loops (e.g., recursive redirects).
-5. **Cache Safety** – Hashed filenames, `Cache-Control` invariants, and Next’s `minimumCacheTTL` ensure once persisted assets remain stable. Placeholders always available locally.
-6. **SVG Hygiene** – `svg-transform-fix.ts` rewrites transforms; `dangerouslyAllowSVG` is acceptable because only vetted assets are stored and we treat user input as untrusted (validated + sanitized).
-7. **Testing Hooks** – `DEV_DISABLE_IMAGE_PROCESSING`, `DEV_STREAM_IMAGES_TO_S3` allow safe local debugging without hammering S3.
+4. **Streaming Re-fetch** – When a streaming upload consumes the response body and fails, the image service re-fetches before buffering; Response bodies are single-use, so buffering must use a fresh fetch.
+5. **Circuit Breaker** – `FailureTracker` + session maps block domains after repeated failures for 30 minutes, preventing infinite loops (e.g., recursive redirects).
+6. **Cache Safety** – Hashed filenames, `Cache-Control` invariants, and Next’s `minimumCacheTTL` ensure once persisted assets remain stable. Placeholders always available locally.
+7. **SVG Hygiene** – `svg-transform-fix.ts` rewrites transforms; `dangerouslyAllowSVG` is acceptable because only vetted assets are stored and we treat user input as untrusted (validated + sanitized).
+8. **Testing Hooks** – `DEV_DISABLE_IMAGE_PROCESSING`, `DEV_STREAM_IMAGES_TO_S3` allow safe local debugging without hammering S3.
 
 ## Operational Tasks
 

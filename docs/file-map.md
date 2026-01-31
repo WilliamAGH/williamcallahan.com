@@ -533,6 +533,8 @@ File/Path Functionality Description
     - [x] **api/**
       - [x] **github-activity/**
         - [x] `cache.test.ts` `github-activity` - Tests for GitHub activity caching
+      - [x] **upload/**
+        - [x] `route.test.ts` `chroma` - Upload cleanup tests for S3/Chroma pipeline
       - [x] **logo/**
         - [x] `cache.test.ts` `image-handling` - Tests for logo caching
     - [x] `pages.smoke.test.ts` `app-layout` - Smoke tests for all pages
@@ -565,11 +567,19 @@ File/Path Functionality Description
     - [x] `bookmarks-s3-external-sync.unit.test.ts` `bookmarks` - Bookmarks S3 sync unit tests
     - [x] `bookmarks-validation.test.ts` `json-handling` - Bookmarks validation tests
     - [x] `bookmarks.test.ts` `bookmarks` - Bookmarks utility tests
+    - [x] `select-best-image.test.ts` `bookmarks` - Bookmark image selection security tests
     - [x] `cache.test.ts` `caching` - Cache utility tests
+    - [x] `cloudflare-headers.test.ts` `rate-limit-and-sanitize` - Cloudflare header guard tests
     - [x] `data-access.s3.test.ts` `s3-object-storage` - S3 data access tests
+    - [x] `env-logger.test.ts` `log-error-debug-handling` - EnvLogger safe stringify tests
     - [x] `imageAnalysis.test.ts` `image-handling` - Image analysis tests
     - [x] `imageCompare.test.ts` `image-handling` - Image comparison tests
+    - [x] `image-handling/streaming-refetch.test.ts` `image-handling` - Image streaming re-fetch fallback tests
+    - [x] `instrumentation-client.test.ts` `log-error-debug-handling` - Client instrumentation error filter tests
+    - [x] `instrumentation-register.test.ts` `instrumentation-monitoring` - Instrumentation register hook tests
     - [x] `logo.test.ts` `image-handling` - Logo utility tests
+    - [x] `memory-health-monitor.test.ts` `memory-mgmt` - MemoryHealthMonitor image guard tests
+    - [x] `memory-pressure-middleware.test.ts` `memory-mgmt` - Memory pressure fail-safe tests
     - [x] `routes.test.ts` `navigation` - Routes utility tests
     - [x] `s3-connection.test.ts` `s3-object-storage` - S3 connection tests
     - [x] `s3-utils-actual.test.ts` `s3-object-storage` - S3 utilities integration tests
@@ -578,6 +588,7 @@ File/Path Functionality Description
     - [x] `server-cache-init.test.ts` `caching` - Server cache initialization tests
     - [x] `server-cache-simple.test.ts` `caching` - Server cache simple tests
     - [x] `utils.test.ts` `shared-utils` - General utility tests
+    - [x] `content-similarity/keyword-extractor.test.ts` `chroma` - Keyword extraction tag filtering tests
     - [x] **seo/**
       - [x] `metadata.test.ts` `seo` - SEO metadata tests
       - [x] `opengraph.test.ts` `seo` - OpenGraph metadata tests

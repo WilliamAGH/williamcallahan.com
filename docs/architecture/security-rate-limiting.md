@@ -23,3 +23,12 @@ The "rate-limit-and-sanitize" functionality encompasses utilities and mechanisms
 - Rate limiting is critical for protecting API endpoints from abuse, ensuring fair usage, and maintaining application performance under load.
 - The flexibility of rate limiting contexts in **rate-limiter.ts** allows for tailored configurations across different API operations, enhancing control over resource allocation.
 - Sanitization ensures that data entering and leaving the system adheres to security standards, protecting against common vulnerabilities.
+
+## Cloudflare Origin Guard (Production)
+
+The following endpoints require valid Cloudflare origin headers in production. Requests missing valid Cloudflare headers are logged and rejected with 403 to prevent direct-to-origin abuse while preserving accurate IP logging:
+
+- `/api/ai/token`
+- `/api/ai/chat/[feature]`
+- `/api/ai/queue/[feature]`
+- `/api/upload`

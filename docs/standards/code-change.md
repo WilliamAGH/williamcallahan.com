@@ -12,7 +12,7 @@ See `AGENTS.md` ([LOC1a-d], [MO1a-g], [FS1a-k], [ND1a-c]).
 
 - **SRP only**: each new component/hook/utility has one reason to change ([MO1d]).
 - **New feature → new file**; do not grow monoliths ([MO1b]).
-- **No edits to >350 LOC files**; first split/retrofit ([LOC1c]).
+- **Avoid edits to files >350 LOC**; prefer splitting or creating new files—legacy exceptions allowed with a documented warning per [LOC1c].
 - **Strict Boundaries**: Server Components fetch data; Client Components handle interactivity.
 - **No DTOs**: Zod schemas define the API contracts; types are derived via `z.infer`.
 
