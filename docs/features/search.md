@@ -77,7 +77,9 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 
 5. **Search Quality**: MiniSearch for fuzzy/typo-tolerant search with substring fallback. Bookmarks API preserves MiniSearch score ordering when hydrating full bookmark objects.
 
-6. **Security**: Query validation (Unicode-aware), ReDoS prevention, 100-char limit, and shared rate limiting via `applySearchGuards()` across search routes.
+6. **Index Parity**: S3-loaded indexes hydrate with the same MiniSearch options (boost, fuzzy, idField, extractField) used during build to keep relevance scoring consistent with fresh indexes.
+
+7. **Security**: Query validation (Unicode-aware), ReDoS prevention, 100-char limit, and shared rate limiting via `applySearchGuards()` across search routes.
 
 ## Key Files & Responsibilities
 

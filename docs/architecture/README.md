@@ -40,6 +40,12 @@ Example schemas:
 
 ---
 
+## Verification Notes
+
+- Bookmark refresh pipelines preserve embedded slugs during metadata-only updates to avoid URL churn (see `bookmarks.md`).
+- Search indexes loaded from S3 hydrate with build-time MiniSearch options for consistent scoring (see `search.md`).
+- Image streaming fallbacks re-fetch before buffering to respect single-use Response bodies (see `image-handling.md`).
+
 ## Core Architectural Patterns
 
 ### Isomorphic URL Resolution (`lib/get-base-url.ts`)
@@ -99,7 +105,7 @@ TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for re
 | `opengraph`                    | Provide resilient OpenGraph metadata extraction and image processing for any URL, with comprehensive fallbacks and caching.                                              | [opengraph.md](../features/opengraph.md)                | [Diagram](../features/opengraph.mmd)         |
 | `overview`                     | Provide a high-level architectural overview of the repository, focusing on core application structure and patterns.                                                      | [system-overview.md](system-overview.md)                | [Diagram](system-overview.mmd)               |
 | `projects`                     | Display a filterable list of projects using a hybrid server-client approach for fast initial loads and interactive filtering.                                            | [projects.md](../features/projects.md)                  | [Diagram](../features/projects.mmd)          |
-| `rate-limit-and-sanitize`      | Encompass utilities for API rate limiting to prevent abuse and input/output sanitization for security.                                                                   | [security-rate-limiting.md](security-rate-limiting.md)  | [Diagram](security-rate-limiting.mmd)        |
+| `rate-limit-and-sanitize`      | Encompass utilities for API rate limiting, input/output sanitization, and Cloudflare origin guards for sensitive endpoints.                                              | [security-rate-limiting.md](security-rate-limiting.md)  | [Diagram](security-rate-limiting.mmd)        |
 | `react-server-client`          | Provide comprehensive guidance for React 19 Server Components, Next.js 15 server/client boundaries, streaming patterns, and environment variable security.               | [react-patterns.md](../standards/react-patterns.md)     |                                              |
 | `s3-object-storage`            | Provide centralized, S3-compatible object storage with layered abstraction and CDN optimization.                                                                         | [s3-storage.md](s3-storage.md)                          | [Diagram](s3-storage.mmd)                    |
 | `search`                       | Provide site-wide and section-specific search capabilities with fuzzy matching, caching, and security features.                                                          | [search.md](../features/search.md)                      | [Diagram](../features/search.mmd)            |

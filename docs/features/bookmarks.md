@@ -136,6 +136,9 @@ embed a required `slug` field per item for idempotent internal routing. The cent
 (`slug-mapping_.json`) remains the integrity checkpoint, while `slug-shards*/\*\*/*.json` provides O(1) slug lookups
 without reading the entire dataset.
 
+Embedded slugs are treated as the source of truth during refreshes; metadata-only updates preserve existing slugs
+to avoid URL churn when titles or OpenGraph descriptions change.
+
 ## Critical Design Decisions
 
 ### 1. Title-Based Slug Generation for Content-Sharing Domains
