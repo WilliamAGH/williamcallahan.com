@@ -73,9 +73,23 @@ export function validateBookmarksDataset(bookmarks: UnifiedBookmark[]): {
   }
 
   // Dataset passes the earlier URL checks; now enforce minimum size in production
-  const MIN_PRODUCTION_COUNT = Number.parseInt(process.env.MIN_BOOKMARKS_THRESHOLD ?? "10", 10);
-  if (process.env.NODE_ENV === "production" && bookmarks.length < MIN_PRODUCTION_COUNT) {
-    const reason = `Dataset too small: only ${bookmarks.length} bookmark(s), minimum expected is ${MIN_PRODUCTION_COUNT}`;
+  const DEFAULT_MIN_BOOKMARKS_THRESHOLD = 10;
+  const rawThreshold = process.env.MIN_BOOKMARKS_THRESHOLD;
+  const parsedThreshold =
+    rawThreshold != null ? Number.parseInt(rawThreshold, 10) : DEFAULT_MIN_BOOKMARKS_THRESHOLD;
+  const minProductionCount =
+    Number.isFinite(parsedThreshold) && parsedThreshold > 0
+      ? parsedThreshold
+      : DEFAULT_MIN_BOOKMARKS_THRESHOLD;
+
+  if (rawThreshold && (!Number.isFinite(parsedThreshold) || parsedThreshold <= 0)) {
+    console.warn(
+      `[validateBookmarksDataset][CONFIG] Invalid MIN_BOOKMARKS_THRESHOLD value: "${rawThreshold}". Falling back to default: ${DEFAULT_MIN_BOOKMARKS_THRESHOLD}`,
+    );
+  }
+
+  if (process.env.NODE_ENV === "production" && bookmarks.length < minProductionCount) {
+    const reason = `Dataset too small: only ${bookmarks.length} bookmark(s), minimum expected is ${minProductionCount}`;
     console.error(
       "[validateBookmarksDataset][SAFEGUARD] Refusing to overwrite bookmarks.json in S3 – dataset failed minimum size check.",
     );

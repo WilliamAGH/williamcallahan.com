@@ -85,6 +85,20 @@ describe("Bookmark Slug Mapping", () => {
       expect(mapping.slugs.bookmark3).toBeDefined();
     });
 
+    it("should preserve existing slugs when provided", () => {
+      const bookmarksWithSlugs: UnifiedBookmark[] = [
+        { ...mockBookmarks[0], slug: "stable-example-slug" },
+        { ...mockBookmarks[1], slug: "stable-github-slug" },
+      ];
+
+      const mapping = generateSlugMapping(bookmarksWithSlugs);
+
+      expect(mapping.slugs.bookmark1.slug).toBe("stable-example-slug");
+      expect(mapping.slugs.bookmark2.slug).toBe("stable-github-slug");
+      expect(mapping.reverseMap["stable-example-slug"]).toBe("bookmark1");
+      expect(mapping.reverseMap["stable-github-slug"]).toBe("bookmark2");
+    });
+
     it("should handle duplicate domains with numeric suffixes", () => {
       const mapping = generateSlugMapping(mockBookmarks);
 
