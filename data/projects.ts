@@ -63,12 +63,13 @@ export const projects: Project[] = [
     cvFeatured: true,
   },
   {
-    id: "SearchAI",
-    name: "SearchAI",
+    id: "searchAI",
+    name: "searchAI",
     description:
       "Web app that merges search with an AI chat assistant: select results, then ask GPT/Groq/Gemini using that grounded context. Built with Next.js, TypeScript, Convex Database, and Vercel AI SDK, with heavy server-side scraping/parsing to filter only relevant context.",
     shortSummary: "AI-powered web search with a contextual chat assistant",
     url: "https://search-ai.io",
+    githubUrl: "https://github.com/WilliamAGH/searchai",
     imageKey: "images/other/projects/searchAI.png",
     tags: [
       "AI",
