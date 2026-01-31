@@ -11,6 +11,7 @@
 import { NextResponse } from "next/server";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getErrorMessage } from "@/types/api-responses";
+import { productionRefreshResponseSchema } from "@/types/schemas/api";
 
 /**
  * POST handler for triggering production bookmarks refresh
@@ -37,8 +38,22 @@ export async function POST(): Promise<NextResponse> {
   }
 
   // Get the production refresh secret
-  const refreshSecret =
-    process.env.BOOKMARK_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+  const primarySecret = process.env.BOOKMARK_REFRESH_SECRET;
+  let refreshSecret = primarySecret;
+
+  if (!refreshSecret) {
+    const cronSecret = process.env.BOOKMARK_CRON_REFRESH_SECRET;
+    if (cronSecret) {
+      refreshSecret = cronSecret;
+      envLogger.log(
+        "BOOKMARK_REFRESH_SECRET missing, falling back to BOOKMARK_CRON_REFRESH_SECRET",
+        undefined,
+        {
+          category: "BookmarksRefresh",
+        },
+      );
+    }
+  }
 
   if (!refreshSecret) {
     envLogger.log(
@@ -94,7 +109,25 @@ export async function POST(): Promise<NextResponse> {
       );
     }
 
-    const result: unknown = await response.json();
+    const rawResult: unknown = await response.json();
+    const parseResult = productionRefreshResponseSchema.safeParse(rawResult);
+
+    if (!parseResult.success) {
+      envLogger.log(
+        "Production bookmarks refresh response validation failed",
+        { errors: parseResult.error.format(), raw: rawResult },
+        { category: "BookmarksRefresh" },
+      );
+      return NextResponse.json(
+        {
+          message: "Production returned invalid response format",
+          error: "Response validation failed",
+        },
+        { status: 502 },
+      );
+    }
+
+    const result = parseResult.data;
 
     envLogger.log(
       "Production bookmarks refresh triggered successfully",

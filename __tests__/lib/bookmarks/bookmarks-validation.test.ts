@@ -11,15 +11,41 @@ import type { UnifiedBookmark } from "../../../src/types";
 
 // Mock console.error to suppress error logs during tests
 jest.spyOn(console, "error").mockImplementation(() => {});
+jest.spyOn(console, "warn").mockImplementation(() => {});
 
 describe("Bookmarks Validation", () => {
+  const originalEnv = { ...process.env };
+
   beforeEach(() => {
     // Clear mock calls before each test
     jest.clearAllMocks();
+    process.env = { ...originalEnv };
   });
 
   afterAll(() => {
+    process.env = originalEnv;
     jest.restoreAllMocks();
+  });
+
+  const createBookmark = (id: string, url: string, title: string): UnifiedBookmark => ({
+    id,
+    url,
+    title,
+    description: "A valid bookmark",
+    tags: [],
+    dateBookmarked: "2023-01-01T00:00:00Z",
+    createdAt: "2023-01-01T00:00:00Z",
+    modifiedAt: "2023-01-01T00:00:00Z",
+    archived: false,
+    favourited: false,
+    taggingStatus: "complete",
+    content: {
+      type: "link",
+      url,
+      title,
+      description: "A valid bookmark",
+    },
+    assets: [],
   });
 
   test("should validate a normal dataset with multiple bookmarks", () => {
@@ -69,6 +95,61 @@ describe("Bookmarks Validation", () => {
     const result = validateBookmarksDataset(bookmarks);
     expect(result.isValid).toBe(true);
     expect(result.reason).toBeUndefined();
+  });
+
+  test("should fall back to default minimum when MIN_BOOKMARKS_THRESHOLD is invalid", () => {
+    process.env.NODE_ENV = "production";
+    process.env.MIN_BOOKMARKS_THRESHOLD = "invalid";
+
+    const bookmarks = [
+      createBookmark("1", "https://example.com/1", "Bookmark 1"),
+      createBookmark("2", "https://example.com/2", "Bookmark 2"),
+      createBookmark("3", "https://example.com/3", "Bookmark 3"),
+      createBookmark("4", "https://example.com/4", "Bookmark 4"),
+      createBookmark("5", "https://example.com/5", "Bookmark 5"),
+    ];
+
+    const result = validateBookmarksDataset(bookmarks);
+    expect(result.isValid).toBe(false);
+    expect(result.reason).toContain("minimum expected is 10");
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  test("should fall back to default minimum when MIN_BOOKMARKS_THRESHOLD is non-positive", () => {
+    process.env.NODE_ENV = "production";
+    process.env.MIN_BOOKMARKS_THRESHOLD = "0";
+
+    const bookmarks = [
+      createBookmark("1", "https://example.com/1", "Bookmark 1"),
+      createBookmark("2", "https://example.com/2", "Bookmark 2"),
+      createBookmark("3", "https://example.com/3", "Bookmark 3"),
+      createBookmark("4", "https://example.com/4", "Bookmark 4"),
+      createBookmark("5", "https://example.com/5", "Bookmark 5"),
+      createBookmark("6", "https://example.com/6", "Bookmark 6"),
+      createBookmark("7", "https://example.com/7", "Bookmark 7"),
+      createBookmark("8", "https://example.com/8", "Bookmark 8"),
+      createBookmark("9", "https://example.com/9", "Bookmark 9"),
+    ];
+
+    const result = validateBookmarksDataset(bookmarks);
+    expect(result.isValid).toBe(false);
+    expect(result.reason).toContain("minimum expected is 10");
+  });
+
+  test("should respect a valid MIN_BOOKMARKS_THRESHOLD in production", () => {
+    process.env.NODE_ENV = "production";
+    process.env.MIN_BOOKMARKS_THRESHOLD = "5";
+
+    const bookmarks = [
+      createBookmark("1", "https://example.com/1", "Bookmark 1"),
+      createBookmark("2", "https://example.com/2", "Bookmark 2"),
+      createBookmark("3", "https://example.com/3", "Bookmark 3"),
+      createBookmark("4", "https://example.com/4", "Bookmark 4"),
+    ];
+
+    const result = validateBookmarksDataset(bookmarks);
+    expect(result.isValid).toBe(false);
+    expect(result.reason).toContain("minimum expected is 5");
   });
 
   test("should invalidate a dataset with a single test bookmark", () => {

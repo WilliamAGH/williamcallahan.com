@@ -110,13 +110,18 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
     .filter((c) => typeof c.url === "string" && c.url.length > 0);
 
   for (const bookmark of sortedBookmarks) {
+    const existingSlug =
+      typeof bookmark.slug === "string" && bookmark.slug.trim().length > 0 ? bookmark.slug : null;
+
     // Pass bookmark title for content-sharing domains (YouTube, Reddit, etc.)
-    let slug = generateUniqueSlug(
-      bookmark.url || "",
-      candidates,
-      bookmark.id,
-      bookmark.title, // ✅ Pass title for content-sharing domain slug generation
-    );
+    let slug =
+      existingSlug ??
+      generateUniqueSlug(
+        bookmark.url || "",
+        candidates,
+        bookmark.id,
+        bookmark.title, // ✅ Pass title for content-sharing domain slug generation
+      );
 
     // Validate that a slug was generated
     if (!slug) {
