@@ -132,8 +132,11 @@ if (!globalThis.Blob) {
   try {
     const { Blob } = require("node:buffer");
     globalThis.Blob = Blob;
-  } catch (_e) {
-    // ignore
+  } catch (error) {
+    console.warn(
+      "[jest/polyfills] Blob is not available in this Node.js version. Tests requiring Blob may fail:",
+      error instanceof Error ? error.message : error,
+    );
   }
 }
 
@@ -141,8 +144,11 @@ if (!globalThis.File) {
   try {
     const { File } = require("node:buffer");
     globalThis.File = File;
-  } catch (_e) {
-    // ignore
+  } catch (error) {
+    console.warn(
+      "[jest/polyfills] File is not available in this Node.js version. Tests requiring File may fail:",
+      error instanceof Error ? error.message : error,
+    );
   }
 }
 
