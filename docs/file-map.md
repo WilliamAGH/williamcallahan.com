@@ -307,6 +307,7 @@ File/Path Functionality Description
 - [x] `jest-dom.jest.d.ts` `testing-config` - Jest DOM matcher type definitions
 - [x] `jest-extended.d.ts` `testing-config` - Jest extended matcher type definitions
 - [x] `logo.ts` `image-handling` - Types for logos
+- [x] `middleware.ts` `middleware` - Types for proxy/middleware helpers
 - [x] `navigation.ts` `navigation` - Types for navigation components
 - [x] `node-cron.d.ts` `batch-fetch-update` - Type definitions for node-cron
 - [x] `project.ts` `projects` - Types for projects
@@ -365,6 +366,7 @@ File/Path Functionality Description
   - [x] `memory-health-monitor.ts` `memory-mgmt` - Memory health monitor with graceful degradation
 - [ ] **middleware/**
   - [x] `memory-pressure.ts` `memory-mgmt` - Middleware to shed load under memory pressure
+  - [x] `sitewide-rate-limit.ts` `rate-limit-and-sanitize` - Proxy-layer rate limiting to mitigate aggressive crawlers
 
 ## Root Directory
 
@@ -382,7 +384,7 @@ File/Path Functionality Description
 - [x] `jest.config.ts` `testing-config` - Jest configuration
 - [x] `jest.polyfills.js` `testing-config` - Polyfills for Jest environment
 - [x] `jest.setup.ts` `testing-config` - Jest setup file
-- [x] `middleware.ts` `middleware` - Next.js middleware
+- [x] `src/proxy.ts` `middleware` - Next.js Proxy (middleware) entrypoint (Next.js 16)
 - [x] `next-env.d.ts` `config` - Next.js environment type definitions
 - [x] `next.config.ts` `config` - Next.js configuration
 - [x] `package.json` `deps` - Project dependencies and scripts
