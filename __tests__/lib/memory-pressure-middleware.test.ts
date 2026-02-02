@@ -1,5 +1,5 @@
 /**
- * @fileoverview Tests for memoryPressureMiddleware fail-safe behavior
+ * @fileoverview Tests for memoryPressureMiddleware behavior under failed health probes
  */
 
 describe("memoryPressureMiddleware", () => {
@@ -18,7 +18,7 @@ describe("memoryPressureMiddleware", () => {
     global.fetch = originalFetch;
   });
 
-  it("fails safe with 503 when health check fails", async () => {
+  it("does not shed load when an external health probe fails (no probe used)", async () => {
     global.fetch = jest.fn().mockRejectedValue(new Error("Health check failed"));
 
     const { memoryPressureMiddleware } = await import("@/lib/middleware/memory-pressure");
@@ -28,6 +28,7 @@ describe("memoryPressureMiddleware", () => {
     };
 
     const response = await memoryPressureMiddleware(request as never);
-    expect(response?.status).toBe(503);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(response).toBeNull();
   });
 });
