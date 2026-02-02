@@ -10,6 +10,7 @@ The "rate-limit-and-sanitize" functionality encompasses utilities and mechanisms
   - Functionality to check if an operation is allowed based on configurable limits.
   - A waiting mechanism to poll for permit availability with intelligent wait times.
   - Support for multiple rate limiting contexts with predefined configurations for API endpoints and OpenGraph fetches.
+- **lib/middleware/sitewide-rate-limit.ts**: Provides proxy-layer, sitewide rate limiting for incoming requests (pages, API routes, and image optimization) to mitigate aggressive crawlers before they trigger memory pressure.
 - **lib/utils/api-sanitization.ts**: Handles input/output sanitization for API operations to ensure data integrity and security.
 
 ## Logic Flow and Interactions

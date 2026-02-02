@@ -101,7 +101,7 @@ The system provides multiple layers of observability and resilience:
 3. **`/api/ip`**
    - Returns client's real IP address (public)
    - Extracts from Cloudflare/proxy headers
-   - **Issues**: No rate limiting
+   - **Notes**: Protected by proxy-layer sitewide rate limiting to mitigate crawler/bot bursts (see `lib/middleware/sitewide-rate-limit.ts`).
 
 4. **`/api/log-client-error`**
    - Receives and logs client-side errors
@@ -109,7 +109,7 @@ The system provides multiple layers of observability and resilience:
 
 5. **`/api/tunnel`**
    - Proxies Sentry events to avoid CORS
-   - **Issues**: No rate limiting or request size limits
+   - **Notes**: Protected by proxy-layer sitewide rate limiting; request size limits still need a dedicated guard.
 
 6. **`/sentry-example-page`**
    - Client-side page for testing Sentry integration
@@ -125,7 +125,7 @@ The system provides multiple layers of observability and resilience:
 
 ### Middleware Protection
 
-- Blocks `/api/debug/*` routes in production (middleware.ts line 64)
+- Blocks `/api/debug/*` routes in production (`src/proxy.ts`)
 - Returns 404 for debug endpoints in production environment
 
 ### Instrumentation
@@ -201,8 +201,8 @@ The system provides multiple layers of observability and resilience:
    - **Fix**: Sanitize error messages in production
 
 3. **Rate Limiting**
-   - No rate limiting on any debug/monitoring endpoints
-   - **Fix**: Add rate limiting middleware
+   - Proxy-layer sitewide rate limiting is enforced for incoming requests (health endpoints are exempt).
+   - **Next**: Add dedicated per-endpoint limits only where needed (e.g., request size limits for `/api/tunnel`).
 
 ### LOW Priority Issues
 

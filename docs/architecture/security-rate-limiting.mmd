@@ -7,6 +7,7 @@ graph TD
 
     subgraph "Security Modules"
         D(rate-limiter.ts)
+        D2(sitewide-rate-limit.ts)
         E(api-sanitization.ts)
     end
 
@@ -22,6 +23,7 @@ graph TD
     end
 
     A --> F
+    A -- "Proxy throttles via" --> D2
     F -- "Checks Permit With" --> D
     F -- "Uses" --> G
     
@@ -35,4 +37,5 @@ graph TD
 
 
     style D fill:#d4edda,stroke:#155724
+    style D2 fill:#d4edda,stroke:#155724
     style E fill:#d4edda,stroke:#155724 
