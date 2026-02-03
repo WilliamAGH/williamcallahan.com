@@ -176,10 +176,18 @@ export const GITHUB_ACTIVITY_CACHE_DURATION = {
 /** Search cache: 15 minutes success, 1 minute failure, 10 minutes revalidation */
 export const SEARCH_CACHE_DURATION = { SUCCESS: 15 * 60, FAILURE: 60, REVALIDATION: 10 * 60 };
 
-/** Base URLs */
+/**
+ * Base URLs
+ *
+ * Convention:
+ * - API_BASE_URL: Server-side API calls (process.env.API_BASE_URL)
+ * - NEXT_PUBLIC_SITE_URL: Client-side references (process.env.NEXT_PUBLIC_SITE_URL)
+ *
+ * Both should be set to the same value in .env for consistency.
+ */
 export const NEXT_PUBLIC_SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || NEXT_PUBLIC_SITE_URL;
+export const API_BASE_URL = process.env.API_BASE_URL || NEXT_PUBLIC_SITE_URL;
 /** API endpoints */
 export const ENDPOINTS = {
   validateLogo: `${API_BASE_URL}/api/validate-logo`,
