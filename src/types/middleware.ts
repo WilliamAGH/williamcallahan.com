@@ -6,6 +6,8 @@
  * @module types/middleware
  */
 
+export type MemoryPressureLevel = "CRITICAL" | "WARNING";
+
 export interface MemoryPressureStatus {
   critical: boolean;
   warning: boolean;
@@ -29,6 +31,8 @@ export interface RateLimitProfile {
   burst: RateLimitConfig;
   minute: RateLimitConfig;
 }
+
+export type RateLimitProfileName = "page" | "api" | "nextImage";
 
 /**
  * Options are intended for tests only.
