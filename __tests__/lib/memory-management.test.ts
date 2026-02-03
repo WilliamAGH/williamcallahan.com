@@ -84,7 +84,9 @@ class MemoryHealthMonitor {
     return [{ timestamp: Date.now(), rss: 0, heapUsed: 0 }];
   }
 }
-const getMemoryHealthMonitor = () => new MemoryHealthMonitor();
+// Singleton instance ensures stable identity for tests that expect singleton behavior
+const memoryHealthMonitorInstance = new MemoryHealthMonitor();
+const getMemoryHealthMonitor = () => memoryHealthMonitorInstance;
 const memoryHealthCheckMiddleware = jest.fn();
 const memoryPressureMiddleware = jest.fn();
 

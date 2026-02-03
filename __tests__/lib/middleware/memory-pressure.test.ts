@@ -41,7 +41,7 @@ describe("memoryPressureMiddleware", () => {
     expect(result?.headers.get("X-System-Status")).toBe("MEMORY_CRITICAL");
   });
 
-  it("returns NextResponse.next() with warning header when RSS exceeds warning utilization (override)", async () => {
+  it("returns 200 NextResponse with warning header when RSS exceeds warning utilization (override)", async () => {
     const request = new NextRequest("https://example.com/contact");
     // 900MB/1GB => 87.9% => warning (not critical)
     const result = await memoryPressureMiddleware(request, {
