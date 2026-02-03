@@ -13,6 +13,8 @@ import { z } from "zod/v4";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import { persistAnalysis } from "@/lib/ai-analysis/writer.server";
 import { bookmarkAiAnalysisResponseSchema } from "@/types/schemas/bookmark-ai-analysis";
+import { bookAiAnalysisResponseSchema } from "@/types/schemas/book-ai-analysis";
+import { projectAiAnalysisResponseSchema } from "@/types/schemas/project-ai-analysis";
 import { persistAnalysisRequestSchema } from "@/types/schemas/ai-analysis-persisted";
 import { getClientIp } from "@/lib/utils/request-utils";
 import { NO_STORE_HEADERS, preventCaching, createErrorResponse } from "@/lib/utils/api-utils";
@@ -45,13 +47,14 @@ function getAnalysisSchema(domain: AnalysisDomain) {
   switch (domain) {
     case "bookmarks":
       return bookmarkAiAnalysisResponseSchema;
-    case "projects":
     case "books":
-      // TODO: Add schemas when these domains are implemented
-      throw new Error(
-        `Schema for domain "${domain}" not yet implemented. ` +
-          `Add the schema to getAnalysisSchema() before using this domain.`,
-      );
+      return bookAiAnalysisResponseSchema;
+    case "projects":
+      return projectAiAnalysisResponseSchema;
+    default: {
+      const unhandledDomain: never = domain;
+      throw new Error(`Unhandled analysis domain: ${unhandledDomain}`);
+    }
   }
 }
 
@@ -83,6 +86,13 @@ export async function POST(
 
   // Rate limit by IP
   const clientIp = getClientIp(request.headers, { fallback: "anonymous" });
+  if (clientIp === "anonymous") {
+    envLogger.log(
+      "Analysis persist: missing client IP",
+      { domain, id },
+      { category: "AiAnalysis" },
+    );
+  }
   const rateKey = `analysis-persist:${clientIp}`;
 
   if (!isOperationAllowed("ai-analysis-persist", rateKey, PERSIST_RATE_LIMIT)) {
@@ -116,19 +126,7 @@ export async function POST(
   }
 
   // Validate analysis data against domain-specific schema
-  let analysisSchema;
-  try {
-    analysisSchema = getAnalysisSchema(validDomain);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    envLogger.log(
-      "Analysis persist: domain not implemented",
-      { domain, id, error: message },
-      { category: "AiAnalysis" },
-    );
-    return createErrorResponse(`Domain "${domain}" not yet supported`, 501);
-  }
-
+  const analysisSchema = getAnalysisSchema(validDomain);
   const analysisResult = analysisSchema.safeParse(parsedBody.analysis);
 
   if (!analysisResult.success) {
