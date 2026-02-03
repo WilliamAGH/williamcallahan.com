@@ -1,0 +1,39 @@
+# [IMG1] Ban Proxying CDN Images Through /api/cache/images
+#
+# CDN URLs (s3-storage.callahan.cloud, *.digitaloceanspaces.com) must flow
+# directly to <Image> so Next.js can optimize them. Wrapping CDN URLs in
+# buildCachedImageUrl() routes them through /api/cache/images, which:
+#   1. Streams bytes without resizing
+#   2. Requires `unoptimized` prop (documented invariant)
+#   3. Result: 2MB images stay 2MB - defeats optimization entirely
+#
+# Correct pattern:
+#   - CDN URLs: <Image src={cdnUrl} sizes="..." /> (Next.js optimizes)
+#   - External URLs: <Image src={buildCachedImageUrl(externalUrl)} unoptimized />
+#
+# References:
+#   - docs/architecture/image-handling.md (Next.js Optimizer Guardrails)
+#   - https://nextjs.org/docs/app/api-reference/components/image#unoptimized
+
+id: no-cdn-image-proxy
+language: Tsx
+severity: warning
+message: "[IMG1] Do not proxy CDN images. Use direct CDN URL with <Image> for Next.js optimization. See docs/architecture/image-handling.md"
+
+rule:
+  pattern: buildCachedImageUrl($$$ARGS)
+
+files:
+  - "src/**/*.ts"
+  - "src/**/*.tsx"
+  - "app/**/*.ts"
+  - "app/**/*.tsx"
+
+ignores:
+  - "node_modules/**"
+  - "**/*.d.ts"
+  - "**/__tests__/**"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  # The function definition itself is allowed
+  - "**/cdn-utils.ts"
