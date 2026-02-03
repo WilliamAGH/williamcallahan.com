@@ -72,7 +72,23 @@ export function detectImageContentType(buffer: Buffer): string {
       const riff = buffer.toString("ascii", 0, 4);
       const webp = buffer.toString("ascii", 8, 12);
       if (riff === "RIFF" && webp === "WEBP") return "image/webp";
+
+      // AVIF signature: ....ftypavif or ....ftypavis (sequence)
+      // AVIF files start with ftyp box at offset 4, containing "avif" or "avis" brand
+      const ftyp = buffer.toString("ascii", 4, 8);
+      if (ftyp === "ftyp") {
+        const brand = buffer.toString("ascii", 8, 12);
+        if (brand === "avif" || brand === "avis" || brand === "mif1" || brand === "miaf") {
+          return "image/avif";
+        }
+      }
     }
+
+    // BMP signature: BM
+    if (header.startsWith("424D")) return "image/bmp";
+
+    // ICO signature: 00 00 01 00
+    if (header.startsWith("00000100")) return "image/x-icon";
   }
 
   // Default to PNG if unable to detect
@@ -175,8 +191,10 @@ export function guessImageContentType(url: string, header?: string | null): stri
   if (lowerUrl.endsWith(".jpg") || lowerUrl.endsWith(".jpeg")) return "image/jpeg";
   if (lowerUrl.endsWith(".gif")) return "image/gif";
   if (lowerUrl.endsWith(".webp")) return "image/webp";
+  if (lowerUrl.endsWith(".avif")) return "image/avif";
   if (lowerUrl.endsWith(".svg")) return "image/svg+xml";
   if (lowerUrl.endsWith(".ico")) return "image/x-icon";
+  if (lowerUrl.endsWith(".bmp")) return "image/bmp";
 
   return "image/png"; // safe default
 }

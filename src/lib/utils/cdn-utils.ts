@@ -9,6 +9,12 @@ import type { CdnConfig } from "@/types/s3-cdn";
 
 const SUPPORTED_PROTOCOLS = new Set(["http:", "https:"]);
 
+/** Path for the image proxy API route - single source of truth */
+const IMAGE_PROXY_PATH = "/api/cache/images";
+
+/** Path for the asset proxy API route (Karakeep/Hoarder images) */
+const ASSET_PROXY_PATH = "/api/assets/";
+
 /**
  * Get S3 CDN base URL with consistent fallback chain
  *
@@ -23,11 +29,18 @@ export function getS3CdnUrl(): string {
   return process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
 }
 
+/**
+ * Parse a string as an absolute URL.
+ * Returns null for empty/undefined values or malformed URLs.
+ * This is intentionally silent - callers use null to indicate "no valid URL".
+ */
 function parseAbsoluteUrl(value?: string): URL | null {
   if (!value) return null;
   try {
     return new URL(value);
   } catch {
+    // Malformed URLs are expected (e.g., relative paths, invalid input)
+    // Callers handle null appropriately - no logging needed
     return null;
   }
 }
@@ -220,7 +233,7 @@ export function getCdnConfigFromEnv(): CdnConfig {
 }
 
 /**
- * Build an image proxy URL for `/api/cache/images`.
+ * Build an image proxy URL for the image cache API.
  * Single source of truth for proxy URL construction.
  */
 function buildImageProxyUrl(url: string, width?: number): string {
@@ -229,7 +242,7 @@ function buildImageProxyUrl(url: string, width?: number): string {
   if (typeof width === "number" && width > 0) {
     params.set("width", String(width));
   }
-  return `/api/cache/images?${params.toString()}`;
+  return `${IMAGE_PROXY_PATH}?${params.toString()}`;
 }
 
 /**
@@ -277,9 +290,28 @@ export function getOptimizedImageSrc(
     return src;
   }
 
+  // Prevent double-proxying: check for relative proxy paths without leading slash
+  // (e.g., "api/cache/images?url=..." passed by mistake)
+  if (src.startsWith(IMAGE_PROXY_PATH.slice(1)) || src.startsWith(ASSET_PROXY_PATH.slice(1))) {
+    // Normalize to absolute path and return
+    return `/${src}`;
+  }
+
   // Our CDN URLs: use directly (Next.js optimizer handles them)
   if (isOurCdnUrl(src, config ?? getCdnConfigFromEnv())) {
     return src;
+  }
+
+  // Avoid double-proxying: URLs already pointing to our image proxy pass through
+  // This catches absolute URLs like https://williamcallahan.com/api/cache/images?url=...
+  try {
+    const parsed = new URL(src);
+    if (parsed.pathname === IMAGE_PROXY_PATH) {
+      // Already proxied - return unchanged to prevent infinite proxy loop
+      return src;
+    }
+  } catch {
+    // Not a valid absolute URL - fall through to proxy
   }
 
   // External URLs: proxy for SSRF protection
@@ -288,7 +320,7 @@ export function getOptimizedImageSrc(
 
 /**
  * Whether to use `unoptimized` prop on <Image>.
- * Only true for proxied URLs (which are already processed) or data URIs.
+ * True for API routes that serve already-processed images, or data URIs.
  *
  * CANONICAL: See docs/standards/nextjs-framework.md#4
  *
@@ -300,5 +332,7 @@ export function getOptimizedImageSrc(
  */
 export function shouldBypassOptimizer(src: string | undefined): boolean {
   if (!src) return false;
-  return src.startsWith("/api/") || src.startsWith("data:");
+  return (
+    src.startsWith(IMAGE_PROXY_PATH) || src.startsWith(ASSET_PROXY_PATH) || src.startsWith("data:")
+  );
 }

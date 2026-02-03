@@ -532,11 +532,12 @@ const nextConfig = {
      */
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     /**
-     * An array of image widths (in pixels) used for the `srcset` attribute, allowing the browser to pick the best image
-     * These are typically smaller sizes for fixed-dimension images or icons
+     * Fixed-size image widths for avatars, logos, and thumbnails.
+     * Smallest used in codebase is 40px (sizes="40px"), so 48px is the floor.
+     * Removed 16px and 32px (no usage found in components).
      * @see https://nextjs.org/docs/app/api-reference/components/image#imagesizes
      */
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    imageSizes: [48, 64, 96, 128, 256, 384],
   },
   /**
    * Disable Next.js' default in-memory cache for ISR/data in production only.

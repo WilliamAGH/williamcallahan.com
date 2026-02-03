@@ -11,7 +11,11 @@ import type { LogoSource, LogoInversion } from "../../types/logo";
 import type { ImageServiceOptions, ImageResult } from "../../types/image";
 import { fetchWithTimeout, DEFAULT_IMAGE_HEADERS, fetchBinary } from "../utils/http-client";
 import { safeStringifyValue } from "../utils/error-utils";
-import { inferContentTypeFromUrl, getContentTypeFromExtension } from "../utils/content-type";
+import {
+  inferContentTypeFromUrl,
+  getContentTypeFromExtension,
+  IMAGE_EXTENSIONS,
+} from "../utils/content-type";
 import { isLogoUrl, extractDomain } from "../utils/url-utils";
 import { getMemoryHealthMonitor, wipeBuffer } from "../health/memory-health-monitor";
 import { monitoredAsync } from "../async-operations-monitor";
@@ -204,7 +208,7 @@ export class UnifiedImageService {
         const { checkIfS3ObjectExists } = await import("@/lib/s3-utils");
 
         for (const source of ["direct", "google", "duckduckgo", "clearbit"] as LogoSource[]) {
-          for (const extension of ["png", "jpg", "jpeg", "svg", "ico", "webp"]) {
+          for (const extension of IMAGE_EXTENSIONS) {
             const hashedKey = generateS3Key({
               type: "logo",
               domain,
@@ -443,7 +447,12 @@ export class UnifiedImageService {
       }
 
       // If streaming failed and we're in streaming mode, only fall back to buffering if memory allows
-      if (this.devStreamImagesToS3 && !getMemoryHealthMonitor().shouldAcceptNewRequests()) {
+      // In development, allow graceful degradation to buffering even under memory pressure
+      if (
+        this.devStreamImagesToS3 &&
+        !this.isDev &&
+        !getMemoryHealthMonitor().shouldAcceptNewRequests()
+      ) {
         throw new Error("Streaming required but unavailable under memory pressure");
       }
 

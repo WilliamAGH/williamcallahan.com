@@ -44,6 +44,19 @@ const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 
 /**
+ * Resolves an image URL, preserving local API routes as relative URLs.
+ * Local /api/ routes work correctly as relative URLs in all environments.
+ * External URLs are made absolute for proper cross-origin handling.
+ */
+function resolveImageUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  // Preserve relative API routes - they work in all environments
+  if (url.startsWith("/api/")) return url;
+  // Make external/CDN URLs absolute
+  return ensureAbsoluteUrl(url);
+}
+
+/**
  * Convert normalized content to related content item
  */
 async function toRelatedContentItem(
@@ -64,7 +77,7 @@ async function toRelatedContentItem(
     case "bookmark": {
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
-        imageUrl: display?.imageUrl ? ensureAbsoluteUrl(display.imageUrl) : undefined,
+        imageUrl: resolveImageUrl(display?.imageUrl),
       };
 
       return {
@@ -82,11 +95,11 @@ async function toRelatedContentItem(
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
         readingTime: display?.readingTime,
-        imageUrl: display?.imageUrl ? ensureAbsoluteUrl(display.imageUrl) : undefined,
+        imageUrl: resolveImageUrl(display?.imageUrl),
         author: display?.author
           ? {
               name: display.author.name,
-              avatar: display.author.avatar ? ensureAbsoluteUrl(display.author.avatar) : undefined,
+              avatar: resolveImageUrl(display.author.avatar),
             }
           : undefined,
       };
@@ -104,7 +117,7 @@ async function toRelatedContentItem(
 
     case "investment": {
       const investmentDetails = display?.investment;
-      let logoUrl = display?.imageUrl ? ensureAbsoluteUrl(display.imageUrl) : undefined;
+      let logoUrl = resolveImageUrl(display?.imageUrl);
 
       if (!logoUrl) {
         const effectiveDomain = investmentDetails?.logoOnlyDomain
@@ -172,7 +185,7 @@ async function toRelatedContentItem(
       const bookDetails = display?.book;
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
-        imageUrl: display?.imageUrl ? ensureAbsoluteUrl(display.imageUrl) : undefined,
+        imageUrl: resolveImageUrl(display?.imageUrl),
         authors: bookDetails?.authors,
         formats: bookDetails?.formats,
       };
