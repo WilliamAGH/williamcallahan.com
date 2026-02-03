@@ -27,10 +27,10 @@ class ImageMemoryManager extends EventEmitter {
     /* no-op */
   }
   // Stub methods to satisfy tests
-  set(_key: string, _buffer: Buffer, _metadata: any) {
+  set(_key: string, _buffer: Buffer, _metadata: Omit<ImageCacheEntry, "buffer" | "timestamp">) {
     return false;
   }
-  get(_key: string) {
+  get(_key: string): Promise<ImageCacheEntry | null> {
     return Promise.resolve(null);
   }
   delete(_key: string) {
@@ -39,13 +39,13 @@ class ImageMemoryManager extends EventEmitter {
   clear() {
     /* no-op */
   }
-  registerFetch(_key: string, _promise: Promise<any>) {
+  registerFetch(_key: string, _promise: Promise<Buffer>) {
     /* no-op */
   }
   isFetching(_key: string) {
     return false;
   }
-  getFetchPromise(_key: string) {
+  getFetchPromise(_key: string): Promise<Buffer> {
     return Promise.resolve(Buffer.from("fetched data"));
   }
 }
