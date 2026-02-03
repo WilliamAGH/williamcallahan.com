@@ -14,7 +14,7 @@ import { AlertCircle, RotateCcw, ChevronRight, Terminal } from "lucide-react";
 import {
   INITIAL_BOOKMARK_ANALYSIS_STATE,
   type BookmarkAnalysisState,
-  type BookmarkAiAnalysisPropsExtended,
+  type BookmarkAiAnalysisProps,
 } from "@/types/bookmark-ai-analysis";
 import {
   bookmarkAiAnalysisResponseSchema,
@@ -28,6 +28,7 @@ import {
 } from "@/lib/bookmarks/analysis/build-prompt";
 import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
 import { jsonrepair } from "jsonrepair";
+import * as Sentry from "@sentry/nextjs";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -44,7 +45,7 @@ const AUTO_TRIGGER_QUEUE_THRESHOLD = 5;
 
 /**
  * Persist bookmark analysis to S3 via API endpoint.
- * Fire-and-forget - logs errors but doesn't block the UI.
+ * Fire-and-forget - tracks errors via Sentry but doesn't block the UI.
  *
  * Note: This function is intentionally bookmark-specific since it lives in the
  * bookmark component. Other domains would have their own persist functions.
@@ -53,7 +54,7 @@ async function persistBookmarkAnalysisToS3(
   bookmarkId: string,
   analysis: BookmarkAiAnalysisResponse,
 ): Promise<void> {
-  const logContext = { bookmarkId, domain: "bookmarks" };
+  const context = { bookmarkId, domain: "bookmarks" };
 
   try {
     const response = await fetch(`/api/ai/analysis/bookmarks/${bookmarkId}`, {
@@ -63,18 +64,21 @@ async function persistBookmarkAnalysisToS3(
     });
 
     if (!response.ok) {
-      // Structured logging for client-side monitoring (e.g., Sentry, LogRocket)
-      console.error("[AiAnalysis] Persist failed", {
-        ...logContext,
-        status: response.status,
-        statusText: response.statusText,
+      // Track HTTP errors in Sentry with context
+      Sentry.captureMessage("AI analysis persist failed", {
+        level: "warning",
+        extra: {
+          ...context,
+          status: response.status,
+          statusText: response.statusText,
+        },
       });
     }
   } catch (error) {
-    // Structured logging with error details for debugging
-    console.error("[AiAnalysis] Persist error", {
-      ...logContext,
-      error: error instanceof Error ? error.message : String(error),
+    // Track exceptions in Sentry with full context
+    Sentry.captureException(error, {
+      extra: context,
+      tags: { feature: "ai-analysis-persist" },
     });
   }
 }
@@ -214,7 +218,7 @@ export function BookmarkAiAnalysis({
   className = "",
   autoTrigger = true,
   initialAnalysis,
-}: BookmarkAiAnalysisPropsExtended) {
+}: BookmarkAiAnalysisProps) {
   // Initialize state from cache if available
   const [state, setState] = useState<BookmarkAnalysisState>(() => {
     if (initialAnalysis?.analysis) {
