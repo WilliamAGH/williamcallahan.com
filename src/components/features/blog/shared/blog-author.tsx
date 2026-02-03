@@ -18,12 +18,12 @@ import { useEffect, useState } from "react";
 import type { BlogAuthorProps } from "@/types/features";
 import type { AuthorBioSegment } from "@/types/blog";
 
-import { buildCachedImageUrl } from "@/lib/utils/cdn-utils";
+import { getOptimizedImageSrc, shouldBypassOptimizer } from "@/lib/utils/cdn-utils";
 
 export function BlogAuthor({ author }: BlogAuthorProps) {
   const [isMounted, setIsMounted] = useState(false);
 
-  const proxiedAvatar = author.avatar ? buildCachedImageUrl(author.avatar, 64) : undefined;
+  const avatarSrc = getOptimizedImageSrc(author.avatar, undefined, 64);
 
   useEffect(() => {
     setIsMounted(true);
@@ -65,13 +65,13 @@ export function BlogAuthor({ author }: BlogAuthorProps) {
             title={`About ${author.name}`}
           >
             <Image
-              src={proxiedAvatar ?? author.avatar}
+              src={avatarSrc ?? author.avatar}
               alt={`Photo of ${author.name} - San Francisco, CA`}
               fill
               sizes="56px"
               className="rounded-full object-cover"
               priority
-              unoptimized
+              {...(shouldBypassOptimizer(avatarSrc) ? { unoptimized: true } : {})}
             />
           </div>
         )}

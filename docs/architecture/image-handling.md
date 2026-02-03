@@ -134,7 +134,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 
 ## Idempotency & Determinism (Deep Dive)
 
-Ensures education and experience domains ALWAYS fetch institution/company logos from S3 CDN idempotently - same domain input always produces same CDN URL output, preventing duplicate fetches and ensuring consistent branding.
+Ensures education and experience domains fetch institution/company logos idempotently per normalized domain + source, so the same inputs produce the same CDN URL output, preventing duplicate fetches and ensuring consistent branding.
 
 ### Key Mechanisms
 
@@ -151,12 +151,43 @@ Ensures education and experience domains ALWAYS fetch institution/company logos 
 
 Keep this document synchronized with real code: every new image entry point, validator, or S3 directory must be recorded here with file references so future debugging starts from truth instead of guesswork.
 
-## Next.js Optimizer Guardrails
+## Image Optimization Decision Matrix (CANONICAL)
 
-- **Optimizer only touches CDN URLs.** The only values that flow through `<Image>`'s optimizer are HTTPS URLs that already live on our CDN and conform to `images.remotePatterns`. Any `/api/*` proxy (e.g., `/api/cache/images`, `/api/logo`, `/api/og-image`) sets `unoptimized` so the Image component treats the resource like a regular `<img>` and we avoid `_next/image` rejecting the request as “not allowed.” ([Next.js Image Component docs](https://nextjs.org/docs/app/api-reference/components/image))
-- **`next.config.ts` is the source of truth.** `images.localPatterns` **must** keep `/api/cache/images` and `/api/assets` listed, and we only add real CDN hostnames to `images.remotePatterns`. This satisfies the [Next.js Image Optimization requirements](https://nextjs.org/docs/app/building-your-application/optimizing/images) and ensures the optimizer never fetches untrusted origins.
-- **API routes always stream bytes.** `/api/cache/images` resolves CDN redirects server-side, decodes double-encoded `url` params, and streams the body so `_next/image` never receives a 302 or malformed query string. If the CDN request fails, we return an explicit 5xx with context.
-- **Streaming fallback for empty buffers.** When the image service streams directly to S3 and returns an empty buffer, `/api/cache/images` treats it as a CDN-backed response and streams the CDN bytes instead of returning a 0-byte body.
-- **Placeholders stay static.** Anything under `/images/**` in `public/` is imported statically so Next infers width/height and we skip runtime optimization entirely, per the Image component spec.
+| Image Source                                             | Direct URL or Proxy?          | `unoptimized`? | Who Optimizes?          |
+| -------------------------------------------------------- | ----------------------------- | -------------- | ----------------------- |
+| Our CDN (`*.callahan.cloud`, `*.digitaloceanspaces.com`) | **Direct URL**                | **No**         | Next.js `/_next/image`  |
+| External URL (Twitter, LinkedIn, etc.)                   | Proxy via `/api/cache/images` | **Yes**        | API route streams bytes |
+| Local static (`/public/images/**`)                       | Direct URL or static import   | **No**         | Next.js                 |
+| `/api/logo`, `/api/og-image`                             | N/A (server-rendered)         | **Yes**        | API route               |
+
+### Why This Matters
+
+- Direct CDN URLs → Next.js fetches, Sharp resizes to display size, converts to WebP → **2MB → ~50KB**
+- Proxied + `unoptimized` → Bytes streamed unchanged → **2MB stays 2MB**
+
+### NEVER Proxy Our Own CDN Images
+
+The function `buildCachedImageUrl()` must ONLY be used for:
+
+1. External URLs that need SSRF protection
+2. URLs not in `images.remotePatterns`
+
+It must NEVER be used for URLs already on our CDN. Use `getOptimizedImageSrc()` helper instead, which routes CDN URLs directly and external URLs through the proxy.
+
+### Next.js Optimizer Guardrails
+
+- **`next.config.ts` is the source of truth.** `images.localPatterns` keeps `/api/cache/images` and `/api/assets` listed, and real CDN hostnames live in `images.remotePatterns`.
+- **API routes stream bytes.** `/api/cache/images` resolves CDN redirects server-side, decodes double-encoded `url` params, and streams the body so `_next/image` never receives a 302.
+- **Placeholders stay static.** Anything under `/images/**` in `public/` is imported statically so Next infers width/height.
+
+**Detection Commands:**
+
+```bash
+# Find incorrect proxy usage for CDN URLs
+grep -r "buildCachedImageUrl" --include="*.tsx" src/components/
+
+# Find missing sizes prop
+grep -r "<Image" --include="*.tsx" -A5 | grep -v "sizes="
+```
 
 Document every policy change here **before** merging code. If a future regression appears, first check this section and `next-js-16-usage.md` to keep the rules consistent.

@@ -15,6 +15,7 @@
 import Image from "next/image";
 import React, { useState, useCallback, useRef } from "react";
 import type { LogoImageProps, OptimizedCardImageProps } from "@/types/ui/image";
+import { getOptimizedImageSrc } from "@/lib/utils/cdn-utils";
 import {
   getCompanyPlaceholder,
   COMPANY_PLACEHOLDER_BASE64,
@@ -35,23 +36,22 @@ const KNOWN_LOGO_SOURCES = new Set([
 ]);
 
 /**
+ * Maximum width for proxied card images.
+ * Card images display at ~600px max (see sizes prop), so 1200px provides
+ * 2x resolution for high-DPI displays without excessive bandwidth.
+ */
+const CARD_IMAGE_PROXY_WIDTH = 1200;
+
+/**
  * Proxies external URLs through the image cache API. Local paths and data URLs
  * are returned unchanged.
  */
 function getProxiedImageSrc(src: string | null | undefined, width?: number): string | undefined {
   // Skip proxying for: empty values, local paths (including /api/*), and data URLs
-  if (!src || src.startsWith("/") || src.startsWith("data:")) {
+  if (!src || src.startsWith("/") || src.startsWith("data:") || !/^https?:\/\//i.test(src)) {
     return src ?? undefined;
   }
-  if (/^https?:\/\//i.test(src)) {
-    const params = new URLSearchParams();
-    params.set("url", src);
-    if (typeof width === "number" && width > 0) {
-      params.set("width", String(width));
-    }
-    return `/api/cache/images?${params.toString()}`;
-  }
-  return src;
+  return getOptimizedImageSrc(src, undefined, width);
 }
 
 function deriveDomainFromLogoKey(pathname: string): string | null {
@@ -264,7 +264,7 @@ export function OptimizedCardImage({
     };
   }, []);
 
-  const proxiedSrc = React.useMemo(() => getProxiedImageSrc(src), [src]);
+  const proxiedSrc = React.useMemo(() => getProxiedImageSrc(src, CARD_IMAGE_PROXY_WIDTH), [src]);
 
   if (!src) {
     return (

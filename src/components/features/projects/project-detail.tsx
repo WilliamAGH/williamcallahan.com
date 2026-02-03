@@ -24,7 +24,7 @@ import {
   Github,
 } from "lucide-react";
 import { safeExternalHref, getDisplayHostname } from "@/lib/utils/url-utils";
-import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { buildCdnUrl, getCdnConfigFromEnv, getOptimizedImageSrc } from "@/lib/utils/cdn-utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 import { RegistryLinks } from "@/components/ui/registry-links.client";
 
@@ -101,7 +101,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
   const imageUrl = useMemo(() => {
     if (!project.imageKey) return null;
     const cdnUrl = buildCdnUrl(project.imageKey, getCdnConfigFromEnv());
-    return buildCachedImageUrl(cdnUrl);
+    return getOptimizedImageSrc(cdnUrl);
   }, [project.imageKey]);
 
   if (!mounted) return null;

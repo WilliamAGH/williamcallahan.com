@@ -122,9 +122,16 @@ Keep this document synchronized with the other two structure docs whenever you i
 
 ## Next.js Optimizer Contract
 
-1. **Only CDN URLs go through `_next/image`.** Any `/api/*` proxy uses `<Image unoptimized>` so the browser hits the proxy directly while CDN URLs remain constrained to `images.remotePatterns`, matching the [Next.js Image Optimization rules](https://nextjs.org/docs/app/building-your-application/optimizing/images).
-2. **Local patterns are explicit.** `/api/cache/images`, `/api/assets`, `/api/logo`, and `/api/og-image` stay whitelisted in `images.localPatterns`. When we purposely point `_next/image` at those routes, we know they already validate Zod schemas and stream bytes back. Everyone else is rejected immediately.
-3. **Proxies stream bytes, never redirects.** `/api/cache/images` fetches CDN resources server-side, decodes multi-encoded `url` params, and streams the response body so `_next/image` always receives a 200 + valid `Content-Type` (no more 400s from redirect chains). ([Next.js Image Component Reference](https://nextjs.org/docs/app/api-reference/components/image))
-4. **Static imports stay static.** Assets in `public/` are statically imported so Next infers width/height, aligned with the Image component guidance.
+1. **CDN URLs go through `/_next/image` for optimization.** Images from our CDN (`s3-storage.callahan.cloud`, `*.digitaloceanspaces.com`, `*.callahan.cloud`) MUST use direct URLs without `unoptimized` so Next.js performs resize + WebP conversion. Sharp reduces 2MB images to ~50KB.
+
+2. **API routes set `unoptimized`.** Only `/api/logo`, `/api/cache/images` (for external URLs), and `/api/og-image` use `unoptimized` because these routes already process/stream the image.
+
+3. **`sizes` prop is mandatory.** Every `<Image>` component MUST include a `sizes` prop that reflects actual display dimensions. Without it, srcset generation is suboptimal.
+
+4. **`remotePatterns` is the allowlist.** Every CDN hostname must be in `next.config.ts` `images.remotePatterns`. PRs adding hosts must update this config.
+
+5. **NEVER proxy CDN images.** Using `buildCachedImageUrl()` on CDN URLs routes them through `/api/cache/images` which requires `unoptimized`, defeating optimization entirely. Use `getOptimizedImageSrc()` instead.
+
+6. **Static imports stay static.** Assets in `public/` are statically imported so Next infers width/height.
 
 Any change to these rules must update this section, `image-handling.md`, and `next-js-16-usage.md` in the same PR.
