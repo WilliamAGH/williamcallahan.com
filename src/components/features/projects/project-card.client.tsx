@@ -3,7 +3,12 @@
 import Link from "next/link";
 import type { ProjectCardProps } from "@/types/features/projects";
 import Image from "next/image";
-import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import {
+  buildCdnUrl,
+  getCdnConfigFromEnv,
+  getOptimizedImageSrc,
+  shouldBypassOptimizer,
+} from "@/lib/utils/cdn-utils";
 import { type JSX, useState, useEffect } from "react";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { AlertTriangle, ExternalLink, Github } from "lucide-react";
@@ -64,8 +69,10 @@ function PlaceholderImageTop() {
 
 export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX.Element {
   const { name, description, url, imageKey, tags, techStack } = project;
-  const initialImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
-  const initialProxiedUrl = initialImageUrl ? buildCachedImageUrl(initialImageUrl) : undefined;
+  // Build CDN URL directly, then use smart helper that routes correctly
+  // CDN URLs flow through /_next/image for optimization; external URLs get proxied
+  const cdnImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
+  const initialImageUrl = getOptimizedImageSrc(cdnImageUrl);
 
   // Generate slug for internal detail page link
   const projectSlug = generateProjectSlug(name, project.id);
@@ -77,15 +84,15 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
   const sanitizedGithubUrl = project.githubUrl ? safeExternalHref(project.githubUrl) : null;
   const shouldShowGithub = Boolean(sanitizedGithubUrl && sanitizedGithubUrl !== externalUrl);
 
-  const [imageUrl, setImageUrl] = useState(initialProxiedUrl);
+  const [imageUrl, setImageUrl] = useState(initialImageUrl);
   const [hasError, setHasError] = useState(false);
 
   const placeholderUrl = getStaticImageUrl("/images/opengraph-placeholder.png");
 
   useEffect(() => {
-    setImageUrl(initialProxiedUrl);
+    setImageUrl(initialImageUrl);
     setHasError(false);
-  }, [initialProxiedUrl]);
+  }, [initialImageUrl]);
 
   const handleImageError = () => {
     if (imageUrl !== placeholderUrl) {
@@ -124,7 +131,7 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
                 blurDataURL={getStaticImageUrl("/images/opengraph-placeholder.png")}
                 onError={handleImageError}
                 className="w-full h-auto max-h-[280px] md:max-h-[320px] object-contain rounded-md transition-transform duration-300 ease-in-out group-hover:scale-[1.02]"
-                unoptimized
+                {...(shouldBypassOptimizer(imageUrl) ? { unoptimized: true } : {})}
               />
             </div>
           ) : (

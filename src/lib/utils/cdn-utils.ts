@@ -220,16 +220,85 @@ export function getCdnConfigFromEnv(): CdnConfig {
 }
 
 /**
- * Build a local `/api/cache/images` proxy URL for a CDN resource.
- * Mirrors the logic inside `components/ui/logo-image.client.tsx` so both
- * server and client consumers hit the exact same trusted proxy before passing
- * the response to `<Image>`.
+ * Build an image proxy URL for `/api/cache/images`.
+ * Single source of truth for proxy URL construction.
  */
-export function buildCachedImageUrl(cdnUrl: string, width?: number): string {
+function buildImageProxyUrl(url: string, width?: number): string {
   const params = new URLSearchParams();
-  params.set("url", cdnUrl);
+  params.set("url", url);
   if (typeof width === "number" && width > 0) {
     params.set("width", String(width));
   }
   return `/api/cache/images?${params.toString()}`;
+}
+
+/**
+ * Build a local `/api/cache/images` proxy URL for a CDN resource.
+ * Mirrors the logic inside `components/ui/logo-image.client.tsx` so both
+ * server and client consumers hit the exact same trusted proxy before passing
+ * the response to `<Image>`.
+ *
+ * **WARNING:** Only use for external URLs that need SSRF protection.
+ * NEVER use for our CDN URLs - that bypasses Next.js optimization.
+ * Use `getOptimizedImageSrc()` instead which routes correctly.
+ *
+ * @see docs/architecture/image-handling.md (Image Optimization Decision Matrix)
+ */
+export function buildCachedImageUrl(cdnUrl: string, width?: number): string {
+  return buildImageProxyUrl(cdnUrl, width);
+}
+
+/**
+ * Returns the appropriate image src for <Image> component.
+ * - CDN URLs: return directly (let Next.js optimize via /_next/image)
+ * - External URLs: proxy through /api/cache/images for SSRF protection
+ *
+ * CANONICAL: See docs/standards/nextjs-framework.md#4
+ *
+ * @example
+ * // CDN URL → returns directly for Next.js optimization
+ * getOptimizedImageSrc("https://s3-storage.callahan.cloud/images/foo.jpg")
+ * // Returns: "https://s3-storage.callahan.cloud/images/foo.jpg"
+ *
+ * @example
+ * // External URL → proxied for SSRF protection
+ * getOptimizedImageSrc("https://pbs.twimg.com/profile_images/123.jpg")
+ * // Returns: "/api/cache/images?url=https%3A%2F%2Fpbs.twimg.com%2F..."
+ */
+export function getOptimizedImageSrc(
+  src: string | null | undefined,
+  config?: CdnConfig,
+  width?: number,
+): string | undefined {
+  if (!src) return undefined;
+
+  // Local paths and data URLs pass through unchanged
+  if (src.startsWith("/") || src.startsWith("data:")) {
+    return src;
+  }
+
+  // Our CDN URLs: use directly (Next.js optimizer handles them)
+  if (isOurCdnUrl(src, config ?? getCdnConfigFromEnv())) {
+    return src;
+  }
+
+  // External URLs: proxy for SSRF protection
+  return buildImageProxyUrl(src, width);
+}
+
+/**
+ * Whether to use `unoptimized` prop on <Image>.
+ * Only true for proxied URLs (which are already processed) or data URIs.
+ *
+ * CANONICAL: See docs/standards/nextjs-framework.md#4
+ *
+ * @example
+ * <Image
+ *   src={imageUrl}
+ *   {...(shouldBypassOptimizer(imageUrl) ? { unoptimized: true } : {})}
+ * />
+ */
+export function shouldBypassOptimizer(src: string | undefined): boolean {
+  if (!src) return false;
+  return src.startsWith("/api/") || src.startsWith("data:");
 }

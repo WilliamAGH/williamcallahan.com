@@ -2,7 +2,12 @@ import { ExternalLink } from "@/components/ui/external-link.client";
 import type { ProjectCardServerProps } from "@/types/features/projects";
 import Image from "next/image";
 import { type JSX } from "react";
-import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import {
+  buildCdnUrl,
+  getCdnConfigFromEnv,
+  getOptimizedImageSrc,
+  shouldBypassOptimizer,
+} from "@/lib/utils/cdn-utils";
 
 const MAX_DISPLAY_TECH_ITEMS = 10;
 
@@ -62,8 +67,8 @@ function PlaceholderImageTop() {
 
 export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Element {
   const { name, description, url, imageKey, tags, techStack } = project;
-  const imageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
-  const proxiedImageUrl = imageUrl ? buildCachedImageUrl(imageUrl) : undefined;
+  const cdnImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
+  const imageUrl = getOptimizedImageSrc(cdnImageUrl);
 
   // Derive a technology stack from tags if explicit techStack is not provided
   const displayTech = (
@@ -86,9 +91,9 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
           showIcon={false}
           className="block w-full h-full" // Ensure link covers the area
         >
-          {proxiedImageUrl ? (
+          {imageUrl ? (
             <Image
-              src={proxiedImageUrl}
+              src={imageUrl}
               alt={`${name} screenshot`}
               fill
               quality={80}
@@ -97,7 +102,7 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
               blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFdwI2QJIiBQAAAABJRU5ErkJggg=="
               // Subtle zoom on hover
               className="object-cover w-full h-full transition-transform duration-300 ease-in-out group-hover:scale-105" // Ensure object-cover for aspect ratio
-              unoptimized
+              {...(shouldBypassOptimizer(imageUrl) ? { unoptimized: true } : {})}
             />
           ) : (
             <PlaceholderImageTop />

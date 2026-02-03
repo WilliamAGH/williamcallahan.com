@@ -3,8 +3,8 @@
  * @module components/features/social/social-card.client
  * @description
  * Client component that displays a card for a social media profile.
- * All profile and banner images are resolved through proxy CDN URLs
- * using `buildCdnUrl` + `buildCachedImageUrl` for consistent caching.
+ * Profile and banner images resolve to direct CDN URLs when available,
+ * and fall back to the image proxy for third-party origins.
  */
 
 "use client";
@@ -14,7 +14,12 @@ import Image from "next/image";
 import React, { type JSX, useCallback, useEffect, useState } from "react";
 import type { SocialCardProps } from "@/types/features/social";
 import { cn } from "@/lib/utils";
-import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import {
+  buildCdnUrl,
+  getCdnConfigFromEnv,
+  getOptimizedImageSrc,
+  shouldBypassOptimizer,
+} from "@/lib/utils/cdn-utils";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
 
 /**
@@ -63,22 +68,26 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
   }, []);
 
   /**
-   * Wraps `buildCachedImageUrl` for consistent proxying.
-   * All image URLs emitted from this component should flow through here.
+   * Resolves image URLs so CDN sources stay direct and external URLs are proxied.
    */
-  const proxyCdnUrl = useCallback((url: string, width?: number): string => {
-    return buildCachedImageUrl(url, width);
+  const resolveImageUrl = useCallback((url: string, width?: number): string => {
+    const optimized = getOptimizedImageSrc(url, undefined, width);
+    if (!optimized) {
+      console.warn(`[SocialCard] Missing optimized image URL for ${url}`);
+      return url;
+    }
+    return optimized;
   }, []);
 
   /**
-   * Returns proxy-backed fallback profile image URL for a given social label.
+   * Returns the optimized fallback profile image URL for a given social label.
    */
   const getProfileFallbackImage = useCallback(
     (networkLabel: string): string => {
       const cdnConfig = getCdnConfigFromEnv();
 
       const safeDefault = (): string =>
-        proxyCdnUrl(buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig), 64);
+        resolveImageUrl(buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig), 64);
 
       try {
         if (networkLabel.includes("GitHub")) {
@@ -86,32 +95,32 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
           const username = usernameMatch?.[1] || "WilliamAGH";
 
           // GitHub avatar also goes through proxy for consistency
-          return proxyCdnUrl(`https://avatars.githubusercontent.com/${username}?s=256&v=4`, 64);
+          return resolveImageUrl(`https://avatars.githubusercontent.com/${username}?s=256&v=4`, 64);
         }
 
         if (networkLabel.includes("X") || networkLabel.includes("Twitter")) {
-          return proxyCdnUrl(
+          return resolveImageUrl(
             buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig),
             64,
           );
         }
 
         if (networkLabel.includes("LinkedIn")) {
-          return proxyCdnUrl(
+          return resolveImageUrl(
             buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig),
             64,
           );
         }
 
         if (networkLabel.includes("Bluesky")) {
-          return proxyCdnUrl(
+          return resolveImageUrl(
             buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig),
             64,
           );
         }
 
         if (networkLabel.includes("Discord")) {
-          return proxyCdnUrl(
+          return resolveImageUrl(
             buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig),
             64,
           );
@@ -123,31 +132,31 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
 
       // Fallback chain (still proxy-backed)
       if (networkLabel.includes("GitHub")) {
-        return proxyCdnUrl(
+        return resolveImageUrl(
           buildCdnUrl("images/social-media/profiles/github_72193247.jpg", cdnConfig),
           64,
         );
       }
       if (networkLabel.includes("X") || networkLabel.includes("Twitter")) {
-        return proxyCdnUrl(
+        return resolveImageUrl(
           buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig),
           64,
         );
       }
       if (networkLabel.includes("LinkedIn")) {
-        return proxyCdnUrl(
+        return resolveImageUrl(
           buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig),
           64,
         );
       }
       if (networkLabel.includes("Bluesky")) {
-        return proxyCdnUrl(
+        return resolveImageUrl(
           buildCdnUrl("images/social-media/profiles/bluesky_5a093069.jpg", cdnConfig),
           64,
         );
       }
       if (networkLabel.includes("Discord")) {
-        return proxyCdnUrl(
+        return resolveImageUrl(
           buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig),
           64,
         );
@@ -155,49 +164,51 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
 
       return safeDefault();
     },
-    [proxyCdnUrl],
+    [resolveImageUrl],
   );
 
   /**
-   * Returns proxy-backed fallback banner/domain image URL for a given social label.
+   * Returns the optimized fallback banner/domain image URL for a given social label.
    */
   const getDomainFallbackImage = useCallback(
     (networkLabel: string): string => {
       const cdnConfig = getCdnConfigFromEnv();
 
       if (networkLabel.includes("GitHub")) {
-        return proxyCdnUrl(
+        return resolveImageUrl(
           buildCdnUrl("images/social-media/banners/github_87b6d92e.svg", cdnConfig),
         );
       }
       if (networkLabel.includes("X") || networkLabel.includes("Twitter")) {
-        return proxyCdnUrl(
+        return resolveImageUrl(
           buildCdnUrl("images/social-media/banners/twitter-x_4830ec25.svg", cdnConfig),
         );
       }
       if (networkLabel.includes("LinkedIn")) {
-        return proxyCdnUrl(
+        return resolveImageUrl(
           buildCdnUrl("images/social-media/banners/linkedin_02a7ce76.svg", cdnConfig),
         );
       }
       if (networkLabel.includes("Discord")) {
-        return proxyCdnUrl(
+        return resolveImageUrl(
           buildCdnUrl("images/social-media/banners/discord_783c1e2b.svg", cdnConfig),
         );
       }
       if (networkLabel.includes("Bluesky")) {
-        return proxyCdnUrl(
+        return resolveImageUrl(
           buildCdnUrl("images/social-media/banners/bluesky_9310c7f9.png", cdnConfig),
         );
       }
 
-      return proxyCdnUrl(buildCdnUrl("images/other/placeholders/company_90296cb3.svg", cdnConfig));
+      return resolveImageUrl(
+        buildCdnUrl("images/other/placeholders/company_90296cb3.svg", cdnConfig),
+      );
     },
-    [proxyCdnUrl],
+    [resolveImageUrl],
   );
 
   /**
-   * Resolves and sets the profile and domain images via proxy URLs.
+   * Resolves and sets the profile and domain images via optimized URLs.
    */
   const fetchSocialImages = useCallback(() => {
     const profile = getProfileFallbackImage(label);
@@ -237,24 +248,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
               : "";
 
   // Map brand to accent colors for unified hover/glow (hex + rgb strings)
-  const { accentHex, accentRgb } = (() => {
-    if (label.includes("LinkedIn") || domain.includes("linkedin"))
-      return { accentHex: "#0a66c2", accentRgb: "10 102 194" };
-    if (label.includes("GitHub") || domain.includes("github"))
-      return { accentHex: "#6e5494", accentRgb: "110 84 148" };
-    if (
-      label.includes("X") ||
-      label.includes("Twitter") ||
-      domain.includes("twitter") ||
-      domain.includes("x.com")
-    )
-      return { accentHex: "#1da1f2", accentRgb: "29 161 242" };
-    if (label.includes("Bluesky") || domain.includes("bsky"))
-      return { accentHex: "#0099ff", accentRgb: "0 153 255" };
-    if (label.includes("Discord") || domain.includes("discord"))
-      return { accentHex: "#7289da", accentRgb: "114 137 218" };
-    return { accentHex: "#3b82f6", accentRgb: "59 130 246" }; // default blue-500
-  })();
+  const { accentHex, accentRgb } = getSocialAccentColors(label, domain);
 
   const profileName = serviceName || domain || "social";
 
@@ -318,7 +312,10 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
                   "linkedin-banner": domain.includes("linkedin"),
                 })}
                 fill
-                unoptimized
+                sizes="100vw"
+                {...(shouldBypassOptimizer(domainImageUrl ?? undefined)
+                  ? { unoptimized: true }
+                  : {})}
                 onError={() => {
                   setImageError(true);
                   setDomainImageUrl(getDomainFallbackImage(label));
@@ -351,10 +348,12 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
                   src={profileImageUrl}
                   alt={`${serviceName} profile`}
                   fill
-                  unoptimized
                   priority
                   sizes="64px"
                   className="object-cover"
+                  {...(shouldBypassOptimizer(profileImageUrl ?? undefined)
+                    ? { unoptimized: true }
+                    : {})}
                   onError={() => {
                     setImageError(true);
                     setProfileImageUrl(getProfileFallbackImage(label));
@@ -398,6 +397,44 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
       </div>
     </div>
   );
+}
+
+/** Brand accent colors for social platforms (hex + RGB for CSS variables) */
+const SOCIAL_ACCENT_COLORS: Record<string, { accentHex: string; accentRgb: string }> = {
+  linkedin: { accentHex: "#0a66c2", accentRgb: "10 102 194" },
+  github: { accentHex: "#6e5494", accentRgb: "110 84 148" },
+  twitter: { accentHex: "#1da1f2", accentRgb: "29 161 242" },
+  bluesky: { accentHex: "#0099ff", accentRgb: "0 153 255" },
+  discord: { accentHex: "#7289da", accentRgb: "114 137 218" },
+};
+
+const DEFAULT_ACCENT = { accentHex: "#3b82f6", accentRgb: "59 130 246" }; // blue-500
+
+/** Keywords that map to each social platform */
+const SOCIAL_PLATFORM_KEYWORDS: Record<string, string[]> = {
+  linkedin: ["linkedin"],
+  github: ["github"],
+  twitter: ["x", "twitter", "x.com"],
+  bluesky: ["bluesky", "bsky"],
+  discord: ["discord"],
+};
+
+/**
+ * Resolves brand accent colors based on label and domain.
+ */
+function getSocialAccentColors(
+  label: string,
+  domain: string,
+): { accentHex: string; accentRgb: string } {
+  const searchText = `${label} ${domain}`.toLowerCase();
+
+  for (const [platform, keywords] of Object.entries(SOCIAL_PLATFORM_KEYWORDS)) {
+    if (keywords.some((keyword) => searchText.includes(keyword))) {
+      return SOCIAL_ACCENT_COLORS[platform] ?? DEFAULT_ACCENT;
+    }
+  }
+
+  return DEFAULT_ACCENT;
 }
 
 /**

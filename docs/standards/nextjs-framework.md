@@ -152,20 +152,87 @@ grep -r "revalidate.*:.*0" --include="*.ts" --include="*.tsx"
   - Docker builds now always read the `.next/cache/local-s3` snapshots because `lib/bookmarks/bookmarks-data-access.server.ts` only disables the local fallback when `NEXT_PHASE === "phase-production-server"` (see guard near the top of that file). This keeps `bun run build` offline-safe even when S3 isn’t reachable.
 - **Offline local builds:** CI/CD must hit S3/CDN, so local fallbacks are disabled whenever `NODE_ENV=production` (same state as `bun run build`). To run a production build without network access, set `FORCE_LOCAL_S3_CACHE=true` before invoking the build so `.next/cache/local-s3` is used. Never enable this in Docker/Coolify.
 
-### 4. Image optimizer contract (do not deviate)
+### 4. Image optimizer contract (CANONICAL)
 
-1. **Only CDN URLs go through `_next/image`.** Any `<Image>` pointing at `/api/*` (e.g., `/api/cache/images`, `/api/logo`) **must** set `unoptimized` so the proxy handles the fetch directly, per the [Next.js Image Component spec](https://nextjs.org/docs/app/api-reference/components/image#unoptimized).
-2. **Local/remote patterns stay exact.** `/api/cache/images`, `/api/assets`, `/api/logo`, and `/api/og-image` remain in `images.localPatterns`, and every CDN hostname we touch must be present in `images.remotePatterns`. This aligns with the [Next.js Image Optimization rules](https://nextjs.org/docs/app/building-your-application/optimizing/images). PRs that add a new host or path must update `next.config.ts`, this doc, and `image-handling.md`.
-3. **Proxy routes stream bytes, not redirects.** `/api/cache/images` resolves CDN redirects server-side, decodes double-encoded `url` params, and streams the body back so `_next/image` always receives a 200. Returning a 301/302 from these routes will immediately trip the optimizer’s “url parameter is not allowed” guard.
-4. **Redirect limit awareness.** Node 22 + Next 16 limit remote image redirects to 3 (`node_modules/next/dist/shared/lib/image-config.js:37-73`). Override `images.maximumRedirects` only with a captured HTTP trace and documented rationale here.
-5. **Await OG/image params.** When Turbopack reports `Missing image response meta`, inspect `/app/(.*)/opengraph-image.tsx` handlers first—they now receive async params, so you must `await` before building OG data.
+1. **CDN URLs flow through `/_next/image` for optimization.** Use direct CDN URLs (e.g., `https://s3-storage.callahan.cloud/images/foo.jpg`) with `<Image>` and let Next.js optimize. Sharp resizes to the requested width, converts to WebP/AVIF, and caches for 7 days.
 
-### 5. Documentation + MCP receipts
+2. **NEVER proxy CDN images through `/api/cache/images`.** This bypasses optimization because `/api/*` routes require `unoptimized`. The `buildCachedImageUrl()` function is ONLY for external URLs needing SSRF protection.
+
+3. **External URLs must be proxied.** URLs not in `images.remotePatterns` (Twitter, LinkedIn, etc.) go through `/api/cache/images` with `unoptimized`.
+
+4. **`sizes` prop is mandatory.** Every `<Image>` must specify `sizes` for correct srcset generation:
+
+   ```tsx
+   sizes = "(max-width: 768px) 100vw, 400px"; // Card images
+   sizes = "64px"; // Fixed-size logos
+   sizes = "100vw"; // Full-width images
+   ```
+
+5. **Use `getOptimizedImageSrc()` helper.** This function (in `cdn-utils.ts`) returns the correct src and determines whether `unoptimized` is needed based on the URL source. Pair with `shouldBypassOptimizer()` for the `unoptimized` prop.
+
+6. **Redirect limit awareness.** Node 22 + Next 16 limit remote image redirects to 3 (`node_modules/next/dist/shared/lib/image-config.js:37-73`). Override `images.maximumRedirects` only with documented rationale.
+
+7. **Await OG/image params.** When Turbopack reports `Missing image response meta`, inspect `/app/(.*)/opengraph-image.tsx` handlers—they receive async params, so you must `await` before building OG data.
+
+**Detection Commands:**
+
+```bash
+# Find incorrect proxy usage for CDN URLs
+grep -r "buildCachedImageUrl" --include="*.tsx" src/components/
+
+# Find missing sizes prop
+grep -r "<Image" --include="*.tsx" -A5 | grep -v "sizes="
+```
+
+**Error Symptoms:**
+| Pattern | Result |
+|---------|--------|
+| `buildCachedImageUrl(cdnUrl)` + `unoptimized` | No optimization, full-size images served |
+| Missing `sizes` prop | Browser downloads largest srcset variant |
+| Direct external URL without proxy | `/_next/image` rejects as not in remotePatterns |
+
+### 5. Link Prefetch Behavior (Next.js 16)
+
+**Understanding the defaults:**
+
+- **App Router default:** `prefetch={null}` — NOT `true`
+- **Viewport prefetching:** Links prefetch when entering viewport (200px IntersectionObserver margin)
+- **Static routes:** full prefetch on viewport entry
+- **Dynamic routes:** prefetch to nearest `loading.js` boundary
+
+**`prefetch={false}` behavior:**
+
+Completely disables prefetch (BOTH viewport AND hover triggers).
+
+- **Source:** `node_modules/next/dist/esm/client/app-dir/link.js:309-311`
+- **Doc:** https://nextjs.org/docs/app/api-reference/components/link#prefetch
+
+**When to use `prefetch={false}`:**
+
+| Context                                      | Recommendation                       |
+| -------------------------------------------- | ------------------------------------ |
+| Primary navigation (header, footer)          | Keep default (allow prefetch for UX) |
+| List/grid views (bookmark cards, blog cards) | Use `prefetch={false}`               |
+| Tag clouds/chips                             | Use `prefetch={false}`               |
+| Dropdown/secondary navigation                | Use `prefetch={false}`               |
+
+**Rationale:** High-volume lists can fire dozens of prefetch requests on page load or scroll, increasing network traffic and server load. Primary navigation remains fast because users expect instant transitions there.
+
+**Example:**
+
+```tsx
+// In list contexts, disable prefetch to reduce request volume
+<Link href={`/bookmarks/${id}`} prefetch={false}>
+  {title}
+</Link>
+```
+
+### 6. Documentation + MCP receipts
 
 - Every framework PR must paste the specific MCP query + node_modules file reference into its description. Example: "Context7 `/vercel/next.js` topic `version-16` confirms async sitemap params – see `node_modules/next/dist/server/request/params.js:150-226`."
 - Update this runbook when new failure modes appear.
 
-### 6. Cache Components Rendering Modes (CRITICAL)
+### 7. Cache Components Rendering Modes (CRITICAL)
 
 **Incompatibilities with `cacheComponents: true`:**
 
