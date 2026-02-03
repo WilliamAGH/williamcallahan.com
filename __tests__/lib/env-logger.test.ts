@@ -22,7 +22,7 @@ describe("envLogger", () => {
     console.log = originalLog;
   });
 
-  it("does not throw when logging circular data in production mode", async () => {
+  it("does not throw when logging circular data", async () => {
     const { envLogger } = await import("@/lib/utils/env-logger");
 
     const circularTitle: Record<string, unknown> = {};
