@@ -34,12 +34,13 @@ if git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(js|jsx|ts|tsx)
   }
 fi
 
-# Run oxfmt on applicable files if any
-if git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(js|jsx|ts|tsx|json|md|yml|yaml|css)$' >/dev/null 2>&1; then
-  echo "✨ Running oxfmt on staged files..."
+# Run oxfmt on JS/TS files only (oxfmt is alpha and only supports JavaScript/TypeScript)
+# Note: For JSON/MD/YAML/CSS formatting, use Prettier via `bun run format` before committing
+if git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(js|jsx|ts|tsx)$' >/dev/null 2>&1; then
+  echo "✨ Running oxfmt on staged JS/TS files..."
   git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
     case "$file" in
-      *.js|*.jsx|*.ts|*.tsx|*.json|*.md|*.yml|*.yaml|*.css) printf '%s\0' "$file" ;;
+      *.js|*.jsx|*.ts|*.tsx) printf '%s\0' "$file" ;;
     esac
   done | xargs -0 "$RUNNER" oxfmt --write || {
     echo "❌ Oxfmt failed!"
@@ -49,7 +50,7 @@ if git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(js|jsx|ts|tsx|
   # Re-add files that were modified by oxfmt
   git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
     case "$file" in
-      *.js|*.jsx|*.ts|*.tsx|*.json|*.md|*.yml|*.yaml|*.css) printf '%s\0' "$file" ;;
+      *.js|*.jsx|*.ts|*.tsx) printf '%s\0' "$file" ;;
     esac
   done | xargs -0 git add --
 fi
