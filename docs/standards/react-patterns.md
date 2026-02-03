@@ -82,12 +82,12 @@ Provide comprehensive guidance for properly implementing server/client boundarie
 5. **DO validate environment variables**
 
    ```tsx
-   // Server-only validation
-   const apiKey = process.env.SECRET_API_KEY;
-   if (!apiKey) throw new Error("SECRET_API_KEY is required");
+   // Server-only: use API_BASE_URL
+   const apiBaseUrl = process.env.API_BASE_URL;
+   if (!apiBaseUrl) throw new Error("API_BASE_URL is required");
 
-   // Client-safe config
-   const publicUrl = process.env.NEXT_PUBLIC_API_URL;
+   // Client-safe: use NEXT_PUBLIC_* prefix
+   const publicSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
    ```
 
 ### DON'Ts - Common Pitfalls

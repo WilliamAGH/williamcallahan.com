@@ -91,17 +91,24 @@ export function getEnvironment(): Environment {
       return "development";
     }
 
-    // Check if it's dev.williamcallahan.com
-    if (apiUrl.includes("dev.williamcallahan.com")) {
-      if (!loggedDetectionMessages.has("dev-domain")) {
-        logEnvironmentInfo("[Environment] Detected dev.williamcallahan.com - using development");
-        loggedDetectionMessages.add("dev-domain");
+    // Check if it's a development subdomain (alpha., dev., sandbox.)
+    const devSubdomains = ["alpha.", "dev.", "sandbox."];
+    const matchedDevSubdomain = devSubdomains.find((sub) =>
+      apiUrl.includes(`${sub}williamcallahan.com`),
+    );
+    if (matchedDevSubdomain) {
+      const logKey = `${matchedDevSubdomain}domain`;
+      if (!loggedDetectionMessages.has(logKey)) {
+        logEnvironmentInfo(
+          `[Environment] Detected ${matchedDevSubdomain}williamcallahan.com - using development`,
+        );
+        loggedDetectionMessages.add(logKey);
       }
       return "development";
     }
 
-    // Check if it's production williamcallahan.com
-    if (apiUrl.includes("williamcallahan.com") && !apiUrl.includes("dev.")) {
+    // Check if it's production williamcallahan.com (no dev subdomain)
+    if (apiUrl.includes("williamcallahan.com")) {
       if (!loggedDetectionMessages.has("prod-domain")) {
         logEnvironmentInfo("[Environment] Detected williamcallahan.com - using production");
         loggedDetectionMessages.add("prod-domain");
