@@ -20,40 +20,24 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { debug } from "@/lib/utils/debug";
-import type { MemoryPressureOverrides, MemoryPressureStatus } from "@/types/middleware";
-
-// Health check paths that should always be allowed
-const HEALTH_CHECK_PATHS = ["/api/health", "/api/health/metrics", "/healthz", "/livez", "/readyz"];
+import type {
+  MemoryPressureLevel,
+  MemoryPressureOverrides,
+  MemoryPressureStatus,
+} from "@/types/middleware";
+import { isHealthCheckPath } from "./health-check-paths";
 
 const MEMORY_WARNING_UTILIZATION = 0.85;
 const MEMORY_CRITICAL_UTILIZATION = 0.92;
 
 /**
- * Check memory pressure using Edge Runtime-compatible methods
- * This approach uses environment variables or simple heuristics
- * instead of direct Node.js process.memoryUsage() calls
+ * Check memory pressure using Edge Runtime-compatible environment variables.
+ * External monitors set these flags when memory thresholds are exceeded.
  */
-function isMemoryPressureCriticalFromEnv(): boolean {
-  // Check for explicit memory pressure flag from external monitors
-  if (typeof process !== "undefined" && process.env?.MEMORY_PRESSURE_CRITICAL === "true") {
-    return true;
-  }
-
-  // In Edge Runtime, we can't check actual memory usage
-  // So we rely on external monitoring systems to set environment flags
-  return false;
-}
-
-/**
- * Check memory warning state using Edge Runtime-compatible methods
- */
-function isMemoryPressureWarningFromEnv(): boolean {
-  // Check for explicit memory warning flag from external monitors
-  if (typeof process !== "undefined" && process.env?.MEMORY_PRESSURE_WARNING === "true") {
-    return true;
-  }
-
-  return false;
+function isMemoryPressureFromEnv(level: MemoryPressureLevel): boolean {
+  if (typeof process === "undefined") return false;
+  const envKey = level === "CRITICAL" ? "MEMORY_PRESSURE_CRITICAL" : "MEMORY_PRESSURE_WARNING";
+  return process.env?.[envKey] === "true";
 }
 
 /**
@@ -142,13 +126,13 @@ export async function memoryPressureMiddleware(
   const pathname = request.nextUrl?.pathname ?? new URL(request.url).pathname;
 
   // Always allow health checks through
-  if (HEALTH_CHECK_PATHS.some((path) => pathname.startsWith(path))) {
+  if (isHealthCheckPath(pathname)) {
     return null; // Continue to next middleware
   }
 
   // Primary check: Environment-based memory pressure detection (works in Edge too)
-  const envCritical = isMemoryPressureCriticalFromEnv();
-  const envWarning = isMemoryPressureWarningFromEnv();
+  const envCritical = isMemoryPressureFromEnv("CRITICAL");
+  const envWarning = isMemoryPressureFromEnv("WARNING");
 
   // Secondary check (Node.js only): in-process memory usage vs cgroup memory limit
   const nodeStatus = await getNodeMemoryPressureStatus(overrides);

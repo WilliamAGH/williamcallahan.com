@@ -18,7 +18,7 @@ describe("memoryPressureMiddleware", () => {
     global.fetch = originalFetch;
   });
 
-  it("does not shed load when an external health probe fails (no probe used)", async () => {
+  it("does not make external health check calls", async () => {
     global.fetch = jest.fn().mockRejectedValue(new Error("Health check failed"));
 
     const { memoryPressureMiddleware } = await import("@/lib/middleware/memory-pressure");

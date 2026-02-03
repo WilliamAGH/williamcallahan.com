@@ -49,7 +49,14 @@ class ImageMemoryManager extends EventEmitter {
     return Promise.resolve(Buffer.from("fetched data"));
   }
 }
-const ImageMemoryManagerInstance = new ImageMemoryManager();
+// Lazy singleton - only instantiated when first accessed
+let imageMemoryManagerInstance: ImageMemoryManager | null = null;
+function getImageMemoryManagerInstance(): ImageMemoryManager {
+  if (!imageMemoryManagerInstance) {
+    imageMemoryManagerInstance = new ImageMemoryManager();
+  }
+  return imageMemoryManagerInstance;
+}
 
 class MemoryHealthMonitor {
   getCurrentStatus() {
@@ -84,9 +91,14 @@ class MemoryHealthMonitor {
     return [{ timestamp: Date.now(), rss: 0, heapUsed: 0 }];
   }
 }
-// Singleton instance ensures stable identity for tests that expect singleton behavior
-const memoryHealthMonitorInstance = new MemoryHealthMonitor();
-const getMemoryHealthMonitor = () => memoryHealthMonitorInstance;
+// Lazy singleton - only instantiated when first accessed, not at module load time
+let memoryHealthMonitorInstance: MemoryHealthMonitor | null = null;
+function getMemoryHealthMonitorSingleton(): MemoryHealthMonitor {
+  if (!memoryHealthMonitorInstance) {
+    memoryHealthMonitorInstance = new MemoryHealthMonitor();
+  }
+  return memoryHealthMonitorInstance;
+}
 const memoryHealthCheckMiddleware = jest.fn();
 const memoryPressureMiddleware = jest.fn();
 
@@ -462,7 +474,7 @@ describe.skip("MemoryHealthMonitor", () => {
     it("should handle cleanup errors gracefully", async () => {
       const consoleSpy = jest.spyOn(console, "error").mockImplementation();
 
-      // Mock ImageMemoryManagerInstance to throw an error
+      // Mock getImageMemoryManagerInstance() to throw an error
       const originalSetMemoryPressure = ImageMemoryManager.prototype.setMemoryPressure;
       ImageMemoryManager.prototype.setMemoryPressure = jest.fn(() => {
         throw new Error("Cleanup failed");
@@ -512,8 +524,8 @@ describe.skip("MemoryHealthMonitor", () => {
 
   describe("Singleton Pattern", () => {
     it("should return same instance", () => {
-      const instance1 = getMemoryHealthMonitor();
-      const instance2 = getMemoryHealthMonitor();
+      const instance1 = getMemoryHealthMonitorSingleton();
+      const instance2 = getMemoryHealthMonitorSingleton();
 
       expect(instance1).toBe(instance2);
     });
@@ -548,7 +560,7 @@ describe.skip("Memory Health Middleware", () => {
   describe("memoryPressureMiddleware", () => {
     it("should allow requests when healthy", () => {
       // Force the monitor to be in healthy state for this test
-      const monitor = getMemoryHealthMonitor();
+      const monitor = getMemoryHealthMonitorSingleton();
       jest.spyOn(monitor, "shouldAcceptNewRequests").mockReturnValue(true);
 
       memoryPressureMiddleware(mockReq, mockRes, mockNext);
@@ -559,7 +571,7 @@ describe.skip("Memory Health Middleware", () => {
 
     it("should reject requests when in critical state", () => {
       // Mock the monitor to return critical state
-      const monitor = getMemoryHealthMonitor();
+      const monitor = getMemoryHealthMonitorSingleton();
       jest.spyOn(monitor, "shouldAcceptNewRequests").mockReturnValue(false);
       jest.spyOn(monitor, "getCurrentStatus").mockReturnValue("critical");
 
@@ -638,8 +650,8 @@ describe.skip("Integration Tests", () => {
   it("should handle memory pressure across components", async () => {
     jest.useFakeTimers();
     // Get singleton instances to test their interaction
-    const manager = ImageMemoryManagerInstance;
-    const monitor = getMemoryHealthMonitor();
+    const manager = getImageMemoryManagerInstance();
+    const monitor = getMemoryHealthMonitorSingleton();
 
     // Ensure clean state before test
     manager.setMemoryPressure(false);
