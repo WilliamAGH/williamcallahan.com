@@ -50,8 +50,9 @@ describe("LogoImage Conditional Rendering", () => {
     width: 96,
     height: 32,
   };
-  // Expected proxied URL for cdnUrlProps
-  const expectedCdnProxiedUrl = `/api/cache/images?url=${encodeURIComponent(cdnUrlProps.src)}&width=${cdnUrlProps.width}`;
+  // CDN URLs flow directly to Next.js Image (not proxied) per image optimization canonicalization
+  // See docs/architecture/image-handling.md - Image Optimization Decision Matrix
+  const expectedCdnDirectUrl = cdnUrlProps.src;
 
   describe("Regular URL Rendering (uses next/image)", () => {
     it("renders next/image mock and wrapper with correct props", () => {
@@ -170,8 +171,8 @@ describe("LogoImage Conditional Rendering", () => {
     it("calls /api/logo with canonical domain when CDN key fails", () => {
       render(<LogoImage {...cdnUrlProps} />);
       const images = screen.getAllByTestId("next-image-mock");
-      // The component proxies external URLs through /api/cache/images
-      const mainImage = images.find((img) => img.getAttribute("src") === expectedCdnProxiedUrl);
+      // CDN URLs flow directly to Next.js Image (not proxied)
+      const mainImage = images.find((img) => img.getAttribute("src") === expectedCdnDirectUrl);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
