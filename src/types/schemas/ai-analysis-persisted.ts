@@ -57,6 +57,8 @@ export function createPersistedAnalysisSchema<T extends z.ZodType>(analysisSchem
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { bookmarkAiAnalysisResponseSchema } from "./bookmark-ai-analysis";
+import { bookAiAnalysisResponseSchema } from "./book-ai-analysis";
+import { projectAiAnalysisResponseSchema } from "./project-ai-analysis";
 
 /** Persisted bookmark analysis schema with metadata envelope */
 export const persistedBookmarkAnalysisSchema = createPersistedAnalysisSchema(
@@ -64,6 +66,20 @@ export const persistedBookmarkAnalysisSchema = createPersistedAnalysisSchema(
 );
 
 export type PersistedBookmarkAnalysis = z.infer<typeof persistedBookmarkAnalysisSchema>;
+
+/** Persisted book analysis schema with metadata envelope */
+export const persistedBookAnalysisSchema = createPersistedAnalysisSchema(
+  bookAiAnalysisResponseSchema,
+);
+
+export type PersistedBookAnalysis = z.infer<typeof persistedBookAnalysisSchema>;
+
+/** Persisted project analysis schema with metadata envelope */
+export const persistedProjectAnalysisSchema = createPersistedAnalysisSchema(
+  projectAiAnalysisResponseSchema,
+);
+
+export type PersistedProjectAnalysis = z.infer<typeof persistedProjectAnalysisSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Request Schema for API Endpoint

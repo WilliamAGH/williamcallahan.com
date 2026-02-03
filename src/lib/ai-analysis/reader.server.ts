@@ -18,7 +18,11 @@ import type {
   AnalysisVersion,
 } from "./types";
 import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
-import { persistedBookmarkAnalysisSchema } from "@/types/schemas/ai-analysis-persisted";
+import {
+  persistedBookmarkAnalysisSchema,
+  persistedBookAnalysisSchema,
+  persistedProjectAnalysisSchema,
+} from "@/types/schemas/ai-analysis-persisted";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Type Guards and Schema Selection
@@ -34,13 +38,14 @@ function getSchemaForDomain(domain: AnalysisDomain) {
   switch (domain) {
     case "bookmarks":
       return persistedBookmarkAnalysisSchema;
-    case "projects":
     case "books":
-      // TODO: Add schemas when these domains are implemented
-      throw new Error(
-        `Schema for domain "${domain}" not yet implemented. ` +
-          `Add the schema to getSchemaForDomain() before using this domain.`,
-      );
+      return persistedBookAnalysisSchema;
+    case "projects":
+      return persistedProjectAnalysisSchema;
+    default: {
+      const unhandledDomain: never = domain;
+      throw new Error(`Unhandled analysis domain: ${unhandledDomain}`);
+    }
   }
 }
 
