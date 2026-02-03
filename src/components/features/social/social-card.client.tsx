@@ -21,6 +21,19 @@ import {
   shouldBypassOptimizer,
 } from "@/lib/utils/cdn-utils";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
+import {
+  BANNER_IMAGE_PATHS,
+  CARD_BRAND_CLASSES,
+  DEFAULT_BANNER_IMAGE,
+  DEFAULT_GITHUB_USERNAME,
+  DEFAULT_PROFILE_IMAGE,
+  MOUNT_DELAY_MS,
+  PROFILE_IMAGE_PATHS,
+  PROFILE_IMAGE_WIDTH_PX,
+  detectSocialPlatform,
+  getSocialAccentColors,
+  getUserHandle,
+} from "./social-card-config";
 
 /**
  * Client-side component for rendering a social media profile card.
@@ -44,9 +57,8 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
   try {
     const urlObj = new URL(href);
     domain = stripWwwPrefix(urlObj.hostname);
-  } catch (error: unknown) {
-    void error;
-    console.error(`Invalid URL format: ${href}`);
+  } catch {
+    // URL parsing failure expected for malformed hrefs - extract domain from string directly
     domain = stripWwwPrefix(href.replace(/^https?:\/\//g, "")).split("/")[0] ?? "unknown";
   }
 
@@ -63,7 +75,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
   if (serviceName === "Bsky") serviceName = "Bluesky";
 
   useEffect(() => {
-    const timer = setTimeout(() => setMounted(true), 20);
+    const timer = setTimeout(() => setMounted(true), MOUNT_DELAY_MS);
     return () => clearTimeout(timer);
   }, []);
 
@@ -71,6 +83,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
    * Resolves image URLs so CDN sources stay direct and external URLs are proxied.
    */
   const resolveImageUrl = useCallback((url: string, width?: number): string => {
+    // Pass undefined for config to use env defaults; width requires positional arg
     const optimized = getOptimizedImageSrc(url, undefined, width);
     if (!optimized) {
       console.warn(`[SocialCard] Missing optimized image URL for ${url}`);
@@ -85,84 +98,26 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
   const getProfileFallbackImage = useCallback(
     (networkLabel: string): string => {
       const cdnConfig = getCdnConfigFromEnv();
+      const platform = detectSocialPlatform(networkLabel, "");
 
-      const safeDefault = (): string =>
-        resolveImageUrl(buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig), 64);
-
-      try {
-        if (networkLabel.includes("GitHub")) {
-          const usernameMatch = networkLabel.match(/@(\w+)/);
-          const username = usernameMatch?.[1] || "WilliamAGH";
-
-          // GitHub avatar also goes through proxy for consistency
-          return resolveImageUrl(`https://avatars.githubusercontent.com/${username}?s=256&v=4`, 64);
-        }
-
-        if (networkLabel.includes("X") || networkLabel.includes("Twitter")) {
-          return resolveImageUrl(
-            buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig),
-            64,
-          );
-        }
-
-        if (networkLabel.includes("LinkedIn")) {
-          return resolveImageUrl(
-            buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig),
-            64,
-          );
-        }
-
-        if (networkLabel.includes("Bluesky")) {
-          return resolveImageUrl(
-            buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig),
-            64,
-          );
-        }
-
-        if (networkLabel.includes("Discord")) {
-          return resolveImageUrl(
-            buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig),
-            64,
-          );
-        }
-      } catch (error: unknown) {
-        void error;
-        console.error(`Error getting profile image for ${networkLabel}`);
-      }
-
-      // Fallback chain (still proxy-backed)
-      if (networkLabel.includes("GitHub")) {
+      // GitHub uses live avatar API
+      if (platform === "github") {
+        const usernameMatch = networkLabel.match(/@(\w+)/);
+        const username = usernameMatch?.[1] ?? DEFAULT_GITHUB_USERNAME;
         return resolveImageUrl(
-          buildCdnUrl("images/social-media/profiles/github_72193247.jpg", cdnConfig),
-          64,
-        );
-      }
-      if (networkLabel.includes("X") || networkLabel.includes("Twitter")) {
-        return resolveImageUrl(
-          buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig),
-          64,
-        );
-      }
-      if (networkLabel.includes("LinkedIn")) {
-        return resolveImageUrl(
-          buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig),
-          64,
-        );
-      }
-      if (networkLabel.includes("Bluesky")) {
-        return resolveImageUrl(
-          buildCdnUrl("images/social-media/profiles/bluesky_5a093069.jpg", cdnConfig),
-          64,
-        );
-      }
-      if (networkLabel.includes("Discord")) {
-        return resolveImageUrl(
-          buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig),
-          64,
+          `https://avatars.githubusercontent.com/${username}?s=256&v=4`,
+          PROFILE_IMAGE_WIDTH_PX,
         );
       }
 
-      return safeDefault();
+      // Other platforms use CDN-hosted profile images
+      const imagePath = platform ? PROFILE_IMAGE_PATHS[platform] : null;
+      if (imagePath) {
+        return resolveImageUrl(buildCdnUrl(imagePath, cdnConfig), PROFILE_IMAGE_WIDTH_PX);
+      }
+
+      // Default fallback
+      return resolveImageUrl(buildCdnUrl(DEFAULT_PROFILE_IMAGE, cdnConfig), PROFILE_IMAGE_WIDTH_PX);
     },
     [resolveImageUrl],
   );
@@ -173,36 +128,14 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
   const getDomainFallbackImage = useCallback(
     (networkLabel: string): string => {
       const cdnConfig = getCdnConfigFromEnv();
+      const platform = detectSocialPlatform(networkLabel, "");
+      const imagePath = platform ? BANNER_IMAGE_PATHS[platform] : null;
 
-      if (networkLabel.includes("GitHub")) {
-        return resolveImageUrl(
-          buildCdnUrl("images/social-media/banners/github_87b6d92e.svg", cdnConfig),
-        );
-      }
-      if (networkLabel.includes("X") || networkLabel.includes("Twitter")) {
-        return resolveImageUrl(
-          buildCdnUrl("images/social-media/banners/twitter-x_4830ec25.svg", cdnConfig),
-        );
-      }
-      if (networkLabel.includes("LinkedIn")) {
-        return resolveImageUrl(
-          buildCdnUrl("images/social-media/banners/linkedin_02a7ce76.svg", cdnConfig),
-        );
-      }
-      if (networkLabel.includes("Discord")) {
-        return resolveImageUrl(
-          buildCdnUrl("images/social-media/banners/discord_783c1e2b.svg", cdnConfig),
-        );
-      }
-      if (networkLabel.includes("Bluesky")) {
-        return resolveImageUrl(
-          buildCdnUrl("images/social-media/banners/bluesky_9310c7f9.png", cdnConfig),
-        );
+      if (imagePath) {
+        return resolveImageUrl(buildCdnUrl(imagePath, cdnConfig));
       }
 
-      return resolveImageUrl(
-        buildCdnUrl("images/other/placeholders/company_90296cb3.svg", cdnConfig),
-      );
+      return resolveImageUrl(buildCdnUrl(DEFAULT_BANNER_IMAGE, cdnConfig));
     },
     [resolveImageUrl],
   );
@@ -231,21 +164,8 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
     );
   }
 
-  const cardBrandClass =
-    label.includes("LinkedIn") || domain.includes("linkedin")
-      ? "linkedin-card"
-      : label.includes("GitHub") || domain.includes("github")
-        ? "github-card"
-        : label.includes("X") ||
-            label.includes("Twitter") ||
-            domain.includes("twitter") ||
-            domain.includes("x.com")
-          ? "twitter-card"
-          : label.includes("Bluesky") || domain.includes("bsky")
-            ? "bluesky-card"
-            : label.includes("Discord") || domain.includes("discord")
-              ? "discord-card"
-              : "";
+  const platform = detectSocialPlatform(label, domain);
+  const cardBrandClass = platform ? (CARD_BRAND_CLASSES[platform] ?? "") : "";
 
   // Map brand to accent colors for unified hover/glow (hex + rgb strings)
   const { accentHex, accentRgb } = getSocialAccentColors(label, domain);
@@ -397,76 +317,4 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
       </div>
     </div>
   );
-}
-
-/** Brand accent colors for social platforms (hex + RGB for CSS variables) */
-const SOCIAL_ACCENT_COLORS: Record<string, { accentHex: string; accentRgb: string }> = {
-  linkedin: { accentHex: "#0a66c2", accentRgb: "10 102 194" },
-  github: { accentHex: "#6e5494", accentRgb: "110 84 148" },
-  twitter: { accentHex: "#1da1f2", accentRgb: "29 161 242" },
-  bluesky: { accentHex: "#0099ff", accentRgb: "0 153 255" },
-  discord: { accentHex: "#7289da", accentRgb: "114 137 218" },
-};
-
-const DEFAULT_ACCENT = { accentHex: "#3b82f6", accentRgb: "59 130 246" }; // blue-500
-
-/** Keywords that map to each social platform */
-const SOCIAL_PLATFORM_KEYWORDS: Record<string, string[]> = {
-  linkedin: ["linkedin"],
-  github: ["github"],
-  twitter: ["x", "twitter", "x.com"],
-  bluesky: ["bluesky", "bsky"],
-  discord: ["discord"],
-};
-
-/**
- * Resolves brand accent colors based on label and domain.
- */
-function getSocialAccentColors(
-  label: string,
-  domain: string,
-): { accentHex: string; accentRgb: string } {
-  const searchText = `${label} ${domain}`.toLowerCase();
-
-  for (const [platform, keywords] of Object.entries(SOCIAL_PLATFORM_KEYWORDS)) {
-    if (keywords.some((keyword) => searchText.includes(keyword))) {
-      return SOCIAL_ACCENT_COLORS[platform] ?? DEFAULT_ACCENT;
-    }
-  }
-
-  return DEFAULT_ACCENT;
-}
-
-/**
- * Extracts a user handle from a social media URL.
- */
-function getUserHandle(url: string): string {
-  if (!url) return "";
-  try {
-    const urlObj = new URL(url);
-    const pathParts = urlObj.pathname.split("/").filter(Boolean);
-    if (
-      urlObj.hostname.includes("github.com") ||
-      urlObj.hostname.includes("x.com") ||
-      urlObj.hostname.includes("twitter.com")
-    ) {
-      return `@${pathParts[0]}`;
-    }
-    if (urlObj.hostname.includes("bsky.app")) {
-      return `@${pathParts[1]}`;
-    }
-    if (urlObj.hostname.includes("linkedin.com")) {
-      return pathParts[1] ? `/${pathParts[0]}/${pathParts[1]}` : `/${pathParts[0]}`;
-    }
-    if (urlObj.hostname.includes("discord.com")) {
-      return "Community";
-    }
-  } catch (error: unknown) {
-    void error;
-    // Fallback for non-URL strings or unexpected formats
-    const parts = url.split("/").filter(Boolean);
-    const lastSegment = parts.pop();
-    return lastSegment ?? "";
-  }
-  return "Profile";
 }
