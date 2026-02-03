@@ -15,7 +15,7 @@
 import Image from "next/image";
 import React, { useState, useCallback, useRef } from "react";
 import type { LogoImageProps, OptimizedCardImageProps } from "@/types/ui/image";
-import { getOptimizedImageSrc } from "@/lib/utils/cdn-utils";
+import { getOptimizedImageSrc, shouldBypassOptimizer } from "@/lib/utils/cdn-utils";
 import {
   getCompanyPlaceholder,
   COMPANY_PLACEHOLDER_BASE64,
@@ -42,6 +42,18 @@ const KNOWN_LOGO_SOURCES = new Set([
  */
 const CARD_IMAGE_PROXY_WIDTH = 1200;
 
+/** Delay before retrying a failed logo image load (ms) */
+const LOGO_RETRY_DELAY_MS = 3000;
+
+/** Maximum retry attempts for card images before showing placeholder */
+const CARD_IMAGE_MAX_RETRIES = 2;
+
+/** Base delay for exponential backoff (ms) - actual delay is baseDelay * 2^retryCount */
+const CARD_IMAGE_BACKOFF_BASE_MS = 1000;
+
+/** Maximum delay cap for exponential backoff (ms) */
+const CARD_IMAGE_BACKOFF_MAX_MS = 5000;
+
 /**
  * Proxies external URLs through the image cache API. Local paths and data URLs
  * are returned unchanged.
@@ -56,44 +68,27 @@ function getProxiedImageSrc(src: string | null | undefined, width?: number): str
 
 function deriveDomainFromLogoKey(pathname: string): string | null {
   const match = pathname.match(LOGO_FILENAME_REGEX);
-  if (!match) {
-    return null;
-  }
-
-  const [, filename] = match;
-  if (!filename) {
-    return null;
-  }
+  const filename = match?.[1];
+  if (!filename) return null;
 
   const tokens = filename.split("_").filter(Boolean);
-  if (tokens.length < 2) {
-    return null;
-  }
+  if (tokens.length < 2) return null;
 
   const maybeHash = tokens[tokens.length - 1] ?? "";
   const maybeSource = tokens[tokens.length - 2] ?? "";
 
   let domainTokens = tokens;
-
   if (HASH_TOKEN.test(maybeHash) && KNOWN_LOGO_SOURCES.has(maybeSource)) {
     domainTokens = tokens.slice(0, -2);
   } else if (KNOWN_LOGO_SOURCES.has(maybeHash)) {
     domainTokens = tokens.slice(0, -1);
   }
 
-  if (domainTokens.length < 2) {
-    return null;
-  }
+  if (domainTokens.length < 2) return null;
 
   const tld = domainTokens.pop();
-  if (!tld) {
-    return null;
-  }
-
   const domainName = domainTokens.join(".");
-  if (!domainName) {
-    return null;
-  }
+  if (!tld || !domainName) return null;
 
   return `${domainName}.${tld}`.toLowerCase();
 }
@@ -165,7 +160,7 @@ export function LogoImage({
       }
       if (isDev) console.warn(`[LogoImage] Retrying logo load with cache-buster: ${src}`);
       setReloadKey(Date.now());
-    }, 3000);
+    }, LOGO_RETRY_DELAY_MS);
   }, [src, isDev]);
 
   React.useEffect(() => {
@@ -194,10 +189,6 @@ export function LogoImage({
       ? `${proxiedSrc}${proxiedSrc.includes("?") ? "&" : "?"}cb=${reloadKey}`
       : proxiedSrc;
 
-  const shouldBypassOptimizer =
-    typeof displaySrc === "string" &&
-    (displaySrc.startsWith("/api/") || displaySrc.startsWith("data:"));
-
   return (
     <div style={{ position: "relative", width, height }} className="inline-block">
       {isLoading && (
@@ -222,7 +213,7 @@ export function LogoImage({
         className={`${className} object-contain ${needsInversion ? "dark:invert dark:brightness-90" : ""}`}
         style={{ opacity: isLoading ? 0 : 1, transition: "opacity 0.2s ease-in-out" }}
         {...(priority ? { priority } : {})}
-        {...(shouldBypassOptimizer ? { unoptimized: true } : {})}
+        {...(shouldBypassOptimizer(displaySrc) ? { unoptimized: true } : {})}
         onError={handleError}
         onLoad={() => {
           setIsLoading(false);
@@ -251,7 +242,6 @@ export function OptimizedCardImage({
   const [errored, setErrored] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [retryKey, setRetryKey] = useState(0);
-  const MAX_RETRIES = 2;
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hasBlur = Boolean(blurDataURL);
 
@@ -279,7 +269,7 @@ export function OptimizedCardImage({
     );
   }
 
-  if (errored && retryCount >= MAX_RETRIES) {
+  if (errored && retryCount >= CARD_IMAGE_MAX_RETRIES) {
     return (
       <Image
         src={Placeholder}
@@ -301,10 +291,6 @@ export function OptimizedCardImage({
       ? `${proxiedSrc}${proxiedSrc.includes("?") ? "&" : "?"}retry=${retryKey}`
       : proxiedSrc;
 
-  const shouldBypassOptimizer =
-    typeof displaySrc === "string" &&
-    (displaySrc.startsWith("/api/") || displaySrc.startsWith("data:"));
-
   return (
     <Image
       src={displaySrc}
@@ -317,7 +303,7 @@ export function OptimizedCardImage({
       className={`object-cover transition-opacity duration-200 ${className}`}
       style={{ opacity: loaded || hasBlur ? 1 : 0.2 }}
       {...(preload ? { preload, fetchPriority: "high" as const } : {})}
-      {...(shouldBypassOptimizer ? { unoptimized: true } : {})}
+      {...(shouldBypassOptimizer(displaySrc) ? { unoptimized: true } : {})}
       onLoad={() => {
         setLoaded(true);
         setErrored(false);
@@ -326,9 +312,12 @@ export function OptimizedCardImage({
         }
       }}
       onError={() => {
-        if (retryCount < MAX_RETRIES) {
+        if (retryCount < CARD_IMAGE_MAX_RETRIES) {
           if (isDev) console.log(`[OptimizedCardImage] Scheduling retry for URL: ${src}`);
-          const backoffDelay = Math.min(1000 * 2 ** retryCount, 5000);
+          const backoffDelay = Math.min(
+            CARD_IMAGE_BACKOFF_BASE_MS * 2 ** retryCount,
+            CARD_IMAGE_BACKOFF_MAX_MS,
+          );
 
           if (retryTimeoutRef.current) {
             clearTimeout(retryTimeoutRef.current);

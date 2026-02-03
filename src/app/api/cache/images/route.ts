@@ -19,7 +19,7 @@ import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
 // Configure cache duration (1 year in seconds)
 const CACHE_DURATION = 60 * 60 * 24 * 365;
 
-// Valid image formats
+// Valid image formats for conversion (SVG is passthrough-only, not a conversion target)
 const VALID_IMAGE_FORMATS = new Set(["jpeg", "jpg", "png", "webp", "avif", "gif"]);
 const CDN_CONFIG = getCdnConfigFromEnv();
 
