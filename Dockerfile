@@ -84,6 +84,8 @@ ENV HUSKY=0
 
 # 1. Copy installed deps from previous deps stage (no BuildKit-only flags)
 COPY --from=deps /app/node_modules ./node_modules
+# Copy generated CSP hashes (created in deps stage, gitignored so COPY . . won't include it)
+COPY --from=deps /app/generated ./generated
 
 # 2. Copy source for analysis only (does not affect later build layers)
 COPY . .
@@ -145,6 +147,8 @@ ENV S3_BUCKET=$S3_BUCKET \
 
 # Copy dependencies and source code
 COPY --from=deps /app/node_modules ./node_modules
+# Copy generated CSP hashes (created in deps stage, gitignored so COPY . . won't include it)
+COPY --from=deps /app/generated ./generated
 
 # Copy entire source code
 COPY . .
