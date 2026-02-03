@@ -14,58 +14,11 @@ import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { AlertTriangle, ExternalLink, Github } from "lucide-react";
 import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 import { safeExternalHref, isGitHubUrl } from "@/lib/utils/url-utils";
-
-const MAX_DISPLAY_TECH_ITEMS = 10;
-
-// Hoisted helper to satisfy consistent-function-scoping
-function deriveTechFromTags(tagList: string[] | undefined): string[] {
-  if (!tagList || tagList.length === 0) return [];
-  const TECH_KEYWORDS = new Set([
-    "Next.js",
-    "TypeScript",
-    "Tailwind CSS",
-    "React",
-    "MDX",
-    "Server Components",
-    "Java",
-    "Spring Boot",
-    "Spring AI",
-    "OpenAI",
-    "Google Books API",
-    "Thymeleaf",
-    "HTMX",
-    "PostgreSQL",
-    "Docker",
-    "Groq",
-    "Gemini",
-  ]);
-  return tagList.filter((t) => TECH_KEYWORDS.has(t));
-}
-
-// Placeholder for centered top image with gradient
-function PlaceholderImageTop() {
-  return (
-    <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center text-gray-400 dark:text-gray-500">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        aria-label="Placeholder image"
-        className="h-12 w-12 opacity-40"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        role="img"
-      >
-        <title>Placeholder image</title>
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-        />
-      </svg>
-    </div>
-  );
-}
+import {
+  MAX_DISPLAY_TECH_ITEMS,
+  deriveTechFromTags,
+  PlaceholderImageTop,
+} from "./project-card-helpers";
 
 export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX.Element {
   const { name, description, url, imageKey, tags, techStack } = project;

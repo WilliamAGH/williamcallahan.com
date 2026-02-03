@@ -8,62 +8,11 @@ import {
   getOptimizedImageSrc,
   shouldBypassOptimizer,
 } from "@/lib/utils/cdn-utils";
-
-const MAX_DISPLAY_TECH_ITEMS = 10;
-
-// Hoisted helper to satisfy consistent-function-scoping
-function deriveTechFromTags(tagList: string[] | undefined): string[] {
-  if (!tagList || tagList.length === 0) return [];
-  const TECH_KEYWORDS = new Set([
-    "Next.js",
-    "TypeScript",
-    "Tailwind CSS",
-    "React",
-    "MDX",
-    "Server Components",
-    "Java",
-    "Spring Boot",
-    "Spring AI",
-    "OpenAI",
-    "Google Books API",
-    "Thymeleaf",
-    "HTMX",
-    "PostgreSQL",
-    "Docker",
-    "Groq",
-    "Gemini",
-  ]);
-  return tagList.filter((t) => TECH_KEYWORDS.has(t));
-}
-
-// Placeholder for centered top image with gradient
-function PlaceholderImageTop() {
-  return (
-    <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center text-gray-400 dark:text-gray-500 rounded-md">
-      {" "}
-      {/* Added gradient */}
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        aria-label="Placeholder image"
-        className="h-16 w-16 opacity-50" // Slightly larger and more subtle
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        role="img"
-      >
-        {" "}
-        {/* Adjusted size */}
-        <title>Placeholder image</title>
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-        />
-      </svg>
-    </div>
-  );
-}
+import {
+  MAX_DISPLAY_TECH_ITEMS,
+  deriveTechFromTags,
+  PlaceholderImageTop,
+} from "./project-card-helpers";
 
 export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Element {
   const { name, description, url, imageKey, tags, techStack } = project;
