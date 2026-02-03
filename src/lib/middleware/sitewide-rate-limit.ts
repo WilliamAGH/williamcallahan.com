@@ -13,45 +13,44 @@ import { getClientIp } from "@/lib/utils/request-utils";
 import type {
   RateLimitConfig,
   RateLimitProfile,
+  RateLimitProfileName,
   SitewideRateLimitOptions,
 } from "@/types/middleware";
+import { isHealthCheckPath } from "./health-check-paths";
 
 const DEFAULT_STORE_PREFIX = "sitewide";
 
-const HEALTH_CHECK_PATHS = ["/api/health", "/api/health/metrics", "/api/health/deep"] as const;
-
-const PROFILES: Record<"page" | "api" | "nextImage", RateLimitProfile> = {
+export const PROFILES: Record<RateLimitProfileName, RateLimitProfile> = {
   page: {
     // Allows normal browsing but blocks aggressive parallel crawling.
-    burst: { maxRequests: 15, windowMs: 10_000 },
-    minute: { maxRequests: 60, windowMs: 60_000 },
+    // A single page load can trigger 20-40 requests (HTML + prefetches + RSC).
+    burst: { maxRequests: 100, windowMs: 10_000 },
+    minute: { maxRequests: 400, windowMs: 60_000 },
   },
   api: {
     // Keep this higher than route-level limits so specialized endpoints remain authoritative.
-    burst: { maxRequests: 30, windowMs: 10_000 },
-    minute: { maxRequests: 120, windowMs: 60_000 },
+    burst: { maxRequests: 150, windowMs: 10_000 },
+    minute: { maxRequests: 600, windowMs: 60_000 },
   },
   nextImage: {
     // Image optimization can be CPU/memory heavy; throttle bursts defensively.
-    burst: { maxRequests: 20, windowMs: 10_000 },
-    minute: { maxRequests: 120, windowMs: 60_000 },
+    // Image-heavy pages (bookmarks, blog) can have 20+ images per page.
+    burst: { maxRequests: 100, windowMs: 10_000 },
+    minute: { maxRequests: 500, windowMs: 60_000 },
   },
 } as const;
 
-function isHealthCheckPath(pathname: string): boolean {
-  return HEALTH_CHECK_PATHS.some((path) => pathname.startsWith(path));
-}
-
-function getProfile(pathname: string): RateLimitProfile {
-  if (pathname.startsWith("/api/")) return PROFILES.api;
-  if (pathname.startsWith("/_next/image")) return PROFILES.nextImage;
-  return PROFILES.page;
-}
-
-function getProfileName(pathname: string): "api" | "nextImage" | "page" {
-  if (pathname.startsWith("/api/")) return "api";
-  if (pathname.startsWith("/_next/image")) return "nextImage";
-  return "page";
+/**
+ * Determine the rate limit profile for a given pathname.
+ * Returns both the profile name and config to avoid duplicate routing logic.
+ */
+function getProfileForPath(pathname: string): {
+  name: RateLimitProfileName;
+  config: RateLimitProfile;
+} {
+  if (pathname.startsWith("/api/")) return { name: "api", config: PROFILES.api };
+  if (pathname.startsWith("/_next/image")) return { name: "nextImage", config: PROFILES.nextImage };
+  return { name: "page", config: PROFILES.page };
 }
 
 function toRetryAfterSeconds(config: RateLimitConfig): string {
@@ -84,8 +83,7 @@ export function sitewideRateLimitMiddleware(
 
   const storePrefix = options?.storePrefix ?? DEFAULT_STORE_PREFIX;
   const clientIp = getClientIp(request.headers, { fallback: "anonymous" });
-  const profileName = getProfileName(pathname);
-  const profile = getProfile(pathname);
+  const { name: profileName, config: profile } = getProfileForPath(pathname);
 
   const burstStore = `${storePrefix}:${profileName}:burst`;
   if (!isOperationAllowed(burstStore, clientIp, profile.burst)) {

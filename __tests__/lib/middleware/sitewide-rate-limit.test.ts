@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { sitewideRateLimitMiddleware } from "@/lib/middleware/sitewide-rate-limit";
+import { sitewideRateLimitMiddleware, PROFILES } from "@/lib/middleware/sitewide-rate-limit";
 
 describe("sitewideRateLimitMiddleware", () => {
   it("does not rate limit health endpoints", () => {
@@ -7,20 +7,22 @@ describe("sitewideRateLimitMiddleware", () => {
       headers: { "x-forwarded-for": "203.0.113.10" },
     });
 
-    for (let i = 0; i < 100; i++) {
+    const iterations = PROFILES.page.burst.maxRequests * 2;
+    for (let i = 0; i < iterations; i++) {
       const result = sitewideRateLimitMiddleware(request, { storePrefix: "test-health" });
       expect(result).toBeNull();
     }
   });
 
-  it("blocks burst traffic for page routes (15 per 10s by default)", () => {
+  it("blocks burst traffic for page routes", () => {
     const storePrefix = `test-page-burst-${Date.now()}`;
     const makeRequest = () =>
       new NextRequest("https://example.com/blog", {
         headers: { "x-forwarded-for": "203.0.113.20" },
       });
 
-    for (let i = 0; i < 15; i++) {
+    const limit = PROFILES.page.burst.maxRequests;
+    for (let i = 0; i < limit; i++) {
       const result = sitewideRateLimitMiddleware(makeRequest(), { storePrefix });
       expect(result).toBeNull();
     }
@@ -31,14 +33,15 @@ describe("sitewideRateLimitMiddleware", () => {
     expect(blocked?.headers.get("Retry-After")).toBe("10");
   });
 
-  it("blocks burst traffic for API routes (30 per 10s by default)", () => {
+  it("blocks burst traffic for API routes", () => {
     const storePrefix = `test-api-burst-${Date.now()}`;
     const makeRequest = () =>
       new NextRequest("https://example.com/api/ip", {
         headers: { "x-forwarded-for": "203.0.113.30" },
       });
 
-    for (let i = 0; i < 30; i++) {
+    const limit = PROFILES.api.burst.maxRequests;
+    for (let i = 0; i < limit; i++) {
       const result = sitewideRateLimitMiddleware(makeRequest(), { storePrefix });
       expect(result).toBeNull();
     }
@@ -49,14 +52,15 @@ describe("sitewideRateLimitMiddleware", () => {
     expect(blocked?.headers.get("Retry-After")).toBe("10");
   });
 
-  it("blocks burst traffic for next/image (20 per 10s by default)", () => {
+  it("blocks burst traffic for next/image", () => {
     const storePrefix = `test-next-image-burst-${Date.now()}`;
     const makeRequest = () =>
       new NextRequest("https://example.com/_next/image?url=%2Ffoo.png&w=256&q=75", {
         headers: { "x-forwarded-for": "203.0.113.40" },
       });
 
-    for (let i = 0; i < 20; i++) {
+    const limit = PROFILES.nextImage.burst.maxRequests;
+    for (let i = 0; i < limit; i++) {
       const result = sitewideRateLimitMiddleware(makeRequest(), { storePrefix });
       expect(result).toBeNull();
     }
