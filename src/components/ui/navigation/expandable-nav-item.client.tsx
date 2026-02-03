@@ -103,6 +103,7 @@ export function ExpandableNavItem({
                 `}
                 aria-current={currentPath === child.path ? "page" : undefined}
                 onClick={handleChildClick}
+                prefetch={false}
               >
                 {child.name}
               </Link>
@@ -164,6 +165,7 @@ export function ExpandableNavItem({
               `}
               aria-current={currentPath === child.path ? "page" : undefined}
               onClick={handleChildClick}
+              prefetch={false}
             >
               {child.name}
             </Link>

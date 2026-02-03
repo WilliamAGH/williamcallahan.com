@@ -14,10 +14,10 @@ import { useState } from "react";
 
 import type { BlogTagsPropsExtended, TagWrapperProps } from "@/types/features";
 
-function TagWrapper({ children, className, href }: TagWrapperProps) {
+function TagWrapper({ children, className, href, prefetch }: TagWrapperProps) {
   if (href) {
     return (
-      <Link href={href} className={className}>
+      <Link href={href} className={className} prefetch={prefetch}>
         {children}
       </Link>
     );
@@ -52,6 +52,7 @@ export function BlogTagsExpandable({ tags, interactive = false }: BlogTagsPropsE
             key={tag}
             href={interactive ? `/blog/tags/${kebabCase(tag)}` : undefined}
             className={`${baseTagClass} ${interactiveClass}`}
+            prefetch={interactive ? false : undefined}
           >
             <Tag className="w-3 h-3 mr-1" />
             {tag}

@@ -198,6 +198,8 @@ export interface TagWrapperProps {
   className: string;
   /** Optional link href */
   href?: string;
+  /** Disable prefetching for list contexts (reduces request volume) */
+  prefetch?: boolean;
 }
 
 /**

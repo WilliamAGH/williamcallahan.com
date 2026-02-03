@@ -169,6 +169,7 @@ export function ThoughtCard({ thought, preload = false }: ThoughtCardProps) {
                 "hover:opacity-80",
                 "transition-opacity",
               )}
+              prefetch={false}
             >
               {thought.category}
             </Link>
@@ -243,6 +244,7 @@ export function ThoughtCard({ thought, preload = false }: ThoughtCardProps) {
             "transition-transform duration-300",
           )}
           aria-label={`Read "${thought.title}"`}
+          prefetch={false}
         >
           <ArrowRight className="w-4 h-4" />
         </Link>
