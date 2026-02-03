@@ -134,20 +134,97 @@ export function AiChatInput({
   onCancelRequest,
 }: AiChatInputProps) {
   const [input, setInput] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Paste handling: store actual content, display placeholders
+  const pasteMapRef = useRef<Map<string, string>>(new Map());
 
   // Focus input on mount
   useEffect(() => {
-    inputRef.current?.focus();
+    textareaRef.current?.focus();
   }, []);
+
+  // Auto-resize textarea to fit content
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Reset to auto to measure true scrollHeight
+    textarea.style.height = "auto";
+    // Cap at max-height (150px leaves room for history in terminal)
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
+  }, [input]);
+
+  // Handle paste: show placeholder, store actual content for resolution on submit
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const pastedText = e.clipboardData.getData("text");
+      if (!pastedText.trim()) return;
+
+      e.preventDefault();
+
+      // Word count for truncation (pattern from text-chunker.ts)
+      const words = pastedText.split(/\s+/).filter((w) => w.length > 0);
+      const WORD_LIMIT = 12000;
+      const isTruncated = words.length > WORD_LIMIT;
+
+      // Store actual content (truncated if needed)
+      const actualContent = isTruncated ? words.slice(0, WORD_LIMIT).join(" ") : pastedText;
+
+      // Create placeholder
+      const placeholder = isTruncated ? "[Pasted truncated text]" : "[Pasted text]";
+
+      // Store mapping for resolution on submit
+      pasteMapRef.current.set(placeholder, actualContent);
+
+      // Insert at cursor position
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newValue = input.slice(0, start) + placeholder + input.slice(end);
+      setInput(newValue);
+
+      // Position cursor after placeholder
+      requestAnimationFrame(() => {
+        const newPos = start + placeholder.length;
+        textarea.setSelectionRange(newPos, newPos);
+      });
+    },
+    [input],
+  );
 
   const submit = useCallback(async () => {
     const trimmed = input.trim();
     if (!trimmed || isSubmitting) return;
+
+    // Handle "clear" command - same behavior as normal terminal mode
+    if (trimmed.toLowerCase() === "clear") {
+      setInput("");
+      pasteMapRef.current.clear();
+      onClearAndExit();
+      return;
+    }
+
+    // Resolve all paste placeholders to actual content
+    let resolvedText = trimmed;
+    for (const [placeholder, actualContent] of pasteMapRef.current) {
+      resolvedText = resolvedText.replaceAll(placeholder, actualContent);
+    }
+
+    // Clear state and paste map
     setInput("");
-    await onSend(trimmed);
-    inputRef.current?.focus();
-  }, [input, isSubmitting, onSend]);
+    pasteMapRef.current.clear();
+
+    try {
+      await onSend(resolvedText);
+    } catch (error) {
+      // Log but don't rethrow - parent handles error state via isSubmitting
+      console.error("[AiChatInput] Send failed:", error);
+    }
+    textareaRef.current?.focus();
+  }, [input, isSubmitting, onSend, onClearAndExit]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -176,8 +253,8 @@ export function AiChatInput({
         return;
       }
 
-      // Enter - submit message
-      if (e.key === "Enter") {
+      // Enter - submit message (Shift+Enter allows newline naturally in textarea)
+      if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         void submit();
       }
@@ -191,22 +268,28 @@ export function AiChatInput({
       {isSubmitting && <ThinkingIndicator queueMessage={queueMessage} />}
 
       {/* Input field */}
-      <div className="flex items-center gap-2">
-        <span className="text-[#7aa2f7] select-none shrink-0">&gt;</span>
+      <div className="flex items-start gap-2">
+        <span className="text-[#7aa2f7] select-none shrink-0 mt-0.5">&gt;</span>
         <div className="relative flex-1 transform-gpu">
-          <input
-            ref={inputRef}
-            type="text"
+          <textarea
+            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onPaste={handlePaste}
             disabled={isSubmitting}
+            rows={1}
             className="bg-transparent w-full focus:outline-none text-gray-200 caret-gray-200
-                text-[16px] transform-gpu scale-[0.875] origin-left disabled:opacity-50 disabled:cursor-not-allowed"
+                text-[16px] transform-gpu scale-[0.875] origin-left disabled:opacity-50
+                disabled:cursor-not-allowed resize-none overflow-y-auto leading-normal"
             style={{
               /* Offset the larger font size to maintain layout */
               margin: "-0.125rem 0",
+              minHeight: "1.5em",
+              maxHeight: "150px",
             }}
-            placeholder={isSubmitting ? "Waiting for response..." : "Send a message"}
+            placeholder={
+              isSubmitting ? "Waiting for response..." : "Send a message (Shift+Enter for newline)"
+            }
             aria-label="AI chat message input"
           />
         </div>

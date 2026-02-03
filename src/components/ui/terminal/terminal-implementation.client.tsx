@@ -200,13 +200,13 @@ export function Terminal() {
     }
   }, [windowState, inputRef]);
 
-  // Global keyboard shortcut: Escape / Ctrl+C / Ctrl+X / Ctrl+Z to cancel search selection from anywhere
+  // Global keyboard shortcut: Escape / Ctrl+C / Ctrl+X / Ctrl+Z to clear terminal from anywhere
   // This mirrors the global Cmd+K handler pattern - works regardless of focus location
-  // cancelSelection() handles clearing history, input, and refocusing - same as "clear" command
+  // Works in: selection mode (search results), normal mode, but NOT AI chat mode (has own handlers)
   useEffect(() => {
     const handleGlobalEscape = (event: KeyboardEvent) => {
-      // Only handle if selection is active (search results are showing)
-      if (!selection) return;
+      // AI chat mode handles its own keyboard events via AiChatInput
+      if (activeApp === "ai-chat") return;
 
       const isEscape = event.key === "Escape";
       const isCtrlC = event.ctrlKey && event.key.toLowerCase() === "c";
@@ -226,13 +226,19 @@ export function Terminal() {
       if (isEscape || isCtrlC || isCtrlX || isCtrlZ) {
         event.preventDefault();
         event.stopPropagation();
-        cancelSelection();
+        // Selection mode: cancel selection (which also clears)
+        // Normal mode: clear terminal
+        if (selection) {
+          cancelSelection();
+        } else {
+          clearAndExitChat();
+        }
       }
     };
 
     document.addEventListener("keydown", handleGlobalEscape);
     return () => document.removeEventListener("keydown", handleGlobalEscape);
-  }, [selection, cancelSelection]);
+  }, [selection, cancelSelection, activeApp, clearAndExitChat]);
 
   // Effect to handle tap/click outside terminal to dismiss search results (mobile-friendly)
   useEffect(() => {
@@ -461,6 +467,7 @@ export function Terminal() {
             onMinimize={minimizeWindow}
             onMaximize={maximizeWindow}
             isMaximized={isMaximized}
+            onClear={clearAndExitChat}
           />
         </div>
 

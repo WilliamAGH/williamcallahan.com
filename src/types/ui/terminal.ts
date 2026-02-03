@@ -59,6 +59,8 @@ export interface TerminalHeaderProps {
   onMaximize?: () => void;
   /** Whether window is maximized */
   isMaximized?: boolean;
+  /** Optional clear/reset callback */
+  onClear?: () => void;
 }
 
 export interface SelectionViewProps {
