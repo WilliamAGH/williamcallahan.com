@@ -66,10 +66,6 @@ export const INITIAL_BOOKMARK_ANALYSIS_STATE: BookmarkAnalysisState = {
 export interface BookmarkAiAnalysisProps {
   bookmark: import("./bookmark").UnifiedBookmark;
   className?: string;
-}
-
-/** Extended props for BookmarkAiAnalysis with cache support */
-export interface BookmarkAiAnalysisPropsExtended extends BookmarkAiAnalysisProps {
   /** Auto-trigger analysis on mount (default: true) */
   autoTrigger?: boolean;
   /** Pre-cached analysis from S3 (if available) */
