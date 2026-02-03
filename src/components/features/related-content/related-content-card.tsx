@@ -1,9 +1,3 @@
-/**
- * RelatedContentCard Component
- *
- * Unified card component for displaying different types of related content
- */
-
 "use client";
 
 import Link from "next/link";
@@ -15,7 +9,7 @@ import { ExternalLink } from "@/components/ui/external-link.client";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import { kebabCase } from "@/lib/utils/formatters";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
-// Local helper to avoid any unsafe function call/type issues in certain editor setups
+import { getOptimizedImageSrc, shouldBypassOptimizer } from "@/lib/utils/cdn-utils";
 function sanitizeExternalHref(raw?: string): string | null {
   if (!raw) return null;
   const input = raw.trim();
@@ -30,9 +24,6 @@ function sanitizeExternalHref(raw?: string): string | null {
   }
 }
 
-/**
- * Get type badge configuration
- */
 function getTypeBadge(type: RelatedContentCardProps["item"]["type"]): {
   label: string;
   className: string;
@@ -77,6 +68,12 @@ function getTypeBadge(type: RelatedContentCardProps["item"]["type"]): {
   }
 }
 
+function getImageProxyWidth(type: RelatedContentCardProps["item"]["type"]): number {
+  if (type === "investment") return 80;
+  if (type === "book") return 192;
+  return 800;
+}
+
 export function RelatedContentCard({
   item,
   className = "",
@@ -88,18 +85,15 @@ export function RelatedContentCard({
 
   const aventureIconSrc = getStaticImageUrl("/images/ui-components/aVenture-research-button.png");
 
-  // Build tag display (max 6 tags to fill two rows)
   const displayTags = metadata.tags?.slice(0, 6) || [];
   const typeBadge = getTypeBadge(type);
   const normalizedTagSet = new Set((metadata.tags || []).map((t) => t.toLowerCase()));
+  const imageProxyWidth = getImageProxyWidth(type);
+  const imageUrl = metadata.imageUrl
+    ? getOptimizedImageSrc(metadata.imageUrl, undefined, imageProxyWidth)
+    : undefined;
+  const shouldBypassImageOptimization = shouldBypassOptimizer(imageUrl);
 
-  // Determine if image is from external source that might need unoptimized
-  const isExternalImage = !!(
-    metadata.imageUrl &&
-    (metadata.imageUrl.startsWith("http://") || metadata.imageUrl.startsWith("https://"))
-  );
-
-  // Prepare safe external href for aVenture link when present (investments only)
   const aventureHref: string | null =
     type === "investment" && typeof metadata.aventureUrl === "string"
       ? sanitizeExternalHref(metadata.aventureUrl)
@@ -113,19 +107,17 @@ export function RelatedContentCard({
         hover:border-blue-500 dark:hover:border-blue-400 ${className}
       `}
     >
-      {/* Stretched overlay link to make the whole card clickable without nesting links */}
       <Link
         href={url}
         aria-label={`Open ${title}`}
         className="absolute inset-0 z-0 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-lg"
+        prefetch={false}
       >
         <span aria-hidden="true" />
       </Link>
 
       <article className="h-full flex flex-col pointer-events-none">
-        {/* Header with contextual info - type badge moved to tags row for all types */}
         <header className="flex items-start justify-between mb-3">
-          {/* Left side: domain for bookmarks, empty for others */}
           {type === "bookmark" && metadata.domain ? (
             <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[60%]">
               {metadata.domain}
@@ -133,7 +125,6 @@ export function RelatedContentCard({
           ) : (
             <span className="w-0" />
           )}
-          {/* Right side: date and score */}
           <div className="flex flex-col items-end text-xs text-gray-500 dark:text-gray-400">
             {metadata.date && type !== "investment" && (
               <time dateTime={metadata.date}>{formatDateUtil(metadata.date)}</time>
@@ -146,8 +137,7 @@ export function RelatedContentCard({
           </div>
         </header>
 
-        {/* Investment logos aligned with title - match investment card pattern */}
-        {type === "investment" && metadata.imageUrl && !imageError ? (
+        {type === "investment" && imageUrl && !imageError ? (
           <div className="flex items-start gap-3 mb-3">
             <div className="relative w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
               {imageLoading && (
@@ -156,7 +146,7 @@ export function RelatedContentCard({
                 </div>
               )}
               <Image
-                src={metadata.imageUrl}
+                src={imageUrl}
                 alt={title}
                 fill
                 className={`object-contain p-1 transition-opacity duration-200 ${imageLoading ? "opacity-0" : "opacity-100"}`}
@@ -171,7 +161,7 @@ export function RelatedContentCard({
                     );
                   }
                 }}
-                unoptimized={isExternalImage}
+                unoptimized={shouldBypassImageOptimization}
                 priority={false}
               />
             </div>
@@ -179,7 +169,6 @@ export function RelatedContentCard({
               <h3 className="flex-1 font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
                 {title}
               </h3>
-              {/* aVenture research link - inline with company name */}
               {typeof aventureHref === "string" && (
                 <ExternalLink
                   href={aventureHref}
@@ -199,8 +188,7 @@ export function RelatedContentCard({
               )}
             </div>
           </div>
-        ) : type === "book" && metadata.imageUrl && !imageError ? (
-          /* Book covers: larger display with cover on left, content on right */
+        ) : type === "book" && imageUrl && !imageError ? (
           <div className="flex items-start gap-4 mb-3">
             <div className="relative w-24 flex-shrink-0 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 shadow-md ring-1 ring-gray-200/50 dark:ring-gray-600/50">
               {imageLoading && (
@@ -209,7 +197,7 @@ export function RelatedContentCard({
                 </div>
               )}
               <Image
-                src={metadata.imageUrl}
+                src={imageUrl}
                 alt={title}
                 fill
                 className={`object-cover transition-opacity duration-200 ${imageLoading ? "opacity-0" : "opacity-100"}`}
@@ -223,7 +211,7 @@ export function RelatedContentCard({
                     console.warn(`Failed to load book cover for ${title}: ${metadata.imageUrl}`);
                   }
                 }}
-                unoptimized={isExternalImage}
+                unoptimized={shouldBypassImageOptimization}
                 priority={false}
               />
             </div>
@@ -231,7 +219,6 @@ export function RelatedContentCard({
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-3 text-sm leading-snug">
                 {title}
               </h3>
-              {/* Authors shown inline with title for books */}
               {metadata.authors && metadata.authors.length > 0 && (
                 <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
                   {metadata.authors.slice(0, 2).join(", ")}
@@ -242,8 +229,7 @@ export function RelatedContentCard({
           </div>
         ) : (
           <>
-            {/* Horizontal images for blog posts and bookmarks */}
-            {metadata.imageUrl && !imageError && type !== "investment" && type !== "book" && (
+            {imageUrl && !imageError && type !== "investment" && type !== "book" && (
               <div className="relative w-full h-32 mb-3 rounded overflow-hidden bg-gray-100 dark:bg-gray-700">
                 {imageLoading && (
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -251,7 +237,7 @@ export function RelatedContentCard({
                   </div>
                 )}
                 <Image
-                  src={metadata.imageUrl}
+                  src={imageUrl}
                   alt={title}
                   fill
                   className={`object-cover transition-opacity duration-200 ${imageLoading ? "opacity-0" : "opacity-100"}`}
@@ -264,14 +250,13 @@ export function RelatedContentCard({
                       console.warn(`Failed to load image for ${type}: ${metadata.imageUrl}`);
                     }
                   }}
-                  unoptimized={isExternalImage}
+                  unoptimized={shouldBypassImageOptimization}
                   priority={false}
                 />
               </div>
             )}
 
-            {/* Title for non-investment/non-book types, or when image is missing/errored */}
-            {(type !== "investment" && type !== "book") || !metadata.imageUrl || imageError ? (
+            {(type !== "investment" && type !== "book") || !imageUrl || imageError ? (
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
                 {title}
               </h3>
@@ -279,16 +264,12 @@ export function RelatedContentCard({
           </>
         )}
 
-        {/* Description */}
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 flex-grow line-clamp-3">
           {truncateTextUtil(description, 150)}
         </p>
 
-        {/* Footer with tags and type badge */}
         <footer className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-700">
-          {/* Tags row with type badge - unified for all content types */}
           <div className="flex items-end gap-2 mb-2">
-            {/* Tags container - allows 2 rows, compact sizing */}
             {displayTags.length > 0 && (
               <div className="flex-1 flex flex-wrap gap-1 max-h-[3.25rem] overflow-hidden pointer-events-auto relative z-10">
                 {displayTags.map((tag) => {
@@ -310,6 +291,7 @@ export function RelatedContentCard({
                       key={tag}
                       href={href}
                       className="inline-block pointer-events-auto relative z-10"
+                      prefetch={false}
                     >
                       {chip}
                     </Link>
@@ -326,7 +308,6 @@ export function RelatedContentCard({
                 )}
               </div>
             )}
-            {/* Type badge pinned to bottom right - all content types */}
             <span
               className={`
                 flex-shrink-0 self-end inline-flex items-center justify-center px-2 py-0.5
@@ -338,24 +319,20 @@ export function RelatedContentCard({
             </span>
           </div>
 
-          {/* Type-specific metadata row - only shown when there's content */}
           {((type === "blog" && metadata.readingTime) ||
             (type === "investment" && (metadata.stage || metadata.category)) ||
             (type === "project" && metadata.category)) && (
             <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-              {/* Reading time for blog posts */}
               {type === "blog" && metadata.readingTime && (
                 <span>{metadata.readingTime} min read</span>
               )}
 
-              {/* Stage for investments */}
               {type === "investment" &&
                 metadata.stage &&
                 !normalizedTagSet.has(String(metadata.stage).toLowerCase()) && (
                   <span>{metadata.stage}</span>
                 )}
 
-              {/* Category for investments and projects */}
               {(type === "investment" || type === "project") &&
                 metadata.category &&
                 !normalizedTagSet.has(String(metadata.category).toLowerCase()) && (

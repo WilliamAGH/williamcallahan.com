@@ -121,7 +121,13 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
         {/* Image background - clickable link */}
         {effectiveInternalHref ? (
           // When on list/grid views, link to internal bookmark page
-          <Link href={effectiveInternalHref} title={title} className="absolute inset-0 block">
+          // prefetch={false} reduces request volume in list contexts (see docs/standards/nextjs-framework.md §Link Prefetch)
+          <Link
+            href={effectiveInternalHref}
+            title={title}
+            className="absolute inset-0 block"
+            prefetch={false}
+          >
             <div className="relative w-full h-full">
               {/* Display OpenGraph image, screenshot, or placeholder */}
               <OptimizedCardImage src={displayImageUrl ?? null} alt={title} />
@@ -161,6 +167,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
             href={effectiveInternalHref}
             title={displayTitle}
             className="text-gray-900 dark:text-white hover:text-blue-600 transition-colors"
+            prefetch={false}
           >
             <h3 className="text-2xl font-semibold">{displayTitle}</h3>
           </Link>
@@ -211,7 +218,12 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
             {rawTags.map((raw) => {
               const label = formatTagDisplay(raw);
               return (
-                <Link key={raw} href={`/bookmarks/tags/${tagToSlug(raw)}`} className="inline-block">
+                <Link
+                  key={raw}
+                  href={`/bookmarks/tags/${tagToSlug(raw)}`}
+                  className="inline-block"
+                  prefetch={false}
+                >
                   <span className="inline-block px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-medium transition-colors hover:bg-indigo-200 dark:hover:bg-indigo-800/60 transform hover:scale-[1.02]">
                     {label}
                   </span>
