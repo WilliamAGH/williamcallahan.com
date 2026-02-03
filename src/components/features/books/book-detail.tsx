@@ -35,6 +35,7 @@ import { BooksWindow } from "./books-window.client";
 import { cn } from "@/lib/utils";
 import { processSummaryText } from "@/lib/utils/formatters";
 import { TerminalContext } from "@/components/ui/context-notes/terminal-context.client";
+import { ExpandableText } from "@/components/ui/expandable-text.client";
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -301,22 +302,35 @@ export function BookDetail({ book }: BookDetailProps) {
                 </div>
               </details>
 
-              {/* Description */}
+              {/* Description - Collapsible with expandable content */}
               {book.description && (
-                <motion.section
-                  initial={false}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="p-5 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700"
+                <details
+                  className="group border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden"
+                  open
                 >
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
-                    <BookOpen className="w-4 h-4" />
-                    About This Book
-                  </h2>
-                  <p className="text-sm sm:text-base leading-relaxed text-gray-700 dark:text-gray-300 whitespace-pre-line">
-                    {book.description}
-                  </p>
-                </motion.section>
+                  <summary
+                    className={cn(
+                      "flex items-center justify-between gap-2 px-5 py-3 cursor-pointer select-none",
+                      "bg-gray-50 dark:bg-gray-800/50",
+                      "text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400",
+                      "hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors",
+                      "[&::-webkit-details-marker]:hidden",
+                    )}
+                  >
+                    <span className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4" />
+                      About This Book
+                    </span>
+                    <ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" />
+                  </summary>
+                  <div className="p-5 bg-white dark:bg-gray-900/30">
+                    <ExpandableText collapsedHeight="md">
+                      <p className="text-sm sm:text-base leading-relaxed text-gray-700 dark:text-gray-300 whitespace-pre-line">
+                        {book.description}
+                      </p>
+                    </ExpandableText>
+                  </div>
+                </details>
               )}
 
               {/* AI Summary */}
