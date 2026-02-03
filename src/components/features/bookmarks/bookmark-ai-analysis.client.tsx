@@ -14,9 +14,12 @@ import { AlertCircle, RotateCcw, ChevronRight, Terminal } from "lucide-react";
 import {
   INITIAL_BOOKMARK_ANALYSIS_STATE,
   type BookmarkAnalysisState,
-  type BookmarkAiAnalysisProps,
+  type BookmarkAiAnalysisPropsExtended,
 } from "@/types/bookmark-ai-analysis";
-import { bookmarkAiAnalysisResponseSchema } from "@/types/schemas/bookmark-ai-analysis";
+import {
+  bookmarkAiAnalysisResponseSchema,
+  type BookmarkAiAnalysisResponse,
+} from "@/types/schemas/bookmark-ai-analysis";
 import { aiQueueStatsSchema } from "@/types/schemas/ai-openai-compatible-client";
 import { extractBookmarkAnalysisContext } from "@/lib/bookmarks/analysis/extract-context";
 import {
@@ -38,6 +41,43 @@ const AI_FEATURE_NAME = "bookmark-analysis";
  * the component will show a manual trigger button instead.
  */
 const AUTO_TRIGGER_QUEUE_THRESHOLD = 5;
+
+/**
+ * Persist bookmark analysis to S3 via API endpoint.
+ * Fire-and-forget - logs errors but doesn't block the UI.
+ *
+ * Note: This function is intentionally bookmark-specific since it lives in the
+ * bookmark component. Other domains would have their own persist functions.
+ */
+async function persistBookmarkAnalysisToS3(
+  bookmarkId: string,
+  analysis: BookmarkAiAnalysisResponse,
+): Promise<void> {
+  const logContext = { bookmarkId, domain: "bookmarks" };
+
+  try {
+    const response = await fetch(`/api/ai/analysis/bookmarks/${bookmarkId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ analysis }),
+    });
+
+    if (!response.ok) {
+      // Structured logging for client-side monitoring (e.g., Sentry, LogRocket)
+      console.error("[AiAnalysis] Persist failed", {
+        ...logContext,
+        status: response.status,
+        statusText: response.statusText,
+      });
+    }
+  } catch (error) {
+    // Structured logging with error details for debugging
+    console.error("[AiAnalysis] Persist error", {
+      ...logContext,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // JSON Parsing Utilities
@@ -173,8 +213,22 @@ export function BookmarkAiAnalysis({
   bookmark,
   className = "",
   autoTrigger = true,
-}: BookmarkAiAnalysisProps & { autoTrigger?: boolean }) {
-  const [state, setState] = useState<BookmarkAnalysisState>(INITIAL_BOOKMARK_ANALYSIS_STATE);
+  initialAnalysis,
+}: BookmarkAiAnalysisPropsExtended) {
+  // Initialize state from cache if available
+  const [state, setState] = useState<BookmarkAnalysisState>(() => {
+    if (initialAnalysis?.analysis) {
+      return {
+        status: "success",
+        analysis: initialAnalysis.analysis,
+        error: null,
+      };
+    }
+    return INITIAL_BOOKMARK_ANALYSIS_STATE;
+  });
+
+  // Track if we started from cache (affects auto-trigger behavior)
+  const startedFromCache = useRef(!!initialAnalysis?.analysis);
   const [loadingMessage, setLoadingMessage] = useState<string>(
     LOADING_MESSAGES[0] ?? "Analyzing...",
   );
@@ -241,6 +295,9 @@ export function BookmarkAiAnalysis({
         }
 
         setState({ status: "success", analysis: parseResult.data, error: null });
+
+        // Persist to S3 in the background (fire-and-forget)
+        void persistBookmarkAnalysisToS3(bookmark.id, parseResult.data);
       } catch (error) {
         // Don't update state if request was aborted (component likely unmounted)
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -258,11 +315,22 @@ export function BookmarkAiAnalysis({
 
   // Reset state when bookmark changes (defensive: handles prop changes without remount)
   useEffect(() => {
-    setState(INITIAL_BOOKMARK_ANALYSIS_STATE);
+    // If we have cached analysis for the new bookmark, use it
+    if (initialAnalysis?.analysis) {
+      setState({
+        status: "success",
+        analysis: initialAnalysis.analysis,
+        error: null,
+      });
+      startedFromCache.current = true;
+    } else {
+      setState(INITIAL_BOOKMARK_ANALYSIS_STATE);
+      startedFromCache.current = false;
+    }
     hasTriggered.current = false;
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
-  }, [bookmark.id]);
+  }, [bookmark.id, initialAnalysis]);
 
   // Wrapper for manual triggers (retry, idle, regenerate buttons)
   const handleManualTrigger = useCallback(() => {
@@ -276,6 +344,9 @@ export function BookmarkAiAnalysis({
   // Checks queue depth first to avoid overwhelming the AI service
   // Note: Uses ref for generateAnalysis to avoid effect re-runs when bookmark changes
   useEffect(() => {
+    // Skip auto-trigger if we started from cache (analysis already shown)
+    if (startedFromCache.current) return;
+
     // hasTriggered ref prevents double-triggers; reset effect sets it to false on bookmark change
     if (!autoTrigger || hasTriggered.current) return;
 

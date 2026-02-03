@@ -25,7 +25,9 @@ import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { envLogger } from "@/lib/utils/env-logger";
 import { cacheContextGuards } from "@/lib/cache";
 import { ensureProtocol, stripWwwPrefix } from "@/lib/utils/url-utils";
+import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
 import type { BookmarkPageContext, UnifiedBookmark } from "@/types";
+import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
 
 // CRITICAL: generateStaticParams() remains intentionally disabled for bookmarks.
 // The sitemap now streams paginated S3 data at request time, so the build no longer
@@ -251,6 +253,20 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     { category: "BookmarkPage" },
   );
 
+  // Fetch cached AI analysis (if available)
+  const cachedAnalysis = await getCachedAnalysis<BookmarkAiAnalysisResponse>(
+    "bookmarks",
+    foundBookmark.id,
+  );
+
+  if (cachedAnalysis) {
+    envLogger.log(
+      `Using cached AI analysis`,
+      { bookmarkId: foundBookmark.id, generatedAt: cachedAnalysis.metadata.generatedAt },
+      { category: "BookmarkPage" },
+    );
+  }
+
   const domainName = getBookmarkHostname(foundBookmark.url) ?? "website";
 
   const pageTitle = "Bookmark";
@@ -282,7 +298,7 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
 
       {/* Stunning Individual Bookmark Page - Add consistent container */}
       <div className="max-w-6xl mx-auto">
-        <BookmarkDetail bookmark={foundBookmark} />
+        <BookmarkDetail bookmark={foundBookmark} cachedAnalysis={cachedAnalysis} />
       </div>
 
       {/* Enhanced Related Content Section */}

@@ -3,7 +3,8 @@
 import { useMemo, useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
-import type { UnifiedBookmark, BookmarkTag } from "@/types";
+import type { BookmarkTag } from "@/types";
+import type { BookmarkDetailProps } from "@/types/bookmark-ai-analysis";
 import {
   Calendar,
   Clock,
@@ -38,7 +39,7 @@ function toDisplayDate(date?: string | Date | number | null): string | null {
   return text === "Invalid Date" ? null : text;
 }
 
-export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
+export function BookmarkDetail({ bookmark, cachedAnalysis }: BookmarkDetailProps) {
   const [mounted, setMounted] = useState(false);
   const { scrollY } = useScroll();
 
@@ -286,7 +287,10 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.5 }}
               >
-                <BookmarkAiAnalysis bookmark={bookmark} />
+                <BookmarkAiAnalysis
+                  bookmark={bookmark}
+                  initialAnalysis={cachedAnalysis ?? undefined}
+                />
               </motion.section>
             </div>
 

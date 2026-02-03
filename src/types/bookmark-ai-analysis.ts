@@ -6,6 +6,7 @@
  */
 
 import type { BookmarkAiAnalysisResponse } from "./schemas/bookmark-ai-analysis";
+import type { CachedAnalysis } from "./ai-analysis";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Context Extraction Types
@@ -65,4 +66,18 @@ export const INITIAL_BOOKMARK_ANALYSIS_STATE: BookmarkAnalysisState = {
 export interface BookmarkAiAnalysisProps {
   bookmark: import("./bookmark").UnifiedBookmark;
   className?: string;
+}
+
+/** Extended props for BookmarkAiAnalysis with cache support */
+export interface BookmarkAiAnalysisPropsExtended extends BookmarkAiAnalysisProps {
+  /** Auto-trigger analysis on mount (default: true) */
+  autoTrigger?: boolean;
+  /** Pre-cached analysis from S3 (if available) */
+  initialAnalysis?: CachedAnalysis<BookmarkAiAnalysisResponse>;
+}
+
+/** Props for BookmarkDetail component */
+export interface BookmarkDetailProps {
+  bookmark: import("./bookmark").UnifiedBookmark;
+  cachedAnalysis?: CachedAnalysis<BookmarkAiAnalysisResponse> | null;
 }
