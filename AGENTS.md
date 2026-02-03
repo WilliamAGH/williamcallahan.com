@@ -58,6 +58,7 @@ Structure: [ORG]; docs architecture: [DOC1]
 - [GT1d] **Permission Required**: Git writes (commits, pushes) require explicit user permission. Read-only git commands (`status`, `log`, `diff`) are always allowed.
 - [GT1e] **Hook & Commit Integrity**: Never skip hooks (`--no-verify`, `HUSKY=0`); never delete `.git/index.lock`; no AI attribution; one logical change per commit; describe change + purpose.
 - [GT1f] If an unexpected file is staged or modified by hooks, pause and show the diff; do not attempt to "fix" it unprompted.
+- [GT1g] **No Panic About Working State**: Do not comment on or halt for unrelated uncommitted changes. Keep working on the requested task and do not bring up the git working state unless the user explicitly asks.
 
 ## [LC1] Line Count Ceiling (Blocking)
 
@@ -138,6 +139,13 @@ Structure: [ORG]; docs architecture: [DOC1]
 - [ENV1b] No silent changes to `.env`, `.env-example`, CI/CD secrets, or runtime configs
 - [ENV1c] Approval workflow: document rationale and exact variable names; wait for a direct "yes" before committing code that depends on them
 
+## [IMG1] Image Optimization (Blocking)
+
+- [IMG1a] CDN URLs (s3-storage.callahan.cloud, \*.digitaloceanspaces.com) flow directly to `<Image>` for Next.js optimization; never wrap in `buildCachedImageUrl()` or proxy through `/api/cache/images`
+- [IMG1b] Only external URLs (third-party origins) use the image proxy for SSRF protection; these require `unoptimized` prop
+- [IMG1c] All `<Image>` components with remote sources must have a `sizes` prop for correct srcset generation
+- [IMG1d] Contract: `docs/architecture/image-handling.md` (Image Optimization Decision Matrix); lint enforced via `rules/ast-grep/no-cdn-image-proxy.yml`
+
 ---
 
 ### Process & Tooling
@@ -198,3 +206,4 @@ Structure: [ORG]; docs architecture: [DOC1]
 - **Type Policy**: `docs/standards/type-policy.md` ([TS1])
 - **Testing Protocols**: `docs/standards/testing.md` ([TST1])
 - **Deployment**: `docs/ops/verification.md` ([DEP1])
+- **Image Optimization Contract**: `docs/architecture/image-handling.md#image-optimization-decision-matrix` ([IMG1])
