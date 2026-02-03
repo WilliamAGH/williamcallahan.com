@@ -467,9 +467,9 @@ export function formatBookDescription(description: string): string {
 
   let text = description;
 
-  // Step 1: Strip HTML if present
+  // Step 1: Convert HTML to plain text while preserving paragraph structure
   if (containsHtmlTags(text)) {
-    text = stripHtmlToText(text);
+    text = htmlToPlainText(text);
   }
 
   // Step 2: Format section headers (add breaks before them)
