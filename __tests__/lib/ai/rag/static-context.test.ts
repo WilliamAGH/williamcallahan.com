@@ -17,6 +17,9 @@ describe("RAG Static Context", () => {
       expect(ctx).toHaveProperty("technicalFocus");
       expect(ctx).toHaveProperty("currentProjects");
       expect(ctx).toHaveProperty("socialLinks");
+      expect(ctx).toHaveProperty("homePageHighlights");
+      expect(ctx).toHaveProperty("contactSummary");
+      expect(ctx).toHaveProperty("contactLinks");
     });
 
     it("biography contains professional summary", () => {
@@ -62,6 +65,20 @@ describe("RAG Static Context", () => {
       expect(platforms).toContain("github");
     });
 
+    it("homePageHighlights includes baseline details", () => {
+      const ctx = getStaticContext();
+
+      expect(ctx.homePageHighlights.length).toBeGreaterThan(0);
+      expect(ctx.homePageHighlights.join(" ")).toMatch(/San Francisco/i);
+    });
+
+    it("contactSummary mentions shared topics", () => {
+      const ctx = getStaticContext();
+
+      expect(ctx.contactSummary).toMatch(/technology/i);
+      expect(ctx.contactSummary).toMatch(/software/i);
+    });
+
     it("returns same instance on subsequent calls (caching)", () => {
       const ctx1 = getStaticContext();
       const ctx2 = getStaticContext();
@@ -79,6 +96,8 @@ describe("RAG Static Context", () => {
       expect(formatted).toContain("Qualifications:");
       expect(formatted).toContain("Technical Focus:");
       expect(formatted).toContain("Current Projects:");
+      expect(formatted).toContain("Home Page Highlights:");
+      expect(formatted).toContain("Contact Summary:");
     });
 
     it("includes project URLs in output", () => {

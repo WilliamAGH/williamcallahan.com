@@ -18,6 +18,9 @@ export interface StaticContext {
   technicalFocus: Array<{ area: string; skills: string[] }>;
   currentProjects: Array<{ name: string; description: string; url: string }>;
   socialLinks: Array<{ platform: string; url: string }>;
+  homePageHighlights: string[];
+  contactSummary: string;
+  contactLinks: Array<{ label: string; url: string }>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -63,7 +66,8 @@ export type RagScopeName =
   | "books"
   | "bookmarks"
   | "tags"
-  | "analysis";
+  | "analysis"
+  | "thoughts";
 
 /**
  * Search function type for scope searchers.
