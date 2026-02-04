@@ -4,14 +4,14 @@
 
 ## Core Objective
 
-Provide a single operational playbook for all work that interacts with our Next.js 16.0.10, React 19.2.3, and Vitest 4.0.18 stack. This document removes guesswork by spelling out version-specific changes, outlawed patterns, and the exact verification workflow demanded by AGENTS.md.
+Provide a single operational playbook for all work that interacts with our Next.js 16.1.6, React 19.2.4, and Vitest 4.0.18 stack. This document removes guesswork by spelling out version-specific changes, outlawed patterns, and the exact verification workflow demanded by AGENTS.md.
 
 ## Canonical Sources (read before coding)
 
 - `node_modules/next/dist/server/config.js` – confirms `cacheComponents`, `experimental.ppr` removal, and other hard config rules.
 - `node_modules/next/dist/server/request/params.js` – shows async params/metadata behavior under cache components.
 - `node_modules/next/dist/shared/lib/image-config.js` – documents image defaults (e.g., `maximumRedirects: 3`).
-- `node_modules/react/package.json` – validates the React 19.2.3 runtime.
+- `node_modules/react/package.json` – validates the React 19.2.4 runtime.
 - `node_modules/vitest/package.json` – validates Vitest 4.0.18 expectations.
 - Next.js upgrade guides `docs/01-app/02-guides/upgrading/version-15.mdx` and `version-16.mdx` (fetched via Context7 MCP).
 - React 19 upgrade notes on react.dev (Context7 MCP).
