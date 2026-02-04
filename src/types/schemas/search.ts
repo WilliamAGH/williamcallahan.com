@@ -24,6 +24,7 @@ export const validScopesSchema = z.enum([
   "books",
   "thoughts",
   "tags",
+  "analysis",
 ]);
 
 export const VALID_SCOPES = validScopesSchema.options;
@@ -41,6 +42,7 @@ export const searchScopeSchema = z.enum([
   "books",
   "thoughts",
   "tags",
+  "analysis",
 ]);
 
 export type SearchScope = z.infer<typeof searchScopeSchema>;
