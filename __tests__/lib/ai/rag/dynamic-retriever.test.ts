@@ -75,6 +75,28 @@ vi.mock("@/lib/search/searchers/tag-search", () => ({
   ]),
 }));
 
+vi.mock("@/lib/search/searchers/ai-analysis-searcher", () => ({
+  searchAiAnalysis: vi.fn().mockResolvedValue([
+    {
+      title: "[Books] > Clean Code > Summary",
+      description: "AI-generated summary",
+      url: "/books/clean-code#analysis",
+      score: 0.3,
+    },
+  ]),
+}));
+
+vi.mock("@/lib/search/searchers/thoughts-search", () => ({
+  searchThoughts: vi.fn().mockResolvedValue([
+    {
+      title: "Thoughts",
+      description: "Notes & ruminations",
+      url: "/thoughts",
+      score: 0.2,
+    },
+  ]),
+}));
+
 describe("RAG Dynamic Retriever", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -153,6 +175,14 @@ describe("RAG Dynamic Retriever", () => {
       expect(results.some((r) => r.scope === "tags")).toBe(true);
     });
 
+    it("detects thoughts scope", async () => {
+      const { results, status } = await retrieveRelevantContent("Share your thoughts");
+
+      expect(status).toBe("success");
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.some((r) => r.scope === "thoughts")).toBe(true);
+    });
+
     it("detects multiple scopes", async () => {
       const { results, status } = await retrieveRelevantContent(
         "What projects did William build and invest in?",
@@ -163,11 +193,12 @@ describe("RAG Dynamic Retriever", () => {
       expect(scopes.size).toBeGreaterThanOrEqual(2);
     });
 
-    it("returns empty array for unrelated queries", async () => {
+    it("falls back to default scopes when no keywords match", async () => {
       const { results, status } = await retrieveRelevantContent("Hello, how are you?");
 
       expect(status).toBe("success");
-      expect(results).toEqual([]);
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.some((r) => r.scope === "projects")).toBe(true);
     });
   });
 

@@ -24,6 +24,7 @@ import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
 import { searchBooks, searchBookmarks } from "@/lib/search/searchers/dynamic-searchers";
 import { searchTags } from "@/lib/search/searchers/tag-search";
 import { searchAiAnalysis } from "@/lib/search/searchers/ai-analysis-searcher";
+import { searchThoughts } from "@/lib/search/searchers/thoughts-search";
 import logger from "@/lib/utils/logger";
 
 /**
@@ -40,7 +41,20 @@ const SCOPE_PATTERNS: Record<RagScopeName, RegExp> = {
   bookmarks: /\b(bookmarks?|bookmarked|links?|resources?|saved?|favorites?)\b/i,
   tags: /\b(tags?|topics?|categories|subjects?|themes?|writes?\s+about)\b/i,
   analysis: /\b(analysis|summary|summaries|insight|overview|highlights?|ai\s*generated|themes?)\b/i,
+  thoughts: /\b(thoughts?|notes?|ruminations?)\b/i,
 };
+
+const DEFAULT_FALLBACK_SCOPES: RagScopeName[] = [
+  "projects",
+  "blog",
+  "investments",
+  "experience",
+  "education",
+  "books",
+  "bookmarks",
+  "tags",
+  "analysis",
+];
 
 /**
  * Detects which content scopes are relevant to a query.
@@ -72,6 +86,7 @@ const SCOPE_SEARCHERS: Record<RagScopeName, ScopeSearcher> = {
   bookmarks: searchBookmarks,
   tags: searchTags,
   analysis: searchAiAnalysis,
+  thoughts: searchThoughts,
 };
 
 /**
@@ -89,11 +104,11 @@ export async function retrieveRelevantContent(
   const maxResults = options?.maxResults ?? 5;
   const timeoutMs = options?.timeoutMs ?? 3000;
 
-  const scopes = detectRelevantScopes(query);
+  const detectedScopes = detectRelevantScopes(query);
+  const scopes = detectedScopes.length > 0 ? detectedScopes : DEFAULT_FALLBACK_SCOPES;
 
-  // If no scopes detected, skip dynamic retrieval
-  if (scopes.length === 0) {
-    return { results: [], status: "success" };
+  if (detectedScopes.length === 0) {
+    logger.info("[RAG] No scope keywords detected; using fallback scopes", { scopes, query });
   }
 
   // Track failed scopes for caller awareness
