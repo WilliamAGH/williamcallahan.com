@@ -14,6 +14,24 @@ import type { StaticContext } from "@/types/rag";
 
 export type { StaticContext };
 
+const HOME_PAGE_HIGHLIGHTS = [
+  "Hello there -- I'm William. I'm a lifelong builder and aspiring polymath who finds meaning in making things better, and in helping others.",
+  "My background is in finance and technology. Today I live and work in San Francisco / Silicon Valley. I grew up in the small midwestern US town of Carter Lake - a one-square-mile Iowa exclave, famed for two cases on its location reaching the US Supreme Court.",
+  "(The neighboring sister town of Council Bluffs, Iowa, where I went to school, is now more famously known globally as us-central1 for its Google Cloud data centers.)",
+  "I'm currently building aVenture, a platform designed to bring greater transparency to private markets investing by using AI to analyze millions of data points about companies, their people, and investors.",
+  "If you're curious about what I'm tinkering with these days, my projects page serves as a public sandbox for my latest experiments and passion projects. I also regularly bookmark what I'm reading, which you can find on my bookmarks page.",
+  "Feel free to connect with me on Discord, X, or LinkedIn to chat.",
+] as const;
+
+const CONTACT_PAGE_SUMMARY =
+  "Here are some of the places I can be found online. I share content about technology, startups, investing, AI, LLMs, and software engineering.";
+
+const CONTACT_PAGE_LINKS = [
+  { label: "Discord", url: "https://discord.com/users/WilliamDscord" },
+  { label: "X", url: "https://x.com/williamcallahan" },
+  { label: "LinkedIn", url: "https://linkedin.com/in/williamacallahan" },
+] as const;
+
 /**
  * Builds the static context from site data sources.
  * This is computed once at module load and cached.
@@ -53,6 +71,9 @@ function buildStaticContext(): StaticContext {
     technicalFocus,
     currentProjects: featuredProjects,
     socialLinks,
+    homePageHighlights: [...HOME_PAGE_HIGHLIGHTS],
+    contactSummary: CONTACT_PAGE_SUMMARY,
+    contactLinks: [...CONTACT_PAGE_LINKS],
   };
 }
 
@@ -91,6 +112,28 @@ export function formatStaticContext(ctx: StaticContext): string {
   for (const project of ctx.currentProjects) {
     lines.push(`- ${project.name}: ${project.description}`);
     lines.push(`  URL: ${project.url}`);
+  }
+  lines.push("");
+
+  lines.push("Home Page Highlights:");
+  for (const highlight of ctx.homePageHighlights) {
+    lines.push(`- ${highlight}`);
+  }
+  lines.push("");
+
+  lines.push("Contact Summary:");
+  lines.push(ctx.contactSummary);
+  lines.push("");
+
+  lines.push("Contact Links:");
+  for (const link of ctx.contactLinks) {
+    lines.push(`- ${link.label}: ${link.url}`);
+  }
+  lines.push("");
+
+  lines.push("Social Profiles:");
+  for (const link of ctx.socialLinks) {
+    lines.push(`- ${link.platform}: ${link.url}`);
   }
 
   return lines.join("\n");

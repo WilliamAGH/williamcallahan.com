@@ -31,6 +31,13 @@ const mockStaticContext: StaticContext = {
     { platform: "GitHub", url: "https://github.com/WilliamAGH" },
     { platform: "Twitter", url: "https://twitter.com/williamcallahan" },
   ],
+  homePageHighlights: ["Hello there -- I'm William.", "I'm currently building aVenture."],
+  contactSummary:
+    "Here are some of the places I can be found online. I share content about technology.",
+  contactLinks: [
+    { label: "Discord", url: "https://discord.com/users/WilliamDscord" },
+    { label: "X", url: "https://x.com/williamcallahan" },
+  ],
 };
 
 const mockDynamicResults: DynamicResult[] = [
@@ -162,6 +169,9 @@ describe("RAG Context Formatter", () => {
         technicalFocus: [],
         currentProjects: [],
         socialLinks: [],
+        homePageHighlights: [],
+        contactSummary: "Test contact",
+        contactLinks: [],
       };
 
       const { text, tokenEstimate } = formatContext(minimalCtx, []);
