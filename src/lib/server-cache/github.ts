@@ -9,8 +9,8 @@ import type { GitHubActivityApiResponse } from "@/types/github";
 import { GITHUB_ACTIVITY_CACHE_DURATION } from "@/lib/constants";
 import { getMonotonicTime } from "@/lib/utils";
 
-const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
-const getCacheTimestamp = (): number => (isProductionBuildPhase ? 0 : getMonotonicTime());
+const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
+const getCacheTimestamp = (): number => (isProductionBuildPhase() ? 0 : getMonotonicTime());
 
 const GITHUB_ACTIVITY_CACHE_KEY = "github-activity-data";
 
