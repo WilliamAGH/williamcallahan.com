@@ -64,13 +64,13 @@ import {
 } from "@/lib/constants";
 
 import {
-  flattenContributionCalendar,
   categorizeRepository,
   calculateAndStoreAggregatedWeeklyActivity,
   filterContributorStats,
   repairCsvData,
   createEmptyCategoryStats,
 } from "./github-processing";
+import { flattenContributionCalendar } from "./github-contributions";
 
 // Re-export public API functions from github-public-api.ts
 export {
