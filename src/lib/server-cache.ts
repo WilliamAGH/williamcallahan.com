@@ -9,7 +9,7 @@
  */
 import { assertServerOnly } from "./utils";
 import { envLogger } from "@/lib/utils/env-logger";
-import { getMonotonicTime } from "@/lib/utils";
+import { getMonotonicTime, FIXED_BUILD_TIMESTAMP } from "@/lib/utils";
 
 import type { Cache, CacheStats, CacheValue, ServerCacheMapEntry } from "@/types/cache";
 import { SERVER_CACHE_DURATION, MEMORY_THRESHOLDS } from "./constants";
@@ -32,7 +32,7 @@ const buildPhaseTimestamp = isProductionBuildPhase() ? getMonotonicTime() : unde
 export const getDeterministicTimestamp = (): number => {
   if (isProductionBuildPhase()) {
     // Return the captured timestamp or a safe fallback (never call dynamic time functions during build)
-    return buildPhaseTimestamp ?? 1700000000000;
+    return buildPhaseTimestamp ?? FIXED_BUILD_TIMESTAMP;
   }
   return getMonotonicTime();
 };

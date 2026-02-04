@@ -35,6 +35,12 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Fixed timestamp used during production builds to ensure deterministic output.
+ * Value: 1700000000000 (approx Nov 2023)
+ */
+export const FIXED_BUILD_TIMESTAMP = 1700000000000;
+
+/**
  * Provides a monotonic timestamp for cache expiration and timing.
  * Uses performance.timeOrigin + performance.now() (via perf_hooks in Node) to
  * avoid backwards jumps, and falls back to an increment-only counter when the
@@ -44,7 +50,7 @@ export function getMonotonicTime(): number {
   // During Next.js production build, return a fixed timestamp to avoid "Date.now()" errors
   // in Server Components (static generation)
   if (process.env.NEXT_PHASE === "phase-production-build") {
-    return 1700000000000; // Fixed epoch timestamp (approx Nov 2023)
+    return FIXED_BUILD_TIMESTAMP;
   }
 
   if (typeof globalThis !== "undefined") {
