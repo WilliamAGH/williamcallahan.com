@@ -4,7 +4,7 @@
  * Provides condensed logging in production and verbose logging in development.
  * Uses DEPLOYMENT_ENV to determine the current environment.
  *
- * During Jest tests, verbose logging is disabled by default to reduce noise.
+ * During test runs, verbose logging is disabled by default to reduce noise.
  * Set VERBOSE_TEST_LOGS=true to enable verbose logging in tests.
  */
 
@@ -17,14 +17,16 @@ const STRING_TRUNCATE_LENGTH = 50;
 const TITLE_PREVIEW_LENGTH = 30;
 const ELLIPSIS = "...";
 
-// Detect Jest environment - all envLogger output is suppressed during tests by default
+// Detect test environment - all envLogger output is suppressed during tests by default
 // Set VERBOSE_TEST_LOGS=true to enable logging in tests for debugging
-const isJestEnvironment = typeof process !== "undefined" && !!process.env.JEST_WORKER_ID;
+const isTestEnvironment =
+  typeof process !== "undefined" &&
+  (process.env.NODE_ENV === "test" || process.env.VITEST === "true" || process.env.TEST === "true");
 const verboseTestLogsEnabled = process.env.VERBOSE_TEST_LOGS === "true";
-const isSilentInTests = isJestEnvironment && !verboseTestLogsEnabled;
+const isSilentInTests = isTestEnvironment && !verboseTestLogsEnabled;
 
 /**
- * Safely stringify data, handling Proxy objects (Jest mocks) and circular references
+ * Safely stringify data, handling Proxy objects (test mocks) and circular references
  */
 function safeStringify(data: unknown, indent?: number): string {
   try {
@@ -45,19 +47,19 @@ class EnvLogger {
 
   constructor() {
     this.environment = getEnvironment();
-    // In Jest, default to non-verbose unless VERBOSE_TEST_LOGS is set
+    // In tests, default to non-verbose unless VERBOSE_TEST_LOGS is set
     this.isDevelopment =
-      this.environment === "development" && (!isJestEnvironment || verboseTestLogsEnabled);
+      this.environment === "development" && (!isTestEnvironment || verboseTestLogsEnabled);
   }
 
   /**
    * Log a message with environment-aware formatting
    * In production: Single line with essential info
    * In development: Detailed multi-line output
-   * In Jest tests: Silent by default (set VERBOSE_TEST_LOGS=true to enable)
+   * In tests: Silent by default (set VERBOSE_TEST_LOGS=true to enable)
    */
   log(message: string, data?: unknown, options: LogOptions = {}): void {
-    // Silent in Jest unless explicitly enabled
+    // Silent in tests unless explicitly enabled
     if (isSilentInTests) return;
 
     const { forceVerbose = false, context = {}, category } = options;
@@ -88,10 +90,10 @@ class EnvLogger {
   /**
    * Log verbose details only in development
    * Completely silent in production unless forceVerbose is true
-   * In Jest tests: Silent by default (set VERBOSE_TEST_LOGS=true to enable)
+   * In tests: Silent by default (set VERBOSE_TEST_LOGS=true to enable)
    */
   debug(message: string, data?: unknown, options: LogOptions = {}): void {
-    // Silent in Jest unless explicitly enabled
+    // Silent in tests unless explicitly enabled
     if (isSilentInTests) return;
 
     const { forceVerbose = false, category } = options;
@@ -109,14 +111,14 @@ class EnvLogger {
    * Log a group of related messages
    * In development: Shows all messages with separators
    * In production: Shows only the summary
-   * In Jest tests: Silent by default (set VERBOSE_TEST_LOGS=true to enable)
+   * In tests: Silent by default (set VERBOSE_TEST_LOGS=true to enable)
    */
   group(
     summary: string,
     details: Array<{ message: string; data?: unknown }>,
     options: LogOptions = {},
   ): void {
-    // Silent in Jest unless explicitly enabled
+    // Silent in tests unless explicitly enabled
     if (isSilentInTests) return;
 
     const { category } = options;
@@ -149,7 +151,7 @@ class EnvLogger {
    * Log structured data (like service calls)
    * In development: Multi-line with indentation
    * In production: Single line with key info
-   * In Jest tests: Silent by default (set VERBOSE_TEST_LOGS=true to enable)
+   * In tests: Silent by default (set VERBOSE_TEST_LOGS=true to enable)
    */
   service(
     serviceName: string,
@@ -157,7 +159,7 @@ class EnvLogger {
     data?: Record<string, unknown>,
     result?: unknown,
   ): void {
-    // Silent in Jest unless explicitly enabled
+    // Silent in tests unless explicitly enabled
     if (isSilentInTests) return;
 
     if (this.isDevelopment) {
@@ -178,10 +180,10 @@ class EnvLogger {
 
   /**
    * Special method for analytics/pageview logs that should remain detailed
-   * In Jest tests: Silent by default (set VERBOSE_TEST_LOGS=true to enable)
+   * In tests: Silent by default (set VERBOSE_TEST_LOGS=true to enable)
    */
   analytics(data: Record<string, unknown>): void {
-    // Silent in Jest unless explicitly enabled
+    // Silent in tests unless explicitly enabled
     if (isSilentInTests) return;
 
     // Analytics logs should always be detailed for monitoring

@@ -6,9 +6,9 @@
  */
 
 import { NextResponse } from "next/server";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { BOOKMARKS_S3_PATHS, BOOKMARKS_CACHE_DURATION } from "@/lib/constants";
-import type { BookmarksIndex } from "@/types/bookmark";
+import { bookmarksIndexSchema, type BookmarksIndex } from "@/types/bookmark";
 import { getMonotonicTime } from "@/lib/utils";
 
 /**
@@ -24,8 +24,10 @@ export async function GET(): Promise<NextResponse> {
   }
 
   try {
-    // Read from S3 index for actual data
-    const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+    const index = await readJsonS3Optional<BookmarksIndex>(
+      BOOKMARKS_S3_PATHS.INDEX,
+      bookmarksIndexSchema,
+    );
 
     // Check if refresh is needed based on timing
     let needsRefresh = true;
@@ -59,25 +61,13 @@ export async function GET(): Promise<NextResponse> {
 
     return NextResponse.json(response);
   } catch (error) {
-    // Error reading from S3
-    return NextResponse.json({
-      storage: {
-        exists: false,
-        bookmarkCount: 0,
-        totalPages: 0,
-        lastFetchedAt: null,
-        lastModified: null,
-        hasChecksum: false,
+    console.error("Failed to read bookmarks status from S3:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to read bookmarks status",
+        message: error instanceof Error ? error.message : String(error),
       },
-      cache: {
-        needsRefresh: true,
-        message: "Cache statistics are no longer available with Next.js cache",
-      },
-      system: {
-        environment: process.env.NODE_ENV,
-        s3Bucket: process.env.S3_BUCKET || "not-configured",
-      },
-      error: error instanceof Error ? error.message : "Failed to read S3 index",
-    });
+      { status: 500 },
+    );
   }
 }

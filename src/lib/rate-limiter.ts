@@ -6,15 +6,11 @@
  * @module lib/rate-limiter
  */
 
-import type {
-  RateLimiterConfig,
-  RateLimitRecord,
-  CircuitBreakerState,
-  CircuitBreakerConfig,
-} from "@/types/lib";
-import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
+import type { RateLimiterConfig, CircuitBreakerState, CircuitBreakerConfig } from "@/types/lib";
+import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { getMonotonicTime } from "@/lib/utils";
+import { rateLimitStoreSchema, type RateLimitRecordFromSchema } from "@/types/schemas/rate-limit";
 
 /**
  * In-memory store for rate limit records.
@@ -22,7 +18,7 @@ import { getMonotonicTime } from "@/lib/utils";
  * or a fixed string like 'opengraph_fetches' for global outgoing request limiting).
  * The outer key is a 'namespace' or 'storeName' to keep different limiters separate.
  */
-const rateLimitStores: Record<string, Record<string, RateLimitRecord>> = {};
+const rateLimitStores: Record<string, Record<string, RateLimitRecordFromSchema>> = {};
 
 /**
  * Circuit breaker state for each store/context combination
@@ -155,26 +151,19 @@ export async function waitForPermit(
  * Missing files are treated as an empty store.
  */
 export async function loadRateLimitStoreFromS3(storeName: string, s3Path: string): Promise<void> {
-  try {
-    const remoteData = (await readJsonS3<Record<string, RateLimitRecord>>(s3Path)) ?? {};
-    rateLimitStores[storeName] = remoteData;
-  } catch (error: unknown) {
-    // If file does not exist or parse error, start with empty store but log once
-    console.warn(`RateLimiter: unable to load store ${storeName} from ${s3Path}:`, error);
-    rateLimitStores[storeName] = {};
-  }
+  const remoteData = await readJsonS3Optional<Record<string, RateLimitRecordFromSchema>>(
+    s3Path,
+    rateLimitStoreSchema,
+  );
+  rateLimitStores[storeName] = remoteData ?? {};
 }
 
 /**
  * Persists a specific rate limit store to S3.
  */
 export async function persistRateLimitStoreToS3(storeName: string, s3Path: string): Promise<void> {
-  try {
-    const store = rateLimitStores[storeName] ?? {};
-    await writeJsonS3(s3Path, store);
-  } catch (error: unknown) {
-    console.error(`RateLimiter: failed to persist store ${storeName} to ${s3Path}:`, error);
-  }
+  const store = rateLimitStores[storeName] ?? {};
+  await writeJsonS3(s3Path, store);
 }
 
 /**
@@ -189,7 +178,9 @@ export function incrementAndPersist(
   const allowed = isOperationAllowed(storeName, contextId, config);
   if (allowed) {
     // Fire-and-forget persist; do not block critical path.
-    void persistRateLimitStoreToS3(storeName, s3Path);
+    void persistRateLimitStoreToS3(storeName, s3Path).catch((error: unknown) => {
+      console.error(`RateLimiter: failed to persist store ${storeName} to ${s3Path}:`, error);
+    });
   }
   return allowed;
 }

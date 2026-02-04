@@ -11,11 +11,16 @@
  */
 
 import MiniSearch from "minisearch";
-import type { BookmarkIndexInput, BookmarkIndexItem, SerializedIndex } from "@/types/search";
+import {
+  serializedIndexSchema,
+  type BookmarkIndexInput,
+  type BookmarkIndexItem,
+  type SerializedIndex,
+} from "@/types/schemas/search";
 import type { Book } from "@/types/schemas/book";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { SEARCH_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { envLogger } from "@/lib/utils/env-logger";
 import logger from "@/lib/utils/logger";
 import { prepareDocumentsForIndexing } from "@/lib/utils/search-helpers";
@@ -202,7 +207,10 @@ export async function getBookmarksIndex(): Promise<{
 
   if (USE_S3_INDEXES) {
     try {
-      const serializedIndex = await readJsonS3<SerializedIndex>(SEARCH_S3_PATHS.BOOKMARKS_INDEX);
+      const serializedIndex = await readJsonS3Optional<SerializedIndex>(
+        SEARCH_S3_PATHS.BOOKMARKS_INDEX,
+        serializedIndexSchema,
+      );
       if (serializedIndex?.index && serializedIndex.metadata) {
         serializedBookmarksIndex = serializedIndex;
         bookmarksIndex = loadIndexFromJSON<BookmarkIndexItem>(
@@ -373,7 +381,10 @@ export async function getBooksIndex(): Promise<MiniSearch<Book>> {
   if (USE_S3_INDEXES) {
     try {
       devLog("[getBooksIndex] Trying to load books index from S3...");
-      const serializedIndex = await readJsonS3<SerializedIndex>(SEARCH_S3_PATHS.BOOKS_INDEX);
+      const serializedIndex = await readJsonS3Optional<SerializedIndex>(
+        SEARCH_S3_PATHS.BOOKS_INDEX,
+        serializedIndexSchema,
+      );
       if (serializedIndex?.index && serializedIndex.metadata) {
         booksIndex = loadIndexFromJSON<Book>(serializedIndex, BOOKS_INDEX_CONFIG);
         console.log(

@@ -62,6 +62,16 @@ async function getCspHashes(): Promise<{ scriptSrc: string[]; styleSrc: string[]
   }
 }
 
+const NON_LOGGED_PATHS = new Set(["/favicon.ico", "/robots.txt", "/sitemap.xml"]);
+const NON_LOGGED_PREFIXES = ["/_next/", "/api/"] as const;
+
+function shouldLogRequest(pathname: string, method: string): boolean {
+  if (method !== "GET") return false;
+  if (NON_LOGGED_PATHS.has(pathname)) return false;
+  if (NON_LOGGED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return false;
+  return pathname === "/" || !pathname.includes(".");
+}
+
 /**
  * Internal proxy handler for request logging and security headers.
  * This function is wrapped by clerkMiddleware for authentication.
@@ -219,21 +229,23 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
     response.headers.set("Expires", "0");
   }
 
-  // Log the request with the real IP
-  const log: RequestLog = {
-    timestamp: new Date().toISOString(),
-    type: "server_pageview",
-    data: {
-      path: request.nextUrl.pathname,
-      fullPath: request.nextUrl.pathname + request.nextUrl.search,
-      method: request.method,
-      clientIp: ip,
-      userAgent: request.headers.get("user-agent") || "unknown",
-      referer: request.headers.get("referer") || "direct",
-    },
-  };
+  if (shouldLogRequest(pathname, request.method)) {
+    // Log the request with the real IP
+    const log: RequestLog = {
+      timestamp: new Date().toISOString(),
+      type: "server_pageview",
+      data: {
+        path: request.nextUrl.pathname,
+        fullPath: request.nextUrl.pathname + request.nextUrl.search,
+        method: request.method,
+        clientIp: ip,
+        userAgent: request.headers.get("user-agent") || "unknown",
+        referer: request.headers.get("referer") || "direct",
+      },
+    };
 
-  console.log(JSON.stringify(log));
+    console.log(JSON.stringify(log));
+  }
 
   return response;
 }

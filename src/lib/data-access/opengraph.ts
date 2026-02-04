@@ -11,7 +11,7 @@ import { getMonotonicTime } from "@/lib/utils";
  */
 
 import { cacheContextGuards, isCliLikeCacheContext, USE_NEXTJS_CACHE } from "@/lib/cache";
-import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3, writeJsonS3 } from "@/lib/s3/json";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { debug } from "@/lib/utils/debug";
 import { getS3Override } from "@/lib/persistence/s3-persistence";
@@ -26,10 +26,14 @@ import {
 } from "@/lib/constants";
 import { fetchExternalOpenGraphWithRetry } from "@/lib/opengraph/fetch";
 import { createFallbackResult } from "@/lib/opengraph/fallback";
-import { isS3NotFound } from "@/lib/utils/s3-error-guards";
+import { S3NotFoundError } from "@/lib/s3/errors";
 import type { OgResult } from "@/types";
 import { isOgResult, OgError } from "@/types/opengraph";
-import { karakeepImageFallbackSchema, type KarakeepImageFallback } from "@/types/seo/opengraph";
+import {
+  karakeepImageFallbackSchema,
+  ogResultSchema,
+  type KarakeepImageFallback,
+} from "@/types/seo/opengraph";
 
 // Re-export constants for backwards compatibility
 export { OPENGRAPH_S3_KEY_DIR, OPENGRAPH_METADATA_S3_DIR, OPENGRAPH_IMAGES_S3_DIR };
@@ -96,7 +100,7 @@ async function getCachedOpenGraphDataInternal(
   // PRIORITY LEVEL 3: Try to read from S3 persistent storage
   debug(`[OG-Priority-3] 🔍 Checking S3 persistent storage for: ${normalizedUrl}`);
   try {
-    const stored = await readJsonS3(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`);
+    const stored = await readJsonS3(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`, ogResultSchema);
     if (isOgResult(stored)) {
       // Check if S3 data is fresh enough
       const isDataFresh =
@@ -115,7 +119,7 @@ async function getCachedOpenGraphDataInternal(
     }
     debug(`[OG-Priority-3] ❌ No valid data in S3 storage for: ${normalizedUrl}`);
   } catch (e) {
-    if (isS3NotFound(e)) {
+    if (e instanceof S3NotFoundError) {
       debug(`[OG-Priority-3] ❌ Not found in S3 storage: ${normalizedUrl}`);
     } else {
       const error = e instanceof Error ? e : new Error(String(e));
@@ -277,7 +281,7 @@ export async function getOpenGraphData(
   // PRIORITY LEVEL 3: Try to read from S3 persistent storage if not in memory cache
   debug(`[OG-Priority-3] 🔍 Checking S3 persistent storage for: ${normalizedUrl}`);
   try {
-    const stored = await readJsonS3(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`);
+    const stored = await readJsonS3(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`, ogResultSchema);
     if (isOgResult(stored)) {
       // Check if S3 data is fresh enough
       const isDataFresh =
@@ -301,7 +305,7 @@ export async function getOpenGraphData(
     }
     debug(`[OG-Priority-3] ❌ No valid data in S3 storage for: ${normalizedUrl}`);
   } catch (e) {
-    if (isS3NotFound(e)) {
+    if (e instanceof S3NotFoundError) {
       debug(`[OG-Priority-3] ❌ Not found in S3 storage: ${normalizedUrl}`);
     } else {
       const error = e instanceof Error ? e : new Error(String(e));

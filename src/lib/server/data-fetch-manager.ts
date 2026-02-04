@@ -17,6 +17,7 @@ import { stripWwwPrefix } from "@/lib/utils/url-utils";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
 import {
+  BOOKMARKS_S3_PATHS,
   KNOWN_DOMAINS,
   SEARCH_S3_PATHS,
   IMAGE_MANIFEST_S3_PATHS,
@@ -26,9 +27,10 @@ import { DATA_UPDATER_FLAGS, hasFlag, parseTestLimit } from "@/lib/constants/cli
 import { getLogo } from "@/lib/data-access/logos";
 import { processLogoBatch } from "@/lib/data-access/logos-batch";
 import { refreshBookmarks } from "@/lib/bookmarks/service.server";
-import type { UnifiedBookmark } from "@/types/bookmark";
+import { bookmarksIndexSchema, type UnifiedBookmark } from "@/types/bookmark";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
-import { writeJsonS3, listS3Objects } from "@/lib/s3-utils";
+import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
+import { listS3Objects } from "@/lib/s3/objects";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 import type { LogoManifest } from "@/types/image";
 
@@ -150,17 +152,16 @@ export class DataFetchManager {
       let changeDetected: boolean | undefined;
       let lastFetchedAt: number | undefined;
       try {
-        const { readJsonS3 } = await import("@/lib/s3-utils");
-        const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
-        const index = await readJsonS3<import("@/types/bookmark").BookmarksIndex>(
+        const index = await readJsonS3Optional<import("@/types/bookmark").BookmarksIndex>(
           BOOKMARKS_S3_PATHS.INDEX,
+          bookmarksIndexSchema,
         );
         if (index) {
           changeDetected = index.changeDetected ?? undefined;
           lastFetchedAt = index.lastFetchedAt;
         }
-      } catch {
-        // non-fatal
+      } catch (error) {
+        logger.debug("[DataFetchManager] Failed to read bookmarks index", { error });
       }
 
       const duration = (getMonotonicTime() - startTime) / 1000;
@@ -497,7 +498,7 @@ export class DataFetchManager {
           skipExternalFetch: false,
           includeImageData: false,
         })) as import("@/types/bookmark").UnifiedBookmark[];
-        await saveSlugMapping(bookmarks, true, false);
+        await saveSlugMapping(bookmarks, true);
         logger.info("[DataFetchManager] Slug mapping generated and saved");
       } else {
         logger.info(`[DataFetchManager] Slug mapping exists with ${existingMapping.count} entries`);

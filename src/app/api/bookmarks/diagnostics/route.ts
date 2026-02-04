@@ -8,9 +8,16 @@
 import "server-only";
 
 import { NextResponse, type NextRequest } from "next/server";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { z, type ZodSchema } from "zod/v4";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
-import type { BookmarksIndex, BookmarkSlugMapping } from "@/types/bookmark";
+import {
+  bookmarksIndexSchema,
+  bookmarkSlugMappingSchema,
+  unifiedBookmarksArraySchema,
+  type BookmarksIndex,
+  type BookmarkSlugMapping,
+} from "@/types/bookmark";
 import type { ReadJsonResult } from "@/types/lib";
 import {
   getEnvironment,
@@ -36,9 +43,9 @@ function isAuthorized(request: NextRequest): boolean {
   return Boolean(secret && token && token === secret);
 }
 
-async function tryReadJson<T>(key: string): Promise<ReadJsonResult<T>> {
+async function tryReadJson<T>(key: string, schema: ZodSchema<T>): Promise<ReadJsonResult<T>> {
   try {
-    const data = await readJsonS3<T>(key);
+    const data = await readJsonS3Optional<T>(key, schema);
     return { key, exists: data !== null, ok: data !== null, parsed: data };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
@@ -67,11 +74,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // First round of checks
   const [fileRes, indexRes, heartbeatRes, page1Res, slugMapRes] = await Promise.all([
-    tryReadJson<unknown>(keys.FILE),
-    tryReadJson<BookmarksIndex>(keys.INDEX),
-    tryReadJson<unknown>(keys.HEARTBEAT),
-    tryReadJson<unknown>(keys.PAGE_1),
-    tryReadJson<BookmarkSlugMapping>(keys.SLUG_MAPPING),
+    tryReadJson(keys.FILE, unifiedBookmarksArraySchema),
+    tryReadJson<BookmarksIndex>(keys.INDEX, bookmarksIndexSchema),
+    tryReadJson(keys.HEARTBEAT, z.unknown()),
+    tryReadJson(keys.PAGE_1, unifiedBookmarksArraySchema),
+    tryReadJson<BookmarkSlugMapping>(keys.SLUG_MAPPING, bookmarkSlugMappingSchema),
   ]);
 
   // If index shows multiple pages, spot-check next 2 pages
@@ -82,7 +89,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (totalPages >= 3) extraPageKeys.push(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}3.json`);
 
   const extraPageChecks: ReadonlyArray<ReadJsonResult<unknown>> = extraPageKeys.length
-    ? await Promise.all(extraPageKeys.map((k) => tryReadJson<unknown>(k)))
+    ? await Promise.all(extraPageKeys.map((k) => tryReadJson<unknown>(k, z.unknown())))
     : [];
 
   // Compute health flags

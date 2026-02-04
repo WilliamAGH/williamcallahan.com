@@ -32,11 +32,13 @@ import {
 } from "@/lib/utils/date-format";
 import { waitForPermit, isOperationAllowed } from "@/lib/rate-limiter";
 import { generateGitHubStatsCSV, parseGitHubStatsCSV } from "@/lib/utils/csv";
-import { writeBinaryS3, readBinaryS3, writeJsonS3, readJsonS3 } from "@/lib/s3-utils";
+import { readBinaryS3, writeBinaryS3 } from "@/lib/s3/binary";
+import { readJsonS3, writeJsonS3 } from "@/lib/s3/json";
 import { createHash } from "node:crypto";
 import { BatchProcessor } from "@/lib/batch-processing";
 import { retryWithDomainConfig, delay } from "@/lib/utils/retry";
 import { createCategorizedError } from "@/lib/utils/error-utils";
+import { checksumRecordSchema } from "@/types/schemas/checksum";
 
 // Import from specialized modules
 import {
@@ -879,7 +881,7 @@ async function detectAndRepairCsvFiles(): Promise<{
         try {
           const checksumKey = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwner}_${repoName}_raw_checksum.json`;
 
-          const latest = await readJsonS3<{ checksum: string }>(checksumKey);
+          const latest = await readJsonS3(checksumKey, checksumRecordSchema);
           if (latest?.checksum) {
             const currentChecksum = createHash("sha256").update(csvString).digest("hex");
             if (currentChecksum === latest.checksum) {

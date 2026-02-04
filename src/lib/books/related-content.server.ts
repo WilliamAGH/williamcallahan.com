@@ -6,7 +6,7 @@
  * Fetches data from S3 and provides type-safe access to related content entries.
  */
 
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
 import { booksRelatedContentDataSchema } from "@/types/schemas/book";
@@ -30,18 +30,14 @@ async function ensureCacheLoaded(): Promise<BooksRelatedContentData | null> {
   }
 
   try {
-    const rawData = await readJsonS3<unknown>(CONTENT_GRAPH_S3_PATHS.BOOKS_RELATED_CONTENT);
-    const validationResult = booksRelatedContentDataSchema.safeParse(rawData);
-    if (validationResult.success) {
-      cachedData = validationResult.data;
+    const data = await readJsonS3Optional(
+      CONTENT_GRAPH_S3_PATHS.BOOKS_RELATED_CONTENT,
+      booksRelatedContentDataSchema,
+    );
+    if (data) {
+      cachedData = data;
       cacheTimestamp = now;
-      return validationResult.data;
-    } else {
-      envLogger.log(
-        "Books related content validation failed",
-        { errors: validationResult.error.issues },
-        { category: "BooksRelatedContent" },
-      );
+      return data;
     }
   } catch (error) {
     envLogger.log(

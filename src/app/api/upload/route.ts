@@ -14,7 +14,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { deleteFromS3, writeBinaryS3 } from "@/lib/s3-utils";
+import { writeBinaryS3 } from "@/lib/s3/binary";
+import { deleteFromS3 } from "@/lib/s3/objects";
 import {
   UploadFileTypeSchema,
   FILE_TYPE_CONFIGS,

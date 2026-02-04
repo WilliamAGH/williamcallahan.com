@@ -36,11 +36,15 @@ const logEnvironmentInfo = (message: string): void => {
  * build-time and runtime to prevent environment-specific file mismatches.
  */
 export function getEnvironment(): Environment {
-  const isJest = typeof process !== "undefined" && !!process.env.JEST_WORKER_ID;
+  const isTestRuntime =
+    typeof process !== "undefined" &&
+    (process.env.NODE_ENV === "test" ||
+      process.env.VITEST === "true" ||
+      process.env.TEST === "true");
 
   // PRIORITY 1: Use explicit DEPLOYMENT_ENV if set (for build-time consistency)
-  // In Jest, ignore DEPLOYMENT_ENV so tests can control behavior via NODE_ENV
-  const deploymentEnv = isJest ? undefined : process.env.DEPLOYMENT_ENV;
+  // In tests, ignore DEPLOYMENT_ENV so tests can control behavior via NODE_ENV
+  const deploymentEnv = isTestRuntime ? undefined : process.env.DEPLOYMENT_ENV;
   if (deploymentEnv) {
     const normalizedInput = normalizeString(deploymentEnv);
     const normalized =
@@ -68,10 +72,10 @@ export function getEnvironment(): Environment {
   }
 
   // PRIORITY 2: Try to infer from URLs (runtime detection)
-  // Prefer explicit env vars. In Jest, allow jsdom location only when NODE_ENV is 'test',
+  // Prefer explicit env vars. In tests, allow jsdom location only when NODE_ENV is 'test',
   // so tests that switch NODE_ENV to 'production' can validate production behavior.
   let apiUrl: string | undefined = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL;
-  if (!apiUrl && isJest && normalizeString(process.env.NODE_ENV || "test") === "test") {
+  if (!apiUrl && isTestRuntime && normalizeString(process.env.NODE_ENV || "test") === "test") {
     try {
       const loc = (globalThis as unknown as { location?: { href?: string; origin?: string } })
         .location;

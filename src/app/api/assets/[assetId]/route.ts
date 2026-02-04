@@ -27,7 +27,8 @@ import {
   type GetObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import { Readable } from "node:stream";
-import { s3Client } from "@/lib/s3-utils";
+import { getS3Client } from "@/lib/s3/client";
+import { getS3Config } from "@/lib/s3/config";
 import { getExtensionFromContentType, IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
 import { IMAGE_S3_PATHS } from "@/lib/constants";
 import { assetIdSchema } from "@/types/schemas/url";
@@ -37,6 +38,11 @@ import { createMonitoredStream, streamToBufferWithLimits } from "@/lib/utils/str
 
 const MAX_ASSET_SIZE_BYTES = 50 * 1024 * 1024; // 50MB limit
 const DEFAULT_BOOKMARKS_API_URL = "https://bookmark.iocloudhost.net/api/v1";
+
+const getS3Context = () => {
+  const { bucket } = getS3Config();
+  return { bucket, s3Client: getS3Client() };
+};
 
 /**
  * In-memory set to track ongoing S3 write operations.
@@ -86,9 +92,7 @@ async function findAssetInS3(
     domain?: string;
   },
 ): Promise<{ key: string; contentType: string } | null> {
-  if (!process.env.S3_BUCKET || !s3Client) {
-    return null;
-  }
+  const { bucket, s3Client } = getS3Context();
 
   // Build list once from central IMAGE_EXTENSIONS
   const extensions = IMAGE_EXTENSIONS.map((e) => `.${e}`);
@@ -109,7 +113,7 @@ async function findAssetInS3(
 
       try {
         const command = new HeadObjectCommand({
-          Bucket: process.env.S3_BUCKET,
+          Bucket: bucket,
           Key: descriptiveKey,
         });
 
@@ -131,7 +135,7 @@ async function findAssetInS3(
     const key = `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${assetId}${ext}`;
     try {
       const command = new HeadObjectCommand({
-        Bucket: process.env.S3_BUCKET,
+        Bucket: bucket,
         Key: key,
       });
 
@@ -154,12 +158,10 @@ async function findAssetInS3(
  * Stream an asset from S3
  */
 async function streamFromS3(key: string, contentType: string): Promise<NextResponse> {
-  if (!process.env.S3_BUCKET || !s3Client) {
-    throw new Error("S3 not configured");
-  }
+  const { bucket, s3Client } = getS3Context();
 
   const command = new GetObjectCommand({
-    Bucket: process.env.S3_BUCKET,
+    Bucket: bucket,
     Key: key,
   });
 
@@ -271,9 +273,7 @@ async function saveAssetToS3(
     domain?: string;
   },
 ): Promise<string> {
-  if (!process.env.S3_BUCKET || !s3Client) {
-    throw new Error("S3 not configured");
-  }
+  const { bucket, s3Client } = getS3Context();
 
   const extension = getExtensionFromContentType(contentType);
   let key: string;
@@ -297,7 +297,7 @@ async function saveAssetToS3(
   // Check if file already exists to avoid duplicate writes (content deduplication)
   try {
     const headCommand = new HeadObjectCommand({
-      Bucket: process.env.S3_BUCKET,
+      Bucket: bucket,
       Key: key,
     });
     await s3Client.send(headCommand);
@@ -534,10 +534,14 @@ export async function GET(
         );
       }
 
-      const shouldPersist =
-        process.env.IS_DATA_UPDATER === "true" &&
-        Boolean(process.env.S3_BUCKET) &&
-        Boolean(s3Client);
+      let canPersistToS3 = false;
+      try {
+        getS3Context();
+        canPersistToS3 = true;
+      } catch {
+        canPersistToS3 = false;
+      }
+      const shouldPersist = process.env.IS_DATA_UPDATER === "true" && canPersistToS3;
       let clientStream: ReadableStream<Uint8Array> = upstreamBody;
       let persistStream: ReadableStream<Uint8Array> | null = null;
 

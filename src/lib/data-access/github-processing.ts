@@ -19,7 +19,7 @@ import type {
   GitHubActivitySummary,
 } from "@/types/github";
 import { debug } from "@/lib/utils/debug";
-import { readBinaryS3 } from "@/lib/s3-utils";
+import { readBinaryS3 } from "@/lib/s3/binary";
 import { listRepoStatsFiles, writeAggregatedWeeklyActivityToS3 } from "./github-storage";
 import {
   AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE,

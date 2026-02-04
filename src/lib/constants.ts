@@ -502,3 +502,15 @@ export const MEMORY_THRESHOLDS = {
 
 /** Default S3 bucket name (callers handle undefined gracefully) */
 export const S3_BUCKET: string | undefined = process.env.S3_BUCKET;
+
+/** S3 size limits - single source of truth for memory protection */
+export const S3_SIZE_LIMITS = {
+  /** Maximum read size to prevent memory exhaustion (50MB) */
+  MAX_READ_SIZE: 50 * 1024 * 1024,
+  /** Small payload threshold for memory checks (512KB) */
+  SMALL_PAYLOAD_THRESHOLD: 512 * 1024,
+  /** OpenGraph image threshold - higher limit for essential previews (2MB) */
+  OPENGRAPH_IMAGE_THRESHOLD: 2 * 1024 * 1024,
+  /** Stream timeout in milliseconds */
+  STREAM_TIMEOUT_MS: 30_000,
+} as const;
