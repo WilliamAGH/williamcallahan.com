@@ -2,15 +2,9 @@
 
 import Link from "next/link";
 import type { ProjectCardProps } from "@/types/features/projects";
-import Image from "next/image";
-import {
-  buildCdnUrl,
-  getCdnConfigFromEnv,
-  getOptimizedImageSrc,
-  shouldBypassOptimizer,
-} from "@/lib/utils/cdn-utils";
-import { type JSX, useState, useEffect } from "react";
-import { getStaticImageUrl } from "@/lib/data-access/static-images";
+import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import type { JSX } from "react";
+import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 import { AlertTriangle, ExternalLink, Github } from "lucide-react";
 import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 import { safeExternalHref, isGitHubUrl } from "@/lib/utils/url-utils";
@@ -22,10 +16,8 @@ import {
 
 export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX.Element {
   const { name, description, url, imageKey, tags, techStack } = project;
-  // Build CDN URL directly, then use smart helper that routes correctly
-  // CDN URLs flow through /_next/image for optimization; external URLs get proxied
-  const cdnImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
-  const initialImageUrl = getOptimizedImageSrc(cdnImageUrl);
+  // Build CDN URL directly - OptimizedCardImage handles proxying and retry logic
+  const cdnImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : null;
 
   // Generate slug for internal detail page link
   const projectSlug = generateProjectSlug(name, project.id);
@@ -36,23 +28,6 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
   const isGitHub = isGitHubUrl(url);
   const sanitizedGithubUrl = project.githubUrl ? safeExternalHref(project.githubUrl) : null;
   const shouldShowGithub = Boolean(sanitizedGithubUrl && sanitizedGithubUrl !== externalUrl);
-
-  const [imageUrl, setImageUrl] = useState(initialImageUrl);
-  const [hasError, setHasError] = useState(false);
-
-  const placeholderUrl = getStaticImageUrl("/images/opengraph-placeholder.png");
-
-  useEffect(() => {
-    setImageUrl(initialImageUrl);
-    setHasError(false);
-  }, [initialImageUrl]);
-
-  const handleImageError = () => {
-    if (imageUrl !== placeholderUrl) {
-      setHasError(true);
-      setImageUrl(placeholderUrl);
-    }
-  };
 
   // Derive a technology stack from tags if explicit techStack is not provided
 
@@ -68,23 +43,15 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
       className="group rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden bg-white dark:bg-gray-900 transition-all duration-300 ease-in-out hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-gray-900/50 hover:border-blue-400/50 dark:hover:border-blue-500/50 opacity-0 animate-fade-in-up md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] flex flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
     >
       {/* Image Section (Left on desktop, top on mobile) */}
-      <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center min-h-[140px] md:min-h-[180px]">
+      <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 min-h-[140px] md:min-h-[180px]">
         <Link href={detailPageUrl} title={`View ${name} details`} className="block w-full h-full">
-          {imageUrl ? (
-            <div className="relative w-full h-full flex items-center justify-center p-3 md:p-4">
-              <Image
-                src={imageUrl || placeholderUrl}
+          {cdnImageUrl ? (
+            <div className="relative w-full h-full min-h-[180px] md:min-h-[220px]">
+              <OptimizedCardImage
+                src={cdnImageUrl}
                 alt={`${name} screenshot`}
-                width={600}
-                height={400}
-                quality={hasError ? 70 : 85}
                 preload={preload}
-                sizes="(max-width: 767px) 100vw, (min-width: 768px) 50vw"
-                placeholder="blur"
-                blurDataURL={getStaticImageUrl("/images/opengraph-placeholder.png")}
-                onError={handleImageError}
-                className="w-full h-auto max-h-[280px] md:max-h-[320px] object-contain rounded-md transition-transform duration-300 ease-in-out group-hover:scale-[1.02]"
-                {...(shouldBypassOptimizer(imageUrl) ? { unoptimized: true } : {})}
+                className="rounded-md transition-transform duration-300 ease-in-out group-hover:scale-[1.02]"
               />
             </div>
           ) : (

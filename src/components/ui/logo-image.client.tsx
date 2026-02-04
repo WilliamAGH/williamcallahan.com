@@ -126,13 +126,14 @@ export function LogoImage({
   const [isLoading, setIsLoading] = useState(true);
   const retryInitiated = useRef(false);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const sizes = width ? `${width}px` : "100vw";
 
   const proxiedSrc = React.useMemo(() => getProxiedImageSrc(src, width), [src, width]);
 
   const handleError = useCallback(() => {
     if (retryInitiated.current) {
       // We already retried once – fallback permanently to placeholder
-      if (isDev) console.error(`[LogoImage] Final failure loading logo src: ${src}`);
+      console.warn(`[LogoImage] Final failure loading logo src: ${src}`);
       setImageError(true);
       setIsLoading(false);
       return;
@@ -143,9 +144,14 @@ export function LogoImage({
     const domain = src ? extractDomainFromSrc(src) : null;
     if (domain) {
       // Fire and forget – trigger server fetch/upload with correct parameter and force refresh
-      void fetch(`/api/logo?website=${encodeURIComponent(domain)}&forceRefresh=true`).catch(() => {
-        /* silent */
-      });
+      void fetch(`/api/logo?website=${encodeURIComponent(domain)}&forceRefresh=true`).catch(
+        (error: unknown) => {
+          console.warn(
+            `[LogoImage] Failed to trigger logo refresh for domain ${domain}:`,
+            error instanceof Error ? error.message : String(error),
+          );
+        },
+      );
     }
 
     // Wait 3 s then retry the CDN URL with cache-buster
@@ -178,6 +184,7 @@ export function LogoImage({
         alt={alt}
         width={width}
         height={height}
+        sizes={sizes}
         className={`${className} object-contain`}
         priority={priority}
       />
@@ -197,6 +204,7 @@ export function LogoImage({
           alt={alt}
           width={width}
           height={height}
+          sizes={sizes}
           className={`${className} object-contain`}
           style={{ position: "absolute", top: 0, left: 0 }}
           priority={priority}
@@ -208,6 +216,7 @@ export function LogoImage({
         alt={alt}
         width={width}
         height={height}
+        sizes={sizes}
         data-testid="next-image-mock"
         data-priority={priority ? "true" : "false"}
         className={`${className} object-contain ${needsInversion ? "dark:invert dark:brightness-90" : ""}`}
@@ -327,6 +336,9 @@ export function OptimizedCardImage({
             setRetryKey(getMonotonicTime());
           }, backoffDelay);
         } else {
+          console.warn(
+            `[OptimizedCardImage] Image failed after ${CARD_IMAGE_MAX_RETRIES} retries: ${src ?? "unknown"}`,
+          );
           setErrored(true);
         }
       }}
