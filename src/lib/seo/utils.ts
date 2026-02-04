@@ -56,6 +56,17 @@ export function ensureAbsoluteUrl(path: string): string {
 }
 
 /**
+ * Resolves an image URL, preserving root-relative paths for current-origin handling.
+ * Local paths (e.g., /api/*, /images/*) work correctly in all environments.
+ * External URLs are made absolute for proper cross-origin handling.
+ */
+export function resolveImageUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith("/")) return url;
+  return ensureAbsoluteUrl(url);
+}
+
+/**
  * Determines the MIME type of an image based on its file extension
  *
  * @example

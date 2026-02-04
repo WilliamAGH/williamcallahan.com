@@ -10,7 +10,7 @@ import { getLazyContentMap, getCachedAllContent } from "@/lib/content-similarity
 import { findMostSimilar, limitByTypeAndTotal } from "@/lib/content-similarity";
 import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
 import { RelatedContentSection } from "./related-content-section";
-import { ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { resolveImageUrl } from "@/lib/seo/utils";
 import { debug, isDebug } from "@/lib/utils/debug";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { readJsonS3Optional } from "@/lib/s3/json";
@@ -45,19 +45,6 @@ import {
 const PHASE_ENV_KEY = "NEXT_PHASE" as const;
 const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
-
-/**
- * Resolves an image URL, preserving local API routes as relative URLs.
- * Local /api/ routes work correctly as relative URLs in all environments.
- * External URLs are made absolute for proper cross-origin handling.
- */
-function resolveImageUrl(url: string | undefined): string | undefined {
-  if (!url) return undefined;
-  // Preserve relative API routes - they work in all environments
-  if (url.startsWith("/api/")) return url;
-  // Make external/CDN URLs absolute
-  return ensureAbsoluteUrl(url);
-}
 
 /**
  * Convert normalized content to related content item
@@ -134,17 +121,17 @@ async function toRelatedContentItem(
         if (effectiveDomain) {
           const manifestEntry = await getLogoFromManifestAsync(effectiveDomain);
           if (manifestEntry?.cdnUrl) {
-            logoUrl = ensureAbsoluteUrl(manifestEntry.cdnUrl);
+            logoUrl = resolveImageUrl(manifestEntry.cdnUrl);
           } else {
             const runtimeUrl = getRuntimeLogoUrl(effectiveDomain, {
               company: investmentDetails?.name,
             });
             logoUrl = runtimeUrl
-              ? ensureAbsoluteUrl(runtimeUrl)
-              : ensureAbsoluteUrl(getCompanyPlaceholder());
+              ? resolveImageUrl(runtimeUrl)
+              : resolveImageUrl(getCompanyPlaceholder());
           }
         } else {
-          logoUrl = ensureAbsoluteUrl(getCompanyPlaceholder());
+          logoUrl = resolveImageUrl(getCompanyPlaceholder());
         }
       }
 
