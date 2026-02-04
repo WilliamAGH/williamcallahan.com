@@ -11,6 +11,7 @@
 
 import type { PacificDateString } from "../../types/seo/shared";
 import { NEXT_PUBLIC_SITE_URL } from "../constants/client";
+import { getDeterministicTimestamp } from "@/lib/server-cache";
 import { IMAGE_MIME_TYPES } from "../utils/content-type";
 
 /**
@@ -154,7 +155,8 @@ export function formatSeoDate(date: string | Date | undefined | number): Pacific
     );
   }
   if (!inputDate) {
-    inputDate = new Date();
+    // Use deterministic timestamp during build to avoid Next.js static generation errors
+    inputDate = new Date(getDeterministicTimestamp());
   }
 
   // If it's a date-only string (YYYY-MM-DD), append midnight time

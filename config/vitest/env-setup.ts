@@ -46,4 +46,6 @@ process.env.S3_REGION = "us-east-1";
 process.env.S3_ACCESS_KEY_ID = "test-key";
 process.env.S3_SECRET_ACCESS_KEY = "test-secret";
 process.env.S3_ENDPOINT = "http://localhost:9000";
+process.env.S3_SERVER_URL = "http://localhost:9000";
 process.env.NEXT_PUBLIC_BASE_URL = "http://localhost:3000";
+process.env.USE_S3_SEARCH_INDEXES = "false";

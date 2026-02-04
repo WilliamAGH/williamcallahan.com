@@ -43,6 +43,13 @@ function persistJinaContentInBackground(
     errorCode: string;
   },
 ): void {
+  if (process.env.NODE_ENV === "test") {
+    debug(
+      `[OpenGraph S3] Skipping Jina ${config.logLabel} persistence in test environment: ${config.s3Key}`,
+    );
+    return;
+  }
+
   void (async () => {
     try {
       await persistToS3(config.s3Key, content, config.contentType);

@@ -13,24 +13,9 @@ import { OPENGRAPH_METADATA_S3_DIR, OPENGRAPH_CACHE_DURATION } from "@/lib/const
 import { createFallbackResult } from "@/lib/opengraph/fallback";
 import { S3NotFoundError } from "@/lib/s3/errors";
 import type { OgResult } from "@/types";
-import { isOgResult } from "@/types/opengraph";
-import { ogResultSchema, type KarakeepImageFallback } from "@/types/seo/opengraph";
+import { isOgResult, type CachedOpenGraphInput } from "@/types/opengraph";
+import { ogResultSchema } from "@/types/seo/opengraph";
 import { safeCacheLife, safeCacheTag } from "./opengraph-cache-context";
-
-type RefreshOpenGraphData = (
-  url: string,
-  idempotencyKey?: string,
-  fallbackImageData?: unknown,
-) => Promise<OgResult | null>;
-
-type CachedOpenGraphInput = {
-  normalizedUrl: string;
-  skipExternalFetch: boolean;
-  idempotencyKey?: string;
-  validatedFallback?: KarakeepImageFallback | null;
-  getOgTimestamp: () => number;
-  refreshOpenGraphData: RefreshOpenGraphData;
-};
 
 export async function getCachedOpenGraphDataInternal({
   normalizedUrl,

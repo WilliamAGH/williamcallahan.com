@@ -15,34 +15,12 @@ import {
   GitHubContributorStatsRateLimitError,
 } from "./github-api";
 import { REPO_RAW_WEEKLY_STATS_S3_KEY_DIR } from "@/lib/constants";
-import type { GithubRepoNode, RepoRawWeeklyStat, RepoWeeklyStatCache } from "@/types/github";
-
-export type SingleRepoProcessingInput = {
-  repo: GithubRepoNode;
-  githubRepoOwner: string;
-  trailingYearFromDate: Date;
-  now: Date;
-};
-
-export type SingleRepoProcessingResult = {
-  yearLinesAdded: number;
-  yearLinesRemoved: number;
-  allTimeLinesAdded: number;
-  allTimeLinesRemoved: number;
-  olderThanYearCommits: number;
-  olderThanYearLinesAdded: number;
-  olderThanYearLinesRemoved: number;
-  dataComplete: boolean;
-  hasAllTimeData: boolean;
-};
-
-function isErrorOrPendingStatus(
-  status: RepoWeeklyStatCache["status"],
-): status is "fetch_error" | "pending_202_from_api" | "pending_rate_limit" {
-  return (
-    status === "fetch_error" || status === "pending_202_from_api" || status === "pending_rate_limit"
-  );
-}
+import type { RepoRawWeeklyStat, RepoWeeklyStatCache } from "@/types/github";
+import {
+  isErrorOrPendingStatus,
+  type SingleRepoProcessingInput,
+  type SingleRepoProcessingResult,
+} from "@/types/features/github-processing";
 
 async function fetchOrLoadRepoStats(
   repoOwner: string,

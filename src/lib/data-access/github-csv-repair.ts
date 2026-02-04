@@ -14,6 +14,7 @@ import { repairCsvData, filterContributorStats } from "@/lib/data-access/github-
 import { checksumRecordSchema } from "@/types/schemas/checksum";
 import { ContributorStatsResponseSchema, type GithubRepoNode } from "@/types/github";
 import { GITHUB_API_RATE_LIMIT_CONFIG, REPO_RAW_WEEKLY_STATS_S3_KEY_DIR } from "@/lib/constants";
+import type { ChecksumCircuitState, CsvRepairResult } from "@/types/features/github-processing";
 import {
   fetchContributedRepositories,
   getGitHubApiToken,
@@ -24,12 +25,6 @@ import {
 
 const GITHUB_REPO_OWNER = getGitHubUsername();
 const CHECKSUM_FAILURE_THRESHOLD = 3;
-
-type ChecksumCircuitState = {
-  consecutiveFailures: number;
-  isOpen: boolean;
-  lastError: string | null;
-};
 
 function createChecksumCircuit(): ChecksumCircuitState {
   return { consecutiveFailures: 0, isOpen: false, lastError: null };
@@ -195,18 +190,6 @@ async function repairFromApi(
   return true;
 }
 
-export type CsvRepairResult = {
-  scannedRepos: number;
-  repairedRepos: number;
-  failedRepairs: number;
-  checksumFailures: number;
-  checksumCircuitOpen: boolean;
-};
-
-/**
- * Scans repository CSV statistic files in S3 for missing, empty, or malformed data
- * and attempts to repair them by refetching contributor stats from the GitHub API.
- */
 export async function detectAndRepairCsvFiles(): Promise<CsvRepairResult> {
   console.log("[GitHub-CSV] Running CSV integrity check and repair...");
 

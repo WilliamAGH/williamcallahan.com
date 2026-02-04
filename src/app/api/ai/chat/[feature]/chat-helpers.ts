@@ -10,7 +10,6 @@
 import "server-only";
 
 import { NextResponse, type NextRequest } from "next/server";
-import { z } from "zod/v4";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import { verifyAiGateToken, hashUserAgent } from "@/lib/ai/openai-compatible/gate-token";
 import { logChatMessage } from "@/lib/ai/openai-compatible/chat-message-logger";
@@ -18,9 +17,16 @@ import { buildContextForQuery } from "@/lib/ai/rag";
 import { getClientIp } from "@/lib/utils/request-utils";
 import { NO_STORE_HEADERS, preventCaching, requireCloudflareHeaders } from "@/lib/utils/api-utils";
 import logger from "@/lib/utils/logger";
-import type { OpenAiCompatibleChatMessage } from "@/types/schemas/ai-openai-compatible";
+import {
+  type ChatLogContext,
+  type ParsedRequestBody,
+  type RagContextStatus,
+  type ValidatedRequestContext,
+} from "@/types/features/ai-chat";
+import { requestBodySchema } from "@/types/schemas/ai-chat";
 
 const HTTPS_COOKIE_NAME = "__Host-ai_gate_nonce";
+
 const HTTP_COOKIE_NAME = "ai_gate_nonce";
 
 const CHAT_RATE_LIMIT = {
@@ -28,40 +34,7 @@ const CHAT_RATE_LIMIT = {
   windowMs: 60_000,
 } as const;
 
-export const requestBodySchema = z
-  .object({
-    userText: z.string().min(1).optional(),
-    system: z.string().min(1).optional(),
-    temperature: z.number().min(0).max(2).optional(),
-    conversationId: z.string().uuid().optional(),
-    priority: z.number().int().min(-100).max(100).optional(),
-    messages: z
-      .array(
-        z.object({
-          role: z.enum(["system", "user", "assistant"]),
-          content: z.string().min(1),
-        }),
-      )
-      .min(1)
-      .optional(),
-  })
-  .refine((value) => Boolean(value.messages) || Boolean(value.userText), {
-    message: "Provide either messages or userText",
-  });
-
-export type ParsedRequestBody = z.infer<typeof requestBodySchema>;
-
-export type RagContextStatus = "included" | "partial" | "failed" | "not_applicable";
-
-/** Validated request context after all checks pass */
-export type ValidatedRequestContext = {
-  feature: string;
-  clientIp: string;
-  pagePath: string | null;
-  originHost: string;
-  userAgent: string;
-  parsedBody: ParsedRequestBody;
-};
+export { requestBodySchema };
 
 function isAllowedHostname(hostname: string): boolean {
   const lower = hostname.toLowerCase();
@@ -243,19 +216,6 @@ export async function buildRagContextForChat(
     return { augmentedPrompt: undefined, status: "failed" };
   }
 }
-
-/** Log context for chat message logging */
-export type ChatLogContext = {
-  feature: string;
-  conversationId?: string;
-  clientIp: string;
-  userAgent: string;
-  originHost: string;
-  pagePath: string | null;
-  messages: OpenAiCompatibleChatMessage[];
-  model: string;
-  priority: number;
-};
 
 /** Log a successful chat completion */
 export function logSuccessfulChat(

@@ -1,7 +1,6 @@
-import React from "react";
+import React, { act } from "react";
 import { vi, type Mock } from "vitest";
 import { render } from "@testing-library/react";
-import Page from "@/app/bookmarks/page/[pageNumber]/page";
 import { usePathname } from "next/navigation";
 
 // Manually mock the entire data access layer for this test suite
@@ -35,7 +34,15 @@ vi.mock("@/components/features/bookmarks/bookmarks.server", () => ({
   BookmarksServer: () => <div data-testid="bookmarks-server" />,
 }));
 
+type PageComponentType = typeof import("@/app/bookmarks/page/[pageNumber]/page").default;
+let Page: PageComponentType;
+
 describe("Bookmarks PageNumber", () => {
+  beforeAll(async () => {
+    const pageModule = await import("@/app/bookmarks/page/[pageNumber]/page");
+    Page = pageModule.default;
+  });
+
   beforeEach(() => {
     (usePathname as Mock).mockReturnValue("/bookmarks/page/1");
     // Clear mocks before each test
@@ -51,8 +58,11 @@ describe("Bookmarks PageNumber", () => {
     // Call the async component as a function (workaround for Vitest with async Server Components)
     const PageComponent = await Page({ params: Promise.resolve({ pageNumber: "1" }) });
 
-    // Render the JSX returned by the component
-    const { container } = render(PageComponent as React.ReactElement);
+    let container: HTMLElement | null = null;
+    await act(async () => {
+      const rendered = render(PageComponent as React.ReactElement);
+      container = rendered.container;
+    });
 
     // Verify the component rendered
     expect(container).toBeTruthy();
@@ -62,8 +72,11 @@ describe("Bookmarks PageNumber", () => {
     // Call the async component as a function (workaround for Vitest with async Server Components)
     const PageComponent = await Page({ params: Promise.resolve({ pageNumber: "invalid" }) });
 
-    // Render the JSX returned by the component
-    const { container } = render(PageComponent as React.ReactElement);
+    let container: HTMLElement | null = null;
+    await act(async () => {
+      const rendered = render(PageComponent as React.ReactElement);
+      container = rendered.container;
+    });
 
     // Verify the component rendered without crashing
     expect(container).toBeTruthy();

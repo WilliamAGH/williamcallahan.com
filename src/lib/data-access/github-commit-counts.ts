@@ -9,21 +9,11 @@ import { delay, retryWithDomainConfig } from "@/lib/utils/retry";
 import { createCategorizedError } from "@/lib/utils/error-utils";
 import { CommitResponseSchema, type GithubRepoNode } from "@/types/github";
 import { GITHUB_API_RATE_LIMIT_CONFIG } from "@/lib/constants";
+import type { CommitCountInput, PageFetchResult } from "@/types/features/github-processing";
 import { fetchRepositoryCommitCount, getGitHubApiToken, githubHttpClient } from "./github-api";
-
-type CommitCountInput = {
-  repos: GithubRepoNode[];
-  githubRepoOwner: string;
-  githubUserId?: string;
-};
 
 const MAX_PAGES = 100;
 const COMMITS_PER_PAGE = 100;
-
-type PageFetchResult =
-  | { status: "success"; count: number; hasMore: boolean }
-  | { status: "error"; message: string }
-  | { status: "invalid_data" };
 
 async function fetchCommitsPage(
   owner: string,

@@ -53,8 +53,8 @@ export interface OgResult extends OgFetchResult {
   actualUrl?: string | null;
 }
 
-// KarakeepImageFallback is now defined in types/seo/opengraph.ts
-export type { KarakeepImageFallback } from "./seo/opengraph";
+import type { KarakeepImageFallback, ValidatedOgMetadata } from "./seo/opengraph";
+export type { KarakeepImageFallback };
 
 // Type alias with extra fields
 export interface OgCacheEntry {
@@ -65,7 +65,6 @@ export interface OgCacheEntry {
 }
 
 // Import the validated type from seo/opengraph to avoid duplication
-import type { ValidatedOgMetadata } from "./seo/opengraph";
 
 /** General OpenGraph metadata structure */
 export type OgMetadata = ValidatedOgMetadata;
@@ -111,3 +110,20 @@ export interface PersistImageResult {
   s3Url: string | null;
   wasNewlyPersisted: boolean;
 }
+
+/** Function signature for refreshing OpenGraph data */
+export type RefreshOpenGraphData = (
+  url: string,
+  idempotencyKey?: string,
+  fallbackImageData?: unknown,
+) => Promise<OgResult | null>;
+
+/** Input parameters for cached OpenGraph data retrieval */
+export type CachedOpenGraphInput = {
+  normalizedUrl: string;
+  skipExternalFetch: boolean;
+  idempotencyKey?: string;
+  validatedFallback?: KarakeepImageFallback | null;
+  getOgTimestamp: () => number;
+  refreshOpenGraphData: RefreshOpenGraphData;
+};

@@ -14,6 +14,27 @@ import { vi, afterEach, beforeAll, afterAll } from "vitest";
 import React from "react";
 import { ServerCacheInstance } from "@/lib/server-cache";
 
+// Mock next/link to avoid DOM navigation and strip non-DOM props
+vi.mock("next/link", () => ({
+  __esModule: true,
+  default: ({ children, href, onClick, prefetch, scroll, ...props }: any) => {
+    void prefetch;
+    void scroll;
+    return React.createElement(
+      "a",
+      {
+        href,
+        onClick: (event: React.MouseEvent<HTMLAnchorElement>) => {
+          event.preventDefault();
+          onClick?.(event);
+        },
+        ...props,
+      },
+      children,
+    );
+  },
+}));
+
 // Mock React.cache for React 19 in test environment
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
