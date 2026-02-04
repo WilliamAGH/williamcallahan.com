@@ -11,25 +11,8 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/utils/api-utils";
-import type { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
-import {
-  logSuccessfulChat,
-  logFailedChat,
-  formatErrorMessage,
-  type ChatLogContext,
-  type RagContextStatus,
-} from "./chat-helpers";
-
-/** JSON response configuration */
-export type JsonResponseConfig = {
-  queue: UpstreamRequestQueue;
-  priority: number;
-  startTime: number;
-  logContext: ChatLogContext;
-  ragContextStatus: RagContextStatus;
-  runUpstream: () => Promise<string>;
-  signal: AbortSignal;
-};
+import type { JsonResponseConfig } from "@/types/features/ai-chat";
+import { logSuccessfulChat, logFailedChat, formatErrorMessage } from "./chat-helpers";
 
 /** Handle non-SSE JSON response */
 export async function handleJsonResponse(config: JsonResponseConfig): Promise<NextResponse> {

@@ -5,38 +5,20 @@
 
 import { BatchProcessor } from "@/lib/batch-processing";
 import { categorizeRepository, createEmptyCategoryStats } from "./github-processing";
-import { processSingleRepository, type SingleRepoProcessingResult } from "./github-repo-processor";
+import { processSingleRepository } from "./github-repo-processor";
 import type {
   CommitsOlderThanYearSummary,
   GithubRepoNode,
   GitHubActivitySummary,
 } from "@/types/github";
+import type {
+  RepoProcessingInput,
+  RepoProcessingResult,
+  RepoWithResult,
+  SingleRepoProcessingResult,
+} from "@/types/features/github-processing";
 
 const CONCURRENT_REPO_LIMIT = 5;
-
-type RepoProcessingResult = {
-  yearLinesAdded: number;
-  yearLinesRemoved: number;
-  yearCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
-  olderThanYearCommitStats: CommitsOlderThanYearSummary;
-  allTimeLinesAdded: number;
-  allTimeLinesRemoved: number;
-  allTimeOverallDataComplete: boolean;
-  allTimeCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
-  failedRepoCount: number;
-};
-
-type RepoProcessingInput = {
-  repos: GithubRepoNode[];
-  githubRepoOwner: string;
-  trailingYearFromDate: Date;
-  now: Date;
-};
-
-type RepoWithResult = {
-  repo: GithubRepoNode;
-  result: SingleRepoProcessingResult;
-};
 
 function initializeOlderThanYearStats(): CommitsOlderThanYearSummary {
   return {

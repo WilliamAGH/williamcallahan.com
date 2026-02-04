@@ -62,6 +62,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 2. On failure, `LogoImage` extracts the domain (`extractDomainFromSrc`) and hits `/api/logo?website=...&forceRefresh=true`.
 3. `/api/logo` sanitizes inputs, short-circuits to existing `cdnUrl`/`s3Key`, else invokes `UnifiedImageService.getLogo()`.
 4. UnifiedImageService uses deterministic `generateS3Key`, checks the logo manifest (`image-manifest-loader.ts`), then fans out to direct, Google, DuckDuckGo, Clearbit sources with retry/circuit protections.
+   - Source priority order is centralized in `lib/services/image/logo-source-priority.ts`.
 5. `image-analysis.ts` / `image-compare.ts` flag globe icons, `FailureTracker` writes to `LOGO_BLOCKLIST_S3_PATH` on repeated failures.
 6. Result is persisted/streamed to S3, CDN URL returned, placeholder fallback used only if every source fails.
 
@@ -97,6 +98,8 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 ## Core Modules & Responsibilities
 
 - **`lib/services/unified-image-service.ts`** – orchestrates everything: domain session tracking, memory checks, streaming fallback, CDN URL generation, Next cache invalidation (`revalidateTag`).
+- **`lib/services/image/logo-fetcher.ts`** – logo fetch orchestration and source selection.
+- **`lib/services/image/logo-source-priority.ts`** – single source of truth for logo source ordering.
 - **`lib/image-handling/image-s3-utils.ts`** – idempotent persistence (checks existing S3 keys, handles base64 data), fallback recrawl triggers for Karakeep assets.
 - **`lib/image-handling/shared-image-processing.ts`** – format detection, SVG sanitization, metadata-derived content types.
 - **`lib/image-handling/image-analysis.ts` / `image-compare.ts`** – brightness estimation, placeholder detection, perceptual hashing for dedupe/globe detection.

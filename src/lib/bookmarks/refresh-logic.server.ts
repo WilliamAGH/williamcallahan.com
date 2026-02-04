@@ -249,7 +249,8 @@ export async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBook
         totalPages:
           existingIndex?.totalPages ?? Math.ceil(allIncomingBookmarks.length / BOOKMARKS_PER_PAGE),
         pageSize: existingIndex?.pageSize ?? BOOKMARKS_PER_PAGE,
-        lastModified: existingIndex?.lastModified ?? new Date().toISOString(),
+        lastModified:
+          existingIndex?.lastModified ?? new Date(getDeterministicTimestamp()).toISOString(),
         lastFetchedAt: now,
         lastAttemptedAt: now,
         checksum: existingIndex?.checksum ?? calculateBookmarksChecksum(allIncomingBookmarks),
@@ -283,7 +284,7 @@ export async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBook
       await writeBookmarkMasterFiles(bookmarksWithSlugs);
       await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, {
         ...baseIndex,
-        lastModified: new Date().toISOString(),
+        lastModified: new Date(getDeterministicTimestamp()).toISOString(),
         checksum: calculateBookmarksChecksum(bookmarksWithSlugs),
         changeDetected: true,
       });
@@ -368,7 +369,9 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                   existingIndex?.totalPages ??
                   Math.ceil(freshBookmarks.length / BOOKMARKS_PER_PAGE),
                 pageSize: existingIndex?.pageSize ?? BOOKMARKS_PER_PAGE,
-                lastModified: existingIndex?.lastModified ?? new Date().toISOString(),
+                lastModified:
+                  existingIndex?.lastModified ??
+                  new Date(getDeterministicTimestamp()).toISOString(),
                 lastFetchedAt: now,
                 lastAttemptedAt: now,
                 checksum: existingIndex?.checksum ?? calculateBookmarksChecksum(freshBookmarks),

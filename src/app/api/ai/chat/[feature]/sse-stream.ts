@@ -9,29 +9,16 @@
 
 import "server-only";
 
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/utils/api-utils";
-import { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
+
+import type { SseStreamConfig } from "@/types/features/ai-chat";
 import {
   formatSseEvent,
   logSuccessfulChat,
   logFailedChat,
   formatErrorMessage,
-  type ChatLogContext,
-  type RagContextStatus,
 } from "./chat-helpers";
-
-/** SSE stream configuration */
-export type SseStreamConfig = {
-  request: NextRequest;
-  queue: UpstreamRequestQueue;
-  upstreamKey: string;
-  priority: number;
-  startTime: number;
-  logContext: ChatLogContext;
-  ragContextStatus: RagContextStatus;
-  runUpstream: () => Promise<string>;
-};
 
 /**
  * Create and return an SSE streaming response
