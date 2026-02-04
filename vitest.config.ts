@@ -29,6 +29,10 @@ export default defineConfig({
       "next-mdx-remote": resolve(rootDir, "__tests__/__mocks__/lib/next-mdx-remote.ts"),
       plaiceholder: resolve(rootDir, "__tests__/__mocks__/lib/plaiceholder.ts"),
       "@/lib/data-access/github": resolve(rootDir, "__tests__/__mocks__/lib/data-access/github.ts"),
+      "@/lib/utils/ensure-server-only": resolve(
+        rootDir,
+        "__tests__/__mocks__/lib/utils/ensure-server-only.ts",
+      ),
       // NOTE: @/lib/bookmarks/bookmarks-data-access.server is NOT aliased here.
       // Tests that need a mock should use vi.mock() explicitly.
       // This follows KISS and makes test intent explicit.

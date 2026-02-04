@@ -56,6 +56,10 @@ const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 Prefer `vi.importActual` and `vi.importMock` for module factories that need real exports. Avoid CommonJS-specific Jest patterns.
 
+### Mock Placement (Enforced)
+
+Dedicated mock modules must live under `__tests__/__mocks__/`. Do not place mock files directly under `__tests__/` (for example, `**/*mock*.ts` outside `__tests__/__mocks__`). This is enforced by the ast-grep rule `[TST2]`.
+
 ## React 19 Testing Notes
 
 Use `act` or `waitFor` when state updates are async. If `React.act` is missing in tests, it is registered in `config/vitest/setup.ts`.
