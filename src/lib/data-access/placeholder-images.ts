@@ -53,9 +53,9 @@ export function getPlaceholderImageUrl(localPath: string): string {
   try {
     // Try to get S3 URL first for CDN benefits
     return getStaticImageUrl(localPath);
-  } catch {
+  } catch (error) {
     // Fallback to local path if S3 mapping fails
-    console.warn(`Falling back to local placeholder: ${localPath}`);
+    console.warn(`[PlaceholderImages] Falling back to local: ${localPath}`, error);
     return localPath;
   }
 }

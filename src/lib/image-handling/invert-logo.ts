@@ -18,7 +18,7 @@ export async function invertLogoBuffer(
   try {
     detection = await processImageBufferSimple(input, logContext);
   } catch {
-    // Fallback to generic PNG if detection fails
+    console.warn(`[${logContext}] Content-type detection failed; defaulting to PNG output.`);
     detection = { processedBuffer: input, contentType: "image/png" };
   }
 
@@ -45,13 +45,19 @@ export async function invertLogoBuffer(
     const format = contentType.replace(/^image\//, ""); // e.g., image/png -> png
 
     // Type-safe format validation for image-js toBuffer
-    const validFormats = ["png", "jpg", "jpeg", "webp"] as const;
+    const validFormats = ["png", "jpg", "jpeg", "bmp"] as const;
     const safeFormat = validFormats.includes(format as (typeof validFormats)[number])
       ? format
       : "png";
 
     const invertedBuffer = Buffer.from(inverted.toBuffer({ format: safeFormat }));
-    return { buffer: invertedBuffer, contentType };
+    const outputContentType =
+      safeFormat === "jpg" || safeFormat === "jpeg"
+        ? "image/jpeg"
+        : safeFormat === "bmp"
+          ? "image/bmp"
+          : "image/png";
+    return { buffer: invertedBuffer, contentType: outputContentType };
   } catch (error) {
     // On failure, return the original buffer to avoid breaking pipeline
     console.warn(
