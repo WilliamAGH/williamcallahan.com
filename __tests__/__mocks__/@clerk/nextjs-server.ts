@@ -2,24 +2,30 @@
  * Mock for @clerk/nextjs/server
  * Provides stub implementations for Clerk server-side auth utilities
  *
- * This is separate from the client mock (@clerk/nextjs.js) because server
+ * This is separate from the client mock (@clerk/nextjs.ts) because server
  * imports need middleware and route matcher utilities that don't exist
  * in the client bundle.
  */
+import { vi } from "vitest";
+
+interface RequestLike {
+  nextUrl?: { pathname?: string };
+  url?: string;
+}
 
 // Mock clerkMiddleware - returns a pass-through middleware
-const clerkMiddleware = jest.fn(() => {
+export const clerkMiddleware = vi.fn(() => {
   // Return a middleware function that just calls next()
-  return jest.fn((_request) => {
+  return vi.fn((_request: unknown) => {
     // In tests, we simulate the middleware passing through
     return { status: 200 };
   });
 });
 
 // Mock createRouteMatcher - returns a function that matches routes
-const createRouteMatcher = jest.fn((patterns) => {
+export const createRouteMatcher = vi.fn((patterns: string[]) => {
   // Return a matcher function that checks if a path matches the patterns
-  return jest.fn((request) => {
+  return vi.fn((request: RequestLike) => {
     const path = request?.nextUrl?.pathname || request?.url || "";
     if (!Array.isArray(patterns)) return false;
     return patterns.some((pattern) => {
@@ -34,18 +40,19 @@ const createRouteMatcher = jest.fn((patterns) => {
 });
 
 // Mock auth() - returns auth state for server components
-const auth = jest.fn(() => ({
+export const auth = vi.fn(() => ({
   userId: null,
   sessionId: null,
   sessionClaims: null,
-  getToken: jest.fn().mockResolvedValue(null),
-  protect: jest.fn(),
+  getToken: vi.fn().mockResolvedValue(null),
+  protect: vi.fn(),
 }));
 
 // Mock currentUser() - returns null (no user in tests by default)
-const currentUser = jest.fn().mockResolvedValue(null);
+export const currentUser = vi.fn().mockResolvedValue(null);
 
-module.exports = {
+// Default export for CommonJS compatibility
+export default {
   clerkMiddleware,
   createRouteMatcher,
   auth,

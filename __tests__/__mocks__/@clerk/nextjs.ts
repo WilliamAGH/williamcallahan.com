@@ -2,60 +2,63 @@
  * Mock for @clerk/nextjs
  * Provides stub implementations for Clerk auth hooks and components
  */
+import { vi } from "vitest";
+import type { ReactNode } from "react";
 
 // Mock useClerk hook
-const useClerk = jest.fn(() => ({
-  signOut: jest.fn(),
-  openSignIn: jest.fn(),
-  openSignUp: jest.fn(),
-  openUserProfile: jest.fn(),
+export const useClerk = vi.fn(() => ({
+  signOut: vi.fn(),
+  openSignIn: vi.fn(),
+  openSignUp: vi.fn(),
+  openUserProfile: vi.fn(),
   session: null,
   user: null,
   loaded: true,
 }));
 
 // Mock useUser hook
-const useUser = jest.fn(() => ({
+export const useUser = vi.fn(() => ({
   user: null,
   isLoaded: true,
   isSignedIn: false,
 }));
 
 // Mock useAuth hook
-const useAuth = jest.fn(() => ({
+export const useAuth = vi.fn(() => ({
   isLoaded: true,
   isSignedIn: false,
   userId: null,
   sessionId: null,
-  getToken: jest.fn().mockResolvedValue(null),
+  getToken: vi.fn().mockResolvedValue(null),
 }));
 
 // Mock useSession hook
-const useSession = jest.fn(() => ({
+export const useSession = vi.fn(() => ({
   session: null,
   isLoaded: true,
   isSignedIn: false,
 }));
 
 // Mock ClerkProvider component
-const ClerkProvider = ({ children }) => children;
+export const ClerkProvider = ({ children }: { children: ReactNode }): ReactNode => children;
 
 // Mock SignIn component
-const SignIn = () => null;
+export const SignIn = (): null => null;
 
 // Mock SignUp component
-const SignUp = () => null;
+export const SignUp = (): null => null;
 
 // Mock SignedIn component (renders nothing - user not signed in during tests)
-const SignedIn = ({ children: _children }) => null;
+export const SignedIn = ({ children: _children }: { children: ReactNode }): null => null;
 
 // Mock SignedOut component (renders children - user is signed out during tests)
-const SignedOut = ({ children }) => children;
+export const SignedOut = ({ children }: { children: ReactNode }): ReactNode => children;
 
 // Mock UserButton component
-const UserButton = () => null;
+export const UserButton = (): null => null;
 
-module.exports = {
+// Default export for CommonJS compatibility
+export default {
   useClerk,
   useUser,
   useAuth,
