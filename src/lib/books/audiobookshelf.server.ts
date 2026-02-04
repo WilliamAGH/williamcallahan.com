@@ -9,6 +9,7 @@
 
 import { fetchWithTimeout } from "@/lib/utils/http-client";
 import { envLogger } from "@/lib/utils/env-logger";
+import { getMonotonicTime } from "@/lib/utils";
 import {
   validateAbsLibraryItemsResponse,
   validateAbsLibraryItem,
@@ -67,17 +68,13 @@ const snapshotIsFresh = (
   if (!snapshot) return false;
   // If fetchedAt is 0 (prerender-safe), consider it fresh (we can't know real age)
   if (snapshot.fetchedAt === 0) return true;
-  // Use try-catch since Date.now() can fail during prerendering before data access
-  try {
-    return Date.now() - snapshot.fetchedAt <= ttlMs;
-  } catch {
-    return true; // If Date.now() fails, assume fresh to allow fallback
-  }
+  const now = getMonotonicTime();
+  return now - snapshot.fetchedAt <= ttlMs;
 };
 
 /**
  * Cache books snapshot with timestamp.
- * During prerendering, Date.now() is not allowed before data access,
+ * During prerendering, current-time access is not allowed before data access,
  * so we use a stable timestamp of 0 which effectively disables the TTL check.
  */
 const cacheSnapshot = (books: Book[], timestamp?: number): void => {
@@ -209,7 +206,7 @@ async function fetchBooksFresh(
  * Defaults to allowing stale data when AudioBookShelf is unavailable.
  * Never throws - returns empty array if all fallbacks are exhausted.
  *
- * Note: fetchedAt returns 0 to be prerender-safe (Date.now() not allowed before data access)
+ * Note: fetchedAt returns 0 to be prerender-safe (current time not allowed before data access)
  */
 export async function fetchBooksWithFallback(
   options: FetchAbsLibraryItemsOptions & {
@@ -264,7 +261,7 @@ export async function fetchBooks(
  * Fetch book list items (minimal data for grids) with fallback to snapshot.
  * Gracefully handles missing AudioBookShelf config (returns empty array).
  *
- * Note: fetchedAt returns 0 to be prerender-safe (Date.now() not allowed before data access)
+ * Note: fetchedAt returns 0 to be prerender-safe (current time not allowed before data access)
  * @param options - Fetch options including blur placeholder generation
  */
 export async function fetchBookListItemsWithFallback(
