@@ -218,7 +218,7 @@ describe("Analytics", () => {
   });
 
   it("handles script load errors gracefully with warning", async () => {
-    const consoleSpy = vi.spyOn(console, "warn");
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     scriptConfig.shouldError = true;
 
     const { container } = render(<Analytics />);
@@ -236,5 +236,6 @@ describe("Analytics", () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       "[Analytics] Failed to load Umami script - continuing without analytics",
     );
+    consoleSpy.mockRestore();
   });
 });
