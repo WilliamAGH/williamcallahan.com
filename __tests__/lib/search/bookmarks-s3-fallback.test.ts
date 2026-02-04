@@ -9,6 +9,15 @@ import type { BookmarkIndexItem, SerializedIndex } from "@/types/schemas/search"
 // Save original env value to restore after tests (prevent leaking to other test files)
 const originalUseS3SearchIndexes = process.env.USE_S3_SEARCH_INDEXES;
 
+// Mock search constants to control feature flags
+vi.mock("@/lib/search/constants", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/search/constants")>();
+  return {
+    ...actual,
+    USE_S3_INDEXES: true,
+  };
+});
+
 const mockReadJsonS3 = vi.fn();
 vi.mock("@/lib/s3/json", () => ({
   readJsonS3Optional: (...args: unknown[]) => mockReadJsonS3(...args),
@@ -66,6 +75,15 @@ vi.mock("@/lib/server-cache", () => ({
   },
 }));
 
+// Mock constants to control feature flags
+vi.mock("@/lib/search/constants", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/search/constants")>();
+  return {
+    ...actual,
+    USE_S3_INDEXES: true,
+  };
+});
+
 import { searchBookmarks } from "@/lib/search";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import type { Mock } from "vitest";
@@ -76,6 +94,7 @@ describe("searchBookmarks - S3 fallback mapping", () => {
       id: "bk-1",
       title: "SDK for Claude Code",
       description: "CLI tool",
+      summary: "CLI tool summary",
       tags: "cli\nsdk",
       url: "https://example.com/sdk",
       author: "",

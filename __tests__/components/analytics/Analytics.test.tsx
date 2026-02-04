@@ -1,5 +1,5 @@
 import type { UmamiMock, MockScriptProps } from "@/types/test";
-import { render, waitFor, act } from "@testing-library/react";
+import { render, act } from "@testing-library/react";
 import { Analytics } from "@/components/analytics/analytics.client";
 import { vi } from "vitest";
 
@@ -101,17 +101,15 @@ describe("Analytics", () => {
   it("initializes analytics scripts correctly", async () => {
     render(<Analytics />);
 
-    // Advance timers to trigger script load
-    act(() => {
-      vi.advanceTimersByTime(20); // Revert to fake timers
+    // Use async timer advancement to properly flush promises
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
     });
 
-    // Wait for scripts to "load"
-    await waitFor(() => {
-      expect((global as any).umami).toBeDefined();
-      expect((global as any).umami?.track).toHaveBeenCalled();
-      expect((global as any).plausible).toBeDefined();
-    });
+    // Verify scripts loaded and tracking was called
+    expect((global as any).umami).toBeDefined();
+    expect((global as any).umami?.track).toHaveBeenCalled();
+    expect((global as any).plausible).toBeDefined();
 
     // Verify tracking was called with correct arguments
     expect((global as any).umami?.track).toHaveBeenCalledWith(
@@ -148,19 +146,16 @@ describe("Analytics", () => {
 
   it("tracks page views on route changes", async () => {
     // Start with initial path
-    mockUsePathname.mockReturnValue("/initial-path"); // Use mock handle
+    mockUsePathname.mockReturnValue("/initial-path");
     const { rerender } = render(<Analytics />);
 
-    // Advance timers to trigger script load (10ms) AND useEffect timeout (100ms)
-    act(() => {
-      vi.advanceTimersByTime(150); // Revert to fake timers
+    // Use async timer advancement to properly flush promises
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
     });
 
-    // Wait for the initial track calls (could be multiple) to settle
-    await waitFor(() => {
-      expect((global as any).umami?.track).toHaveBeenCalled();
-    });
     // Verify at least one call was for the initial path
+    expect((global as any).umami?.track).toHaveBeenCalled();
     expect((global as any).umami?.track).toHaveBeenCalledWith(
       "pageview",
       expect.objectContaining({
@@ -180,20 +175,17 @@ describe("Analytics", () => {
     rerender(<Analytics />);
 
     // Advance timers to allow the timeout in useEffect to trigger
-    act(() => {
-      // Advance timers past the 100ms timeout in the useEffect
-      vi.advanceTimersByTime(550); // Revert to fake timers
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(550);
     });
 
-    // Wait for the track call triggered by the pathname change
-    await waitFor(() => {
-      expect((global as any).umami?.track).toHaveBeenCalledWith(
-        "pageview",
-        expect.objectContaining({
-          path: "/new-path",
-        }),
-      );
-    });
+    // Verify the track call triggered by the pathname change
+    expect((global as any).umami?.track).toHaveBeenCalledWith(
+      "pageview",
+      expect.objectContaining({
+        path: "/new-path",
+      }),
+    );
     // Ensure it was called exactly once after the clear
     expect((global as any).umami?.track).toHaveBeenCalledTimes(1);
   });
@@ -205,16 +197,14 @@ describe("Analytics", () => {
     mockScriptShouldError = true;
     render(<Analytics />);
 
-    // Advance timers to trigger error
-    act(() => {
-      vi.advanceTimersByTime(20); // Revert to fake timers
+    // Use async timer advancement to properly flush promises
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
     });
 
-    await waitFor(() => {
-      // Check for the new warning message format
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "[Analytics] Failed to load Umami script - continuing without analytics",
-      );
-    });
+    // Check for the new warning message format
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "[Analytics] Failed to load Umami script - continuing without analytics",
+    );
   });
 });
