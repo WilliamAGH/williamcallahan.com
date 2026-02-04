@@ -68,6 +68,35 @@ export function tryGetEmbeddedSlug(input: unknown): string | null {
 }
 
 /**
+ * Regex pattern for URL slug sanitization.
+ * Matches any sequence of characters that are NOT alphanumeric (a-z, A-Z, 0-9).
+ * These sequences are replaced with hyphens to create URL-safe slugs.
+ */
+const SLUG_SANITIZE_PATTERN = /[^a-z0-9]+/gi;
+
+/**
+ * Length of the ID prefix appended to fallback slugs.
+ * Uses first 8 characters of UUID to ensure uniqueness while keeping slugs readable.
+ * 8 hex chars = 32 bits of entropy = 4 billion combinations, sufficient for bookmark deduplication.
+ */
+const FALLBACK_SLUG_ID_PREFIX_LENGTH = 8;
+
+/**
+ * Generate a fallback slug from a URL and bookmark ID.
+ * Used when no embedded or mapped slug is available.
+ *
+ * Slug format: URL sanitized to alphanumeric + hyphens, plus first N chars of ID.
+ * Example: "https://example.com/article" + "abc12345-..." → "https-example-com-article-abc12345"
+ *
+ * @param url - The bookmark URL
+ * @param id - The bookmark ID (UUID)
+ * @returns A URL-safe slug with truncated ID suffix
+ */
+export function generateFallbackSlug(url: string, id: string): string {
+  return `${url.replace(SLUG_SANITIZE_PATTERN, "-").toLowerCase()}-${id.slice(0, FALLBACK_SLUG_ID_PREFIX_LENGTH)}`;
+}
+
+/**
  * Get the slug for a bookmark, using pre-computed mappings for hydration safety
  *
  * @param bookmarkId - The bookmark ID to get slug for

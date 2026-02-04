@@ -17,6 +17,7 @@ import { ServerCacheInstance } from "@/lib/server-cache";
 import { SEARCH_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { envLogger } from "@/lib/utils/env-logger";
+import logger from "@/lib/utils/logger";
 import { prepareDocumentsForIndexing } from "@/lib/utils/search-helpers";
 import { fetchBooks } from "@/lib/books/audiobookshelf.server";
 import { loadIndexFromJSON } from "../index-builder";
@@ -24,6 +25,7 @@ import { extractBookmarksFromSerializedIndex } from "../serialization";
 import { BOOKMARKS_INDEX_CONFIG, BOOKS_INDEX_CONFIG } from "../config";
 import { SEARCH_INDEX_KEYS, INDEX_TTL, USE_S3_INDEXES } from "../constants";
 import { createIndexWithoutDedup } from "../index-factory";
+import { generateFallbackSlug } from "@/lib/bookmarks/slug-helpers";
 
 // Dev log helper (matches original search.ts pattern)
 const IS_DEV = process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test";
@@ -46,7 +48,7 @@ export function buildBookmarksIndex(
   const bookmarksForIndex: BookmarkIndexItem[] = [];
   for (const b of bookmarks) {
     // Generate a fallback slug if not present
-    const slug = `${b.url.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${b.id.slice(0, 8)}`;
+    const slug = generateFallbackSlug(b.url, b.id);
 
     bookmarksForIndex.push({
       id: b.id,
@@ -226,15 +228,17 @@ export async function getBookmarksIndex(): Promise<{
 
   for (const b of bookmarks) {
     const embedded = tryGetEmbeddedSlug(b);
-    const slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
+    let slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
 
+    // Generate fallback slug if no embedded or mapped slug exists
+    // This ensures consistency with buildBookmarksIndex() which always uses fallback slugs
     if (!slug) {
-      envLogger.log(
-        "No slug found for bookmark",
-        { id: b.id, title: b.title, url: b.url },
-        { category: "Search" },
+      slug = generateFallbackSlug(b.url, b.id);
+      // WARN level: This is degraded state - bookmark lacks canonical slug mapping
+      logger.warn(
+        "[Search] DEGRADED: No canonical slug for bookmark, using fallback - consider regenerating slug mapping",
+        { id: b.id, title: b.title, url: b.url, fallbackSlug: slug },
       );
-      continue;
     }
 
     bookmarksForIndex.push({
