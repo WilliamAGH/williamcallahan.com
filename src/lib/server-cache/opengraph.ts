@@ -14,8 +14,8 @@ import { getMonotonicTime } from "@/lib/utils";
 const OPENGRAPH_PREFIX = "og-data:";
 const REFRESH_TRACKING_PREFIX = "og-refresh-attempt:";
 const REFRESH_COOLDOWN_MS = TIME_CONSTANTS.FIVE_MINUTES_MS; // 5 minutes between refresh attempts
-const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
-const getCacheTimestamp = (): number => (isProductionBuildPhase ? 0 : getMonotonicTime());
+const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
+const getCacheTimestamp = (): number => (isProductionBuildPhase() ? 0 : getMonotonicTime());
 
 export function getOpenGraphData(cache: Cache, url: string): OgCacheEntry | undefined {
   const key = OPENGRAPH_PREFIX + url;

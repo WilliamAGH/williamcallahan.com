@@ -36,8 +36,8 @@ import { refreshOpenGraphData } from "./opengraph-refresh";
 // Re-export constants for backwards compatibility
 export { OPENGRAPH_S3_KEY_DIR, OPENGRAPH_METADATA_S3_DIR, OPENGRAPH_IMAGES_S3_DIR };
 
-const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
-const getOgTimestamp = (): number => (isProductionBuildPhase ? 0 : getMonotonicTime());
+const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
+const getOgTimestamp = (): number => (isProductionBuildPhase() ? 0 : getMonotonicTime());
 
 /**
  * Retrieves OpenGraph data using a multi-layered approach for optimal performance

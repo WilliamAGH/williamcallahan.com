@@ -19,8 +19,8 @@ const LOGO_FETCH_PREFIX = "logo-fetch:";
 const INVERTED_LOGO_PREFIX = "logo-inverted:";
 const LOGO_ANALYSIS_PREFIX = "logo-analysis:";
 
-const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
-const getCacheTimestamp = (): number => (isProductionBuildPhase ? 0 : getMonotonicTime());
+const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
+const getCacheTimestamp = (): number => (isProductionBuildPhase() ? 0 : getMonotonicTime());
 
 export function getLogoValidation(
   cache: Cache,

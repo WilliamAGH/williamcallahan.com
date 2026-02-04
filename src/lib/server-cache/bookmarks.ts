@@ -11,8 +11,8 @@ import type { BookmarksCacheEntry, Cache } from "@/types/cache";
 import { BOOKMARKS_CACHE_DURATION } from "@/lib/constants";
 import { getMonotonicTime } from "@/lib/utils";
 
-const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
-const getCacheTimestamp = (): number => (isProductionBuildPhase ? 0 : getMonotonicTime());
+const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
+const getCacheTimestamp = (): number => (isProductionBuildPhase() ? 0 : getMonotonicTime());
 
 const BOOKMARKS_METADATA_KEY = "bookmarks:metadata";
 
