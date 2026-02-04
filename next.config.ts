@@ -165,11 +165,7 @@ const buildBucketHostname = (): string | null => {
   return `${bucket}.${serverHost}`;
 };
 
-const derivedCallahanHosts = [
-  process.env.NEXT_PUBLIC_S3_CDN_URL,
-  process.env.S3_CDN_URL,
-  buildBucketHostname(),
-]
+const derivedCallahanHosts = [process.env.NEXT_PUBLIC_S3_CDN_URL, buildBucketHostname()]
   .map(parseHostname)
   .filter((hostname): hostname is string => Boolean(hostname));
 

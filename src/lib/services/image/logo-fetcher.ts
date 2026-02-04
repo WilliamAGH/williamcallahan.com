@@ -9,7 +9,7 @@ import { getDomainVariants } from "@/lib/utils/domain-utils";
 import { LOGO_SOURCES, UNIFIED_IMAGE_SERVICE_CONFIG } from "@/lib/constants";
 import { fetchBinary, DEFAULT_IMAGE_HEADERS, getBrowserHeaders } from "@/lib/utils/http-client";
 import { safeStringifyValue, isRetryableError } from "@/lib/utils/error-utils";
-import { getExtensionFromContentType } from "@/lib/utils/content-type";
+import { getExtensionFromContentType, DEFAULT_IMAGE_CONTENT_TYPE } from "@/lib/utils/content-type";
 import { extractBasicImageMeta } from "@/lib/image-handling/image-metadata";
 import { isDebug } from "@/lib/utils/debug";
 import { logoDebugger } from "@/lib/utils/logo-debug";
@@ -52,7 +52,7 @@ export class LogoFetcher {
    * Get file extension from content type, defaulting to "png"
    */
   getLogoExtension(contentType?: string | null): string {
-    return getExtensionFromContentType(contentType || "image/png");
+    return getExtensionFromContentType(contentType || DEFAULT_IMAGE_CONTENT_TYPE);
   }
 
   /**
@@ -357,7 +357,9 @@ export class LogoFetcher {
       }
 
       // Persist inverted logo to dedicated S3 path for cache-friendly retrieval
-      const extension = getExtensionFromContentType(inverted.contentType || "image/png");
+      const extension = getExtensionFromContentType(
+        inverted.contentType || DEFAULT_IMAGE_CONTENT_TYPE,
+      );
       const s3Key = `images/logos/inverted/${domain}.${extension}`;
 
       if (!this.isReadOnly) {

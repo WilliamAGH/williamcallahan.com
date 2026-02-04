@@ -18,8 +18,8 @@ import { readJsonS3 } from "@/lib/s3-utils";
 import { getEnvironment, getEnvironmentSuffix } from "@/lib/config/environment";
 import type { BookmarkS3Record, BookmarkSlugMapping } from "@/types/bookmark";
 
-// Get CDN URL from environment or use default
-const CDN_URL = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+// Get CDN URL from environment (canonical variable)
+const CDN_URL = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
 const ORIGIN_SERVER_URL = process.env.S3_SERVER_URL || "";
 const S3_BUCKET = process.env.S3_BUCKET || "";
 const resolvedEnvironment = getEnvironment();

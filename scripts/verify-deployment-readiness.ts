@@ -67,7 +67,7 @@ class DeploymentVerifier {
       "S3_ACCESS_KEY_ID",
       "S3_SECRET_ACCESS_KEY",
       "S3_SERVER_URL",
-      "S3_CDN_URL",
+      "NEXT_PUBLIC_S3_CDN_URL",
     ];
 
     const envFile = join(process.cwd(), `.env.${this.targetEnv}`);

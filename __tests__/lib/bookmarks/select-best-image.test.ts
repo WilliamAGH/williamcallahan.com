@@ -6,7 +6,6 @@ describe("selectBestImage", () => {
   beforeEach(() => {
     process.env = {
       ...originalEnv,
-      S3_CDN_URL: "https://s3-storage.callahan.cloud",
       NEXT_PUBLIC_S3_CDN_URL: "https://s3-storage.callahan.cloud",
     };
   });

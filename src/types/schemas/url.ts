@@ -200,8 +200,7 @@ const ALLOWED_LOGO_DOMAINS = new Set(
     "pbs.twimg.com",
     "media.licdn.com",
 
-    // Allow our own CDN (both server and client URLs)
-    process.env.S3_CDN_URL ? new URL(process.env.S3_CDN_URL).hostname : null,
+    // Allow our own CDN
     process.env.NEXT_PUBLIC_S3_CDN_URL
       ? new URL(process.env.NEXT_PUBLIC_S3_CDN_URL).hostname
       : null,

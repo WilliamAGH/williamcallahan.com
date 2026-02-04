@@ -15,6 +15,8 @@ import {
   inferContentTypeFromUrl,
   getContentTypeFromExtension,
   IMAGE_EXTENSIONS,
+  DEFAULT_IMAGE_CONTENT_TYPE,
+  DEFAULT_BINARY_CONTENT_TYPE,
 } from "../utils/content-type";
 import { isLogoUrl, extractDomain } from "../utils/url-utils";
 import { getMemoryHealthMonitor, wipeBuffer } from "../health/memory-health-monitor";
@@ -57,11 +59,11 @@ export class UnifiedImageService {
     // S3 utils already validate environment on first use
     if (
       process.env.NODE_ENV === "production" &&
-      !process.env.S3_CDN_URL &&
+      !process.env.NEXT_PUBLIC_S3_CDN_URL &&
       !process.env.S3_BUCKET
     ) {
       throw new Error(
-        "UnifiedImageService: Either S3_CDN_URL or S3_BUCKET must be set in production.",
+        "UnifiedImageService: Either NEXT_PUBLIC_S3_CDN_URL or S3_BUCKET must be set in production.",
       );
     }
 
@@ -119,7 +121,7 @@ export class UnifiedImageService {
     if (!this.devStreamImagesToS3 && this.devProcessingDisabled) {
       return {
         buffer: UnifiedImageService.TRANSPARENT_PNG_PLACEHOLDER,
-        contentType: "image/png",
+        contentType: DEFAULT_IMAGE_CONTENT_TYPE,
         source: "placeholder",
         timestamp: getDeterministicTimestamp(),
       };
@@ -180,7 +182,7 @@ export class UnifiedImageService {
       return {
         domain,
         source: null,
-        contentType: "image/png",
+        contentType: DEFAULT_IMAGE_CONTENT_TYPE,
         error: "Insufficient memory to process logo request",
         timestamp: getDeterministicTimestamp(),
         isValid: false,
@@ -229,8 +231,14 @@ export class UnifiedImageService {
                 ServerCacheInstance.setLogoFetch(domain, cachedResult);
                 return cachedResult;
               }
-            } catch {
-              // File doesn't exist, continue to next extension/source
+            } catch (error) {
+              // Only log if this is an unexpected error (not a standard "not found")
+              const isNotFound =
+                error instanceof Error &&
+                (error.message.includes("NoSuchKey") || error.message.includes("Not Found"));
+              if (!isNotFound) {
+                logger.warn(`[UnifiedImageService] S3 check failed for ${hashedKey}`, { error });
+              }
             }
           }
         }
@@ -284,7 +292,7 @@ export class UnifiedImageService {
           return {
             domain,
             source: null,
-            contentType: "image/png",
+            contentType: DEFAULT_IMAGE_CONTENT_TYPE,
             error: "Logo not available in CDN (fetch required at runtime)",
             timestamp: getDeterministicTimestamp(),
             isValid: false,
@@ -317,7 +325,7 @@ export class UnifiedImageService {
               await this.s3Ops.uploadToS3(
                 s3KeyStreaming,
                 logoData.buffer,
-                logoData.contentType || "image/png",
+                logoData.contentType || DEFAULT_IMAGE_CONTENT_TYPE,
               );
             const streamingResult = this.logoFetcher.buildLogoFetchResult(domain, {
               s3Key: s3KeyStreaming,
@@ -361,13 +369,17 @@ export class UnifiedImageService {
                   format: "png",
                   dimensions: { width: 0, height: 0 },
                 },
-                contentType: logoData.contentType || "image/png",
+                contentType: logoData.contentType || DEFAULT_IMAGE_CONTENT_TYPE,
               });
             }
           }
 
           if (!this.isReadOnly)
-            await this.s3Ops.uploadToS3(s3Key, finalBuffer, logoData.contentType || "image/png");
+            await this.s3Ops.uploadToS3(
+              s3Key,
+              finalBuffer,
+              logoData.contentType || DEFAULT_IMAGE_CONTENT_TYPE,
+            );
           const result = this.logoFetcher.buildLogoFetchResult(domain, {
             s3Key,
             url: logoData.url,
@@ -401,7 +413,10 @@ export class UnifiedImageService {
     const fetchTimeout = options.timeoutMs ?? this.CONFIG.FETCH_TIMEOUT;
     // Dev gating: skip fetch/processing entirely when disabled in development
     if (this.devProcessingDisabled && !this.devStreamImagesToS3) {
-      return { buffer: UnifiedImageService.TRANSPARENT_PNG_PLACEHOLDER, contentType: "image/png" };
+      return {
+        buffer: UnifiedImageService.TRANSPARENT_PNG_PLACEHOLDER,
+        contentType: DEFAULT_IMAGE_CONTENT_TYPE,
+      };
     }
 
     // Check memory before fetching unless we are in streaming mode (streaming uses bounded memory)
@@ -414,7 +429,7 @@ export class UnifiedImageService {
       if (!logoResult?.buffer) throw new Error("Failed to fetch logo");
       const result = {
         buffer: logoResult.buffer,
-        contentType: logoResult.contentType || "image/png",
+        contentType: logoResult.contentType || DEFAULT_IMAGE_CONTENT_TYPE,
       };
       logoResult.buffer = Buffer.alloc(0);
       return result;
@@ -427,7 +442,7 @@ export class UnifiedImageService {
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const contentType = response.headers.get("content-type");
     if (!contentType?.startsWith("image/")) throw new Error("Response is not an image");
-    let effectiveContentType = contentType || "application/octet-stream";
+    let effectiveContentType = contentType || DEFAULT_BINARY_CONTENT_TYPE;
 
     try {
       const s3Key = this.s3Ops.generateS3Key(url, options);
@@ -440,7 +455,7 @@ export class UnifiedImageService {
         if (streamed) {
           return {
             buffer: Buffer.alloc(0),
-            contentType: contentType || "application/octet-stream",
+            contentType: contentType || DEFAULT_BINARY_CONTENT_TYPE,
             streamedToS3: true,
           };
         }
@@ -471,7 +486,7 @@ export class UnifiedImageService {
           throw new Error(`HTTP ${bufferResponse.status}: ${bufferResponse.statusText}`);
         const fallbackContentType = bufferResponse.headers.get("content-type");
         if (!fallbackContentType?.startsWith("image/")) throw new Error("Response is not an image");
-        effectiveContentType = fallbackContentType || "application/octet-stream";
+        effectiveContentType = fallbackContentType || DEFAULT_BINARY_CONTENT_TYPE;
       }
 
       const arrayBuffer = await bufferResponse.arrayBuffer();

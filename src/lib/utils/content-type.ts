@@ -8,6 +8,16 @@
 import { normalizeString } from "@/lib/utils";
 
 /**
+ * Default content type for images when type cannot be detected
+ */
+export const DEFAULT_IMAGE_CONTENT_TYPE = "image/png" as const;
+
+/**
+ * Default content type for binary data when type is unknown
+ */
+export const DEFAULT_BINARY_CONTENT_TYPE = "application/octet-stream" as const;
+
+/**
  * Image MIME type mapping
  */
 export const IMAGE_MIME_TYPES: Record<string, string> = {
@@ -92,7 +102,7 @@ export function detectImageContentType(buffer: Buffer): string {
   }
 
   // Default to PNG if unable to detect
-  return "image/png";
+  return DEFAULT_IMAGE_CONTENT_TYPE;
 }
 
 /**
@@ -112,7 +122,7 @@ export function inferContentTypeFromUrl(url: string): string {
     // Ignore URL parsing errors
   }
 
-  return "image/png"; // Default
+  return DEFAULT_IMAGE_CONTENT_TYPE; // Default
 }
 
 /**
@@ -196,5 +206,5 @@ export function guessImageContentType(url: string, header?: string | null): stri
   if (lowerUrl.endsWith(".ico")) return "image/x-icon";
   if (lowerUrl.endsWith(".bmp")) return "image/bmp";
 
-  return "image/png"; // safe default
+  return DEFAULT_IMAGE_CONTENT_TYPE; // safe default
 }
