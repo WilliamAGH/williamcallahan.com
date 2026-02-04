@@ -130,7 +130,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 
 - **S3 object storage**: Understand bucket layout, ACLs, and distributed lock behavior in [`s3-object-storage.md`](./s3-object-storage.md).
 - **Unified stack map**: The holistic flow (client -> Next -> API -> service -> S3/CDN) lives in [`s3-image-unified-stack.md`](./s3-image-unified-stack.md).
-- **Next.js 16 policies**: See `docs/projects/structure/next-js-16-usage.md` for caching, cache components, and outlawed patterns before changing API routes or components.
+- **Next.js 16 policies**: See `docs/standards/nextjs-framework.md` for caching, cache components, and outlawed patterns before changing API routes or components.
 
 ## Idempotency & Determinism (Deep Dive)
 
