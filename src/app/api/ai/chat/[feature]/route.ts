@@ -12,6 +12,7 @@ import { callOpenAiCompatibleChatCompletions } from "@/lib/ai/openai-compatible/
 import { getUpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
 import { logChatMessage } from "@/lib/ai/openai-compatible/chat-message-logger";
 import { buildChatMessages } from "@/lib/ai/openai-compatible/chat-messages";
+import { buildContextForQuery } from "@/lib/ai/rag";
 import { getClientIp } from "@/lib/utils/request-utils";
 import { NO_STORE_HEADERS, preventCaching, requireCloudflareHeaders } from "@/lib/utils/api-utils";
 import logger from "@/lib/utils/logger";
@@ -191,8 +192,41 @@ export async function POST(
     );
   }
 
+  // Build feature system prompt, potentially augmented with RAG context
+  let featureSystemPrompt = FEATURE_SYSTEM_PROMPTS[feature];
+
+  // Track RAG context status for response metadata (per [RC1]: no silent degradation)
+  let ragContextStatus: "included" | "failed" | "not_applicable" = "not_applicable";
+
+  if (feature === "terminal_chat") {
+    // Extract user message for RAG context retrieval
+    // Explicit Array.isArray check provides defense-in-depth beyond Zod validation
+    const messagesArray = Array.isArray(parsedBody.messages) ? parsedBody.messages : undefined;
+    const userMessage =
+      parsedBody.userText ?? messagesArray?.findLast((m) => m.role === "user")?.content;
+
+    if (userMessage) {
+      try {
+        const ragContext = await buildContextForQuery(userMessage, {
+          maxTokens: 2000,
+          timeoutMs: 3000,
+        });
+        featureSystemPrompt = `${featureSystemPrompt}\n\n${ragContext.contextText}`;
+        ragContextStatus = "included";
+      } catch (error) {
+        // RAG failure: graceful degradation with explicit exposure (per [RC1])
+        // - Continue with base prompt (chat remains functional)
+        // - Set ragContextStatus="failed" which is returned in response metadata
+        // - Log warning for server-side observability
+        // This is NOT silent: callers receive ragContext status in response
+        ragContextStatus = "failed";
+        logger.warn("[AI Chat] RAG context retrieval failed:", { error });
+      }
+    }
+  }
+
   const messages = buildChatMessages({
-    featureSystemPrompt: FEATURE_SYSTEM_PROMPTS[feature],
+    featureSystemPrompt,
     system: parsedBody.system,
     messages: parsedBody.messages,
     userText: parsedBody.userText,
@@ -309,7 +343,11 @@ export async function POST(
                 success: true,
               });
 
-              safeSend("done", { message: assistantMessage });
+              safeSend("done", {
+                message: assistantMessage,
+                // Include RAG context status so callers know if response is degraded (per [RC1])
+                ...(ragContextStatus !== "not_applicable" && { ragContext: ragContextStatus }),
+              });
               safeClose();
               return undefined;
             })
@@ -413,7 +451,11 @@ export async function POST(
     });
 
     return NextResponse.json(
-      { message: assistantText },
+      {
+        message: assistantText,
+        // Include RAG context status so callers know if response is degraded (per [RC1])
+        ...(ragContextStatus !== "not_applicable" && { ragContext: ragContextStatus }),
+      },
       { status: 200, headers: NO_STORE_HEADERS },
     );
   } catch (error: unknown) {

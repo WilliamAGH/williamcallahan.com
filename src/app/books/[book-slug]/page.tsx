@@ -27,6 +27,8 @@ import {
   fetchBooksWithFallback,
 } from "@/lib/books/audiobookshelf.server";
 import { extractBookIdFromSlug, findBookBySlug } from "@/lib/books/slug-helpers";
+import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
+import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
@@ -157,6 +159,9 @@ export default async function BookPage({ params }: BookPageProps) {
     return notFound();
   }
 
+  // Fetch cached AI analysis from S3 (runs in parallel with rendering prep)
+  const cachedAnalysis = await getCachedAnalysis<BookAiAnalysisResponse>("books", book.id);
+
   const path = `/books/${slug}`;
   const pageMetadata = PAGE_METADATA.books;
   const authorText = book.authors?.join(", ") ?? "Unknown Author";
@@ -196,7 +201,7 @@ export default async function BookPage({ params }: BookPageProps) {
             </div>
           }
         >
-          <BookDetail book={book} />
+          <BookDetail book={book} cachedAnalysis={cachedAnalysis} />
         </Suspense>
 
         <div className="mt-12">

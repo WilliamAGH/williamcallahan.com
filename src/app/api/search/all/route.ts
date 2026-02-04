@@ -7,7 +7,7 @@
  * Query parameters:
  * - q: Search query string (required)
  * - scope: Comma-separated list of sources to search (optional)
- *   Valid scopes: blog, investments, experience, education, bookmarks, projects, books, thoughts, tags
+ *   Valid scopes: blog, investments, experience, education, bookmarks, projects, books, thoughts, tags, analysis
  *   Example: ?q=react&scope=blog,projects
  */
 
@@ -21,6 +21,7 @@ import {
   searchBooks,
   searchThoughts,
   searchTags,
+  searchAiAnalysis,
 } from "@/lib/search";
 import {
   applySearchGuards,
@@ -216,6 +217,9 @@ export async function GET(request: NextRequest) {
         shouldSearch("tags")
           ? withTimeout(searchTags(query), SOURCE_TIMEOUT_MS, "tags")
           : Promise.resolve([]),
+        shouldSearch("analysis")
+          ? withTimeout(searchAiAnalysis(query), SOURCE_TIMEOUT_MS, "analysis")
+          : Promise.resolve([]),
       ]);
 
       const [
@@ -228,7 +232,9 @@ export async function GET(request: NextRequest) {
         bookResults,
         thoughtResults,
         tagResults,
+        analysisResults,
       ] = settled.map(getFulfilled) as [
+        SearchResult[],
         SearchResult[],
         SearchResult[],
         SearchResult[],
@@ -268,7 +274,8 @@ export async function GET(request: NextRequest) {
         title: `[Thoughts] ${r.title}`,
       }));
       // Tag results already have hierarchical format: [Blog] > [Tags] > React
-      // No additional prefix needed
+      // Analysis results already have hierarchical format: [Books] > Clean Code > "Summary: ..."
+      // No additional prefix needed for these
 
       // Limit results per category to prevent memory explosion
       const MAX_RESULTS_PER_CATEGORY = 24;
@@ -285,6 +292,7 @@ export async function GET(request: NextRequest) {
         ...prefixedBookResults.slice(0, MAX_RESULTS_PER_CATEGORY),
         ...prefixedThoughtResults.slice(0, MAX_RESULTS_PER_CATEGORY),
         ...tagResults.slice(0, MAX_RESULTS_PER_CATEGORY),
+        ...analysisResults.slice(0, MAX_RESULTS_PER_CATEGORY),
       ];
 
       // Sort by relevance score (highest first) then limit total results
