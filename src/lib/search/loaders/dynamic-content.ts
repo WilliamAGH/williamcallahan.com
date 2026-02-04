@@ -47,13 +47,13 @@ export function buildBookmarksIndex(
   // Transform bookmarks for indexing
   const bookmarksForIndex: BookmarkIndexItem[] = [];
   for (const b of bookmarks) {
-    // Generate a fallback slug if not present
-    const slug = generateFallbackSlug(b.url, b.id);
+    const slug = b.slug ?? generateFallbackSlug(b.url, b.id);
 
     bookmarksForIndex.push({
       id: b.id,
       title: b.title || b.url,
       description: b.description || "",
+      summary: b.summary ?? "",
       tags: Array.isArray(b.tags)
         ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join("\n")
         : "",
@@ -245,6 +245,7 @@ export async function getBookmarksIndex(): Promise<{
       id: b.id,
       title: b.title || b.url,
       description: b.description || "",
+      summary: b.summary ?? "",
       tags: Array.isArray(b.tags)
         ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join("\n")
         : "",

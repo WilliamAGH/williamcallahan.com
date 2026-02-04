@@ -121,6 +121,7 @@ export function extractBookmarksFromSerializedIndex(
       id,
       title,
       description: typeof storedFields.description === "string" ? storedFields.description : "",
+      summary: "",
       tags: "",
       url: typeof storedFields.url === "string" ? storedFields.url : "",
       author: "",

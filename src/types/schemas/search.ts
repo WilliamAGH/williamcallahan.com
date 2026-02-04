@@ -75,6 +75,7 @@ export const bookmarkIndexInputSchema = z.object({
   url: z.string(),
   title: z.string(),
   description: z.string(),
+  summary: z.string().nullable().optional(),
   slug: z.string().optional(),
   tags: z.array(z.union([z.string(), z.object({ name: z.string().optional() })])).optional(),
   content: z
@@ -102,6 +103,7 @@ export const bookmarkIndexItemSchema = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string(),
+  summary: z.string(),
   tags: z.string(),
   url: z.string(),
   author: z.string(),
