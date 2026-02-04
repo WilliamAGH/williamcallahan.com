@@ -28,6 +28,8 @@ vi.mock("next/script", async () => {
     }: MockScriptProps & Record<string, any>) {
       // Access pathname to simulate route change tracking
       const pathname = mockUsePathname();
+      const autoTrack = props["data-auto-track"];
+      const websiteId = props["data-website-id"];
 
       // Use React.useEffect to simulate script loading
       React.useEffect(() => {
@@ -50,10 +52,10 @@ vi.mock("next/script", async () => {
               onLoad?.();
 
               // Simulate auto-track on load
-              if (props["data-auto-track"] === "true") {
+              if (autoTrack === "true") {
                 umamiMock.track("pageview", {
                   path: pathname,
-                  website: props["data-website-id"],
+                  website: websiteId,
                 });
               }
             } else if (id === "plausible") {
@@ -76,7 +78,7 @@ vi.mock("next/script", async () => {
             });
           }
         }
-      }, [id, onLoad, onError, pathname]); // React to pathname changes
+      }, [autoTrack, id, onError, onLoad, pathname, websiteId]); // React to pathname changes
       return null;
     },
   };
@@ -215,11 +217,10 @@ describe("Analytics", () => {
     expect((global as any).umami?.track).toHaveBeenCalledTimes(1);
   });
 
-  it("renders without crashing when script fails to load", async () => {
-    // The Analytics component doesn't pass onError to Script components,
-    // so errors are handled internally by next/script.
-    // This test verifies the component still renders when errors occur.
+  it("handles script load errors gracefully with warning", async () => {
+    const consoleSpy = vi.spyOn(console, "warn");
     scriptConfig.shouldError = true;
+
     const { container } = render(<Analytics />);
 
     // Use async timer advancement to properly flush promises
@@ -227,9 +228,13 @@ describe("Analytics", () => {
       await vi.advanceTimersByTimeAsync(200);
     });
 
-    // Component should still be mounted (renders noscript fallbacks)
+    // Component should still be mounted
     expect(container).toBeTruthy();
     // Global umami should not be defined when script errors
     expect((global as any).umami).toBeUndefined();
+    // Warning should be logged via onError handler
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "[Analytics] Failed to load Umami script - continuing without analytics",
+    );
   });
 });

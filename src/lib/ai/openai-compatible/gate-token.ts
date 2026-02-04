@@ -1,6 +1,7 @@
 import "server-only";
 
 import crypto from "node:crypto";
+import { getMonotonicTime } from "@/lib/utils";
 import type {
   AiGateTokenPayloadV1,
   AiGateTokenVerificationResult,
@@ -43,7 +44,7 @@ export function verifyAiGateToken(
   secret: string,
   token: string,
   expected: { ip: string; ua: string; nonce: string },
-  nowMs = Date.now(),
+  nowMs = getMonotonicTime(),
 ): AiGateTokenVerificationResult {
   const parts = token.split(".");
   if (parts.length !== 2) return { ok: false, reason: "invalid_format" };

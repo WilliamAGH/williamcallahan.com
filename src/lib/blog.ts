@@ -33,6 +33,20 @@ function isValidSlug(slug: string): boolean {
   return VALID_SLUG_PATTERN.test(slug) && !slug.includes("--");
 }
 
+function readMatterSlug(data: unknown): string {
+  if (!data || typeof data !== "object") return "";
+  if (!("slug" in data)) return "";
+  const slugValue = (data as { slug?: unknown }).slug;
+  return typeof slugValue === "string" ? slugValue.trim() : "";
+}
+
+function getErrnoCode(error: unknown): string | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  if (!("code" in error)) return undefined;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" ? code : undefined;
+}
+
 let mdxSlugIndexPromise: Promise<Map<string, { filePath: string }>> | null = null;
 /**
  * Builds and caches an index mapping slugs to their MDX file paths.
@@ -54,8 +68,7 @@ const getMdxSlugIndex = async (): Promise<Map<string, { filePath: string }>> => 
       try {
         const fileContents = await fs.readFile(filePath, "utf8");
         const parsed = matter(fileContents);
-        const data = parsed.data as Record<string, unknown>;
-        const slug = typeof data.slug === "string" ? data.slug.trim() : "";
+        const slug = readMatterSlug(parsed.data);
 
         // Warn-and-skip for missing slugs (consistent with getAllMDXPosts in mdx.ts:428-431)
         if (!slug) {
@@ -185,7 +198,7 @@ async function lookupMdxPost(
       if (directPost) return { found: true, post: directPost };
     } catch (error) {
       // Only suppress ENOENT (file not found) - propagate all other errors
-      const code = (error as NodeJS.ErrnoException | null)?.code;
+      const code = getErrnoCode(error);
       if (code !== "ENOENT") {
         throw error;
       }

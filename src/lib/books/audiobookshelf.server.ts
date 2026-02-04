@@ -86,7 +86,7 @@ const cacheSnapshot = (books: Book[], timestamp?: number): void => {
 
 /**
  * Update a single book in the snapshot.
- * Uses timestamp of 0 to avoid Date.now() during prerendering.
+ * Uses timestamp of 0 to avoid current-time access during prerendering.
  */
 const upsertBookIntoSnapshot = (book: Book, timestamp?: number): void => {
   const ts = timestamp ?? 0; // prerender-safe

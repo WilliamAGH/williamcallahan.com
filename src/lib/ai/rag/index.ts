@@ -11,6 +11,7 @@ import { getStaticContext } from "./static-context";
 import { formatContext } from "./context-formatter";
 import { retrieveRelevantContent } from "./dynamic-retriever";
 import type { BuildContextOptions, BuildContextResult, DynamicResult } from "@/types/rag";
+import { getMonotonicTime } from "@/lib/utils";
 
 /**
  * Builds context for a user query by combining static site information
@@ -29,7 +30,7 @@ export async function buildContextForQuery(
   const skipDynamic = options?.skipDynamic ?? false;
 
   const staticCtx = getStaticContext();
-  const searchStart = Date.now();
+  const searchStart = getMonotonicTime();
 
   // Retrieve dynamic content unless skipped
   let dynamicResults: DynamicResult[] = [];
@@ -43,7 +44,7 @@ export async function buildContextForQuery(
     failedScopes = retrieval.failedScopes;
   }
 
-  const searchDurationMs = Date.now() - searchStart;
+  const searchDurationMs = getMonotonicTime() - searchStart;
 
   // Format combined context
   const { text, tokenEstimate } = formatContext(staticCtx, dynamicResults, { maxTokens });
