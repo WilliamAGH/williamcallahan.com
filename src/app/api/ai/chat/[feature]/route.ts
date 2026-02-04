@@ -196,7 +196,7 @@ export async function POST(
   let featureSystemPrompt = FEATURE_SYSTEM_PROMPTS[feature];
 
   // Track RAG context status for response metadata (per [RC1]: no silent degradation)
-  let ragContextStatus: "included" | "failed" | "not_applicable" = "not_applicable";
+  let ragContextStatus: "included" | "partial" | "failed" | "not_applicable" = "not_applicable";
 
   if (feature === "terminal_chat") {
     // Extract user message for RAG context retrieval
@@ -212,15 +212,32 @@ export async function POST(
           timeoutMs: 3000,
         });
         featureSystemPrompt = `${featureSystemPrompt}\n\n${ragContext.contextText}`;
-        ragContextStatus = "included";
+
+        // Map retrievalStatus to ragContextStatus (per [RC1]: no silent degradation)
+        // - "success" -> "included" (full context retrieved)
+        // - "partial" -> "partial" (some scopes failed, context is incomplete)
+        // - "failed"/"skipped" -> "failed" (no dynamic content available)
+        if (ragContext.retrievalStatus === "success") {
+          ragContextStatus = "included";
+        } else if (ragContext.retrievalStatus === "partial") {
+          ragContextStatus = "partial";
+          logger.warn("[AI Chat] RAG context retrieval partial", {
+            failedScopes: ragContext.failedScopes,
+          });
+        } else {
+          ragContextStatus = "failed";
+          logger.warn("[AI Chat] RAG context retrieval failed", {
+            status: ragContext.retrievalStatus,
+          });
+        }
       } catch (error) {
-        // RAG failure: graceful degradation with explicit exposure (per [RC1])
+        // RAG exception: graceful degradation with explicit exposure (per [RC1])
         // - Continue with base prompt (chat remains functional)
         // - Set ragContextStatus="failed" which is returned in response metadata
         // - Log warning for server-side observability
         // This is NOT silent: callers receive ragContext status in response
         ragContextStatus = "failed";
-        logger.warn("[AI Chat] RAG context retrieval failed:", { error });
+        logger.warn("[AI Chat] RAG context retrieval exception:", { error });
       }
     }
   }
