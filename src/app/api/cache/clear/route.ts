@@ -1,11 +1,8 @@
 /**
  * Cache Clear API Route
  * @module app/api/cache/clear
- * @description
- * Server-side API endpoint for clearing server caches.
- * This is useful for development and testing.
- *
- * Extended with cache corruption detection and automatic recovery
+ * @description Server-side API endpoint for clearing Next.js caches.
+ * Useful for development, testing, and manual cache invalidation.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -29,51 +26,6 @@ function validateApiKey(request: NextRequest): boolean {
 
   const providedKey = request.headers.get("x-api-key");
   return providedKey === apiKey;
-}
-
-/**
- * @deprecated Cache corruption detection is no longer needed with Next.js cache
- * Next.js cache handles data integrity automatically
- */
-function detectCacheCorruption() {
-  return {
-    totalEntries: 0,
-    corruptedEntries: 0,
-    emptyEntries: 0,
-    invalidOpenGraphEntries: 0,
-    oversizedEntries: 0,
-    repaired: false,
-    message: "Cache corruption detection is deprecated. Next.js cache handles data integrity.",
-  };
-}
-
-/**
- * GET - Cache health check (deprecated functionality)
- * @deprecated Cache health checks are no longer applicable with Next.js cache
- */
-export function GET(request: NextRequest): NextResponse {
-  if (!validateApiKey(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  return NextResponse.json({
-    status: "success",
-    message: "Cache health check endpoint is deprecated",
-    data: {
-      cache: {
-        message: "Next.js cache manages its own health and integrity",
-      },
-      imageMemory: {
-        message: "Image memory caching has been removed - images served directly from S3/CDN",
-      },
-      corruption: detectCacheCorruption(),
-      recommendations: [
-        "This endpoint is deprecated",
-        "Next.js cache handles data integrity automatically",
-        "Images are served directly from S3/CDN without caching",
-      ],
-    },
-  });
 }
 
 /**
@@ -135,11 +87,6 @@ export function POST(request: NextRequest): NextResponse {
       data: {
         invalidatedTags: cacheTags,
         timestamp: new Date().toISOString(),
-        notes: [
-          "Next.js caches have been invalidated",
-          "Image caching has been removed - images served directly from S3/CDN",
-          "ServerCache is deprecated and will be removed",
-        ],
       },
     });
   } catch (error) {

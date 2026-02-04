@@ -72,11 +72,6 @@ export function getPlaceholderImageUrlOrLocal(localPath: string): string {
 }
 
 /**
- * @deprecated Use getPlaceholderImageUrlOrLocal instead (explicit fallback naming per RC1)
- */
-export const getPlaceholderImageUrl = getPlaceholderImageUrlOrLocal;
-
-/**
  * Check if an image path is a placeholder
  */
 export function isPlaceholderImage(imagePath: string): boolean {
