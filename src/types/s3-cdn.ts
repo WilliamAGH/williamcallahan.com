@@ -30,6 +30,24 @@ export interface S3File {
   };
 }
 
+export interface S3ErrorContext {
+  operation: string;
+  key?: string;
+  code?: string;
+  httpStatus?: number;
+}
+
+export interface S3ObjectMetadata {
+  eTag?: string;
+  lastModified?: Date;
+  contentLength?: number;
+  contentType?: string;
+}
+
+export interface S3ObjectData extends S3ObjectMetadata {
+  body: Buffer;
+}
+
 export interface S3ClientWrapper {
   /** Get a file handle by key. */
   file: (key: string) => S3File;

@@ -44,8 +44,9 @@ export function isS3ReadOnly(): boolean {
   //    This guard runs *after* the explicit override so that intentionally
   //    enabled integration tests (with S3_READ_ONLY=false) can perform writes.
   const nodeEnv = getRuntimeEnvValue("NODE_ENV");
-  const jestWorkerId = getRuntimeEnvValue("JEST_WORKER_ID");
-  if (nodeEnv === "test" || jestWorkerId !== undefined) {
+  const vitestFlag = getRuntimeEnvValue("VITEST");
+  const testFlag = getRuntimeEnvValue("TEST");
+  if (nodeEnv === "test" || vitestFlag === "true" || testFlag === "true") {
     return true;
   }
 
