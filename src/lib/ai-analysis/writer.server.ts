@@ -8,7 +8,7 @@
 
 import "server-only";
 
-import { writeJsonS3 } from "@/lib/s3-utils";
+import { writeJsonS3 } from "@/lib/s3/json";
 import { envLogger } from "@/lib/utils/env-logger";
 import { buildLatestAnalysisKey, buildVersionedAnalysisKey } from "./paths";
 import type { AnalysisDomain, CachedAnalysis, PersistAnalysisOptions } from "./types";

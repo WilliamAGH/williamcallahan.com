@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useMemo, useEffect, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import type { ProjectDetailProps } from "@/types/features/projects";
@@ -74,15 +74,10 @@ function SmartLink({
 }
 
 export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
-  const [mounted, setMounted] = useState(false);
   const { scrollY } = useScroll();
 
   // Subtle parallax for image
   const imageY = useTransform(scrollY, [0, 300], [0, -20]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Extract domain for display
   const domain = useMemo(() => getDisplayHostname(project.url), [project.url]);
@@ -104,8 +99,6 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
     const cdnUrl = buildCdnUrl(project.imageKey, getCdnConfigFromEnv());
     return getOptimizedImageSrc(cdnUrl);
   }, [project.imageKey]);
-
-  if (!mounted) return null;
 
   return (
     <div className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
@@ -164,7 +157,7 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
             {/* Featured Image - Full width at top of content */}
             {imageUrl && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
                 className="mb-6 sm:mb-8"
@@ -203,7 +196,7 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
             {/* Description Box */}
             {project.description && (
               <motion.section
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1, duration: 0.5 }}
                 className="p-4 sm:p-5 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700"
@@ -220,7 +213,7 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
             {/* Note/Disclaimer */}
             {project.note && (
               <motion.section
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.5 }}
                 className="p-4 sm:p-5 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800"
@@ -253,7 +246,7 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
             {/* Tech Stack */}
             {project.techStack && project.techStack.length > 0 && (
               <motion.section
-                initial={{ opacity: 0, x: 20 }}
+                initial={false}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4, duration: 0.5 }}
               >
@@ -277,7 +270,7 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
             {/* Tags */}
             {project.tags && project.tags.length > 0 && (
               <motion.section
-                initial={{ opacity: 0, x: 20 }}
+                initial={false}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.5, duration: 0.5 }}
               >
@@ -301,7 +294,7 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
 
             {/* Action Buttons */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
+              initial={false}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.6, duration: 0.5 }}
               className="space-y-2 sm:space-y-3"
