@@ -11,14 +11,11 @@ import type { BookmarkSlugMapping } from "@/types/bookmark";
 vi.mock("@/lib/bookmarks/service.server");
 vi.mock("@/lib/s3/json");
 vi.mock("@/lib/bookmarks/slug-manager");
+import * as slugManagerModule from "@/lib/bookmarks/slug-manager";
 
 const mockGetBookmarks = vi.mocked(getBookmarks);
 const mockReadJsonS3 = vi.mocked(readJsonS3Optional);
-const slugManager = vi.mocked(
-  await vi.importMock<typeof import("@/lib/bookmarks/slug-manager")>(
-    "@/lib/bookmarks/slug-manager",
-  ),
-);
+const slugManager = vi.mocked(slugManagerModule);
 const loadSlugMapping = vi.mocked(slugManager.loadSlugMapping);
 
 describe("Bookmark API – large limit behavior", () => {
