@@ -116,7 +116,7 @@ Provide a single, verifiable description of how UI components, Next.js runtime f
 
 - **Image domain details** -> [`docs/architecture/image-handling.md`](./image-handling.md)
 - **Raw storage policies** -> [`docs/architecture/s3-storage.md`](./s3-storage.md)
-- **CSP + Next.js guardrails** -> `docs/standards/nextjs-framework.md`
+- **CSP + Next.js guardrails** -> [`docs/standards/nextjs-framework.md`](../standards/nextjs-framework.md)
 
 Keep this document synchronized with the other two structure docs whenever you introduce a new image input, a new storage directory, or change CDN/Next settings.
 
