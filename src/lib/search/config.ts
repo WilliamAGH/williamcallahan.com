@@ -78,10 +78,10 @@ export const PROJECTS_INDEX_CONFIG: IndexFieldConfig<Project> = {
  * @see {@link @/lib/bookmarks/service.server} for source data
  */
 export const BOOKMARKS_INDEX_CONFIG: IndexFieldConfig<BookmarkIndexItem> = {
-  fields: ["title", "description", "tags", "author", "publisher", "url", "slug"],
+  fields: ["title", "description", "summary", "tags", "author", "publisher", "url", "slug"],
   storeFields: ["id", "title", "description", "url", "slug"],
   idField: "id",
-  boost: { title: 2, description: 1.5 },
+  boost: { title: 2, description: 1.5, summary: 1.25, slug: 1.1 },
   fuzzy: 0.2,
 };
 

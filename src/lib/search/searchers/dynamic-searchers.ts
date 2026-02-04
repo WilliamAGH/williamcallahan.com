@@ -42,7 +42,7 @@ async function executeBookmarkSearch(query: string): Promise<SearchResult[]> {
   const searchResults = index.search(sanitizedQuery, {
     prefix: true,
     fuzzy: 0.2,
-    boost: { title: 2, description: 1.5 },
+    boost: { title: 2, description: 1.5, summary: 1.25, slug: 1.1 },
     combineWith: "AND",
   });
 

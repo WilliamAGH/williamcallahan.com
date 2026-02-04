@@ -173,6 +173,7 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
       id: b.id,
       title: b.title || b.url,
       description: b.description || "",
+      summary: b.summary ?? "",
       tags: Array.isArray(b.tags)
         ? b.tags
             .map((t) => (typeof t === "string" ? t : (t as { name?: string })?.name || ""))
