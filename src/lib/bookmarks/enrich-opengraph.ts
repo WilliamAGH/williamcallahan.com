@@ -248,7 +248,7 @@ export async function processBookmarksInBatches(
                   if (screenshotBuffer && screenshotBuffer.length / 1024 >= 5) {
                     // Screenshot is valid, use it
                     const { persistImageBufferToS3 } =
-                      await import("@/lib/persistence/s3-persistence");
+                      await import("@/lib/persistence/image-persistence");
                     const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
 
                     const s3Url = await persistImageBufferToS3(
@@ -282,7 +282,8 @@ export async function processBookmarksInBatches(
                 absoluteImageUrl = null;
               } else {
                 // Image is valid size, persist it
-                const { persistImageBufferToS3 } = await import("@/lib/persistence/s3-persistence");
+                const { persistImageBufferToS3 } =
+                  await import("@/lib/persistence/image-persistence");
                 const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
 
                 const s3Url = await persistImageBufferToS3(
@@ -330,7 +331,7 @@ export async function processBookmarksInBatches(
         // Only proceed if we still have a valid image URL
         if (sourceImageUrl && absoluteImageUrl) {
           const { persistImageAndGetS3UrlWithStatus } =
-            await import("@/lib/persistence/s3-persistence");
+            await import("@/lib/persistence/image-persistence");
           const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
           const result = await persistImageAndGetS3UrlWithStatus(
             absoluteImageUrl,

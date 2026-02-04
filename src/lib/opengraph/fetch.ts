@@ -17,7 +17,7 @@ import { getCachedJinaHtml, persistJinaHtmlInBackground } from "@/lib/persistenc
 import {
   scheduleImagePersistence,
   persistImageAndGetS3Url,
-} from "@/lib/persistence/s3-persistence";
+} from "@/lib/persistence/image-persistence";
 import { fetchWithTimeout, getBrowserHeaders } from "@/lib/utils/http-client";
 import { incrementAndPersist, waitForPermit } from "@/lib/rate-limiter";
 import { retryWithThrow, RETRY_CONFIGS } from "@/lib/utils/retry";
