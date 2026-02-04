@@ -395,7 +395,7 @@ export async function persistImageAndGetS3Url(
     if (s3Key) {
       const cdnUrl = getS3CdnUrl();
       if (!cdnUrl) {
-        console.error("[OpenGraph S3] ❌ S3_CDN_URL not configured");
+        console.error("[OpenGraph S3] ❌ NEXT_PUBLIC_S3_CDN_URL not configured");
         return null;
       }
       const s3Url = `${cdnUrl}/${s3Key}`;
@@ -506,7 +506,7 @@ export async function persistImageAndGetS3UrlWithStatus(
     if (existingKey) {
       const cdnUrl = getS3CdnUrl();
       if (!cdnUrl) {
-        console.error("[OpenGraph S3] ❌ S3_CDN_URL not configured");
+        console.error("[OpenGraph S3] ❌ NEXT_PUBLIC_S3_CDN_URL not configured");
         return { s3Url: null, wasNewlyPersisted: false };
       }
       const s3Url = `${cdnUrl}/${existingKey}`;
@@ -525,7 +525,7 @@ export async function persistImageAndGetS3UrlWithStatus(
     if (s3Key) {
       const cdnUrl = getS3CdnUrl();
       if (!cdnUrl) {
-        console.error("[OpenGraph S3] ❌ S3_CDN_URL not configured");
+        console.error("[OpenGraph S3] ❌ NEXT_PUBLIC_S3_CDN_URL not configured");
         return { s3Url: null, wasNewlyPersisted: false };
       }
       const s3Url = `${cdnUrl}/${s3Key}`;
@@ -601,7 +601,7 @@ export async function persistImageBufferToS3(
     // Return the S3 CDN URL
     const cdnUrl = getS3CdnUrl();
     if (!cdnUrl) {
-      console.error("[OpenGraph S3] ❌ S3_CDN_URL not configured");
+      console.error("[OpenGraph S3] ❌ NEXT_PUBLIC_S3_CDN_URL not configured");
       return null;
     }
 

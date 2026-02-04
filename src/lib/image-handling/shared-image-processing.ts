@@ -10,6 +10,15 @@
 import { isDebug } from "../utils/debug";
 import type { ProcessedImageResult } from "@/types/image";
 import { extractBasicImageMeta } from "./image-metadata";
+import { DEFAULT_IMAGE_CONTENT_TYPE } from "../utils/content-type";
+
+/** Magic number to content type lookup table */
+const MAGIC_NUMBER_CONTENT_TYPES: Record<string, string> = {
+  gif: "image/gif",
+  png: "image/png",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+};
 
 const detectContentTypeFromMagicNumbers = (buffer: Buffer, logContext: string): string | null => {
   const magicNumbers = {
@@ -19,21 +28,17 @@ const detectContentTypeFromMagicNumbers = (buffer: Buffer, logContext: string): 
     webp: buffer.slice(0, 4).toString() === "RIFF" && buffer.slice(8, 12).toString() === "WEBP",
   };
 
-  const contentType = magicNumbers.gif
-    ? "image/gif"
-    : magicNumbers.png
-      ? "image/png"
-      : magicNumbers.jpeg
-        ? "image/jpeg"
-        : magicNumbers.webp
-          ? "image/webp"
-          : null;
+  // Use lookup table instead of conditional chain
+  const detectedFormat = Object.keys(magicNumbers).find(
+    (format) => magicNumbers[format as keyof typeof magicNumbers],
+  );
+  const contentType = detectedFormat ? MAGIC_NUMBER_CONTENT_TYPES[detectedFormat] : null;
 
   if (contentType) {
     console.warn(`[${logContext}] Detected ${contentType} from magic numbers.`);
   }
 
-  return contentType;
+  return contentType ?? null;
 };
 
 /**
@@ -123,7 +128,13 @@ export async function processImageBuffer(
       };
     }
 
-    const contentType = detectContentTypeFromMagicNumbers(buffer, logContext) ?? "image/png";
+    const detectedType = detectContentTypeFromMagicNumbers(buffer, logContext);
+    const contentType = detectedType ?? DEFAULT_IMAGE_CONTENT_TYPE;
+    if (!detectedType) {
+      console.warn(
+        `[${logContext}] Format detection failed, using fallback: ${DEFAULT_IMAGE_CONTENT_TYPE}`,
+      );
+    }
     return {
       processedBuffer: buffer,
       isSvg: false,

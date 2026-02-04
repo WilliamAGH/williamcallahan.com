@@ -16,17 +16,19 @@ const IMAGE_PROXY_PATH = "/api/cache/images";
 const ASSET_PROXY_PATH = "/api/assets/";
 
 /**
- * Get S3 CDN base URL with consistent fallback chain
+ * Get S3 CDN base URL from the canonical environment variable.
  *
- * Server-side: S3_CDN_URL takes precedence (not exposed to client)
- * Client-side: Falls back to NEXT_PUBLIC_S3_CDN_URL
+ * Uses NEXT_PUBLIC_S3_CDN_URL exclusively (the sole canonical CDN env var).
  *
- * Returns empty string if neither is configured.
- *
+ * @throws {Error} if NEXT_PUBLIC_S3_CDN_URL is not configured
  * @see {@link getCdnConfigFromEnv} for full configuration object
  */
 export function getS3CdnUrl(): string {
-  return process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+  const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
+  if (!cdnUrl) {
+    throw new Error("[cdn-utils] NEXT_PUBLIC_S3_CDN_URL is required but was not provided.");
+  }
+  return cdnUrl;
 }
 
 /**
@@ -56,8 +58,7 @@ function normalizeBasePath(pathname: string): string {
  * will have the value available even in client components.
  * Fallback ensures we have a value even if env var is missing.
  */
-const CLIENT_CDN_BASE_URL =
-  process.env.NEXT_PUBLIC_S3_CDN_URL || "https://s3-storage.callahan.cloud";
+const CLIENT_CDN_BASE_URL = process.env.NEXT_PUBLIC_S3_CDN_URL;
 
 /**
  * Extract S3 hostname from server URL
@@ -213,11 +214,23 @@ export function isOurCdnUrl(url: string, config: CdnConfig): boolean {
 export function getCdnConfigFromEnv(): CdnConfig {
   // In client-side environment, only NEXT_PUBLIC_* variables are available
   const isClient = typeof globalThis.window !== "undefined";
+  const cdnBaseUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
+  if (!cdnBaseUrl) {
+    throw new Error("[cdn-utils] NEXT_PUBLIC_S3_CDN_URL is required but was not provided.");
+  }
 
   if (isClient) {
     // Client-side: use the build-time captured constant for reliability
+    // Validate CLIENT_CDN_BASE_URL explicitly to avoid silent null state
+    const clientCdnUrl = CLIENT_CDN_BASE_URL ?? cdnBaseUrl;
+    if (!clientCdnUrl) {
+      throw new Error(
+        "[cdn-utils] CLIENT_CDN_BASE_URL and cdnBaseUrl are both null. " +
+          "NEXT_PUBLIC_S3_CDN_URL must be set at build time.",
+      );
+    }
     return {
-      cdnBaseUrl: CLIENT_CDN_BASE_URL,
+      cdnBaseUrl: clientCdnUrl,
       // These are not available client-side, but buildCdnUrl should use cdnBaseUrl when available
       s3BucketName: undefined,
       s3ServerUrl: undefined,
@@ -226,7 +239,7 @@ export function getCdnConfigFromEnv(): CdnConfig {
 
   // Server-side: all environment variables are available
   return {
-    cdnBaseUrl: process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL,
+    cdnBaseUrl,
     s3BucketName: process.env.S3_BUCKET,
     s3ServerUrl: process.env.S3_SERVER_URL,
   };

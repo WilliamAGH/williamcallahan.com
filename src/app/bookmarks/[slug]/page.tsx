@@ -85,7 +85,7 @@ async function resolveBookmarkBySlug(slug: string): Promise<UnifiedBookmark | nu
           S3_BUCKET: process.env.S3_BUCKET ? "✓ set" : "✗ missing",
           S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID ? "✓ set" : "✗ missing",
           S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY ? "✓ set" : "✗ missing",
-          S3_CDN_URL: process.env.S3_CDN_URL || "not set",
+          NEXT_PUBLIC_S3_CDN_URL: process.env.NEXT_PUBLIC_S3_CDN_URL || "not set",
           S3_SERVER_URL: process.env.S3_SERVER_URL || "not set",
         },
       },
