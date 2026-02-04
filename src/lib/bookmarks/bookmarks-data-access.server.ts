@@ -48,6 +48,7 @@ import {
 } from "@/lib/bookmarks/cache-management.server";
 
 const isCliLikeContext = isCliLikeCacheContext;
+const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
 
 const logBookmarkDataAccessEvent = (message: string, data?: Record<string, unknown>): void => {
   if (!isBookmarkServiceLoggingEnabled) return;
@@ -179,6 +180,10 @@ async function getCachedBookmarksPage(pageNumber: number): Promise<UnifiedBookma
 }
 
 export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookmark[]> {
+  if (isProductionBuildPhase()) {
+    return getCachedBookmarksPage(pageNumber);
+  }
+
   return USE_NEXTJS_CACHE
     ? withCacheFallback(
         () => getCachedBookmarksPage(pageNumber),
@@ -222,6 +227,10 @@ export async function getTagBookmarksPage(
   tagSlug: string,
   pageNumber: number,
 ): Promise<UnifiedBookmark[]> {
+  if (isProductionBuildPhase()) {
+    return getCachedTagBookmarksPage(tagSlug, pageNumber);
+  }
+
   return USE_NEXTJS_CACHE
     ? withCacheFallback(
         () => getCachedTagBookmarksPage(tagSlug, pageNumber),
@@ -250,6 +259,10 @@ async function getCachedTagBookmarksIndex(tagSlug: string): Promise<BookmarksInd
 }
 
 export async function getTagBookmarksIndex(tagSlug: string): Promise<BookmarksIndex | null> {
+  if (isProductionBuildPhase()) {
+    return getCachedTagBookmarksIndex(tagSlug);
+  }
+
   if (USE_NEXTJS_CACHE) {
     try {
       const cached = await getCachedTagBookmarksIndex(tagSlug);
@@ -263,6 +276,16 @@ export async function getTagBookmarksIndex(tagSlug: string): Promise<BookmarksIn
 }
 
 export async function listTagSlugs(): Promise<string[]> {
+  if (isProductionBuildPhase()) {
+    return listTagSlugsCached();
+  }
+  return listTagSlugsFromS3();
+}
+
+async function listTagSlugsCached(): Promise<string[]> {
+  "use cache";
+  safeCacheLife({ revalidate: 3600 });
+  safeCacheTag("bookmarks", "bookmarks-tag-slugs");
   return listTagSlugsFromS3();
 }
 
@@ -454,6 +477,10 @@ export const invalidateBookmarkCache = (bookmarkId: string): void => {
 };
 
 export async function getBookmarksIndex(): Promise<BookmarksIndex | null> {
+  if (isProductionBuildPhase()) {
+    return getCachedBookmarksIndex();
+  }
+
   if (USE_NEXTJS_CACHE) {
     try {
       const cached = await getCachedBookmarksIndex();
