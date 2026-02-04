@@ -33,6 +33,7 @@ File/Path Functionality Description
 - [~] **features/**
   - [x] `index.ts` `components` - Barrel file for all feature components
   - [x] **bookmarks/**
+    - [x] `bookmark-ai-analysis.client.tsx` `bookmarks` - AI analysis component for bookmarks with SSR cache support
     - [x] `bookmark-card.client.tsx` `bookmarks` - Bookmark card UI (2025-06: unified OG images)
     - [x] `bookmarks-client-with-window.tsx` `bookmarks` - Bookmarks window entrypoint
     - [x] `bookmarks-window.client.tsx` `bookmarks` - UI for the bookmarks window
@@ -41,6 +42,14 @@ File/Path Functionality Description
     - [x] `index.ts` `bookmarks` - Barrel file for bookmark components
     - [x] `share-button.client.tsx` `bookmarks` - Share button for bookmarks
     - [x] `tags-list.client.tsx` `bookmarks` - UI for displaying bookmark tags
+  - [x] **books/**
+    - [x] `book-ai-analysis.client.tsx` `books` - AI analysis component for books with SSR cache support
+    - [x] `book-card.client.tsx` `books` - Book card UI
+    - [x] `book-detail.tsx` `books` - Book detail view with AI analysis integration
+    - [x] `books-grid.client.tsx` `books` - Books grid layout
+    - [x] `books-window.client.tsx` `books` - Books window wrapper
+    - [x] `books.server.tsx` `books` - Server-side books component
+    - [x] `index.ts` `books` - Barrel file for book components
   - [x] **blog/**
     - [x] `blog-window.client.tsx` `blog` - Main blog window UI
     - [x] `blog.client.tsx` `blog` - Main component for blog features
@@ -85,7 +94,9 @@ File/Path Functionality Description
     - [x] `theme-wrapper.client.tsx` `investments` - theme wrapper for investments list
   - [x] **projects/**
     - [x] `index.ts` `projects` - Projects barrel file
+    - [x] `project-ai-analysis.client.tsx` `projects` - AI analysis component for projects with SSR cache support
     - [x] `project-card.{client,server}.tsx` `projects` - ind project cards
+    - [x] `project-detail.tsx` `projects` - Project detail view with AI analysis integration
     - [x] `project-tags.client.tsx` `projects` - Project tag filter UI
     - [x] `projects-list.{client,server}.tsx` `projects` - List all projects
     - [x] `projects-window.client.tsx` `projects` - Projects window wrapper
@@ -163,12 +174,18 @@ File/Path Functionality Description
 ## Lib Directory
 
 - [~] **ai/** `ai-shared-services` - Unified AI provider and web search services
+  - [x] `analysis-client-utils.ts` `ai-shared-services` - Shared client utilities for AI analysis (LLM JSON parsing, S3 persistence)
   - [x] **openai-compatible/**
     - [x] `feature-config.ts` `ai-shared-services` - Per-feature env resolution + upstream URL builder
     - [x] `gate-token.ts` `ai-shared-services` - HMAC-signed short-lived token helpers
     - [x] `browser-client.ts` `ai-shared-services` - Browser helper to mint token + call AI chat route
     - [x] `openai-compatible-client.ts` `ai-shared-services` - Fetch-based `/v1/chat/completions` client
     - [x] `upstream-request-queue.ts` `ai-shared-services` - Per-upstream priority queue (max parallel + position)
+  - [x] **rag/**
+    - [x] `index.ts` `ai-shared-services` - Public API for RAG context retrieval
+    - [x] `static-context.ts` `ai-shared-services` - Static context builder from CV/metadata/projects
+    - [x] `dynamic-retriever.ts` `ai-shared-services` - Query-time search using existing search functions
+    - [x] `context-formatter.ts` `ai-shared-services` - Formats context for system prompt injection
   - [ ] **providers/**
     - [ ] `openai.ts` `ai-shared-services` - OpenAI provider implementation
     - [ ] `openrouter.ts` `ai-shared-services` - OpenRouter provider implementation
@@ -215,6 +232,15 @@ File/Path Functionality Description
   - [x] `validation.ts` `blog` - Blog data validation schemas
 - [ ] **bookmarks/**
   - [x] `index.ts` `bookmarks` - Barrel file for bookmark library functions
+  - [x] **analysis/**
+    - [x] `build-prompt.ts` `bookmarks` - LLM prompt builder for bookmark analysis
+    - [x] `extract-context.ts` `bookmarks` - Context extraction for bookmark analysis
+- [x] **books/**
+  - [x] `audiobookshelf.server.ts` `books` - AudioBookShelf API integration
+  - [x] `slug-helpers.ts` `books` - Book slug generation and lookup
+  - [x] **analysis/**
+    - [x] `build-prompt.ts` `books` - LLM prompt builder for book analysis
+    - [x] `extract-context.ts` `books` - Context extraction for book analysis
 - [ ] **cache/**
   - [x] `index.ts` `caching` - Barrel file for cache utilities
 - [ ] **context/**
@@ -252,6 +278,11 @@ File/Path Functionality Description
   - [x] `fallback.ts` `opengraph` - Unified fallback logic for images and metadata
   - [x] `persistence.ts` `opengraph` - Background image persistence to S3
   - [x] `fetch.ts` `opengraph` - External HTML fetching with retry and circuit breaking
+- [x] **projects/**
+  - [x] `slug-helpers.ts` `projects` - Project slug generation and lookup
+  - [x] **analysis/**
+    - [x] `build-prompt.ts` `projects` - LLM prompt builder for project analysis
+    - [x] `extract-context.ts` `projects` - Context extraction for project analysis
 - [x] **s3-utils/**
   - [x] `index.ts` `s3-object-storage` - Barrel file for S3 utilities
 - [x] **seo/**
@@ -296,7 +327,9 @@ File/Path Functionality Description
 - [x] `accelerator.ts` `investments` - Types for accelerator programs
 - [x] `analytics.d.ts` `analytics` - TypeScript definitions for analytics
 - [x] `blog.ts` `blog` - Types for blog posts and authors
+- [x] `book-ai-analysis.ts` `books` - Types for book AI analysis (state, props, context)
 - [x] `bookmark.ts` `bookmarks` - Types for bookmarks
+- [x] `bookmark-ai-analysis.ts` `bookmarks` - Types for bookmark AI analysis (state, props, context)
 - [x] `component-types.ts` `interactive-containers` - Shared component prop types
 - [x] `education.ts` `education` - Types for education and certifications
 - [x] `env.d.ts` `config` - Environment variable type definitions
@@ -311,6 +344,7 @@ File/Path Functionality Description
 - [x] `navigation.ts` `navigation` - Types for navigation components
 - [x] `node-cron.d.ts` `batch-fetch-update` - Type definitions for node-cron
 - [x] `project.ts` `projects` - Types for projects
+- [x] `project-ai-analysis.ts` `projects` - Types for project AI analysis (state, props, context)
 - [x] `s3.ts` `s3-object-storage` - Types for S3 operations
 - [x] `search.ts` `search` - Types for search functionality
 - [x] `seo.ts` `seo` - Types for SEO and metadata

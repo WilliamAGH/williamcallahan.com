@@ -93,13 +93,38 @@ export function getSlugCacheTTL(): number {
 }
 
 /**
- * Content types that are hidden in production
+ * Content types that are hidden outside localhost
  *
  * These content types are still in development and should not be
- * shown to users on the production site. They remain visible in
- * development and test environments for testing purposes.
+ * shown to users outside explicit localhost:3000 usage. They remain
+ * visible only when the site is running locally on localhost:3000.
  */
-export const PRODUCTION_HIDDEN_CONTENT_TYPES: readonly RelatedContentType[] = ["thought"] as const;
+export const NON_LOCALHOST_HIDDEN_CONTENT_TYPES: readonly RelatedContentType[] = [
+  "thought",
+] as const;
+
+const LOCALHOST_ALLOWED_ORIGINS = new Set(["http://localhost:3000", "http://127.0.0.1:3000"]);
+
+const trimTrailingSlash = (value: string): string => value.trim().replace(/\/+$/, "");
+
+function isLocalhostThoughtsEnabled(): boolean {
+  const candidates = [process.env.NEXT_PUBLIC_SITE_URL, process.env.API_BASE_URL].filter(
+    (value): value is string => typeof value === "string" && value.trim().length > 0,
+  );
+
+  if (candidates.length === 0) {
+    return false;
+  }
+
+  for (const candidate of candidates) {
+    const normalized = trimTrailingSlash(candidate);
+    if (LOCALHOST_ALLOWED_ORIGINS.has(normalized)) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 /**
  * All available content types in preferred display order
@@ -119,16 +144,24 @@ export const ALL_CONTENT_TYPES: readonly RelatedContentType[] = [
 /**
  * Get the list of content types that should be excluded based on environment
  *
- * In production (williamcallahan.com), certain content types like "thought"
+ * Outside explicit localhost:3000 usage, certain content types like "thought"
  * are hidden because the feature is not yet complete.
  *
  * @returns Array of content types to exclude from display
  */
 export function getExcludedContentTypes(): RelatedContentType[] {
   const env = getEnvironment();
+
+  // Production always hides incomplete content types, regardless of URL
   if (env === "production") {
-    return [...PRODUCTION_HIDDEN_CONTENT_TYPES];
+    return [...NON_LOCALHOST_HIDDEN_CONTENT_TYPES];
   }
+
+  // In non-production, only show thoughts content when localhost is enabled
+  if (!isLocalhostThoughtsEnabled()) {
+    return [...NON_LOCALHOST_HIDDEN_CONTENT_TYPES];
+  }
+
   return [];
 }
 
