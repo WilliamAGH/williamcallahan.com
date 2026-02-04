@@ -1,80 +1,58 @@
 graph TD
-    subgraph "I. Test Runner Philosophy"
+    subgraph "I. Test Runner"
         direction LR
-        A1(bun run test) --> A2(✅ Jest Runner)
-        A3(bun test) --> A4(❌ Bypasses Config)
-        A2 --> A5(Vitest<br/><i>Emergency Alternative</i>)
+        A1(bun run test) --> A2(✅ Vitest Runner)
+        A3(bun test) --> A4(❌ Bypasses Vitest Config)
     end
 
-    subgraph "II. Modern Testing Context"
-        B1[Jest v28-30<br/>- jest.mocked()<br/>- ESM Support]
-        B2[React 18-19<br/>- Auto Batching<br/>- use() Hook & Actions]
-        B3[Next.js 14-15<br/>- next/navigation mocks<br/>- Server Action tests]
+    subgraph "II. Config"
+        B1[vitest.config.ts]
+        B2[config/vitest/setup.ts]
+        B3[config/vitest/env-setup.ts]
+        B4[__tests__/__mocks__/]
     end
 
-    subgraph "III. Jest Configuration"
-        C1[config/jest/config.ts<br/><b>Primary Config</b>]
-        C2[config/jest/setup.ts<br/>Global Setup]
-        C3[__tests__/__mocks__/<br/>Manual Mocks]
-        C4[__tests__/tsconfig.json<br/>Test TSConfig]
+    subgraph "III. Strategy"
+        C1[Unit Tests]
+        C2[Component Tests]
+        C3[Integration Tests]
+        C4[E2E Smoke Tests]
     end
 
-    subgraph "IV. Test Strategy & Types"
-        D1[Unit Tests]
-        D2[Component Tests]
-        D3[Integration Tests]
-        D4[E2E Smoke Tests]
-    end
-    
-    subgraph "V. Knowledge & Troubleshooting"
-        E1[<a href='https://nextjs.org/docs/pages/guides/testing/jest'>Next.js Docs</a>]
-        E2[<a href='https://jestjs.io/docs/tutorial-react'>Jest Docs</a>]
-        E3[Context7 MCP<br/>Deeper Docs Search]
-        E4[Troubleshooting Guide]
+    subgraph "IV. Docs"
+        D1[<a href='https://nextjs.org/docs/app/guides/testing/vitest'>Next.js Vitest Guide</a>]
+        D2[<a href='https://vitest.dev/config/'>Vitest Config</a>]
     end
 
-    subgraph "VI. CI/CD & Validation"
-        F1[bun run validate]
-        F2[Test Results]
-        F3[Coverage Reports]
-        F4[GitHub Actions]
+    subgraph "V. CI/CD"
+        E1[bun run validate]
+        E2[Test Results]
+        E3[Coverage Reports]
     end
 
-    A1 --> C1
-    C1 --> B1
-    C1 --> B2
-    C1 --> B3
-    
-    A2 --> D1
-    A2 --> D2
-    A2 --> D3
-    A2 --> D4
-    
-    D1 --> F2
-    D2 --> F2
-    D3 --> F2
-    D4 --> F2
+    A1 --> B1
+    B1 --> B2
+    B1 --> B3
+    B1 --> B4
 
-    F2 --> F3
-    F2 --> F4
-    F1 --> F4
-    
-    A4 --> E4
-    B1 --> E4
-    B2 --> E4
-    B3 --> E4
-    
+    A2 --> C1
+    A2 --> C2
+    A2 --> C3
+    A2 --> C4
+
+    C1 --> E2
+    C2 --> E2
+    C3 --> E2
+    C4 --> E2
+
+    E2 --> E3
+    E1 --> E2
+
     classDef runner fill:#cde4f2,stroke:#004085
-    class A1,A2,A3,A5 runner
-
-    classDef context fill:#d4edda,stroke:#155724
-    class B1,B2,B3 context
+    class A1,A2,A3 runner
 
     classDef config fill:#f8d7da,stroke:#721c24
-    class C1,C2,C3,C4 config
-    
-    classDef links fill:#fff3cd,stroke:#856404
-    class E1,E2,E3,E4 links
+    class B1,B2,B3,B4 config
 
     classDef ci fill:#d1ecf1,stroke:#0c5460
-    class F1,F2,F3,F4 ci
+    class E1,E2,E3 ci

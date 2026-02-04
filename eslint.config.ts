@@ -13,7 +13,6 @@
 
 import { createRequire } from "node:module";
 import js from "@eslint/js";
-import jestPlugin from "eslint-plugin-jest";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 import oxlint from "eslint-plugin-oxlint";
@@ -125,11 +124,9 @@ const config = tseslint.config(
       ".next/",
       ".husky/",
       "out/",
-      ".jest-pre-compiled/",
       "src/components/ui/code-block/prism-syntax-highlighting/prism.js",
       "config/.remarkrc.mjs",
       "config/",
-      "config/jest/polyfills.js", // Jest timer compatibility - intentionally extends Number.prototype for Undici
       "next-env.d.ts",
       "**/*.mdx", // Skip MDX files entirely - the parser doesn't handle JSX in lists correctly
     ],
@@ -273,13 +270,11 @@ const config = tseslint.config(
     files: [
       "eslint.config.ts",
       "*.config.ts",
-      "config/jest/*.ts",
       "config/**/*.ts",
       "next.config.ts",
       "tailwind.config.ts",
       "src/instrumentation*.ts",
       "sentry.*.config.ts",
-      "jest.config.ts",
       "scripts/**/*.ts",
     ],
     languageOptions: {
@@ -318,12 +313,12 @@ const config = tseslint.config(
     },
   },
 
-  // Test files
+  // Test file configuration (Vitest rules handled by Oxlint)
   {
     files: ["**/__tests__/**/*.{ts,tsx,js,jsx}", "**/?(*.)+(spec|test).{js,jsx,ts,tsx}"],
     languageOptions: {
       globals: {
-        ...globals.jest,
+        ...globals.vitest,
       },
     },
     rules: {
@@ -331,22 +326,6 @@ const config = tseslint.config(
       "no-restricted-syntax": "off",
       "no-underscore-dangle": "off",
       "@typescript-eslint/naming-convention": "off",
-    },
-  },
-
-  // Jest configuration
-  {
-    files: ["**/?(*.)+(jest.spec|jest.test).{js,jsx,ts,tsx}"],
-    plugins: {
-      jest: jestPlugin,
-    },
-    rules: {
-      ...jestPlugin.configs.recommended.rules,
-    },
-    languageOptions: {
-      globals: {
-        ...globals.jest,
-      },
     },
   },
 
