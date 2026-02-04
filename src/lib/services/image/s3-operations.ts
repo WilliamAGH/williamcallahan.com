@@ -3,7 +3,7 @@
  * @module lib/services/image/s3-operations
  */
 
-import { writeBinaryS3 } from "@/lib/s3-utils";
+import { writeBinaryS3 } from "@/lib/s3/binary";
 import { getDeterministicTimestamp } from "@/lib/server-cache";
 import {
   parseS3Key,

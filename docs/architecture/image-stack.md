@@ -30,7 +30,7 @@ Provide a single, verifiable description of how UI components, Next.js runtime f
            ▼
 ┌────────────────────────────────────────────────────────────────────────────┐
 │S3 Access Layer                                                             │
-│ lib/s3-utils.ts (AWS SDK v3 client, retries, memory guards, locks)         │
+│ lib/s3/* (AWS SDK v3 client, object/json/binary helpers, errors/config)    │
 │ lib/image-handling/image-s3-utils.ts (idempotent persists, manifests)      │
 │ lib/persistence/s3-persistence.ts (JSON/Binary ACL control)                │
 └──────────┬─────────────────────────────────────────────────────────────────┘
@@ -50,7 +50,7 @@ Provide a single, verifiable description of how UI components, Next.js runtime f
 | Next runtime       | `next.config.ts` (`images.localPatterns/remotePatterns/qualities/formats`)                                                                                                | Define which URLs `_next/image` may fetch, enforce `minimumCacheTTL`, `dangerouslyAllowSVG`, and remote host allowlists derived from env-driven CALLAHAN hosts.                                                                                 |
 | HTTP surface       | `app/api/logo`, `app/api/logo/invert`, `app/api/cache/images`, `app/api/og-image`, `app/api/assets/[assetId]`, `app/api/twitter-image/[...path]`, `app/api/validate-logo` | Normalize params, validate with Zod schemas, send cache headers, short-circuit to CDN, and delegate to the service or S3 utils.                                                                                                                 |
 | Service core       | `lib/services/unified-image-service.ts`, `lib/services/image-streaming.ts`, `lib/image-handling/*.ts`, `lib/utils/*.ts`                                                   | Domain-aware routing (logos vs OG vs generic), memory/circuit safeguards, stream >5 MB downloads directly to S3, metadata extraction, inversion analysis, manifest lookups, deterministic S3 key generation, CDN URL building, SSRF prevention. |
-| Persistence        | `lib/s3-utils.ts`, `lib/image-handling/image-s3-utils.ts`, `lib/persistence/s3-persistence.ts`, `lib/data-access/images.server.ts`                                        | Execute AWS SDK reads/writes with retries, lock coordination, request coalescing, JSON and binary helpers, cache tagging, and environment-aware CDN fallback.                                                                                   |
+| Persistence        | `lib/s3/*`, `lib/image-handling/image-s3-utils.ts`, `lib/persistence/s3-persistence.ts`, `lib/data-access/images.server.ts`                                               | Execute AWS SDK reads/writes with SDK retries, lock coordination, JSON and binary helpers, cache tagging. No CDN fallback inside S3 IO.                                                                                                         |
 | Storage & delivery | DigitalOcean Spaces buckets + CDN edge + browser cache                                                                                                                    | Keep immutable assets, respect `Cache-Control` configured via Next + API responses, propagate hashed keys for safe long-lived caching.                                                                                                          |
 
 ## Lifecycle Examples

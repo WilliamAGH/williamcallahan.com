@@ -32,17 +32,15 @@ export function getS3CdnUrl(): string {
 }
 
 /**
- * Parse a string as an absolute URL.
- * Returns null for empty/undefined values or malformed URLs.
- * This is intentionally silent - callers use null to indicate "no valid URL".
+ * Parse a string as an absolute URL. Returns null for empty/undefined or malformed.
+ * RC1a: "try-parse" pattern - null is valid semantic result, not failure. All callers
+ * (extractS3KeyFromUrl, isOurCdnUrl, etc.) handle null as "not parseable as absolute URL".
  */
 function parseAbsoluteUrl(value?: string): URL | null {
   if (!value) return null;
   try {
     return new URL(value);
   } catch {
-    // Malformed URLs are expected (e.g., relative paths, invalid input)
-    // Callers handle null appropriately - no logging needed
     return null;
   }
 }

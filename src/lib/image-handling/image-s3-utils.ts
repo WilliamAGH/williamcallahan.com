@@ -7,10 +7,10 @@
  * @module utils/image-s3-utils
  */
 
-import { readBinaryS3, writeBinaryS3 } from "@/lib/s3-utils";
+import { readBinaryS3, writeBinaryS3 } from "@/lib/s3/binary";
 import { debug, isDebug } from "@/lib/utils/debug";
 import { getOgImageS3Key, hashImageContent } from "@/lib/utils/opengraph-utils";
-import { listS3Objects } from "../s3-utils";
+import { listS3Objects } from "@/lib/s3/objects";
 import { processImageBufferSimple } from "./shared-image-processing";
 import { isS3ReadOnly } from "@/lib/utils/s3-read-only";
 

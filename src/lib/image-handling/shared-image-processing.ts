@@ -8,16 +8,18 @@
  */
 
 import { isDebug } from "../utils/debug";
-import type { ProcessedImageResult } from "@/types/image";
+import type { ProcessedImageResult, SvgProcessingResult } from "@/types/image";
 import { extractBasicImageMeta } from "./image-metadata";
 import { DEFAULT_IMAGE_CONTENT_TYPE } from "../utils/content-type";
 
-/** Magic number to content type lookup table */
-const MAGIC_NUMBER_CONTENT_TYPES: Record<string, string> = {
+/** Unified content type lookup table (DRY: single source of truth) */
+const FORMAT_TO_CONTENT_TYPE: Record<string, string> = {
   gif: "image/gif",
   png: "image/png",
   jpeg: "image/jpeg",
+  jpg: "image/jpeg",
   webp: "image/webp",
+  ico: "image/x-icon",
 };
 
 const detectContentTypeFromMagicNumbers = (buffer: Buffer, logContext: string): string | null => {
@@ -32,7 +34,7 @@ const detectContentTypeFromMagicNumbers = (buffer: Buffer, logContext: string): 
   const detectedFormat = Object.keys(magicNumbers).find(
     (format) => magicNumbers[format as keyof typeof magicNumbers],
   );
-  const contentType = detectedFormat ? MAGIC_NUMBER_CONTENT_TYPES[detectedFormat] : null;
+  const contentType = detectedFormat ? FORMAT_TO_CONTENT_TYPE[detectedFormat] : null;
 
   if (contentType) {
     console.warn(`[${logContext}] Detected ${contentType} from magic numbers.`);
@@ -63,9 +65,13 @@ export async function processImageBuffer(
     if (isDebug) console.log(`[${logContext}] Detected SVG by string content.`);
 
     // Process SVG with transform fixes
-    const processedSvg = await processSvgWithTransformFixes(buffer, logContext);
+    const svgResult = await processSvgWithTransformFixes(buffer, logContext);
+    if (svgResult.error) {
+      // [RC1a] Always log degradation - never mask errors with debug-only logging
+      console.warn(`[${logContext}] SVG transform processing failed: ${svgResult.error}`);
+    }
     return {
-      processedBuffer: processedSvg,
+      processedBuffer: svgResult.buffer,
       isSvg: true,
       contentType: "image/svg+xml",
     };
@@ -91,25 +97,20 @@ export async function processImageBuffer(
       if (isDebug) console.log(`[${logContext}] Detected SVG via edge-compatible parser.`);
 
       // Process SVG with transform fixes
-      const processedSvg = await processSvgWithTransformFixes(buffer, logContext);
-      return { processedBuffer: processedSvg, isSvg: true, contentType: "image/svg+xml" };
+      const svgResult = await processSvgWithTransformFixes(buffer, logContext);
+      if (svgResult.error) {
+        // [RC1a] Always log degradation - never mask errors with debug-only logging
+        console.warn(`[${logContext}] SVG transform processing failed: ${svgResult.error}`);
+      }
+      return { processedBuffer: svgResult.buffer, isSvg: true, contentType: "image/svg+xml" };
     }
 
-    // Preserve original for all other formats; content-type guessed
-    const contentTypeMap: Record<string, string> = {
-      png: "image/png",
-      jpeg: "image/jpeg",
-      jpg: "image/jpeg",
-      webp: "image/webp",
-      gif: "image/gif",
-      ico: "image/x-icon",
-    };
-
+    // Preserve original for all other formats; content-type from unified lookup
     await Promise.resolve(); // Keep async for API compatibility
     return {
       processedBuffer: buffer,
       isSvg: false,
-      contentType: contentTypeMap[format] || "application/octet-stream",
+      contentType: FORMAT_TO_CONTENT_TYPE[format] || "application/octet-stream",
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -120,9 +121,13 @@ export async function processImageBuffer(
       if (isDebug) console.log(`[${logContext}] Fallback: Detected SVG-like content.`);
 
       // Process SVG with transform fixes
-      const processedSvg = await processSvgWithTransformFixes(buffer, logContext);
+      const svgResult = await processSvgWithTransformFixes(buffer, logContext);
+      if (svgResult.error) {
+        // [RC1a] Always log degradation - never mask errors with debug-only logging
+        console.warn(`[${logContext}] SVG transform processing failed: ${svgResult.error}`);
+      }
       return {
-        processedBuffer: processedSvg,
+        processedBuffer: svgResult.buffer,
         isSvg: true,
         contentType: "image/svg+xml",
       };
@@ -144,10 +149,17 @@ export async function processImageBuffer(
 }
 
 /**
- * Processes SVG content with automatic transform attribute fixes
- * Integrates svg-transform-fix utilities for consistent SVG handling
+ * Processes SVG content with automatic transform attribute fixes.
+ * Integrates svg-transform-fix utilities for consistent SVG handling.
+ *
+ * RC1a Compliance: Returns a result object that explicitly indicates whether
+ * transforms were applied and any errors encountered, rather than silently
+ * returning the original buffer.
  */
-async function processSvgWithTransformFixes(buffer: Buffer, logContext: string): Promise<Buffer> {
+async function processSvgWithTransformFixes(
+  buffer: Buffer,
+  logContext: string,
+): Promise<SvgProcessingResult> {
   try {
     const svgContent = buffer.toString("utf-8");
 
@@ -157,13 +169,14 @@ async function processSvgWithTransformFixes(buffer: Buffer, logContext: string):
 
     if (fixedSvgContent && fixedSvgContent !== svgContent) {
       if (isDebug) console.log(`[${logContext}] Applied SVG transform fixes`);
-      return Buffer.from(fixedSvgContent, "utf-8");
+      return { buffer: Buffer.from(fixedSvgContent, "utf-8"), transformApplied: true };
     }
 
-    return buffer;
+    return { buffer, transformApplied: false };
   } catch (error) {
-    console.warn(`[${logContext}] SVG transform fix failed:`, error);
-    return buffer; // Return original on error
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.warn(`[${logContext}] SVG transform fix failed: ${errorMessage}`);
+    return { buffer, transformApplied: false, error: `SVG processing failed: ${errorMessage}` };
   }
 }
 

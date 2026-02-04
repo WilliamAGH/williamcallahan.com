@@ -8,6 +8,13 @@ import type { ProcessedImageResult } from "@/types/image";
  *
  * NOTE: This helper is intentionally lightweight (<200 LOC) and uses
  * pure JS image-js implementation – no native bindings.
+ *
+ * @see image-js v0.37.0 API verified from node_modules/image-js/index.d.ts:
+ *   - Image.load(image: string | ArrayBuffer | Uint8Array): Promise<Image> (lines 35-38)
+ *   - image.invert(options?: OutOrInplace): Image (line 75)
+ *   - image.toBuffer(options?: SaveOptions): Uint8Array (line 67)
+ *   - SaveOptions = { format?: string } (lines 598-602)
+ * @see https://github.com/image-js/image-js (repository)
  */
 export async function invertLogoBuffer(
   input: Buffer,
@@ -38,7 +45,9 @@ export async function invertLogoBuffer(
       /* webpackChunkName: "image-worker" */ "image-js"
     )) as { Image: typeof import("image-js").Image };
 
+    // Image.load accepts ArrayBuffer|Uint8Array per index.d.ts:35-38
     const image = await Image.load(processedBuffer);
+    // invert() returns new Image with inverted colors per index.d.ts:75
     const inverted = image.invert();
 
     // image-js expects a format keyword (png, jpg, webp, etc.) – map from MIME
@@ -50,6 +59,7 @@ export async function invertLogoBuffer(
       ? format
       : "png";
 
+    // toBuffer accepts SaveOptions.format per index.d.ts:67,598-602
     const invertedBuffer = Buffer.from(inverted.toBuffer({ format: safeFormat }));
     const outputContentType =
       safeFormat === "jpg" || safeFormat === "jpeg"

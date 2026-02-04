@@ -5,10 +5,12 @@
  * Used for domains, URLs, or any other items that need retry tracking
  */
 
-import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
+import type { ZodSchema } from "zod/v4";
+import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
 import { debugLog } from "./debug";
 import { getMonotonicTime } from "@/lib/utils";
 import type { FailedItem, FailureTrackerConfig } from "@/types/s3-cdn";
+import { createFailedItemRecordSchema } from "@/types/schemas/failure-tracker";
 
 /**
  * Generic failure tracker with S3 persistence
@@ -21,6 +23,7 @@ export class FailureTracker<T> {
 
   constructor(
     private getKey: (item: T) => string,
+    private itemSchema: ZodSchema<T>,
     config: FailureTrackerConfig,
   ) {
     this.config = {
@@ -38,17 +41,17 @@ export class FailureTracker<T> {
   async load(): Promise<void> {
     if (this.loaded) return;
 
-    try {
-      const data = await readJsonS3<Record<string, FailedItem<T>>>(this.config.s3Path);
-      if (data && typeof data === "object") {
-        this.failures.clear();
-        Object.entries(data).forEach(([key, item]) => {
-          this.failures.set(key, item);
-        });
-        debugLog(`[${this.config.name}] Loaded ${this.failures.size} failed items`);
-      }
-    } catch {
-      // File doesn't exist yet, that's fine
+    const schema = createFailedItemRecordSchema(this.itemSchema);
+    const data = await readJsonS3Optional<Record<string, FailedItem<T>>>(
+      this.config.s3Path,
+      schema,
+    );
+    if (data && typeof data === "object") {
+      this.failures.clear();
+      Object.entries(data).forEach(([key, item]) => {
+        this.failures.set(key, item);
+      });
+      debugLog(`[${this.config.name}] Loaded ${this.failures.size} failed items`);
     }
 
     this.loaded = true;
