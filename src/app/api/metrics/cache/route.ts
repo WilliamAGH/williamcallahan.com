@@ -1,9 +1,8 @@
 /**
- * Cache Metrics Endpoint
+ * Process Memory Metrics Endpoint
  *
- * @deprecated Next.js cache doesn't expose detailed metrics like traditional cache implementations.
- * This endpoint now returns process memory metrics only.
- * Image caching has been removed - images are served directly from S3/CDN.
+ * Returns process memory statistics (RSS, heap, external).
+ * Supports JSON and Prometheus output formats.
  *
  * @module app/api/metrics/cache
  */
@@ -13,9 +12,8 @@ import { preventCaching, createErrorResponse } from "@/lib/utils/api-utils";
 
 /**
  * GET /api/metrics/cache
- * @description Returns process memory metrics. Cache-specific metrics are no longer available.
- * @deprecated This endpoint's cache metrics functionality has been removed.
- * @returns {NextResponse} JSON response with process memory statistics
+ * @description Returns process memory metrics (RSS, heap used/total, external).
+ * @returns {NextResponse} JSON or Prometheus-formatted response with process memory statistics
  */
 export function GET(): NextResponse {
   try {
@@ -30,14 +28,6 @@ export function GET(): NextResponse {
         heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024), // MB
         heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024), // MB
         external: Math.round(memUsage.external / 1024 / 1024), // MB
-      },
-      caches: {
-        message: "Cache metrics are no longer available",
-        notes: [
-          "Next.js cache doesn't expose metrics like traditional cache implementations",
-          "Image caching has been removed - images served directly from S3/CDN",
-          "ServerCache uses simple Map-based implementation with TTL and size-aware eviction",
-        ],
       },
     };
 
