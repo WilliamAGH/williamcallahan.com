@@ -50,3 +50,13 @@ export type SseStreamConfig = {
   ragContextStatus: RagContextStatus;
   runUpstream: () => Promise<string>;
 };
+
+/** Pipeline result containing everything needed to dispatch an AI chat request */
+export type ChatPipeline = {
+  queue: UpstreamRequestQueue;
+  upstreamKey: string;
+  priority: number;
+  startTime: number;
+  logContext: ChatLogContext;
+  runUpstream: () => Promise<string>;
+};

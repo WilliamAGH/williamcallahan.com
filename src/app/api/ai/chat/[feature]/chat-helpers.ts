@@ -19,11 +19,10 @@ import { NO_STORE_HEADERS, preventCaching, requireCloudflareHeaders } from "@/li
 import logger from "@/lib/utils/logger";
 import {
   type ChatLogContext,
-  type ParsedRequestBody,
   type RagContextStatus,
   type ValidatedRequestContext,
 } from "@/types/features/ai-chat";
-import { requestBodySchema } from "@/types/schemas/ai-chat";
+import { requestBodySchema, type ParsedRequestBody } from "@/types/schemas/ai-chat";
 
 const HTTPS_COOKIE_NAME = "__Host-ai_gate_nonce";
 

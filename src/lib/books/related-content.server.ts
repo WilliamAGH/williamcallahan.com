@@ -8,6 +8,7 @@
 
 import { readJsonS3Optional } from "@/lib/s3/json";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
+import { getMonotonicTime } from "@/lib/utils";
 import { envLogger } from "@/lib/utils/env-logger";
 import { booksRelatedContentDataSchema } from "@/types/schemas/book";
 import type { BooksRelatedContentData, RelatedContentEntry } from "@/types/related-content";
@@ -24,7 +25,7 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours - matches generation frequ
  * @returns Cached data or null if unavailable
  */
 async function ensureCacheLoaded(): Promise<BooksRelatedContentData | null> {
-  const now = Date.now();
+  const now = getMonotonicTime();
   if (cachedData && cacheTimestamp > now - CACHE_TTL_MS) {
     return cachedData;
   }

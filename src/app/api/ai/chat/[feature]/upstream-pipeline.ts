@@ -16,7 +16,12 @@ import {
 import { callOpenAiCompatibleChatCompletions } from "@/lib/ai/openai-compatible/openai-compatible-client";
 import { getUpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
 import { buildChatMessages } from "@/lib/ai/openai-compatible/chat-messages";
-import type { ValidatedRequestContext, RagContextStatus, ChatLogContext } from "./chat-helpers";
+import type {
+  ChatLogContext,
+  ChatPipeline,
+  RagContextStatus,
+  ValidatedRequestContext,
+} from "@/types/features/ai-chat";
 
 // Feature-specific system prompts injected server-side
 const FEATURE_SYSTEM_PROMPTS: Record<string, string> = {
@@ -28,16 +33,6 @@ Response style:
 - For lists, use simple dashes: "- item one" on new lines
 - Be friendly but concise - this is a terminal, not a document
 - When asked about William or the site, share relevant context naturally`,
-};
-
-/** Pipeline result containing everything needed to dispatch an AI chat request */
-export type ChatPipeline = {
-  queue: ReturnType<typeof getUpstreamRequestQueue>;
-  upstreamKey: string;
-  priority: number;
-  startTime: number;
-  logContext: ChatLogContext;
-  runUpstream: () => Promise<string>;
 };
 
 /**
