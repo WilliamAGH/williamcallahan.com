@@ -245,10 +245,20 @@ async function fetchExternalOpenGraph(
   let finalUrl = url;
 
   // 1. Check for cached Jina HTML in S3 first
-  const cachedHtml = await getCachedJinaHtml(url);
-  if (cachedHtml) {
-    html = cachedHtml;
-  } else {
+  try {
+    const cachedHtml = await getCachedJinaHtml(url);
+    if (cachedHtml) {
+      html = cachedHtml;
+    }
+  } catch (err) {
+    // Log S3 error explicitly, then fall through to live fetch (RC1: no silent degradation)
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[OpenGraph] S3 cache read failed for ${url}, falling back to live fetch: ${errorMsg}`,
+    );
+  }
+
+  if (!html) {
     // 2. If not cached, attempt to use Jina AI Reader if allowed
     if (
       incrementAndPersist(
@@ -388,22 +398,24 @@ async function fetchExternalOpenGraph(
         { bestImageUrl },
         { category: "OpenGraph" },
       );
-      const s3Url = await persistImageAndGetS3Url(
-        bestImageUrl,
-        OPENGRAPH_IMAGES_S3_DIR,
-        "OpenGraph",
-        fallbackImageData.idempotencyKey,
-        url,
-      );
-
-      if (s3Url) {
-        finalImageUrl = s3Url;
-        envLogger.log(`Image persisted to S3`, { s3Url }, { category: "OpenGraph" });
-      } else {
-        envLogger.log(
-          `Failed to persist image to S3, keeping original`,
-          { bestImageUrl },
-          { category: "OpenGraph" },
+      try {
+        const s3Url = await persistImageAndGetS3Url(
+          bestImageUrl,
+          OPENGRAPH_IMAGES_S3_DIR,
+          "OpenGraph",
+          fallbackImageData.idempotencyKey,
+          url,
+        );
+        // s3Url is null in read-only mode (not an error, just skipped)
+        if (s3Url) {
+          finalImageUrl = s3Url;
+          envLogger.log(`Image persisted to S3`, { s3Url }, { category: "OpenGraph" });
+        }
+      } catch (err) {
+        // Log error explicitly, then fall back to original URL (RC1: no silent degradation)
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        console.error(
+          `[OpenGraph] S3 persistence failed for ${bestImageUrl}, keeping original: ${errorMsg}`,
         );
       }
     } else {
@@ -463,22 +475,28 @@ async function fetchExternalOpenGraph(
         { dir: profileImageDirectory },
         { category: "OpenGraph" },
       );
-      const s3ProfileUrl = await persistImageAndGetS3Url(
-        profileImageUrl,
-        profileImageDirectory,
-        "ProfileImage",
-        `profile-${fallbackImageData.idempotencyKey}`,
-        url,
-      );
-
-      if (s3ProfileUrl) {
-        finalProfileImageUrl = s3ProfileUrl;
-        envLogger.log(`Profile image persisted to S3`, { s3ProfileUrl }, { category: "OpenGraph" });
-      } else {
-        envLogger.log(
-          `Failed to persist profile image, keeping original`,
-          { profileImageUrl },
-          { category: "OpenGraph" },
+      try {
+        const s3ProfileUrl = await persistImageAndGetS3Url(
+          profileImageUrl,
+          profileImageDirectory,
+          "ProfileImage",
+          `profile-${fallbackImageData.idempotencyKey}`,
+          url,
+        );
+        // s3ProfileUrl is null in read-only mode (not an error, just skipped)
+        if (s3ProfileUrl) {
+          finalProfileImageUrl = s3ProfileUrl;
+          envLogger.log(
+            `Profile image persisted to S3`,
+            { s3ProfileUrl },
+            { category: "OpenGraph" },
+          );
+        }
+      } catch (err) {
+        // Log error explicitly, then fall back to original URL (RC1: no silent degradation)
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        console.error(
+          `[OpenGraph] S3 profile image persistence failed for ${profileImageUrl}, keeping original: ${errorMsg}`,
         );
       }
     } else {
@@ -506,22 +524,24 @@ async function fetchExternalOpenGraph(
       envLogger.log(`Batch mode: Persisting banner image synchronously`, undefined, {
         category: "OpenGraph",
       });
-      const s3BannerUrl = await persistImageAndGetS3Url(
-        bannerImageUrl,
-        "social-banners",
-        "BannerImage",
-        `banner-${fallbackImageData.idempotencyKey}`,
-        url,
-      );
-
-      if (s3BannerUrl) {
-        finalBannerImageUrl = s3BannerUrl;
-        envLogger.log(`Banner image persisted to S3`, { s3BannerUrl }, { category: "OpenGraph" });
-      } else {
-        envLogger.log(
-          `Failed to persist banner image, keeping original`,
-          { bannerImageUrl },
-          { category: "OpenGraph" },
+      try {
+        const s3BannerUrl = await persistImageAndGetS3Url(
+          bannerImageUrl,
+          "social-banners",
+          "BannerImage",
+          `banner-${fallbackImageData.idempotencyKey}`,
+          url,
+        );
+        // s3BannerUrl is null in read-only mode (not an error, just skipped)
+        if (s3BannerUrl) {
+          finalBannerImageUrl = s3BannerUrl;
+          envLogger.log(`Banner image persisted to S3`, { s3BannerUrl }, { category: "OpenGraph" });
+        }
+      } catch (err) {
+        // Log error explicitly, then fall back to original URL (RC1: no silent degradation)
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        console.error(
+          `[OpenGraph] S3 banner image persistence failed for ${bannerImageUrl}, keeping original: ${errorMsg}`,
         );
       }
     } else {

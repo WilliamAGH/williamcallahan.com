@@ -8,7 +8,9 @@
  */
 
 import { Readable } from "node:stream";
-import { writeToS3, writeJsonS3, writeBinaryS3, readFromS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
+import { writeBinaryS3 } from "@/lib/s3/binary";
+import { getObject, putObject } from "@/lib/s3/objects";
 import { persistImageToS3, findImageInS3 } from "@/lib/image-handling/image-s3-utils";
 import { debug, isDebug } from "@/lib/utils/debug";
 import { hashUrl, normalizeUrl } from "@/lib/utils/opengraph-utils";
@@ -18,11 +20,12 @@ import {
   OPENGRAPH_JSON_S3_PATHS,
 } from "@/lib/constants";
 import type { OgResult, PersistImageResult } from "@/types";
-import { OgError, isOgResult } from "@/types/opengraph";
+import { OgError } from "@/types/opengraph";
 import { ContentCategory } from "@/types/s3-cdn";
 import { isS3ReadOnly } from "@/lib/utils/s3-read-only";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
-import { isS3NotFound } from "@/lib/utils/s3-error-guards";
+import { S3NotFoundError } from "@/lib/s3/errors";
+import { ogResultSchema } from "@/types/seo/opengraph";
 
 /**
  * Determine content category based on content type and path
@@ -81,7 +84,7 @@ export async function persistToS3(
     console.log(`[S3 Persistence] Writing to ${s3Key} with ACL: ${acl}`);
   }
 
-  await writeToS3(s3Key, data, contentType, acl);
+  await putObject(s3Key, data, { contentType, acl });
 }
 
 /**
@@ -187,24 +190,22 @@ export async function getCachedJinaHtml(url: string): Promise<string | null> {
   const s3Key = `${OPENGRAPH_JINA_HTML_S3_DIR}/${hashUrl(normalizeUrl(url))}.html`;
 
   try {
-    const result = await readFromS3(s3Key);
-    if (result) {
-      debug(`[DataAccess/OpenGraph] Found cached Jina HTML in S3: ${s3Key}`);
-      return Buffer.isBuffer(result) ? result.toString("utf-8") : result;
-    }
+    const result = await getObject(s3Key);
+    debug(`[DataAccess/OpenGraph] Found cached Jina HTML in S3: ${s3Key}`);
+    return result.body.toString("utf-8");
   } catch (err) {
-    if (isS3NotFound(err)) {
+    // Cache miss is expected - return null
+    if (err instanceof S3NotFoundError) {
       debug(`[DataAccess/OpenGraph] No cached Jina HTML found in S3 for ${url}`);
-    } else {
-      const error = err instanceof Error ? err : new Error(String(err));
-      const ogError = new OgError(`Error reading Jina HTML from S3 for ${url}`, "s3-read-jina", {
-        originalError: error,
-      });
-      debug(`[DataAccess/OpenGraph] ${ogError.message}`);
+      return null;
     }
+    // Real S3 errors (permissions, network) must propagate - do not mask
+    const error = err instanceof Error ? err : new Error(String(err));
+    console.error(`[DataAccess/OpenGraph] S3 error reading Jina HTML for ${url}: ${error.message}`);
+    throw new OgError(`Error reading Jina HTML from S3 for ${url}`, "s3-read-jina", {
+      originalError: error,
+    });
   }
-
-  return null;
 }
 
 /**
@@ -217,28 +218,24 @@ export async function getCachedJinaMarkdown(url: string): Promise<string | null>
   const s3Key = `${OPENGRAPH_JSON_S3_PATHS.DIR}/jina-markdown/${hashUrl(normalizeUrl(url))}.md`;
 
   try {
-    const result = await readFromS3(s3Key);
-    if (result) {
-      debug(`[DataAccess/OpenGraph] Found cached Jina markdown in S3: ${s3Key}`);
-      return Buffer.isBuffer(result) ? result.toString("utf-8") : result;
-    }
+    const result = await getObject(s3Key);
+    debug(`[DataAccess/OpenGraph] Found cached Jina markdown in S3: ${s3Key}`);
+    return result.body.toString("utf-8");
   } catch (err) {
-    if (isS3NotFound(err)) {
+    // Cache miss is expected - return null
+    if (err instanceof S3NotFoundError) {
       debug(`[DataAccess/OpenGraph] No cached Jina markdown found in S3 for ${url}`);
-    } else {
-      const error = err instanceof Error ? err : new Error(String(err));
-      const ogError = new OgError(
-        `Error reading Jina markdown from S3 for ${url}`,
-        "s3-read-jina-markdown",
-        {
-          originalError: error,
-        },
-      );
-      debug(`[DataAccess/OpenGraph] ${ogError.message}`);
+      return null;
     }
+    // Real S3 errors (permissions, network) must propagate - do not mask
+    const error = err instanceof Error ? err : new Error(String(err));
+    console.error(
+      `[DataAccess/OpenGraph] S3 error reading Jina markdown for ${url}: ${error.message}`,
+    );
+    throw new OgError(`Error reading Jina markdown from S3 for ${url}`, "s3-read-jina-markdown", {
+      originalError: error,
+    });
   }
-
-  return null;
 }
 
 /**
@@ -246,32 +243,18 @@ export async function getCachedJinaMarkdown(url: string): Promise<string | null>
  *
  * @param url - The original URL to look up
  * @returns The override data or null if not found
+ * @throws S3OperationError on real S3 failures (permissions, network, etc.)
  */
 export async function getS3Override(url: string): Promise<OgResult | null> {
   const s3Key = `${OPENGRAPH_OVERRIDES_S3_DIR}/${hashUrl(normalizeUrl(url))}.json`;
 
-  try {
-    const override = await readFromS3(s3Key);
-    if (override) {
-      debug(`[DataAccess/OpenGraph] Found S3 override for ${url}`);
-      const overrideContent = Buffer.isBuffer(override) ? override.toString("utf-8") : override;
-      const data: unknown = JSON.parse(overrideContent);
-      if (isOgResult(data)) {
-        return data;
-      }
-      debug(`[DataAccess/OpenGraph] Malformed S3 override for ${url}`);
-    }
-  } catch (err) {
-    if (!isS3NotFound(err)) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      const ogError = new OgError(`Error reading S3 override for ${url}`, "s3-read-override", {
-        originalError: error,
-      });
-      debug(`[DataAccess/OpenGraph] ${ogError.message}`);
-    }
+  // readJsonS3Optional returns null for 404 and throws for real errors
+  // Do not catch - let real S3 errors propagate to caller per [RC1a]
+  const override = await readJsonS3Optional(s3Key, ogResultSchema);
+  if (override) {
+    debug(`[DataAccess/OpenGraph] Found S3 override for ${url}`);
   }
-
-  return null;
+  return override;
 }
 
 /**
@@ -395,20 +378,29 @@ export async function persistImageAndGetS3Url(
     if (s3Key) {
       const cdnUrl = getS3CdnUrl();
       if (!cdnUrl) {
-        console.error("[OpenGraph S3] ❌ NEXT_PUBLIC_S3_CDN_URL not configured");
-        return null;
+        // Configuration error - must not silently degrade
+        throw new OgError(
+          "NEXT_PUBLIC_S3_CDN_URL not configured - cannot construct S3 URL",
+          "s3-config-missing",
+        );
       }
       const s3Url = `${cdnUrl}/${s3Key}`;
       console.log(`[OpenGraph S3] ✅ Image persisted, S3 URL: ${s3Url}`);
       return s3Url;
     } else {
-      console.error(`[OpenGraph S3] ❌ Failed to persist image: ${displayUrl}`);
-      return null;
+      // persistImageToS3 returned null - internal failure, throw to surface it
+      throw new OgError(`persistImageToS3 returned null for ${displayUrl}`, "s3-persist-failed");
     }
   } catch (err) {
+    // Re-throw OgError as-is, wrap other errors
+    if (err instanceof OgError) {
+      throw err;
+    }
     const error = err instanceof Error ? err : new Error(String(err));
     console.error(`[OpenGraph S3] ❌ Error persisting image ${displayUrl}: ${error.message}`);
-    return null;
+    throw new OgError(`Error persisting image to S3: ${displayUrl}`, "s3-persist-image", {
+      originalError: error,
+    });
   }
 }
 
@@ -617,7 +609,7 @@ export async function persistImageBufferToS3(
 
 // Re-export commonly used functions for backward compatibility
 export { persistImageToS3, findImageInS3 } from "@/lib/image-handling/image-s3-utils";
-export { checkIfS3ObjectExists } from "@/lib/s3-utils";
+export { checkIfS3ObjectExists } from "@/lib/s3/objects";
 
 /**
  * Cleanup and normalize logo filenames in S3
@@ -634,14 +626,11 @@ export async function normalizeLogoFilenames(): Promise<void> {
       await import("@aws-sdk/client-s3");
     const { IMAGE_S3_PATHS } = await import("@/lib/constants");
     const { parseS3Key, generateS3Key } = await import("@/lib/utils/hash-utils");
-    const { s3Client } = await import("@/lib/s3-utils");
+    const { getS3Client } = await import("@/lib/s3/client");
+    const { getS3Config } = await import("@/lib/s3/config");
 
-    if (!s3Client || !process.env.S3_BUCKET) {
-      console.error("[S3 Persistence] S3 not configured for logo normalization");
-      return;
-    }
-
-    const bucket = process.env.S3_BUCKET;
+    const { bucket } = getS3Config();
+    const s3Client = getS3Client();
     const prefix = IMAGE_S3_PATHS.LOGOS_DIR + "/";
 
     // List all logos with pagination
