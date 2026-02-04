@@ -10,7 +10,7 @@
  * @module lib/search/searchers/ai-analysis-searcher
  */
 
-import type { SearchResult } from "@/types/search";
+import type { SearchResult, AnyAnalysisResponse, AnalysisDomainConfig } from "@/types/search";
 import type { AnalysisDomain } from "@/types/ai-analysis";
 import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
 import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
@@ -21,21 +21,6 @@ import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { envLogger } from "@/lib/utils/env-logger";
 import { searchBooks, searchBookmarks } from "./dynamic-searchers";
 import { searchProjects } from "./static-searchers";
-
-/** Union type for all domain-specific analysis responses */
-type AnyAnalysisResponse =
-  | BookmarkAiAnalysisResponse
-  | BookAiAnalysisResponse
-  | ProjectAiAnalysisResponse;
-
-/** Configuration for each domain */
-interface DomainConfig {
-  searcher: (query: string) => Promise<SearchResult[]>;
-  prefix: string;
-  getParentUrl: (id: string) => string;
-  extractSearchableText: (analysis: AnyAnalysisResponse) => string[];
-  extractSnippet: (analysis: AnyAnalysisResponse, query: string) => string;
-}
 
 /** Extract searchable text from bookmark analysis. */
 function extractBookmarkText(analysis: AnyAnalysisResponse): string[] {
@@ -117,7 +102,7 @@ const truncate = (text: string, maxLength: number): string =>
   text.length <= maxLength ? text : text.slice(0, maxLength - 3) + "...";
 
 /** Domain configs mapping domain name to search behavior. */
-const DOMAIN_CONFIGS: Record<AnalysisDomain, DomainConfig> = {
+const DOMAIN_CONFIGS: Record<AnalysisDomain, AnalysisDomainConfig> = {
   bookmarks: {
     searcher: searchBookmarks,
     prefix: "Bookmarks",

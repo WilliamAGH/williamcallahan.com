@@ -7,7 +7,13 @@
  * @module lib/ai/rag/dynamic-retriever
  */
 
-import type { DynamicResult } from "./context-formatter";
+import type {
+  DynamicResult,
+  RagScopeName,
+  ScopeSearcher,
+  RetrieveOptions,
+  RetrieveResult,
+} from "@/types/rag";
 import {
   searchProjects,
   searchInvestments,
@@ -21,25 +27,10 @@ import { searchAiAnalysis } from "@/lib/search/searchers/ai-analysis-searcher";
 import logger from "@/lib/utils/logger";
 
 /**
- * Valid scope names for RAG content retrieval.
- * This type ensures SCOPE_PATTERNS and SCOPE_SEARCHERS have matching keys.
- */
-type ScopeName =
-  | "projects"
-  | "blog"
-  | "investments"
-  | "experience"
-  | "education"
-  | "books"
-  | "bookmarks"
-  | "tags"
-  | "analysis";
-
-/**
  * Scope detection patterns.
  * Each scope has keywords that trigger searching that content type.
  */
-const SCOPE_PATTERNS: Record<ScopeName, RegExp> = {
+const SCOPE_PATTERNS: Record<RagScopeName, RegExp> = {
   projects: /\b(projects?|built|apps?|tools?|software|code|github|develop|create)\b/i,
   blog: /\b(blog|articles?|wrote|write|posts?)\b/i,
   investments: /\b(invest|portfolio|startups?|fund|venture|vc|backed|seed)\b/i,
@@ -55,10 +46,10 @@ const SCOPE_PATTERNS: Record<ScopeName, RegExp> = {
  * Detects which content scopes are relevant to a query.
  * Returns an array of typed scope names to search.
  */
-function detectRelevantScopes(query: string): ScopeName[] {
-  const scopes: ScopeName[] = [];
+function detectRelevantScopes(query: string): RagScopeName[] {
+  const scopes: RagScopeName[] = [];
 
-  for (const [scope, pattern] of Object.entries(SCOPE_PATTERNS) as [ScopeName, RegExp][]) {
+  for (const [scope, pattern] of Object.entries(SCOPE_PATTERNS) as [RagScopeName, RegExp][]) {
     if (pattern.test(query)) {
       scopes.push(scope);
     }
@@ -68,17 +59,10 @@ function detectRelevantScopes(query: string): ScopeName[] {
 }
 
 /**
- * Search function type for scope searchers.
- */
-type ScopeSearcher = (
-  query: string,
-) => Promise<Array<{ title: string; description?: string; url: string; score: number }>>;
-
-/**
  * Search function mapping for each scope.
- * Uses ScopeName type to ensure keys match SCOPE_PATTERNS.
+ * Uses RagScopeName type to ensure keys match SCOPE_PATTERNS.
  */
-const SCOPE_SEARCHERS: Record<ScopeName, ScopeSearcher> = {
+const SCOPE_SEARCHERS: Record<RagScopeName, ScopeSearcher> = {
   projects: searchProjects,
   blog: searchBlogPostsServerSide,
   investments: searchInvestments,
@@ -89,22 +73,6 @@ const SCOPE_SEARCHERS: Record<ScopeName, ScopeSearcher> = {
   tags: searchTags,
   analysis: searchAiAnalysis,
 };
-
-export interface RetrieveOptions {
-  maxResults?: number;
-  timeoutMs?: number;
-}
-
-/**
- * Result type that includes status metadata for caller awareness (per [RC1]).
- * Callers can distinguish between "no matches found" vs "error during retrieval".
- */
-export interface RetrieveResult {
-  results: DynamicResult[];
-  status: "success" | "partial" | "failed";
-  /** Scopes that failed during retrieval (for debugging) */
-  failedScopes?: string[];
-}
 
 /**
  * Retrieves content relevant to a user query.

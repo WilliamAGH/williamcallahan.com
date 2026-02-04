@@ -10,23 +10,7 @@
 import { getStaticContext } from "./static-context";
 import { formatContext } from "./context-formatter";
 import { retrieveRelevantContent } from "./dynamic-retriever";
-
-export interface BuildContextOptions {
-  maxTokens?: number;
-  timeoutMs?: number;
-  skipDynamic?: boolean;
-}
-
-export interface BuildContextResult {
-  contextText: string;
-  tokenEstimate: number;
-  searchResultCount: number;
-  searchDurationMs: number;
-  /** Status of dynamic retrieval: success, partial (some scopes failed), failed, or skipped */
-  retrievalStatus: "success" | "partial" | "failed" | "skipped";
-  /** Scopes that failed during retrieval (if any) */
-  failedScopes?: string[];
-}
+import type { BuildContextOptions, BuildContextResult, DynamicResult } from "@/types/rag";
 
 /**
  * Builds context for a user query by combining static site information
@@ -48,7 +32,7 @@ export async function buildContextForQuery(
   const searchStart = Date.now();
 
   // Retrieve dynamic content unless skipped
-  let dynamicResults: import("./context-formatter").DynamicResult[] = [];
+  let dynamicResults: DynamicResult[] = [];
   let retrievalStatus: "success" | "partial" | "failed" | "skipped" = "skipped";
   let failedScopes: string[] | undefined;
 
@@ -75,5 +59,4 @@ export async function buildContextForQuery(
 }
 
 // Re-export types for consumers
-export type { StaticContext } from "./static-context";
-export type { DynamicResult, FormattedContext } from "./context-formatter";
+export type { StaticContext, DynamicResult, FormattedContext } from "@/types/rag";

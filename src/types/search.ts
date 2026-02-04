@@ -114,3 +114,26 @@ export interface TagSource<T> {
   /** URL pattern generator for tag pages */
   urlPattern: (slug: string) => string;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Analysis Search Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
+import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
+import type { ProjectAiAnalysisResponse } from "@/types/schemas/project-ai-analysis";
+
+/** Union type for all domain-specific analysis responses */
+export type AnyAnalysisResponse =
+  | BookmarkAiAnalysisResponse
+  | BookAiAnalysisResponse
+  | ProjectAiAnalysisResponse;
+
+/** Configuration for each AI analysis search domain */
+export interface AnalysisDomainConfig {
+  searcher: (query: string) => Promise<SearchResultShape[]>;
+  prefix: string;
+  getParentUrl: (id: string) => string;
+  extractSearchableText: (analysis: AnyAnalysisResponse) => string[];
+  extractSnippet: (analysis: AnyAnalysisResponse, query: string) => string;
+}
