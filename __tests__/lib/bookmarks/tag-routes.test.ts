@@ -65,7 +65,10 @@ vi.mock("@/lib/bookmarks/config", () => ({
 vi.mock("@/lib/cache", () => ({
   USE_NEXTJS_CACHE: false, // Disable Next.js cache to hit "Direct" functions
   isCliLikeCacheContext: () => false,
-  withCacheFallback: (fn: any) => fn(),
+  withCacheFallback: async <T>(
+    cachedFn: () => Promise<T>,
+    _fallbackFn: () => Promise<T>,
+  ): Promise<T> => cachedFn(),
   cacheContextGuards: {
     cacheLife: vi.fn(),
     cacheTag: vi.fn(),

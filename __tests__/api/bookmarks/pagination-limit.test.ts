@@ -91,6 +91,7 @@ describe("Bookmark API – large limit behavior", () => {
   afterAll(() => {
     vi.doUnmock("@/lib/bookmarks/service.server");
     vi.doUnmock("@/lib/s3/json");
+    vi.doUnmock("@/lib/bookmarks/slug-manager");
     vi.resetModules();
   });
 });
