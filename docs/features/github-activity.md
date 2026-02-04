@@ -85,7 +85,19 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 - **`src/lib/data-access/github.ts`**
   - Fetches from GitHub APIs (GraphQL + REST)
   - Manages S3 storage and caching
-  - Handles CSV repair and data aggregation
+  - Orchestrates per-repo processing, commit totals, and summary writes
+- **`src/lib/data-access/github-repo-stats.ts`**
+  - Batch processes repo stats with CSV fallback and category aggregation
+- **`src/lib/data-access/github-commit-counts.ts`**
+  - Computes all-time commit totals (GraphQL with REST fallback)
+- **`src/lib/data-access/github-contributions.ts`**
+  - Fetches and flattens the contribution calendar
+- **`src/lib/data-access/github-csv-repair.ts`**
+  - CSV integrity checks and repair workflow
+- **`src/lib/data-access/github-activity-summaries.ts`**
+  - Writes trailing-year and all-time summary JSON payloads
+- **`src/lib/data-access/github-processing.ts`**
+  - Shared processing helpers (category stats, CSV repair utilities)
 
 ### API Endpoints
 

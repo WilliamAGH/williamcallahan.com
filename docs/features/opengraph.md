@@ -21,12 +21,19 @@ Request -> Cache Check -> S3 Check -> External Fetch -> Process -> Store -> Retu
 
 ### Data Access Layer
 
-- **`lib/data-access/opengraph.ts`**: Core orchestration and caching logic (~431 LoC)
+- **`lib/data-access/opengraph.ts`**: Core orchestration and caching logic (~280 LoC)
   - Multi-tier caching strategy (Memory -> S3 -> External)
   - Request coalescing to prevent duplicate fetches
   - Background refresh with stale-while-revalidate
   - Delegates to specialized modules for specific tasks
   - Cache validation preserves optional metadata fields (title/description/siteName) while still enforcing schema correctness
+- **`lib/data-access/opengraph-next-cache.ts`**: Next.js cache path with `use cache`
+  - Handles S3 override, validation, circuit breaker, and S3 metadata reads
+  - Delegates refresh to `opengraph-refresh.ts` when external fetch is needed
+- **`lib/data-access/opengraph-refresh.ts`**: Refresh workflow with in-flight dedupe
+  - External fetch, S3 persistence, and fallback handling
+- **`lib/data-access/opengraph-cache-context.ts`**: Cache guard wrappers
+  - Safe wrappers for cache tags/lifetimes and CLI context detection
 
 ### OpenGraph Modules
 
@@ -149,6 +156,8 @@ The `/api/og-image` route serves as the single source of truth for all OpenGraph
 app/api/og-image/route.ts
   |
 lib/data-access/opengraph.ts (orchestrator)
+  ├── lib/data-access/opengraph-next-cache.ts
+  ├── lib/data-access/opengraph-refresh.ts
   ├── lib/opengraph/fetch.ts -> lib/opengraph/parser.ts -> lib/opengraph/imageSelector.ts
   ├── lib/opengraph/fallback.ts
   └── lib/opengraph/persistence.ts

@@ -18,12 +18,15 @@ graph TD
 
 ## Core Logic
 
-### Unified Data Access (`lib/data-access.ts`)
+### Data Access Modules (`lib/data-access/*`)
 
-- **Purpose**: Serves as a central import point for various data access functionalities, re-exporting modules related to bookmarks, logos, investments, and GitHub data.
-- **Key Features**:
-  - Simplifies access to data operations by providing a single entry point for imports.
-  - Directs users to the canonical S3 modules under `lib/s3/*` for storage operations.
+- **Purpose**: Domain-specific data access modules for bookmarks, logos, investments, GitHub, and OpenGraph.
+- **Import Policy**: Import directly from source modules (per FS1d no barrel re-exports).
+  - GitHub: `@/lib/data-access/github`, `@/lib/data-access/github-public-api`, etc.
+  - Logos: `@/lib/data-access/logos`
+  - OpenGraph: `@/lib/data-access/opengraph`
+  - Investments: `@/lib/data-access/investments`
+- **Storage**: All modules delegate to `lib/s3/*` for S3 operations.
 
 ### S3 Operations (`lib/s3/*`)
 

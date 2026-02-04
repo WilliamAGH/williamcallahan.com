@@ -209,7 +209,6 @@ File/Path Functionality Description
 - [x] `bookmarks.ts` `json-handling` - Core bookmarks logic
 - [x] `cache.ts` `caching` - Node-cache setup and utilities
 - [x] `constants.ts` `overview` - Project-wide constants
-- [x] `data-access.ts` `data-access` - Generic data access utilities
 - [x] `education-data-processor.ts` `education` - Utilities for education logos and data
 - [x] `errors.ts` `log-error-debug-handling` - Custom error classes
 - [x] `getBaseUrl.ts` `shared-utils` - Base URL resolver
@@ -257,10 +256,18 @@ File/Path Functionality Description
 - [x] **data-access/**
   - [x] `bookmarks.ts` `json-handling` - Data access for bookmarks
   - [x] `github.ts` `json-handling` - Data access for GitHub
-    - [x] `index.ts` `` - Barrel file for data access modules
+  - [x] `github-activity-summaries.ts` `github-activity` - Writes trailing-year and all-time summary JSON
+  - [x] `github-commit-counts.ts` `github-activity` - All-time commit count aggregation (GraphQL + REST fallback)
+  - [x] `github-contributions.ts` `github-activity` - Contribution calendar fetch + flattening helpers
+  - [x] `github-csv-repair.ts` `github-activity` - CSV integrity checks and repair workflow
+  - [x] `github-repo-stats.ts` `github-activity` - Per-repo stats processing + category aggregation
+  - [x] `github-repo-processor.ts` `github-activity` - Single-repo processing with CSV fallback
   - [x] `investments.ts` `investments` - Data access for investments
   - [x] `logos.ts` `image-handling` - Data access for logos
   - [x] `opengraph.ts` `opengraph` - Data access for OpenGraph metadata extraction and caching (2025-06: background persistence)
+  - [x] `opengraph-cache-context.ts` `opengraph` - Cache guard wrappers for Next.js cache usage
+  - [x] `opengraph-next-cache.ts` `opengraph` - Next.js cache path for OpenGraph metadata
+  - [x] `opengraph-refresh.ts` `opengraph` - OpenGraph refresh workflow with in-flight dedupe
   - [ ] **logos/**
     - [x] `config.ts` `image-handling` - Configuration for logo processing
     - [x] `external-fetch.ts` `image-handling` - External logo fetching logic
@@ -317,6 +324,13 @@ File/Path Functionality Description
   - [x] `index.ts` `s3-object-storage` - Factory functions and category config for S3 reset scripts
 - [x] **server-cache/**
   - [x] `index.ts` `caching` - Barrel file for server cache
+- [ ] **services/**
+  - [x] `image-streaming.ts` `image-handling` - Streaming pipeline for image uploads
+  - [x] `memory-aware-scheduler.ts` `memory-mgmt` - Scheduler with memory-aware gating
+  - [x] `unified-image-service.ts` `image-handling` - Unified image service orchestrator
+  - [x] **image/**
+    - [x] `logo-fetcher.ts` `image-handling` - Logo fetch orchestration
+    - [x] `logo-source-priority.ts` `image-handling` - Logo source priority ordering
 - [x] **test-utils/**
   - [x] `cache-tester.ts` `caching` - Cache testing utility
 - [x] **utils/**
