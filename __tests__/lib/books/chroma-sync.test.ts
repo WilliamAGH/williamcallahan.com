@@ -5,34 +5,24 @@
  */
 
 import type { TextChunk, EpubMetadata, BookIndexData } from "@/types/books/parsing";
-
-// Check for required Chroma env vars
-const REQUIRED_ENV_VARS = ["CHROMA_API_KEY", "CHROMA_TENANT", "CHROMA_DATABASE"] as const;
-const missingVars = REQUIRED_ENV_VARS.filter((v) => !process.env[v]);
-const hasChromaConfig = missingVars.length === 0;
-
-if (!hasChromaConfig) {
-  console.warn(
-    `[chroma-sync.test.ts] Skipping tests - missing env vars: ${missingVars.join(", ")}`,
-  );
-}
+import type { Mock } from "vitest";
 
 // Shared mock collection
 let mockCollection: {
-  upsert: jest.Mock;
-  get: jest.Mock;
-  delete: jest.Mock;
-  count: jest.Mock;
-  query: jest.Mock;
+  upsert: Mock;
+  get: Mock;
+  delete: Mock;
+  count: Mock;
+  query: Mock;
 };
 
 function initMockCollection() {
   mockCollection = {
-    upsert: jest.fn().mockResolvedValue(undefined),
-    get: jest.fn().mockResolvedValue({ ids: [], embeddings: [], metadatas: [], documents: [] }),
-    delete: jest.fn().mockResolvedValue(undefined),
-    count: jest.fn().mockResolvedValue(0),
-    query: jest
+    upsert: vi.fn().mockResolvedValue(undefined),
+    get: vi.fn().mockResolvedValue({ ids: [], embeddings: [], metadatas: [], documents: [] }),
+    delete: vi.fn().mockResolvedValue(undefined),
+    count: vi.fn().mockResolvedValue(0),
+    query: vi
       .fn()
       .mockResolvedValue({ ids: [[]], documents: [[]], metadatas: [[]], distances: [[]] }),
   };
@@ -41,14 +31,16 @@ function initMockCollection() {
 initMockCollection();
 
 // Mock Chroma client
-jest.mock("@/lib/chroma/client", () => ({
-  getChromaClient: jest.fn().mockImplementation(() => ({
-    getOrCreateCollection: jest.fn().mockImplementation(() => Promise.resolve(mockCollection)),
-    deleteCollection: jest.fn().mockResolvedValue(undefined),
+vi.mock("@/lib/chroma/client", () => ({
+  getChromaClient: vi.fn().mockImplementation(() => ({
+    getOrCreateCollection: vi.fn().mockImplementation(() => Promise.resolve(mockCollection)),
+    deleteCollection: vi.fn().mockResolvedValue(undefined),
   })),
 }));
 
-const describeIfChroma = hasChromaConfig ? describe : describe.skip;
+vi.mock("@/lib/chroma/embedding-function", () => ({
+  getEmbeddingFunction: vi.fn().mockResolvedValue({}),
+}));
 
 // Test helpers
 const createTestChunk = (overrides: Partial<TextChunk> = {}): TextChunk => ({
@@ -74,10 +66,10 @@ const createTestIndexData = (overrides: Partial<BookIndexData> = {}): BookIndexD
   ...overrides,
 });
 
-describeIfChroma("Books Chroma Sync", () => {
+describe("Books Chroma Sync", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.resetModules();
+    vi.clearAllMocks();
+    vi.resetModules();
     initMockCollection();
   });
 

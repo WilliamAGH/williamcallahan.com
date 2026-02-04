@@ -1,6 +1,6 @@
 /**
  * SEO Metadata Tests
- * @jest-environment node
+ * @vitest-environment node
  */
 
 import { createArticleMetadata, getStaticPageMetadata } from "@/lib/seo/metadata";
@@ -10,7 +10,7 @@ import { SEO_DATE_FIELDS } from "@/lib/constants";
 import { isPacificDateString, type ArticleOpenGraph, type ProfileOpenGraph } from "@/types/seo";
 import type { SchemaGraph, WebPageBase, CollectionPageSchema } from "@/types/seo/schema";
 // import type { Metadata } from 'next';
-// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
+// Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 // Mock process.env for tests
 process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
 

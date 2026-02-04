@@ -1,4 +1,4 @@
-// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
+// Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 import { renderToString } from "react-dom/server";
 import React, { type JSX } from "react";
 import { GlobalWindowRegistryProvider } from "../../src/lib/context/global-window-registry-context.client";

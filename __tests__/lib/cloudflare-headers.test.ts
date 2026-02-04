@@ -1,6 +1,6 @@
 /**
  * @fileoverview Tests for Cloudflare header validation and enforcement
- * @jest-environment node
+ * @vitest-environment node
  */
 
 import { requireCloudflareHeaders } from "@/lib/utils/api-utils";

@@ -6,13 +6,11 @@
  */
 
 // Suite-specific timeout for slow environments
-jest.setTimeout(60_000);
+vi.setConfig({ testTimeout: 60_000 });
 
 // Mock the S3 directory listing to avoid network latency/timeouts
-jest.mock("@/lib/s3-utils", () => ({
-  __esModule: true,
-  ...jest.requireActual("@/lib/s3-utils"),
-  listS3Objects: jest.fn().mockResolvedValue([]),
+vi.mock("@/lib/s3/objects", () => ({
+  listS3Objects: vi.fn().mockResolvedValue([]),
 }));
 
 import type { BlogFrontmatter } from "@/types/test";
@@ -20,8 +18,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
 // IMPORTANT: Use the real serializer. Keep ESM rehype/remark plugins mocked by config.
-jest.unmock("next-mdx-remote/serialize");
-jest.unmock("next-mdx-remote");
+vi.doUnmock("next-mdx-remote/serialize");
+vi.doUnmock("next-mdx-remote");
 
 import { getMDXPost } from "../../src/lib/blog/mdx";
 

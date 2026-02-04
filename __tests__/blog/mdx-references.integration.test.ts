@@ -4,11 +4,11 @@
  * References section.
  */
 
-jest.setTimeout(60_000);
+vi.setConfig({ testTimeout: 60_000 });
 
-// Ensure we use the real serializer; plugin ESM packages remain mocked by config for Jest CJS
-jest.unmock("next-mdx-remote/serialize");
-jest.unmock("next-mdx-remote");
+// Ensure we use the real serializer; plugin ESM packages remain mocked by config for CJS interop in tests
+vi.doUnmock("next-mdx-remote/serialize");
+vi.doUnmock("next-mdx-remote");
 
 import fs from "node:fs/promises";
 import path from "node:path";

@@ -1,4 +1,4 @@
-// Jest provides describe, expect, it, beforeEach globally
+// Vitest provides describe, expect, it, beforeEach globally
 import { compareImages } from "@/lib/image-handling/image-compare";
 import logger from "@/lib/utils/logger";
 

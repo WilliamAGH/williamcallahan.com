@@ -1,4 +1,4 @@
-console.log("[TEST FILE] blog.test.ts starting");
+import type { MockedFunction } from "vitest";
 
 /**
  * Blog Module Tests
@@ -23,23 +23,23 @@ console.log("[TEST FILE] blog.test.ts starting");
 import { getAllPosts, getPostBySlug } from "@/lib/blog";
 import { cacheContextGuards } from "@/lib/cache";
 import { GET as getPostsApi } from "@/app/api/posts/route";
-// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
+// Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 // Explicitly mock assertServerOnly for this test file
-jest.mock("@/lib/utils/ensure-server-only", () => ({
-  assertServerOnly: jest.fn(() => undefined),
+vi.mock("@/lib/utils/ensure-server-only", () => ({
+  assertServerOnly: vi.fn(() => undefined),
 }));
 
-jest.mock("@/lib/cache", () => ({
+vi.mock("@/lib/cache", () => ({
   USE_NEXTJS_CACHE: true,
   cacheContextGuards: {
-    cacheLife: jest.fn(),
-    cacheTag: jest.fn(),
-    revalidateTag: jest.fn(),
+    cacheLife: vi.fn(),
+    cacheTag: vi.fn(),
+    revalidateTag: vi.fn(),
   },
 }));
 
 // Mock static posts using mock.module
-jest.mock("@/data/blog/posts", () => ({
+vi.mock("@/data/blog/posts", () => ({
   posts: [
     {
       id: "test-post-1",
@@ -104,20 +104,20 @@ const mockMdxPosts = [
   },
 ];
 
-jest.mock("@/lib/blog/mdx", () => ({
-  getAllMDXPostsCached: jest.fn().mockResolvedValue([]),
-  getMDXPost: jest.fn().mockImplementation((slug: string) => {
+vi.mock("@/lib/blog/mdx", () => ({
+  getAllMDXPostsCached: vi.fn().mockResolvedValue([]),
+  getMDXPost: vi.fn().mockImplementation((slug: string) => {
     const post = mockMdxPosts.find((p) => p.slug === slug);
     return Promise.resolve(post || null);
   }),
-  getMDXPostCached: jest.fn().mockImplementation((slug: string) => {
+  getMDXPostCached: vi.fn().mockImplementation((slug: string) => {
     const post = mockMdxPosts.find((p) => p.slug === slug);
     return Promise.resolve(post || null);
   }),
 }));
 
 describe("Blog Module", () => {
-  const cacheLifeSpy = cacheContextGuards.cacheLife as jest.MockedFunction<
+  const cacheLifeSpy = cacheContextGuards.cacheLife as MockedFunction<
     typeof cacheContextGuards.cacheLife
   >;
 

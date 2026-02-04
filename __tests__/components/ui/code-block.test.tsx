@@ -1,10 +1,9 @@
-import { jest, describe, beforeEach, it, expect } from "@jest/globals";
-import "@testing-library/jest-dom";
+import { vi } from "vitest";
 
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 
 // Mock useWindowSize hook before other imports
-jest.mock("@/lib/hooks/use-window-size.client", () => ({
+vi.mock("@/lib/hooks/use-window-size.client", () => ({
   useWindowSize: () => ({ width: 1280, height: 800 }),
 }));
 
@@ -16,7 +15,7 @@ import { CodeBlock } from "@/components/ui/code-block/code-block.client";
 describe("CodeBlock", () => {
   beforeEach(() => {
     // Clear all mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("Basic Rendering", () => {

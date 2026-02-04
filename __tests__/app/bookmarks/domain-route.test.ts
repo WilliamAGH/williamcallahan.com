@@ -1,5 +1,5 @@
 /**
- * Jest test for app/bookmarks/domain/[domainSlug] route functionality
+ * Vitest test for app/bookmarks/domain/[domainSlug] route functionality
  * Tests domain bookmark route functionality and redirecting logic
  */
 

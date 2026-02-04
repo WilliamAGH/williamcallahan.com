@@ -4,24 +4,28 @@
  * @module __tests__/lib/books/pdf-parser.test
  */
 
-// Mock pdf-parse before imports
-const mockGetInfo = jest.fn();
-const mockGetText = jest.fn();
-const mockDestroy = jest.fn();
+// Hoist mock functions for use in the mock factory
+const { mockGetInfo, mockGetText, mockDestroy } = vi.hoisted(() => ({
+  mockGetInfo: vi.fn(),
+  mockGetText: vi.fn(),
+  mockDestroy: vi.fn(),
+}));
 
-jest.mock("pdf-parse", () => ({
-  PDFParse: jest.fn().mockImplementation(() => ({
-    getInfo: mockGetInfo,
-    getText: mockGetText,
-    destroy: mockDestroy,
-  })),
+// Mock pdf-parse with a proper constructor class
+vi.mock("pdf-parse", () => ({
+  // PDFParse must be a constructor that can be used with `new`
+  PDFParse: class MockPDFParse {
+    getInfo = mockGetInfo;
+    getText = mockGetText;
+    destroy = mockDestroy;
+  },
 }));
 
 import { parsePdfFromBuffer, extractPdfMetadata, getPdfFullText } from "@/lib/books/pdf-parser";
 
 describe("PDF Parser", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockDestroy.mockResolvedValue(undefined);
   });
 

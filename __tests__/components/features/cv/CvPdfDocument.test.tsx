@@ -1,4 +1,4 @@
-/** @jest-environment node */
+/** @vitest-environment node */
 /**
  * CvPdfDocument tests
  */
@@ -6,75 +6,69 @@
 import path from "path";
 import { renderToStaticMarkup } from "react-dom/server";
 
-type CvPdfDocumentModule = typeof import("@/components/features/cv/CvPdfDocument");
-
 const loadCvPdfDocument = async () => {
-  const registerMock = jest.fn();
-  let loadedModule: CvPdfDocumentModule | undefined;
+  const registerMock = vi.fn();
 
-  await jest.isolateModulesAsync(async () => {
-    const hadWindow = Object.prototype.hasOwnProperty.call(globalThis, "window");
-    const originalWindow = hadWindow ? (globalThis as { window: unknown }).window : undefined;
+  // Reset modules to ensure clean import
+  vi.resetModules();
 
-    try {
-      (globalThis as { window?: unknown }).window = undefined;
-    } catch {
-      /* noop */
-    }
+  const hadWindow = Object.hasOwn(globalThis, "window");
+  const originalWindow = hadWindow ? (globalThis as { window: unknown }).window : undefined;
 
-    jest.doMock("node:fs", () => ({
+  try {
+    (globalThis as { window?: unknown }).window = undefined;
+  } catch {
+    /* noop */
+  }
+
+  vi.doMock("node:fs", async (importOriginal) => ({
+    __esModule: true,
+    ...(await importOriginal<typeof import("node:fs")>()),
+    existsSync: vi.fn().mockReturnValue(true),
+  }));
+
+  vi.doMock("@react-pdf/renderer", () => {
+    const React = require("react");
+    const createPrimitive = (tag: string) => {
+      const Primitive = ({
+        children,
+        wrap: _wrap,
+        ...props
+      }: {
+        children?: React.ReactNode;
+        wrap?: unknown;
+      }) => React.createElement(tag, props, children);
+      Primitive.displayName = `Mock${tag.charAt(0).toUpperCase() + tag.slice(1)}`;
+      return Primitive;
+    };
+
+    const Document = ({ children, ...props }: { children?: React.ReactNode }) =>
+      React.createElement("div", { "data-testid": "pdf-document", ...props }, children);
+    Document.displayName = "MockDocument";
+
+    return {
       __esModule: true,
-      ...jest.requireActual<typeof import("node:fs")>("node:fs"),
-      existsSync: jest.fn().mockReturnValue(true),
-    }));
-
-    jest.doMock("@react-pdf/renderer", () => {
-      const React = require("react");
-      const createPrimitive = (tag: string) => {
-        const Primitive = ({
-          children,
-          wrap: _wrap,
-          ...props
-        }: {
-          children?: React.ReactNode;
-          wrap?: unknown;
-        }) => React.createElement(tag, props, children);
-        Primitive.displayName = `Mock${tag.charAt(0).toUpperCase() + tag.slice(1)}`;
-        return Primitive;
-      };
-
-      const Document = ({ children, ...props }: { children?: React.ReactNode }) =>
-        React.createElement("div", { "data-testid": "pdf-document", ...props }, children);
-      Document.displayName = "MockDocument";
-
-      return {
-        __esModule: true,
-        Document,
-        Page: createPrimitive("section"),
-        View: createPrimitive("div"),
-        Text: createPrimitive("span"),
-        Link: ({ children, src, ...props }: { children?: React.ReactNode; src: string }) =>
-          React.createElement("a", { href: src, ...props }, children),
-        Svg: createPrimitive("svg"),
-        Path: createPrimitive("path"),
-        Rect: createPrimitive("rect"),
-        Circle: createPrimitive("circle"),
-        Font: { register: registerMock },
-        StyleSheet: { create: (styles: unknown) => styles },
-      };
-    });
-
-    loadedModule = await import("@/components/features/cv/CvPdfDocument");
-
-    if (hadWindow) {
-      (globalThis as { window: unknown }).window = originalWindow;
-    } else {
-      Reflect.deleteProperty(globalThis, "window");
-    }
+      Document,
+      Page: createPrimitive("section"),
+      View: createPrimitive("div"),
+      Text: createPrimitive("span"),
+      Link: ({ children, src, ...props }: { children?: React.ReactNode; src: string }) =>
+        React.createElement("a", { href: src, ...props }, children),
+      Svg: createPrimitive("svg"),
+      Path: createPrimitive("path"),
+      Rect: createPrimitive("rect"),
+      Circle: createPrimitive("circle"),
+      Font: { register: registerMock },
+      StyleSheet: { create: (styles: unknown) => styles },
+    };
   });
 
-  if (!loadedModule) {
-    throw new Error("Failed to load CvPdfDocument module");
+  const loadedModule = await import("@/components/features/cv/CvPdfDocument");
+
+  if (hadWindow) {
+    (globalThis as { window: unknown }).window = originalWindow;
+  } else {
+    Reflect.deleteProperty(globalThis, "window");
   }
 
   return { module: loadedModule, registerMock };
@@ -82,9 +76,9 @@ const loadCvPdfDocument = async () => {
 
 describe("CvPdfDocument", () => {
   afterEach(() => {
-    jest.resetModules();
-    jest.clearAllMocks();
-    jest.useRealTimers();
+    vi.resetModules();
+    vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   it("registers IBM Plex fonts from the filesystem when running on the server", async () => {
@@ -109,10 +103,7 @@ describe("CvPdfDocument", () => {
   });
 
   it("renders the PDF outline with expected sections", async () => {
-    jest.useFakeTimers({
-      now: new Date("2025-11-08T09:00:00Z"),
-      doNotFake: ["nextTick", "performance"],
-    });
+    vi.useFakeTimers({ now: new Date("2025-11-08T09:00:00Z") });
 
     const { module } = await loadCvPdfDocument();
 

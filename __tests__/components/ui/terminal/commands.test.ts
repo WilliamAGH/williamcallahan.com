@@ -1,6 +1,7 @@
 /**
  * Terminal Commands Tests
  */
+import type { Mock } from "vitest";
 import { handleCommand } from "@/components/ui/terminal/commands.client";
 import { isChatCommand } from "@/types";
 
@@ -9,12 +10,12 @@ const originalFetch = global.fetch;
 const originalWindow = global.window;
 
 // Mock the fetch API
-global.fetch = jest.fn() as unknown as typeof fetch; // Assert type for assignment
+global.fetch = vi.fn() as unknown as typeof fetch; // Assert type for assignment
 // Setup console.error mock
 const originalConsoleError = console.error;
 const originalConsoleLog = console.log;
-const mockConsoleError = jest.fn();
-const mockConsoleLog = jest.fn();
+const mockConsoleError = vi.fn();
+const mockConsoleLog = vi.fn();
 console.error = mockConsoleError;
 console.log = mockConsoleLog;
 
@@ -35,8 +36,8 @@ console.log = mockConsoleLog;
 describe("Terminal Commands", () => {
   beforeEach(() => {
     // Reset mocks before each test
-    jest.clearAllMocks();
-    (fetch as unknown as jest.Mock).mockReset();
+    vi.clearAllMocks();
+    (fetch as unknown as Mock).mockReset();
     // Reset console mocks
     mockConsoleError.mockReset();
     mockConsoleLog.mockReset();
@@ -83,7 +84,7 @@ describe("Terminal Commands", () => {
       const tokenResponse = {
         ok: true,
         status: 200,
-        json: jest.fn().mockResolvedValue({
+        json: vi.fn().mockResolvedValue({
           token: "test-token",
           expiresAt: new Date(Date.now() + 60_000).toISOString(),
         }),
@@ -92,10 +93,10 @@ describe("Terminal Commands", () => {
       const chatResponse = {
         ok: true,
         status: 200,
-        json: jest.fn().mockResolvedValue({ message: "Hello from the assistant." }),
+        json: vi.fn().mockResolvedValue({ message: "Hello from the assistant." }),
       };
 
-      (fetch as unknown as jest.Mock)
+      (fetch as unknown as Mock)
         .mockResolvedValueOnce(tokenResponse)
         .mockResolvedValueOnce(chatResponse);
 
@@ -149,7 +150,7 @@ describe("Terminal Commands", () => {
     it("should search in blog section", async () => {
       const mockResponse = {
         ok: true,
-        json: jest.fn().mockResolvedValue([
+        json: vi.fn().mockResolvedValue([
           {
             id: "test-1",
             type: "blog-post",
@@ -160,7 +161,7 @@ describe("Terminal Commands", () => {
           },
         ]),
       };
-      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
 
       const result = await handleCommand("blog test query");
 
@@ -176,7 +177,7 @@ describe("Terminal Commands", () => {
     });
 
     it("should handle blog search API failure", async () => {
-      (fetch as unknown as jest.Mock).mockRejectedValueOnce(new Error("API Error"));
+      (fetch as unknown as Mock).mockRejectedValueOnce(new Error("API Error"));
 
       const result = await handleCommand("blog test query");
 
@@ -191,7 +192,7 @@ describe("Terminal Commands", () => {
         ok: false,
         status: 500,
       };
-      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
 
       const result = await handleCommand("blog test query");
 
@@ -204,9 +205,9 @@ describe("Terminal Commands", () => {
     it("should handle no search results", async () => {
       const mockResponse = {
         ok: true,
-        json: jest.fn().mockResolvedValue([]),
+        json: vi.fn().mockResolvedValue([]),
       };
-      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
 
       const result = await handleCommand("blog no-results");
 
@@ -221,9 +222,9 @@ describe("Terminal Commands", () => {
     it("should execute experience search", async () => {
       const mockResponse = {
         ok: true,
-        json: jest.fn().mockResolvedValue([]),
+        json: vi.fn().mockResolvedValue([]),
       };
-      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
 
       const result = await handleCommand("experience test query");
       expect(result.results?.[0]).toMatchObject({
@@ -237,7 +238,7 @@ describe("Terminal Commands", () => {
     it("should perform site-wide search for unknown commands", async () => {
       const mockResponse = {
         ok: true,
-        json: jest.fn().mockResolvedValue([
+        json: vi.fn().mockResolvedValue([
           {
             id: "result-1",
             type: "page",
@@ -256,7 +257,7 @@ describe("Terminal Commands", () => {
           },
         ]),
       };
-      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
 
       const result = await handleCommand("unknown command");
 
@@ -274,9 +275,9 @@ describe("Terminal Commands", () => {
     it("should show not recognized message when no results found", async () => {
       const mockResponse = {
         ok: true,
-        json: jest.fn().mockResolvedValue([]),
+        json: vi.fn().mockResolvedValue([]),
       };
-      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
 
       const result = await handleCommand("unknown command");
 
@@ -292,7 +293,7 @@ describe("Terminal Commands", () => {
     });
 
     it("should handle site-wide search API failure", async () => {
-      (fetch as unknown as jest.Mock).mockRejectedValueOnce(new Error("API Error"));
+      (fetch as unknown as Mock).mockRejectedValueOnce(new Error("API Error"));
 
       const result = await handleCommand("unknown command");
 
@@ -303,7 +304,7 @@ describe("Terminal Commands", () => {
     });
 
     it("should handle unknown errors in site-wide search", async () => {
-      (fetch as unknown as jest.Mock).mockRejectedValueOnce("Not an Error object");
+      (fetch as unknown as Mock).mockRejectedValueOnce("Not an Error object");
 
       const result = await handleCommand("unknown command");
 
@@ -319,9 +320,9 @@ describe("Terminal Commands", () => {
       const controller = new AbortController();
       const mockResponse = {
         ok: true,
-        json: jest.fn().mockResolvedValue([]),
+        json: vi.fn().mockResolvedValue([]),
       };
-      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
 
       await handleCommand("blog test", controller.signal);
 
@@ -335,9 +336,9 @@ describe("Terminal Commands", () => {
       const controller = new AbortController();
       const mockResponse = {
         ok: true,
-        json: jest.fn().mockResolvedValue([]),
+        json: vi.fn().mockResolvedValue([]),
       };
-      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
 
       await handleCommand("unknown command", controller.signal);
 
@@ -351,7 +352,7 @@ describe("Terminal Commands", () => {
       const controller = new AbortController();
       const abortError = new DOMException("Aborted", "AbortError");
 
-      (fetch as unknown as jest.Mock).mockRejectedValueOnce(abortError);
+      (fetch as unknown as Mock).mockRejectedValueOnce(abortError);
 
       // Abort immediately
       controller.abort();
@@ -369,7 +370,7 @@ describe("Terminal Commands", () => {
       const controller = new AbortController();
       const mockResponse = {
         ok: true,
-        json: jest.fn().mockResolvedValue([
+        json: vi.fn().mockResolvedValue([
           {
             id: "test-1",
             type: "blog-post",
@@ -385,7 +386,7 @@ describe("Terminal Commands", () => {
       const sections = ["blog", "experience", "education", "investments", "bookmarks"];
 
       for (const section of sections) {
-        (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+        (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
 
         await handleCommand(`${section} test`, controller.signal);
 

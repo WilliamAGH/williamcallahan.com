@@ -1,24 +1,36 @@
+import type { MockedFunction } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
 import { useSearchParams } from "next/navigation";
 
 // Mock next/navigation
-jest.mock("next/navigation", () => ({
-  useSearchParams: jest.fn(),
+vi.mock("next/navigation", () => ({
+  useSearchParams: vi.fn(),
 }));
 
 // Mock Link component to avoid router context issues
-jest.mock("next/link", () => ({
+vi.mock("next/link", () => ({
   __esModule: true,
-  default: ({ children, href, ...props }: any) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
+  default: ({ children, href, onClick, prefetch, scroll, ...props }: any) => {
+    void prefetch;
+    void scroll;
+    return (
+      <a
+        href={href}
+        onClick={(event) => {
+          event.preventDefault();
+          onClick?.(event);
+        }}
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  },
 }));
 
 describe("PaginationControlUrl", () => {
-  const mockUseSearchParams = useSearchParams as jest.MockedFunction<typeof useSearchParams>;
+  const mockUseSearchParams = useSearchParams as MockedFunction<typeof useSearchParams>;
 
   beforeEach(() => {
     // Mock URLSearchParams
@@ -26,7 +38,7 @@ describe("PaginationControlUrl", () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("renders pagination controls when there are multiple pages", () => {

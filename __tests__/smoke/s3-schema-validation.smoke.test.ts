@@ -8,8 +8,8 @@
  * @module __tests__/smoke/s3-schema-validation.smoke.test
  */
 
-import { z } from "zod";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { z } from "zod/v4";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import { bookmarksIndexSchema, bookmarkSlugMappingSchema } from "@/types/bookmark";
 
@@ -56,8 +56,8 @@ const mockIndexData = {
 
 const mockPageData = [...mockBookmarksData];
 
-jest.mock("@/lib/s3-utils", () => ({
-  readJsonS3: jest.fn((path: string) => {
+vi.mock("@/lib/s3/json", () => ({
+  readJsonS3Optional: vi.fn((path: string) => {
     switch (path) {
       case BOOKMARKS_S3_PATHS.FILE:
         return Promise.resolve(mockBookmarksData);
@@ -84,11 +84,11 @@ const SKIP_S3_TESTS =
 const describeConditional = SKIP_S3_TESTS ? describe.skip : describe;
 
 describeConditional("S3 Schema Validation Smoke Tests", () => {
-  jest.setTimeout(30000); // 30 second timeout for S3 operations
+  vi.setConfig({ testTimeout: 30000 }); // 30 second timeout for S3 operations
 
   describe("Bookmark Data Schema Validation", () => {
     it("should validate bookmarks.json against UnifiedBookmark schema", async () => {
-      const bookmarksData = await readJsonS3(BOOKMARKS_S3_PATHS.FILE);
+      const bookmarksData = await readJsonS3Optional(BOOKMARKS_S3_PATHS.FILE, z.array(z.unknown()));
 
       // Skip test if no S3 data available
       if (bookmarksData === null) {
@@ -127,7 +127,10 @@ describeConditional("S3 Schema Validation Smoke Tests", () => {
     });
 
     it("should validate slug-mapping.json against BookmarkSlugMapping schema", async () => {
-      const slugMappingData = await readJsonS3(BOOKMARKS_S3_PATHS.SLUG_MAPPING);
+      const slugMappingData = await readJsonS3Optional(
+        BOOKMARKS_S3_PATHS.SLUG_MAPPING,
+        bookmarkSlugMappingSchema,
+      );
 
       // Skip test if no S3 data available
       if (slugMappingData === null) {
@@ -150,7 +153,7 @@ describeConditional("S3 Schema Validation Smoke Tests", () => {
     });
 
     it("should validate index.json against BookmarksIndex schema", async () => {
-      const indexData = await readJsonS3(BOOKMARKS_S3_PATHS.INDEX);
+      const indexData = await readJsonS3Optional(BOOKMARKS_S3_PATHS.INDEX, bookmarksIndexSchema);
 
       // Skip test if no S3 data available
       if (indexData === null) {
@@ -173,7 +176,7 @@ describeConditional("S3 Schema Validation Smoke Tests", () => {
     });
 
     it("should ensure all bookmarks have embedded slugs", async () => {
-      const bookmarksData = await readJsonS3<any[]>(BOOKMARKS_S3_PATHS.FILE);
+      const bookmarksData = await readJsonS3Optional(BOOKMARKS_S3_PATHS.FILE, z.array(z.unknown()));
 
       // Skip test if no S3 data available
       if (bookmarksData === null) {
@@ -197,8 +200,8 @@ describeConditional("S3 Schema Validation Smoke Tests", () => {
 
     it("should validate consistency between slug mapping and bookmarks", async () => {
       const [bookmarksData, slugMapping] = await Promise.all([
-        readJsonS3<any[]>(BOOKMARKS_S3_PATHS.FILE),
-        readJsonS3<any>(BOOKMARKS_S3_PATHS.SLUG_MAPPING),
+        readJsonS3Optional(BOOKMARKS_S3_PATHS.FILE, z.array(z.unknown())),
+        readJsonS3Optional(BOOKMARKS_S3_PATHS.SLUG_MAPPING, bookmarkSlugMappingSchema),
       ]);
 
       // Skip test if no S3 data available
@@ -237,7 +240,7 @@ describeConditional("S3 Schema Validation Smoke Tests", () => {
     });
 
     it("should validate at least one paginated bookmark page", async () => {
-      const indexData = await readJsonS3<any>(BOOKMARKS_S3_PATHS.INDEX);
+      const indexData = await readJsonS3Optional(BOOKMARKS_S3_PATHS.INDEX, bookmarksIndexSchema);
 
       // Skip test if no S3 data available
       if (indexData === null) {
@@ -252,7 +255,7 @@ describeConditional("S3 Schema Validation Smoke Tests", () => {
 
       // Test first page (use PAGE_PREFIX which includes env suffix and 'page-')
       const firstPagePath = `${BOOKMARKS_S3_PATHS.PAGE_PREFIX}1.json`;
-      const firstPageData = await readJsonS3(firstPagePath);
+      const firstPageData = await readJsonS3Optional(firstPagePath, z.array(z.unknown()));
 
       expect(Array.isArray(firstPageData)).toBe(true);
       expect((firstPageData as any[]).length).toBeGreaterThan(0);
@@ -281,7 +284,7 @@ describeConditional("S3 Schema Validation Smoke Tests", () => {
 
   describe("Data Integrity Checks", () => {
     it("should not contain test-only bookmarks in production data", async () => {
-      const bookmarksData = await readJsonS3<any[]>(BOOKMARKS_S3_PATHS.FILE);
+      const bookmarksData = await readJsonS3Optional(BOOKMARKS_S3_PATHS.FILE, z.array(z.unknown()));
 
       // Skip test if no S3 data available
       if (bookmarksData === null) {
@@ -306,8 +309,8 @@ describeConditional("S3 Schema Validation Smoke Tests", () => {
 
     it("should have reasonable data sizes", async () => {
       const [bookmarksData, indexData] = await Promise.all([
-        readJsonS3<any[]>(BOOKMARKS_S3_PATHS.FILE),
-        readJsonS3<any>(BOOKMARKS_S3_PATHS.INDEX),
+        readJsonS3Optional(BOOKMARKS_S3_PATHS.FILE, z.array(z.unknown())),
+        readJsonS3Optional(BOOKMARKS_S3_PATHS.INDEX, bookmarksIndexSchema),
       ]);
 
       // Skip test if no S3 data available

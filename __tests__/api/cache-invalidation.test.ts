@@ -2,7 +2,7 @@
  * Integration test for cache invalidation via API routes
  */
 
-import { describe, expect, it, jest, beforeAll, beforeEach } from "@jest/globals";
+import { vi } from "vitest";
 import { createMocks } from "node-mocks-http";
 import { POST as clearCacheHandler } from "@/app/api/cache/clear/route";
 import {
@@ -12,29 +12,46 @@ import {
 import { NextRequest } from "next/server";
 
 // Mock the cache library
-jest.mock("@/lib/cache", () => {
-  const actual = jest.requireActual<typeof import("@/lib/cache")>("@/lib/cache");
+vi.mock("@/lib/cache", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/cache")>();
   return {
     ...actual,
-    invalidateBookmarksCache: jest.fn(),
-    invalidateAllCaches: jest.fn(),
+    invalidateBookmarksCache: vi.fn(),
+    invalidateAllCaches: vi.fn(),
   };
 });
 
+// Mock server-cache
+vi.mock("@/lib/server-cache", () => ({
+  ServerCacheInstance: {
+    shouldRefreshBookmarks: vi.fn().mockReturnValue(true),
+    clearBookmarks: vi.fn(),
+    getStats: vi.fn().mockReturnValue({
+      keys: 0,
+      hits: 0,
+      misses: 0,
+      sizeBytes: 0,
+      maxSizeBytes: 0,
+      utilizationPercent: 0,
+    }),
+  },
+  getDeterministicTimestamp: vi.fn(() => Date.now()),
+}));
+
 // Mock S3 utilities
-jest.mock("@/lib/s3-utils", () => {
+vi.mock("@/lib/s3/json", () => {
   return {
-    readJsonS3: jest
-      .fn<() => Promise<{ count: number; lastRefresh: string }>>()
+    readJsonS3Optional: vi
+      .fn()
       .mockResolvedValue({ count: 0, lastRefresh: new Date().toISOString() }),
-    writeJsonS3: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    writeJsonS3: vi.fn().mockResolvedValue(undefined),
   };
 });
 
 // Mock bookmark data access
-jest.mock("@/lib/bookmarks/bookmarks-data-access.server", () => {
+vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => {
   return {
-    invalidateBookmarksCache: jest.fn().mockReturnValue({
+    invalidateBookmarksCache: vi.fn().mockReturnValue({
       success: true,
       bookmarks: [],
       count: 0,
@@ -44,26 +61,24 @@ jest.mock("@/lib/bookmarks/bookmarks-data-access.server", () => {
 });
 
 // Mock refresh function
-jest.mock("@/lib/bookmarks", () => {
+vi.mock("@/lib/bookmarks", () => {
   return {
-    refreshBookmarksData: jest
-      .fn<() => Promise<{ status: string; phases: any }>>()
-      .mockResolvedValue({
-        status: "COMPLETE_SUCCESS",
-        phases: {
-          primaryFetch: { status: "SUCCESS", recordCount: 10 },
-          s3Fallback: { status: "NOT_ATTEMPTED" },
-          finalOutcome: { status: "PRIMARY_SUCCESS", bookmarksServed: 10 },
-        },
-      }),
+    refreshBookmarksData: vi.fn().mockResolvedValue({
+      status: "COMPLETE_SUCCESS",
+      phases: {
+        primaryFetch: { status: "SUCCESS", recordCount: 10 },
+        s3Fallback: { status: "NOT_ATTEMPTED" },
+        finalOutcome: { status: "PRIMARY_SUCCESS", bookmarksServed: 10 },
+      },
+    }),
   };
 });
 
 // Mock DataFetchManager
-jest.mock("@/lib/server/data-fetch-manager", () => {
+vi.mock("@/lib/server/data-fetch-manager", () => {
   class MockDataFetchManager {
-    fetchData = jest
-      .fn<() => Promise<Array<{ operation: string; success: boolean; dataCount: number }>>>()
+    fetchData = vi
+      .fn()
       .mockResolvedValue([{ operation: "bookmarks", success: true, dataCount: 10 }]);
   }
   return { DataFetchManager: MockDataFetchManager };
@@ -77,7 +92,7 @@ describe("Cache Invalidation via API Routes", () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("Bookmarks Cache API", () => {
@@ -139,7 +154,7 @@ describe("Cache Invalidation via API Routes", () => {
     });
   });
 
-  describe.skip("GitHub Activity Refresh API", () => {
+  describe.todo("GitHub Activity Refresh API", () => {
     it("should handle refresh request without secret", async () => {
       // Import the route handler
       const { POST } = await import("@/app/api/github-activity/refresh/route");

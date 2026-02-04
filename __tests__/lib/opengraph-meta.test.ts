@@ -1,39 +1,40 @@
 /**
- * Jest test for lib/data-access/opengraph.ts
+ * Vitest test for lib/data-access/opengraph.ts
  * Tests OpenGraph data extraction functionality
  */
 
 // Mock the OpenGraph data access module
-jest.mock("@/lib/data-access/opengraph", () => ({
-  getOpenGraphData: jest.fn(),
+vi.mock("@/lib/data-access/opengraph", () => ({
+  getOpenGraphData: vi.fn(),
 }));
 
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import type { OgResult } from "@/types/opengraph";
+import type { MockedFunction } from "vitest";
 
-// Helper supplying mandatory OgResult fields so we don’t repeat ourselves
+// Helper supplying mandatory OgResult fields so we don't repeat ourselves
 const baseOg = (): Pick<OgResult, "timestamp" | "source" | "imageUrl"> => ({
   timestamp: Date.now(),
   source: "external",
   imageUrl: undefined,
 });
 
-// Cast to Jest mocked function for proper typing
-const mockGetOpenGraphData = getOpenGraphData as jest.MockedFunction<typeof getOpenGraphData>;
+// Cast to Vitest mocked function for proper typing
+const mockGetOpenGraphData = getOpenGraphData as MockedFunction<typeof getOpenGraphData>;
 
 describe("lib/data-access/opengraph.ts functionality", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
   });
 
   afterAll(() => {
-    jest.restoreAllMocks();
-    jest.useRealTimers();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   describe("OpenGraph data extraction", () => {

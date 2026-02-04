@@ -6,49 +6,41 @@
  * @module __tests__/lib/thoughts/chroma-sync.test
  */
 
+import type { Mock } from "vitest";
 import type { Thought } from "@/types/schemas/thought";
-
-const REQUIRED_ENV_VARS = ["CHROMA_API_KEY", "CHROMA_TENANT", "CHROMA_DATABASE"] as const;
-const missingVars = REQUIRED_ENV_VARS.filter((v) => !process.env[v]);
-const hasChromaConfig = missingVars.length === 0;
-
-if (!hasChromaConfig) {
-  console.warn(
-    `[chroma-sync.test.ts] Skipping tests - missing env vars: ${missingVars.join(", ")}`,
-  );
-}
 
 // Shared mock collection - use getMockCollection() to access
 let mockCollection: {
-  upsert: jest.Mock;
-  add: jest.Mock;
-  delete: jest.Mock;
-  get: jest.Mock;
-  count: jest.Mock;
+  upsert: Mock;
+  add: Mock;
+  delete: Mock;
+  get: Mock;
+  count: Mock;
 };
 
 // Initialize mock collection with defaults
 function initMockCollection() {
   mockCollection = {
-    upsert: jest.fn().mockResolvedValue(undefined),
-    add: jest.fn().mockResolvedValue(undefined),
-    delete: jest.fn().mockResolvedValue(undefined),
-    get: jest.fn().mockResolvedValue({ ids: [], embeddings: [], metadatas: [], documents: [] }),
-    count: jest.fn().mockResolvedValue(0),
+    upsert: vi.fn().mockResolvedValue(undefined),
+    add: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(undefined),
+    get: vi.fn().mockResolvedValue({ ids: [], embeddings: [], metadatas: [], documents: [] }),
+    count: vi.fn().mockResolvedValue(0),
   };
 }
 
 // Initialize before mocking
 initMockCollection();
 
-// Mock chromadb - reference mockCollection via closure so it gets current value
-jest.mock("chromadb", () => ({
-  CloudClient: jest.fn().mockImplementation(() => ({
-    getOrCreateCollection: jest.fn().mockImplementation(() => Promise.resolve(mockCollection)),
+vi.mock("@/lib/chroma/client", () => ({
+  getChromaClient: vi.fn().mockImplementation(() => ({
+    getOrCreateCollection: vi.fn().mockImplementation(() => Promise.resolve(mockCollection)),
   })),
 }));
 
-const describeIfChroma = hasChromaConfig ? describe : describe.skip;
+vi.mock("@/lib/chroma/embedding-function", () => ({
+  getEmbeddingFunction: vi.fn().mockResolvedValue({}),
+}));
 
 // Valid test thought for reuse
 const createTestThought = (overrides: Partial<Thought> = {}): Thought => ({
@@ -60,10 +52,10 @@ const createTestThought = (overrides: Partial<Thought> = {}): Thought => ({
   ...overrides,
 });
 
-describeIfChroma("Thoughts Chroma Sync", () => {
+describe("Thoughts Chroma Sync", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.resetModules();
+    vi.clearAllMocks();
+    vi.resetModules();
     // Re-initialize mock collection with fresh mocks
     initMockCollection();
   });

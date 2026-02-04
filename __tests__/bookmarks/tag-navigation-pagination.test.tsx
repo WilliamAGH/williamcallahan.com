@@ -5,6 +5,7 @@
  * with idempotent behavior (same URL = same view)
  */
 
+import type { Mock } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { useRouter, usePathname } from "next/navigation";
 import { BookmarksWithPagination } from "@/components/features/bookmarks/bookmarks-with-pagination.client";
@@ -12,14 +13,14 @@ import { usePagination } from "@/hooks/use-pagination";
 import type { UnifiedBookmark } from "@/types";
 
 // Mock next/navigation
-jest.mock("next/navigation", () => ({
-  useRouter: jest.fn(),
-  usePathname: jest.fn(),
-  useSearchParams: jest.fn(() => new URLSearchParams()),
+vi.mock("next/navigation", () => ({
+  useRouter: vi.fn(),
+  usePathname: vi.fn(),
+  useSearchParams: vi.fn(() => new URLSearchParams()),
 }));
 
 // Mock the pagination hook
-jest.mock("@/hooks/use-pagination");
+vi.mock("@/hooks/use-pagination");
 
 // Mock data
 const mockBookmarks: UnifiedBookmark[] = [
@@ -53,23 +54,23 @@ const mockBookmarks: UnifiedBookmark[] = [
 ];
 
 describe("Tag Navigation with Pagination", () => {
-  const mockPush = jest.fn();
-  const mockMutate = jest.fn();
-  const mockGoToPage = jest.fn();
-  const mockLoadMore = jest.fn();
+  const mockPush = vi.fn();
+  const mockMutate = vi.fn();
+  const mockGoToPage = vi.fn();
+  const mockLoadMore = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    (useRouter as jest.Mock).mockReturnValue({
+    (useRouter as Mock).mockReturnValue({
       push: mockPush,
-      refresh: jest.fn(),
+      refresh: vi.fn(),
     });
 
-    (usePathname as jest.Mock).mockReturnValue("/bookmarks");
+    (usePathname as Mock).mockReturnValue("/bookmarks");
 
     // Default pagination hook mock
-    (usePagination as jest.Mock).mockReturnValue({
+    (usePagination as Mock).mockReturnValue({
       items: mockBookmarks,
       currentPage: 1,
       totalPages: 3,
@@ -160,7 +161,7 @@ describe("Tag Navigation with Pagination", () => {
     });
 
     it("should navigate back to /bookmarks when tag is cleared", async () => {
-      (usePathname as jest.Mock).mockReturnValue("/bookmarks/tags/react");
+      (usePathname as Mock).mockReturnValue("/bookmarks/tags/react");
 
       render(
         <BookmarksWithPagination
@@ -181,7 +182,7 @@ describe("Tag Navigation with Pagination", () => {
 
     it("should reset to page 1 when selecting a tag", async () => {
       // Start on page 3
-      (usePagination as jest.Mock).mockReturnValue({
+      (usePagination as Mock).mockReturnValue({
         items: mockBookmarks,
         currentPage: 3,
         totalPages: 5,
@@ -210,7 +211,7 @@ describe("Tag Navigation with Pagination", () => {
 
   describe("URL-based Pagination", () => {
     it("should render pagination info when there are multiple pages", () => {
-      (usePathname as jest.Mock).mockReturnValue("/bookmarks/tags/react");
+      (usePathname as Mock).mockReturnValue("/bookmarks/tags/react");
 
       render(
         <BookmarksWithPagination
@@ -283,10 +284,10 @@ describe("Tag Navigation with Pagination", () => {
       );
 
       // Get initial hook call
-      const firstCall = (usePagination as jest.Mock).mock.calls[0][0];
+      const firstCall = (usePagination as Mock).mock.calls[0][0];
 
       // Clear mock and re-render (simulating page refresh)
-      (usePagination as jest.Mock).mockClear();
+      (usePagination as Mock).mockClear();
 
       rerender(
         <BookmarksWithPagination
@@ -299,12 +300,12 @@ describe("Tag Navigation with Pagination", () => {
       );
 
       // Should call hook with exact same parameters
-      const secondCall = (usePagination as jest.Mock).mock.calls[0][0];
+      const secondCall = (usePagination as Mock).mock.calls[0][0];
       expect(secondCall).toEqual(firstCall);
     });
 
     it("should not lose tag filter when component re-renders", async () => {
-      (usePathname as jest.Mock).mockReturnValue("/bookmarks/tags/react");
+      (usePathname as Mock).mockReturnValue("/bookmarks/tags/react");
 
       const { rerender } = render(
         <BookmarksWithPagination
@@ -353,7 +354,7 @@ describe("Tag Navigation with Pagination", () => {
         },
       ];
 
-      (usePagination as jest.Mock).mockReturnValue({
+      (usePagination as Mock).mockReturnValue({
         items: bookmarksWithSpecialTags,
         currentPage: 1,
         totalPages: 1,
@@ -383,7 +384,7 @@ describe("Tag Navigation with Pagination", () => {
     });
 
     it("should handle empty results for tag filter", () => {
-      (usePagination as jest.Mock).mockReturnValue({
+      (usePagination as Mock).mockReturnValue({
         items: [],
         currentPage: 1,
         totalPages: 0,

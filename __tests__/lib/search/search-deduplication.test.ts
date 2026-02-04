@@ -9,9 +9,15 @@ import { experiences } from "@/data/experience";
 import { education, certifications } from "@/data/education";
 import type { SearchResult } from "@/types/search";
 
+vi.mock("@/lib/s3/json", () => ({
+  readJsonS3Optional: vi.fn().mockResolvedValue(null),
+  readJsonS3: vi.fn().mockResolvedValue(null),
+  writeJsonS3: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Mock console methods to check for duplicate warnings
 const originalWarn = console.warn;
-const warnSpy = jest.fn();
+const warnSpy = vi.fn();
 
 beforeEach(() => {
   console.warn = warnSpy;
@@ -205,7 +211,7 @@ describe("Search Deduplication", () => {
   describe("Deduplication Logic", () => {
     it("should handle potential duplicates with console warnings", () => {
       // Capture console warnings
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       try {
         const deduplicatedResults = deduplicateSearchResults(duplicateTestResults);
@@ -225,7 +231,7 @@ describe("Search Deduplication", () => {
 
     it("should handle edge cases gracefully", () => {
       // Capture any console output
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       try {
         const deduplicatedResults = deduplicateSearchResults(edgeCaseResults);
@@ -241,7 +247,7 @@ describe("Search Deduplication", () => {
 
     it("should preserve result structure and required fields", () => {
       // Capture any console output
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       try {
         const deduplicatedResults = deduplicateSearchResults(searchResults);

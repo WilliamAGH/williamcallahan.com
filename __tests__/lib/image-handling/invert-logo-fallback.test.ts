@@ -2,7 +2,7 @@
 
 // Mock image-js to throw during dynamic import, simulating environments where
 // native Canvas bindings are unavailable (e.g., edge runtimes).
-jest.mock("image-js", () => {
+vi.mock("image-js", () => {
   throw new Error("MODULE_NOT_FOUND");
 });
 

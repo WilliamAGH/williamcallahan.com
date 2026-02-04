@@ -12,8 +12,7 @@
 
 import { render, screen, fireEvent } from "@testing-library/react";
 import { PaginationControl } from "@/components/ui/pagination-control.client";
-import { describe, beforeEach, it, expect, jest } from "@jest/globals";
-import "@testing-library/jest-dom";
+import { vi } from "vitest";
 
 describe("PaginationControl", () => {
   const defaultProps = {
@@ -21,11 +20,11 @@ describe("PaginationControl", () => {
     totalPages: 10,
     totalItems: 100,
     itemsPerPage: 10,
-    onPageChange: jest.fn(),
+    onPageChange: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   /**
@@ -60,7 +59,7 @@ describe("PaginationControl", () => {
    * Test: Clicking page numbers should trigger onPageChange
    */
   it("should call onPageChange when clicking page numbers", () => {
-    const onPageChange = jest.fn();
+    const onPageChange = vi.fn();
     render(<PaginationControl {...defaultProps} onPageChange={onPageChange} />);
 
     const page2Button = screen.getByLabelText("Go to page 2");
@@ -73,7 +72,7 @@ describe("PaginationControl", () => {
    * Test: Navigation buttons should work correctly from first page
    */
   it("should handle navigation button clicks", () => {
-    const onPageChange = jest.fn();
+    const onPageChange = vi.fn();
     const { rerender } = render(
       <PaginationControl {...defaultProps} currentPage={1} onPageChange={onPageChange} />,
     );
@@ -129,7 +128,7 @@ describe("PaginationControl", () => {
    * Test: Keyboard navigation support
    */
   it("should support keyboard navigation", () => {
-    const onPageChange = jest.fn();
+    const onPageChange = vi.fn();
     const { rerender } = render(
       <PaginationControl {...defaultProps} currentPage={5} onPageChange={onPageChange} />,
     );
@@ -260,7 +259,7 @@ describe("PaginationControl", () => {
    * Test: Prevents duplicate page changes
    */
   it("should not call onPageChange when clicking current page", () => {
-    const onPageChange = jest.fn();
+    const onPageChange = vi.fn();
     render(<PaginationControl {...defaultProps} currentPage={3} onPageChange={onPageChange} />);
 
     fireEvent.click(screen.getByLabelText("Go to page 3"));

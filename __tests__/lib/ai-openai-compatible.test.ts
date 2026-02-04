@@ -12,8 +12,8 @@ import { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-reques
 import { GET as getAiToken } from "@/app/api/ai/token/route";
 import { NextRequest } from "next/server";
 
-jest.mock("@/lib/rate-limiter", () => ({
-  isOperationAllowed: jest.fn(() => true),
+vi.mock("@/lib/rate-limiter", () => ({
+  isOperationAllowed: vi.fn(() => true),
 }));
 
 describe("OpenAI-Compatible AI Utilities", () => {
@@ -145,21 +145,20 @@ describe("OpenAI-Compatible AI Utilities", () => {
   });
 
   describe("upstream-request-queue", () => {
-    it("updates maxParallel when re-requested for the same key", () => {
-      jest.isolateModules(() => {
-        const { getUpstreamRequestQueue } =
-          require("@/lib/ai/openai-compatible/upstream-request-queue") as typeof import("@/lib/ai/openai-compatible/upstream-request-queue");
+    it("updates maxParallel when re-requested for the same key", async () => {
+      vi.resetModules();
+      const { getUpstreamRequestQueue } =
+        await import("@/lib/ai/openai-compatible/upstream-request-queue");
 
-        const first = getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 1 });
-        expect(first.snapshot.maxParallel).toBe(1);
+      const first = getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 1 });
+      expect(first.snapshot.maxParallel).toBe(1);
 
-        const increased = getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 5 });
-        expect(increased).toBe(first);
-        expect(increased.snapshot.maxParallel).toBe(5);
+      const increased = getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 5 });
+      expect(increased).toBe(first);
+      expect(increased.snapshot.maxParallel).toBe(5);
 
-        const decreased = getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 2 });
-        expect(decreased.snapshot.maxParallel).toBe(2);
-      });
+      const decreased = getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 2 });
+      expect(decreased.snapshot.maxParallel).toBe(2);
     });
 
     it("rejects result when aborting a running task", async () => {
@@ -189,7 +188,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
     const originalEnv = { ...process.env };
 
     beforeEach(() => {
-      jest.resetModules();
+      vi.resetModules();
       process.env = { ...originalEnv };
     });
 

@@ -1,13 +1,13 @@
 import type { UmamiMock, MockScriptProps } from "@/types/test";
 import { render, waitFor, act } from "@testing-library/react";
 import { Analytics } from "@/components/analytics/analytics.client";
-import { jest, describe, beforeEach, afterEach, it, expect } from "@jest/globals";
+import { vi } from "vitest";
 
 // Create mock functions
-const mockUsePathname = jest.fn();
+const mockUsePathname = vi.fn();
 
-// Mock next/navigation using jest.mock
-jest.mock("next/navigation", () => ({
+// Mock next/navigation using vi.mock
+vi.mock("next/navigation", () => ({
   usePathname: () => mockUsePathname(),
 }));
 
@@ -15,48 +15,50 @@ jest.mock("next/navigation", () => ({
 const loadedScripts: Record<string, boolean> = {};
 let mockScriptShouldError = false;
 
-// Mock next/script using jest.mock
+// Mock next/script using vi.mock
 
-jest.mock("next/script", () => ({
-  __esModule: true,
-  default: function Script({ id, onLoad, onError }: MockScriptProps) {
-    // Use React.useEffect to simulate script loading
-    const React = jest.requireActual("react") as typeof import("react");
-    React.useEffect(() => {
-      if (mockScriptShouldError) {
-        const timer = setTimeout(() => {
-          onError?.(new Error("Failed to load script"));
-        }, 10);
-        return () => clearTimeout(timer);
-      }
+vi.mock("next/script", async () => {
+  const React = await import("react");
+  return {
+    __esModule: true,
+    default: function Script({ id, onLoad, onError }: MockScriptProps) {
+      // Use React.useEffect to simulate script loading
+      React.useEffect(() => {
+        if (mockScriptShouldError) {
+          const timer = setTimeout(() => {
+            onError?.(new Error("Failed to load script"));
+          }, 10);
+          return () => clearTimeout(timer);
+        }
 
-      if (!loadedScripts[id]) {
-        const timer = setTimeout(() => {
-          if (id === "umami") {
-            // Mock Umami initialization
-            const umamiMock: UmamiMock = Object.assign(jest.fn(), {
-              track: jest.fn(),
-            });
-            (global as any).umami = umamiMock;
-            loadedScripts[id] = true; // Mark as loaded
-            onLoad?.();
-          } else if (id === "plausible") {
-            // Mock Plausible initialization
-            (global as any).plausible = jest.fn();
-            loadedScripts[id] = true; // Mark as loaded
-            onLoad?.();
-          }
-        }, 10);
-        return () => clearTimeout(timer);
-      }
-    }, [id, onLoad, onError]);
-    return null;
-  },
-}));
+        if (!loadedScripts[id]) {
+          const timer = setTimeout(() => {
+            if (id === "umami") {
+              // Mock Umami initialization
+              const umamiMock: UmamiMock = Object.assign(vi.fn(), {
+                track: vi.fn(),
+              });
+              (global as any).umami = umamiMock;
+              loadedScripts[id] = true; // Mark as loaded
+              onLoad?.();
+            } else if (id === "plausible") {
+              // Mock Plausible initialization
+              (global as any).plausible = vi.fn();
+              loadedScripts[id] = true; // Mark as loaded
+              onLoad?.();
+            }
+          }, 10);
+          return () => clearTimeout(timer);
+        }
+      }, [id, onLoad, onError]);
+      return null;
+    },
+  };
+});
 
 // Statically import the mocked modules *after* mocking
 
-describe.skip("Analytics", () => {
+describe.todo("Analytics", () => {
   const originalEnv = process.env;
   const mockWebsiteId = "test-website-id";
   const mockSiteUrl = "https://williamcallahan.com";
@@ -83,17 +85,17 @@ describe.skip("Analytics", () => {
     (global as any).plausible = undefined;
 
     // Use fake timers
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
     // Clear console mocks
-    jest.spyOn(console, "debug").mockImplementation(() => {});
-    jest.spyOn(console, "error").mockImplementation(() => {});
-    jest.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "debug").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   afterEach(() => {
     process.env = originalEnv;
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it("initializes analytics scripts correctly", async () => {
@@ -101,7 +103,7 @@ describe.skip("Analytics", () => {
 
     // Advance timers to trigger script load
     act(() => {
-      jest.advanceTimersByTime(20); // Revert to Jest timer mocks
+      vi.advanceTimersByTime(20); // Revert to fake timers
     });
 
     // Wait for scripts to "load"
@@ -151,7 +153,7 @@ describe.skip("Analytics", () => {
 
     // Advance timers to trigger script load (10ms) AND useEffect timeout (100ms)
     act(() => {
-      jest.advanceTimersByTime(150); // Revert to Jest timer mocks
+      vi.advanceTimersByTime(150); // Revert to fake timers
     });
 
     // Wait for the initial track calls (could be multiple) to settle
@@ -180,7 +182,7 @@ describe.skip("Analytics", () => {
     // Advance timers to allow the timeout in useEffect to trigger
     act(() => {
       // Advance timers past the 100ms timeout in the useEffect
-      jest.advanceTimersByTime(550); // Revert to Jest timer mocks
+      vi.advanceTimersByTime(550); // Revert to fake timers
     });
 
     // Wait for the track call triggered by the pathname change
@@ -198,14 +200,14 @@ describe.skip("Analytics", () => {
 
   it("handles script load errors gracefully", async () => {
     // Now using warn instead of error
-    const consoleSpy = jest.spyOn(console, "warn");
+    const consoleSpy = vi.spyOn(console, "warn");
 
     mockScriptShouldError = true;
     render(<Analytics />);
 
     // Advance timers to trigger error
     act(() => {
-      jest.advanceTimersByTime(20); // Revert to Jest timer mocks
+      vi.advanceTimersByTime(20); // Revert to fake timers
     });
 
     await waitFor(() => {

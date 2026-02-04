@@ -1,14 +1,14 @@
 /**
  * @fileoverview Tests for instrumentation register hook
- * @jest-environment node
+ * @vitest-environment node
  */
 
-jest.mock("../../src/instrumentation-node", () => ({
-  register: jest.fn(),
+vi.mock("../../src/instrumentation-node", () => ({
+  register: vi.fn(),
 }));
 
-jest.mock("../../src/instrumentation-edge", () => ({
-  register: jest.fn(),
+vi.mock("../../src/instrumentation-edge", () => ({
+  register: vi.fn(),
 }));
 
 describe("instrumentation register", () => {
@@ -16,8 +16,8 @@ describe("instrumentation register", () => {
 
   beforeEach(() => {
     process.env = { ...ORIGINAL_ENV };
-    jest.resetModules();
-    jest.clearAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   afterAll(() => {

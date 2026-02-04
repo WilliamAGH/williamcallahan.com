@@ -5,7 +5,7 @@
  * by mocking the underlying S3 operations.
  */
 
-import { describe, it, expect, jest, beforeEach, afterEach } from "@jest/globals";
+import { vi } from "vitest";
 import type { DistributedLockEntry } from "@/types";
 
 // Mock environment variables
@@ -32,40 +32,52 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
   const instanceId = "instance-1";
   const ttlMs = 300000; // 5 minutes
 
-  beforeEach(() => {
-    jest.resetModules();
-    jest.clearAllMocks();
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.clearAllMocks();
 
     // Use fixed time for deterministic testing
-    jest.spyOn(Date, "now").mockReturnValue(1000000);
+    vi.spyOn(Date, "now").mockReturnValue(1000000);
 
-    // Mock getMonotonicTime to match Date.now()
-    jest.doMock("@/lib/utils", () => ({
-      getMonotonicTime: () => 1000000,
-    }));
+    // Mock getMonotonicTime to match Date.now() while preserving other exports
+    vi.doMock("@/lib/utils", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("@/lib/utils")>();
+      return {
+        ...actual,
+        getMonotonicTime: () => 1000000,
+      };
+    });
   });
 
   afterEach(() => {
-    jest.resetModules();
+    vi.resetModules();
   });
 
   it("acquires a new lock when none exists", async () => {
     let lockState: DistributedLockEntry | null = null;
 
-    jest.doMock("@/lib/s3-utils", () => ({
-      readJsonS3: jest.fn((key: string) => {
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3Optional: vi.fn((key: string) => {
         if (key === lockKey) {
           return Promise.resolve(lockState);
         }
         return Promise.resolve(null);
       }),
-      writeJsonS3: jest.fn((key: string, value: DistributedLockEntry) => {
+      readJsonS3: vi.fn((key: string) => {
+        if (key === lockKey) {
+          return Promise.resolve(lockState);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn((key: string, value: DistributedLockEntry) => {
         if (key === lockKey) {
           lockState = value;
         }
         return Promise.resolve();
       }),
-      deleteFromS3: jest.fn((key: string) => {
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: vi.fn((key: string) => {
         if (key === lockKey) {
           lockState = null;
         }
@@ -93,15 +105,23 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
       ttlMs,
     };
 
-    jest.doMock("@/lib/s3-utils", () => ({
-      readJsonS3: jest.fn((key: string) => {
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3Optional: vi.fn((key: string) => {
         if (key === lockKey) {
           return Promise.resolve(existingLock);
         }
         return Promise.resolve(null);
       }),
-      writeJsonS3: jest.fn(() => Promise.resolve()),
-      deleteFromS3: jest.fn(() => Promise.resolve()),
+      readJsonS3: vi.fn((key: string) => {
+        if (key === lockKey) {
+          return Promise.resolve(existingLock);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn(() => Promise.resolve()),
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: vi.fn(() => Promise.resolve()),
     }));
 
     const { acquireDistributedLock } = await import("@/lib/utils/s3-distributed-lock.server");
@@ -125,20 +145,28 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
     let lockState: DistributedLockEntry | null = expiredLock;
     let lockDeleted = false;
 
-    jest.doMock("@/lib/s3-utils", () => ({
-      readJsonS3: jest.fn((key: string) => {
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3Optional: vi.fn((key: string) => {
         if (key === lockKey) {
           return Promise.resolve(lockDeleted ? lockState : expiredLock);
         }
         return Promise.resolve(null);
       }),
-      writeJsonS3: jest.fn((key: string, value: DistributedLockEntry) => {
+      readJsonS3: vi.fn((key: string) => {
+        if (key === lockKey) {
+          return Promise.resolve(lockState);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn((key: string, value: DistributedLockEntry) => {
         if (key === lockKey) {
           lockState = value;
         }
         return Promise.resolve();
       }),
-      deleteFromS3: jest.fn((key: string) => {
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: vi.fn((key: string) => {
         if (key === lockKey) {
           lockDeleted = true;
         }
@@ -166,15 +194,23 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
       ttlMs,
     };
 
-    jest.doMock("@/lib/s3-utils", () => ({
-      readJsonS3: jest.fn((key: string) => {
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3Optional: vi.fn((key: string) => {
         if (key === lockKey) {
           return Promise.resolve(lockState);
         }
         return Promise.resolve(null);
       }),
-      writeJsonS3: jest.fn(() => Promise.resolve()),
-      deleteFromS3: jest.fn((key: string) => {
+      readJsonS3: vi.fn((key: string) => {
+        if (key === lockKey) {
+          return Promise.resolve(lockState);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn(() => Promise.resolve()),
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: vi.fn((key: string) => {
         if (key === lockKey) {
           lockState = null;
         }
@@ -197,15 +233,23 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
     };
     let lockState: DistributedLockEntry | null = otherLock;
 
-    jest.doMock("@/lib/s3-utils", () => ({
-      readJsonS3: jest.fn((key: string) => {
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3Optional: vi.fn((key: string) => {
         if (key === lockKey) {
           return Promise.resolve(lockState);
         }
         return Promise.resolve(null);
       }),
-      writeJsonS3: jest.fn(() => Promise.resolve()),
-      deleteFromS3: jest.fn((key: string) => {
+      readJsonS3: vi.fn((key: string) => {
+        if (key === lockKey) {
+          return Promise.resolve(lockState);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn(() => Promise.resolve()),
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: vi.fn((key: string) => {
         if (key === lockKey) {
           lockState = null;
         }
@@ -231,15 +275,23 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
     };
     let lockState: DistributedLockEntry | null = staleLock;
 
-    jest.doMock("@/lib/s3-utils", () => ({
-      readJsonS3: jest.fn((key: string) => {
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3Optional: vi.fn((key: string) => {
         if (key === lockKey) {
           return Promise.resolve(lockState);
         }
         return Promise.resolve(null);
       }),
-      writeJsonS3: jest.fn(() => Promise.resolve()),
-      deleteFromS3: jest.fn((key: string) => {
+      readJsonS3: vi.fn((key: string) => {
+        if (key === lockKey) {
+          return Promise.resolve(lockState);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn(() => Promise.resolve()),
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: vi.fn((key: string) => {
         if (key === lockKey) {
           lockState = null;
         }
@@ -262,15 +314,23 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
     };
     let lockState: DistributedLockEntry | null = freshLock;
 
-    jest.doMock("@/lib/s3-utils", () => ({
-      readJsonS3: jest.fn((key: string) => {
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3Optional: vi.fn((key: string) => {
         if (key === lockKey) {
           return Promise.resolve(lockState);
         }
         return Promise.resolve(null);
       }),
-      writeJsonS3: jest.fn(() => Promise.resolve()),
-      deleteFromS3: jest.fn((key: string) => {
+      readJsonS3: vi.fn((key: string) => {
+        if (key === lockKey) {
+          return Promise.resolve(lockState);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn(() => Promise.resolve()),
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: vi.fn((key: string) => {
         if (key === lockKey) {
           lockState = null;
         }
@@ -289,20 +349,28 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
   it("createDistributedLock provides convenient instance methods", async () => {
     let lockState: DistributedLockEntry | null = null;
 
-    jest.doMock("@/lib/s3-utils", () => ({
-      readJsonS3: jest.fn((key: string) => {
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3Optional: vi.fn((key: string) => {
         if (key === lockKey) {
           return Promise.resolve(lockState);
         }
         return Promise.resolve(null);
       }),
-      writeJsonS3: jest.fn((key: string, value: DistributedLockEntry) => {
+      readJsonS3: vi.fn((key: string) => {
+        if (key === lockKey) {
+          return Promise.resolve(lockState);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn((key: string, value: DistributedLockEntry) => {
         if (key === lockKey) {
           lockState = value;
         }
         return Promise.resolve();
       }),
-      deleteFromS3: jest.fn((key: string) => {
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: vi.fn((key: string) => {
         if (key === lockKey) {
           lockState = null;
         }
@@ -330,23 +398,31 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
   it("handles S3 read errors gracefully during acquire", async () => {
     let lockState: DistributedLockEntry | null = null;
 
-    jest.doMock("@/lib/s3-utils", () => ({
-      readJsonS3: jest
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3Optional: vi
         .fn()
         .mockImplementationOnce(() => Promise.reject(new Error("S3 read error")))
-        .mockImplementation((key: any) => {
+        .mockImplementation((key: string) => {
           if (key === lockKey) {
             return Promise.resolve(lockState);
           }
           return Promise.resolve(null);
         }),
-      writeJsonS3: jest.fn((key: string, value: DistributedLockEntry) => {
+      readJsonS3: vi.fn((key: string) => {
+        if (key === lockKey) {
+          return Promise.resolve(lockState);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn((key: string, value: DistributedLockEntry) => {
         if (key === lockKey) {
           lockState = value;
         }
         return Promise.resolve();
       }),
-      deleteFromS3: jest.fn(() => Promise.resolve()),
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: vi.fn(() => Promise.resolve()),
     }));
 
     const { acquireDistributedLock } = await import("@/lib/utils/s3-distributed-lock.server");

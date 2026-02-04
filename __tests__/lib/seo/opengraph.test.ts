@@ -1,6 +1,6 @@
 /**
  * OpenGraph Metadata Tests
- * @jest-environment node
+ * @vitest-environment node
  */
 
 import { createArticleOgMetadata, BASE_OG_METADATA } from "@/lib/seo/opengraph";
@@ -9,7 +9,7 @@ import { isPacificDateString, type OpenGraphImage } from "@/types/seo";
 import { ogMetadataSchema } from "@/types/seo/opengraph";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
-// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
+// Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 // Mock process.env for tests
 process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
 

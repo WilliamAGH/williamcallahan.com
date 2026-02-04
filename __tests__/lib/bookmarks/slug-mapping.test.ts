@@ -9,23 +9,18 @@ import {
   getSlugForBookmark,
   getBookmarkIdFromSlug,
 } from "@/lib/bookmarks/slug-manager";
-import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
+import { bookmarkSlugMappingSchema } from "@/types/bookmark";
+import type { MockedFunction } from "vitest";
 
 // Mock dependencies
-jest.mock("@/lib/s3-utils");
-jest.mock("@/lib/utils/logger");
-jest.mock("node:fs", () => ({
-  promises: {
-    readFile: jest.fn().mockRejectedValue(new Error("File not found")),
-    writeFile: jest.fn(),
-    mkdir: jest.fn(),
-  },
-}));
+vi.mock("@/lib/s3/json");
+vi.mock("@/lib/utils/logger");
 
-const mockReadJsonS3 = readJsonS3 as jest.MockedFunction<typeof readJsonS3>;
-const mockWriteJsonS3 = writeJsonS3 as jest.MockedFunction<typeof writeJsonS3>;
+const mockReadJsonS3 = readJsonS3Optional as MockedFunction<typeof readJsonS3Optional>;
+const mockWriteJsonS3 = writeJsonS3 as MockedFunction<typeof writeJsonS3>;
 
 describe("Bookmark Slug Mapping", () => {
   const mockBookmarks: UnifiedBookmark[] = [
@@ -68,7 +63,7 @@ describe("Bookmark Slug Mapping", () => {
   ];
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("generateSlugMapping", () => {
@@ -209,7 +204,10 @@ describe("Bookmark Slug Mapping", () => {
 
       const result = await loadSlugMapping();
 
-      expect(mockReadJsonS3).toHaveBeenCalledWith(BOOKMARKS_S3_PATHS.SLUG_MAPPING);
+      expect(mockReadJsonS3).toHaveBeenCalledWith(
+        BOOKMARKS_S3_PATHS.SLUG_MAPPING,
+        bookmarkSlugMappingSchema,
+      );
       expect(result).toEqual(mockMapping);
     });
 

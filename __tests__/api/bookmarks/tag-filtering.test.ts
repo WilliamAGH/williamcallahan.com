@@ -4,18 +4,18 @@
 
 import { GET } from "@/app/api/bookmarks/route";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
 
 // Mock dependencies
-jest.mock("@/lib/bookmarks/service.server");
-jest.mock("@/lib/s3-utils");
-jest.mock("@/lib/bookmarks/slug-manager");
+vi.mock("@/lib/bookmarks/service.server");
+vi.mock("@/lib/s3/json");
+vi.mock("@/lib/bookmarks/slug-manager");
 
-const mockGetBookmarks = jest.mocked(getBookmarks);
-const mockReadJsonS3 = jest.mocked(readJsonS3);
-const mockLoadSlugMapping = jest.mocked(loadSlugMapping);
+const mockGetBookmarks = vi.mocked(getBookmarks);
+const mockReadJsonS3 = vi.mocked(readJsonS3Optional);
+const mockLoadSlugMapping = vi.mocked(loadSlugMapping);
 
 /**
  * Helper to generate a mock slug mapping from bookmarks
@@ -78,15 +78,15 @@ describe("Bookmark API Tag Filtering", () => {
   ];
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    console.log = jest.fn(); // Suppress console logs in tests
+    vi.clearAllMocks();
+    vi.spyOn(console, "log").mockImplementation(() => {}); // Suppress console logs in tests
     // Set up default slug mapping mock
     mockLoadSlugMapping.mockResolvedValue(createMockSlugMapping(mockBookmarks));
+    mockReadJsonS3.mockResolvedValue(null);
   });
 
   afterEach(() => {
-    // Restore original console.log
-    console.log = jest.requireActual("console").log;
+    vi.restoreAllMocks();
   });
 
   describe("Tag parameter handling", () => {
@@ -250,11 +250,7 @@ describe("Bookmark API Tag Filtering", () => {
 
     it("should return all bookmarks when no tag filter provided", async () => {
       mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
-      mockReadJsonS3.mockResolvedValueOnce({
-        count: mockBookmarks.length,
-        totalPages: 1,
-        lastFetchedAt: Date.now(),
-      });
+      mockReadJsonS3.mockResolvedValueOnce(null);
 
       const request = {
         url: "http://localhost:3000/api/bookmarks",
@@ -274,6 +270,7 @@ describe("Bookmark API Tag Filtering", () => {
 
   describe("Error handling", () => {
     it("should handle errors gracefully", async () => {
+      mockReadJsonS3.mockResolvedValueOnce(null);
       mockGetBookmarks.mockRejectedValueOnce(new Error("Database error"));
 
       const request = {

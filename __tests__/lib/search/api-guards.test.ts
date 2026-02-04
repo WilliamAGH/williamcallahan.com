@@ -17,21 +17,24 @@ import {
 import { NextRequest } from "next/server";
 
 // Mock the rate limiter
-const mockIsOperationAllowed = jest.fn(() => true);
-jest.mock("@/lib/rate-limiter", () => ({
+const mockIsOperationAllowed = vi.fn(() => true);
+vi.mock("@/lib/rate-limiter", () => ({
   isOperationAllowed: (...args: unknown[]) => mockIsOperationAllowed(...args),
 }));
 
-// Mock os module
-jest.mock("node:os", () => ({
-  totalmem: jest.fn(() => 8 * 1024 * 1024 * 1024), // 8GB
+// Mock os module - need both default and named export for ESM compatibility
+vi.mock("node:os", () => ({
+  default: {
+    totalmem: vi.fn(() => 8 * 1024 * 1024 * 1024), // 8GB
+  },
+  totalmem: vi.fn(() => 8 * 1024 * 1024 * 1024), // 8GB
 }));
 
 describe("Search API Guards", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    jest.resetModules();
+    vi.resetModules();
     process.env = { ...originalEnv };
     delete process.env.MEMORY_CRITICAL_BYTES;
     delete process.env.MEMORY_CRITICAL_PERCENT;

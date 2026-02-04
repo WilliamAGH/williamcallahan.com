@@ -2,32 +2,30 @@
  * CvPage server component tests
  */
 
+import type { MockedFunction } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-jest.mock("@/components/features/cv/CvPdfDownloadButton", () => ({
+vi.mock("@/components/features/cv/CvPdfDownloadButton", () => ({
   __esModule: true,
-  default: jest.fn(() => null),
+  default: vi.fn(() => null),
 }));
 
 import CvPage from "@/app/cv/page";
 import CvPdfDownloadButtonEnhancer from "@/components/features/cv/CvPdfDownloadButton";
 
-const mockEnhancer = CvPdfDownloadButtonEnhancer as jest.MockedFunction<
+const mockEnhancer = CvPdfDownloadButtonEnhancer as MockedFunction<
   typeof CvPdfDownloadButtonEnhancer
 >;
 
 describe("CvPage", () => {
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
     mockEnhancer.mockClear();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("renders curriculum vitae sections without qualifications", async () => {
-    jest.useFakeTimers({
-      now: new Date("2025-11-08T12:00:00Z"),
-      doNotFake: ["nextTick", "performance"],
-    });
+    vi.useFakeTimers({ now: new Date("2025-11-08T12:00:00Z") });
 
     const page = await Promise.resolve(CvPage());
     render(page);
@@ -44,10 +42,7 @@ describe("CvPage", () => {
   });
 
   it("wires the download enhancer and renders contact links", async () => {
-    jest.useFakeTimers({
-      now: new Date("2025-11-08T00:00:00Z"),
-      doNotFake: ["nextTick", "performance"],
-    });
+    vi.useFakeTimers({ now: new Date("2025-11-08T00:00:00Z") });
 
     const page = await Promise.resolve(CvPage());
     render(page);
