@@ -119,14 +119,6 @@ export async function persistBinaryToS3(
   await writeBinaryS3(s3Key, data, contentType);
 }
 
-// Re-export Jina cache functions for backward compatibility
-export {
-  persistJinaHtmlInBackground,
-  persistJinaMarkdownInBackground,
-  getCachedJinaHtml,
-  getCachedJinaMarkdown,
-} from "./jina-cache";
-
 /**
  * Retrieve a hardcoded OpenGraph override from S3
  *

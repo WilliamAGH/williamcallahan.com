@@ -13,9 +13,8 @@ import { envLogger } from "@/lib/utils/env-logger";
 import { getMonotonicTime } from "@/lib/utils";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
+import { getCachedJinaHtml, persistJinaHtmlInBackground } from "@/lib/persistence/jina-cache";
 import {
-  getCachedJinaHtml,
-  persistJinaHtmlInBackground,
   scheduleImagePersistence,
   persistImageAndGetS3Url,
 } from "@/lib/persistence/s3-persistence";
