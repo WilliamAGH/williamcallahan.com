@@ -1,7 +1,6 @@
 import "server-only";
 
 import crypto from "node:crypto";
-import { getMonotonicTime } from "@/lib/utils";
 import type {
   AiGateTokenPayloadV1,
   AiGateTokenVerificationResult,
@@ -40,11 +39,33 @@ export function createAiGateToken(secret: string, payload: AiGateTokenPayloadV1)
   return `${payloadB64}.${sig}`;
 }
 
+function parseAiGateTokenPayload(payload: unknown): AiGateTokenPayloadV1 | null {
+  if (!payload || typeof payload !== "object") return null;
+  const record = payload as Record<string, unknown>;
+  if (record.v !== 1) return null;
+
+  const exp = record.exp;
+  const n = record.n;
+  const ip = record.ip;
+  const ua = record.ua;
+
+  if (
+    typeof exp !== "number" ||
+    typeof n !== "string" ||
+    typeof ip !== "string" ||
+    typeof ua !== "string"
+  ) {
+    return null;
+  }
+
+  return { v: 1, exp, n, ip, ua };
+}
+
 export function verifyAiGateToken(
   secret: string,
   token: string,
   expected: { ip: string; ua: string; nonce: string },
-  nowMs = getMonotonicTime(),
+  nowMs = Date.now(),
 ): AiGateTokenVerificationResult {
   const parts = token.split(".");
   if (parts.length !== 2) return { ok: false, reason: "invalid_format" };
@@ -71,16 +92,8 @@ export function verifyAiGateToken(
     return { ok: false, reason: "invalid_format" };
   }
 
-  const payload = parsed as Partial<AiGateTokenPayloadV1>;
-  if (
-    payload.v !== 1 ||
-    typeof payload.exp !== "number" ||
-    typeof payload.n !== "string" ||
-    typeof payload.ip !== "string" ||
-    typeof payload.ua !== "string"
-  ) {
-    return { ok: false, reason: "invalid_format" };
-  }
+  const payload = parseAiGateTokenPayload(parsed);
+  if (!payload) return { ok: false, reason: "invalid_format" };
 
   if (nowMs > payload.exp) return { ok: false, reason: "expired" };
 
@@ -88,5 +101,5 @@ export function verifyAiGateToken(
     return { ok: false, reason: "mismatch" };
   }
 
-  return { ok: true, payload: payload as AiGateTokenPayloadV1 };
+  return { ok: true, payload };
 }
