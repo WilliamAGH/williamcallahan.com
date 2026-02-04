@@ -15,13 +15,14 @@ import type {
   LightweightBookmark,
 } from "@/types/bookmark";
 import type { SerializableBookmark } from "@/types/features/bookmarks";
+import { getMonotonicTime } from "@/lib/utils";
 
 /**
  * Calculates the date 30 days ago from the current time.
  * @returns {Date} The date 30 days ago.
  */
 function thirtyDaysAgo(): Date {
-  const date = new Date();
+  const date = new Date(getMonotonicTime());
   date.setDate(date.getDate() - 30);
   return date;
 }

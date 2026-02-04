@@ -40,6 +40,20 @@ export function cn(...inputs: ClassValue[]) {
  */
 export const FIXED_BUILD_TIMESTAMP = 1700000000000;
 
+const getRuntimeEnvValue = (key: string): string | undefined => {
+  if (typeof globalThis === "undefined") return undefined;
+  const runtimeEnv = (globalThis as { process?: NodeJS.Process }).process?.env;
+  return runtimeEnv?.[key];
+};
+
+let monotonicFallbackCounter = 0;
+let monotonicFallbackLogged = false;
+
+const getFallbackMonotonicTime = (): number => {
+  monotonicFallbackCounter = Math.min(monotonicFallbackCounter + 1, Number.MAX_SAFE_INTEGER);
+  return FIXED_BUILD_TIMESTAMP + monotonicFallbackCounter;
+};
+
 /**
  * Provides a monotonic timestamp for cache expiration and timing.
  * Uses performance.timeOrigin + performance.now() (via perf_hooks in Node) to
@@ -49,18 +63,30 @@ export const FIXED_BUILD_TIMESTAMP = 1700000000000;
 export function getMonotonicTime(): number {
   // During Next.js production build, return a fixed timestamp to avoid "Date.now()" errors
   // in Server Components (static generation)
-  if (process.env.NEXT_PHASE === "phase-production-build") {
+  const nextPhase = getRuntimeEnvValue("NEXT_PHASE");
+  if (nextPhase === "phase-production-build") {
     return FIXED_BUILD_TIMESTAMP;
   }
 
   if (typeof globalThis !== "undefined") {
     const perf = globalThis.performance;
     if (perf && typeof perf.now === "function") {
-      return Math.floor(perf.timeOrigin + perf.now());
+      const timeOrigin = typeof perf.timeOrigin === "number" ? perf.timeOrigin : 0;
+      const value = Math.floor(timeOrigin + perf.now());
+      if (Number.isFinite(value)) {
+        return value;
+      }
     }
   }
-  // Fallback to Date.now() to stay aligned with epoch timestamps used elsewhere
-  return Date.now();
+
+  if (!monotonicFallbackLogged) {
+    monotonicFallbackLogged = true;
+    console.warn(
+      "[getMonotonicTime] Performance API unavailable; using deterministic fallback timestamp.",
+    );
+  }
+
+  return getFallbackMonotonicTime();
 }
 
 /**
