@@ -48,6 +48,41 @@ const ongoingRequests = new Map<
 >();
 
 /**
+ * Persist an image to S3 with explicit error logging on failure.
+ * Returns the S3 URL on success, undefined on failure or read-only mode.
+ * Per RC1: errors are logged explicitly before fallback, not silently swallowed.
+ */
+async function tryPersistImageToS3(
+  imageUrl: string,
+  directory: string,
+  context: string,
+  idempotencyKey: string,
+  pageUrl: string,
+): Promise<string | undefined> {
+  try {
+    const s3Url = await persistImageAndGetS3Url(
+      imageUrl,
+      directory,
+      context,
+      idempotencyKey,
+      pageUrl,
+    );
+    if (s3Url) {
+      envLogger.log(`${context} persisted to S3`, { s3Url }, { category: "OpenGraph" });
+      return s3Url;
+    }
+    // null means read-only mode - not an error, just skipped
+    return undefined;
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[OpenGraph] S3 ${context} persistence failed for ${imageUrl}, keeping original: ${errorMsg}`,
+    );
+    return undefined;
+  }
+}
+
+/**
  * Fetches OpenGraph data from external source with retry logic and request deduplication
  *
  * @param url - URL to fetch
@@ -398,25 +433,15 @@ async function fetchExternalOpenGraph(
         { bestImageUrl },
         { category: "OpenGraph" },
       );
-      try {
-        const s3Url = await persistImageAndGetS3Url(
-          bestImageUrl,
-          OPENGRAPH_IMAGES_S3_DIR,
-          "OpenGraph",
-          fallbackImageData.idempotencyKey,
-          url,
-        );
-        // s3Url is null in read-only mode (not an error, just skipped)
-        if (s3Url) {
-          finalImageUrl = s3Url;
-          envLogger.log(`Image persisted to S3`, { s3Url }, { category: "OpenGraph" });
-        }
-      } catch (err) {
-        // Log error explicitly, then fall back to original URL (RC1: no silent degradation)
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        console.error(
-          `[OpenGraph] S3 persistence failed for ${bestImageUrl}, keeping original: ${errorMsg}`,
-        );
+      const s3Url = await tryPersistImageToS3(
+        bestImageUrl,
+        OPENGRAPH_IMAGES_S3_DIR,
+        "OpenGraph",
+        fallbackImageData.idempotencyKey,
+        url,
+      );
+      if (s3Url) {
+        finalImageUrl = s3Url;
       }
     } else {
       // In runtime mode, schedule background persistence
@@ -471,33 +496,19 @@ async function fetchExternalOpenGraph(
 
     if (isBatchMode) {
       envLogger.log(
-        `Batch mode: Persisting profile image synchronously`,
+        `Batch mode: Persisting profile image`,
         { dir: profileImageDirectory },
         { category: "OpenGraph" },
       );
-      try {
-        const s3ProfileUrl = await persistImageAndGetS3Url(
-          profileImageUrl,
-          profileImageDirectory,
-          "ProfileImage",
-          `profile-${fallbackImageData.idempotencyKey}`,
-          url,
-        );
-        // s3ProfileUrl is null in read-only mode (not an error, just skipped)
-        if (s3ProfileUrl) {
-          finalProfileImageUrl = s3ProfileUrl;
-          envLogger.log(
-            `Profile image persisted to S3`,
-            { s3ProfileUrl },
-            { category: "OpenGraph" },
-          );
-        }
-      } catch (err) {
-        // Log error explicitly, then fall back to original URL (RC1: no silent degradation)
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        console.error(
-          `[OpenGraph] S3 profile image persistence failed for ${profileImageUrl}, keeping original: ${errorMsg}`,
-        );
+      const s3ProfileUrl = await tryPersistImageToS3(
+        profileImageUrl,
+        profileImageDirectory,
+        "ProfileImage",
+        `profile-${fallbackImageData.idempotencyKey}`,
+        url,
+      );
+      if (s3ProfileUrl) {
+        finalProfileImageUrl = s3ProfileUrl;
       }
     } else {
       envLogger.log(
@@ -521,28 +532,16 @@ async function fetchExternalOpenGraph(
     envLogger.log(`Found banner image`, { bannerImageUrl }, { category: "OpenGraph" });
 
     if (isBatchMode) {
-      envLogger.log(`Batch mode: Persisting banner image synchronously`, undefined, {
-        category: "OpenGraph",
-      });
-      try {
-        const s3BannerUrl = await persistImageAndGetS3Url(
-          bannerImageUrl,
-          "social-banners",
-          "BannerImage",
-          `banner-${fallbackImageData.idempotencyKey}`,
-          url,
-        );
-        // s3BannerUrl is null in read-only mode (not an error, just skipped)
-        if (s3BannerUrl) {
-          finalBannerImageUrl = s3BannerUrl;
-          envLogger.log(`Banner image persisted to S3`, { s3BannerUrl }, { category: "OpenGraph" });
-        }
-      } catch (err) {
-        // Log error explicitly, then fall back to original URL (RC1: no silent degradation)
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        console.error(
-          `[OpenGraph] S3 banner image persistence failed for ${bannerImageUrl}, keeping original: ${errorMsg}`,
-        );
+      envLogger.log(`Batch mode: Persisting banner image`, undefined, { category: "OpenGraph" });
+      const s3BannerUrl = await tryPersistImageToS3(
+        bannerImageUrl,
+        "social-banners",
+        "BannerImage",
+        `banner-${fallbackImageData.idempotencyKey}`,
+        url,
+      );
+      if (s3BannerUrl) {
+        finalBannerImageUrl = s3BannerUrl;
       }
     } else {
       envLogger.log(`Scheduling banner image persistence`, undefined, { category: "OpenGraph" });
