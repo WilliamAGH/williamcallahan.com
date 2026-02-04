@@ -30,7 +30,8 @@ import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { fetchBookListItems } from "@/lib/books/audiobookshelf.server";
 import { prepareDocumentsForIndexing } from "@/lib/utils/search-helpers";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
-import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
+import { tryGetEmbeddedSlug, generateFallbackSlug } from "@/lib/bookmarks/slug-helpers";
+import logger from "@/lib/utils/logger";
 import { serializeIndex, isRecord } from "./serialization";
 import {
   POSTS_INDEX_CONFIG,
@@ -45,21 +46,29 @@ import {
 /**
  * Creates an empty MiniSearch instance from a config.
  * Used by index-builder to create indexes before adding transformed documents.
+ *
+ * CRITICAL: Only include extractField if defined. Passing `undefined` explicitly
+ * overrides MiniSearch's default extractField function, causing "extractField is
+ * not a function" errors at index.addAll() time.
  */
 function createEmptyIndex<T, VF extends string = never>(
   config: IndexFieldConfig<T, VF>,
 ): MiniSearch<T> {
-  return new MiniSearch<T>({
+  const baseOptions = {
     fields: config.fields as string[],
     storeFields: config.storeFields,
     idField: config.idField,
     searchOptions: {
       boost: config.boost as { [fieldName: string]: number } | undefined,
-      fuzzy: config.fuzzy,
+      fuzzy: config.fuzzy ?? 0.2,
       prefix: true,
     },
-    extractField: config.extractField,
-  });
+  };
+
+  // Only include extractField if defined - passing undefined overrides MiniSearch's default
+  return config.extractField
+    ? new MiniSearch<T>({ ...baseOptions, extractField: config.extractField })
+    : new MiniSearch<T>(baseOptions);
 }
 
 /**
@@ -148,16 +157,16 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
   const slugMapping = await loadSlugMapping();
 
   // Transform bookmarks for indexing with slug resolution
+  let fallbackCount = 0;
   const bookmarksForIndex: BookmarkIndexItem[] = bookmarks.map((b) => {
     const embedded = tryGetEmbeddedSlug(b);
-    const slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
+    let slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
 
+    // Generate fallback slug if no embedded or mapped slug exists
+    // This ensures all bookmarks are indexed even without explicit slugs
     if (!slug) {
-      throw new Error(
-        `[Search Index Builder] CRITICAL: No slug found for bookmark ${b.id}. ` +
-          `Title: ${b.title}, URL: ${b.url}. ` +
-          `This indicates an incomplete slug mapping.`,
-      );
+      slug = generateFallbackSlug(b.url, b.id);
+      fallbackCount++;
     }
 
     return {
@@ -175,6 +184,14 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
       slug,
     };
   });
+
+  if (fallbackCount > 0) {
+    // Log at warn level so this is visible in production - indicates missing slug mappings
+    logger.warn(
+      `[Search Index Builder] Generated fallback slugs for ${fallbackCount}/${bookmarks.length} bookmarks - consider regenerating slug mapping`,
+      { fallbackCount, totalBookmarks: bookmarks.length },
+    );
+  }
 
   index.addAll(bookmarksForIndex);
   return serializeIndex(index, bookmarksForIndex.length);

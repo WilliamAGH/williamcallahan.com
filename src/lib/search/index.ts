@@ -18,6 +18,7 @@ export {
 export { searchBookmarks, searchBooks } from "./searchers/dynamic-searchers";
 
 export { searchTags } from "./searchers/tag-search";
+export { searchAiAnalysis } from "./searchers/ai-analysis-searcher";
 export { searchThoughts } from "./searchers/thoughts-search";
 
 // Cache invalidation

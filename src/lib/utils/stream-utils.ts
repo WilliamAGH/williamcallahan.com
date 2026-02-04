@@ -3,6 +3,8 @@
  * @module lib/utils/stream-utils
  */
 
+import logger from "./logger";
+
 const ASSET_STREAM_TIMEOUT_MS = 20_000; // 20 seconds
 const MAX_ASSET_SIZE_BYTES = 50 * 1024 * 1024; // 50MB limit
 
@@ -58,8 +60,9 @@ export function createMonitoredStream(
             onViolation?.(sizeError);
             try {
               await reader.cancel(sizeError);
-            } catch {
-              // ignore cancel failures
+            } catch (cancelErr) {
+              // Cancel can fail if stream already closed - log for debugging
+              logger.debug(`[stream-utils] Cancel failed for ${assetId}:`, cancelErr);
             }
             controller.error(sizeError);
             return;
@@ -72,14 +75,17 @@ export function createMonitoredStream(
         onViolation?.(normalizedError);
         try {
           await reader.cancel(normalizedError);
-        } catch {
-          // ignore cancel failures
+        } catch (cancelErr) {
+          // Cancel can fail if stream already closed - log for debugging
+          logger.debug(`[stream-utils] Cancel failed:`, cancelErr);
         }
         controller.error(normalizedError);
       }
     },
     cancel(reason) {
-      reader.cancel(reason).catch(() => {});
+      reader.cancel(reason).catch((err) => {
+        logger.debug("[stream-utils] Cancel in cleanup failed:", err);
+      });
     },
   });
 }
@@ -113,8 +119,9 @@ export async function streamToBufferWithLimits(
         );
         try {
           await reader.cancel(sizeError);
-        } catch {
-          // ignore cancel failures
+        } catch (cancelErr) {
+          // Cancel can fail if stream already closed - log for debugging
+          logger.debug(`[stream-utils] Cancel failed for ${assetId}:`, cancelErr);
         }
         throw sizeError;
       }

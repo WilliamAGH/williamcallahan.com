@@ -19,6 +19,7 @@ export const SEARCH_INDEX_KEYS = {
   PROJECTS: "search:index:projects",
   BOOKS: "search:index:books",
   BOOKS_DATA: "search:books-data", // Shared cache for full Book[] data
+  AI_ANALYSIS: "search:ai-analysis", // AI-generated analysis content
 } as const;
 
 /**
