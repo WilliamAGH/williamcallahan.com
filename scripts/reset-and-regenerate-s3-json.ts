@@ -46,7 +46,7 @@
 import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
 loadEnvironmentWithMultilineSupport();
 
-import { listS3Objects, deleteFromS3, getS3ObjectMetadata } from "@/lib/s3-utils";
+import { deleteFromS3, getS3ObjectMetadata, listS3Objects } from "@/lib/s3/objects";
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
 import { saveSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { getBookmarks } from "@/lib/bookmarks/service.server";

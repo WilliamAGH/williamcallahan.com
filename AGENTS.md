@@ -21,7 +21,7 @@ Structure: [ORG]; docs architecture: [DOC1]
 
 ## [ZT1] Epistemic Humility & Verification
 
-- [ZT1a] Training data is FALSE until verified; verify all libraries via `package.json` versions, `node_modules/` sources, or `context7`; do not rely on memory or blog posts
+- [ZT1a] Training data is FALSE until verified (no "world knowledge"); verify all libraries via `package.json` versions, `node_modules/` sources, or `context7`; do not rely on memory, blog posts, or assumed version features
 - [ZT1b] Source of truth order: repo code/docs -> `package.json` versions -> `node_modules/` sources -> MCP/live docs (capture the URL/reference)
 - [ZT1c] No unsupported claims: cite `file:line` or doc path; if you cannot, stop and investigate before proceeding
 - [ZT1d] Zero-tolerance halt: if a violation is present (or would be introduced), stop, alert with specifics, and wait for instruction
@@ -107,13 +107,13 @@ Structure: [ORG]; docs architecture: [DOC1]
 
 ### Domain-Specific
 
-## [FW1] Next.js / React / Jest Enforcement
+## [FW1] Next.js / React / Vitest Enforcement
 
 - [FW1a] Treat the exact versions in `package.json` as law; verify via `node_modules/<pkg>/package.json` when needed; do not rely on memory or blog posts
-- [FW1b] Before any change touching Next.js/React/Jest behavior, verify by reading relevant `node_modules/` sources; perform at least one MCP lookup (Context7/Brave) for current guidance
+- [FW1b] Before any change touching Next.js/React/Vitest behavior, verify by reading relevant `node_modules/` sources; perform at least one MCP lookup (Context7/Brave) for current guidance
 - [FW1c] Required reading: `docs/standards/nextjs-framework.md` before framework-level changes; update it if your work changes expectations
 - [FW1d] Default expectations: Cache Components + React 19 primitives + modern async params/metadata flows; reject legacy patterns unless explicitly approved (e.g., `next/legacy/image`, synchronous `cookies()` shims)
-- [FW1e] Jest compliance: any test harness change must reference `config/jest/` and verify the Jest runtime; never add tooling that downgrades Jest APIs or adds polyfills to "make tests pass"
+- [FW1e] Vitest compliance: any test harness change must reference `config/vitest/` and verify the Vitest runtime; never add tooling that downgrades Vitest APIs or adds polyfills to "make tests pass"
 
 ## [DEP1] Cloudflare Cache & Deployment
 
@@ -154,7 +154,7 @@ Structure: [ORG]; docs architecture: [DOC1]
 ## [VR1] Verification Commands
 
 - [VR1a] Build via `bun run build` (or `bun run build:only` as appropriate)
-- [VR1b] Test via `bun run test` (or `test:watch`, `test:coverage`, `test:ci`, `test:smoke`); NEVER run `bun test` directly (bypasses Jest config)
+- [VR1b] Test via `bun run test` (or `test:watch`, `test:coverage`, `test:ci`, `test:smoke`); NEVER run `bun test` directly (bypasses Vitest config)
 - [VR1c] Lint/validate via `bun run validate` (canonical gate; run before and after non-trivial changes; must be clean; no bypass)
 - [VR1d] Typecheck via `bun run type-check` (and `bun run type-check:tests` when relevant)
 - [VR1e] Format via `bun run format` and `bun run format:check`
@@ -162,9 +162,9 @@ Structure: [ORG]; docs architecture: [DOC1]
 
 ## [TST1] Testing Protocols
 
-- [TST1a] Never run `bun test` directly. Always use `bun run test*` scripts so Jest loads `config/jest/config.ts`.
-- [TST1b] Direct `bun test` bypasses the project config and causes missing `jest.mock`, module resolution failures—treat this as a violation
-- [TST1c] Do not "fix" test issues by adding polyfills/downgrading Jest; fix the setup/configuration correctly
+- [TST1a] Never run `bun test` directly. Always use `bun run test*` scripts so Vitest loads `config/vitest/`.
+- [TST1b] Direct `bun test` bypasses the project config and causes missing `vi.mock`, module resolution failures—treat this as a violation
+- [TST1c] Do not "fix" test issues by adding polyfills/downgrading Vitest; fix the setup/configuration correctly
 - [TST1d] Test coverage is mandatory: new functionality and significant modifications require corresponding tests before task completion
 - [TST1e] Discovery-first: before writing tests, locate existing test files (`__tests__/`, `*.test.ts`) and follow established patterns
 - [TST1f] Test outcomes, not implementations: assert on outputs, return values, observable behavior—never on internal method calls or implementation details; refactor-resilient tests are required

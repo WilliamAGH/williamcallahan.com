@@ -345,7 +345,7 @@ export default function GlobalError({
 - [linting-formatting.md](./linting-formatting.md) - Type safety and code quality
 - [state-theme-window-providers.md](./state-theme-window-providers.md) - Client-side state management
 - [next-js-16-usage.md](./next-js-16-usage.md) - Cache Components, async params, and outlawed patterns
-- [testing-config.md](./testing-config.md) - Jest 30 enforcement and testing workflow
+- [testing-config.md](./testing-config.md) - Vitest 4 enforcement and testing workflow
 
 ## References
 

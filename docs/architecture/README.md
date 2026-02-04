@@ -8,7 +8,7 @@ This document serves as the master index for all architectural documentation in 
 
 This project enforces **100% strict TypeScript type safety** and adherence to modern Next.js and React best practices. All code must pass `bun run validate` before any commit. This is non-negotiable.
 
-**Framework guardrails live in [`nextjs-framework.md`](../standards/nextjs-framework.md).** Read it before changing anything tied to Next.js 16, React 19, or Jest 30.
+**Framework guardrails live in [`nextjs-framework.md`](../standards/nextjs-framework.md).** Read it before changing anything tied to Next.js 16, React 19, or Vitest 4.
 
 For a comprehensive guide on how to diagnose and fix type errors, and for crucial framework guidance, see the master playbook:
 
@@ -45,7 +45,10 @@ Example schemas:
 - Bookmark refresh pipelines preserve embedded slugs during metadata-only updates to avoid URL churn (see `bookmarks.md`).
 - Search indexes loaded from S3 hydrate with build-time MiniSearch options for consistent scoring (see `search.md`).
 - Image streaming fallbacks re-fetch before buffering to respect single-use Response bodies (see `image-handling.md`).
+- S3 I/O is standardized under `lib/s3/*` with SDK retries only; CDN usage is explicit at call sites (see `s3-storage.md`).
+- Bookmark reads no longer use local S3 cache fallbacks; all bookmark storage access is S3-only (see `bookmarks.md`).
 - Proxy-level protections: `src/proxy.ts` applies sitewide rate limiting via `src/lib/middleware/sitewide-rate-limit.ts` and sheds load under real memory pressure (cgroup-based) via `src/lib/middleware/memory-pressure.ts`.
+- Live Chroma integration tests are opt-in and gated by `CHROMA_*` env vars (see `chroma.md`).
 
 ## Core Architectural Patterns
 
@@ -75,7 +78,7 @@ TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for re
 | :----------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------ | :------------------------------------------- |
 | `accessibility`                | Provide reusable components and utilities to enhance accessibility and ensure WCAG compliance.                                                                           | [accessibility.md](../features/accessibility.md)        | [Diagram](../features/accessibility.mmd)     |
 | `ai-shared-services`           | Unified AI provider integration (OpenAI, OpenRouter, Perplexity, Groq) and web search APIs with streaming, tool calling, and modern features.                            | [ai-services.md](ai-services.md)                        |                                              |
-| `next-js-16-usage`             | Governs all framework-level work for Next.js 16, React 19, and Jest 30 (cache components, async params, outlawed patterns).                                              | [nextjs-framework.md](../standards/nextjs-framework.md) |                                              |
+| `next-js-16-usage`             | Governs all framework-level work for Next.js 16, React 19, and Vitest 4 (cache components, async params, outlawed patterns).                                             | [nextjs-framework.md](../standards/nextjs-framework.md) |                                              |
 | `analytics`                    | Load and manage third-party tracking scripts (Plausible, Umami, Clicky) in a safe, non-blocking, and privacy-conscious manner.                                           | [analytics.md](../features/analytics.md)                |                                              |
 | `app-layout`                   | Provide the root layout wrapper with global styles, providers, and a consistent UI structure for all pages.                                                              | [app-layout.md](app-layout.md)                          | [Diagram](app-layout.mmd)                    |
 | `batch-fetch-update`           | Outline the automated background refresh schedule and batch processing architecture for production data.                                                                 | [batch-processing.md](batch-processing.md)              |                                              |
@@ -115,7 +118,7 @@ TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for re
 | `state-theme-window-providers` | Provide centralized provider composition for application-wide state, including theme, terminal, and window management.                                                   | [state-management.md](state-management.md)              | [Diagram](state-management.mmd)              |
 | `string-manipulation`          | Contain generic utilities for formatting and converting strings (e.g., `kebabCase`).                                                                                     | [utils.md](utils.md)                                    |                                              |
 | `terminal`                     | Encompass components and utilities that manage the display, interaction, and state of the application's terminal interface.                                              | [terminal.md](../features/terminal.md)                  | [Diagram](../features/terminal.mmd)          |
-| `testing-config`               | Configure and set up the testing environment for both Jest and Bun test runners, including mocks, polyfills, and type definitions.                                       | [testing.md](../standards/testing.md)                   | [Diagram](../standards/testing.mmd)          |
+| `testing-config`               | Configure and set up the testing environment for Vitest, including mocks, jsdom setup, and type definitions.                                                             | [testing.md](../standards/testing.md)                   | [Diagram](../standards/testing.mmd)          |
 
 ### Provider Localization Note
 

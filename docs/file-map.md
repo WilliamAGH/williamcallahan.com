@@ -220,9 +220,15 @@ File/Path Functionality Description
 - [x] `logo.server.ts` `image-handling` - Server-side helper functions for logos
 - [x] `logo.ts` `image-handling` - Core logo logic
 - [x] `rate-limiter.ts` `rate-limit-and-sanitize` - API rate limiting
-- [x] `s3-utils.ts` `s3-object-storage` - S3 utility functions
-- [x] `s3.ts` `s3-object-storage` - S3 client setup
 - [x] `search.ts` `search` - Universal search utility
+- [x] **s3/**
+  - [x] `client.ts` `s3-object-storage` - S3 client creation + SDK retry config
+  - [x] `config.ts` `s3-object-storage` - S3 configuration validation
+  - [x] `errors.ts` `s3-object-storage` - Canonical S3 error types
+  - [x] `objects.ts` `s3-object-storage` - Raw S3 object operations
+  - [x] `json.ts` `s3-object-storage` - JSON read/write helpers
+  - [x] `binary.ts` `s3-object-storage` - Binary read/write helpers
+  - [x] `stream.ts` `s3-object-storage` - Stream-to-buffer utilities
 - [x] `server-cache.ts` `caching` - Server-side in-memory cache
 - [x] `utils.ts` `shared-utils` - Shared utility helpers
 - [ ] **blog/**
@@ -232,6 +238,8 @@ File/Path Functionality Description
   - [x] `validation.ts` `blog` - Blog data validation schemas
 - [ ] **bookmarks/**
   - [x] `index.ts` `bookmarks` - Barrel file for bookmark library functions
+  - [x] `bookmarks-s3-store.ts` `bookmarks` - S3-only bookmark reads (replaces local fallback paths)
+  - [x] `slug-shards.ts` `bookmarks` - S3 shard helpers for bookmark slugs
   - [x] **analysis/**
     - [x] `build-prompt.ts` `bookmarks` - LLM prompt builder for bookmark analysis
     - [x] `extract-context.ts` `bookmarks` - Context extraction for bookmark analysis
@@ -283,8 +291,14 @@ File/Path Functionality Description
   - [x] **analysis/**
     - [x] `build-prompt.ts` `projects` - LLM prompt builder for project analysis
     - [x] `extract-context.ts` `projects` - Context extraction for project analysis
-- [x] **s3-utils/**
-  - [x] `index.ts` `s3-object-storage` - Barrel file for S3 utilities
+- [x] **s3/**
+  - [x] `binary.ts` `s3-object-storage` - Binary S3 read/write helpers
+  - [x] `client.ts` `s3-object-storage` - S3 client creation + retry config
+  - [x] `config.ts` `s3-object-storage` - S3 configuration validation
+  - [x] `errors.ts` `s3-object-storage` - Canonical S3 error types
+  - [x] `json.ts` `s3-object-storage` - JSON S3 read/write helpers
+  - [x] `objects.ts` `s3-object-storage` - Raw S3 object operations
+  - [x] `stream.ts` `s3-object-storage` - Stream-to-buffer helpers
 - [x] **seo/**
   - [x] `constants.ts` `seo` - SEO constants
   - [x] `dynamic-metadata.ts` `seo` - Dynamic title generation with length limits
@@ -337,8 +351,6 @@ File/Path Functionality Description
 - [x] `eslint-custom-types.d.ts` `linting-formatting` - Custom types for ESLint configuration
 - [x] `experience.ts` `experience` - Types for professional experience
 - [x] `investment.ts` `investments` - Types for investments
-- [x] `jest-dom.jest.d.ts` `testing-config` - Jest DOM matcher type definitions
-- [x] `jest-extended.d.ts` `testing-config` - Jest extended matcher type definitions
 - [x] `logo.ts` `image-handling` - Types for logos
 - [x] `middleware.ts` `middleware` - Types for proxy/middleware helpers
 - [x] `navigation.ts` `navigation` - Types for navigation components
@@ -386,12 +398,10 @@ File/Path Functionality Description
 - [x] `.remarkrc.mjs` `config` - Remark (Markdown processor) configuration
 - [x] `happydom.ts` `testing-config` - Happy DOM (test environment) configuration
 - [x] `tools.config.js` `config` - Master configuration for multiple tools
-- [x] **jest/** `testing-config` - Jest test framework configuration files
-  - [x] `config.ts` `testing-config` - Main Jest configuration
-  - [x] `setup.ts` `testing-config` - Jest setup with mocks and polyfills
-  - [x] `core-setup.ts` `testing-config` - Core Jest setup utilities
-  - [x] `dom-setup.ts` `testing-config` - DOM environment setup
-  - [x] `polyfills.js` `testing-config` - JavaScript polyfills for tests
+- [x] **vitest/** `testing-config` - Vitest test framework configuration files
+  - [x] `env-setup.ts` `testing-config` - Targeted environment mocks for tests
+  - [x] `global-mocks.ts` `testing-config` - Global cache API stubs
+  - [x] `setup.ts` `testing-config` - Vitest setup with DOM mocks and matchers
 
 ## Middleware Directory
 
@@ -415,9 +425,7 @@ File/Path Functionality Description
 - [x] `eslint.config.ts` `linting-formatting` - ESLint configuration
   - [x] `instrumentation-client.ts` `log-error-debug-handling` - Client-side instrumentation setup
 - [x] `instrumentation.ts` `log-error-debug-handling` - Server-side instrumentation setup
-- [x] `jest.config.ts` `testing-config` - Jest configuration
-- [x] `jest.polyfills.js` `testing-config` - Polyfills for Jest environment
-- [x] `jest.setup.ts` `testing-config` - Jest setup file
+- [x] `vitest.config.ts` `testing-config` - Vitest configuration
 - [x] `src/proxy.ts` `middleware` - Next.js Proxy (middleware) entrypoint (Next.js 16)
 - [x] `next-env.d.ts` `config` - Next.js environment type definitions
 - [x] `next.config.ts` `config` - Next.js configuration
@@ -508,7 +516,6 @@ File/Path Functionality Description
 - [x] `fetch-bookmarks-public.ts` `bookmarks` - Optional local snapshot helper for offline work (no longer invoked during CI/CD builds)
 - [x] `entrypoint.sh` `deployment` - Docker entrypoint script
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
-- [x] `fix-test-imports.sh` `testing-config` - Script to fix test imports
 - [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Script to force-refresh GitHub repo stats
 - [x] `populate-volumes.ts` `deprecated` - DEPRECATED: Use data-updater.ts instead
 - [x] `pre-build-checks.sh` `build` - Pre-build check script
@@ -625,6 +632,7 @@ File/Path Functionality Description
     - [x] `server-cache-simple.test.ts` `caching` - Server cache simple tests
     - [x] `utils.test.ts` `shared-utils` - General utility tests
     - [x] `content-similarity/keyword-extractor.test.ts` `chroma` - Keyword extraction tag filtering tests
+    - [x] `chroma/chroma-actual.test.ts` `chroma` - Live Chroma integration test (opt-in)
     - [x] **seo/**
       - [x] `metadata.test.ts` `seo` - SEO metadata tests
       - [x] `opengraph.test.ts` `seo` - OpenGraph metadata tests
@@ -640,7 +648,7 @@ File/Path Functionality Description
     - [x] `update-s3-data.smoke.test.ts` `batch-fetch-update` - S3 data update smoke tests
   - [x] **setup/**
     - [x] `bun-setup.ts` `testing-config` - Bun test environment setup
-  - [x] `tsconfig.json` `testing-config` - TypeScript config for Jest tests
+- [x] `tsconfig.json` `testing-config` - TypeScript config for Vitest tests
 
 ## Mocks Directory
 

@@ -18,7 +18,7 @@ import {
   ALL_TIME_SUMMARY_S3_KEY_FILE,
   GITHUB_STATS_SUMMARY_S3_KEY_FILE,
 } from "@/lib/constants";
-import { listS3Objects } from "@/lib/s3-utils";
+import { listS3Objects } from "@/lib/s3/objects";
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
 
 async function main() {

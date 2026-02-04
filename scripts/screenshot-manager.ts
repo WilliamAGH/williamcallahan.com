@@ -22,10 +22,14 @@
  *   --limit N  - Process only N bookmarks (for testing)
  */
 
-import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { UnifiedBookmark } from "@/types";
-import type { BookmarksIndex } from "@/types/bookmark";
+import {
+  bookmarksIndexSchema,
+  unifiedBookmarksArraySchema,
+  type BookmarksIndex,
+} from "@/types/bookmark";
 
 // Command line argument parsing
 const args = process.argv.slice(2);
@@ -77,7 +81,10 @@ async function checkScreenshotOnlyBookmarks() {
   console.log("─".repeat(40));
 
   try {
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
 
     if (!bookmarks || bookmarks.length === 0) {
       console.log("❌ No bookmarks found");
@@ -131,7 +138,10 @@ async function verifyScreenshotEnrichment() {
   console.log("─".repeat(40));
 
   try {
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
 
     if (!bookmarks || bookmarks.length === 0) {
       console.log("❌ No bookmarks found");
@@ -213,7 +223,10 @@ async function fixMissingOgImages() {
   console.log("─".repeat(40));
 
   try {
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
 
     if (!bookmarks || bookmarks.length === 0) {
       console.log("❌ No bookmarks found");
@@ -256,7 +269,10 @@ async function fixMissingOgImages() {
       await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, updated);
 
       // Update index with new timestamp
-      const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+      const index = await readJsonS3Optional<BookmarksIndex>(
+        BOOKMARKS_S3_PATHS.INDEX,
+        bookmarksIndexSchema,
+      );
       if (index) {
         await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, {
           ...index,
@@ -279,7 +295,10 @@ async function fixDirectScreenshots() {
   console.log("─".repeat(40));
 
   try {
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
 
     if (!bookmarks || bookmarks.length === 0) {
       console.log("❌ No bookmarks found");

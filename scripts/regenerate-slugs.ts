@@ -6,11 +6,7 @@
 
 import "dotenv/config";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
-import {
-  generateSlugMapping,
-  saveSlugMapping,
-  LOCAL_SLUG_MAPPING_PATH,
-} from "@/lib/bookmarks/slug-manager";
+import { generateSlugMapping, saveSlugMapping } from "@/lib/bookmarks/slug-manager";
 import type { UnifiedBookmark } from "@/types";
 
 /**
@@ -78,27 +74,11 @@ async function regenerateSlugs() {
         console.log(`   ${entry.slug} -> ${entry.id}`);
       });
 
-    // Save the mapping
+    // Save the mapping to S3
     console.log("");
-    console.log("4. Saving slug mapping to S3 and local cache...");
+    console.log("4. Saving slug mapping to S3...");
     await saveSlugMapping(bookmarks);
-    console.log("   ✅ Slug mapping saved successfully");
-
-    // Verify it saved correctly
-    const fs = await import("node:fs/promises");
-    const localPath = LOCAL_SLUG_MAPPING_PATH;
-
-    try {
-      const localData = await fs.readFile(localPath, "utf-8");
-      const savedMapping = JSON.parse(localData);
-      console.log("");
-      console.log("5. Verification:");
-      console.log(`   ✅ Local file saved with ${savedMapping.count} slugs`);
-    } catch (err) {
-      console.log("");
-      console.log("5. Verification:");
-      console.log(`   ⚠️  Could not verify local file: ${err}`);
-    }
+    console.log("   ✅ Slug mapping saved to S3 successfully");
   } catch (error) {
     console.error("ERROR:", error);
   }

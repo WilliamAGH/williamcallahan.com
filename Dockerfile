@@ -131,7 +131,6 @@ ENV DEPLOYMENT_ENV=$DEPLOYMENT_ENV
 # environments that only support classic docker builds (e.g., Railway).
 ARG S3_BUCKET
 ARG S3_SERVER_URL
-ARG S3_CDN_URL
 ARG NEXT_PUBLIC_S3_CDN_URL
 ARG S3_ACCESS_KEY_ID
 ARG S3_SECRET_ACCESS_KEY
@@ -140,7 +139,6 @@ ARG API_BASE_URL
 # Pass these as ENV for build process
 ENV S3_BUCKET=$S3_BUCKET \
     S3_SERVER_URL=$S3_SERVER_URL \
-    S3_CDN_URL=$S3_CDN_URL \
     NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL
 # NOTE: S3 credentials remain optional. Provide them via BuildKit secrets for
 # secure builds or pass them as --build-arg when using classic docker builders.
@@ -239,7 +237,6 @@ LABEL org.opencontainers.image.revision=$GIT_SHA
 # Re-declare the build args so we can forward them (ARG values are scoped per stage)
 ARG S3_BUCKET
 ARG S3_SERVER_URL
-ARG S3_CDN_URL
 ARG NEXT_PUBLIC_S3_CDN_URL
 ARG DEPLOYMENT_ENV
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
@@ -250,7 +247,6 @@ ARG NEXT_PUBLIC_SITE_URL
 # via docker run -e or orchestration secrets to avoid baking them into the image
 ENV S3_BUCKET=$S3_BUCKET \
     S3_SERVER_URL=$S3_SERVER_URL \
-    S3_CDN_URL=$S3_CDN_URL \
     NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL \
     DEPLOYMENT_ENV=$DEPLOYMENT_ENV \
     NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID \

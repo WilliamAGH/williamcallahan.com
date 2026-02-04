@@ -21,7 +21,7 @@ This file contains tests for the `Analytics` client component, which is responsi
   - Setting up mock environment variables.
   - Mocking `usePathname`.
   - Resetting mock script loading states and global analytics objects.
-  - Using fake timers (`jest.useFakeTimers()`).
+  - Using fake timers (`vi.useFakeTimers()`).
   - Mocking `console` methods (`debug`, `error`, `warn`).
 
 ## Notable Test Cases
@@ -34,8 +34,8 @@ This file contains tests for the `Analytics` client component, which is responsi
 ## Potential Issues/Observations
 
 - The entire test suite for this component is currently skipped (`describe.skip`).
-- The tests rely heavily on Jest's mocking capabilities, particularly for `next/script` and `next/navigation`.
-- The mock for `next/script` uses `setTimeout` to simulate asynchronous script loading, and tests use `jest.advanceTimersByTime` and `waitFor` to manage these asynchronous operations.
+- The tests rely heavily on Vitest mocking (`vi.mock`) for `next/script` and `next/navigation`.
+- The mock for `next/script` uses `setTimeout` to simulate asynchronous script loading, and tests use `vi.advanceTimersByTime` and `waitFor` to manage these asynchronous operations.
 
 ## Overview
 

@@ -4,18 +4,18 @@
 
 ## Core Objective
 
-Provide a single operational playbook for all work that interacts with our Next.js 16.0.1, React 19.1.1, and Jest 30.1.3 stack. This document removes guesswork by spelling out version-specific changes, outlawed patterns, and the exact verification workflow demanded by AGENTS.md.
+Provide a single operational playbook for all work that interacts with our Next.js 16.0.10, React 19.2.3, and Vitest 4.0.18 stack. This document removes guesswork by spelling out version-specific changes, outlawed patterns, and the exact verification workflow demanded by AGENTS.md.
 
 ## Canonical Sources (read before coding)
 
 - `node_modules/next/dist/server/config.js` – confirms `cacheComponents`, `experimental.ppr` removal, and other hard config rules.
 - `node_modules/next/dist/server/request/params.js` – shows async params/metadata behavior under cache components.
 - `node_modules/next/dist/shared/lib/image-config.js` – documents image defaults (e.g., `maximumRedirects: 3`).
-- `node_modules/react/package.json` – validates the React 19.1.1 runtime.
-- `node_modules/jest/package.json` – validates Jest 30.1.3 expectations.
+- `node_modules/react/package.json` – validates the React 19.2.3 runtime.
+- `node_modules/vitest/package.json` – validates Vitest 4.0.18 expectations.
 - Next.js upgrade guides `docs/01-app/02-guides/upgrading/version-15.mdx` and `version-16.mdx` (fetched via Context7 MCP).
 - React 19 upgrade notes on react.dev (Context7 MCP).
-- [`testing-config.md`](./testing-config.md) – Jest 30 execution rules and tooling setup.
+- [`testing-config.md`](./testing-config.md) – Vitest 4 execution rules and tooling setup.
 - [`react-server-client.md`](./react-server-client.md) – Server/Client boundary patterns for React 19 in Next.js 16.
 
 ## Version Change Log
@@ -46,9 +46,9 @@ Provide a single operational playbook for all work that interacts with our Next.
 - `ReactDOM.render` usage must be migrated to `ReactDOMClient.createRoot` via the `react/19/replace-reactdom-render` codemod.
 - The React Compiler defaults to `target: '19'`; do not override unless absolutely necessary.
 
-### Jest 30 guardrails
+### Vitest 4 guardrails
 
-- Confirm all test utilities work with `jest@30.1.3` and `@types/jest@30`. Avoid packages that patch globals incompatible with this runtime.
+- Confirm all test utilities work with `vitest@4.0.18`. Avoid packages that patch globals incompatible with this runtime.
 
 ## Build-Stability Runbook (Repository-Specific)
 
@@ -148,9 +148,7 @@ grep -r "from.*next/server.*connection\|connection.*from.*next/server" --include
 grep -r "revalidate.*:.*0" --include="*.ts" --include="*.tsx"
 ```
 
-- **Bookmarks + S3:** `app/sitemap.ts` streams bookmarks by page and aggregates tag metadata without loading the full dataset. Any new cache invalidation must also touch `lib/bookmarks/service.server.ts` so ISR + cache components agree. Keep the per-page iteration to protect heap usage.
-  - Docker builds now always read the `.next/cache/local-s3` snapshots because `lib/bookmarks/bookmarks-data-access.server.ts` only disables the local fallback when `NEXT_PHASE === "phase-production-server"` (see guard near the top of that file). This keeps `bun run build` offline-safe even when S3 isn’t reachable.
-- **Offline local builds:** CI/CD must hit S3/CDN, so local fallbacks are disabled whenever `NODE_ENV=production` (same state as `bun run build`). To run a production build without network access, set `FORCE_LOCAL_S3_CACHE=true` before invoking the build so `.next/cache/local-s3` is used. Never enable this in Docker/Coolify.
+- **Bookmarks + S3:** `app/sitemap.ts` streams bookmarks by page and aggregates tag metadata without loading the full dataset. Any new cache invalidation must also touch `lib/bookmarks/service.server.ts` so ISR + cache components agree. Keep the per-page iteration to protect heap usage. Bookmark reads are S3-only; there are no local fallbacks in production or build phases.
 
 ### 4. Image optimizer contract (CANONICAL)
 
@@ -438,7 +436,7 @@ Think of Cache Components as **inverting the default**:
 | Metadata     | Use React 19 head primitives; server metadata builders must `await` params ids.                  |
 | Data Caching | Import `{ cacheLife, cacheTag }` from `next/cache` with stable names.                            |
 | Images       | Configure `images.maximumRedirects` deliberately when deviating from the default (3).            |
-| Tests        | Reference `config/jest/config.ts` and Jest 30 APIs directly; document any mock shims.            |
+| Tests        | Reference `vitest.config.ts` and Vitest APIs directly; document any mock shims.                  |
 | Tooling      | Run `bun run validate` plus at least one MCP doc fetch + node_modules citation per task.         |
 
 ## Outlawed Patterns ()
@@ -470,6 +468,6 @@ Think of Cache Components as **inverting the default**:
 - **Partial Pre-rendering:** Use `cacheComponents` (default true when unset per `node_modules/next/dist/server/config.js:1336-1338`). Remove any codepath that attempts to reintroduce the experimental flag.
 - **Image Redirect Loops:** Overriding `images.maximumRedirects` > 3 requires a documented exploit and security review.
 - **Middleware URL normalization:** rename stale config helpers or request rewrite utilities to align with `skipProxyUrlNormalize` naming.
-- **Testing:** Jest 30 forbids legacy `node-notifier` by default; enable only when required by CI notifications.
+- **Testing:** Avoid legacy notifier tooling unless explicitly required by CI notifications.
 
-> **Reminder:** Every Next.js / React / Jest change must reference this document in the PR/commit summary so reviewers can trace decisions back to a verified playbook.
+> **Reminder:** Every Next.js / React / Vitest change must reference this document in the PR/commit summary so reviewers can trace decisions back to a verified playbook.

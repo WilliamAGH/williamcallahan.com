@@ -90,12 +90,6 @@
       "args": ["-l"]
     }
   },
-  "jest.jestCommandLine": "npx jest --config config/jest/config.ts",
-  "jest.runMode": {
-    "type": "on-demand",
-    "runAllTestsOnStartup": false
-  },
-  "jest.rootPath": ".",
   "markdownlint.config": {
     "MD040": false,
     "MD024": false,

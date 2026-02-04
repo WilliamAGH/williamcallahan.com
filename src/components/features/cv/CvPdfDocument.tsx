@@ -35,8 +35,8 @@ const ensureWindows1252TextDecoder = (() => {
 
 ensureWindows1252TextDecoder();
 
-// Import react-pdf/renderer synchronously for Jest compatibility
-// This avoids top-level await which breaks Jest
+// Import react-pdf/renderer synchronously for test runner compatibility
+// This avoids top-level await which breaks the test environment
 import * as ReactPDF from "@react-pdf/renderer";
 
 const { Circle, Document, Font, Link, Page, Path, Rect, StyleSheet, Svg, Text, View } = ReactPDF;

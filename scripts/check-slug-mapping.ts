@@ -4,9 +4,9 @@
  * Check the slug mapping in S3 and locally
  */
 
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
-import type { BookmarkSlugMapping } from "@/types/bookmark";
+import { bookmarkSlugMappingSchema, type BookmarkSlugMapping } from "@/types/bookmark";
 
 async function checkSlugMapping() {
   console.log("=== SLUG MAPPING CHECK ===");
@@ -18,7 +18,10 @@ async function checkSlugMapping() {
     console.log("1. CHECKING S3 SLUG MAPPING:");
     console.log(`   Path: ${BOOKMARKS_S3_PATHS.SLUG_MAPPING}`);
 
-    const s3Mapping = await readJsonS3<BookmarkSlugMapping>(BOOKMARKS_S3_PATHS.SLUG_MAPPING);
+    const s3Mapping = await readJsonS3Optional<BookmarkSlugMapping>(
+      BOOKMARKS_S3_PATHS.SLUG_MAPPING,
+      bookmarkSlugMappingSchema,
+    );
 
     if (!s3Mapping) {
       console.log("   ❌ No slug mapping found in S3");
