@@ -14,12 +14,12 @@ import {
   BOOKMARKS_S3_PATHS,
   BOOKMARKS_CACHE_DURATION,
 } from "@/lib/constants";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { logEnvironmentConfig } from "@/lib/config/environment";
 import { getClientIp } from "@/lib/utils/request-utils";
 import logger from "@/lib/utils/logger";
 import { type NextRequest, NextResponse } from "next/server";
-import type { BookmarksIndex } from "@/types/bookmark";
+import { bookmarksIndexSchema, type BookmarksIndex } from "@/types/bookmark";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { getMonotonicTime } from "@/lib/utils";
 
@@ -113,7 +113,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // For cron jobs, always refresh. For others, check if refresh is needed.
     if (!isCronJob) {
       // Read current index from S3 to check timing
-      const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+      const index = await readJsonS3Optional<BookmarksIndex>(
+        BOOKMARKS_S3_PATHS.INDEX,
+        bookmarksIndexSchema,
+      );
 
       if (index?.lastFetchedAt) {
         const timeSinceLastFetch = getMonotonicTime() - new Date(index.lastFetchedAt).getTime();
@@ -152,7 +155,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let previousCount = 0;
     let previousIndex: BookmarksIndex | null = null;
     try {
-      previousIndex = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+      previousIndex = await readJsonS3Optional<BookmarksIndex>(
+        BOOKMARKS_S3_PATHS.INDEX,
+        bookmarksIndexSchema,
+      );
       previousCount = previousIndex?.count || 0;
     } catch {
       // Index doesn't exist yet
@@ -260,7 +266,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 export async function GET(): Promise<NextResponse> {
   try {
     // Read from S3 index
-    const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+    const index = await readJsonS3Optional<BookmarksIndex>(
+      BOOKMARKS_S3_PATHS.INDEX,
+      bookmarksIndexSchema,
+    );
 
     // Check if refresh is needed based on timing
     let needsRefresh = true;
@@ -284,17 +293,17 @@ export async function GET(): Promise<NextResponse> {
         changeDetected: index?.changeDetected ?? null,
       },
     });
-  } catch {
-    // No bookmarks yet
-    return NextResponse.json({
-      status: "success",
-      data: {
-        needsRefresh: true,
-        bookmarksCount: 0,
-        lastFetchedAt: null,
-        lastAttemptedAt: null,
-        changeDetected: null,
+  } catch (error) {
+    // readJsonS3Optional returns null for 404, so this catch only handles real errors
+    // (network failures, permissions, schema validation) - do not mask as success
+    logger.error("Failed to check bookmark refresh status:", error);
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "Failed to check bookmark refresh status",
+        error: error instanceof Error ? error.message : String(error),
       },
-    });
+      { status: 500 },
+    );
   }
 }

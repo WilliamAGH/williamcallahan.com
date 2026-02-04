@@ -19,7 +19,7 @@
  */
 
 import type { JSX } from "react";
-import type { jest } from "@jest/globals";
+import type { Mock } from "vitest";
 
 export type PageComponentModule = {
   default: (props: {
@@ -33,11 +33,11 @@ export interface BlogFrontmatter {
   // Add other expected frontmatter properties here if needed
 }
 
-export type UmamiMock = {
-  track: jest.Mock;
-} & jest.Mock;
+export type UmamiMock = Mock & {
+  track: Mock;
+};
 
-export type PlausibleMock = jest.Mock;
+export type PlausibleMock = Mock;
 
 export type MockScriptProps = {
   id: string;

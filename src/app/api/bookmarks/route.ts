@@ -10,6 +10,7 @@ import {
 } from "@/types/bookmark";
 import { BOOKMARKS_PER_PAGE, BOOKMARKS_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { type NextRequest, NextResponse } from "next/server";
@@ -65,14 +66,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // will miss results that live beyond page 1.
     if (!tagFilter && page > 0 && limit <= BOOKMARKS_PER_PAGE) {
       const { getBookmarksPage } = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      const rawIndex: unknown = await import("@/lib/s3-utils").then((m) =>
-        m.readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX),
+      const indexData = await readJsonS3Optional<BookmarksIndex>(
+        BOOKMARKS_S3_PATHS.INDEX,
+        BookmarksIndexSchema,
       );
 
-      const indexResult = BookmarksIndexSchema.safeParse(rawIndex);
-
-      if (indexResult.success) {
-        const indexData = indexResult.data;
+      if (indexData) {
         const { totalPages, count: total, lastFetchedAt = getMonotonicTime() } = indexData;
 
         if (page <= totalPages) {
@@ -124,12 +123,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Try to get metadata from S3 index
     let lastFetchedAt = getMonotonicTime();
     try {
-      const rawIndex: unknown = await import("@/lib/s3-utils").then((m) =>
-        m.readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX),
+      const indexData = await readJsonS3Optional<BookmarksIndex>(
+        BOOKMARKS_S3_PATHS.INDEX,
+        BookmarksIndexSchema,
       );
-      const indexResult = BookmarksIndexSchema.safeParse(rawIndex);
-      if (indexResult.success) {
-        const indexData = indexResult.data;
+      if (indexData) {
         lastFetchedAt = indexData.lastFetchedAt;
       }
     } catch {

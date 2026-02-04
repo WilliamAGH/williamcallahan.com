@@ -7,12 +7,8 @@
  * @module data-access/github-storage
  */
 
-import {
-  readJsonS3,
-  writeJsonS3,
-  listS3Objects as s3UtilsListS3Objects,
-  getS3ObjectMetadata,
-} from "@/lib/s3-utils";
+import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
+import { getS3ObjectMetadata, listS3Objects } from "@/lib/s3/objects";
 
 import { debugLog } from "@/lib/utils/debug";
 import {
@@ -21,38 +17,36 @@ import {
   REPO_RAW_WEEKLY_STATS_S3_KEY_DIR,
   AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE,
 } from "@/lib/constants";
-import type {
-  StoredGithubActivityS3,
-  GitHubActivityApiResponse,
-  GitHubActivitySummary,
-  RepoWeeklyStatCache,
-  AggregatedWeeklyActivity,
-} from "@/types/github";
+import type { StoredGithubActivityS3 } from "@/types/github";
+import {
+  aggregatedWeeklyActivityArraySchema,
+  gitHubActivityApiResponseSchema,
+  gitHubActivitySummarySchema,
+  repoWeeklyStatCacheSchema,
+  type AggregatedWeeklyActivityFromSchema,
+  type GitHubActivityApiResponseFromSchema,
+  type GitHubActivitySummaryFromSchema,
+  type RepoWeeklyStatCacheFromSchema,
+} from "@/types/schemas/github-storage";
 
 /**
  * Read GitHub activity data from S3
  */
 export async function readGitHubActivityFromS3(
   key: string = GITHUB_ACTIVITY_S3_KEY_FILE,
-): Promise<GitHubActivityApiResponse | null> {
-  try {
-    const data = await readJsonS3<GitHubActivityApiResponse>(key);
-    if (!data) {
-      debugLog(`No GitHub activity data found at ${key}`, "warn");
-      return null;
-    }
-    return data;
-  } catch (error) {
-    debugLog(`Failed to read GitHub activity from S3`, "error", {
-      key,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
+): Promise<GitHubActivityApiResponseFromSchema | null> {
+  const data = await readJsonS3Optional<GitHubActivityApiResponseFromSchema>(
+    key,
+    gitHubActivityApiResponseSchema,
+  );
+  if (!data) {
+    debugLog(`No GitHub activity data found at ${key}`, "warn");
   }
+  return data;
 }
 
 // Classify dataset quality to support non-degrading writes
-const classifyDataset = (d: GitHubActivityApiResponse | null | undefined) => {
+const classifyDataset = (d: GitHubActivityApiResponseFromSchema | null | undefined) => {
   if (!d) {
     return {
       hasData: false,
@@ -84,99 +78,61 @@ const classifyDataset = (d: GitHubActivityApiResponse | null | undefined) => {
  * Write GitHub activity data to S3
  */
 export async function writeGitHubActivityToS3(
-  data: GitHubActivityApiResponse,
+  data: GitHubActivityApiResponseFromSchema,
   key: string = GITHUB_ACTIVITY_S3_KEY_FILE,
 ): Promise<boolean> {
-  try {
-    // 1) Never write during Next.js build phase – build reads from public CDN only
-    if (process.env.NEXT_PHASE === "phase-production-build") {
-      debugLog(
-        `Skipping GitHub activity write during build phase (NEXT_PHASE=phase-production-build)`,
-        "warn",
-        {
+  // Non-degrading write: avoid overwriting a healthy dataset with empty/incomplete results
+  const newQ = classifyDataset(data);
+  if (newQ.isIncomplete) {
+    const existing = await readGitHubActivityFromS3(key);
+    const existingQ = classifyDataset(existing);
+    const existingIsHealthy = !!existing && !existingQ.isEmpty;
+
+    if (existingIsHealthy) {
+      const existingContributions = Math.max(0, existingQ.contributions);
+      const newContributions = Math.max(0, newQ.contributions);
+
+      if (newContributions <= existingContributions) {
+        debugLog(`Non-degrading write: Preserving existing dataset with more data`, "warn", {
           key,
-        },
-      );
-      return true; // treat as successful no-op
-    }
-
-    // 2) Non-degrading write: avoid overwriting a healthy dataset with empty/incomplete results
-    // BUT be more lenient - allow writes if data has meaningful content even if not "complete"
-
-    // If new data looks incomplete (no daily series), check existing
-    const newQ = classifyDataset(data);
-    if (newQ.isIncomplete) {
-      try {
-        const existing = await readGitHubActivityFromS3(key);
-        const existingQ = classifyDataset(existing);
-        const existingIsHealthy = !!existing && !existingQ.isEmpty;
-
-        // Only skip write if existing data is actually better
-        if (existingIsHealthy) {
-          const existingContributions = Math.max(0, existingQ.contributions);
-          const newContributions = Math.max(0, newQ.contributions);
-
-          // Allow write if new data has MORE contributions (even if incomplete / no series)
-          if (newContributions > existingContributions) {
-            debugLog(`Writing new data despite incomplete flag - has more contributions`, "info", {
-              key,
-              oldCount: existingContributions,
-              newCount: newContributions,
-            });
-          } else {
-            debugLog(`Non-degrading write: Preserving existing dataset with more data`, "warn", {
-              key,
-              existingCount: existingContributions,
-              newCount: newContributions,
-            });
-            return true; // skip write, keep healthy file
-          }
-        }
-      } catch {
-        /* if read fails, proceed to write new data */
+          existingCount: existingContributions,
+          newCount: newContributions,
+        });
+        return true;
       }
-    }
 
-    await writeJsonS3(key, data);
-    debugLog(`Successfully wrote GitHub activity to S3`, "info", { key });
-    return true;
-  } catch (error) {
-    debugLog(`Failed to write GitHub activity to S3`, "error", {
-      key,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return false;
+      debugLog(`Writing new data despite incomplete flag - has more contributions`, "info", {
+        key,
+        oldCount: existingContributions,
+        newCount: newContributions,
+      });
+    }
   }
+
+  await writeJsonS3(key, data);
+  debugLog(`Successfully wrote GitHub activity to S3`, "info", { key });
+  return true;
 }
 
 /**
  * Read GitHub activity summary from S3
  */
-export async function readGitHubSummaryFromS3(): Promise<GitHubActivitySummary | null> {
-  try {
-    return await readJsonS3<GitHubActivitySummary>(GITHUB_STATS_SUMMARY_S3_KEY_FILE);
-  } catch (error) {
-    debugLog(`Failed to read GitHub summary from S3`, "error", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
+export async function readGitHubSummaryFromS3(): Promise<GitHubActivitySummaryFromSchema | null> {
+  return readJsonS3Optional<GitHubActivitySummaryFromSchema>(
+    GITHUB_STATS_SUMMARY_S3_KEY_FILE,
+    gitHubActivitySummarySchema,
+  );
 }
 
 /**
  * Write GitHub activity summary to S3
  */
-export async function writeGitHubSummaryToS3(summary: GitHubActivitySummary): Promise<boolean> {
-  try {
-    await writeJsonS3(GITHUB_STATS_SUMMARY_S3_KEY_FILE, summary);
-    debugLog(`Successfully wrote GitHub summary to S3`, "info");
-    return true;
-  } catch (error) {
-    debugLog(`Failed to write GitHub summary to S3`, "error", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return false;
-  }
+export async function writeGitHubSummaryToS3(
+  summary: GitHubActivitySummaryFromSchema,
+): Promise<boolean> {
+  await writeJsonS3(GITHUB_STATS_SUMMARY_S3_KEY_FILE, summary);
+  debugLog(`Successfully wrote GitHub summary to S3`, "info");
+  return true;
 }
 
 /**
@@ -185,17 +141,9 @@ export async function writeGitHubSummaryToS3(summary: GitHubActivitySummary): Pr
 export async function readRepoWeeklyStatsFromS3(
   repoOwner: string,
   repoName: string,
-): Promise<RepoWeeklyStatCache | null> {
+): Promise<RepoWeeklyStatCacheFromSchema | null> {
   const s3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwner}/${repoName}.json`;
-  try {
-    return await readJsonS3<RepoWeeklyStatCache>(s3Key);
-  } catch (error) {
-    debugLog(`Failed to read repo weekly stats from S3`, "error", {
-      s3Key,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
+  return readJsonS3Optional<RepoWeeklyStatCacheFromSchema>(s3Key, repoWeeklyStatCacheSchema);
 }
 
 /**
@@ -204,69 +152,43 @@ export async function readRepoWeeklyStatsFromS3(
 export async function writeRepoWeeklyStatsToS3(
   repoOwner: string,
   repoName: string,
-  cache: RepoWeeklyStatCache,
+  cache: RepoWeeklyStatCacheFromSchema,
 ): Promise<boolean> {
   const s3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwner}/${repoName}.json`;
-  try {
-    await writeJsonS3(s3Key, cache);
-    debugLog(`Successfully wrote repo weekly stats to S3`, "info", { s3Key });
-    return true;
-  } catch (error) {
-    debugLog(`Failed to write repo weekly stats to S3`, "error", {
-      s3Key,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return false;
-  }
+  await writeJsonS3(s3Key, cache);
+  debugLog(`Successfully wrote repo weekly stats to S3`, "info", { s3Key });
+  return true;
 }
 
 /**
  * Read aggregated weekly activity from S3
  */
 export async function readAggregatedWeeklyActivityFromS3(): Promise<
-  AggregatedWeeklyActivity[] | null
+  AggregatedWeeklyActivityFromSchema[] | null
 > {
-  try {
-    return await readJsonS3<AggregatedWeeklyActivity[]>(AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE);
-  } catch (error) {
-    debugLog(`Failed to read aggregated weekly activity from S3`, "error", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
+  return readJsonS3Optional<AggregatedWeeklyActivityFromSchema[]>(
+    AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE,
+    aggregatedWeeklyActivityArraySchema,
+  );
 }
 
 /**
  * Write aggregated weekly activity to S3
  */
 export async function writeAggregatedWeeklyActivityToS3(
-  data: AggregatedWeeklyActivity[],
+  data: AggregatedWeeklyActivityFromSchema[],
 ): Promise<boolean> {
-  try {
-    await writeJsonS3(AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, data);
-    debugLog(`Successfully wrote aggregated weekly activity to S3`, "info");
-    return true;
-  } catch (error) {
-    debugLog(`Failed to write aggregated weekly activity to S3`, "error", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return false;
-  }
+  await writeJsonS3(AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, data);
+  debugLog(`Successfully wrote aggregated weekly activity to S3`, "info");
+  return true;
 }
 
 /**
  * List all repository stats files in S3
  */
 export async function listRepoStatsFiles(): Promise<string[]> {
-  try {
-    const results = await s3UtilsListS3Objects(REPO_RAW_WEEKLY_STATS_S3_KEY_DIR);
-    return results.filter((key) => key.endsWith(".json")).toSorted();
-  } catch (error) {
-    debugLog(`Failed to list repo stats files`, "error", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return [];
-  }
+  const results = await listS3Objects(REPO_RAW_WEEKLY_STATS_S3_KEY_DIR);
+  return results.filter((key) => key.endsWith(".json")).toSorted();
 }
 
 /**
@@ -277,20 +199,12 @@ export async function getGitHubActivityMetadata(
 ): Promise<{
   lastModified?: Date;
 } | null> {
-  try {
-    const metadata = await getS3ObjectMetadata(key);
-    return metadata
-      ? {
-          lastModified: metadata.LastModified,
-        }
-      : null;
-  } catch (error) {
-    debugLog(`Failed to get GitHub activity metadata`, "error", {
-      key,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
+  const metadata = await getS3ObjectMetadata(key);
+  return metadata
+    ? {
+        lastModified: metadata.lastModified,
+      }
+    : null;
 }
 
 /**

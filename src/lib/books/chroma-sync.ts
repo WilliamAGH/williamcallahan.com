@@ -340,7 +340,10 @@ export async function searchBookChunks(
   } catch (error) {
     // Return error result so callers can distinguish "no matches" from "search failed"
     const errorMessage = error instanceof Error ? error.message : "Unknown search error";
-    console.error("[Chroma] Search failed:", error);
+    // Suppress logging in test environment to keep test output clean
+    if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
+      console.error("[Chroma] Search failed:", error);
+    }
     return { success: false, error: errorMessage, results: [] };
   }
 }

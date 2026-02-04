@@ -24,23 +24,23 @@ export interface OgResult extends OgFetchResult {
   /** The original URL requested */
   url: string;
   /** The final, canonical URL after any redirects */
-  finalUrl?: string;
+  finalUrl?: string | null;
   /** The page title */
-  title?: string;
+  title?: string | null;
   /** The page description */
-  description?: string;
+  description?: string | null;
   /** The site name */
-  siteName?: string;
+  siteName?: string | null;
   /** The page's locale */
-  locale?: string;
+  locale?: string | null;
   /** The timestamp of when the data was fetched */
   timestamp: number;
   /** The source of the data (e.g., "cache", "s3", "external") */
   source: "cache" | "s3" | "external" | "fallback";
   /** A hash of the original URL */
   urlHash?: string;
-  /** The error object, if one was thrown */
-  errorDetails?: OgError;
+  /** The error object, if one was thrown (may be OgError or plain object when loaded from S3) */
+  errorDetails?: OgError | unknown;
   /** A unique ID for the image asset in S3 */
   imageAssetId?: string;
   /** A unique ID for the screenshot asset in S3 */
@@ -50,7 +50,7 @@ export interface OgResult extends OgFetchResult {
   /** Number of times a fetch has been retried */
   retryCount?: number;
   /** The actual URL resolved after redirects */
-  actualUrl?: string;
+  actualUrl?: string | null;
 }
 
 // KarakeepImageFallback is now defined in types/seo/opengraph.ts

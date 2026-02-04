@@ -178,7 +178,9 @@ const collectBookmarkSitemapData = async (
     console.error("[Sitemap] Failed to collect bookmark sitemap entries:", message);
 
     const isTestEnvironment =
-      process.env.NODE_ENV === "test" || process.env.JEST_WORKER_ID !== undefined;
+      process.env.NODE_ENV === "test" ||
+      process.env.VITEST === "true" ||
+      process.env.TEST === "true";
     if (isTestEnvironment) {
       console.warn(
         "[Sitemap] Continuing without bookmark entries because the datastore is unavailable in tests.",
@@ -241,7 +243,9 @@ const collectTagSitemapData = async (
     console.error("[Sitemap] Failed to collect bookmark tag sitemap entries:", message);
 
     const isTestEnvironment =
-      process.env.NODE_ENV === "test" || process.env.JEST_WORKER_ID !== undefined;
+      process.env.NODE_ENV === "test" ||
+      process.env.VITEST === "true" ||
+      process.env.TEST === "true";
     if (isTestEnvironment) {
       console.warn(
         "[Sitemap] Continuing without bookmark tag entries because the datastore is unavailable in tests.",

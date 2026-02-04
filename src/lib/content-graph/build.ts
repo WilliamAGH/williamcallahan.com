@@ -1,5 +1,5 @@
 import logger from "@/lib/utils/logger";
-import { writeJsonS3 } from "@/lib/s3-utils";
+import { writeJsonS3 } from "@/lib/s3/json";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
 import { getMonotonicTime } from "@/lib/utils";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";

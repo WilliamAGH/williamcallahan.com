@@ -171,6 +171,15 @@ export function isImageContentType(contentType: string): boolean {
 }
 
 /**
+ * Check if content type is text-based (including JSON)
+ * Used by S3 operations to determine if content should be returned as string vs Buffer
+ */
+export function isTextContentType(contentType: string): boolean {
+  const lower = contentType.toLowerCase();
+  return lower.startsWith("text/") || lower.includes("application/json");
+}
+
+/**
  * Normalize content type (remove parameters, lowercase)
  */
 export function normalizeContentType(contentType: string): string {

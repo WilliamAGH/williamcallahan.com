@@ -8,7 +8,8 @@
  */
 
 import type { LogoResult, LogoSource } from "@/types/logo";
-import { writeBinaryS3, checkIfS3ObjectExists, listS3Objects } from "@/lib/s3-utils";
+import { writeBinaryS3 } from "@/lib/s3/binary";
+import { checkIfS3ObjectExists, listS3Objects } from "@/lib/s3/objects";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 import { getDomainVariants, normalizeDomain } from "@/lib/utils/domain-utils";
 import { LOGO_SOURCES, LOGO_BLOCKLIST_S3_PATH } from "@/lib/constants";
@@ -17,9 +18,10 @@ import { generateS3Key, getFileExtension } from "@/lib/utils/hash-utils";
 import { BatchProcessor, BatchProgressReporter } from "@/lib/batch-processing";
 import { Readable } from "node:stream";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
+import { z } from "zod/v4";
 
 // Initialize failure tracker for domains
-const domainFailureTracker = new FailureTracker<string>((domain) => domain, {
+const domainFailureTracker = new FailureTracker<string>((domain) => domain, z.string().min(1), {
   s3Path: LOGO_BLOCKLIST_S3_PATH,
   maxRetries: 3,
   cooldownMs: 24 * 60 * 60 * 1000, // 24 hours
