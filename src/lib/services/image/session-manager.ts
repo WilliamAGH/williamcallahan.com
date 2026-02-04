@@ -10,6 +10,7 @@ import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { isOperationAllowedWithCircuitBreaker, recordOperationFailure } from "@/lib/rate-limiter";
 import logger from "@/lib/utils/logger";
 import { getErrorMessage } from "@/types/error";
+import { z } from "zod/v4";
 
 import type { LogoFetchResult } from "@/types/cache";
 
@@ -30,13 +31,17 @@ export class SessionManager {
   private inFlightLogoRequests = new Map<string, Promise<LogoFetchResult>>();
 
   // Use FailureTracker for domain blocklist management
-  readonly domainFailureTracker = new FailureTracker<string>((domain) => domain, {
-    s3Path: LOGO_BLOCKLIST_S3_PATH,
-    maxRetries: CONFIG.PERMANENT_FAILURE_THRESHOLD,
-    cooldownMs: 24 * 60 * 60 * 1000, // 24 hours
-    maxItems: CONFIG.MAX_BLOCKLIST_SIZE,
-    name: "SessionManager-DomainTracker",
-  });
+  readonly domainFailureTracker = new FailureTracker<string>(
+    (domain) => domain,
+    z.string().min(1),
+    {
+      s3Path: LOGO_BLOCKLIST_S3_PATH,
+      maxRetries: CONFIG.PERMANENT_FAILURE_THRESHOLD,
+      cooldownMs: 24 * 60 * 60 * 1000, // 24 hours
+      maxItems: CONFIG.MAX_BLOCKLIST_SIZE,
+      name: "SessionManager-DomainTracker",
+    },
+  );
 
   private readonly devStreamImagesToS3: boolean;
 

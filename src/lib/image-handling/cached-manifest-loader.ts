@@ -5,10 +5,15 @@
  * in a separate module to work properly with Next.js 15's caching system.
  */
 
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3 } from "@/lib/s3/json";
 import { IMAGE_MANIFEST_S3_PATHS } from "@/lib/constants";
 import { cacheContextGuards } from "@/lib/cache";
-import type { LogoManifest, ImageManifest } from "@/types/image";
+import {
+  imageManifestSchema,
+  logoManifestSchema,
+  type ImageManifestFromSchema,
+  type LogoManifestFromSchema,
+} from "@/types/schemas/image-manifest";
 
 // Runtime-safe wrappers for experimental cache APIs
 const safeCacheLife = (
@@ -38,15 +43,21 @@ export async function loadManifestsWithCache() {
   safeCacheTag("image-manifests");
 
   const [logos, opengraph, blog] = await Promise.all([
-    readJsonS3<LogoManifest>(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST),
-    readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST),
-    readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST),
+    readJsonS3<LogoManifestFromSchema>(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST, logoManifestSchema),
+    readJsonS3<ImageManifestFromSchema>(
+      IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST,
+      imageManifestSchema,
+    ),
+    readJsonS3<ImageManifestFromSchema>(
+      IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST,
+      imageManifestSchema,
+    ),
   ]);
 
   return {
-    logos: logos || {},
-    opengraph: opengraph || [],
-    blog: blog || [],
+    logos,
+    opengraph,
+    blog,
   };
 }
 
@@ -59,6 +70,8 @@ export async function loadLogoManifestWithCache() {
   safeCacheLife("days");
   safeCacheTag("logo-manifest");
 
-  const manifest = await readJsonS3<LogoManifest>(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST);
-  return manifest || {};
+  return readJsonS3<LogoManifestFromSchema>(
+    IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST,
+    logoManifestSchema,
+  );
 }

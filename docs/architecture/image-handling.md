@@ -44,7 +44,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 └────┬────────┘
      │
      ▼
-┌─────────────┐  image-s3-utils + s3-utils persist buffers or stream directly,
+┌─────────────┐  image-s3-utils + lib/s3/* persist buffers or stream directly,
 │Persistence  │  update manifests/blocklists/cache tags
 └────┬────────┘
      │

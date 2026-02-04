@@ -55,14 +55,11 @@ const CARD_IMAGE_BACKOFF_BASE_MS = 1000;
 const CARD_IMAGE_BACKOFF_MAX_MS = 5000;
 
 /**
- * Proxies external URLs through the image cache API. Local paths and data URLs
- * are returned unchanged.
+ * Proxies external URLs through the image cache API.
+ * Delegates to getOptimizedImageSrc which handles all URL classification
+ * (empty values, local paths, data URLs, CDN URLs, external URLs).
  */
 function getProxiedImageSrc(src: string | null | undefined, width?: number): string | undefined {
-  // Skip proxying for: empty values, local paths (including /api/*), and data URLs
-  if (!src || src.startsWith("/") || src.startsWith("data:") || !/^https?:\/\//i.test(src)) {
-    return src ?? undefined;
-  }
   return getOptimizedImageSrc(src, undefined, width);
 }
 
@@ -106,7 +103,8 @@ function extractDomainFromSrc(url: string): string | null {
     if (qp?.trim()) return qp.trim().toLowerCase();
 
     return deriveDomainFromLogoKey(parsed.pathname);
-  } catch {
+  } catch (err) {
+    console.warn(`[LogoImage] Failed to extract domain from src: ${url}`, err);
     return null;
   }
 }

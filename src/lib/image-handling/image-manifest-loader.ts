@@ -7,19 +7,21 @@
  * @module lib/image-handling/image-manifest-loader
  */
 
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3 } from "@/lib/s3/json";
 import { IMAGE_MANIFEST_S3_PATHS, USE_NEXTJS_CACHE } from "@/lib/constants";
-import type { LogoManifest, ImageManifest, LogoManifestEntry } from "@/types/image";
+import {
+  imageManifestSchema,
+  logoManifestSchema,
+  type ImageManifestFromSchema,
+  type LogoManifestEntryFromSchema,
+  type LogoManifestFromSchema,
+} from "@/types/schemas/image-manifest";
 import { loadLogoManifestWithCache } from "./cached-manifest-loader";
 
-const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
-const shouldSkipManifestFetchDuringBuild =
-  isBuildPhase && process.env.LOAD_IMAGE_MANIFESTS_DURING_BUILD !== "true";
-
 // In-memory cache for manifests
-let logoManifest: LogoManifest | null = null;
-let opengraphManifest: ImageManifest | null = null;
-let blogManifest: ImageManifest | null = null;
+let logoManifest: LogoManifestFromSchema | null = null;
+let opengraphManifest: ImageManifestFromSchema | null = null;
+let blogManifest: ImageManifestFromSchema | null = null;
 
 // Loading state to prevent concurrent loads
 let isLoading = false;
@@ -29,20 +31,26 @@ let loadingPromise: Promise<void> | null = null;
  * Direct manifest loading (no cache)
  */
 async function getManifestsDirect(): Promise<{
-  logos: LogoManifest;
-  opengraph: ImageManifest;
-  blog: ImageManifest;
+  logos: LogoManifestFromSchema;
+  opengraph: ImageManifestFromSchema;
+  blog: ImageManifestFromSchema;
 }> {
   const [logos, opengraph, blog] = await Promise.all([
-    readJsonS3<LogoManifest>(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST),
-    readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST),
-    readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST),
+    readJsonS3<LogoManifestFromSchema>(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST, logoManifestSchema),
+    readJsonS3<ImageManifestFromSchema>(
+      IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST,
+      imageManifestSchema,
+    ),
+    readJsonS3<ImageManifestFromSchema>(
+      IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST,
+      imageManifestSchema,
+    ),
   ]);
 
   return {
-    logos: logos || {},
-    opengraph: opengraph || [],
-    blog: blog || [],
+    logos,
+    opengraph,
+    blog,
   };
 }
 
@@ -56,46 +64,28 @@ export async function loadImageManifests(): Promise<void> {
   // By default manifests are loaded at boot. To disable, set
   // `LOAD_IMAGE_MANIFESTS_AT_BOOT=false` in the environment.
 
-  if (shouldSkipManifestFetchDuringBuild) {
-    logoManifest = {};
-    opengraphManifest = [];
-    blogManifest = [];
-    return;
-  }
-
   // Default to loading manifests unless explicitly disabled
   if (process.env.LOAD_IMAGE_MANIFESTS_AT_BOOT === "false") {
-    logoManifest = {};
-    opengraphManifest = [];
-    blogManifest = [];
-    return; // Lazy loading will kick-in on first access
+    return;
   }
 
   console.log("[ImageManifestLoader] Loading image manifests from S3...");
 
-  try {
-    // During instrumentation/startup, we can't use "use cache" functions
-    // Always use direct loading here - the cache functions are for runtime use
-    const manifests = await getManifestsDirect();
+  // During instrumentation/startup, we can't use "use cache" functions
+  // Always use direct loading here - the cache functions are for runtime use
+  const manifests = await getManifestsDirect();
 
-    // Cache manifests
-    logoManifest = manifests.logos;
-    opengraphManifest = manifests.opengraph;
-    blogManifest = manifests.blog;
+  // Cache manifests
+  logoManifest = manifests.logos;
+  opengraphManifest = manifests.opengraph;
+  blogManifest = manifests.blog;
 
-    const logoCount = Object.keys(logoManifest).length;
-    const totalImages = logoCount + (opengraphManifest?.length || 0) + (blogManifest?.length || 0);
+  const logoCount = Object.keys(logoManifest).length;
+  const totalImages = logoCount + (opengraphManifest?.length || 0) + (blogManifest?.length || 0);
 
-    console.log(
-      `[ImageManifestLoader] Loaded ${totalImages} images from manifests (${logoCount} logos)`,
-    );
-  } catch (error) {
-    console.error("[ImageManifestLoader] Failed to load image manifests:", error);
-    // Initialize with empty manifests on error
-    logoManifest = {};
-    opengraphManifest = [];
-    blogManifest = [];
-  }
+  console.log(
+    `[ImageManifestLoader] Loaded ${totalImages} images from manifests (${logoCount} logos)`,
+  );
 }
 
 /**
@@ -105,12 +95,6 @@ export async function loadImageManifests(): Promise<void> {
 async function ensureManifestsLoaded(): Promise<void> {
   // If already loaded, return immediately
   if (logoManifest !== null) {
-    return;
-  }
-  if (shouldSkipManifestFetchDuringBuild) {
-    logoManifest = {};
-    opengraphManifest = [];
-    blogManifest = [];
     return;
   }
   // If currently loading, wait for the existing load to complete
@@ -133,7 +117,7 @@ async function ensureManifestsLoaded(): Promise<void> {
  * @param domain - Domain to lookup
  * @returns Logo manifest entry if found, null otherwise
  */
-export function getLogoFromManifest(domain: string): LogoManifestEntry | null {
+export function getLogoFromManifest(domain: string): LogoManifestEntryFromSchema | null {
   if (!logoManifest) {
     console.warn(
       `[ImageManifestLoader] Logo manifest not loaded when looking up domain: ${domain}`,
@@ -158,11 +142,9 @@ export function getLogoFromManifest(domain: string): LogoManifestEntry | null {
  * @param domain - Domain to lookup
  * @returns Promise that resolves to logo manifest entry if found, null otherwise
  */
-export async function getLogoFromManifestAsync(domain: string): Promise<LogoManifestEntry | null> {
-  if (shouldSkipManifestFetchDuringBuild) {
-    return null;
-  }
-
+export async function getLogoFromManifestAsync(
+  domain: string,
+): Promise<LogoManifestEntryFromSchema | null> {
   if (USE_NEXTJS_CACHE) {
     try {
       // Use the cached manifest loader
@@ -187,7 +169,7 @@ export async function getLogoFromManifestAsync(domain: string): Promise<LogoMani
  * Get all logos from manifest
  * @returns Logo manifest object
  */
-export function getAllLogosFromManifest(): LogoManifest {
+export function getAllLogosFromManifest(): LogoManifestFromSchema {
   return logoManifest || {};
 }
 
