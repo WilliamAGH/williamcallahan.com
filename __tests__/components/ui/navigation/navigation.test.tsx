@@ -17,9 +17,9 @@ vi.mock("@/lib/hooks/use-window-size.client", () => ({
 }));
 
 // Mock next/navigation using vi.mock
-// vi.mock("next/navigation", () => ({
-//   usePathname: () => mockUsePathname(),
-// }));
+vi.mock("next/navigation", () => ({
+  usePathname: vi.fn(),
+}));
 
 // REMOVE ALL MOCKING FOR terminal-context.client
 
@@ -38,6 +38,7 @@ interface LinkProps {
   href: string;
   prefetch?: boolean;
   scroll?: boolean;
+  onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
   [key: string]: unknown;
 }
 vi.mock("next/link", () => ({

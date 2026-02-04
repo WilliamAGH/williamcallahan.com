@@ -4,11 +4,13 @@
  */
 
 import { isDateInRange } from "@/lib/utils/date-format";
+import { createCategorizedError } from "@/lib/utils/error-utils";
 import type {
   ContributionDay,
   GraphQLContributionDay,
   GraphQLContributionCalendar,
 } from "@/types/github";
+import { fetchContributionCalendar } from "./github-api";
 
 // Contribution level mapping
 const CONTRIBUTION_LEVELS: Record<string, 0 | 1 | 2 | 3 | 4> = {
@@ -117,4 +119,55 @@ export function calculateContributionSummary(
     maxStreak,
     currentStreak,
   };
+}
+
+/**
+ * Fetch and flatten trailing-year contribution calendar via GraphQL
+ */
+export async function fetchTrailingYearContributionCalendar({
+  githubRepoOwner,
+  fromDate,
+  toDate,
+}: {
+  githubRepoOwner: string;
+  fromDate: Date;
+  toDate: Date;
+}): Promise<{ totalContributions: number; contributionDays: ContributionDay[] }> {
+  let totalContributions = 0;
+  const contributionDays: ContributionDay[] = [];
+
+  try {
+    console.log(
+      `[DataAccess/GitHub] Fetching contribution calendar for ${githubRepoOwner} via GraphQL API...`,
+    );
+
+    const gqlResponse = await fetchContributionCalendar(
+      githubRepoOwner,
+      fromDate.toISOString(),
+      toDate.toISOString(),
+    );
+
+    if (gqlResponse?.user?.contributionsCollection?.contributionCalendar) {
+      const calendar = gqlResponse.user.contributionsCollection.contributionCalendar;
+      totalContributions = calendar.totalContributions;
+
+      contributionDays.push(...flattenContributionCalendar(calendar));
+      contributionDays.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      console.log(
+        `[DataAccess/GitHub] Successfully fetched contribution calendar. Total contributions (trailing year): ${totalContributions}`,
+      );
+    } else {
+      console.warn(
+        "[DataAccess/GitHub] Failed to fetch or parse GraphQL contribution calendar. Calendar data will be empty.",
+      );
+    }
+  } catch (gqlError: unknown) {
+    const categorizedError = createCategorizedError(gqlError, "github");
+    console.error(
+      "[DataAccess/GitHub] CRITICAL: Error fetching GraphQL contribution calendar:",
+      categorizedError.message,
+    );
+  }
+
+  return { totalContributions, contributionDays };
 }

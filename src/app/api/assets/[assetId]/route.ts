@@ -125,7 +125,8 @@ async function findAssetInS3(
           contentType: response.ContentType || `image/${ext.substring(1)}`,
         };
       } catch {
-        // S3 object not found with this extension, continue checking other patterns
+        // S3 object not found at descriptive path - expected during key resolution
+        console.debug(`[Assets API] S3 object not found: ${descriptiveKey}`);
       }
     }
   }
@@ -147,7 +148,8 @@ async function findAssetInS3(
         contentType: response.ContentType || `image/${ext.substring(1)}`,
       };
     } catch {
-      // Continue checking other extensions
+      // S3 object not found at UUID path - expected during key resolution
+      console.debug(`[Assets API] S3 object not found: ${key}`);
     }
   }
 
@@ -304,7 +306,8 @@ async function saveAssetToS3(
     console.log(`[Assets API] Asset already exists in S3, skipping write: ${key}`);
     return key;
   } catch {
-    // File doesn't exist, proceed with upload
+    // S3 object not found - this is expected, proceed with upload
+    console.debug(`[Assets API] S3 object not found (will upload): ${key}`);
   }
 
   // Check if a write is already in progress for this key (prevents race conditions)

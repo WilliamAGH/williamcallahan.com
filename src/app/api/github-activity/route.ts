@@ -11,7 +11,7 @@
  *   - force-cache=true: Effectively ignored as data-access layer handles caching
  */
 
-import { getGithubActivityCached } from "@/lib/data-access/github";
+import { getGithubActivityCached } from "@/lib/data-access/github-public-api";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
 
