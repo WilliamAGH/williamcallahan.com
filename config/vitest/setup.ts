@@ -15,9 +15,17 @@ import React from "react";
 import { ServerCacheInstance } from "@/lib/server-cache";
 
 // Mock next/link to avoid DOM navigation and strip non-DOM props
+type MockNextLinkProps = React.PropsWithChildren<{
+  href: string;
+  onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
+  prefetch?: boolean | null | "auto";
+  scroll?: boolean;
+}> &
+  Record<string, unknown>;
+
 vi.mock("next/link", () => ({
   __esModule: true,
-  default: ({ children, href, onClick, prefetch, scroll, ...props }: any) => {
+  default: ({ children, href, onClick, prefetch, scroll, ...props }: MockNextLinkProps) => {
     void prefetch;
     void scroll;
     return React.createElement(

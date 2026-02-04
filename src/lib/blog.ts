@@ -11,6 +11,7 @@ import type {
 } from "@/types/blog";
 import { getAllMDXPostsCached, getMDXPostCached } from "./blog/mdx";
 import { BlogPostDataError } from "./utils/error-utils";
+import { getMonotonicTime } from "@/lib/utils";
 import fs from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
@@ -124,7 +125,7 @@ function isNegativelyCachedNotFoundSlug(slug: string): boolean {
   const untilMs = notFoundSlugUntilMs.get(slug);
   if (!untilMs) return false;
 
-  const nowMs = Date.now();
+  const nowMs = getMonotonicTime();
   if (untilMs <= nowMs) {
     notFoundSlugUntilMs.delete(slug);
     return false;
@@ -134,7 +135,7 @@ function isNegativelyCachedNotFoundSlug(slug: string): boolean {
 }
 
 function setNegativelyCachedNotFoundSlug(slug: string): void {
-  notFoundSlugUntilMs.set(slug, Date.now() + NOT_FOUND_SLUG_NEGATIVE_CACHE_TTL_MS);
+  notFoundSlugUntilMs.set(slug, getMonotonicTime() + NOT_FOUND_SLUG_NEGATIVE_CACHE_TTL_MS);
 
   if (notFoundSlugUntilMs.size <= NOT_FOUND_SLUG_NEGATIVE_CACHE_MAX_ENTRIES) return;
 
