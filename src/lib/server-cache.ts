@@ -31,7 +31,8 @@ const buildPhaseTimestamp = isProductionBuildPhase() ? getMonotonicTime() : unde
 
 export const getDeterministicTimestamp = (): number => {
   if (isProductionBuildPhase()) {
-    return buildPhaseTimestamp ?? getMonotonicTime();
+    // Return the captured timestamp or a safe fallback (never call dynamic time functions during build)
+    return buildPhaseTimestamp ?? 1700000000000;
   }
   return getMonotonicTime();
 };

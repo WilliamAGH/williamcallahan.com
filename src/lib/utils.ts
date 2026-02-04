@@ -41,6 +41,12 @@ export function cn(...inputs: ClassValue[]) {
  * Performance API is unavailable to keep build output deterministic.
  */
 export function getMonotonicTime(): number {
+  // During Next.js production build, return a fixed timestamp to avoid "Date.now()" errors
+  // in Server Components (static generation)
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    return 1700000000000; // Fixed epoch timestamp (approx Nov 2023)
+  }
+
   if (typeof globalThis !== "undefined") {
     const perf = globalThis.performance;
     if (perf && typeof perf.now === "function") {
