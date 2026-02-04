@@ -120,3 +120,24 @@ export async function generateBookCoverBlursInBatch(
 
   return blurMap;
 }
+
+/**
+ * Apply blur data URLs to a list of book items in place.
+ * Uses batched blur generation for resilience and controlled concurrency.
+ */
+export async function applyBookCoverBlurs<TItem extends { id: string; coverBlurDataURL?: string }>(
+  items: TItem[],
+  buildCoverUrl: (id: string) => string,
+): Promise<void> {
+  if (items.length === 0) return;
+
+  const coverUrls = new Map(items.map((item) => [item.id, buildCoverUrl(item.id)]));
+  const blurMap = await generateBookCoverBlursInBatch(coverUrls);
+
+  for (const item of items) {
+    const blur = blurMap.get(item.id);
+    if (blur) {
+      item.coverBlurDataURL = blur;
+    }
+  }
+}

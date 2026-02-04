@@ -26,7 +26,7 @@ import {
   absItemsToBookListItems,
   buildDirectCoverUrl,
 } from "./transforms";
-import { generateBookCoverBlur } from "./image-utils.server";
+import { applyBookCoverBlurs } from "./image-utils.server";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuration
@@ -180,22 +180,8 @@ async function fetchBooksFresh(
   // Optionally generate blur placeholders (parallel for performance)
   // Use direct AudioBookShelf URLs for server-side blur generation
   if (includeBlurPlaceholders) {
-    const results = await Promise.allSettled(
-      books.map(async (book) => {
-        // Use direct URL for server-side fetch (not the proxied coverUrl)
-        const directUrl = buildDirectCoverUrl(book.id, baseUrl, apiKey);
-        book.coverBlurDataURL = await generateBookCoverBlur(directUrl);
-      }),
-    );
-    // Log any failures for debugging without blocking the response
-    results.forEach((result, index) => {
-      if (result.status === "rejected") {
-        console.warn(
-          `[AudioBookShelf] Blur placeholder failed for book index ${index}:`,
-          result.reason,
-        );
-      }
-    });
+    const buildCoverUrl = (id: string) => buildDirectCoverUrl(id, baseUrl, apiKey);
+    await applyBookCoverBlurs(books, buildCoverUrl);
   }
 
   return books;
@@ -277,21 +263,8 @@ export async function fetchBookListItemsWithFallback(
 
     // Use direct AudioBookShelf URLs for server-side blur generation
     if (includeBlurPlaceholders) {
-      const results = await Promise.allSettled(
-        bookListItems.map(async (book) => {
-          // Use direct URL for server-side fetch (not the proxied coverUrl)
-          const directUrl = buildDirectCoverUrl(book.id, baseUrl, apiKey);
-          book.coverBlurDataURL = await generateBookCoverBlur(directUrl);
-        }),
-      );
-      results.forEach((result, index) => {
-        if (result.status === "rejected") {
-          console.warn(
-            `[AudioBookShelf] Blur placeholder failed for book list item index ${index}:`,
-            result.reason,
-          );
-        }
-      });
+      const buildCoverUrl = (id: string) => buildDirectCoverUrl(id, baseUrl, apiKey);
+      await applyBookCoverBlurs(bookListItems, buildCoverUrl);
     }
 
     // Keep a snapshot so detail pages can fall back to last-known-good data
@@ -375,8 +348,8 @@ export async function fetchBookById(
 
     // Optionally generate blur placeholder using direct URL
     if (includeBlurPlaceholder) {
-      const directUrl = buildDirectCoverUrl(id, baseUrl, apiKey);
-      book.coverBlurDataURL = await generateBookCoverBlur(directUrl);
+      const buildCoverUrl = (itemId: string) => buildDirectCoverUrl(itemId, baseUrl, apiKey);
+      await applyBookCoverBlurs([book], buildCoverUrl);
     }
 
     return book;
