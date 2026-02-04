@@ -69,25 +69,18 @@ if (typeof window !== "undefined") {
   window.ResizeObserver = MockResizeObserver as any;
 
   // Mock MessageChannel
+  const createMockMessagePort = () => ({
+    postMessage: vi.fn(),
+    onmessage: null,
+    close: vi.fn(),
+    start: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  });
   class MockMessageChannel {
-    port1 = {
-      postMessage: vi.fn(),
-      onmessage: null,
-      close: vi.fn(),
-      start: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    };
-    port2 = {
-      postMessage: vi.fn(),
-      onmessage: null,
-      close: vi.fn(),
-      start: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    };
+    port1 = createMockMessagePort();
+    port2 = createMockMessagePort();
   }
   window.MessageChannel = MockMessageChannel as any;
 

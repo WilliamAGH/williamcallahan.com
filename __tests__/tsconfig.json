@@ -13,7 +13,14 @@
       "@/hooks/*": ["../src/hooks/*"],
       "@/*": ["../src/*"]
     },
-    "types": ["react", "react-dom", "react/jsx-runtime", "jest", "@testing-library/jest-dom"],
+    "types": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "vitest/globals",
+      "@testing-library/jest-dom/vitest",
+      "node"
+    ],
     "jsx": "react-jsx",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
