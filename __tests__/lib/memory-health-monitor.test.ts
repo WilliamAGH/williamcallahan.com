@@ -1,9 +1,9 @@
 /**
  * @fileoverview Tests for MemoryHealthMonitor image-operations guard
- * @jest-environment node
+ * @vitest-environment node
  */
 
-jest.mock("@/lib/constants", () => ({
+vi.mock("@/lib/constants", () => ({
   MEMORY_THRESHOLDS: {
     TOTAL_PROCESS_MEMORY_BUDGET_BYTES: 1000,
     IMAGE_RAM_BUDGET_BYTES: 0,
@@ -14,9 +14,9 @@ jest.mock("@/lib/constants", () => ({
   },
 }));
 
-jest.mock("@/lib/server-cache", () => ({
+vi.mock("@/lib/server-cache", () => ({
   ServerCacheInstance: {
-    getStats: jest.fn(() => ({
+    getStats: vi.fn(() => ({
       keys: 0,
       hits: 0,
       misses: 0,
@@ -41,7 +41,7 @@ describe("MemoryHealthMonitor.shouldAllowImageOperations", () => {
 
   const setMemoryUsage = (rss: number) => {
     Object.defineProperty(process, "memoryUsage", {
-      value: jest.fn(() => ({
+      value: vi.fn(() => ({
         rss,
         heapTotal: 0,
         heapUsed: 0,

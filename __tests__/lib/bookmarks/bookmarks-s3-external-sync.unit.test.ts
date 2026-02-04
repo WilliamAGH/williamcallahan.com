@@ -1,23 +1,24 @@
 import "dotenv/config";
-import { describe, expect, it, jest, beforeAll, beforeEach } from "@jest/globals";
-// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
+import { vi } from "vitest";
+// Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 import { refreshBookmarksData } from "../../../src/lib/bookmarks"; // This calls the actual external API
 import type { UnifiedBookmark } from "../../../src/types";
 import { BOOKMARKS_S3_PATHS } from "../../../src/lib/constants"; // To get the S3 file key
-import { readJsonS3 } from "../../../src/lib/s3-utils";
+import { readJsonS3 } from "../../../src/lib/s3/json";
+import { unifiedBookmarksArraySchema } from "../../../src/types/bookmark";
 
 // Response is already available globally via polyfills.js
 
 // Mock the S3 utilities
-jest.mock("../../../src/lib/s3-utils", () => ({
-  readJsonS3: jest.fn(() => Promise.resolve([])),
-  writeJsonS3: jest.fn(() => Promise.resolve()),
-  deleteFromS3: jest.fn(() => Promise.resolve()),
+vi.mock("../../../src/lib/s3/json", () => ({
+  readJsonS3: vi.fn(() => Promise.resolve([])),
+  writeJsonS3: vi.fn(() => Promise.resolve()),
+  deleteFromS3: vi.fn(() => Promise.resolve()),
 }));
 
 // Mock refreshBookmarksData to return mock data
-jest.mock("../../../src/lib/bookmarks", () => ({
-  refreshBookmarksData: jest.fn(() =>
+vi.mock("../../../src/lib/bookmarks", () => ({
+  refreshBookmarksData: vi.fn(() =>
     Promise.resolve([
       {
         id: "1",
@@ -54,7 +55,7 @@ jest.mock("../../../src/lib/bookmarks", () => ({
  *
  * This suite **unconditionally mocks all network & S3 calls** so it executes in a
  * fast, deterministic unit-test environment. The mocks at the top of this file
- * intercept all calls to `s3-utils` and `bookmarks` modules regardless of whether
+ * intercept all calls to `lib/s3/json` and `bookmarks` modules regardless of whether
  * credentials are present.
  *
  * What we cover:
@@ -83,10 +84,8 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
   let s3Error: Error | null = null;
   let apiError: Error | null = null;
 
-  let originalCdnUrl: string | undefined;
-
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   /**
@@ -111,26 +110,9 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
       return;
     }
 
-    // Force S3 utils to use AWS SDK instead of CDN for reliable test results
-    // This bypasses any CDN caching issues and tests actual S3 storage
-    originalCdnUrl = process.env.S3_PUBLIC_CDN_URL;
-    process.env.S3_PUBLIC_CDN_URL = "";
-
-    // Store original CDN URL to restore after tests if needed
-    if (originalCdnUrl) {
-      console.log("[UnitTest] Temporarily disabling S3 CDN to test direct S3 access");
-    }
-
     try {
       console.log(`[UnitTest] Attempting to read from S3 key: ${BOOKMARKS_S3_PATHS.FILE}`);
-      s3Bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
-      if (s3Bookmarks === null) {
-        // readJsonS3 returns null on error like object not found
-        console.warn(
-          `[UnitTest] readJsonS3 returned null, S3 file not found/empty at ${BOOKMARKS_S3_PATHS.FILE}. Treating as 0 bookmarks.`,
-        );
-        s3Bookmarks = [];
-      }
+      s3Bookmarks = await readJsonS3(BOOKMARKS_S3_PATHS.FILE, unifiedBookmarksArraySchema);
     } catch (e) {
       s3Error = e instanceof Error ? e : new Error(JSON.stringify(e));
       console.error("[UnitTest] Error reading from S3:", s3Error);
@@ -155,13 +137,7 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
     // Re-read S3 after refreshing external bookmarks to pick up any updates
     try {
       console.log("[UnitTest] Re-reading S3 after external API refresh");
-      const updated = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
-      if (updated === null) {
-        console.warn("[UnitTest] readJsonS3 returned null on re-read, treating as empty.");
-        s3Bookmarks = [];
-      } else {
-        s3Bookmarks = updated;
-      }
+      s3Bookmarks = await readJsonS3(BOOKMARKS_S3_PATHS.FILE, unifiedBookmarksArraySchema);
     } catch (e) {
       const err = e instanceof Error ? e : new Error(JSON.stringify(e));
       console.error("[UnitTest] Error re-reading from S3 after refresh:", err);
@@ -172,13 +148,7 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
   /**
    * Cleanup test environment by restoring original CDN URL and fetch function
    */
-  afterAll(() => {
-    // Restore original CDN URL if it was set
-    if (originalCdnUrl) {
-      process.env.S3_PUBLIC_CDN_URL = originalCdnUrl;
-      console.log("[UnitTest] Restored original S3 CDN URL");
-    }
-  });
+  afterAll(() => {});
 
   /**
    * Verifies that all required environment variables are present for testing

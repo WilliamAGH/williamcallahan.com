@@ -3,11 +3,11 @@
  */
 let mockedMonotonicNow = 0;
 
-jest.mock("@/lib/utils", () => {
-  const actual = jest.requireActual("@/lib/utils");
+vi.mock("@/lib/utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/utils")>();
   return {
     ...actual,
-    getMonotonicTime: jest.fn(() => mockedMonotonicNow),
+    getMonotonicTime: vi.fn(() => mockedMonotonicNow),
   };
 });
 
@@ -28,16 +28,16 @@ import {
 describe("Rate Limiter", () => {
   const advanceTime = (ms: number) => {
     mockedMonotonicNow += ms;
-    jest.advanceTimersByTime(ms);
+    vi.advanceTimersByTime(ms);
   };
 
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     mockedMonotonicNow = 0;
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe("isOperationAllowed", () => {
@@ -206,7 +206,7 @@ describe("Rate Limiter", () => {
       isOperationAllowed("wait-store-4", clientId, config);
 
       // Mock setTimeout to track wait times
-      const setTimeoutSpy = jest.spyOn(global, "setTimeout");
+      const setTimeoutSpy = vi.spyOn(global, "setTimeout");
 
       // Start waiting
       const waitPromise = waitForPermit("wait-store-4", clientId, config);

@@ -13,7 +13,7 @@
 /**
  * Environment variable configuration test suite with module isolation
  *
- * Uses Jest module isolation to test dynamic configuration loading from environment variables
+ * Uses Vitest module isolation to test dynamic configuration loading from environment variables
  * while maintaining clean test state through proper setup and teardown
  */
 describe("Environment Variable Configuration", () => {
@@ -22,11 +22,11 @@ describe("Environment Variable Configuration", () => {
 
   /**
    * Pre-test setup ensuring clean module state and environment isolation
-   * Resets Jest module cache and clones original environment for modification
+   * Resets Vitest module cache and clones original environment for modification
    */
   beforeEach(() => {
     /** Reset modules to pick up new env vars */
-    jest.resetModules();
+    vi.resetModules();
     /** Clone the original env */
     process.env = { ...originalEnv };
   });

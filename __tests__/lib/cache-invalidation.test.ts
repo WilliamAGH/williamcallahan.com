@@ -3,8 +3,14 @@
  */
 
 // Mock modules with ESM dependencies before importing
-jest.mock("@/lib/data-access/github");
-jest.mock("@/lib/data-access/opengraph");
+vi.mock("@/lib/data-access/github");
+vi.mock("@/lib/data-access/opengraph");
+
+// Mock bookmarks module - returns array, not object with .data
+vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
+  getBookmarksPage: vi.fn().mockResolvedValue([]),
+  invalidateBookmarksCache: vi.fn(),
+}));
 
 import { invalidateSearchCache, invalidateSearchQueryCache } from "@/lib/search";
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
@@ -85,7 +91,7 @@ describe("Next.js Cache Invalidation", () => {
     });
   });
 
-  describe.skip("GitHub Cache", () => {
+  describe.todo("GitHub Cache", () => {
     it("should cache and invalidate GitHub activity data", async () => {
       try {
         // First fetch

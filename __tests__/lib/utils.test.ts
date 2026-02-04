@@ -83,7 +83,7 @@ describe("formatDate", () => {
 
   it("should handle invalid date string", () => {
     // Suppress console.warn during this test
-    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     expect(formatDate("invalid-date")).toBe("Invalid Date");
     expect(warnSpy).toHaveBeenCalledWith("Invalid date string passed to formatDate: invalid-date");
     warnSpy.mockRestore();
@@ -247,7 +247,7 @@ describe("randomString", () => {
     });
 
     it("produces consistent output when Math.random is mocked", () => {
-      const spy = jest.spyOn(Math, "random").mockReturnValue(0.42);
+      const spy = vi.spyOn(Math, "random").mockReturnValue(0.42);
       const s1 = randomString(5);
       const s2 = randomString(5);
       expect(s1).toBe(s2);

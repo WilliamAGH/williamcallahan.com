@@ -10,7 +10,7 @@ describe("memoryPressureMiddleware", () => {
     process.env = { ...ORIGINAL_ENV, NODE_ENV: "production" };
     delete process.env.MEMORY_PRESSURE_CRITICAL;
     delete process.env.MEMORY_PRESSURE_WARNING;
-    jest.resetModules();
+    vi.resetModules();
   });
 
   afterEach(() => {
@@ -19,7 +19,7 @@ describe("memoryPressureMiddleware", () => {
   });
 
   it("does not make external health check calls", async () => {
-    global.fetch = jest.fn().mockRejectedValue(new Error("Health check failed"));
+    global.fetch = vi.fn().mockRejectedValue(new Error("Health check failed"));
 
     const { memoryPressureMiddleware } = await import("@/lib/middleware/memory-pressure");
     const request = {

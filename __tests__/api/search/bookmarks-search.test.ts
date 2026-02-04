@@ -4,11 +4,11 @@ import { getBookmarks } from "@/lib/bookmarks/service.server";
 import type { SearchResult } from "@/types/search";
 import type { UnifiedBookmark } from "@/types";
 
-jest.mock("@/lib/search");
-jest.mock("@/lib/bookmarks/service.server");
+vi.mock("@/lib/search");
+vi.mock("@/lib/bookmarks/service.server");
 
-const mockSearchBookmarks = jest.mocked(searchBookmarks);
-const mockGetBookmarks = jest.mocked(getBookmarks);
+const mockSearchBookmarks = vi.mocked(searchBookmarks);
+const mockGetBookmarks = vi.mocked(getBookmarks);
 
 describe("Bookmarks Search API", () => {
   const idMatch1 = "bk-1";
@@ -61,7 +61,7 @@ describe("Bookmarks Search API", () => {
   ];
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockSearchBookmarks.mockResolvedValue(searchResults);
     mockGetBookmarks.mockResolvedValue(dataset);
   });
@@ -89,7 +89,7 @@ describe("Bookmarks Search API", () => {
 });
 
 afterAll(() => {
-  jest.unmock("@/lib/bookmarks/service.server");
-  jest.unmock("@/lib/search");
-  jest.resetModules();
+  vi.doUnmock("@/lib/bookmarks/service.server");
+  vi.doUnmock("@/lib/search");
+  vi.resetModules();
 });

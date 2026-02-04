@@ -33,8 +33,8 @@ describe("lib/cache", () => {
 
   describe("withCacheFallback", () => {
     it("should return cached result when cache function succeeds", async () => {
-      const cachedFn = jest.fn().mockResolvedValue("cached result");
-      const fallbackFn = jest.fn().mockResolvedValue("fallback result");
+      const cachedFn = vi.fn().mockResolvedValue("cached result");
+      const fallbackFn = vi.fn().mockResolvedValue("fallback result");
 
       const result = await withCacheFallback(cachedFn, fallbackFn);
 
@@ -44,8 +44,8 @@ describe("lib/cache", () => {
     });
 
     it("should return fallback result when cache function fails", async () => {
-      const cachedFn = jest.fn().mockRejectedValue(new Error("Cache error"));
-      const fallbackFn = jest.fn().mockResolvedValue("fallback result");
+      const cachedFn = vi.fn().mockRejectedValue(new Error("Cache error"));
+      const fallbackFn = vi.fn().mockResolvedValue("fallback result");
 
       const result = await withCacheFallback(cachedFn, fallbackFn);
 

@@ -1,11 +1,9 @@
 // Mock only the generateUniqueSlug function
-jest.mock("../../../src/lib/utils/domain-utils", () => {
-  const actual = jest.requireActual<typeof import("../../../src/lib/utils/domain-utils")>(
-    "../../../src/lib/utils/domain-utils",
-  );
+vi.mock("../../../src/lib/utils/domain-utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../src/lib/utils/domain-utils")>();
   return {
     ...actual,
-    generateUniqueSlug: jest.fn<typeof actual.generateUniqueSlug>(
+    generateUniqueSlug: vi.fn<typeof actual.generateUniqueSlug>(
       (url, allBookmarks, currentBookmarkId, title) => {
         // Special case for specific test
         if (currentBookmarkId === "2" && url === "https://example.com/page") {

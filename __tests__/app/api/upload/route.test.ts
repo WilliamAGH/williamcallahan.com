@@ -1,28 +1,33 @@
 /**
- * @jest-environment node
+ * @vitest-environment node
  */
 import { POST } from "@/app/api/upload/route";
-import { deleteFromS3, writeBinaryS3 } from "@/lib/s3-utils";
+import { writeBinaryS3 } from "@/lib/s3/binary";
+import { deleteFromS3 } from "@/lib/s3/objects";
 import { parsePdfFromBuffer } from "@/lib/books/pdf-parser";
 
-jest.mock("@/lib/s3-utils", () => ({
-  writeBinaryS3: jest.fn(),
-  deleteFromS3: jest.fn(),
+vi.mock("@/lib/s3/binary", () => ({
+  writeBinaryS3: vi.fn(),
 }));
 
-jest.mock("@/lib/books/pdf-parser", () => ({
-  parsePdfFromBuffer: jest.fn(),
+vi.mock("@/lib/s3/objects", () => ({
+  deleteFromS3: vi.fn(),
+}));
+
+vi.mock("@/lib/books/pdf-parser", () => ({
+  parsePdfFromBuffer: vi.fn(),
 }));
 
 describe("Upload API cleanup behavior", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("deletes S3 object when PDF processing fails", async () => {
-    const writeBinaryS3Mock = jest.mocked(writeBinaryS3);
-    const deleteFromS3Mock = jest.mocked(deleteFromS3);
-    const parsePdfFromBufferMock = jest.mocked(parsePdfFromBuffer);
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const writeBinaryS3Mock = vi.mocked(writeBinaryS3);
+    const deleteFromS3Mock = vi.mocked(deleteFromS3);
+    const parsePdfFromBufferMock = vi.mocked(parsePdfFromBuffer);
 
     writeBinaryS3Mock.mockResolvedValue(undefined);
     deleteFromS3Mock.mockResolvedValue(undefined);
@@ -46,5 +51,6 @@ describe("Upload API cleanup behavior", () => {
     expect(writeBinaryS3Mock).toHaveBeenCalledTimes(1);
     const s3Key = writeBinaryS3Mock.mock.calls[0]?.[0];
     expect(deleteFromS3Mock).toHaveBeenCalledWith(s3Key);
+    consoleErrorSpy.mockRestore();
   });
 });

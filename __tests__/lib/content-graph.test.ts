@@ -3,32 +3,33 @@
  */
 
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
-import { writeJsonS3 } from "@/lib/s3-utils";
+import { writeJsonS3 } from "@/lib/s3/json";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
+import type { Mock, MockedFunction } from "vitest";
 
 // Mock S3 utilities
-jest.mock("@/lib/s3-utils");
-jest.mock("@/lib/bookmarks/service.server");
-jest.mock("@/lib/bookmarks/bookmarks-data-access.server");
-jest.mock("@/lib/blog");
-jest.mock("@/lib/utils/logger");
-jest.mock("@/lib/search/index-builder");
-jest.mock("@/lib/content-similarity/aggregator");
-jest.mock("@/lib/content-similarity", () => ({
-  findMostSimilar: jest.fn(),
+vi.mock("@/lib/s3/json");
+vi.mock("@/lib/bookmarks/service.server");
+vi.mock("@/lib/bookmarks/bookmarks-data-access.server");
+vi.mock("@/lib/blog");
+vi.mock("@/lib/utils/logger");
+vi.mock("@/lib/search/index-builder");
+vi.mock("@/lib/content-similarity/aggregator");
+vi.mock("@/lib/content-similarity", () => ({
+  findMostSimilar: vi.fn(),
   DEFAULT_WEIGHTS: { tagMatch: 0.4, textSimilarity: 0.3, domainMatch: 0.2, recency: 0.1 },
 }));
-jest.mock("@/data/projects", () => ({
+vi.mock("@/data/projects", () => ({
   projects: [],
 }));
 
-const mockWriteJsonS3 = writeJsonS3 as jest.MockedFunction<typeof writeJsonS3>;
+const mockWriteJsonS3 = writeJsonS3 as MockedFunction<typeof writeJsonS3>;
 
 describe("Content Graph Pre-computation", () => {
   let manager: DataFetchManager;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     manager = new DataFetchManager();
   });
 
@@ -84,10 +85,10 @@ describe("Content Graph Pre-computation", () => {
       const { findMostSimilar } = await import("@/lib/content-similarity");
       const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
 
-      (aggregateAllContent as jest.Mock).mockResolvedValue(mockNormalizedContent);
-      (getAllPosts as jest.Mock).mockResolvedValue(mockBlogPosts);
+      (aggregateAllContent as Mock).mockResolvedValue(mockNormalizedContent);
+      (getAllPosts as Mock).mockResolvedValue(mockBlogPosts);
       // Projects already mocked at module level
-      (findMostSimilar as jest.Mock).mockImplementation((_source, candidates) => {
+      (findMostSimilar as Mock).mockImplementation((_source, candidates) => {
         // Return mock similar content
         return candidates.slice(0, 2).map((c: any, i: number) => ({
           ...c,
@@ -95,12 +96,8 @@ describe("Content Graph Pre-computation", () => {
         }));
       });
       // DEFAULT_WEIGHTS already mocked at module level
-      (refreshBookmarks as jest.Mock).mockResolvedValue([]);
-      mockWriteJsonS3.mockResolvedValue({
-        success: true,
-        key: "test",
-        etag: "test-etag",
-      });
+      (refreshBookmarks as Mock).mockResolvedValue([]);
+      mockWriteJsonS3.mockResolvedValue(undefined);
 
       // Run the content graph build
       await manager.fetchData({
@@ -188,22 +185,18 @@ describe("Content Graph Pre-computation", () => {
       const { findMostSimilar } = await import("@/lib/content-similarity");
       const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
 
-      (aggregateAllContent as jest.Mock).mockResolvedValue(mockNormalizedContent);
-      (getAllPosts as jest.Mock).mockResolvedValue(mockBlogPosts);
+      (aggregateAllContent as Mock).mockResolvedValue(mockNormalizedContent);
+      (getAllPosts as Mock).mockResolvedValue(mockBlogPosts);
       // Projects already mocked at module level
-      (findMostSimilar as jest.Mock).mockImplementation((_source, candidates) => {
+      (findMostSimilar as Mock).mockImplementation((_source, candidates) => {
         return candidates.slice(0, 2).map((c: any, i: number) => ({
           ...c,
           score: 0.9 - i * 0.1,
         }));
       });
       // DEFAULT_WEIGHTS already mocked at module level
-      (refreshBookmarks as jest.Mock).mockResolvedValue([]);
-      mockWriteJsonS3.mockResolvedValue({
-        success: true,
-        key: "test",
-        etag: "test-etag",
-      });
+      (refreshBookmarks as Mock).mockResolvedValue([]);
+      mockWriteJsonS3.mockResolvedValue(undefined);
 
       await manager.fetchData({
         bookmarks: true,
@@ -242,7 +235,7 @@ describe("Content Graph Pre-computation", () => {
       }
     });
 
-    it.skip("should save metadata with correct counts", async () => {
+    it.todo("should save metadata with correct counts", async () => {
       const mockNormalizedContent = [
         ...Array(50)
           .fill(null)
@@ -287,10 +280,10 @@ describe("Content Graph Pre-computation", () => {
       const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
       const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
 
-      (aggregateAllContent as jest.Mock).mockResolvedValue(mockNormalizedContent);
-      (getAllPosts as jest.Mock).mockResolvedValue(mockBlogPosts);
+      (aggregateAllContent as Mock).mockResolvedValue(mockNormalizedContent);
+      (getAllPosts as Mock).mockResolvedValue(mockBlogPosts);
       // Projects already mocked at module level
-      (findMostSimilar as jest.Mock).mockImplementation((_source, candidates) => {
+      (findMostSimilar as Mock).mockImplementation((_source, candidates) => {
         return candidates.slice(0, 2).map((c: any, i: number) => ({
           ...c,
           score: 0.9 - i * 0.1,
@@ -298,9 +291,9 @@ describe("Content Graph Pre-computation", () => {
       });
       // DEFAULT_WEIGHTS already mocked at module level
       // Mock getBookmarks to return previous bookmarks (empty initially)
-      (getBookmarks as jest.Mock).mockResolvedValue([]);
+      (getBookmarks as Mock).mockResolvedValue([]);
       // Return mock bookmarks data to ensure the fetch succeeds
-      (refreshBookmarks as jest.Mock).mockResolvedValue(
+      (refreshBookmarks as Mock).mockResolvedValue(
         Array(50)
           .fill(null)
           .map((_, i) => ({
@@ -312,11 +305,7 @@ describe("Content Graph Pre-computation", () => {
             dateBookmarked: "2024-01-01",
           })),
       );
-      mockWriteJsonS3.mockResolvedValue({
-        success: true,
-        key: "test",
-        etag: "test-etag",
-      });
+      mockWriteJsonS3.mockResolvedValue(undefined);
 
       await manager.fetchData({
         bookmarks: true,
@@ -347,9 +336,9 @@ describe("Content Graph Pre-computation", () => {
       const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
 
       // Mock aggregator to throw error for content graph failure
-      (aggregateAllContent as jest.Mock).mockRejectedValue(new Error("Content aggregation failed"));
-      (getBookmarks as jest.Mock).mockResolvedValue([]); // Mock getBookmarks to return empty array
-      (refreshBookmarks as jest.Mock).mockRejectedValue(new Error("API Error"));
+      (aggregateAllContent as Mock).mockRejectedValue(new Error("Content aggregation failed"));
+      (getBookmarks as Mock).mockResolvedValue([]); // Mock getBookmarks to return empty array
+      (refreshBookmarks as Mock).mockRejectedValue(new Error("API Error"));
 
       const result = await manager.fetchData({
         bookmarks: true,

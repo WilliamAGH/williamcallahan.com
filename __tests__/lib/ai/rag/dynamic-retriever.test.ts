@@ -8,13 +8,13 @@
 import { retrieveRelevantContent } from "@/lib/ai/rag/dynamic-retriever";
 
 // Mock all search functions
-jest.mock("@/lib/search/searchers/static-searchers", () => ({
-  searchProjects: jest
+vi.mock("@/lib/search/searchers/static-searchers", () => ({
+  searchProjects: vi
     .fn()
     .mockResolvedValue([
       { title: "aVenture.vc", description: "Research platform", url: "/projects", score: 0.9 },
     ]),
-  searchInvestments: jest.fn().mockResolvedValue([
+  searchInvestments: vi.fn().mockResolvedValue([
     {
       title: "TechStartup",
       description: "Seed investment",
@@ -22,12 +22,12 @@ jest.mock("@/lib/search/searchers/static-searchers", () => ({
       score: 0.85,
     },
   ]),
-  searchExperience: jest
+  searchExperience: vi
     .fn()
     .mockResolvedValue([
       { title: "Acme Corp", description: "Senior Engineer", url: "/experience#acme", score: 0.8 },
     ]),
-  searchEducation: jest.fn().mockResolvedValue([
+  searchEducation: vi.fn().mockResolvedValue([
     {
       title: "CFA Institute",
       description: "CFA Charterholder",
@@ -37,8 +37,8 @@ jest.mock("@/lib/search/searchers/static-searchers", () => ({
   ]),
 }));
 
-jest.mock("@/lib/blog/server-search", () => ({
-  searchBlogPostsServerSide: jest.fn().mockResolvedValue([
+vi.mock("@/lib/blog/server-search", () => ({
+  searchBlogPostsServerSide: vi.fn().mockResolvedValue([
     {
       title: "Building Terminal UIs",
       description: "How to build",
@@ -48,13 +48,13 @@ jest.mock("@/lib/blog/server-search", () => ({
   ]),
 }));
 
-jest.mock("@/lib/search/searchers/dynamic-searchers", () => ({
-  searchBooks: jest
+vi.mock("@/lib/search/searchers/dynamic-searchers", () => ({
+  searchBooks: vi
     .fn()
     .mockResolvedValue([
       { title: "Clean Code", description: "Robert Martin", url: "/books/clean-code", score: 0.75 },
     ]),
-  searchBookmarks: jest.fn().mockResolvedValue([
+  searchBookmarks: vi.fn().mockResolvedValue([
     {
       title: "Useful Resource",
       description: "A bookmark",
@@ -64,8 +64,8 @@ jest.mock("@/lib/search/searchers/dynamic-searchers", () => ({
   ]),
 }));
 
-jest.mock("@/lib/search/searchers/tag-search", () => ({
-  searchTags: jest.fn().mockResolvedValue([
+vi.mock("@/lib/search/searchers/tag-search", () => ({
+  searchTags: vi.fn().mockResolvedValue([
     {
       title: "[Blog] > [Tags] > TypeScript",
       description: "12 posts",
@@ -77,7 +77,7 @@ jest.mock("@/lib/search/searchers/tag-search", () => ({
 
 describe("RAG Dynamic Retriever", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("scope detection", () => {
@@ -210,7 +210,9 @@ describe("RAG Dynamic Retriever", () => {
     it("respects maxResults option", async () => {
       const { results, status } = await retrieveRelevantContent(
         "projects investments experience education",
-        { maxResults: 2 },
+        {
+          maxResults: 2,
+        },
       );
 
       expect(status).toBe("success");

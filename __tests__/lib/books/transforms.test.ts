@@ -270,24 +270,24 @@ describe("Book Transforms", () => {
     });
 
     it("throws on non-404 responses", async () => {
-      globalThis.fetch = jest.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 500,
         statusText: "Server Error",
         headers: new Headers(),
-        json: jest.fn(),
+        json: vi.fn(),
       }) as unknown as typeof fetch;
 
       await expect(fetchBookById("book-500")).rejects.toThrow("AudioBookShelf API error");
     });
 
     it("returns null on 404 responses", async () => {
-      globalThis.fetch = jest.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 404,
         statusText: "Not Found",
         headers: new Headers(),
-        json: jest.fn(),
+        json: vi.fn(),
       }) as unknown as typeof fetch;
 
       await expect(fetchBookById("book-404")).resolves.toBeNull();

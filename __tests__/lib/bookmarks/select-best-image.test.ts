@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment node
+ */
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 
 describe("selectBestImage", () => {

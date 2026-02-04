@@ -1,9 +1,10 @@
 /**
  * Sitemap Tests
  * @description Tests that the sitemap generates correctly with proper pagination and lastModified handling
- * @jest-environment node
+ * @vitest-environment node
  */
 
+import type { MockedFunction } from "vitest";
 import sitemap from "@/app/sitemap";
 import {
   getBookmarksIndex,
@@ -14,58 +15,59 @@ import {
 } from "@/lib/bookmarks/service.server";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 
-jest.mock("@/lib/bookmarks/service.server", () => ({
-  getBookmarksIndex: jest.fn(),
-  getBookmarksPage: jest.fn(),
-  listBookmarkTagSlugs: jest.fn(),
-  getTagBookmarksIndex: jest.fn(),
-  getTagBookmarksPage: jest.fn(),
+vi.mock("@/lib/bookmarks/service.server", () => ({
+  getBookmarksIndex: vi.fn(),
+  getBookmarksPage: vi.fn(),
+  listBookmarkTagSlugs: vi.fn(),
+  getTagBookmarksIndex: vi.fn(),
+  getTagBookmarksPage: vi.fn(),
 }));
 
-jest.mock("@/data/education", () => ({
+vi.mock("@/data/education", () => ({
   education: [],
   updatedAt: "2024-01-01",
 }));
 
-jest.mock("@/data/experience", () => ({
+vi.mock("@/data/experience", () => ({
   experience: [],
   updatedAt: "2024-01-01",
 }));
 
-jest.mock("@/data/investments", () => ({
+vi.mock("@/data/investments", () => ({
   investments: [],
   updatedAt: "2024-01-01",
 }));
 
-jest.mock("@/data/projects", () => ({
+vi.mock("@/data/projects", () => ({
   projects: [],
   updatedAt: "2024-01-01",
 }));
 
-jest.mock("fs", () => ({
-  ...jest.requireActual("fs"),
-  readdirSync: jest.fn(() => ["test-post.mdx"]),
-  readFileSync: jest.fn(
-    () => `---
+vi.mock("fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("fs")>();
+  return {
+    ...actual,
+    readdirSync: vi.fn(() => ["test-post.mdx"]),
+    readFileSync: vi.fn(
+      () => `---
 title: Test Post
 publishedAt: '2024-01-01'
 updatedAt: '2024-01-02'
 ---
 Content`,
-  ),
-}));
+    ),
+  };
+});
 
-const mockGetBookmarksIndex = getBookmarksIndex as jest.MockedFunction<typeof getBookmarksIndex>;
-const mockGetBookmarksPage = getBookmarksPage as jest.MockedFunction<typeof getBookmarksPage>;
-const mockListBookmarkTagSlugs = listBookmarkTagSlugs as jest.MockedFunction<
+const mockGetBookmarksIndex = getBookmarksIndex as MockedFunction<typeof getBookmarksIndex>;
+const mockGetBookmarksPage = getBookmarksPage as MockedFunction<typeof getBookmarksPage>;
+const mockListBookmarkTagSlugs = listBookmarkTagSlugs as MockedFunction<
   typeof listBookmarkTagSlugs
 >;
-const mockGetTagBookmarksIndex = getTagBookmarksIndex as jest.MockedFunction<
+const mockGetTagBookmarksIndex = getTagBookmarksIndex as MockedFunction<
   typeof getTagBookmarksIndex
 >;
-const mockGetTagBookmarksPage = getTagBookmarksPage as jest.MockedFunction<
-  typeof getTagBookmarksPage
->;
+const mockGetTagBookmarksPage = getTagBookmarksPage as MockedFunction<typeof getTagBookmarksPage>;
 
 const buildBookmark = (
   id: string,
@@ -93,7 +95,7 @@ describe("Sitemap Generation", () => {
   let originalSiteUrl: string | undefined;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockGetBookmarksIndex.mockReset();
     mockGetBookmarksPage.mockReset();
     mockListBookmarkTagSlugs.mockReset();

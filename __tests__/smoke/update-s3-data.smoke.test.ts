@@ -1,5 +1,5 @@
 // __tests__/scripts/update-s3-data.smoke.test.ts
-// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
+// Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 import { execSync } from "node:child_process";
 import path from "node:path";
 

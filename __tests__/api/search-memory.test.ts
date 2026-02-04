@@ -1,8 +1,8 @@
 /**
- * @jest-environment node
+ * @vitest-environment node
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
+import type { Mock } from "vitest";
 import type { SearchResult } from "@/types/search";
 
 // Mock environment variables
@@ -71,7 +71,7 @@ describe("Search API Memory Usage", () => {
 
   beforeAll(() => {
     // Mock global fetch
-    global.fetch = jest.fn().mockImplementation((url: string) => {
+    global.fetch = vi.fn().mockImplementation((url: string) => {
       const urlObj = new URL(url);
       const query = urlObj.searchParams.get("q") || "";
 
@@ -113,7 +113,7 @@ describe("Search API Memory Usage", () => {
   afterAll(() => {
     // Restore fetch
     if (global.fetch && "mockRestore" in global.fetch) {
-      (global.fetch as jest.Mock).mockRestore();
+      (global.fetch as Mock).mockRestore();
     }
   });
 
@@ -206,7 +206,7 @@ describe("Search API Memory Usage", () => {
       }
 
       // Override fetch mock for this test to simulate the API's limiting behavior
-      (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      (global.fetch as Mock).mockImplementationOnce(() =>
         Promise.resolve({
           ok: true,
           status: 200,

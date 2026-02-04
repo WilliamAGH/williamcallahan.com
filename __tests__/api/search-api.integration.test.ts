@@ -3,15 +3,15 @@
  * @description Tests GET /api/search/all for various queries and edge cases
  */
 
-import { describe, expect, it, jest } from "@jest/globals";
+import { vi } from "vitest";
 import { GET } from "@/app/api/search/all/route";
 
 // Headers is already available globally via polyfills.js
 
 // Mock search functions to return empty arrays for test environment
 // Note: [Blog] prefix is added by the aggregator, not by searchBlogPostsServerSide
-jest.mock("@/lib/blog/server-search", () => ({
-  searchBlogPostsServerSide: jest.fn().mockResolvedValue([
+vi.mock("@/lib/blog/server-search", () => ({
+  searchBlogPostsServerSide: vi.fn().mockResolvedValue([
     {
       id: "1",
       type: "post",
@@ -31,8 +31,8 @@ jest.mock("@/lib/blog/server-search", () => ({
   ]),
 }));
 
-jest.mock("@/lib/search", () => ({
-  searchInvestments: jest.fn().mockResolvedValue([
+vi.mock("@/lib/search", () => ({
+  searchInvestments: vi.fn().mockResolvedValue([
     {
       id: "inv1",
       type: "project",
@@ -42,7 +42,7 @@ jest.mock("@/lib/search", () => ({
       score: 0.9,
     },
   ]),
-  searchExperience: jest.fn().mockResolvedValue([
+  searchExperience: vi.fn().mockResolvedValue([
     {
       id: "exp1",
       type: "page",
@@ -52,7 +52,7 @@ jest.mock("@/lib/search", () => ({
       score: 0.85,
     },
   ]),
-  searchEducation: jest.fn().mockResolvedValue([
+  searchEducation: vi.fn().mockResolvedValue([
     {
       id: "edu1",
       type: "page",
@@ -62,7 +62,7 @@ jest.mock("@/lib/search", () => ({
       score: 0.75,
     },
   ]),
-  searchBookmarks: jest.fn().mockResolvedValue([
+  searchBookmarks: vi.fn().mockResolvedValue([
     {
       id: "bm1",
       type: "bookmark",
@@ -72,6 +72,29 @@ jest.mock("@/lib/search", () => ({
       score: 0.7,
     },
   ]),
+  searchProjects: vi.fn().mockResolvedValue([
+    {
+      id: "proj1",
+      type: "project",
+      title: "Test Project",
+      description: "Test description",
+      url: "/projects/test",
+      score: 0.8,
+    },
+  ]),
+  searchBooks: vi.fn().mockResolvedValue([
+    {
+      id: "book1",
+      type: "book",
+      title: "Test Book",
+      description: "Test book description",
+      url: "/books/test-book",
+      score: 0.65,
+    },
+  ]),
+  searchTags: vi.fn().mockResolvedValue([]),
+  searchAiAnalysis: vi.fn().mockResolvedValue([]),
+  searchThoughts: vi.fn().mockResolvedValue([]),
 }));
 
 /**

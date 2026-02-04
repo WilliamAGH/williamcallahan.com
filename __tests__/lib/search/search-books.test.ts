@@ -10,16 +10,16 @@
 import type { Book } from "@/types/schemas/book";
 
 // Mock the audiobookshelf server module
-jest.mock("@/lib/books/audiobookshelf.server", () => ({
-  fetchBooks: jest.fn(),
+vi.mock("@/lib/books/audiobookshelf.server", () => ({
+  fetchBooks: vi.fn(),
 }));
 
 // Mock ServerCacheInstance
-jest.mock("@/lib/server-cache", () => ({
+vi.mock("@/lib/server-cache", () => ({
   ServerCacheInstance: {
-    get: jest.fn(),
-    set: jest.fn(),
-    getStats: jest.fn().mockReturnValue({
+    get: vi.fn(),
+    set: vi.fn(),
+    getStats: vi.fn().mockReturnValue({
       keys: 0,
       hits: 0,
       misses: 0,
@@ -29,22 +29,23 @@ jest.mock("@/lib/server-cache", () => ({
       maxSizeBytes: 0,
       utilizationPercent: 0,
     }),
-    getSearchResults: jest.fn(),
-    setSearchResults: jest.fn(),
-    shouldRefreshSearch: jest.fn(),
-    clearAllCaches: jest.fn(),
+    getSearchResults: vi.fn(),
+    setSearchResults: vi.fn(),
+    shouldRefreshSearch: vi.fn(),
+    clearAllCaches: vi.fn(),
   },
 }));
 
-// Mock S3 utils to prevent actual S3 calls
-jest.mock("@/lib/s3-utils", () => ({
-  readJsonS3: jest.fn().mockResolvedValue(null),
-  writeJsonS3: jest.fn().mockResolvedValue(undefined),
+// Mock S3 JSON helpers to prevent actual S3 calls
+vi.mock("@/lib/s3/json", () => ({
+  readJsonS3Optional: vi.fn().mockResolvedValue(null),
+  writeJsonS3: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { searchBooks } from "@/lib/search";
 import { fetchBooks } from "@/lib/books/audiobookshelf.server";
 import { ServerCacheInstance } from "@/lib/server-cache";
+import type { Mock } from "vitest";
 
 // Test data: books with valid UUIDs (like real audiobookshelf data)
 const mockBooks: Book[] = [
@@ -87,13 +88,13 @@ const mockBooks: Book[] = [
 
 describe("Books Search", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // Default: no cache hit, force fresh index build
-    (ServerCacheInstance.get as jest.Mock).mockReturnValue(undefined);
-    (ServerCacheInstance.getSearchResults as jest.Mock).mockReturnValue(undefined);
-    (ServerCacheInstance.shouldRefreshSearch as jest.Mock).mockReturnValue(true);
+    (ServerCacheInstance.get as Mock).mockReturnValue(undefined);
+    (ServerCacheInstance.getSearchResults as Mock).mockReturnValue(undefined);
+    (ServerCacheInstance.shouldRefreshSearch as Mock).mockReturnValue(true);
     // Return mock books
-    (fetchBooks as jest.Mock).mockResolvedValue(mockBooks);
+    (fetchBooks as Mock).mockResolvedValue(mockBooks);
   });
 
   describe("Index Building", () => {
@@ -211,7 +212,7 @@ describe("Books Search", () => {
 
   describe("Edge Cases", () => {
     it("should handle empty books array gracefully", async () => {
-      (fetchBooks as jest.Mock).mockResolvedValue([]);
+      (fetchBooks as Mock).mockResolvedValue([]);
 
       const results = await searchBooks("anything");
 
@@ -229,7 +230,7 @@ describe("Books Search", () => {
           // coverUrl is optional
         },
       ];
-      (fetchBooks as jest.Mock).mockResolvedValue(booksWithMissingFields);
+      (fetchBooks as Mock).mockResolvedValue(booksWithMissingFields);
 
       // Search for the book title
       const results = await searchBooks("Book Without Cover");

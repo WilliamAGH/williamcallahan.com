@@ -19,6 +19,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { vi, type MockedFunction } from "vitest";
 import type { MetadataRoute } from "next";
 import sitemap from "../../src/app/sitemap";
 import {
@@ -43,12 +44,12 @@ const mockBookmarkEntries = [
   },
 ];
 
-jest.mock("../../src/lib/bookmarks/service.server", () => {
-  const mockIndex = jest.fn();
-  const mockPage = jest.fn();
-  const mockList = jest.fn();
-  const mockTagIndex = jest.fn();
-  const mockTagPage = jest.fn();
+vi.mock("../../src/lib/bookmarks/service.server", () => {
+  const mockIndex = vi.fn();
+  const mockPage = vi.fn();
+  const mockList = vi.fn();
+  const mockTagIndex = vi.fn();
+  const mockTagPage = vi.fn();
   return {
     getBookmarksIndex: mockIndex,
     getBookmarksPage: mockPage,
@@ -58,27 +59,25 @@ jest.mock("../../src/lib/bookmarks/service.server", () => {
   };
 });
 
-const mockedGetBookmarksIndex = getBookmarksIndex as jest.MockedFunction<typeof getBookmarksIndex>;
-const mockedGetBookmarksPage = getBookmarksPage as jest.MockedFunction<typeof getBookmarksPage>;
-const mockedListBookmarkTagSlugs = listBookmarkTagSlugs as jest.MockedFunction<
+const mockedGetBookmarksIndex = getBookmarksIndex as MockedFunction<typeof getBookmarksIndex>;
+const mockedGetBookmarksPage = getBookmarksPage as MockedFunction<typeof getBookmarksPage>;
+const mockedListBookmarkTagSlugs = listBookmarkTagSlugs as MockedFunction<
   typeof listBookmarkTagSlugs
 >;
-const mockedGetTagBookmarksIndex = getTagBookmarksIndex as jest.MockedFunction<
+const mockedGetTagBookmarksIndex = getTagBookmarksIndex as MockedFunction<
   typeof getTagBookmarksIndex
 >;
-const mockedGetTagBookmarksPage = getTagBookmarksPage as jest.MockedFunction<
-  typeof getTagBookmarksPage
->;
+const mockedGetTagBookmarksPage = getTagBookmarksPage as MockedFunction<typeof getTagBookmarksPage>;
 
 // Allow longer-running sitemap validations in CI
 const DEFAULT_TEST_TIMEOUT_MS = 60_000;
-jest.setTimeout(DEFAULT_TEST_TIMEOUT_MS);
+vi.setConfig({ testTimeout: DEFAULT_TEST_TIMEOUT_MS });
 
 // Store original fetch
 const originalFetch = global.fetch;
 
 // Mock fetch globally
-const mockFetch = jest.fn();
+const mockFetch = vi.fn();
 global.fetch = mockFetch as unknown as typeof fetch; // Assert type for assignment
 
 // Constants for test configuration

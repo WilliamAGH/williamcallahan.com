@@ -10,15 +10,15 @@ import { validateBookmarksDataset } from "../../../src/lib/validators/bookmarks"
 import type { UnifiedBookmark } from "../../../src/types";
 
 // Mock console.error to suppress error logs during tests
-jest.spyOn(console, "error").mockImplementation(() => {});
-jest.spyOn(console, "warn").mockImplementation(() => {});
+vi.spyOn(console, "error").mockImplementation(() => {});
+vi.spyOn(console, "warn").mockImplementation(() => {});
 
 describe("Bookmarks Validation", () => {
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
     // Clear mock calls before each test
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     process.env = { ...originalEnv };
   });
 
@@ -29,7 +29,7 @@ describe("Bookmarks Validation", () => {
 
   afterAll(() => {
     process.env = originalEnv;
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   const createBookmark = (id: string, url: string, title: string): UnifiedBookmark => ({

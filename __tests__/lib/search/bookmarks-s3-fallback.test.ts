@@ -4,52 +4,52 @@
  */
 
 import MiniSearch from "minisearch";
-import type { BookmarkIndexItem, SerializedIndex } from "@/types/search";
+import type { BookmarkIndexItem, SerializedIndex } from "@/types/schemas/search";
 
 // Save original env value to restore after tests (prevent leaking to other test files)
 const originalUseS3SearchIndexes = process.env.USE_S3_SEARCH_INDEXES;
 
-const mockReadJsonS3 = jest.fn();
-jest.mock("@/lib/s3-utils", () => ({
-  readJsonS3: (...args: unknown[]) => mockReadJsonS3(...args),
+const mockReadJsonS3 = vi.fn();
+vi.mock("@/lib/s3/json", () => ({
+  readJsonS3Optional: (...args: unknown[]) => mockReadJsonS3(...args),
 }));
 
-const mockGetBookmarks = jest.fn();
-jest.mock("@/lib/bookmarks/service.server", () => ({
+const mockGetBookmarks = vi.fn();
+vi.mock("@/lib/bookmarks/service.server", () => ({
   getBookmarks: (...args: unknown[]) => mockGetBookmarks(...args),
 }));
 
-const mockLoadSlugMapping = jest.fn();
-const mockGetSlugForBookmark = jest.fn();
-jest.mock("@/lib/bookmarks/slug-manager", () => ({
+const mockLoadSlugMapping = vi.fn();
+const mockGetSlugForBookmark = vi.fn();
+vi.mock("@/lib/bookmarks/slug-manager", () => ({
   loadSlugMapping: (...args: unknown[]) => mockLoadSlugMapping(...args),
   getSlugForBookmark: (...args: unknown[]) => mockGetSlugForBookmark(...args),
 }));
 
-const mockTryGetEmbeddedSlug = jest.fn();
-jest.mock("@/lib/bookmarks/slug-helpers", () => ({
+const mockTryGetEmbeddedSlug = vi.fn();
+vi.mock("@/lib/bookmarks/slug-helpers", () => ({
   tryGetEmbeddedSlug: (...args: unknown[]) => mockTryGetEmbeddedSlug(...args),
 }));
 
-jest.mock("@/lib/utils/env-logger", () => ({
+vi.mock("@/lib/utils/env-logger", () => ({
   envLogger: {
-    log: jest.fn(),
+    log: vi.fn(),
   },
 }));
 
-jest.mock("@/lib/health/memory-health-monitor", () => ({
+vi.mock("@/lib/health/memory-health-monitor", () => ({
   getMemoryHealthMonitor: () => ({
     shouldAcceptNewRequests: () => true,
-    on: jest.fn(),
-    off: jest.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
   }),
 }));
 
-jest.mock("@/lib/server-cache", () => ({
+vi.mock("@/lib/server-cache", () => ({
   ServerCacheInstance: {
-    get: jest.fn(),
-    set: jest.fn(),
-    getStats: jest.fn().mockReturnValue({
+    get: vi.fn(),
+    set: vi.fn(),
+    getStats: vi.fn().mockReturnValue({
       keys: 0,
       hits: 0,
       misses: 0,
@@ -59,15 +59,16 @@ jest.mock("@/lib/server-cache", () => ({
       maxSizeBytes: 0,
       utilizationPercent: 0,
     }),
-    getSearchResults: jest.fn(),
-    setSearchResults: jest.fn(),
-    shouldRefreshSearch: jest.fn(),
-    clearAllCaches: jest.fn(),
+    getSearchResults: vi.fn(),
+    setSearchResults: vi.fn(),
+    shouldRefreshSearch: vi.fn(),
+    clearAllCaches: vi.fn(),
   },
 }));
 
 import { searchBookmarks } from "@/lib/search";
 import { ServerCacheInstance } from "@/lib/server-cache";
+import type { Mock } from "vitest";
 
 describe("searchBookmarks - S3 fallback mapping", () => {
   const bookmarks: Array<BookmarkIndexItem & { slug: string }> = [
@@ -103,16 +104,16 @@ describe("searchBookmarks - S3 fallback mapping", () => {
   })();
 
   beforeEach(() => {
-    // Set env var for each test (Jest reuses process across files)
+    // Set env var for each test (Vitest reuses process across files)
     process.env.USE_S3_SEARCH_INDEXES = "true";
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockReadJsonS3.mockResolvedValue(serializedIndex);
     mockGetBookmarks.mockResolvedValue([]);
     mockLoadSlugMapping.mockResolvedValue(null);
     mockGetSlugForBookmark.mockReturnValue(null);
     mockTryGetEmbeddedSlug.mockReturnValue(null);
-    (ServerCacheInstance.getSearchResults as jest.Mock).mockReturnValue(undefined);
-    (ServerCacheInstance.shouldRefreshSearch as jest.Mock).mockReturnValue(true);
+    (ServerCacheInstance.getSearchResults as Mock).mockReturnValue(undefined);
+    (ServerCacheInstance.shouldRefreshSearch as Mock).mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -130,7 +131,7 @@ describe("searchBookmarks - S3 fallback mapping", () => {
     const results = await searchBookmarks("sdk");
 
     expect(mockReadJsonS3).toHaveBeenCalled();
-    const cacheArgs = (ServerCacheInstance.set as jest.Mock).mock.calls[0]?.[1];
+    const cacheArgs = (ServerCacheInstance.set as Mock).mock.calls[0]?.[1];
     expect(cacheArgs?.bookmarks?.length ?? 0).toBeGreaterThan(0);
     expect(typeof cacheArgs?.index?.documentCount).toBe("number");
     expect(cacheArgs?.index?.documentCount ?? 0).toBeGreaterThan(0);

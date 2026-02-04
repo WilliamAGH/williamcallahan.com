@@ -6,34 +6,26 @@
  * @module __tests__/lib/thoughts/chroma-queries.test
  */
 
-const REQUIRED_ENV_VARS = ["CHROMA_API_KEY", "CHROMA_TENANT", "CHROMA_DATABASE"] as const;
-const missingVars = REQUIRED_ENV_VARS.filter((v) => !process.env[v]);
-const hasChromaConfig = missingVars.length === 0;
-
-if (!hasChromaConfig) {
-  console.warn(
-    `[chroma-queries.test.ts] Skipping tests - missing env vars: ${missingVars.join(", ")}`,
-  );
-}
-
-// Mock chromadb before importing the query module
+// Mock chroma dependencies before importing the query module
 const mockCollection = {
-  get: jest.fn(),
-  query: jest.fn(),
+  get: vi.fn(),
+  query: vi.fn(),
 };
 
-jest.mock("chromadb", () => ({
-  CloudClient: jest.fn().mockImplementation(() => ({
-    getOrCreateCollection: jest.fn().mockResolvedValue(mockCollection),
+vi.mock("@/lib/chroma/client", () => ({
+  getChromaClient: vi.fn().mockImplementation(() => ({
+    getOrCreateCollection: vi.fn().mockResolvedValue(mockCollection),
   })),
 }));
 
-const describeIfChroma = hasChromaConfig ? describe : describe.skip;
+vi.mock("@/lib/chroma/embedding-function", () => ({
+  getEmbeddingFunction: vi.fn().mockResolvedValue({}),
+}));
 
-describeIfChroma("Thoughts Chroma Queries", () => {
+describe("Thoughts Chroma Queries", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.resetModules();
+    vi.clearAllMocks();
+    vi.resetModules();
 
     // Default mock responses
     mockCollection.get.mockResolvedValue({

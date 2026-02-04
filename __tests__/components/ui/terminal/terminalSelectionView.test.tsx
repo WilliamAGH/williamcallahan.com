@@ -14,32 +14,32 @@ import type { SelectionItem } from "@/types/terminal";
 describe("SelectionView Component", () => {
   const mockItems: SelectionItem[] = [
     {
+      id: "option-1",
       label: "Option 1",
-      value: "option1",
-      action: "navigate",
+      description: "First option",
       path: "/option1",
     },
     {
+      id: "option-2",
       label: "Option 2",
-      value: "option2",
-      action: "execute",
-      command: "command2",
+      description: "Second option",
+      path: "/option2",
     },
     {
+      id: "option-3",
       label: "Option 3",
-      value: "option3",
-      action: "navigate",
+      description: "Third option",
       path: "/option3",
     },
   ];
 
   const mockHandlers = {
-    onSelectAction: jest.fn(),
-    onExitAction: jest.fn(),
+    onSelectAction: vi.fn(),
+    onExitAction: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("renders selection options with proper styling", () => {

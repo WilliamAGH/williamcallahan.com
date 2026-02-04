@@ -4,17 +4,16 @@
 
 // @typescript-eslint/ban-ts-comment
 
-import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import { InvestmentCardClient } from "../../../../src/components/features/investments/investment-card.client";
 import type { MockExternalLinkProps } from "@/types/test";
 // Mock lucide-react icons
-jest.mock("lucide-react", () => ({
+vi.mock("lucide-react", () => ({
   ExternalLink: (props: any) => <svg {...props} data-testid="external-link-icon" />,
 }));
 
-// Mock the external link component using jest.mock
-jest.mock("../../../../src/components/ui/external-link.client", () => ({
+// Mock the external link component using vi.mock
+vi.mock("../../../../src/components/ui/external-link.client", () => ({
   ExternalLink: ({ children, href, title, className }: MockExternalLinkProps) => (
     <a href={href} title={title} className={className} data-testid="external-link">
       {children}
@@ -24,13 +23,13 @@ jest.mock("../../../../src/components/ui/external-link.client", () => ({
 
 // We don't need to mock the aVenture icon component anymore since we're using an img directly
 
-// Mock the LogoImage component using jest.mock
-jest.mock("../../../../src/components/ui", () => ({
+// Mock the LogoImage component using vi.mock
+vi.mock("../../../../src/components/ui", () => ({
   LogoImage: () => <div data-testid="logo-image" />,
 }));
 
-// Mock the FinancialMetrics component using jest.mock
-jest.mock("../../../../src/components/ui/financial-metrics.server", () => ({
+// Mock the FinancialMetrics component using vi.mock
+vi.mock("../../../../src/components/ui/financial-metrics.server", () => ({
   __esModule: true,
   default: () => <div data-testid="financial-metrics" />,
 }));

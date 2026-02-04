@@ -3,7 +3,6 @@
  */
 
 import { render } from "@testing-library/react";
-import "@testing-library/jest-dom";
 import { AVentureIcon } from "../../../../src/components/ui/social-icons/aventure-icon";
 
 describe("AVenture Icon", () => {

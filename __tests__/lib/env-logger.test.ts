@@ -1,6 +1,6 @@
 /**
  * @fileoverview Tests for envLogger safe stringification
- * @jest-environment node
+ * @vitest-environment node
  */
 
 describe("envLogger", () => {
@@ -13,8 +13,8 @@ describe("envLogger", () => {
       VERBOSE_TEST_LOGS: "true",
       API_BASE_URL: "https://williamcallahan.com",
     };
-    jest.resetModules();
-    console.log = jest.fn();
+    vi.resetModules();
+    console.log = vi.fn();
   });
 
   afterEach(() => {

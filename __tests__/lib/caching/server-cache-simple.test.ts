@@ -1,7 +1,7 @@
-// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
+// Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 // First, mock the modules before requiring our target module
-jest.mock("@/lib/utils/ensure-server-only", () => ({
-  assertServerOnly: jest.fn(),
+vi.mock("@/lib/utils/ensure-server-only", () => ({
+  assertServerOnly: vi.fn(),
 }));
 
 // Now import the server cache module directly

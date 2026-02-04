@@ -1,3 +1,4 @@
+import type { MockInstance } from "vitest";
 import { render, act } from "@testing-library/react";
 import { FolderKanban } from "lucide-react";
 import {
@@ -8,8 +9,8 @@ import {
 
 describe("useRegisteredWindowState", () => {
   it("registers on mount, unregisters on unmount, and toggles isRegistered", async () => {
-    let registerSpy!: jest.SpyInstance;
-    let unregisterSpy!: jest.SpyInstance;
+    let registerSpy!: MockInstance;
+    let unregisterSpy!: MockInstance;
 
     /**
      * Helper component to expose the context so we can attach spies.
@@ -19,8 +20,8 @@ describe("useRegisteredWindowState", () => {
     const SpyCollector = () => {
       const ctx = useWindowRegistry();
       if (!registerSpy) {
-        registerSpy = jest.spyOn(ctx, "registerWindow");
-        unregisterSpy = jest.spyOn(ctx, "unregisterWindow");
+        registerSpy = vi.spyOn(ctx, "registerWindow");
+        unregisterSpy = vi.spyOn(ctx, "unregisterWindow");
       }
       return null;
     };

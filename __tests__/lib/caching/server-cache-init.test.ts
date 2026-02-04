@@ -1,4 +1,4 @@
-// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
+// Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 import { ServerCacheInstance } from "@/lib/server-cache";
 import type { CacheStats } from "@/types/cache";
 

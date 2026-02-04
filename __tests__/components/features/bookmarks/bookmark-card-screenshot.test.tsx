@@ -3,6 +3,7 @@
  * @module __tests__/components/features/bookmarks/bookmark-card-screenshot.test.tsx
  */
 
+import { vi, type Mock } from "vitest";
 import { BookmarkCardClient } from "@/components/features/bookmarks/bookmark-card.client";
 import { render, screen } from "@testing-library/react";
 import React from "react";
@@ -16,17 +17,17 @@ function MockNextLink({ children, href }: { children: React.ReactNode; href: str
     </a>
   );
 }
-jest.mock("next/link", () => MockNextLink);
+vi.mock("next/link", () => ({ default: MockNextLink }));
 
 // Mock next/navigation
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   usePathname: () => "/bookmarks",
 }));
 
 // Mock the bookmark-helpers functions to return predictable values
-jest.mock("@/lib/bookmarks/bookmark-helpers", () => ({
-  getAssetUrl: jest.fn(),
-  selectBestImage: jest.fn((bookmark) => {
+vi.mock("@/lib/bookmarks/bookmark-helpers", () => ({
+  getAssetUrl: vi.fn(),
+  selectBestImage: vi.fn((bookmark) => {
     // Simple mock implementation that mimics the real function's priority
     if (bookmark.ogImage) return bookmark.ogImage;
     if (bookmark.content?.imageAssetId) return `/api/assets/${bookmark.content.imageAssetId}`;
@@ -42,8 +43,10 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
     url: "https://example.com/test",
     title: "Test Bookmark",
     description: "This is a test bookmark",
+    slug: "test-bookmark",
     tags: ["test", "example"],
     dateBookmarked: "2024-01-01T00:00:00Z",
+    sourceUpdatedAt: "2024-01-01T00:00:00Z",
     content: {
       type: "link",
       url: "https://example.com/test",
@@ -54,12 +57,12 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("should use screenshotAssetId for image fallback when no ogImage is available", () => {
     // Mock getAssetUrl to return a predictable asset URL
-    (getAssetUrl as jest.Mock).mockReturnValue("/api/assets/test-screenshot-asset-id");
+    (getAssetUrl as Mock).mockReturnValue("/api/assets/test-screenshot-asset-id");
 
     const { container } = render(<BookmarkCardClient {...mockBookmark} />);
 
@@ -125,7 +128,7 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
     };
 
     // Mock getAssetUrl to return a predictable asset URL
-    (getAssetUrl as jest.Mock).mockReturnValue("/api/assets/test-screenshot-asset-id");
+    (getAssetUrl as Mock).mockReturnValue("/api/assets/test-screenshot-asset-id");
 
     const { container } = render(<BookmarkCardClient {...lightweightBookmark} />);
 
