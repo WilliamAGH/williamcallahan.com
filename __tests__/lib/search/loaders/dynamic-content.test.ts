@@ -2,7 +2,7 @@
  * Tests for Dynamic Content Loaders
  *
  * Verifies bookmark index building with fallback slug generation.
- * Per [TST1d]: Test coverage for behavioral changes in getBookmarksIndex().
+ * Per [TST1d]: Test coverage for behavioral changes in buildBookmarksIndex().
  *
  * @module __tests__/lib/search/loaders/dynamic-content
  */
@@ -36,7 +36,7 @@ describe("Dynamic Content Loaders", () => {
       expect(results[0].id).toBe("abc12345-6789-0123-4567-890abcdef012");
     });
 
-    it("generates URL-safe fallback slugs", () => {
+    it("indexes titles with special characters", () => {
       const bookmarks: BookmarkIndexInput[] = [
         {
           id: "test1234-5678-9012-3456-789012345678",
