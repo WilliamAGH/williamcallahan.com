@@ -1,13 +1,9 @@
 /** Bookmarks data access: In-memory → S3 → External API */
 
-import { readJsonS3, listS3Objects } from "@/lib/s3-utils";
-import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
+import { BOOKMARKS_PER_PAGE, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
 import type { UnifiedBookmark } from "@/types";
 import {
-  bookmarksIndexSchema as BookmarksIndexSchema,
-  unifiedBookmarkSchema,
-  unifiedBookmarksArraySchema,
   type BookmarksIndex,
   type BookmarkLoadOptions,
   type LightweightBookmark,
@@ -20,55 +16,20 @@ import {
 } from "@/lib/bookmarks/utils";
 import {
   isBookmarkServiceLoggingEnabled,
-  shouldSkipLocalS3Cache,
   LOG_PREFIX,
   BOOKMARK_SERVICE_LOG_CATEGORY,
 } from "@/lib/bookmarks/config";
 import { getEnvironment } from "@/lib/config/environment";
 import { USE_NEXTJS_CACHE, isCliLikeCacheContext, withCacheFallback } from "@/lib/cache";
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import { readLocalS3JsonSafe } from "@/lib/bookmarks/local-s3-cache";
-import { isS3NotFound } from "@/lib/utils/s3-error-guards";
-
-const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "generated", "bookmarks", "bookmarks.json");
-const LOCAL_BOOKMARKS_BY_ID_DIR = path.join(process.cwd(), ".next", "cache", "bookmarks", "by-id");
-
-const loadLocalBookmarksSnapshot = async (): Promise<UnifiedBookmark[] | null> => {
-  try {
-    const localData = await fs.readFile(LOCAL_BOOKMARKS_PATH, "utf-8");
-    const parsed: unknown = JSON.parse(localData);
-    const validation = unifiedBookmarksArraySchema.safeParse(parsed);
-    if (!validation.success) {
-      console.warn(`[Bookmarks] Local bookmarks validation failed: ${validation.error.message}`);
-      return null;
-    }
-    const bookmarks = validation.data;
-    if (bookmarks.length === 0) {
-      return null;
-    }
-    if (bookmarks.length === 1) {
-      const [onlyBookmark] = bookmarks;
-      if (
-        onlyBookmark &&
-        (onlyBookmark.id === "test-1" ||
-          onlyBookmark.id === "test" ||
-          onlyBookmark.url === "https://example.com")
-      ) {
-        console.warn(
-          "[Bookmarks] Local bookmarks snapshot contains only test data; ignoring local fallback at",
-          LOCAL_BOOKMARKS_PATH,
-        );
-        return null;
-      }
-    }
-    return bookmarks;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.warn(`[Bookmarks] Local bookmarks cache unavailable (${message}).`);
-    return null;
-  }
-};
+import {
+  listTagSlugsFromS3,
+  readBookmarkByIdFromS3,
+  readBookmarksDatasetFromS3,
+  readBookmarksIndexFromS3,
+  readBookmarksPageFromS3,
+  readTagBookmarksIndexFromS3,
+  readTagBookmarksPageFromS3,
+} from "@/lib/bookmarks/bookmarks-s3-store";
 
 // Runtime-safe cache wrappers imported from cache-management
 import {
@@ -124,33 +85,25 @@ async function fetchAndCacheBookmarks(
     force,
   });
 
-  // --- 1. Prefer S3 in production runtime; use local fallback only in dev/test/CLI contexts ---
+  // --- 1. Prefer S3 in production runtime; avoid local fallbacks ---
   const isProductionRuntime =
     getEnvironment() === "production" &&
     !isCliLikeContext() &&
     process.env.NEXT_PHASE !== "phase-production-build";
   const isTestEnvironment =
-    process.env.NODE_ENV === "test" || process.env.JEST_WORKER_ID !== undefined;
-  let localBookmarksSnapshot: UnifiedBookmark[] | null = null;
-  if (!isProductionRuntime && !isTestEnvironment) {
-    localBookmarksSnapshot = await loadLocalBookmarksSnapshot();
-    if (localBookmarksSnapshot) {
-      logBookmarkDataAccessEvent("Loaded bookmarks from local cache", {
-        bookmarkCount: localBookmarksSnapshot.length,
-        path: LOCAL_BOOKMARKS_PATH,
-      });
-      if (!includeImageData) {
-        logBookmarkDataAccessEvent("Stripping image data from local cache bookmarks", {
-          bookmarkCount: localBookmarksSnapshot.length,
-        });
-        return localBookmarksSnapshot.map(stripImageData);
-      }
-      return localBookmarksSnapshot.map(normalizeBookmarkTags);
-    }
-  } else if (isProductionRuntime) {
-    // Explicitly log that we are skipping local fallback in production runtime to avoid stale snapshots from build layers
+    process.env.NODE_ENV === "test" || process.env.VITEST === "true" || process.env.TEST === "true";
+  if (isProductionRuntime) {
+    // Explicitly log that we are skipping local fallback in production runtime.
     envLogger.log(
-      "Skipping local bookmarks fallback in production runtime; using S3-first strategy",
+      "Skipping local bookmarks fallback in production runtime; using S3-only strategy",
+      undefined,
+      {
+        category: LOG_PREFIX,
+      },
+    );
+  } else if (isTestEnvironment) {
+    envLogger.debug(
+      "Test environment detected; skipping local fallbacks for bookmarks",
       undefined,
       {
         category: LOG_PREFIX,
@@ -158,7 +111,7 @@ async function fetchAndCacheBookmarks(
     );
   }
 
-  // --- 2. Fallback to S3 (with local snapshot) ---
+  // --- 2. Read from S3 ---
   const formatBookmarks = (dataset: UnifiedBookmark[], source: string) => {
     if (!includeImageData) {
       logBookmarkDataAccessEvent(`Stripping image data from ${source} bookmarks`, {
@@ -169,17 +122,10 @@ async function fetchAndCacheBookmarks(
     return dataset.map(normalizeBookmarkTags);
   };
 
-  let bookmarksFromS3: UnifiedBookmark[] | null = null;
-  try {
-    const s3Data = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
-    if (s3Data && Array.isArray(s3Data) && s3Data.length > 0) {
-      bookmarksFromS3 = s3Data;
-    }
-  } catch (e: unknown) {
-    if (!isS3NotFound(e)) {
-      console.error(`${LOG_PREFIX} Error reading bookmarks file:`, String(e));
-    }
-  }
+  // readBookmarksDatasetFromS3 returns null for S3NotFoundError (expected),
+  // and re-throws service errors. Let service errors propagate to callers.
+  const s3Data = await readBookmarksDatasetFromS3();
+  const bookmarksFromS3 = s3Data && Array.isArray(s3Data) && s3Data.length > 0 ? s3Data : null;
 
   if (bookmarksFromS3) {
     logBookmarkDataAccessEvent("Loaded bookmarks from S3", {
@@ -199,29 +145,6 @@ async function fetchAndCacheBookmarks(
     return formatBookmarks(bookmarksFromS3, "S3");
   }
 
-  if (!localBookmarksSnapshot) {
-    localBookmarksSnapshot = await loadLocalBookmarksSnapshot();
-  }
-  if (localBookmarksSnapshot) {
-    logBookmarkDataAccessEvent("Loaded bookmarks from local cache (post-S3 failure)", {
-      bookmarkCount: localBookmarksSnapshot.length,
-      path: LOCAL_BOOKMARKS_PATH,
-    });
-    return formatBookmarks(localBookmarksSnapshot, "local fallback");
-  }
-
-  const localS3Snapshot = await readLocalS3JsonSafe<UnifiedBookmark[]>(
-    BOOKMARKS_S3_PATHS.FILE,
-    shouldSkipLocalS3Cache,
-  );
-  if (localS3Snapshot && Array.isArray(localS3Snapshot) && localS3Snapshot.length > 0) {
-    logBookmarkDataAccessEvent("Loaded bookmarks from local S3 snapshot", {
-      bookmarkCount: localS3Snapshot.length,
-      source: "local",
-    });
-    return formatBookmarks(localS3Snapshot, "local S3 snapshot");
-  }
-
   logBookmarkDataAccessEvent("No bookmarks in S3; attempting refresh");
   if (skipExternalFetch) return [];
   const refreshedBookmarks = await refreshAndPersistBookmarks(force);
@@ -236,28 +159,10 @@ async function fetchAndCacheBookmarks(
 }
 
 async function getBookmarksPageDirect(pageNumber: number): Promise<UnifiedBookmark[]> {
-  const key = `${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${pageNumber}.json`;
-  try {
-    const pageData = await readJsonS3<UnifiedBookmark[]>(key);
-    if (pageData) {
-      return normalizePageBookmarkTags(pageData);
-    }
-  } catch (error) {
-    if (!isS3NotFound(error)) {
-      console.error(`${LOG_PREFIX} S3 service error loading page ${pageNumber}:`, error);
-    }
-  }
-
-  const fallback = await readLocalS3JsonSafe<UnifiedBookmark[]>(key, shouldSkipLocalS3Cache);
-  if (fallback) {
-    logBookmarkDataAccessEvent("Loaded page data from local S3 mirror", {
-      pageNumber,
-      source: "local",
-    });
-    return normalizePageBookmarkTags(fallback);
-  }
-
-  return [];
+  // readBookmarksPageFromS3 returns null for S3NotFoundError (page doesn't exist),
+  // and re-throws service errors. Let service errors propagate to callers.
+  const pageData = await readBookmarksPageFromS3(pageNumber);
+  return pageData ? normalizePageBookmarkTags(pageData) : [];
 }
 
 /**
@@ -286,32 +191,10 @@ async function getTagBookmarksPageDirect(
   tagSlug: string,
   pageNumber: number,
 ): Promise<UnifiedBookmark[]> {
-  const key = `${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${pageNumber}.json`;
-  try {
-    const pageData = await readJsonS3<UnifiedBookmark[]>(key);
-    if (pageData) {
-      return normalizePageBookmarkTags(pageData);
-    }
-  } catch (error) {
-    if (!isS3NotFound(error)) {
-      console.error(
-        `${LOG_PREFIX} S3 service error loading tag page ${tagSlug}/${pageNumber}:`,
-        error,
-      );
-    }
-  }
-
-  const fallback = await readLocalS3JsonSafe<UnifiedBookmark[]>(key, shouldSkipLocalS3Cache);
-  if (fallback) {
-    logBookmarkDataAccessEvent("Loaded tag page data from local S3 mirror", {
-      pageNumber,
-      tagSlug,
-      source: "local",
-    });
-    return normalizePageBookmarkTags(fallback);
-  }
-
-  return [];
+  // readTagBookmarksPageFromS3 returns null for S3NotFoundError (page doesn't exist),
+  // and re-throws service errors. Let service errors propagate to callers.
+  const pageData = await readTagBookmarksPageFromS3(tagSlug, pageNumber);
+  return pageData ? normalizePageBookmarkTags(pageData) : [];
 }
 
 /**
@@ -348,15 +231,9 @@ export async function getTagBookmarksPage(
 }
 
 async function getTagBookmarksIndexDirect(tagSlug: string): Promise<BookmarksIndex | null> {
-  try {
-    return await readJsonS3<BookmarksIndex>(
-      `${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`,
-    );
-  } catch (error) {
-    if (isS3NotFound(error)) return null;
-    console.error(`${LOG_PREFIX} S3 service error loading tag index ${tagSlug}:`, error);
-    return null;
-  }
+  // readTagBookmarksIndexFromS3 returns null for S3NotFoundError (index doesn't exist),
+  // and re-throws service errors. Let service errors propagate to callers.
+  return readTagBookmarksIndexFromS3(tagSlug);
 }
 
 /**
@@ -386,36 +263,13 @@ export async function getTagBookmarksIndex(tagSlug: string): Promise<BookmarksIn
 }
 
 export async function listTagSlugs(): Promise<string[]> {
-  const prefix = BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX;
-  const keys = await listS3Objects(prefix);
-  if (keys.length === 0) {
-    return [];
-  }
-
-  const slugs = new Set<string>();
-  for (const key of keys) {
-    const normalized = key.startsWith(prefix) ? key.slice(prefix.length) : key;
-    const match = normalized.match(/^([^/]+)\/index\.json$/);
-    if (match && match[1]) {
-      slugs.add(match[1]);
-    }
-  }
-
-  return Array.from(slugs).toSorted();
+  return listTagSlugsFromS3();
 }
 
 async function getBookmarksIndexDirect(): Promise<BookmarksIndex | null> {
-  try {
-    const rawIndex = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
-    const validation = BookmarksIndexSchema.safeParse(rawIndex);
-    if (validation.success) return validation.data;
-    console.warn(`${LOG_PREFIX} Main bookmarks index failed validation`, validation.error);
-    return null;
-  } catch (error) {
-    if (isS3NotFound(error)) return null;
-    console.error(`${LOG_PREFIX} S3 service error loading main bookmarks index:`, error);
-    return null;
-  }
+  // readBookmarksIndexFromS3 returns null for S3NotFoundError (index doesn't exist),
+  // and re-throws service errors. Let service errors propagate to callers.
+  return readBookmarksIndexFromS3();
 }
 
 /**
@@ -430,6 +284,11 @@ async function getCachedBookmarksIndex(): Promise<BookmarksIndex | null> {
   return getBookmarksIndexDirect();
 }
 
+/**
+ * Get all bookmarks with de-duplication of in-flight requests.
+ * Service errors propagate to callers - they can distinguish between
+ * empty results (no bookmarks) and failures (S3 service errors).
+ */
 export async function getBookmarks(
   options: BookmarkLoadOptions = {},
 ): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
@@ -437,9 +296,6 @@ export async function getBookmarks(
   inFlightGetPromise = fetchAndCacheBookmarks(options);
   try {
     return await inFlightGetPromise;
-  } catch (e) {
-    console.error(`${LOG_PREFIX} Failed to get bookmarks:`, String(e));
-    return [];
   } finally {
     inFlightGetPromise = null;
   }
@@ -463,24 +319,10 @@ export async function getBookmarkById(
     }
   }
 
-  const localFilePath = path.join(LOCAL_BOOKMARKS_BY_ID_DIR, `${bookmarkId}.json`);
   let bookmark: UnifiedBookmark | null = null;
 
-  try {
-    const localData = await fs.readFile(localFilePath, "utf-8");
-    const parsed: unknown = JSON.parse(localData);
-    const validation = unifiedBookmarkSchema.safeParse(parsed);
-    if (validation.success) {
-      bookmark = validation.data;
-    }
-  } catch {
-    // Ignore local cache misses
-  }
-
   if (!bookmark) {
-    bookmark = await readJsonS3<UnifiedBookmark>(
-      `${BOOKMARKS_S3_PATHS.BY_ID_DIR}/${bookmarkId}.json`,
-    );
+    bookmark = await readBookmarkByIdFromS3(bookmarkId);
   }
 
   if (!bookmark) {
