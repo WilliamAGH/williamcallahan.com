@@ -156,21 +156,38 @@ describe("Cache Invalidation via API Routes", () => {
 
   describe("GitHub Activity Refresh API", () => {
     it("should handle refresh request without secret", async () => {
-      // Import the route handler
-      const { POST } = await import("@/app/api/github-activity/refresh/route");
+      // Save original env vars
+      const originalDeploymentEnv = process.env.DEPLOYMENT_ENV;
+      const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+      const originalRefreshSecret = process.env.GITHUB_REFRESH_SECRET;
 
-      // Create a mock request without secret
-      const request = new NextRequest("http://localhost:3000/api/github-activity/refresh", {
-        method: "POST",
-      });
+      // Set production environment AND the required secret (otherwise returns 500)
+      process.env.DEPLOYMENT_ENV = "production";
+      process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
+      process.env.GITHUB_REFRESH_SECRET = "server-secret-value";
 
-      // Call the handler
-      const response = await POST(request);
-      const data = await response.json();
+      try {
+        // Import the route handler
+        const { POST } = await import("@/app/api/github-activity/refresh/route");
 
-      // Should fail without secret
-      expect(response.status).toBe(401);
-      expect(data).toHaveProperty("code", "UNAUTHORIZED_REFRESH_SECRET");
+        // Create a mock request without x-refresh-secret header (missing credentials)
+        const request = new NextRequest("http://localhost:3000/api/github-activity/refresh", {
+          method: "POST",
+        });
+
+        // Call the handler
+        const response = await POST(request);
+        const data = await response.json();
+
+        // Should fail without secret (401 Unauthorized)
+        expect(response.status).toBe(401);
+        expect(data).toHaveProperty("code", "UNAUTHORIZED_REFRESH_SECRET");
+      } finally {
+        // Restore environment
+        process.env.DEPLOYMENT_ENV = originalDeploymentEnv;
+        process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
+        process.env.GITHUB_REFRESH_SECRET = originalRefreshSecret;
+      }
     });
 
     it("should skip refresh during build phase", async () => {

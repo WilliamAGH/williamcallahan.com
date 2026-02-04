@@ -12,6 +12,7 @@ import {
   readTagBookmarksIndexFromS3,
   readBookmarksDatasetFromS3,
 } from "@/lib/bookmarks/bookmarks-s3-store";
+import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 
 // Mock S3 store
 vi.mock("@/lib/bookmarks/bookmarks-s3-store", () => ({
@@ -71,6 +72,15 @@ vi.mock("@/lib/cache", () => ({
   },
 }));
 
+// Mock constants to ensure consistent page size
+vi.mock("@/lib/constants", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/constants")>();
+  return {
+    ...actual,
+    BOOKMARKS_PER_PAGE: 10,
+  };
+});
+
 const mockReadTagBookmarksPageFromS3 = vi.mocked(readTagBookmarksPageFromS3);
 const mockReadTagBookmarksIndexFromS3 = vi.mocked(readTagBookmarksIndexFromS3);
 const mockReadBookmarksDatasetFromS3 = vi.mocked(readBookmarksDatasetFromS3);
@@ -114,10 +124,11 @@ describe("Tag Route Functionality", () => {
       mockReadTagBookmarksIndexFromS3.mockResolvedValueOnce({
         count: 2,
         totalPages: 1,
-        // pages removed as it's not in the type
+        pageSize: 24,
         checksum: "hash",
-        lastUpdated: Date.now(),
-        lastRefreshed: Date.now(),
+        lastModified: new Date().toISOString(),
+        lastFetchedAt: Date.now(),
+        lastAttemptedAt: Date.now(),
       });
 
       const result = await getBookmarksByTag("web-development", 1);
@@ -146,7 +157,10 @@ describe("Tag Route Functionality", () => {
       // Mock S3 page miss
       mockReadTagBookmarksPageFromS3.mockResolvedValueOnce(null);
 
-      const largeBookmarkSet = Array(24)
+      // Create enough bookmarks to span 3 pages
+      const totalItems = BOOKMARKS_PER_PAGE * 2 + 5; // e.g. 53 if limit is 24
+
+      const largeBookmarkSet = Array(totalItems)
         .fill(null)
         .map(
           (_, i) =>
@@ -162,14 +176,16 @@ describe("Tag Route Functionality", () => {
 
       mockReadBookmarksDatasetFromS3.mockResolvedValueOnce(largeBookmarkSet);
 
+      // Request page 2
       const result = await getBookmarksByTag("test-tag", 2);
 
-      expect(result.totalCount).toBe(24);
-      // 24 / 10 = 2.4 -> 3 pages
+      expect(result.totalCount).toBe(totalItems);
+      // Expected total pages
       expect(result.totalPages).toBe(3);
-      // Page 2 should have 10 items (10-19)
-      expect(result.bookmarks).toHaveLength(10);
-      expect(result.bookmarks[0].id).toBe("bookmark-10");
+      // Page 2 should have BOOKMARKS_PER_PAGE items
+      expect(result.bookmarks).toHaveLength(BOOKMARKS_PER_PAGE);
+      // Verify correct item offset (page 1 has 0..limit-1, page 2 starts at limit)
+      expect(result.bookmarks[0].id).toBe(`bookmark-${BOOKMARKS_PER_PAGE}`);
     });
 
     it("should handle empty results gracefully", async () => {
