@@ -51,6 +51,7 @@ Example schemas:
 - OpenGraph data access delegates Next.js cache and refresh workflows to focused modules (`opengraph-next-cache.ts`, `opengraph-refresh.ts`) with shared cache guards (`opengraph-cache-context.ts`) (see `features/opengraph.md`).
 - Proxy-level protections: `src/proxy.ts` applies sitewide rate limiting via `src/lib/middleware/sitewide-rate-limit.ts` and sheds load under real memory pressure (cgroup-based) via `src/lib/middleware/memory-pressure.ts`.
 - Live Chroma integration tests are opt-in and gated by `CHROMA_*` env vars (see `chroma.md`).
+- Test-only mock modules live under `__tests__/__mocks__/` and are enforced via linting (see `standards/testing.md`).
 
 ## Core Architectural Patterns
 

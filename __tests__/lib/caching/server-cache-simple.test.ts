@@ -1,9 +1,4 @@
 // Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
-// First, mock the modules before requiring our target module
-vi.mock("@/lib/utils/ensure-server-only", () => ({
-  assertServerOnly: vi.fn(),
-}));
-
 // Now import the server cache module directly
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { LOGO_CACHE_DURATION } from "@/lib/constants";

@@ -24,10 +24,6 @@ import { getAllPosts, getPostBySlug } from "@/lib/blog";
 import { cacheContextGuards } from "@/lib/cache";
 import { GET as getPostsApi } from "@/app/api/posts/route";
 // Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
-// Explicitly mock assertServerOnly for this test file
-vi.mock("@/lib/utils/ensure-server-only", () => ({
-  assertServerOnly: vi.fn(() => undefined),
-}));
 
 vi.mock("@/lib/cache", () => ({
   USE_NEXTJS_CACHE: true,
