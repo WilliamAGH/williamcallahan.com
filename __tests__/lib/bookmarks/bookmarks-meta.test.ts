@@ -73,8 +73,10 @@ describe("Bookmarks Data Access (Simple)", () => {
       expect(mockGetBookmarks).toHaveBeenCalledWith({ skipExternalFetch: true });
     });
 
-    it("should return empty array when mock rejects with S3NotFoundError", async () => {
-      mockGetBookmarks.mockRejectedValueOnce(new S3NotFoundError("bookmarks.json"));
+    it("should throw S3NotFoundError when mock rejects with S3NotFoundError", async () => {
+      mockGetBookmarks.mockRejectedValueOnce(
+        new S3NotFoundError({ key: "bookmarks.json", operation: "GetObject" }),
+      );
 
       await expect(getBookmarks({ skipExternalFetch: true })).rejects.toThrow(S3NotFoundError);
     });

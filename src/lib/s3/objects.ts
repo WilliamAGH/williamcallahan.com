@@ -56,7 +56,6 @@ const toBuffer = async (body: unknown): Promise<Buffer> => {
 };
 
 export async function getObject(key: string, options?: { range?: string }): Promise<S3ObjectData> {
-  assertNotDryRun("getObject", key);
   const config = getS3Config();
   const client = getS3Client();
 
@@ -120,7 +119,6 @@ export async function putObject(
 }
 
 export async function headObject(key: string): Promise<S3ObjectMetadata> {
-  assertNotDryRun("headObject", key);
   const config = getS3Config();
   const client = getS3Client();
 
@@ -162,7 +160,6 @@ export async function getS3ObjectMetadata(key: string): Promise<S3ObjectMetadata
 }
 
 export async function listS3Objects(prefix: string): Promise<string[]> {
-  assertNotDryRun("listS3Objects", prefix);
   const config = getS3Config();
   const client = getS3Client();
   const keys: string[] = [];

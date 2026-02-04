@@ -1,20 +1,79 @@
 /**
  * Tests for bookmark tag route functionality
  *
- * Tests the getBookmarksByTag function via mock to verify calling conventions.
- * For integration tests of real business logic, mock S3 instead.
+ * Tests the getBookmarksByTag function by mocking S3 store dependencies
+ * instead of mocking the function itself.
  */
-
+import { vi } from "vitest";
 import type { UnifiedBookmark } from "@/types";
+import { getBookmarksByTag } from "@/lib/bookmarks/bookmarks-data-access.server";
+import {
+  readTagBookmarksPageFromS3,
+  readTagBookmarksIndexFromS3,
+  readBookmarksDatasetFromS3,
+} from "@/lib/bookmarks/bookmarks-s3-store";
 
-// Explicit mock - no alias hijacking
-vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
-  getBookmarksByTag: vi.fn(),
+// Mock S3 store
+vi.mock("@/lib/bookmarks/bookmarks-s3-store", () => ({
+  readTagBookmarksPageFromS3: vi.fn(),
+  readTagBookmarksIndexFromS3: vi.fn(),
+  readBookmarksDatasetFromS3: vi.fn(),
+  // Add others if needed by internal calls
+  listTagSlugsFromS3: vi.fn(),
+  readBookmarkByIdFromS3: vi.fn(),
+  readBookmarksIndexFromS3: vi.fn(),
+  readBookmarksPageFromS3: vi.fn(),
 }));
 
-import { getBookmarksByTag } from "@/lib/bookmarks/bookmarks-data-access.server";
+// Mock cache management to control caching behavior
+vi.mock("@/lib/bookmarks/cache-management.server", () => ({
+  getFullDatasetCache: vi.fn().mockReturnValue(null),
+  setFullDatasetCache: vi.fn(),
+  safeCacheLife: vi.fn(),
+  safeCacheTag: vi.fn(),
+  getCachedBookmarkById: vi.fn(),
+  setCachedBookmarkById: vi.fn(),
+  invalidateBookmarkByIdCaches: vi.fn(),
+  invalidateNextJsBookmarksCache: vi.fn(),
+  invalidatePageCache: vi.fn(),
+  invalidateTagCache: vi.fn(),
+  invalidateBookmarkMemoryCache: vi.fn(),
+  clearFullDatasetCache: vi.fn(),
+}));
 
-const mockGetBookmarksByTag = vi.mocked(getBookmarksByTag);
+// Mock env logger to silence logs
+vi.mock("@/lib/utils/env-logger", () => ({
+  envLogger: {
+    log: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
+// Mock config to ensure we are not in CLI mode
+vi.mock("@/lib/bookmarks/config", () => ({
+  isBookmarkServiceLoggingEnabled: false,
+  LOG_PREFIX: "Bookmarks",
+  BOOKMARK_SERVICE_LOG_CATEGORY: "Bookmarks",
+}));
+
+// Mock cache to ensure we use Next.js cache or not as needed
+// But getBookmarksByTag uses USE_NEXTJS_CACHE constant.
+// We can't easily change the constant if it's imported.
+// However, the helpers `getTagBookmarksPage` use `USE_NEXTJS_CACHE`.
+// We can mock `@/lib/cache`
+vi.mock("@/lib/cache", () => ({
+  USE_NEXTJS_CACHE: false, // Disable Next.js cache to hit "Direct" functions
+  isCliLikeCacheContext: () => false,
+  withCacheFallback: (fn: any) => fn(),
+  cacheContextGuards: {
+    cacheLife: vi.fn(),
+    cacheTag: vi.fn(),
+  },
+}));
+
+const mockReadTagBookmarksPageFromS3 = vi.mocked(readTagBookmarksPageFromS3);
+const mockReadTagBookmarksIndexFromS3 = vi.mocked(readTagBookmarksIndexFromS3);
+const mockReadBookmarksDatasetFromS3 = vi.mocked(readBookmarksDatasetFromS3);
 
 const createTag = (name: string) => ({
   id: name,
@@ -48,12 +107,17 @@ describe("Tag Route Functionality", () => {
       } as UnifiedBookmark,
     ];
 
-    it("should return cached bookmarks when available", async () => {
-      mockGetBookmarksByTag.mockResolvedValueOnce({
-        bookmarks: mockBookmarks,
-        totalCount: 2,
+    it("should return cached bookmarks when available in S3 page cache", async () => {
+      // Mock S3 page hit
+      mockReadTagBookmarksPageFromS3.mockResolvedValueOnce(mockBookmarks);
+      // Mock S3 index hit for metadata
+      mockReadTagBookmarksIndexFromS3.mockResolvedValueOnce({
+        count: 2,
         totalPages: 1,
-        fromCache: true,
+        // pages removed as it's not in the type
+        checksum: "hash",
+        lastUpdated: Date.now(),
+        lastRefreshed: Date.now(),
       });
 
       const result = await getBookmarksByTag("web-development", 1);
@@ -61,25 +125,27 @@ describe("Tag Route Functionality", () => {
       expect(result.fromCache).toBe(true);
       expect(result.totalCount).toBe(2);
       expect(result.totalPages).toBe(1);
-      expect(mockGetBookmarksByTag).toHaveBeenCalledWith("web-development", 1);
+      // It should have called the page reader
+      expect(mockReadTagBookmarksPageFromS3).toHaveBeenCalledWith("web-development", 1);
     });
 
-    it("should return non-cached bookmarks when cache miss", async () => {
-      mockGetBookmarksByTag.mockResolvedValueOnce({
-        bookmarks: mockBookmarks,
-        totalCount: 2,
-        totalPages: 1,
-        fromCache: false,
-      });
+    it("should return non-cached bookmarks when S3 cache miss (fallback to full dataset)", async () => {
+      // Mock S3 page miss
+      mockReadTagBookmarksPageFromS3.mockResolvedValueOnce(null);
+      // Mock full dataset hit
+      mockReadBookmarksDatasetFromS3.mockResolvedValueOnce(mockBookmarks);
 
       const result = await getBookmarksByTag("web-development", 1);
 
       expect(result.fromCache).toBe(false);
       expect(result.totalCount).toBe(2);
-      expect(mockGetBookmarksByTag).toHaveBeenCalledWith("web-development", 1);
+      expect(mockReadBookmarksDatasetFromS3).toHaveBeenCalled();
     });
 
-    it("should handle pagination correctly", async () => {
+    it("should handle pagination correctly via full dataset filtering", async () => {
+      // Mock S3 page miss
+      mockReadTagBookmarksPageFromS3.mockResolvedValueOnce(null);
+
       const largeBookmarkSet = Array(24)
         .fill(null)
         .map(
@@ -89,32 +155,28 @@ describe("Tag Route Functionality", () => {
               url: `https://example${i}.com`,
               title: `Bookmark ${i}`,
               description: `Description ${i}`,
-              tags: ["test tag"],
+              tags: [createTag("test-tag")],
               dateBookmarked: "2025-01-01",
             }) as UnifiedBookmark,
         );
 
-      mockGetBookmarksByTag.mockResolvedValueOnce({
-        bookmarks: largeBookmarkSet,
-        totalCount: 50,
-        totalPages: 3,
-        fromCache: true,
-      });
+      mockReadBookmarksDatasetFromS3.mockResolvedValueOnce(largeBookmarkSet);
 
       const result = await getBookmarksByTag("test-tag", 2);
 
-      expect(result.totalCount).toBe(50);
+      expect(result.totalCount).toBe(24);
+      // 24 / 10 = 2.4 -> 3 pages
       expect(result.totalPages).toBe(3);
-      expect(mockGetBookmarksByTag).toHaveBeenCalledWith("test-tag", 2);
+      // Page 2 should have 10 items (10-19)
+      expect(result.bookmarks).toHaveLength(10);
+      expect(result.bookmarks[0].id).toBe("bookmark-10");
     });
 
     it("should handle empty results gracefully", async () => {
-      mockGetBookmarksByTag.mockResolvedValueOnce({
-        bookmarks: [],
-        totalCount: 0,
-        totalPages: 0,
-        fromCache: false,
-      });
+      // Mock S3 page miss
+      mockReadTagBookmarksPageFromS3.mockResolvedValueOnce(null);
+      // Mock full dataset (empty or no match)
+      mockReadBookmarksDatasetFromS3.mockResolvedValueOnce(mockBookmarks);
 
       const result = await getBookmarksByTag("non-existent-tag", 1);
 
@@ -124,25 +186,10 @@ describe("Tag Route Functionality", () => {
     });
 
     it("should handle errors gracefully", async () => {
-      mockGetBookmarksByTag.mockRejectedValueOnce(new Error("S3 connection failed"));
+      // Mock S3 page throws error
+      mockReadTagBookmarksPageFromS3.mockRejectedValueOnce(new Error("S3 connection failed"));
 
       await expect(getBookmarksByTag("web-development", 1)).rejects.toThrow("S3 connection failed");
-    });
-
-    it("should serve top-10 tags from S3 object storage", async () => {
-      mockGetBookmarksByTag.mockResolvedValueOnce({
-        bookmarks: mockBookmarks,
-        totalCount: 30,
-        totalPages: 2,
-        fromCache: true, // Indicates it came from S3 cache files
-      });
-
-      const result = await getBookmarksByTag("popular-tag", 1);
-
-      expect(result.fromCache).toBe(true);
-      expect(result.totalCount).toBe(30);
-      expect(result.totalPages).toBe(2);
-      expect(mockGetBookmarksByTag).toHaveBeenCalledWith("popular-tag", 1);
     });
   });
 });

@@ -4,7 +4,7 @@
  * @module __tests__/lib/caching/server-cache-search.test
  */
 import { ServerCacheInstance, type ServerCache } from "@/lib/server-cache";
-import type { MockInstance } from "vitest";
+import { vi, type MockInstance } from "vitest";
 
 describe("ServerCache - Search Results", () => {
   let cache: ServerCache;

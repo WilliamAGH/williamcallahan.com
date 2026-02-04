@@ -63,12 +63,15 @@ const loadCvPdfDocument = async () => {
     };
   });
 
-  const loadedModule = await import("@/components/features/cv/CvPdfDocument");
-
-  if (hadWindow) {
-    (globalThis as { window: unknown }).window = originalWindow;
-  } else {
-    Reflect.deleteProperty(globalThis, "window");
+  let loadedModule: typeof import("@/components/features/cv/CvPdfDocument");
+  try {
+    loadedModule = await import("@/components/features/cv/CvPdfDocument");
+  } finally {
+    if (hadWindow) {
+      (globalThis as { window: unknown }).window = originalWindow;
+    } else {
+      Reflect.deleteProperty(globalThis, "window");
+    }
   }
 
   return { module: loadedModule, registerMock };

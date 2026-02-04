@@ -215,7 +215,7 @@ async function handleStaleImageUrl(
     console.log(
       `[${logContext}] Triggering OpenGraph recrawl for ${pageUrl} (stale Karakeep asset)`,
     );
-    const { refreshOpenGraphData } = await import("@/lib/data-access/opengraph");
+    const { refreshOpenGraphData } = await import("@/lib/data-access/opengraph-refresh");
     refreshOpenGraphData(pageUrl).catch((refreshError) => {
       console.error(
         `[${logContext}] Background OpenGraph refresh failed for ${pageUrl}:`,

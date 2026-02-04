@@ -317,3 +317,22 @@ export interface GitHubActivityError extends ExtendedError {
   /** Timestamp of the last fetch attempt */
   lastFetchedTimestamp?: number;
 }
+
+/**
+ * Input for writing GitHub activity summaries
+ */
+export type GitHubSummaryInput = {
+  trailingYearData: StoredGithubActivityS3;
+  allTimeData: StoredGithubActivityS3;
+  totalRepositoriesContributedTo: number;
+  yearCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
+  allTimeCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
+};
+
+/**
+ * Result of writing GitHub activity summaries
+ */
+export type GitHubSummaryWriteResult = {
+  trailingYearWritten: boolean;
+  allTimeWritten: boolean;
+};

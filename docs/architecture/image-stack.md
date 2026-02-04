@@ -134,4 +134,4 @@ Keep this document synchronized with the other two structure docs whenever you i
 
 6. **Static imports stay static.** Assets in `public/` are statically imported so Next infers width/height.
 
-Any change to these rules must update this section, `image-handling.md`, and `next-js-16-usage.md` in the same PR.
+Any change to these rules must update this section, `image-handling.md`, and `docs/standards/nextjs-framework.md` in the same PR.

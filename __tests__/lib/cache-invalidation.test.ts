@@ -3,7 +3,7 @@
  */
 
 // Mock modules with ESM dependencies before importing
-vi.mock("@/lib/data-access/github");
+vi.mock("@/lib/data-access/github-public-api");
 vi.mock("@/lib/data-access/opengraph");
 
 // Mock bookmarks module - returns array, not object with .data
@@ -18,7 +18,7 @@ import {
   getBookmarksPage,
   invalidateBookmarksCache,
 } from "@/lib/bookmarks/bookmarks-data-access.server";
-import { getGithubActivity, invalidateAllGitHubCaches } from "@/lib/data-access/github";
+import { getGithubActivity, invalidateAllGitHubCaches } from "@/lib/data-access/github-public-api";
 import { getAllPosts } from "@/lib/blog";
 import { invalidateBlogCache } from "@/lib/blog/mdx";
 
@@ -65,14 +65,13 @@ describe("Next.js Cache Invalidation", () => {
         // First fetch
         const page1 = await getBookmarksPage(1);
         expect(page1).toBeDefined();
-        expect(page1.data).toBeDefined();
-        expect(Array.isArray(page1.data)).toBe(true);
+        expect(Array.isArray(page1)).toBe(true);
 
         // Second fetch (should be cached)
         const start = Date.now();
         const page2 = await getBookmarksPage(1);
         const cachedTime = Date.now() - start;
-        expect(page2.data.length).toBe(page1.data.length);
+        expect(page2.length).toBe(page1.length);
 
         // Invalidate cache
         invalidateBookmarksCache();
@@ -81,7 +80,7 @@ describe("Next.js Cache Invalidation", () => {
         const start2 = Date.now();
         const page3 = await getBookmarksPage(1);
         const freshTime = Date.now() - start2;
-        expect(page3.data.length).toBe(page1.data.length);
+        expect(page3.length).toBe(page1.length);
 
         console.log(`Bookmarks cache test - Cached: ${cachedTime}ms, Fresh: ${freshTime}ms`);
       } catch {

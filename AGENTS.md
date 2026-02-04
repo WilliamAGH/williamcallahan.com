@@ -52,7 +52,7 @@ Structure: [ORG]; docs architecture: [DOC1]
 
 > **ABSOLUTE RULE**: ALL existing code is intentional user work. NEVER question this premise.
 
-- [GT1a] **Code is Intentional**: ALL uncommitted changes—whether written by you or not—are presumed intentional. NEVER revert, discard, reset, or restore code. NEVER propose, suggest, or ask about reverting. NO EXCEPTIONS.
+- [GT1a] **Code is Intentional**: ALL uncommitted changes AND UNTRACKED FILES are presumed intentional user work. NEVER revert, discard, delete, or reset them—even if they break the build. Fix the errors or ask; never delete.
 - [GT1b] **BANNED COMMANDS**: NEVER run: `git reset`, `git checkout .`, `git checkout <file>`, `git stash`, `git restore`, `git clean`, `git revert`, `git commit --amend`, `git rebase`, `git push --force`, `git push --force-with-lease`. This ban is ABSOLUTE.
 - [GT1c] **No Branching**: Work on the current branch. NEVER create new branches unless the user explicitly requests it.
 - [GT1d] **Permission Required**: Git writes (commits, pushes) require explicit user permission. Read-only git commands (`status`, `log`, `diff`) are always allowed.

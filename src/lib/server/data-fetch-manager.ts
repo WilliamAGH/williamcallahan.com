@@ -24,7 +24,7 @@ import {
   IMAGE_S3_PATHS,
 } from "@/lib/constants";
 import { DATA_UPDATER_FLAGS, hasFlag, parseTestLimit } from "@/lib/constants/cli-flags";
-import { getLogo } from "@/lib/data-access/logos";
+import { getLogo, invalidateLogoS3Cache, resetLogoSessionTracking } from "@/lib/data-access/logos";
 import { processLogoBatch } from "@/lib/data-access/logos-batch";
 import { refreshBookmarks } from "@/lib/bookmarks/service.server";
 import { bookmarksIndexSchema, type UnifiedBookmark } from "@/types/bookmark";
@@ -34,12 +34,8 @@ import { listS3Objects } from "@/lib/s3/objects";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 import type { LogoManifest } from "@/types/image";
 
-import {
-  calculateAndStoreAggregatedWeeklyActivity,
-  invalidateLogoS3Cache,
-  refreshGitHubActivityDataFromApi,
-  resetLogoSessionTracking,
-} from "@/lib/data-access";
+import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
+import { calculateAndStoreAggregatedWeeklyActivity } from "@/lib/data-access/github-processing";
 import { initializeBookmarksDataAccess } from "@/lib/bookmarks/refresh-logic.server";
 // Cache invalidation uses dynamic import to reduce startup overhead (see refreshGitHubActivityData)
 
