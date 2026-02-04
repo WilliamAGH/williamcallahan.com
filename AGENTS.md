@@ -59,6 +59,7 @@ Structure: [ORG]; docs architecture: [DOC1]
 - [GT1e] **Hook & Commit Integrity**: Never skip hooks (`--no-verify`, `HUSKY=0`); never delete `.git/index.lock`; no AI attribution; one logical change per commit; describe change + purpose.
 - [GT1f] If an unexpected file is staged or modified by hooks, pause and show the diff; do not attempt to "fix" it unprompted.
 - [GT1g] **No Panic About Working State**: Do not comment on or halt for unrelated uncommitted changes. Keep working on the requested task and do not bring up the git working state unless the user explicitly asks.
+- [GT1h] **No Halts For Unrelated Changes**: Never stop or pause work because you noticed unexpected or unrelated file changes; continue the task unless the user explicitly asks you to investigate.
 
 ## [LC1] Line Count Ceiling (Blocking)
 
