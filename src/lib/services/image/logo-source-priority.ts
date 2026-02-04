@@ -4,13 +4,7 @@
  */
 
 import { LOGO_SOURCES } from "@/lib/constants";
-import type { LogoSource } from "@/types/logo";
-
-export type LogoSourcePriority = {
-  name: LogoSource;
-  urlFn: (d: string) => string;
-  size: string;
-};
+import type { LogoSource, LogoSourcePriority } from "@/types/logo";
 
 /**
  * Build prioritized logo source list from LOGO_SOURCES config
