@@ -1,11 +1,4 @@
-/**
- * Image Persistence Module
- *
- * Handles image upload and storage to S3 with idempotent operations.
- * Extracted from s3-persistence.ts for SRP compliance.
- *
- * @module persistence/image-persistence
- */
+/** Image persistence to S3 with idempotent operations (@module persistence/image-persistence) */
 
 import { writeBinaryS3 } from "@/lib/s3/binary";
 import { persistImageToS3, findImageInS3 } from "@/lib/image-handling/image-s3-utils";
@@ -14,23 +7,14 @@ import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 import type { PersistImageResult } from "@/types";
 import { OgError } from "@/types/opengraph";
 
-// ============================================================================
-// DRY Helpers
-// ============================================================================
-
-/**
- * Format image URL for display in logs (truncates base64 data URLs)
- */
+/** Format image URL for display in logs (truncates base64 data URLs) */
 function getDisplayUrl(imageUrl: string): string {
   return imageUrl.startsWith("data:")
     ? `${imageUrl.substring(0, 50)}...[base64 data truncated]`
     : imageUrl;
 }
 
-/**
- * Build full S3 CDN URL from an S3 key
- * @throws OgError if CDN URL is not configured
- */
+/** Build full S3 CDN URL from an S3 key. Throws OgError if CDN URL is not configured. */
 function buildS3CdnUrl(s3Key: string): string {
   const cdnUrl = getS3CdnUrl();
   if (!cdnUrl) {
@@ -42,9 +26,7 @@ function buildS3CdnUrl(s3Key: string): string {
   return `${cdnUrl}/${s3Key}`;
 }
 
-/**
- * Build S3 CDN URL, returning null on configuration error (for non-throwing contexts)
- */
+/** Build S3 CDN URL, returning null on configuration error (for non-throwing contexts) */
 function buildS3CdnUrlOrNull(s3Key: string, logContext: string): string | null {
   const cdnUrl = getS3CdnUrl();
   if (!cdnUrl) {
@@ -54,19 +36,7 @@ function buildS3CdnUrlOrNull(s3Key: string, logContext: string): string | null {
   return `${cdnUrl}/${s3Key}`;
 }
 
-// ============================================================================
-// Image Persistence Functions
-// ============================================================================
-
-/**
- * Schedule background image persistence to S3
- *
- * @param imageUrl - URL of the image to persist
- * @param s3Directory - S3 directory to store the image
- * @param logContext - Context for logging
- * @param idempotencyKey - Unique key for idempotent storage
- * @param pageUrl - URL of the page the image belongs to
- */
+/** Schedule background image persistence to S3 */
 export function scheduleImagePersistence(
   imageUrl: string,
   s3Directory: string,
@@ -114,17 +84,7 @@ export function scheduleImagePersistence(
   })();
 }
 
-/**
- * Persist an OpenGraph image to S3 synchronously and return the S3 URL
- *
- * @param imageUrl - URL of the image to persist
- * @param s3Directory - S3 directory to store the image
- * @param logContext - Context for logging
- * @param idempotencyKey - Unique key for idempotent storage
- * @param pageUrl - URL of the page the image belongs to
- * @returns S3 URL if successful
- * @throws OgError on failure (including read-only mode returning null is NOT an error)
- */
+/** Persist image to S3 synchronously. Returns S3 URL or null in read-only mode. Throws OgError on failure. */
 export async function persistImageAndGetS3Url(
   imageUrl: string,
   s3Directory: string,
@@ -171,16 +131,7 @@ export async function persistImageAndGetS3Url(
   }
 }
 
-/**
- * Persist an OpenGraph image to S3 synchronously and return detailed result
- *
- * @param imageUrl - URL of the image to persist
- * @param s3Directory - S3 directory to store the image
- * @param logContext - Context for logging
- * @param idempotencyKey - Unique key for idempotent storage
- * @param pageUrl - URL of the page the image belongs to
- * @returns PersistImageResult with S3 URL and whether it was newly persisted
- */
+/** Persist image to S3 with status. Returns PersistImageResult with S3 URL and wasNewlyPersisted flag. */
 export async function persistImageAndGetS3UrlWithStatus(
   imageUrl: string,
   s3Directory: string,
@@ -298,17 +249,7 @@ export async function persistImageAndGetS3UrlWithStatus(
   }
 }
 
-/**
- * Persist an image buffer directly to S3 (for Karakeep assets)
- *
- * @param imageBuffer - Buffer containing the image data
- * @param s3Directory - S3 directory to store the image
- * @param assetId - Karakeep asset ID
- * @param logContext - Context for logging
- * @param idempotencyKey - Unique key for idempotent storage
- * @param pageUrl - URL of the page the image belongs to
- * @returns S3 URL if successful, null otherwise
- */
+/** Persist image buffer directly to S3 (for Karakeep assets). Returns S3 URL or null. */
 export async function persistImageBufferToS3(
   imageBuffer: Buffer,
   s3Directory: string,

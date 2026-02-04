@@ -330,7 +330,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Schedule background persistence for the image
-      const { scheduleImagePersistence } = await import("@/lib/persistence/s3-persistence");
+      const { scheduleImagePersistence } = await import("@/lib/persistence/image-persistence");
 
       // Generate idempotency key from URL
       const urlHash = url.replace(/[^a-zA-Z0-9.-]/g, "_");
