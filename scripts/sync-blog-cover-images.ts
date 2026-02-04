@@ -6,7 +6,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { checkIfS3ObjectExists, writeBinaryS3 } from "@/lib/s3-utils";
+import { writeBinaryS3 } from "@/lib/s3/binary";
+import { checkIfS3ObjectExists } from "@/lib/s3/objects";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import logger from "@/lib/utils/logger";
 

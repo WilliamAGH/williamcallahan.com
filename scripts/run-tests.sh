@@ -6,4 +6,4 @@
 echo "Running tests with HappyDOM and Testing Library setup..."
 bun run test "$@"
 
-exit $? # Exit with the status code from bun test
+exit $? # Exit with the status code from bun run test (Vitest)

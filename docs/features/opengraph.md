@@ -87,7 +87,7 @@ Request -> Cache Check -> S3 Check -> External Fetch -> Process -> Store -> Retu
 
 ### Image Processing
 
-- **`lib/utils/image-s3-utils.ts`**: Image persistence
+- **`lib/image-handling/image-s3-utils.ts`**: Image persistence
   - Downloads and validates images
   - Stores in S3 with deterministic keys
   - Serves images from S3 storage

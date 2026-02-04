@@ -14,7 +14,7 @@ import { fetchBooks } from "@/lib/books/audiobookshelf.server";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
 import { aggregateAllContent } from "@/lib/content-similarity/aggregator";
 import { findMostSimilar } from "@/lib/content-similarity";
-import { writeToS3 } from "@/lib/s3-utils";
+import { writeJsonS3 } from "@/lib/s3/json";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
 import type {
   NormalizedContent,
@@ -150,8 +150,7 @@ async function main(): Promise<void> {
   const s3Path = CONTENT_GRAPH_S3_PATHS.BOOKS_RELATED_CONTENT;
 
   try {
-    const jsonData = JSON.stringify(output, null, 2);
-    await writeToS3(s3Path, jsonData, "application/json", "public-read");
+    await writeJsonS3(s3Path, output);
     console.log(`  ✓ Written to ${s3Path}`);
     console.log(`  ✓ ACL: public-read\n`);
   } catch (error) {

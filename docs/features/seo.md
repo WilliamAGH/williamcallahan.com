@@ -544,7 +544,7 @@ The `tagToSlug` function handles special characters in tags to generate SEO-frie
 #### S3 Configuration
 
 - Bucket with public read access for images
-- CloudFront CDN configured (`NEXT_PUBLIC_S3_CDN_URL` for client, `S3_CDN_URL` for server)
+- CDN configured via `NEXT_PUBLIC_S3_CDN_URL` (canonical CDN env var for both server and client)
 - Proper CORS headers for image serving
 
 ## Comprehensive OpenGraph Architecture
@@ -677,7 +677,7 @@ NODE_ENV=production bun run scripts/submit-sitemap.ts --all
 ### VERIFIED SECURE
 
 - **Environment Variables**: All use server-only patterns
-- Server code now properly uses `S3_CDN_URL` instead of `NEXT_PUBLIC_S3_CDN_URL`
+- Server and client code use `NEXT_PUBLIC_S3_CDN_URL` as the canonical CDN variable
 - **No Hydration Issues**: SEO is server-side only
 - **No Memory Leaks**: Removed memory caching for OG images
 - **Async Handling**: No blocking operations found

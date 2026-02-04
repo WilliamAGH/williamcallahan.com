@@ -1,5 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["unicorn", "oxc", "typescript", "vitest", "react", "jsx-a11y", "promise"],
   "env": { "browser": true, "node": true, "es2023": true },
   "categories": {
     "correctness": "error",
@@ -197,8 +198,17 @@
     },
     {
       "files": ["**/*.{test,spec}.{js,jsx,ts,tsx}", "**/__tests__/**/*.{js,jsx,ts,tsx}"],
-      "env": {
-        "jest": true
+      "globals": {
+        "vi": "readonly",
+        "vitest": "readonly",
+        "describe": "readonly",
+        "it": "readonly",
+        "test": "readonly",
+        "expect": "readonly",
+        "beforeEach": "readonly",
+        "afterEach": "readonly",
+        "beforeAll": "readonly",
+        "afterAll": "readonly"
       },
       "rules": {
         "unicorn/consistent-function-scoping": "off",
@@ -208,9 +218,22 @@
         "no-await-in-loop": "off",
         "max-params": "off",
         "typescript/no-explicit-any": "off",
-        "jest/no-conditional-expect": "off",
-        "jest/require-to-throw-message": "off",
-        "jest/no-disabled-tests": "off"
+        "vitest/expect-expect": "error",
+        "vitest/no-conditional-expect": "off",
+        "vitest/no-conditional-tests": "error",
+        "vitest/no-disabled-tests": "warn",
+        "vitest/no-focused-tests": "error",
+        "vitest/no-identical-title": "error",
+        "vitest/no-import-node-test": "error",
+        "vitest/no-interpolation-in-snapshots": "error",
+        "vitest/no-mocks-import": "error",
+        "vitest/no-standalone-expect": "error",
+        "vitest/require-local-test-context-for-concurrent-snapshots": "error",
+        "vitest/valid-describe-callback": "error",
+        "vitest/valid-expect": "error",
+        "vitest/valid-title": "error",
+        "vitest/require-to-throw-message": "off",
+        "vitest/warn-todo": "off"
       }
     },
     {
@@ -234,9 +257,10 @@
       }
     },
     {
-      "files": ["config/jest/**/*.{ts,js}"],
-      "env": {
-        "jest": true
+      "files": ["config/vitest/**/*.{ts,js}"],
+      "globals": {
+        "vi": "readonly",
+        "vitest": "readonly"
       },
       "rules": {
         "no-undef": "off"
@@ -258,9 +282,7 @@
     "**/*.mdx",
     "next-env.d.ts",
     "src/components/ui/code-block/prism-syntax-highlighting/prism.js",
-    "config/jest/polyfills.js",
     ".husky/**",
-    ".jest-pre-compiled/**",
     "public/**",
     "coverage/**"
   ]

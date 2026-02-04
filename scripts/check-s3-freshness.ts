@@ -4,9 +4,10 @@
  * Diagnostic script to check the actual freshness of bookmark data in S3
  */
 
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
-import type { UnifiedBookmark } from "@/types/bookmark";
+import { unifiedBookmarksArraySchema, type UnifiedBookmark } from "@/types/bookmark";
+import { z } from "zod/v4";
 
 async function checkS3Freshness() {
   console.log("=== S3 BOOKMARK DATA FRESHNESS CHECK ===");
@@ -18,7 +19,10 @@ async function checkS3Freshness() {
     console.log("1. CHECKING MAIN BOOKMARKS FILE:");
     console.log(`   Path: ${BOOKMARKS_S3_PATHS.FILE}`);
 
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
 
     if (!bookmarks || !Array.isArray(bookmarks)) {
       console.log("   ❌ No bookmarks found or invalid format");
@@ -73,8 +77,9 @@ async function checkS3Freshness() {
     console.log("");
     console.log("3. CHECKING HEARTBEAT FILE:");
     try {
-      const heartbeat = await readJsonS3<{ timestamp: string; count: number }>(
+      const heartbeat = await readJsonS3Optional(
         BOOKMARKS_S3_PATHS.HEARTBEAT,
+        z.object({ timestamp: z.string(), count: z.number() }),
       );
       if (heartbeat?.timestamp) {
         const heartbeatDate = new Date(heartbeat.timestamp);
@@ -104,7 +109,10 @@ async function checkS3Freshness() {
     console.log("");
     console.log("4. CHECKING REFRESH LOCK:");
     try {
-      const lock = await readJsonS3<{ timestamp: string; ttl: number }>(BOOKMARKS_S3_PATHS.LOCK);
+      const lock = await readJsonS3Optional(
+        BOOKMARKS_S3_PATHS.LOCK,
+        z.object({ timestamp: z.string(), ttl: z.number() }),
+      );
       if (lock?.timestamp) {
         const lockDate = new Date(lock.timestamp);
         if (Number.isNaN(lockDate.getTime())) {

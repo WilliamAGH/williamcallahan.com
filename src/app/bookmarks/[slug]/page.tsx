@@ -1,4 +1,3 @@
-"use cache";
 /**
  * Domain-specific Bookmark Page with user-friendly URLs
  *

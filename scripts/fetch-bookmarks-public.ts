@@ -14,7 +14,8 @@ import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
+import { z } from "zod/v4";
 import { getEnvironment, getEnvironmentSuffix } from "@/lib/config/environment";
 import type { BookmarkS3Record, BookmarkSlugMapping } from "@/types/bookmark";
 
@@ -89,7 +90,7 @@ async function fetchJson(url: string, label: string): Promise<unknown> {
 async function fetchViaS3(key: string): Promise<unknown | null> {
   if (!HAS_S3_CREDENTIALS) return null;
   try {
-    const data = await readJsonS3<unknown>(key);
+    const data = await readJsonS3Optional<unknown>(key, z.unknown());
     if (data !== null) {
       console.log(`   📡 Loaded ${key} via S3 SDK`);
     }

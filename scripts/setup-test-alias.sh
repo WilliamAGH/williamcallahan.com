@@ -1,5 +1,5 @@
 #!/bin/bash
-# Setup script to create an alias for bun test that filters out Jest files
+# Setup script to create an alias for bun test that warns for Vitest usage
 
 echo "Setting up bun test alias..."
 
@@ -24,11 +24,11 @@ fi
 # Add the wrapper function and alias
 cat >> "$SHELL_RC" << 'EOF'
 
-# Bun test wrapper to filter out Jest files
+# Bun test wrapper to prevent direct bun test usage
 _bun_wrapper() {
   if [ "$1" = "test" ] && [ -z "$2" ]; then
-    echo "⚠️  Use 'bun run test' instead of 'bun test' to run the full test suite"
-    echo "   Or specify files: bun run test <specific-file>"
+    echo "Use 'bun run test' instead of 'bun test' to run the test suite."
+    echo "Or specify files: bun run test <specific-file>"
     return 1
   else
     command bun "$@"
@@ -39,7 +39,7 @@ _bun_wrapper() {
 alias bun='_bun_wrapper'
 EOF
 
-echo "✅ Added bun test wrapper to $SHELL_RC"
+echo "Added bun test wrapper to $SHELL_RC"
 echo ""
 echo "To activate the alias, run:"
 echo "  source $SHELL_RC"

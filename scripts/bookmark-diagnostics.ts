@@ -17,10 +17,15 @@
  *   all        - Run all diagnostics
  */
 
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { UnifiedBookmark } from "@/types";
-import { bookmarkSlugMappingSchema, type BookmarksIndex } from "@/types/bookmark";
+import {
+  bookmarkSlugMappingSchema,
+  bookmarksIndexSchema,
+  unifiedBookmarksArraySchema,
+  type BookmarksIndex,
+} from "@/types/bookmark";
 import {
   loadSlugMapping,
   getSlugForBookmark,
@@ -44,8 +49,14 @@ async function checkBookmarkCounts() {
   console.log("─".repeat(40));
 
   try {
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
-    const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
+    const index = await readJsonS3Optional<BookmarksIndex>(
+      BOOKMARKS_S3_PATHS.INDEX,
+      bookmarksIndexSchema,
+    );
 
     console.log(`Actual bookmarks count: ${bookmarks?.length || 0}`);
     console.log(`Index count: ${index?.count || 0}`);
@@ -126,7 +137,10 @@ async function checkBookmarkIntegrity() {
 
     // Check bookmarks have slugs
     console.log("\n🔗 Checking bookmark slugs:");
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
 
     if (!bookmarks || bookmarks.length === 0) {
       results.push({
@@ -185,12 +199,18 @@ async function checkBookmarkIntegrity() {
 
     // Check pagination files
     console.log("\n📑 Checking pagination files:");
-    const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+    const index = await readJsonS3Optional<BookmarksIndex>(
+      BOOKMARKS_S3_PATHS.INDEX,
+      bookmarksIndexSchema,
+    );
 
     if (index?.totalPages) {
       for (let i = 1; i <= Math.min(3, index.totalPages); i++) {
         const pagePath = `${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${i}.json`;
-        const pageData = await readJsonS3<UnifiedBookmark[]>(pagePath);
+        const pageData = await readJsonS3Optional<UnifiedBookmark[]>(
+          pagePath,
+          unifiedBookmarksArraySchema,
+        );
 
         if (!pageData) {
           results.push({
@@ -283,7 +303,10 @@ async function checkBookmarkStructure() {
   console.log("─".repeat(40));
 
   try {
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
 
     if (!bookmarks || !Array.isArray(bookmarks) || bookmarks.length === 0) {
       console.log("❌ No bookmarks found");
@@ -383,8 +406,14 @@ async function checkProductionBookmarks() {
 
   try {
     // S3 utilities automatically handle environment-based paths
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
-    const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
+    const index = await readJsonS3Optional<BookmarksIndex>(
+      BOOKMARKS_S3_PATHS.INDEX,
+      bookmarksIndexSchema,
+    );
 
     if (!bookmarks) {
       console.log("❌ No production bookmarks found");

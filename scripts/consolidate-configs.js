@@ -19,7 +19,6 @@ const MOVABLE_CONFIGS = [
   ".remarkrc.mjs",
   "stylelint.config.js",
   "postcss.config.js",
-  "jest.vscode.config.cjs",
   "happydom.ts",
 ];
 
@@ -29,9 +28,9 @@ const ROOT_REQUIRED = [
   "tsconfig.json",
   "next.config.ts",
   "eslint.config.ts",
+  "vitest.config.ts",
   "biome.json",
   "tailwind.config.js", // Tailwind requires root or explicit path
-  "jest.config.cjs",
   "bunfig.toml",
   ".gitignore",
   ".env*",

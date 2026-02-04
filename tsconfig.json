@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "lib": ["dom", "dom.iterable", "esnext"],
-    "types": ["react", "react-dom", "jest", "react/jsx-runtime"],
+    "types": ["react", "react-dom", "react/jsx-runtime"],
     "allowJs": true,
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,

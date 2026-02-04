@@ -6,7 +6,10 @@
  * Verifies all S3 paths are accessible and consistent after content graph changes
  */
 
-import { readJsonS3, listS3Objects, getS3Client } from "../src/lib/s3-utils";
+import { readJsonS3Optional } from "../src/lib/s3/json";
+import { listS3Objects } from "../src/lib/s3/objects";
+import { getS3Client } from "../src/lib/s3/client";
+import { z } from "zod/v4";
 import {
   BOOKMARKS_S3_PATHS,
   IMAGE_S3_PATHS,
@@ -17,18 +20,21 @@ import {
   CONTENT_GRAPH_S3_PATHS,
 } from "../src/lib/constants";
 import type { PathCheck } from "@/types/utils/audit";
-import type { BookmarkSlugMapping } from "@/types/bookmark";
-import type {
-  BookmarksIndexEntry,
-  ContentGraphMetadata,
-  RelatedContentEntry,
-} from "@/types/related-content";
+import {
+  bookmarkSlugMappingSchema,
+  bookmarksIndexSchema,
+  type BookmarkSlugMapping,
+  type BookmarksIndex,
+} from "@/types/bookmark";
+import type { RelatedContentEntry } from "@/types/related-content";
+import { contentGraphMetadataSchema } from "@/types/schemas/related-content";
+import { relatedContentEntrySchema } from "@/types/schemas/book";
 import { ServerCacheInstance } from "../src/lib/server-cache";
 import { getMemoryHealthMonitor } from "../src/lib/health/memory-health-monitor";
 
 async function checkPath(path: string): Promise<PathCheck> {
   try {
-    const data = await readJsonS3(path);
+    const data = await readJsonS3Optional(path, z.unknown());
     const itemCount = Array.isArray(data)
       ? data.length
       : data && typeof data === "object"
@@ -161,7 +167,10 @@ async function auditS3Paths() {
   console.log("\n🔄 PAGINATION CONSISTENCY CHECK:");
 
   try {
-    const index = await readJsonS3<BookmarksIndexEntry>(BOOKMARKS_S3_PATHS.INDEX);
+    const index = await readJsonS3Optional<BookmarksIndex>(
+      BOOKMARKS_S3_PATHS.INDEX,
+      bookmarksIndexSchema,
+    );
     if (index?.totalPages) {
       console.log(`  📖 Index reports ${index.totalPages} pages`);
 
@@ -170,7 +179,7 @@ async function auditS3Paths() {
       for (let i = 1; i <= index.totalPages; i++) {
         const pagePath = `${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${i}.json`;
         try {
-          const pageData = await readJsonS3(pagePath);
+          const pageData = await readJsonS3Optional(pagePath, z.unknown());
           if (pageData) pagesFound++;
         } catch {
           console.log(`  ⚠️ Missing page ${i}`);
@@ -190,7 +199,10 @@ async function auditS3Paths() {
   // Check slug mapping
   console.log("\n🔗 SLUG MAPPING CHECK:");
   try {
-    const slugMapping = await readJsonS3<BookmarkSlugMapping>(BOOKMARKS_S3_PATHS.SLUG_MAPPING);
+    const slugMapping = await readJsonS3Optional<BookmarkSlugMapping>(
+      BOOKMARKS_S3_PATHS.SLUG_MAPPING,
+      bookmarkSlugMappingSchema,
+    );
     if (slugMapping) {
       const slugCount = Object.keys(slugMapping.slugs || {}).length;
       const reverseCount = Object.keys(slugMapping.reverseMap || {}).length;
@@ -209,10 +221,14 @@ async function auditS3Paths() {
   // Check content graph integrity
   console.log("\n🕸️ CONTENT GRAPH INTEGRITY:");
   try {
-    const relatedContent = await readJsonS3<Record<string, RelatedContentEntry[]>>(
+    const relatedContent = await readJsonS3Optional<Record<string, RelatedContentEntry[]>>(
       CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
+      z.record(z.string(), z.array(relatedContentEntrySchema)),
     );
-    const metadata = await readJsonS3<ContentGraphMetadata>(CONTENT_GRAPH_S3_PATHS.METADATA);
+    const metadata = await readJsonS3Optional(
+      CONTENT_GRAPH_S3_PATHS.METADATA,
+      contentGraphMetadataSchema,
+    );
 
     if (relatedContent && metadata) {
       const relatedCount = Object.keys(relatedContent).length;

@@ -415,6 +415,13 @@ bun scripts/test-chroma-client.ts
 bun scripts/test-chroma-comprehensive.ts
 ```
 
+### Live Integration Test (Opt-In)
+
+- `__tests__/lib/chroma/chroma-actual.test.ts` runs real Chroma Cloud operations using
+  `describe.runIf(...)` gated by `CHROMA_API_KEY`, `CHROMA_TENANT`, and `CHROMA_DATABASE`.
+- The test uses explicit embeddings with `embeddingFunction: null` to avoid local ONNX
+  initialization and keep CI safe.
+
 ### Test Coverage
 
 | Category              | Operations Tested                             |

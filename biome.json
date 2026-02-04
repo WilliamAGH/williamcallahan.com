@@ -14,8 +14,7 @@
       "!*.ico",
       "!bun.lock",
       "!README.md",
-      "!docs/**/*.md",
-      "!.jest-pre-compiled"
+      "!docs/**/*.md"
     ],
     "maxSize": 2097152,
     "ignoreUnknown": true
@@ -66,7 +65,6 @@
         "eslint.config.ts",
         "eslint.config.js",
         "*.config.{js,ts,mjs,cjs}",
-        "jest.config.{js,ts}",
         "next.config.*",
         "postcss.config.*",
         "tailwind.config.*",

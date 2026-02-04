@@ -23,22 +23,23 @@ graph TD
 - **Purpose**: Serves as a central import point for various data access functionalities, re-exporting modules related to bookmarks, logos, investments, and GitHub data.
 - **Key Features**:
   - Simplifies access to data operations by providing a single entry point for imports.
-  - Notes the removal of original S3 helper functions, directing users to utilize utilities from '@/lib/s3-utils' for comprehensive S3 operations.
+  - Directs users to the canonical S3 modules under `lib/s3/*` for storage operations.
 
-### S3 Operations (`lib/s3-utils.ts`)
+### S3 Operations (`lib/s3/*`)
 
 - **Purpose**: Provides a comprehensive interface for interacting with Amazon S3 to manage data storage and retrieval operations.
 - **Key Features**:
-  - Implements functions for reading (`readFromS3`), writing (`writeToS3`), checking existence (`checkIfS3ObjectExists`), retrieving metadata (`getS3ObjectMetadata`), listing objects (`listS3Objects`), and deleting objects (`deleteFromS3`) from S3.
-  - Supports specialized handling for JSON data with `readJsonS3` and `writeJsonS3`, and binary data with `readBinaryS3` and `writeBinaryS3`.
-  - Incorporates retry logic for read operations with configurable maximum retries and delay to handle transient errors.
-  - Utilizes a public CDN URL for non-JSON files to optimize access speed, falling back to direct S3 reads if CDN fetch fails.
-  - Configures S3 client using environment variables for bucket, endpoint, credentials, and region, with support for dry runs to simulate operations without actual S3 interaction.
-  - Ensures public read access for written objects by setting the appropriate ACL during write operations.
+  - Raw object operations (`getObject`, `putObject`, `headObject`, `listS3Objects`, `deleteFromS3`) live in `lib/s3/objects.ts`.
+  - JSON helpers (`readJsonS3`, `writeJsonS3`, `readJsonS3Optional`) live in `lib/s3/json.ts` with strict schema validation.
+  - Binary helpers (`readBinaryS3`, `writeBinaryS3`) live in `lib/s3/binary.ts` with content-type enforcement.
+  - Client creation and retry strategy live in `lib/s3/client.ts` (SDK retry only; no custom retry loops).
+  - Configuration validation lives in `lib/s3/config.ts` (single source of truth; no implicit fallbacks).
+  - Errors are normalized in `lib/s3/errors.ts` (S3NotFound vs config vs operation errors).
+  - No CDN fallback logic exists inside S3 IO; CDN usage is explicit at call sites.
 - **Security Features**:
   - All external URLs validated against SSRF attacks before fetch operations
   - Path traversal protection for S3 keys
-  - Proper use of `S3_CDN_URL` for server-side code instead of `NEXT_PUBLIC_` variables
+  - Canonical use of `NEXT_PUBLIC_S3_CDN_URL` for CDN URLs in both server and client code
 
 ### Caching Mechanisms (`lib/cache.ts`)
 
