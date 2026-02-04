@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import type { BookDetailProps } from "@/types/features/books";
 import { BooksWindow } from "./books-window.client";
+import { BookAiAnalysis } from "./book-ai-analysis.client";
 import { cn } from "@/lib/utils";
 import { processSummaryText } from "@/lib/utils/formatters";
 import { TerminalContext } from "@/components/ui/context-notes/terminal-context.client";
@@ -86,7 +87,7 @@ function ExternalLinkButton({
   );
 }
 
-export function BookDetail({ book }: BookDetailProps) {
+export function BookDetail({ book, cachedAnalysis }: BookDetailProps) {
   const hasAudio = book.formats?.includes("audio");
   const hasExternalLinks =
     book.amazonUrl || book.audibleUrl || book.bookshopUrl || book.findMyBookUrl;
@@ -370,6 +371,9 @@ export function BookDetail({ book }: BookDetailProps) {
                   </p>
                 </motion.section>
               )}
+
+              {/* AI Analysis */}
+              <BookAiAnalysis book={book} initialAnalysis={cachedAnalysis} />
 
               {/* External Links */}
               {hasExternalLinks && (

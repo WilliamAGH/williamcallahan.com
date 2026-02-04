@@ -27,6 +27,7 @@ import { safeExternalHref, getDisplayHostname } from "@/lib/utils/url-utils";
 import { buildCdnUrl, getCdnConfigFromEnv, getOptimizedImageSrc } from "@/lib/utils/cdn-utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 import { RegistryLinks } from "@/components/ui/registry-links.client";
+import { ProjectAiAnalysis } from "./project-ai-analysis.client";
 
 /**
  * Check if URL is internal (starts with /)
@@ -72,7 +73,7 @@ function SmartLink({
   );
 }
 
-export function ProjectDetail({ project }: ProjectDetailProps) {
+export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
   const [mounted, setMounted] = useState(false);
   const { scrollY } = useScroll();
 
@@ -233,6 +234,9 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
                 </p>
               </motion.section>
             )}
+
+            {/* AI Analysis */}
+            <ProjectAiAnalysis project={project} initialAnalysis={cachedAnalysis} />
 
             {/* If no content is available, show a placeholder */}
             {!project.description && !imageUrl && (

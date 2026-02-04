@@ -16,10 +16,7 @@ import {
   type BookmarkAnalysisState,
   type BookmarkAiAnalysisProps,
 } from "@/types/bookmark-ai-analysis";
-import {
-  bookmarkAiAnalysisResponseSchema,
-  type BookmarkAiAnalysisResponse,
-} from "@/types/schemas/bookmark-ai-analysis";
+import { bookmarkAiAnalysisResponseSchema } from "@/types/schemas/bookmark-ai-analysis";
 import { aiQueueStatsSchema } from "@/types/schemas/ai-openai-compatible-client";
 import { extractBookmarkAnalysisContext } from "@/lib/bookmarks/analysis/extract-context";
 import {
@@ -27,8 +24,7 @@ import {
   buildBookmarkAnalysisUserPrompt,
 } from "@/lib/bookmarks/analysis/build-prompt";
 import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
-import { jsonrepair } from "jsonrepair";
-import * as Sentry from "@sentry/nextjs";
+import { parseLlmJson, persistAnalysisToS3 } from "@/lib/ai/analysis-client-utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -42,80 +38,6 @@ const AI_FEATURE_NAME = "bookmark-analysis";
  * the component will show a manual trigger button instead.
  */
 const AUTO_TRIGGER_QUEUE_THRESHOLD = 5;
-
-/**
- * Persist bookmark analysis to S3 via API endpoint.
- * Fire-and-forget - tracks errors via Sentry but doesn't block the UI.
- *
- * Note: This function is intentionally bookmark-specific since it lives in the
- * bookmark component. Other domains would have their own persist functions.
- */
-async function persistBookmarkAnalysisToS3(
-  bookmarkId: string,
-  analysis: BookmarkAiAnalysisResponse,
-): Promise<void> {
-  const context = { bookmarkId, domain: "bookmarks" };
-
-  try {
-    const response = await fetch(`/api/ai/analysis/bookmarks/${bookmarkId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ analysis }),
-    });
-
-    if (!response.ok) {
-      // Track HTTP errors in Sentry with context
-      Sentry.captureMessage("AI analysis persist failed", {
-        level: "warning",
-        extra: {
-          ...context,
-          status: response.status,
-          statusText: response.statusText,
-        },
-      });
-    }
-  } catch (error) {
-    // Track exceptions in Sentry with full context
-    Sentry.captureException(error, {
-      extra: context,
-      tags: { feature: "ai-analysis-persist" },
-    });
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// JSON Parsing Utilities
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Strips LLM control tokens and extracts JSON content.
- */
-function stripLlmTokens(rawText: string): string {
-  let text = rawText.trim();
-
-  // Strip LLM control tokens (e.g., <|channel|>final <|constrain|>JSON<|message|>)
-  text = text.replace(/<\|[^|]+\|>[^{"]*/g, "");
-
-  // Strip markdown code blocks
-  if (text.startsWith("```")) {
-    text = text.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-  }
-
-  return text.trim();
-}
-
-/**
- * Parses JSON from LLM output using jsonrepair for robustness.
- * Handles control tokens, malformed JSON, missing quotes, etc.
- */
-function parseLlmJson(rawText: string): unknown {
-  const cleaned = stripLlmTokens(rawText);
-
-  // Use jsonrepair to fix common LLM JSON issues
-  const repaired = jsonrepair(cleaned);
-
-  return JSON.parse(repaired);
-}
 
 // Terminal-style loading messages that cycle through
 const LOADING_MESSAGES = [
@@ -301,7 +223,7 @@ export function BookmarkAiAnalysis({
         setState({ status: "success", analysis: parseResult.data, error: null });
 
         // Persist to S3 in the background (fire-and-forget)
-        void persistBookmarkAnalysisToS3(bookmark.id, parseResult.data);
+        void persistAnalysisToS3("bookmarks", bookmark.id, parseResult.data);
       } catch (error) {
         // Don't update state if request was aborted (component likely unmounted)
         if (error instanceof DOMException && error.name === "AbortError") {
