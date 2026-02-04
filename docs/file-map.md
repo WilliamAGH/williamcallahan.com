@@ -11,6 +11,7 @@
 - [Config Directory](#config-directory)
 - [Middleware Directory](#middleware-directory)
 - [Root Directory](#root-directory)
+- [Rules Directory](#rules-directory)
 - [App Directory](#app-directory)
 - [Scripts Directory](#scripts-directory)
 - [Styles Directory](#styles-directory)
@@ -448,6 +449,15 @@ File/Path Functionality Description
 - [x] `tailwind.config.js` `config` - Tailwind CSS configuration (in root, not config/)
 - [x] `tsconfig.json` `config` - TypeScript configuration
 
+## Rules Directory
+
+- [x] **rules/**
+  - [x] **ast-grep/**
+    - [x] `ban-i-prefix-interface.yml` `linting-formatting` - Enforces interface naming (no I-prefix)
+    - [x] `no-cdn-image-proxy.yml` `image-handling` - Blocks CDN image proxy usage for first-party URLs
+    - [x] `no-test-mock-files-outside-mocks.yml` `testing-config` - Enforces mock files living under **tests**/**mocks**
+    - [x] `no-unsafe-casts.yml` `linting-formatting` - Disallows unsafe type assertions
+
 ## App Directory
 
 - [x] `code-blocks.css` `css` - Styles for code blocks
@@ -584,6 +594,7 @@ File/Path Functionality Description
   - [x] \***\*mocks**/\*\*
     - [x] `lib/node-cache.ts` `caching` - Mock for node-cache library
     - [x] `lib/search.ts` `search` - Mock for search functionality
+    - [x] `lib/utils/ensure-server-only.ts` `testing-config` - Mock for server-only guard utility
     - [x] `node-fetch.js` `log-error-debug-handling` - Mock for node-fetch
     - [x] `sentry.js` `log-error-debug-handling` - Mock for Sentry error tracking
   - [x] **app/**
@@ -652,7 +663,6 @@ File/Path Functionality Description
       - [x] `opengraph.test.ts` `seo` - OpenGraph metadata tests
       - [x] `utils.test.ts` `seo` - SEO utility tests
     - [x] **setup/**
-      - [x] `server-only-mock.ts` `overview` - Mock for server-only modules
       - [x] `testing-library.ts` `testing-config` - Testing library setup
     - [x] **utils/**
       - [x] `domain-utils.test.ts` `bookmarks` - Domain utility tests
