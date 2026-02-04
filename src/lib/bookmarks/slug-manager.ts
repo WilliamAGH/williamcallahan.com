@@ -22,6 +22,7 @@ import { envLogger } from "@/lib/utils/env-logger";
 import { createHash } from "node:crypto";
 import { isSlugManagerLoggingEnabled } from "@/lib/bookmarks/config";
 import { persistSlugShards } from "@/lib/bookmarks/slug-shards";
+import { getDeterministicTimestamp } from "@/lib/server-cache";
 
 const formatSlugEnvironmentSnapshot = (): string =>
   `NODE_ENV=${process.env.NODE_ENV || "(not set)"}, DEPLOYMENT_ENV=${process.env.DEPLOYMENT_ENV || "(not set)"}`;
@@ -109,7 +110,7 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
 
   const mapping: BookmarkSlugMapping = {
     version: "1.0.0",
-    generated: new Date().toISOString(),
+    generated: new Date(getDeterministicTimestamp()).toISOString(),
     count: bookmarks.length,
     checksum,
     slugs,
