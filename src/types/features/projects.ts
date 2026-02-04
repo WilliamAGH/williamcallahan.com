@@ -15,6 +15,8 @@
  */
 
 import type { Project } from "../project";
+import type { CachedAnalysis } from "../ai-analysis";
+import type { ProjectAiAnalysisResponse } from "../schemas/project-ai-analysis";
 
 // Use base component props
 export type ProjectCardProps = import("../ui").BaseComponentProps & {
@@ -68,4 +70,6 @@ export type ProjectPageProps = {
 // Props for the ProjectDetail component
 export type ProjectDetailProps = {
   project: Project;
+  /** Pre-cached AI analysis from S3 (if available) */
+  cachedAnalysis?: CachedAnalysis<ProjectAiAnalysisResponse> | null;
 };

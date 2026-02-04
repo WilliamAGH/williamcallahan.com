@@ -8,6 +8,8 @@
 
 import type { Book, BookListItem } from "@/types/schemas/book";
 import type { WindowStateValue } from "@/types/ui/window";
+import type { CachedAnalysis } from "@/types/ai-analysis";
+import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
 
 // =============================================================================
 // UTILITY TYPES
@@ -50,6 +52,8 @@ export interface BookCardProps {
  */
 export interface BookDetailProps {
   book: Book;
+  /** Pre-cached AI analysis from S3 (if available) */
+  cachedAnalysis?: CachedAnalysis<BookAiAnalysisResponse> | null;
 }
 
 /**
