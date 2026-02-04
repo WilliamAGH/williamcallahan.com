@@ -17,6 +17,8 @@ import { ProjectDetail } from "@/components/features/projects/project-detail";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
 import { findProjectBySlug, getAllProjectSlugs } from "@/lib/projects/slug-helpers";
+import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
+import type { ProjectAiAnalysisResponse } from "@/types/schemas/project-ai-analysis";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
@@ -147,9 +149,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     return notFound();
   }
 
+  const projectId = project.id ?? project.name;
   const path = `/projects/${slug}`;
+
+  // Fetch cached AI analysis from S3 (runs in parallel with rendering prep)
+  const cachedAnalysis = await getCachedAnalysis<ProjectAiAnalysisResponse>("projects", projectId);
   const pageMetadata = PAGE_METADATA.projects;
-  const projectId = project.id || project.name;
 
   const schemaParams = {
     path,
@@ -192,7 +197,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             </div>
           }
         >
-          <ProjectDetail project={project} />
+          <ProjectDetail project={project} cachedAnalysis={cachedAnalysis} />
         </Suspense>
 
         <div className="mt-12">
