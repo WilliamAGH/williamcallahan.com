@@ -104,7 +104,7 @@ Keys are immutable once written (content-hash suffix or deterministic domain has
 
 - **Image-handling** – Consumes this storage layer; see [`image-handling.md`](./image-handling.md) for domain-level behavior.
 - **Unified stack map** – High-level flow resides in [`s3-image-unified-stack.md`](./s3-image-unified-stack.md).
-- **Next.js 16 constraints** – `docs/projects/structure/next-js-16-usage.md` defines experimental flags, Cache Components expectations, and outlawed APIs that indirectly impact storage access.
+- **Next.js 16 constraints** – `docs/standards/nextjs-framework.md` defines experimental flags, Cache Components expectations, and outlawed APIs that indirectly impact storage access.
 
 Keep this file current whenever you add a new prefix, manifest, or lock artifact. If an S3 command path is missing documentation here, it is considered unofficial and subject to removal.
 

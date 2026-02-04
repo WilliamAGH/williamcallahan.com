@@ -456,7 +456,7 @@ Think of Cache Components as **inverting the default**:
 ## Workflow Checklist (mirror AGENTS.md)
 
 1. **Purpose alignment:** capture the why and log it in your working note.
-2. **Architecture context:** re-read `docs/projects/structure/00-architecture-entrypoint.md`, this file, and any related functionality docs.
+2. **Architecture context:** re-read `docs/architecture/README.md`, this file, and any related functionality docs.
 3. **Type inspection:** review applicable files under `types/` before changing props/contracts.
 4. **Node_modules inspection:** cite the exact file + line that proves each framework claim.
 5. **External docs:** fetch at least one Context7/DeepWiki/Brave reference for the current framework version.

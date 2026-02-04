@@ -2,7 +2,7 @@
  * GitHub Activity API Cache Tests
  *
  * Tests the caching functionality for GitHub activity data according to the
- * multi-tiered caching architecture (docs/projects/structure/caching.md).
+ * multi-tiered caching architecture (docs/architecture/caching.md).
  *
  * Validates ServerCacheInstance methods for GitHub activity storage and retrieval:
  * - In-memory caching with appropriate TTLs

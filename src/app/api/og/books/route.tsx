@@ -34,7 +34,7 @@ import { isPrivateIP } from "@/types/schemas/url";
  * This is documented behavior: Next.js 16 defaults API routes to Node.js runtime,
  * making explicit runtime declarations unnecessary and potentially problematic.
  *
- * @see docs/projects/structure/next-js-16-usage.md for framework runtime guarantees
+ * @see docs/standards/nextjs-framework.md for framework runtime guarantees
  */
 
 // OG Image dimensions (standard)
