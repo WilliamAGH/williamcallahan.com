@@ -9,7 +9,7 @@
  */
 
 import { BOOKMARKS_S3_PATHS, BOOKMARKS_API_CONFIG } from "@/lib/constants";
-import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
 import { normalizeBookmarks } from "./normalize";
 import { processBookmarksInBatches } from "./enrich-opengraph";
 import { createHash } from "node:crypto";
@@ -21,7 +21,9 @@ import {
   type BookmarksApiContext,
   type ChecksumResult,
   bookmarksApiResponseSchema,
+  unifiedBookmarksArraySchema,
 } from "@/types/bookmark";
+import { checksumKeyRecordSchema } from "@/types/schemas/checksum";
 
 // Re-export types for backward compatibility
 export type { BookmarksApiContext, ChecksumResult };
@@ -60,14 +62,13 @@ export function validateApiConfig(): BookmarksApiContext {
 export async function handleTestEnvironment(): Promise<UnifiedBookmark[] | null> {
   if (process.env.NODE_ENV !== "test") return null;
 
-  try {
-    const s3Backup = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
-    if (Array.isArray(s3Backup) && s3Backup.length > 0) {
-      console.log("[refreshBookmarksData] Test mode: returning bookmarks from S3 persistence");
-      return s3Backup;
-    }
-  } catch {
-    console.warn("[refreshBookmarksData] Test mode S3 read failed, proceeding with empty dataset");
+  const s3Backup = await readJsonS3Optional<UnifiedBookmark[]>(
+    BOOKMARKS_S3_PATHS.FILE,
+    unifiedBookmarksArraySchema,
+  );
+  if (Array.isArray(s3Backup) && s3Backup.length > 0) {
+    console.log("[refreshBookmarksData] Test mode: returning bookmarks from S3 persistence");
+    return s3Backup;
   }
   console.log("[refreshBookmarksData] Test mode: no S3 data, returning empty dataset");
   return [];
@@ -150,9 +151,9 @@ export async function validateChecksumAndGetCached(
   }
 
   try {
-    const latest = await readJsonS3<{ checksum: string; key: string }>(latestKey);
+    const latest = await readJsonS3Optional(latestKey, checksumKeyRecordSchema);
     if (latest?.checksum === rawChecksum) {
-      const cached = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+      const cached = await readJsonS3Optional(BOOKMARKS_S3_PATHS.FILE, unifiedBookmarksArraySchema);
 
       if (cached && cached.length === allRawBookmarks.length) {
         const hasSlugs = cached.every((b) => {
@@ -300,7 +301,7 @@ export async function persistToS3(
 export async function loadS3Fallback(): Promise<UnifiedBookmark[] | null> {
   try {
     console.log("[refreshBookmarksData] API failed, loading from S3 (primary storage)...");
-    const s3Backup = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    const s3Backup = await readJsonS3Optional(BOOKMARKS_S3_PATHS.FILE, unifiedBookmarksArraySchema);
     if (Array.isArray(s3Backup) && s3Backup.length > 0) {
       console.log(
         `[refreshBookmarksData] S3_FALLBACK_SUCCESS: Returning ${s3Backup.length} bookmarks.`,

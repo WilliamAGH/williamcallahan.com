@@ -6,12 +6,17 @@
  * validating changes, and orchestrating persistence.
  */
 
-import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
 import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
 import { createDistributedLock, cleanupStaleLocks } from "@/lib/utils/s3-distributed-lock.server";
 import type { UnifiedBookmark, RefreshBookmarksCallback } from "@/types";
-import type { BookmarksIndex } from "@/types/bookmark";
+import {
+  bookmarksIndexSchema,
+  type BookmarksIndex,
+  type BookmarkSlugMapping,
+  unifiedBookmarksArraySchema,
+} from "@/types/bookmark";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
 import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
@@ -29,6 +34,29 @@ import {
   persistTagFilteredBookmarksToS3,
   writeLocalBookmarksCache,
 } from "@/lib/bookmarks/persistence.server";
+
+/**
+ * Attach slugs from mapping to bookmarks array.
+ * Throws if any bookmark is missing from the mapping.
+ *
+ * @param bookmarks - Bookmarks to attach slugs to
+ * @param mapping - Slug mapping containing id-to-slug entries
+ * @param context - Context string for error messages (e.g., "metadata refresh")
+ * @returns Bookmarks with slug property populated
+ */
+function attachSlugsToBookmarks(
+  bookmarks: UnifiedBookmark[],
+  mapping: BookmarkSlugMapping,
+  context: string,
+): UnifiedBookmark[] {
+  return bookmarks.map((b) => {
+    const entry = mapping.slugs[b.id];
+    if (!entry) {
+      throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (${context})`);
+    }
+    return { ...b, slug: entry.slug };
+  });
+}
 
 const logBookmarkDataAccessEvent = (message: string, data?: Record<string, unknown>): void => {
   if (!isBookmarkServiceLoggingEnabled) return;
@@ -169,14 +197,13 @@ export function cleanupBookmarksDataAccess(): void {
 
 /** Check if bookmarks have changed */
 async function hasBookmarksChanged(newBookmarks: UnifiedBookmark[]): Promise<boolean> {
-  try {
-    const existingIndex = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
-    if (!existingIndex) return true;
-    if (existingIndex.count !== newBookmarks.length) return true;
-    return calculateBookmarksChecksum(newBookmarks) !== existingIndex.checksum;
-  } catch {
-    return true;
-  }
+  const existingIndex = await readJsonS3Optional<BookmarksIndex>(
+    BOOKMARKS_S3_PATHS.INDEX,
+    bookmarksIndexSchema,
+  );
+  if (!existingIndex) return true;
+  if (existingIndex.count !== newBookmarks.length) return true;
+  return calculateBookmarksChecksum(newBookmarks) !== existingIndex.checksum;
 }
 
 async function saveSlugMappingOrThrow(
@@ -184,7 +211,7 @@ async function saveSlugMappingOrThrow(
   logSuffix: string,
 ): Promise<void> {
   try {
-    await saveSlugMapping(bookmarks, true, false);
+    await saveSlugMapping(bookmarks, true);
     logBookmarkDataAccessEvent("Saved slug mapping", {
       context: logSuffix,
       bookmarkCount: bookmarks.length,
@@ -213,7 +240,10 @@ export async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBook
       logBookmarkDataAccessEvent("No changes detected, skipping bookmarks write");
 
       const now = getDeterministicTimestamp();
-      const existingIndex = (await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX)) || null;
+      const existingIndex = await readJsonS3Optional<BookmarksIndex>(
+        BOOKMARKS_S3_PATHS.INDEX,
+        bookmarksIndexSchema,
+      );
       const baseIndex: Omit<BookmarksIndex, "changeDetected"> = {
         count: existingIndex?.count ?? allIncomingBookmarks.length,
         totalPages:
@@ -248,15 +278,7 @@ export async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBook
       }
 
       const mapping = generateSlugMapping(refreshed);
-      const bookmarksWithSlugs = refreshed.map((b) => {
-        const entry = mapping.slugs[b.id];
-        if (!entry) {
-          throw new Error(
-            `${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (metadata refresh)`,
-          );
-        }
-        return { ...b, slug: entry.slug };
-      });
+      const bookmarksWithSlugs = attachSlugsToBookmarks(refreshed, mapping, "metadata refresh");
 
       await writeBookmarkMasterFiles(bookmarksWithSlugs);
       await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, {
@@ -283,30 +305,24 @@ export async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBook
     }
     logBookmarkDataAccessEvent("Changes detected, persisting bookmarks");
     const mapping = await writePaginatedBookmarks(allIncomingBookmarks);
-    {
-      const bookmarksWithSlugs = allIncomingBookmarks.map((b) => {
-        const entry = mapping.slugs[b.id];
-        if (!entry) {
-          throw new Error(
-            `${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (change FILE)`,
-          );
-        }
-        return { ...b, slug: entry.slug };
-      });
-      await writeBookmarkMasterFiles(bookmarksWithSlugs);
+    const bookmarksWithSlugs = attachSlugsToBookmarks(
+      allIncomingBookmarks,
+      mapping,
+      "change-detected",
+    );
+    await writeBookmarkMasterFiles(bookmarksWithSlugs);
 
-      // Local cache write is best-effort; S3 is the primary store
-      const localCacheResult = await writeLocalBookmarksCache(
-        bookmarksWithSlugs,
-        "change-detected path",
+    // Local cache write is best-effort; S3 is the primary store
+    const localCacheResult = await writeLocalBookmarksCache(
+      bookmarksWithSlugs,
+      "change-detected path",
+    );
+    if (!localCacheResult.success) {
+      envLogger.debug(
+        "Local cache write failed during change-detected path",
+        { error: localCacheResult.error?.message },
+        { category: LOG_PREFIX },
       );
-      if (!localCacheResult.success) {
-        envLogger.debug(
-          "Local cache write failed during change-detected path",
-          { error: localCacheResult.error?.message },
-          { category: LOG_PREFIX },
-        );
-      }
     }
     await persistTagFilteredBookmarksToS3(allIncomingBookmarks);
     return allIncomingBookmarks;
@@ -335,25 +351,17 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                 force ? "Forcing S3 write" : "Changes detected, writing to S3",
               );
               const mapping = await writePaginatedBookmarks(freshBookmarks);
-              {
-                const bookmarksWithSlugs = freshBookmarks.map((b) => {
-                  const entry = mapping.slugs[b.id];
-                  if (!entry) {
-                    throw new Error(
-                      `${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (force FILE)`,
-                    );
-                  }
-                  return { ...b, slug: entry.slug };
-                });
-                await writeBookmarkMasterFiles(bookmarksWithSlugs);
-              }
+              const bookmarksWithSlugs = attachSlugsToBookmarks(freshBookmarks, mapping, "force");
+              await writeBookmarkMasterFiles(bookmarksWithSlugs);
               await persistTagFilteredBookmarksToS3(freshBookmarks);
             } else {
               logBookmarkDataAccessEvent("No changes detected, skipping heavy S3 writes");
               // Still update index freshness to reflect successful refresh
               const now = getDeterministicTimestamp();
-              const existingIndex =
-                (await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX)) || null;
+              const existingIndex = await readJsonS3Optional<BookmarksIndex>(
+                BOOKMARKS_S3_PATHS.INDEX,
+                bookmarksIndexSchema,
+              );
               const updatedIndex: BookmarksIndex = {
                 count: existingIndex?.count ?? freshBookmarks.length,
                 totalPages:
@@ -386,15 +394,11 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
 
               // Generate mapping and write FILE (always), and optionally rewrite pages/tags if metadata changed
               const mapping = generateSlugMapping(refreshed);
-              const bookmarksWithSlugs = refreshed.map((b) => {
-                const entry = mapping.slugs[b.id];
-                if (!entry) {
-                  throw new Error(
-                    `${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (non-selective FILE)`,
-                  );
-                }
-                return { ...b, slug: entry.slug };
-              });
+              const bookmarksWithSlugs = attachSlugsToBookmarks(
+                refreshed,
+                mapping,
+                "non-selective",
+              );
               await writeBookmarkMasterFiles(bookmarksWithSlugs);
               if (metadataChanged) {
                 logBookmarkDataAccessEvent(
@@ -434,7 +438,10 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
           `${LOG_PREFIX} No bookmarks returned from refresh (likely missing API config), attempting S3 fallback`,
         );
         try {
-          const existingBookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+          const existingBookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+            BOOKMARKS_S3_PATHS.FILE,
+            unifiedBookmarksArraySchema,
+          );
           if (
             existingBookmarks &&
             Array.isArray(existingBookmarks) &&

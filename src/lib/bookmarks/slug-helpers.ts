@@ -10,8 +10,8 @@ import {
   generateSlugMapping,
   getSlugForBookmark,
   saveSlugMapping,
-  getSlugShard,
 } from "./slug-manager";
+import { readSlugShard } from "./slug-shards";
 import type { UnifiedBookmark } from "@/types";
 import type { CachedSlugMapping } from "@/types/cache";
 import type { BookmarkSlugMapping } from "@/types/bookmark";
@@ -278,7 +278,7 @@ async function loadReverseSlugMap(): Promise<Map<string, string> | null> {
 }
 
 export async function resolveBookmarkIdFromSlug(slug: string): Promise<string | null> {
-  const shardEntry = await getSlugShard(slug);
+  const shardEntry = await readSlugShard(slug);
   if (shardEntry?.id) {
     const now = getDeterministicTimestamp();
     if (cachedReverseMap) {

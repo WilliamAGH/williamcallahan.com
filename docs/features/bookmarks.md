@@ -46,7 +46,7 @@ API routes -> read JSON in S3 -> `Cache-Control: no-store`
 
 ### Runtime Fetch Strategy
 
-- Builds no longer hydrate bookmark JSON locally. Docker images and workstation builds rely on streaming S3/CDN reads when pages are requested.
+- Builds no longer hydrate bookmark JSON locally. Docker images and workstation builds rely on streaming S3 reads when pages are requested.
 - `app/sitemap.ts` iterates paginated S3 artifacts via `getBookmarksIndex()` + `getBookmarksPage()` and streams tag snapshots with `listBookmarkTagSlugs()` + `getTagBookmarksIndex()`/`getTagBookmarksPage()` so the sitemap never materializes the full dataset in memory.
 - `bun scripts/fetch-bookmarks-public.ts` is still available for offline development snapshots, but it is **not** part of the default build pipeline.
 
@@ -342,19 +342,12 @@ This consolidates deployment details for bookmarks data population and scheduler
 - Examples:
   - dev: `json/bookmarks/slug-mapping-dev.json`
   - prod: `json/bookmarks/slug-mapping.json`
-  - Optional: developers can hydrate `lib/data/s3-cache/` snapshots with `bun scripts/fetch-bookmarks-public.ts` when offline caching is required. CI/CD skips this step.
+  - Local snapshots are not consumed at runtime; S3 remains the only read/write path for bookmarks JSON.
 
 ### Redundancy & Fallbacks
 
-- Save to all paths when needed for resilience:
-  ```ts
-  await saveSlugMapping(bookmarks, true, true);
-  ```
-- Load fallback order:
-  1. Primary (env-specific)
-  2. All environment variants
-  3. Local snapshot in `lib/data/s3-cache/` (created manually when needed)
-  4. Regenerate dynamically
+- No redundancy or cross-environment fallbacks. `saveSlugMapping` writes only the primary env-specific path.
+- `loadSlugMapping` reads only the primary path and returns `null` when missing.
 
 ### Manual Ops
 

@@ -9,7 +9,8 @@
  * - Master bookmark file
  */
 
-import { writeJsonS3, listS3Objects, deleteFromS3 } from "@/lib/s3-utils";
+import { writeJsonS3 } from "@/lib/s3/json";
+import { deleteFromS3, listS3Objects } from "@/lib/s3/objects";
 import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
 import type { UnifiedBookmark } from "@/types";
@@ -87,7 +88,7 @@ export async function writePaginatedBookmarks(
 
   // Save slug mapping for backward compatibility and static generation
   try {
-    await saveSlugMapping(bookmarks, true, false);
+    await saveSlugMapping(bookmarks, true);
     logBookmarkDataAccessEvent("Saved slug mapping after writing pages", {
       bookmarkCount: bookmarks.length,
     });
