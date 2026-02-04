@@ -169,7 +169,12 @@ export class ServerCache implements Cache {
         // For objects, use JSON stringification as estimate
         try {
           size = JSON.stringify(value).length * 2;
-        } catch {
+        } catch (error) {
+          envLogger.log(
+            "Failed to estimate cache entry size; using 1KB default",
+            { key, error },
+            { category: "ServerCache", context: { event: "size-estimate-fallback" } },
+          );
           size = 1024; // 1KB default
         }
       }

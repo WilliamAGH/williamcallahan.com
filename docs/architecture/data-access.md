@@ -22,9 +22,9 @@ graph TD
 
 - **Purpose**: Domain-specific data access modules for bookmarks, logos, investments, GitHub, and OpenGraph.
 - **Import Policy**: Import directly from source modules (per FS1d no barrel re-exports).
-  - GitHub: `@/lib/data-access/github`, `@/lib/data-access/github-public-api`, etc.
+  - GitHub: `@/lib/data-access/github`, `@/lib/data-access/github-activity-summaries`, `@/lib/data-access/github-commit-counts`, `@/lib/data-access/github-contributions`, `@/lib/data-access/github-csv-repair`, `@/lib/data-access/github-public-api`, `@/lib/data-access/github-repo-stats`
   - Logos: `@/lib/data-access/logos`
-  - OpenGraph: `@/lib/data-access/opengraph`
+  - OpenGraph: `@/lib/data-access/opengraph`, `@/lib/data-access/opengraph-cache-context`, `@/lib/data-access/opengraph-next-cache`, `@/lib/data-access/opengraph-refresh`
   - Investments: `@/lib/data-access/investments`
 - **Storage**: All modules delegate to `lib/s3/*` for S3 operations.
 

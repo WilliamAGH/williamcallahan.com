@@ -3,6 +3,8 @@ import type { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-r
 import type { ParsedRequestBody } from "@/types/schemas/ai-chat";
 import type { OpenAiCompatibleChatMessage } from "@/types/schemas/ai-openai-compatible";
 
+export type { ParsedRequestBody };
+
 export type RagContextStatus = "included" | "partial" | "failed" | "not_applicable";
 
 /** Validated request context after all checks pass */

@@ -65,6 +65,9 @@ export function Analytics(): JSX.Element | null {
           data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
           data-host-url={siteUrl}
           data-auto-track="true"
+          onError={() => {
+            console.warn("[Analytics] Failed to load Umami script - continuing without analytics");
+          }}
         />
       )}
 
