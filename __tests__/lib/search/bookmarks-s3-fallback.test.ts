@@ -36,8 +36,10 @@ vi.mock("@/lib/bookmarks/slug-manager", () => ({
 }));
 
 const mockTryGetEmbeddedSlug = vi.fn();
+const mockGenerateFallbackSlug = vi.fn((url: string, id: string) => `fallback-${id}`);
 vi.mock("@/lib/bookmarks/slug-helpers", () => ({
   tryGetEmbeddedSlug: (...args: unknown[]) => mockTryGetEmbeddedSlug(...args),
+  generateFallbackSlug: (url: string, id: string) => mockGenerateFallbackSlug(url, id),
 }));
 
 vi.mock("@/lib/utils/env-logger", () => ({
@@ -74,15 +76,6 @@ vi.mock("@/lib/server-cache", () => ({
     clearAllCaches: vi.fn(),
   },
 }));
-
-// Mock constants to control feature flags
-vi.mock("@/lib/search/constants", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/search/constants")>();
-  return {
-    ...actual,
-    USE_S3_INDEXES: true,
-  };
-});
 
 import { searchBookmarks } from "@/lib/search";
 import { ServerCacheInstance } from "@/lib/server-cache";

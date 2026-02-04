@@ -72,15 +72,6 @@ vi.mock("@/lib/cache", () => ({
   },
 }));
 
-// Mock constants to ensure consistent page size
-vi.mock("@/lib/constants", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/constants")>();
-  return {
-    ...actual,
-    BOOKMARKS_PER_PAGE: 10,
-  };
-});
-
 const mockReadTagBookmarksPageFromS3 = vi.mocked(readTagBookmarksPageFromS3);
 const mockReadTagBookmarksIndexFromS3 = vi.mocked(readTagBookmarksIndexFromS3);
 const mockReadBookmarksDatasetFromS3 = vi.mocked(readBookmarksDatasetFromS3);
@@ -157,8 +148,9 @@ describe("Tag Route Functionality", () => {
       // Mock S3 page miss
       mockReadTagBookmarksPageFromS3.mockResolvedValueOnce(null);
 
-      // Create enough bookmarks to span 3 pages
-      const totalItems = BOOKMARKS_PER_PAGE * 2 + 5; // e.g. 53 if limit is 24
+      // Create enough bookmarks to span 3 pages (using actual BOOKMARKS_PER_PAGE = 24)
+      // 24 * 2 + 5 = 53 items → Math.ceil(53/24) = 3 pages
+      const totalItems = BOOKMARKS_PER_PAGE * 2 + 5;
 
       const largeBookmarkSet = Array(totalItems)
         .fill(null)
@@ -180,11 +172,11 @@ describe("Tag Route Functionality", () => {
       const result = await getBookmarksByTag("test-tag", 2);
 
       expect(result.totalCount).toBe(totalItems);
-      // Expected total pages
-      expect(result.totalPages).toBe(3);
-      // Page 2 should have BOOKMARKS_PER_PAGE items
+      // Expected total pages: Math.ceil(53/24) = 3
+      expect(result.totalPages).toBe(Math.ceil(totalItems / BOOKMARKS_PER_PAGE));
+      // Page 2 should have BOOKMARKS_PER_PAGE items (24)
       expect(result.bookmarks).toHaveLength(BOOKMARKS_PER_PAGE);
-      // Verify correct item offset (page 1 has 0..limit-1, page 2 starts at limit)
+      // Verify correct item offset (page 1 has 0..23, page 2 starts at 24)
       expect(result.bookmarks[0].id).toBe(`bookmark-${BOOKMARKS_PER_PAGE}`);
     });
 
