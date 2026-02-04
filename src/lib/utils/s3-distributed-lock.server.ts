@@ -10,12 +10,13 @@
  * @module s3-distributed-lock
  */
 
-import { readJsonS3, writeJsonS3, deleteFromS3 } from "@/lib/s3-utils";
+import { readJsonS3, readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
+import { deleteFromS3 } from "@/lib/s3/objects";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getMonotonicTime } from "@/lib/utils";
 import type { DistributedLockEntry, LockConfig, LockResult } from "@/types";
 import type { DistributedLock } from "@/types/lib";
-import { isS3Error } from "@/lib/utils/s3-error-guards";
+import { distributedLockEntrySchema } from "@/types/schemas/distributed-lock";
 
 /**
  * Implements exponential backoff with jitter
@@ -45,8 +46,11 @@ export async function acquireDistributedLock(config: LockConfig): Promise<LockRe
   async function attemptLockAcquisition(retryCount: number): Promise<LockResult> {
     // Step 1: Check if an active lock exists
     try {
-      const existing = await readJsonS3<DistributedLockEntry>(lockKey);
-      if (existing && typeof existing === "object") {
+      const existing = await readJsonS3Optional<DistributedLockEntry>(
+        lockKey,
+        distributedLockEntrySchema,
+      );
+      if (existing) {
         const age = getMonotonicTime() - existing.acquiredAt;
         const isExpired = age >= existing.ttlMs;
 
@@ -70,22 +74,17 @@ export async function acquireDistributedLock(config: LockConfig): Promise<LockRe
         );
 
         // Delete the stale lock
-        try {
-          await deleteFromS3(lockKey);
-          envLogger.debug("Expired lock deleted successfully", undefined, {
-            category: logCategory,
-          });
-        } catch (cleanupError) {
-          // Best-effort cleanup; proceed to write and let retries handle contention
-          envLogger.debug(`Failed to delete expired lock: ${String(cleanupError)}`, undefined, {
-            category: logCategory,
-          });
-        }
+        await deleteFromS3(lockKey);
+        envLogger.debug("Expired lock deleted successfully", undefined, {
+          category: logCategory,
+        });
       }
     } catch (error: unknown) {
-      if (!isS3Error(error) || error.$metadata?.httpStatusCode !== 404) {
-        envLogger.log(`Error reading lock: ${String(error)}`, undefined, { category: logCategory });
-      }
+      envLogger.log(`Error reading lock: ${String(error)}`, undefined, { category: logCategory });
+      return {
+        success: false,
+        reason: `Failed to read lock: ${String(error)}`,
+      };
     }
 
     // Step 2: Attempt to write our lock entry
@@ -96,7 +95,7 @@ export async function acquireDistributedLock(config: LockConfig): Promise<LockRe
     };
 
     try {
-      await writeJsonS3(lockKey, myEntry, { IfNoneMatch: "*" });
+      await writeJsonS3(lockKey, myEntry, { ifNoneMatch: "*" });
     } catch (error: unknown) {
       if (retryCount < maxRetries) {
         await backoffWithJitter(retryCount);
@@ -110,7 +109,7 @@ export async function acquireDistributedLock(config: LockConfig): Promise<LockRe
 
     // Step 3: Read back and verify ownership
     try {
-      const current = await readJsonS3<DistributedLockEntry>(lockKey);
+      const current = await readJsonS3<DistributedLockEntry>(lockKey, distributedLockEntrySchema);
       if (
         current &&
         current.instanceId === myEntry.instanceId &&
@@ -134,12 +133,7 @@ export async function acquireDistributedLock(config: LockConfig): Promise<LockRe
       envLogger.log(`Error verifying lock ownership: ${String(error)}`, undefined, {
         category: logCategory,
       });
-      // Clean up our potentially orphaned lock
-      try {
-        await deleteFromS3(lockKey);
-      } catch {
-        // Best effort cleanup
-      }
+      await deleteFromS3(lockKey);
       return {
         success: false,
         reason: `Failed to verify lock ownership: ${String(error)}`,
@@ -161,29 +155,27 @@ export async function releaseDistributedLock(
 ): Promise<void> {
   const { lockKey, instanceId, logCategory = "DistributedLock" } = config;
 
-  try {
-    const existingLock = await readJsonS3<DistributedLockEntry>(lockKey);
-    if (existingLock?.instanceId === instanceId || force) {
-      await deleteFromS3(lockKey);
-      envLogger.log(
-        force ? "Lock force-released" : "Lock released",
-        { instanceId },
-        { category: logCategory },
-      );
-    } else if (existingLock) {
-      envLogger.log(
-        "Attempted to release lock owned by another instance",
-        { ourId: instanceId, ownerId: existingLock.instanceId },
-        { category: logCategory },
-      );
-    }
-  } catch (error: unknown) {
-    if (!isS3Error(error) || error.$metadata?.httpStatusCode !== 404) {
-      envLogger.log(`Error during lock release: ${String(error)}`, undefined, {
-        category: logCategory,
-      });
-    }
+  const existingLock = await readJsonS3Optional<DistributedLockEntry>(
+    lockKey,
+    distributedLockEntrySchema,
+  );
+  if (!existingLock) return;
+
+  if (existingLock.instanceId === instanceId || force) {
+    await deleteFromS3(lockKey);
+    envLogger.log(
+      force ? "Lock force-released" : "Lock released",
+      { instanceId },
+      { category: logCategory },
+    );
+    return;
   }
+
+  envLogger.log(
+    "Attempted to release lock owned by another instance",
+    { ourId: instanceId, ownerId: existingLock.instanceId },
+    { category: logCategory },
+  );
 }
 
 /**
@@ -197,27 +189,22 @@ export async function cleanupStaleLocks(
   lockKey: string,
   logCategory = "DistributedLock",
 ): Promise<void> {
-  try {
-    const existingLock = await readJsonS3<DistributedLockEntry>(lockKey);
-    if (existingLock && typeof existingLock === "object") {
-      const age = getMonotonicTime() - existingLock.acquiredAt;
-      const expired = age >= existingLock.ttlMs;
+  const existingLock = await readJsonS3Optional<DistributedLockEntry>(
+    lockKey,
+    distributedLockEntrySchema,
+  );
+  if (!existingLock) return;
 
-      if (expired) {
-        envLogger.log(
-          "Releasing stale lock",
-          { ageMs: age, instanceId: existingLock.instanceId },
-          { category: logCategory },
-        );
-        await deleteFromS3(lockKey);
-      }
-    }
-  } catch (error: unknown) {
-    if (!isS3Error(error) || error.$metadata?.httpStatusCode !== 404) {
-      envLogger.debug(`Error checking for stale locks: ${String(error)}`, undefined, {
-        category: logCategory,
-      });
-    }
+  const age = getMonotonicTime() - existingLock.acquiredAt;
+  const expired = age >= existingLock.ttlMs;
+
+  if (expired) {
+    envLogger.log(
+      "Releasing stale lock",
+      { ageMs: age, instanceId: existingLock.instanceId },
+      { category: logCategory },
+    );
+    await deleteFromS3(lockKey);
   }
 }
 
