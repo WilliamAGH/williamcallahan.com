@@ -66,6 +66,13 @@ export interface LogoData {
 /** Identifies the source service used to fetch a company logo. */
 export type LogoSource = "google" | "duckduckgo" | "clearbit" | "direct" | "unknown" | null;
 
+/** Priority configuration entry for logo source selection */
+export type LogoSourcePriority = {
+  name: LogoSource;
+  urlFn: (d: string) => string;
+  size: string;
+};
+
 /**
  * Contains analysis results determining if a logo needs color inversion
  * based on theme and image characteristics.
