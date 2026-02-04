@@ -12,7 +12,7 @@ import { normalizeDomain } from "../../../src/lib/utils/domain-utils";
 // Mock Next.js specific modules
 vi.mock("next/server", () => ({
   NextResponse: {
-    json: (data: any, init?: ResponseInit) => ({
+    json: <T>(data: T, init?: ResponseInit) => ({
       json: () => data,
       status: init?.status || 200,
       headers: new Headers(init?.headers),
