@@ -154,7 +154,7 @@ describe("Cache Invalidation via API Routes", () => {
     });
   });
 
-  describe.todo("GitHub Activity Refresh API", () => {
+  describe.skip("GitHub Activity Refresh API", () => {
     it("should handle refresh request without secret", async () => {
       // Import the route handler
       const { POST } = await import("@/app/api/github-activity/refresh/route");

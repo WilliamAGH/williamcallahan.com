@@ -58,7 +58,7 @@ vi.mock("next/script", async () => {
 
 // Statically import the mocked modules *after* mocking
 
-describe.todo("Analytics", () => {
+describe.skip("Analytics", () => {
   const originalEnv = process.env;
   const mockWebsiteId = "test-website-id";
   const mockSiteUrl = "https://williamcallahan.com";
