@@ -37,6 +37,22 @@ export const similarityWeightsSchema = z.object({
 
 export type SimilarityWeightsFromSchema = z.infer<typeof similarityWeightsSchema>;
 
+export const contentGraphMetadataSchema = z.object({
+  version: z.string(),
+  generated: z.string(),
+  counts: z.object({
+    total: z.number(),
+    bookmarks: z.number(),
+    blog: z.number(),
+    investments: z.number(),
+    projects: z.number(),
+  }),
+  uniqueTags: z.number(),
+  environment: z.string(),
+});
+
+export type ContentGraphMetadataFromSchema = z.infer<typeof contentGraphMetadataSchema>;
+
 export const createRelatedContentDebugParamsSchema = ({
   maxLimit,
   defaultLimit,

@@ -258,6 +258,10 @@ export const relatedContentEntrySchema = z.object({
 
 export type RelatedContentEntryFromSchema = z.infer<typeof relatedContentEntrySchema>;
 
+export const relatedContentGraphSchema = z.record(z.string(), z.array(relatedContentEntrySchema));
+
+export type RelatedContentGraphFromSchema = z.infer<typeof relatedContentGraphSchema>;
+
 /**
  * Books related content data schema.
  * Validates the full JSON structure fetched from S3.

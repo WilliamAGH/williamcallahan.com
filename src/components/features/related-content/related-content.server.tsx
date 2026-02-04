@@ -13,17 +13,20 @@ import { RelatedContentSection } from "./related-content-section";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { debug, isDebug } from "@/lib/utils/debug";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
+import {
+  relatedContentGraphSchema,
+  type RelatedContentEntryFromSchema,
+} from "@/types/schemas/book";
 import type {
   RelatedContentProps,
   RelatedContentItem,
-  RelatedContentType,
   NormalizedContent,
   RelatedContentCacheData,
 } from "@/types/related-content";
@@ -266,17 +269,10 @@ export async function RelatedContent({
 
     // Try to load pre-computed related content first
     const contentKey = `${sourceType}:${actualSourceId}`;
-    const precomputed = await readJsonS3<
-      Record<
-        string,
-        {
-          type: RelatedContentType;
-          id: string;
-          score: number;
-          title: string;
-        }[]
-      >
-    >(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT);
+    const precomputed = await readJsonS3Optional<Record<string, RelatedContentEntryFromSchema[]>>(
+      CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
+      relatedContentGraphSchema,
+    );
 
     if (precomputed?.[contentKey]) {
       // Use pre-computed scores
