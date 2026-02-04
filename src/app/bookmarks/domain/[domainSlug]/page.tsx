@@ -6,17 +6,12 @@
  * @module app/bookmarks/domain/[domainSlug]/page
  */
 
-// Configure dynamic rendering
-
+import { connection } from "next/server";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { getDomainSlug } from "@/lib/utils/domain-utils";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { redirect } from "next/navigation";
-
-/**
- * No static params for this page as it's just a redirector
- */
 
 import type { DomainPageRedirectorProps } from "@/types";
 
@@ -24,6 +19,9 @@ export default async function DomainPageRedirector({
   params,
   searchParams,
 }: DomainPageRedirectorProps) {
+  // Ensure request-time execution - this redirector uses searchParams and dynamic data
+  await connection();
+
   const allBookmarks = (await getBookmarks({
     ...DEFAULT_BOOKMARK_OPTIONS,
     includeImageData: false,
