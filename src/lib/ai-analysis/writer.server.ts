@@ -9,8 +9,14 @@
 import "server-only";
 
 import { writeJsonS3 } from "@/lib/s3/json";
+import { cacheContextGuards } from "@/lib/cache";
 import { envLogger } from "@/lib/utils/env-logger";
-import { buildLatestAnalysisKey, buildVersionedAnalysisKey } from "./paths";
+import {
+  buildAnalysisCacheTags,
+  buildAnalysisVersionsCacheTags,
+  buildLatestAnalysisKey,
+  buildVersionedAnalysisKey,
+} from "./paths";
 import type { AnalysisDomain, CachedAnalysis, PersistAnalysisOptions } from "./types";
 import type { AnalysisMetadata } from "@/types/schemas/ai-analysis-persisted";
 
@@ -23,6 +29,14 @@ const DEFAULT_MODEL_VERSION = "v1";
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Writer Functions
 // ─────────────────────────────────────────────────────────────────────────────
+
+const revalidateAnalysisCache = (domain: AnalysisDomain, id: string): void => {
+  const tags = [
+    ...buildAnalysisCacheTags(domain, id),
+    ...buildAnalysisVersionsCacheTags(domain, id),
+  ];
+  cacheContextGuards.revalidateTag("AiAnalysis", ...tags);
+};
 
 /**
  * Persist analysis to S3 with metadata envelope.
@@ -85,6 +99,8 @@ export async function persistAnalysis<T>(
         { category: "AiAnalysis" },
       );
     }
+
+    revalidateAnalysisCache(domain, id);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     envLogger.log(

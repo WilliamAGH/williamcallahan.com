@@ -106,7 +106,7 @@ export class ServerCache implements Cache {
   public get<T>(key: string): T | undefined {
     // If disabled, check if cooldown expired and memory is healthy for auto-recovery
     if (this.disabled) {
-      if (Date.now() >= this.disabledUntil) {
+      if (getDeterministicTimestamp() >= this.disabledUntil) {
         this.attemptCircuitBreakerRecovery();
       }
       if (this.disabled) {
@@ -274,7 +274,7 @@ export class ServerCache implements Cache {
 
     if (this.failureCount >= this.maxFailures && !this.disabled) {
       this.disabled = true;
-      this.disabledUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
+      this.disabledUntil = getDeterministicTimestamp() + CIRCUIT_BREAKER_COOLDOWN_MS;
       envLogger.log(
         `Circuit breaker activated after ${this.failureCount} failures. Will attempt recovery in 5 minutes.`,
         {
@@ -306,7 +306,7 @@ export class ServerCache implements Cache {
       );
     } else {
       // Extend cooldown if memory still high
-      this.disabledUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
+      this.disabledUntil = getDeterministicTimestamp() + CIRCUIT_BREAKER_COOLDOWN_MS;
       envLogger.log(
         `Circuit breaker recovery deferred - memory still high (${rssMB}MB)`,
         { rssMB, nextAttempt: new Date(this.disabledUntil).toISOString() },

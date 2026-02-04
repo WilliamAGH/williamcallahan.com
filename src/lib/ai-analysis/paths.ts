@@ -15,6 +15,7 @@
  */
 
 import { ENVIRONMENT_SUFFIX } from "@/lib/config/environment";
+import { sanitizeCacheTag } from "@/lib/utils/sanitize";
 import type { AnalysisDomain } from "./types";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -84,6 +85,33 @@ export function buildVersionedAnalysisKey(
  */
 export function buildVersionsPrefix(domain: AnalysisDomain, id: string): string {
   return `${buildItemAnalysisPrefix(domain, id)}/versions/`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cache Tag Builders
+// ─────────────────────────────────────────────────────────────────────────────
+
+const AI_ANALYSIS_CACHE_TAG_ROOT = "ai-analysis";
+const AI_ANALYSIS_VERSIONS_CACHE_TAG_ROOT = "ai-analysis-versions";
+
+export function buildAnalysisCacheTags(domain: AnalysisDomain, id: string): string[] {
+  const safeDomain = sanitizeCacheTag(domain);
+  const safeId = sanitizeCacheTag(id);
+  return [
+    AI_ANALYSIS_CACHE_TAG_ROOT,
+    `${AI_ANALYSIS_CACHE_TAG_ROOT}-${safeDomain}`,
+    `${AI_ANALYSIS_CACHE_TAG_ROOT}-${safeDomain}-${safeId}`,
+  ];
+}
+
+export function buildAnalysisVersionsCacheTags(domain: AnalysisDomain, id: string): string[] {
+  const safeDomain = sanitizeCacheTag(domain);
+  const safeId = sanitizeCacheTag(id);
+  return [
+    AI_ANALYSIS_VERSIONS_CACHE_TAG_ROOT,
+    `${AI_ANALYSIS_VERSIONS_CACHE_TAG_ROOT}-${safeDomain}`,
+    `${AI_ANALYSIS_VERSIONS_CACHE_TAG_ROOT}-${safeDomain}-${safeId}`,
+  ];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -15,7 +15,13 @@ import { readJsonS3Optional } from "@/lib/s3/json";
 import { listS3Objects } from "@/lib/s3/objects";
 import { envLogger } from "@/lib/utils/env-logger";
 import { cacheContextGuards } from "@/lib/cache";
-import { buildLatestAnalysisKey, buildVersionsPrefix, extractTimestampFromKey } from "./paths";
+import {
+  buildAnalysisCacheTags,
+  buildAnalysisVersionsCacheTags,
+  buildLatestAnalysisKey,
+  buildVersionsPrefix,
+  extractTimestampFromKey,
+} from "./paths";
 import type {
   AnalysisDomain,
   CachedAnalysis,
@@ -35,6 +41,12 @@ import {
 // Private Cached Implementations
 // ─────────────────────────────────────────────────────────────────────────────
 
+const applyCacheTags = (tags: string[]): void => {
+  for (const tag of tags) {
+    cacheContextGuards.cacheTag("AiAnalysis", tag);
+  }
+};
+
 /**
  * Internal cached implementation for getCachedAnalysis.
  * No options parameter - the skipCache decision is made in the public wrapper.
@@ -45,9 +57,8 @@ async function getCachedAnalysisInternal(
 ): Promise<CachedAnalysis<unknown> | null> {
   "use cache";
 
-  cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 3600 }); // 1 hour
-  cacheContextGuards.cacheTag("AiAnalysis", "ai-analysis", `ai-analysis-${domain}`);
-  cacheContextGuards.cacheTag("AiAnalysis", `ai-analysis-${domain}-${id}`);
+  cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 86400 }); // 24 hours
+  applyCacheTags(buildAnalysisCacheTags(domain, id));
 
   const key = buildLatestAnalysisKey(domain, id);
 
@@ -179,12 +190,7 @@ export async function listAnalysisVersions(
   "use cache";
 
   cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 3600 }); // 1 hour
-  cacheContextGuards.cacheTag(
-    "AiAnalysis",
-    "ai-analysis-versions",
-    `ai-analysis-versions-${domain}`,
-  );
-  cacheContextGuards.cacheTag("AiAnalysis", `ai-analysis-versions-${domain}-${id}`);
+  applyCacheTags(buildAnalysisVersionsCacheTags(domain, id));
 
   const prefix = buildVersionsPrefix(domain, id);
   const keys = await listS3Objects(prefix);
@@ -218,9 +224,8 @@ export async function listAnalysisVersions(
 export async function hasCachedAnalysis(domain: AnalysisDomain, id: string): Promise<boolean> {
   "use cache";
 
-  cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 3600 }); // 1 hour
-  cacheContextGuards.cacheTag("AiAnalysis", "ai-analysis-exists", `ai-analysis-exists-${domain}`);
-  cacheContextGuards.cacheTag("AiAnalysis", `ai-analysis-exists-${domain}-${id}`);
+  cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 86400 }); // 24 hours
+  applyCacheTags(buildAnalysisCacheTags(domain, id));
 
   const key = buildLatestAnalysisKey(domain, id);
 
