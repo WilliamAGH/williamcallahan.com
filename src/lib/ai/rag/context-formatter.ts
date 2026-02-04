@@ -8,19 +8,9 @@
  */
 
 import { formatStaticContext, type StaticContext } from "./static-context";
+import type { DynamicResult, FormattedContext, FormatContextOptions } from "@/types/rag";
 
-export interface DynamicResult {
-  scope: string;
-  title: string;
-  description: string;
-  url: string;
-  score: number;
-}
-
-export interface FormattedContext {
-  text: string;
-  tokenEstimate: number;
-}
+export type { DynamicResult, FormattedContext };
 
 /**
  * Rough token estimation ratio for English text.
@@ -94,10 +84,6 @@ function truncateToTokenBudget(
     text: staticText + truncatedDynamic,
     tokenEstimate: staticTokens + estimateTokens(truncatedDynamic),
   };
-}
-
-export interface FormatContextOptions {
-  maxTokens?: number;
 }
 
 /**

@@ -10,14 +10,9 @@
 import { CV_PROFESSIONAL_SUMMARY, CV_QUALIFICATIONS, CV_TECHNICAL_FOCUS } from "@/data/cv";
 import { SITE_DESCRIPTION_SHORT, metadata } from "@/data/metadata";
 import { projects } from "@/data/projects";
+import type { StaticContext } from "@/types/rag";
 
-export interface StaticContext {
-  biography: string;
-  qualifications: string[];
-  technicalFocus: Array<{ area: string; skills: string[] }>;
-  currentProjects: Array<{ name: string; description: string; url: string }>;
-  socialLinks: Array<{ platform: string; url: string }>;
-}
+export type { StaticContext };
 
 /**
  * Builds the static context from site data sources.
