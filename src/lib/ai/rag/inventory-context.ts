@@ -10,24 +10,23 @@
 import "server-only";
 
 import { ServerCacheInstance } from "@/lib/server-cache";
-import type { InventoryContextResult, InventorySectionName, InventoryStatus } from "@/types/rag";
+import type {
+  BuildInventoryContextOptions,
+  InventoryContextResult,
+  InventorySectionBuildResult,
+  InventorySectionName,
+  InventoryStatus,
+} from "@/types/rag";
 import {
   buildSectionSummaries,
   formatInventoryText,
   resolveInventoryStatus,
-  type SectionBuildResult,
 } from "./inventory-format";
 import { buildStaticInventorySections } from "./inventory-static";
 import { buildDynamicInventorySections } from "./inventory-dynamic";
 
 const INVENTORY_CACHE_KEY = "rag:inventory:catalog";
 const INVENTORY_CACHE_TTL_SECONDS = 10 * 60;
-
-type InventoryContextOptions = {
-  maxTokens?: number;
-  includeDynamic?: boolean;
-  skipCache?: boolean;
-};
 
 const mergeFailedSections = (
   base: InventorySectionName[] | undefined,
@@ -43,7 +42,7 @@ const mergeFailedSections = (
 const collectSections = async (
   includeDynamic: boolean,
 ): Promise<{
-  sections: SectionBuildResult[];
+  sections: InventorySectionBuildResult[];
   failedSections: InventorySectionName[];
 }> => {
   const {
@@ -52,7 +51,7 @@ const collectSections = async (
     blogPosts,
   } = await buildStaticInventorySections();
 
-  const sections: SectionBuildResult[] = [...staticSections];
+  const sections: InventorySectionBuildResult[] = [...staticSections];
   let failedSections = [...staticFailures];
 
   if (includeDynamic) {
@@ -65,7 +64,7 @@ const collectSections = async (
 };
 
 export async function buildInventoryContext(
-  options: InventoryContextOptions = {},
+  options: BuildInventoryContextOptions = {},
 ): Promise<InventoryContextResult> {
   if (!options.skipCache) {
     const cached = ServerCacheInstance.get<InventoryContextResult>(INVENTORY_CACHE_KEY);

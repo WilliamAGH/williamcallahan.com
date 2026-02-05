@@ -54,6 +54,15 @@ export interface FormatContextOptions {
 }
 
 /**
+ * Options for building a full inventory catalog for RAG injection.
+ */
+export interface BuildInventoryContextOptions {
+  maxTokens?: number;
+  includeDynamic?: boolean;
+  skipCache?: boolean;
+}
+
+/**
  * Inventory build status for RAG catalog sections.
  */
 export type InventoryStatus = "success" | "partial" | "failed";
@@ -84,6 +93,18 @@ export interface InventorySectionSummary {
   includedItems: number;
   status: InventoryStatus;
   truncated: boolean;
+}
+
+/**
+ * Internal section build payload used when assembling the inventory catalog text.
+ */
+export interface InventorySectionBuildResult {
+  name: InventorySectionName;
+  totalItems: number;
+  includedItems: number;
+  status: InventoryStatus;
+  truncated: boolean;
+  lines: string[];
 }
 
 /**

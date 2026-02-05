@@ -20,17 +20,12 @@ import type { Book } from "@/types/schemas/book";
 import type { BookmarkIndexItem } from "@/types/schemas/search";
 import type { AggregatedTag } from "@/types/search";
 import type { BlogPost } from "@/types/blog";
-import type { InventorySectionName, InventoryStatus } from "@/types/rag";
-import { buildSectionLines, formatLine, type SectionBuildResult } from "./inventory-format";
-
-type DynamicInventoryInput = {
-  blogPosts: BlogPost[];
-};
-
-type DynamicInventoryResult = {
-  sections: SectionBuildResult[];
-  failedSections: InventorySectionName[];
-};
+import type {
+  InventorySectionBuildResult,
+  InventorySectionName,
+  InventoryStatus,
+} from "@/types/rag";
+import { buildSectionLines, formatLine } from "./inventory-format";
 
 const buildBookmarksRows = (bookmarks: Array<BookmarkIndexItem & { slug: string }>): string[] =>
   bookmarks
@@ -97,10 +92,11 @@ const buildAnalysisRows = (args: {
   });
 };
 
-export async function buildDynamicInventorySections(
-  input: DynamicInventoryInput,
-): Promise<DynamicInventoryResult> {
-  const sections: SectionBuildResult[] = [];
+export async function buildDynamicInventorySections(input: { blogPosts: BlogPost[] }): Promise<{
+  sections: InventorySectionBuildResult[];
+  failedSections: InventorySectionName[];
+}> {
+  const sections: InventorySectionBuildResult[] = [];
   const failedSections: InventorySectionName[] = [];
   const { blogPosts } = input;
 
@@ -247,6 +243,15 @@ export async function buildDynamicInventorySections(
 
   const projectsById = new Map<string, { title: string; url: string }>();
   for (const project of projects) {
+    if (typeof project.id !== "string" || project.id.trim().length === 0) {
+      envLogger.log(
+        "[RAG Inventory] Project missing id; skipping analysis mapping",
+        { name: project.name },
+        { category: "RAG" },
+      );
+      continue;
+    }
+
     projectsById.set(project.id, {
       title: project.name,
       url: project.url ?? `/projects#${project.id}`,

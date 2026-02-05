@@ -15,14 +15,8 @@ import { education, certifications, recentCourses } from "@/data/education";
 import { getAllMDXPostsForSearch } from "@/lib/blog/mdx";
 import { envLogger } from "@/lib/utils/env-logger";
 import type { BlogPost } from "@/types/blog";
-import type { InventorySectionName } from "@/types/rag";
-import { buildSectionLines, formatLine, type SectionBuildResult } from "./inventory-format";
-
-type StaticInventoryResult = {
-  sections: SectionBuildResult[];
-  failedSections: InventorySectionName[];
-  blogPosts: BlogPost[];
-};
+import type { InventorySectionBuildResult, InventorySectionName } from "@/types/rag";
+import { buildSectionLines, formatLine } from "./inventory-format";
 
 const buildBlogRows = (posts: BlogPost[]): string[] =>
   posts
@@ -37,8 +31,12 @@ const buildBlogRows = (posts: BlogPost[]): string[] =>
       }),
     );
 
-export async function buildStaticInventorySections(): Promise<StaticInventoryResult> {
-  const sections: SectionBuildResult[] = [];
+export async function buildStaticInventorySections(): Promise<{
+  sections: InventorySectionBuildResult[];
+  failedSections: InventorySectionName[];
+  blogPosts: BlogPost[];
+}> {
+  const sections: InventorySectionBuildResult[] = [];
   const failedSections: InventorySectionName[] = [];
 
   sections.push(

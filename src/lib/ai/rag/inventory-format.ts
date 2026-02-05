@@ -6,7 +6,12 @@
  * @module lib/ai/rag/inventory-format
  */
 
-import type { InventorySectionName, InventorySectionSummary, InventoryStatus } from "@/types/rag";
+import type {
+  InventorySectionBuildResult,
+  InventorySectionName,
+  InventorySectionSummary,
+  InventoryStatus,
+} from "@/types/rag";
 
 export const CHARS_PER_TOKEN = 4;
 
@@ -23,15 +28,6 @@ export const SECTION_LABELS: Record<InventorySectionName, string> = {
   tags: "Tags",
   analysis: "AI Analysis",
   thoughts: "Thoughts",
-};
-
-export type SectionBuildResult = {
-  name: InventorySectionName;
-  totalItems: number;
-  includedItems: number;
-  status: InventoryStatus;
-  truncated: boolean;
-  lines: string[];
 };
 
 export const estimateTokens = (text: string): number => Math.ceil(text.length / CHARS_PER_TOKEN);
@@ -70,7 +66,7 @@ export const buildSectionLines = (args: {
   status: InventoryStatus;
   note?: string;
   maxChars?: number;
-}): SectionBuildResult => {
+}): InventorySectionBuildResult => {
   const { name, fields, rows, status, note, maxChars } = args;
   const header = formatHeader(name, rows.length, status, fields);
   const baseLines = [header, ...(note ? [`- note=${normalizeValue(note)}`] : [])];
@@ -148,7 +144,9 @@ export const buildSectionLines = (args: {
   };
 };
 
-export const buildSectionSummaries = (sections: SectionBuildResult[]): InventorySectionSummary[] =>
+export const buildSectionSummaries = (
+  sections: InventorySectionBuildResult[],
+): InventorySectionSummary[] =>
   sections.map((section) => ({
     name: section.name,
     totalItems: section.totalItems,
@@ -157,7 +155,9 @@ export const buildSectionSummaries = (sections: SectionBuildResult[]): Inventory
     truncated: section.truncated,
   }));
 
-export const resolveInventoryStatus = (sections: SectionBuildResult[]): InventoryStatus => {
+export const resolveInventoryStatus = (
+  sections: InventorySectionBuildResult[],
+): InventoryStatus => {
   const failed = sections.filter((section) => section.status === "failed");
   const partial = sections.filter((section) => section.status === "partial");
   if (failed.length === sections.length && sections.length > 0) return "failed";
@@ -166,7 +166,7 @@ export const resolveInventoryStatus = (sections: SectionBuildResult[]): Inventor
 };
 
 export const formatInventoryText = (
-  sections: SectionBuildResult[],
+  sections: InventorySectionBuildResult[],
   maxTokens?: number,
 ): { text: string; tokenEstimate: number; omittedSections: InventorySectionName[] } => {
   const maxChars = typeof maxTokens === "number" ? maxTokens * CHARS_PER_TOKEN : undefined;
