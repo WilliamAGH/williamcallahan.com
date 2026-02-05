@@ -1,6 +1,16 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["unicorn", "oxc", "typescript", "vitest", "react", "jsx-a11y", "promise"],
+  "plugins": [
+    "unicorn",
+    "oxc",
+    "typescript",
+    "import",
+    "vitest",
+    "react",
+    "jsx-a11y",
+    "promise",
+    "nextjs"
+  ],
   "env": { "browser": true, "node": true, "es2023": true },
   "categories": {
     "correctness": "error",
@@ -18,7 +28,6 @@
     "typescript/no-floating-promises": "off",
     "typescript/restrict-template-expressions": "off",
     "typescript/no-unnecessary-boolean-literal-compare": "warn",
-    "import/order": "error",
     "import/no-unassigned-import": "warn",
     "import/no-mutable-exports": "error",
     "import/no-duplicates": "error",
@@ -142,14 +151,15 @@
     "react/no-unescaped-entities": "warn",
     "react/no-unsafe": "warn",
     "react/require-render-return": "error",
-    "react-hooks/rules-of-hooks": "error",
-    "react-hooks/exhaustive-deps": "warn",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
     "react-perf/jsx-no-new-array-as-prop": "off",
     "react-perf/jsx-no-new-function-as-prop": "off",
     "react-perf/jsx-no-new-object-as-prop": "off",
     "react-perf/jsx-no-jsx-as-prop": "off",
     "nextjs/no-img-element": "warn",
-    "nextjs/no-html-link-for-pages": "error",
+    "nextjs/no-html-link-for-pages": "off",
+    "nextjs/no-before-interactive-script-outside-document": "off",
     "nextjs/no-sync-scripts": "error",
     "nextjs/google-font-display": "warn",
     "nextjs/google-font-preconnect": "warn",
@@ -160,6 +170,8 @@
     "nextjs/no-title-in-document-head": "error",
     "nextjs/no-typos": "warn",
     "nextjs/no-unwanted-polyfillio": "error",
+    "import/default": "off",
+    "import/namespace": "off",
     "oxc/no-map-spread": "off",
     "unicorn/no-null": "off",
     "unicorn/no-useless-undefined": "off",
@@ -194,6 +206,16 @@
       "files": ["**/*.{js,cjs,mjs}"],
       "rules": {
         "typescript/*": "off"
+      }
+    },
+    {
+      "files": ["**/*.server.{ts,tsx}"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          { "name": "window", "message": "Cannot use window in Server Components" },
+          { "name": "document", "message": "Cannot use document in Server Components" }
+        ]
       }
     },
     {
@@ -250,7 +272,7 @@
       }
     },
     {
-      "files": ["eslint.config.ts", "*.config.ts", "config/**/*.ts"],
+      "files": ["eslint.config.ts", "*.config.ts", "config/**/*.ts", "src/instrumentation*.ts"],
       "rules": {
         "typescript/no-explicit-any": "off",
         "no-use-before-define": "off"
@@ -269,7 +291,7 @@
     {
       "files": ["src/hooks/use-clerk-safe.client.ts"],
       "rules": {
-        "react-hooks/rules-of-hooks": "off"
+        "react/rules-of-hooks": "off"
       }
     }
   ],

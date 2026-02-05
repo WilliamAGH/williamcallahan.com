@@ -105,7 +105,7 @@ function getGitHash(): string {
 
   // For development, add timestamp for uniqueness
   const datePart = new Date().toISOString().split("T")[0];
-  const timestamp = datePart ? datePart.replace(/-/g, "") : "00000000";
+  const timestamp = datePart ? datePart.replaceAll("-", "") : "00000000";
   return `v${version}-dev-${timestamp}`;
 }
 
@@ -377,7 +377,7 @@ const nextConfig = {
      */
     staticGenerationMaxConcurrency: (() => {
       const raw = process.env.STATIC_GEN_CONCURRENCY;
-      const parsed = raw ? Number(raw) : NaN;
+      const parsed = raw ? Number(raw) : Number.NaN;
       if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 16) {
         return parsed;
       }
@@ -526,7 +526,7 @@ const nextConfig = {
      * These are used for serving appropriately sized images based on the viewport
      * @see https://nextjs.org/docs/app/api-reference/components/image#devicesizes
      */
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    deviceSizes: [640, 750, 800, 828, 1080, 1200, 1920, 2048, 3840],
     /**
      * Fixed-size image widths for avatars, logos, and thumbnails.
      * Smallest used in codebase is 40px (sizes="40px"), so 48px is the floor.
