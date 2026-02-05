@@ -230,7 +230,11 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
             )}
 
             {/* AI Analysis */}
-            <ProjectAiAnalysis project={project} initialAnalysis={cachedAnalysis} />
+            <ProjectAiAnalysis
+              project={project}
+              initialAnalysis={cachedAnalysis}
+              defaultCollapsed
+            />
 
             {/* If no content is available, show a placeholder */}
             {!project.description && !imageUrl && (

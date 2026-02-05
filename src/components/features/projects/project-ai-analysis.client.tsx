@@ -144,6 +144,7 @@ export function ProjectAiAnalysis({
   className = "",
   autoTrigger = true,
   initialAnalysis,
+  defaultCollapsed = false,
 }: ProjectAiAnalysisProps) {
   // Use project.id if available, otherwise fall back to project.name
   const projectId = project.id ?? project.name;
@@ -166,6 +167,7 @@ export function ProjectAiAnalysis({
       autoTrigger={autoTrigger}
       initialAnalysis={initialAnalysis}
       className={className}
+      defaultCollapsed={defaultCollapsed}
     />
   );
 }

@@ -69,4 +69,6 @@ export interface ProjectAiAnalysisProps {
   autoTrigger?: boolean;
   /** Pre-cached analysis from S3 (if available) */
   initialAnalysis?: CachedAnalysis<ProjectAiAnalysisResponse> | null;
+  /** Start with analysis content collapsed (default: false) */
+  defaultCollapsed?: boolean;
 }
