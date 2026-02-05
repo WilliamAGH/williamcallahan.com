@@ -93,6 +93,15 @@ The terminal UI uses the shared gateway via:
 
 If no per-feature variables are set for `terminal_chat`, it falls back to `AI_DEFAULT_*` and then safe built-in defaults (see `src/lib/ai/openai-compatible/feature-config.ts`).
 
+## RAG Inventory Catalog
+
+Terminal chat injects a full inventory catalog of repo-local and dynamic content so list questions can be answered from real data.
+
+- `src/lib/ai/rag/inventory-context.ts` orchestrates inventory assembly.
+- `src/lib/ai/rag/inventory-static.ts` builds sections from `data/*` and MDX metadata.
+- `src/lib/ai/rag/inventory-dynamic.ts` builds sections from bookmarks, books, tags, AI analysis, and thoughts.
+- `src/lib/ai/rag/inventory-format.ts` formats and token-bounds the catalog with explicit truncation markers.
+
 ## Upstream Queuing
 
 All requests to `POST /api/ai/chat/[feature]` are queued by upstream target so we do not exceed provider concurrency limits.
