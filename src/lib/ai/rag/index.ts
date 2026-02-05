@@ -32,6 +32,9 @@ export async function buildContextForQuery(
   const includeInventory = options?.includeInventory ?? false;
   const inventoryMaxTokens = options?.inventoryMaxTokens ?? 2000;
   const skipInventoryCache = options?.skipInventoryCache ?? false;
+  const conversationId = options?.conversationId;
+  const inventoryPagination = options?.inventoryPagination;
+  const isPaginationRequest = options?.isPaginationRequest ?? false;
 
   const staticCtx = getStaticContext();
   const searchStart = getMonotonicTime();
@@ -39,17 +42,24 @@ export async function buildContextForQuery(
   let inventoryTokenEstimate: number | undefined;
   let inventoryStatus: BuildContextResult["inventoryStatus"] | undefined;
   let inventorySections: BuildContextResult["inventorySections"] | undefined;
+  let inventoryPaginationResult: BuildContextResult["inventoryPagination"] | undefined;
+  let inventoryPaginationHint: BuildContextResult["inventoryPaginationHint"] | undefined;
 
   if (includeInventory) {
     const inventory = await buildInventoryContext({
       maxTokens: inventoryMaxTokens,
       includeDynamic: true,
-      skipCache: skipInventoryCache,
+      skipCache: skipInventoryCache || !!conversationId, // Skip cache when paginating
+      conversationId,
+      pagination: inventoryPagination,
+      isPaginationRequest,
     });
     inventoryText = inventory.text;
     inventoryTokenEstimate = inventory.tokenEstimate;
     inventoryStatus = inventory.status;
     inventorySections = inventory.sections;
+    inventoryPaginationResult = inventory.pagination;
+    inventoryPaginationHint = inventory.paginationHint;
   }
 
   // Retrieve dynamic content unless skipped
@@ -81,6 +91,8 @@ export async function buildContextForQuery(
     ...(inventoryStatus && { inventoryStatus }),
     ...(inventoryTokenEstimate !== undefined && { inventoryTokenEstimate }),
     ...(inventorySections && { inventorySections }),
+    ...(inventoryPaginationResult && { inventoryPagination: inventoryPaginationResult }),
+    ...(inventoryPaginationHint && { inventoryPaginationHint }),
   };
 }
 
