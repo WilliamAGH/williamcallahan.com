@@ -173,22 +173,9 @@ RUN bash -c 'set -euo pipefail \
 # The build script in package.json sets NODE_OPTIONS for the Next.js build step
 # Optional BuildKit secrets provide S3 credentials just-in-time for the build so
 # generateStaticParams() can read bookmarks from S3 without leaking secrets.
-# NOTE: The multiline bash snippet below uses explicit continuations so Docker
-#       treats it as a single RUN instruction during BuildKit parsing.
-RUN bash -c "set -euo pipefail; \
-      if [ -n \"${S3_ACCESS_KEY_ID:-}\" ]; then export S3_ACCESS_KEY_ID=\"${S3_ACCESS_KEY_ID}\"; fi; \
-      if [ -n \"${S3_SECRET_ACCESS_KEY:-}\" ]; then export S3_SECRET_ACCESS_KEY=\"${S3_SECRET_ACCESS_KEY}\"; fi; \
-      if [ -n \"${S3_SESSION_TOKEN:-}\" ]; then export AWS_SESSION_TOKEN=\"${S3_SESSION_TOKEN}\"; export S3_SESSION_TOKEN=\"${S3_SESSION_TOKEN}\"; fi; \
-      if [ -n \"${API_BASE_URL:-}\" ]; then export API_BASE_URL=\"${API_BASE_URL}\"; fi; \
-      if [ -n \"${BUILDKIT_SANDBOX_HOSTNAME:-}\" ]; then \
-        echo \"⚙️  BuildKit sandbox detected (${BUILDKIT_SANDBOX_HOSTNAME}); proceeding with standard build\"; \
-      else \
-        echo \"⚙️  Classic docker build detected; cache mounts and BuildKit secrets disabled\"; \
-      fi; \
-      echo \"📦 Building the application...\"; \
-      bun run build; \
-      echo \"🧹 Pruning optimizer cache older than 5 days...\"; \
-      find /app/.next/cache -type f -mtime +5 -delete || true"
+#
+# Logic extracted to scripts/build-with-secrets.sh for readability and cleaner secret handling.
+RUN bash scripts/build-with-secrets.sh
 
 # ---------- Runtime stage ----------
 # Production image, copy all the files and run next
