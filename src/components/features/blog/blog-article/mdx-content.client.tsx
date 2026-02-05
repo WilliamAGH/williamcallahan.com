@@ -252,7 +252,12 @@ function resolveBlogImageSrc(src: string): string {
         return buildCdnUrl(s3Key, cdnConfig);
       }
     }
-    // Fallback: return original path if not found in map (local public/ will serve it)
+    // Log missing mapping - this indicates cover-image-map.json needs updating
+    // Falls back to original path which public/ can serve, but CDN optimization is lost
+    console.warn(
+      `[resolveBlogImageSrc] Missing CDN mapping for blog image: ${src}. ` +
+        `Add entry to cover-image-map.json for optimized delivery.`,
+    );
     return src;
   }
 
@@ -260,7 +265,16 @@ function resolveBlogImageSrc(src: string): string {
   // - CDN URLs → direct pass-through
   // - External URLs → proxy for SSRF protection
   // - Other local paths → pass-through
-  return getOptimizedImageSrc(src) ?? src;
+  const optimizedSrc = getOptimizedImageSrc(src);
+  if (optimizedSrc === undefined) {
+    // Log when optimization lookup fails - caller should investigate the URL format
+    console.warn(
+      `[resolveBlogImageSrc] Could not determine optimized source for: ${src}. ` +
+        `Using original URL without optimization.`,
+    );
+    return src;
+  }
+  return optimizedSrc;
 }
 
 /**
