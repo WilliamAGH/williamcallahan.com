@@ -26,10 +26,18 @@ import React, {
 } from "react";
 import * as jsxProdRuntime from "react/jsx-runtime";
 import * as jsxDevRuntime from "react/jsx-dev-runtime";
+import Image from "next/image";
 import { Base64Image } from "@/components/utils/base64-image.client";
 import { CollapseDropdownProvider } from "@/lib/context/collapse-dropdown-context.client";
 import { cn } from "@/lib/utils";
 import { processSvgTransforms } from "@/lib/image-handling/svg-transform-fix";
+import {
+  getOptimizedImageSrc,
+  shouldBypassOptimizer,
+  buildCdnUrl,
+  getCdnConfigFromEnv,
+} from "@/lib/utils/cdn-utils";
+import coverImageManifest from "@/data/blog/cover-image-map.json";
 import type { ArticleImageProps, ArticleGalleryProps, MDXContentProps } from "@/types/features";
 import type { MetricsGroupProps } from "@/types/ui";
 import { BackgroundInfo } from "../../../ui/background-info.client";
@@ -217,11 +225,50 @@ const PreRenderer = (props: ComponentProps<"pre">) => {
   );
 };
 
+const coverImageMap: Record<string, string> = coverImageManifest;
+
+/**
+ * Resolves a blog image path to its optimized source URL.
+ * - Local paths (`/images/posts/...`) → CDN URLs via cover image map
+ * - CDN URLs → passed through for Next.js optimization
+ * - External URLs → proxied for SSRF protection
+ * - Data URLs → passed through unchanged
+ */
+function resolveBlogImageSrc(src: string): string {
+  // Data URLs pass through unchanged
+  if (src.startsWith("data:")) {
+    return src;
+  }
+
+  // Local blog post images: convert to CDN URLs using the cover image map
+  // eslint-disable-next-line s3/no-hardcoded-images -- Path prefix check, not hardcoded image
+  if (src.startsWith("/images/posts/")) {
+    const filename = src.split("/").pop();
+    if (filename) {
+      const baseName = filename.replace(/\.[^.]+$/, "");
+      const s3Key = coverImageMap[baseName];
+      if (s3Key) {
+        const cdnConfig = getCdnConfigFromEnv();
+        return buildCdnUrl(s3Key, cdnConfig);
+      }
+    }
+    // Fallback: return original path if not found in map (local public/ will serve it)
+    return src;
+  }
+
+  // For all other URLs, use getOptimizedImageSrc which handles:
+  // - CDN URLs → direct pass-through
+  // - External URLs → proxy for SSRF protection
+  // - Other local paths → pass-through
+  return getOptimizedImageSrc(src) ?? src;
+}
+
 /**
  * @component MdxImage
  * Renders an image within MDX content with caption support and width controls.
  * - Data URLs render via Base64Image for proper sizing.
- * - External URLs render as a plain <img>, intentionally without macOS window chrome.
+ * - Local paths (`/images/posts/...`) are resolved to CDN URLs for optimization.
+ * - External URLs are proxied for SSRF protection.
  * - Defaults to ~75% width on large screens; override with size, widthPct, or vwPct.
  *
  * @param {ArticleImageProps} props - The properties for the MdxImage component.
@@ -246,8 +293,6 @@ const MdxImage = ({
 }: ArticleImageProps): JSX.Element | null => {
   if (typeof src !== "string" || !src) return null;
 
-  const isDataUrl = src.startsWith("data:");
-
   // Responsive width defaults: center and keep images narrower than the content width
   // Default (medium): 75% on large screens, wider on small screens for readability
   let widthClass = "w-full md:w-5/6 lg:w-3/4";
@@ -258,26 +303,43 @@ const MdxImage = ({
     widthClass = "w-full sm:w-5/6 md:w-2/3 lg:w-1/2";
   }
 
-  // Choose the appropriate image component based on whether the src is a data URL or an external URL.
-  const content = isDataUrl ? (
-    <Base64Image
-      src={src}
-      alt={alt}
-      width={1600} // Intrinsic width for aspect ratio calculation, actual display width controlled by CSS
-      height={800} // Intrinsic height for aspect ratio calculation
-      className="rounded-lg shadow-md w-full h-auto"
-      priority={priority}
-    />
-  ) : (
-    <img
-      src={src}
-      alt={alt}
-      width={1600}
-      height={800}
-      loading={priority ? "eager" : "lazy"}
-      className="rounded-lg shadow-md w-full h-auto"
-    />
-  );
+  // Resolve the image source to an optimized URL
+  const resolvedSrc = resolveBlogImageSrc(src);
+  const isDataUrl = src.startsWith("data:");
+
+  // Choose the appropriate image component based on URL type
+  let content: JSX.Element;
+
+  if (isDataUrl) {
+    // Data URLs: use Base64Image component (handles hydration properly)
+    content = (
+      <Base64Image
+        src={src}
+        alt={alt}
+        width={1600}
+        height={800}
+        className="rounded-lg shadow-md w-full h-auto"
+        priority={priority}
+      />
+    );
+  } else {
+    // All other URLs: use Next.js Image with proper optimization
+    // - CDN URLs: Next.js optimizer handles WebP conversion, srcset
+    // - Proxy URLs: bypass optimizer (already processed by API route)
+    const useUnoptimized = shouldBypassOptimizer(resolvedSrc);
+    content = (
+      <Image
+        src={resolvedSrc}
+        alt={alt}
+        width={1600}
+        height={800}
+        className="rounded-lg shadow-md w-full h-auto"
+        priority={priority}
+        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 83vw, 75vw"
+        {...(useUnoptimized ? { unoptimized: true } : {})}
+      />
+    );
+  }
 
   const clampToStep = (value: number) => {
     const clamped = Math.max(0, Math.min(100, value));
