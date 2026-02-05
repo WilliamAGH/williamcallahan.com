@@ -95,6 +95,7 @@ export const CSP_DIRECTIVES = {
     "https://pbs.twimg.com",
     "https://*.twimg.com",
     "https://react-tweet.vercel.app",
+    "https://queue.simpleanalyticscdn.com",
     ...CLERK_DOMAINS.images,
     "https://*.callahan.cloud",
     "https://*.digitaloceanspaces.com",
