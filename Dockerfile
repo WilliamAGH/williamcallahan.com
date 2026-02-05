@@ -66,10 +66,9 @@ COPY config ./config
 RUN mkdir -p generated/bookmarks
 
 # 4. Install dependencies with Bun, skipping third-party postinstall scripts to avoid native crashes.
-#    Note: --frozen-lockfile is intentionally omitted so Docker rebuilds can pick up newer
-#    semver-compatible versions (e.g., CVE patches for next/react) without requiring a new commit.
+#    Use --frozen-lockfile to keep deployments deterministic and prevent dependency drift.
 #    Cache mounts are avoided so classic docker builds (DOCKER_BUILDKIT=0) continue to work.
-RUN bun install --ignore-scripts
+RUN bun install --ignore-scripts --frozen-lockfile
 
 # 5. Ensure CSP hashes file exists early for tooling that might import it
 RUN bun scripts/init-csp-hashes.ts
