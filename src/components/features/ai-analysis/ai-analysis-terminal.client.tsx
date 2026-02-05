@@ -11,7 +11,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertCircle, RotateCcw, ChevronRight, Terminal } from "lucide-react";
+import { AlertCircle, RotateCcw, ChevronRight, ChevronDown, Terminal } from "lucide-react";
 import { aiQueueStatsSchema } from "@/types/schemas/ai-openai-compatible-client";
 import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
 import { parseLlmJson, persistAnalysisToS3 } from "@/lib/ai/analysis-client-utils";
@@ -25,17 +25,10 @@ import {
   AnalysisSection,
   TerminalListItem,
   TechDetail,
+  CollapsedTerminalHint,
 } from "./ai-analysis-terminal-ui.client";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
-
 const AUTO_TRIGGER_QUEUE_THRESHOLD = 5;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Component
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function AiAnalysisTerminal<TEntity, TAnalysis>({
   entity,
@@ -54,7 +47,9 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
   autoTrigger = true,
   initialAnalysis,
   className = "",
+  defaultCollapsed = false,
 }: AiAnalysisTerminalProps<TEntity, TAnalysis>) {
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [state, setState] = useState<AnalysisState<TAnalysis>>(() => {
     if (initialAnalysis?.analysis) {
       return { status: "success", analysis: initialAnalysis.analysis, error: null };
@@ -144,9 +139,10 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
       startedFromCache.current = false;
     }
     hasTriggered.current = false;
+    setIsCollapsed(defaultCollapsed);
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
-  }, [entityId, initialAnalysis]);
+  }, [entityId, initialAnalysis, defaultCollapsed]);
 
   const handleManualTrigger = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -271,11 +267,8 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
   // Success state
   const analysis = state.analysis;
   if (!analysis) return null;
-
-  // Use initial={false} when we started with cached content to avoid hydration mismatch
-  // and ensure content is visible immediately on SSR
+  // Skip initial animation for cached/SSR content to avoid hydration mismatch
   const skipInitialAnimation = startedFromCache.current;
-
   const helpers: AnalysisRenderHelpers = {
     AnalysisSection,
     TerminalListItem,
@@ -315,22 +308,38 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
+            <button
+              type="button"
+              onClick={() => setIsCollapsed((prev) => !prev)}
+              className="text-gray-500 hover:text-[#7aa2f7] transition-colors p-1"
+              title={isCollapsed ? "Expand analysis" : "Collapse analysis"}
+            >
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform duration-200 ${!isCollapsed ? "rotate-180" : ""}`}
+              />
+            </button>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-4 sm:p-5 space-y-5">{renderAnalysis(analysis, helpers)}</div>
+        {isCollapsed ? (
+          <CollapsedTerminalHint onExpand={() => setIsCollapsed(false)} />
+        ) : (
+          <>
+            {/* Content */}
+            <div className="p-4 sm:p-5 space-y-5">{renderAnalysis(analysis, helpers)}</div>
 
-        {/* Footer */}
-        <div className="px-4 py-2 border-t border-[#3d4f70] bg-[#16161e]">
-          <div className="flex items-center gap-2 text-xs font-mono text-gray-600">
-            <span className="text-[#9ece6a]">✓</span>
-            <span>Analysis complete</span>
-            <span className="text-gray-700">•</span>
-            {footerIcon}
-            <span>{footerText}</span>
-          </div>
-        </div>
+            {/* Footer */}
+            <div className="px-4 py-2 border-t border-[#3d4f70] bg-[#16161e]">
+              <div className="flex items-center gap-2 text-xs font-mono text-gray-600">
+                <span className="text-[#9ece6a]">✓</span>
+                <span>Analysis complete</span>
+                <span className="text-gray-700">•</span>
+                {footerIcon}
+                <span>{footerText}</span>
+              </div>
+            </div>
+          </>
+        )}
       </motion.div>
     </AnimatePresence>
   );

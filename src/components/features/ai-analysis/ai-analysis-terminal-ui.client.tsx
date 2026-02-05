@@ -12,6 +12,10 @@ import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 
+/** Tokyo Night theme tokens for terminal UI semantics */
+const COLOR_SUCCESS = "#9ece6a";
+const COLOR_INTERACTIVE = "#7aa2f7";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Blinking Cursor
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,5 +118,29 @@ export function TechDetail({ label, value }: { label: string; value: string }) {
       <span className="text-[#565f89]">{label}:</span>
       <span className="text-[#bb9af7]">{value}</span>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Collapsed Terminal Hint
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function CollapsedTerminalHint({ onExpand }: { onExpand: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onExpand}
+      className="flex items-center gap-2 w-full px-4 py-3 font-mono text-sm text-gray-500 hover:text-gray-300 transition-colors group"
+    >
+      <span style={{ color: COLOR_SUCCESS }}>✓</span>
+      <span>Analysis complete</span>
+      <span className="text-gray-700">·</span>
+      <span
+        className="group-hover:opacity-80 transition-colors"
+        style={{ color: COLOR_INTERACTIVE }}
+      >
+        click to view insights
+      </span>
+    </button>
   );
 }

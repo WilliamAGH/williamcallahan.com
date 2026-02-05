@@ -144,4 +144,6 @@ export interface AiAnalysisTerminalProps<TEntity, TAnalysis> {
   initialAnalysis?: { analysis: TAnalysis } | null;
   /** Additional CSS classes */
   className?: string;
+  /** Start with analysis content collapsed (default: false) */
+  defaultCollapsed?: boolean;
 }
