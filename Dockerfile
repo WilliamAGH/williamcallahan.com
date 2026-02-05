@@ -260,6 +260,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/public ./public
 #    Copy data directory with all static data files (read-only)
 COPY --from=builder /app/data ./data
+#    Copy next.config so runtime uses the build-time image remotePatterns
+COPY --from=builder /app/next.config.ts ./next.config.ts
 #    Ensure TypeScript path-mapping files are available at runtime so that Bun can
 #    resolve "@/*" import aliases used by our standalone scripts (e.g. update-s3).
 COPY --from=builder /app/tsconfig*.json ./
