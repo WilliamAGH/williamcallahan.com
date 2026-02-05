@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Blog Article Component
  *
