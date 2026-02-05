@@ -182,6 +182,15 @@ RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID \
     --mount=type=secret,id=S3_SECRET_ACCESS_KEY,env=S3_SECRET_ACCESS_KEY \
     --mount=type=secret,id=S3_SESSION_TOKEN,env=S3_SESSION_TOKEN \
     --mount=type=secret,id=S3_SESSION_TOKEN,env=AWS_SESSION_TOKEN \
+    --mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL,env=NEXT_PUBLIC_S3_CDN_URL \
+    --mount=type=secret,id=NEXT_PUBLIC_SITE_URL,env=NEXT_PUBLIC_SITE_URL \
+    --mount=type=secret,id=NEXT_PUBLIC_UMAMI_WEBSITE_ID,env=NEXT_PUBLIC_UMAMI_WEBSITE_ID \
+    --mount=type=secret,id=DEPLOYMENT_ENV,env=DEPLOYMENT_ENV \
+    --mount=type=secret,id=S3_BUCKET,env=S3_BUCKET \
+    --mount=type=secret,id=S3_SERVER_URL,env=S3_SERVER_URL \
+    --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
+    --mount=type=secret,id=SENTRY_DSN,env=SENTRY_DSN \
+    --mount=type=secret,id=NEXT_PUBLIC_SENTRY_DSN,env=NEXT_PUBLIC_SENTRY_DSN \
     bun run build \
     && find /app/.next/cache -type f -mtime +5 -delete 2>/dev/null || true
 
