@@ -185,6 +185,18 @@ export function useAiChatQueue({
     try {
       while (queueRef.current.length > 0) {
         const [nextMessage, ...rest] = queueRef.current;
+        if (typeof nextMessage !== "string") {
+          updateQueue(rest);
+          addToHistory({
+            type: "error",
+            id: crypto.randomUUID(),
+            input: "",
+            error: "Queued chat message was missing.",
+            details: "The pending chat queue contained an invalid entry.",
+            timestamp: Date.now(),
+          });
+          continue;
+        }
         updateQueue(rest);
         await runQueuedMessage(nextMessage);
       }
@@ -193,7 +205,7 @@ export function useAiChatQueue({
       setIsSubmitting(false);
       setAiQueueMessage(null);
     }
-  }, [runQueuedMessage, updateQueue]);
+  }, [addToHistory, runQueuedMessage, updateQueue]);
 
   const queueChatMessage = useCallback(
     (userText: string): boolean => {
