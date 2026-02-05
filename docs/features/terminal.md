@@ -10,15 +10,16 @@ The "terminal" functionality encompasses components and utilities that manage th
 
 ### Core Terminal Components
 
-- **components/ui/terminal/terminal-implementation.client.tsx**: Main orchestrator component managing terminal appearance, state integration, and window behaviors. Handles layout (normal vs maximized), event handling, and scroll behavior.
-- **components/ui/terminal/terminal-loader.client.tsx**: Dynamic loading component that provides a skeleton matching the exact initial state of the terminal (including welcome message) to prevent layout shifts during loading.
-- **components/ui/terminal/terminal.client.tsx**: Wrapper component that exports the lazy-loaded terminal implementation.
-- **components/ui/terminal/terminal-header.tsx**: Simple presentational component for window controls and title display.
-- **components/ui/terminal/terminal-context.client.tsx**: Manages terminal-specific state (command history) with sessionStorage persistence. Provides history management and clearing functionality. Always initializes with a welcome message.
-- **components/ui/terminal/command-input.client.tsx**: Handles user input with iOS Safari zoom prevention using CSS transforms. Manages command submission.
-- **components/ui/terminal/history.tsx**: Displays command history with proper formatting and styling.
-- **components/ui/terminal/selection-view.client.tsx**: Interactive list for search results with keyboard navigation (arrow keys, enter, escape). Handles visual selection feedback.
-- **components/ui/terminal/use-terminal.client.ts**: Custom hook orchestrating terminal functionality - input state, command submission, selection handling, and navigation integration.
+- **src/components/ui/terminal/terminal-implementation.client.tsx**: Main orchestrator component managing terminal appearance, state integration, and window behaviors. Handles layout (normal vs maximized), event handling, and scroll behavior.
+- **src/components/ui/terminal/terminal-loader.client.tsx**: Dynamic loading component that provides a skeleton matching the exact initial state of the terminal (including welcome message) to prevent layout shifts during loading.
+- **src/components/ui/terminal/terminal.client.tsx**: Wrapper component that exports the lazy-loaded terminal implementation.
+- **src/components/ui/terminal/terminal-header.tsx**: Simple presentational component for window controls and title display.
+- **src/components/ui/terminal/terminal-context.client.tsx**: Manages terminal-specific state (command history) with sessionStorage persistence. Provides history management and clearing functionality. Always initializes with a welcome message.
+- **src/components/ui/terminal/command-input.client.tsx**: Handles user input with iOS Safari zoom prevention using CSS transforms. Manages command submission.
+- **src/components/ui/terminal/history.tsx**: Displays command history with proper formatting and styling.
+- **src/components/ui/terminal/selection-view.client.tsx**: Interactive list for search results with keyboard navigation (arrow keys, enter, escape). Handles visual selection feedback.
+- **src/components/ui/terminal/use-terminal.client.tsx**: Custom hook orchestrating terminal functionality - input state, command submission, selection handling, and navigation integration.
+- **src/components/ui/terminal/use-ai-chat-queue.client.tsx**: Dedicated AI chat queue hook that serializes chat requests and caps queued messages for the terminal TUI.
 
 ### Supporting Components
 
@@ -60,7 +61,7 @@ Window Controls -> TerminalHeader -> GlobalWindowRegistry
 3. **History Management**: TerminalContext persists history in sessionStorage
 4. **Search Results**: SelectionView provides keyboard-navigable results
 5. **Window States**: GlobalWindowRegistry coordinates minimize/maximize/close actions
-6. **Navigation / Apps**: Commands can trigger navigation to different pages. `ai`, `chat`, and `ai-chat` enter the in-terminal AI chat experience. Prefix usage (`ai <message>`) performs a one-shot reply without entering modal chat.
+6. **Navigation / Apps**: Commands can trigger navigation to different pages. `ai`, `chat`, and `ai-chat` enter the in-terminal AI chat experience. Prefix usage (`ai <message>`) performs a one-shot reply without entering modal chat. Chat-mode messages queue client-side (capped) and dispatch sequentially via `use-ai-chat-queue.client.tsx`.
 7. **API Integration**: Search commands communicate with /api/search endpoints
 
 ### CV Page Rendering Exception

@@ -215,14 +215,11 @@ describe("AbortController Cleanup", () => {
     deferred.resolve({ results: [] });
   });
 
-  it("aborts the previous request when a new request is initiated", async () => {
+  it("queues chat messages instead of aborting in-flight requests", async () => {
     const abortSpy = vi.spyOn(AbortController.prototype, "abort");
     const first = createAbortableAiChat();
     const second = createAbortableAiChat();
     mockAiChat.mockImplementationOnce(first.handler).mockImplementationOnce(second.handler);
-
-    let firstPromise: Promise<void> | null = null;
-    let secondPromise: Promise<void> | null = null;
 
     const { result } = renderHook(() => useTerminal(), {
       wrapper: ({ children }: { children: React.ReactNode }) => (
@@ -231,21 +228,56 @@ describe("AbortController Cleanup", () => {
     });
 
     act(() => {
-      firstPromise = result.current.sendChatMessage("First request");
-      secondPromise = result.current.sendChatMessage("Second request");
+      void result.current.sendChatMessage("First request");
+      void result.current.sendChatMessage("Second request");
     });
 
     await waitFor(() => {
-      expect(abortSpy).toHaveBeenCalledWith("superseded");
+      expect(mockAiChat).toHaveBeenCalledTimes(1);
+    });
+
+    expect(abortSpy).not.toHaveBeenCalledWith("superseded");
+
+    await act(async () => {
+      first.deferred.resolve("First response");
+    });
+
+    await waitFor(() => {
+      expect(mockAiChat).toHaveBeenCalledTimes(2);
     });
 
     await act(async () => {
       second.deferred.resolve("Second response");
-      if (firstPromise && secondPromise) {
-        await Promise.all([firstPromise, secondPromise]);
-      }
     });
 
     abortSpy.mockRestore();
+  });
+
+  it("caps queued chat messages at the queue limit", async () => {
+    const first = createAbortableAiChat();
+    mockAiChat.mockImplementationOnce(first.handler);
+
+    const { result } = renderHook(() => useTerminal(), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <TerminalProvider>{children}</TerminalProvider>
+      ),
+    });
+
+    act(() => {
+      void result.current.sendChatMessage("First request");
+      for (let i = 0; i < 6; i += 1) {
+        void result.current.sendChatMessage(`Queued ${i}`);
+      }
+    });
+
+    await waitFor(() => {
+      expect(result.current.queuedCount).toBe(5);
+    });
+
+    expect(result.current.queueNotice).toContain("Queue is full");
+
+    act(() => {
+      result.current.clearAndExitChat();
+    });
   });
 });

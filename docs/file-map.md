@@ -121,7 +121,8 @@ File/Path Functionality Description
     - [x] `command-input.client.tsx` `terminal` - Terminal input UI
     - [x] `history.tsx` `terminal` - Terminal history view
     - [x] `selection-view.client.tsx` `terminal` - Terminal selection view
-    - [x] `use-terminal.client.ts` `terminal` - Terminal hook
+    - [x] `use-terminal.client.tsx` `terminal` - Terminal hook
+    - [x] `use-ai-chat-queue.client.tsx` `terminal` - AI chat queue hook for serialized terminal chat dispatch
   - [x] `accelerator-badge.tsx` `investments` - Accelerator program badge
   - [x] `background-info.client.tsx` `blog-article` - Background info display component for posts
   - [x] `card.tsx` `interactive-containers` - Generic card component
