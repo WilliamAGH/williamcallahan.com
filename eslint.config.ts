@@ -168,6 +168,8 @@ const config = tseslint.config(
         { selector: "function", format: ["camelCase", "PascalCase"] },
         { selector: "typeLike", format: ["PascalCase"] },
       ],
+      // Oxlint covers most TS/JS rules; keep ESLint from enforcing require/import style.
+      "@typescript-eslint/no-require-imports": "off",
       "no-underscore-dangle": [
         "error",
         {
@@ -448,10 +450,9 @@ const config = tseslint.config(
   },
 
   // Disable overlapping ESLint rules with Oxlint to avoid duplicate diagnostics
-  ...oxlint.configs["flat/all"],
-  ...oxlint.configs["flat/typescript"],
-  ...oxlint.configs["flat/react"],
-  ...oxlint.configs["flat/nextjs"],
+  // Derive the rule-disable list from the same .oxlintrc.json Oxlint uses, to avoid drift.
+  // This should remain last in the config array (per eslint-plugin-oxlint docs).
+  ...oxlint.buildFromOxlintConfigFile("./.oxlintrc.json"),
 );
 
 export default config;
