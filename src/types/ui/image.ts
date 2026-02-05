@@ -25,6 +25,8 @@ export interface OptimizedCardImageProps {
   src: string | null;
   alt: string;
   className?: string;
+  /** Object-fit mode for card images */
+  fit?: "cover" | "contain";
   /** Preload the image in the document head (Next.js 16+) */
   preload?: boolean;
   /** Base64 blur data URL for placeholder */

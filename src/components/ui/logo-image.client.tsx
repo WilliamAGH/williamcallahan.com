@@ -240,6 +240,7 @@ import Placeholder from "@/public/images/opengraph-placeholder.png";
 export function OptimizedCardImage({
   src,
   alt,
+  fit,
   className = "",
   preload = false,
   blurDataURL,
@@ -251,6 +252,7 @@ export function OptimizedCardImage({
   const [retryKey, setRetryKey] = useState(0);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hasBlur = Boolean(blurDataURL);
+  const objectFitClass = fit === "contain" ? "object-contain" : "object-cover";
 
   // Cleanup timeout on unmount
   React.useEffect(() => {
@@ -270,7 +272,7 @@ export function OptimizedCardImage({
         alt={alt}
         fill
         placeholder="empty"
-        className="object-cover"
+        className={objectFitClass}
         {...(preload ? { preload, fetchPriority: "high" as const } : {})}
       />
     );
@@ -283,14 +285,16 @@ export function OptimizedCardImage({
         alt={alt}
         fill
         placeholder="empty"
-        className="object-cover"
+        className={objectFitClass}
         {...(preload ? { preload, fetchPriority: "high" as const } : {})}
       />
     );
   }
 
   if (!proxiedSrc) {
-    return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
+    return (
+      <Image src={Placeholder} alt={alt} fill placeholder="empty" className={objectFitClass} />
+    );
   }
 
   const displaySrc =
@@ -307,7 +311,7 @@ export function OptimizedCardImage({
       quality={80}
       placeholder={hasBlur ? "blur" : "empty"}
       blurDataURL={blurDataURL}
-      className={`object-cover transition-opacity duration-200 ${className}`}
+      className={`${objectFitClass} transition-opacity duration-200 ${className}`}
       style={{ opacity: loaded || hasBlur ? 1 : 0.2 }}
       {...(preload ? { preload, fetchPriority: "high" as const } : {})}
       {...(shouldBypassOptimizer(displaySrc) ? { unoptimized: true } : {})}

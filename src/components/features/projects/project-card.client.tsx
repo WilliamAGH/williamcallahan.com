@@ -51,6 +51,7 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
                 src={cdnImageUrl}
                 alt={`${name} screenshot`}
                 preload={preload}
+                fit="contain"
                 className="rounded-md transition-transform duration-300 ease-in-out group-hover:scale-[1.02]"
               />
             </div>
