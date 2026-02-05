@@ -3,12 +3,49 @@ import { render, act } from "@testing-library/react";
 import { Analytics } from "@/components/analytics/analytics.client";
 import { vi } from "vitest";
 
+function isUmamiMock(value: unknown): value is UmamiMock {
+  if (typeof value !== "function") {
+    return false;
+  }
+
+  const candidate = value as { track?: unknown };
+  return typeof candidate.track === "function";
+}
+
+function getGlobalUmami(): UmamiMock | undefined {
+  const candidate = (globalThis as { umami?: unknown }).umami;
+  if (candidate === undefined) {
+    return undefined;
+  }
+  if (!isUmamiMock(candidate)) {
+    throw new Error("Expected globalThis.umami to be a callable Umami mock with a track() mock");
+  }
+  return candidate;
+}
+
+function hasGlobalPlausible(): boolean {
+  const candidate = (globalThis as { plausible?: unknown }).plausible;
+  return typeof candidate === "function";
+}
+
+type MockedScriptDataProps = {
+  "data-auto-track"?: "true" | "false";
+  "data-website-id"?: string;
+};
+
+type MockedNextScriptProps = MockScriptProps &
+  MockedScriptDataProps & {
+    [key: string]: unknown;
+  };
+
 // Use vi.hoisted for shared state to avoid hoisting issues
-const { loadedScripts, scriptConfig, mockUsePathname } = vi.hoisted(() => ({
-  loadedScripts: {} as Record<string, boolean>,
-  scriptConfig: { shouldError: false },
-  mockUsePathname: vi.fn(),
-}));
+const { loadedScripts, scriptConfig, mockUsePathname } = vi.hoisted(() => {
+  const loadedScripts: Record<string, boolean> = {};
+  const scriptConfig = { shouldError: false };
+  const mockUsePathname = vi.fn();
+
+  return { loadedScripts, scriptConfig, mockUsePathname };
+});
 
 // Mock next/navigation using vi.mock
 vi.mock("next/navigation", () => ({
@@ -20,12 +57,7 @@ vi.mock("next/script", async () => {
   const React = await import("react");
   return {
     __esModule: true,
-    default: function Script({
-      id,
-      onLoad,
-      onError,
-      ...props
-    }: MockScriptProps & Record<string, any>) {
+    default: function Script({ id, onLoad, onError, ...props }: MockedNextScriptProps) {
       // Access pathname to simulate route change tracking
       const pathname = mockUsePathname();
       const autoTrack = props["data-auto-track"];
@@ -47,7 +79,7 @@ vi.mock("next/script", async () => {
               const umamiMock: UmamiMock = Object.assign(vi.fn(), {
                 track: vi.fn(),
               });
-              (global as any).umami = umamiMock;
+              Reflect.set(globalThis, "umami", umamiMock);
               loadedScripts[id] = true; // Mark as loaded
               onLoad?.();
 
@@ -60,19 +92,28 @@ vi.mock("next/script", async () => {
               }
             } else if (id === "plausible") {
               // Mock Plausible initialization
-              (global as any).plausible = vi.fn();
+              Reflect.set(globalThis, "plausible", vi.fn());
               loadedScripts[id] = true; // Mark as loaded
+              onLoad?.();
+            } else {
+              loadedScripts[id] = true;
               onLoad?.();
             }
           }, 10);
           return () => clearTimeout(timer);
         } else {
           // Already loaded, handle route changes if applicable
-          if (id === "umami" && (global as any).umami) {
+          if (id === "umami") {
+            const umami = getGlobalUmami();
+            if (!umami) {
+              throw new Error(
+                "Expected globalThis.umami to be set when the Umami script is already loaded",
+              );
+            }
             // In real life, the script listens to history events.
             // Here we simulate it reacting to pathname changes (since we consume it).
             // We rely on useEffect dependency [pathname]
-            (global as any).umami.track("pageview", {
+            umami.track("pageview", {
               path: pathname,
               // website id might not be needed for subsequent calls or is implicit
             });
@@ -110,8 +151,8 @@ describe("Analytics", () => {
     scriptConfig.shouldError = false;
 
     // Reset window objects between tests
-    (global as any).umami = undefined;
-    (global as any).plausible = undefined;
+    Reflect.deleteProperty(globalThis, "umami");
+    Reflect.deleteProperty(globalThis, "plausible");
 
     // Use fake timers
     vi.useFakeTimers();
@@ -130,6 +171,11 @@ describe("Analytics", () => {
     consoleWarnSpy.mockRestore();
   });
 
+  afterAll(() => {
+    vi.doUnmock("next/navigation");
+    vi.doUnmock("next/script");
+  });
+
   it("initializes analytics scripts correctly", async () => {
     render(<Analytics />);
 
@@ -139,12 +185,15 @@ describe("Analytics", () => {
     });
 
     // Verify scripts loaded and tracking was called
-    expect((global as any).umami).toBeDefined();
-    expect((global as any).umami?.track).toHaveBeenCalled();
-    expect((global as any).plausible).toBeDefined();
+    const umami = getGlobalUmami();
+    if (!umami) {
+      throw new Error("Expected globalThis.umami to be defined after script load");
+    }
+    expect(umami.track).toHaveBeenCalled();
+    expect(hasGlobalPlausible()).toBe(true);
 
     // Verify tracking was called with correct arguments
-    expect((global as any).umami?.track).toHaveBeenCalledWith(
+    expect(umami.track).toHaveBeenCalledWith(
       "pageview",
       expect.objectContaining({
         path: "/test-page",
@@ -187,8 +236,12 @@ describe("Analytics", () => {
     });
 
     // Verify at least one call was for the initial path
-    expect((global as any).umami?.track).toHaveBeenCalled();
-    expect((global as any).umami?.track).toHaveBeenCalledWith(
+    const umami = getGlobalUmami();
+    if (!umami) {
+      throw new Error("Expected globalThis.umami to be defined after initial render");
+    }
+    expect(umami.track).toHaveBeenCalled();
+    expect(umami.track).toHaveBeenCalledWith(
       "pageview",
       expect.objectContaining({
         path: "/initial-path",
@@ -196,9 +249,7 @@ describe("Analytics", () => {
     );
 
     // Clear the mock for next assertions
-    if ((global as any).umami?.track) {
-      (global as any).umami.track.mockClear();
-    }
+    umami.track.mockClear();
 
     // Change pathname
     mockUsePathname.mockReturnValue("/new-path");
@@ -213,14 +264,14 @@ describe("Analytics", () => {
     });
 
     // Verify the track call triggered by the pathname change
-    expect((global as any).umami?.track).toHaveBeenCalledWith(
+    expect(umami.track).toHaveBeenCalledWith(
       "pageview",
       expect.objectContaining({
         path: "/new-path",
       }),
     );
     // Ensure it was called exactly once after the clear
-    expect((global as any).umami?.track).toHaveBeenCalledTimes(1);
+    expect(umami.track).toHaveBeenCalledTimes(1);
   });
 
   it("handles script load errors gracefully with warning", async () => {
@@ -236,7 +287,7 @@ describe("Analytics", () => {
     // Component should still be mounted
     expect(container).toBeTruthy();
     // Global umami should not be defined when script errors
-    expect((global as any).umami).toBeUndefined();
+    expect(getGlobalUmami()).toBeUndefined();
     // Warning should be logged via onError handler
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       "[Analytics] Failed to load Umami script - continuing without analytics",
