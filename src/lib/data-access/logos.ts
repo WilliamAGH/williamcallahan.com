@@ -12,7 +12,8 @@
 
 import { revalidateTag } from "next/cache";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
-import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
+import { ServerCacheInstance } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import type { LogoResult, LogoInversion, LogoData } from "@/types/logo";
 import type { LogoValidationResult } from "@/types/cache";
 import { USE_NEXTJS_CACHE } from "@/lib/cache";

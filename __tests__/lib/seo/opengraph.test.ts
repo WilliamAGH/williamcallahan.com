@@ -7,7 +7,7 @@ import { createArticleOgMetadata, BASE_OG_METADATA } from "@/lib/seo/opengraph";
 import { metadata as siteMetadata } from "@/data/metadata";
 import { isPacificDateString, type OpenGraphImage } from "@/types/seo";
 import { ogMetadataSchema } from "@/types/seo/opengraph";
-import { ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
 // Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 // Mock process.env for tests

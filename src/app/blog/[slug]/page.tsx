@@ -16,7 +16,7 @@ import type { BlogPostPageProps, SoftwarePostDetails } from "@/types/blog";
 // Import blog post retrieval utilities from the main blog library
 import { getPostBySlug, getPostMetaBySlug } from "@/lib/blog.ts";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/seo/metadata.ts";
-import { ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import type { ExtendedMetadata } from "@/types/seo";
 import { notFound } from "next/navigation";
 import { BlogArticle } from "../../../components/features/blog";

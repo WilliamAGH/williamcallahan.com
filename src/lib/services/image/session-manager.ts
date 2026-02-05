@@ -3,7 +3,7 @@
  * @module lib/services/image/session-manager
  */
 
-import { getDeterministicTimestamp } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { UNIFIED_IMAGE_SERVICE_CONFIG, LOGO_BLOCKLIST_S3_PATH } from "@/lib/constants";
 import { FailureTracker } from "@/lib/utils/failure-tracker";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";

@@ -7,7 +7,7 @@
  */
 
 import type { UnifiedBookmark, LightweightBookmark } from "@/types/bookmark";
-import { getDeterministicTimestamp } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { USE_NEXTJS_CACHE, cacheContextGuards } from "@/lib/cache";
 import { envLogger } from "@/lib/utils/env-logger";
 import {

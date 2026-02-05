@@ -6,7 +6,8 @@
  * Extracted from unified-image-service for SRP compliance per [MO1d].
  */
 
-import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
+import { ServerCacheInstance } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { DEFAULT_IMAGE_CONTENT_TYPE } from "@/lib/utils/content-type";
 import { safeStringifyValue } from "@/lib/utils/error-utils";
 import { logoDebugger } from "@/lib/utils/logo-debug";

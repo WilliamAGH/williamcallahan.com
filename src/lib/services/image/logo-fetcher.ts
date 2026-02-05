@@ -3,7 +3,8 @@
  * @module lib/services/image/logo-fetcher
  */
 
-import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
+import { ServerCacheInstance } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { generateS3Key } from "@/lib/utils/hash-utils";
 import { getDomainVariants } from "@/lib/utils/domain-utils";
 import { UNIFIED_IMAGE_SERVICE_CONFIG } from "@/lib/constants";

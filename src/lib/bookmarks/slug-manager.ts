@@ -22,7 +22,7 @@ import { envLogger } from "@/lib/utils/env-logger";
 import { createHash } from "node:crypto";
 import { isSlugManagerLoggingEnabled } from "@/lib/bookmarks/config";
 import { persistSlugShards } from "@/lib/bookmarks/slug-shards";
-import { getDeterministicTimestamp } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 
 const formatSlugEnvironmentSnapshot = (): string =>
   `NODE_ENV=${process.env.NODE_ENV || "(not set)"}, DEPLOYMENT_ENV=${process.env.DEPLOYMENT_ENV || "(not set)"}`;

@@ -39,7 +39,7 @@ import { SITE_NAME, metadata } from "@/data/metadata";
 import type { BlogPost } from "../../types/blog";
 import type { ImageSEOMetadata, OpenGraphImage } from "../../types/seo";
 import { createArticleOgMetadata } from "./opengraph";
-import { ensureAbsoluteUrl } from "./utils";
+import { ensureAbsoluteUrl } from "./url-utils";
 
 /**
  * Get the canonical URL for a given path

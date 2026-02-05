@@ -11,30 +11,8 @@
 "use client";
 
 import { kebabCase } from "@/lib/utils/formatters";
-import { NEXT_PUBLIC_SITE_URL } from "@/lib/constants/client";
+import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import { JsonLdScript } from "../../../seo/json-ld";
-
-/**
- * Ensures a URL is absolute by prepending the site URL if necessary.
- * Client-safe version that avoids server-only imports.
- */
-function ensureAbsoluteUrl(path: string): string {
-  // Return data URIs and non-http(s) protocols as-is
-  if (path.startsWith("data:") || /^[a-z][a-z0-9+\-.]*:/i.test(path)) {
-    return path;
-  }
-  // If it's already an absolute URL, return it as-is
-  if (/^https?:\/\//i.test(path)) {
-    return path;
-  }
-  // Remove any leading slashes to prevent double slashes when joining with base URL
-  const cleanPath = path.replace(/^\/+/, "");
-  const baseUrl = NEXT_PUBLIC_SITE_URL.endsWith("/")
-    ? NEXT_PUBLIC_SITE_URL
-    : `${NEXT_PUBLIC_SITE_URL}/`;
-  return `${baseUrl}${cleanPath}`;
-}
-
 import type { SoftwareScriptSchema, SoftwareSchemaProps } from "@/types/features/software";
 
 /**

@@ -3,7 +3,8 @@
  * @module lib/services/unified-image-service
  */
 import { checkIfS3ObjectExists } from "@/lib/s3/objects";
-import { ServerCacheInstance, getDeterministicTimestamp } from "../server-cache";
+import { ServerCacheInstance } from "../server-cache";
+import { getDeterministicTimestamp } from "../utils/deterministic-timestamp";
 import { UNIFIED_IMAGE_SERVICE_CONFIG } from "../constants";
 import { isS3ReadOnly } from "../utils/s3-read-only";
 import type { LogoInversion } from "../../types/logo";

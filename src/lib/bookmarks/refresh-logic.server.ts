@@ -26,7 +26,7 @@ import {
   BOOKMARK_SERVICE_LOG_CATEGORY,
   METADATA_REFRESH_MAX_ITEMS,
 } from "@/lib/bookmarks/config";
-import { getDeterministicTimestamp } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { processBookmarksInBatches } from "@/lib/bookmarks/enrich-opengraph";
 import {
   writePaginatedBookmarks,

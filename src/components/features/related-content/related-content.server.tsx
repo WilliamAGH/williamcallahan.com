@@ -8,9 +8,10 @@
 import { getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { getLazyContentMap, getCachedAllContent } from "@/lib/content-similarity/cached-aggregator";
 import { findMostSimilar, limitByTypeAndTotal } from "@/lib/content-similarity";
-import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
+import { ServerCacheInstance } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { RelatedContentSection } from "./related-content-section";
-import { resolveImageUrl } from "@/lib/seo/utils";
+import { resolveImageUrl } from "@/lib/seo/url-utils";
 import { debug, isDebug } from "@/lib/utils/debug";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { readJsonS3Optional } from "@/lib/s3/json";

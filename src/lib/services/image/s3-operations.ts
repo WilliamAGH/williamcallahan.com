@@ -4,7 +4,7 @@
  */
 
 import { writeBinaryS3 } from "@/lib/s3/binary";
-import { getDeterministicTimestamp } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import {
   parseS3Key,
   generateS3Key as generateS3KeyUtil,

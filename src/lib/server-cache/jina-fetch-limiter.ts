@@ -15,7 +15,8 @@
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { JINA_FETCH_CONFIG } from "@/lib/constants";
 import { type JinaLimiterState, isJinaLimiterState } from "@/types/jina";
-import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
+import { ServerCacheInstance } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 
 const JINA_LIMITER_CACHE_KEY = "jina-fetch-limiter-state";
 
