@@ -32,7 +32,7 @@ export interface RateLimitProfile {
   minute: RateLimitConfig;
 }
 
-export type RateLimitProfileName = "page" | "api" | "nextImage";
+export type RateLimitProfileName = "page" | "api" | "nextImage" | "sentryTunnel";
 
 /**
  * Options are intended for tests only.

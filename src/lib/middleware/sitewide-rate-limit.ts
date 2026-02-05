@@ -32,6 +32,12 @@ export const PROFILES: Record<RateLimitProfileName, RateLimitProfile> = {
     burst: { maxRequests: 150, windowMs: 10_000 },
     minute: { maxRequests: 600, windowMs: 60_000 },
   },
+  sentryTunnel: {
+    // Sentry replay and error envelopes can burst during initial page load.
+    // Use a higher ceiling without weakening general API protections.
+    burst: { maxRequests: 300, windowMs: 10_000 },
+    minute: { maxRequests: 1200, windowMs: 60_000 },
+  },
   nextImage: {
     // Image optimization can be CPU/memory heavy; throttle bursts defensively.
     // Image-heavy pages (bookmarks, blog) can have 20+ images per page.
@@ -48,6 +54,9 @@ function getProfileForPath(pathname: string): {
   name: RateLimitProfileName;
   config: RateLimitProfile;
 } {
+  if (pathname === "/api/tunnel") {
+    return { name: "sentryTunnel", config: PROFILES.sentryTunnel };
+  }
   if (pathname.startsWith("/api/")) return { name: "api", config: PROFILES.api };
   if (pathname.startsWith("/_next/image")) return { name: "nextImage", config: PROFILES.nextImage };
   return { name: "page", config: PROFILES.page };
