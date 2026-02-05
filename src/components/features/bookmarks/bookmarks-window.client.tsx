@@ -12,7 +12,7 @@
 
 "use client";
 
-import React, { Suspense, useEffect, useMemo, type JSX } from "react";
+import React, { Suspense, useEffect, type JSX } from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hint";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
@@ -34,17 +34,22 @@ const DEFAULT_BOOKMARKS_WINDOW_ID = "bookmarks-window";
  * Skeleton loader component with stable keys for loading states
  * @returns {JSX.Element} Skeleton loading animation
  */
-const SkeletonLoader = (): JSX.Element => {
-  const skeletonKeys = useMemo(() => Array.from({ length: 6 }, () => crypto.randomUUID()), []);
+const BOOKMARK_SKELETON_KEYS = [
+  "bookmark-skeleton-1",
+  "bookmark-skeleton-2",
+  "bookmark-skeleton-3",
+  "bookmark-skeleton-4",
+  "bookmark-skeleton-5",
+  "bookmark-skeleton-6",
+];
 
-  return (
-    <div className="animate-pulse space-y-4 p-6">
-      {skeletonKeys.map((key) => (
-        <div key={key} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
-      ))}
-    </div>
-  );
-};
+const SkeletonLoader = (): JSX.Element => (
+  <div className="animate-pulse space-y-4 p-6">
+    {BOOKMARK_SKELETON_KEYS.map((key) => (
+      <div key={key} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
+    ))}
+  </div>
+);
 
 /**
  * Inner content component wrapper for dynamic()

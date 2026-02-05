@@ -25,6 +25,20 @@ const logEnvironmentInfo = (message: string): void => {
 };
 
 /**
+ * Normalizes environment name variations to standard environment values.
+ * Maps shorthand names (prod, dev, testing) to full names (production, development, test).
+ */
+function normalizeEnvironmentName(input: string): string {
+  const normalized = normalizeString(input);
+
+  if (normalized === "prod") return "production";
+  if (normalized === "dev") return "development";
+  if (normalized === "testing") return "test";
+
+  return normalized;
+}
+
+/**
  * Get the current environment based on URL configuration
  * Uses API_BASE_URL or NEXT_PUBLIC_SITE_URL to determine environment
  *
@@ -46,15 +60,7 @@ export function getEnvironment(): Environment {
   // In tests, ignore DEPLOYMENT_ENV so tests can control behavior via NODE_ENV
   const deploymentEnv = isTestRuntime ? undefined : process.env.DEPLOYMENT_ENV;
   if (deploymentEnv) {
-    const normalizedInput = normalizeString(deploymentEnv);
-    const normalized =
-      normalizedInput === "prod"
-        ? "production"
-        : normalizedInput === "dev"
-          ? "development"
-          : normalizedInput === "testing"
-            ? "test"
-            : normalizedInput;
+    const normalized = normalizeEnvironmentName(deploymentEnv);
     if (normalized === "production" || normalized === "development" || normalized === "test") {
       if (loggedExplicitDeploymentEnv !== normalized) {
         logEnvironmentInfo(`[Environment] Using explicit DEPLOYMENT_ENV: ${normalized}`);

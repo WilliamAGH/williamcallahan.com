@@ -468,7 +468,7 @@ function detectCgroupMemoryLimitBytes(): number | null {
 }
 
 const envBudgetRaw = process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES;
-const envBudget = envBudgetRaw != null ? Number(envBudgetRaw) : NaN;
+const envBudget = envBudgetRaw ? Number(envBudgetRaw) : Number.NaN;
 const cgroupLimitBytes = detectCgroupMemoryLimitBytes();
 const defaultBudget = process.env.NODE_ENV === "production" ? 3.75 * GB : 4 * GB;
 
