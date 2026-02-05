@@ -6,7 +6,7 @@
 
 "use client";
 
-import { isChatCommand, type SelectionItem } from "@/types/terminal";
+import type { SelectionItem } from "@/types/terminal";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
@@ -14,7 +14,7 @@ import { useClerkSafe } from "@/hooks/use-clerk-safe.client";
 import { handleCommand } from "./commands.client";
 import { useTerminalContext } from "./terminal-context.client";
 import { sections } from "./sections";
-import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
+import { useAiChatQueue } from "./use-ai-chat-queue.client";
 
 const ABORT_REASON_USER_CANCEL = "user_cancel";
 const ABORT_REASON_SUPERSEDED = "superseded";
@@ -42,7 +42,6 @@ export function useTerminal() {
   const [input, setInput] = useState("");
   const [selection, setSelection] = useState<SelectionItem[] | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [aiQueueMessage, setAiQueueMessage] = useState<string | null>(null);
   const [activeApp, setActiveApp] = useState<null | "ai-chat">(null);
   const [aiChatConversationId, setAiChatConversationId] = useState<string>(() =>
     crypto.randomUUID(),
@@ -55,6 +54,22 @@ export function useTerminal() {
   const animationFrameRef = useRef<number | null>(null);
   const activeCommandController = useRef<AbortController | null>(null);
   const TERMINAL_CHAT_FEATURE = "terminal_chat";
+  const {
+    queueChatMessage,
+    sendImmediateMessage,
+    abortChatRequest,
+    clearQueue: clearChatQueue,
+    isSubmitting: isChatSubmitting,
+    queuedCount,
+    queueLimit,
+    queueNotice,
+    aiQueueMessage,
+  } = useAiChatQueue({
+    history,
+    addToHistory,
+    conversationId: aiChatConversationId,
+    feature: TERMINAL_CHAT_FEATURE,
+  });
 
   // Ref to always access the latest clearHistory function (avoids stale closure in useCallback)
   const clearHistoryRef = useRef(clearHistory);
@@ -77,6 +92,8 @@ export function useTerminal() {
 
   const clearAndExitChat = useCallback(() => {
     activeCommandController.current?.abort(ABORT_REASON_CLEAR_EXIT);
+    abortChatRequest(ABORT_REASON_CLEAR_EXIT);
+    clearChatQueue();
     flushSync(() => {
       clearHistoryRef.current();
       setSelection(null);
@@ -85,11 +102,11 @@ export function useTerminal() {
       setAiChatConversationId(crypto.randomUUID());
     });
     inputRef.current?.focus();
-  }, []);
+  }, [abortChatRequest, clearChatQueue]);
 
   const cancelActiveRequest = useCallback(() => {
-    activeCommandController.current?.abort(ABORT_REASON_USER_CANCEL);
-  }, []);
+    abortChatRequest(ABORT_REASON_USER_CANCEL);
+  }, [abortChatRequest]);
 
   function parseAiPrefixedCommand(raw: string): { isAiCommand: boolean; userText: string | null } {
     const trimmed = raw.trim();
@@ -106,115 +123,10 @@ export function useTerminal() {
     return { isAiCommand: true, userText: remainder || null };
   }
 
-  async function sendChatMessageInternal(userText: string, signal?: AbortSignal): Promise<void> {
-    const now = Date.now();
-    addToHistory({
-      type: "chat",
-      id: crypto.randomUUID(),
-      input: "",
-      role: "user",
-      content: userText,
-      timestamp: now,
-    });
-
-    const priorChatMessages = Array.isArray(history) ? history.filter(isChatCommand) : [];
-    const messages = [
-      ...priorChatMessages.slice(-19).map((msg) => ({
-        role: msg.role === "assistant" ? ("assistant" as const) : ("user" as const),
-        content: msg.content,
-      })),
-      { role: "user" as const, content: userText },
-    ];
-
-    setAiQueueMessage(null);
-    const assistantText = await aiChat(
-      TERMINAL_CHAT_FEATURE,
-      { messages, conversationId: aiChatConversationId, priority: 10 },
-      {
-        signal,
-        onQueueUpdate: (update) => {
-          if (update.event === "queued" || update.event === "queue") {
-            if (update.position) {
-              setAiQueueMessage(
-                `Queued (position ${update.position}, ${update.running}/${update.maxParallel} running)`,
-              );
-            } else {
-              setAiQueueMessage(null);
-            }
-            return;
-          }
-
-          if (update.event === "started") {
-            setAiQueueMessage(null);
-          }
-        },
-      },
-    );
-
-    if (assistantText.trim().length === 0) {
-      throw new Error("AI chat returned an empty response");
-    }
-
-    addToHistory({
-      type: "chat",
-      id: crypto.randomUUID(),
-      input: "",
-      role: "assistant",
-      content: assistantText,
-      timestamp: Date.now(),
-    });
-  }
-
-  // Wrapper for TUI context that manages isSubmitting state
-  async function sendChatMessage(userText: string): Promise<void> {
-    if (isSubmitting) return;
-
-    // Abort any previous request
-    if (activeCommandController.current) {
-      activeCommandController.current.abort(ABORT_REASON_SUPERSEDED);
-    }
-
-    const controller = new AbortController();
-    activeCommandController.current = controller;
-
-    setIsSubmitting(true);
-    setAiQueueMessage(null);
-
-    try {
-      await sendChatMessageInternal(userText, controller.signal);
-    } catch (error: unknown) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        const reason: unknown = controller.signal.reason;
-        if (isExpectedAbortReason(reason)) {
-          return;
-        }
-        addToHistory({
-          type: "error",
-          id: crypto.randomUUID(),
-          input: "",
-          error: "AI chat request was aborted.",
-          details: "The request was aborted unexpectedly.",
-          timestamp: Date.now(),
-        });
-        return;
-      }
-      const message = error instanceof Error ? error.message : "Unknown error";
-      addToHistory({
-        type: "error",
-        id: crypto.randomUUID(),
-        input: "",
-        error: "AI chat failed.",
-        details: message,
-        timestamp: Date.now(),
-      });
-    } finally {
-      if (activeCommandController.current === controller) {
-        activeCommandController.current = null;
-      }
-      setIsSubmitting(false);
-      setAiQueueMessage(null);
-    }
-  }
+  const sendChatMessage = useCallback(
+    async (userText: string): Promise<boolean> => queueChatMessage(userText),
+    [queueChatMessage],
+  );
 
   const handleSubmit = async () => {
     if (!input.trim() || isSubmitting) return;
@@ -270,31 +182,7 @@ export function useTerminal() {
           output: "Thinking…",
           timestamp: Date.now(),
         });
-        await sendChatMessageInternal(aiParsed.userText, controller.signal);
-      } catch (error: unknown) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          const reason: unknown = controller.signal.reason;
-          if (!isExpectedAbortReason(reason)) {
-            addToHistory({
-              type: "error",
-              id: crypto.randomUUID(),
-              input: "",
-              error: "AI chat request was aborted.",
-              details: "The request was aborted unexpectedly.",
-              timestamp: Date.now(),
-            });
-          }
-          return;
-        }
-        const message = error instanceof Error ? error.message : "Unknown error";
-        addToHistory({
-          type: "error",
-          id: crypto.randomUUID(),
-          input: "",
-          error: "AI chat failed.",
-          details: message,
-          timestamp: Date.now(),
-        });
+        await sendImmediateMessage(aiParsed.userText, controller.signal);
       } finally {
         removeFromHistory(pendingId);
         if (activeCommandController.current === controller) {
@@ -520,6 +408,7 @@ export function useTerminal() {
     focusInput,
     isSelecting,
     isSubmitting,
+    isChatSubmitting,
     activeApp,
     exitActiveApp,
     clearAndExitChat,
@@ -527,5 +416,8 @@ export function useTerminal() {
     cancelActiveRequest,
     aiChatConversationId,
     aiQueueMessage,
+    queuedCount,
+    queueLimit,
+    queueNotice,
   };
 }

@@ -129,6 +129,9 @@ export function AiChatEmptyState() {
 export function AiChatInput({
   isSubmitting,
   queueMessage,
+  queuedCount,
+  queueLimit,
+  queueNotice,
   onSend,
   onClearAndExit,
   onCancelRequest,
@@ -197,7 +200,7 @@ export function AiChatInput({
 
   const submit = useCallback(async () => {
     const trimmed = input.trim();
-    if (!trimmed || isSubmitting) return;
+    if (!trimmed) return;
 
     // Handle "clear" command - same behavior as normal terminal mode
     if (trimmed.toLowerCase() === "clear") {
@@ -213,18 +216,17 @@ export function AiChatInput({
       resolvedText = resolvedText.replaceAll(placeholder, actualContent);
     }
 
-    // Clear state and paste map
-    setInput("");
-    pasteMapRef.current.clear();
-
     try {
-      await onSend(resolvedText);
+      const accepted = await onSend(resolvedText);
+      if (!accepted) return;
+      setInput("");
+      pasteMapRef.current.clear();
     } catch (error) {
       // Log but don't rethrow - parent handles error state via isSubmitting
       console.error("[AiChatInput] Send failed:", error);
     }
     textareaRef.current?.focus();
-  }, [input, isSubmitting, onSend, onClearAndExit]);
+  }, [input, onSend, onClearAndExit]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -267,6 +269,14 @@ export function AiChatInput({
       {/* Thinking indicator while waiting for response */}
       {isSubmitting && <ThinkingIndicator queueMessage={queueMessage} />}
 
+      {queuedCount > 0 && (
+        <div className="text-xs text-gray-400 mt-2">
+          Queued messages: {queuedCount}/{queueLimit}
+        </div>
+      )}
+
+      {queueNotice ? <div className="text-xs text-amber-300 mt-2">{queueNotice}</div> : null}
+
       {/* Input field */}
       <div className="flex items-start gap-2">
         <span className="text-[#7aa2f7] select-none shrink-0 mt-0.5">&gt;</span>
@@ -276,7 +286,6 @@ export function AiChatInput({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onPaste={handlePaste}
-            disabled={isSubmitting}
             rows={1}
             className="bg-transparent w-full focus:outline-none text-gray-200 caret-gray-200
                 text-[16px] transform-gpu scale-[0.875] origin-left disabled:opacity-50
@@ -288,7 +297,9 @@ export function AiChatInput({
               maxHeight: "150px",
             }}
             placeholder={
-              isSubmitting ? "Waiting for response..." : "Send a message (Shift+Enter for newline)"
+              isSubmitting
+                ? "Queue a message (Shift+Enter for newline)"
+                : "Send a message (Shift+Enter for newline)"
             }
             aria-label="AI chat message input"
           />

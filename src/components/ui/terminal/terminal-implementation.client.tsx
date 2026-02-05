@@ -61,12 +61,16 @@ export function Terminal() {
     cancelSelection,
     inputRef,
     focusInput,
-    isSubmitting,
+    isSubmitting: isCommandSubmitting,
+    isChatSubmitting,
     activeApp,
     clearAndExitChat,
     sendChatMessage,
     cancelActiveRequest,
     aiQueueMessage,
+    queuedCount,
+    queueLimit,
+    queueNotice,
   } = useTerminal();
 
   // Effect to scroll to bottom when history changes
@@ -530,8 +534,11 @@ export function Terminal() {
               />
             ) : activeApp === "ai-chat" ? (
               <AiChatInput
-                isSubmitting={isSubmitting}
+                isSubmitting={isChatSubmitting}
                 queueMessage={aiQueueMessage}
+                queuedCount={queuedCount}
+                queueLimit={queueLimit}
+                queueNotice={queueNotice}
                 onSend={sendChatMessage}
                 onClearAndExit={clearAndExitChat}
                 onCancelRequest={cancelActiveRequest}
@@ -542,7 +549,7 @@ export function Terminal() {
                 value={input}
                 onChange={setInput}
                 onSubmit={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isCommandSubmitting}
               />
             )}
           </div>
