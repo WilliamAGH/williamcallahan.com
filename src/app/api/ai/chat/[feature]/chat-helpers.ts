@@ -193,8 +193,10 @@ export async function buildRagContextForChat(
 
   try {
     const ragContext = await buildContextForQuery(userMessage, {
-      maxTokens: 2000,
+      maxTokens: 8000,
       timeoutMs: 3000,
+      includeInventory: true,
+      inventoryMaxTokens: 6000,
     });
 
     if (ragContext.retrievalStatus === "success") {

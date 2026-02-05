@@ -188,6 +188,10 @@ File/Path Functionality Description
     - [x] `static-context.ts` `ai-shared-services` - Static context builder from CV/metadata/projects
     - [x] `dynamic-retriever.ts` `ai-shared-services` - Query-time search using existing search functions
     - [x] `context-formatter.ts` `ai-shared-services` - Formats context for system prompt injection
+    - [x] `inventory-context.ts` `ai-shared-services` - Orchestrates full inventory catalog assembly for RAG
+    - [x] `inventory-static.ts` `ai-shared-services` - Builds inventory sections from repo-local datasets
+    - [x] `inventory-dynamic.ts` `ai-shared-services` - Builds inventory sections from dynamic sources (bookmarks/books/tags/analysis)
+    - [x] `inventory-format.ts` `ai-shared-services` - Formats inventory sections and token-bound truncation markers
   - [ ] **providers/**
     - [ ] `openai.ts` `ai-shared-services` - OpenAI provider implementation
     - [ ] `openrouter.ts` `ai-shared-services` - OpenRouter provider implementation
@@ -657,6 +661,11 @@ File/Path Functionality Description
     - [x] `server-cache-init.test.ts` `caching` - Server cache initialization tests
     - [x] `server-cache-simple.test.ts` `caching` - Server cache simple tests
     - [x] `utils.test.ts` `shared-utils` - General utility tests
+    - [x] **ai/rag/**
+      - [x] `context-formatter.test.ts` `ai-shared-services` - RAG context formatter tests
+      - [x] `dynamic-retriever.test.ts` `ai-shared-services` - RAG dynamic retriever tests
+      - [x] `inventory-context.test.ts` `ai-shared-services` - RAG inventory catalog tests
+      - [x] `static-context.test.ts` `ai-shared-services` - RAG static context tests
     - [x] `content-similarity/keyword-extractor.test.ts` `chroma` - Keyword extraction tag filtering tests
     - [x] `chroma/chroma-actual.test.ts` `chroma` - Live Chroma integration test (opt-in)
     - [x] **seo/**

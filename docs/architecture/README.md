@@ -53,6 +53,7 @@ Example schemas:
 - Live Chroma integration tests are opt-in and gated by `CHROMA_*` env vars (see `chroma.md`).
 - Test-only mock modules live under `__tests__/__mocks__/` and are enforced via linting (see `standards/testing.md`).
 - Terminal AI chat queues are handled by `src/components/ui/terminal/use-ai-chat-queue.client.tsx` to serialize requests and cap client-side pending messages (see `features/terminal.md`).
+- RAG inventory catalogs for terminal chat are assembled server-side from repo data and dynamic sources with explicit token-bound truncation (`src/lib/ai/rag/inventory-*.ts`).
 
 ## Core Architectural Patterns
 
