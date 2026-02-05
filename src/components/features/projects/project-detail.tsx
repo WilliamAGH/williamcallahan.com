@@ -172,6 +172,7 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
                         src={imageUrl}
                         alt={`Screenshot of ${project.name}`}
                         preload
+                        fit="contain"
                         className="!transition-none"
                       />
                       {/* Hover overlay */}
