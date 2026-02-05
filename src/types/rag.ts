@@ -54,12 +54,63 @@ export interface FormatContextOptions {
 }
 
 /**
+ * Pagination configuration for inventory sections.
+ */
+export interface InventoryPaginationConfig {
+  /** Items per page (default: 25) */
+  pageSize?: number;
+  /** 1-indexed page number (default: 1) */
+  page?: number;
+  /** Filter to a specific section */
+  section?: InventorySectionName;
+}
+
+/**
+ * Pagination metadata for an inventory section.
+ */
+export interface InventoryPaginationMeta {
+  section: InventorySectionName;
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  itemsOnPage: number;
+  hasMore: boolean;
+}
+
+/**
+ * Per-section pagination data stored in conversation state.
+ */
+export interface SectionPaginationData {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+}
+
+/**
+ * Pagination state tracked per conversation for cursor navigation.
+ */
+export interface InventoryPaginationState {
+  /** Per-section pagination positions */
+  sections: Partial<Record<InventorySectionName, SectionPaginationData>>;
+  /** Last section the user interacted with (for "next" command) */
+  lastRequestedSection?: InventorySectionName;
+  /** Timestamp for cache expiration */
+  updatedAt: number;
+}
+
+/**
  * Options for building a full inventory catalog for RAG injection.
  */
 export interface BuildInventoryContextOptions {
   maxTokens?: number;
   includeDynamic?: boolean;
   skipCache?: boolean;
+  /** Conversation ID for stateful pagination */
+  conversationId?: string;
+  /** Pagination configuration */
+  pagination?: InventoryPaginationConfig;
+  /** True when user requested next page (e.g., said "next" or "more") */
+  isPaginationRequest?: boolean;
 }
 
 /**
@@ -116,6 +167,10 @@ export interface InventoryContextResult {
   status: InventoryStatus;
   failedSections?: InventorySectionName[];
   sections: InventorySectionSummary[];
+  /** Pagination metadata when pagination is active */
+  pagination?: InventoryPaginationMeta[];
+  /** Human-readable hint for AI to communicate pagination state */
+  paginationHint?: string;
 }
 
 /**
@@ -174,6 +229,12 @@ export interface BuildContextOptions {
   includeInventory?: boolean;
   inventoryMaxTokens?: number;
   skipInventoryCache?: boolean;
+  /** Conversation ID for stateful pagination */
+  conversationId?: string;
+  /** Pagination configuration */
+  inventoryPagination?: InventoryPaginationConfig;
+  /** True when user requested next page */
+  isPaginationRequest?: boolean;
 }
 
 /**
@@ -191,4 +252,8 @@ export interface BuildContextResult {
   inventoryStatus?: InventoryStatus;
   inventoryTokenEstimate?: number;
   inventorySections?: InventorySectionSummary[];
+  /** Pagination metadata when pagination is active */
+  inventoryPagination?: InventoryPaginationMeta[];
+  /** Human-readable hint for AI about pagination state */
+  inventoryPaginationHint?: string;
 }

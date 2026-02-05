@@ -172,8 +172,11 @@ export async function validateRequest(
   return { feature, clientIp, pagePath, originHost, userAgent, parsedBody };
 }
 
+import { isPaginationKeyword } from "@/lib/ai/rag/inventory-pagination";
+
 /**
- * Build RAG context for terminal_chat feature
+ * Build RAG context for terminal_chat feature.
+ * Supports server-side pagination for large inventory sections.
  */
 export async function buildRagContextForChat(
   feature: string,
@@ -191,12 +194,22 @@ export async function buildRagContextForChat(
     return { augmentedPrompt: undefined, status: "not_applicable" };
   }
 
+  // Detect if user is requesting pagination (e.g., "next", "more")
+  const isPaginating = isPaginationKeyword(userMessage);
+  const conversationId = parsedBody.conversationId;
+
   try {
     const ragContext = await buildContextForQuery(userMessage, {
       maxTokens: 8000,
       timeoutMs: 3000,
       includeInventory: true,
       inventoryMaxTokens: 6000,
+      // Enable pagination when we have a conversationId
+      conversationId,
+      isPaginationRequest: isPaginating,
+      inventoryPagination: {
+        pageSize: 25,
+      },
     });
 
     if (ragContext.retrievalStatus === "success") {

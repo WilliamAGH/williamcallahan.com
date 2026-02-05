@@ -15,8 +15,14 @@ import { education, certifications, recentCourses } from "@/data/education";
 import { getAllMDXPostsForSearch } from "@/lib/blog/mdx";
 import { envLogger } from "@/lib/utils/env-logger";
 import type { BlogPost } from "@/types/blog";
-import type { InventorySectionBuildResult, InventorySectionName } from "@/types/rag";
-import { buildSectionLines, formatLine } from "./inventory-format";
+import type {
+  InventoryPaginationConfig,
+  InventoryPaginationMeta,
+  InventorySectionBuildResult,
+  InventorySectionName,
+} from "@/types/rag";
+import { buildPaginatedSectionLines, buildSectionLines, formatLine } from "./inventory-format";
+import { calculatePaginationMeta, DEFAULT_PAGE_SIZE, paginateRows } from "./inventory-pagination";
 
 const buildBlogRows = (posts: BlogPost[]): string[] =>
   posts
@@ -31,6 +37,74 @@ const buildBlogRows = (posts: BlogPost[]): string[] =>
       }),
     );
 
+/** Investment section fields */
+const INVESTMENT_FIELDS = [
+  "id",
+  "name",
+  "type",
+  "stage",
+  "status",
+  "operating_status",
+  "invested_year",
+  "founded_year",
+  "acquired_year",
+  "shutdown_year",
+  "category",
+  "location",
+  "url",
+  "website",
+  "aventure_url",
+] as const;
+
+/** Build formatted rows for investments (sorted by name) */
+export const buildInvestmentRows = (): string[] =>
+  investments
+    .toSorted((a, b) => a.name.localeCompare(b.name))
+    .map((inv) =>
+      formatLine({
+        id: inv.id,
+        name: inv.name,
+        type: inv.type,
+        stage: inv.stage,
+        status: inv.status,
+        operating_status: inv.operating_status,
+        invested_year: inv.invested_year,
+        founded_year: inv.founded_year,
+        acquired_year: inv.acquired_year,
+        shutdown_year: inv.shutdown_year,
+        category: inv.category,
+        location: inv.location,
+        url: `/investments#${inv.id}`,
+        website: inv.website,
+        aventure_url: inv.aventure_url,
+      }),
+    );
+
+/**
+ * Build a paginated investments section.
+ */
+export function buildPaginatedInvestmentsSection(pagination: InventoryPaginationConfig): {
+  section: InventorySectionBuildResult;
+  meta: InventoryPaginationMeta;
+} {
+  const allRows = buildInvestmentRows();
+  const pageSize = pagination.pageSize ?? DEFAULT_PAGE_SIZE;
+  const page = pagination.page ?? 1;
+
+  const meta = calculatePaginationMeta("investments", allRows.length, page, pageSize);
+  const pageRows = paginateRows(allRows, page, pageSize);
+
+  const section = buildPaginatedSectionLines({
+    name: "investments",
+    fields: [...INVESTMENT_FIELDS],
+    allRows: pageRows,
+    pagination: meta,
+    status: "success",
+  });
+
+  return { section, meta };
+}
+
 export async function buildStaticInventorySections(): Promise<{
   sections: InventorySectionBuildResult[];
   failedSections: InventorySectionName[];
@@ -42,44 +116,8 @@ export async function buildStaticInventorySections(): Promise<{
   sections.push(
     buildSectionLines({
       name: "investments",
-      fields: [
-        "id",
-        "name",
-        "type",
-        "stage",
-        "status",
-        "operating_status",
-        "invested_year",
-        "founded_year",
-        "acquired_year",
-        "shutdown_year",
-        "category",
-        "location",
-        "url",
-        "website",
-        "aventure_url",
-      ],
-      rows: investments
-        .toSorted((a, b) => a.name.localeCompare(b.name))
-        .map((inv) =>
-          formatLine({
-            id: inv.id,
-            name: inv.name,
-            type: inv.type,
-            stage: inv.stage,
-            status: inv.status,
-            operating_status: inv.operating_status,
-            invested_year: inv.invested_year,
-            founded_year: inv.founded_year,
-            acquired_year: inv.acquired_year,
-            shutdown_year: inv.shutdown_year,
-            category: inv.category,
-            location: inv.location,
-            url: `/investments#${inv.id}`,
-            website: inv.website,
-            aventure_url: inv.aventure_url,
-          }),
-        ),
+      fields: [...INVESTMENT_FIELDS],
+      rows: buildInvestmentRows(),
       status: "success",
     }),
   );
