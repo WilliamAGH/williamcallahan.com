@@ -97,7 +97,7 @@ export function buildPaginatedInvestmentsSection(pagination: InventoryPagination
   const section = buildPaginatedSectionLines({
     name: "investments",
     fields: [...INVESTMENT_FIELDS],
-    allRows: pageRows,
+    pageRows,
     pagination: meta,
     status: "success",
   });

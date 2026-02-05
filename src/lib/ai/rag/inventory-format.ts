@@ -164,21 +164,19 @@ export const buildSectionLines = (args: {
 /**
  * Build section lines with pagination support.
  * Returns a page of items with pagination metadata in the header.
+ *
+ * IMPORTANT: The `pageRows` parameter must be already paginated by the caller
+ * (e.g., via `paginateRows()`). This function only formats the rows; it does not slice.
  */
 export const buildPaginatedSectionLines = (args: {
   name: InventorySectionName;
   fields: string[];
-  allRows: string[];
+  pageRows: string[];
   pagination: InventoryPaginationMeta;
   status: InventoryStatus;
 }): InventorySectionBuildResult => {
-  const { name, fields, allRows, pagination, status } = args;
+  const { name, fields, pageRows, pagination, status } = args;
   const { page, totalPages, totalItems, itemsOnPage, hasMore } = pagination;
-
-  // Calculate slice indices
-  const pageSize = Math.ceil(totalItems / totalPages);
-  const startIndex = (page - 1) * pageSize;
-  const pageRows = allRows.slice(startIndex, startIndex + itemsOnPage);
 
   // Build header with pagination info
   const header = formatPaginatedHeader(name, pagination, fields);
