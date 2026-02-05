@@ -188,6 +188,23 @@ export interface MDXContentProps {
 }
 
 /**
+ * Error thrown when a blog image cannot be resolved to an optimized CDN URL.
+ * Per [RC1a], failures must throw rather than silently degrade.
+ *
+ * This surfaces at build time when sync-blog-cover-images.ts hasn't been run,
+ * ensuring missing mappings are caught before production deployment.
+ */
+export class BlogImageResolutionError extends Error {
+  constructor(
+    public readonly src: string,
+    public readonly reason: string,
+  ) {
+    super(`Failed to resolve blog image "${src}": ${reason}`);
+    this.name = "BlogImageResolutionError";
+  }
+}
+
+/**
  * Tag wrapper component props
  * @usage - Wrapping tag content with styling/linking
  */
