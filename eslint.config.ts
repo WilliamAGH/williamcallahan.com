@@ -52,18 +52,16 @@ const noDuplicateTypesRule: Rule.RuleModule & { duplicateTypeTracker?: Map<strin
     const duplicateTypeTracker: Map<string, string> =
       noDuplicateTypesRule.duplicateTypeTracker ?? new Map<string, string>();
 
-    // Store it on the rule for future files
-    if (!noDuplicateTypesRule.duplicateTypeTracker) {
-      noDuplicateTypesRule.duplicateTypeTracker = duplicateTypeTracker;
-    }
+    // Store it on the rule for future files using nullish coalescing assignment
+    noDuplicateTypesRule.duplicateTypeTracker ??= duplicateTypeTracker;
 
     /** Records the location of first declaration and reports on duplicates */
     const record = (idNode: TSESTree.Identifier) => {
       const name: string = idNode.name;
-      const currentLocation = `${context.getFilename()}:${idNode.loc.start.line}`;
+      const currentLocation = `${context.filename}:${idNode.loc.start.line}`;
 
       // Ignore .d.ts files from node_modules to avoid false positives on @types packages
-      if (context.getFilename().includes("node_modules")) return;
+      if (context.filename.includes("node_modules")) return;
 
       if (duplicateTypeTracker.has(name)) {
         // Already seen elsewhere – report duplicate
@@ -184,17 +182,6 @@ const config = tseslint.config(
           allowFunctionParams: true,
         },
       ],
-      "no-restricted-globals": [
-        "error",
-        {
-          name: "window",
-          message: "Use only in client components (*.client.tsx) or with proper checks",
-        },
-        {
-          name: "document",
-          message: "Use only in client components (*.client.tsx) or with proper checks",
-        },
-      ],
 
       // ============================================================
       // REMOVED: All rules now handled by Oxlint
@@ -245,26 +232,6 @@ const config = tseslint.config(
     },
   },
 
-  // Server Components
-  {
-    files: ["**/*.server.{ts,tsx}"],
-    rules: {
-      "no-restricted-globals": [
-        "error",
-        { name: "window", message: "Cannot use window in Server Components" },
-        { name: "document", message: "Cannot use document in Server Components" },
-      ],
-    },
-  },
-
-  // Client Components
-  {
-    files: ["**/*.client.{ts,tsx}"],
-    rules: {
-      "no-restricted-globals": "off",
-    },
-  },
-
   // Configuration files - TypeScript
   {
     files: [
@@ -283,7 +250,6 @@ const config = tseslint.config(
       },
     },
     rules: {
-      "no-restricted-globals": "off",
       "no-underscore-dangle": "off",
       "@typescript-eslint/naming-convention": "off",
     },
@@ -308,9 +274,7 @@ const config = tseslint.config(
         ...globals.node,
       },
     },
-    rules: {
-      "no-restricted-globals": "off",
-    },
+    rules: {},
   },
 
   // Test file configuration (Vitest rules handled by Oxlint)
@@ -322,7 +286,6 @@ const config = tseslint.config(
       },
     },
     rules: {
-      "no-restricted-globals": "off",
       "no-restricted-syntax": "off",
       "no-underscore-dangle": "off",
       "@typescript-eslint/naming-convention": "off",
@@ -345,15 +308,12 @@ const config = tseslint.config(
       "**/lib/context/GlobalWindowRegistryContext.client.tsx",
     ],
     rules: {
-      "no-restricted-globals": "off",
       "@typescript-eslint/naming-convention": "off",
     },
   },
   {
     files: ["public/scripts/plausible-init.js"],
-    rules: {
-      "no-restricted-globals": "off",
-    },
+    rules: {},
   },
 
   // --------------------------------------------------
@@ -416,7 +376,7 @@ const config = tseslint.config(
                * Check if the file already imports getStaticImageUrl
                */
               function hasGetStaticImageUrlImport(): boolean {
-                const sourceCode = context.getSourceCode();
+                const sourceCode = context.sourceCode;
                 const program = sourceCode.ast;
 
                 for (const node of program.body) {
@@ -441,14 +401,14 @@ const config = tseslint.config(
                 Literal(node: TSESTree.Literal) {
                   if (
                     typeof node.value === "string" &&
-                    node.value.match(/^\/images\//) &&
-                    !context.getFilename().includes("static-image-mapping.json") &&
-                    !context.getFilename().includes("static-images.ts") &&
-                    !context.getFilename().includes("placeholder-images.ts") &&
-                    !context.getFilename().includes("url-utils.ts") &&
-                    !context.getFilename().includes("og-image/route.ts") &&
-                    !context.getFilename().includes("migrate-static-images-to-s3.ts") &&
-                    !context.getFilename().includes("check-new-images.ts")
+                    /^\/images\//.exec(node.value) &&
+                    !context.filename.includes("static-image-mapping.json") &&
+                    !context.filename.includes("static-images.ts") &&
+                    !context.filename.includes("placeholder-images.ts") &&
+                    !context.filename.includes("url-utils.ts") &&
+                    !context.filename.includes("og-image/route.ts") &&
+                    !context.filename.includes("migrate-static-images-to-s3.ts") &&
+                    !context.filename.includes("check-new-images.ts")
                   ) {
                     // Skip if the string literal ultimately lives inside a getStaticImageUrl(...) call
                     if (isInsideGetStaticImageUrl(node as unknown as TSESTree.Node)) {
@@ -468,7 +428,7 @@ const config = tseslint.config(
                         isInS3 && hasImport
                           ? function (fixer: Rule.RuleFixer) {
                               // Safer replacement that works across parsers
-                              const source = context.getSourceCode();
+                              const source = context.sourceCode;
                               const text = source.getText(node); // includes original quotes
                               return fixer.replaceText(node, `getStaticImageUrl(${text})`);
                             }
