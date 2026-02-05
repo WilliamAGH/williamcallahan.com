@@ -10,8 +10,19 @@ import { ogMetadataSchema } from "@/types/seo/opengraph";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
 // Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
-// Mock process.env for tests
-process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
+
+// Snapshot and restore env to prevent cross-test pollution
+const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+beforeAll(() => {
+  process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
+});
+afterAll(() => {
+  if (originalSiteUrl === undefined) {
+    delete process.env.NEXT_PUBLIC_SITE_URL;
+  } else {
+    process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
+  }
+});
 
 describe("OpenGraph Metadata", () => {
   describe("BASE_OG_METADATA", () => {
