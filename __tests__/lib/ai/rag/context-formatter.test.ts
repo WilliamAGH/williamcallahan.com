@@ -92,6 +92,15 @@ describe("RAG Context Formatter", () => {
       expect(text).toContain("williamcallahan.com");
     });
 
+    it("includes inventory catalog when provided", () => {
+      const inventoryText =
+        "\n=== INVENTORY CATALOG ===\n[Investments] count=1 status=success fields=id,name\n- id=alpha | name=Alpha\n";
+      const { text } = formatContext(mockStaticContext, [], inventoryText);
+
+      expect(text).toContain("INVENTORY CATALOG");
+      expect(text).toContain("Investments");
+    });
+
     it("includes dynamic results when provided", () => {
       const { text } = formatContext(mockStaticContext, mockDynamicResults);
 
@@ -126,7 +135,7 @@ describe("RAG Context Formatter", () => {
 
   describe("token budget", () => {
     it("respects maxTokens option", () => {
-      const { tokenEstimate } = formatContext(mockStaticContext, mockDynamicResults, {
+      const { tokenEstimate } = formatContext(mockStaticContext, mockDynamicResults, "", {
         maxTokens: 500,
       });
 
@@ -134,7 +143,7 @@ describe("RAG Context Formatter", () => {
     });
 
     it("truncates dynamic results first when over budget", () => {
-      const { text } = formatContext(mockStaticContext, mockDynamicResults, {
+      const { text } = formatContext(mockStaticContext, mockDynamicResults, "", {
         maxTokens: 200,
       });
 
@@ -145,7 +154,7 @@ describe("RAG Context Formatter", () => {
 
     it("indicates truncation when content is cut", () => {
       // Very small budget should cause truncation
-      const { text } = formatContext(mockStaticContext, mockDynamicResults, {
+      const { text } = formatContext(mockStaticContext, mockDynamicResults, "", {
         maxTokens: 50,
       });
 

@@ -9,6 +9,7 @@
 
 import { getStaticContext } from "./static-context";
 import { formatContext } from "./context-formatter";
+import { buildInventoryContext } from "./inventory-context";
 import { retrieveRelevantContent } from "./dynamic-retriever";
 import type { BuildContextOptions, BuildContextResult, DynamicResult } from "@/types/rag";
 import { getMonotonicTime } from "@/lib/utils";
@@ -28,9 +29,28 @@ export async function buildContextForQuery(
   const maxTokens = options?.maxTokens ?? 2000;
   const timeoutMs = options?.timeoutMs ?? 3000;
   const skipDynamic = options?.skipDynamic ?? false;
+  const includeInventory = options?.includeInventory ?? false;
+  const inventoryMaxTokens = options?.inventoryMaxTokens ?? 2000;
+  const skipInventoryCache = options?.skipInventoryCache ?? false;
 
   const staticCtx = getStaticContext();
   const searchStart = getMonotonicTime();
+  let inventoryText = "";
+  let inventoryTokenEstimate: number | undefined;
+  let inventoryStatus: BuildContextResult["inventoryStatus"] | undefined;
+  let inventorySections: BuildContextResult["inventorySections"] | undefined;
+
+  if (includeInventory) {
+    const inventory = await buildInventoryContext({
+      maxTokens: inventoryMaxTokens,
+      includeDynamic: true,
+      skipCache: skipInventoryCache,
+    });
+    inventoryText = inventory.text;
+    inventoryTokenEstimate = inventory.tokenEstimate;
+    inventoryStatus = inventory.status;
+    inventorySections = inventory.sections;
+  }
 
   // Retrieve dynamic content unless skipped
   let dynamicResults: DynamicResult[] = [];
@@ -47,7 +67,9 @@ export async function buildContextForQuery(
   const searchDurationMs = getMonotonicTime() - searchStart;
 
   // Format combined context
-  const { text, tokenEstimate } = formatContext(staticCtx, dynamicResults, { maxTokens });
+  const { text, tokenEstimate } = formatContext(staticCtx, dynamicResults, inventoryText, {
+    maxTokens,
+  });
 
   return {
     contextText: text,
@@ -56,6 +78,9 @@ export async function buildContextForQuery(
     searchDurationMs,
     retrievalStatus,
     ...(failedScopes && { failedScopes }),
+    ...(inventoryStatus && { inventoryStatus }),
+    ...(inventoryTokenEstimate !== undefined && { inventoryTokenEstimate }),
+    ...(inventorySections && { inventorySections }),
   };
 }
 

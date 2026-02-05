@@ -1,7 +1,7 @@
 /**
  * Context Formatter for RAG
  *
- * Formats static and dynamic context for system prompt injection.
+ * Formats static, inventory, and dynamic context for system prompt injection.
  * Handles token budget management and truncation.
  *
  * @module lib/ai/rag/context-formatter
@@ -50,18 +50,30 @@ function formatDynamicResults(results: DynamicResult[]): string {
  */
 function truncateToTokenBudget(
   staticText: string,
+  inventoryText: string,
   dynamicText: string,
   maxTokens: number,
 ): { text: string; tokenEstimate: number } {
   const staticTokens = estimateTokens(staticText);
+  const inventoryTokens = estimateTokens(inventoryText);
   const dynamicTokens = estimateTokens(dynamicText);
-  const totalTokens = staticTokens + dynamicTokens;
+  const totalTokens = staticTokens + inventoryTokens + dynamicTokens;
 
   // If within budget, return full context
   if (totalTokens <= maxTokens) {
     return {
-      text: staticText + dynamicText,
+      text: staticText + inventoryText + dynamicText,
       tokenEstimate: totalTokens,
+    };
+  }
+
+  if (staticTokens + inventoryTokens <= maxTokens) {
+    const remainingTokens = maxTokens - staticTokens - inventoryTokens;
+    const maxDynamicChars = remainingTokens * CHARS_PER_TOKEN;
+    const truncatedDynamic = dynamicText.slice(0, maxDynamicChars);
+    return {
+      text: staticText + inventoryText + truncatedDynamic,
+      tokenEstimate: staticTokens + inventoryTokens + estimateTokens(truncatedDynamic),
     };
   }
 
@@ -75,14 +87,14 @@ function truncateToTokenBudget(
     };
   }
 
-  // Static fits, truncate dynamic to fill remaining budget
+  // Static fits, truncate inventory to fill remaining budget
   const remainingTokens = maxTokens - staticTokens;
-  const maxDynamicChars = remainingTokens * CHARS_PER_TOKEN;
-  const truncatedDynamic = dynamicText.slice(0, maxDynamicChars);
+  const maxInventoryChars = remainingTokens * CHARS_PER_TOKEN;
+  const truncatedInventory = inventoryText.slice(0, maxInventoryChars) + "\n[Inventory truncated]";
 
   return {
-    text: staticText + truncatedDynamic,
-    tokenEstimate: staticTokens + estimateTokens(truncatedDynamic),
+    text: staticText + truncatedInventory,
+    tokenEstimate: staticTokens + estimateTokens(truncatedInventory),
   };
 }
 
@@ -97,12 +109,14 @@ function truncateToTokenBudget(
 export function formatContext(
   staticCtx: StaticContext,
   dynamicResults: DynamicResult[],
+  inventoryText = "",
   options?: FormatContextOptions,
 ): FormattedContext {
   const maxTokens = options?.maxTokens ?? 2000;
 
   const staticText = formatStaticContext(staticCtx);
+  const normalizedInventoryText = inventoryText ? `\n\n${inventoryText}` : "";
   const dynamicText = formatDynamicResults(dynamicResults);
 
-  return truncateToTokenBudget(staticText, dynamicText, maxTokens);
+  return truncateToTokenBudget(staticText, normalizedInventoryText, dynamicText, maxTokens);
 }

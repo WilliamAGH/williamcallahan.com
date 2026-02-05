@@ -54,6 +54,50 @@ export interface FormatContextOptions {
 }
 
 /**
+ * Inventory build status for RAG catalog sections.
+ */
+export type InventoryStatus = "success" | "partial" | "failed";
+
+/**
+ * Known inventory sections included in the RAG catalog.
+ */
+export type InventorySectionName =
+  | "investments"
+  | "projects"
+  | "experience"
+  | "education"
+  | "certifications"
+  | "courses"
+  | "blog"
+  | "bookmarks"
+  | "books"
+  | "tags"
+  | "analysis"
+  | "thoughts";
+
+/**
+ * Summary metadata for an inventory section.
+ */
+export interface InventorySectionSummary {
+  name: InventorySectionName;
+  totalItems: number;
+  includedItems: number;
+  status: InventoryStatus;
+  truncated: boolean;
+}
+
+/**
+ * Result payload for inventory context generation.
+ */
+export interface InventoryContextResult {
+  text: string;
+  tokenEstimate: number;
+  status: InventoryStatus;
+  failedSections?: InventorySectionName[];
+  sections: InventorySectionSummary[];
+}
+
+/**
  * Valid scope names for RAG content retrieval.
  * This type ensures scope patterns and searchers have matching keys.
  */
@@ -106,6 +150,9 @@ export interface BuildContextOptions {
   maxTokens?: number;
   timeoutMs?: number;
   skipDynamic?: boolean;
+  includeInventory?: boolean;
+  inventoryMaxTokens?: number;
+  skipInventoryCache?: boolean;
 }
 
 /**
@@ -120,4 +167,7 @@ export interface BuildContextResult {
   retrievalStatus: "success" | "partial" | "failed" | "skipped";
   /** Scopes that failed during retrieval (if any) */
   failedScopes?: string[];
+  inventoryStatus?: InventoryStatus;
+  inventoryTokenEstimate?: number;
+  inventorySections?: InventorySectionSummary[];
 }
