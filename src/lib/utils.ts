@@ -203,6 +203,77 @@ export function isValidUrl(url: string): boolean {
 }
 
 /**
+ * Common business entity suffixes to remove from company names
+ */
+const COMMON_SUFFIXES = [
+  "llc",
+  "inc",
+  "ltd",
+  "llp",
+  "pllc",
+  "corp",
+  "corporation",
+  "co",
+  "limited",
+] as const;
+
+/**
+ * Regex for punctuation characters to remove from company names
+ */
+const PUNCTUATION_REGEX = /[.,/#!$%^&*;:=_{}`~()-]/g;
+
+/**
+ * Validates if a hostname is a valid IP address (IPv4)
+ */
+function isIpAddress(hostname: string): boolean {
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname);
+}
+
+/**
+ * Validates if a hostname has a TLD (contains at least one dot)
+ */
+function hasTld(hostname: string): boolean {
+  return hostname.includes(".");
+}
+
+/**
+ * Attempts to extract a domain from a string that looks like a URL.
+ * Returns null if the input doesn't appear to be a URL or parsing fails.
+ */
+function tryExtractDomain(input: string): string | null {
+  if (!input.includes(".") && !input.includes(":")) return null;
+
+  const urlStr = /^https?:\/\//i.test(input) ? input : `http://${input}`;
+
+  try {
+    const url = new URL(urlStr);
+    if (!url.hostname) return null;
+
+    const isValid =
+      isIpAddress(url.hostname) || hasTld(url.hostname) || url.hostname === "localhost";
+    return isValid ? stripWwwPrefix(url.hostname) : null;
+  } catch (error: unknown) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("Error parsing URL in extractDomain:", error);
+    }
+    return null;
+  }
+}
+
+/**
+ * Removes common business suffixes from a cleaned company name.
+ * Only removes one suffix if found at the end.
+ */
+function removeBusinessSuffixes(cleaned: string): string {
+  for (const suffix of COMMON_SUFFIXES) {
+    if (cleaned.endsWith(suffix) && cleaned.length > suffix.length) {
+      return cleaned.slice(0, -suffix.length);
+    }
+  }
+  return cleaned;
+}
+
+/**
  * Extracts a domain from a URL or normalizes a company name string.
  *
  * This function serves a dual purpose:
@@ -216,98 +287,17 @@ export function isValidUrl(url: string): boolean {
  * @see {@link @/lib/utils/url-utils#extractDomainWithoutWww} for URL extraction with www stripping
  */
 export function normalizeCompanyOrDomain(urlOrCompany: string | number): string {
-  // Handle null or undefined input
-  if (urlOrCompany === undefined || urlOrCompany === null) {
-    return "";
-  }
+  if (urlOrCompany == null) return "";
 
-  // Convert to string if it's a number
   const inputStr = String(urlOrCompany);
   if (!inputStr) return "";
 
-  // First, normalize the input by trimming and lowercasing
-  const normalizedInput = normalizeString(inputStr);
+  const domain = tryExtractDomain(inputStr);
+  if (domain) return domain;
 
-  // Only attempt to parse as URL if it looks like a URL
-  if (normalizedInput.includes(".") || normalizedInput.includes(":")) {
-    try {
-      // Ensure the string has a protocol
-      const urlStr =
-        inputStr.toLowerCase().startsWith("http://") ||
-        inputStr.toLowerCase().startsWith("https://")
-          ? inputStr
-          : `http://${inputStr}`;
+  const cleaned = inputStr.toLowerCase().replaceAll(PUNCTUATION_REGEX, "").replaceAll(/\s+/g, "");
 
-      // Try to parse as URL
-      const parsedUrl = new URL(urlStr);
-
-      // Check if the hostname looks like a valid domain or IP
-      if (parsedUrl.hostname) {
-        const isIpAddress = /^\d{1,3}(\.\d{1,3}){3}$/.test(parsedUrl.hostname);
-        const hasTld = parsedUrl.hostname.includes(".");
-        const isLocalhost = parsedUrl.hostname === "localhost";
-
-        if (isIpAddress || hasTld || isLocalhost) {
-          return stripWwwPrefix(parsedUrl.hostname);
-        }
-      }
-    } catch (error: unknown) {
-      // Log the error in development for debugging
-      if (process.env.NODE_ENV === "development") {
-        console.error("Error parsing URL in extractDomain:", error);
-      }
-      // If URL parsing fails, proceed to treat as a company name
-    }
-  }
-
-  // If it doesn't parse as a URL or doesn't look like one, process as a company name
-  let cleaned = inputStr
-    .trim()
-    .toLowerCase()
-    .replaceAll(".", "")
-    .replaceAll(",", "")
-    .replaceAll("/", "")
-    .replaceAll("#", "")
-    .replaceAll("!", "")
-    .replaceAll("$", "")
-    .replaceAll("%", "")
-    .replaceAll("^", "")
-    .replaceAll("&", "")
-    .replaceAll("*", "")
-    .replaceAll(";", "")
-    .replaceAll(":", "")
-    .replaceAll("{", "")
-    .replaceAll("}", "")
-    .replaceAll("=", "")
-    .replaceAll("-", "")
-    .replaceAll("_", "")
-    .replaceAll("`", "")
-    .replaceAll("~", "")
-    .replaceAll("(", "")
-    .replaceAll(")", "") // Remove punctuation
-    .replaceAll(/\s+/g, ""); // Remove all whitespace
-
-  // Only remove specific suffixes that aren't part of the company name
-  // and only if they're at the very end of the string
-  const commonSuffixes = [
-    "llc",
-    "inc",
-    "ltd",
-    "llp",
-    "pllc",
-    "corp",
-    "corporation",
-    "co",
-    "limited",
-  ];
-  for (const suffix of commonSuffixes) {
-    if (cleaned.endsWith(suffix) && cleaned.length > suffix.length) {
-      cleaned = cleaned.slice(0, -suffix.length);
-      break; // Only remove one suffix
-    }
-  }
-
-  return cleaned;
+  return removeBusinessSuffixes(cleaned);
 }
 
 /**

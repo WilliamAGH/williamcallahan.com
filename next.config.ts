@@ -14,6 +14,10 @@
  */
 
 import { withSentryConfig } from "@sentry/nextjs";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { execSync } from "node:child_process";
+import os from "node:os";
 
 /**
  * @typedef {{ version: string }} PackageJson
@@ -38,8 +42,6 @@ function getPackageVersion(): string {
     process.env.NEXT_PHASE === "phase-production-build"
   ) {
     try {
-      const { readFileSync } = require("node:fs");
-      const { resolve } = require("node:path");
       const packageJson = JSON.parse(readFileSync(resolve("./package.json"), "utf8"));
       return packageJson.version;
     } catch {
@@ -77,7 +79,6 @@ function getGitHash(): string {
   // This only works locally where git is available
   if (process.env.NODE_ENV === "development") {
     try {
-      const { execSync } = require("node:child_process");
       const hash = execSync("git rev-parse --short HEAD").toString().trim();
       if (hash) {
         return hash;
@@ -383,7 +384,7 @@ const nextConfig = {
       }
 
       try {
-        const cpuCount = require("node:os").cpus().length;
+        const cpuCount = os.cpus().length;
         return cpuCount >= 2 ? 2 : 1;
       } catch {
         return 1; // Fallback for restricted environments
