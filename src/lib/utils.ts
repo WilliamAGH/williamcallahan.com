@@ -122,8 +122,7 @@ export function formatPercentage(value: number | undefined | null, decimalPlaces
  */
 export function formatDate(dateString: string | Date | undefined | number): string {
   if (typeof dateString !== "string" && !(dateString instanceof Date)) {
-    // console.warn('formatDate received an invalid type or undefined dateString');
-    return "Invalid Date"; // Or handle as per desired behavior for undefined/invalid input
+    return "Invalid Date";
   }
 
   const date = new Date(dateString);
@@ -265,8 +264,28 @@ export function normalizeCompanyOrDomain(urlOrCompany: string | number): string 
   let cleaned = inputStr
     .trim()
     .toLowerCase()
-    .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "") // Remove punctuation
-    .replace(/\s+/g, ""); // Remove all whitespace
+    .replaceAll(".", "")
+    .replaceAll(",", "")
+    .replaceAll("/", "")
+    .replaceAll("#", "")
+    .replaceAll("!", "")
+    .replaceAll("$", "")
+    .replaceAll("%", "")
+    .replaceAll("^", "")
+    .replaceAll("&", "")
+    .replaceAll("*", "")
+    .replaceAll(";", "")
+    .replaceAll(":", "")
+    .replaceAll("{", "")
+    .replaceAll("}", "")
+    .replaceAll("=", "")
+    .replaceAll("-", "")
+    .replaceAll("_", "")
+    .replaceAll("`", "")
+    .replaceAll("~", "")
+    .replaceAll("(", "")
+    .replaceAll(")", "") // Remove punctuation
+    .replaceAll(/\s+/g, ""); // Remove all whitespace
 
   // Only remove specific suffixes that aren't part of the company name
   // and only if they're at the very end of the string
