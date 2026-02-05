@@ -38,7 +38,12 @@ import {
   getCdnConfigFromEnv,
 } from "@/lib/utils/cdn-utils";
 import coverImageManifest from "@/data/blog/cover-image-map.json";
-import type { ArticleImageProps, ArticleGalleryProps, MDXContentProps } from "@/types/features";
+import type {
+  ArticleImageProps,
+  ArticleGalleryProps,
+  MDXContentProps,
+  BlogImageResolution,
+} from "@/types/features";
 import type { MetricsGroupProps } from "@/types/ui";
 import { BackgroundInfo } from "../../../ui/background-info.client";
 import { MDXCodeBlock } from "../../../ui/code-block/mdx-code-block-wrapper.client";
@@ -229,15 +234,21 @@ const coverImageMap: Record<string, string> = coverImageManifest;
 
 /**
  * Resolves a blog image path to its optimized source URL.
- * - Local paths (`/images/posts/...`) → CDN URLs via cover image map
+ * Returns a result object that makes optimization status explicit to the caller.
+ *
+ * Resolution paths:
+ * - Data URLs → passed through (optimized: true, already embedded)
+ * - Local `/images/posts/...` → CDN URLs via cover-image-map.json
  * - CDN URLs → passed through for Next.js optimization
  * - External URLs → proxied for SSRF protection
- * - Data URLs → passed through unchanged
+ *
+ * When optimization fails, returns `optimized: false` with `fallbackReason` so the
+ * caller can decide whether to log, display differently, or ignore.
  */
-function resolveBlogImageSrc(src: string): string {
-  // Data URLs pass through unchanged
+function resolveBlogImageSrc(src: string): BlogImageResolution {
+  // Data URLs pass through unchanged - already embedded, considered "optimized"
   if (src.startsWith("data:")) {
-    return src;
+    return { url: src, optimized: true };
   }
 
   // Local blog post images: convert to CDN URLs using the cover image map
@@ -249,16 +260,14 @@ function resolveBlogImageSrc(src: string): string {
       const s3Key = coverImageMap[baseName];
       if (s3Key) {
         const cdnConfig = getCdnConfigFromEnv();
-        return buildCdnUrl(s3Key, cdnConfig);
+        return { url: buildCdnUrl(s3Key, cdnConfig), optimized: true };
       }
     }
-    // Log missing mapping - this indicates cover-image-map.json needs updating
-    // Falls back to original path which public/ can serve, but CDN optimization is lost
-    console.warn(
-      `[resolveBlogImageSrc] Missing CDN mapping for blog image: ${src}. ` +
-        `Add entry to cover-image-map.json for optimized delivery.`,
-    );
-    return src;
+    return {
+      url: src,
+      optimized: false,
+      fallbackReason: `Missing CDN mapping for "${src}". Run: bun scripts/sync-blog-cover-images.ts`,
+    };
   }
 
   // For all other URLs, use getOptimizedImageSrc which handles:
@@ -267,14 +276,13 @@ function resolveBlogImageSrc(src: string): string {
   // - Other local paths → pass-through
   const optimizedSrc = getOptimizedImageSrc(src);
   if (optimizedSrc === undefined) {
-    // Log when optimization lookup fails - caller should investigate the URL format
-    console.warn(
-      `[resolveBlogImageSrc] Could not determine optimized source for: ${src}. ` +
-        `Using original URL without optimization.`,
-    );
-    return src;
+    return {
+      url: src,
+      optimized: false,
+      fallbackReason: `Could not determine optimized source for "${src}"`,
+    };
   }
-  return optimizedSrc;
+  return { url: optimizedSrc, optimized: true };
 }
 
 /**
@@ -318,8 +326,17 @@ const MdxImage = ({
   }
 
   // Resolve the image source to an optimized URL
-  const resolvedSrc = resolveBlogImageSrc(src);
+  const resolution = resolveBlogImageSrc(src);
   const isDataUrl = src.startsWith("data:");
+
+  // [RC1a] Log degradation in development so missing mappings are surfaced
+  if (
+    !resolution.optimized &&
+    resolution.fallbackReason &&
+    process.env.NODE_ENV === "development"
+  ) {
+    console.warn(`[MdxImage] ${resolution.fallbackReason}`);
+  }
 
   // Choose the appropriate image component based on URL type
   let content: JSX.Element;
@@ -340,10 +357,10 @@ const MdxImage = ({
     // All other URLs: use Next.js Image with proper optimization
     // - CDN URLs: Next.js optimizer handles WebP conversion, srcset
     // - Proxy URLs: bypass optimizer (already processed by API route)
-    const useUnoptimized = shouldBypassOptimizer(resolvedSrc);
+    const useUnoptimized = shouldBypassOptimizer(resolution.url);
     content = (
       <Image
-        src={resolvedSrc}
+        src={resolution.url}
         alt={alt}
         width={1600}
         height={800}
