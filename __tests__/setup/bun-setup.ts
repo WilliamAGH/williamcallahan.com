@@ -18,6 +18,8 @@ try {
   console.log("✅ Using native Node 22 fetch API - no polyfills required");
 } catch (error) {
   console.error("❌ Failed to register HappyDOM environment for Bun tests:", error);
+  // Tests cannot proceed without DOM environment - fail fast per [RC1b]
+  throw error;
 }
 
 // Polyfill clipboard API for testing, as it's not available in HappyDOM
@@ -41,5 +43,7 @@ if (typeof navigator !== "undefined") {
     console.log("✅ Clipboard API polyfill added for Bun tests");
   } catch (error) {
     console.error("❌ Failed to setup clipboard polyfill for Bun tests:", error);
+    // Clipboard-dependent tests will fail mysteriously without this - fail fast per [RC1b]
+    throw error;
   }
 }
