@@ -16,6 +16,7 @@ import { listS3Objects } from "@/lib/s3/objects";
 import { envLogger } from "@/lib/utils/env-logger";
 import { cacheContextGuards } from "@/lib/cache";
 import {
+  buildAnalysisBasePath,
   buildAnalysisCacheTags,
   buildAnalysisVersionsCacheTags,
   buildLatestAnalysisKey,
@@ -173,6 +174,33 @@ export async function getCachedAnalysis(
 
   // Delegate to the internal cached function
   return getCachedAnalysisInternal(domain, id);
+}
+
+/**
+ * List all item IDs that have cached analysis for a domain.
+ * Returns IDs sorted alphabetically.
+ *
+ * @param domain - The analysis domain
+ * @returns Array of item IDs with cached analysis
+ */
+export async function listAnalysisItemIds(domain: AnalysisDomain): Promise<string[]> {
+  "use cache";
+
+  cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 3600 }); // 1 hour
+  applyCacheTags(buildAnalysisCacheTags(domain, "inventory"));
+
+  const prefix = `${buildAnalysisBasePath(domain)}/`;
+  const keys = await listS3Objects(prefix);
+  const ids = new Set<string>();
+
+  for (const key of keys) {
+    if (!key.startsWith(prefix) || !key.endsWith("/latest.json")) continue;
+    const remainder = key.slice(prefix.length);
+    const id = remainder.split("/")[0];
+    if (id) ids.add(id);
+  }
+
+  return Array.from(ids).toSorted();
 }
 
 /**
