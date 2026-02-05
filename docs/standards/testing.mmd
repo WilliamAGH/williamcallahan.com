@@ -1,0 +1,58 @@
+graph TD
+    subgraph "I. Test Runner"
+        direction LR
+        A1(bun run test) --> A2(✅ Vitest Runner)
+        A3(bun test) --> A4(❌ Bypasses Vitest Config)
+    end
+
+    subgraph "II. Config"
+        B1[vitest.config.ts]
+        B2[config/vitest/setup.ts]
+        B3[config/vitest/env-setup.ts]
+        B4[__tests__/__mocks__/]
+    end
+
+    subgraph "III. Strategy"
+        C1[Unit Tests]
+        C2[Component Tests]
+        C3[Integration Tests]
+        C4[E2E Smoke Tests]
+    end
+
+    subgraph "IV. Docs"
+        D1[<a href='https://nextjs.org/docs/app/guides/testing/vitest'>Next.js Vitest Guide</a>]
+        D2[<a href='https://vitest.dev/config/'>Vitest Config</a>]
+    end
+
+    subgraph "V. CI/CD"
+        E1[bun run validate]
+        E2[Test Results]
+        E3[Coverage Reports]
+    end
+
+    A1 --> B1
+    B1 --> B2
+    B1 --> B3
+    B1 --> B4
+
+    A2 --> C1
+    A2 --> C2
+    A2 --> C3
+    A2 --> C4
+
+    C1 --> E2
+    C2 --> E2
+    C3 --> E2
+    C4 --> E2
+
+    E2 --> E3
+    E1 --> E2
+
+    classDef runner fill:#cde4f2,stroke:#004085
+    class A1,A2,A3 runner
+
+    classDef config fill:#f8d7da,stroke:#721c24
+    class B1,B2,B3,B4 config
+
+    classDef ci fill:#d1ecf1,stroke:#0c5460
+    class E1,E2,E3 ci

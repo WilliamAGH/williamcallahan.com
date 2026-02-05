@@ -1,33 +1,34 @@
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
+import type { MockedFunction } from "vitest";
 
 // Mock dependencies
-jest.mock("@/lib/data-access/investments");
-jest.mock("@/lib/bookmarks/bookmarks-data-access.server");
-jest.mock("@/data/experience", () => ({
+vi.mock("@/lib/data-access/investments");
+vi.mock("@/lib/bookmarks/bookmarks-data-access.server");
+vi.mock("@/data/experience", () => ({
   experiences: [
     { name: "Company A", website: "https://example-a.com" },
     { name: "Company B", website: "https://example-b.com" },
   ],
 }));
-jest.mock("@/data/education", () => ({
+vi.mock("@/data/education", () => ({
   education: [{ name: "School A", website: "https://school-a.edu" }],
   certifications: [{ name: "Cert A", website: "https://cert-a.org" }],
   recentCourses: [{ name: "Course A", website: "https://course-a.com" }],
 }));
 
 describe("DataFetchManager Performance Optimizations", () => {
-  let mockGetInvestmentDomainsAndIds: jest.MockedFunction<typeof getInvestmentDomainsAndIds>;
-  let mockGetBookmarks: jest.MockedFunction<typeof getBookmarks>;
+  let mockGetInvestmentDomainsAndIds: MockedFunction<typeof getInvestmentDomainsAndIds>;
+  let mockGetBookmarks: MockedFunction<typeof getBookmarks>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    mockGetInvestmentDomainsAndIds = getInvestmentDomainsAndIds as jest.MockedFunction<
+    mockGetInvestmentDomainsAndIds = getInvestmentDomainsAndIds as MockedFunction<
       typeof getInvestmentDomainsAndIds
     >;
-    mockGetBookmarks = getBookmarks as jest.MockedFunction<typeof getBookmarks>;
+    mockGetBookmarks = getBookmarks as MockedFunction<typeof getBookmarks>;
 
     // Mock return values
     mockGetInvestmentDomainsAndIds.mockResolvedValue([
@@ -58,13 +59,13 @@ describe("DataFetchManager Performance Optimizations", () => {
 
       mockGetInvestmentDomainsAndIds.mockImplementation(async () => {
         callTimes.investments = Date.now() - startTime;
-        await new Promise(resolve => setTimeout(resolve, 50)); // Simulate delay
+        await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate delay
         return [["investment-a.com", "inv-1"]];
       });
 
       mockGetBookmarks.mockImplementation(async () => {
         callTimes.bookmarks = Date.now() - startTime;
-        await new Promise(resolve => setTimeout(resolve, 50)); // Simulate delay
+        await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate delay
         return [
           {
             id: "bookmark-1",
@@ -180,12 +181,12 @@ describe("DataFetchManager Performance Optimizations", () => {
     it("should complete domain collection faster with parallel execution", async () => {
       // Add delays to simulate real network/database calls
       mockGetInvestmentDomainsAndIds.mockImplementation(async () => {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         return [["investment-a.com", "inv-1"]];
       });
 
       mockGetBookmarks.mockImplementation(async () => {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         return [
           {
             id: "bookmark-1",

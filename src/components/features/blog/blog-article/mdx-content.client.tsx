@@ -26,11 +26,24 @@ import React, {
 } from "react";
 import * as jsxProdRuntime from "react/jsx-runtime";
 import * as jsxDevRuntime from "react/jsx-dev-runtime";
+import Image from "next/image";
 import { Base64Image } from "@/components/utils/base64-image.client";
 import { CollapseDropdownProvider } from "@/lib/context/collapse-dropdown-context.client";
 import { cn } from "@/lib/utils";
 import { processSvgTransforms } from "@/lib/image-handling/svg-transform-fix";
-import type { ArticleImageProps, ArticleGalleryProps, MDXContentProps } from "@/types/features";
+import {
+  getOptimizedImageSrc,
+  shouldBypassOptimizer,
+  buildCdnUrl,
+  getCdnConfigFromEnv,
+} from "@/lib/utils/cdn-utils";
+import coverImageManifest from "@/data/blog/cover-image-map.json";
+import {
+  BlogImageResolutionError,
+  type ArticleImageProps,
+  type ArticleGalleryProps,
+  type MDXContentProps,
+} from "@/types/features";
 import type { MetricsGroupProps } from "@/types/ui";
 import { BackgroundInfo } from "../../../ui/background-info.client";
 import { MDXCodeBlock } from "../../../ui/code-block/mdx-code-block-wrapper.client";
@@ -50,7 +63,7 @@ const compiledMdxCache = new Map<string, ComponentType>();
 
 const withKeyedChildren = (children: React.ReactNode, prefix: string): React.ReactNode => {
   let index = 0;
-  return React.Children.map(children, child => {
+  return React.Children.map(children, (child) => {
     if (!isValidElement(child)) {
       return child;
     }
@@ -90,7 +103,10 @@ const runtimeHelpers =
       };
 
 const buildMdxComponent = (
-  content: import("next-mdx-remote").MDXRemoteSerializeResult<Record<string, unknown>, Record<string, unknown>>,
+  content: import("next-mdx-remote").MDXRemoteSerializeResult<
+    Record<string, unknown>,
+    Record<string, unknown>
+  >,
 ): ComponentType => {
   const cached = compiledMdxCache.get(content.compiledSource);
   if (cached) {
@@ -118,14 +134,15 @@ const buildMdxComponent = (
       ...fnArgs: unknown[]
     ) => { default: ComponentType };
     const { default: Component } = hydrateFn.apply(hydrateFn, values) as { default: ComponentType };
-    const SafeComponent: ComponentType = componentProps => <Component {...componentProps} />;
+    const SafeComponent: ComponentType = (componentProps) => <Component {...componentProps} />;
     compiledMdxCache.set(content.compiledSource, SafeComponent);
     return SafeComponent;
   } catch (error) {
     console.error("[MDXContent] Failed to evaluate compiled MDX source", error);
     const Fallback: ComponentType = () => (
       <p className="text-red-600 dark:text-red-400">
-        Unable to render this portion of the article. Please refresh or contact support if the issue persists.
+        Unable to render this portion of the article. Please refresh or contact support if the issue
+        persists.
       </p>
     );
     return Fallback;
@@ -163,7 +180,9 @@ const PreRenderer = (props: ComponentProps<"pre">) => {
   // Check 1: Class on the <pre> tag itself (e.g., from Rehype Pretty Code) or data attributes
   if (
     hasCodeBlockAttrs ||
-    (props.className && typeof props.className === "string" && props.className.includes("language-"))
+    (props.className &&
+      typeof props.className === "string" &&
+      props.className.includes("language-"))
   ) {
     isProperCodeBlock = true;
   }
@@ -172,7 +191,7 @@ const PreRenderer = (props: ComponentProps<"pre">) => {
   if (
     !isProperCodeBlock &&
     React.Children.toArray(props.children).some(
-      child =>
+      (child) =>
         isValidElement<{ className?: string }>(child) &&
         child.type === "code" &&
         typeof child.props.className === "string" &&
@@ -197,21 +216,75 @@ const PreRenderer = (props: ComponentProps<"pre">) => {
   // Extract className from the first code child element for proper syntax highlighting
   // Defensively find the first <code> element to handle cases where MDX emits multiple children
   const firstCodeChild = React.Children.toArray(props.children).find(
-    child => isValidElement<{ className?: string }>(child) && child.type === "code",
+    (child) => isValidElement<{ className?: string }>(child) && child.type === "code",
   ) as ReactElement<{ className?: string }> | undefined;
 
   const childClassName =
-    typeof firstCodeChild?.props?.className === "string" ? firstCodeChild.props.className : undefined;
+    typeof firstCodeChild?.props?.className === "string"
+      ? firstCodeChild.props.className
+      : undefined;
 
   // Use context to determine if we're in a macOS frame
-  return <MDXCodeBlock {...props} embeddedInTabFrame={isInMacOSFrame} className={cn(childClassName)} />;
+  return (
+    <MDXCodeBlock {...props} embeddedInTabFrame={isInMacOSFrame} className={cn(childClassName)} />
+  );
 };
+
+const coverImageMap: Record<string, string> = coverImageManifest;
+
+/**
+ * Resolves a blog image path to its optimized source URL.
+ * Throws BlogImageResolutionError if optimization fails ([RC1a] - no silent fallbacks).
+ *
+ * Resolution paths:
+ * - Data URLs → passed through unchanged (already embedded)
+ * - Local `/images/posts/...` → CDN URLs via cover-image-map.json
+ * - CDN URLs → passed through for Next.js optimization
+ * - External URLs → proxied for SSRF protection
+ *
+ * @throws {BlogImageResolutionError} When image cannot be resolved to optimized URL
+ */
+function resolveBlogImageSrc(src: string): string {
+  // Data URLs pass through unchanged - already embedded
+  if (src.startsWith("data:")) {
+    return src;
+  }
+
+  // Local blog post images: convert to CDN URLs using the cover image map
+  // eslint-disable-next-line s3/no-hardcoded-images -- Path prefix check, not hardcoded image
+  if (src.startsWith("/images/posts/")) {
+    const filename = src.split("/").pop();
+    if (filename) {
+      const baseName = filename.replace(/\.[^.]+$/, "");
+      const s3Key = coverImageMap[baseName];
+      if (s3Key) {
+        const cdnConfig = getCdnConfigFromEnv();
+        return buildCdnUrl(s3Key, cdnConfig);
+      }
+    }
+    throw new BlogImageResolutionError(
+      src,
+      `Missing CDN mapping. Run: bun scripts/sync-blog-cover-images.ts`,
+    );
+  }
+
+  // For all other URLs, use getOptimizedImageSrc which handles:
+  // - CDN URLs → direct pass-through
+  // - External URLs → proxy for SSRF protection
+  // - Other local paths → pass-through
+  const optimizedSrc = getOptimizedImageSrc(src);
+  if (optimizedSrc === undefined) {
+    throw new BlogImageResolutionError(src, `Unsupported URL format for optimization`);
+  }
+  return optimizedSrc;
+}
 
 /**
  * @component MdxImage
  * Renders an image within MDX content with caption support and width controls.
  * - Data URLs render via Base64Image for proper sizing.
- * - External URLs render as a plain <img>, intentionally without macOS window chrome.
+ * - Local paths (`/images/posts/...`) are resolved to CDN URLs for optimization.
+ * - External URLs are proxied for SSRF protection.
  * - Defaults to ~75% width on large screens; override with size, widthPct, or vwPct.
  *
  * @param {ArticleImageProps} props - The properties for the MdxImage component.
@@ -236,8 +309,6 @@ const MdxImage = ({
 }: ArticleImageProps): JSX.Element | null => {
   if (typeof src !== "string" || !src) return null;
 
-  const isDataUrl = src.startsWith("data:");
-
   // Responsive width defaults: center and keep images narrower than the content width
   // Default (medium): 75% on large screens, wider on small screens for readability
   let widthClass = "w-full md:w-5/6 lg:w-3/4";
@@ -248,26 +319,43 @@ const MdxImage = ({
     widthClass = "w-full sm:w-5/6 md:w-2/3 lg:w-1/2";
   }
 
-  // Choose the appropriate image component based on whether the src is a data URL or an external URL.
-  const content = isDataUrl ? (
-    <Base64Image
-      src={src}
-      alt={alt}
-      width={1600} // Intrinsic width for aspect ratio calculation, actual display width controlled by CSS
-      height={800} // Intrinsic height for aspect ratio calculation
-      className="rounded-lg shadow-md w-full h-auto"
-      priority={priority}
-    />
-  ) : (
-    <img
-      src={src}
-      alt={alt}
-      width={1600}
-      height={800}
-      loading={priority ? "eager" : "lazy"}
-      className="rounded-lg shadow-md w-full h-auto"
-    />
-  );
+  // Resolve the image source to an optimized URL (throws on failure per [RC1a])
+  const resolvedSrc = resolveBlogImageSrc(src);
+  const isDataUrl = src.startsWith("data:");
+
+  // Choose the appropriate image component based on URL type
+  let content: JSX.Element;
+
+  if (isDataUrl) {
+    // Data URLs: use Base64Image component (handles hydration properly)
+    content = (
+      <Base64Image
+        src={src}
+        alt={alt}
+        width={1600}
+        height={800}
+        className="rounded-lg shadow-md w-full h-auto"
+        priority={priority}
+      />
+    );
+  } else {
+    // All other URLs: use Next.js Image with proper optimization
+    // - CDN URLs: Next.js optimizer handles WebP conversion, srcset
+    // - Proxy URLs: bypass optimizer (already processed by API route)
+    const useUnoptimized = shouldBypassOptimizer(resolvedSrc);
+    content = (
+      <Image
+        src={resolvedSrc}
+        alt={alt}
+        width={1600}
+        height={800}
+        className="rounded-lg shadow-md w-full h-auto"
+        priority={priority}
+        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 83vw, 75vw"
+        {...(useUnoptimized ? { unoptimized: true } : {})}
+      />
+    );
+  }
 
   const clampToStep = (value: number) => {
     const clamped = Math.max(0, Math.min(100, value));
@@ -284,7 +372,11 @@ const MdxImage = ({
   return (
     <figure className={cn(widthClass, "mx-auto my-6", widthModifierClass)}>
       {content}
-      {caption && <figcaption className="mt-3 text-center text-sm text-muted-foreground">{caption}</figcaption>}
+      {caption && (
+        <figcaption className="mt-3 text-center text-sm text-muted-foreground">
+          {caption}
+        </figcaption>
+      )}
     </figure>
   );
 };
@@ -301,7 +393,9 @@ const MdxImage = ({
  */
 const ArticleGallery = ({ children, className = "" }: ArticleGalleryProps): JSX.Element => {
   return (
-    <div className={`flow-root space-y-8 my-6 p-4 bg-gray-50 dark:bg-gray-800/30 rounded-lg ${className}`}>
+    <div
+      className={`flow-root space-y-8 my-6 p-4 bg-gray-50 dark:bg-gray-800/30 rounded-lg ${className}`}
+    >
       {toKeyed(children)}
     </div>
   );
@@ -433,12 +527,17 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
       // Log a concise report with surrounding context
       const report = Array.from(nestedParagraphs)
         .slice(0, 10)
-        .map(node => {
+        .map((node) => {
           const outer = node.closest("p");
           const outerId = outer?.getAttribute("id") || "";
           const outerClass = outer?.getAttribute("class") || "";
           const innerClass = (node as HTMLElement).className || "";
-          return { outerId, outerClass, innerClass, innerHTML: (node as HTMLElement).innerHTML.slice(0, 120) };
+          return {
+            outerId,
+            outerClass,
+            innerClass,
+            innerHTML: (node as HTMLElement).innerHTML.slice(0, 120),
+          };
         });
       // Group logs (development only)
       console.groupCollapsed(
@@ -453,8 +552,14 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     if (footnoteAnchors.length > 0) {
       const sample = Array.from(footnoteAnchors)
         .slice(0, 10)
-        .map(a => ({ href: (a as HTMLAnchorElement).getAttribute("href"), text: a.textContent?.slice(0, 60) }));
-      console.debug("[MDX Diagnostics] Footnote anchors detected:", { count: footnoteAnchors.length, sample });
+        .map((a) => ({
+          href: (a as HTMLAnchorElement).getAttribute("href"),
+          text: a.textContent?.slice(0, 60),
+        }));
+      console.debug("[MDX Diagnostics] Footnote anchors detected:", {
+        count: footnoteAnchors.length,
+        sample,
+      });
     }
 
     // 3) Superscripts inventory
@@ -552,7 +657,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
           if (
             isValidElement<{ children?: React.ReactNode }>(node) &&
             node.type === "p" &&
-            Object.prototype.hasOwnProperty.call(node, "props")
+            Object.hasOwn(node, "props")
           ) {
             return (node as React.ReactElement<{ children?: React.ReactNode }>).props.children;
           }
@@ -607,28 +712,40 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
         </sup>
       ),
       /** Renderer for `<h1>` elements, applying specific Tailwind CSS classes for styling. */
-      h1: (props: ComponentProps<"h1">) => (
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight" {...props} />
+      h1: ({ children, ...props }: ComponentProps<"h1">) => (
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight" {...props}>
+          {children}
+        </h1>
       ),
       /** Renderer for `<h2>` elements, applying specific Tailwind CSS classes for styling. */
-      h2: (props: ComponentProps<"h2">) => (
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight" {...props} />
+      h2: ({ children, ...props }: ComponentProps<"h2">) => (
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight" {...props}>
+          {children}
+        </h2>
       ),
       /** Renderer for `<h3>` elements, applying specific Tailwind CSS classes for styling. */
-      h3: (props: ComponentProps<"h3">) => (
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight" {...props} />
+      h3: ({ children, ...props }: ComponentProps<"h3">) => (
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight" {...props}>
+          {children}
+        </h3>
       ),
       // Remove custom <p> renderer to avoid ever creating nested <p> inside raw HTML structures.
       // Let Tailwind Typography's prose styles handle paragraph styling globally.
       /** Renderer for `<ul>` (unordered list) elements. Styling primarily handled by `prose`. */
       ul: ({ className, children, ...rest }: ComponentProps<"ul">) => (
-        <ul {...rest} className={cn("pl-6 list-disc text-gray-700 dark:text-gray-300 text-base", className)}>
+        <ul
+          {...rest}
+          className={cn("pl-6 list-disc text-gray-700 dark:text-gray-300 text-base", className)}
+        >
           {withKeyedChildren(children, "li")}
         </ul>
       ),
       /** Renderer for `<ol>` (ordered list) elements. Styling primarily handled by `prose`. */
       ol: ({ className, children, ...rest }: ComponentProps<"ol">) => (
-        <ol {...rest} className={cn("pl-6 list-decimal text-gray-700 dark:text-gray-300 text-base", className)}>
+        <ol
+          {...rest}
+          className={cn("pl-6 list-decimal text-gray-700 dark:text-gray-300 text-base", className)}
+        >
           {withKeyedChildren(children, "li")}
         </ol>
       ),
@@ -698,7 +815,10 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
       ),
       /** Renderer for `<td>` (table data cell) elements, applying text and padding styling. */
       td: (props: ComponentProps<"td">) => (
-        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap" {...props} />
+        <td
+          className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap"
+          {...props}
+        />
       ),
       /**
        * Renderer for the custom `TweetEmbed` component.
@@ -708,7 +828,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
       TweetEmbed: TweetEmbedRenderer,
     };
   }, []);
-  const CompiledMdxComponent = useMemo(() => buildMdxComponent(content), [content.compiledSource]);
+  const CompiledMdxComponent = useMemo(() => buildMdxComponent(content), [content]);
 
   return (
     <CollapseDropdownProvider>

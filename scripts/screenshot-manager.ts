@@ -22,10 +22,14 @@
  *   --limit N  - Process only N bookmarks (for testing)
  */
 
-import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { UnifiedBookmark } from "@/types";
-import type { BookmarksIndex } from "@/types/bookmark";
+import {
+  bookmarksIndexSchema,
+  unifiedBookmarksArraySchema,
+  type BookmarksIndex,
+} from "@/types/bookmark";
 
 // Command line argument parsing
 const args = process.argv.slice(2);
@@ -77,26 +81,35 @@ async function checkScreenshotOnlyBookmarks() {
   console.log("─".repeat(40));
 
   try {
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
 
     if (!bookmarks || bookmarks.length === 0) {
       console.log("❌ No bookmarks found");
       return false;
     }
 
-    const screenshotOnly = bookmarks.filter(b => hasScreenshot(b) && !hasOgImage(b));
-    const ogOnly = bookmarks.filter(b => !hasScreenshot(b) && hasOgImage(b));
-    const both = bookmarks.filter(b => hasScreenshot(b) && hasOgImage(b));
-    const neither = bookmarks.filter(b => !hasScreenshot(b) && !hasOgImage(b));
+    const screenshotOnly = bookmarks.filter((b) => hasScreenshot(b) && !hasOgImage(b));
+    const ogOnly = bookmarks.filter((b) => !hasScreenshot(b) && hasOgImage(b));
+    const both = bookmarks.filter((b) => hasScreenshot(b) && hasOgImage(b));
+    const neither = bookmarks.filter((b) => !hasScreenshot(b) && !hasOgImage(b));
 
     console.log(`Total bookmarks: ${bookmarks.length}`);
     console.log(`\n📊 Image Coverage:`);
-    console.log(`  Screenshot + OG: ${both.length} (${((both.length / bookmarks.length) * 100).toFixed(1)}%)`);
+    console.log(
+      `  Screenshot + OG: ${both.length} (${((both.length / bookmarks.length) * 100).toFixed(1)}%)`,
+    );
     console.log(
       `  Screenshot only: ${screenshotOnly.length} (${((screenshotOnly.length / bookmarks.length) * 100).toFixed(1)}%)`,
     );
-    console.log(`  OG image only: ${ogOnly.length} (${((ogOnly.length / bookmarks.length) * 100).toFixed(1)}%)`);
-    console.log(`  No images: ${neither.length} (${((neither.length / bookmarks.length) * 100).toFixed(1)}%)`);
+    console.log(
+      `  OG image only: ${ogOnly.length} (${((ogOnly.length / bookmarks.length) * 100).toFixed(1)}%)`,
+    );
+    console.log(
+      `  No images: ${neither.length} (${((neither.length / bookmarks.length) * 100).toFixed(1)}%)`,
+    );
 
     if (screenshotOnly.length > 0) {
       console.log("\n🔍 SAMPLE SCREENSHOT-ONLY BOOKMARKS:");
@@ -125,7 +138,10 @@ async function verifyScreenshotEnrichment() {
   console.log("─".repeat(40));
 
   try {
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
 
     if (!bookmarks || bookmarks.length === 0) {
       console.log("❌ No bookmarks found");
@@ -136,14 +152,16 @@ async function verifyScreenshotEnrichment() {
     const screenshotFields: Record<string, number> = {};
     const ogFields: Record<string, number> = {};
 
-    bookmarks.forEach(b => {
+    bookmarks.forEach((b) => {
       // Check screenshot fields
       if (b.content?.screenshotAssetId)
-        screenshotFields["content.screenshotAssetId"] = (screenshotFields["content.screenshotAssetId"] || 0) + 1;
+        screenshotFields["content.screenshotAssetId"] =
+          (screenshotFields["content.screenshotAssetId"] || 0) + 1;
 
       // Check OG fields
       if (b.ogImage) ogFields.ogImage = (ogFields.ogImage || 0) + 1;
-      if (b.content?.imageUrl) ogFields["content.imageUrl"] = (ogFields["content.imageUrl"] || 0) + 1;
+      if (b.content?.imageUrl)
+        ogFields["content.imageUrl"] = (ogFields["content.imageUrl"] || 0) + 1;
     });
 
     console.log("📷 Screenshot Field Usage:");
@@ -161,14 +179,14 @@ async function verifyScreenshotEnrichment() {
     // Check for potential data quality issues
     console.log("\n⚠️  Data Quality Checks:");
 
-    const invalidScreenshots = bookmarks.filter(b => {
+    const invalidScreenshots = bookmarks.filter((b) => {
       const url = getScreenshotUrl(b);
       return url && (!url.startsWith("http") || url.includes("undefined") || url.includes("null"));
     });
 
     if (invalidScreenshots.length > 0) {
       console.log(`  ❌ ${invalidScreenshots.length} bookmarks with invalid screenshot URLs`);
-      invalidScreenshots.slice(0, 3).forEach(b => {
+      invalidScreenshots.slice(0, 3).forEach((b) => {
         console.log(`    - ${b.id}: ${getScreenshotUrl(b)}`);
       });
     } else {
@@ -176,7 +194,7 @@ async function verifyScreenshotEnrichment() {
     }
 
     const duplicateImages = new Map<string, number>();
-    bookmarks.forEach(b => {
+    bookmarks.forEach((b) => {
       const url = b.ogImage;
       if (url) {
         duplicateImages.set(url, (duplicateImages.get(url) || 0) + 1);
@@ -205,14 +223,17 @@ async function fixMissingOgImages() {
   console.log("─".repeat(40));
 
   try {
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
 
     if (!bookmarks || bookmarks.length === 0) {
       console.log("❌ No bookmarks found");
       return false;
     }
 
-    const needsFix = bookmarks.filter(b => hasScreenshot(b) && !hasOgImage(b));
+    const needsFix = bookmarks.filter((b) => hasScreenshot(b) && !hasOgImage(b));
     const toProcess = limit ? needsFix.slice(0, limit) : needsFix;
 
     console.log(`Found ${needsFix.length} bookmarks needing OG image fix`);
@@ -221,8 +242,8 @@ async function fixMissingOgImages() {
     }
 
     let fixed = 0;
-    const updated = bookmarks.map(bookmark => {
-      if (!toProcess.find(b => b.id === bookmark.id)) {
+    const updated = bookmarks.map((bookmark) => {
+      if (!toProcess.some((b) => b.id === bookmark.id)) {
         return bookmark;
       }
 
@@ -248,7 +269,10 @@ async function fixMissingOgImages() {
       await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, updated);
 
       // Update index with new timestamp
-      const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+      const index = await readJsonS3Optional<BookmarksIndex>(
+        BOOKMARKS_S3_PATHS.INDEX,
+        bookmarksIndexSchema,
+      );
       if (index) {
         await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, {
           ...index,
@@ -271,7 +295,10 @@ async function fixDirectScreenshots() {
   console.log("─".repeat(40));
 
   try {
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
 
     if (!bookmarks || bookmarks.length === 0) {
       console.log("❌ No bookmarks found");
@@ -279,7 +306,7 @@ async function fixDirectScreenshots() {
     }
 
     // Find bookmarks with asset IDs but no OG images
-    const needsFix = bookmarks.filter(b => b.content?.screenshotAssetId && !b.ogImage);
+    const needsFix = bookmarks.filter((b) => b.content?.screenshotAssetId && !b.ogImage);
 
     const toProcess = limit ? needsFix.slice(0, limit) : needsFix;
 
@@ -289,8 +316,8 @@ async function fixDirectScreenshots() {
     }
 
     let fixed = 0;
-    const updated = bookmarks.map(bookmark => {
-      if (!toProcess.find(b => b.id === bookmark.id)) {
+    const updated = bookmarks.map((bookmark) => {
+      if (!toProcess.some((b) => b.id === bookmark.id)) {
         return bookmark;
       }
 
@@ -383,7 +410,7 @@ async function main() {
         console.log(`${result ? "✅" : "❌"} ${cmd}`);
       });
 
-      success = Object.values(results).every(r => r);
+      success = Object.values(results).every((r) => r);
 
       if (success) {
         console.log("\n💡 Available fix commands:");
@@ -404,7 +431,7 @@ async function main() {
   }
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error("Fatal error:", error);
   process.exit(1);
 });

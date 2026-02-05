@@ -50,7 +50,9 @@ export class ErrorBoundary extends Component<LocalErrorBoundaryProps, ErrorBound
           typeof window !== "undefined" &&
           ((typeof window.innerWidth !== "undefined" && window.innerWidth <= 768) ||
             (typeof navigator !== "undefined" &&
-              /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)));
+              /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                navigator.userAgent,
+              )));
 
         // For mobile devices, render an even more subtle fallback
         if (isMobileDevice) {

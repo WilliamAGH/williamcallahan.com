@@ -61,7 +61,11 @@ export default async function ThoughtsPage() {
     <>
       <JsonLdScript data={jsonLdData} />
       <ThoughtsWindow windowTitle="~/thoughts">
-        <ThoughtsListServer thoughts={thoughts} title={displayTitle} description={displayDescription} />
+        <ThoughtsListServer
+          thoughts={thoughts}
+          title={displayTitle}
+          description={displayDescription}
+        />
       </ThoughtsWindow>
     </>
   );

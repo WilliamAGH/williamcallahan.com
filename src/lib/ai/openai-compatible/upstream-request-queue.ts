@@ -1,7 +1,10 @@
 import "server-only";
 
 import crypto from "node:crypto";
-import type { AiUpstreamQueuePosition, AiUpstreamQueueSnapshot } from "@/types/ai-openai-compatible";
+import type {
+  AiUpstreamQueuePosition,
+  AiUpstreamQueueSnapshot,
+} from "@/types/ai-openai-compatible";
 
 function createDeferred<T>(): {
   promise: Promise<T>;
@@ -10,9 +13,9 @@ function createDeferred<T>(): {
 } {
   let resolve!: (value: T) => void;
   let reject!: (error: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
+  const promise = new Promise<T>((_resolve, _reject) => {
+    resolve = _resolve;
+    reject = _reject;
   });
   return { promise, resolve, reject };
 }
@@ -36,6 +39,7 @@ export class UpstreamRequestQueue {
       run: () => Promise<string>;
     }>
   >();
+  private readonly runningTasks = new Map<string, ReturnType<typeof createDeferred<string>>>();
   private readonly prioritiesDesc: number[] = [];
   private draining = false;
 
@@ -70,7 +74,7 @@ export class UpstreamRequestQueue {
     for (const priority of this.prioritiesDesc) {
       const tasks = this.pendingByPriority.get(priority);
       if (!tasks || tasks.length === 0) continue;
-      const index = tasks.findIndex(task => task.id === taskId);
+      const index = tasks.findIndex((task) => task.id === taskId);
       if (index !== -1) {
         return {
           ...this.snapshot,
@@ -122,6 +126,13 @@ export class UpstreamRequestQueue {
         const abortError = new DOMException("Request aborted", "AbortError");
         started.reject(abortError);
         result.reject(abortError);
+        return;
+      }
+
+      const running = this.runningTasks.get(id);
+      if (running) {
+        const abortError = new DOMException("Request aborted", "AbortError");
+        running.reject(abortError);
       }
     };
 
@@ -158,7 +169,7 @@ export class UpstreamRequestQueue {
     for (const priority of this.prioritiesDesc) {
       const tasks = this.pendingByPriority.get(priority);
       if (!tasks || tasks.length === 0) continue;
-      const next = tasks.filter(task => task.id !== taskId);
+      const next = tasks.filter((task) => task.id !== taskId);
       if (next.length !== tasks.length) {
         removed = true;
         if (next.length === 0) {
@@ -228,17 +239,20 @@ export class UpstreamRequestQueue {
         }
 
         this.running += 1;
+        this.runningTasks.set(task.id, task.result);
         task.started.resolve();
 
         void task
           .run()
-          .then(value => {
+          .then((value) => {
             task.result.resolve(value);
+            return undefined;
           })
-          .catch(error => {
+          .catch((error) => {
             task.result.reject(error);
           })
           .finally(() => {
+            this.runningTasks.delete(task.id);
             this.running -= 1;
             this.drain();
           });
@@ -251,7 +265,10 @@ export class UpstreamRequestQueue {
 
 const queues = new Map<string, UpstreamRequestQueue>();
 
-export function getUpstreamRequestQueue(args: { key: string; maxParallel: number }): UpstreamRequestQueue {
+export function getUpstreamRequestQueue(args: {
+  key: string;
+  maxParallel: number;
+}): UpstreamRequestQueue {
   const existing = queues.get(args.key);
   if (existing) {
     existing.setMaxParallel(args.maxParallel);

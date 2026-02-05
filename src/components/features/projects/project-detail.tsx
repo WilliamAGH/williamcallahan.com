@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useMemo, useEffect, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import type { ProjectDetailProps } from "@/types/features/projects";
@@ -24,9 +24,10 @@ import {
   Github,
 } from "lucide-react";
 import { safeExternalHref, getDisplayHostname } from "@/lib/utils/url-utils";
-import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { buildCdnUrl, getCdnConfigFromEnv, getOptimizedImageSrc } from "@/lib/utils/cdn-utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 import { RegistryLinks } from "@/components/ui/registry-links.client";
+import { ProjectAiAnalysis } from "./project-ai-analysis.client";
 
 /**
  * Check if URL is internal (starts with /)
@@ -60,22 +61,23 @@ function SmartLink({
     );
   }
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className={className} aria-label={ariaLabel}>
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={className}
+      aria-label={ariaLabel}
+    >
       {children}
     </a>
   );
 }
 
-export function ProjectDetail({ project }: ProjectDetailProps) {
-  const [mounted, setMounted] = useState(false);
+export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
   const { scrollY } = useScroll();
 
   // Subtle parallax for image
   const imageY = useTransform(scrollY, [0, 300], [0, -20]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Extract domain for display
   const domain = useMemo(() => getDisplayHostname(project.url), [project.url]);
@@ -95,10 +97,8 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
   const imageUrl = useMemo(() => {
     if (!project.imageKey) return null;
     const cdnUrl = buildCdnUrl(project.imageKey, getCdnConfigFromEnv());
-    return buildCachedImageUrl(cdnUrl);
+    return getOptimizedImageSrc(cdnUrl);
   }, [project.imageKey]);
-
-  if (!mounted) return null;
 
   return (
     <div className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
@@ -143,7 +143,9 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
             >
               <Globe className="w-3.5 h-3.5" />
               <span>{domain}</span>
-              {!isInternal && <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />}
+              {!isInternal && (
+                <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              )}
             </SmartLink>
           </div>
         </div>
@@ -155,7 +157,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
             {/* Featured Image - Full width at top of content */}
             {imageUrl && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
                 className="mb-6 sm:mb-8"
@@ -169,7 +171,8 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
                       <OptimizedCardImage
                         src={imageUrl}
                         alt={`Screenshot of ${project.name}`}
-                        priority
+                        preload
+                        fit="contain"
                         className="!transition-none"
                       />
                       {/* Hover overlay */}
@@ -177,7 +180,9 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
                         href={safeUrl ?? "/projects"}
                         isInternal={isInternal}
                         className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center"
-                        ariaLabel={isInternal ? `View ${project.name}` : `View ${project.name} on ${domain}`}
+                        ariaLabel={
+                          isInternal ? `View ${project.name}` : `View ${project.name} on ${domain}`
+                        }
                       >
                         <div className="absolute top-4 right-4 p-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                           <ArrowUpRight className="w-5 h-5" />
@@ -192,7 +197,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
             {/* Description Box */}
             {project.description && (
               <motion.section
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1, duration: 0.5 }}
                 className="p-4 sm:p-5 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700"
@@ -209,7 +214,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
             {/* Note/Disclaimer */}
             {project.note && (
               <motion.section
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.5 }}
                 className="p-4 sm:p-5 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800"
@@ -223,6 +228,9 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
                 </p>
               </motion.section>
             )}
+
+            {/* AI Analysis */}
+            <ProjectAiAnalysis project={project} initialAnalysis={cachedAnalysis} />
 
             {/* If no content is available, show a placeholder */}
             {!project.description && !imageUrl && (
@@ -239,7 +247,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
             {/* Tech Stack */}
             {project.techStack && project.techStack.length > 0 && (
               <motion.section
-                initial={{ opacity: 0, x: 20 }}
+                initial={false}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4, duration: 0.5 }}
               >
@@ -248,7 +256,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
                   Tech Stack
                 </h2>
                 <div className="flex flex-wrap gap-2">
-                  {project.techStack.map(tech => (
+                  {project.techStack.map((tech) => (
                     <span
                       key={tech}
                       className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-md text-xs font-medium"
@@ -263,7 +271,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
             {/* Tags */}
             {project.tags && project.tags.length > 0 && (
               <motion.section
-                initial={{ opacity: 0, x: 20 }}
+                initial={false}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.5, duration: 0.5 }}
               >
@@ -272,7 +280,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
                   Tags
                 </h2>
                 <div className="flex flex-wrap gap-2">
-                  {project.tags.map(tag => (
+                  {project.tags.map((tag) => (
                     <Link
                       key={tag}
                       href={`/projects?tag=${encodeURIComponent(tag)}`}
@@ -287,7 +295,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 
             {/* Action Buttons */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
+              initial={false}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.6, duration: 0.5 }}
               className="space-y-2 sm:space-y-3"

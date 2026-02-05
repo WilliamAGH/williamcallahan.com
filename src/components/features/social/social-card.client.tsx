@@ -3,8 +3,8 @@
  * @module components/features/social/social-card.client
  * @description
  * Client component that displays a card for a social media profile.
- * All profile and banner images are resolved through proxy CDN URLs
- * using `buildCdnUrl` + `buildCachedImageUrl` for consistent caching.
+ * Profile and banner images resolve to direct CDN URLs when available,
+ * and fall back to the image proxy for third-party origins.
  */
 
 "use client";
@@ -14,8 +14,26 @@ import Image from "next/image";
 import React, { type JSX, useCallback, useEffect, useState } from "react";
 import type { SocialCardProps } from "@/types/features/social";
 import { cn } from "@/lib/utils";
-import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import {
+  buildCdnUrl,
+  getCdnConfigFromEnv,
+  getOptimizedImageSrc,
+  shouldBypassOptimizer,
+} from "@/lib/utils/cdn-utils";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
+import {
+  BANNER_IMAGE_PATHS,
+  CARD_BRAND_CLASSES,
+  DEFAULT_BANNER_IMAGE,
+  DEFAULT_GITHUB_USERNAME,
+  DEFAULT_PROFILE_IMAGE,
+  MOUNT_DELAY_MS,
+  PROFILE_IMAGE_PATHS,
+  PROFILE_IMAGE_WIDTH_PX,
+  detectSocialPlatform,
+  getSocialAccentColors,
+  getUserHandle,
+} from "./social-card-config";
 
 /**
  * Client-side component for rendering a social media profile card.
@@ -39,9 +57,8 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
   try {
     const urlObj = new URL(href);
     domain = stripWwwPrefix(urlObj.hostname);
-  } catch (error: unknown) {
-    void error;
-    console.error(`Invalid URL format: ${href}`);
+  } catch {
+    // URL parsing failure expected for malformed hrefs - extract domain from string directly
     domain = stripWwwPrefix(href.replace(/^https?:\/\//g, "")).split("/")[0] ?? "unknown";
   }
 
@@ -58,109 +75,73 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
   if (serviceName === "Bsky") serviceName = "Bluesky";
 
   useEffect(() => {
-    const timer = setTimeout(() => setMounted(true), 20);
+    const timer = setTimeout(() => setMounted(true), MOUNT_DELAY_MS);
     return () => clearTimeout(timer);
   }, []);
 
   /**
-   * Wraps `buildCachedImageUrl` for consistent proxying.
-   * All image URLs emitted from this component should flow through here.
+   * Resolves image URLs so CDN sources stay direct and external URLs are proxied.
    */
-  const proxyCdnUrl = useCallback((url: string, width?: number): string => {
-    return buildCachedImageUrl(url, width);
+  const resolveImageUrl = useCallback((url: string, width?: number): string => {
+    // Pass undefined for config to use env defaults; width requires positional arg
+    const optimized = getOptimizedImageSrc(url, undefined, width);
+    if (!optimized) {
+      console.warn(`[SocialCard] Missing optimized image URL for ${url}`);
+      return url;
+    }
+    return optimized;
   }, []);
 
   /**
-   * Returns proxy-backed fallback profile image URL for a given social label.
+   * Returns the optimized fallback profile image URL for a given social label.
    */
   const getProfileFallbackImage = useCallback(
     (networkLabel: string): string => {
       const cdnConfig = getCdnConfigFromEnv();
+      const platform = detectSocialPlatform(networkLabel, "");
 
-      const safeDefault = (): string =>
-        proxyCdnUrl(buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig), 64);
-
-      try {
-        if (networkLabel.includes("GitHub")) {
-          const usernameMatch = networkLabel.match(/@(\w+)/);
-          const username = usernameMatch?.[1] || "WilliamAGH";
-
-          // GitHub avatar also goes through proxy for consistency
-          return proxyCdnUrl(`https://avatars.githubusercontent.com/${username}?s=256&v=4`, 64);
-        }
-
-        if (networkLabel.includes("X") || networkLabel.includes("Twitter")) {
-          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig), 64);
-        }
-
-        if (networkLabel.includes("LinkedIn")) {
-          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig), 64);
-        }
-
-        if (networkLabel.includes("Bluesky")) {
-          return proxyCdnUrl(buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig), 64);
-        }
-
-        if (networkLabel.includes("Discord")) {
-          return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig), 64);
-        }
-      } catch (error: unknown) {
-        void error;
-        console.error(`Error getting profile image for ${networkLabel}`);
+      // GitHub uses live avatar API
+      if (platform === "github") {
+        const usernameMatch = networkLabel.match(/@(\w+)/);
+        const username = usernameMatch?.[1] ?? DEFAULT_GITHUB_USERNAME;
+        return resolveImageUrl(
+          `https://avatars.githubusercontent.com/${username}?s=256&v=4`,
+          PROFILE_IMAGE_WIDTH_PX,
+        );
       }
 
-      // Fallback chain (still proxy-backed)
-      if (networkLabel.includes("GitHub")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/github_72193247.jpg", cdnConfig), 64);
-      }
-      if (networkLabel.includes("X") || networkLabel.includes("Twitter")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig), 64);
-      }
-      if (networkLabel.includes("LinkedIn")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig), 64);
-      }
-      if (networkLabel.includes("Bluesky")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/bluesky_5a093069.jpg", cdnConfig), 64);
-      }
-      if (networkLabel.includes("Discord")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig), 64);
+      // Other platforms use CDN-hosted profile images
+      const imagePath = platform ? PROFILE_IMAGE_PATHS[platform] : null;
+      if (imagePath) {
+        return resolveImageUrl(buildCdnUrl(imagePath, cdnConfig), PROFILE_IMAGE_WIDTH_PX);
       }
 
-      return safeDefault();
+      // Default fallback
+      return resolveImageUrl(buildCdnUrl(DEFAULT_PROFILE_IMAGE, cdnConfig), PROFILE_IMAGE_WIDTH_PX);
     },
-    [proxyCdnUrl],
+    [resolveImageUrl],
   );
 
   /**
-   * Returns proxy-backed fallback banner/domain image URL for a given social label.
+   * Returns the optimized fallback banner/domain image URL for a given social label.
    */
   const getDomainFallbackImage = useCallback(
     (networkLabel: string): string => {
       const cdnConfig = getCdnConfigFromEnv();
+      const platform = detectSocialPlatform(networkLabel, "");
+      const imagePath = platform ? BANNER_IMAGE_PATHS[platform] : null;
 
-      if (networkLabel.includes("GitHub")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/banners/github_87b6d92e.svg", cdnConfig));
-      }
-      if (networkLabel.includes("X") || networkLabel.includes("Twitter")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/banners/twitter-x_4830ec25.svg", cdnConfig));
-      }
-      if (networkLabel.includes("LinkedIn")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/banners/linkedin_02a7ce76.svg", cdnConfig));
-      }
-      if (networkLabel.includes("Discord")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/banners/discord_783c1e2b.svg", cdnConfig));
-      }
-      if (networkLabel.includes("Bluesky")) {
-        return proxyCdnUrl(buildCdnUrl("images/social-media/banners/bluesky_9310c7f9.png", cdnConfig));
+      if (imagePath) {
+        return resolveImageUrl(buildCdnUrl(imagePath, cdnConfig));
       }
 
-      return proxyCdnUrl(buildCdnUrl("images/other/placeholders/company_90296cb3.svg", cdnConfig));
+      return resolveImageUrl(buildCdnUrl(DEFAULT_BANNER_IMAGE, cdnConfig));
     },
-    [proxyCdnUrl],
+    [resolveImageUrl],
   );
 
   /**
-   * Resolves and sets the profile and domain images via proxy URLs.
+   * Resolves and sets the profile and domain images via optimized URLs.
    */
   const fetchSocialImages = useCallback(() => {
     const profile = getProfileFallbackImage(label);
@@ -183,31 +164,11 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
     );
   }
 
-  const cardBrandClass =
-    label.includes("LinkedIn") || domain.includes("linkedin")
-      ? "linkedin-card"
-      : label.includes("GitHub") || domain.includes("github")
-        ? "github-card"
-        : label.includes("X") || label.includes("Twitter") || domain.includes("twitter") || domain.includes("x.com")
-          ? "twitter-card"
-          : label.includes("Bluesky") || domain.includes("bsky")
-            ? "bluesky-card"
-            : label.includes("Discord") || domain.includes("discord")
-              ? "discord-card"
-              : "";
+  const platform = detectSocialPlatform(label, domain);
+  const cardBrandClass = platform ? (CARD_BRAND_CLASSES[platform] ?? "") : "";
 
   // Map brand to accent colors for unified hover/glow (hex + rgb strings)
-  const { accentHex, accentRgb } = (() => {
-    if (label.includes("LinkedIn") || domain.includes("linkedin"))
-      return { accentHex: "#0a66c2", accentRgb: "10 102 194" };
-    if (label.includes("GitHub") || domain.includes("github")) return { accentHex: "#6e5494", accentRgb: "110 84 148" };
-    if (label.includes("X") || label.includes("Twitter") || domain.includes("twitter") || domain.includes("x.com"))
-      return { accentHex: "#1da1f2", accentRgb: "29 161 242" };
-    if (label.includes("Bluesky") || domain.includes("bsky")) return { accentHex: "#0099ff", accentRgb: "0 153 255" };
-    if (label.includes("Discord") || domain.includes("discord"))
-      return { accentHex: "#7289da", accentRgb: "114 137 218" };
-    return { accentHex: "#3b82f6", accentRgb: "59 130 246" }; // default blue-500
-  })();
+  const { accentHex, accentRgb } = getSocialAccentColors(label, domain);
 
   const profileName = serviceName || domain || "social";
 
@@ -236,14 +197,16 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
         )}
         {imageError && (
           <div className="absolute inset-0 flex items-center justify-center bg-red-100/50 dark:bg-red-900/30">
-            <p className="text-xs font-semibold text-red-600 dark:text-red-400">Image failed to load</p>
+            <p className="text-xs font-semibold text-red-600 dark:text-red-400">
+              Image failed to load
+            </p>
           </div>
         )}
         {domainImageUrl && !imageError && (
           <a
             href={href}
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
             className="absolute inset-0 z-10 w-full h-full cursor-pointer block"
             title={`Visit ${profileName} profile page`}
             style={
@@ -269,16 +232,21 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
                   "linkedin-banner": domain.includes("linkedin"),
                 })}
                 fill
-                unoptimized
+                sizes="100vw"
+                {...(shouldBypassOptimizer(domainImageUrl ?? undefined)
+                  ? { unoptimized: true }
+                  : {})}
                 onError={() => {
                   setImageError(true);
                   setDomainImageUrl(getDomainFallbackImage(label));
                 }}
               />
             )}
-            {!(domain.includes("github") || domain.includes("twitter") || domain.includes("x.com")) && (
-              <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
-            )}
+            {!(
+              domain.includes("github") ||
+              domain.includes("twitter") ||
+              domain.includes("x.com")
+            ) && <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />}
           </a>
         )}
       </div>
@@ -290,7 +258,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
           <a
             href={href}
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
             className="block relative w-16 h-16 cursor-pointer rounded-full"
             title={`Visit ${profileName} profile page`}
           >
@@ -300,10 +268,12 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
                   src={profileImageUrl}
                   alt={`${serviceName} profile`}
                   fill
-                  unoptimized
                   priority
                   sizes="64px"
                   className="object-cover"
+                  {...(shouldBypassOptimizer(profileImageUrl ?? undefined)
+                    ? { unoptimized: true }
+                    : {})}
                   onError={() => {
                     setImageError(true);
                     setProfileImageUrl(getProfileFallbackImage(label));
@@ -316,14 +286,16 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
             <a
               href={href}
               target="_blank"
-              rel="noopener"
+              rel="noopener noreferrer"
               className="flex items-center gap-2 group/title"
               title={`Visit ${profileName} profile page`}
             >
               <Icon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">{serviceName}</h3>
             </a>
-            <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">{getUserHandle(href)}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+              {getUserHandle(href)}
+            </p>
           </div>
         </div>
 
@@ -334,45 +306,15 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
               Primary
             </span>
           )}
-          <ExternalLink href={href} showIcon={true} className={cn("text-xs", emphasized ? "" : "ml-auto")}>
+          <ExternalLink
+            href={href}
+            showIcon={true}
+            className={cn("text-xs", emphasized ? "" : "ml-auto")}
+          >
             {domain}
           </ExternalLink>
         </div>
       </div>
     </div>
   );
-}
-
-/**
- * Extracts a user handle from a social media URL.
- */
-function getUserHandle(url: string): string {
-  if (!url) return "";
-  try {
-    const urlObj = new URL(url);
-    const pathParts = urlObj.pathname.split("/").filter(Boolean);
-    if (
-      urlObj.hostname.includes("github.com") ||
-      urlObj.hostname.includes("x.com") ||
-      urlObj.hostname.includes("twitter.com")
-    ) {
-      return `@${pathParts[0]}`;
-    }
-    if (urlObj.hostname.includes("bsky.app")) {
-      return `@${pathParts[1]}`;
-    }
-    if (urlObj.hostname.includes("linkedin.com")) {
-      return pathParts[1] ? `/${pathParts[0]}/${pathParts[1]}` : `/${pathParts[0]}`;
-    }
-    if (urlObj.hostname.includes("discord.com")) {
-      return "Community";
-    }
-  } catch (error: unknown) {
-    void error;
-    // Fallback for non-URL strings or unexpected formats
-    const parts = url.split("/").filter(Boolean);
-    const lastSegment = parts.pop();
-    return lastSegment ?? "";
-  }
-  return "Profile";
 }

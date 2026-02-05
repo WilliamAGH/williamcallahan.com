@@ -1,11 +1,12 @@
-// Jest provides describe, beforeEach, it, expect globally
+// Vitest provides describe, beforeEach, it, expect globally
+import type { Mock } from "vitest";
 import { render, fireEvent, screen } from "@testing-library/react";
 import { ThemeToggle } from "@/components/ui/theme/theme-toggle";
 
 // Mock next-themes
-const mockSetTheme = jest.fn();
-jest.mock("next-themes", () => ({
-  useTheme: jest.fn(() => ({
+const mockSetTheme = vi.fn();
+vi.mock("next-themes", () => ({
+  useTheme: vi.fn(() => ({
     theme: "system",
     setTheme: mockSetTheme,
     resolvedTheme: "light",
@@ -14,7 +15,7 @@ jest.mock("next-themes", () => ({
 }));
 
 import { useTheme } from "next-themes";
-const useThemeMock = useTheme as jest.Mock;
+const useThemeMock = useTheme as Mock;
 
 describe("ThemeToggle", () => {
   beforeEach(() => {

@@ -1,18 +1,18 @@
 // Mock only the generateUniqueSlug function
-jest.mock("../../../src/lib/utils/domain-utils", () => {
-  const actual = jest.requireActual<typeof import("../../../src/lib/utils/domain-utils")>(
-    "../../../src/lib/utils/domain-utils",
-  );
+vi.mock("../../../src/lib/utils/domain-utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../src/lib/utils/domain-utils")>();
   return {
     ...actual,
-    generateUniqueSlug: jest.fn<typeof actual.generateUniqueSlug>((url, allBookmarks, currentBookmarkId, title) => {
-      // Special case for specific test
-      if (currentBookmarkId === "2" && url === "https://example.com/page") {
-        return "example-com-page-2";
-      }
-      // Otherwise, call the original function
-      return actual.generateUniqueSlug(url, allBookmarks, currentBookmarkId, title);
-    }),
+    generateUniqueSlug: vi.fn<typeof actual.generateUniqueSlug>(
+      (url, allBookmarks, currentBookmarkId, title) => {
+        // Special case for specific test
+        if (currentBookmarkId === "2" && url === "https://example.com/page") {
+          return "example-com-page-2";
+        }
+        // Otherwise, call the original function
+        return actual.generateUniqueSlug(url, allBookmarks, currentBookmarkId, title);
+      },
+    ),
   };
 });
 
@@ -313,7 +313,8 @@ describe("Domain Utilities", () => {
     });
 
     it("should truncate at max length (default 60)", () => {
-      const longTitle = "This is a very long title that exceeds the maximum allowed length for a slug";
+      const longTitle =
+        "This is a very long title that exceeds the maximum allowed length for a slug";
       const result = titleToSlug(longTitle);
       expect(result.length).toBeLessThanOrEqual(60);
       expect(result).not.toMatch(/-$/); // Should not end with hyphen

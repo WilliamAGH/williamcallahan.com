@@ -1,4 +1,7 @@
 /**
+ * @vitest-environment node
+ */
+/**
  * CV PDF API route tests
  */
 
@@ -31,7 +34,10 @@ class TestResponse {
   readonly status: number;
   readonly headers: HeaderBag;
 
-  constructor(body: string | Buffer | Uint8Array | null, init?: { status?: number; headers?: ResponseHeadersInit }) {
+  constructor(
+    body: string | Buffer | Uint8Array | null,
+    init?: { status?: number; headers?: ResponseHeadersInit },
+  ) {
     if (body instanceof Buffer) {
       this.body = body;
     } else if (body instanceof Uint8Array) {
@@ -57,38 +63,39 @@ class TestResponse {
 }
 
 if (typeof globalThis.Response === "undefined") {
-  (globalThis as { Response?: typeof TestResponse }).Response = TestResponse as unknown as typeof globalThis.Response;
+  (globalThis as { Response?: typeof TestResponse }).Response =
+    TestResponse as unknown as typeof globalThis.Response;
 }
 
-const renderToBufferMock = jest.fn<Promise<Buffer>, [ReactElement]>();
-const mockPdfComponent = jest.fn(() => null);
+const renderToBufferMock = vi.fn<Promise<Buffer>, [ReactElement]>();
+const mockPdfComponent = vi.fn(() => null);
 
 const mockedLogger = {
-  error: jest.fn(),
-  info: jest.fn(),
-  warn: jest.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
 };
 
-jest.mock("@react-pdf/renderer", () => ({
+vi.mock("@react-pdf/renderer", () => ({
   __esModule: true,
   renderToBuffer: (...args: Parameters<typeof renderToBufferMock>) => renderToBufferMock(...args),
 }));
 
-jest.mock("@/components/features/cv/CvPdfDocument", () => ({
+vi.mock("@/components/features/cv/CvPdfDocument", () => ({
   __esModule: true,
   default: (...args: Parameters<typeof mockPdfComponent>) => mockPdfComponent(...args),
 }));
 
-jest.mock("@/lib/utils/logger", () => ({
+vi.mock("@/lib/utils/logger", () => ({
   __esModule: true,
   default: mockedLogger,
 }));
 
 describe("GET /api/cv/pdf", () => {
   afterEach(() => {
-    jest.resetModules();
-    jest.clearAllMocks();
-    jest.useRealTimers();
+    vi.resetModules();
+    vi.clearAllMocks();
+    vi.useRealTimers();
     renderToBufferMock.mockReset();
     mockPdfComponent.mockReset();
     mockedLogger.error.mockReset();
@@ -97,10 +104,8 @@ describe("GET /api/cv/pdf", () => {
   });
 
   it("returns a PDF buffer with cache-control headers", async () => {
-    jest.useFakeTimers({
-      now: new Date("2025-11-08T00:00:00Z"),
-      doNotFake: ["nextTick", "performance"],
-    });
+    // Only fake Date.now() - keep other timers real for async operations
+    vi.useFakeTimers({ now: new Date("2025-11-08T00:00:00Z") });
 
     const pdfPayload = Buffer.from("%PDF-1.4 test payload");
     renderToBufferMock.mockResolvedValueOnce(pdfPayload);
@@ -115,7 +120,9 @@ describe("GET /api/cv/pdf", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("application/pdf");
     expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(response.headers.get("Content-Disposition")).toBe('attachment; filename="william-callahan-cv-20251108.pdf"');
+    expect(response.headers.get("Content-Disposition")).toBe(
+      'attachment; filename="william-callahan-cv-20251108.pdf"',
+    );
 
     const bodyBuffer = Buffer.from(await response.arrayBuffer());
     expect(bodyBuffer.equals(pdfPayload)).toBe(true);

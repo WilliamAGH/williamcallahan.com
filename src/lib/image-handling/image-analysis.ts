@@ -174,7 +174,9 @@ function detectGlobePattern(
   const goodCompression = patterns.compressionEstimate > 0.7;
 
   // Check for common globe icon file sizes
-  const typicalGlobeSizes = [1024, 2048, 3072, 4096].some(size => Math.abs(buffer.length - size) < 512);
+  const typicalGlobeSizes = [1024, 2048, 3072, 4096].some(
+    (size) => Math.abs(buffer.length - size) < 512,
+  );
 
   return (likelyBlue || goodCompression) && typicalGlobeSizes;
 }
@@ -196,7 +198,10 @@ export async function invertLogo(buffer: Buffer): Promise<Buffer> {
   return buffer;
 }
 
-export async function doesLogoNeedInversion(buffer: Buffer, isDarkTheme: boolean): Promise<boolean> {
+export async function doesLogoNeedInversion(
+  buffer: Buffer,
+  isDarkTheme: boolean,
+): Promise<boolean> {
   try {
     const analysis = await analyzeLogo(buffer);
 

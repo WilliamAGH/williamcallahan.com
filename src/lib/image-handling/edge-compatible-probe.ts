@@ -35,9 +35,12 @@ export async function probeImageSize(input: string | Buffer): Promise<ProbeResul
       const fullBuffer = Buffer.from(await fullResponse.arrayBuffer());
       return parseImageHeader(fullBuffer);
     } catch (error) {
-      throw new Error(`Failed to fetch image from URL: ${error instanceof Error ? error.message : String(error)}`, {
-        cause: error,
-      });
+      throw new Error(
+        `Failed to fetch image from URL: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          cause: error,
+        },
+      );
     }
   }
 
@@ -55,7 +58,13 @@ export async function probeImageSize(input: string | Buffer): Promise<ProbeResul
  */
 function parseImageHeader(buffer: Buffer): ProbeResult {
   // Check for PNG
-  if (buffer.length >= 24 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+  if (
+    buffer.length >= 24 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47
+  ) {
     return {
       width: buffer.readUInt32BE(16),
       height: buffer.readUInt32BE(20),
@@ -170,7 +179,11 @@ function parseWebP(buffer: Buffer): ProbeResult {
 
     if (chunkType === "VP8 ") {
       // Lossy WebP
-      if (buffer[offset + 3] === 0x9d && buffer[offset + 4] === 0x01 && buffer[offset + 5] === 0x2a) {
+      if (
+        buffer[offset + 3] === 0x9d &&
+        buffer[offset + 4] === 0x01 &&
+        buffer[offset + 5] === 0x2a
+      ) {
         const width = buffer.readUInt16LE(offset + 6) & 0x3fff;
         const height = buffer.readUInt16LE(offset + 8) & 0x3fff;
         return {

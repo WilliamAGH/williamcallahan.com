@@ -3,16 +3,16 @@
  * Tests for logo-related functionality
  */
 
-import { describe, it, expect, jest, beforeEach, afterEach } from "@jest/globals";
+import { vi } from "vitest";
 import { normalizeDomain } from "../../../src/lib/utils/domain-utils";
 
 // Mock fetch globally
-global.fetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+// global.fetch = vi.fn() as MockedFunction<typeof fetch>;
 
 // Mock Next.js specific modules
-jest.mock("next/server", () => ({
+vi.mock("next/server", () => ({
   NextResponse: {
-    json: (data: any, init?: ResponseInit) => ({
+    json: <T>(data: T, init?: ResponseInit) => ({
       json: () => data,
       status: init?.status || 200,
       headers: new Headers(init?.headers),
@@ -22,11 +22,13 @@ jest.mock("next/server", () => ({
 
 describe("Logo Module", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.stubGlobal("fetch", vi.fn());
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   describe("Domain Normalization", () => {

@@ -7,7 +7,10 @@
  */
 
 import type MiniSearch from "minisearch";
-import type { AggregatedTag as AggregatedTagShape, SearchResult as SearchResultShape } from "./schemas/search";
+import type {
+  AggregatedTag as AggregatedTagShape,
+  SearchResult as SearchResultShape,
+} from "./schemas/search";
 
 // Re-export all types and schemas from the Zod schemas file (source of truth)
 export {
@@ -110,4 +113,27 @@ export interface TagSource<T> {
   contentType: AggregatedTagShape["contentType"];
   /** URL pattern generator for tag pages */
   urlPattern: (slug: string) => string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Analysis Search Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
+import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
+import type { ProjectAiAnalysisResponse } from "@/types/schemas/project-ai-analysis";
+
+/** Union type for all domain-specific analysis responses */
+export type AnyAnalysisResponse =
+  | BookmarkAiAnalysisResponse
+  | BookAiAnalysisResponse
+  | ProjectAiAnalysisResponse;
+
+/** Configuration for each AI analysis search domain */
+export interface AnalysisDomainConfig {
+  searcher: (query: string) => Promise<SearchResultShape[]>;
+  prefix: string;
+  getParentUrl: (id: string) => string;
+  extractSearchableText: (analysis: AnyAnalysisResponse) => string[];
+  extractSnippet: (analysis: AnyAnalysisResponse, query: string) => string;
 }

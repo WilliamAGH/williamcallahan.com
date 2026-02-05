@@ -25,7 +25,7 @@ describe("Update S3 Script Smoke Tests", () => {
   const bunPath = process.env.BUN_PATH || "bun";
 
   /** Extended timeout accommodation for potential script execution scenarios */
-  jest.setTimeout(30000);
+  vi.setConfig({ testTimeout: 30000 });
 
   /**
    * Validates help message format and required command-line options

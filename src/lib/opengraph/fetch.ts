@@ -13,12 +13,11 @@ import { envLogger } from "@/lib/utils/env-logger";
 import { getMonotonicTime } from "@/lib/utils";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
+import { getCachedJinaHtml, persistJinaHtmlInBackground } from "@/lib/persistence/jina-cache";
 import {
-  getCachedJinaHtml,
-  persistJinaHtmlInBackground,
   scheduleImagePersistence,
   persistImageAndGetS3Url,
-} from "@/lib/persistence/s3-persistence";
+} from "@/lib/persistence/image-persistence";
 import { fetchWithTimeout, getBrowserHeaders } from "@/lib/utils/http-client";
 import { incrementAndPersist, waitForPermit } from "@/lib/rate-limiter";
 import { retryWithThrow, RETRY_CONFIGS } from "@/lib/utils/retry";
@@ -42,7 +41,45 @@ import type { OgResult, KarakeepImageFallback } from "@/types";
  * In-memory map to track ongoing OpenGraph fetch requests
  * Used for request deduplication to prevent duplicate fetches
  */
-const ongoingRequests = new Map<string, Promise<OgResult | { networkFailure: true; lastError: Error | null } | null>>();
+const ongoingRequests = new Map<
+  string,
+  Promise<OgResult | { networkFailure: true; lastError: Error | null } | null>
+>();
+
+/**
+ * Persist an image to S3 with explicit error logging on failure.
+ * Returns the S3 URL on success, undefined on failure or read-only mode.
+ * Per RC1: errors are logged explicitly before fallback, not silently swallowed.
+ */
+async function tryPersistImageToS3(
+  imageUrl: string,
+  directory: string,
+  context: string,
+  idempotencyKey: string,
+  pageUrl: string,
+): Promise<string | undefined> {
+  try {
+    const s3Url = await persistImageAndGetS3Url(
+      imageUrl,
+      directory,
+      context,
+      idempotencyKey,
+      pageUrl,
+    );
+    if (s3Url) {
+      envLogger.log(`${context} persisted to S3`, { s3Url }, { category: "OpenGraph" });
+      return s3Url;
+    }
+    // null means read-only mode - not an error, just skipped
+    return undefined;
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[OpenGraph] S3 ${context} persistence failed for ${imageUrl}, keeping original: ${errorMsg}`,
+    );
+    return undefined;
+  }
+}
 
 /**
  * Fetches OpenGraph data from external source with retry logic and request deduplication
@@ -85,7 +122,8 @@ async function performFetchWithRetry(
   fallbackImageData?: KarakeepImageFallback,
 ): Promise<OgResult | { networkFailure: true; lastError: Error | null } | null> {
   const originalUrl = new URL(url);
-  const isTwitter = originalUrl.hostname.endsWith("twitter.com") || originalUrl.hostname.endsWith("x.com");
+  const isTwitter =
+    originalUrl.hostname.endsWith("twitter.com") || originalUrl.hostname.endsWith("x.com");
   // Only use vxtwitter.com - fxtwitter.com returns empty metadata for profiles as of 2025
   const proxies = isTwitter ? ["vxtwitter.com"] : [];
 
@@ -98,7 +136,7 @@ async function performFetchWithRetry(
         // Try direct fetch first, then proxies
         const urlsToTry = [
           url,
-          ...proxies.map(proxy => {
+          ...proxies.map((proxy) => {
             const proxyUrl = new URL(url);
             proxyUrl.hostname = proxy;
             return proxyUrl.toString();
@@ -168,7 +206,10 @@ async function performFetchWithRetry(
             }
           } catch (error: unknown) {
             lastAttemptError = error instanceof Error ? error : new Error(String(error));
-            debugWarn(`[DataAccess/OpenGraph] Failed to fetch ${effectiveUrl}:`, lastAttemptError.message);
+            debugWarn(
+              `[DataAccess/OpenGraph] Failed to fetch ${effectiveUrl}:`,
+              lastAttemptError.message,
+            );
           }
         }
 
@@ -222,11 +263,15 @@ async function performFetchWithRetry(
 async function fetchExternalOpenGraph(
   url: string,
   fallbackImageData?: KarakeepImageFallback,
-): Promise<OgResult | { permanentFailure: true; status: number } | { blocked: true; status: number } | null> {
+): Promise<
+  OgResult | { permanentFailure: true; status: number } | { blocked: true; status: number } | null
+> {
   const domain = getDomainType(url);
   const imageService = getUnifiedImageService();
   if (imageService.hasDomainFailedTooManyTimes(domain)) {
-    debugWarn(`[DataAccess/OpenGraph] Skipping ${url} - domain ${domain} has failed too many times`);
+    debugWarn(
+      `[DataAccess/OpenGraph] Skipping ${url} - domain ${domain} has failed too many times`,
+    );
     return null;
   }
 
@@ -234,10 +279,20 @@ async function fetchExternalOpenGraph(
   let finalUrl = url;
 
   // 1. Check for cached Jina HTML in S3 first
-  const cachedHtml = await getCachedJinaHtml(url);
-  if (cachedHtml) {
-    html = cachedHtml;
-  } else {
+  try {
+    const cachedHtml = await getCachedJinaHtml(url);
+    if (cachedHtml) {
+      html = cachedHtml;
+    }
+  } catch (err) {
+    // Log S3 error explicitly, then fall through to live fetch (RC1: no silent degradation)
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[OpenGraph] S3 cache read failed for ${url}, falling back to live fetch: ${errorMsg}`,
+    );
+  }
+
+  if (!html) {
     // 2. If not cached, attempt to use Jina AI Reader if allowed
     if (
       incrementAndPersist(
@@ -280,7 +335,11 @@ async function fetchExternalOpenGraph(
     debug(`[DataAccess/OpenGraph] Falling back to direct fetch for ${url}`);
 
     try {
-      await waitForPermit(OPENGRAPH_FETCH_STORE_NAME, OPENGRAPH_FETCH_CONTEXT_ID, DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG);
+      await waitForPermit(
+        OPENGRAPH_FETCH_STORE_NAME,
+        OPENGRAPH_FETCH_CONTEXT_ID,
+        DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG,
+      );
 
       // Use shared fetch utility with timeout and browser headers
       const headers = getBrowserHeaders();
@@ -290,7 +349,10 @@ async function fetchExternalOpenGraph(
           ...headers,
           // Try Googlebot UA if we've had issues before
           ...(imageService.hasDomainFailedTooManyTimes(domain)
-            ? { "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)" }
+            ? {
+                "User-Agent":
+                  "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+              }
             : {}),
         },
       });
@@ -307,7 +369,9 @@ async function fetchExternalOpenGraph(
 
       html = await response.text();
       finalUrl = response.url;
-      debug(`[DataAccess/OpenGraph] Successfully fetched HTML via direct fetch (${html.length} bytes) from: ${url}`);
+      debug(
+        `[DataAccess/OpenGraph] Successfully fetched HTML via direct fetch (${html.length} bytes) from: ${url}`,
+      );
     } catch (fetchError) {
       imageService.markDomainAsFailed(domain);
       throw fetchError;
@@ -335,7 +399,8 @@ async function fetchExternalOpenGraph(
 
   // Select the best image from OpenGraph metadata
   // Note: selectBestImage is for bookmark objects with Karakeep content, not raw OpenGraph fetch
-  const ogImageValue = validatedMetadata.image || validatedMetadata.profileImage || validatedMetadata.twitterImage;
+  const ogImageValue =
+    validatedMetadata.image || validatedMetadata.profileImage || validatedMetadata.twitterImage;
   const bestImageUrl: string | undefined = ogImageValue || undefined;
 
   // Log what we found
@@ -362,24 +427,28 @@ async function fetchExternalOpenGraph(
   if (bestImageUrl && fallbackImageData?.idempotencyKey) {
     if (isBatchMode) {
       // In batch mode, persist synchronously and get S3 URL
-      envLogger.log(`Batch mode: Persisting image synchronously`, { bestImageUrl }, { category: "OpenGraph" });
-      const s3Url = await persistImageAndGetS3Url(
+      envLogger.log(
+        `Batch mode: Persisting image synchronously`,
+        { bestImageUrl },
+        { category: "OpenGraph" },
+      );
+      const s3Url = await tryPersistImageToS3(
         bestImageUrl,
         OPENGRAPH_IMAGES_S3_DIR,
         "OpenGraph",
         fallbackImageData.idempotencyKey,
         url,
       );
-
       if (s3Url) {
         finalImageUrl = s3Url;
-        envLogger.log(`Image persisted to S3`, { s3Url }, { category: "OpenGraph" });
-      } else {
-        envLogger.log(`Failed to persist image to S3, keeping original`, { bestImageUrl }, { category: "OpenGraph" });
       }
     } else {
       // In runtime mode, schedule background persistence
-      envLogger.log(`Scheduling background image persistence`, { bestImageUrl }, { category: "OpenGraph" });
+      envLogger.log(
+        `Scheduling background image persistence`,
+        { bestImageUrl },
+        { category: "OpenGraph" },
+      );
       scheduleImagePersistence(
         bestImageUrl,
         OPENGRAPH_IMAGES_S3_DIR,
@@ -426,30 +495,26 @@ async function fetchExternalOpenGraph(
 
     if (isBatchMode) {
       envLogger.log(
-        `Batch mode: Persisting profile image synchronously`,
+        `Batch mode: Persisting profile image`,
         { dir: profileImageDirectory },
         { category: "OpenGraph" },
       );
-      const s3ProfileUrl = await persistImageAndGetS3Url(
+      const s3ProfileUrl = await tryPersistImageToS3(
         profileImageUrl,
         profileImageDirectory,
         "ProfileImage",
         `profile-${fallbackImageData.idempotencyKey}`,
         url,
       );
-
       if (s3ProfileUrl) {
         finalProfileImageUrl = s3ProfileUrl;
-        envLogger.log(`Profile image persisted to S3`, { s3ProfileUrl }, { category: "OpenGraph" });
-      } else {
-        envLogger.log(
-          `Failed to persist profile image, keeping original`,
-          { profileImageUrl },
-          { category: "OpenGraph" },
-        );
       }
     } else {
-      envLogger.log(`Scheduling profile image persistence`, { dir: profileImageDirectory }, { category: "OpenGraph" });
+      envLogger.log(
+        `Scheduling profile image persistence`,
+        { dir: profileImageDirectory },
+        { category: "OpenGraph" },
+      );
       scheduleImagePersistence(
         profileImageUrl,
         profileImageDirectory,
@@ -466,24 +531,16 @@ async function fetchExternalOpenGraph(
     envLogger.log(`Found banner image`, { bannerImageUrl }, { category: "OpenGraph" });
 
     if (isBatchMode) {
-      envLogger.log(`Batch mode: Persisting banner image synchronously`, undefined, { category: "OpenGraph" });
-      const s3BannerUrl = await persistImageAndGetS3Url(
+      envLogger.log(`Batch mode: Persisting banner image`, undefined, { category: "OpenGraph" });
+      const s3BannerUrl = await tryPersistImageToS3(
         bannerImageUrl,
         "social-banners",
         "BannerImage",
         `banner-${fallbackImageData.idempotencyKey}`,
         url,
       );
-
       if (s3BannerUrl) {
         finalBannerImageUrl = s3BannerUrl;
-        envLogger.log(`Banner image persisted to S3`, { s3BannerUrl }, { category: "OpenGraph" });
-      } else {
-        envLogger.log(
-          `Failed to persist banner image, keeping original`,
-          { bannerImageUrl },
-          { category: "OpenGraph" },
-        );
       }
     } else {
       envLogger.log(`Scheduling banner image persistence`, undefined, { category: "OpenGraph" });

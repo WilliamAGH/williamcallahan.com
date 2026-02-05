@@ -16,8 +16,13 @@ import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
-import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
-import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
+import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
+import { formatSeoDate } from "@/lib/seo/utils";
+import {
+  generateDynamicTitle,
+  generateTagDescription,
+  formatTagDisplay,
+} from "@/lib/seo/dynamic-metadata";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import type { BookmarkTagPageContext } from "@/types";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
@@ -79,13 +84,17 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
   }
 
   const displayTag = formatTagDisplay(sanitizedSlug.replace(/-/g, " "));
-  const pageTitle = effectivePage > 1 ? `${displayTag} Bookmarks (Page ${effectivePage})` : `${displayTag} Bookmarks`;
+  const pageTitle =
+    effectivePage > 1
+      ? `${displayTag} Bookmarks (Page ${effectivePage})`
+      : `${displayTag} Bookmarks`;
 
   const customTitle = generateDynamicTitle(pageTitle, "bookmarks", {
     isTag: true,
   });
   const baseDescription = generateTagDescription(displayTag, "bookmarks");
-  const customDescription = effectivePage > 1 ? `${baseDescription} — Page ${effectivePage}.` : baseDescription;
+  const customDescription =
+    effectivePage > 1 ? `${baseDescription} — Page ${effectivePage}.` : baseDescription;
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
   return {
@@ -177,10 +186,12 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
   }
 
   const canonicalTag =
-    result.bookmarks[0]?.tags.find(t => (typeof t === "string" ? tagToSlug(t) : tagToSlug(t.name)) === sanitizedSlug) ??
-    null;
+    result.bookmarks[0]?.tags.find(
+      (t) => (typeof t === "string" ? tagToSlug(t) : tagToSlug(t.name)) === sanitizedSlug,
+    ) ?? null;
 
-  const canonicalTagName = typeof canonicalTag === "string" ? canonicalTag : canonicalTag ? canonicalTag.name : null;
+  const canonicalTagName =
+    typeof canonicalTag === "string" ? canonicalTag : canonicalTag ? canonicalTag.name : null;
 
   // Use canonical name if found, otherwise convert slug back to spaced form for display.
   const finalTagDisplayName = canonicalTagName ?? sanitizedSlug.replace(/-/g, " ");
@@ -188,10 +199,13 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
   const displayTag = formatTagDisplay(finalTagDisplayName);
 
   const pageTitle =
-    currentPage > 1 ? `Bookmarks for ${displayTag} (Page ${currentPage})` : `Bookmarks for ${displayTag}`;
+    currentPage > 1
+      ? `Bookmarks for ${displayTag} (Page ${currentPage})`
+      : `Bookmarks for ${displayTag}`;
 
   const pageBaseDescription = generateTagDescription(displayTag, "bookmarks");
-  const pageDescription = currentPage > 1 ? `${pageBaseDescription} — Page ${currentPage}.` : pageBaseDescription;
+  const pageDescription =
+    currentPage > 1 ? `${pageBaseDescription} — Page ${currentPage}.` : pageBaseDescription;
 
   // Generate schema for this tagged bookmarks page
   let path = `/bookmarks/tags/${sanitizedSlug}`;

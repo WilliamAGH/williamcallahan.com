@@ -3,7 +3,7 @@
  */
 
 // Mock the github module before imports
-jest.mock("@/lib/data-access/github");
+vi.mock("@/lib/data-access/github");
 
 describe("Cache Invalidation Functions", () => {
   describe("Search Cache", () => {
@@ -59,10 +59,10 @@ describe("Cache Invalidation Functions", () => {
     });
   });
 
-  describe.skip("GitHub Cache (Mocked)", () => {
+  describe.todo("GitHub Cache (Mocked)", () => {
     it("should have invalidation function", async () => {
       // Clear module cache and use our mock
-      jest.resetModules();
+      vi.resetModules();
       const githubModule = await import("@/lib/data-access/github");
 
       expect(githubModule.invalidateAllGitHubCaches).toBeDefined();

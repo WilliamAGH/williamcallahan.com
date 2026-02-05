@@ -24,6 +24,7 @@ export function BlogCard({ post, preload = false }: BlogCardPropsExtended) {
         <Link
           href={`/blog/${post.slug}`}
           className="relative h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-800 block cursor-pointer"
+          prefetch={false}
         >
           <OptimizedCardImage
             src={post.coverImage}
@@ -40,6 +41,7 @@ export function BlogCard({ post, preload = false }: BlogCardPropsExtended) {
           <Link
             href={`/blog/${post.slug}`}
             className="text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer inline-block"
+            prefetch={false}
           >
             {post.title}
           </Link>

@@ -19,7 +19,8 @@ import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
-import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
+import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import { getBookmarksPage, getBookmarksIndex } from "@/lib/bookmarks/service.server";
 import type { PaginatedBookmarkContext } from "@/types";
@@ -61,7 +62,10 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
   const title =
     effectivePage === 1
       ? baseTitle
-      : generateDynamicTitle("Bookmarks", "bookmarks", { isPaginated: true, pageNumber: effectivePage });
+      : generateDynamicTitle("Bookmarks", "bookmarks", {
+          isPaginated: true,
+          pageNumber: effectivePage,
+        });
 
   const metadata: Metadata = {
     ...baseMetadata,
@@ -73,13 +77,17 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
     alternates: {
       ...baseMetadata.alternates,
       canonical:
-        effectivePage === 1 ? ensureAbsoluteUrl("/bookmarks") : ensureAbsoluteUrl(`/bookmarks/page/${effectivePage}`),
+        effectivePage === 1
+          ? ensureAbsoluteUrl("/bookmarks")
+          : ensureAbsoluteUrl(`/bookmarks/page/${effectivePage}`),
     },
     openGraph: {
       ...baseMetadata.openGraph,
       title,
       url:
-        effectivePage === 1 ? ensureAbsoluteUrl("/bookmarks") : ensureAbsoluteUrl(`/bookmarks/page/${effectivePage}`),
+        effectivePage === 1
+          ? ensureAbsoluteUrl("/bookmarks")
+          : ensureAbsoluteUrl(`/bookmarks/page/${effectivePage}`),
     },
     robots: {
       index: true,
@@ -150,7 +158,8 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
   }
 
   const pageTitle = "Bookmarks";
-  const pageDescription = "A collection of articles, websites, and resources I've bookmarked for future reference.";
+  const pageDescription =
+    "A collection of articles, websites, and resources I've bookmarked for future reference.";
 
   // Generate schema for this paginated bookmarks page
   const path = `/bookmarks/page/${pageNum}`;

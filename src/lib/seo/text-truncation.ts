@@ -6,7 +6,12 @@
  * as text approaches hard limits. Includes Unicode-safe string operations.
  */
 
-import type { TruncationOptions, TruncationResult, TruncationMetrics } from "@/types/seo";
+import type {
+  TruncationOptions,
+  TruncationResult,
+  TruncationMetrics,
+  CreateResultParams,
+} from "@/types/seo";
 
 /**
  * Unicode-safe string operations using Intl.Segmenter
@@ -25,7 +30,7 @@ class SafeString {
       try {
         this.segmenter = new Intl.Segmenter(locale, { granularity: "grapheme" });
         const segments = Array.from(this.segmenter.segment(text));
-        this.segments = segments.map(s => s.segment);
+        this.segments = segments.map((s) => s.segment);
       } catch (error) {
         console.warn("Intl.Segmenter failed, using fallback:", error);
         this.segments = Array.from(text);
@@ -87,7 +92,7 @@ class SafeString {
   }
 
   words(): string[] {
-    return this.text.split(/\s+/).filter(word => word.length > 0);
+    return this.text.split(/\s+/).filter((word) => word.length > 0);
   }
 
   get isUnicodeAware(): boolean {
@@ -135,12 +140,26 @@ const FILLER_WORDS = new Set([
  * Main gradient truncation function
  * Intelligently truncates text based on how far over the soft limit it is
  */
-export function gradientTruncate(text: string | null | undefined, options: TruncationOptions): TruncationResult {
+export function gradientTruncate(
+  text: string | null | undefined,
+  options: TruncationOptions,
+): TruncationResult {
   const startTime = performance.now();
 
   // Handle empty/null input
   if (!text || typeof text !== "string") {
-    return createResult("", String(text ?? ""), false, "none", 0, 0, startTime, true, 0, 0);
+    return createResult({
+      original: "",
+      text: String(text ?? ""),
+      wasTruncated: false,
+      strategy: "none",
+      originalLength: 0,
+      overage: 0,
+      startTime,
+      unicodeAware: true,
+      softLimit: 0,
+      hardLimit: 0,
+    });
   }
 
   // Normalize and create safe string
@@ -149,18 +168,18 @@ export function gradientTruncate(text: string | null | undefined, options: Trunc
 
   // No truncation needed
   if (safeString.length <= options.softLimit) {
-    return createResult(
-      normalized,
-      normalized,
-      false,
-      "none",
-      safeString.length,
-      0,
+    return createResult({
+      original: normalized,
+      text: normalized,
+      wasTruncated: false,
+      strategy: "none",
+      originalLength: safeString.length,
+      overage: 0,
       startTime,
-      safeString.isUnicodeAware,
-      options.softLimit,
-      options.hardLimit ?? options.softLimit + 20,
-    );
+      unicodeAware: safeString.isUnicodeAware,
+      softLimit: options.softLimit,
+      hardLimit: options.hardLimit ?? options.softLimit + 20,
+    });
   }
 
   // Calculate overage
@@ -193,18 +212,18 @@ export function gradientTruncate(text: string | null | undefined, options: Trunc
     method = truncated === hardTruncatedResult ? "hard" : "keyword";
   }
 
-  return createResult(
-    normalized,
-    truncated,
-    true,
-    method,
-    safeString.length,
+  return createResult({
+    original: normalized,
+    text: truncated,
+    wasTruncated: true,
+    strategy: method,
+    originalLength: safeString.length,
     overage,
     startTime,
-    safeString.isUnicodeAware,
-    options.softLimit,
+    unicodeAware: safeString.isUnicodeAware,
+    softLimit: options.softLimit,
     hardLimit,
-  );
+  });
 }
 
 /**
@@ -212,9 +231,9 @@ export function gradientTruncate(text: string | null | undefined, options: Trunc
  */
 function lightTruncate(text: SafeString, options: TruncationOptions): string | null {
   const words = text.words();
-  const important = new Set(options.importantKeywords?.map(k => k.toLowerCase()) || []);
+  const important = new Set(options.importantKeywords?.map((k) => k.toLowerCase()) || []);
 
-  const filtered = words.filter(word => {
+  const filtered = words.filter((word) => {
     const clean = word.toLowerCase().replace(/[^a-z0-9]/g, "");
     return important.has(clean) || !FILLER_WORDS.has(clean);
   });
@@ -306,35 +325,25 @@ function hardTruncate(text: SafeString, limit: number, options: TruncationOption
 /**
  * Create a truncation result object
  */
-function createResult(
-  original: string,
-  text: string,
-  wasTruncated: boolean,
-  strategy: TruncationResult["strategy"],
-  originalLength: number,
-  overage: number,
-  startTime: number,
-  unicodeAware = true,
-  softLimit?: number,
-  hardLimit?: number,
-): TruncationResult {
+function createResult(opts: CreateResultParams): TruncationResult {
+  const { softLimit, hardLimit, unicodeAware = true } = opts;
   const metrics: TruncationMetrics = {
-    originalLength,
-    finalLength: new SafeString(text).length,
-    overage,
+    originalLength: opts.originalLength,
+    finalLength: new SafeString(opts.text).length,
+    overage: opts.overage,
     overageRatio:
-      overage > 0 && softLimit && hardLimit && hardLimit !== softLimit
-        ? overage / Math.max(hardLimit - softLimit, 1e-6)
+      opts.overage > 0 && softLimit && hardLimit && hardLimit !== softLimit
+        ? opts.overage / Math.max(hardLimit - softLimit, 1e-6)
         : 0,
-    processingTime: performance.now() - startTime,
+    processingTime: performance.now() - opts.startTime,
     unicodeAware,
   };
 
   return {
-    text,
-    original,
-    wasTruncated,
-    strategy,
+    text: opts.text,
+    original: opts.original,
+    wasTruncated: opts.wasTruncated,
+    strategy: opts.strategy,
     metrics,
   };
 }

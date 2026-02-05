@@ -10,8 +10,8 @@ import { getMonotonicTime } from "@/lib/utils";
  * @module data-access/opengraph
  */
 
-import { cacheContextGuards, isCliLikeCacheContext, USE_NEXTJS_CACHE } from "@/lib/cache";
-import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
+import { USE_NEXTJS_CACHE } from "@/lib/cache";
+import { readJsonS3 } from "@/lib/s3/json";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { debug } from "@/lib/utils/debug";
 import { getS3Override } from "@/lib/persistence/s3-persistence";
@@ -24,124 +24,20 @@ import {
   OPENGRAPH_IMAGES_S3_DIR,
   OPENGRAPH_CACHE_DURATION,
 } from "@/lib/constants";
-import { fetchExternalOpenGraphWithRetry } from "@/lib/opengraph/fetch";
 import { createFallbackResult } from "@/lib/opengraph/fallback";
-import { isS3NotFound } from "@/lib/utils/s3-error-guards";
+import { S3NotFoundError } from "@/lib/s3/errors";
 import type { OgResult } from "@/types";
 import { isOgResult, OgError } from "@/types/opengraph";
-import { karakeepImageFallbackSchema, type KarakeepImageFallback } from "@/types/seo/opengraph";
+import { karakeepImageFallbackSchema, ogResultSchema } from "@/types/seo/opengraph";
+import { getCachedOpenGraphDataInternal } from "./opengraph-next-cache";
+import { isCliLikeContext, safeRevalidateTag } from "./opengraph-cache-context";
+import { refreshOpenGraphData } from "./opengraph-refresh";
 
 // Re-export constants for backwards compatibility
 export { OPENGRAPH_S3_KEY_DIR, OPENGRAPH_METADATA_S3_DIR, OPENGRAPH_IMAGES_S3_DIR };
 
-// Runtime-safe wrappers for experimental cache APIs
-// Detect CLI-like contexts (e.g., running from scripts/) where Next.js cache APIs are unavailable
-const safeCacheLife = (...args: Parameters<typeof cacheContextGuards.cacheLife>): void => {
-  cacheContextGuards.cacheLife(...args);
-};
-const safeCacheTag = (...args: Parameters<typeof cacheContextGuards.cacheTag>): void => {
-  cacheContextGuards.cacheTag(...args);
-};
-const safeRevalidateTag = (...args: Parameters<typeof cacheContextGuards.revalidateTag>): void => {
-  cacheContextGuards.revalidateTag(...args);
-};
-const isCliLikeContext = isCliLikeCacheContext;
-
-const inFlightOgPromises: Map<string, Promise<OgResult | null>> = new Map();
-const isProductionBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
-const getOgTimestamp = (): number => (isProductionBuildPhase ? 0 : getMonotonicTime());
-
-/**
- * Cached OpenGraph data fetching with Next.js 'use cache'
- * This function caches only the metadata - images in S3 are served directly
- */
-async function getCachedOpenGraphDataInternal(
-  normalizedUrl: string,
-  skipExternalFetch: boolean,
-  idempotencyKey?: string,
-  validatedFallback?: KarakeepImageFallback | null,
-): Promise<OgResult> {
-  "use cache";
-  safeCacheLife("OpenGraph", "days"); // OpenGraph data is relatively stable
-  safeCacheTag("OpenGraph", "opengraph");
-
-  const urlHash = hashUrl(normalizedUrl);
-  safeCacheTag("OpenGraph", `opengraph-${urlHash}`);
-
-  debug(`[DataAccess/OpenGraph] 🔍 Getting OpenGraph data for: ${normalizedUrl}`);
-
-  // PRIORITY LEVEL 1: Check for S3 override first
-  debug(`[OG-Priority-1] 🔍 Checking S3 override for: ${normalizedUrl}`);
-  const s3Override = await getS3Override(normalizedUrl);
-  if (s3Override) {
-    debug(`[OG-Priority-1] ✅ Found S3 override: ${normalizedUrl}`);
-    return s3Override;
-  }
-  debug(`[OG-Priority-1] ❌ No S3 override found for: ${normalizedUrl}`);
-
-  // Validate URL first
-  if (!validateOgUrl(normalizedUrl)) {
-    envLogger.log("Invalid or unsafe URL", { url: normalizedUrl }, { category: "OpenGraph" });
-    return createFallbackResult(normalizedUrl, "Invalid or unsafe URL", validatedFallback);
-  }
-
-  // Check circuit breaker using unified image service session management
-  const domain = getDomainType(normalizedUrl);
-  const imageService = getUnifiedImageService();
-  if (imageService.hasDomainFailedTooManyTimes(domain)) {
-    debug(`[DataAccess/OpenGraph] Domain ${domain} has failed too many times, using fallback`);
-    return createFallbackResult(normalizedUrl, "Domain temporarily unavailable", validatedFallback);
-  }
-
-  // PRIORITY LEVEL 3: Try to read from S3 persistent storage
-  debug(`[OG-Priority-3] 🔍 Checking S3 persistent storage for: ${normalizedUrl}`);
-  try {
-    const stored = await readJsonS3(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`);
-    if (isOgResult(stored)) {
-      // Check if S3 data is fresh enough
-      const isDataFresh =
-        stored.timestamp && getOgTimestamp() - stored.timestamp < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
-
-      if (isDataFresh) {
-        debug(
-          `[OG-Priority-3] ✅ Found FRESH S3 storage: ${normalizedUrl} (age: ${Math.round((getOgTimestamp() - (stored.timestamp || 0)) / 1000)}s)`,
-        );
-
-        // Return the stored result directly - no need to process S3 image URLs
-        // since they're already in S3 and should be served directly from CDN
-        return stored;
-      }
-    }
-    debug(`[OG-Priority-3] ❌ No valid data in S3 storage for: ${normalizedUrl}`);
-  } catch (e) {
-    if (isS3NotFound(e)) {
-      debug(`[OG-Priority-3] ❌ Not found in S3 storage: ${normalizedUrl}`);
-    } else {
-      const error = e instanceof Error ? e : new Error(String(e));
-      debug(`[OG-Priority-3] ❌ S3 read error for: ${normalizedUrl} - ${error.message}`);
-    }
-  }
-
-  // If skipping external fetch, return fallback now
-  if (skipExternalFetch) {
-    debug(`[DataAccess/OpenGraph] 🚫 Skipping external fetch, returning fallback: ${normalizedUrl}`);
-    return createFallbackResult(normalizedUrl, "Skipped external fetch", validatedFallback);
-  }
-
-  // PRIORITY LEVEL 4: Fetch from external source
-  debug(`[OG-Priority-4] 🔍 Attempting external OpenGraph fetch for: ${normalizedUrl}`);
-  const externalResult = await refreshOpenGraphData(normalizedUrl, idempotencyKey, validatedFallback);
-
-  if (externalResult) {
-    debug(`[OG-Priority-4] ✅ External OpenGraph fetch succeeded for: ${normalizedUrl}`);
-    return externalResult;
-  }
-
-  // If all else fails, return a basic fallback
-  debug(`[OG-Priority-4] ❌ External OpenGraph fetch failed for: ${normalizedUrl}`);
-  debug(`[OG-Fallback] 🔄 Moving to Karakeep fallback chain for: ${normalizedUrl}`);
-  return createFallbackResult(normalizedUrl, "External source unavailable", validatedFallback);
-}
+const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
+const getOgTimestamp = (): number => (isProductionBuildPhase() ? 0 : getMonotonicTime());
 
 /**
  * Retrieves OpenGraph data using a multi-layered approach for optimal performance
@@ -174,7 +70,14 @@ export async function getOpenGraphData(
 
   // Use Next.js cache when enabled and in a Next.js request context (not CLI)
   if (USE_NEXTJS_CACHE && !isCliLikeContext()) {
-    return getCachedOpenGraphDataInternal(normalizedUrl, skipExternalFetch, idempotencyKey, validatedFallback);
+    return getCachedOpenGraphDataInternal({
+      normalizedUrl,
+      skipExternalFetch,
+      idempotencyKey,
+      validatedFallback,
+      getOgTimestamp,
+      refreshOpenGraphData,
+    });
   }
 
   // Legacy path - still using ServerCacheInstance
@@ -200,11 +103,18 @@ export async function getOpenGraphData(
   // PRIORITY LEVEL 2: Check metadata cache first
   debug(`[OG-Priority-2] 🔍 Checking metadata cache for: ${normalizedUrl}`);
   const cached = ServerCacheInstance.getOpenGraphData(normalizedUrl);
-  if (cached && getOgTimestamp() - (cached.data.timestamp ?? 0) < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000) {
+  if (
+    cached &&
+    getOgTimestamp() - (cached.data.timestamp ?? 0) < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000
+  ) {
     debug(`[OG-Priority-2] ✅ Found valid metadata cache for: ${normalizedUrl}`);
 
     // Validate cached data integrity
-    if (!cached.data.url || !cached.data.title || (cached.data.error && typeof cached.data.error !== "string")) {
+    if (
+      !cached.data.url ||
+      !cached.data.title ||
+      (cached.data.error && typeof cached.data.error !== "string")
+    ) {
       envLogger.log(
         "Cached data appears corrupted, invalidating cache",
         { url: normalizedUrl },
@@ -229,9 +139,11 @@ export async function getOpenGraphData(
 
   // If we have stale in-memory cache and should refresh, start background refresh
   if (cached && !skipExternalFetch) {
-    debug(`[DataAccess/OpenGraph] Using stale metadata cache while refreshing in background: ${normalizedUrl}`);
+    debug(
+      `[DataAccess/OpenGraph] Using stale metadata cache while refreshing in background: ${normalizedUrl}`,
+    );
 
-    refreshOpenGraphData(normalizedUrl, idempotencyKey, validatedFallback).catch(error => {
+    refreshOpenGraphData(normalizedUrl, idempotencyKey, validatedFallback).catch((error) => {
       const ogError = new OgError(`Background refresh failed for ${normalizedUrl}`, "refresh", {
         originalError: error,
       });
@@ -256,11 +168,12 @@ export async function getOpenGraphData(
   // PRIORITY LEVEL 3: Try to read from S3 persistent storage if not in memory cache
   debug(`[OG-Priority-3] 🔍 Checking S3 persistent storage for: ${normalizedUrl}`);
   try {
-    const stored = await readJsonS3(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`);
+    const stored = await readJsonS3(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`, ogResultSchema);
     if (isOgResult(stored)) {
       // Check if S3 data is fresh enough
       const isDataFresh =
-        stored.timestamp && getOgTimestamp() - stored.timestamp < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
+        stored.timestamp &&
+        getOgTimestamp() - stored.timestamp < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
 
       if (!isDataFresh) {
         debug(
@@ -279,7 +192,7 @@ export async function getOpenGraphData(
     }
     debug(`[OG-Priority-3] ❌ No valid data in S3 storage for: ${normalizedUrl}`);
   } catch (e) {
-    if (isS3NotFound(e)) {
+    if (e instanceof S3NotFoundError) {
       debug(`[OG-Priority-3] ❌ Not found in S3 storage: ${normalizedUrl}`);
     } else {
       const error = e instanceof Error ? e : new Error(String(e));
@@ -289,13 +202,19 @@ export async function getOpenGraphData(
 
   // If skipping external fetch, return fallback now
   if (skipExternalFetch) {
-    debug(`[DataAccess/OpenGraph] 🚫 Skipping external fetch, returning fallback: ${normalizedUrl}`);
+    debug(
+      `[DataAccess/OpenGraph] 🚫 Skipping external fetch, returning fallback: ${normalizedUrl}`,
+    );
     return createFallbackResult(normalizedUrl, "Skipped external fetch", validatedFallback);
   }
 
   // PRIORITY LEVEL 4: Fetch from external source if not in cache or S3
   debug(`[OG-Priority-4] 🔍 Attempting external OpenGraph fetch for: ${normalizedUrl}`);
-  const externalResult = await refreshOpenGraphData(normalizedUrl, idempotencyKey, validatedFallback);
+  const externalResult = await refreshOpenGraphData(
+    normalizedUrl,
+    idempotencyKey,
+    validatedFallback,
+  );
 
   if (externalResult) {
     debug(`[OG-Priority-4] ✅ External OpenGraph fetch succeeded for: ${normalizedUrl}`);
@@ -309,105 +228,14 @@ export async function getOpenGraphData(
 }
 
 /**
- * Forces a refresh of OpenGraph data from the external URL, bypassing caches
- *
- * @param url - URL to refresh OpenGraph data for
- * @param idempotencyKey - A unique key to ensure idempotent image storage
- * @param fallbackImageData - Optional Karakeep image data for fallbacks
- * @returns Fresh OpenGraph data or null if refresh fails
- */
-export async function refreshOpenGraphData(
-  url: string,
-  idempotencyKey?: string,
-  fallbackImageData?: unknown,
-): Promise<OgResult | null> {
-  const normalizedUrl = normalizeUrl(url);
-  const urlHash = hashUrl(normalizedUrl);
-  let promise = inFlightOgPromises.get(urlHash);
-
-  // Acknowledge unused parameters for now
-  void idempotencyKey;
-
-  if (promise) {
-    debug(`[DataAccess/OpenGraph] Joining in-flight request for: ${normalizedUrl}`);
-    return promise;
-  }
-
-  const validatedFallback = fallbackImageData ? karakeepImageFallbackSchema.safeParse(fallbackImageData).data : null;
-
-  promise = (async () => {
-    try {
-      // Check for S3 override first - even during refresh, overrides take precedence
-      const s3Override = await getS3Override(normalizedUrl);
-      if (s3Override) {
-        debug(`[OpenGraph Refresh] 🛡️ S3 override found during refresh, skipping external fetch: ${normalizedUrl}`);
-        ServerCacheInstance.setOpenGraphData(normalizedUrl, s3Override, false);
-        return s3Override;
-      }
-
-      debug(`[OpenGraph Refresh] 🚀 Starting automatic refresh for: ${normalizedUrl}`);
-      const result = await fetchExternalOpenGraphWithRetry(normalizedUrl, validatedFallback || undefined);
-
-      // Handle successful result
-      if (result && typeof result === "object" && "url" in result) {
-        debug(`[OpenGraph Refresh] ✅ Successfully refreshed: ${normalizedUrl}`);
-        const metadataS3Key = `${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`;
-        ServerCacheInstance.setOpenGraphData(normalizedUrl, result, false);
-        await writeJsonS3(metadataS3Key, result);
-        debug(`[OpenGraph S3] 💾 Persisted refreshed metadata to S3: ${metadataS3Key}`);
-        return result;
-      }
-
-      // Handle network failure (expected scenario)
-      if (result && typeof result === "object" && "networkFailure" in result) {
-        debug(`[OpenGraph Refresh] 🌐 Network unavailable for: ${normalizedUrl}, using fallback`);
-        const fallback = createFallbackResult(normalizedUrl, "Network connectivity issue", validatedFallback);
-        // Cache the fallback for a shorter duration to retry sooner
-        ServerCacheInstance.setOpenGraphData(normalizedUrl, fallback, true);
-        return fallback;
-      }
-
-      // Handle null result (permanent failure or blocked)
-      debug(`[OpenGraph Refresh] ❌ External source unavailable for: ${normalizedUrl}`);
-      const fallback = createFallbackResult(normalizedUrl, "External source unavailable", validatedFallback);
-      ServerCacheInstance.setOpenGraphData(normalizedUrl, fallback, true);
-      return fallback;
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      const ogError = new OgError(`Failed to refresh OpenGraph data for ${normalizedUrl}`, "refresh", {
-        originalError: error,
-      });
-      envLogger.log(
-        ogError.message,
-        {
-          errorName: ogError.name,
-          errorMessage: ogError.message,
-          stack: ogError.stack,
-          cause: err instanceof Error ? err.message : String(err),
-          url: normalizedUrl,
-        },
-        { category: "OpenGraph" },
-      );
-
-      const fallback = createFallbackResult(normalizedUrl, ogError.message, validatedFallback);
-      ServerCacheInstance.setOpenGraphData(normalizedUrl, fallback, true);
-      return fallback;
-    } finally {
-      inFlightOgPromises.delete(urlHash);
-    }
-  })();
-
-  inFlightOgPromises.set(urlHash, promise);
-  return promise;
-}
-
-/**
  * Serve an OpenGraph image from S3 storage
  *
  * @param s3Key - S3 key for the image
  * @returns Promise resolving to image buffer and content type, or null if not found
  */
-export async function serveOpenGraphImage(s3Key: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+export async function serveOpenGraphImage(
+  s3Key: string,
+): Promise<{ buffer: Buffer; contentType: string } | null> {
   return serveImageFromS3(s3Key, "OpenGraph");
 }
 
@@ -424,7 +252,9 @@ export function invalidateOpenGraphCache(): void {
   } else {
     // Legacy: clear memory cache
     ServerCacheInstance.deleteOpenGraphData("*");
-    envLogger.log("Legacy cache cleared for all OpenGraph data", undefined, { category: "OpenGraph" });
+    envLogger.log("Legacy cache cleared for all OpenGraph data", undefined, {
+      category: "OpenGraph",
+    });
   }
 }
 
@@ -441,6 +271,10 @@ export function invalidateOpenGraphCacheForUrl(url: string): void {
   } else {
     // Legacy: clear specific entry from memory cache
     ServerCacheInstance.deleteOpenGraphData(normalizedUrl);
-    envLogger.log("Legacy cache cleared for URL", { url: normalizedUrl }, { category: "OpenGraph" });
+    envLogger.log(
+      "Legacy cache cleared for URL",
+      { url: normalizedUrl },
+      { category: "OpenGraph" },
+    );
   }
 }

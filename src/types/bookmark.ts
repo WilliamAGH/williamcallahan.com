@@ -161,6 +161,9 @@ export const unifiedBookmarkSchema = z.object({
 
 export type UnifiedBookmark = z.infer<typeof unifiedBookmarkSchema>;
 
+// Array schema for validating bookmark collections
+export const unifiedBookmarksArraySchema = z.array(unifiedBookmarkSchema);
+
 // Base bookmark schema with common fields
 const baseBookmarkSchema = z.object({
   id: z.string(),
@@ -383,3 +386,17 @@ export const bookmarkSlugMappingSchema = z.object({
   slugs: z.record(z.string(), bookmarkSlugEntrySchema),
   reverseMap: z.record(z.string(), z.string()),
 });
+
+/** Validated API configuration for bookmark fetching */
+export interface BookmarksApiContext {
+  apiUrl: string;
+  requestHeaders: { Accept: string; Authorization: string };
+}
+
+/** Result of checksum validation - either cached data or null to proceed */
+export interface ChecksumResult {
+  cached: UnifiedBookmark[] | null;
+  checksum: string;
+  latestKey: string;
+  envSuffix: string;
+}

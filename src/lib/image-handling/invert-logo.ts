@@ -8,6 +8,13 @@ import type { ProcessedImageResult } from "@/types/image";
  *
  * NOTE: This helper is intentionally lightweight (<200 LOC) and uses
  * pure JS image-js implementation – no native bindings.
+ *
+ * @see image-js v0.37.0 API verified from node_modules/image-js/index.d.ts:
+ *   - Image.load(image: string | ArrayBuffer | Uint8Array): Promise<Image> (lines 35-38)
+ *   - image.invert(options?: OutOrInplace): Image (line 75)
+ *   - image.toBuffer(options?: SaveOptions): Uint8Array (line 67)
+ *   - SaveOptions = { format?: string } (lines 598-602)
+ * @see https://github.com/image-js/image-js (repository)
  */
 export async function invertLogoBuffer(
   input: Buffer,
@@ -18,7 +25,7 @@ export async function invertLogoBuffer(
   try {
     detection = await processImageBufferSimple(input, logContext);
   } catch {
-    // Fallback to generic PNG if detection fails
+    console.warn(`[${logContext}] Content-type detection failed; defaulting to PNG output.`);
     detection = { processedBuffer: input, contentType: "image/png" };
   }
 
@@ -38,21 +45,35 @@ export async function invertLogoBuffer(
       /* webpackChunkName: "image-worker" */ "image-js"
     )) as { Image: typeof import("image-js").Image };
 
+    // Image.load accepts ArrayBuffer|Uint8Array per index.d.ts:35-38
     const image = await Image.load(processedBuffer);
+    // invert() returns new Image with inverted colors per index.d.ts:75
     const inverted = image.invert();
 
     // image-js expects a format keyword (png, jpg, webp, etc.) – map from MIME
     const format = contentType.replace(/^image\//, ""); // e.g., image/png -> png
 
     // Type-safe format validation for image-js toBuffer
-    const validFormats = ["png", "jpg", "jpeg", "webp"] as const;
-    const safeFormat = validFormats.includes(format as (typeof validFormats)[number]) ? format : "png";
+    const validFormats = ["png", "jpg", "jpeg", "bmp"] as const;
+    const safeFormat = validFormats.includes(format as (typeof validFormats)[number])
+      ? format
+      : "png";
 
+    // toBuffer accepts SaveOptions.format per index.d.ts:67,598-602
     const invertedBuffer = Buffer.from(inverted.toBuffer({ format: safeFormat }));
-    return { buffer: invertedBuffer, contentType };
+    const outputContentType =
+      safeFormat === "jpg" || safeFormat === "jpeg"
+        ? "image/jpeg"
+        : safeFormat === "bmp"
+          ? "image/bmp"
+          : "image/png";
+    return { buffer: invertedBuffer, contentType: outputContentType };
   } catch (error) {
     // On failure, return the original buffer to avoid breaking pipeline
-    console.warn(`[${logContext}] Inversion failed – returning original buffer:`, (error as Error).message);
+    console.warn(
+      `[${logContext}] Inversion failed – returning original buffer:`,
+      (error as Error).message,
+    );
     return { buffer: processedBuffer, contentType };
   }
 }

@@ -17,11 +17,20 @@
  *   all        - Run all diagnostics
  */
 
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { UnifiedBookmark } from "@/types";
-import { bookmarkSlugMappingSchema, type BookmarksIndex } from "@/types/bookmark";
-import { loadSlugMapping, getSlugForBookmark, getBookmarkIdFromSlug } from "@/lib/bookmarks/slug-manager";
+import {
+  bookmarkSlugMappingSchema,
+  bookmarksIndexSchema,
+  unifiedBookmarksArraySchema,
+  type BookmarksIndex,
+} from "@/types/bookmark";
+import {
+  loadSlugMapping,
+  getSlugForBookmark,
+  getBookmarkIdFromSlug,
+} from "@/lib/bookmarks/slug-manager";
 
 // Command line argument parsing
 const command = process.argv[2] || "counts";
@@ -40,8 +49,14 @@ async function checkBookmarkCounts() {
   console.log("─".repeat(40));
 
   try {
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
-    const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
+    const index = await readJsonS3Optional<BookmarksIndex>(
+      BOOKMARKS_S3_PATHS.INDEX,
+      bookmarksIndexSchema,
+    );
 
     console.log(`Actual bookmarks count: ${bookmarks?.length || 0}`);
     console.log(`Index count: ${index?.count || 0}`);
@@ -63,7 +78,7 @@ async function checkBookmarkCounts() {
 
     // Check for duplicates
     if (bookmarks && bookmarks.length > 0) {
-      const ids = bookmarks.map(b => b.id);
+      const ids = bookmarks.map((b) => b.id);
       const uniqueIds = new Set(ids);
       console.log(`\n🔍 Duplicate Check:`);
       console.log(`Total IDs: ${ids.length}`);
@@ -109,7 +124,7 @@ async function checkBookmarkIntegrity() {
         category: "Slug Mapping",
         status: "❌",
         message: "Invalid slug mapping schema",
-        details: validation.error.issues.map(i => i.message),
+        details: validation.error.issues.map((i) => i.message),
       });
       return false;
     }
@@ -122,7 +137,10 @@ async function checkBookmarkIntegrity() {
 
     // Check bookmarks have slugs
     console.log("\n🔗 Checking bookmark slugs:");
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
 
     if (!bookmarks || bookmarks.length === 0) {
       results.push({
@@ -162,14 +180,14 @@ async function checkBookmarkIntegrity() {
         category: "Bookmark Slugs",
         status: "❌",
         message: `${missingSlugs.length} bookmarks missing slugs - will cause 404s!`,
-        details: missingSlugs.map(b => `ID: ${b.id} | Title: "${b.title}" | URL: ${b.url}`),
+        details: missingSlugs.map((b) => `ID: ${b.id} | Title: "${b.title}" | URL: ${b.url}`),
       });
     } else if (invalidSlugs.length > 0) {
       results.push({
         category: "Bookmark Slugs",
         status: "⚠️",
         message: `${invalidSlugs.length} bookmarks have invalid slug mappings`,
-        details: invalidSlugs.map(b => `ID: ${b.id} | Slug: "${b.slug}" | Title: "${b.title}"`),
+        details: invalidSlugs.map((b) => `ID: ${b.id} | Slug: "${b.slug}" | Title: "${b.title}"`),
       });
     } else {
       results.push({
@@ -181,12 +199,18 @@ async function checkBookmarkIntegrity() {
 
     // Check pagination files
     console.log("\n📑 Checking pagination files:");
-    const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+    const index = await readJsonS3Optional<BookmarksIndex>(
+      BOOKMARKS_S3_PATHS.INDEX,
+      bookmarksIndexSchema,
+    );
 
     if (index?.totalPages) {
       for (let i = 1; i <= Math.min(3, index.totalPages); i++) {
         const pagePath = `${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${i}.json`;
-        const pageData = await readJsonS3<UnifiedBookmark[]>(pagePath);
+        const pageData = await readJsonS3Optional<UnifiedBookmark[]>(
+          pagePath,
+          unifiedBookmarksArraySchema,
+        );
 
         if (!pageData) {
           results.push({
@@ -195,7 +219,7 @@ async function checkBookmarkIntegrity() {
             message: `Page file missing`,
           });
         } else {
-          const pageBookmarksWithoutSlugs = pageData.filter(b => !b.slug);
+          const pageBookmarksWithoutSlugs = pageData.filter((b) => !b.slug);
           if (pageBookmarksWithoutSlugs.length > 0) {
             results.push({
               category: `Page ${i}`,
@@ -220,24 +244,24 @@ async function checkBookmarkIntegrity() {
     for (const result of results) {
       console.log(`${result.status} ${result.category}: ${result.message}`);
       if (result.details) {
-        result.details.forEach(d => console.log(`   - ${d}`));
+        result.details.forEach((d) => console.log(`   - ${d}`));
       }
     }
 
-    const hasErrors = results.some(r => r.status === "❌");
-    const hasWarnings = results.some(r => r.status === "⚠️");
+    const hasErrors = results.some((r) => r.status === "❌");
+    const hasWarnings = results.some((r) => r.status === "⚠️");
 
     if (hasErrors) {
       console.log("\n❌ CRITICAL ISSUES FOUND - Fix immediately to prevent 404s!");
 
       // Display critical issues with bookmark details
-      const criticalIssues = results.filter(r => r.status === "❌" && r.details);
+      const criticalIssues = results.filter((r) => r.status === "❌" && r.details);
       if (criticalIssues.length > 0) {
         console.log("\n🚨 BOOKMARKS REQUIRING IMMEDIATE ATTENTION:");
         console.log("─".repeat(60));
-        criticalIssues.forEach(issue => {
+        criticalIssues.forEach((issue) => {
           console.log(`\n${issue.category}:`);
-          issue.details?.forEach(detail => {
+          issue.details?.forEach((detail) => {
             console.log(`  • ${detail}`);
           });
         });
@@ -251,13 +275,13 @@ async function checkBookmarkIntegrity() {
       console.log("\n⚠️  Warnings found - Review and fix if needed");
 
       // Display warnings with details
-      const warningIssues = results.filter(r => r.status === "⚠️" && r.details);
+      const warningIssues = results.filter((r) => r.status === "⚠️" && r.details);
       if (warningIssues.length > 0) {
         console.log("\n⚠️  BOOKMARKS WITH WARNINGS:");
         console.log("─".repeat(60));
-        warningIssues.forEach(issue => {
+        warningIssues.forEach((issue) => {
           console.log(`\n${issue.category}:`);
-          issue.details?.forEach(detail => {
+          issue.details?.forEach((detail) => {
             console.log(`  • ${detail}`);
           });
         });
@@ -279,7 +303,10 @@ async function checkBookmarkStructure() {
   console.log("─".repeat(40));
 
   try {
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
 
     if (!bookmarks || !Array.isArray(bookmarks) || bookmarks.length === 0) {
       console.log("❌ No bookmarks found");
@@ -299,8 +326,8 @@ async function checkBookmarkStructure() {
     const fieldPresence: Record<string, number> = {};
     const fieldTypes: Record<string, Set<string>> = {};
 
-    bookmarks.forEach(b => {
-      Object.keys(b).forEach(key => {
+    bookmarks.forEach((b) => {
+      Object.keys(b).forEach((key) => {
         if (!fieldPresence[key]) fieldPresence[key] = 0;
         fieldPresence[key]++;
 
@@ -329,17 +356,18 @@ async function checkBookmarkStructure() {
     // Check for critical fields
     console.log("\n🔐 CRITICAL FIELDS CHECK:");
     const criticalFields = ["id", "url", "title", "slug"];
-    criticalFields.forEach(field => {
+    criticalFields.forEach((field) => {
       const presence = fieldPresence[field] || 0;
       const percentage = ((presence / bookmarks.length) * 100).toFixed(1);
-      const status = presence === bookmarks.length ? "✅" : presence > bookmarks.length * 0.9 ? "⚠️" : "❌";
+      const status =
+        presence === bookmarks.length ? "✅" : presence > bookmarks.length * 0.9 ? "⚠️" : "❌";
       console.log(`${status} ${field}: ${percentage}%`);
     });
 
     // Check for date fields
     console.log("\n📅 DATE FIELDS:");
     const dateFields = Object.keys(fieldPresence).filter(
-      k =>
+      (k) =>
         k.toLowerCase().includes("date") ||
         k.toLowerCase().includes("created") ||
         k.toLowerCase().includes("updated") ||
@@ -347,16 +375,16 @@ async function checkBookmarkStructure() {
     );
 
     if (dateFields.length > 0) {
-      dateFields.forEach(field => {
+      dateFields.forEach((field) => {
         const count = fieldPresence[field] ?? 0;
         const percentage = ((count / bookmarks.length) * 100).toFixed(1);
         console.log(`${field}: ${percentage}%`);
 
         // Show sample values
         const samples = bookmarks
-          .filter(b => Boolean((b as Record<string, unknown>)[field]))
+          .filter((b) => Boolean((b as Record<string, unknown>)[field]))
           .slice(0, 2)
-          .map(b => (b as Record<string, unknown>)[field]);
+          .map((b) => (b as Record<string, unknown>)[field]);
         if (samples.length > 0) {
           console.log(`  Sample: ${samples[0]}`);
         }
@@ -378,8 +406,14 @@ async function checkProductionBookmarks() {
 
   try {
     // S3 utilities automatically handle environment-based paths
-    const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
-    const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+    const bookmarks = await readJsonS3Optional<UnifiedBookmark[]>(
+      BOOKMARKS_S3_PATHS.FILE,
+      unifiedBookmarksArraySchema,
+    );
+    const index = await readJsonS3Optional<BookmarksIndex>(
+      BOOKMARKS_S3_PATHS.INDEX,
+      bookmarksIndexSchema,
+    );
 
     if (!bookmarks) {
       console.log("❌ No production bookmarks found");
@@ -392,12 +426,15 @@ async function checkProductionBookmarks() {
 
     // Check for test data in production
     const testBookmarks = bookmarks.filter(
-      b => b.id.includes("test") || b.url.includes("example.com") || b.title?.toLowerCase().includes("test"),
+      (b) =>
+        b.id.includes("test") ||
+        b.url.includes("example.com") ||
+        b.title?.toLowerCase().includes("test"),
     );
 
     if (testBookmarks.length > 0) {
       console.log(`\n⚠️  Found ${testBookmarks.length} potential test bookmarks in production:`);
-      testBookmarks.slice(0, 3).forEach(b => {
+      testBookmarks.slice(0, 3).forEach((b) => {
         console.log(`  - ${b.id}: ${b.title || "Untitled"}`);
       });
     } else {
@@ -453,7 +490,7 @@ async function main() {
         console.log(`${result ? "✅" : "❌"} ${cmd}`);
       });
 
-      success = Object.values(results).every(r => r);
+      success = Object.values(results).every((r) => r);
       break;
     }
   }
@@ -467,7 +504,7 @@ async function main() {
   }
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error("Fatal error:", error);
   process.exit(1);
 });

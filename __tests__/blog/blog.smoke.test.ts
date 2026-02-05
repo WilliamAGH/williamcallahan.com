@@ -6,13 +6,11 @@
  */
 
 // Suite-specific timeout for slow environments
-jest.setTimeout(60_000);
+vi.setConfig({ testTimeout: 60_000 });
 
 // Mock the S3 directory listing to avoid network latency/timeouts
-jest.mock("@/lib/s3-utils", () => ({
-  __esModule: true,
-  ...jest.requireActual("@/lib/s3-utils"),
-  listS3Objects: jest.fn().mockResolvedValue([]),
+vi.mock("@/lib/s3/objects", () => ({
+  listS3Objects: vi.fn().mockResolvedValue([]),
 }));
 
 import type { BlogFrontmatter } from "@/types/test";
@@ -20,8 +18,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
 // IMPORTANT: Use the real serializer. Keep ESM rehype/remark plugins mocked by config.
-jest.unmock("next-mdx-remote/serialize");
-jest.unmock("next-mdx-remote");
+vi.doUnmock("next-mdx-remote/serialize");
+vi.doUnmock("next-mdx-remote");
 
 import { getMDXPost } from "../../src/lib/blog/mdx";
 
@@ -33,7 +31,7 @@ describe("Blog MDX Smoke Tests", () => {
   beforeAll(async () => {
     try {
       const files = await fs.readdir(POSTS_DIRECTORY);
-      mdxFiles = files.filter(file => file.endsWith(".mdx"));
+      mdxFiles = files.filter((file) => file.endsWith(".mdx"));
       console.log(`Found ${mdxFiles.length} MDX files in ${POSTS_DIRECTORY}`);
     } catch (error) {
       console.error("Failed to read blog posts directory:", POSTS_DIRECTORY, error);
@@ -51,7 +49,7 @@ describe("Blog MDX Smoke Tests", () => {
 
   it("all blog posts have valid frontmatter", async () => {
     await Promise.all(
-      mdxFiles.map(async fileName => {
+      mdxFiles.map(async (fileName) => {
         const fullPath = path.join(POSTS_DIRECTORY, fileName);
         let fileContents: string;
 
@@ -73,7 +71,7 @@ describe("Blog MDX Smoke Tests", () => {
 
   it("all blog posts can be processed by getMDXPost", async () => {
     await Promise.all(
-      mdxFiles.map(async fileName => {
+      mdxFiles.map(async (fileName) => {
         const fullPath = path.join(POSTS_DIRECTORY, fileName);
         const fileContents = await fs.readFile(fullPath, "utf8");
         const { data: frontmatter } = matter(fileContents) as unknown as { data: BlogFrontmatter };

@@ -7,7 +7,9 @@ import { NextRequest, NextResponse } from "next/server";
  * Called by the scheduler after successful bookmark refresh to ensure fresh data is served
  */
 export function POST(request: NextRequest): NextResponse {
-  console.log(`[Cache Invalidation] Bookmarks revalidation endpoint called at ${new Date().toISOString()}`);
+  console.log(
+    `[Cache Invalidation] Bookmarks revalidation endpoint called at ${new Date().toISOString()}`,
+  );
 
   // Verify authorization
   const authHeader = request.headers.get("authorization");
@@ -26,7 +28,9 @@ export function POST(request: NextRequest): NextResponse {
   })();
 
   if (presentedToken !== expectedToken) {
-    envLogger.log("Unauthorized revalidation attempt", undefined, { category: "CacheInvalidation" });
+    envLogger.log("Unauthorized revalidation attempt", undefined, {
+      category: "CacheInvalidation",
+    });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

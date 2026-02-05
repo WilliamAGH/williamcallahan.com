@@ -11,6 +11,7 @@
 import { NextResponse } from "next/server";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getErrorMessage } from "@/types/api-responses";
+import { productionRefreshResponseSchema } from "@/types/schemas/api";
 
 /**
  * POST handler for triggering production bookmarks refresh
@@ -19,12 +20,17 @@ import { getErrorMessage } from "@/types/api-responses";
 export async function POST(): Promise<NextResponse> {
   // Check if we're in a non-production environment
   const isProduction =
-    process.env.DEPLOYMENT_ENV === "production" || process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
+    process.env.DEPLOYMENT_ENV === "production" ||
+    process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
 
   if (isProduction) {
-    envLogger.log("Production refresh endpoint called from production environment - not allowed", undefined, {
-      category: "BookmarksRefresh",
-    });
+    envLogger.log(
+      "Production refresh endpoint called from production environment - not allowed",
+      undefined,
+      {
+        category: "BookmarksRefresh",
+      },
+    );
     return NextResponse.json(
       { message: "This endpoint is only available in non-production environments" },
       { status: 403 },
@@ -32,13 +38,35 @@ export async function POST(): Promise<NextResponse> {
   }
 
   // Get the production refresh secret
-  const refreshSecret = process.env.BOOKMARK_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+  const primarySecret = process.env.BOOKMARK_REFRESH_SECRET;
+  let refreshSecret = primarySecret;
 
   if (!refreshSecret) {
-    envLogger.log("BOOKMARK_REFRESH_SECRET not configured - cannot trigger production refresh", undefined, {
-      category: "BookmarksRefresh",
-    });
-    return NextResponse.json({ message: "Server configuration error: refresh secret not set" }, { status: 500 });
+    const cronSecret = process.env.BOOKMARK_CRON_REFRESH_SECRET;
+    if (cronSecret) {
+      refreshSecret = cronSecret;
+      envLogger.log(
+        "BOOKMARK_REFRESH_SECRET missing, falling back to BOOKMARK_CRON_REFRESH_SECRET",
+        undefined,
+        {
+          category: "BookmarksRefresh",
+        },
+      );
+    }
+  }
+
+  if (!refreshSecret) {
+    envLogger.log(
+      "BOOKMARK_REFRESH_SECRET not configured - cannot trigger production refresh",
+      undefined,
+      {
+        category: "BookmarksRefresh",
+      },
+    );
+    return NextResponse.json(
+      { message: "Server configuration error: refresh secret not set" },
+      { status: 500 },
+    );
   }
 
   try {
@@ -81,9 +109,31 @@ export async function POST(): Promise<NextResponse> {
       );
     }
 
-    const result: unknown = await response.json();
+    const rawResult: unknown = await response.json();
+    const parseResult = productionRefreshResponseSchema.safeParse(rawResult);
 
-    envLogger.log("Production bookmarks refresh triggered successfully", { result }, { category: "BookmarksRefresh" });
+    if (!parseResult.success) {
+      envLogger.log(
+        "Production bookmarks refresh response validation failed",
+        { errors: parseResult.error.format(), raw: rawResult },
+        { category: "BookmarksRefresh" },
+      );
+      return NextResponse.json(
+        {
+          message: "Production returned invalid response format",
+          error: "Response validation failed",
+        },
+        { status: 502 },
+      );
+    }
+
+    const result = parseResult.data;
+
+    envLogger.log(
+      "Production bookmarks refresh triggered successfully",
+      { result },
+      { category: "BookmarksRefresh" },
+    );
 
     return NextResponse.json({
       message: "Production bookmarks refresh initiated successfully",

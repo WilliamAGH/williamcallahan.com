@@ -23,43 +23,25 @@ export const isBookmarkServiceLoggingEnabled =
   process.env.VERBOSE === "true";
 
 /**
+ * Whether we're in a test environment.
+ * Used to suppress verbose logging during tests.
+ */
+const isTestEnvironment =
+  process.env.NODE_ENV === "test" ||
+  process.env.VITEST === "true" ||
+  process.env.JEST_WORKER_ID !== undefined;
+
+/**
  * Whether slug manager debug logging is enabled.
- * Uses production mode or explicit debug flags.
+ * Uses production mode or explicit debug flags, but disabled in test environments
+ * to keep test output clean (only errors should appear).
  */
 export const isSlugManagerLoggingEnabled =
-  process.env.NODE_ENV === "production" ||
-  process.env.DEBUG_SLUG_MANAGER === "true" ||
-  process.env.DEBUG === "true" ||
-  process.env.VERBOSE === "true";
-
-// ============================================================================
-// Local S3 Cache Configuration
-// ============================================================================
-
-const forceLocalS3Cache = process.env.FORCE_LOCAL_S3_CACHE === "true";
-const allowRuntimeFallback = process.env.ALLOW_RUNTIME_S3_FALLBACK !== "false";
-const nextPhase = process.env.NEXT_PHASE;
-const isBuildPhase = nextPhase === "phase-production-build";
-const isRuntimePhase = !isBuildPhase;
-const isRunningInDocker = process.env.RUNNING_IN_DOCKER === "true";
-
-/**
- * Whether to skip the local S3 cache.
- *
- * Build phase: Always skips local cache (unless FORCE_LOCAL_S3_CACHE is set)
- * Runtime phase in Docker: Skips by default, but ALLOW_RUNTIME_S3_FALLBACK=false restores old behavior
- *
- * This ensures Docker runtimes can serve cached data even when S3/CDN is offline.
- */
-export const shouldSkipLocalS3Cache =
-  !forceLocalS3Cache && (isBuildPhase || (!allowRuntimeFallback && isRunningInDocker && isRuntimePhase));
-
-/**
- * Simplified skip check for slug-manager (original behavior).
- * Skips during Docker runtime but allows during build phase.
- */
-export const shouldSkipLocalS3CacheForSlugManager =
-  !forceLocalS3Cache && isRunningInDocker && nextPhase !== "phase-production-build";
+  !isTestEnvironment &&
+  (process.env.NODE_ENV === "production" ||
+    process.env.DEBUG_SLUG_MANAGER === "true" ||
+    process.env.DEBUG === "true" ||
+    process.env.VERBOSE === "true");
 
 // ============================================================================
 // Tag Persistence Configuration
@@ -80,7 +62,9 @@ const PARSED_MAX_TAGS = RAW_MAX_TAGS != null ? Number(RAW_MAX_TAGS) : Number.NaN
  * Defaults to unlimited (MAX_SAFE_INTEGER) when not set or invalid.
  */
 export const MAX_TAGS_TO_PERSIST =
-  Number.isFinite(PARSED_MAX_TAGS) && PARSED_MAX_TAGS > 0 ? Math.floor(PARSED_MAX_TAGS) : Number.MAX_SAFE_INTEGER;
+  Number.isFinite(PARSED_MAX_TAGS) && PARSED_MAX_TAGS > 0
+    ? Math.floor(PARSED_MAX_TAGS)
+    : Number.MAX_SAFE_INTEGER;
 
 // Log warning for invalid MAX_TAGS_TO_PERSIST values
 if (RAW_MAX_TAGS && (!Number.isFinite(PARSED_MAX_TAGS) || PARSED_MAX_TAGS <= 0)) {

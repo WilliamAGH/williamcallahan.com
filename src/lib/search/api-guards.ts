@@ -30,11 +30,13 @@ import os from "node:os";
  */
 export function getCriticalThreshold(): number {
   const bytesEnv = process.env.MEMORY_CRITICAL_BYTES;
-  if (bytesEnv) {
+  if (bytesEnv !== undefined) {
     const parsed = Number(bytesEnv);
     if (!Number.isNaN(parsed) && parsed > 0) {
       return parsed;
     }
+    // If MEMORY_CRITICAL_BYTES is set but invalid, fall back to default.
+    return 3 * 1024 * 1024 * 1024;
   }
 
   const percentEnv = process.env.MEMORY_CRITICAL_PERCENT?.trim();
@@ -166,10 +168,16 @@ export function applySearchGuards(request: NextRequest): NextResponse | null {
  * @param status - HTTP status code (default: 500)
  * @returns NextResponse with appropriate error details
  */
-export function createSearchErrorResponse(userMessage: string, internalError: string, status = 500): NextResponse {
+export function createSearchErrorResponse(
+  userMessage: string,
+  internalError: string,
+  status = 500,
+): NextResponse {
   const isProduction = process.env.NODE_ENV === "production";
 
-  const body = isProduction ? { error: userMessage } : { error: userMessage, details: internalError };
+  const body = isProduction
+    ? { error: userMessage }
+    : { error: userMessage, details: internalError };
 
   return NextResponse.json(body, {
     status,

@@ -2,36 +2,42 @@
  * Unified image service facade - delegates to specialized modules
  * @module lib/services/unified-image-service
  */
-import { s3Client, checkIfS3ObjectExists } from "../s3-utils";
-import { ServerCacheInstance, getDeterministicTimestamp } from "../server-cache";
-import { parseS3Key, generateS3Key, hashAndArchiveManualLogo } from "../utils/hash-utils";
+import { checkIfS3ObjectExists } from "@/lib/s3/objects";
+import { ServerCacheInstance } from "../server-cache";
+import { getDeterministicTimestamp } from "../utils/deterministic-timestamp";
 import { UNIFIED_IMAGE_SERVICE_CONFIG } from "../constants";
 import { isS3ReadOnly } from "../utils/s3-read-only";
-import type { LogoSource, LogoInversion } from "../../types/logo";
+import type { LogoInversion } from "../../types/logo";
 import type { ImageServiceOptions, ImageResult } from "../../types/image";
-import { fetchWithTimeout, DEFAULT_IMAGE_HEADERS, fetchBinary } from "../utils/http-client";
-import { safeStringifyValue } from "../utils/error-utils";
-import { inferContentTypeFromUrl, getContentTypeFromExtension } from "../utils/content-type";
-import { isLogoUrl, extractDomain } from "../utils/url-utils";
-import { getMemoryHealthMonitor, wipeBuffer } from "../health/memory-health-monitor";
+import { DEFAULT_IMAGE_HEADERS, fetchBinary } from "../utils/http-client";
+import { inferContentTypeFromUrl, DEFAULT_IMAGE_CONTENT_TYPE } from "../utils/content-type";
+import { wipeBuffer } from "../health/memory-health-monitor";
 import { monitoredAsync } from "../async-operations-monitor";
 import type { LogoFetchResult, LogoValidationResult } from "../../types/cache";
 import { logoDebugger } from "@/lib/utils/logo-debug";
-import { maybeStreamImageToS3 } from "./image-streaming";
 import logger from "../utils/logger";
 import { LogoValidators } from "./image/logo-validators";
 import { S3Operations } from "./image/s3-operations";
 import { SessionManager } from "./image/session-manager";
 import { LogoFetcher } from "./image/logo-fetcher";
+import { findExistingHashedLogo, findAndMigrateLegacyLogo } from "./image/logo-discovery";
+import {
+  fetchAndPersistExternalLogo,
+  buildReadOnlyMissingResult,
+  buildMemoryPressureResult,
+} from "./image/logo-persistence";
+import { fetchAndProcessImage } from "./image/image-fetcher";
 
 export class UnifiedImageService {
   private readonly isReadOnly = isS3ReadOnly();
   private readonly isDev = process.env.NODE_ENV !== "production";
   private readonly devProcessingDisabled =
     this.isDev &&
-    (process.env.DEV_DISABLE_IMAGE_PROCESSING === "1" || process.env.DEV_DISABLE_IMAGE_PROCESSING === "true");
+    (process.env.DEV_DISABLE_IMAGE_PROCESSING === "1" ||
+      process.env.DEV_DISABLE_IMAGE_PROCESSING === "true");
   private readonly devStreamImagesToS3 =
-    this.isDev && (process.env.DEV_STREAM_IMAGES_TO_S3 === "1" || process.env.DEV_STREAM_IMAGES_TO_S3 === "true");
+    this.isDev &&
+    (process.env.DEV_STREAM_IMAGES_TO_S3 === "1" || process.env.DEV_STREAM_IMAGES_TO_S3 === "true");
 
   /** 1x1 transparent PNG placeholder - used when image processing is disabled */
   private static readonly TRANSPARENT_PNG_PLACEHOLDER = Buffer.from(
@@ -49,8 +55,14 @@ export class UnifiedImageService {
 
   constructor() {
     // S3 utils already validate environment on first use
-    if (process.env.NODE_ENV === "production" && !process.env.S3_CDN_URL && !process.env.S3_BUCKET) {
-      throw new Error("UnifiedImageService: Either S3_CDN_URL or S3_BUCKET must be set in production.");
+    if (
+      process.env.NODE_ENV === "production" &&
+      !process.env.NEXT_PUBLIC_S3_CDN_URL &&
+      !process.env.S3_BUCKET
+    ) {
+      throw new Error(
+        "UnifiedImageService: Either NEXT_PUBLIC_S3_CDN_URL or S3_BUCKET must be set in production.",
+      );
     }
 
     // Initialize specialist modules
@@ -107,7 +119,7 @@ export class UnifiedImageService {
     if (!this.devStreamImagesToS3 && this.devProcessingDisabled) {
       return {
         buffer: UnifiedImageService.TRANSPARENT_PNG_PLACEHOLDER,
-        contentType: "image/png",
+        contentType: DEFAULT_IMAGE_CONTENT_TYPE,
         source: "placeholder",
         timestamp: getDeterministicTimestamp(),
       };
@@ -139,7 +151,9 @@ export class UnifiedImageService {
             await this.s3Ops.uploadToS3(s3Key, result.buffer, result.contentType);
           }
           const bufferForReturn =
-            retainBuffer && result.buffer ? Buffer.from(result.buffer) : (result.buffer ?? undefined);
+            retainBuffer && result.buffer
+              ? Buffer.from(result.buffer)
+              : (result.buffer ?? undefined);
           return {
             buffer: bufferForReturn,
             contentType: result.contentType,
@@ -152,22 +166,17 @@ export class UnifiedImageService {
           result = null;
         }
       },
-      { timeoutMs: timeoutMs ?? this.CONFIG.FETCH_TIMEOUT, metadata: { url: safeUrlForLog, options: imageOptions } },
+      {
+        timeoutMs: timeoutMs ?? this.CONFIG.FETCH_TIMEOUT,
+        metadata: { url: safeUrlForLog, options: imageOptions },
+      },
     );
   }
 
   /** Get logo with validation, optional inversion */
   async getLogo(domain: string, options: ImageServiceOptions = {}): Promise<LogoFetchResult> {
-    // Check memory before starting (relaxed when streaming mode is enabled in dev)
     if (!this.shouldAcceptRequests()) {
-      return {
-        domain,
-        source: null,
-        contentType: "image/png",
-        error: "Insufficient memory to process logo request",
-        timestamp: getDeterministicTimestamp(),
-        isValid: false,
-      };
+      return buildMemoryPressureResult(domain);
     }
 
     // Check if there's already an in-flight request for this domain
@@ -181,181 +190,7 @@ export class UnifiedImageService {
     const requestPromise = monitoredAsync(
       null,
       `get-logo-${domain}`,
-      async () => {
-        const cachedResult = ServerCacheInstance.getLogoFetch(domain);
-        if (cachedResult?.s3Key && (this.isReadOnly || !options.forceRefresh)) {
-          return { ...cachedResult, cdnUrl: this.getCdnUrl(cachedResult.s3Key) || undefined };
-        }
-
-        // First check for existing hashed logo files using deterministic key generation
-        const { checkIfS3ObjectExists } = await import("@/lib/s3-utils");
-
-        for (const source of ["direct", "google", "duckduckgo", "clearbit"] as LogoSource[]) {
-          for (const extension of ["png", "jpg", "jpeg", "svg", "ico", "webp"]) {
-            const hashedKey = generateS3Key({
-              type: "logo",
-              domain,
-              source,
-              extension,
-            });
-
-            try {
-              const exists = await checkIfS3ObjectExists(hashedKey);
-              if (exists) {
-                logger.info(`[UnifiedImageService] Found existing hashed logo: ${hashedKey}`);
-                const cachedResult = this.logoFetcher.buildLogoFetchResult(domain, {
-                  s3Key: hashedKey,
-                  source,
-                  contentType: getContentTypeFromExtension(extension),
-                  isValid: true,
-                });
-                ServerCacheInstance.setLogoFetch(domain, cachedResult);
-                return cachedResult;
-              }
-            } catch {
-              // File doesn't exist, continue to next extension/source
-            }
-          }
-        }
-
-        // If no hashed files found, check for legacy files (without hashes)
-        const { findLegacyLogoKey } = await import("../utils/hash-utils");
-        const { listS3Objects } = await import("../s3-utils");
-        const legacyKey = await findLegacyLogoKey(domain, listS3Objects);
-
-        if (legacyKey) {
-          logger.info(`[UnifiedImageService] Found existing legacy logo: ${legacyKey}`);
-
-          // Extract metadata from key
-          const parsed = parseS3Key(legacyKey);
-          const source = parsed.source as LogoSource;
-          const ext = parsed.extension || "png";
-          const contentType = getContentTypeFromExtension(ext);
-
-          let finalKey = legacyKey;
-          if (!parsed.hash && !this.isReadOnly) {
-            const { readBinaryS3, writeBinaryS3, deleteFromS3 } = await import("../s3-utils");
-            const migrated = await hashAndArchiveManualLogo(domain, {
-              listS3Objects,
-              readBinaryS3,
-              writeBinaryS3,
-              deleteFromS3,
-            });
-            if (migrated) {
-              finalKey = migrated;
-              logger.info(`[UnifiedImageService] Manual logo migrated → ${migrated}`);
-            }
-          }
-
-          const cachedResult = this.logoFetcher.buildLogoFetchResult(domain, {
-            s3Key: finalKey,
-            source,
-            contentType,
-            isValid: true,
-          });
-          ServerCacheInstance.setLogoFetch(domain, cachedResult);
-          return cachedResult;
-        }
-
-        // No logo found in CDN - return error in read-only mode
-        if (this.isReadOnly) {
-          if (this.isDev) {
-            logger.info(`[UnifiedImageService] Read-only: logo not found in CDN for domain '${domain}'`);
-          }
-          return {
-            domain,
-            source: null,
-            contentType: "image/png",
-            error: "Logo not available in CDN (fetch required at runtime)",
-            timestamp: getDeterministicTimestamp(),
-            isValid: false,
-          };
-        }
-
-        // Not found in S3, try external sources
-        logoDebugger.logAttempt(domain, "s3-check", "No existing logo found in S3", "failed");
-
-        try {
-          const logoData = await this.logoFetcher.fetchExternalLogo(domain);
-          if (!logoData?.buffer) {
-            logoDebugger.logAttempt(domain, "external-fetch", "All external sources failed", "failed");
-            throw new Error("No logo found");
-          }
-
-          // In streaming mode for dev: skip heavy validation/inversion and persist the original buffer
-          if (this.devStreamImagesToS3) {
-            const ext = this.logoFetcher.getLogoExtension(logoData.contentType);
-            const s3KeyStreaming = this.logoFetcher.generateLogoS3Key(domain, logoData.source, {
-              url: logoData.url,
-              extension: ext,
-            });
-            if (!this.isReadOnly)
-              await this.s3Ops.uploadToS3(s3KeyStreaming, logoData.buffer, logoData.contentType || "image/png");
-            const streamingResult = this.logoFetcher.buildLogoFetchResult(domain, {
-              s3Key: s3KeyStreaming,
-              url: logoData.url,
-              source: logoData.source,
-              contentType: logoData.contentType ?? undefined,
-              isValid: true,
-            });
-            return this.logoFetcher.finalizeLogoResult(streamingResult);
-          }
-
-          const validation = await this.validators.validateLogo(logoData.buffer);
-          const isValid = !validation.isGlobeIcon;
-          let finalBuffer = logoData.buffer;
-          const ext = this.logoFetcher.getLogoExtension(logoData.contentType);
-
-          // Start with base S3 key (non-inverted)
-          let s3Key = this.logoFetcher.generateLogoS3Key(domain, logoData.source, {
-            url: logoData.url,
-            extension: ext,
-          });
-
-          // Attempt inversion if requested and logo is valid
-          if (isValid && options.invertColors) {
-            const inverted = await this.logoFetcher.invertLogo(logoData.buffer, domain);
-            if (inverted.buffer) {
-              finalBuffer = inverted.buffer;
-              s3Key = this.logoFetcher.generateLogoS3Key(domain, logoData.source, {
-                url: logoData.url,
-                extension: ext,
-                inverted: true,
-              });
-              ServerCacheInstance.setInvertedLogo(domain, {
-                s3Key,
-                cdnUrl: this.getCdnUrl(s3Key) || undefined,
-                analysis: inverted.analysis || {
-                  needsDarkInversion: false,
-                  needsLightInversion: false,
-                  hasTransparency: false,
-                  brightness: 0.5,
-                  format: "png",
-                  dimensions: { width: 0, height: 0 },
-                },
-                contentType: logoData.contentType || "image/png",
-              });
-            }
-          }
-
-          if (!this.isReadOnly) await this.s3Ops.uploadToS3(s3Key, finalBuffer, logoData.contentType || "image/png");
-          const result = this.logoFetcher.buildLogoFetchResult(domain, {
-            s3Key,
-            url: logoData.url,
-            source: logoData.source,
-            contentType: logoData.contentType ?? undefined,
-            isValid,
-            isGlobeIcon: validation.isGlobeIcon,
-          });
-          return this.logoFetcher.finalizeLogoResult(result);
-        } catch (error) {
-          const errorResult = this.logoFetcher.buildLogoFetchResult(domain, {
-            source: null,
-            error: safeStringifyValue(error),
-          });
-          return this.logoFetcher.finalizeLogoResult(errorResult);
-        }
-      },
+      () => this.executeLogoFetch(domain, options),
       { timeoutMs: this.CONFIG.FETCH_TIMEOUT, metadata: { domain, options } },
     );
 
@@ -365,71 +200,68 @@ export class UnifiedImageService {
     return requestPromise;
   }
 
-  private async fetchAndProcess(
+  /** Execute the actual logo fetch logic (separated for SRP per [MO1d]) */
+  private async executeLogoFetch(
+    domain: string,
+    options: ImageServiceOptions,
+  ): Promise<LogoFetchResult> {
+    // Check server cache first
+    const cachedResult = ServerCacheInstance.getLogoFetch(domain);
+    if (cachedResult?.s3Key && (this.isReadOnly || !options.forceRefresh)) {
+      return { ...cachedResult, cdnUrl: this.getCdnUrl(cachedResult.s3Key) || undefined };
+    }
+
+    // Build result helper bound to logoFetcher
+    const buildResult = this.logoFetcher.buildLogoFetchResult.bind(this.logoFetcher);
+
+    // Check for existing hashed logo files (extracted to logo-discovery.ts)
+    const hashedLogo = await findExistingHashedLogo(domain, buildResult);
+    if (hashedLogo) {
+      ServerCacheInstance.setLogoFetch(domain, hashedLogo);
+      return hashedLogo;
+    }
+
+    // Check for legacy logos and optionally migrate (extracted to logo-discovery.ts)
+    const legacyLogo = await findAndMigrateLegacyLogo(domain, this.isReadOnly, buildResult);
+    if (legacyLogo) {
+      ServerCacheInstance.setLogoFetch(domain, legacyLogo);
+      return legacyLogo;
+    }
+
+    // No logo found in CDN - return error in read-only mode
+    if (this.isReadOnly) {
+      return buildReadOnlyMissingResult(domain, this.isDev);
+    }
+
+    // Not found in S3, try external sources
+    logoDebugger.logAttempt(domain, "s3-check", "No existing logo found in S3", "failed");
+
+    // Delegate to extracted persistence logic
+    return fetchAndPersistExternalLogo(domain, options, {
+      isReadOnly: this.isReadOnly,
+      devStreamImagesToS3: this.devStreamImagesToS3,
+      validators: this.validators,
+      s3Ops: this.s3Ops,
+      logoFetcher: this.logoFetcher,
+      getCdnUrl: (s3Key) => this.getCdnUrl(s3Key),
+    });
+  }
+
+  /** Fetch and process image from URL (delegates to extracted module) */
+  private fetchAndProcess(
     url: string,
     options: ImageServiceOptions,
   ): Promise<{ buffer: Buffer; contentType: string; streamedToS3?: boolean }> {
-    const fetchTimeout = options.timeoutMs ?? this.CONFIG.FETCH_TIMEOUT;
-    // Dev gating: skip fetch/processing entirely when disabled in development
-    if (this.devProcessingDisabled && !this.devStreamImagesToS3) {
-      return { buffer: UnifiedImageService.TRANSPARENT_PNG_PLACEHOLDER, contentType: "image/png" };
-    }
-
-    // Check memory before fetching unless we are in streaming mode (streaming uses bounded memory)
-    if (!this.shouldAcceptRequests()) {
-      throw new Error("Insufficient memory to fetch image");
-    }
-
-    if (isLogoUrl(url)) {
-      const logoResult = await this.logoFetcher.fetchExternalLogo(extractDomain(url));
-      if (!logoResult?.buffer) throw new Error("Failed to fetch logo");
-      const result = { buffer: logoResult.buffer, contentType: logoResult.contentType || "image/png" };
-      logoResult.buffer = Buffer.alloc(0);
-      return result;
-    }
-
-    const response = await fetchWithTimeout(url, {
-      headers: DEFAULT_IMAGE_HEADERS,
-      timeout: fetchTimeout,
+    return fetchAndProcessImage(url, options, {
+      devProcessingDisabled: this.devProcessingDisabled,
+      devStreamImagesToS3: this.devStreamImagesToS3,
+      isDev: this.isDev,
+      shouldAcceptRequests: () => this.shouldAcceptRequests(),
+      s3Ops: this.s3Ops,
+      logoFetcher: this.logoFetcher,
+      placeholderBuffer: UnifiedImageService.TRANSPARENT_PNG_PLACEHOLDER,
+      fetchTimeout: this.CONFIG.FETCH_TIMEOUT,
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    const contentType = response.headers.get("content-type");
-    if (!contentType?.startsWith("image/")) throw new Error("Response is not an image");
-
-    try {
-      const s3Key = this.s3Ops.generateS3Key(url, options);
-      if (!options.skipUpload) {
-        const streamed = await maybeStreamImageToS3(response, {
-          bucket: process.env.S3_BUCKET || "",
-          key: s3Key,
-          s3Client,
-        });
-        if (streamed) {
-          return {
-            buffer: Buffer.alloc(0),
-            contentType: contentType || "application/octet-stream",
-            streamedToS3: true,
-          };
-        }
-      }
-
-      // If streaming failed and we're in streaming mode, only fall back to buffering if memory allows
-      if (this.devStreamImagesToS3 && !getMemoryHealthMonitor().shouldAcceptNewRequests()) {
-        throw new Error("Streaming required but unavailable under memory pressure");
-      }
-
-      // Check memory again before loading into buffer
-      if (!this.shouldAcceptRequests()) {
-        throw new Error("Insufficient memory to load image into buffer");
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      return { buffer, contentType: contentType || "application/octet-stream" };
-    } catch (error) {
-      throw error instanceof Error ? error : new Error("Failed to fetch image");
-    }
   }
 
   /** Get CDN URL for S3 key */

@@ -1,4 +1,3 @@
-"use cache";
 /**
  * Domain-specific Bookmark Page with user-friendly URLs
  *
@@ -15,7 +14,8 @@ import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA, OG_IMAGE_DIMENSIONS } from "@/data/metadata";
-import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
+import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -25,7 +25,9 @@ import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { envLogger } from "@/lib/utils/env-logger";
 import { cacheContextGuards } from "@/lib/cache";
 import { ensureProtocol, stripWwwPrefix } from "@/lib/utils/url-utils";
+import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
 import type { BookmarkPageContext, UnifiedBookmark } from "@/types";
+import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
 
 // CRITICAL: generateStaticParams() remains intentionally disabled for bookmarks.
 // The sitemap now streams paginated S3 data at request time, so the build no longer
@@ -36,7 +38,10 @@ import type { BookmarkPageContext, UnifiedBookmark } from "@/types";
 //   // Disabled - sitemap.ts handles URL generation separately
 // }
 
-const BOOKMARK_PAGE_CACHE_SECONDS = Math.max(3600, Math.round(TIME_CONSTANTS.BOOKMARKS_PRELOAD_INTERVAL_MS / 1000));
+const BOOKMARK_PAGE_CACHE_SECONDS = Math.max(
+  3600,
+  Math.round(TIME_CONSTANTS.BOOKMARKS_PRELOAD_INTERVAL_MS / 1000),
+);
 
 const safeEnsureAbsoluteUrl = (path: string): string => {
   try {
@@ -80,7 +85,7 @@ async function resolveBookmarkBySlug(slug: string): Promise<UnifiedBookmark | nu
           S3_BUCKET: process.env.S3_BUCKET ? "✓ set" : "✗ missing",
           S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID ? "✓ set" : "✗ missing",
           S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY ? "✓ set" : "✗ missing",
-          S3_CDN_URL: process.env.S3_CDN_URL || "not set",
+          NEXT_PUBLIC_S3_CDN_URL: process.env.NEXT_PUBLIC_S3_CDN_URL || "not set",
           S3_SERVER_URL: process.env.S3_SERVER_URL || "not set",
         },
       },
@@ -104,7 +109,11 @@ async function resolveBookmarkBySlug(slug: string): Promise<UnifiedBookmark | nu
     })) as UnifiedBookmark | null;
 
     if (bookmark) {
-      envLogger.log(`Bookmark lookup result`, { bookmarkId, found: true }, { category: "BookmarkPage" });
+      envLogger.log(
+        `Bookmark lookup result`,
+        { bookmarkId, found: true },
+        { category: "BookmarkPage" },
+      );
       return bookmark;
     }
 
@@ -138,7 +147,11 @@ async function findBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null>
 /**
  * Generate metadata for this bookmark page
  */
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
   const { slug } = await Promise.resolve(params);
   const path = `/bookmarks/${slug}`;
   const bookmark = await findBookmarkBySlug(slug);
@@ -240,6 +253,20 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     { category: "BookmarkPage" },
   );
 
+  // Fetch cached AI analysis (if available)
+  const cachedAnalysis = await getCachedAnalysis<BookmarkAiAnalysisResponse>(
+    "bookmarks",
+    foundBookmark.id,
+  );
+
+  if (cachedAnalysis) {
+    envLogger.log(
+      `Using cached AI analysis`,
+      { bookmarkId: foundBookmark.id, generatedAt: cachedAnalysis.metadata.generatedAt },
+      { category: "BookmarkPage" },
+    );
+  }
+
   const domainName = getBookmarkHostname(foundBookmark.url) ?? "website";
 
   const pageTitle = "Bookmark";
@@ -271,14 +298,20 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
 
       {/* Stunning Individual Bookmark Page - Add consistent container */}
       <div className="max-w-6xl mx-auto">
-        <BookmarkDetail bookmark={foundBookmark} />
+        <BookmarkDetail bookmark={foundBookmark} cachedAnalysis={cachedAnalysis} />
       </div>
 
       {/* Enhanced Related Content Section */}
       <div className="bg-gradient-to-b from-background to-secondary/20">
         <div className="max-w-6xl mx-auto px-8 md:px-12 lg:px-16 py-16">
           <Suspense
-            fallback={<RelatedContentFallback title="Discover Similar Content" className="relative" cardCount={3} />}
+            fallback={
+              <RelatedContentFallback
+                title="Discover Similar Content"
+                className="relative"
+                cardCount={3}
+              />
+            }
           >
             <RelatedContent
               sourceType="bookmark"

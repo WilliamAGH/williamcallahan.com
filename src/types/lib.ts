@@ -57,7 +57,11 @@ export type ResultWithMeta<T, M = Record<string, unknown>, E = Error> = Result<T
 export type AsyncStatus = "idle" | "pending" | "success" | "error" | "cancelled";
 
 /** Make all Date fields strings (for serialization) */
-export type Serializable<T> = T extends Date ? string : T extends object ? { [K in keyof T]: Serializable<T[K]> } : T;
+export type Serializable<T> = T extends Date
+  ? string
+  : T extends object
+    ? { [K in keyof T]: Serializable<T[K]> }
+    : T;
 
 /** Add className to any type */
 export type WithClassName<T = object> = T & { className?: string };
@@ -198,7 +202,9 @@ export type DistributedLock = {
 /**
  * Callback function type for refreshing bookmarks data.
  */
-export type RefreshBookmarksCallback = (force?: boolean) => Promise<import("./bookmark").UnifiedBookmark[] | null>;
+export type RefreshBookmarksCallback = (
+  force?: boolean,
+) => Promise<import("./bookmark").UnifiedBookmark[] | null>;
 
 export type AsyncJobType = "opengraph" | "image" | "data-fetch" | "cache-cleanup";
 
@@ -482,7 +488,11 @@ export interface ReadJsonResult<T = unknown> {
 
 /** Data fetch manager interface */
 export interface DataFetchManager {
-  fetch: <T>(key: string, fetcher: () => Promise<T>, options?: DataFetchOptions) => Promise<DataFetchResult<T>>;
+  fetch: <T>(
+    key: string,
+    fetcher: () => Promise<T>,
+    options?: DataFetchOptions,
+  ) => Promise<DataFetchResult<T>>;
   invalidate: (key: string) => void;
   clearCache: () => void;
   getCacheStats: () => CacheStats;

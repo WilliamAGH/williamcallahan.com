@@ -4,14 +4,15 @@
  * Tests SEO utility functions for URL formatting, image type detection,
  * and date formatting with Pacific Time zone handling
  *
- * @jest-environment node
+ * @vitest-environment node
  */
 
-import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate } from "@/lib/seo/utils";
+import { ensureAbsoluteUrl, getImageTypeFromUrl } from "@/lib/seo/url-utils";
+import { formatSeoDate } from "@/lib/seo/utils";
 import { isPacificDateString } from "@/types/seo";
 
 // Mock must be defined before importing the mocked module
-jest.mock("@/lib/constants/client", () => ({
+vi.mock("@/lib/constants/client", () => ({
   NEXT_PUBLIC_SITE_URL: "https://test.example.com",
 }));
 
@@ -162,7 +163,7 @@ describe("SEO Utilities", () => {
     });
   });
 
-  // Additional edge-case and failure-mode tests for SEO utilities using Jest
+  // Additional edge-case and failure-mode tests for SEO utilities using Vitest
   describe("ensureAbsoluteUrl – edge and failure cases", () => {
     it("returns non-http protocols unchanged", () => {
       const ftpUrl = "ftp://example.com/resource";

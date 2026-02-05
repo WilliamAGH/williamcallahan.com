@@ -180,7 +180,8 @@ export const validateBook = (data: unknown): Book => bookSchema.parse(data);
 
 export const validateBookListItem = (data: unknown): BookListItem => bookListItemSchema.parse(data);
 
-export const validateAbsLibraryItem = (data: unknown): AbsLibraryItem => absLibraryItemSchema.parse(data);
+export const validateAbsLibraryItem = (data: unknown): AbsLibraryItem =>
+  absLibraryItemSchema.parse(data);
 
 export const validateAbsLibraryItemsResponse = (data: unknown): AbsLibraryItemsResponse =>
   absLibraryItemsResponseSchema.parse(data);
@@ -256,6 +257,10 @@ export const relatedContentEntrySchema = z.object({
 });
 
 export type RelatedContentEntryFromSchema = z.infer<typeof relatedContentEntrySchema>;
+
+export const relatedContentGraphSchema = z.record(z.string(), z.array(relatedContentEntrySchema));
+
+export type RelatedContentGraphFromSchema = z.infer<typeof relatedContentGraphSchema>;
 
 /**
  * Books related content data schema.

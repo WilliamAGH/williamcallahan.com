@@ -1,8 +1,13 @@
 /**
  * Mock search module for tests
  */
+import { vi } from "vitest";
 
-export const searchExperience = jest.fn().mockResolvedValue([]);
-export const searchEducation = jest.fn().mockResolvedValue([]);
-export const searchInvestments = jest.fn().mockResolvedValue([]);
-export const searchBookmarks = jest.fn().mockResolvedValue([]);
+export const searchExperience = vi.fn().mockResolvedValue([]);
+export const searchEducation = vi.fn().mockResolvedValue([]);
+export const searchInvestments = vi.fn().mockResolvedValue([]);
+export const searchBookmarks = vi.fn().mockResolvedValue([]);
+export const searchProjects = vi.fn().mockResolvedValue([]);
+export const searchBooks = vi.fn().mockResolvedValue([]);
+export const searchBlogPosts = vi.fn().mockResolvedValue([]);
+export const searchAll = vi.fn().mockResolvedValue([]);

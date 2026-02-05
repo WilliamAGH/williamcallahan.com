@@ -75,7 +75,10 @@ export function createIndex<T extends { id?: string | number }>(
  * @param documents - Array of documents to index (must be pre-deduplicated)
  * @returns Configured and populated MiniSearch index
  */
-export function createIndexWithoutDedup<T>(config: IndexFieldConfig<T>, documents: T[]): MiniSearch<T> {
+export function createIndexWithoutDedup<T>(
+  config: IndexFieldConfig<T>,
+  documents: T[],
+): MiniSearch<T> {
   // Build options object, only including extractField if defined
   const baseOptions = {
     fields: config.fields,

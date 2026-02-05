@@ -131,7 +131,10 @@ Environment Variables:
 logger.info(`[DataFetchManager] CLI execution started. Args: ${args.join(" ")}`);
 
 // Safety check: Prevent S3 writes during build phase
-if (process.env.NEXT_PHASE === "phase-production-build" && !hasFlag(args, DATA_UPDATER_FLAGS.ALLOW_BUILD_WRITES)) {
+if (
+  process.env.NEXT_PHASE === "phase-production-build" &&
+  !hasFlag(args, DATA_UPDATER_FLAGS.ALLOW_BUILD_WRITES)
+) {
   console.warn("⚠️  WARNING: data-updater called during Next.js build phase");
   console.warn("⚠️  S3 writes during build are now disabled to prevent build-time mutations");
   console.warn("⚠️  Data updates should happen via runtime scheduler or manual execution");
@@ -210,21 +213,25 @@ if (testLimit !== undefined) {
 
     logger.info("[DataUpdaterCLI] All tasks complete.");
 
-    results.forEach(result => {
+    results.forEach((result) => {
       if (result.success) {
-        logger.info(`  - ${result.operation}: Success (${result.itemsProcessed} items, duration: ${result.duration}s)`);
+        logger.info(
+          `  - ${result.operation}: Success (${result.itemsProcessed} items, duration: ${result.duration}s)`,
+        );
       } else {
-        logger.error(`  - ${result.operation}: Failed (${result.error}, duration: ${result.duration}s)`);
+        logger.error(
+          `  - ${result.operation}: Failed (${result.error}, duration: ${result.duration}s)`,
+        );
       }
     });
 
     // --- Final Summary Table ---
     console.log("\n--- Data Updater Final Summary ---");
     console.table(
-      results.map(r => ({
+      results.map((r) => ({
         Operation: r.operation,
         Success: r.success ? "✅" : "❌",
-        "Items Processed": r.itemsProcessed || "N/A",
+        "Items Processed": r.itemsProcessed ?? "N/A",
         "Duration (s)": r.duration,
         Error: r.error || "None",
       })),
@@ -236,13 +243,15 @@ if (testLimit !== undefined) {
     await updateTimestamp(results);
 
     // Log warning if GitHub failed due to rate limiting
-    const githubResult = results.find(r => r.operation === "github-activity");
+    const githubResult = results.find((r) => r.operation === "github-activity");
     if (githubResult && !githubResult.success && githubResult.error?.includes("rate")) {
-      logger.warn("[DataUpdaterCLI] GitHub activity failed due to rate limiting. Will retry after cooldown period.");
+      logger.warn(
+        "[DataUpdaterCLI] GitHub activity failed due to rate limiting. Will retry after cooldown period.",
+      );
     }
 
     // Check for any failures and exit with a non-zero code
-    const hasFailures = results.some(r => !r.success);
+    const hasFailures = results.some((r) => !r.success);
     if (hasFailures) {
       logger.error("[DataUpdaterCLI] One or more operations failed. Exiting with status 1.");
       process.exit(1);

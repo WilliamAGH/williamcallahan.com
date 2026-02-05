@@ -102,8 +102,6 @@ export interface BlogCardProps {
  * @usage - Blog cards that need performance optimization
  */
 export interface BlogCardPropsExtended extends BlogCardProps {
-  /** @deprecated Use `preload` instead (Next.js 16) */
-  isPriority?: boolean;
   /** Preload the image in the document head (Next.js 16+) */
   preload?: boolean;
 }
@@ -153,7 +151,10 @@ export interface BlogClientProps {
  * MDX image component props for blog articles
  * @usage - Images within blog article content
  */
-export interface ArticleImageProps extends Omit<React.ComponentProps<"img">, "height" | "width" | "loading" | "style"> {
+export interface ArticleImageProps extends Omit<
+  React.ComponentProps<"img">,
+  "height" | "width" | "loading" | "style"
+> {
   /** Optional caption to display below the image */
   caption?: string;
   /** Display size presets of the image (ignored when widthPct or vwPct are provided) */
@@ -187,6 +188,23 @@ export interface MDXContentProps {
 }
 
 /**
+ * Error thrown when a blog image cannot be resolved to an optimized CDN URL.
+ * Per [RC1a], failures must throw rather than silently degrade.
+ *
+ * This surfaces at build time when sync-blog-cover-images.ts hasn't been run,
+ * ensuring missing mappings are caught before production deployment.
+ */
+export class BlogImageResolutionError extends Error {
+  constructor(
+    public readonly src: string,
+    public readonly reason: string,
+  ) {
+    super(`Failed to resolve blog image "${src}": ${reason}`);
+    this.name = "BlogImageResolutionError";
+  }
+}
+
+/**
  * Tag wrapper component props
  * @usage - Wrapping tag content with styling/linking
  */
@@ -197,6 +215,8 @@ export interface TagWrapperProps {
   className: string;
   /** Optional link href */
   href?: string;
+  /** Disable prefetching for list contexts (reduces request volume) */
+  prefetch?: boolean;
 }
 
 /**

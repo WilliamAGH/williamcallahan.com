@@ -15,13 +15,14 @@ import type {
   LightweightBookmark,
 } from "@/types/bookmark";
 import type { SerializableBookmark } from "@/types/features/bookmarks";
+import { getMonotonicTime } from "@/lib/utils";
 
 /**
  * Calculates the date 30 days ago from the current time.
  * @returns {Date} The date 30 days ago.
  */
 function thirtyDaysAgo(): Date {
-  const date = new Date();
+  const date = new Date(getMonotonicTime());
   date.setDate(date.getDate() - 30);
   return date;
 }
@@ -44,7 +45,9 @@ function normalizeEtag(tag: string | null): string | undefined {
  * @returns {Omit<T, 'htmlContent'>} The content object without the `htmlContent` property.
  * @internal
  */
-export function omitHtmlContent<T extends RawApiBookmarkContent>(content: T): Omit<T, "htmlContent"> {
+export function omitHtmlContent<T extends RawApiBookmarkContent>(
+  content: T,
+): Omit<T, "htmlContent"> {
   const rest = { ...content };
   delete rest.htmlContent;
   return rest;
@@ -102,7 +105,7 @@ export function normalizeBookmarkTag(tag: string | BookmarkTag): {
  */
 export function convertRawBookmarksToUnified(rawBookmarks: RawBookmark[]): UnifiedBookmark[] {
   return rawBookmarks.map(
-    bookmark =>
+    (bookmark) =>
       ({
         id: bookmark.id,
         url: bookmark.url,
@@ -150,7 +153,7 @@ export function convertSerializableBookmarksToUnified(
   serializableBookmarks: SerializableBookmark[],
 ): UnifiedBookmark[] {
   return serializableBookmarks.map(
-    bookmark =>
+    (bookmark) =>
       ({
         ...bookmark,
         description: bookmark.description || "",
@@ -165,15 +168,17 @@ export function convertSerializableBookmarksToUnified(
  * @param bookmarks - Array of unified bookmarks to convert
  * @returns Array of serializable bookmarks for client props
  */
-export const convertBookmarksToSerializable = (bookmarks: UnifiedBookmark[]): SerializableBookmark[] =>
-  bookmarks.map(b => ({
+export const convertBookmarksToSerializable = (
+  bookmarks: UnifiedBookmark[],
+): SerializableBookmark[] =>
+  bookmarks.map((b) => ({
     id: b.id,
     url: b.url,
     title: b.title,
     description: b.description ?? "",
     // REQUIRED: Preserve embedded slug (all bookmarks must have slugs)
     slug: b.slug,
-    tags: (b.tags || []).map(t => normalizeBookmarkTag(t as string | BookmarkTag)),
+    tags: (b.tags || []).map((t) => normalizeBookmarkTag(t as string | BookmarkTag)),
     ogImage: b.ogImage,
     ogImageExternal: b.ogImageExternal,
     content: b.content,
@@ -204,7 +209,7 @@ export const convertBookmarksToSerializable = (bookmarks: UnifiedBookmark[]): Se
 export const calculateBookmarksChecksum = (bookmarks: UnifiedBookmark[]): string =>
   [...bookmarks]
     .toSorted((a, b) => (a.id || "").localeCompare(b.id || ""))
-    .map(b => `${b.id}:${b.modifiedAt || b.dateBookmarked}`)
+    .map((b) => `${b.id}:${b.modifiedAt || b.dateBookmarked}`)
     .join("|");
 
 /**
@@ -248,7 +253,7 @@ export const stripImageData = (b: UnifiedBookmark): LightweightBookmark => {
       : undefined,
     ogImageExternal: undefined,
     tags: ((b.tags ?? []) as (string | BookmarkTag)[])
-      .filter(t => t && (typeof t === "string" ? t.trim() : t.name?.trim()))
+      .filter((t) => t && (typeof t === "string" ? t.trim() : t.name?.trim()))
       .map(normalizeBookmarkTag),
   };
 
@@ -281,7 +286,7 @@ export const toLightweightBookmarks = (bookmarks: UnifiedBookmark[]): Lightweigh
 export const normalizeBookmarkTags = (bookmark: UnifiedBookmark): UnifiedBookmark => ({
   ...bookmark,
   tags: ((bookmark.tags ?? []) as (string | BookmarkTag)[])
-    .filter(tag => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
+    .filter((tag) => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
     .map(normalizeBookmarkTag),
 });
 
@@ -296,7 +301,10 @@ export const normalizePageBookmarkTags = (bookmarks: UnifiedBookmark[]): Unified
  * @param {UnifiedBookmark} incomingBookmark - The bookmark from the fresh API fetch.
  * @returns {boolean} True if the source data has changed.
  */
-export function isBookmarkSourceChanged(existingBookmark: UnifiedBookmark, incomingBookmark: UnifiedBookmark): boolean {
+export function isBookmarkSourceChanged(
+  existingBookmark: UnifiedBookmark,
+  incomingBookmark: UnifiedBookmark,
+): boolean {
   // Compare the source 'modifiedAt' timestamp.
   const existingTimestamp = new Date(existingBookmark.sourceUpdatedAt).getTime();
   const incomingTimestamp = new Date(incomingBookmark.sourceUpdatedAt).getTime();

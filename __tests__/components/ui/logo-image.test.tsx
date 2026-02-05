@@ -1,12 +1,50 @@
+import { vi, type MockInstance } from "vitest";
 import type { MockImageProps } from "@/types/test";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, jest } from "@jest/globals";
-import "@testing-library/jest-dom";
+
+// Mock cdn-utils to ensure CDN URL detection works in tests
+// CDN URLs should flow directly to Next.js Image (not proxied)
+vi.mock("@/lib/utils/cdn-utils", () => ({
+  getOptimizedImageSrc: (src: string | null | undefined) => {
+    if (!src) return undefined;
+    // CDN URLs pass through directly
+    if (src.startsWith("https://s3-storage.callahan.cloud")) return src;
+    // Data URLs pass through
+    if (src.startsWith("data:")) return src;
+    // Local paths pass through
+    if (src.startsWith("/")) return src;
+    // External URLs get proxied
+    return `/api/cache/images?url=${encodeURIComponent(src)}&width=100`;
+  },
+  shouldBypassOptimizer: (src: string | undefined) => {
+    if (!src) return false;
+    return (
+      src.startsWith("/api/cache/images") ||
+      src.startsWith("/api/assets/") ||
+      src.startsWith("data:")
+    );
+  },
+  getCdnConfigFromEnv: () => ({
+    cdnBaseUrl: "https://s3-storage.callahan.cloud",
+    s3BucketName: undefined,
+    s3ServerUrl: undefined,
+  }),
+  isOurCdnUrl: (url: string) => url?.startsWith("https://s3-storage.callahan.cloud") ?? false,
+}));
 
 // Mock next/image BEFORE importing the component under test
-jest.mock("next/image", () => ({
+vi.mock("next/image", () => ({
   __esModule: true,
-  default: ({ src, alt, priority, layout, objectFit, fill, ...restProps }: MockImageProps) => {
+  default: ({
+    src,
+    alt,
+    priority,
+    layout,
+    objectFit,
+    fill,
+    unoptimized,
+    ...restProps
+  }: MockImageProps) => {
     const effectiveLayout = layout ?? (fill ? "fill" : undefined);
     const dataPriority = restProps["data-priority"] || (priority ? "true" : "false");
     return (
@@ -19,6 +57,7 @@ jest.mock("next/image", () => ({
         data-object-fit={objectFit}
         data-fill={fill ? "true" : "false"}
         data-priority={dataPriority}
+        data-unoptimized={unoptimized ? "true" : "false"}
         {...restProps}
       />
     );
@@ -35,6 +74,7 @@ describe("LogoImage Conditional Rendering", () => {
     src: "https://example.com/logo.png",
     width: 100,
     height: 100,
+    alt: "Company Logo",
   };
 
   // Expected proxied URL for regularUrlProps - the component transforms external URLs
@@ -44,14 +84,17 @@ describe("LogoImage Conditional Rendering", () => {
     src: "data:image/svg+xml;base64,abc123", // Use a sample SVG data URL
     width: 50,
     height: 50,
+    alt: "Company Logo",
   };
   const cdnUrlProps = {
     src: "https://s3-storage.callahan.cloud/images/logos/aescape_com_google_ae8818cb.png",
     width: 96,
     height: 32,
+    alt: "Company Logo",
   };
-  // Expected proxied URL for cdnUrlProps
-  const expectedCdnProxiedUrl = `/api/cache/images?url=${encodeURIComponent(cdnUrlProps.src)}&width=${cdnUrlProps.width}`;
+  // CDN URLs flow directly to Next.js Image (not proxied) per image optimization canonicalization
+  // See docs/architecture/image-handling.md - Image Optimization Decision Matrix
+  const expectedCdnDirectUrl = cdnUrlProps.src;
 
   describe("Regular URL Rendering (uses next/image)", () => {
     it("renders next/image mock and wrapper with correct props", () => {
@@ -59,7 +102,7 @@ describe("LogoImage Conditional Rendering", () => {
       // Get all images and find the main one (not placeholder)
       // The component proxies external URLs through /api/cache/images
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === expectedRegularProxiedUrl);
+      const mainImage = images.find((img) => img.getAttribute("src") === expectedRegularProxiedUrl);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -80,7 +123,7 @@ describe("LogoImage Conditional Rendering", () => {
       render(<LogoImage {...regularUrlProps} priority={true} />);
       // Get all images and find the main one - the component proxies external URLs
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === expectedRegularProxiedUrl);
+      const mainImage = images.find((img) => img.getAttribute("src") === expectedRegularProxiedUrl);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -93,7 +136,7 @@ describe("LogoImage Conditional Rendering", () => {
     it("applies custom className to the component wrapper", () => {
       render(<LogoImage {...regularUrlProps} className="custom-class" />);
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === expectedRegularProxiedUrl);
+      const mainImage = images.find((img) => img.getAttribute("src") === expectedRegularProxiedUrl);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -108,7 +151,7 @@ describe("LogoImage Conditional Rendering", () => {
       render(<LogoImage {...dataUrlProps} />);
       // Check if next/image was rendered for data URL
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === dataUrlProps.src);
+      const mainImage = images.find((img) => img.getAttribute("src") === dataUrlProps.src);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -128,7 +171,7 @@ describe("LogoImage Conditional Rendering", () => {
     it("applies custom className to next/image for data URLs", () => {
       render(<LogoImage {...dataUrlProps} className="custom-img-class" />);
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === dataUrlProps.src);
+      const mainImage = images.find((img) => img.getAttribute("src") === dataUrlProps.src);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -141,7 +184,7 @@ describe("LogoImage Conditional Rendering", () => {
     it("handles priority prop for data URLs with next/image", () => {
       render(<LogoImage {...dataUrlProps} priority={true} />);
       const images = screen.getAllByTestId("next-image-mock");
-      const mainImage = images.find(img => img.getAttribute("src") === dataUrlProps.src);
+      const mainImage = images.find((img) => img.getAttribute("src") === dataUrlProps.src);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
@@ -152,36 +195,40 @@ describe("LogoImage Conditional Rendering", () => {
   });
 
   describe("Logo retry handling", () => {
-    let fetchSpy: jest.SpyInstance;
+    let fetchSpy: MockInstance;
 
     beforeEach(() => {
-      jest.useFakeTimers();
+      // Don't use fake timers for this test - fetch is called synchronously on error
+      // and waitFor needs real timers to work properly
       if (typeof global.fetch !== "function") {
-        global.fetch = (() => Promise.resolve({ ok: true } as Response)) as typeof fetch;
+        // @ts-expect-error - fetch mock
+        global.fetch = () => Promise.resolve({ ok: true } as Response);
       }
-      fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({ ok: true } as Response);
+      fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue({ ok: true } as Response);
     });
 
     afterEach(() => {
       fetchSpy?.mockRestore();
-      jest.useRealTimers();
     });
 
-    it("calls /api/logo with canonical domain when CDN key fails", () => {
+    it("calls /api/logo with canonical domain when CDN key fails", async () => {
       render(<LogoImage {...cdnUrlProps} />);
       const images = screen.getAllByTestId("next-image-mock");
-      // The component proxies external URLs through /api/cache/images
-      const mainImage = images.find(img => img.getAttribute("src") === expectedCdnProxiedUrl);
+      // CDN URLs flow directly to Next.js Image (not proxied)
+      const mainImage = images.find((img) => img.getAttribute("src") === expectedCdnDirectUrl);
       expect(mainImage).toBeTruthy();
 
       if (!mainImage) throw new Error("Main image not found");
 
       fireEvent.error(mainImage);
 
+      // fetch is called synchronously on error, so no need to wait
       expect(fetchSpy).toHaveBeenCalledTimes(1);
+
       const requestedUrl = fetchSpy.mock.calls[0]?.[0];
       expect(typeof requestedUrl).toBe("string");
-      if (typeof requestedUrl !== "string") throw new Error("Fetch was not invoked with a URL string");
+      if (typeof requestedUrl !== "string")
+        throw new Error("Fetch was not invoked with a URL string");
 
       const parsed = new URL(requestedUrl, "http://localhost");
       expect(parsed.pathname).toBe("/api/logo");

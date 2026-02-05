@@ -38,7 +38,15 @@ export class HeadObjectCommand {
 }
 export class PutObjectCommand {
   // Keep signature compatible with callers that may pass Body/ContentType
-  constructor(public input: { Bucket: string; Key: string; Body?: unknown; ContentType?: string; ACL?: string }) {}
+  constructor(
+    public input: {
+      Bucket: string;
+      Key: string;
+      Body?: unknown;
+      ContentType?: string;
+      ACL?: string;
+    },
+  ) {}
 }
 export class ListObjectsV2Command {
   constructor(public input: { Bucket: string; Prefix?: string; ContinuationToken?: string }) {}
@@ -52,10 +60,20 @@ export class CreateMultipartUploadCommand {
   constructor(public input: { Bucket: string; Key: string; ContentType?: string }) {}
 }
 export class UploadPartCommand {
-  constructor(public input: { Bucket: string; Key: string; PartNumber: number; UploadId: string; Body?: unknown }) {}
+  constructor(
+    public input: {
+      Bucket: string;
+      Key: string;
+      PartNumber: number;
+      UploadId: string;
+      Body?: unknown;
+    },
+  ) {}
 }
 export class CompleteMultipartUploadCommand {
-  constructor(public input: { Bucket: string; Key: string; UploadId: string; MultipartUpload?: unknown }) {}
+  constructor(
+    public input: { Bucket: string; Key: string; UploadId: string; MultipartUpload?: unknown },
+  ) {}
 }
 export class AbortMultipartUploadCommand {
   constructor(public input: { Bucket: string; Key: string; UploadId: string }) {}
@@ -90,7 +108,7 @@ export class S3Client {
     this.forcePathStyle = cfg.forcePathStyle !== false; // default true
   }
 
-  async send(cmd: unknown): Promise<any> {
+  async send(cmd: unknown): Promise<unknown> {
     if (cmd instanceof GetObjectCommand) return this.handleGetObject(cmd);
     if (cmd instanceof HeadObjectCommand) return this.handleHeadObject(cmd);
     if (cmd instanceof ListObjectsV2Command) return this.handleListObjects(cmd);
@@ -99,7 +117,8 @@ export class S3Client {
     // Multipart upload commands - all blocked in dev
     if (cmd instanceof CreateMultipartUploadCommand) return this.handleCreateMultipartUpload(cmd);
     if (cmd instanceof UploadPartCommand) return this.handleUploadPart(cmd);
-    if (cmd instanceof CompleteMultipartUploadCommand) return this.handleCompleteMultipartUpload(cmd);
+    if (cmd instanceof CompleteMultipartUploadCommand)
+      return this.handleCompleteMultipartUpload(cmd);
     if (cmd instanceof AbortMultipartUploadCommand) return this.handleAbortMultipartUpload(cmd);
     if (cmd instanceof PutObjectTaggingCommand) return this.handlePutObjectTagging(cmd);
     throw new Error("Unsupported S3 command in dev stub");
@@ -120,7 +139,12 @@ export class S3Client {
 
     const res = await fetch(url, { headers });
     if (!res.ok) {
-      throw createS3StubError({ method: "GET", url, status: res.status, statusText: res.statusText });
+      throw createS3StubError({
+        method: "GET",
+        url,
+        status: res.status,
+        statusText: res.statusText,
+      });
     }
 
     const arrayBuffer = await res.arrayBuffer();
@@ -137,7 +161,12 @@ export class S3Client {
     const url = this.buildUrl(cmd.input.Bucket, cmd.input.Key);
     const res = await fetch(url, { method: "HEAD", headers: { "User-Agent": "S3Stub/1.0" } });
     if (!res.ok) {
-      throw createS3StubError({ method: "HEAD", url, status: res.status, statusText: res.statusText });
+      throw createS3StubError({
+        method: "HEAD",
+        url,
+        status: res.status,
+        statusText: res.statusText,
+      });
     }
     const lenStr = res.headers.get("content-length");
     const type = res.headers.get("content-type") || undefined;

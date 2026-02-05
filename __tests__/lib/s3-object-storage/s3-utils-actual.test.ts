@@ -3,10 +3,9 @@
  * @module s3-utils-actual
  *
  * @description
- * This module re-exports the actual S3 utility functions from `../../lib/s3-utils`
- * without them being mocked. This is a workaround to allow integration tests
- * to use the real S3 functions while unit tests in the same file can use
- * mocked versions.
+ * This module exercises the actual S3 helpers from `lib/s3/*` without them being mocked.
+ * This is a workaround to allow integration tests to use real S3 functions while unit
+ * tests in the same file can use mocked versions.
  *
  * This is necessary because `bun:test`'s `mock.module` feature mocks the
  * module for the entire test file in which it is called.
@@ -28,19 +27,17 @@
 
 import {
   listS3Objects,
-  readFromS3,
-  readBinaryS3,
-  readJsonS3,
-  writeToS3,
-  writeBinaryS3,
-  writeJsonS3,
+  getObject,
+  putObject,
   deleteFromS3,
   checkIfS3ObjectExists,
   getS3ObjectMetadata,
-  s3Client,
-} from "@/lib/s3-utils";
+} from "@/lib/s3/objects";
+import { readBinaryS3, writeBinaryS3 } from "@/lib/s3/binary";
+import { readJsonS3, writeJsonS3 } from "@/lib/s3/json";
 import { isS3ReadOnly } from "@/lib/utils/s3-read-only";
 import { Readable } from "node:stream";
+import { z } from "zod/v4";
 let mockClient: ((c: any) => any) | null = null;
 try {
   mockClient = require("aws-sdk-client-mock").mockClient;
@@ -61,16 +58,15 @@ import {
 describe("S3 Utils Actual Export", () => {
   it("should export all required functions", () => {
     expect(typeof listS3Objects).toBe("function");
-    expect(typeof readFromS3).toBe("function");
+    expect(typeof getObject).toBe("function");
     expect(typeof readBinaryS3).toBe("function");
     expect(typeof readJsonS3).toBe("function");
-    expect(typeof writeToS3).toBe("function");
+    expect(typeof putObject).toBe("function");
     expect(typeof writeBinaryS3).toBe("function");
     expect(typeof writeJsonS3).toBe("function");
     expect(typeof deleteFromS3).toBe("function");
     expect(typeof checkIfS3ObjectExists).toBe("function");
     expect(typeof getS3ObjectMetadata).toBe("function");
-    expect(s3Client).toBeDefined();
   });
 });
 
@@ -112,47 +108,51 @@ beforeEach(() => {
   if (s3Mock) s3Mock.reset();
 });
 
-if (SHOULD_RUN_LIVE_TESTS) {
-  // Explicit override respected by isS3ReadOnly (see utils/s3-read-only.ts)
-  const previousReadOnly = process.env.S3_READ_ONLY;
-  process.env.S3_READ_ONLY = "false";
+// Setup for live tests: ensure S3_READ_ONLY is false during test execution
+beforeAll(() => {
+  if (SHOULD_RUN_LIVE_TESTS) {
+    process.env.S3_READ_ONLY = "false";
+  }
+});
 
-  // Ensure we restore the original value after all tests in this file
-  afterAll(() => {
-    if (previousReadOnly === undefined) {
-      delete process.env.S3_READ_ONLY;
-    } else {
-      process.env.S3_READ_ONLY = previousReadOnly;
-    }
+afterAll(() => {
+  // Cleanup is handled by individual test suites
+});
+
+// Use describe.runIf to conditionally run test suites based on environment
+// This avoids the no-conditional-tests lint error while maintaining the same behavior
+
+describe.runIf(SHOULD_RUN_LIVE_TESTS)("S3 Utils Integration – read/write JSON", () => {
+  const TEST_KEY = "test/integration-test.json";
+  const payload = { hello: "world", ts: Date.now() };
+  const payloadSchema = z.object({ hello: z.string(), ts: z.number() });
+
+  it("writes JSON to S3 and reads it back", async () => {
+    await writeJsonS3(TEST_KEY, payload);
+    const readBack = await readJsonS3(TEST_KEY, payloadSchema);
+    expect(readBack).toEqual(payload);
   });
-}
 
-if (SHOULD_RUN_LIVE_TESTS) {
-  describe("S3 Utils Integration – read/write JSON", () => {
-    const TEST_KEY = "test/integration-test.json";
-    const payload = { hello: "world", ts: Date.now() };
-
-    it("writes JSON to S3 and reads it back", async () => {
-      await writeJsonS3(TEST_KEY, payload);
-      const readBack = await readJsonS3<typeof payload>(TEST_KEY);
-      expect(readBack).toEqual(payload);
-    });
-
-    afterAll(async () => {
-      await deleteFromS3(TEST_KEY);
-    });
+  afterAll(async () => {
+    await deleteFromS3(TEST_KEY);
   });
-} else if (s3Mock) {
-  // Mocked integration path using aws-sdk-client-mock (no network)
-  describe("S3 Utils Integration – read/write JSON (mocked)", () => {
+});
+
+// Mocked integration path using aws-sdk-client-mock (no network)
+describe.runIf(!SHOULD_RUN_LIVE_TESTS && s3Mock !== null)(
+  "S3 Utils Integration – read/write JSON (mocked)",
+  () => {
     const TEST_KEY = "test/integration-test.json";
     const payload = { hello: "world", ts: 12345 };
+    const payloadSchema = z.object({ hello: z.string(), ts: z.number() });
 
     it("writes JSON to S3 and reads it back via mocked client", async () => {
+      if (!s3Mock) return; // Type guard for TypeScript
+
       let storedBody: string | null = null;
 
       // Mock PutObject to capture Body
-      s3Mock.on(PutObjectCommand).callsFake(input => {
+      s3Mock.on(PutObjectCommand).callsFake((input) => {
         storedBody = typeof input.Body === "string" ? input.Body : String(input.Body);
         return { ETag: '"test-etag"' } as any;
       });
@@ -168,18 +168,11 @@ if (SHOULD_RUN_LIVE_TESTS) {
       s3Mock.on(ListObjectsV2Command).resolves({ Contents: [{ Key: TEST_KEY }] } as any);
 
       await writeJsonS3(TEST_KEY, payload);
-      const readBack = await readJsonS3<typeof payload>(TEST_KEY);
+      const readBack = await readJsonS3(TEST_KEY, payloadSchema);
       expect(readBack).toEqual(payload);
 
       // Exercise delete path without network
       await deleteFromS3(TEST_KEY);
     });
-  });
-} else {
-  // Neither live tests nor mock library available; skip mocked integration
-  describe.skip("S3 Utils Integration – read/write JSON (mocked)", () => {
-    it("skipped due to missing aws-sdk-client-mock", () => {
-      expect(true).toBe(true);
-    });
-  });
-}
+  },
+);

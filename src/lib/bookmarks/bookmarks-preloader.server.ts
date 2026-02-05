@@ -29,7 +29,7 @@ export async function preloadBookmarksIfNeeded(): Promise<void> {
   preloadPromise = (async () => {
     try {
       // Ensure the server is fully ready before we spike outbound bandwidth
-      await new Promise(r => setTimeout(r, 1_000));
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
 
       // Dynamic import to use the unified service
       const { getBookmarks } = await import("./service.server");

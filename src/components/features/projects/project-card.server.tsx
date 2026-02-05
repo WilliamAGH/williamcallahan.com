@@ -2,74 +2,27 @@ import { ExternalLink } from "@/components/ui/external-link.client";
 import type { ProjectCardServerProps } from "@/types/features/projects";
 import Image from "next/image";
 import { type JSX } from "react";
-import { buildCdnUrl, buildCachedImageUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
-
-const MAX_DISPLAY_TECH_ITEMS = 10;
-
-// Hoisted helper to satisfy consistent-function-scoping
-function deriveTechFromTags(tagList: string[] | undefined): string[] {
-  if (!tagList || tagList.length === 0) return [];
-  const TECH_KEYWORDS = new Set([
-    "Next.js",
-    "TypeScript",
-    "Tailwind CSS",
-    "React",
-    "MDX",
-    "Server Components",
-    "Java",
-    "Spring Boot",
-    "Spring AI",
-    "OpenAI",
-    "Google Books API",
-    "Thymeleaf",
-    "HTMX",
-    "PostgreSQL",
-    "Docker",
-    "Groq",
-    "Gemini",
-  ]);
-  return tagList.filter(t => TECH_KEYWORDS.has(t));
-}
-
-// Placeholder for centered top image with gradient
-function PlaceholderImageTop() {
-  return (
-    <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center text-gray-400 dark:text-gray-500 rounded-md">
-      {" "}
-      {/* Added gradient */}
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        aria-label="Placeholder image"
-        className="h-16 w-16 opacity-50" // Slightly larger and more subtle
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        role="img"
-      >
-        {" "}
-        {/* Adjusted size */}
-        <title>Placeholder image</title>
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-        />
-      </svg>
-    </div>
-  );
-}
+import {
+  buildCdnUrl,
+  getCdnConfigFromEnv,
+  getOptimizedImageSrc,
+  shouldBypassOptimizer,
+} from "@/lib/utils/cdn-utils";
+import {
+  MAX_DISPLAY_TECH_ITEMS,
+  deriveTechFromTags,
+  PlaceholderImageTop,
+} from "./project-card-helpers";
 
 export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Element {
   const { name, description, url, imageKey, tags, techStack } = project;
-  const imageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
-  const proxiedImageUrl = imageUrl ? buildCachedImageUrl(imageUrl) : undefined;
+  const cdnImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
+  const imageUrl = getOptimizedImageSrc(cdnImageUrl);
 
   // Derive a technology stack from tags if explicit techStack is not provided
-  const displayTech = (techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)).slice(
-    0,
-    MAX_DISPLAY_TECH_ITEMS,
-  );
+  const displayTech = (
+    techStack && techStack.length > 0 ? techStack : deriveTechFromTags(tags)
+  ).slice(0, MAX_DISPLAY_TECH_ITEMS);
 
   return (
     // Redesigned card for horizontal layout on medium screens and up
@@ -87,9 +40,9 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
           showIcon={false}
           className="block w-full h-full" // Ensure link covers the area
         >
-          {proxiedImageUrl ? (
+          {imageUrl ? (
             <Image
-              src={proxiedImageUrl}
+              src={imageUrl}
               alt={`${name} screenshot`}
               fill
               quality={80}
@@ -98,7 +51,7 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
               blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFdwI2QJIiBQAAAABJRU5ErkJggg=="
               // Subtle zoom on hover
               className="object-cover w-full h-full transition-transform duration-300 ease-in-out group-hover:scale-105" // Ensure object-cover for aspect ratio
-              unoptimized
+              {...(shouldBypassOptimizer(imageUrl) ? { unoptimized: true } : {})}
             />
           ) : (
             <PlaceholderImageTop />
@@ -153,7 +106,7 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
                   Tech Stack
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {displayTech.map(tech => (
+                  {displayTech.map((tech) => (
                     <span
                       key={tech}
                       className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-gradient-to-br from-gray-700/70 to-gray-800/60 border border-white/10 text-gray-200 shadow-sm"
@@ -170,7 +123,7 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
             <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-700">
               {" "}
               {/* Added top border */}
-              {tags.map(tag => (
+              {tags.map((tag) => (
                 <span
                   key={tag}
                   className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-300" // Adjusted size/color

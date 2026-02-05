@@ -15,13 +15,18 @@ import { useEffect, useRef, useState, type MouseEvent } from "react";
 
 const HOVER_CLOSE_DELAY = 150;
 
-export function ExpandableNavItem({ link, currentPath, isMobile = false, onLinkClick }: ExpandableNavItemProps) {
+export function ExpandableNavItem({
+  link,
+  currentPath,
+  isMobile = false,
+  onLinkClick,
+}: ExpandableNavItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Check if current path matches this item or any child
   const isActive = currentPath === link.path || currentPath.startsWith(`${link.path}/`);
-  const hasActiveChild = link.children?.some(c => currentPath === c.path) ?? false;
+  const hasActiveChild = link.children?.some((c) => currentPath === c.path) ?? false;
   const isHighlighted = isActive || hasActiveChild;
 
   useEffect(() => {
@@ -84,7 +89,7 @@ export function ExpandableNavItem({ link, currentPath, isMobile = false, onLinkC
           `}
         >
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
-            {link.children?.map(child => (
+            {link.children?.map((child) => (
               <Link
                 key={child.path}
                 href={child.path}
@@ -98,6 +103,7 @@ export function ExpandableNavItem({ link, currentPath, isMobile = false, onLinkC
                 `}
                 aria-current={currentPath === child.path ? "page" : undefined}
                 onClick={handleChildClick}
+                prefetch={false}
               >
                 {child.name}
               </Link>
@@ -145,7 +151,7 @@ export function ExpandableNavItem({ link, currentPath, isMobile = false, onLinkC
         `}
       >
         <div className="border-l-2 border-gray-200 dark:border-gray-600 ml-4 bg-gray-50/50 dark:bg-gray-800/50">
-          {link.children?.map(child => (
+          {link.children?.map((child) => (
             <Link
               key={child.path}
               href={child.path}
@@ -159,6 +165,7 @@ export function ExpandableNavItem({ link, currentPath, isMobile = false, onLinkC
               `}
               aria-current={currentPath === child.path ? "page" : undefined}
               onClick={handleChildClick}
+              prefetch={false}
             >
               {child.name}
             </Link>

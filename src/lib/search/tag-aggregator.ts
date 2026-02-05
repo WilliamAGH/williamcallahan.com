@@ -84,7 +84,9 @@ export async function aggregateTags<T>(source: TagSource<T>): Promise<Aggregated
  * ]);
  * ```
  */
-export async function aggregateMultipleSources<T>(sources: TagSource<T>[]): Promise<AggregatedTag[]> {
-  const results = await Promise.all(sources.map(source => aggregateTags(source)));
+export async function aggregateMultipleSources<T>(
+  sources: TagSource<T>[],
+): Promise<AggregatedTag[]> {
+  const results = await Promise.all(sources.map((source) => aggregateTags(source)));
   return results.flat();
 }

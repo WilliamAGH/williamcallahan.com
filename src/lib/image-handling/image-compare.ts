@@ -78,8 +78,10 @@ function generateStructuralHash(meta: BasicImageMeta, buffer: Buffer): string {
   const aspect = meta.width && meta.height ? meta.width / meta.height : 1;
   const aspectBucket = aspect < 0.9 ? "tall" : aspect > 1.1 ? "wide" : "square";
 
-  const compressionRatio = meta.width && meta.height ? buffer.length / (meta.width * meta.height) : 0;
-  const compressionBucket = compressionRatio < 0.1 ? "high" : compressionRatio < 0.5 ? "medium" : "low";
+  const compressionRatio =
+    meta.width && meta.height ? buffer.length / (meta.width * meta.height) : 0;
+  const compressionBucket =
+    compressionRatio < 0.1 ? "high" : compressionRatio < 0.5 ? "medium" : "low";
 
   return `${sizeBucket}:${aspectBucket}:${compressionBucket}:${meta.format ?? "unknown"}`;
 }
@@ -154,7 +156,8 @@ export function compareSignatures(sig1: ImageSignature, sig2: ImageSignature): n
   if (sig1.dimensions.width > 0 && sig2.dimensions.width > 0) {
     const dimSim =
       1 -
-      Math.abs(sig1.dimensions.width - sig2.dimensions.width) / Math.max(sig1.dimensions.width, sig2.dimensions.width);
+      Math.abs(sig1.dimensions.width - sig2.dimensions.width) /
+        Math.max(sig1.dimensions.width, sig2.dimensions.width);
     score += dimSim * 0.2;
   }
   weights += 0.2;
@@ -165,7 +168,8 @@ export function compareSignatures(sig1: ImageSignature, sig2: ImageSignature): n
   weights += 0.3;
 
   // File size similarity (10% weight)
-  const sizeSim = 1 - Math.abs(sig1.fileSize - sig2.fileSize) / Math.max(sig1.fileSize, sig2.fileSize);
+  const sizeSim =
+    1 - Math.abs(sig1.fileSize - sig2.fileSize) / Math.max(sig1.fileSize, sig2.fileSize);
   score += Math.max(0, sizeSim) * 0.1;
   weights += 0.1;
 

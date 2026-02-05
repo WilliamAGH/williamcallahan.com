@@ -11,7 +11,8 @@
 import { preventCaching } from "@/lib/utils/api-utils";
 import { type NextRequest, NextResponse } from "next/server";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
-import { s3Client } from "@/lib/s3-utils";
+import { getS3Client } from "@/lib/s3/client";
+import { getS3Config } from "@/lib/s3/config";
 import logger from "@/lib/utils/logger";
 import { getDomainType } from "@/lib/utils/opengraph-utils";
 import { getDomainFallbackImage, getContextualFallbackImage } from "@/lib/opengraph/fallback";
@@ -22,6 +23,11 @@ import { openGraphUrlSchema } from "@/types/schemas/url";
 import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { isS3Error } from "@/lib/utils/s3-error-guards";
+
+const getS3Context = () => {
+  const { bucket } = getS3Config();
+  return { bucket, s3Client: getS3Client() };
+};
 
 /**
  * Main handler for OpenGraph image requests
@@ -108,16 +114,10 @@ export async function GET(request: NextRequest) {
 
       // Check if S3 object exists
       try {
-        if (!process.env.S3_BUCKET) {
-          throw new Error("S3_BUCKET not configured");
-        }
-        if (!s3Client) {
-          throw new Error("S3 client not initialized");
-        }
-
+        const { bucket, s3Client } = getS3Context();
         await s3Client.send(
           new HeadObjectCommand({
-            Bucket: process.env.S3_BUCKET,
+            Bucket: bucket,
             Key: `${OPENGRAPH_IMAGES_S3_DIR}/${s3Key}`,
           }),
         );
@@ -164,19 +164,16 @@ export async function GET(request: NextRequest) {
       } else if (bookmarkId) {
         // If we only have bookmarkId, try to get bookmark data and check Karakeep assets first
         try {
-          const { readJsonS3 } = await import("@/lib/s3-utils");
+          const { readJsonS3Optional } = await import("@/lib/s3/json");
           const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
-          const { unifiedBookmarkSchema } = await import("@/types/bookmark");
+          const { unifiedBookmarksArraySchema } = await import("@/types/bookmark");
 
-          const bookmarksData = await readJsonS3<unknown>(BOOKMARKS_S3_PATHS.FILE);
+          const bookmarksData = await readJsonS3Optional(
+            BOOKMARKS_S3_PATHS.FILE,
+            unifiedBookmarksArraySchema,
+          );
           if (bookmarksData && Array.isArray(bookmarksData)) {
-            // Validate the data with Zod
-            const validatedBookmarks = unifiedBookmarkSchema.array().safeParse(bookmarksData);
-            if (!validatedBookmarks.success) {
-              logger.error("[OG-Image] Invalid bookmark data:", validatedBookmarks.error);
-              throw new Error("Invalid bookmark data format");
-            }
-            const bookmark = validatedBookmarks.data.find(b => b.id === bookmarkId);
+            const bookmark = bookmarksData.find((b) => b.id === bookmarkId);
 
             if (bookmark) {
               // PRIORITY: Karakeep bannerImage (imageAssetId) takes precedence over OpenGraph
@@ -186,7 +183,9 @@ export async function GET(request: NextRequest) {
                 );
                 // Always use API proxy to ensure correct content-type
                 const assetUrl = `/api/assets/${bookmark.content.imageAssetId}`;
-                return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
+                return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), {
+                  status: 302,
+                });
               }
 
               fallbackImageData = {
@@ -207,13 +206,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if this is a static image from our own domain
-    const siteUrl = metadata.site.url || process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
+    const siteUrl =
+      metadata.site.url || process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
     let isOwnDomainImage = false;
 
     try {
       const parsedUrl = new URL(url, siteUrl); // Handle relative URLs
       const siteHostname = new URL(siteUrl).hostname;
-      isOwnDomainImage = parsedUrl.hostname === siteHostname && parsedUrl.pathname.startsWith(`/images/`);
+      isOwnDomainImage =
+        parsedUrl.hostname === siteHostname && parsedUrl.pathname.startsWith(`/images/`);
     } catch (error) {
       // Invalid URL, treat as not own domain
       logger.warn(`[OG-Image] Invalid URL for own domain check: ${url}`, error);
@@ -241,16 +242,10 @@ export async function GET(request: NextRequest) {
     let s3ImageUrl: string | null = null;
     try {
       const s3Key = `${OPENGRAPH_IMAGES_S3_DIR}/${domain}/${url.replace(/[^a-zA-Z0-9.-]/g, "_")}.webp`;
-      if (!process.env.S3_BUCKET) {
-        throw new Error("S3_BUCKET not configured");
-      }
-      if (!s3Client) {
-        throw new Error("S3 client not initialized");
-      }
-
+      const { bucket, s3Client } = getS3Context();
       await s3Client.send(
         new HeadObjectCommand({
-          Bucket: process.env.S3_BUCKET,
+          Bucket: bucket,
           Key: s3Key,
         }),
       );
@@ -270,13 +265,17 @@ export async function GET(request: NextRequest) {
       if (!isS3Error(s3Error)) {
         throw s3Error;
       }
-      logger.info(`[OG-Image] S3 image not found, checking Karakeep fallback before external fetch`);
+      logger.info(
+        `[OG-Image] S3 image not found, checking Karakeep fallback before external fetch`,
+      );
 
       // Check for Karakeep fallback BEFORE trying external fetch
       if (fallbackImageData) {
         // Try imageUrl first (this is the Karakeep API response image URL)
         if (fallbackImageData.imageUrl) {
-          logger.info(`[OG-Image] Using Karakeep imageUrl instead of fetching: ${fallbackImageData.imageUrl}`);
+          logger.info(
+            `[OG-Image] Using Karakeep imageUrl instead of fetching: ${fallbackImageData.imageUrl}`,
+          );
           return NextResponse.redirect(fallbackImageData.imageUrl, { status: 302 });
         }
 
@@ -331,7 +330,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Schedule background persistence for the image
-      const { scheduleImagePersistence } = await import("@/lib/persistence/s3-persistence");
+      const { scheduleImagePersistence } = await import("@/lib/persistence/image-persistence");
 
       // Generate idempotency key from URL
       const urlHash = url.replace(/[^a-zA-Z0-9.-]/g, "_");
@@ -364,7 +363,9 @@ export async function GET(request: NextRequest) {
 
         // Try imageAssetId
         if (fallbackImageData.imageAssetId) {
-          logger.info(`[OG-Image] Using Karakeep imageAssetId fallback: ${fallbackImageData.imageAssetId}`);
+          logger.info(
+            `[OG-Image] Using Karakeep imageAssetId fallback: ${fallbackImageData.imageAssetId}`,
+          );
           // Always use API proxy to ensure correct content-type
           const assetUrl = `/api/assets/${fallbackImageData.imageAssetId}`;
           return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
@@ -372,7 +373,9 @@ export async function GET(request: NextRequest) {
 
         // Try screenshotAssetId
         if (fallbackImageData.screenshotAssetId) {
-          logger.info(`[OG-Image] Using Karakeep screenshotAssetId fallback: ${fallbackImageData.screenshotAssetId}`);
+          logger.info(
+            `[OG-Image] Using Karakeep screenshotAssetId fallback: ${fallbackImageData.screenshotAssetId}`,
+          );
           // Always use API proxy to ensure correct content-type
           const assetUrl = `/api/assets/${fallbackImageData.screenshotAssetId}`;
           return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });

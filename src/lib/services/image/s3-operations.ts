@@ -3,16 +3,19 @@
  * @module lib/services/image/s3-operations
  */
 
-import { writeBinaryS3 } from "@/lib/s3-utils";
-import { getDeterministicTimestamp } from "@/lib/server-cache";
-import { parseS3Key, generateS3Key as generateS3KeyUtil, getFileExtension } from "@/lib/utils/hash-utils";
+import { writeBinaryS3 } from "@/lib/s3/binary";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
+import {
+  parseS3Key,
+  generateS3Key as generateS3KeyUtil,
+  getFileExtension,
+} from "@/lib/utils/hash-utils";
 import { UNIFIED_IMAGE_SERVICE_CONFIG } from "@/lib/constants";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
-import { safeStringifyValue } from "@/lib/utils/error-utils";
+import { safeStringifyValue, isRetryableError } from "@/lib/utils/error-utils";
 import { computeExponentialDelay, retryWithOptions } from "@/lib/utils/retry";
 import { getExtensionFromContentType, IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
-import { isRetryableHttpError } from "@/lib/utils/http-client";
 import logger from "@/lib/utils/logger";
 
 import type { LogoSource } from "@/types/logo";
@@ -67,7 +70,10 @@ export class S3Operations {
       for (const k of keys) {
         this.uploadRetryQueue.delete(k);
       }
-      logger.warn("Retry queue limit reached", { service: "S3Operations", removed: entriesToRemove });
+      logger.warn("Retry queue limit reached", {
+        service: "S3Operations",
+        removed: entriesToRemove,
+      });
     }
 
     const errorMessage = safeStringifyValue(error);
@@ -97,7 +103,9 @@ export class S3Operations {
             `[S3Operations] S3 upload failed due to memory pressure. Retry ${attempts}/${CONFIG.MAX_UPLOAD_RETRIES} scheduled for ${new Date(nextRetry).toISOString()}`,
           );
         } else {
-          logger.info(`[S3Operations] S3 upload failed after ${CONFIG.MAX_UPLOAD_RETRIES} attempts`);
+          logger.info(
+            `[S3Operations] S3 upload failed after ${CONFIG.MAX_UPLOAD_RETRIES} attempts`,
+          );
           this.uploadRetryQueue.delete(key);
         }
       }
@@ -123,6 +131,8 @@ export class S3Operations {
    */
   private startRetryProcessing(): void {
     this.retryTimerId = setInterval(() => void this.processRetryQueue(), 60000);
+    // Prevent interval from keeping Node.js alive (especially in tests)
+    this.retryTimerId.unref();
     if (process.env.NODE_ENV !== "test") process.on("beforeExit", () => this.stopRetryProcessing());
   }
 
@@ -168,20 +178,23 @@ export class S3Operations {
           {
             maxRetries: CONFIG.MAX_UPLOAD_RETRIES - retry.attempts,
             baseDelay: CONFIG.RETRY_BASE_DELAY,
-            isRetryable: error => isRetryableHttpError(error),
+            isRetryable: (error) => isRetryableError(error),
             onRetry: (error, attempt) => {
               void error; // Explicitly mark as unused per project convention
-              logger.info(`[S3Operations] Retry ${attempt + retry.attempts}/${CONFIG.MAX_UPLOAD_RETRIES} for ${key}`);
+              logger.info(
+                `[S3Operations] Retry ${attempt + retry.attempts}/${CONFIG.MAX_UPLOAD_RETRIES} for ${key}`,
+              );
             },
           },
         )
-          .then(result => {
+          .then((result) => {
             if (result?.cdnUrl) {
               this.uploadRetryQueue.delete(key);
               logger.info(`[S3Operations] Retry successful for ${key}`);
             }
+            return undefined;
           })
-          .catch(error => {
+          .catch((error) => {
             logger.error("[S3Operations] All retries failed", error, { key });
             this.uploadRetryQueue.delete(key);
           });
@@ -204,7 +217,12 @@ export class S3Operations {
    */
   generateS3Key(
     url: string,
-    options: ImageServiceOptions & { type?: string; source?: LogoSource; domain?: string; contentType?: string },
+    options: ImageServiceOptions & {
+      type?: string;
+      source?: LogoSource;
+      domain?: string;
+      contentType?: string;
+    },
   ): string {
     if (options.type === "logo" && options.domain && options.source) {
       // For logos, extract extension from the filename in the URL, not from the domain

@@ -61,7 +61,7 @@ function extractMappedIPv4(hostname: string): string | null {
   const hextets = suffix.split(":").filter(Boolean);
 
   // ::ffff:7f00:1
-  if (hextets.length === 2 && hextets.every(h => /^[0-9a-f]{1,4}$/i.test(h))) {
+  if (hextets.length === 2 && hextets.every((h) => /^[0-9a-f]{1,4}$/i.test(h))) {
     const [hiPart, loPart] = hextets;
     if (!hiPart || !loPart) return null;
 
@@ -102,7 +102,7 @@ function isPrivateIPv4(hostname: string): boolean {
   if (octets.length !== 4) {
     return false;
   }
-  if (octets.some(octet => Number.isNaN(octet) || octet < 0 || octet > 255)) {
+  if (octets.some((octet) => Number.isNaN(octet) || octet < 0 || octet > 255)) {
     return false;
   }
 
@@ -133,7 +133,7 @@ export function isPrivateIP(hostname: string): boolean {
     return true;
   }
 
-  return PRIVATE_HOSTNAME_PATTERNS.some(pattern => pattern.test(cleanHostname));
+  return PRIVATE_HOSTNAME_PATTERNS.some((pattern) => pattern.test(cleanHostname));
 }
 
 /**
@@ -143,7 +143,7 @@ export const safeUrlSchema = z
   .string()
   .url()
   .refine(
-    url => {
+    (url) => {
       try {
         const parsed = new URL(url);
 
@@ -200,9 +200,10 @@ const ALLOWED_LOGO_DOMAINS = new Set(
     "pbs.twimg.com",
     "media.licdn.com",
 
-    // Allow our own CDN (both server and client URLs)
-    process.env.S3_CDN_URL ? new URL(process.env.S3_CDN_URL).hostname : null,
-    process.env.NEXT_PUBLIC_S3_CDN_URL ? new URL(process.env.NEXT_PUBLIC_S3_CDN_URL).hostname : null,
+    // Allow our own CDN
+    process.env.NEXT_PUBLIC_S3_CDN_URL
+      ? new URL(process.env.NEXT_PUBLIC_S3_CDN_URL).hostname
+      : null,
   ].filter(Boolean) as string[],
 );
 
@@ -210,7 +211,7 @@ const ALLOWED_LOGO_DOMAINS = new Set(
  * Logo URL validation schema (restricted to allowlist)
  */
 export const logoUrlSchema = safeUrlSchema.refine(
-  url => {
+  (url) => {
     try {
       const parsed = new URL(url);
       const domain = parsed.hostname;
@@ -249,7 +250,7 @@ export const openGraphUrlSchema = safeUrlSchema;
  * S3 key validation schema
  */
 export const s3KeySchema = z.string().refine(
-  key => {
+  (key) => {
     // No directory traversal
     if (key.includes("..") || key.includes("./") || key.includes("//")) {
       return false;
@@ -264,7 +265,7 @@ export const s3KeySchema = z.string().refine(
       /^[a-f0-9]{32,64}\.[a-z]+$/, // Hash-based names
     ];
 
-    return validPatterns.some(pattern => pattern.test(key));
+    return validPatterns.some((pattern) => pattern.test(key));
   },
   {
     message: "Invalid S3 key format",
@@ -274,11 +275,11 @@ export const s3KeySchema = z.string().refine(
 /**
  * Path sanitization schema
  */
-export const safePathSchema = z.string().transform(path => {
+export const safePathSchema = z.string().transform((path) => {
   // Remove directory traversal sequences
   return path
     .split("/")
-    .filter(segment => segment !== ".." && segment !== ".")
+    .filter((segment) => segment !== ".." && segment !== ".")
     .join("/")
     .replace(/\/+/g, "/")
     .replace(/^\/+/, "");
@@ -287,11 +288,16 @@ export const safePathSchema = z.string().transform(path => {
 /**
  * Twitter username validation
  */
-export const twitterUsernameSchema = z.string().regex(/^[A-Za-z0-9_]{1,15}$/, "Invalid Twitter username");
+export const twitterUsernameSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_]{1,15}$/, "Invalid Twitter username");
 
 /**
  * Asset ID validation schema (UUID format with or without hyphens)
  */
 export const assetIdSchema = z
   .string()
-  .regex(/^[a-f0-9]{8}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{12}$/i, "Invalid asset ID format");
+  .regex(
+    /^[a-f0-9]{8}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{12}$/i,
+    "Invalid asset ID format",
+  );

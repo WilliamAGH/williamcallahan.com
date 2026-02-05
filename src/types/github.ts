@@ -132,7 +132,9 @@ export const GitHubGraphQLContributionResponseSchema = z.object({
     .nullable(),
 });
 
-export type GitHubGraphQLContributionResponse = z.infer<typeof GitHubGraphQLContributionResponseSchema>;
+export type GitHubGraphQLContributionResponse = z.infer<
+  typeof GitHubGraphQLContributionResponseSchema
+>;
 
 /** Represents a single repository node from the GraphQL contribution response. */
 export type GithubRepoNode = GraphQLRepoNode;
@@ -181,7 +183,12 @@ export interface RepoWeeklyStatCache {
   repoOwnerLogin: string;
   repoName: string;
   lastFetched: string; // ISO string
-  status: "complete" | "pending_202_from_api" | "pending_rate_limit" | "fetch_error" | "empty_no_user_contribs";
+  status:
+    | "complete"
+    | "pending_202_from_api"
+    | "pending_rate_limit"
+    | "fetch_error"
+    | "empty_no_user_contribs";
   stats: RepoRawWeeklyStat[];
 }
 
@@ -257,7 +264,13 @@ export interface UserActivityView {
 // --- START: GitHub GraphQL Contribution Calendar Schemas ---
 export const GraphQLContributionDaySchema = z.object({
   contributionCount: z.number(),
-  contributionLevel: z.enum(["NONE", "FIRST_QUARTILE", "SECOND_QUARTILE", "THIRD_QUARTILE", "FOURTH_QUARTILE"]),
+  contributionLevel: z.enum([
+    "NONE",
+    "FIRST_QUARTILE",
+    "SECOND_QUARTILE",
+    "THIRD_QUARTILE",
+    "FOURTH_QUARTILE",
+  ]),
   date: z.string(), // YYYY-MM-DD
 });
 
@@ -290,7 +303,9 @@ export const GraphQLUserContributionsResponseSchema = z.object({
     .nullable(),
 });
 
-export type GraphQLUserContributionsResponse = z.infer<typeof GraphQLUserContributionsResponseSchema>;
+export type GraphQLUserContributionsResponse = z.infer<
+  typeof GraphQLUserContributionsResponseSchema
+>;
 // --- END: GitHub GraphQL Contribution Calendar Schemas ---
 
 /**
@@ -302,3 +317,22 @@ export interface GitHubActivityError extends ExtendedError {
   /** Timestamp of the last fetch attempt */
   lastFetchedTimestamp?: number;
 }
+
+/**
+ * Input for writing GitHub activity summaries
+ */
+export type GitHubSummaryInput = {
+  trailingYearData: StoredGithubActivityS3;
+  allTimeData: StoredGithubActivityS3;
+  totalRepositoriesContributedTo: number;
+  yearCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
+  allTimeCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
+};
+
+/**
+ * Result of writing GitHub activity summaries
+ */
+export type GitHubSummaryWriteResult = {
+  trailingYearWritten: boolean;
+  allTimeWritten: boolean;
+};

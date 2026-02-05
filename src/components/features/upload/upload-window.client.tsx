@@ -16,7 +16,14 @@ import React, { useState, useCallback, useRef, Suspense } from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
-import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, type LucideIcon } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import type { RegisteredWindowState } from "@/types";
 import {
@@ -54,7 +61,7 @@ function FileTypeSelector({ value, onChange, isDisabled }: FileTypeSelectorProps
       <select
         id="file-type-select"
         value={value}
-        onChange={e => onChange(e.target.value as UploadFileType)}
+        onChange={(e) => onChange(e.target.value as UploadFileType)}
         disabled={isDisabled}
         className={cn(
           "w-full px-4 py-3 font-mono text-sm",
@@ -77,7 +84,7 @@ function FileTypeSelector({ value, onChange, isDisabled }: FileTypeSelectorProps
           backgroundPosition: "right 12px center",
         }}
       >
-        {options.map(option => (
+        {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
@@ -165,12 +172,16 @@ function DropZone({
 
   return (
     <div className="relative">
-      <label className="block text-xs font-mono uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+      <label
+        htmlFor="file-upload-input"
+        className="block text-xs font-mono uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2"
+      >
         Select File
       </label>
 
       {/* Hidden file input */}
       <input
+        id="file-upload-input"
         ref={inputRef}
         type="file"
         accept={acceptedMimeTypes.join(",")}
@@ -181,8 +192,8 @@ function DropZone({
       />
 
       {/* Drop zone */}
-      <div
-        role="button"
+      <button
+        type="button"
         tabIndex={isDisabled ? -1 : 0}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
@@ -239,9 +250,13 @@ function DropZone({
               <p className="font-mono text-sm text-gray-900 dark:text-gray-100 mb-1 text-center break-all max-w-full px-4">
                 {selectedFile.name}
               </p>
-              <p className="font-mono text-xs text-gray-500 dark:text-gray-400">{formatFileSize(selectedFile.size)}</p>
+              <p className="font-mono text-xs text-gray-500 dark:text-gray-400">
+                {formatFileSize(selectedFile.size)}
+              </p>
               {validationError && (
-                <p className="mt-3 text-sm text-red-600 dark:text-red-400 text-center">{validationError}</p>
+                <p className="mt-3 text-sm text-red-600 dark:text-red-400 text-center">
+                  {validationError}
+                </p>
               )}
             </>
           ) : (
@@ -267,7 +282,7 @@ function DropZone({
             </>
           )}
         </div>
-      </div>
+      </button>
     </div>
   );
 }
@@ -413,7 +428,7 @@ function UploadWindowContentInner({
 
     try {
       // Simulate validation delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       setUploadStatus("uploading");
       setStatusMessage("Uploading to storage...");
@@ -427,7 +442,7 @@ function UploadWindowContentInner({
       const xhr = new XMLHttpRequest();
 
       await new Promise<void>((resolve, reject) => {
-        xhr.upload.addEventListener("progress", e => {
+        xhr.upload.addEventListener("progress", (e) => {
           if (e.lengthComputable) {
             const percent = Math.round((e.loaded / e.total) * 100);
             setUploadProgress(percent);
@@ -486,7 +501,8 @@ function UploadWindowContentInner({
     setStatusMessage("");
   }, []);
 
-  const isUploading = uploadStatus === "validating" || uploadStatus === "uploading" || uploadStatus === "processing";
+  const isUploading =
+    uploadStatus === "validating" || uploadStatus === "uploading" || uploadStatus === "processing";
   const canUpload = selectedFile && !validationError && !isUploading;
 
   return (
@@ -523,14 +539,18 @@ function UploadWindowContentInner({
         {/* Intro text */}
         <div className="mb-6">
           <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
-            Upload books to the document archive. Files are stored securely and processed for semantic search via vector
-            embeddings.
+            Upload books to the document archive. Files are stored securely and processed for
+            semantic search via vector embeddings.
           </p>
         </div>
 
         {/* File type selector */}
         <div className="mb-6">
-          <FileTypeSelector value={fileType} onChange={handleFileTypeChange} isDisabled={isUploading} />
+          <FileTypeSelector
+            value={fileType}
+            onChange={handleFileTypeChange}
+            isDisabled={isUploading}
+          />
         </div>
 
         {/* Drop zone */}
@@ -546,7 +566,11 @@ function UploadWindowContentInner({
         </div>
 
         {/* Upload progress */}
-        <UploadProgressIndicator status={uploadStatus} progress={uploadProgress} message={statusMessage} />
+        <UploadProgressIndicator
+          status={uploadStatus}
+          progress={uploadProgress}
+          message={statusMessage}
+        />
 
         {/* Action buttons */}
         <div className="mt-6 flex gap-3">
@@ -632,7 +656,12 @@ export function UploadWindow({ windowTitle, windowId }: UploadWindowProps) {
     minimize: minimizeWindow,
     maximize: maximizeWindow,
     isRegistered,
-  }: RegisteredWindowState = useRegisteredWindowState(uniqueId, Upload as LucideIcon, restoreTitle, "normal");
+  }: RegisteredWindowState = useRegisteredWindowState(
+    uniqueId,
+    Upload as LucideIcon,
+    restoreTitle,
+    "normal",
+  );
 
   // Closed or minimized windows are hidden
   if (windowState === "closed" || windowState === "minimized") {
@@ -661,5 +690,5 @@ function formatFileSize(bytes: number): string {
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
 }

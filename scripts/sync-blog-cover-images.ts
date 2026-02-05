@@ -6,7 +6,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { checkIfS3ObjectExists, writeBinaryS3 } from "@/lib/s3-utils";
+import { writeBinaryS3 } from "@/lib/s3/binary";
+import { checkIfS3ObjectExists } from "@/lib/s3/objects";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import logger from "@/lib/utils/logger";
 
@@ -28,12 +29,12 @@ const RAILWAY_ENV_SIGNALS = [
   "RAILWAY_SERVICE_ID",
 ];
 
-const isRailwayEnv = RAILWAY_ENV_SIGNALS.some(name => Boolean(process.env[name]));
+const isRailwayEnv = RAILWAY_ENV_SIGNALS.some((name) => Boolean(process.env[name]));
 
 const SUPPORTED_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".svg", ".webp", ".gif", ".avif"]);
 
 function getAllFiles(dir: string): string[] {
-  return fs.readdirSync(dir).flatMap(entry => {
+  return fs.readdirSync(dir).flatMap((entry) => {
     const entryPath = path.join(dir, entry);
     const stats = fs.statSync(entryPath);
     if (stats.isDirectory()) return getAllFiles(entryPath);
@@ -109,7 +110,9 @@ async function syncCoverImages(): Promise<void> {
     logger.warn("S3 credentials missing or dry-run enabled. Skipping uploads.");
   }
 
-  const files = getAllFiles(POSTS_IMAGE_DIR).filter(file => SUPPORTED_EXTENSIONS.has(path.extname(file).toLowerCase()));
+  const files = getAllFiles(POSTS_IMAGE_DIR).filter((file) =>
+    SUPPORTED_EXTENSIONS.has(path.extname(file).toLowerCase()),
+  );
   if (files.length === 0) {
     logger.warn("No blog cover images found under public/images/posts.");
   }
@@ -183,8 +186,9 @@ async function syncCoverImages(): Promise<void> {
 syncCoverImages()
   .then(() => {
     logger.info("Blog cover image sync complete.");
+    return undefined;
   })
-  .catch(error => {
+  .catch((error) => {
     logger.error("Blog cover image sync failed:", error);
     process.exit(1);
   });

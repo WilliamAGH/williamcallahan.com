@@ -2,6 +2,7 @@
  * Tests for search helper utilities
  */
 
+import type { MockInstance } from "vitest";
 import {
   coalesceSearchRequest,
   dedupeDocuments,
@@ -11,12 +12,12 @@ import {
 import type { SearchResult } from "@/types/search";
 
 describe("Search Helpers", () => {
-  let consoleWarnSpy: jest.SpyInstance;
-  let consoleLogSpy: jest.SpyInstance;
+  let consoleWarnSpy: MockInstance;
+  let consoleLogSpy: MockInstance;
 
   beforeEach(() => {
-    consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
-    consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -63,7 +64,7 @@ describe("Search Helpers", () => {
         { slug: "post-3", title: "Third Post" },
       ];
 
-      const result = dedupeDocuments(documents, doc => doc.slug);
+      const result = dedupeDocuments(documents, (doc) => doc.slug);
 
       expect(result).toHaveLength(3);
       expect(result[0]).toEqual({ slug: "post-1", title: "First Post" });
@@ -155,7 +156,7 @@ describe("Search Helpers", () => {
         { code: "ABC", value: 300 },
       ];
 
-      const result = prepareDocumentsForIndexing(documents, "Custom ID Test", doc => doc.code);
+      const result = prepareDocumentsForIndexing(documents, "Custom ID Test", (doc) => doc.code);
 
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({ code: "ABC", value: 100 });
@@ -166,7 +167,7 @@ describe("Search Helpers", () => {
   describe("coalesceSearchRequest", () => {
     it("should execute the search function and return results", async () => {
       const mockResults = [{ id: "1", title: "Result" }];
-      const searchFn = jest.fn().mockResolvedValue(mockResults);
+      const searchFn = vi.fn().mockResolvedValue(mockResults);
 
       const result = await coalesceSearchRequest("test-key", searchFn);
 
@@ -178,10 +179,10 @@ describe("Search Helpers", () => {
       let resolveSearch: (value: string[]) => void = () => {
         throw new Error("resolveSearch not set");
       };
-      const searchPromise = new Promise<string[]>(resolve => {
+      const searchPromise = new Promise<string[]>((resolve) => {
         resolveSearch = resolve;
       });
-      const searchFn = jest.fn().mockReturnValue(searchPromise);
+      const searchFn = vi.fn().mockReturnValue(searchPromise);
 
       // Start two concurrent requests with the same key
       const promise1 = coalesceSearchRequest("same-key", searchFn);
@@ -200,8 +201,8 @@ describe("Search Helpers", () => {
     });
 
     it("should allow new search after previous completes", async () => {
-      const searchFn1 = jest.fn().mockResolvedValue(["first"]);
-      const searchFn2 = jest.fn().mockResolvedValue(["second"]);
+      const searchFn1 = vi.fn().mockResolvedValue(["first"]);
+      const searchFn2 = vi.fn().mockResolvedValue(["second"]);
 
       // First search
       const result1 = await coalesceSearchRequest("reuse-key", searchFn1);
@@ -216,12 +217,12 @@ describe("Search Helpers", () => {
     });
 
     it("should clean up after promise resolves", async () => {
-      const searchFn = jest.fn().mockResolvedValue(["result"]);
+      const searchFn = vi.fn().mockResolvedValue(["result"]);
 
       await coalesceSearchRequest("cleanup-key", searchFn);
 
       // A new request with same key should call the function again (not reuse old promise)
-      const searchFn2 = jest.fn().mockResolvedValue(["new-result"]);
+      const searchFn2 = vi.fn().mockResolvedValue(["new-result"]);
       const result = await coalesceSearchRequest("cleanup-key", searchFn2);
 
       expect(result).toEqual(["new-result"]);
@@ -230,12 +231,12 @@ describe("Search Helpers", () => {
 
     it("should clean up after promise rejects", async () => {
       const error = new Error("Search failed");
-      const searchFn = jest.fn().mockRejectedValue(error);
+      const searchFn = vi.fn().mockRejectedValue(error);
 
       await expect(coalesceSearchRequest("error-key", searchFn)).rejects.toThrow("Search failed");
 
       // A new request with same key should work after error
-      const searchFn2 = jest.fn().mockResolvedValue(["recovered"]);
+      const searchFn2 = vi.fn().mockResolvedValue(["recovered"]);
       const result = await coalesceSearchRequest("error-key", searchFn2);
 
       expect(result).toEqual(["recovered"]);
@@ -249,15 +250,15 @@ describe("Search Helpers", () => {
         throw new Error("resolveB not set");
       };
 
-      const promiseA = new Promise<string>(resolve => {
+      const promiseA = new Promise<string>((resolve) => {
         resolveA = resolve;
       });
-      const promiseB = new Promise<string>(resolve => {
+      const promiseB = new Promise<string>((resolve) => {
         resolveB = resolve;
       });
 
-      const fnA = jest.fn().mockReturnValue(promiseA);
-      const fnB = jest.fn().mockReturnValue(promiseB);
+      const fnA = vi.fn().mockReturnValue(promiseA);
+      const fnB = vi.fn().mockReturnValue(promiseB);
 
       const resultA = coalesceSearchRequest("key-a", fnA);
       const resultB = coalesceSearchRequest("key-b", fnB);
@@ -357,7 +358,7 @@ describe("Search Helpers", () => {
       // Mock crypto.randomUUID
       const mockUUID = "mock-uuid-12345";
       const originalRandomUUID = crypto.randomUUID.bind(crypto);
-      crypto.randomUUID = jest.fn().mockReturnValue(mockUUID);
+      crypto.randomUUID = vi.fn().mockReturnValue(mockUUID);
 
       const result = transformSearchResultToTerminalResult(searchResult);
 

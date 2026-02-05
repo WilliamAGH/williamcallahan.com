@@ -9,42 +9,127 @@
  */
 
 import { EventEmitter } from "node:events";
-// import { ImageMemoryManager, ImageMemoryManagerInstance } from "@/lib/image-memory-manager";
-// import {
-//   MemoryHealthMonitor,
-//   getMemoryHealthMonitor,
-//   memoryHealthCheckMiddleware,
-//   memoryPressureMiddleware,
-// } from "@/lib/health/memory-health-monitor";
 import { MEMORY_THRESHOLDS } from "@/lib/constants";
+
+// Stub classes for skipped tests (actual modules not yet implemented)
+// These stubs allow the file to be linted without errors while tests remain skipped
+class ImageMemoryManager extends EventEmitter {
+  setMaxListeners(_n: number) {
+    return this;
+  }
+  getMetrics() {
+    return { cacheSize: 0, cacheBytes: 0, memoryPressure: false };
+  }
+  destroy() {
+    /* no-op */
+  }
+  setMemoryPressure(_v: boolean) {
+    /* no-op */
+  }
+  // Stub methods to satisfy tests
+  set(_key: string, _buffer: Buffer, _metadata: Omit<ImageCacheEntry, "buffer" | "timestamp">) {
+    return false;
+  }
+  get(_key: string): Promise<ImageCacheEntry | null> {
+    return Promise.resolve(null);
+  }
+  delete(_key: string) {
+    /* no-op */
+  }
+  clear() {
+    /* no-op */
+  }
+  registerFetch(_key: string, _promise: Promise<Buffer>) {
+    /* no-op */
+  }
+  isFetching(_key: string) {
+    return false;
+  }
+  getFetchPromise(_key: string): Promise<Buffer> {
+    return Promise.resolve(Buffer.from("fetched data"));
+  }
+}
+// Lazy singleton - only instantiated when first accessed
+let imageMemoryManagerInstance: ImageMemoryManager | null = null;
+function getImageMemoryManagerInstance(): ImageMemoryManager {
+  if (!imageMemoryManagerInstance) {
+    imageMemoryManagerInstance = new ImageMemoryManager();
+  }
+  return imageMemoryManagerInstance;
+}
+
+class MemoryHealthMonitor {
+  getCurrentStatus() {
+    return "healthy";
+  }
+  checkHealth() {
+    return { isHealthy: true };
+  }
+  // Stub methods to satisfy tests
+  stopMonitoring() {
+    /* no-op */
+  }
+  getHealthStatus() {
+    return { status: "healthy", statusCode: 200, message: "OK", details: {} };
+  }
+  shouldAcceptNewRequests() {
+    return true;
+  }
+  shouldAllowImageOperations() {
+    return true;
+  }
+  getMemoryTrend() {
+    return "stable";
+  }
+  checkMemory() {
+    /* no-op */
+  }
+  emergencyCleanup() {
+    return Promise.resolve();
+  }
+  getMetricsHistory() {
+    return [{ timestamp: Date.now(), rss: 0, heapUsed: 0 }];
+  }
+}
+// Lazy singleton - only instantiated when first accessed, not at module load time
+let memoryHealthMonitorInstance: MemoryHealthMonitor | null = null;
+function getMemoryHealthMonitorSingleton(): MemoryHealthMonitor {
+  if (!memoryHealthMonitorInstance) {
+    memoryHealthMonitorInstance = new MemoryHealthMonitor();
+  }
+  return memoryHealthMonitorInstance;
+}
+const memoryHealthCheckMiddleware = vi.fn();
+const memoryPressureMiddleware = vi.fn();
+
 import type { ImageCacheEntry } from "@/types/cache";
 import type { ImageMemoryMetrics } from "@/types/image";
 import type { MemoryMetrics } from "@/types/health";
 
 // Mock dependencies
-jest.mock("@/lib/server-cache", () => ({
+vi.mock("@/lib/server-cache", () => ({
   ServerCacheInstance: {
-    getStats: jest.fn(() => ({
+    getStats: vi.fn(() => ({
       keys: 0,
       hits: 0,
       misses: 0,
     })),
-    clearAllCaches: jest.fn(),
+    clearAllCaches: vi.fn(),
   },
 }));
 
-jest.mock("@/lib/async-operations-monitor", () => ({
+vi.mock("@/lib/async-operations-monitor", () => ({
   asyncMonitor: {
-    getHealthStatus: jest.fn(() => ({
+    getHealthStatus: vi.fn(() => ({
       activeOperations: 0,
       totalOperations: 0,
       failedOperations: 0,
     })),
   },
-  monitoredAsync: jest.fn((_context, _name, fn, _options) => fn()),
+  monitoredAsync: vi.fn((_context, _name, fn, _options) => fn()),
 }));
 
-describe.skip("ImageMemoryManager", () => {
+describe.todo("ImageMemoryManager", () => {
   let manager: any; // ImageMemoryManager;
 
   beforeEach(() => {
@@ -78,7 +163,9 @@ describe.skip("ImageMemoryManager", () => {
         configurable: true,
       });
 
-      expect(() => new ImageMemoryManager()).toThrow("IMAGE_RAM_BUDGET_BYTES must be a positive number");
+      expect(() => new ImageMemoryManager()).toThrow(
+        "IMAGE_RAM_BUDGET_BYTES must be a positive number",
+      );
 
       // Restore original value
       Object.defineProperty(MEMORY_THRESHOLDS, "IMAGE_RAM_BUDGET_BYTES", {
@@ -168,6 +255,7 @@ describe.skip("ImageMemoryManager", () => {
 
   describe("Request Coalescing", () => {
     it("should prevent duplicate concurrent fetches", async () => {
+      vi.useFakeTimers();
       const fetchPromise = Promise.resolve(Buffer.from("fetched data"));
 
       manager.registerFetch("coalesce-test", fetchPromise);
@@ -179,10 +267,11 @@ describe.skip("ImageMemoryManager", () => {
       // Wait for completion and cleanup
       await fetchPromise;
       // Add a small delay to ensure cleanup has happened
-      await new Promise(resolve => setTimeout(resolve, 10));
+      vi.advanceTimersByTime(10);
 
       // Should be cleaned up
       expect(manager.isFetching("coalesce-test")).toBe(false);
+      vi.useRealTimers();
     });
 
     it("should limit concurrent fetches", () => {
@@ -192,10 +281,12 @@ describe.skip("ImageMemoryManager", () => {
       }
 
       // This should be rejected
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation();
+      const consoleSpy = vi.spyOn(console, "warn").mockImplementation();
       manager.registerFetch("over-limit", Promise.resolve(Buffer.from("test")));
 
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("In-flight fetch limit reached"));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("In-flight fetch limit reached"),
+      );
 
       consoleSpy.mockRestore();
     });
@@ -203,7 +294,7 @@ describe.skip("ImageMemoryManager", () => {
 
   describe("Memory Pressure Handling", () => {
     it("should enter memory pressure mode", () => {
-      const eventSpy = jest.fn();
+      const eventSpy = vi.fn();
       manager.on("memory-pressure-start", eventSpy);
 
       manager.setMemoryPressure(true);
@@ -232,8 +323,8 @@ describe.skip("ImageMemoryManager", () => {
     });
 
     it("should exit memory pressure mode", () => {
-      const startSpy = jest.fn();
-      const endSpy = jest.fn();
+      const startSpy = vi.fn();
+      const endSpy = vi.fn();
 
       manager.on("memory-pressure-start", startSpy);
       manager.on("memory-pressure-end", endSpy);
@@ -262,7 +353,7 @@ describe.skip("ImageMemoryManager", () => {
       expect(typeof metrics.memoryPressure).toBe("boolean");
     });
 
-    it("should emit metrics events", done => {
+    it("should emit metrics events", (done) => {
       manager.on("metrics", (metrics: ImageMemoryMetrics) => {
         expect(metrics).toHaveProperty("cacheSize");
         expect(metrics).toHaveProperty("memoryPressure");
@@ -278,7 +369,7 @@ describe.skip("ImageMemoryManager", () => {
 
   describe("Event Emission", () => {
     it("should not emit image-disposed events (deprecated functionality)", () => {
-      const eventSpy = jest.fn();
+      const eventSpy = vi.fn();
       manager.on("image-disposed", eventSpy);
 
       const testBuffer = Buffer.from("test");
@@ -297,7 +388,7 @@ describe.skip("ImageMemoryManager", () => {
   });
 });
 
-describe.skip("MemoryHealthMonitor", () => {
+describe.todo("MemoryHealthMonitor", () => {
   let monitor: any; // MemoryHealthMonitor;
 
   beforeEach(() => {
@@ -364,7 +455,7 @@ describe.skip("MemoryHealthMonitor", () => {
       const originalEnv = process.env.ALLOW_MEMORY_TEST_LOGS;
       process.env.ALLOW_MEMORY_TEST_LOGS = "true";
 
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation();
+      const consoleSpy = vi.spyOn(console, "warn").mockImplementation();
 
       await monitor.emergencyCleanup();
 
@@ -381,11 +472,11 @@ describe.skip("MemoryHealthMonitor", () => {
     });
 
     it("should handle cleanup errors gracefully", async () => {
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation();
 
-      // Mock ImageMemoryManagerInstance to throw an error
+      // Mock getImageMemoryManagerInstance() to throw an error
       const originalSetMemoryPressure = ImageMemoryManager.prototype.setMemoryPressure;
-      ImageMemoryManager.prototype.setMemoryPressure = jest.fn(() => {
+      ImageMemoryManager.prototype.setMemoryPressure = vi.fn(() => {
         throw new Error("Cleanup failed");
       });
 
@@ -404,7 +495,7 @@ describe.skip("MemoryHealthMonitor", () => {
 
   describe("Memory Monitoring", () => {
     it("should check memory usage", () => {
-      const consoleSpy = jest.spyOn(console, "log").mockImplementation();
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation();
 
       monitor.checkMemory();
 
@@ -433,27 +524,29 @@ describe.skip("MemoryHealthMonitor", () => {
 
   describe("Singleton Pattern", () => {
     it("should return same instance", () => {
-      const instance1 = getMemoryHealthMonitor();
-      const instance2 = getMemoryHealthMonitor();
+      const instance1 = getMemoryHealthMonitorSingleton();
+      const instance2 = getMemoryHealthMonitorSingleton();
 
       expect(instance1).toBe(instance2);
     });
   });
 });
 
-describe.skip("Memory Health Middleware", () => {
+import type { Mock } from "vitest";
+
+describe.todo("Memory Health Middleware", () => {
   let mockReq: any;
   let mockRes: any;
-  let mockNext: jest.Mock;
+  let mockNext: Mock;
 
   beforeEach(() => {
     mockReq = {};
     mockRes = {
-      setHeader: jest.fn(),
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
     };
-    mockNext = jest.fn();
+    mockNext = vi.fn();
   });
 
   describe("memoryHealthCheckMiddleware", () => {
@@ -469,8 +562,8 @@ describe.skip("Memory Health Middleware", () => {
   describe("memoryPressureMiddleware", () => {
     it("should allow requests when healthy", () => {
       // Force the monitor to be in healthy state for this test
-      const monitor = getMemoryHealthMonitor();
-      jest.spyOn(monitor, "shouldAcceptNewRequests").mockReturnValue(true);
+      const monitor = getMemoryHealthMonitorSingleton();
+      vi.spyOn(monitor, "shouldAcceptNewRequests").mockReturnValue(true);
 
       memoryPressureMiddleware(mockReq, mockRes, mockNext);
 
@@ -480,9 +573,9 @@ describe.skip("Memory Health Middleware", () => {
 
     it("should reject requests when in critical state", () => {
       // Mock the monitor to return critical state
-      const monitor = getMemoryHealthMonitor();
-      jest.spyOn(monitor, "shouldAcceptNewRequests").mockReturnValue(false);
-      jest.spyOn(monitor, "getCurrentStatus").mockReturnValue("critical");
+      const monitor = getMemoryHealthMonitorSingleton();
+      vi.spyOn(monitor, "shouldAcceptNewRequests").mockReturnValue(false);
+      vi.spyOn(monitor, "getCurrentStatus").mockReturnValue("critical");
 
       memoryPressureMiddleware(mockReq, mockRes, mockNext);
 
@@ -498,7 +591,7 @@ describe.skip("Memory Health Middleware", () => {
   });
 });
 
-describe.skip("Memory Leak Prevention", () => {
+describe.todo("Memory Leak Prevention", () => {
   it("should not retain parent buffer references", async () => {
     const manager = new ImageMemoryManager();
 
@@ -531,7 +624,7 @@ describe.skip("Memory Leak Prevention", () => {
 
   it("should properly dispose of buffers on clear", () => {
     const manager = new ImageMemoryManager();
-    const disposalSpy = jest.fn();
+    const disposalSpy = vi.fn();
 
     manager.on("image-disposed", disposalSpy);
 
@@ -555,11 +648,12 @@ describe.skip("Memory Leak Prevention", () => {
   });
 });
 
-describe.skip("Integration Tests", () => {
+describe.todo("Integration Tests", () => {
   it("should handle memory pressure across components", async () => {
+    vi.useFakeTimers();
     // Get singleton instances to test their interaction
-    const manager = ImageMemoryManagerInstance;
-    const monitor = getMemoryHealthMonitor();
+    const manager = getImageMemoryManagerInstance();
+    const monitor = getMemoryHealthMonitorSingleton();
 
     // Ensure clean state before test
     manager.setMemoryPressure(false);
@@ -568,7 +662,7 @@ describe.skip("Integration Tests", () => {
     manager.setMemoryPressure(true);
 
     // Allow event propagation with a small delay or use event-based waiting
-    await new Promise(resolve => setTimeout(resolve, 10));
+    vi.advanceTimersByTime(10);
 
     // The manager's own metrics should reflect the pressure state
     const managerMetrics = manager.getMetrics();
@@ -581,9 +675,10 @@ describe.skip("Integration Tests", () => {
     manager.setMemoryPressure(false);
 
     // Allow cleanup to propagate
-    await new Promise(resolve => setTimeout(resolve, 10));
+    vi.advanceTimersByTime(10);
 
     // Verify cleanup worked
     expect(monitor.shouldAllowImageOperations()).toBe(true);
+    vi.useRealTimers();
   });
 });

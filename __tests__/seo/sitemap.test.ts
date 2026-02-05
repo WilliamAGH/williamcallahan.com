@@ -77,7 +77,7 @@ describe("Sitemap URL Generation", () => {
       // Tags that might generate the same slug
       const similarTags = ["C++", "C+", "C"];
 
-      const slugs = similarTags.map(tag => tagToSlug(tag));
+      const slugs = similarTags.map((tag) => tagToSlug(tag));
 
       // Check that C++ and C+ generate different slugs
       expect(slugs[0]).toBe("c-plus-plus");

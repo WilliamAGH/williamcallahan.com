@@ -19,82 +19,99 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
+import { debug } from "@/lib/utils/debug";
+import type {
+  MemoryPressureLevel,
+  MemoryPressureOverrides,
+  MemoryPressureStatus,
+} from "@/types/middleware";
+import { isHealthCheckPath } from "./health-check-paths";
 
-// Health check paths that should always be allowed
-const HEALTH_CHECK_PATHS = ["/api/health", "/api/health/metrics", "/healthz", "/livez", "/readyz"];
+const MEMORY_WARNING_UTILIZATION = 0.85;
+const MEMORY_CRITICAL_UTILIZATION = 0.92;
 
 /**
- * Check memory pressure using Edge Runtime-compatible methods
- * This approach uses environment variables or simple heuristics
- * instead of direct Node.js process.memoryUsage() calls
+ * Check memory pressure using Edge Runtime-compatible environment variables.
+ * External monitors set these flags when memory thresholds are exceeded.
  */
-function isMemoryPressureCritical(): boolean {
-  // Check for explicit memory pressure flag from external monitors
-  if (typeof process !== "undefined" && process.env?.MEMORY_PRESSURE_CRITICAL === "true") {
-    return true;
-  }
-
-  // In Edge Runtime, we can't check actual memory usage
-  // So we rely on external monitoring systems to set environment flags
-  return false;
+function isMemoryPressureFromEnv(level: MemoryPressureLevel): boolean {
+  if (typeof process === "undefined") return false;
+  const envKey = level === "CRITICAL" ? "MEMORY_PRESSURE_CRITICAL" : "MEMORY_PRESSURE_WARNING";
+  return process.env?.[envKey] === "true";
 }
 
 /**
- * Check memory warning state using Edge Runtime-compatible methods
+ * Try to read the container memory limit from cgroups (Linux).
+ * Returns null when unavailable or unlimited.
  */
-function isMemoryPressureWarning(): boolean {
-  // Check for explicit memory warning flag from external monitors
-  if (typeof process !== "undefined" && process.env?.MEMORY_PRESSURE_WARNING === "true") {
-    return true;
-  }
+let cgroupLimitBytesPromise: Promise<number | null> | null = null;
+async function getCgroupMemoryLimitBytes(): Promise<number | null> {
+  if (cgroupLimitBytesPromise) return cgroupLimitBytesPromise;
 
-  return false;
-}
+  cgroupLimitBytesPromise = (async () => {
+    // If we are not in Node.js, we cannot read cgroups.
+    if (typeof process === "undefined" || !process.versions?.node) return null;
 
-/**
- * Check if we can access health endpoint for memory status
- * This provides a fallback mechanism for memory checking
- */
-async function checkMemoryViaHealthEndpoint(): Promise<{ critical: boolean; warning: boolean }> {
-  try {
-    // Determine base URL for Edge Runtime compatibility
-    const isProduction = process.env.NODE_ENV === "production";
-    const publicSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    try {
+      const { readFile } = await import("node:fs/promises");
 
-    let baseUrl: string;
-    if (isProduction && publicSiteUrl && !publicSiteUrl.includes("localhost")) {
-      baseUrl = publicSiteUrl.replace(/\/$/, "");
-    } else if (isProduction) {
-      baseUrl = "https://williamcallahan.com";
-    } else {
-      const port = process.env.PORT || 3000;
-      baseUrl = `http://localhost:${port}`;
+      const readTrimmed = async (filePath: string): Promise<string | null> => {
+        try {
+          const raw = await readFile(filePath, "utf8");
+          return raw.trim();
+        } catch (err) {
+          debug(`[MemoryPressure] Could not read ${filePath}:`, err);
+          return null;
+        }
+      };
+
+      // cgroup v2
+      const v2 = await readTrimmed("/sys/fs/cgroup/memory.max");
+      if (v2 && v2 !== "max") {
+        const parsed = Number(v2);
+        if (Number.isFinite(parsed) && parsed > 0) return parsed;
+      }
+
+      // cgroup v1
+      const v1 = await readTrimmed("/sys/fs/cgroup/memory/memory.limit_in_bytes");
+      if (v1) {
+        const parsed = Number(v1);
+        // Some hosts expose a huge "no limit" number; ignore obviously-unbounded values.
+        if (Number.isFinite(parsed) && parsed > 0 && parsed < 1024 * 1024 * 1024 * 1024)
+          return parsed;
+      }
+
+      return null;
+    } catch (err) {
+      debug("[MemoryPressure] Failed to read cgroup memory limit:", err);
+      return null;
     }
+  })();
 
-    const healthUrl = new URL("/api/health", baseUrl);
+  return cgroupLimitBytesPromise;
+}
 
-    // Quick fetch with short timeout to avoid blocking
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 100); // 100ms timeout
+async function getNodeMemoryPressureStatus(
+  overrides?: MemoryPressureOverrides,
+): Promise<(MemoryPressureStatus & { rssBytes: number; limitBytes: number | null }) | null> {
+  if (typeof process === "undefined" || !process.versions?.node) return null;
+  if (typeof process.memoryUsage !== "function") return null;
 
-    const response = await fetch(healthUrl.toString(), {
-      method: "HEAD", // Use HEAD to avoid response body
-      signal: controller.signal,
-    });
+  const rssBytes = overrides?.rssBytes ?? process.memoryUsage().rss;
+  const limitBytes = overrides?.limitBytes ?? (await getCgroupMemoryLimitBytes());
 
-    clearTimeout(timeoutId);
-
-    // Check response headers for memory status
-    const systemStatus = response.headers.get("X-System-Status");
-
-    return {
-      critical: systemStatus === "MEMORY_CRITICAL",
-      warning: systemStatus === "MEMORY_WARNING",
-    };
-  } catch {
-    // If health check fails, assume no memory pressure
-    return { critical: false, warning: false };
+  if (!limitBytes) {
+    // No reliable limit: do not guess and do not shed. Rate limiting is the primary guard.
+    return { critical: false, warning: false, rssBytes, limitBytes: null };
   }
+
+  const utilization = rssBytes / limitBytes;
+  return {
+    critical: utilization >= MEMORY_CRITICAL_UTILIZATION,
+    warning: utilization >= MEMORY_WARNING_UTILIZATION,
+    rssBytes,
+    limitBytes,
+  };
 }
 
 /**
@@ -102,35 +119,35 @@ async function checkMemoryViaHealthEndpoint(): Promise<{ critical: boolean; warn
  * Returns 503 when system is under critical memory pressure
  * Edge Runtime compatible with multiple detection methods
  */
-export async function memoryPressureMiddleware(request: NextRequest): Promise<NextResponse | null> {
-  const pathname = request.nextUrl.pathname;
+export async function memoryPressureMiddleware(
+  request: NextRequest,
+  overrides?: MemoryPressureOverrides,
+): Promise<NextResponse | null> {
+  const pathname = request.nextUrl?.pathname ?? new URL(request.url).pathname;
 
   // Always allow health checks through
-  if (HEALTH_CHECK_PATHS.some(path => pathname.startsWith(path))) {
+  if (isHealthCheckPath(pathname)) {
     return null; // Continue to next middleware
   }
 
-  // Primary check: Environment-based memory pressure detection
-  const envCritical = isMemoryPressureCritical();
-  const envWarning = isMemoryPressureWarning();
+  // Primary check: Environment-based memory pressure detection (works in Edge too)
+  const envCritical = isMemoryPressureFromEnv("CRITICAL");
+  const envWarning = isMemoryPressureFromEnv("WARNING");
 
-  // Secondary check: Health endpoint (with fallback)
-  let healthStatus = { critical: false, warning: false };
-  if (!envCritical) {
-    // Only skip the health check when critical is already known via env flags
-    try {
-      healthStatus = await checkMemoryViaHealthEndpoint();
-    } catch {
-      // Health check failed, continue with env-only status
-    }
-  }
-
-  const isCritical = envCritical || healthStatus.critical;
-  const isWarning = envWarning || healthStatus.warning;
+  // Secondary check (Node.js only): in-process memory usage vs cgroup memory limit
+  const nodeStatus = await getNodeMemoryPressureStatus(overrides);
+  const isCritical = envCritical || Boolean(nodeStatus?.critical);
+  const isWarning = envWarning || Boolean(nodeStatus?.warning);
 
   // Check memory pressure
   if (isCritical) {
-    console.warn(`[MemoryPressure] Shedding load due to memory pressure: ${pathname} ${request.method}`);
+    const details =
+      nodeStatus?.limitBytes && nodeStatus.limitBytes > 0
+        ? ` rss=${Math.round(nodeStatus.rssBytes / 1024 / 1024)}MB limit=${Math.round(nodeStatus.limitBytes / 1024 / 1024)}MB`
+        : "";
+    console.warn(
+      `[MemoryPressure] Shedding load due to memory pressure: ${pathname} ${request.method}${details}`,
+    );
 
     // Return 503 with proper headers
     return NextResponse.json(
@@ -151,10 +168,12 @@ export async function memoryPressureMiddleware(request: NextRequest): Promise<Ne
 
   // Check if we're in warning state (optional header)
   if (isWarning) {
-    // Continue processing but add warning header
-    const response = NextResponse.next();
-    response.headers.set("X-System-Status", "MEMORY_WARNING");
-    return response;
+    // Continue processing but add warning header.
+    // NOTE: src/proxy.ts must merge this header onto the final response.
+    return new NextResponse(null, {
+      status: 200,
+      headers: { "X-System-Status": "MEMORY_WARNING" },
+    });
   }
 
   // Normal operation - continue to next middleware

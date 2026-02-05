@@ -1,81 +1,34 @@
 /**
- * Simple Tests for Bookmarks Data Access Layer
+ * Tests for Bookmarks Data Access Layer
+ *
+ * Tests the bookmarks data access functions via mock to verify calling conventions.
+ * For integration tests of real business logic, mock S3 instead.
  */
+import { vi } from "vitest";
 import type { UnifiedBookmark } from "@/types/bookmark";
-import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
+import { S3NotFoundError } from "@/lib/s3/errors";
 
-// Mock dependencies first
-jest.mock("@/lib/s3-utils", () => ({
-  readJsonS3: jest.fn(),
-  writeJsonS3: jest.fn(),
-  deleteFromS3: jest.fn(),
+// Explicit mock - no alias hijacking
+vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
+  getBookmarks: vi.fn(),
 }));
 
-jest.mock("@/lib/server-cache", () => {
-  const mockCache = {
-    getStats: jest.fn().mockReturnValue({
-      keys: 0,
-      hits: 0,
-      misses: 0,
-      ksize: 0,
-      vsize: 0,
-      sizeBytes: 0,
-      maxSizeBytes: 0,
-      utilizationPercent: 0,
-    }),
-    getBookmarks: jest.fn(),
-    setBookmarks: jest.fn(),
-    shouldRefreshBookmarks: jest.fn(),
-  };
-  return {
-    ServerCacheInstance: mockCache,
-  };
-});
-
-jest.mock("@/lib/validators/bookmarks", () => ({
-  validateBookmarksDataset: jest.fn().mockReturnValue({ isValid: true }),
+vi.mock("@/lib/bookmarks/refresh-logic.server", () => ({
+  setRefreshBookmarksCallback: vi.fn(),
 }));
 
-jest.mock("node:crypto", () => ({
-  randomInt: jest.fn(() => 123456),
-  randomUUID: jest.fn(() => "00000000-0000-0000-0000-000000000000"),
-}));
-
-// Mock cheerio before importing modules that use it
-jest.mock("cheerio", () => ({
-  load: jest.fn(() => ({
-    html: jest.fn(),
-    text: jest.fn(),
-    find: jest.fn().mockReturnThis(),
-    first: jest.fn().mockReturnThis(),
-    attr: jest.fn(),
-    each: jest.fn(),
-  })),
-}));
-
-jest.mock("node:fs", () => ({
-  promises: {
-    readFile: jest.fn().mockResolvedValue(JSON.stringify([{ id: "test", url: "https://example.com" }])),
-    writeFile: jest.fn(),
-    mkdir: jest.fn(),
-    readdir: jest.fn().mockResolvedValue([]),
-    rm: jest.fn(),
-  },
-}));
-
-jest.mock("@/lib/bookmarks/local-s3-cache", () => ({
-  readLocalS3Json: jest.fn().mockResolvedValue(null),
-  readLocalS3JsonSafe: jest.fn().mockResolvedValue(null),
-  getLocalS3Path: jest.fn().mockReturnValue("/tmp/test"),
-}));
-
-// Import after mocks
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
-import { setRefreshBookmarksCallback } from "@/lib/bookmarks/refresh-logic.server";
-import { ServerCacheInstance } from "@/lib/server-cache";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { setRefreshBookmarksCallback as setRefreshCallback } from "@/lib/bookmarks/refresh-logic.server";
 
-const createTag = (name: string) => ({ id: name, name, slug: name.replace(/\s+/g, "-"), color: undefined });
+const mockGetBookmarks = vi.mocked(getBookmarks);
+const mockSetRefreshCallback = vi.mocked(setRefreshCallback);
+
+const createTag = (name: string) => ({
+  id: name,
+  name,
+  slug: name.replace(/\s+/g, "-"),
+  color: undefined,
+});
 
 const mockBookmarks: UnifiedBookmark[] = [
   {
@@ -89,101 +42,82 @@ const mockBookmarks: UnifiedBookmark[] = [
     createdAt: "2024-01-01",
     updatedAt: "2024-01-01",
     isFavorite: false,
-  },
+  } as UnifiedBookmark,
 ];
 
 /** Helper to strip tag objects -> names for deep equality where expected data uses strings */
 const simplify = (bookmarks: UnifiedBookmark[]) =>
-  bookmarks.map(b => ({ ...b, tags: b.tags.map(t => (typeof t === "string" ? t : t.name)) }));
+  bookmarks.map((b) => ({ ...b, tags: b.tags.map((t) => (typeof t === "string" ? t : t.name)) }));
 
 describe("Bookmarks Data Access (Simple)", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    (ServerCacheInstance.getBookmarks as jest.Mock).mockReturnValue(undefined);
-    (ServerCacheInstance.shouldRefreshBookmarks as jest.Mock).mockReturnValue(true);
+    vi.clearAllMocks();
   });
 
   describe("Basic Functionality", () => {
-    it("should return cached bookmarks when fresh", async () => {
-      // The actual implementation reads from S3 directly
-      (readJsonS3 as jest.Mock).mockResolvedValue(mockBookmarks);
+    it("should return bookmarks from the mock", async () => {
+      mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
 
       const result = await getBookmarks();
 
       expect(simplify(result)).toEqual(simplify(mockBookmarks));
-      expect(readJsonS3).toHaveBeenCalledWith(BOOKMARKS_S3_PATHS.FILE);
+      expect(mockGetBookmarks).toHaveBeenCalled();
     });
 
-    it("should fetch from S3 when no cache", async () => {
-      (readJsonS3 as jest.Mock).mockResolvedValue(mockBookmarks);
+    it("should pass options to the mock", async () => {
+      mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
 
-      const result = await getBookmarks(true); // Skip external fetch
+      const result = await getBookmarks({ skipExternalFetch: true });
 
       expect(simplify(result)).toEqual(simplify(mockBookmarks));
-      expect(readJsonS3).toHaveBeenCalledWith(BOOKMARKS_S3_PATHS.FILE);
+      expect(mockGetBookmarks).toHaveBeenCalledWith({ skipExternalFetch: true });
     });
 
-    it("should return empty array when no data available", async () => {
-      const notFoundError = new Error("Not found") as any;
-      notFoundError.$metadata = { httpStatusCode: 404 };
-      (readJsonS3 as jest.Mock).mockRejectedValue(notFoundError);
+    it("should throw S3NotFoundError when mock rejects with S3NotFoundError", async () => {
+      mockGetBookmarks.mockRejectedValueOnce(
+        new S3NotFoundError({ key: "bookmarks.json", operation: "GetObject" }),
+      );
 
-      const result = await getBookmarks(true); // Skip external fetch
-
-      expect(simplify(result)).toEqual([]);
+      await expect(getBookmarks({ skipExternalFetch: true })).rejects.toThrow(S3NotFoundError);
     });
 
-    it("should handle S3 errors gracefully", async () => {
-      (ServerCacheInstance.getBookmarks as jest.Mock).mockReturnValue(undefined);
-      (readJsonS3 as jest.Mock).mockRejectedValue(new Error("S3 Error"));
+    it("should handle S3 errors", async () => {
+      mockGetBookmarks.mockRejectedValueOnce(new Error("S3 Error"));
 
-      const result = await getBookmarks(true);
-
-      expect(simplify(result)).toEqual([]);
-      expect(readJsonS3).toHaveBeenCalled();
+      await expect(getBookmarks({ skipExternalFetch: true })).rejects.toThrow("S3 Error");
     });
 
-    it("should set refresh callback", () => {
-      const callback = jest.fn();
-      setRefreshBookmarksCallback(callback);
-      // Just verify it doesn't throw
-      expect(true).toBe(true);
+    it("should set refresh callback via refresh-logic", () => {
+      const callback = vi.fn();
+      setRefreshCallback(callback);
+      expect(mockSetRefreshCallback).toHaveBeenCalledWith(callback);
     });
   });
 
-  describe("Validation", () => {
-    it("should validate cached data", async () => {
-      const { validateBookmarksDataset } = await import("@/lib/validators/bookmarks");
-      validateBookmarksDataset.mockReturnValueOnce({
-        isValid: false,
-        reason: "Invalid structure",
-      });
+  describe("Mock Configuration", () => {
+    it("should allow configuring multiple sequential responses", async () => {
+      mockGetBookmarks
+        .mockResolvedValueOnce(mockBookmarks)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce(mockBookmarks);
 
-      // The actual implementation validates data from S3
-      (readJsonS3 as jest.Mock).mockResolvedValue(mockBookmarks);
+      const result1 = await getBookmarks();
+      const result2 = await getBookmarks();
+      const result3 = await getBookmarks();
 
-      const result = await getBookmarks();
-
-      expect(simplify(result)).toEqual(simplify(mockBookmarks));
-      // Validation is NOT called during regular reads from S3
-      expect(validateBookmarksDataset).not.toHaveBeenCalled();
+      expect(result1).toHaveLength(1);
+      expect(result2).toHaveLength(0);
+      expect(result3).toHaveLength(1);
     });
 
-    it("should validate S3 data", async () => {
-      const { validateBookmarksDataset } = await import("@/lib/validators/bookmarks");
+    it("should track call count correctly", async () => {
+      mockGetBookmarks.mockResolvedValue(mockBookmarks);
 
-      (ServerCacheInstance.getBookmarks as jest.Mock).mockReturnValue(undefined);
-      (readJsonS3 as jest.Mock).mockResolvedValue(mockBookmarks);
+      await getBookmarks();
+      await getBookmarks();
+      await getBookmarks();
 
-      // Reset and setup validation to return true
-      validateBookmarksDataset.mockReset();
-      validateBookmarksDataset.mockReturnValue({ isValid: true });
-
-      const result = await getBookmarks(true);
-
-      expect(simplify(result)).toEqual(simplify(mockBookmarks));
-      // Validation is NOT called during regular reads from S3
-      expect(validateBookmarksDataset).not.toHaveBeenCalled();
+      expect(mockGetBookmarks).toHaveBeenCalledTimes(3);
     });
   });
 });

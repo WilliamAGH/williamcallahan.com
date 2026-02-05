@@ -7,7 +7,7 @@
  * @module data-access/opengraph-batch
  */
 
-import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
 import { hashUrl, normalizeUrl, validateOgUrl } from "@/lib/utils/opengraph-utils";
 import { OPENGRAPH_CACHE_DURATION } from "@/lib/constants";
 import { fetchExternalOpenGraphWithRetry } from "@/lib/opengraph/fetch";
@@ -16,6 +16,7 @@ import { generateS3Key } from "@/lib/utils/hash-utils";
 import { BatchProcessor, BatchProgressReporter } from "@/lib/batch-processing";
 import { getMonotonicTime } from "@/lib/utils";
 import { isOgResult, type OgResult, type KarakeepImageFallback } from "@/types";
+import { ogResultSchema } from "@/types/seo/opengraph";
 
 /**
  * Batch-optimized OpenGraph data fetching
@@ -41,10 +42,11 @@ export async function getOpenGraphDataBatch(
   }
 
   // Step 1: Check S3 for existing data
+  // readJsonS3Optional returns null for 404, throws for real S3 errors
   if (!forceRefresh) {
     try {
-      const stored = await readJsonS3(s3Key);
-      if (isOgResult(stored)) {
+      const stored = await readJsonS3Optional(s3Key, ogResultSchema);
+      if (stored && isOgResult(stored)) {
         const age = getMonotonicTime() - (stored.timestamp || 0);
         const isDataFresh = age < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
 
@@ -54,18 +56,28 @@ export async function getOpenGraphDataBatch(
         }
         // Data is stale, will fetch fresh data below
       }
-    } catch {
-      // S3 read failed, will fetch fresh data
+    } catch (s3Error) {
+      // Log S3 read errors explicitly before propagating per [RC1a]
+      // Do NOT silently fall through to fetch - real S3 errors indicate infrastructure issues
+      console.error(`[OpenGraph Batch] S3 read error for ${s3Key}:`, s3Error);
+      throw s3Error;
     }
   }
 
   // Step 2: Fetch fresh data from external source
   try {
-    const result = await fetchExternalOpenGraphWithRetry(normalizedUrl, fallbackImageData || undefined);
+    const result = await fetchExternalOpenGraphWithRetry(
+      normalizedUrl,
+      fallbackImageData || undefined,
+    );
 
     // Check if result is null or a network failure
     if (!result) {
-      return createFallbackResult(normalizedUrl, "Failed to fetch OpenGraph data", fallbackImageData);
+      return createFallbackResult(
+        normalizedUrl,
+        "Failed to fetch OpenGraph data",
+        fallbackImageData,
+      );
     }
 
     if ("networkFailure" in result) {
@@ -98,9 +110,12 @@ export async function processOpenGraphBatch(
   const progressReporter = new BatchProgressReporter("OpenGraph Batch", 10000); // Report every 10 seconds
 
   // Create batch processor with lower concurrency for OpenGraph (to be polite to external sites)
-  const processor = new BatchProcessor<{ url: string; fallback?: KarakeepImageFallback | null }, OgResult>(
+  const processor = new BatchProcessor<
+    { url: string; fallback?: KarakeepImageFallback | null },
+    OgResult
+  >(
     "opengraph-batch",
-    async item => getOpenGraphDataBatch(item.url, item.fallback, options.forceRefresh),
+    async (item) => getOpenGraphDataBatch(item.url, item.fallback, options.forceRefresh),
     {
       batchSize: options.batchSize || 5, // Lower concurrency for external sites
       batchDelay: 100, // Small delay between batches
@@ -130,12 +145,18 @@ export async function processOpenGraphBatch(
 
   // Add failed results
   for (const [item, error] of result.failed) {
-    ogResults.set(item.url, createFallbackResult(item.url, error.message || "Processing failed", item.fallback));
+    ogResults.set(
+      item.url,
+      createFallbackResult(item.url, error.message || "Processing failed", item.fallback),
+    );
   }
 
   // Add skipped results (due to memory pressure)
   for (const item of result.skipped) {
-    ogResults.set(item.url, createFallbackResult(item.url, "Skipped due to memory pressure", item.fallback));
+    ogResults.set(
+      item.url,
+      createFallbackResult(item.url, "Skipped due to memory pressure", item.fallback),
+    );
   }
 
   // Log summary

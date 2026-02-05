@@ -216,7 +216,8 @@ describe("Book Transforms", () => {
       const listItem = absItemToBookListItem(item, BASE_OPTIONS);
 
       // Cover URL should be proxied through local API
-      const expectedDirectUrl = "https://abs.example.com/api/items/list-item-id/cover?token=test-key";
+      const expectedDirectUrl =
+        "https://abs.example.com/api/items/list-item-id/cover?token=test-key";
       expect(listItem).toEqual({
         id: "list-item-id",
         title: "Grid Book",
@@ -269,24 +270,24 @@ describe("Book Transforms", () => {
     });
 
     it("throws on non-404 responses", async () => {
-      globalThis.fetch = jest.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 500,
         statusText: "Server Error",
         headers: new Headers(),
-        json: jest.fn(),
+        json: vi.fn(),
       }) as unknown as typeof fetch;
 
       await expect(fetchBookById("book-500")).rejects.toThrow("AudioBookShelf API error");
     });
 
     it("returns null on 404 responses", async () => {
-      globalThis.fetch = jest.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 404,
         statusText: "Not Found",
         headers: new Headers(),
-        json: jest.fn(),
+        json: vi.fn(),
       }) as unknown as typeof fetch;
 
       await expect(fetchBookById("book-404")).resolves.toBeNull();

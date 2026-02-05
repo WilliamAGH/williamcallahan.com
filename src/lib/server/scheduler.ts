@@ -6,7 +6,9 @@ loadEnvironmentWithMultilineSupport();
 
 // Log startup immediately to verify process is running
 console.log(`[Scheduler] Process starting at ${new Date().toISOString()}`);
-console.log(`[Scheduler] Node version: ${process.version}, Bun version: ${process.versions.bun || "N/A"}`);
+console.log(
+  `[Scheduler] Node version: ${process.version}, Bun version: ${process.versions.bun || "N/A"}`,
+);
 console.log(`[Scheduler] Working directory: ${process.cwd()}`);
 
 // Continuous Background Scheduler
@@ -56,7 +58,9 @@ const SCHEDULER_INSTANCE_ID = `scheduler-${randomInt(1000000, 9999999)}-${Math.f
 // Track running jobs to prevent concurrent executions
 const runningJobs = new Set<string>();
 
-console.log(`[Scheduler] Process started with instanceId: ${SCHEDULER_INSTANCE_ID}. Setting up cron jobs...`);
+console.log(
+  `[Scheduler] Process started with instanceId: ${SCHEDULER_INSTANCE_ID}. Setting up cron jobs...`,
+);
 // Debug: log key environment variables
 console.log(
   `[Scheduler] [${SCHEDULER_INSTANCE_ID}] Env vars: S3_BUCKET=${process.env.S3_BUCKET}, ` +
@@ -81,7 +85,9 @@ cron.schedule(bookmarksCron, () => {
     `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Cron triggered at ${new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })}. Preparing to spawn update-s3...`,
   );
   const jitter = randomInt(DEFAULT_JITTER_MS);
-  console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Applying jitter of ${jitter}ms before update-s3`);
+  console.log(
+    `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Applying jitter of ${jitter}ms before update-s3`,
+  );
   setTimeout(() => {
     // Check if job is already running
     if (runningJobs.has("bookmarks")) {
@@ -94,7 +100,9 @@ cron.schedule(bookmarksCron, () => {
     console.log(
       `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Command: bun run update-s3 -- ${DATA_UPDATER_FLAGS.BOOKMARKS}`,
     );
-    console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Using S3_BUCKET=${process.env.S3_BUCKET}`);
+    console.log(
+      `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Using S3_BUCKET=${process.env.S3_BUCKET}`,
+    );
 
     const updateProcess = spawn("bun", ["run", "update-s3", "--", DATA_UPDATER_FLAGS.BOOKMARKS], {
       env: process.env,
@@ -102,18 +110,25 @@ cron.schedule(bookmarksCron, () => {
       detached: false,
     });
 
-    updateProcess.on("error", err => {
-      console.error(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Failed to start update-s3 process:`, err);
+    updateProcess.on("error", (err) => {
+      console.error(
+        `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Failed to start update-s3 process:`,
+        err,
+      );
     });
 
-    updateProcess.on("close", code => {
+    updateProcess.on("close", (code) => {
       // Remove from running jobs
       runningJobs.delete("bookmarks");
 
       if (code !== 0) {
-        console.error(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] update-s3 script failed (code ${code}).`);
+        console.error(
+          `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] update-s3 script failed (code ${code}).`,
+        );
       } else {
-        console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] update-s3 script completed successfully`);
+        console.log(
+          `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] update-s3 script completed successfully`,
+        );
 
         // Invalidate Next.js cache to serve fresh data
         console.log("[Scheduler] [Bookmarks] Invalidating Next.js cache for bookmarks...");
@@ -134,35 +149,42 @@ cron.schedule(bookmarksCron, () => {
           headers,
           signal: controller.signal,
         })
-          .then(response => {
+          .then((response) => {
             clearTimeout(timeoutId);
             if (response.ok) {
               console.log("[Scheduler] [Bookmarks] ✅ Cache invalidated successfully");
             } else {
-              console.error(`[Scheduler] [Bookmarks] Cache invalidation failed with status ${response.status}`);
+              console.error(
+                `[Scheduler] [Bookmarks] Cache invalidation failed with status ${response.status}`,
+              );
             }
+            return null;
           })
-          .catch(error => {
+          .catch((error) => {
             clearTimeout(timeoutId);
             if (error instanceof Error && error.name === "AbortError") {
-              console.error("[Scheduler] [Bookmarks] Cache invalidation timed out after 10 seconds");
+              console.error(
+                "[Scheduler] [Bookmarks] Cache invalidation timed out after 10 seconds",
+              );
             } else {
               console.error("[Scheduler] [Bookmarks] Failed to invalidate cache:", error);
             }
           });
 
         // Submit updated sitemap to search engines
-        console.log("[Scheduler] [Bookmarks] Submitting updated sitemap to search engines asynchronously...");
+        console.log(
+          "[Scheduler] [Bookmarks] Submitting updated sitemap to search engines asynchronously...",
+        );
         const sitemapProcess = spawn("bun", ["run", "submit-sitemap"], {
           env: process.env,
           stdio: "inherit",
         });
 
-        sitemapProcess.on("error", err => {
+        sitemapProcess.on("error", (err) => {
           console.error("[Scheduler] [Bookmarks] Failed to start sitemap submission process:", err);
         });
 
-        sitemapProcess.on("close", code => {
+        sitemapProcess.on("close", (code) => {
           if (code !== 0) {
             console.error(`[Scheduler] [Bookmarks] Sitemap submission failed (code ${code}).`);
           } else {
@@ -198,11 +220,11 @@ cron.schedule(githubCron, () => {
       detached: false,
     });
 
-    updateProcess.on("error", err => {
+    updateProcess.on("error", (err) => {
       console.error("[Scheduler] [GitHub] Failed to start update-s3 process:", err);
     });
 
-    updateProcess.on("close", code => {
+    updateProcess.on("close", (code) => {
       // Remove from running jobs
       runningJobs.delete("github");
 
@@ -232,15 +254,18 @@ cron.schedule(githubCron, () => {
           headers,
           signal: controller.signal,
         })
-          .then(response => {
+          .then((response) => {
             clearTimeout(timeoutId);
             if (response.ok) {
               console.log("[Scheduler] [GitHub] ✅ Cache invalidated successfully");
             } else {
-              console.error(`[Scheduler] [GitHub] Cache invalidation failed with status ${response.status}`);
+              console.error(
+                `[Scheduler] [GitHub] Cache invalidation failed with status ${response.status}`,
+              );
             }
+            return null;
           })
-          .catch(error => {
+          .catch((error) => {
             clearTimeout(timeoutId);
             if (error instanceof Error && error.name === "AbortError") {
               console.error("[Scheduler] [GitHub] Cache invalidation timed out after 10 seconds");
@@ -276,11 +301,11 @@ cron.schedule(logosCron, () => {
       detached: false,
     });
 
-    updateProcess.on("error", err => {
+    updateProcess.on("error", (err) => {
       console.error("[Scheduler] [Logos] Failed to start update-s3 process:", err);
     });
 
-    updateProcess.on("close", code => {
+    updateProcess.on("close", (code) => {
       // Remove from running jobs
       runningJobs.delete("logos");
 
@@ -295,11 +320,15 @@ cron.schedule(logosCron, () => {
 
 // The scheduler process remains alive indefinitely, waiting for cron events.
 // DO NOT EXIT this process - it must stay running for scheduled updates to occur.
-console.log("[Scheduler] Setup complete. Scheduler is running and waiting for scheduled trigger times...");
-console.log("[Scheduler] Production frequencies: Bookmarks (12x/day), GitHub (1x/day), Logos (1x/week)");
+console.log(
+  "[Scheduler] Setup complete. Scheduler is running and waiting for scheduled trigger times...",
+);
+console.log(
+  "[Scheduler] Production frequencies: Bookmarks (12x/day), GitHub (1x/day), Logos (1x/week)",
+);
 
 // Add process-level error handling to prevent silent crashes
-process.on("uncaughtException", error => {
+process.on("uncaughtException", (error) => {
   console.error(`[Scheduler] FATAL: Uncaught exception:`, error);
   console.error(`[Scheduler] Stack trace:`, error.stack);
   // Don't exit - try to keep running
@@ -315,7 +344,9 @@ process.on("unhandledRejection", (reason, promise) => {
 setInterval(
   () => {
     const uptime = Math.floor(process.uptime() / 60);
-    console.log(`[Scheduler] Heartbeat: Process alive for ${uptime} minutes, waiting for scheduled tasks...`);
+    console.log(
+      `[Scheduler] Heartbeat: Process alive for ${uptime} minutes, waiting for scheduled tasks...`,
+    );
   },
   60 * 60 * 1000,
 );

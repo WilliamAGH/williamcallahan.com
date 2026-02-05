@@ -6,28 +6,29 @@ import { experiences } from "@/data/experience";
 import { getCvData } from "@/lib/cv/cv-data";
 
 const freezeTime = (isoTimestamp: string): void => {
-  jest.useFakeTimers({
-    now: new Date(isoTimestamp),
-    doNotFake: ["nextTick", "performance"],
-  });
+  // Vitest uses toFake (whitelist) instead of doNotFake (blacklist)
+  // Just setting `now` is sufficient for time-based tests
+  vi.useFakeTimers({ now: new Date(isoTimestamp) });
 };
 
 describe("getCvData", () => {
   afterEach(() => {
-    jest.useRealTimers();
-    jest.resetModules();
-    jest.clearAllMocks();
+    vi.useRealTimers();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("filters featured experiences and derives bullet points", () => {
     freezeTime("2025-11-08T12:34:56Z");
 
     const data = getCvData();
-    const expectedFeaturedCount = experiences.filter(experienceItem => experienceItem.cvFeatured).length;
+    const expectedFeaturedCount = experiences.filter(
+      (experienceItem) => experienceItem.cvFeatured,
+    ).length;
 
     expect(data.experiences).toHaveLength(expectedFeaturedCount);
 
-    const callahan = data.experiences.find(item => item.id === "callahan-financial");
+    const callahan = data.experiences.find((item) => item.id === "callahan-financial");
     expect(callahan).toBeDefined();
     expect(callahan?.headline).toBe("Founded and led an SEC-registered investment advisor");
     expect(callahan?.bullets).toContain("Managed $225 million in assets on acquisition");
@@ -50,50 +51,57 @@ describe("getCvData", () => {
 
     const data = getCvData();
 
-    const aventureProject = data.projects.find(project => project.id === "aVenture.vc");
+    const aventureProject = data.projects.find((project) => project.id === "aVenture.vc");
     expect(aventureProject).toBeDefined();
     expect(aventureProject?.tags).toHaveLength(6);
 
-    const institutions = data.groupedCourses.map(group => group.institution);
-    expect(institutions).toEqual(["Stanford University", "College of San Mateo", "University of California Berkeley"]);
+    const institutions = data.groupedCourses.map((group) => group.institution);
+    expect(institutions).toEqual([
+      "Stanford University",
+      "College of San Mateo",
+      "University of California Berkeley",
+    ]);
 
-    const collegeOfSanMateo = data.groupedCourses.find(group => group.institution === "College of San Mateo");
+    const collegeOfSanMateo = data.groupedCourses.find(
+      (group) => group.institution === "College of San Mateo",
+    );
     expect(collegeOfSanMateo).toBeDefined();
-    expect(collegeOfSanMateo?.courses.every(course => course.year === "2025")).toBe(true);
+    expect(collegeOfSanMateo?.courses.every((course) => course.year === "2025")).toBe(true);
   });
 
   it("falls back to raw values when URLs cannot be parsed", async () => {
-    await jest.isolateModulesAsync(async () => {
-      const actualCv = jest.requireActual<typeof import("@/data/cv")>("@/data/cv");
+    // Vitest uses vi.resetModules() + dynamic imports instead of vi.isolateModules()
+    vi.resetModules();
 
-      jest.doMock("@/data/metadata", () => ({
-        metadata: {
-          site: {
-            url: "notaurl",
-          },
+    const actualCv = await vi.importActual<typeof import("@/data/cv")>("@/data/cv");
+
+    vi.doMock("@/data/metadata", () => ({
+      metadata: {
+        site: {
+          url: "notaurl",
         },
-      }));
+      },
+    }));
 
-      jest.doMock("@/data/cv", () => ({
-        __esModule: true,
-        ...actualCv,
-        CV_CONTACT_LINKS: {
-          ...actualCv.CV_CONTACT_LINKS,
-          aventureUrl: "notaurl",
-          linkedInUrl: "nota-url",
-        },
-      }));
+    vi.doMock("@/data/cv", () => ({
+      __esModule: true,
+      ...actualCv,
+      CV_CONTACT_LINKS: {
+        ...actualCv.CV_CONTACT_LINKS,
+        aventureUrl: "notaurl",
+        linkedInUrl: "nota-url",
+      },
+    }));
 
-      const { getCvData: getCvDataWithMocks } = await import("@/lib/cv/cv-data");
+    const { getCvData: getCvDataWithMocks } = await import("@/lib/cv/cv-data");
 
-      freezeTime("2025-05-01T00:00:00Z");
+    freezeTime("2025-05-01T00:00:00Z");
 
-      const data = getCvDataWithMocks();
-      expect(data.personalSiteHost).toBe("notaurl");
-      expect(data.linkedInLabel).toBe("nota-url");
-      expect(data.aventureHost).toBe("notaurl");
+    const data = getCvDataWithMocks();
+    expect(data.personalSiteHost).toBe("notaurl");
+    expect(data.linkedInLabel).toBe("nota-url");
+    expect(data.aventureHost).toBe("notaurl");
 
-      jest.useRealTimers();
-    });
+    vi.useRealTimers();
   });
 });

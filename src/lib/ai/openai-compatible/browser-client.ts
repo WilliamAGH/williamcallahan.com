@@ -1,4 +1,8 @@
-import type { AiBrowserTokenCache, AiChatClientOptions, AiChatRequest } from "@/types/ai-openai-compatible-client";
+import type {
+  AiBrowserTokenCache,
+  AiChatClientOptions,
+  AiChatRequest,
+} from "@/types/ai-openai-compatible-client";
 import {
   aiChatQueuePositionSchema,
   aiChatResponseSchema,
@@ -138,7 +142,9 @@ async function getAiToken(options: AiChatClientOptions = {}): Promise<string> {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Failed to mint AI token (HTTP ${response.status}): ${text || response.statusText}`);
+    throw new Error(
+      `Failed to mint AI token (HTTP ${response.status}): ${text || response.statusText}`,
+    );
   }
 
   const data: unknown = await response.json();
@@ -191,7 +197,11 @@ export async function aiChat(
     }
 
     if (wantsQueueUpdates) {
-      return readSseStream({ response: retry, signal: options.signal, onQueueUpdate: options.onQueueUpdate });
+      return readSseStream({
+        response: retry,
+        signal: options.signal,
+        onQueueUpdate: options.onQueueUpdate,
+      });
     }
 
     const data: unknown = await retry.json();
@@ -204,7 +214,11 @@ export async function aiChat(
   }
 
   if (wantsQueueUpdates) {
-    return readSseStream({ response, signal: options.signal, onQueueUpdate: options.onQueueUpdate });
+    return readSseStream({
+      response,
+      signal: options.signal,
+      onQueueUpdate: options.onQueueUpdate,
+    });
   }
 
   const data: unknown = await response.json();

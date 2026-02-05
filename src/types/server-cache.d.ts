@@ -59,12 +59,37 @@ type FunctionKeys<T> = {
   [K in keyof T]-?: T[K] extends (...args: infer _P) => unknown ? K : never;
 }[keyof T];
 
+/**
+ * Utility type to remove the first argument from a function signature.
+ * This is used to map the helper functions (which now take `cache: Cache` as first arg)
+ * to instance methods (where `this` is implicit and not part of the call signature).
+ */
+type RemoveFirstArg<T> = T extends (first: any, ...args: infer A) => infer R
+  ? (...args: A) => R
+  : T;
+
+/**
+ * Transforms a module's exports into bound methods by removing the first argument.
+ */
+type BoundMethods<T> = {
+  [K in FunctionKeys<T>]: RemoveFirstArg<T[K]>;
+};
+
 declare module "@/lib/server-cache" {
   interface ServerCache
-    extends Pick<typeof bookmarkHelpers, FunctionKeys<typeof bookmarkHelpers>>,
-      Pick<typeof githubHelpers, FunctionKeys<typeof githubHelpers>>,
-      Pick<typeof logoHelpers, FunctionKeys<typeof logoHelpers>>,
-      Pick<typeof opengraphHelpers, FunctionKeys<typeof opengraphHelpers>>,
-      Pick<typeof searchHelpers, FunctionKeys<typeof searchHelpers>>,
-      Pick<typeof aggregatedContentHelpers, FunctionKeys<typeof aggregatedContentHelpers>> {}
+    extends
+      BoundMethods<typeof bookmarkHelpers>,
+      BoundMethods<typeof githubHelpers>,
+      BoundMethods<typeof logoHelpers>,
+      BoundMethods<typeof opengraphHelpers>,
+      BoundMethods<typeof aggregatedContentHelpers> {
+    // Search helpers (generics preserved manually)
+    getSearchResults<T = unknown>(
+      dataType: string,
+      query: string,
+    ): import("@/types/cache").SearchCacheEntry<T> | undefined;
+    setSearchResults<T>(dataType: string, query: string, results: T[]): void;
+    shouldRefreshSearch(dataType: string, query: string): boolean;
+    clearSearchCache(dataType?: string): void;
+  }
 }

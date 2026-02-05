@@ -140,7 +140,9 @@ export function ThoughtCard({ thought, preload = false }: ThoughtCardProps) {
         <span className="text-[0.65rem] font-mono tracking-wider text-amber-600/70 dark:text-amber-400/50">
           {month}
         </span>
-        <span className="text-2xl font-bold text-amber-600/80 dark:text-amber-400/60 -mt-0.5 font-mono">{day}</span>
+        <span className="text-2xl font-bold text-amber-600/80 dark:text-amber-400/60 -mt-0.5 font-mono">
+          {day}
+        </span>
       </div>
 
       {/* Main Content Area */}
@@ -167,6 +169,7 @@ export function ThoughtCard({ thought, preload = false }: ThoughtCardProps) {
                 "hover:opacity-80",
                 "transition-opacity",
               )}
+              prefetch={false}
             >
               {thought.category}
             </Link>
@@ -241,6 +244,7 @@ export function ThoughtCard({ thought, preload = false }: ThoughtCardProps) {
             "transition-transform duration-300",
           )}
           aria-label={`Read "${thought.title}"`}
+          prefetch={false}
         >
           <ArrowRight className="w-4 h-4" />
         </Link>

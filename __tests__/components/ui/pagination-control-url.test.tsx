@@ -1,24 +1,36 @@
+import type { MockedFunction } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
 import { useSearchParams } from "next/navigation";
 
 // Mock next/navigation
-jest.mock("next/navigation", () => ({
-  useSearchParams: jest.fn(),
+vi.mock("next/navigation", () => ({
+  useSearchParams: vi.fn(),
 }));
 
 // Mock Link component to avoid router context issues
-jest.mock("next/link", () => ({
+vi.mock("next/link", () => ({
   __esModule: true,
-  default: ({ children, href, ...props }: any) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
+  default: ({ children, href, onClick, prefetch, scroll, ...props }: any) => {
+    void prefetch;
+    void scroll;
+    return (
+      <a
+        href={href}
+        onClick={(event) => {
+          event.preventDefault();
+          onClick?.(event);
+        }}
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  },
 }));
 
 describe("PaginationControlUrl", () => {
-  const mockUseSearchParams = useSearchParams as jest.MockedFunction<typeof useSearchParams>;
+  const mockUseSearchParams = useSearchParams as MockedFunction<typeof useSearchParams>;
 
   beforeEach(() => {
     // Mock URLSearchParams
@@ -26,11 +38,13 @@ describe("PaginationControlUrl", () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("renders pagination controls when there are multiple pages", () => {
-    render(<PaginationControlUrl currentPage={2} totalPages={5} totalItems={100} itemsPerPage={24} />);
+    render(
+      <PaginationControlUrl currentPage={2} totalPages={5} totalItems={100} itemsPerPage={24} />,
+    );
 
     // Check that page numbers are rendered
     expect(screen.getByLabelText("Go to page 1")).toBeInTheDocument();
@@ -52,7 +66,13 @@ describe("PaginationControlUrl", () => {
 
   it("generates correct URLs for pagination", () => {
     render(
-      <PaginationControlUrl currentPage={3} totalPages={5} totalItems={100} itemsPerPage={24} baseUrl="/bookmarks" />,
+      <PaginationControlUrl
+        currentPage={3}
+        totalPages={5}
+        totalItems={100}
+        itemsPerPage={24}
+        baseUrl="/bookmarks"
+      />,
     );
 
     // Page 1 should link to base URL
@@ -72,7 +92,13 @@ describe("PaginationControlUrl", () => {
     mockUseSearchParams.mockReturnValue(new URLSearchParams("q=test&tag=javascript"));
 
     render(
-      <PaginationControlUrl currentPage={2} totalPages={5} totalItems={100} itemsPerPage={24} baseUrl="/bookmarks" />,
+      <PaginationControlUrl
+        currentPage={2}
+        totalPages={5}
+        totalItems={100}
+        itemsPerPage={24}
+        baseUrl="/bookmarks"
+      />,
     );
 
     const page3Link = screen.getByLabelText("Go to page 3");
@@ -89,7 +115,9 @@ describe("PaginationControlUrl", () => {
     expect(screen.getByLabelText("Go to first page")).toBeDisabled();
 
     // Last page
-    rerender(<PaginationControlUrl currentPage={5} totalPages={5} totalItems={100} itemsPerPage={24} />);
+    rerender(
+      <PaginationControlUrl currentPage={5} totalPages={5} totalItems={100} itemsPerPage={24} />,
+    );
 
     expect(screen.getByLabelText("Go to next page")).toBeDisabled();
     expect(screen.getByLabelText("Go to last page")).toBeDisabled();
@@ -97,7 +125,13 @@ describe("PaginationControlUrl", () => {
 
   it("shows correct page info", () => {
     render(
-      <PaginationControlUrl currentPage={2} totalPages={5} totalItems={100} itemsPerPage={24} showPageInfo={true} />,
+      <PaginationControlUrl
+        currentPage={2}
+        totalPages={5}
+        totalItems={100}
+        itemsPerPage={24}
+        showPageInfo={true}
+      />,
     );
 
     expect(screen.getByText("Showing 25-48 of 100 bookmarks")).toBeInTheDocument();

@@ -11,7 +11,11 @@
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
-import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
+import {
+  applySearchGuards,
+  createSearchErrorResponse,
+  withNoStoreHeaders,
+} from "@/lib/search/api-guards";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, connection, type NextRequest } from "next/server";

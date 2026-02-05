@@ -10,13 +10,13 @@ import {
   generateSlugMapping,
   getSlugForBookmark,
   saveSlugMapping,
-  getSlugShard,
 } from "./slug-manager";
+import { readSlugShard } from "./slug-shards";
 import type { UnifiedBookmark } from "@/types";
 import type { CachedSlugMapping } from "@/types/cache";
 import type { BookmarkSlugMapping } from "@/types/bookmark";
 import logger from "@/lib/utils/logger";
-import { getDeterministicTimestamp } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 
 // Cache the slug mapping with TTL for automatic invalidation
 let cachedMapping: CachedSlugMapping | null = null;
@@ -27,7 +27,9 @@ import { getSlugCacheTTL } from "@/config/related-content.config";
 
 const CACHE_TTL_MS = getSlugCacheTTL();
 
-const normalizeReverseMap = (mapping: BookmarkSlugMapping): { normalized: BookmarkSlugMapping; rebuilt: boolean } => {
+const normalizeReverseMap = (
+  mapping: BookmarkSlugMapping,
+): { normalized: BookmarkSlugMapping; rebuilt: boolean } => {
   if (mapping.reverseMap && Object.keys(mapping.reverseMap).length > 0) {
     return { normalized: mapping, rebuilt: false };
   }
@@ -66,13 +68,45 @@ export function tryGetEmbeddedSlug(input: unknown): string | null {
 }
 
 /**
+ * Regex pattern for URL slug sanitization.
+ * Matches any sequence of characters that are NOT alphanumeric (a-z, A-Z, 0-9).
+ * These sequences are replaced with hyphens to create URL-safe slugs.
+ */
+const SLUG_SANITIZE_PATTERN = /[^a-z0-9]+/gi;
+
+/**
+ * Length of the ID prefix appended to fallback slugs.
+ * Uses first 8 characters of UUID to ensure uniqueness while keeping slugs readable.
+ * 8 hex chars = 32 bits of entropy = 4 billion combinations, sufficient for bookmark deduplication.
+ */
+const FALLBACK_SLUG_ID_PREFIX_LENGTH = 8;
+
+/**
+ * Generate a fallback slug from a URL and bookmark ID.
+ * Used when no embedded or mapped slug is available.
+ *
+ * Slug format: URL sanitized to alphanumeric + hyphens, plus first N chars of ID.
+ * Example: "https://example.com/article" + "abc12345-..." → "https-example-com-article-abc12345"
+ *
+ * @param url - The bookmark URL
+ * @param id - The bookmark ID (UUID)
+ * @returns A URL-safe slug with truncated ID suffix
+ */
+export function generateFallbackSlug(url: string, id: string): string {
+  return `${url.replace(SLUG_SANITIZE_PATTERN, "-").toLowerCase()}-${id.slice(0, FALLBACK_SLUG_ID_PREFIX_LENGTH)}`;
+}
+
+/**
  * Get the slug for a bookmark, using pre-computed mappings for hydration safety
  *
  * @param bookmarkId - The bookmark ID to get slug for
  * @param bookmarks - Optional array of all bookmarks (used to generate mapping if needed)
  * @returns The slug for the bookmark, or null if not found
  */
-export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: UnifiedBookmark[]): Promise<string | null> {
+export async function getSafeBookmarkSlug(
+  bookmarkId: string,
+  bookmarks?: UnifiedBookmark[],
+): Promise<string | null> {
   // Try to use cached mapping first (check TTL)
   if (cachedMapping) {
     const age = getDeterministicTimestamp() - cachedMapping.timestamp;
@@ -85,7 +119,7 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
 
   // If bookmarks supplied, try embedded slug first
   if (bookmarks && Array.isArray(bookmarks)) {
-    const found = bookmarks.find(b => b.id === bookmarkId);
+    const found = bookmarks.find((b) => b.id === bookmarkId);
     const embeddedSlug = tryGetEmbeddedSlug(found);
     if (embeddedSlug) return embeddedSlug;
   }
@@ -134,7 +168,9 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
  * @param bookmarks - Array of bookmarks to get slugs for
  * @returns Map of bookmark ID to slug
  */
-export async function getBulkBookmarkSlugs(bookmarks: UnifiedBookmark[]): Promise<Map<string, string>> {
+export async function getBulkBookmarkSlugs(
+  bookmarks: UnifiedBookmark[],
+): Promise<Map<string, string>> {
   const slugMap = new Map<string, string>();
 
   // Fast path: use embedded slugs when present
@@ -242,7 +278,7 @@ async function loadReverseSlugMap(): Promise<Map<string, string> | null> {
 }
 
 export async function resolveBookmarkIdFromSlug(slug: string): Promise<string | null> {
-  const shardEntry = await getSlugShard(slug);
+  const shardEntry = await readSlugShard(slug);
   if (shardEntry?.id) {
     const now = getDeterministicTimestamp();
     if (cachedReverseMap) {

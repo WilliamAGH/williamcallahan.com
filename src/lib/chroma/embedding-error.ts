@@ -16,7 +16,7 @@ const MUSL_ERROR_PATTERNS = ["symbol not found", "libonnxruntime"] as const;
  * Check if an error message indicates a musl/glibc incompatibility.
  */
 function isMuslCompatibilityError(message: string): boolean {
-  return MUSL_ERROR_PATTERNS.some(pattern => message.includes(pattern));
+  return MUSL_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
 }
 
 /**

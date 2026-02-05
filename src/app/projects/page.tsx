@@ -12,7 +12,8 @@ import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
-import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
+import { formatSeoDate } from "@/lib/seo/utils";
 import { projects } from "@/data/projects";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { getCdnConfigFromEnv, buildCdnUrl } from "@/lib/utils/cdn-utils";
@@ -56,7 +57,7 @@ export default function ProjectsPage() {
 
   const jsonLdData = generateSchemaGraph(schemaParams);
 
-  projects.forEach(project => {
+  projects.forEach((project) => {
     jsonLdData["@graph"].push({
       "@type": "SoftwareApplication",
       "@id": `${ensureAbsoluteUrl(project.url)}#software`,

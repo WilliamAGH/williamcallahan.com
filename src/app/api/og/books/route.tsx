@@ -34,7 +34,7 @@ import { isPrivateIP } from "@/types/schemas/url";
  * This is documented behavior: Next.js 16 defaults API routes to Node.js runtime,
  * making explicit runtime declarations unnecessary and potentially problematic.
  *
- * @see docs/projects/structure/next-js-16-usage.md for framework runtime guarantees
+ * @see docs/standards/nextjs-framework.md for framework runtime guarantees
  */
 
 // OG Image dimensions (standard)
@@ -191,7 +191,9 @@ async function fetchImageAsDataUrl(url: string, requestOrigin: string): Promise<
       totalSize += value.length;
       if (totalSize > MAX_IMAGE_SIZE_BYTES) {
         await reader.cancel();
-        console.error(`[OG-Books] Image exceeds size limit: ${totalSize} > ${MAX_IMAGE_SIZE_BYTES}`);
+        console.error(
+          `[OG-Books] Image exceeds size limit: ${totalSize} > ${MAX_IMAGE_SIZE_BYTES}`,
+        );
         return null;
       }
       chunks.push(value);
@@ -300,7 +302,14 @@ export async function GET(request: NextRequest): Promise<ImageResponse> {
                 border: "1px solid rgba(255, 255, 255, 0.1)",
               }}
             >
-              <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke={COLORS.textMuted} strokeWidth="1.5">
+              <svg
+                width="100"
+                height="100"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={COLORS.textMuted}
+                strokeWidth="1.5"
+              >
                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                 <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
               </svg>
@@ -357,7 +366,7 @@ export async function GET(request: NextRequest): Promise<ImageResponse> {
                 flexWrap: "wrap",
               }}
             >
-              {formats.map(format => {
+              {formats.map((format) => {
                 const config = FORMAT_CONFIG[format];
                 if (!config) return null;
                 return (

@@ -8,11 +8,11 @@
  */
 
 import { ServerCacheInstance } from "@/lib/server-cache";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { DataFetchOperationSummary } from "@/types/lib";
 import { NextResponse, type NextRequest } from "next/server";
-import type { BookmarksIndex } from "@/types/bookmark";
+import { bookmarksIndexSchema, type BookmarksIndex } from "@/types/bookmark";
 import { invalidateBookmarksCache } from "@/lib/bookmarks/bookmarks-data-access.server";
 
 // Ensure this route is not statically cached
@@ -45,8 +45,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    // Read from S3 index for metadata
-    const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+    const index = await readJsonS3Optional<BookmarksIndex>(
+      BOOKMARKS_S3_PATHS.INDEX,
+      bookmarksIndexSchema,
+    );
 
     const needsRefresh = ServerCacheInstance.shouldRefreshBookmarks();
 
@@ -61,19 +63,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         needsRefresh,
       },
     });
-  } catch {
-    // If we can't read the index, bookmarks don't exist
-    return NextResponse.json({
-      status: "success",
-      data: {
-        cached: false,
-        bookmarksCount: 0,
-        totalPages: 0,
-        lastFetchedAt: null,
-        lastModified: null,
-        needsRefresh: true,
+  } catch (error) {
+    console.error("Failed to read bookmarks cache status from S3:", error);
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "Failed to read bookmarks cache status",
+        error: error instanceof Error ? error.message : String(error),
       },
-    });
+      { status: 500 },
+    );
   }
 }
 
@@ -94,7 +93,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       forceRefresh: true,
     });
 
-    const bookmarkResult: DataFetchOperationSummary | undefined = results.find(r => r.operation === "bookmarks");
+    const bookmarkResult: DataFetchOperationSummary | undefined = results.find(
+      (r) => r.operation === "bookmarks",
+    );
     if (!bookmarkResult?.success) {
       throw new Error(bookmarkResult?.error ?? "Bookmark refresh failed");
     }
@@ -103,7 +104,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     invalidateBookmarksCache();
 
     // Read updated index from S3
-    const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+    const index = await readJsonS3Optional<BookmarksIndex>(
+      BOOKMARKS_S3_PATHS.INDEX,
+      bookmarksIndexSchema,
+    );
 
     return NextResponse.json({
       status: "success",

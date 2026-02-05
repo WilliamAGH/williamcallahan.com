@@ -1,5 +1,4 @@
-import { describe, expect, it, jest } from "@jest/globals";
-import "@testing-library/jest-dom/jest-globals";
+import { vi, type Mock } from "vitest";
 
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { navigationLinks } from "@/components/ui/navigation/navigation-links";
@@ -9,45 +8,57 @@ import { usePathname } from "next/navigation";
 // Import the REAL provider is already imported above
 
 // Create mock functions
-const mockUseWindowSize = jest.fn();
-// const mockUsePathname = jest.fn(); // No longer needed
+const mockUseWindowSize = vi.fn();
+// const mockUsePathname = vi.fn(); // No longer needed
 
 // Mock the useWindowSize hook
-jest.mock("@/lib/hooks/use-window-size.client", () => ({
+vi.mock("@/lib/hooks/use-window-size.client", () => ({
   useWindowSize: () => mockUseWindowSize(),
 }));
 
-// Mock next/navigation using jest.mock
-// jest.mock("next/navigation", () => ({
-//   usePathname: () => mockUsePathname(),
-// }));
+// Mock next/navigation using vi.mock
+vi.mock("next/navigation", () => ({
+  usePathname: vi.fn(),
+}));
 
 // REMOVE ALL MOCKING FOR terminal-context.client
 
-// Mock window-controls component using jest.mock
+// Mock window-controls component using vi.mock
 function MockWindowControls() {
   return <div data-testid="window-controls">Window Controls</div>;
 }
 MockWindowControls.displayName = "MockWindowControls";
-jest.mock("@/components/ui/navigation/window-controls", () => ({
+vi.mock("@/components/ui/navigation/window-controls", () => ({
   WindowControls: MockWindowControls,
 }));
 
-// Mock next/link using jest.mock
+// Mock next/link using vi.mock
 interface LinkProps {
   children: React.ReactNode;
   href: string;
   prefetch?: boolean;
   scroll?: boolean;
+  onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
   [key: string]: unknown;
 }
-jest.mock("next/link", () => ({
+vi.mock("next/link", () => ({
   __esModule: true,
-  default: ({ children, href, ...props }: LinkProps) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
+  default: ({ children, href, onClick, prefetch, scroll, ...props }: LinkProps) => {
+    void prefetch;
+    void scroll;
+    return (
+      <a
+        href={href}
+        onClick={(event) => {
+          event.preventDefault();
+          onClick?.(event);
+        }}
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  },
 }));
 
 // Import mocks *after* setting them up
@@ -57,7 +68,7 @@ describe("Navigation", () => {
   const originalInnerHeight = window.innerHeight;
 
   beforeEach(() => {
-    (usePathname as jest.Mock).mockReturnValue("/");
+    (usePathname as Mock).mockReturnValue("/");
     // Reset any other necessary mocks
     mockUseWindowSize.mockClear(); // Clear window size mock
     mockUseWindowSize.mockReturnValue({ width: 1280, height: 800 }); // Set default desktop size
@@ -123,11 +134,11 @@ describe("Navigation", () => {
       const allLinks = screen.getAllByRole("link");
       console.log(
         "Rendered links:",
-        allLinks.map(link => link.textContent),
+        allLinks.map((link) => link.textContent),
       );
       console.log(
         "Expected navigationLinks:",
-        navigationLinks.map(link => link.name),
+        navigationLinks.map((link) => link.name),
       );
 
       // At 1440px width, all links including Contact should be visible
@@ -137,7 +148,7 @@ describe("Navigation", () => {
     });
 
     it("highlights current path", () => {
-      (usePathname as jest.Mock).mockReturnValue("/blog");
+      (usePathname as Mock).mockReturnValue("/blog");
       render(
         <TerminalProvider>
           <Navigation />
@@ -159,16 +170,14 @@ describe("Navigation", () => {
       // Check desktop view
       const desktopView = nav.querySelector<HTMLElement>(".sm\\:flex");
       expect(desktopView).not.toBeNull();
-      if (desktopView) {
-        expect(within(desktopView).queryByTestId("window-controls")).not.toBeInTheDocument();
-      }
+      // Assert desktopView exists (test will fail above if not)
+      expect(within(desktopView!).queryByTestId("window-controls")).not.toBeInTheDocument();
 
       // Check mobile view
       const mobileView = nav.querySelector<HTMLElement>(".sm\\:hidden");
       expect(mobileView).not.toBeNull();
-      if (mobileView) {
-        expect(within(mobileView).queryByTestId("window-controls")).not.toBeInTheDocument();
-      }
+      // Assert mobileView exists (test will fail above if not)
+      expect(within(mobileView!).queryByTestId("window-controls")).not.toBeInTheDocument();
     });
   });
 
@@ -277,7 +286,7 @@ describe("Navigation", () => {
     });
 
     it("marks current page link with aria-current attribute", () => {
-      (usePathname as jest.Mock).mockReturnValue("/blog");
+      (usePathname as Mock).mockReturnValue("/blog");
       render(
         <TerminalProvider>
           <Navigation />

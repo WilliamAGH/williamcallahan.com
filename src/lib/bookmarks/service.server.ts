@@ -94,7 +94,10 @@ export async function getTagBookmarksIndex(tagSlug: string) {
   return getTagBookmarksIndexInternal(tagSlug);
 }
 
-export async function getTagBookmarksPage(tagSlug: string, pageNumber: number): Promise<UnifiedBookmark[]> {
+export async function getTagBookmarksPage(
+  tagSlug: string,
+  pageNumber: number,
+): Promise<UnifiedBookmark[]> {
   initializeBookmarksDataAccess();
   return getTagBookmarksPageInternal(tagSlug, pageNumber);
 }

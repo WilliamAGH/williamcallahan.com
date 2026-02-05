@@ -9,7 +9,7 @@
  * 5. Data persistence and pagination
  */
 
-import { describe, it, expect, jest, beforeEach, afterEach } from "@jest/globals";
+import { vi, type Mock } from "vitest";
 import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import type { DistributedLockEntry, UnifiedBookmark } from "@/types";
 import type { BookmarksIndex } from "@/types/bookmark";
@@ -26,8 +26,8 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
   };
 
   beforeEach(() => {
-    jest.resetModules();
-    jest.clearAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
 
     // Initialize mock S3 state
     mockS3State = {
@@ -48,19 +48,20 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   type S3MockHandlers = {
-    readJsonS3: jest.Mock<Promise<unknown>, [string]>;
-    writeJsonS3: jest.Mock<Promise<void>, [string, unknown, unknown?]>;
-    deleteFromS3: jest.Mock<Promise<void>, [string]>;
-    listS3Objects: jest.Mock<Promise<string[]>, [string?]>;
+    readJsonS3: Mock<(key: string) => Promise<unknown>>;
+    readJsonS3Optional: Mock<(key: string) => Promise<unknown>>;
+    writeJsonS3: Mock<(key: string, value: unknown, options?: unknown) => Promise<void>>;
+    deleteFromS3: Mock<(key: string) => Promise<void>>;
+    listS3Objects: Mock<(prefix?: string) => Promise<string[]>>;
   };
 
   const setupS3Mocks = (overrides?: Partial<S3MockHandlers>): S3MockHandlers => {
     const handlers: S3MockHandlers = {
-      readJsonS3: jest.fn((key: string) => {
+      readJsonS3: vi.fn((key: string) => {
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           return Promise.resolve(mockS3State.lock);
         }
@@ -79,7 +80,26 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         }
         return Promise.resolve(null);
       }),
-      writeJsonS3: jest.fn((key: string, value: unknown) => {
+      readJsonS3Optional: vi.fn((key: string) => {
+        if (key === BOOKMARKS_S3_PATHS.LOCK) {
+          return Promise.resolve(mockS3State.lock);
+        }
+        if (key === BOOKMARKS_S3_PATHS.INDEX) {
+          return Promise.resolve(mockS3State.index);
+        }
+        if (key === BOOKMARKS_S3_PATHS.FILE) {
+          return Promise.resolve(mockS3State.bookmarks);
+        }
+        if (key === BOOKMARKS_S3_PATHS.HEARTBEAT) {
+          return Promise.resolve(mockS3State.heartbeat);
+        }
+        if (key.startsWith(BOOKMARKS_S3_PATHS.PAGE_PREFIX)) {
+          const pageNum = key.replace(BOOKMARKS_S3_PATHS.PAGE_PREFIX, "").replace(".json", "");
+          return Promise.resolve(mockS3State.pages[pageNum] ?? null);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn((key: string, value: unknown) => {
         mockS3State.writes.push(key);
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           if (mockS3State.lock === null) {
@@ -99,17 +119,19 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
         }
         return Promise.resolve();
       }),
-      deleteFromS3: jest.fn((key: string) => {
+      deleteFromS3: vi.fn((key: string) => {
         mockS3State.deletes.push(key);
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           mockS3State.lock = null;
         }
         return Promise.resolve();
       }),
-      listS3Objects: jest.fn((prefix?: string) => {
+      listS3Objects: vi.fn((prefix?: string) => {
         if (!prefix) return Promise.resolve([]);
         if (prefix.startsWith(BOOKMARKS_S3_PATHS.PAGE_PREFIX)) {
-          const keys = Object.keys(mockS3State.pages).map(page => `${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${page}.json`);
+          const keys = Object.keys(mockS3State.pages).map(
+            (page) => `${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${page}.json`,
+          );
           return Promise.resolve(keys);
         }
         return Promise.resolve([]);
@@ -120,7 +142,15 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
       Object.assign(handlers, overrides);
     }
 
-    jest.doMock("@/lib/s3-utils", () => handlers);
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3: handlers.readJsonS3,
+      readJsonS3Optional: handlers.readJsonS3Optional,
+      writeJsonS3: handlers.writeJsonS3,
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: handlers.deleteFromS3,
+      listS3Objects: handlers.listS3Objects,
+    }));
     return handlers;
   };
 
@@ -179,13 +209,13 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
 
       let lockAttempts = 0;
       setupS3Mocks({
-        readJsonS3: jest.fn((key: string) => {
+        readJsonS3Optional: vi.fn((key: string) => {
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
             return Promise.resolve(lockAttempts > 0 ? process1Lock : null);
           }
           return Promise.resolve(null);
         }),
-        writeJsonS3: jest.fn((key: string) => {
+        writeJsonS3: vi.fn((key: string) => {
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
             lockAttempts += 1;
             if (lockAttempts === 1) {
@@ -232,13 +262,19 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
       let cleanupAttempted = false;
 
       setupS3Mocks({
-        readJsonS3: jest.fn((key: string) => {
+        readJsonS3: vi.fn((key: string) => {
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
             return Promise.resolve(lockState);
           }
           return Promise.resolve(null);
         }),
-        writeJsonS3: jest.fn((key: string, value: unknown) => {
+        readJsonS3Optional: vi.fn((key: string) => {
+          if (key === BOOKMARKS_S3_PATHS.LOCK) {
+            return Promise.resolve(lockState);
+          }
+          return Promise.resolve(null);
+        }),
+        writeJsonS3: vi.fn((key: string, value: unknown) => {
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
             if (cleanupAttempted) {
               lockState = value as DistributedLockEntry;
@@ -248,7 +284,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
           }
           return Promise.resolve();
         }),
-        deleteFromS3: jest.fn((key: string) => {
+        deleteFromS3: vi.fn((key: string) => {
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
             cleanupAttempted = true;
             lockState = null;
@@ -274,12 +310,12 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
       );
       bookmarksModule.initializeBookmarksDataAccess();
 
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 150));
 
       const result = await bookmarksModule.refreshAndPersistBookmarks();
 
       if (result === null) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         const retryResult = await bookmarksModule.refreshAndPersistBookmarks();
         expect(retryResult).toBeTruthy();
       } else {
@@ -295,13 +331,19 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
       let currentLock: DistributedLockEntry | null = null;
 
       setupS3Mocks({
-        readJsonS3: jest.fn((key: string) => {
+        readJsonS3: vi.fn((key: string) => {
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
             return Promise.resolve(currentLock);
           }
           return Promise.resolve(null);
         }),
-        writeJsonS3: jest.fn((key: string, value: unknown) => {
+        readJsonS3Optional: vi.fn((key: string) => {
+          if (key === BOOKMARKS_S3_PATHS.LOCK) {
+            return Promise.resolve(currentLock);
+          }
+          return Promise.resolve(null);
+        }),
+        writeJsonS3: vi.fn((key: string, value: unknown) => {
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
             writeAttempts += 1;
             if (writeAttempts === 1) {
@@ -316,7 +358,7 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
           }
           return Promise.resolve();
         }),
-        deleteFromS3: jest.fn((key: string) => {
+        deleteFromS3: vi.fn((key: string) => {
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
             currentLock = null;
           }
@@ -355,15 +397,18 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
 
       const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
 
-      const manyBookmarks: UnifiedBookmark[] = Array.from({ length: BOOKMARKS_PER_PAGE + 5 }, (_, i) => ({
-        id: `bookmark-${i}`,
-        url: `https://example.com/${i}`,
-        title: `Bookmark ${i}`,
-        description: `Description ${i}`,
-        tags: [],
-        dateBookmarked: new Date(2024, 0, i + 1).toISOString(),
-        sourceUpdatedAt: new Date(2024, 0, i + 1).toISOString(),
-      }));
+      const manyBookmarks: UnifiedBookmark[] = Array.from(
+        { length: BOOKMARKS_PER_PAGE + 5 },
+        (_, i) => ({
+          id: `bookmark-${i}`,
+          url: `https://example.com/${i}`,
+          title: `Bookmark ${i}`,
+          description: `Description ${i}`,
+          tags: [],
+          dateBookmarked: new Date(2024, 0, i + 1).toISOString(),
+          sourceUpdatedAt: new Date(2024, 0, i + 1).toISOString(),
+        }),
+      );
 
       bookmarksModule.setRefreshBookmarksCallback(() => Promise.resolve(manyBookmarks));
       bookmarksModule.initializeBookmarksDataAccess();
@@ -373,7 +418,9 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
 
       expect(result).toBeTruthy();
       expect(result).toHaveLength(manyBookmarks.length);
-      const pageWrites = mockS3State.writes.filter(w => w.startsWith(BOOKMARKS_S3_PATHS.PAGE_PREFIX));
+      const pageWrites = mockS3State.writes.filter((w) =>
+        w.startsWith(BOOKMARKS_S3_PATHS.PAGE_PREFIX),
+      );
       expect(pageWrites.length).toBeGreaterThan(1);
       expect(mockS3State.index?.totalPages).toBeGreaterThan(1);
       expect(mockS3State.index?.count).toBe(manyBookmarks.length);
@@ -386,21 +433,21 @@ describe("Distributed Lock and Bookmarks Data Access Integration", () => {
       let lockState: DistributedLockEntry | null = null;
 
       setupS3Mocks({
-        readJsonS3: jest.fn((key: string) => {
+        readJsonS3Optional: vi.fn((key: string) => {
           operationLog.push(`READ:${key}`);
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
             return Promise.resolve(lockState);
           }
           return Promise.resolve(null);
         }),
-        writeJsonS3: jest.fn((key: string, value: unknown) => {
+        writeJsonS3: vi.fn((key: string, value: unknown) => {
           operationLog.push(`WRITE:${key}`);
           if (key === BOOKMARKS_S3_PATHS.LOCK && lockState === null) {
             lockState = value as DistributedLockEntry;
           }
           return Promise.resolve();
         }),
-        deleteFromS3: jest.fn((key: string) => {
+        deleteFromS3: vi.fn((key: string) => {
           operationLog.push(`DELETE:${key}`);
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
             lockState = null;

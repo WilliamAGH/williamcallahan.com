@@ -7,7 +7,9 @@
  * @module lib/s3-cache-utils
  */
 
-import { readJsonS3, checkIfS3ObjectExists } from "./s3-utils";
+import type { ZodSchema } from "zod/v4";
+import { readJsonS3, readJsonS3Optional } from "./s3/json";
+import { checkIfS3ObjectExists } from "./s3/objects";
 import { USE_NEXTJS_CACHE } from "./constants";
 import { withCacheFallback } from "./cache";
 import { cacheContextGuards } from "@/lib/cache";
@@ -41,6 +43,23 @@ const safeCacheTag = (tag: string): void => {
  */
 async function getCachedJsonS3<T>(
   s3Key: string,
+  schema: ZodSchema<T>,
+  cacheProfile: "minutes" | "hours" | "days" | "weeks" = "hours",
+  tags: string[] = [],
+): Promise<T> {
+  "use cache";
+
+  safeCacheLife(cacheProfile);
+  safeCacheTag("s3-json");
+  safeCacheTag(`s3-key-${sanitizeCacheTag(s3Key)}`);
+  tags.forEach((tag) => safeCacheTag(sanitizeCacheTag(tag)));
+
+  return readJsonS3<T>(s3Key, schema);
+}
+
+async function getCachedJsonS3Optional<T>(
+  s3Key: string,
+  schema: ZodSchema<T>,
   cacheProfile: "minutes" | "hours" | "days" | "weeks" = "hours",
   tags: string[] = [],
 ): Promise<T | null> {
@@ -49,9 +68,9 @@ async function getCachedJsonS3<T>(
   safeCacheLife(cacheProfile);
   safeCacheTag("s3-json");
   safeCacheTag(`s3-key-${sanitizeCacheTag(s3Key)}`);
-  tags.forEach(tag => safeCacheTag(sanitizeCacheTag(tag)));
+  tags.forEach((tag) => safeCacheTag(sanitizeCacheTag(tag)));
 
-  return readJsonS3<T>(s3Key);
+  return readJsonS3Optional<T>(s3Key, schema);
 }
 
 /**
@@ -63,23 +82,53 @@ async function getCachedJsonS3<T>(
  */
 export async function readJsonS3Cached<T>(
   s3Key: string,
+  schema: ZodSchema<T>,
+  options: {
+    useCache?: boolean;
+    cacheProfile?: "minutes" | "hours" | "days" | "weeks";
+    tags?: string[];
+  } = {},
+): Promise<T> {
+  // Default to true unless explicitly set to false
+  const {
+    useCache = options.useCache !== false && USE_NEXTJS_CACHE,
+    cacheProfile = "hours",
+    tags = [],
+  } = options;
+
+  if (useCache) {
+    return withCacheFallback<T>(
+      () => getCachedJsonS3<T>(s3Key, schema, cacheProfile, tags),
+      () => readJsonS3<T>(s3Key, schema),
+    );
+  }
+
+  return readJsonS3<T>(s3Key, schema);
+}
+
+export async function readJsonS3CachedOptional<T>(
+  s3Key: string,
+  schema: ZodSchema<T>,
   options: {
     useCache?: boolean;
     cacheProfile?: "minutes" | "hours" | "days" | "weeks";
     tags?: string[];
   } = {},
 ): Promise<T | null> {
-  // Default to true unless explicitly set to false
-  const { useCache = options.useCache !== false && USE_NEXTJS_CACHE, cacheProfile = "hours", tags = [] } = options;
+  const {
+    useCache = options.useCache !== false && USE_NEXTJS_CACHE,
+    cacheProfile = "hours",
+    tags = [],
+  } = options;
 
   if (useCache) {
     return withCacheFallback<T | null>(
-      () => getCachedJsonS3<T>(s3Key, cacheProfile, tags),
-      () => readJsonS3<T>(s3Key),
+      () => getCachedJsonS3Optional<T>(s3Key, schema, cacheProfile, tags),
+      () => readJsonS3Optional<T>(s3Key, schema),
     );
   }
 
-  return readJsonS3<T>(s3Key);
+  return readJsonS3Optional<T>(s3Key, schema);
 }
 
 /**
@@ -88,7 +137,10 @@ export async function readJsonS3Cached<T>(
  * @param cacheProfile - Cache duration profile
  * @returns Promise resolving to true if the object exists
  */
-function getCachedS3Exists(s3Key: string, cacheProfile: "minutes" | "hours" | "days" = "hours"): Promise<boolean> {
+function getCachedS3Exists(
+  s3Key: string,
+  cacheProfile: "minutes" | "hours" | "days" = "hours",
+): Promise<boolean> {
   "use cache";
 
   safeCacheLife(cacheProfile);
@@ -112,7 +164,8 @@ export async function checkS3ExistsCached(
   } = {},
 ): Promise<boolean> {
   // Default to true unless explicitly set to false
-  const { useCache = options.useCache !== false && USE_NEXTJS_CACHE, cacheProfile = "hours" } = options;
+  const { useCache = options.useCache !== false && USE_NEXTJS_CACHE, cacheProfile = "hours" } =
+    options;
 
   if (useCache) {
     return withCacheFallback<boolean>(
@@ -127,16 +180,18 @@ export async function checkS3ExistsCached(
 /**
  * Batch read multiple JSON files from S3 with caching
  * @param s3Keys - Array of S3 keys to read
+ * @param schema - Zod schema for validation
  * @param options - Cache options
  * @returns Promise resolving to an array of results
  */
 export async function batchReadJsonS3Cached<T>(
   s3Keys: string[],
+  schema: ZodSchema<T>,
   options: {
     useCache?: boolean;
     cacheProfile?: "minutes" | "hours" | "days" | "weeks";
     tags?: string[];
   } = {},
 ): Promise<(T | null)[]> {
-  return Promise.all(s3Keys.map(key => readJsonS3Cached<T>(key, options)));
+  return Promise.all(s3Keys.map((key) => readJsonS3CachedOptional<T>(key, schema, options)));
 }

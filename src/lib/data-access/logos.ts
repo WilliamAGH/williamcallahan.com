@@ -12,11 +12,13 @@
 
 import { revalidateTag } from "next/cache";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
-import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
+import { ServerCacheInstance } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import type { LogoResult, LogoInversion, LogoData } from "@/types/logo";
 import type { LogoValidationResult } from "@/types/cache";
 import { USE_NEXTJS_CACHE } from "@/lib/cache";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { DEFAULT_IMAGE_CONTENT_TYPE } from "@/lib/utils/content-type";
 
 // Type assertions for Next.js cache functions to fix ESLint errors
 const safeRevalidateTag = revalidateTag as (tag: string) => void;
@@ -63,7 +65,8 @@ export async function getLogo(domain: string): Promise<LogoResult | null> {
 
     // Guarantee cdnUrl when we have an s3Key
     const resolvedCdnUrl =
-      logoResult.cdnUrl || (logoResult.s3Key ? buildCdnUrl(logoResult.s3Key, getCdnConfigFromEnv()) : undefined);
+      logoResult.cdnUrl ||
+      (logoResult.s3Key ? buildCdnUrl(logoResult.s3Key, getCdnConfigFromEnv()) : undefined);
 
     const result: LogoResult = {
       s3Key: logoResult.s3Key,
@@ -71,7 +74,7 @@ export async function getLogo(domain: string): Promise<LogoResult | null> {
       cdnUrl: resolvedCdnUrl,
       source: logoResult.source || null,
       retrieval: logoResult.s3Key ? "s3-store" : logoResult.source ? "external" : "api",
-      contentType: logoResult.contentType || "image/png",
+      contentType: logoResult.contentType || DEFAULT_IMAGE_CONTENT_TYPE,
       timestamp: logoResult.timestamp,
     };
 
@@ -118,17 +121,24 @@ export async function getLogoCdnData(domain: string): Promise<LogoData | null> {
   };
 }
 
+/** Suppress verbose logging in test environments */
+const isTestEnvironment = process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+
 /**
  * Invalidate all logo cache entries
  */
 export function invalidateLogoCache(): void {
   if (USE_NEXTJS_CACHE) {
     safeRevalidateTag("logos");
-    console.info("[Logos] Cache invalidated for all logos");
+    if (!isTestEnvironment) {
+      console.info("[Logos] Cache invalidated for all logos");
+    }
   } else {
     // Legacy: clear memory cache
     ServerCacheInstance.clearAllLogoFetches();
-    console.info("[Logos] Legacy cache cleared for all logos");
+    if (!isTestEnvironment) {
+      console.info("[Logos] Legacy cache cleared for all logos");
+    }
   }
 }
 

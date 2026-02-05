@@ -14,9 +14,13 @@ import { fetchBooks } from "@/lib/books/audiobookshelf.server";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
 import { aggregateAllContent } from "@/lib/content-similarity/aggregator";
 import { findMostSimilar } from "@/lib/content-similarity";
-import { writeToS3 } from "@/lib/s3-utils";
+import { writeJsonS3 } from "@/lib/s3/json";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
-import type { NormalizedContent, RelatedContentEntry, BooksRelatedContentData } from "@/types/related-content";
+import type {
+  NormalizedContent,
+  RelatedContentEntry,
+  BooksRelatedContentData,
+} from "@/types/related-content";
 import type { Book } from "@/types/schemas/book";
 
 // Configuration
@@ -42,7 +46,7 @@ function normalizeBookForScript(book: Book): NormalizedContent {
   }
 
   // Normalize tags to lowercase for consistent similarity
-  const enhancedTags = Array.from(new Set(baseTags.map(t => t.toLowerCase().trim())));
+  const enhancedTags = Array.from(new Set(baseTags.map((t) => t.toLowerCase().trim())));
 
   // Generate slug for URL (includes authors + ABS ID or ISBN fallback)
   const slug = generateBookSlug(book.title, book.id, book.authors, book.isbn13, book.isbn10);
@@ -111,12 +115,14 @@ async function main(): Promise<void> {
     const key = `${CONTENT_TYPE}:${book.id}`;
 
     // Find similar content (excluding the book itself and other books)
-    const candidates = allContent.filter(item => !(item.type === CONTENT_TYPE && item.id === book.id));
+    const candidates = allContent.filter(
+      (item) => !(item.type === CONTENT_TYPE && item.id === book.id),
+    );
 
     const similar = findMostSimilar(normalizedBook, candidates, MAX_RELATED_PER_BOOK);
 
     // Convert to simplified format for storage
-    entries[key] = similar.map(item => ({
+    entries[key] = similar.map((item) => ({
       type: item.type,
       id: item.id,
       score: Math.round(item.score * 1000) / 1000, // Round to 3 decimal places
@@ -144,8 +150,7 @@ async function main(): Promise<void> {
   const s3Path = CONTENT_GRAPH_S3_PATHS.BOOKS_RELATED_CONTENT;
 
   try {
-    const jsonData = JSON.stringify(output, null, 2);
-    await writeToS3(s3Path, jsonData, "application/json", "public-read");
+    await writeJsonS3(s3Path, output);
     console.log(`  ✓ Written to ${s3Path}`);
     console.log(`  ✓ ACL: public-read\n`);
   } catch (error) {

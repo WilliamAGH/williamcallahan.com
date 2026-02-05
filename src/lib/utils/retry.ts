@@ -11,7 +11,11 @@ import { isRetryableError } from "./error-utils";
 import { debug, debugWarn, debugError } from "./debug";
 
 // Local wrapper to provide leveled debug logging consistent within this module
-function debugLog(message: string, level: "info" | "warn" | "error" = "info", meta?: unknown): void {
+function debugLog(
+  message: string,
+  level: "info" | "warn" | "error" = "info",
+  meta?: unknown,
+): void {
   switch (level) {
     case "warn":
       debugWarn(message, meta);
@@ -119,27 +123,6 @@ export const RETRY_CONFIGS = {
 // =============================================================================
 
 /**
- * Retries an asynchronous operation with exponential backoff.
- * @template T - The return type of the operation.
- * @param operation - The asynchronous operation to retry, as a function that returns a Promise.
- * @param maxRetries - The maximum number of retries before giving up (default: 3).
- * @param maxBackoff - The maximum backoff time in milliseconds (default: 30000).
- * @returns Promise resolving to the operation's result if successful, or null if all retries fail.
- * @deprecated Use retryWithOptions instead for more flexibility
- */
-export async function retryOperation<T>(
-  operation: () => Promise<T>,
-  maxRetries = 3,
-  maxBackoff = 30000,
-): Promise<T | null> {
-  return retryWithOptions(operation, {
-    maxRetries,
-    maxBackoff,
-    debug: true, // Maintain backward compatibility with existing debug logs
-  });
-}
-
-/**
  * Retries an asynchronous operation with configurable options.
  * @template T - The return type of the operation.
  * @param operation - The asynchronous operation to retry, as a function that returns a Promise.
@@ -158,7 +141,10 @@ export async function retryOperation<T>(
  * );
  * ```
  */
-export async function retryWithOptions<T>(operation: () => Promise<T>, options: RetryConfig = {}): Promise<T | null> {
+export async function retryWithOptions<T>(
+  operation: () => Promise<T>,
+  options: RetryConfig = {},
+): Promise<T | null> {
   const {
     maxRetries = 3,
     maxBackoff = 30000,
@@ -224,7 +210,7 @@ export async function retryWithOptions<T>(operation: () => Promise<T>, options: 
         debugLog(`[Retry] Retrying operation after ${backoff}ms delay...`, "info");
       }
 
-      await new Promise(resolve => setTimeout(resolve, backoff));
+      await new Promise((resolve) => setTimeout(resolve, backoff));
     }
   }
 
@@ -244,7 +230,10 @@ export async function retryWithDomainConfig<T>(
 /**
  * Enhanced retry function that throws on final failure instead of returning null
  */
-export async function retryWithThrow<T>(operation: () => Promise<T>, options: RetryConfig = {}): Promise<T> {
+export async function retryWithThrow<T>(
+  operation: () => Promise<T>,
+  options: RetryConfig = {},
+): Promise<T> {
   const result = await retryWithOptions(operation, options);
   if (result === null) {
     throw new Error(`Operation failed after ${options.maxRetries || 3} retries`);
@@ -258,7 +247,7 @@ export async function retryWithThrow<T>(operation: () => Promise<T>, options: Re
  * @returns Promise that resolves after the specified delay
  */
 export async function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**

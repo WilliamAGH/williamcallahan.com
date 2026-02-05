@@ -61,12 +61,16 @@ export function Terminal() {
     cancelSelection,
     inputRef,
     focusInput,
-    isSubmitting,
+    isSubmitting: isCommandSubmitting,
+    isChatSubmitting,
     activeApp,
     clearAndExitChat,
     sendChatMessage,
     cancelActiveRequest,
     aiQueueMessage,
+    queuedCount,
+    queueLimit,
+    queueNotice,
   } = useTerminal();
 
   // Effect to scroll to bottom when history changes
@@ -200,13 +204,13 @@ export function Terminal() {
     }
   }, [windowState, inputRef]);
 
-  // Global keyboard shortcut: Escape / Ctrl+C / Ctrl+X / Ctrl+Z to cancel search selection from anywhere
+  // Global keyboard shortcut: Escape / Ctrl+C / Ctrl+X / Ctrl+Z to clear terminal from anywhere
   // This mirrors the global Cmd+K handler pattern - works regardless of focus location
-  // cancelSelection() handles clearing history, input, and refocusing - same as "clear" command
+  // Works in: selection mode (search results), normal mode, but NOT AI chat mode (has own handlers)
   useEffect(() => {
     const handleGlobalEscape = (event: KeyboardEvent) => {
-      // Only handle if selection is active (search results are showing)
-      if (!selection) return;
+      // AI chat mode handles its own keyboard events via AiChatInput
+      if (activeApp === "ai-chat") return;
 
       const isEscape = event.key === "Escape";
       const isCtrlC = event.ctrlKey && event.key.toLowerCase() === "c";
@@ -226,20 +230,28 @@ export function Terminal() {
       if (isEscape || isCtrlC || isCtrlX || isCtrlZ) {
         event.preventDefault();
         event.stopPropagation();
-        cancelSelection();
+        // Selection mode: cancel selection (which also clears)
+        // Normal mode: clear terminal
+        if (selection) {
+          cancelSelection();
+        } else {
+          clearAndExitChat();
+        }
       }
     };
 
     document.addEventListener("keydown", handleGlobalEscape);
     return () => document.removeEventListener("keydown", handleGlobalEscape);
-  }, [selection, cancelSelection]);
+  }, [selection, cancelSelection, activeApp, clearAndExitChat]);
 
   // Effect to handle tap/click outside terminal to dismiss search results (mobile-friendly)
   useEffect(() => {
     if (!selection) return;
 
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      const terminalContainer = scrollContainerRef.current?.closest('[data-testid="terminal-container"]');
+      const terminalContainer = scrollContainerRef.current?.closest(
+        '[data-testid="terminal-container"]',
+      );
       if (terminalContainer && !terminalContainer.contains(event.target as Node)) {
         cancelSelection();
       }
@@ -261,7 +273,8 @@ export function Terminal() {
 
     // We need to wait for the ref to be available
     const checkAndSetup = () => {
-      terminalContainer = scrollContainerRef.current?.closest('[data-testid="terminal-container"]') || null;
+      terminalContainer =
+        scrollContainerRef.current?.closest('[data-testid="terminal-container"]') || null;
     };
 
     // Check immediately and after a short delay
@@ -293,7 +306,18 @@ export function Terminal() {
         }
 
         // Prevent default for navigation keys to stop page scrolling
-        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End"].includes(e.key)) {
+        if (
+          [
+            "ArrowUp",
+            "ArrowDown",
+            "ArrowLeft",
+            "ArrowRight",
+            "PageUp",
+            "PageDown",
+            "Home",
+            "End",
+          ].includes(e.key)
+        ) {
           e.preventDefault();
           return;
         }
@@ -315,7 +339,8 @@ export function Terminal() {
         const scrollContainer = scrollContainerRef.current;
         if (scrollContainer) {
           const canScrollUp = scrollContainer.scrollTop > 0;
-          const canScrollDown = scrollContainer.scrollTop < scrollContainer.scrollHeight - scrollContainer.clientHeight;
+          const canScrollDown =
+            scrollContainer.scrollTop < scrollContainer.scrollHeight - scrollContainer.clientHeight;
 
           // Only prevent page scrolling if terminal can't scroll in that direction
           if ((e.deltaY < 0 && !canScrollUp) || (e.deltaY > 0 && !canScrollDown)) {
@@ -344,7 +369,9 @@ export function Terminal() {
       const handleContainerKeyDown = (e: KeyboardEvent) => {
         // Forward navigation keys to SelectionView when it's active
         if (["ArrowUp", "ArrowDown", "Enter", "Escape"].includes(e.key)) {
-          const selectionView = scrollContainerRef.current?.querySelector('[data-testid="selection-view"]');
+          const selectionView = scrollContainerRef.current?.querySelector(
+            '[data-testid="selection-view"]',
+          );
           if (selectionView && document.activeElement !== selectionView) {
             // Create and dispatch a synthetic keyboard event to the SelectionView
             const syntheticEvent = new KeyboardEvent("keydown", {
@@ -412,7 +439,7 @@ export function Terminal() {
           onClick={() => {
             maximizeWindow();
           }}
-          onKeyDown={e => {
+          onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               maximizeWindow();
             }
@@ -424,10 +451,13 @@ export function Terminal() {
       {/* Terminal Container - conditionally styled for maximized/normal state */}
       <section
         data-testid="terminal-container"
-        className={cn(commonTerminalClasses, isMaximized ? maximizedTerminalClasses : normalTerminalClasses)}
+        className={cn(
+          commonTerminalClasses,
+          isMaximized ? maximizedTerminalClasses : normalTerminalClasses,
+        )}
         aria-label="Terminal"
         onFocus={() => setIsTerminalFocused(true)}
-        onBlur={e => {
+        onBlur={(e) => {
           // Only blur if focus is leaving the terminal entirely
           if (!e.currentTarget.contains(e.relatedTarget)) {
             setIsTerminalFocused(false);
@@ -441,12 +471,16 @@ export function Terminal() {
             onMinimize={minimizeWindow}
             onMaximize={maximizeWindow}
             isMaximized={isMaximized}
+            onClear={clearAndExitChat}
           />
         </div>
 
         {/* Scrollable Content Area */}
         <section
-          className={cn(commonScrollClasses, isMaximized ? maximizedScrollClasses : normalScrollClasses)}
+          className={cn(
+            commonScrollClasses,
+            isMaximized ? maximizedScrollClasses : normalScrollClasses,
+          )}
           ref={scrollContainerRef}
           onClick={() => {
             // Only focus command input in normal terminal mode
@@ -454,7 +488,7 @@ export function Terminal() {
               focusInput();
             }
           }}
-          onKeyDown={e => {
+          onKeyDown={(e) => {
             const target = e.target;
             const isTextEntry =
               target instanceof HTMLInputElement ||
@@ -481,12 +515,14 @@ export function Terminal() {
 
             {/* History: Always rendered, mode determines filtering */}
             {/* In chat mode, shows only chat messages; otherwise shows all */}
-            <History history={terminalHistory} mode={activeApp === "ai-chat" ? "chat" : "default"} />
+            <History
+              history={terminalHistory}
+              mode={activeApp === "ai-chat" ? "chat" : "default"}
+            />
 
             {/* AI Chat Mode: Empty state when no messages */}
-            {activeApp === "ai-chat" && terminalHistory.filter(h => h.type === "chat").length === 0 && (
-              <AiChatEmptyState />
-            )}
+            {activeApp === "ai-chat" &&
+              terminalHistory.filter((h) => h.type === "chat").length === 0 && <AiChatEmptyState />}
 
             {/* Selection view OR Input (mutually exclusive) */}
             {selection ? (
@@ -498,8 +534,11 @@ export function Terminal() {
               />
             ) : activeApp === "ai-chat" ? (
               <AiChatInput
-                isSubmitting={isSubmitting}
+                isSubmitting={isChatSubmitting}
                 queueMessage={aiQueueMessage}
+                queuedCount={queuedCount}
+                queueLimit={queueLimit}
+                queueNotice={queueNotice}
                 onSend={sendChatMessage}
                 onClearAndExit={clearAndExitChat}
                 onCancelRequest={cancelActiveRequest}
@@ -510,7 +549,7 @@ export function Terminal() {
                 value={input}
                 onChange={setInput}
                 onSubmit={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isCommandSubmitting}
               />
             )}
           </div>

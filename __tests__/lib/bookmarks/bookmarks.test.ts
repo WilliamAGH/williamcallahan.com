@@ -5,12 +5,12 @@
  * @module __tests__/lib/bookmarks.test
  */
 
-import { describe, beforeAll, beforeEach, afterEach, expect, it, jest } from "@jest/globals";
+import { vi } from "vitest";
 import type { UnifiedBookmark, BookmarkContent } from "../../../src/types";
 import { ServerCacheInstance } from "@/lib/server-cache";
 
 // Mock getBaseUrl at the top level with the correct path
-jest.mock("@/lib/utils/get-base-url", () => ({
+vi.mock("@/lib/utils/get-base-url", () => ({
   getBaseUrl: () => "http://localhost:3000",
 }));
 
@@ -19,11 +19,11 @@ const API_ENDPOINT = "/api/bookmarks";
 void API_ENDPOINT; // Explicitly mark as intentionally unused
 
 // Mock server cache
-jest.mock("@/lib/server-cache", () => ({
+vi.mock("@/lib/server-cache", () => ({
   ServerCacheInstance: {
-    get: jest.fn(),
-    set: jest.fn(),
-    getStats: jest.fn().mockReturnValue({
+    get: vi.fn(),
+    set: vi.fn(),
+    getStats: vi.fn().mockReturnValue({
       keys: 0,
       hits: 0,
       misses: 0,
@@ -120,14 +120,14 @@ describe("Bookmarks Module (Simplified)", () => {
   beforeAll(() => {
     // Ensure fetch is defined on globalThis before tests run
     if (!globalThis.fetch) {
-      const fetchMock = Object.assign(jest.fn(), { preconnect: jest.fn() });
+      const fetchMock = Object.assign(vi.fn(), { preconnect: vi.fn() });
       globalThis.fetch = fetchMock as unknown as typeof fetch;
     }
   });
 
   beforeEach(() => {
     // Reset module cache to ensure fresh imports
-    jest.resetModules();
+    vi.resetModules();
 
     // Set up environment
     process.env.BOOKMARK_BEARER_TOKEN = "test-token";
@@ -135,18 +135,18 @@ describe("Bookmarks Module (Simplified)", () => {
     // Fresh mocks are created inline as needed
 
     // Clear all existing mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
     // Clean up
     process.env.BOOKMARK_BEARER_TOKEN = undefined;
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("should fetch bookmarks from API when no cache exists", async () => {
     // Set up fetch mock
-    const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       createMockResponse({
         ok: true,
         json: () => Promise.resolve(mockApiResponse),
@@ -185,8 +185,10 @@ describe("Bookmarks Module (Simplified)", () => {
 
   it("should handle API fetch errors gracefully", async () => {
     // Set up fetch mock to reject
-    const fetchSpy = jest.spyOn(globalThis, "fetch").mockRejectedValueOnce(new Error("Network error"));
-    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new Error("Network error"));
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     try {
       // Import module after setting up mocks
@@ -213,7 +215,7 @@ describe("Bookmarks Module (Simplified)", () => {
 
   it("should handle API error responses", async () => {
     // Set up fetch mock to return error response
-    const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       createMockResponse({
         ok: false,
         status: 401,
@@ -221,7 +223,7 @@ describe("Bookmarks Module (Simplified)", () => {
         text: () => Promise.resolve("Unauthorized"),
       }),
     );
-    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     try {
       // Import module after setting up mocks
@@ -248,7 +250,7 @@ describe("Bookmarks Module (Simplified)", () => {
 
   it("should handle API server errors", async () => {
     // Mock API to return a server error (which would happen if BOOKMARK_BEARER_TOKEN is missing server-side)
-    const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValue(
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       createMockResponse({
         ok: false,
         status: 500,
@@ -256,7 +258,7 @@ describe("Bookmarks Module (Simplified)", () => {
         text: () => Promise.resolve("Server configuration error"),
       }),
     );
-    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     try {
       // Import module after setting up environment
@@ -268,7 +270,10 @@ describe("Bookmarks Module (Simplified)", () => {
       expect(bookmarks).toEqual([]);
 
       // Should log error
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to fetch from"), expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Failed to fetch from"),
+        expect.any(Error),
+      );
     } finally {
       fetchSpy.mockRestore();
       consoleSpy.mockRestore();
@@ -291,7 +296,7 @@ describe("Bookmarks Module (Simplified)", () => {
       },
     ];
 
-    const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       createMockResponse({
         ok: true,
         json: () => Promise.resolve(minimalResponse),

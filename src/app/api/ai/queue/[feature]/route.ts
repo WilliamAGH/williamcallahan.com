@@ -7,7 +7,7 @@ import {
   resolveOpenAiCompatibleFeatureConfig,
 } from "@/lib/ai/openai-compatible/feature-config";
 import { getUpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
-import { NO_STORE_HEADERS, preventCaching } from "@/lib/utils/api-utils";
+import { NO_STORE_HEADERS, preventCaching, requireCloudflareHeaders } from "@/lib/utils/api-utils";
 
 const featureParamSchema = z
   .string()
@@ -28,10 +28,18 @@ const featureParamSchema = z
  * queue depth counts (integers), not sensitive data. Similar to health checks.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ feature: string }> },
 ): Promise<NextResponse> {
   preventCaching();
+  const cloudflareResponse = requireCloudflareHeaders(request.headers, {
+    route: "/api/ai/queue",
+    additionalHeaders: NO_STORE_HEADERS,
+  });
+  if (cloudflareResponse) {
+    return cloudflareResponse;
+  }
+
   try {
     const { feature } = await context.params;
     const validatedFeature = featureParamSchema.parse(feature);
@@ -44,8 +52,14 @@ export async function GET(
     return NextResponse.json(queue.snapshot, { status: 200, headers: NO_STORE_HEADERS });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid feature parameter" }, { status: 400, headers: NO_STORE_HEADERS });
+      return NextResponse.json(
+        { error: "Invalid feature parameter" },
+        { status: 400, headers: NO_STORE_HEADERS },
+      );
     }
-    return NextResponse.json({ error: "Internal server error" }, { status: 500, headers: NO_STORE_HEADERS });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500, headers: NO_STORE_HEADERS },
+    );
   }
 }

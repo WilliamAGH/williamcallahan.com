@@ -11,9 +11,8 @@
 "use client";
 
 import { kebabCase } from "@/lib/utils/formatters";
-import { ensureAbsoluteUrl } from "../../../../lib/seo/utils";
+import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import { JsonLdScript } from "../../../seo/json-ld";
-
 import type { SoftwareScriptSchema, SoftwareSchemaProps } from "@/types/features/software";
 
 /**
@@ -70,7 +69,7 @@ export function SoftwareSchema({
 
   const finalScreenshot = screenshot
     ? Array.isArray(screenshot)
-      ? screenshot.map(url => ensureAbsoluteUrl(url))
+      ? screenshot.map((url) => ensureAbsoluteUrl(url))
       : ensureAbsoluteUrl(screenshot)
     : undefined;
 

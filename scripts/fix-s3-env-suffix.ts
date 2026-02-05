@@ -6,7 +6,8 @@
  * Run with: bun scripts/fix-s3-env-suffix.ts
  */
 
-import { readFromS3, writeToS3, listS3Objects } from "@/lib/s3-utils";
+import { getObject, listS3Objects, putObject } from "@/lib/s3/objects";
+import { S3NotFoundError } from "@/lib/s3/errors";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 
 const env = process.env.NODE_ENV;
@@ -20,17 +21,16 @@ console.log("");
 async function copyWithSuffix(sourceKey: string, targetKey: string) {
   try {
     console.log(`Copying ${sourceKey} -> ${targetKey}`);
-    const content = await readFromS3(sourceKey);
-    if (content) {
-      const contentType = targetKey.endsWith(".json") ? "application/json" : undefined;
-      await writeToS3(targetKey, content, contentType, "public-read");
-      console.log(`  ✓ Copied successfully`);
-      return true;
-    } else {
+    const source = await getObject(sourceKey);
+    const contentType = targetKey.endsWith(".json") ? "application/json" : source.contentType;
+    await putObject(targetKey, source.body, { contentType, acl: "public-read" });
+    console.log(`  ✓ Copied successfully`);
+    return true;
+  } catch (error) {
+    if (error instanceof S3NotFoundError) {
       console.log(`  ✗ Source file not found`);
       return false;
     }
-  } catch (error) {
     console.error(`  ✗ Error: ${error}`);
     return false;
   }
@@ -106,7 +106,7 @@ fixEnvironmentSuffixes()
     console.log("\n=== Script completed ===");
     process.exit(0);
   })
-  .catch(error => {
+  .catch((error) => {
     console.error("\n=== Script failed ===", error);
     process.exit(1);
   });

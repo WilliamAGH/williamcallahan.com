@@ -65,6 +65,9 @@ export function Analytics(): JSX.Element | null {
           data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
           data-host-url={siteUrl}
           data-auto-track="true"
+          onError={() => {
+            console.warn("[Analytics] Failed to load Umami script - continuing without analytics");
+          }}
         />
       )}
 
@@ -96,7 +99,12 @@ export function Analytics(): JSX.Element | null {
       </noscript>
 
       {/* Clicky Analytics - Official docs: https://clicky.com/help/custom */}
-      <Script id="clicky" strategy="afterInteractive" src="https://static.getclicky.com/101484018.js" async />
+      <Script
+        id="clicky"
+        strategy="afterInteractive"
+        src="https://static.getclicky.com/101484018.js"
+        async
+      />
       <noscript>
         <p>
           <Image alt="Clicky" width={1} height={1} src="https://in.getclicky.com/101484018ns.gif" />

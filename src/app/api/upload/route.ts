@@ -14,7 +14,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { writeBinaryS3 } from "@/lib/s3-utils";
+import { writeBinaryS3 } from "@/lib/s3/binary";
+import { deleteFromS3 } from "@/lib/s3/objects";
 import {
   UploadFileTypeSchema,
   FILE_TYPE_CONFIGS,
@@ -26,6 +27,7 @@ import { parsePdfFromBuffer } from "@/lib/books/pdf-parser";
 import { chunkChapters } from "@/lib/books/text-chunker";
 import { indexBookToChroma } from "@/lib/books/chroma-sync";
 import { z } from "zod/v4";
+import { requireCloudflareHeaders } from "@/lib/utils/api-utils";
 
 // Maximum file size: 100MB
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
@@ -65,12 +67,15 @@ function getContentType(fileType: UploadFileType): string {
 /**
  * Process ePub file: parse and index to Chroma
  */
-async function processEpubFile(buffer: Buffer, s3Key: string): Promise<{ chunksIndexed: number; totalWords: number }> {
+async function processEpubFile(
+  buffer: Buffer,
+  s3Key: string,
+): Promise<{ chunksIndexed: number; totalWords: number }> {
   // Parse ePub
   const parsed = await parseEpubFromBuffer(buffer, { includeHtml: false });
 
   // Convert chapters to chunkable format
-  const chapterData = parsed.chapters.map(ch => ({
+  const chapterData = parsed.chapters.map((ch) => ({
     id: ch.id,
     title: ch.title,
     text: ch.textContent,
@@ -104,12 +109,15 @@ async function processEpubFile(buffer: Buffer, s3Key: string): Promise<{ chunksI
 /**
  * Process PDF file: parse and index to Chroma
  */
-async function processPdfFile(buffer: Buffer, s3Key: string): Promise<{ chunksIndexed: number; totalWords: number }> {
+async function processPdfFile(
+  buffer: Buffer,
+  s3Key: string,
+): Promise<{ chunksIndexed: number; totalWords: number }> {
   // Parse PDF
   const parsed = await parsePdfFromBuffer(buffer);
 
   // Convert pages to chunkable format (treating pages like chapters)
-  const pageData = parsed.pages.map(p => ({
+  const pageData = parsed.pages.map((p) => ({
     id: `page-${p.pageNumber}`,
     title: `Page ${p.pageNumber}`,
     text: p.textContent,
@@ -144,7 +152,17 @@ async function processPdfFile(buffer: Buffer, s3Key: string): Promise<{ chunksIn
  * POST handler for file uploads
  */
 export async function POST(request: Request): Promise<Response> {
+  const cloudflareResponse = requireCloudflareHeaders(request.headers, {
+    route: "/api/upload",
+    additionalHeaders: CORS_HEADERS,
+  });
+  if (cloudflareResponse) {
+    return cloudflareResponse;
+  }
+
   const startTime = Date.now();
+  let s3Key: string | null = null;
+  let uploadCompleted = false;
 
   try {
     // Parse multipart form data
@@ -154,7 +172,10 @@ export async function POST(request: Request): Promise<Response> {
 
     // Validate file presence
     if (!file || !(file instanceof File)) {
-      return NextResponse.json({ success: false, error: "No file provided" }, { status: 400, headers: CORS_HEADERS });
+      return NextResponse.json(
+        { success: false, error: "No file provided" },
+        { status: 400, headers: CORS_HEADERS },
+      );
     }
 
     // Validate file type parameter
@@ -170,7 +191,10 @@ export async function POST(request: Request): Promise<Response> {
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { success: false, error: `File size exceeds maximum of ${MAX_FILE_SIZE / (1024 * 1024)}MB` },
+        {
+          success: false,
+          error: `File size exceeds maximum of ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
+        },
         { status: 400, headers: CORS_HEADERS },
       );
     }
@@ -178,11 +202,14 @@ export async function POST(request: Request): Promise<Response> {
     // Validate file against type configuration
     const validation = validateFileForType(file, fileType);
     if (!validation.valid) {
-      return NextResponse.json({ success: false, error: validation.error }, { status: 400, headers: CORS_HEADERS });
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400, headers: CORS_HEADERS },
+      );
     }
 
     // Generate S3 key
-    const s3Key = generateS3Key(fileType, file.name);
+    s3Key = generateS3Key(fileType, file.name);
     const contentType = getContentType(fileType);
 
     // Convert file to buffer
@@ -191,25 +218,38 @@ export async function POST(request: Request): Promise<Response> {
 
     // Upload to S3
     await writeBinaryS3(s3Key, buffer, contentType);
+    uploadCompleted = true;
 
     // Process and index based on file type
     let processingResult: { chunksIndexed: number; totalWords: number };
 
-    if (fileType === "book-epub") {
-      processingResult = await processEpubFile(buffer, s3Key);
-    } else if (fileType === "book-pdf") {
-      processingResult = await processPdfFile(buffer, s3Key);
-    } else {
-      // Shouldn't happen due to validation, but handle gracefully
-      return NextResponse.json(
-        {
-          success: true,
-          s3Key,
-          message: "File uploaded but not processed (unsupported type for indexing)",
-          chromaStatus: "skipped",
-        },
-        { headers: CORS_HEADERS },
-      );
+    try {
+      if (fileType === "book-epub") {
+        processingResult = await processEpubFile(buffer, s3Key);
+      } else if (fileType === "book-pdf") {
+        processingResult = await processPdfFile(buffer, s3Key);
+      } else {
+        // Shouldn't happen due to validation, but handle gracefully
+        return NextResponse.json(
+          {
+            success: true,
+            s3Key,
+            message: "File uploaded but not processed (unsupported type for indexing)",
+            chromaStatus: "skipped",
+          },
+          { headers: CORS_HEADERS },
+        );
+      }
+    } catch (processingError) {
+      if (uploadCompleted && s3Key) {
+        try {
+          await deleteFromS3(s3Key);
+          console.log(`[Upload API] Cleaned up S3 file after processing failure: ${s3Key}`);
+        } catch (cleanupError) {
+          console.error(`[Upload API] Failed to clean up S3 file ${s3Key}:`, cleanupError);
+        }
+      }
+      throw processingError;
     }
 
     const processingTimeMs = Date.now() - startTime;

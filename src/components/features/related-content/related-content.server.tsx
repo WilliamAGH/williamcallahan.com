@@ -8,28 +8,36 @@
 import { getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { getLazyContentMap, getCachedAllContent } from "@/lib/content-similarity/cached-aggregator";
 import { findMostSimilar, limitByTypeAndTotal } from "@/lib/content-similarity";
-import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
+import { ServerCacheInstance } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { RelatedContentSection } from "./related-content-section";
-import { ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { resolveImageUrl } from "@/lib/seo/url-utils";
 import { debug, isDebug } from "@/lib/utils/debug";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
+import {
+  relatedContentGraphSchema,
+  type RelatedContentEntryFromSchema,
+} from "@/types/schemas/book";
 import type {
   RelatedContentProps,
   RelatedContentItem,
-  RelatedContentType,
   NormalizedContent,
   RelatedContentCacheData,
 } from "@/types/related-content";
 
 // Import configuration with documented rationale
-import { DEFAULT_MAX_PER_TYPE, DEFAULT_MAX_TOTAL, getEnabledContentTypes } from "@/config/related-content.config";
+import {
+  DEFAULT_MAX_PER_TYPE,
+  DEFAULT_MAX_TOTAL,
+  getEnabledContentTypes,
+} from "@/config/related-content.config";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
 // Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
@@ -46,7 +54,10 @@ async function toRelatedContentItem(
   content: NormalizedContent & { score: number },
 ): Promise<RelatedContentItem | null> {
   const display = content.display;
-  const safeDateIso = content.date && Number.isFinite(content.date.getTime()) ? content.date.toISOString() : undefined;
+  const safeDateIso =
+    content.date && Number.isFinite(content.date.getTime())
+      ? content.date.toISOString()
+      : undefined;
   const baseMetadata: RelatedContentItem["metadata"] = {
     tags: content.tags,
     domain: content.domain,
@@ -57,7 +68,7 @@ async function toRelatedContentItem(
     case "bookmark": {
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
-        imageUrl: display?.imageUrl ? ensureAbsoluteUrl(display.imageUrl) : undefined,
+        imageUrl: resolveImageUrl(display?.imageUrl),
       };
 
       return {
@@ -75,11 +86,11 @@ async function toRelatedContentItem(
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
         readingTime: display?.readingTime,
-        imageUrl: display?.imageUrl ? ensureAbsoluteUrl(display.imageUrl) : undefined,
+        imageUrl: resolveImageUrl(display?.imageUrl),
         author: display?.author
           ? {
               name: display.author.name,
-              avatar: display.author.avatar ? ensureAbsoluteUrl(display.author.avatar) : undefined,
+              avatar: resolveImageUrl(display.author.avatar),
             }
           : undefined,
       };
@@ -97,7 +108,7 @@ async function toRelatedContentItem(
 
     case "investment": {
       const investmentDetails = display?.investment;
-      let logoUrl = display?.imageUrl ? ensureAbsoluteUrl(display.imageUrl) : undefined;
+      let logoUrl = resolveImageUrl(display?.imageUrl);
 
       if (!logoUrl) {
         const effectiveDomain = investmentDetails?.logoOnlyDomain
@@ -111,13 +122,17 @@ async function toRelatedContentItem(
         if (effectiveDomain) {
           const manifestEntry = await getLogoFromManifestAsync(effectiveDomain);
           if (manifestEntry?.cdnUrl) {
-            logoUrl = ensureAbsoluteUrl(manifestEntry.cdnUrl);
+            logoUrl = resolveImageUrl(manifestEntry.cdnUrl);
           } else {
-            const runtimeUrl = getRuntimeLogoUrl(effectiveDomain, { company: investmentDetails?.name });
-            logoUrl = runtimeUrl ? ensureAbsoluteUrl(runtimeUrl) : ensureAbsoluteUrl(getCompanyPlaceholder());
+            const runtimeUrl = getRuntimeLogoUrl(effectiveDomain, {
+              company: investmentDetails?.name,
+            });
+            logoUrl = runtimeUrl
+              ? resolveImageUrl(runtimeUrl)
+              : resolveImageUrl(getCompanyPlaceholder());
           }
         } else {
-          logoUrl = ensureAbsoluteUrl(getCompanyPlaceholder());
+          logoUrl = resolveImageUrl(getCompanyPlaceholder());
         }
       }
 
@@ -161,7 +176,7 @@ async function toRelatedContentItem(
       const bookDetails = display?.book;
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
-        imageUrl: display?.imageUrl ? ensureAbsoluteUrl(display.imageUrl) : undefined,
+        imageUrl: resolveImageUrl(display?.imageUrl),
         authors: bookDetails?.authors,
         formats: bookDetails?.formats,
       };
@@ -230,27 +245,22 @@ export async function RelatedContent({
     const normalizeTagForComparison = (tag: string): string =>
       tag.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
 
-    const normalizedExcludeTags = new Set(excludeTags.map(normalizeTagForComparison).filter(Boolean));
+    const normalizedExcludeTags = new Set(
+      excludeTags.map(normalizeTagForComparison).filter(Boolean),
+    );
 
     // Helper to check if item has any excluded tags
     const hasExcludedTag = (tags: readonly string[] | undefined): boolean => {
       if (normalizedExcludeTags.size === 0 || !tags) return false;
-      return tags.some(tag => normalizedExcludeTags.has(normalizeTagForComparison(tag)));
+      return tags.some((tag) => normalizedExcludeTags.has(normalizeTagForComparison(tag)));
     };
 
     // Try to load pre-computed related content first
     const contentKey = `${sourceType}:${actualSourceId}`;
-    const precomputed = await readJsonS3<
-      Record<
-        string,
-        {
-          type: RelatedContentType;
-          id: string;
-          score: number;
-          title: string;
-        }[]
-      >
-    >(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT);
+    const precomputed = await readJsonS3Optional<Record<string, RelatedContentEntryFromSchema[]>>(
+      CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
+      relatedContentGraphSchema,
+    );
 
     if (precomputed?.[contentKey]) {
       // Use pre-computed scores
@@ -259,23 +269,23 @@ export async function RelatedContent({
       // Apply filters
       if (includeTypes) {
         const inc = new Set(includeTypes);
-        items = items.filter(item => inc.has(item.type));
+        items = items.filter((item) => inc.has(item.type));
       }
       if (excludeTypes) {
         const exc = new Set(excludeTypes);
-        items = items.filter(item => !exc.has(item.type));
+        items = items.filter((item) => !exc.has(item.type));
       }
       if (excludeIds.length > 0) {
-        items = items.filter(item => !(item.type === sourceType && excludeIds.includes(item.id)));
+        items = items.filter((item) => !(item.type === sourceType && excludeIds.includes(item.id)));
       }
 
       // Get all content for mapping BEFORE limiting - we need tags to filter by excludeTags
       // Use lazy loading to reduce memory pressure
-      const neededTypes = Array.from(new Set(items.map(item => item.type)));
+      const neededTypes = Array.from(new Set(items.map((item) => item.type)));
       const contentMap = await getLazyContentMap(neededTypes);
 
       // Convert to RelatedContentItem format
-      const relatedItemPromises = items.map(async item => {
+      const relatedItemPromises = items.map(async (item) => {
         const content = contentMap.get(`${item.type}:${item.id}`);
         if (!content) return null;
         const relatedItem = await toRelatedContentItem({ ...content, score: item.score });
@@ -283,9 +293,10 @@ export async function RelatedContent({
       });
 
       // Filter by excludeTags BEFORE applying limits to ensure we get the requested count
-      const filteredItems = (await Promise.all(relatedItemPromises))
+      const resolvedItems = await Promise.all(relatedItemPromises);
+      const filteredItems = resolvedItems
         .filter((i): i is RelatedContentItem => i !== null)
-        .filter(i => !hasExcludedTag(i.metadata.tags));
+        .filter((i) => !hasExcludedTag(i.metadata.tags));
 
       // Apply limits via shared helper AFTER excludeTags filtering
       const relatedItems = limitByTypeAndTotal(filteredItems, maxPerType, maxTotal);
@@ -295,10 +306,10 @@ export async function RelatedContent({
       // Use centralized config to get enabled types (filters out production-hidden types like "thought")
       const enabledTypes = getEnabledContentTypes();
       const allAllowedTypes = includeTypes
-        ? new Set(includeTypes.filter(t => enabledTypes.includes(t)))
+        ? new Set(includeTypes.filter((t) => enabledTypes.includes(t)))
         : new Set(enabledTypes);
-      const presentTypes = new Set(relatedItems.map(i => i.type));
-      const missingTypes = Array.from(allAllowedTypes).filter(t => !presentTypes.has(t));
+      const presentTypes = new Set(relatedItems.map((i) => i.type));
+      const missingTypes = Array.from(allAllowedTypes).filter((t) => !presentTypes.has(t));
 
       if (missingTypes.length > 0) {
         const source = await getContentById(sourceType, actualSourceId);
@@ -314,20 +325,21 @@ export async function RelatedContent({
           }
 
           const excludeSet = new Set([...excludeIds, actualSourceId]);
-          const precomputedKeys = new Set(relatedItems.map(i => `${i.type}:${i.id}`));
+          const precomputedKeys = new Set(relatedItems.map((i) => `${i.type}:${i.id}`));
 
           const candidates = allContent
-            .filter(item => !(item.type === sourceType && excludeSet.has(item.id)))
-            .filter(item => missingTypes.includes(item.type))
-            .filter(item => !precomputedKeys.has(`${item.type}:${item.id}`))
-            .filter(item => !hasExcludedTag(item.tags));
+            .filter((item) => !(item.type === sourceType && excludeSet.has(item.id)))
+            .filter((item) => missingTypes.includes(item.type))
+            .filter((item) => !precomputedKeys.has(`${item.type}:${item.id}`))
+            .filter((item) => !hasExcludedTag(item.tags));
 
           const extraSimilar = findMostSimilar(source, candidates, maxTotal * 2, weights);
 
           // Prepare slug mapping only if needed for bookmarks in the extras
-          const extraItems = (await Promise.all(extraSimilar.map(item => toRelatedContentItem(item)))).filter(
-            (i): i is RelatedContentItem => i !== null,
+          const extraItemsResolved = await Promise.all(
+            extraSimilar.map((item) => toRelatedContentItem(item)),
           );
+          const extraItems = extraItemsResolved.filter((i): i is RelatedContentItem => i !== null);
 
           // Merge, dedupe, and re-limit per type and total
           const merged: RelatedContentItem[] = [];
@@ -343,7 +355,12 @@ export async function RelatedContent({
           const final = limitByTypeAndTotal(merged, maxPerType, maxTotal);
           if (final.length > 0) {
             return (
-              <RelatedContentSection title={sectionTitle} items={final} className={className} sourceType={sourceType} />
+              <RelatedContentSection
+                title={sectionTitle}
+                items={final}
+                className={className}
+                sourceType={sourceType}
+              />
             );
           }
         }
@@ -382,18 +399,19 @@ export async function RelatedContent({
 
       // Filter by excluded tags
       if (excludeTags.length > 0) {
-        items = items.filter(item => !hasExcludedTag(item.tags));
+        items = items.filter((item) => !hasExcludedTag(item.tags));
       }
 
       // Apply limits via shared helper
       const finalItems = limitByTypeAndTotal(items, maxPerType, maxTotal);
 
-      const relatedItemPromises = finalItems.map(async item => {
+      const relatedItemPromises = finalItems.map(async (item) => {
         const relatedItem = await toRelatedContentItem(item);
         return relatedItem;
       });
 
-      const relatedItems = (await Promise.all(relatedItemPromises)).filter((i): i is RelatedContentItem => i !== null);
+      const resolvedRelatedItems = await Promise.all(relatedItemPromises);
+      const relatedItems = resolvedRelatedItems.filter((i): i is RelatedContentItem => i !== null);
 
       if (relatedItems.length === 0) {
         return null;
@@ -431,8 +449,8 @@ export async function RelatedContent({
     const allExcludeIds = new Set([...excludeIds, actualSourceId]);
 
     const candidates = allContent
-      .filter(item => !(item.type === sourceType && allExcludeIds.has(item.id)))
-      .filter(item => !hasExcludedTag(item.tags));
+      .filter((item) => !(item.type === sourceType && allExcludeIds.has(item.id)))
+      .filter((item) => !hasExcludedTag(item.tags));
 
     // Find similar content
     const similar = findMostSimilar(source, candidates, maxTotal * 2, weights);
@@ -453,12 +471,13 @@ export async function RelatedContent({
     }
 
     // Convert to RelatedContentItem format
-    const relatedItemPromises = finalItems.map(async item => {
+    const relatedItemPromises = finalItems.map(async (item) => {
       const relatedItem = await toRelatedContentItem(item);
       return relatedItem;
     });
 
-    const relatedItems = (await Promise.all(relatedItemPromises)).filter((i): i is RelatedContentItem => i !== null);
+    const resolvedItems = await Promise.all(relatedItemPromises);
+    const relatedItems = resolvedItems.filter((i): i is RelatedContentItem => i !== null);
 
     // Return nothing if no related items found
     if (relatedItems.length === 0) {
@@ -466,7 +485,12 @@ export async function RelatedContent({
     }
 
     return (
-      <RelatedContentSection title={sectionTitle} items={relatedItems} className={className} sourceType={sourceType} />
+      <RelatedContentSection
+        title={sectionTitle}
+        items={relatedItems}
+        className={className}
+        sourceType={sourceType}
+      />
     );
   } catch (error) {
     console.error("Error fetching related content:", error);

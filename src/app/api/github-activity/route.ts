@@ -11,7 +11,7 @@
  *   - force-cache=true: Effectively ignored as data-access layer handles caching
  */
 
-import { getGithubActivityCached } from "@/lib/data-access/github";
+import { getGithubActivityCached } from "@/lib/data-access/github-public-api";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -37,7 +37,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: "The 'refresh=true' query parameter is deprecated for GET requests.",
-        message: "To refresh GitHub activity data, please use the POST endpoint: /api/github-activity/refresh.",
+        message:
+          "To refresh GitHub activity data, please use the POST endpoint: /api/github-activity/refresh.",
       },
       { status: 400 },
     );

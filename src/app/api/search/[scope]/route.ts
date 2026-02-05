@@ -14,11 +14,17 @@ import {
   searchProjects,
   searchBooks,
   searchThoughts,
+  searchTags,
+  searchAiAnalysis,
 } from "@/lib/search";
-import { applySearchGuards, createSearchErrorResponse, withNoStoreHeaders } from "@/lib/search/api-guards";
+import {
+  applySearchGuards,
+  createSearchErrorResponse,
+  withNoStoreHeaders,
+} from "@/lib/search/api-guards";
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
-import { validateSearchQuery } from "@/lib/validators/search";
-import { type SearchResult, VALID_SCOPES } from "@/types/search";
+import { SearchScopeValidator, validateSearchQuery } from "@/lib/validators/search";
+import { type SearchResult } from "@/types/search";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, connection, type NextRequest } from "next/server";
 
@@ -44,7 +50,10 @@ function resolveRequestUrl(request: NextRequest): URL {
  * @param params - Route parameters including the search scope.
  * @returns A JSON response containing the search results or an error message.
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ scope: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ scope: string }> },
+) {
   // connection(): ensure this handler always runs at request time under cacheComponents
   await connection();
   // CRITICAL: Call preventCaching() FIRST to prevent Next.js from caching ANY response
@@ -77,19 +86,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const rawQuery = searchParams.get("q") ?? "";
     const scopeParam = resolvedParams.scope.toLowerCase();
 
-    // Validate scope (use VALID_SCOPES directly - "all" scope should use /api/search/all endpoint)
-    if (!VALID_SCOPES.includes(scopeParam as (typeof VALID_SCOPES)[number])) {
+    const scopeValidation = SearchScopeValidator(scopeParam);
+    if (!scopeValidation.isValid || !scopeValidation.scope) {
       return NextResponse.json(
         {
-          error: `Invalid search scope: ${resolvedParams.scope}. Use /api/search/all for site-wide search.`,
-          validScopes: VALID_SCOPES,
+          error: scopeValidation.error || `Invalid search scope: ${resolvedParams.scope}.`,
         },
         { status: 400, headers: withNoStoreHeaders() },
       );
     }
 
-    // Now we know scope is valid - cast to the scoped search type
-    const scope = scopeParam as (typeof VALID_SCOPES)[number];
+    const scope = scopeValidation.scope;
 
     // Validate and sanitize the query
     const validation = validateSearchQuery(rawQuery);
@@ -141,6 +148,50 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         case "thoughts":
           // TODO: Add real thoughts search once Chroma vector store is available
           return searchThoughts(query);
+        case "tags":
+          return searchTags(query);
+        case "analysis":
+          return searchAiAnalysis(query);
+        case "all": {
+          const [
+            posts,
+            bookmarks,
+            projects,
+            investments,
+            experience,
+            education,
+            books,
+            thoughts,
+            tags,
+            analysis,
+          ] = await Promise.all([
+            searchBlogPostsServerSide(query),
+            searchBookmarks(query),
+            searchProjects(query),
+            searchInvestments(query),
+            searchExperience(query),
+            searchEducation(query),
+            searchBooks(query),
+            searchThoughts(query),
+            searchTags(query),
+            searchAiAnalysis(query),
+          ]);
+
+          const combined = [
+            ...posts,
+            ...bookmarks,
+            ...projects,
+            ...investments,
+            ...experience,
+            ...education,
+            ...books,
+            ...thoughts,
+            ...tags,
+            ...analysis,
+          ];
+
+          return combined.toSorted((a, b) => b.score - a.score).slice(0, 50);
+        }
         default:
           return [];
       }
@@ -163,6 +214,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Handle unknown errors safely without unsafe assignments/calls
     const err = unknownErr instanceof Error ? unknownErr : new Error(String(unknownErr));
     console.error(`Scoped search API error for scope ${resolvedParams.scope}:`, err);
-    return createSearchErrorResponse(`Failed to perform ${resolvedParams.scope} search`, err.message);
+    return createSearchErrorResponse(
+      `Failed to perform ${resolvedParams.scope} search`,
+      err.message,
+    );
   }
 }

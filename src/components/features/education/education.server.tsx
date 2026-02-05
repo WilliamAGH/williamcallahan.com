@@ -33,23 +33,35 @@ async function processWithConcurrency<T, R>(
 }
 
 // Make the component async again to use await for processing
-export async function Education({ isDarkTheme }: { isDarkTheme?: boolean } = {}): Promise<JSX.Element> {
+export async function Education({
+  isDarkTheme,
+}: { isDarkTheme?: boolean } = {}): Promise<JSX.Element> {
   // Process all items concurrently using the server-only functions
-  const processedEducation = await processWithConcurrency(education, LOGO_PROCESSING_BATCH_SIZE, item =>
-    processEducationItem(item, { isDarkTheme }),
+  const processedEducation = await processWithConcurrency(
+    education,
+    LOGO_PROCESSING_BATCH_SIZE,
+    (item) => processEducationItem(item, { isDarkTheme }),
   );
 
-  const processedRecentCourses = (
-    await processWithConcurrency(recentCourses, LOGO_PROCESSING_BATCH_SIZE, item =>
-      processCertificationItem(item, { isDarkTheme }),
-    )
-  ).map(course => ({ ...course, type: "course" as const }));
+  const recentCoursesResults = await processWithConcurrency(
+    recentCourses,
+    LOGO_PROCESSING_BATCH_SIZE,
+    (item) => processCertificationItem(item, { isDarkTheme }),
+  );
+  const processedRecentCourses = recentCoursesResults.map((course) => ({
+    ...course,
+    type: "course" as const,
+  }));
 
-  const processedCertifications = (
-    await processWithConcurrency(certifications, LOGO_PROCESSING_BATCH_SIZE, item =>
-      processCertificationItem(item, { isDarkTheme }),
-    )
-  ).map(cert => ({ ...cert, type: "certification" as const }));
+  const certificationsResults = await processWithConcurrency(
+    certifications,
+    LOGO_PROCESSING_BATCH_SIZE,
+    (item) => processCertificationItem(item, { isDarkTheme }),
+  );
+  const processedCertifications = certificationsResults.map((cert) => ({
+    ...cert,
+    type: "certification" as const,
+  }));
 
   // Pass the processed data (including logoData) to the client component
   return (

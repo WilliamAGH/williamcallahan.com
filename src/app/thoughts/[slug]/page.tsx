@@ -13,7 +13,8 @@ import { ThoughtDetail } from "@/components/features/thoughts/thought-detail";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
-import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
+import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import { RelatedContent, RelatedContentFallback } from "@/components/features/related-content";
 import { getThoughtBySlug } from "@/lib/thoughts/service.server";
@@ -123,7 +124,11 @@ export default async function ThoughtPage({ params }: ThoughtPageContext) {
       {/* Related Content Section */}
       <div className="bg-gradient-to-b from-transparent to-zinc-50/50 dark:to-zinc-900/30">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-          <Suspense fallback={<RelatedContentFallback title="Related Thoughts" className="relative" cardCount={3} />}>
+          <Suspense
+            fallback={
+              <RelatedContentFallback title="Related Thoughts" className="relative" cardCount={3} />
+            }
+          >
             <RelatedContent
               sourceType="thought"
               sourceId={thought.id}

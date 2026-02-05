@@ -52,7 +52,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Sentry rate limit exceeded",
-          message: "Sentry logs were not sent due to rate limiting. Check your Sentry quota and sample rates.",
+          message:
+            "Sentry logs were not sent due to rate limiting. Check your Sentry quota and sample rates.",
           retryAfter: retryAfter ? Number.parseInt(retryAfter, 10) : null,
         },
         {
@@ -65,7 +66,8 @@ export async function POST(request: NextRequest) {
     // Mirror status and headers (omit length-restricted headers)
     const responseHeaders = new Headers();
     upstreamResponse.headers.forEach((value, key) => {
-      if (key.toLowerCase() === "content-encoding" || key.toLowerCase() === "content-length") return;
+      if (key.toLowerCase() === "content-encoding" || key.toLowerCase() === "content-length")
+        return;
       responseHeaders.set(key, value);
     });
 

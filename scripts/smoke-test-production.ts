@@ -162,7 +162,9 @@ class ProductionSmokeTests {
         requiresAuth: true,
         validateResponse: (data: unknown) => {
           if (!data || typeof data !== "object") return false;
-          const checks = (data as { checks?: { datasetOk?: unknown; indexOk?: unknown; slugMapOk?: unknown } }).checks;
+          const checks = (
+            data as { checks?: { datasetOk?: unknown; indexOk?: unknown; slugMapOk?: unknown } }
+          ).checks;
           if (!checks || typeof checks !== "object") return false;
           const datasetOk = (checks as Record<string, unknown>).datasetOk === true;
           const indexOk = (checks as Record<string, unknown>).indexOk === true;
@@ -242,32 +244,41 @@ class ProductionSmokeTests {
     console.log("\n🔍 Testing Data Integrity...\n");
 
     // Check if bookmarks data is accessible and valid
-    const diagnosticsResult = await this.testEndpoint("Bookmarks Data Integrity", "/api/bookmarks/diagnostics", {
-      expectedStatus: this.authToken ? 200 : 401,
-      requiresAuth: true,
-      validateResponse: (data: unknown) => {
-        if (!data || typeof data !== "object") return false;
-        const obj = data as {
-          checks?: { datasetOk?: unknown; indexOk?: unknown; firstPageOk?: unknown; slugMapOk?: unknown };
-          environment?: { resolved?: unknown };
-        };
-        if (!obj.checks) return false;
+    const diagnosticsResult = await this.testEndpoint(
+      "Bookmarks Data Integrity",
+      "/api/bookmarks/diagnostics",
+      {
+        expectedStatus: this.authToken ? 200 : 401,
+        requiresAuth: true,
+        validateResponse: (data: unknown) => {
+          if (!data || typeof data !== "object") return false;
+          const obj = data as {
+            checks?: {
+              datasetOk?: unknown;
+              indexOk?: unknown;
+              firstPageOk?: unknown;
+              slugMapOk?: unknown;
+            };
+            environment?: { resolved?: unknown };
+          };
+          if (!obj.checks) return false;
 
-        // All critical data should be present
-        const allChecksPass =
-          obj.checks?.datasetOk === true &&
-          obj.checks?.indexOk === true &&
-          obj.checks?.firstPageOk === true &&
-          obj.checks?.slugMapOk === true;
+          // All critical data should be present
+          const allChecksPass =
+            obj.checks?.datasetOk === true &&
+            obj.checks?.indexOk === true &&
+            obj.checks?.firstPageOk === true &&
+            obj.checks?.slugMapOk === true;
 
-        // Environment should match production
-        const isCorrectEnv = this.baseUrl.includes("dev.")
-          ? obj.environment?.resolved === "development"
-          : obj.environment?.resolved === "production";
+          // Environment should match production
+          const isCorrectEnv = this.baseUrl.includes("dev.")
+            ? obj.environment?.resolved === "development"
+            : obj.environment?.resolved === "production";
 
-        return allChecksPass && isCorrectEnv;
+          return allChecksPass && isCorrectEnv;
+        },
       },
-    });
+    );
 
     this.results.push({
       ...diagnosticsResult,
@@ -297,18 +308,18 @@ class ProductionSmokeTests {
     console.log(`Timestamp: ${new Date().toISOString()}`);
     console.log("-".repeat(70));
 
-    const passed = this.results.filter(r => r.passed);
-    const failed = this.results.filter(r => !r.passed);
+    const passed = this.results.filter((r) => r.passed);
+    const failed = this.results.filter((r) => !r.passed);
 
     // Group results by status
     console.log("\n✅ PASSED TESTS:");
-    passed.forEach(test => {
+    passed.forEach((test) => {
       console.log(`  ✓ ${test.name} (${test.responseTime}ms)`);
     });
 
     if (failed.length > 0) {
       console.log("\n❌ FAILED TESTS:");
-      failed.forEach(test => {
+      failed.forEach((test) => {
         console.log(`  ✗ ${test.name}`);
         console.log(`    Endpoint: ${test.endpoint}`);
         if (test.statusCode) {
@@ -322,8 +333,9 @@ class ProductionSmokeTests {
     }
 
     // Performance summary
-    const avgResponseTime = this.results.reduce((sum, r) => sum + r.responseTime, 0) / this.results.length;
-    const maxResponseTime = Math.max(...this.results.map(r => r.responseTime));
+    const avgResponseTime =
+      this.results.reduce((sum, r) => sum + r.responseTime, 0) / this.results.length;
+    const maxResponseTime = Math.max(...this.results.map((r) => r.responseTime));
 
     console.log("\n📈 PERFORMANCE METRICS:");
     console.log(`  Average Response Time: ${Math.round(avgResponseTime)}ms`);
@@ -369,7 +381,9 @@ const authToken = args[1];
 
 if (!baseUrl) {
   console.error("Usage: bun scripts/smoke-test-production.ts <base-url> [auth-token]");
-  console.error("Example: bun scripts/smoke-test-production.ts https://williamcallahan.com your-secret-token");
+  console.error(
+    "Example: bun scripts/smoke-test-production.ts https://williamcallahan.com your-secret-token",
+  );
   process.exit(1);
 }
 
@@ -380,7 +394,7 @@ if (!baseUrl.startsWith("http")) {
 
 // Run smoke tests
 const tester = new ProductionSmokeTests(baseUrl, authToken);
-tester.run().catch(error => {
+tester.run().catch((error) => {
   console.error("Smoke tests failed:", error);
   process.exit(1);
 });

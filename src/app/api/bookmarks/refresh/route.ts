@@ -14,12 +14,12 @@ import {
   BOOKMARKS_S3_PATHS,
   BOOKMARKS_CACHE_DURATION,
 } from "@/lib/constants";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { logEnvironmentConfig } from "@/lib/config/environment";
 import { getClientIp } from "@/lib/utils/request-utils";
 import logger from "@/lib/utils/logger";
 import { type NextRequest, NextResponse } from "next/server";
-import type { BookmarksIndex } from "@/types/bookmark";
+import { bookmarksIndexSchema, type BookmarksIndex } from "@/types/bookmark";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { getMonotonicTime } from "@/lib/utils";
 
@@ -46,7 +46,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (token === cronRefreshSecret) {
       isCronJob = true;
       console.log("[API Trigger] ✅ Authenticated as external cron job via bearer token");
-      logger.info("[API Bookmarks Refresh] Authenticated as cron job via BOOKMARK_CRON_REFRESH_SECRET.");
+      logger.info(
+        "[API Bookmarks Refresh] Authenticated as cron job via BOOKMARK_CRON_REFRESH_SECRET.",
+      );
     }
   }
 
@@ -93,7 +95,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       if (memoryUsedMB > memoryLimitMB * 0.8) {
         console.log(`[API Trigger] ⚠️  High memory usage: ${memoryUsedMB}MB, deferring refresh`);
-        logger.warn(`[API Bookmarks Refresh] High memory usage: ${memoryUsedMB}MB, deferring refresh`);
+        logger.warn(
+          `[API Bookmarks Refresh] High memory usage: ${memoryUsedMB}MB, deferring refresh`,
+        );
         return NextResponse.json({
           status: "success",
           message: "Refresh deferred due to high memory usage",
@@ -109,7 +113,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // For cron jobs, always refresh. For others, check if refresh is needed.
     if (!isCronJob) {
       // Read current index from S3 to check timing
-      const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+      const index = await readJsonS3Optional<BookmarksIndex>(
+        BOOKMARKS_S3_PATHS.INDEX,
+        bookmarksIndexSchema,
+      );
 
       if (index?.lastFetchedAt) {
         const timeSinceLastFetch = getMonotonicTime() - new Date(index.lastFetchedAt).getTime();
@@ -123,7 +130,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             data: {
               refreshed: false,
               bookmarksCount: index?.count || 0,
-              lastFetchedAt: index?.lastFetchedAt ? new Date(index.lastFetchedAt).toISOString() : null,
+              lastFetchedAt: index?.lastFetchedAt
+                ? new Date(index.lastFetchedAt).toISOString()
+                : null,
               lastFetchedAtTs: index?.lastFetchedAt ?? null,
               changeDetected: index?.changeDetected ?? null,
             },
@@ -146,7 +155,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let previousCount = 0;
     let previousIndex: BookmarksIndex | null = null;
     try {
-      previousIndex = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+      previousIndex = await readJsonS3Optional<BookmarksIndex>(
+        BOOKMARKS_S3_PATHS.INDEX,
+        bookmarksIndexSchema,
+      );
       previousCount = previousIndex?.count || 0;
     } catch {
       // Index doesn't exist yet
@@ -170,12 +182,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     // Handle errors in background without blocking response
-    refreshPromise
-      .then(results => {
-        const bookmarkResult = results.find(r => r.operation === "bookmarks");
+    void refreshPromise
+      .then((results) => {
+        const bookmarkResult = results.find((r) => r.operation === "bookmarks");
         if (bookmarkResult?.success) {
           const newCount = bookmarkResult.itemsProcessed || 0;
-          console.log(`[API Trigger] ✅ Refresh completed: ${newCount} bookmarks (was ${previousCount})`);
+          console.log(
+            `[API Trigger] ✅ Refresh completed: ${newCount} bookmarks (was ${previousCount})`,
+          );
           logger.info(`[API Bookmarks Refresh] Background refresh completed successfully`);
 
           // Invalidate Next.js cache to serve fresh data
@@ -194,14 +208,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           console.log(`[API Trigger] ❌ Refresh failed: ${bookmarkResult?.error}`);
           logger.error(`[API Bookmarks Refresh] Background refresh failed:`, bookmarkResult?.error);
         }
+        return undefined;
       })
-      .catch(error => {
+      .catch((error) => {
         console.log(`[API Trigger] ❌ Refresh error: ${error}`);
         logger.error(`[API Bookmarks Refresh] Background refresh error:`, error);
         // Check if memory related
         if ((error as Error).message?.includes("memory")) {
-          console.log(`[API Trigger] ⚠️  Memory exhaustion detected - container restart may be needed`);
-          logger.error(`[API Bookmarks Refresh] Memory exhaustion detected. Container restart may be needed.`);
+          console.log(
+            `[API Trigger] ⚠️  Memory exhaustion detected - container restart may be needed`,
+          );
+          logger.error(
+            `[API Bookmarks Refresh] Memory exhaustion detected. Container restart may be needed.`,
+          );
         }
       })
       .finally(() => {
@@ -222,7 +241,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         refreshStarted: true,
         previousCount,
         changeDetected: previousIndex?.changeDetected ?? null,
-        lastFetchedAt: previousIndex?.lastFetchedAt ? new Date(previousIndex.lastFetchedAt).toISOString() : null,
+        lastFetchedAt: previousIndex?.lastFetchedAt
+          ? new Date(previousIndex.lastFetchedAt).toISOString()
+          : null,
         lastFetchedAtTs: previousIndex?.lastFetchedAt ?? null,
       },
     });
@@ -245,7 +266,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 export async function GET(): Promise<NextResponse> {
   try {
     // Read from S3 index
-    const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+    const index = await readJsonS3Optional<BookmarksIndex>(
+      BOOKMARKS_S3_PATHS.INDEX,
+      bookmarksIndexSchema,
+    );
 
     // Check if refresh is needed based on timing
     let needsRefresh = true;
@@ -261,23 +285,25 @@ export async function GET(): Promise<NextResponse> {
         needsRefresh,
         bookmarksCount: index?.count || 0,
         lastFetchedAt: index?.lastFetchedAt ? new Date(index.lastFetchedAt).toISOString() : null,
-        lastAttemptedAt: index?.lastAttemptedAt ? new Date(index.lastAttemptedAt).toISOString() : null,
+        lastAttemptedAt: index?.lastAttemptedAt
+          ? new Date(index.lastAttemptedAt).toISOString()
+          : null,
         lastFetchedAtTs: index?.lastFetchedAt ?? null,
         lastAttemptedAtTs: index?.lastAttemptedAt ?? null,
         changeDetected: index?.changeDetected ?? null,
       },
     });
-  } catch {
-    // No bookmarks yet
-    return NextResponse.json({
-      status: "success",
-      data: {
-        needsRefresh: true,
-        bookmarksCount: 0,
-        lastFetchedAt: null,
-        lastAttemptedAt: null,
-        changeDetected: null,
+  } catch (error) {
+    // readJsonS3Optional returns null for 404, so this catch only handles real errors
+    // (network failures, permissions, schema validation) - do not mask as success
+    logger.error("Failed to check bookmark refresh status:", error);
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "Failed to check bookmark refresh status",
+        error: error instanceof Error ? error.message : String(error),
       },
-    });
+      { status: 500 },
+    );
   }
 }

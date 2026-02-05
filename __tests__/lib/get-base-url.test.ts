@@ -1,7 +1,7 @@
 /**
  * @fileoverview Tests for getBaseUrl utility function that determines the application's base URL
  * @module __tests__/lib/getBaseUrl.test
- * @jest-environment node
+ * @vitest-environment node
  */
 
 /**

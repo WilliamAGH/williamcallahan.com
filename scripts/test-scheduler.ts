@@ -50,11 +50,12 @@ console.log("\n✅ All required environment variables are set.\n");
 // Step 2: Test S3 connectivity
 console.log("2. S3 CONNECTIVITY TEST:");
 try {
-  const { readJsonS3 } = await import("@/lib/s3-utils");
+  const { readJsonS3Optional } = await import("@/lib/s3/json");
   const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
+  const { bookmarksIndexSchema } = await import("@/types/bookmark");
 
   console.log("  Testing S3 read access...");
-  const index = await readJsonS3(BOOKMARKS_S3_PATHS.INDEX);
+  const index = await readJsonS3Optional(BOOKMARKS_S3_PATHS.INDEX, bookmarksIndexSchema);
   if (index) {
     console.log(`  ✅ S3 read successful. Found bookmarks index.`);
   } else {
@@ -81,7 +82,9 @@ try {
 
   if (response.ok) {
     const data = await response.json();
-    console.log(`  ✅ API connection successful. Response has ${data.bookmarks?.length || 0} bookmarks.`);
+    console.log(
+      `  ✅ API connection successful. Response has ${data.bookmarks?.length || 0} bookmarks.`,
+    );
   } else {
     console.log(`  ❌ API returned error: ${response.status} ${response.statusText}`);
     process.exit(1);
@@ -104,12 +107,12 @@ try {
     stdio: "inherit",
   });
 
-  updateProcess.on("error", err => {
+  updateProcess.on("error", (err) => {
     console.error(`  ❌ Failed to start update process: ${err}`);
     process.exit(1);
   });
 
-  updateProcess.on("close", code => {
+  updateProcess.on("close", (code) => {
     if (code === 0) {
       console.log("\n✅ SCHEDULER TEST SUCCESSFUL!");
       console.log("   The scheduler should work correctly with these settings.");

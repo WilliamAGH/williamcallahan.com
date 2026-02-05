@@ -27,7 +27,10 @@ const experienceBaseSchema = z.object({
   startDate: z.string().datetime({ message: "Start date must be a valid ISO datetime string" }),
 
   /** ISO date string for when the position ended (undefined for current positions) */
-  endDate: z.string().datetime({ message: "End date must be a valid ISO datetime string" }).optional(),
+  endDate: z
+    .string()
+    .datetime({ message: "End date must be a valid ISO datetime string" })
+    .optional(),
 
   /** Job title and description */
   role: z.string().min(1, "Role is required"),
@@ -64,7 +67,7 @@ const experienceBaseSchema = z.object({
  * Schema for experience entry with structured dates and validation
  */
 export const experienceSchema = experienceBaseSchema.refine(
-  data => {
+  (data) => {
     // Ensure endDate is after startDate if both are provided
     if (data.endDate && data.startDate) {
       return new Date(data.endDate) >= new Date(data.startDate);

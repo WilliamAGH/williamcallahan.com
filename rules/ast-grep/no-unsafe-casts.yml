@@ -1,0 +1,44 @@
+# [LNT1] No Unsafe Casts or Suppressions
+#
+# Production code must not use 'any' or 'as unknown as T' casts.
+# External data (JSON.parse, .json()) must use Zod validation, not type casts.
+# Fix types upstream rather than silencing errors with unsafe casts.
+#
+# Exclusions:
+# - Test files (mocking infrastructure may require casts)
+# - Type definition files (.d.ts)
+# - Stream type casts (Node/Web stream incompatibilities are platform-level)
+
+id: no-unsafe-casts
+language: typescript
+severity: error
+message: "[LNT1] Unsafe cast. Fix: use Zod schema.safeParse() for external data, fix types upstream for internal code"
+
+ignores:
+  - "**/__tests__/**"
+  - "**/__mocks__/**"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"
+  - "**/*.d.ts"
+  # Stream type conversions are platform-level incompatibilities
+  - "**/image-streaming.ts"
+  - "**/logos-batch.ts"
+  # Asset route has AWS SDK stream type issues
+  - "**/api/assets/**"
+
+rule:
+  any:
+    # JSON.parse with type assertion - use Zod instead
+    - pattern: "JSON.parse($DATA) as $TYPE"
+    # Response.json() with type assertion - use Zod instead
+    - pattern: "$_.json() as $TYPE"
+    # await response.json() as Type
+    - pattern: "await $_.json() as $TYPE"
+
+files:
+  - "src/**/*.ts"
+  - "src/**/*.tsx"
+  - "app/**/*.ts"
+  - "app/**/*.tsx"
+  - "lib/**/*.ts"

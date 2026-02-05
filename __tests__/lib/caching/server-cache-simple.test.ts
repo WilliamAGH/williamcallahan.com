@@ -1,9 +1,4 @@
-// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
-// First, mock the modules before requiring our target module
-jest.mock("@/lib/utils/ensure-server-only", () => ({
-  assertServerOnly: jest.fn(),
-}));
-
+// Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 // Now import the server cache module directly
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { LOGO_CACHE_DURATION } from "@/lib/constants";
@@ -39,9 +34,8 @@ describe("ServerCache Tests", () => {
       expect(typeof ServerCacheInstance.clearLogoFetch).toBe("function");
       expect(typeof ServerCacheInstance.clearAllLogoFetches).toBe("function");
 
-      // Test basic bookmarks methods
-      expect(typeof ServerCacheInstance.getBookmarks).toBe("function");
-      expect(typeof ServerCacheInstance.setBookmarks).toBe("function");
+      // Test basic bookmarks methods (only metadata tracking methods exist - data is in S3)
+      // Note: getBookmarks/setBookmarks were removed when bookmarks moved to S3 persistence
       expect(typeof ServerCacheInstance.clearBookmarks).toBe("function");
       expect(typeof ServerCacheInstance.shouldRefreshBookmarks).toBe("function");
     });

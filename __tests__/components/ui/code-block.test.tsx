@@ -1,10 +1,9 @@
-import { jest, describe, beforeEach, it, expect } from "@jest/globals";
-import "@testing-library/jest-dom";
+import { vi } from "vitest";
 
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 
 // Mock useWindowSize hook before other imports
-jest.mock("@/lib/hooks/use-window-size.client", () => ({
+vi.mock("@/lib/hooks/use-window-size.client", () => ({
   useWindowSize: () => ({ width: 1280, height: 800 }),
 }));
 
@@ -16,7 +15,7 @@ import { CodeBlock } from "@/components/ui/code-block/code-block.client";
 describe("CodeBlock", () => {
   beforeEach(() => {
     // Clear all mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("Basic Rendering", () => {
@@ -73,12 +72,18 @@ const x = 1;
 const y = 2;`}
         </CodeBlock>,
       );
-      expect(screen.getByTestId("copy-button")).toHaveAttribute("data-content", "const x = 1;\nconst y = 2;");
+      expect(screen.getByTestId("copy-button")).toHaveAttribute(
+        "data-content",
+        "const x = 1;\nconst y = 2;",
+      );
     });
 
     it("handles array of children", () => {
       render(<CodeBlock>{["const x = 1;", <span key="span">const y = 2;</span>]}</CodeBlock>);
-      expect(screen.getByTestId("copy-button")).toHaveAttribute("data-content", "const x = 1;const y = 2;");
+      expect(screen.getByTestId("copy-button")).toHaveAttribute(
+        "data-content",
+        "const x = 1;const y = 2;",
+      );
     });
 
     it("handles null and undefined children", () => {
@@ -136,7 +141,10 @@ const y = 2;`}
           <div>{"first line\nsecond line"}</div>
         </CodeBlock>,
       );
-      expect(screen.getByTestId("copy-button")).toHaveAttribute("data-content", "first line\nsecond line");
+      expect(screen.getByTestId("copy-button")).toHaveAttribute(
+        "data-content",
+        "first line\nsecond line",
+      );
     });
   });
 

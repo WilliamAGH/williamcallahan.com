@@ -1,4 +1,4 @@
-console.log("[TEST FILE] blog.test.ts starting");
+import type { MockedFunction } from "vitest";
 
 /**
  * Blog Module Tests
@@ -21,14 +21,21 @@ console.log("[TEST FILE] blog.test.ts starting");
  */
 
 import { getAllPosts, getPostBySlug } from "@/lib/blog";
-// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
-// Explicitly mock assertServerOnly for this test file
-jest.mock("@/lib/utils/ensure-server-only", () => ({
-  assertServerOnly: jest.fn(() => undefined),
+import { cacheContextGuards } from "@/lib/cache";
+import { GET as getPostsApi } from "@/app/api/posts/route";
+// Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
+
+vi.mock("@/lib/cache", () => ({
+  USE_NEXTJS_CACHE: true,
+  cacheContextGuards: {
+    cacheLife: vi.fn(),
+    cacheTag: vi.fn(),
+    revalidateTag: vi.fn(),
+  },
 }));
 
 // Mock static posts using mock.module
-jest.mock("@/data/blog/posts", () => ({
+vi.mock("@/data/blog/posts", () => ({
   posts: [
     {
       id: "test-post-1",
@@ -93,19 +100,27 @@ const mockMdxPosts = [
   },
 ];
 
-jest.mock("@/lib/blog/mdx", () => ({
-  getAllMDXPostsCached: jest.fn().mockResolvedValue([]),
-  getMDXPost: jest.fn().mockImplementation((slug: string) => {
-    const post = mockMdxPosts.find(p => p.slug === slug);
+vi.mock("@/lib/blog/mdx", () => ({
+  getAllMDXPostsCached: vi.fn().mockResolvedValue([]),
+  getMDXPost: vi.fn().mockImplementation((slug: string) => {
+    const post = mockMdxPosts.find((p) => p.slug === slug);
     return Promise.resolve(post || null);
   }),
-  getMDXPostCached: jest.fn().mockImplementation((slug: string) => {
-    const post = mockMdxPosts.find(p => p.slug === slug);
+  getMDXPostCached: vi.fn().mockImplementation((slug: string) => {
+    const post = mockMdxPosts.find((p) => p.slug === slug);
     return Promise.resolve(post || null);
   }),
 }));
 
 describe("Blog Module", () => {
+  const cacheLifeSpy = cacheContextGuards.cacheLife as MockedFunction<
+    typeof cacheContextGuards.cacheLife
+  >;
+
+  beforeEach(() => {
+    cacheLifeSpy.mockClear();
+  });
+
   describe("getAllPosts", () => {
     /**
      * Test: Post Retrieval and Sorting
@@ -131,7 +146,7 @@ describe("Blog Module", () => {
       }
 
       // Verify sorting
-      const dates = posts.map(post => new Date(post.publishedAt).getTime());
+      const dates = posts.map((post) => new Date(post.publishedAt).getTime());
       expect(dates).toEqual([...dates].toSorted((a, b) => b - a));
     });
   });
@@ -159,6 +174,14 @@ describe("Blog Module", () => {
     it("returns null for non-existent slug", async () => {
       const post = await getPostBySlug("non-existent");
       expect(post).toBeNull();
+    });
+  });
+
+  describe("Posts API caching", () => {
+    it("applies cacheLife when serving posts", async () => {
+      const response = await getPostsApi();
+      expect(response.status).toBe(200);
+      expect(cacheLifeSpy).toHaveBeenCalledWith("PostsAPI", "hours");
     });
   });
 });

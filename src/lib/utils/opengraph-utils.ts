@@ -210,7 +210,7 @@ export function shouldRetryUrl(error: Error): boolean {
     "unsafe",
     "content too large",
   ];
-  return !nonRetryableErrors.some(errText => msg.includes(errText));
+  return !nonRetryableErrors.some((errText) => msg.includes(errText));
 }
 
 /**
@@ -243,7 +243,11 @@ export function isValidImageUrl(url: string | null | undefined): url is string {
  * @param extension - File extension (unused, kept for API compatibility)
  * @returns Constructed asset URL for proxy access
  */
-export function constructKarakeepAssetUrl(assetId: string, baseUrl?: string, extension?: string): string {
+export function constructKarakeepAssetUrl(
+  assetId: string,
+  baseUrl?: string,
+  extension?: string,
+): string {
   // Mark unused parameters explicitly (kept for API compatibility)
   void baseUrl;
   void extension;

@@ -94,7 +94,8 @@ async function validateOpenGraph(url: string): Promise<{
 
     // Parse OpenGraph tags from HTML
     const ogTagRegex = /<meta\s+property=["']og:([^"']+)["']\s+content=["']([^"']*)["'][^>]*>/gi;
-    const twitterTagRegex = /<meta\s+name=["']twitter:([^"']+)["']\s+content=["']([^"']*)["'][^>]*>/gi;
+    const twitterTagRegex =
+      /<meta\s+name=["']twitter:([^"']+)["']\s+content=["']([^"']*)["'][^>]*>/gi;
 
     let match: RegExpExecArray | null;
 
@@ -128,13 +129,17 @@ async function validateOpenGraph(url: string): Promise<{
     // Validate content quality
     if (result.ogTags["og:title"]) {
       if (result.ogTags["og:title"].length > 60) {
-        result.warnings.push(`og:title is ${result.ogTags["og:title"].length} chars (recommended: ≤60)`);
+        result.warnings.push(
+          `og:title is ${result.ogTags["og:title"].length} chars (recommended: ≤60)`,
+        );
       }
     }
 
     if (result.ogTags["og:description"]) {
       if (result.ogTags["og:description"].length > 160) {
-        result.warnings.push(`og:description is ${result.ogTags["og:description"].length} chars (recommended: ≤160)`);
+        result.warnings.push(
+          `og:description is ${result.ogTags["og:description"].length} chars (recommended: ≤160)`,
+        );
       }
     }
 
@@ -229,7 +234,9 @@ async function clearSocialMediaCaches(url: string): Promise<{
       console.log(`⚠️  Facebook returned ${fbResponse.status} - cache may not have cleared`);
     }
   } catch (error) {
-    console.log(`⚠️  Facebook cache clearing failed: ${error instanceof Error ? error.message : String(error)}`);
+    console.log(
+      `⚠️  Facebook cache clearing failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   // Twitter Card Validator
@@ -253,7 +260,9 @@ async function clearSocialMediaCaches(url: string): Promise<{
       console.log(`⚠️  Twitter returned ${twitterResponse.status} - cache may not have cleared`);
     }
   } catch (error) {
-    console.log(`⚠️  Twitter cache clearing failed: ${error instanceof Error ? error.message : String(error)}`);
+    console.log(
+      `⚠️  Twitter cache clearing failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   // LinkedIn Post Inspector
@@ -266,7 +275,9 @@ async function clearSocialMediaCaches(url: string): Promise<{
     console.log(`✅ LinkedIn cache refresh available`);
     console.log(`   Manual verification: ${linkedinInspectorUrl}`);
   } catch (error) {
-    console.log(`⚠️  LinkedIn cache clearing failed: ${error instanceof Error ? error.message : String(error)}`);
+    console.log(
+      `⚠️  LinkedIn cache clearing failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   return results;
@@ -356,7 +367,7 @@ async function main() {
 }
 
 // Execute the script with proper error handling
-main().catch(err => {
+main().catch((err) => {
   console.error("❌ Script execution failed:", err);
   process.exit(1);
 });

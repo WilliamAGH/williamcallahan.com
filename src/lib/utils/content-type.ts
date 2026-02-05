@@ -8,6 +8,16 @@
 import { normalizeString } from "@/lib/utils";
 
 /**
+ * Default content type for images when type cannot be detected
+ */
+export const DEFAULT_IMAGE_CONTENT_TYPE = "image/png" as const;
+
+/**
+ * Default content type for binary data when type is unknown
+ */
+export const DEFAULT_BINARY_CONTENT_TYPE = "application/octet-stream" as const;
+
+/**
  * Image MIME type mapping
  */
 export const IMAGE_MIME_TYPES: Record<string, string> = {
@@ -72,11 +82,27 @@ export function detectImageContentType(buffer: Buffer): string {
       const riff = buffer.toString("ascii", 0, 4);
       const webp = buffer.toString("ascii", 8, 12);
       if (riff === "RIFF" && webp === "WEBP") return "image/webp";
+
+      // AVIF signature: ....ftypavif or ....ftypavis (sequence)
+      // AVIF files start with ftyp box at offset 4, containing "avif" or "avis" brand
+      const ftyp = buffer.toString("ascii", 4, 8);
+      if (ftyp === "ftyp") {
+        const brand = buffer.toString("ascii", 8, 12);
+        if (brand === "avif" || brand === "avis" || brand === "mif1" || brand === "miaf") {
+          return "image/avif";
+        }
+      }
     }
+
+    // BMP signature: BM
+    if (header.startsWith("424D")) return "image/bmp";
+
+    // ICO signature: 00 00 01 00
+    if (header.startsWith("00000100")) return "image/x-icon";
   }
 
   // Default to PNG if unable to detect
-  return "image/png";
+  return DEFAULT_IMAGE_CONTENT_TYPE;
 }
 
 /**
@@ -96,7 +122,7 @@ export function inferContentTypeFromUrl(url: string): string {
     // Ignore URL parsing errors
   }
 
-  return "image/png"; // Default
+  return DEFAULT_IMAGE_CONTENT_TYPE; // Default
 }
 
 /**
@@ -129,7 +155,9 @@ export function getExtensionFromContentType(contentType: string | null): string 
  */
 export function getContentTypeFromExtension(extension: string): string {
   // Normalize extension (remove dot if present)
-  const ext = extension.startsWith(".") ? extension.slice(1).toLowerCase() : extension.toLowerCase();
+  const ext = extension.startsWith(".")
+    ? extension.slice(1).toLowerCase()
+    : extension.toLowerCase();
 
   // Use IMAGE_MIME_TYPES mapping
   return IMAGE_MIME_TYPES[ext] || "application/octet-stream";
@@ -143,6 +171,15 @@ export function isImageContentType(contentType: string): boolean {
 }
 
 /**
+ * Check if content type is text-based (including JSON)
+ * Used by S3 operations to determine if content should be returned as string vs Buffer
+ */
+export function isTextContentType(contentType: string): boolean {
+  const lower = contentType.toLowerCase();
+  return lower.startsWith("text/") || lower.includes("application/json");
+}
+
+/**
  * Normalize content type (remove parameters, lowercase)
  */
 export function normalizeContentType(contentType: string): string {
@@ -153,7 +190,9 @@ export function normalizeContentType(contentType: string): string {
  * Read-only array of supported image file extensions (lower-case, no dot)
  * Derived automatically from IMAGE_MIME_TYPES so there is a single source of truth.
  */
-export const IMAGE_EXTENSIONS: readonly string[] = Object.keys(IMAGE_MIME_TYPES) as readonly string[];
+export const IMAGE_EXTENSIONS: readonly string[] = Object.keys(
+  IMAGE_MIME_TYPES,
+) as readonly string[];
 
 /**
  * Guess the MIME type for an image based on a response header value and/or the URL path.
@@ -171,8 +210,10 @@ export function guessImageContentType(url: string, header?: string | null): stri
   if (lowerUrl.endsWith(".jpg") || lowerUrl.endsWith(".jpeg")) return "image/jpeg";
   if (lowerUrl.endsWith(".gif")) return "image/gif";
   if (lowerUrl.endsWith(".webp")) return "image/webp";
+  if (lowerUrl.endsWith(".avif")) return "image/avif";
   if (lowerUrl.endsWith(".svg")) return "image/svg+xml";
   if (lowerUrl.endsWith(".ico")) return "image/x-icon";
+  if (lowerUrl.endsWith(".bmp")) return "image/bmp";
 
-  return "image/png"; // safe default
+  return DEFAULT_IMAGE_CONTENT_TYPE; // safe default
 }

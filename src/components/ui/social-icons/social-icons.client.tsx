@@ -32,13 +32,16 @@ function useHasMounted() {
   return hasMounted;
 }
 
-export function SocialIcons({ className = "", showXOnly = false, excludePlatforms = [] }: SocialIconsProps) {
-  const hasMounted = useHasMounted();
+const PLATFORM_SLUGS = ["github", "x", "discord", "linkedin", "bluesky"] as const;
+const isPlatformSlug = (value: string): value is (typeof PLATFORM_SLUGS)[number] =>
+  (PLATFORM_SLUGS as readonly string[]).includes(value);
 
-  // Local type guard to keep filtering type-safe without using `any`
-  const PLATFORM_SLUGS = ["github", "x", "discord", "linkedin", "bluesky"] as const;
-  const isPlatformSlug = (value: string): value is (typeof PLATFORM_SLUGS)[number] =>
-    (PLATFORM_SLUGS as readonly string[]).includes(value);
+export function SocialIcons({
+  className = "",
+  showXOnly = false,
+  excludePlatforms = [],
+}: SocialIconsProps) {
+  const hasMounted = useHasMounted();
 
   // Icon button styling
   const iconButtonClasses =
@@ -46,9 +49,13 @@ export function SocialIcons({ className = "", showXOnly = false, excludePlatform
 
   // Compute links to render based on props
   const linksToShow = React.useMemo(() => {
-    const base = showXOnly ? socialLinks.filter(link => link.label === "X (Twitter)") : socialLinks;
+    const base = showXOnly
+      ? socialLinks.filter((link) => link.label === "X (Twitter)")
+      : socialLinks;
     if (!excludePlatforms.length) return base;
-    return base.filter(link => !(isPlatformSlug(link.platform) && excludePlatforms.includes(link.platform)));
+    return base.filter(
+      (link) => !(isPlatformSlug(link.platform) && excludePlatforms.includes(link.platform)),
+    );
   }, [showXOnly, excludePlatforms]);
 
   // During server rendering and before hydration completes on client,
@@ -63,7 +70,7 @@ export function SocialIcons({ className = "", showXOnly = false, excludePlatform
 
   return (
     <div className={`flex items-center justify-center ${spacingClass} ${className}`}>
-      {linksToShow.map(link => (
+      {linksToShow.map((link) => (
         <ErrorBoundary key={link.href} silent>
           <Link
             href={link.href}

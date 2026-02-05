@@ -9,9 +9,15 @@ import { experiences } from "@/data/experience";
 import { education, certifications } from "@/data/education";
 import type { SearchResult } from "@/types/search";
 
+vi.mock("@/lib/s3/json", () => ({
+  readJsonS3Optional: vi.fn().mockResolvedValue(null),
+  readJsonS3: vi.fn().mockResolvedValue(null),
+  writeJsonS3: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Mock console methods to check for duplicate warnings
 const originalWarn = console.warn;
-const warnSpy = jest.fn();
+const warnSpy = vi.fn();
 
 beforeEach(() => {
   console.warn = warnSpy;
@@ -26,18 +32,46 @@ afterEach(() => {
 const duplicateTestResults: SearchResult[] = [
   { id: "1", type: "post", title: "Test 1", description: "Description 1", url: "/test1", score: 1 },
   { id: "1", type: "post", title: "Test 1", description: "Description 1", url: "/test1", score: 1 }, // duplicate
-  { id: "2", type: "post", title: "Test 2", description: "Description 2", url: "/test2", score: 0.9 },
+  {
+    id: "2",
+    type: "post",
+    title: "Test 2",
+    description: "Description 2",
+    url: "/test2",
+    score: 0.9,
+  },
 ];
 
 const edgeCaseResults: SearchResult[] = [
   { id: "", type: "post", title: "Empty ID", description: "Description", url: "/empty", score: 1 },
-  { id: "null", type: "post", title: "Null-like ID", description: "Description", url: "/null", score: 0.8 },
+  {
+    id: "null",
+    type: "post",
+    title: "Null-like ID",
+    description: "Description",
+    url: "/null",
+    score: 0.8,
+  },
 ];
 
 const searchResults: SearchResult[] = [
   { id: "1", type: "post", title: "Post 1", description: "Description 1", url: "/post1", score: 1 },
-  { id: "2", type: "project", title: "Project 2", description: "Description 2", url: "/project2", score: 0.9 },
-  { id: "3", type: "post", title: "Post 3", description: "Description 3", url: "/post3", score: 0.8 },
+  {
+    id: "2",
+    type: "project",
+    title: "Project 2",
+    description: "Description 2",
+    url: "/project2",
+    score: 0.9,
+  },
+  {
+    id: "3",
+    type: "post",
+    title: "Post 3",
+    description: "Description 3",
+    url: "/post3",
+    score: 0.8,
+  },
 ];
 
 // Simple deduplication function for testing
@@ -61,7 +95,9 @@ describe("Search Deduplication", () => {
       await searchBlogPostsServerSide("example");
 
       // Should not warn about duplicates if none exist
-      const duplicateWarnings = warnSpy.mock.calls.filter(call => call[0]?.includes("duplicate ID"));
+      const duplicateWarnings = warnSpy.mock.calls.filter((call) =>
+        call[0]?.includes("duplicate ID"),
+      );
 
       // If there are duplicate warnings, that's what we're testing for
       if (duplicateWarnings.length > 0) {
@@ -85,7 +121,7 @@ describe("Search Deduplication", () => {
       const results = await searchInvestments("");
 
       // Check for any duplicate warnings
-      warnSpy.mock.calls.filter(call => call[0]?.includes("duplicate ID"));
+      warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
 
       // The function should work regardless of duplicates
       expect(Array.isArray(results)).toBe(true);
@@ -106,7 +142,7 @@ describe("Search Deduplication", () => {
       const results = await searchExperience("");
 
       // Check for any duplicate warnings
-      warnSpy.mock.calls.filter(call => call[0]?.includes("duplicate ID"));
+      warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
 
       // The function should work regardless of duplicates
       expect(Array.isArray(results)).toBe(true);
@@ -127,7 +163,7 @@ describe("Search Deduplication", () => {
       const results = await searchEducation("");
 
       // Check for any duplicate warnings
-      warnSpy.mock.calls.filter(call => call[0]?.includes("duplicate ID"));
+      warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
 
       // The function should work regardless of duplicates
       expect(Array.isArray(results)).toBe(true);
@@ -161,7 +197,9 @@ describe("Search Deduplication", () => {
       await searchEducation("test");
 
       // Check if any deduplication happened
-      const deduplicationLogs = warnSpy.mock.calls.filter(call => call[0]?.includes("Deduplicated"));
+      const deduplicationLogs = warnSpy.mock.calls.filter((call) =>
+        call[0]?.includes("Deduplicated"),
+      );
 
       // If deduplication occurred, verify the log format
       for (const log of deduplicationLogs) {
@@ -173,7 +211,7 @@ describe("Search Deduplication", () => {
   describe("Deduplication Logic", () => {
     it("should handle potential duplicates with console warnings", () => {
       // Capture console warnings
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       try {
         const deduplicatedResults = deduplicateSearchResults(duplicateTestResults);
@@ -193,7 +231,7 @@ describe("Search Deduplication", () => {
 
     it("should handle edge cases gracefully", () => {
       // Capture any console output
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       try {
         const deduplicatedResults = deduplicateSearchResults(edgeCaseResults);
@@ -209,7 +247,7 @@ describe("Search Deduplication", () => {
 
     it("should preserve result structure and required fields", () => {
       // Capture any console output
-      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       try {
         const deduplicatedResults = deduplicateSearchResults(searchResults);

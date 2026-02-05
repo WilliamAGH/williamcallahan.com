@@ -7,10 +7,10 @@
  * see the relevant schema files in `lib/schemas/`.
  */
 
-export interface S3File<T = unknown> {
+export interface S3File {
   key: string;
-  /** Parse the object body as JSON. */
-  json: <U = T>() => Promise<U | null>;
+  /** Parse the object body as JSON. Callers must validate with Zod at the boundary. */
+  json: () => Promise<unknown>;
   /** Read the object body as text. */
   text: () => Promise<string>;
   /** Read the object body as an ArrayBuffer. */
@@ -20,7 +20,7 @@ export interface S3File<T = unknown> {
   /** Delete the object. */
   delete: () => Promise<void>;
   /** Return a slice of the object (passthrough). */
-  slice: (start?: number, end?: number) => S3File<T>;
+  slice: (start?: number, end?: number) => S3File;
   /** Get a writer to stream data for upload. */
   writer: () => {
     /** Write a chunk (string or binary view) */
@@ -30,11 +30,32 @@ export interface S3File<T = unknown> {
   };
 }
 
+export interface S3ErrorContext {
+  operation: string;
+  key?: string;
+  code?: string;
+  httpStatus?: number;
+}
+
+export interface S3ObjectMetadata {
+  eTag?: string;
+  lastModified?: Date;
+  contentLength?: number;
+  contentType?: string;
+}
+
+export interface S3ObjectData extends S3ObjectMetadata {
+  body: Buffer;
+}
+
 export interface S3ClientWrapper {
   /** Get a file handle by key. */
   file: (key: string) => S3File;
   /** List objects by prefix. */
-  list: (prefix?: string, options?: unknown) => Promise<{ contents: { key: string }[]; isTruncated: boolean }>;
+  list: (
+    prefix?: string,
+    options?: unknown,
+  ) => Promise<{ contents: { key: string }[]; isTruncated: boolean }>;
 }
 
 export interface StreamToS3Options {

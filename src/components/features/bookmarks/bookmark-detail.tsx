@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useEffect, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
-import type { UnifiedBookmark, BookmarkTag } from "@/types";
+import type { BookmarkTag } from "@/types";
+import type { BookmarkDetailProps } from "@/types/bookmark-ai-analysis";
 import {
   Calendar,
   Clock,
@@ -38,16 +39,11 @@ function toDisplayDate(date?: string | Date | number | null): string | null {
   return text === "Invalid Date" ? null : text;
 }
 
-export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
-  const [mounted, setMounted] = useState(false);
+export function BookmarkDetail({ bookmark, cachedAnalysis }: BookmarkDetailProps) {
   const { scrollY } = useScroll();
 
   // Subtle parallax for image
   const imageY = useTransform(scrollY, [0, 300], [0, -20]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Extract domain for display with case-insensitive scheme detection
   const domain = useMemo(() => getDisplayHostname(bookmark.url), [bookmark.url]);
@@ -75,8 +71,6 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
   const featuredImage = selectBestImage(bookmark, {
     includeScreenshots: true,
   });
-
-  if (!mounted) return null;
 
   return (
     <BookmarksWindow windowTitle="~/bookmarks" windowId={`bookmark-detail-${bookmark.id}`}>
@@ -173,7 +167,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
               {/* Featured Image - Full width at top of content */}
               {featuredImage && (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
                   className="mb-6 sm:mb-8"
@@ -187,7 +181,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                         <OptimizedCardImage
                           src={featuredImage}
                           alt={`Preview of ${bookmark.title}`}
-                          priority
+                          preload
                           className="!transition-none"
                         />
                         {/* Hover overlay */}
@@ -216,7 +210,8 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                           )}
                           {bookmark.content?.publisher && (
                             <span className="text-gray-500 dark:text-gray-400">
-                              {bookmark.content?.author ? " · " : ""}via {bookmark.content.publisher}
+                              {bookmark.content?.author ? " · " : ""}via{" "}
+                              {bookmark.content.publisher}
                             </span>
                           )}
                         </p>
@@ -229,7 +224,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
               {/* Summary Box - Uses AI-generated summary with proper formatting, falls back to description */}
               {(bookmark.summary || bookmark.description) && (
                 <motion.section
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1, duration: 0.5 }}
                   className="p-4 sm:p-5 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700"
@@ -252,7 +247,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
               {/* Personal Notes */}
               {bookmark.note && (
                 <motion.section
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3, duration: 0.5 }}
                   className="p-4 sm:p-5 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800"
@@ -281,11 +276,14 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
 
               {/* AI Analysis - Full width in main content for rich output */}
               <motion.section
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.5 }}
               >
-                <BookmarkAiAnalysis bookmark={bookmark} />
+                <BookmarkAiAnalysis
+                  bookmark={bookmark}
+                  initialAnalysis={cachedAnalysis ?? undefined}
+                />
               </motion.section>
             </div>
 
@@ -294,7 +292,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
               {/* Tags */}
               {bookmark.tags && bookmark.tags.length > 0 && (
                 <motion.section
-                  initial={{ opacity: 0, x: 20 }}
+                  initial={false}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4, duration: 0.5 }}
                 >
@@ -302,7 +300,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                     Topics
                   </h2>
                   <div className="flex flex-wrap gap-2">
-                    {bookmark.tags.map(tag => {
+                    {bookmark.tags.map((tag) => {
                       const isString = typeof tag === "string";
                       const tagName = isString ? tag : (tag as BookmarkTag).name;
                       const tagSlug = isString
@@ -326,7 +324,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
               {/* Metadata Card - Only show if there's a valid date */}
               {updatedDate && (
                 <motion.section
-                  initial={{ opacity: 0, x: 20 }}
+                  initial={false}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.5, duration: 0.5 }}
                   className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2 sm:space-y-3"
@@ -337,7 +335,10 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
                   </h2>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500 dark:text-gray-400">Updated</span>
-                    <span className="font-medium text-gray-900 dark:text-gray-100" suppressHydrationWarning>
+                    <span
+                      className="font-medium text-gray-900 dark:text-gray-100"
+                      suppressHydrationWarning
+                    >
                       {updatedDate}
                     </span>
                   </div>
@@ -346,7 +347,7 @@ export function BookmarkDetail({ bookmark }: { bookmark: UnifiedBookmark }) {
 
               {/* Action Buttons */}
               <motion.div
-                initial={{ opacity: 0, x: 20 }}
+                initial={false}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.6, duration: 0.5 }}
                 className="space-y-2 sm:space-y-3"

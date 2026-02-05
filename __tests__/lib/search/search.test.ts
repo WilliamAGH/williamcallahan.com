@@ -7,7 +7,7 @@
  */
 
 // Mock the imported data modules BEFORE imports
-jest.mock("@/data/investments", () => ({
+vi.mock("@/data/investments", () => ({
   investments: [
     {
       id: "1",
@@ -31,7 +31,7 @@ jest.mock("@/data/investments", () => ({
   ],
 }));
 
-jest.mock("@/data/experience", () => ({
+vi.mock("@/data/experience", () => ({
   experiences: [
     {
       id: "1",
@@ -48,7 +48,7 @@ jest.mock("@/data/experience", () => ({
   ],
 }));
 
-jest.mock("@/data/education", () => ({
+vi.mock("@/data/education", () => ({
   education: [
     {
       id: "1",
@@ -65,7 +65,7 @@ jest.mock("@/data/education", () => ({
   ],
 }));
 
-jest.mock("@/data/projects", () => ({
+vi.mock("@/data/projects", () => ({
   projects: [
     {
       id: "Test Project 1",
@@ -89,16 +89,16 @@ jest.mock("@/data/projects", () => ({
 }));
 
 // Mock S3 utils to prevent loading production indexes (forces in-memory index build with mocked data)
-jest.mock("@/lib/s3-utils", () => ({
-  readJsonS3: jest.fn().mockResolvedValue(null),
+vi.mock("@/lib/s3/json", () => ({
+  readJsonS3Optional: vi.fn().mockResolvedValue(null),
 }));
 
 // Mock ServerCacheInstance
-jest.mock("@/lib/server-cache", () => ({
+vi.mock("@/lib/server-cache", () => ({
   ServerCacheInstance: {
-    get: jest.fn(),
-    set: jest.fn(),
-    getStats: jest.fn().mockReturnValue({
+    get: vi.fn(),
+    set: vi.fn(),
+    getStats: vi.fn().mockReturnValue({
       keys: 0,
       hits: 0,
       misses: 0,
@@ -108,25 +108,26 @@ jest.mock("@/lib/server-cache", () => ({
       maxSizeBytes: 0,
       utilizationPercent: 0,
     }),
-    getSearchResults: jest.fn(),
-    setSearchResults: jest.fn(),
-    shouldRefreshSearch: jest.fn(),
-    clearAllCaches: jest.fn(),
+    getSearchResults: vi.fn(),
+    setSearchResults: vi.fn(),
+    shouldRefreshSearch: vi.fn(),
+    clearAllCaches: vi.fn(),
   },
 }));
 
 import { searchInvestments, searchExperience, searchEducation, searchProjects } from "@/lib/search";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { validateSearchQuery } from "@/lib/validators/search";
+import type { Mock } from "vitest";
 
 describe("search", () => {
   // Clear cache mocks before each test
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // Default: no cache hit
-    (ServerCacheInstance.get as jest.Mock).mockReturnValue(undefined);
-    (ServerCacheInstance.getSearchResults as jest.Mock).mockReturnValue(undefined);
-    (ServerCacheInstance.shouldRefreshSearch as jest.Mock).mockReturnValue(true);
+    (ServerCacheInstance.get as Mock).mockReturnValue(undefined);
+    (ServerCacheInstance.getSearchResults as Mock).mockReturnValue(undefined);
+    (ServerCacheInstance.shouldRefreshSearch as Mock).mockReturnValue(true);
   });
 
   describe("query validation", () => {
@@ -265,19 +266,19 @@ describe("search", () => {
     it("should find projects by name", async () => {
       const results = await searchProjects("Test Project 1");
       expect(results.length).toBeGreaterThanOrEqual(1);
-      expect(results.some(r => r.title === "Test Project 1")).toBe(true);
+      expect(results.some((r) => r.title === "Test Project 1")).toBe(true);
     });
 
     it("should find projects by description", async () => {
       const results = await searchProjects("React");
       expect(results.length).toBeGreaterThanOrEqual(1);
-      expect(results.some(r => r.title === "Test Project 1")).toBe(true);
+      expect(results.some((r) => r.title === "Test Project 1")).toBe(true);
     });
 
     it("should find projects by tags", async () => {
       const results = await searchProjects("typescript");
       expect(results.length).toBeGreaterThanOrEqual(1);
-      expect(results.some(r => r.title === "Test Project 1")).toBe(true);
+      expect(results.some((r) => r.title === "Test Project 1")).toBe(true);
     });
 
     it("should handle special 'projects' query to navigate to projects page", async () => {
@@ -291,16 +292,16 @@ describe("search", () => {
 
     it("should include correct URL in results", async () => {
       const results = await searchProjects("Test Project 1");
-      const project1Result = results.find(r => r.title === "Test Project 1");
+      const project1Result = results.find((r) => r.title === "Test Project 1");
       expect(project1Result?.url).toBe("https://example.com/project1");
     });
 
     it("should use cached results when available", async () => {
       const cachedResults = [{ id: "cached", title: "Cached Project", url: "/cached" }];
-      (ServerCacheInstance.getSearchResults as jest.Mock).mockReturnValue({
+      (ServerCacheInstance.getSearchResults as Mock).mockReturnValue({
         results: cachedResults,
       });
-      (ServerCacheInstance.shouldRefreshSearch as jest.Mock).mockReturnValue(false);
+      (ServerCacheInstance.shouldRefreshSearch as Mock).mockReturnValue(false);
 
       const results = await searchProjects("test");
 
@@ -311,7 +312,11 @@ describe("search", () => {
     it("should cache search results", async () => {
       await searchProjects("react");
 
-      expect(ServerCacheInstance.setSearchResults).toHaveBeenCalledWith("projects", "react", expect.any(Array));
+      expect(ServerCacheInstance.setSearchResults).toHaveBeenCalledWith(
+        "projects",
+        "react",
+        expect.any(Array),
+      );
     });
   });
 });

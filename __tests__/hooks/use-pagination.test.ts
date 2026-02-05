@@ -1,10 +1,11 @@
+import type { MockedFunction } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { usePagination } from "@/hooks/use-pagination";
 import useSWRInfinite from "swr/infinite";
 import type { UnifiedBookmark, PaginatedResponse } from "@/types";
 
 // Mock SWR
-jest.mock("swr/infinite");
+vi.mock("swr/infinite");
 
 const mockItems: UnifiedBookmark[] = Array.from({ length: 50 }, (_, i) => ({
   id: `item-${i}`,
@@ -17,11 +18,11 @@ const mockItems: UnifiedBookmark[] = Array.from({ length: 50 }, (_, i) => ({
 }));
 
 describe("usePagination", () => {
-  const mockUseSWRInfinite = useSWRInfinite as jest.MockedFunction<typeof useSWRInfinite>;
+  const mockUseSWRInfinite = useSWRInfinite as MockedFunction<typeof useSWRInfinite>;
   const mockApiUrl = "/api/test-items";
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("initializes with correct default values", () => {
@@ -29,8 +30,8 @@ describe("usePagination", () => {
       data: undefined,
       error: undefined,
       size: 1,
-      setSize: jest.fn(),
-      mutate: jest.fn(),
+      setSize: vi.fn(),
+      mutate: vi.fn(),
       isValidating: false,
       isLoading: true,
     } as any);
@@ -65,13 +66,15 @@ describe("usePagination", () => {
       data: mockData,
       error: undefined,
       size: 1,
-      setSize: jest.fn(),
-      mutate: jest.fn(),
+      setSize: vi.fn(),
+      mutate: vi.fn(),
       isValidating: false,
       isLoading: false,
     } as any);
 
-    const { result } = renderHook(() => usePagination<UnifiedBookmark>({ apiUrl: mockApiUrl, limit: 24 }));
+    const { result } = renderHook(() =>
+      usePagination<UnifiedBookmark>({ apiUrl: mockApiUrl, limit: 24 }),
+    );
 
     expect(result.current.items).toHaveLength(24);
     expect(result.current.totalPages).toBe(3);
@@ -81,12 +84,19 @@ describe("usePagination", () => {
   });
 
   it("loads more pages when requested", () => {
-    const mockSetSize = jest.fn();
+    const mockSetSize = vi.fn();
     const mockData: PaginatedResponse<UnifiedBookmark>[] = [
       {
         data: mockItems.slice(0, 24),
         meta: {
-          pagination: { page: 1, limit: 24, total: 50, totalPages: 3, hasNext: true, hasPrev: false },
+          pagination: {
+            page: 1,
+            limit: 24,
+            total: 50,
+            totalPages: 3,
+            hasNext: true,
+            hasPrev: false,
+          },
         },
       },
     ];
@@ -96,7 +106,7 @@ describe("usePagination", () => {
       error: undefined,
       size: 1,
       setSize: mockSetSize,
-      mutate: jest.fn(),
+      mutate: vi.fn(),
       isValidating: false,
       isLoading: false,
     } as any);
@@ -111,12 +121,19 @@ describe("usePagination", () => {
   });
 
   it("navigates to specific page", () => {
-    const mockSetSize = jest.fn();
+    const mockSetSize = vi.fn();
     const mockData: PaginatedResponse<UnifiedBookmark>[] = [
       {
         data: mockItems.slice(0, 24),
         meta: {
-          pagination: { page: 1, limit: 24, total: 50, totalPages: 3, hasNext: true, hasPrev: false },
+          pagination: {
+            page: 1,
+            limit: 24,
+            total: 50,
+            totalPages: 3,
+            hasNext: true,
+            hasPrev: false,
+          },
         },
       },
     ];
@@ -126,7 +143,7 @@ describe("usePagination", () => {
       error: undefined,
       size: 1,
       setSize: mockSetSize,
-      mutate: jest.fn(),
+      mutate: vi.fn(),
       isValidating: false,
       isLoading: false,
     } as any);
@@ -148,8 +165,8 @@ describe("usePagination", () => {
       data: undefined,
       error: mockError,
       size: 1,
-      setSize: jest.fn(),
-      mutate: jest.fn(),
+      setSize: vi.fn(),
+      mutate: vi.fn(),
       isValidating: false,
       isLoading: false,
     } as any);
@@ -171,8 +188,8 @@ describe("usePagination", () => {
         data: options?.fallbackData,
         error: undefined,
         size: 1,
-        setSize: jest.fn(),
-        mutate: jest.fn(),
+        setSize: vi.fn(),
+        mutate: vi.fn(),
         isValidating: false,
         isLoading: false,
       } as any;
@@ -193,8 +210,8 @@ describe("usePagination", () => {
       data: undefined,
       error: undefined,
       size: 1,
-      setSize: jest.fn(),
-      mutate: jest.fn(),
+      setSize: vi.fn(),
+      mutate: vi.fn(),
       isValidating: false,
       isLoading: true,
     } as any);

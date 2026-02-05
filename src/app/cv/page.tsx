@@ -105,9 +105,12 @@ export default async function CvPage(): Promise<React.JSX.Element> {
   const showQualifications: boolean = false;
 
   // Build a flattened list of coursework with issuer shown as muted metadata
-  const courseItems: { id: string; name: string; year: string; institution: string }[] = groupedCourses
-    .flatMap(group => group.courses.map(course => ({ ...course, institution: group.institution })))
-    .toSorted((a, b) => Number(b.year) - Number(a.year));
+  const courseItems: { id: string; name: string; year: string; institution: string }[] =
+    groupedCourses
+      .flatMap((group) =>
+        group.courses.map((course) => ({ ...course, institution: group.institution })),
+      )
+      .toSorted((a, b) => Number(b.year) - Number(a.year));
 
   return (
     <>
@@ -131,7 +134,10 @@ export default async function CvPage(): Promise<React.JSX.Element> {
                 aria-label={pdfButtonLabel}
                 data-loading="false"
               >
-                <Loader2 className="h-4 w-4 animate-spin hidden data-[loading=true]:block" aria-hidden="true" />
+                <Loader2
+                  className="h-4 w-4 animate-spin hidden data-[loading=true]:block"
+                  aria-hidden="true"
+                />
                 <FileText className="h-4 w-4 data-[loading=true]:hidden" aria-hidden="true" />
                 <span className="sr-only">{pdfButtonLabel}</span>
               </a>
@@ -215,14 +221,16 @@ export default async function CvPage(): Promise<React.JSX.Element> {
               Distinguished Qualifications
             </h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {qualifications.map(item => (
+              {qualifications.map((item) => (
                 <article
                   key={item.id}
                   className={`rounded-md border border-zinc-300 bg-white/40 p-4 shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-colors dark:border-zinc-700 dark:bg-zinc-900/20 ${
                     item.id === "dual" ? "sm:col-span-2" : ""
                   }`}
                 >
-                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{item.title}</p>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    {item.title}
+                  </p>
                   <div className="mt-3 space-y-1 text-xs uppercase tracking-[0.25em] text-zinc-500 dark:text-zinc-400">
                     {item.meta.map((line: string) => (
                       <p key={line}>{line}</p>
@@ -240,10 +248,15 @@ export default async function CvPage(): Promise<React.JSX.Element> {
               Highlighted Technical Projects
             </h2>
             <div className="mt-5 space-y-6">
-              {projects.map(project => (
-                <article key={project.id} className="space-y-3 border-l border-zinc-300 pl-4 dark:border-zinc-700">
+              {projects.map((project) => (
+                <article
+                  key={project.id}
+                  className="space-y-3 border-l border-zinc-300 pl-4 dark:border-zinc-700"
+                >
                   <div className="flex flex-wrap items-center gap-3">
-                    <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{project.name}</h3>
+                    <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                      {project.name}
+                    </h3>
                     {project.url ? (
                       <Link
                         href={project.url}
@@ -257,7 +270,7 @@ export default async function CvPage(): Promise<React.JSX.Element> {
                   </div>
                   {project.tags.length > 0 ? (
                     <div className="flex flex-wrap gap-2 text-[0.65rem] uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">
-                      {project.tags.map(tag => (
+                      {project.tags.map((tag) => (
                         <span
                           key={`${project.id}-${tag}`}
                           className="rounded-sm border border-zinc-300 px-2 py-[2px] dark:border-zinc-600"
@@ -280,17 +293,20 @@ export default async function CvPage(): Promise<React.JSX.Element> {
               Professional Experience
             </h2>
             <ul className="mt-5 space-y-6">
-              {experiences.map(experienceItem => (
+              {experiences.map((experienceItem) => (
                 <li key={experienceItem.id} className="space-y-2">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                     <span className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
                       {experienceItem.company}
                     </span>
-                    <span className="text-sm text-zinc-500 dark:text-zinc-400">{experienceItem.period}</span>
+                    <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                      {experienceItem.period}
+                    </span>
                   </div>
                   <div className="space-y-1 text-sm text-zinc-500 dark:text-zinc-400">
                     <span className="block">{experienceItem.headline}</span>
-                    {experienceItem.location || (experienceItem.displayWebsite && experienceItem.website) ? (
+                    {experienceItem.location ||
+                    (experienceItem.displayWebsite && experienceItem.website) ? (
                       <div className="flex flex-wrap items-center gap-3">
                         {experienceItem.location ? (
                           <span className="flex items-center gap-2">
@@ -320,7 +336,7 @@ export default async function CvPage(): Promise<React.JSX.Element> {
                   </div>
                   {experienceItem.bullets.length > 0 ? (
                     <ul className="space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
-                      {experienceItem.bullets.map(bullet => (
+                      {experienceItem.bullets.map((bullet) => (
                         <li
                           key={`${experienceItem.id}-${bullet}`}
                           className="flex gap-2 before:content-['•'] before:text-zinc-400 before:leading-6"
@@ -330,7 +346,9 @@ export default async function CvPage(): Promise<React.JSX.Element> {
                       ))}
                     </ul>
                   ) : experienceItem.summary ? (
-                    <p className="text-sm text-zinc-600 dark:text-zinc-300">{experienceItem.summary}</p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                      {experienceItem.summary}
+                    </p>
                   ) : null}
                 </li>
               ))}
@@ -344,10 +362,12 @@ export default async function CvPage(): Promise<React.JSX.Element> {
               Education
             </h2>
             <ul className="mt-5 space-y-4">
-              {degrees.map(degree => (
+              {degrees.map((degree) => (
                 <li key={degree.id} className="space-y-1">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-                    <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{degree.institution}</span>
+                    <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                      {degree.institution}
+                    </span>
                     <span className="text-xs uppercase tracking-[0.25em] text-zinc-500 dark:text-zinc-400">
                       {degree.year}
                     </span>
@@ -366,11 +386,18 @@ export default async function CvPage(): Promise<React.JSX.Element> {
                   Selected Programming Coursework
                 </h3>
                 <ul className="space-y-2">
-                  {courseItems.map(item => (
-                    <li key={item.id} className="rounded-md border border-zinc-300 p-3 dark:border-zinc-700">
+                  {courseItems.map((item) => (
+                    <li
+                      key={item.id}
+                      className="rounded-md border border-zinc-300 p-3 dark:border-zinc-700"
+                    >
                       <div className="flex items-baseline justify-between gap-3">
-                        <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{item.name}</span>
-                        <span className="text-xs text-zinc-500 dark:text-zinc-400">{item.year}</span>
+                        <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                          {item.name}
+                        </span>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                          {item.year}
+                        </span>
                       </div>
                       <div className="mt-1 text-[0.65rem] uppercase tracking-[0.25em] text-zinc-500 dark:text-zinc-400">
                         {item.institution}
@@ -389,9 +416,11 @@ export default async function CvPage(): Promise<React.JSX.Element> {
               Certifications & Professional Development
             </h2>
             <ul className="mt-5 space-y-3">
-              {certifications.map(certificationItem => (
+              {certifications.map((certificationItem) => (
                 <li key={certificationItem.id} className="space-y-1">
-                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{certificationItem.name}</p>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    {certificationItem.name}
+                  </p>
                   <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.25em] text-zinc-500 dark:text-zinc-400">
                     <span>{certificationItem.institution}</span>
                     <span>• {certificationItem.year}</span>
@@ -408,12 +437,20 @@ export default async function CvPage(): Promise<React.JSX.Element> {
             Technical Focus
           </h2>
           <div className="mt-5 grid gap-3 md:grid-cols-2">
-            {technicalFocus.map(section => (
-              <article key={section.id} className="space-y-2 border border-zinc-300 p-4 dark:border-zinc-700">
-                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{section.title}</h3>
+            {technicalFocus.map((section) => (
+              <article
+                key={section.id}
+                className="space-y-2 border border-zinc-300 p-4 dark:border-zinc-700"
+              >
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  {section.title}
+                </h3>
                 <ul className="space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
-                  {section.bullets.map(item => (
-                    <li key={item} className="flex gap-2 before:content-['•'] before:text-zinc-400 before:leading-6">
+                  {section.bullets.map((item) => (
+                    <li
+                      key={item}
+                      className="flex gap-2 before:content-['•'] before:text-zinc-400 before:leading-6"
+                    >
                       <span>{item}</span>
                     </li>
                   ))}

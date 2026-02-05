@@ -74,7 +74,9 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
     }
 
     // For other pages, append the page number with /page/ prefix
-    return params.toString() ? `${baseUrl}/page/${page}?${params.toString()}` : `${baseUrl}/page/${page}`;
+    return params.toString()
+      ? `${baseUrl}/page/${page}?${params.toString()}`
+      : `${baseUrl}/page/${page}`;
   };
 
   const getVisiblePages = () => {
@@ -184,12 +186,14 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
               >
                 1
               </LinkButton>
-              {visiblePages[0] > 2 && <span className="px-2 text-gray-500 dark:text-gray-400">...</span>}
+              {visiblePages[0] > 2 && (
+                <span className="px-2 text-gray-500 dark:text-gray-400">...</span>
+              )}
             </>
           )}
 
           {/* Visible page numbers */}
-          {visiblePages?.map(page =>
+          {visiblePages?.map((page) =>
             page === currentPage ? (
               <button
                 key={page}
@@ -225,7 +229,9 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
           {/* Show ellipsis if there are pages after visible range */}
           {(() => {
             const lastVisiblePage =
-              visiblePages && visiblePages.length > 0 ? visiblePages[visiblePages.length - 1] : undefined;
+              visiblePages && visiblePages.length > 0
+                ? visiblePages[visiblePages.length - 1]
+                : undefined;
             return (
               lastVisiblePage &&
               lastVisiblePage < totalPages && (

@@ -69,7 +69,10 @@ const buildControlCharPattern = (): RegExp => {
     [0x2066, 0x206f],
   ];
   const pattern = ranges
-    .map(([start, end]) => `\\u${start.toString(16).padStart(4, "0")}-\\u${end.toString(16).padStart(4, "0")}`)
+    .map(
+      ([start, end]) =>
+        `\\u${start.toString(16).padStart(4, "0")}-\\u${end.toString(16).padStart(4, "0")}`,
+    )
     .join("");
   return new RegExp(`[${pattern}]`, "g");
 };

@@ -35,25 +35,24 @@ describe("OpenGraph Validation", () => {
 
       expect(pageMetadata.openGraph).toBeDefined();
 
-      if (pageMetadata.openGraph) {
-        const ogMetadata = adaptNextOpenGraphToOGMetadata(pageMetadata.openGraph);
-        if (!ogMetadata) {
-          throw new Error("Failed to adapt OpenGraph metadata");
-        }
-        const result = validateOpenGraphMetadata(ogMetadata);
+      // Assert openGraph exists (test will fail here if not)
+      const openGraph = pageMetadata.openGraph!;
+      const ogMetadata = adaptNextOpenGraphToOGMetadata(openGraph);
+      expect(ogMetadata).not.toBeNull();
 
-        // Log the actual result to understand the issue
-        console.log("=== JEST DEBUG ===");
-        console.log("OpenGraph metadata:", JSON.stringify(pageMetadata.openGraph, null, 2));
-        console.log("Validation result:", result);
-        console.log("Is valid:", result.isValid);
-        console.log("Errors:", result.errors);
-        console.log("Warnings:", result.warnings);
+      const result = validateOpenGraphMetadata(ogMetadata!);
 
-        // For now, just check that we get a result
-        expect(result).toBeDefined();
-        expect(typeof result.isValid).toBe("boolean");
-      }
+      // Log the actual result to understand the issue
+      console.log("=== JEST DEBUG ===");
+      console.log("OpenGraph metadata:", JSON.stringify(openGraph, null, 2));
+      console.log("Validation result:", result);
+      console.log("Is valid:", result.isValid);
+      console.log("Errors:", result.errors);
+      console.log("Warnings:", result.warnings);
+
+      // For now, just check that we get a result
+      expect(result).toBeDefined();
+      expect(typeof result.isValid).toBe("boolean");
     });
 
     /**
@@ -79,19 +78,18 @@ describe("OpenGraph Validation", () => {
 
         expect(pageMetadata.openGraph).toBeDefined();
 
-        if (pageMetadata.openGraph) {
-          const ogMetadata = adaptNextOpenGraphToOGMetadata(pageMetadata.openGraph);
-          if (!ogMetadata) {
-            throw new Error(`Failed to adapt OpenGraph metadata for ${key}`);
-          }
-          const result = validateOpenGraphMetadata(ogMetadata);
+        // Assert openGraph exists (test will fail above if not)
+        const openGraph = pageMetadata.openGraph!;
+        const ogMetadata = adaptNextOpenGraphToOGMetadata(openGraph);
+        expect(ogMetadata).not.toBeNull();
 
-          // Just check that we get a result structure, don't fail on validation
-          expect(result).toBeDefined();
-          expect(typeof result.isValid).toBe("boolean");
-          expect(Array.isArray(result.errors)).toBe(true);
-          expect(Array.isArray(result.warnings)).toBe(true);
-        }
+        const result = validateOpenGraphMetadata(ogMetadata!);
+
+        // Just check that we get a result structure, don't fail on validation
+        expect(result).toBeDefined();
+        expect(typeof result.isValid).toBe("boolean");
+        expect(Array.isArray(result.errors)).toBe(true);
+        expect(Array.isArray(result.warnings)).toBe(true);
       });
     });
   });
@@ -116,13 +114,20 @@ describe("OpenGraph Validation", () => {
      * configuration can be properly processed and converted to absolute URLs.
      */
     test("validates all page-specific image URLs", () => {
-      Object.entries(SEO_IMAGES).forEach(([key, url]) => {
-        if (key.startsWith("og") && url) {
-          const processedUrl = prepareOGImageUrl(url);
-          // Images are now served from S3 CDN
-          expect(processedUrl).toMatch(/https:\/\/(s3-storage\.callahan\.cloud|williamcallahan\.com)/);
-          expect(processedUrl).toContain("v="); // Should have cache busting
-        }
+      const ogEntries = Object.entries(SEO_IMAGES).filter(
+        ([key, url]) => key.startsWith("og") && url,
+      );
+
+      // Ensure we have OG images to test
+      expect(ogEntries.length).toBeGreaterThan(0);
+
+      ogEntries.forEach(([_key, url]) => {
+        const processedUrl = prepareOGImageUrl(url);
+        // Images are now served from S3 CDN
+        expect(processedUrl).toMatch(
+          /https:\/\/(s3-storage\.callahan\.cloud|williamcallahan\.com)/,
+        );
+        expect(processedUrl).toContain("v="); // Should have cache busting
       });
     });
   });
@@ -139,16 +144,15 @@ describe("OpenGraph Validation", () => {
         .filter(([key]) => key.startsWith("og") && key !== "ogDynamicFallback")
         .map(([key, url]) => ({ key, url }));
 
-      ogImageKeys.forEach(({ key, url }) => {
-        void key; // Explicitly mark as unused
+      ogImageKeys.forEach(({ url }) => {
         const hasFallback = url in OG_IMAGE_FALLBACK_DIMENSIONS;
         expect(hasFallback).toBe(true);
 
-        if (hasFallback) {
-          const dimensions = OG_IMAGE_FALLBACK_DIMENSIONS[url as keyof typeof OG_IMAGE_FALLBACK_DIMENSIONS];
-          expect(dimensions.width).toBeGreaterThan(0);
-          expect(dimensions.height).toBeGreaterThan(0);
-        }
+        // Assert fallback exists (test will fail above if not)
+        const dimensions =
+          OG_IMAGE_FALLBACK_DIMENSIONS[url as keyof typeof OG_IMAGE_FALLBACK_DIMENSIONS];
+        expect(dimensions.width).toBeGreaterThan(0);
+        expect(dimensions.height).toBeGreaterThan(0);
       });
     });
 

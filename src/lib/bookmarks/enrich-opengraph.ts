@@ -62,7 +62,11 @@ export async function processBookmarksInBatches(
   isDev: boolean,
   useBatchMode = false,
   extractContent = false,
-  refreshOptions?: { metadataOnly?: boolean; refreshMetadataEvenIfImagePresent?: boolean; maxItems?: number },
+  refreshOptions?: {
+    metadataOnly?: boolean;
+    refreshMetadataEvenIfImagePresent?: boolean;
+    maxItems?: number;
+  },
 ): Promise<UnifiedBookmark[]> {
   void isDev; // Unused parameter
   const startTime = getMonotonicTime();
@@ -126,7 +130,9 @@ export async function processBookmarksInBatches(
         continue;
       } catch (e: unknown) {
         const err = e instanceof Error ? e : new Error(String(e));
-        console.warn(`${LOG_PREFIX} ⚠️ Metadata-only refresh failed for ${bookmark.url}: ${err.message}`);
+        console.warn(
+          `${LOG_PREFIX} ⚠️ Metadata-only refresh failed for ${bookmark.url}: ${err.message}`,
+        );
         enrichedBookmarks.push(bookmark);
         continue;
       }
@@ -193,7 +199,9 @@ export async function processBookmarksInBatches(
           }
         } catch (e: unknown) {
           const error = e instanceof Error ? e : new Error(String(e));
-          console.error(`${LOG_PREFIX} ❌ OpenGraph fetch for ${bookmark.url} failed: ${error.message}`);
+          console.error(
+            `${LOG_PREFIX} ❌ OpenGraph fetch for ${bookmark.url} failed: ${error.message}`,
+          );
           imageStats.bookmarksWithErrors++;
           imageStats.errorDetails.push({ url: bookmark.url, error: error.message });
           sourceImageUrl = null;
@@ -239,7 +247,8 @@ export async function processBookmarksInBatches(
 
                   if (screenshotBuffer && screenshotBuffer.length / 1024 >= 5) {
                     // Screenshot is valid, use it
-                    const { persistImageBufferToS3 } = await import("@/lib/persistence/s3-persistence");
+                    const { persistImageBufferToS3 } =
+                      await import("@/lib/persistence/image-persistence");
                     const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
 
                     const s3Url = await persistImageBufferToS3(
@@ -256,7 +265,9 @@ export async function processBookmarksInBatches(
                       bookmark.ogImageExternal = `/api/assets/${screenshotId}`;
                       imageStats.bookmarksUsingS3Image++;
                       imageStats.imagesNewlyPersisted++;
-                      console.log(`${LOG_PREFIX} ✅ Successfully used screenshot fallback: ${s3Url}`);
+                      console.log(
+                        `${LOG_PREFIX} ✅ Successfully used screenshot fallback: ${s3Url}`,
+                      );
                     }
                   }
                 }
@@ -271,7 +282,8 @@ export async function processBookmarksInBatches(
                 absoluteImageUrl = null;
               } else {
                 // Image is valid size, persist it
-                const { persistImageBufferToS3 } = await import("@/lib/persistence/s3-persistence");
+                const { persistImageBufferToS3 } =
+                  await import("@/lib/persistence/image-persistence");
                 const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
 
                 const s3Url = await persistImageBufferToS3(
@@ -288,11 +300,15 @@ export async function processBookmarksInBatches(
                   bookmark.ogImageExternal = sourceImageUrl;
                   imageStats.bookmarksUsingS3Image++;
                   imageStats.imagesNewlyPersisted++;
-                  console.log(`${LOG_PREFIX} ✅ Successfully persisted Karakeep asset to S3: ${s3Url}`);
+                  console.log(
+                    `${LOG_PREFIX} ✅ Successfully persisted Karakeep asset to S3: ${s3Url}`,
+                  );
                   sourceImageUrl = null;
                   absoluteImageUrl = null;
                 } else {
-                  console.error(`${LOG_PREFIX} ❌ Failed to persist Karakeep asset to S3: ${assetId}`);
+                  console.error(
+                    `${LOG_PREFIX} ❌ Failed to persist Karakeep asset to S3: ${assetId}`,
+                  );
                   sourceImageUrl = null;
                   absoluteImageUrl = null;
                 }
@@ -306,13 +322,16 @@ export async function processBookmarksInBatches(
             // In web runtime, we can't fetch from Karakeep directly
             // Just use the relative URL and let the client handle it
             absoluteImageUrl = sourceImageUrl;
-            console.log(`${LOG_PREFIX} 🔗 Web runtime: Using relative URL for Karakeep asset: ${absoluteImageUrl}`);
+            console.log(
+              `${LOG_PREFIX} 🔗 Web runtime: Using relative URL for Karakeep asset: ${absoluteImageUrl}`,
+            );
           }
         }
 
         // Only proceed if we still have a valid image URL
         if (sourceImageUrl && absoluteImageUrl) {
-          const { persistImageAndGetS3UrlWithStatus } = await import("@/lib/persistence/s3-persistence");
+          const { persistImageAndGetS3UrlWithStatus } =
+            await import("@/lib/persistence/image-persistence");
           const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
           const result = await persistImageAndGetS3UrlWithStatus(
             absoluteImageUrl,
@@ -343,7 +362,9 @@ export async function processBookmarksInBatches(
                 bookmark.ogImage = ssUrl; // Keep relative: /api/assets/[id]
                 bookmark.ogImageExternal = ssUrl;
                 imageStats.bookmarksUsingKarakeepImage++;
-                console.log(`${LOG_PREFIX} 📸 Using relative URL for screenshot fallback: ${ssUrl}`);
+                console.log(
+                  `${LOG_PREFIX} 📸 Using relative URL for screenshot fallback: ${ssUrl}`,
+                );
               } else {
                 bookmark.ogImage = undefined;
                 bookmark.ogImageExternal = absoluteImageUrl;
@@ -379,7 +400,10 @@ export async function processBookmarksInBatches(
             );
           }
         } catch (contentError) {
-          console.warn(`${LOG_PREFIX}   ⚠️ Failed to extract content for ${bookmark.url}:`, contentError);
+          console.warn(
+            `${LOG_PREFIX}   ⚠️ Failed to extract content for ${bookmark.url}:`,
+            contentError,
+          );
         }
       }
 
@@ -405,13 +429,19 @@ export async function processBookmarksInBatches(
   console.log(`${LOG_PREFIX}`);
   console.log(`${LOG_PREFIX} IMAGE SOURCES BREAKDOWN:`);
   console.log(`${LOG_PREFIX}   📦 Already in S3: ${imageStats.bookmarksUsingS3Image} bookmarks`);
-  console.log(`${LOG_PREFIX}   🖼️ OpenGraph images: ${imageStats.bookmarksUsingOpenGraphImage} bookmarks`);
-  console.log(`${LOG_PREFIX}   🔄 Karakeep fallback: ${imageStats.bookmarksUsingKarakeepImage} bookmarks`);
+  console.log(
+    `${LOG_PREFIX}   🖼️ OpenGraph images: ${imageStats.bookmarksUsingOpenGraphImage} bookmarks`,
+  );
+  console.log(
+    `${LOG_PREFIX}   🔄 Karakeep fallback: ${imageStats.bookmarksUsingKarakeepImage} bookmarks`,
+  );
   console.log(`${LOG_PREFIX}   ❌ No image found: ${imageStats.bookmarksWithoutImages} bookmarks`);
   console.log(`${LOG_PREFIX}`);
   console.log(`${LOG_PREFIX} PERSISTENCE STATUS:`);
   if (useBatchMode) {
-    console.log(`${LOG_PREFIX}   ✅ NEW images persisted to S3: ${imageStats.imagesNewlyPersisted}`);
+    console.log(
+      `${LOG_PREFIX}   ✅ NEW images persisted to S3: ${imageStats.imagesNewlyPersisted}`,
+    );
     console.log(`${LOG_PREFIX}   📦 Images already stored in S3: ${imageStats.imagesAlreadyInS3}`);
   } else {
     console.log(
@@ -422,7 +452,9 @@ export async function processBookmarksInBatches(
   console.log(`${LOG_PREFIX}`);
   console.log(`${LOG_PREFIX} PROCESSING STATS:`);
   const totalWithImages =
-    imageStats.bookmarksUsingS3Image + imageStats.bookmarksUsingOpenGraphImage + imageStats.bookmarksUsingKarakeepImage;
+    imageStats.bookmarksUsingS3Image +
+    imageStats.bookmarksUsingOpenGraphImage +
+    imageStats.bookmarksUsingKarakeepImage;
   console.log(
     `${LOG_PREFIX}   Total with images: ${totalWithImages} (${Math.round((totalWithImages / imageStats.totalBookmarks) * 100)}%)`,
   );
@@ -439,7 +471,9 @@ export async function processBookmarksInBatches(
   // Alert if no new images were found to persist
   if (imageStats.imagesNewlyPersisted === 0) {
     if (imageStats.bookmarksUsingS3Image === totalWithImages) {
-      console.log(`${LOG_PREFIX} ℹ️ All images are already stored in S3 - no new images to persist`);
+      console.log(
+        `${LOG_PREFIX} ℹ️ All images are already stored in S3 - no new images to persist`,
+      );
     } else if (imageStats.bookmarksUsingKarakeepImage > 0 && !useBatchMode) {
       // Only show this warning in runtime mode where we can't persist to S3
       console.warn(
@@ -467,7 +501,9 @@ export async function processBookmarksInBatches(
       console.error(`${LOG_PREFIX} ❌ ERROR: No images found for any bookmarks!`);
     } else {
       console.error(`${LOG_PREFIX} ⚠️ WARNING: No new images were scheduled for S3 persistence!`);
-      console.error(`${LOG_PREFIX} ⚠️ This suggests the image persistence system may not be working correctly.`);
+      console.error(
+        `${LOG_PREFIX} ⚠️ This suggests the image persistence system may not be working correctly.`,
+      );
     }
   }
 
@@ -500,12 +536,16 @@ export async function fetchKarakeepImage(assetId: string): Promise<Buffer | null
     });
 
     if (!response.ok) {
-      console.warn(`[fetchKarakeepImage] Failed to fetch asset ${assetId}: ${response.status} ${response.statusText}`);
+      console.warn(
+        `[fetchKarakeepImage] Failed to fetch asset ${assetId}: ${response.status} ${response.statusText}`,
+      );
       return null;
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
-    console.log(`[fetchKarakeepImage] Successfully fetched asset ${assetId} (${buffer.length} bytes)`);
+    console.log(
+      `[fetchKarakeepImage] Successfully fetched asset ${assetId} (${buffer.length} bytes)`,
+    );
     return buffer;
   } catch (error) {
     console.error(`[fetchKarakeepImage] Error fetching asset ${assetId}:`, error);

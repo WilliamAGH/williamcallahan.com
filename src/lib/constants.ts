@@ -26,7 +26,9 @@ const envSuffix = ENVIRONMENT_SUFFIX;
 
 // Warn if environment is not properly configured
 if (typeof process !== "undefined" && !process.env.NODE_ENV) {
-  envLogger.log("NODE_ENV not set - using environment suffix", envSuffix, { category: "Constants" });
+  envLogger.log("NODE_ENV not set - using environment suffix", envSuffix, {
+    category: "Constants",
+  });
 }
 
 /** Client-side cache duration: 30 days (milliseconds) */
@@ -134,7 +136,11 @@ export const IMAGE_S3_PATHS = {
 } as const;
 
 /** Bookmarks cache: 7 days success, 1 hour failure/revalidation */
-export const BOOKMARKS_CACHE_DURATION = { SUCCESS: 7 * 24 * 60 * 60, FAILURE: 60 * 60, REVALIDATION: 60 * 60 };
+export const BOOKMARKS_CACHE_DURATION = {
+  SUCCESS: 7 * 24 * 60 * 60,
+  FAILURE: 60 * 60,
+  REVALIDATION: 60 * 60,
+};
 
 /** Bookmarks API configuration */
 // Normalize Karakeep API base URL: ensure it ends with /api/v1
@@ -161,14 +167,27 @@ export const DEFAULT_BOOKMARK_OPTIONS: Readonly<Required<BookmarkLoadOptions>> =
 } as const;
 
 /** GitHub activity cache: 24 hours success, 1 hour failure, 6 hours revalidation */
-export const GITHUB_ACTIVITY_CACHE_DURATION = { SUCCESS: 24 * 60 * 60, FAILURE: 60 * 60, REVALIDATION: 6 * 60 * 60 };
+export const GITHUB_ACTIVITY_CACHE_DURATION = {
+  SUCCESS: 24 * 60 * 60,
+  FAILURE: 60 * 60,
+  REVALIDATION: 6 * 60 * 60,
+};
 
 /** Search cache: 15 minutes success, 1 minute failure, 10 minutes revalidation */
 export const SEARCH_CACHE_DURATION = { SUCCESS: 15 * 60, FAILURE: 60, REVALIDATION: 10 * 60 };
 
-/** Base URLs */
-export const NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || NEXT_PUBLIC_SITE_URL;
+/**
+ * Base URLs
+ *
+ * Convention:
+ * - API_BASE_URL: Server-side API calls (process.env.API_BASE_URL)
+ * - NEXT_PUBLIC_SITE_URL: Client-side references (process.env.NEXT_PUBLIC_SITE_URL)
+ *
+ * Both should be set to the same value in .env for consistency.
+ */
+export const NEXT_PUBLIC_SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
+export const API_BASE_URL = process.env.API_BASE_URL || NEXT_PUBLIC_SITE_URL;
 /** API endpoints */
 export const ENDPOINTS = {
   validateLogo: `${API_BASE_URL}/api/validate-logo`,
@@ -282,18 +301,33 @@ export const OPENGRAPH_FETCH_CONFIG = {
 /** OpenGraph cache: 24 hours success, 1 hour failure */
 export const OPENGRAPH_CACHE_DURATION = { SUCCESS: 24 * 60 * 60, FAILURE: 60 * 60 };
 /** Jina AI fetch limiter: 10 fetches per 24 hours */
-export const JINA_FETCH_CONFIG: RateLimiterConfig = { maxRequests: 10, windowMs: 24 * 60 * 60 * 1000 };
+export const JINA_FETCH_CONFIG: RateLimiterConfig = {
+  maxRequests: 10,
+  windowMs: 24 * 60 * 60 * 1000,
+};
 /** Default API endpoint rate limit: 5 requests per minute */
-export const DEFAULT_API_ENDPOINT_LIMIT_CONFIG: RateLimiterConfig = { maxRequests: 5, windowMs: 60 * 1000 };
+export const DEFAULT_API_ENDPOINT_LIMIT_CONFIG: RateLimiterConfig = {
+  maxRequests: 5,
+  windowMs: 60 * 1000,
+};
 
 /** GitHub API rate limit - 5000 requests per hour (GitHub's standard limit) */
-export const GITHUB_API_RATE_LIMIT_CONFIG: RateLimiterConfig = { maxRequests: 5000, windowMs: 60 * 60 * 1000 };
+export const GITHUB_API_RATE_LIMIT_CONFIG: RateLimiterConfig = {
+  maxRequests: 5000,
+  windowMs: 60 * 60 * 1000,
+};
 
 /** GitHub refresh operation rate limit - conservative for batch operations */
-export const GITHUB_REFRESH_RATE_LIMIT_CONFIG: RateLimiterConfig = { maxRequests: 1000, windowMs: 60 * 60 * 1000 };
+export const GITHUB_REFRESH_RATE_LIMIT_CONFIG: RateLimiterConfig = {
+  maxRequests: 1000,
+  windowMs: 60 * 60 * 1000,
+};
 export const API_ENDPOINT_STORE_NAME = "apiEndpoints";
 /** OpenGraph fetch rate limit: 10 requests per second */
-export const DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG: RateLimiterConfig = { maxRequests: 10, windowMs: 1000 };
+export const DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG: RateLimiterConfig = {
+  maxRequests: 10,
+  windowMs: 1000,
+};
 export const OPENGRAPH_FETCH_STORE_NAME = "outgoingOpenGraph";
 export const OPENGRAPH_FETCH_CONTEXT_ID = "global";
 
@@ -304,15 +338,28 @@ export const SEO_DATE_FIELDS = {
   jsonLd: {
     context: "https://schema.org",
     dateFields: { created: "dateCreated", published: "datePublished", modified: "dateModified" },
-    types: { profile: "ProfilePage", article: "Article", person: "Person", collection: "CollectionPage" },
+    types: {
+      profile: "ProfilePage",
+      article: "Article",
+      person: "Person",
+      collection: "CollectionPage",
+    },
   },
-  dublinCore: { created: "DC.date.created", modified: "DC.date.modified", issued: "DC.date.issued" },
+  dublinCore: {
+    created: "DC.date.created",
+    modified: "DC.date.modified",
+    issued: "DC.date.issued",
+  },
 } as const;
 
 export const INDEXING_RATE_LIMIT_PATH = `json/rate-limit/search-indexing-limiter${envSuffix}.json`;
 
 // Cache TTL constants (in seconds) - moved from lib/cache.ts to break circular dependency
-export const CACHE_TTL = { DEFAULT: 30 * 24 * 60 * 60, DAILY: 24 * 60 * 60, HOURLY: 60 * 60 } as const;
+export const CACHE_TTL = {
+  DEFAULT: 30 * 24 * 60 * 60,
+  DAILY: 24 * 60 * 60,
+  HOURLY: 60 * 60,
+} as const;
 
 /** SEO Title Suffixes for dynamic pages */
 export const SEO_TITLE_SUFFIXES = {
@@ -431,16 +478,23 @@ if (cgroupLimitBytes && cgroupLimitBytes > 0) {
   const safetyAdjusted = Math.floor(cgroupLimitBytes * 0.95);
   const minimumWhenAvailable = 512 * MB;
   const adjusted =
-    cgroupLimitBytes >= minimumWhenAvailable ? Math.max(safetyAdjusted, minimumWhenAvailable) : safetyAdjusted;
+    cgroupLimitBytes >= minimumWhenAvailable
+      ? Math.max(safetyAdjusted, minimumWhenAvailable)
+      : safetyAdjusted;
   cgroupBudget = Math.min(adjusted, cgroupLimitBytes);
 }
 
-const totalBudget = Number.isFinite(envBudget) && envBudget > 0 ? envBudget : (cgroupBudget ?? defaultBudget);
+const totalBudget =
+  Number.isFinite(envBudget) && envBudget > 0 ? envBudget : (cgroupBudget ?? defaultBudget);
 
 export const MEMORY_THRESHOLDS = {
   TOTAL_PROCESS_MEMORY_BUDGET_BYTES: totalBudget,
-  IMAGE_RAM_BUDGET_BYTES: Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15)),
-  SERVER_CACHE_BUDGET_BYTES: Number(process.env.SERVER_CACHE_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15)),
+  IMAGE_RAM_BUDGET_BYTES: Number(
+    process.env.IMAGE_RAM_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15),
+  ),
+  SERVER_CACHE_BUDGET_BYTES: Number(
+    process.env.SERVER_CACHE_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15),
+  ),
   MEMORY_WARNING_THRESHOLD: Number(process.env.MEMORY_WARNING_THRESHOLD ?? totalBudget * 0.7),
   MEMORY_CRITICAL_THRESHOLD: Number(process.env.MEMORY_CRITICAL_THRESHOLD ?? totalBudget * 0.9),
   IMAGE_STREAM_THRESHOLD_BYTES: Number(process.env.IMAGE_STREAM_THRESHOLD_BYTES ?? 5 * MB),
@@ -448,3 +502,15 @@ export const MEMORY_THRESHOLDS = {
 
 /** Default S3 bucket name (callers handle undefined gracefully) */
 export const S3_BUCKET: string | undefined = process.env.S3_BUCKET;
+
+/** S3 size limits - single source of truth for memory protection */
+export const S3_SIZE_LIMITS = {
+  /** Maximum read size to prevent memory exhaustion (50MB) */
+  MAX_READ_SIZE: 50 * 1024 * 1024,
+  /** Small payload threshold for memory checks (512KB) */
+  SMALL_PAYLOAD_THRESHOLD: 512 * 1024,
+  /** OpenGraph image threshold - higher limit for essential previews (2MB) */
+  OPENGRAPH_IMAGE_THRESHOLD: 2 * 1024 * 1024,
+  /** Stream timeout in milliseconds */
+  STREAM_TIMEOUT_MS: 30_000,
+} as const;

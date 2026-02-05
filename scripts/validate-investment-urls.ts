@@ -104,7 +104,9 @@ async function testUrlReachability(url: string): Promise<{
 /**
  * Validate a single investment URL
  */
-async function validateInvestmentUrl(investment: Investment): Promise<InvestmentUrlValidationResult> {
+async function validateInvestmentUrl(
+  investment: Investment,
+): Promise<InvestmentUrlValidationResult> {
   const website = investment.website;
 
   if (!website) {
@@ -178,9 +180,10 @@ async function processBatch(
       if (!investment) break;
 
       const promise = validateInvestmentUrl(investment)
-        .then(result => {
+        .then((result) => {
           results.push(result);
           console.log(`Tested ${results.length}/${investments.length}: ${investment.name}`);
+          return undefined;
         })
         .finally(() => {
           activePromises.delete(promise);
@@ -217,10 +220,10 @@ async function validateAllUrls() {
   console.log("\n📊 URL Validation Results\n");
 
   // Summary statistics
-  const validFormat = results.filter(r => r.isValidFormat).length;
-  const reachable = results.filter(r => r.isReachable).length;
-  const unreachable = results.filter(r => !r.isReachable && r.isValidFormat).length;
-  const invalidFormat = results.filter(r => !r.isValidFormat).length;
+  const validFormat = results.filter((r) => r.isValidFormat).length;
+  const reachable = results.filter((r) => r.isReachable).length;
+  const unreachable = results.filter((r) => !r.isReachable && r.isValidFormat).length;
+  const invalidFormat = results.filter((r) => !r.isValidFormat).length;
 
   console.log(`Total tested: ${results.length}`);
   console.log(`Valid format: ${validFormat}`);
@@ -229,7 +232,7 @@ async function validateAllUrls() {
   console.log(`Invalid format: ${invalidFormat}\n`);
 
   // Bad URLs (invalid format or unreachable)
-  const badUrls = results.filter(r => !r.isValidFormat || !r.isReachable);
+  const badUrls = results.filter((r) => !r.isValidFormat || !r.isReachable);
 
   if (badUrls.length > 0) {
     console.log("❌ Problematic URLs:\n");
@@ -249,7 +252,7 @@ async function validateAllUrls() {
   }
 
   // URLs with redirects
-  const redirects = results.filter(r => r.redirectUrl);
+  const redirects = results.filter((r) => r.redirectUrl);
   if (redirects.length > 0) {
     console.log("🔄 URLs with redirects:\n");
     for (const result of redirects) {
@@ -261,7 +264,7 @@ async function validateAllUrls() {
   }
 
   // SSL status
-  const noSSL = results.filter(r => r.isReachable && !r.hasSSL);
+  const noSSL = results.filter((r) => r.isReachable && !r.hasSSL);
   if (noSSL.length > 0) {
     console.log("🔓 URLs without SSL (HTTP only):\n");
     for (const result of noSSL) {
@@ -271,7 +274,7 @@ async function validateAllUrls() {
   }
 
   // Slow responses
-  const slowResponses = results.filter(r => r.responseTime && r.responseTime > 5000);
+  const slowResponses = results.filter((r) => r.responseTime && r.responseTime > 5000);
   if (slowResponses.length > 0) {
     console.log("🐌 Slow responses (>5s):\n");
     for (const result of slowResponses) {

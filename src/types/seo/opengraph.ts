@@ -7,7 +7,8 @@
 
 import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
 import type { OpenGraphImage, PacificDateString } from "./shared";
-import { z } from "zod";
+import { openGraphUrlSchema } from "@/types/schemas/url";
+import { z } from "zod/v4";
 
 /**
  * OpenGraph article metadata structure
@@ -62,6 +63,7 @@ export type ExtendedOpenGraph = ArticleOpenGraph | ProfileOpenGraph | WebsiteOpe
 
 // Base schemas for common types
 const urlSchema = z.string().url().optional().or(z.literal(""));
+const nullableSafeOgUrlSchema = openGraphUrlSchema.nullable().optional().or(z.literal(""));
 const stringOrNullSchema = z.string().nullable().optional();
 const timestampSchema = z.number().int().positive();
 const nonEmptyStringSchema = z.string().min(1);
@@ -77,13 +79,13 @@ export const ogMetadataSchema = z
   .object({
     title: stringOrNullSchema,
     description: stringOrNullSchema,
-    image: urlSchema.or(stringOrNullSchema),
-    twitterImage: urlSchema.or(stringOrNullSchema),
+    image: nullableSafeOgUrlSchema,
+    twitterImage: nullableSafeOgUrlSchema,
     site: stringOrNullSchema,
     type: stringOrNullSchema,
-    profileImage: urlSchema.or(stringOrNullSchema),
-    bannerImage: urlSchema.or(stringOrNullSchema),
-    url: urlSchema.or(stringOrNullSchema),
+    profileImage: nullableSafeOgUrlSchema,
+    bannerImage: nullableSafeOgUrlSchema,
+    url: nullableSafeOgUrlSchema,
     siteName: stringOrNullSchema,
   })
   .catchall(stringOrNullSchema); // Allow additional properties

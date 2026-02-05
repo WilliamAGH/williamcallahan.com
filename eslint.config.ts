@@ -1,15 +1,18 @@
 /**
- * ESLint Configuration - Single Source of Truth
- * Cleaned up monolithic config with clear organization
+ * ESLint Configuration - Gutted for Oxlint Performance
+ *
+ * Most rules and plugins are now handled by Oxlint (50-100x faster).
+ * ESLint is kept only for:
+ * 1. Complex naming conventions (@typescript-eslint/naming-convention)
+ * 2. Complex AST selectors (no-restricted-syntax) Oxlint doesn't support
+ * 3. Custom project-specific rules (no-duplicate-types, no-hardcoded-images)
+ * 4. Non-JS files (Markdown, YAML, JSONC) if needed
+ *
+ * Type-aware parsing is DISABLED for performance. Oxlint handles type-aware rules.
  */
 
 import { createRequire } from "node:module";
 import js from "@eslint/js";
-import nextPlugin from "@next/eslint-plugin-next";
-import jestPlugin from "eslint-plugin-jest";
-import reactHooks from "eslint-plugin-react-hooks";
-import reactJsxRuntime from "eslint-plugin-react/configs/jsx-runtime.js";
-import reactRecommended from "eslint-plugin-react/configs/recommended.js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 import oxlint from "eslint-plugin-oxlint";
@@ -20,6 +23,7 @@ const requireJson = createRequire(import.meta.url);
 const STATIC_IMAGE_MAPPING_REL_PATH = "./src/lib/data-access/static-image-mapping.json" as const;
 // Local ESLint Rule Types
 import type { Rule } from "eslint";
+import type { TSESTree } from "@typescript-eslint/utils";
 
 /**
  * ESLint rule to disallow duplicate TypeScript type definitions (type aliases, interfaces, enums)
@@ -54,7 +58,7 @@ const noDuplicateTypesRule: Rule.RuleModule & { duplicateTypeTracker?: Map<strin
     }
 
     /** Records the location of first declaration and reports on duplicates */
-    const record = (idNode: any) => {
+    const record = (idNode: TSESTree.Identifier) => {
       const name: string = idNode.name;
       const currentLocation = `${context.getFilename()}:${idNode.loc.start.line}`;
 
@@ -76,13 +80,13 @@ const noDuplicateTypesRule: Rule.RuleModule & { duplicateTypeTracker?: Map<strin
     };
 
     return {
-      TSTypeAliasDeclaration(node: any) {
+      TSTypeAliasDeclaration(node: TSESTree.TSTypeAliasDeclaration) {
         record(node.id);
       },
-      TSInterfaceDeclaration(node: any) {
+      TSInterfaceDeclaration(node: TSESTree.TSInterfaceDeclaration) {
         record(node.id);
       },
-      TSEnumDeclaration(node: any) {
+      TSEnumDeclaration(node: TSESTree.TSEnumDeclaration) {
         record(node.id);
       },
     };
@@ -93,16 +97,16 @@ const noDuplicateTypesRule: Rule.RuleModule & { duplicateTypeTracker?: Map<strin
  * Returns true if the given AST node is nested within a getStaticImageUrl(...) call.
  * Hoisted to module scope to satisfy consistent-function-scoping and avoid recreating on each invocation.
  */
-function isInsideGetStaticImageUrl(node: any): boolean {
-  let current = node?.parent;
+function isInsideGetStaticImageUrl(node: TSESTree.Node): boolean {
+  let current: TSESTree.Node | undefined = node.parent;
   while (current) {
     if (current.type === "CallExpression") {
       const { callee } = current;
       if (
         (callee.type === "Identifier" && callee.name === "getStaticImageUrl") ||
         (callee.type === "MemberExpression" &&
-          callee.property?.type === "Identifier" &&
-          callee.property?.name === "getStaticImageUrl")
+          callee.property.type === "Identifier" &&
+          callee.property.name === "getStaticImageUrl")
       ) {
         return true;
       }
@@ -120,7 +124,6 @@ const config = tseslint.config(
       ".next/",
       ".husky/",
       "out/",
-      ".jest-pre-compiled/",
       "src/components/ui/code-block/prism-syntax-highlighting/prism.js",
       "config/.remarkrc.mjs",
       "config/",
@@ -131,35 +134,26 @@ const config = tseslint.config(
 
   // Base configurations
   js.configs.recommended,
-  ...(tseslint.configs.recommendedTypeChecked as any),
+  // Include base TS config for parser + plugin (but NOT type-checked rules)
+  ...tseslint.configs.recommended,
 
-  // TypeScript project setup
-  {
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.json"],
-        tsconfigRootDir: import.meta.dirname,
-        ecmaVersion: "latest",
-        sourceType: "module",
-      },
-    },
-  },
-
-  // React and Next.js configurations
+  // Main TypeScript/React config - NO TYPE-AWARE PARSING (biggest performance win)
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
-    ignores: ["**/*.mdx"],
+    ignores: ["**/*.mdx", "**/*.d.ts", "scripts/**/*", "config/**/*"],
     languageOptions: {
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+        // NO project: [...] - Type-aware parsing DISABLED for performance
+        // Oxlint handles type-aware rules via --type-aware flag
+        ecmaFeatures: { jsx: true },
+      },
       globals: {
         ...globals.browser,
         ...globals.node,
         ...globals.es2021,
       },
-    },
-    plugins: {
-      react: reactRecommended.plugins?.react,
-      "react-hooks": reactHooks,
-      "@next/next": nextPlugin,
     },
     settings: {
       react: {
@@ -167,22 +161,15 @@ const config = tseslint.config(
       },
     },
     rules: {
-      ...reactRecommended.rules,
-      ...reactJsxRuntime.rules,
-      ...reactHooks.configs.recommended.rules,
-      ...nextPlugin.configs.recommended.rules,
-      ...nextPlugin.configs["core-web-vitals"].rules,
-      "react/prop-types": "off",
-      "react/react-in-jsx-scope": "off",
-      "react/no-unknown-property": ["error", { ignore: ["jsx", "global"] }],
-      "react/jsx-no-target-blank": ["error", { allowReferrer: true }],
-    },
-  },
-
-  // TypeScript rules
-  {
-    ignores: ["**/*.mdx"],
-    rules: {
+      // ============================================================
+      // KEPT: Complex naming conventions Oxlint doesn't support
+      // ============================================================
+      "@typescript-eslint/naming-convention": [
+        "warn",
+        { selector: "variable", format: ["camelCase", "UPPER_CASE", "PascalCase"] },
+        { selector: "function", format: ["camelCase", "PascalCase"] },
+        { selector: "typeLike", format: ["PascalCase"] },
+      ],
       "no-underscore-dangle": [
         "error",
         {
@@ -197,12 +184,6 @@ const config = tseslint.config(
           allowFunctionParams: true,
         },
       ],
-      "@typescript-eslint/naming-convention": [
-        "warn",
-        { selector: "variable", format: ["camelCase", "UPPER_CASE", "PascalCase"] },
-        { selector: "function", format: ["camelCase", "PascalCase"] },
-        { selector: "typeLike", format: ["PascalCase"] },
-      ],
       "no-restricted-globals": [
         "error",
         {
@@ -214,35 +195,14 @@ const config = tseslint.config(
           message: "Use only in client components (*.client.tsx) or with proper checks",
         },
       ],
-      "@typescript-eslint/no-unsafe-assignment": "warn",
-      "@typescript-eslint/no-unsafe-call": "warn",
-      "@typescript-eslint/no-unsafe-member-access": "warn",
-      "@typescript-eslint/no-unsafe-argument": "warn",
-      "@typescript-eslint/no-unsafe-return": "warn",
-      "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-misused-promises": "warn",
-      "@typescript-eslint/no-require-imports": "warn",
-      "@typescript-eslint/no-base-to-string": "warn",
-      "@typescript-eslint/no-redundant-type-constituents": "warn",
-      "@typescript-eslint/no-unnecessary-type-assertion": "warn",
-      "@typescript-eslint/restrict-template-expressions": "warn",
-      "@typescript-eslint/no-empty-object-type": "warn",
-      // Custom rule configuration to prevent auto-fixing unused vars with underscores
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        {
-          vars: "all",
-          args: "none", // Change from "after-used" to "none" to prevent auto-fixing function parameters
-          ignoreRestSiblings: true,
-          // Override default `^_` to disallow using underscore for unused variables.
-          // The project convention is to use `void var;` for intentional fall-through.
-          varsIgnorePattern: "^$", // This will only match an empty string, effectively disabling the ignore pattern.
-          argsIgnorePattern: "^$",
-          // Allow destructuring with unused parameters without requiring underscore prefix
-          destructuredArrayIgnorePattern: "^$",
-        },
-      ],
-      "no-useless-escape": "warn",
+
+      // ============================================================
+      // REMOVED: All rules now handled by Oxlint
+      // - no-console, eqeqeq, no-unused-vars, prefer-const, etc.
+      // - react/*, react-hooks/*, @next/next/*
+      // - import/* (Oxlint handles import/cycle, import/order faster)
+      // - All TypeScript strict rules (handled by Oxlint --type-aware)
+      // ============================================================
     },
   },
 
@@ -289,7 +249,6 @@ const config = tseslint.config(
   {
     files: ["**/*.server.{ts,tsx}"],
     rules: {
-      "react-hooks/exhaustive-deps": "off",
       "no-restricted-globals": [
         "error",
         { name: "window", message: "Cannot use window in Server Components" },
@@ -302,9 +261,7 @@ const config = tseslint.config(
   {
     files: ["**/*.client.{ts,tsx}"],
     rules: {
-      "react-hooks/exhaustive-deps": "warn",
       "no-restricted-globals": "off",
-      "@typescript-eslint/no-misused-promises": "off",
     },
   },
 
@@ -313,34 +270,22 @@ const config = tseslint.config(
     files: [
       "eslint.config.ts",
       "*.config.ts",
-      "config/jest/*.ts",
       "config/**/*.ts",
       "next.config.ts",
       "tailwind.config.ts",
       "src/instrumentation*.ts",
       "sentry.*.config.ts",
-      "jest.config.ts",
       "scripts/**/*.ts",
     ],
     languageOptions: {
       globals: {
         ...globals.node,
       },
-      parserOptions: {
-        project: null, // Disable type-aware linting for config files
-      },
     },
     rules: {
-      ...tseslint.configs.disableTypeChecked.rules,
       "no-restricted-globals": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-call": "off",
-      "@typescript-eslint/no-unsafe-member-access": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
-      "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-unnecessary-type-assertion": "off",
-      "@typescript-eslint/no-require-imports": "off",
-      "no-underscore-dangle": "off", // Allow underscores in config and script files
+      "no-underscore-dangle": "off",
+      "@typescript-eslint/naming-convention": "off",
     },
   },
 
@@ -354,81 +299,33 @@ const config = tseslint.config(
       "config/**/*.js",
       "config/tailwind.config.js",
       "config/tools.config.js",
+      "scripts/**/*.js",
+      "scripts/**/*.mjs",
+      "scripts/**/*.cjs",
     ],
     languageOptions: {
       globals: {
         ...globals.node,
       },
-      parserOptions: {
-        project: null,
-      },
     },
     rules: {
-      ...tseslint.configs.disableTypeChecked.rules,
       "no-restricted-globals": "off",
-      "@typescript-eslint/no-require-imports": "off",
     },
   },
 
-  // Test files
+  // Test file configuration (Vitest rules handled by Oxlint)
   {
     files: ["**/__tests__/**/*.{ts,tsx,js,jsx}", "**/?(*.)+(spec|test).{js,jsx,ts,tsx}"],
     languageOptions: {
       globals: {
-        ...globals.jest,
-      },
-      parserOptions: {
-        project: ["./__tests__/tsconfig.json"],
-        tsconfigRootDir: import.meta.dirname,
+        ...globals.vitest,
       },
     },
     rules: {
       "no-restricted-globals": "off",
-      "@typescript-eslint/no-unused-vars": "off",
-      // Tests often re-import the same module in different ways for mocks; allow duplicate imports
-      "no-duplicate-imports": "off",
-      // Tests intentionally await in loops for sequential flows
-      "no-await-in-loop": "off",
-      "oxlint/no-await-in-loop": "off",
-      // Tests create small helpers inside describes; don't force hoisting
-      "unicorn/consistent-function-scoping": "off",
-      "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-member-access": "off",
-      "@typescript-eslint/no-unsafe-call": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
-      "@typescript-eslint/no-unsafe-argument": "off",
-      "@typescript-eslint/no-require-imports": "off",
-      "@typescript-eslint/no-unnecessary-type-assertion": "off", // Jest mock casts often flagged incorrectly
-      "@typescript-eslint/no-redundant-type-constituents": "off", // Path resolution issues with @/ aliases
       "no-restricted-syntax": "off",
-      "no-underscore-dangle": "off", // Allow underscores in test files for mocking and test utilities
-      "@next/next/no-img-element": "off", // Allow <img> in test files for mocking next/image
-    },
-  },
-
-  // Project scripts - allow sequential awaits by design
-  {
-    files: ["scripts/**/*.ts"],
-    rules: {
-      "no-await-in-loop": "off",
-      "oxlint/no-await-in-loop": "off",
-    },
-  },
-
-  // Jest configuration
-  {
-    files: ["**/?(*.)+(jest.spec|jest.test).{js,jsx,ts,tsx}"],
-    plugins: {
-      jest: jestPlugin,
-    },
-    rules: {
-      ...jestPlugin.configs.recommended.rules,
-    },
-    languageOptions: {
-      globals: {
-        ...globals.jest,
-      },
+      "no-underscore-dangle": "off",
+      "@typescript-eslint/naming-convention": "off",
     },
   },
 
@@ -456,12 +353,6 @@ const config = tseslint.config(
     files: ["public/scripts/plausible-init.js"],
     rules: {
       "no-restricted-globals": "off",
-    },
-  },
-  {
-    files: ["src/lib/blog/mdx.ts"],
-    rules: {
-      "@typescript-eslint/no-unsafe-assignment": "off",
     },
   },
 
@@ -494,12 +385,13 @@ const config = tseslint.config(
             meta: {
               type: "problem",
               docs: {
-                description: "Disallow hardcoded /images/ paths - use getStaticImageUrl() for S3/CDN delivery",
+                description:
+                  "Disallow hardcoded /images/ paths - use getStaticImageUrl() for S3/CDN delivery",
               },
               fixable: "code",
               schema: [],
             },
-            create(context: any) {
+            create(context: Rule.RuleContext) {
               // Import the static mapping at the top of the file
               let staticMapping: Record<string, string> | null = null;
               try {
@@ -511,8 +403,11 @@ const config = tseslint.config(
                   delete (requireJson as any).cache[resolved as unknown as string];
                 }
                 staticMapping = requireJson(resolved);
-              } catch {
-                // If we can't load the mapping, we'll still report errors but can't check if images exist
+              } catch (error) {
+                console.warn(
+                  "[eslint/no-hardcoded-images] Failed to load static image mapping:",
+                  error,
+                );
               }
 
               // Use module-scoped helper to satisfy consistent-function-scoping
@@ -528,7 +423,11 @@ const config = tseslint.config(
                   if (node.type === "ImportDeclaration") {
                     if (node.source.value === "@/lib/data-access/static-images") {
                       for (const specifier of node.specifiers) {
-                        if (specifier.type === "ImportSpecifier" && specifier.imported.name === "getStaticImageUrl") {
+                        if (
+                          specifier.type === "ImportSpecifier" &&
+                          specifier.imported.type === "Identifier" &&
+                          specifier.imported.name === "getStaticImageUrl"
+                        ) {
                           return true;
                         }
                       }
@@ -539,7 +438,7 @@ const config = tseslint.config(
               }
 
               return {
-                Literal(node: any) {
+                Literal(node: TSESTree.Literal) {
                   if (
                     typeof node.value === "string" &&
                     node.value.match(/^\/images\//) &&
@@ -552,7 +451,7 @@ const config = tseslint.config(
                     !context.getFilename().includes("check-new-images.ts")
                   ) {
                     // Skip if the string literal ultimately lives inside a getStaticImageUrl(...) call
-                    if (isInsideGetStaticImageUrl(node)) {
+                    if (isInsideGetStaticImageUrl(node as unknown as TSESTree.Node)) {
                       return;
                     }
 
@@ -567,7 +466,7 @@ const config = tseslint.config(
                         : `New image "${imagePath}" is not in the static image mapping. Add it to src/lib/data-access/static-image-mapping.json (and ensure the asset is uploaded to S3), then use getStaticImageUrl("${imagePath}").`,
                       fix:
                         isInS3 && hasImport
-                          ? function (fixer: any) {
+                          ? function (fixer: Rule.RuleFixer) {
                               // Safer replacement that works across parsers
                               const source = context.getSourceCode();
                               const text = source.getText(node); // includes original quotes
@@ -593,48 +492,6 @@ const config = tseslint.config(
   ...oxlint.configs["flat/typescript"],
   ...oxlint.configs["flat/react"],
   ...oxlint.configs["flat/nextjs"],
-
-  // Targeted override: intentional sequential awaits (pagination, rate limits, first-success semantics)
-  {
-    files: [
-      "**/lib/bookmarks/bookmarks.ts",
-      "**/lib/server/data-fetch-manager.ts",
-      "**/lib/services/unified-image-service.ts",
-      "**/lib/data-access/github.ts",
-      "**/lib/bookmarks/enrich-opengraph.ts",
-      "**/lib/bookmarks/extract-markdown.ts",
-      "**/lib/bookmarks/slug-manager.ts",
-      "**/lib/s3-utils.ts",
-      "**/lib/content-graph/build.ts",
-      "**/lib/utils/retry.ts",
-      "**/lib/opengraph/fetch.ts",
-      "**/lib/data-access/github-api.ts",
-      "**/lib/persistence/s3-persistence.ts",
-      "**/lib/utils/http-client.ts",
-      "**/app/api/assets/[assetId]/route.ts",
-      "**/app/api/validate-logo/route.ts",
-      "**/lib/bookmarks/bookmarks-data-access.server.ts",
-    ],
-    rules: {
-      "no-await-in-loop": "off",
-      // oxlint maps core rules; disable its equivalent as well for these files
-      "oxlint/no-await-in-loop": "off",
-    },
-  },
-
-  // Disable function-scoping hoist where helpers are intentionally local
-  {
-    files: [
-      "src/app/status/page.tsx",
-      "src/instrumentation.ts",
-      "src/instrumentation-node.ts",
-      "src/components/features/projects/project-card.client.tsx",
-      "src/components/features/projects/project-card.server.tsx",
-    ],
-    rules: {
-      "unicorn/consistent-function-scoping": "off",
-    },
-  },
 );
 
 export default config;

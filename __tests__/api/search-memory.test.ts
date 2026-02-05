@@ -1,8 +1,8 @@
 /**
- * @jest-environment node
+ * @vitest-environment node
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
+import type { Mock } from "vitest";
 import type { SearchResult } from "@/types/search";
 
 // Mock environment variables
@@ -71,7 +71,7 @@ describe("Search API Memory Usage", () => {
 
   beforeAll(() => {
     // Mock global fetch
-    global.fetch = jest.fn().mockImplementation((url: string) => {
+    global.fetch = vi.fn().mockImplementation((url: string) => {
       const urlObj = new URL(url);
       const query = urlObj.searchParams.get("q") || "";
 
@@ -87,7 +87,7 @@ describe("Search API Memory Usage", () => {
       if (urlObj.pathname.startsWith("/api/search/")) {
         // Extract scope from path
         const scope = urlObj.pathname.split("/").pop();
-        const scopedResults = mockSearchResults(query).filter(r => {
+        const scopedResults = mockSearchResults(query).filter((r) => {
           if (scope === "blog") return r.type === "blog-post";
           if (scope === "bookmarks") return r.type === "bookmark";
           if (scope === "investments") return r.type === "project";
@@ -113,7 +113,7 @@ describe("Search API Memory Usage", () => {
   afterAll(() => {
     // Restore fetch
     if (global.fetch && "mockRestore" in global.fetch) {
-      (global.fetch as jest.Mock).mockRestore();
+      (global.fetch as Mock).mockRestore();
     }
   });
 
@@ -143,8 +143,8 @@ describe("Search API Memory Usage", () => {
 
       // Perform multiple searches
       const queries = ["react typescript", "next.js performance", "documentation"];
-      const promises = queries.map(q =>
-        fetch(`${baseUrl}/api/search/all?q=${encodeURIComponent(q)}`).then(r => r.json()),
+      const promises = queries.map((q) =>
+        fetch(`${baseUrl}/api/search/all?q=${encodeURIComponent(q)}`).then((r) => r.json()),
       );
 
       const results = await Promise.all(promises);
@@ -168,7 +168,9 @@ describe("Search API Memory Usage", () => {
 
       // Test different scopes
       const scopes = ["blog", "bookmarks", "investments"];
-      const promises = scopes.map(scope => fetch(`${baseUrl}/api/search/${scope}?q=test`).then(r => r.json()));
+      const promises = scopes.map((scope) =>
+        fetch(`${baseUrl}/api/search/${scope}?q=test`).then((r) => r.json()),
+      );
 
       const results = await Promise.all(promises);
 
@@ -204,7 +206,7 @@ describe("Search API Memory Usage", () => {
       }
 
       // Override fetch mock for this test to simulate the API's limiting behavior
-      (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      (global.fetch as Mock).mockImplementationOnce(() =>
         Promise.resolve({
           ok: true,
           status: 200,

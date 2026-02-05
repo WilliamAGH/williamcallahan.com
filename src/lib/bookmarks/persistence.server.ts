@@ -9,7 +9,8 @@
  * - Master bookmark file
  */
 
-import { writeJsonS3, listS3Objects, deleteFromS3 } from "@/lib/s3-utils";
+import { writeJsonS3 } from "@/lib/s3/json";
+import { deleteFromS3, listS3Objects } from "@/lib/s3/objects";
 import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
 import type { UnifiedBookmark } from "@/types";
@@ -17,7 +18,7 @@ import type { BookmarksIndex } from "@/types/bookmark";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
 import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { tagToSlug } from "@/lib/utils/tag-utils";
-import { getDeterministicTimestamp } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
@@ -28,7 +29,10 @@ import {
   BOOKMARK_SERVICE_LOG_CATEGORY,
   BOOKMARK_WRITE_BATCH_SIZE,
 } from "@/lib/bookmarks/config";
-import { invalidateBookmarkByIdCaches, clearFullDatasetCache } from "@/lib/bookmarks/cache-management.server";
+import {
+  invalidateBookmarkByIdCaches,
+  clearFullDatasetCache,
+} from "@/lib/bookmarks/cache-management.server";
 
 const LOCAL_BOOKMARKS_BY_ID_DIR = path.join(process.cwd(), ".next", "cache", "bookmarks", "by-id");
 const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "generated", "bookmarks", "bookmarks.json");
@@ -59,7 +63,7 @@ export async function writePaginatedBookmarks(
     count: bookmarks.length,
     totalPages,
     pageSize,
-    lastModified: new Date().toISOString(),
+    lastModified: new Date(now).toISOString(),
     lastFetchedAt: now,
     lastAttemptedAt: now,
     checksum: calculateBookmarksChecksum(bookmarks),
@@ -68,10 +72,12 @@ export async function writePaginatedBookmarks(
   // Write pages with bookmarks ensuring they have embedded slugs
   for (let page = 1; page <= totalPages; page++) {
     const start = (page - 1) * pageSize;
-    const slice = bookmarks.slice(start, start + pageSize).map(b => {
+    const slice = bookmarks.slice(start, start + pageSize).map((b) => {
       const entry = mapping.slugs[b.id];
       if (!entry) {
-        throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (page ${page})`);
+        throw new Error(
+          `${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (page ${page})`,
+        );
       }
       return { ...b, slug: entry.slug };
     });
@@ -82,10 +88,15 @@ export async function writePaginatedBookmarks(
 
   // Save slug mapping for backward compatibility and static generation
   try {
-    await saveSlugMapping(bookmarks, true, false);
-    logBookmarkDataAccessEvent("Saved slug mapping after writing pages", { bookmarkCount: bookmarks.length });
+    await saveSlugMapping(bookmarks, true);
+    logBookmarkDataAccessEvent("Saved slug mapping after writing pages", {
+      bookmarkCount: bookmarks.length,
+    });
   } catch (error) {
-    console.error(`${LOG_PREFIX} Warning: Failed to save slug mapping (bookmarks have embedded slugs):`, error);
+    console.error(
+      `${LOG_PREFIX} Warning: Failed to save slug mapping (bookmarks have embedded slugs):`,
+      error,
+    );
     // Not critical since bookmarks have embedded slugs
   }
 
@@ -106,10 +117,13 @@ export async function writeLocalBookmarksCache(
   try {
     await fs.mkdir(path.dirname(LOCAL_BOOKMARKS_PATH), { recursive: true });
     await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarks, null, 2));
-    logBookmarkDataAccessEvent(`Saved bookmarks to local fallback path${context ? ` (${context})` : ""}`, {
-      path: LOCAL_BOOKMARKS_PATH,
-      bookmarkCount: bookmarks.length,
-    });
+    logBookmarkDataAccessEvent(
+      `Saved bookmarks to local fallback path${context ? ` (${context})` : ""}`,
+      {
+        path: LOCAL_BOOKMARKS_PATH,
+        bookmarkCount: bookmarks.length,
+      },
+    );
     return { success: true };
   } catch (error) {
     const normalizedError = error instanceof Error ? error : new Error(String(error));
@@ -132,15 +146,20 @@ export async function writeBookmarksByIdFiles(bookmarks: UnifiedBookmark[]): Pro
   for (let i = 0; i < bookmarks.length; i += BOOKMARK_WRITE_BATCH_SIZE) {
     const batch = bookmarks.slice(i, i + BOOKMARK_WRITE_BATCH_SIZE);
     await Promise.all(
-      batch.map(async bookmark => {
+      batch.map(async (bookmark) => {
         if (!bookmark.slug) {
-          throw new Error(`${LOG_PREFIX} Missing slug while writing by-id file for bookmark id=${bookmark.id}`);
+          throw new Error(
+            `${LOG_PREFIX} Missing slug while writing by-id file for bookmark id=${bookmark.id}`,
+          );
         }
         await writeJsonS3(`${BOOKMARKS_S3_PATHS.BY_ID_DIR}/${bookmark.id}.json`, bookmark);
 
         try {
           await fs.mkdir(LOCAL_BOOKMARKS_BY_ID_DIR, { recursive: true });
-          await fs.writeFile(path.join(LOCAL_BOOKMARKS_BY_ID_DIR, `${bookmark.id}.json`), JSON.stringify(bookmark));
+          await fs.writeFile(
+            path.join(LOCAL_BOOKMARKS_BY_ID_DIR, `${bookmark.id}.json`),
+            JSON.stringify(bookmark),
+          );
         } catch (error) {
           envLogger.debug(
             "Failed to cache bookmark locally by id",
@@ -163,7 +182,7 @@ async function cleanupLocalBookmarkByIdFiles(activeIds: ReadonlySet<string>): Pr
   try {
     const entries = await fs.readdir(LOCAL_BOOKMARKS_BY_ID_DIR, { withFileTypes: true });
     const removals = await Promise.all(
-      entries.map(async entry => {
+      entries.map(async (entry) => {
         if (!entry.isFile() || !entry.name.endsWith(".json")) {
           return 0;
         }
@@ -213,7 +232,7 @@ async function cleanupS3BookmarkByIdFiles(activeIds: ReadonlySet<string>): Promi
   }
 
   const removals = await Promise.all(
-    keys.map(async key => {
+    keys.map(async (key) => {
       if (!key.endsWith(".json")) {
         return 0;
       }
@@ -245,7 +264,7 @@ async function cleanupS3BookmarkByIdFiles(activeIds: ReadonlySet<string>): Promi
  * @param bookmarks - Current active bookmarks
  */
 async function cleanupOrphanedBookmarkByIdFiles(bookmarks: UnifiedBookmark[]): Promise<void> {
-  const activeIds = new Set(bookmarks.map(bookmark => bookmark.id));
+  const activeIds = new Set(bookmarks.map((bookmark) => bookmark.id));
   const [localDeleted, remoteDeleted] = await Promise.all([
     cleanupLocalBookmarkByIdFiles(activeIds),
     cleanupS3BookmarkByIdFiles(activeIds),
@@ -265,7 +284,9 @@ async function cleanupOrphanedBookmarkByIdFiles(bookmarks: UnifiedBookmark[]): P
  *
  * @param bookmarksWithSlugs - Bookmarks with embedded slugs
  */
-export async function writeBookmarkMasterFiles(bookmarksWithSlugs: UnifiedBookmark[]): Promise<void> {
+export async function writeBookmarkMasterFiles(
+  bookmarksWithSlugs: UnifiedBookmark[],
+): Promise<void> {
   invalidateBookmarkByIdCaches();
   await cleanupOrphanedBookmarkByIdFiles(bookmarksWithSlugs);
   await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
@@ -280,7 +301,9 @@ export async function writeBookmarkMasterFiles(bookmarksWithSlugs: UnifiedBookma
  */
 export async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark[]): Promise<void> {
   if (!ENABLE_TAG_PERSISTENCE) {
-    envLogger.log("Tag persistence disabled by environment variable", undefined, { category: LOG_PREFIX });
+    envLogger.log("Tag persistence disabled by environment variable", undefined, {
+      category: LOG_PREFIX,
+    });
     return;
   }
 
@@ -322,7 +345,11 @@ export async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark
 
   envLogger.log(
     `Persisting ${tagsToProcess.length} of ${allTags.length} tags to S3 storage`,
-    { totalTags: allTags.length, persistingCount: tagsToProcess.length, limit: MAX_TAGS_TO_PERSIST },
+    {
+      totalTags: allTags.length,
+      persistingCount: tagsToProcess.length,
+      limit: MAX_TAGS_TO_PERSIST,
+    },
     { category: LOG_PREFIX },
   );
 
@@ -337,7 +364,7 @@ export async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark
       count: tagBookmarks.length,
       totalPages,
       pageSize,
-      lastModified: new Date().toISOString(),
+      lastModified: new Date(now).toISOString(),
       lastFetchedAt: now,
       lastAttemptedAt: now,
       checksum: calculateBookmarksChecksum(tagBookmarks),
@@ -345,10 +372,12 @@ export async function persistTagFilteredBookmarksToS3(bookmarks: UnifiedBookmark
     };
     for (let page = 1; page <= totalPages; page++) {
       const start = (page - 1) * pageSize;
-      const slice = tagBookmarks.slice(start, start + pageSize).map(b => {
+      const slice = tagBookmarks.slice(start, start + pageSize).map((b) => {
         const entry = mapping.slugs[b.id];
         if (!entry) {
-          throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (tag=${tagSlug})`);
+          throw new Error(
+            `${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (tag=${tagSlug})`,
+          );
         }
         return { ...b, slug: entry.slug };
       });

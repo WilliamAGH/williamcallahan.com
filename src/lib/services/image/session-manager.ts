@@ -3,13 +3,14 @@
  * @module lib/services/image/session-manager
  */
 
-import { getDeterministicTimestamp } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { UNIFIED_IMAGE_SERVICE_CONFIG, LOGO_BLOCKLIST_S3_PATH } from "@/lib/constants";
 import { FailureTracker } from "@/lib/utils/failure-tracker";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { isOperationAllowedWithCircuitBreaker, recordOperationFailure } from "@/lib/rate-limiter";
 import logger from "@/lib/utils/logger";
 import { getErrorMessage } from "@/types/error";
+import { z } from "zod/v4";
 
 import type { LogoFetchResult } from "@/types/cache";
 
@@ -30,13 +31,17 @@ export class SessionManager {
   private inFlightLogoRequests = new Map<string, Promise<LogoFetchResult>>();
 
   // Use FailureTracker for domain blocklist management
-  readonly domainFailureTracker = new FailureTracker<string>(domain => domain, {
-    s3Path: LOGO_BLOCKLIST_S3_PATH,
-    maxRetries: CONFIG.PERMANENT_FAILURE_THRESHOLD,
-    cooldownMs: 24 * 60 * 60 * 1000, // 24 hours
-    maxItems: CONFIG.MAX_BLOCKLIST_SIZE,
-    name: "SessionManager-DomainTracker",
-  });
+  readonly domainFailureTracker = new FailureTracker<string>(
+    (domain) => domain,
+    z.string().min(1),
+    {
+      s3Path: LOGO_BLOCKLIST_S3_PATH,
+      maxRetries: CONFIG.PERMANENT_FAILURE_THRESHOLD,
+      cooldownMs: 24 * 60 * 60 * 1000, // 24 hours
+      maxItems: CONFIG.MAX_BLOCKLIST_SIZE,
+      name: "SessionManager-DomainTracker",
+    },
+  );
 
   private readonly devStreamImagesToS3: boolean;
 
@@ -65,7 +70,10 @@ export class SessionManager {
       "domain-failures",
       domain,
       { maxRequests: CONFIG.MAX_RETRIES_PER_SESSION, windowMs: CONFIG.SESSION_MAX_DURATION },
-      { failureThreshold: CONFIG.PERMANENT_FAILURE_THRESHOLD, resetTimeout: CONFIG.SESSION_MAX_DURATION },
+      {
+        failureThreshold: CONFIG.PERMANENT_FAILURE_THRESHOLD,
+        resetTimeout: CONFIG.SESSION_MAX_DURATION,
+      },
     );
   }
 
@@ -74,7 +82,9 @@ export class SessionManager {
    */
   markDomainAsFailed(domain: string): void {
     if (this.sessionFailedDomains.size >= CONFIG.MAX_SESSION_DOMAINS) {
-      logger.info(`[SessionManager] Session domain limit reached (${CONFIG.MAX_SESSION_DOMAINS}), resetting session`);
+      logger.info(
+        `[SessionManager] Session domain limit reached (${CONFIG.MAX_SESSION_DOMAINS}), resetting session`,
+      );
       this.resetDomainSessionTracking();
     }
 
@@ -87,8 +97,13 @@ export class SessionManager {
     this.domainRetryCount.set(domain, currentCount);
 
     if (currentCount >= CONFIG.PERMANENT_FAILURE_THRESHOLD) {
-      logger.info(`[SessionManager] Domain ${domain} has failed ${currentCount} times, adding to permanent blocklist`);
-      void this.domainFailureTracker.recordFailure(domain, `Failed ${currentCount} times across sessions`);
+      logger.info(
+        `[SessionManager] Domain ${domain} has failed ${currentCount} times, adding to permanent blocklist`,
+      );
+      void this.domainFailureTracker.recordFailure(
+        domain,
+        `Failed ${currentCount} times across sessions`,
+      );
     }
   }
 
@@ -174,6 +189,8 @@ export class SessionManager {
   private startPeriodicCleanup(): void {
     if (this.cleanupTimerId) return; // Already running
     this.cleanupTimerId = setInterval(() => this.performMemoryCleanup(), CONFIG.CLEANUP_INTERVAL);
+    // Prevent interval from keeping Node.js alive (especially in tests)
+    this.cleanupTimerId.unref();
     if (process.env.NODE_ENV !== "test") process.on("beforeExit", () => this.stopPeriodicCleanup());
   }
 
@@ -198,7 +215,9 @@ export class SessionManager {
       const toKeep = entries.slice(-Math.floor(CONFIG.MAX_IN_FLIGHT_REQUESTS / 2));
       this.inFlightLogoRequests.clear();
       toKeep.forEach(([k, v]) => this.inFlightLogoRequests.set(k, v));
-      logger.warn(`[SessionManager] Reduced in-flight requests from ${entries.length} to ${toKeep.length}`);
+      logger.warn(
+        `[SessionManager] Reduced in-flight requests from ${entries.length} to ${toKeep.length}`,
+      );
     }
 
     if (now - this.lastCleanupTime > CONFIG.CLEANUP_INTERVAL) {

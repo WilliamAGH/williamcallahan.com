@@ -2,17 +2,25 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { NavigationLink } from "@/components/ui/navigation/navigation-link.client";
 // Import the REAL provider (hook is used internally by NavigationLink)
 import { TerminalProvider } from "@/components/ui/terminal/terminal-context.client";
-import { jest, describe, beforeEach, it, expect } from "@jest/globals";
-import "@testing-library/jest-dom";
+import { vi } from "vitest";
 
 // REMOVE ALL MOCKING FOR terminal-context.client
 
-// Mock next/link using jest.mock
-jest.mock("next/link", () => ({
+// Mock next/link using vi.mock
+vi.mock("next/link", () => ({
   __esModule: true,
-  default: ({ children, href, ...props }: any) => {
+  default: ({ children, href, onClick, prefetch, scroll, ...props }: any) => {
+    void prefetch;
+    void scroll;
     return (
-      <a href={href} {...props}>
+      <a
+        href={href}
+        onClick={(event) => {
+          event.preventDefault();
+          onClick?.(event);
+        }}
+        {...props}
+      >
         {children}
       </a>
     );
@@ -24,7 +32,7 @@ describe("NavigationLink", () => {
   // but we might need to spy later if needed. For now, remove setup.
   beforeEach(() => {
     // Reset any potential spies or global mocks if needed
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   // afterEach is likely not needed anymore for context mocks
@@ -53,7 +61,14 @@ describe("NavigationLink", () => {
   });
 
   it("applies custom className when provided", () => {
-    render(<NavigationLink path="/test" name="Test Link" currentPath="/other" className="custom-class" />);
+    render(
+      <NavigationLink
+        path="/test"
+        name="Test Link"
+        currentPath="/other"
+        className="custom-class"
+      />,
+    );
 
     const link = screen.getByRole("link");
     expect(link).toHaveClass("custom-class");
@@ -67,7 +82,7 @@ describe("NavigationLink", () => {
   // context value provided by the real provider.
 
   it("calls onClick when clicked (and implicitly calls clearHistory)", () => {
-    const mockOnClick = jest.fn();
+    const mockOnClick = vi.fn();
     render(
       <TerminalProvider>
         {" "}
@@ -109,7 +124,13 @@ describe("NavigationLink", () => {
 
   describe("prefix matching for routes with child pages", () => {
     it("applies active styles to bookmarks tab when on child route", () => {
-      render(<NavigationLink path="/bookmarks" name="Bookmarks" currentPath="/bookmarks/textualize-io" />);
+      render(
+        <NavigationLink
+          path="/bookmarks"
+          name="Bookmarks"
+          currentPath="/bookmarks/textualize-io"
+        />,
+      );
 
       const link = screen.getByRole("link");
       expect(link).toHaveAttribute("aria-current", "page");
@@ -125,7 +146,9 @@ describe("NavigationLink", () => {
     });
 
     it("applies active styles to projects tab when on child route", () => {
-      render(<NavigationLink path="/projects" name="Projects" currentPath="/projects/my-project" />);
+      render(
+        <NavigationLink path="/projects" name="Projects" currentPath="/projects/my-project" />,
+      );
 
       const link = screen.getByRole("link");
       expect(link).toHaveAttribute("aria-current", "page");
@@ -133,7 +156,13 @@ describe("NavigationLink", () => {
     });
 
     it("applies active styles to bookmarks tab when on nested tag route", () => {
-      render(<NavigationLink path="/bookmarks" name="Bookmarks" currentPath="/bookmarks/tags/javascript" />);
+      render(
+        <NavigationLink
+          path="/bookmarks"
+          name="Bookmarks"
+          currentPath="/bookmarks/tags/javascript"
+        />,
+      );
 
       const link = screen.getByRole("link");
       expect(link).toHaveAttribute("aria-current", "page");

@@ -8,7 +8,8 @@
  */
 
 import type { LogoResult, LogoSource } from "@/types/logo";
-import { writeBinaryS3, checkIfS3ObjectExists, listS3Objects } from "@/lib/s3-utils";
+import { writeBinaryS3 } from "@/lib/s3/binary";
+import { checkIfS3ObjectExists, listS3Objects } from "@/lib/s3/objects";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 import { getDomainVariants, normalizeDomain } from "@/lib/utils/domain-utils";
 import { LOGO_SOURCES, LOGO_BLOCKLIST_S3_PATH } from "@/lib/constants";
@@ -17,9 +18,10 @@ import { generateS3Key, getFileExtension } from "@/lib/utils/hash-utils";
 import { BatchProcessor, BatchProgressReporter } from "@/lib/batch-processing";
 import { Readable } from "node:stream";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
+import { z } from "zod/v4";
 
 // Initialize failure tracker for domains
-const domainFailureTracker = new FailureTracker<string>(domain => domain, {
+const domainFailureTracker = new FailureTracker<string>((domain) => domain, z.string().min(1), {
   s3Path: LOGO_BLOCKLIST_S3_PATH,
   maxRetries: 3,
   cooldownMs: 24 * 60 * 60 * 1000, // 24 hours
@@ -89,7 +91,7 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
     );
 
     // Return first found result
-    const found = results.find(r => r.exists);
+    const found = results.find((r) => r.exists);
     if (found) {
       return {
         url: `${cdnUrl}/${found.key}`,
@@ -113,7 +115,8 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
       const parsed = parseS3Key(legacyKey);
       const source = (parsed.source || "unknown") as LogoSource;
       const ext = parsed.extension || "png";
-      const contentType = ext === "svg" ? "image/svg+xml" : ext === "ico" ? "image/x-icon" : `image/${ext}`;
+      const contentType =
+        ext === "svg" ? "image/svg+xml" : ext === "ico" ? "image/x-icon" : `image/${ext}`;
 
       // For batch operations, we return the legacy key as-is without migration
       // Migration will happen during runtime requests if needed
@@ -153,7 +156,8 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
 
         const res = await fetch(url, {
           headers: {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)",
+            "User-Agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)",
           },
           signal: controller.signal,
         });
@@ -227,14 +231,18 @@ export async function processLogoBatch(
   const progressReporter = new BatchProgressReporter("Logo Batch");
 
   // Create batch processor
-  const processor = new BatchProcessor<string, LogoResult>("logo-batch", async domain => getLogoBatch(domain), {
-    batchSize: options.batchSize || 10,
-    batchDelay: 500, // Rate limit protection
-    memoryThreshold: 0.8,
-    timeout: 30000,
-    onProgress: options.onProgress || progressReporter.createProgressHandler(),
-    debug: true,
-  });
+  const processor = new BatchProcessor<string, LogoResult>(
+    "logo-batch",
+    async (domain) => getLogoBatch(domain),
+    {
+      batchSize: options.batchSize || 10,
+      batchDelay: 500, // Rate limit protection
+      memoryThreshold: 0.8,
+      timeout: 30000,
+      onProgress: options.onProgress || progressReporter.createProgressHandler(),
+      debug: true,
+    },
+  );
 
   // Process the batch
   const result = await processor.processBatch(domains);

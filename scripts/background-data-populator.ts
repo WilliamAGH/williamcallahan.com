@@ -20,6 +20,7 @@ const INITIAL_DELAY = 30000; // Wait 30 seconds after server start
 
 /**
  * Run the data updater script in a child process
+ * Rejects if the updater exits non-zero so failures surface to the caller.
  */
 async function runDataUpdater(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -36,7 +37,7 @@ async function runDataUpdater(): Promise<void> {
 
     let stderr = "";
 
-    child.stdout?.on("data", data => {
+    child.stdout?.on("data", (data) => {
       const output = data.toString();
       // Log important lines in real-time
       if (output.includes("✅") || output.includes("❌") || output.includes("Summary")) {
@@ -44,26 +45,28 @@ async function runDataUpdater(): Promise<void> {
       }
     });
 
-    child.stderr?.on("data", data => {
+    child.stderr?.on("data", (data) => {
       const output = data.toString();
       stderr += output;
       console.error(`[DataUpdater ERROR] ${output.trim()}`);
     });
 
-    child.on("close", code => {
+    child.on("close", (code, signal) => {
       if (code === 0) {
         logger.info("[BackgroundPopulator] Data updater completed successfully");
         resolve();
       } else {
-        logger.error(`[BackgroundPopulator] Data updater failed with exit code ${code}`);
+        const exitReason = signal ? `signal ${signal}` : `exit code ${code}`;
+        logger.error(`[BackgroundPopulator] Data updater failed with ${exitReason}`);
         if (stderr) {
           logger.error(`[BackgroundPopulator] stderr: ${stderr}`);
         }
-        reject(new Error(`Data updater exited with code ${code}`));
+        const details = stderr ? `\n${stderr}` : "";
+        reject(new Error(`Data updater exited with ${exitReason}.${details}`));
       }
     });
 
-    child.on("error", error => {
+    child.on("error", (error) => {
       logger.error("[BackgroundPopulator] Failed to start data updater:", error);
       reject(error);
     });
@@ -104,7 +107,7 @@ async function main(): Promise<void> {
   logger.info(`[BackgroundPopulator] Waiting ${INITIAL_DELAY / 1000}s for server to stabilize...`);
 
   // Wait for server to fully start and stabilize
-  await new Promise(resolve => setTimeout(resolve, INITIAL_DELAY));
+  await new Promise((resolve) => setTimeout(resolve, INITIAL_DELAY));
 
   logger.info("[BackgroundPopulator] Beginning monitoring for data population needs");
 
@@ -132,7 +135,7 @@ async function main(): Promise<void> {
 
 // Start the monitoring if run directly
 if (import.meta.main) {
-  main().catch(error => {
+  main().catch((error) => {
     logger.error("[BackgroundPopulator] Fatal error:", error);
     process.exit(1);
   });

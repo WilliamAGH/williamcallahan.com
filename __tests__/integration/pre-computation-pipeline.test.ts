@@ -4,31 +4,34 @@
  * Tests the full flow from data fetching through pre-computation to serving
  */
 
+import type { Mock, MockedFunction } from "vitest";
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { CONTENT_GRAPH_S3_PATHS, BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { DataFetchConfig } from "@/types/lib";
 import type { BookmarkSlugMapping } from "@/types/bookmark";
+import { z } from "zod/v4";
 
 // Mock external dependencies
-jest.mock("@/lib/s3-utils");
-jest.mock("@/lib/bookmarks/service.server");
-jest.mock("@/lib/bookmarks/bookmarks-data-access.server");
-jest.mock("@/lib/blog");
-jest.mock("@/lib/utils/logger");
-jest.mock("@/lib/search/index-builder");
-jest.mock("@/lib/blog/mdx");
-jest.mock("@/lib/content-similarity/aggregator");
-jest.mock("@/lib/content-similarity");
-jest.mock("@/data/projects");
+vi.mock("@/lib/s3/json");
+vi.mock("@/lib/s3/objects");
+vi.mock("@/lib/bookmarks/service.server");
+vi.mock("@/lib/bookmarks/bookmarks-data-access.server");
+vi.mock("@/lib/blog");
+vi.mock("@/lib/utils/logger");
+vi.mock("@/lib/search/index-builder");
+vi.mock("@/lib/blog/mdx");
+vi.mock("@/lib/content-similarity/aggregator");
+vi.mock("@/lib/content-similarity");
+vi.mock("@/data/projects");
 
-const mockReadJsonS3 = readJsonS3 as jest.MockedFunction<typeof readJsonS3>;
+const mockReadJsonS3 = readJsonS3Optional as MockedFunction<typeof readJsonS3Optional>;
 
 describe("Pre-computation Pipeline Integration", () => {
   let manager: DataFetchManager;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     manager = new DataFetchManager();
   });
 
@@ -59,12 +62,12 @@ describe("Pre-computation Pipeline Integration", () => {
           sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
         },
       ];
-      (getBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
-      (refreshBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
+      (getBookmarks as Mock).mockResolvedValue(mockBookmarks);
+      (refreshBookmarks as Mock).mockResolvedValue(mockBookmarks);
 
       // Mock blog posts
       const { getAllMDXPostsForSearch } = await import("@/lib/blog/mdx");
-      (getAllMDXPostsForSearch as jest.Mock).mockResolvedValue([
+      (getAllMDXPostsForSearch as Mock).mockResolvedValue([
         {
           slug: "test-post",
           title: "Test Post",
@@ -77,7 +80,7 @@ describe("Pre-computation Pipeline Integration", () => {
 
       // Mock search index builder to return successful results
       const { buildAllSearchIndexes } = await import("@/lib/search/index-builder");
-      (buildAllSearchIndexes as jest.Mock).mockResolvedValue({
+      (buildAllSearchIndexes as Mock).mockResolvedValue({
         posts: {
           index: {},
           metadata: { itemCount: 1, buildTime: new Date().toISOString(), version: "1.0" },
@@ -112,16 +115,17 @@ describe("Pre-computation Pipeline Integration", () => {
       // Ensure slug mapping precondition does not fail: DataFetchManager.buildSearchIndexes
       // may generate slug mapping via service.server.getBookmarks when mapping is missing.
       const { getBookmarks: getServiceBookmarks } = await import("@/lib/bookmarks/service.server");
-      (getServiceBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
+      (getServiceBookmarks as Mock).mockResolvedValue(mockBookmarks);
 
       // Mock S3 utils
-      const { writeJsonS3, listS3Objects } = await import("@/lib/s3-utils");
-      (writeJsonS3 as jest.Mock).mockResolvedValue({ success: true });
-      (listS3Objects as jest.Mock).mockResolvedValue([]);
+      const { writeJsonS3 } = await import("@/lib/s3/json");
+      const { listS3Objects } = await import("@/lib/s3/objects");
+      (writeJsonS3 as Mock).mockResolvedValue(undefined);
+      (listS3Objects as Mock).mockResolvedValue([]);
 
       // Mock content similarity dependencies
       const { aggregateAllContent } = await import("@/lib/content-similarity/aggregator");
-      (aggregateAllContent as jest.Mock).mockResolvedValue([
+      (aggregateAllContent as Mock).mockResolvedValue([
         {
           type: "blog",
           id: "test-post",
@@ -139,10 +143,10 @@ describe("Pre-computation Pipeline Integration", () => {
       ]);
 
       const { findMostSimilar } = await import("@/lib/content-similarity");
-      (findMostSimilar as jest.Mock).mockReturnValue([]);
+      (findMostSimilar as Mock).mockReturnValue([]);
 
       const { getAllPosts } = await import("@/lib/blog");
-      (getAllPosts as jest.Mock).mockResolvedValue([
+      (getAllPosts as Mock).mockResolvedValue([
         {
           slug: "test-post",
           title: "Test Post",
@@ -189,7 +193,7 @@ describe("Pre-computation Pipeline Integration", () => {
         ],
       };
 
-      mockReadJsonS3.mockImplementation(path => {
+      mockReadJsonS3.mockImplementation((path) => {
         if (path === CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT) {
           return Promise.resolve(mockRelatedContent);
         }
@@ -208,7 +212,7 @@ describe("Pre-computation Pipeline Integration", () => {
   });
 
   describe("Environment Isolation", () => {
-    it("should use different paths for different environments", () => {
+    it("should use different paths for different environments", async () => {
       const originalEnv = process.env.NODE_ENV;
       const originalApiUrl = process.env.API_BASE_URL;
       const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
@@ -222,19 +226,19 @@ describe("Pre-computation Pipeline Integration", () => {
 
         // Test production paths
         process.env.NODE_ENV = "production";
-        jest.isolateModules(() => {
-          const prodConstants = require("@/lib/constants");
-          expect(prodConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe("json/content-graph/related-content.json");
-        });
+        vi.resetModules();
+        const prodConstants = await import("@/lib/constants");
+        expect(prodConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe(
+          "json/content-graph/related-content.json",
+        );
 
         // Test development paths
         process.env.NODE_ENV = "development";
-        jest.isolateModules(() => {
-          const devConstants = require("@/lib/constants");
-          expect(devConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe(
-            "json/content-graph-dev/related-content.json",
-          );
-        });
+        vi.resetModules();
+        const devConstants = await import("@/lib/constants");
+        expect(devConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe(
+          "json/content-graph-dev/related-content.json",
+        );
       } finally {
         // Restore original environment variables even if test fails
         if (originalEnv === undefined) {
@@ -262,15 +266,21 @@ describe("Pre-computation Pipeline Integration", () => {
 
     it("should not interfere between environments", async () => {
       // Mock different data for different environments
-      mockReadJsonS3.mockImplementation(path => {
+      mockReadJsonS3.mockImplementation((path) => {
         if (path.includes("-dev")) {
           return Promise.resolve({ env: "development" });
         }
         return Promise.resolve({ env: "production" });
       });
 
-      const devData = await readJsonS3("json/content-graph-dev/metadata.json");
-      const prodData = await readJsonS3("json/content-graph/metadata.json");
+      const devData = await readJsonS3Optional(
+        "json/content-graph-dev/metadata.json",
+        z.record(z.unknown()),
+      );
+      const prodData = await readJsonS3Optional(
+        "json/content-graph/metadata.json",
+        z.record(z.unknown()),
+      );
 
       expect(devData).not.toEqual(prodData);
 
@@ -308,19 +318,19 @@ describe("Pre-computation Pipeline Integration", () => {
           sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
         },
       ];
-      (getBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
-      (refreshBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
+      (getBookmarks as Mock).mockResolvedValue(mockBookmarks);
+      (refreshBookmarks as Mock).mockResolvedValue(mockBookmarks);
 
       const { buildAllSearchIndexes } = await import("@/lib/search/index-builder");
-      (buildAllSearchIndexes as jest.Mock).mockRejectedValue(new Error("Search index build failed"));
+      (buildAllSearchIndexes as Mock).mockRejectedValue(new Error("Search index build failed"));
 
       // Prevent slug-mapping pre-step from failing with undefined bookmarks
       const { getBookmarks: getServiceBookmarks } = await import("@/lib/bookmarks/service.server");
-      (getServiceBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
+      (getServiceBookmarks as Mock).mockResolvedValue(mockBookmarks);
 
       // Ensure content graph can iterate even if search fails
       const { aggregateAllContent } = await import("@/lib/content-similarity/aggregator");
-      (aggregateAllContent as jest.Mock).mockResolvedValue([]);
+      (aggregateAllContent as Mock).mockResolvedValue([]);
 
       const results = await manager.fetchData({
         bookmarks: true,
@@ -395,12 +405,12 @@ describe("Pre-computation Pipeline Integration", () => {
 
       const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
       const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      (getBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
-      (refreshBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
+      (getBookmarks as Mock).mockResolvedValue(mockBookmarks);
+      (refreshBookmarks as Mock).mockResolvedValue(mockBookmarks);
 
       // Mock writeJsonS3 to capture calls
-      const { writeJsonS3 } = await import("@/lib/s3-utils");
-      (writeJsonS3 as jest.Mock).mockResolvedValue({ success: true });
+      const { writeJsonS3 } = await import("@/lib/s3/json");
+      (writeJsonS3 as Mock).mockResolvedValue(undefined);
 
       await manager.fetchData({
         bookmarks: true,
@@ -408,8 +418,8 @@ describe("Pre-computation Pipeline Integration", () => {
       });
 
       // Verify slug mapping was created for all bookmarks
-      const slugMappingCall = (writeJsonS3 as jest.Mock).mock.calls.find(
-        call => call[0] === BOOKMARKS_S3_PATHS.SLUG_MAPPING,
+      const slugMappingCall = (writeJsonS3 as Mock).mock.calls.find(
+        (call) => call[0] === BOOKMARKS_S3_PATHS.SLUG_MAPPING,
       );
 
       // Skip this assertion if slug mapping wasn't created
@@ -446,8 +456,8 @@ describe("Pre-computation Pipeline Integration", () => {
 
       const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
       const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      (getBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
-      (refreshBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
+      (getBookmarks as Mock).mockResolvedValue(mockBookmarks);
+      (refreshBookmarks as Mock).mockResolvedValue(mockBookmarks);
 
       await manager.fetchData({
         bookmarks: true,
@@ -455,13 +465,13 @@ describe("Pre-computation Pipeline Integration", () => {
       });
 
       // Check metadata consistency
-      const { writeJsonS3 } = await import("@/lib/s3-utils");
-      const metadataCall = (writeJsonS3 as jest.Mock).mock.calls.find(
-        call => call[0] === CONTENT_GRAPH_S3_PATHS.METADATA,
+      const { writeJsonS3 } = await import("@/lib/s3/json");
+      const metadataCall = (writeJsonS3 as Mock).mock.calls.find(
+        (call) => call[0] === CONTENT_GRAPH_S3_PATHS.METADATA,
       );
 
-      const relatedContentCall = (writeJsonS3 as jest.Mock).mock.calls.find(
-        call => call[0] === CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
+      const relatedContentCall = (writeJsonS3 as Mock).mock.calls.find(
+        (call) => call[0] === CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
       );
 
       if (metadataCall && relatedContentCall) {
@@ -492,7 +502,10 @@ describe("Pre-computation Pipeline Integration", () => {
 async function getRelatedContentForItem(type: string, id: string): Promise<unknown[]> {
   // This would normally render the component
   // For testing, we just check if data is available
-  const data = await readJsonS3(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT);
+  const data = await readJsonS3Optional(
+    CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
+    z.record(z.array(z.unknown())),
+  );
   if (data && typeof data === "object") {
     const key = `${type}:${id}`;
     return (data as Record<string, unknown[]>)[key] || [];

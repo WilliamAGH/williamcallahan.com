@@ -17,11 +17,14 @@ import { ProjectDetail } from "@/components/features/projects/project-detail";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
 import { findProjectBySlug, getAllProjectSlugs } from "@/lib/projects/slug-helpers";
+import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
+import type { ProjectAiAnalysisResponse } from "@/types/schemas/project-ai-analysis";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
-import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
+import { formatSeoDate } from "@/lib/seo/utils";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
@@ -53,10 +56,10 @@ const TAG_CATEGORY_MAPPINGS: Array<{ patterns: string[]; category: string }> = [
  * @see {@link "https://schema.org/SoftwareApplication"} - SoftwareApplication specification
  */
 function deriveApplicationCategory(tags: string[]): string {
-  const lowerTags = tags.map(t => t.toLowerCase());
+  const lowerTags = tags.map((t) => t.toLowerCase());
 
   for (const { patterns, category } of TAG_CATEGORY_MAPPINGS) {
-    if (lowerTags.some(tag => patterns.some(pattern => tag.includes(pattern)))) {
+    if (lowerTags.some((tag) => patterns.some((pattern) => tag.includes(pattern)))) {
       return category;
     }
   }
@@ -76,7 +79,10 @@ function buildProjectOgImageUrl(project: Project): string {
       // Convert S3 key to CDN URL
       return buildCdnUrl(project.imageKey, getCdnConfigFromEnv());
     } catch (error) {
-      console.warn(`[ProjectMetadata] Failed to build CDN URL for project ${project.name}, using fallback`, error);
+      console.warn(
+        `[ProjectMetadata] Failed to build CDN URL for project ${project.name}, using fallback`,
+        error,
+      );
       // Fallback if CDN config is missing (e.g. in dev without env vars)
       return ensureAbsoluteUrl(DEFAULT_PROJECT_OG_IMAGE);
     }
@@ -144,9 +150,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     return notFound();
   }
 
+  const projectId = project.id ?? project.name;
   const path = `/projects/${slug}`;
+
+  // Fetch cached AI analysis from S3 (runs in parallel with rendering prep)
+  const cachedAnalysis = await getCachedAnalysis<ProjectAiAnalysisResponse>("projects", projectId);
   const pageMetadata = PAGE_METADATA.projects;
-  const projectId = project.id || project.name;
 
   const schemaParams = {
     path,
@@ -189,12 +198,16 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             </div>
           }
         >
-          <ProjectDetail project={project} />
+          <ProjectDetail project={project} cachedAnalysis={cachedAnalysis} />
         </Suspense>
 
         <div className="mt-12">
           <Suspense fallback={<RelatedContentFallback title="Related Content" />}>
-            <RelatedContent sourceType="project" sourceId={projectId} sectionTitle="Related Content" />
+            <RelatedContent
+              sourceType="project"
+              sourceId={projectId}
+              sectionTitle="Related Content"
+            />
           </Suspense>
         </div>
       </div>

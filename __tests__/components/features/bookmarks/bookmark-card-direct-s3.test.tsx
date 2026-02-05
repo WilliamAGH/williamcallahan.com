@@ -3,8 +3,6 @@
  * @description Tests that verify bookmark cards use direct S3 URLs instead of routing through og-image API
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
-
 // Mock environment variables
 const originalEnv = process.env;
 

@@ -1,39 +1,40 @@
 /**
- * Jest test for lib/data-access/opengraph.ts
+ * Vitest test for lib/data-access/opengraph.ts
  * Tests OpenGraph data extraction functionality
  */
 
 // Mock the OpenGraph data access module
-jest.mock("@/lib/data-access/opengraph", () => ({
-  getOpenGraphData: jest.fn(),
+vi.mock("@/lib/data-access/opengraph", () => ({
+  getOpenGraphData: vi.fn(),
 }));
 
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import type { OgResult } from "@/types/opengraph";
+import type { MockedFunction } from "vitest";
 
-// Helper supplying mandatory OgResult fields so we don’t repeat ourselves
+// Helper supplying mandatory OgResult fields so we don't repeat ourselves
 const baseOg = (): Pick<OgResult, "timestamp" | "source" | "imageUrl"> => ({
   timestamp: Date.now(),
   source: "external",
   imageUrl: undefined,
 });
 
-// Cast to Jest mocked function for proper typing
-const mockGetOpenGraphData = getOpenGraphData as jest.MockedFunction<typeof getOpenGraphData>;
+// Cast to Vitest mocked function for proper typing
+const mockGetOpenGraphData = getOpenGraphData as MockedFunction<typeof getOpenGraphData>;
 
 describe("lib/data-access/opengraph.ts functionality", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
   });
 
   afterAll(() => {
-    jest.restoreAllMocks();
-    jest.useRealTimers();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   describe("OpenGraph data extraction", () => {
@@ -97,7 +98,11 @@ describe("lib/data-access/opengraph.ts functionality", () => {
 
   describe("URL validation and processing", () => {
     it("should handle valid URLs", () => {
-      const validUrls = ["https://railway.app", "https://github.com/openai/whisper", "https://x.com/elonmusk"];
+      const validUrls = [
+        "https://railway.app",
+        "https://github.com/openai/whisper",
+        "https://x.com/elonmusk",
+      ];
 
       for (const url of validUrls) {
         // Validate URL format
@@ -121,16 +126,21 @@ describe("lib/data-access/opengraph.ts functionality", () => {
     });
 
     it("should detect invalid URLs", () => {
-      const actuallyInvalidUrls = ["not a url with spaces", "http://", "https://", "://missing-protocol"];
+      const actuallyInvalidUrls = [
+        "not a url with spaces",
+        "http://",
+        "https://",
+        "://missing-protocol",
+      ];
 
       // These URLs are actually invalid and will throw
       for (const url of actuallyInvalidUrls) {
-        expect(() => new URL(url)).toThrow();
+        expect(() => new URL(url)).toThrow(/Invalid URL/);
       }
 
       // Test null and undefined separately
-      expect(() => new URL(null as any)).toThrow();
-      expect(() => new URL(undefined as any)).toThrow();
+      expect(() => new URL(null as any)).toThrow(/Invalid URL/);
+      expect(() => new URL(undefined as any)).toThrow(/Invalid URL/);
 
       // These are technically valid URLs (relative, different protocols, etc.)
       const technicallyValidUrls = [
@@ -229,13 +239,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
       const timeoutError = new Error("Request timeout");
       mockGetOpenGraphData.mockRejectedValue(timeoutError);
 
-      try {
-        await getOpenGraphData("https://slow-site.com");
-        expect(true).toBe(false);
-      } catch (error) {
-        expect(error).toEqual(timeoutError);
-        expect((error as Error).message).toBe("Request timeout");
-      }
+      await expect(getOpenGraphData("https://slow-site.com")).rejects.toThrow("Request timeout");
     });
 
     it("should handle HTTP error responses", async () => {
@@ -256,36 +260,35 @@ describe("lib/data-access/opengraph.ts functionality", () => {
   });
 
   describe("integration test scenarios", () => {
-    it("should test typical usage flow", async () => {
-      const testFlow = [
-        { url: "https://railway.app", shouldSucceed: true },
-        { url: "https://github.com/openai/whisper", shouldSucceed: true },
-        { url: "https://x.com/elonmusk", shouldSucceed: true },
-        { url: "https://non-existent-domain-12345.com", shouldSucceed: false },
+    it("should handle successful URL fetch", async () => {
+      const successUrls = [
+        "https://railway.app",
+        "https://github.com/openai/whisper",
+        "https://x.com/elonmusk",
       ];
 
-      for (const test of testFlow) {
-        if (test.shouldSucceed) {
-          const mockSuccessData: OgResult = {
-            url: test.url,
-            timestamp: Date.now(),
-            source: "external",
-            imageUrl: undefined,
-            title: `Title for ${test.url}`,
-            description: `Description for ${test.url}`,
-            siteName: `Site for ${test.url}`,
-          };
-          mockGetOpenGraphData.mockResolvedValueOnce(mockSuccessData);
+      for (const url of successUrls) {
+        const mockSuccessData: OgResult = {
+          url,
+          timestamp: Date.now(),
+          source: "external",
+          imageUrl: undefined,
+          title: `Title for ${url}`,
+          description: `Description for ${url}`,
+          siteName: `Site for ${url}`,
+        };
+        mockGetOpenGraphData.mockResolvedValueOnce(mockSuccessData);
 
-          const result = await getOpenGraphData(test.url);
-          expect(result).toEqual(mockSuccessData);
-        } else {
-          mockGetOpenGraphData.mockResolvedValueOnce(null);
-
-          const result = await getOpenGraphData(test.url);
-          expect(result).toBeNull();
-        }
+        const result = await getOpenGraphData(url);
+        expect(result).toEqual(mockSuccessData);
       }
+    });
+
+    it("should handle failed URL fetch", async () => {
+      mockGetOpenGraphData.mockResolvedValueOnce(null);
+
+      const result = await getOpenGraphData("https://non-existent-domain-12345.com");
+      expect(result).toBeNull();
     });
 
     it("should validate extracted data quality", async () => {
@@ -329,7 +332,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
       });
 
       // Simulate concurrent requests
-      const promises = urls.map(url => getOpenGraphData(url));
+      const promises = urls.map((url) => getOpenGraphData(url));
       const results = await Promise.all(promises);
 
       expect(results).toHaveLength(3);

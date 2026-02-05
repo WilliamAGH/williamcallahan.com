@@ -18,6 +18,7 @@
 import { CSP_DIRECTIVES } from "@/config/csp";
 import { NextResponse, type NextRequest, type NextMiddleware } from "next/server";
 import { memoryPressureMiddleware } from "@/lib/middleware/memory-pressure";
+import { sitewideRateLimitMiddleware } from "@/lib/middleware/sitewide-rate-limit";
 import { getClientIp } from "@/lib/utils/request-utils";
 import type { ClerkMiddlewareAuth } from "@clerk/nextjs/server";
 
@@ -47,14 +48,28 @@ import type { RequestLog } from "@/types/lib";
  * @note The file may not exist during the first build, which is expected behavior.
  *       In this case, empty arrays are returned for both scriptSrc and styleSrc.
  */
-async function getCspHashes() {
+// Fallback when CSP hashes unavailable (first build, missing file). CSP still enforced via 'unsafe-inline'.
+const CSP_HASHES_FALLBACK = { scriptSrc: [] as string[], styleSrc: [] as string[] } as const;
+
+async function getCspHashes(): Promise<{ scriptSrc: string[]; styleSrc: string[] }> {
   try {
     const hashes = await import("../generated/csp-hashes.json");
     return hashes.default;
   } catch (error) {
-    console.warn("[CSP] Could not load csp-hashes.json. This is expected on the first build.", error);
-    return { scriptSrc: [], styleSrc: [] };
+    // [RC1] Logged fallback: CSP still works via 'unsafe-inline', hashes are an enhancement
+    console.warn("[CSP] Using fallback (no hashes). Expected on first build:", error);
+    return CSP_HASHES_FALLBACK;
   }
+}
+
+const NON_LOGGED_PATHS = new Set(["/favicon.ico", "/robots.txt", "/sitemap.xml"]);
+const NON_LOGGED_PREFIXES = ["/_next/", "/api/"] as const;
+
+function shouldLogRequest(pathname: string, method: string): boolean {
+  if (method !== "GET") return false;
+  if (NON_LOGGED_PATHS.has(pathname)) return false;
+  if (NON_LOGGED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return false;
+  return pathname === "/" || !pathname.includes(".");
 }
 
 /**
@@ -69,10 +84,10 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
 
   // Check memory pressure first (before any expensive operations)
   const memoryResponse = await memoryPressureMiddleware(request);
-  if (memoryResponse) {
-    return memoryResponse;
-  }
-
+  const systemStatus = memoryResponse?.headers.get("X-System-Status");
+  if (memoryResponse && memoryResponse.status >= 400) return memoryResponse;
+  const rateLimitResponse = sitewideRateLimitMiddleware(request);
+  if (rateLimitResponse) return rateLimitResponse;
   // SECURITY: Block debug endpoints in production
   if (pathname.startsWith("/api/debug") && process.env.NODE_ENV === "production") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -98,6 +113,7 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
   }
 
   const response = NextResponse.next();
+  if (systemStatus) response.headers.set("X-System-Status", systemStatus);
   const ip = getClientIp(request.headers);
 
   // Set security and CORS headers
@@ -140,7 +156,7 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
 
   const csp = Object.entries(cspDirectives)
     .map(([key, sources]) => {
-      const directive = key.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`);
+      const directive = key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
       return `${directive} ${sources.join(" ")}`;
     })
     .join("; ");
@@ -213,21 +229,23 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
     response.headers.set("Expires", "0");
   }
 
-  // Log the request with the real IP
-  const log: RequestLog = {
-    timestamp: new Date().toISOString(),
-    type: "server_pageview",
-    data: {
-      path: request.nextUrl.pathname,
-      fullPath: request.nextUrl.pathname + request.nextUrl.search,
-      method: request.method,
-      clientIp: ip,
-      userAgent: request.headers.get("user-agent") || "unknown",
-      referer: request.headers.get("referer") || "direct",
-    },
-  };
+  if (shouldLogRequest(pathname, request.method)) {
+    // Log the request with the real IP
+    const log: RequestLog = {
+      timestamp: new Date().toISOString(),
+      type: "server_pageview",
+      data: {
+        path: request.nextUrl.pathname,
+        fullPath: request.nextUrl.pathname + request.nextUrl.search,
+        method: request.method,
+        clientIp: ip,
+        userAgent: request.headers.get("user-agent") || "unknown",
+        referer: request.headers.get("referer") || "direct",
+      },
+    };
 
-  console.log(JSON.stringify(log));
+    console.log(JSON.stringify(log));
+  }
 
   return response;
 }
@@ -271,44 +289,22 @@ async function createProxy(): Promise<NextMiddleware> {
   );
 }
 
-// Lazy-initialize the proxy on first request
-// Uses promise-based guard to prevent race conditions when multiple concurrent
-// requests arrive before initialization completes
+// Lazy singleton with race-safe initialization
 let proxyInstance: NextMiddleware | null = null;
 let proxyInitPromise: Promise<NextMiddleware> | null = null;
 
-/**
- * Main proxy export - handles lazy initialization of Clerk middleware
- * Note: Next.js 16 proxy handlers receive only NextRequest, not NextFetchEvent
- */
+/** Main proxy export. Lazy-initializes Clerk middleware on first request. */
 async function proxy(request: NextRequest): Promise<NextResponse> {
-  // Fast path: already initialized
-  if (proxyInstance) {
-    // Skip to using the instance
-  } else if (proxyInitPromise) {
-    // Another request is initializing - wait for it
-    proxyInstance = await proxyInitPromise;
-  } else {
-    // We're the first request - start initialization
-    proxyInitPromise = createProxy();
-    proxyInstance = await proxyInitPromise;
-  }
-  // NextMiddleware signature requires two args, but the second (event) is not used by our handler
+  if (!proxyInstance) proxyInstance = await (proxyInitPromise ??= createProxy());
   const result = await proxyInstance(request, {} as Parameters<NextMiddleware>[1]);
-  // NextMiddleware can return void, Response, or NextResponse - ensure we return NextResponse
-  if (!result) {
-    return NextResponse.next();
-  }
-  // Handle both Response and NextResponse - wrap plain Response in NextResponse if needed
-  if (result instanceof NextResponse) {
-    return result;
-  }
-  // For plain Response objects, create a NextResponse with the same properties
-  return new NextResponse(result.body, {
-    status: result.status,
-    statusText: result.statusText,
-    headers: result.headers,
-  });
+  if (!result) return NextResponse.next();
+  return result instanceof NextResponse
+    ? result
+    : new NextResponse(result.body, {
+        status: result.status,
+        statusText: result.statusText,
+        headers: result.headers,
+      });
 }
 
 /**

@@ -12,8 +12,7 @@
 
 import { render, screen, fireEvent } from "@testing-library/react";
 import { PaginationControl } from "@/components/ui/pagination-control.client";
-import { describe, beforeEach, it, expect, jest } from "@jest/globals";
-import "@testing-library/jest-dom";
+import { vi } from "vitest";
 
 describe("PaginationControl", () => {
   const defaultProps = {
@@ -21,11 +20,11 @@ describe("PaginationControl", () => {
     totalPages: 10,
     totalItems: 100,
     itemsPerPage: 10,
-    onPageChange: jest.fn(),
+    onPageChange: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   /**
@@ -60,7 +59,7 @@ describe("PaginationControl", () => {
    * Test: Clicking page numbers should trigger onPageChange
    */
   it("should call onPageChange when clicking page numbers", () => {
-    const onPageChange = jest.fn();
+    const onPageChange = vi.fn();
     render(<PaginationControl {...defaultProps} onPageChange={onPageChange} />);
 
     const page2Button = screen.getByLabelText("Go to page 2");
@@ -73,8 +72,10 @@ describe("PaginationControl", () => {
    * Test: Navigation buttons should work correctly from first page
    */
   it("should handle navigation button clicks", () => {
-    const onPageChange = jest.fn();
-    const { rerender } = render(<PaginationControl {...defaultProps} currentPage={1} onPageChange={onPageChange} />);
+    const onPageChange = vi.fn();
+    const { rerender } = render(
+      <PaginationControl {...defaultProps} currentPage={1} onPageChange={onPageChange} />,
+    );
 
     // From page 1, test next button
     fireEvent.click(screen.getByLabelText("Go to next page"));
@@ -127,8 +128,10 @@ describe("PaginationControl", () => {
    * Test: Keyboard navigation support
    */
   it("should support keyboard navigation", () => {
-    const onPageChange = jest.fn();
-    const { rerender } = render(<PaginationControl {...defaultProps} currentPage={5} onPageChange={onPageChange} />);
+    const onPageChange = vi.fn();
+    const { rerender } = render(
+      <PaginationControl {...defaultProps} currentPage={5} onPageChange={onPageChange} />,
+    );
 
     const currentPageButton = screen.getByLabelText("Go to page 5");
     currentPageButton.focus();
@@ -169,14 +172,18 @@ describe("PaginationControl", () => {
 
     expect(screen.getByText("Loading...")).toBeInTheDocument();
     // Check for spinner on current page button
-    expect(screen.getByLabelText("Go to page 1").querySelector(".animate-spin")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Go to page 1").querySelector(".animate-spin"),
+    ).toBeInTheDocument();
   });
 
   /**
    * Test: Ellipsis for large page ranges
    */
   it("should show ellipsis for large page ranges", () => {
-    render(<PaginationControl {...defaultProps} currentPage={10} totalPages={20} maxVisiblePages={5} />);
+    render(
+      <PaginationControl {...defaultProps} currentPage={10} totalPages={20} maxVisiblePages={5} />,
+    );
 
     // Should show page 1 with ellipsis
     expect(screen.getByLabelText("Go to page 1")).toBeInTheDocument();
@@ -222,7 +229,13 @@ describe("PaginationControl", () => {
 
     // Last page with partial items
     rerender(
-      <PaginationControl {...defaultProps} currentPage={10} totalItems={95} itemsPerPage={10} totalPages={10} />,
+      <PaginationControl
+        {...defaultProps}
+        currentPage={10}
+        totalItems={95}
+        itemsPerPage={10}
+        totalPages={10}
+      />,
     );
 
     expect(screen.getByText("Showing 91-95 of 95 bookmarks")).toBeInTheDocument();
@@ -246,7 +259,7 @@ describe("PaginationControl", () => {
    * Test: Prevents duplicate page changes
    */
   it("should not call onPageChange when clicking current page", () => {
-    const onPageChange = jest.fn();
+    const onPageChange = vi.fn();
     render(<PaginationControl {...defaultProps} currentPage={3} onPageChange={onPageChange} />);
 
     fireEvent.click(screen.getByLabelText("Go to page 3"));

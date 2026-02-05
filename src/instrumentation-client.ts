@@ -11,7 +11,10 @@ import * as Sentry from "@sentry/nextjs";
  * Common browser extension error patterns to filter from error reporting
  * Prevents unnecessary noise from extension conflicts
  */
-const NON_CRITICAL_ERROR_PATTERNS = ['can\'t redefine non-configurable property "ethereum"', "Load failed"];
+const NON_CRITICAL_ERROR_PATTERNS = [
+  'can\'t redefine non-configurable property "ethereum"',
+  "Load failed",
+];
 
 const BROWSER_EXTENSION_ERROR_PATTERNS = [
   "runtime.sendMessage",
@@ -31,7 +34,10 @@ const BROWSER_EXTENSION_ERROR_PATTERNS = [
  * @param errorMessage - The error message to check
  * @returns true if the error should be filtered out, false otherwise
  */
-export function shouldFilterError(errorMessage: string): boolean {
+export function shouldFilterError(errorMessage: unknown): boolean {
+  if (typeof errorMessage !== "string") {
+    return false;
+  }
   const normalizedMessage = errorMessage.toLowerCase();
   // Check for known browser extension error patterns
   for (const pattern of BROWSER_EXTENSION_ERROR_PATTERNS) {
@@ -128,13 +134,13 @@ const matchesNonCriticalPattern = (message: string | undefined): boolean => {
   }
 
   const normalized = message.toLowerCase();
-  return NON_CRITICAL_ERROR_PATTERNS.some(pattern => normalized.includes(pattern.toLowerCase()));
+  return NON_CRITICAL_ERROR_PATTERNS.some((pattern) => normalized.includes(pattern.toLowerCase()));
 };
 
 if (typeof window !== "undefined") {
   window.addEventListener(
     "error",
-    event => {
+    (event) => {
       if (matchesNonCriticalPattern(event.message)) {
         event.preventDefault();
       }
@@ -142,7 +148,7 @@ if (typeof window !== "undefined") {
     true,
   );
 
-  window.addEventListener("unhandledrejection", event => {
+  window.addEventListener("unhandledrejection", (event) => {
     const reason = event.reason as unknown;
     const message =
       typeof reason === "string"

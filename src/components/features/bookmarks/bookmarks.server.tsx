@@ -12,12 +12,30 @@
 import "server-only"; // Ensure this component remains server-only
 
 // Defer heavy imports to reduce initial bundle size
-const getBookmarks = async () => (await import("@/lib/bookmarks/service.server")).getBookmarks;
-const getBookmarksPage = async () => (await import("@/lib/bookmarks/service.server")).getBookmarksPage;
-const getBookmarksIndex = async () => (await import("@/lib/bookmarks/service.server")).getBookmarksIndex;
-const normalizeBookmarkTag = async () => (await import("@/lib/bookmarks/utils")).normalizeBookmarkTag;
-const stripImageData = async () => (await import("@/lib/bookmarks/utils")).stripImageData;
-const loadSafeBookmarkSlugResolver = async () => (await import("@/lib/bookmarks/slug-helpers")).getSafeBookmarkSlug;
+const getBookmarks = async () => {
+  const mod = await import("@/lib/bookmarks/service.server");
+  return mod.getBookmarks;
+};
+const getBookmarksPage = async () => {
+  const mod = await import("@/lib/bookmarks/service.server");
+  return mod.getBookmarksPage;
+};
+const getBookmarksIndex = async () => {
+  const mod = await import("@/lib/bookmarks/service.server");
+  return mod.getBookmarksIndex;
+};
+const normalizeBookmarkTag = async () => {
+  const mod = await import("@/lib/bookmarks/utils");
+  return mod.normalizeBookmarkTag;
+};
+const stripImageData = async () => {
+  const mod = await import("@/lib/bookmarks/utils");
+  return mod.stripImageData;
+};
+const loadSafeBookmarkSlugResolver = async () => {
+  const mod = await import("@/lib/bookmarks/slug-helpers");
+  return mod.getSafeBookmarkSlug;
+};
 import { convertSerializableBookmarksToUnified } from "@/lib/bookmarks/utils";
 
 import type { UnifiedBookmark, BookmarksServerExtendedProps, SerializableBookmark } from "@/types";
@@ -80,7 +98,9 @@ export async function BookmarksServer({
       return;
     }
 
-    let resolveSlug: ((id: string, bookmarks?: UnifiedBookmark[]) => Promise<string | null>) | null = null;
+    let resolveSlug:
+      | ((id: string, bookmarks?: UnifiedBookmark[]) => Promise<string | null>)
+      | null = null;
 
     for (const bookmark of missing) {
       if (!resolveSlug) {
@@ -104,7 +124,10 @@ export async function BookmarksServer({
   } else if (initialPage && initialPage > 1) {
     const getBookmarksPageFunc = await getBookmarksPage();
     const getBookmarksIndexFunc = await getBookmarksIndex();
-    const [pageData, indexData] = await Promise.all([getBookmarksPageFunc(initialPage), getBookmarksIndexFunc()]);
+    const [pageData, indexData] = await Promise.all([
+      getBookmarksPageFunc(initialPage),
+      getBookmarksIndexFunc(),
+    ]);
     bookmarks = pageData ?? [];
     totalPages = indexData?.totalPages ?? 1;
     totalCount = indexData?.count ?? 0;
@@ -134,7 +157,7 @@ export async function BookmarksServer({
   const normalizeFunc = await normalizeBookmarkTag();
   const stripImageDataFunc = await stripImageData();
 
-  const serializableBookmarks: SerializableBookmark[] = bookmarks.map(bookmark => {
+  const serializableBookmarks: SerializableBookmark[] = bookmarks.map((bookmark) => {
     // When includeImageData is false, use the standardized stripImageData utility
     if (!includeImageData) {
       const lightweight = stripImageDataFunc(bookmark);

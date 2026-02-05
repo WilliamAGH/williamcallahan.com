@@ -59,6 +59,8 @@ export interface TerminalHeaderProps {
   onMaximize?: () => void;
   /** Whether window is maximized */
   isMaximized?: boolean;
+  /** Optional clear/reset callback */
+  onClear?: () => void;
 }
 
 export interface SelectionViewProps {
@@ -155,10 +157,41 @@ export interface AiChatInputProps {
   isSubmitting: boolean;
   /** Optional queue status message */
   queueMessage?: string | null;
+  /** Number of queued messages waiting to be sent */
+  queuedCount: number;
+  /** Maximum number of queued messages allowed */
+  queueLimit: number;
+  /** Optional queue notice to display (e.g., full queue) */
+  queueNotice?: string | null;
   /** Callback to send a chat message */
-  onSend: (userText: string) => Promise<void> | void;
+  onSend: (userText: string) => Promise<boolean> | boolean;
   /** Callback to clear and exit chat mode */
   onClearAndExit: () => void;
   /** Callback to cancel the current request */
   onCancelRequest: () => void;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Chat Queue Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type TerminalChatAbortReason = "user_cancel" | "superseded" | "clear_exit" | "unmount";
+
+export interface AiChatQueueConfig {
+  history: TerminalCommand[];
+  addToHistory: (command: TerminalCommand) => void;
+  conversationId: string;
+  feature: string;
+}
+
+export interface AiChatQueueResult {
+  queueChatMessage: (userText: string) => boolean;
+  sendImmediateMessage: (userText: string, signal?: AbortSignal) => Promise<void>;
+  abortChatRequest: (reason: TerminalChatAbortReason) => void;
+  clearQueue: () => void;
+  isSubmitting: boolean;
+  queuedCount: number;
+  queueLimit: number;
+  queueNotice: string | null;
+  aiQueueMessage: string | null;
 }

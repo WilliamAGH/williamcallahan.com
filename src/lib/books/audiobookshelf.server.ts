@@ -9,6 +9,7 @@
 
 import { fetchWithTimeout } from "@/lib/utils/http-client";
 import { envLogger } from "@/lib/utils/env-logger";
+import { getMonotonicTime } from "@/lib/utils";
 import {
   validateAbsLibraryItemsResponse,
   validateAbsLibraryItem,
@@ -19,8 +20,13 @@ import {
   type FetchAbsLibraryItemsOptions,
 } from "@/types/schemas/book";
 import { absConfigSchema, type AbsConfig } from "@/types/schemas/env";
-import { absItemToBook, absItemsToBooks, absItemsToBookListItems, buildDirectCoverUrl } from "./transforms";
-import { generateBookCoverBlur } from "./image-utils.server";
+import {
+  absItemToBook,
+  absItemsToBooks,
+  absItemsToBookListItems,
+  buildDirectCoverUrl,
+} from "./transforms";
+import { applyBookCoverBlurs } from "./image-utils.server";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuration
@@ -62,29 +68,25 @@ const snapshotIsFresh = (
   if (!snapshot) return false;
   // If fetchedAt is 0 (prerender-safe), consider it fresh (we can't know real age)
   if (snapshot.fetchedAt === 0) return true;
-  // Use try-catch since Date.now() can fail during prerendering before data access
-  try {
-    return Date.now() - snapshot.fetchedAt <= ttlMs;
-  } catch {
-    return true; // If Date.now() fails, assume fresh to allow fallback
-  }
+  const now = getMonotonicTime();
+  return now - snapshot.fetchedAt <= ttlMs;
 };
 
 /**
  * Cache books snapshot with timestamp.
- * During prerendering, Date.now() is not allowed before data access,
+ * During prerendering, current-time access is not allowed before data access,
  * so we use a stable timestamp of 0 which effectively disables the TTL check.
  */
 const cacheSnapshot = (books: Book[], timestamp?: number): void => {
   lastBooksSnapshot = {
-    booksById: new Map(books.map(book => [book.id, cloneBook(book)])),
+    booksById: new Map(books.map((book) => [book.id, cloneBook(book)])),
     fetchedAt: timestamp ?? 0, // Use provided timestamp or 0 (prerender-safe)
   };
 };
 
 /**
  * Update a single book in the snapshot.
- * Uses timestamp of 0 to avoid Date.now() during prerendering.
+ * Uses timestamp of 0 to avoid current-time access during prerendering.
  */
 const upsertBookIntoSnapshot = (book: Book, timestamp?: number): void => {
   const ts = timestamp ?? 0; // prerender-safe
@@ -139,7 +141,9 @@ async function absApi<T>(path: string, validate: (data: unknown) => T): Promise<
  * @param options - Optional sorting configuration
  * @returns Array of library items, sorted by addedAt descending by default (newest first)
  */
-export async function fetchAbsLibraryItems(options: FetchAbsLibraryItemsOptions = {}): Promise<AbsLibraryItem[]> {
+export async function fetchAbsLibraryItems(
+  options: FetchAbsLibraryItemsOptions = {},
+): Promise<AbsLibraryItem[]> {
   const { libraryId } = getConfig();
   const { sort = "addedAt", desc = true } = options;
 
@@ -176,19 +180,8 @@ async function fetchBooksFresh(
   // Optionally generate blur placeholders (parallel for performance)
   // Use direct AudioBookShelf URLs for server-side blur generation
   if (includeBlurPlaceholders) {
-    const results = await Promise.allSettled(
-      books.map(async book => {
-        // Use direct URL for server-side fetch (not the proxied coverUrl)
-        const directUrl = buildDirectCoverUrl(book.id, baseUrl, apiKey);
-        book.coverBlurDataURL = await generateBookCoverBlur(directUrl);
-      }),
-    );
-    // Log any failures for debugging without blocking the response
-    results.forEach((result, index) => {
-      if (result.status === "rejected") {
-        console.warn(`[AudioBookShelf] Blur placeholder failed for book index ${index}:`, result.reason);
-      }
-    });
+    const buildCoverUrl = (id: string) => buildDirectCoverUrl(id, baseUrl, apiKey);
+    await applyBookCoverBlurs(books, buildCoverUrl);
   }
 
   return books;
@@ -199,10 +192,13 @@ async function fetchBooksFresh(
  * Defaults to allowing stale data when AudioBookShelf is unavailable.
  * Never throws - returns empty array if all fallbacks are exhausted.
  *
- * Note: fetchedAt returns 0 to be prerender-safe (Date.now() not allowed before data access)
+ * Note: fetchedAt returns 0 to be prerender-safe (current time not allowed before data access)
  */
 export async function fetchBooksWithFallback(
-  options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean; allowStale?: boolean } = {},
+  options: FetchAbsLibraryItemsOptions & {
+    includeBlurPlaceholders?: boolean;
+    allowStale?: boolean;
+  } = {},
 ): Promise<{ books: Book[]; isFallback: boolean; fetchedAt: number }> {
   const { allowStale = true, ...rest } = options;
 
@@ -220,7 +216,11 @@ export async function fetchBooksWithFallback(
 
     const snapshotBooks = allowStale ? getSnapshotBooks(SNAPSHOT_TTL_MS) : null;
     if (snapshotBooks) {
-      return { books: snapshotBooks, isFallback: true, fetchedAt: lastBooksSnapshot?.fetchedAt ?? 0 };
+      return {
+        books: snapshotBooks,
+        isFallback: true,
+        fetchedAt: lastBooksSnapshot?.fetchedAt ?? 0,
+      };
     }
 
     // Return empty array instead of throwing - allows page to render gracefully
@@ -247,7 +247,7 @@ export async function fetchBooks(
  * Fetch book list items (minimal data for grids) with fallback to snapshot.
  * Gracefully handles missing AudioBookShelf config (returns empty array).
  *
- * Note: fetchedAt returns 0 to be prerender-safe (Date.now() not allowed before data access)
+ * Note: fetchedAt returns 0 to be prerender-safe (current time not allowed before data access)
  * @param options - Fetch options including blur placeholder generation
  */
 export async function fetchBookListItemsWithFallback(
@@ -263,18 +263,8 @@ export async function fetchBookListItemsWithFallback(
 
     // Use direct AudioBookShelf URLs for server-side blur generation
     if (includeBlurPlaceholders) {
-      const results = await Promise.allSettled(
-        bookListItems.map(async book => {
-          // Use direct URL for server-side fetch (not the proxied coverUrl)
-          const directUrl = buildDirectCoverUrl(book.id, baseUrl, apiKey);
-          book.coverBlurDataURL = await generateBookCoverBlur(directUrl);
-        }),
-      );
-      results.forEach((result, index) => {
-        if (result.status === "rejected") {
-          console.warn(`[AudioBookShelf] Blur placeholder failed for book list item index ${index}:`, result.reason);
-        }
-      });
+      const buildCoverUrl = (id: string) => buildDirectCoverUrl(id, baseUrl, apiKey);
+      await applyBookCoverBlurs(bookListItems, buildCoverUrl);
     }
 
     // Keep a snapshot so detail pages can fall back to last-known-good data
@@ -358,8 +348,8 @@ export async function fetchBookById(
 
     // Optionally generate blur placeholder using direct URL
     if (includeBlurPlaceholder) {
-      const directUrl = buildDirectCoverUrl(id, baseUrl, apiKey);
-      book.coverBlurDataURL = await generateBookCoverBlur(directUrl);
+      const buildCoverUrl = (itemId: string) => buildDirectCoverUrl(itemId, baseUrl, apiKey);
+      await applyBookCoverBlurs([book], buildCoverUrl);
     }
 
     return book;

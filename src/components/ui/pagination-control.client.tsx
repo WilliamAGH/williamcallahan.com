@@ -123,7 +123,7 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
           <button
             type="button"
             onClick={() => handlePageChange(1)}
-            onKeyDown={e => handleKeyDown(e, 1)}
+            onKeyDown={(e) => handleKeyDown(e, 1)}
             disabled={internalCurrentPage === 1 || disabled || isLoading}
             className="h-8 w-8 p-0 rounded-md border border-gray-200 dark:border-gray-700 
                      bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
@@ -140,7 +140,7 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
         <button
           type="button"
           onClick={() => handlePageChange(internalCurrentPage - 1)}
-          onKeyDown={e => handleKeyDown(e, internalCurrentPage - 1)}
+          onKeyDown={(e) => handleKeyDown(e, internalCurrentPage - 1)}
           disabled={internalCurrentPage === 1 || disabled || isLoading}
           className="h-8 w-8 p-0 rounded-md border border-gray-200 dark:border-gray-700 
                    bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
@@ -160,7 +160,7 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
               <button
                 type="button"
                 onClick={() => handlePageChange(1)}
-                onKeyDown={e => handleKeyDown(e, 1)}
+                onKeyDown={(e) => handleKeyDown(e, 1)}
                 disabled={disabled || isLoading}
                 className="h-8 min-w-[2rem] px-2 rounded-md border border-gray-200 dark:border-gray-700 
                          bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
@@ -177,12 +177,12 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
           )}
 
           {/* Visible page numbers */}
-          {visiblePages.map(page => (
+          {visiblePages.map((page) => (
             <button
               key={page}
               type="button"
               onClick={() => handlePageChange(page)}
-              onKeyDown={e => handleKeyDown(e, page)}
+              onKeyDown={(e) => handleKeyDown(e, page)}
               disabled={disabled || isLoading}
               className={`h-8 min-w-[2rem] px-2 rounded-md border transition-all duration-200 ${
                 page === internalCurrentPage
@@ -192,13 +192,18 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
               aria-label={`Go to page ${page}`}
               aria-current={page === internalCurrentPage ? "page" : undefined}
             >
-              {isLoading && page === internalCurrentPage ? <Loader2 className="h-3 w-3 animate-spin" /> : page}
+              {isLoading && page === internalCurrentPage ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                page
+              )}
             </button>
           ))}
 
           {/* Show ellipsis if there are pages after visible range */}
           {(() => {
-            const lastVisiblePage = visiblePages.length > 0 ? visiblePages[visiblePages.length - 1] : undefined;
+            const lastVisiblePage =
+              visiblePages.length > 0 ? visiblePages[visiblePages.length - 1] : undefined;
             return (
               lastVisiblePage &&
               lastVisiblePage < totalPages && (
@@ -209,7 +214,7 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
                   <button
                     type="button"
                     onClick={() => handlePageChange(totalPages)}
-                    onKeyDown={e => handleKeyDown(e, totalPages)}
+                    onKeyDown={(e) => handleKeyDown(e, totalPages)}
                     disabled={disabled || isLoading}
                     className="h-8 min-w-[2rem] px-2 rounded-md border border-gray-200 dark:border-gray-700 
                          bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
@@ -229,7 +234,7 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
         <button
           type="button"
           onClick={() => handlePageChange(internalCurrentPage + 1)}
-          onKeyDown={e => handleKeyDown(e, internalCurrentPage + 1)}
+          onKeyDown={(e) => handleKeyDown(e, internalCurrentPage + 1)}
           disabled={internalCurrentPage === totalPages || disabled || isLoading}
           className="h-8 w-8 p-0 rounded-md border border-gray-200 dark:border-gray-700 
                    bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
@@ -246,7 +251,7 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
           <button
             type="button"
             onClick={() => handlePageChange(totalPages)}
-            onKeyDown={e => handleKeyDown(e, totalPages)}
+            onKeyDown={(e) => handleKeyDown(e, totalPages)}
             disabled={internalCurrentPage === totalPages || disabled || isLoading}
             className="h-8 w-8 p-0 rounded-md border border-gray-200 dark:border-gray-700 
                      bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 

@@ -7,7 +7,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
-import { writeBinaryS3, checkIfS3ObjectExists } from "@/lib/s3-utils";
+import { writeBinaryS3 } from "@/lib/s3/binary";
+import { checkIfS3ObjectExists } from "@/lib/s3/objects";
 import logger from "@/lib/utils/logger";
 
 // Images identified as missing from the logs
@@ -124,7 +125,7 @@ async function uploadMissingImages() {
 }
 
 // Run the upload
-uploadMissingImages().catch(error => {
+uploadMissingImages().catch((error) => {
   logger.error("Fatal error:", error);
   process.exit(1);
 });

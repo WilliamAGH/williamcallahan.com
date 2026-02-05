@@ -9,9 +9,9 @@
  */
 import { assertServerOnly } from "./utils";
 import { envLogger } from "@/lib/utils/env-logger";
-import { getMonotonicTime } from "@/lib/utils";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 
-import type { ICache, CacheStats, CacheValue, ServerCacheMapEntry } from "@/types/cache";
+import type { Cache, CacheStats, CacheValue, ServerCacheMapEntry } from "@/types/cache";
 import { SERVER_CACHE_DURATION, MEMORY_THRESHOLDS } from "./constants";
 
 /** Circuit breaker cooldown period in milliseconds (5 minutes) */
@@ -26,17 +26,7 @@ import * as aggregatedContentHelpers from "./server-cache/aggregated-content";
 
 assertServerOnly();
 
-const isProductionBuildPhase = () => process.env.NEXT_PHASE === "phase-production-build";
-const buildPhaseTimestamp = isProductionBuildPhase() ? getMonotonicTime() : undefined;
-
-export const getDeterministicTimestamp = (): number => {
-  if (isProductionBuildPhase()) {
-    return buildPhaseTimestamp ?? getMonotonicTime();
-  }
-  return getMonotonicTime();
-};
-
-export class ServerCache implements ICache {
+export class ServerCache implements Cache {
   private readonly cache = new Map<string, ServerCacheMapEntry>();
   private hits = 0;
   private misses = 0;
@@ -106,7 +96,7 @@ export class ServerCache implements ICache {
   public get<T>(key: string): T | undefined {
     // If disabled, check if cooldown expired and memory is healthy for auto-recovery
     if (this.disabled) {
-      if (Date.now() >= this.disabledUntil) {
+      if (getDeterministicTimestamp() >= this.disabledUntil) {
         this.attemptCircuitBreakerRecovery();
       }
       if (this.disabled) {
@@ -169,7 +159,12 @@ export class ServerCache implements ICache {
         // For objects, use JSON stringification as estimate
         try {
           size = JSON.stringify(value).length * 2;
-        } catch {
+        } catch (error) {
+          envLogger.log(
+            "Failed to estimate cache entry size; using 1KB default",
+            { key, error },
+            { category: "ServerCache", context: { event: "size-estimate-fallback" } },
+          );
           size = 1024; // 1KB default
         }
       }
@@ -210,7 +205,7 @@ export class ServerCache implements ICache {
 
   public del(key: string | string[]): void {
     if (Array.isArray(key)) {
-      key.forEach(k => {
+      key.forEach((k) => {
         const entry = this.cache.get(k);
         if (entry && typeof entry === "object" && "size" in entry) {
           this.cache.delete(k);
@@ -274,10 +269,13 @@ export class ServerCache implements ICache {
 
     if (this.failureCount >= this.maxFailures && !this.disabled) {
       this.disabled = true;
-      this.disabledUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
+      this.disabledUntil = getDeterministicTimestamp() + CIRCUIT_BREAKER_COOLDOWN_MS;
       envLogger.log(
         `Circuit breaker activated after ${this.failureCount} failures. Will attempt recovery in 5 minutes.`,
-        { failureCount: this.failureCount, disabledUntil: new Date(this.disabledUntil).toISOString() },
+        {
+          failureCount: this.failureCount,
+          disabledUntil: new Date(this.disabledUntil).toISOString(),
+        },
         { category: "ServerCache", context: { event: "circuit-breaker-activated" } },
       );
     }
@@ -303,7 +301,7 @@ export class ServerCache implements ICache {
       );
     } else {
       // Extend cooldown if memory still high
-      this.disabledUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
+      this.disabledUntil = getDeterministicTimestamp() + CIRCUIT_BREAKER_COOLDOWN_MS;
       envLogger.log(
         `Circuit breaker recovery deferred - memory still high (${rssMB}MB)`,
         { rssMB, nextAttempt: new Date(this.disabledUntil).toISOString() },
@@ -443,7 +441,11 @@ export class ServerCache implements ICache {
  * - Follows MDN and OWASP security best practices for prototype extension
  * - Prevents accidental exposure of internal state through prototype chain
  */
-function attachHelpers<T extends Record<string, unknown>>(prototype: object, helpers: T, helperName: string) {
+function attachHelpers<T extends Record<string, unknown>>(
+  prototype: object,
+  helpers: T,
+  helperName: string,
+) {
   for (const [key, value] of Object.entries(helpers)) {
     // Only attach functions to avoid polluting the prototype with constants/objects
     if (typeof value !== "function") continue;
@@ -457,7 +459,11 @@ function attachHelpers<T extends Record<string, unknown>>(prototype: object, hel
     // Define non-enumerable to keep prototype surface tidy
     Object.defineProperty(prototype, key, {
       // Narrow to callable without using 'any'
-      value: value as (...args: unknown[]) => unknown,
+      // WRAPPER: Convert the method call (this.foo()) into a function call with 'this' as first arg (foo(this))
+      // This allows the helper functions to be standard functions (cache: Cache, ...args) instead of using 'this' context
+      value: function (this: Cache, ...args: unknown[]) {
+        return (value as (cache: Cache, ...args: unknown[]) => unknown)(this, ...args);
+      },
       configurable: true,
       writable: true,
       enumerable: false,

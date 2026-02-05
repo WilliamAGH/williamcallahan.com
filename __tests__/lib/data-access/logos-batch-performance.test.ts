@@ -1,16 +1,21 @@
+import { vi } from "vitest";
 import { getLogoBatch } from "@/lib/data-access/logos-batch";
-import { checkIfS3ObjectExists, readJsonS3, writeBinaryS3 } from "@/lib/s3-utils";
+import { checkIfS3ObjectExists } from "@/lib/s3/objects";
+import { readJsonS3Optional } from "@/lib/s3/json";
+import { writeBinaryS3 } from "@/lib/s3/binary";
 import { generateS3Key } from "@/lib/utils/hash-utils";
 import { getDomainVariants } from "@/lib/utils/domain-utils";
 import type { LogoSource } from "@/types/logo";
 
 // Mock dependencies
-jest.mock("@/lib/s3-utils");
-jest.mock("@/lib/utils/hash-utils");
-jest.mock("@/lib/utils/domain-utils");
-jest.mock("@/lib/services/unified-image-service", () => ({
-  getUnifiedImageService: jest.fn().mockReturnValue({
-    getLogo: jest.fn().mockResolvedValue({
+vi.mock("@/lib/s3/objects");
+vi.mock("@/lib/s3/json");
+vi.mock("@/lib/s3/binary");
+vi.mock("@/lib/utils/hash-utils");
+vi.mock("@/lib/utils/domain-utils");
+vi.mock("@/lib/services/unified-image-service", () => ({
+  getUnifiedImageService: vi.fn().mockReturnValue({
+    getLogo: vi.fn().mockResolvedValue({
       url: "https://example.com/logo.png",
       source: "google",
       contentType: "image/png",
@@ -19,65 +24,72 @@ jest.mock("@/lib/services/unified-image-service", () => ({
 }));
 
 // Mock the FailureTracker to prevent loading persisted data
-jest.mock("@/lib/utils/failure-tracker", () => ({
-  FailureTracker: jest.fn().mockImplementation(() => ({
-    shouldSkip: jest.fn().mockResolvedValue(false),
-    recordFailure: jest.fn().mockResolvedValue(undefined),
-    removeFailure: jest.fn(),
-    load: jest.fn().mockResolvedValue(undefined),
-    save: jest.fn().mockResolvedValue(undefined),
-  })),
+vi.mock("@/lib/utils/failure-tracker", () => ({
+  FailureTracker: vi.fn(function () {
+    return {
+      shouldSkip: vi.fn().mockResolvedValue(false),
+      recordFailure: vi.fn().mockResolvedValue(undefined),
+      removeFailure: vi.fn(),
+      load: vi.fn().mockResolvedValue(undefined),
+      save: vi.fn().mockResolvedValue(undefined),
+    };
+  }),
 }));
 
 // Mock LOGO_SOURCES from constants
-jest.mock("@/lib/constants", () => ({
-  ...jest.requireActual("@/lib/constants"),
-  LOGO_SOURCES: {
-    google: {
-      hd: (d: string) => `https://www.google.com/s2/favicons?domain=${d}&sz=256`,
+vi.mock("@/lib/constants", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/constants")>();
+  return {
+    ...actual,
+    LOGO_SOURCES: {
+      google: {
+        hd: (d: string) => `https://www.google.com/s2/favicons?domain=${d}&sz=256`,
+      },
+      duckduckgo: {
+        hd: (d: string) => `https://icons.duckduckgo.com/ip3/${d}.ico`,
+      },
     },
-    duckduckgo: {
-      hd: (d: string) => `https://icons.duckduckgo.com/ip3/${d}.ico`,
-    },
-  },
-  LOGO_BLOCKLIST_S3_PATH: "json/rate-limit/logo-failed-domains-test.json",
-}));
+    LOGO_BLOCKLIST_S3_PATH: "json/rate-limit/logo-failed-domains-test.json",
+  };
+});
 
 describe("Logos Batch Performance Optimizations", () => {
-  const mockCheckIfS3ObjectExists = jest.mocked(checkIfS3ObjectExists);
-  const mockGenerateS3Key = jest.mocked(generateS3Key);
-  const mockGetDomainVariants = jest.mocked(getDomainVariants);
-  const mockReadJsonS3 = jest.mocked(readJsonS3);
-  const mockWriteBinaryS3 = jest.mocked(writeBinaryS3);
+  const mockCheckIfS3ObjectExists = vi.mocked(checkIfS3ObjectExists);
+  const mockGenerateS3Key = vi.mocked(generateS3Key);
+  const mockGetDomainVariants = vi.mocked(getDomainVariants);
+  const mockReadJsonS3 = vi.mocked(readJsonS3Optional);
+  const mockWriteBinaryS3 = vi.mocked(writeBinaryS3);
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Default mocks
     mockGetDomainVariants.mockReturnValue(["example.com", "www.example.com"]);
-    mockGenerateS3Key.mockImplementation(({ domain, source, extension }) => `logos/${source}/${domain}.${extension}`);
+    mockGenerateS3Key.mockImplementation(
+      ({ domain, source, extension }) => `logos/${source}/${domain}.${extension}`,
+    );
     mockCheckIfS3ObjectExists.mockResolvedValue(false); // Default: no logos exist
     mockReadJsonS3.mockRejectedValue(new Error("File not found")); // No persisted failures
     mockWriteBinaryS3.mockResolvedValue(undefined);
 
     // Mock fetch to prevent actual network requests
     const mockBody = {
-      getReader: jest.fn(),
-      cancel: jest.fn(),
-      pipeTo: jest.fn(),
-      pipeThrough: jest.fn(),
-      tee: jest.fn(),
+      getReader: vi.fn(),
+      cancel: vi.fn(),
+      pipeTo: vi.fn(),
+      pipeThrough: vi.fn(),
+      tee: vi.fn(),
     };
 
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       headers: new Headers({ "content-type": "image/png" }),
       body: mockBody,
-    });
+    }) as unknown as typeof fetch;
 
     // Mock Readable.fromWeb for Node.js stream conversion
     const { Readable } = require("node:stream");
-    Readable.fromWeb = jest.fn().mockReturnValue(
+    Readable.fromWeb = vi.fn().mockReturnValue(
       new Readable({
         read() {
           this.push(null); // Empty stream
@@ -92,9 +104,9 @@ describe("Logos Batch Performance Optimizations", () => {
       const startTime = Date.now();
 
       // Track when each check is called
-      mockCheckIfS3ObjectExists.mockImplementation(async key => {
+      mockCheckIfS3ObjectExists.mockImplementation(async (key) => {
         checkTimes[key] = Date.now() - startTime;
-        await new Promise(resolve => setTimeout(resolve, 10)); // Simulate S3 latency
+        await new Promise((resolve) => setTimeout(resolve, 10)); // Simulate S3 latency
         return false;
       });
 
@@ -137,14 +149,19 @@ describe("Logos Batch Performance Optimizations", () => {
     });
 
     it("should handle multiple domain variants efficiently", async () => {
-      mockGetDomainVariants.mockReturnValue(["example.com", "www.example.com", "app.example.com", "api.example.com"]);
+      mockGetDomainVariants.mockReturnValue([
+        "example.com",
+        "www.example.com",
+        "app.example.com",
+        "api.example.com",
+      ]);
 
       const checkTimes: number[] = [];
       const startTime = Date.now();
 
       mockCheckIfS3ObjectExists.mockImplementation(async () => {
         checkTimes.push(Date.now() - startTime);
-        await new Promise(resolve => setTimeout(resolve, 5));
+        await new Promise((resolve) => setTimeout(resolve, 5));
         return false;
       });
 
@@ -158,7 +175,7 @@ describe("Logos Batch Performance Optimizations", () => {
       const windows = [0, 10, 20, 30, 40];
       const checksPerWindow = windows.map((window, i) => {
         const nextWindow = windows[i + 1] || Infinity;
-        return checkTimes.filter(t => t >= window && t < nextWindow).length;
+        return checkTimes.filter((t) => t >= window && t < nextWindow).length;
       });
 
       // With fast mocked responses, many checks may complete in the first window
@@ -171,7 +188,7 @@ describe("Logos Batch Performance Optimizations", () => {
     it("should be significantly faster than sequential checking", async () => {
       // Simulate realistic S3 latency
       mockCheckIfS3ObjectExists.mockImplementation(async () => {
-        await new Promise(resolve => setTimeout(resolve, 20)); // 20ms per check
+        await new Promise((resolve) => setTimeout(resolve, 20)); // 20ms per check
         return false;
       });
 

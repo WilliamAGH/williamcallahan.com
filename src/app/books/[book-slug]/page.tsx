@@ -22,13 +22,19 @@ import type { Metadata } from "next";
 import { BookDetail } from "@/components/features/books/book-detail";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
-import { fetchBookByIdWithFallback, fetchBooksWithFallback } from "@/lib/books/audiobookshelf.server";
+import {
+  fetchBookByIdWithFallback,
+  fetchBooksWithFallback,
+} from "@/lib/books/audiobookshelf.server";
 import { extractBookIdFromSlug, findBookBySlug } from "@/lib/books/slug-helpers";
+import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
+import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
-import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
+import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import type { Book } from "@/types/schemas/book";
 import type { BookPageProps } from "@/types/features/books";
@@ -41,7 +47,9 @@ async function getBookBySlug(
   const directId = extractBookIdFromSlug(slug);
 
   if (directId) {
-    const byIdResult = await fetchBookByIdWithFallback(directId, { includeBlurPlaceholder: includeBlurPlaceholders });
+    const byIdResult = await fetchBookByIdWithFallback(directId, {
+      includeBlurPlaceholder: includeBlurPlaceholders,
+    });
     if (byIdResult.book) {
       return { book: byIdResult.book, isFallback: byIdResult.isFallback };
     }
@@ -75,7 +83,11 @@ function buildBookOgImageUrl(book: Book): string {
   return ensureAbsoluteUrl(`/api/og/books?${params.toString()}`);
 }
 
-export async function generateMetadata({ params }: { params: { "book-slug": string } }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: { "book-slug": string };
+}): Promise<Metadata> {
   const { "book-slug": slug } = await Promise.resolve(params);
   const path = `/books/${slug}`;
   const { book } = await getBookBySlug(slug, { includeBlurPlaceholders: false });
@@ -92,7 +104,8 @@ export async function generateMetadata({ params }: { params: { "book-slug": stri
   const customTitle = generateDynamicTitle(book.title, "books");
   const authorText = book.authors?.join(", ") ?? "Unknown Author";
   const customDescription =
-    book.description?.slice(0, 155) || `${book.title} by ${authorText}. Part of William's reading list.`;
+    book.description?.slice(0, 155) ||
+    `${book.title} by ${authorText}. Part of William's reading list.`;
 
   // Generate dynamic OG image URL with branded background + book cover
   const ogImageUrl = buildBookOgImageUrl(book);
@@ -147,6 +160,9 @@ export default async function BookPage({ params }: BookPageProps) {
     return notFound();
   }
 
+  // Fetch cached AI analysis from S3 (runs in parallel with rendering prep)
+  const cachedAnalysis = await getCachedAnalysis<BookAiAnalysisResponse>("books", book.id);
+
   const path = `/books/${slug}`;
   const pageMetadata = PAGE_METADATA.books;
   const authorText = book.authors?.join(", ") ?? "Unknown Author";
@@ -158,7 +174,9 @@ export default async function BookPage({ params }: BookPageProps) {
     datePublished: formatSeoDate(pageMetadata.dateCreated),
     dateModified: formatSeoDate(pageMetadata.dateModified),
     type: undefined, // Falls back to WebPage until schema.org/Book support is added
-    image: book.coverUrl ? { url: ensureAbsoluteUrl(book.coverUrl), width: 400, height: 600 } : undefined,
+    image: book.coverUrl
+      ? { url: ensureAbsoluteUrl(book.coverUrl), width: 400, height: 600 }
+      : undefined,
     breadcrumbs: [
       { path: "/", name: "Home" },
       { path: "/books", name: "Books" },
@@ -184,7 +202,7 @@ export default async function BookPage({ params }: BookPageProps) {
             </div>
           }
         >
-          <BookDetail book={book} />
+          <BookDetail book={book} cachedAnalysis={cachedAnalysis} />
         </Suspense>
 
         <div className="mt-12">

@@ -30,7 +30,8 @@ import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { fetchBookListItems } from "@/lib/books/audiobookshelf.server";
 import { prepareDocumentsForIndexing } from "@/lib/utils/search-helpers";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
-import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
+import { tryGetEmbeddedSlug, generateFallbackSlug } from "@/lib/bookmarks/slug-helpers";
+import logger from "@/lib/utils/logger";
 import { serializeIndex, isRecord } from "./serialization";
 import {
   POSTS_INDEX_CONFIG,
@@ -45,19 +46,29 @@ import {
 /**
  * Creates an empty MiniSearch instance from a config.
  * Used by index-builder to create indexes before adding transformed documents.
+ *
+ * CRITICAL: Only include extractField if defined. Passing `undefined` explicitly
+ * overrides MiniSearch's default extractField function, causing "extractField is
+ * not a function" errors at index.addAll() time.
  */
-function createEmptyIndex<T, VF extends string = never>(config: IndexFieldConfig<T, VF>): MiniSearch<T> {
-  return new MiniSearch<T>({
+function createEmptyIndex<T, VF extends string = never>(
+  config: IndexFieldConfig<T, VF>,
+): MiniSearch<T> {
+  const baseOptions = {
     fields: config.fields as string[],
     storeFields: config.storeFields,
     idField: config.idField,
     searchOptions: {
       boost: config.boost as { [fieldName: string]: number } | undefined,
-      fuzzy: config.fuzzy,
+      fuzzy: config.fuzzy ?? 0.2,
       prefix: true,
     },
-    extractField: config.extractField,
-  });
+  };
+
+  // Only include extractField if defined - passing undefined overrides MiniSearch's default
+  return config.extractField
+    ? new MiniSearch<T>({ ...baseOptions, extractField: config.extractField })
+    : new MiniSearch<T>(baseOptions);
 }
 
 /**
@@ -66,7 +77,7 @@ function createEmptyIndex<T, VF extends string = never>(config: IndexFieldConfig
 async function buildPostsIndex(): Promise<SerializedIndex> {
   const allPosts = await getAllMDXPostsForSearch();
   const index = createEmptyIndex(POSTS_INDEX_CONFIG);
-  const dedupedPosts = prepareDocumentsForIndexing(allPosts, "Blog Posts", post => post.slug);
+  const dedupedPosts = prepareDocumentsForIndexing(allPosts, "Blog Posts", (post) => post.slug);
   index.addAll(dedupedPosts);
   return serializeIndex(index, dedupedPosts.length);
 }
@@ -99,13 +110,13 @@ function buildEducationIndex(): SerializedIndex {
 
   // Combine education and certifications
   const allEducationItems: EducationItem[] = [
-    ...education.map(edu => ({
+    ...education.map((edu) => ({
       id: edu.id,
       label: edu.institution,
       description: edu.degree,
       path: `/education#${edu.id}`,
     })),
-    ...certifications.map(cert => ({
+    ...certifications.map((cert) => ({
       id: cert.id,
       label: cert.institution,
       description: cert.name,
@@ -126,7 +137,7 @@ function buildProjectsIndexForBuilder(): SerializedIndex {
   const dedupedProjects: Project[] = prepareDocumentsForIndexing(
     projects as Array<Project & { id?: string | number }>,
     "Projects",
-    p => p.name,
+    (p) => p.name,
   );
   index.addAll(dedupedProjects);
   return serializeIndex(index, dedupedProjects.length);
@@ -138,7 +149,7 @@ function buildProjectsIndexForBuilder(): SerializedIndex {
 async function buildBookmarksIndex(): Promise<SerializedIndex> {
   const maybeBookmarks = await getBookmarks({ skipExternalFetch: false });
   if (!Array.isArray(maybeBookmarks)) {
-    throw new Error("[Search Index Builder] Unexpected bookmarks payload");
+    throw new TypeError("[Search Index Builder] Unexpected bookmarks payload");
   }
   const bookmarks = maybeBookmarks as UnifiedBookmark[];
 
@@ -146,24 +157,27 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
   const slugMapping = await loadSlugMapping();
 
   // Transform bookmarks for indexing with slug resolution
-  const bookmarksForIndex: BookmarkIndexItem[] = bookmarks.map(b => {
+  let fallbackCount = 0;
+  const bookmarksForIndex: BookmarkIndexItem[] = bookmarks.map((b) => {
     const embedded = tryGetEmbeddedSlug(b);
-    const slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
+    let slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
 
+    // Generate fallback slug if no embedded or mapped slug exists
+    // This ensures all bookmarks are indexed even without explicit slugs
     if (!slug) {
-      throw new Error(
-        `[Search Index Builder] CRITICAL: No slug found for bookmark ${b.id}. ` +
-          `Title: ${b.title}, URL: ${b.url}. ` +
-          `This indicates an incomplete slug mapping.`,
-      );
+      slug = generateFallbackSlug(b.url, b.id);
+      fallbackCount++;
     }
 
     return {
       id: b.id,
       title: b.title || b.url,
       description: b.description || "",
+      summary: b.summary ?? "",
       tags: Array.isArray(b.tags)
-        ? b.tags.map(t => (typeof t === "string" ? t : (t as { name?: string })?.name || "")).join("\n")
+        ? b.tags
+            .map((t) => (typeof t === "string" ? t : (t as { name?: string })?.name || ""))
+            .join("\n")
         : "",
       url: b.url,
       author: b.content?.author || "",
@@ -171,6 +185,14 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
       slug,
     };
   });
+
+  if (fallbackCount > 0) {
+    // Log at warn level so this is visible in production - indicates missing slug mappings
+    logger.warn(
+      `[Search Index Builder] Generated fallback slugs for ${fallbackCount}/${bookmarks.length} bookmarks - consider regenerating slug mapping`,
+      { fallbackCount, totalBookmarks: bookmarks.length },
+    );
+  }
 
   index.addAll(bookmarksForIndex);
   return serializeIndex(index, bookmarksForIndex.length);
@@ -239,22 +261,48 @@ export async function buildAllSearchIndexes(): Promise<AllSerializedIndexes> {
  * - When read back from S3, it's parsed into an object
  * - MiniSearch.loadJSON expects a JSON string, not a parsed object
  */
-export function loadIndexFromJSON<T>(serializedIndex: SerializedIndex): MiniSearch<T> {
+export function loadIndexFromJSON<T>(
+  serializedIndex: SerializedIndex,
+  config?: IndexFieldConfig<T>,
+): MiniSearch<T> {
   const indexData =
-    typeof serializedIndex.index === "string" ? serializedIndex.index : JSON.stringify(serializedIndex.index);
-  const { fields, storeFields } = extractFieldsFromSerializedIndex(serializedIndex);
+    typeof serializedIndex.index === "string"
+      ? serializedIndex.index
+      : JSON.stringify(serializedIndex.index);
+  const { fields: serializedFields, storeFields: serializedStoreFields } =
+    extractFieldsFromSerializedIndex(serializedIndex);
+  const fields = config?.fields ?? serializedFields;
+  const storeFields = config?.storeFields ?? serializedStoreFields;
 
-  return MiniSearch.loadJSON(indexData, {
+  const baseOptions = {
     fields,
     storeFields,
-  });
+    ...(config?.idField ? { idField: config.idField } : {}),
+    ...(config
+      ? {
+          searchOptions: {
+            boost: config.boost as { [fieldName: string]: number } | undefined,
+            fuzzy: config.fuzzy ?? 0.2,
+            prefix: true,
+          },
+        }
+      : {}),
+  };
+
+  return MiniSearch.loadJSON(
+    indexData,
+    config?.extractField ? { ...baseOptions, extractField: config.extractField } : baseOptions,
+  );
 }
 
 function extractFieldsFromSerializedIndex(serializedIndex: SerializedIndex): {
   fields: string[];
   storeFields: string[];
 } {
-  const raw = typeof serializedIndex.index === "string" ? safeParseIndex(serializedIndex.index) : serializedIndex.index;
+  const raw =
+    typeof serializedIndex.index === "string"
+      ? safeParseIndex(serializedIndex.index)
+      : serializedIndex.index;
 
   if (!isRecord(raw)) {
     return { fields: [], storeFields: [] };
@@ -278,7 +326,7 @@ function extractFieldsFromSerializedIndex(serializedIndex: SerializedIndex): {
 
 function safeParseIndex(index: string): Record<string, unknown> | null {
   try {
-    const parsed = JSON.parse(index) as unknown;
+    const parsed: unknown = JSON.parse(index);
     return isRecord(parsed) ? parsed : null;
   } catch {
     return null;

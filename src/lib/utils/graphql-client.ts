@@ -30,15 +30,21 @@ export class GraphQLClient {
     };
 
     // Create a retrying fetch function
-    const retryingHttpFetch = createRetryingFetch(this.config.maxRetries, 1000, this.config.retryConfig);
+    const retryingHttpFetch = createRetryingFetch(
+      this.config.maxRetries,
+      1000,
+      this.config.retryConfig,
+    );
 
-    // Wrap it to return JSON
+    // Wrap it to return JSON - callers must validate response structure
     this.retryingFetch = async <T>(url: string, options?: FetchOptions): Promise<T> => {
       const response = await retryingHttpFetch(url, options);
       if (!response.ok) {
         throw new Error(`GraphQL HTTP error! status: ${response.status}`);
       }
-      return response.json() as Promise<T>;
+      // GraphQL responses follow a standard structure validated by GraphQLResponse<T>
+      const json: unknown = await response.json();
+      return json as T;
     };
   }
 
@@ -68,7 +74,7 @@ export class GraphQLClient {
       });
 
       if (response.errors && response.errors.length > 0) {
-        const errorMessages = response.errors.map(e => e.message).join(", ");
+        const errorMessages = response.errors.map((e) => e.message).join(", ");
 
         if (this.config.debug) {
           debugLog("GraphQL Errors", "error", { errors: response.errors });
@@ -80,7 +86,9 @@ export class GraphQLClient {
       return response;
     } catch (error) {
       if (this.config.debug) {
-        debugLog("GraphQL Request Failed", "error", { error: error instanceof Error ? error.message : String(error) });
+        debugLog("GraphQL Request Failed", "error", {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
       throw error;
     }
@@ -163,7 +171,10 @@ export async function graphqlRequest<T = unknown>(
  * GitHub-specific GraphQL client factory
  * Creates a pre-configured client for GitHub's GraphQL API
  */
-export function createGitHubGraphQLClient(token: string, options?: Partial<GraphQLClientConfig>): GraphQLClient {
+export function createGitHubGraphQLClient(
+  token: string,
+  options?: Partial<GraphQLClientConfig>,
+): GraphQLClient {
   return new GraphQLClient({
     endpoint: "https://api.github.com/graphql",
     headers: {

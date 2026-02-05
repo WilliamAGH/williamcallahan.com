@@ -30,7 +30,9 @@ export type SocialCardClientProps = SocialCardProps & {
 };
 
 // Use generic WindowProps
-export type SocialWindowProps = import("../component-types").WindowProps<{ socialLinks: SocialLink[] }>;
+export type SocialWindowProps = import("../component-types").WindowProps<{
+  socialLinks: SocialLink[];
+}>;
 
 // Extend window props
 export type SocialWindowClientProps = SocialWindowProps & {

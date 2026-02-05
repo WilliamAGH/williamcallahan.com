@@ -20,7 +20,8 @@
 import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
 import { SITE_DESCRIPTION, SITE_TITLE, metadata } from "@/data/metadata";
 import type { ArticleOpenGraph, ArticleParams } from "../../types/seo";
-import { ensureAbsoluteUrl, formatSeoDate, getImageTypeFromUrl } from "./utils";
+import { ensureAbsoluteUrl, getImageTypeFromUrl } from "./url-utils";
+import { formatSeoDate } from "./utils";
 import { prepareOGImageUrl, validateOpenGraphMetadata } from "./og-validation";
 import { adaptNextOpenGraphToOGMetadata } from "../../types/seo/validation";
 import { envLogger } from "@/lib/utils/env-logger";
@@ -77,7 +78,11 @@ export function createArticleOgMetadata({
 
   // Use validation-aware image preparation for articles too
   const imageUrl = image || metadata.defaultImage.url;
-  const preparedImageUrl = prepareOGImageUrl(imageUrl, metadata.defaultImage.width, metadata.defaultImage.height);
+  const preparedImageUrl = prepareOGImageUrl(
+    imageUrl,
+    metadata.defaultImage.width,
+    metadata.defaultImage.height,
+  );
 
   const imageDescriptor = {
     url: preparedImageUrl,

@@ -10,7 +10,7 @@
 import type { UnifiedBookmark, BookmarkContent, KarakeepImageFallback } from "@/types";
 import type { ImageSelectionOptions } from "@/types/features/bookmarks";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
-import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
+import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
 
 /**
  * Constructs a consistent asset URL for Karakeep assets.
@@ -98,7 +98,7 @@ export function selectBestImage(
 
   const { content } = bookmark;
   const noImageResult = returnUndefined ? undefined : null;
-  const s3CdnUrl = getS3CdnUrl();
+  const cdnConfig = getCdnConfigFromEnv();
 
   // Prepare context for asset URL generation (for descriptive S3 filenames)
   let domain: string | undefined;
@@ -115,7 +115,7 @@ export function selectBestImage(
   };
 
   // PRIORITY 1: Already persisted to our S3 (best performance)
-  if (bookmark.ogImage && s3CdnUrl && bookmark.ogImage.includes(s3CdnUrl)) {
+  if (bookmark.ogImage && isOurCdnUrl(bookmark.ogImage, cdnConfig)) {
     return bookmark.ogImage;
   }
 
@@ -164,7 +164,8 @@ export function createKarakeepFallback(
   return {
     imageUrl: typeof content.imageUrl === "string" ? content.imageUrl : null,
     imageAssetId: typeof content.imageAssetId === "string" ? content.imageAssetId : null,
-    screenshotAssetId: typeof content.screenshotAssetId === "string" ? content.screenshotAssetId : null,
+    screenshotAssetId:
+      typeof content.screenshotAssetId === "string" ? content.screenshotAssetId : null,
     karakeepBaseUrl: baseUrl,
     idempotencyKey: idempotencyKey || undefined,
   };

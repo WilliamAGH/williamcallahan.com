@@ -62,7 +62,8 @@ export const trace = {
       span &&
       typeof span === "object" &&
       "spanContext" in span &&
-      typeof (span as { spanContext?: () => ReturnType<typeof createSpanContext> }).spanContext === "function"
+      typeof (span as { spanContext?: () => ReturnType<typeof createSpanContext> }).spanContext ===
+        "function"
     ) {
       return (span as { spanContext: () => ReturnType<typeof createSpanContext> }).spanContext();
     }
@@ -127,7 +128,10 @@ export const isSpanContextValid = (spanContext: unknown): boolean => {
   if (!spanContext || typeof spanContext !== "object") return false;
   const ctx = spanContext as { traceId?: string; spanId?: string };
   return (
-    typeof ctx.traceId === "string" && typeof ctx.spanId === "string" && ctx.traceId.length > 0 && ctx.spanId.length > 0
+    typeof ctx.traceId === "string" &&
+    typeof ctx.spanId === "string" &&
+    ctx.traceId.length > 0 &&
+    ctx.spanId.length > 0
   );
 };
 
@@ -205,13 +209,25 @@ const opentelemetryApi = {
 export default opentelemetryApi;
 
 // For @opentelemetry/instrumentation compatibility
-export const registerInstrumentations = () => {};
+export const registerInstrumentations = () => {
+  /* no-op stub for Edge runtime */
+};
 export const InstrumentationBase = class {
-  enable() {}
-  disable() {}
-  setTracerProvider() {}
-  setMeterProvider() {}
-  setLoggerProvider() {}
+  enable() {
+    /* no-op stub for Edge runtime */
+  }
+  disable() {
+    /* no-op stub for Edge runtime */
+  }
+  setTracerProvider() {
+    /* no-op stub for Edge runtime */
+  }
+  setMeterProvider() {
+    /* no-op stub for Edge runtime */
+  }
+  setLoggerProvider() {
+    /* no-op stub for Edge runtime */
+  }
   getTracer() {
     return trace.getTracer();
   }

@@ -8,7 +8,10 @@
 
 import { NO_STORE_HEADERS, preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
-import { getUnifiedImageService, type UnifiedImageService } from "@/lib/services/unified-image-service";
+import {
+  getUnifiedImageService,
+  type UnifiedImageService,
+} from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
 import logger from "@/lib/utils/logger";
 
@@ -118,7 +121,10 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
 
     return new NextResponse(null, {
       headers: {
-        "X-Needs-Inversion": (isDarkTheme ? analysis.needsDarkInversion : analysis.needsLightInversion).toString(),
+        "X-Needs-Inversion": (isDarkTheme
+          ? analysis.needsDarkInversion
+          : analysis.needsLightInversion
+        ).toString(),
         "X-Has-Transparency": analysis.hasTransparency.toString(),
         "X-Brightness": analysis.brightness.toString(),
         "Cache-Control": "public, max-age=31536000",

@@ -123,9 +123,14 @@ export const processedCertificationItemSchema = certificationSchema.extend({
  */
 export const educationClientPropsSchema = z.object({
   education: z.array(processedEducationItemSchema),
-  recentCourses: z.array(educationTableItemSchema.refine(item => item.type === "course", "Must be a course item")),
+  recentCourses: z.array(
+    educationTableItemSchema.refine((item) => item.type === "course", "Must be a course item"),
+  ),
   recentCertifications: z.array(
-    educationTableItemSchema.refine(item => item.type === "certification", "Must be a certification item"),
+    educationTableItemSchema.refine(
+      (item) => item.type === "certification",
+      "Must be a certification item",
+    ),
   ),
 });
 

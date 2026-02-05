@@ -2,7 +2,7 @@
  * GitHub Activity API Cache Tests
  *
  * Tests the caching functionality for GitHub activity data according to the
- * multi-tiered caching architecture (docs/projects/structure/caching.md).
+ * multi-tiered caching architecture (docs/architecture/caching.md).
  *
  * Validates ServerCacheInstance methods for GitHub activity storage and retrieval:
  * - In-memory caching with appropriate TTLs
@@ -14,18 +14,17 @@
  * external dependencies, aligning with the testing requirements in caching.md.
  */
 
-/* eslint-disable @typescript-eslint/unbound-method */
-
-// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, beforeAll globally
+// Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, beforeAll globally
+import type { MockedFunction } from "vitest";
 import type { GitHubActivityApiResponse } from "../../../../src/types/github";
 
 // Mock the server-cache module with inline functions
-jest.mock("../../../../src/lib/server-cache", () => ({
+vi.mock("../../../../src/lib/server-cache", () => ({
   ServerCacheInstance: {
-    setGithubActivity: jest.fn(),
-    getGithubActivity: jest.fn(),
-    clearGithubActivity: jest.fn(),
-    getStats: jest.fn(() => ({
+    setGithubActivity: vi.fn(),
+    getGithubActivity: vi.fn(),
+    clearGithubActivity: vi.fn(),
+    getStats: vi.fn(() => ({
       hits: 0,
       misses: 0,
       keys: 0,
@@ -40,14 +39,16 @@ jest.mock("../../../../src/lib/server-cache", () => ({
 import { ServerCacheInstance } from "../../../../src/lib/server-cache";
 
 // Get references to the mocked functions
-const mockSetGithubActivity = ServerCacheInstance.setGithubActivity as jest.MockedFunction<
+const mockSetGithubActivity = ServerCacheInstance.setGithubActivity as MockedFunction<
   (activity: GitHubActivityApiResponse) => void
 >;
-const mockGetGithubActivity = ServerCacheInstance.getGithubActivity as jest.MockedFunction<
+const mockGetGithubActivity = ServerCacheInstance.getGithubActivity as MockedFunction<
   () => GitHubActivityApiResponse | undefined
 >;
-const mockClearGithubActivity = ServerCacheInstance.clearGithubActivity as jest.MockedFunction<() => void>;
-const mockGetStats = ServerCacheInstance.getStats as jest.MockedFunction<
+const mockClearGithubActivity = ServerCacheInstance.clearGithubActivity as MockedFunction<
+  () => void
+>;
+const mockGetStats = ServerCacheInstance.getStats as MockedFunction<
   () => {
     hits: number;
     misses: number;
@@ -137,7 +138,9 @@ describe("GitHub Activity API Cache Tests", () => {
 
     // Verify the result
     expect(result).toBeDefined();
-    expect(result?.trailingYearData.data).toHaveLength(MOCK_GITHUB_ACTIVITY.trailingYearData.data.length);
+    expect(result?.trailingYearData.data).toHaveLength(
+      MOCK_GITHUB_ACTIVITY.trailingYearData.data.length,
+    );
   });
 
   it("should clear GitHub activity", () => {
@@ -198,7 +201,7 @@ describe("GitHub Activity API Cache Tests", () => {
 
   it("should handle concurrent access to cache", async () => {
     // Reset mock implementation to track concurrent calls
-    mockSetGithubActivity.mockImplementation(data => {
+    mockSetGithubActivity.mockImplementation((data) => {
       // Simulate some work
       mockGithubActivity.current = data;
     });
@@ -209,7 +212,7 @@ describe("GitHub Activity API Cache Tests", () => {
         ...MOCK_GITHUB_ACTIVITY,
         trailingYearData: {
           ...MOCK_GITHUB_ACTIVITY.trailingYearData,
-          data: MOCK_GITHUB_ACTIVITY.trailingYearData.data.map(item => ({
+          data: MOCK_GITHUB_ACTIVITY.trailingYearData.data.map((item) => ({
             ...item,
             count: i, // Each concurrent call gets a different count
           })),
@@ -217,6 +220,7 @@ describe("GitHub Activity API Cache Tests", () => {
       };
       return Promise.resolve().then(() => {
         ServerCacheInstance.setGithubActivity(mockData);
+        return undefined;
       });
     });
 

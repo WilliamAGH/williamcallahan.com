@@ -42,17 +42,17 @@ async function executeBookmarkSearch(query: string): Promise<SearchResult[]> {
   const searchResults = index.search(sanitizedQuery, {
     prefix: true,
     fuzzy: 0.2,
-    boost: { title: 2, description: 1.5 },
+    boost: { title: 2, description: 1.5, summary: 1.25, slug: 1.1 },
     combineWith: "AND",
   });
 
-  const resultIds = new Set(searchResults.map(r => String(r.id)));
-  const scoreById = new Map(searchResults.map(r => [String(r.id), r.score ?? 0] as const));
+  const resultIds = new Set(searchResults.map((r) => String(r.id)));
+  const scoreById = new Map(searchResults.map((r) => [String(r.id), r.score ?? 0] as const));
   let results: SearchResult[];
 
   if (bookmarks.length > 0) {
     results = bookmarks
-      .filter(b => resultIds.has(b.id))
+      .filter((b) => resultIds.has(b.id))
       .map(
         (b): SearchResult => ({
           id: b.id,
@@ -66,9 +66,10 @@ async function executeBookmarkSearch(query: string): Promise<SearchResult[]> {
       .toSorted((a, b) => b.score - a.score);
   } else {
     const mappedHits = searchResults
-      .map(hit => {
+      .map((hit) => {
         if (!isRecord(hit)) return null;
-        const id = typeof hit.id === "string" ? hit.id : typeof hit.id === "number" ? String(hit.id) : null;
+        const id =
+          typeof hit.id === "string" ? hit.id : typeof hit.id === "number" ? String(hit.id) : null;
         const slug = typeof hit.slug === "string" ? hit.slug : null;
         if (!id || !slug) return null;
 
@@ -108,7 +109,7 @@ function triggerBookmarksBackgroundRefresh(query: string): void {
 
   bookmarksRefreshInFlight.add(query);
   void executeBookmarkSearch(query)
-    .catch(err => console.error("[SWR] Bookmarks background refresh failed:", err))
+    .catch((err) => console.error("[SWR] Bookmarks background refresh failed:", err))
     .finally(() => bookmarksRefreshInFlight.delete(query));
 }
 
@@ -142,7 +143,9 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     // Return cached results if available on error (even if stale)
     const cached = ServerCacheInstance.getSearchResults<SearchResult>("bookmarks", query);
     if (cached?.results) {
-      devLog("[searchBookmarks] returning cached results on error", { count: cached.results.length });
+      devLog("[searchBookmarks] returning cached results on error", {
+        count: cached.results.length,
+      });
       return cached.results;
     }
     return [];
@@ -176,20 +179,22 @@ async function executeBooksSearch(query: string): Promise<SearchResult[]> {
   devLog("[searchBooks] Raw hits from MiniSearch:", hits.length);
 
   const searchResultsRaw = hits
-    .map(hit => {
+    .map((hit) => {
       if (!isRecord(hit)) return null;
       const id = hit.id;
       if (typeof id !== "string" && typeof id !== "number") return null;
       return {
         id,
         title: typeof hit.title === "string" ? hit.title : undefined,
-        authors: Array.isArray(hit.authors) ? hit.authors.filter((a): a is string => typeof a === "string") : undefined,
+        authors: Array.isArray(hit.authors)
+          ? hit.authors.filter((a): a is string => typeof a === "string")
+          : undefined,
         score: typeof hit.score === "number" ? hit.score : undefined,
       };
     })
     .filter((v): v is NonNullable<typeof v> => v !== null);
 
-  const scoreById = new Map(searchResultsRaw.map(r => [String(r.id), r.score ?? 0] as const));
+  const scoreById = new Map(searchResultsRaw.map((r) => [String(r.id), r.score ?? 0] as const));
 
   const results: SearchResult[] = searchResultsRaw.map(({ id, title, authors }) => ({
     id: String(id),
@@ -213,7 +218,7 @@ function triggerBooksBackgroundRefresh(query: string): void {
 
   booksRefreshInFlight.add(query);
   void executeBooksSearch(query)
-    .catch(err => console.error("[SWR] Books background refresh failed:", err))
+    .catch((err) => console.error("[SWR] Books background refresh failed:", err))
     .finally(() => booksRefreshInFlight.delete(query));
 }
 

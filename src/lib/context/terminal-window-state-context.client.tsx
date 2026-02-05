@@ -8,11 +8,16 @@
 
 import { useWindowState } from "@/lib/hooks/use-window-state.client";
 import React, { createContext, useContext } from "react";
-import type { TerminalWindowStateContextType, TerminalWindowStateProviderProps } from "@/types/ui/terminal";
+import type {
+  TerminalWindowStateContextType,
+  TerminalWindowStateProviderProps,
+} from "@/types/ui/terminal";
 
 // Create the context with a default undefined value
 // This ensures consumers must be wrapped in a provider
-const TerminalWindowStateContext = createContext<TerminalWindowStateContextType | undefined>(undefined);
+const TerminalWindowStateContext = createContext<TerminalWindowStateContextType | undefined>(
+  undefined,
+);
 
 // Define the provider component
 export const TerminalWindowStateProvider = ({
@@ -49,7 +54,11 @@ export const TerminalWindowStateProvider = ({
     [windowState, closeWindow, minimizeWindow, maximizeWindow, restoreWindow, isReady],
   );
 
-  return <TerminalWindowStateContext.Provider value={value}>{children}</TerminalWindowStateContext.Provider>;
+  return (
+    <TerminalWindowStateContext.Provider value={value}>
+      {children}
+    </TerminalWindowStateContext.Provider>
+  );
 };
 
 // Define a custom hook for easy consumption of the context

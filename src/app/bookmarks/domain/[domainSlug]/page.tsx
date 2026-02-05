@@ -6,21 +6,22 @@
  * @module app/bookmarks/domain/[domainSlug]/page
  */
 
-// Configure dynamic rendering
-
+import { connection } from "next/server";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { getDomainSlug } from "@/lib/utils/domain-utils";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { redirect } from "next/navigation";
 
-/**
- * No static params for this page as it's just a redirector
- */
-
 import type { DomainPageRedirectorProps } from "@/types";
 
-export default async function DomainPageRedirector({ params, searchParams }: DomainPageRedirectorProps) {
+export default async function DomainPageRedirector({
+  params,
+  searchParams,
+}: DomainPageRedirectorProps) {
+  // Ensure request-time execution - this redirector uses searchParams and dynamic data
+  await connection();
+
   const allBookmarks = (await getBookmarks({
     ...DEFAULT_BOOKMARK_OPTIONS,
     includeImageData: false,
@@ -44,7 +45,7 @@ export default async function DomainPageRedirector({ params, searchParams }: Dom
 
   // If ID is provided, find that specific bookmark
   if (id) {
-    const bookmark = allBookmarks.find(b => b.id === id);
+    const bookmark = allBookmarks.find((b) => b.id === id);
     if (bookmark) {
       const uniqueSlug = getSlugForBookmark(slugMapping, bookmark.id);
       if (uniqueSlug) {
@@ -56,7 +57,7 @@ export default async function DomainPageRedirector({ params, searchParams }: Dom
   }
 
   // Otherwise, find the first bookmark matching this domain
-  const bookmarkWithDomain = allBookmarks.find(bookmark => {
+  const bookmarkWithDomain = allBookmarks.find((bookmark) => {
     try {
       return getDomainSlug(bookmark.url) === domainSlug;
     } catch {

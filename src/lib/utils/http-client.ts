@@ -7,7 +7,6 @@
 
 import { debugLog } from "./debug";
 import { retryWithOptions, RETRY_CONFIGS } from "./retry";
-import { isRetryableError } from "./error-utils";
 import type { RetryConfig } from "@/types/lib";
 import type { FetchOptions } from "@/types/http";
 import { logoUrlSchema, openGraphUrlSchema } from "@/types/schemas/url";
@@ -78,7 +77,10 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
     proxyUrlObj.pathname = originalUrl.pathname;
     proxyUrlObj.search = originalUrl.search;
     effectiveUrl = proxyUrlObj.toString();
-    debugLog(`Using proxy: ${stripQueryAndHash(url)} -> ${stripQueryAndHash(effectiveUrl)}`, "info");
+    debugLog(
+      `Using proxy: ${stripQueryAndHash(url)} -> ${stripQueryAndHash(effectiveUrl)}`,
+      "info",
+    );
   }
 
   // Choose appropriate default headers
@@ -125,7 +127,9 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
       const retryAfter = response.headers.get("Retry-After");
       const retryDelay = retryAfter ? parseInt(retryAfter, 10) * 1000 : 5000;
 
-      debugLog(`Received 202 status, will retry after ${retryDelay}ms`, "info", { url: effectiveUrl });
+      debugLog(`Received 202 status, will retry after ${retryDelay}ms`, "info", {
+        url: effectiveUrl,
+      });
 
       // Return the 202 response - caller should handle retry logic
       return response;
@@ -142,7 +146,9 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
         }
         // Internal timeout - wrap with timeout message
         // Strip query params to prevent leaking tokens/secrets in error messages
-        throw new Error(`Request timeout after ${timeout}ms: ${stripQueryAndHash(effectiveUrl)}`, { cause: error });
+        throw new Error(`Request timeout after ${timeout}ms: ${stripQueryAndHash(effectiveUrl)}`, {
+          cause: error,
+        });
       }
       throw error;
     }
@@ -211,14 +217,6 @@ export async function checkUrlAccessible(url: string, options?: FetchOptions): P
   }
 }
 
-/**
- * Determine if an error is retryable (delegates to centralized error utils)
- * @deprecated Use isRetryableError from error-utils instead
- */
-export function isRetryableHttpError(error: unknown): boolean {
-  return isRetryableError(error);
-}
-
 // Extension parsing moved to content-type.ts
 
 /**
@@ -264,7 +262,7 @@ export async function fetchWithRetryAndProxy(
   const { proxies = [], maxRetries = 3, baseDelay = 1000, ...fetchOptions } = options;
 
   // Try direct fetch first, then proxies if provided
-  const urlsToTry = [url, ...proxies.map(proxy => ({ url, proxy }))];
+  const urlsToTry = [url, ...proxies.map((proxy) => ({ url, proxy }))];
 
   for (const urlConfig of urlsToTry) {
     const targetUrl = typeof urlConfig === "string" ? urlConfig : urlConfig.url;

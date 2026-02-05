@@ -7,14 +7,18 @@
 import { ChromaCloudConfigSchema } from "@/types/schemas/chroma";
 
 // Mock chromadb before importing the client
-jest.mock("chromadb", () => ({
-  CloudClient: jest.fn().mockImplementation(config => ({
-    _config: config,
-    getOrCreateCollection: jest.fn().mockResolvedValue({
+// CloudClient must be a proper class since it's instantiated with `new`
+vi.mock("chromadb", () => ({
+  CloudClient: class MockCloudClient {
+    _config: Record<string, unknown>;
+    getOrCreateCollection = vi.fn().mockResolvedValue({
       name: "test-collection",
-      count: jest.fn().mockResolvedValue(0),
-    }),
-  })),
+      count: vi.fn().mockResolvedValue(0),
+    });
+    constructor(config: Record<string, unknown>) {
+      this._config = config;
+    }
+  },
 }));
 
 describe("Chroma Client", () => {
@@ -25,9 +29,9 @@ describe("Chroma Client", () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // Reset modules to clear singleton state
-    jest.resetModules();
+    vi.resetModules();
   });
 
   describe("ChromaCloudConfigSchema", () => {

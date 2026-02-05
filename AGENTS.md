@@ -3,392 +3,208 @@ description: "williamcallahan.com agent rules - ZERO TEMPERATURE development wit
 alwaysApply: true
 ---
 
+Core standards:
+
+- Edit existing, never append (see [FS1a]); read `docs/standards/code-change.md` before any edit
+- Clean Code + DDD strictly enforced (see [CC1])
+- Rules live here; `docs/` expands rules with HOW/WHY and canonical contracts (<= 350 LOC each); see [ORG], [DOC1]
+
 # williamcallahan.com Agent Rules
 
 > **Next.js 16**: Middleware is `src/proxy.ts` (not `middleware.ts`). This file handles Clerk auth, CSP, and request logging.
 
-## Document Organization [ORG]
-
-- [ORG1] Purpose: keep every critical rule within the first ~250 lines; move long examples/config to Appendix.
-- [ORG2] Structure: Rule Summary first, then detailed sections keyed by short hashes (e.g., `[GT1a]`).
-- [ORG3] Usage: cite hashes when giving guidance or checking compliance; add new rules without renumbering older ones.
-
-## Rule Summary [SUM]
-
-- [ZT1a-g] ZERO TEMPERATURE: evidence-first, no assumptions, halt-on-uncertainty
-- [CM1a-b] Communication: no filler; investigate then cite evidence
-- [GT1a-j] Git safety: no history rewrite/destructive ops; no lock deletion; no hook/signing bypass; no AI attribution
-- [CMD1a-d] Command execution guardrails: retry with escalation; no inference cleanup
-- [FS1a-k] File creation & edit discipline: existing-first, no shims/barrels/aliases, no duplication, no error swallowing, no silent fallbacks
-- [SZ1a-b] File size limit (500 LOC) & refactor gating
-- [UP1a-d] Comprehensive update protocol: update _all_ usages (imports/calls/types/tests/docs)
-- [TS1a-f] Type safety & validation: no `any`, no suppression, Zod at boundaries
-- [SC1a-d] Schema/type organization: Zod schemas are the source of truth
-- [PL1a-c] No polyfills/global patches in modern code; prefer native APIs
-- [BP1a-c] No boilerplate/tutorial code or placeholder implementations
-- [AR1a-e] Mandatory pre-task workflow: why-first, architecture docs, types, search, version verification
-- [DOC1a-b] Docs sync: update architecture docs with code changes
-- [FW1a-f] Next.js/React/Jest enforcement: package.json is law; node_modules verification + MCP docs required
-- [DEP1a-d] Cloudflare cache: deployment verification workflow
-- [VR1a-g] Verification loops: validate/lint/type-check/build/test (and deploy readiness)
-- [TST1a-e] Testing protocols: use `bun run test*`, never `bun test`
-- [TST2a-d] Test coverage & authoring: mandatory for new/modified code; discover patterns; test outcomes not implementations
-- [CP1a-d] Task completion: verify -> request confirmation -> cleanup/commit (no AI attribution)
-- [TMP1a-c] Temporary files: /tmp only, cleanup after user confirmation
-- [ENV1a-c] Environment variables: no new required vars without explicit approval
-- [LG1a-b] Language: American English only
-
-## [ZT1] ZERO TEMPERATURE: Evidence, No Assumptions, Halt Protocol
-
-- [ZT1a] Assumptions are violations. Verify by reading the codebase and docs first.
-- [ZT1b] Source of truth order: repo code/docs -> `package.json` versions -> `node_modules/` sources -> MCP/live docs (capture the URL/reference).
-- [ZT1c] If you cannot support a claim with a concrete source (file path or doc), stop and investigate before proceeding.
-- [ZT1d] If a zero-tolerance violation is present (or would be introduced), stop, alert the user with specifics, and wait for instruction.
-- [ZT1e] Why-first mandate: state the precise reason for change before editing behavior; keep a working note; update docstrings/JSDoc when intent changes.
-- [ZT1f] Real-time verification: when referencing an imported function/type/config, read its source definition now; do not rely on memory.
-- [ZT1g] Assumptions policy (examples): never assume API behavior, type definitions, existing functionality, file contents, or breaking changes—verify.
-
-## [CM1] Communication Standards (Truth Through Verification)
-
-- [CM1a] Do not use empty confirmations (“You’re right”, “Absolutely”) before investigation.
-- [CM1b] Prefer “Let me verify by checking …” and cite specific files/paths when responding.
-
-## [GT1] Git & Repo Safety
-
-- [GT1a] Emergency brake: never run `git commit --amend` unless the user provides the exact command verbatim.
-- [GT1b] Never run history-rewriting or destructive git commands unless the user provides the exact command verbatim.
-  - Examples: `git reset --hard`, `git reset --soft`, `git reset --mixed`, `git rebase`, `git push --force`, `git push --force-with-lease`, `git restore`, `git clean -fd`, `git stash`, `git stash drop`.
-- [GT1c] Do not switch branches (`git checkout` / `git switch`) or alter branch history unless explicitly instructed.
-- [GT1d] Never delete lock files (e.g., `.git/index.lock`, `.git/next-index-*.lock`). Surface the error and ask.
-- [GT1e] Do not bypass hooks or commit signing; no `--no-verify`, no disabling signing, no `HUSKY=0` / `SKIP_HUSKY=1`.
-- [GT1f] Treat pre-existing staged/unstaged changes as intentional; do not unstage/restage/revert “cleanup” unless the user gives the exact command.
-- [GT1g] If an unexpected file is staged or modified by hooks, pause and show the diff; do not attempt to “fix” it unprompted.
-- [GT1h] Commit messages: one logical change per commit; describe change + purpose; no AI/tool attribution (e.g., no “Generated with [Claude Code]”); no `Co-authored-by` lines.
-- [GT1i] If your tooling supports explicit elevation/authorization for git, use it (e.g., `with_escalated_permissions=true`); otherwise stop and ask before running git commands.
-- [GT1j] Never skip documented repo workflows (hooks, signing, CI gates) to “get unstuck”.
-
-## [CMD1] Command Execution Guardrails
-
-- [CMD1a] If a command fails due to permissions/locks, retry the same command with elevated permissions _first_ (if supported — e.g., `with_escalated_permissions=true`) and include a one-sentence justification before attempting alternatives.
-- [CMD1b] Never perform destructive file operations (deleting `.git/`, removing lock files, mass deletes) without explicit, quoted user instruction.
-- [CMD1c] No inference-driven cleanup. Surface the exact command + error output and wait if the retry fails.
-- [CMD1d] When unsure whether an action is destructive, stop and ask.
-
-## [FS1] File Creation & Edit Discipline
-
-- [FS1a] Prefer editing existing files; do not create new files unless necessary for the task goal.
-- [FS1b] Before creating any file: search exhaustively -> analyze existing solutions -> confirm no extension path -> request explicit permission.
-- [FS1c] Read the entire target file before editing; integrate changes with existing structure (don't blindly append).
-- [FS1d] Clean code: single-responsibility changes; follow SOLID/DRY best practices; no dead code.
-- [FS1e] Clean architecture: dependencies point inward; domain logic must not import from UI/framework layers.
-- [FS1f] No shims or barrel files: no compatibility shims, no `index.ts` re-export barrels, no wrapper modules.
-- [FS1g] No duplicate code: extract shared logic; if code is repeated, refactor to a single source.
-- [FS1h] No aliases or re-exports: import from the source module directly; no proxy re-exports.
-- [FS1i] No error swallowing: no empty catch blocks, no catch-and-ignore, no silent `try/catch` that hides failures.
-- [FS1j] No silent fallbacks: no `?? defaultValue` or `|| fallback` that masks errors; fail explicitly or log the fallback.
-- [FS1k] Efficiency mandate: nearly all edits should result in the same or fewer lines by removing duplication/redundant logic.
-
-## [SZ1] File Size Limit
-
-- [SZ1a] 500 lines is a hard maximum for a single file.
-- [SZ1b] If a file approaches the limit, stop adding features and extract cohesive modules (create a refactor task if needed).
-
-## [UP1] Comprehensive Code Update Protocol
-
-- [UP1a] Any API/type/function change requires mapping _all_ usages first (imports, call sites, type references, tests, docs).
-- [UP1b] During the change, track and update every usage systematically; missing one usage is a correctness failure.
-- [UP1c] After the change, audit for leftovers (search for old names/patterns) and run the verification loops.
-- [UP1d] Final rule: an update is not complete until every usage has been updated and verified.
-
-## [TS1] Type Safety & No Suppression
-
-- [TS1a] Type safety is absolute: no implicit `any`, no `any`, no unguarded `unknown`.
-- [TS1b] Never use `@ts-ignore`, `eslint-disable`, `@SuppressWarnings`, or similar suppression to bypass correctness; fix the root cause.
-- [TS1c] All external/IO data must be validated at the boundary (Zod schemas).
-- [TS1d] Never use type assertions without runtime checks.
-- [TS1e] Handle `null`/`undefined` explicitly; do not rely on “it probably exists”.
-- [TS1f] `bun run validate` must pass with 0 errors and 0 warnings before considering work complete.
+Structure: [ORG]; docs architecture: [DOC1]
 
-## [SC1] Schema & Type Organization (Zod)
+---
 
-- [SC1a] Zod schemas define types; use `z.infer<>` and do not duplicate schema-backed types manually.
-- [SC1b] Convention: schemas in `types/schemas/`; non-schema/shared types in `types/`; transformation/business logic in `lib/`.
-- [SC1c] If a schema changes, update all dependent code and docs to keep them consistent.
-- [SC1d] In this repo, schemas commonly import Zod via `import { z } from "zod/v4";` (follow existing patterns in `types/schemas/`).
+## Foundational
 
-## [PL1] Polyfills & Global Patching (Modern Codebase)
+### [ZT1] Epistemic Humility & Verification
 
-- [PL1a] Do not introduce polyfill dependencies or global patching packages (e.g., `core-js`, `@babel/polyfill`, `react-app-polyfill`, `polyfill.io`, `node-fetch`) without explicit approval.
-- [PL1b] Prefer native runtime APIs; if compatibility is required, use ponyfills (import-only) or feature detection/dynamic import—not global mutation (or move work to Server Components/Edge Functions when appropriate).
-- [PL1c] If you think a polyfill is required, stop and discuss alternatives before making changes.
+- [ZT1a] Training data is FALSE until verified (no "world knowledge"); verify all libraries via `package.json` versions, `node_modules/` sources, or `context7`; do not rely on memory, blog posts, or assumed version features
+- [ZT1b] Source of truth order: repo code/docs -> `package.json` versions -> `node_modules/` sources -> MCP/live docs (capture the URL/reference)
+- [ZT1c] No unsupported claims: cite `file:line` or doc path; if you cannot, stop and investigate before proceeding
+- [ZT1d] Zero-tolerance halt: if a violation is present (or would be introduced), stop, alert with specifics, and wait for instruction
+- [ZT1e] **Investigation Sequence** (mandatory for any problem): (1) read existing codebase first (`file:line`); (2) read `docs/*.md` directly; (3) inspect dependency source in `node_modules` or via `context7`; (4) form hypothesis and test; (5) confirm against docs/dependency code; (6) write code/docs citing all references — skip no steps
+- [ZT1f] No empty confirmations ("You're right", "Absolutely") before investigation; verify then cite evidence
 
-## [BP1] Boilerplate / Example Code Prohibition
+### [CC1] Clean Code & DDD
 
-- [BP1a] Do not paste tutorial/boilerplate/template code. Code must follow this repo’s existing patterns and be purpose-driven.
-- [BP1b] Forbidden: placeholder implementations (`// TODO: implement`), generic tutorial-y function names (`handleSubmit`, `processData`), and placeholder text (“Lorem ipsum”).
-- [BP1c] If boilerplate/example code is detected, stop and surface the exact file:line and required replacement action.
+- [CC1a] KISS: simplest solution that works; achieve by removing, not adding; use platform/framework defaults unless deviation is proven necessary
+- [CC1b] DRY: remove duplication; single sources of truth; extract shared logic; if code is repeated, refactor to one source
+- [CC1c] YAGNI: no speculative code; no dead code; solve today's problem only; new abstractions must earn reuse by removing real duplication
+- [CC1d] Clean Architecture: dependencies point inward; domain logic must not import from UI/framework layers; contract: `docs/standards/code-change.md`
 
-## [AR1] Mandatory Pre-Task Workflow (Before Any Code Changes)
+### [MO1] Modularity & SRP
 
-- [AR1a] Purpose alignment: state the “why” and confirm intended behavior before editing.
-- [AR1b] Architecture discovery: read `docs/projects/structure/00-architecture-entrypoint.md`, then the relevant domain doc, any related `.mmd` diagrams, and `docs/projects/file-overview-map.md`.
-- [AR1c] Type review: read the relevant definitions in `types/` and `types/schemas/` before changing/adding types.
-- [AR1d] Existing-first: search the codebase for existing implementations before writing new ones.
-- [AR1e] Version verification: confirm dependency versions via `package.json`; consult `node_modules/<package>/{package.json,README.md,CHANGELOG.md}` and/or source where relevant; for Next/React/Jest specifics, also follow [FW1].
+- [MO1a] No monoliths: avoid multi-concern files and catch-all modules
+- [MO1b] New work starts in new files (New feature -> New file); when touching a monolith (Bug fix -> Edit existing), extract at least one seam
+- [MO1c] If safe extraction impossible, halt and ask
+- [MO1d] Strict SRP: each unit serves one actor; separate logic that changes for different reasons
+- [MO1e] Boundary rule: cross-module interaction happens only through explicit, typed contracts; don't mix web/use-case/domain/persistence concerns in one unit
+- [MO1f] Extension (OCP): Add functionality via new classes/composition; do not modify stable code to add features; contract: `docs/standards/code-change.md`
 
-## [DOC1] Documentation & Architecture Sync
+---
 
-- [DOC1a] When you create/delete/move/significantly change files, update:
-  - `docs/projects/structure/00-architecture-entrypoint.md`
-  - `docs/projects/file-overview-map.md`
-  - the relevant `docs/projects/structure/[domain].md`
-- [DOC1b] Verify changes do not violate documented architecture/patterns; fix stale docs immediately.
+## Blocking
 
-## [FW1] Next.js / React / Jest Enforcement (Evidence Required)
+### [GT1] Git Safety (Blocking)
 
-- [FW1a] Treat the exact versions in `package.json` as law until the owner explicitly bumps them.
-  - Verify current versions in `package.json` before you act (then confirm via `node_modules/<pkg>/package.json` when needed).
-- [FW1b] Before any change touching Next.js/React/Jest behavior, verify by reading relevant `node_modules/` sources; do not rely on memory or blog posts.
-- [FW1c] For such tasks, perform at least one MCP lookup (Context7/DeepWiki/Brave) for current guidance and retain the URL/reference in your notes/final answer.
-- [FW1d] Required reading: `docs/projects/structure/next-js-16-usage.md` before framework-level changes; update it if your work changes expectations.
-- [FW1e] Default expectations: Cache Components + React 19 primitives + modern async params/metadata flows; confirm behavior against `cacheComponents` and related Next internals (see `node_modules/next/dist/server/config.js` and `node_modules/next/dist/server/request/params.js`); reject legacy patterns unless explicitly approved (e.g., `next/legacy/image`, synchronous `cookies()` shims, `unstable_cache*` aliases).
-- [FW1f] Jest compliance: any test harness change must reference `config/jest/` and verify the Jest runtime (see `node_modules/jest/package.json`); never add tooling that downgrades Jest APIs or adds polyfills to “make tests pass”.
+> **ABSOLUTE RULE**: ALL existing code is intentional user work. NEVER question this premise.
 
-## [DEP1] Cloudflare Cache — Deployment Verification
+- [GT1a] **Code is Intentional**: ALL uncommitted changes AND UNTRACKED FILES are presumed intentional user work. NEVER revert, discard, delete, or reset them—even if they break the build. Fix the errors or ask; never delete.
+- [GT1b] **BANNED COMMANDS**: NEVER run: `git reset`, `git checkout .`, `git checkout <file>`, `git stash`, `git restore`, `git clean`, `git revert`, `git commit --amend`, `git rebase`, `git push --force`, `git push --force-with-lease`. This ban is ABSOLUTE.
+- [GT1c] **No Branching**: Work on the current branch. NEVER create new branches unless the user explicitly requests it.
+- [GT1d] **Permission Required**: Git writes (commits, pushes) require explicit user permission. Read-only git commands (`status`, `log`, `diff`) are always allowed.
+- [GT1e] **Hook & Commit Integrity**: Never skip hooks (`--no-verify`, `HUSKY=0`); never delete `.git/index.lock`; no AI attribution; one logical change per commit; describe change + purpose.
+- [GT1f] If an unexpected file is staged or modified by hooks, pause and show the diff; do not attempt to "fix" it unprompted.
+- [GT1g] **No Panic About Working State**: Do not comment on or halt for unrelated uncommitted changes. Keep working on the requested task and do not bring up the git working state unless the user explicitly asks.
+- [GT1h] **No Halts For Unrelated Changes**: Never stop or pause work because you noticed unexpected or unrelated file changes; continue the task unless the user explicitly asks you to investigate.
 
-- [DEP1a] Cloudflare aggressively caches static assets. Local passing tests ≠ production bundle updated.
-- [DEP1b] After deploying a fix, verify the deployed JS bundle contains the change (fetch the chunk and grep for a unique token).
-- [DEP1c] If the deployed bundle does not match local, treat it as a Cloudflare cache issue first (purge or wait TTL).
-- [DEP1d] Do not proceed with deeper debugging until you confirm the deployed bundle is actually updated.
-
-## [VR1] Verification Loops (Mandatory)
+### [LC1] Line Count Ceiling (Blocking)
 
-- [VR1a] Validate gate: `bun run validate` (run before and after non-trivial changes; must be clean; no bypass).
-- [VR1b] Typecheck: `bun run type-check` (and `bun run type-check:tests` when relevant).
-- [VR1c] Lint: `bun run lint` (use stricter variants like `lint:errors` when needed).
-- [VR1d] Build: `bun run build` (or `bun run build:only` as appropriate).
-- [VR1e] Tests: `bun run test` (or `test:watch`, `test:coverage`, `test:ci`, `test:smoke` as appropriate).
-- [VR1f] Formatting: `bun run format` and `bun run format:check`.
-- [VR1g] Deployment readiness (when deploying): use `bun run deploy:verify` and/or `bun run deploy:smoke-test`.
-
-## [TST1] Testing Protocols (Jest)
-
-- [TST1a] Never run `bun test` directly. Always use `bun run test*` scripts so Jest loads `config/jest/config.ts`.
-- [TST1b] Allowed scripts: `bun run test`, `test:watch`, `test:coverage`, `test:ci`, `test:smoke` (plus scoped variants).
-- [TST1c] Direct `bun test` bypasses the project config and causes missing `jest.mock`, module resolution failures, and DOM/JSDOM issues—treat this as a violation.
-- [TST1d] Do not “fix” test issues by adding polyfills/downgrading Jest; fix the setup/configuration correctly.
-- [TST1e] Keep tests observable and deterministic; if mocking is required, set it up explicitly (do not rely on ambient behavior).
-
-## [TST2] Test Coverage & Authoring
-
-- [TST2a] Test coverage is mandatory: new functionality and significant modifications require corresponding tests before task completion.
-- [TST2b] Discovery-first: before writing tests, locate existing test files (`__tests__/`, `*.test.ts`, colocated specs) and follow established patterns.
-- [TST2c] Test outcomes, not implementations: assert on outputs, return values, side effects, and observable behavior—never on internal method calls, call counts, or implementation details that could change during refactoring.
-- [TST2d] Refactor-resilient tests: if behavior is unchanged, tests must pass regardless of how internals are restructured; tests coupled to implementation are defects.
-
-## [CP1] Task Completion & Commit Protocol
-
-- [CP1a] After implementing changes, offer to help verify the fix with concrete commands and checks.
-- [CP1b] Request explicit user confirmation that the issue is resolved before cleanup or commits.
-- [CP1c] After confirmation, remove the temporary files you created and (if the user wants a commit) create a single, descriptive commit with no AI attribution.
-- [CP1d] Before creating a commit, state the exact files that will be included and wait for confirmation (avoid bundling unrelated edits).
-
-## [TMP1] Temporary Files Protocol
+- [LC1a] All written, non-generated source files in this repository MUST be <= 350 lines (`wc -l`)
+- [LC1b] SRP Enforcer: This 350-line "stick" forces modularity (DDD/SRP); > 350 lines = too many responsibilities (see [MO1d])
+- [LC1c] **Enforcement**: `bun run check:file-size` reports violations; `bun run validate:with-size` includes the check. Legacy files may exceed; new code MUST comply.
+- [LC1d] Exempt files: generated content (lockfiles, builds, artifacts)
 
-- [TMP1a] All temporary scripts/data for debugging must be created in `/tmp`, never committed into the repo.
-- [TMP1b] After the user confirms the issue is resolved, remove the temporary files you created.
-- [TMP1c] Do not run broad cleanup commands without explicit approval; be specific about what you remove.
+### [RC1] Root Cause Resolution (Blocking)
 
-## [ENV1] Environment Variable Policy
+- [RC1a] No silent fallback/degradation paths: no `?? defaultValue` or `|| fallback` that masks errors; fail explicitly or log the fallback
+- [RC1b] No error swallowing: no empty catch blocks, no catch-and-ignore, no silent `try/catch` that hides failures
+- [RC1c] Investigate -> understand -> fix; no workarounds/shims/compat layers (fix at source or halt)
+- [RC1d] One real implementation: no shadow implementations behind flags to "hedge"; contract: `docs/standards/code-change.md`
 
-- [ENV1a] Never introduce new required environment variables (including `NEXT_PUBLIC_*`) without explicit, repeated, affirmative consent.
-- [ENV1b] No silent changes to `.env`, `.env-example`, CI/CD secrets, or runtime configs.
-- [ENV1c] Approval workflow: document rationale and exact variable names; wait for a direct “yes” before committing code that depends on them.
-
-## [LG1] Language Consistency
-
-- [LG1a] All code, comments, docs, and commit messages must use American English spelling.
-- [LG1b] If British spelling is detected, correct it immediately.
-
-## Appendix [APP]
+### [TS1] Type Safety & Validation (Blocking)
 
-### [CFG1] Project Configuration (Informational; verify in `package.json`)
+- [TS1a] Type safety is absolute: no implicit `any`, no `any`, no unguarded `unknown`
+- [TS1b] Never use `@ts-ignore`, `eslint-disable`, or similar suppression to bypass correctness; fix the root cause
+- [TS1c] All external/IO data must be validated at the boundary (Zod schemas)
+- [TS1d] Never use type assertions without runtime checks; handle `null`/`undefined` explicitly
+- [TS1e] Zod schemas define types; use `z.infer<>` and do not duplicate schema-backed types manually; schemas in `types/schemas/`; import via `import { z } from "zod/v4";`
+- [TS1f] `bun run validate` must pass with 0 errors and 0 warnings before considering work complete
 
-```yaml
-REPO_NAME: williamcallahan.com
-GITHUB_URL: https://github.com/WilliamAGH/williamcallahan.com
-# Previous docs referenced: https://github.com/WilliamAGH/williamcallahan.com
-DEFAULT_BRANCH: dev (see refs/remotes/origin/HEAD)
+---
 
-PACKAGE_MANAGER: bun (see package.json#packageManager)
-LOCKFILE: bun.lock
-PACKAGE_MANAGER_INSTALL: bun install
-PACKAGE_MANAGER_ADD: bun add
-PACKAGE_MANAGER_REMOVE: bun remove
+## Code Quality
 
-# Stack (verify in package.json)
-FRAMEWORK: Next.js
-RUNTIME: Node.js
+### [FS1] File & Edit Discipline
 
-# Testing
-TEST_RUNNER: Jest
-JEST_CONFIG_PATH: config/jest/config.ts
+- [FS1a] Edit existing over append: search for the right location first; do not create new files unless necessary for the task goal
+- [FS1b] Before creating any file: search exhaustively -> analyze existing solutions -> confirm no extension path -> request explicit permission
+- [FS1c] Read the entire target file before editing; integrate changes with existing structure (don't blindly append)
+- [FS1d] No shims, barrels, or re-exports: no compatibility shims, no `index.ts` re-export barrels, no wrapper modules; import from source module directly
+- [FS1e] Efficiency mandate: nearly all edits should result in the same or fewer lines by removing duplication/redundant logic; contract: `docs/standards/code-change.md`
 
-# Code quality (verify in package.json)
-LINTER: Oxlint + ESLint
-FORMATTER: Biome + Prettier
-TYPE_CHECKER: TypeScript (tsc)
-SCHEMA_LIB: Zod (see zod/v4 usage in src/types/schemas/)
+### [UP1] Comprehensive Update Protocol
 
-# Source directories (inside src/)
-APP_DIR: src/app/
-COMPONENTS_DIR: src/components/
-LIB_DIR: src/lib/
-HOOKS_DIR: src/hooks/
-TYPES_DIR: src/types/
-SCHEMAS_DIR: src/types/schemas/
-STYLES_DIR: src/styles/
+- [UP1a] Any API/type/function change requires mapping _all_ usages first (imports, call sites, type references, tests, docs)
+- [UP1b] During the change, track and update every usage systematically; missing one usage is a correctness failure
+- [UP1c] After the change, audit for leftovers (search for old names/patterns) and run the verification loops
+- [UP1d] Final rule: an update is not complete until every usage has been updated and verified
 
-# Root-level directories (outside src/)
-CONFIG_DIR: config/
-DATA_DIR: data/
-DOCS_DIR: docs/
-PUBLIC_DIR: public/
-SCRIPTS_DIR: scripts/
+---
 
-# CI/CD & deployment (verify)
-CI_PROVIDER: GitHub Actions
-CDN: Cloudflare
-PRODUCTION_URL: https://williamcallahan.com
-LOCAL_DEVELOPMENT_URL: http://localhost:3000
+## Domain-Specific
 
-COMMON_COMMANDS:
-  dev: bun run dev
-  build: bun run build
-  build_only: bun run build:only
-  validate: bun run validate
-  lint: bun run lint
-  type_check: bun run type-check
-  format: bun run format
-  tests: bun run test
-```
+### [FW1] Next.js / React / Vitest Enforcement
 
-### [VC1] Verification Commands (Quick Reference)
+- [FW1a] Treat the exact versions in `package.json` as law; verify via `node_modules/<pkg>/package.json` when needed; do not rely on memory or blog posts
+- [FW1b] Before any change touching Next.js/React/Vitest behavior, verify by reading relevant `node_modules/` sources; perform at least one MCP lookup (Context7/Brave) for current guidance
+- [FW1c] Required reading: `docs/standards/nextjs-framework.md` before framework-level changes; update it if your work changes expectations
+- [FW1d] Default expectations: Cache Components + React 19 primitives + modern async params/metadata flows; reject legacy patterns unless explicitly approved (e.g., `next/legacy/image`, synchronous `cookies()` shims)
+- [FW1e] Vitest compliance: any test harness change must reference `config/vitest/` and verify the Vitest runtime; never add tooling that downgrades Vitest APIs or adds polyfills to "make tests pass"
 
-```bash
-# Check current dependency versions
-cat package.json | jq '.dependencies'
+### [DEP1] Cloudflare Cache & Deployment
 
-# Find files over ~400 LOC (warning threshold)
-find . \( -name "*.ts" -o -name "*.tsx" \) -exec wc -l {} + | awk '$1 > 400' | sort -n
+- [DEP1a] Cloudflare aggressively caches static assets. Local passing tests != production bundle updated.
+- [DEP1b] After deploying a fix, verify the deployed JS bundle contains the change (fetch the chunk and grep for a unique token)
+- [DEP1c] If the deployed bundle does not match local, treat it as a Cloudflare cache issue first (purge or wait TTL)
+- [DEP1d] Do not proceed with deeper debugging until you confirm the deployed bundle is actually updated
 
-# Search for existing functionality
-grep -r "[keyword]" --include="*.ts" --include="*.tsx" .
+### [PL1] Polyfills & Global Patching
 
-# Validate the codebase
-bun run validate
+- [PL1a] Do not introduce polyfill dependencies or global patching packages (e.g., `core-js`, `@babel/polyfill`, `node-fetch`) without explicit approval
+- [PL1b] Use native runtime APIs; if compatibility is required, use ponyfills (import-only) or feature detection—not global mutation
+- [PL1c] If you think a polyfill is required, stop and discuss alternatives before making changes
 
-# Typecheck
-bun run type-check
+### [BP1] Boilerplate Prohibition
 
-# Tests (never run `bun test` directly)
-bun run test
+- [BP1a] Do not paste tutorial/boilerplate/template code. Code must follow this repo's existing patterns and be purpose-driven.
+- [BP1b] Forbidden: placeholder implementations (`// TODO: implement`), generic tutorial-y function names (`handleSubmit`, `processData`), placeholder text ("Lorem ipsum")
+- [BP1c] If boilerplate/example code is detected, stop and surface the exact `file:line` and required replacement action
 
-# Review types for a domain
-find src/types/ -name "*.ts" | xargs rg -n "[domain]"
-```
+### [ENV1] Environment Variable Policy
 
-### [CUR1] Rules & Architecture Docs Index (Informational)
+- [ENV1a] Never introduce new required environment variables (including `NEXT_PUBLIC_*`) without explicit, repeated, affirmative consent
+- [ENV1b] No silent changes to `.env`, `.env-example`, CI/CD secrets, or runtime configs
+- [ENV1c] Approval workflow: document rationale and exact variable names; wait for a direct "yes" before committing code that depends on them
 
-- Start at `docs/projects/structure/00-architecture-entrypoint.md` to find the relevant domain document.
-- If you add additional rule files, include YAML front matter:
-  ```yaml
-  ---
-  description: "Brief, specific description"
-  alwaysApply: false
-  ---
-  ```
+### [IMG1] Image Optimization (Blocking)
 
-### [GIT1] Generated Files (Informational)
+- [IMG1a] CDN URLs (s3-storage.callahan.cloud, \*.digitaloceanspaces.com) flow directly to `<Image>` for Next.js optimization; never wrap in `buildCachedImageUrl()` or proxy through `/api/cache/images`
+- [IMG1b] Only external URLs (third-party origins) use the image proxy for SSRF protection; these require `unoptimized` prop
+- [IMG1c] All `<Image>` components with remote sources must have a `sizes` prop for correct srcset generation
+- [IMG1d] Contract: `docs/architecture/image-handling.md` (Image Optimization Decision Matrix); lint enforced via `rules/ast-grep/no-cdn-image-proxy.yml`
 
-Generated files are stored in `generated/` and gitignored:
+---
 
-- `generated/csp-hashes.json` — CSP hashes (created by postbuild)
-- `generated/bookmarks/` — bookmarks, slug mappings, index (created by scripts)
+## Process & Tooling
 
-### [DEPX] Cloudflare Bundle Verification Snippet
+### [VR1] Verification Commands
 
-```bash
-# Check whether your code change is present in a deployed chunk (replace placeholders)
-curl -s "https://[domain]/_next/static/chunks/[chunk].js" | grep -c "yourUniqueToken"
-```
+- [VR1a] Build via `bun run build` (or `bun run build:only` as appropriate)
+- [VR1b] Test via `bun run test` (or `test:watch`, `test:coverage`, `test:ci`, `test:smoke`); NEVER run `bun test` directly (bypasses Vitest config)
+- [VR1c] Lint/validate via `bun run validate` (canonical gate; run before and after non-trivial changes; must be clean; no bypass)
+- [VR1d] Typecheck via `bun run type-check` (and `bun run type-check:tests` when relevant)
+- [VR1e] Format via `bun run format` and `bun run format:check`
+- [VR1f] Deployment readiness: use `bun run deploy:verify` and/or `bun run deploy:smoke-test`
 
-### [DEP2] Cloudflare Cache Purge Options (Informational)
+### [TST1] Testing Protocols
 
-- Cloudflare Dashboard -> Caching -> Purge Everything
-- Wait for TTL expiration (can be hours)
-- Rebuild/deploy to get new hashed chunk names (Next.js outputs versioned chunk filenames)
+- [TST1a] Never run `bun test` directly. Always use `bun run test*` scripts so Vitest loads `config/vitest/`.
+- [TST1b] Direct `bun test` bypasses the project config and causes missing `vi.mock`, module resolution failures—treat this as a violation
+- [TST1c] Do not "fix" test issues by adding polyfills/downgrading Vitest; fix the setup/configuration correctly
+- [TST1d] Test coverage is mandatory: new functionality and significant modifications require corresponding tests before task completion
+- [TST1e] Discovery-first: before writing tests, locate existing test files (`__tests__/`, `*.test.ts`) and follow established patterns
+- [TST1f] Test outcomes, not implementations: assert on outputs, return values, observable behavior—never on internal method calls or implementation details; refactor-resilient tests are required
 
-### [FWX] Node_modules Evidence Checklist (Examples)
+### [CP1] Task Completion Protocol
 
-- Next.js config/runtime: `node_modules/next/dist/server/config.js`
-- Async params/metadata flows: `node_modules/next/dist/server/request/params.js`
-- Image config: `node_modules/next/dist/shared/lib/image-config.js`
-- React version: `node_modules/react/package.json`
-- Jest runtime: `node_modules/jest/package.json`
+- [CP1a] After implementing changes, offer to help verify the fix with concrete commands and checks
+- [CP1b] Request explicit user confirmation that the issue is resolved before cleanup or commits
+- [CP1c] After confirmation, remove temporary files you created (temp files go in `/tmp`, never committed) and (if user wants a commit) create a single, descriptive commit
+- [CP1d] Before creating a commit, state the exact files that will be included and wait for confirmation
 
-### [TSTX] Why `bun run test*` Scripts Are Required (Informational)
+### [LG1] Language Consistency
 
-- They load `config/jest/config.ts` (direct `bun test` bypasses it).
-- They ensure Jest setup files + mocking/globals are applied consistently.
-- They prevent common failures (module resolution, jsdom/DOM issues, `jest.mock` problems).
+- [LG1a] All code, comments, docs, and commit messages must use American English spelling
+- [LG1b] If British spelling is detected, correct it immediately
 
-### [CPX] Cleanup & Commit Example (Run only if user asked)
+---
 
-```bash
-# Remove temporary files you created in /tmp (be specific)
-rm /tmp/<your-temp-file>
+## Meta
 
-# Stage & commit (only if the user explicitly asked for a commit)
-git add -A
-git commit -m "fix: <specific description>"
-```
+### [ORG] Document Organization
 
-### [BPX] Boilerplate Violation Template
+- [ORG1] Purpose: `AGENTS.md` is the enforcement surface and index; keep every critical rule referenceable by short hashes; `docs/agents/` must not exist
+- [ORG2] Structure: succinct hashed rules ordered by priority (Foundational -> Blocking -> Code Quality -> Domain-Specific -> Process & Tooling -> Meta); supporting `docs/` explain HOW/WHY (<= 350 LOC each)
+- [ORG3] Usage: cite hashes when giving guidance; add new hashes in logical order without renumbering
+- [ORG4] One Hash, One Rule: each `[XX#x]` bullet is a single, succinct rule statement
+- [ORG5] Directive language: rules use imperative/prohibitive phrasing ("do X", "no Y", "never Z"); avoid discretionary hedges ("prefer", "consider", "try to", "ideally", "when possible")
 
-```text
- CRITICAL VIOLATION DETECTED
-Boilerplate/example code found in: [file:line]
-Code pattern: [description]
-Source: [where it likely came from]
-Required action: Manual review and replacement
-```
+### [DOC1] Documentation Architecture
 
-### [SCX] Zod Schema Pattern (Example)
+- [DOC1a] No doc barrels: do not create docs whose primary purpose is listing other docs. Every doc must be substantive.
+- [DOC1b] Prerequisite reading: when a workflow requires a doc to be read first, the rule MUST name the exact doc path
+- [DOC1c] When you create/delete/move/significantly change files, update: `docs/architecture/README.md`, `docs/file-map.md`, and the relevant `docs/features/[domain].md` or `docs/architecture/[domain].md`
+- [DOC1d] Verify changes do not violate documented architecture/patterns; fix stale docs immediately
 
-```ts
-// types/schemas/example.ts
-import { z } from "zod/v4";
+### [APP] Reference Contracts
 
-export const exampleSchema = z.object({
-  id: z.string(),
-});
-
-export type Example = z.infer<typeof exampleSchema>;
-```
-
-### [UPX] Search Strategies for “Update All Usages” (Examples)
-
-```bash
-# Imports
-grep -r "import.*Thing" --include="*.ts" --include="*.tsx" .
-
-# Call sites
-grep -r "thing(" --include="*.ts" --include="*.tsx" .
-
-# Types
-grep -r "Thing" --include="*.ts" --include="*.tsx" .
-
-# Tests
-grep -r "Thing" --include="*.test.ts" --include="*.spec.ts" .
-```
+- **Code Change Policy**: `docs/standards/code-change.md` ([LC1], [MO1], [FS1])
+- **Framework Evidence**: `docs/standards/nextjs-framework.md` ([FW1])
+- **Type Policy**: `docs/standards/type-policy.md` ([TS1])
+- **Testing Protocols**: `docs/standards/testing.md` ([TST1])
+- **Deployment**: `docs/ops/verification.md` ([DEP1])
+- **Image Optimization Contract**: `docs/architecture/image-handling.md#image-optimization-decision-matrix` ([IMG1])

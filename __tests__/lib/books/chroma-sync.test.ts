@@ -5,46 +5,42 @@
  */
 
 import type { TextChunk, EpubMetadata, BookIndexData } from "@/types/books/parsing";
-
-// Check for required Chroma env vars
-const REQUIRED_ENV_VARS = ["CHROMA_API_KEY", "CHROMA_TENANT", "CHROMA_DATABASE"] as const;
-const missingVars = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
-const hasChromaConfig = missingVars.length === 0;
-
-if (!hasChromaConfig) {
-  console.warn(`[chroma-sync.test.ts] Skipping tests - missing env vars: ${missingVars.join(", ")}`);
-}
+import type { Mock } from "vitest";
 
 // Shared mock collection
 let mockCollection: {
-  upsert: jest.Mock;
-  get: jest.Mock;
-  delete: jest.Mock;
-  count: jest.Mock;
-  query: jest.Mock;
+  upsert: Mock;
+  get: Mock;
+  delete: Mock;
+  count: Mock;
+  query: Mock;
 };
 
 function initMockCollection() {
   mockCollection = {
-    upsert: jest.fn().mockResolvedValue(undefined),
-    get: jest.fn().mockResolvedValue({ ids: [], embeddings: [], metadatas: [], documents: [] }),
-    delete: jest.fn().mockResolvedValue(undefined),
-    count: jest.fn().mockResolvedValue(0),
-    query: jest.fn().mockResolvedValue({ ids: [[]], documents: [[]], metadatas: [[]], distances: [[]] }),
+    upsert: vi.fn().mockResolvedValue(undefined),
+    get: vi.fn().mockResolvedValue({ ids: [], embeddings: [], metadatas: [], documents: [] }),
+    delete: vi.fn().mockResolvedValue(undefined),
+    count: vi.fn().mockResolvedValue(0),
+    query: vi
+      .fn()
+      .mockResolvedValue({ ids: [[]], documents: [[]], metadatas: [[]], distances: [[]] }),
   };
 }
 
 initMockCollection();
 
 // Mock Chroma client
-jest.mock("@/lib/chroma/client", () => ({
-  getChromaClient: jest.fn().mockImplementation(() => ({
-    getOrCreateCollection: jest.fn().mockImplementation(() => Promise.resolve(mockCollection)),
-    deleteCollection: jest.fn().mockResolvedValue(undefined),
+vi.mock("@/lib/chroma/client", () => ({
+  getChromaClient: vi.fn().mockImplementation(() => ({
+    getOrCreateCollection: vi.fn().mockImplementation(() => Promise.resolve(mockCollection)),
+    deleteCollection: vi.fn().mockResolvedValue(undefined),
   })),
 }));
 
-const describeIfChroma = hasChromaConfig ? describe : describe.skip;
+vi.mock("@/lib/chroma/embedding-function", () => ({
+  getEmbeddingFunction: vi.fn().mockResolvedValue({}),
+}));
 
 // Test helpers
 const createTestChunk = (overrides: Partial<TextChunk> = {}): TextChunk => ({
@@ -70,10 +66,10 @@ const createTestIndexData = (overrides: Partial<BookIndexData> = {}): BookIndexD
   ...overrides,
 });
 
-describeIfChroma("Books Chroma Sync", () => {
+describe("Books Chroma Sync", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.resetModules();
+    vi.clearAllMocks();
+    vi.resetModules();
     initMockCollection();
   });
 
@@ -81,7 +77,11 @@ describeIfChroma("Books Chroma Sync", () => {
     it("should parse comma-separated string into array", async () => {
       const { parseChromaArray } = await import("@/lib/books/chroma-sync");
 
-      expect(parseChromaArray("fiction,science,adventure")).toEqual(["fiction", "science", "adventure"]);
+      expect(parseChromaArray("fiction,science,adventure")).toEqual([
+        "fiction",
+        "science",
+        "adventure",
+      ]);
     });
 
     it("should return empty array for null/undefined", async () => {
@@ -123,8 +123,18 @@ describeIfChroma("Books Chroma Sync", () => {
           publisher: "Test Publisher",
         }),
         chunks: [
-          createTestChunk({ index: 0, text: "Chapter 1 content", chapterId: "ch1", chapterTitle: "Introduction" }),
-          createTestChunk({ index: 1, text: "Chapter 2 content", chapterId: "ch2", chapterTitle: "Getting Started" }),
+          createTestChunk({
+            index: 0,
+            text: "Chapter 1 content",
+            chapterId: "ch1",
+            chapterTitle: "Introduction",
+          }),
+          createTestChunk({
+            index: 1,
+            text: "Chapter 2 content",
+            chapterId: "ch2",
+            chapterTitle: "Getting Started",
+          }),
         ],
       });
 
@@ -151,7 +161,9 @@ describeIfChroma("Books Chroma Sync", () => {
       const { indexBookToChroma } = await import("@/lib/books/chroma-sync");
 
       // Create 250 chunks (should require 3 batches at 100 per batch)
-      const chunks = Array.from({ length: 250 }, (_, i) => createTestChunk({ index: i, text: `Chunk ${i} content` }));
+      const chunks = Array.from({ length: 250 }, (_, i) =>
+        createTestChunk({ index: i, text: `Chunk ${i} content` }),
+      );
 
       const data = createTestIndexData({ chunks });
 
@@ -255,7 +267,10 @@ describeIfChroma("Books Chroma Sync", () => {
       const exists = await bookExistsInChroma("existing-book");
 
       expect(exists).toBe(true);
-      expect(mockCollection.get).toHaveBeenCalledWith({ where: { bookId: "existing-book" }, limit: 1 });
+      expect(mockCollection.get).toHaveBeenCalledWith({
+        where: { bookId: "existing-book" },
+        limit: 1,
+      });
     });
 
     it("should return false when book has no chunks", async () => {

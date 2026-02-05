@@ -9,20 +9,33 @@ import type { CdnConfig } from "@/types/s3-cdn";
 
 const SUPPORTED_PROTOCOLS = new Set(["http:", "https:"]);
 
+/** Path for the image proxy API route - single source of truth */
+const IMAGE_PROXY_PATH = "/api/cache/images";
+
+/** Path for the asset proxy API route (Karakeep/Hoarder images) */
+const ASSET_PROXY_PATH = "/api/assets/";
+
 /**
- * Get S3 CDN base URL with consistent fallback chain
+ * Get S3 CDN base URL from the canonical environment variable.
  *
- * Server-side: S3_CDN_URL takes precedence (not exposed to client)
- * Client-side: Falls back to NEXT_PUBLIC_S3_CDN_URL
+ * Uses NEXT_PUBLIC_S3_CDN_URL exclusively (the sole canonical CDN env var).
  *
- * Returns empty string if neither is configured.
- *
+ * @throws {Error} if NEXT_PUBLIC_S3_CDN_URL is not configured
  * @see {@link getCdnConfigFromEnv} for full configuration object
  */
 export function getS3CdnUrl(): string {
-  return process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+  const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
+  if (!cdnUrl) {
+    throw new Error("[cdn-utils] NEXT_PUBLIC_S3_CDN_URL is required but was not provided.");
+  }
+  return cdnUrl;
 }
 
+/**
+ * Parse a string as an absolute URL. Returns null for empty/undefined or malformed.
+ * RC1a: "try-parse" pattern - null is valid semantic result, not failure. All callers
+ * (extractS3KeyFromUrl, isOurCdnUrl, etc.) handle null as "not parseable as absolute URL".
+ */
 function parseAbsoluteUrl(value?: string): URL | null {
   if (!value) return null;
   try {
@@ -43,7 +56,7 @@ function normalizeBasePath(pathname: string): string {
  * will have the value available even in client components.
  * Fallback ensures we have a value even if env var is missing.
  */
-const CLIENT_CDN_BASE_URL = process.env.NEXT_PUBLIC_S3_CDN_URL || "https://s3-storage.callahan.cloud";
+const CLIENT_CDN_BASE_URL = process.env.NEXT_PUBLIC_S3_CDN_URL;
 
 /**
  * Extract S3 hostname from server URL
@@ -119,16 +132,19 @@ export function extractS3KeyFromUrl(url: string, config: CdnConfig): string | nu
     if (cdnBase && parsed.host === cdnBase.host && parsed.protocol === cdnBase.protocol) {
       const basePath = normalizeBasePath(cdnBase.pathname);
       if (basePath === "/" || parsed.pathname.startsWith(basePath)) {
-        const key = basePath === "/" ? parsed.pathname.slice(1) : parsed.pathname.slice(basePath.length);
+        const key =
+          basePath === "/" ? parsed.pathname.slice(1) : parsed.pathname.slice(basePath.length);
         return key.startsWith("/") ? key.slice(1) : key;
       }
     }
 
     // Check if it's an S3 URL
-    if (s3BucketName) {
+    if (s3BucketName && s3ServerUrl) {
       const s3Host = getS3Host(s3ServerUrl);
       const s3Base = parseAbsoluteUrl(s3ServerUrl);
-      const expectedHost = s3Base?.port ? `${s3BucketName}.${s3Host}:${s3Base.port}` : `${s3BucketName}.${s3Host}`;
+      const expectedHost = s3Base?.port
+        ? `${s3BucketName}.${s3Host}:${s3Base.port}`
+        : `${s3BucketName}.${s3Host}`;
       if (parsed.host === expectedHost) {
         const s3Protocol = s3Base?.protocol ?? "https:";
         if (!SUPPORTED_PROTOCOLS.has(s3Protocol) || parsed.protocol !== s3Protocol) {
@@ -164,10 +180,12 @@ export function isOurCdnUrl(url: string, config: CdnConfig): boolean {
   }
 
   // Check S3 URL
-  if (s3BucketName) {
+  if (s3BucketName && s3ServerUrl) {
     const s3Host = getS3Host(s3ServerUrl);
     const s3Base = parseAbsoluteUrl(s3ServerUrl);
-    const expectedHost = s3Base?.port ? `${s3BucketName}.${s3Host}:${s3Base.port}` : `${s3BucketName}.${s3Host}`;
+    const expectedHost = s3Base?.port
+      ? `${s3BucketName}.${s3Host}:${s3Base.port}`
+      : `${s3BucketName}.${s3Host}`;
     if (parsed.host !== expectedHost) {
       return false;
     }
@@ -194,11 +212,23 @@ export function isOurCdnUrl(url: string, config: CdnConfig): boolean {
 export function getCdnConfigFromEnv(): CdnConfig {
   // In client-side environment, only NEXT_PUBLIC_* variables are available
   const isClient = typeof globalThis.window !== "undefined";
+  const cdnBaseUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
+  if (!cdnBaseUrl) {
+    throw new Error("[cdn-utils] NEXT_PUBLIC_S3_CDN_URL is required but was not provided.");
+  }
 
   if (isClient) {
     // Client-side: use the build-time captured constant for reliability
+    // Validate CLIENT_CDN_BASE_URL explicitly to avoid silent null state
+    const clientCdnUrl = CLIENT_CDN_BASE_URL ?? cdnBaseUrl;
+    if (!clientCdnUrl) {
+      throw new Error(
+        "[cdn-utils] CLIENT_CDN_BASE_URL and cdnBaseUrl are both null. " +
+          "NEXT_PUBLIC_S3_CDN_URL must be set at build time.",
+      );
+    }
     return {
-      cdnBaseUrl: CLIENT_CDN_BASE_URL,
+      cdnBaseUrl: clientCdnUrl,
       // These are not available client-side, but buildCdnUrl should use cdnBaseUrl when available
       s3BucketName: undefined,
       s3ServerUrl: undefined,
@@ -207,10 +237,23 @@ export function getCdnConfigFromEnv(): CdnConfig {
 
   // Server-side: all environment variables are available
   return {
-    cdnBaseUrl: process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL,
+    cdnBaseUrl,
     s3BucketName: process.env.S3_BUCKET,
     s3ServerUrl: process.env.S3_SERVER_URL,
   };
+}
+
+/**
+ * Build an image proxy URL for the image cache API.
+ * Single source of truth for proxy URL construction.
+ */
+function buildImageProxyUrl(url: string, width?: number): string {
+  const params = new URLSearchParams();
+  params.set("url", url);
+  if (typeof width === "number" && width > 0) {
+    params.set("width", String(width));
+  }
+  return `${IMAGE_PROXY_PATH}?${params.toString()}`;
 }
 
 /**
@@ -218,12 +261,89 @@ export function getCdnConfigFromEnv(): CdnConfig {
  * Mirrors the logic inside `components/ui/logo-image.client.tsx` so both
  * server and client consumers hit the exact same trusted proxy before passing
  * the response to `<Image>`.
+ *
+ * **WARNING:** Only use for external URLs that need SSRF protection.
+ * NEVER use for our CDN URLs - that bypasses Next.js optimization.
+ * Use `getOptimizedImageSrc()` instead which routes correctly.
+ *
+ * @see docs/architecture/image-handling.md (Image Optimization Decision Matrix)
  */
 export function buildCachedImageUrl(cdnUrl: string, width?: number): string {
-  const params = new URLSearchParams();
-  params.set("url", cdnUrl);
-  if (typeof width === "number" && width > 0) {
-    params.set("width", String(width));
+  return buildImageProxyUrl(cdnUrl, width);
+}
+
+/**
+ * Returns the appropriate image src for <Image> component.
+ * - CDN URLs: return directly (let Next.js optimize via /_next/image)
+ * - External URLs: proxy through /api/cache/images for SSRF protection
+ *
+ * CANONICAL: See docs/standards/nextjs-framework.md#4
+ *
+ * @example
+ * // CDN URL → returns directly for Next.js optimization
+ * getOptimizedImageSrc("https://s3-storage.callahan.cloud/images/foo.jpg")
+ * // Returns: "https://s3-storage.callahan.cloud/images/foo.jpg"
+ *
+ * @example
+ * // External URL → proxied for SSRF protection
+ * getOptimizedImageSrc("https://pbs.twimg.com/profile_images/123.jpg")
+ * // Returns: "/api/cache/images?url=https%3A%2F%2Fpbs.twimg.com%2F..."
+ */
+export function getOptimizedImageSrc(
+  src: string | null | undefined,
+  config?: CdnConfig,
+  width?: number,
+): string | undefined {
+  if (!src) return undefined;
+
+  // Local paths and data URLs pass through unchanged
+  if (src.startsWith("/") || src.startsWith("data:")) {
+    return src;
   }
-  return `/api/cache/images?${params.toString()}`;
+
+  // Prevent double-proxying: check for relative proxy paths without leading slash
+  // (e.g., "api/cache/images?url=..." passed by mistake)
+  if (src.startsWith(IMAGE_PROXY_PATH.slice(1)) || src.startsWith(ASSET_PROXY_PATH.slice(1))) {
+    // Normalize to absolute path and return
+    return `/${src}`;
+  }
+
+  // Our CDN URLs: use directly (Next.js optimizer handles them)
+  if (isOurCdnUrl(src, config ?? getCdnConfigFromEnv())) {
+    return src;
+  }
+
+  // Avoid double-proxying: URLs already pointing to our image proxy pass through
+  // This catches absolute URLs like https://williamcallahan.com/api/cache/images?url=...
+  try {
+    const parsed = new URL(src);
+    if (parsed.pathname === IMAGE_PROXY_PATH) {
+      // Already proxied - return unchanged to prevent infinite proxy loop
+      return src;
+    }
+  } catch {
+    // Not a valid absolute URL - fall through to proxy
+  }
+
+  // External URLs: proxy for SSRF protection
+  return buildImageProxyUrl(src, width);
+}
+
+/**
+ * Whether to use `unoptimized` prop on <Image>.
+ * True for API routes that serve already-processed images, or data URIs.
+ *
+ * CANONICAL: See docs/standards/nextjs-framework.md#4
+ *
+ * @example
+ * <Image
+ *   src={imageUrl}
+ *   {...(shouldBypassOptimizer(imageUrl) ? { unoptimized: true } : {})}
+ * />
+ */
+export function shouldBypassOptimizer(src: string | undefined): boolean {
+  if (!src) return false;
+  return (
+    src.startsWith(IMAGE_PROXY_PATH) || src.startsWith(ASSET_PROXY_PATH) || src.startsWith("data:")
+  );
 }

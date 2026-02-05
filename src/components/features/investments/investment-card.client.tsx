@@ -16,7 +16,7 @@
  * ```
  */
 
-import { LogoImage } from "@/components/ui";
+import { LogoImage } from "@/components/ui/logo-image.client";
 import { ExternalLink } from "@/components/ui/external-link.client";
 import { ExternalLink as ExternalLinkIcon } from "lucide-react";
 import type { InvestmentCardExtendedProps } from "@/types/features/investments";
@@ -65,7 +65,11 @@ export function InvestmentCardClient({
 
   // Get accelerator display name
   const acceleratorName =
-    accelerator?.program === "techstars" ? "Techstars" : accelerator?.program === "ycombinator" ? "Y Combinator" : null;
+    accelerator?.program === "techstars"
+      ? "Techstars"
+      : accelerator?.program === "ycombinator"
+        ? "Y Combinator"
+        : null;
 
   return (
     <div
@@ -129,20 +133,34 @@ export function InvestmentCardClient({
                 </div>
                 {accelerator && (
                   <div className="flex items-center gap-1">
-                    <span className="text-sm text-cyan-500 dark:text-cyan-400">{acceleratorName}</span>
+                    <span className="text-sm text-cyan-500 dark:text-cyan-400">
+                      {acceleratorName}
+                    </span>
                     <span className="text-sm text-gray-400 dark:text-gray-500">•</span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">{accelerator.batch}</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {accelerator.batch}
+                    </span>
                     <span className="text-sm text-gray-400 dark:text-gray-500">•</span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">{accelerator.location}</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {accelerator.location}
+                    </span>
                   </div>
                 )}
               </div>
             </div>
             <div className="flex flex-col items-end text-sm space-y-1 min-w-[140px] flex-shrink-0">
-              {founded_year && <span className="text-gray-400 dark:text-gray-500">Founded {founded_year}</span>}
-              {invested_year && <span className="text-gray-500 dark:text-gray-400">Invested {invested_year}</span>}
-              {acquired_year && <span className="text-gray-600 dark:text-gray-300">Acquired {acquired_year}</span>}
-              {shutdown_year && <span className="text-gray-700 dark:text-gray-200">Closed {shutdown_year}</span>}
+              {founded_year && (
+                <span className="text-gray-400 dark:text-gray-500">Founded {founded_year}</span>
+              )}
+              {invested_year && (
+                <span className="text-gray-500 dark:text-gray-400">Invested {invested_year}</span>
+              )}
+              {acquired_year && (
+                <span className="text-gray-600 dark:text-gray-300">Acquired {acquired_year}</span>
+              )}
+              {shutdown_year && (
+                <span className="text-gray-700 dark:text-gray-200">Closed {shutdown_year}</span>
+              )}
             </div>
           </div>
 
@@ -193,15 +211,21 @@ export function InvestmentCardClient({
             <div className="border rounded-lg border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3 sm:p-4">
               <div className="grid grid-cols-3 gap-x-2 sm:gap-x-6">
                 <div className="flex flex-col text-center">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Round Size</div>
-                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt((details?.find(d => d.label === "Round Size")?.value ?? "0").replace(/[^0-9]/g, "") || "0", 10))}`}</div>
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Round Size
+                  </div>
+                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt((details?.find((d) => d.label === "Round Size")?.value ?? "0").replace(/[^0-9]/g, "") || "0", 10))}`}</div>
                 </div>
                 <div className="flex flex-col text-center">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Valuation</div>
-                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt((details?.find(d => d.label === "Valuation")?.value ?? "0").replace(/[^0-9]/g, "") || "0", 10))}`}</div>
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Valuation
+                  </div>
+                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt((details?.find((d) => d.label === "Valuation")?.value ?? "0").replace(/[^0-9]/g, "") || "0", 10))}`}</div>
                 </div>
                 <div className="flex flex-col text-center">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Return</div>
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Return
+                  </div>
                   <div
                     className={`text-xs sm:text-sm font-medium whitespace-nowrap ${holding_return >= 0 ? "text-emerald-500" : "text-red-500"}`}
                   >

@@ -28,7 +28,7 @@ export const searchInvestments = createCachedSearchFunction({
   cacheKey: "investments",
   getIndex: getInvestmentsIndex,
   getItems: () => investments,
-  getSearchableFields: inv => [
+  getSearchableFields: (inv) => [
     inv.name,
     inv.description,
     inv.type,
@@ -38,7 +38,7 @@ export const searchInvestments = createCachedSearchFunction({
     inv.acquired_year,
     inv.shutdown_year,
   ],
-  getExactMatchField: inv => inv.name,
+  getExactMatchField: (inv) => inv.name,
   transformResult: (inv, score) => ({
     id: inv.id,
     type: "project" as const,
@@ -56,8 +56,8 @@ export const searchExperience = createCachedSearchFunction({
   cacheKey: "experience",
   getIndex: getExperienceIndex,
   getItems: () => experiences,
-  getSearchableFields: exp => [exp.company, exp.role, exp.period],
-  getExactMatchField: exp => exp.company,
+  getSearchableFields: (exp) => [exp.company, exp.role, exp.period],
+  getExactMatchField: (exp) => exp.company,
   transformResult: (exp, score) => ({
     id: exp.id,
     type: "project" as const,
@@ -75,8 +75,8 @@ export const searchEducation = createCachedSearchFunction({
   cacheKey: "education",
   getIndex: getEducationIndex,
   getItems: getEducationItems,
-  getSearchableFields: item => [item.label, item.description],
-  getExactMatchField: item => item.label,
+  getSearchableFields: (item) => [item.label, item.description],
+  getExactMatchField: (item) => item.label,
   transformResult: (item, score) => ({
     id: item.id,
     type: "page" as const,
@@ -96,9 +96,9 @@ export async function searchProjects(query: string): Promise<SearchResult[]> {
     cacheKey: "projects",
     getIndex: getProjectsIndex,
     getItems: () => projectsData,
-    getSearchableFields: p => [p.name, p.description, (p.tags || []).join(" ")],
-    getExactMatchField: p => p.name,
-    getItemId: p => p.name,
+    getSearchableFields: (p) => [p.name, p.description, (p.tags || []).join(" ")],
+    getExactMatchField: (p) => p.name,
+    getItemId: (p) => p.name,
     transformResult: (p, score) => ({
       id: p.name,
       type: "project" as const,

@@ -7,10 +7,10 @@
  * @module utils/image-s3-utils
  */
 
-import { readBinaryS3, writeBinaryS3 } from "@/lib/s3-utils";
+import { readBinaryS3, writeBinaryS3 } from "@/lib/s3/binary";
 import { debug, isDebug } from "@/lib/utils/debug";
 import { getOgImageS3Key, hashImageContent } from "@/lib/utils/opengraph-utils";
-import { listS3Objects } from "../s3-utils";
+import { listS3Objects } from "@/lib/s3/objects";
 import { processImageBufferSimple } from "./shared-image-processing";
 import { isS3ReadOnly } from "@/lib/utils/s3-read-only";
 
@@ -53,9 +53,17 @@ export async function persistImageToS3(
     // -------------------------------------------------------------
     // Fast-path: if the image is already in S3, skip the upload step
     // -------------------------------------------------------------
-    const existingKey = await findImageInS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
+    const existingKey = await findImageInS3(
+      imageUrl,
+      s3Directory,
+      logContext,
+      idempotencyKey,
+      pageUrl,
+    );
     if (existingKey) {
-      console.log(`[OpenGraph S3] ⏭️  Skipping upload – image already exists in S3: ${existingKey}`);
+      console.log(
+        `[OpenGraph S3] ⏭️  Skipping upload – image already exists in S3: ${existingKey}`,
+      );
       return existingKey;
     }
 
@@ -91,7 +99,10 @@ export async function persistImageToS3(
       if (isDebug) debug(`[${logContext}] ${sizeErrorMsg}`);
       throw new Error(sizeErrorMsg);
     }
-    if (isDebug) debug(`[${logContext}] Raw image buffer size: ${rawBuffer.length} bytes for URL: ${imageUrl}`);
+    if (isDebug)
+      debug(
+        `[${logContext}] Raw image buffer size: ${rawBuffer.length} bytes for URL: ${imageUrl}`,
+      );
 
     // Process the image (handles SVG detection, PNG conversion, etc.)
     if (isDebug) debug(`[${logContext}] Processing image buffer for: ${imageUrl}`);
@@ -105,11 +116,20 @@ export async function persistImageToS3(
       );
 
     // Generate S3 key based on idempotency key if available, otherwise fallback to content hash
-    const s3Key = getOgImageS3Key(imageUrl, s3Directory, pageUrl, idempotencyKey, hashImageContent(processedBuffer));
-    if (isDebug) debug(`[${logContext}] Generated S3 key: ${s3Key} for image from URL: ${imageUrl}`);
+    const s3Key = getOgImageS3Key(
+      imageUrl,
+      s3Directory,
+      pageUrl,
+      idempotencyKey,
+      hashImageContent(processedBuffer),
+    );
+    if (isDebug)
+      debug(`[${logContext}] Generated S3 key: ${s3Key} for image from URL: ${imageUrl}`);
 
     // Upload to S3
-    console.log(`[OpenGraph S3] 📤 Uploading processed image to S3: ${s3Key} (${processedBuffer.length} bytes)`);
+    console.log(
+      `[OpenGraph S3] 📤 Uploading processed image to S3: ${s3Key} (${processedBuffer.length} bytes)`,
+    );
     await writeBinaryS3(s3Key, processedBuffer, contentType);
 
     const displayUrl = imageUrl.startsWith("data:")
@@ -154,7 +174,11 @@ export async function persistImageToS3(
  * Handle stale image URLs by triggering automatic OpenGraph recrawl
  * This is called when image URLs return 404, indicating the OpenGraph metadata is stale
  */
-async function handleStaleImageUrl(imageUrl: string, pageUrl: string, logContext: string): Promise<void> {
+async function handleStaleImageUrl(
+  imageUrl: string,
+  pageUrl: string,
+  logContext: string,
+): Promise<void> {
   try {
     const { invalidateOpenGraphCacheForUrl } = await import("@/lib/data-access/opengraph");
 
@@ -188,11 +212,18 @@ async function handleStaleImageUrl(imageUrl: string, pageUrl: string, logContext
     console.warn(`[${logContext}] 🔄 Automatic recovery initiated for ${pageUrl}`);
 
     // Trigger background refresh to get fresh OpenGraph data with updated image URLs
-    console.log(`[${logContext}] Triggering OpenGraph recrawl for ${pageUrl} (stale Karakeep asset)`);
-    const { refreshOpenGraphData } = await import("@/lib/data-access/opengraph");
-    refreshOpenGraphData(pageUrl).catch(refreshError => {
-      console.error(`[${logContext}] Background OpenGraph refresh failed for ${pageUrl}:`, refreshError);
-      console.warn(`[${logContext}] ⚠️ Karakeep asset and refresh both failed – fallback images will be used`);
+    console.log(
+      `[${logContext}] Triggering OpenGraph recrawl for ${pageUrl} (stale Karakeep asset)`,
+    );
+    const { refreshOpenGraphData } = await import("@/lib/data-access/opengraph-refresh");
+    refreshOpenGraphData(pageUrl).catch((refreshError) => {
+      console.error(
+        `[${logContext}] Background OpenGraph refresh failed for ${pageUrl}:`,
+        refreshError,
+      );
+      console.warn(
+        `[${logContext}] ⚠️ Karakeep asset and refresh both failed – fallback images will be used`,
+      );
     });
   } catch (error) {
     console.error(`[${logContext}] Failed to handle stale image URL for ${pageUrl}:`, error);
@@ -218,7 +249,10 @@ export async function findImageInS3(
 ): Promise<string | null> {
   // 1. Direct lookup for the ideal filename based on the full known path
   const idealKey = getOgImageS3Key(imageUrl, s3Directory, pageUrl, idempotencyKey);
-  if (isDebug) debug(`[${logContext}] Attempting direct S3 lookup with key: ${idealKey} for image: ${imageUrl}`);
+  if (isDebug)
+    debug(
+      `[${logContext}] Attempting direct S3 lookup with key: ${idealKey} for image: ${imageUrl}`,
+    );
   try {
     const buffer = await readBinaryS3(idealKey);
     if (buffer) {
@@ -244,9 +278,12 @@ export async function findImageInS3(
     if (idempotencyKey) {
       const allImages = await listS3Objects(s3Directory);
       if (allImages.length > 0) {
-        const foundById = allImages.find(key => key.includes(idempotencyKey));
+        const foundById = allImages.find((key) => key.includes(idempotencyKey));
         if (foundById) {
-          if (isDebug) debug(`[${logContext}] Fallback search: Found image by ID '${idempotencyKey}': ${foundById}`);
+          if (isDebug)
+            debug(
+              `[${logContext}] Fallback search: Found image by ID '${idempotencyKey}': ${foundById}`,
+            );
           return foundById;
         }
         if (isDebug)
@@ -267,7 +304,10 @@ export async function findImageInS3(
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[${logContext}] Error during fallback S3 object listing in ${s3Directory}:`, errorMessage);
+    console.error(
+      `[${logContext}] Error during fallback S3 object listing in ${s3Directory}:`,
+      errorMessage,
+    );
   }
 
   if (isDebug)
@@ -291,7 +331,8 @@ export async function serveImageFromS3(
   try {
     const buffer = await readBinaryS3(s3Key);
     if (!buffer) {
-      if (isDebug) debug(`[${logContext}] serveImageFromS3: readBinaryS3 returned null for key ${s3Key}.`);
+      if (isDebug)
+        debug(`[${logContext}] serveImageFromS3: readBinaryS3 returned null for key ${s3Key}.`);
       return null;
     }
 

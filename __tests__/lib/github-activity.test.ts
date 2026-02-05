@@ -1,35 +1,38 @@
 /**
- * Jest test for lib/data-access/github.ts
+ * Vitest test for lib/data-access/github.ts
  * Tests GitHub activity refresh functionality and diagnostics
  */
 
 // Mock the GitHub data access module
-jest.mock("@/lib/data-access/github", () => ({
-  refreshGitHubActivityDataFromApi: jest.fn(),
+vi.mock("@/lib/data-access/github", () => ({
+  refreshGitHubActivityDataFromApi: vi.fn(),
 }));
 
 // Mock the S3 utils module
-jest.mock("@/lib/s3-utils", () => ({
-  getS3ObjectMetadata: jest.fn(),
+vi.mock("@/lib/s3/objects", () => ({
+  getS3ObjectMetadata: vi.fn(),
 }));
 
 // Mock fetch globally
-const fetchMock = jest.fn();
+const fetchMock = vi.fn();
 global.fetch = fetchMock as unknown as typeof fetch;
 
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
-import { getS3ObjectMetadata } from "@/lib/s3-utils";
+import { getS3ObjectMetadata } from "@/lib/s3/objects";
 import { GITHUB_ACTIVITY_S3_PATHS } from "@/lib/constants";
+import type { MockedFunction } from "vitest";
 
-const mockRefreshGitHubActivityDataFromApi = jest.mocked(refreshGitHubActivityDataFromApi);
-const mockGetS3ObjectMetadata = jest.mocked(getS3ObjectMetadata);
-const mockFetch = fetchMock as unknown as jest.MockedFunction<typeof fetch>;
+const mockRefreshGitHubActivityDataFromApi = vi.mocked(refreshGitHubActivityDataFromApi);
+const mockGetS3ObjectMetadata = vi.mocked(getS3ObjectMetadata);
+const mockFetch = fetchMock as unknown as MockedFunction<typeof fetch>;
 
-type RefreshGitHubActivityResult = NonNullable<Awaited<ReturnType<typeof refreshGitHubActivityDataFromApi>>>;
+type RefreshGitHubActivityResult = NonNullable<
+  Awaited<ReturnType<typeof refreshGitHubActivityDataFromApi>>
+>;
 
 describe("lib/data-access/github.ts functionality", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Reset environment variables
     process.env.GITHUB_REPO_OWNER = "";
@@ -43,13 +46,13 @@ describe("lib/data-access/github.ts functionality", () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
   });
 
   afterAll(() => {
-    jest.restoreAllMocks();
-    jest.useRealTimers();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   describe("environment variable validation", () => {
@@ -180,7 +183,7 @@ describe("lib/data-access/github.ts functionality", () => {
 
       // Mock Date.now to return consistent results
       const originalNow = Date.now;
-      Date.now = jest.fn(() => currentDate.getTime());
+      Date.now = vi.fn(() => currentDate.getTime());
 
       const ageDays = Math.round((Date.now() - testDate.getTime()) / (1000 * 60 * 60 * 24));
       expect(ageDays).toBe(7);
@@ -231,7 +234,7 @@ describe("lib/data-access/github.ts functionality", () => {
 
       mockFetch.mockResolvedValue({
         status: 200,
-        json: jest.fn().mockResolvedValue(mockResponse),
+        json: vi.fn().mockResolvedValue(mockResponse),
       } as any);
 
       const response = await fetch("http://localhost:3000/api/github-activity/refresh", {
@@ -255,7 +258,7 @@ describe("lib/data-access/github.ts functionality", () => {
 
       mockFetch.mockResolvedValue({
         status: 401,
-        json: jest.fn().mockResolvedValue(mockErrorResponse),
+        json: vi.fn().mockResolvedValue(mockErrorResponse),
       } as any);
 
       const response = await fetch("http://localhost:3000/api/github-activity/refresh");
@@ -277,7 +280,8 @@ describe("lib/data-access/github.ts functionality", () => {
       process.env.GITHUB_CRON_REFRESH_SECRET = secrets.cronSecret;
       process.env.BOOKMARK_CRON_REFRESH_SECRET = "fallback-secret";
 
-      const cronSecret = process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+      const cronSecret =
+        process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
       expect(cronSecret).toBe(secrets.cronSecret);
 
       // Test refresh secret
@@ -290,7 +294,8 @@ describe("lib/data-access/github.ts functionality", () => {
       process.env.GITHUB_CRON_REFRESH_SECRET = "";
       process.env.BOOKMARK_CRON_REFRESH_SECRET = "fallback-secret";
 
-      const cronSecret = process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+      const cronSecret =
+        process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
       expect(cronSecret).toBe("fallback-secret");
     });
   });
@@ -299,26 +304,18 @@ describe("lib/data-access/github.ts functionality", () => {
     it("should handle network errors gracefully", async () => {
       mockFetch.mockRejectedValue(new Error("Network error"));
 
-      try {
-        await fetch("http://localhost:3000/api/github-activity/refresh");
-        // Should not reach here
-        expect(true).toBe(false);
-      } catch (error) {
-        expect(error).toBeInstanceOf(Error);
-        expect((error as Error).message).toBe("Network error");
-      }
+      await expect(fetch("http://localhost:3000/api/github-activity/refresh")).rejects.toThrow(
+        "Network error",
+      );
     });
 
     it("should handle refresh function errors", async () => {
       const testError = new Error("GitHub API rate limit exceeded");
       mockRefreshGitHubActivityDataFromApi.mockRejectedValue(testError);
 
-      try {
-        await refreshGitHubActivityDataFromApi();
-        expect(true).toBe(false); // Should not reach here
-      } catch (error) {
-        expect(error).toEqual(testError);
-      }
+      await expect(refreshGitHubActivityDataFromApi()).rejects.toThrow(
+        "GitHub API rate limit exceeded",
+      );
     });
 
     it("should handle S3 metadata errors", async () => {

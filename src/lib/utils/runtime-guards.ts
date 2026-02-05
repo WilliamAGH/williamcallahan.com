@@ -19,7 +19,9 @@ export function assertServerOnly(moduleName?: string): void {
     const message = moduleName
       ? `Module '${moduleName}' cannot be imported from a Client Component module.`
       : "This module cannot be imported from a Client Component module.";
-    throw new Error(`${message} It should only be used from a Server Component or other server-side code.`);
+    throw new Error(
+      `${message} It should only be used from a Server Component or other server-side code.`,
+    );
   }
 }
 
@@ -32,7 +34,7 @@ export function assertServerOnly(moduleName?: string): void {
  */
 export function assertClientOnly(featureName: string): void {
   if (typeof window === "undefined") {
-    throw new Error(
+    throw new TypeError(
       `'${featureName}' can only be used in client components. Add 'use client' directive or move to a .client.tsx file.`,
     );
   }

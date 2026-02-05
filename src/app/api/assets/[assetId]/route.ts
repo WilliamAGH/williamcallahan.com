@@ -21,17 +21,28 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { HeadObjectCommand, GetObjectCommand, type GetObjectCommandOutput } from "@aws-sdk/client-s3";
+import {
+  HeadObjectCommand,
+  GetObjectCommand,
+  type GetObjectCommandOutput,
+} from "@aws-sdk/client-s3";
 import { Readable } from "node:stream";
-import { s3Client } from "@/lib/s3-utils";
+import { getS3Client } from "@/lib/s3/client";
+import { getS3Config } from "@/lib/s3/config";
 import { getExtensionFromContentType, IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
 import { IMAGE_S3_PATHS } from "@/lib/constants";
 import { assetIdSchema } from "@/types/schemas/url";
 import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
+import { createMonitoredStream, streamToBufferWithLimits } from "@/lib/utils/stream-utils";
 
 const MAX_ASSET_SIZE_BYTES = 50 * 1024 * 1024; // 50MB limit
-const ASSET_STREAM_TIMEOUT_MS = 20_000; // 20 seconds
+const DEFAULT_BOOKMARKS_API_URL = "https://bookmark.iocloudhost.net/api/v1";
+
+const getS3Context = () => {
+  const { bucket } = getS3Config();
+  return { bucket, s3Client: getS3Client() };
+};
 
 /**
  * In-memory set to track ongoing S3 write operations.
@@ -44,119 +55,6 @@ const ASSET_STREAM_TIMEOUT_MS = 20_000; // 20 seconds
  */
 const ongoingS3Writes = new Set<string>();
 
-async function readWithTimeout<T>(promise: Promise<T>, assetId: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      reject(new Error(`Read timeout exceeded for asset ${assetId}`));
-    }, ASSET_STREAM_TIMEOUT_MS);
-
-    promise
-      .then(result => {
-        clearTimeout(timeoutId);
-        resolve(result);
-      })
-      .catch(error => {
-        clearTimeout(timeoutId);
-        reject(error instanceof Error ? error : new Error(String(error)));
-      });
-  });
-}
-
-function createMonitoredStream(
-  source: ReadableStream<Uint8Array>,
-  assetId: string,
-  onViolation?: (error: Error) => void,
-): ReadableStream<Uint8Array> {
-  const reader = source.getReader();
-  let processedBytes = 0;
-
-  return new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      try {
-        const { done, value } = await readWithTimeout(reader.read(), assetId);
-
-        if (done) {
-          controller.close();
-          return;
-        }
-
-        if (value) {
-          processedBytes += value.byteLength;
-          if (processedBytes > MAX_ASSET_SIZE_BYTES) {
-            const sizeError = new Error(
-              `Image too large: ${processedBytes} bytes exceeds ${MAX_ASSET_SIZE_BYTES} byte limit for asset ${assetId}`,
-            );
-            onViolation?.(sizeError);
-            try {
-              await reader.cancel(sizeError);
-            } catch {
-              // ignore cancel failures
-            }
-            controller.error(sizeError);
-            return;
-          }
-
-          controller.enqueue(value);
-        }
-      } catch (error) {
-        const normalizedError = error instanceof Error ? error : new Error(String(error));
-        onViolation?.(normalizedError);
-        try {
-          await reader.cancel(normalizedError);
-        } catch {
-          // ignore cancel failures
-        }
-        controller.error(normalizedError);
-      }
-    },
-    cancel(reason) {
-      reader.cancel(reason).catch(() => {});
-    },
-  });
-}
-
-async function streamToBufferWithLimits(stream: ReadableStream<Uint8Array>, assetId: string): Promise<Buffer> {
-  const reader = stream.getReader();
-  const chunks: Uint8Array[] = [];
-  let totalSize = 0;
-
-  try {
-    for (
-      let result = await readWithTimeout(reader.read(), assetId);
-      !result.done;
-      result = await readWithTimeout(reader.read(), assetId)
-    ) {
-      const value = result.value;
-      if (!value) {
-        continue;
-      }
-
-      totalSize += value.byteLength;
-      if (totalSize > MAX_ASSET_SIZE_BYTES) {
-        const sizeError = new Error(
-          `Image too large: ${totalSize} bytes exceeds ${MAX_ASSET_SIZE_BYTES} byte limit for asset ${assetId}`,
-        );
-        try {
-          await reader.cancel(sizeError);
-        } catch {
-          // ignore cancel failures
-        }
-        throw sizeError;
-      }
-
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  return Buffer.concat(chunks);
-}
-
-/**
- * Extracts the base URL from a bookmarks API URL more robustly
- * Handles various URL patterns and preserves path components other than /api/v1
- */
 function getAssetBaseUrl(apiUrl: string): string {
   try {
     const url = new URL(apiUrl);
@@ -194,19 +92,20 @@ async function findAssetInS3(
     domain?: string;
   },
 ): Promise<{ key: string; contentType: string } | null> {
-  if (!process.env.S3_BUCKET || !s3Client) {
-    return null;
-  }
+  const { bucket, s3Client } = getS3Context();
 
   // Build list once from central IMAGE_EXTENSIONS
-  const extensions = IMAGE_EXTENSIONS.map(e => `.${e}`);
+  const extensions = IMAGE_EXTENSIONS.map((e) => `.${e}`);
 
   // First, try to find with descriptive filename if context is available
   if (context?.bookmarkId && context?.url) {
     // Generate the expected descriptive key pattern
     // We need to compute the actual hash, not use "dummy"
     const { hashImageContent } = await import("@/lib/utils/opengraph-utils");
-    const hash = hashImageContent(Buffer.from(`${context.url}:${context.bookmarkId}`)).substring(0, 8);
+    const hash = hashImageContent(Buffer.from(`${context.url}:${context.bookmarkId}`)).substring(
+      0,
+      8,
+    );
     const domain = stripWwwPrefix(new URL(context.url).hostname).replace(/\./g, "-");
 
     for (const ext of extensions) {
@@ -214,7 +113,7 @@ async function findAssetInS3(
 
       try {
         const command = new HeadObjectCommand({
-          Bucket: process.env.S3_BUCKET,
+          Bucket: bucket,
           Key: descriptiveKey,
         });
 
@@ -226,7 +125,8 @@ async function findAssetInS3(
           contentType: response.ContentType || `image/${ext.substring(1)}`,
         };
       } catch {
-        // Continue checking other patterns
+        // S3 object not found at descriptive path - expected during key resolution
+        console.debug(`[Assets API] S3 object not found: ${descriptiveKey}`);
       }
     }
   }
@@ -236,7 +136,7 @@ async function findAssetInS3(
     const key = `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${assetId}${ext}`;
     try {
       const command = new HeadObjectCommand({
-        Bucket: process.env.S3_BUCKET,
+        Bucket: bucket,
         Key: key,
       });
 
@@ -248,7 +148,8 @@ async function findAssetInS3(
         contentType: response.ContentType || `image/${ext.substring(1)}`,
       };
     } catch {
-      // Continue checking other extensions
+      // S3 object not found at UUID path - expected during key resolution
+      console.debug(`[Assets API] S3 object not found: ${key}`);
     }
   }
 
@@ -259,12 +160,10 @@ async function findAssetInS3(
  * Stream an asset from S3
  */
 async function streamFromS3(key: string, contentType: string): Promise<NextResponse> {
-  if (!process.env.S3_BUCKET || !s3Client) {
-    throw new Error("S3 not configured");
-  }
+  const { bucket, s3Client } = getS3Context();
 
   const command = new GetObjectCommand({
-    Bucket: process.env.S3_BUCKET,
+    Bucket: bucket,
     Key: key,
   });
 
@@ -286,7 +185,9 @@ async function streamFromS3(key: string, contentType: string): Promise<NextRespo
   });
 }
 
-function hasTransformToWebStream(body: unknown): body is { transformToWebStream: () => ReadableStream<Uint8Array> } {
+function hasTransformToWebStream(
+  body: unknown,
+): body is { transformToWebStream: () => ReadableStream<Uint8Array> } {
   return typeof (body as { transformToWebStream?: unknown }).transformToWebStream === "function";
 }
 
@@ -298,7 +199,9 @@ function isBlob(body: unknown): body is Blob {
   return typeof Blob !== "undefined" && body instanceof Blob;
 }
 
-function convertS3BodyToWebStream(body: NonNullable<GetObjectCommandOutput["Body"]>): ReadableStream<Uint8Array> {
+function convertS3BodyToWebStream(
+  body: NonNullable<GetObjectCommandOutput["Body"]>,
+): ReadableStream<Uint8Array> {
   const candidateBody: unknown = body;
 
   if (hasTransformToWebStream(candidateBody)) {
@@ -372,9 +275,7 @@ async function saveAssetToS3(
     domain?: string;
   },
 ): Promise<string> {
-  if (!process.env.S3_BUCKET || !s3Client) {
-    throw new Error("S3 not configured");
-  }
+  const { bucket, s3Client } = getS3Context();
 
   const extension = getExtensionFromContentType(contentType);
   let key: string;
@@ -382,8 +283,9 @@ async function saveAssetToS3(
   // Generate descriptive filename if context is available
   if (context?.bookmarkId && context?.url) {
     const { getOgImageS3Key, hashImageContent } = await import("@/lib/utils/opengraph-utils");
+    // Include extension in the synthetic URL so getOgImageS3Key extracts the correct extension
     key = getOgImageS3Key(
-      `karakeep-asset-${assetId}`,
+      `karakeep-asset-${assetId}.${extension}`,
       IMAGE_S3_PATHS.OPENGRAPH_DIR,
       context.url,
       context.bookmarkId,
@@ -397,14 +299,15 @@ async function saveAssetToS3(
   // Check if file already exists to avoid duplicate writes (content deduplication)
   try {
     const headCommand = new HeadObjectCommand({
-      Bucket: process.env.S3_BUCKET,
+      Bucket: bucket,
       Key: key,
     });
     await s3Client.send(headCommand);
     console.log(`[Assets API] Asset already exists in S3, skipping write: ${key}`);
     return key;
   } catch {
-    // File doesn't exist, proceed with upload
+    // S3 object not found - this is expected, proceed with upload
+    console.debug(`[Assets API] S3 object not found (will upload): ${key}`);
   }
 
   // Check if a write is already in progress for this key (prevents race conditions)
@@ -417,7 +320,9 @@ async function saveAssetToS3(
   ongoingS3Writes.add(key);
 
   try {
-    console.log(`[Assets API] Saving new asset to S3: ${key} (${buffer.length} bytes, ${contentType})`);
+    console.log(
+      `[Assets API] Saving new asset to S3: ${key} (${buffer.length} bytes, ${contentType})`,
+    );
 
     // Always use centralized persistence function for consistency
     const { persistBinaryToS3 } = await import("@/lib/persistence/s3-persistence");
@@ -456,7 +361,10 @@ async function saveAssetToS3(
  * @param params - Route parameters containing assetId
  * @returns Image response or error
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ assetId: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ assetId: string }> },
+) {
   const { assetId } = await params;
 
   // Extract context from query parameters for descriptive S3 filenames
@@ -512,7 +420,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     console.log(`[Assets API] Asset not in S3, fetching from Karakeep: ${assetId}`);
 
     // Get the external bookmarks API URL
-    const bookmarksApiUrl = process.env.BOOKMARKS_API_URL ?? "https://bookmark.iocloudhost.net/api/v1";
+    const envBookmarksApiUrl = process.env.BOOKMARKS_API_URL;
+    if (!envBookmarksApiUrl) {
+      console.warn(
+        `[Assets API] BOOKMARKS_API_URL env var is missing. Using fallback: ${DEFAULT_BOOKMARKS_API_URL}`,
+      );
+    }
+    const bookmarksApiUrl = envBookmarksApiUrl ?? DEFAULT_BOOKMARKS_API_URL;
     // More robust base URL extraction
     const baseUrl = getAssetBaseUrl(bookmarksApiUrl);
     const bearerToken = process.env.BOOKMARK_BEARER_TOKEN;
@@ -623,8 +537,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         );
       }
 
-      const shouldPersist =
-        process.env.IS_DATA_UPDATER === "true" && Boolean(process.env.S3_BUCKET) && Boolean(s3Client);
+      let canPersistToS3 = false;
+      try {
+        getS3Context();
+        canPersistToS3 = true;
+      } catch {
+        canPersistToS3 = false;
+      }
+      const shouldPersist = process.env.IS_DATA_UPDATER === "true" && canPersistToS3;
       let clientStream: ReadableStream<Uint8Array> = upstreamBody;
       let persistStream: ReadableStream<Uint8Array> | null = null;
 
@@ -634,14 +554,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         persistStream = streamForPersistence;
       }
 
-      const monitoredStream = createMonitoredStream(clientStream, assetId, error => {
+      const monitoredStream = createMonitoredStream(clientStream, assetId, (error) => {
         console.error(`[Assets API] Streaming error for asset ${assetId}:`, error.message);
       });
 
       if (shouldPersist && persistStream) {
         void streamToBufferWithLimits(persistStream, assetId)
-          .then(buffer => saveAssetToS3(assetId, buffer, contentType, context))
-          .catch(error => {
+          .then((buffer) => saveAssetToS3(assetId, buffer, contentType, context))
+          .catch((error) => {
             console.error(`[Assets API] Failed to save asset ${assetId} to S3:`, error);
           });
       }
@@ -677,7 +597,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
     });
   } catch (error) {
-    console.error(`[Assets API] Error for asset ${assetId}:`, error instanceof Error ? error.message : String(error));
+    console.error(
+      `[Assets API] Error for asset ${assetId}:`,
+      error instanceof Error ? error.message : String(error),
+    );
     return NextResponse.json(
       {
         error: "Internal server error",

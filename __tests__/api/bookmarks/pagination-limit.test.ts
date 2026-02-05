@@ -1,6 +1,6 @@
 import { GET } from "@/app/api/bookmarks/route";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 // Import BOOKMARKS_PER_PAGE lazily within isolated module to avoid global cache interfering with env-config tests
 // Placeholder variable – will be set in beforeAll
 let BOOKMARKS_PER_PAGE: number;
@@ -8,22 +8,23 @@ import type { UnifiedBookmark } from "@/types";
 import type { BookmarkSlugMapping } from "@/types/bookmark";
 
 // Mock dependencies used inside the route
-jest.mock("@/lib/bookmarks/service.server");
-jest.mock("@/lib/s3-utils");
-jest.mock("@/lib/bookmarks/slug-manager");
+vi.mock("@/lib/bookmarks/service.server");
+vi.mock("@/lib/s3/json");
+vi.mock("@/lib/bookmarks/slug-manager");
+import * as slugManagerModule from "@/lib/bookmarks/slug-manager";
 
-const mockGetBookmarks = jest.mocked(getBookmarks);
-const mockReadJsonS3 = jest.mocked(readJsonS3);
-const slugManager = jest.requireMock<typeof import("@/lib/bookmarks/slug-manager")>("@/lib/bookmarks/slug-manager");
-const loadSlugMapping = jest.mocked(slugManager.loadSlugMapping);
+const mockGetBookmarks = vi.mocked(getBookmarks);
+const mockReadJsonS3 = vi.mocked(readJsonS3Optional);
+const slugManager = vi.mocked(slugManagerModule);
+const loadSlugMapping = vi.mocked(slugManager.loadSlugMapping);
 
 describe("Bookmark API – large limit behavior", () => {
   let mockBookmarks: UnifiedBookmark[];
 
-  beforeAll(() => {
-    jest.isolateModules(() => {
-      BOOKMARKS_PER_PAGE = require("@/lib/constants").BOOKMARKS_PER_PAGE;
-    });
+  beforeAll(async () => {
+    vi.resetModules();
+    const constants = await import("@/lib/constants");
+    BOOKMARKS_PER_PAGE = constants.BOOKMARKS_PER_PAGE;
     mockBookmarks = Array.from({ length: BOOKMARKS_PER_PAGE + 6 }).map((_, i) => ({
       id: `bm-${i}`,
       url: `https://example${i}.com`,
@@ -35,7 +36,7 @@ describe("Bookmark API – large limit behavior", () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockGetBookmarks.mockResolvedValue(mockBookmarks);
     mockReadJsonS3.mockResolvedValue({
       count: mockBookmarks.length,
@@ -45,7 +46,7 @@ describe("Bookmark API – large limit behavior", () => {
 
     // Mock slug mapping for bookmarks with correct typing and reverse map
     const slugs: BookmarkSlugMapping["slugs"] = Object.fromEntries(
-      mockBookmarks.map(bookmark => [
+      mockBookmarks.map((bookmark) => [
         bookmark.id,
         {
           id: bookmark.id,
@@ -88,8 +89,9 @@ describe("Bookmark API – large limit behavior", () => {
   });
 
   afterAll(() => {
-    jest.unmock("@/lib/bookmarks/service.server");
-    jest.unmock("@/lib/s3-utils");
-    jest.resetModules();
+    vi.doUnmock("@/lib/bookmarks/service.server");
+    vi.doUnmock("@/lib/s3/json");
+    vi.doUnmock("@/lib/bookmarks/slug-manager");
+    vi.resetModules();
   });
 });

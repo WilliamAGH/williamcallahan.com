@@ -1,0 +1,691 @@
+# Repository Files Review Tracker
+
+> **Functionality Column Guidance:**
+> The `Functionality` column maps to the documentation files in `docs/features/`, `docs/architecture/`, `docs/standards/`, or `docs/ops/`. Each value corresponds to the base filename of the relevant documentation (e.g., `github-activity` maps to `docs/features/github-activity.md`).
+
+## Contents
+
+- [Components Directory](#components-directory)
+- [Lib Directory](#lib-directory)
+- [Types Directory](#types-directory)
+- [Config Directory](#config-directory)
+- [Middleware Directory](#middleware-directory)
+- [Root Directory](#root-directory)
+- [Rules Directory](#rules-directory)
+- [App Directory](#app-directory)
+- [Scripts Directory](#scripts-directory)
+- [Styles Directory](#styles-directory)
+- [Data Directory](#data-directory)
+- [Public Directory](#public-directory)
+- [Docs Directory](#docs-directory)
+- [Tests Directory](#tests-directory)
+- [Mocks Directory](#mocks-directory)
+
+Legend: `[ ]` = untouched · `[~]` = located/initial note · `[x]` = fully mapped
+
+File/Path Functionality Description
+
+---
+
+## Components Directory
+
+- [x] **analytics/**
+  - [x] `analytics.client.tsx` `analytics` - Client-side analytics tracking component
+- [~] **features/**
+  - [x] `index.ts` `components` - Barrel file for all feature components
+  - [x] **bookmarks/**
+    - [x] `bookmark-ai-analysis.client.tsx` `bookmarks` - AI analysis component for bookmarks with SSR cache support
+    - [x] `bookmark-card.client.tsx` `bookmarks` - Bookmark card UI (2025-06: unified OG images)
+    - [x] `bookmarks-client-with-window.tsx` `bookmarks` - Bookmarks window entrypoint
+    - [x] `bookmarks-window.client.tsx` `bookmarks` - UI for the bookmarks window
+    - [x] `bookmarks-with-options.client.tsx` `bookmarks` - UI with additional bookmark options
+    - [x] `bookmarks.{client,server}.tsx` `bookmarks` - Core bookmarks components
+    - [x] `index.ts` `bookmarks` - Barrel file for bookmark components
+    - [x] `share-button.client.tsx` `bookmarks` - Share button for bookmarks
+    - [x] `tags-list.client.tsx` `bookmarks` - UI for displaying bookmark tags
+  - [x] **books/**
+    - [x] `book-ai-analysis.client.tsx` `books` - AI analysis component for books with SSR cache support
+    - [x] `book-card.client.tsx` `books` - Book card UI
+    - [x] `book-detail.tsx` `books` - Book detail view with AI analysis integration
+    - [x] `books-grid.client.tsx` `books` - Books grid layout
+    - [x] `books-window.client.tsx` `books` - Books window wrapper
+    - [x] `books.server.tsx` `books` - Server-side books component
+    - [x] `index.ts` `books` - Barrel file for book components
+  - [x] **blog/**
+    - [x] `blog-window.client.tsx` `blog` - Main blog window UI
+    - [x] `blog.client.tsx` `blog` - Main component for blog features
+    - [x] `index.ts` `blog` - Blog components barrel file
+    - [x] `standard-tweet-embed.client.tsx` `blog-article` - Standard tweet embedding component
+    - [x] `tweet-embed.tsx` `blog-article` - Embeds tweets using react-tweet and an image proxy
+  - [x] **blog-article/**
+    - [x] `blog-article.client.tsx` `blog-article` - Renders article content and metadata
+    - [x] `blog-wrapper.tsx` `blog-article` - Dynamic import wrapper for hydration
+    - [x] `index.ts` `blog-article` - Blog article components barrel file
+    - [x] `mdx-content.tsx` `blog-article` - Server wrapper for the MDX renderer, now delegating to a React 19-safe cached evaluator instead of `next-mdx-remote`
+    - [x] `software-schema.tsx` `terminal` - Inserts SoftwareApplication schema.org metadata
+    - [x] `mdx-table.server.tsx` `blog-article` - Styled table components for MDX
+  - [x] **blog-list/**
+    - [x] `blog-card.tsx` `blog` - Blog card UI
+    - [x] `blog-list.server.tsx` `blog` - Pre-renders the blog list
+    - [x] `blog-list.tsx` `blog` - Client-side blog list grid
+    - [x] `index.ts` `blog` - Blog list barrel file
+  - [x] **shared/**
+    - [x] `blog-author.tsx` `blog` - Author avatar, name & bio
+    - [x] `blog-tags.tsx` `blog` - Tag list display
+    - [x] `index.ts` `blog` - Blog shared components barrel file
+  - [x] **education/**
+    - [x] `certification-card.{client,server}.tsx` `education` - list of education certifications cards
+    - [x] `education-card.{client,server}.tsx` `education` - list of education/university cards
+    - [x] `education.{client,server}.tsx` `education` - list/cards for education
+  - [x] **experience/**
+    - [x] `experience.client.tsx` `experience` - Experience window UI
+    - [x] `index.ts` `experience` - Experience barrel file
+    - [x] `skills.tsx` `experience` - Skills display component
+  - [x] **github/**
+    - [x] `cumulative-github-stats-cards.tsx` `github-activity` - Displays GitHub stats cards
+    - [x] `github-activity.client.tsx` `github-activity` - Contribution calendar & stats dashboard
+  - [x] **home/**
+    - [x] `home.tsx` `home` - Main home page component
+    - [x] `index.ts` `home` - Barrel file for home components
+    - [x] `profile-image.tsx` `home` - Profile image display
+  - [x] **investments/**
+    - [x] `index.ts` `investments` - Exports `Investments` (server component)
+    - [x] `investment-card.{client,server}.tsx` `investments` - ind card for each investment made
+    - [x] `investments.{client,server}.tsx` `investments` - list investments
+    - [x] `theme-wrapper.client.tsx` `investments` - theme wrapper for investments list
+  - [x] **projects/**
+    - [x] `index.ts` `projects` - Projects barrel file
+    - [x] `project-ai-analysis.client.tsx` `projects` - AI analysis component for projects with SSR cache support
+    - [x] `project-card.{client,server}.tsx` `projects` - ind project cards
+    - [x] `project-detail.tsx` `projects` - Project detail view with AI analysis integration
+    - [x] `project-tags.client.tsx` `projects` - Project tag filter UI
+    - [x] `projects-list.{client,server}.tsx` `projects` - List all projects
+    - [x] `projects-window.client.tsx` `projects` - Projects window wrapper
+    - [x] `projects.client.tsx` `projects` - Projects feature wrapper
+  - [x] **social/**
+    - [x] `contact.client.tsx` `social-links` - Contact form
+    - [x] `index.ts` `social-links` - Social components barrel file
+    - [x] `social-card-effects.client.tsx` `social-links` - Handles social card hover effects
+    - [x] `social-card.client.tsx` `social-links` - Individual social link card
+    - [x] `social-list.client.tsx` `social-links` - List of social links
+    - [x] `social-window.client.tsx` `social-links` - Wrapper window for social links
+- [x] **seo/**
+  - [x] `index.ts` `seo` - Barrel file for SEO components
+  - [x] `json-ld.tsx` `seo` - JSON-LD structured data component
+  - [x] `opengraph-logo.tsx` `seo` - OpenGraph logo meta tag component
+- [~] **ui/**
+  - [x] **terminal/**
+    - [x] `terminal-implementation.client.tsx` `terminal` - Terminal core UI implementation
+    - [x] `terminal-header.tsx` `terminal` - Header UI with window controls & title
+    - [x] `terminal-context.client.tsx` `terminal` - Terminal state context
+    - [x] `command-input.client.tsx` `terminal` - Terminal input UI
+    - [x] `history.tsx` `terminal` - Terminal history view
+    - [x] `selection-view.client.tsx` `terminal` - Terminal selection view
+    - [x] `use-terminal.client.tsx` `terminal` - Terminal hook
+    - [x] `use-ai-chat-queue.client.tsx` `terminal` - AI chat queue hook for serialized terminal chat dispatch
+  - [x] `accelerator-badge.tsx` `investments` - Accelerator program badge
+  - [x] `background-info.client.tsx` `blog-article` - Background info display component for posts
+  - [x] `card.tsx` `interactive-containers` - Generic card component
+  - [x] `collapse-dropdown.client.tsx` `interactive-containers` - Collapsible dropdown component
+  - [x] `error-boundary.client.tsx` `log-error-debug-handling` - Error boundary to catch client-side errors
+  - [x] `external-link.client.tsx` `interactive-containers` - Styled external link
+  - [x] `financial-metrics.server.tsx` `investments` - Renders financial metrics
+  - [x] `focusTrap.client.tsx` `accessibility` - Focus trapping utility
+  - [x] `index.ts` `` - Barrel file for UI components
+  - [x] `instruction-macos-frame-tabs.client.tsx` `macos-gui` - macOS-style tabs for instructions
+  - [x] `logo-image.client.tsx` `image-handling` - Logo image component
+  - [x] `macos-window.client.tsx` `macos-gui` - macOS-style window frame
+  - [x] `responsive-table.client.tsx` `investments` - Responsive table component
+  - [x] `shell-parent-tabs.client.tsx` `terminal` - Shell-like tabbed interface
+  - [x] `simple-tabs.client.tsx` `blog-article` - Simple tab component
+  - [x] `simple-tabs.css` `css` - CSS for simple tabs
+  - [x] **social-icons/**
+    - [x] `index.ts` `social-links` - Barrel file for social icons
+    - [x] `social-icon.tsx` `social-links` - Individual social icon link
+    - [x] `social-icons.client.tsx` `social-links` - Social icons list component
+    - [x] `social-links.ts` `social-links` - Data for social links
+    - [x] `base-icon.tsx` `social-links` - Base icon wrapper
+    - [x] `x-icon.tsx` `social-links` - X (Twitter) icon
+    - [x] `discord-icon.tsx` `social-links` - Discord icon
+    - [x] `bluesky-icon.tsx` `social-links` - Bluesky icon
+    - [x] `linkedin-icon.tsx` `social-links` - LinkedIn icon
+    - [x] `github-icon.tsx` `social-links` - GitHub icon
+    - [x] `aventure-icon.tsx` `social-links` - Aventure icon
+    - [x] `individual-icon.tsx` `social-links` - Individual investor icon
+  - [x] **theme/**
+    - [x] `theme-provider.client.tsx` `theming` - Theme provider using next-themes
+    - [x] `theme-toggle.tsx` `theming` - Button to toggle light/dark theme
+  - [x] **code-block/**
+    - [x] `code-block.client.tsx` `code-block` - Main code block component
+    - [x] `copy-button.client.tsx` `code-block` - Copy button for code blocks
+    - [x] `mdx-code-block-wrapper.client.tsx` `code-block` - MDX wrapper for code blocks
+    - [x] `mdx-code-block.server.tsx` `code-block` - Renders MDX code blocks on the server
+    - [ ] **prism-syntax-highlighting/**
+      - [x] `prism.css` `css` - Prism syntax highlighting theme
+      - [x] `prism.js` `code-block` - Prism syntax highlighting library
+  - [ ] **experience-card/**
+    - [x] `experience-card.{client,server}.tsx` `experience` - Card for displaying a single work experience
+    - [x] `index.ts` `experience` - Barrel file for experience card
+  - [x] **navigation/**
+    - [x] `index.ts` `navigation` - Barrel file for navigation components
+    - [x] `navigation-link.client.tsx` `navigation` - Individual navigation link component
+    - [x] `navigation-links.ts` `navigation` - Navigation link definitions
+    - [x] `navigation.client.tsx` `navigation` - Main navigation component
+    - [x] `window-controls.tsx` `macos-gui` - macOS-style window controls (close, minimize, maximize)
+
+## Lib Directory
+
+- [~] **ai/** `ai-shared-services` - Unified AI provider and web search services
+  - [x] `analysis-client-utils.ts` `ai-shared-services` - Shared client utilities for AI analysis (LLM JSON parsing, S3 persistence)
+  - [x] **openai-compatible/**
+    - [x] `feature-config.ts` `ai-shared-services` - Per-feature env resolution + upstream URL builder
+    - [x] `gate-token.ts` `ai-shared-services` - HMAC-signed short-lived token helpers
+    - [x] `browser-client.ts` `ai-shared-services` - Browser helper to mint token + call AI chat route
+    - [x] `openai-compatible-client.ts` `ai-shared-services` - Fetch-based `/v1/chat/completions` client
+    - [x] `upstream-request-queue.ts` `ai-shared-services` - Per-upstream priority queue (max parallel + position)
+  - [x] **rag/**
+    - [x] `index.ts` `ai-shared-services` - Public API for RAG context retrieval
+    - [x] `static-context.ts` `ai-shared-services` - Static context builder from CV/metadata/projects
+    - [x] `dynamic-retriever.ts` `ai-shared-services` - Query-time search using existing search functions
+    - [x] `context-formatter.ts` `ai-shared-services` - Formats context for system prompt injection
+    - [x] `inventory-context.ts` `ai-shared-services` - Orchestrates full inventory catalog assembly for RAG
+    - [x] `inventory-static.ts` `ai-shared-services` - Builds inventory sections from repo-local datasets
+    - [x] `inventory-dynamic.ts` `ai-shared-services` - Builds inventory sections from dynamic sources (bookmarks/books/tags/analysis)
+    - [x] `inventory-format.ts` `ai-shared-services` - Formats inventory sections and token-bound truncation markers
+  - [ ] **providers/**
+    - [ ] `openai.ts` `ai-shared-services` - OpenAI provider implementation
+    - [ ] `openrouter.ts` `ai-shared-services` - OpenRouter provider implementation
+    - [ ] `perplexity.ts` `ai-shared-services` - Perplexity provider implementation
+    - [ ] `groq.ts` `ai-shared-services` - Groq provider implementation
+    - [ ] `local-models.ts` `ai-shared-services` - Base class for OpenAI-compatible local providers
+    - [ ] `ollama.ts` `ai-shared-services` - Ollama provider (exports from local-models.ts)
+    - [ ] `lmstudio.ts` `ai-shared-services` - LM Studio provider (exports from local-models.ts)
+  - [ ] **search/**
+    - [ ] `brave.ts` `ai-shared-services` - Brave Search implementation
+    - [ ] `perplexity.ts` `ai-shared-services` - Perplexity Search implementation
+    - [ ] `serper.ts` `ai-shared-services` - Serper API implementation
+    - [ ] `duckduckgo.ts` `ai-shared-services` - DuckDuckGo Search implementation
+  - [ ] `unified-ai-service.ts` `ai-shared-services` - Main AI service singleton
+  - [ ] `unified-search-service.ts` `ai-shared-services` - Main search service singleton
+  - [ ] `types.ts` `ai-shared-services` - Shared type definitions
+- [x] `async-job-queue.ts` `bookmarks` - Asynchronous job queue implementation
+- [ ] `async-operations-monitor.ts` `instrumentation-monitoring` - Global async operations tracker & timeout guard
+- [x] `blog.ts` `blog` - Blog data helper functions
+- [x] `bookmarks.{client,server}.ts` `json-handling` - Helper functions for bookmarks
+- [x] `bookmarks.ts` `json-handling` - Core bookmarks logic
+- [x] `cache.ts` `caching` - Node-cache setup and utilities
+- [x] `constants.ts` `overview` - Project-wide constants
+- [x] `education-data-processor.ts` `education` - Utilities for education logos and data
+- [x] `errors.ts` `log-error-debug-handling` - Custom error classes
+- [x] `getBaseUrl.ts` `shared-utils` - Base URL resolver
+- [x] `imageAnalysis.ts` `image-handling` - Image analysis utilities
+- [x] `imageCompare.ts` `image-handling` - Image comparison utilities
+- [x] `logger.ts` `log-error-debug-handling` - Shared logger utility
+- [x] `logo-fetcher.ts` `image-handling` - Logo fetching utilities
+- [x] `logo.server.ts` `image-handling` - Server-side helper functions for logos
+- [x] `logo.ts` `image-handling` - Core logo logic
+- [x] `rate-limiter.ts` `rate-limit-and-sanitize` - API rate limiting
+- [x] `search.ts` `search` - Universal search utility
+- [x] **s3/**
+  - [x] `client.ts` `s3-object-storage` - S3 client creation + SDK retry config
+  - [x] `config.ts` `s3-object-storage` - S3 configuration validation
+  - [x] `errors.ts` `s3-object-storage` - Canonical S3 error types
+  - [x] `objects.ts` `s3-object-storage` - Raw S3 object operations
+  - [x] `json.ts` `s3-object-storage` - JSON read/write helpers
+  - [x] `binary.ts` `s3-object-storage` - Binary read/write helpers
+  - [x] `stream.ts` `s3-object-storage` - Stream-to-buffer utilities
+- [x] `server-cache.ts` `caching` - Server-side in-memory cache
+- [x] `utils.ts` `shared-utils` - Shared utility helpers
+- [ ] **blog/**
+  - [x] `index.ts` `blog` - Barrel file for blog library functions
+  - [x] `mdx.ts` `blog` - MDX processing utilities
+  - [x] `server-search.ts` `blog` - Server-side blog search
+  - [x] `validation.ts` `blog` - Blog data validation schemas
+- [ ] **bookmarks/**
+  - [x] `index.ts` `bookmarks` - Barrel file for bookmark library functions
+  - [x] `bookmarks-s3-store.ts` `bookmarks` - S3-only bookmark reads (replaces local fallback paths)
+  - [x] `slug-shards.ts` `bookmarks` - S3 shard helpers for bookmark slugs
+  - [x] **analysis/**
+    - [x] `build-prompt.ts` `bookmarks` - LLM prompt builder for bookmark analysis
+    - [x] `extract-context.ts` `bookmarks` - Context extraction for bookmark analysis
+- [x] **books/**
+  - [x] `audiobookshelf.server.ts` `books` - AudioBookShelf API integration
+  - [x] `slug-helpers.ts` `books` - Book slug generation and lookup
+  - [x] **analysis/**
+    - [x] `build-prompt.ts` `books` - LLM prompt builder for book analysis
+    - [x] `extract-context.ts` `books` - Context extraction for book analysis
+- [ ] **cache/**
+  - [x] `index.ts` `caching` - Barrel file for cache utilities
+- [ ] **context/**
+  - [x] `global-window-registry-context.client.tsx` `state-theme-window-providers` - Global context for window management
+  - [x] `terminal-window-state-context.client.tsx` `terminal` - Context for terminal window state
+- [x] **data-access/**
+  - [x] `bookmarks.ts` `json-handling` - Data access for bookmarks
+  - [x] `github.ts` `json-handling` - Data access for GitHub
+  - [x] `github-activity-summaries.ts` `github-activity` - Writes trailing-year and all-time summary JSON
+  - [x] `github-commit-counts.ts` `github-activity` - All-time commit count aggregation (GraphQL + REST fallback)
+  - [x] `github-contributions.ts` `github-activity` - Contribution calendar fetch + flattening helpers
+  - [x] `github-csv-repair.ts` `github-activity` - CSV integrity checks and repair workflow
+  - [x] `github-repo-stats.ts` `github-activity` - Per-repo stats processing + category aggregation
+  - [x] `github-repo-processor.ts` `github-activity` - Single-repo processing with CSV fallback
+  - [x] `investments.ts` `investments` - Data access for investments
+  - [x] `logos.ts` `image-handling` - Data access for logos
+  - [x] `opengraph.ts` `opengraph` - Data access for OpenGraph metadata extraction and caching (2025-06: background persistence)
+  - [x] `opengraph-cache-context.ts` `opengraph` - Cache guard wrappers for Next.js cache usage
+  - [x] `opengraph-next-cache.ts` `opengraph` - Next.js cache path for OpenGraph metadata
+  - [x] `opengraph-refresh.ts` `opengraph` - OpenGraph refresh workflow with in-flight dedupe
+  - [ ] **logos/**
+    - [x] `config.ts` `image-handling` - Configuration for logo processing
+    - [x] `external-fetch.ts` `image-handling` - External logo fetching logic
+    - [x] `image-processing.ts` `image-handling` - Logo image processing (2025-06: preserves animations)
+    - [x] `s3-operations.ts` `s3-object-storage` - S3 operations for logos
+    - [x] `s3-store.ts` `s3-object-storage` - S3 storage logic for logos
+    - [x] `session.ts` `image-handling` - Session management for logo operations
+- [ ] **hooks/**
+  - [x] `use-anchor-scroll.client.ts` `navigation` - Hook for scrolling to anchor links
+  - [x] `use-fix-svg-transforms.ts` `image-handling` - Hook to fix SVG transform issues
+  - [x] `use-isomorphic-layout-effect.ts` `hooks` - Isomorphic layout effect hook
+  - [x] `use-logo.ts` `image-handling` - Hook for using logos
+  - [x] `use-window-size.client.ts` `state-theme-window-providers` - Hook for tracking window size
+  - [x] `use-window-state.client.ts` `state-theme-window-providers` - Hook for managing window state
+- [ ] **imageAnalysis/**
+  - [x] `index.ts` `image-handling` - Barrel file for image analysis
+- [ ] **imageCompare/**
+  - [x] `index.ts` `image-handling` - Barrel file for image comparison
+- [x] **opengraph/**
+  - [x] `constants.ts` `opengraph` - Centralized constants for OpenGraph functionality
+  - [x] `parser.ts` `opengraph` - HTML parsing and platform-specific extraction logic
+  - [x] `imageSelector.ts` `opengraph` - Priority-based image selection from metadata
+  - [x] `fallback.ts` `opengraph` - Unified fallback logic for images and metadata
+  - [x] `persistence.ts` `opengraph` - Background image persistence to S3
+  - [x] `fetch.ts` `opengraph` - External HTML fetching with retry and circuit breaking
+- [x] **projects/**
+  - [x] `slug-helpers.ts` `projects` - Project slug generation and lookup
+  - [x] **analysis/**
+    - [x] `build-prompt.ts` `projects` - LLM prompt builder for project analysis
+    - [x] `extract-context.ts` `projects` - Context extraction for project analysis
+- [x] **s3/**
+  - [x] `binary.ts` `s3-object-storage` - Binary S3 read/write helpers
+  - [x] `client.ts` `s3-object-storage` - S3 client creation + retry config
+  - [x] `config.ts` `s3-object-storage` - S3 configuration validation
+  - [x] `errors.ts` `s3-object-storage` - Canonical S3 error types
+  - [x] `json.ts` `s3-object-storage` - JSON S3 read/write helpers
+  - [x] `objects.ts` `s3-object-storage` - Raw S3 object operations
+  - [x] `stream.ts` `s3-object-storage` - Stream-to-buffer helpers
+- [x] **seo/**
+  - [x] `constants.ts` `seo` - SEO constants
+  - [x] `dynamic-metadata.ts` `seo` - Dynamic title generation with length limits
+  - [x] `index.ts` `seo` - Barrel export and core orchestration for SEO utilities
+  - [x] `metadata.ts` `seo` - Metadata generation helpers
+  - [x] `og-validation.ts` `seo` - OpenGraph validation and cache-busting
+  - [x] `opengraph.ts` `seo` - OpenGraph metadata helpers
+  - [x] `schema.ts` `seo` - Schema.org generation helpers
+  - [x] `text-truncation.ts` `seo` - Smart text truncation utilities
+  - [x] `utils.ts` `seo` - SEO utility functions
+- [x] **server/**
+  - [x] `bookmarks-preloader.ts` `bookmarks` - Server-side bookmark preloading orchestrator
+  - [x] `data-fetch-manager.ts` `batch-fetch-update` - Centralized data fetching orchestrator with CLI handler
+  - [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates
+- [x] **s3-reset/**
+  - [x] `index.ts` `s3-object-storage` - Factory functions and category config for S3 reset scripts
+- [x] **server-cache/**
+  - [x] `index.ts` `caching` - Barrel file for server cache
+- [ ] **services/**
+  - [x] `image-streaming.ts` `image-handling` - Streaming pipeline for image uploads
+  - [x] `memory-aware-scheduler.ts` `memory-mgmt` - Scheduler with memory-aware gating
+  - [x] `unified-image-service.ts` `image-handling` - Unified image service orchestrator
+  - [x] **image/**
+    - [x] `logo-fetcher.ts` `image-handling` - Logo fetch orchestration
+    - [x] `logo-source-priority.ts` `image-handling` - Logo source priority ordering
+- [x] **test-utils/**
+  - [x] `cache-tester.ts` `caching` - Cache testing utility
+- [x] **utils/**
+  - [x] `api-sanitization.ts` `rate-limit-and-sanitize` - API input/output sanitization
+  - [x] `debug.ts` `log-error-debug-handling` - Debugging utilities
+  - [x] `domain-utils.ts` `bookmarks` - Domain and URL utilities
+  - [x] `ensure-server-only.ts` `overview` - Ensures a module is only run on the server
+  - [x] `formatters.ts` `string-manipulation` - Data formatting functions
+  - [x] `image-s3-utils.ts` `s3-object-storage` - Image-specific S3 utilities
+  - [x] `logger.ts` `log-error-debug-handling` - Shared logger utility
+  - [x] `opengraph-utils.ts` `opengraph` - OpenGraph utility functions (URL validation, image selection, etc.)
+  - [x] `retry.ts` `log-error-debug-handling` - Retry logic for async operations
+  - [x] `revalidate-path.ts` `caching` - Next.js path revalidation helper
+  - [x] `runtime-guards.ts` `overview` - Runtime type guards
+  - [x] `svg-transform-fix.ts` `image-handling` - SVG transform fix utility
+  - [x] `tag-utils.ts` `blog-article` - Tag manipulation utilities
+- [x] **validators/**
+  - [x] `bookmarks.ts` `json-handling` - Zod schemas for bookmark validation
+
+## Types Directory
+
+- [x] `accelerator.ts` `investments` - Types for accelerator programs
+- [x] `analytics.d.ts` `analytics` - TypeScript definitions for analytics
+- [x] `blog.ts` `blog` - Types for blog posts and authors
+- [x] `book-ai-analysis.ts` `books` - Types for book AI analysis (state, props, context)
+- [x] `bookmark.ts` `bookmarks` - Types for bookmarks
+- [x] `bookmark-ai-analysis.ts` `bookmarks` - Types for bookmark AI analysis (state, props, context)
+- [x] `component-types.ts` `interactive-containers` - Shared component prop types
+- [x] `education.ts` `education` - Types for education and certifications
+- [x] `env.d.ts` `config` - Environment variable type definitions
+- [x] `error.ts` `log-error-debug-handling` - Types for custom errors
+- [x] `eslint-custom-types.d.ts` `linting-formatting` - Custom types for ESLint configuration
+- [x] `experience.ts` `experience` - Types for professional experience
+- [x] `investment.ts` `investments` - Types for investments
+- [x] `logo.ts` `image-handling` - Types for logos
+- [x] `middleware.ts` `middleware` - Types for proxy/middleware helpers
+- [x] `navigation.ts` `navigation` - Types for navigation components
+- [x] `node-cron.d.ts` `batch-fetch-update` - Type definitions for node-cron
+- [x] `project.ts` `projects` - Types for projects
+- [x] `project-ai-analysis.ts` `projects` - Types for project AI analysis (state, props, context)
+- [x] `s3.ts` `s3-object-storage` - Types for S3 operations
+- [x] `search.ts` `search` - Types for search functionality
+- [x] `seo.ts` `seo` - Types for SEO and metadata
+- [x] `social.ts` `social-links` - Types for social links
+- [x] `terminal.ts` `terminal` - Types for terminal components
+- [ ] **schemas/**
+  - [x] `related-content.ts` `search` - Zod schemas for related content debug params and content types
+- [ ] **global/**
+  - [x] `bun-test-globals.d.ts` `testing-config` - Global type definitions for Bun tests
+  - [x] `matchers.d.ts` `testing-config` - Custom matcher type definitions
+  - [x] `window.d.ts` `state-theme-window-providers` - Augmentations for the global `Window` object
+- [x] **seo/**
+  - [x] `base.ts` `seo` - Base SEO type definitions
+  - [x] `metadata.ts` `seo` - Types and Zod validation schemas for SEO metadata
+  - [x] `opengraph.ts` `seo` - OpenGraph metadata helpers
+  - [x] `schema.ts` `seo` - Types for Schema.org
+  - [x] `shared.ts` `seo` - Shared SEO type definitions
+  - [x] `validation.ts` `seo` - OpenGraph validation types
+- [x] **ui/**
+  - [x] `async.ts` `ui-framework` - Types for async UI components (e.g., infinite scroll)
+  - [x] `boundaries.ts` `log-error-debug-handling`- Types for UI boundary components (e.g., ErrorBoundary)
+  - [x] `code-block.ts` `code-block` - Types for code block components
+  - [x] `data-display.ts` `investments` - Types for data display components (e.g., financial metrics)
+  - [x] `forms.ts` `interactive-containers`- Types for form and input components
+  - [x] `image.ts` `image-handling` - Types for image-related components
+  - [x] `index.ts` `ui-framework` - Barrel file for all modular UI component types
+  - [x] `interactive.ts` `interactive-containers`- Types for interactive components (e.g., dropdowns, focus traps)
+  - [x] `layout.ts` `app-layout` - Types for layout and structural components
+  - [x] `pagination.ts` `ui-framework` - Types for pagination components
+  - [x] `social.ts` `social-links` - Types for social icon components
+  - [x] `table.ts` `interactive-containers`- Types for table components
+  - [x] `tabs.ts` `interactive-containers`- Types for tabbed interface components
+  - [x] `terminal.ts` `terminal` - Types for the interactive terminal component
+  - [x] `window.ts` `macos-gui` - Types for windowed UI components
+
+## Config Directory
+
+- [x] `.browserslistrc` `config` - Browserslist configuration
+- [x] `.remarkrc.mjs` `config` - Remark (Markdown processor) configuration
+- [x] `happydom.ts` `testing-config` - Happy DOM (test environment) configuration
+- [x] `tools.config.js` `config` - Master configuration for multiple tools
+- [x] **vitest/** `testing-config` - Vitest test framework configuration files
+  - [x] `env-setup.ts` `testing-config` - Targeted environment mocks for tests
+  - [x] `global-mocks.ts` `testing-config` - Global cache API stubs
+  - [x] `setup.ts` `testing-config` - Vitest setup with DOM mocks and matchers
+
+## Middleware Directory
+
+- [x] `cache-debug.ts` `caching` - Middleware for debugging cache behavior
+- [ ] **health/**
+  - [x] `memory-health-monitor.ts` `memory-mgmt` - Memory health monitor with graceful degradation
+- [ ] **middleware/**
+  - [x] `memory-pressure.ts` `memory-mgmt` - Middleware to shed load under memory pressure
+  - [x] `sitewide-rate-limit.ts` `rate-limit-and-sanitize` - Proxy-layer rate limiting to mitigate aggressive crawlers
+
+## Root Directory
+
+- [x] `.cursorrules` `config` - Cursor AI configuration
+- [x] `.env-example` `config` - Example environment variables
+- [x] `.gitignore` `config` - Git ignore file
+- [x] `.hintrc` `config` - webhint configuration
+- [x] `biome.json` `linting-formatting` - Biome (linter/formatter) configuration
+- [x] `bun.lock` `deps` - Bun lockfile
+- [x] `components.json` `config` - ShadCN UI component configuration
+- [x] `Dockerfile` `deployment` - Docker container configuration
+- [x] `eslint.config.ts` `linting-formatting` - ESLint configuration
+  - [x] `instrumentation-client.ts` `log-error-debug-handling` - Client-side instrumentation setup
+- [x] `instrumentation.ts` `log-error-debug-handling` - Server-side instrumentation setup
+- [x] `vitest.config.ts` `testing-config` - Vitest configuration
+- [x] `src/proxy.ts` `middleware` - Next.js Proxy (middleware) entrypoint (Next.js 16)
+- [x] `next-env.d.ts` `config` - Next.js environment type definitions
+- [x] `next.config.ts` `config` - Next.js configuration
+- [x] `package.json` `deps` - Project dependencies and scripts
+- [x] `README.md` `project-mgmt` - Project README
+- [x] `tailwind.config.js` `config` - Tailwind CSS configuration (in root, not config/)
+- [x] `tsconfig.json` `config` - TypeScript configuration
+
+## Rules Directory
+
+- [x] **rules/**
+  - [x] **ast-grep/**
+    - [x] `ban-i-prefix-interface.yml` `linting-formatting` - Enforces interface naming (no I-prefix)
+    - [x] `no-cdn-image-proxy.yml` `image-handling` - Blocks CDN image proxy usage for first-party URLs
+    - [x] `no-test-mock-files-outside-mocks.yml` `testing-config` - Enforces mock files living under **tests**/**mocks**
+    - [x] `no-unsafe-casts.yml` `linting-formatting` - Disallows unsafe type assertions
+
+## App Directory
+
+- [x] `code-blocks.css` `css` - Styles for code blocks
+- [x] `error.tsx` `log-error-debug-handling` - App-level error boundary
+- [x] `favicon.ico` `image-handling` - Favicon
+- [x] `global-error.tsx` `log-error-debug-handling` - Global error boundary
+- [x] `globals.css` `css` - Global stylesheets
+- [x] `layout.tsx` `app-layout` - Root layout & providers (TerminalProvider localized to terminal subtree; see terminal.md "Provider Location & Resilience")
+- [x] `not-found.tsx` `log-error-debug-handling` - 404 Not Found page
+  - [x] `page.tsx` `home` - Landing page & SEO
+- [x] `providers.client.tsx` `state-theme-window-providers` - Client-side providers
+- [x] `robots.ts` `seo` - `robots.txt` generator
+- [x] `sitemap.ts` `seo` - `sitemap.xml` generator
+- [~] **api/**
+  - [x] **assets/`[assetId]`/`route.ts`** `image-handling` - API route for serving assets
+  - [x] **bookmarks/**
+    - [x] `route.ts` `bookmarks` - Bookmarks API
+    - [x] **refresh/`route.ts`** `bookmarks` - Refresh bookmarks API
+  - [x] **cache/**
+    - [x] **bookmarks/`route.ts`** `bookmarks` - Bookmarks cache API
+    - [x] **clear/`route.ts`** `caching` - Clear cache API
+    - [x] **images/`route.ts`** `image-handling` - Images cache API
+  - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts (force-dynamic bearer auth)
+  - [x] **github-activity/**
+    - [x] `route.ts` `github-activity` - GitHub activity API
+    - [x] **refresh/`route.ts`** `github-activity` - Refresh GitHub activity API
+  - [x] **health/`route.ts`** `log-error-debug-handling` - Health check API
+  - [x] **health/metrics/`route.ts`** `log-error-debug-handling` - Authenticated health metrics API (force-dynamic)
+  - [x] **ip/`route.ts`** `log-error-debug-handling` - IP address API
+  - [x] **log-client-error/`route.ts`** `log-error-debug-handling` - API endpoint for logging client-side errors
+  - [ ] **logo/**
+    - [x] `route.ts` `image-handling` - Logo API
+    - [x] **invert/`route.ts`** `image-handling` - Invert logo API
+  - [x] **og-image/`route.ts`** `opengraph` - Universal OpenGraph image endpoint (2025-06 rewrite)
+  - [x] **related-content/**
+    - [x] `route.ts` `search` - Related content recommender (force-dynamic, request header aware)
+    - [x] **debug/`route.ts`** `search` - Related content scoring debugger (force-dynamic)
+  - [x] **posts/`route.ts`** `blog-article` - Posts API
+  - [x] **search/**
+    - [x] **all/`route.ts`** `search` - Global search API (force-dynamic rate limiting)
+    - [x] **blog/`route.ts`** `search` - Blog search API (force-dynamic URL resolver)
+    - [x] **bookmarks/`route.ts`** `search` - Bookmark search API (force-dynamic pagination)
+    - [x] **[scope]/`route.ts`** `search` - Scoped search API (force-dynamic)
+  - [x] **sentry-example-api/`route.ts`** `log-error-debug-handling` - Sentry example API (debug endpoint)
+  - [x] **tunnel/`route.ts`** `log-error-debug-handling` - Sentry tunnel API
+  - [x] **twitter-image/[...path]/`route.ts`** `blog-article` - Twitter image proxy API
+  - [x] **validate-logo/`route.ts`** `image-handling` - Validate logo API
+- [x] **blog/**
+  - [x] `page.tsx` `blog` - Blog index page (ISR)
+  - [x] `[slug]/page.tsx` `blog` - Blog post page
+  - [x] `tags/[tagSlug]/page.tsx` `blog` - Blog tag page
+- [x] **bookmarks/**
+  - [x] `page.tsx` `bookmarks` - Main page for the bookmarks section
+  - [x] `loading.tsx` `bookmarks` - Loading UI for the bookmarks section
+  - [x] `error.tsx` `log-error-debug-handling` - Error UI for the bookmarks section
+  - [x] `[slug]/page.tsx` `bookmarks` - Individual bookmark detail page
+  - [x] `domain/[domainSlug]/page.tsx` `bookmarks` - Legacy domain redirector page
+  - [x] `tags/[tagSlug]/page.tsx` `bookmarks` - Bookmarks by tag page
+- [x] **contact/**
+  - [x] `page.tsx` `contact` - Contact page (ISR)
+- [x] **education/**
+  - [x] `page.tsx` `education` - Education page (ISR)
+- [x] **experience/**
+  - [x] `page.tsx` `experience` - Experience page (ISR)
+- [x] **cv/**
+  - [x] `page.tsx` `experience` - Curriculum vitae page reusing `cvFeatured` subsets from experience, education, and projects
+- [x] **investments/**
+  - [x] `page.tsx` `investments` - Investments page (ISR)
+- [x] **projects/**
+  - [x] `page.tsx` `projects` - Projects page (ISR)
+- [ ] **sentry-example-page/**
+  - [x] `page.tsx` `log-error-debug-handling` - Sentry example page
+
+## Scripts Directory
+
+- [x] `bun-test-wrapper.sh` `testing-config` - Wrapper for running Bun tests
+- [x] `check-file-naming.ts` `testing-config` - Script to check file naming conventions
+- [x] `consolidate-configs.js` `build` - Script to consolidate configuration files
+- [x] `debug-test-bookmark.ts` `log-error-debug-handling` - Debugging script for bookmarks
+- [x] `fetch-bookmarks-public.ts` `bookmarks` - Optional local snapshot helper for offline work (no longer invoked during CI/CD builds)
+- [x] `entrypoint.sh` `deployment` - Docker entrypoint script
+- [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
+- [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Script to force-refresh GitHub repo stats
+- [x] `populate-volumes.ts` `deprecated` - DEPRECATED: Use data-updater.ts instead
+- [x] `pre-build-checks.sh` `build` - Pre-build check script
+- [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations
+- [x] `refresh-opengraph-images.ts` `opengraph` - Script to refresh OpenGraph images and metadata
+- [x] `run-bun-tests.sh` `testing-config` - Script to run Bun tests
+- [x] `run-tests.sh` `testing-config` - Script to run all tests
+- [x] `setup-test-alias.sh` `testing-config` - Script to set up test aliases
+- [x] `submit-sitemap.ts` `seo` - Script to submit sitemap to search engines
+- [x] `validate-opengraph-clear-cache.ts` `seo` - Script to validate and clear social media caches
+
+## Styles Directory
+
+- [x] `social-styles.css` `css` - Social media card hover effects
+- [~] **globals/**
+  - [ ] `*.css` `css` - Global CSS files (directory does not exist)
+
+## Data Directory
+
+- [ ] **blog/**
+  - [ ] **posts/**
+    - [x] `*.mdx` `blog-article` - Blog post content files
+- [ ] `*.ts` `data` - Data configuration files
+- [x] `projects.ts` `projects` - Project metadata source (2025-11-05: ComposerAI entry + `images/other/projects/composerai-app.png`)
+
+## Public Directory
+
+- [ ] **images/**
+  - [x] `*` `image-handling` - Static image assets
+- [ ] **fonts/**
+  - [x] `*` `image-handling` - Font files
+- [x] `*` `image-handling` - Other static assets
+
+## Docs Directory
+
+- [ ] **architecture/**
+  - [x] `README.md` `overview` - Architecture entrypoint
+  - [x] `*.md` `` - System architecture documentation
+- [ ] **features/**
+  - [x] `*.md` `` - Feature-specific documentation
+- [ ] **standards/**
+  - [x] `coding-standards.md` `linting-formatting` - Code style and linting rules
+  - [x] `nextjs-framework.md` `next-js-16-usage` - Framework enforcement guide
+  - [x] `testing.md` `testing-config` - Testing protocols
+- [ ] **ops/**
+  - [x] `*.md` `` - Operations and deployment guides
+
+## Tests Directory
+
+- [x] \***\*tests**/\*\*
+  - [x] `README.md` `project-mgmt` - Tests documentation
+  - [x] \***\*mocks**/\*\*
+    - [x] `lib/node-cache.ts` `caching` - Mock for node-cache library
+    - [x] `lib/search.ts` `search` - Mock for search functionality
+    - [x] `lib/utils/ensure-server-only.ts` `testing-config` - Mock for server-only guard utility
+    - [x] `node-fetch.js` `log-error-debug-handling` - Mock for node-fetch
+    - [x] `sentry.js` `log-error-debug-handling` - Mock for Sentry error tracking
+  - [x] **app/**
+    - [x] **api/**
+      - [x] **github-activity/**
+        - [x] `cache.test.ts` `github-activity` - Tests for GitHub activity caching
+      - [x] **upload/**
+        - [x] `route.test.ts` `chroma` - Upload cleanup tests for S3/Chroma pipeline
+      - [x] **logo/**
+        - [x] `cache.test.ts` `image-handling` - Tests for logo caching
+    - [x] `pages.smoke.test.ts` `app-layout` - Smoke tests for all pages
+  - [x] **blog/**
+    - [x] `blog.smoke.test.ts` `blog` - Blog smoke tests
+  - [x] `bookmarks.backend.connection.test.ts` `bookmarks` - Backend connection tests for bookmarks
+  - [x] **components/**
+    - [x] **analytics/**
+      - [x] `Analytics.test.tsx` `analytics` - Analytics component tests
+    - [x] **features/**
+      - [x] **investments/**
+        - [x] `investment-card.test.tsx` `investments` - Investment card component tests
+    - [x] **ui/**
+      - [x] `code-block.test.tsx` `code-block` - Code block component tests
+      - [x] `copy-button.test.tsx` `code-block` - Copy button component tests
+      - [x] `logo-image.test.tsx` `image-handling` - Logo image component tests
+      - [x] `theme-toggle.test.tsx` `theming` - Theme toggle component tests
+      - [x] **navigation/**
+        - [x] `navigation-link.test.tsx` `navigation` - Navigation link component tests
+        - [x] `navigation.test.tsx` `navigation` - Navigation component tests
+      - [x] **social-icons/**
+        - [x] `aventure-icon.test.tsx` `social-links` - Aventure icon component tests
+      - [x] **terminal/**
+        - [x] `commands.test.ts` `terminal` - Terminal commands tests
+        - [x] `terminal.test.tsx` `terminal` - Terminal component tests
+        - [x] `terminalSelectionView.test.tsx` `terminal` - Terminal selection view tests
+  - [x] **lib/**
+    - [x] `api-sanitization.test.ts` `rate-limit-and-sanitize` - API sanitization tests
+    - [x] `blog.test.ts` `blog` - Blog utility tests
+    - [x] `bookmarks-s3-external-sync.unit.test.ts` `bookmarks` - Bookmarks S3 sync unit tests
+    - [x] `bookmarks-validation.test.ts` `json-handling` - Bookmarks validation tests
+    - [x] `bookmarks.test.ts` `bookmarks` - Bookmarks utility tests
+    - [x] `select-best-image.test.ts` `bookmarks` - Bookmark image selection security tests
+    - [x] `cache.test.ts` `caching` - Cache utility tests
+    - [x] `cloudflare-headers.test.ts` `rate-limit-and-sanitize` - Cloudflare header guard tests
+    - [x] `data-access.s3.test.ts` `s3-object-storage` - S3 data access tests
+    - [x] `env-logger.test.ts` `log-error-debug-handling` - EnvLogger safe stringify tests
+    - [x] `imageAnalysis.test.ts` `image-handling` - Image analysis tests
+    - [x] `imageCompare.test.ts` `image-handling` - Image comparison tests
+    - [x] `image-handling/streaming-refetch.test.ts` `image-handling` - Image streaming re-fetch fallback tests
+    - [x] `instrumentation-client.test.ts` `log-error-debug-handling` - Client instrumentation error filter tests
+    - [x] `instrumentation-register.test.ts` `instrumentation-monitoring` - Instrumentation register hook tests
+    - [x] `logo.test.ts` `image-handling` - Logo utility tests
+    - [x] `memory-health-monitor.test.ts` `memory-mgmt` - MemoryHealthMonitor image guard tests
+    - [x] `memory-pressure-middleware.test.ts` `memory-mgmt` - Memory pressure fail-safe tests
+    - [x] `routes.test.ts` `navigation` - Routes utility tests
+    - [x] `s3-connection.test.ts` `s3-object-storage` - S3 connection tests
+    - [x] `s3-utils-actual.test.ts` `s3-object-storage` - S3 utilities integration tests
+    - [x] `search.test.ts` `search` - Search utility tests
+    - [x] `seo.test.ts` `seo` - SEO utility tests
+    - [x] `server-cache-init.test.ts` `caching` - Server cache initialization tests
+    - [x] `server-cache-simple.test.ts` `caching` - Server cache simple tests
+    - [x] `utils.test.ts` `shared-utils` - General utility tests
+    - [x] **ai/rag/**
+      - [x] `context-formatter.test.ts` `ai-shared-services` - RAG context formatter tests
+      - [x] `dynamic-retriever.test.ts` `ai-shared-services` - RAG dynamic retriever tests
+      - [x] `inventory-context.test.ts` `ai-shared-services` - RAG inventory catalog tests
+      - [x] `static-context.test.ts` `ai-shared-services` - RAG static context tests
+    - [x] `content-similarity/keyword-extractor.test.ts` `chroma` - Keyword extraction tag filtering tests
+    - [x] `chroma/chroma-actual.test.ts` `chroma` - Live Chroma integration test (opt-in)
+    - [x] **seo/**
+      - [x] `metadata.test.ts` `seo` - SEO metadata tests
+      - [x] `opengraph.test.ts` `seo` - OpenGraph metadata tests
+      - [x] `utils.test.ts` `seo` - SEO utility tests
+    - [x] **setup/**
+      - [x] `testing-library.ts` `testing-config` - Testing library setup
+    - [x] **utils/**
+      - [x] `domain-utils.test.ts` `bookmarks` - Domain utility tests
+      - [x] `svg-transform-fix.test.ts` `image-handling` - SVG transform fix tests
+  - [x] **scripts/**
+    - [x] `fix-s3-acl-public.sh` `s3-object-storage` - Reapply public ACLs for S3 buckets; accepts optional `--prefix` to scope updates (2025-08 refresh)
+    - [x] `update-s3-data.smoke.test.ts` `batch-fetch-update` - S3 data update smoke tests
+  - [x] **setup/**
+    - [x] `bun-setup.ts` `testing-config` - Bun test environment setup
+- [x] `tsconfig.json` `testing-config` - TypeScript config for Vitest tests
+
+## Mocks Directory
+
+- [x] \***\*mocks**/\*\*
+  - [x] `fileMock.js` `testing-config` - Mock for static file imports
+  - [x] `styleMock.js` `testing-config` - Mock for CSS/style imports

@@ -13,7 +13,7 @@
 /**
  * Environment variable configuration test suite with module isolation
  *
- * Uses Jest module isolation to test dynamic configuration loading from environment variables
+ * Uses Vitest module isolation to test dynamic configuration loading from environment variables
  * while maintaining clean test state through proper setup and teardown
  */
 describe("Environment Variable Configuration", () => {
@@ -22,11 +22,11 @@ describe("Environment Variable Configuration", () => {
 
   /**
    * Pre-test setup ensuring clean module state and environment isolation
-   * Resets Jest module cache and clones original environment for modification
+   * Resets Vitest module cache and clones original environment for modification
    */
   beforeEach(() => {
     /** Reset modules to pick up new env vars */
-    jest.resetModules();
+    vi.resetModules();
     /** Clone the original env */
     process.env = { ...originalEnv };
   });
@@ -177,12 +177,36 @@ describe("Environment Variable Configuration", () => {
      * Validates graceful handling of missing critical environment variables
      * Ensures application doesn't crash when essential config is absent but handles degradation properly
      */
-    it.each(criticalVars)("should handle missing %s gracefully", varName => {
+    it.each(criticalVars)("should handle missing %s gracefully", (varName) => {
       Reflect.deleteProperty(process.env, varName);
 
       /** The application should not crash when these are missing */
       /** but should handle them gracefully */
       expect(process.env[varName]).toBeUndefined();
+    });
+  });
+
+  describe("Environment Loader", () => {
+    it("trims whitespace around keys when loading .env", async () => {
+      const fs = await import("node:fs");
+      const path = await import("node:path");
+      const { loadEnvironmentWithMultilineSupport } = await import("@/lib/utils/env-loader");
+
+      const originalCwd = process.cwd();
+      const tempDir = fs.mkdtempSync(path.join("/tmp", "env-loader-"));
+      const envPath = path.join(tempDir, ".env");
+
+      fs.writeFileSync(envPath, "TRIMMED_KEY =trimmed-value\n", "utf-8");
+      Reflect.deleteProperty(process.env, "TRIMMED_KEY");
+
+      try {
+        process.chdir(tempDir);
+        loadEnvironmentWithMultilineSupport();
+        expect(process.env.TRIMMED_KEY).toBe("trimmed-value");
+      } finally {
+        process.chdir(originalCwd);
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
     });
   });
 
@@ -195,6 +219,22 @@ describe("Environment Variable Configuration", () => {
         S3_SECRET_ACCESS_KEY: "test-secret-key",
         S3_REGION: "us-east-1",
         NEXT_PUBLIC_S3_CDN_URL: "https://cdn.example.com",
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts empty AWS alias values when optional", async () => {
+      const { envSchema } = await import("@/types/schemas/env");
+      const result = envSchema.safeParse({
+        S3_BUCKET: "test-bucket",
+        S3_ACCESS_KEY_ID: "test-access-key",
+        S3_SECRET_ACCESS_KEY: "test-secret-key",
+        S3_REGION: "us-east-1",
+        NEXT_PUBLIC_S3_CDN_URL: "https://cdn.example.com",
+        AWS_ACCESS_KEY_ID: "",
+        AWS_SECRET_ACCESS_KEY: "   ",
+        AWS_REGION: "",
       });
 
       expect(result.success).toBe(true);

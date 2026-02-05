@@ -79,3 +79,18 @@ export interface RegistryLinksProps {
   /** Optional CSS class for the container */
   className?: string;
 }
+
+/** Height presets for ExpandableText collapsed state */
+export type ExpandableTextCollapsedHeight = "sm" | "md" | "lg";
+
+/**
+ * Props for the ExpandableText component
+ */
+export interface ExpandableTextProps {
+  /** Content to display with optional truncation */
+  children: React.ReactNode;
+  /** Optional CSS class for the content container */
+  className?: string;
+  /** Max collapsed height - "sm" (6rem), "md" (9rem), "lg" (12rem). Default: "md" */
+  collapsedHeight?: ExpandableTextCollapsedHeight;
+}

@@ -29,7 +29,7 @@ export function BookmarkInsights({
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Filter AI tags for potential display
-  const aiTags = tags.filter(tag => tag.attachedBy === "ai");
+  const aiTags = tags.filter((tag) => tag.attachedBy === "ai");
 
   // Only render if we have actual content (not just null/empty strings)
   const hasNote = note && note.trim().length > 0;
@@ -89,7 +89,12 @@ export function BookmarkInsights({
               >
                 <PenTool className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               </div>
-              <h3 className={cn("text-sm font-medium tracking-wide", "text-gray-700 dark:text-gray-300")}>
+              <h3
+                className={cn(
+                  "text-sm font-medium tracking-wide",
+                  "text-gray-700 dark:text-gray-300",
+                )}
+              >
                 Personal Note
               </h3>
             </div>
@@ -117,7 +122,10 @@ export function BookmarkInsights({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className={cn("relative p-6", hasNote && "border-t dark:border-white/5 border-gray-100")}
+            className={cn(
+              "relative p-6",
+              hasNote && "border-t dark:border-white/5 border-gray-100",
+            )}
           >
             {/* Section Header */}
             <div className="flex items-center gap-3 mb-4">
@@ -132,7 +140,12 @@ export function BookmarkInsights({
               >
                 <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-400" />
               </div>
-              <h3 className={cn("text-sm font-medium tracking-wide", "text-gray-700 dark:text-gray-300")}>
+              <h3
+                className={cn(
+                  "text-sm font-medium tracking-wide",
+                  "text-gray-700 dark:text-gray-300",
+                )}
+              >
                 AI Summary
               </h3>
             </div>
@@ -155,7 +168,7 @@ export function BookmarkInsights({
                   "selection:bg-violet-200/30 dark:selection:bg-violet-400/20",
                 )}
               >
-                {summary.split("\n\n").map(paragraph => (
+                {summary.split("\n\n").map((paragraph) => (
                   <p key={paragraph.substring(0, 50)}>{paragraph}</p>
                 ))}
               </div>
@@ -176,7 +189,9 @@ export function BookmarkInsights({
           >
             <div className="flex items-center gap-2 mb-3">
               <Lightbulb className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">AI Suggested Tags</span>
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                AI Suggested Tags
+              </span>
             </div>
             <div className="flex flex-wrap gap-2">
               {aiTags.map((tag, index) => (

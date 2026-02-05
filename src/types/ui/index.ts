@@ -57,5 +57,8 @@ export type {
   TerminalWindowStateProviderProps,
   AiChatHeaderProps,
   AiChatInputProps,
+  AiChatQueueConfig,
+  AiChatQueueResult,
+  TerminalChatAbortReason,
 } from "./terminal";
 export * from "./window";

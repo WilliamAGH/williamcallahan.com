@@ -18,7 +18,7 @@ import {
   ALL_TIME_SUMMARY_S3_KEY_FILE,
   GITHUB_STATS_SUMMARY_S3_KEY_FILE,
 } from "@/lib/constants";
-import { listS3Objects } from "@/lib/s3-utils";
+import { listS3Objects } from "@/lib/s3/objects";
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
 
 async function main() {
@@ -107,7 +107,7 @@ async function main() {
   ];
 
   await Promise.all(
-    summaryFiles.map(async file => {
+    summaryFiles.map(async (file) => {
       console.log(`  ${file.name}: ${file.path}`);
       try {
         const exists = await listS3Objects(file.path);
@@ -129,7 +129,9 @@ async function main() {
       const result = await refreshGitHubActivityDataFromApi();
       if (result) {
         console.log("✅ Refresh completed successfully!");
-        console.log(`  - Trailing Year: ${result.trailingYearData.totalContributions} contributions`);
+        console.log(
+          `  - Trailing Year: ${result.trailingYearData.totalContributions} contributions`,
+        );
         console.log(`  - All-Time: ${result.allTimeData.totalContributions} contributions`);
         console.log(`  - Lines Added: +${result.trailingYearData.linesAdded || 0}`);
         console.log(`  - Lines Removed: -${result.trailingYearData.linesRemoved || 0}`);
@@ -169,7 +171,7 @@ async function main() {
   console.log("4. Verify S3 bucket permissions for reading and writing");
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error("Fatal error:", error);
   process.exit(1);
 });

@@ -15,7 +15,9 @@ let SentryModule: typeof import("@sentry/nextjs") | null = null;
 
 export async function register(): Promise<void> {
   const releaseVersion =
-    process.env.SENTRY_RELEASE || process.env.NEXT_PUBLIC_GIT_HASH || process.env.NEXT_PUBLIC_APP_VERSION;
+    process.env.SENTRY_RELEASE ||
+    process.env.NEXT_PUBLIC_GIT_HASH ||
+    process.env.NEXT_PUBLIC_APP_VERSION;
   const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
   if (isBuildPhase) return;
 
@@ -106,7 +108,8 @@ export async function register(): Promise<void> {
   /** Load global Jina AI rate-limit store **/
   try {
     const { loadRateLimitStoreFromS3 } = await import("@/lib/rate-limiter");
-    const { JINA_FETCH_STORE_NAME, JINA_FETCH_RATE_LIMIT_S3_PATH } = await import("@/lib/constants");
+    const { JINA_FETCH_STORE_NAME, JINA_FETCH_RATE_LIMIT_S3_PATH } =
+      await import("@/lib/constants");
     await loadRateLimitStoreFromS3(JINA_FETCH_STORE_NAME, JINA_FETCH_RATE_LIMIT_S3_PATH);
   } catch (err) {
     console.warn("[Instrumentation] Unable to load Jina rate-limit store:", err);
@@ -144,8 +147,8 @@ export async function register(): Promise<void> {
   }
 }
 
-// DO NOT call register() immediately - it should only be called by Next.js instrumentation hook
-// The register() function will be called by Next.js when importing this module from instrumentation.ts
+// DO NOT call register() immediately - it should only be invoked by the
+// instrumentation hook in src/instrumentation.ts after the dynamic import.
 
 /**
  * onRequestError hook – invoked by the Sentry SDK (Next.js ≥15.4)
@@ -173,9 +176,10 @@ export function onRequestError(
     // Fallback: if register() hasn't completed but Sentry is configured,
     // do a lazy import (loses request context but still captures error)
     if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
-      void import("@sentry/nextjs").then(Sentry => {
+      void (async () => {
+        const Sentry = await import("@sentry/nextjs");
         Sentry.captureException?.(error);
-      });
+      })();
     }
     return;
   }

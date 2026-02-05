@@ -10,7 +10,12 @@
 import MiniSearch from "minisearch";
 import type { Investment } from "@/types/investment";
 import type { Experience } from "@/types/experience";
-import type { EducationItem, SerializedIndex } from "@/types/search";
+import {
+  serializedIndexSchema,
+  type EducationItem,
+  type SerializedIndex,
+} from "@/types/schemas/search";
+import type { IndexFieldConfig } from "@/types/search";
 import type { Project } from "@/types/project";
 import { investments } from "@/data/investments";
 import { experiences } from "@/data/experience";
@@ -18,7 +23,7 @@ import { education, certifications } from "@/data/education";
 import { projects as projectsData } from "@/data/projects";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { SEARCH_S3_PATHS } from "@/lib/constants";
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { envLogger } from "@/lib/utils/env-logger";
 import { loadIndexFromJSON } from "../index-builder";
 import { createIndex } from "../index-factory";
@@ -45,6 +50,7 @@ async function loadOrBuildIndex<T>(
   cacheKey: string,
   buildFn: () => MiniSearch<T>,
   ttl: number,
+  config?: IndexFieldConfig<T>,
 ): Promise<MiniSearch<T>> {
   // Try to get from cache first
   const cached = ServerCacheInstance.get<MiniSearch<T>>(cacheKey);
@@ -57,13 +63,20 @@ async function loadOrBuildIndex<T>(
   if (USE_S3_INDEXES) {
     try {
       // Try to load from S3
-      const serializedIndex = await readJsonS3<SerializedIndex>(s3Path);
+      const serializedIndex = await readJsonS3Optional<SerializedIndex>(
+        s3Path,
+        serializedIndexSchema,
+      );
       if (serializedIndex?.index && serializedIndex.metadata) {
-        index = loadIndexFromJSON<T>(serializedIndex);
-        console.log(`[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`);
+        index = loadIndexFromJSON<T>(serializedIndex, config);
+        console.log(
+          `[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`,
+        );
       } else {
         // Fall back to building in-memory
-        envLogger.log(`Failed to load ${cacheKey} from S3, building in-memory`, undefined, { category: "Search" });
+        envLogger.log(`Failed to load ${cacheKey} from S3, building in-memory`, undefined, {
+          category: "Search",
+        });
         index = buildFn();
       }
     } catch (error) {
@@ -97,6 +110,7 @@ export async function getInvestmentsIndex(): Promise<MiniSearch<Investment>> {
     SEARCH_INDEX_KEYS.INVESTMENTS,
     buildInvestmentsIndex,
     INDEX_TTL.STATIC,
+    INVESTMENTS_INDEX_CONFIG,
   );
 }
 
@@ -119,6 +133,7 @@ export async function getExperienceIndex(): Promise<MiniSearch<Experience>> {
     SEARCH_INDEX_KEYS.EXPERIENCE,
     buildExperienceIndex,
     INDEX_TTL.STATIC,
+    EXPERIENCE_INDEX_CONFIG,
   );
 }
 
@@ -132,13 +147,13 @@ export { experiences };
  */
 export function getEducationItems(): EducationItem[] {
   return [
-    ...education.map(edu => ({
+    ...education.map((edu) => ({
       id: edu.id,
       label: edu.institution,
       description: edu.degree,
       path: `/education#${edu.id}`,
     })),
-    ...certifications.map(cert => ({
+    ...certifications.map((cert) => ({
       id: cert.id,
       label: cert.institution,
       description: cert.name,
@@ -162,13 +177,14 @@ export async function getEducationIndex(): Promise<MiniSearch<EducationItem>> {
     SEARCH_INDEX_KEYS.EDUCATION,
     buildEducationIndex,
     INDEX_TTL.STATIC,
+    EDUCATION_INDEX_CONFIG,
   );
 }
 
 // --- Projects ---
 
 function buildProjectsIndex(): MiniSearch<Project> {
-  return createIndex(PROJECTS_INDEX_CONFIG, projectsData, "Projects", p => p.name);
+  return createIndex(PROJECTS_INDEX_CONFIG, projectsData, "Projects", (p) => p.name);
 }
 
 /**
@@ -181,6 +197,7 @@ export async function getProjectsIndex(): Promise<MiniSearch<Project>> {
     SEARCH_INDEX_KEYS.PROJECTS,
     buildProjectsIndex,
     INDEX_TTL.STATIC,
+    PROJECTS_INDEX_CONFIG,
   );
 }
 

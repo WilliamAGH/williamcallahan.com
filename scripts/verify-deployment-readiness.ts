@@ -41,12 +41,16 @@ class DeploymentVerifier {
   private addCheck(result: DeploymentReadinessCheckResult) {
     this.checks.push(result);
     const icon = result.passed ? "✅" : result.severity === "critical" ? "❌" : "⚠️";
-    const color = result.passed ? colors.green : result.severity === "critical" ? colors.red : colors.yellow;
+    const color = result.passed
+      ? colors.green
+      : result.severity === "critical"
+        ? colors.red
+        : colors.yellow;
     this.log(`${icon} ${result.name}`, color);
     if (!result.passed) {
       this.log(`   ${result.message}`, colors.reset);
       if (result.details) {
-        result.details.forEach(detail => this.log(`     - ${detail}`, colors.reset));
+        result.details.forEach((detail) => this.log(`     - ${detail}`, colors.reset));
       }
     }
   }
@@ -63,7 +67,7 @@ class DeploymentVerifier {
       "S3_ACCESS_KEY_ID",
       "S3_SECRET_ACCESS_KEY",
       "S3_SERVER_URL",
-      "S3_CDN_URL",
+      "NEXT_PUBLIC_S3_CDN_URL",
     ];
 
     const envFile = join(process.cwd(), `.env.${this.targetEnv}`);
@@ -74,7 +78,7 @@ class DeploymentVerifier {
     // Load environment variables from files
     if (existsSync(envFile)) {
       const content = readFileSync(envFile, "utf-8");
-      content.split("\n").forEach(line => {
+      content.split("\n").forEach((line) => {
         const [key, value] = line.split("=");
         if (key && value) envVars[key.trim()] = value.trim();
       });
@@ -82,13 +86,13 @@ class DeploymentVerifier {
 
     if (existsSync(envLocalFile)) {
       const content = readFileSync(envLocalFile, "utf-8");
-      content.split("\n").forEach(line => {
+      content.split("\n").forEach((line) => {
         const [key, value] = line.split("=");
         if (key && value) envVars[key.trim()] = value.trim();
       });
     }
 
-    const missingVars = requiredEnvVars.filter(v => !envVars[v] && !process.env[v]);
+    const missingVars = requiredEnvVars.filter((v) => !envVars[v] && !process.env[v]);
 
     this.addCheck({
       name: "Required Environment Variables",
@@ -134,7 +138,11 @@ class DeploymentVerifier {
 
         if (content.includes('export const dynamic = "force-dynamic"')) {
           dynamicRoutes.push(file);
-        } else if (content.includes("generateStaticParams") && !content.includes("//") && !content.includes("/*")) {
+        } else if (
+          content.includes("generateStaticParams") &&
+          !content.includes("//") &&
+          !content.includes("/*")
+        ) {
           staticRoutes.push(file);
         }
       }
@@ -307,7 +315,7 @@ class DeploymentVerifier {
               ? `Found ${largeFiles.length} files over 5MB in public directory`
               : "No large static files detected",
           severity: "warning",
-          details: largeFiles.map(f => f.replace(publicDir, "public")),
+          details: largeFiles.map((f) => f.replace(publicDir, "public")),
         });
       } catch {
         // ignore, find can fail if no files are found
@@ -321,9 +329,9 @@ class DeploymentVerifier {
     this.log("📊 DEPLOYMENT READINESS REPORT", colors.cyan);
     this.log("=".repeat(60), colors.cyan);
 
-    const criticalIssues = this.checks.filter(c => !c.passed && c.severity === "critical");
-    const warnings = this.checks.filter(c => !c.passed && c.severity === "warning");
-    const passed = this.checks.filter(c => c.passed);
+    const criticalIssues = this.checks.filter((c) => !c.passed && c.severity === "critical");
+    const warnings = this.checks.filter((c) => !c.passed && c.severity === "warning");
+    const passed = this.checks.filter((c) => c.passed);
 
     this.log(`\nTarget Environment: ${this.targetEnv.toUpperCase()}`, colors.magenta);
     this.log(`Total Checks: ${this.checks.length}`);
@@ -333,14 +341,14 @@ class DeploymentVerifier {
 
     if (criticalIssues.length > 0) {
       this.log("\n🚨 CRITICAL ISSUES MUST BE RESOLVED:", colors.red);
-      criticalIssues.forEach(issue => {
+      criticalIssues.forEach((issue) => {
         this.log(`  - ${issue.name}: ${issue.message}`, colors.red);
       });
     }
 
     if (warnings.length > 0) {
       this.log("\n⚠️  WARNINGS TO REVIEW:", colors.yellow);
-      warnings.forEach(warning => {
+      warnings.forEach((warning) => {
         this.log(`  - ${warning.name}: ${warning.message}`, colors.yellow);
       });
     }
@@ -378,7 +386,7 @@ const targetEnv = process.argv[2] || "production";
 
 // Run verification
 const verifier = new DeploymentVerifier(targetEnv);
-verifier.run().catch(error => {
+verifier.run().catch((error) => {
   console.error("Verification failed:", error);
   process.exit(1);
 });

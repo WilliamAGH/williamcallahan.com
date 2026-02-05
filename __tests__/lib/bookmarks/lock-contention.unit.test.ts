@@ -1,4 +1,4 @@
-import { describe, it, expect, jest, beforeEach, afterEach } from "@jest/globals";
+import { vi } from "vitest";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { DistributedLockEntry } from "@/types";
 
@@ -6,40 +6,48 @@ const loadBookmarksModule = async () => import("@/lib/bookmarks/refresh-logic.se
 
 describe("Distributed lock contention (unit)", () => {
   beforeEach(() => {
-    jest.resetModules();
-    jest.clearAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     process.env.BOOKMARKS_LOCK_TTL_MS = "300000"; // 5 minutes
     process.env.MIN_BOOKMARKS_THRESHOLD = "1";
   });
 
   afterEach(() => {
-    jest.resetModules();
+    vi.resetModules();
   });
 
   it("only one process acquires lock when racing", async () => {
     // in-memory lock state shared between mock invocations
     let lockState: DistributedLockEntry | null = null;
 
-    jest.doMock("@/lib/s3-utils", () => ({
-      readJsonS3: jest.fn((key: string) => {
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3Optional: vi.fn((key: string) => {
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           return Promise.resolve(lockState);
         }
         return Promise.resolve(null);
       }),
-      writeJsonS3: jest.fn((key: string, value: DistributedLockEntry) => {
+      readJsonS3: vi.fn((key: string) => {
+        if (key === BOOKMARKS_S3_PATHS.LOCK) {
+          return Promise.resolve(lockState);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn((key: string, value: DistributedLockEntry) => {
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           lockState = value;
         }
         return Promise.resolve();
       }),
-      deleteFromS3: jest.fn((key: string) => {
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: vi.fn((key: string) => {
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           lockState = null;
         }
         return Promise.resolve();
       }),
-      listS3Objects: jest.fn(() => Promise.resolve([])),
+      listS3Objects: vi.fn(() => Promise.resolve([])),
     }));
 
     const firstModule = await loadBookmarksModule();
@@ -62,19 +70,27 @@ describe("Distributed lock contention (unit)", () => {
     const firstResult = await firstModule.refreshAndPersistBookmarks();
     firstModule.cleanupBookmarksDataAccess();
 
-    jest.resetModules();
+    vi.resetModules();
 
     const existingLock = lockState;
-    jest.doMock("@/lib/s3-utils", () => ({
-      readJsonS3: jest.fn((key: string) => {
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3Optional: vi.fn((key: string) => {
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           return Promise.resolve(existingLock);
         }
         return Promise.resolve(null);
       }),
-      writeJsonS3: jest.fn(() => Promise.resolve()),
-      deleteFromS3: jest.fn(() => Promise.resolve()),
-      listS3Objects: jest.fn(() => Promise.resolve([])),
+      readJsonS3: vi.fn((key: string) => {
+        if (key === BOOKMARKS_S3_PATHS.LOCK) {
+          return Promise.resolve(existingLock);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn(() => Promise.resolve()),
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: vi.fn(() => Promise.resolve()),
+      listS3Objects: vi.fn(() => Promise.resolve([])),
     }));
 
     const secondModule = await loadBookmarksModule();
@@ -102,7 +118,7 @@ describe("Distributed lock contention (unit)", () => {
   });
 
   it("respects TTL and allows new lock after expiry", async () => {
-    jest.resetModules();
+    vi.resetModules();
 
     let currentLock: DistributedLockEntry | null = {
       instanceId: "old-instance",
@@ -111,27 +127,35 @@ describe("Distributed lock contention (unit)", () => {
     };
     let lockDeleted = false;
 
-    jest.doMock("@/lib/s3-utils", () => ({
-      readJsonS3: jest.fn((key: string) => {
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3Optional: vi.fn((key: string) => {
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           return Promise.resolve(lockDeleted ? null : currentLock);
         }
         return Promise.resolve(null);
       }),
-      writeJsonS3: jest.fn((key: string, value: DistributedLockEntry) => {
+      readJsonS3: vi.fn((key: string) => {
+        if (key === BOOKMARKS_S3_PATHS.LOCK) {
+          return Promise.resolve(lockDeleted ? null : currentLock);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn((key: string, value: DistributedLockEntry) => {
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           currentLock = value;
           lockDeleted = false;
         }
         return Promise.resolve();
       }),
-      deleteFromS3: jest.fn((key: string) => {
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: vi.fn((key: string) => {
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           lockDeleted = true;
         }
         return Promise.resolve();
       }),
-      listS3Objects: jest.fn(() => Promise.resolve([])),
+      listS3Objects: vi.fn(() => Promise.resolve([])),
     }));
 
     const bookmarksModule = await loadBookmarksModule();
@@ -159,23 +183,31 @@ describe("Distributed lock contention (unit)", () => {
   });
 
   it("backs off when active lock exists", async () => {
-    jest.resetModules();
+    vi.resetModules();
     const activeLock: DistributedLockEntry = {
       instanceId: "active-instance",
       acquiredAt: Date.now() - 30000,
       ttlMs: 300000,
     };
 
-    jest.doMock("@/lib/s3-utils", () => ({
-      readJsonS3: jest.fn((key: string) => {
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3Optional: vi.fn((key: string) => {
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           return Promise.resolve(activeLock);
         }
         return Promise.resolve(null);
       }),
-      writeJsonS3: jest.fn(() => Promise.resolve()),
-      deleteFromS3: jest.fn(() => Promise.resolve()),
-      listS3Objects: jest.fn(() => Promise.resolve([])),
+      readJsonS3: vi.fn((key: string) => {
+        if (key === BOOKMARKS_S3_PATHS.LOCK) {
+          return Promise.resolve(activeLock);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn(() => Promise.resolve()),
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: vi.fn(() => Promise.resolve()),
+      listS3Objects: vi.fn(() => Promise.resolve([])),
     }));
 
     const bookmarksModule = await loadBookmarksModule();
@@ -201,18 +233,24 @@ describe("Distributed lock contention (unit)", () => {
   });
 
   it("implements read-back verification for lock ownership", async () => {
-    jest.resetModules();
+    vi.resetModules();
     let writeCount = 0;
     let lockValue: DistributedLockEntry | null = null;
 
-    jest.doMock("@/lib/s3-utils", () => ({
-      readJsonS3: jest.fn((key: string) => {
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3Optional: vi.fn((key: string) => {
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           return Promise.resolve(lockValue);
         }
         return Promise.resolve(null);
       }),
-      writeJsonS3: jest.fn((key: string, value: DistributedLockEntry) => {
+      readJsonS3: vi.fn((key: string) => {
+        if (key === BOOKMARKS_S3_PATHS.LOCK) {
+          return Promise.resolve(lockValue);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn((key: string, value: DistributedLockEntry) => {
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           writeCount += 1;
           if (writeCount === 1) {
@@ -227,8 +265,10 @@ describe("Distributed lock contention (unit)", () => {
         }
         return Promise.resolve();
       }),
-      deleteFromS3: jest.fn(() => Promise.resolve()),
-      listS3Objects: jest.fn(() => Promise.resolve([])),
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: vi.fn(() => Promise.resolve()),
+      listS3Objects: vi.fn(() => Promise.resolve([])),
     }));
 
     const bookmarksModule = await loadBookmarksModule();

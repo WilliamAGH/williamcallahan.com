@@ -32,7 +32,7 @@ const StandardTweetEmbed: React.FC<StandardTweetEmbedProps> = ({ id, theme }) =>
             theme,
             dnt: true,
           })
-          .catch(error => console.error("Error creating Tweet embed:", error));
+          .catch((error) => console.error("Error creating Tweet embed:", error));
       }
     };
 

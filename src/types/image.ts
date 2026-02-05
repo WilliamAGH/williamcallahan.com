@@ -37,7 +37,6 @@ export type ImageSource =
 /**
  * Base interface for all image data
  * This is the foundation for image-related types across the system
- * @deprecated Use BaseMediaResult for new code - kept for backward compatibility
  */
 export interface BaseImageData {
   /** MIME content type (e.g., 'image/png', 'image/svg+xml') */
@@ -137,6 +136,62 @@ export interface ProcessedImageResult {
   contentType: string;
   /** Whether the image is SVG format */
   isSvg: boolean;
+}
+
+/**
+ * Result of SVG transform processing.
+ * RC1a Compliance: Explicitly reports whether transforms were applied and any errors,
+ * rather than silently returning the original buffer on failure.
+ */
+export interface SvgProcessingResult {
+  /** The processed buffer (original if no transforms applied or on error) */
+  buffer: Buffer;
+  /** Whether SVG transform fixes were applied */
+  transformApplied: boolean;
+  /** Error message if processing failed (buffer will be original in this case) */
+  error?: string;
+}
+
+/** Result of image fetch and processing */
+export interface FetchProcessResult {
+  buffer: Buffer;
+  contentType: string;
+  streamedToS3?: boolean;
+}
+
+/** Configuration for image fetching operations */
+export interface ImageFetchConfig {
+  devProcessingDisabled: boolean;
+  devStreamImagesToS3: boolean;
+  isDev: boolean;
+  shouldAcceptRequests: () => boolean;
+  s3Ops: import("@/lib/services/image/s3-operations").S3Operations;
+  logoFetcher: import("@/lib/services/image/logo-fetcher").LogoFetcher;
+  placeholderBuffer: Buffer;
+  fetchTimeout: number;
+}
+
+/** Configuration for logo persistence operations */
+export interface LogoPersistenceConfig {
+  isReadOnly: boolean;
+  devStreamImagesToS3: boolean;
+  validators: import("@/lib/services/image/logo-validators").LogoValidators;
+  s3Ops: import("@/lib/services/image/s3-operations").S3Operations;
+  logoFetcher: import("@/lib/services/image/logo-fetcher").LogoFetcher;
+  getCdnUrl: (s3Key: string) => string;
+}
+
+/** Logo data from external fetch */
+export interface ExternalLogoData {
+  buffer: Buffer;
+  contentType: string | null;
+  source: import("./logo").LogoSource;
+  url?: string;
+}
+
+/** Options for logo persistence */
+export interface LogoPersistenceOptions {
+  invertColors?: boolean;
 }
 
 /**

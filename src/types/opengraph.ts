@@ -24,23 +24,23 @@ export interface OgResult extends OgFetchResult {
   /** The original URL requested */
   url: string;
   /** The final, canonical URL after any redirects */
-  finalUrl?: string;
+  finalUrl?: string | null;
   /** The page title */
-  title?: string;
+  title?: string | null;
   /** The page description */
-  description?: string;
+  description?: string | null;
   /** The site name */
-  siteName?: string;
+  siteName?: string | null;
   /** The page's locale */
-  locale?: string;
+  locale?: string | null;
   /** The timestamp of when the data was fetched */
   timestamp: number;
   /** The source of the data (e.g., "cache", "s3", "external") */
   source: "cache" | "s3" | "external" | "fallback";
   /** A hash of the original URL */
   urlHash?: string;
-  /** The error object, if one was thrown */
-  errorDetails?: OgError;
+  /** The error object, if one was thrown (may be OgError or plain object when loaded from S3) */
+  errorDetails?: OgError | unknown;
   /** A unique ID for the image asset in S3 */
   imageAssetId?: string;
   /** A unique ID for the screenshot asset in S3 */
@@ -50,11 +50,11 @@ export interface OgResult extends OgFetchResult {
   /** Number of times a fetch has been retried */
   retryCount?: number;
   /** The actual URL resolved after redirects */
-  actualUrl?: string;
+  actualUrl?: string | null;
 }
 
-// KarakeepImageFallback is now defined in types/seo/opengraph.ts
-export type { KarakeepImageFallback } from "./seo/opengraph";
+import type { KarakeepImageFallback, ValidatedOgMetadata } from "./seo/opengraph";
+export type { KarakeepImageFallback };
 
 // Type alias with extra fields
 export interface OgCacheEntry {
@@ -65,7 +65,6 @@ export interface OgCacheEntry {
 }
 
 // Import the validated type from seo/opengraph to avoid duplication
-import type { ValidatedOgMetadata } from "./seo/opengraph";
 
 /** General OpenGraph metadata structure */
 export type OgMetadata = ValidatedOgMetadata;
@@ -79,7 +78,11 @@ export class OgError extends Error {
   /** The original error that was caught */
   public originalError?: unknown;
 
-  constructor(message: string, source: string, options?: ErrorOptions & { originalError?: unknown }) {
+  constructor(
+    message: string,
+    source: string,
+    options?: ErrorOptions & { originalError?: unknown },
+  ) {
     super(message, options);
     this.name = "OgError";
     this.source = source;
@@ -107,3 +110,20 @@ export interface PersistImageResult {
   s3Url: string | null;
   wasNewlyPersisted: boolean;
 }
+
+/** Function signature for refreshing OpenGraph data */
+export type RefreshOpenGraphData = (
+  url: string,
+  idempotencyKey?: string,
+  fallbackImageData?: unknown,
+) => Promise<OgResult | null>;
+
+/** Input parameters for cached OpenGraph data retrieval */
+export type CachedOpenGraphInput = {
+  normalizedUrl: string;
+  skipExternalFetch: boolean;
+  idempotencyKey?: string;
+  validatedFallback?: KarakeepImageFallback | null;
+  getOgTimestamp: () => number;
+  refreshOpenGraphData: RefreshOpenGraphData;
+};

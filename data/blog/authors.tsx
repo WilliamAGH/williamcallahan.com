@@ -9,7 +9,8 @@ export const authors: Record<string, Author> = {
     bio: [
       {
         type: "text",
-        value: "Software engineer and founder with a background in finance and tech. Currently building ",
+        value:
+          "Software engineer and founder with a background in finance and tech. Currently building ",
       },
       {
         type: "link",

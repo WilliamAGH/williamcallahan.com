@@ -4,9 +4,9 @@
  * Check the slug mapping in S3 and locally
  */
 
-import { readJsonS3 } from "@/lib/s3-utils";
+import { readJsonS3Optional } from "@/lib/s3/json";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
-import type { BookmarkSlugMapping } from "@/types/bookmark";
+import { bookmarkSlugMappingSchema, type BookmarkSlugMapping } from "@/types/bookmark";
 
 async function checkSlugMapping() {
   console.log("=== SLUG MAPPING CHECK ===");
@@ -18,7 +18,10 @@ async function checkSlugMapping() {
     console.log("1. CHECKING S3 SLUG MAPPING:");
     console.log(`   Path: ${BOOKMARKS_S3_PATHS.SLUG_MAPPING}`);
 
-    const s3Mapping = await readJsonS3<BookmarkSlugMapping>(BOOKMARKS_S3_PATHS.SLUG_MAPPING);
+    const s3Mapping = await readJsonS3Optional<BookmarkSlugMapping>(
+      BOOKMARKS_S3_PATHS.SLUG_MAPPING,
+      bookmarkSlugMappingSchema,
+    );
 
     if (!s3Mapping) {
       console.log("   ❌ No slug mapping found in S3");
@@ -40,7 +43,13 @@ async function checkSlugMapping() {
     console.log("");
     console.log("2. SAMPLE SLUGS (first 5):");
     slugEntries.slice(0, 5).forEach(([id, entry]) => {
-      if (typeof entry === "object" && entry !== null && "slug" in entry && "title" in entry && "url" in entry) {
+      if (
+        typeof entry === "object" &&
+        entry !== null &&
+        "slug" in entry &&
+        "title" in entry &&
+        "url" in entry
+      ) {
         console.log(`   ${entry.slug} -> ${id}`);
         console.log(`      Title: ${entry.title}`);
         console.log(`      URL: ${entry.url}`);

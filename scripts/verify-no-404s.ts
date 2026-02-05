@@ -115,13 +115,14 @@ async function processBatch(
       if (!url) break;
 
       const promise = testUrl(url)
-        .then(result => {
+        .then((result) => {
           results.push(result);
           if (isVerbose || !result.ok) {
             const icon = result.ok ? "✅" : "❌";
             const status = result.status || "ERR";
             console.log(`${icon} [${status}] ${result.url} (${result.responseTime}ms)`);
           }
+          return undefined;
         })
         .finally(() => {
           activePromises.delete(promise);
@@ -146,7 +147,7 @@ async function main() {
   const sitemapEntries: MetadataRoute.Sitemap = await sitemap();
 
   // Convert sitemap URLs to use the target base URL
-  const urls = sitemapEntries.map(entry => {
+  const urls = sitemapEntries.map((entry) => {
     // Replace the sitemap's base URL with our test target
     const url = new URL(entry.url);
     const targetUrl = new URL(BASE_URL);
@@ -159,7 +160,9 @@ async function main() {
 
   // Sample URLs if requested
   const urlsToTest =
-    sampleSize && sampleSize < urls.length ? urls.toSorted(() => Math.random() - 0.5).slice(0, sampleSize) : urls;
+    sampleSize && sampleSize < urls.length
+      ? urls.toSorted(() => Math.random() - 0.5).slice(0, sampleSize)
+      : urls;
 
   if (sampleSize) {
     console.log(`Testing random sample of ${urlsToTest.length} URLs`);
@@ -172,16 +175,18 @@ async function main() {
   const duration = Date.now() - startTime;
 
   // Analyze results
-  const successful = results.filter(r => r.ok);
-  const failed = results.filter(r => !r.ok);
-  const notFound = results.filter(r => r.status === 404);
-  const serverErrors = results.filter(r => r.status >= 500);
-  const timeouts = results.filter(r => r.error?.includes("Timeout"));
-  const connectionErrors = results.filter(r => r.error?.includes("Connection refused"));
+  const successful = results.filter((r) => r.ok);
+  const failed = results.filter((r) => !r.ok);
+  const notFound = results.filter((r) => r.status === 404);
+  const serverErrors = results.filter((r) => r.status >= 500);
+  const timeouts = results.filter((r) => r.error?.includes("Timeout"));
+  const connectionErrors = results.filter((r) => r.error?.includes("Connection refused"));
 
   // Calculate stats
-  const avgResponseTime = results.length > 0 ? results.reduce((sum, r) => sum + r.responseTime, 0) / results.length : 0;
-  const slowest = results.length > 0 ? results.toSorted((a, b) => b.responseTime - a.responseTime)[0] : null;
+  const avgResponseTime =
+    results.length > 0 ? results.reduce((sum, r) => sum + r.responseTime, 0) / results.length : 0;
+  const slowest =
+    results.length > 0 ? results.toSorted((a, b) => b.responseTime - a.responseTime)[0] : null;
 
   console.log("\n" + "=".repeat(60));
   console.log("📊 VERIFICATION RESULTS");
@@ -196,7 +201,8 @@ async function main() {
     if (notFound.length > 0) console.log(`   404 Not Found: ${notFound.length}`);
     if (serverErrors.length > 0) console.log(`   5xx Server Errors: ${serverErrors.length}`);
     if (timeouts.length > 0) console.log(`   Timeouts: ${timeouts.length}`);
-    if (connectionErrors.length > 0) console.log(`   Connection Refused: ${connectionErrors.length}`);
+    if (connectionErrors.length > 0)
+      console.log(`   Connection Refused: ${connectionErrors.length}`);
   }
 
   console.log(`\nPerformance:`);
@@ -209,14 +215,14 @@ async function main() {
   // Show failed URLs
   if (notFound.length > 0) {
     console.log("\n🚨 404 NOT FOUND URLs:");
-    notFound.forEach(r => {
+    notFound.forEach((r) => {
       console.log(`   ${r.url}`);
     });
   }
 
   if (serverErrors.length > 0) {
     console.log("\n🚨 SERVER ERROR URLs:");
-    serverErrors.forEach(r => {
+    serverErrors.forEach((r) => {
       console.log(`   [${r.status}] ${r.url}`);
     });
   }
@@ -232,7 +238,7 @@ async function main() {
 }
 
 // Run the verification
-main().catch(error => {
+main().catch((error) => {
   console.error("\n🚨 Fatal error:", error);
   process.exit(1);
 });

@@ -47,7 +47,7 @@ export function searchContent<T>(
 ): ScoredResult<T>[] {
   // Sanitize the query first
   const sanitizedQuery = sanitizeSearchQuery(query);
-  if (!sanitizedQuery) return items.map(item => ({ item, score: 0 }));
+  if (!sanitizedQuery) return items.map((item) => ({ item, score: 0 }));
 
   // Helper to extract item ID
   const extractId = (item: T): string => {
@@ -70,12 +70,12 @@ export function searchContent<T>(
       });
 
       // Reuse pattern from searchBookmarks(): capture scores in a Map
-      const resultIds = new Set(searchResults.map(r => String(r.id)));
-      const scoreById = new Map(searchResults.map(r => [String(r.id), r.score ?? 0] as const));
+      const resultIds = new Set(searchResults.map((r) => String(r.id)));
+      const scoreById = new Map(searchResults.map((r) => [String(r.id), r.score ?? 0] as const));
 
       return items
-        .filter(item => resultIds.has(extractId(item)))
-        .map(item => ({
+        .filter((item) => resultIds.has(extractId(item)))
+        .map((item) => ({
           item,
           score: scoreById.get(extractId(item)) ?? 0,
         }))
@@ -94,7 +94,7 @@ export function searchContent<T>(
   const searchTerms = sanitizedQuery.split(/\s+/).filter(Boolean);
 
   return items
-    .filter(item => {
+    .filter((item) => {
       // First try exact match if exact match field is provided
       if (getExactMatchField) {
         const exactField = getExactMatchField(item);
@@ -110,9 +110,9 @@ export function searchContent<T>(
         .toLowerCase();
 
       // Check if all search terms exist in the combined text
-      return searchTerms.every(term => allContentText.includes(term));
+      return searchTerms.every((term) => allContentText.includes(term));
     })
-    .map(item => {
+    .map((item) => {
       // Calculate a basic relevance score for substring matches
       const exactField = getExactMatchField?.(item)?.toLowerCase() ?? "";
       if (exactField === sanitizedQuery) {

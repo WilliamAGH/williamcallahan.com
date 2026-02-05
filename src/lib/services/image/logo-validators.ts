@@ -3,7 +3,8 @@
  * @module lib/services/image/logo-validators
  */
 
-import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
+import { ServerCacheInstance } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { getBufferHash } from "@/lib/utils/hash-utils";
 import { extractBasicImageMeta } from "@/lib/image-handling/image-metadata";
 import { analyzeImage } from "@/lib/image-handling/image-analysis";
@@ -102,27 +103,36 @@ export class LogoValidators {
     try {
       const formData = new FormData();
       const contentType =
-        response.headers instanceof Map ? response.headers.get("content-type") : response.headers.get("content-type");
+        response.headers instanceof Map
+          ? response.headers.get("content-type")
+          : response.headers.get("content-type");
       formData.append(
         "image",
         new Blob([new Uint8Array(rawBuffer)], { type: contentType ?? "application/octet-stream" }),
         "logo-to-validate",
       );
       formData.append("url", url);
-      const validateResponse = await fetchWithTimeout(new URL("/api/validate-logo", baseUrl).toString(), {
-        method: "POST",
-        body: formData,
-        timeout: 5000,
-      });
+      const validateResponse = await fetchWithTimeout(
+        new URL("/api/validate-logo", baseUrl).toString(),
+        {
+          method: "POST",
+          body: formData,
+          timeout: 5000,
+        },
+      );
       if (validateResponse.ok) {
         const { isGlobeIcon } = (await validateResponse.json()) as { isGlobeIcon: boolean };
         if (isGlobeIcon) {
-          if (isDebug) logger.debug(`[LogoValidators] ${name} detected as globe icon for ${testDomain}`);
+          if (isDebug)
+            logger.debug(`[LogoValidators] ${name} detected as globe icon for ${testDomain}`);
           return true;
         }
       }
     } catch (validateError) {
-      if (isDebug) logger.debug(`[LogoValidators] validate-logo API error for ${testDomain}`, { validateError });
+      if (isDebug)
+        logger.debug(`[LogoValidators] validate-logo API error for ${testDomain}`, {
+          validateError,
+        });
     }
     return false;
   }
@@ -130,7 +140,9 @@ export class LogoValidators {
   /**
    * Process image buffer (resize, optimize)
    */
-  async processImageBuffer(buffer: Buffer): Promise<{ processedBuffer: Buffer; isSvg: boolean; contentType: string }> {
+  async processImageBuffer(
+    buffer: Buffer,
+  ): Promise<{ processedBuffer: Buffer; isSvg: boolean; contentType: string }> {
     return sharedProcessImageBuffer(buffer, "LogoValidators");
   }
 }

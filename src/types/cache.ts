@@ -38,6 +38,20 @@ export type LogoFetchResult = LogoResult & {
 };
 
 /**
+ * Callback type for building LogoFetchResult objects.
+ * Used in logo discovery to maintain encapsulation while allowing different result builders.
+ */
+export type LogoResultBuilder = (
+  domain: string,
+  opts: {
+    s3Key: string;
+    source: import("./logo").LogoSource;
+    contentType: string;
+    isValid: boolean;
+  },
+) => LogoFetchResult;
+
+/**
  * Inverted logo cache entry (metadata only, buffer stored in ImageMemoryManager)
  */
 export interface InvertedLogoEntry {
@@ -58,7 +72,7 @@ export interface InvertedLogoEntry {
  * This allows splitting the ServerCache class logic into multiple files
  * while maintaining type safety for the `this` context in the helper methods.
  */
-export interface ICache {
+export interface Cache {
   get<T>(key: string): T | undefined;
   set<T extends CacheValue>(key: string, value: T, ttl?: number): boolean;
   del(key: string | string[]): void;

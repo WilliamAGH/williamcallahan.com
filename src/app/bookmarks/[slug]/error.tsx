@@ -50,7 +50,9 @@ export default function BookmarkPageError({
 
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-4 rounded-xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-gray-900">
-      <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Something went wrong</h1>
+      <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+        Something went wrong
+      </h1>
       <p className="text-sm text-gray-600 dark:text-gray-400">
         Please try reloading this bookmark. If the problem persists, open it in a new tab.
       </p>

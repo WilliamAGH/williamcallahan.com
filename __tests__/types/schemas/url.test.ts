@@ -59,12 +59,15 @@ describe("URL Schema Validation", () => {
       ];
 
       for (const url of invalidProtocols) {
-        expect(() => safeUrlSchema.parse(url)).toThrow();
+        expect(() => safeUrlSchema.parse(url)).toThrow(/not safe|Invalid/);
       }
     });
 
     it("should reject URLs with credentials", () => {
-      const urlsWithCreds = ["https://user:pass@example.com", "http://admin:secret@example.com/path"];
+      const urlsWithCreds = [
+        "https://user:pass@example.com",
+        "http://admin:secret@example.com/path",
+      ];
 
       for (const url of urlsWithCreds) {
         expect(() => safeUrlSchema.parse(url)).toThrow(/not safe/);
@@ -116,10 +119,12 @@ describe("URL Schema Validation", () => {
 
     it("should inherit safeUrlSchema restrictions", () => {
       // Should reject private IPs
-      expect(() => logoUrlSchema.parse("http://localhost/logo.png")).toThrow();
+      expect(() => logoUrlSchema.parse("http://localhost/logo.png")).toThrow(/not safe|Invalid/);
 
       // Should reject credentials
-      expect(() => logoUrlSchema.parse("https://user:pass@example.com/logo.png")).toThrow();
+      expect(() => logoUrlSchema.parse("https://user:pass@example.com/logo.png")).toThrow(
+        /not safe|Invalid/,
+      );
     });
   });
 
@@ -139,10 +144,10 @@ describe("URL Schema Validation", () => {
 
     it("should inherit safeUrlSchema restrictions", () => {
       // Should reject private IPs
-      expect(() => openGraphUrlSchema.parse("http://192.168.1.1")).toThrow();
+      expect(() => openGraphUrlSchema.parse("http://192.168.1.1")).toThrow(/not safe|Invalid/);
 
       // Should reject file protocol
-      expect(() => openGraphUrlSchema.parse("file:///etc/passwd")).toThrow();
+      expect(() => openGraphUrlSchema.parse("file:///etc/passwd")).toThrow(/not safe|Invalid/);
     });
   });
 
@@ -198,10 +203,14 @@ describe("URL Schema Validation", () => {
 
     it("should handle specific patterns", () => {
       // Should accept hash-based names
-      expect(() => s3KeySchema.parse("a1b2c3d4e5f6789012345678901234567890123456789012345678901234.png")).not.toThrow();
+      expect(() =>
+        s3KeySchema.parse("a1b2c3d4e5f6789012345678901234567890123456789012345678901234.png"),
+      ).not.toThrow();
 
       // Should reject patterns with special characters not in allowed set
-      expect(() => s3KeySchema.parse("images/logos/file@name.png")).toThrow();
+      expect(() => s3KeySchema.parse("images/logos/file@name.png")).toThrow(
+        /Invalid S3 key format/,
+      );
     });
   });
 

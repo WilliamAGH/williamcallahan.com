@@ -1,16 +1,28 @@
 /**
  * OpenGraph Metadata Tests
- * @jest-environment node
+ * @vitest-environment node
  */
 
 import { createArticleOgMetadata, BASE_OG_METADATA } from "@/lib/seo/opengraph";
 import { metadata as siteMetadata } from "@/data/metadata";
 import { isPacificDateString, type OpenGraphImage } from "@/types/seo";
-import { ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { ogMetadataSchema } from "@/types/seo/opengraph";
+import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
-// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
-// Mock process.env for tests
-process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
+// Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
+
+// Snapshot and restore env to prevent cross-test pollution
+const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+beforeAll(() => {
+  process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
+});
+afterAll(() => {
+  if (originalSiteUrl === undefined) {
+    delete process.env.NEXT_PUBLIC_SITE_URL;
+  } else {
+    process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
+  }
+});
 
 describe("OpenGraph Metadata", () => {
   describe("BASE_OG_METADATA", () => {
@@ -126,7 +138,6 @@ describe("OpenGraph Metadata", () => {
     });
 
     it("should handle missing tags", () => {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       const { tags: _tags, ...articleWithoutTags } = mockArticleParams;
       const metadata = createArticleOgMetadata(articleWithoutTags);
 
@@ -141,6 +152,38 @@ describe("OpenGraph Metadata", () => {
       expect(metadata.siteName).toBe(siteMetadata.openGraph.siteName);
       expect(typeof metadata.locale).toBe("string");
       expect(typeof metadata.siteName).toBe("string");
+    });
+  });
+
+  describe("ogMetadataSchema", () => {
+    it("accepts valid https URLs and empty values", () => {
+      const result = ogMetadataSchema.safeParse({
+        image: "https://example.com/image.png",
+        twitterImage: "",
+        profileImage: null,
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects unsafe or invalid URL schemes", () => {
+      const javascriptResult = ogMetadataSchema.safeParse({
+        image: "javascript:alert(1)",
+      });
+      const dataResult = ogMetadataSchema.safeParse({
+        twitterImage: "data:text/html;base64,PHNjcmlwdD4=",
+      });
+
+      expect(javascriptResult.success).toBe(false);
+      expect(dataResult.success).toBe(false);
+    });
+
+    it("rejects relative URLs", () => {
+      const result = ogMetadataSchema.safeParse({
+        url: "/relative/path",
+      });
+
+      expect(result.success).toBe(false);
     });
   });
 });

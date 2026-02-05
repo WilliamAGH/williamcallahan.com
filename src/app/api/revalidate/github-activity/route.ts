@@ -22,11 +22,14 @@ import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
  * @returns JSON response indicating success or failure
  */
 export function POST(request: NextRequest): NextResponse {
-  console.log(`[Cache Invalidation] GitHub activity revalidation endpoint called at ${new Date().toISOString()}`);
+  console.log(
+    `[Cache Invalidation] GitHub activity revalidation endpoint called at ${new Date().toISOString()}`,
+  );
 
   // Verify authorization
   const authHeader = request.headers.get("authorization");
-  const expectedToken = process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+  const expectedToken =
+    process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
 
   if (!expectedToken) {
     console.error("[Cache Invalidation] GITHUB_CRON_REFRESH_SECRET not configured");
@@ -41,7 +44,9 @@ export function POST(request: NextRequest): NextResponse {
   })();
 
   if (presentedToken !== expectedToken) {
-    envLogger.log("Unauthorized GitHub revalidation attempt", undefined, { category: "CacheInvalidation" });
+    envLogger.log("Unauthorized GitHub revalidation attempt", undefined, {
+      category: "CacheInvalidation",
+    });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

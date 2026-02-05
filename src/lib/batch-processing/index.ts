@@ -71,7 +71,7 @@ export class BatchProcessor<T, R> {
       const batch = items.slice(i, Math.min(i + batchSize, items.length));
 
       // Process batch items concurrently with monitoring
-      const batchPromises = batch.map(async item => {
+      const batchPromises = batch.map(async (item) => {
         try {
           // Rate limiting check
           if (rateLimitNamespace) {
@@ -95,7 +95,9 @@ export class BatchProcessor<T, R> {
                 onRetry: (error: unknown, attempt: number) => {
                   if (debug) {
                     const errorMessage = error instanceof Error ? error.message : String(error);
-                    debugLog(`[${this.name}] Retry ${attempt} for item`, "warn", { error: errorMessage });
+                    debugLog(`[${this.name}] Retry ${attempt} for item`, "warn", {
+                      error: errorMessage,
+                    });
                   }
                 },
               });
@@ -139,7 +141,7 @@ export class BatchProcessor<T, R> {
 
       // Delay between batches (skip on last batch)
       if (i + batchSize < items.length) {
-        await new Promise(resolve => setTimeout(resolve, batchDelay));
+        await new Promise((resolve) => setTimeout(resolve, batchDelay));
       }
     }
 
@@ -156,7 +158,11 @@ export class BatchProcessor<T, R> {
    * Process a single item with memory-aware scheduling
    */
   private async processItem(item: T): Promise<R> {
-    return await this.scheduler.scheduleRequest(async () => this.processor(item), RequestPriority.NORMAL, 3);
+    return await this.scheduler.scheduleRequest(
+      async () => this.processor(item),
+      RequestPriority.NORMAL,
+      3,
+    );
   }
 
   /**
@@ -174,7 +180,11 @@ export class BatchProcessor<T, R> {
  * Specialized batch processor for image operations
  */
 export class ImageBatchProcessor<T extends { url: string }> extends BatchProcessor<T, Buffer> {
-  constructor(name: string, fetchImage: (item: T) => Promise<Buffer>, options: BatchProcessorOptions<T> = {}) {
+  constructor(
+    name: string,
+    fetchImage: (item: T) => Promise<Buffer>,
+    options: BatchProcessorOptions<T> = {},
+  ) {
     super(name, fetchImage, {
       // Image-specific defaults
       batchSize: 5, // Lower concurrency for image ops
@@ -199,8 +209,11 @@ export function createS3BatchProcessor<T, R>(
     retryOptions: {
       isRetryable: (error: unknown) => {
         // Retry on S3 throttling or network errors
-        const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
-        return message.includes("throttl") || message.includes("timeout") || message.includes("network");
+        const message =
+          error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+        return (
+          message.includes("throttl") || message.includes("timeout") || message.includes("network")
+        );
       },
     },
     ...options,

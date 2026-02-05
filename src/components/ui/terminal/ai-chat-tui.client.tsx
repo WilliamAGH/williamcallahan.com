@@ -46,7 +46,7 @@ export function ThinkingIndicator({ queueMessage }: { queueMessage?: string | nu
   // Fast spinner animation (80ms per frame)
   useEffect(() => {
     const interval = setInterval(() => {
-      setSpinnerIndex(prev => (prev + 1) % SPINNER_FRAMES.length);
+      setSpinnerIndex((prev) => (prev + 1) % SPINNER_FRAMES.length);
     }, 80);
     return () => clearInterval(interval);
   }, []);
@@ -54,7 +54,7 @@ export function ThinkingIndicator({ queueMessage }: { queueMessage?: string | nu
   // Slower message cycling (3s per message)
   useEffect(() => {
     const interval = setInterval(() => {
-      setMessageIndex(prev => (prev + 1) % LOADING_MESSAGES.length);
+      setMessageIndex((prev) => (prev + 1) % LOADING_MESSAGES.length);
     }, 3000);
     return () => clearInterval(interval);
   }, []);
@@ -62,7 +62,7 @@ export function ThinkingIndicator({ queueMessage }: { queueMessage?: string | nu
   // Animated dots (500ms per dot)
   useEffect(() => {
     const interval = setInterval(() => {
-      setDots(prev => (prev.length >= 3 ? "" : prev + "."));
+      setDots((prev) => (prev.length >= 3 ? "" : prev + "."));
     }, 500);
     return () => clearInterval(interval);
   }, []);
@@ -115,7 +115,8 @@ export function AiChatHeader({ onClearAndExit }: AiChatHeaderProps) {
 export function AiChatEmptyState() {
   return (
     <div className="text-gray-400 text-sm whitespace-pre-wrap mb-4">
-      Type a message to start chatting. Use `ai {"<"}message{">"}` for one-shot replies from the normal prompt.
+      Type a message to start chatting. Use `ai {"<"}message{">"}` for one-shot replies from the
+      normal prompt.
     </div>
   );
 }
@@ -125,22 +126,107 @@ export function AiChatEmptyState() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Input field and thinking indicator for AI chat mode */
-export function AiChatInput({ isSubmitting, queueMessage, onSend, onClearAndExit, onCancelRequest }: AiChatInputProps) {
+export function AiChatInput({
+  isSubmitting,
+  queueMessage,
+  queuedCount,
+  queueLimit,
+  queueNotice,
+  onSend,
+  onClearAndExit,
+  onCancelRequest,
+}: AiChatInputProps) {
   const [input, setInput] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Paste handling: store actual content, display placeholders
+  const pasteMapRef = useRef<Map<string, string>>(new Map());
 
   // Focus input on mount
   useEffect(() => {
-    inputRef.current?.focus();
+    textareaRef.current?.focus();
   }, []);
+
+  // Auto-resize textarea to fit content
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Reset to auto to measure true scrollHeight
+    textarea.style.height = "auto";
+    // Cap at max-height (150px leaves room for history in terminal)
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
+  }, [input]);
+
+  // Handle paste: show placeholder, store actual content for resolution on submit
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const pastedText = e.clipboardData.getData("text");
+      if (!pastedText.trim()) return;
+
+      e.preventDefault();
+
+      // Word count for truncation (pattern from text-chunker.ts)
+      const words = pastedText.split(/\s+/).filter((w) => w.length > 0);
+      const WORD_LIMIT = 12000;
+      const isTruncated = words.length > WORD_LIMIT;
+
+      // Store actual content (truncated if needed)
+      const actualContent = isTruncated ? words.slice(0, WORD_LIMIT).join(" ") : pastedText;
+
+      // Create placeholder
+      const placeholder = isTruncated ? "[Pasted truncated text]" : "[Pasted text]";
+
+      // Store mapping for resolution on submit
+      pasteMapRef.current.set(placeholder, actualContent);
+
+      // Insert at cursor position
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newValue = input.slice(0, start) + placeholder + input.slice(end);
+      setInput(newValue);
+
+      // Position cursor after placeholder
+      requestAnimationFrame(() => {
+        const newPos = start + placeholder.length;
+        textarea.setSelectionRange(newPos, newPos);
+      });
+    },
+    [input],
+  );
 
   const submit = useCallback(async () => {
     const trimmed = input.trim();
-    if (!trimmed || isSubmitting) return;
-    setInput("");
-    await onSend(trimmed);
-    inputRef.current?.focus();
-  }, [input, isSubmitting, onSend]);
+    if (!trimmed) return;
+
+    // Handle "clear" command - same behavior as normal terminal mode
+    if (trimmed.toLowerCase() === "clear") {
+      setInput("");
+      pasteMapRef.current.clear();
+      onClearAndExit();
+      return;
+    }
+
+    // Resolve all paste placeholders to actual content
+    let resolvedText = trimmed;
+    for (const [placeholder, actualContent] of pasteMapRef.current) {
+      resolvedText = resolvedText.replaceAll(placeholder, actualContent);
+    }
+
+    try {
+      const accepted = await onSend(resolvedText);
+      if (!accepted) return;
+      setInput("");
+      pasteMapRef.current.clear();
+    } catch (error) {
+      // Log but don't rethrow - parent handles error state via isSubmitting
+      console.error("[AiChatInput] Send failed:", error);
+    }
+    textareaRef.current?.focus();
+  }, [input, onSend, onClearAndExit]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -169,8 +255,8 @@ export function AiChatInput({ isSubmitting, queueMessage, onSend, onClearAndExit
         return;
       }
 
-      // Enter - submit message
-      if (e.key === "Enter") {
+      // Enter - submit message (Shift+Enter allows newline naturally in textarea)
+      if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         void submit();
       }
@@ -183,58 +269,42 @@ export function AiChatInput({ isSubmitting, queueMessage, onSend, onClearAndExit
       {/* Thinking indicator while waiting for response */}
       {isSubmitting && <ThinkingIndicator queueMessage={queueMessage} />}
 
+      {queuedCount > 0 && (
+        <div className="text-xs text-gray-400 mt-2">
+          Queued messages: {queuedCount}/{queueLimit}
+        </div>
+      )}
+
+      {queueNotice ? <div className="text-xs text-amber-300 mt-2">{queueNotice}</div> : null}
+
       {/* Input field */}
-      <div className="flex items-center gap-2">
-        <span className="text-[#7aa2f7] select-none shrink-0">&gt;</span>
+      <div className="flex items-start gap-2">
+        <span className="text-[#7aa2f7] select-none shrink-0 mt-0.5">&gt;</span>
         <div className="relative flex-1 transform-gpu">
-          <input
-            ref={inputRef}
-            type="text"
+          <textarea
+            ref={textareaRef}
             value={input}
-            onChange={e => setInput(e.target.value)}
-            disabled={isSubmitting}
+            onChange={(e) => setInput(e.target.value)}
+            onPaste={handlePaste}
+            rows={1}
             className="bg-transparent w-full focus:outline-none text-gray-200 caret-gray-200
-                text-[16px] transform-gpu scale-[0.875] origin-left disabled:opacity-50 disabled:cursor-not-allowed"
+                text-[16px] transform-gpu scale-[0.875] origin-left disabled:opacity-50
+                disabled:cursor-not-allowed resize-none overflow-y-auto leading-normal"
             style={{
               /* Offset the larger font size to maintain layout */
               margin: "-0.125rem 0",
+              minHeight: "1.5em",
+              maxHeight: "150px",
             }}
-            placeholder={isSubmitting ? "Waiting for response..." : "Send a message"}
+            placeholder={
+              isSubmitting
+                ? "Queue a message (Shift+Enter for newline)"
+                : "Send a message (Shift+Enter for newline)"
+            }
             aria-label="AI chat message input"
           />
         </div>
       </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Legacy export for backward compatibility (if needed during transition)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * @deprecated Use AiChatHeader, AiChatInput, and History separately
- * This wrapper is provided for backward compatibility during transition
- */
-export function AiChatTui(props: {
-  isSubmitting: boolean;
-  queueMessage?: string | null;
-  onExit: () => void;
-  onClearAndExit: () => void;
-  onSend: (userText: string) => Promise<void> | void;
-  onCancelRequest: () => void;
-}) {
-  return (
-    <div data-testid="ai-chat-tui">
-      <AiChatHeader onClearAndExit={props.onClearAndExit} />
-      <AiChatEmptyState />
-      <AiChatInput
-        isSubmitting={props.isSubmitting}
-        queueMessage={props.queueMessage}
-        onSend={props.onSend}
-        onClearAndExit={props.onClearAndExit}
-        onCancelRequest={props.onCancelRequest}
-      />
     </div>
   );
 }

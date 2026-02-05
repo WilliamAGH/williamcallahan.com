@@ -13,7 +13,7 @@ describe("Plausible Analytics Frozen Array Handling", () => {
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   // Helper function to simulate the plausible script behavior

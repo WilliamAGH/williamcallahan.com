@@ -42,7 +42,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const debugSecret = process.env.DEBUG_API_SECRET;
 
     if (!debugSecret || authHeader !== `Bearer ${debugSecret}`) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS });
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401, headers: NO_STORE_HEADERS },
+      );
     }
 
     // In production, return a simple "not available" message instead of throwing an error
@@ -72,7 +75,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (dirExists) {
       dirContents = await fs.readdir(postsDir);
-      mdxFiles = dirContents.filter(file => file.endsWith(".mdx"));
+      mdxFiles = dirContents.filter((file) => file.endsWith(".mdx"));
     }
 
     // Get all MDX posts with error handling
@@ -92,7 +95,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Check author validity - fix misused promises by using Promise.all
     const authorIssues: AuthorIssue = {};
-    const authorPromises = mdxFiles.map(async filename => {
+    const authorPromises = mdxFiles.map(async (filename) => {
       try {
         const fileContent = await fs.readFile(path.join(postsDir, filename), "utf8");
         const authorMatch = fileContent.match(/author:\s*["']([^"']+)["']/);
@@ -105,7 +108,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           authorIssues[filename] = "No author found in frontmatter";
         }
       } catch (error) {
-        authorIssues[filename] = `Error checking author: ${error instanceof Error ? error.message : String(error)}`;
+        authorIssues[filename] =
+          `Error checking author: ${error instanceof Error ? error.message : String(error)}`;
       }
     });
 
@@ -113,7 +117,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Collect frontmatter issues - fix misused promises by using Promise.all
     const frontmatterIssues: FrontmatterIssue = {};
-    const frontmatterPromises = mdxFiles.map(async filename => {
+    const frontmatterPromises = mdxFiles.map(async (filename) => {
       try {
         const fileContent = await fs.readFile(path.join(postsDir, filename), "utf8");
         const requiredFields = ["title", "excerpt", "author", "slug", "publishedAt"];
@@ -142,7 +146,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Create a type-safe version of the posts array
     const combinedPosts: { slug: string }[] = [
       ...mdxPosts,
-      ...(staticPosts ? staticPosts.map(post => ({ slug: post.slug })) : []),
+      ...(staticPosts ? staticPosts.map((post) => ({ slug: post.slug })) : []),
     ];
 
     return NextResponse.json({
@@ -160,7 +164,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         staticCount: staticPosts ? staticPosts.length : 0,
         mdxCount: mdxPosts.length,
         total: (staticPosts ? staticPosts.length : 0) + mdxPosts.length,
-        validSlugs: combinedPosts.map(post => post.slug),
+        validSlugs: combinedPosts.map((post) => post.slug),
         duplicateSlugs: findDuplicateSlugs(combinedPosts),
       },
       authors: {
@@ -185,7 +189,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         stack: undefined,
       },
       {
-        status: error instanceof Error && error.message.includes("only available in development") ? 403 : 500,
+        status:
+          error instanceof Error && error.message.includes("only available in development")
+            ? 403
+            : 500,
       },
     );
   }
@@ -193,7 +200,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 // Helper function to find duplicate slugs
 function findDuplicateSlugs(posts: { slug: string }[]): string[] {
-  const slugs = posts.map(post => post.slug);
+  const slugs = posts.map((post) => post.slug);
   const uniqueSlugs = new Set(slugs);
 
   if (slugs.length === uniqueSlugs.size) {

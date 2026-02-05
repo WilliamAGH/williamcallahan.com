@@ -8,7 +8,8 @@ import { getClientIp } from "@/lib/utils/request-utils";
 import logger from "@/lib/utils/logger";
 import { normalizeString } from "@/lib/utils";
 import { safeJsonParse } from "@/lib/utils/json-utils";
-import { NO_STORE_HEADERS, preventCaching } from "@/lib/utils/api-utils";
+import { cfVisitorSchema } from "@/types/schemas/api";
+import { NO_STORE_HEADERS, preventCaching, requireCloudflareHeaders } from "@/lib/utils/api-utils";
 
 const TOKEN_RATE_LIMIT = {
   maxRequests: 30,
@@ -22,7 +23,8 @@ const HTTP_COOKIE_NAME = "ai_gate_nonce";
 function isAllowedHostname(hostname: string): boolean {
   const lower = normalizeString(hostname);
   if (lower === "williamcallahan.com" || lower.endsWith(".williamcallahan.com")) return true;
-  if (process.env.NODE_ENV !== "production" && (lower === "localhost" || lower === "127.0.0.1")) return true;
+  if (process.env.NODE_ENV !== "production" && (lower === "localhost" || lower === "127.0.0.1"))
+    return true;
   return false;
 }
 
@@ -49,6 +51,14 @@ function getRequestOriginHostname(request: NextRequest): string | null {
 }
 
 function isSecureRequest(request: NextRequest): boolean {
+  const cfVisitor = request.headers.get("cf-visitor");
+  if (cfVisitor) {
+    const parsed = safeJsonParse(cfVisitor, cfVisitorSchema);
+    if (parsed?.scheme) {
+      return normalizeString(parsed.scheme) === "https";
+    }
+  }
+
   const forwardedProto = request.headers.get("x-forwarded-proto");
   if (forwardedProto) {
     return normalizeString(forwardedProto.split(",")[0] ?? "") === "https";
@@ -68,19 +78,19 @@ function isSecureRequest(request: NextRequest): boolean {
     return true;
   }
 
-  const cfVisitor = request.headers.get("cf-visitor");
-  if (cfVisitor) {
-    const parsed = safeJsonParse<{ scheme?: string }>(cfVisitor);
-    if (parsed?.scheme && typeof parsed.scheme === "string") {
-      return normalizeString(parsed.scheme) === "https";
-    }
-  }
-
   return request.nextUrl.protocol === "https:";
 }
 
 export function GET(request: NextRequest): NextResponse {
   preventCaching();
+  const cloudflareResponse = requireCloudflareHeaders(request.headers, {
+    route: "/api/ai/token",
+    additionalHeaders: NO_STORE_HEADERS,
+  });
+  if (cloudflareResponse) {
+    return cloudflareResponse;
+  }
+
   const originHost = getRequestOriginHostname(request);
   if (!originHost || !isAllowedHostname(originHost)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403, headers: NO_STORE_HEADERS });
@@ -105,7 +115,10 @@ export function GET(request: NextRequest): NextResponse {
   const secret = process.env.AI_TOKEN_SIGNING_SECRET?.trim();
   if (!secret) {
     logger.error("[AI Token] AI_TOKEN_SIGNING_SECRET is not configured");
-    return NextResponse.json({ error: "AI token service not configured" }, { status: 503, headers: NO_STORE_HEADERS });
+    return NextResponse.json(
+      { error: "AI token service not configured" },
+      { status: 503, headers: NO_STORE_HEADERS },
+    );
   }
 
   const nonce = crypto.randomUUID();

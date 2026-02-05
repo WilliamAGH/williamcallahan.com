@@ -10,7 +10,9 @@ import { normalizeString } from "@/lib/utils";
 import type { Environment } from "@/types/config";
 
 const shouldLogEnvironmentInfo =
-  process.env.DEBUG_ENVIRONMENT === "true" || process.env.DEBUG === "true" || process.env.VERBOSE === "true";
+  process.env.DEBUG_ENVIRONMENT === "true" ||
+  process.env.DEBUG === "true" ||
+  process.env.VERBOSE === "true";
 
 let loggedExplicitDeploymentEnv: string | null = null;
 let loggedInvalidDeploymentWarning = false;
@@ -34,11 +36,15 @@ const logEnvironmentInfo = (message: string): void => {
  * build-time and runtime to prevent environment-specific file mismatches.
  */
 export function getEnvironment(): Environment {
-  const isJest = typeof process !== "undefined" && !!process.env.JEST_WORKER_ID;
+  const isTestRuntime =
+    typeof process !== "undefined" &&
+    (process.env.NODE_ENV === "test" ||
+      process.env.VITEST === "true" ||
+      process.env.TEST === "true");
 
   // PRIORITY 1: Use explicit DEPLOYMENT_ENV if set (for build-time consistency)
-  // In Jest, ignore DEPLOYMENT_ENV so tests can control behavior via NODE_ENV
-  const deploymentEnv = isJest ? undefined : process.env.DEPLOYMENT_ENV;
+  // In tests, ignore DEPLOYMENT_ENV so tests can control behavior via NODE_ENV
+  const deploymentEnv = isTestRuntime ? undefined : process.env.DEPLOYMENT_ENV;
   if (deploymentEnv) {
     const normalizedInput = normalizeString(deploymentEnv);
     const normalized =
@@ -58,18 +64,21 @@ export function getEnvironment(): Environment {
     }
     // Log warning for invalid DEPLOYMENT_ENV values
     if (!loggedInvalidDeploymentWarning) {
-      logger.warn(`[Environment] Invalid DEPLOYMENT_ENV value: '${deploymentEnv}', falling back to URL detection`);
+      logger.warn(
+        `[Environment] Invalid DEPLOYMENT_ENV value: '${deploymentEnv}', falling back to URL detection`,
+      );
       loggedInvalidDeploymentWarning = true;
     }
   }
 
   // PRIORITY 2: Try to infer from URLs (runtime detection)
-  // Prefer explicit env vars. In Jest, allow jsdom location only when NODE_ENV is 'test',
+  // Prefer explicit env vars. In tests, allow jsdom location only when NODE_ENV is 'test',
   // so tests that switch NODE_ENV to 'production' can validate production behavior.
   let apiUrl: string | undefined = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL;
-  if (!apiUrl && isJest && normalizeString(process.env.NODE_ENV || "test") === "test") {
+  if (!apiUrl && isTestRuntime && normalizeString(process.env.NODE_ENV || "test") === "test") {
     try {
-      const loc = (globalThis as unknown as { location?: { href?: string; origin?: string } }).location;
+      const loc = (globalThis as unknown as { location?: { href?: string; origin?: string } })
+        .location;
       apiUrl = loc?.origin || loc?.href || undefined;
     } catch {
       // ignore
@@ -86,17 +95,24 @@ export function getEnvironment(): Environment {
       return "development";
     }
 
-    // Check if it's dev.williamcallahan.com
-    if (apiUrl.includes("dev.williamcallahan.com")) {
-      if (!loggedDetectionMessages.has("dev-domain")) {
-        logEnvironmentInfo("[Environment] Detected dev.williamcallahan.com - using development");
-        loggedDetectionMessages.add("dev-domain");
+    // Check if it's a development subdomain (alpha., dev., sandbox.)
+    const devSubdomains = ["alpha.", "dev.", "sandbox."];
+    const matchedDevSubdomain = devSubdomains.find((sub) =>
+      apiUrl.includes(`${sub}williamcallahan.com`),
+    );
+    if (matchedDevSubdomain) {
+      const logKey = `${matchedDevSubdomain}domain`;
+      if (!loggedDetectionMessages.has(logKey)) {
+        logEnvironmentInfo(
+          `[Environment] Detected ${matchedDevSubdomain}williamcallahan.com - using development`,
+        );
+        loggedDetectionMessages.add(logKey);
       }
       return "development";
     }
 
-    // Check if it's production williamcallahan.com
-    if (apiUrl.includes("williamcallahan.com") && !apiUrl.includes("dev.")) {
+    // Check if it's production williamcallahan.com (no dev subdomain)
+    if (apiUrl.includes("williamcallahan.com")) {
       if (!loggedDetectionMessages.has("prod-domain")) {
         logEnvironmentInfo("[Environment] Detected williamcallahan.com - using production");
         loggedDetectionMessages.add("prod-domain");
@@ -179,7 +195,9 @@ export function validateEnvironmentPath(path: string): boolean {
     // OR in the directory path (e.g., pages-dev/page-1.json)
     if (!path.includes(expectedEnding) && !path.includes(expectedDir)) {
       logger.error(`[Environment] Path missing ${env} suffix: ${path}`);
-      logger.error(`[Environment] Expected '${expectedEnding}' in filename OR '${expectedDir}' in directory`);
+      logger.error(
+        `[Environment] Expected '${expectedEnding}' in filename OR '${expectedDir}' in directory`,
+      );
       return false;
     }
   }

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 window.plausible =
   window.plausible ||
   ((...args) => {
@@ -6,7 +5,7 @@ window.plausible =
     if (!window.plausible.q) {
       window.plausible.q = [];
     }
-    
+
     // Defensive push - handle frozen or read-only arrays
     // This fixes iOS Safari 14.4 compatibility where arrays may be frozen
     try {

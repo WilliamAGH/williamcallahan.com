@@ -1,12 +1,12 @@
-import { describe, it, expect, jest, beforeEach } from "@jest/globals";
+import { vi } from "vitest";
 
 import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import type { UnifiedBookmark } from "@/types";
 
 describe("Bookmarks lock + freshness behavior (unit)", () => {
   beforeEach(() => {
-    jest.resetModules();
-    jest.clearAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     process.env.BOOKMARKS_LOCK_TTL_MS = "300000"; // 5 minutes
     process.env.MIN_BOOKMARKS_THRESHOLD = "1"; // Allow single bookmark for testing
     process.env.NODE_ENV = "test"; // Ensure we're in test mode
@@ -18,8 +18,8 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
     const writes: string[] = [];
     const deletes: string[] = [];
 
-    jest.doMock("@/lib/s3-utils", () => ({
-      readJsonS3: jest.fn((key: string) => {
+    vi.doMock("@/lib/s3/json", () => ({
+      readJsonS3Optional: vi.fn((key: string) => {
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           return Promise.resolve(lockState);
         }
@@ -37,21 +37,34 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
         }
         return Promise.resolve(null);
       }),
-      writeJsonS3: jest.fn((key: string, value: unknown) => {
+      readJsonS3: vi.fn((key: string) => {
+        if (key === BOOKMARKS_S3_PATHS.LOCK) {
+          return Promise.resolve(lockState);
+        }
+        return Promise.resolve(null);
+      }),
+      writeJsonS3: vi.fn((key: string, value: unknown) => {
         writes.push(key);
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           lockState = value;
         }
         return Promise.resolve();
       }),
-      deleteFromS3: jest.fn((key: string) => {
+    }));
+    vi.doMock("@/lib/s3/objects", () => ({
+      deleteFromS3: vi.fn((key: string) => {
         deletes.push(key);
         if (key === BOOKMARKS_S3_PATHS.LOCK) {
           lockState = null;
         }
         return Promise.resolve();
       }),
-      listS3Objects: jest.fn(() => Promise.resolve([])),
+      listS3Objects: vi.fn(() => Promise.resolve([])),
+    }));
+    vi.doMock("@/lib/bookmarks/enrich-opengraph", () => ({
+      processBookmarksInBatches: vi.fn((bookmarks: UnifiedBookmark[]) =>
+        Promise.resolve(bookmarks),
+      ),
     }));
 
     const {

@@ -9,9 +9,49 @@ import { z } from "zod/v4";
  * Content types that can be related/recommended.
  * Matches RelatedContentType from types/related-content.ts
  */
-export const relatedContentTypeSchema = z.enum(["bookmark", "blog", "investment", "project", "thought", "book"]);
+export const relatedContentTypeSchema = z.enum([
+  "bookmark",
+  "blog",
+  "investment",
+  "project",
+  "thought",
+  "book",
+]);
 
 export type RelatedContentTypeFromSchema = z.infer<typeof relatedContentTypeSchema>;
+
+/**
+ * Configuration for similarity scoring weights.
+ * All values should be between 0 and 1.
+ */
+export const similarityWeightsSchema = z.object({
+  /** Weight for tag matches (0-1) */
+  tagMatch: z.number().min(0).max(1).optional(),
+  /** Weight for text similarity (0-1) */
+  textSimilarity: z.number().min(0).max(1).optional(),
+  /** Weight for domain matches (0-1) */
+  domainMatch: z.number().min(0).max(1).optional(),
+  /** Weight for recency (0-1) */
+  recency: z.number().min(0).max(1).optional(),
+});
+
+export type SimilarityWeightsFromSchema = z.infer<typeof similarityWeightsSchema>;
+
+export const contentGraphMetadataSchema = z.object({
+  version: z.string(),
+  generated: z.string(),
+  counts: z.object({
+    total: z.number(),
+    bookmarks: z.number(),
+    blog: z.number(),
+    investments: z.number(),
+    projects: z.number(),
+  }),
+  uniqueTags: z.number(),
+  environment: z.string(),
+});
+
+export type ContentGraphMetadataFromSchema = z.infer<typeof contentGraphMetadataSchema>;
 
 export const createRelatedContentDebugParamsSchema = ({
   maxLimit,

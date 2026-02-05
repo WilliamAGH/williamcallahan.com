@@ -16,8 +16,8 @@ export function parseCSV<T = CSVRow>(csvString: string, options: CSVParseOptions
 
   const lines = csvString
     .split("\n")
-    .map(line => line.trim())
-    .filter(line => !skipEmpty || line.length > 0);
+    .map((line) => line.trim())
+    .filter((line) => !skipEmpty || line.length > 0);
 
   if (lines.length === 0) {
     return [];
@@ -83,7 +83,7 @@ export function generateCSV<T>(
     } else if (typeof row === "object" && row !== null) {
       // If headers are provided, use them to determine order
       if (headers) {
-        const values = headers.map(header => {
+        const values = headers.map((header) => {
           const value = (row as Record<string, unknown>)[header];
           // Handle null/undefined
           if (value == null) return "";
@@ -92,7 +92,11 @@ export function generateCSV<T>(
             return JSON.stringify(value);
           }
           // Convert primitives to string - explicit type checking to avoid base-to-string warning
-          if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+          if (
+            typeof value === "string" ||
+            typeof value === "number" ||
+            typeof value === "boolean"
+          ) {
             return String(value);
           }
           // Fallback for other types (like symbols, functions, etc.)
@@ -101,7 +105,7 @@ export function generateCSV<T>(
         lines.push(values.join(delimiter));
       } else {
         // Use object keys
-        const values = Object.values(row).map(v => {
+        const values = Object.values(row).map((v) => {
           // Handle null/undefined
           if (v == null) return "";
           // Handle objects and arrays by JSON stringification
@@ -122,9 +126,12 @@ export function generateCSV<T>(
 /**
  * Validate CSV data for common issues
  */
-export function validateCSV(csvString: string, expectedColumns?: number): { valid: boolean; errors: string[] } {
+export function validateCSV(
+  csvString: string,
+  expectedColumns?: number,
+): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  const lines = csvString.split("\n").filter(line => line.trim());
+  const lines = csvString.split("\n").filter((line) => line.trim());
 
   if (lines.length === 0) {
     errors.push("CSV is empty");
@@ -162,7 +169,7 @@ export function parseGitHubStatsCSV(csvString: string): Array<{
   d: number;
   c: number;
 }> {
-  return parseCSV<string[]>(csvString, { headers: false }).map(row => ({
+  return parseCSV<string[]>(csvString, { headers: false }).map((row) => ({
     w: Number(row[0]) || 0,
     a: Number(row[1]) || 0,
     d: Number(row[2]) || 0,
@@ -173,6 +180,8 @@ export function parseGitHubStatsCSV(csvString: string): Array<{
 /**
  * Generate GitHub weekly stats CSV
  */
-export function generateGitHubStatsCSV(stats: Array<{ w: number; a: number; d: number; c: number }>): string {
-  return stats.map(stat => `${stat.w},${stat.a},${stat.d},${stat.c}`).join("\n");
+export function generateGitHubStatsCSV(
+  stats: Array<{ w: number; a: number; d: number; c: number }>,
+): string {
+  return stats.map((stat) => `${stat.w},${stat.a},${stat.d},${stat.c}`).join("\n");
 }

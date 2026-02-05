@@ -122,7 +122,12 @@ export function safeStringifyValue(value: unknown): string {
   } catch {
     // Fallback for objects that cannot be stringified (e.g., circular references)
     let constructorName = "unknown type";
-    if (typeof value === "object" && value !== null && value.constructor && value.constructor.name) {
+    if (
+      typeof value === "object" &&
+      value !== null &&
+      value.constructor &&
+      value.constructor.name
+    ) {
       constructorName = value.constructor.name;
     }
     return `[Unstringifiable ${constructorName} value]`;
@@ -163,7 +168,10 @@ export function wrapError<T extends Error>(
 /**
  * Check if an error is of a specific custom error type
  */
-export function isErrorOfType<T extends Error>(error: unknown, errorType: new (...args: unknown[]) => T): error is T {
+export function isErrorOfType<T extends Error>(
+  error: unknown,
+  errorType: new (...args: unknown[]) => T,
+): error is T {
   return error instanceof errorType;
 }
 
@@ -206,7 +214,7 @@ export function getProperty(error: ExtendedError, property: string): number | un
 
 /**
  * Determine if an error is retryable based on its type and message
- * Consolidates retry logic from http-client.ts, github-api.ts, s3-utils.ts, etc.
+ * Consolidates retry logic from http-client.ts, github-api.ts, lib/s3/*, etc.
  */
 export function isRetryableError(error: unknown, domain?: string): boolean {
   const category = categorizeError(error, domain);
@@ -351,7 +359,11 @@ function isRetryableS3Error(error: unknown): boolean {
   }
 
   // Permanent failures
-  if (message.includes("nosuchkey") || message.includes("access denied") || message.includes("invalid")) {
+  if (
+    message.includes("nosuchkey") ||
+    message.includes("access denied") ||
+    message.includes("invalid")
+  ) {
     return false;
   }
 
@@ -406,7 +418,10 @@ export function normalizeError(error: unknown, context?: Record<string, unknown>
     const message = "message" in error ? String(error.message) : "Unknown error";
     const err = new Error(message);
     if (context) {
-      (err as Error & { context?: Record<string, unknown> }).context = { ...context, originalError: error };
+      (err as Error & { context?: Record<string, unknown> }).context = {
+        ...context,
+        originalError: error,
+      };
     }
     return err;
   }
