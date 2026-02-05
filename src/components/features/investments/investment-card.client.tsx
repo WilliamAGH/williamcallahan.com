@@ -16,7 +16,7 @@
  * ```
  */
 
-import { LogoImage } from "@/components/ui";
+import { LogoImage } from "@/components/ui/logo-image.client";
 import { ExternalLink } from "@/components/ui/external-link.client";
 import { ExternalLink as ExternalLinkIcon } from "lucide-react";
 import type { InvestmentCardExtendedProps } from "@/types/features/investments";
