@@ -16,7 +16,7 @@ import type { UnifiedBookmark } from "@/types";
 import type { CachedSlugMapping } from "@/types/cache";
 import type { BookmarkSlugMapping } from "@/types/bookmark";
 import logger from "@/lib/utils/logger";
-import { getDeterministicTimestamp } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 
 // Cache the slug mapping with TTL for automatic invalidation
 let cachedMapping: CachedSlugMapping | null = null;

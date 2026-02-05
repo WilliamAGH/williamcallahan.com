@@ -1,0 +1,46 @@
+# [BND1] Ban server-only/mixed imports from Client Components
+#
+# A file that contains `"use client";` must not import server-only modules or
+# mixed barrels that re-export Server Components.
+#
+# Banned module specifiers:
+# - @/lib/server-cache (server-only guard at module evaluation)
+# - @/lib/seo/utils (date utils + deterministic timestamp; keep client URL helpers separate)
+# - @/components/ui (mixed barrel; import leaf modules instead)
+
+id: no-client-server-boundary-imports
+language: typescript
+severity: error
+message: "[BND1] Client Component boundary violation. Fix: import leaf modules or client-safe utilities (e.g. @/lib/seo/url-utils)."
+
+rule:
+  kind: program
+  all:
+    - has:
+        pattern: '"use client";'
+    - any:
+        - has:
+            pattern: 'import $$$A from "$PATH";'
+        - has:
+            pattern: 'import type $$$A from "$PATH";'
+        - has:
+            pattern: 'import "$PATH";'
+
+constraints:
+  PATH:
+    regex: (^@/lib/server-cache$|/lib/server-cache$|^@/lib/seo/utils$|/lib/seo/utils$|^@/components/ui$|/components/ui$)
+
+files:
+  - "src/**/*.ts"
+  - "src/**/*.tsx"
+  - "app/**/*.ts"
+  - "app/**/*.tsx"
+
+ignores:
+  - "node_modules/**"
+  - "**/*.d.ts"
+  - "**/__tests__/**"
+  - "**/__mocks__/**"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"

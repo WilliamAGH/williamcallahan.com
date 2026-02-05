@@ -9,7 +9,7 @@
  */
 import { assertServerOnly } from "./utils";
 import { envLogger } from "@/lib/utils/env-logger";
-import { getMonotonicTime, FIXED_BUILD_TIMESTAMP } from "@/lib/utils";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 
 import type { Cache, CacheStats, CacheValue, ServerCacheMapEntry } from "@/types/cache";
 import { SERVER_CACHE_DURATION, MEMORY_THRESHOLDS } from "./constants";
@@ -25,17 +25,6 @@ import * as searchHelpers from "./server-cache/search";
 import * as aggregatedContentHelpers from "./server-cache/aggregated-content";
 
 assertServerOnly();
-
-const isProductionBuildPhase = () => process.env.NEXT_PHASE === "phase-production-build";
-const buildPhaseTimestamp = isProductionBuildPhase() ? getMonotonicTime() : undefined;
-
-export const getDeterministicTimestamp = (): number => {
-  if (isProductionBuildPhase()) {
-    // Return the captured timestamp or a safe fallback (never call dynamic time functions during build)
-    return buildPhaseTimestamp ?? FIXED_BUILD_TIMESTAMP;
-  }
-  return getMonotonicTime();
-};
 
 export class ServerCache implements Cache {
   private readonly cache = new Map<string, ServerCacheMapEntry>();

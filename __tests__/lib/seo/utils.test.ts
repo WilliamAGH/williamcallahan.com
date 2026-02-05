@@ -7,7 +7,8 @@
  * @vitest-environment node
  */
 
-import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate } from "@/lib/seo/utils";
+import { ensureAbsoluteUrl, getImageTypeFromUrl } from "@/lib/seo/url-utils";
+import { formatSeoDate } from "@/lib/seo/utils";
 import { isPacificDateString } from "@/types/seo";
 
 // Mock must be defined before importing the mocked module

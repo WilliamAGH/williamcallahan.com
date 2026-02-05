@@ -4,7 +4,7 @@ import { Blog } from "@/components/features/blog/blog.client";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { metadata, PAGE_METADATA } from "@/data/metadata";
-import { ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import {
   generateDynamicTitle,
   generateTagDescription,

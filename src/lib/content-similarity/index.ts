@@ -10,7 +10,7 @@ import type {
   SimilarityWeights,
   RelatedContentType,
 } from "@/types/related-content";
-import { getDeterministicTimestamp } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { getRootDomain } from "@/lib/utils/url-utils";
 import { hasInvestmentContext } from "./keyword-extractor";
 import { calculateSemanticTagSimilarity } from "./tag-ontology";

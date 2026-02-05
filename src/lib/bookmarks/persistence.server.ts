@@ -18,7 +18,7 @@ import type { BookmarksIndex } from "@/types/bookmark";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
 import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { tagToSlug } from "@/lib/utils/tag-utils";
-import { getDeterministicTimestamp } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {

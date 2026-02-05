@@ -3,7 +3,8 @@
  * @module lib/services/image/logo-validators
  */
 
-import { ServerCacheInstance, getDeterministicTimestamp } from "@/lib/server-cache";
+import { ServerCacheInstance } from "@/lib/server-cache";
+import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { getBufferHash } from "@/lib/utils/hash-utils";
 import { extractBasicImageMeta } from "@/lib/image-handling/image-metadata";
 import { analyzeImage } from "@/lib/image-handling/image-analysis";

@@ -51,7 +51,7 @@
     "lint:ox": "oxlint -c .oxlintrc.json .",
     "lint:oxlint": "oxlint -c .oxlintrc.json .",
     "lint:ox:typeaware": "oxlint -c .oxlintrc.json --type-aware .",
-    "lint:ast-grep": "ast-grep scan --rule rules/ast-grep/ban-i-prefix-interface.yml && ast-grep scan --rule rules/ast-grep/no-test-mock-files-outside-mocks.yml && ast-grep scan --rule rules/ast-grep/no-unsafe-casts.yml",
+    "lint:ast-grep": "ast-grep scan --rule rules/ast-grep/ban-i-prefix-interface.yml && ast-grep scan --rule rules/ast-grep/no-test-mock-files-outside-mocks.yml && ast-grep scan --rule rules/ast-grep/no-unsafe-casts.yml && ast-grep scan --rule rules/ast-grep/no-client-server-boundary-imports.yml",
     "lint:image-proxy": "ast-grep scan --rule rules/ast-grep/no-cdn-image-proxy.yml || true",
     "lint:fix": "oxlint -c .oxlintrc.json --fix . && eslint . --config eslint.config.ts --fix",
     "type-check": "NODE_OPTIONS='--max-old-space-size=4096' bunx tsc --noEmit",

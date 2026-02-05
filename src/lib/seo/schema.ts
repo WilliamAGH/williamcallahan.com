@@ -40,7 +40,7 @@ import type {
   WebPageBase,
   WebSiteSchema,
 } from "../../types/seo/schema";
-import { ensureAbsoluteUrl } from "./utils";
+import { ensureAbsoluteUrl } from "./url-utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /**
