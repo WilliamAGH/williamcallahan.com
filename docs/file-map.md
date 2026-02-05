@@ -416,6 +416,12 @@ File/Path Functionality Description
 
 - [x] `.browserslistrc` `config` - Browserslist configuration
 - [x] `.remarkrc.mjs` `config` - Remark (Markdown processor) configuration
+- [x] **eslint/** `linting-formatting` - ESLint custom rules (project-specific)
+  - [x] **rules/**
+    - [x] `no-duplicate-types-rule.ts` `linting-formatting` - Enforces globally unique type/interface/enum names
+- [x] **oxlint/** `linting-formatting` - Oxlint JS plugins (experimental)
+  - [x] **js-plugins/**
+    - [x] `s3-no-hardcoded-images.mjs` `image-handling` - Prevents hardcoded `/images/*` usage; enforces `getStaticImageUrl()`
 - [x] `happydom.ts` `testing-config` - Happy DOM (test environment) configuration
 - [x] `tools.config.js` `config` - Master configuration for multiple tools
 - [x] **vitest/** `testing-config` - Vitest test framework configuration files

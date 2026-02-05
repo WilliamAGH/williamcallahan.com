@@ -1,5 +1,11 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "jsPlugins": [
+    {
+      "specifier": "./config/oxlint/js-plugins/s3-no-hardcoded-images.mjs",
+      "name": "s3"
+    }
+  ],
   "plugins": [
     "unicorn",
     "oxc",
@@ -11,7 +17,11 @@
     "promise",
     "nextjs"
   ],
-  "env": { "browser": true, "node": true, "es2023": true },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2023": true
+  },
   "categories": {
     "correctness": "error",
     "suspicious": "error",
@@ -20,22 +30,72 @@
     "pedantic": "off"
   },
   "rules": {
-    "typescript/no-unsafe-type-assertion": "off",
-    "typescript/no-redundant-type-constituents": "warn",
-    "typescript/no-unnecessary-type-assertion": "warn",
-    "typescript/no-base-to-string": "off",
-    "typescript/no-unnecessary-type-arguments": "warn",
-    "typescript/no-floating-promises": "off",
-    "typescript/restrict-template-expressions": "off",
-    "typescript/no-unnecessary-boolean-literal-compare": "warn",
-    "import/no-unassigned-import": "warn",
-    "import/no-mutable-exports": "error",
-    "import/no-duplicates": "error",
-    "import/no-empty-named-blocks": "error",
+    "default-param-last": "error",
+    "eqeqeq": [
+      "error",
+      "always",
+      {
+        "null": "ignore"
+      }
+    ],
+    "func-style": [
+      "warn",
+      "declaration",
+      {
+        "allowArrowFunctions": true
+      }
+    ],
+    "import/default": "off",
+    "import/namespace": "off",
     "import/no-cycle": "warn",
-    "import/no-self-import": "error",
+    "import/no-duplicates": "error",
+    "import/no-mutable-exports": "error",
     "import/no-named-as-default": "warn",
     "import/no-named-as-default-member": "warn",
+    "import/no-unassigned-import": "warn",
+    "max-params": [
+      "warn",
+      {
+        "max": 9
+      }
+    ],
+    "nextjs/google-font-display": "warn",
+    "nextjs/google-font-preconnect": "warn",
+    "nextjs/no-before-interactive-script-outside-document": "off",
+    "nextjs/no-html-link-for-pages": "off",
+    "nextjs/no-img-element": "warn",
+    "nextjs/no-page-custom-font": "warn",
+    "nextjs/no-typos": "warn",
+    "no-alert": "warn",
+    "no-await-in-loop": "off",
+    "no-console": "off",
+    "no-duplicate-imports": "error",
+    "no-empty": [
+      "error",
+      {
+        "allowEmptyCatch": false
+      }
+    ],
+    "no-empty-function": [
+      "warn",
+      {
+        "allow": ["arrowFunctions", "constructors"]
+      }
+    ],
+    "no-empty-static-block": "warn",
+    "no-new-func": "error",
+    "no-throw-literal": "error",
+    "no-undef": "error",
+    "no-undefined": "off",
+    "no-unreachable": "error",
+    "no-unused-expressions": [
+      "error",
+      {
+        "allowShortCircuit": true,
+        "allowTernary": true,
+        "allowTaggedTemplates": true
+      }
+    ],
     "no-unused-vars": [
       "error",
       {
@@ -47,82 +107,6 @@
         "ignoreRestSiblings": true
       }
     ],
-    "no-unused-labels": "error",
-    "no-unused-private-class-members": "error",
-    "no-unused-expressions": [
-      "error",
-      {
-        "allowShortCircuit": true,
-        "allowTernary": true,
-        "allowTaggedTemplates": true
-      }
-    ],
-    "no-unreachable": "error",
-    "no-empty": ["error", { "allowEmptyCatch": false }],
-    "no-empty-function": [
-      "warn",
-      {
-        "allow": ["arrowFunctions", "constructors"]
-      }
-    ],
-    "no-empty-pattern": "error",
-    "no-empty-static-block": "warn",
-    "no-useless-constructor": "error",
-    "unicorn/no-empty-file": "warn",
-    "default-param-last": "error",
-    "max-params": ["warn", { "max": 9 }],
-    "func-style": ["warn", "declaration", { "allowArrowFunctions": true }],
-    "prefer-rest-params": "error",
-    "no-func-assign": "error",
-    "typescript/no-explicit-any": "error",
-    "typescript/no-unused-vars": [
-      "warn",
-      {
-        "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^_",
-        "caughtErrorsIgnorePattern": "^_",
-        "ignoreRestSiblings": true
-      }
-    ],
-    "typescript/no-useless-empty-export": "error",
-    "typescript/no-unnecessary-parameter-property-assignment": "error",
-    "typescript/no-unnecessary-type-constraint": "error",
-    "typescript/no-duplicate-enum-values": "error",
-    "typescript/no-extra-non-null-assertion": "error",
-    "typescript/no-misused-new": "error",
-    "typescript/no-unsafe-declaration-merging": "error",
-    "typescript/no-misused-promises": "warn",
-    "typescript/no-confusing-non-null-assertion": "warn",
-    "typescript/no-extraneous-class": [
-      "warn",
-      {
-        "allowEmpty": false,
-        "allowConstructorOnly": false,
-        "allowStaticOnly": false,
-        "allowWithDecorator": true
-      }
-    ],
-    "prefer-const": "error",
-    "eqeqeq": ["error", "always", { "null": "ignore" }],
-    "no-console": "off",
-    "no-debugger": "error",
-    "no-alert": "warn",
-    "no-var": "error",
-    "no-eval": "error",
-    "no-implied-eval": "error",
-    "no-new-func": "error",
-    "no-return-await": "error",
-    "no-throw-literal": "error",
-    "no-useless-concat": "error",
-    "no-useless-return": "error",
-    "no-void": ["error", { "allowAsStatement": true }],
-    "no-with": "error",
-    "radix": "error",
-    "yoda": ["error", "never"],
-    "no-shadow-restricted-names": "error",
-    "no-undef": "error",
-    "no-undef-init": "error",
-    "no-undefined": "off",
     "no-use-before-define": [
       "error",
       {
@@ -131,14 +115,34 @@
         "variables": true
       }
     ],
+    "no-useless-concat": "error",
+    "no-useless-constructor": "error",
+    "no-useless-return": "error",
+    "no-var": "error",
+    "no-void": [
+      "error",
+      {
+        "allowAsStatement": true
+      }
+    ],
+    "no-with": "error",
+    "oxc/no-map-spread": "off",
+    "prefer-const": "error",
+    "prefer-rest-params": "error",
+    "promise/catch-or-return": "error",
+    "promise/no-promise-in-callback": "warn",
+    "promise/no-return-wrap": "error",
+    "promise/param-names": "error",
+    "radix": "error",
+    "react-perf/jsx-no-jsx-as-prop": "off",
+    "react-perf/jsx-no-new-array-as-prop": "off",
+    "react-perf/jsx-no-new-function-as-prop": "off",
+    "react-perf/jsx-no-new-object-as-prop": "off",
+    "react/exhaustive-deps": "warn",
+    "react/jsx-no-duplicate-props": "error",
     "react/jsx-no-target-blank": "error",
-    "react/prop-types": "off",
-    "react/react-in-jsx-scope": "off",
-    "react/no-unknown-property": ["error"],
-    "react/no-unused-state": "warn",
     "react/jsx-no-useless-fragment": "off",
     "react/jsx-pascal-case": "error",
-    "react/jsx-no-duplicate-props": "error",
     "react/no-array-index-key": "off",
     "react/no-children-prop": "error",
     "react/no-danger-with-children": "error",
@@ -149,57 +153,65 @@
     "react/no-render-return-value": "error",
     "react/no-string-refs": "error",
     "react/no-unescaped-entities": "warn",
+    "react/no-unknown-property": ["error"],
     "react/no-unsafe": "warn",
+    "react/no-unused-state": "warn",
+    "react/prop-types": "off",
+    "react/react-in-jsx-scope": "off",
     "react/require-render-return": "error",
     "react/rules-of-hooks": "error",
-    "react/exhaustive-deps": "warn",
-    "react-perf/jsx-no-new-array-as-prop": "off",
-    "react-perf/jsx-no-new-function-as-prop": "off",
-    "react-perf/jsx-no-new-object-as-prop": "off",
-    "react-perf/jsx-no-jsx-as-prop": "off",
-    "nextjs/no-img-element": "warn",
-    "nextjs/no-html-link-for-pages": "off",
-    "nextjs/no-before-interactive-script-outside-document": "off",
-    "nextjs/no-sync-scripts": "error",
-    "nextjs/google-font-display": "warn",
-    "nextjs/google-font-preconnect": "warn",
-    "nextjs/inline-script-id": "error",
-    "nextjs/no-head-element": "error",
-    "nextjs/no-page-custom-font": "warn",
-    "nextjs/no-script-component-in-head": "error",
-    "nextjs/no-title-in-document-head": "error",
-    "nextjs/no-typos": "warn",
-    "nextjs/no-unwanted-polyfillio": "error",
-    "import/default": "off",
-    "import/namespace": "off",
-    "oxc/no-map-spread": "off",
-    "unicorn/no-null": "off",
-    "unicorn/no-useless-undefined": "off",
-    "unicorn/no-useless-fallback-in-spread": "error",
-    "unicorn/no-useless-length-check": "error",
-    "unicorn/no-useless-spread": "error",
-    "unicorn/no-unnecessary-await": "error",
-    "unicorn/no-object-as-default-parameter": "error",
+    "s3/no-hardcoded-images": "warn",
+    "typescript/no-base-to-string": "off",
+    "typescript/no-confusing-non-null-assertion": "warn",
+    "typescript/no-duplicate-enum-values": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-extra-non-null-assertion": "error",
+    "typescript/no-extraneous-class": [
+      "warn",
+      {
+        "allowEmpty": false,
+        "allowConstructorOnly": false,
+        "allowStaticOnly": false,
+        "allowWithDecorator": true
+      }
+    ],
+    "typescript/no-floating-promises": "off",
+    "typescript/no-misused-new": "error",
+    "typescript/no-misused-promises": "warn",
+    "typescript/no-redundant-type-constituents": "warn",
+    "typescript/no-unnecessary-boolean-literal-compare": "warn",
+    "typescript/no-unnecessary-parameter-property-assignment": "error",
+    "typescript/no-unnecessary-type-arguments": "warn",
+    "typescript/no-unnecessary-type-assertion": "warn",
+    "typescript/no-unnecessary-type-constraint": "error",
+    "typescript/no-unsafe-declaration-merging": "error",
+    "typescript/no-unsafe-type-assertion": "off",
+    "typescript/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "typescript/restrict-template-expressions": "off",
+    "unicorn/consistent-function-scoping": "off",
     "unicorn/no-await-expression-member": "warn",
+    "unicorn/no-empty-file": "warn",
     "unicorn/no-instanceof-array": "error",
+    "unicorn/no-null": "off",
+    "unicorn/no-object-as-default-parameter": "error",
+    "unicorn/no-useless-undefined": "off",
+    "unicorn/prefer-add-event-listener": "off",
     "unicorn/prefer-array-find": "error",
     "unicorn/prefer-array-flat": "error",
     "unicorn/prefer-array-flat-map": "error",
     "unicorn/prefer-array-index-of": "error",
     "unicorn/prefer-array-some": "error",
     "unicorn/prefer-includes": "error",
-    "unicorn/prefer-set-has": "warn",
-    "unicorn/prefer-string-starts-ends-with": "error",
     "unicorn/prefer-type-error": "warn",
-    "unicorn/prefer-add-event-listener": "off",
-    "unicorn/consistent-function-scoping": "off",
-    "promise/catch-or-return": "error",
-    "promise/no-return-wrap": "error",
-    "promise/param-names": "error",
-    "promise/no-promise-in-callback": "warn",
-    "no-await-in-loop": "off",
-    "no-duplicate-imports": "error",
-    "typescript/tsconfig-error": "off"
+    "yoda": ["error", "never"]
   },
   "overrides": [
     {
@@ -213,8 +225,14 @@
       "rules": {
         "no-restricted-globals": [
           "error",
-          { "name": "window", "message": "Cannot use window in Server Components" },
-          { "name": "document", "message": "Cannot use document in Server Components" }
+          {
+            "name": "window",
+            "message": "Cannot use window in Server Components"
+          },
+          {
+            "name": "document",
+            "message": "Cannot use document in Server Components"
+          }
         ]
       }
     },
@@ -233,13 +251,14 @@
         "afterAll": "readonly"
       },
       "rules": {
-        "unicorn/consistent-function-scoping": "off",
-        "unicorn/prefer-type-error": "off",
-        "unicorn/prefer-set-has": "off",
-        "no-new": "off",
-        "no-await-in-loop": "off",
+        "s3/no-hardcoded-images": "off",
         "max-params": "off",
+        "no-await-in-loop": "off",
+        "no-new": "off",
         "typescript/no-explicit-any": "off",
+        "unicorn/consistent-function-scoping": "off",
+        "unicorn/prefer-set-has": "off",
+        "unicorn/prefer-type-error": "off",
         "vitest/expect-expect": "error",
         "vitest/no-conditional-expect": "off",
         "vitest/no-conditional-tests": "error",
@@ -251,10 +270,10 @@
         "vitest/no-mocks-import": "error",
         "vitest/no-standalone-expect": "error",
         "vitest/require-local-test-context-for-concurrent-snapshots": "error",
+        "vitest/require-to-throw-message": "off",
         "vitest/valid-describe-callback": "error",
         "vitest/valid-expect": "error",
         "vitest/valid-title": "error",
-        "vitest/require-to-throw-message": "off",
         "vitest/warn-todo": "off"
       }
     },
@@ -262,6 +281,7 @@
       "files": ["scripts/**/*.ts"],
       "rules": {
         "no-await-in-loop": "off",
+        "s3/no-hardcoded-images": "off",
         "typescript/no-explicit-any": "off"
       }
     },
@@ -274,8 +294,9 @@
     {
       "files": ["eslint.config.ts", "*.config.ts", "config/**/*.ts", "src/instrumentation*.ts"],
       "rules": {
-        "typescript/no-explicit-any": "off",
-        "no-use-before-define": "off"
+        "no-use-before-define": "off",
+        "s3/no-hardcoded-images": "off",
+        "typescript/no-explicit-any": "off"
       }
     },
     {

@@ -45,6 +45,8 @@ Example schemas:
 - Bookmark refresh pipelines preserve embedded slugs during metadata-only updates to avoid URL churn (see `bookmarks.md`).
 - Search indexes loaded from S3 hydrate with build-time MiniSearch options for consistent scoring (see `search.md`).
 - Image streaming fallbacks re-fetch before buffering to respect single-use Response bodies (see `image-handling.md`).
+- ESLint project-specific rules live under `config/eslint/rules/` and are wired from `eslint.config.ts`.
+- Oxlint JS plugins live under `config/oxlint/js-plugins/` and are wired from `.oxlintrc.json` (experimental; not supported in the language server/editor integrations).
 - S3 I/O is standardized under `lib/s3/*` with SDK retries only; CDN usage is explicit at call sites (see `s3-storage.md`).
 - Bookmark reads no longer use local S3 cache fallbacks; all bookmark storage access is S3-only (see `bookmarks.md`).
 - GitHub activity orchestration is split across dedicated data-access modules for repo stats, commit counts, CSV repair, and summary persistence (see `features/github-activity.md`).
