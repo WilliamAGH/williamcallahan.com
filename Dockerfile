@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 ##
 ## Multi-stage build for Next.js application with Bun
 ## Note: Requires DOCKER_BUILDKIT=1 for optimal cache mount support
@@ -171,11 +172,18 @@ RUN bash -c 'set -euo pipefail \
 # Now build the app using bun (Bun) to avoid OOM issues
 # Note: Bun uses JavaScriptCore which auto-manages memory, no --max-old-space-size support
 # The build script in package.json sets NODE_OPTIONS for the Next.js build step
-# Optional BuildKit secrets provide S3 credentials just-in-time for the build so
-# generateStaticParams() can read bookmarks from S3 without leaking secrets.
 #
-# Logic extracted to scripts/build-with-secrets.sh for readability and cleaner secret handling.
-RUN bash scripts/build-with-secrets.sh
+# BuildKit secrets are mounted directly as environment variables using the idiomatic
+# --mount=type=secret,env= syntax (requires dockerfile:1 syntax directive).
+# This provides S3 credentials just-in-time for generateStaticParams() without
+# leaking secrets into the image layers or build cache.
+# Ref: https://docs.docker.com/build/building/secrets/#secret-mounts
+RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID \
+    --mount=type=secret,id=S3_SECRET_ACCESS_KEY,env=S3_SECRET_ACCESS_KEY \
+    --mount=type=secret,id=S3_SESSION_TOKEN,env=S3_SESSION_TOKEN \
+    --mount=type=secret,id=S3_SESSION_TOKEN,env=AWS_SESSION_TOKEN \
+    bun run build \
+    && find /app/.next/cache -type f -mtime +5 -delete 2>/dev/null || true
 
 # ---------- Runtime stage ----------
 # Production image, copy all the files and run next
