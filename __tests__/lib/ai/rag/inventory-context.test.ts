@@ -4,6 +4,7 @@
  */
 
 import { buildInventoryContext } from "@/lib/ai/rag/inventory-context";
+import type { BookmarkIndexItem } from "@/types/schemas/search";
 
 vi.mock("@/data/investments", () => ({
   investments: [
@@ -103,28 +104,36 @@ vi.mock("@/lib/blog/mdx", () => ({
   ]),
 }));
 
-vi.mock("@/lib/search/loaders/dynamic-content", () => ({
-  getBookmarksIndex: vi.fn().mockResolvedValue({
-    index: {} as unknown,
-    bookmarks: [
+vi.mock("@/lib/search/loaders/dynamic-content", async () => {
+  const { default: MiniSearch } = await import("minisearch");
+  const emptyBookmarksIndex = new MiniSearch<BookmarkIndexItem>({
+    fields: ["title", "description", "tags", "summary", "author", "publisher", "url", "slug"],
+    storeFields: ["id", "title", "tags", "url", "slug"],
+  });
+
+  return {
+    getBookmarksIndex: vi.fn().mockResolvedValue({
+      index: emptyBookmarksIndex,
+      bookmarks: [
+        {
+          id: "bookmark-1",
+          slug: "bookmark-1",
+          title: "Bookmark One",
+          url: "https://example.com",
+          tags: "ai\nsearch",
+        },
+      ],
+    }),
+    getCachedBooksData: vi.fn().mockResolvedValue([
       {
-        id: "bookmark-1",
-        slug: "bookmark-1",
-        title: "Bookmark One",
-        url: "https://example.com",
-        tags: "ai\nsearch",
+        id: "book-1",
+        title: "Book One",
+        authors: ["Author"],
+        publishedYear: "2020",
       },
-    ],
-  }),
-  getCachedBooksData: vi.fn().mockResolvedValue([
-    {
-      id: "book-1",
-      title: "Book One",
-      authors: ["Author"],
-      publishedYear: "2020",
-    },
-  ]),
-}));
+    ]),
+  };
+});
 
 vi.mock("@/lib/ai-analysis/reader.server", () => ({
   listAnalysisItemIds: vi.fn((domain: string) => {
@@ -151,4 +160,16 @@ describe("RAG Inventory Context", () => {
     expect(sectionNames).toContain("investments");
     expect(sectionNames).toContain("books");
   });
+});
+
+afterAll(() => {
+  vi.doUnmock("@/data/investments");
+  vi.doUnmock("@/data/projects");
+  vi.doUnmock("@/data/experience");
+  vi.doUnmock("@/data/education");
+  vi.doUnmock("@/data/metadata");
+  vi.doUnmock("@/lib/blog/mdx");
+  vi.doUnmock("@/lib/search/loaders/dynamic-content");
+  vi.doUnmock("@/lib/ai-analysis/reader.server");
+  vi.resetModules();
 });
