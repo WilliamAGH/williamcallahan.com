@@ -88,6 +88,9 @@ describe("Analytics", () => {
   const originalEnv = process.env;
   const mockWebsiteId = "test-website-id";
   const mockSiteUrl = "https://williamcallahan.com";
+  let consoleDebugSpy: ReturnType<typeof vi.spyOn>;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     // Setup environment variables
@@ -114,14 +117,17 @@ describe("Analytics", () => {
     vi.useFakeTimers();
 
     // Clear console mocks
-    vi.spyOn(console, "debug").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(console, "warn").mockImplementation(() => {});
+    consoleDebugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   afterEach(() => {
     process.env = originalEnv;
     vi.useRealTimers();
+    consoleDebugSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
   });
 
   it("initializes analytics scripts correctly", async () => {
@@ -218,7 +224,6 @@ describe("Analytics", () => {
   });
 
   it("handles script load errors gracefully with warning", async () => {
-    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     scriptConfig.shouldError = true;
 
     const { container } = render(<Analytics />);
@@ -233,9 +238,8 @@ describe("Analytics", () => {
     // Global umami should not be defined when script errors
     expect((global as any).umami).toBeUndefined();
     // Warning should be logged via onError handler
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
       "[Analytics] Failed to load Umami script - continuing without analytics",
     );
-    consoleSpy.mockRestore();
   });
 });

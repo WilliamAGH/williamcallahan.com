@@ -98,6 +98,15 @@ vi.mock("@/lib/search/searchers/thoughts-search", () => ({
 }));
 
 describe("RAG Dynamic Retriever", () => {
+  afterAll(() => {
+    vi.doUnmock("@/lib/search/searchers/static-searchers");
+    vi.doUnmock("@/lib/blog/server-search");
+    vi.doUnmock("@/lib/search/searchers/dynamic-searchers");
+    vi.doUnmock("@/lib/search/searchers/tag-search");
+    vi.doUnmock("@/lib/search/searchers/ai-analysis-searcher");
+    vi.doUnmock("@/lib/search/searchers/thoughts-search");
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
