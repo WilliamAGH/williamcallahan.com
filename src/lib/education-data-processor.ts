@@ -1,4 +1,3 @@
-/* eslint-disable s3/no-hardcoded-images */
 /**
  * Server-only utilities for processing Education and Certification data,
  * specifically handling logo fetching and placeholder generation.

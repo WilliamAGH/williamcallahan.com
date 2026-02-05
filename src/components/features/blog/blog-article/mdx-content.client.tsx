@@ -251,7 +251,6 @@ function resolveBlogImageSrc(src: string): string {
   }
 
   // Local blog post images: convert to CDN URLs using the cover image map
-  // eslint-disable-next-line s3/no-hardcoded-images -- Path prefix check, not hardcoded image
   if (src.startsWith("/images/posts/")) {
     const filename = src.split("/").pop();
     if (filename) {

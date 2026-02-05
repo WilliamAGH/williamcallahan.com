@@ -221,6 +221,12 @@
       }
     },
     {
+      "files": ["config/**/*", "scripts/**/*"],
+      "rules": {
+        "s3/no-hardcoded-images": "off"
+      }
+    },
+    {
       "files": ["**/*.server.{ts,tsx}"],
       "rules": {
         "no-restricted-globals": [
