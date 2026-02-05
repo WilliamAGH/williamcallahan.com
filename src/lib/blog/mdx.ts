@@ -78,7 +78,6 @@ const coverImageMap: Record<string, string> = coverImageManifest;
  */
 async function generateBlurDataURL(localImagePath: string): Promise<string | undefined> {
   // Only process local paths starting with /images/posts/
-  // eslint-disable-next-line s3/no-hardcoded-images -- This is a path prefix check, not a hardcoded image
   if (!localImagePath.startsWith("/images/posts/")) {
     return undefined;
   }
@@ -149,7 +148,6 @@ function sanitizeCoverImage(
     const trimmedValue = coverImageValue.trim();
 
     // Check if it's a local blog post image path
-    // eslint-disable-next-line s3/no-hardcoded-images -- This is a path prefix check, not a hardcoded image
     if (trimmedValue.startsWith("/images/posts/")) {
       // Extract filename without path
       const filename = trimmedValue.split("/").pop();

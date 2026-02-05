@@ -5,29 +5,18 @@
  * ESLint is kept only for:
  * 1. Complex naming conventions (@typescript-eslint/naming-convention)
  * 2. Complex AST selectors (no-restricted-syntax) Oxlint doesn't support
- * 3. Custom project-specific rules (no-duplicate-types, no-hardcoded-images)
+ * 3. Custom project-specific rules (no-duplicate-types)
  * 4. Non-JS files (Markdown, YAML, JSONC) if needed
  *
  * Type-aware parsing is DISABLED for performance. Oxlint handles type-aware rules.
  */
 
 import { defineConfig } from "eslint/config";
-import { createRequire } from "node:module";
 import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 import oxlint from "eslint-plugin-oxlint";
-import { createNoHardcodedImagesRule } from "./config/eslint/rules/no-hardcoded-images-rule";
 import { noDuplicateTypesRule } from "./config/eslint/rules/no-duplicate-types-rule";
-
-// ESM-compatible require for loading JSON files
-const requireJson = createRequire(import.meta.url);
-// Single source of truth for the static image mapping JSON path
-const STATIC_IMAGE_MAPPING_REL_PATH = "./src/lib/data-access/static-image-mapping.json" as const;
-const noHardcodedImagesRule = createNoHardcodedImagesRule({
-  requireJson,
-  staticImageMappingRelPath: STATIC_IMAGE_MAPPING_REL_PATH,
-});
 
 const GLOBAL_IGNORES = [
   "node_modules/",
@@ -251,24 +240,6 @@ const config = defineConfig(
     },
     rules: {
       "project/no-duplicate-types": "warn", // Changed to warn for gradual migration
-    },
-  },
-
-  // --------------------------------------------------
-  // Prevent hardcoded /images/ paths - enforce S3/CDN usage
-  // --------------------------------------------------
-  {
-    files: CODE_FILES,
-    ignores: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "scripts/**/*", "config/**/*"],
-    plugins: {
-      s3: {
-        rules: {
-          "no-hardcoded-images": noHardcodedImagesRule,
-        },
-      },
-    },
-    rules: {
-      "s3/no-hardcoded-images": "warn", // Changed to warn for gradual migration
     },
   },
 
