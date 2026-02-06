@@ -27,6 +27,19 @@ const devLog = (...args: unknown[]) => {
 const bookmarksRefreshInFlight = new Set<string>();
 const booksRefreshInFlight = new Set<string>();
 
+/**
+ * Common filler words stripped from bookmark search queries before they hit
+ * the MiniSearch index, improving precision by removing noise.
+ *
+ * Includes pronouns "them", "this", "those" — the same words detected by
+ * `ANAPHORA_PATTERN` in `api/ai/chat/[feature]/chat-helpers.ts`.  This is
+ * safe because the two mechanisms operate on separate pipelines:
+ *   1. Anaphora resolution (chat-helpers) expands the *RAG retrieval query*
+ *      by merging the current + previous user message.
+ *   2. Stop-word stripping (here) cleans the *MiniSearch query* for the
+ *      bookmark index, where bare pronouns would match nothing useful.
+ * If these pipelines are ever merged, the pronoun overlap must be revisited.
+ */
 const BOOKMARK_QUERY_STOP_WORDS = new Set(
   "a about all an are bookmarked bookmark bookmarks do find for from great have i in is link links look me my of on please resource resources saved search show specifically specific them this those to want what you".split(
     " ",
