@@ -17,7 +17,7 @@ export async function POST(
 
   const ctx = validationResult;
   const ragResult = await buildRagContextForChat(feature, ctx.parsedBody);
-  const pipeline = buildChatPipeline(feature, ctx, ragResult, request.signal);
+  const pipeline = buildChatPipeline({ feature, ctx, ragResult, signal: request.signal });
 
   if (wantsEventStream(request)) {
     return createSseStreamResponse({

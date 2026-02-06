@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 import type { OpenAiCompatibleFeatureConfig } from "@/types/ai-openai-compatible";
 
 const DEFAULT_BASE_URL = "https://popos-sf7.com";
-const DEFAULT_MODEL = "openai/gpt-oss-120b";
+const DEFAULT_MODEL = "openai/gpt-oss-120b,openai/gpt-oss-20b";
 const DEFAULT_MAX_PARALLEL = 1;
 
 function normalizeFeatureEnvKey(feature: string): string {
