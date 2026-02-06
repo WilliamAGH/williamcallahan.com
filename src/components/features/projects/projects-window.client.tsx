@@ -71,11 +71,8 @@ function ProjectsWindowContentInner({
         <Suspense
           fallback={
             <div className="animate-pulse space-y-4 p-6">
-              {Array.from({ length: 3 }, () => (
-                <div
-                  key={crypto.randomUUID()}
-                  className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg"
-                />
+              {Array.from({ length: 3 }, (_, i) => (
+                <div key={i} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
               ))}
             </div>
           }
@@ -126,7 +123,7 @@ export function ProjectsWindow({
   // Log state changes (optional)
   useEffect(() => {
     if (isRegistered) {
-      console.log(`ProjectsWindow Render (${PROJECTS_WINDOW_ID}) - Window State:`, windowState);
+      console.debug(`ProjectsWindow Render (${PROJECTS_WINDOW_ID}) - Window State:`, windowState);
     }
   }, [windowState, isRegistered]);
 
@@ -180,10 +177,14 @@ function TagVisibilityControllerContent() {
   const rawTag = params?.get("tag");
   const selectedTag = rawTag ? rawTag.replace(/\+/g, " ") : "All";
 
-  React.useEffect(() => {
+  useEffect(() => {
     const projectNodes = document.querySelectorAll<HTMLElement>("[data-project-tags]");
     projectNodes.forEach((node) => {
-      const tags = node.getAttribute("data-project-tags")?.split("|||") ?? [];
+      const rawTags = node.getAttribute("data-project-tags");
+      if (rawTags == null) {
+        console.debug("[TagVisibilityController] Missing data-project-tags on node:", node);
+      }
+      const tags = rawTags?.split("|||") ?? [];
       const shouldShow = selectedTag === "All" || tags.includes(selectedTag);
       node.style.display = shouldShow ? "" : "none";
     });

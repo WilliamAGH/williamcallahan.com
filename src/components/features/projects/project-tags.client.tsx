@@ -54,13 +54,13 @@ function ProjectTagsContent(): React.JSX.Element {
   // Determine if there are more tags than the limit (excluding "All")
   const hasMoreTags = uniqueProjectTags.length > TAG_LIMIT;
 
-  /**
-   * Effect hook to handle component mounting and initialize selected tag from URL.
-   * Sets `mounted` to true after client-side hydration.
-   * Reads the 'tag' search parameter from the URL and updates `selectedTag` state if present.
-   */
+  // One-time hydration signal — empty deps so it runs exactly once on mount
   useEffect(() => {
-    setMounted(true); // Set mounted after hydration
+    setMounted(true);
+  }, []);
+
+  // Sync selected tag from URL whenever searchParams changes
+  useEffect(() => {
     const tagParam = searchParams.get("tag");
     if (tagParam) {
       setSelectedTag(tagParam);
