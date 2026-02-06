@@ -14,17 +14,23 @@ import {
   PlaceholderImageTop,
 } from "./project-card-helpers";
 
+function resolveProjectCardImageUrl(
+  imageKey: string | undefined,
+  projectName: string,
+): string | null {
+  if (!imageKey) return null;
+
+  try {
+    return buildCdnUrl(imageKey, getCdnConfigFromEnv());
+  } catch (error) {
+    console.warn(`[ProjectCard] Failed to resolve image URL for "${projectName}".`, error);
+    return null;
+  }
+}
+
 export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX.Element {
   const { name, description, url, imageKey, tags, techStack } = project;
-  let cdnImageUrl: string | null = null;
-  if (imageKey) {
-    try {
-      // Build CDN URL directly - OptimizedCardImage handles proxying and retry logic
-      cdnImageUrl = buildCdnUrl(imageKey, getCdnConfigFromEnv());
-    } catch (error) {
-      console.warn(`[ProjectCard] Failed to resolve image URL for "${name}".`, error);
-    }
-  }
+  const cdnImageUrl = resolveProjectCardImageUrl(imageKey, name);
 
   // Generate slug for internal detail page link
   const projectSlug = generateProjectSlug(name, project.id);
@@ -51,7 +57,12 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
     >
       {/* Image Section (Left on desktop, top on mobile) */}
       <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 min-h-[140px] md:min-h-[180px]">
-        <Link href={detailPageUrl} title={`View ${name} details`} className="block w-full h-full">
+        <Link
+          href={detailPageUrl}
+          prefetch={false}
+          title={`View ${name} details`}
+          className="block w-full h-full"
+        >
           {cdnImageUrl ? (
             <div className="relative w-full h-full min-h-[180px] md:min-h-[220px]">
               <OptimizedCardImage
@@ -79,6 +90,7 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
               <h3 className="text-xl font-mono font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                 <Link
                   href={detailPageUrl}
+                  prefetch={false}
                   title={`View ${name} details`}
                   className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                 >

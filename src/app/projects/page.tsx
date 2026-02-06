@@ -37,6 +37,22 @@ function getProjectsCdnConfig(): CdnConfig | null {
   }
 }
 
+function getProjectScreenshotUrl(
+  imageKey: string,
+  cdnConfig: CdnConfig | null,
+): string | undefined {
+  if (!cdnConfig) return undefined;
+  try {
+    return buildCdnUrl(imageKey, cdnConfig);
+  } catch (error) {
+    console.warn(
+      `[ProjectsPage] Unable to build screenshot URL for image key "${imageKey}".`,
+      error,
+    );
+    return undefined;
+  }
+}
+
 export default function ProjectsPage() {
   // Generate JSON-LD schema for the projects page
   const pageMetadata = PAGE_METADATA.projects;
@@ -69,7 +85,7 @@ export default function ProjectsPage() {
   const cdnConfig = getProjectsCdnConfig();
 
   projects.forEach((project) => {
-    const screenshotUrl = cdnConfig ? buildCdnUrl(project.imageKey, cdnConfig) : undefined;
+    const screenshotUrl = getProjectScreenshotUrl(project.imageKey, cdnConfig);
     jsonLdData["@graph"].push({
       "@type": "SoftwareApplication",
       "@id": `${ensureAbsoluteUrl(project.url)}#software`,
