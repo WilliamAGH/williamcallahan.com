@@ -168,6 +168,14 @@ export function ProjectsWindow({
  * consistent.
  */
 function TagVisibilityController() {
+  return (
+    <Suspense fallback={null}>
+      <TagVisibilityControllerContent />
+    </Suspense>
+  );
+}
+
+function TagVisibilityControllerContent() {
   const params = useSearchParams();
   const rawTag = params?.get("tag");
   const selectedTag = rawTag ? rawTag.replace(/\+/g, " ") : "All";
