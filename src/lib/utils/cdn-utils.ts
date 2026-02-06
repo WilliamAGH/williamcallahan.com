@@ -5,7 +5,6 @@
  * Handles both CDN and S3 direct URLs
  */
 
-import { debug } from "@/lib/utils/debug";
 import type { CdnConfig } from "@/types/s3-cdn";
 
 const SUPPORTED_PROTOCOLS = new Set(["http:", "https:"]);
@@ -43,7 +42,7 @@ function parseAbsoluteUrl(value?: string): URL | null {
   try {
     return new URL(value);
   } catch (err) {
-    debug("[cdn-utils] parseAbsoluteUrl: invalid URL:", value, err);
+    console.debug("[cdn-utils] parseAbsoluteUrl: invalid URL:", value, err);
     return null;
   }
 }
@@ -70,7 +69,7 @@ export function getS3Host(s3ServerUrl?: string): string {
     try {
       return new URL(s3ServerUrl).hostname;
     } catch (err) {
-      debug("[cdn-utils] getS3Host: invalid S3 server URL:", s3ServerUrl, err);
+      console.debug("[cdn-utils] getS3Host: invalid S3 server URL:", s3ServerUrl, err);
       // Fall through to the explicit error below
     }
   }
@@ -322,7 +321,7 @@ export function getOptimizedImageSrc(
       return src;
     }
   } catch (err) {
-    debug("[cdn-utils] buildCachedImageUrl: not an absolute URL, proxying:", src, err);
+    console.debug("[cdn-utils] buildCachedImageUrl: not an absolute URL, proxying:", src, err);
   }
 
   // External URLs: proxy for SSRF protection
