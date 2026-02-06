@@ -1,10 +1,15 @@
-import type { AiChatQueueUpdate } from "@/types/schemas/ai-openai-compatible-client";
+import type {
+  AiChatModelStreamUpdate,
+  AiChatQueueUpdate,
+} from "@/types/schemas/ai-openai-compatible-client";
+import type { AiUpstreamApiMode } from "@/types/schemas/ai-openai-compatible";
 
 export interface AiChatRequest {
   userText?: string;
   system?: string;
   messages?: Array<{ role: "system" | "user" | "assistant"; content: string }>;
   temperature?: number;
+  apiMode?: AiUpstreamApiMode;
   conversationId?: string;
   /**
    * Higher numbers run sooner when multiple requests are queued for the same upstream model.
@@ -17,6 +22,7 @@ export interface AiChatClientOptions {
   signal?: AbortSignal;
   forceNewToken?: boolean;
   onQueueUpdate?: (update: AiChatQueueUpdate) => void;
+  onStreamEvent?: (update: AiChatModelStreamUpdate) => void;
 }
 
 export interface AiBrowserTokenCache {

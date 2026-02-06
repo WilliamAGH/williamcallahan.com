@@ -1,11 +1,27 @@
 import type { NextRequest } from "next/server";
 import type { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
 import type { ParsedRequestBody } from "@/types/schemas/ai-chat";
-import type { OpenAiCompatibleChatMessage } from "@/types/schemas/ai-openai-compatible";
+import type {
+  AiUpstreamApiMode,
+  OpenAiCompatibleChatMessage,
+} from "@/types/schemas/ai-openai-compatible";
 
 export type { ParsedRequestBody };
 
 export type RagContextStatus = "included" | "partial" | "failed" | "not_applicable";
+export type AiChatModelStreamEvent =
+  | {
+      event: "message_start";
+      data: { id: string; model: string; apiMode: AiUpstreamApiMode };
+    }
+  | {
+      event: "message_delta";
+      data: { delta: string };
+    }
+  | {
+      event: "message_done";
+      data: { message: string };
+    };
 
 /** Validated request context after all checks pass */
 export type ValidatedRequestContext = {
@@ -25,8 +41,9 @@ export type ChatLogContext = {
   userAgent: string;
   originHost: string;
   pagePath: string | null;
-  messages: OpenAiCompatibleChatMessage[];
+  messages: Array<{ role: string; content: string }>;
   model: string;
+  apiMode: AiUpstreamApiMode;
   priority: number;
 };
 
@@ -37,7 +54,7 @@ export type JsonResponseConfig = {
   startTime: number;
   logContext: ChatLogContext;
   ragContextStatus: RagContextStatus;
-  runUpstream: () => Promise<string>;
+  runUpstream: (onStreamEvent?: (event: AiChatModelStreamEvent) => void) => Promise<string>;
   signal: AbortSignal;
 };
 
@@ -50,7 +67,7 @@ export type SseStreamConfig = {
   startTime: number;
   logContext: ChatLogContext;
   ragContextStatus: RagContextStatus;
-  runUpstream: () => Promise<string>;
+  runUpstream: (onStreamEvent?: (event: AiChatModelStreamEvent) => void) => Promise<string>;
 };
 
 /** Pipeline result containing everything needed to dispatch an AI chat request */
@@ -60,5 +77,32 @@ export type ChatPipeline = {
   priority: number;
   startTime: number;
   logContext: ChatLogContext;
-  runUpstream: () => Promise<string>;
+  runUpstream: (onStreamEvent?: (event: AiChatModelStreamEvent) => void) => Promise<string>;
 };
+
+/** Return value from dispatchToolCalls — pure data, no mutations */
+export type ToolDispatchResult = {
+  responseMessages: OpenAiCompatibleChatMessage[];
+  observedResults: Array<{ title: string; url: string }>;
+  executed: boolean;
+};
+
+/** Parameters shared by both Chat Completions and Responses turn executors */
+export type UpstreamTurnParams = {
+  turnConfig: { model: string; baseUrl: string; apiKey: string | undefined };
+  signal: AbortSignal;
+  toolChoice: "required" | "auto" | undefined;
+  hasToolSupport: boolean;
+  temperature: number | undefined;
+  onStreamEvent?: (event: AiChatModelStreamEvent) => void;
+};
+
+/** Result of a single upstream API turn (Chat Completions or Responses) */
+export type UpstreamTurnOutcome =
+  | { kind: "empty" }
+  | { kind: "content"; text: string | undefined }
+  | {
+      kind: "tool_calls";
+      newMessages: OpenAiCompatibleChatMessage[];
+      observedResults: Array<{ title: string; url: string }>;
+    };

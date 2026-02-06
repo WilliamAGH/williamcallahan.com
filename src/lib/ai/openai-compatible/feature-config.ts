@@ -50,18 +50,27 @@ export function resolveOpenAiCompatibleFeatureConfig(
   return apiKey ? { baseUrl, model, apiKey, maxParallel } : { baseUrl, model, maxParallel };
 }
 
-export function buildChatCompletionsUrl(baseUrl: string): string {
+export function buildOpenAiApiBaseUrl(baseUrl: string): string {
   const url = new URL(baseUrl);
   url.hash = "";
   url.search = "";
 
   const basePath = url.pathname === "/" ? "" : url.pathname.replace(/\/+$/, "");
+  url.pathname = basePath.endsWith("/v1") ? basePath : `${basePath}/v1`;
 
-  if (basePath.endsWith("/v1")) {
-    url.pathname = `${basePath}/chat/completions`;
-  } else {
-    url.pathname = `${basePath}/v1/chat/completions`;
-  }
+  return url.toString();
+}
 
+export function buildChatCompletionsUrl(baseUrl: string): string {
+  const url = new URL(buildOpenAiApiBaseUrl(baseUrl));
+  const basePath = url.pathname === "/" ? "" : url.pathname.replace(/\/+$/, "");
+  url.pathname = `${basePath}/chat/completions`;
+  return url.toString();
+}
+
+export function buildResponsesUrl(baseUrl: string): string {
+  const url = new URL(buildOpenAiApiBaseUrl(baseUrl));
+  const basePath = url.pathname === "/" ? "" : url.pathname.replace(/\/+$/, "");
+  url.pathname = `${basePath}/responses`;
   return url.toString();
 }

@@ -1,186 +1,328 @@
 import "server-only";
 
+import OpenAIClient from "openai";
+import type {
+  ChatCompletion,
+  ChatCompletionAssistantMessageParam,
+  ChatCompletionCreateParamsNonStreaming,
+  ChatCompletionMessageParam,
+  ChatCompletionSystemMessageParam,
+  ChatCompletionTool,
+  ChatCompletionToolMessageParam,
+  ChatCompletionUserMessageParam,
+} from "openai/resources/chat/completions";
+import type {
+  EasyInputMessage,
+  ResponseCreateParamsNonStreaming,
+  ResponseInput,
+} from "openai/resources/responses/responses";
 import {
   type OpenAiCompatibleChatCompletionsRequest,
   type OpenAiCompatibleChatCompletionsResponse,
+  type OpenAiCompatibleResponsesResponse,
   openAiCompatibleChatCompletionsRequestSchema,
   openAiCompatibleChatCompletionsResponseSchema,
+  openAiCompatibleResponsesResponseSchema,
 } from "@/types/schemas/ai-openai-compatible";
-import { fetchWithTimeout } from "@/lib/utils/http-client";
-import { computeExponentialDelay } from "@/lib/utils/retry";
+import { buildOpenAiApiBaseUrl } from "@/lib/ai/openai-compatible/feature-config";
 import logger from "@/lib/utils/logger";
 
 const DEFAULT_TEMPERATURE = 0.3;
 const DEFAULT_MAX_TOKENS = 1000;
+const DEFAULT_TIMEOUT_MS = 60_000;
+const DEFAULT_MAX_RETRIES = 3;
+const API_KEY_FALLBACK = "openai-compatible-no-key";
 
-/** Max retry attempts for transient errors */
-const MAX_RETRIES = 3;
-/** Base delay for exponential backoff (ms) */
-const RETRY_BASE_DELAY_MS = 1000;
-/** Maximum backoff delay (ms) */
-const RETRY_MAX_DELAY_MS = 10_000;
-/** Jitter factor for retry delays (0.2 = ±20%) */
-const RETRY_JITTER = 0.2;
+const clientByConfig = new Map<string, OpenAIClient>();
+const warnedMissingApiKeyFor = new Set<string>();
 
-/**
- * Determine if an error is retryable (transient) vs permanent.
- *
- * For AI/LLM calls, we're more liberal with retries because:
- * 1. Network/gateway errors are transient
- * 2. JSON parse errors could be truncated responses
- * 3. Schema validation errors could be LLM non-determinism (might work next time)
- *
- * We still don't retry: user aborts, auth errors (401/403), bad requests (400)
- */
-function isRetryableUpstreamError(error: unknown, httpStatus?: number): boolean {
-  // Never retry if request was aborted by user
-  if (error instanceof DOMException && error.name === "AbortError") {
-    return false;
+function toChatMessage(
+  message: OpenAiCompatibleChatCompletionsRequest["messages"][number],
+): ChatCompletionMessageParam {
+  if (message.role === "system") {
+    const systemMessage: ChatCompletionSystemMessageParam = {
+      role: "system",
+      content: message.content,
+    };
+    return systemMessage;
   }
 
-  // Retry on specific HTTP status codes
-  if (httpStatus !== undefined) {
-    // 429 = rate limit, 502/503/504 = gateway errors, 408 = timeout, 500 = server error
-    if ([408, 429, 500, 502, 503, 504].includes(httpStatus)) {
-      return true;
-    }
-    // Don't retry other 4xx (bad request, auth, etc.)
-    if (httpStatus >= 400 && httpStatus < 500) {
-      return false;
-    }
+  if (message.role === "user") {
+    const userMessage: ChatCompletionUserMessageParam = {
+      role: "user",
+      content: message.content,
+    };
+    return userMessage;
   }
 
-  // Retry on JSON parse errors (SyntaxError) - could be truncated response
-  if (error instanceof SyntaxError) {
-    return true;
+  if (message.role === "tool") {
+    const toolMessage: ChatCompletionToolMessageParam = {
+      role: "tool",
+      tool_call_id: message.tool_call_id,
+      content: message.content,
+    };
+    return toolMessage;
   }
 
-  if (error instanceof Error) {
-    // Retry on Zod validation errors - LLMs are non-deterministic,
-    // a malformed response structure might succeed on retry
-    if (error.name === "ZodError") {
-      return true;
-    }
+  const assistantMessage: ChatCompletionAssistantMessageParam = { role: "assistant" };
+  assistantMessage.content = typeof message.content === "string" ? message.content : null;
+  if ("tool_calls" in message && message.tool_calls?.length) {
+    assistantMessage.tool_calls = message.tool_calls.map((toolCall) => ({
+      id: toolCall.id,
+      type: "function",
+      function: {
+        name: toolCall.function.name,
+        arguments: toolCall.function.arguments,
+      },
+    }));
+  }
+  return assistantMessage;
+}
 
-    // Retry on network errors
-    const msg = error.message.toLowerCase();
-    if (
-      msg.includes("econnreset") ||
-      msg.includes("econnrefused") ||
-      msg.includes("etimedout") ||
-      msg.includes("fetch failed") ||
-      msg.includes("network") ||
-      msg.includes("timeout")
-    ) {
-      return true;
-    }
+function toChatRequest(
+  request: OpenAiCompatibleChatCompletionsRequest,
+): ChatCompletionCreateParamsNonStreaming {
+  const baseRequest: ChatCompletionCreateParamsNonStreaming = {
+    model: request.model,
+    messages: request.messages.map(toChatMessage),
+    temperature: request.temperature ?? DEFAULT_TEMPERATURE,
+    max_tokens: request.max_tokens ?? DEFAULT_MAX_TOKENS,
+  };
+
+  if (request.tools) {
+    const chatTools: ChatCompletionTool[] = request.tools.map((tool) => ({
+      type: "function",
+      function: {
+        name: tool.function.name,
+        description: tool.function.description,
+        parameters: tool.function.parameters ?? {},
+      },
+    }));
+    baseRequest.tools = chatTools;
   }
 
-  return false;
+  if (request.tool_choice) baseRequest.tool_choice = request.tool_choice;
+  return baseRequest;
+}
+
+function toRequestOptions(args: {
+  timeoutMs?: number;
+  signal?: AbortSignal;
+}): OpenAIClient.RequestOptions {
+  const options: OpenAIClient.RequestOptions = {};
+  if (typeof args.timeoutMs === "number") options.timeout = args.timeoutMs;
+  if (args.signal) options.signal = args.signal;
+  return options;
+}
+
+function toResponsesInput(
+  messages: OpenAiCompatibleChatCompletionsRequest["messages"],
+): ResponseInput {
+  const items: ResponseInput = [];
+  for (const message of messages) {
+    if (message.role === "tool") {
+      items.push({
+        type: "function_call_output",
+        call_id: message.tool_call_id,
+        output: message.content,
+      });
+      continue;
+    }
+
+    if (message.role === "assistant" && message.tool_calls?.length) {
+      if (typeof message.content === "string" && message.content.length > 0) {
+        const assistantText: EasyInputMessage = {
+          type: "message",
+          role: "assistant",
+          content: message.content,
+        };
+        items.push(assistantText);
+      }
+      for (const toolCall of message.tool_calls) {
+        items.push({
+          type: "function_call",
+          call_id: toolCall.id,
+          name: toolCall.function.name,
+          arguments: toolCall.function.arguments,
+        });
+      }
+      continue;
+    }
+
+    const role: EasyInputMessage["role"] = message.role;
+    const content = message.role === "assistant" ? (message.content ?? "") : message.content;
+    items.push({ type: "message", role, content });
+  }
+
+  return items;
+}
+
+function resolveClient(args: {
+  baseUrl: string;
+  apiKey?: string;
+  timeoutMs?: number;
+}): OpenAIClient {
+  const apiBaseUrl = buildOpenAiApiBaseUrl(args.baseUrl);
+  const apiKey = args.apiKey?.trim();
+  const clientKey = `${apiBaseUrl}::${apiKey ?? API_KEY_FALLBACK}`;
+  const existingClient = clientByConfig.get(clientKey);
+  if (existingClient) return existingClient;
+
+  if (!apiKey && !warnedMissingApiKeyFor.has(clientKey)) {
+    warnedMissingApiKeyFor.add(clientKey);
+    logger.warn(
+      "[AI] No upstream API key configured; using compatibility fallback token for OpenAI SDK client.",
+      { baseUrl: args.baseUrl },
+    );
+  }
+
+  const client = new OpenAIClient({
+    apiKey: apiKey ?? API_KEY_FALLBACK,
+    baseURL: apiBaseUrl,
+    timeout: args.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    maxRetries: DEFAULT_MAX_RETRIES,
+  });
+
+  clientByConfig.set(clientKey, client);
+  return client;
+}
+
+function validateChatRequest(request: OpenAiCompatibleChatCompletionsRequest) {
+  return openAiCompatibleChatCompletionsRequestSchema.parse({
+    ...request,
+    temperature: request.temperature ?? DEFAULT_TEMPERATURE,
+    max_tokens: request.max_tokens ?? DEFAULT_MAX_TOKENS,
+  });
+}
+
+function deriveOutputTextFromResponsesOutput(output: unknown[]): string {
+  const chunks: string[] = [];
+  for (const item of output) {
+    if (!item || typeof item !== "object") continue;
+    const typedItem = item as { type?: unknown; content?: unknown };
+    if (typedItem.type !== "message" || !Array.isArray(typedItem.content)) continue;
+    for (const content of typedItem.content) {
+      if (!content || typeof content !== "object") continue;
+      const typedContent = content as { type?: unknown; text?: unknown };
+      if (typedContent.type === "output_text" && typeof typedContent.text === "string") {
+        chunks.push(typedContent.text);
+      }
+    }
+  }
+  return chunks.join("");
+}
+
+function normalizeResponsesOutputText<T extends { output: unknown[]; output_text?: string }>(
+  response: T,
+): T & { output_text: string } {
+  const outputText =
+    typeof response.output_text === "string"
+      ? response.output_text
+      : deriveOutputTextFromResponsesOutput(response.output);
+  return { ...response, output_text: outputText };
 }
 
 export async function callOpenAiCompatibleChatCompletions(args: {
-  url: string;
+  baseUrl: string;
   apiKey?: string;
   request: OpenAiCompatibleChatCompletionsRequest;
   timeoutMs?: number;
   signal?: AbortSignal;
 }): Promise<OpenAiCompatibleChatCompletionsResponse> {
-  const validatedRequest = openAiCompatibleChatCompletionsRequestSchema.parse({
-    ...args.request,
-    temperature: args.request.temperature ?? DEFAULT_TEMPERATURE,
-    max_tokens: args.request.max_tokens ?? DEFAULT_MAX_TOKENS,
-  });
+  const validatedRequest = validateChatRequest(args.request);
+  const client = resolveClient(args);
+  const completion: ChatCompletion = await client.chat.completions.create(
+    toChatRequest(validatedRequest),
+    toRequestOptions(args),
+  );
+  return openAiCompatibleChatCompletionsResponseSchema.parse(completion);
+}
 
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
+export async function streamOpenAiCompatibleChatCompletions(args: {
+  baseUrl: string;
+  apiKey?: string;
+  request: OpenAiCompatibleChatCompletionsRequest;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+  onStart?: (meta: { id: string; model: string }) => void;
+  onDelta?: (delta: string) => void;
+}): Promise<OpenAiCompatibleChatCompletionsResponse> {
+  const validatedRequest = validateChatRequest(args.request);
+  const client = resolveClient(args);
+  const stream = client.chat.completions.stream(
+    { ...toChatRequest(validatedRequest), stream: true },
+    toRequestOptions(args),
+  );
+
+  let startEmitted = false;
+  for await (const chunk of stream) {
+    if (!startEmitted) {
+      startEmitted = true;
+      args.onStart?.({ id: chunk.id, model: chunk.model });
+    }
+
+    const delta = chunk.choices[0]?.delta?.content;
+    if (typeof delta === "string" && delta.length > 0) args.onDelta?.(delta);
+  }
+
+  const completion = await stream.finalChatCompletion();
+  return openAiCompatibleChatCompletionsResponseSchema.parse(completion);
+}
+
+export async function callOpenAiCompatibleResponses(args: {
+  baseUrl: string;
+  apiKey?: string;
+  request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
+    input: OpenAiCompatibleChatCompletionsRequest["messages"];
   };
+  timeoutMs?: number;
+  signal?: AbortSignal;
+}): Promise<OpenAiCompatibleResponsesResponse> {
+  const client = resolveClient(args);
+  const response = await client.responses.create(
+    {
+      ...args.request,
+      input: toResponsesInput(args.request.input),
+    },
+    toRequestOptions(args),
+  );
+  const normalizedResponse = normalizeResponsesOutputText(response);
+  return openAiCompatibleResponsesResponseSchema.parse(normalizedResponse);
+}
 
-  if (args.apiKey) {
-    headers.Authorization = `Bearer ${args.apiKey}`;
-  }
+export async function streamOpenAiCompatibleResponses(args: {
+  baseUrl: string;
+  apiKey?: string;
+  request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
+    input: OpenAiCompatibleChatCompletionsRequest["messages"];
+  };
+  timeoutMs?: number;
+  signal?: AbortSignal;
+  onStart?: (meta: { id: string; model: string }) => void;
+  onDelta?: (delta: string) => void;
+}): Promise<OpenAiCompatibleResponsesResponse> {
+  const client = resolveClient(args);
+  const stream = client.responses.stream(
+    {
+      ...args.request,
+      input: toResponsesInput(args.request.input),
+      stream: true,
+    },
+    toRequestOptions(args),
+  );
 
-  let lastError: Error | null = null;
-  let attempt = 0;
-
-  while (attempt <= MAX_RETRIES) {
-    // Check abort before each attempt
-    if (args.signal?.aborted) {
-      throw new DOMException("Request aborted", "AbortError");
+  let startEmitted = false;
+  for await (const event of stream) {
+    if (!startEmitted && "response" in event && event.response?.id && event.response.model) {
+      startEmitted = true;
+      args.onStart?.({ id: event.response.id, model: event.response.model });
     }
-
-    try {
-      const response = await fetchWithTimeout(args.url, {
-        method: "POST",
-        headers,
-        timeout: args.timeoutMs ?? 60_000,
-        body: JSON.stringify(validatedRequest),
-        signal: args.signal,
-      });
-
-      const text = await response.text();
-
-      if (!response.ok) {
-        const error = new Error(
-          `Upstream chat completion failed: HTTP ${response.status} ${response.statusText} - ${text}`,
-        );
-
-        if (isRetryableUpstreamError(error, response.status) && attempt < MAX_RETRIES) {
-          lastError = error;
-          attempt++;
-          const delay = computeExponentialDelay(
-            attempt,
-            RETRY_BASE_DELAY_MS,
-            RETRY_MAX_DELAY_MS,
-            RETRY_JITTER,
-          );
-          logger.warn(
-            `[AI] Retrying upstream request (attempt ${attempt}/${MAX_RETRIES}) after ${delay}ms`,
-            {
-              status: response.status,
-              error: error.message.slice(0, 200),
-            },
-          );
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          continue;
-        }
-
-        throw error;
-      }
-
-      // Parse and validate response
-      const json: unknown = text ? JSON.parse(text) : {};
-      return openAiCompatibleChatCompletionsResponseSchema.parse(json);
-    } catch (error) {
-      // Don't retry abort errors - user explicitly cancelled
-      if (error instanceof DOMException && error.name === "AbortError") {
-        throw error;
-      }
-
-      // Check if retryable (includes ZodError for LLM non-determinism)
-      if (isRetryableUpstreamError(error, undefined) && attempt < MAX_RETRIES) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        attempt++;
-        const delay = computeExponentialDelay(
-          attempt,
-          RETRY_BASE_DELAY_MS,
-          RETRY_MAX_DELAY_MS,
-          RETRY_JITTER,
-        );
-        logger.warn(
-          `[AI] Retrying upstream request (attempt ${attempt}/${MAX_RETRIES}) after ${delay}ms`,
-          {
-            error: lastError.message.slice(0, 200),
-          },
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        continue;
-      }
-
-      throw error;
+    if (event.type === "response.output_text.delta" && event.delta.length > 0) {
+      args.onDelta?.(event.delta);
     }
   }
 
-  // Should not reach here, but if we do, throw last error
-  throw lastError ?? new Error("Upstream request failed after retries");
+  const response = await stream.finalResponse();
+  const normalizedResponse = normalizeResponsesOutputText(response);
+  return openAiCompatibleResponsesResponseSchema.parse(normalizedResponse);
 }

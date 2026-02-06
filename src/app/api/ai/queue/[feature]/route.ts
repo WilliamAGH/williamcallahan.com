@@ -4,10 +4,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod/v4";
 import {
   buildChatCompletionsUrl,
+  buildResponsesUrl,
   resolveOpenAiCompatibleFeatureConfig,
 } from "@/lib/ai/openai-compatible/feature-config";
 import { getUpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
 import { NO_STORE_HEADERS, preventCaching, requireCloudflareHeaders } from "@/lib/utils/api-utils";
+import { aiUpstreamApiModeSchema } from "@/types/schemas/ai-openai-compatible";
 
 const featureParamSchema = z
   .string()
@@ -21,6 +23,8 @@ const featureParamSchema = z
  * Returns the current queue state for a specific AI feature.
  * Used by client components to decide whether to auto-trigger AI requests
  * based on current queue load.
+ *
+ * Optional query: ?apiMode=chat_completions|responses
  *
  * Response: { running: number, pending: number, maxParallel: number }
  *
@@ -43,9 +47,14 @@ export async function GET(
   try {
     const { feature } = await context.params;
     const validatedFeature = featureParamSchema.parse(feature);
+    const apiMode = aiUpstreamApiModeSchema.safeParse(request.nextUrl.searchParams.get("apiMode"));
+    const resolvedApiMode = apiMode.success ? apiMode.data : "chat_completions";
 
     const config = resolveOpenAiCompatibleFeatureConfig(validatedFeature);
-    const url = buildChatCompletionsUrl(config.baseUrl);
+    const url =
+      resolvedApiMode === "responses"
+        ? buildResponsesUrl(config.baseUrl)
+        : buildChatCompletionsUrl(config.baseUrl);
     const upstreamKey = `${url}::${config.model}`;
     const queue = getUpstreamRequestQueue({ key: upstreamKey, maxParallel: config.maxParallel });
 

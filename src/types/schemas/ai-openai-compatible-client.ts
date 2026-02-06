@@ -33,6 +33,32 @@ export const aiChatStreamErrorSchema = z
 
 export type AiChatStreamError = z.infer<typeof aiChatStreamErrorSchema>;
 
+export const aiChatModelStreamStartSchema = z
+  .object({
+    id: z.string().min(1),
+    model: z.string().min(1),
+    apiMode: z.enum(["chat_completions", "responses"]),
+  })
+  .passthrough();
+
+export type AiChatModelStreamStart = z.infer<typeof aiChatModelStreamStartSchema>;
+
+export const aiChatModelStreamDeltaSchema = z
+  .object({
+    delta: z.string(),
+  })
+  .passthrough();
+
+export type AiChatModelStreamDelta = z.infer<typeof aiChatModelStreamDeltaSchema>;
+
+export const aiChatModelStreamDoneSchema = z
+  .object({
+    message: z.string(),
+  })
+  .passthrough();
+
+export type AiChatModelStreamDone = z.infer<typeof aiChatModelStreamDoneSchema>;
+
 export const aiChatQueueUpdateSchema = z.union([
   z.object({
     event: z.enum(["queued", "queue"]),
@@ -51,6 +77,23 @@ export const aiChatQueueUpdateSchema = z.union([
 ]);
 
 export type AiChatQueueUpdate = z.infer<typeof aiChatQueueUpdateSchema>;
+
+export const aiChatModelStreamUpdateSchema = z.union([
+  z.object({
+    event: z.literal("message_start"),
+    data: aiChatModelStreamStartSchema,
+  }),
+  z.object({
+    event: z.literal("message_delta"),
+    data: aiChatModelStreamDeltaSchema,
+  }),
+  z.object({
+    event: z.literal("message_done"),
+    data: aiChatModelStreamDoneSchema,
+  }),
+]);
+
+export type AiChatModelStreamUpdate = z.infer<typeof aiChatModelStreamUpdateSchema>;
 
 /**
  * Schema for /api/ai/queue/[feature] response.
