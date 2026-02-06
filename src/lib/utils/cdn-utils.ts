@@ -8,6 +8,7 @@
 import type { CdnConfig } from "@/types/s3-cdn";
 
 const SUPPORTED_PROTOCOLS = new Set(["http:", "https:"]);
+let loggedMissingPublicCdnUrl = false;
 
 /** Path for the image proxy API route - single source of truth */
 const IMAGE_PROXY_PATH = "/api/cache/images";
@@ -201,25 +202,12 @@ export function isOurCdnUrl(url: string, config: CdnConfig): boolean {
   return false;
 }
 
-/**
- * Get CDN config from environment variables
- * Handles both server and client environments appropriately
- *
- * CRITICAL FIX (2025-11-11): Client-side components now use the module-level
- * CLIENT_CDN_BASE_URL constant captured at build time, ensuring NEXT_PUBLIC_S3_CDN_URL
- * is always available even when process.env access is unreliable in Next.js 16.
- */
+/** Get CDN config from environment variables. */
 export function getCdnConfigFromEnv(): CdnConfig {
-  // In client-side environment, only NEXT_PUBLIC_* variables are available
   const isClient = typeof globalThis.window !== "undefined";
   const cdnBaseUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
-  if (!cdnBaseUrl) {
-    throw new Error("[cdn-utils] NEXT_PUBLIC_S3_CDN_URL is required but was not provided.");
-  }
 
   if (isClient) {
-    // Client-side: use the build-time captured constant for reliability
-    // Validate CLIENT_CDN_BASE_URL explicitly to avoid silent null state
     const clientCdnUrl = CLIENT_CDN_BASE_URL ?? cdnBaseUrl;
     if (!clientCdnUrl) {
       throw new Error(
@@ -229,17 +217,30 @@ export function getCdnConfigFromEnv(): CdnConfig {
     }
     return {
       cdnBaseUrl: clientCdnUrl,
-      // These are not available client-side, but buildCdnUrl should use cdnBaseUrl when available
       s3BucketName: undefined,
       s3ServerUrl: undefined,
     };
   }
 
-  // Server-side: all environment variables are available
+  const s3BucketName = process.env.S3_BUCKET;
+  const s3ServerUrl = process.env.S3_SERVER_URL;
+  if (!cdnBaseUrl && (!s3BucketName || !s3ServerUrl)) {
+    throw new Error(
+      "[cdn-utils] Missing CDN config. Set NEXT_PUBLIC_S3_CDN_URL or provide S3_BUCKET + S3_SERVER_URL.",
+    );
+  }
+  if (!cdnBaseUrl) {
+    if (!loggedMissingPublicCdnUrl) {
+      console.warn(
+        "[cdn-utils] NEXT_PUBLIC_S3_CDN_URL missing. Falling back to S3 origin URL construction.",
+      );
+      loggedMissingPublicCdnUrl = true;
+    }
+  }
   return {
     cdnBaseUrl,
-    s3BucketName: process.env.S3_BUCKET,
-    s3ServerUrl: process.env.S3_SERVER_URL,
+    s3BucketName,
+    s3ServerUrl,
   };
 }
 

@@ -16,8 +16,15 @@ import {
 
 export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX.Element {
   const { name, description, url, imageKey, tags, techStack } = project;
-  // Build CDN URL directly - OptimizedCardImage handles proxying and retry logic
-  const cdnImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : null;
+  let cdnImageUrl: string | null = null;
+  if (imageKey) {
+    try {
+      // Build CDN URL directly - OptimizedCardImage handles proxying and retry logic
+      cdnImageUrl = buildCdnUrl(imageKey, getCdnConfigFromEnv());
+    } catch (error) {
+      console.warn(`[ProjectCard] Failed to resolve image URL for "${name}".`, error);
+    }
+  }
 
   // Generate slug for internal detail page link
   const projectSlug = generateProjectSlug(name, project.id);
