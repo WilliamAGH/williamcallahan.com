@@ -17,6 +17,7 @@ import { formatSeoDate } from "@/lib/seo/utils";
 import { projects } from "@/data/projects";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { getCdnConfigFromEnv, buildCdnUrl } from "@/lib/utils/cdn-utils";
+import type { CdnConfig } from "@/types/s3-cdn";
 
 /**
  * Enable ISR for projects page with hourly revalidation
@@ -25,6 +26,15 @@ import { getCdnConfigFromEnv, buildCdnUrl } from "@/lib/utils/cdn-utils";
 
 export function generateMetadata(): Metadata {
   return getStaticPageMetadata("/projects", "projects");
+}
+
+function getProjectsCdnConfig(): CdnConfig | null {
+  try {
+    return getCdnConfigFromEnv();
+  } catch (error) {
+    console.warn("[ProjectsPage] Unable to resolve CDN config. Skipping screenshot URLs.", error);
+    return null;
+  }
 }
 
 export default function ProjectsPage() {
@@ -56,8 +66,10 @@ export default function ProjectsPage() {
   };
 
   const jsonLdData = generateSchemaGraph(schemaParams);
+  const cdnConfig = getProjectsCdnConfig();
 
   projects.forEach((project) => {
+    const screenshotUrl = cdnConfig ? buildCdnUrl(project.imageKey, cdnConfig) : undefined;
     jsonLdData["@graph"].push({
       "@type": "SoftwareApplication",
       "@id": `${ensureAbsoluteUrl(project.url)}#software`,
@@ -65,8 +77,8 @@ export default function ProjectsPage() {
       description: project.shortSummary || project.description,
       publisher: { "@id": ensureAbsoluteUrl("/#person") },
       author: { "@id": ensureAbsoluteUrl("/#person") },
-      ...(project.imageKey && {
-        screenshot: buildCdnUrl(project.imageKey, getCdnConfigFromEnv()),
+      ...(screenshotUrl && {
+        screenshot: screenshotUrl,
       }),
     });
   });

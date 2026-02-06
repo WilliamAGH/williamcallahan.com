@@ -15,13 +15,25 @@ import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import { openGraphUrlSchema } from "@/types/schemas/url";
 import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
+import type { CdnConfig } from "@/types/s3-cdn";
 
 // Configure cache duration (1 year in seconds)
 const CACHE_DURATION = 60 * 60 * 24 * 365;
 
 // Valid image formats for conversion (SVG is passthrough-only, not a conversion target)
 const VALID_IMAGE_FORMATS = new Set(["jpeg", "jpg", "png", "webp", "avif", "gif"]);
-const CDN_CONFIG = getCdnConfigFromEnv();
+
+function getOptionalCdnConfig(): CdnConfig | null {
+  try {
+    return getCdnConfigFromEnv();
+  } catch (error) {
+    console.warn(
+      "[ImageCache] CDN config unavailable. Falling back to external image flow.",
+      error,
+    );
+    return null;
+  }
+}
 
 /**
  * GET handler for image caching
@@ -55,9 +67,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const imageFormat = VALID_IMAGE_FORMATS.has(format)
     ? (format as "jpeg" | "jpg" | "png" | "webp" | "avif" | "gif")
     : ("webp" as "jpeg" | "jpg" | "png" | "webp" | "avif" | "gif");
+  const cdnConfig = getOptionalCdnConfig();
 
   try {
-    if (isOurCdnUrl(url, CDN_CONFIG)) {
+    if (cdnConfig && isOurCdnUrl(url, cdnConfig)) {
       const upstream = await fetch(url);
       if (!upstream.ok || !upstream.body) {
         return new NextResponse(null, {
