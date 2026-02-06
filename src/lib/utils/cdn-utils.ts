@@ -5,6 +5,7 @@
  * Handles both CDN and S3 direct URLs
  */
 
+import { debug } from "@/lib/utils/debug";
 import type { CdnConfig } from "@/types/s3-cdn";
 
 const SUPPORTED_PROTOCOLS = new Set(["http:", "https:"]);
@@ -41,7 +42,8 @@ function parseAbsoluteUrl(value?: string): URL | null {
   if (!value) return null;
   try {
     return new URL(value);
-  } catch {
+  } catch (err) {
+    debug("[cdn-utils] parseAbsoluteUrl: invalid URL:", value, err);
     return null;
   }
 }
@@ -67,7 +69,8 @@ export function getS3Host(s3ServerUrl?: string): string {
   if (s3ServerUrl) {
     try {
       return new URL(s3ServerUrl).hostname;
-    } catch {
+    } catch (err) {
+      debug("[cdn-utils] getS3Host: invalid S3 server URL:", s3ServerUrl, err);
       // Fall through to the explicit error below
     }
   }
@@ -121,44 +124,40 @@ export function buildCdnUrl(s3Key: string, config: CdnConfig): string {
  */
 export function extractS3KeyFromUrl(url: string, config: CdnConfig): string | null {
   const { cdnBaseUrl, s3BucketName, s3ServerUrl } = config;
-
-  try {
-    const parsed = parseAbsoluteUrl(url);
-    if (!parsed || !SUPPORTED_PROTOCOLS.has(parsed.protocol)) {
-      return null;
-    }
-
-    // Check if it's a CDN URL
-    const cdnBase = parseAbsoluteUrl(cdnBaseUrl);
-    if (cdnBase && parsed.host === cdnBase.host && parsed.protocol === cdnBase.protocol) {
-      const basePath = normalizeBasePath(cdnBase.pathname);
-      if (basePath === "/" || parsed.pathname.startsWith(basePath)) {
-        const key =
-          basePath === "/" ? parsed.pathname.slice(1) : parsed.pathname.slice(basePath.length);
-        return key.startsWith("/") ? key.slice(1) : key;
-      }
-    }
-
-    // Check if it's an S3 URL
-    if (s3BucketName && s3ServerUrl) {
-      const s3Host = getS3Host(s3ServerUrl);
-      const s3Base = parseAbsoluteUrl(s3ServerUrl);
-      const expectedHost = s3Base?.port
-        ? `${s3BucketName}.${s3Host}:${s3Base.port}`
-        : `${s3BucketName}.${s3Host}`;
-      if (parsed.host === expectedHost) {
-        const s3Protocol = s3Base?.protocol ?? "https:";
-        if (!SUPPORTED_PROTOCOLS.has(s3Protocol) || parsed.protocol !== s3Protocol) {
-          return null;
-        }
-        return parsed.pathname.startsWith("/") ? parsed.pathname.slice(1) : parsed.pathname;
-      }
-    }
-
-    return null;
-  } catch {
+  // parseAbsoluteUrl already logs and returns null for invalid URLs
+  const parsed = parseAbsoluteUrl(url);
+  if (!parsed || !SUPPORTED_PROTOCOLS.has(parsed.protocol)) {
     return null;
   }
+
+  // Check if it's a CDN URL
+  const cdnBase = parseAbsoluteUrl(cdnBaseUrl);
+  if (cdnBase && parsed.host === cdnBase.host && parsed.protocol === cdnBase.protocol) {
+    const basePath = normalizeBasePath(cdnBase.pathname);
+    if (basePath === "/" || parsed.pathname.startsWith(basePath)) {
+      const key =
+        basePath === "/" ? parsed.pathname.slice(1) : parsed.pathname.slice(basePath.length);
+      return key.startsWith("/") ? key.slice(1) : key;
+    }
+  }
+
+  // Check if it's an S3 URL
+  if (s3BucketName && s3ServerUrl) {
+    const s3Host = getS3Host(s3ServerUrl);
+    const s3Base = parseAbsoluteUrl(s3ServerUrl);
+    const expectedHost = s3Base?.port
+      ? `${s3BucketName}.${s3Host}:${s3Base.port}`
+      : `${s3BucketName}.${s3Host}`;
+    if (parsed.host === expectedHost) {
+      const s3Protocol = s3Base?.protocol ?? "https:";
+      if (!SUPPORTED_PROTOCOLS.has(s3Protocol) || parsed.protocol !== s3Protocol) {
+        return null;
+      }
+      return parsed.pathname.startsWith("/") ? parsed.pathname.slice(1) : parsed.pathname;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -322,8 +321,8 @@ export function getOptimizedImageSrc(
       // Already proxied - return unchanged to prevent infinite proxy loop
       return src;
     }
-  } catch {
-    // Not a valid absolute URL - fall through to proxy
+  } catch (err) {
+    debug("[cdn-utils] buildCachedImageUrl: not an absolute URL, proxying:", src, err);
   }
 
   // External URLs: proxy for SSRF protection

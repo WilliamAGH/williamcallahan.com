@@ -7,6 +7,7 @@
  */
 
 import { isOperationAllowed } from "@/lib/rate-limiter";
+import { debug } from "@/lib/utils/debug";
 import { NextResponse, type NextRequest } from "next/server";
 import { getClientIp as getClientIpFromHeaders } from "@/lib/utils/request-utils";
 import {
@@ -28,6 +29,9 @@ import os from "node:os";
 // protecting low-memory environments.
 // ────────────────────────────────────────────────────────────────────────────
 
+/** Default critical memory threshold when no env override is provided (3 GB). */
+const DEFAULT_CRITICAL_THRESHOLD_BYTES = 3 * 1024 * 1024 * 1024;
+
 /**
  * Get the memory threshold for critical pressure detection.
  * Configurable via MEMORY_CRITICAL_BYTES or MEMORY_CRITICAL_PERCENT env vars.
@@ -39,8 +43,10 @@ export function getCriticalThreshold(): number {
     if (!Number.isNaN(parsed) && parsed > 0) {
       return parsed;
     }
-    // If MEMORY_CRITICAL_BYTES is set but invalid, fall back to default.
-    return 3 * 1024 * 1024 * 1024;
+    console.warn(
+      `[api-guards] MEMORY_CRITICAL_BYTES="${bytesEnv}" is invalid; using default ${DEFAULT_CRITICAL_THRESHOLD_BYTES} bytes`,
+    );
+    return DEFAULT_CRITICAL_THRESHOLD_BYTES;
   }
 
   const percentEnv = process.env.MEMORY_CRITICAL_PERCENT?.trim();
@@ -51,15 +57,17 @@ export function getCriticalThreshold(): number {
       try {
         const total = os.totalmem();
         return (percent / 100) * total;
-      } catch {
-        /* istanbul ignore next */
-        // Fallback handled below
+      } catch (err) {
+        debug("[api-guards] os.totalmem() failed, using default threshold:", err);
       }
+    } else {
+      console.warn(
+        `[api-guards] MEMORY_CRITICAL_PERCENT="${percentEnv}" is invalid; using default ${DEFAULT_CRITICAL_THRESHOLD_BYTES} bytes`,
+      );
     }
   }
 
-  // Default: 3 GB
-  return 3 * 1024 * 1024 * 1024;
+  return DEFAULT_CRITICAL_THRESHOLD_BYTES;
 }
 
 /**
