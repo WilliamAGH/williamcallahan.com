@@ -9,7 +9,12 @@ import logger from "@/lib/utils/logger";
 import { normalizeString } from "@/lib/utils";
 import { safeJsonParse } from "@/lib/utils/json-utils";
 import { cfVisitorSchema } from "@/types/schemas/api";
-import { NO_STORE_HEADERS, preventCaching, requireCloudflareHeaders } from "@/lib/utils/api-utils";
+import {
+  NO_STORE_HEADERS,
+  buildApiRateLimitResponse,
+  preventCaching,
+  requireCloudflareHeaders,
+} from "@/lib/utils/api-utils";
 
 const TOKEN_RATE_LIMIT = {
   maxRequests: 30,
@@ -98,18 +103,12 @@ export function GET(request: NextRequest): NextResponse {
 
   const clientIp = getClientIp(request.headers, { fallback: "anonymous" });
   if (!isOperationAllowed("ai-token", clientIp, TOKEN_RATE_LIMIT)) {
-    return NextResponse.json(
-      { error: "Rate limit exceeded. Try again shortly." },
-      {
-        status: 429,
-        headers: {
-          ...NO_STORE_HEADERS,
-          "Retry-After": "60",
-          "X-RateLimit-Limit": String(TOKEN_RATE_LIMIT.maxRequests),
-          "X-RateLimit-Window": "60s",
-        },
-      },
-    );
+    return buildApiRateLimitResponse({
+      retryAfterSeconds: Math.ceil(TOKEN_RATE_LIMIT.windowMs / 1000),
+      rateLimitScope: "ai-token",
+      rateLimitLimit: TOKEN_RATE_LIMIT.maxRequests,
+      rateLimitWindowSeconds: Math.ceil(TOKEN_RATE_LIMIT.windowMs / 1000),
+    });
   }
 
   const secret = process.env.AI_TOKEN_SIGNING_SECRET?.trim();

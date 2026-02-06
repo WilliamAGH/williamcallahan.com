@@ -16,7 +16,12 @@ import { logChatMessage } from "@/lib/ai/openai-compatible/chat-message-logger";
 import { buildContextForQuery } from "@/lib/ai/rag";
 import { isPaginationKeyword } from "@/lib/ai/rag/inventory-pagination";
 import { getClientIp } from "@/lib/utils/request-utils";
-import { NO_STORE_HEADERS, preventCaching, requireCloudflareHeaders } from "@/lib/utils/api-utils";
+import {
+  NO_STORE_HEADERS,
+  buildApiRateLimitResponse,
+  preventCaching,
+  requireCloudflareHeaders,
+} from "@/lib/utils/api-utils";
 import logger from "@/lib/utils/logger";
 import {
   type ChatLogContext,
@@ -135,18 +140,12 @@ export async function validateRequest(
   const rateKey = `${feature}:${clientIp}`;
 
   if (!isOperationAllowed("ai-chat", rateKey, CHAT_RATE_LIMIT)) {
-    return NextResponse.json(
-      { error: "Rate limit exceeded. Try again shortly." },
-      {
-        status: 429,
-        headers: {
-          ...NO_STORE_HEADERS,
-          "Retry-After": "60",
-          "X-RateLimit-Limit": String(CHAT_RATE_LIMIT.maxRequests),
-          "X-RateLimit-Window": "60s",
-        },
-      },
-    );
+    return buildApiRateLimitResponse({
+      retryAfterSeconds: Math.ceil(CHAT_RATE_LIMIT.windowMs / 1000),
+      rateLimitScope: "ai-chat",
+      rateLimitLimit: CHAT_RATE_LIMIT.maxRequests,
+      rateLimitWindowSeconds: Math.ceil(CHAT_RATE_LIMIT.windowMs / 1000),
+    });
   }
 
   const secret = process.env.AI_TOKEN_SIGNING_SECRET?.trim();

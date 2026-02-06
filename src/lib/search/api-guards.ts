@@ -9,7 +9,11 @@
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import { NextResponse, type NextRequest } from "next/server";
 import { getClientIp as getClientIpFromHeaders } from "@/lib/utils/request-utils";
-import { NO_STORE_HEADERS } from "@/lib/utils/api-utils";
+import {
+  NO_STORE_HEADERS,
+  buildApiRateLimitResponse,
+  buildApiServiceBusyResponse,
+} from "@/lib/utils/api-utils";
 import os from "node:os";
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -103,17 +107,12 @@ export const SEARCH_RATE_LIMIT = {
  */
 export function checkSearchRateLimit(clientIp: string): NextResponse | null {
   if (!isOperationAllowed("search", clientIp, SEARCH_RATE_LIMIT)) {
-    return NextResponse.json(
-      { error: "Too many search requests. Please wait a moment before searching again." },
-      {
-        status: 429,
-        headers: withNoStoreHeaders({
-          "Retry-After": "60",
-          "X-RateLimit-Limit": String(SEARCH_RATE_LIMIT.maxRequests),
-          "X-RateLimit-Window": "60s",
-        }),
-      },
-    );
+    return buildApiRateLimitResponse({
+      retryAfterSeconds: Math.ceil(SEARCH_RATE_LIMIT.windowMs / 1000),
+      rateLimitScope: "search",
+      rateLimitLimit: SEARCH_RATE_LIMIT.maxRequests,
+      rateLimitWindowSeconds: Math.ceil(SEARCH_RATE_LIMIT.windowMs / 1000),
+    });
   }
   return null;
 }
@@ -124,16 +123,12 @@ export function checkSearchRateLimit(clientIp: string): NextResponse | null {
  */
 export function checkMemoryPressure(): NextResponse | null {
   if (isMemoryCritical()) {
-    return NextResponse.json(
-      { error: "Server is under heavy load. Please try again in a moment." },
-      {
-        status: 503,
-        headers: withNoStoreHeaders({
-          "Retry-After": "30",
-          "X-Memory-Pressure": "critical",
-        }),
-      },
-    );
+    const response = buildApiServiceBusyResponse({
+      retryAfterSeconds: 180,
+      rateLimitScope: "memory",
+    });
+    response.headers.set("X-Memory-Pressure", "critical");
+    return response;
   }
   return null;
 }
