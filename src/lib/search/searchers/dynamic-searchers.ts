@@ -28,7 +28,7 @@ const bookmarksRefreshInFlight = new Set<string>();
 const booksRefreshInFlight = new Set<string>();
 
 const BOOKMARK_QUERY_STOP_WORDS = new Set(
-  "a about all an are bookmarked bookmark bookmarks do for from have i in is links link me my of on please resources resource saved show the to what you".split(
+  "a about all an are bookmarked bookmark bookmarks do find for from great have i in is link links look me my of on please resource resources saved search show specifically specific them this those to want what you".split(
     " ",
   ),
 );
