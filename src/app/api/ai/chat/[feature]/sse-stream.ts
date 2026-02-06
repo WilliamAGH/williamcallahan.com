@@ -13,13 +13,8 @@ import { NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 
 import type { SseStreamConfig } from "@/types/features/ai-chat";
-import {
-  formatSseEvent,
-  logSuccessfulChat,
-  logFailedChat,
-  formatErrorMessage,
-  isAbortError,
-} from "./chat-helpers";
+import { formatSseEvent, logSuccessfulChat, logFailedChat, isAbortError } from "./chat-helpers";
+import { resolveErrorResponse } from "./upstream-error";
 
 /**
  * Create and return an SSE streaming response
@@ -133,11 +128,17 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
 
           const durationMs = Date.now() - startTime;
           const queueWaitMs = sseStartedAtMs ? sseStartedAtMs - enqueuedAtMs : 0;
-          const errorMessage = error instanceof Error ? error.message : String(error);
+          const responseError = resolveErrorResponse(error);
 
-          logFailedChat(logContext, errorMessage, durationMs, queueWaitMs);
+          logFailedChat(
+            logContext,
+            responseError.message,
+            durationMs,
+            queueWaitMs,
+            responseError.status,
+          );
 
-          safeSend("error", { error: formatErrorMessage(error) });
+          safeSend("error", { error: responseError.message, status: responseError.status });
           safeClose();
         })
         .finally(() => {
