@@ -18,7 +18,7 @@ import {
   searchBookmarksToolResultSchema,
   type SearchBookmarksToolResult,
 } from "@/types/schemas/ai-chat";
-import type { ToolDispatchResult } from "@/types/features/ai-chat";
+import type { ExecutedToolCall, ToolDispatchResult } from "@/types/features/ai-chat";
 import {
   openAiCompatibleResponsesFunctionCallSchema,
   type OpenAiCompatibleResponsesFunctionCall,
@@ -206,14 +206,26 @@ export async function runDeterministicBookmarkFallback(
   return formatBookmarkResultsAsLinks(extractResultLinks(parsed));
 }
 
+async function executeToolCallBatch(
+  calls: Array<{ callId: string; rawArguments: string }>,
+): Promise<ExecutedToolCall[]> {
+  const results: ExecutedToolCall[] = [];
+  for (const call of calls) {
+    const toolResult = await executeSearchBookmarksTool(call.rawArguments);
+    const parsed = searchBookmarksToolResultSchema.parse(toolResult);
+    results.push({ callId: call.callId, parsed, links: extractResultLinks(parsed) });
+  }
+  return results;
+}
+
 /** Execute all tool calls in one assistant turn and return the results without mutation */
 export async function dispatchToolCalls(
   toolCalls: Array<{ id: string; function: { name: string; arguments?: string } }>,
 ): Promise<ToolDispatchResult> {
   const responseMessages: OpenAiCompatibleChatMessage[] = [];
   const observedResults: Array<{ title: string; url: string }> = [];
-  let executed = false;
 
+  const validCalls: Array<{ callId: string; rawArguments: string }> = [];
   for (const toolCall of toolCalls) {
     if (toolCall.function.name !== SEARCH_BOOKMARKS_TOOL.function.name) {
       logger.warn("[AI Chat] Received call for unknown tool", {
@@ -225,10 +237,8 @@ export async function dispatchToolCalls(
         tool_call_id: toolCall.id,
         content: JSON.stringify({ error: `Unknown tool "${toolCall.function.name}"` }),
       });
-      executed = true;
       continue;
     }
-
     if (!toolCall.function.arguments) {
       logger.warn("[AI Chat] Tool call received without arguments", { toolCallId: toolCall.id });
       responseMessages.push({
@@ -236,22 +246,22 @@ export async function dispatchToolCalls(
         tool_call_id: toolCall.id,
         content: JSON.stringify({ error: "Tool call missing arguments" }),
       });
-      executed = true;
       continue;
     }
-
-    const toolResult = await executeSearchBookmarksTool(toolCall.function.arguments);
-    const parsed = searchBookmarksToolResultSchema.parse(toolResult);
-    observedResults.push(...extractResultLinks(parsed));
-    responseMessages.push({
-      role: "tool",
-      tool_call_id: toolCall.id,
-      content: JSON.stringify(parsed),
-    });
-    executed = true;
+    validCalls.push({ callId: toolCall.id, rawArguments: toolCall.function.arguments });
   }
 
-  return { responseMessages, observedResults, executed };
+  const batchResults = await executeToolCallBatch(validCalls);
+  for (const result of batchResults) {
+    observedResults.push(...result.links);
+    responseMessages.push({
+      role: "tool",
+      tool_call_id: result.callId,
+      content: JSON.stringify(result.parsed),
+    });
+  }
+
+  return { responseMessages, observedResults };
 }
 
 export function extractSearchBookmarkToolCalls(
@@ -272,20 +282,14 @@ export async function dispatchResponseToolCalls(
   outputs: Array<{ type: "function_call_output"; call_id: string; output: string }>;
   observedResults: Array<{ title: string; url: string }>;
 }> {
-  const outputs: Array<{ type: "function_call_output"; call_id: string; output: string }> = [];
-  const observedResults: Array<{ title: string; url: string }> = [];
-
-  for (const toolCall of toolCalls) {
-    const toolResult = await executeSearchBookmarksTool(toolCall.arguments);
-    const parsed = searchBookmarksToolResultSchema.parse(toolResult);
-    observedResults.push(...extractResultLinks(parsed));
-
-    outputs.push({
-      type: "function_call_output",
-      call_id: toolCall.call_id,
-      output: JSON.stringify(parsed),
-    });
-  }
-
-  return { outputs, observedResults };
+  const calls = toolCalls.map((tc) => ({ callId: tc.call_id, rawArguments: tc.arguments }));
+  const batchResults = await executeToolCallBatch(calls);
+  return {
+    outputs: batchResults.map((r) => ({
+      type: "function_call_output" as const,
+      call_id: r.callId,
+      output: JSON.stringify(r.parsed),
+    })),
+    observedResults: batchResults.flatMap((r) => r.links),
+  };
 }
