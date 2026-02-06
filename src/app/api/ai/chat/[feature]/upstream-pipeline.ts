@@ -71,6 +71,23 @@ function toLoggableMessages(
   return logMessages;
 }
 
+type StreamStartMeta = { id: string; model: string };
+
+function emitDeferredContentEvents(
+  text: string,
+  startMeta: StreamStartMeta | null,
+  apiMode: AiUpstreamApiMode,
+  onStreamEvent: (event: AiChatModelStreamEvent) => void,
+): void {
+  if (startMeta) {
+    onStreamEvent({
+      event: "message_start",
+      data: { id: startMeta.id, model: startMeta.model, apiMode },
+    });
+  }
+  onStreamEvent({ event: "message_delta", data: { delta: text } });
+}
+
 async function executeChatCompletionsTurn(
   requestMessages: OpenAiCompatibleChatMessage[],
   params: UpstreamTurnParams,
@@ -86,25 +103,21 @@ async function executeChatCompletionsTurn(
     max_tokens: params.maxTokens,
     reasoning_effort: params.reasoningEffort,
   };
+  const callArgs = { baseUrl: turnConfig.baseUrl, apiKey: turnConfig.apiKey, request, signal };
 
-  const streamStart: { id?: string; model?: string } = {};
+  // Branch on streaming so that startMeta capture is scoped to the streaming
+  // path and never read in the non-streaming path (explicit data flow).
+  let startMeta: StreamStartMeta | null = null;
   const upstream = onStreamEvent
     ? await streamOpenAiCompatibleChatCompletions({
-        baseUrl: turnConfig.baseUrl,
-        apiKey: turnConfig.apiKey,
-        request,
-        signal,
-        onStart: ({ id, model }) => {
-          streamStart.id = id;
-          streamStart.model = model;
+        ...callArgs,
+        // Stream is fully consumed before the await resolves (finalChatCompletion),
+        // so startMeta is guaranteed populated when used below.
+        onStart: (meta) => {
+          startMeta = meta;
         },
       })
-    : await callOpenAiCompatibleChatCompletions({
-        baseUrl: turnConfig.baseUrl,
-        apiKey: turnConfig.apiKey,
-        request,
-        signal,
-      });
+    : await callOpenAiCompatibleChatCompletions(callArgs);
 
   const assistantMessage = upstream.choices[0]?.message;
   if (!assistantMessage) return { kind: "empty" };
@@ -113,13 +126,7 @@ async function executeChatCompletionsTurn(
   if (toolCalls.length === 0) {
     const text = assistantMessage.content?.trim();
     if (text && onStreamEvent) {
-      if (streamStart.id && streamStart.model) {
-        onStreamEvent({
-          event: "message_start",
-          data: { id: streamStart.id, model: streamStart.model, apiMode: "chat_completions" },
-        });
-      }
-      onStreamEvent({ event: "message_delta", data: { delta: text } });
+      emitDeferredContentEvents(text, startMeta, "chat_completions", onStreamEvent);
     }
     return { kind: "content", text };
   }
@@ -152,36 +159,26 @@ async function executeResponsesTurn(
     max_output_tokens: params.maxTokens,
     ...(params.reasoningEffort !== null ? { reasoning: { effort: params.reasoningEffort } } : {}),
   };
-  const streamStart: { id?: string; model?: string } = {};
+
+  const callArgs = { baseUrl: turnConfig.baseUrl, apiKey: turnConfig.apiKey, request, signal };
+
+  let startMeta: StreamStartMeta | null = null;
   const response = onStreamEvent
     ? await streamOpenAiCompatibleResponses({
-        baseUrl: turnConfig.baseUrl,
-        apiKey: turnConfig.apiKey,
-        request,
-        signal,
-        onStart: ({ id, model }) => {
-          streamStart.id = id;
-          streamStart.model = model;
+        ...callArgs,
+        // Stream fully consumed before await resolves (finalResponse),
+        // so startMeta is guaranteed populated when used below.
+        onStart: (meta) => {
+          startMeta = meta;
         },
       })
-    : await callOpenAiCompatibleResponses({
-        baseUrl: turnConfig.baseUrl,
-        apiKey: turnConfig.apiKey,
-        request,
-        signal,
-      });
+    : await callOpenAiCompatibleResponses(callArgs);
 
   const toolCalls = extractSearchBookmarkToolCalls(response.output);
   if (toolCalls.length === 0) {
     const text = response.output_text.trim();
     if (text && onStreamEvent) {
-      if (streamStart.id && streamStart.model) {
-        onStreamEvent({
-          event: "message_start",
-          data: { id: streamStart.id, model: streamStart.model, apiMode: "responses" },
-        });
-      }
-      onStreamEvent({ event: "message_delta", data: { delta: text } });
+      emitDeferredContentEvents(text, startMeta, "responses", onStreamEvent);
     }
     return { kind: "content", text };
   }
