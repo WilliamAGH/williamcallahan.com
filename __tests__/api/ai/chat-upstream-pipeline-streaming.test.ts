@@ -132,7 +132,7 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
     );
   });
 
-  it("defaults terminal chat temperature to zero when not provided", async () => {
+  it("defaults terminal chat to feature-specific model params when not provided", async () => {
     const pipeline = buildChatPipeline(
       "terminal_chat",
       createValidatedContext(),
@@ -151,7 +151,10 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
         baseUrl: "https://example.com",
         request: expect.objectContaining({
           model: "test-model",
-          temperature: 0,
+          temperature: 0.7,
+          top_p: 1,
+          max_tokens: 8192,
+          reasoning_effort: "low",
         }),
       }),
     );

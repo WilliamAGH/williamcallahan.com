@@ -23,12 +23,11 @@ import {
   openAiCompatibleChatCompletionsRequestSchema,
   openAiCompatibleChatCompletionsResponseSchema,
   openAiCompatibleResponsesResponseSchema,
+  responsesOutputTextItemSchema,
 } from "@/types/schemas/ai-openai-compatible";
 import { buildOpenAiApiBaseUrl } from "@/lib/ai/openai-compatible/feature-config";
 import logger from "@/lib/utils/logger";
 
-const DEFAULT_TEMPERATURE = 0.3;
-const DEFAULT_MAX_TOKENS = 1000;
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_MAX_RETRIES = 3;
 const API_KEY_FALLBACK = "openai-compatible-no-key";
@@ -85,9 +84,13 @@ function toChatRequest(
   const baseRequest: ChatCompletionCreateParamsNonStreaming = {
     model: request.model,
     messages: request.messages.map(toChatMessage),
-    temperature: request.temperature ?? DEFAULT_TEMPERATURE,
-    max_tokens: request.max_tokens ?? DEFAULT_MAX_TOKENS,
   };
+
+  if (request.temperature !== undefined) baseRequest.temperature = request.temperature;
+  if (request.top_p !== undefined) baseRequest.top_p = request.top_p;
+  if (request.max_tokens !== undefined) baseRequest.max_completion_tokens = request.max_tokens;
+  if (request.reasoning_effort !== undefined)
+    baseRequest.reasoning_effort = request.reasoning_effort;
 
   if (request.tools) {
     const chatTools: ChatCompletionTool[] = request.tools.map((tool) => ({
@@ -188,25 +191,16 @@ function resolveClient(args: {
 }
 
 function validateChatRequest(request: OpenAiCompatibleChatCompletionsRequest) {
-  return openAiCompatibleChatCompletionsRequestSchema.parse({
-    ...request,
-    temperature: request.temperature ?? DEFAULT_TEMPERATURE,
-    max_tokens: request.max_tokens ?? DEFAULT_MAX_TOKENS,
-  });
+  return openAiCompatibleChatCompletionsRequestSchema.parse(request);
 }
 
 function deriveOutputTextFromResponsesOutput(output: unknown[]): string {
   const chunks: string[] = [];
   for (const item of output) {
-    if (!item || typeof item !== "object") continue;
-    const typedItem = item as { type?: unknown; content?: unknown };
-    if (typedItem.type !== "message" || !Array.isArray(typedItem.content)) continue;
-    for (const content of typedItem.content) {
-      if (!content || typeof content !== "object") continue;
-      const typedContent = content as { type?: unknown; text?: unknown };
-      if (typedContent.type === "output_text" && typeof typedContent.text === "string") {
-        chunks.push(typedContent.text);
-      }
+    const parsed = responsesOutputTextItemSchema.safeParse(item);
+    if (!parsed.success) continue;
+    for (const content of parsed.data.content) {
+      chunks.push(content.text);
     }
   }
   return chunks.join("");

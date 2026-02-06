@@ -72,11 +72,17 @@ const openAiCompatibleToolChoiceSchema = z.union([
   }),
 ]);
 
+export const reasoningEffortSchema = z.enum(["none", "minimal", "low", "medium", "high", "xhigh"]);
+
+export type ReasoningEffort = z.infer<typeof reasoningEffortSchema>;
+
 export const openAiCompatibleChatCompletionsRequestSchema = z.object({
   model: z.string().min(1),
   messages: z.array(openAiCompatibleChatMessageSchema).min(1),
   temperature: z.number().min(0).max(2).optional(),
+  top_p: z.number().min(0).max(1).optional(),
   max_tokens: z.number().int().min(1).max(128000).optional(),
+  reasoning_effort: reasoningEffortSchema.nullable().optional(),
   tools: z.array(openAiCompatibleFunctionToolSchema).optional(),
   tool_choice: openAiCompatibleToolChoiceSchema.optional(),
 });
@@ -113,6 +119,17 @@ export const openAiCompatibleResponsesFunctionCallSchema = z.object({
 export type OpenAiCompatibleResponsesFunctionCall = z.infer<
   typeof openAiCompatibleResponsesFunctionCallSchema
 >;
+
+/** Narrow schema for extracting output_text from Responses API output items */
+export const responsesOutputTextItemSchema = z.object({
+  type: z.literal("message"),
+  content: z.array(
+    z.object({
+      type: z.literal("output_text"),
+      text: z.string(),
+    }),
+  ),
+});
 
 export const openAiCompatibleResponsesResponseSchema = z.object({
   id: z.string().min(1),

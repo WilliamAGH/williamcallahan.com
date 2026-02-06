@@ -1,9 +1,10 @@
 import type { NextRequest } from "next/server";
 import type { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
-import type { ParsedRequestBody } from "@/types/schemas/ai-chat";
+import type { ParsedRequestBody, SearchBookmarksToolResult } from "@/types/schemas/ai-chat";
 import type {
   AiUpstreamApiMode,
   OpenAiCompatibleChatMessage,
+  ReasoningEffort,
 } from "@/types/schemas/ai-openai-compatible";
 
 export type { ParsedRequestBody };
@@ -45,6 +46,8 @@ export type ChatLogContext = {
   model: string;
   apiMode: AiUpstreamApiMode;
   priority: number;
+  temperature?: number;
+  reasoningEffort?: ReasoningEffort | null;
 };
 
 /** JSON response configuration */
@@ -80,20 +83,42 @@ export type ChatPipeline = {
   runUpstream: (onStreamEvent?: (event: AiChatModelStreamEvent) => void) => Promise<string>;
 };
 
+/** Per-feature model parameter overrides (e.g. temperature, reasoning effort) */
+export type FeatureModelDefaults = {
+  temperature?: number;
+  topP?: number;
+  reasoningEffort?: ReasoningEffort | null;
+  maxTokens?: number;
+};
+
+/** Fully resolved model params — every field has a concrete value */
+export type ResolvedModelParams = Required<FeatureModelDefaults>;
+
+/** Internal result of executing a single bookmark tool call in a batch */
+export type ExecutedToolCall = {
+  callId: string;
+  parsed: SearchBookmarksToolResult;
+  links: Array<{ title: string; url: string }>;
+};
+
 /** Return value from dispatchToolCalls — pure data, no mutations */
 export type ToolDispatchResult = {
   responseMessages: OpenAiCompatibleChatMessage[];
   observedResults: Array<{ title: string; url: string }>;
-  executed: boolean;
 };
 
-/** Parameters shared by both Chat Completions and Responses turn executors */
+/** Parameters shared by both Chat Completions and Responses turn executors.
+ *  Model params (temperature, topP, maxTokens, reasoningEffort) are always
+ *  resolved by `resolveModelParams()` so they are non-optional here. */
 export type UpstreamTurnParams = {
   turnConfig: { model: string; baseUrl: string; apiKey: string | undefined };
   signal: AbortSignal;
   toolChoice: "required" | "auto" | undefined;
   hasToolSupport: boolean;
-  temperature: number | undefined;
+  temperature: number;
+  topP: number;
+  reasoningEffort: ReasoningEffort | null;
+  maxTokens: number;
   onStreamEvent?: (event: AiChatModelStreamEvent) => void;
 };
 
