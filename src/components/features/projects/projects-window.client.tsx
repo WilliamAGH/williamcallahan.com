@@ -178,9 +178,13 @@ function TagVisibilityController() {
     projectNodes.forEach((node) => {
       const rawTags = node.getAttribute("data-project-tags");
       if (rawTags == null) {
-        console.debug("[TagVisibilityController] Missing data-project-tags on node:", node);
+        console.debug(
+          "[TagVisibilityController] Missing data-project-tags on node, skipping:",
+          node,
+        );
+        return; // Skip — don't silently treat as tag-less
       }
-      const tags = rawTags?.split("|||") ?? [];
+      const tags = rawTags.split("|||");
       const shouldShow = selectedTag === "All" || tags.includes(selectedTag);
       node.style.display = shouldShow ? "" : "none";
     });
