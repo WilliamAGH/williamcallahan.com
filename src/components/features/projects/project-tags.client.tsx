@@ -18,7 +18,7 @@
 
 import { projects } from "@/data/projects";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 const TAG_LIMIT = 10; // Number of tags to show initially
 
@@ -33,6 +33,14 @@ const TAG_LIMIT = 10; // Number of tags to show initially
  * @returns {React.JSX.Element} The rendered project tags filtering interface.
  */
 export function ProjectTagsClient(): React.JSX.Element {
+  return (
+    <Suspense fallback={<ProjectTagsFallback />}>
+      <ProjectTagsContent />
+    </Suspense>
+  );
+}
+
+function ProjectTagsContent(): React.JSX.Element {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [selectedTag, setSelectedTag] = useState("All");
@@ -112,6 +120,14 @@ export function ProjectTagsClient(): React.JSX.Element {
           {showAllTags ? "Show Less" : `+${uniqueProjectTags.length - TAG_LIMIT} More Tags`}
         </button>
       )}
+    </div>
+  );
+}
+
+function ProjectTagsFallback(): React.JSX.Element {
+  return (
+    <div className="max-w-5xl mx-auto flex flex-col gap-3 mb-8 px-4 pt-6">
+      <div className="h-9 w-full rounded-lg bg-gray-200 dark:bg-gray-700 animate-pulse" />
     </div>
   );
 }
