@@ -153,19 +153,30 @@ export async function GET(request: NextRequest) {
     const searchResultsById = new Map(searchResults.map((result) => [String(result.id), result]));
     const paginatedResults: SearchResult[] = paginated.map((bookmark) => {
       const ranked = searchResultsById.get(bookmark.id);
-      if (!ranked) {
-        debug("[Bookmarks Search] No ranked result for hydrated bookmark:", bookmark.id);
-      }
       const bookmarkUrl = bookmark.slug
         ? `/bookmarks/${bookmark.slug}`
         : `/bookmarks/${bookmark.id}`;
+      if (!ranked) {
+        debug(
+          "[Bookmarks Search] No ranked result for hydrated bookmark, using score 0:",
+          bookmark.id,
+        );
+        return {
+          id: bookmark.id,
+          type: "bookmark" as const,
+          title: bookmark.title,
+          description: bookmark.description,
+          url: bookmarkUrl,
+          score: 0,
+        };
+      }
       return {
         id: bookmark.id,
         type: "bookmark",
         title: bookmark.title,
         description: bookmark.description,
-        url: ranked?.url ?? bookmarkUrl,
-        score: ranked?.score ?? 0,
+        url: ranked.url,
+        score: ranked.score,
       };
     });
 
