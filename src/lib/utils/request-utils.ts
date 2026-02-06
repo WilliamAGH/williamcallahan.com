@@ -141,6 +141,17 @@ function isRscRequest(pathname: string, searchParams: URLSearchParams, headers: 
   return pathname.endsWith(".rsc");
 }
 
+/** FNV-1a hash of an IP string, formatted as a hex bucket ID for structured
+ *  logs. Avoids logging raw IPs while preserving per-client cardinality. */
+export function hashIpBucket(input: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `ip-${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
 export function classifyProxyRequest(
   request: Pick<Request, "method" | "url" | "headers">,
 ): ProxyRequestClass {
