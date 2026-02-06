@@ -149,4 +149,31 @@ describe("App Router Page Smoke Tests (Static Routes)", () => {
       }
     });
   }
+
+  it("renders Projects page even when CDN config is unavailable", async () => {
+    const originalPublicCdn = process.env.NEXT_PUBLIC_S3_CDN_URL;
+    const originalS3Bucket = process.env.S3_BUCKET;
+    const originalS3ServerUrl = process.env.S3_SERVER_URL;
+
+    delete process.env.NEXT_PUBLIC_S3_CDN_URL;
+    delete process.env.S3_BUCKET;
+    delete process.env.S3_SERVER_URL;
+
+    try {
+      vi.resetModules();
+      const pageModule = (await import("@/app/projects/page")) as PageComponentModule;
+      const ProjectsPage = pageModule.default;
+
+      const element = (await ProjectsPage({ params: {}, searchParams: {} })) as JSX.Element;
+      const wrapped = React.createElement(GlobalWindowRegistryProvider, null, element);
+      const html = renderToString(wrapped);
+
+      expect(html).toEqual(expect.any(String));
+      expect(html.length).toBeGreaterThan(0);
+    } finally {
+      process.env.NEXT_PUBLIC_S3_CDN_URL = originalPublicCdn;
+      process.env.S3_BUCKET = originalS3Bucket;
+      process.env.S3_SERVER_URL = originalS3ServerUrl;
+    }
+  });
 });
