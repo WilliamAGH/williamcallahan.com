@@ -30,8 +30,16 @@ import type {
 } from "@/types/middleware";
 import { isHealthCheckPath } from "./health-check-paths";
 
+/** RSS/limit ratio at which a warning header is emitted (85%). Chosen to give
+ *  the operator a ~7% runway to react before critical shedding kicks in. */
 const MEMORY_WARNING_UTILIZATION = 0.85;
+/** RSS/limit ratio at which ALL non-health-check requests are shed (92%).
+ *  Leaves ~8% headroom for GC, OS page cache, and in-flight allocations
+ *  before the OOM killer or container runtime terminates the process. */
 const MEMORY_CRITICAL_UTILIZATION = 0.92;
+/** Retry-After value (seconds) sent with critical 503 responses. Three minutes
+ *  aligns with typical container restart/reschedule cycles. */
+const CRITICAL_SHED_RETRY_AFTER_SECONDS = 180;
 
 /**
  * Check memory pressure using Edge Runtime-compatible environment variables.
@@ -167,7 +175,7 @@ export async function memoryPressureMiddleware(
       nodeStatus?.limitBytes && nodeStatus.limitBytes > 0
         ? ` rss=${Math.round(nodeStatus.rssBytes / 1024 / 1024)}MB limit=${Math.round(nodeStatus.limitBytes / 1024 / 1024)}MB`
         : "";
-    const retryAfterSeconds = 180;
+    const retryAfterSeconds = CRITICAL_SHED_RETRY_AFTER_SECONDS;
     const clientIp = getClientIp(request.headers, { fallback: "anonymous" });
     console.warn(
       `[MemoryPressure] Shedding load due to memory pressure: ${pathname} ${request.method}${details}`,

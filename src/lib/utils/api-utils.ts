@@ -128,7 +128,7 @@ function withRetryHeaders(args: {
   return headers;
 }
 
-function buildErrorPageHtml(args: { status: 429 | 503; title: string; message: string }): string {
+function buildErrorPageHtml(args: { status: number; title: string; message: string }): string {
   return `<!doctype html>
 <html lang="en">
 <head>

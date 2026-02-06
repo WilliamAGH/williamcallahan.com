@@ -92,8 +92,9 @@ function logThrottleEvent(args: {
 function buildRateLimitResponse(args: {
   requestClass: ProxyRequestClass;
   retryAfterSeconds: string;
-  profile: RateLimitProfile;
-  scope: "burst" | "minute";
+  scope: string;
+  rateLimitLimit: number;
+  rateLimitWindowSeconds: number;
 }): NextResponse {
   const retryAfterSeconds = Number(args.retryAfterSeconds);
   if (args.requestClass === "document") {
@@ -106,12 +107,8 @@ function buildRateLimitResponse(args: {
   return buildApiRateLimitResponse({
     retryAfterSeconds,
     rateLimitScope: args.scope,
-    rateLimitLimit:
-      args.scope === "burst" ? args.profile.burst.maxRequests : args.profile.minute.maxRequests,
-    rateLimitWindowSeconds:
-      args.scope === "burst"
-        ? Math.ceil(args.profile.burst.windowMs / 1000)
-        : Math.ceil(args.profile.minute.windowMs / 1000),
+    rateLimitLimit: args.rateLimitLimit,
+    rateLimitWindowSeconds: args.rateLimitWindowSeconds,
   });
 }
 
@@ -150,8 +147,9 @@ export function sitewideRateLimitMiddleware(
     return buildRateLimitResponse({
       requestClass,
       retryAfterSeconds,
-      profile,
       scope: "burst",
+      rateLimitLimit: profile.burst.maxRequests,
+      rateLimitWindowSeconds: Math.ceil(profile.burst.windowMs / 1000),
     });
   }
 
@@ -168,8 +166,9 @@ export function sitewideRateLimitMiddleware(
     return buildRateLimitResponse({
       requestClass,
       retryAfterSeconds,
-      profile,
       scope: "minute",
+      rateLimitLimit: profile.minute.maxRequests,
+      rateLimitWindowSeconds: Math.ceil(profile.minute.windowMs / 1000),
     });
   }
 
