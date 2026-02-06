@@ -179,22 +179,24 @@ export async function memoryPressureMiddleware(
       ip: clientIp,
     });
 
+    // Critical memory: shed ALL request classes to protect the process.
+    // Response format varies by class; the shed decision does not.
+    let response: NextResponse;
     if (requestClass === "document") {
-      const response = buildServiceBusyPageResponse({ retryAfterSeconds });
-      response.headers.set("X-System-Status", "MEMORY_CRITICAL");
-      return response;
-    }
-
-    if (requestClass === "api") {
-      const response = buildApiServiceBusyResponse({
+      response = buildServiceBusyPageResponse({ retryAfterSeconds });
+    } else if (requestClass === "api") {
+      response = buildApiServiceBusyResponse({
         retryAfterSeconds,
         rateLimitScope: "memory",
       });
-      response.headers.set("X-System-Status", "MEMORY_CRITICAL");
-      return response;
+    } else {
+      response = new NextResponse(null, {
+        status: 503,
+        headers: { "Retry-After": String(retryAfterSeconds), "Cache-Control": "no-store" },
+      });
     }
-
-    return null;
+    response.headers.set("X-System-Status", "MEMORY_CRITICAL");
+    return response;
   }
 
   // Check if we're in warning state (optional header)

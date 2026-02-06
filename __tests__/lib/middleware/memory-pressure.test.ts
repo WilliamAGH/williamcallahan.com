@@ -56,13 +56,16 @@ describe("memoryPressureMiddleware", () => {
     });
   });
 
-  it("does not independently shed _rsc requests", async () => {
+  it("sheds _rsc requests under critical memory with bare 503", async () => {
     const request = new NextRequest("https://example.com/projects?_rsc=abc123");
     const result = await memoryPressureMiddleware(request, {
       rssBytes: 950 * 1024 * 1024,
       limitBytes: 1024 * 1024 * 1024,
     });
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result?.status).toBe(503);
+    expect(result?.headers.get("X-System-Status")).toBe("MEMORY_CRITICAL");
+    expect(result?.headers.get("Retry-After")).toBe("180");
   });
 
   it("returns 200 NextResponse with warning header when RSS exceeds warning utilization (override)", async () => {
