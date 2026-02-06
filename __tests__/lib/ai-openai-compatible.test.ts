@@ -4,7 +4,9 @@ import {
   verifyAiGateToken,
 } from "@/lib/ai/openai-compatible/gate-token";
 import {
+  buildOpenAiApiBaseUrl,
   buildChatCompletionsUrl,
+  buildResponsesUrl,
   resolveOpenAiCompatibleFeatureConfig,
 } from "@/lib/ai/openai-compatible/feature-config";
 import { buildChatMessages } from "@/lib/ai/openai-compatible/chat-messages";
@@ -23,7 +25,6 @@ describe("OpenAI-Compatible AI Utilities", () => {
         system: "client-system",
         messages: [{ role: "user", content: "hi" }],
       });
-
       expect(messages).toEqual([
         { role: "system", content: "client-system" },
         { role: "user", content: "hi" },
@@ -36,7 +37,6 @@ describe("OpenAI-Compatible AI Utilities", () => {
         system: "client-system",
         messages: [{ role: "user", content: "hi" }],
       });
-
       expect(messages).toEqual([
         { role: "system", content: "feature-system" },
         { role: "system", content: "client-system" },
@@ -52,7 +52,6 @@ describe("OpenAI-Compatible AI Utilities", () => {
           { role: "user", content: "hi" },
         ],
       });
-
       expect(messages).toEqual([
         { role: "system", content: "client-system" },
         { role: "user", content: "hi" },
@@ -65,7 +64,6 @@ describe("OpenAI-Compatible AI Utilities", () => {
         system: "client-system",
         userText: "hello",
       });
-
       expect(messages).toEqual([
         { role: "system", content: "feature-system" },
         { role: "system", content: "client-system" },
@@ -93,7 +91,6 @@ describe("OpenAI-Compatible AI Utilities", () => {
         { ip: "1.2.3.4", ua: payload.ua, nonce: "nonce" },
         now,
       );
-
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.payload.v).toBe(1);
@@ -111,7 +108,6 @@ describe("OpenAI-Compatible AI Utilities", () => {
         ip: "1.2.3.4",
         ua: hashUserAgent("ua"),
       });
-
       const result = verifyAiGateToken(
         secret,
         token,
@@ -132,7 +128,6 @@ describe("OpenAI-Compatible AI Utilities", () => {
         ip: "1.2.3.4",
         ua: hashUserAgent("ua"),
       });
-
       const result = verifyAiGateToken(
         secret,
         token,
@@ -149,14 +144,11 @@ describe("OpenAI-Compatible AI Utilities", () => {
       vi.resetModules();
       const { getUpstreamRequestQueue } =
         await import("@/lib/ai/openai-compatible/upstream-request-queue");
-
       const first = getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 1 });
       expect(first.snapshot.maxParallel).toBe(1);
-
       const increased = getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 5 });
       expect(increased).toBe(first);
       expect(increased.snapshot.maxParallel).toBe(5);
-
       const decreased = getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 2 });
       expect(decreased.snapshot.maxParallel).toBe(2);
     });
@@ -164,42 +156,45 @@ describe("OpenAI-Compatible AI Utilities", () => {
     it("rejects result when aborting a running task", async () => {
       const queue = new UpstreamRequestQueue({ key: "test-running-abort", maxParallel: 1 });
       const controller = new AbortController();
-
       let resolveRun: ((value: string) => void) | null = null;
       const runPromise = new Promise<string>((resolve) => {
         resolveRun = resolve;
       });
-
       const { started, result } = queue.enqueue({
         signal: controller.signal,
         run: () => runPromise,
       });
-
       await started;
       controller.abort();
-
       await expect(result).rejects.toMatchObject({ name: "AbortError" });
-
       resolveRun?.("ok");
     });
   });
 
   describe("feature-config", () => {
     const originalEnv = { ...process.env };
-
     beforeEach(() => {
       vi.resetModules();
       process.env = { ...originalEnv };
     });
-
     afterEach(() => {
       process.env = { ...originalEnv };
+    });
+
+    it("builds normalized OpenAI API base URL with /v1", () => {
+      expect(buildOpenAiApiBaseUrl("https://example.com")).toBe("https://example.com/v1");
+      expect(buildOpenAiApiBaseUrl("https://example.com/v1/")).toBe("https://example.com/v1");
     });
 
     it("builds chat completions URL with /v1 appended", () => {
       expect(buildChatCompletionsUrl("https://example.com")).toBe(
         "https://example.com/v1/chat/completions",
       );
+    });
+
+    it("builds responses URL with /v1 appended", () => {
+      expect(buildResponsesUrl("https://example.com")).toBe("https://example.com/v1/responses");
+      expect(buildResponsesUrl("https://example.com/v1/")).toBe("https://example.com/v1/responses");
     });
 
     it("builds chat completions URL when baseUrl already ends with /v1", () => {
@@ -214,33 +209,113 @@ describe("OpenAI-Compatible AI Utilities", () => {
     it("resolves feature-specific variables, then default, then built-in fallback", () => {
       process.env.AI_DEFAULT_OPENAI_BASE_URL = "https://default.example.com";
       process.env.AI_DEFAULT_LLM_MODEL = "default-model";
-
       process.env.AI_SEARCH_OPENAI_BASE_URL = "https://feature.example.com";
       process.env.AI_SEARCH_LLM_MODEL = "feature-model";
       process.env.AI_SEARCH_OPENAI_API_KEY = "feature-key";
-
       const feature = resolveOpenAiCompatibleFeatureConfig("search");
       expect(feature.baseUrl).toBe("https://feature.example.com");
       expect(feature.model).toBe("feature-model");
       expect(feature.apiKey).toBe("feature-key");
-
       const other = resolveOpenAiCompatibleFeatureConfig("other");
       expect(other.baseUrl).toBe("https://default.example.com");
       expect(other.model).toBe("default-model");
     });
   });
-
+  describe("openai-compatible-client adapter", () => {
+    it("maps assistant tool calls and tool outputs to Responses API input items", async () => {
+      vi.resetModules();
+      const mockResponsesCreate = vi.fn().mockResolvedValue({
+        id: "response_1",
+        output_text: "ok",
+        output: [],
+      });
+      class MockOpenAI {
+        public chat = { completions: { create: vi.fn(), stream: vi.fn() } };
+        public responses = { create: mockResponsesCreate, stream: vi.fn() };
+      }
+      vi.doMock("openai", () => ({
+        __esModule: true,
+        default: MockOpenAI,
+        OpenAI: MockOpenAI,
+      }));
+      const { callOpenAiCompatibleResponses } =
+        await import("@/lib/ai/openai-compatible/openai-compatible-client");
+      await callOpenAiCompatibleResponses({
+        baseUrl: "https://example.com",
+        request: {
+          model: "test-model",
+          input: [
+            { role: "user", content: "find wikipedia" },
+            {
+              role: "assistant",
+              tool_calls: [
+                {
+                  id: "call_1",
+                  type: "function",
+                  function: { name: "search_bookmarks", arguments: '{"query":"wikipedia"}' },
+                },
+              ],
+            },
+            { role: "tool", tool_call_id: "call_1", content: '{"results":[]}' },
+          ],
+        },
+      });
+      const payload = mockResponsesCreate.mock.calls[0]?.[0];
+      expect(payload.input).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: "function_call", call_id: "call_1" }),
+          expect.objectContaining({ type: "function_call_output", call_id: "call_1" }),
+        ]),
+      );
+    });
+    it("forwards streaming chat callbacks and returns the final completion", async () => {
+      vi.resetModules();
+      const finalChatCompletion = vi.fn().mockResolvedValue({
+        id: "chatcmpl_1",
+        choices: [{ message: { role: "assistant", content: "ok" } }],
+      });
+      const mockChatStream = vi.fn().mockReturnValue({
+        async *[Symbol.asyncIterator]() {
+          yield { id: "chatcmpl_1", model: "test-model", choices: [{ delta: { content: "o" } }] };
+          yield { id: "chatcmpl_1", model: "test-model", choices: [{ delta: { content: "k" } }] };
+        },
+        finalChatCompletion,
+      });
+      class MockOpenAI {
+        public chat = { completions: { create: vi.fn(), stream: mockChatStream } };
+        public responses = { create: vi.fn(), stream: vi.fn() };
+      }
+      vi.doMock("openai", () => ({
+        __esModule: true,
+        default: MockOpenAI,
+        OpenAI: MockOpenAI,
+      }));
+      const { streamOpenAiCompatibleChatCompletions } =
+        await import("@/lib/ai/openai-compatible/openai-compatible-client");
+      const onStart = vi.fn();
+      const onDelta = vi.fn();
+      const response = await streamOpenAiCompatibleChatCompletions({
+        baseUrl: "https://example.net",
+        request: {
+          model: "test-model",
+          messages: [{ role: "user", content: "hello" }],
+        },
+        onStart,
+        onDelta,
+      });
+      expect(onStart).toHaveBeenCalledWith({ id: "chatcmpl_1", model: "test-model" });
+      expect(onDelta.mock.calls.map(([delta]) => delta)).toEqual(["o", "k"]);
+      expect(response.choices[0]?.message.content).toBe("ok");
+    });
+  });
   describe("ai-token route", () => {
     const originalEnv = { ...process.env };
-
     beforeEach(() => {
       process.env = { ...originalEnv, AI_TOKEN_SIGNING_SECRET: "test-secret" };
     });
-
     afterEach(() => {
       process.env = { ...originalEnv };
     });
-
     it("prefers cf-visitor https over x-forwarded-proto when setting cookies", () => {
       const request = Object.assign(
         new NextRequest("https://williamcallahan.com/api/ai/token", {
@@ -252,10 +327,8 @@ describe("OpenAI-Compatible AI Utilities", () => {
         }),
         { nextUrl: new URL("https://williamcallahan.com/api/ai/token") },
       );
-
       const response = getAiToken(request);
       const setCookie = response.headers.get("set-cookie") ?? "";
-
       expect(response.status).toBe(200);
       expect(setCookie).toContain("__Host-ai_gate_nonce=");
       expect(setCookie).toContain("Secure");
