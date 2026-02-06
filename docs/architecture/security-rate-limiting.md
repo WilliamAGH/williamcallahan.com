@@ -2,12 +2,10 @@
 
 ## Overview
 
-The proxy now enforces a **navigation-first** strategy to prevent partial page renders:
+Two distinct shedding policies operate at the proxy layer:
 
-- `document` and `api` requests can be throttled/shed.
-- `rsc`, `prefetch`, and `image` subrequests are not independently blocked at the proxy.
-
-This avoids a state where HTML succeeds but RSC/image/prefetch resources fail independently and produce ambiguous UI behavior.
+- **Rate limiting** (`sitewide-rate-limit.ts`) uses a **navigation-first** strategy: only `document` and `api` request classes are throttled. `rsc`, `prefetch`, and `image` subrequests pass through to avoid partial-render failures where HTML succeeds but dependent resources are independently blocked.
+- **Memory shedding** (`memory-pressure.ts`) sheds **all** non-health-check request classes when memory is critical. An OOM crash is worse than a partial render, so every request type receives a 503. The response format varies by class (HTML for `document`, JSON for `api`, bare 503 for others).
 
 ## Request Classification
 
