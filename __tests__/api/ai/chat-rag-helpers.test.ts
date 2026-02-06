@@ -3,7 +3,7 @@
  * Ensures retrieval query construction and inventory gating are deterministic.
  */
 
-import { buildRagContextForChat } from "@/app/api/ai/chat/[feature]/chat-helpers";
+import { buildRagContextForChat, isAbortError } from "@/app/api/ai/chat/[feature]/chat-helpers";
 import { buildContextForQuery } from "@/lib/ai/rag";
 
 vi.mock("@/lib/ai/rag", () => ({
@@ -17,7 +17,6 @@ vi.mock("@/lib/ai/rag", () => ({
 }));
 
 const mockedBuildContextForQuery = vi.mocked(buildContextForQuery);
-
 const conversationId = "77777777-7777-4777-8777-777777777777";
 
 describe("AI Chat RAG Helpers", () => {
@@ -73,5 +72,15 @@ describe("AI Chat RAG Helpers", () => {
         includeInventory: true,
       }),
     );
+  });
+});
+
+describe("AI Chat Abort Detection", () => {
+  it("detects DOMException AbortError instances", () => {
+    expect(isAbortError(new DOMException("Request aborted", "AbortError"))).toBe(true);
+  });
+
+  it("does not classify generic errors as abort errors", () => {
+    expect(isAbortError(new Error("Boom"))).toBe(false);
   });
 });
