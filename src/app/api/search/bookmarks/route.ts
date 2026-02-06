@@ -2,11 +2,13 @@
  * Bookmarks-only Search API Route
  *
  * GET /api/search/bookmarks?q=<query>
- * Returns `{ data: UnifiedBookmark[] }` so existing client code can reuse the
- * same parsing logic used for the bulk-fetch endpoint. It relies on the
- * server-side `searchBookmarks` MiniSearch index to find matching bookmark IDs
- * and then hydrates them to full `UnifiedBookmark` objects via
- * `getBookmarks()`.
+ * Returns dual payload shapes for compatibility:
+ * - `data`: hydrated `UnifiedBookmark[]` for bookmark-focused consumers
+ * - `results`: normalized `SearchResult[]` for terminal scoped-search parsing
+ *
+ * It relies on the server-side `searchBookmarks` MiniSearch index to find
+ * matching bookmark IDs and then hydrates them to full `UnifiedBookmark`
+ * objects via `getBookmarks()`.
  */
 
 import { getBookmarks } from "@/lib/bookmarks/service.server";
@@ -19,6 +21,7 @@ import {
 } from "@/lib/search/api-guards";
 import { validateSearchQuery } from "@/lib/validators/search";
 import type { UnifiedBookmark } from "@/types";
+import type { SearchResult } from "@/types/search";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, connection, type NextRequest } from "next/server";
 
@@ -45,7 +48,20 @@ export async function GET(request: NextRequest) {
   preventCaching();
   if (isProductionBuildPhase()) {
     return NextResponse.json(
-      { data: [], totalCount: 0, hasMore: false, buildPhase: true },
+      {
+        data: [],
+        results: [],
+        totalCount: 0,
+        hasMore: false,
+        buildPhase: true,
+        meta: {
+          query: "",
+          scope: "bookmarks",
+          count: 0,
+          timestamp: new Date().toISOString(),
+          buildPhase: true,
+        },
+      },
       { headers: withNoStoreHeaders() },
     );
   }
@@ -70,7 +86,18 @@ export async function GET(request: NextRequest) {
     const query = validation.sanitized;
     if (query.length === 0)
       return NextResponse.json(
-        { data: [], totalCount: 0, hasMore: false },
+        {
+          data: [],
+          results: [],
+          totalCount: 0,
+          hasMore: false,
+          meta: {
+            query,
+            scope: "bookmarks",
+            count: 0,
+            timestamp: new Date().toISOString(),
+          },
+        },
         { headers: withNoStoreHeaders() },
       );
 
@@ -112,12 +139,34 @@ export async function GET(request: NextRequest) {
     const totalCount = orderedMatches.length;
     const start = (page - 1) * limit;
     const paginated = orderedMatches.slice(start, start + limit);
+    const searchResultsById = new Map(searchResults.map((result) => [String(result.id), result]));
+    const paginatedResults: SearchResult[] = paginated.map((bookmark) => {
+      const ranked = searchResultsById.get(bookmark.id);
+      const bookmarkUrl = bookmark.slug
+        ? `/bookmarks/${bookmark.slug}`
+        : `/bookmarks/${bookmark.id}`;
+      return {
+        id: bookmark.id,
+        type: "bookmark",
+        title: bookmark.title,
+        description: bookmark.description,
+        url: ranked?.url ?? bookmarkUrl,
+        score: ranked?.score ?? 0,
+      };
+    });
 
     return NextResponse.json(
       {
         data: paginated,
+        results: paginatedResults,
         totalCount,
         hasMore: start + limit < totalCount,
+        meta: {
+          query,
+          scope: "bookmarks",
+          count: paginatedResults.length,
+          timestamp: new Date().toISOString(),
+        },
       },
       { headers: withNoStoreHeaders() },
     );
