@@ -158,6 +158,9 @@ function generateHashes() {
   console.log(
     `${LOG_PREFIX} Successfully generated ${output.scriptSrc.length} script hashes and ${output.styleSrc.length} style hashes.`,
   );
+  console.log(
+    `${LOG_PREFIX} Note: proxy.ts currently applies style hashes only; script hashes are generated for future CSP hardening.`,
+  );
   console.log(`${LOG_PREFIX} Hashes saved to ${outputFile}`);
 }
 
