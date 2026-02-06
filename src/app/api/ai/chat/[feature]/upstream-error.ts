@@ -9,6 +9,23 @@
 
 import "server-only";
 
+/** Upstream error message pattern for model-load failures (single source of truth). */
+export const MODEL_LOAD_FAILURE_PATTERN = "Failed to load model";
+
+/** Check whether an upstream error indicates the requested model could not be loaded. */
+export function isModelLoadFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes(MODEL_LOAD_FAILURE_PATTERN);
+}
+
+/** Check whether an error is an AbortError (request cancelled by client). */
+export function isAbortError(error: unknown): boolean {
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error && error.name === "AbortError")
+  );
+}
+
 /** Format error message for response (sanitized in production) */
 export function formatErrorMessage(error: unknown): string {
   const errorMessage = error instanceof Error ? error.message : String(error);
@@ -36,7 +53,7 @@ export function resolveErrorResponse(error: unknown): { status: number; message:
   if (status === 429) {
     return { status: 503, message: "AI upstream rate limit exceeded" };
   }
-  if (status === 400 && message.includes("Failed to load model")) {
+  if (status === 400 && message.includes(MODEL_LOAD_FAILURE_PATTERN)) {
     return { status: 503, message: "AI upstream model is currently unavailable" };
   }
 

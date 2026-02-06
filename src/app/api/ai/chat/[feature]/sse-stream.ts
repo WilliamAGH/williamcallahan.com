@@ -13,8 +13,13 @@ import { NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 
 import type { SseStreamConfig } from "@/types/features/ai-chat";
-import { formatSseEvent, logSuccessfulChat, logFailedChat, isAbortError } from "./chat-helpers";
-import { resolveErrorResponse } from "./upstream-error";
+import { logSuccessfulChat, logFailedChat } from "./chat-helpers";
+import { isAbortError, resolveErrorResponse } from "./upstream-error";
+
+/** Format an SSE event as a string ready for `TextEncoder.encode`. */
+export function formatSseEvent(args: { event: string; data: unknown }): string {
+  return `event: ${args.event}\ndata: ${JSON.stringify(args.data)}\n\n`;
+}
 
 /**
  * Create and return an SSE streaming response
