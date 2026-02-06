@@ -22,7 +22,9 @@ import {
 import { validateSearchQuery } from "@/lib/validators/search";
 import type { UnifiedBookmark } from "@/types";
 import type { SearchResult } from "@/types/search";
+import { bookmarkSearchParamsSchema } from "@/types/schemas/search";
 import { preventCaching } from "@/lib/utils/api-utils";
+import { debug } from "@/lib/utils/debug";
 import { NextResponse, connection, type NextRequest } from "next/server";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
@@ -32,6 +34,38 @@ import { NextResponse, connection, type NextRequest } from "next/server";
 const PHASE_ENV_KEY = "NEXT_PHASE" as const;
 const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
+
+/** Pagination-only slice of the bookmark search params schema. */
+const paginationSchema = bookmarkSearchParamsSchema.pick({ page: true, limit: true });
+
+/** Build the standard bookmark search response payload. */
+function buildBookmarkSearchResponse(params: {
+  data: UnifiedBookmark[];
+  results: SearchResult[];
+  totalCount: number;
+  hasMore: boolean;
+  query: string;
+  extra?: Record<string, unknown>;
+}): NextResponse {
+  const { data, results, totalCount, hasMore, query, extra } = params;
+  return NextResponse.json(
+    {
+      data,
+      results,
+      totalCount,
+      hasMore,
+      ...extra,
+      meta: {
+        query,
+        scope: "bookmarks",
+        count: results.length,
+        timestamp: new Date().toISOString(),
+        ...extra,
+      },
+    },
+    { headers: withNoStoreHeaders() },
+  );
+}
 
 function resolveRequestUrl(request: NextRequest | { nextUrl?: URL; url: string }): URL {
   if ("nextUrl" in request && request.nextUrl instanceof URL) {
@@ -47,23 +81,14 @@ export async function GET(request: NextRequest) {
   // If called after the build phase check, the buildPhase:true response gets cached
   preventCaching();
   if (isProductionBuildPhase()) {
-    return NextResponse.json(
-      {
-        data: [],
-        results: [],
-        totalCount: 0,
-        hasMore: false,
-        buildPhase: true,
-        meta: {
-          query: "",
-          scope: "bookmarks",
-          count: 0,
-          timestamp: new Date().toISOString(),
-          buildPhase: true,
-        },
-      },
-      { headers: withNoStoreHeaders() },
-    );
+    return buildBookmarkSearchResponse({
+      data: [],
+      results: [],
+      totalCount: 0,
+      hasMore: false,
+      query: "",
+      extra: { buildPhase: true },
+    });
   }
   try {
     const requestUrl = resolveRequestUrl(request);
@@ -84,42 +109,29 @@ export async function GET(request: NextRequest) {
     }
 
     const query = validation.sanitized;
-    if (query.length === 0)
-      return NextResponse.json(
-        {
-          data: [],
-          results: [],
-          totalCount: 0,
-          hasMore: false,
-          meta: {
-            query,
-            scope: "bookmarks",
-            count: 0,
-            timestamp: new Date().toISOString(),
-          },
-        },
-        { headers: withNoStoreHeaders() },
-      );
+    if (query.length === 0) {
+      return buildBookmarkSearchResponse({
+        data: [],
+        results: [],
+        totalCount: 0,
+        hasMore: false,
+        query,
+      });
+    }
 
-    // Validate pagination params with defaults
-    const pageParam = searchParams.get("page");
-    const limitParam = searchParams.get("limit");
-    const page = pageParam ? parseInt(pageParam, 10) : 1;
-    const limit = limitParam ? parseInt(limitParam, 10) : 24;
-
-    // Validate the parsed values
-    if (Number.isNaN(page) || page < 1) {
+    // Validate pagination via the canonical Zod schema (coerces, bounds-checks, defaults)
+    const paginationInput = {
+      ...(searchParams.get("page") != null && { page: searchParams.get("page") }),
+      ...(searchParams.get("limit") != null && { limit: searchParams.get("limit") }),
+    };
+    const paginationResult = paginationSchema.safeParse(paginationInput);
+    if (!paginationResult.success) {
       return NextResponse.json(
-        { error: "Invalid page parameter" },
+        { error: "Invalid pagination parameters" },
         { status: 400, headers: withNoStoreHeaders() },
       );
     }
-    if (Number.isNaN(limit) || limit < 1 || limit > 100) {
-      return NextResponse.json(
-        { error: "Invalid limit parameter" },
-        { status: 400, headers: withNoStoreHeaders() },
-      );
-    }
+    const { page, limit } = paginationResult.data;
 
     // Get IDs of matching bookmarks via MiniSearch index (already score-sorted)
     const searchResults = await searchBookmarks(query);
@@ -142,6 +154,9 @@ export async function GET(request: NextRequest) {
     const searchResultsById = new Map(searchResults.map((result) => [String(result.id), result]));
     const paginatedResults: SearchResult[] = paginated.map((bookmark) => {
       const ranked = searchResultsById.get(bookmark.id);
+      if (!ranked) {
+        debug("[Bookmarks Search] No ranked result for hydrated bookmark:", bookmark.id);
+      }
       const bookmarkUrl = bookmark.slug
         ? `/bookmarks/${bookmark.slug}`
         : `/bookmarks/${bookmark.id}`;
@@ -155,21 +170,13 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json(
-      {
-        data: paginated,
-        results: paginatedResults,
-        totalCount,
-        hasMore: start + limit < totalCount,
-        meta: {
-          query,
-          scope: "bookmarks",
-          count: paginatedResults.length,
-          timestamp: new Date().toISOString(),
-        },
-      },
-      { headers: withNoStoreHeaders() },
-    );
+    return buildBookmarkSearchResponse({
+      data: paginated,
+      results: paginatedResults,
+      totalCount,
+      hasMore: start + limit < totalCount,
+      query,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[Bookmarks Search API]", message);
