@@ -28,7 +28,6 @@ import { ensureProtocol, stripWwwPrefix } from "@/lib/utils/url-utils";
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
 import type { BookmarkPageContext, UnifiedBookmark } from "@/types";
 import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
-
 // CRITICAL: generateStaticParams() remains intentionally disabled for bookmarks.
 // The sitemap now streams paginated S3 data at request time, so the build no longer
 // enumerates bookmark slugs up-front. This keeps rendering dynamic while still
@@ -70,7 +69,6 @@ const getBookmarkHostname = (rawUrl: string | null | undefined): string | null =
   }
 };
 
-// Helper function to find bookmark by slug using pre-computed mappings
 async function resolveBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null> {
   envLogger.group(
     "Bookmark Lookup Start",
@@ -172,11 +170,21 @@ export async function generateMetadata({
   const customDescription =
     bookmark.description || `A bookmark from ${domainName} that I've saved for future reference.`;
 
-  const rawImageUrl =
-    selectBestImage(bookmark, {
-      includeScreenshots: true,
-    }) || undefined;
-  const imageUrl = rawImageUrl ? safeEnsureAbsoluteUrl(rawImageUrl) : undefined;
+  let imageUrl: string | undefined;
+  try {
+    const rawImageUrl =
+      selectBestImage(bookmark, {
+        includeScreenshots: true,
+      }) || undefined;
+    imageUrl = rawImageUrl ? safeEnsureAbsoluteUrl(rawImageUrl) : undefined;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    envLogger.log(
+      "Failed to resolve bookmark metadata image",
+      { slug, bookmarkId: bookmark.id, error: message },
+      { category: "BookmarkPage" },
+    );
+  }
 
   const openGraphImages = imageUrl
     ? [
@@ -253,11 +261,21 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     { category: "BookmarkPage" },
   );
 
-  // Fetch cached AI analysis (if available)
-  const cachedAnalysis = await getCachedAnalysis<BookmarkAiAnalysisResponse>(
-    "bookmarks",
-    foundBookmark.id,
-  );
+  let cachedAnalysis: Awaited<ReturnType<typeof getCachedAnalysis<BookmarkAiAnalysisResponse>>> =
+    null;
+  try {
+    cachedAnalysis = await getCachedAnalysis<BookmarkAiAnalysisResponse>(
+      "bookmarks",
+      foundBookmark.id,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    envLogger.log(
+      "Failed to load cached bookmark analysis",
+      { slug, bookmarkId: foundBookmark.id, error: message },
+      { category: "BookmarkPage" },
+    );
+  }
 
   if (cachedAnalysis) {
     envLogger.log(
