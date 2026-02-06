@@ -34,9 +34,14 @@ const CHAT_RATE_LIMIT = {
   windowMs: 60_000,
 } as const;
 
+/** Anaphoric pronouns — when detected (without a domain hint), `resolveRetrievalQuery`
+ *  merges the current + previous message so RAG can resolve the reference.
+ *  Same pronouns appear as stop words in `dynamic-searchers.ts` (separate pipeline). */
 const ANAPHORA_PATTERN = /\b(them|those|that|it|this|these|ones)\b/i;
+/** Suppresses anaphora expansion when the user explicitly names a content domain. */
 const DOMAIN_HINT_PATTERN =
   /\b(bookmarks?|links?|resources?|wikipedia|projects?|blog|posts?|books?|investments?)\b/i;
+/** Triggers full-inventory RAG section with server-side pagination. */
 const INVENTORY_REQUEST_PATTERN = /\b(all|list|catalog|inventory|show all|everything)\b/i;
 
 export { requestBodySchema };
