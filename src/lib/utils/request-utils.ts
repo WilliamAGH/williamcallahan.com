@@ -9,6 +9,7 @@
 
 import { isIP } from "node:net";
 import type { CloudflareHeaderValidation } from "@/types/http";
+import type { ProxyRequestClass } from "@/types/middleware";
 
 /**
  * Standard IP header precedence order.
@@ -18,6 +19,7 @@ const IP_HEADERS = ["True-Client-IP", "CF-Connecting-IP", "X-Forwarded-For", "X-
 
 const CLOUDFLARE_REQUIRED_HEADERS = ["CF-Ray"] as const;
 const CLOUDFLARE_IP_HEADERS = ["CF-Connecting-IP", "True-Client-IP"] as const;
+const PREFETCH_HINT_VALUES = new Set(["prefetch", "prerender"]);
 
 /**
  * Extracts the first IP address from a comma-separated header value.
@@ -113,4 +115,55 @@ export function validateCloudflareHeaders(headers: Headers): CloudflareHeaderVal
       forwardedProto,
     },
   };
+}
+
+function hasPrefetchHeader(headers: Headers): boolean {
+  if (headers.has("next-router-prefetch")) return true;
+
+  const purpose = normalizeHeaderValue(headers.get("purpose"))?.toLowerCase();
+  if (purpose && PREFETCH_HINT_VALUES.has(purpose)) return true;
+
+  const secPurpose = normalizeHeaderValue(headers.get("sec-purpose"))?.toLowerCase();
+  if (secPurpose && PREFETCH_HINT_VALUES.has(secPurpose)) return true;
+
+  return false;
+}
+
+function isRscRequest(pathname: string, searchParams: URLSearchParams, headers: Headers): boolean {
+  if (searchParams.has("_rsc")) return true;
+
+  const rscHeader = normalizeHeaderValue(headers.get("rsc"));
+  if (rscHeader === "1") return true;
+
+  const accept = normalizeHeaderValue(headers.get("accept"))?.toLowerCase();
+  if (accept?.includes("text/x-component")) return true;
+
+  return pathname.endsWith(".rsc");
+}
+
+export function classifyProxyRequest(
+  request: Pick<Request, "method" | "url" | "headers">,
+): ProxyRequestClass {
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+  const method = request.method.toUpperCase();
+  const accept = normalizeHeaderValue(request.headers.get("accept"))?.toLowerCase() ?? "";
+  const secFetchDest = normalizeHeaderValue(request.headers.get("sec-fetch-dest"))?.toLowerCase();
+  const secFetchMode = normalizeHeaderValue(request.headers.get("sec-fetch-mode"))?.toLowerCase();
+
+  if (pathname.startsWith("/api/")) return "api";
+  if (pathname.startsWith("/_next/image")) return "image";
+  if (hasPrefetchHeader(request.headers)) return "prefetch";
+  if (isRscRequest(pathname, url.searchParams, request.headers)) return "rsc";
+  if (
+    method === "GET" &&
+    (accept.includes("text/html") ||
+      secFetchDest === "document" ||
+      secFetchMode === "navigate" ||
+      !pathname.includes("."))
+  ) {
+    return "document";
+  }
+
+  return "other";
 }
