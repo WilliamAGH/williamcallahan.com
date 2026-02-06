@@ -15,6 +15,7 @@ import { verifyAiGateToken, hashUserAgent } from "@/lib/ai/openai-compatible/gat
 import { logChatMessage } from "@/lib/ai/openai-compatible/chat-message-logger";
 import { buildContextForQuery } from "@/lib/ai/rag";
 import { isPaginationKeyword } from "@/lib/ai/rag/inventory-pagination";
+import { debug } from "@/lib/utils/debug";
 import { getClientIp } from "@/lib/utils/request-utils";
 import {
   NO_STORE_HEADERS,
@@ -64,7 +65,8 @@ function getRequestOriginHostname(request: NextRequest): string | null {
   if (origin) {
     try {
       return new URL(origin).hostname;
-    } catch {
+    } catch (err) {
+      debug("[chat-helpers] Malformed origin header:", origin, err);
       return null;
     }
   }
@@ -72,7 +74,8 @@ function getRequestOriginHostname(request: NextRequest): string | null {
   if (referer) {
     try {
       return new URL(referer).hostname;
-    } catch {
+    } catch (err) {
+      debug("[chat-helpers] Malformed referer header:", referer, err);
       return null;
     }
   }
@@ -84,7 +87,8 @@ function getRequestPagePath(request: NextRequest): string | null {
   if (referer) {
     try {
       return new URL(referer).pathname;
-    } catch {
+    } catch (err) {
+      debug("[chat-helpers] Malformed referer header:", referer, err);
       return null;
     }
   }
@@ -336,12 +340,4 @@ export function logFailedChat(
     success: false,
     errorMessage,
   });
-}
-
-/** Format error message for response (sanitized in production) */
-export function formatErrorMessage(error: unknown): string {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  return process.env.NODE_ENV === "production"
-    ? "Upstream AI service error"
-    : `Upstream AI service error: ${errorMessage}`;
 }
