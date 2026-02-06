@@ -70,12 +70,13 @@ function toLoggableMessages(
 }
 
 /** Emit start/delta events after a turn resolves with final content. */
-function emitDeferredContentEvents(
-  text: string,
-  startMeta: StreamStartMeta | null,
-  apiMode: AiUpstreamApiMode,
-  onStreamEvent: (event: AiChatModelStreamEvent) => void,
-): void {
+function emitDeferredContentEvents(params: {
+  text: string;
+  startMeta: StreamStartMeta | null;
+  apiMode: AiUpstreamApiMode;
+  onStreamEvent: (event: AiChatModelStreamEvent) => void;
+}): void {
+  const { text, startMeta, apiMode, onStreamEvent } = params;
   if (startMeta) {
     onStreamEvent({
       event: "message_start",
@@ -119,7 +120,12 @@ async function executeChatCompletionsTurn(
   if (toolCalls.length === 0) {
     const text = assistantMessage.content?.trim() || assistantMessage.refusal?.trim();
     if (text && onStreamEvent) {
-      emitDeferredContentEvents(text, startMeta, "chat_completions", onStreamEvent);
+      emitDeferredContentEvents({
+        text,
+        startMeta,
+        apiMode: "chat_completions",
+        onStreamEvent,
+      });
     }
     return { kind: "content", text };
   }
@@ -169,7 +175,7 @@ async function executeResponsesTurn(
   if (toolCalls.length === 0) {
     const text = response.output_text.trim();
     if (text && onStreamEvent) {
-      emitDeferredContentEvents(text, startMeta, "responses", onStreamEvent);
+      emitDeferredContentEvents({ text, startMeta, apiMode: "responses", onStreamEvent });
     }
     return { kind: "content", text };
   }
@@ -209,16 +215,17 @@ function resolveLatestUserMessage(
   );
 }
 
-function buildLogContext(
-  feature: string,
-  ctx: ValidatedRequestContext,
-  msgs: OpenAiCompatibleChatMessage[],
-  model: string,
-  apiMode: AiUpstreamApiMode,
-  priority: number,
-  temperature: number,
-  reasoningEffort: ReasoningEffort | null,
-): ChatLogContext {
+function buildLogContext(params: {
+  feature: string;
+  ctx: ValidatedRequestContext;
+  messages: OpenAiCompatibleChatMessage[];
+  model: string;
+  apiMode: AiUpstreamApiMode;
+  priority: number;
+  temperature: number;
+  reasoningEffort: ReasoningEffort | null;
+}): ChatLogContext {
+  const { feature, ctx, messages, model, apiMode, priority, temperature, reasoningEffort } = params;
   return {
     feature,
     conversationId: ctx.parsedBody.conversationId,
@@ -226,7 +233,7 @@ function buildLogContext(
     userAgent: ctx.userAgent,
     originHost: ctx.originHost,
     pagePath: ctx.pagePath,
-    messages: toLoggableMessages(msgs),
+    messages: toLoggableMessages(messages),
     model,
     apiMode,
     priority,
@@ -235,12 +242,13 @@ function buildLogContext(
   };
 }
 
-export function buildChatPipeline(
-  feature: string,
-  ctx: ValidatedRequestContext,
-  ragResult: { augmentedPrompt: string | undefined; status: RagContextStatus },
-  signal: AbortSignal,
-): ChatPipeline {
+export function buildChatPipeline(params: {
+  feature: string;
+  ctx: ValidatedRequestContext;
+  ragResult: { augmentedPrompt: string | undefined; status: RagContextStatus };
+  signal: AbortSignal;
+}): ChatPipeline {
+  const { feature, ctx, ragResult, signal } = params;
   const messages = buildChatMessages({
     featureSystemPrompt: resolveFeatureSystemPrompt(feature, ragResult.augmentedPrompt),
     system: ctx.parsedBody.system,
@@ -267,16 +275,16 @@ export function buildChatPipeline(
   const latestUserMessage = resolveLatestUserMessage(ctx.parsedBody);
   const hasToolSupport = isTerminalChat(feature);
   const forceBookmarkTool = hasToolSupport && matchesBookmarkSearchPattern(latestUserMessage);
-  const logContext = buildLogContext(
+  const logContext = buildLogContext({
     feature,
     ctx,
     messages,
-    primaryModel,
+    model: primaryModel,
     apiMode,
     priority,
-    modelParams.temperature,
-    modelParams.reasoningEffort,
-  );
+    temperature: modelParams.temperature,
+    reasoningEffort: modelParams.reasoningEffort,
+  });
   const runUpstream = async (
     onStreamEvent?: (event: AiChatModelStreamEvent) => void,
   ): Promise<string> => {
