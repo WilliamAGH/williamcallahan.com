@@ -1,11 +1,16 @@
 import { z } from "zod/v4";
-import { aiUpstreamApiModeSchema } from "@/types/schemas/ai-openai-compatible";
+import {
+  aiUpstreamApiModeSchema,
+  reasoningEffortSchema,
+} from "@/types/schemas/ai-openai-compatible";
 
 export const requestBodySchema = z
   .object({
     userText: z.string().min(1).optional(),
     system: z.string().min(1).optional(),
     temperature: z.number().min(0).max(2).optional(),
+    top_p: z.number().min(0).max(1).optional(),
+    reasoning_effort: reasoningEffortSchema.nullable().optional(),
     apiMode: aiUpstreamApiModeSchema.optional(),
     conversationId: z.string().uuid().optional(),
     priority: z.number().int().min(-100).max(100).optional(),

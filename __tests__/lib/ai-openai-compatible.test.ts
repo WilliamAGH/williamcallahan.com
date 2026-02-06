@@ -11,8 +11,13 @@ import {
 } from "@/lib/ai/openai-compatible/feature-config";
 import { buildChatMessages } from "@/lib/ai/openai-compatible/chat-messages";
 import { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
+import {
+  resolveModelParams,
+  resolveFeatureSystemPrompt,
+} from "@/app/api/ai/chat/[feature]/feature-defaults";
 import { GET as getAiToken } from "@/app/api/ai/token/route";
 import { NextRequest } from "next/server";
+import type { ParsedRequestBody } from "@/types/schemas/ai-chat";
 
 vi.mock("@/lib/rate-limiter", () => ({
   isOperationAllowed: vi.fn(() => true),
@@ -221,7 +226,109 @@ describe("OpenAI-Compatible AI Utilities", () => {
       expect(other.model).toBe("default-model");
     });
   });
+  describe("feature-defaults", () => {
+    const minimalBody = { userText: "hi" } as ParsedRequestBody;
+
+    it("returns global defaults when feature and request body have no overrides", () => {
+      const params = resolveModelParams("unknown_feature", minimalBody);
+      expect(params).toEqual({
+        temperature: 1.0,
+        topP: 1.0,
+        reasoningEffort: "medium",
+        maxTokens: 8192,
+      });
+    });
+
+    it("applies feature defaults for terminal_chat", () => {
+      const params = resolveModelParams("terminal_chat", minimalBody);
+      expect(params.temperature).toBe(0.7);
+      expect(params.reasoningEffort).toBe("low");
+      expect(params.topP).toBe(1.0);
+      expect(params.maxTokens).toBe(8192);
+    });
+
+    it("consumer request body overrides feature defaults", () => {
+      const body = {
+        userText: "hi",
+        temperature: 0.5,
+        top_p: 0.9,
+        reasoning_effort: "high",
+      } as ParsedRequestBody;
+      const params = resolveModelParams("terminal_chat", body);
+      expect(params.temperature).toBe(0.5);
+      expect(params.topP).toBe(0.9);
+      expect(params.reasoningEffort).toBe("high");
+    });
+
+    it("resolveFeatureSystemPrompt returns undefined for unknown features without augment", () => {
+      expect(resolveFeatureSystemPrompt("unknown", undefined)).toBeUndefined();
+    });
+
+    it("resolveFeatureSystemPrompt concatenates feature prompt with augmented prompt", () => {
+      const result = resolveFeatureSystemPrompt("terminal_chat", "extra context");
+      expect(result).toContain("terminal interface");
+      expect(result).toContain("extra context");
+    });
+  });
+
   describe("openai-compatible-client adapter", () => {
+    it("maps max_tokens to max_completion_tokens and passes top_p and reasoning_effort", async () => {
+      vi.resetModules();
+      const mockCreate = vi.fn().mockResolvedValue({
+        id: "chatcmpl_2",
+        choices: [{ message: { role: "assistant", content: "ok" } }],
+      });
+      class MockOpenAI {
+        public chat = { completions: { create: mockCreate, stream: vi.fn() } };
+        public responses = { create: vi.fn(), stream: vi.fn() };
+      }
+      vi.doMock("openai", () => ({ __esModule: true, default: MockOpenAI, OpenAI: MockOpenAI }));
+      const { callOpenAiCompatibleChatCompletions } =
+        await import("@/lib/ai/openai-compatible/openai-compatible-client");
+      await callOpenAiCompatibleChatCompletions({
+        baseUrl: "https://example.com",
+        request: {
+          model: "test-model",
+          messages: [{ role: "user", content: "hi" }],
+          temperature: 1.0,
+          top_p: 0.9,
+          max_tokens: 8192,
+          reasoning_effort: "medium",
+        },
+      });
+      const payload = mockCreate.mock.calls[0]?.[0];
+      expect(payload.max_completion_tokens).toBe(8192);
+      expect(payload.max_tokens).toBeUndefined();
+      expect(payload.top_p).toBe(0.9);
+      expect(payload.reasoning_effort).toBe("medium");
+      expect(payload.temperature).toBe(1.0);
+    });
+
+    it("omits undefined optional fields from chat request", async () => {
+      vi.resetModules();
+      const mockCreate = vi.fn().mockResolvedValue({
+        id: "chatcmpl_3",
+        choices: [{ message: { role: "assistant", content: "ok" } }],
+      });
+      class MockOpenAI {
+        public chat = { completions: { create: mockCreate, stream: vi.fn() } };
+        public responses = { create: vi.fn(), stream: vi.fn() };
+      }
+      vi.doMock("openai", () => ({ __esModule: true, default: MockOpenAI, OpenAI: MockOpenAI }));
+      const { callOpenAiCompatibleChatCompletions } =
+        await import("@/lib/ai/openai-compatible/openai-compatible-client");
+      await callOpenAiCompatibleChatCompletions({
+        baseUrl: "https://example.com",
+        request: { model: "test-model", messages: [{ role: "user", content: "hi" }] },
+      });
+      const payload = mockCreate.mock.calls[0]?.[0];
+      expect(payload).not.toHaveProperty("temperature");
+      expect(payload).not.toHaveProperty("top_p");
+      expect(payload).not.toHaveProperty("max_completion_tokens");
+      expect(payload).not.toHaveProperty("max_tokens");
+      expect(payload).not.toHaveProperty("reasoning_effort");
+    });
+
     it("maps assistant tool calls and tool outputs to Responses API input items", async () => {
       vi.resetModules();
       const mockResponsesCreate = vi.fn().mockResolvedValue({

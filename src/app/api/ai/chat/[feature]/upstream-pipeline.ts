@@ -26,6 +26,7 @@ import type {
   AiUpstreamApiMode,
   OpenAiCompatibleChatCompletionsRequest,
   OpenAiCompatibleChatMessage,
+  ReasoningEffort,
 } from "@/types/schemas/ai-openai-compatible";
 import {
   SEARCH_BOOKMARKS_RESPONSE_TOOL,
@@ -37,30 +38,7 @@ import {
   matchesBookmarkSearchPattern,
   runDeterministicBookmarkFallback,
 } from "./bookmark-tool";
-
-const FEATURE_SYSTEM_PROMPTS: Record<string, string> = {
-  terminal_chat: `You are a helpful assistant in a terminal interface on williamcallahan.com, the personal website of William Callahan (software engineer, investor, entrepreneur).
-
-Response style:
-- Keep responses short and conversational (2-4 sentences typical, expand only when necessary)
-- Use plain text only - no markdown, no HTML, no formatting symbols like ** or #, except for search result link lines
-- For lists, use simple dashes: "- item one" on new lines
-- Be friendly but concise - this is a terminal, not a document
-- When asked about William (William Callahan) or the site, share relevant context naturally
-- Use the INVENTORY CATALOG section to answer list questions; do not invent items not in the catalog
-- If asked for "all" items, respond in pages of ~25 lines and ask if they want the next page
-- When SEARCH RESULTS FOR YOUR QUERY is present, treat it as preloaded context from the server
-- For bookmark search requests, call the "search_bookmarks" tool before answering
-- Never claim "I can search" or "searching now" after a user asks to search; actually call the tool
-- Tool-call procedure: (1) call "search_bookmarks" with {"query": "...", "maxResults": 5}, (2) read tool results, (3) answer from those results only
-- After tool results arrive, answer with clickable markdown lines in this exact format: "- [Title](/bookmarks/slug)"
-- Use only URLs returned by the tool
-- If no relevant result exists, clearly say none were found and suggest a refined query`,
-};
-
-const FEATURE_DEFAULT_TEMPERATURE: Record<string, number> = {
-  terminal_chat: 0,
-};
+import { resolveFeatureSystemPrompt, resolveModelParams } from "./feature-defaults";
 
 const MAX_TOOL_TURNS = 2;
 
@@ -70,15 +48,6 @@ function isTerminalChat(feature: string): boolean {
 
 function resolveApiMode(mode: AiUpstreamApiMode | undefined): AiUpstreamApiMode {
   return mode === "responses" ? "responses" : "chat_completions";
-}
-
-function resolveFeatureSystemPrompt(
-  feature: string,
-  augmentedPrompt: string | undefined,
-): string | undefined {
-  const base: string | undefined = FEATURE_SYSTEM_PROMPTS[feature];
-  if (base && augmentedPrompt) return `${base}\n\n${augmentedPrompt}`;
-  return base ?? augmentedPrompt;
 }
 
 function resolveToolChoice(
@@ -106,13 +75,16 @@ async function executeChatCompletionsTurn(
   requestMessages: OpenAiCompatibleChatMessage[],
   params: UpstreamTurnParams,
 ): Promise<UpstreamTurnOutcome> {
-  const { turnConfig, signal, toolChoice, hasToolSupport, temperature, onStreamEvent } = params;
+  const { turnConfig, signal, toolChoice, hasToolSupport, onStreamEvent } = params;
   const request: OpenAiCompatibleChatCompletionsRequest = {
     model: turnConfig.model,
     messages: requestMessages,
     tools: hasToolSupport ? [SEARCH_BOOKMARKS_TOOL] : undefined,
     tool_choice: toolChoice,
-    ...(temperature !== undefined ? { temperature } : {}),
+    temperature: params.temperature,
+    top_p: params.topP,
+    max_tokens: params.maxTokens,
+    reasoning_effort: params.reasoningEffort,
   };
 
   const streamStart: { id?: string; model?: string } = {};
@@ -169,13 +141,16 @@ async function executeResponsesTurn(
   requestMessages: OpenAiCompatibleChatMessage[],
   params: UpstreamTurnParams,
 ): Promise<UpstreamTurnOutcome> {
-  const { turnConfig, signal, toolChoice, hasToolSupport, temperature, onStreamEvent } = params;
+  const { turnConfig, signal, toolChoice, hasToolSupport, onStreamEvent } = params;
   const request = {
     model: turnConfig.model,
     input: requestMessages,
     tools: hasToolSupport ? [SEARCH_BOOKMARKS_RESPONSE_TOOL] : undefined,
     tool_choice: toolChoice,
-    ...(temperature !== undefined ? { temperature } : {}),
+    temperature: params.temperature,
+    top_p: params.topP,
+    max_output_tokens: params.maxTokens,
+    ...(params.reasoningEffort !== null ? { reasoning: { effort: params.reasoningEffort } } : {}),
   };
   const streamStart: { id?: string; model?: string } = {};
   const response = onStreamEvent
@@ -246,25 +221,29 @@ function resolveLatestUserMessage(
   );
 }
 
-function buildLogContext(
-  feature: string,
-  ctx: ValidatedRequestContext,
-  messages: OpenAiCompatibleChatMessage[],
-  model: string,
-  apiMode: AiUpstreamApiMode,
-  priority: number,
-): ChatLogContext {
+function buildLogContext(args: {
+  feature: string;
+  ctx: ValidatedRequestContext;
+  messages: OpenAiCompatibleChatMessage[];
+  model: string;
+  apiMode: AiUpstreamApiMode;
+  priority: number;
+  temperature: number;
+  reasoningEffort: ReasoningEffort | null;
+}): ChatLogContext {
   return {
-    feature,
-    conversationId: ctx.parsedBody.conversationId,
-    clientIp: ctx.clientIp,
-    userAgent: ctx.userAgent,
-    originHost: ctx.originHost,
-    pagePath: ctx.pagePath,
-    messages: toLoggableMessages(messages),
-    model,
-    apiMode,
-    priority,
+    feature: args.feature,
+    conversationId: args.ctx.parsedBody.conversationId,
+    clientIp: args.ctx.clientIp,
+    userAgent: args.ctx.userAgent,
+    originHost: args.ctx.originHost,
+    pagePath: args.ctx.pagePath,
+    messages: toLoggableMessages(args.messages),
+    model: args.model,
+    apiMode: args.apiMode,
+    priority: args.priority,
+    temperature: args.temperature,
+    reasoningEffort: args.reasoningEffort,
   };
 }
 
@@ -290,14 +269,20 @@ export function buildChatPipeline(
   const upstreamKey = `${upstreamUrl}::${config.model}`;
   const queue = getUpstreamRequestQueue({ key: upstreamKey, maxParallel: config.maxParallel });
   const priority = ctx.parsedBody.priority ?? 0;
-  const temperature =
-    typeof ctx.parsedBody.temperature === "number"
-      ? ctx.parsedBody.temperature
-      : FEATURE_DEFAULT_TEMPERATURE[feature];
+  const modelParams = resolveModelParams(feature, ctx.parsedBody);
   const latestUserMessage = resolveLatestUserMessage(ctx.parsedBody);
   const hasToolSupport = isTerminalChat(feature);
   const forceBookmarkTool = hasToolSupport && matchesBookmarkSearchPattern(latestUserMessage);
-  const logContext = buildLogContext(feature, ctx, messages, config.model, apiMode, priority);
+  const logContext = buildLogContext({
+    feature,
+    ctx,
+    messages,
+    model: config.model,
+    apiMode,
+    priority,
+    temperature: modelParams.temperature,
+    reasoningEffort: modelParams.reasoningEffort,
+  });
   const turnConfig = { model: config.model, baseUrl: config.baseUrl, apiKey: config.apiKey };
 
   const runUpstream = async (
@@ -316,7 +301,10 @@ export function buildChatPipeline(
         signal,
         toolChoice: resolveToolChoice(hasToolSupport, forceBookmarkTool, turn),
         hasToolSupport,
-        temperature,
+        temperature: modelParams.temperature,
+        topP: modelParams.topP,
+        reasoningEffort: modelParams.reasoningEffort,
+        maxTokens: modelParams.maxTokens,
         onStreamEvent,
       };
       const outcome =

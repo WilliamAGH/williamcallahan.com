@@ -9,6 +9,8 @@ export interface AiChatRequest {
   system?: string;
   messages?: Array<{ role: "system" | "user" | "assistant"; content: string }>;
   temperature?: number;
+  top_p?: number;
+  reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | null;
   apiMode?: AiUpstreamApiMode;
   conversationId?: string;
   /**
