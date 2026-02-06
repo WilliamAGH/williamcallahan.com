@@ -3,7 +3,8 @@
  * Ensures retrieval query construction and inventory gating are deterministic.
  */
 
-import { buildRagContextForChat, isAbortError } from "@/app/api/ai/chat/[feature]/chat-helpers";
+import { buildRagContextForChat } from "@/app/api/ai/chat/[feature]/chat-helpers";
+import { isAbortError } from "@/app/api/ai/chat/[feature]/upstream-error";
 import { buildContextForQuery } from "@/lib/ai/rag";
 
 vi.mock("@/lib/ai/rag", () => ({

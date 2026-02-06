@@ -40,6 +40,7 @@ import {
   runDeterministicBookmarkFallback,
 } from "./bookmark-tool";
 import { resolveFeatureSystemPrompt, resolveModelParams } from "./feature-defaults";
+import { isModelLoadFailure } from "./upstream-error";
 
 const MAX_TOOL_TURNS = 2;
 
@@ -63,23 +64,12 @@ function resolveToolChoice(
 function toLoggableMessages(
   messages: OpenAiCompatibleChatMessage[],
 ): Array<{ role: string; content: string }> {
-  const logMessages: Array<{ role: string; content: string }> = [];
-  for (const message of messages) {
-    if (typeof message.content === "string") {
-      logMessages.push({ role: message.role, content: message.content });
-    }
-  }
-  return logMessages;
+  return messages
+    .filter((m): m is typeof m & { content: string } => typeof m.content === "string")
+    .map((m) => ({ role: m.role, content: m.content }));
 }
 
-/** Emit synthetic `message_start` + `message_delta` events after an upstream
- *  turn resolves with final content (not tool calls). "Deferred" because the
- *  turn loop must first determine the outcome kind — content vs tool_calls —
- *  before deciding whether to forward text to the SSE consumer or continue
- *  looping. `startMeta` is only available from the streaming transport's
- *  `onStart` callback; non-streaming turns pass null, skipping `message_start`.
- *  The closing `message_done` event is NOT emitted here — it is the caller's
- *  responsibility in `runUpstream` after the full turn loop completes. */
+/** Emit start/delta events after a turn resolves with final content. */
 function emitDeferredContentEvents(
   text: string,
   startMeta: StreamStartMeta | null,
@@ -108,18 +98,14 @@ async function executeChatCompletionsTurn(
     temperature: params.temperature,
     top_p: params.topP,
     max_tokens: params.maxTokens,
-    reasoning_effort: params.reasoningEffort,
+    ...(params.reasoningEffort != null ? { reasoning_effort: params.reasoningEffort } : {}),
   };
   const callArgs = { baseUrl: turnConfig.baseUrl, apiKey: turnConfig.apiKey, request, signal };
 
-  // Branch on streaming so that startMeta capture is scoped to the streaming
-  // path and never read in the non-streaming path (explicit data flow).
   let startMeta: StreamStartMeta | null = null;
   const upstream = onStreamEvent
     ? await streamOpenAiCompatibleChatCompletions({
         ...callArgs,
-        // Stream is fully consumed before the await resolves (finalChatCompletion),
-        // so startMeta is guaranteed populated when used below.
         onStart: (meta) => {
           startMeta = meta;
         },
@@ -173,8 +159,6 @@ async function executeResponsesTurn(
   const response = onStreamEvent
     ? await streamOpenAiCompatibleResponses({
         ...callArgs,
-        // Stream fully consumed before await resolves (finalResponse),
-        // so startMeta is guaranteed populated when used below.
         onStart: (meta) => {
           startMeta = meta;
         },
@@ -225,29 +209,29 @@ function resolveLatestUserMessage(
   );
 }
 
-function buildLogContext(args: {
-  feature: string;
-  ctx: ValidatedRequestContext;
-  messages: OpenAiCompatibleChatMessage[];
-  model: string;
-  apiMode: AiUpstreamApiMode;
-  priority: number;
-  temperature: number;
-  reasoningEffort: ReasoningEffort | null;
-}): ChatLogContext {
+function buildLogContext(
+  feature: string,
+  ctx: ValidatedRequestContext,
+  msgs: OpenAiCompatibleChatMessage[],
+  model: string,
+  apiMode: AiUpstreamApiMode,
+  priority: number,
+  temperature: number,
+  reasoningEffort: ReasoningEffort | null,
+): ChatLogContext {
   return {
-    feature: args.feature,
-    conversationId: args.ctx.parsedBody.conversationId,
-    clientIp: args.ctx.clientIp,
-    userAgent: args.ctx.userAgent,
-    originHost: args.ctx.originHost,
-    pagePath: args.ctx.pagePath,
-    messages: toLoggableMessages(args.messages),
-    model: args.model,
-    apiMode: args.apiMode,
-    priority: args.priority,
-    temperature: args.temperature,
-    reasoningEffort: args.reasoningEffort,
+    feature,
+    conversationId: ctx.parsedBody.conversationId,
+    clientIp: ctx.clientIp,
+    userAgent: ctx.userAgent,
+    originHost: ctx.originHost,
+    pagePath: ctx.pagePath,
+    messages: toLoggableMessages(msgs),
+    model,
+    apiMode,
+    priority,
+    temperature,
+    reasoningEffort,
   };
 }
 
@@ -265,43 +249,49 @@ export function buildChatPipeline(
   });
 
   const config = resolveOpenAiCompatibleFeatureConfig(feature);
+  const modelCandidates = config.model
+    .split(",")
+    .map((candidate) => candidate.trim())
+    .filter((candidate) => candidate.length > 0);
+  const primaryModel = modelCandidates[0] ?? config.model;
+  const fallbackModel = modelCandidates[1];
   const apiMode = resolveApiMode(ctx.parsedBody.apiMode);
   const upstreamUrl =
     apiMode === "responses"
       ? buildResponsesUrl(config.baseUrl)
       : buildChatCompletionsUrl(config.baseUrl);
-  const upstreamKey = `${upstreamUrl}::${config.model}`;
+  const upstreamKey = `${upstreamUrl}::${primaryModel}`;
   const queue = getUpstreamRequestQueue({ key: upstreamKey, maxParallel: config.maxParallel });
   const priority = ctx.parsedBody.priority ?? 0;
   const modelParams = resolveModelParams(feature, ctx.parsedBody);
   const latestUserMessage = resolveLatestUserMessage(ctx.parsedBody);
   const hasToolSupport = isTerminalChat(feature);
   const forceBookmarkTool = hasToolSupport && matchesBookmarkSearchPattern(latestUserMessage);
-  const logContext = buildLogContext({
+  const logContext = buildLogContext(
     feature,
     ctx,
     messages,
-    model: config.model,
+    primaryModel,
     apiMode,
     priority,
-    temperature: modelParams.temperature,
-    reasoningEffort: modelParams.reasoningEffort,
-  });
-  const turnConfig = { model: config.model, baseUrl: config.baseUrl, apiKey: config.apiKey };
-
+    modelParams.temperature,
+    modelParams.reasoningEffort,
+  );
   const runUpstream = async (
     onStreamEvent?: (event: AiChatModelStreamEvent) => void,
   ): Promise<string> => {
     const requestMessages: OpenAiCompatibleChatMessage[] = [...messages];
     const toolObservedResults: Array<{ title: string; url: string }> = [];
+    let activeModel = primaryModel;
     const emitMessageDone = (message: string): string => {
       onStreamEvent?.({ event: "message_done", data: { message } });
       return message;
     };
 
-    for (let turn = 0; turn < MAX_TOOL_TURNS; turn += 1) {
+    let turn = 0;
+    while (turn < MAX_TOOL_TURNS) {
       const turnParams: UpstreamTurnParams = {
-        turnConfig,
+        turnConfig: { model: activeModel, baseUrl: config.baseUrl, apiKey: config.apiKey },
         signal,
         toolChoice: resolveToolChoice(hasToolSupport, forceBookmarkTool, turn),
         hasToolSupport,
@@ -311,14 +301,41 @@ export function buildChatPipeline(
         maxTokens: modelParams.maxTokens,
         onStreamEvent,
       };
-      const outcome =
-        apiMode === "chat_completions"
-          ? await executeChatCompletionsTurn(requestMessages, turnParams)
-          : await executeResponsesTurn(requestMessages, turnParams);
+      let outcome: UpstreamTurnOutcome;
+      try {
+        outcome =
+          apiMode === "chat_completions"
+            ? await executeChatCompletionsTurn(requestMessages, turnParams)
+            : await executeResponsesTurn(requestMessages, turnParams);
+      } catch (error) {
+        if (
+          turn === 0 &&
+          fallbackModel &&
+          activeModel !== fallbackModel &&
+          isModelLoadFailure(error)
+        ) {
+          console.warn("[upstream-pipeline] Primary model unavailable, retrying with fallback", {
+            feature,
+            failed: activeModel,
+            fallback: fallbackModel,
+          });
+          activeModel = fallbackModel;
+          continue; // retry same turn — while loop does not auto-increment
+        }
+        throw error;
+      }
 
       if (outcome.kind === "empty") break;
       if (outcome.kind === "content") {
-        if (forceBookmarkTool && turn === 0 && latestUserMessage) {
+        // Only use deterministic fallback when model ignored the forced tool
+        // (returned empty/refusal content), not when it returned valid text.
+        if (forceBookmarkTool && turn === 0 && !outcome.text && latestUserMessage) {
+          console.warn(
+            "[upstream-pipeline] Model ignored forced tool, using deterministic fallback",
+            {
+              feature,
+            },
+          );
           const fallback = await runDeterministicBookmarkFallback(feature, latestUserMessage);
           return emitMessageDone(fallback);
         }
@@ -327,12 +344,18 @@ export function buildChatPipeline(
       }
       requestMessages.push(...outcome.newMessages);
       toolObservedResults.push(...outcome.observedResults);
+      turn += 1;
     }
 
     if (toolObservedResults.length > 0 || forceBookmarkTool) {
       return emitMessageDone(formatBookmarkResultsAsLinks(toolObservedResults));
     }
 
+    console.warn("[upstream-pipeline] All turns exhausted without content", {
+      feature,
+      apiMode,
+      turns: MAX_TOOL_TURNS,
+    });
     return emitMessageDone("");
   };
 

@@ -153,7 +153,9 @@ export function ProjectsWindow({
       {/* Server-rendered list */}
       <ProjectsListServer />
       {/* Client-side filter to toggle visibility based on ?tag= */}
-      <TagVisibilityController />
+      <Suspense fallback={null}>
+        <TagVisibilityController />
+      </Suspense>
     </ProjectsWindowContent>
   );
 }
@@ -163,16 +165,10 @@ export function ProjectsWindow({
  * ProjectsListServer.  Each element has `data-project-tags` set to a space-
  * separated list.  No DOM is mutated beyond display style, so hydration stays
  * consistent.
+ *
+ * Uses `useSearchParams` — callers MUST wrap in `<Suspense>` per Next.js requirements.
  */
 function TagVisibilityController() {
-  return (
-    <Suspense fallback={null}>
-      <TagVisibilityControllerContent />
-    </Suspense>
-  );
-}
-
-function TagVisibilityControllerContent() {
   const params = useSearchParams();
   const rawTag = params?.get("tag");
   const selectedTag = rawTag ? rawTag.replace(/\+/g, " ") : "All";

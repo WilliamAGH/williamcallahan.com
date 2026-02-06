@@ -264,12 +264,16 @@ function tryExtractDomain(input: string): string | null {
 }
 
 /**
- * Removes common business suffixes from a cleaned company name.
- * Only removes one suffix if found at the end.
+ * Removes common business suffixes from a company name.
+ * Only removes a suffix when it appeared as a separate word in the original
+ * (space-separated) form — prevents over-stripping names like "Costco" or "Cisco".
  */
-function removeBusinessSuffixes(cleaned: string): string {
+function removeBusinessSuffixes(cleaned: string, spaceSeparated: string): string {
   for (const suffix of COMMON_SUFFIXES) {
-    if (cleaned.endsWith(suffix) && cleaned.length > suffix.length) {
+    if (!cleaned.endsWith(suffix) || cleaned.length <= suffix.length) continue;
+    // Check the space-preserved form: suffix must be a separate word (preceded by space or at start)
+    const suffixPattern = new RegExp(`(?:^|\\s)${suffix}$`);
+    if (suffixPattern.test(spaceSeparated)) {
       return cleaned.slice(0, -suffix.length);
     }
   }
@@ -298,9 +302,10 @@ export function normalizeCompanyOrDomain(urlOrCompany: string | number): string 
   const domain = tryExtractDomain(inputStr);
   if (domain) return domain;
 
-  const cleaned = inputStr.toLowerCase().replaceAll(PUNCTUATION_REGEX, "").replaceAll(/\s+/g, "");
+  const spaceSeparated = inputStr.toLowerCase().replaceAll(PUNCTUATION_REGEX, "").trim();
+  const cleaned = spaceSeparated.replaceAll(/\s+/g, "");
 
-  return removeBusinessSuffixes(cleaned);
+  return removeBusinessSuffixes(cleaned, spaceSeparated);
 }
 
 /**

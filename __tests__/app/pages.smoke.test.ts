@@ -171,9 +171,14 @@ describe("App Router Page Smoke Tests (Static Routes)", () => {
       expect(html).toEqual(expect.any(String));
       expect(html.length).toBeGreaterThan(0);
     } finally {
-      process.env.NEXT_PUBLIC_S3_CDN_URL = originalPublicCdn;
-      process.env.S3_BUCKET = originalS3Bucket;
-      process.env.S3_SERVER_URL = originalS3ServerUrl;
+      if (originalPublicCdn === undefined) delete process.env.NEXT_PUBLIC_S3_CDN_URL;
+      else process.env.NEXT_PUBLIC_S3_CDN_URL = originalPublicCdn;
+
+      if (originalS3Bucket === undefined) delete process.env.S3_BUCKET;
+      else process.env.S3_BUCKET = originalS3Bucket;
+
+      if (originalS3ServerUrl === undefined) delete process.env.S3_SERVER_URL;
+      else process.env.S3_SERVER_URL = originalS3ServerUrl;
     }
   });
 });

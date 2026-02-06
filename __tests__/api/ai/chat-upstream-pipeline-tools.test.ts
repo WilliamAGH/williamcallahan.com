@@ -211,7 +211,32 @@ describe("AI Chat Upstream Pipeline Tools", () => {
     );
   });
 
-  it("falls back to deterministic bookmark search when model skips tool calls", async () => {
+  it("preserves valid model text when model returns content instead of tool calls", async () => {
+    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
+      choices: [
+        {
+          message: {
+            role: "assistant",
+            content: "I can search that for you.",
+          },
+        },
+      ],
+    });
+
+    const pipeline = buildChatPipeline(
+      "terminal_chat",
+      createValidatedContext({ userContent: "search bookmarks for wikipedia" }),
+      { augmentedPrompt: undefined, status: "not_applicable" },
+      new AbortController().signal,
+    );
+
+    const reply = await pipeline.runUpstream();
+
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
+    expect(reply).toBe("I can search that for you.");
+  });
+
+  it("falls back to deterministic bookmark search when model returns empty content", async () => {
     mockedSearchBookmarks.mockResolvedValue([
       {
         id: "bookmark-1",
@@ -228,7 +253,7 @@ describe("AI Chat Upstream Pipeline Tools", () => {
         {
           message: {
             role: "assistant",
-            content: "I can search that for you.",
+            content: "",
           },
         },
       ],

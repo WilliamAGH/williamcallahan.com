@@ -45,22 +45,21 @@ function buildBookmarkSearchResponse(params: {
   totalCount: number;
   hasMore: boolean;
   query: string;
-  extra?: Record<string, unknown>;
+  buildPhase?: boolean;
 }): NextResponse {
-  const { data, results, totalCount, hasMore, query, extra } = params;
+  const { data, results, totalCount, hasMore, query, buildPhase } = params;
   return NextResponse.json(
     {
       data,
       results,
       totalCount,
       hasMore,
-      ...extra,
       meta: {
         query,
         scope: "bookmarks",
         count: results.length,
         timestamp: new Date().toISOString(),
-        ...extra,
+        ...(buildPhase ? { buildPhase: true } : {}),
       },
     },
     { headers: withNoStoreHeaders() },
@@ -87,7 +86,7 @@ export async function GET(request: NextRequest) {
       totalCount: 0,
       hasMore: false,
       query: "",
-      extra: { buildPhase: true },
+      buildPhase: true,
     });
   }
   try {
