@@ -1,35 +1,73 @@
-# Rate Limiting and Sanitization Architecture Map
+# Rate Limiting and Load-Shedding Architecture
 
 ## Overview
 
-The "rate-limit-and-sanitize" functionality encompasses utilities and mechanisms that support the infrastructure for API operations within the application. This includes rate limiting to prevent abuse and ensure fair usage of API resources, as well as input/output sanitization to maintain data integrity and security.
+The proxy now enforces a **navigation-first** strategy to prevent partial page renders:
 
-## Key Files and Responsibilities
+- `document` and `api` requests can be throttled/shed.
+- `rsc`, `prefetch`, and `image` subrequests are not independently blocked at the proxy.
 
-- **lib/rate-limiter.ts**: Provides a mechanism for rate limiting operations. It includes:
-  - Functionality to check if an operation is allowed based on configurable limits.
-  - A waiting mechanism to poll for permit availability with intelligent wait times.
-  - Support for multiple rate limiting contexts with predefined configurations for API endpoints and OpenGraph fetches.
-- **lib/middleware/sitewide-rate-limit.ts**: Provides proxy-layer, sitewide rate limiting for incoming requests (pages, API routes, and image optimization) to mitigate aggressive crawlers before they trigger memory pressure.
-- **lib/utils/api-sanitization.ts**: Handles input/output sanitization for API operations to ensure data integrity and security.
+This avoids a state where HTML succeeds but RSC/image/prefetch resources fail independently and produce ambiguous UI behavior.
 
-## Logic Flow and Interactions
+## Request Classification
 
-- **rate-limiter.ts** manages rate limiting by maintaining an in-memory store of rate limit records for different contexts (e.g., per IP for API endpoints or global for outgoing requests). It checks operation allowance synchronously and provides an asynchronous wait mechanism until a slot is available.
-- Pre-configured limiters in **rate-limiter.ts** offer defaults for common use cases like API endpoint limiting (5 requests per minute) and OpenGraph fetches (10 requests per second), ensuring balanced resource usage.
-- **api-sanitization.ts** complements rate limiting by ensuring that API inputs and outputs are sanitized, preventing injection attacks or data corruption.
+Proxy request classes are derived in `src/lib/utils/request-utils.ts` using path + headers:
 
-## Notes
+- `document`: Browser document navigation (`Accept: text/html`, `GET`)
+- `api`: `/api/*`
+- `rsc`: Flight requests (`_rsc` query, `rsc: 1`, or `text/x-component`)
+- `prefetch`: Next prefetch hints (`next-router-prefetch`, `purpose=prefetch`, `sec-purpose=prefetch`)
+- `image`: `/_next/image`
+- `other`: everything else
 
-- Rate limiting is critical for protecting API endpoints from abuse, ensuring fair usage, and maintaining application performance under load.
-- The flexibility of rate limiting contexts in **rate-limiter.ts** allows for tailored configurations across different API operations, enhancing control over resource allocation.
-- Sanitization ensures that data entering and leaving the system adheres to security standards, protecting against common vulnerabilities.
+## Deterministic Response Contracts
 
-## Cloudflare Origin Guard (Production)
+### Rate Limited (`429`)
 
-The following endpoints require valid Cloudflare origin headers in production. Requests missing valid Cloudflare headers are logged and rejected with 403 to prevent direct-to-origin abuse while preserving accurate IP logging:
+- HTTP: `429 Too Many Requests` (RFC 6585)
+- Headers:
+  - `Retry-After` (delta seconds; RFC 9110)
+  - `Cache-Control: no-store`
+  - Optional: `X-RateLimit-Scope`, `X-RateLimit-Limit`, `X-RateLimit-Window`
+- User-facing message:
+  - `You've reached a rate limit. Please wait a few minutes and try again.`
 
-- `/api/ai/token`
-- `/api/ai/chat/[feature]`
-- `/api/ai/queue/[feature]`
-- `/api/upload`
+### Service Busy (`503`)
+
+- HTTP: `503 Service Unavailable`
+- Headers:
+  - `Retry-After` (delta seconds)
+  - `Cache-Control: no-store`
+- User-facing message:
+  - `The server is temporarily under heavy load. Please wait a few minutes and try again.`
+
+### Document vs API Format
+
+- `document`: HTML error page with unambiguous message + status (`429` or `503`)
+- `api`: JSON schema:
+  - `code`: `RATE_LIMITED | SERVICE_UNAVAILABLE`
+  - `message`: user-safe message
+  - `retryAfterSeconds`: integer
+  - `retryAfterAt`: ISO timestamp
+  - `status`: `429 | 503`
+
+## Components and Files
+
+- Proxy entrypoint: `src/proxy.ts`
+- Sitewide throttling: `src/lib/middleware/sitewide-rate-limit.ts`
+- Memory shedding: `src/lib/middleware/memory-pressure.ts`
+- Shared response builders: `src/lib/utils/api-utils.ts`
+- Schema contract: `src/types/schemas/api.ts`
+
+## Observability
+
+Each proxy-level throttle/shed emits structured logs with deterministic fields:
+
+- `type`
+- `path`
+- `requestClass`
+- `retryAfter`
+- `ipBucket` (hashed IP bucket, not raw IP)
+- `handled: true`
+
+These events are expected control-flow signals and should be treated separately from crash diagnostics.

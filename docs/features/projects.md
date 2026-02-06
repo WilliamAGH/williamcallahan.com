@@ -29,6 +29,17 @@ See [Projects Architecture Diagram](./projects.mmd).
 4. On the client, `ProjectsClient` and `ProjectsWindow` render the UI frame, placing the server-generated HTML inside.
 5. `ProjectTagsClient` handles user interaction, dynamically showing/hiding projects on the client side based on the selected tags.
 
+## Resilience and Request Volume
+
+- `src/app/projects/page.tsx` now treats CDN config/URL generation as optional for schema screenshots.
+  - Missing or invalid CDN env/config no longer throws during render.
+  - Schema generation falls back by omitting `screenshot` for impacted items.
+- `src/components/features/projects/project-card.client.tsx` uses defensive CDN URL resolution.
+  - Missing CDN config yields the existing placeholder path instead of throwing.
+- Project detail links now set `prefetch={false}` in project cards.
+  - This reduces high-volume prefetch fan-out from the projects grid under load.
+  - Route transitions remain fully functional, but background request pressure is lower.
+
 ## Key Files
 
 - **UI Components**: `components/features/projects/`

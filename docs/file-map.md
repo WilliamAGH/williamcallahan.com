@@ -96,7 +96,7 @@ File/Path Functionality Description
   - [x] **projects/**
     - [x] `index.ts` `projects` - Projects barrel file
     - [x] `project-ai-analysis.client.tsx` `projects` - AI analysis component for projects with SSR cache support
-    - [x] `project-card.{client,server}.tsx` `projects` - ind project cards
+    - [x] `project-card.{client,server}.tsx` `projects` - Individual project cards; client cards disable detail-link prefetch and fall back safely when CDN config is missing
     - [x] `project-detail.tsx` `projects` - Project detail view with AI analysis integration
     - [x] `project-tags.client.tsx` `projects` - Project tag filter UI
     - [x] `projects-list.{client,server}.tsx` `projects` - List all projects
@@ -435,8 +435,8 @@ File/Path Functionality Description
 - [ ] **health/**
   - [x] `memory-health-monitor.ts` `memory-mgmt` - Memory health monitor with graceful degradation
 - [ ] **middleware/**
-  - [x] `memory-pressure.ts` `memory-mgmt` - Middleware to shed load under memory pressure
-  - [x] `sitewide-rate-limit.ts` `rate-limit-and-sanitize` - Proxy-layer rate limiting to mitigate aggressive crawlers
+  - [x] `memory-pressure.ts` `memory-mgmt` - Class-aware memory shedding (`document` -> HTML 503, `api` -> JSON 503) with structured handled-event logs
+  - [x] `sitewide-rate-limit.ts` `rate-limit-and-sanitize` - Navigation-first proxy throttling (only `document`/`api`) with deterministic 429 contracts and structured handled-event logs
 
 ## Root Directory
 
@@ -538,7 +538,7 @@ File/Path Functionality Description
 - [x] **investments/**
   - [x] `page.tsx` `investments` - Investments page (ISR)
 - [x] **projects/**
-  - [x] `page.tsx` `projects` - Projects page (ISR)
+  - [x] `page.tsx` `projects` - Projects page (ISR) with defensive CDN screenshot schema generation (no render throw on missing CDN config)
 - [ ] **sentry-example-page/**
   - [x] `page.tsx` `log-error-debug-handling` - Sentry example page
 
