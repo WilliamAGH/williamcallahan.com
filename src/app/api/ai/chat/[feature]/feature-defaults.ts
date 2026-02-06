@@ -26,24 +26,29 @@ Response style:
 };
 
 /** Per-feature overrides — omitted fields inherit from GLOBAL_DEFAULTS.
- *  terminal_chat: temperature 0 for deterministic responses; "low" reasoning
- *  keeps tool-calling turns fast without extended chain-of-thought. */
+ *  terminal_chat deviates from the global temperature (1.0) because:
+ *  - temperature 0.7: reduces sampling entropy for tool-calling turns where
+ *    the model must emit structured JSON arguments reliably; full 1.0 causes
+ *    occasional malformed tool-call payloads.
+ *  - reasoningEffort "low": terminal responses should be fast and concise;
+ *    extended chain-of-thought adds latency without improving short answers. */
 const FEATURE_DEFAULTS: Record<string, FeatureModelDefaults> = {
-  terminal_chat: { temperature: 0, reasoningEffort: "low" },
+  terminal_chat: { temperature: 0.7, reasoningEffort: "low" },
 };
 
 /** Baseline values applied when neither the request body nor FEATURE_DEFAULTS
- *  provides a value. Each value matches the OpenAI API default for that param
- *  so that omitting a param in FEATURE_DEFAULTS produces stock API behavior.
- *  - temperature 1.0: OpenAI API default (full sampling)
- *  - topP 1.0: OpenAI API default (no nucleus truncation)
- *  - reasoningEffort null: omit from request (not all models support it)
- *  - maxTokens 1000: conservative cap matching the pre-SDK DEFAULT_MAX_TOKENS */
+ *  provides a value. Tuned for gpt-oss-120b, a reasoning MoE model whose
+ *  official recommendation is temperature=1.0, top_p=1.0 (see HuggingFace
+ *  openai/gpt-oss-120b discussions #21).
+ *  - temperature 1.0 / topP 1.0: full sampling as recommended for reasoning
+ *  - reasoningEffort "medium": balanced reasoning depth for general queries
+ *  - maxTokens 8192: generous reply budget; maps to max_completion_tokens
+ *    (Chat Completions) or max_output_tokens (Responses API) */
 const GLOBAL_DEFAULTS: Required<FeatureModelDefaults> = {
   temperature: 1.0,
   topP: 1.0,
-  reasoningEffort: null,
-  maxTokens: 1000,
+  reasoningEffort: "medium",
+  maxTokens: 8192,
 };
 
 export function resolveFeatureSystemPrompt(
