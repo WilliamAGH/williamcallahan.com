@@ -24,6 +24,7 @@ import dynamic from "next/dynamic";
 
 // Define a unique ID for this window instance
 const BLOG_WINDOW_ID = "blog-window";
+const BLOG_LOADING_KEYS = ["blog-loading-1", "blog-loading-2", "blog-loading-3"] as const;
 
 // Using centralized BlogWindowClientProps from @/types/features
 
@@ -84,8 +85,8 @@ const BlogWindowContent = dynamic(() => Promise.resolve({ default: BlogWindowCon
   ssr: false,
   loading: () => (
     <div className="animate-pulse space-y-4 p-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg max-w-5xl mx-auto mt-8">
-      {Array.from({ length: 3 }, () => (
-        <div key={crypto.randomUUID()} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
+      {BLOG_LOADING_KEYS.map((key) => (
+        <div key={key} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
       ))}
     </div>
   ),
