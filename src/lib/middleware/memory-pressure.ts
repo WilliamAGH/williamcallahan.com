@@ -20,10 +20,13 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { debug } from "@/lib/utils/debug";
+import { buildApiServiceBusyResponse, buildServiceBusyPageResponse } from "@/lib/utils/api-utils";
+import { classifyProxyRequest, getClientIp } from "@/lib/utils/request-utils";
 import type {
   MemoryPressureLevel,
   MemoryPressureOverrides,
   MemoryPressureStatus,
+  ProxyRequestClass,
 } from "@/types/middleware";
 import { isHealthCheckPath } from "./health-check-paths";
 
@@ -114,6 +117,33 @@ async function getNodeMemoryPressureStatus(
   };
 }
 
+function hashIpBucket(input: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `ip-${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+function logLoadShedEvent(args: {
+  path: string;
+  requestClass: ProxyRequestClass;
+  retryAfterSeconds: number;
+  ip: string;
+}): void {
+  console.warn(
+    JSON.stringify({
+      type: "proxy.memory_shed.blocked",
+      path: args.path,
+      requestClass: args.requestClass,
+      retryAfter: args.retryAfterSeconds,
+      ipBucket: hashIpBucket(args.ip),
+      handled: true,
+    }),
+  );
+}
+
 /**
  * Memory pressure middleware
  * Returns 503 when system is under critical memory pressure
@@ -124,6 +154,7 @@ export async function memoryPressureMiddleware(
   overrides?: MemoryPressureOverrides,
 ): Promise<NextResponse | null> {
   const pathname = request.nextUrl?.pathname ?? new URL(request.url).pathname;
+  const requestClass = classifyProxyRequest(request);
 
   // Always allow health checks through
   if (isHealthCheckPath(pathname)) {
@@ -145,25 +176,34 @@ export async function memoryPressureMiddleware(
       nodeStatus?.limitBytes && nodeStatus.limitBytes > 0
         ? ` rss=${Math.round(nodeStatus.rssBytes / 1024 / 1024)}MB limit=${Math.round(nodeStatus.limitBytes / 1024 / 1024)}MB`
         : "";
+    const retryAfterSeconds = 180;
+    const clientIp = getClientIp(request.headers, { fallback: "anonymous" });
     console.warn(
       `[MemoryPressure] Shedding load due to memory pressure: ${pathname} ${request.method}${details}`,
     );
+    logLoadShedEvent({
+      path: pathname,
+      requestClass,
+      retryAfterSeconds,
+      ip: clientIp,
+    });
 
-    // Return 503 with proper headers
-    return NextResponse.json(
-      {
-        error: "Service temporarily unavailable due to high memory usage",
-        retry: true,
-      },
-      {
-        status: 503,
-        headers: {
-          "Retry-After": "10", // Tell clients to retry after 10 seconds
-          "X-System-Status": "MEMORY_CRITICAL",
-          "Cache-Control": "no-store",
-        },
-      },
-    );
+    if (requestClass === "document") {
+      const response = buildServiceBusyPageResponse({ retryAfterSeconds });
+      response.headers.set("X-System-Status", "MEMORY_CRITICAL");
+      return response;
+    }
+
+    if (requestClass === "api") {
+      const response = buildApiServiceBusyResponse({
+        retryAfterSeconds,
+        rateLimitScope: "memory",
+      });
+      response.headers.set("X-System-Status", "MEMORY_CRITICAL");
+      return response;
+    }
+
+    return null;
   }
 
   // Check if we're in warning state (optional header)

@@ -9,8 +9,10 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { isOperationAllowed } from "@/lib/rate-limiter";
-import { getClientIp } from "@/lib/utils/request-utils";
+import { buildApiRateLimitResponse, buildRateLimitedPageResponse } from "@/lib/utils/api-utils";
+import { classifyProxyRequest, getClientIp } from "@/lib/utils/request-utils";
 import type {
+  ProxyRequestClass,
   RateLimitConfig,
   RateLimitProfile,
   RateLimitProfileName,
@@ -38,46 +40,88 @@ export const PROFILES: Record<RateLimitProfileName, RateLimitProfile> = {
     burst: { maxRequests: 300, windowMs: 10_000 },
     minute: { maxRequests: 1200, windowMs: 60_000 },
   },
-  nextImage: {
-    // Image optimization can be CPU/memory heavy; throttle bursts defensively.
-    // Image-heavy pages (bookmarks, blog) can have 20+ images per page.
-    burst: { maxRequests: 100, windowMs: 10_000 },
-    minute: { maxRequests: 500, windowMs: 60_000 },
-  },
 } as const;
 
 /**
  * Determine the rate limit profile for a given pathname.
  * Returns both the profile name and config to avoid duplicate routing logic.
  */
-function getProfileForPath(pathname: string): {
+function getProfileForRequest(
+  pathname: string,
+  requestClass: ProxyRequestClass,
+): {
   name: RateLimitProfileName;
   config: RateLimitProfile;
-} {
+} | null {
+  if (requestClass === "document") {
+    return { name: "page", config: PROFILES.page };
+  }
+  if (requestClass !== "api") {
+    return null;
+  }
   if (pathname === "/api/tunnel") {
     return { name: "sentryTunnel", config: PROFILES.sentryTunnel };
   }
-  if (pathname.startsWith("/api/")) return { name: "api", config: PROFILES.api };
-  if (pathname.startsWith("/_next/image")) return { name: "nextImage", config: PROFILES.nextImage };
-  return { name: "page", config: PROFILES.page };
+  return { name: "api", config: PROFILES.api };
 }
 
 function toRetryAfterSeconds(config: RateLimitConfig): string {
   return String(Math.max(1, Math.ceil(config.windowMs / 1000)));
 }
 
-function build429(profileName: string, retryAfterSeconds: string): NextResponse {
-  return NextResponse.json(
-    { error: "Too many requests. Please slow down and try again." },
-    {
-      status: 429,
-      headers: {
-        "Cache-Control": "no-store",
-        "Retry-After": retryAfterSeconds,
-        "X-RateLimit-Scope": profileName,
-      },
-    },
+function hashIpBucket(input: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `ip-${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+function logThrottleEvent(args: {
+  path: string;
+  requestClass: ProxyRequestClass;
+  retryAfterSeconds: string;
+  ip: string;
+  scope: string;
+}): void {
+  console.warn(
+    JSON.stringify({
+      type: "proxy.rate_limit.blocked",
+      path: args.path,
+      requestClass: args.requestClass,
+      retryAfter: Number(args.retryAfterSeconds),
+      ipBucket: hashIpBucket(args.ip),
+      scope: args.scope,
+      handled: true,
+    }),
   );
+}
+
+function buildRateLimitResponse(args: {
+  requestClass: ProxyRequestClass;
+  retryAfterSeconds: string;
+  profile: RateLimitProfile;
+  scope: "burst" | "minute";
+}): NextResponse {
+  const retryAfterSeconds = Number(args.retryAfterSeconds);
+  if (args.requestClass === "document") {
+    return buildRateLimitedPageResponse({
+      retryAfterSeconds,
+      rateLimitScope: args.scope,
+    });
+  }
+
+  return buildApiRateLimitResponse({
+    retryAfterSeconds,
+    rateLimitScope: args.scope,
+    rateLimitLimit:
+      args.scope === "burst" ? args.profile.burst.maxRequests : args.profile.minute.maxRequests,
+    rateLimitWindowSeconds:
+      args.scope === "burst"
+        ? Math.ceil(args.profile.burst.windowMs / 1000)
+        : Math.ceil(args.profile.minute.windowMs / 1000),
+  });
 }
 
 export function sitewideRateLimitMiddleware(
@@ -90,20 +134,52 @@ export function sitewideRateLimitMiddleware(
   const pathname = request.nextUrl?.pathname ?? new URL(request.url).pathname;
   if (isHealthCheckPath(pathname)) return null;
 
+  const requestClass = classifyProxyRequest(request);
+  if (requestClass === "rsc" || requestClass === "prefetch" || requestClass === "image") {
+    return null;
+  }
+
+  const profileEntry = getProfileForRequest(pathname, requestClass);
+  if (!profileEntry) return null;
+
   const storePrefix = options?.storePrefix ?? DEFAULT_STORE_PREFIX;
   const clientIp = getClientIp(request.headers, { fallback: "anonymous" });
-  const { name: profileName, config: profile } = getProfileForPath(pathname);
+  const { name: profileName, config: profile } = profileEntry;
 
   const burstStore = `${storePrefix}:${profileName}:burst`;
   if (!isOperationAllowed(burstStore, clientIp, profile.burst)) {
-    console.warn(`[RateLimit] Blocked burst: ${pathname} ${request.method} ip=${clientIp}`);
-    return build429("burst", toRetryAfterSeconds(profile.burst));
+    const retryAfterSeconds = toRetryAfterSeconds(profile.burst);
+    logThrottleEvent({
+      path: pathname,
+      requestClass,
+      retryAfterSeconds,
+      ip: clientIp,
+      scope: "burst",
+    });
+    return buildRateLimitResponse({
+      requestClass,
+      retryAfterSeconds,
+      profile,
+      scope: "burst",
+    });
   }
 
   const minuteStore = `${storePrefix}:${profileName}:minute`;
   if (!isOperationAllowed(minuteStore, clientIp, profile.minute)) {
-    console.warn(`[RateLimit] Blocked minute: ${pathname} ${request.method} ip=${clientIp}`);
-    return build429("minute", toRetryAfterSeconds(profile.minute));
+    const retryAfterSeconds = toRetryAfterSeconds(profile.minute);
+    logThrottleEvent({
+      path: pathname,
+      requestClass,
+      retryAfterSeconds,
+      ip: clientIp,
+      scope: "minute",
+    });
+    return buildRateLimitResponse({
+      requestClass,
+      retryAfterSeconds,
+      profile,
+      scope: "minute",
+    });
   }
 
   return null;
