@@ -156,4 +156,12 @@ describe("searchBookmarks - S3 fallback mapping", () => {
     expect(results[0]?.title).toBe("SDK for Claude Code");
     expect(ServerCacheInstance.setSearchResults).toHaveBeenCalled();
   });
+
+  it("matches natural-language bookmark queries with extra filler words", async () => {
+    const results = await searchBookmarks("what bookmarks do you have about sdk for claude code?");
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.id).toBe("bk-1");
+    expect(results[0]?.title).toBe("SDK for Claude Code");
+  });
 });
