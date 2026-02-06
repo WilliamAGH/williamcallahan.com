@@ -18,6 +18,7 @@ import type {
   ChatLogContext,
   ChatPipeline,
   RagContextStatus,
+  StreamStartMeta,
   UpstreamTurnOutcome,
   UpstreamTurnParams,
   ValidatedRequestContext,
@@ -71,8 +72,14 @@ function toLoggableMessages(
   return logMessages;
 }
 
-type StreamStartMeta = { id: string; model: string };
-
+/** Emit synthetic `message_start` + `message_delta` events after an upstream
+ *  turn resolves with final content (not tool calls). "Deferred" because the
+ *  turn loop must first determine the outcome kind — content vs tool_calls —
+ *  before deciding whether to forward text to the SSE consumer or continue
+ *  looping. `startMeta` is only available from the streaming transport's
+ *  `onStart` callback; non-streaming turns pass null, skipping `message_start`.
+ *  The closing `message_done` event is NOT emitted here — it is the caller's
+ *  responsibility in `runUpstream` after the full turn loop completes. */
 function emitDeferredContentEvents(
   text: string,
   startMeta: StreamStartMeta | null,

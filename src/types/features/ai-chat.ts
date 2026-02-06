@@ -122,6 +122,10 @@ export type UpstreamTurnParams = {
   onStreamEvent?: (event: AiChatModelStreamEvent) => void;
 };
 
+/** Metadata captured from the streaming transport's onStart callback.
+ *  Used by emitDeferredContentEvents to synthesize a message_start event. */
+export type StreamStartMeta = { id: string; model: string };
+
 /** Result of a single upstream API turn (Chat Completions or Responses) */
 export type UpstreamTurnOutcome =
   | { kind: "empty" }
