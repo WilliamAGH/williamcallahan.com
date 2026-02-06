@@ -14,6 +14,7 @@ import { isOperationAllowed } from "@/lib/rate-limiter";
 import { verifyAiGateToken, hashUserAgent } from "@/lib/ai/openai-compatible/gate-token";
 import { logChatMessage } from "@/lib/ai/openai-compatible/chat-message-logger";
 import { buildContextForQuery } from "@/lib/ai/rag";
+import { isPaginationKeyword } from "@/lib/ai/rag/inventory-pagination";
 import { getClientIp } from "@/lib/utils/request-utils";
 import { NO_STORE_HEADERS, preventCaching, requireCloudflareHeaders } from "@/lib/utils/api-utils";
 import logger from "@/lib/utils/logger";
@@ -32,6 +33,11 @@ const CHAT_RATE_LIMIT = {
   maxRequests: 20,
   windowMs: 60_000,
 } as const;
+
+const ANAPHORA_PATTERN = /\b(them|those|that|it|this|these|ones)\b/i;
+const DOMAIN_HINT_PATTERN =
+  /\b(bookmarks?|links?|resources?|wikipedia|projects?|blog|posts?|books?|investments?)\b/i;
+const INVENTORY_REQUEST_PATTERN = /\b(all|list|catalog|inventory|show all|everything)\b/i;
 
 export { requestBodySchema };
 
@@ -172,7 +178,41 @@ export async function validateRequest(
   return { feature, clientIp, pagePath, originHost, userAgent, parsedBody };
 }
 
-import { isPaginationKeyword } from "@/lib/ai/rag/inventory-pagination";
+function getUserMessages(parsedBody: ParsedRequestBody): string[] {
+  const messagesArray = Array.isArray(parsedBody.messages) ? parsedBody.messages : [];
+  const fromHistory = messagesArray
+    .filter((message) => message.role === "user")
+    .map((message) => message.content.trim())
+    .filter((content) => content.length > 0);
+
+  const directMessage = parsedBody.userText?.trim();
+  if (
+    directMessage &&
+    (fromHistory.length === 0 || fromHistory[fromHistory.length - 1] !== directMessage)
+  ) {
+    fromHistory.push(directMessage);
+  }
+
+  return fromHistory;
+}
+
+function resolveRetrievalQuery(userMessages: string[]): string | undefined {
+  const current = userMessages[userMessages.length - 1];
+  if (!current) return undefined;
+
+  const previous = userMessages[userMessages.length - 2];
+  const isAnaphoric = ANAPHORA_PATTERN.test(current) && !DOMAIN_HINT_PATTERN.test(current);
+
+  if (isAnaphoric && previous) {
+    return `${previous} ${current}`;
+  }
+
+  return current;
+}
+
+function shouldIncludeInventory(userMessage: string, isPaginating: boolean): boolean {
+  return isPaginating || INVENTORY_REQUEST_PATTERN.test(userMessage);
+}
 
 /**
  * Build RAG context for terminal_chat feature.
@@ -186,24 +226,25 @@ export async function buildRagContextForChat(
     return { augmentedPrompt: undefined, status: "not_applicable" };
   }
 
-  const messagesArray = Array.isArray(parsedBody.messages) ? parsedBody.messages : undefined;
-  const userMessage =
-    parsedBody.userText ?? messagesArray?.findLast((m) => m.role === "user")?.content;
+  const userMessages = getUserMessages(parsedBody);
+  const userMessage = userMessages[userMessages.length - 1];
+  const retrievalQuery = resolveRetrievalQuery(userMessages);
 
-  if (!userMessage) {
+  if (!userMessage || !retrievalQuery) {
     return { augmentedPrompt: undefined, status: "not_applicable" };
   }
 
   // Detect if user is requesting pagination (e.g., "next", "more")
   const isPaginating = isPaginationKeyword(userMessage);
+  const includeInventory = shouldIncludeInventory(userMessage, isPaginating);
   const conversationId = parsedBody.conversationId;
 
   try {
-    const ragContext = await buildContextForQuery(userMessage, {
-      maxTokens: 8000,
-      timeoutMs: 3000,
-      includeInventory: true,
-      inventoryMaxTokens: 6000,
+    const ragContext = await buildContextForQuery(retrievalQuery, {
+      maxTokens: includeInventory ? 8000 : 4500,
+      timeoutMs: 5000,
+      includeInventory,
+      inventoryMaxTokens: includeInventory ? 5000 : 0,
       // Enable pagination when we have a conversationId
       conversationId,
       isPaginationRequest: isPaginating,
