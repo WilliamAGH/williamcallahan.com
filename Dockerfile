@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 ##
 ## Multi-stage build for Next.js application with Bun
-## Note: Requires DOCKER_BUILDKIT=1 for optimal cache mount support
+## Note: Requires BuildKit (DOCKER_BUILDKIT=1) for secret mount support
 ## Base registry defaults to AWS ECR Public mirror but can be overridden
 ## Some alternatives:
 ##   - docker.io/library
@@ -135,7 +135,6 @@ ARG NEXT_PUBLIC_S3_CDN_URL
 ARG S3_ACCESS_KEY_ID
 ARG S3_SECRET_ACCESS_KEY
 ARG S3_SESSION_TOKEN
-ARG API_BASE_URL
 # Pass these as ENV for build process
 ENV S3_BUCKET=$S3_BUCKET \
     S3_SERVER_URL=$S3_SERVER_URL \
@@ -191,7 +190,7 @@ RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID \
     --mount=type=secret,id=SENTRY_DSN,env=SENTRY_DSN \
     --mount=type=secret,id=NEXT_PUBLIC_SENTRY_DSN,env=NEXT_PUBLIC_SENTRY_DSN \
     bun run build \
-    && find /app/.next/cache -type f -mtime +5 -delete 2>/dev/null || true
+    && (find /app/.next/cache -type f -mtime +5 -delete 2>/dev/null || true)
 
 # ---------- Runtime stage ----------
 # Production image, copy all the files and run next

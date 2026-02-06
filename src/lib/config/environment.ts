@@ -14,7 +14,6 @@ const shouldLogEnvironmentInfo =
   process.env.DEBUG === "true" ||
   process.env.VERBOSE === "true";
 
-let loggedInvalidDeploymentWarning = false;
 const loggedDetectionMessages = new Set<string>();
 
 const logEnvironmentInfo = (message: string): void => {
@@ -46,17 +45,30 @@ function isValidEnvironment(normalized: string): boolean {
  * Gets the API URL from environment variables or global location (in tests)
  */
 function getApiUrl(): string | undefined {
-  const url = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL;
-  if (url) return url;
+  const apiBaseUrl = process.env.API_BASE_URL;
+  if (apiBaseUrl) return apiBaseUrl;
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  if (siteUrl) {
+    logOnce("api_url_fallback", () =>
+      logger.warn("[Environment] API_BASE_URL missing; falling back to NEXT_PUBLIC_SITE_URL"),
+    );
+    return siteUrl;
+  }
 
   // In tests, allow jsdom location only when NODE_ENV is 'test'
-  if (isTestRuntime() && normalizeString(process.env.NODE_ENV || "test") === "test") {
+  const nodeEnv = process.env.NODE_ENV;
+  if (isTestRuntime() && normalizeString(nodeEnv ? nodeEnv : "test") === "test") {
     try {
       const loc = (globalThis as unknown as { location?: { href?: string; origin?: string } })
         .location;
-      return loc?.origin || loc?.href || undefined;
-    } catch {
-      // ignore
+      if (loc?.origin) return loc.origin;
+      if (loc?.href) return loc.href;
+      return undefined;
+    } catch (error: unknown) {
+      logOnce("test_location_error", () =>
+        logger.warn("[Environment] Failed to read test location for API URL", { error }),
+      );
     }
   }
   return undefined;
@@ -72,16 +84,13 @@ function logDetectionOnce(key: string, env: Environment): void {
   }
 }
 
-/**
- * Logs invalid deployment env warning once
- */
+/** Logs invalid deployment env warning once */
 function logInvalidDeploymentWarning(deploymentEnv: string): void {
-  if (!loggedInvalidDeploymentWarning) {
+  logOnce("invalid_deployment_env", () =>
     logger.warn(
       `[Environment] Invalid DEPLOYMENT_ENV value: '${deploymentEnv}', falling back to URL detection`,
-    );
-    loggedInvalidDeploymentWarning = true;
-  }
+    ),
+  );
 }
 
 /**
