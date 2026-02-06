@@ -21,7 +21,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { debug } from "@/lib/utils/debug";
 import { buildApiServiceBusyResponse, buildServiceBusyPageResponse } from "@/lib/utils/api-utils";
-import { classifyProxyRequest, getClientIp } from "@/lib/utils/request-utils";
+import { classifyProxyRequest, getClientIp, hashIpBucket } from "@/lib/utils/request-utils";
 import type {
   MemoryPressureLevel,
   MemoryPressureOverrides,
@@ -115,15 +115,6 @@ async function getNodeMemoryPressureStatus(
     rssBytes,
     limitBytes,
   };
-}
-
-function hashIpBucket(input: string): string {
-  let hash = 2166136261;
-  for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return `ip-${(hash >>> 0).toString(16).padStart(8, "0")}`;
 }
 
 function logLoadShedEvent(args: {
