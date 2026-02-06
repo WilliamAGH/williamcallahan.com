@@ -250,6 +250,33 @@ describe("AI Chat Upstream Pipeline Tools", () => {
     );
   });
 
+  it("returns refusal text when chat completions omits assistant content", async () => {
+    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
+      choices: [
+        {
+          message: {
+            role: "assistant",
+            content: null,
+            refusal: "I cannot help with that request.",
+          },
+          finish_reason: "content_filter",
+        },
+      ],
+    });
+
+    const pipeline = buildChatPipeline(
+      "terminal_chat",
+      createValidatedContext({ userContent: "hello there" }),
+      { augmentedPrompt: undefined, status: "not_applicable" },
+      new AbortController().signal,
+    );
+
+    const reply = await pipeline.runUpstream();
+
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
+    expect(reply).toBe("I cannot help with that request.");
+  });
+
   it("supports responses mode tool calls when arguments are object-shaped", async () => {
     mockedSearchBookmarks.mockResolvedValue([
       {

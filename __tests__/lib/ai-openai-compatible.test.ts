@@ -329,6 +329,41 @@ describe("OpenAI-Compatible AI Utilities", () => {
       expect(payload).not.toHaveProperty("reasoning_effort");
     });
 
+    it("accepts refusal-only assistant responses from chat completions", async () => {
+      vi.resetModules();
+      const mockCreate = vi.fn().mockResolvedValue({
+        id: "chatcmpl_refusal",
+        choices: [
+          {
+            message: {
+              role: "assistant",
+              content: null,
+              refusal: "I cannot help with that request.",
+            },
+            finish_reason: "content_filter",
+          },
+        ],
+      });
+      class MockOpenAI {
+        public chat = { completions: { create: mockCreate, stream: vi.fn() } };
+        public responses = { create: vi.fn(), stream: vi.fn() };
+      }
+      vi.doMock("openai", () => ({ __esModule: true, default: MockOpenAI, OpenAI: MockOpenAI }));
+      const { callOpenAiCompatibleChatCompletions } =
+        await import("@/lib/ai/openai-compatible/openai-compatible-client");
+
+      const response = await callOpenAiCompatibleChatCompletions({
+        baseUrl: "https://example.com",
+        request: {
+          model: "test-model",
+          messages: [{ role: "user", content: "hello" }],
+        },
+      });
+
+      expect(response.choices[0]?.message.content).toBeNull();
+      expect(response.choices[0]?.message.refusal).toBe("I cannot help with that request.");
+    });
+
     it("maps assistant tool calls and tool outputs to Responses API input items", async () => {
       vi.resetModules();
       const mockResponsesCreate = vi.fn().mockResolvedValue({
@@ -375,6 +410,41 @@ describe("OpenAI-Compatible AI Utilities", () => {
         ]),
       );
     });
+
+    it("derives responses output_text from refusal output when text output is absent", async () => {
+      vi.resetModules();
+      const mockResponsesCreate = vi.fn().mockResolvedValue({
+        id: "response_refusal",
+        output: [
+          {
+            type: "message",
+            content: [{ type: "refusal", refusal: "I cannot help with that request." }],
+          },
+        ],
+      });
+      class MockOpenAI {
+        public chat = { completions: { create: vi.fn(), stream: vi.fn() } };
+        public responses = { create: mockResponsesCreate, stream: vi.fn() };
+      }
+      vi.doMock("openai", () => ({
+        __esModule: true,
+        default: MockOpenAI,
+        OpenAI: MockOpenAI,
+      }));
+      const { callOpenAiCompatibleResponses } =
+        await import("@/lib/ai/openai-compatible/openai-compatible-client");
+
+      const response = await callOpenAiCompatibleResponses({
+        baseUrl: "https://example.com",
+        request: {
+          model: "test-model",
+          input: [{ role: "user", content: "hello" }],
+        },
+      });
+
+      expect(response.output_text).toBe("I cannot help with that request.");
+    });
+
     it("forwards streaming chat callbacks and returns the final completion", async () => {
       vi.resetModules();
       const finalChatCompletion = vi.fn().mockResolvedValue({
@@ -415,6 +485,74 @@ describe("OpenAI-Compatible AI Utilities", () => {
       expect(response.choices[0]?.message.content).toBe("ok");
     });
   });
+
+  describe("browser-client SSE handling", () => {
+    function createSseResponse(chunks: string[]): Response {
+      const encoder = new TextEncoder();
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (const chunk of chunks) {
+            controller.enqueue(encoder.encode(chunk));
+          }
+          controller.close();
+        },
+      });
+      return new Response(body, {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream; charset=utf-8" },
+      });
+    }
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("returns message_done payload when stream closes without done event", async () => {
+      vi.resetModules();
+      const fetchMock = vi.fn<typeof fetch>();
+      fetchMock
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              token: "test-token",
+              expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        )
+        .mockResolvedValueOnce(
+          createSseResponse([
+            'event: message_start\r\ndata: {"id":"chatcmpl_refusal","model":"test-model","apiMode":"chat_completions"}\r\n\r\n',
+            'event: message_done\r\ndata: {"message":"I cannot help with that request."}\r\n',
+          ]),
+        );
+      vi.stubGlobal("fetch", fetchMock);
+
+      const { aiChat } = await import("@/lib/ai/openai-compatible/browser-client");
+      const onStreamEvent = vi.fn();
+
+      const message = await aiChat(
+        "terminal_chat",
+        { userText: "hello" },
+        {
+          onStreamEvent,
+        },
+      );
+
+      expect(message).toBe("I cannot help with that request.");
+      expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
+        {
+          event: "message_start",
+          data: { id: "chatcmpl_refusal", model: "test-model", apiMode: "chat_completions" },
+        },
+        {
+          event: "message_done",
+          data: { message: "I cannot help with that request." },
+        },
+      ]);
+    });
+  });
+
   describe("ai-token route", () => {
     const originalEnv = { ...process.env };
     beforeEach(() => {

@@ -39,6 +39,10 @@ function parseSseMessage(raw: string): { event: string; data: string } | null {
   return { event, data };
 }
 
+function normalizeSseLineEndings(value: string): string {
+  return value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
 /**
  * Safely parse JSON from SSE data, providing a clear error message on failure.
  * @param data - The raw SSE data string to parse
@@ -68,6 +72,83 @@ async function readSseStream(args: {
   const decoder = new TextDecoder();
   let buffer = "";
   let didReceiveMessageDone = false;
+  let finalMessage: string | null = null;
+
+  const processMessage = (msg: { event: string; data: string }): string | undefined => {
+    if (msg.event === "done") {
+      const parsed = safeParseJson(msg.data, "done");
+      const doneMessage = aiChatResponseSchema.parse(parsed).message;
+      if (!didReceiveMessageDone) {
+        onStreamEvent?.({
+          event: "message_done",
+          data: aiChatModelStreamDoneSchema.parse({ message: doneMessage }),
+        });
+      }
+      didReceiveMessageDone = true;
+      finalMessage = doneMessage;
+      return doneMessage;
+    }
+
+    if (msg.event === "error") {
+      const parsed = safeParseJson(msg.data, "error");
+      const errorObj = aiChatStreamErrorSchema.parse(parsed);
+      throw new Error(errorObj.error);
+    }
+
+    if (msg.event === "queued" || msg.event === "queue") {
+      const parsed = safeParseJson(msg.data, msg.event);
+      const position = aiChatQueuePositionSchema.parse(parsed);
+      onQueueUpdate?.({
+        event: msg.event,
+        position: position.position ?? null,
+        running: position.running,
+        pending: position.pending,
+        maxParallel: position.maxParallel,
+      });
+      return undefined;
+    }
+
+    if (msg.event === "started") {
+      const parsed = safeParseJson(msg.data, "started");
+      const started = aiChatQueuePositionSchema.parse(parsed);
+      onQueueUpdate?.({
+        event: "started",
+        running: started.running,
+        pending: started.pending,
+        maxParallel: started.maxParallel,
+        queueWaitMs: Math.trunc(started.queueWaitMs ?? 0),
+      });
+      return undefined;
+    }
+
+    if (msg.event === "message_start") {
+      const parsed = safeParseJson(msg.data, "message_start");
+      onStreamEvent?.({
+        event: "message_start",
+        data: aiChatModelStreamStartSchema.parse(parsed),
+      });
+      return undefined;
+    }
+
+    if (msg.event === "message_delta") {
+      const parsed = safeParseJson(msg.data, "message_delta");
+      onStreamEvent?.({
+        event: "message_delta",
+        data: aiChatModelStreamDeltaSchema.parse(parsed),
+      });
+      return undefined;
+    }
+
+    if (msg.event === "message_done") {
+      const parsed = safeParseJson(msg.data, "message_done");
+      const doneData = aiChatModelStreamDoneSchema.parse(parsed);
+      onStreamEvent?.({ event: "message_done", data: doneData });
+      didReceiveMessageDone = true;
+      finalMessage = doneData.message;
+    }
+
+    return undefined;
+  };
 
   try {
     while (true) {
@@ -77,7 +158,7 @@ async function readSseStream(args: {
 
       const { value, done } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      buffer = normalizeSseLineEndings(buffer + decoder.decode(value, { stream: true }));
 
       while (true) {
         const idx = buffer.indexOf("\n\n");
@@ -87,85 +168,24 @@ async function readSseStream(args: {
 
         const msg = parseSseMessage(chunk);
         if (!msg) continue;
+        const doneMessage = processMessage(msg);
+        if (doneMessage !== undefined) return doneMessage;
+      }
+    }
 
-        if (msg.event === "done") {
-          const parsed = safeParseJson(msg.data, "done");
-          const doneMessage = aiChatResponseSchema.parse(parsed).message;
-          if (!didReceiveMessageDone) {
-            onStreamEvent?.({
-              event: "message_done",
-              data: aiChatModelStreamDoneSchema.parse({ message: doneMessage }),
-            });
-          }
-          didReceiveMessageDone = true;
-          return doneMessage;
-        }
-
-        if (msg.event === "error") {
-          const parsed = safeParseJson(msg.data, "error");
-          const errorObj = aiChatStreamErrorSchema.parse(parsed);
-          throw new Error(errorObj.error);
-        }
-
-        if (msg.event === "queued" || msg.event === "queue") {
-          const parsed = safeParseJson(msg.data, msg.event);
-          const position = aiChatQueuePositionSchema.parse(parsed);
-          onQueueUpdate?.({
-            event: msg.event,
-            position: position.position ?? null,
-            running: position.running,
-            pending: position.pending,
-            maxParallel: position.maxParallel,
-          });
-          continue;
-        }
-
-        if (msg.event === "started") {
-          const parsed = safeParseJson(msg.data, "started");
-          const started = aiChatQueuePositionSchema.parse(parsed);
-          onQueueUpdate?.({
-            event: "started",
-            running: started.running,
-            pending: started.pending,
-            maxParallel: started.maxParallel,
-            queueWaitMs: Math.trunc(started.queueWaitMs ?? 0),
-          });
-          continue;
-        }
-
-        if (msg.event === "message_start") {
-          const parsed = safeParseJson(msg.data, "message_start");
-          onStreamEvent?.({
-            event: "message_start",
-            data: aiChatModelStreamStartSchema.parse(parsed),
-          });
-          continue;
-        }
-
-        if (msg.event === "message_delta") {
-          const parsed = safeParseJson(msg.data, "message_delta");
-          onStreamEvent?.({
-            event: "message_delta",
-            data: aiChatModelStreamDeltaSchema.parse(parsed),
-          });
-          continue;
-        }
-
-        if (msg.event === "message_done") {
-          const parsed = safeParseJson(msg.data, "message_done");
-          onStreamEvent?.({
-            event: "message_done",
-            data: aiChatModelStreamDoneSchema.parse(parsed),
-          });
-          didReceiveMessageDone = true;
-          continue;
-        }
+    buffer = normalizeSseLineEndings(buffer + decoder.decode());
+    if (buffer.trim().length > 0) {
+      const trailingMessage = parseSseMessage(buffer);
+      if (trailingMessage) {
+        const doneMessage = processMessage(trailingMessage);
+        if (doneMessage !== undefined) return doneMessage;
       }
     }
   } finally {
     reader.releaseLock();
   }
 
+  if (finalMessage !== null) return finalMessage;
   throw new Error("AI chat stream ended unexpectedly");
 }
 
