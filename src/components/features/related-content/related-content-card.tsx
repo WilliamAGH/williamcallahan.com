@@ -176,13 +176,13 @@ export function RelatedContentCard({
                   showIcon={false}
                   className="flex-shrink-0 inline-flex items-center bg-slate-100 dark:bg-transparent hover:bg-slate-200 dark:hover:bg-gray-700/50 p-1.5 rounded-full transition-colors pointer-events-auto relative z-10"
                 >
-                  <img
+                  <Image
                     src={aventureIconSrc}
                     alt="aVenture"
                     width={14}
                     height={14}
+                    sizes="14px"
                     className="inline-block h-3.5 w-3.5"
-                    loading="lazy"
                   />
                 </ExternalLink>
               )}
