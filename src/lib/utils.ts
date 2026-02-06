@@ -238,7 +238,11 @@ function hasTld(hostname: string): boolean {
 
 /**
  * Attempts to extract a domain from a string that looks like a URL.
- * Returns null if the input doesn't appear to be a URL or parsing fails.
+ *
+ * Returns `null` when the input is not parseable as a URL — this is the
+ * expected outcome for company-name inputs and is **not** an error.
+ * The caller (`normalizeCompanyOrDomain`) intentionally falls through to
+ * name-cleanup logic when this returns `null`.
  */
 function tryExtractDomain(input: string): string | null {
   if (!input.includes(".") && !input.includes(":")) return null;
@@ -252,13 +256,9 @@ function tryExtractDomain(input: string): string | null {
     const isValid =
       isIpAddress(url.hostname) || hasTld(url.hostname) || url.hostname === "localhost";
     return isValid ? stripWwwPrefix(url.hostname) : null;
-  } catch (error: unknown) {
-    if (process.env.NODE_ENV !== "test") {
-      console.warn(
-        "[normalizeCompanyOrDomain] URL parse failed; falling back to name cleanup.",
-        error,
-      );
-    }
+  } catch {
+    // URL constructor throws for non-URL inputs (e.g. "Acme Corp") —
+    // this is normal control flow, not an error condition.
     return null;
   }
 }
