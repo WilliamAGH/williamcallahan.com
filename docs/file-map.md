@@ -181,7 +181,7 @@ File/Path Functionality Description
     - [x] `feature-config.ts` `ai-shared-services` - Per-feature env resolution + upstream URL builder
     - [x] `gate-token.ts` `ai-shared-services` - HMAC-signed short-lived token helpers
     - [x] `browser-client.ts` `ai-shared-services` - Browser helper to mint token + call AI chat route
-    - [x] `openai-compatible-client.ts` `ai-shared-services` - Fetch-based `/v1/chat/completions` client
+    - [x] `openai-compatible-client.ts` `ai-shared-services` - Native OpenAI SDK transport for `chat.completions` and `responses`
     - [x] `upstream-request-queue.ts` `ai-shared-services` - Per-upstream priority queue (max parallel + position)
   - [x] **rag/**
     - [x] `index.ts` `ai-shared-services` - Public API for RAG context retrieval
@@ -610,6 +610,10 @@ File/Path Functionality Description
     - [x] `sentry.js` `log-error-debug-handling` - Mock for Sentry error tracking
   - [x] **app/**
     - [x] **api/**
+      - [x] **ai/**
+        - [x] `chat-rag-helpers.test.ts` `ai-shared-services` - RAG context + abort detection tests for AI chat helpers
+        - [x] `chat-upstream-pipeline-streaming.test.ts` `ai-shared-services` - Upstream pipeline streaming and event contract tests
+        - [x] `chat-upstream-pipeline-tools.test.ts` `ai-shared-services` - Upstream pipeline tool-call and deterministic fallback tests
       - [x] **github-activity/**
         - [x] `cache.test.ts` `github-activity` - Tests for GitHub activity caching
       - [x] **upload/**
