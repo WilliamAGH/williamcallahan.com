@@ -93,12 +93,9 @@ describe("Upload API", () => {
       expect(data.error).toBe("Invalid file type specified");
     });
 
-    // Note: File size validation (MAX_FILE_SIZE = 100MB) at route.ts:192-200
-    // cannot be unit tested because:
-    // 1. File.size is readonly and FormData serialization recreates the File
-    // 2. Creating actual 100MB+ buffers is impractical for unit tests
-    // The size check exists in production code and should be verified via e2e tests
-    it.todo("returns 400 when file exceeds 100MB size limit (requires e2e test)");
+    // File size validation (MAX_FILE_SIZE = 100MB) at route.ts:192-200 is not
+    // unit-testable: File.size is readonly, FormData recreates the File, and
+    // 100MB+ buffers are impractical. Verify via e2e tests instead.
 
     it("returns 400 when file MIME type does not match declared fileType", async () => {
       const formData = new FormData();
@@ -235,7 +232,7 @@ describe("Upload API", () => {
 
     it("deletes S3 object when ePub processing fails", async () => {
       const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-      const consolLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
       const writeBinaryS3Mock = vi.mocked(writeBinaryS3);
       const deleteFromS3Mock = vi.mocked(deleteFromS3);
       const parseEpubFromBufferMock = vi.mocked(parseEpubFromBuffer);
@@ -264,14 +261,14 @@ describe("Upload API", () => {
       expect(deleteFromS3Mock).toHaveBeenCalledWith(s3Key);
 
       consoleErrorSpy.mockRestore();
-      consolLogSpy.mockRestore();
+      consoleLogSpy.mockRestore();
     });
   });
 
   describe("cleanup behavior", () => {
     it("logs error but still throws when S3 cleanup fails", async () => {
       const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-      const consolLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
       const writeBinaryS3Mock = vi.mocked(writeBinaryS3);
       const deleteFromS3Mock = vi.mocked(deleteFromS3);
       const parsePdfFromBufferMock = vi.mocked(parsePdfFromBuffer);
@@ -303,7 +300,7 @@ describe("Upload API", () => {
       expect(deleteFromS3Mock).toHaveBeenCalled();
 
       consoleErrorSpy.mockRestore();
-      consolLogSpy.mockRestore();
+      consoleLogSpy.mockRestore();
     });
   });
 });

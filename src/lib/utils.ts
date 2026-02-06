@@ -253,8 +253,11 @@ function tryExtractDomain(input: string): string | null {
       isIpAddress(url.hostname) || hasTld(url.hostname) || url.hostname === "localhost";
     return isValid ? stripWwwPrefix(url.hostname) : null;
   } catch (error: unknown) {
-    if (process.env.NODE_ENV === "development") {
-      console.error("Error parsing URL in extractDomain:", error);
+    if (process.env.NODE_ENV !== "test") {
+      console.warn(
+        "[normalizeCompanyOrDomain] URL parse failed; falling back to name cleanup.",
+        error,
+      );
     }
     return null;
   }
@@ -331,22 +334,4 @@ export function randomString(length: number): string {
     result += characters.charAt(Math.floor(Math.random() * characters.length));
   }
   return result;
-}
-
-/**
- * Throws an error if the function is called in a browser environment.
- *
- * This is a safeguard to ensure server-only modules are not accidentally
- * imported and used on a client.
- */
-export function assertServerOnly() {
-  if (
-    process.env.NODE_ENV !== "test" &&
-    typeof globalThis !== "undefined" &&
-    "window" in globalThis
-  ) {
-    throw new Error(
-      "This module is server-only and should not be imported in a browser environment.",
-    );
-  }
 }

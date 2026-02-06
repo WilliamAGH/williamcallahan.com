@@ -313,6 +313,8 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
               onClick={() => setIsCollapsed((prev) => !prev)}
               className="text-gray-500 hover:text-[#7aa2f7] transition-colors p-1"
               title={isCollapsed ? "Expand analysis" : "Collapse analysis"}
+              aria-label={isCollapsed ? "Expand analysis" : "Collapse analysis"}
+              aria-expanded={!isCollapsed}
             >
               <ChevronDown
                 className={`w-3.5 h-3.5 transition-transform duration-200 ${!isCollapsed ? "rotate-180" : ""}`}
