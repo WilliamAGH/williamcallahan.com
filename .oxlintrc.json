@@ -52,7 +52,12 @@
     "import/no-mutable-exports": "error",
     "import/no-named-as-default": "warn",
     "import/no-named-as-default-member": "warn",
-    "import/no-unassigned-import": "warn",
+    "import/no-unassigned-import": [
+      "warn",
+      {
+        "allow": ["server-only", "dotenv/config", "@testing-library/jest-dom/vitest", "**/*.css"]
+      }
+    ],
     "max-params": [
       "warn",
       {
@@ -258,6 +263,7 @@
       },
       "rules": {
         "s3/no-hardcoded-images": "off",
+        "nextjs/no-img-element": "off",
         "max-params": "off",
         "no-await-in-loop": "off",
         "no-new": "off",
@@ -289,6 +295,12 @@
         "no-await-in-loop": "off",
         "s3/no-hardcoded-images": "off",
         "typescript/no-explicit-any": "off"
+      }
+    },
+    {
+      "files": ["src/app/api/og/**/*.{ts,tsx}"],
+      "rules": {
+        "nextjs/no-img-element": "off"
       }
     },
     {
