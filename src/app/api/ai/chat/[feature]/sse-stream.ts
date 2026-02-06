@@ -18,6 +18,7 @@ import {
   logSuccessfulChat,
   logFailedChat,
   formatErrorMessage,
+  isAbortError,
 } from "./chat-helpers";
 
 /**
@@ -66,7 +67,10 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
       const task = queue.enqueue({
         priority,
         signal: request.signal,
-        run: runUpstream,
+        run: () =>
+          runUpstream((event) => {
+            safeSend(event.event, event.data);
+          }),
       });
 
       const initialPosition = queue.getPosition(task.id);
@@ -122,6 +126,11 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
           return undefined;
         })
         .catch((error: unknown) => {
+          if (isAbortError(error)) {
+            safeClose();
+            return;
+          }
+
           const durationMs = Date.now() - startTime;
           const queueWaitMs = sseStartedAtMs ? sseStartedAtMs - enqueuedAtMs : 0;
           const errorMessage = error instanceof Error ? error.message : String(error);

@@ -12,7 +12,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 import type { JsonResponseConfig } from "@/types/features/ai-chat";
-import { logSuccessfulChat, logFailedChat, formatErrorMessage } from "./chat-helpers";
+import { logSuccessfulChat, logFailedChat, formatErrorMessage, isAbortError } from "./chat-helpers";
 
 /** Handle non-SSE JSON response */
 export async function handleJsonResponse(config: JsonResponseConfig): Promise<NextResponse> {
@@ -47,6 +47,13 @@ export async function handleJsonResponse(config: JsonResponseConfig): Promise<Ne
       { status: 200, headers: NO_STORE_HEADERS },
     );
   } catch (error: unknown) {
+    if (isAbortError(error)) {
+      return NextResponse.json(
+        { error: "Request aborted" },
+        { status: 499, headers: NO_STORE_HEADERS },
+      );
+    }
+
     const durationMs = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : String(error);
 

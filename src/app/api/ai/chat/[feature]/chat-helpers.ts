@@ -97,6 +97,13 @@ export function formatSseEvent(args: { event: string; data: unknown }): string {
   return `event: ${args.event}\ndata: ${JSON.stringify(args.data)}\n\n`;
 }
 
+export function isAbortError(error: unknown): boolean {
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error && error.name === "AbortError")
+  );
+}
+
 /**
  * Validate the incoming request (cloudflare, origin, rate limit, auth, body)
  * Returns either an error response or the validated context
