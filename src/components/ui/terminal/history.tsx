@@ -12,6 +12,7 @@
  */
 
 import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 import {
   type HistoryProps,
   type TerminalCommand,
@@ -24,6 +25,71 @@ import {
   isSearchingCommand,
   isChatCommand,
 } from "@/types";
+
+const TERMINAL_LINK_CLASS =
+  "text-[#7aa2f7] underline underline-offset-2 hover:text-[#9ab7ff] transition-colors";
+
+function isInternalSlugPath(value: string): boolean {
+  return value.startsWith("/") && !value.startsWith("//");
+}
+
+/** Each pattern extracts a prefix, display text, and link path from a chat line */
+const CHAT_LINK_PATTERNS: Array<{
+  regex: RegExp;
+  extract: (match: RegExpMatchArray) => { prefix: string; text: string; path: string } | null;
+}> = [
+  {
+    regex: /^- *\[([^\]]+)\]\((\/[^)]+)\)\s*$/,
+    extract: (m) => {
+      const text = m[1]?.trim();
+      const path = m[2]?.trim();
+      return text && path ? { prefix: "- ", text, path } : null;
+    },
+  },
+  {
+    regex: /^- *(.+?):\s*(\/\S+)\s*$/,
+    extract: (m) => {
+      const text = m[1]?.trim();
+      const path = m[2]?.trim();
+      return text && path ? { prefix: "- ", text, path } : null;
+    },
+  },
+  {
+    regex: /^URL:\s*(\/\S+)\s*$/,
+    extract: (m) => {
+      const path = m[1]?.trim();
+      return path ? { prefix: "URL: ", text: path, path } : null;
+    },
+  },
+];
+
+function renderChatLine(line: string): ReactNode {
+  for (const { regex, extract } of CHAT_LINK_PATTERNS) {
+    const match = line.match(regex);
+    if (!match) continue;
+    const parsed = extract(match);
+    if (!parsed || !isInternalSlugPath(parsed.path)) continue;
+    return (
+      <>
+        {parsed.prefix}
+        <a href={parsed.path} className={TERMINAL_LINK_CLASS}>
+          {parsed.text}
+        </a>
+      </>
+    );
+  }
+  return line;
+}
+
+function renderChatOutput(outputContent: string): ReactNode {
+  const lines = outputContent.split("\n");
+  return lines.map((line, index) => (
+    <span key={index}>
+      {renderChatLine(line)}
+      {index < lines.length - 1 ? <br /> : null}
+    </span>
+  ));
+}
 
 export function History({ history, mode = "default" }: HistoryProps) {
   // Filter history based on mode
@@ -97,7 +163,7 @@ export function History({ history, mode = "default" }: HistoryProps) {
                     {chatLabel}
                   </div>
                   <div className="text-gray-200 whitespace-pre-wrap break-words">
-                    {outputContent}
+                    {renderChatOutput(outputContent)}
                   </div>
                 </div>
               ) : (

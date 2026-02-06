@@ -4,6 +4,9 @@ import type {
   AiChatRequest,
 } from "@/types/ai-openai-compatible-client";
 import {
+  aiChatModelStreamDeltaSchema,
+  aiChatModelStreamDoneSchema,
+  aiChatModelStreamStartSchema,
   aiChatQueuePositionSchema,
   aiChatResponseSchema,
   aiChatStreamErrorSchema,
@@ -54,8 +57,9 @@ async function readSseStream(args: {
   response: Response;
   signal?: AbortSignal;
   onQueueUpdate?: AiChatClientOptions["onQueueUpdate"];
+  onStreamEvent?: AiChatClientOptions["onStreamEvent"];
 }): Promise<string> {
-  const { response, signal, onQueueUpdate } = args;
+  const { response, signal, onQueueUpdate, onStreamEvent } = args;
   const reader = response.body?.getReader();
   if (!reader) {
     throw new Error("AI chat stream is not readable");
@@ -63,6 +67,7 @@ async function readSseStream(args: {
 
   const decoder = new TextDecoder();
   let buffer = "";
+  let didReceiveMessageDone = false;
 
   try {
     while (true) {
@@ -85,7 +90,15 @@ async function readSseStream(args: {
 
         if (msg.event === "done") {
           const parsed = safeParseJson(msg.data, "done");
-          return aiChatResponseSchema.parse(parsed).message;
+          const doneMessage = aiChatResponseSchema.parse(parsed).message;
+          if (!didReceiveMessageDone) {
+            onStreamEvent?.({
+              event: "message_done",
+              data: aiChatModelStreamDoneSchema.parse({ message: doneMessage }),
+            });
+          }
+          didReceiveMessageDone = true;
+          return doneMessage;
         }
 
         if (msg.event === "error") {
@@ -117,6 +130,34 @@ async function readSseStream(args: {
             maxParallel: started.maxParallel,
             queueWaitMs: Math.trunc(started.queueWaitMs ?? 0),
           });
+          continue;
+        }
+
+        if (msg.event === "message_start") {
+          const parsed = safeParseJson(msg.data, "message_start");
+          onStreamEvent?.({
+            event: "message_start",
+            data: aiChatModelStreamStartSchema.parse(parsed),
+          });
+          continue;
+        }
+
+        if (msg.event === "message_delta") {
+          const parsed = safeParseJson(msg.data, "message_delta");
+          onStreamEvent?.({
+            event: "message_delta",
+            data: aiChatModelStreamDeltaSchema.parse(parsed),
+          });
+          continue;
+        }
+
+        if (msg.event === "message_done") {
+          const parsed = safeParseJson(msg.data, "message_done");
+          onStreamEvent?.({
+            event: "message_done",
+            data: aiChatModelStreamDoneSchema.parse(parsed),
+          });
+          didReceiveMessageDone = true;
           continue;
         }
       }
@@ -163,10 +204,12 @@ export async function aiChat(
   const token = await getAiToken(options);
 
   const wantsQueueUpdates = typeof options.onQueueUpdate === "function";
+  const wantsModelStreaming = typeof options.onStreamEvent === "function";
+  const wantsEventStream = wantsQueueUpdates || wantsModelStreaming;
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
-    ...(wantsQueueUpdates ? { Accept: "text/event-stream" } : {}),
+    ...(wantsEventStream ? { Accept: "text/event-stream" } : {}),
   };
 
   const response = await fetch(`/api/ai/chat/${encodeURIComponent(feature)}`, {
@@ -185,7 +228,7 @@ export async function aiChat(
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${refreshed}`,
-        ...(wantsQueueUpdates ? { Accept: "text/event-stream" } : {}),
+        ...(wantsEventStream ? { Accept: "text/event-stream" } : {}),
       },
       body: JSON.stringify(request),
       signal: options.signal,
@@ -196,11 +239,12 @@ export async function aiChat(
       throw new Error(`AI chat failed (HTTP ${retry.status}): ${text}`);
     }
 
-    if (wantsQueueUpdates) {
+    if (wantsEventStream) {
       return readSseStream({
         response: retry,
         signal: options.signal,
         onQueueUpdate: options.onQueueUpdate,
+        onStreamEvent: options.onStreamEvent,
       });
     }
 
@@ -213,11 +257,12 @@ export async function aiChat(
     throw new Error(`AI chat failed (HTTP ${response.status}): ${text}`);
   }
 
-  if (wantsQueueUpdates) {
+  if (wantsEventStream) {
     return readSseStream({
       response,
       signal: options.signal,
       onQueueUpdate: options.onQueueUpdate,
+      onStreamEvent: options.onStreamEvent,
     });
   }
 
