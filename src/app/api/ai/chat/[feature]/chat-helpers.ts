@@ -60,39 +60,30 @@ function isAllowedHostname(hostname: string): boolean {
   return false;
 }
 
+/** Parse a URL property from a request header, returning null on malformed values. */
+function parseHeaderUrl(
+  header: string | null,
+  property: "hostname" | "pathname",
+  label: string,
+): string | null {
+  if (!header) return null;
+  try {
+    return new URL(header)[property];
+  } catch (err) {
+    debug(`[chat-helpers] Malformed ${label} header:`, header, err);
+    return null;
+  }
+}
+
 function getRequestOriginHostname(request: NextRequest): string | null {
-  const origin = request.headers.get("origin");
-  if (origin) {
-    try {
-      return new URL(origin).hostname;
-    } catch (err) {
-      debug("[chat-helpers] Malformed origin header:", origin, err);
-      return null;
-    }
-  }
-  const referer = request.headers.get("referer");
-  if (referer) {
-    try {
-      return new URL(referer).hostname;
-    } catch (err) {
-      debug("[chat-helpers] Malformed referer header:", referer, err);
-      return null;
-    }
-  }
-  return null;
+  return (
+    parseHeaderUrl(request.headers.get("origin"), "hostname", "origin") ??
+    parseHeaderUrl(request.headers.get("referer"), "hostname", "referer")
+  );
 }
 
 function getRequestPagePath(request: NextRequest): string | null {
-  const referer = request.headers.get("referer");
-  if (referer) {
-    try {
-      return new URL(referer).pathname;
-    } catch (err) {
-      debug("[chat-helpers] Malformed referer header:", referer, err);
-      return null;
-    }
-  }
-  return null;
+  return parseHeaderUrl(request.headers.get("referer"), "pathname", "referer");
 }
 
 function getBearerToken(request: NextRequest): string | null {
@@ -105,17 +96,6 @@ function getBearerToken(request: NextRequest): string | null {
 export function wantsEventStream(request: NextRequest): boolean {
   const accept = request.headers.get("accept")?.toLowerCase();
   return Boolean(accept?.includes("text/event-stream"));
-}
-
-export function formatSseEvent(args: { event: string; data: unknown }): string {
-  return `event: ${args.event}\ndata: ${JSON.stringify(args.data)}\n\n`;
-}
-
-export function isAbortError(error: unknown): boolean {
-  return (
-    (error instanceof DOMException && error.name === "AbortError") ||
-    (error instanceof Error && error.name === "AbortError")
-  );
 }
 
 /**
