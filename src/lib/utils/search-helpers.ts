@@ -80,6 +80,9 @@ export async function coalesceSearchRequest<T>(
  * const terminalResults = searchResults.map(transformSearchResultToTerminalResult);
  */
 export function transformSearchResultToTerminalResult(result: SearchResult): TerminalSearchResult {
+  const fallbackPath = result.url || "#";
+  const fallbackLabel = result.title || "Untitled";
+
   // Ensure we have a valid ID - SearchResult.id is required by the interface
   const id = result.id;
   if (!id) {
@@ -87,20 +90,24 @@ export function transformSearchResultToTerminalResult(result: SearchResult): Ter
       "[Search] Search result is missing a stable ID. This may cause rendering issues.",
       result,
     );
-    // Generate a fallback ID if somehow missing
+    const fallbackId = `${result.type}:${fallbackPath}:${fallbackLabel}`
+      .toLowerCase()
+      .replace(/[^a-z0-9:/_-]+/g, "-")
+      .replace(/-+/g, "-");
+
     return {
-      id: crypto.randomUUID(),
-      label: result.title || "Untitled",
+      id: fallbackId,
+      label: fallbackLabel,
       description: result.description || "",
-      path: result.url || "#",
+      path: fallbackPath,
     };
   }
 
   return {
     id: `${result.type}-${id}`,
-    label: result.title || "Untitled",
+    label: fallbackLabel,
     description: result.description || "",
-    path: result.url || "#",
+    path: fallbackPath,
   };
 }
 

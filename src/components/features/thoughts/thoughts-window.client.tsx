@@ -10,7 +10,7 @@
 
 "use client";
 
-import React, { Suspense, useMemo } from "react";
+import React, { Suspense } from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hint";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
@@ -37,16 +37,20 @@ function BlinkingCursor(): React.JSX.Element {
 }
 
 const DEFAULT_THOUGHTS_WINDOW_ID = "thoughts-window";
+const THOUGHT_SKELETON_KEYS = [
+  "thought-skeleton-1",
+  "thought-skeleton-2",
+  "thought-skeleton-3",
+  "thought-skeleton-4",
+] as const;
 
 /**
  * Skeleton loader with stable keys
  */
 function SkeletonLoader(): React.JSX.Element {
-  const skeletonKeys = useMemo(() => Array.from({ length: 4 }, () => crypto.randomUUID()), []);
-
   return (
     <div className="animate-pulse space-y-4 p-6">
-      {skeletonKeys.map((key) => (
+      {THOUGHT_SKELETON_KEYS.map((key) => (
         <div key={key} className="space-y-3">
           <div className="bg-zinc-200 dark:bg-zinc-700 h-4 w-24 rounded" />
           <div className="bg-zinc-200 dark:bg-zinc-700 h-6 w-3/4 rounded" />

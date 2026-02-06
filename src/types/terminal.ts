@@ -215,12 +215,19 @@ export function parseTerminalSearchResponse(data: unknown): TerminalSearchResult
       (item): item is { id?: string; label?: string; description?: string; path?: string } =>
         typeof item === "object" && item !== null,
     )
-    .map(
-      (item): TerminalSearchResult => ({
-        id: item.id || crypto.randomUUID(),
-        label: item.label || "Untitled",
+    .map((item, index): TerminalSearchResult => {
+      const fallbackLabel = item.label || "Untitled";
+      const fallbackPath = item.path || "#";
+      const fallbackId = `${fallbackPath}:${fallbackLabel}:${index}`
+        .toLowerCase()
+        .replace(/[^a-z0-9:/_-]+/g, "-")
+        .replace(/-+/g, "-");
+
+      return {
+        id: item.id || fallbackId,
+        label: fallbackLabel,
         description: item.description || "",
-        path: item.path || "#",
-      }),
-    );
+        path: fallbackPath,
+      };
+    });
 }
