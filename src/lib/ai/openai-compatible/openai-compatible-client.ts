@@ -23,6 +23,7 @@ import {
   openAiCompatibleChatCompletionsRequestSchema,
   openAiCompatibleChatCompletionsResponseSchema,
   openAiCompatibleResponsesResponseSchema,
+  responsesOutputRefusalItemSchema,
   responsesOutputTextItemSchema,
 } from "@/types/schemas/ai-openai-compatible";
 import { buildOpenAiApiBaseUrl } from "@/lib/ai/openai-compatible/feature-config";
@@ -195,15 +196,25 @@ function validateChatRequest(request: OpenAiCompatibleChatCompletionsRequest) {
 }
 
 function deriveOutputTextFromResponsesOutput(output: unknown[]): string {
-  const chunks: string[] = [];
+  const textChunks: string[] = [];
+  const refusalChunks: string[] = [];
   for (const item of output) {
-    const parsed = responsesOutputTextItemSchema.safeParse(item);
-    if (!parsed.success) continue;
-    for (const content of parsed.data.content) {
-      chunks.push(content.text);
+    const parsedOutputText = responsesOutputTextItemSchema.safeParse(item);
+    if (parsedOutputText.success) {
+      for (const content of parsedOutputText.data.content) {
+        textChunks.push(content.text);
+      }
+      continue;
+    }
+
+    const parsedRefusal = responsesOutputRefusalItemSchema.safeParse(item);
+    if (parsedRefusal.success) {
+      for (const content of parsedRefusal.data.content) {
+        refusalChunks.push(content.refusal);
+      }
     }
   }
-  return chunks.join("");
+  return textChunks.length > 0 ? textChunks.join("") : refusalChunks.join("");
 }
 
 function normalizeResponsesOutputText<T extends { output: unknown[]; output_text?: string }>(

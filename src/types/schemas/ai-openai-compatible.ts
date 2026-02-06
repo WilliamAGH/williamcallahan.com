@@ -31,11 +31,18 @@ const openAiCompatibleResponseAssistantMessageSchema = z
   .object({
     role: z.literal("assistant"),
     content: z.string().nullable().optional(),
+    refusal: z.string().nullable().optional(),
     tool_calls: z.array(openAiCompatibleToolCallSchema).optional(),
   })
-  .refine((value) => typeof value.content === "string" || (value.tool_calls?.length ?? 0) > 0, {
-    message: "Assistant message must include content or tool_calls",
-  });
+  .refine(
+    (value) =>
+      typeof value.content === "string" ||
+      typeof value.refusal === "string" ||
+      (value.tool_calls?.length ?? 0) > 0,
+    {
+      message: "Assistant message must include content, refusal, or tool_calls",
+    },
+  );
 
 const openAiCompatibleToolMessageSchema = z.object({
   role: z.literal("tool"),
@@ -127,6 +134,17 @@ export const responsesOutputTextItemSchema = z.object({
     z.object({
       type: z.literal("output_text"),
       text: z.string(),
+    }),
+  ),
+});
+
+/** Narrow schema for extracting refusal text from Responses API output items */
+export const responsesOutputRefusalItemSchema = z.object({
+  type: z.literal("message"),
+  content: z.array(
+    z.object({
+      type: z.literal("refusal"),
+      refusal: z.string(),
     }),
   ),
 });

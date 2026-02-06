@@ -124,7 +124,7 @@ async function executeChatCompletionsTurn(
 
   const toolCalls = assistantMessage.tool_calls ?? [];
   if (toolCalls.length === 0) {
-    const text = assistantMessage.content?.trim();
+    const text = assistantMessage.content?.trim() || assistantMessage.refusal?.trim();
     if (text && onStreamEvent) {
       emitDeferredContentEvents(text, startMeta, "chat_completions", onStreamEvent);
     }

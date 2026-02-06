@@ -31,15 +31,12 @@ vi.mock("@/lib/ai/openai-compatible/openai-compatible-client", () => ({
   streamOpenAiCompatibleResponses: (...args: unknown[]) =>
     mockStreamOpenAiCompatibleResponses(...args),
 }));
-
 vi.mock("@/lib/ai/openai-compatible/chat-messages", () => ({
   buildChatMessages: (...args: unknown[]) => mockBuildChatMessages(...args),
 }));
-
 vi.mock("@/lib/ai/openai-compatible/upstream-request-queue", () => ({
   getUpstreamRequestQueue: (...args: unknown[]) => mockGetUpstreamRequestQueue(...args),
 }));
-
 vi.mock("@/lib/ai/openai-compatible/feature-config", () => ({
   resolveOpenAiCompatibleFeatureConfig: vi.fn().mockReturnValue({
     baseUrl: "https://example.com",
@@ -49,7 +46,6 @@ vi.mock("@/lib/ai/openai-compatible/feature-config", () => ({
   buildChatCompletionsUrl: vi.fn().mockReturnValue("https://example.com/v1/chat/completions"),
   buildResponsesUrl: vi.fn().mockReturnValue("https://example.com/v1/responses"),
 }));
-
 vi.mock("@/lib/search/searchers/dynamic-searchers", () => ({
   searchBookmarks: vi.fn(),
 }));
@@ -309,6 +305,45 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
       },
       { event: "message_delta", data: { delta: "final" } },
       { event: "message_done", data: { message: "final" } },
+    ]);
+  });
+
+  it("emits refusal text as streamed content when completion has no assistant content", async () => {
+    mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(
+      ({ onStart }: { onStart?: (meta: { id: string; model: string }) => void }) => {
+        onStart?.({ id: "chatcmpl_refusal", model: "test-model" });
+        return Promise.resolve({
+          id: "chatcmpl_refusal",
+          choices: [
+            {
+              message: {
+                role: "assistant",
+                content: null,
+                refusal: "I cannot help with that request.",
+              },
+              finish_reason: "content_filter",
+            },
+          ],
+        });
+      },
+    );
+
+    const pipeline = buildChatPipeline(
+      "terminal_chat",
+      createValidatedContext({ userContent: "hello there" }),
+      { augmentedPrompt: undefined, status: "not_applicable" },
+      new AbortController().signal,
+    );
+    const events: Array<{ event: string; data: unknown }> = [];
+    const reply = await pipeline.runUpstream((event) => events.push(event));
+    expect(reply).toBe("I cannot help with that request.");
+    expect(events).toEqual([
+      {
+        event: "message_start",
+        data: { id: "chatcmpl_refusal", model: "test-model", apiMode: "chat_completions" },
+      },
+      { event: "message_delta", data: { delta: "I cannot help with that request." } },
+      { event: "message_done", data: { message: "I cannot help with that request." } },
     ]);
   });
 });
