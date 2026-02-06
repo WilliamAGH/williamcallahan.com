@@ -7,7 +7,6 @@
  */
 
 import { isOperationAllowed } from "@/lib/rate-limiter";
-import { debug } from "@/lib/utils/debug";
 import { NextResponse, type NextRequest } from "next/server";
 import { getClientIp as getClientIpFromHeaders } from "@/lib/utils/request-utils";
 import {
@@ -58,7 +57,7 @@ export function getCriticalThreshold(): number {
         const total = os.totalmem();
         return (percent / 100) * total;
       } catch (err) {
-        debug("[api-guards] os.totalmem() failed, using default threshold:", err);
+        console.warn("[api-guards] os.totalmem() failed, using default threshold:", err);
       }
     } else {
       console.warn(

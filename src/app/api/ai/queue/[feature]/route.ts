@@ -47,8 +47,10 @@ export async function GET(
   try {
     const { feature } = await context.params;
     const validatedFeature = featureParamSchema.parse(feature);
-    const apiMode = aiUpstreamApiModeSchema.safeParse(request.nextUrl.searchParams.get("apiMode"));
-    const resolvedApiMode = apiMode.success ? apiMode.data : "chat_completions";
+    const rawApiMode = request.nextUrl.searchParams.get("apiMode");
+    const resolvedApiMode = rawApiMode
+      ? aiUpstreamApiModeSchema.parse(rawApiMode)
+      : "chat_completions";
 
     const config = resolveOpenAiCompatibleFeatureConfig(validatedFeature);
     const url =

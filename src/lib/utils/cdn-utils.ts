@@ -142,17 +142,22 @@ export function extractS3KeyFromUrl(url: string, config: CdnConfig): string | nu
 
   // Check if it's an S3 URL
   if (s3BucketName && s3ServerUrl) {
-    const s3Host = getS3Host(s3ServerUrl);
-    const s3Base = parseAbsoluteUrl(s3ServerUrl);
-    const expectedHost = s3Base?.port
-      ? `${s3BucketName}.${s3Host}:${s3Base.port}`
-      : `${s3BucketName}.${s3Host}`;
-    if (parsed.host === expectedHost) {
-      const s3Protocol = s3Base?.protocol ?? "https:";
-      if (!SUPPORTED_PROTOCOLS.has(s3Protocol) || parsed.protocol !== s3Protocol) {
-        return null;
+    try {
+      const s3Host = getS3Host(s3ServerUrl);
+      const s3Base = parseAbsoluteUrl(s3ServerUrl);
+      const expectedHost = s3Base?.port
+        ? `${s3BucketName}.${s3Host}:${s3Base.port}`
+        : `${s3BucketName}.${s3Host}`;
+      if (parsed.host === expectedHost) {
+        const s3Protocol = s3Base?.protocol ?? "https:";
+        if (!SUPPORTED_PROTOCOLS.has(s3Protocol) || parsed.protocol !== s3Protocol) {
+          return null;
+        }
+        return parsed.pathname.startsWith("/") ? parsed.pathname.slice(1) : parsed.pathname;
       }
-      return parsed.pathname.startsWith("/") ? parsed.pathname.slice(1) : parsed.pathname;
+    } catch {
+      // Malformed S3 server URL — treat as non-match (consistent with string|null contract)
+      return null;
     }
   }
 

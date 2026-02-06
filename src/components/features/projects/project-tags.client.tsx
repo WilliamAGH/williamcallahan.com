@@ -18,29 +18,18 @@
 
 import { projects } from "@/data/projects";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 const TAG_LIMIT = 10; // Number of tags to show initially
 
 /**
  * Renders interactive filter buttons for project tags and handles filtering logic.
  *
- * This component displays a list of project tags as buttons. Users can click these
- * buttons to filter projects. It includes a "Show More" feature to reveal additional
- * tags if the total number of unique tags exceeds `TAG_LIMIT`. The component
- * synchronizes the selected tag with the URL's query parameters.
+ * Uses `useSearchParams` — callers MUST wrap in `<Suspense>` per Next.js requirements.
  *
  * @returns {React.JSX.Element} The rendered project tags filtering interface.
  */
 export function ProjectTagsClient(): React.JSX.Element {
-  return (
-    <Suspense fallback={<ProjectTagsFallback />}>
-      <ProjectTagsContent />
-    </Suspense>
-  );
-}
-
-function ProjectTagsContent(): React.JSX.Element {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [selectedTag, setSelectedTag] = useState("All");
@@ -124,7 +113,7 @@ function ProjectTagsContent(): React.JSX.Element {
   );
 }
 
-function ProjectTagsFallback(): React.JSX.Element {
+export function ProjectTagsFallback(): React.JSX.Element {
   return (
     <div className="max-w-5xl mx-auto flex flex-col gap-3 mb-8 px-4 pt-6">
       <div className="h-9 w-full rounded-lg bg-gray-200 dark:bg-gray-700 animate-pulse" />
