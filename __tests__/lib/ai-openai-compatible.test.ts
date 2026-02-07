@@ -13,6 +13,7 @@ import {
 } from "@/lib/ai/openai-compatible/feature-config";
 import { buildChatMessages } from "@/lib/ai/openai-compatible/chat-messages";
 import { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
+import { parseLlmJson } from "@/lib/ai/analysis-client-utils";
 import {
   resolveModelParams,
   resolveFeatureSystemPrompt,
@@ -606,7 +607,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       const { aiChat } = await import("@/lib/ai/openai-compatible/browser-client");
 
       await expect(aiChat("terminal_chat", { userText: "hello" })).rejects.toThrow(
-        "AI chat stream ended unexpectedly",
+        "AI chat expected text/event-stream",
       );
 
       expect(fetchMock).toHaveBeenNthCalledWith(
@@ -618,6 +619,27 @@ describe("OpenAI-Compatible AI Utilities", () => {
           }),
         }),
       );
+    });
+  });
+
+  describe("analysis-client-utils JSON parsing", () => {
+    it("parses fenced JSON with explanatory text around it", () => {
+      const parsed = parseLlmJson(
+        `Here is the analysis:\n\n\`\`\`json\n{"summary":"ok","items":[1,2,3]}\n\`\`\`\n\nDone.`,
+      );
+      expect(parsed).toEqual({ summary: "ok", items: [1, 2, 3] });
+    });
+
+    it("parses control-token-wrapped JSON payloads", () => {
+      const parsed = parseLlmJson(
+        `<|channel|>final <|message|>{"summary":"ok","nested":{"status":"ready"}}`,
+      );
+      expect(parsed).toEqual({ summary: "ok", nested: { status: "ready" } });
+    });
+
+    it("repairs recoverable JSON errors before parsing", () => {
+      const parsed = parseLlmJson(`{summary: "ok", highlights: ["one",],}`);
+      expect(parsed).toEqual({ summary: "ok", highlights: ["one"] });
     });
   });
 
