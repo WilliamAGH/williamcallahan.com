@@ -259,25 +259,33 @@ describe("AI Chat Upstream Pipeline Tools", () => {
     expect(reply).not.toContain("Here are the best matches I found:");
   });
 
-  it.each([
-    { label: "returns content", content: "I can search that for you." },
-    { label: "returns empty content", content: "" },
-  ])(
-    "uses deterministic fallback when model $label instead of required tool calls",
-    async ({ content }) => {
-      mockSingleBookmarkSearchResult();
-      mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
-        choices: [{ message: { role: "assistant", content } }],
-      });
+  it("uses deterministic fallback when model returns empty content instead of required tool calls", async () => {
+    mockSingleBookmarkSearchResult();
+    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
+      choices: [{ message: { role: "assistant", content: "" } }],
+    });
 
-      const pipeline = createPipeline({ userContent: explicitSearchPrompt });
-      const reply = await pipeline.runUpstream();
+    const pipeline = createPipeline({ userContent: explicitSearchPrompt });
+    const reply = await pipeline.runUpstream();
 
-      expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
-      expect(mockedSearchBookmarks).toHaveBeenCalledWith("wikipedia");
-      expect(reply).toContain(bookmarkLink);
-    },
-  );
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
+    expect(mockedSearchBookmarks).toHaveBeenCalledWith("wikipedia");
+    expect(reply).toContain(bookmarkLink);
+  });
+
+  it("preserves valid model text when forced tool is not called", async () => {
+    const modelText = "I can search that for you.";
+    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
+      choices: [{ message: { role: "assistant", content: modelText } }],
+    });
+
+    const pipeline = createPipeline({ userContent: explicitSearchPrompt });
+    const reply = await pipeline.runUpstream();
+
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
+    expect(mockedSearchBookmarks).not.toHaveBeenCalled();
+    expect(reply).toBe(modelText);
+  });
 
   it("returns refusal text when chat completions omits assistant content", async () => {
     mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
