@@ -55,6 +55,7 @@ Example schemas:
 - Live Chroma integration tests are opt-in and gated by `CHROMA_*` env vars (see `chroma.md`).
 - Test-only mock modules live under `__tests__/__mocks__/` and are enforced via linting (see `standards/testing.md`).
 - Terminal AI chat queues are handled by `src/components/ui/terminal/use-ai-chat-queue.client.tsx` to serialize requests and cap client-side pending messages (see `features/terminal.md`).
+- AI chat gateway contracts are SSE-only end-to-end (`/api/ai/chat/[feature]` plus `aiChat()` browser client), with shared feature identifiers/queue-key builders and upstream delta forwarding centralized in `ai-shared-services` (see `architecture/ai-services.md`).
 - RAG inventory catalogs for terminal chat are assembled server-side from repo data and dynamic sources with explicit token-bound truncation (`src/lib/ai/rag/inventory-*.ts`).
 - Navigation-first throttle policy: rate limiter only blocks `document` and `api` classes; `rsc`/`prefetch`/`_next/image` are not independently throttled to prevent partial renders. Memory shedding is stricter: all request classes are rejected with 503 when memory is critical (`src/lib/utils/request-utils.ts`, `src/lib/middleware/sitewide-rate-limit.ts`, `src/lib/middleware/memory-pressure.ts`).
 - Deterministic throttle/load-shed contracts: document requests return HTML `429/503`, API requests return standardized JSON `RATE_LIMITED|SERVICE_UNAVAILABLE` payloads with `Retry-After` + `Cache-Control: no-store` (`src/lib/utils/api-utils.ts`, `src/types/schemas/api.ts`).

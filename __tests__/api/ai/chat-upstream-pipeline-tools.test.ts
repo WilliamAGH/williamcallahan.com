@@ -46,8 +46,14 @@ vi.mock("@/lib/ai/openai-compatible/feature-config", () => ({
     model: "test-model",
     maxParallel: 1,
   }),
-  buildChatCompletionsUrl: vi.fn().mockReturnValue("https://example.com/v1/chat/completions"),
-  buildResponsesUrl: vi.fn().mockReturnValue("https://example.com/v1/responses"),
+  resolvePreferredUpstreamModel: vi.fn().mockReturnValue({
+    primaryModel: "test-model",
+    fallbackModel: undefined,
+  }),
+  buildUpstreamQueueKey: vi.fn(({ baseUrl, model, apiMode }) => {
+    const route = apiMode === "responses" ? "responses" : "chat/completions";
+    return `${baseUrl}/v1/${route}::${model}`;
+  }),
 }));
 
 vi.mock("@/lib/search/searchers/dynamic-searchers", () => ({

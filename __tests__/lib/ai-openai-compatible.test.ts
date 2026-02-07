@@ -6,7 +6,9 @@ import {
 import {
   buildOpenAiApiBaseUrl,
   buildChatCompletionsUrl,
+  buildUpstreamQueueKey,
   buildResponsesUrl,
+  resolvePreferredUpstreamModel,
   resolveOpenAiCompatibleFeatureConfig,
 } from "@/lib/ai/openai-compatible/feature-config";
 import { buildChatMessages } from "@/lib/ai/openai-compatible/chat-messages";
@@ -200,6 +202,34 @@ describe("OpenAI-Compatible AI Utilities", () => {
     it("builds responses URL with /v1 appended", () => {
       expect(buildResponsesUrl("https://example.com")).toBe("https://example.com/v1/responses");
       expect(buildResponsesUrl("https://example.com/v1/")).toBe("https://example.com/v1/responses");
+    });
+
+    it("resolves primary and fallback models from comma-separated model lists", () => {
+      expect(resolvePreferredUpstreamModel("model-primary,model-fallback")).toEqual({
+        primaryModel: "model-primary",
+        fallbackModel: "model-fallback",
+      });
+      expect(resolvePreferredUpstreamModel("model-primary")).toEqual({
+        primaryModel: "model-primary",
+        fallbackModel: undefined,
+      });
+    });
+
+    it("builds mode-specific queue keys using the primary model", () => {
+      expect(
+        buildUpstreamQueueKey({
+          baseUrl: "https://example.com",
+          model: "model-primary,model-fallback",
+          apiMode: "chat_completions",
+        }),
+      ).toBe("https://example.com/v1/chat/completions::model-primary");
+      expect(
+        buildUpstreamQueueKey({
+          baseUrl: "https://example.com",
+          model: "model-primary,model-fallback",
+          apiMode: "responses",
+        }),
+      ).toBe("https://example.com/v1/responses::model-primary");
     });
 
     it("builds chat completions URL when baseUrl already ends with /v1", () => {
@@ -550,6 +580,44 @@ describe("OpenAI-Compatible AI Utilities", () => {
           data: { message: "I cannot help with that request." },
         },
       ]);
+    });
+
+    it("rejects a 200 chat response that is JSON instead of SSE", async () => {
+      vi.resetModules();
+      const fetchMock = vi.fn<typeof fetch>();
+      fetchMock
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              token: "test-token",
+              expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ message: "json payload" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      vi.stubGlobal("fetch", fetchMock);
+
+      const { aiChat } = await import("@/lib/ai/openai-compatible/browser-client");
+
+      await expect(aiChat("terminal_chat", { userText: "hello" })).rejects.toThrow(
+        "AI chat stream ended unexpectedly",
+      );
+
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        "/api/ai/chat/terminal_chat",
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Accept: "text/event-stream",
+          }),
+        }),
+      );
     });
   });
 
