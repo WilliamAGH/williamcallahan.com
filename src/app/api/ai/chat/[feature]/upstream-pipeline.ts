@@ -18,7 +18,6 @@ import type {
   ChatLogContext,
   ChatPipeline,
   RagContextStatus,
-  StreamStartMeta,
   UpstreamTurnOutcome,
   UpstreamTurnParams,
   ValidatedRequestContext,
@@ -27,7 +26,6 @@ import type {
   AiUpstreamApiMode,
   OpenAiCompatibleChatCompletionsRequest,
   OpenAiCompatibleChatMessage,
-  ReasoningEffort,
 } from "@/types/schemas/ai-openai-compatible";
 import {
   SEARCH_BOOKMARKS_RESPONSE_TOOL,
@@ -40,52 +38,14 @@ import {
   runDeterministicBookmarkFallback,
   sanitizeBookmarkLinksAgainstAllowlist,
 } from "./bookmark-tool";
-import { resolveFeatureSystemPrompt, resolveModelParams } from "./feature-defaults";
-import { isModelLoadFailure } from "./upstream-error";
+import {
+  resolveFeatureSystemPrompt,
+  resolveModelParams,
+  resolveToolChoice,
+} from "./feature-defaults";
+import { emitDeferredContentEvents, isModelLoadFailure } from "./upstream-error";
 
 const MAX_TOOL_TURNS = 2;
-
-function isTerminalChat(feature: string): boolean {
-  return feature === "terminal_chat";
-}
-
-function resolveApiMode(mode: AiUpstreamApiMode | undefined): AiUpstreamApiMode {
-  return mode === "responses" ? "responses" : "chat_completions";
-}
-
-function resolveToolChoice(
-  hasToolSupport: boolean,
-  forceBookmarkTool: boolean,
-  turn: number,
-): "required" | "auto" | undefined {
-  if (!hasToolSupport) return undefined;
-  return forceBookmarkTool && turn === 0 ? "required" : "auto";
-}
-
-function toLoggableMessages(
-  messages: OpenAiCompatibleChatMessage[],
-): Array<{ role: string; content: string }> {
-  return messages
-    .filter((m): m is typeof m & { content: string } => typeof m.content === "string")
-    .map((m) => ({ role: m.role, content: m.content }));
-}
-
-/** Emit start/delta events after a turn resolves with final content. */
-function emitDeferredContentEvents(params: {
-  text: string;
-  startMeta: StreamStartMeta | null;
-  apiMode: AiUpstreamApiMode;
-  onStreamEvent: (event: AiChatModelStreamEvent) => void;
-}): void {
-  const { text, startMeta, apiMode, onStreamEvent } = params;
-  if (startMeta) {
-    onStreamEvent({
-      event: "message_start",
-      data: { id: startMeta.id, model: startMeta.model, apiMode },
-    });
-  }
-  onStreamEvent({ event: "message_delta", data: { delta: text } });
-}
 
 async function executeChatCompletionsTurn(
   requestMessages: OpenAiCompatibleChatMessage[],
@@ -105,7 +65,7 @@ async function executeChatCompletionsTurn(
   };
   const callArgs = { baseUrl: turnConfig.baseUrl, apiKey: turnConfig.apiKey, request, signal };
 
-  let startMeta: StreamStartMeta | null = null;
+  let startMeta: { id: string; model: string } | null = null;
   const upstream = onStreamEvent
     ? await streamOpenAiCompatibleChatCompletions({
         ...callArgs,
@@ -164,7 +124,7 @@ async function executeResponsesTurn(
 
   const callArgs = { baseUrl: turnConfig.baseUrl, apiKey: turnConfig.apiKey, request, signal };
 
-  let startMeta: StreamStartMeta | null = null;
+  let startMeta: { id: string; model: string } | null = null;
   const response = onStreamEvent
     ? await streamOpenAiCompatibleResponses({
         ...callArgs,
@@ -205,46 +165,6 @@ async function executeResponsesTurn(
   };
 }
 
-function resolveLatestUserMessage(
-  parsedBody: ValidatedRequestContext["parsedBody"],
-): string | undefined {
-  return (
-    parsedBody.userText?.trim() ||
-    parsedBody.messages
-      ?.filter((message) => message.role === "user")
-      .map((message) => message.content.trim())
-      .filter((content) => content.length > 0)
-      .slice(-1)[0]
-  );
-}
-
-function buildLogContext(params: {
-  feature: string;
-  ctx: ValidatedRequestContext;
-  messages: OpenAiCompatibleChatMessage[];
-  model: string;
-  apiMode: AiUpstreamApiMode;
-  priority: number;
-  temperature: number;
-  reasoningEffort: ReasoningEffort | null;
-}): ChatLogContext {
-  const { feature, ctx, messages, model, apiMode, priority, temperature, reasoningEffort } = params;
-  return {
-    feature,
-    conversationId: ctx.parsedBody.conversationId,
-    clientIp: ctx.clientIp,
-    userAgent: ctx.userAgent,
-    originHost: ctx.originHost,
-    pagePath: ctx.pagePath,
-    messages: toLoggableMessages(messages),
-    model,
-    apiMode,
-    priority,
-    temperature,
-    reasoningEffort,
-  };
-}
-
 export function buildChatPipeline(params: {
   feature: string;
   ctx: ValidatedRequestContext;
@@ -266,7 +186,8 @@ export function buildChatPipeline(params: {
     .filter((candidate) => candidate.length > 0);
   const primaryModel = modelCandidates[0] ?? config.model;
   const fallbackModel = modelCandidates[1];
-  const apiMode = resolveApiMode(ctx.parsedBody.apiMode);
+  const apiMode: AiUpstreamApiMode =
+    ctx.parsedBody.apiMode === "responses" ? "responses" : "chat_completions";
   const upstreamUrl =
     apiMode === "responses"
       ? buildResponsesUrl(config.baseUrl)
@@ -275,19 +196,34 @@ export function buildChatPipeline(params: {
   const queue = getUpstreamRequestQueue({ key: upstreamKey, maxParallel: config.maxParallel });
   const priority = ctx.parsedBody.priority ?? 0;
   const modelParams = resolveModelParams(feature, ctx.parsedBody);
-  const latestUserMessage = resolveLatestUserMessage(ctx.parsedBody);
-  const hasToolSupport = isTerminalChat(feature);
+  const latestUserMessage =
+    ctx.parsedBody.userText?.trim() ||
+    ctx.parsedBody.messages
+      ?.filter((message) => message.role === "user")
+      .map((message) => message.content.trim())
+      .filter((content) => content.length > 0)
+      .slice(-1)[0];
+  const hasToolSupport = feature === "terminal_chat";
   const forceBookmarkTool = hasToolSupport && matchesBookmarkSearchPattern(latestUserMessage);
-  const logContext = buildLogContext({
+  const logContext: ChatLogContext = {
     feature,
-    ctx,
-    messages,
+    conversationId: ctx.parsedBody.conversationId,
+    clientIp: ctx.clientIp,
+    userAgent: ctx.userAgent,
+    originHost: ctx.originHost,
+    pagePath: ctx.pagePath,
+    messages: messages
+      .filter(
+        (message): message is typeof message & { content: string } =>
+          typeof message.content === "string",
+      )
+      .map((message) => ({ role: message.role, content: message.content })),
     model: primaryModel,
     apiMode,
     priority,
     temperature: modelParams.temperature,
     reasoningEffort: modelParams.reasoningEffort,
-  });
+  };
   const runUpstream = async (
     onStreamEvent?: (event: AiChatModelStreamEvent) => void,
   ): Promise<string> => {
@@ -304,7 +240,7 @@ export function buildChatPipeline(params: {
       const turnParams: UpstreamTurnParams = {
         turnConfig: { model: activeModel, baseUrl: config.baseUrl, apiKey: config.apiKey },
         signal,
-        toolChoice: resolveToolChoice(hasToolSupport, forceBookmarkTool, turn),
+        toolChoice: resolveToolChoice({ hasToolSupport, forceBookmarkTool, turn }),
         hasToolSupport,
         temperature: modelParams.temperature,
         topP: modelParams.topP,

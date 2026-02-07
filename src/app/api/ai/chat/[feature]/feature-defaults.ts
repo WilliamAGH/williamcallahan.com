@@ -76,3 +76,12 @@ export function resolveModelParams(
     maxTokens: featureDefaults?.maxTokens ?? GLOBAL_DEFAULTS.maxTokens,
   };
 }
+
+export function resolveToolChoice(params: {
+  hasToolSupport: boolean;
+  forceBookmarkTool: boolean;
+  turn: number;
+}): "required" | "auto" | undefined {
+  if (!params.hasToolSupport) return undefined;
+  return params.forceBookmarkTool && params.turn === 0 ? "required" : "auto";
+}

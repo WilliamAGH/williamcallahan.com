@@ -9,6 +9,9 @@
 
 import "server-only";
 
+import type { AiChatModelStreamEvent, StreamStartMeta } from "@/types/features/ai-chat";
+import type { AiUpstreamApiMode } from "@/types/schemas/ai-openai-compatible";
+
 /** Upstream error message pattern for model-load failures (single source of truth). */
 export const MODEL_LOAD_FAILURE_PATTERN = "Failed to load model";
 
@@ -58,4 +61,21 @@ export function resolveErrorResponse(error: unknown): { status: number; message:
   }
 
   return { status: 502, message: baseMessage };
+}
+
+/** Emit start/delta events after a turn resolves with final content. */
+export function emitDeferredContentEvents(params: {
+  text: string;
+  startMeta: StreamStartMeta | null;
+  apiMode: AiUpstreamApiMode;
+  onStreamEvent: (event: AiChatModelStreamEvent) => void;
+}): void {
+  const { text, startMeta, apiMode, onStreamEvent } = params;
+  if (startMeta) {
+    onStreamEvent({
+      event: "message_start",
+      data: { id: startMeta.id, model: startMeta.model, apiMode },
+    });
+  }
+  onStreamEvent({ event: "message_delta", data: { delta: text } });
 }
