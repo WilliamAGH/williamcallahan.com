@@ -80,6 +80,23 @@ export const aiChatQueueUpdateSchema = z.union([
 
 export type AiChatQueueUpdate = z.infer<typeof aiChatQueueUpdateSchema>;
 
+export const aiChatThinkingDeltaSchema = z
+  .object({
+    delta: z.string(),
+  })
+  .passthrough();
+
+export type AiChatThinkingDelta = z.infer<typeof aiChatThinkingDeltaSchema>;
+
+export const aiChatThinkingDoneSchema = z
+  .object({
+    text: z.string(),
+    tokenCount: z.number().int().nonnegative(),
+  })
+  .passthrough();
+
+export type AiChatThinkingDone = z.infer<typeof aiChatThinkingDoneSchema>;
+
 export const aiChatModelStreamUpdateSchema = z.union([
   z.object({
     event: z.literal("message_start"),
@@ -92,6 +109,14 @@ export const aiChatModelStreamUpdateSchema = z.union([
   z.object({
     event: z.literal("message_done"),
     data: aiChatModelStreamDoneSchema,
+  }),
+  z.object({
+    event: z.literal("thinking_delta"),
+    data: aiChatThinkingDeltaSchema,
+  }),
+  z.object({
+    event: z.literal("thinking_done"),
+    data: aiChatThinkingDoneSchema,
   }),
 ]);
 

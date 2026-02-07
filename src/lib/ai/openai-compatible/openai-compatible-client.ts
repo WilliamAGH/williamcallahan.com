@@ -1,21 +1,8 @@
 import "server-only";
 
 import OpenAIClient from "openai";
-import type {
-  ChatCompletion,
-  ChatCompletionAssistantMessageParam,
-  ChatCompletionCreateParamsNonStreaming,
-  ChatCompletionMessageParam,
-  ChatCompletionSystemMessageParam,
-  ChatCompletionTool,
-  ChatCompletionToolMessageParam,
-  ChatCompletionUserMessageParam,
-} from "openai/resources/chat/completions";
-import type {
-  EasyInputMessage,
-  ResponseCreateParamsNonStreaming,
-  ResponseInput,
-} from "openai/resources/responses/responses";
+import type { ChatCompletion } from "openai/resources/chat/completions";
+import type { ResponseCreateParamsNonStreaming } from "openai/resources/responses/responses";
 import {
   type OpenAiCompatibleChatCompletionsRequest,
   type OpenAiCompatibleChatCompletionsResponse,
@@ -28,6 +15,12 @@ import {
 } from "@/types/schemas/ai-openai-compatible";
 import { buildOpenAiApiBaseUrl } from "@/lib/ai/openai-compatible/feature-config";
 import logger from "@/lib/utils/logger";
+import {
+  toChatRequest,
+  toRequestOptions,
+  toResponsesInput,
+} from "./openai-compatible-message-mapper";
+import { createThinkTagParser, stripThinkTags } from "./think-tag-parser";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_MAX_RETRIES = 3;
@@ -35,134 +28,6 @@ const API_KEY_FALLBACK = "openai-compatible-no-key";
 
 const clientByConfig = new Map<string, OpenAIClient>();
 const warnedMissingApiKeyFor = new Set<string>();
-
-function toChatMessage(
-  message: OpenAiCompatibleChatCompletionsRequest["messages"][number],
-): ChatCompletionMessageParam {
-  if (message.role === "system") {
-    const systemMessage: ChatCompletionSystemMessageParam = {
-      role: "system",
-      content: message.content,
-    };
-    return systemMessage;
-  }
-
-  if (message.role === "user") {
-    const userMessage: ChatCompletionUserMessageParam = {
-      role: "user",
-      content: message.content,
-    };
-    return userMessage;
-  }
-
-  if (message.role === "tool") {
-    const toolMessage: ChatCompletionToolMessageParam = {
-      role: "tool",
-      tool_call_id: message.tool_call_id,
-      content: message.content,
-    };
-    return toolMessage;
-  }
-
-  const assistantMessage: ChatCompletionAssistantMessageParam = { role: "assistant" };
-  assistantMessage.content = typeof message.content === "string" ? message.content : null;
-  if ("tool_calls" in message && message.tool_calls?.length) {
-    assistantMessage.tool_calls = message.tool_calls.map((toolCall) => ({
-      id: toolCall.id,
-      type: "function",
-      function: {
-        name: toolCall.function.name,
-        arguments: toolCall.function.arguments,
-      },
-    }));
-  }
-  return assistantMessage;
-}
-
-function toChatRequest(
-  request: OpenAiCompatibleChatCompletionsRequest,
-): ChatCompletionCreateParamsNonStreaming {
-  const baseRequest: ChatCompletionCreateParamsNonStreaming = {
-    model: request.model,
-    messages: request.messages.map(toChatMessage),
-  };
-
-  if (request.temperature !== undefined) baseRequest.temperature = request.temperature;
-  if (request.top_p !== undefined) baseRequest.top_p = request.top_p;
-  if (request.max_tokens !== undefined) baseRequest.max_completion_tokens = request.max_tokens;
-  if (request.reasoning_effort !== undefined)
-    baseRequest.reasoning_effort = request.reasoning_effort;
-
-  if (request.tools) {
-    const chatTools: ChatCompletionTool[] = request.tools.map((tool) => ({
-      type: "function",
-      function: {
-        name: tool.function.name,
-        description: tool.function.description,
-        parameters: tool.function.parameters ?? {},
-      },
-    }));
-    baseRequest.tools = chatTools;
-  }
-
-  if (request.tool_choice) baseRequest.tool_choice = request.tool_choice;
-  if (request.parallel_tool_calls !== undefined)
-    baseRequest.parallel_tool_calls = request.parallel_tool_calls;
-  if (request.response_format !== undefined) baseRequest.response_format = request.response_format;
-  return baseRequest;
-}
-
-function toRequestOptions(args: {
-  timeoutMs?: number;
-  signal?: AbortSignal;
-}): OpenAIClient.RequestOptions {
-  const options: OpenAIClient.RequestOptions = {};
-  if (typeof args.timeoutMs === "number") options.timeout = args.timeoutMs;
-  if (args.signal) options.signal = args.signal;
-  return options;
-}
-
-function toResponsesInput(
-  messages: OpenAiCompatibleChatCompletionsRequest["messages"],
-): ResponseInput {
-  const items: ResponseInput = [];
-  for (const message of messages) {
-    if (message.role === "tool") {
-      items.push({
-        type: "function_call_output",
-        call_id: message.tool_call_id,
-        output: message.content,
-      });
-      continue;
-    }
-
-    if (message.role === "assistant" && message.tool_calls?.length) {
-      if (typeof message.content === "string" && message.content.length > 0) {
-        const assistantText: EasyInputMessage = {
-          type: "message",
-          role: "assistant",
-          content: message.content,
-        };
-        items.push(assistantText);
-      }
-      for (const toolCall of message.tool_calls) {
-        items.push({
-          type: "function_call",
-          call_id: toolCall.id,
-          name: toolCall.function.name,
-          arguments: toolCall.function.arguments,
-        });
-      }
-      continue;
-    }
-
-    const role: EasyInputMessage["role"] = message.role;
-    const content = message.role === "assistant" ? (message.content ?? "") : message.content;
-    items.push({ type: "message", role, content });
-  }
-
-  return items;
-}
 
 function resolveClient(args: {
   baseUrl: string;
@@ -254,6 +119,7 @@ export async function streamOpenAiCompatibleChatCompletions(args: {
   signal?: AbortSignal;
   onStart?: (meta: { id: string; model: string }) => void;
   onDelta?: (delta: string) => void;
+  onThinkingDelta?: (delta: string) => void;
 }): Promise<OpenAiCompatibleChatCompletionsResponse> {
   const validatedRequest = validateChatRequest(args.request);
   const client = resolveClient(args);
@@ -261,6 +127,13 @@ export async function streamOpenAiCompatibleChatCompletions(args: {
     { ...toChatRequest(validatedRequest), stream: true },
     toRequestOptions(args),
   );
+
+  const thinkParser = args.onThinkingDelta
+    ? createThinkTagParser({
+        onContent: (text) => args.onDelta?.(text),
+        onThinking: (text) => args.onThinkingDelta?.(text),
+      })
+    : null;
 
   let startEmitted = false;
   for await (const chunk of stream) {
@@ -270,10 +143,31 @@ export async function streamOpenAiCompatibleChatCompletions(args: {
     }
 
     const delta = chunk.choices[0]?.delta?.content;
-    if (typeof delta === "string" && delta.length > 0) args.onDelta?.(delta);
+    if (typeof delta === "string" && delta.length > 0) {
+      if (thinkParser) {
+        thinkParser.push(delta);
+      } else {
+        args.onDelta?.(delta);
+      }
+    }
+
+    // Reasoning fields are untyped in the SDK but present at runtime:
+    // - "reasoning_content": DeepSeek API / llama.cpp --reasoning-format deepseek
+    // - "reasoning": llama.cpp --reasoning-format auto (default for gpt-oss models)
+    const deltaRecord = chunk.choices[0]?.delta as Record<string, unknown> | undefined;
+    const thinkingDelta = deltaRecord?.reasoning_content ?? deltaRecord?.reasoning;
+    if (typeof thinkingDelta === "string" && thinkingDelta.length > 0) {
+      args.onThinkingDelta?.(thinkingDelta);
+    }
   }
 
+  thinkParser?.end();
   const completion = await stream.finalChatCompletion();
+  // Strip <think> tags from the assembled completion so downstream consumers
+  // (e.g. JSON analysis parsers) see only the visible response content.
+  if (thinkParser && completion.choices[0]?.message?.content) {
+    completion.choices[0].message.content = stripThinkTags(completion.choices[0].message.content);
+  }
   return openAiCompatibleChatCompletionsResponseSchema.parse(completion);
 }
 
@@ -308,6 +202,7 @@ export async function streamOpenAiCompatibleResponses(args: {
   signal?: AbortSignal;
   onStart?: (meta: { id: string; model: string }) => void;
   onDelta?: (delta: string) => void;
+  onThinkingDelta?: (delta: string) => void;
 }): Promise<OpenAiCompatibleResponsesResponse> {
   const client = resolveClient(args);
   const stream = client.responses.stream(
@@ -319,6 +214,13 @@ export async function streamOpenAiCompatibleResponses(args: {
     toRequestOptions(args),
   );
 
+  const thinkParser = args.onThinkingDelta
+    ? createThinkTagParser({
+        onContent: (text) => args.onDelta?.(text),
+        onThinking: (text) => args.onThinkingDelta?.(text),
+      })
+    : null;
+
   let startEmitted = false;
   for await (const event of stream) {
     if (!startEmitted && "response" in event && event.response?.id && event.response.model) {
@@ -326,11 +228,27 @@ export async function streamOpenAiCompatibleResponses(args: {
       args.onStart?.({ id: event.response.id, model: event.response.model });
     }
     if (event.type === "response.output_text.delta" && event.delta.length > 0) {
-      args.onDelta?.(event.delta);
+      if (thinkParser) {
+        thinkParser.push(event.delta);
+      } else {
+        args.onDelta?.(event.delta);
+      }
+    }
+
+    // Reasoning summary events from OpenAI models that support extended thinking
+    if (event.type === "response.reasoning_summary_text.delta") {
+      const delta = (event as { delta?: string }).delta;
+      if (typeof delta === "string" && delta.length > 0) {
+        args.onThinkingDelta?.(delta);
+      }
     }
   }
 
+  thinkParser?.end();
   const response = await stream.finalResponse();
   const normalizedResponse = normalizeResponsesOutputText(response);
+  if (thinkParser && normalizedResponse.output_text) {
+    normalizedResponse.output_text = stripThinkTags(normalizedResponse.output_text);
+  }
   return openAiCompatibleResponsesResponseSchema.parse(normalizedResponse);
 }
