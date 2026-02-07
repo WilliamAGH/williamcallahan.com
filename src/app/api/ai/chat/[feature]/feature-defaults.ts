@@ -93,9 +93,15 @@ export function resolveToolChoice(params: {
   hasToolSupport: boolean;
   forceBookmarkTool: boolean;
   turn: number;
+  model: string;
 }): "required" | "auto" | undefined {
   if (!params.hasToolSupport) return undefined;
-  return params.forceBookmarkTool && params.turn === 0 ? "required" : "auto";
+  if (params.forceBookmarkTool && params.turn === 0) {
+    // llama.cpp ignores/mishandles tool_choice:"required" for Harmony-format
+    // models (gpt-oss). Downgrade to "auto" and rely on deterministic fallback.
+    return isHarmonyFormatModel(params.model) ? "auto" : "required";
+  }
+  return "auto";
 }
 
 /** Models trained on the OpenAI Harmony response format use internal control tokens

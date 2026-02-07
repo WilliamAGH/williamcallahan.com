@@ -31,9 +31,10 @@ const TOOL_MAX_RESULTS_DEFAULT = 5;
 /** Matches explicit user intent to search (e.g. "search bookmarks", "find links") */
 const EXPLICIT_SEARCH_REQUEST_PATTERN = /\b(search|find|look\s+for|look\s+up|show)\b/i;
 
-/** Matches topic-scoped bookmark requests with up to 40 chars of natural phrasing between groups */
-const BOOKMARK_TOPIC_REQUEST_PATTERN =
-  /\b(bookmarks?|links?|resources?|saved)\b.{0,40}\b(about|for|on|related|regarding|specific|specifically)\b/is;
+const BOOKMARK_NOUN_PATTERN = /\b(?:bookmarks?|links?|resources?|saved)\b/i;
+const TOPIC_CONNECTOR_PATTERN =
+  /\b(?:about|for|on|related|regarding|specifically?|contain(?:ing)?|with|matching|have)\b/i;
+const TOPIC_CONNECTOR_MAX_DISTANCE = 40;
 const MARKDOWN_LINK_PATTERN = /\[([^\]\n]+)\]\(([^)\n]+)\)/g;
 
 export const SEARCH_BOOKMARKS_TOOL = {
@@ -41,6 +42,7 @@ export const SEARCH_BOOKMARKS_TOOL = {
   function: {
     name: "search_bookmarks",
     description: "Searches saved bookmark entries by natural-language query",
+    strict: true,
     parameters: {
       type: "object",
       properties: {
@@ -50,10 +52,11 @@ export const SEARCH_BOOKMARKS_TOOL = {
         },
         maxResults: {
           type: "number",
-          description: "Maximum number of matches to return (1-10)",
+          description: "Maximum number of matches to return (default: 5)",
         },
       },
-      required: ["query"],
+      required: ["query", "maxResults"],
+      additionalProperties: false,
     },
   },
 };
@@ -72,10 +75,10 @@ export const SEARCH_BOOKMARKS_RESPONSE_TOOL: FunctionTool = {
       },
       maxResults: {
         type: "number",
-        description: "Maximum number of matches to return (1-10)",
+        description: "Maximum number of matches to return (default: 5)",
       },
     },
-    required: ["query"],
+    required: ["query", "maxResults"],
     additionalProperties: false,
   },
 };
@@ -93,10 +96,14 @@ function normalizeInternalPath(url: string): string | null {
  */
 export function matchesBookmarkSearchPattern(latestUserMessage: string | undefined): boolean {
   if (typeof latestUserMessage !== "string") return false;
-  return (
-    EXPLICIT_SEARCH_REQUEST_PATTERN.test(latestUserMessage) ||
-    BOOKMARK_TOPIC_REQUEST_PATTERN.test(latestUserMessage)
+  if (EXPLICIT_SEARCH_REQUEST_PATTERN.test(latestUserMessage)) return true;
+  const nounMatch = BOOKMARK_NOUN_PATTERN.exec(latestUserMessage);
+  if (!nounMatch) return false;
+  const afterNoun = latestUserMessage.slice(
+    nounMatch.index + nounMatch[0].length,
+    nounMatch.index + nounMatch[0].length + TOPIC_CONNECTOR_MAX_DISTANCE,
   );
+  return TOPIC_CONNECTOR_PATTERN.test(afterNoun);
 }
 
 export async function executeSearchBookmarksTool(
@@ -207,7 +214,7 @@ export function sanitizeBookmarkLinksAgainstAllowlist(params: {
 
   let hadDisallowedLink = false;
   let allowedLinkCount = 0;
-  const sanitizedText = params.text.replace(
+  const sanitizedText = params.text.replaceAll(
     MARKDOWN_LINK_PATTERN,
     (_match: string, title: string, rawUrl: string) => {
       const normalizedUrl = normalizeInternalPath(rawUrl);
@@ -223,19 +230,32 @@ export function sanitizeBookmarkLinksAgainstAllowlist(params: {
   return { sanitizedText, hadDisallowedLink, allowedLinkCount };
 }
 
+/** Strip common question phrasing to isolate the search topic from a user message. */
+export function extractSearchQueryFromMessage(message: string): string {
+  const text = message
+    .replace(/^(?:hello|hi|hey|greetings)[!,.]?\s*/i, "")
+    .replace(/\bwhat\s+(?:bookmarks?|links?|resources?)\b\s*/i, "")
+    .replaceAll(/\b(?:do\s+you\s+have|that)\b\s*/gi, "")
+    .replace(/\b(?:for|about|on|contain(?:ing)?|with|matching|regarding)\s*/i, "")
+    .replace(/\b(?:search|find|show)\s+(?:bookmarks?|links?)?\s*/i, "")
+    .replaceAll(/\b(?:any|some|the|my|all|me)\s+/gi, "")
+    .replace(/\?+$/, "")
+    .trim();
+  return text.length > 0 ? text : message;
+}
+
 export async function runDeterministicBookmarkFallback(
   feature: string,
   latestUserMessage: string,
 ): Promise<string> {
-  logger.warn("[AI Chat] Model skipped required bookmark tool call; using deterministic fallback", {
-    feature,
-    latestUserMessage,
-  });
-  const fallbackToolResult = await executeSearchBookmarksTool(
-    JSON.stringify({ query: latestUserMessage, maxResults: TOOL_MAX_RESULTS_DEFAULT }),
+  const searchQuery = extractSearchQueryFromMessage(latestUserMessage);
+  logger.warn("[AI Chat] Using deterministic bookmark fallback", { feature, searchQuery });
+  const result = await executeSearchBookmarksTool(
+    JSON.stringify({ query: searchQuery, maxResults: TOOL_MAX_RESULTS_DEFAULT }),
   );
-  const parsed = searchBookmarksToolResultSchema.parse(fallbackToolResult);
-  return formatBookmarkResultsAsLinks(extractResultLinks(parsed));
+  return formatBookmarkResultsAsLinks(
+    extractResultLinks(searchBookmarksToolResultSchema.parse(result)),
+  );
 }
 
 async function executeToolCallBatch(
