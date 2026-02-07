@@ -92,6 +92,7 @@ export const openAiCompatibleChatCompletionsRequestSchema = z.object({
   reasoning_effort: reasoningEffortSchema.nullable().optional(),
   tools: z.array(openAiCompatibleFunctionToolSchema).optional(),
   tool_choice: openAiCompatibleToolChoiceSchema.optional(),
+  parallel_tool_calls: z.boolean().optional(),
 });
 
 export type OpenAiCompatibleChatCompletionsRequest = z.infer<

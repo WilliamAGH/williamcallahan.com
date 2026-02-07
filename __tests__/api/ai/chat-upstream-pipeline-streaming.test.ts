@@ -74,6 +74,19 @@ function createValidatedContext(args?: {
   };
 }
 
+function createPipeline(args?: {
+  temperature?: number;
+  userContent?: string;
+  apiMode?: "chat_completions" | "responses";
+}) {
+  return buildChatPipeline({
+    feature: "terminal_chat",
+    ctx: createValidatedContext(args),
+    ragResult: { augmentedPrompt: undefined, status: "not_applicable" },
+    signal: new AbortController().signal,
+  });
+}
+
 describe("AI Chat Upstream Pipeline Streaming", () => {
   beforeEach(() => {
     mockedSearchBookmarks.mockReset();
@@ -129,12 +142,7 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
   });
 
   it("defaults terminal chat to feature-specific model params when not provided", async () => {
-    const pipeline = buildChatPipeline(
-      "terminal_chat",
-      createValidatedContext(),
-      { augmentedPrompt: undefined, status: "not_applicable" },
-      new AbortController().signal,
-    );
+    const pipeline = createPipeline();
 
     await pipeline.runUpstream();
 
@@ -158,12 +166,7 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
   });
 
   it("respects explicit client temperature when provided", async () => {
-    const pipeline = buildChatPipeline(
-      "terminal_chat",
-      createValidatedContext({ temperature: 0.75 }),
-      { augmentedPrompt: undefined, status: "not_applicable" },
-      new AbortController().signal,
-    );
+    const pipeline = createPipeline({ temperature: 0.75 });
 
     await pipeline.runUpstream();
 
@@ -177,12 +180,7 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
   });
 
   it("emits normalized stream events when runUpstream receives an event callback", async () => {
-    const pipeline = buildChatPipeline(
-      "terminal_chat",
-      createValidatedContext(),
-      { augmentedPrompt: undefined, status: "not_applicable" },
-      new AbortController().signal,
-    );
+    const pipeline = createPipeline();
 
     const events: Array<{ event: string; data: unknown }> = [];
     const reply = await pipeline.runUpstream((event) => {
@@ -203,12 +201,7 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
   });
 
   it("streams responses mode events when runUpstream receives an event callback", async () => {
-    const pipeline = buildChatPipeline(
-      "terminal_chat",
-      createValidatedContext({ apiMode: "responses" }),
-      { augmentedPrompt: undefined, status: "not_applicable" },
-      new AbortController().signal,
-    );
+    const pipeline = createPipeline({ apiMode: "responses" });
 
     const events: Array<{ event: string; data: unknown }> = [];
     const reply = await pipeline.runUpstream((event) => {
@@ -229,7 +222,7 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
     ]);
   });
 
-  it("does not emit interim stream text from turns that end in tool calls", async () => {
+  it("streams deterministic bookmark links only after forced tool flow completes", async () => {
     mockedSearchBookmarks.mockResolvedValue([
       {
         id: "bookmark-1",
@@ -241,71 +234,182 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
       },
     ]);
 
-    mockStreamOpenAiCompatibleChatCompletions
-      .mockImplementationOnce(
-        ({
-          onStart,
-          onDelta,
-        }: {
-          onStart?: (meta: { id: string; model: string }) => void;
-          onDelta?: (delta: string) => void;
-        }) => {
-          onStart?.({ id: "chatcmpl_tool", model: "test-model" });
-          onDelta?.("interim");
-          return Promise.resolve({
-            id: "chatcmpl_tool",
-            choices: [
-              {
-                message: {
-                  role: "assistant",
-                  tool_calls: [
-                    {
-                      id: "tool-call-1",
-                      type: "function",
-                      function: { name: "search_bookmarks", arguments: '{"query":"wikipedia"}' },
-                    },
-                  ],
+    mockCallOpenAiCompatibleChatCompletions
+      .mockResolvedValueOnce({
+        id: "chatcmpl_tool",
+        choices: [
+          {
+            message: {
+              role: "assistant",
+              tool_calls: [
+                {
+                  id: "tool-call-1",
+                  type: "function",
+                  function: { name: "search_bookmarks", arguments: '{"query":"wikipedia"}' },
                 },
-              },
-            ],
-          });
-        },
-      )
-      .mockImplementationOnce(
-        ({
-          onStart,
-          onDelta,
-        }: {
-          onStart?: (meta: { id: string; model: string }) => void;
-          onDelta?: (delta: string) => void;
-        }) => {
-          onStart?.({ id: "chatcmpl_final", model: "test-model" });
-          onDelta?.("final");
-          return Promise.resolve({
-            id: "chatcmpl_final",
-            choices: [{ message: { role: "assistant", content: "final" } }],
-          });
-        },
-      );
+              ],
+            },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        id: "chatcmpl_final",
+        choices: [{ message: { role: "assistant", content: "final" } }],
+      });
 
-    const pipeline = buildChatPipeline(
-      "terminal_chat",
-      createValidatedContext({ userContent: "search bookmarks for wikipedia" }),
-      { augmentedPrompt: undefined, status: "not_applicable" },
-      new AbortController().signal,
-    );
+    const pipeline = createPipeline({ userContent: "search bookmarks for wikipedia" });
     const events: Array<{ event: string; data: unknown }> = [];
     const reply = await pipeline.runUpstream((event) => events.push(event));
 
-    expect(reply).toBe("final");
+    expect(reply).toContain("Here are the best matches I found:");
+    expect(reply).toContain(
+      "[Signs of AI writing / LLM written text (Wikipedia article)](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing)",
+    );
     expect(events).toEqual([
       {
-        event: "message_start",
-        data: { id: "chatcmpl_final", model: "test-model", apiMode: "chat_completions" },
+        event: "message_done",
+        data: { message: reply },
       },
-      { event: "message_delta", data: { delta: "final" } },
-      { event: "message_done", data: { message: "final" } },
     ]);
+    expect(mockStreamOpenAiCompatibleChatCompletions).not.toHaveBeenCalled();
+  });
+
+  it("suppresses post-tool stream deltas and emits deterministic links in auto tool mode", async () => {
+    mockedSearchBookmarks.mockResolvedValue([
+      {
+        id: "bookmark-1",
+        type: "bookmark",
+        title: "Signs of AI writing / LLM written text (Wikipedia article)",
+        description: "Wikipedia article bookmark",
+        url: "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing",
+        score: 99,
+      },
+    ]);
+
+    mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(
+      ({ onStart }: { onStart?: (meta: { id: string; model: string }) => void }) => {
+        onStart?.({ id: "chatcmpl_tool_auto", model: "test-model" });
+        return Promise.resolve({
+          id: "chatcmpl_tool_auto",
+          choices: [
+            {
+              message: {
+                role: "assistant",
+                tool_calls: [
+                  {
+                    id: "tool-call-1",
+                    type: "function",
+                    function: {
+                      name: "search_bookmarks",
+                      arguments: '{"query":"wikipedia ai writing","maxResults":5}',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        });
+      },
+    );
+
+    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
+      choices: [
+        {
+          message: {
+            role: "assistant",
+            content:
+              "Here are links:\n- [Wrong Link](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing-mutated)",
+          },
+        },
+      ],
+    });
+
+    const pipeline = createPipeline({ userContent: "hello there" });
+    const events: Array<{ event: string; data: unknown }> = [];
+    const reply = await pipeline.runUpstream((event) => events.push(event));
+
+    expect(reply).toContain("Here are the best matches I found:");
+    expect(reply).toContain(
+      "[Signs of AI writing / LLM written text (Wikipedia article)](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing)",
+    );
+    expect(reply).not.toContain("en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing-mutated");
+    expect(events).toEqual([
+      {
+        event: "message_done",
+        data: { message: reply },
+      },
+    ]);
+    expect(mockStreamOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
+    const streamRequest = mockStreamOpenAiCompatibleChatCompletions.mock.calls[0]?.[0]?.request;
+    expect(streamRequest?.tool_choice).toBe("auto");
+    expect(streamRequest?.parallel_tool_calls).toBe(false);
+  });
+
+  it("keeps assistant text when post-tool markdown links are allowlisted", async () => {
+    mockedSearchBookmarks.mockResolvedValue([
+      {
+        id: "bookmark-1",
+        type: "bookmark",
+        title: "Signs of AI writing / LLM written text (Wikipedia article)",
+        description: "Wikipedia article bookmark",
+        url: "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing",
+        score: 99,
+      },
+    ]);
+
+    mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(
+      ({ onStart }: { onStart?: (meta: { id: string; model: string }) => void }) => {
+        onStart?.({ id: "chatcmpl_tool_auto_allowlist", model: "test-model" });
+        return Promise.resolve({
+          id: "chatcmpl_tool_auto_allowlist",
+          choices: [
+            {
+              message: {
+                role: "assistant",
+                tool_calls: [
+                  {
+                    id: "tool-call-1",
+                    type: "function",
+                    function: {
+                      name: "search_bookmarks",
+                      arguments: '{"query":"wikipedia ai writing","maxResults":5}',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        });
+      },
+    );
+
+    const allowlistedReply =
+      "Found one relevant match:\n- [Signs of AI writing / LLM written text (Wikipedia article)](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing)\nWant more?";
+    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
+      choices: [
+        {
+          message: {
+            role: "assistant",
+            content: allowlistedReply,
+          },
+        },
+      ],
+    });
+
+    const pipeline = createPipeline({ userContent: "hello there" });
+    const events: Array<{ event: string; data: unknown }> = [];
+    const reply = await pipeline.runUpstream((event) => events.push(event));
+
+    expect(reply).toBe(allowlistedReply);
+    expect(events).toEqual([
+      {
+        event: "message_done",
+        data: { message: allowlistedReply },
+      },
+    ]);
+    expect(mockStreamOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
   });
 
   it("emits refusal text as streamed content when completion has no assistant content", async () => {
@@ -328,12 +432,7 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
       },
     );
 
-    const pipeline = buildChatPipeline(
-      "terminal_chat",
-      createValidatedContext({ userContent: "hello there" }),
-      { augmentedPrompt: undefined, status: "not_applicable" },
-      new AbortController().signal,
-    );
+    const pipeline = createPipeline({ userContent: "hello there" });
     const events: Array<{ event: string; data: unknown }> = [];
     const reply = await pipeline.runUpstream((event) => events.push(event));
     expect(reply).toBe("I cannot help with that request.");

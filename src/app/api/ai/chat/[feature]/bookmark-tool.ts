@@ -34,6 +34,7 @@ const EXPLICIT_SEARCH_REQUEST_PATTERN = /\b(search|find|look\s+for|look\s+up|sho
 /** Matches topic-scoped bookmark requests with up to 40 chars of natural phrasing between groups */
 const BOOKMARK_TOPIC_REQUEST_PATTERN =
   /\b(bookmarks?|links?|resources?|saved)\b.{0,40}\b(about|for|on|related|regarding|specific|specifically)\b/is;
+const MARKDOWN_LINK_PATTERN = /\[([^\]\n]+)\]\(([^)\n]+)\)/g;
 
 export const SEARCH_BOOKMARKS_TOOL = {
   type: "function" as const,
@@ -189,6 +190,37 @@ export function formatBookmarkResultsAsLinks(
     lines.push(`- [${result.title}](${result.url})`);
   }
   return lines.join("\n");
+}
+
+/**
+ * Sanitize assistant-authored markdown links against deterministic tool-observed URLs.
+ * Any non-allowlisted link is replaced with plain text and flagged for caller fallback.
+ */
+export function sanitizeBookmarkLinksAgainstAllowlist(params: {
+  text: string;
+  observedResults: Array<{ title: string; url: string }>;
+}): { sanitizedText: string; hadDisallowedLink: boolean; allowedLinkCount: number } {
+  const allowedUrls = new Set<string>();
+  for (const result of params.observedResults) {
+    allowedUrls.add(result.url);
+  }
+
+  let hadDisallowedLink = false;
+  let allowedLinkCount = 0;
+  const sanitizedText = params.text.replace(
+    MARKDOWN_LINK_PATTERN,
+    (_match: string, title: string, rawUrl: string) => {
+      const normalizedUrl = normalizeInternalPath(rawUrl);
+      if (normalizedUrl && allowedUrls.has(normalizedUrl)) {
+        allowedLinkCount += 1;
+        return `[${title}](${normalizedUrl})`;
+      }
+      hadDisallowedLink = true;
+      return `${title} (link removed)`;
+    },
+  );
+
+  return { sanitizedText, hadDisallowedLink, allowedLinkCount };
 }
 
 export async function runDeterministicBookmarkFallback(

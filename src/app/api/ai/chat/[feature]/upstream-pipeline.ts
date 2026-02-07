@@ -38,6 +38,7 @@ import {
   formatBookmarkResultsAsLinks,
   matchesBookmarkSearchPattern,
   runDeterministicBookmarkFallback,
+  sanitizeBookmarkLinksAgainstAllowlist,
 } from "./bookmark-tool";
 import { resolveFeatureSystemPrompt, resolveModelParams } from "./feature-defaults";
 import { isModelLoadFailure } from "./upstream-error";
@@ -96,6 +97,7 @@ async function executeChatCompletionsTurn(
     messages: requestMessages,
     tools: hasToolSupport ? [SEARCH_BOOKMARKS_TOOL] : undefined,
     tool_choice: toolChoice,
+    parallel_tool_calls: hasToolSupport ? false : undefined,
     temperature: params.temperature,
     top_p: params.topP,
     max_tokens: params.maxTokens,
@@ -153,6 +155,7 @@ async function executeResponsesTurn(
     input: requestMessages,
     tools: hasToolSupport ? [SEARCH_BOOKMARKS_RESPONSE_TOOL] : undefined,
     tool_choice: toolChoice,
+    parallel_tool_calls: hasToolSupport ? false : undefined,
     temperature: params.temperature,
     top_p: params.topP,
     max_output_tokens: params.maxTokens,
@@ -307,7 +310,8 @@ export function buildChatPipeline(params: {
         topP: modelParams.topP,
         reasoningEffort: modelParams.reasoningEffort,
         maxTokens: modelParams.maxTokens,
-        onStreamEvent,
+        onStreamEvent:
+          forceBookmarkTool || toolObservedResults.length > 0 ? undefined : onStreamEvent,
       };
       let outcome: UpstreamTurnOutcome;
       try {
@@ -335,9 +339,12 @@ export function buildChatPipeline(params: {
 
       if (outcome.kind === "empty") break;
       if (outcome.kind === "content") {
-        // Only use deterministic fallback when model ignored the forced tool
-        // (returned empty/refusal content), not when it returned valid text.
-        if (forceBookmarkTool && turn === 0 && !outcome.text && latestUserMessage) {
+        if (
+          forceBookmarkTool &&
+          turn === 0 &&
+          toolObservedResults.length === 0 &&
+          latestUserMessage
+        ) {
           console.warn(
             "[upstream-pipeline] Model ignored forced tool, using deterministic fallback",
             {
@@ -347,6 +354,38 @@ export function buildChatPipeline(params: {
           const fallback = await runDeterministicBookmarkFallback(feature, latestUserMessage);
           return emitMessageDone(fallback);
         }
+
+        if (toolObservedResults.length > 0) {
+          if (outcome.text) {
+            const sanitized = sanitizeBookmarkLinksAgainstAllowlist({
+              text: outcome.text,
+              observedResults: toolObservedResults,
+            });
+            if (!sanitized.hadDisallowedLink && sanitized.allowedLinkCount > 0) {
+              return emitMessageDone(sanitized.sanitizedText);
+            }
+            if (sanitized.hadDisallowedLink) {
+              console.warn(
+                "[upstream-pipeline] Model produced non-allowlisted bookmark URL; using deterministic tool results",
+                {
+                  feature,
+                  observedResults: toolObservedResults.length,
+                  allowedLinkCount: sanitized.allowedLinkCount,
+                },
+              );
+            }
+          }
+
+          console.warn(
+            "[upstream-pipeline] Ignoring model-authored bookmark links; using deterministic tool results",
+            {
+              feature,
+              observedResults: toolObservedResults.length,
+            },
+          );
+          return emitMessageDone(formatBookmarkResultsAsLinks(toolObservedResults));
+        }
+
         if (outcome.text) return emitMessageDone(outcome.text);
         break;
       }
