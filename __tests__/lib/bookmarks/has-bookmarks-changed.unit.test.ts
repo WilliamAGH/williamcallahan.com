@@ -2,7 +2,6 @@ import { vi } from "vitest";
 import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import type { UnifiedBookmark, BookmarksIndex } from "@/types";
 
-// Mocks setup
 const mockReadJsonS3 = vi.fn();
 const mockWriteJsonS3 = vi.fn();
 const mockDeleteFromS3 = vi.fn();

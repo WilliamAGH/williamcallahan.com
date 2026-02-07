@@ -56,6 +56,82 @@ vi.mock("@/lib/search/searchers/dynamic-searchers", () => ({
 
 const mockedSearchBookmarks = vi.mocked(searchBookmarks);
 const conversationId = "77777777-7777-4777-8777-777777777777";
+const bookmarkTitle = "Signs of AI writing / LLM written text (Wikipedia article)";
+const bookmarkUrl = "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing";
+const bookmarkLink = `[${bookmarkTitle}](${bookmarkUrl})`;
+const searchQuery = "wikipedia ai writing";
+const explicitSearchPrompt = "search bookmarks for wikipedia";
+const bookmarkResult = {
+  id: "bookmark-1",
+  type: "bookmark" as const,
+  title: bookmarkTitle,
+  description: "Wikipedia article bookmark",
+  url: bookmarkUrl,
+  score: 99,
+};
+
+function mockSingleBookmarkSearchResult(): void {
+  mockedSearchBookmarks.mockResolvedValue([bookmarkResult]);
+}
+
+function buildSearchBookmarksToolCall(params?: {
+  query?: string;
+  maxResults?: number;
+  callId?: string;
+}): {
+  id: string;
+  type: "function";
+  function: { name: "search_bookmarks"; arguments: string };
+} {
+  const query = params?.query ?? searchQuery;
+  const callId = params?.callId ?? "tool-call-1";
+  const argumentsPayload =
+    typeof params?.maxResults === "number" ? { query, maxResults: params.maxResults } : { query };
+
+  return {
+    id: callId,
+    type: "function",
+    function: {
+      name: "search_bookmarks",
+      arguments: JSON.stringify(argumentsPayload),
+    },
+  };
+}
+
+function mockChatToolCallThenContent(params: {
+  finalContent: string;
+  initialContent?: string | null;
+  query?: string;
+  maxResults?: number;
+}): void {
+  const firstMessageBase = {
+    role: "assistant",
+    tool_calls: [buildSearchBookmarksToolCall(params)],
+  };
+  const firstMessage =
+    params.initialContent === undefined
+      ? firstMessageBase
+      : { ...firstMessageBase, content: params.initialContent };
+
+  mockCallOpenAiCompatibleChatCompletions
+    .mockResolvedValueOnce({
+      choices: [
+        {
+          message: firstMessage,
+        },
+      ],
+    })
+    .mockResolvedValueOnce({
+      choices: [
+        {
+          message: {
+            role: "assistant",
+            content: params.finalContent,
+          },
+        },
+      ],
+    });
+}
 
 function createValidatedContext(args?: {
   temperature?: number;
@@ -110,231 +186,64 @@ describe("AI Chat Upstream Pipeline Tools", () => {
     });
   });
 
-  it("executes bookmark tool calls for explicit search requests", async () => {
-    mockedSearchBookmarks.mockResolvedValue([
-      {
-        id: "bookmark-1",
-        type: "bookmark",
-        title: "Signs of AI writing / LLM written text (Wikipedia article)",
-        description: "Wikipedia article bookmark",
-        url: "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing",
-        score: 99,
-      },
-    ]);
+  it.each([
+    {
+      label: "executes bookmark tool calls for explicit search requests",
+      toolChoice: "required" as const,
+      userContent: explicitSearchPrompt,
+      mutatedToken: "en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing-typo",
+    },
+    {
+      label: "returns deterministic links when auto tool mode mutates a URL",
+      toolChoice: "auto" as const,
+      userContent: "hello there",
+      mutatedToken: "en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing-mutated",
+    },
+  ])("$label", async ({ toolChoice, userContent, mutatedToken }) => {
+    mockSingleBookmarkSearchResult();
+    mockChatToolCallThenContent({
+      finalContent: `Here are links:\n- [Wrong Link](/bookmarks/${mutatedToken})`,
+      maxResults: 5,
+    });
 
-    mockCallOpenAiCompatibleChatCompletions
-      .mockResolvedValueOnce({
-        choices: [
-          {
-            message: {
-              role: "assistant",
-              tool_calls: [
-                {
-                  id: "tool-call-1",
-                  type: "function",
-                  function: {
-                    name: "search_bookmarks",
-                    arguments: JSON.stringify({
-                      query: "wikipedia ai writing",
-                      maxResults: 5,
-                    }),
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      })
-      .mockResolvedValueOnce({
-        choices: [
-          {
-            message: {
-              role: "assistant",
-              content:
-                "Here are links:\n- [Wrong Link](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing-typo)",
-            },
-          },
-        ],
-      });
-
-    const pipeline = createPipeline({ userContent: "search bookmarks for wikipedia" });
-
+    const pipeline = createPipeline({ userContent });
     const reply = await pipeline.runUpstream();
 
     expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(2);
     const firstCallRequest = mockCallOpenAiCompatibleChatCompletions.mock.calls[0]?.[0]?.request;
-    expect(firstCallRequest?.tool_choice).toBe("required");
+    expect(firstCallRequest?.tool_choice).toBe(toolChoice);
     expect(firstCallRequest?.parallel_tool_calls).toBe(false);
     expect(firstCallRequest?.tools?.[0]?.function?.name).toBe("search_bookmarks");
-    expect(mockedSearchBookmarks).toHaveBeenCalledWith("wikipedia ai writing");
+    expect(mockedSearchBookmarks).toHaveBeenCalledWith(searchQuery);
     expect(reply).toContain("Here are the best matches I found:");
-    expect(reply).toContain(
-      "[Signs of AI writing / LLM written text (Wikipedia article)](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing)",
-    );
-    expect(reply).not.toContain("en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing-typo");
+    expect(reply).toContain(bookmarkLink);
+    expect(reply).not.toContain(mutatedToken);
   });
 
   it("accepts assistant tool-call responses where content is null", async () => {
-    mockedSearchBookmarks.mockResolvedValue([
-      {
-        id: "bookmark-1",
-        type: "bookmark",
-        title: "Signs of AI writing / LLM written text (Wikipedia article)",
-        description: "Wikipedia article bookmark",
-        url: "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing",
-        score: 99,
-      },
-    ]);
+    mockSingleBookmarkSearchResult();
+    mockChatToolCallThenContent({
+      initialContent: null,
+      finalContent: "",
+    });
 
-    mockCallOpenAiCompatibleChatCompletions
-      .mockResolvedValueOnce({
-        choices: [
-          {
-            message: {
-              role: "assistant",
-              content: null,
-              tool_calls: [
-                {
-                  id: "tool-call-1",
-                  type: "function",
-                  function: {
-                    name: "search_bookmarks",
-                    arguments: JSON.stringify({
-                      query: "wikipedia ai writing",
-                    }),
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { role: "assistant", content: "" } }],
-      });
-
-    const pipeline = createPipeline({ userContent: "search bookmarks for wikipedia" });
+    const pipeline = createPipeline({ userContent: explicitSearchPrompt });
 
     const reply = await pipeline.runUpstream();
 
     expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(2);
-    expect(mockedSearchBookmarks).toHaveBeenCalledWith("wikipedia ai writing");
-    expect(reply).toContain(
-      "[Signs of AI writing / LLM written text (Wikipedia article)](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing)",
-    );
-  });
-
-  it("returns deterministic tool links even when auto tool mode model mutates a URL", async () => {
-    mockedSearchBookmarks.mockResolvedValue([
-      {
-        id: "bookmark-1",
-        type: "bookmark",
-        title: "Signs of AI writing / LLM written text (Wikipedia article)",
-        description: "Wikipedia article bookmark",
-        url: "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing",
-        score: 99,
-      },
-    ]);
-
-    mockCallOpenAiCompatibleChatCompletions
-      .mockResolvedValueOnce({
-        choices: [
-          {
-            message: {
-              role: "assistant",
-              tool_calls: [
-                {
-                  id: "tool-call-1",
-                  type: "function",
-                  function: {
-                    name: "search_bookmarks",
-                    arguments: JSON.stringify({
-                      query: "wikipedia ai writing",
-                      maxResults: 5,
-                    }),
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      })
-      .mockResolvedValueOnce({
-        choices: [
-          {
-            message: {
-              role: "assistant",
-              content:
-                "Here are links:\n- [Wrong Link](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing-mutated)",
-            },
-          },
-        ],
-      });
-
-    const pipeline = createPipeline({ userContent: "hello there" });
-
-    const reply = await pipeline.runUpstream();
-
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(2);
-    const firstCallRequest = mockCallOpenAiCompatibleChatCompletions.mock.calls[0]?.[0]?.request;
-    expect(firstCallRequest?.tool_choice).toBe("auto");
-    expect(firstCallRequest?.parallel_tool_calls).toBe(false);
-    expect(mockedSearchBookmarks).toHaveBeenCalledWith("wikipedia ai writing");
-    expect(reply).toContain("Here are the best matches I found:");
-    expect(reply).toContain(
-      "[Signs of AI writing / LLM written text (Wikipedia article)](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing)",
-    );
-    expect(reply).not.toContain("en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing-mutated");
+    expect(mockedSearchBookmarks).toHaveBeenCalledWith(searchQuery);
+    expect(reply).toContain(bookmarkLink);
   });
 
   it("preserves model text when all markdown links are tool-allowlisted", async () => {
-    mockedSearchBookmarks.mockResolvedValue([
-      {
-        id: "bookmark-1",
-        type: "bookmark",
-        title: "Signs of AI writing / LLM written text (Wikipedia article)",
-        description: "Wikipedia article bookmark",
-        url: "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing",
-        score: 99,
-      },
-    ]);
+    mockSingleBookmarkSearchResult();
 
-    const allowlistedReply =
-      "Found one relevant match:\n- [Signs of AI writing / LLM written text (Wikipedia article)](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing)\nWant more?";
-
-    mockCallOpenAiCompatibleChatCompletions
-      .mockResolvedValueOnce({
-        choices: [
-          {
-            message: {
-              role: "assistant",
-              tool_calls: [
-                {
-                  id: "tool-call-1",
-                  type: "function",
-                  function: {
-                    name: "search_bookmarks",
-                    arguments: JSON.stringify({
-                      query: "wikipedia ai writing",
-                      maxResults: 5,
-                    }),
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      })
-      .mockResolvedValueOnce({
-        choices: [
-          {
-            message: {
-              role: "assistant",
-              content: allowlistedReply,
-            },
-          },
-        ],
-      });
+    const allowlistedReply = `Found one relevant match:\n- ${bookmarkLink}\nWant more?`;
+    mockChatToolCallThenContent({
+      finalContent: allowlistedReply,
+      maxResults: 5,
+    });
 
     const pipeline = createPipeline({ userContent: "hello there" });
     const reply = await pipeline.runUpstream();
@@ -344,73 +253,25 @@ describe("AI Chat Upstream Pipeline Tools", () => {
     expect(reply).not.toContain("Here are the best matches I found:");
   });
 
-  it("uses deterministic fallback when model returns content instead of required tool calls", async () => {
-    mockedSearchBookmarks.mockResolvedValue([
-      {
-        id: "bookmark-1",
-        type: "bookmark",
-        title: "Signs of AI writing / LLM written text (Wikipedia article)",
-        description: "Wikipedia article bookmark",
-        url: "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing",
-        score: 99,
-      },
-    ]);
+  it.each([
+    { label: "returns content", content: "I can search that for you." },
+    { label: "returns empty content", content: "" },
+  ])(
+    "uses deterministic fallback when model $label instead of required tool calls",
+    async ({ content }) => {
+      mockSingleBookmarkSearchResult();
+      mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
+        choices: [{ message: { role: "assistant", content } }],
+      });
 
-    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
-      choices: [
-        {
-          message: {
-            role: "assistant",
-            content: "I can search that for you.",
-          },
-        },
-      ],
-    });
+      const pipeline = createPipeline({ userContent: explicitSearchPrompt });
+      const reply = await pipeline.runUpstream();
 
-    const pipeline = createPipeline({ userContent: "search bookmarks for wikipedia" });
-
-    const reply = await pipeline.runUpstream();
-
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
-    expect(mockedSearchBookmarks).toHaveBeenCalledWith("search bookmarks for wikipedia");
-    expect(reply).toContain(
-      "[Signs of AI writing / LLM written text (Wikipedia article)](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing)",
-    );
-  });
-
-  it("falls back to deterministic bookmark search when model returns empty content", async () => {
-    mockedSearchBookmarks.mockResolvedValue([
-      {
-        id: "bookmark-1",
-        type: "bookmark",
-        title: "Signs of AI writing / LLM written text (Wikipedia article)",
-        description: "Wikipedia article bookmark",
-        url: "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing",
-        score: 99,
-      },
-    ]);
-
-    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
-      choices: [
-        {
-          message: {
-            role: "assistant",
-            content: "",
-          },
-        },
-      ],
-    });
-
-    const pipeline = createPipeline({ userContent: "search bookmarks for wikipedia" });
-
-    const reply = await pipeline.runUpstream();
-
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
-    expect(mockedSearchBookmarks).toHaveBeenCalledWith("search bookmarks for wikipedia");
-    expect(reply).toContain(
-      "[Signs of AI writing / LLM written text (Wikipedia article)](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing)",
-    );
-  });
+      expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
+      expect(mockedSearchBookmarks).toHaveBeenCalledWith(explicitSearchPrompt);
+      expect(reply).toContain(bookmarkLink);
+    },
+  );
 
   it("returns refusal text when chat completions omits assistant content", async () => {
     mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
@@ -435,16 +296,7 @@ describe("AI Chat Upstream Pipeline Tools", () => {
   });
 
   it("supports responses mode tool calls when arguments are object-shaped", async () => {
-    mockedSearchBookmarks.mockResolvedValue([
-      {
-        id: "bookmark-1",
-        type: "bookmark",
-        title: "Signs of AI writing / LLM written text (Wikipedia article)",
-        description: "Wikipedia article bookmark",
-        url: "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing",
-        score: 99,
-      },
-    ]);
+    mockSingleBookmarkSearchResult();
 
     mockCallOpenAiCompatibleResponses
       .mockResolvedValueOnce({
@@ -490,9 +342,7 @@ describe("AI Chat Upstream Pipeline Tools", () => {
     expect(firstCallRequest?.tool_choice).toBe("required");
     expect(firstCallRequest?.parallel_tool_calls).toBe(false);
     expect(firstCallRequest?.tools?.[0]?.name).toBe("search_bookmarks");
-    expect(mockedSearchBookmarks).toHaveBeenCalledWith("wikipedia ai writing");
-    expect(reply).toContain(
-      "[Signs of AI writing / LLM written text (Wikipedia article)](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing)",
-    );
+    expect(mockedSearchBookmarks).toHaveBeenCalledWith(searchQuery);
+    expect(reply).toContain(bookmarkLink);
   });
 });
