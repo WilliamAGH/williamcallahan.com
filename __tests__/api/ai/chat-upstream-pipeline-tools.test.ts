@@ -153,7 +153,7 @@ function createValidatedContext(args?: {
     parsedBody: {
       conversationId,
       priority: 10,
-      ...(args?.temperature !== undefined ? { temperature: args.temperature } : {}),
+      ...(args?.temperature === undefined ? {} : { temperature: args.temperature }),
       ...(args?.apiMode ? { apiMode: args.apiMode } : {}),
       messages: [{ role: "user", content: args?.userContent ?? "hello there" }],
     },
@@ -274,7 +274,7 @@ describe("AI Chat Upstream Pipeline Tools", () => {
       const reply = await pipeline.runUpstream();
 
       expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
-      expect(mockedSearchBookmarks).toHaveBeenCalledWith(explicitSearchPrompt);
+      expect(mockedSearchBookmarks).toHaveBeenCalledWith("wikipedia");
       expect(reply).toContain(bookmarkLink);
     },
   );

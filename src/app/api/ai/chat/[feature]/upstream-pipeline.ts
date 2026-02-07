@@ -275,7 +275,9 @@ function normalizeAnalysisPayload(
   }
 
   const audienceValue = root[audienceField];
-  if (typeof audienceValue === "string" && !containsLettersOrNumbers(audienceValue)) {
+  const audienceIsValid =
+    typeof audienceValue === "string" && containsLettersOrNumbers(audienceValue);
+  if (!audienceIsValid) {
     const category = root.category;
     const categoryLabel =
       typeof category === "string" && containsLettersOrNumbers(category)
@@ -285,6 +287,7 @@ function normalizeAnalysisPayload(
     console.warn("[upstream-pipeline] Derived audience fallback from normalized category", {
       feature,
       audienceField,
+      originalType: typeof audienceValue,
     });
   }
 
@@ -430,6 +433,17 @@ function validateAnalysisOutput(
       .slice(0, 3)
       .map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
       .join("; ");
+    console.warn("[upstream-pipeline] Schema validation failed after normalization", {
+      feature,
+      issuePreview,
+      failingFields: validation.error.issues.slice(0, 3).map((issue) => ({
+        path: issue.path.join("."),
+        value: issue.path.reduce<unknown>((obj, key) => {
+          if (typeof obj !== "object" || obj === null || typeof key === "symbol") return undefined;
+          return (obj as Record<string, unknown>)[String(key)];
+        }, normalized),
+      })),
+    });
     return {
       ok: false,
       reason: issuePreview || "Schema validation failed for analysis output.",
@@ -517,7 +531,12 @@ export function buildChatPipeline(params: {
       const turnParams: UpstreamTurnParams = {
         turnConfig: { model: activeModel, baseUrl: config.baseUrl, apiKey: config.apiKey },
         signal,
-        toolChoice: resolveToolChoice({ hasToolSupport, forceBookmarkTool, turn }),
+        toolChoice: resolveToolChoice({
+          hasToolSupport,
+          forceBookmarkTool,
+          turn,
+          model: activeModel,
+        }),
         hasToolSupport,
         temperature: modelParams.temperature,
         topP: modelParams.topP,
@@ -553,17 +572,10 @@ export function buildChatPipeline(params: {
 
       if (outcome.kind === "empty") break;
       if (outcome.kind === "content") {
-        if (
-          forceBookmarkTool &&
-          turn === 0 &&
-          toolObservedResults.length === 0 &&
-          latestUserMessage
-        ) {
+        if (forceBookmarkTool && toolObservedResults.length === 0 && latestUserMessage) {
           console.warn(
-            "[upstream-pipeline] Model ignored forced tool, using deterministic fallback",
-            {
-              feature,
-            },
+            "[upstream-pipeline] No observed bookmark results; using deterministic fallback",
+            { feature, turn },
           );
           const fallback = await runDeterministicBookmarkFallback(feature, latestUserMessage);
           return emitMessageDone(fallback);

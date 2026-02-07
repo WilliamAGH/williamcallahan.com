@@ -17,6 +17,7 @@ import { parseLlmJson } from "@/lib/ai/analysis-client-utils";
 import {
   resolveModelParams,
   resolveFeatureSystemPrompt,
+  isHarmonyFormatModel,
 } from "@/app/api/ai/chat/[feature]/feature-defaults";
 import { BOOKMARK_ANALYSIS_RESPONSE_FORMAT } from "@/components/features/bookmarks/bookmark-ai-analysis.client";
 import { BOOK_ANALYSIS_RESPONSE_FORMAT } from "@/components/features/books/book-ai-analysis.client";
@@ -266,8 +267,8 @@ describe("OpenAI-Compatible AI Utilities", () => {
     it("returns global defaults when feature and request body have no overrides", () => {
       const params = resolveModelParams("unknown_feature", minimalBody);
       expect(params).toEqual({
-        temperature: 1.0,
-        topP: 1.0,
+        temperature: 1,
+        topP: 1,
         reasoningEffort: "medium",
         maxTokens: 8192,
       });
@@ -277,7 +278,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       const params = resolveModelParams("terminal_chat", minimalBody);
       expect(params.temperature).toBe(0.7);
       expect(params.reasoningEffort).toBe("low");
-      expect(params.topP).toBe(1.0);
+      expect(params.topP).toBe(1);
       expect(params.maxTokens).toBe(8192);
     });
 
@@ -315,6 +316,16 @@ describe("OpenAI-Compatible AI Utilities", () => {
       const result = resolveFeatureSystemPrompt("terminal_chat", "extra context");
       expect(result).toContain("terminal interface");
       expect(result).toContain("extra context");
+    });
+  });
+
+  describe("isHarmonyFormatModel", () => {
+    it("identifies GPT-OSS models as Harmony format (json_schema incompatible)", () => {
+      expect(isHarmonyFormatModel("openai/gpt-oss-120b")).toBe(true);
+      expect(isHarmonyFormatModel("openai/gpt-oss-20b")).toBe(true);
+      expect(isHarmonyFormatModel("GPT-OSS-120B")).toBe(true);
+      expect(isHarmonyFormatModel("qwen3-30b-2507")).toBe(false);
+      expect(isHarmonyFormatModel("gpt-4o-2024-08-06")).toBe(false);
     });
   });
 
@@ -377,7 +388,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
         request: {
           model: "test-model",
           messages: [{ role: "user", content: "hi" }],
-          temperature: 1.0,
+          temperature: 1,
           top_p: 0.9,
           max_tokens: 8192,
           reasoning_effort: "medium",
@@ -388,7 +399,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       expect(payload.max_tokens).toBeUndefined();
       expect(payload.top_p).toBe(0.9);
       expect(payload.reasoning_effort).toBe("medium");
-      expect(payload.temperature).toBe(1.0);
+      expect(payload.temperature).toBe(1);
     });
 
     it("omits undefined optional fields from chat request", async () => {
@@ -573,23 +584,23 @@ describe("OpenAI-Compatible AI Utilities", () => {
     });
   });
 
-  describe("browser-client SSE handling", () => {
-    function createSseResponse(chunks: string[]): Response {
-      const encoder = new TextEncoder();
-      const body = new ReadableStream<Uint8Array>({
-        start(controller) {
-          for (const chunk of chunks) {
-            controller.enqueue(encoder.encode(chunk));
-          }
-          controller.close();
-        },
-      });
-      return new Response(body, {
-        status: 200,
-        headers: { "Content-Type": "text/event-stream; charset=utf-8" },
-      });
-    }
+  function createSseResponse(chunks: string[]): Response {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of chunks) {
+          controller.enqueue(encoder.encode(chunk));
+        }
+        controller.close();
+      },
+    });
+    return new Response(body, {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream; charset=utf-8" },
+    });
+  }
 
+  describe("browser-client SSE handling", () => {
     afterEach(() => {
       vi.unstubAllGlobals();
     });

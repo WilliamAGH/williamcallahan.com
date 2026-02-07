@@ -603,6 +603,62 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
     expect(parsed.targetAudience).toBe("People interested in Developer Tools.");
   });
 
+  it("derives targetAudience fallback when field is null or missing", async () => {
+    const nullAudienceAnalysis = JSON.stringify({
+      summary: "z-agent-browser is a Rust-based browser automation CLI.",
+      category: "Developer Tools",
+      highlights: ["Stealth mode", "Playwright MCP integration"],
+      contextualDetails: {
+        primaryDomain: "Browser automation",
+        format: "GitHub repository",
+        accessMethod: "Open source",
+      },
+      relatedResources: ["agent-browser", "Playwright"],
+      targetAudience: null,
+    });
+
+    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
+      choices: [{ message: { role: "assistant", content: nullAudienceAnalysis } }],
+    });
+
+    const reply = await createPipeline({
+      feature: "bookmark-analysis",
+      userContent: "Analyze this bookmark",
+    }).runUpstream();
+
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
+    const parsed = JSON.parse(reply) as { targetAudience: string };
+    expect(parsed.targetAudience).toBe("People interested in Developer Tools.");
+  });
+
+  it("derives targetAudience fallback when field is an array of symbols", async () => {
+    const arrayAudienceAnalysis = JSON.stringify({
+      summary: "z-agent-browser is a Rust-based browser automation CLI.",
+      category: "Developer Tools",
+      highlights: ["Stealth mode", "Playwright MCP integration"],
+      contextualDetails: {
+        primaryDomain: "Browser automation",
+        format: "GitHub repository",
+        accessMethod: "Open source",
+      },
+      relatedResources: ["agent-browser", "Playwright"],
+      targetAudience: ["---", "***"],
+    });
+
+    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
+      choices: [{ message: { role: "assistant", content: arrayAudienceAnalysis } }],
+    });
+
+    const reply = await createPipeline({
+      feature: "bookmark-analysis",
+      userContent: "Analyze this bookmark",
+    }).runUpstream();
+
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
+    const parsed = JSON.parse(reply) as { targetAudience: string };
+    expect(parsed.targetAudience).toBe("People interested in Developer Tools.");
+  });
+
   it("fills missing contextualDetails fields with null instead of failing", async () => {
     const missingDetailsAnalysis = JSON.stringify({
       summary: "z-agent-browser is a Rust-based browser automation CLI.",
