@@ -54,7 +54,7 @@ function tokenizeQuery(query: string): string[] {
 }
 
 function dropBookmarkStopWords(terms: string[]): string[] {
-  return terms.filter((term) => !BOOKMARK_QUERY_STOP_WORDS.has(term));
+  return terms.filter((term) => !BOOKMARK_QUERY_STOP_WORDS.has(term.toLowerCase()));
 }
 
 function runBookmarkSearch(
