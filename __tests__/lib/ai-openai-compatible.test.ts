@@ -18,6 +18,9 @@ import {
   resolveModelParams,
   resolveFeatureSystemPrompt,
 } from "@/app/api/ai/chat/[feature]/feature-defaults";
+import { BOOKMARK_ANALYSIS_RESPONSE_FORMAT } from "@/components/features/bookmarks/bookmark-ai-analysis.client";
+import { BOOK_ANALYSIS_RESPONSE_FORMAT } from "@/components/features/books/book-ai-analysis.client";
+import { PROJECT_ANALYSIS_RESPONSE_FORMAT } from "@/components/features/projects/project-ai-analysis.client";
 import { GET as getAiToken } from "@/app/api/ai/token/route";
 import { NextRequest } from "next/server";
 import type { ParsedRequestBody } from "@/types/schemas/ai-chat";
@@ -278,6 +281,19 @@ describe("OpenAI-Compatible AI Utilities", () => {
       expect(params.maxTokens).toBe(8192);
     });
 
+    it("applies lower-entropy defaults for structured analysis features", () => {
+      const bookmark = resolveModelParams("bookmark-analysis", minimalBody);
+      const book = resolveModelParams("book-analysis", minimalBody);
+      const project = resolveModelParams("project-analysis", minimalBody);
+
+      expect(bookmark.temperature).toBe(0.2);
+      expect(bookmark.reasoningEffort).toBe("low");
+      expect(book.temperature).toBe(0.2);
+      expect(book.reasoningEffort).toBe("low");
+      expect(project.temperature).toBe(0.2);
+      expect(project.reasoningEffort).toBe("low");
+    });
+
     it("consumer request body overrides feature defaults", () => {
       const body = {
         userText: "hi",
@@ -299,6 +315,46 @@ describe("OpenAI-Compatible AI Utilities", () => {
       const result = resolveFeatureSystemPrompt("terminal_chat", "extra context");
       expect(result).toContain("terminal interface");
       expect(result).toContain("extra context");
+    });
+  });
+
+  describe("analysis response-format constraints", () => {
+    it("enforces non-empty strings and bounded arrays for bookmark analysis", () => {
+      const schema = BOOKMARK_ANALYSIS_RESPONSE_FORMAT.json_schema.schema;
+      const props = schema.properties;
+      expect(props.summary).toEqual(expect.objectContaining({ minLength: 1 }));
+      expect(props.category).toEqual(expect.objectContaining({ minLength: 1 }));
+      expect(props.targetAudience).toEqual(expect.objectContaining({ minLength: 1 }));
+      expect(props.highlights).toEqual(expect.objectContaining({ minItems: 1, maxItems: 6 }));
+      expect(props.highlights.items).toEqual(expect.objectContaining({ minLength: 1 }));
+      expect(props.relatedResources).toEqual(expect.objectContaining({ minItems: 1, maxItems: 6 }));
+      expect(props.relatedResources.items).toEqual(expect.objectContaining({ minLength: 1 }));
+    });
+
+    it("enforces non-empty strings and bounded arrays for book analysis", () => {
+      const schema = BOOK_ANALYSIS_RESPONSE_FORMAT.json_schema.schema;
+      const props = schema.properties;
+      expect(props.summary).toEqual(expect.objectContaining({ minLength: 1 }));
+      expect(props.category).toEqual(expect.objectContaining({ minLength: 1 }));
+      expect(props.idealReader).toEqual(expect.objectContaining({ minLength: 1 }));
+      expect(props.whyItMatters).toEqual(expect.objectContaining({ minLength: 1 }));
+      expect(props.keyThemes).toEqual(expect.objectContaining({ minItems: 1, maxItems: 6 }));
+      expect(props.keyThemes.items).toEqual(expect.objectContaining({ minLength: 1 }));
+      expect(props.relatedReading).toEqual(expect.objectContaining({ minItems: 1, maxItems: 6 }));
+      expect(props.relatedReading.items).toEqual(expect.objectContaining({ minLength: 1 }));
+    });
+
+    it("enforces non-empty strings and bounded arrays for project analysis", () => {
+      const schema = PROJECT_ANALYSIS_RESPONSE_FORMAT.json_schema.schema;
+      const props = schema.properties;
+      expect(props.summary).toEqual(expect.objectContaining({ minLength: 1 }));
+      expect(props.category).toEqual(expect.objectContaining({ minLength: 1 }));
+      expect(props.targetUsers).toEqual(expect.objectContaining({ minLength: 1 }));
+      expect(props.uniqueValue).toEqual(expect.objectContaining({ minLength: 1 }));
+      expect(props.keyFeatures).toEqual(expect.objectContaining({ minItems: 1, maxItems: 6 }));
+      expect(props.keyFeatures.items).toEqual(expect.objectContaining({ minLength: 1 }));
+      expect(props.relatedProjects).toEqual(expect.objectContaining({ minItems: 1, maxItems: 6 }));
+      expect(props.relatedProjects.items).toEqual(expect.objectContaining({ minLength: 1 }));
     });
   });
 
@@ -581,6 +637,32 @@ describe("OpenAI-Compatible AI Utilities", () => {
           data: { message: "I cannot help with that request." },
         },
       ]);
+    });
+
+    it("accepts done payload metadata when message_done is missing", async () => {
+      vi.resetModules();
+      const fetchMock = vi.fn<typeof fetch>();
+      fetchMock
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              token: "test-token",
+              expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        )
+        .mockResolvedValueOnce(
+          createSseResponse([
+            'event: done\r\ndata: {"message":"Final response","ragContext":"included"}\r\n\r\n',
+          ]),
+        );
+      vi.stubGlobal("fetch", fetchMock);
+
+      const { aiChat } = await import("@/lib/ai/openai-compatible/browser-client");
+      const message = await aiChat("terminal_chat", { userText: "hello" });
+
+      expect(message).toBe("Final response");
     });
 
     it("rejects a 200 chat response that is JSON instead of SSE", async () => {
