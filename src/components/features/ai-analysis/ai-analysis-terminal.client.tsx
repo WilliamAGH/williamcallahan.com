@@ -39,6 +39,7 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
   extractContext,
   buildSystemPrompt,
   buildUserPrompt,
+  responseFormat,
   responseSchema,
   renderAnalysis,
   getCategory,
@@ -78,7 +79,12 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
 
         const responseText = await aiChat(
           featureName,
-          { system: systemPrompt, userText: userPrompt, priority: 0 },
+          {
+            system: systemPrompt,
+            userText: userPrompt,
+            priority: 0,
+            response_format: responseFormat,
+          },
           {
             signal,
             onQueueUpdate: (update) => {
@@ -123,6 +129,7 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
       extractContext,
       buildSystemPrompt,
       buildUserPrompt,
+      responseFormat,
       responseSchema,
     ],
   );

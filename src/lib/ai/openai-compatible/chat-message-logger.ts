@@ -26,6 +26,10 @@ function categorizeSource(feature: string): AiChatSource {
       return "terminal_chat";
     case "bookmark-analysis":
       return "bookmark-analysis";
+    case "book-analysis":
+      return "book-analysis";
+    case "project-analysis":
+      return "project-analysis";
     default:
       return "unknown";
   }

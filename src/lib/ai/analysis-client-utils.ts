@@ -6,7 +6,6 @@
  * Includes JSON parsing for LLM responses and S3 persistence helpers.
  */
 
-import { jsonrepair } from "jsonrepair";
 import * as Sentry from "@sentry/nextjs";
 import type { AnalysisDomain } from "@/lib/ai-analysis/types";
 
@@ -33,17 +32,15 @@ export function stripLlmTokens(rawText: string): string {
 }
 
 /**
- * Parses JSON from LLM output using jsonrepair for robustness.
- * Handles control tokens, malformed JSON, missing quotes, etc.
+ * Parses JSON from LLM output after stripping wrapper tokens.
  *
  * @param rawText - Raw LLM response text
  * @returns Parsed JSON value
- * @throws Error if JSON cannot be parsed even after repair
+ * @throws Error if the response is not valid JSON
  */
 export function parseLlmJson(rawText: string): unknown {
   const cleaned = stripLlmTokens(rawText);
-  const repaired = jsonrepair(cleaned);
-  return JSON.parse(repaired);
+  return JSON.parse(cleaned);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

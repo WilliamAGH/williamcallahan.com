@@ -2,7 +2,11 @@ import type {
   AiChatModelStreamUpdate,
   AiChatQueueUpdate,
 } from "@/types/schemas/ai-openai-compatible-client";
-import type { AiUpstreamApiMode, ReasoningEffort } from "@/types/schemas/ai-openai-compatible";
+import type {
+  AiUpstreamApiMode,
+  OpenAiCompatibleResponseFormat,
+  ReasoningEffort,
+} from "@/types/schemas/ai-openai-compatible";
 
 export interface AiChatRequest {
   userText?: string;
@@ -11,6 +15,7 @@ export interface AiChatRequest {
   temperature?: number;
   top_p?: number;
   reasoning_effort?: ReasoningEffort | null;
+  response_format?: OpenAiCompatibleResponseFormat;
   apiMode?: AiUpstreamApiMode;
   conversationId?: string;
   /**

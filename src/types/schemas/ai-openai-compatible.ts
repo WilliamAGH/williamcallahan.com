@@ -83,6 +83,30 @@ export const reasoningEffortSchema = z.enum(["none", "minimal", "low", "medium",
 
 export type ReasoningEffort = z.infer<typeof reasoningEffortSchema>;
 
+const responseFormatTextSchema = z.object({ type: z.literal("text") });
+
+const responseFormatJsonObjectSchema = z.object({ type: z.literal("json_object") });
+
+const responseFormatJsonSchemaConfigSchema = z.object({
+  name: z.string().min(1),
+  schema: z.record(z.string(), z.unknown()),
+  strict: z.boolean().optional(),
+  description: z.string().optional(),
+});
+
+const responseFormatJsonSchema = z.object({
+  type: z.literal("json_schema"),
+  json_schema: responseFormatJsonSchemaConfigSchema,
+});
+
+export const openAiCompatibleResponseFormatSchema = z.union([
+  responseFormatTextSchema,
+  responseFormatJsonObjectSchema,
+  responseFormatJsonSchema,
+]);
+
+export type OpenAiCompatibleResponseFormat = z.infer<typeof openAiCompatibleResponseFormatSchema>;
+
 export const openAiCompatibleChatCompletionsRequestSchema = z.object({
   model: z.string().min(1),
   messages: z.array(openAiCompatibleChatMessageSchema).min(1),
@@ -93,6 +117,7 @@ export const openAiCompatibleChatCompletionsRequestSchema = z.object({
   tools: z.array(openAiCompatibleFunctionToolSchema).optional(),
   tool_choice: openAiCompatibleToolChoiceSchema.optional(),
   parallel_tool_calls: z.boolean().optional(),
+  response_format: openAiCompatibleResponseFormatSchema.optional(),
 });
 
 export type OpenAiCompatibleChatCompletionsRequest = z.infer<

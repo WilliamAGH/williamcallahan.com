@@ -12,7 +12,13 @@ import { z } from "zod/v4";
 /**
  * Source categories for chat messages
  */
-export const aiChatSourceSchema = z.enum(["terminal_chat", "bookmark-analysis", "unknown"]);
+export const aiChatSourceSchema = z.enum([
+  "terminal_chat",
+  "bookmark-analysis",
+  "book-analysis",
+  "project-analysis",
+  "unknown",
+]);
 
 export type AiChatSource = z.infer<typeof aiChatSourceSchema>;
 

@@ -17,7 +17,7 @@ import type { BookmarkAnalysisContext } from "@/types/bookmark-ai-analysis";
  * Instructs the LLM to act as a bookmark analyst and return JSON.
  */
 export function buildBookmarkAnalysisSystemPrompt(): string {
-  return `You analyze bookmarked content and extract structured insights. Bookmarks can be about any topic: software, cooking, art, finance, travel, music, science, etc. Adapt your analysis to fit the content's domain. Respond with valid JSON only—no markdown, no code blocks.`;
+  return `You analyze bookmarked content and extract structured insights. Bookmarks can be about any topic: software, cooking, art, finance, travel, music, science, etc. Adapt your analysis to fit the content's domain.`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
