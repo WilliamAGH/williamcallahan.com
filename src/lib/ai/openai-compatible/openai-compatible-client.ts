@@ -162,6 +162,13 @@ export async function streamOpenAiCompatibleChatCompletions(args: {
   }
 
   thinkParser?.end();
+
+  if (!startEmitted) {
+    throw new Error(
+      `[AI] Chat completions stream completed without emitting any chunks (model: ${args.request.model})`,
+    );
+  }
+
   const completion = await stream.finalChatCompletion();
   // Strip <think> tags from the assembled completion so downstream consumers
   // (e.g. JSON analysis parsers) see only the visible response content.
@@ -245,6 +252,13 @@ export async function streamOpenAiCompatibleResponses(args: {
   }
 
   thinkParser?.end();
+
+  if (!startEmitted) {
+    throw new Error(
+      `[AI] Responses stream completed without emitting any events (model: ${args.request.model ?? "<unset>"})`,
+    );
+  }
+
   const response = await stream.finalResponse();
   const normalizedResponse = normalizeResponsesOutputText(response);
   if (thinkParser && normalizedResponse.output_text) {
