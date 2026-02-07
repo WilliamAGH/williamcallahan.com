@@ -8,8 +8,6 @@ import type {
   ReasoningEffort,
 } from "@/types/schemas/ai-openai-compatible";
 
-export type { ParsedRequestBody };
-
 export type RagContextStatus = "included" | "partial" | "failed" | "not_applicable";
 export type AiChatModelStreamEvent =
   | {
@@ -77,6 +75,9 @@ export type FeatureModelDefaults = {
   topP?: number;
   reasoningEffort?: ReasoningEffort | null;
   maxTokens?: number;
+  toolConfig?: {
+    enabled: boolean;
+  };
 };
 
 /** Fully resolved model params — every field has a concrete value */
@@ -124,3 +125,5 @@ export type UpstreamTurnOutcome =
       newMessages: OpenAiCompatibleChatMessage[];
       observedResults: Array<{ title: string; url: string }>;
     };
+
+export { type ParsedRequestBody } from "@/types/schemas/ai-chat";
