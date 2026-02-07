@@ -85,8 +85,8 @@ export function buildBookmarkAnalysisUserPrompt(context: BookmarkAnalysisContext
     "format": "content format (e.g., 'interactive tool', 'long-form article', 'video tutorial', 'podcast') or null",
     "accessMethod": "how to access (e.g., 'free online', 'open source', 'subscription required') or null"
   },
-  "relatedResources": ["any related topics, tools, or references mentioned"],
-  "targetAudience": "who would find this valuable or interesting"
+  "relatedResources": ["related topics, tools, or references (concise keywords or titles only, no sentences)"],
+  "targetAudience": "who would find this valuable (e.g., 'Developers', 'Home Cooks') - use descriptive text, avoid symbols"
 }`);
 
   return sections.join("\n");

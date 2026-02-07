@@ -35,7 +35,9 @@ async function mapWithConcurrency<T, R>(
  * @param investments - Optional array of investment objects to display.
  * @returns A JSX element containing the client-side investments component wrapped in a global window registry provider.
  */
-export async function Investments({ investments = [] }: InvestmentsProps): Promise<JSX.Element> {
+export async function Investments({
+  investments = [],
+}: Readonly<InvestmentsProps>): Promise<JSX.Element> {
   const resolvedInvestments = await mapWithConcurrency(
     investments,
     LOGO_RESOLUTION_BATCH_SIZE,

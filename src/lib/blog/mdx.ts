@@ -287,10 +287,10 @@ export async function getMDXPost(
         // Normalize code block language labels to Prism-compatible names
         // This avoids MDX compile errors from rehype-prism when encountering unknown languages
         const normalizedContent = content
-          .replace(/```cmd\b/g, "```batch")
-          .replace(/```dos\b/g, "```batch")
-          .replace(/```ps\b/g, "```powershell")
-          .replace(/```ps1\b/g, "```powershell");
+          .replaceAll(/```cmd\b/g, "```batch")
+          .replaceAll(/```dos\b/g, "```batch")
+          .replaceAll(/```ps\b/g, "```powershell")
+          .replaceAll(/```ps1\b/g, "```powershell");
 
         mdxSource = await serialize(normalizedContent, {
           mdxOptions: {
@@ -536,12 +536,8 @@ export async function getAllMDXPostsCached(skipHeavyProcessing = false): Promise
 export async function getAllMDXPostsForSearch(): Promise<BlogPost[]> {
   const posts = await getAllMDXPosts();
   // Return posts without rawContent to save memory
-  return posts.map((post) => {
-    // Destructure to exclude rawContent - intentionally unused to save memory
-    const { rawContent, ...lightweightPost } = post;
-    void rawContent; // Explicitly mark as intentionally unused
-    return lightweightPost as BlogPost;
-  });
+  // Destructure to exclude rawContent to save memory (rest-sibling pattern)
+  return posts.map(({ rawContent, ...lightweightPost }) => lightweightPost as BlogPost);
 }
 
 // Cache invalidation functions for blog/MDX

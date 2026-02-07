@@ -58,7 +58,7 @@ function getApiUrl(): string | undefined {
 
   // In tests, allow jsdom location only when NODE_ENV is 'test'
   const nodeEnv = process.env.NODE_ENV;
-  if (isTestRuntime() && normalizeString(nodeEnv ? nodeEnv : "test") === "test") {
+  if (isTestRuntime() && normalizeString(nodeEnv || "test") === "test") {
     try {
       const loc = (globalThis as unknown as { location?: { href?: string; origin?: string } })
         .location;
