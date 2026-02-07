@@ -241,7 +241,7 @@ export async function GET(request: NextRequest) {
     // Check if S3 image exists
     let s3ImageUrl: string | null = null;
     try {
-      const s3Key = `${OPENGRAPH_IMAGES_S3_DIR}/${domain}/${url.replace(/[^a-zA-Z0-9.-]/g, "_")}.webp`;
+      const s3Key = `${OPENGRAPH_IMAGES_S3_DIR}/${domain}/${url.replaceAll(/[^a-zA-Z0-9.-]/g, "_")}.webp`;
       const { bucket, s3Client } = getS3Context();
       await s3Client.send(
         new HeadObjectCommand({
@@ -333,7 +333,7 @@ export async function GET(request: NextRequest) {
       const { scheduleImagePersistence } = await import("@/lib/persistence/image-persistence");
 
       // Generate idempotency key from URL
-      const urlHash = url.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const urlHash = url.replaceAll(/[^a-zA-Z0-9.-]/g, "_");
       const idempotencyKey = `og-image-${urlHash}`;
 
       logger.info(`[OG-Image] 📋 Scheduling background image persistence for: ${url}`);

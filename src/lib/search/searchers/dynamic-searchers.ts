@@ -115,7 +115,14 @@ function normalizeBookmarkSearchHit(hit: unknown): {
   if (!isRecord(hit)) return null;
 
   const rawId = hit.id;
-  const id = typeof rawId === "string" ? rawId : typeof rawId === "number" ? String(rawId) : null;
+  let id: string | null;
+  if (typeof rawId === "string") {
+    id = rawId;
+  } else if (typeof rawId === "number") {
+    id = String(rawId);
+  } else {
+    id = null;
+  }
   if (!id) return null;
 
   return {

@@ -144,12 +144,12 @@ export async function getBookmarksIndex(): Promise<{
     })) as BookmarkIndexInput[];
     bookmarks = all;
     devLog("[getBookmarksIndex] fetched bookmarks via direct import", { count: bookmarks.length });
-  } catch (directErr) {
+  } catch (error_) {
     const skipApiFallback = process.env[PHASE_KEY] === BUILD_VALUE;
     if (skipApiFallback) {
       envLogger.log(
         "Direct bookmarks fetch failed during build phase; skipping /api/bookmarks fallback",
-        { error: String(directErr) },
+        { error: String(error_) },
         { category: "Search" },
       );
       bookmarks = [];
@@ -157,7 +157,7 @@ export async function getBookmarksIndex(): Promise<{
       devLog("[getBookmarksIndex] falling back to API fetch");
       envLogger.log(
         "Direct bookmarks fetch failed, falling back to /api/bookmarks",
-        { error: String(directErr) },
+        { error: String(error_) },
         { category: "Search" },
       );
 
@@ -176,11 +176,11 @@ export async function getBookmarksIndex(): Promise<{
       }
       clearTimeout(timeoutId);
 
-      if (!resp || !resp.ok) {
+      if (!resp?.ok) {
         throw new Error(
           `Failed to fetch bookmarks: HTTP ${resp?.status ?? "unknown"} ${resp?.statusText ?? ""}`,
           {
-            cause: directErr,
+            cause: error_,
           },
         );
       }

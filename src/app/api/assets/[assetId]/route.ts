@@ -106,7 +106,7 @@ async function findAssetInS3(
       0,
       8,
     );
-    const domain = stripWwwPrefix(new URL(context.url).hostname).replace(/\./g, "-");
+    const domain = stripWwwPrefix(new URL(context.url).hostname).replaceAll(".", "-");
 
     for (const ext of extensions) {
       const descriptiveKey = `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${domain}-${hash}${ext}`;
@@ -559,7 +559,7 @@ export async function GET(
       });
 
       if (shouldPersist && persistStream) {
-        void streamToBufferWithLimits(persistStream, assetId)
+        streamToBufferWithLimits(persistStream, assetId)
           .then((buffer) => saveAssetToS3(assetId, buffer, contentType, context))
           .catch((error) => {
             console.error(`[Assets API] Failed to save asset ${assetId} to S3:`, error);
