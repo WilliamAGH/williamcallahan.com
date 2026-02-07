@@ -8,7 +8,6 @@
  * Provides domain-specific configuration: context extraction, prompts, schema, and rendering.
  */
 
-import { motion } from "framer-motion";
 import { Code2 } from "lucide-react";
 import type { ProjectAiAnalysisProps, ProjectAnalysisContext } from "@/types/project-ai-analysis";
 import {
@@ -21,6 +20,11 @@ import {
   buildProjectAnalysisUserPrompt,
 } from "@/lib/projects/analysis/build-prompt";
 import { AiAnalysisTerminal } from "@/components/features/ai-analysis/ai-analysis-terminal.client";
+import {
+  BulletListSection,
+  ChipListSection,
+  TechDetailsSection,
+} from "@/components/features/ai-analysis/analysis-render-sections";
 import type { AnalysisRenderHelpers } from "@/types/ai-analysis";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -37,7 +41,7 @@ const LOADING_MESSAGES = [
   "Synthesizing insights...",
 ];
 
-const PROJECT_ANALYSIS_RESPONSE_FORMAT = {
+export const PROJECT_ANALYSIS_RESPONSE_FORMAT = {
   type: "json_schema",
   json_schema: {
     name: "project_analysis",
@@ -46,10 +50,15 @@ const PROJECT_ANALYSIS_RESPONSE_FORMAT = {
       type: "object",
       additionalProperties: false,
       properties: {
-        summary: { type: "string" },
-        category: { type: "string" },
-        keyFeatures: { type: "array", items: { type: "string" } },
-        targetUsers: { type: "string" },
+        summary: { type: "string", minLength: 1 },
+        category: { type: "string", minLength: 1 },
+        keyFeatures: {
+          type: "array",
+          items: { type: "string", minLength: 1 },
+          minItems: 1,
+          maxItems: 6,
+        },
+        targetUsers: { type: "string", minLength: 1 },
         technicalDetails: {
           type: "object",
           additionalProperties: false,
@@ -60,8 +69,13 @@ const PROJECT_ANALYSIS_RESPONSE_FORMAT = {
           },
           required: ["architecture", "complexity", "maturity"],
         },
-        relatedProjects: { type: "array", items: { type: "string" } },
-        uniqueValue: { type: "string" },
+        relatedProjects: {
+          type: "array",
+          items: { type: "string", minLength: 1 },
+          minItems: 1,
+          maxItems: 6,
+        },
+        uniqueValue: { type: "string", minLength: 1 },
       },
       required: [
         "summary",
@@ -82,94 +96,67 @@ const PROJECT_ANALYSIS_RESPONSE_FORMAT = {
 
 function renderProjectAnalysis(
   analysis: ProjectAiAnalysisResponse,
-  { AnalysisSection, TerminalListItem, TechDetail, skipAnimation }: AnalysisRenderHelpers,
+  helpers: AnalysisRenderHelpers,
 ) {
+  const { AnalysisSection, skipAnimation } = helpers;
   return (
     <>
-      <AnalysisSection label="Summary" index={0} skipAnimation={skipAnimation}>
-        {analysis.summary}
-      </AnalysisSection>
-
-      {analysis.keyFeatures.length > 0 && (
-        <AnalysisSection
-          label="Key Features"
-          index={1}
-          accentColor="#9ece6a"
-          skipAnimation={skipAnimation}
-        >
-          <ul className="space-y-1.5 mt-1">
-            {analysis.keyFeatures.map((feature, idx) => (
-              <TerminalListItem key={idx} index={idx} skipAnimation={skipAnimation}>
-                {feature}
-              </TerminalListItem>
-            ))}
-          </ul>
+      {analysis.summary && (
+        <AnalysisSection label="Summary" index={0} skipAnimation={skipAnimation}>
+          {analysis.summary}
         </AnalysisSection>
       )}
 
-      <AnalysisSection
-        label="Target Users"
-        index={2}
-        accentColor="#e0af68"
-        skipAnimation={skipAnimation}
-      >
-        {analysis.targetUsers}
-      </AnalysisSection>
+      <BulletListSection
+        items={analysis.keyFeatures}
+        label="Key Features"
+        index={1}
+        accentColor="#9ece6a"
+        helpers={helpers}
+      />
 
-      {(analysis.technicalDetails.architecture ||
-        analysis.technicalDetails.complexity ||
-        analysis.technicalDetails.maturity) && (
+      {analysis.targetUsers && (
         <AnalysisSection
-          label="Technical Details"
-          index={3}
-          accentColor="#bb9af7"
+          label="Target Users"
+          index={2}
+          accentColor="#e0af68"
           skipAnimation={skipAnimation}
         >
-          <div className="space-y-1 mt-1 bg-black/20 rounded p-3 border border-[#3d4f70]/50">
-            {analysis.technicalDetails.architecture && (
-              <TechDetail label="architecture" value={analysis.technicalDetails.architecture} />
-            )}
-            {analysis.technicalDetails.complexity && (
-              <TechDetail label="complexity" value={analysis.technicalDetails.complexity} />
-            )}
-            {analysis.technicalDetails.maturity && (
-              <TechDetail label="maturity" value={analysis.technicalDetails.maturity} />
-            )}
-          </div>
+          {analysis.targetUsers}
         </AnalysisSection>
       )}
 
-      <AnalysisSection
-        label="Unique Value"
-        index={4}
-        accentColor="#73daca"
-        skipAnimation={skipAnimation}
-      >
-        {analysis.uniqueValue}
-      </AnalysisSection>
+      <TechDetailsSection
+        details={[
+          { label: "architecture", value: analysis.technicalDetails?.architecture },
+          { label: "complexity", value: analysis.technicalDetails?.complexity },
+          { label: "maturity", value: analysis.technicalDetails?.maturity },
+        ]}
+        label="Technical Details"
+        index={3}
+        accentColor="#bb9af7"
+        helpers={helpers}
+      />
 
-      {analysis.relatedProjects.length > 0 && (
+      {analysis.uniqueValue && (
         <AnalysisSection
-          label="Related Projects"
-          index={5}
-          accentColor="#ff9e64"
+          label="Unique Value"
+          index={4}
+          accentColor="#73daca"
           skipAnimation={skipAnimation}
         >
-          <div className="flex flex-wrap gap-1.5 mt-1">
-            {analysis.relatedProjects.map((item, idx) => (
-              <motion.span
-                key={idx}
-                initial={skipAnimation ? false : { opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: idx * 0.05 }}
-                className="px-2 py-0.5 text-xs font-mono bg-[#ff9e64]/10 text-[#ff9e64] rounded border border-[#ff9e64]/20"
-              >
-                {item}
-              </motion.span>
-            ))}
-          </div>
+          {analysis.uniqueValue}
         </AnalysisSection>
       )}
+
+      <ChipListSection
+        items={analysis.relatedProjects}
+        label="Related Projects"
+        index={5}
+        accentColor="#ff9e64"
+        chipClassName="px-2 py-0.5 text-xs font-mono bg-[#ff9e64]/10 text-[#ff9e64] rounded border border-[#ff9e64]/20"
+        helpers={helpers}
+      />
     </>
   );
 }
@@ -184,7 +171,7 @@ export function ProjectAiAnalysis({
   autoTrigger = true,
   initialAnalysis,
   defaultCollapsed = false,
-}: ProjectAiAnalysisProps) {
+}: Readonly<ProjectAiAnalysisProps>) {
   // Use project.id if available, otherwise fall back to project.name
   const projectId = project.id ?? project.name;
 
