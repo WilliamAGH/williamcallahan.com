@@ -89,7 +89,9 @@ export async function executeChatCompletionsTurn(
 
   const toolCalls = assistantMessage.tool_calls ?? [];
   if (toolCalls.length === 0) {
-    const text = assistantMessage.content?.trim() || assistantMessage.refusal?.trim();
+    const content = assistantMessage.content?.trim();
+    const refusal = assistantMessage.refusal?.trim();
+    const text = content ? content : refusal;
     if (text && onStreamEvent && !emittedDeltaEvent) {
       emitDeferredContentEvents({
         text,
@@ -130,7 +132,7 @@ export async function executeResponsesTurn(
     temperature: params.temperature,
     top_p: params.topP,
     max_output_tokens: params.maxTokens,
-    ...(params.reasoningEffort === null ? {} : { reasoning: { effort: params.reasoningEffort } }),
+    ...(params.reasoningEffort == null ? {} : { reasoning: { effort: params.reasoningEffort } }),
   };
 
   const callArgs = { baseUrl: turnConfig.baseUrl, apiKey: turnConfig.apiKey, request, signal };
