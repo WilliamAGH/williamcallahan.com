@@ -42,7 +42,7 @@ export function InvestmentCardClient({
   logoData,
   renderedMetrics,
   ...investment
-}: InvestmentCardExtendedProps): JSX.Element {
+}: Readonly<InvestmentCardExtendedProps>): JSX.Element {
   const {
     name,
     website,
@@ -64,12 +64,13 @@ export function InvestmentCardClient({
   } = investment;
 
   // Get accelerator display name
-  const acceleratorName =
-    accelerator?.program === "techstars"
-      ? "Techstars"
-      : accelerator?.program === "ycombinator"
-        ? "Y Combinator"
-        : null;
+  const getAcceleratorName = (program: string | undefined): string | null => {
+    if (program === "techstars") return "Techstars";
+    if (program === "ycombinator") return "Y Combinator";
+    return null;
+  };
+
+  const acceleratorName = getAcceleratorName(accelerator?.program);
 
   return (
     <div
@@ -214,13 +215,13 @@ export function InvestmentCardClient({
                   <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">
                     Round Size
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt((details?.find((d) => d.label === "Round Size")?.value ?? "0").replace(/[^0-9]/g, "") || "0", 10))}`}</div>
+                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt((details?.find((d) => d.label === "Round Size")?.value ?? "0").replaceAll(/\D/g, "") || "0", 10))}`}</div>
                 </div>
                 <div className="flex flex-col text-center">
                   <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">
                     Valuation
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt((details?.find((d) => d.label === "Valuation")?.value ?? "0").replace(/[^0-9]/g, "") || "0", 10))}`}</div>
+                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt((details?.find((d) => d.label === "Valuation")?.value ?? "0").replaceAll(/\D/g, "") || "0", 10))}`}</div>
                 </div>
                 <div className="flex flex-col text-center">
                   <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">

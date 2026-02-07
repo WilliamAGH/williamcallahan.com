@@ -10,7 +10,7 @@ import React from "react";
 import { getAssetUrl } from "@/lib/bookmarks/bookmark-helpers";
 
 // Mock next/link since we're not testing navigation behavior
-function MockNextLink({ children, href }: { children: React.ReactNode; href: string }) {
+function MockNextLink({ children, href }: Readonly<{ children: React.ReactNode; href: string }>) {
   return (
     <a href={href} data-testid="mocked-link">
       {children}

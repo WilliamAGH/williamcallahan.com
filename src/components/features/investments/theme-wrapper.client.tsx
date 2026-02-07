@@ -22,7 +22,7 @@ export function ThemeWrapper({
   investment,
   logoData,
   renderedMetrics,
-}: ThemeWrapperProps): JSX.Element {
+}: Readonly<ThemeWrapperProps>): JSX.Element {
   const { theme } = useTheme();
   const isDarkTheme = theme === "dark";
 
