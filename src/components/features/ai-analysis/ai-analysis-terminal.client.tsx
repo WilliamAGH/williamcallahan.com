@@ -29,8 +29,15 @@ import {
 } from "./ai-analysis-terminal-ui.client";
 
 const AUTO_TRIGGER_QUEUE_THRESHOLD = 5;
+const STREAM_PREVIEW_MAX_CHARS = 220;
 const JSON_SCHEMA_REPAIR_SYSTEM_PROMPT =
   "You repair JSON so it strictly matches the requested schema. Return only valid JSON with no extra text.";
+
+function buildStreamPreview(text: string): string {
+  const condensed = text.replaceAll(/\s+/g, " ").trim();
+  if (condensed.length <= STREAM_PREVIEW_MAX_CHARS) return condensed;
+  return `...${condensed.slice(-STREAM_PREVIEW_MAX_CHARS)}`;
+}
 
 export function AiAnalysisTerminal<TEntity, TAnalysis>({
   entity,
@@ -51,7 +58,7 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
   initialAnalysis,
   className = "",
   defaultCollapsed = false,
-}: AiAnalysisTerminalProps<TEntity, TAnalysis>) {
+}: Readonly<AiAnalysisTerminalProps<TEntity, TAnalysis>>) {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [state, setState] = useState<AnalysisState<TAnalysis>>(() => {
     if (initialAnalysis?.analysis) {
@@ -79,6 +86,8 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
         const systemPrompt = buildSystemPrompt();
         const userPrompt = buildUserPrompt(context);
 
+        let streamedText = "";
+
         const responseText = await aiChat(
           featureName,
           {
@@ -98,8 +107,30 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
                 setQueueMessage(null);
               }
             },
+            onStreamEvent: (event) => {
+              if (event.event === "message_start") {
+                streamedText = "";
+                setQueueMessage("Streaming response...");
+                return;
+              }
+
+              if (event.event === "message_delta") {
+                streamedText += event.data.delta;
+                const preview = buildStreamPreview(streamedText);
+                setQueueMessage(preview ? `Streaming: ${preview}` : "Streaming response...");
+                return;
+              }
+
+              if (event.event === "message_done") {
+                streamedText = event.data.message;
+                const preview = buildStreamPreview(streamedText);
+                setQueueMessage(preview ? `Streaming: ${preview}` : null);
+              }
+            },
           },
         );
+
+        setQueueMessage(null);
 
         const parseAnalysis = (
           rawText: string,
@@ -243,8 +274,8 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
     return () => clearInterval(interval);
   }, [state.status, loadingMessages]);
 
-  // Loading state
-  if (state.status === "loading") {
+  // Loading state (showing queue/progress)
+  if (state.status === "loading" && !state.analysis) {
     return (
       <div className={`bg-[#1a1b26] border border-[#3d4f70] rounded-lg p-4 sm:p-5 ${className}`}>
         <TerminalLoading
@@ -304,11 +335,12 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
     );
   }
 
-  // Success state
+  // Success state (or partial loading state)
   const analysis = state.analysis;
   if (!analysis) return null;
   // Skip initial animation for cached/SSR content to avoid hydration mismatch
-  const skipInitialAnimation = startedFromCache.current;
+  // Also skip animation if we are streaming (status === "loading") to prevent jitter
+  const skipInitialAnimation = startedFromCache.current || state.status === "loading";
   const helpers: AnalysisRenderHelpers = {
     AnalysisSection,
     TerminalListItem,
@@ -335,6 +367,12 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
             <span className="text-xs font-mono text-gray-500 ml-2">summary / context</span>
           </div>
           <div className="flex items-center gap-3">
+            {state.status === "loading" && (
+              <span className="flex items-center gap-1.5 px-2 py-0.5 text-xs font-mono bg-[#7aa2f7]/10 text-[#7aa2f7] rounded animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#7aa2f7]" />
+                <span>Generating...</span>
+              </span>
+            )}
             {getCategory && (
               <span className="px-2 py-0.5 text-xs font-mono bg-[#7aa2f7]/10 text-[#7aa2f7] rounded">
                 {getCategory(analysis)}
@@ -357,7 +395,7 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
               aria-expanded={!isCollapsed}
             >
               <ChevronDown
-                className={`w-3.5 h-3.5 transition-transform duration-200 ${!isCollapsed ? "rotate-180" : ""}`}
+                className={`w-3.5 h-3.5 transition-transform duration-200 ${isCollapsed ? "" : "rotate-180"}`}
               />
             </button>
           </div>
