@@ -272,7 +272,7 @@ function removeBusinessSuffixes(cleaned: string, spaceSeparated: string): string
   for (const suffix of COMMON_SUFFIXES) {
     if (!cleaned.endsWith(suffix) || cleaned.length <= suffix.length) continue;
     // Check the space-preserved form: suffix must be a separate word (preceded by space or at start)
-    const suffixPattern = new RegExp(`(?:^|\\s)${suffix}$`);
+    const suffixPattern = new RegExp(String.raw`(?:^|\s)${suffix}$`);
     if (suffixPattern.test(spaceSeparated)) {
       return cleaned.slice(0, -suffix.length);
     }

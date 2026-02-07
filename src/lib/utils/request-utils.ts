@@ -75,7 +75,7 @@ export function getClientIp(
 
 function normalizeHeaderValue(value: string | null): string | undefined {
   const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
+  return trimmed || undefined;
 }
 
 function normalizeIpHeader(value: string | undefined): string | undefined {
@@ -146,7 +146,9 @@ function isRscRequest(pathname: string, searchParams: URLSearchParams, headers: 
 export function hashIpBucket(input: string): string {
   let hash = 2166136261;
   for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i);
+    const codePoint = input.codePointAt(i);
+    if (codePoint === undefined) continue;
+    hash ^= codePoint;
     hash = Math.imul(hash, 16777619);
   }
   return `ip-${(hash >>> 0).toString(16).padStart(8, "0")}`;

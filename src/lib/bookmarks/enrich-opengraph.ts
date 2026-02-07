@@ -59,7 +59,7 @@ const applyOgTextMetadata = (
  */
 export async function processBookmarksInBatches(
   bookmarks: UnifiedBookmark[],
-  isDev: boolean,
+  _isDev: boolean,
   useBatchMode = false,
   extractContent = false,
   refreshOptions?: {
@@ -68,7 +68,6 @@ export async function processBookmarksInBatches(
     maxItems?: number;
   },
 ): Promise<UnifiedBookmark[]> {
-  void isDev; // Unused parameter
   const startTime = getMonotonicTime();
   console.log(
     `${LOG_PREFIX} Starting OpenGraph enrichment for ${bookmarks.length} bookmarks${useBatchMode ? " (batch mode)" : ""}${extractContent ? " with content extraction" : ""}`,

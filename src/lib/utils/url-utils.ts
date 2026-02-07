@@ -24,7 +24,7 @@ export function getRootDomain(domain: string): string {
   const { name, tld } = extractTld(domain);
   if (!tld) return domain;
   const nameParts = name.split(".");
-  const baseName = nameParts[nameParts.length - 1] || name;
+  const baseName = nameParts.at(-1) || name;
   return `${baseName}.${tld}`;
 }
 
@@ -205,7 +205,7 @@ export function extractTld(domain: string): { name: string; tld: string } {
 
   // Check for complex TLDs
   if (parts.length >= 3) {
-    const possibleComplexTld = `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
+    const possibleComplexTld = `${parts.at(-2)}.${parts.at(-1)}`;
     if (COMPLEX_TLDS.has(possibleComplexTld)) {
       return {
         name: parts.slice(0, -2).join("."),
@@ -218,7 +218,7 @@ export function extractTld(domain: string): { name: string; tld: string } {
   if (parts.length >= 2) {
     return {
       name: parts.slice(0, -1).join("."),
-      tld: parts[parts.length - 1] || "",
+      tld: parts.at(-1) || "",
     };
   }
 
@@ -241,7 +241,7 @@ export function getBaseDomain(domain: string): string {
 
   // Keep www prefix if present
   if (nameParts.length > 1 && nameParts[0] === "www") {
-    return `www.${nameParts[nameParts.length - 1]}.${tld}`;
+    return `www.${nameParts.at(-1)}.${tld}`;
   }
 
   // For simple cases, just base name + tld
@@ -250,7 +250,7 @@ export function getBaseDomain(domain: string): string {
   }
 
   // Return just the base domain
-  return `${nameParts[nameParts.length - 1]}.${tld}`;
+  return `${nameParts.at(-1)}.${tld}`;
 }
 
 /**
@@ -330,7 +330,7 @@ export function stripQueryParams(url: string): string {
 export function extractFileName(url: string): string | null {
   const pathname = extractPathname(url);
   const segments = pathname.split("/").filter(Boolean);
-  const lastSegment = segments[segments.length - 1];
+  const lastSegment = segments.at(-1);
 
   // Check if it looks like a filename (has extension)
   if (lastSegment?.includes(".")) {
@@ -364,11 +364,14 @@ export function safeExternalHref(raw: string): string | null {
   const isProtocolRelative = input.startsWith("//");
 
   try {
-    const candidate = hasScheme
-      ? input
-      : isProtocolRelative
-        ? `https:${input}`
-        : `https://${input}`;
+    let candidate: string;
+    if (hasScheme) {
+      candidate = input;
+    } else if (isProtocolRelative) {
+      candidate = `https:${input}`;
+    } else {
+      candidate = `https://${input}`;
+    }
     const url = new URL(candidate);
 
     // Only allow http and https protocols
