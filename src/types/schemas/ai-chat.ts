@@ -1,8 +1,15 @@
 import { z } from "zod/v4";
 import {
   aiUpstreamApiModeSchema,
+  openAiCompatibleResponseFormatSchema,
   reasoningEffortSchema,
 } from "@/types/schemas/ai-openai-compatible";
+
+export const aiFeatureIdentifierSchema = z
+  .string()
+  .min(1)
+  .max(50)
+  .regex(/^[a-z0-9_-]+$/);
 
 export const requestBodySchema = z
   .object({
@@ -11,6 +18,7 @@ export const requestBodySchema = z
     temperature: z.number().min(0).max(2).optional(),
     top_p: z.number().min(0).max(1).optional(),
     reasoning_effort: reasoningEffortSchema.nullable().optional(),
+    response_format: openAiCompatibleResponseFormatSchema.optional(),
     apiMode: aiUpstreamApiModeSchema.optional(),
     conversationId: z.string().uuid().optional(),
     priority: z.number().int().min(-100).max(100).optional(),
@@ -26,6 +34,10 @@ export const requestBodySchema = z
   })
   .refine((value) => Boolean(value.messages) || Boolean(value.userText), {
     message: "Provide either messages or userText",
+  })
+  .refine((value) => value.apiMode !== "responses" || value.response_format === undefined, {
+    message: "response_format is only supported in chat_completions mode",
+    path: ["response_format"],
   });
 
 export type ParsedRequestBody = z.infer<typeof requestBodySchema>;

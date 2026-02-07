@@ -1,9 +1,9 @@
 import "server-only";
 
 import {
-  buildChatCompletionsUrl,
-  buildResponsesUrl,
+  buildUpstreamQueueKey,
   resolveOpenAiCompatibleFeatureConfig,
+  resolvePreferredUpstreamModel,
 } from "@/lib/ai/openai-compatible/feature-config";
 import {
   callOpenAiCompatibleChatCompletions,
@@ -45,6 +45,8 @@ import {
 } from "./feature-defaults";
 import { emitDeferredContentEvents, isModelLoadFailure } from "./upstream-error";
 
+// We intentionally keep explicit tool-turn orchestration because terminal bookmark search
+// requires deterministic URL allowlisting and identical behavior across chat/responses modes.
 const MAX_TOOL_TURNS = 2;
 
 async function executeChatCompletionsTurn(
@@ -62,15 +64,29 @@ async function executeChatCompletionsTurn(
     top_p: params.topP,
     max_tokens: params.maxTokens,
     ...(params.reasoningEffort != null ? { reasoning_effort: params.reasoningEffort } : {}),
+    ...(params.responseFormat ? { response_format: params.responseFormat } : {}),
   };
   const callArgs = { baseUrl: turnConfig.baseUrl, apiKey: turnConfig.apiKey, request, signal };
 
   let startMeta: { id: string; model: string } | null = null;
+  let emittedStartEvent = false;
+  let emittedDeltaEvent = false;
   const upstream = onStreamEvent
     ? await streamOpenAiCompatibleChatCompletions({
         ...callArgs,
         onStart: (meta) => {
           startMeta = meta;
+        },
+        onDelta: (delta) => {
+          if (!emittedStartEvent && startMeta) {
+            onStreamEvent({
+              event: "message_start",
+              data: { id: startMeta.id, model: startMeta.model, apiMode: "chat_completions" },
+            });
+            emittedStartEvent = true;
+          }
+          emittedDeltaEvent = true;
+          onStreamEvent({ event: "message_delta", data: { delta } });
         },
       })
     : await callOpenAiCompatibleChatCompletions(callArgs);
@@ -81,12 +97,13 @@ async function executeChatCompletionsTurn(
   const toolCalls = assistantMessage.tool_calls ?? [];
   if (toolCalls.length === 0) {
     const text = assistantMessage.content?.trim() || assistantMessage.refusal?.trim();
-    if (text && onStreamEvent) {
+    if (text && onStreamEvent && !emittedDeltaEvent) {
       emitDeferredContentEvents({
         text,
         startMeta,
         apiMode: "chat_completions",
         onStreamEvent,
+        includeStartEvent: !emittedStartEvent,
       });
     }
     return { kind: "content", text };
@@ -125,11 +142,24 @@ async function executeResponsesTurn(
   const callArgs = { baseUrl: turnConfig.baseUrl, apiKey: turnConfig.apiKey, request, signal };
 
   let startMeta: { id: string; model: string } | null = null;
+  let emittedStartEvent = false;
+  let emittedDeltaEvent = false;
   const response = onStreamEvent
     ? await streamOpenAiCompatibleResponses({
         ...callArgs,
         onStart: (meta) => {
           startMeta = meta;
+        },
+        onDelta: (delta) => {
+          if (!emittedStartEvent && startMeta) {
+            onStreamEvent({
+              event: "message_start",
+              data: { id: startMeta.id, model: startMeta.model, apiMode: "responses" },
+            });
+            emittedStartEvent = true;
+          }
+          emittedDeltaEvent = true;
+          onStreamEvent({ event: "message_delta", data: { delta } });
         },
       })
     : await callOpenAiCompatibleResponses(callArgs);
@@ -137,8 +167,14 @@ async function executeResponsesTurn(
   const toolCalls = extractSearchBookmarkToolCalls(response.output);
   if (toolCalls.length === 0) {
     const text = response.output_text.trim();
-    if (text && onStreamEvent) {
-      emitDeferredContentEvents({ text, startMeta, apiMode: "responses", onStreamEvent });
+    if (text && onStreamEvent && !emittedDeltaEvent) {
+      emitDeferredContentEvents({
+        text,
+        startMeta,
+        apiMode: "responses",
+        onStreamEvent,
+        includeStartEvent: !emittedStartEvent,
+      });
     }
     return { kind: "content", text };
   }
@@ -180,19 +216,14 @@ export function buildChatPipeline(params: {
   });
 
   const config = resolveOpenAiCompatibleFeatureConfig(feature);
-  const modelCandidates = config.model
-    .split(",")
-    .map((candidate) => candidate.trim())
-    .filter((candidate) => candidate.length > 0);
-  const primaryModel = modelCandidates[0] ?? config.model;
-  const fallbackModel = modelCandidates[1];
+  const { primaryModel, fallbackModel } = resolvePreferredUpstreamModel(config.model);
   const apiMode: AiUpstreamApiMode =
     ctx.parsedBody.apiMode === "responses" ? "responses" : "chat_completions";
-  const upstreamUrl =
-    apiMode === "responses"
-      ? buildResponsesUrl(config.baseUrl)
-      : buildChatCompletionsUrl(config.baseUrl);
-  const upstreamKey = `${upstreamUrl}::${primaryModel}`;
+  const upstreamKey = buildUpstreamQueueKey({
+    baseUrl: config.baseUrl,
+    model: config.model,
+    apiMode,
+  });
   const queue = getUpstreamRequestQueue({ key: upstreamKey, maxParallel: config.maxParallel });
   const priority = ctx.parsedBody.priority ?? 0;
   const modelParams = resolveModelParams(feature, ctx.parsedBody);
@@ -246,6 +277,7 @@ export function buildChatPipeline(params: {
         topP: modelParams.topP,
         reasoningEffort: modelParams.reasoningEffort,
         maxTokens: modelParams.maxTokens,
+        responseFormat: ctx.parsedBody.response_format,
         onStreamEvent:
           forceBookmarkTool || toolObservedResults.length > 0 ? undefined : onStreamEvent,
       };
@@ -342,5 +374,5 @@ export function buildChatPipeline(params: {
     return emitMessageDone("");
   };
 
-  return { queue, upstreamKey, priority, startTime: Date.now(), logContext, runUpstream };
+  return { queue, priority, startTime: Date.now(), logContext, runUpstream };
 }
