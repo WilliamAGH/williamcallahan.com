@@ -36,7 +36,7 @@ const getTagsAsStringArray = (tags: UnifiedBookmark["tags"]): string[] => {
 export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProps> = ({
   initialBookmarks = [],
   showFilterBar = true,
-  searchAllBookmarks = false,
+  searchAllBookmarks: _searchAllBookmarks = false,
   enableInfiniteScroll = true,
   itemsPerPage = 24,
   initialPage = 1,
@@ -49,8 +49,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   className,
   internalHrefs,
 }) => {
-  // searchAllBookmarks is reserved for future use
-  void searchAllBookmarks;
   // Add mounted state for hydration safety
   const [mounted, setMounted] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(initialTag || null);
@@ -119,7 +117,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     return bookmarks
       .flatMap((bookmark: UnifiedBookmark) => getTagsAsStringArray(bookmark.tags))
       .filter((tag, index, self) => tag && self.indexOf(tag) === index)
-      .toSorted();
+      .toSorted((a, b) => a.localeCompare(b));
   }, [bookmarks]);
 
   // Filter bookmarks based on tags only (search handled via sitewide terminal)
@@ -240,14 +238,14 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         },
       });
 
-      if (!response.ok) {
+      if (response.ok) {
+        console.log("[Bookmarks] Production refresh initiated successfully");
+      } else {
         const errorData: unknown = await response.json().catch(() => null);
         const errorMessage = getErrorMessage(errorData) || response.statusText;
         console.error("[Bookmarks] Production refresh failed:", errorMessage);
         setRefreshError(`Production refresh failed: ${errorMessage}`);
         setTimeout(() => setRefreshError(null), 5000);
-      } else {
-        console.log("[Bookmarks] Production refresh initiated successfully");
       }
     } catch (error) {
       console.error("[Bookmarks] Failed to trigger production refresh:", error);
@@ -284,7 +282,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   const displayBookmarks = filteredBookmarks;
 
   // Use URL-based pagination (search handled via sitewide terminal)
-  const useUrlPagination = typeof window !== "undefined";
+  const useUrlPagination = globalThis.window !== undefined;
 
   // Client-side safe slicer (applies to ANY view when we have more than one
   // page worth of items). This guarantees tag-search views correctly slice
@@ -302,7 +300,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    const match = pathname.match(/\/page\/(\d+)/);
+    const match = new RegExp(/\/page\/(\d+)/).exec(pathname);
     const pageFromPath = match ? Number(match[1]) : 1;
     if (!Number.isNaN(pageFromPath) && pageFromPath !== currentPage) {
       goToPage(pageFromPath);
@@ -314,7 +312,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   useEffect(() => {
     if (!isDevelopment || !mounted) return;
 
-    const win = window as unknown as Record<string, unknown>;
+    const win = globalThis as unknown as Record<string, unknown>;
     if (win.hydrationRefreshBtn !== undefined && win.hydrationRefreshBtn !== showRefreshButton) {
       console.error("[HydrationCheck] showRefreshButton mismatch between SSR and client");
     }
@@ -379,11 +377,10 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
                       className="inline-flex items-center gap-1 underline decoration-1 underline-offset-2 hover:text-blue-800 dark:hover:text-blue-200 font-semibold transition-colors touch-manipulation"
                       disabled={isRefreshingProduction}
                     >
-                      refresh production
-                      <span className="hidden sm:inline">environment</span>
+                      refresh production <span className="hidden sm:inline">environment</span>
                       <span className="inline sm:hidden">too</span>
                     </button>
-                    ?
+                    {"?"}
                   </span>
                 </div>
               )}
@@ -472,56 +469,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       </div>
 
       {/* Client-side only rendering of bookmark results */}
-      {mounted ? (
-        error ? (
-          <div className="text-center py-16 px-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-            <p className="text-red-600 dark:text-red-400 text-lg mb-2">Error loading bookmarks</p>
-            <p className="text-red-500 dark:text-red-300 text-sm">{error?.message}</p>
-          </div>
-        ) : (displayBookmarks?.length ?? 0) === 0 ? (
-          <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
-            <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">No bookmarks found</p>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              {selectedTag ? "Try selecting a different tag." : "No bookmarks available."}
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
-              {Array.isArray(displayBookmarks) &&
-                paginatedSlice(displayBookmarks).map((bookmark) => {
-                  // Debug: Log bookmark data for CLI bookmark
-                  if (bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
-                    console.log("[BookmarksWithPagination] CLI bookmark data:", {
-                      id: bookmark.id,
-                      hasContent: !!bookmark.content,
-                      hasImageAssetId: !!bookmark.content?.imageAssetId,
-                      hasImageUrl: !!bookmark.content?.imageUrl,
-                      hasScreenshotAssetId: !!bookmark.content?.screenshotAssetId,
-                      content: bookmark.content,
-                    });
-                  }
-                  return (
-                    <BookmarkCardClient
-                      key={bookmark.id}
-                      {...bookmark}
-                      internalHref={internalHrefs?.[bookmark.id]}
-                    />
-                  );
-                })}
-            </div>
-
-            {/* Infinite scroll sentinel */}
-            {infiniteScrollActive && (
-              <InfiniteScrollSentinel
-                onIntersect={loadMore}
-                loading={isLoadingMore}
-                hasMore={hasMore}
-              />
-            )}
-          </>
-        )
-      ) : (
+      {!mounted && (
         /* Server-side placeholder with hydration suppression */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6" suppressHydrationWarning>
           {Array.isArray(initialBookmarks) &&
@@ -535,6 +483,57 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
                 />
               ))}
         </div>
+      )}
+      {mounted && error && (
+        <div className="text-center py-16 px-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+          <p className="text-red-600 dark:text-red-400 text-lg mb-2">Error loading bookmarks</p>
+          <p className="text-red-500 dark:text-red-300 text-sm">{error?.message}</p>
+        </div>
+      )}
+      {mounted && !error && (displayBookmarks?.length ?? 0) === 0 && (
+        <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
+          <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">No bookmarks found</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            {selectedTag ? "Try selecting a different tag." : "No bookmarks available."}
+          </p>
+        </div>
+      )}
+      {mounted && !error && (displayBookmarks?.length ?? 0) > 0 && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
+            {Array.isArray(displayBookmarks) &&
+              paginatedSlice(displayBookmarks).map((bookmark, index) => {
+                // Debug: Log bookmark data for CLI bookmark
+                if (bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
+                  console.log("[BookmarksWithPagination] CLI bookmark data:", {
+                    id: bookmark.id,
+                    hasContent: !!bookmark.content,
+                    hasImageAssetId: !!bookmark.content?.imageAssetId,
+                    hasImageUrl: !!bookmark.content?.imageUrl,
+                    hasScreenshotAssetId: !!bookmark.content?.screenshotAssetId,
+                    content: bookmark.content,
+                  });
+                }
+                return (
+                  <BookmarkCardClient
+                    key={bookmark.id}
+                    {...bookmark}
+                    internalHref={internalHrefs?.[bookmark.id]}
+                    preload={index < 4}
+                  />
+                );
+              })}
+          </div>
+
+          {/* Infinite scroll sentinel */}
+          {infiniteScrollActive && (
+            <InfiniteScrollSentinel
+              onIntersect={loadMore}
+              loading={isLoadingMore}
+              hasMore={hasMore}
+            />
+          )}
+        </>
       )}
 
       {/* Pagination controls at the bottom */}

@@ -167,7 +167,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       return getTagsAsStringArray(bookmark.tags);
     })
     .filter((tag, index, self) => tag && self.indexOf(tag) === index)
-    .toSorted();
+    .toSorted((a, b) => a.localeCompare(b));
 
   // Determine which set of bookmarks to filter (tag filtering only, search via terminal)
   const bookmarksToFilter = searchAllBookmarks ? allBookmarks : bookmarks;
@@ -179,6 +179,12 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         return tagsAsString.includes(selectedTag);
       })
     : bookmarksToFilter;
+
+  const bookmarkCountLabel = filteredBookmarks.length === 1 ? "bookmark" : "bookmarks";
+  const resultsCountText =
+    filteredBookmarks.length === 0
+      ? "No bookmarks found"
+      : `Showing ${filteredBookmarks.length} ${bookmarkCountLabel}`;
 
   const handleTagClick = (tag: string) => {
     if (selectedTag === tag) {
@@ -316,14 +322,14 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         },
       });
 
-      if (!response.ok) {
+      if (response.ok) {
+        console.log("[Bookmarks] Production refresh initiated successfully");
+      } else {
         const errorData: unknown = await response.json().catch(() => null);
         const errorMessage = getErrorMessage(errorData) || response.statusText;
         console.error("[Bookmarks] Production refresh failed:", errorMessage);
         setRefreshError(`Production refresh failed: ${errorMessage}`);
         setTimeout(() => setRefreshError(null), 5000);
-      } else {
-        console.log("[Bookmarks] Production refresh initiated successfully");
       }
     } catch (error) {
       console.error("[Bookmarks] Failed to trigger production refresh:", error);
@@ -389,7 +395,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
                   >
                     refresh production environment as well
                   </button>
-                  ?
+                  {"?"}
                 </>
               )}
             </div>
@@ -423,9 +429,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         {mounted ? (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-gray-500 dark:text-gray-400">
-              {filteredBookmarks.length === 0
-                ? "No bookmarks found"
-                : `Showing ${filteredBookmarks.length} bookmark${filteredBookmarks.length === 1 ? "" : "s"}`}
+              {resultsCountText}
               {selectedTag && ` tagged with "${selectedTag}"`}
               {lastRefreshed && (
                 <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">
@@ -453,44 +457,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       </div>
 
       {/* Client-side only rendering of bookmark results */}
-      {mounted ? (
-        filteredBookmarks.length === 0 ? (
-          <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
-            <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">No bookmarks found</p>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              {selectedTag ? "Try selecting a different tag." : "No bookmarks available."}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
-            {filteredBookmarks.map((bookmark) => {
-              // Use pre-computed href from server if available
-              // CRITICAL: Never fallback to using bookmark.id in the URL!
-              const internalHref = internalHrefs?.[bookmark.id] ?? bookmark.url;
-              if (!internalHrefs?.[bookmark.id]) {
-                console.warn(
-                  `[BookmarksWithOptions] Missing slug for ${bookmark.id}. Using external URL fallback: ${bookmark.url}`,
-                );
-              }
-
-              // Debug: Log bookmark data for CLI bookmark (dev-only)
-              if (isDevelopment && bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
-                console.log("[BookmarksWithOptions] CLI bookmark data:", {
-                  id: bookmark.id,
-                  hasContent: !!bookmark.content,
-                  hasImageAssetId: !!bookmark.content?.imageAssetId,
-                  hasImageUrl: !!bookmark.content?.imageUrl,
-                  hasScreenshotAssetId: !!bookmark.content?.screenshotAssetId,
-                  content: bookmark.content,
-                });
-              }
-              return (
-                <BookmarkCardClient key={bookmark.id} {...bookmark} internalHref={internalHref} />
-              );
-            })}
-          </div>
-        )
-      ) : (
+      {!mounted && (
         /* Server-side placeholder with hydration suppression */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6" suppressHydrationWarning>
           {bookmarks.slice(0, 6).map((bookmark) => (
@@ -500,6 +467,48 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
               suppressHydrationWarning
             />
           ))}
+        </div>
+      )}
+      {mounted && filteredBookmarks.length === 0 && (
+        <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
+          <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">No bookmarks found</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            {selectedTag ? "Try selecting a different tag." : "No bookmarks available."}
+          </p>
+        </div>
+      )}
+      {mounted && filteredBookmarks.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
+          {filteredBookmarks.map((bookmark, index) => {
+            // Use pre-computed href from server if available
+            // CRITICAL: Never fallback to using bookmark.id in the URL!
+            const internalHref = internalHrefs?.[bookmark.id] ?? bookmark.url;
+            if (!internalHrefs?.[bookmark.id]) {
+              console.warn(
+                `[BookmarksWithOptions] Missing slug for ${bookmark.id}. Using external URL fallback: ${bookmark.url}`,
+              );
+            }
+
+            // Debug: Log bookmark data for CLI bookmark (dev-only)
+            if (isDevelopment && bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
+              console.log("[BookmarksWithOptions] CLI bookmark data:", {
+                id: bookmark.id,
+                hasContent: !!bookmark.content,
+                hasImageAssetId: !!bookmark.content?.imageAssetId,
+                hasImageUrl: !!bookmark.content?.imageUrl,
+                hasScreenshotAssetId: !!bookmark.content?.screenshotAssetId,
+                content: bookmark.content,
+              });
+            }
+            return (
+              <BookmarkCardClient
+                key={bookmark.id}
+                {...bookmark}
+                internalHref={internalHref}
+                preload={index < 4}
+              />
+            );
+          })}
         </div>
       )}
     </div>

@@ -344,9 +344,7 @@ export async function getBookmarkById(
 
   let bookmark: UnifiedBookmark | null = null;
 
-  if (!bookmark) {
-    bookmark = await readBookmarkByIdFromS3(bookmarkId);
-  }
+  bookmark ??= await readBookmarkByIdFromS3(bookmarkId);
 
   if (!bookmark) {
     envLogger.log(
@@ -413,7 +411,7 @@ export async function getBookmarksByTag(
   let allBookmarks: UnifiedBookmark[];
   const bypassMemoryCache = process.env.NODE_ENV === "test";
 
-  const cachedDataset = !bypassMemoryCache ? getFullDatasetCache() : null;
+  const cachedDataset = bypassMemoryCache ? null : getFullDatasetCache();
 
   if (cachedDataset) {
     // Note: getFullDatasetCache handles TTL internally

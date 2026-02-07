@@ -9,7 +9,7 @@
 
 import type {
   BookmarkTag,
-  RawApiBookmarkContent,
+  BookmarkContent,
   UnifiedBookmark,
   RawBookmark,
   LightweightBookmark,
@@ -33,21 +33,19 @@ function thirtyDaysAgo(): Date {
  * @returns {string | undefined} The normalized ETag.
  */
 function normalizeEtag(tag: string | null): string | undefined {
-  return tag?.replace(/^W\//, "").replace(/"/g, "");
+  return tag?.replace(/^W\//, "").replaceAll('"', "");
 }
 
 /**
  * Utility function to remove the potentially large `htmlContent` field from a bookmark's content object.
  * This is used to reduce the size of data stored in some caches or passed around.
  *
- * @template T - A type extending RawApiBookmarkContent.
+ * @template T - A type extending BookmarkContent.
  * @param {T} content - The bookmark content object.
  * @returns {Omit<T, 'htmlContent'>} The content object without the `htmlContent` property.
  * @internal
  */
-export function omitHtmlContent<T extends RawApiBookmarkContent>(
-  content: T,
-): Omit<T, "htmlContent"> {
+export function omitHtmlContent<T extends BookmarkContent>(content: T): Omit<T, "htmlContent"> {
   const rest = { ...content };
   delete rest.htmlContent;
   return rest;
@@ -77,7 +75,7 @@ export function normalizeBookmarkTag(tag: string | BookmarkTag): {
     return {
       id: forceUppercase ? upperTag : tag,
       name: forceUppercase ? upperTag : tag,
-      slug: tag.toLowerCase().replace(/\s+/g, "-"),
+      slug: tag.toLowerCase().replaceAll(/\s+/g, "-"),
       color: undefined,
     };
   }
@@ -91,7 +89,7 @@ export function normalizeBookmarkTag(tag: string | BookmarkTag): {
   return {
     id: tag?.id || name,
     name: name,
-    slug: tag?.slug || name.toLowerCase().replace(/\s+/g, "-"),
+    slug: tag?.slug || name.toLowerCase().replaceAll(/\s+/g, "-"),
     color: tag?.color,
   };
 }
@@ -229,10 +227,6 @@ export const stripImageData = (b: UnifiedBookmark): LightweightBookmark => {
     logoData: omittedLogoData, // Intentionally unused - stripped from result
     ...bookmarkWithoutImages
   } = b;
-
-  // Void the omitted variables to satisfy linter
-  void omittedOgImage;
-  void omittedLogoData;
 
   // Build the base lightweight bookmark
   const baseResult: LightweightBookmark = {

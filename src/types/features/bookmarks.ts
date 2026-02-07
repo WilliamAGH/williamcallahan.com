@@ -43,6 +43,8 @@ export type BookmarkCardClientProps = UnifiedBookmark & {
   isInteractive?: boolean;
   onClick?: (bookmark: UnifiedBookmark) => void;
   className?: string;
+  /** Preload the card image for above-the-fold visibility */
+  preload?: boolean;
 };
 
 /**

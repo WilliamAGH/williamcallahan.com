@@ -53,8 +53,18 @@ const MAX_TITLE_WORDS = 10;
  */
 
 export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element | null {
-  const { id, url, title, description, tags, ogImage, content, dateBookmarked, internalHref } =
-    props;
+  const {
+    id,
+    url,
+    title,
+    description,
+    tags,
+    ogImage,
+    content,
+    dateBookmarked,
+    internalHref,
+    preload = false,
+  } = props;
   const pathname = usePathname();
 
   /**
@@ -130,7 +140,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
           >
             <div className="relative w-full h-full">
               {/* Display OpenGraph image, screenshot, or placeholder */}
-              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} />
+              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} preload={preload} />
             </div>
           </Link>
         ) : (
@@ -143,7 +153,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
           >
             <div className="relative w-full h-full">
               {/* Display OpenGraph image, screenshot, or placeholder */}
-              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} />
+              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} preload={preload} />
             </div>
           </ExternalLink>
         )}
