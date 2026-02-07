@@ -21,6 +21,14 @@ export type AiChatModelStreamEvent =
   | {
       event: "message_done";
       data: { message: string };
+    }
+  | {
+      event: "thinking_delta";
+      data: { delta: string };
+    }
+  | {
+      event: "thinking_done";
+      data: { text: string; tokenCount: number };
     };
 
 /** Validated request context after all checks pass */

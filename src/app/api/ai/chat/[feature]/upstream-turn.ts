@@ -52,6 +52,7 @@ export async function executeChatCompletionsTurn(
   let startMeta: { id: string; model: string } | null = null;
   let emittedStartEvent = false;
   let emittedDeltaEvent = false;
+  let accumulatedThinking = "";
   const upstream = onStreamEvent
     ? await streamOpenAiCompatibleChatCompletions({
         ...callArgs,
@@ -69,8 +70,19 @@ export async function executeChatCompletionsTurn(
           emittedDeltaEvent = true;
           onStreamEvent({ event: "message_delta", data: { delta } });
         },
+        onThinkingDelta: (delta) => {
+          accumulatedThinking += delta;
+          onStreamEvent({ event: "thinking_delta", data: { delta } });
+        },
       })
     : await callOpenAiCompatibleChatCompletions(callArgs);
+
+  if (accumulatedThinking.length > 0 && onStreamEvent) {
+    onStreamEvent({
+      event: "thinking_done",
+      data: { text: accumulatedThinking, tokenCount: Math.ceil(accumulatedThinking.length / 4) },
+    });
+  }
 
   const assistantMessage = upstream.choices[0]?.message;
   if (!assistantMessage) return { kind: "empty" };
@@ -126,6 +138,7 @@ export async function executeResponsesTurn(
   let startMeta: { id: string; model: string } | null = null;
   let emittedStartEvent = false;
   let emittedDeltaEvent = false;
+  let accumulatedThinking = "";
   const response = onStreamEvent
     ? await streamOpenAiCompatibleResponses({
         ...callArgs,
@@ -143,8 +156,19 @@ export async function executeResponsesTurn(
           emittedDeltaEvent = true;
           onStreamEvent({ event: "message_delta", data: { delta } });
         },
+        onThinkingDelta: (delta) => {
+          accumulatedThinking += delta;
+          onStreamEvent({ event: "thinking_delta", data: { delta } });
+        },
       })
     : await callOpenAiCompatibleResponses(callArgs);
+
+  if (accumulatedThinking.length > 0 && onStreamEvent) {
+    onStreamEvent({
+      event: "thinking_done",
+      data: { text: accumulatedThinking, tokenCount: Math.ceil(accumulatedThinking.length / 4) },
+    });
+  }
 
   const toolCalls = extractSearchBookmarkToolCalls(response.output);
   if (toolCalls.length === 0) {

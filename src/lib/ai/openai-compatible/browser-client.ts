@@ -10,6 +10,8 @@ import {
   aiChatQueuePositionSchema,
   aiChatResponseSchema,
   aiChatStreamErrorSchema,
+  aiChatThinkingDeltaSchema,
+  aiChatThinkingDoneSchema,
   aiTokenResponseSchema,
 } from "@/types/schemas/ai-openai-compatible-client";
 
@@ -178,6 +180,18 @@ async function readSseStream(args: {
       streamedMessageFromDeltas = doneData.message;
       finalMessage = doneData.message;
       return doneData.message;
+    }
+
+    if (msg.event === "thinking_delta") {
+      const parsed = safeParseJson(msg.data, "thinking_delta");
+      onStreamEvent?.({ event: "thinking_delta", data: aiChatThinkingDeltaSchema.parse(parsed) });
+      return undefined;
+    }
+
+    if (msg.event === "thinking_done") {
+      const parsed = safeParseJson(msg.data, "thinking_done");
+      onStreamEvent?.({ event: "thinking_done", data: aiChatThinkingDoneSchema.parse(parsed) });
+      return undefined;
     }
 
     return undefined;
