@@ -326,7 +326,11 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
     try {
       const assistantText = await aiChat(
         "terminal_chat",
-        { messages: [{ role: "user", content: userText }], priority: 10 },
+        {
+          messages: [{ role: "user", content: userText }],
+          priority: 10,
+          apiMode: "chat_completions",
+        },
         { signal },
       );
 

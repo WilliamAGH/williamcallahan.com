@@ -223,13 +223,10 @@ export async function aiChat(
 ): Promise<string> {
   const token = await getAiToken(options);
 
-  const wantsQueueUpdates = typeof options.onQueueUpdate === "function";
-  const wantsModelStreaming = typeof options.onStreamEvent === "function";
-  const wantsEventStream = wantsQueueUpdates || wantsModelStreaming;
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
-    ...(wantsEventStream ? { Accept: "text/event-stream" } : {}),
+    Accept: "text/event-stream",
   };
 
   const response = await fetch(`/api/ai/chat/${encodeURIComponent(feature)}`, {
@@ -248,7 +245,7 @@ export async function aiChat(
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${refreshed}`,
-        ...(wantsEventStream ? { Accept: "text/event-stream" } : {}),
+        Accept: "text/event-stream",
       },
       body: JSON.stringify(request),
       signal: options.signal,
@@ -259,17 +256,12 @@ export async function aiChat(
       throw new Error(`AI chat failed (HTTP ${retry.status}): ${text}`);
     }
 
-    if (wantsEventStream) {
-      return readSseStream({
-        response: retry,
-        signal: options.signal,
-        onQueueUpdate: options.onQueueUpdate,
-        onStreamEvent: options.onStreamEvent,
-      });
-    }
-
-    const data: unknown = await retry.json();
-    return aiChatResponseSchema.parse(data).message;
+    return readSseStream({
+      response: retry,
+      signal: options.signal,
+      onQueueUpdate: options.onQueueUpdate,
+      onStreamEvent: options.onStreamEvent,
+    });
   }
 
   if (!response.ok) {
@@ -277,15 +269,10 @@ export async function aiChat(
     throw new Error(`AI chat failed (HTTP ${response.status}): ${text}`);
   }
 
-  if (wantsEventStream) {
-    return readSseStream({
-      response,
-      signal: options.signal,
-      onQueueUpdate: options.onQueueUpdate,
-      onStreamEvent: options.onStreamEvent,
-    });
-  }
-
-  const data: unknown = await response.json();
-  return aiChatResponseSchema.parse(data).message;
+  return readSseStream({
+    response,
+    signal: options.signal,
+    onQueueUpdate: options.onQueueUpdate,
+    onStreamEvent: options.onStreamEvent,
+  });
 }
