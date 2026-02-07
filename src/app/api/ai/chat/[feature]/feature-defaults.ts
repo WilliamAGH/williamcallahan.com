@@ -3,8 +3,6 @@ import "server-only";
 import type { ParsedRequestBody } from "@/types/schemas/ai-chat";
 import type { FeatureModelDefaults, ResolvedModelParams } from "@/types/features/ai-chat";
 
-export type { FeatureModelDefaults, ResolvedModelParams };
-
 const FEATURE_SYSTEM_PROMPTS: Record<string, string> = {
   terminal_chat: `You are a helpful assistant in a terminal interface on williamcallahan.com, the personal website of William Callahan (software engineer, investor, entrepreneur).
 
@@ -34,6 +32,11 @@ Response style:
  *    extended chain-of-thought adds latency without improving short answers. */
 const FEATURE_DEFAULTS: Record<string, FeatureModelDefaults> = {
   terminal_chat: { temperature: 0.7, reasoningEffort: "low" },
+  // Analysis features require strict, schema-conformant JSON. Lower entropy improves
+  // response-format adherence and reduces malformed payload retries.
+  "bookmark-analysis": { temperature: 0.2, reasoningEffort: "low" },
+  "book-analysis": { temperature: 0.2, reasoningEffort: "low" },
+  "project-analysis": { temperature: 0.2, reasoningEffort: "low" },
 };
 
 /** Baseline values applied when neither the request body nor FEATURE_DEFAULTS
@@ -45,8 +48,8 @@ const FEATURE_DEFAULTS: Record<string, FeatureModelDefaults> = {
  *  - maxTokens 8192: generous reply budget; maps to max_completion_tokens
  *    (Chat Completions) or max_output_tokens (Responses API) */
 const GLOBAL_DEFAULTS: Required<FeatureModelDefaults> = {
-  temperature: 1.0,
-  topP: 1.0,
+  temperature: 1,
+  topP: 1,
   reasoningEffort: "medium",
   maxTokens: 8192,
 };
@@ -85,3 +88,18 @@ export function resolveToolChoice(params: {
   if (!params.hasToolSupport) return undefined;
   return params.forceBookmarkTool && params.turn === 0 ? "required" : "auto";
 }
+
+/** Models trained on the OpenAI Harmony response format use internal control tokens
+ *  that conflict with llama.cpp grammar-based structured output (json_schema).
+ *  See: https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1105
+ *       https://github.com/ggml-org/llama.cpp/discussions/15341 */
+const HARMONY_MODEL_PATTERNS = ["gpt-oss"] as const;
+
+/** Returns true when the model uses the Harmony response format and therefore
+ *  cannot reliably use `response_format: { type: "json_schema" }` via llama.cpp. */
+export function isHarmonyFormatModel(model: string): boolean {
+  const lower = model.toLowerCase();
+  return HARMONY_MODEL_PATTERNS.some((pattern) => lower.includes(pattern));
+}
+
+export type { FeatureModelDefaults, ResolvedModelParams } from "@/types/features/ai-chat";

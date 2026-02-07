@@ -66,6 +66,7 @@ const streamModel = "test-model";
 
 type EventPayload = { event: string; data: unknown };
 type PipelineOptions = {
+  feature?: "terminal_chat" | "bookmark-analysis";
   temperature?: number;
   userContent?: string;
   apiMode?: "chat_completions" | "responses";
@@ -77,7 +78,7 @@ type StreamHandlerArgs = {
 
 function createValidatedContext(args?: PipelineOptions): ValidatedRequestContext {
   return {
-    feature: "terminal_chat",
+    feature: args?.feature ?? "terminal_chat",
     clientIp: "::1",
     pagePath: "/bookmarks",
     originHost: "localhost",
@@ -94,7 +95,7 @@ function createValidatedContext(args?: PipelineOptions): ValidatedRequestContext
 
 function createPipeline(args?: PipelineOptions) {
   return buildChatPipeline({
-    feature: "terminal_chat",
+    feature: args?.feature ?? "terminal_chat",
     ctx: createValidatedContext(args),
     ragResult: { augmentedPrompt: undefined, status: "not_applicable" },
     signal: new AbortController().signal,
@@ -284,6 +285,47 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
     expectStandardStreamEvents(events, { id: "response_1", apiMode: "responses" });
   });
 
+  it("streams bookmark-analysis events when no tool flow is involved", async () => {
+    const validAnalysis = JSON.stringify({
+      summary: "z-agent-browser is a Rust-based browser automation CLI.",
+      category: "Developer Tools",
+      highlights: ["Stealth mode", "Playwright MCP integration"],
+      contextualDetails: {
+        primaryDomain: "Browser automation",
+        format: "GitHub repository",
+        accessMethod: "Open source",
+      },
+      relatedResources: ["agent-browser", "Playwright"],
+      targetAudience: "Developers building browser automation agents",
+    });
+
+    mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(
+      ({ onStart, onDelta }: StreamHandlerArgs) => {
+        onStart?.({ id: "chatcmpl_analysis", model: streamModel });
+        onDelta?.(validAnalysis);
+        return Promise.resolve({
+          id: "chatcmpl_analysis",
+          choices: [{ message: { role: "assistant", content: validAnalysis } }],
+        });
+      },
+    );
+
+    const { reply, events } = await runPipelineWithEvents({
+      feature: "bookmark-analysis",
+      userContent: "Analyze this bookmark",
+    });
+
+    expect(reply).toBe(validAnalysis);
+    expect(events).toEqual([
+      {
+        event: "message_start",
+        data: { id: "chatcmpl_analysis", model: streamModel, apiMode: "chat_completions" },
+      },
+      { event: "message_delta", data: { delta: validAnalysis } },
+      { event: "message_done", data: { message: validAnalysis } },
+    ]);
+  });
+
   it.each([
     {
       label: "suppresses post-tool deltas and emits deterministic links",
@@ -352,5 +394,245 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
       { event: "message_delta", data: { delta: "I cannot help with that request." } },
       { event: "message_done", data: { message: "I cannot help with that request." } },
     ]);
+  });
+
+  it("retries invalid bookmark-analysis JSON and returns schema-valid output", async () => {
+    const invalidAnalysis = `{"summary":"Only summary"}`;
+    const validAnalysis = JSON.stringify({
+      summary: "z-agent-browser is a Rust-based browser automation CLI.",
+      category: "Developer Tools",
+      highlights: ["Stealth mode", "Playwright MCP integration"],
+      contextualDetails: {
+        primaryDomain: "Browser automation",
+        format: "GitHub repository",
+        accessMethod: "Open source",
+      },
+      relatedResources: ["agent-browser", "Playwright"],
+      targetAudience: "Developers building browser automation agents",
+    });
+
+    mockCallOpenAiCompatibleChatCompletions
+      .mockResolvedValueOnce({
+        choices: [{ message: { role: "assistant", content: invalidAnalysis } }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { role: "assistant", content: validAnalysis } }],
+      });
+
+    const reply = await createPipeline({
+      feature: "bookmark-analysis",
+      userContent: "Analyze this bookmark",
+    }).runUpstream();
+
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(2);
+    const parsed = JSON.parse(reply) as {
+      summary: string;
+      category: string;
+      highlights: string[];
+      targetAudience: string;
+    };
+    expect(parsed.summary.length).toBeGreaterThan(0);
+    expect(parsed.category.length).toBeGreaterThan(0);
+    expect(parsed.highlights.length).toBeGreaterThan(0);
+    expect(parsed.targetAudience.length).toBeGreaterThan(0);
+
+    const secondRequestMessages =
+      mockCallOpenAiCompatibleChatCompletions.mock.calls[1]?.[0]?.request?.messages;
+    const repairPromptPresent = Array.isArray(secondRequestMessages)
+      ? secondRequestMessages.some(
+          (message: { role?: string; content?: unknown }) =>
+            message.role === "user" &&
+            typeof message.content === "string" &&
+            message.content.includes("Rewrite your previous answer as valid JSON only."),
+        )
+      : false;
+    expect(repairPromptPresent).toBe(true);
+  });
+
+  it("retries semantically invalid bookmark-analysis content and returns normalized JSON", async () => {
+    const semanticallyInvalidAnalysis = JSON.stringify({
+      summary: "z-agent-browser is a Rust automation CLI.",
+      category: "Developer Tools",
+      highlights: ["Stealth mode"],
+      contextualDetails: {
+        primaryDomain: "Browser automation",
+        format: "GitHub repository",
+        accessMethod: "Open source",
+      },
+      relatedResources: ["///<<<>>>..."],
+      targetAudience: "   ",
+    });
+    const validAnalysis = JSON.stringify({
+      summary: "z-agent-browser is a Rust-based browser automation CLI.",
+      category: "Developer Tools",
+      highlights: ["Stealth mode", "Playwright MCP integration"],
+      contextualDetails: {
+        primaryDomain: "Browser automation",
+        format: "GitHub repository",
+        accessMethod: "Open source",
+      },
+      relatedResources: ["agent-browser", "Playwright"],
+      targetAudience: "Developers building browser automation agents",
+    });
+
+    mockCallOpenAiCompatibleChatCompletions
+      .mockResolvedValueOnce({
+        choices: [{ message: { role: "assistant", content: semanticallyInvalidAnalysis } }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { role: "assistant", content: validAnalysis } }],
+      });
+
+    const reply = await createPipeline({
+      feature: "bookmark-analysis",
+      userContent: "Analyze this bookmark",
+    }).runUpstream();
+
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(2);
+    const parsed = JSON.parse(reply) as { targetAudience: string; relatedResources: string[] };
+    expect(parsed.targetAudience).toBe("Developers building browser automation agents");
+    expect(parsed.relatedResources).toEqual(["agent-browser", "Playwright"]);
+  });
+
+  it("rejects prompt-leakage text in analysis fields and retries", async () => {
+    const leakageAnalysis = JSON.stringify({
+      summary: "z-agent-browser is a Rust-based browser automation CLI.",
+      category: "Developer Tools",
+      highlights: ["Stealth mode"],
+      contextualDetails: {
+        primaryDomain: "Rust",
+        format: "GitHub repository",
+        accessMethod: "Repository",
+      },
+      relatedResources: ["agent-browser"],
+      targetAudience:
+        'The user wants strict JSON. Provide strict JSON. ```json {"placeholder":true} ```',
+    });
+    const validAnalysis = JSON.stringify({
+      summary: "z-agent-browser is a Rust-based browser automation CLI.",
+      category: "Developer Tools",
+      highlights: ["Stealth mode", "Playwright MCP integration"],
+      contextualDetails: {
+        primaryDomain: "Browser automation",
+        format: "GitHub repository",
+        accessMethod: "Open source",
+      },
+      relatedResources: ["agent-browser", "Playwright"],
+      targetAudience: "Developers building browser automation agents",
+    });
+
+    mockCallOpenAiCompatibleChatCompletions
+      .mockResolvedValueOnce({
+        choices: [{ message: { role: "assistant", content: leakageAnalysis } }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { role: "assistant", content: validAnalysis } }],
+      });
+
+    const reply = await createPipeline({
+      feature: "bookmark-analysis",
+      userContent: "Analyze this bookmark",
+    }).runUpstream();
+
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(2);
+    const parsed = JSON.parse(reply) as { targetAudience: string };
+    expect(parsed.targetAudience).toBe("Developers building browser automation agents");
+  });
+
+  it("normalizes coercible analysis field shapes before validation", async () => {
+    const coercibleAnalysis = JSON.stringify({
+      summary: ["z-agent-browser is a Rust-based browser automation CLI."],
+      category: "Developer Tools",
+      highlights: "Stealth mode",
+      contextualDetails: {
+        primaryDomain: "Browser automation",
+        format: "GitHub repository",
+        accessMethod: "Open source",
+      },
+      relatedResources: "agent-browser",
+      targetAudience: ["Developers building browser automation agents"],
+    });
+
+    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
+      choices: [{ message: { role: "assistant", content: coercibleAnalysis } }],
+    });
+
+    const reply = await createPipeline({
+      feature: "bookmark-analysis",
+      userContent: "Analyze this bookmark",
+    }).runUpstream();
+
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
+    const parsed = JSON.parse(reply) as {
+      summary: string;
+      highlights: string[];
+      relatedResources: string[];
+      targetAudience: string;
+    };
+    expect(parsed.summary).toBe("z-agent-browser is a Rust-based browser automation CLI.");
+    expect(parsed.highlights).toEqual(["Stealth mode"]);
+    expect(parsed.relatedResources).toEqual(["agent-browser"]);
+    expect(parsed.targetAudience).toBe("Developers building browser automation agents");
+  });
+
+  it("derives targetAudience from category when only punctuation is returned", async () => {
+    const punctuationAudienceAnalysis = JSON.stringify({
+      summary: "z-agent-browser is a Rust-based browser automation CLI.",
+      category: "Developer Tools",
+      highlights: ["Stealth mode", "Playwright MCP integration"],
+      contextualDetails: {
+        primaryDomain: "Browser automation",
+        format: "GitHub repository",
+        accessMethod: "Open source",
+      },
+      relatedResources: ["agent-browser", "Playwright"],
+      targetAudience: "...",
+    });
+
+    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
+      choices: [{ message: { role: "assistant", content: punctuationAudienceAnalysis } }],
+    });
+
+    const reply = await createPipeline({
+      feature: "bookmark-analysis",
+      userContent: "Analyze this bookmark",
+    }).runUpstream();
+
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
+    const parsed = JSON.parse(reply) as { targetAudience: string };
+    expect(parsed.targetAudience).toBe("People interested in Developer Tools.");
+  });
+
+  it("fills missing contextualDetails fields with null instead of failing", async () => {
+    const missingDetailsAnalysis = JSON.stringify({
+      summary: "z-agent-browser is a Rust-based browser automation CLI.",
+      category: "Developer Tools",
+      highlights: ["Stealth mode", "Playwright MCP integration"],
+      relatedResources: ["agent-browser", "Playwright"],
+      targetAudience: "Developers building browser automation agents",
+    });
+
+    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
+      choices: [{ message: { role: "assistant", content: missingDetailsAnalysis } }],
+    });
+
+    const reply = await createPipeline({
+      feature: "bookmark-analysis",
+      userContent: "Analyze this bookmark",
+    }).runUpstream();
+
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
+    const parsed = JSON.parse(reply) as {
+      contextualDetails: {
+        primaryDomain: string | null;
+        format: string | null;
+        accessMethod: string | null;
+      };
+    };
+    expect(parsed.contextualDetails).toEqual({
+      primaryDomain: null,
+      format: null,
+      accessMethod: null,
+    });
   });
 });

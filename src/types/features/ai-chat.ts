@@ -80,7 +80,7 @@ export type FeatureModelDefaults = {
 };
 
 /** Fully resolved model params — every field has a concrete value */
-export type ResolvedModelParams = Required<FeatureModelDefaults>;
+export type ResolvedModelParams = Required<Omit<FeatureModelDefaults, "toolConfig">>;
 
 /** Internal result of executing a single bookmark tool call in a batch */
 export type ExecutedToolCall = {

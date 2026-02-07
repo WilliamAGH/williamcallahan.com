@@ -95,6 +95,7 @@ export async function executeChatCompletionsTurn(
     ...(assistantMessage.content ? { content: assistantMessage.content } : {}),
     tool_calls: toolCalls,
   };
+
   const dispatch = await dispatchToolCalls(toolCalls);
   return {
     kind: "tool_calls",
