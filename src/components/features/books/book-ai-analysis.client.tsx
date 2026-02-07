@@ -8,7 +8,6 @@
  * Provides domain-specific configuration: context extraction, prompts, schema, and rendering.
  */
 
-import { BookOpen } from "lucide-react";
 import type { BookAiAnalysisProps, BookAnalysisContext } from "@/types/book-ai-analysis";
 import {
   bookAiAnalysisResponseSchema,
@@ -151,7 +150,7 @@ function renderBookAnalysis(analysis: BookAiAnalysisResponse, helpers: AnalysisR
         label="Related Reading"
         index={5}
         accentColor="#ff9e64"
-        chipClassName="px-2 py-0.5 text-xs font-mono bg-[#ff9e64]/10 text-[#ff9e64] rounded border border-[#ff9e64]/20"
+        chipClassName="px-2.5 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-md"
         helpers={helpers}
       />
     </>
@@ -182,8 +181,6 @@ export function BookAiAnalysis({
       responseSchema={bookAiAnalysisResponseSchema}
       renderAnalysis={renderBookAnalysis}
       getCategory={(a) => a.category}
-      footerIcon={<BookOpen className="w-3 h-3" />}
-      footerText="AI-powered insights"
       autoTrigger={autoTrigger}
       initialAnalysis={initialAnalysis}
       className={className}

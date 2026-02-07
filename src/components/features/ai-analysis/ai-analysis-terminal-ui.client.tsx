@@ -1,45 +1,35 @@
 "use client";
 
 /**
- * AI Analysis Terminal UI Components
+ * AI Analysis UI Components
  * @module components/features/ai-analysis/ai-analysis-terminal-ui.client
  * @description
- * Shared UI sub-components for terminal-style AI analysis rendering.
- * Extracted from the main terminal component to maintain 350-line limit.
+ * Shared UI sub-components for AI analysis content rendering.
+ * Uses clean, modern styling that integrates naturally with page content.
  */
 
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
-import { ChevronRight } from "lucide-react";
-
-/** Tokyo Night theme tokens for terminal UI semantics */
-const COLOR_SUCCESS = "#9ece6a";
-const COLOR_INTERACTIVE = "#7aa2f7";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Blinking Cursor
+// Blinking Cursor (used during streaming)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function BlinkingCursor() {
-  return <span className="inline-block w-2 h-4 bg-[#7aa2f7] ml-1 animate-pulse" />;
+  return (
+    <span className="inline-block w-1.5 h-4 bg-gray-400 dark:bg-gray-500 ml-0.5 animate-pulse rounded-sm" />
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Terminal Loading
+// Loading Indicator
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function TerminalLoading({ message }: { message: string }) {
   return (
-    <div className="font-mono text-sm">
-      <div className="flex items-center gap-2 text-gray-400 mb-2">
-        <span className="text-[#7aa2f7]">$</span>
-        <span>analyze</span>
-      </div>
-      <div className="flex items-center gap-2 text-[#9ece6a]">
-        <span className="animate-spin">⠋</span>
-        <span>{message}</span>
-        <BlinkingCursor />
-      </div>
+    <div className="flex items-center gap-3">
+      <div className="w-4 h-4 border-2 border-gray-200 dark:border-gray-700 border-t-gray-500 dark:border-t-gray-400 rounded-full animate-spin shrink-0" />
+      <span className="text-sm text-gray-500 dark:text-gray-400">{message}</span>
     </div>
   );
 }
@@ -52,7 +42,6 @@ export function AnalysisSection({
   label,
   children,
   index,
-  accentColor = "#7aa2f7",
   skipAnimation = false,
 }: {
   label: string;
@@ -63,27 +52,22 @@ export function AnalysisSection({
 }) {
   return (
     <motion.div
-      initial={skipAnimation ? false : { opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.08, duration: 0.3, ease: "easeOut" }}
-      className="group"
+      initial={skipAnimation ? false : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.06, duration: 0.3, ease: "easeOut" }}
     >
-      <div className="flex items-center gap-2 mb-1.5">
-        <ChevronRight
-          className="w-3 h-3 transition-transform group-hover:translate-x-0.5"
-          style={{ color: accentColor }}
-        />
-        <span className="text-xs font-mono uppercase tracking-wider" style={{ color: accentColor }}>
-          {label}
-        </span>
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+        {label}
+      </h3>
+      <div className="text-sm sm:text-base leading-relaxed text-gray-700 dark:text-gray-300">
+        {children}
       </div>
-      <div className="pl-5 text-sm text-gray-300 leading-relaxed">{children}</div>
     </motion.div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Terminal List Item
+// List Item
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function TerminalListItem({
@@ -99,30 +83,30 @@ export function TerminalListItem({
     <motion.li
       initial={skipAnimation ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ delay: index * 0.05 }}
-      className="flex items-start gap-2 text-gray-400"
+      transition={{ delay: index * 0.04 }}
+      className="flex items-start gap-2.5 text-sm text-gray-600 dark:text-gray-400"
     >
-      <span className="text-[#565f89] select-none mt-0.5">→</span>
+      <span className="mt-2 w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-500 shrink-0" />
       <span>{children}</span>
     </motion.li>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tech Detail
+// Detail Entry
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function TechDetail({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline gap-2 font-mono text-xs">
-      <span className="text-[#565f89]">{label}:</span>
-      <span className="text-[#bb9af7]">{value}</span>
+    <div className="flex items-baseline gap-2 text-sm">
+      <span className="text-gray-500 dark:text-gray-400 font-medium capitalize">{label}</span>
+      <span className="text-gray-800 dark:text-gray-200">{value}</span>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Collapsed Terminal Hint
+// Collapsed Hint
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function CollapsedTerminalHint({ onExpand }: { onExpand: () => void }) {
@@ -130,17 +114,12 @@ export function CollapsedTerminalHint({ onExpand }: { onExpand: () => void }) {
     <button
       type="button"
       onClick={onExpand}
-      className="flex items-center gap-2 w-full px-4 py-3 font-mono text-sm text-gray-500 hover:text-gray-300 transition-colors group"
+      className="flex items-center gap-2 w-full px-5 py-3 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
     >
-      <span style={{ color: COLOR_SUCCESS }}>✓</span>
-      <span>Analysis complete</span>
-      <span className="text-gray-700">·</span>
-      <span
-        className="group-hover:opacity-80 transition-colors"
-        style={{ color: COLOR_INTERACTIVE }}
-      >
-        click to view insights
-      </span>
+      <span className="text-green-600 dark:text-green-500 text-xs">✓</span>
+      <span>Analysis available</span>
+      <span className="text-gray-300 dark:text-gray-600">·</span>
+      <span className="text-gray-400 dark:text-gray-500">show details</span>
     </button>
   );
 }

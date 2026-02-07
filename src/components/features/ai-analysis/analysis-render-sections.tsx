@@ -111,7 +111,7 @@ export function TechDetailsSection({
       accentColor={accentColor}
       skipAnimation={skipAnimation}
     >
-      <div className="space-y-1 mt-1 bg-black/20 rounded p-3 border border-[#3d4f70]/50">
+      <div className="space-y-1 mt-1 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700/50">
         {activeDetails.map((d) => (
           <TechDetail key={d.label} label={d.label} value={d.value} />
         ))}
