@@ -6,11 +6,11 @@ import { handleCommand } from "@/components/ui/terminal/commands.client";
 import { isChatCommand } from "@/types";
 
 // Store original fetch and window
-const originalFetch = global.fetch;
-const originalWindow = global.window;
+const originalFetch = globalThis.fetch;
+const originalWindow = globalThis.window;
 
 // Mock the fetch API
-global.fetch = vi.fn() as unknown as typeof fetch; // Assert type for assignment
+globalThis.fetch = vi.fn() as unknown as typeof fetch; // Assert type for assignment
 // Setup console.error mock
 const originalConsoleError = console.error;
 const originalConsoleLog = console.log;
@@ -22,8 +22,8 @@ console.log = mockConsoleLog;
 // Skip the schema.org tests since they're not working properly in this environment
 
 // Mock window location
-(global as any).window = undefined;
-(global as any).window = {
+(globalThis as any).window = undefined;
+(globalThis as any).window = {
   location: {
     pathname: "/test-path",
     href: "https://example.com/test-path",
@@ -62,9 +62,9 @@ describe("Terminal Commands", () => {
 
   afterAll(() => {
     // Restore window
-    global.window = originalWindow;
+    globalThis.window = originalWindow;
     // Restore fetch
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
     // Restore console functions
     console.error = originalConsoleError;
     console.log = originalConsoleLog;
@@ -174,7 +174,7 @@ describe("Terminal Commands", () => {
             title: "Test Post",
             description: "Test description",
             url: "/blog/test",
-            score: 1.0,
+            score: 1,
           },
         ]),
       };
@@ -262,7 +262,7 @@ describe("Terminal Commands", () => {
             title: "Result 1",
             description: "Test",
             url: "/test1",
-            score: 1.0,
+            score: 1,
           },
           {
             id: "result-2",
@@ -394,7 +394,7 @@ describe("Terminal Commands", () => {
             title: "Test",
             description: "Test",
             url: "/test",
-            score: 1.0,
+            score: 1,
           },
         ]),
       };

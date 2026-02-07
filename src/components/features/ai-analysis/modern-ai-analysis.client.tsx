@@ -8,7 +8,7 @@
  * Replaces the terminal aesthetic with a refined, editorial card style.
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles,

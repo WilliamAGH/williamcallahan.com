@@ -31,7 +31,7 @@ import {
   ChipListSection,
 } from "@/components/features/ai-analysis/analysis-render-sections";
 import { ExpandableText } from "@/components/ui/expandable-text.client";
-import { Layers, Hash } from "lucide-react";
+import { Layers } from "lucide-react";
 import type { AnalysisRenderHelpers } from "@/types/ai-analysis";
 
 // ─────────────────────────────────────────────────────────────────────────────

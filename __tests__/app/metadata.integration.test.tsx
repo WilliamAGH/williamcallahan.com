@@ -167,7 +167,8 @@ describe("Metadata Integration Tests", () => {
       // When requesting a page beyond available data on a single-page dataset,
       // the implementation may return undefined icons.other (no pagination links)
       // since there's no valid navigation to suggest
-      const links = (metadata.icons as { other?: Array<{ rel: string; url: string }> }).other;
+      const links = (metadata.icons as { other?: Array<{ rel: string; url: string }> } | undefined)
+        ?.other;
       if (links) {
         // If links exist, there should be no next link (we're past the end)
         const nextLink = links.find((link) => link.rel === "next");
