@@ -1,11 +1,11 @@
 /**
- * LogoImage Component
+ * LogoImage & OptimizedCardImage Components
  *
- * A client-side component for displaying a company logo image.
- * Uses next/image for both standard and data URLs to ensure performance
- * and consistency, while marking `/api/*` sources as `unoptimized`
- * so we stay inside the contract described in
- * https://nextjs.org/docs/app/api-reference/components/image#unoptimized.
+ * Client-side image components that use Next.js built-in blur placeholders
+ * to eliminate flickering during image loading. Both components delegate
+ * placeholder rendering to Next.js's internal `backgroundImage` mechanism
+ * (via `placeholder="blur"` + `blurDataURL`), which avoids the DOM overlay
+ * and opacity transition gaps that cause visible flicker.
  *
  * @module components/ui/logo-image.client
  */
@@ -121,7 +121,6 @@ export function LogoImage({
   const isDev = process.env.NODE_ENV === "development";
   const [imageError, setImageError] = useState(false);
   const [reloadKey, setReloadKey] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const retryInitiated = useRef(false);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const sizes = width ? `${width}px` : "100vw";
@@ -130,10 +129,8 @@ export function LogoImage({
 
   const handleError = useCallback(() => {
     if (retryInitiated.current) {
-      // We already retried once – fallback permanently to placeholder
       console.warn(`[LogoImage] Final failure loading logo src: ${src}`);
       setImageError(true);
-      setIsLoading(false);
       return;
     }
 
@@ -141,7 +138,6 @@ export function LogoImage({
 
     const domain = src ? extractDomainFromSrc(src) : null;
     if (domain) {
-      // Fire and forget – trigger server fetch/upload with correct parameter and force refresh
       void fetch(`/api/logo?website=${encodeURIComponent(domain)}&forceRefresh=true`).catch(
         (error: unknown) => {
           console.warn(
@@ -152,14 +148,12 @@ export function LogoImage({
       );
     }
 
-    // Wait 3 s then retry the CDN URL with cache-buster
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current);
     }
     retryTimeoutRef.current = setTimeout(() => {
       if (!src) {
         setImageError(true);
-        setIsLoading(false);
         return;
       }
       if (isDev) console.warn(`[LogoImage] Retrying logo load with cache-buster: ${src}`);
@@ -189,45 +183,35 @@ export function LogoImage({
     );
   }
 
+  // Cache-buster ensures browser fetches the refreshed CDN image after server
+  // re-upload. The `key` forces React to remount the Image component, resetting
+  // its internal `blurComplete` state so the blur placeholder re-appears during
+  // the retry load (fixes flicker on retry).
   const displaySrc =
     reloadKey && proxiedSrc
       ? `${proxiedSrc}${proxiedSrc.includes("?") ? "&" : "?"}cb=${reloadKey}`
       : proxiedSrc;
 
   return (
-    <div style={{ position: "relative", width, height }} className="inline-block">
-      {isLoading && (
-        <Image
-          src={COMPANY_PLACEHOLDER_BASE64}
-          alt={alt}
-          width={width}
-          height={height}
-          sizes={sizes}
-          className={`${className} object-contain`}
-          style={{ position: "absolute", top: 0, left: 0 }}
-          priority={priority}
-          unoptimized
-        />
-      )}
-      <Image
-        src={displaySrc}
-        alt={alt}
-        width={width}
-        height={height}
-        sizes={sizes}
-        data-testid="next-image-mock"
-        data-priority={priority ? "true" : "false"}
-        className={`${className} object-contain ${needsInversion ? "dark:invert dark:brightness-90" : ""}`}
-        style={{ opacity: isLoading ? 0 : 1, transition: "opacity 0.2s ease-in-out" }}
-        {...(priority ? { priority } : {})}
-        {...(shouldBypassOptimizer(displaySrc) ? { unoptimized: true } : {})}
-        onError={handleError}
-        onLoad={() => {
-          setIsLoading(false);
-          if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
-        }}
-      />
-    </div>
+    <Image
+      key={reloadKey ?? "initial"}
+      src={displaySrc}
+      alt={alt}
+      width={width}
+      height={height}
+      sizes={sizes}
+      data-testid="next-image-mock"
+      data-priority={priority ? "true" : "false"}
+      className={`${className} object-contain ${needsInversion ? "dark:invert dark:brightness-90" : ""}`}
+      placeholder="blur"
+      blurDataURL={COMPANY_PLACEHOLDER_BASE64}
+      {...(priority ? { priority } : {})}
+      {...(shouldBypassOptimizer(displaySrc) ? { unoptimized: true } : {})}
+      onError={handleError}
+      onLoad={() => {
+        if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      }}
+    />
   );
 }
 
@@ -246,15 +230,17 @@ export function OptimizedCardImage({
   blurDataURL,
 }: OptimizedCardImageProps): React.JSX.Element {
   const isDev = process.env.NODE_ENV === "development";
-  const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [retryKey, setRetryKey] = useState(0);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const hasBlur = Boolean(blurDataURL);
   const objectFitClass = fit === "contain" ? "object-contain" : "object-cover";
 
-  // Cleanup timeout on unmount
+  // Use provided blurDataURL or fall back to the company placeholder.
+  // Next.js applies a 20px Gaussian blur, producing a uniform background
+  // that eliminates the opacity 0.2 → 1.0 "popcorn" flash.
+  const effectiveBlurDataURL = blurDataURL || COMPANY_PLACEHOLDER_BASE64;
+
   React.useEffect(() => {
     return () => {
       if (retryTimeoutRef.current) {
@@ -297,26 +283,20 @@ export function OptimizedCardImage({
     );
   }
 
-  const displaySrc =
-    retryKey > 0
-      ? `${proxiedSrc}${proxiedSrc.includes("?") ? "&" : "?"}retry=${retryKey}`
-      : proxiedSrc;
-
   return (
     <Image
-      src={displaySrc}
+      key={retryKey}
+      src={proxiedSrc}
       alt={alt}
       fill
       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
       quality={80}
-      placeholder={hasBlur ? "blur" : "empty"}
-      blurDataURL={blurDataURL}
-      className={`${objectFitClass} transition-opacity duration-200 ${className}`}
-      style={{ opacity: loaded || hasBlur ? 1 : 0.2 }}
+      placeholder="blur"
+      blurDataURL={effectiveBlurDataURL}
+      className={`${objectFitClass} ${className}`}
       {...(preload ? { preload, fetchPriority: "high" as const } : {})}
-      {...(shouldBypassOptimizer(displaySrc) ? { unoptimized: true } : {})}
+      {...(shouldBypassOptimizer(proxiedSrc) ? { unoptimized: true } : {})}
       onLoad={() => {
-        setLoaded(true);
         setErrored(false);
         if (retryTimeoutRef.current) {
           clearTimeout(retryTimeoutRef.current);

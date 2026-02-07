@@ -5,7 +5,8 @@ import type { ProjectCardProps } from "@/types/features/projects";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import type { JSX } from "react";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
-import { AlertTriangle, ExternalLink, Github } from "lucide-react";
+import { AlertTriangle, ExternalLink } from "lucide-react";
+import { GitHub } from "@/components/ui/social-icons/github-icon";
 import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 import { safeExternalHref, isGitHubUrl } from "@/lib/utils/url-utils";
 import {
@@ -108,7 +109,7 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
                     className="flex-shrink-0 p-1.5 rounded-md transition-colors text-gray-500 hover:text-github dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Github className="w-5 h-5" />
+                    <GitHub className="w-5 h-5" />
                   </a>
                 )}
                 {externalUrl && (
@@ -126,7 +127,7 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
                     onClick={(e) => e.stopPropagation()}
                   >
                     {isGitHub ? (
-                      <Github className="w-5 h-5" />
+                      <GitHub className="w-5 h-5" />
                     ) : (
                       <ExternalLink className="w-5 h-5" />
                     )}

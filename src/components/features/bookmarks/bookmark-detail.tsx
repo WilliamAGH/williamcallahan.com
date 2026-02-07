@@ -19,8 +19,8 @@ import {
   Library,
   Quote,
   ChevronLeft,
-  Github,
 } from "lucide-react";
+import { GitHub } from "@/components/ui/social-icons/github-icon";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { formatDate } from "@/lib/utils";
 import { BookmarksWindow } from "./bookmarks-window.client";
@@ -39,7 +39,7 @@ function toDisplayDate(date?: string | Date | number | null): string | null {
   return text === "Invalid Date" ? null : text;
 }
 
-export function BookmarkDetail({ bookmark, cachedAnalysis }: BookmarkDetailProps) {
+export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDetailProps>) {
   const { scrollY } = useScroll();
 
   // Subtle parallax for image
@@ -362,7 +362,7 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: BookmarkDetailProps
                       : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100"
                   }`}
                 >
-                  {isGitHub ? <Github className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
+                  {isGitHub ? <GitHub className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
                   <span>{isGitHub ? "View on GitHub" : "Visit Site"}</span>
                   <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </a>

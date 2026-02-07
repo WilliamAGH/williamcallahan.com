@@ -17,6 +17,55 @@ import type { ImageServiceOptions, FetchProcessResult, ImageFetchConfig } from "
 import type { LogoFetcher } from "./logo-fetcher";
 
 /**
+ * Attempts to stream the image response to S3
+ * Returns true if streaming succeeded, false otherwise
+ */
+async function attemptS3Streaming(
+  response: Response,
+  url: string,
+  contentType: string,
+  s3Ops: ImageFetchConfig["s3Ops"],
+  options: ImageServiceOptions,
+): Promise<boolean> {
+  const s3Key = s3Ops.generateS3Key(url, options);
+  if (options.skipUpload) return false;
+
+  const s3Client = getS3Client();
+  return maybeStreamImageToS3(response, {
+    bucket: process.env.S3_BUCKET || "",
+    key: s3Key,
+    s3Client,
+  });
+}
+
+/**
+ * Refetches image if body was already consumed
+ */
+async function ensureResponseBody(
+  response: Response,
+  url: string,
+  timeout: number,
+): Promise<{ response: Response; contentType: string }> {
+  if (!response.bodyUsed) {
+    const ct = response.headers.get("content-type");
+    return { response, contentType: ct || DEFAULT_BINARY_CONTENT_TYPE };
+  }
+
+  const refetch = await fetchWithTimeout(url, {
+    headers: DEFAULT_IMAGE_HEADERS,
+    timeout,
+  });
+  if (!refetch.ok) {
+    throw new Error(`HTTP ${refetch.status}: ${refetch.statusText}`);
+  }
+  const refetchContentType = refetch.headers.get("content-type");
+  if (!refetchContentType?.startsWith("image/")) {
+    throw new Error("Response is not an image");
+  }
+  return { response: refetch, contentType: refetchContentType || DEFAULT_BINARY_CONTENT_TYPE };
+}
+
+/**
  * Fetch and process an image from URL.
  * Handles streaming to S3 when available, with fallback to buffered processing.
  */
@@ -30,7 +79,6 @@ export async function fetchAndProcessImage(
     devStreamImagesToS3,
     isDev,
     shouldAcceptRequests,
-    s3Ops,
     logoFetcher,
     placeholderBuffer,
     fetchTimeout,
@@ -67,25 +115,21 @@ export async function fetchAndProcessImage(
     throw new Error("Response is not an image");
   }
 
-  let effectiveContentType = contentType || DEFAULT_BINARY_CONTENT_TYPE;
-
   try {
     // Attempt to stream directly to S3
-    const s3Key = s3Ops.generateS3Key(url, options);
-    if (!options.skipUpload) {
-      const s3Client = getS3Client();
-      const streamed = await maybeStreamImageToS3(response, {
-        bucket: process.env.S3_BUCKET || "",
-        key: s3Key,
-        s3Client,
-      });
-      if (streamed) {
-        return {
-          buffer: Buffer.alloc(0),
-          contentType: contentType || DEFAULT_BINARY_CONTENT_TYPE,
-          streamedToS3: true,
-        };
-      }
+    const streamed = await attemptS3Streaming(
+      response,
+      url,
+      contentType || DEFAULT_BINARY_CONTENT_TYPE,
+      config.s3Ops,
+      options,
+    );
+    if (streamed) {
+      return {
+        buffer: Buffer.alloc(0),
+        contentType: contentType || DEFAULT_BINARY_CONTENT_TYPE,
+        streamedToS3: true,
+      };
     }
 
     // Streaming failed - check if we can fall back to buffering
@@ -98,27 +142,17 @@ export async function fetchAndProcessImage(
       throw new Error("Insufficient memory to load image into buffer");
     }
 
-    // Handle body already consumed case
-    let bufferResponse = response;
-    if (response.bodyUsed) {
-      bufferResponse = await fetchWithTimeout(url, {
-        headers: DEFAULT_IMAGE_HEADERS,
-        timeout,
-      });
-      if (!bufferResponse.ok) {
-        throw new Error(`HTTP ${bufferResponse.status}: ${bufferResponse.statusText}`);
-      }
-      const fallbackContentType = bufferResponse.headers.get("content-type");
-      if (!fallbackContentType?.startsWith("image/")) {
-        throw new Error("Response is not an image");
-      }
-      effectiveContentType = fallbackContentType || DEFAULT_BINARY_CONTENT_TYPE;
-    }
+    // Handle body already consumed case and get buffer
+    const { response: finalResponse, contentType: finalContentType } = await ensureResponseBody(
+      response,
+      url,
+      timeout,
+    );
 
-    const arrayBuffer = await bufferResponse.arrayBuffer();
+    const arrayBuffer = await finalResponse.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    return { buffer, contentType: effectiveContentType };
+    return { buffer, contentType: finalContentType };
   } catch (error) {
     // ER2 Compliance: Preserve error context for non-Error objects
     throw normalizeError(error, { operation: "fetchAndProcess", url });
