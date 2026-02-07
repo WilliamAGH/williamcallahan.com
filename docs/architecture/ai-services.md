@@ -95,6 +95,7 @@ For a route param `feature`, the server resolves configuration with this precede
   - Forwards real upstream token deltas through `onDelta` callbacks.
   - Uses synthesized `message_delta` only as a compatibility fallback when an upstream stream yields final text without deltas.
   - Keeps explicit tool-turn orchestration (instead of `runTools`) to preserve deterministic bookmark-link allowlisting and parity across `chat.completions` and `responses`.
+- Turn executors (`upstream-turn.ts`) are extracted from the pipeline builder (`upstream-pipeline.ts`) so each stays under the 350-line ceiling.
 
 ## Structured Output Contract
 

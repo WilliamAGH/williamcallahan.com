@@ -25,7 +25,7 @@ function parseHeaderUrl(header: string | null, property: "hostname" | "pathname"
   try {
     return new URL(header)[property];
   } catch (error: unknown) {
-    logger.warn({ header, property, error }, "[gate-token] Malformed request header URL");
+    logger.warn("[gate-token] Malformed request header URL", { header, property, error });
     return null;
   }
 }

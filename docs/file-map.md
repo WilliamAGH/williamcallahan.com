@@ -496,6 +496,8 @@ File/Path Functionality Description
     - [x] **queue/`[feature]`/`route.ts`** `ai-shared-services` - Per-feature queue state endpoint using shared feature schema + queue-key builder
     - [x] **chat/**
       - [x] **`[feature]`/`route.ts`** `ai-shared-services` - Primary AI gateway route (SSE-only, no JSON fallback)
+      - [x] **`[feature]`/`upstream-pipeline.ts`** `ai-shared-services` - Pipeline builder: assembles config, queue, and run closure for chat dispatch
+      - [x] **`[feature]`/`upstream-turn.ts`** `ai-shared-services` - Turn executors: run a single chat-completions or responses turn with delta forwarding
   - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts (force-dynamic bearer auth)
   - [x] **github-activity/**
     - [x] `route.ts` `github-activity` - GitHub activity API
