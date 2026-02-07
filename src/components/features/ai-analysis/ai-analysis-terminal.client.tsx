@@ -29,6 +29,8 @@ import {
 } from "./ai-analysis-terminal-ui.client";
 
 const AUTO_TRIGGER_QUEUE_THRESHOLD = 5;
+const JSON_SCHEMA_REPAIR_SYSTEM_PROMPT =
+  "You repair JSON so it strictly matches the requested schema. Return only valid JSON with no extra text.";
 
 export function AiAnalysisTerminal<TEntity, TAnalysis>({
   entity,
@@ -99,22 +101,53 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
           },
         );
 
-        let parsedJson: unknown;
+        const parseAnalysis = (
+          rawText: string,
+        ): { parsed: unknown; parsedAnalysis: TAnalysis | null } => {
+          const parsed = parseLlmJson(rawText);
+          const result = responseSchema.safeParse(parsed);
+          return { parsed, parsedAnalysis: result.success ? result.data : null };
+        };
+
+        let parsed: unknown;
+        let parsedAnalysis: TAnalysis | null = null;
         try {
-          parsedJson = parseLlmJson(responseText);
+          const initial = parseAnalysis(responseText);
+          parsed = initial.parsed;
+          parsedAnalysis = initial.parsedAnalysis;
         } catch (error) {
           console.error("Failed to parse AI response:", responseText, error);
           throw new Error("Invalid JSON response from AI service", { cause: error });
         }
 
-        const parseResult = responseSchema.safeParse(parsedJson);
-        if (!parseResult.success) {
-          console.error("AI response validation failed:", parseResult.error);
+        if (!parsedAnalysis) {
+          const repairPayload =
+            typeof parsed === "object" && parsed !== null ? JSON.stringify(parsed) : responseText;
+          const repairedResponseText = await aiChat(
+            featureName,
+            {
+              system: JSON_SCHEMA_REPAIR_SYSTEM_PROMPT,
+              userText: `Repair this JSON so it matches the required schema exactly:\n${repairPayload}`,
+              priority: 5,
+              response_format: responseFormat,
+            },
+            { signal },
+          );
+
+          try {
+            const repaired = parseAnalysis(repairedResponseText);
+            parsedAnalysis = repaired.parsedAnalysis;
+          } catch (error) {
+            console.error("Failed to parse repaired AI response:", repairedResponseText, error);
+          }
+        }
+
+        if (!parsedAnalysis) {
           throw new Error("AI response did not match expected format");
         }
 
-        setState({ status: "success", analysis: parseResult.data, error: null });
-        void persistAnalysisToS3(persistenceKey, entityId, parseResult.data);
+        setState({ status: "success", analysis: parsedAnalysis, error: null });
+        void persistAnalysisToS3(persistenceKey, entityId, parsedAnalysis);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         const message = error instanceof Error ? error.message : "Failed to generate analysis";

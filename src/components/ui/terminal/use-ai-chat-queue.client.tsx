@@ -41,6 +41,7 @@ function buildStreamPreview(text: string): string {
 export function useAiChatQueue({
   history,
   addToHistory,
+  removeFromHistory,
   conversationId,
   feature,
 }: AiChatQueueConfig): AiChatQueueResult {
@@ -90,64 +91,84 @@ export function useAiChatQueue({
       });
 
       const messages = buildChatMessages(userText);
+      const assistantMessageId = crypto.randomUUID();
+      const upsertAssistantPreview = (content: string) => {
+        removeFromHistory(assistantMessageId);
+        addToHistory({
+          type: "chat",
+          id: assistantMessageId,
+          input: "",
+          role: "assistant",
+          content,
+          timestamp: Date.now(),
+        });
+      };
+      const clearAssistantPreview = () => {
+        removeFromHistory(assistantMessageId);
+      };
 
       setAiQueueMessage(null);
       let streamedAssistantText = "";
-      const assistantText = await aiChat(
-        feature,
-        { messages, conversationId: conversationIdRef.current, priority: 10 },
-        {
-          signal,
-          onQueueUpdate: (update) => {
-            if (update.event === "queued" || update.event === "queue") {
-              if (update.position) {
-                setAiQueueMessage(
-                  `Queued (position ${update.position}, ${update.running}/${update.maxParallel} running)`,
-                );
-              } else {
+      let assistantText: string;
+      try {
+        assistantText = await aiChat(
+          feature,
+          { messages, conversationId: conversationIdRef.current, priority: 10 },
+          {
+            signal,
+            onQueueUpdate: (update) => {
+              if (update.event === "queued" || update.event === "queue") {
+                if (update.position) {
+                  setAiQueueMessage(
+                    `Queued (position ${update.position}, ${update.running}/${update.maxParallel} running)`,
+                  );
+                } else {
+                  setAiQueueMessage(null);
+                }
+                return;
+              }
+
+              if (update.event === "started") {
                 setAiQueueMessage(null);
               }
-              return;
-            }
+            },
+            onStreamEvent: (update) => {
+              if (update.event === "message_start") {
+                setAiQueueMessage("Assistant is responding...");
+                return;
+              }
 
-            if (update.event === "started") {
-              setAiQueueMessage(null);
-            }
+              if (update.event === "message_delta") {
+                streamedAssistantText += update.data.delta;
+                const preview = buildStreamPreview(streamedAssistantText);
+                setAiQueueMessage(preview ? `Assistant: ${preview}` : "Assistant is responding...");
+                if (streamedAssistantText.trim().length > 0) {
+                  upsertAssistantPreview(streamedAssistantText);
+                }
+                return;
+              }
+
+              if (update.event === "message_done") {
+                streamedAssistantText = update.data.message;
+                if (streamedAssistantText.trim().length > 0) {
+                  upsertAssistantPreview(streamedAssistantText);
+                }
+              }
+            },
           },
-          onStreamEvent: (update) => {
-            if (update.event === "message_start") {
-              setAiQueueMessage("Assistant is responding...");
-              return;
-            }
-
-            if (update.event === "message_delta") {
-              streamedAssistantText += update.data.delta;
-              const preview = buildStreamPreview(streamedAssistantText);
-              setAiQueueMessage(preview ? `Assistant: ${preview}` : "Assistant is responding...");
-              return;
-            }
-
-            if (update.event === "message_done") {
-              streamedAssistantText = update.data.message;
-            }
-          },
-        },
-      );
-
-      if (assistantText.trim().length === 0) {
-        throw new Error("AI chat returned an empty response");
+        );
+      } catch (error) {
+        clearAssistantPreview();
+        throw error;
       }
 
-      addToHistory({
-        type: "chat",
-        id: crypto.randomUUID(),
-        input: "",
-        role: "assistant",
-        content: assistantText,
-        timestamp: Date.now(),
-      });
+      if (assistantText.trim().length === 0) {
+        clearAssistantPreview();
+        throw new Error("AI chat returned an empty response");
+      }
+      upsertAssistantPreview(assistantText);
     },
-    [addToHistory, buildChatMessages, feature],
+    [addToHistory, buildChatMessages, feature, removeFromHistory],
   );
 
   const handleChatError = useCallback(

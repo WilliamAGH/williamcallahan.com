@@ -180,6 +180,7 @@ export type TerminalChatAbortReason = "user_cancel" | "superseded" | "clear_exit
 export interface AiChatQueueConfig {
   history: TerminalCommand[];
   addToHistory: (command: TerminalCommand) => void;
+  removeFromHistory: (commandId: string) => void;
   conversationId: string;
   feature: string;
 }
