@@ -53,8 +53,6 @@ const DOMAIN_HINT_PATTERN =
 /** Triggers full-inventory RAG section with server-side pagination. */
 const INVENTORY_REQUEST_PATTERN = /\b(all|list|catalog|inventory|show all|everything)\b/i;
 
-export { requestBodySchema };
-
 /**
  * Validate the incoming request (cloudflare, origin, rate limit, auth, body)
  * Returns either an error response or the validated context
