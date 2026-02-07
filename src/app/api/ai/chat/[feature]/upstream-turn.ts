@@ -44,7 +44,7 @@ export async function executeChatCompletionsTurn(
     temperature: params.temperature,
     top_p: params.topP,
     max_tokens: params.maxTokens,
-    ...(params.reasoningEffort != null ? { reasoning_effort: params.reasoningEffort } : {}),
+    ...(params.reasoningEffort == null ? {} : { reasoning_effort: params.reasoningEffort }),
     ...(params.responseFormat ? { response_format: params.responseFormat } : {}),
   };
   const callArgs = { baseUrl: turnConfig.baseUrl, apiKey: turnConfig.apiKey, request, signal };
@@ -118,7 +118,7 @@ export async function executeResponsesTurn(
     temperature: params.temperature,
     top_p: params.topP,
     max_output_tokens: params.maxTokens,
-    ...(params.reasoningEffort !== null ? { reasoning: { effort: params.reasoningEffort } } : {}),
+    ...(params.reasoningEffort === null ? {} : { reasoning: { effort: params.reasoningEffort } }),
   };
 
   const callArgs = { baseUrl: turnConfig.baseUrl, apiKey: turnConfig.apiKey, request, signal };
