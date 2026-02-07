@@ -318,19 +318,10 @@ const nextConfig = {
         },
       ],
     },
-    {
-      source: "/_next/image/:params*",
-      headers: [
-        {
-          key: "Cache-Control",
-          value: "public, max-age=60, stale-while-revalidate=3600, stale-if-error=86400",
-        },
-        {
-          key: "CDN-Cache-Control",
-          value: "public, max-age=3600, stale-while-revalidate=86400",
-        },
-      ],
-    },
+    // /_next/image cache headers are set by the image optimizer itself based on
+    // minimumCacheTTL (7 days) and upstream Cache-Control. Custom overrides here
+    // previously reduced browser cache from 7 days to 60 seconds, causing
+    // unnecessary re-fetches and visible image flickering on navigation.
     // { // This empty object was causing the "source is missing" error and has been removed
     // Apply CSP to all HTML pages
     // NOTE: CSP is now primarily handled in middleware.ts. This block is effectively overridden - do not remove this comment.

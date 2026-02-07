@@ -17,13 +17,12 @@ import { guessImageContentType } from "../utils/content-type";
  */
 class StreamMonitor extends Transform {
   private bytesStreamed = 0;
-  private maxSize = 100 * 1024 * 1024; // 100MB max to prevent memory exhaustion
+  private readonly maxSize = 100 * 1024 * 1024; // 100MB max to prevent memory exhaustion
 
   // Note: _transform is a Node.js Transform stream method that must keep the underscore prefix
   // This is required by the Node.js stream API and cannot be renamed
   // eslint-disable-next-line no-underscore-dangle
-  _transform(chunk: Buffer, encoding: string, callback: (error?: Error) => void): void {
-    void encoding; // Explicitly mark as unused per project convention
+  _transform(chunk: Buffer, _encoding: string, callback: (error?: Error) => void): void {
     this.bytesStreamed += chunk.length;
 
     // Check for size limits to prevent memory exhaustion
@@ -129,7 +128,7 @@ export async function streamToS3(
 
     const result = await upload.done();
 
-    if (!result || !result.Location) {
+    if (!result?.Location) {
       throw new Error("S3 upload finished without returning a location.");
     }
 
@@ -170,7 +169,7 @@ export async function streamToS3(
 export function shouldStreamImage(contentLength: string | null): boolean {
   if (!contentLength) return false;
 
-  const bytes = parseInt(contentLength, 10);
+  const bytes = Number.parseInt(contentLength, 10);
   const streamThreshold = Number(process.env.IMAGE_STREAM_THRESHOLD_BYTES ?? 5 * 1024 * 1024); // 5MB default
 
   return !Number.isNaN(bytes) && bytes > streamThreshold;
