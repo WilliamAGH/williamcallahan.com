@@ -2,6 +2,7 @@ import "server-only";
 
 import { z } from "zod/v4";
 import type { OpenAiCompatibleFeatureConfig } from "@/types/ai-openai-compatible";
+import type { AiUpstreamApiMode } from "@/types/schemas/ai-openai-compatible";
 
 const DEFAULT_BASE_URL = "https://popos-sf7.com";
 const DEFAULT_MODEL = "openai/gpt-oss-120b,openai/gpt-oss-20b";
@@ -73,4 +74,30 @@ export function buildResponsesUrl(baseUrl: string): string {
   const basePath = url.pathname === "/" ? "" : url.pathname.replace(/\/+$/, "");
   url.pathname = `${basePath}/responses`;
   return url.toString();
+}
+
+export function resolvePreferredUpstreamModel(model: string): {
+  primaryModel: string;
+  fallbackModel: string | undefined;
+} {
+  const modelCandidates = model
+    .split(",")
+    .map((candidate) => candidate.trim())
+    .filter((candidate) => candidate.length > 0);
+  const primaryModel = modelCandidates[0] ?? model;
+  const fallbackModel = modelCandidates[1];
+  return { primaryModel, fallbackModel };
+}
+
+export function buildUpstreamQueueKey(args: {
+  baseUrl: string;
+  model: string;
+  apiMode: AiUpstreamApiMode;
+}): string {
+  const upstreamUrl =
+    args.apiMode === "responses"
+      ? buildResponsesUrl(args.baseUrl)
+      : buildChatCompletionsUrl(args.baseUrl);
+  const { primaryModel } = resolvePreferredUpstreamModel(args.model);
+  return `${upstreamUrl}::${primaryModel}`;
 }

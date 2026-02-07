@@ -11,11 +11,18 @@ import "server-only";
 
 import { NextResponse, type NextRequest } from "next/server";
 import { isOperationAllowed } from "@/lib/rate-limiter";
-import { verifyAiGateToken, hashUserAgent } from "@/lib/ai/openai-compatible/gate-token";
+import {
+  getAiGateNonceCookie,
+  getBearerTokenFromRequest,
+  getRequestOriginHostname,
+  getRequestPagePath,
+  hashUserAgent,
+  isAllowedAiGateHostname,
+  verifyAiGateToken,
+} from "@/lib/ai/openai-compatible/gate-token";
 import { logChatMessage } from "@/lib/ai/openai-compatible/chat-message-logger";
 import { buildContextForQuery } from "@/lib/ai/rag";
 import { isPaginationKeyword } from "@/lib/ai/rag/inventory-pagination";
-import { debug } from "@/lib/utils/debug";
 import { getClientIp } from "@/lib/utils/request-utils";
 import {
   NO_STORE_HEADERS,
@@ -30,10 +37,6 @@ import {
   type ValidatedRequestContext,
 } from "@/types/features/ai-chat";
 import { requestBodySchema, type ParsedRequestBody } from "@/types/schemas/ai-chat";
-
-const HTTPS_COOKIE_NAME = "__Host-ai_gate_nonce";
-
-const HTTP_COOKIE_NAME = "ai_gate_nonce";
 
 const CHAT_RATE_LIMIT = {
   maxRequests: 20,
@@ -52,52 +55,6 @@ const INVENTORY_REQUEST_PATTERN = /\b(all|list|catalog|inventory|show all|everyt
 
 export { requestBodySchema };
 
-function isAllowedHostname(hostname: string): boolean {
-  const lower = hostname.toLowerCase();
-  if (lower === "williamcallahan.com" || lower.endsWith(".williamcallahan.com")) return true;
-  if (process.env.NODE_ENV !== "production" && (lower === "localhost" || lower === "127.0.0.1"))
-    return true;
-  return false;
-}
-
-/** Parse a URL property from a request header, returning null on malformed values. */
-function parseHeaderUrl(
-  header: string | null,
-  property: "hostname" | "pathname",
-  label: string,
-): string | null {
-  if (!header) return null;
-  try {
-    return new URL(header)[property];
-  } catch (err) {
-    debug(`[chat-helpers] Malformed ${label} header:`, header, err);
-    return null;
-  }
-}
-
-function getRequestOriginHostname(request: NextRequest): string | null {
-  return (
-    parseHeaderUrl(request.headers.get("origin"), "hostname", "origin") ??
-    parseHeaderUrl(request.headers.get("referer"), "hostname", "referer")
-  );
-}
-
-function getRequestPagePath(request: NextRequest): string | null {
-  return parseHeaderUrl(request.headers.get("referer"), "pathname", "referer");
-}
-
-function getBearerToken(request: NextRequest): string | null {
-  const auth = request.headers.get("authorization");
-  if (!auth) return null;
-  const match = /^Bearer\s+(.+)$/i.exec(auth.trim());
-  return match?.[1]?.trim() || null;
-}
-
-export function wantsEventStream(request: NextRequest): boolean {
-  const accept = request.headers.get("accept")?.toLowerCase();
-  return Boolean(accept?.includes("text/event-stream"));
-}
-
 /**
  * Validate the incoming request (cloudflare, origin, rate limit, auth, body)
  * Returns either an error response or the validated context
@@ -115,7 +72,7 @@ export async function validateRequest(
   if (cloudflareResponse) return cloudflareResponse;
 
   const originHost = getRequestOriginHostname(request);
-  if (!originHost || !isAllowedHostname(originHost)) {
+  if (!originHost || !isAllowedAiGateHostname(originHost)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403, headers: NO_STORE_HEADERS });
   }
 
@@ -141,9 +98,8 @@ export async function validateRequest(
     );
   }
 
-  const nonceCookie =
-    request.cookies.get(HTTPS_COOKIE_NAME)?.value ?? request.cookies.get(HTTP_COOKIE_NAME)?.value;
-  const bearerToken = getBearerToken(request);
+  const nonceCookie = getAiGateNonceCookie(request);
+  const bearerToken = getBearerTokenFromRequest(request);
   if (!nonceCookie || !bearerToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS });
   }

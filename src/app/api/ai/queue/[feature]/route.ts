@@ -3,19 +3,13 @@ import "server-only";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod/v4";
 import {
-  buildChatCompletionsUrl,
-  buildResponsesUrl,
+  buildUpstreamQueueKey,
   resolveOpenAiCompatibleFeatureConfig,
 } from "@/lib/ai/openai-compatible/feature-config";
 import { getUpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
 import { NO_STORE_HEADERS, preventCaching, requireCloudflareHeaders } from "@/lib/utils/api-utils";
+import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-chat";
 import { aiUpstreamApiModeSchema } from "@/types/schemas/ai-openai-compatible";
-
-const featureParamSchema = z
-  .string()
-  .min(1)
-  .max(50)
-  .regex(/^[a-z0-9-]+$/);
 
 /**
  * GET /api/ai/queue/[feature]
@@ -46,18 +40,18 @@ export async function GET(
 
   try {
     const { feature } = await context.params;
-    const validatedFeature = featureParamSchema.parse(feature);
+    const validatedFeature = aiFeatureIdentifierSchema.parse(feature);
     const rawApiMode = request.nextUrl.searchParams.get("apiMode");
     const resolvedApiMode = rawApiMode
       ? aiUpstreamApiModeSchema.parse(rawApiMode)
       : "chat_completions";
 
     const config = resolveOpenAiCompatibleFeatureConfig(validatedFeature);
-    const url =
-      resolvedApiMode === "responses"
-        ? buildResponsesUrl(config.baseUrl)
-        : buildChatCompletionsUrl(config.baseUrl);
-    const upstreamKey = `${url}::${config.model}`;
+    const upstreamKey = buildUpstreamQueueKey({
+      baseUrl: config.baseUrl,
+      model: config.model,
+      apiMode: resolvedApiMode,
+    });
     const queue = getUpstreamRequestQueue({ key: upstreamKey, maxParallel: config.maxParallel });
 
     return NextResponse.json(queue.snapshot, { status: 200, headers: NO_STORE_HEADERS });
