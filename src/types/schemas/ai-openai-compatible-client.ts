@@ -7,9 +7,11 @@ export const aiTokenResponseSchema = z.object({
 
 export type AiTokenResponse = z.infer<typeof aiTokenResponseSchema>;
 
-export const aiChatResponseSchema = z.object({
-  message: z.string(),
-});
+export const aiChatResponseSchema = z
+  .object({
+    message: z.string(),
+  })
+  .passthrough();
 
 export type AiChatResponse = z.infer<typeof aiChatResponseSchema>;
 
