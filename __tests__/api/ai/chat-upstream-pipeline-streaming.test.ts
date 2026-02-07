@@ -43,8 +43,14 @@ vi.mock("@/lib/ai/openai-compatible/feature-config", () => ({
     model: "test-model",
     maxParallel: 1,
   }),
-  buildChatCompletionsUrl: vi.fn().mockReturnValue("https://example.com/v1/chat/completions"),
-  buildResponsesUrl: vi.fn().mockReturnValue("https://example.com/v1/responses"),
+  resolvePreferredUpstreamModel: vi.fn().mockReturnValue({
+    primaryModel: "test-model",
+    fallbackModel: undefined,
+  }),
+  buildUpstreamQueueKey: vi.fn(({ baseUrl, model, apiMode }) => {
+    const route = apiMode === "responses" ? "responses" : "chat/completions";
+    return `${baseUrl}/v1/${route}::${model}`;
+  }),
 }));
 vi.mock("@/lib/search/searchers/dynamic-searchers", () => ({
   searchBookmarks: vi.fn(),
@@ -135,7 +141,8 @@ function expectStandardStreamEvents(
 ): void {
   expect(events).toEqual([
     { event: "message_start", data: { id: args.id, model: streamModel, apiMode: args.apiMode } },
-    { event: "message_delta", data: { delta: "ok" } },
+    { event: "message_delta", data: { delta: "o" } },
+    { event: "message_delta", data: { delta: "k" } },
     { event: "message_done", data: { message: "ok" } },
   ]);
 }

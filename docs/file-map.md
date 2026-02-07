@@ -176,11 +176,11 @@ File/Path Functionality Description
 ## Lib Directory
 
 - [~] **ai/** `ai-shared-services` - Unified AI provider and web search services
-  - [x] `analysis-client-utils.ts` `ai-shared-services` - Shared client utilities for AI analysis (LLM JSON parsing, S3 persistence)
+  - [x] `analysis-client-utils.ts` `ai-shared-services` - Shared client utilities for AI analysis (LLM JSON parsing via `JSON.parse`, S3 persistence)
   - [x] **openai-compatible/**
-    - [x] `feature-config.ts` `ai-shared-services` - Per-feature env resolution + upstream URL builder
-    - [x] `gate-token.ts` `ai-shared-services` - HMAC-signed short-lived token helpers
-    - [x] `browser-client.ts` `ai-shared-services` - Browser helper to mint token + call AI chat route
+    - [x] `feature-config.ts` `ai-shared-services` - Per-feature env resolution, preferred-model resolution, and shared upstream queue-key builder
+    - [x] `gate-token.ts` `ai-shared-services` - HMAC-signed short-lived token helpers plus shared request origin/cookie/auth extraction helpers
+    - [x] `browser-client.ts` `ai-shared-services` - Browser helper to mint token + call AI chat route with SSE-only consumption
     - [x] `openai-compatible-client.ts` `ai-shared-services` - Native OpenAI SDK transport for `chat.completions` and `responses`
     - [x] `upstream-request-queue.ts` `ai-shared-services` - Per-upstream priority queue (max parallel + position)
   - [x] **rag/**
@@ -491,6 +491,11 @@ File/Path Functionality Description
     - [x] **bookmarks/`route.ts`** `bookmarks` - Bookmarks cache API
     - [x] **clear/`route.ts`** `caching` - Clear cache API
     - [x] **images/`route.ts`** `image-handling` - Images cache API
+  - [x] **ai/**
+    - [x] **token/`route.ts`** `ai-shared-services` - AI gate token minting endpoint with origin guard, rate limit, and nonce cookie binding
+    - [x] **queue/`[feature]`/`route.ts`** `ai-shared-services` - Per-feature queue state endpoint using shared feature schema + queue-key builder
+    - [x] **chat/**
+      - [x] **`[feature]`/`route.ts`** `ai-shared-services` - Primary AI gateway route (SSE-only, no JSON fallback)
   - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts (force-dynamic bearer auth)
   - [x] **github-activity/**
     - [x] `route.ts` `github-activity` - GitHub activity API

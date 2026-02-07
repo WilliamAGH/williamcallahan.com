@@ -30,6 +30,23 @@ console.log = mockConsoleLog;
   },
 };
 
+function createSseResponse(chunks: string[]): Response {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(encoder.encode(chunk));
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(body, {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream; charset=utf-8" },
+  });
+}
+
 // No need to explicitly mock search functions since the command handler
 // has a fallback mechanism when the module can't be loaded
 
@@ -90,11 +107,10 @@ describe("Terminal Commands", () => {
         }),
       };
 
-      const chatResponse = {
-        ok: true,
-        status: 200,
-        json: vi.fn().mockResolvedValue({ message: "Hello from the assistant." }),
-      };
+      const chatResponse = createSseResponse([
+        'event: started\ndata: {"running":1,"pending":0,"maxParallel":1,"queueWaitMs":0}\n\n',
+        'event: done\ndata: {"message":"Hello from the assistant."}\n\n',
+      ]);
 
       (fetch as unknown as Mock)
         .mockResolvedValueOnce(tokenResponse)
@@ -120,6 +136,7 @@ describe("Terminal Commands", () => {
           headers: expect.objectContaining({
             "Content-Type": "application/json",
             Authorization: "Bearer test-token",
+            Accept: "text/event-stream",
           }),
         }),
       );

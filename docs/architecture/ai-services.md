@@ -11,6 +11,8 @@ alwaysApply: false
 
 Provide a reusable, server-only AI client layer and Next.js Route Handlers that call OpenAI SDK APIs (`chat.completions` and `responses`) against OpenAI or OpenAI-compatible providers without exposing upstream credentials to the browser.
 
+The chat gateway is SSE-first and SSE-only: browser clients always consume `text/event-stream`, and the server route no longer maintains a JSON fallback path.
+
 This system is designed to support multiple AI-backed site features where each feature can use its own:
 
 - `OPENAI_BASE_URL` equivalent
@@ -23,9 +25,10 @@ This system is designed to support multiple AI-backed site features where each f
 ### Shared client
 
 - `src/lib/ai/openai-compatible/openai-compatible-client.ts` — Native `openai` npm SDK transport for both `chat.completions` and `responses`.
-- `src/lib/ai/openai-compatible/feature-config.ts` — Per-feature env resolution + URL builder.
+- `src/lib/ai/openai-compatible/feature-config.ts` — Per-feature env resolution + URL builder + shared upstream queue-key builder.
 - `src/lib/ai/openai-compatible/browser-client.ts` — Minimal browser helper that mints `/api/ai/token` then calls `/api/ai/chat/[feature]`.
 - `src/types/schemas/ai-openai-compatible.ts` — Zod schemas for API mode, chat payload validation, and normalized upstream response parsing.
+- `src/types/schemas/ai-chat.ts` — Shared feature identifier schema and request validation for chat routes.
 - `src/lib/ai/openai-compatible/upstream-request-queue.ts` — Per-upstream (model + URL) priority queue with configurable max parallelism.
 
 ### Public API routes (App Router Route Handlers)
@@ -49,13 +52,15 @@ This system is designed to support multiple AI-backed site features where each f
     - `temperature?: number` (0–2). If omitted, the server applies a central default.
   - Supports request-supplied queuing controls:
     - `priority?: number` (integer -100..100). Higher values run sooner when multiple requests target the same upstream model.
-  - Supports real-time queue position updates when the client sets `Accept: text/event-stream`.
-  - In `chat_completions` mode, SSE now forwards normalized model streaming events from upstream:
+  - SSE is mandatory (no JSON fallback response path).
+  - Browser helper `aiChat()` always sends `Accept: text/event-stream`.
+  - SSE forwards normalized model streaming events from upstream:
     - `message_start` with `{ id, model, apiMode }`
     - `message_delta` with `{ delta }`
     - `message_done` with `{ message }`
   - The existing terminal contract remains stable:
     - queue lifecycle: `queued`, `queue`, `started`
+    - queue payloads do not expose internal upstream topology keys
     - final payload: `done` with `{ message, ragContext? }`
 
 ## Environment Variable Scheme (Per-Feature)
@@ -74,7 +79,7 @@ For a route param `feature`, the server resolves configuration with this precede
    - `AI_DEFAULT_MAX_PARALLEL` (optional; default: 1)
 3. Built-in safe defaults (no secrets):
    - `baseUrl = https://popos-sf7.com`
-   - `model = openai/gpt-oss-120b`
+   - `model = openai/gpt-oss-120b,openai/gpt-oss-20b`
    - `maxParallel = 1`
    - no API key
 
@@ -87,7 +92,15 @@ For a route param `feature`, the server resolves configuration with this precede
 - If no API key is configured, the server uses a compatibility fallback token for SDK initialization (required by the SDK constructor) and logs a warning.
 - Streaming adapter:
   - Uses SDK stream helpers (`chat.completions.stream(...)` and `responses.stream(...)`) and finalizes each turn via `finalChatCompletion()` / `finalResponse()`.
-  - Emits `message_start` + `message_delta` only for turns that resolve to final assistant text; tool-call turns do not emit intermediate user-visible deltas.
+  - Forwards real upstream token deltas through `onDelta` callbacks.
+  - Uses synthesized `message_delta` only as a compatibility fallback when an upstream stream yields final text without deltas.
+  - Keeps explicit tool-turn orchestration (instead of `runTools`) to preserve deterministic bookmark-link allowlisting and parity across `chat.completions` and `responses`.
+
+## Structured Output Contract
+
+- Analysis flows now use OpenAI-compatible structured output primitives (`response_format: { type: "json_schema", ... }`) in `chat_completions` mode.
+- `response_format` is validated in request schemas and rejected for `responses` mode to avoid silent no-op behavior.
+- Client-side analysis parsing relies on standard `JSON.parse` after token stripping; `jsonrepair` dependency behavior is not required in this flow.
 
 ## Abuse Controls (Anonymous Visitors)
 
@@ -127,13 +140,15 @@ Terminal chat injects a full inventory catalog of repo-local and dynamic content
 
 All requests to `POST /api/ai/chat/[feature]` are queued by upstream target so we do not exceed provider concurrency limits.
 
-- **Queue key:** `{upstreamUrl}::${model}` where `upstreamUrl` is either chat-completions or responses URL for the selected mode.
+- **Queue key:** `{upstreamUrl}::${primaryModel}` built by `buildUpstreamQueueKey(...)`, where `upstreamUrl` is mode-specific and `primaryModel` is the first model in the configured model list.
 - **Max parallelism:** `AI_<FEATURE>_MAX_PARALLEL` (or `AI_DEFAULT_MAX_PARALLEL`), defaulting to `1`.
 - **Priority:** request body `priority` (higher runs sooner). We use this to keep interactive terminal chat responsive while allowing background analyses to wait their turn.
-- **UI feedback:** when the client sends `Accept: text/event-stream`, the route emits queue lifecycle events (`queued` / `queue` / `started`) plus model stream events (`message_start` / `message_delta` / `message_done`) and final `done`.
+- **UI feedback:** the route emits queue lifecycle events (`queued` / `queue` / `started`) plus model stream events (`message_start` / `message_delta` / `message_done`) and final `done`.
 
 ## Test Coverage
 
 - `__tests__/api/ai/chat-rag-helpers.test.ts` validates retrieval query shaping and abort classification.
 - `__tests__/api/ai/chat-upstream-pipeline-streaming.test.ts` validates queue mode selection and normalized stream events.
 - `__tests__/api/ai/chat-upstream-pipeline-tools.test.ts` validates tool-call rounds and deterministic search fallback behavior.
+- `__tests__/components/ui/terminal/commands.test.ts` validates terminal one-shot flow against the SSE-only contract.
+- `__tests__/lib/ai-openai-compatible.test.ts` validates browser SSE parsing and OpenAI-compatible transport behavior.
