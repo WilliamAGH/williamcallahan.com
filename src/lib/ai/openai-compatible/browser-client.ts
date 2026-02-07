@@ -40,7 +40,7 @@ function parseSseMessage(raw: string): { event: string; data: string } | null {
 }
 
 function normalizeSseLineEndings(value: string): string {
-  return value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  return value.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
 }
 
 /**
@@ -86,9 +86,25 @@ async function readSseStream(args: {
   let buffer = "";
   let didReceiveMessageDone = false;
   let finalMessage: string | null = null;
+  let streamedMessageFromDeltas = "";
 
   const processMessage = (msg: { event: string; data: string }): string | undefined => {
     if (msg.event === "done") {
+      if (msg.data.trim() === "[DONE]") {
+        const fallbackMessage =
+          finalMessage ?? (streamedMessageFromDeltas.length > 0 ? streamedMessageFromDeltas : null);
+        if (fallbackMessage === null) return undefined;
+        if (!didReceiveMessageDone) {
+          onStreamEvent?.({
+            event: "message_done",
+            data: aiChatModelStreamDoneSchema.parse({ message: fallbackMessage }),
+          });
+        }
+        didReceiveMessageDone = true;
+        finalMessage = fallbackMessage;
+        return fallbackMessage;
+      }
+
       const parsed = safeParseJson(msg.data, "done");
       const doneMessage = aiChatResponseSchema.parse(parsed).message;
       if (!didReceiveMessageDone) {
@@ -145,9 +161,11 @@ async function readSseStream(args: {
 
     if (msg.event === "message_delta") {
       const parsed = safeParseJson(msg.data, "message_delta");
+      const deltaData = aiChatModelStreamDeltaSchema.parse(parsed);
+      streamedMessageFromDeltas += deltaData.delta;
       onStreamEvent?.({
         event: "message_delta",
-        data: aiChatModelStreamDeltaSchema.parse(parsed),
+        data: deltaData,
       });
       return undefined;
     }
@@ -157,7 +175,9 @@ async function readSseStream(args: {
       const doneData = aiChatModelStreamDoneSchema.parse(parsed);
       onStreamEvent?.({ event: "message_done", data: doneData });
       didReceiveMessageDone = true;
+      streamedMessageFromDeltas = doneData.message;
       finalMessage = doneData.message;
+      return doneData.message;
     }
 
     return undefined;

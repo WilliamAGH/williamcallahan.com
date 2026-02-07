@@ -22,7 +22,7 @@ export function stripLlmTokens(rawText: string): string {
   let text = rawText.trim();
 
   // Strip LLM control tokens (e.g., <|channel|>final <|constrain|>JSON<|message|>)
-  text = text.replace(/<\|[^|]+\|>/g, "");
+  text = text.replaceAll(/<\|[^|]+\|>/g, "");
 
   // Strip markdown code blocks
   if (text.startsWith("```")) {
@@ -39,12 +39,14 @@ function extractBalancedJsonPayload(text: string): string | null {
   const hasArray = firstArray !== -1;
   if (!hasObject && !hasArray) return null;
 
-  const start =
-    hasObject && hasArray
-      ? Math.min(firstObject, firstArray)
-      : hasObject
-        ? firstObject
-        : firstArray;
+  let start: number;
+  if (hasObject && hasArray) {
+    start = Math.min(firstObject, firstArray);
+  } else if (hasObject) {
+    start = firstObject;
+  } else {
+    start = firstArray;
+  }
   if (start < 0) return null;
 
   const stack: string[] = [];
@@ -96,7 +98,7 @@ function extractBalancedJsonPayload(text: string): string | null {
 }
 
 function extractFencedBlock(text: string): string | null {
-  const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const match = new RegExp(/```(?:json)?\s*([\s\S]*?)\s*```/i).exec(text);
   return match?.[1]?.trim() ?? null;
 }
 
