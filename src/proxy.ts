@@ -343,8 +343,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - all other paths
      */
-    String.raw`/((?!_next/static|favicon.ico|robots.txt|sitemap.xml|api/upload|api/ai/chat|[^?]*\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)`,
-    String.raw`/(api(?!/upload|/ai/chat)|trpc)(.*)`,
-    String.raw`/_next/image(.*)`,
+    "/((?!_next/static|favicon.ico|robots.txt|sitemap.xml|api/upload|api/ai/chat|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api(?!/upload|/ai/chat)|trpc)(.*)",
+    "/_next/image(.*)",
   ],
 };
