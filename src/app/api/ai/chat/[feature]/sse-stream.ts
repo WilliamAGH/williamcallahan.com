@@ -25,16 +25,7 @@ export function formatSseEvent(args: { event: string; data: unknown }): string {
  * Create and return an SSE streaming response
  */
 export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
-  const {
-    request,
-    queue,
-    upstreamKey,
-    priority,
-    startTime,
-    logContext,
-    ragContextStatus,
-    runUpstream,
-  } = config;
+  const { request, queue, priority, startTime, logContext, ragContextStatus, runUpstream } = config;
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
@@ -74,13 +65,13 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
       });
 
       const initialPosition = queue.getPosition(task.id);
-      safeSend("queued", { ...initialPosition, upstreamKey });
+      safeSend("queued", initialPosition);
 
       const intervalMs = 350;
       const interval = setInterval(() => {
         const position = queue.getPosition(task.id);
         if (!position.inQueue) return;
-        safeSend("queue", { ...position, upstreamKey });
+        safeSend("queue", position);
       }, intervalMs);
 
       request.signal.addEventListener(
@@ -100,7 +91,6 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
           clearInterval(interval);
           safeSend("started", {
             ...queue.snapshot,
-            upstreamKey,
             queueWaitMs: sseStartedAtMs - enqueuedAtMs,
           });
           return undefined;

@@ -69,9 +69,10 @@ export function emitDeferredContentEvents(params: {
   startMeta: StreamStartMeta | null;
   apiMode: AiUpstreamApiMode;
   onStreamEvent: (event: AiChatModelStreamEvent) => void;
+  includeStartEvent?: boolean;
 }): void {
-  const { text, startMeta, apiMode, onStreamEvent } = params;
-  if (startMeta) {
+  const { text, startMeta, apiMode, onStreamEvent, includeStartEvent = true } = params;
+  if (startMeta && includeStartEvent) {
     onStreamEvent({
       event: "message_start",
       data: { id: startMeta.id, model: startMeta.model, apiMode },

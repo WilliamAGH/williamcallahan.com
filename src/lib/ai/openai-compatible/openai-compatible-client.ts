@@ -108,6 +108,7 @@ function toChatRequest(
   if (request.tool_choice) baseRequest.tool_choice = request.tool_choice;
   if (request.parallel_tool_calls !== undefined)
     baseRequest.parallel_tool_calls = request.parallel_tool_calls;
+  if (request.response_format !== undefined) baseRequest.response_format = request.response_format;
   return baseRequest;
 }
 

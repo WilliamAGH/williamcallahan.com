@@ -4,6 +4,7 @@ import type { ParsedRequestBody, SearchBookmarksToolResult } from "@/types/schem
 import type {
   AiUpstreamApiMode,
   OpenAiCompatibleChatMessage,
+  OpenAiCompatibleResponseFormat,
   ReasoningEffort,
 } from "@/types/schemas/ai-openai-compatible";
 
@@ -50,22 +51,10 @@ export type ChatLogContext = {
   reasoningEffort?: ReasoningEffort | null;
 };
 
-/** JSON response configuration */
-export type JsonResponseConfig = {
-  queue: UpstreamRequestQueue;
-  priority: number;
-  startTime: number;
-  logContext: ChatLogContext;
-  ragContextStatus: RagContextStatus;
-  runUpstream: (onStreamEvent?: (event: AiChatModelStreamEvent) => void) => Promise<string>;
-  signal: AbortSignal;
-};
-
 /** SSE stream configuration */
 export type SseStreamConfig = {
   request: NextRequest;
   queue: UpstreamRequestQueue;
-  upstreamKey: string;
   priority: number;
   startTime: number;
   logContext: ChatLogContext;
@@ -76,7 +65,6 @@ export type SseStreamConfig = {
 /** Pipeline result containing everything needed to dispatch an AI chat request */
 export type ChatPipeline = {
   queue: UpstreamRequestQueue;
-  upstreamKey: string;
   priority: number;
   startTime: number;
   logContext: ChatLogContext;
@@ -119,6 +107,7 @@ export type UpstreamTurnParams = {
   topP: number;
   reasoningEffort: ReasoningEffort | null;
   maxTokens: number;
+  responseFormat?: OpenAiCompatibleResponseFormat;
   onStreamEvent?: (event: AiChatModelStreamEvent) => void;
 };
 
