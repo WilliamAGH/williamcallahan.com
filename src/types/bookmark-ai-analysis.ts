@@ -70,6 +70,8 @@ export interface BookmarkAiAnalysisProps {
   autoTrigger?: boolean;
   /** Pre-cached analysis from S3 (if available) */
   initialAnalysis?: CachedAnalysis<BookmarkAiAnalysisResponse>;
+  /** Callback when analysis is successfully completed or loaded */
+  onAnalysisComplete?: (analysis: BookmarkAiAnalysisResponse) => void;
 }
 
 /** Props for BookmarkDetail component */
