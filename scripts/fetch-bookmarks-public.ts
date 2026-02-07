@@ -12,12 +12,14 @@
 
 import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
 import { readJsonS3Optional } from "@/lib/s3/json";
 import { z } from "zod/v4";
 import { getEnvironment, getEnvironmentSuffix } from "@/lib/config/environment";
-import type { BookmarkS3Record, BookmarkSlugMapping } from "@/types/bookmark";
+import {
+  buildPaginationArtifacts,
+  buildTagArtifacts,
+  saveToLocalS3,
+} from "./lib/bookmark-artifacts";
 
 // Get CDN URL from environment (canonical variable)
 const CDN_URL = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
@@ -49,9 +51,6 @@ const LOCAL_PATHS = {
   SLUG_MAPPING: "generated/bookmarks/slug-mapping.json",
 };
 
-const LOCAL_S3_BASE =
-  (process.env.LOCAL_S3_CACHE_DIR && process.env.LOCAL_S3_CACHE_DIR.trim()) ||
-  join(process.cwd(), ".next", "cache", "local-s3");
 const HAS_S3_CREDENTIALS =
   Boolean(process.env.S3_BUCKET) &&
   Boolean(process.env.S3_ACCESS_KEY_ID) &&
@@ -87,7 +86,7 @@ async function fetchJson(url: string, label: string): Promise<unknown> {
   }
 }
 
-async function fetchViaS3(key: string): Promise<unknown | null> {
+async function fetchViaS3(key: string): Promise<unknown> {
   if (!HAS_S3_CREDENTIALS) return null;
   try {
     const data = await readJsonS3Optional<unknown>(key, z.unknown());
@@ -116,15 +115,7 @@ function saveToFile(filePath: string, data: unknown): void {
   console.log(`✅ Saved to: ${filePath}`);
 }
 
-function saveToLocalS3(key: string, data: unknown): void {
-  const fullPath = join(LOCAL_S3_BASE, key);
-  const dir = dirname(fullPath);
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(fullPath, JSON.stringify(data, null, 2));
-  console.log(`   📦 Cached ${key} locally (${fullPath})`);
-}
-
-function loadExistingLocalJson(relativePath: string): unknown | null {
+function loadExistingLocalJson(relativePath: string): unknown {
   const fullPath = join(process.cwd(), relativePath);
   try {
     const raw = readFileSync(fullPath, "utf-8");
@@ -134,81 +125,174 @@ function loadExistingLocalJson(relativePath: string): unknown | null {
   }
 }
 
-function embedSlug(
-  bookmark: BookmarkS3Record,
-  slugMapping: Partial<BookmarkSlugMapping> | null,
-): BookmarkS3Record {
-  if (bookmark.slug) return bookmark;
-  const id = typeof bookmark.id === "string" ? bookmark.id : null;
-  if (!id) return bookmark;
-  const slug = slugMapping?.slugs?.[id]?.slug;
-  return slug ? { ...bookmark, slug } : bookmark;
+function getMappingCount(slugMapping: unknown): number {
+  if (typeof slugMapping !== "object" || slugMapping === null) return 0;
+
+  const mapping = slugMapping as Record<string, unknown>;
+
+  if ("count" in mapping && typeof mapping.count === "number") {
+    return mapping.count;
+  }
+
+  if ("slugs" in mapping && typeof mapping.slugs === "object" && mapping.slugs) {
+    return Object.keys(mapping.slugs).length;
+  }
+
+  return 0;
 }
 
-function buildPaginationArtifacts(
-  rawBookmarks: unknown,
-  slugMapping: Partial<BookmarkSlugMapping> | null,
-  index: unknown,
-  pagePrefix: string,
-): void {
-  if (!Array.isArray(rawBookmarks) || rawBookmarks.length === 0) return;
-  // Extract pageSize from index with proper type narrowing
-  let pageSize = 24;
-  if (typeof index === "object" && index !== null && "pageSize" in index) {
-    const rawPageSize = (index as Record<string, unknown>).pageSize;
-    if (typeof rawPageSize === "number" && rawPageSize > 0) {
-      pageSize = rawPageSize;
-    }
+function getLastFetchedAt(index: unknown): string | null {
+  if (typeof index !== "object" || index === null || !("lastFetchedAt" in index)) {
+    return null;
   }
-  const bookmarks = rawBookmarks.map((b) => embedSlug(b as BookmarkS3Record, slugMapping));
-  const totalPages = Math.max(1, Math.ceil(bookmarks.length / pageSize));
-  for (let page = 1; page <= totalPages; page++) {
-    const start = (page - 1) * pageSize;
-    const slice = bookmarks.slice(start, start + pageSize);
-    saveToLocalS3(`${pagePrefix}${page}.json`, slice);
-  }
+  const lastFetchedAt = (index as Record<string, unknown>).lastFetchedAt;
+  return typeof lastFetchedAt === "number" ? new Date(lastFetchedAt).toISOString() : null;
 }
 
-function buildTagArtifacts(
-  rawBookmarks: unknown,
-  slugMapping: Partial<BookmarkSlugMapping> | null,
-  tagPrefix: string,
-  tagIndexPrefix: string,
-): void {
-  if (!Array.isArray(rawBookmarks) || rawBookmarks.length === 0) return;
-  const tagBuckets = new Map<string, BookmarkS3Record[]>();
-  rawBookmarks.forEach((item) => {
-    const bookmark = embedSlug(item as BookmarkS3Record, slugMapping);
-    const tagNames = normalizeTagsToStrings((bookmark.tags as Array<string>) || []);
-    tagNames.forEach((tagName) => {
-      const slug = tagToSlug(tagName);
-      if (!slug) return;
-      if (!tagBuckets.has(slug)) tagBuckets.set(slug, []);
-      tagBuckets.get(slug)?.push(bookmark);
-    });
-  });
+async function fetchWithFallback(
+  path: string,
+): Promise<{ data: unknown; source: "s3" | "cdn" | "local" | null }> {
+  if (HAS_S3_CREDENTIALS) {
+    const s3Data = await fetchViaS3(path);
+    if (s3Data !== null) return { data: s3Data, source: "s3" };
+  }
 
-  const pageSize = 24;
-  const timestamp = Date.now();
-  tagBuckets.forEach((bookmarks, slug) => {
-    const totalPages = Math.max(1, Math.ceil(bookmarks.length / pageSize));
-    const indexPayload = {
-      count: bookmarks.length,
-      totalPages,
-      pageSize,
-      lastModified: new Date().toISOString(),
-      lastFetchedAt: timestamp,
-      lastAttemptedAt: timestamp,
-      checksum: calculateBookmarksChecksum(bookmarks as any),
-      changeDetected: true,
-    };
-    saveToLocalS3(`${tagIndexPrefix}${slug}/index.json`, indexPayload);
-    for (let page = 1; page <= totalPages; page++) {
-      const start = (page - 1) * pageSize;
-      const slice = bookmarks.slice(start, start + pageSize);
-      saveToLocalS3(`${tagPrefix}${slug}/page-${page}.json`, slice);
-    }
-  });
+  const cdnData = await fetchFromCdn(path);
+  if (cdnData !== null) return { data: cdnData, source: "cdn" };
+
+  return { data: null, source: null };
+}
+
+async function fetchFromCdn(path: string): Promise<unknown> {
+  const urls = buildCandidateUrls(path);
+  if (urls.length === 0) {
+    console.error("❌ No origin or CDN URL configured; cannot fetch", path);
+    return null;
+  }
+  for (const url of urls) {
+    const result = await fetchJson(url, path);
+    if (result !== null) return result;
+  }
+  return null;
+}
+
+function buildCandidateUrls(path: string): string[] {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+
+  const pushUrl = (value: string | undefined): void => {
+    if (!value) return;
+    const normalized = value.replace(/\/+$/, "");
+    if (seen.has(normalized)) return;
+    seen.add(normalized);
+    urls.push(`${normalized}/${path}`);
+  };
+
+  pushUrl(originBucketBase);
+  pushUrl(preferredCdnBase);
+
+  return urls;
+}
+
+async function fetchSingleData(
+  path: string,
+  localPath: string,
+  label: string,
+  getCount?: (data: unknown) => string | null,
+): Promise<{ data: unknown; success: boolean }> {
+  const result = await fetchWithFallback(path);
+  let data = result.data;
+
+  if (!data) {
+    data = loadExistingLocalJson(localPath);
+    if (data) console.log(`   ♻️  Using existing local ${label} snapshot (remote fetch failed)`);
+  }
+
+  if (data) {
+    saveToFile(localPath, data);
+    saveToLocalS3(path, data);
+    const count = getCount?.(data);
+    if (count) console.log(`   ${count}`);
+    return { data, success: true };
+  }
+
+  return { data: null, success: false };
+}
+
+async function fetchBookmarksData(): Promise<{
+  bookmarks: unknown;
+  index: unknown;
+  slugMapping: unknown;
+  heartbeat: unknown;
+  successCount: number;
+  failureCount: number;
+}> {
+  let successCount = 0;
+  let failureCount = 0;
+
+  const bookmarksResult = await fetchSingleData(
+    BOOKMARKS_PATHS.FILE,
+    LOCAL_PATHS.BOOKMARKS,
+    "bookmarks",
+    (data) => `📚 Loaded ${Array.isArray(data) ? data.length : 0} bookmarks`,
+  );
+  if (bookmarksResult.success) {
+    successCount++;
+  } else {
+    failureCount++;
+    saveToFile(LOCAL_PATHS.BOOKMARKS, []);
+    saveToLocalS3(BOOKMARKS_PATHS.FILE, []);
+  }
+
+  const indexResult = await fetchSingleData(
+    BOOKMARKS_PATHS.INDEX,
+    LOCAL_PATHS.INDEX,
+    "index",
+    (data) => {
+      const ts = getLastFetchedAt(data);
+      return ts ? `📑 Index updated: ${ts}` : null;
+    },
+  );
+  if (indexResult.success) {
+    successCount++;
+  } else {
+    failureCount++;
+    const fallback = { lastFetchedAt: 0 };
+    saveToFile(LOCAL_PATHS.INDEX, fallback);
+    saveToLocalS3(BOOKMARKS_PATHS.INDEX, fallback);
+  }
+
+  const slugResult = await fetchSingleData(
+    BOOKMARKS_PATHS.SLUG_MAPPING,
+    LOCAL_PATHS.SLUG_MAPPING,
+    "slug-mapping",
+    (data) => `🗺️  Slug mapping loaded: ${getMappingCount(data)} entries`,
+  );
+  if (slugResult.success) {
+    successCount++;
+  } else {
+    failureCount++;
+    const empty = { version: 1, generated: new Date().toISOString(), count: 0, slugs: {} };
+    saveToFile(LOCAL_PATHS.SLUG_MAPPING, empty);
+    saveToLocalS3(BOOKMARKS_PATHS.SLUG_MAPPING, empty);
+  }
+
+  const heartbeatResult = await fetchWithFallback(BOOKMARKS_PATHS.HEARTBEAT);
+  if (heartbeatResult.data) {
+    saveToLocalS3(BOOKMARKS_PATHS.HEARTBEAT, heartbeatResult.data);
+    successCount++;
+  } else {
+    failureCount++;
+  }
+
+  return {
+    bookmarks: bookmarksResult.data,
+    index: indexResult.data,
+    slugMapping: slugResult.data,
+    heartbeat: heartbeatResult.data,
+    successCount,
+    failureCount,
+  };
 }
 
 /**
@@ -220,156 +304,7 @@ async function main() {
   console.log(`   Origin URL: ${ORIGIN_SERVER_URL || "(not set)"}`);
   console.log(`   Environment: ${resolvedEnvironment}`);
 
-  let successCount = 0;
-  let failureCount = 0;
-
-  const candidateUrls = (path: string): string[] => {
-    const urls: string[] = [];
-    const seen = new Set<string>();
-
-    const pushUrl = (value: string | undefined): void => {
-      if (!value) return;
-      const normalized = value.replace(/\/+$/, "");
-      if (seen.has(normalized)) return;
-      seen.add(normalized);
-      urls.push(`${normalized}/${path}`);
-    };
-
-    pushUrl(originBucketBase);
-    pushUrl(preferredCdnBase);
-
-    return urls;
-  };
-
-  const fetchWithFallback = async (path: string): Promise<unknown> => {
-    const urls = candidateUrls(path);
-    if (urls.length === 0) {
-      console.error("❌ No origin or CDN URL configured; cannot fetch", path);
-      return null;
-    }
-    for (const url of urls) {
-      const result = await fetchJson(url, path);
-      if (result !== null) return result;
-    }
-    return null;
-  };
-
-  // Fetch bookmarks file
-  let bookmarks: unknown =
-    (HAS_S3_CREDENTIALS ? await fetchViaS3(BOOKMARKS_PATHS.FILE) : null) ??
-    (await fetchWithFallback(BOOKMARKS_PATHS.FILE));
-
-  if (!bookmarks) {
-    const existing = loadExistingLocalJson(LOCAL_PATHS.BOOKMARKS);
-    if (existing) {
-      console.log("   ♻️  Using existing local bookmarks snapshot (remote fetch failed)");
-      bookmarks = existing;
-    }
-  }
-  if (bookmarks) {
-    saveToFile(LOCAL_PATHS.BOOKMARKS, bookmarks);
-    saveToLocalS3(BOOKMARKS_PATHS.FILE, bookmarks);
-    successCount++;
-    // Runtime check for array length instead of unsafe type assertion
-    const bookmarkCount = Array.isArray(bookmarks) ? bookmarks.length : 0;
-    console.log(`   📚 Loaded ${bookmarkCount} bookmarks`);
-  } else {
-    failureCount++;
-    // Create empty file to prevent build errors
-    saveToFile(LOCAL_PATHS.BOOKMARKS, []);
-    saveToLocalS3(BOOKMARKS_PATHS.FILE, []);
-  }
-
-  // Fetch index file
-  let index =
-    (HAS_S3_CREDENTIALS ? await fetchViaS3(BOOKMARKS_PATHS.INDEX) : null) ??
-    (await fetchWithFallback(BOOKMARKS_PATHS.INDEX));
-  if (!index) {
-    const existing = loadExistingLocalJson(LOCAL_PATHS.INDEX);
-    if (existing) {
-      console.log("   ♻️  Using existing local index snapshot (remote fetch failed)");
-      index = existing;
-    }
-  }
-  if (index) {
-    saveToFile(LOCAL_PATHS.INDEX, index);
-    saveToLocalS3(BOOKMARKS_PATHS.INDEX, index);
-    successCount++;
-    // Runtime check for lastFetchedAt property instead of unsafe type assertion
-    if (typeof index === "object" && index !== null && "lastFetchedAt" in index) {
-      const lastFetchedAt = (index as Record<string, unknown>).lastFetchedAt;
-      if (typeof lastFetchedAt === "number") {
-        console.log(`   📑 Index updated: ${new Date(lastFetchedAt).toISOString()}`);
-      }
-    }
-  } else {
-    failureCount++;
-    // Create minimal index fallback to prevent missing-file errors
-    const fallbackIndex = { lastFetchedAt: 0 };
-    saveToFile(LOCAL_PATHS.INDEX, fallbackIndex);
-    saveToLocalS3(BOOKMARKS_PATHS.INDEX, fallbackIndex);
-  }
-
-  // Fetch slug mapping (CRITICAL for sitemap generation)
-  let slugMapping =
-    (HAS_S3_CREDENTIALS ? await fetchViaS3(BOOKMARKS_PATHS.SLUG_MAPPING) : null) ??
-    (await fetchWithFallback(BOOKMARKS_PATHS.SLUG_MAPPING));
-  if (!slugMapping) {
-    const existing = loadExistingLocalJson(LOCAL_PATHS.SLUG_MAPPING);
-    if (existing) {
-      console.log("   ♻️  Using existing local slug-mapping snapshot (remote fetch failed)");
-      slugMapping = existing;
-    }
-  }
-  if (slugMapping) {
-    saveToFile(LOCAL_PATHS.SLUG_MAPPING, slugMapping);
-    saveToLocalS3(BOOKMARKS_PATHS.SLUG_MAPPING, slugMapping);
-    successCount++;
-    // Runtime check for count property instead of unsafe type assertion
-    let mappingCount = 0;
-    if (typeof slugMapping === "object" && slugMapping !== null) {
-      // Check for 'count' property
-      if (
-        "count" in slugMapping &&
-        typeof (slugMapping as Record<string, unknown>).count === "number"
-      ) {
-        mappingCount = (slugMapping as Record<string, unknown>).count as number;
-      }
-      // Fallback: count the 'slugs' object keys if present
-      else if (
-        "slugs" in slugMapping &&
-        typeof (slugMapping as Record<string, unknown>).slugs === "object"
-      ) {
-        const slugs = (slugMapping as Record<string, unknown>).slugs;
-        if (slugs && typeof slugs === "object") {
-          mappingCount = Object.keys(slugs).length;
-        }
-      }
-    }
-    console.log(`   🗺️  Slug mapping loaded: ${mappingCount} entries`);
-  } else {
-    failureCount++;
-    // Create minimal slug mapping to prevent errors
-    const emptyMapping = {
-      version: 1,
-      generated: new Date().toISOString(),
-      count: 0,
-      slugs: {},
-    };
-    saveToFile(LOCAL_PATHS.SLUG_MAPPING, emptyMapping);
-    saveToLocalS3(BOOKMARKS_PATHS.SLUG_MAPPING, emptyMapping);
-  }
-
-  // Fetch heartbeat file
-  const heartbeat =
-    (HAS_S3_CREDENTIALS ? await fetchViaS3(BOOKMARKS_PATHS.HEARTBEAT) : null) ??
-    (await fetchWithFallback(BOOKMARKS_PATHS.HEARTBEAT));
-  if (heartbeat) {
-    saveToLocalS3(BOOKMARKS_PATHS.HEARTBEAT, heartbeat);
-    successCount++;
-  } else {
-    failureCount++;
-  }
+  const { bookmarks, index, slugMapping, successCount, failureCount } = await fetchBookmarksData();
 
   // Build local pagination + tag artifacts for fallback
   if (bookmarks) {
@@ -392,13 +327,12 @@ async function main() {
   }
 
   // Only fail hard if we couldn't fetch bookmarks at all
-  const criticalFailure = !bookmarks;
-  process.exit(criticalFailure ? 1 : 0);
+  process.exit(bookmarks ? 0 : 1);
 }
 
-// Run if executed directly
+// Execute main with top-level await if run directly
 if (import.meta.main) {
-  main().catch((error) => {
+  await main().catch((error) => {
     console.error("❌ Fatal error:", error);
     process.exit(1);
   });
