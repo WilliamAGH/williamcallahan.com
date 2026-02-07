@@ -8,7 +8,6 @@
  * Provides domain-specific configuration: context extraction, prompts, schema, and rendering.
  */
 
-import { motion } from "framer-motion";
 import type {
   BookmarkAiAnalysisProps,
   BookmarkAnalysisContext,
@@ -23,6 +22,11 @@ import {
   buildBookmarkAnalysisUserPrompt,
 } from "@/lib/bookmarks/analysis/build-prompt";
 import { AiAnalysisTerminal } from "@/components/features/ai-analysis/ai-analysis-terminal.client";
+import {
+  BulletListSection,
+  ChipListSection,
+  TechDetailsSection,
+} from "@/components/features/ai-analysis/analysis-render-sections";
 import type { AnalysisRenderHelpers } from "@/types/ai-analysis";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,7 +43,7 @@ const LOADING_MESSAGES = [
   "Synthesizing insights...",
 ];
 
-const BOOKMARK_ANALYSIS_RESPONSE_FORMAT = {
+export const BOOKMARK_ANALYSIS_RESPONSE_FORMAT = {
   type: "json_schema",
   json_schema: {
     name: "bookmark_analysis",
@@ -48,9 +52,14 @@ const BOOKMARK_ANALYSIS_RESPONSE_FORMAT = {
       type: "object",
       additionalProperties: false,
       properties: {
-        summary: { type: "string" },
-        category: { type: "string" },
-        highlights: { type: "array", items: { type: "string" } },
+        summary: { type: "string", minLength: 1 },
+        category: { type: "string", minLength: 1 },
+        highlights: {
+          type: "array",
+          items: { type: "string", minLength: 1 },
+          minItems: 1,
+          maxItems: 6,
+        },
         contextualDetails: {
           type: "object",
           additionalProperties: false,
@@ -61,8 +70,13 @@ const BOOKMARK_ANALYSIS_RESPONSE_FORMAT = {
           },
           required: ["primaryDomain", "format", "accessMethod"],
         },
-        relatedResources: { type: "array", items: { type: "string" } },
-        targetAudience: { type: "string" },
+        relatedResources: {
+          type: "array",
+          items: { type: "string", minLength: 1 },
+          minItems: 1,
+          maxItems: 6,
+        },
+        targetAudience: { type: "string", minLength: 1 },
       },
       required: [
         "summary",
@@ -82,80 +96,45 @@ const BOOKMARK_ANALYSIS_RESPONSE_FORMAT = {
 
 function renderBookmarkAnalysis(
   analysis: BookmarkAiAnalysisResponse,
-  { AnalysisSection, TerminalListItem, TechDetail, skipAnimation }: AnalysisRenderHelpers,
+  helpers: AnalysisRenderHelpers,
 ) {
+  const { AnalysisSection, skipAnimation } = helpers;
   return (
     <>
-      {/* Summary */}
-      <AnalysisSection label="Summary" index={0} skipAnimation={skipAnimation}>
-        {analysis.summary}
-      </AnalysisSection>
-
-      {/* Highlights */}
-      {analysis.highlights.length > 0 && (
-        <AnalysisSection
-          label="Highlights"
-          index={1}
-          accentColor="#9ece6a"
-          skipAnimation={skipAnimation}
-        >
-          <ul className="space-y-1.5 mt-1">
-            {analysis.highlights.map((highlight, idx) => (
-              <TerminalListItem key={idx} index={idx} skipAnimation={skipAnimation}>
-                {highlight}
-              </TerminalListItem>
-            ))}
-          </ul>
+      {analysis.summary && (
+        <AnalysisSection label="Summary" index={0} skipAnimation={skipAnimation}>
+          {analysis.summary}
         </AnalysisSection>
       )}
 
-      {/* Contextual Details */}
-      {(analysis.contextualDetails.primaryDomain ||
-        analysis.contextualDetails.format ||
-        analysis.contextualDetails.accessMethod) && (
-        <AnalysisSection
-          label="Details"
-          index={2}
-          accentColor="#bb9af7"
-          skipAnimation={skipAnimation}
-        >
-          <div className="space-y-1 mt-1 bg-black/20 rounded p-3 border border-[#3d4f70]/50">
-            {analysis.contextualDetails.primaryDomain && (
-              <TechDetail label="domain" value={analysis.contextualDetails.primaryDomain} />
-            )}
-            {analysis.contextualDetails.format && (
-              <TechDetail label="format" value={analysis.contextualDetails.format} />
-            )}
-            {analysis.contextualDetails.accessMethod && (
-              <TechDetail label="access" value={analysis.contextualDetails.accessMethod} />
-            )}
-          </div>
-        </AnalysisSection>
-      )}
+      <BulletListSection
+        items={analysis.highlights}
+        label="Highlights"
+        index={1}
+        accentColor="#9ece6a"
+        helpers={helpers}
+      />
 
-      {/* Related Resources - compact chips */}
-      {analysis.relatedResources.length > 0 && (
-        <AnalysisSection
-          label="Related"
-          index={3}
-          accentColor="#73daca"
-          skipAnimation={skipAnimation}
-        >
-          <div className="flex flex-wrap gap-1.5 mt-1">
-            {analysis.relatedResources.map((resource, idx) => (
-              <motion.span
-                key={idx}
-                initial={skipAnimation ? false : { opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: idx * 0.05 }}
-                className="px-2 py-0.5 text-xs font-mono bg-[#73daca]/10 text-[#73daca] rounded border border-[#73daca]/20"
-              >
-                {resource}
-              </motion.span>
-            ))}
-          </div>
-        </AnalysisSection>
-      )}
+      <TechDetailsSection
+        details={[
+          { label: "domain", value: analysis.contextualDetails?.primaryDomain },
+          { label: "format", value: analysis.contextualDetails?.format },
+          { label: "access", value: analysis.contextualDetails?.accessMethod },
+        ]}
+        label="Details"
+        index={2}
+        accentColor="#bb9af7"
+        helpers={helpers}
+      />
+
+      <ChipListSection
+        items={analysis.relatedResources}
+        label="Related"
+        index={3}
+        accentColor="#73daca"
+        chipClassName="px-2 py-0.5 text-xs font-mono bg-[#73daca]/10 text-[#73daca] rounded border border-[#73daca]/20"
+        helpers={helpers}
+      />
     </>
   );
 }
@@ -169,7 +148,7 @@ export function BookmarkAiAnalysis({
   className = "",
   autoTrigger = true,
   initialAnalysis,
-}: BookmarkAiAnalysisProps) {
+}: Readonly<BookmarkAiAnalysisProps>) {
   return (
     <AiAnalysisTerminal
       entity={bookmark}

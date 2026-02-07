@@ -7,6 +7,11 @@
  */
 
 import { z } from "zod/v4";
+import {
+  meaningfulStringSchema,
+  nullableMeaningfulStringSchema,
+  meaningfulStringListSchema,
+} from "@/types/schemas/ai-analysis-common";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Contextual Details Schema
@@ -17,11 +22,11 @@ import { z } from "zod/v4";
  */
 export const bookAiAnalysisContextualDetailsSchema = z.object({
   /** Writing style (e.g., "academic", "conversational", "narrative") */
-  writingStyle: z.string().nullable(),
+  writingStyle: nullableMeaningfulStringSchema,
   /** Difficulty/depth level (e.g., "introductory", "intermediate", "expert") */
-  readingLevel: z.string().nullable(),
+  readingLevel: nullableMeaningfulStringSchema,
   /** Estimated reading commitment (e.g., "quick read", "deep dive", "reference") */
-  commitment: z.string().nullable(),
+  commitment: nullableMeaningfulStringSchema,
 });
 
 export type BookAiAnalysisContextualDetails = z.infer<typeof bookAiAnalysisContextualDetailsSchema>;
@@ -33,19 +38,19 @@ export type BookAiAnalysisContextualDetails = z.infer<typeof bookAiAnalysisConte
 /** Complete AI analysis response for a book */
 export const bookAiAnalysisResponseSchema = z.object({
   /** 2-3 sentence overview of the book's content and significance */
-  summary: z.string().min(1),
+  summary: meaningfulStringSchema,
   /** Primary genre/category (e.g., "Business Strategy", "Science Fiction") */
-  category: z.string().min(1),
+  category: meaningfulStringSchema,
   /** 3-5 key themes, ideas, or takeaways from the book */
-  keyThemes: z.array(z.string()).min(1).max(6),
+  keyThemes: meaningfulStringListSchema,
   /** What type of reader would benefit most */
-  idealReader: z.string().min(1),
+  idealReader: meaningfulStringSchema,
   /** Contextual details about the book's style and accessibility */
   contextualDetails: bookAiAnalysisContextualDetailsSchema,
   /** Related books, authors, or topics worth exploring */
-  relatedReading: z.array(z.string()),
+  relatedReading: meaningfulStringListSchema,
   /** Why this book matters or stands out */
-  whyItMatters: z.string().min(1),
+  whyItMatters: meaningfulStringSchema,
 });
 
 export type BookAiAnalysisResponse = z.infer<typeof bookAiAnalysisResponseSchema>;
