@@ -8,7 +8,6 @@
  * Provides domain-specific configuration: context extraction, prompts, schema, and rendering.
  */
 
-import { Code2 } from "lucide-react";
 import type { ProjectAiAnalysisProps, ProjectAnalysisContext } from "@/types/project-ai-analysis";
 import {
   projectAiAnalysisResponseSchema,
@@ -154,7 +153,7 @@ function renderProjectAnalysis(
         label="Related Projects"
         index={5}
         accentColor="#ff9e64"
-        chipClassName="px-2 py-0.5 text-xs font-mono bg-[#ff9e64]/10 text-[#ff9e64] rounded border border-[#ff9e64]/20"
+        chipClassName="px-2.5 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-md"
         helpers={helpers}
       />
     </>
@@ -189,8 +188,6 @@ export function ProjectAiAnalysis({
       responseSchema={projectAiAnalysisResponseSchema}
       renderAnalysis={renderProjectAnalysis}
       getCategory={(a) => a.category}
-      footerIcon={<Code2 className="w-3 h-3" />}
-      footerText="AI-powered insights"
       autoTrigger={autoTrigger}
       initialAnalysis={initialAnalysis}
       className={className}

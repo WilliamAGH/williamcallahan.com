@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import type { BookmarkTag } from "@/types";
 import type { BookmarkDetailProps } from "@/types/bookmark-ai-analysis";
+import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
 import {
   Calendar,
   Clock,
@@ -24,7 +25,11 @@ import { GitHub } from "@/components/ui/social-icons/github-icon";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { formatDate } from "@/lib/utils";
 import { BookmarksWindow } from "./bookmarks-window.client";
-import { BookmarkAiAnalysis } from "./bookmark-ai-analysis.client";
+import {
+  BookmarkAiAnalysis,
+  BookmarkAiContext,
+  BookmarkAiRelated,
+} from "./bookmark-ai-analysis.client";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import { removeCitations, processSummaryText } from "@/lib/utils/formatters";
 import { safeExternalHref, getDisplayHostname, isGitHubUrl } from "@/lib/utils/url-utils";
@@ -41,6 +46,10 @@ function toDisplayDate(date?: string | Date | number | null): string | null {
 
 export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDetailProps>) {
   const { scrollY } = useScroll();
+  const [analysisData, setAnalysisData] = useState<BookmarkAiAnalysisResponse | null>(
+    cachedAnalysis?.analysis ?? null,
+  );
+  const hasAnalysis = !!analysisData;
 
   // Subtle parallax for image
   const imageY = useTransform(scrollY, [0, 300], [0, -20]);
@@ -160,6 +169,20 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
             </div>
           </div>
 
+          {/* AI Analysis - Focal point, full width of container */}
+          <motion.section
+            initial={false}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.5 }}
+            className="mb-8 sm:mb-10"
+          >
+            <BookmarkAiAnalysis
+              bookmark={bookmark}
+              initialAnalysis={cachedAnalysis ?? undefined}
+              onAnalysisComplete={(a) => setAnalysisData(a)}
+            />
+          </motion.section>
+
           {/* Main Content Grid - Mobile-first approach */}
           <div className="flex flex-col-reverse lg:grid lg:grid-cols-3 gap-6 lg:gap-10">
             {/* Main Content Column - Takes up 2/3 on large screens */}
@@ -221,8 +244,11 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                 </motion.div>
               )}
 
-              {/* Summary Box - Uses AI-generated summary with proper formatting, falls back to description */}
-              {(bookmark.summary || bookmark.description) && (
+              {/* AI Context - domain, format, access, audience */}
+              {analysisData && <BookmarkAiContext analysis={analysisData} />}
+
+              {/* Summary Box - hidden when AI analysis is available (shown above grid instead) */}
+              {!hasAnalysis && (bookmark.summary || bookmark.description) && (
                 <motion.section
                   initial={false}
                   animate={{ opacity: 1, y: 0 }}
@@ -273,18 +299,6 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                   <p className="text-sm mt-2">Visit the original site to explore the content.</p>
                 </div>
               )}
-
-              {/* AI Analysis - Full width in main content for rich output */}
-              <motion.section
-                initial={false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.5 }}
-              >
-                <BookmarkAiAnalysis
-                  bookmark={bookmark}
-                  initialAnalysis={cachedAnalysis ?? undefined}
-                />
-              </motion.section>
             </div>
 
             {/* Sidebar Column - Shows first on mobile, 1/3 on large screens */}
@@ -378,6 +392,9 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                   <span>All Bookmarks</span>
                 </Link>
               </motion.div>
+
+              {/* AI Related resources - beneath action buttons */}
+              {analysisData && <BookmarkAiRelated analysis={analysisData} />}
             </div>
           </div>
         </div>
