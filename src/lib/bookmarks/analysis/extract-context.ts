@@ -31,9 +31,9 @@ function stripHtmlTags(html: string): string {
     html
       // Remove script and style elements entirely
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ")
-      .replaceAll(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ")
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ")
       // Remove all HTML tags
-      .replaceAll(/<[^>]+>/g, " ")
+      .replace(/<[^>]+>/g, " ")
       // Decode common HTML entities
       .replaceAll("&nbsp;", " ")
       .replaceAll("&amp;", "&")
@@ -43,7 +43,7 @@ function stripHtmlTags(html: string): string {
       .replaceAll("&#39;", "'")
       .replaceAll("&apos;", "'")
       // Collapse whitespace
-      .replaceAll(/\s+/g, " ")
+      .replace(/\s+/g, " ")
       .trim()
   );
 }
