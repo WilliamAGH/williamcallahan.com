@@ -37,6 +37,45 @@ const LOADING_MESSAGES = [
   "Synthesizing insights...",
 ];
 
+const BOOK_ANALYSIS_RESPONSE_FORMAT = {
+  type: "json_schema",
+  json_schema: {
+    name: "book_analysis",
+    strict: true,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        summary: { type: "string" },
+        category: { type: "string" },
+        keyThemes: { type: "array", items: { type: "string" } },
+        idealReader: { type: "string" },
+        contextualDetails: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            writingStyle: { type: ["string", "null"] },
+            readingLevel: { type: ["string", "null"] },
+            commitment: { type: ["string", "null"] },
+          },
+          required: ["writingStyle", "readingLevel", "commitment"],
+        },
+        relatedReading: { type: "array", items: { type: "string" } },
+        whyItMatters: { type: "string" },
+      },
+      required: [
+        "summary",
+        "category",
+        "keyThemes",
+        "idealReader",
+        "contextualDetails",
+        "relatedReading",
+        "whyItMatters",
+      ],
+    },
+  },
+} as const;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Analysis Renderer
 // ─────────────────────────────────────────────────────────────────────────────
@@ -155,6 +194,7 @@ export function BookAiAnalysis({
       extractContext={extractBookAnalysisContext}
       buildSystemPrompt={buildBookAnalysisSystemPrompt}
       buildUserPrompt={(ctx) => buildBookAnalysisUserPrompt(ctx as BookAnalysisContext)}
+      responseFormat={BOOK_ANALYSIS_RESPONSE_FORMAT}
       responseSchema={bookAiAnalysisResponseSchema}
       renderAnalysis={renderBookAnalysis}
       getCategory={(a) => a.category}

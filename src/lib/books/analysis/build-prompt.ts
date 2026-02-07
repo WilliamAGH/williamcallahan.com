@@ -17,7 +17,7 @@ import type { BookAnalysisContext } from "@/types/book-ai-analysis";
  * Instructs the LLM to act as a book analyst and return JSON.
  */
 export function buildBookAnalysisSystemPrompt(): string {
-  return `You are a literary analyst who provides insightful book reviews and recommendations. Analyze books across all genres—fiction, non-fiction, technical, self-help, business, etc. Adapt your analysis style to match the book's genre and audience. Respond with valid JSON only—no markdown, no code blocks.`;
+  return `You are a literary analyst who provides insightful book reviews and recommendations. Analyze books across all genres—fiction, non-fiction, technical, self-help, business, etc. Adapt your analysis style to match the book's genre and audience.`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

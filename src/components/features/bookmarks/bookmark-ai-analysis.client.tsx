@@ -39,6 +39,43 @@ const LOADING_MESSAGES = [
   "Synthesizing insights...",
 ];
 
+const BOOKMARK_ANALYSIS_RESPONSE_FORMAT = {
+  type: "json_schema",
+  json_schema: {
+    name: "bookmark_analysis",
+    strict: true,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        summary: { type: "string" },
+        category: { type: "string" },
+        highlights: { type: "array", items: { type: "string" } },
+        contextualDetails: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            primaryDomain: { type: ["string", "null"] },
+            format: { type: ["string", "null"] },
+            accessMethod: { type: ["string", "null"] },
+          },
+          required: ["primaryDomain", "format", "accessMethod"],
+        },
+        relatedResources: { type: "array", items: { type: "string" } },
+        targetAudience: { type: "string" },
+      },
+      required: [
+        "summary",
+        "category",
+        "highlights",
+        "contextualDetails",
+        "relatedResources",
+        "targetAudience",
+      ],
+    },
+  },
+} as const;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Analysis Renderer
 // ─────────────────────────────────────────────────────────────────────────────
@@ -143,6 +180,7 @@ export function BookmarkAiAnalysis({
       extractContext={extractBookmarkAnalysisContext}
       buildSystemPrompt={buildBookmarkAnalysisSystemPrompt}
       buildUserPrompt={(ctx) => buildBookmarkAnalysisUserPrompt(ctx as BookmarkAnalysisContext)}
+      responseFormat={BOOKMARK_ANALYSIS_RESPONSE_FORMAT}
       responseSchema={bookmarkAiAnalysisResponseSchema}
       renderAnalysis={renderBookmarkAnalysis}
       getCategory={(a) => a.category}

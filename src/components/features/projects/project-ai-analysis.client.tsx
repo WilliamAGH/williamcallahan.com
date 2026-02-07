@@ -37,6 +37,45 @@ const LOADING_MESSAGES = [
   "Synthesizing insights...",
 ];
 
+const PROJECT_ANALYSIS_RESPONSE_FORMAT = {
+  type: "json_schema",
+  json_schema: {
+    name: "project_analysis",
+    strict: true,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        summary: { type: "string" },
+        category: { type: "string" },
+        keyFeatures: { type: "array", items: { type: "string" } },
+        targetUsers: { type: "string" },
+        technicalDetails: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            architecture: { type: ["string", "null"] },
+            complexity: { type: ["string", "null"] },
+            maturity: { type: ["string", "null"] },
+          },
+          required: ["architecture", "complexity", "maturity"],
+        },
+        relatedProjects: { type: "array", items: { type: "string" } },
+        uniqueValue: { type: "string" },
+      },
+      required: [
+        "summary",
+        "category",
+        "keyFeatures",
+        "targetUsers",
+        "technicalDetails",
+        "relatedProjects",
+        "uniqueValue",
+      ],
+    },
+  },
+} as const;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Analysis Renderer
 // ─────────────────────────────────────────────────────────────────────────────
@@ -159,6 +198,7 @@ export function ProjectAiAnalysis({
       extractContext={extractProjectAnalysisContext}
       buildSystemPrompt={buildProjectAnalysisSystemPrompt}
       buildUserPrompt={(ctx) => buildProjectAnalysisUserPrompt(ctx as ProjectAnalysisContext)}
+      responseFormat={PROJECT_ANALYSIS_RESPONSE_FORMAT}
       responseSchema={projectAiAnalysisResponseSchema}
       renderAnalysis={renderProjectAnalysis}
       getCategory={(a) => a.category}

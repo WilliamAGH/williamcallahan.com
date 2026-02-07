@@ -8,6 +8,7 @@
 import type { ComponentType, ReactNode } from "react";
 import type { z } from "zod/v4";
 import type { AnalysisMetadata } from "@/types/schemas/ai-analysis-persisted";
+import type { OpenAiCompatibleResponseFormat } from "@/types/schemas/ai-openai-compatible";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Domain Types
@@ -128,6 +129,8 @@ export interface AiAnalysisTerminalProps<TEntity, TAnalysis> {
   buildSystemPrompt: () => string;
   /** Build the user prompt from context */
   buildUserPrompt: (context: unknown) => string;
+  /** Structured output format passed to upstream chat completions */
+  responseFormat: OpenAiCompatibleResponseFormat;
   /** Zod schema for validating AI response */
   responseSchema: z.ZodType<TAnalysis>;
   /** Render the analysis content */
