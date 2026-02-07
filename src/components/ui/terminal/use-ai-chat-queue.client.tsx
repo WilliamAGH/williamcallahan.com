@@ -21,6 +21,7 @@ const ABORT_REASON_CLEAR_EXIT = "clear_exit";
 const ABORT_REASON_UNMOUNT = "unmount";
 
 const TERMINAL_CHAT_QUEUE_LIMIT = 5;
+const STREAM_PREVIEW_MAX_CHARS = 240;
 
 function isExpectedAbortReason(reason: unknown): boolean {
   return (
@@ -29,6 +30,12 @@ function isExpectedAbortReason(reason: unknown): boolean {
     reason === ABORT_REASON_CLEAR_EXIT ||
     reason === ABORT_REASON_UNMOUNT
   );
+}
+
+function buildStreamPreview(text: string): string {
+  const condensed = text.replace(/\s+/g, " ").trim();
+  if (condensed.length <= STREAM_PREVIEW_MAX_CHARS) return condensed;
+  return `...${condensed.slice(-STREAM_PREVIEW_MAX_CHARS)}`;
 }
 
 export function useAiChatQueue({
@@ -85,6 +92,7 @@ export function useAiChatQueue({
       const messages = buildChatMessages(userText);
 
       setAiQueueMessage(null);
+      let streamedAssistantText = "";
       const assistantText = await aiChat(
         feature,
         { messages, conversationId: conversationIdRef.current, priority: 10 },
@@ -104,6 +112,23 @@ export function useAiChatQueue({
 
             if (update.event === "started") {
               setAiQueueMessage(null);
+            }
+          },
+          onStreamEvent: (update) => {
+            if (update.event === "message_start") {
+              setAiQueueMessage("Assistant is responding...");
+              return;
+            }
+
+            if (update.event === "message_delta") {
+              streamedAssistantText += update.data.delta;
+              const preview = buildStreamPreview(streamedAssistantText);
+              setAiQueueMessage(preview ? `Assistant: ${preview}` : "Assistant is responding...");
+              return;
+            }
+
+            if (update.event === "message_done") {
+              streamedAssistantText = update.data.message;
             }
           },
         },

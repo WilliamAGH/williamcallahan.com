@@ -57,6 +57,19 @@ function safeParseJson(data: string, eventType: string): unknown {
   }
 }
 
+async function assertSseContentType(response: Response): Promise<void> {
+  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+  if (contentType.includes("text/event-stream")) return;
+
+  const responseText = await response.text();
+  const bodyPreview = responseText.trim();
+  const preview = bodyPreview.length > 240 ? `${bodyPreview.slice(0, 240)}...` : bodyPreview;
+  const headerValue = contentType || "missing";
+  throw new Error(
+    `AI chat expected text/event-stream but received '${headerValue}' (status ${response.status}). ${preview}`,
+  );
+}
+
 async function readSseStream(args: {
   response: Response;
   signal?: AbortSignal;
@@ -256,6 +269,8 @@ export async function aiChat(
       throw new Error(`AI chat failed (HTTP ${retry.status}): ${text}`);
     }
 
+    await assertSseContentType(retry);
+
     return readSseStream({
       response: retry,
       signal: options.signal,
@@ -268,6 +283,8 @@ export async function aiChat(
     const text = await response.text();
     throw new Error(`AI chat failed (HTTP ${response.status}): ${text}`);
   }
+
+  await assertSseContentType(response);
 
   return readSseStream({
     response,

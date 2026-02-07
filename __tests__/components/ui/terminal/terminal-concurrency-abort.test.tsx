@@ -280,4 +280,60 @@ describe("AbortController Cleanup", () => {
       result.current.clearAndExitChat();
     });
   });
+
+  it("surfaces streamed assistant deltas while a chat request is in flight", async () => {
+    const deferred = createDeferred<string>();
+    let streamOptions:
+      | {
+          onStreamEvent?: (event: {
+            event: "message_start" | "message_delta" | "message_done";
+            data: unknown;
+          }) => void;
+        }
+      | undefined;
+
+    mockAiChat.mockImplementationOnce((_feature, _payload, options) => {
+      streamOptions = options;
+      return deferred.promise;
+    });
+
+    const { result } = renderHook(() => useTerminal(), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <TerminalProvider>{children}</TerminalProvider>
+      ),
+    });
+
+    act(() => {
+      void result.current.sendChatMessage("Stream test");
+    });
+
+    await waitFor(() => {
+      expect(mockAiChat).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      streamOptions?.onStreamEvent?.({
+        event: "message_start",
+        data: { id: "chatcmpl_1", model: "test-model", apiMode: "chat_completions" },
+      });
+      streamOptions?.onStreamEvent?.({
+        event: "message_delta",
+        data: { delta: "Hel" },
+      });
+      streamOptions?.onStreamEvent?.({
+        event: "message_delta",
+        data: { delta: "lo" },
+      });
+    });
+
+    expect(result.current.aiQueueMessage).toContain("Assistant: Hello");
+
+    await act(async () => {
+      deferred.resolve("Hello");
+    });
+
+    await waitFor(() => {
+      expect(result.current.aiQueueMessage).toBeNull();
+    });
+  });
 });
