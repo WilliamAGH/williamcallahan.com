@@ -52,12 +52,24 @@ vi.mock("@/lib/search/searchers/dynamic-searchers", () => ({
 
 const mockedSearchBookmarks = vi.mocked(searchBookmarks);
 const conversationId = "77777777-7777-4777-8777-777777777777";
+const bookmarkTitle = "Signs of AI writing / LLM written text (Wikipedia article)";
+const bookmarkUrl = "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing";
+const bookmarkLink = `[${bookmarkTitle}](${bookmarkUrl})`;
+const searchQuery = "wikipedia ai writing";
+const streamModel = "test-model";
 
-function createValidatedContext(args?: {
+type EventPayload = { event: string; data: unknown };
+type PipelineOptions = {
   temperature?: number;
   userContent?: string;
   apiMode?: "chat_completions" | "responses";
-}): ValidatedRequestContext {
+};
+type StreamHandlerArgs = {
+  onStart?: (meta: { id: string; model: string }) => void;
+  onDelta?: (delta: string) => void;
+};
+
+function createValidatedContext(args?: PipelineOptions): ValidatedRequestContext {
   return {
     feature: "terminal_chat",
     clientIp: "::1",
@@ -74,17 +86,123 @@ function createValidatedContext(args?: {
   };
 }
 
-function createPipeline(args?: {
-  temperature?: number;
-  userContent?: string;
-  apiMode?: "chat_completions" | "responses";
-}) {
+function createPipeline(args?: PipelineOptions) {
   return buildChatPipeline({
     feature: "terminal_chat",
     ctx: createValidatedContext(args),
     ragResult: { augmentedPrompt: undefined, status: "not_applicable" },
     signal: new AbortController().signal,
   });
+}
+
+function mockSingleBookmarkSearchResult(): void {
+  mockedSearchBookmarks.mockResolvedValue([
+    {
+      id: "bookmark-1",
+      type: "bookmark",
+      title: bookmarkTitle,
+      description: "Wikipedia article bookmark",
+      url: bookmarkUrl,
+      score: 99,
+    },
+  ]);
+}
+
+async function runPipelineWithEvents(args?: PipelineOptions): Promise<{
+  reply: string;
+  events: EventPayload[];
+}> {
+  const events: EventPayload[] = [];
+  const reply = await createPipeline(args).runUpstream((event) => events.push(event));
+  return { reply, events };
+}
+
+function expectSingleMessageDoneEvent(events: EventPayload[], message: string): void {
+  expect(events).toEqual([{ event: "message_done", data: { message } }]);
+}
+
+function expectDeterministicBookmarkReply(reply: string, forbiddenToken?: string): void {
+  expect(reply).toContain("Here are the best matches I found:");
+  expect(reply).toContain(bookmarkLink);
+  if (forbiddenToken) {
+    expect(reply).not.toContain(forbiddenToken);
+  }
+}
+
+function expectStandardStreamEvents(
+  events: EventPayload[],
+  args: { id: string; apiMode: "chat_completions" | "responses" },
+): void {
+  expect(events).toEqual([
+    { event: "message_start", data: { id: args.id, model: streamModel, apiMode: args.apiMode } },
+    { event: "message_delta", data: { delta: "ok" } },
+    { event: "message_done", data: { message: "ok" } },
+  ]);
+}
+
+function mockStreamDefaultChatResponse(): void {
+  mockStreamOpenAiCompatibleChatCompletions.mockImplementation(
+    ({ onStart, onDelta }: StreamHandlerArgs) => {
+      onStart?.({ id: "chatcmpl_1", model: streamModel });
+      onDelta?.("o");
+      onDelta?.("k");
+      return Promise.resolve({
+        id: "chatcmpl_1",
+        choices: [{ message: { role: "assistant", content: "ok" } }],
+      });
+    },
+  );
+}
+
+function mockStreamDefaultResponsesResponse(): void {
+  mockStreamOpenAiCompatibleResponses.mockImplementation(
+    ({ onStart, onDelta }: StreamHandlerArgs) => {
+      onStart?.({ id: "response_1", model: streamModel });
+      onDelta?.("o");
+      onDelta?.("k");
+      return Promise.resolve({
+        id: "response_1",
+        output_text: "ok",
+        output: [],
+      });
+    },
+  );
+}
+
+function mockStreamingSearchBookmarksToolCall(args: {
+  streamId: string;
+  query?: string;
+  maxResults?: number;
+}): void {
+  const query = args.query ?? searchQuery;
+  const toolCallArgs =
+    typeof args.maxResults === "number" ? { query, maxResults: args.maxResults } : { query };
+
+  mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(
+    ({ onStart }: StreamHandlerArgs) => {
+      onStart?.({ id: args.streamId, model: streamModel });
+      return Promise.resolve({
+        id: args.streamId,
+        choices: [
+          {
+            message: {
+              role: "assistant",
+              tool_calls: [
+                {
+                  id: "tool-call-1",
+                  type: "function",
+                  function: {
+                    name: "search_bookmarks",
+                    arguments: JSON.stringify(toolCallArgs),
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+    },
+  );
 }
 
 describe("AI Chat Upstream Pipeline Streaming", () => {
@@ -104,47 +222,12 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
       output_text: "ok",
       output: [],
     });
-    mockStreamOpenAiCompatibleChatCompletions.mockImplementation(
-      ({
-        onStart,
-        onDelta,
-      }: {
-        onStart?: (meta: { id: string; model: string }) => void;
-        onDelta?: (delta: string) => void;
-      }) => {
-        onStart?.({ id: "chatcmpl_1", model: "test-model" });
-        onDelta?.("o");
-        onDelta?.("k");
-        return Promise.resolve({
-          id: "chatcmpl_1",
-          choices: [{ message: { role: "assistant", content: "ok" } }],
-        });
-      },
-    );
-    mockStreamOpenAiCompatibleResponses.mockImplementation(
-      ({
-        onStart,
-        onDelta,
-      }: {
-        onStart?: (meta: { id: string; model: string }) => void;
-        onDelta?: (delta: string) => void;
-      }) => {
-        onStart?.({ id: "response_1", model: "test-model" });
-        onDelta?.("o");
-        onDelta?.("k");
-        return Promise.resolve({
-          id: "response_1",
-          output_text: "ok",
-          output: [],
-        });
-      },
-    );
+    mockStreamDefaultChatResponse();
+    mockStreamDefaultResponsesResponse();
   });
 
   it("defaults terminal chat to feature-specific model params when not provided", async () => {
-    const pipeline = createPipeline();
-
-    await pipeline.runUpstream();
+    await createPipeline().runUpstream();
 
     expect(mockGetUpstreamRequestQueue).toHaveBeenCalledWith({
       key: "https://example.com/v1/chat/completions::test-model",
@@ -166,9 +249,7 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
   });
 
   it("respects explicit client temperature when provided", async () => {
-    const pipeline = createPipeline({ temperature: 0.75 });
-
-    await pipeline.runUpstream();
+    await createPipeline({ temperature: 0.75 }).runUpstream();
 
     expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -179,166 +260,54 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
     );
   });
 
-  it("emits normalized stream events when runUpstream receives an event callback", async () => {
-    const pipeline = createPipeline();
-
-    const events: Array<{ event: string; data: unknown }> = [];
-    const reply = await pipeline.runUpstream((event) => {
-      events.push(event);
-    });
-
+  it("emits normalized stream events for chat completions", async () => {
+    const { reply, events } = await runPipelineWithEvents();
     expect(reply).toBe("ok");
     expect(mockStreamOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
     expect(mockCallOpenAiCompatibleChatCompletions).not.toHaveBeenCalled();
-    expect(events).toEqual([
-      {
-        event: "message_start",
-        data: { id: "chatcmpl_1", model: "test-model", apiMode: "chat_completions" },
-      },
-      { event: "message_delta", data: { delta: "ok" } },
-      { event: "message_done", data: { message: "ok" } },
-    ]);
+    expectStandardStreamEvents(events, { id: "chatcmpl_1", apiMode: "chat_completions" });
   });
 
-  it("streams responses mode events when runUpstream receives an event callback", async () => {
-    const pipeline = createPipeline({ apiMode: "responses" });
-
-    const events: Array<{ event: string; data: unknown }> = [];
-    const reply = await pipeline.runUpstream((event) => {
-      events.push(event);
-    });
-
+  it("streams responses mode events", async () => {
+    const { reply, events } = await runPipelineWithEvents({ apiMode: "responses" });
     expect(reply).toBe("ok");
     expect(mockStreamOpenAiCompatibleResponses).toHaveBeenCalledTimes(1);
     expect(mockCallOpenAiCompatibleResponses).not.toHaveBeenCalled();
     expect(mockCallOpenAiCompatibleChatCompletions).not.toHaveBeenCalled();
-    expect(events).toEqual([
-      {
-        event: "message_start",
-        data: { id: "response_1", model: "test-model", apiMode: "responses" },
-      },
-      { event: "message_delta", data: { delta: "ok" } },
-      { event: "message_done", data: { message: "ok" } },
-    ]);
+    expectStandardStreamEvents(events, { id: "response_1", apiMode: "responses" });
   });
 
-  it("streams deterministic bookmark links only after forced tool flow completes", async () => {
-    mockedSearchBookmarks.mockResolvedValue([
-      {
-        id: "bookmark-1",
-        type: "bookmark",
-        title: "Signs of AI writing / LLM written text (Wikipedia article)",
-        description: "Wikipedia article bookmark",
-        url: "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing",
-        score: 99,
-      },
-    ]);
-
-    mockCallOpenAiCompatibleChatCompletions
-      .mockResolvedValueOnce({
-        id: "chatcmpl_tool",
-        choices: [
-          {
-            message: {
-              role: "assistant",
-              tool_calls: [
-                {
-                  id: "tool-call-1",
-                  type: "function",
-                  function: { name: "search_bookmarks", arguments: '{"query":"wikipedia"}' },
-                },
-              ],
-            },
-          },
-        ],
-      })
-      .mockResolvedValueOnce({
-        id: "chatcmpl_final",
-        choices: [{ message: { role: "assistant", content: "final" } }],
-      });
-
-    const pipeline = createPipeline({ userContent: "search bookmarks for wikipedia" });
-    const events: Array<{ event: string; data: unknown }> = [];
-    const reply = await pipeline.runUpstream((event) => events.push(event));
-
-    expect(reply).toContain("Here are the best matches I found:");
-    expect(reply).toContain(
-      "[Signs of AI writing / LLM written text (Wikipedia article)](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing)",
-    );
-    expect(events).toEqual([
-      {
-        event: "message_done",
-        data: { message: reply },
-      },
-    ]);
-    expect(mockStreamOpenAiCompatibleChatCompletions).not.toHaveBeenCalled();
-  });
-
-  it("suppresses post-tool stream deltas and emits deterministic links in auto tool mode", async () => {
-    mockedSearchBookmarks.mockResolvedValue([
-      {
-        id: "bookmark-1",
-        type: "bookmark",
-        title: "Signs of AI writing / LLM written text (Wikipedia article)",
-        description: "Wikipedia article bookmark",
-        url: "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing",
-        score: 99,
-      },
-    ]);
-
-    mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(
-      ({ onStart }: { onStart?: (meta: { id: string; model: string }) => void }) => {
-        onStart?.({ id: "chatcmpl_tool_auto", model: "test-model" });
-        return Promise.resolve({
-          id: "chatcmpl_tool_auto",
-          choices: [
-            {
-              message: {
-                role: "assistant",
-                tool_calls: [
-                  {
-                    id: "tool-call-1",
-                    type: "function",
-                    function: {
-                      name: "search_bookmarks",
-                      arguments: '{"query":"wikipedia ai writing","maxResults":5}',
-                    },
-                  },
-                ],
-              },
-            },
-          ],
-        });
-      },
-    );
-
+  it.each([
+    {
+      label: "suppresses post-tool deltas and emits deterministic links",
+      streamId: "chatcmpl_tool_auto",
+      finalReply:
+        "Here are links:\n- [Wrong Link](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing-mutated)",
+      expectDeterministicReply: true,
+      forbiddenToken: "en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing-mutated",
+    },
+    {
+      label: "keeps assistant text when links are allowlisted",
+      streamId: "chatcmpl_tool_auto_allowlist",
+      finalReply: `Found one relevant match:\n- ${bookmarkLink}\nWant more?`,
+      expectDeterministicReply: false,
+      forbiddenToken: undefined,
+    },
+  ])("$label", async ({ streamId, finalReply, expectDeterministicReply, forbiddenToken }) => {
+    mockSingleBookmarkSearchResult();
+    mockStreamingSearchBookmarksToolCall({ streamId, maxResults: 5 });
     mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
-      choices: [
-        {
-          message: {
-            role: "assistant",
-            content:
-              "Here are links:\n- [Wrong Link](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing-mutated)",
-          },
-        },
-      ],
+      choices: [{ message: { role: "assistant", content: finalReply } }],
     });
 
-    const pipeline = createPipeline({ userContent: "hello there" });
-    const events: Array<{ event: string; data: unknown }> = [];
-    const reply = await pipeline.runUpstream((event) => events.push(event));
+    const { reply, events } = await runPipelineWithEvents({ userContent: "hello there" });
+    if (expectDeterministicReply) {
+      expectDeterministicBookmarkReply(reply, forbiddenToken);
+    } else {
+      expect(reply).toBe(finalReply);
+    }
 
-    expect(reply).toContain("Here are the best matches I found:");
-    expect(reply).toContain(
-      "[Signs of AI writing / LLM written text (Wikipedia article)](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing)",
-    );
-    expect(reply).not.toContain("en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing-mutated");
-    expect(events).toEqual([
-      {
-        event: "message_done",
-        data: { message: reply },
-      },
-    ]);
+    expectSingleMessageDoneEvent(events, expectDeterministicReply ? reply : finalReply);
     expect(mockStreamOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
     expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
     const streamRequest = mockStreamOpenAiCompatibleChatCompletions.mock.calls[0]?.[0]?.request;
@@ -346,76 +315,10 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
     expect(streamRequest?.parallel_tool_calls).toBe(false);
   });
 
-  it("keeps assistant text when post-tool markdown links are allowlisted", async () => {
-    mockedSearchBookmarks.mockResolvedValue([
-      {
-        id: "bookmark-1",
-        type: "bookmark",
-        title: "Signs of AI writing / LLM written text (Wikipedia article)",
-        description: "Wikipedia article bookmark",
-        url: "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing",
-        score: 99,
-      },
-    ]);
-
-    mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(
-      ({ onStart }: { onStart?: (meta: { id: string; model: string }) => void }) => {
-        onStart?.({ id: "chatcmpl_tool_auto_allowlist", model: "test-model" });
-        return Promise.resolve({
-          id: "chatcmpl_tool_auto_allowlist",
-          choices: [
-            {
-              message: {
-                role: "assistant",
-                tool_calls: [
-                  {
-                    id: "tool-call-1",
-                    type: "function",
-                    function: {
-                      name: "search_bookmarks",
-                      arguments: '{"query":"wikipedia ai writing","maxResults":5}',
-                    },
-                  },
-                ],
-              },
-            },
-          ],
-        });
-      },
-    );
-
-    const allowlistedReply =
-      "Found one relevant match:\n- [Signs of AI writing / LLM written text (Wikipedia article)](/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing)\nWant more?";
-    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
-      choices: [
-        {
-          message: {
-            role: "assistant",
-            content: allowlistedReply,
-          },
-        },
-      ],
-    });
-
-    const pipeline = createPipeline({ userContent: "hello there" });
-    const events: Array<{ event: string; data: unknown }> = [];
-    const reply = await pipeline.runUpstream((event) => events.push(event));
-
-    expect(reply).toBe(allowlistedReply);
-    expect(events).toEqual([
-      {
-        event: "message_done",
-        data: { message: allowlistedReply },
-      },
-    ]);
-    expect(mockStreamOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
-  });
-
   it("emits refusal text as streamed content when completion has no assistant content", async () => {
     mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(
-      ({ onStart }: { onStart?: (meta: { id: string; model: string }) => void }) => {
-        onStart?.({ id: "chatcmpl_refusal", model: "test-model" });
+      ({ onStart }: StreamHandlerArgs) => {
+        onStart?.({ id: "chatcmpl_refusal", model: streamModel });
         return Promise.resolve({
           id: "chatcmpl_refusal",
           choices: [
@@ -432,14 +335,12 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
       },
     );
 
-    const pipeline = createPipeline({ userContent: "hello there" });
-    const events: Array<{ event: string; data: unknown }> = [];
-    const reply = await pipeline.runUpstream((event) => events.push(event));
+    const { reply, events } = await runPipelineWithEvents({ userContent: "hello there" });
     expect(reply).toBe("I cannot help with that request.");
     expect(events).toEqual([
       {
         event: "message_start",
-        data: { id: "chatcmpl_refusal", model: "test-model", apiMode: "chat_completions" },
+        data: { id: "chatcmpl_refusal", model: streamModel, apiMode: "chat_completions" },
       },
       { event: "message_delta", data: { delta: "I cannot help with that request." } },
       { event: "message_done", data: { message: "I cannot help with that request." } },
