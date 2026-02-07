@@ -67,7 +67,7 @@ const DISTRIBUTED_LOCK_S3_KEY = BOOKMARKS_S3_PATHS.LOCK;
 
 // Parse LOCK_TTL_MS with robust validation
 const RAW_LOCK_TTL = process.env.BOOKMARKS_LOCK_TTL_MS;
-const PARSED_LOCK_TTL = RAW_LOCK_TTL != null ? Number(RAW_LOCK_TTL) : Number.NaN;
+const PARSED_LOCK_TTL = RAW_LOCK_TTL == null ? Number.NaN : Number(RAW_LOCK_TTL);
 const DEFAULT_LOCK_TTL_MS = 30 * 60 * 1000; // 30 minutes - covers longest OpenGraph enrichment cycle
 const LOCK_TTL_MS =
   Number.isFinite(PARSED_LOCK_TTL) && PARSED_LOCK_TTL > 0

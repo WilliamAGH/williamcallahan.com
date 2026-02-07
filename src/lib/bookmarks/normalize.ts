@@ -11,6 +11,12 @@ import { omitHtmlContent } from "./utils";
 import { envLogger } from "@/lib/utils/env-logger";
 import { processSummaryText, removeCitations } from "@/lib/utils/formatters";
 
+function parseAttachedBy(value: string | undefined): "user" | "ai" | undefined {
+  if (value === "user") return "user";
+  if (value === "ai") return "ai";
+  return undefined;
+}
+
 /**
  * Normalizes a raw bookmark from the API into a UnifiedBookmark
  *
@@ -37,10 +43,8 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       ? raw.tags.map((tag) => ({
           id: tag.id,
           name: tag.name,
-          slug: tag.name.toLowerCase().replace(/\s+/g, "-"),
-          attachedBy: ((value): "user" | "ai" | undefined => {
-            return value === "user" ? "user" : value === "ai" ? "ai" : undefined;
-          })(tag.attachedBy),
+          slug: tag.name.toLowerCase().replaceAll(/\s+/g, "-"),
+          attachedBy: parseAttachedBy(tag.attachedBy),
         }))
       : [];
 
