@@ -572,7 +572,12 @@ export function buildChatPipeline(params: {
 
       if (outcome.kind === "empty") break;
       if (outcome.kind === "content") {
-        if (forceBookmarkTool && toolObservedResults.length === 0 && latestUserMessage) {
+        if (
+          forceBookmarkTool &&
+          !outcome.text &&
+          toolObservedResults.length === 0 &&
+          latestUserMessage
+        ) {
           console.warn(
             "[upstream-pipeline] No observed bookmark results; using deterministic fallback",
             { feature, turn },
