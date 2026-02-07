@@ -45,8 +45,8 @@ if (!validCommands.includes(command)) {
 // Parse options
 const isDryRun = args.includes("--dry-run");
 const limitIndex = args.indexOf("--limit");
-const limitArg = limitIndex !== -1 ? args[limitIndex + 1] : undefined;
-const limit = limitArg ? parseInt(limitArg, 10) : undefined;
+const limitArg = limitIndex === -1 ? undefined : args[limitIndex + 1];
+const limit = limitArg ? Number.parseInt(limitArg, 10) : undefined;
 
 if (isDryRun) {
   console.log("🔒 DRY RUN MODE - No changes will be saved");
@@ -410,7 +410,7 @@ async function main() {
         console.log(`${result ? "✅" : "❌"} ${cmd}`);
       });
 
-      success = Object.values(results).every((r) => r);
+      success = Object.values(results).every(Boolean);
 
       if (success) {
         console.log("\n💡 Available fix commands:");
@@ -431,7 +431,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+try {
+  await main();
+} catch (error) {
   console.error("Fatal error:", error);
   process.exit(1);
-});
+}
