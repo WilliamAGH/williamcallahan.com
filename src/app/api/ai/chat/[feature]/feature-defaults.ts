@@ -31,7 +31,11 @@ Response style:
  *  - reasoningEffort "low": terminal responses should be fast and concise;
  *    extended chain-of-thought adds latency without improving short answers. */
 const FEATURE_DEFAULTS: Record<string, FeatureModelDefaults> = {
-  terminal_chat: { temperature: 0.7, reasoningEffort: "low" },
+  terminal_chat: {
+    temperature: 0.7,
+    reasoningEffort: "low",
+    toolConfig: { enabled: true },
+  },
   // Analysis features require strict, schema-conformant JSON. Lower entropy improves
   // response-format adherence and reduces malformed payload retries.
   "bookmark-analysis": { temperature: 0.2, reasoningEffort: "low" },
@@ -52,6 +56,7 @@ const GLOBAL_DEFAULTS: Required<FeatureModelDefaults> = {
   topP: 1,
   reasoningEffort: "medium",
   maxTokens: 8192,
+  toolConfig: { enabled: false },
 };
 
 export function resolveFeatureSystemPrompt(
@@ -78,6 +83,10 @@ export function resolveModelParams(
       GLOBAL_DEFAULTS.reasoningEffort,
     maxTokens: featureDefaults?.maxTokens ?? GLOBAL_DEFAULTS.maxTokens,
   };
+}
+
+export function resolveToolConfig(feature: string): { enabled: boolean } {
+  return FEATURE_DEFAULTS[feature]?.toolConfig ?? GLOBAL_DEFAULTS.toolConfig;
 }
 
 export function resolveToolChoice(params: {
