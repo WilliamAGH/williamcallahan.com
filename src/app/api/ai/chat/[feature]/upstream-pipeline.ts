@@ -45,6 +45,7 @@ import {
   resolveFeatureSystemPrompt,
   resolveModelParams,
   resolveToolChoice,
+  resolveToolConfig,
 } from "./feature-defaults";
 import { isModelLoadFailure } from "./upstream-error";
 import { executeChatCompletionsTurn, executeResponsesTurn } from "./upstream-turn";
@@ -471,7 +472,7 @@ export function buildChatPipeline(params: {
       .map((message) => message.content.trim())
       .filter((content) => content.length > 0)
       .slice(-1)[0];
-  const hasToolSupport = feature === "terminal_chat";
+  const hasToolSupport = resolveToolConfig(feature).enabled;
   const forceBookmarkTool = hasToolSupport && matchesBookmarkSearchPattern(latestUserMessage);
   const logContext: ChatLogContext = {
     feature,
