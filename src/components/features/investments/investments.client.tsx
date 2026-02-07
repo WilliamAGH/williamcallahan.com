@@ -39,7 +39,7 @@ const INVESTMENTS_WINDOW_ID = "investments-window";
  */
 export function InvestmentsClient({
   investments = [],
-}: InvestmentsClientProps): JSX.Element | null {
+}: Readonly<InvestmentsClientProps>): JSX.Element | null {
   // Register this window instance and get its state/actions
   const {
     windowState,
@@ -135,7 +135,7 @@ export function InvestmentsClient({
       {/* Scrollable Content Area */}
       <div className={cn("p-6", isMaximized ? "overflow-y-auto flex-grow" : "")}>
         {/* Handle empty state here */}
-        {!investments?.length ? (
+        {investments?.length === 0 ? (
           <div className="text-center text-gray-500 dark:text-gray-400">
             No investments to display
           </div>

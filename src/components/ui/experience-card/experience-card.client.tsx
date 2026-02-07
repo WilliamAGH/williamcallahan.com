@@ -56,7 +56,7 @@ export function ExperienceCardClient({
   website,
   location,
   logoData,
-}: ExperienceCardExtendedProps): JSX.Element {
+}: Readonly<ExperienceCardExtendedProps>): JSX.Element {
   return (
     <div
       id={id}

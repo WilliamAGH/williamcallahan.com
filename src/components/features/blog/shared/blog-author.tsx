@@ -20,7 +20,7 @@ import type { AuthorBioSegment } from "@/types/blog";
 
 import { getOptimizedImageSrc, shouldBypassOptimizer } from "@/lib/utils/cdn-utils";
 
-export function BlogAuthor({ author }: BlogAuthorProps) {
+export function BlogAuthor({ author }: Readonly<BlogAuthorProps>) {
   const [isMounted, setIsMounted] = useState(false);
 
   const avatarSrc = getOptimizedImageSrc(author.avatar, undefined, 64);
@@ -30,10 +30,10 @@ export function BlogAuthor({ author }: BlogAuthorProps) {
   }, []);
 
   const renderBioSegments = (bio: AuthorBioSegment[]) =>
-    bio.map((segment, index) => {
+    bio.map((segment) => {
       if (segment.type === "text") {
         return (
-          <span key={`author-bio-text-${index}`} className="whitespace-pre-wrap">
+          <span key={`author-bio-text-${segment.value}`} className="whitespace-pre-wrap">
             {segment.value}
           </span>
         );
@@ -41,7 +41,7 @@ export function BlogAuthor({ author }: BlogAuthorProps) {
 
       return (
         <a
-          key={`author-bio-link-${index}`}
+          key={`author-bio-link-${segment.href}-${segment.label}`}
           href={segment.href}
           target="_blank"
           rel="noopener noreferrer"

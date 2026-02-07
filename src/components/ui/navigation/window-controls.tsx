@@ -44,7 +44,7 @@ export function WindowControls({
   onMaximize,
   size = "md",
   isMaximized = false,
-}: WindowControlsProps) {
+}: Readonly<WindowControlsProps>) {
   // Unify the 'md' size with 'lg' to make traffic lights consistent across components
   const buttonSize = size === "sm" ? "w-1.5 h-1.5" : "w-3.5 h-3.5"; // Both 'md' and 'lg' use w-3.5 h-3.5
   const spacingClass = size === "sm" ? "space-x-1" : "space-x-2"; // Both 'md' and 'lg' use space-x-2

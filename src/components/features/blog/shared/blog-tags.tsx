@@ -11,7 +11,7 @@ import Link from "next/link";
 
 import type { BlogTagsPropsExtended, TagWrapperProps } from "@/types/features";
 
-function TagWrapper({ children, className, href, prefetch }: TagWrapperProps) {
+function TagWrapper({ children, className, href, prefetch }: Readonly<TagWrapperProps>) {
   if (href) {
     return (
       <Link href={href} className={className} prefetch={prefetch}>
@@ -22,7 +22,7 @@ function TagWrapper({ children, className, href, prefetch }: TagWrapperProps) {
   return <span className={className}>{children}</span>;
 }
 
-export function BlogTags({ tags, interactive = false }: BlogTagsPropsExtended) {
+export function BlogTags({ tags, interactive = false }: Readonly<BlogTagsPropsExtended>) {
   return (
     <div className="flex flex-wrap gap-2 mb-4">
       {tags.map((tag) => (
