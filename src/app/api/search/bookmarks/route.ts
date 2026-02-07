@@ -66,6 +66,25 @@ function buildBookmarkSearchResponse(params: {
   );
 }
 
+/** Map a hydrated bookmark + optional ranked search hit into a normalized SearchResult. */
+function toBookmarkSearchResult(
+  bookmark: UnifiedBookmark,
+  ranked: { url: string; score: number } | undefined,
+): SearchResult {
+  if (!ranked) {
+    debug("[Bookmarks Search] No ranked result for hydrated bookmark, using score 0:", bookmark.id);
+  }
+  const fallbackUrl = bookmark.slug ? `/bookmarks/${bookmark.slug}` : `/bookmarks/${bookmark.id}`;
+  return {
+    id: bookmark.id,
+    type: "bookmark",
+    title: bookmark.title,
+    description: bookmark.description,
+    url: ranked ? ranked.url : fallbackUrl,
+    score: ranked ? ranked.score : 0,
+  };
+}
+
 function resolveRequestUrl(request: NextRequest | { nextUrl?: URL; url: string }): URL {
   if ("nextUrl" in request && request.nextUrl instanceof URL) {
     return request.nextUrl;
@@ -151,34 +170,9 @@ export async function GET(request: NextRequest) {
     const start = (page - 1) * limit;
     const paginated = orderedMatches.slice(start, start + limit);
     const searchResultsById = new Map(searchResults.map((result) => [String(result.id), result]));
-    const paginatedResults: SearchResult[] = paginated.map((bookmark) => {
-      const ranked = searchResultsById.get(bookmark.id);
-      const bookmarkUrl = bookmark.slug
-        ? `/bookmarks/${bookmark.slug}`
-        : `/bookmarks/${bookmark.id}`;
-      if (!ranked) {
-        debug(
-          "[Bookmarks Search] No ranked result for hydrated bookmark, using score 0:",
-          bookmark.id,
-        );
-        return {
-          id: bookmark.id,
-          type: "bookmark" as const,
-          title: bookmark.title,
-          description: bookmark.description,
-          url: bookmarkUrl,
-          score: 0,
-        };
-      }
-      return {
-        id: bookmark.id,
-        type: "bookmark",
-        title: bookmark.title,
-        description: bookmark.description,
-        url: ranked.url,
-        score: ranked.score,
-      };
-    });
+    const paginatedResults: SearchResult[] = paginated.map((bookmark) =>
+      toBookmarkSearchResult(bookmark, searchResultsById.get(bookmark.id)),
+    );
 
     return buildBookmarkSearchResponse({
       data: paginated,
