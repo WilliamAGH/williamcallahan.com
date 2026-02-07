@@ -17,6 +17,7 @@ import logger from "@/lib/utils/logger";
 
 import type { LogoSource, LogoInversion } from "@/types/logo";
 import type { LogoValidationResult } from "@/types/cache";
+import { LogoValidationResponseSchema } from "@/types/schemas/logo-validation";
 
 const CONFIG = UNIFIED_IMAGE_SERVICE_CONFIG;
 
@@ -102,10 +103,7 @@ export class LogoValidators {
     if (!baseUrl || process.env.NEXT_PHASE?.includes("build")) return false;
     try {
       const formData = new FormData();
-      const contentType =
-        response.headers instanceof Map
-          ? response.headers.get("content-type")
-          : response.headers.get("content-type");
+      const contentType = response.headers.get("content-type");
       formData.append(
         "image",
         new Blob([new Uint8Array(rawBuffer)], { type: contentType ?? "application/octet-stream" }),
@@ -121,7 +119,13 @@ export class LogoValidators {
         },
       );
       if (validateResponse.ok) {
-        const { isGlobeIcon } = (await validateResponse.json()) as { isGlobeIcon: boolean };
+        const rawData = await validateResponse.json();
+        const parsed = LogoValidationResponseSchema.safeParse(rawData);
+        if (!parsed.success) {
+          logger.error("[LogoValidators] Invalid validation response", parsed.error);
+          return false;
+        }
+        const { isGlobeIcon } = parsed.data;
         if (isGlobeIcon) {
           if (isDebug)
             logger.debug(`[LogoValidators] ${name} detected as globe icon for ${testDomain}`);

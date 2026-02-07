@@ -8,20 +8,21 @@
  */
 
 import { Readable } from "node:stream";
+import { type S3ErrorName } from "@/types/s3-cdn";
 
 const createS3StubError = (params: {
   method: string;
   url: string;
   status: number;
   statusText: string;
-  overrideName?: "NotFound" | "S3StubError" | "S3StubWriteBlocked";
+  overrideName?: S3ErrorName;
 }): Error & {
-  name: "NotFound" | "S3StubError" | "S3StubWriteBlocked";
+  name: S3ErrorName;
   $metadata: { httpStatusCode: number };
 } => {
   const { method, url, status, statusText, overrideName } = params;
   const error = new Error(`${method} ${url} failed: ${status} ${statusText}`) as Error & {
-    name: "NotFound" | "S3StubError" | "S3StubWriteBlocked";
+    name: S3ErrorName;
     $metadata: { httpStatusCode: number };
   };
   error.name = overrideName ?? (status === 404 ? "NotFound" : "S3StubError");
@@ -91,9 +92,9 @@ export const ChecksumAlgorithm = {
 } as const;
 
 export class S3Client {
-  private endpoint: string | undefined;
-  private region: string | undefined;
-  private forcePathStyle = true;
+  private readonly endpoint: string | undefined;
+  private readonly region: string | undefined;
+  private readonly forcePathStyle: boolean;
 
   constructor(
     cfg: {
