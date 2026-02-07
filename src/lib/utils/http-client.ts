@@ -54,6 +54,81 @@ export const BROWSER_HEADERS = {
 } as const;
 
 /**
+ * Build effective URL with proxy if specified
+ */
+function buildProxyUrl(url: string, proxyUrl: string | undefined): string {
+  if (!proxyUrl) return url;
+
+  const originalUrl = new URL(url);
+  const proxyUrlObj = new URL(proxyUrl);
+  proxyUrlObj.pathname = originalUrl.pathname;
+  proxyUrlObj.search = originalUrl.search;
+  const effectiveUrl = proxyUrlObj.toString();
+
+  debugLog(`Using proxy: ${stripQueryAndHash(url)} -> ${stripQueryAndHash(effectiveUrl)}`, "info");
+
+  return effectiveUrl;
+}
+
+/**
+ * Setup abort signal handling
+ */
+function setupAbortSignal(
+  controller: AbortController,
+  signal: AbortSignal | null | undefined,
+): { abortedByExternalSignal: boolean } {
+  const state = { abortedByExternalSignal: false };
+
+  if (!signal) return state;
+
+  if (signal.aborted) {
+    state.abortedByExternalSignal = true;
+    controller.abort(signal.reason);
+  } else {
+    signal.addEventListener(
+      "abort",
+      () => {
+        state.abortedByExternalSignal = true;
+        controller.abort(signal.reason);
+      },
+      { once: true },
+    );
+  }
+
+  return state;
+}
+
+/**
+ * Handle fetch errors with proper abort/timeout distinction
+ */
+function handleFetchError(
+  error: unknown,
+  abortedByExternalSignal: boolean,
+  timeout: number,
+  effectiveUrl: string,
+): never {
+  if (!(error instanceof Error)) {
+    throw new Error(`Fetch failed: ${String(error)}`, { cause: error });
+  }
+
+  if (error.name !== "AbortError") {
+    throw error;
+  }
+
+  // If aborted by external signal (user cancellation), re-throw as AbortError
+  // so callers can distinguish from timeout and skip retries
+  if (abortedByExternalSignal) {
+    throw new DOMException("Request aborted", "AbortError");
+  }
+
+  // Internal timeout - wrap with timeout message
+  // Strip query params to prevent leaking tokens/secrets in error messages
+  throw new Error(`Request timeout after ${timeout}ms: ${stripQueryAndHash(effectiveUrl)}`, {
+    cause: error,
+  });
+}
+
+/**
  * Fetch with timeout and proper error handling
  * Supports proxy URLs, 202 status handling, and browser-like headers
  */
@@ -69,44 +144,11 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
     ...fetchOptions
   } = options;
 
-  // Apply proxy if specified
-  let effectiveUrl = url;
-  if (proxyUrl) {
-    const originalUrl = new URL(url);
-    const proxyUrlObj = new URL(proxyUrl);
-    proxyUrlObj.pathname = originalUrl.pathname;
-    proxyUrlObj.search = originalUrl.search;
-    effectiveUrl = proxyUrlObj.toString();
-    debugLog(
-      `Using proxy: ${stripQueryAndHash(url)} -> ${stripQueryAndHash(effectiveUrl)}`,
-      "info",
-    );
-  }
-
-  // Choose appropriate default headers
+  const effectiveUrl = buildProxyUrl(url, proxyUrl);
   const defaultHeaders = useBrowserHeaders ? BROWSER_HEADERS : DEFAULT_IMAGE_HEADERS;
 
   const controller = new AbortController();
-
-  // Track if abort was caused by external signal (user cancellation) vs internal timeout
-  let abortedByExternalSignal = false;
-
-  if (signal) {
-    if (signal.aborted) {
-      abortedByExternalSignal = true;
-      controller.abort(signal.reason);
-    } else {
-      signal.addEventListener(
-        "abort",
-        () => {
-          abortedByExternalSignal = true;
-          controller.abort(signal.reason);
-        },
-        { once: true },
-      );
-    }
-  }
-
+  const { abortedByExternalSignal } = setupAbortSignal(controller, signal);
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
@@ -125,7 +167,7 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
       clearTimeout(timeoutId);
 
       const retryAfter = response.headers.get("Retry-After");
-      const retryDelay = retryAfter ? parseInt(retryAfter, 10) * 1000 : 5000;
+      const retryDelay = retryAfter ? Number.parseInt(retryAfter, 10) * 1000 : 5000;
 
       debugLog(`Received 202 status, will retry after ${retryDelay}ms`, "info", {
         url: effectiveUrl,
@@ -137,22 +179,7 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
 
     return response;
   } catch (error) {
-    if (error instanceof Error) {
-      if (error.name === "AbortError") {
-        // If aborted by external signal (user cancellation), re-throw as AbortError
-        // so callers can distinguish from timeout and skip retries
-        if (abortedByExternalSignal) {
-          throw new DOMException("Request aborted", "AbortError");
-        }
-        // Internal timeout - wrap with timeout message
-        // Strip query params to prevent leaking tokens/secrets in error messages
-        throw new Error(`Request timeout after ${timeout}ms: ${stripQueryAndHash(effectiveUrl)}`, {
-          cause: error,
-        });
-      }
-      throw error;
-    }
-    throw new Error(`Fetch failed: ${String(error)}`, { cause: error });
+    handleFetchError(error, abortedByExternalSignal, timeout, effectiveUrl);
   } finally {
     clearTimeout(timeoutId);
   }
@@ -248,6 +275,36 @@ export function createRetryingFetch(
 }
 
 /**
+ * Try fetching with a single URL/proxy configuration
+ */
+async function trySingleFetch(
+  urlConfig: string | { url: string; proxy: string },
+  maxRetries: number,
+  baseDelay: number,
+  fetchOptions: FetchOptions,
+): Promise<Response> {
+  const targetUrl = typeof urlConfig === "string" ? urlConfig : urlConfig.url;
+  const proxyUrl = typeof urlConfig === "string" ? undefined : urlConfig.proxy;
+
+  const retryingFetch = createRetryingFetch(maxRetries, baseDelay);
+  return retryingFetch(targetUrl, {
+    ...fetchOptions,
+    proxyUrl,
+  });
+}
+
+/**
+ * Build debug message for failed fetch
+ */
+function buildFetchErrorMessage(targetUrl: string, proxyUrl: string | undefined): string {
+  const baseMessage = `Failed to fetch ${targetUrl}`;
+  if (!proxyUrl) {
+    return baseMessage;
+  }
+  return `${baseMessage} via proxy ${proxyUrl}`;
+}
+
+/**
  * Fetch with retry and proxy support
  * Convenience function that combines retry logic with proxy handling
  */
@@ -262,31 +319,29 @@ export async function fetchWithRetryAndProxy(
   const { proxies = [], maxRetries = 3, baseDelay = 1000, ...fetchOptions } = options;
 
   // Try direct fetch first, then proxies if provided
-  const urlsToTry = [url, ...proxies.map((proxy) => ({ url, proxy }))];
+  const urlsToTry: Array<string | { url: string; proxy: string }> = [
+    url,
+    ...proxies.map((proxy) => ({ url, proxy })),
+  ];
 
-  for (const urlConfig of urlsToTry) {
+  for (let i = 0; i < urlsToTry.length; i++) {
+    const urlConfig = urlsToTry[i]!;
     const targetUrl = typeof urlConfig === "string" ? urlConfig : urlConfig.url;
     const proxyUrl = typeof urlConfig === "string" ? undefined : urlConfig.proxy;
+    const isLastAttempt = i === urlsToTry.length - 1;
 
     try {
-      const retryingFetch = createRetryingFetch(maxRetries, baseDelay);
-      const response = await retryingFetch(targetUrl, {
-        ...fetchOptions,
-        proxyUrl,
-      });
-
-      return response;
+      return await trySingleFetch(urlConfig, maxRetries, baseDelay, fetchOptions);
     } catch (error) {
-      debugLog(`Failed to fetch ${targetUrl}${proxyUrl ? ` via proxy ${proxyUrl}` : ""}`, "warn", {
+      const errorMessage = buildFetchErrorMessage(targetUrl, proxyUrl);
+      debugLog(errorMessage, "warn", {
         error: error instanceof Error ? error.message : String(error),
       });
 
-      // Continue to next URL/proxy
-      if (urlConfig !== urlsToTry[urlsToTry.length - 1]) {
+      if (!isLastAttempt) {
         continue;
       }
 
-      // Last attempt failed, throw the error
       throw error;
     }
   }
