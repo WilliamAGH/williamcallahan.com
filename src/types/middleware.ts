@@ -6,6 +6,8 @@
  * @module types/middleware
  */
 
+import type { NextRequest, NextResponse } from "next/server";
+
 export type MemoryPressureLevel = "CRITICAL" | "WARNING";
 
 export interface MemoryPressureStatus {
@@ -43,3 +45,9 @@ export type ProxyRequestClass = "document" | "rsc" | "prefetch" | "api" | "image
 export interface SitewideRateLimitOptions {
   storePrefix?: string;
 }
+
+/**
+ * Proxy function type for Next.js 16 proxy handlers.
+ * Replaces the deprecated NextMiddleware type.
+ */
+export type ProxyFunction = (request: NextRequest) => Promise<NextResponse>;
