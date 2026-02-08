@@ -20,7 +20,7 @@ import {
   withNoStoreHeaders,
 } from "@/lib/search/api-guards";
 import { validateSearchQuery } from "@/lib/validators/search";
-import type { UnifiedBookmark } from "@/types";
+import type { LightweightBookmark, UnifiedBookmark } from "@/types";
 import type { SearchResult } from "@/types/search";
 import { bookmarkSearchParamsSchema } from "@/types/schemas/search";
 import { preventCaching } from "@/lib/utils/api-utils";
@@ -38,9 +38,12 @@ const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUI
 /** Pagination-only slice of the bookmark search params schema. */
 const paginationSchema = bookmarkSearchParamsSchema.pick({ page: true, limit: true });
 
+/** Bookmark type union — getBookmarks returns either shape depending on includeImageData. */
+type AnyBookmark = UnifiedBookmark | LightweightBookmark;
+
 /** Build the standard bookmark search response payload. */
 function buildBookmarkSearchResponse(params: {
-  data: UnifiedBookmark[];
+  data: AnyBookmark[];
   results: SearchResult[];
   totalCount: number;
   hasMore: boolean;
@@ -68,7 +71,7 @@ function buildBookmarkSearchResponse(params: {
 
 /** Map a hydrated bookmark + optional ranked search hit into a normalized SearchResult. */
 function toBookmarkSearchResult(
-  bookmark: UnifiedBookmark,
+  bookmark: AnyBookmark,
   ranked: { url: string; score: number } | undefined,
 ): SearchResult {
   if (!ranked) {
@@ -154,17 +157,22 @@ export async function GET(request: NextRequest) {
     // Get IDs of matching bookmarks via MiniSearch index (already score-sorted)
     const searchResults = await searchBookmarks(query);
 
-    // Pull full bookmark objects (includeImageData=false for lighter payload)
-    const fullDataset = (await getBookmarks({
+    // Pull full bookmark objects (includeImageData=false for lighter payload).
+    const rawDataset = await getBookmarks({
       ...DEFAULT_BOOKMARK_OPTIONS,
       includeImageData: false,
       skipExternalFetch: false,
       force: false,
-    })) as UnifiedBookmark[];
+    });
+    if (!Array.isArray(rawDataset)) {
+      return createSearchErrorResponse("Bookmarks search failed", "Unexpected non-array response");
+    }
+    // Widen union-of-arrays to array-of-union so .map() infers concrete element types
+    const fullDataset: AnyBookmark[] = rawDataset;
     const bookmarksById = new Map(fullDataset.map((bookmark) => [bookmark.id, bookmark]));
     const orderedMatches = searchResults
       .map((result) => bookmarksById.get(String(result.id)))
-      .filter((bookmark): bookmark is UnifiedBookmark => Boolean(bookmark));
+      .filter((bookmark): bookmark is AnyBookmark => Boolean(bookmark));
 
     const totalCount = orderedMatches.length;
     const start = (page - 1) * limit;
