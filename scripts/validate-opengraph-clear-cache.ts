@@ -223,9 +223,14 @@ async function main() {
     for (const tag of keyTags) {
       if (validation.ogTags[tag]) {
         const value = validation.ogTags[tag];
-        const previewLimit = OPENGRAPH_PREVIEW_LIMITS[tag] ?? OG_DESCRIPTION_MAX_LENGTH;
+        const previewLimit = OPENGRAPH_PREVIEW_LIMITS[tag];
+        if (previewLimit === undefined) {
+          console.warn(`No preview limit configured for ${tag}; leaving value untrimmed.`);
+        }
         const truncated =
-          value.length > previewLimit ? `${value.substring(0, previewLimit)}...` : value;
+          previewLimit !== undefined && value.length > previewLimit
+            ? `${value.substring(0, previewLimit)}...`
+            : value;
         console.log(`   ${tag}: ${truncated}`);
       } else {
         console.log(`   ${tag}: ❌ MISSING`);
