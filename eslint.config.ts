@@ -5,8 +5,7 @@
  * ESLint is kept only for:
  * 1. Complex naming conventions (@typescript-eslint/naming-convention)
  * 2. Complex AST selectors (no-restricted-syntax) Oxlint doesn't support
- * 3. Custom project-specific rules (no-duplicate-types)
- * 4. Non-JS files (Markdown, YAML, JSONC) if needed
+ * 3. Non-JS files (Markdown, YAML, JSONC) if needed
  *
  * Type-aware parsing is DISABLED for performance. Oxlint handles type-aware rules.
  */
@@ -16,8 +15,6 @@ import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 import oxlint from "eslint-plugin-oxlint";
-import { noDuplicateTypesRule } from "./config/eslint/rules/no-duplicate-types-rule";
-
 const GLOBAL_IGNORES = [
   "node_modules/",
   ".next/",
@@ -227,21 +224,8 @@ const config = defineConfig(
     rules: {},
   },
 
-  // --------------------------------------------------
-  // Project-specific global type uniqueness rule
-  // --------------------------------------------------
-  {
-    plugins: {
-      project: {
-        rules: {
-          "no-duplicate-types": noDuplicateTypesRule,
-        },
-      },
-    },
-    rules: {
-      "project/no-duplicate-types": "warn", // Changed to warn for gradual migration
-    },
-  },
+  // Project-specific global type uniqueness is enforced by `bun scripts/check-duplicate-types.ts`
+  // (deterministic build-time check, not an ESLint rule — see scripts/check-duplicate-types.ts)
 
   // Disable overlapping ESLint rules with Oxlint to avoid duplicate diagnostics
   // Derive the rule-disable list from the same .oxlintrc.json Oxlint uses, to avoid drift.
