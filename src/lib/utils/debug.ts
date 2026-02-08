@@ -11,8 +11,14 @@
 // Debug mode is opt-in via either an environment variable or a CLI flag
 //  • `DEBUG=true bun …`
 //  • `bun dev --debug`
-const hasDebugFlag = process.argv.includes("--debug");
-export const isDebug = process.env.DEBUG === "true" || hasDebugFlag;
+const runtimeProcess =
+  typeof globalThis === "object" && "process" in globalThis ? globalThis.process : undefined;
+const hasDebugFlag =
+  runtimeProcess && Array.isArray(runtimeProcess.argv)
+    ? runtimeProcess.argv.includes("--debug")
+    : false;
+const debugEnvValue = runtimeProcess?.env?.DEBUG;
+export const isDebug = debugEnvValue === "true" || hasDebugFlag;
 
 /**
  * Debug logging function - only logs when debug mode is enabled
