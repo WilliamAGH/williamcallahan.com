@@ -39,14 +39,20 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
         try {
           encoded = encoder.encode(formatSseEvent({ event, data }));
         } catch (serializationError) {
-          // Serialization failure (e.g. circular ref) — transport is still healthy
-          console.error("[SSE] Failed to serialize event:", event, serializationError);
+          // Serialization failure (e.g. circular ref) — treat as terminal ([RC1])
+          console.error(
+            "[SSE] Failed to serialize event, closing stream:",
+            event,
+            serializationError,
+          );
+          controllerClosed = true;
           return false;
         }
         try {
           controller.enqueue(encoded);
           return true;
         } catch (enqueueError) {
+          // Terminal: controller is broken, prevent further sends ([RC1])
           controllerClosed = true;
           const isClientDisconnect =
             enqueueError instanceof TypeError ||
@@ -54,7 +60,7 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
           if (isClientDisconnect) {
             console.debug("[SSE] Stream closed by client");
           } else {
-            console.warn("[SSE] Unexpected stream enqueue failure:", enqueueError);
+            console.error("[SSE] Unexpected stream enqueue failure:", enqueueError);
           }
           return false;
         }
@@ -66,13 +72,15 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
         try {
           controller.close();
         } catch (closeError) {
+          // Race between abort handler and normal close — benign when already closed
           const isAlreadyClosed =
             closeError instanceof TypeError ||
             (closeError instanceof Error && closeError.message.includes("close"));
           if (isAlreadyClosed) {
-            console.debug("[SSE] Stream already closed");
+            console.debug("[SSE] Stream already closed (race with abort handler)");
           } else {
-            console.warn("[SSE] Unexpected stream close failure:", closeError);
+            // Unexpected close failure is a controller state bug ([RC1])
+            console.error("[SSE] Unexpected stream close failure:", closeError);
           }
         }
       };
