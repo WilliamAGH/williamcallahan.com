@@ -15,6 +15,7 @@
 
 import { Glob } from "bun";
 import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import { relative } from "node:path";
 
 const ROOT = process.cwd();
@@ -28,9 +29,6 @@ async function collectDeclarations(): Promise<Map<string, Array<{ file: string; 
   const glob = new Glob("src/types/**/*.ts");
 
   for await (const absolutePath of glob.scan({ cwd: ROOT, absolute: true })) {
-    // Skip declaration files — ambient types can legitimately re-declare
-    if (absolutePath.endsWith(".d.ts")) continue;
-
     const relPath = relative(ROOT, absolutePath);
     const content = await readFile(absolutePath, "utf-8");
     const lines = content.split("\n");
@@ -56,6 +54,7 @@ async function collectDeclarations(): Promise<Map<string, Array<{ file: string; 
 
 function reportDuplicates(
   declarations: Map<string, Array<{ file: string; line: number }>>,
+  changedTypeFiles: Set<string> | null,
 ): number {
   let duplicateCount = 0;
 
@@ -65,6 +64,9 @@ function reportDuplicates(
   for (const name of sortedNames) {
     const locations = declarations.get(name);
     if (!locations || locations.length <= 1) continue;
+    if (changedTypeFiles && !locations.some((location) => changedTypeFiles.has(location.file))) {
+      continue;
+    }
 
     // Sort locations by file path then line number for deterministic output
     locations.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
@@ -79,9 +81,33 @@ function reportDuplicates(
   return duplicateCount;
 }
 
+function getChangedTypeFiles(): Set<string> | null {
+  const baseRef = process.env.DUPLICATE_TYPES_BASE_REF ?? "origin/main";
+  const diff = spawnSync(
+    "git",
+    ["diff", "--name-only", "--diff-filter=ACMR", `${baseRef}...HEAD`, "--", "src/types"],
+    { cwd: ROOT, encoding: "utf-8" },
+  );
+
+  if (diff.status !== 0) {
+    console.warn(
+      `[check:duplicate-types] Could not diff against ${baseRef}; checking all declarations.`,
+    );
+    return null;
+  }
+
+  const changedFiles = diff.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.endsWith(".ts"));
+
+  return new Set(changedFiles);
+}
+
 async function main(): Promise<void> {
+  const changedTypeFiles = getChangedTypeFiles();
   const declarations = await collectDeclarations();
-  const duplicateCount = reportDuplicates(declarations);
+  const duplicateCount = reportDuplicates(declarations, changedTypeFiles);
 
   if (duplicateCount > 0) {
     console.error(
