@@ -8,6 +8,7 @@
 import type { CdnConfig } from "@/types/s3-cdn";
 
 const SUPPORTED_PROTOCOLS = new Set(["http:", "https:"]);
+let loggedMissingPublicCdnUrl = false;
 
 /** Path for the image proxy API route - single source of truth */
 const IMAGE_PROXY_PATH = "/api/cache/images";
@@ -40,7 +41,8 @@ function parseAbsoluteUrl(value?: string): URL | null {
   if (!value) return null;
   try {
     return new URL(value);
-  } catch {
+  } catch (err) {
+    console.debug("[cdn-utils] parseAbsoluteUrl: invalid URL:", value, err);
     return null;
   }
 }
@@ -66,7 +68,8 @@ export function getS3Host(s3ServerUrl?: string): string {
   if (s3ServerUrl) {
     try {
       return new URL(s3ServerUrl).hostname;
-    } catch {
+    } catch (err) {
+      console.debug("[cdn-utils] getS3Host: invalid S3 server URL:", s3ServerUrl, err);
       // Fall through to the explicit error below
     }
   }
@@ -120,26 +123,26 @@ export function buildCdnUrl(s3Key: string, config: CdnConfig): string {
  */
 export function extractS3KeyFromUrl(url: string, config: CdnConfig): string | null {
   const { cdnBaseUrl, s3BucketName, s3ServerUrl } = config;
+  // parseAbsoluteUrl already logs and returns null for invalid URLs
+  const parsed = parseAbsoluteUrl(url);
+  if (!parsed || !SUPPORTED_PROTOCOLS.has(parsed.protocol)) {
+    return null;
+  }
 
-  try {
-    const parsed = parseAbsoluteUrl(url);
-    if (!parsed || !SUPPORTED_PROTOCOLS.has(parsed.protocol)) {
-      return null;
+  // Check if it's a CDN URL
+  const cdnBase = parseAbsoluteUrl(cdnBaseUrl);
+  if (cdnBase && parsed.host === cdnBase.host && parsed.protocol === cdnBase.protocol) {
+    const basePath = normalizeBasePath(cdnBase.pathname);
+    if (basePath === "/" || parsed.pathname.startsWith(basePath)) {
+      const key =
+        basePath === "/" ? parsed.pathname.slice(1) : parsed.pathname.slice(basePath.length);
+      return key.startsWith("/") ? key.slice(1) : key;
     }
+  }
 
-    // Check if it's a CDN URL
-    const cdnBase = parseAbsoluteUrl(cdnBaseUrl);
-    if (cdnBase && parsed.host === cdnBase.host && parsed.protocol === cdnBase.protocol) {
-      const basePath = normalizeBasePath(cdnBase.pathname);
-      if (basePath === "/" || parsed.pathname.startsWith(basePath)) {
-        const key =
-          basePath === "/" ? parsed.pathname.slice(1) : parsed.pathname.slice(basePath.length);
-        return key.startsWith("/") ? key.slice(1) : key;
-      }
-    }
-
-    // Check if it's an S3 URL
-    if (s3BucketName && s3ServerUrl) {
+  // Check if it's an S3 URL
+  if (s3BucketName && s3ServerUrl) {
+    try {
       const s3Host = getS3Host(s3ServerUrl);
       const s3Base = parseAbsoluteUrl(s3ServerUrl);
       const expectedHost = s3Base?.port
@@ -152,12 +155,13 @@ export function extractS3KeyFromUrl(url: string, config: CdnConfig): string | nu
         }
         return parsed.pathname.startsWith("/") ? parsed.pathname.slice(1) : parsed.pathname;
       }
+    } catch {
+      // Malformed S3 server URL — treat as non-match (consistent with string|null contract)
+      return null;
     }
-
-    return null;
-  } catch {
-    return null;
   }
+
+  return null;
 }
 
 /**
@@ -201,25 +205,12 @@ export function isOurCdnUrl(url: string, config: CdnConfig): boolean {
   return false;
 }
 
-/**
- * Get CDN config from environment variables
- * Handles both server and client environments appropriately
- *
- * CRITICAL FIX (2025-11-11): Client-side components now use the module-level
- * CLIENT_CDN_BASE_URL constant captured at build time, ensuring NEXT_PUBLIC_S3_CDN_URL
- * is always available even when process.env access is unreliable in Next.js 16.
- */
+/** Get CDN config from environment variables. */
 export function getCdnConfigFromEnv(): CdnConfig {
-  // In client-side environment, only NEXT_PUBLIC_* variables are available
   const isClient = typeof globalThis.window !== "undefined";
   const cdnBaseUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
-  if (!cdnBaseUrl) {
-    throw new Error("[cdn-utils] NEXT_PUBLIC_S3_CDN_URL is required but was not provided.");
-  }
 
   if (isClient) {
-    // Client-side: use the build-time captured constant for reliability
-    // Validate CLIENT_CDN_BASE_URL explicitly to avoid silent null state
     const clientCdnUrl = CLIENT_CDN_BASE_URL ?? cdnBaseUrl;
     if (!clientCdnUrl) {
       throw new Error(
@@ -229,17 +220,30 @@ export function getCdnConfigFromEnv(): CdnConfig {
     }
     return {
       cdnBaseUrl: clientCdnUrl,
-      // These are not available client-side, but buildCdnUrl should use cdnBaseUrl when available
       s3BucketName: undefined,
       s3ServerUrl: undefined,
     };
   }
 
-  // Server-side: all environment variables are available
+  const s3BucketName = process.env.S3_BUCKET;
+  const s3ServerUrl = process.env.S3_SERVER_URL;
+  if (!cdnBaseUrl && (!s3BucketName || !s3ServerUrl)) {
+    throw new Error(
+      "[cdn-utils] Missing CDN config. Set NEXT_PUBLIC_S3_CDN_URL or provide S3_BUCKET + S3_SERVER_URL.",
+    );
+  }
+  if (!cdnBaseUrl) {
+    if (!loggedMissingPublicCdnUrl) {
+      console.warn(
+        "[cdn-utils] NEXT_PUBLIC_S3_CDN_URL missing. Falling back to S3 origin URL construction.",
+      );
+      loggedMissingPublicCdnUrl = true;
+    }
+  }
   return {
     cdnBaseUrl,
-    s3BucketName: process.env.S3_BUCKET,
-    s3ServerUrl: process.env.S3_SERVER_URL,
+    s3BucketName,
+    s3ServerUrl,
   };
 }
 
@@ -321,8 +325,8 @@ export function getOptimizedImageSrc(
       // Already proxied - return unchanged to prevent infinite proxy loop
       return src;
     }
-  } catch {
-    // Not a valid absolute URL - fall through to proxy
+  } catch (err) {
+    console.debug("[cdn-utils] getOptimizedImageSrc: not an absolute URL, proxying:", src, err);
   }
 
   // External URLs: proxy for SSRF protection

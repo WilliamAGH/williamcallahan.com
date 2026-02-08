@@ -8,6 +8,7 @@
 import type { ComponentType, ReactNode } from "react";
 import type { z } from "zod/v4";
 import type { AnalysisMetadata } from "@/types/schemas/ai-analysis-persisted";
+import type { OpenAiCompatibleResponseFormat } from "@/types/schemas/ai-openai-compatible";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Domain Types
@@ -111,6 +112,36 @@ export interface AnalysisRenderHelpers {
   skipAnimation: boolean;
 }
 
+export interface ThinkingDisplayProps {
+  text: string;
+  tokenCount: number;
+  isStreaming: boolean;
+}
+
+export interface UseAiAnalysisArgs<TEntity, TAnalysis> {
+  entity: TEntity;
+  entityId: string;
+  featureName: string;
+  persistenceKey: AnalysisDomain;
+  loadingMessages: string[];
+  extractContext: (entity: TEntity) => unknown;
+  buildSystemPrompt: () => string;
+  buildUserPrompt: (context: unknown) => string;
+  responseFormat: OpenAiCompatibleResponseFormat;
+  responseSchema: z.ZodType<TAnalysis>;
+  autoTrigger: boolean;
+  initialAnalysis?: { analysis: TAnalysis } | null;
+}
+
+export interface UseAiAnalysisResult<TAnalysis> {
+  state: AnalysisState<TAnalysis>;
+  queueMessage: string | null;
+  loadingMessage: string;
+  streamingText: string;
+  startedFromCache: boolean;
+  handleManualTrigger: () => void;
+}
+
 export interface AiAnalysisTerminalProps<TEntity, TAnalysis> {
   /** The entity being analyzed */
   entity: TEntity;
@@ -128,20 +159,22 @@ export interface AiAnalysisTerminalProps<TEntity, TAnalysis> {
   buildSystemPrompt: () => string;
   /** Build the user prompt from context */
   buildUserPrompt: (context: unknown) => string;
+  /** Structured output format passed to upstream chat completions */
+  responseFormat: OpenAiCompatibleResponseFormat;
   /** Zod schema for validating AI response */
   responseSchema: z.ZodType<TAnalysis>;
   /** Render the analysis content */
   renderAnalysis: (analysis: TAnalysis, helpers: AnalysisRenderHelpers) => ReactNode;
   /** Category extractor for header badge */
   getCategory?: (analysis: TAnalysis) => string;
-  /** Footer icon */
-  footerIcon?: ReactNode;
-  /** Footer text after "Analysis complete" */
-  footerText?: string;
   /** Auto-trigger analysis on mount */
   autoTrigger?: boolean;
   /** Pre-loaded analysis from cache */
   initialAnalysis?: { analysis: TAnalysis } | null;
   /** Additional CSS classes */
   className?: string;
+  /** Start with analysis content collapsed (default: false) */
+  defaultCollapsed?: boolean;
+  /** Callback when analysis is successfully completed or loaded */
+  onAnalysisComplete?: (analysis: TAnalysis) => void;
 }

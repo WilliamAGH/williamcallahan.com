@@ -345,7 +345,7 @@ describe("Search Helpers", () => {
       expect(result.path).toBe("#");
     });
 
-    it("should warn and generate fallback ID when id is missing", () => {
+    it("should warn and generate deterministic fallback ID when id is missing", () => {
       const searchResult = {
         id: "",
         type: "blog",
@@ -355,19 +355,11 @@ describe("Search Helpers", () => {
         score: 0.6,
       } as SearchResult;
 
-      // Mock crypto.randomUUID
-      const mockUUID = "mock-uuid-12345";
-      const originalRandomUUID = crypto.randomUUID.bind(crypto);
-      crypto.randomUUID = vi.fn().mockReturnValue(mockUUID);
-
       const result = transformSearchResultToTerminalResult(searchResult);
 
-      // Should generate a fallback ID
-      expect(result.id).toBe(mockUUID);
+      // Deterministic fallback: `${type}:${url}:${title}` lowercased, non-alphanum replaced
+      expect(result.id).toBe("blog:/blog/no-id:no-id-post");
       expect(result.label).toBe("No ID Post");
-
-      // Restore
-      crypto.randomUUID = originalRandomUUID;
     });
   });
 });

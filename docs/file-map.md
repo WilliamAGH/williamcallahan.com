@@ -96,7 +96,7 @@ File/Path Functionality Description
   - [x] **projects/**
     - [x] `index.ts` `projects` - Projects barrel file
     - [x] `project-ai-analysis.client.tsx` `projects` - AI analysis component for projects with SSR cache support
-    - [x] `project-card.{client,server}.tsx` `projects` - ind project cards
+    - [x] `project-card.{client,server}.tsx` `projects` - Individual project cards; client cards disable detail-link prefetch and fall back safely when CDN config is missing
     - [x] `project-detail.tsx` `projects` - Project detail view with AI analysis integration
     - [x] `project-tags.client.tsx` `projects` - Project tag filter UI
     - [x] `projects-list.{client,server}.tsx` `projects` - List all projects
@@ -176,12 +176,12 @@ File/Path Functionality Description
 ## Lib Directory
 
 - [~] **ai/** `ai-shared-services` - Unified AI provider and web search services
-  - [x] `analysis-client-utils.ts` `ai-shared-services` - Shared client utilities for AI analysis (LLM JSON parsing, S3 persistence)
+  - [x] `analysis-client-utils.ts` `ai-shared-services` - Shared client utilities for AI analysis (LLM JSON parsing via `JSON.parse`, S3 persistence)
   - [x] **openai-compatible/**
-    - [x] `feature-config.ts` `ai-shared-services` - Per-feature env resolution + upstream URL builder
-    - [x] `gate-token.ts` `ai-shared-services` - HMAC-signed short-lived token helpers
-    - [x] `browser-client.ts` `ai-shared-services` - Browser helper to mint token + call AI chat route
-    - [x] `openai-compatible-client.ts` `ai-shared-services` - Fetch-based `/v1/chat/completions` client
+    - [x] `feature-config.ts` `ai-shared-services` - Per-feature env resolution, preferred-model resolution, and shared upstream queue-key builder
+    - [x] `gate-token.ts` `ai-shared-services` - HMAC-signed short-lived token helpers plus shared request origin/cookie/auth extraction helpers
+    - [x] `browser-client.ts` `ai-shared-services` - Browser helper to mint token + call AI chat route with SSE-only consumption
+    - [x] `openai-compatible-client.ts` `ai-shared-services` - Native OpenAI SDK transport for `chat.completions` and `responses`
     - [x] `upstream-request-queue.ts` `ai-shared-services` - Per-upstream priority queue (max parallel + position)
   - [x] **rag/**
     - [x] `index.ts` `ai-shared-services` - Public API for RAG context retrieval
@@ -416,6 +416,12 @@ File/Path Functionality Description
 
 - [x] `.browserslistrc` `config` - Browserslist configuration
 - [x] `.remarkrc.mjs` `config` - Remark (Markdown processor) configuration
+- [x] **eslint/** `linting-formatting` - ESLint custom rules (project-specific)
+  - [x] **rules/**
+    - [x] `no-duplicate-types-rule.ts` `linting-formatting` - Enforces globally unique type/interface/enum names
+- [x] **oxlint/** `linting-formatting` - Oxlint JS plugins (experimental)
+  - [x] **js-plugins/**
+    - [x] `s3-no-hardcoded-images.mjs` `image-handling` - Prevents hardcoded `/images/*` usage; enforces `getStaticImageUrl()`
 - [x] `happydom.ts` `testing-config` - Happy DOM (test environment) configuration
 - [x] `tools.config.js` `config` - Master configuration for multiple tools
 - [x] **vitest/** `testing-config` - Vitest test framework configuration files
@@ -429,8 +435,8 @@ File/Path Functionality Description
 - [ ] **health/**
   - [x] `memory-health-monitor.ts` `memory-mgmt` - Memory health monitor with graceful degradation
 - [ ] **middleware/**
-  - [x] `memory-pressure.ts` `memory-mgmt` - Middleware to shed load under memory pressure
-  - [x] `sitewide-rate-limit.ts` `rate-limit-and-sanitize` - Proxy-layer rate limiting to mitigate aggressive crawlers
+  - [x] `memory-pressure.ts` `memory-mgmt` - Class-aware memory shedding (`document` -> HTML 503, `api` -> JSON 503) with structured handled-event logs
+  - [x] `sitewide-rate-limit.ts` `rate-limit-and-sanitize` - Navigation-first proxy throttling (only `document`/`api`) with deterministic 429 contracts and structured handled-event logs
 
 ## Root Directory
 
@@ -485,6 +491,16 @@ File/Path Functionality Description
     - [x] **bookmarks/`route.ts`** `bookmarks` - Bookmarks cache API
     - [x] **clear/`route.ts`** `caching` - Clear cache API
     - [x] **images/`route.ts`** `image-handling` - Images cache API
+  - [x] **ai/**
+    - [x] **token/`route.ts`** `ai-shared-services` - AI gate token minting endpoint with origin guard, rate limit, and nonce cookie binding
+    - [x] **queue/`[feature]`/`route.ts`** `ai-shared-services` - Per-feature queue state endpoint using shared feature schema + queue-key builder
+    - [x] **chat/**
+      - [x] **`[feature]`/`route.ts`** `ai-shared-services` - Primary AI gateway route (SSE-only, no JSON fallback)
+      - [x] **`[feature]`/`upstream-pipeline.ts`** `ai-shared-services` - Pipeline assembler: wires config, queue, log context, and upstream runner
+      - [x] **`[feature]`/`upstream-runner.ts`** `ai-shared-services` - Multi-turn orchestrator for tool calls, fallback models, and deterministic reply handling
+      - [x] **`[feature]`/`upstream-turn.ts`** `ai-shared-services` - Turn executors: run a single chat-completions or responses turn with delta forwarding
+      - [x] **`[feature]`/`analysis-output-config.ts`** `ai-shared-services` - Analysis schema/field configuration metadata shared by validation helpers
+      - [x] **`[feature]`/`analysis-output-validation.ts`** `ai-shared-services` - Structured analysis output parse/normalize/leakage validation and repair prompt builder
   - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts (force-dynamic bearer auth)
   - [x] **github-activity/**
     - [x] `route.ts` `github-activity` - GitHub activity API
@@ -532,7 +548,7 @@ File/Path Functionality Description
 - [x] **investments/**
   - [x] `page.tsx` `investments` - Investments page (ISR)
 - [x] **projects/**
-  - [x] `page.tsx` `projects` - Projects page (ISR)
+  - [x] `page.tsx` `projects` - Projects page (ISR) with defensive CDN screenshot schema generation (no render throw on missing CDN config)
 - [ ] **sentry-example-page/**
   - [x] `page.tsx` `log-error-debug-handling` - Sentry example page
 
@@ -604,6 +620,12 @@ File/Path Functionality Description
     - [x] `sentry.js` `log-error-debug-handling` - Mock for Sentry error tracking
   - [x] **app/**
     - [x] **api/**
+      - [x] **ai/**
+        - [x] `chat-rag-helpers.test.ts` `ai-shared-services` - RAG context, abort detection, and request-validation memory-pressure tests for AI chat helpers
+        - [x] `upstream-pipeline-test-harness.ts` `ai-shared-services` - Shared upstream pipeline test harness with centralized mocks and fixtures
+        - [x] `chat-upstream-pipeline-streaming.test.ts` `ai-shared-services` - Upstream pipeline streaming and event contract tests
+        - [x] `chat-upstream-pipeline-tools.test.ts` `ai-shared-services` - Upstream pipeline tool-call and deterministic fallback tests
+        - [x] `chat-upstream-pipeline-analysis-validation.test.ts` `ai-shared-services` - Bookmark-analysis schema/retry normalization tests for upstream pipeline outputs
       - [x] **github-activity/**
         - [x] `cache.test.ts` `github-activity` - Tests for GitHub activity caching
       - [x] **upload/**

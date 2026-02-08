@@ -54,12 +54,15 @@ describe("Metadata Integration Tests", () => {
   const mockGetBookmarksPage = getBookmarksPage as MockedFunction<typeof getBookmarksPage>;
   const mockGetBookmarksIndex = getBookmarksIndex as MockedFunction<typeof getBookmarksIndex>;
 
-  // Mock bookmarks data
+  // Mock bookmarks data with all required fields
   const mockBookmarks = Array.from({ length: 50 }, (_, i) => ({
     id: `bookmark-${i}`,
     url: `https://example.com/${i}`,
     title: `Bookmark ${i}`,
     description: `Description ${i}`,
+    slug: `bookmark-${i}`,
+    dateBookmarked: "2024-01-01",
+    sourceUpdatedAt: "2024-01-01",
     tags: [],
     imageUrl: null,
     domain: "example.com",
@@ -89,15 +92,16 @@ describe("Metadata Integration Tests", () => {
   describe("Pagination Link Tags", () => {
     it('should generate proper <link rel="prev/next"> tags using icons.other', async () => {
       const metadata = await generateBookmarksMetadata({
-        params: { pageNumber: "2" },
+        params: Promise.resolve({ pageNumber: "2" }),
       });
 
       // Check that we're using icons.other instead of metadata.other
       expect(metadata.icons).toBeDefined();
-      expect(metadata.icons?.other).toBeDefined();
-      expect(Array.isArray(metadata.icons?.other)).toBe(true);
+      // Use type assertion since icons.other is a custom workaround
+      expect((metadata.icons as { other?: unknown }).other).toBeDefined();
+      expect(Array.isArray((metadata.icons as { other?: unknown }).other)).toBe(true);
 
-      const links = metadata.icons?.other as Array<{ rel: string; url: string }>;
+      const links = (metadata.icons as { other: Array<{ rel: string; url: string }> }).other;
 
       // Should have both prev and next links for middle pages
       expect(links).toHaveLength(2);
@@ -113,27 +117,25 @@ describe("Metadata Integration Tests", () => {
       expect(nextLink?.url).toBe("https://williamcallahan.com/bookmarks/page/3");
     });
 
-    it("should handle first page correctly (no prev link)", async () => {
-      // First page should redirect, but if we test page 2 as the first paginated page
+    it("should include prev link pointing to base bookmarks URL for page 2", async () => {
+      // Page 2 should link back to the base /bookmarks URL for previous pagination.
       const metadata = await generateBookmarksMetadata({
-        params: { pageNumber: "2" },
+        params: Promise.resolve({ pageNumber: "2" }),
       });
 
-      const links = metadata.icons?.other as Array<{ rel: string; url: string }>;
+      const links =
+        (metadata.icons as { other?: Array<{ rel: string; url: string }> })?.other ?? [];
       const prevLink = links.find((link) => link.rel === "prev");
-
-      // Page 2 should have prev link to /bookmarks (not /bookmarks/page/1)
       expect(prevLink?.url).toBe("https://williamcallahan.com/bookmarks");
     });
 
     it("should handle last page correctly (no next link)", async () => {
       const metadata = await generateBookmarksMetadata({
-        params: { pageNumber: "3" }, // Last page with 50 items, 24 per page
+        params: Promise.resolve({ pageNumber: "3" }), // Last page with 50 items, 24 per page
       });
 
-      const links = metadata.icons?.other as Array<{ rel: string; url: string }>;
-
-      // Should only have prev link
+      const links =
+        (metadata.icons as { other?: Array<{ rel: string; url: string }> })?.other ?? [];
       const prevLink = links.find((link) => link.rel === "prev");
       const nextLink = links.find((link) => link.rel === "next");
 
@@ -159,13 +161,14 @@ describe("Metadata Integration Tests", () => {
       // Test page 2 on a single-page dataset - when totalPages=1,
       // requesting page 2 means we're beyond the valid range
       const metadata = await generateBookmarksMetadata({
-        params: { pageNumber: "2" },
+        params: Promise.resolve({ pageNumber: "2" }),
       });
 
       // When requesting a page beyond available data on a single-page dataset,
       // the implementation may return undefined icons.other (no pagination links)
       // since there's no valid navigation to suggest
-      const links = metadata.icons?.other as Array<{ rel: string; url: string }> | undefined;
+      const links = (metadata.icons as { other?: Array<{ rel: string; url: string }> } | undefined)
+        ?.other;
       if (links) {
         // If links exist, there should be no next link (we're past the end)
         const nextLink = links.find((link) => link.rel === "next");
@@ -178,7 +181,7 @@ describe("Metadata Integration Tests", () => {
   describe("SEO Metadata Completeness", () => {
     it("should include all required SEO fields", async () => {
       const metadata = await generateBookmarksMetadata({
-        params: { pageNumber: "2" },
+        params: Promise.resolve({ pageNumber: "2" }),
       });
 
       // Basic metadata
@@ -195,8 +198,8 @@ describe("Metadata Integration Tests", () => {
 
       // Robots
       expect(metadata.robots).toBeDefined();
-      expect(metadata.robots?.index).toBe(true);
-      expect(metadata.robots?.follow).toBe(true);
+      expect((metadata.robots as { index?: boolean })?.index).toBe(true);
+      expect((metadata.robots as { follow?: boolean })?.follow).toBe(true);
     });
   });
 
@@ -243,86 +246,87 @@ describe("Metadata Integration Tests", () => {
  * Utility to verify metadata output would generate correct HTML
  * This simulates what Next.js would render
  */
-describe("Metadata HTML Output Verification", () => {
-  function simulateMetadataToHTML(metadata: Metadata): string[] {
-    const tags: string[] = [];
+function simulateMetadataToHTML(metadata: Metadata): string[] {
+  const tags: string[] = [];
 
-    // Title
-    if (metadata.title) {
-      let titleStr: string;
-      if (typeof metadata.title === "string") {
-        titleStr = metadata.title;
-      } else if (
-        metadata.title &&
-        typeof metadata.title === "object" &&
-        "absolute" in metadata.title
-      ) {
-        titleStr = metadata.title.absolute || "";
-      } else {
-        titleStr = "";
-      }
-      tags.push(`<title>${titleStr}</title>`);
+  // Title
+  if (metadata.title) {
+    let titleStr: string;
+    if (typeof metadata.title === "string") {
+      titleStr = metadata.title;
+    } else if (
+      metadata.title &&
+      typeof metadata.title === "object" &&
+      "absolute" in metadata.title
+    ) {
+      titleStr = metadata.title.absolute || "";
+    } else {
+      titleStr = "";
     }
-
-    // Description
-    if (metadata.description) {
-      tags.push(`<meta name="description" content="${metadata.description}">`);
-    }
-
-    // Icons (including our pagination workaround)
-    if (metadata.icons?.other && Array.isArray(metadata.icons.other)) {
-      for (const link of metadata.icons.other) {
-        tags.push(`<link rel="${link.rel}" href="${link.url}">`);
-      }
-    }
-
-    // Canonical
-    if (metadata.alternates?.canonical) {
-      let canonicalStr: string;
-      if (typeof metadata.alternates.canonical === "string") {
-        canonicalStr = metadata.alternates.canonical;
-      } else if (
-        metadata.alternates.canonical &&
-        typeof metadata.alternates.canonical === "object" &&
-        "href" in metadata.alternates.canonical
-      ) {
-        canonicalStr = metadata.alternates.canonical.href;
-      } else {
-        canonicalStr = "";
-      }
-      if (canonicalStr) {
-        tags.push(`<link rel="canonical" href="${canonicalStr}">`);
-      }
-    }
-
-    // OpenGraph
-    if (metadata.openGraph) {
-      if (metadata.openGraph.title) {
-        let ogTitleStr: string;
-        if (typeof metadata.openGraph.title === "string") {
-          ogTitleStr = metadata.openGraph.title;
-        } else {
-          ogTitleStr = "";
-        }
-        if (ogTitleStr) {
-          tags.push(`<meta property="og:title" content="${ogTitleStr}">`);
-        }
-      }
-      if (metadata.openGraph.url) {
-        const ogUrlStr =
-          typeof metadata.openGraph.url === "string"
-            ? metadata.openGraph.url
-            : metadata.openGraph.url.toString();
-        tags.push(`<meta property="og:url" content="${ogUrlStr}">`);
-      }
-    }
-
-    return tags;
+    tags.push(`<title>${titleStr}</title>`);
   }
 
+  // Description
+  if (metadata.description) {
+    tags.push(`<meta name="description" content="${metadata.description}">`);
+  }
+
+  // Icons (including our pagination workaround)
+  const iconsOther = (metadata.icons as { other?: Array<{ rel: string; url: string }> })?.other;
+  if (iconsOther && Array.isArray(iconsOther)) {
+    for (const link of iconsOther) {
+      tags.push(`<link rel="${link.rel}" href="${link.url}">`);
+    }
+  }
+
+  // Canonical
+  if (metadata.alternates?.canonical) {
+    let canonicalStr: string;
+    if (typeof metadata.alternates.canonical === "string") {
+      canonicalStr = metadata.alternates.canonical;
+    } else if (
+      metadata.alternates.canonical &&
+      typeof metadata.alternates.canonical === "object" &&
+      "href" in metadata.alternates.canonical
+    ) {
+      canonicalStr = metadata.alternates.canonical.href;
+    } else {
+      canonicalStr = "";
+    }
+    if (canonicalStr) {
+      tags.push(`<link rel="canonical" href="${canonicalStr}">`);
+    }
+  }
+
+  // OpenGraph
+  if (metadata.openGraph) {
+    if (metadata.openGraph.title) {
+      let ogTitleStr: string;
+      if (typeof metadata.openGraph.title === "string") {
+        ogTitleStr = metadata.openGraph.title;
+      } else {
+        ogTitleStr = "";
+      }
+      if (ogTitleStr) {
+        tags.push(`<meta property="og:title" content="${ogTitleStr}">`);
+      }
+    }
+    if (metadata.openGraph.url) {
+      const ogUrlStr =
+        typeof metadata.openGraph.url === "string"
+          ? metadata.openGraph.url
+          : metadata.openGraph.url.toString();
+      tags.push(`<meta property="og:url" content="${ogUrlStr}">`);
+    }
+  }
+
+  return tags;
+}
+
+describe("Metadata HTML Output Verification", () => {
   it("should generate correct HTML tags for pagination", async () => {
     const metadata = await generateBookmarksMetadata({
-      params: { pageNumber: "2" },
+      params: Promise.resolve({ pageNumber: "2" }),
     });
 
     const htmlTags = simulateMetadataToHTML(metadata);

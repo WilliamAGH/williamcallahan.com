@@ -38,6 +38,18 @@
  */
 
 import { metadata as siteMetadata } from "@/data/metadata";
+import { clearSocialMediaCaches } from "./lib/social-cache-clearing";
+
+/** Maximum recommended character length for OpenGraph titles */
+const OG_TITLE_MAX_LENGTH = 60;
+/** Maximum recommended character length for OpenGraph descriptions */
+const OG_DESCRIPTION_MAX_LENGTH = 160;
+const OPENGRAPH_PREVIEW_LIMITS: Readonly<Record<string, number>> = {
+  "og:title": OG_TITLE_MAX_LENGTH,
+  "og:description": OG_DESCRIPTION_MAX_LENGTH,
+  "og:image": 200,
+  "og:type": 40,
+};
 
 /**
  * Validates OpenGraph metadata for a specific URL by fetching and parsing HTML
@@ -128,17 +140,17 @@ async function validateOpenGraph(url: string): Promise<{
 
     // Validate content quality
     if (result.ogTags["og:title"]) {
-      if (result.ogTags["og:title"].length > 60) {
+      if (result.ogTags["og:title"].length > OG_TITLE_MAX_LENGTH) {
         result.warnings.push(
-          `og:title is ${result.ogTags["og:title"].length} chars (recommended: ≤60)`,
+          `og:title is ${result.ogTags["og:title"].length} chars (recommended: ≤${OG_TITLE_MAX_LENGTH})`,
         );
       }
     }
 
     if (result.ogTags["og:description"]) {
-      if (result.ogTags["og:description"].length > 160) {
+      if (result.ogTags["og:description"].length > OG_DESCRIPTION_MAX_LENGTH) {
         result.warnings.push(
-          `og:description is ${result.ogTags["og:description"].length} chars (recommended: ≤160)`,
+          `og:description is ${result.ogTags["og:description"].length} chars (recommended: ≤${OG_DESCRIPTION_MAX_LENGTH})`,
         );
       }
     }
@@ -173,142 +185,6 @@ async function validateOpenGraph(url: string): Promise<{
   }
 }
 
-/**
- * Clears social media caches using proper debugging tools
- * @function clearSocialMediaCaches
- * @param {string} url - URL to refresh in social media caches
- * @returns {Promise<{facebook: boolean, twitter: boolean, linkedin: boolean}>} Promise with success status for each platform
- * @description
- * **Multi-Platform Cache Clearing:**
- * Uses the official debugging tools recommended by social media platforms:
- *
- * 1. **Facebook Sharing Debugger**: Forces Facebook to re-scrape OpenGraph data
- * 2. **Twitter Card Validator**: Refreshes Twitter's cached card data
- * 3. **LinkedIn Post Inspector**: Updates LinkedIn's link preview cache
- *
- * **Cache Clearing Process:**
- * - Submits URL to each platform's debugging endpoint
- * - Platforms mark cached data as stale and re-fetch content
- * - Updated metadata propagates across CDNs (5-10 minutes)
- *
- * **Expected Results:**
- * - Some 400/403 errors are normal due to rate limiting
- * - Success means the platform has queued a cache refresh
- * - Changes appear in social media previews within 10 minutes
- *
- * @see {@link "https://developers.facebook.com/tools/debug/"} - Facebook Sharing Debugger
- * @see {@link "https://cards-dev.twitter.com/validator"} - Twitter Card Validator
- * @see {@link "https://www.linkedin.com/post-inspector/"} - LinkedIn Post Inspector
- */
-async function clearSocialMediaCaches(url: string): Promise<{
-  facebook: boolean;
-  twitter: boolean;
-  linkedin: boolean;
-}> {
-  const results = {
-    facebook: false,
-    twitter: false,
-    linkedin: false,
-  };
-
-  // Facebook Sharing Debugger
-  try {
-    const facebookDebugUrl = `https://developers.facebook.com/tools/debug/sharing/?q=${encodeURIComponent(url)}`;
-    console.log(`🔄 Submitting to Facebook Sharing Debugger...`);
-
-    // Facebook's debugger requires a POST request to actually clear cache
-    const fbResponse = await fetch("https://graph.facebook.com/v18.0/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: `id=${encodeURIComponent(url)}&scrape=true`,
-    });
-
-    if (fbResponse.ok || fbResponse.status === 400) {
-      // 400 is often expected for public URLs without access token
-      results.facebook = true;
-      console.log(`✅ Facebook cache refresh requested`);
-      console.log(`   Manual verification: ${facebookDebugUrl}`);
-    } else {
-      console.log(`⚠️  Facebook returned ${fbResponse.status} - cache may not have cleared`);
-    }
-  } catch (error) {
-    console.log(
-      `⚠️  Facebook cache clearing failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-
-  // Twitter Card Validator
-  try {
-    const twitterValidatorUrl = `https://cards-dev.twitter.com/validator?url=${encodeURIComponent(url)}&preview=true`;
-    console.log(`🔄 Submitting to Twitter Card Validator...`);
-
-    const twitterResponse = await fetch(twitterValidatorUrl, {
-      method: "GET",
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; TwitterValidator/1.0)",
-      },
-    });
-
-    // Twitter often returns 400 for automated requests, but still processes them
-    if (twitterResponse.ok || twitterResponse.status === 400) {
-      results.twitter = true;
-      console.log(`✅ Twitter cache refresh requested`);
-      console.log(`   Manual verification: ${twitterValidatorUrl}`);
-    } else {
-      console.log(`⚠️  Twitter returned ${twitterResponse.status} - cache may not have cleared`);
-    }
-  } catch (error) {
-    console.log(
-      `⚠️  Twitter cache clearing failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-
-  // LinkedIn Post Inspector
-  try {
-    const linkedinInspectorUrl = `https://www.linkedin.com/post-inspector/inspect/${encodeURIComponent(url)}`;
-    console.log(`🔄 Submitting to LinkedIn Post Inspector...`);
-
-    // LinkedIn's inspector doesn't have a public API, so we just inform the user
-    results.linkedin = true;
-    console.log(`✅ LinkedIn cache refresh available`);
-    console.log(`   Manual verification: ${linkedinInspectorUrl}`);
-  } catch (error) {
-    console.log(
-      `⚠️  LinkedIn cache clearing failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-
-  return results;
-}
-
-/**
- * Main execution function
- * @function main
- * @description
- * **Real OpenGraph Validation & Cache Clearing:**
- * Systematically validates OpenGraph metadata and clears social media caches for key pages.
- *
- * **Page Selection Strategy:**
- * Focuses on high-traffic pages that are most commonly shared on social media:
- * - Homepage (primary landing page)
- * - Bookmarks (content discovery)
- * - Blog index (article discovery)
- * - Projects (portfolio showcase)
- *
- * **Process Flow:**
- * 1. Fetch and parse actual HTML content
- * 2. Validate OpenGraph tags against platform requirements
- * 3. Submit URLs to official platform debugging tools
- * 4. Provide manual verification links for immediate testing
- *
- * **Performance & Error Handling:**
- * - Sequential processing to avoid overwhelming platform APIs
- * - Individual page failures don't stop the entire process
- * - Comprehensive logging for troubleshooting
- * - Typical execution time: 30-60 seconds for all pages
- */
 async function main() {
   console.log("🚀 Starting REAL OpenGraph validation and social media cache clearing\n");
 
@@ -347,7 +223,14 @@ async function main() {
     for (const tag of keyTags) {
       if (validation.ogTags[tag]) {
         const value = validation.ogTags[tag];
-        const truncated = value.length > 60 ? `${value.substring(0, 60)}...` : value;
+        const previewLimit = OPENGRAPH_PREVIEW_LIMITS[tag];
+        if (previewLimit === undefined) {
+          console.warn(`No preview limit configured for ${tag}; leaving value untrimmed.`);
+        }
+        const truncated =
+          previewLimit !== undefined && value.length > previewLimit
+            ? `${value.substring(0, previewLimit)}...`
+            : value;
         console.log(`   ${tag}: ${truncated}`);
       } else {
         console.log(`   ${tag}: ❌ MISSING`);
@@ -367,7 +250,9 @@ async function main() {
 }
 
 // Execute the script with proper error handling
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   console.error("❌ Script execution failed:", err);
   process.exit(1);
-});
+}

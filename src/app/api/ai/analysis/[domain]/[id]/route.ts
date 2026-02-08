@@ -17,7 +17,12 @@ import { bookAiAnalysisResponseSchema } from "@/types/schemas/book-ai-analysis";
 import { projectAiAnalysisResponseSchema } from "@/types/schemas/project-ai-analysis";
 import { persistAnalysisRequestSchema } from "@/types/schemas/ai-analysis-persisted";
 import { getClientIp } from "@/lib/utils/request-utils";
-import { NO_STORE_HEADERS, preventCaching, createErrorResponse } from "@/lib/utils/api-utils";
+import {
+  NO_STORE_HEADERS,
+  buildApiRateLimitResponse,
+  createErrorResponse,
+  preventCaching,
+} from "@/lib/utils/api-utils";
 import { envLogger } from "@/lib/utils/env-logger";
 import type { AnalysisDomain } from "@/lib/ai-analysis/types";
 
@@ -96,18 +101,12 @@ export async function POST(
   const rateKey = `analysis-persist:${clientIp}`;
 
   if (!isOperationAllowed("ai-analysis-persist", rateKey, PERSIST_RATE_LIMIT)) {
-    return NextResponse.json(
-      { error: "Rate limit exceeded. Try again shortly." },
-      {
-        status: 429,
-        headers: {
-          ...NO_STORE_HEADERS,
-          "Retry-After": "60",
-          "X-RateLimit-Limit": String(PERSIST_RATE_LIMIT.maxRequests),
-          "X-RateLimit-Window": "60s",
-        },
-      },
-    );
+    return buildApiRateLimitResponse({
+      retryAfterSeconds: Math.ceil(PERSIST_RATE_LIMIT.windowMs / 1000),
+      rateLimitScope: "ai-analysis-persist",
+      rateLimitLimit: PERSIST_RATE_LIMIT.maxRequests,
+      rateLimitWindowSeconds: Math.ceil(PERSIST_RATE_LIMIT.windowMs / 1000),
+    });
   }
 
   // Parse request body

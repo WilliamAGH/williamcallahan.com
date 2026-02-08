@@ -106,7 +106,7 @@ async function findAssetInS3(
       0,
       8,
     );
-    const domain = stripWwwPrefix(new URL(context.url).hostname).replace(/\./g, "-");
+    const domain = stripWwwPrefix(new URL(context.url).hostname).replaceAll(".", "-");
 
     for (const ext of extensions) {
       const descriptiveKey = `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${domain}-${hash}${ext}`;

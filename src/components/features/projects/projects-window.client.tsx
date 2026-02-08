@@ -71,11 +71,8 @@ function ProjectsWindowContentInner({
         <Suspense
           fallback={
             <div className="animate-pulse space-y-4 p-6">
-              {Array.from({ length: 3 }, () => (
-                <div
-                  key={crypto.randomUUID()}
-                  className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg"
-                />
+              {Array.from({ length: 3 }, (_, i) => (
+                <div key={i} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
               ))}
             </div>
           }
@@ -126,7 +123,7 @@ export function ProjectsWindow({
   // Log state changes (optional)
   useEffect(() => {
     if (isRegistered) {
-      console.log(`ProjectsWindow Render (${PROJECTS_WINDOW_ID}) - Window State:`, windowState);
+      console.debug(`ProjectsWindow Render (${PROJECTS_WINDOW_ID}) - Window State:`, windowState);
     }
   }, [windowState, isRegistered]);
 
@@ -156,7 +153,9 @@ export function ProjectsWindow({
       {/* Server-rendered list */}
       <ProjectsListServer />
       {/* Client-side filter to toggle visibility based on ?tag= */}
-      <TagVisibilityController />
+      <Suspense fallback={null}>
+        <TagVisibilityController />
+      </Suspense>
     </ProjectsWindowContent>
   );
 }
@@ -166,16 +165,26 @@ export function ProjectsWindow({
  * ProjectsListServer.  Each element has `data-project-tags` set to a space-
  * separated list.  No DOM is mutated beyond display style, so hydration stays
  * consistent.
+ *
+ * Uses `useSearchParams` — callers MUST wrap in `<Suspense>` per Next.js requirements.
  */
 function TagVisibilityController() {
   const params = useSearchParams();
   const rawTag = params?.get("tag");
   const selectedTag = rawTag ? rawTag.replace(/\+/g, " ") : "All";
 
-  React.useEffect(() => {
+  useEffect(() => {
     const projectNodes = document.querySelectorAll<HTMLElement>("[data-project-tags]");
     projectNodes.forEach((node) => {
-      const tags = node.getAttribute("data-project-tags")?.split("|||") ?? [];
+      const rawTags = node.getAttribute("data-project-tags");
+      if (rawTags == null) {
+        console.debug(
+          "[TagVisibilityController] Missing data-project-tags on node, skipping:",
+          node,
+        );
+        return; // Skip — don't silently treat as tag-less
+      }
+      const tags = rawTags.split("|||");
       const shouldShow = selectedTag === "All" || tags.includes(selectedTag);
       node.style.display = shouldShow ? "" : "none";
     });

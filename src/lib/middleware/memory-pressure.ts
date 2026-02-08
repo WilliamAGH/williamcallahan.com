@@ -19,16 +19,26 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { debug } from "@/lib/utils/debug";
+import { buildApiServiceBusyResponse, buildServiceBusyPageResponse } from "@/lib/utils/api-utils";
+import { classifyProxyRequest, getClientIp, hashIpBucket } from "@/lib/utils/request-utils";
 import type {
   MemoryPressureLevel,
   MemoryPressureOverrides,
   MemoryPressureStatus,
+  ProxyRequestClass,
 } from "@/types/middleware";
 import { isHealthCheckPath } from "./health-check-paths";
 
+/** RSS/limit ratio at which a warning header is emitted (85%). Chosen to give
+ *  the operator a ~7% runway to react before critical shedding kicks in. */
 const MEMORY_WARNING_UTILIZATION = 0.85;
+/** RSS/limit ratio at which ALL non-health-check requests are shed (92%).
+ *  Leaves ~8% headroom for GC, OS page cache, and in-flight allocations
+ *  before the OOM killer or container runtime terminates the process. */
 const MEMORY_CRITICAL_UTILIZATION = 0.92;
+/** Retry-After value (seconds) sent with critical 503 responses. Three minutes
+ *  aligns with typical container restart/reschedule cycles. */
+const CRITICAL_SHED_RETRY_AFTER_SECONDS = 180;
 
 /**
  * Check memory pressure using Edge Runtime-compatible environment variables.
@@ -48,7 +58,7 @@ let cgroupLimitBytesPromise: Promise<number | null> | null = null;
 async function getCgroupMemoryLimitBytes(): Promise<number | null> {
   if (cgroupLimitBytesPromise) return cgroupLimitBytesPromise;
 
-  cgroupLimitBytesPromise = (async () => {
+  const pending = (async () => {
     // If we are not in Node.js, we cannot read cgroups.
     if (typeof process === "undefined" || !process.versions?.node) return null;
 
@@ -60,7 +70,7 @@ async function getCgroupMemoryLimitBytes(): Promise<number | null> {
           const raw = await readFile(filePath, "utf8");
           return raw.trim();
         } catch (err) {
-          debug(`[MemoryPressure] Could not read ${filePath}:`, err);
+          console.warn(`[MemoryPressure] Could not read ${filePath}:`, err);
           return null;
         }
       };
@@ -83,12 +93,19 @@ async function getCgroupMemoryLimitBytes(): Promise<number | null> {
 
       return null;
     } catch (err) {
-      debug("[MemoryPressure] Failed to read cgroup memory limit:", err);
+      console.warn("[MemoryPressure] Failed to read cgroup memory limit:", err);
       return null;
     }
   })();
 
-  return cgroupLimitBytesPromise;
+  cgroupLimitBytesPromise = pending;
+  const result = await pending;
+  // Only cache successful reads; reset on null so transient FS failures during
+  // container startup don't permanently disable memory-based load shedding.
+  if (result === null) {
+    cgroupLimitBytesPromise = null;
+  }
+  return result;
 }
 
 async function getNodeMemoryPressureStatus(
@@ -114,6 +131,24 @@ async function getNodeMemoryPressureStatus(
   };
 }
 
+function logLoadShedEvent(args: {
+  path: string;
+  requestClass: ProxyRequestClass;
+  retryAfterSeconds: number;
+  ip: string;
+}): void {
+  console.warn(
+    JSON.stringify({
+      type: "proxy.memory_shed.blocked",
+      path: args.path,
+      requestClass: args.requestClass,
+      retryAfter: args.retryAfterSeconds,
+      ipBucket: hashIpBucket(args.ip),
+      handled: true,
+    }),
+  );
+}
+
 /**
  * Memory pressure middleware
  * Returns 503 when system is under critical memory pressure
@@ -124,6 +159,7 @@ export async function memoryPressureMiddleware(
   overrides?: MemoryPressureOverrides,
 ): Promise<NextResponse | null> {
   const pathname = request.nextUrl?.pathname ?? new URL(request.url).pathname;
+  const requestClass = classifyProxyRequest(request);
 
   // Always allow health checks through
   if (isHealthCheckPath(pathname)) {
@@ -145,35 +181,46 @@ export async function memoryPressureMiddleware(
       nodeStatus?.limitBytes && nodeStatus.limitBytes > 0
         ? ` rss=${Math.round(nodeStatus.rssBytes / 1024 / 1024)}MB limit=${Math.round(nodeStatus.limitBytes / 1024 / 1024)}MB`
         : "";
+    const retryAfterSeconds = CRITICAL_SHED_RETRY_AFTER_SECONDS;
+    const clientIp = getClientIp(request.headers, { fallback: "anonymous" });
     console.warn(
       `[MemoryPressure] Shedding load due to memory pressure: ${pathname} ${request.method}${details}`,
     );
+    logLoadShedEvent({
+      path: pathname,
+      requestClass,
+      retryAfterSeconds,
+      ip: clientIp,
+    });
 
-    // Return 503 with proper headers
-    return NextResponse.json(
-      {
-        error: "Service temporarily unavailable due to high memory usage",
-        retry: true,
-      },
-      {
+    // Critical memory: shed ALL request classes to protect the process.
+    // Response format varies by class; the shed decision does not.
+    let response: NextResponse;
+    if (requestClass === "document") {
+      response = buildServiceBusyPageResponse({ retryAfterSeconds });
+    } else if (requestClass === "api") {
+      response = buildApiServiceBusyResponse({
+        retryAfterSeconds,
+        rateLimitScope: "memory",
+      });
+    } else {
+      response = new NextResponse(null, {
         status: 503,
-        headers: {
-          "Retry-After": "10", // Tell clients to retry after 10 seconds
-          "X-System-Status": "MEMORY_CRITICAL",
-          "Cache-Control": "no-store",
-        },
-      },
-    );
+        headers: { "Retry-After": String(retryAfterSeconds), "Cache-Control": "no-store" },
+      });
+    }
+    response.headers.set("X-System-Status", "MEMORY_CRITICAL");
+    return response;
   }
 
   // Check if we're in warning state (optional header)
   if (isWarning) {
-    // Continue processing but add warning header.
-    // NOTE: src/proxy.ts must merge this header onto the final response.
-    return new NextResponse(null, {
-      status: 200,
-      headers: { "X-System-Status": "MEMORY_WARNING" },
-    });
+    // Continue processing but add warning header via NextResponse.next().
+    // This allows the request to flow through middleware normally; proxy.ts
+    // will propagate the header onto the final response.
+    const response = NextResponse.next();
+    response.headers.set("X-System-Status", "MEMORY_WARNING");
+    return response;
   }
 
   // Normal operation - continue to next middleware

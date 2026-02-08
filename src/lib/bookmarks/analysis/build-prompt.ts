@@ -17,7 +17,7 @@ import type { BookmarkAnalysisContext } from "@/types/bookmark-ai-analysis";
  * Instructs the LLM to act as a bookmark analyst and return JSON.
  */
 export function buildBookmarkAnalysisSystemPrompt(): string {
-  return `You analyze bookmarked content and extract structured insights. Bookmarks can be about any topic: software, cooking, art, finance, travel, music, science, etc. Adapt your analysis to fit the content's domain. Respond with valid JSON only—no markdown, no code blocks.`;
+  return `You analyze bookmarked content and extract structured insights. Bookmarks can be about any topic: software, cooking, art, finance, travel, music, science, etc. Adapt your analysis to fit the content's domain.`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,8 +85,8 @@ export function buildBookmarkAnalysisUserPrompt(context: BookmarkAnalysisContext
     "format": "content format (e.g., 'interactive tool', 'long-form article', 'video tutorial', 'podcast') or null",
     "accessMethod": "how to access (e.g., 'free online', 'open source', 'subscription required') or null"
   },
-  "relatedResources": ["any related topics, tools, or references mentioned"],
-  "targetAudience": "who would find this valuable or interesting"
+  "relatedResources": ["related topics, tools, or references (concise keywords or titles only, no sentences)"],
+  "targetAudience": "who would find this valuable (e.g., 'Developers', 'Home Cooks') - use descriptive text, avoid symbols"
 }`);
 
   return sections.join("\n");

@@ -11,10 +11,10 @@ import type { OpenAiCompatibleChatMessage } from "@/types/schemas/ai-openai-comp
  * Note: validation (e.g. requiring either `messages` or `userText`) is expected to happen upstream.
  */
 export function buildChatMessages(args: {
-  featureSystemPrompt?: string | undefined;
-  system?: string | undefined;
-  messages?: OpenAiCompatibleChatMessage[] | undefined;
-  userText?: string | undefined;
+  featureSystemPrompt?: string;
+  system?: string;
+  messages?: OpenAiCompatibleChatMessage[];
+  userText?: string;
 }): OpenAiCompatibleChatMessage[] {
   const baseMessages: OpenAiCompatibleChatMessage[] =
     args.messages && args.messages.length > 0

@@ -14,9 +14,9 @@ import { TIME_CONSTANTS } from "@/lib/constants";
 import { NextResponse, type NextRequest } from "next/server";
 import { incrementAndPersist, loadRateLimitStoreFromS3 } from "@/lib/rate-limiter";
 import { envLogger } from "@/lib/utils/env-logger";
-import { getMonotonicTime } from "@/lib/utils";
 import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
 import { getClientIp } from "@/lib/utils/request-utils";
+import { buildApiRateLimitResponse } from "@/lib/utils/api-utils";
 
 /**
  * @constant {string} dynamic - Ensures the route is dynamically rendered and not cached.
@@ -109,28 +109,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
 
     if (!allowed) {
-      const resetTime = getMonotonicTime() + RATE_LIMIT_WINDOW;
-      const resetDate = new Date(resetTime);
       console.warn(
         `[API Refresh] Rate limit exceeded for IP ${ip}. Limit: ${RATE_LIMIT_MAX_REQUESTS} per hour`,
       );
 
-      return NextResponse.json(
-        {
-          message: "Rate limit exceeded. Please try again later.",
-          code: "RATE_LIMIT_EXCEEDED",
-          retryAfter: resetDate.toISOString(),
-        },
-        {
-          status: 429,
-          headers: {
-            "X-RateLimit-Limit": RATE_LIMIT_MAX_REQUESTS.toString(),
-            "X-RateLimit-Remaining": "0",
-            "X-RateLimit-Reset": Math.floor(resetTime / 1000).toString(),
-            "Retry-After": Math.ceil(RATE_LIMIT_WINDOW / 1000).toString(),
-          },
-        },
-      );
+      return buildApiRateLimitResponse({
+        retryAfterSeconds: Math.ceil(RATE_LIMIT_WINDOW / 1000),
+        rateLimitScope: "github-refresh",
+        rateLimitLimit: RATE_LIMIT_MAX_REQUESTS,
+        rateLimitWindowSeconds: Math.ceil(RATE_LIMIT_WINDOW / 1000),
+      });
     }
   }
 

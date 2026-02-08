@@ -17,6 +17,7 @@ import { formatSeoDate } from "@/lib/seo/utils";
 import { projects } from "@/data/projects";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { getCdnConfigFromEnv, buildCdnUrl } from "@/lib/utils/cdn-utils";
+import type { CdnConfig } from "@/types/s3-cdn";
 
 /**
  * Enable ISR for projects page with hourly revalidation
@@ -25,6 +26,31 @@ import { getCdnConfigFromEnv, buildCdnUrl } from "@/lib/utils/cdn-utils";
 
 export function generateMetadata(): Metadata {
   return getStaticPageMetadata("/projects", "projects");
+}
+
+function getProjectsCdnConfig(): CdnConfig | null {
+  try {
+    return getCdnConfigFromEnv();
+  } catch (error) {
+    console.warn("[ProjectsPage] Unable to resolve CDN config. Skipping screenshot URLs.", error);
+    return null;
+  }
+}
+
+function getProjectScreenshotUrl(
+  imageKey: string,
+  cdnConfig: CdnConfig | null,
+): string | undefined {
+  if (!cdnConfig) return undefined;
+  try {
+    return buildCdnUrl(imageKey, cdnConfig);
+  } catch (error) {
+    console.warn(
+      `[ProjectsPage] Unable to build screenshot URL for image key "${imageKey}".`,
+      error,
+    );
+    return undefined;
+  }
 }
 
 export default function ProjectsPage() {
@@ -56,8 +82,10 @@ export default function ProjectsPage() {
   };
 
   const jsonLdData = generateSchemaGraph(schemaParams);
+  const cdnConfig = getProjectsCdnConfig();
 
   projects.forEach((project) => {
+    const screenshotUrl = getProjectScreenshotUrl(project.imageKey, cdnConfig);
     jsonLdData["@graph"].push({
       "@type": "SoftwareApplication",
       "@id": `${ensureAbsoluteUrl(project.url)}#software`,
@@ -65,8 +93,8 @@ export default function ProjectsPage() {
       description: project.shortSummary || project.description,
       publisher: { "@id": ensureAbsoluteUrl("/#person") },
       author: { "@id": ensureAbsoluteUrl("/#person") },
-      ...(project.imageKey && {
-        screenshot: buildCdnUrl(project.imageKey, getCdnConfigFromEnv()),
+      ...(screenshotUrl && {
+        screenshot: screenshotUrl,
       }),
     });
   });

@@ -3,13 +3,25 @@ import "server-only";
 import crypto from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { isOperationAllowed } from "@/lib/rate-limiter";
-import { createAiGateToken, hashUserAgent } from "@/lib/ai/openai-compatible/gate-token";
+import {
+  AI_GATE_HTTP_COOKIE_NAME,
+  AI_GATE_HTTPS_COOKIE_NAME,
+  createAiGateToken,
+  getRequestOriginHostname,
+  hashUserAgent,
+  isAllowedAiGateHostname,
+} from "@/lib/ai/openai-compatible/gate-token";
 import { getClientIp } from "@/lib/utils/request-utils";
 import logger from "@/lib/utils/logger";
 import { normalizeString } from "@/lib/utils";
 import { safeJsonParse } from "@/lib/utils/json-utils";
 import { cfVisitorSchema } from "@/types/schemas/api";
-import { NO_STORE_HEADERS, preventCaching, requireCloudflareHeaders } from "@/lib/utils/api-utils";
+import {
+  NO_STORE_HEADERS,
+  buildApiRateLimitResponse,
+  preventCaching,
+  requireCloudflareHeaders,
+} from "@/lib/utils/api-utils";
 
 const TOKEN_RATE_LIMIT = {
   maxRequests: 30,
@@ -17,38 +29,6 @@ const TOKEN_RATE_LIMIT = {
 } as const;
 
 const TOKEN_TTL_MS = 60_000;
-const HTTPS_COOKIE_NAME = "__Host-ai_gate_nonce";
-const HTTP_COOKIE_NAME = "ai_gate_nonce";
-
-function isAllowedHostname(hostname: string): boolean {
-  const lower = normalizeString(hostname);
-  if (lower === "williamcallahan.com" || lower.endsWith(".williamcallahan.com")) return true;
-  if (process.env.NODE_ENV !== "production" && (lower === "localhost" || lower === "127.0.0.1"))
-    return true;
-  return false;
-}
-
-function getRequestOriginHostname(request: NextRequest): string | null {
-  const origin = request.headers.get("origin");
-  if (origin) {
-    try {
-      return new URL(origin).hostname;
-    } catch {
-      return null;
-    }
-  }
-
-  const referer = request.headers.get("referer");
-  if (referer) {
-    try {
-      return new URL(referer).hostname;
-    } catch {
-      return null;
-    }
-  }
-
-  return null;
-}
 
 function isSecureRequest(request: NextRequest): boolean {
   const cfVisitor = request.headers.get("cf-visitor");
@@ -92,24 +72,18 @@ export function GET(request: NextRequest): NextResponse {
   }
 
   const originHost = getRequestOriginHostname(request);
-  if (!originHost || !isAllowedHostname(originHost)) {
+  if (!originHost || !isAllowedAiGateHostname(originHost)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403, headers: NO_STORE_HEADERS });
   }
 
   const clientIp = getClientIp(request.headers, { fallback: "anonymous" });
   if (!isOperationAllowed("ai-token", clientIp, TOKEN_RATE_LIMIT)) {
-    return NextResponse.json(
-      { error: "Rate limit exceeded. Try again shortly." },
-      {
-        status: 429,
-        headers: {
-          ...NO_STORE_HEADERS,
-          "Retry-After": "60",
-          "X-RateLimit-Limit": String(TOKEN_RATE_LIMIT.maxRequests),
-          "X-RateLimit-Window": "60s",
-        },
-      },
-    );
+    return buildApiRateLimitResponse({
+      retryAfterSeconds: Math.ceil(TOKEN_RATE_LIMIT.windowMs / 1000),
+      rateLimitScope: "ai-token",
+      rateLimitLimit: TOKEN_RATE_LIMIT.maxRequests,
+      rateLimitWindowSeconds: Math.ceil(TOKEN_RATE_LIMIT.windowMs / 1000),
+    });
   }
 
   const secret = process.env.AI_TOKEN_SIGNING_SECRET?.trim();
@@ -139,7 +113,7 @@ export function GET(request: NextRequest): NextResponse {
   );
 
   const isHttps = isSecureRequest(request);
-  const cookieName = isHttps ? HTTPS_COOKIE_NAME : HTTP_COOKIE_NAME;
+  const cookieName = isHttps ? AI_GATE_HTTPS_COOKIE_NAME : AI_GATE_HTTP_COOKIE_NAME;
 
   response.cookies.set({
     name: cookieName,

@@ -73,7 +73,7 @@ export async function BookmarksServer({
   includeImageData = true,
   totalPages: propsTotalPages,
   totalCount: propsTotalCount,
-}: BookmarksServerExtendedProps): Promise<JSX.Element> {
+}: Readonly<BookmarksServerExtendedProps>): Promise<JSX.Element> {
   let bookmarks: UnifiedBookmark[] = [];
   let totalPages = 1;
   let totalCount = 0;
@@ -103,9 +103,7 @@ export async function BookmarksServer({
       | null = null;
 
     for (const bookmark of missing) {
-      if (!resolveSlug) {
-        resolveSlug = await loadSafeBookmarkSlugResolver();
-      }
+      resolveSlug ??= await loadSafeBookmarkSlugResolver();
       const slug = await resolveSlug(bookmark.id, bookmarkList);
       if (slug) {
         internalHrefs.set(bookmark.id, `/bookmarks/${slug}`);

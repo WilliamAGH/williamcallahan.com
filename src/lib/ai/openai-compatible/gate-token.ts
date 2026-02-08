@@ -1,10 +1,61 @@
 import "server-only";
 
 import crypto from "node:crypto";
+import type { NextRequest } from "next/server";
+import { normalizeString } from "@/lib/utils";
+import logger from "@/lib/utils/logger";
+import { aiGateTokenPayloadV1Schema } from "@/types/schemas/ai-chat";
 import type {
   AiGateTokenPayloadV1,
   AiGateTokenVerificationResult,
 } from "@/types/ai-openai-compatible";
+
+export const AI_GATE_HTTPS_COOKIE_NAME = "__Host-ai_gate_nonce";
+export const AI_GATE_HTTP_COOKIE_NAME = "ai_gate_nonce";
+
+export function isAllowedAiGateHostname(hostname: string): boolean {
+  const lower = normalizeString(hostname);
+  if (lower === "williamcallahan.com" || lower.endsWith(".williamcallahan.com")) return true;
+  if (process.env.NODE_ENV !== "production" && (lower === "localhost" || lower === "127.0.0.1"))
+    return true;
+  return false;
+}
+
+function parseHeaderUrl(header: string | null, property: "hostname" | "pathname"): string | null {
+  if (!header) return null;
+  try {
+    return new URL(header)[property];
+  } catch (error: unknown) {
+    logger.warn("[gate-token] Malformed request header URL", { header, property, error });
+    return null;
+  }
+}
+
+export function getRequestOriginHostname(request: NextRequest): string | null {
+  return (
+    parseHeaderUrl(request.headers.get("origin"), "hostname") ??
+    parseHeaderUrl(request.headers.get("referer"), "hostname")
+  );
+}
+
+export function getRequestPagePath(request: NextRequest): string | null {
+  return parseHeaderUrl(request.headers.get("referer"), "pathname");
+}
+
+export function getBearerTokenFromRequest(request: NextRequest): string | null {
+  const auth = request.headers.get("authorization");
+  if (!auth) return null;
+  const match = /^Bearer\s+(.+)$/i.exec(auth.trim());
+  return match?.[1]?.trim() || null;
+}
+
+export function getAiGateNonceCookie(request: NextRequest): string | null {
+  return (
+    request.cookies.get(AI_GATE_HTTPS_COOKIE_NAME)?.value ??
+    request.cookies.get(AI_GATE_HTTP_COOKIE_NAME)?.value ??
+    null
+  );
+}
 
 function base64UrlEncode(input: Buffer | string): string {
   const buffer = typeof input === "string" ? Buffer.from(input, "utf8") : input;
@@ -40,25 +91,8 @@ export function createAiGateToken(secret: string, payload: AiGateTokenPayloadV1)
 }
 
 function parseAiGateTokenPayload(payload: unknown): AiGateTokenPayloadV1 | null {
-  if (!payload || typeof payload !== "object") return null;
-  const record = payload as Record<string, unknown>;
-  if (record.v !== 1) return null;
-
-  const exp = record.exp;
-  const n = record.n;
-  const ip = record.ip;
-  const ua = record.ua;
-
-  if (
-    typeof exp !== "number" ||
-    typeof n !== "string" ||
-    typeof ip !== "string" ||
-    typeof ua !== "string"
-  ) {
-    return null;
-  }
-
-  return { v: 1, exp, n, ip, ua };
+  const result = aiGateTokenPayloadV1Schema.safeParse(payload);
+  return result.success ? result.data : null;
 }
 
 export function verifyAiGateToken(

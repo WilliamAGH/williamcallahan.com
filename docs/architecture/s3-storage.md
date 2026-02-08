@@ -110,7 +110,7 @@ Keep this file current whenever you add a new prefix, manifest, or lock artifact
 
 ## Next.js Integration Notes
 
-- **CDN URLs are the only optimizer inputs.** The React surfaces call `/api/cache/images` with `<Image unoptimized>` while any CDN URLs must still match `images.remotePatterns`, in line with the [Next.js Image Optimization requirements](https://nextjs.org/docs/app/building-your-application/optimizing/images).
+- **CDN URLs are direct optimizer inputs.** React surfaces pass first-party CDN URLs directly to `<Image>` (no proxy, no `unoptimized`) so Next.js can optimize through `/_next/image`; only external URLs route through `/api/cache/images` with `unoptimized` for SSRF-safe streaming.
 - **Proxy endpoints stream, not redirect.** `/api/cache/images` fetches the CDN resource server-side, decodes multi-encoded `url` parameters, and streams the bytes so `_next/image` always sees a 200 response. ([Image Component docs](https://nextjs.org/docs/app/api-reference/components/image#unoptimized))
 - **Add hosts to `next.config.ts` before storing assets.** If you introduce a new Spaces endpoint or CDN hostname, update `CALLAHAN_IMAGE_HOSTS` and `images.remotePatterns` at the same time or `_next/image` will throw 400s in production.
 

@@ -96,9 +96,14 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
   // Transform imageKey (S3 path) to CDN URL for Next.js Image
   const imageUrl = useMemo(() => {
     if (!project.imageKey) return null;
-    const cdnUrl = buildCdnUrl(project.imageKey, getCdnConfigFromEnv());
-    return getOptimizedImageSrc(cdnUrl);
-  }, [project.imageKey]);
+    try {
+      const cdnUrl = buildCdnUrl(project.imageKey, getCdnConfigFromEnv());
+      return getOptimizedImageSrc(cdnUrl);
+    } catch (error) {
+      console.warn(`[ProjectDetail] Failed to resolve image URL for "${project.name}".`, error);
+      return null;
+    }
+  }, [project.imageKey, project.name]);
 
   return (
     <div className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
@@ -230,7 +235,11 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
             )}
 
             {/* AI Analysis */}
-            <ProjectAiAnalysis project={project} initialAnalysis={cachedAnalysis} />
+            <ProjectAiAnalysis
+              project={project}
+              initialAnalysis={cachedAnalysis}
+              defaultCollapsed
+            />
 
             {/* If no content is available, show a placeholder */}
             {!project.description && !imageUrl && (

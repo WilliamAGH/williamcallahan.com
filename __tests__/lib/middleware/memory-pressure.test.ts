@@ -22,15 +22,22 @@ describe("memoryPressureMiddleware", () => {
 
   it("returns 503 when env critical flag is set", async () => {
     process.env.MEMORY_PRESSURE_CRITICAL = "true";
-    const request = new NextRequest("https://example.com/");
+    const request = new NextRequest("https://example.com/", {
+      headers: { accept: "text/html,application/xhtml+xml" },
+    });
     const result = await memoryPressureMiddleware(request);
     expect(result).not.toBeNull();
     expect(result?.status).toBe(503);
     expect(result?.headers.get("X-System-Status")).toBe("MEMORY_CRITICAL");
+    expect(result?.headers.get("Content-Type")).toContain("text/html");
+    const body = await new Response(result?.body).text();
+    expect(body).toContain(
+      "The server is temporarily under heavy load. Please wait a few minutes and try again.",
+    );
   });
 
-  it("returns 503 when RSS exceeds critical utilization (override)", async () => {
-    const request = new NextRequest("https://example.com/blog");
+  it("returns 503 JSON for critical API requests", async () => {
+    const request = new NextRequest("https://example.com/api/search");
     // 950MB/1GB => 92.7% => critical
     const result = await memoryPressureMiddleware(request, {
       rssBytes: 950 * 1024 * 1024,
@@ -39,6 +46,26 @@ describe("memoryPressureMiddleware", () => {
     expect(result).not.toBeNull();
     expect(result?.status).toBe(503);
     expect(result?.headers.get("X-System-Status")).toBe("MEMORY_CRITICAL");
+    const payload = await result?.json();
+    expect(payload).toMatchObject({
+      code: "SERVICE_UNAVAILABLE",
+      message:
+        "The server is temporarily under heavy load. Please wait a few minutes and try again.",
+      retryAfterSeconds: 180,
+      status: 503,
+    });
+  });
+
+  it("sheds _rsc requests under critical memory with bare 503", async () => {
+    const request = new NextRequest("https://example.com/projects?_rsc=abc123");
+    const result = await memoryPressureMiddleware(request, {
+      rssBytes: 950 * 1024 * 1024,
+      limitBytes: 1024 * 1024 * 1024,
+    });
+    expect(result).not.toBeNull();
+    expect(result?.status).toBe(503);
+    expect(result?.headers.get("X-System-Status")).toBe("MEMORY_CRITICAL");
+    expect(result?.headers.get("Retry-After")).toBe("180");
   });
 
   it("returns 200 NextResponse with warning header when RSS exceeds warning utilization (override)", async () => {

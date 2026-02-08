@@ -14,7 +14,8 @@ graph TB
         NEXT_CONFIG["next.config.ts"]
         TAILWIND["tailwind.config.js"]
         BIOME["biome.json"]
-        ESLINT["eslint.config.ts"]
+        ESLINT["eslint.config.ts (config/eslint/rules/*)"]
+        OXLINT[".oxlintrc.json (config/oxlint/js-plugins/*)"]
         
         PACKAGE -->|"Scripts"| BUILD_PROCESS["Build Process"]
         TSCONFIG -->|"TypeScript"| BUILD_PROCESS
@@ -22,6 +23,7 @@ graph TB
         TAILWIND -->|"CSS"| BUILD_PROCESS
         BIOME -->|"Linting"| BUILD_PROCESS
         ESLINT -->|"Code Quality"| BUILD_PROCESS
+        OXLINT -->|"Linting"| BUILD_PROCESS
     end
     
     subgraph "Deployment Configuration"

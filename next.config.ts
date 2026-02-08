@@ -14,6 +14,10 @@
  */
 
 import { withSentryConfig } from "@sentry/nextjs";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { execSync } from "node:child_process";
+import os from "node:os";
 
 /**
  * @typedef {{ version: string }} PackageJson
@@ -38,8 +42,6 @@ function getPackageVersion(): string {
     process.env.NEXT_PHASE === "phase-production-build"
   ) {
     try {
-      const { readFileSync } = require("node:fs");
-      const { resolve } = require("node:path");
       const packageJson = JSON.parse(readFileSync(resolve("./package.json"), "utf8"));
       return packageJson.version;
     } catch {
@@ -77,7 +79,6 @@ function getGitHash(): string {
   // This only works locally where git is available
   if (process.env.NODE_ENV === "development") {
     try {
-      const { execSync } = require("node:child_process");
       const hash = execSync("git rev-parse --short HEAD").toString().trim();
       if (hash) {
         return hash;
@@ -105,7 +106,7 @@ function getGitHash(): string {
 
   // For development, add timestamp for uniqueness
   const datePart = new Date().toISOString().split("T")[0];
-  const timestamp = datePart ? datePart.replace(/-/g, "") : "00000000";
+  const timestamp = datePart ? datePart.replaceAll("-", "") : "00000000";
   return `v${version}-dev-${timestamp}`;
 }
 
@@ -172,7 +173,7 @@ const derivedCallahanHosts = [process.env.NEXT_PUBLIC_S3_CDN_URL, buildBucketHos
 const CDN_REMOTE_PATTERNS = Array.from(
   new Set([...CALLAHAN_IMAGE_HOSTS, ...derivedCallahanHosts]),
 ).map((hostname) => ({
-  protocol: "https",
+  protocol: "https" as const,
   hostname,
   pathname: "/**",
 }));
@@ -317,23 +318,11 @@ const nextConfig = {
         },
       ],
     },
-    {
-      source: "/_next/image/:params*",
-      headers: [
-        {
-          key: "Cache-Control",
-          value: "public, max-age=60, stale-while-revalidate=3600, stale-if-error=86400",
-        },
-        {
-          key: "CDN-Cache-Control",
-          value: "public, max-age=3600, stale-while-revalidate=86400",
-        },
-      ],
-    },
-    // { // This empty object was causing the "source is missing" error and has been removed
-    // Apply CSP to all HTML pages
-    // NOTE: CSP is now primarily handled in middleware.ts. This block is effectively overridden - do not remove this comment.
-    // },
+    // /_next/image cache headers are set by the image optimizer itself based on
+    // minimumCacheTTL (7 days) and upstream Cache-Control. Custom overrides here
+    // previously reduced browser cache from 7 days to 60 seconds, causing
+    // unnecessary re-fetches and visible image flickering on navigation.
+    // NOTE: CSP is now primarily handled in middleware.ts.
   ],
   poweredByHeader: false,
   reactStrictMode: true,
@@ -359,11 +348,6 @@ const nextConfig = {
     // Disable package optimization in development to reduce cache entries
     optimizePackageImports:
       process.env.NODE_ENV === "production" ? ["lucide-react", "@sentry/nextjs"] : [],
-    // DISABLED EXPERIMENTAL FEATURES THAT COULD CAUSE MEMORY ISSUES:
-    // webpackLayers: true, // DISABLED - experimental layer system
-    // webpackPersistentCache: true, // DISABLED - experimental caching that could leak
-    // optimizeModuleResolution: true, // DISABLED - experimental resolver
-
     // **KEEP ONLY STABLE MEMORY-RELATED FEATURES**
     // Optimize CSS handling to reduce memory usage
     optimizeCss: true,
@@ -377,13 +361,13 @@ const nextConfig = {
      */
     staticGenerationMaxConcurrency: (() => {
       const raw = process.env.STATIC_GEN_CONCURRENCY;
-      const parsed = raw ? Number(raw) : NaN;
+      const parsed = raw ? Number(raw) : Number.NaN;
       if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 16) {
         return parsed;
       }
 
       try {
-        const cpuCount = require("node:os").cpus().length;
+        const cpuCount = os.cpus().length;
         return cpuCount >= 2 ? 2 : 1;
       } catch {
         return 1; // Fallback for restricted environments
@@ -526,7 +510,7 @@ const nextConfig = {
      * These are used for serving appropriately sized images based on the viewport
      * @see https://nextjs.org/docs/app/api-reference/components/image#devicesizes
      */
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    deviceSizes: [640, 750, 800, 828, 1080, 1200, 1920, 2048, 3840],
     /**
      * Fixed-size image widths for avatars, logos, and thumbnails.
      * Smallest used in codebase is 40px (sizes="40px"), so 48px is the floor.

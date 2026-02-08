@@ -25,10 +25,7 @@ const TAG_LIMIT = 10; // Number of tags to show initially
 /**
  * Renders interactive filter buttons for project tags and handles filtering logic.
  *
- * This component displays a list of project tags as buttons. Users can click these
- * buttons to filter projects. It includes a "Show More" feature to reveal additional
- * tags if the total number of unique tags exceeds `TAG_LIMIT`. The component
- * synchronizes the selected tag with the URL's query parameters.
+ * Uses `useSearchParams` — callers MUST wrap in `<Suspense>` per Next.js requirements.
  *
  * @returns {React.JSX.Element} The rendered project tags filtering interface.
  */
@@ -46,13 +43,13 @@ export function ProjectTagsClient(): React.JSX.Element {
   // Determine if there are more tags than the limit (excluding "All")
   const hasMoreTags = uniqueProjectTags.length > TAG_LIMIT;
 
-  /**
-   * Effect hook to handle component mounting and initialize selected tag from URL.
-   * Sets `mounted` to true after client-side hydration.
-   * Reads the 'tag' search parameter from the URL and updates `selectedTag` state if present.
-   */
+  // One-time hydration signal — empty deps so it runs exactly once on mount
   useEffect(() => {
-    setMounted(true); // Set mounted after hydration
+    setMounted(true);
+  }, []);
+
+  // Sync selected tag from URL whenever searchParams changes
+  useEffect(() => {
     const tagParam = searchParams.get("tag");
     if (tagParam) {
       setSelectedTag(tagParam);
@@ -112,6 +109,14 @@ export function ProjectTagsClient(): React.JSX.Element {
           {showAllTags ? "Show Less" : `+${uniqueProjectTags.length - TAG_LIMIT} More Tags`}
         </button>
       )}
+    </div>
+  );
+}
+
+export function ProjectTagsFallback(): React.JSX.Element {
+  return (
+    <div className="max-w-5xl mx-auto flex flex-col gap-3 mb-8 px-4 pt-6">
+      <div className="h-9 w-full rounded-lg bg-gray-200 dark:bg-gray-700 animate-pulse" />
     </div>
   );
 }

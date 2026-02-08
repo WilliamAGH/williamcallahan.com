@@ -1,11 +1,17 @@
 import type { NextRequest } from "next/server";
 import type { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
-import type { ParsedRequestBody } from "@/types/schemas/ai-chat";
-import type { OpenAiCompatibleChatMessage } from "@/types/schemas/ai-openai-compatible";
-
-export type { ParsedRequestBody };
+import type { ParsedRequestBody, SearchBookmarksToolResult } from "@/types/schemas/ai-chat";
+import type {
+  AiUpstreamApiMode,
+  OpenAiCompatibleChatMessage,
+  OpenAiCompatibleResponseFormat,
+  ReasoningEffort,
+} from "@/types/schemas/ai-openai-compatible";
+import type { AiChatModelStreamUpdate } from "@/types/schemas/ai-openai-compatible-client";
 
 export type RagContextStatus = "included" | "partial" | "failed" | "not_applicable";
+/** Server-side stream event — derived from the client-facing schema to prevent drift. */
+export type AiChatModelStreamEvent = AiChatModelStreamUpdate;
 
 /** Validated request context after all checks pass */
 export type ValidatedRequestContext = {
@@ -14,6 +20,7 @@ export type ValidatedRequestContext = {
   pagePath: string | null;
   originHost: string;
   userAgent: string;
+  systemStatus?: "MEMORY_WARNING";
   parsedBody: ParsedRequestBody;
 };
 
@@ -25,40 +32,135 @@ export type ChatLogContext = {
   userAgent: string;
   originHost: string;
   pagePath: string | null;
-  messages: OpenAiCompatibleChatMessage[];
+  messages: Array<{ role: string; content: string }>;
   model: string;
+  apiMode: AiUpstreamApiMode;
   priority: number;
-};
-
-/** JSON response configuration */
-export type JsonResponseConfig = {
-  queue: UpstreamRequestQueue;
-  priority: number;
-  startTime: number;
-  logContext: ChatLogContext;
-  ragContextStatus: RagContextStatus;
-  runUpstream: () => Promise<string>;
-  signal: AbortSignal;
+  temperature?: number;
+  reasoningEffort?: ReasoningEffort | null;
 };
 
 /** SSE stream configuration */
 export type SseStreamConfig = {
   request: NextRequest;
   queue: UpstreamRequestQueue;
-  upstreamKey: string;
   priority: number;
   startTime: number;
   logContext: ChatLogContext;
   ragContextStatus: RagContextStatus;
-  runUpstream: () => Promise<string>;
+  runUpstream: (onStreamEvent?: (event: AiChatModelStreamEvent) => void) => Promise<string>;
 };
 
 /** Pipeline result containing everything needed to dispatch an AI chat request */
 export type ChatPipeline = {
   queue: UpstreamRequestQueue;
-  upstreamKey: string;
   priority: number;
   startTime: number;
   logContext: ChatLogContext;
-  runUpstream: () => Promise<string>;
+  runUpstream: (onStreamEvent?: (event: AiChatModelStreamEvent) => void) => Promise<string>;
+};
+
+/** Per-feature model parameter overrides (e.g. temperature, reasoning effort) */
+export type FeatureModelDefaults = {
+  temperature?: number;
+  topP?: number;
+  reasoningEffort?: ReasoningEffort | null;
+  maxTokens?: number;
+  toolConfig?: {
+    enabled: boolean;
+  };
+};
+
+/** Fully resolved model params — every field has a concrete value */
+export type ResolvedModelParams = Required<Omit<FeatureModelDefaults, "toolConfig">>;
+
+/** Internal result of executing a single bookmark tool call in a batch */
+export type ExecutedToolCall = {
+  callId: string;
+  /** Whether the tool call failed (execution error or schema validation failure) */
+  failed: boolean;
+  parsed: SearchBookmarksToolResult;
+  links: Array<{ title: string; url: string }>;
+};
+
+/** Return value from dispatchToolCalls — pure data, no mutations */
+export type ToolDispatchResult = {
+  responseMessages: OpenAiCompatibleChatMessage[];
+  observedResults: Array<{ title: string; url: string }>;
+  /** IDs of tool calls that failed execution or validation */
+  failedCallIds: string[];
+};
+
+/** Parameters shared by both Chat Completions and Responses turn executors.
+ *  Model params (temperature, topP, maxTokens, reasoningEffort) are always
+ *  resolved by `resolveModelParams()` so they are non-optional here. */
+export type UpstreamTurnParams = {
+  turnConfig: { model: string; baseUrl: string; apiKey: string | undefined };
+  signal: AbortSignal;
+  toolChoice: "required" | "auto" | undefined;
+  hasToolSupport: boolean;
+  temperature: number;
+  topP: number;
+  reasoningEffort: ReasoningEffort | null;
+  maxTokens: number;
+  responseFormat?: OpenAiCompatibleResponseFormat;
+  onStreamEvent?: (event: AiChatModelStreamEvent) => void;
+};
+
+/** Metadata captured from the streaming transport's onStart callback.
+ *  Used by emitDeferredContentEvents to synthesize a message_start event. */
+export type StreamStartMeta = { id: string; model: string };
+
+/** Result of a single upstream API turn (Chat Completions or Responses) */
+export type UpstreamTurnOutcome =
+  | { kind: "empty" }
+  | { kind: "content"; text: string | undefined }
+  | {
+      kind: "tool_calls";
+      newMessages: OpenAiCompatibleChatMessage[];
+      observedResults: Array<{ title: string; url: string }>;
+    };
+
+/** Feature identifiers that have structured analysis output schemas */
+export type AnalysisFeatureId = "bookmark-analysis" | "book-analysis" | "project-analysis";
+
+/** Configuration bag passed to createUpstreamRunner */
+export type UpstreamRunnerConfig = {
+  feature: string;
+  apiMode: AiUpstreamApiMode;
+  messages: OpenAiCompatibleChatMessage[];
+  parsedBody: ValidatedRequestContext["parsedBody"];
+  config: { baseUrl: string; apiKey?: string };
+  primaryModel: string;
+  fallbackModel?: string;
+  hasToolSupport: boolean;
+  forceBookmarkTool: boolean;
+  latestUserMessage?: string;
+  modelParams: ResolvedModelParams;
+  signal: AbortSignal;
+};
+
+/** Discriminated result of handleAnalysisValidation */
+export type AnalysisHandleResult =
+  | { action: "done"; text: string }
+  | { action: "retry"; newModel?: string; newMessages: OpenAiCompatibleChatMessage[] }
+  | { action: "error"; message: string };
+
+/** Discriminated result of handleContentOutcome */
+export type ContentOutcomeResult =
+  | { done: true; text: string; retry?: false }
+  | { done: false; retry: true; newAttempts: number; switchedModel?: string }
+  | { done: false; retry: false };
+
+/** Context bag for handleContentOutcome and resolveBookmarkFallback */
+export type ContentOutcomeCtx = {
+  args: UpstreamRunnerConfig;
+  result: Extract<UpstreamTurnOutcome, { kind: "content" }>;
+  turn: number;
+  toolObservedResults: Array<{ title: string; url: string }>;
+  analysisFeature: AnalysisFeatureId | null;
+  analysisValidationAttempts: number;
+  requestMessages: OpenAiCompatibleChatMessage[];
+  activeModel: string;
+  done: (message: string) => string;
 };

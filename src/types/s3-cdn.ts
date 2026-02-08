@@ -1,4 +1,9 @@
 /**
+ * S3 Error Name Types for Stub Error Handling
+ */
+export type S3ErrorName = "NotFound" | "S3StubError" | "S3StubWriteBlocked";
+
+/**
  * S3, CDN, and Storage Type Definitions
  *
  * Consolidated type definitions for S3 operations, CDN configuration, key generation,

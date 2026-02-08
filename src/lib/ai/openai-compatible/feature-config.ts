@@ -2,9 +2,10 @@ import "server-only";
 
 import { z } from "zod/v4";
 import type { OpenAiCompatibleFeatureConfig } from "@/types/ai-openai-compatible";
+import type { AiUpstreamApiMode } from "@/types/schemas/ai-openai-compatible";
 
 const DEFAULT_BASE_URL = "https://popos-sf7.com";
-const DEFAULT_MODEL = "openai/gpt-oss-120b";
+const DEFAULT_MODEL = "openai/gpt-oss-120b,openai/gpt-oss-20b";
 const DEFAULT_MAX_PARALLEL = 1;
 
 function normalizeFeatureEnvKey(feature: string): string {
@@ -50,18 +51,53 @@ export function resolveOpenAiCompatibleFeatureConfig(
   return apiKey ? { baseUrl, model, apiKey, maxParallel } : { baseUrl, model, maxParallel };
 }
 
-export function buildChatCompletionsUrl(baseUrl: string): string {
+export function buildOpenAiApiBaseUrl(baseUrl: string): string {
   const url = new URL(baseUrl);
   url.hash = "";
   url.search = "";
 
   const basePath = url.pathname === "/" ? "" : url.pathname.replace(/\/+$/, "");
-
-  if (basePath.endsWith("/v1")) {
-    url.pathname = `${basePath}/chat/completions`;
-  } else {
-    url.pathname = `${basePath}/v1/chat/completions`;
-  }
+  url.pathname = basePath.endsWith("/v1") ? basePath : `${basePath}/v1`;
 
   return url.toString();
+}
+
+export function buildChatCompletionsUrl(baseUrl: string): string {
+  const url = new URL(buildOpenAiApiBaseUrl(baseUrl));
+  const basePath = url.pathname === "/" ? "" : url.pathname.replace(/\/+$/, "");
+  url.pathname = `${basePath}/chat/completions`;
+  return url.toString();
+}
+
+export function buildResponsesUrl(baseUrl: string): string {
+  const url = new URL(buildOpenAiApiBaseUrl(baseUrl));
+  const basePath = url.pathname === "/" ? "" : url.pathname.replace(/\/+$/, "");
+  url.pathname = `${basePath}/responses`;
+  return url.toString();
+}
+
+export function resolvePreferredUpstreamModel(model: string): {
+  primaryModel: string;
+  fallbackModel: string | undefined;
+} {
+  const modelCandidates = model
+    .split(",")
+    .map((candidate) => candidate.trim())
+    .filter((candidate) => candidate.length > 0);
+  const primaryModel = modelCandidates[0] ?? model;
+  const fallbackModel = modelCandidates[1];
+  return { primaryModel, fallbackModel };
+}
+
+export function buildUpstreamQueueKey(args: {
+  baseUrl: string;
+  model: string;
+  apiMode: AiUpstreamApiMode;
+}): string {
+  const upstreamUrl =
+    args.apiMode === "responses"
+      ? buildResponsesUrl(args.baseUrl)
+      : buildChatCompletionsUrl(args.baseUrl);
+  const { primaryModel } = resolvePreferredUpstreamModel(args.model);
+  return `${upstreamUrl}::${primaryModel}`;
 }

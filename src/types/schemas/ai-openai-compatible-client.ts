@@ -7,9 +7,11 @@ export const aiTokenResponseSchema = z.object({
 
 export type AiTokenResponse = z.infer<typeof aiTokenResponseSchema>;
 
-export const aiChatResponseSchema = z.object({
-  message: z.string(),
-});
+export const aiChatResponseSchema = z
+  .object({
+    message: z.string(),
+  })
+  .passthrough();
 
 export type AiChatResponse = z.infer<typeof aiChatResponseSchema>;
 
@@ -33,6 +35,32 @@ export const aiChatStreamErrorSchema = z
 
 export type AiChatStreamError = z.infer<typeof aiChatStreamErrorSchema>;
 
+export const aiChatModelStreamStartSchema = z
+  .object({
+    id: z.string().min(1),
+    model: z.string().min(1),
+    apiMode: z.enum(["chat_completions", "responses"]),
+  })
+  .passthrough();
+
+export type AiChatModelStreamStart = z.infer<typeof aiChatModelStreamStartSchema>;
+
+export const aiChatModelStreamDeltaSchema = z
+  .object({
+    delta: z.string(),
+  })
+  .passthrough();
+
+export type AiChatModelStreamDelta = z.infer<typeof aiChatModelStreamDeltaSchema>;
+
+export const aiChatModelStreamDoneSchema = z
+  .object({
+    message: z.string(),
+  })
+  .passthrough();
+
+export type AiChatModelStreamDone = z.infer<typeof aiChatModelStreamDoneSchema>;
+
 export const aiChatQueueUpdateSchema = z.union([
   z.object({
     event: z.enum(["queued", "queue"]),
@@ -51,6 +79,48 @@ export const aiChatQueueUpdateSchema = z.union([
 ]);
 
 export type AiChatQueueUpdate = z.infer<typeof aiChatQueueUpdateSchema>;
+
+export const aiChatThinkingDeltaSchema = z
+  .object({
+    delta: z.string(),
+  })
+  .passthrough();
+
+export type AiChatThinkingDelta = z.infer<typeof aiChatThinkingDeltaSchema>;
+
+export const aiChatThinkingDoneSchema = z
+  .object({
+    text: z.string(),
+    tokenCount: z.number().int().nonnegative(),
+  })
+  .passthrough();
+
+export type AiChatThinkingDone = z.infer<typeof aiChatThinkingDoneSchema>;
+
+export const aiChatModelStreamUpdateSchema = z.union([
+  z.object({
+    event: z.literal("message_start"),
+    data: aiChatModelStreamStartSchema,
+  }),
+  z.object({
+    event: z.literal("message_delta"),
+    data: aiChatModelStreamDeltaSchema,
+  }),
+  z.object({
+    event: z.literal("message_done"),
+    data: aiChatModelStreamDoneSchema,
+  }),
+  z.object({
+    event: z.literal("thinking_delta"),
+    data: aiChatThinkingDeltaSchema,
+  }),
+  z.object({
+    event: z.literal("thinking_done"),
+    data: aiChatThinkingDoneSchema,
+  }),
+]);
+
+export type AiChatModelStreamUpdate = z.infer<typeof aiChatModelStreamUpdateSchema>;
 
 /**
  * Schema for /api/ai/queue/[feature] response.

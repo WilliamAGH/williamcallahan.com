@@ -14,7 +14,6 @@ import {
   validateAbsLibraryItemsResponse,
   validateAbsLibraryItem,
   type AbsLibraryItem,
-  type AbsSortField,
   type Book,
   type BookListItem,
   type FetchAbsLibraryItemsOptions,
@@ -88,8 +87,8 @@ const cacheSnapshot = (books: Book[], timestamp?: number): void => {
  * Update a single book in the snapshot.
  * Uses timestamp of 0 to avoid current-time access during prerendering.
  */
-const upsertBookIntoSnapshot = (book: Book, timestamp?: number): void => {
-  const ts = timestamp ?? 0; // prerender-safe
+const upsertBookIntoSnapshot = (book: Book, ts = 0): void => {
+  // prerender-safe
   if (!lastBooksSnapshot) {
     lastBooksSnapshot = { booksById: new Map([[book.id, cloneBook(book)]]), fetchedAt: ts };
     return;
@@ -162,7 +161,6 @@ export async function fetchAbsLibraryItems(
 }
 
 // Re-export sort types for consumers
-export type { AbsSortField, FetchAbsLibraryItemsOptions };
 
 /**
  * Internal helper to fetch all books (transformed from AudioBookShelf)
@@ -391,3 +389,5 @@ export async function fetchBookByIdWithFallback(
 
   return { book: null, isFallback: false };
 }
+
+export { type AbsSortField, type FetchAbsLibraryItemsOptions } from "@/types/schemas/book";

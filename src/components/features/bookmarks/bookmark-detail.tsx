@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import type { BookmarkTag } from "@/types";
 import type { BookmarkDetailProps } from "@/types/bookmark-ai-analysis";
+import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
 import {
   Calendar,
   Clock,
@@ -19,12 +20,16 @@ import {
   Library,
   Quote,
   ChevronLeft,
-  Github,
 } from "lucide-react";
+import { GitHub } from "@/components/ui/social-icons/github-icon";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { formatDate } from "@/lib/utils";
 import { BookmarksWindow } from "./bookmarks-window.client";
-import { BookmarkAiAnalysis } from "./bookmark-ai-analysis.client";
+import {
+  BookmarkAiAnalysis,
+  BookmarkAiContext,
+  BookmarkAiRelated,
+} from "./bookmark-ai-analysis.client";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import { removeCitations, processSummaryText } from "@/lib/utils/formatters";
 import { safeExternalHref, getDisplayHostname, isGitHubUrl } from "@/lib/utils/url-utils";
@@ -39,8 +44,12 @@ function toDisplayDate(date?: string | Date | number | null): string | null {
   return text === "Invalid Date" ? null : text;
 }
 
-export function BookmarkDetail({ bookmark, cachedAnalysis }: BookmarkDetailProps) {
+export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDetailProps>) {
   const { scrollY } = useScroll();
+  const [analysisData, setAnalysisData] = useState<BookmarkAiAnalysisResponse | null>(
+    cachedAnalysis?.analysis ?? null,
+  );
+  const hasAnalysis = !!analysisData;
 
   // Subtle parallax for image
   const imageY = useTransform(scrollY, [0, 300], [0, -20]);
@@ -160,6 +169,20 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: BookmarkDetailProps
             </div>
           </div>
 
+          {/* AI Analysis - Focal point, full width of container */}
+          <motion.section
+            initial={false}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.5 }}
+            className="mb-8 sm:mb-10"
+          >
+            <BookmarkAiAnalysis
+              bookmark={bookmark}
+              initialAnalysis={cachedAnalysis ?? undefined}
+              onAnalysisComplete={(a) => setAnalysisData(a)}
+            />
+          </motion.section>
+
           {/* Main Content Grid - Mobile-first approach */}
           <div className="flex flex-col-reverse lg:grid lg:grid-cols-3 gap-6 lg:gap-10">
             {/* Main Content Column - Takes up 2/3 on large screens */}
@@ -221,8 +244,11 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: BookmarkDetailProps
                 </motion.div>
               )}
 
-              {/* Summary Box - Uses AI-generated summary with proper formatting, falls back to description */}
-              {(bookmark.summary || bookmark.description) && (
+              {/* AI Context - domain, format, access, audience */}
+              {analysisData && <BookmarkAiContext analysis={analysisData} />}
+
+              {/* Summary Box - hidden when AI analysis is available (shown above grid instead) */}
+              {!hasAnalysis && (bookmark.summary || bookmark.description) && (
                 <motion.section
                   initial={false}
                   animate={{ opacity: 1, y: 0 }}
@@ -273,18 +299,6 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: BookmarkDetailProps
                   <p className="text-sm mt-2">Visit the original site to explore the content.</p>
                 </div>
               )}
-
-              {/* AI Analysis - Full width in main content for rich output */}
-              <motion.section
-                initial={false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.5 }}
-              >
-                <BookmarkAiAnalysis
-                  bookmark={bookmark}
-                  initialAnalysis={cachedAnalysis ?? undefined}
-                />
-              </motion.section>
             </div>
 
             {/* Sidebar Column - Shows first on mobile, 1/3 on large screens */}
@@ -362,7 +376,7 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: BookmarkDetailProps
                       : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100"
                   }`}
                 >
-                  {isGitHub ? <Github className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
+                  {isGitHub ? <GitHub className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
                   <span>{isGitHub ? "View on GitHub" : "Visit Site"}</span>
                   <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </a>
@@ -378,6 +392,9 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: BookmarkDetailProps
                   <span>All Bookmarks</span>
                 </Link>
               </motion.div>
+
+              {/* AI Related resources - beneath action buttons */}
+              {analysisData && <BookmarkAiRelated analysis={analysisData} />}
             </div>
           </div>
         </div>

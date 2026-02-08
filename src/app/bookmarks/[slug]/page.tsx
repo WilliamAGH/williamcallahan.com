@@ -28,28 +28,15 @@ import { ensureProtocol, stripWwwPrefix } from "@/lib/utils/url-utils";
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
 import type { BookmarkPageContext, UnifiedBookmark } from "@/types";
 import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
-
 // CRITICAL: generateStaticParams() remains intentionally disabled for bookmarks.
 // The sitemap now streams paginated S3 data at request time, so the build no longer
 // enumerates bookmark slugs up-front. This keeps rendering dynamic while still
 // producing full SEO coverage.
-//
-// export async function generateStaticParams(): Promise<{ slug: string }[]> {
-//   // Disabled - sitemap.ts handles URL generation separately
-// }
 
 const BOOKMARK_PAGE_CACHE_SECONDS = Math.max(
   3600,
   Math.round(TIME_CONSTANTS.BOOKMARKS_PRELOAD_INTERVAL_MS / 1000),
 );
-
-const safeEnsureAbsoluteUrl = (path: string): string => {
-  try {
-    return ensureAbsoluteUrl(path);
-  } catch {
-    return path;
-  }
-};
 
 const getBookmarkHostname = (rawUrl: string | null | undefined): string | null => {
   if (!rawUrl) {
@@ -70,7 +57,6 @@ const getBookmarkHostname = (rawUrl: string | null | undefined): string | null =
   }
 };
 
-// Helper function to find bookmark by slug using pre-computed mappings
 async function resolveBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null> {
   envLogger.group(
     "Bookmark Lookup Start",
@@ -172,11 +158,22 @@ export async function generateMetadata({
   const customDescription =
     bookmark.description || `A bookmark from ${domainName} that I've saved for future reference.`;
 
-  const rawImageUrl =
-    selectBestImage(bookmark, {
+  let imageUrl: string | undefined;
+  try {
+    const rawImageUrl = selectBestImage(bookmark, {
       includeScreenshots: true,
-    }) || undefined;
-  const imageUrl = rawImageUrl ? safeEnsureAbsoluteUrl(rawImageUrl) : undefined;
+    });
+    if (typeof rawImageUrl === "string" && rawImageUrl.length > 0) {
+      imageUrl = ensureAbsoluteUrl(rawImageUrl);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    envLogger.log(
+      "Failed to resolve bookmark metadata image",
+      { slug, bookmarkId: bookmark.id, error: message },
+      { category: "BookmarkPage" },
+    );
+  }
 
   const openGraphImages = imageUrl
     ? [
@@ -198,7 +195,7 @@ export async function generateMetadata({
       title: customTitle,
       description: customDescription,
       type: "article",
-      url: safeEnsureAbsoluteUrl(path),
+      url: ensureAbsoluteUrl(path),
       images: openGraphImages,
     },
     twitter: {
@@ -209,7 +206,7 @@ export async function generateMetadata({
       images: imageUrl ? [{ url: imageUrl, alt: customTitle }] : baseMetadata.twitter?.images || [],
     },
     alternates: {
-      canonical: safeEnsureAbsoluteUrl(path),
+      canonical: ensureAbsoluteUrl(path),
     },
   };
 }
@@ -253,11 +250,21 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     { category: "BookmarkPage" },
   );
 
-  // Fetch cached AI analysis (if available)
-  const cachedAnalysis = await getCachedAnalysis<BookmarkAiAnalysisResponse>(
-    "bookmarks",
-    foundBookmark.id,
-  );
+  let cachedAnalysis: Awaited<ReturnType<typeof getCachedAnalysis<BookmarkAiAnalysisResponse>>> =
+    null;
+  try {
+    cachedAnalysis = await getCachedAnalysis<BookmarkAiAnalysisResponse>(
+      "bookmarks",
+      foundBookmark.id,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    envLogger.log(
+      "Failed to load cached bookmark analysis",
+      { slug, bookmarkId: foundBookmark.id, error: message },
+      { category: "BookmarkPage" },
+    );
+  }
 
   if (cachedAnalysis) {
     envLogger.log(

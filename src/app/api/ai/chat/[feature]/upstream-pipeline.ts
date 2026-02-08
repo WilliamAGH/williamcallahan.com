@@ -1,8 +1,8 @@
 /**
- * AI Chat Upstream Pipeline
+ * Chat Pipeline Builder
  *
- * Constructs the message pipeline, upstream queue, and execution context
- * for AI chat requests. Extracted from route.ts for SRP compliance.
+ * Assembles validated request context, queue metadata, and an upstream
+ * execution closure for the AI chat route.
  *
  * @module api/ai/chat/upstream-pipeline
  */
@@ -10,10 +10,10 @@
 import "server-only";
 
 import {
-  buildChatCompletionsUrl,
+  buildUpstreamQueueKey,
   resolveOpenAiCompatibleFeatureConfig,
+  resolvePreferredUpstreamModel,
 } from "@/lib/ai/openai-compatible/feature-config";
-import { callOpenAiCompatibleChatCompletions } from "@/lib/ai/openai-compatible/openai-compatible-client";
 import { getUpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
 import { buildChatMessages } from "@/lib/ai/openai-compatible/chat-messages";
 import type {
@@ -22,68 +22,119 @@ import type {
   RagContextStatus,
   ValidatedRequestContext,
 } from "@/types/features/ai-chat";
+import type { AiUpstreamApiMode } from "@/types/schemas/ai-openai-compatible";
+import { matchesBookmarkSearchPattern } from "./bookmark-tool";
+import {
+  resolveFeatureSystemPrompt,
+  resolveModelParams,
+  resolveToolConfig,
+} from "./feature-defaults";
+import { createUpstreamRunner } from "./upstream-runner";
 
-// Feature-specific system prompts injected server-side
-const FEATURE_SYSTEM_PROMPTS: Record<string, string> = {
-  terminal_chat: `You are a helpful assistant in a terminal interface on williamcallahan.com, the personal website of William Callahan (software engineer, investor, entrepreneur).
+function resolveLatestUserMessage(
+  parsedBody: ValidatedRequestContext["parsedBody"],
+): string | undefined {
+  const directMessage = parsedBody.userText?.trim();
+  if (directMessage && directMessage.length > 0) return directMessage;
 
-Response style:
-- Keep responses short and conversational (2-4 sentences typical, expand only when necessary)
-- Use plain text only - no markdown, no HTML, no formatting symbols like ** or #
-- For lists, use simple dashes: "- item one" on new lines
-- Be friendly but concise - this is a terminal, not a document
-- When asked about William (William Callahan) or the site, share relevant context naturally
-- Use the INVENTORY CATALOG section to answer list questions; do not invent items not in the catalog
-- If asked for "all" items, respond in pages of ~25 lines and ask if they want the next page`,
-};
+  return parsedBody.messages
+    ?.filter((message) => message.role === "user")
+    .map((message) => message.content.trim())
+    .filter((content) => content.length > 0)
+    .slice(-1)[0];
+}
 
-/**
- * Build the complete chat pipeline: messages, queue, log context, and upstream runner
- */
-export function buildChatPipeline(
-  feature: string,
-  ctx: ValidatedRequestContext,
-  ragResult: { augmentedPrompt: string | undefined; status: RagContextStatus },
-  signal: AbortSignal,
-): ChatPipeline {
-  const featureSystemPrompt = ragResult.augmentedPrompt
-    ? `${FEATURE_SYSTEM_PROMPTS[feature]}\n\n${ragResult.augmentedPrompt}`
-    : FEATURE_SYSTEM_PROMPTS[feature];
+function buildLogContext(args: {
+  feature: string;
+  ctx: ValidatedRequestContext;
+  messages: ReturnType<typeof buildChatMessages>;
+  primaryModel: string;
+  apiMode: AiUpstreamApiMode;
+  priority: number;
+  modelParams: ReturnType<typeof resolveModelParams>;
+}): ChatLogContext {
+  return {
+    feature: args.feature,
+    conversationId: args.ctx.parsedBody.conversationId,
+    clientIp: args.ctx.clientIp,
+    userAgent: args.ctx.userAgent,
+    originHost: args.ctx.originHost,
+    pagePath: args.ctx.pagePath,
+    messages: args.messages
+      .filter(
+        (message): message is typeof message & { content: string } =>
+          typeof message.content === "string",
+      )
+      .map((message) => ({ role: message.role, content: message.content })),
+    model: args.primaryModel,
+    apiMode: args.apiMode,
+    priority: args.priority,
+    temperature: args.modelParams.temperature,
+    reasoningEffort: args.modelParams.reasoningEffort,
+  };
+}
+
+export function buildChatPipeline(params: {
+  feature: string;
+  ctx: ValidatedRequestContext;
+  ragResult: { augmentedPrompt: string | undefined; status: RagContextStatus };
+  signal: AbortSignal;
+}): ChatPipeline {
+  const { feature, ctx, ragResult, signal } = params;
 
   const messages = buildChatMessages({
-    featureSystemPrompt,
+    featureSystemPrompt: resolveFeatureSystemPrompt(feature, ragResult.augmentedPrompt),
     system: ctx.parsedBody.system,
     messages: ctx.parsedBody.messages,
     userText: ctx.parsedBody.userText,
   });
 
   const config = resolveOpenAiCompatibleFeatureConfig(feature);
-  const url = buildChatCompletionsUrl(config.baseUrl);
-  const upstreamKey = `${url}::${config.model}`;
-  const queue = getUpstreamRequestQueue({ key: upstreamKey, maxParallel: config.maxParallel });
-  const priority = ctx.parsedBody.priority ?? 0;
-
-  const logContext: ChatLogContext = {
-    feature,
-    conversationId: ctx.parsedBody.conversationId,
-    clientIp: ctx.clientIp,
-    userAgent: ctx.userAgent,
-    originHost: ctx.originHost,
-    pagePath: ctx.pagePath,
-    messages,
+  const { primaryModel, fallbackModel } = resolvePreferredUpstreamModel(config.model);
+  const apiMode: AiUpstreamApiMode =
+    ctx.parsedBody.apiMode === "responses" ? "responses" : "chat_completions";
+  const upstreamKey = buildUpstreamQueueKey({
+    baseUrl: config.baseUrl,
     model: config.model,
-    priority,
-  };
-
-  const runUpstream = async () => {
-    const upstream = await callOpenAiCompatibleChatCompletions({
-      url,
-      apiKey: config.apiKey,
-      request: { model: config.model, messages, temperature: ctx.parsedBody.temperature },
-      signal,
+    apiMode,
+  });
+  const queue = getUpstreamRequestQueue({ key: upstreamKey, maxParallel: config.maxParallel });
+  let priority = ctx.parsedBody.priority;
+  if (priority === undefined || priority === null) {
+    console.warn("[upstream-pipeline] Missing priority in parsed body; defaulting to 0", {
+      feature,
     });
-    return upstream.choices[0]?.message.content ?? "";
-  };
+    priority = 0;
+  }
+  const modelParams = resolveModelParams(feature, ctx.parsedBody);
+  const latestUserMessage = resolveLatestUserMessage(ctx.parsedBody);
+  const hasToolSupport = resolveToolConfig(feature).enabled;
+  const forceBookmarkTool = hasToolSupport && matchesBookmarkSearchPattern(latestUserMessage);
 
-  return { queue, upstreamKey, priority, startTime: Date.now(), logContext, runUpstream };
+  const runUpstream = createUpstreamRunner({
+    feature,
+    apiMode,
+    messages,
+    parsedBody: ctx.parsedBody,
+    config: { baseUrl: config.baseUrl, apiKey: config.apiKey },
+    primaryModel,
+    fallbackModel,
+    hasToolSupport,
+    forceBookmarkTool,
+    latestUserMessage,
+    modelParams,
+    signal,
+  });
+
+  const logContext = buildLogContext({
+    feature,
+    ctx,
+    messages,
+    primaryModel,
+    apiMode,
+    priority,
+    modelParams,
+  });
+
+  return { queue, priority, startTime: Date.now(), logContext, runUpstream };
 }

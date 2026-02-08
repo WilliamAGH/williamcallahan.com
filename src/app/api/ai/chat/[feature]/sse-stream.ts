@@ -13,41 +13,56 @@ import { NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 
 import type { SseStreamConfig } from "@/types/features/ai-chat";
-import {
-  formatSseEvent,
-  logSuccessfulChat,
-  logFailedChat,
-  formatErrorMessage,
-} from "./chat-helpers";
+import { logSuccessfulChat, logFailedChat } from "./chat-helpers";
+import { isAbortError, resolveErrorResponse } from "./upstream-error";
+
+/** Format an SSE event as a string ready for `TextEncoder.encode`. */
+export function formatSseEvent(args: { event: string; data: unknown }): string {
+  return `event: ${args.event}\ndata: ${JSON.stringify(args.data)}\n\n`;
+}
 
 /**
  * Create and return an SSE streaming response
  */
 export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
-  const {
-    request,
-    queue,
-    upstreamKey,
-    priority,
-    startTime,
-    logContext,
-    ragContextStatus,
-    runUpstream,
-  } = config;
+  const { request, queue, priority, startTime, logContext, ragContextStatus, runUpstream } = config;
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       let controllerClosed = false;
 
-      const safeSend = (event: string, data: unknown) => {
-        if (controllerClosed) return;
+      /** Send an SSE event. Returns false if the event could not be delivered. */
+      const safeSend = (event: string, data: unknown): boolean => {
+        if (controllerClosed) return false;
+        let encoded: Uint8Array;
         try {
-          controller.enqueue(encoder.encode(formatSseEvent({ event, data })));
-        } catch (enqueueError) {
-          // Stream closed by client - mark as closed and stop sending
-          console.debug("[SSE] Stream enqueue failed (client disconnected):", enqueueError);
+          encoded = encoder.encode(formatSseEvent({ event, data }));
+        } catch (serializationError) {
+          // Serialization failure (e.g. circular ref) — treat as terminal ([RC1])
+          console.error(
+            "[SSE] Failed to serialize event, closing stream:",
+            event,
+            serializationError,
+          );
           controllerClosed = true;
+          return false;
+        }
+        try {
+          controller.enqueue(encoded);
+          return true;
+        } catch (enqueueError) {
+          // Terminal: controller is broken, prevent further sends ([RC1])
+          controllerClosed = true;
+          const isClientDisconnect =
+            enqueueError instanceof TypeError ||
+            (enqueueError instanceof Error && enqueueError.message.includes("close"));
+          if (isClientDisconnect) {
+            console.debug("[SSE] Stream closed by client");
+          } else {
+            console.error("[SSE] Unexpected stream enqueue failure:", enqueueError);
+          }
+          return false;
         }
       };
 
@@ -57,8 +72,16 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
         try {
           controller.close();
         } catch (closeError) {
-          // Stream already closed - safe to ignore but log for debugging
-          console.debug("[SSE] Stream close failed (already closed):", closeError);
+          // Race between abort handler and normal close — benign when already closed
+          const isAlreadyClosed =
+            closeError instanceof TypeError ||
+            (closeError instanceof Error && closeError.message.includes("close"));
+          if (isAlreadyClosed) {
+            console.debug("[SSE] Stream already closed (race with abort handler)");
+          } else {
+            // Unexpected close failure is a controller state bug ([RC1])
+            console.error("[SSE] Unexpected stream close failure:", closeError);
+          }
         }
       };
 
@@ -66,17 +89,22 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
       const task = queue.enqueue({
         priority,
         signal: request.signal,
-        run: runUpstream,
+        run: () =>
+          runUpstream((event) => {
+            if (!safeSend(event.event, event.data)) {
+              throw new DOMException("Client disconnected", "AbortError");
+            }
+          }),
       });
 
       const initialPosition = queue.getPosition(task.id);
-      safeSend("queued", { ...initialPosition, upstreamKey });
+      safeSend("queued", initialPosition);
 
       const intervalMs = 350;
       const interval = setInterval(() => {
         const position = queue.getPosition(task.id);
         if (!position.inQueue) return;
-        safeSend("queue", { ...position, upstreamKey });
+        safeSend("queue", position);
       }, intervalMs);
 
       request.signal.addEventListener(
@@ -96,15 +124,17 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
           clearInterval(interval);
           safeSend("started", {
             ...queue.snapshot,
-            upstreamKey,
             queueWaitMs: sseStartedAtMs - enqueuedAtMs,
           });
           return undefined;
         })
         .catch((startError: unknown) => {
-          // Task failed to start - clean up interval; error will be handled by task.result
-          console.debug("[SSE] Task start failed:", startError);
           clearInterval(interval);
+          if (isAbortError(startError)) {
+            console.debug("[SSE] Task start aborted by client");
+          } else {
+            console.warn("[SSE] Task start failed:", startError);
+          }
         });
 
       void task.result
@@ -114,21 +144,38 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
 
           logSuccessfulChat(logContext, assistantMessage, durationMs, queueWaitMs);
 
-          safeSend("done", {
-            message: assistantMessage,
-            ...(ragContextStatus !== "not_applicable" && { ragContext: ragContextStatus }),
-          });
+          if (
+            !safeSend("done", {
+              message: assistantMessage,
+              ...(ragContextStatus !== "not_applicable" && { ragContext: ragContextStatus }),
+            })
+          ) {
+            console.warn("[SSE] Failed to deliver completion event to client");
+          }
           safeClose();
           return undefined;
         })
         .catch((error: unknown) => {
+          if (isAbortError(error)) {
+            safeClose();
+            return;
+          }
+
           const durationMs = Date.now() - startTime;
           const queueWaitMs = sseStartedAtMs ? sseStartedAtMs - enqueuedAtMs : 0;
-          const errorMessage = error instanceof Error ? error.message : String(error);
+          const responseError = resolveErrorResponse(error);
 
-          logFailedChat(logContext, errorMessage, durationMs, queueWaitMs);
+          logFailedChat({
+            ctx: logContext,
+            errorMessage: responseError.message,
+            durationMs,
+            queueWaitMs,
+            statusCode: responseError.status,
+          });
 
-          safeSend("error", { error: formatErrorMessage(error) });
+          if (!safeSend("error", { error: responseError.message, status: responseError.status })) {
+            console.warn("[SSE] Failed to deliver error event to client");
+          }
           safeClose();
         })
         .finally(() => {

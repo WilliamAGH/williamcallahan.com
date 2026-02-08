@@ -75,13 +75,14 @@ const buildAnalysisRows = (args: {
 }): string[] => {
   const { domain, ids, bookmarksById, booksById, projectsById } = args;
 
+  const domainMaps: Record<string, Map<string, { title: string; url: string }>> = {
+    bookmarks: bookmarksById,
+    books: booksById,
+    projects: projectsById,
+  };
+
   return ids.map((id) => {
-    const lookup =
-      domain === "bookmarks"
-        ? bookmarksById.get(id)
-        : domain === "books"
-          ? booksById.get(id)
-          : projectsById.get(id);
+    const lookup = domainMaps[domain]?.get(id);
 
     return formatLine({
       domain,
@@ -91,6 +92,129 @@ const buildAnalysisRows = (args: {
     });
   });
 };
+
+async function buildTagsSection(args: {
+  blogPosts: BlogPost[];
+  bookmarks: Array<BookmarkIndexItem & { slug: string }>;
+  books: Book[];
+}): Promise<{ section: InventorySectionBuildResult; failed: boolean }> {
+  const tagSources: Array<Promise<AggregatedTag[]>> = [];
+  const tagFailures: string[] = [];
+
+  if (args.blogPosts.length > 0) {
+    tagSources.push(
+      aggregateTags({
+        items: args.blogPosts,
+        getTags: (post) => post.tags,
+        contentType: "blog",
+        urlPattern: (slug) => `/blog/tags/${slug}`,
+      }),
+    );
+  }
+
+  tagSources.push(
+    aggregateTags({
+      items: projects,
+      getTags: (project) => project.tags,
+      contentType: "projects",
+      urlPattern: (slug) => `/projects?tag=${slug}`,
+    }),
+  );
+
+  if (args.bookmarks.length > 0) {
+    tagSources.push(
+      aggregateTags({
+        items: args.bookmarks,
+        getTags: (bookmark) => bookmark.tags.split("\n").filter(Boolean),
+        contentType: "bookmarks",
+        urlPattern: (slug) => `/bookmarks/tags/${slug}`,
+      }),
+    );
+  }
+
+  if (args.books.length > 0) {
+    tagSources.push(
+      aggregateTags({
+        items: args.books,
+        getTags: (book) => book.genres,
+        contentType: "books",
+        urlPattern: (slug) => `/books?genre=${slug}`,
+      }),
+    );
+  }
+
+  let tagResults: AggregatedTag[] = [];
+  if (tagSources.length > 0) {
+    const tagSettled = await Promise.allSettled(tagSources);
+    for (const result of tagSettled) {
+      if (result.status === "fulfilled") {
+        tagResults = tagResults.concat(result.value);
+      } else {
+        tagFailures.push(String(result.reason));
+      }
+    }
+  }
+
+  const tagsStatus: InventoryStatus = tagFailures.length > 0 ? "partial" : "success";
+  return {
+    section: buildSectionLines({
+      name: "tags",
+      fields: ["name", "slug", "contentType", "count", "url"],
+      rows: buildTagsRows(tagResults),
+      status: tagsStatus,
+      note: tagFailures.length > 0 ? "Some tag sources failed" : undefined,
+    }),
+    failed: tagFailures.length > 0,
+  };
+}
+
+function buildLookupMaps(
+  bookmarks: Array<BookmarkIndexItem & { slug: string }>,
+  books: Book[],
+): {
+  bookmarksById: Map<string, { title: string; url: string }>;
+  booksById: Map<string, { title: string; url: string }>;
+  projectsById: Map<string, { title: string; url: string }>;
+} {
+  const bookmarksById = new Map<string, { title: string; url: string }>();
+  for (const bookmark of bookmarks) {
+    bookmarksById.set(bookmark.id, {
+      title: bookmark.title ?? bookmark.slug,
+      url: `/bookmarks/${bookmark.slug}`,
+    });
+    bookmarksById.set(bookmark.slug, {
+      title: bookmark.title ?? bookmark.slug,
+      url: `/bookmarks/${bookmark.slug}`,
+    });
+  }
+
+  const booksById = new Map<string, { title: string; url: string }>();
+  for (const book of books) {
+    booksById.set(book.id, {
+      title: book.title,
+      url: `/books/${generateBookSlug(book.title, book.id, book.authors)}`,
+    });
+  }
+
+  const projectsById = new Map<string, { title: string; url: string }>();
+  for (const project of projects) {
+    if (typeof project.id !== "string" || project.id.trim().length === 0) {
+      envLogger.log(
+        "[RAG Inventory] Project missing id; skipping analysis mapping",
+        { name: project.name },
+        { category: "RAG" },
+      );
+      continue;
+    }
+
+    projectsById.set(project.id, {
+      title: project.name,
+      url: project.url ?? `/projects#${project.id}`,
+    });
+  }
+
+  return { bookmarksById, booksById, projectsById };
+}
 
 export async function buildDynamicInventorySections(input: { blogPosts: BlogPost[] }): Promise<{
   sections: InventorySectionBuildResult[];
@@ -152,111 +276,11 @@ export async function buildDynamicInventorySections(input: { blogPosts: BlogPost
     );
   }
 
-  const tagSources: Array<Promise<AggregatedTag[]>> = [];
-  const tagFailures: string[] = [];
+  const tagsResult = await buildTagsSection({ blogPosts, bookmarks, books });
+  sections.push(tagsResult.section);
+  if (tagsResult.failed) failedSections.push("tags");
 
-  if (blogPosts.length > 0) {
-    tagSources.push(
-      aggregateTags({
-        items: blogPosts,
-        getTags: (post) => post.tags,
-        contentType: "blog",
-        urlPattern: (slug) => `/blog/tags/${slug}`,
-      }),
-    );
-  }
-
-  tagSources.push(
-    aggregateTags({
-      items: projects,
-      getTags: (project) => project.tags,
-      contentType: "projects",
-      urlPattern: (slug) => `/projects?tag=${slug}`,
-    }),
-  );
-
-  if (bookmarks.length > 0) {
-    tagSources.push(
-      aggregateTags({
-        items: bookmarks,
-        getTags: (bookmark) => bookmark.tags.split("\n").filter(Boolean),
-        contentType: "bookmarks",
-        urlPattern: (slug) => `/bookmarks/tags/${slug}`,
-      }),
-    );
-  }
-
-  if (books.length > 0) {
-    tagSources.push(
-      aggregateTags({
-        items: books,
-        getTags: (book) => book.genres,
-        contentType: "books",
-        urlPattern: (slug) => `/books?genre=${slug}`,
-      }),
-    );
-  }
-
-  let tagResults: AggregatedTag[] = [];
-  if (tagSources.length > 0) {
-    const tagSettled = await Promise.allSettled(tagSources);
-    for (const result of tagSettled) {
-      if (result.status === "fulfilled") {
-        tagResults = tagResults.concat(result.value);
-      } else {
-        tagFailures.push(String(result.reason));
-      }
-    }
-  }
-
-  const tagsStatus: InventoryStatus = tagFailures.length > 0 ? "partial" : "success";
-  if (tagFailures.length > 0) failedSections.push("tags");
-  sections.push(
-    buildSectionLines({
-      name: "tags",
-      fields: ["name", "slug", "contentType", "count", "url"],
-      rows: buildTagsRows(tagResults),
-      status: tagsStatus,
-      note: tagFailures.length > 0 ? "Some tag sources failed" : undefined,
-    }),
-  );
-
-  const bookmarksById = new Map<string, { title: string; url: string }>();
-  for (const bookmark of bookmarks) {
-    bookmarksById.set(bookmark.id, {
-      title: bookmark.title ?? bookmark.slug,
-      url: `/bookmarks/${bookmark.slug}`,
-    });
-    bookmarksById.set(bookmark.slug, {
-      title: bookmark.title ?? bookmark.slug,
-      url: `/bookmarks/${bookmark.slug}`,
-    });
-  }
-
-  const booksById = new Map<string, { title: string; url: string }>();
-  for (const book of books) {
-    booksById.set(book.id, {
-      title: book.title,
-      url: `/books/${generateBookSlug(book.title, book.id, book.authors)}`,
-    });
-  }
-
-  const projectsById = new Map<string, { title: string; url: string }>();
-  for (const project of projects) {
-    if (typeof project.id !== "string" || project.id.trim().length === 0) {
-      envLogger.log(
-        "[RAG Inventory] Project missing id; skipping analysis mapping",
-        { name: project.name },
-        { category: "RAG" },
-      );
-      continue;
-    }
-
-    projectsById.set(project.id, {
-      title: project.name,
-      url: project.url ?? `/projects#${project.id}`,
-    });
-  }
+  const { bookmarksById, booksById, projectsById } = buildLookupMaps(bookmarks, books);
 
   try {
     const [bookmarkIds, bookIds, projectIds] = await Promise.all([

@@ -2,11 +2,13 @@
  * Bookmarks-only Search API Route
  *
  * GET /api/search/bookmarks?q=<query>
- * Returns `{ data: UnifiedBookmark[] }` so existing client code can reuse the
- * same parsing logic used for the bulk-fetch endpoint. It relies on the
- * server-side `searchBookmarks` MiniSearch index to find matching bookmark IDs
- * and then hydrates them to full `UnifiedBookmark` objects via
- * `getBookmarks()`.
+ * Returns dual payload shapes for compatibility:
+ * - `data`: hydrated `UnifiedBookmark[]` for bookmark-focused consumers
+ * - `results`: normalized `SearchResult[]` for terminal scoped-search parsing
+ *
+ * It relies on the server-side `searchBookmarks` MiniSearch index to find
+ * matching bookmark IDs and then hydrates them to full `UnifiedBookmark`
+ * objects via `getBookmarks()`.
  */
 
 import { getBookmarks } from "@/lib/bookmarks/service.server";
@@ -18,8 +20,11 @@ import {
   withNoStoreHeaders,
 } from "@/lib/search/api-guards";
 import { validateSearchQuery } from "@/lib/validators/search";
-import type { UnifiedBookmark } from "@/types";
+import type { AnyBookmark } from "@/types/bookmark";
+import type { SearchResult } from "@/types/search";
+import { bookmarkSearchParamsSchema } from "@/types/schemas/search";
 import { preventCaching } from "@/lib/utils/api-utils";
+import { debug } from "@/lib/utils/debug";
 import { NextResponse, connection, type NextRequest } from "next/server";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
@@ -29,6 +34,56 @@ import { NextResponse, connection, type NextRequest } from "next/server";
 const PHASE_ENV_KEY = "NEXT_PHASE" as const;
 const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
+
+/** Pagination-only slice of the bookmark search params schema. */
+const paginationSchema = bookmarkSearchParamsSchema.pick({ page: true, limit: true });
+
+/** Build the standard bookmark search response payload. */
+function buildBookmarkSearchResponse(params: {
+  data: AnyBookmark[];
+  results: SearchResult[];
+  totalCount: number;
+  hasMore: boolean;
+  query: string;
+  buildPhase?: boolean;
+}): NextResponse {
+  const { data, results, totalCount, hasMore, query, buildPhase } = params;
+  return NextResponse.json(
+    {
+      data,
+      results,
+      totalCount,
+      hasMore,
+      meta: {
+        query,
+        scope: "bookmarks",
+        count: results.length,
+        timestamp: new Date().toISOString(),
+        ...(buildPhase ? { buildPhase: true } : {}),
+      },
+    },
+    { headers: withNoStoreHeaders() },
+  );
+}
+
+/** Map a hydrated bookmark + optional ranked search hit into a normalized SearchResult. */
+function toBookmarkSearchResult(
+  bookmark: AnyBookmark,
+  ranked: { url: string; score: number } | undefined,
+): SearchResult {
+  if (!ranked) {
+    debug("[Bookmarks Search] No ranked result for hydrated bookmark, using score 0:", bookmark.id);
+  }
+  const fallbackUrl = bookmark.slug ? `/bookmarks/${bookmark.slug}` : `/bookmarks/${bookmark.id}`;
+  return {
+    id: bookmark.id,
+    type: "bookmark",
+    title: bookmark.title,
+    description: bookmark.description,
+    url: ranked ? ranked.url : fallbackUrl,
+    score: ranked ? ranked.score : 0,
+  };
+}
 
 function resolveRequestUrl(request: NextRequest | { nextUrl?: URL; url: string }): URL {
   if ("nextUrl" in request && request.nextUrl instanceof URL) {
@@ -44,10 +99,14 @@ export async function GET(request: NextRequest) {
   // If called after the build phase check, the buildPhase:true response gets cached
   preventCaching();
   if (isProductionBuildPhase()) {
-    return NextResponse.json(
-      { data: [], totalCount: 0, hasMore: false, buildPhase: true },
-      { headers: withNoStoreHeaders() },
-    );
+    return buildBookmarkSearchResponse({
+      data: [],
+      results: [],
+      totalCount: 0,
+      hasMore: false,
+      query: "",
+      buildPhase: true,
+    });
   }
   try {
     const requestUrl = resolveRequestUrl(request);
@@ -68,62 +127,68 @@ export async function GET(request: NextRequest) {
     }
 
     const query = validation.sanitized;
-    if (query.length === 0)
-      return NextResponse.json(
-        { data: [], totalCount: 0, hasMore: false },
-        { headers: withNoStoreHeaders() },
-      );
+    if (query.length === 0) {
+      return buildBookmarkSearchResponse({
+        data: [],
+        results: [],
+        totalCount: 0,
+        hasMore: false,
+        query,
+      });
+    }
 
-    // Validate pagination params with defaults
-    const pageParam = searchParams.get("page");
-    const limitParam = searchParams.get("limit");
-    const page = pageParam ? parseInt(pageParam, 10) : 1;
-    const limit = limitParam ? parseInt(limitParam, 10) : 24;
-
-    // Validate the parsed values
-    if (Number.isNaN(page) || page < 1) {
+    // Validate pagination via the canonical Zod schema (coerces, bounds-checks, defaults)
+    const paginationInput = {
+      ...(searchParams.get("page") != null && { page: searchParams.get("page") }),
+      ...(searchParams.get("limit") != null && { limit: searchParams.get("limit") }),
+    };
+    const paginationResult = paginationSchema.safeParse(paginationInput);
+    if (!paginationResult.success) {
       return NextResponse.json(
-        { error: "Invalid page parameter" },
+        { error: "Invalid pagination parameters" },
         { status: 400, headers: withNoStoreHeaders() },
       );
     }
-    if (Number.isNaN(limit) || limit < 1 || limit > 100) {
-      return NextResponse.json(
-        { error: "Invalid limit parameter" },
-        { status: 400, headers: withNoStoreHeaders() },
-      );
-    }
+    const { page, limit } = paginationResult.data;
 
     // Get IDs of matching bookmarks via MiniSearch index (already score-sorted)
     const searchResults = await searchBookmarks(query);
 
-    // Pull full bookmark objects (includeImageData=false for lighter payload)
-    const fullDataset = (await getBookmarks({
+    // Pull full bookmark objects (includeImageData=false for lighter payload).
+    const rawDataset = await getBookmarks({
       ...DEFAULT_BOOKMARK_OPTIONS,
       includeImageData: false,
       skipExternalFetch: false,
       force: false,
-    })) as UnifiedBookmark[];
+    });
+    if (!Array.isArray(rawDataset)) {
+      return createSearchErrorResponse("Bookmarks search failed", "Unexpected non-array response");
+    }
+    // Widen union-of-arrays to array-of-union so .map() infers concrete element types
+    const fullDataset: AnyBookmark[] = rawDataset;
     const bookmarksById = new Map(fullDataset.map((bookmark) => [bookmark.id, bookmark]));
     const orderedMatches = searchResults
       .map((result) => bookmarksById.get(String(result.id)))
-      .filter((bookmark): bookmark is UnifiedBookmark => Boolean(bookmark));
+      .filter((bookmark): bookmark is AnyBookmark => Boolean(bookmark));
 
     const totalCount = orderedMatches.length;
     const start = (page - 1) * limit;
     const paginated = orderedMatches.slice(start, start + limit);
-
-    return NextResponse.json(
-      {
-        data: paginated,
-        totalCount,
-        hasMore: start + limit < totalCount,
-      },
-      { headers: withNoStoreHeaders() },
+    const searchResultsById = new Map(searchResults.map((result) => [String(result.id), result]));
+    const paginatedResults: SearchResult[] = paginated.map((bookmark) =>
+      toBookmarkSearchResult(bookmark, searchResultsById.get(bookmark.id)),
     );
+
+    return buildBookmarkSearchResponse({
+      data: paginated,
+      results: paginatedResults,
+      totalCount,
+      hasMore: start + limit < totalCount,
+      query,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[Bookmarks Search API]", message);
+    console.error("[Bookmarks Search API]", err);
     return createSearchErrorResponse("Bookmarks search failed", message);
   }
 }

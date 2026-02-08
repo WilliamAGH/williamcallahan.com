@@ -8,8 +8,6 @@
  * Provides domain-specific configuration: context extraction, prompts, schema, and rendering.
  */
 
-import { motion } from "framer-motion";
-import { BookOpen } from "lucide-react";
 import type { BookAiAnalysisProps, BookAnalysisContext } from "@/types/book-ai-analysis";
 import {
   bookAiAnalysisResponseSchema,
@@ -21,6 +19,11 @@ import {
   buildBookAnalysisUserPrompt,
 } from "@/lib/books/analysis/build-prompt";
 import { AiAnalysisTerminal } from "@/components/features/ai-analysis/ai-analysis-terminal.client";
+import {
+  BulletListSection,
+  ChipListSection,
+  TechDetailsSection,
+} from "@/components/features/ai-analysis/analysis-render-sections";
 import type { AnalysisRenderHelpers } from "@/types/ai-analysis";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -37,100 +40,109 @@ const LOADING_MESSAGES = [
   "Synthesizing insights...",
 ];
 
+export const BOOK_ANALYSIS_RESPONSE_FORMAT = {
+  type: "json_schema",
+  json_schema: {
+    name: "book_analysis",
+    strict: true,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        summary: { type: "string", minLength: 1 },
+        category: { type: "string", minLength: 1 },
+        keyThemes: {
+          type: "array",
+          items: { type: "string", minLength: 1 },
+          minItems: 1,
+          maxItems: 6,
+        },
+        idealReader: { type: "string", minLength: 1 },
+        contextualDetails: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            writingStyle: { type: ["string", "null"] },
+            readingLevel: { type: ["string", "null"] },
+            commitment: { type: ["string", "null"] },
+          },
+          required: ["writingStyle", "readingLevel", "commitment"],
+        },
+        relatedReading: {
+          type: "array",
+          items: { type: "string", minLength: 1 },
+          minItems: 1,
+          maxItems: 6,
+        },
+        whyItMatters: { type: "string", minLength: 1 },
+      },
+      required: [
+        "summary",
+        "category",
+        "keyThemes",
+        "idealReader",
+        "contextualDetails",
+        "relatedReading",
+        "whyItMatters",
+      ],
+    },
+  },
+} as const;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Analysis Renderer
 // ─────────────────────────────────────────────────────────────────────────────
 
-function renderBookAnalysis(
-  analysis: BookAiAnalysisResponse,
-  { AnalysisSection, TerminalListItem, TechDetail, skipAnimation }: AnalysisRenderHelpers,
-) {
+function renderBookAnalysis(analysis: BookAiAnalysisResponse, helpers: AnalysisRenderHelpers) {
+  const { AnalysisSection, skipAnimation } = helpers;
   return (
     <>
-      <AnalysisSection label="Summary" index={0} skipAnimation={skipAnimation}>
-        {analysis.summary}
-      </AnalysisSection>
-
-      {analysis.keyThemes.length > 0 && (
-        <AnalysisSection
-          label="Key Themes"
-          index={1}
-          accentColor="#9ece6a"
-          skipAnimation={skipAnimation}
-        >
-          <ul className="space-y-1.5 mt-1">
-            {analysis.keyThemes.map((theme, idx) => (
-              <TerminalListItem key={idx} index={idx} skipAnimation={skipAnimation}>
-                {theme}
-              </TerminalListItem>
-            ))}
-          </ul>
+      {analysis.summary && (
+        <AnalysisSection label="Summary" index={0} skipAnimation={skipAnimation}>
+          {analysis.summary}
         </AnalysisSection>
       )}
 
-      <AnalysisSection
-        label="Ideal Reader"
-        index={2}
-        accentColor="#e0af68"
-        skipAnimation={skipAnimation}
-      >
-        {analysis.idealReader}
-      </AnalysisSection>
+      <BulletListSection
+        items={analysis.keyThemes}
+        label="Key Themes"
+        index={1}
+        accentColor="#9ece6a"
+        helpers={helpers}
+      />
 
-      {(analysis.contextualDetails.writingStyle ||
-        analysis.contextualDetails.readingLevel ||
-        analysis.contextualDetails.commitment) && (
-        <AnalysisSection
-          label="Details"
-          index={3}
-          accentColor="#bb9af7"
-          skipAnimation={skipAnimation}
-        >
-          <div className="space-y-1 mt-1 bg-black/20 rounded p-3 border border-[#3d4f70]/50">
-            {analysis.contextualDetails.writingStyle && (
-              <TechDetail label="style" value={analysis.contextualDetails.writingStyle} />
-            )}
-            {analysis.contextualDetails.readingLevel && (
-              <TechDetail label="level" value={analysis.contextualDetails.readingLevel} />
-            )}
-            {analysis.contextualDetails.commitment && (
-              <TechDetail label="commitment" value={analysis.contextualDetails.commitment} />
-            )}
-          </div>
+      {analysis.idealReader && (
+        <AnalysisSection label="Ideal Reader" index={2} skipAnimation={skipAnimation}>
+          {analysis.idealReader}
         </AnalysisSection>
       )}
 
-      <AnalysisSection
-        label="Why It Matters"
-        index={4}
-        accentColor="#73daca"
-        skipAnimation={skipAnimation}
-      >
-        {analysis.whyItMatters}
-      </AnalysisSection>
+      <TechDetailsSection
+        details={[
+          { label: "style", value: analysis.contextualDetails?.writingStyle },
+          { label: "level", value: analysis.contextualDetails?.readingLevel },
+          { label: "commitment", value: analysis.contextualDetails?.commitment },
+        ]}
+        label="Details"
+        index={3}
+        accentColor="#bb9af7"
+        helpers={helpers}
+      />
 
-      {analysis.relatedReading.length > 0 && (
-        <AnalysisSection
-          label="Related Reading"
-          index={5}
-          accentColor="#ff9e64"
-          skipAnimation={skipAnimation}
-        >
-          <div className="flex flex-wrap gap-1.5 mt-1">
-            {analysis.relatedReading.map((item, idx) => (
-              <motion.span
-                key={idx}
-                initial={skipAnimation ? false : { opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: idx * 0.05 }}
-                className="px-2 py-0.5 text-xs font-mono bg-[#ff9e64]/10 text-[#ff9e64] rounded border border-[#ff9e64]/20"
-              >
-                {item}
-              </motion.span>
-            ))}
-          </div>
+      {analysis.whyItMatters && (
+        <AnalysisSection label="Why It Matters" index={4} skipAnimation={skipAnimation}>
+          {analysis.whyItMatters}
         </AnalysisSection>
       )}
+
+      <ChipListSection
+        items={analysis.relatedReading}
+        label="Related Reading"
+        index={5}
+        accentColor="#ff9e64"
+        chipClassName="px-2.5 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-md"
+        helpers={helpers}
+      />
     </>
   );
 }
@@ -144,7 +156,7 @@ export function BookAiAnalysis({
   className = "",
   autoTrigger = true,
   initialAnalysis,
-}: BookAiAnalysisProps) {
+}: Readonly<BookAiAnalysisProps>) {
   return (
     <AiAnalysisTerminal
       entity={book}
@@ -155,11 +167,10 @@ export function BookAiAnalysis({
       extractContext={extractBookAnalysisContext}
       buildSystemPrompt={buildBookAnalysisSystemPrompt}
       buildUserPrompt={(ctx) => buildBookAnalysisUserPrompt(ctx as BookAnalysisContext)}
+      responseFormat={BOOK_ANALYSIS_RESPONSE_FORMAT}
       responseSchema={bookAiAnalysisResponseSchema}
       renderAnalysis={renderBookAnalysis}
       getCategory={(a) => a.category}
-      footerIcon={<BookOpen className="w-3 h-3" />}
-      footerText="AI-powered insights"
       autoTrigger={autoTrigger}
       initialAnalysis={initialAnalysis}
       className={className}

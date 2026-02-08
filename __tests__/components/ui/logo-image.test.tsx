@@ -43,6 +43,8 @@ vi.mock("next/image", () => ({
     objectFit,
     fill,
     unoptimized,
+    placeholder,
+    blurDataURL,
     ...restProps
   }: MockImageProps) => {
     const effectiveLayout = layout ?? (fill ? "fill" : undefined);
@@ -58,6 +60,8 @@ vi.mock("next/image", () => ({
         data-fill={fill ? "true" : "false"}
         data-priority={dataPriority}
         data-unoptimized={unoptimized ? "true" : "false"}
+        data-placeholder={placeholder ?? "empty"}
+        data-blur-data-url={typeof blurDataURL === "string" ? blurDataURL : ""}
         {...restProps}
       />
     );
@@ -67,7 +71,7 @@ vi.mock("next/image", () => ({
 // Static import after mocking
 // import Image from 'next/image'; // This import is no longer needed
 
-import { LogoImage } from "../../../src/components/ui/logo-image.client";
+import { LogoImage, OptimizedCardImage } from "../../../src/components/ui/logo-image.client";
 
 describe("LogoImage Conditional Rendering", () => {
   const regularUrlProps = {
@@ -235,5 +239,36 @@ describe("LogoImage Conditional Rendering", () => {
       expect(parsed.searchParams.get("website")).toBe("aescape.com");
       expect(parsed.searchParams.get("forceRefresh")).toBe("true");
     });
+  });
+});
+
+describe("OptimizedCardImage", () => {
+  const cardSrc = "https://s3-storage.callahan.cloud/images/other/projects/aventurevc-homepage.png";
+
+  it("renders dual-Image LQIP: blur preview + main image", () => {
+    render(<OptimizedCardImage src={cardSrc} alt="Project screenshot" />);
+    const images = screen.getAllByTestId("next-image-mock");
+
+    // Dual-Image LQIP: blur preview + main image
+    expect(images).toHaveLength(2);
+
+    // Blur preview: same src, tiny quality/size for fast loading
+    expect(images[0]).toHaveAttribute("src", cardSrc);
+    expect(images[0]).toHaveAttribute("quality", "40");
+    expect(images[0]).toHaveAttribute("sizes", "64px");
+
+    // Main image: full quality, no blurDataURL (blur is the separate Image)
+    expect(images[1]).toHaveAttribute("src", cardSrc);
+    expect(images[1]).toHaveAttribute("data-placeholder", "empty");
+  });
+
+  it("uses opengraph placeholder when src is missing", () => {
+    render(<OptimizedCardImage src={null} alt="Project screenshot" />);
+    const image = screen.getByTestId("next-image-mock");
+
+    const src = image.getAttribute("src");
+    expect(typeof src).toBe("string");
+    expect(src).toContain("opengraph-placeholder");
+    expect(image).toHaveAttribute("data-placeholder", "empty");
   });
 });

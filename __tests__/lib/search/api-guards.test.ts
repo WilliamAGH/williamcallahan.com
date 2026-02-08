@@ -191,12 +191,22 @@ describe("Search API Guards", () => {
       expect(result).toBeNull();
     });
 
-    it("returns 429 response when rate limit exceeded", () => {
+    it("returns standardized 429 response when rate limit exceeded", async () => {
       mockIsOperationAllowed.mockReturnValue(false);
 
       const result = checkSearchRateLimit("192.168.1.1");
       expect(result).not.toBeNull();
       expect(result?.status).toBe(429);
+      expect(result?.headers.get("Retry-After")).toBe("60");
+      expect(result?.headers.get("X-RateLimit-Limit")).toBe("10");
+      expect(result?.headers.get("X-RateLimit-Window")).toBe("60s");
+      const payload = await result?.json();
+      expect(payload).toMatchObject({
+        code: "RATE_LIMITED",
+        message: "You've reached a rate limit. Please wait a few minutes and try again.",
+        retryAfterSeconds: 60,
+        status: 429,
+      });
     });
   });
 
@@ -205,6 +215,25 @@ describe("Search API Guards", () => {
       // In test environment, isMemoryCritical always returns false
       const result = checkMemoryPressure();
       expect(result).toBeNull();
+    });
+
+    it("returns standardized 503 response when memory is critical", async () => {
+      process.env.NODE_ENV = "production";
+      process.env.MEMORY_CRITICAL_BYTES = "1";
+
+      const result = checkMemoryPressure();
+      expect(result).not.toBeNull();
+      expect(result?.status).toBe(503);
+      expect(result?.headers.get("Retry-After")).toBe("180");
+      expect(result?.headers.get("X-Memory-Pressure")).toBe("critical");
+      const payload = await result?.json();
+      expect(payload).toMatchObject({
+        code: "SERVICE_UNAVAILABLE",
+        message:
+          "The server is temporarily under heavy load. Please wait a few minutes and try again.",
+        retryAfterSeconds: 180,
+        status: 503,
+      });
     });
   });
 

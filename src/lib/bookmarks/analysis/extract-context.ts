@@ -35,13 +35,13 @@ function stripHtmlTags(html: string): string {
       // Remove all HTML tags
       .replace(/<[^>]+>/g, " ")
       // Decode common HTML entities
-      .replace(/&nbsp;/g, " ")
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&apos;/g, "'")
+      .replaceAll("&nbsp;", " ")
+      .replaceAll("&amp;", "&")
+      .replaceAll("&lt;", "<")
+      .replaceAll("&gt;", ">")
+      .replaceAll("&quot;", '"')
+      .replaceAll("&#39;", "'")
+      .replaceAll("&apos;", "'")
       // Collapse whitespace
       .replace(/\s+/g, " ")
       .trim()

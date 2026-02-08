@@ -16,11 +16,12 @@
 // Using `edge` here (not deprecated `experimental-edge`).
 
 import { CSP_DIRECTIVES } from "@/config/csp";
-import { NextResponse, type NextRequest, type NextMiddleware } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { memoryPressureMiddleware } from "@/lib/middleware/memory-pressure";
 import { sitewideRateLimitMiddleware } from "@/lib/middleware/sitewide-rate-limit";
 import { getClientIp } from "@/lib/utils/request-utils";
 import type { ClerkMiddlewareAuth } from "@clerk/nextjs/server";
+import type { ProxyFunction } from "@/types/middleware";
 
 /**
  * Check if Clerk is configured (publishable key available)
@@ -72,6 +73,120 @@ function shouldLogRequest(pathname: string, method: string): boolean {
   return pathname === "/" || !pathname.includes(".");
 }
 
+const SECURITY_HEADERS = {
+  "X-DNS-Prefetch-Control": "on",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+  "X-Frame-Options": "SAMEORIGIN",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "geolocation=(), interest-cohort=()",
+  // CORS headers
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, x-refresh-secret",
+  "Access-Control-Max-Age": "86400",
+} as const;
+
+const NO_CACHE_VALUE = "no-store, no-cache, must-revalidate, proxy-revalidate" as const;
+
+const STATIC_EXTENSIONS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".avif",
+  ".svg",
+  ".css",
+  ".woff2",
+]);
+
+function setSecurityHeaders(response: NextResponse, ip: string): void {
+  for (const [header, value] of Object.entries(SECURITY_HEADERS)) {
+    response.headers.set(header, value);
+  }
+  response.headers.set("X-Real-IP", ip);
+}
+
+async function buildCspHeader(): Promise<string> {
+  const cspHashes = await getCspHashes();
+
+  // Merging script hashes with 'unsafe-inline' causes browsers to ignore 'unsafe-inline' and block
+  // any inline scripts that do not have a matching hash (e.g., React server components bootstrap
+  // scripts rendered at runtime). To prevent unexpected CSP violations, we **only** merge style
+  // hashes. Script hashes are deliberately omitted so that the `'unsafe-inline'` fallback remains
+  // effective for all inline scripts generated at request-time by Next.js.
+  const scriptSrc = [...CSP_DIRECTIVES.scriptSrc];
+  const styleSrc = [...CSP_DIRECTIVES.styleSrc, ...cspHashes.styleSrc];
+
+  const cspDirectives: typeof CSP_DIRECTIVES = {
+    ...CSP_DIRECTIVES,
+    scriptSrc,
+    styleSrc,
+  };
+
+  return Object.entries(cspDirectives)
+    .map(([key, sources]) => {
+      const directive = key.replaceAll(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+      return `${directive} ${sources.join(" ")}`;
+    })
+    .join("; ");
+}
+
+function setCacheHeaders(response: NextResponse, url: string, host: string, isDev: boolean): void {
+  // Check if the request is for an analytics script
+  const isAnalyticsScript =
+    url.includes("/script.js") &&
+    (host.includes("umami.iocloudhost.net") || host.includes("plausible.iocloudhost.net"));
+
+  if (isAnalyticsScript) {
+    // Prevent caching for analytics scripts
+    response.headers.set("Cache-Control", NO_CACHE_VALUE);
+    response.headers.set("Pragma", "no-cache");
+    response.headers.set("Expires", "0");
+    // Add Cloudflare specific cache control
+    response.headers.set("CDN-Cache-Control", "no-store, max-age=0");
+    response.headers.set("Cloudflare-CDN-Cache-Control", "no-store, max-age=0");
+    return;
+  }
+
+  if (isDev) {
+    response.headers.set("Cache-Control", NO_CACHE_VALUE);
+    response.headers.set("Pragma", "no-cache");
+    response.headers.set("Expires", "0");
+    return;
+  }
+
+  if (url.includes("/_next/image")) {
+    response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("Accept-CH", "DPR, Width, Viewport-Width");
+    return;
+  }
+
+  const hasStaticExtension = STATIC_EXTENSIONS.has(url.slice(url.lastIndexOf(".")));
+  if (url.includes("/_next/static") || hasStaticExtension) {
+    response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    response.headers.set("X-Content-Type-Options", "nosniff");
+
+    if (/\.(jpe?g|png|webp|avif)$/.test(url)) {
+      response.headers.set("Accept-CH", "DPR, Width, Viewport-Width");
+    }
+    return;
+  }
+
+  if (url === "/" || !url.includes(".")) {
+    // HTML (SSR / SSG) pages – absolutely never cache at CDN level.
+    response.headers.set("Cache-Control", NO_CACHE_VALUE);
+    response.headers.set("CDN-Cache-Control", NO_CACHE_VALUE);
+    response.headers.set("Cloudflare-CDN-Cache-Control", NO_CACHE_VALUE);
+
+    // Tag the response with both the semantic app version and the commit hash
+    const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? "dev";
+    const gitHash = process.env.NEXT_PUBLIC_GIT_HASH ?? "unknown-hash";
+    response.headers.set("Cache-Tag", `html-v${appVersion}, commit-${gitHash}`);
+  }
+}
+
 /**
  * Internal proxy handler for request logging and security headers.
  * This function is wrapped by clerkMiddleware for authentication.
@@ -116,51 +231,9 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
   if (systemStatus) response.headers.set("X-System-Status", systemStatus);
   const ip = getClientIp(request.headers);
 
-  // Set security and CORS headers
-  const securityHeaders = {
-    "X-DNS-Prefetch-Control": "on",
-    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-    "X-Frame-Options": "SAMEORIGIN",
-    "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "strict-origin-when-cross-origin",
-    "X-Real-IP": ip,
-    "Permissions-Policy": "geolocation=(), interest-cohort=()",
-    // CORS headers
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, x-refresh-secret",
-    "Access-Control-Max-Age": "86400",
-  };
+  setSecurityHeaders(response, ip);
 
-  for (const [header, value] of Object.entries(securityHeaders)) {
-    response.headers.set(header, value);
-  }
-
-  // Build and set Content-Security-Policy using build-time hashes
-  // The csp-hashes.json file contains SHA256 hashes of all inline scripts/styles from the build output
-  const cspHashes = await getCspHashes();
-
-  // Merging script hashes with 'unsafe-inline' causes browsers to ignore 'unsafe-inline' and block
-  // any inline scripts that do not have a matching hash (e.g., React server components bootstrap
-  // scripts rendered at runtime). To prevent unexpected CSP violations, we **only** merge style
-  // hashes. Script hashes are deliberately omitted so that the `'unsafe-inline'` fallback remains
-  // effective for all inline scripts generated at request-time by Next.js.
-  const scriptSrc = [...CSP_DIRECTIVES.scriptSrc];
-  const styleSrc = [...CSP_DIRECTIVES.styleSrc, ...cspHashes.styleSrc];
-
-  const cspDirectives: typeof CSP_DIRECTIVES = {
-    ...CSP_DIRECTIVES,
-    scriptSrc,
-    styleSrc,
-  };
-
-  const csp = Object.entries(cspDirectives)
-    .map(([key, sources]) => {
-      const directive = key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
-      return `${directive} ${sources.join(" ")}`;
-    })
-    .join("; ");
-
+  const csp = await buildCspHeader();
   response.headers.set("Content-Security-Policy", csp);
 
   // Add caching headers for static assets and analytics scripts
@@ -168,66 +241,7 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
   const host = request.headers.get("host") || "";
   const isDev = process.env.NODE_ENV === "development";
 
-  // Check if the request is for an analytics script
-  const isAnalyticsScript =
-    url.includes("/script.js") &&
-    (host.includes("umami.iocloudhost.net") || host.includes("plausible.iocloudhost.net"));
-
-  if (isAnalyticsScript) {
-    // Prevent caching for analytics scripts
-    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-    response.headers.set("Pragma", "no-cache");
-    response.headers.set("Expires", "0");
-    // Add Cloudflare specific cache control
-    response.headers.set("CDN-Cache-Control", "no-store, max-age=0");
-    response.headers.set("Cloudflare-CDN-Cache-Control", "no-store, max-age=0");
-  } else if (!isDev) {
-    if (url.includes("/_next/image")) {
-      response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
-      response.headers.set("X-Content-Type-Options", "nosniff");
-      response.headers.set("Accept-CH", "DPR, Width, Viewport-Width");
-    } else if (
-      url.includes("/_next/static") ||
-      url.endsWith(".jpg") ||
-      url.endsWith(".jpeg") ||
-      url.endsWith(".png") ||
-      url.endsWith(".webp") ||
-      url.endsWith(".avif") ||
-      url.endsWith(".svg") ||
-      url.endsWith(".css") ||
-      url.endsWith(".woff2")
-    ) {
-      response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
-      response.headers.set("X-Content-Type-Options", "nosniff");
-
-      if (url.match(/\.(jpe?g|png|webp|avif)$/)) {
-        response.headers.set("Accept-CH", "DPR, Width, Viewport-Width");
-      }
-    } else if (url === "/" || !url.includes(".")) {
-      // HTML (SSR / SSG) pages – absolutely never cache at CDN level.
-      // This guarantees that when we deploy a new version, Cloudflare will
-      // always fetch the fresh HTML which references the new hashed assets.
-      const noStoreValue = "no-store, no-cache, must-revalidate, proxy-revalidate";
-      response.headers.set("Cache-Control", noStoreValue);
-      // Explicitly instruct Cloudflare (and any CDN that understands the same
-      // header) to respect the no-store directive.
-      response.headers.set("CDN-Cache-Control", noStoreValue);
-      response.headers.set("Cloudflare-CDN-Cache-Control", noStoreValue);
-
-      // Tag the response with both the semantic app version and the commit hash
-      // so our CDN can surgically purge HTML on every deploy. Previously this
-      // only used the app version, which changes infrequently and allowed stale
-      // HTML to reference non-existent chunk paths after a deploy.
-      const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? "dev";
-      const gitHash = process.env.NEXT_PUBLIC_GIT_HASH ?? "unknown-hash";
-      // Cloudflare supports comma-separated tags in the Cache-Tag header.
-      response.headers.set("Cache-Tag", `html-v${appVersion}, commit-${gitHash}`);
-    }
-  } else {
-    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-    response.headers.set("Pragma", "no-cache");
-    response.headers.set("Expires", "0");
-  }
+  setCacheHeaders(response, url, host, isDev);
 
   if (shouldLogRequest(pathname, request.method)) {
     // Log the request with the real IP
@@ -250,13 +264,10 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
   return response;
 }
 
-/**
- * Create the proxy handler - conditionally wraps with Clerk if configured.
- * When Clerk is not configured, protected routes are accessible without auth.
- */
-async function createProxy(): Promise<NextMiddleware> {
+/** Create the proxy handler - conditionally wraps with Clerk if configured. */
+async function createProxy(): Promise<ProxyFunction> {
   if (!isClerkConfigured) {
-    // No Clerk - just run the proxy handler directly (wrap to match NextMiddleware signature)
+    // No Clerk - just run the proxy handler directly
     return (request: NextRequest) => proxyHandler(request);
   }
 
@@ -273,38 +284,33 @@ async function createProxy(): Promise<NextMiddleware> {
     // "/api/upload(.*)",
   ]);
 
-  return clerkMiddleware(
+  const clerkHandler = clerkMiddleware(
     async (auth: ClerkMiddlewareAuth, request: NextRequest) => {
-      // Check auth for protected routes first (before expensive CSP/caching operations)
-      if (isProtectedRoute(request)) {
-        await auth.protect();
-      }
-
-      // Run existing proxy logic (security headers, CSP, caching, logging)
+      if (isProtectedRoute(request)) await auth.protect();
       return proxyHandler(request);
     },
-    {
-      signInUrl: "/sign-in",
-    },
+    { signInUrl: "/sign-in" },
   );
+  return (async (...args: Parameters<typeof clerkHandler>): Promise<NextResponse> => {
+    const result = await clerkHandler(...args);
+    if (result instanceof NextResponse) return result;
+    if (result instanceof Response) return new NextResponse(result.body, result);
+    // Void result is never expected — surface as a hard failure ([RC1])
+    throw new Error("[Proxy] clerkMiddleware returned void; potential auth bypass");
+  }) as ProxyFunction;
 }
 
 // Lazy singleton with race-safe initialization
-let proxyInstance: NextMiddleware | null = null;
-let proxyInitPromise: Promise<NextMiddleware> | null = null;
+let proxyInstance: ProxyFunction | null = null;
+let proxyInitPromise: Promise<ProxyFunction> | null = null;
 
 /** Main proxy export. Lazy-initializes Clerk middleware on first request. */
 async function proxy(request: NextRequest): Promise<NextResponse> {
-  if (!proxyInstance) proxyInstance = await (proxyInitPromise ??= createProxy());
-  const result = await proxyInstance(request, {} as Parameters<NextMiddleware>[1]);
-  if (!result) return NextResponse.next();
-  return result instanceof NextResponse
-    ? result
-    : new NextResponse(result.body, {
-        status: result.status,
-        statusText: result.statusText,
-        headers: result.headers,
-      });
+  // Extract assignment from expression to comply with linting rules
+  proxyInitPromise ??= createProxy();
+  proxyInstance ??= await proxyInitPromise;
+
+  return proxyInstance(request);
 }
 
 /**
@@ -334,8 +340,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - all other paths
      */
-    "/((?!_next/static|favicon.ico|robots.txt|sitemap.xml|api/upload|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    "/(api(?!/upload)|trpc)(.*)",
+    "/((?!_next/static|favicon.ico|robots.txt|sitemap.xml|api/upload|api/ai/chat|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api(?!/upload|/ai/chat)|trpc)(.*)",
     "/_next/image(.*)",
   ],
 };

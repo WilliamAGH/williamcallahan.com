@@ -122,8 +122,7 @@ export function formatPercentage(value: number | undefined | null, decimalPlaces
  */
 export function formatDate(dateString: string | Date | undefined | number): string {
   if (typeof dateString !== "string" && !(dateString instanceof Date)) {
-    // console.warn('formatDate received an invalid type or undefined dateString');
-    return "Invalid Date"; // Or handle as per desired behavior for undefined/invalid input
+    return "Invalid Date";
   }
 
   const date = new Date(dateString);
@@ -204,6 +203,84 @@ export function isValidUrl(url: string): boolean {
 }
 
 /**
+ * Common business entity suffixes to remove from company names
+ */
+const COMMON_SUFFIXES = [
+  "llc",
+  "inc",
+  "ltd",
+  "llp",
+  "pllc",
+  "corp",
+  "corporation",
+  "co",
+  "limited",
+] as const;
+
+/**
+ * Regex for punctuation characters to remove from company names
+ */
+const PUNCTUATION_REGEX = /[.,/#!$%^&*;:=_{}`~()-]/g;
+
+/**
+ * Validates if a hostname is a valid IP address (IPv4)
+ */
+function isIpAddress(hostname: string): boolean {
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname);
+}
+
+/**
+ * Validates if a hostname has a TLD (contains at least one dot)
+ */
+function hasTld(hostname: string): boolean {
+  return hostname.includes(".");
+}
+
+/**
+ * Attempts to extract a domain from a string that looks like a URL.
+ *
+ * Returns `null` when the input is not parseable as a URL — this is the
+ * expected outcome for company-name inputs and is **not** an error.
+ * The caller (`normalizeCompanyOrDomain`) intentionally falls through to
+ * name-cleanup logic when this returns `null`.
+ */
+function tryExtractDomain(input: string): string | null {
+  if (!input.includes(".") && !input.includes(":")) return null;
+
+  const urlStr = /^https?:\/\//i.test(input) ? input : `http://${input}`;
+
+  try {
+    const url = new URL(urlStr);
+    if (!url.hostname) return null;
+
+    const isValid =
+      isIpAddress(url.hostname) || hasTld(url.hostname) || url.hostname === "localhost";
+    return isValid ? stripWwwPrefix(url.hostname) : null;
+  } catch {
+    // URL constructor throws for non-URL inputs (e.g. "Acme Corp") —
+    // this is normal control flow, not an error condition.
+    return null;
+  }
+}
+
+/**
+ * Removes common business suffixes from a company name.
+ * Only removes a suffix when it appeared as a separate word in the original
+ * (space-separated) form — prevents over-stripping names like "Costco" or "Cisco".
+ */
+function removeBusinessSuffixes(cleaned: string, spaceSeparated: string): string {
+  for (const suffix of COMMON_SUFFIXES) {
+    if (!cleaned.endsWith(suffix) || cleaned.length <= suffix.length) continue;
+    // Check the space-preserved form: suffix must be a separate word (preceded by space or at start)
+    const suffixPattern = new RegExp(String.raw`(?:^|\s)${suffix}$`);
+    if (suffixPattern.test(spaceSeparated)) {
+      return cleaned.slice(0, -suffix.length);
+    }
+  }
+  return cleaned;
+}
+
+/**
  * Extracts a domain from a URL or normalizes a company name string.
  *
  * This function serves a dual purpose:
@@ -217,78 +294,18 @@ export function isValidUrl(url: string): boolean {
  * @see {@link @/lib/utils/url-utils#extractDomainWithoutWww} for URL extraction with www stripping
  */
 export function normalizeCompanyOrDomain(urlOrCompany: string | number): string {
-  // Handle null or undefined input
-  if (urlOrCompany === undefined || urlOrCompany === null) {
-    return "";
-  }
+  if (urlOrCompany == null) return "";
 
-  // Convert to string if it's a number
   const inputStr = String(urlOrCompany);
   if (!inputStr) return "";
 
-  // First, normalize the input by trimming and lowercasing
-  const normalizedInput = normalizeString(inputStr);
+  const domain = tryExtractDomain(inputStr);
+  if (domain) return domain;
 
-  // Only attempt to parse as URL if it looks like a URL
-  if (normalizedInput.includes(".") || normalizedInput.includes(":")) {
-    try {
-      // Ensure the string has a protocol
-      const urlStr =
-        inputStr.toLowerCase().startsWith("http://") ||
-        inputStr.toLowerCase().startsWith("https://")
-          ? inputStr
-          : `http://${inputStr}`;
+  const spaceSeparated = inputStr.toLowerCase().replaceAll(PUNCTUATION_REGEX, "").trim();
+  const cleaned = spaceSeparated.replaceAll(/\s+/g, "");
 
-      // Try to parse as URL
-      const parsedUrl = new URL(urlStr);
-
-      // Check if the hostname looks like a valid domain or IP
-      if (parsedUrl.hostname) {
-        const isIpAddress = /^\d{1,3}(\.\d{1,3}){3}$/.test(parsedUrl.hostname);
-        const hasTld = parsedUrl.hostname.includes(".");
-        const isLocalhost = parsedUrl.hostname === "localhost";
-
-        if (isIpAddress || hasTld || isLocalhost) {
-          return stripWwwPrefix(parsedUrl.hostname);
-        }
-      }
-    } catch (error: unknown) {
-      // Log the error in development for debugging
-      if (process.env.NODE_ENV === "development") {
-        console.error("Error parsing URL in extractDomain:", error);
-      }
-      // If URL parsing fails, proceed to treat as a company name
-    }
-  }
-
-  // If it doesn't parse as a URL or doesn't look like one, process as a company name
-  let cleaned = inputStr
-    .trim()
-    .toLowerCase()
-    .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "") // Remove punctuation
-    .replace(/\s+/g, ""); // Remove all whitespace
-
-  // Only remove specific suffixes that aren't part of the company name
-  // and only if they're at the very end of the string
-  const commonSuffixes = [
-    "llc",
-    "inc",
-    "ltd",
-    "llp",
-    "pllc",
-    "corp",
-    "corporation",
-    "co",
-    "limited",
-  ];
-  for (const suffix of commonSuffixes) {
-    if (cleaned.endsWith(suffix) && cleaned.length > suffix.length) {
-      cleaned = cleaned.slice(0, -suffix.length);
-      break; // Only remove one suffix
-    }
-  }
-
-  return cleaned;
+  return removeBusinessSuffixes(cleaned, spaceSeparated);
 }
 
 /**
@@ -322,22 +339,4 @@ export function randomString(length: number): string {
     result += characters.charAt(Math.floor(Math.random() * characters.length));
   }
   return result;
-}
-
-/**
- * Throws an error if the function is called in a browser environment.
- *
- * This is a safeguard to ensure server-only modules are not accidentally
- * imported and used on a client.
- */
-export function assertServerOnly() {
-  if (
-    process.env.NODE_ENV !== "test" &&
-    typeof globalThis !== "undefined" &&
-    "window" in globalThis
-  ) {
-    throw new Error(
-      "This module is server-only and should not be imported in a browser environment.",
-    );
-  }
 }

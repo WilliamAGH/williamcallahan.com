@@ -75,8 +75,9 @@ export function validateBookmarksDataset(bookmarks: UnifiedBookmark[]): {
   // Dataset passes the earlier URL checks; now enforce minimum size in production
   const DEFAULT_MIN_BOOKMARKS_THRESHOLD = 10;
   const rawThreshold = process.env.MIN_BOOKMARKS_THRESHOLD;
-  const parsedThreshold =
-    rawThreshold != null ? Number.parseInt(rawThreshold, 10) : DEFAULT_MIN_BOOKMARKS_THRESHOLD;
+  const parsedThreshold = rawThreshold
+    ? Number.parseInt(rawThreshold, 10)
+    : DEFAULT_MIN_BOOKMARKS_THRESHOLD;
   const minProductionCount =
     Number.isFinite(parsedThreshold) && parsedThreshold > 0
       ? parsedThreshold
@@ -108,7 +109,6 @@ export function validateBookmarksDataset(bookmarks: UnifiedBookmark[]): {
 
 // Helper function to validate API responses - imports schema from types
 export async function validateBookmarksApiResponse(data: unknown) {
-  // Use dynamic import instead of require() for ESLint compliance
-  const { BookmarksApiResponseSchema } = await import("@/types/bookmark");
-  return BookmarksApiResponseSchema.parse(data);
+  const { bookmarksApiResponseSchema } = await import("@/types/schemas/bookmark");
+  return bookmarksApiResponseSchema.parse(data);
 }

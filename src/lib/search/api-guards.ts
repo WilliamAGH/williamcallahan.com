@@ -9,7 +9,11 @@
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import { NextResponse, type NextRequest } from "next/server";
 import { getClientIp as getClientIpFromHeaders } from "@/lib/utils/request-utils";
-import { NO_STORE_HEADERS } from "@/lib/utils/api-utils";
+import {
+  NO_STORE_HEADERS,
+  buildApiRateLimitResponse,
+  buildApiServiceBusyResponse,
+} from "@/lib/utils/api-utils";
 import os from "node:os";
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -24,6 +28,9 @@ import os from "node:os";
 // protecting low-memory environments.
 // ────────────────────────────────────────────────────────────────────────────
 
+/** Default critical memory threshold when no env override is provided (3 GB). */
+const DEFAULT_CRITICAL_THRESHOLD_BYTES = 3 * 1024 * 1024 * 1024;
+
 /**
  * Get the memory threshold for critical pressure detection.
  * Configurable via MEMORY_CRITICAL_BYTES or MEMORY_CRITICAL_PERCENT env vars.
@@ -35,8 +42,10 @@ export function getCriticalThreshold(): number {
     if (!Number.isNaN(parsed) && parsed > 0) {
       return parsed;
     }
-    // If MEMORY_CRITICAL_BYTES is set but invalid, fall back to default.
-    return 3 * 1024 * 1024 * 1024;
+    console.warn(
+      `[api-guards] MEMORY_CRITICAL_BYTES="${bytesEnv}" is invalid; using default ${DEFAULT_CRITICAL_THRESHOLD_BYTES} bytes`,
+    );
+    return DEFAULT_CRITICAL_THRESHOLD_BYTES;
   }
 
   const percentEnv = process.env.MEMORY_CRITICAL_PERCENT?.trim();
@@ -47,15 +56,17 @@ export function getCriticalThreshold(): number {
       try {
         const total = os.totalmem();
         return (percent / 100) * total;
-      } catch {
-        /* istanbul ignore next */
-        // Fallback handled below
+      } catch (err) {
+        console.warn("[api-guards] os.totalmem() failed, using default threshold:", err);
       }
+    } else {
+      console.warn(
+        `[api-guards] MEMORY_CRITICAL_PERCENT="${percentEnv}" is invalid; using default ${DEFAULT_CRITICAL_THRESHOLD_BYTES} bytes`,
+      );
     }
   }
 
-  // Default: 3 GB
-  return 3 * 1024 * 1024 * 1024;
+  return DEFAULT_CRITICAL_THRESHOLD_BYTES;
 }
 
 /**
@@ -103,17 +114,12 @@ export const SEARCH_RATE_LIMIT = {
  */
 export function checkSearchRateLimit(clientIp: string): NextResponse | null {
   if (!isOperationAllowed("search", clientIp, SEARCH_RATE_LIMIT)) {
-    return NextResponse.json(
-      { error: "Too many search requests. Please wait a moment before searching again." },
-      {
-        status: 429,
-        headers: withNoStoreHeaders({
-          "Retry-After": "60",
-          "X-RateLimit-Limit": String(SEARCH_RATE_LIMIT.maxRequests),
-          "X-RateLimit-Window": "60s",
-        }),
-      },
-    );
+    return buildApiRateLimitResponse({
+      retryAfterSeconds: Math.ceil(SEARCH_RATE_LIMIT.windowMs / 1000),
+      rateLimitScope: "search",
+      rateLimitLimit: SEARCH_RATE_LIMIT.maxRequests,
+      rateLimitWindowSeconds: Math.ceil(SEARCH_RATE_LIMIT.windowMs / 1000),
+    });
   }
   return null;
 }
@@ -124,16 +130,12 @@ export function checkSearchRateLimit(clientIp: string): NextResponse | null {
  */
 export function checkMemoryPressure(): NextResponse | null {
   if (isMemoryCritical()) {
-    return NextResponse.json(
-      { error: "Server is under heavy load. Please try again in a moment." },
-      {
-        status: 503,
-        headers: withNoStoreHeaders({
-          "Retry-After": "30",
-          "X-Memory-Pressure": "critical",
-        }),
-      },
-    );
+    const response = buildApiServiceBusyResponse({
+      retryAfterSeconds: 180,
+      rateLimitScope: "memory",
+    });
+    response.headers.set("X-Memory-Pressure", "critical");
+    return response;
   }
   return null;
 }

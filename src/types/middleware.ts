@@ -6,6 +6,8 @@
  * @module types/middleware
  */
 
+import type { NextRequest, NextResponse } from "next/server";
+
 export type MemoryPressureLevel = "CRITICAL" | "WARNING";
 
 export interface MemoryPressureStatus {
@@ -32,7 +34,9 @@ export interface RateLimitProfile {
   minute: RateLimitConfig;
 }
 
-export type RateLimitProfileName = "page" | "api" | "nextImage" | "sentryTunnel";
+export type RateLimitProfileName = "page" | "api" | "sentryTunnel";
+
+export type ProxyRequestClass = "document" | "rsc" | "prefetch" | "api" | "image" | "other";
 
 /**
  * Options are intended for tests only.
@@ -41,3 +45,9 @@ export type RateLimitProfileName = "page" | "api" | "nextImage" | "sentryTunnel"
 export interface SitewideRateLimitOptions {
   storePrefix?: string;
 }
+
+/**
+ * Proxy function type for Next.js 16 proxy handlers.
+ * Replaces the deprecated NextMiddleware type.
+ */
+export type ProxyFunction = (request: NextRequest) => Promise<NextResponse>;

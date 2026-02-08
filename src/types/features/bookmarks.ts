@@ -43,6 +43,8 @@ export type BookmarkCardClientProps = UnifiedBookmark & {
   isInteractive?: boolean;
   onClick?: (bookmark: UnifiedBookmark) => void;
   className?: string;
+  /** Preload the card image for above-the-fold visibility */
+  preload?: boolean;
 };
 
 /**
@@ -254,6 +256,26 @@ export interface SerializableBookmark {
 export interface ImageSelectionOptions {
   includeScreenshots?: boolean;
   returnUndefined?: boolean;
+}
+
+// =============================================================================
+// Bookmark Refresh Hook Types
+// =============================================================================
+
+/** State returned by the useBookmarkRefresh hook */
+export interface BookmarkRefreshState {
+  isRefreshing: boolean;
+  refreshError: string | null;
+  lastRefreshed: Date | null;
+  showCrossEnvRefresh: boolean;
+  isRefreshingProduction: boolean;
+}
+
+/** Actions returned by the useBookmarkRefresh hook */
+export interface BookmarkRefreshActions {
+  refreshBookmarks: () => Promise<void>;
+  handleProductionRefresh: () => Promise<void>;
+  dismissCrossEnvRefresh: () => void;
 }
 
 // All validated types are now derived from schemas in types/bookmark.ts

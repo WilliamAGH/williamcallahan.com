@@ -16,7 +16,14 @@ import {
 
 export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Element {
   const { name, description, url, imageKey, tags, techStack } = project;
-  const cdnImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
+  let cdnImageUrl: string | undefined;
+  if (imageKey) {
+    try {
+      cdnImageUrl = buildCdnUrl(imageKey, getCdnConfigFromEnv());
+    } catch (error) {
+      console.warn(`[ProjectCardServer] Failed to resolve image URL for "${name}".`, error);
+    }
+  }
   const imageUrl = getOptimizedImageSrc(cdnImageUrl);
 
   // Derive a technology stack from tags if explicit techStack is not provided

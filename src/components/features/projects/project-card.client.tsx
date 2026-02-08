@@ -5,19 +5,30 @@ import type { ProjectCardProps } from "@/types/features/projects";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import type { JSX } from "react";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
-import { AlertTriangle, ExternalLink, Github } from "lucide-react";
+import { AlertTriangle, ExternalLink } from "lucide-react";
+import { GitHub } from "@/components/ui/social-icons/github-icon";
 import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 import { safeExternalHref, isGitHubUrl } from "@/lib/utils/url-utils";
-import {
-  MAX_DISPLAY_TECH_ITEMS,
-  deriveTechFromTags,
-  PlaceholderImageTop,
-} from "./project-card-helpers";
+import { MAX_DISPLAY_TECH_ITEMS, deriveTechFromTags } from "./project-card-helpers";
+
+function resolveProjectCardImageUrl(
+  imageKey: string | undefined,
+  projectName: string,
+): string | null {
+  if (!imageKey) return null;
+
+  try {
+    return buildCdnUrl(imageKey, getCdnConfigFromEnv());
+  } catch (error) {
+    const safeError = error instanceof Error ? error : new Error(String(error));
+    console.warn(`[ProjectCard] Failed to resolve image URL for "${projectName}".`, safeError);
+    return null;
+  }
+}
 
 export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX.Element {
   const { name, description, url, imageKey, tags, techStack } = project;
-  // Build CDN URL directly - OptimizedCardImage handles proxying and retry logic
-  const cdnImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : null;
+  const cdnImageUrl = resolveProjectCardImageUrl(imageKey, name);
 
   // Generate slug for internal detail page link
   const projectSlug = generateProjectSlug(name, project.id);
@@ -44,22 +55,21 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
     >
       {/* Image Section (Left on desktop, top on mobile) */}
       <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 min-h-[140px] md:min-h-[180px]">
-        <Link href={detailPageUrl} title={`View ${name} details`} className="block w-full h-full">
-          {cdnImageUrl ? (
-            <div className="relative w-full h-full min-h-[180px] md:min-h-[220px]">
-              <OptimizedCardImage
-                src={cdnImageUrl}
-                alt={`${name} screenshot`}
-                preload={preload}
-                fit="contain"
-                className="rounded-md transition-transform duration-300 ease-in-out group-hover:scale-[1.02]"
-              />
-            </div>
-          ) : (
-            <div className="w-full h-[180px]">
-              <PlaceholderImageTop />
-            </div>
-          )}
+        <Link
+          href={detailPageUrl}
+          prefetch={false}
+          title={`View ${name} details`}
+          className="block w-full h-full"
+        >
+          <div className="relative w-full h-full min-h-[180px] md:min-h-[220px]">
+            <OptimizedCardImage
+              src={cdnImageUrl}
+              alt={`${name} screenshot`}
+              preload={preload}
+              fit="contain"
+              className="rounded-md transition-transform duration-300 ease-in-out group-hover:scale-[1.02]"
+            />
+          </div>
         </Link>
       </div>
       {/* Content Section (Right on desktop, bottom on mobile) */}
@@ -72,6 +82,7 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
               <h3 className="text-xl font-mono font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                 <Link
                   href={detailPageUrl}
+                  prefetch={false}
                   title={`View ${name} details`}
                   className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                 >
@@ -89,7 +100,7 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
                     className="flex-shrink-0 p-1.5 rounded-md transition-colors text-gray-500 hover:text-github dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Github className="w-5 h-5" />
+                    <GitHub className="w-5 h-5" />
                   </a>
                 )}
                 {externalUrl && (
@@ -107,7 +118,7 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
                     onClick={(e) => e.stopPropagation()}
                   >
                     {isGitHub ? (
-                      <Github className="w-5 h-5" />
+                      <GitHub className="w-5 h-5" />
                     ) : (
                       <ExternalLink className="w-5 h-5" />
                     )}

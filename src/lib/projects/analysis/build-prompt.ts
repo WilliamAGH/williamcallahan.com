@@ -17,7 +17,7 @@ import type { ProjectAnalysisContext } from "@/types/project-ai-analysis";
  * Instructs the LLM to act as a technical analyst and return JSON.
  */
 export function buildProjectAnalysisSystemPrompt(): string {
-  return `You are a technical analyst who evaluates software projects. Analyze projects across all domains—web apps, CLI tools, libraries, mobile apps, developer tools, etc. Identify key features, target users, and what makes the project valuable. Respond with valid JSON only—no markdown, no code blocks.`;
+  return `You are a technical analyst who evaluates software projects. Analyze projects across all domains—web apps, CLI tools, libraries, mobile apps, developer tools, etc. Identify key features, target users, and what makes the project valuable.`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

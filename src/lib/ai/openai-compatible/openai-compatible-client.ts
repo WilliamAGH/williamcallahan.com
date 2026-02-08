@@ -1,186 +1,273 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
+import OpenAIClient from "openai";
+import type { ChatCompletion } from "openai/resources/chat/completions";
+import type { ResponseCreateParamsNonStreaming } from "openai/resources/responses/responses";
 import {
   type OpenAiCompatibleChatCompletionsRequest,
   type OpenAiCompatibleChatCompletionsResponse,
+  type OpenAiCompatibleResponsesResponse,
   openAiCompatibleChatCompletionsRequestSchema,
   openAiCompatibleChatCompletionsResponseSchema,
+  openAiCompatibleResponsesResponseSchema,
+  responsesOutputRefusalItemSchema,
+  responsesOutputTextItemSchema,
 } from "@/types/schemas/ai-openai-compatible";
-import { fetchWithTimeout } from "@/lib/utils/http-client";
-import { computeExponentialDelay } from "@/lib/utils/retry";
-import logger from "@/lib/utils/logger";
+import { buildOpenAiApiBaseUrl } from "@/lib/ai/openai-compatible/feature-config";
+import {
+  toChatRequest,
+  toRequestOptions,
+  toResponsesInput,
+} from "./openai-compatible-message-mapper";
+import { createThinkTagParser, stripThinkTags } from "./think-tag-parser";
 
-const DEFAULT_TEMPERATURE = 0.3;
-const DEFAULT_MAX_TOKENS = 1000;
+const DEFAULT_TIMEOUT_MS = 60_000;
+const DEFAULT_MAX_RETRIES = 3;
 
-/** Max retry attempts for transient errors */
-const MAX_RETRIES = 3;
-/** Base delay for exponential backoff (ms) */
-const RETRY_BASE_DELAY_MS = 1000;
-/** Maximum backoff delay (ms) */
-const RETRY_MAX_DELAY_MS = 10_000;
-/** Jitter factor for retry delays (0.2 = ±20%) */
-const RETRY_JITTER = 0.2;
+const clientByConfig = new Map<string, OpenAIClient>();
 
-/**
- * Determine if an error is retryable (transient) vs permanent.
- *
- * For AI/LLM calls, we're more liberal with retries because:
- * 1. Network/gateway errors are transient
- * 2. JSON parse errors could be truncated responses
- * 3. Schema validation errors could be LLM non-determinism (might work next time)
- *
- * We still don't retry: user aborts, auth errors (401/403), bad requests (400)
- */
-function isRetryableUpstreamError(error: unknown, httpStatus?: number): boolean {
-  // Never retry if request was aborted by user
-  if (error instanceof DOMException && error.name === "AbortError") {
-    return false;
+function buildClientCacheKey(apiBaseUrl: string, apiKey: string): string {
+  const keyHash = createHash("sha256").update(apiKey).digest("hex");
+  return `${apiBaseUrl}::${keyHash}`;
+}
+
+function resolveClient(args: {
+  baseUrl: string;
+  apiKey?: string;
+  timeoutMs?: number;
+}): OpenAIClient {
+  const apiBaseUrl = buildOpenAiApiBaseUrl(args.baseUrl);
+  const apiKey = args.apiKey?.trim();
+  if (!apiKey) {
+    throw new Error(
+      `[AI] No upstream API key configured for ${args.baseUrl}. Set the corresponding AI_*_OPENAI_API_KEY environment variable.`,
+    );
   }
+  const clientKey = buildClientCacheKey(apiBaseUrl, apiKey);
+  const existingClient = clientByConfig.get(clientKey);
+  if (existingClient) return existingClient;
 
-  // Retry on specific HTTP status codes
-  if (httpStatus !== undefined) {
-    // 429 = rate limit, 502/503/504 = gateway errors, 408 = timeout, 500 = server error
-    if ([408, 429, 500, 502, 503, 504].includes(httpStatus)) {
-      return true;
+  const client = new OpenAIClient({
+    apiKey,
+    baseURL: apiBaseUrl,
+    timeout: args.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    maxRetries: DEFAULT_MAX_RETRIES,
+  });
+
+  clientByConfig.set(clientKey, client);
+  return client;
+}
+
+function validateChatRequest(request: OpenAiCompatibleChatCompletionsRequest) {
+  return openAiCompatibleChatCompletionsRequestSchema.parse(request);
+}
+
+function deriveOutputTextFromResponsesOutput(output: unknown[]): string {
+  const textChunks: string[] = [];
+  const refusalChunks: string[] = [];
+  for (const item of output) {
+    const parsedOutputText = responsesOutputTextItemSchema.safeParse(item);
+    if (parsedOutputText.success) {
+      for (const content of parsedOutputText.data.content) {
+        textChunks.push(content.text);
+      }
+      continue;
     }
-    // Don't retry other 4xx (bad request, auth, etc.)
-    if (httpStatus >= 400 && httpStatus < 500) {
-      return false;
+
+    const parsedRefusal = responsesOutputRefusalItemSchema.safeParse(item);
+    if (parsedRefusal.success) {
+      for (const content of parsedRefusal.data.content) {
+        refusalChunks.push(content.refusal);
+      }
     }
   }
+  return textChunks.length > 0 ? textChunks.join("") : refusalChunks.join("");
+}
 
-  // Retry on JSON parse errors (SyntaxError) - could be truncated response
-  if (error instanceof SyntaxError) {
-    return true;
-  }
-
-  if (error instanceof Error) {
-    // Retry on Zod validation errors - LLMs are non-deterministic,
-    // a malformed response structure might succeed on retry
-    if (error.name === "ZodError") {
-      return true;
-    }
-
-    // Retry on network errors
-    const msg = error.message.toLowerCase();
-    if (
-      msg.includes("econnreset") ||
-      msg.includes("econnrefused") ||
-      msg.includes("etimedout") ||
-      msg.includes("fetch failed") ||
-      msg.includes("network") ||
-      msg.includes("timeout")
-    ) {
-      return true;
-    }
-  }
-
-  return false;
+function normalizeResponsesOutputText<T extends { output: unknown[]; output_text?: string }>(
+  response: T,
+): T & { output_text: string } {
+  const outputText =
+    typeof response.output_text === "string"
+      ? response.output_text
+      : deriveOutputTextFromResponsesOutput(response.output);
+  return { ...response, output_text: outputText };
 }
 
 export async function callOpenAiCompatibleChatCompletions(args: {
-  url: string;
+  baseUrl: string;
   apiKey?: string;
   request: OpenAiCompatibleChatCompletionsRequest;
   timeoutMs?: number;
   signal?: AbortSignal;
 }): Promise<OpenAiCompatibleChatCompletionsResponse> {
-  const validatedRequest = openAiCompatibleChatCompletionsRequestSchema.parse({
-    ...args.request,
-    temperature: args.request.temperature ?? DEFAULT_TEMPERATURE,
-    max_tokens: args.request.max_tokens ?? DEFAULT_MAX_TOKENS,
-  });
+  const validatedRequest = validateChatRequest(args.request);
+  const client = resolveClient(args);
+  const completion: ChatCompletion = await client.chat.completions.create(
+    toChatRequest(validatedRequest),
+    toRequestOptions(args),
+  );
+  return openAiCompatibleChatCompletionsResponseSchema.parse(completion);
+}
 
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
+export async function streamOpenAiCompatibleChatCompletions(args: {
+  baseUrl: string;
+  apiKey?: string;
+  request: OpenAiCompatibleChatCompletionsRequest;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+  onStart?: (meta: { id: string; model: string }) => void;
+  onDelta?: (delta: string) => void;
+  onThinkingDelta?: (delta: string) => void;
+}): Promise<OpenAiCompatibleChatCompletionsResponse> {
+  const validatedRequest = validateChatRequest(args.request);
+  const client = resolveClient(args);
+  const stream = client.chat.completions.stream(
+    { ...toChatRequest(validatedRequest), stream: true },
+    toRequestOptions(args),
+  );
+
+  const thinkParser = args.onThinkingDelta
+    ? createThinkTagParser({
+        onContent: (text) => args.onDelta?.(text),
+        onThinking: (text) => args.onThinkingDelta?.(text),
+      })
+    : null;
+
+  let startEmitted = false;
+  for await (const chunk of stream) {
+    if (!startEmitted) {
+      startEmitted = true;
+      args.onStart?.({ id: chunk.id, model: chunk.model });
+    }
+
+    const delta = chunk.choices[0]?.delta?.content;
+    if (typeof delta === "string" && delta.length > 0) {
+      if (thinkParser) {
+        thinkParser.push(delta);
+      } else {
+        args.onDelta?.(delta);
+      }
+    }
+
+    // Reasoning fields are untyped in the SDK but present at runtime:
+    // - "reasoning_content": DeepSeek API / llama.cpp --reasoning-format deepseek
+    // - "reasoning": llama.cpp --reasoning-format auto (default for gpt-oss models)
+    const choiceDelta = chunk.choices[0]?.delta;
+    let thinkingDelta: unknown;
+    if (choiceDelta && "reasoning_content" in choiceDelta) {
+      thinkingDelta = choiceDelta.reasoning_content;
+    } else if (choiceDelta && "reasoning" in choiceDelta) {
+      thinkingDelta = choiceDelta.reasoning;
+    }
+    if (typeof thinkingDelta === "string" && thinkingDelta.length > 0) {
+      args.onThinkingDelta?.(thinkingDelta);
+    }
+  }
+
+  thinkParser?.end();
+
+  if (!startEmitted) {
+    throw new Error(
+      `[AI] Chat completions stream completed without emitting any chunks (model: ${args.request.model})`,
+    );
+  }
+
+  const completion = await stream.finalChatCompletion();
+  // Strip <think> tags from the assembled completion so downstream consumers
+  // (e.g. JSON analysis parsers) see only the visible response content.
+  if (thinkParser && completion.choices[0]?.message?.content) {
+    completion.choices[0].message.content = stripThinkTags(completion.choices[0].message.content);
+  }
+  return openAiCompatibleChatCompletionsResponseSchema.parse(completion);
+}
+
+export async function callOpenAiCompatibleResponses(args: {
+  baseUrl: string;
+  apiKey?: string;
+  request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
+    input: OpenAiCompatibleChatCompletionsRequest["messages"];
   };
+  timeoutMs?: number;
+  signal?: AbortSignal;
+}): Promise<OpenAiCompatibleResponsesResponse> {
+  const client = resolveClient(args);
+  const response = await client.responses.create(
+    {
+      ...args.request,
+      input: toResponsesInput(args.request.input),
+    },
+    toRequestOptions(args),
+  );
+  const normalizedResponse = normalizeResponsesOutputText(response);
+  return openAiCompatibleResponsesResponseSchema.parse(normalizedResponse);
+}
 
-  if (args.apiKey) {
-    headers.Authorization = `Bearer ${args.apiKey}`;
-  }
+export async function streamOpenAiCompatibleResponses(args: {
+  baseUrl: string;
+  apiKey?: string;
+  request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
+    input: OpenAiCompatibleChatCompletionsRequest["messages"];
+  };
+  timeoutMs?: number;
+  signal?: AbortSignal;
+  onStart?: (meta: { id: string; model: string }) => void;
+  onDelta?: (delta: string) => void;
+  onThinkingDelta?: (delta: string) => void;
+}): Promise<OpenAiCompatibleResponsesResponse> {
+  const client = resolveClient(args);
+  const stream = client.responses.stream(
+    {
+      ...args.request,
+      input: toResponsesInput(args.request.input),
+      stream: true,
+    },
+    toRequestOptions(args),
+  );
 
-  let lastError: Error | null = null;
-  let attempt = 0;
+  const thinkParser = args.onThinkingDelta
+    ? createThinkTagParser({
+        onContent: (text) => args.onDelta?.(text),
+        onThinking: (text) => args.onThinkingDelta?.(text),
+      })
+    : null;
 
-  while (attempt <= MAX_RETRIES) {
-    // Check abort before each attempt
-    if (args.signal?.aborted) {
-      throw new DOMException("Request aborted", "AbortError");
+  let startEmitted = false;
+  for await (const event of stream) {
+    if (!startEmitted && "response" in event && event.response?.id && event.response.model) {
+      startEmitted = true;
+      args.onStart?.({ id: event.response.id, model: event.response.model });
+    }
+    if (event.type === "response.output_text.delta" && event.delta.length > 0) {
+      if (thinkParser) {
+        thinkParser.push(event.delta);
+      } else {
+        args.onDelta?.(event.delta);
+      }
     }
 
-    try {
-      const response = await fetchWithTimeout(args.url, {
-        method: "POST",
-        headers,
-        timeout: args.timeoutMs ?? 60_000,
-        body: JSON.stringify(validatedRequest),
-        signal: args.signal,
-      });
-
-      const text = await response.text();
-
-      if (!response.ok) {
-        const error = new Error(
-          `Upstream chat completion failed: HTTP ${response.status} ${response.statusText} - ${text}`,
-        );
-
-        if (isRetryableUpstreamError(error, response.status) && attempt < MAX_RETRIES) {
-          lastError = error;
-          attempt++;
-          const delay = computeExponentialDelay(
-            attempt,
-            RETRY_BASE_DELAY_MS,
-            RETRY_MAX_DELAY_MS,
-            RETRY_JITTER,
-          );
-          logger.warn(
-            `[AI] Retrying upstream request (attempt ${attempt}/${MAX_RETRIES}) after ${delay}ms`,
-            {
-              status: response.status,
-              error: error.message.slice(0, 200),
-            },
-          );
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          continue;
-        }
-
-        throw error;
+    // Reasoning summary events from OpenAI models that support extended thinking
+    if (event.type === "response.reasoning_summary_text.delta" && "delta" in event) {
+      const reasoningDelta = event.delta;
+      if (typeof reasoningDelta === "string" && reasoningDelta.length > 0) {
+        args.onThinkingDelta?.(reasoningDelta);
       }
-
-      // Parse and validate response
-      const json: unknown = text ? JSON.parse(text) : {};
-      return openAiCompatibleChatCompletionsResponseSchema.parse(json);
-    } catch (error) {
-      // Don't retry abort errors - user explicitly cancelled
-      if (error instanceof DOMException && error.name === "AbortError") {
-        throw error;
-      }
-
-      // Check if retryable (includes ZodError for LLM non-determinism)
-      if (isRetryableUpstreamError(error, undefined) && attempt < MAX_RETRIES) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        attempt++;
-        const delay = computeExponentialDelay(
-          attempt,
-          RETRY_BASE_DELAY_MS,
-          RETRY_MAX_DELAY_MS,
-          RETRY_JITTER,
-        );
-        logger.warn(
-          `[AI] Retrying upstream request (attempt ${attempt}/${MAX_RETRIES}) after ${delay}ms`,
-          {
-            error: lastError.message.slice(0, 200),
-          },
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        continue;
-      }
-
-      throw error;
     }
   }
 
-  // Should not reach here, but if we do, throw last error
-  throw lastError ?? new Error("Upstream request failed after retries");
+  thinkParser?.end();
+
+  if (!startEmitted) {
+    throw new Error(
+      `[AI] Responses stream completed without emitting any events (model: ${args.request.model ?? "<unset>"})`,
+    );
+  }
+
+  const response = await stream.finalResponse();
+  const normalizedResponse = normalizeResponsesOutputText(response);
+  if (thinkParser && normalizedResponse.output_text) {
+    normalizedResponse.output_text = stripThinkTags(normalizedResponse.output_text);
+  }
+  return openAiCompatibleResponsesResponseSchema.parse(normalizedResponse);
 }

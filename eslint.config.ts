@@ -5,131 +5,38 @@
  * ESLint is kept only for:
  * 1. Complex naming conventions (@typescript-eslint/naming-convention)
  * 2. Complex AST selectors (no-restricted-syntax) Oxlint doesn't support
- * 3. Custom project-specific rules (no-duplicate-types, no-hardcoded-images)
+ * 3. Custom project-specific rules (no-duplicate-types)
  * 4. Non-JS files (Markdown, YAML, JSONC) if needed
  *
  * Type-aware parsing is DISABLED for performance. Oxlint handles type-aware rules.
  */
 
-import { createRequire } from "node:module";
+import { defineConfig } from "eslint/config";
 import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 import oxlint from "eslint-plugin-oxlint";
+import { noDuplicateTypesRule } from "./config/eslint/rules/no-duplicate-types-rule";
 
-// ESM-compatible require for loading JSON files
-const requireJson = createRequire(import.meta.url);
-// Single source of truth for the static image mapping JSON path
-const STATIC_IMAGE_MAPPING_REL_PATH = "./src/lib/data-access/static-image-mapping.json" as const;
-// Local ESLint Rule Types
-import type { Rule } from "eslint";
-import type { TSESTree } from "@typescript-eslint/utils";
+const GLOBAL_IGNORES = [
+  "node_modules/",
+  ".next/",
+  ".husky/",
+  "out/",
+  "src/components/ui/code-block/prism-syntax-highlighting/prism.js",
+  "config/.remarkrc.mjs",
+  "config/",
+  "next-env.d.ts",
+  "**/*.mdx", // Skip MDX files entirely - the parser doesn't handle JSX in lists correctly
+];
 
-/**
- * ESLint rule to disallow duplicate TypeScript type definitions (type aliases, interfaces, enums)
- * anywhere in the repository. Types must already live under `types/` or declaration files as
- * enforced by the existing `no-restricted-syntax` rule – this rule focuses solely on *uniqueness*.
- *
- * KNOWN LIMITATION: This rule uses a module-level Map that persists across lint runs,
- * which can cause false positives in watch mode or when files are renamed/deleted.
- * This is a fundamental limitation of ESLint's architecture for cross-file validation.
- * For production use, consider:
- * 1. TypeScript's built-in duplicate identifier detection
- * 2. A dedicated build-time script using ts-morph or similar
- * 3. Running this rule only in CI/CD, not in watch mode
- */
-const noDuplicateTypesRule: Rule.RuleModule & { duplicateTypeTracker?: Map<string, string> } = {
-  meta: {
-    type: "problem",
-    docs: {
-      description: "disallow duplicated type, interface or enum names in the codebase",
-      url: "https://eslint.org/docs/latest/extend/custom-rules",
-    },
-    schema: [], // no options
-  },
-  create(context) {
-    // Lazily initialize the shared tracker without using assignment inside an expression
-    const duplicateTypeTracker: Map<string, string> =
-      noDuplicateTypesRule.duplicateTypeTracker ?? new Map<string, string>();
+const CODE_FILES = ["**/*.{js,jsx,ts,tsx}"];
+const CODE_FILES_IGNORES = ["**/*.mdx", "**/*.d.ts", "scripts/**/*", "config/**/*"];
 
-    // Store it on the rule for future files
-    if (!noDuplicateTypesRule.duplicateTypeTracker) {
-      noDuplicateTypesRule.duplicateTypeTracker = duplicateTypeTracker;
-    }
-
-    /** Records the location of first declaration and reports on duplicates */
-    const record = (idNode: TSESTree.Identifier) => {
-      const name: string = idNode.name;
-      const currentLocation = `${context.getFilename()}:${idNode.loc.start.line}`;
-
-      // Ignore .d.ts files from node_modules to avoid false positives on @types packages
-      if (context.getFilename().includes("node_modules")) return;
-
-      if (duplicateTypeTracker.has(name)) {
-        // Already seen elsewhere – report duplicate
-        const firstSeen = duplicateTypeTracker.get(name);
-        if (firstSeen && firstSeen !== currentLocation) {
-          context.report({
-            node: idNode,
-            message: `Type "${name}" is already declared at ${firstSeen}. All type names must be globally unique.`,
-          });
-        }
-      } else {
-        duplicateTypeTracker.set(name, currentLocation);
-      }
-    };
-
-    return {
-      TSTypeAliasDeclaration(node: TSESTree.TSTypeAliasDeclaration) {
-        record(node.id);
-      },
-      TSInterfaceDeclaration(node: TSESTree.TSInterfaceDeclaration) {
-        record(node.id);
-      },
-      TSEnumDeclaration(node: TSESTree.TSEnumDeclaration) {
-        record(node.id);
-      },
-    };
-  },
-};
-
-/**
- * Returns true if the given AST node is nested within a getStaticImageUrl(...) call.
- * Hoisted to module scope to satisfy consistent-function-scoping and avoid recreating on each invocation.
- */
-function isInsideGetStaticImageUrl(node: TSESTree.Node): boolean {
-  let current: TSESTree.Node | undefined = node.parent;
-  while (current) {
-    if (current.type === "CallExpression") {
-      const { callee } = current;
-      if (
-        (callee.type === "Identifier" && callee.name === "getStaticImageUrl") ||
-        (callee.type === "MemberExpression" &&
-          callee.property.type === "Identifier" &&
-          callee.property.name === "getStaticImageUrl")
-      ) {
-        return true;
-      }
-    }
-    current = current.parent;
-  }
-  return false;
-}
-
-const config = tseslint.config(
+const config = defineConfig(
   // Global ignores
   {
-    ignores: [
-      "node_modules/",
-      ".next/",
-      ".husky/",
-      "out/",
-      "src/components/ui/code-block/prism-syntax-highlighting/prism.js",
-      "config/.remarkrc.mjs",
-      "config/",
-      "next-env.d.ts",
-      "**/*.mdx", // Skip MDX files entirely - the parser doesn't handle JSX in lists correctly
-    ],
+    ignores: GLOBAL_IGNORES,
   },
 
   // Base configurations
@@ -139,8 +46,8 @@ const config = tseslint.config(
 
   // Main TypeScript/React config - NO TYPE-AWARE PARSING (biggest performance win)
   {
-    files: ["**/*.{js,jsx,ts,tsx}"],
-    ignores: ["**/*.mdx", "**/*.d.ts", "scripts/**/*", "config/**/*"],
+    files: CODE_FILES,
+    ignores: CODE_FILES_IGNORES,
     languageOptions: {
       parserOptions: {
         ecmaVersion: "latest",
@@ -170,6 +77,8 @@ const config = tseslint.config(
         { selector: "function", format: ["camelCase", "PascalCase"] },
         { selector: "typeLike", format: ["PascalCase"] },
       ],
+      // Oxlint covers most TS/JS rules; keep ESLint from enforcing require/import style.
+      "@typescript-eslint/no-require-imports": "off",
       "no-underscore-dangle": [
         "error",
         {
@@ -182,17 +91,6 @@ const config = tseslint.config(
           allowInArrayDestructuring: false,
           allowInObjectDestructuring: false,
           allowFunctionParams: true,
-        },
-      ],
-      "no-restricted-globals": [
-        "error",
-        {
-          name: "window",
-          message: "Use only in client components (*.client.tsx) or with proper checks",
-        },
-        {
-          name: "document",
-          message: "Use only in client components (*.client.tsx) or with proper checks",
         },
       ],
 
@@ -245,26 +143,6 @@ const config = tseslint.config(
     },
   },
 
-  // Server Components
-  {
-    files: ["**/*.server.{ts,tsx}"],
-    rules: {
-      "no-restricted-globals": [
-        "error",
-        { name: "window", message: "Cannot use window in Server Components" },
-        { name: "document", message: "Cannot use document in Server Components" },
-      ],
-    },
-  },
-
-  // Client Components
-  {
-    files: ["**/*.client.{ts,tsx}"],
-    rules: {
-      "no-restricted-globals": "off",
-    },
-  },
-
   // Configuration files - TypeScript
   {
     files: [
@@ -283,7 +161,6 @@ const config = tseslint.config(
       },
     },
     rules: {
-      "no-restricted-globals": "off",
       "no-underscore-dangle": "off",
       "@typescript-eslint/naming-convention": "off",
     },
@@ -308,9 +185,7 @@ const config = tseslint.config(
         ...globals.node,
       },
     },
-    rules: {
-      "no-restricted-globals": "off",
-    },
+    rules: {},
   },
 
   // Test file configuration (Vitest rules handled by Oxlint)
@@ -322,7 +197,6 @@ const config = tseslint.config(
       },
     },
     rules: {
-      "no-restricted-globals": "off",
       "no-restricted-syntax": "off",
       "no-underscore-dangle": "off",
       "@typescript-eslint/naming-convention": "off",
@@ -345,15 +219,12 @@ const config = tseslint.config(
       "**/lib/context/GlobalWindowRegistryContext.client.tsx",
     ],
     rules: {
-      "no-restricted-globals": "off",
       "@typescript-eslint/naming-convention": "off",
     },
   },
   {
     files: ["public/scripts/plausible-init.js"],
-    rules: {
-      "no-restricted-globals": "off",
-    },
+    rules: {},
   },
 
   // --------------------------------------------------
@@ -372,126 +243,10 @@ const config = tseslint.config(
     },
   },
 
-  // --------------------------------------------------
-  // Prevent hardcoded /images/ paths - enforce S3/CDN usage
-  // --------------------------------------------------
-  {
-    files: ["**/*.{ts,tsx,js,jsx}"],
-    ignores: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "scripts/**/*", "config/**/*"],
-    plugins: {
-      s3: {
-        rules: {
-          "no-hardcoded-images": {
-            meta: {
-              type: "problem",
-              docs: {
-                description:
-                  "Disallow hardcoded /images/ paths - use getStaticImageUrl() for S3/CDN delivery",
-              },
-              fixable: "code",
-              schema: [],
-            },
-            create(context: Rule.RuleContext) {
-              // Import the static mapping at the top of the file
-              let staticMapping: Record<string, string> | null = null;
-              try {
-                // Use ESM-compatible require to load the JSON file synchronously.
-                // Optional: bust require cache in watch mode to pick up changes without restart.
-                const mappingRelPath = STATIC_IMAGE_MAPPING_REL_PATH;
-                const resolved = requireJson.resolve(mappingRelPath);
-                if (process.env.ESLINT_WATCH === "1" && (requireJson as any).cache) {
-                  delete (requireJson as any).cache[resolved as unknown as string];
-                }
-                staticMapping = requireJson(resolved);
-              } catch (error) {
-                console.warn(
-                  "[eslint/no-hardcoded-images] Failed to load static image mapping:",
-                  error,
-                );
-              }
-
-              // Use module-scoped helper to satisfy consistent-function-scoping
-
-              /**
-               * Check if the file already imports getStaticImageUrl
-               */
-              function hasGetStaticImageUrlImport(): boolean {
-                const sourceCode = context.getSourceCode();
-                const program = sourceCode.ast;
-
-                for (const node of program.body) {
-                  if (node.type === "ImportDeclaration") {
-                    if (node.source.value === "@/lib/data-access/static-images") {
-                      for (const specifier of node.specifiers) {
-                        if (
-                          specifier.type === "ImportSpecifier" &&
-                          specifier.imported.type === "Identifier" &&
-                          specifier.imported.name === "getStaticImageUrl"
-                        ) {
-                          return true;
-                        }
-                      }
-                    }
-                  }
-                }
-                return false;
-              }
-
-              return {
-                Literal(node: TSESTree.Literal) {
-                  if (
-                    typeof node.value === "string" &&
-                    node.value.match(/^\/images\//) &&
-                    !context.getFilename().includes("static-image-mapping.json") &&
-                    !context.getFilename().includes("static-images.ts") &&
-                    !context.getFilename().includes("placeholder-images.ts") &&
-                    !context.getFilename().includes("url-utils.ts") &&
-                    !context.getFilename().includes("og-image/route.ts") &&
-                    !context.getFilename().includes("migrate-static-images-to-s3.ts") &&
-                    !context.getFilename().includes("check-new-images.ts")
-                  ) {
-                    // Skip if the string literal ultimately lives inside a getStaticImageUrl(...) call
-                    if (isInsideGetStaticImageUrl(node as unknown as TSESTree.Node)) {
-                      return;
-                    }
-
-                    const imagePath = node.value;
-                    const isInS3 = staticMapping?.[imagePath];
-                    const hasImport = hasGetStaticImageUrlImport();
-
-                    context.report({
-                      node,
-                      message: isInS3
-                        ? `Hardcoded image path "${imagePath}" detected. Use getStaticImageUrl("${imagePath}") to ensure S3/CDN delivery.`
-                        : `New image "${imagePath}" is not in the static image mapping. Add it to src/lib/data-access/static-image-mapping.json (and ensure the asset is uploaded to S3), then use getStaticImageUrl("${imagePath}").`,
-                      fix:
-                        isInS3 && hasImport
-                          ? function (fixer: Rule.RuleFixer) {
-                              // Safer replacement that works across parsers
-                              const source = context.getSourceCode();
-                              const text = source.getText(node); // includes original quotes
-                              return fixer.replaceText(node, `getStaticImageUrl(${text})`);
-                            }
-                          : null,
-                    });
-                  }
-                },
-              };
-            },
-          },
-        },
-      },
-    },
-    rules: {
-      "s3/no-hardcoded-images": "warn", // Changed to warn for gradual migration
-    },
-  },
-
   // Disable overlapping ESLint rules with Oxlint to avoid duplicate diagnostics
-  ...oxlint.configs["flat/all"],
-  ...oxlint.configs["flat/typescript"],
-  ...oxlint.configs["flat/react"],
-  ...oxlint.configs["flat/nextjs"],
+  // Derive the rule-disable list from the same .oxlintrc.json Oxlint uses, to avoid drift.
+  // This should remain last in the config array (per eslint-plugin-oxlint docs).
+  ...oxlint.buildFromOxlintConfigFile("./.oxlintrc.json"),
 );
 
 export default config;

@@ -77,14 +77,22 @@ describe("Bookmarks Search API", () => {
 
     expect(response.status).toBe(200);
     expect(body).toHaveProperty("data");
+    expect(body).toHaveProperty("results");
+    expect(body).toHaveProperty("meta");
     expect(body).toHaveProperty("totalCount");
     expect(body).toHaveProperty("hasMore");
     expect(Array.isArray(body.data)).toBe(true);
+    expect(Array.isArray(body.results)).toBe(true);
     expect(body.data).toHaveLength(2);
+    expect(body.results).toHaveLength(2);
     expect(body.totalCount).toBe(2);
     expect(body.hasMore).toBe(false);
+    expect(body.meta.scope).toBe("bookmarks");
+    expect(body.meta.query).toBe("sdk");
     const ids = body.data.map((b: UnifiedBookmark) => b.id);
     expect(ids).toEqual([idMatch1, idMatch2]);
+    const resultIds = body.results.map((b: SearchResult) => b.id);
+    expect(resultIds).toEqual([idMatch1, idMatch2]);
   });
 });
 

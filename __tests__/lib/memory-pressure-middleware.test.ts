@@ -19,15 +19,13 @@ describe("memoryPressureMiddleware", () => {
   });
 
   it("does not make external health check calls", async () => {
+    const { NextRequest } = await import("next/server");
     global.fetch = vi.fn().mockRejectedValue(new Error("Health check failed"));
 
     const { memoryPressureMiddleware } = await import("@/lib/middleware/memory-pressure");
-    const request = {
-      nextUrl: new URL("https://example.com/api/test"),
-      method: "GET",
-    };
+    const request = new NextRequest("https://example.com/api/test");
 
-    const response = await memoryPressureMiddleware(request as never);
+    const response = await memoryPressureMiddleware(request);
     expect(global.fetch).not.toHaveBeenCalled();
     expect(response).toBeNull();
   });

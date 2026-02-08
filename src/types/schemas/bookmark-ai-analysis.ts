@@ -7,6 +7,11 @@
  */
 
 import { z } from "zod/v4";
+import {
+  meaningfulStringSchema,
+  nullableMeaningfulStringSchema,
+  meaningfulStringListSchema,
+} from "@/types/schemas/ai-analysis-common";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Contextual Details Schema
@@ -18,11 +23,11 @@ import { z } from "zod/v4";
  */
 export const bookmarkAiAnalysisContextualDetailsSchema = z.object({
   /** Primary subject area (e.g., "React", "French cooking", "Jazz history") */
-  primaryDomain: z.string().nullable(),
+  primaryDomain: nullableMeaningfulStringSchema,
   /** Content format/medium (e.g., "interactive tool", "video series", "blog post") */
-  format: z.string().nullable(),
+  format: nullableMeaningfulStringSchema,
   /** How to access (e.g., "free online", "subscription required", "open source") */
-  accessMethod: z.string().nullable(),
+  accessMethod: nullableMeaningfulStringSchema,
 });
 
 export type BookmarkAiAnalysisContextualDetails = z.infer<
@@ -36,17 +41,17 @@ export type BookmarkAiAnalysisContextualDetails = z.infer<
 /** Complete AI analysis response for a bookmark */
 export const bookmarkAiAnalysisResponseSchema = z.object({
   /** 2-3 sentence overview of what this bookmark is about */
-  summary: z.string().min(1),
+  summary: meaningfulStringSchema,
   /** LLM-determined category appropriate to the content (free-form) */
-  category: z.string().min(1),
+  category: meaningfulStringSchema,
   /** 3-5 key points, notable aspects, or main takeaways */
-  highlights: z.array(z.string()).min(1).max(6),
+  highlights: meaningfulStringListSchema,
   /** Contextual details adapted to the content domain */
   contextualDetails: bookmarkAiAnalysisContextualDetailsSchema,
   /** Related topics, resources, or references mentioned */
-  relatedResources: z.array(z.string()),
+  relatedResources: meaningfulStringListSchema,
   /** Who would find this valuable or interesting */
-  targetAudience: z.string().min(1),
+  targetAudience: meaningfulStringSchema,
 });
 
 export type BookmarkAiAnalysisResponse = z.infer<typeof bookmarkAiAnalysisResponseSchema>;

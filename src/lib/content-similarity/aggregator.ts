@@ -52,16 +52,12 @@ function parseDate(dateStr?: string | null): Date | undefined {
 }
 
 function parseYearToUtcDate(yearInput: unknown): Date | undefined {
-  const year =
-    typeof yearInput === "number"
-      ? Number.isFinite(yearInput)
-        ? Math.trunc(yearInput)
-        : undefined
-      : typeof yearInput === "string"
-        ? /^\d{4}$/.test(yearInput.trim())
-          ? Number.parseInt(yearInput.trim(), 10)
-          : undefined
-        : undefined;
+  let year: number | undefined;
+  if (typeof yearInput === "number") {
+    year = Number.isFinite(yearInput) ? Math.trunc(yearInput) : undefined;
+  } else if (typeof yearInput === "string") {
+    year = /^\d{4}$/.test(yearInput.trim()) ? Number.parseInt(yearInput.trim(), 10) : undefined;
+  }
 
   if (typeof year !== "number" || !Number.isFinite(year) || year < 1000 || year > 3000) {
     return undefined;
@@ -347,10 +343,10 @@ function normalizeThought(thought: Thought): NormalizedContent {
 
   // Generate excerpt for display
   const excerpt = thought.content
-    .replace(/```[\s\S]*?```/g, "") // Remove code blocks
-    .replace(/`[^`]+`/g, "") // Remove inline code
-    .replace(/#{1,6}\s+/g, "") // Remove headings
-    .replace(/\n+/g, " ") // Replace newlines with spaces
+    .replaceAll(/```[\s\S]*?```/g, "") // Remove code blocks
+    .replaceAll(/`[^`]+`/g, "") // Remove inline code
+    .replaceAll(/#{1,6}\s+/g, "") // Remove headings
+    .replaceAll(/\n+/g, " ") // Replace newlines with spaces
     .trim()
     .slice(0, 160);
 

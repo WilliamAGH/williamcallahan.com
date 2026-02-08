@@ -45,15 +45,21 @@ Example schemas:
 - Bookmark refresh pipelines preserve embedded slugs during metadata-only updates to avoid URL churn (see `bookmarks.md`).
 - Search indexes loaded from S3 hydrate with build-time MiniSearch options for consistent scoring (see `search.md`).
 - Image streaming fallbacks re-fetch before buffering to respect single-use Response bodies (see `image-handling.md`).
+- ESLint project-specific rules live under `config/eslint/rules/` and are wired from `eslint.config.ts`.
+- Oxlint JS plugins live under `config/oxlint/js-plugins/` and are wired from `.oxlintrc.json` (experimental; not supported in the language server/editor integrations).
 - S3 I/O is standardized under `lib/s3/*` with SDK retries only; CDN usage is explicit at call sites (see `s3-storage.md`).
 - Bookmark reads no longer use local S3 cache fallbacks; all bookmark storage access is S3-only (see `bookmarks.md`).
 - GitHub activity orchestration is split across dedicated data-access modules for repo stats, commit counts, CSV repair, and summary persistence (see `features/github-activity.md`).
 - OpenGraph data access delegates Next.js cache and refresh workflows to focused modules (`opengraph-next-cache.ts`, `opengraph-refresh.ts`) with shared cache guards (`opengraph-cache-context.ts`) (see `features/opengraph.md`).
-- Proxy-level protections: `src/proxy.ts` applies sitewide rate limiting via `src/lib/middleware/sitewide-rate-limit.ts` and sheds load under real memory pressure (cgroup-based) via `src/lib/middleware/memory-pressure.ts`.
+- Route protections: `src/proxy.ts` applies sitewide rate limiting plus memory-pressure shedding for matched traffic, while `/api/ai/chat/[feature]` enforces its own `memoryPressureMiddleware(...)` check in `chat-helpers.ts` because that route bypasses the proxy matcher.
 - Live Chroma integration tests are opt-in and gated by `CHROMA_*` env vars (see `chroma.md`).
 - Test-only mock modules live under `__tests__/__mocks__/` and are enforced via linting (see `standards/testing.md`).
 - Terminal AI chat queues are handled by `src/components/ui/terminal/use-ai-chat-queue.client.tsx` to serialize requests and cap client-side pending messages (see `features/terminal.md`).
+- AI chat gateway contracts are SSE-only end-to-end (`/api/ai/chat/[feature]` plus `aiChat()` browser client), with shared feature identifiers/queue-key builders and upstream delta forwarding centralized in `ai-shared-services` (see `architecture/ai-services.md`).
+- AI upstream pipeline tests are split by responsibility (streaming, tools, analysis validation) and share a dedicated harness module for DRY fixture/mocking (`__tests__/api/ai/upstream-pipeline-test-harness.ts`).
 - RAG inventory catalogs for terminal chat are assembled server-side from repo data and dynamic sources with explicit token-bound truncation (`src/lib/ai/rag/inventory-*.ts`).
+- Navigation-first throttle policy: rate limiter only blocks `document` and `api` classes; `rsc`/`prefetch`/`_next/image` are not independently throttled to prevent partial renders. Memory shedding is stricter: all request classes are rejected with 503 when memory is critical (`src/lib/utils/request-utils.ts`, `src/lib/middleware/sitewide-rate-limit.ts`, `src/lib/middleware/memory-pressure.ts`).
+- Deterministic throttle/load-shed contracts: document requests return HTML `429/503`, API requests return standardized JSON `RATE_LIMITED|SERVICE_UNAVAILABLE` payloads with `Retry-After` + `Cache-Control: no-store` (`src/lib/utils/api-utils.ts`, `src/types/schemas/api.ts`).
 
 ## Core Architectural Patterns
 
@@ -82,7 +88,7 @@ TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for re
 | Functionality                  | Core Objective                                                                                                                                                           | Documentation                                           | Diagram                                      |
 | :----------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------ | :------------------------------------------- |
 | `accessibility`                | Provide reusable components and utilities to enhance accessibility and ensure WCAG compliance.                                                                           | [accessibility.md](../features/accessibility.md)        | [Diagram](../features/accessibility.mmd)     |
-| `ai-shared-services`           | Unified AI provider integration (OpenAI, OpenRouter, Perplexity, Groq) and web search APIs with streaming, tool calling, and modern features.                            | [ai-services.md](../features/ai-services.md)            |                                              |
+| `ai-shared-services`           | OpenAI SDK-backed AI gateway (`chat.completions` + `responses`) with queueing, tool calling, and per-feature upstream configuration.                                     | [ai-services.md](ai-services.md)                        |                                              |
 | `next-js-16-usage`             | Governs all framework-level work for Next.js 16, React 19, and Vitest 4 (cache components, async params, outlawed patterns).                                             | [nextjs-framework.md](../standards/nextjs-framework.md) |                                              |
 | `analytics`                    | Load and manage third-party tracking scripts (Plausible, Umami, Clicky) in a safe, non-blocking, and privacy-conscious manner.                                           | [analytics.md](../features/analytics.md)                |                                              |
 | `app-layout`                   | Provide the root layout wrapper with global styles, providers, and a consistent UI structure for all pages.                                                              | [app-layout.md](app-layout.md)                          | [Diagram](app-layout.mmd)                    |

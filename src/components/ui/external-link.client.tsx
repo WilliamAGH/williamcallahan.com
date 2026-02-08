@@ -36,7 +36,7 @@ export function ExternalLink({
   className = "",
   title,
   rawTitle = false,
-}: ExternalLinkProps): JSX.Element {
+}: Readonly<ExternalLinkProps>): JSX.Element {
   const baseClassName = `inline-flex items-center gap-1 ${className}`;
 
   // If no href is provided, render as span

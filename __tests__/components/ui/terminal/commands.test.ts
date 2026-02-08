@@ -6,11 +6,11 @@ import { handleCommand } from "@/components/ui/terminal/commands.client";
 import { isChatCommand } from "@/types";
 
 // Store original fetch and window
-const originalFetch = global.fetch;
-const originalWindow = global.window;
+const originalFetch = globalThis.fetch;
+const originalWindow = globalThis.window;
 
 // Mock the fetch API
-global.fetch = vi.fn() as unknown as typeof fetch; // Assert type for assignment
+globalThis.fetch = vi.fn() as unknown as typeof fetch; // Assert type for assignment
 // Setup console.error mock
 const originalConsoleError = console.error;
 const originalConsoleLog = console.log;
@@ -22,13 +22,30 @@ console.log = mockConsoleLog;
 // Skip the schema.org tests since they're not working properly in this environment
 
 // Mock window location
-(global as any).window = undefined;
-(global as any).window = {
+(globalThis as any).window = undefined;
+(globalThis as any).window = {
   location: {
     pathname: "/test-path",
     href: "https://example.com/test-path",
   },
 };
+
+function createSseResponse(chunks: string[]): Response {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(encoder.encode(chunk));
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(body, {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream; charset=utf-8" },
+  });
+}
 
 // No need to explicitly mock search functions since the command handler
 // has a fallback mechanism when the module can't be loaded
@@ -45,9 +62,9 @@ describe("Terminal Commands", () => {
 
   afterAll(() => {
     // Restore window
-    global.window = originalWindow;
+    globalThis.window = originalWindow;
     // Restore fetch
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
     // Restore console functions
     console.error = originalConsoleError;
     console.log = originalConsoleLog;
@@ -90,11 +107,10 @@ describe("Terminal Commands", () => {
         }),
       };
 
-      const chatResponse = {
-        ok: true,
-        status: 200,
-        json: vi.fn().mockResolvedValue({ message: "Hello from the assistant." }),
-      };
+      const chatResponse = createSseResponse([
+        'event: started\ndata: {"running":1,"pending":0,"maxParallel":1,"queueWaitMs":0}\n\n',
+        'event: done\ndata: {"message":"Hello from the assistant."}\n\n',
+      ]);
 
       (fetch as unknown as Mock)
         .mockResolvedValueOnce(tokenResponse)
@@ -120,6 +136,7 @@ describe("Terminal Commands", () => {
           headers: expect.objectContaining({
             "Content-Type": "application/json",
             Authorization: "Bearer test-token",
+            Accept: "text/event-stream",
           }),
         }),
       );
@@ -157,7 +174,7 @@ describe("Terminal Commands", () => {
             title: "Test Post",
             description: "Test description",
             url: "/blog/test",
-            score: 1.0,
+            score: 1,
           },
         ]),
       };
@@ -245,7 +262,7 @@ describe("Terminal Commands", () => {
             title: "Result 1",
             description: "Test",
             url: "/test1",
-            score: 1.0,
+            score: 1,
           },
           {
             id: "result-2",
@@ -377,7 +394,7 @@ describe("Terminal Commands", () => {
             title: "Test",
             description: "Test",
             url: "/test",
-            score: 1.0,
+            score: 1,
           },
         ]),
       };

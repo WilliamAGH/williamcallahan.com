@@ -17,6 +17,7 @@ import {
 import { readJsonS3Optional } from "@/lib/s3/json";
 import { logEnvironmentConfig } from "@/lib/config/environment";
 import { getClientIp } from "@/lib/utils/request-utils";
+import { buildApiRateLimitResponse } from "@/lib/utils/api-utils";
 import logger from "@/lib/utils/logger";
 import { type NextRequest, NextResponse } from "next/server";
 import { bookmarksIndexSchema, type BookmarksIndex } from "@/types/bookmark";
@@ -58,12 +59,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     console.log(`[API Trigger] Regular request from IP: ${clientIp}`);
     if (!isOperationAllowed(API_ENDPOINT_STORE_NAME, clientIp, DEFAULT_API_ENDPOINT_LIMIT_CONFIG)) {
       console.log(`[API Trigger] ❌ Rate limit exceeded for IP: ${clientIp}`);
-      return NextResponse.json(
-        {
-          error: "Rate limit exceeded. Try again later.",
-        },
-        { status: 429 },
-      );
+      return buildApiRateLimitResponse({
+        retryAfterSeconds: Math.ceil(DEFAULT_API_ENDPOINT_LIMIT_CONFIG.windowMs / 1000),
+        rateLimitScope: "bookmarks-refresh",
+        rateLimitLimit: DEFAULT_API_ENDPOINT_LIMIT_CONFIG.maxRequests,
+        rateLimitWindowSeconds: Math.ceil(DEFAULT_API_ENDPOINT_LIMIT_CONFIG.windowMs / 1000),
+      });
     }
   }
 
@@ -160,8 +161,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         bookmarksIndexSchema,
       );
       previousCount = previousIndex?.count || 0;
-    } catch {
-      // Index doesn't exist yet
+    } catch (error: unknown) {
+      // readJsonS3Optional already returns null for 404; any throw here is a real failure
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[API Trigger] Failed to read previous index: ${message}`);
     }
 
     console.log(`[API Trigger] Previous count: ${previousCount} bookmarks`);

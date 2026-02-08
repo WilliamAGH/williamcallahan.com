@@ -14,8 +14,6 @@ const shouldLogEnvironmentInfo =
   process.env.DEBUG === "true" ||
   process.env.VERBOSE === "true";
 
-let loggedExplicitDeploymentEnv: string | null = null;
-let loggedInvalidDeploymentWarning = false;
 const loggedDetectionMessages = new Set<string>();
 
 const logEnvironmentInfo = (message: string): void => {
@@ -23,6 +21,200 @@ const logEnvironmentInfo = (message: string): void => {
     logger.info(message);
   }
 };
+
+/**
+ * Checks if the current runtime is a test environment
+ */
+function isTestRuntime(): boolean {
+  return (
+    typeof process !== "undefined" &&
+    (process.env.NODE_ENV === "test" ||
+      process.env.VITEST === "true" ||
+      process.env.TEST === "true")
+  );
+}
+
+/**
+ * Validates if a normalized environment name is a valid Environment value
+ */
+function isValidEnvironment(normalized: string): boolean {
+  return normalized === "production" || normalized === "development" || normalized === "test";
+}
+
+/**
+ * Gets the API URL from environment variables or global location (in tests)
+ */
+function getApiUrl(): string | undefined {
+  const apiBaseUrl = process.env.API_BASE_URL;
+  if (apiBaseUrl) return apiBaseUrl;
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  if (siteUrl) {
+    logOnce("api_url_fallback", () =>
+      logger.warn("[Environment] API_BASE_URL missing; falling back to NEXT_PUBLIC_SITE_URL"),
+    );
+    return siteUrl;
+  }
+
+  // In tests, allow jsdom location only when NODE_ENV is 'test'
+  const nodeEnv = process.env.NODE_ENV;
+  if (isTestRuntime() && normalizeString(nodeEnv || "test") === "test") {
+    try {
+      const loc = (globalThis as unknown as { location?: { href?: string; origin?: string } })
+        .location;
+      if (loc?.origin) return loc.origin;
+      if (loc?.href) return loc.href;
+      return undefined;
+    } catch (error: unknown) {
+      logOnce("test_location_error", () =>
+        logger.warn("[Environment] Failed to read test location for API URL", { error }),
+      );
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Logs a detection message once per unique key
+ */
+function logDetectionOnce(key: string, env: Environment): void {
+  if (!loggedDetectionMessages.has(key)) {
+    logEnvironmentInfo(`[Environment] Detected ${key} - using ${env}`);
+    loggedDetectionMessages.add(key);
+  }
+}
+
+/** Logs invalid deployment env warning once */
+function logInvalidDeploymentWarning(deploymentEnv: string): void {
+  logOnce("invalid_deployment_env", () =>
+    logger.warn(
+      `[Environment] Invalid DEPLOYMENT_ENV value: '${deploymentEnv}', falling back to URL detection`,
+    ),
+  );
+}
+
+/**
+ * Executes a logging function once per unique key
+ */
+function logOnce(key: string, logFn: () => void): void {
+  if (!loggedDetectionMessages.has(key)) {
+    logFn();
+    loggedDetectionMessages.add(key);
+  }
+}
+
+/**
+ * Normalizes environment name variations to standard environment values.
+ * Maps shorthand names (prod, dev, testing) to full names (production, development, test).
+ */
+function normalizeEnvironmentName(input: string): string {
+  const normalized = normalizeString(input);
+
+  if (normalized === "prod") return "production";
+  if (normalized === "dev") return "development";
+  if (normalized === "testing") return "test";
+
+  return normalized;
+}
+
+/**
+ * Environment detection strategy that checks for explicit DEPLOYMENT_ENV variable.
+ * Returns null in test environments to allow test-controlled behavior.
+ */
+function detectFromDeploymentEnv(): Environment | null {
+  if (isTestRuntime()) return null;
+
+  const deploymentEnv = process.env.DEPLOYMENT_ENV;
+  if (!deploymentEnv) return null;
+
+  const normalized = normalizeEnvironmentName(deploymentEnv);
+  if (!isValidEnvironment(normalized)) {
+    logInvalidDeploymentWarning(deploymentEnv);
+    return null;
+  }
+
+  logDetectionOnce("explicit_deployment_env", normalized as Environment);
+  return normalized as Environment;
+}
+
+/**
+ * Environment detection strategy that checks API_BASE_URL or NEXT_PUBLIC_SITE_URL
+ * for localhost/127.0.0.1 patterns.
+ */
+function detectFromLocalhostUrl(): Environment | null {
+  const apiUrl = getApiUrl();
+  if (!apiUrl) return null;
+
+  if (apiUrl.includes("localhost") || apiUrl.includes("127.0.0.1")) {
+    logDetectionOnce("localhost", "development");
+    return "development";
+  }
+  return null;
+}
+
+/**
+ * Environment detection strategy that checks for development subdomains
+ * (alpha, dev, sandbox) in the URL.
+ */
+function detectFromDevSubdomain(): Environment | null {
+  const apiUrl = getApiUrl();
+  if (!apiUrl) return null;
+
+  const devSubdomains = ["alpha.", "dev.", "sandbox."];
+  const matched = devSubdomains.find((sub) => apiUrl.includes(`${sub}williamcallahan.com`));
+
+  if (matched) {
+    logDetectionOnce(`${matched}domain`, "development");
+    return "development";
+  }
+  return null;
+}
+
+/**
+ * Environment detection strategy that checks for production domain
+ * (williamcallahan.com without dev subdomains) in the URL.
+ */
+function detectFromProductionUrl(): Environment | null {
+  const apiUrl = getApiUrl();
+  if (!apiUrl) return null;
+
+  if (apiUrl.includes("williamcallahan.com")) {
+    logDetectionOnce("prod-domain", "production");
+    return "production";
+  }
+  return null;
+}
+
+/**
+ * Environment detection strategy that falls back to NODE_ENV variable.
+ */
+function detectFromNodeEnv(): Environment {
+  const env = process.env.NODE_ENV;
+  if (!env) {
+    logOnce("no_node_env", () =>
+      logger.warn("[Environment] No URL or NODE_ENV set, defaulting to 'development'"),
+    );
+    return "development";
+  }
+
+  const normalized = normalizeEnvironmentName(env);
+  if (isValidEnvironment(normalized)) {
+    return normalized as Environment;
+  }
+
+  logOnce("unknown_node_env", () =>
+    logger.warn(`[Environment] Unknown NODE_ENV value: '${env}', defaulting to 'development'`),
+  );
+  return "development";
+}
+
+/** Ordered list of environment detection strategies */
+const DETECTION_STRATEGIES: Array<() => Environment | null> = [
+  detectFromDeploymentEnv,
+  detectFromLocalhostUrl,
+  detectFromDevSubdomain,
+  detectFromProductionUrl,
+];
 
 /**
  * Get the current environment based on URL configuration
@@ -36,116 +228,11 @@ const logEnvironmentInfo = (message: string): void => {
  * build-time and runtime to prevent environment-specific file mismatches.
  */
 export function getEnvironment(): Environment {
-  const isTestRuntime =
-    typeof process !== "undefined" &&
-    (process.env.NODE_ENV === "test" ||
-      process.env.VITEST === "true" ||
-      process.env.TEST === "true");
-
-  // PRIORITY 1: Use explicit DEPLOYMENT_ENV if set (for build-time consistency)
-  // In tests, ignore DEPLOYMENT_ENV so tests can control behavior via NODE_ENV
-  const deploymentEnv = isTestRuntime ? undefined : process.env.DEPLOYMENT_ENV;
-  if (deploymentEnv) {
-    const normalizedInput = normalizeString(deploymentEnv);
-    const normalized =
-      normalizedInput === "prod"
-        ? "production"
-        : normalizedInput === "dev"
-          ? "development"
-          : normalizedInput === "testing"
-            ? "test"
-            : normalizedInput;
-    if (normalized === "production" || normalized === "development" || normalized === "test") {
-      if (loggedExplicitDeploymentEnv !== normalized) {
-        logEnvironmentInfo(`[Environment] Using explicit DEPLOYMENT_ENV: ${normalized}`);
-        loggedExplicitDeploymentEnv = normalized;
-      }
-      return normalized as Environment;
-    }
-    // Log warning for invalid DEPLOYMENT_ENV values
-    if (!loggedInvalidDeploymentWarning) {
-      logger.warn(
-        `[Environment] Invalid DEPLOYMENT_ENV value: '${deploymentEnv}', falling back to URL detection`,
-      );
-      loggedInvalidDeploymentWarning = true;
-    }
+  for (const strategy of DETECTION_STRATEGIES) {
+    const result = strategy();
+    if (result) return result;
   }
-
-  // PRIORITY 2: Try to infer from URLs (runtime detection)
-  // Prefer explicit env vars. In tests, allow jsdom location only when NODE_ENV is 'test',
-  // so tests that switch NODE_ENV to 'production' can validate production behavior.
-  let apiUrl: string | undefined = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL;
-  if (!apiUrl && isTestRuntime && normalizeString(process.env.NODE_ENV || "test") === "test") {
-    try {
-      const loc = (globalThis as unknown as { location?: { href?: string; origin?: string } })
-        .location;
-      apiUrl = loc?.origin || loc?.href || undefined;
-    } catch {
-      // ignore
-    }
-  }
-
-  if (apiUrl) {
-    // Check if it's localhost (local development)
-    if (apiUrl.includes("localhost") || apiUrl.includes("127.0.0.1")) {
-      if (!loggedDetectionMessages.has("localhost")) {
-        logEnvironmentInfo("[Environment] Detected localhost - using development");
-        loggedDetectionMessages.add("localhost");
-      }
-      return "development";
-    }
-
-    // Check if it's a development subdomain (alpha., dev., sandbox.)
-    const devSubdomains = ["alpha.", "dev.", "sandbox."];
-    const matchedDevSubdomain = devSubdomains.find((sub) =>
-      apiUrl.includes(`${sub}williamcallahan.com`),
-    );
-    if (matchedDevSubdomain) {
-      const logKey = `${matchedDevSubdomain}domain`;
-      if (!loggedDetectionMessages.has(logKey)) {
-        logEnvironmentInfo(
-          `[Environment] Detected ${matchedDevSubdomain}williamcallahan.com - using development`,
-        );
-        loggedDetectionMessages.add(logKey);
-      }
-      return "development";
-    }
-
-    // Check if it's production williamcallahan.com (no dev subdomain)
-    if (apiUrl.includes("williamcallahan.com")) {
-      if (!loggedDetectionMessages.has("prod-domain")) {
-        logEnvironmentInfo("[Environment] Detected williamcallahan.com - using production");
-        loggedDetectionMessages.add("prod-domain");
-      }
-      return "production";
-    }
-  }
-
-  // PRIORITY 3: Fallback to NODE_ENV if URLs aren't set
-  const env = process.env.NODE_ENV;
-
-  if (!env) {
-    logger.warn("[Environment] No URL or NODE_ENV set, defaulting to 'development'");
-    return "development";
-  }
-
-  // Normalize NODE_ENV variations
-  const normalized = normalizeString(env);
-
-  switch (normalized) {
-    case "production":
-    case "prod":
-      return "production";
-    case "development":
-    case "dev":
-      return "development";
-    case "test":
-    case "testing":
-      return "test";
-    default:
-      logger.warn(`[Environment] Unknown NODE_ENV value: '${env}', defaulting to 'development'`);
-      return "development";
-  }
+  return detectFromNodeEnv();
 }
 
 /**

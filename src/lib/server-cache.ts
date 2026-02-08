@@ -7,7 +7,7 @@
  * Domain-specific methods (for bookmarks, logos, etc.) are attached to this
  * class's prototype from files in the `lib/server-cache/` directory.
  */
-import { assertServerOnly } from "./utils";
+import { assertServerOnly } from "./utils/ensure-server-only";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 

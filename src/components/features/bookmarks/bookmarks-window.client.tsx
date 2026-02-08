@@ -12,13 +12,12 @@
 
 "use client";
 
-import React, { Suspense, useEffect, useMemo, type JSX } from "react";
+import React, { Suspense, useEffect, type JSX } from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hint";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
 import { Bookmark, type LucideIcon } from "lucide-react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import type {
   RegisteredWindowState,
@@ -34,20 +33,30 @@ const DEFAULT_BOOKMARKS_WINDOW_ID = "bookmarks-window";
  * Skeleton loader component with stable keys for loading states
  * @returns {JSX.Element} Skeleton loading animation
  */
-const SkeletonLoader = (): JSX.Element => {
-  const skeletonKeys = useMemo(() => Array.from({ length: 6 }, () => crypto.randomUUID()), []);
+const BOOKMARK_SKELETON_KEYS = [
+  "bookmark-skeleton-1",
+  "bookmark-skeleton-2",
+  "bookmark-skeleton-3",
+  "bookmark-skeleton-4",
+  "bookmark-skeleton-5",
+  "bookmark-skeleton-6",
+];
 
-  return (
-    <div className="animate-pulse space-y-4 p-6">
-      {skeletonKeys.map((key) => (
-        <div key={key} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
-      ))}
-    </div>
-  );
-};
+const SkeletonLoader = (): JSX.Element => (
+  <div className="animate-pulse space-y-4 p-6">
+    {BOOKMARK_SKELETON_KEYS.map((key) => (
+      <div key={key} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
+    ))}
+  </div>
+);
 
 /**
- * Inner content component wrapper for dynamic()
+ * Inner content component that renders the window chrome (title bar, controls)
+ * and wraps children in a Suspense boundary.
+ *
+ * Rendered directly (no dynamic import / ssr:false) so that the full content
+ * tree — including images — is present in the initial server HTML, letting
+ * browsers start loading images before client JS hydrates.
  */
 function BookmarksWindowContentInner({
   children,
@@ -57,15 +66,7 @@ function BookmarksWindowContentInner({
   onMaximize,
   titleSlug,
   windowTitle,
-}: {
-  children: React.ReactNode;
-  windowState: string;
-  onClose: () => void;
-  onMinimize: () => void;
-  onMaximize: () => void;
-  titleSlug?: string;
-  windowTitle?: string;
-}): React.JSX.Element {
+}: BookmarksWindowContentProps): React.JSX.Element {
   const isMaximized = windowState === "maximized";
 
   // Format the title slug for display
@@ -108,16 +109,16 @@ function BookmarksWindowContentInner({
   );
 }
 
-const BookmarksWindowContent = dynamic<BookmarksWindowContentProps>(
-  () => Promise.resolve({ default: BookmarksWindowContentInner }),
-  { ssr: false },
-);
-
 /**
  * BookmarksWindow Client Component
  *
  * Renders content within a window-like UI that supports minimizing, maximizing, and closing.
  * Uses the global window registry to manage state across the application.
+ *
+ * The content tree is SSR'd so that images and text appear in the initial HTML.
+ * `windowState` falls back to `initialState` ("normal") before the registry
+ * effect fires, so the first render always shows the full window — no
+ * null → content flash.
  *
  * @param {BookmarksWindowClientProps} props - Component props
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
@@ -155,11 +156,6 @@ export function BookmarksWindow({
     }
   }, [windowState, isRegistered, uniqueId]);
 
-  // Render nothing until ready
-  if (!isRegistered) {
-    return null;
-  }
-
   // Handle closed state
   if (windowState === "closed") {
     return null;
@@ -171,7 +167,7 @@ export function BookmarksWindow({
   }
 
   return (
-    <BookmarksWindowContent
+    <BookmarksWindowContentInner
       windowState={windowState}
       onClose={closeWindow}
       onMinimize={minimizeWindow}
@@ -180,6 +176,6 @@ export function BookmarksWindow({
       windowTitle={windowTitle}
     >
       {children}
-    </BookmarksWindowContent>
+    </BookmarksWindowContentInner>
   );
 }
