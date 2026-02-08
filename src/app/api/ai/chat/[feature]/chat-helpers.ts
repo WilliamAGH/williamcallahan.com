@@ -54,6 +54,15 @@ const DOMAIN_HINT_PATTERN =
 /** Triggers full-inventory RAG section with server-side pagination. */
 const INVENTORY_REQUEST_PATTERN = /\b(all|list|catalog|inventory|show all|everything)\b/i;
 
+/** RAG token budget when inventory content is included */
+const RAG_INVENTORY_MAX_TOKENS = 8000;
+/** RAG token budget for standard non-inventory queries */
+const RAG_STANDARD_MAX_TOKENS = 4500;
+/** Maximum tokens allocated to inventory section within RAG */
+const RAG_INVENTORY_SECTION_MAX_TOKENS = 5000;
+/** Default number of inventory items per page */
+const INVENTORY_PAGE_SIZE = 25;
+
 function withSystemStatusHeader(
   response: NextResponse,
   systemStatus: "MEMORY_WARNING" | undefined,
@@ -238,15 +247,15 @@ export async function buildRagContextForChat(
 
   try {
     const ragContext = await buildContextForQuery(retrievalQuery, {
-      maxTokens: includeInventory ? 8000 : 4500,
+      maxTokens: includeInventory ? RAG_INVENTORY_MAX_TOKENS : RAG_STANDARD_MAX_TOKENS,
       timeoutMs: 5000,
       includeInventory,
-      inventoryMaxTokens: includeInventory ? 5000 : 0,
+      inventoryMaxTokens: includeInventory ? RAG_INVENTORY_SECTION_MAX_TOKENS : 0,
       // Enable pagination when we have a conversationId
       conversationId,
       isPaginationRequest: isPaginating,
       inventoryPagination: {
-        pageSize: 25,
+        pageSize: INVENTORY_PAGE_SIZE,
       },
     });
 
@@ -269,6 +278,25 @@ export async function buildRagContextForChat(
   }
 }
 
+/** Build shared log payload fields common to both success and failure logging */
+function buildBaseLogPayload(ctx: ChatLogContext, durationMs: number, queueWaitMs: number) {
+  return {
+    feature: ctx.feature,
+    conversationId: ctx.conversationId,
+    clientIp: ctx.clientIp,
+    userAgent: ctx.userAgent,
+    originHost: ctx.originHost,
+    pagePath: ctx.pagePath ?? undefined,
+    messages: ctx.messages,
+    metrics: {
+      durationMs,
+      queueWaitMs,
+      model: ctx.model,
+      priority: ctx.priority,
+    },
+  };
+}
+
 /** Log a successful chat completion */
 export function logSuccessfulChat(
   ctx: ChatLogContext,
@@ -277,47 +305,30 @@ export function logSuccessfulChat(
   queueWaitMs: number,
 ): void {
   logChatMessage({
-    feature: ctx.feature,
-    conversationId: ctx.conversationId,
-    clientIp: ctx.clientIp,
-    userAgent: ctx.userAgent,
-    originHost: ctx.originHost,
-    pagePath: ctx.pagePath ?? undefined,
-    messages: ctx.messages,
+    ...buildBaseLogPayload(ctx, durationMs, queueWaitMs),
     assistantMessage,
     metrics: {
-      durationMs,
-      queueWaitMs,
-      model: ctx.model,
+      ...buildBaseLogPayload(ctx, durationMs, queueWaitMs).metrics,
       statusCode: 200,
-      priority: ctx.priority,
     },
     success: true,
   });
 }
 
 /** Log a failed chat completion */
-export function logFailedChat(
-  ctx: ChatLogContext,
-  errorMessage: string,
-  durationMs: number,
-  queueWaitMs: number,
-  statusCode = 502,
-): void {
+export function logFailedChat(params: {
+  ctx: ChatLogContext;
+  errorMessage: string;
+  durationMs: number;
+  queueWaitMs: number;
+  statusCode?: number;
+}): void {
+  const { ctx, errorMessage, durationMs, queueWaitMs, statusCode = 502 } = params;
   logChatMessage({
-    feature: ctx.feature,
-    conversationId: ctx.conversationId,
-    clientIp: ctx.clientIp,
-    userAgent: ctx.userAgent,
-    originHost: ctx.originHost,
-    pagePath: ctx.pagePath ?? undefined,
-    messages: ctx.messages,
+    ...buildBaseLogPayload(ctx, durationMs, queueWaitMs),
     metrics: {
-      durationMs,
-      queueWaitMs,
-      model: ctx.model,
+      ...buildBaseLogPayload(ctx, durationMs, queueWaitMs).metrics,
       statusCode,
-      priority: ctx.priority,
     },
     success: false,
     errorMessage,
