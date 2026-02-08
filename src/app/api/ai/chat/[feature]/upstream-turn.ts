@@ -29,6 +29,9 @@ import {
 } from "./bookmark-tool-dispatch";
 import { emitDeferredContentEvents } from "./upstream-error";
 
+/** Approximate characters per token for thinking-token estimation */
+const APPROX_CHARS_PER_TOKEN = 4;
+
 export async function executeChatCompletionsTurn(
   requestMessages: OpenAiCompatibleChatMessage[],
   params: UpstreamTurnParams,
@@ -79,7 +82,10 @@ export async function executeChatCompletionsTurn(
   if (accumulatedThinking.length > 0 && onStreamEvent) {
     onStreamEvent({
       event: "thinking_done",
-      data: { text: accumulatedThinking, tokenCount: Math.ceil(accumulatedThinking.length / 4) },
+      data: {
+        text: accumulatedThinking,
+        tokenCount: Math.ceil(accumulatedThinking.length / APPROX_CHARS_PER_TOKEN),
+      },
     });
   }
 
@@ -174,7 +180,10 @@ export async function executeResponsesTurn(
   if (accumulatedThinking.length > 0 && onStreamEvent) {
     onStreamEvent({
       event: "thinking_done",
-      data: { text: accumulatedThinking, tokenCount: Math.ceil(accumulatedThinking.length / 4) },
+      data: {
+        text: accumulatedThinking,
+        tokenCount: Math.ceil(accumulatedThinking.length / APPROX_CHARS_PER_TOKEN),
+      },
     });
   }
 

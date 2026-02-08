@@ -8,6 +8,9 @@ import { join, dirname } from "node:path";
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import type { BookmarkS3Record, BookmarkSlugMapping } from "@/types/bookmark";
 
+/** Default number of bookmarks per paginated page */
+const DEFAULT_BOOKMARKS_PAGE_SIZE = 24;
+
 const LOCAL_S3_BASE =
   process.env.LOCAL_S3_CACHE_DIR?.trim() || join(process.cwd(), ".next", "cache", "local-s3");
 
@@ -56,7 +59,7 @@ export function buildPaginationArtifacts(
   pagePrefix: string,
 ): void {
   if (!Array.isArray(rawBookmarks) || rawBookmarks.length === 0) return;
-  let pageSize = 24;
+  let pageSize = DEFAULT_BOOKMARKS_PAGE_SIZE;
   if (typeof index === "object" && index !== null && "pageSize" in index) {
     const rawPageSize = (index as Record<string, unknown>).pageSize;
     if (typeof rawPageSize === "number" && rawPageSize > 0) {
@@ -91,7 +94,7 @@ export function buildTagArtifacts(
     });
   });
 
-  const pageSize = 24;
+  const pageSize = DEFAULT_BOOKMARKS_PAGE_SIZE;
   const timestamp = Date.now();
   tagBuckets.forEach((bookmarks, slug) => {
     const totalPages = Math.max(1, Math.ceil(bookmarks.length / pageSize));
