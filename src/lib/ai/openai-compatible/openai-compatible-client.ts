@@ -90,6 +90,7 @@ function validateResponsesRequest(
   );
 
   return {
+    ...request,
     model: parsedRequest.model,
     input: parsedRequest.input,
     temperature: parsedRequest.temperature,
