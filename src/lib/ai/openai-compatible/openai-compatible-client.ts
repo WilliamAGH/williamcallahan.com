@@ -50,7 +50,7 @@ function resolveClient(args: {
   if (existingClient) return existingClient;
 
   let timeout = args.timeoutMs;
-  if (typeof timeout !== "number") {
+  if (!Number.isFinite(timeout)) {
     console.warn("[AI] No timeout configured; defaulting to client timeout.", {
       baseUrl: args.baseUrl,
       timeoutMs: DEFAULT_TIMEOUT_MS,
@@ -80,8 +80,26 @@ function validateResponsesRequest(
 ): Omit<ResponseCreateParamsNonStreaming, "input"> & {
   input: OpenAiCompatibleChatCompletionsRequest["messages"];
 } {
-  openAiCompatibleResponsesRequestSchema.parse(request);
-  return request;
+  const parsedRequest = openAiCompatibleResponsesRequestSchema.parse(request);
+  const normalizedTools: ResponseCreateParamsNonStreaming["tools"] = parsedRequest.tools?.map(
+    (tool) => ({
+      ...tool,
+      parameters: tool.parameters ?? null,
+      strict: tool.strict ?? null,
+    }),
+  );
+
+  return {
+    model: parsedRequest.model,
+    input: parsedRequest.input,
+    temperature: parsedRequest.temperature,
+    top_p: parsedRequest.top_p,
+    max_output_tokens: parsedRequest.max_output_tokens,
+    tools: normalizedTools,
+    tool_choice: request.tool_choice,
+    parallel_tool_calls: parsedRequest.parallel_tool_calls,
+    reasoning: parsedRequest.reasoning,
+  };
 }
 
 function deriveOutputTextFromResponsesOutput(output: unknown[]): string {
