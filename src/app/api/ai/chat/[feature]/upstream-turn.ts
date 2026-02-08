@@ -84,7 +84,14 @@ export async function executeChatCompletionsTurn(
   }
 
   const assistantMessage = upstream.choices[0]?.message;
-  if (!assistantMessage) return { kind: "empty" };
+  if (!assistantMessage) {
+    console.warn("[upstream-turn] Upstream returned empty choices array", {
+      model: turnConfig.model,
+      responseId: upstream.id,
+      choicesCount: upstream.choices?.length ?? 0,
+    });
+    return { kind: "empty" };
+  }
 
   const toolCalls = assistantMessage.tool_calls ?? [];
   if (toolCalls.length === 0) {
@@ -186,8 +193,10 @@ export async function executeResponsesTurn(
     return { kind: "content", text };
   }
 
+  const responseText = response.output_text.trim();
   const assistantMsg: OpenAiCompatibleChatMessage = {
     role: "assistant",
+    ...(responseText.length > 0 ? { content: responseText } : {}),
     tool_calls: toolCalls.map((tc) => ({
       id: tc.call_id,
       type: "function",
