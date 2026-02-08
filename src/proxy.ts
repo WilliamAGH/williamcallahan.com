@@ -264,10 +264,7 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
   return response;
 }
 
-/**
- * Create the proxy handler - conditionally wraps with Clerk if configured.
- * When Clerk is not configured, protected routes are accessible without auth.
- */
+/** Create the proxy handler - conditionally wraps with Clerk if configured. */
 async function createProxy(): Promise<ProxyFunction> {
   if (!isClerkConfigured) {
     // No Clerk - just run the proxy handler directly
@@ -287,20 +284,21 @@ async function createProxy(): Promise<ProxyFunction> {
     // "/api/upload(.*)",
   ]);
 
-  return clerkMiddleware(
+  const clerkHandler = clerkMiddleware(
     async (auth: ClerkMiddlewareAuth, request: NextRequest) => {
-      // Check auth for protected routes first (before expensive CSP/caching operations)
-      if (isProtectedRoute(request)) {
-        await auth.protect();
-      }
-
-      // Run existing proxy logic (security headers, CSP, caching, logging)
+      if (isProtectedRoute(request)) await auth.protect();
       return proxyHandler(request);
     },
-    {
-      signInUrl: "/sign-in",
-    },
-  ) as unknown as ProxyFunction;
+    { signInUrl: "/sign-in" },
+  );
+  return (async (...args: Parameters<typeof clerkHandler>): Promise<NextResponse> => {
+    const result = await clerkHandler(...args);
+    if (result instanceof NextResponse) return result;
+    if (result instanceof Response) return new NextResponse(result.body, result);
+    // Void result is unexpected — block the request to prevent auth bypass ([RC1])
+    console.error("[Proxy] clerkMiddleware returned void; blocking request");
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }) as ProxyFunction;
 }
 
 // Lazy singleton with race-safe initialization

@@ -146,9 +146,13 @@ export function extractSearchBookmarkToolCalls(
 ): OpenAiCompatibleResponsesFunctionCall[] {
   const toolCalls: OpenAiCompatibleResponsesFunctionCall[] = [];
   for (const item of responseOutput) {
+    // Skip non-function-call items (text, reasoning, etc.) before schema parsing
+    if (!item || typeof item !== "object" || !("type" in item) || item.type !== "function_call") {
+      continue;
+    }
     const parsed = openAiCompatibleResponsesFunctionCallSchema.safeParse(item);
     if (!parsed.success) {
-      logger.warn("[AI Chat] Response output item failed function call schema", {
+      logger.warn("[AI Chat] Function call item failed schema validation", {
         error: parsed.error.message,
       });
       continue;

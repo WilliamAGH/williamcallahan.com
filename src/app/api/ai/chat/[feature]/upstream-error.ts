@@ -46,7 +46,7 @@ export function resolveErrorResponse(error: unknown): { status: number; message:
     return { status: 502, message: baseMessage };
   }
 
-  const maybeStatus = (error as { status?: unknown }).status;
+  const maybeStatus = "status" in error ? error.status : undefined;
   const status = typeof maybeStatus === "number" ? maybeStatus : 502;
   const message = error instanceof Error ? error.message : baseMessage;
 

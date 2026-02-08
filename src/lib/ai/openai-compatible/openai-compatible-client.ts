@@ -154,8 +154,13 @@ export async function streamOpenAiCompatibleChatCompletions(args: {
     // Reasoning fields are untyped in the SDK but present at runtime:
     // - "reasoning_content": DeepSeek API / llama.cpp --reasoning-format deepseek
     // - "reasoning": llama.cpp --reasoning-format auto (default for gpt-oss models)
-    const deltaRecord = chunk.choices[0]?.delta as Record<string, unknown> | undefined;
-    const thinkingDelta = deltaRecord?.reasoning_content ?? deltaRecord?.reasoning;
+    const choiceDelta = chunk.choices[0]?.delta;
+    let thinkingDelta: unknown;
+    if (choiceDelta && "reasoning_content" in choiceDelta) {
+      thinkingDelta = choiceDelta.reasoning_content;
+    } else if (choiceDelta && "reasoning" in choiceDelta) {
+      thinkingDelta = choiceDelta.reasoning;
+    }
     if (typeof thinkingDelta === "string" && thinkingDelta.length > 0) {
       args.onThinkingDelta?.(thinkingDelta);
     }
@@ -243,10 +248,10 @@ export async function streamOpenAiCompatibleResponses(args: {
     }
 
     // Reasoning summary events from OpenAI models that support extended thinking
-    if (event.type === "response.reasoning_summary_text.delta") {
-      const delta = (event as { delta?: string }).delta;
-      if (typeof delta === "string" && delta.length > 0) {
-        args.onThinkingDelta?.(delta);
+    if (event.type === "response.reasoning_summary_text.delta" && "delta" in event) {
+      const reasoningDelta = event.delta;
+      if (typeof reasoningDelta === "string" && reasoningDelta.length > 0) {
+        args.onThinkingDelta?.(reasoningDelta);
       }
     }
   }
