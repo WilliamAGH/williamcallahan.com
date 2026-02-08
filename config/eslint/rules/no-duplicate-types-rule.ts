@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import type { Rule } from "eslint";
 import type { TSESTree } from "@typescript-eslint/utils";
 
@@ -38,6 +39,11 @@ export const noDuplicateTypesRule: Rule.RuleModule = {
         // Already seen elsewhere – report duplicate
         const firstSeen = duplicateTypeTracker.get(name);
         if (firstSeen && firstSeen !== currentLocation) {
+          const [firstSeenFile] = firstSeen.split(":", 1);
+          if (!firstSeenFile || !existsSync(firstSeenFile)) {
+            duplicateTypeTracker.set(name, currentLocation);
+            return;
+          }
           context.report({
             node: idNode,
             message: `Type "${name}" is already declared at ${firstSeen}. All type names must be globally unique.`,

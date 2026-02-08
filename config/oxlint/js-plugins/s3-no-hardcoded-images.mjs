@@ -57,6 +57,11 @@ function isUsedAsStartsWithArgument(node) {
   return callee.property.name === "startsWith";
 }
 
+function isJsxAttributeValueLiteral(node) {
+  const parent = node.parent;
+  return parent?.type === "JSXAttribute" && parent.value === node;
+}
+
 function hasGetStaticImageUrlImport(context) {
   const program = context.sourceCode?.ast;
   if (!program || !Array.isArray(program.body)) return false;
@@ -134,6 +139,9 @@ export default {
                 isInS3 && hasImport
                   ? (fixer) => {
                       const text = context.sourceCode.getText(node);
+                      if (isJsxAttributeValueLiteral(node)) {
+                        return fixer.replaceText(node, `{getStaticImageUrl(${text})}`);
+                      }
                       return fixer.replaceText(node, `getStaticImageUrl(${text})`);
                     }
                   : null,
