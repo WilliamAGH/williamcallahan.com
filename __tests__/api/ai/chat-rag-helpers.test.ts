@@ -106,6 +106,24 @@ describe("AI Chat Request Validation", () => {
     expect(mockedMemoryPressureMiddleware).toHaveBeenCalledWith(request);
     expect(result).toBe(memoryResponse);
   });
+
+  it("rejects non-SSE requests and preserves warning status header", async () => {
+    const memoryWarningResponse = NextResponse.next();
+    memoryWarningResponse.headers.set("X-System-Status", "MEMORY_WARNING");
+    mockedMemoryPressureMiddleware.mockResolvedValueOnce(memoryWarningResponse);
+
+    const request = new NextRequest("https://williamcallahan.com/api/ai/chat/terminal_chat", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ userText: "hello there" }),
+    });
+
+    const result = await validateRequest(request, "terminal_chat");
+
+    expect(result).toBeInstanceOf(NextResponse);
+    expect(result.status).toBe(406);
+    expect(result.headers.get("X-System-Status")).toBe("MEMORY_WARNING");
+  });
 });
 
 describe("AI Chat Abort Detection", () => {
