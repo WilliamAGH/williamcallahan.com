@@ -112,12 +112,7 @@ function renderBookAnalysis(analysis: BookAiAnalysisResponse, helpers: AnalysisR
       />
 
       {analysis.idealReader && (
-        <AnalysisSection
-          label="Ideal Reader"
-          index={2}
-          accentColor="#e0af68"
-          skipAnimation={skipAnimation}
-        >
+        <AnalysisSection label="Ideal Reader" index={2} skipAnimation={skipAnimation}>
           {analysis.idealReader}
         </AnalysisSection>
       )}
@@ -135,12 +130,7 @@ function renderBookAnalysis(analysis: BookAiAnalysisResponse, helpers: AnalysisR
       />
 
       {analysis.whyItMatters && (
-        <AnalysisSection
-          label="Why It Matters"
-          index={4}
-          accentColor="#73daca"
-          skipAnimation={skipAnimation}
-        >
+        <AnalysisSection label="Why It Matters" index={4} skipAnimation={skipAnimation}>
           {analysis.whyItMatters}
         </AnalysisSection>
       )}
