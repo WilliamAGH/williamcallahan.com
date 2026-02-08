@@ -97,14 +97,14 @@ function resolveBookmarkContent(
   return formatBookmarkResultsAsLinks(toolObservedResults);
 }
 
-function handleAnalysisValidation(
-  analysisFeature: AnalysisFeatureId,
-  outcomeText: string | undefined,
-  attemptsSoFar: number,
-  requestMessages: OpenAiCompatibleChatMessage[],
-  fallbackModel: string | undefined,
-  activeModel: string,
-): AnalysisHandleResult {
+function handleAnalysisValidation(params: {
+  analysisFeature: AnalysisFeatureId;
+  outcomeText: string | undefined;
+  attemptsSoFar: number;
+  fallbackModel: string | undefined;
+  activeModel: string;
+}): AnalysisHandleResult {
+  const { analysisFeature, outcomeText, attemptsSoFar, fallbackModel, activeModel } = params;
   const text = typeof outcomeText === "string" ? outcomeText.trim() : "";
   if (text.length === 0) {
     console.warn("[upstream-pipeline] Analysis output missing content; validating empty response", {
@@ -123,14 +123,15 @@ function handleAnalysisValidation(
       { feature: analysisFeature, attempt: nextAttempt, reason: validation.reason },
     );
 
-    if (text.length > 0) requestMessages.push({ role: "assistant", content: text });
-    requestMessages.push({
+    const newMessages: OpenAiCompatibleChatMessage[] = [];
+    if (text.length > 0) newMessages.push({ role: "assistant", content: text });
+    newMessages.push({
       role: "user",
       content: buildAnalysisRepairPrompt(analysisFeature, validation.reason),
     });
 
     const newModel = fallbackModel && activeModel !== fallbackModel ? fallbackModel : undefined;
-    return { action: "retry", newModel };
+    return { action: "retry", newModel, newMessages };
   }
 
   return {
@@ -298,16 +299,16 @@ async function handleContentOutcome(ctx: ContentOutcomeCtx): Promise<ContentOutc
   }
 
   if (ctx.analysisFeature) {
-    const result = handleAnalysisValidation(
-      ctx.analysisFeature,
-      ctx.result.text,
-      ctx.analysisValidationAttempts,
-      ctx.requestMessages,
-      ctx.args.fallbackModel,
-      ctx.activeModel,
-    );
+    const result = handleAnalysisValidation({
+      analysisFeature: ctx.analysisFeature,
+      outcomeText: ctx.result.text,
+      attemptsSoFar: ctx.analysisValidationAttempts,
+      fallbackModel: ctx.args.fallbackModel,
+      activeModel: ctx.activeModel,
+    });
     if (result.action === "done") return { done: true, text: ctx.done(result.text) };
     if (result.action === "retry") {
+      ctx.requestMessages.push(...result.newMessages);
       return {
         done: false,
         retry: true,
