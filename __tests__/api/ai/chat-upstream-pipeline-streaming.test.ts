@@ -1,237 +1,27 @@
-import { buildChatPipeline } from "@/app/api/ai/chat/[feature]/upstream-pipeline";
-import { searchBookmarks } from "@/lib/search/searchers/dynamic-searchers";
-import type { ValidatedRequestContext } from "@/types/features/ai-chat";
-import type { OpenAiCompatibleChatMessage } from "@/types/schemas/ai-openai-compatible";
+import {
+  bookmarkLink,
+  createPipeline,
+  expectDeterministicBookmarkReply,
+  expectSingleMessageDoneEvent,
+  expectStandardStreamEvents,
+  mockCallOpenAiCompatibleChatCompletions,
+  mockCallOpenAiCompatibleResponses,
+  mockGetUpstreamRequestQueue,
+  mockSingleBookmarkSearchResult,
+  mockStreamOpenAiCompatibleChatCompletions,
+  mockStreamOpenAiCompatibleResponses,
+  mockStreamingSearchBookmarksToolCall,
+  resetPipelineMocks,
+  runPipelineWithEvents,
+  streamModel,
+  type EventPayload,
+} from "./upstream-pipeline-test-harness";
 
-const mockCallOpenAiCompatibleChatCompletions = vi.fn().mockResolvedValue({
-  choices: [{ message: { content: "ok" } }],
-});
-const mockCallOpenAiCompatibleResponses = vi.fn().mockResolvedValue({
-  id: "response_1",
-  output_text: "ok",
-  output: [],
-});
-const mockStreamOpenAiCompatibleChatCompletions = vi.fn();
-const mockStreamOpenAiCompatibleResponses = vi.fn();
-const mockBuildChatMessages = vi
-  .fn()
-  .mockReturnValue([
-    { role: "user", content: "search bookmarks" } satisfies OpenAiCompatibleChatMessage,
-  ]);
-const mockGetUpstreamRequestQueue = vi.fn().mockReturnValue({
-  add: vi.fn(),
-});
-
-vi.mock("@/lib/ai/openai-compatible/openai-compatible-client", () => ({
-  callOpenAiCompatibleChatCompletions: (...args: unknown[]) =>
-    mockCallOpenAiCompatibleChatCompletions(...args),
-  callOpenAiCompatibleResponses: (...args: unknown[]) => mockCallOpenAiCompatibleResponses(...args),
-  streamOpenAiCompatibleChatCompletions: (...args: unknown[]) =>
-    mockStreamOpenAiCompatibleChatCompletions(...args),
-  streamOpenAiCompatibleResponses: (...args: unknown[]) =>
-    mockStreamOpenAiCompatibleResponses(...args),
-}));
-vi.mock("@/lib/ai/openai-compatible/chat-messages", () => ({
-  buildChatMessages: (...args: unknown[]) => mockBuildChatMessages(...args),
-}));
-vi.mock("@/lib/ai/openai-compatible/upstream-request-queue", () => ({
-  getUpstreamRequestQueue: (...args: unknown[]) => mockGetUpstreamRequestQueue(...args),
-}));
-vi.mock("@/lib/ai/openai-compatible/feature-config", () => ({
-  resolveOpenAiCompatibleFeatureConfig: vi.fn().mockReturnValue({
-    baseUrl: "https://example.com",
-    model: "test-model",
-    maxParallel: 1,
-  }),
-  resolvePreferredUpstreamModel: vi.fn().mockReturnValue({
-    primaryModel: "test-model",
-    fallbackModel: undefined,
-  }),
-  buildUpstreamQueueKey: vi.fn(({ baseUrl, model, apiMode }) => {
-    const route = apiMode === "responses" ? "responses" : "chat/completions";
-    return `${baseUrl}/v1/${route}::${model}`;
-  }),
-}));
-vi.mock("@/lib/search/searchers/dynamic-searchers", () => ({
-  searchBookmarks: vi.fn(),
-}));
-
-const mockedSearchBookmarks = vi.mocked(searchBookmarks);
-const conversationId = "77777777-7777-4777-8777-777777777777";
-const bookmarkTitle = "Signs of AI writing / LLM written text (Wikipedia article)";
-const bookmarkUrl = "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing";
-const bookmarkLink = `[${bookmarkTitle}](${bookmarkUrl})`;
-const searchQuery = "wikipedia ai writing";
-const streamModel = "test-model";
-
-type EventPayload = { event: string; data: unknown };
-type PipelineOptions = {
-  feature?: "terminal_chat" | "bookmark-analysis";
-  temperature?: number;
-  userContent?: string;
-  apiMode?: "chat_completions" | "responses";
-};
-type StreamHandlerArgs = {
-  onStart?: (meta: { id: string; model: string }) => void;
-  onDelta?: (delta: string) => void;
-};
-
-function createValidatedContext(args?: PipelineOptions): ValidatedRequestContext {
-  return {
-    feature: args?.feature ?? "terminal_chat",
-    clientIp: "::1",
-    pagePath: "/bookmarks",
-    originHost: "localhost",
-    userAgent: "vitest",
-    parsedBody: {
-      conversationId,
-      priority: 10,
-      ...(args?.temperature !== undefined ? { temperature: args.temperature } : {}),
-      ...(args?.apiMode ? { apiMode: args.apiMode } : {}),
-      messages: [{ role: "user", content: args?.userContent ?? "hello there" }],
-    },
-  };
-}
-
-function createPipeline(args?: PipelineOptions) {
-  return buildChatPipeline({
-    feature: args?.feature ?? "terminal_chat",
-    ctx: createValidatedContext(args),
-    ragResult: { augmentedPrompt: undefined, status: "not_applicable" },
-    signal: new AbortController().signal,
-  });
-}
-
-function mockSingleBookmarkSearchResult(): void {
-  mockedSearchBookmarks.mockResolvedValue([
-    {
-      id: "bookmark-1",
-      type: "bookmark",
-      title: bookmarkTitle,
-      description: "Wikipedia article bookmark",
-      url: bookmarkUrl,
-      score: 99,
-    },
-  ]);
-}
-
-async function runPipelineWithEvents(args?: PipelineOptions): Promise<{
-  reply: string;
-  events: EventPayload[];
-}> {
-  const events: EventPayload[] = [];
-  const reply = await createPipeline(args).runUpstream((event) => events.push(event));
-  return { reply, events };
-}
-
-function expectSingleMessageDoneEvent(events: EventPayload[], message: string): void {
-  expect(events).toEqual([{ event: "message_done", data: { message } }]);
-}
-
-function expectDeterministicBookmarkReply(reply: string, forbiddenToken?: string): void {
-  expect(reply).toContain("Here are the best matches I found:");
-  expect(reply).toContain(bookmarkLink);
-  if (forbiddenToken) {
-    expect(reply).not.toContain(forbiddenToken);
-  }
-}
-
-function expectStandardStreamEvents(
-  events: EventPayload[],
-  args: { id: string; apiMode: "chat_completions" | "responses" },
-): void {
-  expect(events).toEqual([
-    { event: "message_start", data: { id: args.id, model: streamModel, apiMode: args.apiMode } },
-    { event: "message_delta", data: { delta: "o" } },
-    { event: "message_delta", data: { delta: "k" } },
-    { event: "message_done", data: { message: "ok" } },
-  ]);
-}
-
-function mockStreamDefaultChatResponse(): void {
-  mockStreamOpenAiCompatibleChatCompletions.mockImplementation(
-    ({ onStart, onDelta }: StreamHandlerArgs) => {
-      onStart?.({ id: "chatcmpl_1", model: streamModel });
-      onDelta?.("o");
-      onDelta?.("k");
-      return Promise.resolve({
-        id: "chatcmpl_1",
-        choices: [{ message: { role: "assistant", content: "ok" } }],
-      });
-    },
-  );
-}
-
-function mockStreamDefaultResponsesResponse(): void {
-  mockStreamOpenAiCompatibleResponses.mockImplementation(
-    ({ onStart, onDelta }: StreamHandlerArgs) => {
-      onStart?.({ id: "response_1", model: streamModel });
-      onDelta?.("o");
-      onDelta?.("k");
-      return Promise.resolve({
-        id: "response_1",
-        output_text: "ok",
-        output: [],
-      });
-    },
-  );
-}
-
-function mockStreamingSearchBookmarksToolCall(args: {
-  streamId: string;
-  query?: string;
-  maxResults?: number;
-}): void {
-  const query = args.query ?? searchQuery;
-  const toolCallArgs =
-    typeof args.maxResults === "number" ? { query, maxResults: args.maxResults } : { query };
-
-  mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(
-    ({ onStart }: StreamHandlerArgs) => {
-      onStart?.({ id: args.streamId, model: streamModel });
-      return Promise.resolve({
-        id: args.streamId,
-        choices: [
-          {
-            message: {
-              role: "assistant",
-              tool_calls: [
-                {
-                  id: "tool-call-1",
-                  type: "function",
-                  function: {
-                    name: "search_bookmarks",
-                    arguments: JSON.stringify(toolCallArgs),
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      });
-    },
-  );
-}
+const ANALYSIS_PROMPT = "Analyze this bookmark";
 
 describe("AI Chat Upstream Pipeline Streaming", () => {
   beforeEach(() => {
-    mockedSearchBookmarks.mockReset();
-    mockCallOpenAiCompatibleChatCompletions.mockClear();
-    mockCallOpenAiCompatibleResponses.mockClear();
-    mockStreamOpenAiCompatibleChatCompletions.mockClear();
-    mockStreamOpenAiCompatibleResponses.mockClear();
-    mockBuildChatMessages.mockClear();
-    mockGetUpstreamRequestQueue.mockClear();
-    mockCallOpenAiCompatibleChatCompletions.mockResolvedValue({
-      choices: [{ message: { role: "assistant", content: "ok" } }],
-    });
-    mockCallOpenAiCompatibleResponses.mockResolvedValue({
-      id: "response_1",
-      output_text: "ok",
-      output: [],
-    });
-    mockStreamDefaultChatResponse();
-    mockStreamDefaultResponsesResponse();
+    resetPipelineMocks();
   });
 
   it("defaults terminal chat to feature-specific model params when not provided", async () => {
@@ -270,6 +60,7 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
 
   it("emits normalized stream events for chat completions", async () => {
     const { reply, events } = await runPipelineWithEvents();
+
     expect(reply).toBe("ok");
     expect(mockStreamOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
     expect(mockCallOpenAiCompatibleChatCompletions).not.toHaveBeenCalled();
@@ -278,6 +69,7 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
 
   it("streams responses mode events", async () => {
     const { reply, events } = await runPipelineWithEvents({ apiMode: "responses" });
+
     expect(reply).toBe("ok");
     expect(mockStreamOpenAiCompatibleResponses).toHaveBeenCalledTimes(1);
     expect(mockCallOpenAiCompatibleResponses).not.toHaveBeenCalled();
@@ -299,20 +91,18 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
       targetAudience: "Developers building browser automation agents",
     });
 
-    mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(
-      ({ onStart, onDelta }: StreamHandlerArgs) => {
-        onStart?.({ id: "chatcmpl_analysis", model: streamModel });
-        onDelta?.(validAnalysis);
-        return Promise.resolve({
-          id: "chatcmpl_analysis",
-          choices: [{ message: { role: "assistant", content: validAnalysis } }],
-        });
-      },
-    );
+    mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(({ onStart, onDelta }) => {
+      onStart?.({ id: "chatcmpl_analysis", model: streamModel });
+      onDelta?.(validAnalysis);
+      return Promise.resolve({
+        id: "chatcmpl_analysis",
+        choices: [{ message: { role: "assistant", content: validAnalysis } }],
+      });
+    });
 
     const { reply, events } = await runPipelineWithEvents({
       feature: "bookmark-analysis",
-      userContent: "Analyze this bookmark",
+      userContent: ANALYSIS_PROMPT,
     });
 
     expect(reply).toBe(validAnalysis);
@@ -350,6 +140,7 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
     });
 
     const { reply, events } = await runPipelineWithEvents({ userContent: "hello there" });
+
     if (expectDeterministicReply) {
       expectDeterministicBookmarkReply(reply, forbiddenToken);
     } else {
@@ -365,330 +156,34 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
   });
 
   it("emits refusal text as streamed content when completion has no assistant content", async () => {
-    mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(
-      ({ onStart }: StreamHandlerArgs) => {
-        onStart?.({ id: "chatcmpl_refusal", model: streamModel });
-        return Promise.resolve({
-          id: "chatcmpl_refusal",
-          choices: [
-            {
-              message: {
-                role: "assistant",
-                content: null,
-                refusal: "I cannot help with that request.",
-              },
-              finish_reason: "content_filter",
+    mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(({ onStart }) => {
+      onStart?.({ id: "chatcmpl_refusal", model: streamModel });
+      return Promise.resolve({
+        id: "chatcmpl_refusal",
+        choices: [
+          {
+            message: {
+              role: "assistant",
+              content: null,
+              refusal: "I cannot help with that request.",
             },
-          ],
-        });
-      },
-    );
+            finish_reason: "content_filter",
+          },
+        ],
+      });
+    });
 
     const { reply, events } = await runPipelineWithEvents({ userContent: "hello there" });
-    expect(reply).toBe("I cannot help with that request.");
+    const expectedMessage = "I cannot help with that request.";
+
+    expect(reply).toBe(expectedMessage);
     expect(events).toEqual([
       {
         event: "message_start",
         data: { id: "chatcmpl_refusal", model: streamModel, apiMode: "chat_completions" },
       },
-      { event: "message_delta", data: { delta: "I cannot help with that request." } },
-      { event: "message_done", data: { message: "I cannot help with that request." } },
-    ]);
-  });
-
-  it("retries invalid bookmark-analysis JSON and returns schema-valid output", async () => {
-    const invalidAnalysis = `{"summary":"Only summary"}`;
-    const validAnalysis = JSON.stringify({
-      summary: "z-agent-browser is a Rust-based browser automation CLI.",
-      category: "Developer Tools",
-      highlights: ["Stealth mode", "Playwright MCP integration"],
-      contextualDetails: {
-        primaryDomain: "Browser automation",
-        format: "GitHub repository",
-        accessMethod: "Open source",
-      },
-      relatedResources: ["agent-browser", "Playwright"],
-      targetAudience: "Developers building browser automation agents",
-    });
-
-    mockCallOpenAiCompatibleChatCompletions
-      .mockResolvedValueOnce({
-        choices: [{ message: { role: "assistant", content: invalidAnalysis } }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { role: "assistant", content: validAnalysis } }],
-      });
-
-    const reply = await createPipeline({
-      feature: "bookmark-analysis",
-      userContent: "Analyze this bookmark",
-    }).runUpstream();
-
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(2);
-    const parsed = JSON.parse(reply) as {
-      summary: string;
-      category: string;
-      highlights: string[];
-      targetAudience: string;
-    };
-    expect(parsed.summary.length).toBeGreaterThan(0);
-    expect(parsed.category.length).toBeGreaterThan(0);
-    expect(parsed.highlights.length).toBeGreaterThan(0);
-    expect(parsed.targetAudience.length).toBeGreaterThan(0);
-
-    const secondRequestMessages =
-      mockCallOpenAiCompatibleChatCompletions.mock.calls[1]?.[0]?.request?.messages;
-    const repairPromptPresent = Array.isArray(secondRequestMessages)
-      ? secondRequestMessages.some(
-          (message: { role?: string; content?: unknown }) =>
-            message.role === "user" &&
-            typeof message.content === "string" &&
-            message.content.includes("Rewrite your previous answer as valid JSON only."),
-        )
-      : false;
-    expect(repairPromptPresent).toBe(true);
-  });
-
-  it("retries semantically invalid bookmark-analysis content and returns normalized JSON", async () => {
-    const semanticallyInvalidAnalysis = JSON.stringify({
-      summary: "z-agent-browser is a Rust automation CLI.",
-      category: "Developer Tools",
-      highlights: ["Stealth mode"],
-      contextualDetails: {
-        primaryDomain: "Browser automation",
-        format: "GitHub repository",
-        accessMethod: "Open source",
-      },
-      relatedResources: ["///<<<>>>..."],
-      targetAudience: "   ",
-    });
-    const validAnalysis = JSON.stringify({
-      summary: "z-agent-browser is a Rust-based browser automation CLI.",
-      category: "Developer Tools",
-      highlights: ["Stealth mode", "Playwright MCP integration"],
-      contextualDetails: {
-        primaryDomain: "Browser automation",
-        format: "GitHub repository",
-        accessMethod: "Open source",
-      },
-      relatedResources: ["agent-browser", "Playwright"],
-      targetAudience: "Developers building browser automation agents",
-    });
-
-    mockCallOpenAiCompatibleChatCompletions
-      .mockResolvedValueOnce({
-        choices: [{ message: { role: "assistant", content: semanticallyInvalidAnalysis } }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { role: "assistant", content: validAnalysis } }],
-      });
-
-    const reply = await createPipeline({
-      feature: "bookmark-analysis",
-      userContent: "Analyze this bookmark",
-    }).runUpstream();
-
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(2);
-    const parsed = JSON.parse(reply) as { targetAudience: string; relatedResources: string[] };
-    expect(parsed.targetAudience).toBe("Developers building browser automation agents");
-    expect(parsed.relatedResources).toEqual(["agent-browser", "Playwright"]);
-  });
-
-  it("rejects prompt-leakage text in analysis fields and retries", async () => {
-    const leakageAnalysis = JSON.stringify({
-      summary: "z-agent-browser is a Rust-based browser automation CLI.",
-      category: "Developer Tools",
-      highlights: ["Stealth mode"],
-      contextualDetails: {
-        primaryDomain: "Rust",
-        format: "GitHub repository",
-        accessMethod: "Repository",
-      },
-      relatedResources: ["agent-browser"],
-      targetAudience:
-        'The user wants strict JSON. Provide strict JSON. ```json {"placeholder":true} ```',
-    });
-    const validAnalysis = JSON.stringify({
-      summary: "z-agent-browser is a Rust-based browser automation CLI.",
-      category: "Developer Tools",
-      highlights: ["Stealth mode", "Playwright MCP integration"],
-      contextualDetails: {
-        primaryDomain: "Browser automation",
-        format: "GitHub repository",
-        accessMethod: "Open source",
-      },
-      relatedResources: ["agent-browser", "Playwright"],
-      targetAudience: "Developers building browser automation agents",
-    });
-
-    mockCallOpenAiCompatibleChatCompletions
-      .mockResolvedValueOnce({
-        choices: [{ message: { role: "assistant", content: leakageAnalysis } }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { role: "assistant", content: validAnalysis } }],
-      });
-
-    const reply = await createPipeline({
-      feature: "bookmark-analysis",
-      userContent: "Analyze this bookmark",
-    }).runUpstream();
-
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(2);
-    const parsed = JSON.parse(reply) as { targetAudience: string };
-    expect(parsed.targetAudience).toBe("Developers building browser automation agents");
-  });
-
-  it("normalizes coercible analysis field shapes before validation", async () => {
-    const coercibleAnalysis = JSON.stringify({
-      summary: ["z-agent-browser is a Rust-based browser automation CLI."],
-      category: "Developer Tools",
-      highlights: "Stealth mode",
-      contextualDetails: {
-        primaryDomain: "Browser automation",
-        format: "GitHub repository",
-        accessMethod: "Open source",
-      },
-      relatedResources: "agent-browser",
-      targetAudience: ["Developers building browser automation agents"],
-    });
-
-    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
-      choices: [{ message: { role: "assistant", content: coercibleAnalysis } }],
-    });
-
-    const reply = await createPipeline({
-      feature: "bookmark-analysis",
-      userContent: "Analyze this bookmark",
-    }).runUpstream();
-
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
-    const parsed = JSON.parse(reply) as {
-      summary: string;
-      highlights: string[];
-      relatedResources: string[];
-      targetAudience: string;
-    };
-    expect(parsed.summary).toBe("z-agent-browser is a Rust-based browser automation CLI.");
-    expect(parsed.highlights).toEqual(["Stealth mode"]);
-    expect(parsed.relatedResources).toEqual(["agent-browser"]);
-    expect(parsed.targetAudience).toBe("Developers building browser automation agents");
-  });
-
-  it("derives targetAudience from category when only punctuation is returned", async () => {
-    const punctuationAudienceAnalysis = JSON.stringify({
-      summary: "z-agent-browser is a Rust-based browser automation CLI.",
-      category: "Developer Tools",
-      highlights: ["Stealth mode", "Playwright MCP integration"],
-      contextualDetails: {
-        primaryDomain: "Browser automation",
-        format: "GitHub repository",
-        accessMethod: "Open source",
-      },
-      relatedResources: ["agent-browser", "Playwright"],
-      targetAudience: "...",
-    });
-
-    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
-      choices: [{ message: { role: "assistant", content: punctuationAudienceAnalysis } }],
-    });
-
-    const reply = await createPipeline({
-      feature: "bookmark-analysis",
-      userContent: "Analyze this bookmark",
-    }).runUpstream();
-
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
-    const parsed = JSON.parse(reply) as { targetAudience: string };
-    expect(parsed.targetAudience).toBe("People interested in Developer Tools.");
-  });
-
-  it("derives targetAudience fallback when field is null or missing", async () => {
-    const nullAudienceAnalysis = JSON.stringify({
-      summary: "z-agent-browser is a Rust-based browser automation CLI.",
-      category: "Developer Tools",
-      highlights: ["Stealth mode", "Playwright MCP integration"],
-      contextualDetails: {
-        primaryDomain: "Browser automation",
-        format: "GitHub repository",
-        accessMethod: "Open source",
-      },
-      relatedResources: ["agent-browser", "Playwright"],
-      targetAudience: null,
-    });
-
-    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
-      choices: [{ message: { role: "assistant", content: nullAudienceAnalysis } }],
-    });
-
-    const reply = await createPipeline({
-      feature: "bookmark-analysis",
-      userContent: "Analyze this bookmark",
-    }).runUpstream();
-
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
-    const parsed = JSON.parse(reply) as { targetAudience: string };
-    expect(parsed.targetAudience).toBe("People interested in Developer Tools.");
-  });
-
-  it("derives targetAudience fallback when field is an array of symbols", async () => {
-    const arrayAudienceAnalysis = JSON.stringify({
-      summary: "z-agent-browser is a Rust-based browser automation CLI.",
-      category: "Developer Tools",
-      highlights: ["Stealth mode", "Playwright MCP integration"],
-      contextualDetails: {
-        primaryDomain: "Browser automation",
-        format: "GitHub repository",
-        accessMethod: "Open source",
-      },
-      relatedResources: ["agent-browser", "Playwright"],
-      targetAudience: ["---", "***"],
-    });
-
-    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
-      choices: [{ message: { role: "assistant", content: arrayAudienceAnalysis } }],
-    });
-
-    const reply = await createPipeline({
-      feature: "bookmark-analysis",
-      userContent: "Analyze this bookmark",
-    }).runUpstream();
-
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
-    const parsed = JSON.parse(reply) as { targetAudience: string };
-    expect(parsed.targetAudience).toBe("People interested in Developer Tools.");
-  });
-
-  it("fills missing contextualDetails fields with null instead of failing", async () => {
-    const missingDetailsAnalysis = JSON.stringify({
-      summary: "z-agent-browser is a Rust-based browser automation CLI.",
-      category: "Developer Tools",
-      highlights: ["Stealth mode", "Playwright MCP integration"],
-      relatedResources: ["agent-browser", "Playwright"],
-      targetAudience: "Developers building browser automation agents",
-    });
-
-    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
-      choices: [{ message: { role: "assistant", content: missingDetailsAnalysis } }],
-    });
-
-    const reply = await createPipeline({
-      feature: "bookmark-analysis",
-      userContent: "Analyze this bookmark",
-    }).runUpstream();
-
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
-    const parsed = JSON.parse(reply) as {
-      contextualDetails: {
-        primaryDomain: string | null;
-        format: string | null;
-        accessMethod: string | null;
-      };
-    };
-    expect(parsed.contextualDetails).toEqual({
-      primaryDomain: null,
-      format: null,
-      accessMethod: null,
-    });
+      { event: "message_delta", data: { delta: expectedMessage } },
+      { event: "message_done", data: { message: expectedMessage } },
+    ] satisfies EventPayload[]);
   });
 });
