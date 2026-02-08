@@ -188,7 +188,7 @@ function detectFromProductionUrl(): Environment | null {
 /**
  * Environment detection strategy that falls back to NODE_ENV variable.
  */
-function detectFromNodeEnv(): Environment | null {
+function detectFromNodeEnv(): Environment {
   const env = process.env.NODE_ENV;
   if (!env) {
     logOnce("no_node_env", () =>
@@ -214,7 +214,6 @@ const DETECTION_STRATEGIES: Array<() => Environment | null> = [
   detectFromLocalhostUrl,
   detectFromDevSubdomain,
   detectFromProductionUrl,
-  detectFromNodeEnv,
 ];
 
 /**
@@ -233,7 +232,7 @@ export function getEnvironment(): Environment {
     const result = strategy();
     if (result) return result;
   }
-  return "development";
+  return detectFromNodeEnv();
 }
 
 /**

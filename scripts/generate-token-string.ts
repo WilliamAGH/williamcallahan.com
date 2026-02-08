@@ -7,10 +7,14 @@ const envPath = path.resolve(process.cwd(), ".env");
 if (fs.existsSync(envPath)) {
   const envContent = fs.readFileSync(envPath, "utf8");
   envContent.split("\n").forEach((line) => {
-    const [key, value] = line.split("=");
-    if (key && value) {
-      process.env[key.trim()] = value.trim();
-    }
+    const trimmedLine = line.trim();
+    if (!trimmedLine || trimmedLine.startsWith("#")) return;
+    const separatorIndex = trimmedLine.indexOf("=");
+    if (separatorIndex === -1) return;
+    const key = trimmedLine.slice(0, separatorIndex).trim();
+    const value = trimmedLine.slice(separatorIndex + 1).trim();
+    if (!key) return;
+    process.env[key] = value;
   });
 }
 
