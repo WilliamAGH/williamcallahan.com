@@ -67,7 +67,6 @@ export function useTerminal() {
   } = useAiChatQueue({
     history,
     addToHistory,
-    removeFromHistory,
     conversationId: aiChatConversationId,
     feature: TERMINAL_CHAT_FEATURE,
   });

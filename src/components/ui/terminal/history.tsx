@@ -29,8 +29,10 @@ import {
 const TERMINAL_LINK_CLASS =
   "text-[#7aa2f7] underline underline-offset-2 hover:text-[#9ab7ff] transition-colors";
 
+const SAFE_INTERNAL_PATH_PATTERN = /^\/(?!\/)[A-Za-z0-9\-._~!$&'()*+,;=:@/?#[\]%]*$/;
+
 function isInternalSlugPath(value: string): boolean {
-  return value.startsWith("/") && !value.startsWith("//");
+  return SAFE_INTERNAL_PATH_PATTERN.test(value);
 }
 
 /** Each pattern extracts a prefix, display text, and link path from a chat line */
