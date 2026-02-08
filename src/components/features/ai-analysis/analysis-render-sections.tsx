@@ -31,7 +31,7 @@ export function BulletListSection({
     >
       <ul className="space-y-1.5 mt-1">
         {items.map((item, idx) => (
-          <TerminalListItem key={item} index={idx} skipAnimation={skipAnimation}>
+          <TerminalListItem key={`${item}-${idx}`} index={idx} skipAnimation={skipAnimation}>
             {item}
           </TerminalListItem>
         ))}
@@ -69,7 +69,7 @@ export function ChipListSection({
       <div className="flex flex-wrap gap-1.5 mt-1">
         {items.map((item, idx) => (
           <motion.span
-            key={item}
+            key={`${item}-${idx}`}
             initial={skipAnimation ? false : { opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: idx * 0.05 }}

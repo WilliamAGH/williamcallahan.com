@@ -184,6 +184,7 @@ export function ModernAiAnalysis<TEntity, TAnalysis>({
                   {state.error || "Something went wrong while analyzing this content."}
                 </p>
                 <button
+                  type="button"
                   onClick={handleManualTrigger}
                   className="mt-2 inline-flex items-center gap-2 text-xs font-medium text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100 transition-colors"
                 >
@@ -203,6 +204,7 @@ export function ModernAiAnalysis<TEntity, TAnalysis>({
             exit={{ opacity: 0 }}
           >
             <button
+              type="button"
               onClick={handleManualTrigger}
               className="w-full group bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-xl p-6 transition-all shadow-sm hover:shadow-md text-left flex items-center justify-between"
             >
@@ -250,6 +252,7 @@ export function ModernAiAnalysis<TEntity, TAnalysis>({
                 <span>AI Generated</span>
               </div>
               <button
+                type="button"
                 onClick={handleManualTrigger}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 title="Refresh Analysis"
