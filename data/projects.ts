@@ -1,7 +1,7 @@
 import type { Project } from "@/types/project";
 
 // Remember to update this date whenever the projects data or the Projects page design changes
-export const updatedAt = "2026-01-22";
+export const updatedAt = "2026-02-08";
 
 export const projects: Project[] = [
   {
@@ -150,6 +150,19 @@ export const projects: Project[] = [
     cvFeatured: true,
   },
   {
+    id: "Java Chat",
+    name: "Java Chat",
+    description:
+      "AI-powered Java learning chat app with streaming answers, citations, and guided lessons grounded in ingested documentation (RAG). Built with Spring Boot (WebFlux), Svelte, and Qdrant.",
+    shortSummary: "RAG-powered Java learning chat app with streaming answers and citations",
+    url: "https://javachat.ai",
+    githubUrl: "https://github.com/WilliamAGH/java-chat",
+    imageKey: "images/other/projects/java-chat-app.png",
+    tags: ["AI", "Chat", "RAG", "Education", "Streaming", "Web App", "Java"],
+    techStack: ["Java 25", "Spring Boot", "Spring WebFlux", "Svelte", "Qdrant", "Gradle"],
+    cvFeatured: true,
+  },
+  {
     id: "tui-aventure-vc",
     name: "Company Research TUI",
     description:
@@ -255,7 +268,6 @@ export const projects: Project[] = [
     shortSummary: "Book search and recommendation engine with OpenAI integration",
     url: "https://findmybook.net/",
     imageKey: "images/other/projects/book-finder-findmybook-net.png",
-    note: "Note: Because it relies on the Google Books API and other public endpoints, heavy traffic lately has caused it to frequently hit external rate limits—during those windows some books or covers may fail to render until quotas reset. Since this project is not actively maintained, I haven't engineered an alternative solution yet.",
     tags: ["Book Search", "Book Finder", "Book Recommendation", "Book Catalog & Indexing"],
     techStack: [
       "Java",
