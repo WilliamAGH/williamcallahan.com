@@ -295,9 +295,8 @@ async function createProxy(): Promise<ProxyFunction> {
     const result = await clerkHandler(...args);
     if (result instanceof NextResponse) return result;
     if (result instanceof Response) return new NextResponse(result.body, result);
-    // Void result is unexpected — block the request to prevent auth bypass ([RC1])
-    console.error("[Proxy] clerkMiddleware returned void; blocking request");
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    // Void result is never expected — surface as a hard failure ([RC1])
+    throw new Error("[Proxy] clerkMiddleware returned void; potential auth bypass");
   }) as ProxyFunction;
 }
 
