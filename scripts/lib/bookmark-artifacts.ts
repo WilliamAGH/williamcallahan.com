@@ -11,8 +11,16 @@ import type { BookmarkS3Record, BookmarkSlugMapping } from "@/types/bookmark";
 /** Default number of bookmarks per paginated page */
 const DEFAULT_BOOKMARKS_PAGE_SIZE = 24;
 
-const LOCAL_S3_BASE =
-  process.env.LOCAL_S3_CACHE_DIR?.trim() || join(process.cwd(), ".next", "cache", "local-s3");
+function resolveLocalS3Base(configuredPath: string | undefined): string {
+  if (configuredPath && configuredPath.length > 0) return configuredPath;
+  const fallback = join(process.cwd(), ".next", "cache", "local-s3");
+  console.warn(
+    `[bookmark-artifacts] LOCAL_S3_CACHE_DIR is not set; defaulting local cache to ${fallback}`,
+  );
+  return fallback;
+}
+
+const LOCAL_S3_BASE = resolveLocalS3Base(process.env.LOCAL_S3_CACHE_DIR?.trim());
 
 export function saveToLocalS3(key: string, data: unknown): void {
   const fullPath = join(LOCAL_S3_BASE, key);
@@ -46,9 +54,24 @@ function toStringField(value: unknown): string {
 }
 
 function computeChecksum(bookmarks: BookmarkS3Record[]): string {
-  return [...bookmarks]
-    .toSorted((a, b) => (a.id ?? "").localeCompare(b.id ?? ""))
-    .map((b) => `${b.id}:${toStringField(b.modifiedAt) || toStringField(b.dateBookmarked)}`)
+  const records = bookmarks
+    .map((bookmark) => {
+      if (typeof bookmark.id !== "string" || bookmark.id.length === 0) {
+        console.warn("[bookmark-artifacts] Skipping checksum entry with invalid bookmark id", {
+          id: bookmark.id,
+        });
+        return null;
+      }
+      return {
+        id: bookmark.id,
+        modified: toStringField(bookmark.modifiedAt) || toStringField(bookmark.dateBookmarked),
+      };
+    })
+    .filter((record): record is { id: string; modified: string } => record !== null);
+
+  return [...records]
+    .toSorted((a, b) => a.id.localeCompare(b.id))
+    .map((record) => `${record.id}:${record.modified}`)
     .join("|");
 }
 
@@ -85,7 +108,14 @@ export function buildTagArtifacts(
   const tagBuckets = new Map<string, BookmarkS3Record[]>();
   rawBookmarks.forEach((item) => {
     const bookmark = embedSlug(item as BookmarkS3Record, slugMapping);
-    const tagNames = normalizeTagsToStrings((bookmark.tags as Array<string>) || []);
+    const rawTags = bookmark.tags;
+    if (rawTags !== undefined && !Array.isArray(rawTags)) {
+      console.warn("[bookmark-artifacts] Bookmark tags were not an array; skipping invalid tags", {
+        id: bookmark.id,
+        type: typeof rawTags,
+      });
+    }
+    const tagNames = normalizeTagsToStrings(Array.isArray(rawTags) ? rawTags : []);
     tagNames.forEach((tagName) => {
       const slug = tagToSlug(tagName);
       if (!slug) return;

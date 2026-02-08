@@ -38,13 +38,14 @@ export async function clearSocialMediaCaches(url: string): Promise<{
       body: `id=${encodeURIComponent(url)}&scrape=true`,
     });
 
-    if (fbResponse.ok || fbResponse.status === 400) {
-      // 400 is often expected for public URLs without access token
+    if (fbResponse.ok) {
       results.facebook = true;
       console.log(`✅ Facebook cache refresh requested`);
       console.log(`   Manual verification: ${facebookDebugUrl}`);
     } else {
-      console.log(`⚠️  Facebook returned ${fbResponse.status} - cache may not have cleared`);
+      console.log(
+        `⚠️  Facebook returned ${fbResponse.status} - cache refresh not confirmed (manual verification: ${facebookDebugUrl})`,
+      );
     }
   } catch (error) {
     console.log(
@@ -64,13 +65,14 @@ export async function clearSocialMediaCaches(url: string): Promise<{
       },
     });
 
-    // Twitter often returns 400 for automated requests, but still processes them
-    if (twitterResponse.ok || twitterResponse.status === 400) {
+    if (twitterResponse.ok) {
       results.twitter = true;
       console.log(`✅ Twitter cache refresh requested`);
       console.log(`   Manual verification: ${twitterValidatorUrl}`);
     } else {
-      console.log(`⚠️  Twitter returned ${twitterResponse.status} - cache may not have cleared`);
+      console.log(
+        `⚠️  Twitter returned ${twitterResponse.status} - cache refresh not confirmed (manual verification: ${twitterValidatorUrl})`,
+      );
     }
   } catch (error) {
     console.log(
@@ -80,9 +82,8 @@ export async function clearSocialMediaCaches(url: string): Promise<{
 
   // LinkedIn Post Inspector — no public API; inform the user directly
   const linkedinInspectorUrl = `https://www.linkedin.com/post-inspector/inspect/${encodeURIComponent(url)}`;
-  console.log(`🔄 Submitting to LinkedIn Post Inspector...`);
-  results.linkedin = true;
-  console.log(`✅ LinkedIn cache refresh available`);
+  console.log(`ℹ️  LinkedIn has no public refresh API; manual Post Inspector check required`);
+  results.linkedin = false;
   console.log(`   Manual verification: ${linkedinInspectorUrl}`);
 
   return results;

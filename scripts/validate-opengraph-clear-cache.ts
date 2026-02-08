@@ -44,6 +44,12 @@ import { clearSocialMediaCaches } from "./lib/social-cache-clearing";
 const OG_TITLE_MAX_LENGTH = 60;
 /** Maximum recommended character length for OpenGraph descriptions */
 const OG_DESCRIPTION_MAX_LENGTH = 160;
+const OPENGRAPH_PREVIEW_LIMITS: Readonly<Record<string, number>> = {
+  "og:title": OG_TITLE_MAX_LENGTH,
+  "og:description": OG_DESCRIPTION_MAX_LENGTH,
+  "og:image": 200,
+  "og:type": 40,
+};
 
 /**
  * Validates OpenGraph metadata for a specific URL by fetching and parsing HTML
@@ -217,10 +223,9 @@ async function main() {
     for (const tag of keyTags) {
       if (validation.ogTags[tag]) {
         const value = validation.ogTags[tag];
+        const previewLimit = OPENGRAPH_PREVIEW_LIMITS[tag] ?? OG_DESCRIPTION_MAX_LENGTH;
         const truncated =
-          value.length > OG_TITLE_MAX_LENGTH
-            ? `${value.substring(0, OG_TITLE_MAX_LENGTH)}...`
-            : value;
+          value.length > previewLimit ? `${value.substring(0, previewLimit)}...` : value;
         console.log(`   ${tag}: ${truncated}`);
       } else {
         console.log(`   ${tag}: ❌ MISSING`);
