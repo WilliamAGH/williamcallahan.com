@@ -104,6 +104,9 @@ export type LightweightBookmark = Omit<
   >;
 };
 
+/** Union returned by bookmark loaders depending on includeImageData mode. */
+export type AnyBookmark = import("./schemas/bookmark").UnifiedBookmark | LightweightBookmark;
+
 export interface BookmarkLoadOptions {
   includeImageData?: boolean;
   skipExternalFetch?: boolean;
