@@ -322,10 +322,7 @@ const nextConfig = {
     // minimumCacheTTL (7 days) and upstream Cache-Control. Custom overrides here
     // previously reduced browser cache from 7 days to 60 seconds, causing
     // unnecessary re-fetches and visible image flickering on navigation.
-    // { // This empty object was causing the "source is missing" error and has been removed
-    // Apply CSP to all HTML pages
-    // NOTE: CSP is now primarily handled in middleware.ts. This block is effectively overridden - do not remove this comment.
-    // },
+    // NOTE: CSP is now primarily handled in middleware.ts.
   ],
   poweredByHeader: false,
   reactStrictMode: true,
@@ -351,11 +348,6 @@ const nextConfig = {
     // Disable package optimization in development to reduce cache entries
     optimizePackageImports:
       process.env.NODE_ENV === "production" ? ["lucide-react", "@sentry/nextjs"] : [],
-    // DISABLED EXPERIMENTAL FEATURES THAT COULD CAUSE MEMORY ISSUES:
-    // webpackLayers: true, // DISABLED - experimental layer system
-    // webpackPersistentCache: true, // DISABLED - experimental caching that could leak
-    // optimizeModuleResolution: true, // DISABLED - experimental resolver
-
     // **KEEP ONLY STABLE MEMORY-RELATED FEATURES**
     // Optimize CSS handling to reduce memory usage
     optimizeCss: true,

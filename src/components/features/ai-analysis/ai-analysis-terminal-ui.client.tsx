@@ -47,7 +47,6 @@ export function AnalysisSection({
   label: string;
   children: ReactNode;
   index: number;
-  accentColor?: string;
   skipAnimation?: boolean;
 }) {
   return (

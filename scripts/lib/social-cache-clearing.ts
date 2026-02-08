@@ -78,20 +78,12 @@ export async function clearSocialMediaCaches(url: string): Promise<{
     );
   }
 
-  // LinkedIn Post Inspector
-  try {
-    const linkedinInspectorUrl = `https://www.linkedin.com/post-inspector/inspect/${encodeURIComponent(url)}`;
-    console.log(`🔄 Submitting to LinkedIn Post Inspector...`);
-
-    // LinkedIn's inspector doesn't have a public API, so we just inform the user
-    results.linkedin = true;
-    console.log(`✅ LinkedIn cache refresh available`);
-    console.log(`   Manual verification: ${linkedinInspectorUrl}`);
-  } catch (error) {
-    console.log(
-      `⚠️  LinkedIn cache clearing failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
+  // LinkedIn Post Inspector — no public API; inform the user directly
+  const linkedinInspectorUrl = `https://www.linkedin.com/post-inspector/inspect/${encodeURIComponent(url)}`;
+  console.log(`🔄 Submitting to LinkedIn Post Inspector...`);
+  results.linkedin = true;
+  console.log(`✅ LinkedIn cache refresh available`);
+  console.log(`   Manual verification: ${linkedinInspectorUrl}`);
 
   return results;
 }
