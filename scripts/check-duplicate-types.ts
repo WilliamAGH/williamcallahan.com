@@ -17,8 +17,10 @@ import { Glob } from "bun";
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { relative } from "node:path";
+import { z } from "zod/v4";
 
 const ROOT = process.cwd();
+const duplicateTypesBaseRefSchema = z.string().min(1).optional();
 
 /** Regex to capture type/interface/enum declaration names from a single line. */
 const DECLARATION_RE =
@@ -82,7 +84,19 @@ function reportDuplicates(
 }
 
 function getChangedTypeFiles(): Set<string> | null {
-  const baseRef = process.env.DUPLICATE_TYPES_BASE_REF ?? "origin/main";
+  const parsedBaseRef = duplicateTypesBaseRefSchema.safeParse(process.env.DUPLICATE_TYPES_BASE_REF);
+  let baseRef = "origin/main";
+  if (parsedBaseRef.success && typeof parsedBaseRef.data === "string") {
+    baseRef = parsedBaseRef.data;
+  } else if (process.env.DUPLICATE_TYPES_BASE_REF === undefined) {
+    console.warn(
+      `[check:duplicate-types] DUPLICATE_TYPES_BASE_REF not set; defaulting to ${baseRef}.`,
+    );
+  } else {
+    console.warn(
+      `[check:duplicate-types] Invalid DUPLICATE_TYPES_BASE_REF; defaulting to ${baseRef}.`,
+    );
+  }
   const diff = spawnSync(
     "git",
     ["diff", "--name-only", "--diff-filter=ACMR", `${baseRef}...HEAD`, "--", "src/types"],
@@ -120,6 +134,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error("[check:duplicate-types] Fatal error:", error);
+  const normalizedError =
+    error instanceof Error
+      ? { message: error.message, stack: error.stack }
+      : { error: String(error) };
+  console.error("[check:duplicate-types] Fatal error:", normalizedError);
   process.exit(1);
 });
