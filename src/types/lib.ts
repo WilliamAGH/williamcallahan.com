@@ -38,8 +38,7 @@
 
 import type { CacheStats } from "./cache";
 
-// Safe Zod import for types directory only
-import { z } from "zod";
+import { z } from "zod/v4";
 
 // =============================================================================
 // CORE UTILITY TYPES - Foundation types used across multiple domains
