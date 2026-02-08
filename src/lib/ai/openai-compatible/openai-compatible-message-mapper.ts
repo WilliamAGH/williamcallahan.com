@@ -159,7 +159,7 @@ export function toResponsesInput(
       const assistantContent = typeof message.content === "string" ? message.content : undefined;
       const refusalContent = getAssistantRefusal(message);
       let content = assistantContent;
-      if (content === undefined) {
+      if (typeof content !== "string" || content.length === 0) {
         content = refusalContent;
       }
       if (typeof content === "string" && content.length > 0) {
