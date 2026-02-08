@@ -91,7 +91,9 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
         signal: request.signal,
         run: () =>
           runUpstream((event) => {
-            safeSend(event.event, event.data);
+            if (!safeSend(event.event, event.data)) {
+              throw new DOMException("Client disconnected", "AbortError");
+            }
           }),
       });
 

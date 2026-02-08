@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[Bookmarks Search API]", message);
+    console.error("[Bookmarks Search API]", err);
     return createSearchErrorResponse("Bookmarks search failed", message);
   }
 }

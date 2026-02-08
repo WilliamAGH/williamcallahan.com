@@ -58,7 +58,7 @@ let cgroupLimitBytesPromise: Promise<number | null> | null = null;
 async function getCgroupMemoryLimitBytes(): Promise<number | null> {
   if (cgroupLimitBytesPromise) return cgroupLimitBytesPromise;
 
-  cgroupLimitBytesPromise = (async () => {
+  const pending = (async () => {
     // If we are not in Node.js, we cannot read cgroups.
     if (typeof process === "undefined" || !process.versions?.node) return null;
 
@@ -98,7 +98,14 @@ async function getCgroupMemoryLimitBytes(): Promise<number | null> {
     }
   })();
 
-  return cgroupLimitBytesPromise;
+  cgroupLimitBytesPromise = pending;
+  const result = await pending;
+  // Only cache successful reads; reset on null so transient FS failures during
+  // container startup don't permanently disable memory-based load shedding.
+  if (result === null) {
+    cgroupLimitBytesPromise = null;
+  }
+  return result;
 }
 
 async function getNodeMemoryPressureStatus(
