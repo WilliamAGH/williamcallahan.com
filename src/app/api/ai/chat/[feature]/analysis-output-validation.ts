@@ -1,6 +1,7 @@
 import "server-only";
 
 import { jsonrepair } from "jsonrepair";
+import type { AnalysisFeatureId } from "@/types/features/ai-chat";
 import {
   ANALYSIS_FIELD_CONFIG,
   ANALYSIS_LENGTH_LIMITS,
@@ -8,9 +9,7 @@ import {
   PROMPT_LEAKAGE_PATTERNS,
 } from "./analysis-output-config";
 
-export function isAnalysisFeature(
-  feature: string,
-): feature is keyof typeof ANALYSIS_SCHEMA_BY_FEATURE {
+export function isAnalysisFeature(feature: string): feature is AnalysisFeatureId {
   return Object.hasOwn(ANALYSIS_SCHEMA_BY_FEATURE, feature);
 }
 
@@ -207,10 +206,7 @@ function normalizeDetailFields(
   root[detailKey] = normalizedDetails;
 }
 
-function normalizeAnalysisPayload(
-  feature: keyof typeof ANALYSIS_SCHEMA_BY_FEATURE,
-  value: unknown,
-): unknown {
+function normalizeAnalysisPayload(feature: AnalysisFeatureId, value: unknown): unknown {
   if (typeof value !== "object" || value === null) return value;
   const config = ANALYSIS_FIELD_CONFIG[feature];
   const root = { ...(value as Record<string, unknown>) };
@@ -230,10 +226,7 @@ function hasPromptLeakage(value: string): boolean {
   );
 }
 
-function findSuspiciousAnalysisContent(
-  feature: keyof typeof ANALYSIS_SCHEMA_BY_FEATURE,
-  value: unknown,
-): string | null {
+function findSuspiciousAnalysisContent(feature: AnalysisFeatureId, value: unknown): string | null {
   if (typeof value !== "object" || value === null) return "Response is not a JSON object.";
   const config = ANALYSIS_FIELD_CONFIG[feature];
   const root = value as Record<string, unknown>;
@@ -277,7 +270,7 @@ function findSuspiciousAnalysisContent(
 }
 
 export function buildAnalysisRepairPrompt(
-  feature: keyof typeof ANALYSIS_SCHEMA_BY_FEATURE,
+  feature: AnalysisFeatureId,
   validationReason: string,
 ): string {
   const requiredFields = ANALYSIS_FIELD_CONFIG[feature].requiredFields.join(", ");
@@ -291,7 +284,7 @@ Return a single JSON object and nothing else.`;
 }
 
 export function validateAnalysisOutput(
-  feature: keyof typeof ANALYSIS_SCHEMA_BY_FEATURE,
+  feature: AnalysisFeatureId,
   text: string,
 ): { ok: true; normalizedText: string } | { ok: false; reason: string } {
   let parsed: unknown;

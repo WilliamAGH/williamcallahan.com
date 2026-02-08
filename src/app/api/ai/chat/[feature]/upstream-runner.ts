@@ -2,22 +2,21 @@ import "server-only";
 
 import type {
   AiChatModelStreamEvent,
-  ResolvedModelParams,
+  AnalysisFeatureId,
+  AnalysisHandleResult,
+  ContentOutcomeCtx,
+  ContentOutcomeResult,
+  UpstreamRunnerConfig,
   UpstreamTurnOutcome,
   UpstreamTurnParams,
-  ValidatedRequestContext,
 } from "@/types/features/ai-chat";
-import type {
-  AiUpstreamApiMode,
-  OpenAiCompatibleChatMessage,
-} from "@/types/schemas/ai-openai-compatible";
+import type { OpenAiCompatibleChatMessage } from "@/types/schemas/ai-openai-compatible";
 import {
   formatBookmarkResultsAsLinks,
   runDeterministicBookmarkFallback,
   sanitizeBookmarkLinksAgainstAllowlist,
 } from "./bookmark-tool";
 import { isHarmonyFormatModel, resolveToolChoice } from "./feature-defaults";
-import { ANALYSIS_SCHEMA_BY_FEATURE } from "./analysis-output-config";
 import {
   isAnalysisFeature,
   buildAnalysisRepairPrompt,
@@ -28,21 +27,6 @@ import { executeChatCompletionsTurn, executeResponsesTurn } from "./upstream-tur
 
 const MAX_TOOL_TURNS = 4;
 const MAX_ANALYSIS_VALIDATION_ATTEMPTS = 3;
-
-type UpstreamRunnerConfig = {
-  feature: string;
-  apiMode: AiUpstreamApiMode;
-  messages: OpenAiCompatibleChatMessage[];
-  parsedBody: ValidatedRequestContext["parsedBody"];
-  config: { baseUrl: string; apiKey?: string };
-  primaryModel: string;
-  fallbackModel?: string;
-  hasToolSupport: boolean;
-  forceBookmarkTool: boolean;
-  latestUserMessage?: string;
-  modelParams: ResolvedModelParams;
-  signal: AbortSignal;
-};
 
 function buildTurnParams(args: {
   turn: number;
@@ -113,13 +97,8 @@ function resolveBookmarkContent(
   return formatBookmarkResultsAsLinks(toolObservedResults);
 }
 
-type AnalysisHandleResult =
-  | { action: "done"; text: string }
-  | { action: "retry"; newModel?: string }
-  | { action: "error"; message: string };
-
 function handleAnalysisValidation(
-  analysisFeature: keyof typeof ANALYSIS_SCHEMA_BY_FEATURE,
+  analysisFeature: AnalysisFeatureId,
   outcomeText: string | undefined,
   attemptsSoFar: number,
   requestMessages: OpenAiCompatibleChatMessage[],
@@ -279,23 +258,6 @@ async function executeTurnWithFallback(ctx: {
     throw error;
   }
 }
-
-type ContentOutcomeResult =
-  | { done: true; text: string; retry?: false }
-  | { done: false; retry: true; newAttempts: number; switchedModel?: string }
-  | { done: false; retry: false };
-
-type ContentOutcomeCtx = {
-  args: UpstreamRunnerConfig;
-  result: Extract<UpstreamTurnOutcome, { kind: "content" }>;
-  turn: number;
-  toolObservedResults: Array<{ title: string; url: string }>;
-  analysisFeature: keyof typeof ANALYSIS_SCHEMA_BY_FEATURE | null;
-  analysisValidationAttempts: number;
-  requestMessages: OpenAiCompatibleChatMessage[];
-  activeModel: string;
-  done: (message: string) => string;
-};
 
 async function resolveBookmarkFallback(
   ctx: ContentOutcomeCtx,

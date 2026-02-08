@@ -1,17 +1,23 @@
 import "server-only";
 
+import type { AnalysisFeatureId } from "@/types/features/ai-chat";
 import { bookAiAnalysisResponseSchema } from "@/types/schemas/book-ai-analysis";
 import { bookmarkAiAnalysisResponseSchema } from "@/types/schemas/bookmark-ai-analysis";
 import { projectAiAnalysisResponseSchema } from "@/types/schemas/project-ai-analysis";
 
-export const ANALYSIS_SCHEMA_BY_FEATURE = {
+export const ANALYSIS_SCHEMA_BY_FEATURE: Record<
+  AnalysisFeatureId,
+  | typeof bookmarkAiAnalysisResponseSchema
+  | typeof bookAiAnalysisResponseSchema
+  | typeof projectAiAnalysisResponseSchema
+> = {
   "bookmark-analysis": bookmarkAiAnalysisResponseSchema,
   "book-analysis": bookAiAnalysisResponseSchema,
   "project-analysis": projectAiAnalysisResponseSchema,
-} as const;
+};
 
 export const ANALYSIS_FIELD_CONFIG: Record<
-  keyof typeof ANALYSIS_SCHEMA_BY_FEATURE,
+  AnalysisFeatureId,
   {
     requiredFields: readonly string[];
     requiredStringFields: readonly string[];

@@ -133,3 +133,47 @@ export type UpstreamTurnOutcome =
       newMessages: OpenAiCompatibleChatMessage[];
       observedResults: Array<{ title: string; url: string }>;
     };
+
+/** Feature identifiers that have structured analysis output schemas */
+export type AnalysisFeatureId = "bookmark-analysis" | "book-analysis" | "project-analysis";
+
+/** Configuration bag passed to createUpstreamRunner */
+export type UpstreamRunnerConfig = {
+  feature: string;
+  apiMode: AiUpstreamApiMode;
+  messages: OpenAiCompatibleChatMessage[];
+  parsedBody: ValidatedRequestContext["parsedBody"];
+  config: { baseUrl: string; apiKey?: string };
+  primaryModel: string;
+  fallbackModel?: string;
+  hasToolSupport: boolean;
+  forceBookmarkTool: boolean;
+  latestUserMessage?: string;
+  modelParams: ResolvedModelParams;
+  signal: AbortSignal;
+};
+
+/** Discriminated result of handleAnalysisValidation */
+export type AnalysisHandleResult =
+  | { action: "done"; text: string }
+  | { action: "retry"; newModel?: string }
+  | { action: "error"; message: string };
+
+/** Discriminated result of handleContentOutcome */
+export type ContentOutcomeResult =
+  | { done: true; text: string; retry?: false }
+  | { done: false; retry: true; newAttempts: number; switchedModel?: string }
+  | { done: false; retry: false };
+
+/** Context bag for handleContentOutcome and resolveBookmarkFallback */
+export type ContentOutcomeCtx = {
+  args: UpstreamRunnerConfig;
+  result: Extract<UpstreamTurnOutcome, { kind: "content" }>;
+  turn: number;
+  toolObservedResults: Array<{ title: string; url: string }>;
+  analysisFeature: AnalysisFeatureId | null;
+  analysisValidationAttempts: number;
+  requestMessages: OpenAiCompatibleChatMessage[];
+  activeModel: string;
+  done: (message: string) => string;
+};
