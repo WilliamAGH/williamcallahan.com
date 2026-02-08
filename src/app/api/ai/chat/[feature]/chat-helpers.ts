@@ -90,8 +90,20 @@ export async function validateRequest(
   if (memoryResponse && memoryResponse.status >= 400) {
     return memoryResponse;
   }
+  const clientIp = getClientIp(request.headers, { fallback: "anonymous" });
 
-  const acceptHeader = request.headers.get("accept")?.toLowerCase() ?? "";
+  const acceptHeaderRaw = request.headers.get("accept");
+  if (!acceptHeaderRaw) {
+    logger.warn("[AI Chat] Missing Accept header on incoming request", { feature, clientIp });
+    return withSystemStatusHeader(
+      NextResponse.json(
+        { error: "Not Acceptable: this endpoint requires Accept: text/event-stream" },
+        { status: 406, headers: NO_STORE_HEADERS },
+      ),
+      systemStatus,
+    );
+  }
+  const acceptHeader = acceptHeaderRaw.toLowerCase();
   if (!acceptHeader.includes("text/event-stream")) {
     return withSystemStatusHeader(
       NextResponse.json(
@@ -116,7 +128,6 @@ export async function validateRequest(
     );
   }
 
-  const clientIp = getClientIp(request.headers, { fallback: "anonymous" });
   const pagePath = getRequestPagePath(request);
   const rateKey = `${feature}:${clientIp}`;
 
@@ -153,7 +164,11 @@ export async function validateRequest(
     );
   }
 
-  const userAgent = request.headers.get("user-agent") ?? "";
+  const userAgentHeader = request.headers.get("user-agent");
+  if (!userAgentHeader) {
+    logger.warn("[AI Chat] Missing User-Agent header on incoming request", { feature, clientIp });
+  }
+  const userAgent = userAgentHeader ?? "unknown";
   const verification = verifyAiGateToken(secret, bearerToken, {
     ip: clientIp,
     ua: hashUserAgent(userAgent),

@@ -144,7 +144,14 @@ export async function executeSearchBookmarksTool(
     })
     .filter((result): result is NonNullable<typeof result> => result !== null);
 
-  const limitedResults = normalizedResults.slice(0, args.maxResults ?? TOOL_MAX_RESULTS_DEFAULT);
+  let maxResults = args.maxResults;
+  if (typeof maxResults !== "number") {
+    logger.warn("[AI Chat] Tool args missing maxResults; defaulting to tool limit", {
+      query: args.query,
+    });
+    maxResults = TOOL_MAX_RESULTS_DEFAULT;
+  }
+  const limitedResults = normalizedResults.slice(0, maxResults);
 
   return {
     query: args.query,

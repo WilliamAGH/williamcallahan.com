@@ -38,14 +38,6 @@ const BOOKMARK_PAGE_CACHE_SECONDS = Math.max(
   Math.round(TIME_CONSTANTS.BOOKMARKS_PRELOAD_INTERVAL_MS / 1000),
 );
 
-const safeEnsureAbsoluteUrl = (path: string): string => {
-  try {
-    return ensureAbsoluteUrl(path);
-  } catch {
-    return path;
-  }
-};
-
 const getBookmarkHostname = (rawUrl: string | null | undefined): string | null => {
   if (!rawUrl) {
     return null;
@@ -168,11 +160,12 @@ export async function generateMetadata({
 
   let imageUrl: string | undefined;
   try {
-    const rawImageUrl =
-      selectBestImage(bookmark, {
-        includeScreenshots: true,
-      }) || undefined;
-    imageUrl = rawImageUrl ? safeEnsureAbsoluteUrl(rawImageUrl) : undefined;
+    const rawImageUrl = selectBestImage(bookmark, {
+      includeScreenshots: true,
+    });
+    if (typeof rawImageUrl === "string" && rawImageUrl.length > 0) {
+      imageUrl = ensureAbsoluteUrl(rawImageUrl);
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     envLogger.log(
@@ -202,7 +195,7 @@ export async function generateMetadata({
       title: customTitle,
       description: customDescription,
       type: "article",
-      url: safeEnsureAbsoluteUrl(path),
+      url: ensureAbsoluteUrl(path),
       images: openGraphImages,
     },
     twitter: {
@@ -213,7 +206,7 @@ export async function generateMetadata({
       images: imageUrl ? [{ url: imageUrl, alt: customTitle }] : baseMetadata.twitter?.images || [],
     },
     alternates: {
-      canonical: safeEnsureAbsoluteUrl(path),
+      canonical: ensureAbsoluteUrl(path),
     },
   };
 }
