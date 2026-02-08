@@ -166,7 +166,7 @@ export function InvestmentsClient({
               I think there are a lot of lessons available for founders and investors alike, and
               hope to increase the available data over time.{" "}
               <Link
-                href="/"
+                href="/contact"
                 className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
               >
                 Reach out
