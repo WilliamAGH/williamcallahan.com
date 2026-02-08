@@ -149,7 +149,9 @@ All requests to `POST /api/ai/chat/[feature]` are queued by upstream target so w
 ## Test Coverage
 
 - `__tests__/api/ai/chat-rag-helpers.test.ts` validates retrieval query shaping and abort classification.
+- `__tests__/api/ai/upstream-pipeline-test-harness.ts` centralizes upstream-pipeline mock wiring and fixture builders for DRY test setup.
 - `__tests__/api/ai/chat-upstream-pipeline-streaming.test.ts` validates queue mode selection and normalized stream events.
 - `__tests__/api/ai/chat-upstream-pipeline-tools.test.ts` validates tool-call rounds and deterministic search fallback behavior.
+- `__tests__/api/ai/chat-upstream-pipeline-analysis-validation.test.ts` validates JSON/schema retry paths, coercion, and fallback normalization for bookmark analysis.
 - `__tests__/components/ui/terminal/commands.test.ts` validates terminal one-shot flow against the SSE-only contract.
 - `__tests__/lib/ai-openai-compatible.test.ts` validates browser SSE parsing and OpenAI-compatible transport behavior.
