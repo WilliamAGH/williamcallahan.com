@@ -135,8 +135,15 @@ export function toResponsesInput(
     }
 
     const role: EasyInputMessage["role"] = message.role;
-    const content = message.role === "assistant" ? (message.content ?? "") : message.content;
-    items.push({ type: "message", role, content });
+    if (typeof message.content !== "string") {
+      console.warn(
+        "[openai-compatible] Non-string message content passed to Responses input; coercing to empty string",
+        { role },
+      );
+      items.push({ type: "message", role, content: "" });
+      continue;
+    }
+    items.push({ type: "message", role, content: message.content });
   }
 
   return items;

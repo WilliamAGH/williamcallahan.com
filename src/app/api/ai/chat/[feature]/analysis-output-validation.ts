@@ -87,13 +87,14 @@ function extractBalancedJsonPayload(text: string): string | null {
 function parseAnalysisJson(rawText: string): unknown {
   const cleaned = stripLlmControlTokens(rawText);
   const fenced = /```(?:json)?\s*([\s\S]*?)\s*```/i.exec(cleaned)?.[1]?.trim();
-  const extractedFromFenced = extractBalancedJsonPayload(fenced ?? "");
+  const extractedFromFenced = fenced ? extractBalancedJsonPayload(fenced) : null;
   const extractedFromCleaned = extractBalancedJsonPayload(cleaned);
-  const candidates = [extractedFromFenced, fenced, extractedFromCleaned, cleaned];
+  const candidates = [extractedFromFenced, fenced, extractedFromCleaned, cleaned].filter(
+    (candidate): candidate is string => typeof candidate === "string" && candidate.length > 0,
+  );
   const errors: string[] = [];
 
   for (const candidate of candidates) {
-    if (!candidate) continue;
     const trimmed = candidate.trim();
     if (!trimmed) continue;
 
