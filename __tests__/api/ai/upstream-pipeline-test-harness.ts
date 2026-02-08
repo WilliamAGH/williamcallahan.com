@@ -52,7 +52,8 @@ vi.mock("@/lib/ai/openai-compatible/feature-config", () => ({
   }),
   buildUpstreamQueueKey: vi.fn(({ baseUrl, model, apiMode }) => {
     const route = apiMode === "responses" ? "responses" : "chat/completions";
-    return `${baseUrl}/v1/${route}::${model}`;
+    const primaryModel = model.split(",")[0]?.trim() ?? model;
+    return `${baseUrl}/v1/${route}::${primaryModel}`;
   }),
 }));
 
