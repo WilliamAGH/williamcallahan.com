@@ -151,7 +151,7 @@ function resolveExhaustedTurnsMessage(
     apiMode: args.apiMode,
     turns: MAX_TOOL_TURNS,
   });
-  return "";
+  return "I wasn't able to generate a response. Please try rephrasing your question.";
 }
 
 function emitDone(

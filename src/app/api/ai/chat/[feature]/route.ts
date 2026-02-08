@@ -2,6 +2,7 @@ import "server-only";
 
 import { NextResponse, type NextRequest } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/utils/api-utils";
+import logger from "@/lib/utils/logger";
 import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-chat";
 import { validateRequest, buildRagContextForChat } from "./chat-helpers";
 import { buildChatPipeline } from "./upstream-pipeline";
@@ -25,12 +26,22 @@ export async function POST(
   if (validationResult instanceof NextResponse) return validationResult;
 
   const ctx = validationResult;
-  const ragResult = await buildRagContextForChat(feature, ctx.parsedBody);
-  const pipeline = buildChatPipeline({ feature, ctx, ragResult, signal: request.signal });
 
-  return createSseStreamResponse({
-    request,
-    ...pipeline,
-    ragContextStatus: ragResult.status,
-  });
+  try {
+    const ragResult = await buildRagContextForChat(feature, ctx.parsedBody);
+    const pipeline = buildChatPipeline({ feature, ctx, ragResult, signal: request.signal });
+
+    return createSseStreamResponse({
+      request,
+      ...pipeline,
+      ragContextStatus: ragResult.status,
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    logger.error("[AI Chat] Pipeline construction failed", { feature, error: detail });
+    return NextResponse.json(
+      { error: "AI service initialization failed" },
+      { status: 500, headers: NO_STORE_HEADERS },
+    );
+  }
 }
