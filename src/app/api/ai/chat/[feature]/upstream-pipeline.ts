@@ -99,7 +99,13 @@ export function buildChatPipeline(params: {
     apiMode,
   });
   const queue = getUpstreamRequestQueue({ key: upstreamKey, maxParallel: config.maxParallel });
-  const priority = ctx.parsedBody.priority ?? 0;
+  let priority = ctx.parsedBody.priority;
+  if (priority === undefined || priority === null) {
+    console.warn("[upstream-pipeline] Missing priority in parsed body; defaulting to 0", {
+      feature,
+    });
+    priority = 0;
+  }
   const modelParams = resolveModelParams(feature, ctx.parsedBody);
   const latestUserMessage = resolveLatestUserMessage(ctx.parsedBody);
   const hasToolSupport = resolveToolConfig(feature).enabled;

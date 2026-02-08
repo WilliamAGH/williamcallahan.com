@@ -105,7 +105,14 @@ function handleAnalysisValidation(
   fallbackModel: string | undefined,
   activeModel: string,
 ): AnalysisHandleResult {
-  const text = outcomeText?.trim() ?? "";
+  const text = typeof outcomeText === "string" ? outcomeText.trim() : "";
+  if (text.length === 0) {
+    console.warn("[upstream-pipeline] Analysis output missing content; validating empty response", {
+      feature: analysisFeature,
+      attempt: attemptsSoFar,
+      model: activeModel,
+    });
+  }
   const validation = validateAnalysisOutput(analysisFeature, text);
   if (validation.ok) return { action: "done", text: validation.normalizedText };
 
