@@ -74,7 +74,6 @@
     "no-alert": "warn",
     "no-await-in-loop": "off",
     "no-console": "off",
-    "no-duplicate-imports": "error",
     "no-empty": [
       "error",
       {
