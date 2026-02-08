@@ -161,8 +161,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         bookmarksIndexSchema,
       );
       previousCount = previousIndex?.count || 0;
-    } catch {
-      // Index doesn't exist yet
+    } catch (error: unknown) {
+      // readJsonS3Optional already returns null for 404; any throw here is a real failure
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[API Trigger] Failed to read previous index: ${message}`);
     }
 
     console.log(`[API Trigger] Previous count: ${previousCount} bookmarks`);

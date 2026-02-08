@@ -120,7 +120,18 @@ function loadExistingLocalJson(relativePath: string): unknown {
   try {
     const raw = readFileSync(fullPath, "utf-8");
     return JSON.parse(raw) as unknown;
-  } catch {
+  } catch (error: unknown) {
+    // File not found is expected for first run; other errors are logged
+    const isNotFound =
+      error instanceof Error &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT";
+    if (!isNotFound) {
+      console.warn(
+        `⚠️  Failed to load existing ${relativePath}:`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
     return null;
   }
 }
