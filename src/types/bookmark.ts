@@ -37,6 +37,7 @@ export {
   bookmarkSlugEntrySchema,
   type BookmarkSlugEntry,
   bookmarkSlugMappingSchema,
+  type BookmarkSlugMapping,
 } from "./schemas/bookmark";
 
 export { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
@@ -113,27 +114,8 @@ export interface BookmarkLoadOptions {
   force?: boolean;
 }
 
-/**
- * Mapping of bookmark IDs to pre-computed slugs for static generation
- */
-export interface BookmarkSlugMapping {
-  version: string;
-  generated: string;
-  count: number;
-  checksum: string; // MD5 hash of slugs for concurrent write protection
-  slugs: Readonly<
-    Record<
-      string,
-      {
-        id: string;
-        slug: string;
-        url: string;
-        title: string;
-      }
-    >
-  >;
-  reverseMap: Readonly<Record<string, string>>; // slug -> id for quick lookup
-}
+// BookmarkSlugMapping is now derived from bookmarkSlugMappingSchema via z.infer<>
+// and re-exported from ./schemas/bookmark above.
 
 /** Validated API configuration for bookmark fetching */
 export interface BookmarksApiContext {

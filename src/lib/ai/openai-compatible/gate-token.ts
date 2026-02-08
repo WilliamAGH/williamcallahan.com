@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import type { NextRequest } from "next/server";
 import { normalizeString } from "@/lib/utils";
 import logger from "@/lib/utils/logger";
+import { aiGateTokenPayloadV1Schema } from "@/types/schemas/ai-chat";
 import type {
   AiGateTokenPayloadV1,
   AiGateTokenVerificationResult,
@@ -90,25 +91,8 @@ export function createAiGateToken(secret: string, payload: AiGateTokenPayloadV1)
 }
 
 function parseAiGateTokenPayload(payload: unknown): AiGateTokenPayloadV1 | null {
-  if (!payload || typeof payload !== "object") return null;
-  const record = payload as Record<string, unknown>;
-  if (record.v !== 1) return null;
-
-  const exp = record.exp;
-  const n = record.n;
-  const ip = record.ip;
-  const ua = record.ua;
-
-  if (
-    typeof exp !== "number" ||
-    typeof n !== "string" ||
-    typeof ip !== "string" ||
-    typeof ua !== "string"
-  ) {
-    return null;
-  }
-
-  return { v: 1, exp, n, ip, ua };
+  const result = aiGateTokenPayloadV1Schema.safeParse(payload);
+  return result.success ? result.data : null;
 }
 
 export function verifyAiGateToken(
