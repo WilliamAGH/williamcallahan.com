@@ -126,12 +126,12 @@ function loadExistingLocalJson(relativePath: string): unknown {
       error instanceof Error &&
       "code" in error &&
       (error as NodeJS.ErrnoException).code === "ENOENT";
-    if (!isNotFound) {
+    if (isNotFound) console.info(`ℹ️  No existing local ${relativePath} snapshot found`);
+    else
       console.warn(
         `⚠️  Failed to load existing ${relativePath}:`,
         error instanceof Error ? error.message : String(error),
       );
-    }
     return null;
   }
 }

@@ -51,7 +51,7 @@ export async function submitToIndexNow(
 ): Promise<void> {
   const INDEXNOW_KEY = indexNowKeyEnv;
   if (!INDEXNOW_KEY) {
-    if (debugMode) console.warn(`${LOG_PREFIX} Skipping – INDEXNOW_KEY env var not set.`);
+    console.warn(`${LOG_PREFIX} Skipping submission – INDEXNOW_KEY env var is not set.`);
     return;
   }
   if (!/^[a-f0-9-]{32,}$/i.test(INDEXNOW_KEY)) {
