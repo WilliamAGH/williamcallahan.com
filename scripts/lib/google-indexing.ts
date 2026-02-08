@@ -140,7 +140,7 @@ export async function notifyGoogle(
   client: JWT,
   url: string,
   type: "URL_UPDATED" | "URL_DELETED",
-): Promise<GoogleIndexingUrlNotificationMetadata | null> {
+): Promise<GoogleIndexingUrlNotificationMetadata> {
   try {
     const response = await client.request<IndexingApiResponse>({
       url: "https://indexing.googleapis.com/v3/urlNotifications:publish",
@@ -152,7 +152,7 @@ export async function notifyGoogle(
       return response.data.urlNotificationMetadata as GoogleIndexingUrlNotificationMetadata;
     }
     console.error(`${LOG_PREFIX} Unexpected response format for ${url}:`, response.data);
-    return null;
+    throw new Error(`Unexpected response format from Google Indexing API for ${url}`);
   } catch (err: unknown) {
     if (err instanceof GaxiosError) {
       console.error(
@@ -162,7 +162,7 @@ export async function notifyGoogle(
     } else {
       console.error(`${LOG_PREFIX} Unexpected error for ${url}:`, err);
     }
-    return null;
+    throw err;
   }
 }
 
@@ -182,9 +182,10 @@ export async function submitGoogleSitemap(
         `${LOG_PREFIX} Sitemap submitted successfully via Search Console API → ${sitemapUrl}`,
       );
     } else {
-      console.error(`${LOG_PREFIX} Sitemap submission failed. Status: ${res.status}`);
+      throw new Error(`Sitemap submission returned unexpected status: ${res.status}`);
     }
   } catch (err: unknown) {
     console.error(`${LOG_PREFIX} Error while submitting sitemap:`, err);
+    throw err;
   }
 }
