@@ -121,11 +121,7 @@ export function formatPercentage(value: number | undefined | null, decimalPlaces
  * @remark Date-only strings are interpreted as UTC midnight and may display as previous day in PT
  */
 export function formatDate(dateString: string | Date | undefined | number): string {
-  if (
-    typeof dateString !== "string" &&
-    typeof dateString !== "number" &&
-    !(dateString instanceof Date)
-  ) {
+  if (typeof dateString !== "string" && !(dateString instanceof Date)) {
     return "Invalid Date";
   }
 
