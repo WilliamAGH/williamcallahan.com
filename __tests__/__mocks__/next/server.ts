@@ -125,6 +125,10 @@ export class NextResponse {
     response.json = () => Promise.resolve(data);
     return response;
   }
+
+  static next(init?: { headers?: Record<string, string> }): NextResponse {
+    return new NextResponse(null, { status: 200, headers: init?.headers });
+  }
 }
 
 // Mock connection() - Next.js 16 function to ensure request-time execution
