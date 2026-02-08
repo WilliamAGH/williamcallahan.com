@@ -20,7 +20,8 @@ function resolveProjectCardImageUrl(
   try {
     return buildCdnUrl(imageKey, getCdnConfigFromEnv());
   } catch (error) {
-    console.warn(`[ProjectCard] Failed to resolve image URL for "${projectName}".`, error);
+    const safeError = error instanceof Error ? error : new Error(String(error));
+    console.warn(`[ProjectCard] Failed to resolve image URL for "${projectName}".`, safeError);
     return null;
   }
 }
