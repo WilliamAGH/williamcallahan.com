@@ -30,6 +30,8 @@ export const noDuplicateTypesRule: Rule.RuleModule = {
     /** Records the location of first declaration and reports on duplicates */
     const record = (idNode: TSESTree.Identifier) => {
       const name: string = idNode.name;
+
+      if (!idNode.loc) return;
       const currentLocation = `${context.filename}:${idNode.loc.start.line}`;
 
       // Ignore .d.ts files from node_modules to avoid false positives on @types packages
@@ -39,7 +41,9 @@ export const noDuplicateTypesRule: Rule.RuleModule = {
         // Already seen elsewhere – report duplicate
         const firstSeen = duplicateTypeTracker.get(name);
         if (firstSeen && firstSeen !== currentLocation) {
-          const [firstSeenFile] = firstSeen.split(":", 1);
+          const lastColonIndex = firstSeen.lastIndexOf(":");
+          const firstSeenFile =
+            lastColonIndex === -1 ? firstSeen : firstSeen.slice(0, lastColonIndex);
           if (!firstSeenFile || !existsSync(firstSeenFile)) {
             duplicateTypeTracker.set(name, currentLocation);
             return;
