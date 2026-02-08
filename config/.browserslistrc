@@ -1,15 +1,12 @@
-# Modern browsers only
+# ES2023 baseline — minimum versions supporting Array.toSorted()
+# Ref: https://caniuse.com/mdn-javascript_builtins_array_tosorted
 
-# Default list
-defaults
-not IE 11
+# Desktop
+Chrome >= 110
+Edge >= 110
+Firefox >= 115
+Safari >= 16.4
 
-# Mobile browsers
-iOS >= 12
-Android >= 6
-
-# Desktop browsers
-Chrome >= 70
-Firefox >= 68
-Safari >= 12
-Edge >= 79 # Chromium-based Edge
+# Mobile
+iOS >= 16
+ChromeAndroid >= 110
