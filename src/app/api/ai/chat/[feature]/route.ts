@@ -31,17 +31,25 @@ export async function POST(
     const ragResult = await buildRagContextForChat(feature, ctx.parsedBody);
     const pipeline = buildChatPipeline({ feature, ctx, ragResult, signal: request.signal });
 
-    return createSseStreamResponse({
+    const response = createSseStreamResponse({
       request,
       ...pipeline,
       ragContextStatus: ragResult.status,
     });
+    if (ctx.systemStatus) {
+      response.headers.set("X-System-Status", ctx.systemStatus);
+    }
+    return response;
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     logger.error("[AI Chat] Pipeline construction failed", { feature, error: detail });
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { error: "AI service initialization failed" },
       { status: 500, headers: NO_STORE_HEADERS },
     );
+    if (ctx.systemStatus) {
+      errorResponse.headers.set("X-System-Status", ctx.systemStatus);
+    }
+    return errorResponse;
   }
 }
