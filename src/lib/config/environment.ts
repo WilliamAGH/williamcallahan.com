@@ -4,7 +4,6 @@
  * Ensures NODE_ENV is always properly set and validates environment-specific paths.
  * This prevents files from being created without the correct environment suffix.
  */
-
 import logger from "@/lib/utils/logger";
 import { normalizeString } from "@/lib/utils";
 import type { Environment } from "@/types/config";
@@ -13,7 +12,6 @@ const shouldLogEnvironmentInfo =
   process.env.DEBUG_ENVIRONMENT === "true" ||
   process.env.DEBUG === "true" ||
   process.env.VERBOSE === "true";
-
 const loggedDetectionMessages = new Set<string>();
 
 const logEnvironmentInfo = (message: string): void => {
@@ -66,6 +64,9 @@ function getApiUrl(): string | undefined {
         if (typeof origin === "string" && origin.length > 0) return origin;
         const href = Reflect.get(maybeLocation, "href");
         if (typeof href === "string" && href.length > 0) return href;
+        logOnce("test_location_unusable", () =>
+          logger.warn("[Environment] Test location missing usable origin/href", { maybeLocation }),
+        );
       }
       return undefined;
     } catch (error: unknown) {
