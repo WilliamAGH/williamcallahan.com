@@ -81,7 +81,7 @@ export function useClientBookmarks(params: {
     const controller = new AbortController();
     void fetchBookmarks(controller.signal);
     return () => controller.abort();
-  }, [enabled, mounted, serverBookmarks, fetchBookmarks]);
+  }, [enabled, mounted, fetchBookmarks]);
 
   const refetch = useCallback(async () => {
     await fetchBookmarks();
