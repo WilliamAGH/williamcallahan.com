@@ -110,7 +110,7 @@ For a route param `feature`, the server resolves configuration with this precede
 
 Because the endpoints are available to anonymous visitors, they are still callable by determined scripts. The goal here is to make abuse harder without adding third-party dependencies:
 
-- Same-origin oriented checks using `Origin` / `Referer` host allowlist (`williamcallahan.com` and `*.williamcallahan.com`).
+- Same-origin checks using `Origin` / `Referer` host allowlist (`williamcallahan.com` and `*.williamcallahan.com`).
 - Token + cookie binding step (`/api/ai/token` → `/api/ai/chat/[feature]`).
 - Per-IP rate limiting using `src/lib/rate-limiter.ts`.
 - Route-level memory pressure shedding via `memoryPressureMiddleware(...)` in `chat-helpers.ts` (covers `/api/ai/chat/[feature]` even when proxy matcher bypasses this path).
@@ -152,10 +152,10 @@ All requests to `POST /api/ai/chat/[feature]` are queued by upstream target so w
 
 ## Test Coverage
 
-- `__tests__/api/ai/chat-rag-helpers.test.ts` validates retrieval query shaping, abort classification, and chat-route memory-pressure shedding.
+- `__tests__/api/ai/chat-rag-helpers.test.ts` covers retrieval query shaping, abort classification, and chat-route memory-pressure shedding.
 - `__tests__/api/ai/upstream-pipeline-test-harness.ts` centralizes upstream-pipeline mock wiring and fixture builders for DRY test setup.
-- `__tests__/api/ai/chat-upstream-pipeline-streaming.test.ts` validates queue mode selection and normalized stream events.
-- `__tests__/api/ai/chat-upstream-pipeline-tools.test.ts` validates tool-call rounds and deterministic search fallback behavior.
-- `__tests__/api/ai/chat-upstream-pipeline-analysis-validation.test.ts` validates JSON/schema retry paths, coercion, and fallback normalization for bookmark analysis.
-- `__tests__/components/ui/terminal/commands.test.ts` validates terminal one-shot flow against the SSE-only contract.
-- `__tests__/lib/ai-openai-compatible.test.ts` validates browser SSE parsing and OpenAI-compatible transport behavior.
+- `__tests__/api/ai/chat-upstream-pipeline-streaming.test.ts` checks queue mode selection and normalized stream events.
+- `__tests__/api/ai/chat-upstream-pipeline-tools.test.ts` asserts tool-call rounds and deterministic search fallback behavior.
+- `__tests__/api/ai/chat-upstream-pipeline-analysis-validation.test.ts` verifies JSON/schema retry paths, coercion, and fallback normalization for bookmark analysis.
+- `__tests__/components/ui/terminal/commands.test.ts` confirms terminal one-shot flow against the SSE-only contract.
+- `__tests__/lib/ai-openai-compatible.test.ts` exercises browser SSE parsing and OpenAI-compatible transport behavior.
