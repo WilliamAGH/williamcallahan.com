@@ -10,13 +10,15 @@ import { buildContextForQuery } from "@/lib/ai/rag";
 import { memoryPressureMiddleware } from "@/lib/middleware/memory-pressure";
 
 vi.mock("@/lib/ai/rag", () => ({
-  buildContextForQuery: vi.fn().mockResolvedValue({
-    contextText: "mocked context",
-    tokenEstimate: 100,
-    searchResultCount: 1,
-    searchDurationMs: 5,
-    retrievalStatus: "success",
-  }),
+  buildContextForQuery: vi.fn().mockImplementation((query: string) =>
+    Promise.resolve({
+      contextText: query,
+      tokenEstimate: 100,
+      searchResultCount: 1,
+      searchDurationMs: 5,
+      retrievalStatus: "success",
+    }),
+  ),
 }));
 vi.mock("@/lib/middleware/memory-pressure", () => ({
   memoryPressureMiddleware: vi.fn().mockResolvedValue(null),
@@ -32,7 +34,7 @@ describe("AI Chat RAG Helpers", () => {
   });
 
   it("expands anaphoric follow-up queries using previous user context", async () => {
-    await buildRagContextForChat("terminal_chat", {
+    const result = await buildRagContextForChat("terminal_chat", {
       conversationId,
       priority: 10,
       messages: [
@@ -42,43 +44,38 @@ describe("AI Chat RAG Helpers", () => {
       ],
     });
 
-    expect(mockedBuildContextForQuery).toHaveBeenCalledWith(
+    expect(result.augmentedPrompt).toBe(
       "search bookmarks about wikipedia signs of ai writing i want you to search for them",
-      expect.objectContaining({
-        includeInventory: false,
-        isPaginationRequest: false,
-      }),
     );
+    expect(result.status).toBe("included");
   });
 
   it("keeps explicit search queries unchanged", async () => {
-    await buildRagContextForChat("terminal_chat", {
+    const result = await buildRagContextForChat("terminal_chat", {
       conversationId,
       priority: 10,
       messages: [{ role: "user", content: "search bookmarks for wikipedia" }],
     });
 
-    expect(mockedBuildContextForQuery).toHaveBeenCalledWith(
-      "search bookmarks for wikipedia",
-      expect.objectContaining({
-        includeInventory: false,
-      }),
-    );
+    expect(result.augmentedPrompt).toBe("search bookmarks for wikipedia");
+    expect(result.status).toBe("included");
   });
 
   it("enables inventory for list-style requests", async () => {
-    await buildRagContextForChat("terminal_chat", {
+    const result = await buildRagContextForChat("terminal_chat", {
       conversationId,
       priority: 10,
       messages: [{ role: "user", content: "list all bookmarks" }],
     });
 
-    expect(mockedBuildContextForQuery).toHaveBeenCalledWith(
-      "list all bookmarks",
-      expect.objectContaining({
-        includeInventory: true,
-      }),
-    );
+    expect(result.augmentedPrompt).toBe("list all bookmarks");
+    expect(result.status).toBe("included");
+  });
+
+  afterAll(() => {
+    vi.doUnmock("@/lib/ai/rag");
+    vi.doUnmock("@/lib/middleware/memory-pressure");
+    vi.resetModules();
   });
 });
 

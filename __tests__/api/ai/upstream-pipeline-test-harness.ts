@@ -163,10 +163,10 @@ function mockStreamDefaultResponsesResponse(): void {
 
 export function resetPipelineMocks(): void {
   mockedSearchBookmarks.mockReset();
-  mockCallOpenAiCompatibleChatCompletions.mockClear();
-  mockCallOpenAiCompatibleResponses.mockClear();
-  mockStreamOpenAiCompatibleChatCompletions.mockClear();
-  mockStreamOpenAiCompatibleResponses.mockClear();
+  mockCallOpenAiCompatibleChatCompletions.mockReset();
+  mockCallOpenAiCompatibleResponses.mockReset();
+  mockStreamOpenAiCompatibleChatCompletions.mockReset();
+  mockStreamOpenAiCompatibleResponses.mockReset();
   mockBuildChatMessages.mockClear();
   mockGetUpstreamRequestQueue.mockClear();
 

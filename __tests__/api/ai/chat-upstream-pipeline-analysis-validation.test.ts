@@ -3,6 +3,7 @@ import {
   mockCallOpenAiCompatibleChatCompletions,
   resetPipelineMocks,
 } from "./upstream-pipeline-test-harness";
+import { ANALYSIS_SCHEMA_BY_FEATURE } from "@/app/api/ai/chat/[feature]/analysis-output-config";
 
 const ANALYSIS_PROMPT = "Analyze this bookmark";
 const VALID_TARGET_AUDIENCE = "Developers building browser automation agents";
@@ -12,6 +13,11 @@ const VALID_CONTEXTUAL_DETAILS = {
   format: "GitHub repository",
   accessMethod: "Open source",
 } as const;
+const bookmarkAnalysisSchema = ANALYSIS_SCHEMA_BY_FEATURE["bookmark-analysis"];
+
+function parseBookmarkAnalysis(reply: string) {
+  return bookmarkAnalysisSchema.parse(JSON.parse(reply));
+}
 
 type AnalysisPayload = {
   summary: string | string[];
@@ -81,13 +87,7 @@ describe("AI Chat Upstream Pipeline Analysis Validation", () => {
       });
 
     const reply = await runBookmarkAnalysisPipeline();
-
-    const parsed = JSON.parse(reply) as {
-      summary: string;
-      category: string;
-      highlights: string[];
-      targetAudience: string;
-    };
+    const parsed = parseBookmarkAnalysis(reply);
     expect(parsed.summary.length).toBeGreaterThan(0);
     expect(parsed.category.length).toBeGreaterThan(0);
     expect(parsed.highlights.length).toBeGreaterThan(0);
@@ -134,8 +134,7 @@ describe("AI Chat Upstream Pipeline Analysis Validation", () => {
       });
 
     const reply = await runBookmarkAnalysisPipeline();
-
-    const parsed = JSON.parse(reply) as { targetAudience: string; relatedResources: string[] };
+    const parsed = parseBookmarkAnalysis(reply);
     expect(parsed.targetAudience).toBe(expectedAudience);
     expect(parsed.relatedResources).toEqual(expectedResources);
   });
@@ -153,13 +152,7 @@ describe("AI Chat Upstream Pipeline Analysis Validation", () => {
     });
 
     const reply = await runBookmarkAnalysisPipeline();
-
-    const parsed = JSON.parse(reply) as {
-      summary: string;
-      highlights: string[];
-      relatedResources: string[];
-      targetAudience: string;
-    };
+    const parsed = parseBookmarkAnalysis(reply);
     expect(parsed.summary).toBe("z-agent-browser is a Rust-based browser automation CLI.");
     expect(parsed.highlights).toEqual(["Stealth mode"]);
     expect(parsed.relatedResources).toEqual(["agent-browser"]);
@@ -177,8 +170,7 @@ describe("AI Chat Upstream Pipeline Analysis Validation", () => {
     });
 
     const reply = await runBookmarkAnalysisPipeline();
-
-    const parsed = JSON.parse(reply) as { highlights: string[]; relatedResources: string[] };
+    const parsed = parseBookmarkAnalysis(reply);
     expect(parsed.highlights).toEqual(["Stealth mode"]);
     expect(parsed.relatedResources).toEqual(["agent-browser", "Playwright"]);
   });
@@ -195,8 +187,7 @@ describe("AI Chat Upstream Pipeline Analysis Validation", () => {
     });
 
     const reply = await runBookmarkAnalysisPipeline();
-
-    const parsed = JSON.parse(reply) as { targetAudience: string };
+    const parsed = parseBookmarkAnalysis(reply);
     expect(parsed.targetAudience).toBe("People interested in Developer Tools.");
   });
 
@@ -217,14 +208,7 @@ describe("AI Chat Upstream Pipeline Analysis Validation", () => {
     });
 
     const reply = await runBookmarkAnalysisPipeline();
-
-    const parsed = JSON.parse(reply) as {
-      contextualDetails: {
-        primaryDomain: string | null;
-        format: string | null;
-        accessMethod: string | null;
-      };
-    };
+    const parsed = parseBookmarkAnalysis(reply);
     expect(parsed.contextualDetails).toEqual({
       primaryDomain: null,
       format: null,
