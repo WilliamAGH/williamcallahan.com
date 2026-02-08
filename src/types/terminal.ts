@@ -5,7 +5,7 @@
  * BOUNDARY: Domain types only - component props belong in types/ui/terminal.ts
  */
 
-import { z } from "zod";
+import { terminalSearchApiResponseSchema } from "@/types/schemas/terminal";
 
 // Base interfaces for terminal items
 export interface SelectionItem {
@@ -181,32 +181,14 @@ export function isTerminalCommandArray(data: unknown): data is TerminalCommand[]
   return Array.isArray(data) && data.every(isTerminalCommand);
 }
 
-/**
- * Zod Schema for Terminal Search API Validation
- * Terminal search returns SelectionItem format, not the general SearchResult format
- */
-export const TerminalSearchResultSchema = z.object({
-  id: z.string().min(1),
-  label: z.string(),
-  description: z.string(),
-  path: z.string(),
-});
-
-// Schema for parsing potentially incomplete data from APIs
-const PartialTerminalSearchResultSchema = z.object({
-  id: z.string().optional(),
-  label: z.string().optional(),
-  description: z.string().optional(),
-  path: z.string().optional(),
-});
-
-export const TerminalSearchApiResponseSchema = z.union([
-  z.array(PartialTerminalSearchResultSchema),
-  z.object({ results: z.array(PartialTerminalSearchResultSchema) }),
-]);
+// Re-export schemas from canonical location for consumers that import from terminal.ts
+export {
+  terminalSearchResultSchema,
+  terminalSearchApiResponseSchema,
+} from "@/types/schemas/terminal";
 
 export function parseTerminalSearchResponse(data: unknown): TerminalSearchResult[] {
-  const parsed = TerminalSearchApiResponseSchema.parse(data);
+  const parsed = terminalSearchApiResponseSchema.parse(data);
   const rawResults = Array.isArray(parsed) ? parsed : parsed.results;
 
   // Transform partial results to complete SelectionItems with fallbacks

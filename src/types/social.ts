@@ -6,7 +6,7 @@
  *
  * @see types/ui/social.ts for the UI component props (e.g., SocialIcon component)
  */
-import { z } from "zod";
+import { z } from "zod/v4";
 
 /**
  * Social media platform constants.
@@ -27,7 +27,7 @@ export const SocialLinkSchema = z.object({
   platform: z.string().min(1, "Platform name cannot be empty."),
   href: z.string().url("Invalid URL format."),
   label: z.string().min(1, "Label cannot be empty."),
-  icon: z.any().optional(), // for React components
+  icon: z.unknown().optional(), // for React components
   emphasized: z.boolean().optional(),
 });
 

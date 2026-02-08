@@ -22,7 +22,7 @@
  * @see types/github.ts for domain-specific GitHub errors
  */
 
-import { z } from "zod";
+import { z } from "zod/v4";
 
 /**
  * Extended Error interface for application-specific errors
