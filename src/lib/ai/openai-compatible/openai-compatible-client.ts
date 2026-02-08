@@ -10,6 +10,7 @@ import {
   type OpenAiCompatibleResponsesResponse,
   openAiCompatibleChatCompletionsRequestSchema,
   openAiCompatibleChatCompletionsResponseSchema,
+  openAiCompatibleResponsesRequestSchema,
   openAiCompatibleResponsesResponseSchema,
   responsesOutputRefusalItemSchema,
   responsesOutputTextItemSchema,
@@ -48,10 +49,19 @@ function resolveClient(args: {
   const existingClient = clientByConfig.get(clientKey);
   if (existingClient) return existingClient;
 
+  let timeout = args.timeoutMs;
+  if (typeof timeout !== "number") {
+    console.warn("[AI] No timeout configured; defaulting to client timeout.", {
+      baseUrl: args.baseUrl,
+      timeoutMs: DEFAULT_TIMEOUT_MS,
+    });
+    timeout = DEFAULT_TIMEOUT_MS;
+  }
+
   const client = new OpenAIClient({
     apiKey,
     baseURL: apiBaseUrl,
-    timeout: args.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    timeout,
     maxRetries: DEFAULT_MAX_RETRIES,
   });
 
@@ -61,6 +71,17 @@ function resolveClient(args: {
 
 function validateChatRequest(request: OpenAiCompatibleChatCompletionsRequest) {
   return openAiCompatibleChatCompletionsRequestSchema.parse(request);
+}
+
+function validateResponsesRequest(
+  request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
+    input: OpenAiCompatibleChatCompletionsRequest["messages"];
+  },
+): Omit<ResponseCreateParamsNonStreaming, "input"> & {
+  input: OpenAiCompatibleChatCompletionsRequest["messages"];
+} {
+  openAiCompatibleResponsesRequestSchema.parse(request);
+  return request;
 }
 
 function deriveOutputTextFromResponsesOutput(output: unknown[]): string {
@@ -192,11 +213,12 @@ export async function callOpenAiCompatibleResponses(args: {
   timeoutMs?: number;
   signal?: AbortSignal;
 }): Promise<OpenAiCompatibleResponsesResponse> {
+  const validatedRequest = validateResponsesRequest(args.request);
   const client = resolveClient(args);
   const response = await client.responses.create(
     {
-      ...args.request,
-      input: toResponsesInput(args.request.input),
+      ...validatedRequest,
+      input: toResponsesInput(validatedRequest.input),
     },
     toRequestOptions(args),
   );
@@ -216,11 +238,12 @@ export async function streamOpenAiCompatibleResponses(args: {
   onDelta?: (delta: string) => void;
   onThinkingDelta?: (delta: string) => void;
 }): Promise<OpenAiCompatibleResponsesResponse> {
+  const validatedRequest = validateResponsesRequest(args.request);
   const client = resolveClient(args);
   const stream = client.responses.stream(
     {
-      ...args.request,
-      input: toResponsesInput(args.request.input),
+      ...validatedRequest,
+      input: toResponsesInput(validatedRequest.input),
       stream: true,
     },
     toRequestOptions(args),
@@ -259,8 +282,12 @@ export async function streamOpenAiCompatibleResponses(args: {
   thinkParser?.end();
 
   if (!startEmitted) {
+    const modelLabel =
+      typeof validatedRequest.model === "string" && validatedRequest.model.length > 0
+        ? validatedRequest.model
+        : "<unset>";
     throw new Error(
-      `[AI] Responses stream completed without emitting any events (model: ${args.request.model ?? "<unset>"})`,
+      `[AI] Responses stream completed without emitting any events (model: ${modelLabel})`,
     );
   }
 
