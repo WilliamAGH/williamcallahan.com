@@ -117,8 +117,8 @@ describe("Metadata Integration Tests", () => {
       expect(nextLink?.url).toBe("https://williamcallahan.com/bookmarks/page/3");
     });
 
-    it("should handle first page correctly (no prev link)", async () => {
-      // First page should redirect, but if we test page 2 as the first paginated page
+    it("should include prev link pointing to base bookmarks URL for page 2", async () => {
+      // Page 2 should link back to the base /bookmarks URL for previous pagination.
       const metadata = await generateBookmarksMetadata({
         params: Promise.resolve({ pageNumber: "2" }),
       });
