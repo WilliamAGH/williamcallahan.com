@@ -10,11 +10,7 @@
 "use client";
 
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import {
-  getErrorMessage,
-  type UnifiedBookmark,
-  type BookmarksWithPaginationClientProps,
-} from "@/types";
+import { type UnifiedBookmark, type BookmarksWithPaginationClientProps } from "@/types";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
@@ -24,9 +20,15 @@ import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControl } from "@/components/ui/pagination-control.client";
 import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel.client";
+import { useBookmarkRefresh } from "@/hooks/use-bookmark-refresh";
 
 // Environment detection helper
 const isDevelopment = process.env.NODE_ENV === "development";
+const PRODUCTION_SITE_URL = "https://williamcallahan.com";
+/** Number of skeleton placeholder cards shown during SSR */
+const SKELETON_PLACEHOLDER_COUNT = 6;
+/** Number of leading cards eligible for image preloading */
+const IMAGE_PRELOAD_THRESHOLD = 4;
 
 // Use the shared utility for tag normalization
 const getTagsAsStringArray = (tags: UnifiedBookmark["tags"]): string[] => {
@@ -36,7 +38,6 @@ const getTagsAsStringArray = (tags: UnifiedBookmark["tags"]): string[] => {
 export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProps> = ({
   initialBookmarks = [],
   showFilterBar = true,
-  searchAllBookmarks: _searchAllBookmarks = false,
   enableInfiniteScroll = true,
   itemsPerPage = 24,
   initialPage = 1,
@@ -52,19 +53,8 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   // Add mounted state for hydration safety
   const [mounted, setMounted] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(initialTag || null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
-  const [refreshError, setRefreshError] = useState<string | null>(null);
-  const [showCrossEnvRefresh, setShowCrossEnvRefresh] = useState(false);
-  const [isRefreshingProduction, setIsRefreshingProduction] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-
-  // Infinite scroll is active when enabled (search handled via sitewide terminal)
-  const infiniteScrollActive = enableInfiniteScroll;
-
-  // The hook now expects UnifiedBookmark[] directly, not wrapped in pagination structure
-  const paginatedInitialData = initialBookmarks;
 
   // Use the generic pagination hook
   const {
@@ -82,7 +72,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   } = usePagination<UnifiedBookmark>({
     apiUrl: "/api/bookmarks",
     limit: itemsPerPage,
-    initialData: paginatedInitialData,
+    initialData: initialBookmarks,
     initialPage: initialPage,
     initialTotalPages,
     initialTotalCount,
@@ -97,7 +87,24 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   // Show refresh button if:
   // 1. We're in development mode (NODE_ENV=development), OR
   // 2. NEXT_PUBLIC_SITE_URL is not the production URL (https://williamcallahan.com)
-  const showRefreshButton = isDev || (siteUrl && siteUrl !== "https://williamcallahan.com");
+  const showRefreshButton = isDev || (siteUrl && siteUrl !== PRODUCTION_SITE_URL);
+
+  const {
+    isRefreshing,
+    refreshError,
+    lastRefreshed,
+    showCrossEnvRefresh,
+    isRefreshingProduction,
+    refreshBookmarks,
+    handleProductionRefresh,
+    dismissCrossEnvRefresh,
+  } = useBookmarkRefresh({
+    showRefreshButton: !!showRefreshButton,
+    onRefreshSuccess: () => {
+      mutate();
+      router.refresh();
+    },
+  });
 
   // Set mounted state once after hydration
   useEffect(() => {
@@ -159,103 +166,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     [goToPage],
   );
 
-  // Function to refresh bookmarks data
-  const refreshBookmarks = useCallback(async () => {
-    setIsRefreshing(true);
-    setRefreshError(null);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      if (!controller.signal.aborted) {
-        controller.abort();
-      }
-    }, 15000);
-
-    try {
-      // Call the refresh API endpoint
-      const response = await fetch("/api/bookmarks/refresh", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const result = (await response.json()) as import("@/types").RefreshResult;
-      console.log("Bookmarks refresh result:", result);
-
-      // If refresh was successful, mutate to refetch data
-      if (result.status === "success") {
-        mutate();
-        setLastRefreshed(new Date());
-        // Show cross-environment refresh option for non-production
-        if (showRefreshButton && !isRefreshingProduction) {
-          setShowCrossEnvRefresh(true);
-        }
-        router.refresh();
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        // Only log non-abort errors to avoid noise
-        if (err.name !== "AbortError") {
-          console.error("Error refreshing bookmarks:", err);
-          const message = err.message || "Failed to refresh bookmarks";
-          setRefreshError(message);
-          setTimeout(() => setRefreshError(null), 5000);
-        } else if (err.name === "AbortError") {
-          console.log("Bookmark refresh was aborted (likely due to timeout)");
-          setRefreshError("Request timed out. Please try again.");
-          setTimeout(() => setRefreshError(null), 5000);
-        }
-      } else {
-        console.error("An unknown error occurred during refresh:", err);
-        setRefreshError("An unexpected error occurred.");
-      }
-    } finally {
-      setIsRefreshing(false);
-      // Ensure timeout is always cleared
-      clearTimeout(timeoutId);
-    }
-  }, [mutate, router, showRefreshButton, isRefreshingProduction]);
-
-  // Handler for refreshing production environment bookmarks
-  const handleProductionRefresh = async () => {
-    setIsRefreshingProduction(true);
-    setShowCrossEnvRefresh(false);
-
-    try {
-      console.log("[Bookmarks] Requesting production bookmarks refresh");
-      // Call a special endpoint that will trigger production refresh
-      const response = await fetch("/api/bookmarks/refresh-production", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.ok) {
-        console.log("[Bookmarks] Production refresh initiated successfully");
-      } else {
-        const errorData: unknown = await response.json().catch(() => null);
-        const errorMessage = getErrorMessage(errorData) || response.statusText;
-        console.error("[Bookmarks] Production refresh failed:", errorMessage);
-        setRefreshError(`Production refresh failed: ${errorMessage}`);
-        setTimeout(() => setRefreshError(null), 5000);
-      }
-    } catch (error) {
-      console.error("[Bookmarks] Failed to trigger production refresh:", error);
-      setRefreshError("Failed to trigger production refresh");
-      setTimeout(() => setRefreshError(null), 5000);
-    } finally {
-      setIsRefreshingProduction(false);
-    }
-  };
-
   // ---------------------------------------------------------------------------
   // Reset to page 1 whenever selected tag changes.
   // We keep `currentPage` out of the dependency list by reading it from a ref,
@@ -278,9 +188,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     }
   }, [selectedTag, initialPage, goToPage]);
 
-  // Display bookmarks from the filtered list
-  const displayBookmarks = filteredBookmarks;
-
   // Use URL-based pagination (search handled via sitewide terminal)
   const useUrlPagination = globalThis.window !== undefined;
 
@@ -288,7 +195,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   // page worth of items). This guarantees tag-search views correctly slice
   // irrespective of the `tag` prop coming from SSR.
   const paginatedSlice = (items: UnifiedBookmark[]): UnifiedBookmark[] => {
-    if (infiniteScrollActive) return items; // avoid slicing for infinite scroll when active
+    if (enableInfiniteScroll) return items; // avoid slicing for infinite scroll when active
     if (items.length <= itemsPerPage) return items;
     return items.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   };
@@ -330,7 +237,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
             <button
               type="button"
               onClick={() => {
-                setShowCrossEnvRefresh(false);
+                dismissCrossEnvRefresh();
                 void refreshBookmarks();
               }}
               disabled={isRefreshing}
@@ -436,7 +343,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
                 const isFilteredView = !!selectedTag;
 
                 const totalCount = isFilteredView
-                  ? (displayBookmarks?.length ?? 0)
+                  ? (filteredBookmarks?.length ?? 0)
                   : (totalItems ?? initialTotalCount);
 
                 if (totalCount === 0) {
@@ -474,7 +381,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6" suppressHydrationWarning>
           {Array.isArray(initialBookmarks) &&
             initialBookmarks
-              .slice(0, 6)
+              .slice(0, SKELETON_PLACEHOLDER_COUNT)
               .map((bookmark) => (
                 <div
                   key={bookmark.id}
@@ -490,7 +397,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           <p className="text-red-500 dark:text-red-300 text-sm">{error?.message}</p>
         </div>
       )}
-      {mounted && !error && (displayBookmarks?.length ?? 0) === 0 && (
+      {mounted && !error && (filteredBookmarks?.length ?? 0) === 0 && (
         <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
           <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">No bookmarks found</p>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
@@ -498,35 +405,24 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           </p>
         </div>
       )}
-      {mounted && !error && (displayBookmarks?.length ?? 0) > 0 && (
+      {mounted && !error && (filteredBookmarks?.length ?? 0) > 0 && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
-            {Array.isArray(displayBookmarks) &&
-              paginatedSlice(displayBookmarks).map((bookmark, index) => {
-                // Debug: Log bookmark data for CLI bookmark
-                if (bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
-                  console.log("[BookmarksWithPagination] CLI bookmark data:", {
-                    id: bookmark.id,
-                    hasContent: !!bookmark.content,
-                    hasImageAssetId: !!bookmark.content?.imageAssetId,
-                    hasImageUrl: !!bookmark.content?.imageUrl,
-                    hasScreenshotAssetId: !!bookmark.content?.screenshotAssetId,
-                    content: bookmark.content,
-                  });
-                }
+            {Array.isArray(filteredBookmarks) &&
+              paginatedSlice(filteredBookmarks).map((bookmark, index) => {
                 return (
                   <BookmarkCardClient
                     key={bookmark.id}
                     {...bookmark}
                     internalHref={internalHrefs?.[bookmark.id]}
-                    preload={index < 4}
+                    preload={index < IMAGE_PRELOAD_THRESHOLD}
                   />
                 );
               })}
           </div>
 
           {/* Infinite scroll sentinel */}
-          {infiniteScrollActive && (
+          {enableInfiniteScroll && (
             <InfiniteScrollSentinel
               onIntersect={loadMore}
               loading={isLoadingMore}

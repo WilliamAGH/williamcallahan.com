@@ -8,19 +8,21 @@
 "use client";
 
 import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
-import {
-  getErrorMessage,
-  type UnifiedBookmark,
-  type BookmarksWithOptionsClientProps,
-} from "@/types";
+import { type UnifiedBookmark, type BookmarksWithOptionsClientProps } from "@/types";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
+import { useBookmarkRefresh } from "@/hooks/use-bookmark-refresh";
 
 // Environment detection helper
 const isDevelopment = process.env.NODE_ENV === "development";
+const PRODUCTION_SITE_URL = "https://williamcallahan.com";
+/** Number of skeleton placeholder cards shown during SSR */
+const SKELETON_PLACEHOLDER_COUNT = 6;
+/** Number of leading cards eligible for image preloading */
+const IMAGE_PRELOAD_THRESHOLD = 4;
 
 // Use the shared utility for tag normalization
 const getTagsAsStringArray = (tags: UnifiedBookmark["tags"]): string[] => {
@@ -33,10 +35,6 @@ function isBookmarksApiResponse(
   if (!obj || typeof obj !== "object") return false;
   const maybe = obj as Record<string, unknown>;
   return Array.isArray(maybe.data);
-}
-
-function isRefreshResult(obj: unknown): obj is import("@/types").RefreshResult {
-  return !!obj && typeof obj === "object" && "status" in (obj as Record<string, unknown>);
 }
 
 function isUnifiedBookmarkArray(x: unknown): x is UnifiedBookmark[] {
@@ -64,21 +62,16 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   const [selectedTag, setSelectedTag] = useState<string | null>(initialTag || null);
   // Tag expansion is now handled in the TagsList component
   const [allBookmarks, setAllBookmarks] = useState<UnifiedBookmark[]>(bookmarks);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   // Store internal hrefs mapping (critical for preventing 404s)
   const [internalHrefs, setInternalHrefs] = useState<Record<string, string>>(
     initialInternalHrefs ?? {},
   );
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [dataSource, setDataSource] = useState<"server" | "client">("server");
-  const [refreshError, setRefreshError] = useState<string | null>(null);
-  const [showCrossEnvRefresh, setShowCrossEnvRefresh] = useState(false);
-  const [isRefreshingProduction, setIsRefreshingProduction] = useState(false);
   const router = useRouter();
 
   // Determine if refresh button should be shown
   const coolifyUrl = process.env.NEXT_PUBLIC_COOLIFY_URL;
-  const targetUrl = "https://williamcallahan.com";
+  const targetUrl = PRODUCTION_SITE_URL;
   let showRefreshButton = isDevelopment; // Only in dev environment
   if (coolifyUrl) {
     const normalizedCoolifyUrl = coolifyUrl.endsWith("/") ? coolifyUrl.slice(0, -1) : coolifyUrl;
@@ -87,6 +80,40 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       showRefreshButton = false;
     }
   }
+
+  const {
+    isRefreshing,
+    refreshError,
+    lastRefreshed,
+    showCrossEnvRefresh,
+    isRefreshingProduction,
+    refreshBookmarks,
+    handleProductionRefresh,
+    dismissCrossEnvRefresh,
+  } = useBookmarkRefresh({
+    showRefreshButton,
+    onRefreshSuccess: async () => {
+      const timestamp = Date.now();
+      const bookmarksResponse = await fetch(`/api/bookmarks?t=${timestamp}`, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      if (!bookmarksResponse.ok) return;
+      const refreshedJson: unknown = await bookmarksResponse.json();
+      if (isBookmarksApiResponse(refreshedJson)) {
+        const refreshedArray = isUnifiedBookmarkArray(refreshedJson.data) ? refreshedJson.data : [];
+        if (refreshedArray.length > 0) {
+          setAllBookmarks(refreshedArray);
+          if (refreshedJson.internalHrefs) {
+            setInternalHrefs(refreshedJson.internalHrefs);
+          }
+          setDataSource("client");
+        }
+      }
+      router.refresh();
+    },
+  });
 
   // Set mounted state once after hydration
   useEffect(() => {
@@ -198,149 +225,6 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   // interaction. The SSR route already reflects the initial tag. Keeping the
   // URL stable prevents unintended refreshes while the user is typing.
 
-  // Function to refresh bookmarks data
-  const refreshBookmarks = async () => {
-    setIsRefreshing(true);
-    setRefreshError(null);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      if (!controller.signal.aborted) {
-        controller.abort();
-      }
-    }, 15000);
-
-    try {
-      // Call the refresh API endpoint
-      const response = await fetch("/api/bookmarks/refresh", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorData = (await response
-          .json()
-          .catch(
-            () => ({ error: null }) as import("@/types").ErrorResponse,
-          )) as import("@/types").ErrorResponse;
-        const errorMessage = errorData.error || `Refresh failed: ${response.status}`;
-        throw new Error(errorMessage);
-      }
-
-      const resultJson: unknown = await response.json();
-      if (!isRefreshResult(resultJson)) {
-        throw new Error("Unexpected response from refresh endpoint");
-      }
-      const result = resultJson;
-      console.log("Bookmarks refresh result:", result);
-
-      // If refresh was successful, fetch the new bookmarks
-      if (result.status === "success") {
-        const timestamp = Date.now();
-        const bookmarksResponse = await fetch(`/api/bookmarks?t=${timestamp}`, {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-          },
-          cache: "no-store",
-        });
-
-        if (!bookmarksResponse.ok) {
-          throw new Error(`Failed to fetch updated bookmarks: ${bookmarksResponse.status}`);
-        }
-
-        const refreshedJson: unknown = await bookmarksResponse.json();
-        let refreshedArray: UnifiedBookmark[] = [];
-        let refreshedInternalHrefs: Record<string, string> | undefined;
-        if (Array.isArray(refreshedJson)) {
-          refreshedArray = isUnifiedBookmarkArray(refreshedJson) ? refreshedJson : [];
-        } else if (refreshedJson && typeof refreshedJson === "object") {
-          const obj = refreshedJson as Record<string, unknown>;
-          if (Array.isArray(obj.data) && isUnifiedBookmarkArray(obj.data)) {
-            refreshedArray = obj.data;
-          }
-          if (obj.internalHrefs && typeof obj.internalHrefs === "object") {
-            refreshedInternalHrefs = obj.internalHrefs as Record<string, string>;
-          }
-        }
-
-        if (refreshedArray.length > 0) {
-          setAllBookmarks(refreshedArray);
-          // CRITICAL: Update slug mappings after refresh
-          if (refreshedInternalHrefs) {
-            setInternalHrefs(refreshedInternalHrefs);
-            console.log("Bookmarks refresh: Updated internalHrefs");
-          } else {
-            console.error("Bookmarks refresh: WARNING - No internalHrefs, URLs will cause 404s!");
-          }
-          setLastRefreshed(new Date());
-          setDataSource("client");
-          console.log("Bookmarks refreshed successfully:", refreshedArray.length);
-          // Show cross-environment refresh option for non-production
-          if (showRefreshButton && !isRefreshingProduction) {
-            setShowCrossEnvRefresh(true);
-          }
-          router.refresh();
-        } else {
-          console.warn("Refresh returned empty or invalid data shape:", refreshedJson);
-        }
-      }
-    } catch (error) {
-      // Only log non-abort errors to avoid noise
-      if (error instanceof Error && error.name !== "AbortError") {
-        console.error("Error refreshing bookmarks:", error);
-        const message = error.message || "Failed to refresh bookmarks";
-        setRefreshError(message);
-        setTimeout(() => setRefreshError(null), 5000);
-      } else if (error instanceof Error && error.name === "AbortError") {
-        console.log("Bookmark refresh was aborted (likely due to timeout)");
-        setRefreshError("Request timed out. Please try again.");
-        setTimeout(() => setRefreshError(null), 5000);
-      }
-    } finally {
-      setIsRefreshing(false);
-      // Ensure timeout is always cleared
-      clearTimeout(timeoutId);
-    }
-  };
-
-  // Handler for refreshing production environment bookmarks
-  const handleProductionRefresh = async () => {
-    setIsRefreshingProduction(true);
-
-    try {
-      console.log("[Bookmarks] Requesting production bookmarks refresh");
-      // Call a special endpoint that will trigger production refresh
-      const response = await fetch("/api/bookmarks/refresh-production", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.ok) {
-        console.log("[Bookmarks] Production refresh initiated successfully");
-      } else {
-        const errorData: unknown = await response.json().catch(() => null);
-        const errorMessage = getErrorMessage(errorData) || response.statusText;
-        console.error("[Bookmarks] Production refresh failed:", errorMessage);
-        setRefreshError(`Production refresh failed: ${errorMessage}`);
-        setTimeout(() => setRefreshError(null), 5000);
-      }
-    } catch (error) {
-      console.error("[Bookmarks] Failed to trigger production refresh:", error);
-      setRefreshError("Failed to trigger production refresh");
-      setTimeout(() => setRefreshError(null), 5000);
-    } finally {
-      setIsRefreshingProduction(false);
-      setShowCrossEnvRefresh(false); // Hide banner after completion
-    }
-  };
-
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8">
       {/* Dev-only alerts - stacked when present */}
@@ -352,7 +236,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
               <button
                 type="button"
                 onClick={() => {
-                  setShowCrossEnvRefresh(false);
+                  dismissCrossEnvRefresh();
                   void refreshBookmarks();
                 }}
                 disabled={isRefreshing}
@@ -460,7 +344,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       {!mounted && (
         /* Server-side placeholder with hydration suppression */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6" suppressHydrationWarning>
-          {bookmarks.slice(0, 6).map((bookmark) => (
+          {bookmarks.slice(0, SKELETON_PLACEHOLDER_COUNT).map((bookmark) => (
             <div
               key={bookmark.id}
               className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg h-96"
@@ -489,23 +373,12 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
               );
             }
 
-            // Debug: Log bookmark data for CLI bookmark (dev-only)
-            if (isDevelopment && bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
-              console.log("[BookmarksWithOptions] CLI bookmark data:", {
-                id: bookmark.id,
-                hasContent: !!bookmark.content,
-                hasImageAssetId: !!bookmark.content?.imageAssetId,
-                hasImageUrl: !!bookmark.content?.imageUrl,
-                hasScreenshotAssetId: !!bookmark.content?.screenshotAssetId,
-                content: bookmark.content,
-              });
-            }
             return (
               <BookmarkCardClient
                 key={bookmark.id}
                 {...bookmark}
                 internalHref={internalHref}
-                preload={index < 4}
+                preload={index < IMAGE_PRELOAD_THRESHOLD}
               />
             );
           })}
