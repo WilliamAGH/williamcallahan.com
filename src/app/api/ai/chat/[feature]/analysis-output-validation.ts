@@ -187,7 +187,7 @@ function normalizeDetailFields(
 ): void {
   const detailValue = root[detailKey];
   const normalizedDetails =
-    typeof detailValue === "object" && detailValue !== null
+    typeof detailValue === "object" && detailValue !== null && !Array.isArray(detailValue)
       ? { ...(detailValue as Record<string, unknown>) }
       : {};
   for (const field of fields) {
@@ -208,7 +208,7 @@ function normalizeDetailFields(
 }
 
 function normalizeAnalysisPayload(feature: AnalysisFeatureId, value: unknown): unknown {
-  if (typeof value !== "object" || value === null) return value;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
   const config = ANALYSIS_FIELD_CONFIG[feature];
   const root = { ...(value as Record<string, unknown>) };
 
@@ -228,7 +228,8 @@ function hasPromptLeakage(value: string): boolean {
 }
 
 function findSuspiciousAnalysisContent(feature: AnalysisFeatureId, value: unknown): string | null {
-  if (typeof value !== "object" || value === null) return "Response is not a JSON object.";
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return "Response is not a JSON object.";
   const config = ANALYSIS_FIELD_CONFIG[feature];
   const root = value as Record<string, unknown>;
 

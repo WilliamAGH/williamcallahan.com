@@ -37,9 +37,15 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
         try {
           controller.enqueue(encoder.encode(formatSseEvent({ event, data })));
         } catch (enqueueError) {
-          // Stream closed by client - mark as closed and stop sending
-          console.debug("[SSE] Stream enqueue failed (client disconnected):", enqueueError);
           controllerClosed = true;
+          const isAbort =
+            enqueueError instanceof TypeError ||
+            (enqueueError instanceof Error && enqueueError.message.includes("close"));
+          if (isAbort) {
+            console.debug("[SSE] Stream closed by client");
+          } else {
+            console.warn("[SSE] Unexpected stream enqueue failure:", enqueueError);
+          }
         }
       };
 

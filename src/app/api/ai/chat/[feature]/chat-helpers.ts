@@ -216,13 +216,13 @@ export async function buildRagContextForChat(
       });
       return { augmentedPrompt: ragContext.contextText, status: "partial" };
     } else {
-      logger.warn("[AI Chat] RAG context retrieval failed", {
+      logger.error("[AI Chat] RAG context retrieval failed", {
         status: ragContext.retrievalStatus,
       });
       return { augmentedPrompt: undefined, status: "failed" };
     }
   } catch (error) {
-    logger.warn("[AI Chat] RAG context retrieval exception:", { error });
+    logger.error("[AI Chat] RAG context retrieval exception:", { error });
     return { augmentedPrompt: undefined, status: "failed" };
   }
 }
