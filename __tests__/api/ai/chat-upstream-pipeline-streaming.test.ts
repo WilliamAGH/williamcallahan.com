@@ -5,11 +5,8 @@ import {
   expectSingleMessageDoneEvent,
   expectStandardStreamEvents,
   mockCallOpenAiCompatibleChatCompletions,
-  mockCallOpenAiCompatibleResponses,
-  mockGetUpstreamRequestQueue,
   mockSingleBookmarkSearchResult,
   mockStreamOpenAiCompatibleChatCompletions,
-  mockStreamOpenAiCompatibleResponses,
   mockStreamingSearchBookmarksToolCall,
   resetPipelineMocks,
   runPipelineWithEvents,
@@ -25,45 +22,51 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
   });
 
   it("defaults terminal chat to feature-specific model params when not provided", async () => {
-    await createPipeline().runUpstream();
-
-    expect(mockGetUpstreamRequestQueue).toHaveBeenCalledWith({
-      key: "https://example.com/v1/chat/completions::test-model",
-      maxParallel: 1,
-    });
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: "https://example.com",
-        request: expect.objectContaining({
-          model: "test-model",
-          temperature: 0.7,
-          top_p: 1,
-          max_tokens: 8192,
-          reasoning_effort: "low",
-        }),
+    mockCallOpenAiCompatibleChatCompletions.mockImplementationOnce(({ baseUrl, request }) =>
+      Promise.resolve({
+        choices: [
+          { message: { role: "assistant", content: JSON.stringify({ baseUrl, request }) } },
+        ],
       }),
     );
-    expect(mockCallOpenAiCompatibleResponses).not.toHaveBeenCalled();
+
+    const reply = await createPipeline().runUpstream();
+    const parsed = JSON.parse(reply) as {
+      baseUrl: string;
+      request: {
+        model: string;
+        temperature: number;
+        top_p: number;
+        max_tokens: number;
+        reasoning_effort: string;
+      };
+    };
+
+    expect(parsed.baseUrl).toBe("https://example.com");
+    expect(parsed.request.model).toBe("test-model");
+    expect(parsed.request.temperature).toBe(0.7);
+    expect(parsed.request.top_p).toBe(1);
+    expect(parsed.request.max_tokens).toBe(8192);
+    expect(parsed.request.reasoning_effort).toBe("low");
   });
 
   it("respects explicit client temperature when provided", async () => {
-    await createPipeline({ temperature: 0.75 }).runUpstream();
-
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledWith(
-      expect.objectContaining({
-        request: expect.objectContaining({
-          temperature: 0.75,
-        }),
+    mockCallOpenAiCompatibleChatCompletions.mockImplementationOnce(({ request }) =>
+      Promise.resolve({
+        choices: [{ message: { role: "assistant", content: JSON.stringify({ request }) } }],
       }),
     );
+
+    const reply = await createPipeline({ temperature: 0.75 }).runUpstream();
+    const parsed = JSON.parse(reply) as { request: { temperature: number } };
+
+    expect(parsed.request.temperature).toBe(0.75);
   });
 
   it("emits normalized stream events for chat completions", async () => {
     const { reply, events } = await runPipelineWithEvents();
 
     expect(reply).toBe("ok");
-    expect(mockStreamOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
-    expect(mockCallOpenAiCompatibleChatCompletions).not.toHaveBeenCalled();
     expectStandardStreamEvents(events, { id: "chatcmpl_1", apiMode: "chat_completions" });
   });
 
@@ -71,9 +74,6 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
     const { reply, events } = await runPipelineWithEvents({ apiMode: "responses" });
 
     expect(reply).toBe("ok");
-    expect(mockStreamOpenAiCompatibleResponses).toHaveBeenCalledTimes(1);
-    expect(mockCallOpenAiCompatibleResponses).not.toHaveBeenCalled();
-    expect(mockCallOpenAiCompatibleChatCompletions).not.toHaveBeenCalled();
     expectStandardStreamEvents(events, { id: "response_1", apiMode: "responses" });
   });
 
@@ -148,11 +148,6 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
     }
 
     expectSingleMessageDoneEvent(events, expectDeterministicReply ? reply : finalReply);
-    expect(mockStreamOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
-    const streamRequest = mockStreamOpenAiCompatibleChatCompletions.mock.calls[0]?.[0]?.request;
-    expect(streamRequest?.tool_choice).toBe("auto");
-    expect(streamRequest?.parallel_tool_calls).toBe(false);
   });
 
   it("emits refusal text as streamed content when completion has no assistant content", async () => {

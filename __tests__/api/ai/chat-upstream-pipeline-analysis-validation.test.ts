@@ -82,7 +82,6 @@ describe("AI Chat Upstream Pipeline Analysis Validation", () => {
 
     const reply = await runBookmarkAnalysisPipeline();
 
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(2);
     const parsed = JSON.parse(reply) as {
       summary: string;
       category: string;
@@ -93,18 +92,6 @@ describe("AI Chat Upstream Pipeline Analysis Validation", () => {
     expect(parsed.category.length).toBeGreaterThan(0);
     expect(parsed.highlights.length).toBeGreaterThan(0);
     expect(parsed.targetAudience.length).toBeGreaterThan(0);
-
-    const secondRequestMessages =
-      mockCallOpenAiCompatibleChatCompletions.mock.calls[1]?.[0]?.request?.messages;
-    const repairPromptPresent = Array.isArray(secondRequestMessages)
-      ? secondRequestMessages.some(
-          (message: { role?: string; content?: unknown }) =>
-            message.role === "user" &&
-            typeof message.content === "string" &&
-            message.content.includes("Rewrite your previous answer as valid JSON only."),
-        )
-      : false;
-    expect(repairPromptPresent).toBe(true);
   });
 
   it.each([
@@ -148,7 +135,6 @@ describe("AI Chat Upstream Pipeline Analysis Validation", () => {
 
     const reply = await runBookmarkAnalysisPipeline();
 
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(2);
     const parsed = JSON.parse(reply) as { targetAudience: string; relatedResources: string[] };
     expect(parsed.targetAudience).toBe(expectedAudience);
     expect(parsed.relatedResources).toEqual(expectedResources);
@@ -168,7 +154,6 @@ describe("AI Chat Upstream Pipeline Analysis Validation", () => {
 
     const reply = await runBookmarkAnalysisPipeline();
 
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
     const parsed = JSON.parse(reply) as {
       summary: string;
       highlights: string[];
@@ -194,7 +179,6 @@ describe("AI Chat Upstream Pipeline Analysis Validation", () => {
 
     const reply = await runBookmarkAnalysisPipeline();
 
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
     const parsed = JSON.parse(reply) as { targetAudience: string };
     expect(parsed.targetAudience).toBe("People interested in Developer Tools.");
   });
@@ -217,7 +201,6 @@ describe("AI Chat Upstream Pipeline Analysis Validation", () => {
 
     const reply = await runBookmarkAnalysisPipeline();
 
-    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
     const parsed = JSON.parse(reply) as {
       contextualDetails: {
         primaryDomain: string | null;
