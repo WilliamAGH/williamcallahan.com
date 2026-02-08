@@ -126,9 +126,9 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV DEPLOYMENT_ENV=$DEPLOYMENT_ENV
 
 # --- S3 configuration (build-time and runtime) -------------------------------
-# Only non-secret values are exported as ENV vars below. Secrets can be
-# supplied either through BuildKit secrets (when available) or as build args for
-# environments that only support classic docker builds (e.g., Railway).
+# Non-secret values are exported as ENV vars and must be supplied via build args
+# so build-time and runtime configuration stay in sync.
+# Sensitive credentials can still be supplied as BuildKit secrets.
 ARG S3_BUCKET
 ARG S3_SERVER_URL
 ARG NEXT_PUBLIC_S3_CDN_URL
@@ -172,25 +172,22 @@ RUN bash -c 'set -euo pipefail \
 # Note: Bun uses JavaScriptCore which auto-manages memory, no --max-old-space-size support
 # The build script in package.json sets NODE_OPTIONS for the Next.js build step
 #
-# BuildKit secrets are mounted directly as environment variables using the idiomatic
-# --mount=type=secret,env= syntax (requires dockerfile:1 syntax directive).
-# This provides S3 credentials just-in-time for generateStaticParams() without
-# leaking secrets into the image layers or build cache.
+# BuildKit secrets are mounted directly as environment variables using the
+# idiomatic --mount=type=secret,env= syntax (requires dockerfile:1 syntax
+# directive). This provides credentials just-in-time for generateStaticParams()
+# without leaking secrets into the image layers or build cache.
+# S3_SESSION_TOKEN is mirrored to AWS_SESSION_TOKEN for SDK compatibility.
 # Ref: https://docs.docker.com/build/building/secrets/#secret-mounts
 RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID \
     --mount=type=secret,id=S3_SECRET_ACCESS_KEY,env=S3_SECRET_ACCESS_KEY \
     --mount=type=secret,id=S3_SESSION_TOKEN,env=S3_SESSION_TOKEN \
-    --mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL,env=NEXT_PUBLIC_S3_CDN_URL \
-    --mount=type=secret,id=NEXT_PUBLIC_SITE_URL,env=NEXT_PUBLIC_SITE_URL \
-    --mount=type=secret,id=NEXT_PUBLIC_UMAMI_WEBSITE_ID,env=NEXT_PUBLIC_UMAMI_WEBSITE_ID \
-    --mount=type=secret,id=DEPLOYMENT_ENV,env=DEPLOYMENT_ENV \
-    --mount=type=secret,id=S3_BUCKET,env=S3_BUCKET \
-    --mount=type=secret,id=S3_SERVER_URL,env=S3_SERVER_URL \
     --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
     --mount=type=secret,id=SENTRY_DSN,env=SENTRY_DSN \
     --mount=type=secret,id=NEXT_PUBLIC_SENTRY_DSN,env=NEXT_PUBLIC_SENTRY_DSN \
-    bun run build \
-    && (find /app/.next/cache -type f -mtime +5 -delete 2>/dev/null || true)
+    bash -c 'set -euo pipefail \
+      && if [ -n "${S3_SESSION_TOKEN:-}" ]; then export AWS_SESSION_TOKEN="${S3_SESSION_TOKEN}"; fi \
+      && bun run build \
+      && (find /app/.next/cache -type f -mtime +5 -delete 2>/dev/null || true)'
 
 # ---------- Runtime stage ----------
 # Production image, copy all the files and run next
