@@ -20,7 +20,7 @@ import {
   withNoStoreHeaders,
 } from "@/lib/search/api-guards";
 import { validateSearchQuery } from "@/lib/validators/search";
-import type { LightweightBookmark, UnifiedBookmark } from "@/types";
+import type { AnyBookmark } from "@/types/bookmark";
 import type { SearchResult } from "@/types/search";
 import { bookmarkSearchParamsSchema } from "@/types/schemas/search";
 import { preventCaching } from "@/lib/utils/api-utils";
@@ -37,9 +37,6 @@ const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUI
 
 /** Pagination-only slice of the bookmark search params schema. */
 const paginationSchema = bookmarkSearchParamsSchema.pick({ page: true, limit: true });
-
-/** Bookmark type union — getBookmarks returns either shape depending on includeImageData. */
-type AnyBookmark = UnifiedBookmark | LightweightBookmark;
 
 /** Build the standard bookmark search response payload. */
 function buildBookmarkSearchResponse(params: {
