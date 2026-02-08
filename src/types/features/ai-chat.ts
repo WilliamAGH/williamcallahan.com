@@ -38,6 +38,7 @@ export type ValidatedRequestContext = {
   pagePath: string | null;
   originHost: string;
   userAgent: string;
+  systemStatus?: "MEMORY_WARNING";
   parsedBody: ParsedRequestBody;
 };
 
