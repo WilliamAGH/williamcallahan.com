@@ -15,8 +15,8 @@ import React, { useEffect, useState } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
 import { useBookmarkRefresh } from "@/hooks/use-bookmark-refresh";
+import { useClientBookmarks } from "@/hooks/use-client-bookmarks";
 
-// Environment detection helper
 const isDevelopment = process.env.NODE_ENV === "development";
 const PRODUCTION_SITE_URL = "https://williamcallahan.com";
 /** Number of skeleton placeholder cards shown during SSR */
@@ -24,30 +24,9 @@ const SKELETON_PLACEHOLDER_COUNT = 6;
 /** Number of leading cards eligible for image preloading */
 const IMAGE_PRELOAD_THRESHOLD = 4;
 
-// Use the shared utility for tag normalization
 const getTagsAsStringArray = (tags: UnifiedBookmark["tags"]): string[] => {
   return normalizeTagsToStrings(tags);
 };
-
-function isBookmarksApiResponse(
-  obj: unknown,
-): obj is { data: UnifiedBookmark[]; internalHrefs?: Record<string, string>; meta?: unknown } {
-  if (!obj || typeof obj !== "object") return false;
-  const maybe = obj as Record<string, unknown>;
-  return Array.isArray(maybe.data);
-}
-
-function isUnifiedBookmarkArray(x: unknown): x is UnifiedBookmark[] {
-  return (
-    Array.isArray(x) &&
-    x.every(
-      (b) =>
-        b &&
-        typeof (b as { id?: unknown }).id === "string" &&
-        typeof (b as { url?: unknown }).url === "string",
-    )
-  );
-}
 
 export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = ({
   bookmarks,
@@ -57,29 +36,34 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   description,
   internalHrefs: initialInternalHrefs,
 }) => {
-  // Add mounted state for hydration safety
   const [mounted, setMounted] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(initialTag || null);
-  // Tag expansion is now handled in the TagsList component
-  const [allBookmarks, setAllBookmarks] = useState<UnifiedBookmark[]>(bookmarks);
-  // Store internal hrefs mapping (critical for preventing 404s)
-  const [internalHrefs, setInternalHrefs] = useState<Record<string, string>>(
-    initialInternalHrefs ?? {},
-  );
-  const [dataSource, setDataSource] = useState<"server" | "client">("server");
   const router = useRouter();
 
   // Determine if refresh button should be shown
   const coolifyUrl = process.env.NEXT_PUBLIC_COOLIFY_URL;
-  const targetUrl = PRODUCTION_SITE_URL;
-  let showRefreshButton = isDevelopment; // Only in dev environment
+  let showRefreshButton = isDevelopment;
   if (coolifyUrl) {
     const normalizedCoolifyUrl = coolifyUrl.endsWith("/") ? coolifyUrl.slice(0, -1) : coolifyUrl;
-    const normalizedTargetUrl = targetUrl.endsWith("/") ? targetUrl.slice(0, -1) : targetUrl;
+    const normalizedTargetUrl = PRODUCTION_SITE_URL;
     if (normalizedCoolifyUrl === normalizedTargetUrl) {
       showRefreshButton = false;
     }
   }
+
+  // Delegate client-side bookmark fetching to dedicated hook
+  const {
+    bookmarks: clientBookmarks,
+    internalHrefs,
+    dataSource,
+    fetchError,
+    refetch,
+  } = useClientBookmarks({
+    serverBookmarks: bookmarks,
+    serverInternalHrefs: initialInternalHrefs ?? {},
+    enabled: searchAllBookmarks,
+    mounted,
+  });
 
   const {
     isRefreshing,
@@ -93,119 +77,28 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   } = useBookmarkRefresh({
     showRefreshButton,
     onRefreshSuccess: async () => {
-      const timestamp = Date.now();
-      const bookmarksResponse = await fetch(`/api/bookmarks?t=${timestamp}`, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-      });
-      if (!bookmarksResponse.ok) return;
-      const refreshedJson: unknown = await bookmarksResponse.json();
-      if (isBookmarksApiResponse(refreshedJson)) {
-        const refreshedArray = isUnifiedBookmarkArray(refreshedJson.data) ? refreshedJson.data : [];
-        if (refreshedArray.length > 0) {
-          setAllBookmarks(refreshedArray);
-          if (refreshedJson.internalHrefs) {
-            setInternalHrefs(refreshedJson.internalHrefs);
-          }
-          setDataSource("client");
-        }
-      }
+      await refetch();
       router.refresh();
     },
   });
 
-  // Set mounted state once after hydration
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Separate effect for fetching bookmarks
-  useEffect(() => {
-    if (searchAllBookmarks && mounted) {
-      void (async () => {
-        try {
-          console.log("Client-side: Attempting to fetch bookmarks from API");
-          // Add a random query parameter to bust cache
-          const timestamp = Date.now();
-          console.log("BookmarksWithOptions: Fetching client-side data with timestamp", timestamp);
-          const response = await fetch(`/api/bookmarks?t=${timestamp}`, {
-            method: "GET",
-            headers: {
-              Accept: "application/json",
-            },
-            cache: "no-store",
-          });
-          console.log("BookmarksWithOptions: Fetch response status:", response.status);
+  const activeBookmarks = searchAllBookmarks ? clientBookmarks : bookmarks;
 
-          if (!response.ok) {
-            throw new Error(`API request failed with status ${response.status}`);
-          }
-
-          const responseData: unknown = await response.json();
-          if (!isBookmarksApiResponse(responseData)) {
-            console.error("Client-side: Invalid /api/bookmarks response shape", responseData);
-            setAllBookmarks(bookmarks);
-            return;
-          }
-          const allBookmarksData: UnifiedBookmark[] = isUnifiedBookmarkArray(responseData.data)
-            ? responseData.data
-            : [];
-          const apiInternalHrefs = responseData.internalHrefs;
-          console.log("Client-side direct fetch bookmarks count:", allBookmarksData?.length || 0);
-          console.log("Client-side direct fetch has internalHrefs:", !!apiInternalHrefs);
-
-          if (Array.isArray(allBookmarksData) && allBookmarksData.length > 0) {
-            setAllBookmarks(allBookmarksData);
-            // CRITICAL: Update the slug mappings from API
-            if (apiInternalHrefs) {
-              setInternalHrefs(apiInternalHrefs);
-              console.log("BookmarksWithOptions: Updated internalHrefs from API");
-            } else {
-              console.error(
-                "BookmarksWithOptions: WARNING - No internalHrefs from API. Cards will fall back to external URLs.",
-              );
-            }
-            // Explicitly force the dataSource to client
-            console.log("BookmarksWithOptions: Setting data source to client-side");
-            setDataSource("client");
-          } else {
-            console.error("Client-side: API returned empty or invalid data", responseData);
-            // Fallback to provided bookmarks
-            setAllBookmarks(bookmarks);
-          }
-        } catch (error) {
-          console.error("Failed to load all bookmarks:", error);
-          // Fallback to provided bookmarks
-          console.log("Client-side: Falling back to provided bookmarks. Count:", bookmarks.length);
-          setAllBookmarks(bookmarks);
-        }
-      })();
-    } else {
-      console.log("Client-side: Using provided bookmarks directly. Count:", bookmarks.length);
-    }
-  }, [searchAllBookmarks, bookmarks, mounted]);
-
-  // Tag formatting is now handled in the TagsList component
-
-  // Extract all unique tags from all available bookmarks
-  const allTags = (searchAllBookmarks ? allBookmarks : bookmarks)
-    .flatMap((bookmark) => {
-      return getTagsAsStringArray(bookmark.tags);
-    })
+  const allTags = activeBookmarks
+    .flatMap((bookmark) => getTagsAsStringArray(bookmark.tags))
     .filter((tag, index, self) => tag && self.indexOf(tag) === index)
     .toSorted((a, b) => a.localeCompare(b));
 
-  // Determine which set of bookmarks to filter (tag filtering only, search via terminal)
-  const bookmarksToFilter = searchAllBookmarks ? allBookmarks : bookmarks;
-
-  // Filter bookmarks by selected tag only (search is handled via sitewide terminal)
   const filteredBookmarks = selectedTag
-    ? bookmarksToFilter.filter((bookmark) => {
+    ? activeBookmarks.filter((bookmark) => {
         const tagsAsString = getTagsAsStringArray(bookmark.tags);
         return tagsAsString.includes(selectedTag);
       })
-    : bookmarksToFilter;
+    : activeBookmarks;
 
   const bookmarkCountLabel = filteredBookmarks.length === 1 ? "bookmark" : "bookmarks";
   const resultsCountText =
@@ -214,23 +107,15 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       : `Showing ${filteredBookmarks.length} ${bookmarkCountLabel}`;
 
   const handleTagClick = (tag: string) => {
-    if (selectedTag === tag) {
-      setSelectedTag(null);
-    } else {
-      setSelectedTag(tag);
-    }
+    setSelectedTag(selectedTag === tag ? null : tag);
   };
 
-  // We no longer modify the URL when tag selection changes during client
-  // interaction. The SSR route already reflects the initial tag. Keeping the
-  // URL stable prevents unintended refreshes while the user is typing.
+  const displayError = fetchError || refreshError;
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8">
-      {/* Dev-only alerts - stacked when present */}
-      {(refreshError || showCrossEnvRefresh || showRefreshButton) && (
+      {(displayError || showCrossEnvRefresh || showRefreshButton) && (
         <div className="mb-4 space-y-3">
-          {/* Refresh button row */}
           {showRefreshButton && (
             <div className="flex justify-end">
               <button
@@ -253,14 +138,12 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
             </div>
           )}
 
-          {/* Refresh error */}
-          {refreshError && !isRefreshing && (
+          {displayError && !isRefreshing && (
             <div className="text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg">
-              {refreshError}
+              {displayError}
             </div>
           )}
 
-          {/* Cross-environment refresh banner */}
           {showCrossEnvRefresh && !isRefreshing && (
             <div className="text-sm text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
               {isRefreshingProduction ? (
@@ -287,28 +170,24 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         </div>
       )}
 
-      {/* Description row */}
       {description && (
         <div className="mb-4">
           <p className="text-gray-500 dark:text-gray-400 text-sm">{description}</p>
         </div>
       )}
 
-      {/* Tags row */}
       {showFilterBar && allTags.length > 0 && (
         <div className="mb-6">
           <TagsList tags={allTags} selectedTag={selectedTag} onTagSelectAction={handleTagClick} />
         </div>
       )}
 
-      {/* Section Header */}
       {!selectedTag && (
         <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
           Bookmarks Collection
         </h2>
       )}
 
-      {/* Results count */}
       <div className="mb-6">
         {mounted ? (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -322,7 +201,6 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
               )}
             </p>
 
-            {/* Debug indicator - only show in development mode */}
             {isDevelopment && (
               <span
                 className={`text-xs px-2 py-1 rounded-lg font-mono ${
@@ -340,9 +218,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         )}
       </div>
 
-      {/* Client-side only rendering of bookmark results */}
       {!mounted && (
-        /* Server-side placeholder with hydration suppression */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6" suppressHydrationWarning>
           {bookmarks.slice(0, SKELETON_PLACEHOLDER_COUNT).map((bookmark) => (
             <div
@@ -364,15 +240,13 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       {mounted && filteredBookmarks.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
           {filteredBookmarks.map((bookmark, index) => {
-            // Use pre-computed href from server if available
-            // CRITICAL: Never fallback to using bookmark.id in the URL!
-            const internalHref = internalHrefs?.[bookmark.id] ?? bookmark.url;
-            if (!internalHrefs?.[bookmark.id]) {
+            const internalHrefFromMap = internalHrefs[bookmark.id];
+            const internalHref = internalHrefFromMap ?? bookmark.url;
+            if (!internalHrefFromMap) {
               console.warn(
                 `[BookmarksWithOptions] Missing slug for ${bookmark.id}. Using external URL fallback: ${bookmark.url}`,
               );
             }
-
             return (
               <BookmarkCardClient
                 key={bookmark.id}

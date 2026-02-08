@@ -252,6 +252,23 @@ export const bookmarksSearchResponseSchema = z.object({
 
 export type BookmarksSearchResponse = z.infer<typeof bookmarksSearchResponseSchema>;
 
+export const bookmarksRefreshResponseSchema = z.object({
+  data: z.array(unifiedBookmarkSchema),
+  internalHrefs: z.record(z.string(), z.string()).optional(),
+  meta: z.unknown().optional(),
+});
+
+export type BookmarksRefreshResponse = z.infer<typeof bookmarksRefreshResponseSchema>;
+
+export const bookmarkRefreshResponseSchema = z.object({
+  status: z.enum(["success", "error"]).optional(),
+  message: z.string().optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
+  error: z.string().optional(),
+});
+
+export type BookmarkRefreshResponse = z.infer<typeof bookmarkRefreshResponseSchema>;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Slug Mapping Schemas
 // ─────────────────────────────────────────────────────────────────────────────
