@@ -19,7 +19,6 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { debug } from "@/lib/utils/debug";
 import { buildApiServiceBusyResponse, buildServiceBusyPageResponse } from "@/lib/utils/api-utils";
 import { classifyProxyRequest, getClientIp, hashIpBucket } from "@/lib/utils/request-utils";
 import type {
@@ -71,7 +70,7 @@ async function getCgroupMemoryLimitBytes(): Promise<number | null> {
           const raw = await readFile(filePath, "utf8");
           return raw.trim();
         } catch (err) {
-          debug(`[MemoryPressure] Could not read ${filePath}:`, err);
+          console.warn(`[MemoryPressure] Could not read ${filePath}:`, err);
           return null;
         }
       };
@@ -94,7 +93,7 @@ async function getCgroupMemoryLimitBytes(): Promise<number | null> {
 
       return null;
     } catch (err) {
-      debug("[MemoryPressure] Failed to read cgroup memory limit:", err);
+      console.warn("[MemoryPressure] Failed to read cgroup memory limit:", err);
       return null;
     }
   })();
@@ -209,12 +208,12 @@ export async function memoryPressureMiddleware(
 
   // Check if we're in warning state (optional header)
   if (isWarning) {
-    // Continue processing but add warning header.
-    // NOTE: src/proxy.ts must merge this header onto the final response.
-    return new NextResponse(null, {
-      status: 200,
-      headers: { "X-System-Status": "MEMORY_WARNING" },
-    });
+    // Continue processing but add warning header via NextResponse.next().
+    // This allows the request to flow through middleware normally; proxy.ts
+    // will propagate the header onto the final response.
+    const response = NextResponse.next();
+    response.headers.set("X-System-Status", "MEMORY_WARNING");
+    return response;
   }
 
   // Normal operation - continue to next middleware
