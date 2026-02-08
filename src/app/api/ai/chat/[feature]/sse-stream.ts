@@ -163,13 +163,13 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
           const queueWaitMs = sseStartedAtMs ? sseStartedAtMs - enqueuedAtMs : 0;
           const responseError = resolveErrorResponse(error);
 
-          logFailedChat(
-            logContext,
-            responseError.message,
+          logFailedChat({
+            ctx: logContext,
+            errorMessage: responseError.message,
             durationMs,
             queueWaitMs,
-            responseError.status,
-          );
+            statusCode: responseError.status,
+          });
 
           if (!safeSend("error", { error: responseError.message, status: responseError.status })) {
             console.warn("[SSE] Failed to deliver error event to client");
