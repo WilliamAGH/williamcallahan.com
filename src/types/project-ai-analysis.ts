@@ -37,27 +37,6 @@ export interface ProjectAnalysisContext {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Component State Types
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Possible states for the AI analysis component */
-export type ProjectAnalysisStatus = "idle" | "loading" | "success" | "error";
-
-/** State object for the AI analysis component */
-export interface ProjectAnalysisState {
-  status: ProjectAnalysisStatus;
-  analysis: ProjectAiAnalysisResponse | null;
-  error: string | null;
-}
-
-/** Initial state for the AI analysis component */
-export const INITIAL_PROJECT_ANALYSIS_STATE: ProjectAnalysisState = {
-  status: "idle",
-  analysis: null,
-  error: null,
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Component Props Types
 // ─────────────────────────────────────────────────────────────────────────────
 

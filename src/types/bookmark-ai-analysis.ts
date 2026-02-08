@@ -38,27 +38,6 @@ export interface BookmarkAnalysisContext {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Component State Types
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Possible states for the AI analysis component */
-export type BookmarkAnalysisStatus = "idle" | "loading" | "success" | "error";
-
-/** State object for the AI analysis component */
-export interface BookmarkAnalysisState {
-  status: BookmarkAnalysisStatus;
-  analysis: BookmarkAiAnalysisResponse | null;
-  error: string | null;
-}
-
-/** Initial state for the AI analysis component */
-export const INITIAL_BOOKMARK_ANALYSIS_STATE: BookmarkAnalysisState = {
-  status: "idle",
-  analysis: null,
-  error: null,
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Component Props Types
 // ─────────────────────────────────────────────────────────────────────────────
 

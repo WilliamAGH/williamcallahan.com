@@ -41,27 +41,6 @@ export interface BookAnalysisContext {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Component State Types
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Possible states for the AI analysis component */
-export type BookAnalysisStatus = "idle" | "loading" | "success" | "error";
-
-/** State object for the AI analysis component */
-export interface BookAnalysisState {
-  status: BookAnalysisStatus;
-  analysis: BookAiAnalysisResponse | null;
-  error: string | null;
-}
-
-/** Initial state for the AI analysis component */
-export const INITIAL_BOOK_ANALYSIS_STATE: BookAnalysisState = {
-  status: "idle",
-  analysis: null,
-  error: null,
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Component Props Types
 // ─────────────────────────────────────────────────────────────────────────────
 
