@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
 import OpenAIClient from "openai";
 import type { ChatCompletion } from "openai/resources/chat/completions";
 import type { ResponseCreateParamsNonStreaming } from "openai/resources/responses/responses";
@@ -26,6 +27,11 @@ const DEFAULT_MAX_RETRIES = 3;
 
 const clientByConfig = new Map<string, OpenAIClient>();
 
+function buildClientCacheKey(apiBaseUrl: string, apiKey: string): string {
+  const keyHash = createHash("sha256").update(apiKey).digest("hex");
+  return `${apiBaseUrl}::${keyHash}`;
+}
+
 function resolveClient(args: {
   baseUrl: string;
   apiKey?: string;
@@ -38,7 +44,7 @@ function resolveClient(args: {
       `[AI] No upstream API key configured for ${args.baseUrl}. Set the corresponding AI_*_OPENAI_API_KEY environment variable.`,
     );
   }
-  const clientKey = `${apiBaseUrl}::${apiKey}`;
+  const clientKey = buildClientCacheKey(apiBaseUrl, apiKey);
   const existingClient = clientByConfig.get(clientKey);
   if (existingClient) return existingClient;
 
