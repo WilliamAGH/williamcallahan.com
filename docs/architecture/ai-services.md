@@ -30,6 +30,9 @@ This system is designed to support multiple AI-backed site features where each f
 - `src/types/schemas/ai-openai-compatible.ts` — Zod schemas for API mode, chat payload validation, and normalized upstream response parsing.
 - `src/types/schemas/ai-chat.ts` — Shared feature identifier schema and request validation for chat routes.
 - `src/lib/ai/openai-compatible/upstream-request-queue.ts` — Per-upstream (model + URL) priority queue with configurable max parallelism.
+- `src/app/api/ai/chat/[feature]/upstream-runner.ts` — Multi-turn upstream orchestration for tool calls, model fallback, and deterministic post-processing.
+- `src/app/api/ai/chat/[feature]/analysis-output-config.ts` — Analysis feature schema/field metadata used by structured-output validation.
+- `src/app/api/ai/chat/[feature]/analysis-output-validation.ts` — Structured analysis output parsing, normalization, prompt-leakage checks, and schema validation.
 
 ### Public API routes (App Router Route Handlers)
 
@@ -95,13 +98,13 @@ For a route param `feature`, the server resolves configuration with this precede
   - Forwards real upstream token deltas through `onDelta` callbacks.
   - Uses synthesized `message_delta` only as a compatibility fallback when an upstream stream yields final text without deltas.
   - Keeps explicit tool-turn orchestration (instead of `runTools`) to preserve deterministic bookmark-link allowlisting and parity across `chat.completions` and `responses`.
-- Turn executors (`upstream-turn.ts`) are extracted from the pipeline builder (`upstream-pipeline.ts`) so each stays under the 350-line ceiling.
+- Orchestration concerns are split across `upstream-pipeline.ts` (assembly), `upstream-runner.ts` (turn loop), `upstream-turn.ts` (single-turn executors), and `analysis-output-validation.ts` (analysis JSON validation) so each module remains focused and under the 350-line ceiling.
 
 ## Structured Output Contract
 
 - Analysis flows now use OpenAI-compatible structured output primitives (`response_format: { type: "json_schema", ... }`) in `chat_completions` mode.
 - `response_format` is validated in request schemas and rejected for `responses` mode to avoid silent no-op behavior.
-- Client-side analysis parsing relies on standard `JSON.parse` after token stripping; `jsonrepair` dependency behavior is not required in this flow.
+- Server-side analysis validation applies layered parsing (`JSON.parse` first, then `jsonrepair`) before schema validation retries; client-side analysis parsing still relies on standard `JSON.parse` after token stripping.
 
 ## Abuse Controls (Anonymous Visitors)
 
@@ -110,6 +113,7 @@ Because the endpoints are available to anonymous visitors, they are still callab
 - Same-origin oriented checks using `Origin` / `Referer` host allowlist (`williamcallahan.com` and `*.williamcallahan.com`).
 - Token + cookie binding step (`/api/ai/token` → `/api/ai/chat/[feature]`).
 - Per-IP rate limiting using `src/lib/rate-limiter.ts`.
+- Route-level memory pressure shedding via `memoryPressureMiddleware(...)` in `chat-helpers.ts` (covers `/api/ai/chat/[feature]` even when proxy matcher bypasses this path).
 - Server-side logging via `src/lib/utils/logger.ts`.
 
 ## Required Secret
@@ -148,7 +152,7 @@ All requests to `POST /api/ai/chat/[feature]` are queued by upstream target so w
 
 ## Test Coverage
 
-- `__tests__/api/ai/chat-rag-helpers.test.ts` validates retrieval query shaping and abort classification.
+- `__tests__/api/ai/chat-rag-helpers.test.ts` validates retrieval query shaping, abort classification, and chat-route memory-pressure shedding.
 - `__tests__/api/ai/upstream-pipeline-test-harness.ts` centralizes upstream-pipeline mock wiring and fixture builders for DRY test setup.
 - `__tests__/api/ai/chat-upstream-pipeline-streaming.test.ts` validates queue mode selection and normalized stream events.
 - `__tests__/api/ai/chat-upstream-pipeline-tools.test.ts` validates tool-call rounds and deterministic search fallback behavior.

@@ -496,8 +496,11 @@ File/Path Functionality Description
     - [x] **queue/`[feature]`/`route.ts`** `ai-shared-services` - Per-feature queue state endpoint using shared feature schema + queue-key builder
     - [x] **chat/**
       - [x] **`[feature]`/`route.ts`** `ai-shared-services` - Primary AI gateway route (SSE-only, no JSON fallback)
-      - [x] **`[feature]`/`upstream-pipeline.ts`** `ai-shared-services` - Pipeline builder: assembles config, queue, and run closure for chat dispatch
+      - [x] **`[feature]`/`upstream-pipeline.ts`** `ai-shared-services` - Pipeline assembler: wires config, queue, log context, and upstream runner
+      - [x] **`[feature]`/`upstream-runner.ts`** `ai-shared-services` - Multi-turn orchestrator for tool calls, fallback models, and deterministic reply handling
       - [x] **`[feature]`/`upstream-turn.ts`** `ai-shared-services` - Turn executors: run a single chat-completions or responses turn with delta forwarding
+      - [x] **`[feature]`/`analysis-output-config.ts`** `ai-shared-services` - Analysis schema/field configuration metadata shared by validation helpers
+      - [x] **`[feature]`/`analysis-output-validation.ts`** `ai-shared-services` - Structured analysis output parse/normalize/leakage validation and repair prompt builder
   - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts (force-dynamic bearer auth)
   - [x] **github-activity/**
     - [x] `route.ts` `github-activity` - GitHub activity API
@@ -618,7 +621,7 @@ File/Path Functionality Description
   - [x] **app/**
     - [x] **api/**
       - [x] **ai/**
-        - [x] `chat-rag-helpers.test.ts` `ai-shared-services` - RAG context + abort detection tests for AI chat helpers
+        - [x] `chat-rag-helpers.test.ts` `ai-shared-services` - RAG context, abort detection, and request-validation memory-pressure tests for AI chat helpers
         - [x] `upstream-pipeline-test-harness.ts` `ai-shared-services` - Shared upstream pipeline test harness with centralized mocks and fixtures
         - [x] `chat-upstream-pipeline-streaming.test.ts` `ai-shared-services` - Upstream pipeline streaming and event contract tests
         - [x] `chat-upstream-pipeline-tools.test.ts` `ai-shared-services` - Upstream pipeline tool-call and deterministic fallback tests
