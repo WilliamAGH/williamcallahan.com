@@ -9,11 +9,7 @@ import { AlertTriangle, ExternalLink } from "lucide-react";
 import { GitHub } from "@/components/ui/social-icons/github-icon";
 import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 import { safeExternalHref, isGitHubUrl } from "@/lib/utils/url-utils";
-import {
-  MAX_DISPLAY_TECH_ITEMS,
-  deriveTechFromTags,
-  PlaceholderImageTop,
-} from "./project-card-helpers";
+import { MAX_DISPLAY_TECH_ITEMS, deriveTechFromTags } from "./project-card-helpers";
 
 function resolveProjectCardImageUrl(
   imageKey: string | undefined,
@@ -64,21 +60,15 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
           title={`View ${name} details`}
           className="block w-full h-full"
         >
-          {cdnImageUrl ? (
-            <div className="relative w-full h-full min-h-[180px] md:min-h-[220px]">
-              <OptimizedCardImage
-                src={cdnImageUrl}
-                alt={`${name} screenshot`}
-                preload={preload}
-                fit="contain"
-                className="rounded-md transition-transform duration-300 ease-in-out group-hover:scale-[1.02]"
-              />
-            </div>
-          ) : (
-            <div className="w-full h-[180px]">
-              <PlaceholderImageTop />
-            </div>
-          )}
+          <div className="relative w-full h-full min-h-[180px] md:min-h-[220px]">
+            <OptimizedCardImage
+              src={cdnImageUrl}
+              alt={`${name} screenshot`}
+              preload={preload}
+              fit="contain"
+              className="rounded-md transition-transform duration-300 ease-in-out group-hover:scale-[1.02]"
+            />
+          </div>
         </Link>
       </div>
       {/* Content Section (Right on desktop, bottom on mobile) */}

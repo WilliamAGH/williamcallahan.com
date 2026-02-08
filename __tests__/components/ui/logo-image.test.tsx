@@ -244,15 +244,22 @@ describe("LogoImage Conditional Rendering", () => {
 
 describe("OptimizedCardImage", () => {
   const cardSrc = "https://s3-storage.callahan.cloud/images/other/projects/aventurevc-homepage.png";
-  const expectedBlurDataUrl = `/_next/image?url=${encodeURIComponent(cardSrc)}&w=64&q=40`;
 
-  it("uses same-image blur-up placeholder by default for card images", () => {
+  it("renders dual-Image LQIP: blur preview + main image", () => {
     render(<OptimizedCardImage src={cardSrc} alt="Project screenshot" />);
-    const image = screen.getByTestId("next-image-mock");
+    const images = screen.getAllByTestId("next-image-mock");
 
-    expect(image).toHaveAttribute("src", cardSrc);
-    expect(image).toHaveAttribute("data-placeholder", "blur");
-    expect(image).toHaveAttribute("data-blur-data-url", expectedBlurDataUrl);
+    // Dual-Image LQIP: blur preview + main image
+    expect(images).toHaveLength(2);
+
+    // Blur preview: same src, tiny quality/size for fast loading
+    expect(images[0]).toHaveAttribute("src", cardSrc);
+    expect(images[0]).toHaveAttribute("quality", "40");
+    expect(images[0]).toHaveAttribute("sizes", "64px");
+
+    // Main image: full quality, no blurDataURL (blur is the separate Image)
+    expect(images[1]).toHaveAttribute("src", cardSrc);
+    expect(images[1]).toHaveAttribute("data-placeholder", "empty");
   });
 
   it("uses opengraph placeholder when src is missing", () => {
