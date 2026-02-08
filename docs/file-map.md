@@ -619,8 +619,10 @@ File/Path Functionality Description
     - [x] **api/**
       - [x] **ai/**
         - [x] `chat-rag-helpers.test.ts` `ai-shared-services` - RAG context + abort detection tests for AI chat helpers
+        - [x] `upstream-pipeline-test-harness.ts` `ai-shared-services` - Shared upstream pipeline test harness with centralized mocks and fixtures
         - [x] `chat-upstream-pipeline-streaming.test.ts` `ai-shared-services` - Upstream pipeline streaming and event contract tests
         - [x] `chat-upstream-pipeline-tools.test.ts` `ai-shared-services` - Upstream pipeline tool-call and deterministic fallback tests
+        - [x] `chat-upstream-pipeline-analysis-validation.test.ts` `ai-shared-services` - Bookmark-analysis schema/retry normalization tests for upstream pipeline outputs
       - [x] **github-activity/**
         - [x] `cache.test.ts` `github-activity` - Tests for GitHub activity caching
       - [x] **upload/**
