@@ -95,13 +95,13 @@ export function useBookmarkRefresh(params: {
       if (!response.ok) {
         const errorData: unknown = await response.json().catch(() => null);
         const errorMessage = getErrorMessage(errorData) || response.statusText;
-        console.error("[Bookmarks] Production refresh failed:", errorMessage);
-        setRefreshError(`Production refresh failed: ${errorMessage}`);
-        clearErrorAfterDelay();
+        throw new Error(`Production refresh failed: ${errorMessage}`);
       }
     } catch (error) {
-      console.error("[Bookmarks] Failed to trigger production refresh:", error);
-      setRefreshError("Failed to trigger production refresh");
+      const message =
+        error instanceof Error ? error.message : "Failed to trigger production refresh";
+      console.error("[Bookmarks] Production refresh failed:", error);
+      setRefreshError(message);
       clearErrorAfterDelay();
     } finally {
       setIsRefreshingProduction(false);

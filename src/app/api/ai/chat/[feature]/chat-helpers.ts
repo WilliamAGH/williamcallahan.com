@@ -304,13 +304,11 @@ export function logSuccessfulChat(
   durationMs: number,
   queueWaitMs: number,
 ): void {
+  const base = buildBaseLogPayload(ctx, durationMs, queueWaitMs);
   logChatMessage({
-    ...buildBaseLogPayload(ctx, durationMs, queueWaitMs),
+    ...base,
     assistantMessage,
-    metrics: {
-      ...buildBaseLogPayload(ctx, durationMs, queueWaitMs).metrics,
-      statusCode: 200,
-    },
+    metrics: { ...base.metrics, statusCode: 200 },
     success: true,
   });
 }
@@ -324,12 +322,10 @@ export function logFailedChat(params: {
   statusCode?: number;
 }): void {
   const { ctx, errorMessage, durationMs, queueWaitMs, statusCode = 502 } = params;
+  const base = buildBaseLogPayload(ctx, durationMs, queueWaitMs);
   logChatMessage({
-    ...buildBaseLogPayload(ctx, durationMs, queueWaitMs),
-    metrics: {
-      ...buildBaseLogPayload(ctx, durationMs, queueWaitMs).metrics,
-      statusCode,
-    },
+    ...base,
+    metrics: { ...base.metrics, statusCode },
     success: false,
     errorMessage,
   });

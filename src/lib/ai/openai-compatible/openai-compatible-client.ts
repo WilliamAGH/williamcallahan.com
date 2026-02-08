@@ -14,7 +14,6 @@ import {
   responsesOutputTextItemSchema,
 } from "@/types/schemas/ai-openai-compatible";
 import { buildOpenAiApiBaseUrl } from "@/lib/ai/openai-compatible/feature-config";
-import logger from "@/lib/utils/logger";
 import {
   toChatRequest,
   toRequestOptions,
@@ -24,10 +23,8 @@ import { createThinkTagParser, stripThinkTags } from "./think-tag-parser";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_MAX_RETRIES = 3;
-const API_KEY_FALLBACK = "openai-compatible-no-key";
 
 const clientByConfig = new Map<string, OpenAIClient>();
-const warnedMissingApiKeyFor = new Set<string>();
 
 function resolveClient(args: {
   baseUrl: string;
@@ -36,20 +33,17 @@ function resolveClient(args: {
 }): OpenAIClient {
   const apiBaseUrl = buildOpenAiApiBaseUrl(args.baseUrl);
   const apiKey = args.apiKey?.trim();
-  const clientKey = `${apiBaseUrl}::${apiKey ?? API_KEY_FALLBACK}`;
+  if (!apiKey) {
+    throw new Error(
+      `[AI] No upstream API key configured for ${args.baseUrl}. Set the corresponding AI_*_OPENAI_API_KEY environment variable.`,
+    );
+  }
+  const clientKey = `${apiBaseUrl}::${apiKey}`;
   const existingClient = clientByConfig.get(clientKey);
   if (existingClient) return existingClient;
 
-  if (!apiKey && !warnedMissingApiKeyFor.has(clientKey)) {
-    warnedMissingApiKeyFor.add(clientKey);
-    logger.warn(
-      "[AI] No upstream API key configured; using compatibility fallback token for OpenAI SDK client.",
-      { baseUrl: args.baseUrl },
-    );
-  }
-
   const client = new OpenAIClient({
-    apiKey: apiKey ?? API_KEY_FALLBACK,
+    apiKey,
     baseURL: apiBaseUrl,
     timeout: args.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     maxRetries: DEFAULT_MAX_RETRIES,

@@ -385,6 +385,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
         await import("@/lib/ai/openai-compatible/openai-compatible-client");
       await callOpenAiCompatibleChatCompletions({
         baseUrl: "https://example.com",
+        apiKey: "test-key",
         request: {
           model: "test-model",
           messages: [{ role: "user", content: "hi" }],
@@ -417,6 +418,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
         await import("@/lib/ai/openai-compatible/openai-compatible-client");
       await callOpenAiCompatibleChatCompletions({
         baseUrl: "https://example.com",
+        apiKey: "test-key",
         request: { model: "test-model", messages: [{ role: "user", content: "hi" }] },
       });
       const payload = mockCreate.mock.calls[0]?.[0];
@@ -452,6 +454,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
 
       const response = await callOpenAiCompatibleChatCompletions({
         baseUrl: "https://example.com",
+        apiKey: "test-key",
         request: {
           model: "test-model",
           messages: [{ role: "user", content: "hello" }],
@@ -482,6 +485,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
         await import("@/lib/ai/openai-compatible/openai-compatible-client");
       await callOpenAiCompatibleResponses({
         baseUrl: "https://example.com",
+        apiKey: "test-key",
         request: {
           model: "test-model",
           input: [
@@ -534,6 +538,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
 
       const response = await callOpenAiCompatibleResponses({
         baseUrl: "https://example.com",
+        apiKey: "test-key",
         request: {
           model: "test-model",
           input: [{ role: "user", content: "hello" }],
@@ -571,6 +576,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       const onDelta = vi.fn();
       const response = await streamOpenAiCompatibleChatCompletions({
         baseUrl: "https://example.net",
+        apiKey: "test-key",
         request: {
           model: "test-model",
           messages: [{ role: "user", content: "hello" }],
