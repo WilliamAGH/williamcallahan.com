@@ -54,6 +54,10 @@ const CARD_IMAGE_BACKOFF_BASE_MS = 1000;
 /** Maximum delay cap for exponential backoff (ms) */
 const CARD_IMAGE_BACKOFF_MAX_MS = 5000;
 
+/** Width/quality for per-image blur-up placeholders (LQIP) */
+const CARD_IMAGE_BLUR_WIDTH = 64;
+const CARD_IMAGE_BLUR_QUALITY = 40;
+
 /**
  * Proxies external URLs through the image cache API.
  * Delegates to getOptimizedImageSrc which handles all URL classification
@@ -61,6 +65,15 @@ const CARD_IMAGE_BACKOFF_MAX_MS = 5000;
  */
 function getProxiedImageSrc(src: string | null | undefined, width?: number): string | undefined {
   return getOptimizedImageSrc(src, undefined, width);
+}
+
+function getCardBlurDataUrl(
+  src: string | undefined,
+  explicitBlurDataUrl?: string,
+): string | undefined {
+  if (explicitBlurDataUrl) return explicitBlurDataUrl;
+  if (!src || src.startsWith("data:")) return src;
+  return `/_next/image?url=${encodeURIComponent(src)}&w=${CARD_IMAGE_BLUR_WIDTH}&q=${CARD_IMAGE_BLUR_QUALITY}`;
 }
 
 function deriveDomainFromLogoKey(pathname: string): string | null {
@@ -236,11 +249,6 @@ export function OptimizedCardImage({
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const objectFitClass = fit === "contain" ? "object-contain" : "object-cover";
 
-  // Use provided blurDataURL or fall back to the company placeholder.
-  // Next.js applies a 20px Gaussian blur, producing a uniform background
-  // that eliminates the opacity 0.2 → 1.0 "popcorn" flash.
-  const effectiveBlurDataURL = blurDataURL || COMPANY_PLACEHOLDER_BASE64;
-
   React.useEffect(() => {
     return () => {
       if (retryTimeoutRef.current) {
@@ -250,6 +258,10 @@ export function OptimizedCardImage({
   }, []);
 
   const proxiedSrc = React.useMemo(() => getProxiedImageSrc(src, CARD_IMAGE_PROXY_WIDTH), [src]);
+  const effectiveBlurDataURL = React.useMemo(
+    () => getCardBlurDataUrl(proxiedSrc, blurDataURL),
+    [proxiedSrc, blurDataURL],
+  );
 
   if (!src) {
     return (
@@ -291,8 +303,8 @@ export function OptimizedCardImage({
       fill
       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
       quality={80}
-      placeholder="blur"
-      blurDataURL={effectiveBlurDataURL}
+      placeholder={effectiveBlurDataURL ? "blur" : "empty"}
+      {...(effectiveBlurDataURL ? { blurDataURL: effectiveBlurDataURL } : {})}
       className={`${objectFitClass} ${className}`}
       {...(preload ? { preload, fetchPriority: "high" as const } : {})}
       {...(shouldBypassOptimizer(proxiedSrc) ? { unoptimized: true } : {})}

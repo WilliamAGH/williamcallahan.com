@@ -58,7 +58,7 @@ Provide a single, verifiable description of how UI components, Next.js runtime f
 ### 1. Bookmark Card Preview
 
 1. `selectBestImage()` (`lib/bookmarks/bookmark-helpers.ts`) prefers CDN URLs, then `/api/assets/{id}` with context query params, finally OG fallbacks.
-2. `<OptimizedCardImage>` renders the chosen URL via `<Image>`; `next/image` validates against `remotePatterns` before calling `_next/image`.
+2. `<OptimizedCardImage>` renders the chosen URL via `<Image>`, uses a per-image blur-up (`/_next/image?...`) during loading, and keeps `opengraph-placeholder` as the terminal fallback; `next/image` validates against `remotePatterns` before calling `_next/image`.
 3. `_next/image` either serves from its cache or fetches the remote URL (e.g., `/api/assets/...`).
 4. `/api/assets/[assetId]` validates UUID + query context, checks S3 using `HeadObjectCommand`, streams upstream content with `createMonitoredStream`, and persists via `writeBinaryS3` if missing.
 5. UnifiedImageService is not involved unless the upstream asset requires additional processing; CDN URLs are returned immediately for repeat views.
