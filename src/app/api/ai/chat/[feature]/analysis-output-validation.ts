@@ -9,6 +9,13 @@ import {
   PROMPT_LEAKAGE_PATTERNS,
 } from "./analysis-output-config";
 
+/** Maximum number of items to keep in normalized list fields */
+const MAX_NORMALIZED_LIST_ITEMS = 6;
+/** Maximum validation issues to include in error preview */
+const MAX_VALIDATION_ISSUE_PREVIEW = 3;
+/** Maximum characters to include in JSON parse error preview */
+const JSON_PARSE_ERROR_PREVIEW_LENGTH = 120;
+
 export function isAnalysisFeature(feature: string): feature is AnalysisFeatureId {
   return Object.hasOwn(ANALYSIS_SCHEMA_BY_FEATURE, feature);
 }
@@ -113,7 +120,7 @@ function parseAnalysisJson(rawText: string): unknown {
 
   throw new Error(
     `All JSON parse strategies exhausted (${rawText.length} chars). ` +
-      `Errors: [${errors.join("; ")}]. Preview: ${rawText.slice(0, 120)}`,
+      `Errors: [${errors.join("; ")}]. Preview: ${rawText.slice(0, JSON_PARSE_ERROR_PREVIEW_LENGTH)}`,
   );
 }
 
@@ -168,14 +175,14 @@ function normalizeListFields(root: Record<string, unknown>, fields: readonly str
       .map((item) => (typeof item === "string" ? stripLlmControlTokens(item).trim() : item))
       .filter((item): item is string => typeof item === "string" && containsLettersOrNumbers(item));
     if (normalizedItems.length > 0) {
-      root[field] = normalizedItems.slice(0, 6);
+      root[field] = normalizedItems.slice(0, MAX_NORMALIZED_LIST_ITEMS);
       continue;
     }
 
     const fallbackItems = rawItems
       .map((item) => (typeof item === "string" ? stripLlmControlTokens(item).trim() : ""))
       .filter((item) => item.length > 0)
-      .slice(0, 6);
+      .slice(0, MAX_NORMALIZED_LIST_ITEMS);
     if (fallbackItems.length > 0) root[field] = fallbackItems;
   }
 }
@@ -308,7 +315,7 @@ export function validateAnalysisOutput(
   }
 
   const issuePreview = validation.error.issues
-    .slice(0, 3)
+    .slice(0, MAX_VALIDATION_ISSUE_PREVIEW)
     .map((issue) => {
       const joinedPath = issue.path.join(".");
       const pathLabel = joinedPath.length > 0 ? joinedPath : "(root)";
@@ -318,7 +325,7 @@ export function validateAnalysisOutput(
   console.warn("[upstream-pipeline] Schema validation failed after normalization", {
     feature,
     issuePreview,
-    failingFields: validation.error.issues.slice(0, 3).map((issue) => ({
+    failingFields: validation.error.issues.slice(0, MAX_VALIDATION_ISSUE_PREVIEW).map((issue) => ({
       path: issue.path.join("."),
       value: issue.path.reduce<unknown>((obj, key) => {
         if (typeof obj !== "object" || obj === null || typeof key === "symbol") return undefined;

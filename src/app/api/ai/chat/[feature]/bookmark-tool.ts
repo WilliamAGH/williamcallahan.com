@@ -21,6 +21,8 @@ import {
 
 /** Cap per-query results to keep tool responses concise for the LLM context window */
 const TOOL_MAX_RESULTS_DEFAULT = 5;
+/** Maximum characters to include in log preview of raw arguments */
+const LOG_PREVIEW_MAX_LENGTH = 200;
 
 /** Matches explicit user intent to search (e.g. "search bookmarks", "find links") */
 const EXPLICIT_SEARCH_REQUEST_PATTERN = /\b(search|find|look\s+for|look\s+up|show)\b/i;
@@ -31,27 +33,30 @@ const TOPIC_CONNECTOR_PATTERN =
 const TOPIC_CONNECTOR_MAX_DISTANCE = 40;
 const MARKDOWN_LINK_PATTERN = /\[([^\]\n]+)\]\(([^)\n]+)\)/g;
 
+/** Shared parameter schema used by both Chat Completions and Responses API tool definitions */
+const BOOKMARK_TOOL_PARAMETERS = {
+  type: "object",
+  properties: {
+    query: {
+      type: "string",
+      description: "The user search query",
+    },
+    maxResults: {
+      type: "number",
+      description: "Maximum number of matches to return (default: 5)",
+    },
+  },
+  required: ["query", "maxResults"],
+  additionalProperties: false,
+} as const;
+
 export const SEARCH_BOOKMARKS_TOOL = {
   type: "function" as const,
   function: {
     name: "search_bookmarks",
     description: "Searches saved bookmark entries by natural-language query",
     strict: true,
-    parameters: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "The user search query",
-        },
-        maxResults: {
-          type: "number",
-          description: "Maximum number of matches to return (default: 5)",
-        },
-      },
-      required: ["query", "maxResults"],
-      additionalProperties: false,
-    },
+    parameters: BOOKMARK_TOOL_PARAMETERS,
   },
 };
 
@@ -60,21 +65,7 @@ export const SEARCH_BOOKMARKS_RESPONSE_TOOL: FunctionTool = {
   name: "search_bookmarks",
   description: "Searches saved bookmark entries by natural-language query",
   strict: true,
-  parameters: {
-    type: "object",
-    properties: {
-      query: {
-        type: "string",
-        description: "The user search query",
-      },
-      maxResults: {
-        type: "number",
-        description: "Maximum number of matches to return (default: 5)",
-      },
-    },
-    required: ["query", "maxResults"],
-    additionalProperties: false,
-  },
+  parameters: BOOKMARK_TOOL_PARAMETERS,
 };
 
 /** Reject protocol-relative and external URLs; accept only internal paths */
@@ -112,7 +103,7 @@ export async function executeSearchBookmarksTool(
   } catch (error: unknown) {
     const detail = error instanceof Error ? error.message : String(error);
     logger.warn("[AI Chat] Failed to parse tool call arguments as JSON", {
-      rawArguments: rawArguments.slice(0, 200),
+      rawArguments: rawArguments.slice(0, LOG_PREVIEW_MAX_LENGTH),
       error: detail,
     });
     return {
@@ -126,7 +117,7 @@ export async function executeSearchBookmarksTool(
   const parsedJsonResult = searchBookmarksToolArgsSchema.safeParse(parsedRawArguments);
   if (!parsedJsonResult.success) {
     logger.warn("[AI Chat] Tool call arguments failed schema validation", {
-      rawArguments: rawArguments.slice(0, 200),
+      rawArguments: rawArguments.slice(0, LOG_PREVIEW_MAX_LENGTH),
       error: parsedJsonResult.error.message,
     });
     return {

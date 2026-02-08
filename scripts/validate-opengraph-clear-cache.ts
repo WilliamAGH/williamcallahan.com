@@ -40,6 +40,11 @@
 import { metadata as siteMetadata } from "@/data/metadata";
 import { clearSocialMediaCaches } from "./lib/social-cache-clearing";
 
+/** Maximum recommended character length for OpenGraph titles */
+const OG_TITLE_MAX_LENGTH = 60;
+/** Maximum recommended character length for OpenGraph descriptions */
+const OG_DESCRIPTION_MAX_LENGTH = 160;
+
 /**
  * Validates OpenGraph metadata for a specific URL by fetching and parsing HTML
  * @function validateOpenGraph
@@ -129,17 +134,17 @@ async function validateOpenGraph(url: string): Promise<{
 
     // Validate content quality
     if (result.ogTags["og:title"]) {
-      if (result.ogTags["og:title"].length > 60) {
+      if (result.ogTags["og:title"].length > OG_TITLE_MAX_LENGTH) {
         result.warnings.push(
-          `og:title is ${result.ogTags["og:title"].length} chars (recommended: ≤60)`,
+          `og:title is ${result.ogTags["og:title"].length} chars (recommended: ≤${OG_TITLE_MAX_LENGTH})`,
         );
       }
     }
 
     if (result.ogTags["og:description"]) {
-      if (result.ogTags["og:description"].length > 160) {
+      if (result.ogTags["og:description"].length > OG_DESCRIPTION_MAX_LENGTH) {
         result.warnings.push(
-          `og:description is ${result.ogTags["og:description"].length} chars (recommended: ≤160)`,
+          `og:description is ${result.ogTags["og:description"].length} chars (recommended: ≤${OG_DESCRIPTION_MAX_LENGTH})`,
         );
       }
     }
@@ -212,7 +217,10 @@ async function main() {
     for (const tag of keyTags) {
       if (validation.ogTags[tag]) {
         const value = validation.ogTags[tag];
-        const truncated = value.length > 60 ? `${value.substring(0, 60)}...` : value;
+        const truncated =
+          value.length > OG_TITLE_MAX_LENGTH
+            ? `${value.substring(0, OG_TITLE_MAX_LENGTH)}...`
+            : value;
         console.log(`   ${tag}: ${truncated}`);
       } else {
         console.log(`   ${tag}: ❌ MISSING`);
