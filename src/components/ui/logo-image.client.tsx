@@ -67,15 +67,6 @@ function getProxiedImageSrc(src: string | null | undefined, width?: number): str
   return getOptimizedImageSrc(src, undefined, width);
 }
 
-function getCardBlurDataUrl(
-  src: string | undefined,
-  explicitBlurDataUrl?: string,
-): string | undefined {
-  if (explicitBlurDataUrl) return explicitBlurDataUrl;
-  if (!src || src.startsWith("data:")) return src;
-  return `/_next/image?url=${encodeURIComponent(src)}&w=${CARD_IMAGE_BLUR_WIDTH}&q=${CARD_IMAGE_BLUR_QUALITY}`;
-}
-
 function deriveDomainFromLogoKey(pathname: string): string | null {
   const match = pathname.match(LOGO_FILENAME_REGEX);
   const filename = match?.[1];
@@ -246,6 +237,7 @@ export function OptimizedCardImage({
   const [errored, setErrored] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [retryKey, setRetryKey] = useState(0);
+  const [mainLoaded, setMainLoaded] = useState(false);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const objectFitClass = fit === "contain" ? "object-contain" : "object-cover";
 
@@ -258,10 +250,7 @@ export function OptimizedCardImage({
   }, []);
 
   const proxiedSrc = React.useMemo(() => getProxiedImageSrc(src, CARD_IMAGE_PROXY_WIDTH), [src]);
-  const effectiveBlurDataURL = React.useMemo(
-    () => getCardBlurDataUrl(proxiedSrc, blurDataURL),
-    [proxiedSrc, blurDataURL],
-  );
+  const useNativeBlur = blurDataURL?.startsWith("data:");
 
   if (!src) {
     return (
@@ -296,46 +285,62 @@ export function OptimizedCardImage({
   }
 
   return (
-    <Image
-      key={retryKey}
-      src={proxiedSrc}
-      alt={alt}
-      fill
-      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
-      quality={80}
-      placeholder={effectiveBlurDataURL ? "blur" : "empty"}
-      {...(effectiveBlurDataURL ? { blurDataURL: effectiveBlurDataURL } : {})}
-      className={`${objectFitClass} ${className}`}
-      {...(preload ? { preload, fetchPriority: "high" as const } : {})}
-      {...(shouldBypassOptimizer(proxiedSrc) ? { unoptimized: true } : {})}
-      onLoad={() => {
-        setErrored(false);
-        if (retryTimeoutRef.current) {
-          clearTimeout(retryTimeoutRef.current);
-        }
-      }}
-      onError={() => {
-        if (retryCount < CARD_IMAGE_MAX_RETRIES) {
-          if (isDev) console.log(`[OptimizedCardImage] Scheduling retry for URL: ${src}`);
-          const backoffDelay = Math.min(
-            CARD_IMAGE_BACKOFF_BASE_MS * 2 ** retryCount,
-            CARD_IMAGE_BACKOFF_MAX_MS,
-          );
-
+    <>
+      {proxiedSrc && !mainLoaded && !useNativeBlur && (
+        <Image
+          src={proxiedSrc}
+          alt=""
+          fill
+          quality={CARD_IMAGE_BLUR_QUALITY}
+          sizes={`${CARD_IMAGE_BLUR_WIDTH}px`}
+          placeholder="empty"
+          className={`${objectFitClass} blur-xl scale-110`}
+          {...(shouldBypassOptimizer(proxiedSrc) ? { unoptimized: true } : {})}
+        />
+      )}
+      <Image
+        key={retryKey}
+        src={proxiedSrc}
+        alt={alt}
+        fill
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
+        quality={80}
+        placeholder={useNativeBlur ? "blur" : "empty"}
+        {...(useNativeBlur ? { blurDataURL } : {})}
+        className={`${objectFitClass} ${className}`}
+        {...(preload ? { preload, fetchPriority: "high" as const } : {})}
+        {...(shouldBypassOptimizer(proxiedSrc) ? { unoptimized: true } : {})}
+        onLoad={() => {
+          setMainLoaded(true);
+          setErrored(false);
           if (retryTimeoutRef.current) {
             clearTimeout(retryTimeoutRef.current);
           }
-          retryTimeoutRef.current = setTimeout(() => {
-            setRetryCount((prev) => prev + 1);
-            setRetryKey(getMonotonicTime());
-          }, backoffDelay);
-        } else {
-          console.warn(
-            `[OptimizedCardImage] Image failed after ${CARD_IMAGE_MAX_RETRIES} retries: ${src ?? "unknown"}`,
-          );
-          setErrored(true);
-        }
-      }}
-    />
+        }}
+        onError={() => {
+          if (retryCount < CARD_IMAGE_MAX_RETRIES) {
+            if (isDev) console.log(`[OptimizedCardImage] Scheduling retry for URL: ${src}`);
+            const backoffDelay = Math.min(
+              CARD_IMAGE_BACKOFF_BASE_MS * 2 ** retryCount,
+              CARD_IMAGE_BACKOFF_MAX_MS,
+            );
+
+            if (retryTimeoutRef.current) {
+              clearTimeout(retryTimeoutRef.current);
+            }
+            retryTimeoutRef.current = setTimeout(() => {
+              setRetryCount((prev) => prev + 1);
+              setRetryKey(getMonotonicTime());
+              setMainLoaded(false);
+            }, backoffDelay);
+          } else {
+            console.warn(
+              `[OptimizedCardImage] Image failed after ${CARD_IMAGE_MAX_RETRIES} retries: ${src ?? "unknown"}`,
+            );
+            setErrored(true);
+          }
+        }}
+      />
+    </>
   );
 }
