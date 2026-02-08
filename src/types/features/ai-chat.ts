@@ -94,6 +94,8 @@ export type ResolvedModelParams = Required<Omit<FeatureModelDefaults, "toolConfi
 /** Internal result of executing a single bookmark tool call in a batch */
 export type ExecutedToolCall = {
   callId: string;
+  /** Whether the tool call failed (execution error or schema validation failure) */
+  failed: boolean;
   parsed: SearchBookmarksToolResult;
   links: Array<{ title: string; url: string }>;
 };
@@ -102,6 +104,8 @@ export type ExecutedToolCall = {
 export type ToolDispatchResult = {
   responseMessages: OpenAiCompatibleChatMessage[];
   observedResults: Array<{ title: string; url: string }>;
+  /** IDs of tool calls that failed execution or validation */
+  failedCallIds: string[];
 };
 
 /** Parameters shared by both Chat Completions and Responses turn executors.

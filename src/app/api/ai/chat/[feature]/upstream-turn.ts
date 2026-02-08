@@ -21,13 +21,12 @@ import type {
   OpenAiCompatibleChatCompletionsRequest,
   OpenAiCompatibleChatMessage,
 } from "@/types/schemas/ai-openai-compatible";
+import { SEARCH_BOOKMARKS_RESPONSE_TOOL, SEARCH_BOOKMARKS_TOOL } from "./bookmark-tool";
 import {
-  SEARCH_BOOKMARKS_RESPONSE_TOOL,
-  SEARCH_BOOKMARKS_TOOL,
   dispatchResponseToolCalls,
   dispatchToolCalls,
   extractSearchBookmarkToolCalls,
-} from "./bookmark-tool";
+} from "./bookmark-tool-dispatch";
 import { emitDeferredContentEvents } from "./upstream-error";
 
 export async function executeChatCompletionsTurn(

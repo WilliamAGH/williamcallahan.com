@@ -18,12 +18,6 @@ import {
   searchBookmarksToolResultSchema,
   type SearchBookmarksToolResult,
 } from "@/types/schemas/ai-chat";
-import type { ExecutedToolCall, ToolDispatchResult } from "@/types/features/ai-chat";
-import {
-  openAiCompatibleResponsesFunctionCallSchema,
-  type OpenAiCompatibleResponsesFunctionCall,
-  type OpenAiCompatibleChatMessage,
-} from "@/types/schemas/ai-openai-compatible";
 
 /** Cap per-query results to keep tool responses concise for the LLM context window */
 const TOOL_MAX_RESULTS_DEFAULT = 5;
@@ -165,13 +159,6 @@ export async function executeSearchBookmarksTool(
   };
 }
 
-/** Extract title+url pairs from a parsed tool result, dropping the optional description field */
-function extractResultLinks(
-  parsed: SearchBookmarksToolResult,
-): Array<{ title: string; url: string }> {
-  return parsed.results.map((r) => ({ title: r.title, url: r.url }));
-}
-
 /**
  * Format pre-normalized bookmark results as clickable markdown links.
  * URLs are already validated by executeSearchBookmarksTool; this deduplicates by URL.
@@ -253,95 +240,6 @@ export async function runDeterministicBookmarkFallback(
   const result = await executeSearchBookmarksTool(
     JSON.stringify({ query: searchQuery, maxResults: TOOL_MAX_RESULTS_DEFAULT }),
   );
-  return formatBookmarkResultsAsLinks(
-    extractResultLinks(searchBookmarksToolResultSchema.parse(result)),
-  );
-}
-
-async function executeToolCallBatch(
-  calls: Array<{ callId: string; rawArguments: string }>,
-): Promise<ExecutedToolCall[]> {
-  const results: ExecutedToolCall[] = [];
-  for (const call of calls) {
-    const toolResult = await executeSearchBookmarksTool(call.rawArguments);
-    const parsed = searchBookmarksToolResultSchema.parse(toolResult);
-    results.push({ callId: call.callId, parsed, links: extractResultLinks(parsed) });
-  }
-  return results;
-}
-
-/** Execute all tool calls in one assistant turn and return the results without mutation */
-export async function dispatchToolCalls(
-  toolCalls: Array<{ id: string; function: { name: string; arguments?: string } }>,
-): Promise<ToolDispatchResult> {
-  const responseMessages: OpenAiCompatibleChatMessage[] = [];
-  const observedResults: Array<{ title: string; url: string }> = [];
-
-  const validCalls: Array<{ callId: string; rawArguments: string }> = [];
-  for (const toolCall of toolCalls) {
-    if (toolCall.function.name !== SEARCH_BOOKMARKS_TOOL.function.name) {
-      logger.warn("[AI Chat] Received call for unknown tool", {
-        toolName: toolCall.function.name,
-        toolCallId: toolCall.id,
-      });
-      responseMessages.push({
-        role: "tool",
-        tool_call_id: toolCall.id,
-        content: JSON.stringify({ error: `Unknown tool "${toolCall.function.name}"` }),
-      });
-      continue;
-    }
-    if (!toolCall.function.arguments) {
-      logger.warn("[AI Chat] Tool call received without arguments", { toolCallId: toolCall.id });
-      responseMessages.push({
-        role: "tool",
-        tool_call_id: toolCall.id,
-        content: JSON.stringify({ error: "Tool call missing arguments" }),
-      });
-      continue;
-    }
-    validCalls.push({ callId: toolCall.id, rawArguments: toolCall.function.arguments });
-  }
-
-  const batchResults = await executeToolCallBatch(validCalls);
-  for (const result of batchResults) {
-    observedResults.push(...result.links);
-    responseMessages.push({
-      role: "tool",
-      tool_call_id: result.callId,
-      content: JSON.stringify(result.parsed),
-    });
-  }
-
-  return { responseMessages, observedResults };
-}
-
-export function extractSearchBookmarkToolCalls(
-  responseOutput: unknown[],
-): OpenAiCompatibleResponsesFunctionCall[] {
-  const toolCalls: OpenAiCompatibleResponsesFunctionCall[] = [];
-  for (const item of responseOutput) {
-    const parsed = openAiCompatibleResponsesFunctionCallSchema.safeParse(item);
-    if (!parsed.success || parsed.data.name !== SEARCH_BOOKMARKS_RESPONSE_TOOL.name) continue;
-    toolCalls.push(parsed.data);
-  }
-  return toolCalls;
-}
-
-export async function dispatchResponseToolCalls(
-  toolCalls: OpenAiCompatibleResponsesFunctionCall[],
-): Promise<{
-  outputs: Array<{ type: "function_call_output"; call_id: string; output: string }>;
-  observedResults: Array<{ title: string; url: string }>;
-}> {
-  const calls = toolCalls.map((tc) => ({ callId: tc.call_id, rawArguments: tc.arguments }));
-  const batchResults = await executeToolCallBatch(calls);
-  return {
-    outputs: batchResults.map((r) => ({
-      type: "function_call_output" as const,
-      call_id: r.callId,
-      output: JSON.stringify(r.parsed),
-    })),
-    observedResults: batchResults.flatMap((r) => r.links),
-  };
+  const parsed = searchBookmarksToolResultSchema.parse(result);
+  return formatBookmarkResultsAsLinks(parsed.results.map((r) => ({ title: r.title, url: r.url })));
 }
