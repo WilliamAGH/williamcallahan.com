@@ -126,8 +126,8 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV DEPLOYMENT_ENV=$DEPLOYMENT_ENV
 
 # --- S3 configuration (build-time and runtime) -------------------------------
-# Non-secret values are exported as ENV vars and must be supplied via build args
-# so build-time and runtime configuration stay in sync.
+# Non-secret values are exported as ENV vars and should be supplied via build args
+# when available so build-time and runtime configuration stay in sync.
 # Sensitive credentials can still be supplied as BuildKit secrets.
 ARG S3_BUCKET
 ARG S3_SERVER_URL
@@ -178,15 +178,15 @@ RUN bash -c 'set -euo pipefail \
 # without leaking secrets into the image layers or build cache.
 # S3_SESSION_TOKEN is mirrored to AWS_SESSION_TOKEN for SDK compatibility.
 # Ref: https://docs.docker.com/build/building/secrets/#secret-mounts
-RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID \
-    --mount=type=secret,id=S3_SECRET_ACCESS_KEY,env=S3_SECRET_ACCESS_KEY \
-    --mount=type=secret,id=S3_SESSION_TOKEN,env=S3_SESSION_TOKEN \
-    --mount=type=secret,id=S3_BUCKET,env=S3_BUCKET \
-    --mount=type=secret,id=S3_SERVER_URL,env=S3_SERVER_URL \
-    --mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL,env=NEXT_PUBLIC_S3_CDN_URL \
-    --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
-    --mount=type=secret,id=SENTRY_DSN,env=SENTRY_DSN \
-    --mount=type=secret,id=NEXT_PUBLIC_SENTRY_DSN,env=NEXT_PUBLIC_SENTRY_DSN \
+RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false \
+    --mount=type=secret,id=S3_SECRET_ACCESS_KEY,env=S3_SECRET_ACCESS_KEY,required=false \
+    --mount=type=secret,id=S3_SESSION_TOKEN,env=S3_SESSION_TOKEN,required=false \
+    --mount=type=secret,id=S3_BUCKET,env=S3_BUCKET,required=false \
+    --mount=type=secret,id=S3_SERVER_URL,env=S3_SERVER_URL,required=false \
+    --mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL,env=NEXT_PUBLIC_S3_CDN_URL,required=false \
+    --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN,required=false \
+    --mount=type=secret,id=SENTRY_DSN,env=SENTRY_DSN,required=false \
+    --mount=type=secret,id=NEXT_PUBLIC_SENTRY_DSN,env=NEXT_PUBLIC_SENTRY_DSN,required=false \
     bash -c 'set -euo pipefail \
       && if [ -n "${S3_SESSION_TOKEN:-}" ]; then export AWS_SESSION_TOKEN="${S3_SESSION_TOKEN}"; fi \
       && bun run build \
