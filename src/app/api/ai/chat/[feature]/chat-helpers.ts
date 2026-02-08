@@ -54,6 +54,16 @@ const DOMAIN_HINT_PATTERN =
 /** Triggers full-inventory RAG section with server-side pagination. */
 const INVENTORY_REQUEST_PATTERN = /\b(all|list|catalog|inventory|show all|everything)\b/i;
 
+function withSystemStatusHeader(
+  response: NextResponse,
+  systemStatus: "MEMORY_WARNING" | undefined,
+): NextResponse {
+  if (systemStatus) {
+    response.headers.set("X-System-Status", systemStatus);
+  }
+  return response;
+}
+
 /**
  * Validate the incoming request (cloudflare, origin, rate limit, auth, body)
  * Returns either an error response or the validated context
@@ -65,19 +75,36 @@ export async function validateRequest(
   preventCaching();
 
   const memoryResponse = await memoryPressureMiddleware(request);
+  const memoryWarningStatus = memoryResponse?.headers.get("X-System-Status");
+  const systemStatus: "MEMORY_WARNING" | undefined =
+    memoryWarningStatus === "MEMORY_WARNING" ? memoryWarningStatus : undefined;
   if (memoryResponse && memoryResponse.status >= 400) {
     return memoryResponse;
+  }
+
+  const acceptHeader = request.headers.get("accept")?.toLowerCase() ?? "";
+  if (!acceptHeader.includes("text/event-stream")) {
+    return withSystemStatusHeader(
+      NextResponse.json(
+        { error: "Not Acceptable: this endpoint requires Accept: text/event-stream" },
+        { status: 406, headers: NO_STORE_HEADERS },
+      ),
+      systemStatus,
+    );
   }
 
   const cloudflareResponse = requireCloudflareHeaders(request.headers, {
     route: "/api/ai/chat",
     additionalHeaders: NO_STORE_HEADERS,
   });
-  if (cloudflareResponse) return cloudflareResponse;
+  if (cloudflareResponse) return withSystemStatusHeader(cloudflareResponse, systemStatus);
 
   const originHost = getRequestOriginHostname(request);
   if (!originHost || !isAllowedAiGateHostname(originHost)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403, headers: NO_STORE_HEADERS });
+    return withSystemStatusHeader(
+      NextResponse.json({ error: "Forbidden" }, { status: 403, headers: NO_STORE_HEADERS }),
+      systemStatus,
+    );
   }
 
   const clientIp = getClientIp(request.headers, { fallback: "anonymous" });
@@ -85,27 +112,36 @@ export async function validateRequest(
   const rateKey = `${feature}:${clientIp}`;
 
   if (!isOperationAllowed("ai-chat", rateKey, CHAT_RATE_LIMIT)) {
-    return buildApiRateLimitResponse({
-      retryAfterSeconds: Math.ceil(CHAT_RATE_LIMIT.windowMs / 1000),
-      rateLimitScope: "ai-chat",
-      rateLimitLimit: CHAT_RATE_LIMIT.maxRequests,
-      rateLimitWindowSeconds: Math.ceil(CHAT_RATE_LIMIT.windowMs / 1000),
-    });
+    return withSystemStatusHeader(
+      buildApiRateLimitResponse({
+        retryAfterSeconds: Math.ceil(CHAT_RATE_LIMIT.windowMs / 1000),
+        rateLimitScope: "ai-chat",
+        rateLimitLimit: CHAT_RATE_LIMIT.maxRequests,
+        rateLimitWindowSeconds: Math.ceil(CHAT_RATE_LIMIT.windowMs / 1000),
+      }),
+      systemStatus,
+    );
   }
 
   const secret = process.env.AI_TOKEN_SIGNING_SECRET?.trim();
   if (!secret) {
     logger.error("[AI Chat] AI_TOKEN_SIGNING_SECRET is not configured");
-    return NextResponse.json(
-      { error: "AI chat service not configured" },
-      { status: 503, headers: NO_STORE_HEADERS },
+    return withSystemStatusHeader(
+      NextResponse.json(
+        { error: "AI chat service not configured" },
+        { status: 503, headers: NO_STORE_HEADERS },
+      ),
+      systemStatus,
     );
   }
 
   const nonceCookie = getAiGateNonceCookie(request);
   const bearerToken = getBearerTokenFromRequest(request);
   if (!nonceCookie || !bearerToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS });
+    return withSystemStatusHeader(
+      NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS }),
+      systemStatus,
+    );
   }
 
   const userAgent = request.headers.get("user-agent") ?? "";
@@ -115,7 +151,10 @@ export async function validateRequest(
     nonce: nonceCookie,
   });
   if (!verification.ok) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS });
+    return withSystemStatusHeader(
+      NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS }),
+      systemStatus,
+    );
   }
 
   let parsedBody: ParsedRequestBody;
@@ -124,13 +163,16 @@ export async function validateRequest(
     parsedBody = requestBodySchema.parse(raw);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json(
-      { error: "Invalid request", details: message },
-      { status: 400, headers: NO_STORE_HEADERS },
+    return withSystemStatusHeader(
+      NextResponse.json(
+        { error: "Invalid request", details: message },
+        { status: 400, headers: NO_STORE_HEADERS },
+      ),
+      systemStatus,
     );
   }
 
-  return { feature, clientIp, pagePath, originHost, userAgent, parsedBody };
+  return { feature, clientIp, pagePath, originHost, userAgent, systemStatus, parsedBody };
 }
 
 function getUserMessages(parsedBody: ParsedRequestBody): string[] {
