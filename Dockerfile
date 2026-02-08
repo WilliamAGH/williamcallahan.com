@@ -181,6 +181,9 @@ RUN bash -c 'set -euo pipefail \
 RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID \
     --mount=type=secret,id=S3_SECRET_ACCESS_KEY,env=S3_SECRET_ACCESS_KEY \
     --mount=type=secret,id=S3_SESSION_TOKEN,env=S3_SESSION_TOKEN \
+    --mount=type=secret,id=S3_BUCKET,env=S3_BUCKET \
+    --mount=type=secret,id=S3_SERVER_URL,env=S3_SERVER_URL \
+    --mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL,env=NEXT_PUBLIC_S3_CDN_URL \
     --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
     --mount=type=secret,id=SENTRY_DSN,env=SENTRY_DSN \
     --mount=type=secret,id=NEXT_PUBLIC_SENTRY_DSN,env=NEXT_PUBLIC_SENTRY_DSN \
