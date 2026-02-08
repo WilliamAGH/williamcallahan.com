@@ -32,20 +32,31 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
     start(controller) {
       let controllerClosed = false;
 
-      const safeSend = (event: string, data: unknown) => {
-        if (controllerClosed) return;
+      /** Send an SSE event. Returns false if the event could not be delivered. */
+      const safeSend = (event: string, data: unknown): boolean => {
+        if (controllerClosed) return false;
+        let encoded: Uint8Array;
         try {
-          controller.enqueue(encoder.encode(formatSseEvent({ event, data })));
+          encoded = encoder.encode(formatSseEvent({ event, data }));
+        } catch (serializationError) {
+          // Serialization failure (e.g. circular ref) — transport is still healthy
+          console.error("[SSE] Failed to serialize event:", event, serializationError);
+          return false;
+        }
+        try {
+          controller.enqueue(encoded);
+          return true;
         } catch (enqueueError) {
           controllerClosed = true;
-          const isAbort =
+          const isClientDisconnect =
             enqueueError instanceof TypeError ||
             (enqueueError instanceof Error && enqueueError.message.includes("close"));
-          if (isAbort) {
+          if (isClientDisconnect) {
             console.debug("[SSE] Stream closed by client");
           } else {
             console.warn("[SSE] Unexpected stream enqueue failure:", enqueueError);
           }
+          return false;
         }
       };
 
@@ -55,8 +66,14 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
         try {
           controller.close();
         } catch (closeError) {
-          // Stream already closed - safe to ignore but log for debugging
-          console.debug("[SSE] Stream close failed (already closed):", closeError);
+          const isAlreadyClosed =
+            closeError instanceof TypeError ||
+            (closeError instanceof Error && closeError.message.includes("close"));
+          if (isAlreadyClosed) {
+            console.debug("[SSE] Stream already closed");
+          } else {
+            console.warn("[SSE] Unexpected stream close failure:", closeError);
+          }
         }
       };
 
@@ -102,9 +119,12 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
           return undefined;
         })
         .catch((startError: unknown) => {
-          // Task failed to start - clean up interval; error will be handled by task.result
-          console.debug("[SSE] Task start failed:", startError);
           clearInterval(interval);
+          if (isAbortError(startError)) {
+            console.debug("[SSE] Task start aborted by client");
+          } else {
+            console.warn("[SSE] Task start failed:", startError);
+          }
         });
 
       void task.result
@@ -114,10 +134,14 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
 
           logSuccessfulChat(logContext, assistantMessage, durationMs, queueWaitMs);
 
-          safeSend("done", {
-            message: assistantMessage,
-            ...(ragContextStatus !== "not_applicable" && { ragContext: ragContextStatus }),
-          });
+          if (
+            !safeSend("done", {
+              message: assistantMessage,
+              ...(ragContextStatus !== "not_applicable" && { ragContext: ragContextStatus }),
+            })
+          ) {
+            console.warn("[SSE] Failed to deliver completion event to client");
+          }
           safeClose();
           return undefined;
         })
@@ -139,7 +163,9 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
             responseError.status,
           );
 
-          safeSend("error", { error: responseError.message, status: responseError.status });
+          if (!safeSend("error", { error: responseError.message, status: responseError.status })) {
+            console.warn("[SSE] Failed to deliver error event to client");
+          }
           safeClose();
         })
         .finally(() => {
