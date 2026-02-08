@@ -32,10 +32,6 @@ import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-ana
 // The sitemap now streams paginated S3 data at request time, so the build no longer
 // enumerates bookmark slugs up-front. This keeps rendering dynamic while still
 // producing full SEO coverage.
-//
-// export async function generateStaticParams(): Promise<{ slug: string }[]> {
-//   // Disabled - sitemap.ts handles URL generation separately
-// }
 
 const BOOKMARK_PAGE_CACHE_SECONDS = Math.max(
   3600,

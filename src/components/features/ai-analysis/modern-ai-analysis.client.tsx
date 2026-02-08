@@ -122,24 +122,7 @@ export function ModernAiAnalysis<TEntity, TAnalysis>({
   const isError = state.status === "error";
   const isIdle = state.status === "idle";
 
-  // We need to adapt the renderAnalysis function to our modern layout
-  // Since renderAnalysis expects helpers for the terminal, we'll need to
-  // inspect the analysis object directly in the parent component or
-  // provide "modern" helpers that render differently.
-  //
-  // However, the `renderAnalysis` prop is designed for the terminal.
-  // For this modern component, we might want to render specific parts
-  // if we know the shape, OR we can try to use the helpers to render
-  // into our new structure.
-  //
-  // BETTER APPROACH: The `BookmarkAiAnalysis` component defines `renderBookmarkAnalysis`.
-  // We should probably export a specialized render function for the modern look
-  // from there, OR just handle the specific shape of BookmarkAiAnalysisResponse
-  // if we make this component less generic.
-  //
-  // BUT to keep it generic like AiAnalysisTerminal, we can provide
-  // "Modern" implementations of the helpers.
-
+  // renderAnalysis receives modern-styled helpers instead of terminal helpers
   return (
     <div className={`w-full ${className}`}>
       <AnimatePresence mode="wait">

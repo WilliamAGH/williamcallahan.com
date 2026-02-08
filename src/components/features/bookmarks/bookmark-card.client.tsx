@@ -79,13 +79,8 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   const effectiveInternalHref =
     internalHref && pathname !== internalHref ? internalHref : undefined;
 
-  // Define the date variables but only format them when mounted to avoid hydration mismatches
-  const displayBookmarkDate = dateBookmarked;
-  const displayPublishDate = null;
-
   // Use stable date formatting to avoid hydration issues
-  const formattedBookmarkDate = displayBookmarkDate ? utilFormatDate(displayBookmarkDate) : "";
-  const formattedPublishDate = displayPublishDate ? utilFormatDate(displayPublishDate) : null;
+  const formattedBookmarkDate = dateBookmarked ? utilFormatDate(dateBookmarked) : "";
 
   // Use centralized image selection logic that properly handles all fallback cases
   // This ensures consistency across server and client components
@@ -204,15 +199,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
-              {formattedPublishDate ? (
-                <>
-                  <span>Published {formattedPublishDate}</span>
-                  <span>·</span>
-                  <span>Saved {formattedBookmarkDate}</span>
-                </>
-              ) : (
-                <span>Saved {formattedBookmarkDate}</span>
-              )}
+              <span>Saved {formattedBookmarkDate}</span>
             </div>
 
             {/* Share button right-aligned - only show when we have an internal href */}

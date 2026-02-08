@@ -21,27 +21,15 @@ import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
 loadEnvironmentWithMultilineSupport();
 
 import { JWT } from "google-auth-library";
-import sitemap from "../src/app/sitemap";
-import {
-  loadRateLimitStoreFromS3,
-  incrementAndPersist,
-  persistRateLimitStoreToS3,
-} from "@/lib/rate-limiter";
-import { INDEXING_RATE_LIMIT_PATH } from "@/lib/constants";
 import {
   GoogleCredentialError,
   createAuthClient,
-  notifyGoogle,
   submitGoogleSitemap,
 } from "./lib/google-indexing";
 import { submitToIndexNow } from "./lib/indexnow-submit";
 
 // Configuration constants
 const CANONICAL_SITE_URL = "https://williamcallahan.com";
-const DAILY_GOOGLE_LIMIT_CONFIG = { maxRequests: 50, windowMs: 24 * 60 * 60 * 1000 } as const;
-const GOOGLE_STORE = "googleIndexing";
-const GOOGLE_CONTEXT = "daily";
-const URL_INDEXING_ENABLED = false; // Google deprecated generic per-URL Indexing API submissions
 const LOG_PREFIX = {
   google: "[Google]",
   indexNow: "[IndexNow]",
@@ -86,10 +74,7 @@ const main = async (): Promise<void> => {
     }
   }
 
-  // Handle URL indexing if enabled (requires valid auth client)
-  if (URL_INDEXING_ENABLED && authClient) {
-    await processUrlIndexing(authClient);
-  } else if (DEBUG_MODE) {
+  if (DEBUG_MODE) {
     console.info(
       `${LOG_PREFIX.google} Per-URL Indexing-API submission disabled – sitemap ping only`,
     );
@@ -141,57 +126,6 @@ const main = async (): Promise<void> => {
     );
   else if (DEBUG_MODE) console.info(`${LOG_PREFIX.indexNow} Skipped due to CLI flag.`);
 };
-
-async function processUrlIndexing(client: JWT): Promise<void> {
-  await loadRateLimitStoreFromS3(GOOGLE_STORE, INDEXING_RATE_LIMIT_PATH);
-
-  const sitemapData = await sitemap();
-  const allUrls = sitemapData.map((u) => u.url);
-  const totalUrls = allUrls.length;
-  console.info(`Found ${totalUrls} URLs to process.`);
-
-  // Filter URLs based on remaining quota
-  const allowedUrls: string[] = [];
-  for (const url of allUrls) {
-    if (
-      incrementAndPersist(
-        GOOGLE_STORE,
-        GOOGLE_CONTEXT,
-        DAILY_GOOGLE_LIMIT_CONFIG,
-        INDEXING_RATE_LIMIT_PATH,
-      )
-    ) {
-      allowedUrls.push(url);
-    } else {
-      console.warn(`${LOG_PREFIX.google} Daily limit reached – skipping remaining URLs.`);
-      break;
-    }
-  }
-
-  if (!allowedUrls.length) {
-    console.info("No quota available for URL submissions – skipping");
-    return;
-  }
-
-  const batchSize = 50;
-  for (let i = 0; i < allowedUrls.length; i += batchSize) {
-    const batch = allowedUrls.slice(i, i + batchSize);
-    console.info(`${LOG_PREFIX.google} Submitting batch ${i / batchSize + 1}`);
-
-    for (const url of batch) {
-      const result = await notifyGoogle(client, url, "URL_UPDATED");
-      if (result) {
-        console.info(`${LOG_PREFIX.google} Successfully submitted ${url}`);
-        await persistRateLimitStoreToS3(GOOGLE_STORE, INDEXING_RATE_LIMIT_PATH);
-      }
-    }
-
-    if (i + batchSize < allowedUrls.length) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-  }
-  console.info(`${LOG_PREFIX.google} URL-level submission complete`);
-}
 
 // Execute main with proper error handling using top-level await
 try {

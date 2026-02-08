@@ -116,5 +116,3 @@ export function isHarmonyFormatModel(model: string): boolean {
   const lower = model.toLowerCase();
   return HARMONY_MODEL_PATTERNS.some((pattern) => lower.includes(pattern));
 }
-
-export type { FeatureModelDefaults, ResolvedModelParams } from "@/types/features/ai-chat";
