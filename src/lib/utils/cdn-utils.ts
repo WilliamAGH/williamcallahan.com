@@ -326,7 +326,7 @@ export function getOptimizedImageSrc(
       return src;
     }
   } catch (err) {
-    console.debug("[cdn-utils] buildCachedImageUrl: not an absolute URL, proxying:", src, err);
+    console.debug("[cdn-utils] getOptimizedImageSrc: not an absolute URL, proxying:", src, err);
   }
 
   // External URLs: proxy for SSRF protection
