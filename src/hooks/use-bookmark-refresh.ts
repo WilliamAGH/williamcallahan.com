@@ -12,7 +12,7 @@
 
 import { getErrorMessage, type BookmarkRefreshActions, type BookmarkRefreshState } from "@/types";
 import { bookmarkRefreshResponseSchema } from "@/types/schemas/bookmark";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /** Abort timeout for refresh requests */
 const REFRESH_TIMEOUT_MS = 15_000;
@@ -30,9 +30,22 @@ export function useBookmarkRefresh(params: {
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [showCrossEnvRefresh, setShowCrossEnvRefresh] = useState(false);
   const [isRefreshingProduction, setIsRefreshingProduction] = useState(false);
+  const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearErrorAfterDelay = useCallback(() => {
-    setTimeout(() => setRefreshError(null), ERROR_DISPLAY_MS);
+    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    errorTimeoutRef.current = setTimeout(() => {
+      setRefreshError(null);
+      errorTimeoutRef.current = null;
+    }, ERROR_DISPLAY_MS);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+      }
+    };
   }, []);
 
   const refreshBookmarks = useCallback(async () => {
@@ -93,11 +106,16 @@ export function useBookmarkRefresh(params: {
   const handleProductionRefresh = useCallback(async () => {
     setIsRefreshingProduction(true);
     setShowCrossEnvRefresh(false);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      if (!controller.signal.aborted) controller.abort();
+    }, REFRESH_TIMEOUT_MS);
 
     try {
       const response = await fetch("/api/bookmarks/refresh-production", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -110,16 +128,23 @@ export function useBookmarkRefresh(params: {
             parseError,
           );
         }
-        const errorMessage = getErrorMessage(errorData) || response.statusText;
+        const parsedErrorMessage = getErrorMessage(errorData);
+        const errorMessage = parsedErrorMessage ? parsedErrorMessage : response.statusText;
         throw new Error(`Production refresh failed: ${errorMessage}`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setRefreshError("Production refresh timed out. Please try again.");
+        clearErrorAfterDelay();
+        return;
+      }
       const message =
         error instanceof Error ? error.message : "Failed to trigger production refresh";
       console.error("[Bookmarks] Production refresh failed:", error);
       setRefreshError(message);
       clearErrorAfterDelay();
     } finally {
+      clearTimeout(timeoutId);
       setIsRefreshingProduction(false);
     }
   }, [clearErrorAfterDelay]);

@@ -63,7 +63,15 @@ export function useClientBookmarks(params: {
         }
 
         setBookmarks(parsed);
-        setInternalHrefs(parseResult.data.internalHrefs ?? serverInternalHrefs);
+        const nextInternalHrefs = parseResult.data.internalHrefs;
+        if (nextInternalHrefs) {
+          setInternalHrefs(nextInternalHrefs);
+        } else {
+          console.warn(
+            "[useClientBookmarks] Missing internalHrefs in response; using server-provided map.",
+          );
+          setInternalHrefs(serverInternalHrefs);
+        }
         setDataSource("client");
         setFetchError(null);
       } catch (error: unknown) {
