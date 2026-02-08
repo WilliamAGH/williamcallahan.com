@@ -172,11 +172,19 @@ const derivedCallahanHosts = [process.env.NEXT_PUBLIC_S3_CDN_URL, buildBucketHos
 
 const CDN_REMOTE_PATTERNS = Array.from(
   new Set([...CALLAHAN_IMAGE_HOSTS, ...derivedCallahanHosts]),
-).map((hostname) => ({
-  protocol: "https",
-  hostname,
-  pathname: "/**",
-}));
+).flatMap((hostname) => [
+  {
+    protocol: "https",
+    hostname,
+    pathname: "/**",
+  },
+  {
+    // Handles stale clients that still request trusted CDN assets with http URLs.
+    protocol: "http",
+    hostname,
+    pathname: "/**",
+  },
+]);
 
 const nextConfig = {
   // We run our own rigorous validation pipeline (`bun run validate`).
