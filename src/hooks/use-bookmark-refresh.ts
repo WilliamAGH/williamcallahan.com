@@ -11,6 +11,7 @@
 "use client";
 
 import { getErrorMessage, type BookmarkRefreshActions, type BookmarkRefreshState } from "@/types";
+import { bookmarkRefreshResponseSchema } from "@/types/schemas/bookmark";
 import { useCallback, useState } from "react";
 
 /** Abort timeout for refresh requests */
@@ -54,13 +55,20 @@ export function useBookmarkRefresh(params: {
         throw new Error(`HTTP ${response.status}`);
       }
 
-      const result = (await response.json()) as { status?: string };
-      if (result.status === "success") {
+      const parsedResult = bookmarkRefreshResponseSchema.safeParse(await response.json());
+      if (!parsedResult.success) {
+        throw new Error("Invalid refresh response payload");
+      }
+      if (parsedResult.data.status === "success") {
         setLastRefreshed(new Date());
         if (showRefreshButton && !isRefreshingProduction) {
           setShowCrossEnvRefresh(true);
         }
         await onRefreshSuccess?.();
+      } else {
+        const errorMessage =
+          parsedResult.data.error ?? parsedResult.data.message ?? "Failed to refresh bookmarks";
+        throw new Error(errorMessage);
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -93,7 +101,15 @@ export function useBookmarkRefresh(params: {
       });
 
       if (!response.ok) {
-        const errorData: unknown = await response.json().catch(() => null);
+        let errorData: unknown = null;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          console.error(
+            "[Bookmarks] Failed to parse production refresh error payload:",
+            parseError,
+          );
+        }
         const errorMessage = getErrorMessage(errorData) || response.statusText;
         throw new Error(`Production refresh failed: ${errorMessage}`);
       }
