@@ -23,6 +23,7 @@ import {
 import { logChatMessage } from "@/lib/ai/openai-compatible/chat-message-logger";
 import { buildContextForQuery } from "@/lib/ai/rag";
 import { isPaginationKeyword } from "@/lib/ai/rag/inventory-pagination";
+import { memoryPressureMiddleware } from "@/lib/middleware/memory-pressure";
 import { getClientIp } from "@/lib/utils/request-utils";
 import {
   NO_STORE_HEADERS,
@@ -62,6 +63,11 @@ export async function validateRequest(
   feature: string,
 ): Promise<NextResponse | ValidatedRequestContext> {
   preventCaching();
+
+  const memoryResponse = await memoryPressureMiddleware(request);
+  if (memoryResponse && memoryResponse.status >= 400) {
+    return memoryResponse;
+  }
 
   const cloudflareResponse = requireCloudflareHeaders(request.headers, {
     route: "/api/ai/chat",

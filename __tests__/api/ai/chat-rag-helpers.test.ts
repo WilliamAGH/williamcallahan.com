@@ -3,9 +3,11 @@
  * Ensures retrieval query construction and inventory gating are deterministic.
  */
 
-import { buildRagContextForChat } from "@/app/api/ai/chat/[feature]/chat-helpers";
+import { NextRequest, NextResponse } from "next/server";
+import { buildRagContextForChat, validateRequest } from "@/app/api/ai/chat/[feature]/chat-helpers";
 import { isAbortError } from "@/app/api/ai/chat/[feature]/upstream-error";
 import { buildContextForQuery } from "@/lib/ai/rag";
+import { memoryPressureMiddleware } from "@/lib/middleware/memory-pressure";
 
 vi.mock("@/lib/ai/rag", () => ({
   buildContextForQuery: vi.fn().mockResolvedValue({
@@ -16,8 +18,12 @@ vi.mock("@/lib/ai/rag", () => ({
     retrievalStatus: "success",
   }),
 }));
+vi.mock("@/lib/middleware/memory-pressure", () => ({
+  memoryPressureMiddleware: vi.fn().mockResolvedValue(null),
+}));
 
 const mockedBuildContextForQuery = vi.mocked(buildContextForQuery);
+const mockedMemoryPressureMiddleware = vi.mocked(memoryPressureMiddleware);
 const conversationId = "77777777-7777-4777-8777-777777777777";
 
 describe("AI Chat RAG Helpers", () => {
@@ -73,6 +79,32 @@ describe("AI Chat RAG Helpers", () => {
         includeInventory: true,
       }),
     );
+  });
+});
+
+describe("AI Chat Request Validation", () => {
+  beforeEach(() => {
+    mockedMemoryPressureMiddleware.mockReset();
+    mockedMemoryPressureMiddleware.mockResolvedValue(null);
+  });
+
+  it("returns memory-shed response before further validation when pressure is critical", async () => {
+    const memoryResponse = NextResponse.json(
+      { code: "SERVICE_UNAVAILABLE", message: "System is under heavy load." },
+      { status: 503 },
+    );
+    mockedMemoryPressureMiddleware.mockResolvedValueOnce(memoryResponse);
+
+    const request = new NextRequest("https://williamcallahan.com/api/ai/chat/terminal_chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userText: "hello there" }),
+    });
+
+    const result = await validateRequest(request, "terminal_chat");
+
+    expect(mockedMemoryPressureMiddleware).toHaveBeenCalledWith(request);
+    expect(result).toBe(memoryResponse);
   });
 });
 
