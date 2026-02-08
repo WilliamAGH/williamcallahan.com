@@ -160,7 +160,7 @@ export type UpstreamRunnerConfig = {
 /** Discriminated result of handleAnalysisValidation */
 export type AnalysisHandleResult =
   | { action: "done"; text: string }
-  | { action: "retry"; newModel?: string }
+  | { action: "retry"; newModel?: string; newMessages: OpenAiCompatibleChatMessage[] }
   | { action: "error"; message: string };
 
 /** Discriminated result of handleContentOutcome */
