@@ -63,3 +63,17 @@ export const searchBookmarksToolResultSchema = z.object({
 });
 
 export type SearchBookmarksToolResult = z.infer<typeof searchBookmarksToolResultSchema>;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Gate Token (auth boundary validation)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const aiGateTokenPayloadV1Schema = z.object({
+  v: z.literal(1),
+  exp: z.number().int().positive(),
+  n: z.string().min(1),
+  ip: z.string().min(1),
+  ua: z.string().min(1),
+});
+
+export type AiGateTokenPayloadV1 = z.infer<typeof aiGateTokenPayloadV1Schema>;

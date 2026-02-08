@@ -7,29 +7,11 @@ import type {
   OpenAiCompatibleResponseFormat,
   ReasoningEffort,
 } from "@/types/schemas/ai-openai-compatible";
+import type { AiChatModelStreamUpdate } from "@/types/schemas/ai-openai-compatible-client";
 
 export type RagContextStatus = "included" | "partial" | "failed" | "not_applicable";
-export type AiChatModelStreamEvent =
-  | {
-      event: "message_start";
-      data: { id: string; model: string; apiMode: AiUpstreamApiMode };
-    }
-  | {
-      event: "message_delta";
-      data: { delta: string };
-    }
-  | {
-      event: "message_done";
-      data: { message: string };
-    }
-  | {
-      event: "thinking_delta";
-      data: { delta: string };
-    }
-  | {
-      event: "thinking_done";
-      data: { text: string; tokenCount: number };
-    };
+/** Server-side stream event — derived from the client-facing schema to prevent drift. */
+export type AiChatModelStreamEvent = AiChatModelStreamUpdate;
 
 /** Validated request context after all checks pass */
 export type ValidatedRequestContext = {

@@ -273,3 +273,5 @@ export const bookmarkSlugMappingSchema = z.object({
   slugs: z.record(z.string(), bookmarkSlugEntrySchema),
   reverseMap: z.record(z.string(), z.string()),
 });
+
+export type BookmarkSlugMapping = z.infer<typeof bookmarkSlugMappingSchema>;
