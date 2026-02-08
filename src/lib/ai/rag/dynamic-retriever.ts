@@ -89,9 +89,22 @@ const SCOPE_SEARCHERS: Record<RagScopeName, ScopeSearcher> = {
   thoughts: searchThoughts,
 };
 
+/** Race a promise against a per-scope timeout; clears the timer on settlement. */
+function withScopeTimeout<T>(promise: Promise<T>, ms: number, scope: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(`Scope "${scope}" timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, deadline]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
+}
+
 /**
  * Retrieves content relevant to a user query.
  * Detects scopes from query keywords and runs appropriate searches.
+ * Each scope runs with its own timeout so a single slow scope (e.g. S3-backed
+ * analysis) cannot prevent fast in-memory scopes from contributing results.
  *
  * @param query - The user's query text
  * @param options - Optional settings for max results and timeout
@@ -114,13 +127,8 @@ export async function retrieveRelevantContent(
   // Track failed scopes for caller awareness
   const failedScopes: string[] = [];
 
-  // Create a timeout promise
-  const timeoutPromise = new Promise<never>((_resolve, reject) => {
-    setTimeout(() => reject(new Error("Search timeout")), timeoutMs);
-  });
-
-  // Run searches for detected scopes in parallel
-  const searchPromises = scopes.map(async (scope) => {
+  // Each scope gets its own timeout so slow scopes fail independently
+  const searchPromises = scopes.map(async (scope): Promise<DynamicResult[]> => {
     const searcher = SCOPE_SEARCHERS[scope];
     if (!searcher) {
       logger.warn(`[RAG] No searcher registered for scope: ${scope}`);
@@ -129,7 +137,7 @@ export async function retrieveRelevantContent(
     }
 
     try {
-      const results = await searcher(query);
+      const results = await withScopeTimeout(searcher(query), timeoutMs, scope);
       return results.slice(0, Math.ceil(maxResults / scopes.length)).map(
         (r): DynamicResult => ({
           scope,
@@ -140,35 +148,30 @@ export async function retrieveRelevantContent(
         }),
       );
     } catch (error) {
-      // Log error and track failed scope for caller awareness (per [RC1])
       logger.warn(`[RAG] Search failed for scope "${scope}":`, { error, scope });
       failedScopes.push(scope);
       return [];
     }
   });
 
-  try {
-    // Race all searches against timeout
-    const results = await Promise.race([Promise.all(searchPromises), timeoutPromise]);
+  // Each scope catches its own errors/timeouts, so Promise.all always resolves
+  const results = await Promise.all(searchPromises);
 
-    // Flatten, validate scores, sort by score descending, and limit results
-    const sortedResults = results
-      .flat()
-      .filter((r) => typeof r.score === "number" && Number.isFinite(r.score))
-      .toSorted((a, b) => b.score - a.score)
-      .slice(0, maxResults);
+  const sortedResults = results
+    .flat()
+    .filter((r) => typeof r.score === "number" && Number.isFinite(r.score))
+    .toSorted((a, b) => b.score - a.score)
+    .slice(0, maxResults);
 
-    // Determine status based on failures
-    const status = failedScopes.length === 0 ? "success" : "partial";
-
-    return {
-      results: sortedResults,
-      status,
-      ...(failedScopes.length > 0 && { failedScopes }),
-    };
-  } catch (error) {
-    // Timeout or other error - return with failed status (per [RC1]: no silent degradation)
-    logger.error("[RAG] Dynamic retrieval failed:", { error, scopes, timeoutMs });
-    return { results: [], status: "failed", failedScopes: scopes };
+  // All scopes failed = overall failure; some failed = partial; none = success
+  if (failedScopes.length === scopes.length) {
+    return { results: sortedResults, status: "failed", failedScopes };
   }
+
+  const status = failedScopes.length === 0 ? "success" : "partial";
+  return {
+    results: sortedResults,
+    status,
+    ...(failedScopes.length > 0 && { failedScopes }),
+  };
 }
