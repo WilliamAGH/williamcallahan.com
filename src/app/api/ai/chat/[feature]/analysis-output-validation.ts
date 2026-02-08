@@ -165,7 +165,7 @@ function normalizeListFields(root: Record<string, unknown>, fields: readonly str
     if (rawItems.length === 0) continue;
 
     const normalizedItems = rawItems
-      .map((item) => (typeof item === "string" ? item.trim() : item))
+      .map((item) => (typeof item === "string" ? stripLlmControlTokens(item).trim() : item))
       .filter((item): item is string => typeof item === "string" && containsLettersOrNumbers(item));
     if (normalizedItems.length > 0) {
       root[field] = normalizedItems.slice(0, 6);
@@ -173,7 +173,7 @@ function normalizeListFields(root: Record<string, unknown>, fields: readonly str
     }
 
     const fallbackItems = rawItems
-      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .map((item) => (typeof item === "string" ? stripLlmControlTokens(item).trim() : ""))
       .filter((item) => item.length > 0)
       .slice(0, 6);
     if (fallbackItems.length > 0) root[field] = fallbackItems;
@@ -309,7 +309,11 @@ export function validateAnalysisOutput(
 
   const issuePreview = validation.error.issues
     .slice(0, 3)
-    .map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
+    .map((issue) => {
+      const joinedPath = issue.path.join(".");
+      const pathLabel = joinedPath.length > 0 ? joinedPath : "(root)";
+      return `${pathLabel}: ${issue.message}`;
+    })
     .join("; ");
   console.warn("[upstream-pipeline] Schema validation failed after normalization", {
     feature,
@@ -322,8 +326,7 @@ export function validateAnalysisOutput(
       }, normalized),
     })),
   });
-  return {
-    ok: false,
-    reason: issuePreview || "Schema validation failed for analysis output.",
-  };
+  const reason =
+    issuePreview.length > 0 ? issuePreview : "Schema validation failed for analysis output.";
+  return { ok: false, reason };
 }
