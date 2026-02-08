@@ -166,6 +166,23 @@ describe("AI Chat Upstream Pipeline Analysis Validation", () => {
     expect(parsed.targetAudience).toBe(VALID_TARGET_AUDIENCE);
   });
 
+  it("strips LLM control tokens from list fields before validation", async () => {
+    const controlTokenAnalysis = buildAnalysisJson({
+      highlights: ["<|assistant|>", "Stealth mode"],
+      relatedResources: ["<|assistant|>agent-browser", "Playwright"],
+    });
+
+    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
+      choices: [{ message: { role: "assistant", content: controlTokenAnalysis } }],
+    });
+
+    const reply = await runBookmarkAnalysisPipeline();
+
+    const parsed = JSON.parse(reply) as { highlights: string[]; relatedResources: string[] };
+    expect(parsed.highlights).toEqual(["Stealth mode"]);
+    expect(parsed.relatedResources).toEqual(["agent-browser", "Playwright"]);
+  });
+
   it.each([
     { label: "from punctuation-only values", targetAudience: "..." },
     { label: "when field is null", targetAudience: null },
