@@ -22,6 +22,7 @@ import {
 } from "@/lib/ai/openai-compatible/gate-token";
 import { logChatMessage } from "@/lib/ai/openai-compatible/chat-message-logger";
 import { buildContextForQuery } from "@/lib/ai/rag";
+import { formatStaticContext, getStaticContext } from "@/lib/ai/rag/static-context";
 import { isPaginationKeyword } from "@/lib/ai/rag/inventory-pagination";
 import { memoryPressureMiddleware } from "@/lib/middleware/memory-pressure";
 import { getClientIp } from "@/lib/utils/request-utils";
@@ -285,11 +286,16 @@ export async function buildRagContextForChat(
       logger.error("[AI Chat] RAG context retrieval failed", {
         status: ragContext.retrievalStatus,
       });
-      return { augmentedPrompt: undefined, status: "failed" };
+      // contextText always contains static context (biography, home page highlights)
+      // even when dynamic retrieval fails; discarding it leaves the model ungrounded
+      return { augmentedPrompt: ragContext.contextText, status: "failed" };
     }
   } catch (error) {
     logger.error("[AI Chat] RAG context retrieval exception:", { error });
-    return { augmentedPrompt: undefined, status: "failed" };
+    // Static context (biography, home page highlights) is always available in-memory;
+    // inject it so the model has grounding facts even when the full RAG pipeline throws
+    const fallbackContext = formatStaticContext(getStaticContext());
+    return { augmentedPrompt: fallbackContext, status: "failed" };
   }
 }
 
