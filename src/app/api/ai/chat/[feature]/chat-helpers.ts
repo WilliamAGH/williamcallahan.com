@@ -301,7 +301,7 @@ function buildBaseLogPayload(ctx: ChatLogContext, durationMs: number, queueWaitM
     clientIp: ctx.clientIp,
     userAgent: ctx.userAgent,
     originHost: ctx.originHost,
-    pagePath: ctx.pagePath ?? undefined,
+    pagePath: ctx.pagePath === null ? undefined : ctx.pagePath,
     messages: ctx.messages,
     metrics: {
       durationMs,
