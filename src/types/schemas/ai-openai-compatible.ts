@@ -125,6 +125,39 @@ export type OpenAiCompatibleChatCompletionsRequest = z.infer<
   typeof openAiCompatibleChatCompletionsRequestSchema
 >;
 
+const openAiCompatibleResponsesFunctionToolSchema = z.object({
+  type: z.literal("function"),
+  name: z.string().min(1),
+  description: z.string().nullable().optional(),
+  parameters: z.record(z.string(), z.unknown()).nullable().optional(),
+  strict: z.boolean().optional(),
+});
+
+export const openAiCompatibleResponsesRequestSchema = z
+  .object({
+    model: z.string().min(1),
+    input: z.array(openAiCompatibleChatMessageSchema).min(1),
+    temperature: z.number().min(0).max(2).optional(),
+    top_p: z.number().min(0).max(1).optional(),
+    max_output_tokens: z.number().int().min(1).max(128000).optional(),
+    tools: z.array(openAiCompatibleResponsesFunctionToolSchema).optional(),
+    tool_choice: z
+      .union([z.enum(["none", "auto", "required"]), z.record(z.string(), z.unknown())])
+      .optional(),
+    parallel_tool_calls: z.boolean().optional(),
+    reasoning: z
+      .object({
+        effort: reasoningEffortSchema.nullable().optional(),
+      })
+      .loose()
+      .optional(),
+  })
+  .loose();
+
+export type OpenAiCompatibleResponsesRequest = z.infer<
+  typeof openAiCompatibleResponsesRequestSchema
+>;
+
 const openAiCompatibleChatCompletionsChoiceSchema = z.object({
   message: openAiCompatibleResponseAssistantMessageSchema,
   finish_reason: z.string().optional(),
