@@ -19,6 +19,10 @@ describe("Bookmark tool pattern matching", () => {
     { input: "hello there", expected: false },
     { input: "what is a bookmark?", expected: false },
     { input: undefined, expected: false },
+    { input: "show me your resume", expected: false },
+    { input: "find the meaning of life", expected: false },
+    { input: "search for a good recipe", expected: false },
+    { input: "show me the weather", expected: false },
   ])('matchesBookmarkSearchPattern("$input") → $expected', ({ input, expected }) => {
     expect(matchesBookmarkSearchPattern(input)).toBe(expected);
   });

@@ -86,11 +86,14 @@ function normalizeInternalPath(url: string): string | null {
 
 /**
  * Test whether the user message matches bookmark search intent patterns.
+ * Requires a bookmark-related noun to be present — a bare search verb
+ * ("show me X", "find Y") is not sufficient to force a bookmark tool call.
  * The caller is responsible for gating on feature support.
  */
 export function matchesBookmarkSearchPattern(latestUserMessage: string | undefined): boolean {
   if (typeof latestUserMessage !== "string") return false;
-  if (EXPLICIT_SEARCH_REQUEST_PATTERN.test(latestUserMessage)) return true;
+  const hasBookmarkNoun = BOOKMARK_NOUN_PATTERN.test(latestUserMessage);
+  if (hasBookmarkNoun && EXPLICIT_SEARCH_REQUEST_PATTERN.test(latestUserMessage)) return true;
   const nounMatch = BOOKMARK_NOUN_PATTERN.exec(latestUserMessage);
   if (!nounMatch) return false;
   const afterNoun = latestUserMessage.slice(
@@ -240,6 +243,16 @@ export async function runDeterministicBookmarkFallback(
   const result = await executeSearchBookmarksTool(
     JSON.stringify({ query: searchQuery, maxResults: TOOL_MAX_RESULTS_DEFAULT }),
   );
-  const parsed = searchBookmarksToolResultSchema.parse(result);
-  return formatBookmarkResultsAsLinks(parsed.results.map((r) => ({ title: r.title, url: r.url })));
+  const parsed = searchBookmarksToolResultSchema.safeParse(result);
+  if (!parsed.success) {
+    logger.error("[AI Chat] Deterministic bookmark fallback: result failed schema validation", {
+      feature,
+      searchQuery,
+      error: parsed.error.message,
+    });
+    return "Sorry, I encountered an error while searching bookmarks. Please try a different query.";
+  }
+  return formatBookmarkResultsAsLinks(
+    parsed.data.results.map((r) => ({ title: r.title, url: r.url })),
+  );
 }
