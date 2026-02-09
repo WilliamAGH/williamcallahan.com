@@ -7,6 +7,7 @@ import type { ResponseCreateParamsNonStreaming } from "openai/resources/response
 import {
   type OpenAiCompatibleChatCompletionsRequest,
   type OpenAiCompatibleChatCompletionsResponse,
+  type OpenAiCompatibleResponsesRequest,
   type OpenAiCompatibleResponsesResponse,
   openAiCompatibleChatCompletionsRequestSchema,
   openAiCompatibleChatCompletionsResponseSchema,
@@ -75,10 +76,10 @@ function validateChatRequest(request: OpenAiCompatibleChatCompletionsRequest) {
 
 function validateResponsesRequest(
   request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
-    input: OpenAiCompatibleChatCompletionsRequest["messages"];
+    input: OpenAiCompatibleResponsesRequest["input"];
   },
 ): Omit<ResponseCreateParamsNonStreaming, "input"> & {
-  input: OpenAiCompatibleChatCompletionsRequest["messages"];
+  input: OpenAiCompatibleResponsesRequest["input"];
 } {
   const parsedRequest = openAiCompatibleResponsesRequestSchema.parse(request);
   const normalizedTools: ResponseCreateParamsNonStreaming["tools"] = parsedRequest.tools?.map(
@@ -227,7 +228,7 @@ export async function callOpenAiCompatibleResponses(args: {
   baseUrl: string;
   apiKey?: string;
   request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
-    input: OpenAiCompatibleChatCompletionsRequest["messages"];
+    input: OpenAiCompatibleResponsesRequest["input"];
   };
   timeoutMs?: number;
   signal?: AbortSignal;
@@ -249,7 +250,7 @@ export async function streamOpenAiCompatibleResponses(args: {
   baseUrl: string;
   apiKey?: string;
   request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
-    input: OpenAiCompatibleChatCompletionsRequest["messages"];
+    input: OpenAiCompatibleResponsesRequest["input"];
   };
   timeoutMs?: number;
   signal?: AbortSignal;
