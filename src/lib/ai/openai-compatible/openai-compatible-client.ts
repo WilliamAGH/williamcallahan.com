@@ -24,8 +24,8 @@ import {
 } from "./openai-compatible-message-mapper";
 import { createThinkTagParser, stripThinkTags } from "./think-tag-parser";
 
-const DEFAULT_TIMEOUT_MS = 60_000;
-const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_MAX_RETRIES = 1;
 
 const clientByConfig = new Map<string, OpenAIClient>();
 
@@ -98,7 +98,7 @@ function validateResponsesRequest(
     top_p: parsedRequest.top_p,
     max_output_tokens: parsedRequest.max_output_tokens,
     tools: normalizedTools,
-    tool_choice: request.tool_choice,
+    tool_choice: parsedRequest.tool_choice,
     parallel_tool_calls: parsedRequest.parallel_tool_calls,
     reasoning: parsedRequest.reasoning,
   };
