@@ -1,3 +1,11 @@
+/**
+ * OpenAI-Compatible API Client
+ *
+ * Server-side adapter for calling OpenAI-compatible upstream services via both
+ * the Chat Completions and Responses APIs. Handles client caching, request
+ * validation (Zod), streaming with think-tag parsing, and response normalization.
+ */
+
 import "server-only";
 
 import { createHash } from "node:crypto";
@@ -92,15 +100,7 @@ function validateResponsesRequest(
 
   return {
     ...parsedRequest,
-    model: parsedRequest.model,
-    input: parsedRequest.input,
-    temperature: parsedRequest.temperature,
-    top_p: parsedRequest.top_p,
-    max_output_tokens: parsedRequest.max_output_tokens,
     tools: normalizedTools,
-    tool_choice: parsedRequest.tool_choice,
-    parallel_tool_calls: parsedRequest.parallel_tool_calls,
-    reasoning: parsedRequest.reasoning,
   };
 }
 
