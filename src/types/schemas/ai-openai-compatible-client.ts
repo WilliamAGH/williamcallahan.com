@@ -27,9 +27,20 @@ export const aiChatQueuePositionSchema = z
 
 export type AiChatQueuePosition = z.infer<typeof aiChatQueuePositionSchema>;
 
+export const aiChatStreamErrorKindSchema = z.enum([
+  "timeout",
+  "rate_limit",
+  "auth",
+  "model_unavailable",
+  "upstream",
+]);
+
+export type AiChatStreamErrorKind = z.infer<typeof aiChatStreamErrorKindSchema>;
+
 export const aiChatStreamErrorSchema = z
   .object({
     error: z.string().min(1),
+    kind: aiChatStreamErrorKindSchema.optional(),
   })
   .passthrough();
 

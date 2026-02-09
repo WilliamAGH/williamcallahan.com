@@ -1,3 +1,11 @@
+/**
+ * OpenAI-Compatible API Client
+ *
+ * Server-side adapter for calling OpenAI-compatible upstream services via both
+ * the Chat Completions and Responses APIs. Handles client caching, request
+ * validation (Zod), streaming with think-tag parsing, and response normalization.
+ */
+
 import "server-only";
 
 import { createHash } from "node:crypto";
@@ -7,9 +15,11 @@ import type { ResponseCreateParamsNonStreaming } from "openai/resources/response
 import {
   type OpenAiCompatibleChatCompletionsRequest,
   type OpenAiCompatibleChatCompletionsResponse,
+  type OpenAiCompatibleResponsesRequest,
   type OpenAiCompatibleResponsesResponse,
   openAiCompatibleChatCompletionsRequestSchema,
   openAiCompatibleChatCompletionsResponseSchema,
+  openAiCompatibleResponsesRequestSchema,
   openAiCompatibleResponsesResponseSchema,
   responsesOutputRefusalItemSchema,
   responsesOutputTextItemSchema,
@@ -22,8 +32,8 @@ import {
 } from "./openai-compatible-message-mapper";
 import { createThinkTagParser, stripThinkTags } from "./think-tag-parser";
 
-const DEFAULT_TIMEOUT_MS = 60_000;
-const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_MAX_RETRIES = 1;
 
 const clientByConfig = new Map<string, OpenAIClient>();
 
@@ -48,10 +58,22 @@ function resolveClient(args: {
   const existingClient = clientByConfig.get(clientKey);
   if (existingClient) return existingClient;
 
+  let timeout = args.timeoutMs;
+  if (timeout === undefined) {
+    timeout = DEFAULT_TIMEOUT_MS;
+  } else if (!Number.isFinite(timeout)) {
+    console.warn("[AI] Invalid timeout (NaN/Infinity); defaulting to client timeout.", {
+      baseUrl: args.baseUrl,
+      provided: timeout,
+      timeoutMs: DEFAULT_TIMEOUT_MS,
+    });
+    timeout = DEFAULT_TIMEOUT_MS;
+  }
+
   const client = new OpenAIClient({
     apiKey,
     baseURL: apiBaseUrl,
-    timeout: args.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    timeout,
     maxRetries: DEFAULT_MAX_RETRIES,
   });
 
@@ -61,6 +83,28 @@ function resolveClient(args: {
 
 function validateChatRequest(request: OpenAiCompatibleChatCompletionsRequest) {
   return openAiCompatibleChatCompletionsRequestSchema.parse(request);
+}
+
+function validateResponsesRequest(
+  request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
+    input: OpenAiCompatibleResponsesRequest["input"];
+  },
+): Omit<ResponseCreateParamsNonStreaming, "input"> & {
+  input: OpenAiCompatibleResponsesRequest["input"];
+} {
+  const parsedRequest = openAiCompatibleResponsesRequestSchema.parse(request);
+  const normalizedTools: ResponseCreateParamsNonStreaming["tools"] = parsedRequest.tools?.map(
+    (tool) => ({
+      ...tool,
+      parameters: tool.parameters ?? null,
+      strict: tool.strict ?? null,
+    }),
+  );
+
+  return {
+    ...parsedRequest,
+    tools: normalizedTools,
+  };
 }
 
 function deriveOutputTextFromResponsesOutput(output: unknown[]): string {
@@ -187,16 +231,17 @@ export async function callOpenAiCompatibleResponses(args: {
   baseUrl: string;
   apiKey?: string;
   request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
-    input: OpenAiCompatibleChatCompletionsRequest["messages"];
+    input: OpenAiCompatibleResponsesRequest["input"];
   };
   timeoutMs?: number;
   signal?: AbortSignal;
 }): Promise<OpenAiCompatibleResponsesResponse> {
+  const validatedRequest = validateResponsesRequest(args.request);
   const client = resolveClient(args);
   const response = await client.responses.create(
     {
-      ...args.request,
-      input: toResponsesInput(args.request.input),
+      ...validatedRequest,
+      input: toResponsesInput(validatedRequest.input),
     },
     toRequestOptions(args),
   );
@@ -208,7 +253,7 @@ export async function streamOpenAiCompatibleResponses(args: {
   baseUrl: string;
   apiKey?: string;
   request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
-    input: OpenAiCompatibleChatCompletionsRequest["messages"];
+    input: OpenAiCompatibleResponsesRequest["input"];
   };
   timeoutMs?: number;
   signal?: AbortSignal;
@@ -216,11 +261,12 @@ export async function streamOpenAiCompatibleResponses(args: {
   onDelta?: (delta: string) => void;
   onThinkingDelta?: (delta: string) => void;
 }): Promise<OpenAiCompatibleResponsesResponse> {
+  const validatedRequest = validateResponsesRequest(args.request);
   const client = resolveClient(args);
   const stream = client.responses.stream(
     {
-      ...args.request,
-      input: toResponsesInput(args.request.input),
+      ...validatedRequest,
+      input: toResponsesInput(validatedRequest.input),
       stream: true,
     },
     toRequestOptions(args),
@@ -259,8 +305,12 @@ export async function streamOpenAiCompatibleResponses(args: {
   thinkParser?.end();
 
   if (!startEmitted) {
+    const modelLabel =
+      typeof validatedRequest.model === "string" && validatedRequest.model.length > 0
+        ? validatedRequest.model
+        : "<unset>";
     throw new Error(
-      `[AI] Responses stream completed without emitting any events (model: ${args.request.model ?? "<unset>"})`,
+      `[AI] Responses stream completed without emitting any events (model: ${modelLabel})`,
     );
   }
 

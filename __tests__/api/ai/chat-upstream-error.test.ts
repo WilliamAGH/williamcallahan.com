@@ -3,6 +3,7 @@ import {
   formatErrorMessage,
   isModelLoadFailure,
   isAbortError,
+  isTimeoutError,
   MODEL_LOAD_FAILURE_PATTERN,
 } from "@/app/api/ai/chat/[feature]/upstream-error";
 
@@ -46,6 +47,31 @@ describe("isAbortError", () => {
   });
 });
 
+describe("isTimeoutError", () => {
+  it("returns true for APIConnectionTimeoutError by name", () => {
+    const error = new Error("Request timed out");
+    error.name = "APIConnectionTimeoutError";
+    expect(isTimeoutError(error)).toBe(true);
+  });
+
+  it("returns true for error with 'timed out' in message", () => {
+    expect(isTimeoutError(new Error("Connection timed out"))).toBe(true);
+  });
+
+  it("returns true for error with 'timeout' in message", () => {
+    expect(isTimeoutError(new Error("Request timeout after 30s"))).toBe(true);
+  });
+
+  it("returns false for non-timeout errors", () => {
+    expect(isTimeoutError(new Error("Connection refused"))).toBe(false);
+  });
+
+  it("returns false for non-Error values", () => {
+    expect(isTimeoutError("timeout")).toBe(false);
+    expect(isTimeoutError(null)).toBe(false);
+  });
+});
+
 describe("formatErrorMessage", () => {
   const originalEnv = process.env.NODE_ENV;
 
@@ -74,61 +100,86 @@ describe("formatErrorMessage", () => {
 });
 
 describe("resolveErrorResponse", () => {
-  it("maps 401 to 503 to prevent topology leakage", () => {
+  it("maps timeout errors to 504 with kind 'timeout'", () => {
+    const error = new Error("Request timed out");
+    error.name = "APIConnectionTimeoutError";
+    const result = resolveErrorResponse(error);
+    expect(result.status).toBe(504);
+    expect(result.kind).toBe("timeout");
+    expect(result.message).toContain("took too long");
+    expect(result.message).toContain("try again");
+  });
+
+  it("maps 401 to 503 with kind 'auth'", () => {
     const error = Object.assign(new Error("Unauthorized"), { status: 401 });
     const result = resolveErrorResponse(error);
     expect(result.status).toBe(503);
+    expect(result.kind).toBe("auth");
     expect(result.message).toBe("AI upstream authentication failed");
   });
 
-  it("maps 403 to 503 to prevent topology leakage", () => {
+  it("maps 403 to 503 with kind 'auth'", () => {
     const error = Object.assign(new Error("Forbidden"), { status: 403 });
     const result = resolveErrorResponse(error);
     expect(result.status).toBe(503);
+    expect(result.kind).toBe("auth");
     expect(result.message).toBe("AI upstream authentication failed");
   });
 
-  it("maps 429 to 503 to prevent topology leakage", () => {
+  it("maps 429 to 503 with kind 'rate_limit'", () => {
     const error = Object.assign(new Error("Too Many Requests"), { status: 429 });
     const result = resolveErrorResponse(error);
     expect(result.status).toBe(503);
-    expect(result.message).toBe("AI upstream rate limit exceeded");
+    expect(result.kind).toBe("rate_limit");
+    expect(result.message).toBe("AI upstream rate limit exceeded. Please try again shortly.");
   });
 
-  it("maps 400 with model load failure to 503", () => {
+  it("maps 400 with model load failure to 503 with kind 'model_unavailable'", () => {
     const error = Object.assign(new Error(`${MODEL_LOAD_FAILURE_PATTERN} openai/gpt-oss-120b`), {
       status: 400,
     });
     const result = resolveErrorResponse(error);
     expect(result.status).toBe(503);
+    expect(result.kind).toBe("model_unavailable");
     expect(result.message).toBe("AI upstream model is currently unavailable");
   });
 
-  it("maps 400 without model load failure to 502", () => {
+  it("maps 400 without model load failure to 502 with kind 'upstream'", () => {
     const error = Object.assign(new Error("Bad Request"), { status: 400 });
     const result = resolveErrorResponse(error);
     expect(result.status).toBe(502);
+    expect(result.kind).toBe("upstream");
   });
 
-  it("maps generic status codes to 502", () => {
+  it("maps generic status codes to 502 with kind 'upstream'", () => {
     const error = Object.assign(new Error("Internal Server Error"), { status: 500 });
     const result = resolveErrorResponse(error);
     expect(result.status).toBe(502);
+    expect(result.kind).toBe("upstream");
   });
 
-  it("maps errors without status property to 502", () => {
+  it("maps errors without status property to 502 with kind 'upstream'", () => {
     const result = resolveErrorResponse(new Error("Something went wrong"));
     expect(result.status).toBe(502);
+    expect(result.kind).toBe("upstream");
   });
 
-  it("maps null/undefined errors to 502", () => {
-    expect(resolveErrorResponse(null).status).toBe(502);
-    expect(resolveErrorResponse(undefined).status).toBe(502);
+  it("maps null/undefined errors to 502 with kind 'upstream'", () => {
+    const nullResult = resolveErrorResponse(null);
+    expect(nullResult.status).toBe(502);
+    expect(nullResult.kind).toBe("upstream");
+    const undefinedResult = resolveErrorResponse(undefined);
+    expect(undefinedResult.status).toBe(502);
+    expect(undefinedResult.kind).toBe("upstream");
   });
 
-  it("maps non-object errors to 502", () => {
-    expect(resolveErrorResponse("string error").status).toBe(502);
-    expect(resolveErrorResponse(42).status).toBe(502);
+  it("maps non-object errors to 502 with kind 'upstream'", () => {
+    const stringResult = resolveErrorResponse("string error");
+    expect(stringResult.status).toBe(502);
+    expect(stringResult.kind).toBe("upstream");
+    const numberResult = resolveErrorResponse(42);
+    expect(numberResult.status).toBe(502);
+    expect(numberResult.kind).toBe("upstream");
   });
 
   it("never leaks 401/403/429 status codes to the client", () => {

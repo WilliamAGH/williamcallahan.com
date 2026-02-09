@@ -27,6 +27,23 @@ const openAiCompatibleRequestAssistantMessageSchema = z
     message: "Assistant message must include content or tool_calls",
   });
 
+const openAiCompatibleResponsesInputAssistantMessageSchema = z
+  .object({
+    role: z.literal("assistant"),
+    content: z.string().optional(),
+    refusal: z.string().optional(),
+    tool_calls: z.array(openAiCompatibleToolCallSchema).optional(),
+  })
+  .refine(
+    (value) =>
+      typeof value.content === "string" ||
+      typeof value.refusal === "string" ||
+      (value.tool_calls?.length ?? 0) > 0,
+    {
+      message: "Assistant message must include content, refusal, or tool_calls",
+    },
+  );
+
 const openAiCompatibleResponseAssistantMessageSchema = z
   .object({
     role: z.literal("assistant"),
@@ -123,6 +140,71 @@ export const openAiCompatibleChatCompletionsRequestSchema = z.object({
 
 export type OpenAiCompatibleChatCompletionsRequest = z.infer<
   typeof openAiCompatibleChatCompletionsRequestSchema
+>;
+
+const openAiCompatibleResponsesFunctionToolSchema = z.object({
+  type: z.literal("function"),
+  name: z.string().min(1),
+  description: z.string().nullable().optional(),
+  parameters: z.record(z.string(), z.unknown()).nullable().optional(),
+  strict: z.boolean().nullable().optional(),
+});
+
+const openAiCompatibleResponsesToolChoiceSchema = z.union([
+  z.enum(["none", "auto", "required"]),
+  z.object({
+    type: z.literal("allowed_tools"),
+    mode: z.enum(["auto", "required"]),
+    tools: z.array(z.record(z.string(), z.unknown())),
+  }),
+  z.object({ type: z.literal("apply_patch") }),
+  z.object({ type: z.literal("shell") }),
+  z.object({ type: z.literal("function"), name: z.string().min(1) }),
+  z.object({ type: z.literal("custom"), name: z.string().min(1) }),
+  z.object({
+    type: z.literal("mcp"),
+    server_label: z.string().min(1),
+    name: z.string().nullable().optional(),
+  }),
+  z.object({
+    type: z.enum([
+      "file_search",
+      "web_search_preview",
+      "computer_use_preview",
+      "web_search_preview_2025_03_11",
+      "image_generation",
+      "code_interpreter",
+    ]),
+  }),
+]);
+
+const openAiCompatibleResponsesInputMessageSchema = z.union([
+  openAiCompatibleSystemOrUserMessageSchema,
+  openAiCompatibleResponsesInputAssistantMessageSchema,
+  openAiCompatibleToolMessageSchema,
+]);
+
+export const openAiCompatibleResponsesRequestSchema = z
+  .object({
+    model: z.string().min(1),
+    input: z.array(openAiCompatibleResponsesInputMessageSchema).min(1),
+    temperature: z.number().min(0).max(2).optional(),
+    top_p: z.number().min(0).max(1).optional(),
+    max_output_tokens: z.number().int().min(1).max(128000).optional(),
+    tools: z.array(openAiCompatibleResponsesFunctionToolSchema).optional(),
+    tool_choice: openAiCompatibleResponsesToolChoiceSchema.optional(),
+    parallel_tool_calls: z.boolean().optional(),
+    reasoning: z
+      .object({
+        effort: reasoningEffortSchema.nullable().optional(),
+      })
+      .loose()
+      .optional(),
+  })
+  .loose();
+
+export type OpenAiCompatibleResponsesRequest = z.infer<
+  typeof openAiCompatibleResponsesRequestSchema
 >;
 
 const openAiCompatibleChatCompletionsChoiceSchema = z.object({

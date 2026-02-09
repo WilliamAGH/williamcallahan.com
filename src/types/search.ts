@@ -31,21 +31,24 @@ export {
   searchResultSchema,
   searchResultsSchema,
   miniSearchStoredFieldsSchema,
+} from "./schemas/search";
+
+export type {
   // Types (z.infer exports)
-  type SearchScope,
-  type SearchResultType,
-  type BookmarkSearchParams,
-  type BookmarkIndexInput,
-  type EducationItem,
-  type BookmarkIndexItem,
-  type SerializedIndex,
-  type AllSerializedIndexes,
-  type TagContentType,
-  type AggregatedTag,
-  type SearchResult,
-  type SearchResults,
-  type MiniSearchStoredFields,
-  type ScoredResult,
+  SearchScope,
+  SearchResultType,
+  BookmarkSearchParams,
+  BookmarkIndexInput,
+  EducationItem,
+  BookmarkIndexItem,
+  SerializedIndex,
+  AllSerializedIndexes,
+  TagContentType,
+  AggregatedTag,
+  SearchResult,
+  SearchResults,
+  MiniSearchStoredFields,
+  ScoredResult,
 } from "./schemas/search";
 
 // ─────────────────────────────────────────────────────────────────────────────

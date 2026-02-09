@@ -11,13 +11,24 @@ import type {
   ChatCompletionUserMessageParam,
 } from "openai/resources/chat/completions";
 import type { EasyInputMessage, ResponseInput } from "openai/resources/responses/responses";
-import type { OpenAiCompatibleChatCompletionsRequest } from "@/types/schemas/ai-openai-compatible";
+import type {
+  OpenAiCompatibleChatCompletionsRequest,
+  OpenAiCompatibleResponsesRequest,
+} from "@/types/schemas/ai-openai-compatible";
 
 const NON_REASONING_MODEL_PREFIXES = ["gpt-3.5", "gpt-4"] as const;
 
 function supportsReasoningEffort(model: string): boolean {
   const normalized = model.trim().toLowerCase();
-  const modelName = normalized.split("/").at(-1) ?? normalized;
+  const modelSegments = normalized.split("/");
+  let modelName = modelSegments.at(-1);
+  if (!modelName) {
+    console.warn(
+      "[openai-compatible] Empty model name segment; falling back to normalized model id",
+      { model, normalized },
+    );
+    modelName = normalized;
+  }
   return !NON_REASONING_MODEL_PREFIXES.some((prefix) => modelName.startsWith(prefix));
 }
 
@@ -87,15 +98,24 @@ export function toChatRequest(
   }
 
   if (request.tools) {
-    const chatTools: ChatCompletionTool[] = request.tools.map((tool) => ({
-      type: "function",
-      function: {
-        name: tool.function.name,
-        description: tool.function.description,
-        parameters: tool.function.parameters ?? {},
-        strict: tool.function.strict,
-      },
-    }));
+    const chatTools: ChatCompletionTool[] = request.tools.map((tool) => {
+      let parameters = tool.function.parameters;
+      if (parameters === undefined) {
+        console.warn("[openai-compatible] Tool parameters missing; defaulting to empty schema", {
+          name: tool.function.name,
+        });
+        parameters = {};
+      }
+      return {
+        type: "function",
+        function: {
+          name: tool.function.name,
+          description: tool.function.description,
+          parameters,
+          strict: tool.function.strict,
+        },
+      };
+    });
     baseRequest.tools = chatTools;
   }
 
@@ -117,8 +137,16 @@ export function toRequestOptions(args: {
 }
 
 export function toResponsesInput(
-  messages: OpenAiCompatibleChatCompletionsRequest["messages"],
+  messages: OpenAiCompatibleResponsesRequest["input"],
 ): ResponseInput {
+  const getAssistantRefusal = (
+    message: OpenAiCompatibleResponsesRequest["input"][number],
+  ): string | undefined => {
+    if (message.role !== "assistant") return undefined;
+    const refusalValue: unknown = Reflect.get(message, "refusal");
+    return typeof refusalValue === "string" && refusalValue.length > 0 ? refusalValue : undefined;
+  };
+
   const items: ResponseInput = [];
   for (const message of messages) {
     if (message.role === "tool") {
@@ -131,11 +159,17 @@ export function toResponsesInput(
     }
 
     if (message.role === "assistant" && message.tool_calls?.length) {
-      if (typeof message.content === "string" && message.content.length > 0) {
+      const assistantContent = typeof message.content === "string" ? message.content : undefined;
+      const refusalContent = getAssistantRefusal(message);
+      let content = assistantContent;
+      if (typeof content !== "string" || content.length === 0) {
+        content = refusalContent;
+      }
+      if (typeof content === "string" && content.length > 0) {
         const assistantText: EasyInputMessage = {
           type: "message",
           role: "assistant",
-          content: message.content,
+          content,
         };
         items.push(assistantText);
       }
@@ -151,6 +185,14 @@ export function toResponsesInput(
     }
 
     const role: EasyInputMessage["role"] = message.role;
+    if (message.role === "assistant") {
+      const refusalContent = getAssistantRefusal(message);
+      const assistantContent = typeof message.content === "string" ? message.content : undefined;
+      if ((!assistantContent || assistantContent.length === 0) && refusalContent) {
+        items.push({ type: "message", role, content: refusalContent });
+        continue;
+      }
+    }
     if (typeof message.content !== "string") {
       console.warn(
         "[openai-compatible] Non-string message content passed to Responses input; coercing to empty string",
