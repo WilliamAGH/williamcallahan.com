@@ -147,7 +147,7 @@ const openAiCompatibleResponsesFunctionToolSchema = z.object({
   name: z.string().min(1),
   description: z.string().nullable().optional(),
   parameters: z.record(z.string(), z.unknown()).nullable().optional(),
-  strict: z.boolean().optional(),
+  strict: z.boolean().nullable().optional(),
 });
 
 const openAiCompatibleResponsesToolChoiceSchema = z.union([
