@@ -11,7 +11,10 @@ import type {
   ChatCompletionUserMessageParam,
 } from "openai/resources/chat/completions";
 import type { EasyInputMessage, ResponseInput } from "openai/resources/responses/responses";
-import type { OpenAiCompatibleChatCompletionsRequest } from "@/types/schemas/ai-openai-compatible";
+import type {
+  OpenAiCompatibleChatCompletionsRequest,
+  OpenAiCompatibleResponsesRequest,
+} from "@/types/schemas/ai-openai-compatible";
 
 const NON_REASONING_MODEL_PREFIXES = ["gpt-3.5", "gpt-4"] as const;
 
@@ -134,13 +137,13 @@ export function toRequestOptions(args: {
 }
 
 export function toResponsesInput(
-  messages: OpenAiCompatibleChatCompletionsRequest["messages"],
+  messages: OpenAiCompatibleResponsesRequest["input"],
 ): ResponseInput {
   const getAssistantRefusal = (
-    message: OpenAiCompatibleChatCompletionsRequest["messages"][number],
+    message: OpenAiCompatibleResponsesRequest["input"][number],
   ): string | undefined => {
     if (message.role !== "assistant") return undefined;
-    const refusalValue = Reflect.get(message, "refusal");
+    const refusalValue: unknown = Reflect.get(message, "refusal");
     return typeof refusalValue === "string" && refusalValue.length > 0 ? refusalValue : undefined;
   };
 
