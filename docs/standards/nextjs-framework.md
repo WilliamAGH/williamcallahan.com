@@ -61,7 +61,7 @@ These are the failure modes that blocked >100 deploy attempts. Follow each check
   - `app/bookmarks/page/[pageNumber]/page.tsx:34-111` – uses `const paramsResolved = await Promise.resolve(params)` for both `generateMetadata` and the page component.
   - `app/blog/[slug]/page.tsx:78-118` – destructures `{ slug } = await params` before any lookups.
   - `app/bookmarks/tags/[...slug]/page.tsx:86-147` and `app/bookmarks/[slug]/page.tsx:182-297` follow the same pattern for complex Zod validation.
-- **Sitemap / metadata builders:** `app/sitemap.ts` now enforces `dynamic = "force-dynamic"` and iterates S3 pages sequentially via `getBookmarksPage()` while streaming tag indexes with `listBookmarkTagSlugs()` + `getTagBookmarksIndex()`/`getTagBookmarksPage()`. Never reintroduce a build-time bulk fetch; keep params asynchronous and limit memory by processing one page at a time.
+- **Sitemap / metadata builders:** `app/sitemap.ts` enforces `dynamic = "force-dynamic"` and prioritizes low-latency reads (slug mapping + bounded tag-index lookups). Never reintroduce build-phase `NEXT_PHASE` gating that removes sitemap sections, and avoid unbounded per-tag S3 index scans in request paths.
 - **Action items when adding new routes:** copy one of the reference patterns, add a code comment citing this section, and include tests under `__tests__/app/` that cover invalid params so we catch missing `await` calls.
 
 #### 1.a Guarding Date/Time usage (`next-prerender-current-time`)
@@ -449,7 +449,7 @@ Think of Cache Components as **inverting the default**:
 - Introducing React 18-era APIs (`ReactDOM.render`, legacy metadata helpers) without explicit owner approval.
 - **CRITICAL:** Using `unstable_noStore()` in page components when `cacheComponents: true` (see §6).
 - **CRITICAL:** Using `export const dynamic = "force-dynamic"` in page components when `cacheComponents: true` - causes build errors (see §6).
-- **CRITICAL:** Module-scope `NEXT_PHASE` checks (e.g., `const x = process.env.NEXT_PHASE === "..."`) — evaluated at build time and baked into bundle. Use a function: `const x = () => process.env.NEXT_PHASE === "..."`.
+- **CRITICAL:** Any direct `process.env.NEXT_PHASE` access can be inlined at build time and baked into bundles. Use bracket notation with constants (e.g., `process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE`) and avoid module-scope `NEXT_PHASE` guards in route output logic.
 - **CRITICAL:** Using `connection()` from `next/server` in page/component code—causes `DYNAMIC_SERVER_USAGE` errors at runtime (see §3.a).
 - **CRITICAL:** Using `cache: "no-store"` or `revalidate: 0` in fetch calls for statically prerendered pages—causes "Page changed from static to dynamic" errors (see §3.a).
 - **CRITICAL:** Calling `Date.now()` before any data access (fetch, headers, cookies)—causes `next-prerender-current-time` errors (see §1.a).
