@@ -86,7 +86,7 @@ function renderChatLine(line: string): ReactNode {
 function renderChatOutput(outputContent: string): ReactNode {
   const lines = outputContent.split("\n");
   return lines.map((line, index) => (
-    <span key={`${line}-${index}`}>
+    <span key={index}>
       {renderChatLine(line)}
       {index < lines.length - 1 ? <br /> : null}
     </span>
