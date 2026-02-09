@@ -81,6 +81,10 @@ export async function register(): Promise<void> {
     Sentry.init({
       dsn: process.env.SENTRY_DSN,
       release: releaseVersion,
+      // Next.js 16 cache components can throw `next-prerender-crypto` when
+      // OpenTelemetry detectors call random UUID APIs during static route rendering.
+      // Keep Sentry error reporting enabled while disabling OTel auto-setup.
+      skipOpenTelemetrySetup: true,
       tracesSampleRate: 0.25,
 
       // Server-side integrations for enhanced error context
