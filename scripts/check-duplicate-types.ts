@@ -21,10 +21,13 @@ import { z } from "zod/v4";
 
 const ROOT = process.cwd();
 const duplicateTypesBaseRefSchema = z.string().min(1).optional();
+const duplicateTypesFallbackBaseRefs = ["origin/main", "origin/dev", "main", "dev"] as const;
 
-/** Regex to capture type/interface/enum declaration names from a single line. */
+/** Regex to capture type/interface/enum declaration names from a single line.
+ * Excludes re-exports and inline imports by ensuring the name is not followed by a comma or closing brace.
+ */
 const DECLARATION_RE =
-  /^\s*(?:export\s+(?:default\s+)?)?(?:declare\s+)?(?:type|interface|enum)\s+(\w+)/;
+  /^\s*(?:export\s+(?:default\s+)?)?(?:declare\s+)?(?:type|interface|enum)\s+(\w+)(?!\s*[,}])/;
 
 async function collectDeclarations(): Promise<Map<string, Array<{ file: string; line: number }>>> {
   const declarations = new Map<string, Array<{ file: string; line: number }>>();
@@ -83,19 +86,42 @@ function reportDuplicates(
   return duplicateCount;
 }
 
+function gitRefExists(ref: string): boolean {
+  const result = spawnSync("git", ["rev-parse", "--verify", "--quiet", ref], {
+    cwd: ROOT,
+    stdio: "ignore",
+  });
+  return result.status === 0;
+}
+
+function resolveFallbackBaseRef(): string | null {
+  for (const candidate of duplicateTypesFallbackBaseRefs) {
+    if (gitRefExists(candidate)) return candidate;
+  }
+  return null;
+}
+
 function getChangedTypeFiles(): Set<string> | null {
   const parsedBaseRef = duplicateTypesBaseRefSchema.safeParse(process.env.DUPLICATE_TYPES_BASE_REF);
-  let baseRef = "origin/main";
+  let baseRef: string;
   if (parsedBaseRef.success && typeof parsedBaseRef.data === "string") {
     baseRef = parsedBaseRef.data;
-  } else if (process.env.DUPLICATE_TYPES_BASE_REF === undefined) {
-    console.warn(
-      `[check:duplicate-types] DUPLICATE_TYPES_BASE_REF not set; defaulting to ${baseRef}.`,
-    );
   } else {
-    console.warn(
-      `[check:duplicate-types] Invalid DUPLICATE_TYPES_BASE_REF; defaulting to ${baseRef}.`,
-    );
+    const fallbackBaseRef = resolveFallbackBaseRef();
+    if (!fallbackBaseRef) {
+      console.warn("[check:duplicate-types] No fallback git ref found; checking all declarations.");
+      return null;
+    }
+    baseRef = fallbackBaseRef;
+    if (process.env.DUPLICATE_TYPES_BASE_REF === undefined) {
+      console.warn(
+        `[check:duplicate-types] DUPLICATE_TYPES_BASE_REF not set; defaulting to ${baseRef}.`,
+      );
+    } else {
+      console.warn(
+        `[check:duplicate-types] Invalid DUPLICATE_TYPES_BASE_REF; defaulting to ${baseRef}.`,
+      );
+    }
   }
   const diff = spawnSync(
     "git",
