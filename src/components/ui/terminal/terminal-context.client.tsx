@@ -25,10 +25,10 @@ const defaultContext: TerminalContextType = {
 
 export const TerminalContext = createContext<TerminalContextType | undefined>(undefined);
 
-const INITIAL_WELCOME_MESSAGE: TerminalCommand = {
+export const INITIAL_WELCOME_MESSAGE: TerminalCommand = {
   type: "text",
   input: "",
-  output: 'Welcome! Type "help" for available commands.',
+  output: 'Welcome! Type "help" for commands or "chat" and ask anything.',
   id: "initial-welcome-message",
   timestamp: Date.now(),
 };
