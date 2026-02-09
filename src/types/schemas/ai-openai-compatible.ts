@@ -27,6 +27,23 @@ const openAiCompatibleRequestAssistantMessageSchema = z
     message: "Assistant message must include content or tool_calls",
   });
 
+const openAiCompatibleResponsesInputAssistantMessageSchema = z
+  .object({
+    role: z.literal("assistant"),
+    content: z.string().optional(),
+    refusal: z.string().optional(),
+    tool_calls: z.array(openAiCompatibleToolCallSchema).optional(),
+  })
+  .refine(
+    (value) =>
+      typeof value.content === "string" ||
+      typeof value.refusal === "string" ||
+      (value.tool_calls?.length ?? 0) > 0,
+    {
+      message: "Assistant message must include content, refusal, or tool_calls",
+    },
+  );
+
 const openAiCompatibleResponseAssistantMessageSchema = z
   .object({
     role: z.literal("assistant"),
@@ -133,10 +150,16 @@ const openAiCompatibleResponsesFunctionToolSchema = z.object({
   strict: z.boolean().optional(),
 });
 
+const openAiCompatibleResponsesInputMessageSchema = z.union([
+  openAiCompatibleSystemOrUserMessageSchema,
+  openAiCompatibleResponsesInputAssistantMessageSchema,
+  openAiCompatibleToolMessageSchema,
+]);
+
 export const openAiCompatibleResponsesRequestSchema = z
   .object({
     model: z.string().min(1),
-    input: z.array(openAiCompatibleChatMessageSchema).min(1),
+    input: z.array(openAiCompatibleResponsesInputMessageSchema).min(1),
     temperature: z.number().min(0).max(2).optional(),
     top_p: z.number().min(0).max(1).optional(),
     max_output_tokens: z.number().int().min(1).max(128000).optional(),
