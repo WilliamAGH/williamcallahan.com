@@ -1,7 +1,7 @@
 import type { Project } from "@/types/project";
 
 // Remember to update this date whenever the projects data or the Projects page design changes
-export const updatedAt = "2026-02-08";
+export const updatedAt = "2026-02-09";
 
 export const projects: Project[] = [
   {
@@ -91,41 +91,6 @@ export const projects: Project[] = [
       "Vercel AI SDK",
     ],
     cvFeatured: true,
-  },
-  {
-    id: "Filey - Flag Deprecated Files Extension",
-    name: "Filey - Flag Deprecated Files Extension",
-    description:
-      "A VS Code extension (compatible with Cursor, Windsurf, etc.) that visually flags deprecated files based on customizable configuration settings.",
-    shortSummary: "VS Code extension for flagging deprecated files",
-    url: "/blog/introducing-flag-deprecated-files-vscode-extension/",
-    githubUrl: "https://github.com/WilliamAGH/vscode-flag-deprecated-files-extension",
-    imageKey: "images/other/projects/filey-flag-deprecated-files.png",
-    tags: [
-      "VS Code",
-      "Visual Studio Code",
-      "Cursor",
-      "Windsurf",
-      "TypeScript",
-      "Developer Tools",
-      "Extension",
-      "IDE",
-      "Productivity",
-      "Open Source",
-      "Code Quality",
-      "File Management",
-    ],
-    techStack: ["TypeScript", "VS Code API", "Node.js"],
-    registryLinks: [
-      {
-        type: "vscode",
-        url: "https://marketplace.visualstudio.com/items?itemName=WilliamCallahan.flag-deprecated-files",
-      },
-      {
-        type: "openvsx",
-        url: "https://open-vsx.org/extension/williamcallahan/flag-deprecated-files",
-      },
-    ],
   },
   {
     id: "ComposerAI",
@@ -280,6 +245,41 @@ export const projects: Project[] = [
       "Docker",
     ],
     cvFeatured: false,
+  },
+  {
+    id: "Filey - Flag Deprecated Files Extension",
+    name: "Filey - Flag Deprecated Files Extension",
+    description:
+      "A VS Code extension (compatible with Cursor, Windsurf, etc.) that visually flags deprecated files based on customizable configuration settings.",
+    shortSummary: "VS Code extension for flagging deprecated files",
+    url: "/blog/introducing-flag-deprecated-files-vscode-extension/",
+    githubUrl: "https://github.com/WilliamAGH/vscode-flag-deprecated-files-extension",
+    imageKey: "images/other/projects/filey-flag-deprecated-files.png",
+    tags: [
+      "VS Code",
+      "Visual Studio Code",
+      "Cursor",
+      "Windsurf",
+      "TypeScript",
+      "Developer Tools",
+      "Extension",
+      "IDE",
+      "Productivity",
+      "Open Source",
+      "Code Quality",
+      "File Management",
+    ],
+    techStack: ["TypeScript", "VS Code API", "Node.js"],
+    registryLinks: [
+      {
+        type: "vscode",
+        url: "https://marketplace.visualstudio.com/items?itemName=WilliamCallahan.flag-deprecated-files",
+      },
+      {
+        type: "openvsx",
+        url: "https://open-vsx.org/extension/williamcallahan/flag-deprecated-files",
+      },
+    ],
   },
   {
     id: "repo-tokens-calculator",
