@@ -417,8 +417,7 @@ File/Path Functionality Description
 - [x] `.browserslistrc` `config` - Browserslist configuration
 - [x] `.remarkrc.mjs` `config` - Remark (Markdown processor) configuration
 - [x] **eslint/** `linting-formatting` - ESLint custom rules (project-specific)
-  - [x] **rules/**
-    - [x] `no-duplicate-types-rule.ts` `linting-formatting` - Enforces globally unique type/interface/enum names
+  - [x] **rules/** (empty — `no-duplicate-types` moved to `scripts/check-duplicate-types.ts`)
 - [x] **oxlint/** `linting-formatting` - Oxlint JS plugins (experimental)
   - [x] **js-plugins/**
     - [x] `s3-no-hardcoded-images.mjs` `image-handling` - Prevents hardcoded `/images/*` usage; enforces `getStaticImageUrl()`
@@ -555,6 +554,7 @@ File/Path Functionality Description
 ## Scripts Directory
 
 - [x] `bun-test-wrapper.sh` `testing-config` - Wrapper for running Bun tests
+- [x] `check-duplicate-types.ts` `linting-formatting` - Deterministic build-time check for globally unique type/interface/enum names
 - [x] `check-file-naming.ts` `testing-config` - Script to check file naming conventions
 - [x] `consolidate-configs.js` `build` - Script to consolidate configuration files
 - [x] `debug-test-bookmark.ts` `log-error-debug-handling` - Debugging script for bookmarks

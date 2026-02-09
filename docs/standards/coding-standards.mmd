@@ -84,7 +84,7 @@ graph TD
         T_TS[tsconfig.json] --> T_Rule1[strict: true];
         T_TS --> T_Rule2[noUncheckedIndexedAccess: true];
         T_ES[eslint.config.ts] --> T_Rule3[no-unsafe-* rules];
-        T_ES --> T_Rule4[project/no-duplicate-types];
+        T_ES --> T_Rule4[check:duplicate-types script];
         T_BM[biome.json] --> T_Rule5[Formatting & Import Sort];
     end
 
