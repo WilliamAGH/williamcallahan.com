@@ -48,7 +48,9 @@ import {
 } from "@/lib/bookmarks/cache-management.server";
 
 const isCliLikeContext = isCliLikeCacheContext;
-const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
+const PHASE_ENV_KEY = "NEXT_PHASE" as const;
+const BUILD_PHASE_VALUE = "phase-production-build" as const;
+const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 
 const logBookmarkDataAccessEvent = (message: string, data?: Record<string, unknown>): void => {
   if (!isBookmarkServiceLoggingEnabled) return;
@@ -90,7 +92,7 @@ async function fetchAndCacheBookmarks(
   const isProductionRuntime =
     getEnvironment() === "production" &&
     !isCliLikeContext() &&
-    process.env.NEXT_PHASE !== "phase-production-build";
+    process.env[PHASE_ENV_KEY] !== BUILD_PHASE_VALUE;
   const isTestEnvironment =
     process.env.NODE_ENV === "test" || process.env.VITEST === "true" || process.env.TEST === "true";
   if (isProductionRuntime) {

@@ -19,6 +19,9 @@ import {
 // Re-export for backward compatibility
 export { CACHE_TTL, USE_NEXTJS_CACHE };
 
+const PHASE_ENV_KEY = "NEXT_PHASE" as const;
+const BUILD_PHASE_VALUE = "phase-production-build" as const;
+
 export const isCliLikeCacheContext = (): boolean => {
   const argv1 = process.argv[1] || "";
   const inScriptsDir = /(^|[\\/])scripts[\\/]/.test(argv1);
@@ -27,7 +30,7 @@ export const isCliLikeCacheContext = (): boolean => {
     process.argv.includes("data-updater") ||
     process.argv.includes("reset-and-regenerate") ||
     process.argv.includes("regenerate-content") ||
-    process.env.NEXT_PHASE === "phase-production-build"
+    process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE
   );
 };
 
