@@ -13,6 +13,7 @@ import {
   getTagBookmarksIndex,
   getTagBookmarksPage,
 } from "@/lib/bookmarks/service.server";
+import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 
 vi.mock("@/lib/bookmarks/service.server", () => ({
@@ -21,6 +22,10 @@ vi.mock("@/lib/bookmarks/service.server", () => ({
   listBookmarkTagSlugs: vi.fn(),
   getTagBookmarksIndex: vi.fn(),
   getTagBookmarksPage: vi.fn(),
+}));
+
+vi.mock("@/lib/bookmarks/slug-manager", () => ({
+  loadSlugMapping: vi.fn(),
 }));
 
 vi.mock("@/data/education", () => ({
@@ -68,6 +73,7 @@ const mockGetTagBookmarksIndex = getTagBookmarksIndex as MockedFunction<
   typeof getTagBookmarksIndex
 >;
 const mockGetTagBookmarksPage = getTagBookmarksPage as MockedFunction<typeof getTagBookmarksPage>;
+const mockLoadSlugMapping = loadSlugMapping as MockedFunction<typeof loadSlugMapping>;
 
 const buildBookmark = (
   id: string,
@@ -93,6 +99,7 @@ const buildBookmark = (
 
 describe("Sitemap Generation", () => {
   let originalSiteUrl: string | undefined;
+  let originalNextPhase: string | undefined;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -101,15 +108,24 @@ describe("Sitemap Generation", () => {
     mockListBookmarkTagSlugs.mockReset();
     mockGetTagBookmarksIndex.mockReset();
     mockGetTagBookmarksPage.mockReset();
+    mockLoadSlugMapping.mockReset();
     originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    originalNextPhase = process.env.NEXT_PHASE;
     process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
+    delete process.env.NEXT_PHASE;
     mockListBookmarkTagSlugs.mockResolvedValue([]);
     mockGetTagBookmarksIndex.mockResolvedValue(null);
     mockGetTagBookmarksPage.mockResolvedValue([]);
+    mockLoadSlugMapping.mockResolvedValue(null);
   });
 
   afterEach(() => {
     process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
+    if (typeof originalNextPhase === "string") {
+      process.env.NEXT_PHASE = originalNextPhase;
+    } else {
+      delete process.env.NEXT_PHASE;
+    }
   });
 
   describe("Bookmarks Pagination Logic", () => {
@@ -280,6 +296,58 @@ describe("Sitemap Generation", () => {
   });
 
   describe("Individual Bookmark Entries", () => {
+    it("uses slug mapping when available without fetching every bookmarks page", async () => {
+      mockGetBookmarksIndex.mockResolvedValue({
+        count: 2,
+        totalPages: 1,
+        pageSize: BOOKMARKS_PER_PAGE,
+        lastModified: "2024-01-02T00:00:00Z",
+        lastFetchedAt: Date.now(),
+        lastAttemptedAt: Date.now(),
+        checksum: "test",
+        changeDetected: true,
+      });
+
+      mockLoadSlugMapping.mockResolvedValue({
+        version: "1",
+        generated: "2024-01-02T00:00:00.000Z",
+        count: 2,
+        checksum: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        slugs: {
+          "bookmark-1": {
+            id: "bookmark-1",
+            slug: "example-com-article",
+            url: "https://example.com/article",
+            title: "Great Article",
+          },
+          "bookmark-2": {
+            id: "bookmark-2",
+            slug: "another-com-post",
+            url: "https://another.com/post",
+            title: "Another Post",
+          },
+        },
+        reverseMap: {
+          "example-com-article": "bookmark-1",
+          "another-com-post": "bookmark-2",
+        },
+      });
+
+      const sitemapEntries = await sitemap();
+
+      expect(
+        sitemapEntries.some(
+          (entry) => entry.url === "https://williamcallahan.com/bookmarks/example-com-article",
+        ),
+      ).toBe(true);
+      expect(
+        sitemapEntries.some(
+          (entry) => entry.url === "https://williamcallahan.com/bookmarks/another-com-post",
+        ),
+      ).toBe(true);
+      expect(mockGetBookmarksPage).not.toHaveBeenCalled();
+    });
+
     it("creates entries for each bookmark slug", async () => {
       mockGetBookmarksIndex.mockResolvedValue({
         count: 2,
@@ -324,6 +392,40 @@ describe("Sitemap Generation", () => {
           (entry) => entry.url === "https://williamcallahan.com/bookmarks/another-com-post",
         ),
       ).toBe(true);
+    });
+
+    it("includes bookmark entries even when NEXT_PHASE is phase-production-build", async () => {
+      process.env.NEXT_PHASE = "phase-production-build";
+
+      mockGetBookmarksIndex.mockResolvedValue({
+        count: 1,
+        totalPages: 1,
+        pageSize: BOOKMARKS_PER_PAGE,
+        lastModified: "2024-01-02T00:00:00Z",
+        lastFetchedAt: Date.now(),
+        lastAttemptedAt: Date.now(),
+        checksum: "test",
+        changeDetected: true,
+      });
+
+      mockGetBookmarksPage.mockResolvedValue([
+        buildBookmark("bookmark-1", {
+          slug: "example-com-article",
+          url: "https://example.com/article",
+          title: "Great Article",
+          dateBookmarked: "2024-01-01T00:00:00Z",
+          tags: ["tech"],
+        }),
+      ]);
+
+      const sitemapEntries = await sitemap();
+
+      expect(
+        sitemapEntries.some(
+          (entry) => entry.url === "https://williamcallahan.com/bookmarks/example-com-article",
+        ),
+      ).toBe(true);
+      expect(mockGetBookmarksPage).toHaveBeenCalledWith(1);
     });
   });
 

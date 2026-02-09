@@ -33,6 +33,7 @@ import {
   listBookmarkTagSlugs,
   getTagBookmarksIndex,
 } from "@/lib/bookmarks/service.server";
+import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { fetchBooks } from "@/lib/books/audiobookshelf.server";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
 import { getThoughtListItems } from "@/lib/thoughts/service.server";
@@ -50,13 +51,24 @@ const BOOKMARK_CHANGE_FREQUENCY: NonNullable<MetadataRoute.Sitemap[number]["chan
 const BOOKMARK_PRIORITY = 0.65;
 const BOOKMARK_TAG_PRIORITY = 0.6;
 const BOOKMARK_TAG_PAGE_PRIORITY = 0.55;
-const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 const BOOK_CHANGE_FREQUENCY: NonNullable<MetadataRoute.Sitemap[number]["changeFrequency"]> =
   "monthly";
 const BOOK_PRIORITY = 0.6;
 const THOUGHT_CHANGE_FREQUENCY: NonNullable<MetadataRoute.Sitemap[number]["changeFrequency"]> =
   "weekly";
 const THOUGHT_PRIORITY = 0.6;
+const SITEMAP_RUNTIME_CACHE_TTL_MS = 10 * 60 * 1000;
+const TAG_INDEX_LOOKUP_BUDGET = 200;
+
+// Metadata route handlers are cached by default; force runtime execution so
+// sitemap output cannot be frozen from a build-phase environment snapshot.
+export const dynamic = "force-dynamic";
+
+let runtimeSitemapCache: {
+  generatedAt: number;
+  entries: MetadataRoute.Sitemap;
+} | null = null;
+let inFlightSitemapBuild: Promise<MetadataRoute.Sitemap> | null = null;
 
 const sanitizePathSegment = (segment: string): string => segment.replace(/[^\u0020-\u007E]/g, "");
 
@@ -117,6 +129,43 @@ const buildPaginatedBookmarkEntries = (
   return entries;
 };
 
+const collectBookmarkEntriesFromPages = async (
+  siteUrl: string,
+  totalPages: number,
+): Promise<{
+  entries: MetadataRoute.Sitemap;
+  latestBookmarkUpdateTime?: Date;
+}> => {
+  const bookmarkEntries: MetadataRoute.Sitemap = [];
+  let latestBookmarkUpdateTime: Date | undefined;
+
+  for (let page = 1; page <= totalPages; page++) {
+    const pageBookmarks = await getBookmarksPage(page);
+    if (!Array.isArray(pageBookmarks) || pageBookmarks.length === 0) {
+      continue;
+    }
+
+    for (const bookmark of pageBookmarks) {
+      const slug = bookmark.slug;
+      if (!slug) {
+        console.warn(`[Sitemap] Skipping bookmark ${bookmark.id} because slug is missing.`);
+        continue;
+      }
+
+      const lastModified = resolveBookmarkLastModified(bookmark);
+      latestBookmarkUpdateTime = getLatestDate(latestBookmarkUpdateTime, lastModified);
+      bookmarkEntries.push({
+        url: `${siteUrl}/bookmarks/${sanitizePathSegment(slug)}`,
+        lastModified,
+        changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
+        priority: BOOKMARK_PRIORITY,
+      });
+    }
+  }
+
+  return { entries: bookmarkEntries, latestBookmarkUpdateTime };
+};
+
 const collectBookmarkSitemapData = async (
   siteUrl: string,
 ): Promise<{
@@ -125,7 +174,7 @@ const collectBookmarkSitemapData = async (
   latestBookmarkUpdateTime?: Date;
 }> => {
   try {
-    const index = await getBookmarksIndex();
+    const [index, slugMapping] = await Promise.all([getBookmarksIndex(), loadSlugMapping()]);
     if (!index || !index.totalPages || index.totalPages < 1) {
       return {
         entries: [],
@@ -135,31 +184,22 @@ const collectBookmarkSitemapData = async (
     }
 
     const totalPages = Math.max(1, index.totalPages);
-    const bookmarkEntries: MetadataRoute.Sitemap = [];
-    let latestBookmarkUpdateTime: Date | undefined;
+    const latestBookmarkUpdateTime = getSafeDate(index.lastModified);
 
-    for (let page = 1; page <= totalPages; page++) {
-      const pageBookmarks = await getBookmarksPage(page);
-      if (!Array.isArray(pageBookmarks) || pageBookmarks.length === 0) {
-        continue;
-      }
+    const bookmarkEntriesFromMapping: MetadataRoute.Sitemap | null =
+      slugMapping && Object.keys(slugMapping.slugs).length > 0
+        ? Object.values(slugMapping.slugs).map((entry) => ({
+            url: `${siteUrl}/bookmarks/${sanitizePathSegment(entry.slug)}`,
+            lastModified: latestBookmarkUpdateTime,
+            changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
+            priority: BOOKMARK_PRIORITY,
+          }))
+        : null;
 
-      for (const bookmark of pageBookmarks) {
-        const slug = bookmark.slug;
-        if (!slug) {
-          console.warn(`[Sitemap] Skipping bookmark ${bookmark.id} because slug is missing.`);
-          continue;
-        }
-
-        const lastModified = resolveBookmarkLastModified(bookmark);
-        latestBookmarkUpdateTime = getLatestDate(latestBookmarkUpdateTime, lastModified);
-        bookmarkEntries.push({
-          url: `${siteUrl}/bookmarks/${sanitizePathSegment(slug)}`,
-          lastModified,
-          changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
-          priority: BOOKMARK_PRIORITY,
-        });
-      }
+    let bookmarkEntries: MetadataRoute.Sitemap = bookmarkEntriesFromMapping ?? [];
+    if (bookmarkEntries.length === 0) {
+      const pageData = await collectBookmarkEntriesFromPages(siteUrl, totalPages);
+      bookmarkEntries = pageData.entries;
     }
 
     const paginatedEntries = buildPaginatedBookmarkEntries(
@@ -211,6 +251,23 @@ const collectTagSitemapData = async (
       return { tagEntries, paginatedTagEntries };
     }
 
+    if (tagSlugs.length > TAG_INDEX_LOOKUP_BUDGET) {
+      console.warn(
+        `[Sitemap] Tag slug count (${tagSlugs.length}) exceeded lookup budget (${TAG_INDEX_LOOKUP_BUDGET}); skipping per-tag index fetches for faster sitemap generation.`,
+      );
+      return {
+        tagEntries: tagSlugs.map((rawSlug) => {
+          const sanitizedSlug = sanitizePathSegment(rawSlug);
+          return {
+            url: `${siteUrl}/bookmarks/tags/${sanitizedSlug}`,
+            changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
+            priority: BOOKMARK_TAG_PRIORITY,
+          } satisfies MetadataRoute.Sitemap[number];
+        }),
+        paginatedTagEntries: [],
+      };
+    }
+
     for (const rawSlug of tagSlugs) {
       const tagIndex = await getTagBookmarksIndex(rawSlug);
       if (!tagIndex) {
@@ -259,18 +316,15 @@ const collectTagSitemapData = async (
   return { tagEntries, paginatedTagEntries };
 };
 
+const isTestEnvironment = (): boolean =>
+  process.env.NODE_ENV === "test" || process.env.VITEST === "true" || process.env.TEST === "true";
+
 const collectBookSitemapData = async (
   siteUrl: string,
 ): Promise<{
   entries: MetadataRoute.Sitemap;
   latestBookUpdateTime?: Date;
 }> => {
-  // Avoid remote API fetch during build to keep memory safe
-  if (isBuildPhase) {
-    console.log("[Sitemap] Skipping book fetch during build phase");
-    return { entries: [], latestBookUpdateTime: undefined };
-  }
-
   try {
     const books = await fetchBooks();
     if (!Array.isArray(books) || books.length === 0) {
@@ -351,8 +405,7 @@ const collectThoughtSitemapData = async (
   }
 };
 
-// --- Main Sitemap Generation ---
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+const buildSitemapEntries = async (): Promise<MetadataRoute.Sitemap> => {
   const siteUrl = siteMetadata.site.url;
   const postsDirectory = path.join(process.cwd(), "data/blog/posts");
 
@@ -424,36 +477,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   );
 
   // --- 2. Process Bookmarks and Bookmark Tags without loading the full dataset ---
-  let bookmarkEntries: MetadataRoute.Sitemap = [];
-  let paginatedBookmarkEntries: MetadataRoute.Sitemap = [];
-  let latestBookmarkUpdateTime: Date | undefined;
-  let bookmarkTagEntries: MetadataRoute.Sitemap = [];
-  let paginatedBookmarkTagEntries: MetadataRoute.Sitemap = [];
-  let bookEntries: MetadataRoute.Sitemap = [];
-  let latestBookUpdateTime: Date | undefined;
-  let thoughtEntries: MetadataRoute.Sitemap = [];
-  let latestThoughtUpdateTime: Date | undefined;
+  const [bookmarkData, tagData, bookData, thoughtData] = await Promise.all([
+    collectBookmarkSitemapData(siteUrl),
+    collectTagSitemapData(siteUrl),
+    collectBookSitemapData(siteUrl),
+    collectThoughtSitemapData(siteUrl),
+  ]);
+  const bookmarkEntries = bookmarkData.entries;
+  const paginatedBookmarkEntries = bookmarkData.paginatedEntries;
+  const latestBookmarkUpdateTime = bookmarkData.latestBookmarkUpdateTime;
 
-  if (!isBuildPhase) {
-    const bookmarkData = await collectBookmarkSitemapData(siteUrl);
-    bookmarkEntries = bookmarkData.entries;
-    paginatedBookmarkEntries = bookmarkData.paginatedEntries;
-    latestBookmarkUpdateTime = bookmarkData.latestBookmarkUpdateTime;
+  const bookmarkTagEntries = tagData.tagEntries;
+  const paginatedBookmarkTagEntries = tagData.paginatedTagEntries;
 
-    const tagData = await collectTagSitemapData(siteUrl);
-    bookmarkTagEntries = tagData.tagEntries;
-    paginatedBookmarkTagEntries = tagData.paginatedTagEntries;
+  const bookEntries = bookData.entries;
+  const latestBookUpdateTime = bookData.latestBookUpdateTime;
 
-    const bookData = await collectBookSitemapData(siteUrl);
-    bookEntries = bookData.entries;
-    latestBookUpdateTime = bookData.latestBookUpdateTime;
-
-    const thoughtData = await collectThoughtSitemapData(siteUrl);
-    thoughtEntries = thoughtData.entries;
-    latestThoughtUpdateTime = thoughtData.latestThoughtUpdateTime;
-  } else {
-    console.log("[Sitemap] Skipping bookmark, book, thought, and tag fetch during build phase");
-  }
+  const thoughtEntries = thoughtData.entries;
+  const latestThoughtUpdateTime = thoughtData.latestThoughtUpdateTime;
 
   // --- 3. Process Static Pages ---
   const staticPages = {
@@ -543,4 +584,40 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...bookmarkTagEntries,
     ...paginatedBookmarkTagEntries,
   ];
+};
+
+const hasFreshRuntimeSitemapCache = (): boolean =>
+  !!runtimeSitemapCache &&
+  Date.now() - runtimeSitemapCache.generatedAt < SITEMAP_RUNTIME_CACHE_TTL_MS;
+
+// --- Main Sitemap Generation ---
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  if (isTestEnvironment()) {
+    return buildSitemapEntries();
+  }
+
+  if (hasFreshRuntimeSitemapCache()) {
+    const cacheSnapshot = runtimeSitemapCache;
+    if (cacheSnapshot) {
+      return cacheSnapshot.entries;
+    }
+  }
+
+  if (inFlightSitemapBuild) {
+    return inFlightSitemapBuild;
+  }
+
+  inFlightSitemapBuild = buildSitemapEntries()
+    .then((entries) => {
+      runtimeSitemapCache = {
+        generatedAt: Date.now(),
+        entries,
+      };
+      return entries;
+    })
+    .finally(() => {
+      inFlightSitemapBuild = null;
+    });
+
+  return inFlightSitemapBuild;
 }
