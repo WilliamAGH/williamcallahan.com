@@ -129,6 +129,9 @@ const buildPaginatedBookmarkEntries = (
   return entries;
 };
 
+const isTestEnvironment = (): boolean =>
+  process.env.NODE_ENV === "test" || process.env.VITEST === "true" || process.env.TEST === "true";
+
 const collectBookmarkEntriesFromPages = async (
   siteUrl: string,
   totalPages: number,
@@ -217,22 +220,15 @@ const collectBookmarkSitemapData = async (
     const message = error instanceof Error ? error.message : String(error);
     console.error("[Sitemap] Failed to collect bookmark sitemap entries:", message);
 
-    const isTestEnvironment =
-      process.env.NODE_ENV === "test" ||
-      process.env.VITEST === "true" ||
-      process.env.TEST === "true";
-    if (isTestEnvironment) {
-      console.warn(
-        "[Sitemap] Continuing without bookmark entries because the datastore is unavailable in tests.",
-      );
-      return {
-        entries: [],
-        paginatedEntries: [],
-        latestBookmarkUpdateTime: undefined,
-      };
+    if (isTestEnvironment()) {
+      throw error;
     }
 
-    throw error;
+    return {
+      entries: [],
+      paginatedEntries: [],
+      latestBookmarkUpdateTime: undefined,
+    };
   }
 };
 
@@ -299,25 +295,15 @@ const collectTagSitemapData = async (
     const message = error instanceof Error ? error.message : String(error);
     console.error("[Sitemap] Failed to collect bookmark tag sitemap entries:", message);
 
-    const isTestEnvironment =
-      process.env.NODE_ENV === "test" ||
-      process.env.VITEST === "true" ||
-      process.env.TEST === "true";
-    if (isTestEnvironment) {
-      console.warn(
-        "[Sitemap] Continuing without bookmark tag entries because the datastore is unavailable in tests.",
-      );
-      return { tagEntries: [], paginatedTagEntries: [] };
+    if (isTestEnvironment()) {
+      throw error;
     }
 
-    throw error;
+    return { tagEntries: [], paginatedTagEntries: [] };
   }
 
   return { tagEntries, paginatedTagEntries };
 };
-
-const isTestEnvironment = (): boolean =>
-  process.env.NODE_ENV === "test" || process.env.VITEST === "true" || process.env.TEST === "true";
 
 const collectBookSitemapData = async (
   siteUrl: string,
@@ -347,6 +333,11 @@ const collectBookSitemapData = async (
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[Sitemap] Failed to collect book sitemap entries:", message);
+
+    if (isTestEnvironment()) {
+      throw error;
+    }
+
     return { entries: [], latestBookUpdateTime: undefined };
   }
 };
@@ -401,6 +392,11 @@ const collectThoughtSitemapData = async (
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[Sitemap] Failed to collect thought sitemap entries:", message);
+
+    if (isTestEnvironment()) {
+      throw error;
+    }
+
     return { entries: [], latestThoughtUpdateTime: undefined };
   }
 };
