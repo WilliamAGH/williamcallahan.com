@@ -150,6 +150,34 @@ const openAiCompatibleResponsesFunctionToolSchema = z.object({
   strict: z.boolean().optional(),
 });
 
+const openAiCompatibleResponsesToolChoiceSchema = z.union([
+  z.enum(["none", "auto", "required"]),
+  z.object({
+    type: z.literal("allowed_tools"),
+    mode: z.enum(["auto", "required"]),
+    tools: z.array(z.record(z.string(), z.unknown())),
+  }),
+  z.object({ type: z.literal("apply_patch") }),
+  z.object({ type: z.literal("shell") }),
+  z.object({ type: z.literal("function"), name: z.string().min(1) }),
+  z.object({ type: z.literal("custom"), name: z.string().min(1) }),
+  z.object({
+    type: z.literal("mcp"),
+    server_label: z.string().min(1),
+    name: z.string().nullable().optional(),
+  }),
+  z.object({
+    type: z.enum([
+      "file_search",
+      "web_search_preview",
+      "computer_use_preview",
+      "web_search_preview_2025_03_11",
+      "image_generation",
+      "code_interpreter",
+    ]),
+  }),
+]);
+
 const openAiCompatibleResponsesInputMessageSchema = z.union([
   openAiCompatibleSystemOrUserMessageSchema,
   openAiCompatibleResponsesInputAssistantMessageSchema,
@@ -164,9 +192,7 @@ export const openAiCompatibleResponsesRequestSchema = z
     top_p: z.number().min(0).max(1).optional(),
     max_output_tokens: z.number().int().min(1).max(128000).optional(),
     tools: z.array(openAiCompatibleResponsesFunctionToolSchema).optional(),
-    tool_choice: z
-      .union([z.enum(["none", "auto", "required"]), z.record(z.string(), z.unknown())])
-      .optional(),
+    tool_choice: openAiCompatibleResponsesToolChoiceSchema.optional(),
     parallel_tool_calls: z.boolean().optional(),
     reasoning: z
       .object({
