@@ -59,9 +59,12 @@ function resolveClient(args: {
   if (existingClient) return existingClient;
 
   let timeout = args.timeoutMs;
-  if (!Number.isFinite(timeout)) {
-    console.warn("[AI] No timeout configured; defaulting to client timeout.", {
+  if (timeout === undefined) {
+    timeout = DEFAULT_TIMEOUT_MS;
+  } else if (!Number.isFinite(timeout)) {
+    console.warn("[AI] Invalid timeout (NaN/Infinity); defaulting to client timeout.", {
       baseUrl: args.baseUrl,
+      provided: timeout,
       timeoutMs: DEFAULT_TIMEOUT_MS,
     });
     timeout = DEFAULT_TIMEOUT_MS;
