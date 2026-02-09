@@ -27,13 +27,15 @@ export const TerminalContext = createContext<TerminalContextType | undefined>(un
 
 export const WELCOME_MESSAGE_ID = "initial-welcome-message";
 
-export const INITIAL_WELCOME_MESSAGE: TerminalCommand = {
-  type: "text",
-  input: "",
-  output: 'Welcome! Type "help" for commands or "chat" and ask anything.',
-  id: WELCOME_MESSAGE_ID,
-  timestamp: 0,
-};
+export function createWelcomeMessage(): TerminalCommand {
+  return {
+    type: "text",
+    input: "",
+    output: 'Welcome! Type "help" for commands or "chat" and ask anything.',
+    id: WELCOME_MESSAGE_ID,
+    timestamp: Date.now(),
+  };
+}
 
 const HISTORY_STORAGE_KEY = "terminal_history";
 const MAX_HISTORY_SIZE = 100; // Limit history to prevent unbounded growth
@@ -47,7 +49,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
   const [history, setHistory] = useState<TerminalCommand[]>((): TerminalCommand[] => {
     if (typeof window === "undefined") {
       // Server-side rendering: start with empty history
-      return [INITIAL_WELCOME_MESSAGE];
+      return [createWelcomeMessage()];
     }
     try {
       // Client-side: try loading from sessionStorage
@@ -58,7 +60,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
         if (isTerminalCommandArray(parsedData)) {
           // Check if welcome message exists, add if not
           const hasWelcome = parsedData.some((cmd) => cmd.id === WELCOME_MESSAGE_ID);
-          let loadedHistory = hasWelcome ? parsedData : [INITIAL_WELCOME_MESSAGE, ...parsedData];
+          let loadedHistory = hasWelcome ? parsedData : [createWelcomeMessage(), ...parsedData];
 
           // Trim history if it exceeds max size
           if (loadedHistory.length > MAX_HISTORY_SIZE) {
@@ -76,7 +78,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
       // Fallback on error
     }
     // Default initial state if nothing loaded or error occurred
-    return [INITIAL_WELCOME_MESSAGE];
+    return [createWelcomeMessage()];
   });
 
   // Effect to save history to sessionStorage whenever it changes
@@ -97,7 +99,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
 
   // Clear history, leaving only welcome message
   const clearHistory = useCallback(() => {
-    setHistory([INITIAL_WELCOME_MESSAGE]);
+    setHistory([createWelcomeMessage()]);
   }, []);
 
   // Reset terminal (clear storage and reset history)
@@ -109,7 +111,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error("Error clearing terminal history storage:", e);
     }
-    setHistory([INITIAL_WELCOME_MESSAGE]);
+    setHistory([createWelcomeMessage()]);
   }, []);
 
   // Add command to history with size limit

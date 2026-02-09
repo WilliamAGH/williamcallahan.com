@@ -12,11 +12,11 @@ import { useEffect, useRef, useState } from "react";
 import { handleCommand } from "./commands.client";
 import { History } from "./history";
 import { TerminalHeader } from "./terminal-header";
-import { INITIAL_WELCOME_MESSAGE } from "./terminal-context.client";
+import { createWelcomeMessage } from "./terminal-context.client";
 
 export function CommandInterface() {
   const [input, setInput] = useState("");
-  const [history, setHistory] = useState<TerminalCommand[]>([INITIAL_WELCOME_MESSAGE]);
+  const [history, setHistory] = useState<TerminalCommand[]>(() => [createWelcomeMessage()]);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -32,7 +32,7 @@ export function CommandInterface() {
     const result = await handleCommand(input.trim());
 
     if (result.clear) {
-      setHistory([INITIAL_WELCOME_MESSAGE]);
+      setHistory([createWelcomeMessage()]);
     } else {
       setHistory((prev) => [...prev, ...result.results]);
 
