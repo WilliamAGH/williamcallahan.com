@@ -25,12 +25,14 @@ const defaultContext: TerminalContextType = {
 
 export const TerminalContext = createContext<TerminalContextType | undefined>(undefined);
 
+export const WELCOME_MESSAGE_ID = "initial-welcome-message";
+
 export const INITIAL_WELCOME_MESSAGE: TerminalCommand = {
   type: "text",
   input: "",
   output: 'Welcome! Type "help" for commands or "chat" and ask anything.',
-  id: "initial-welcome-message",
-  timestamp: Date.now(),
+  id: WELCOME_MESSAGE_ID,
+  timestamp: 0,
 };
 
 const HISTORY_STORAGE_KEY = "terminal_history";
@@ -55,15 +57,13 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
 
         if (isTerminalCommandArray(parsedData)) {
           // Check if welcome message exists, add if not
-          const hasWelcome = parsedData.some((cmd) => cmd.id === INITIAL_WELCOME_MESSAGE.id);
+          const hasWelcome = parsedData.some((cmd) => cmd.id === WELCOME_MESSAGE_ID);
           let loadedHistory = hasWelcome ? parsedData : [INITIAL_WELCOME_MESSAGE, ...parsedData];
 
           // Trim history if it exceeds max size
           if (loadedHistory.length > MAX_HISTORY_SIZE) {
-            const welcomeMsg = loadedHistory.find((cmd) => cmd.id === INITIAL_WELCOME_MESSAGE.id);
-            const otherCommands = loadedHistory.filter(
-              (cmd) => cmd.id !== INITIAL_WELCOME_MESSAGE.id,
-            );
+            const welcomeMsg = loadedHistory.find((cmd) => cmd.id === WELCOME_MESSAGE_ID);
+            const otherCommands = loadedHistory.filter((cmd) => cmd.id !== WELCOME_MESSAGE_ID);
             const trimmedCommands = otherCommands.slice(-(MAX_HISTORY_SIZE - 1));
             loadedHistory = welcomeMsg ? [welcomeMsg, ...trimmedCommands] : trimmedCommands;
           }
@@ -141,8 +141,8 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
 
         // Apply size limit after filtering
         if (newHistory.length > MAX_HISTORY_SIZE) {
-          const welcomeMsg = newHistory.find((cmd) => cmd.id === INITIAL_WELCOME_MESSAGE.id);
-          const otherCommands = newHistory.filter((cmd) => cmd.id !== INITIAL_WELCOME_MESSAGE.id);
+          const welcomeMsg = newHistory.find((cmd) => cmd.id === WELCOME_MESSAGE_ID);
+          const otherCommands = newHistory.filter((cmd) => cmd.id !== WELCOME_MESSAGE_ID);
           const trimmedCommands = otherCommands.slice(-(MAX_HISTORY_SIZE - 1));
           return welcomeMsg ? [welcomeMsg, ...trimmedCommands] : trimmedCommands;
         }
@@ -153,8 +153,8 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
       // Keep only the most recent MAX_HISTORY_SIZE items
       if (newHistory.length > MAX_HISTORY_SIZE) {
         // Always keep the welcome message at index 0
-        const welcomeMsg = newHistory.find((cmd) => cmd.id === INITIAL_WELCOME_MESSAGE.id);
-        const otherCommands = newHistory.filter((cmd) => cmd.id !== INITIAL_WELCOME_MESSAGE.id);
+        const welcomeMsg = newHistory.find((cmd) => cmd.id === WELCOME_MESSAGE_ID);
+        const otherCommands = newHistory.filter((cmd) => cmd.id !== WELCOME_MESSAGE_ID);
         const trimmedCommands = otherCommands.slice(-(MAX_HISTORY_SIZE - 1));
         return welcomeMsg ? [welcomeMsg, ...trimmedCommands] : trimmedCommands;
       }
