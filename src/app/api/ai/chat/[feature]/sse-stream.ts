@@ -173,8 +173,20 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
             statusCode: responseError.status,
           });
 
-          if (!safeSend("error", { error: responseError.message, status: responseError.status })) {
-            console.warn("[SSE] Failed to deliver error event to client");
+          if (
+            !safeSend("error", {
+              error: responseError.message,
+              status: responseError.status,
+              kind: responseError.kind,
+            })
+          ) {
+            // Controller is closed or broken — client will not receive
+            // this error. Log at error level for monitoring ([RC1]).
+            console.error("[SSE] Failed to deliver error event to client:", {
+              error: responseError.message,
+              status: responseError.status,
+              kind: responseError.kind,
+            });
           }
           safeClose();
         })

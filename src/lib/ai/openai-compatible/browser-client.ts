@@ -123,7 +123,11 @@ async function readSseStream(args: {
     if (msg.event === "error") {
       const parsed = safeParseJson(msg.data, "error");
       const errorObj = aiChatStreamErrorSchema.parse(parsed);
-      throw new Error(errorObj.error);
+      const streamError = new Error(errorObj.error);
+      if (errorObj.kind) {
+        (streamError as Error & { kind: string }).kind = errorObj.kind;
+      }
+      throw streamError;
     }
 
     if (msg.event === "queued" || msg.event === "queue") {
@@ -249,10 +253,7 @@ async function getAiToken(options: AiChatClientOptions = {}): Promise<string> {
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(
-      `Failed to mint AI token (HTTP ${response.status}): ${text || response.statusText}`,
-    );
+    throw new Error("Unable to start chat session. Please refresh and try again.");
   }
 
   const data: unknown = await response.json();
@@ -299,8 +300,7 @@ export async function aiChat(
     });
 
     if (!retry.ok) {
-      const text = await retry.text();
-      throw new Error(`AI chat failed (HTTP ${retry.status}): ${text}`);
+      throw new Error(`AI chat request failed (HTTP ${retry.status}). Please try again.`);
     }
 
     await assertSseContentType(retry);
@@ -314,8 +314,7 @@ export async function aiChat(
   }
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`AI chat failed (HTTP ${response.status}): ${text}`);
+    throw new Error(`AI chat request failed (HTTP ${response.status}). Please try again.`);
   }
 
   await assertSseContentType(response);

@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
+import type { AiChatStreamErrorKind } from "@/types/schemas/ai-openai-compatible-client";
 import {
   isChatCommand,
   type AiChatQueueConfig,
@@ -173,11 +174,21 @@ export function useAiChatQueue({
       }
 
       const message = error instanceof Error ? error.message : "Unknown error";
+      const kind: AiChatStreamErrorKind | undefined =
+        error instanceof Error
+          ? (error as Error & { kind?: AiChatStreamErrorKind }).kind
+          : undefined;
+
+      const headlineByKind: Partial<Record<AiChatStreamErrorKind, string>> = {
+        timeout: "Request timed out.",
+        rate_limit: "Rate limited.",
+      };
+      const headline = (kind && headlineByKind[kind]) ?? "AI chat failed.";
       addToHistory({
         type: "error",
         id: crypto.randomUUID(),
         input: "",
-        error: "AI chat failed.",
+        error: headline,
         details: message,
         timestamp: Date.now(),
       });
