@@ -212,7 +212,7 @@ describe("Terminal Component", () => {
       const input = screen.getByRole("textbox");
 
       fireEvent.change(input, { target: { value: "help" } });
-      fireEvent.submit(input);
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter", charCode: 13 });
 
       await waitFor(() => {
         expect(screen.getByText(/Available commands/i)).toBeInTheDocument();
