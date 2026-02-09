@@ -15,6 +15,7 @@ import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 import oxlint from "eslint-plugin-oxlint";
+
 const GLOBAL_IGNORES = [
   "node_modules/",
   ".next/",
