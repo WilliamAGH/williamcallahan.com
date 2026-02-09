@@ -184,7 +184,8 @@ export function toResponsesInput(
     const role: EasyInputMessage["role"] = message.role;
     if (message.role === "assistant") {
       const refusalContent = getAssistantRefusal(message);
-      if (refusalContent) {
+      const assistantContent = typeof message.content === "string" ? message.content : undefined;
+      if ((!assistantContent || assistantContent.length === 0) && refusalContent) {
         items.push({ type: "message", role, content: refusalContent });
         continue;
       }
