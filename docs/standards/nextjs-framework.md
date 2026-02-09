@@ -76,7 +76,8 @@ These are the failure modes that blocked >100 deploy attempts. Follow each check
 
 ### 2. Turbopack + build CLI expectations
 
-- **Dev/build scripts:** `package.json:18-44` launches `node --expose-gc ./node_modules/next/dist/bin/next dev` and `next build` without any `--turbopack` flags. Do **not** add CLI switches; Turbopack is already the default runtime in v16.
+- **Dev/build scripts:** `package.json:18-44` launches `node --expose-gc ./node_modules/next/dist/bin/next dev` and `node ./node_modules/next/dist/bin/next build` (even when invoked through `bun run`). Do **not** add CLI switches; Turbopack is already the default runtime in v16.
+- **Build runtime guardrail:** With `cacheComponents: true`, run Next.js builds on Node, not Bun, to preserve the timer semantics expected by `node_modules/next/dist/server/app-render/app-render-scheduling.js:153-169` (Bun timers do not expose `_idleStart`).
 - **`next.config.ts:250-320`** documents the server output settings that keep CI stable (disabled `poweredByHeader`, `productionBrowserSourceMaps`, custom `staticGenerationMaxConcurrency`). Any deviation must include measured heap usage.
 - **When builds hang:** capture the failing command plus stderr, then inspect `<repo>/.next/turbopack/.../trace.log`. Document the incident at the bottom of this file before retrying.
 - **Local verification loop:** `bun run validate && NODE_ENV=production bun run build` is the minimum to reproduce CI (remember the custom `NODE_OPTIONS` in `package.json`).

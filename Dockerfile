@@ -101,7 +101,15 @@ FROM base AS builder
 # 1. System packages (rarely changes) - FIRST for maximum cache reuse
 #    ca-certificates required for HTTPS connectivity checks (S3, CDN)
 #    fontconfig + fonts-dejavu required for @react-pdf/renderer PDF generation during static generation
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl bash fontconfig fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
+#    Node.js 22.x is required so Next.js build runs on Node (not Bun) under cacheComponents.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl gnupg bash fontconfig fonts-dejavu-core \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # 2. Static environment variables (rarely changes)
@@ -168,9 +176,8 @@ RUN bash -c 'set -euo pipefail \
        echo "⚠️  NEXT_PUBLIC_S3_CDN_URL not set; skipping CDN connectivity check"; \
      fi'
 
-# Now build the app using bun (Bun) to avoid OOM issues
-# Note: Bun uses JavaScriptCore which auto-manages memory, no --max-old-space-size support
-# The build script in package.json sets NODE_OPTIONS for the Next.js build step
+# Build orchestration runs through Bun scripts, but Next.js build runs on Node.
+# This keeps cacheComponents timer semantics aligned with Next.js expectations.
 #
 # BuildKit secrets are mounted directly as environment variables using the
 # idiomatic --mount=type=secret,env= syntax (requires dockerfile:1 syntax
@@ -179,7 +186,7 @@ RUN bash -c 'set -euo pipefail \
 # S3_SESSION_TOKEN is mirrored to AWS_SESSION_TOKEN for SDK compatibility.
 # Ref: https://docs.docker.com/build/building/secrets/#secret-mounts
 RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false \
-    --mount=type=secret,id=S3_SECRET_ACCESS_KEY,env=S3_SECRET_ACCESS_KEY,required=false \
+    --mount=type=secret,id=S3_SECRET_ACCESS_KEY,env=S3_SECRET_ACCESS_KEY,required=true \
     --mount=type=secret,id=S3_SESSION_TOKEN,env=S3_SESSION_TOKEN,required=false \
     --mount=type=secret,id=S3_BUCKET,env=S3_BUCKET,required=false \
     --mount=type=secret,id=S3_SERVER_URL,env=S3_SERVER_URL,required=false \
