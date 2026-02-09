@@ -154,12 +154,6 @@ export interface LogoApiResponse {
  * Display options for logo components
  * MOVED to types/ui/image.ts
  */
-/*
-export interface LogoDisplayOptions {
-  shouldInvert?: boolean;
-  size?: number;
-}
-*/
 
 /**
  * Props for the logo validation API endpoint

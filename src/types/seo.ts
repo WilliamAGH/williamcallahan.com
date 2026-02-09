@@ -17,28 +17,24 @@ import type { ProfileOpenGraph } from "./seo/opengraph";
 // MOVED to types/seo/metadata.ts
 
 // Import for local use and for re-export
-import {
-  type ArticleDates,
-  type ImageSEOMetadata,
-  type OpenGraphImage,
-  PACIFIC_DATE_REGEX,
-  type PacificDateString,
-  isArticleDates,
-  isPacificDateString,
+import { PACIFIC_DATE_REGEX, isArticleDates, isPacificDateString } from "./seo/shared";
+import type {
+  ArticleDates,
+  ImageSEOMetadata,
+  OpenGraphImage,
+  PacificDateString,
 } from "./seo/shared";
 
 // Re-export
-export {
-  type PacificDateString,
-  type ArticleDates,
-  type OpenGraphImage,
-  type ImageSEOMetadata,
-  PACIFIC_DATE_REGEX,
-  isPacificDateString,
-  isArticleDates,
-  type ArticleMetadata,
-  type CollectionPageMetadata,
-  type ProfilePageMetadata,
+export { PACIFIC_DATE_REGEX, isPacificDateString, isArticleDates };
+export type {
+  PacificDateString,
+  ArticleDates,
+  OpenGraphImage,
+  ImageSEOMetadata,
+  ArticleMetadata,
+  CollectionPageMetadata,
+  ProfilePageMetadata,
 };
 
 /**
