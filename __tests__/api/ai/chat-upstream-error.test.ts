@@ -165,13 +165,21 @@ describe("resolveErrorResponse", () => {
   });
 
   it("maps null/undefined errors to 502 with kind 'upstream'", () => {
-    expect(resolveErrorResponse(null).kind).toBe("upstream");
-    expect(resolveErrorResponse(undefined).kind).toBe("upstream");
+    const nullResult = resolveErrorResponse(null);
+    expect(nullResult.status).toBe(502);
+    expect(nullResult.kind).toBe("upstream");
+    const undefinedResult = resolveErrorResponse(undefined);
+    expect(undefinedResult.status).toBe(502);
+    expect(undefinedResult.kind).toBe("upstream");
   });
 
   it("maps non-object errors to 502 with kind 'upstream'", () => {
-    expect(resolveErrorResponse("string error").kind).toBe("upstream");
-    expect(resolveErrorResponse(42).kind).toBe("upstream");
+    const stringResult = resolveErrorResponse("string error");
+    expect(stringResult.status).toBe(502);
+    expect(stringResult.kind).toBe("upstream");
+    const numberResult = resolveErrorResponse(42);
+    expect(numberResult.status).toBe(502);
+    expect(numberResult.kind).toBe("upstream");
   });
 
   it("never leaks 401/403/429 status codes to the client", () => {
