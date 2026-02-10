@@ -21,10 +21,10 @@ import { BOOKS_S3_PATHS } from "@/lib/constants";
 import { bookEnrichments } from "@/data/book-enrichments";
 import { safeJsonStringify } from "@/lib/utils/json-utils";
 import { booksLatestSchema } from "@/types/schemas/book";
+import { bookAiAnalysisResponseSchema } from "@/types/schemas/book-ai-analysis";
 import { getMonotonicTime } from "@/lib/utils";
 import logger from "@/lib/utils/logger";
 import type { Book, BooksDataset } from "@/types/schemas/book";
-import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 
 function getAbsConfig(): { baseUrl: string; apiKey: string } {
@@ -89,10 +89,16 @@ export async function generateBooksDataset(
       try {
         const cached = await getCachedAnalysis("books", book.id);
         if (cached?.analysis) {
-          const analysis = cached.analysis as BookAiAnalysisResponse;
-          if (analysis.summary && !book.aiSummary) {
-            book.aiSummary = analysis.summary;
-            aiCount++;
+          const parsed = bookAiAnalysisResponseSchema.safeParse(cached.analysis);
+          if (parsed.success) {
+            if (parsed.data.summary && !book.aiSummary) {
+              book.aiSummary = parsed.data.summary;
+              aiCount++;
+            }
+          } else {
+            logger.warn(
+              `[BooksGenerator] AI analysis for ${book.id} failed validation: ${parsed.error.message}`,
+            );
           }
         }
       } catch (error) {
