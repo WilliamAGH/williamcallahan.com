@@ -502,6 +502,7 @@ export interface DataFetchManager {
  */
 export interface DataFetchConfig {
   bookmarks?: boolean;
+  books?: boolean;
   githubActivity?: boolean;
   logos?: boolean;
   searchIndexes?: boolean;
@@ -534,6 +535,7 @@ export interface DataFetchOperationSummary {
  */
 export type DataUpdaterFlag =
   | "--bookmarks"
+  | "--books"
   | "--github"
   | "--logos"
   | "--search-indexes"

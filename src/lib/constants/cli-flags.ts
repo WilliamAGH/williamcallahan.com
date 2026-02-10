@@ -24,6 +24,8 @@ export type { DataUpdaterFlag } from "@/types/lib";
 export const DATA_UPDATER_FLAGS = {
   /** Refresh bookmarks data from external API */
   BOOKMARKS: "--bookmarks",
+  /** Regenerate consolidated books dataset from AudioBookShelf */
+  BOOKS: "--books",
   /** Refresh GitHub activity data - NOTE: NOT --github-activity! */
   GITHUB: "--github",
   /** Refresh company logos from various sources */

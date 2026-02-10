@@ -16,6 +16,7 @@ console.log(`[Scheduler] Working directory: ${process.cwd()}`);
 // This is a long-running process that schedules and triggers data update tasks
 // at specified intervals:
 // - Bookmarks: Every 2 hours (refreshes external bookmarks data)
+// - Books: Daily at 6 AM PT (regenerates consolidated books dataset from ABS)
 // - GitHub Activity: Daily at midnight PT (refreshes GitHub contribution data)
 // - Logos: Weekly on Sunday at 1 AM PT (refreshes company logos)
 //
@@ -29,12 +30,14 @@ console.log(`[Scheduler] Working directory: ${process.cwd()}`);
 // Configuration:
 // - Override schedules via environment variables:
 //   - S3_BOOKMARKS_CRON (default: every 2 hours at minute 0)
+//   - S3_BOOKS_CRON (default: daily at 6 AM PT)
 //   - S3_GITHUB_CRON (default: daily at midnight)
 //   - S3_LOGOS_CRON (default: weekly on Sunday at 1 AM)
 // - All times are in Pacific Time (America/Los_Angeles)
 //
 // Production Refresh Frequencies:
 // - Bookmarks: 12 times/day (every 2 hours) - optimal for content freshness
+// - Books: 1 time/day (6 AM PT) - books change infrequently
 // - GitHub Activity: 1 time/day (midnight) - sufficient for contribution data
 // - Logos: 1 time/week (Sunday 1 AM) - logos rarely change, reduces API load
 //
@@ -76,6 +79,7 @@ const cron = rawCron as { schedule: (expression: string, task: () => void) => vo
 // Cron expressions (minute hour day month weekday)
 // Staggered timing to prevent resource contention
 const bookmarksCron = process.env.S3_BOOKMARKS_CRON || "0 */2 * * *"; // every 2h at minute 0 (12x/day)
+const booksCron = process.env.S3_BOOKS_CRON || "0 6 * * *"; // daily at 6 AM PT (1x/day)
 const githubCron = process.env.S3_GITHUB_CRON || "0 0 * * *"; // daily at midnight (1x/day)
 const logosCron = process.env.S3_LOGOS_CRON || "0 1 * * 0"; // weekly Sunday at 1 AM (1x/week)
 
@@ -278,6 +282,80 @@ cron.schedule(githubCron, () => {
   }, jitterGH);
 });
 
+console.log(`[Scheduler] Books schedule: ${booksCron} (daily at 6 AM PT)`);
+cron.schedule(booksCron, () => {
+  console.log(
+    `[Scheduler] [Books] Cron triggered at ${new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })}. Preparing to spawn update-s3...`,
+  );
+  const jitterBooks = randomInt(DEFAULT_JITTER_MS);
+  console.log(`[Scheduler] [Books] Applying jitter of ${jitterBooks}ms before update-s3`);
+  setTimeout(() => {
+    if (runningJobs.has("books")) {
+      console.warn("[Scheduler] [Books] Job is already running, skipping this execution");
+      return;
+    }
+    runningJobs.add("books");
+    console.log(`[Scheduler] [Books] Command: bun run update-s3 -- ${DATA_UPDATER_FLAGS.BOOKS}`);
+
+    const updateProcess = spawn("bun", ["run", "update-s3", "--", DATA_UPDATER_FLAGS.BOOKS], {
+      env: process.env,
+      stdio: "inherit",
+      detached: false,
+    });
+
+    updateProcess.on("error", (err) => {
+      console.error("[Scheduler] [Books] Failed to start update-s3 process:", err);
+    });
+
+    updateProcess.on("close", (code) => {
+      runningJobs.delete("books");
+
+      if (code !== 0) {
+        console.error(`[Scheduler] [Books] update-s3 script failed (code ${code}).`);
+      } else {
+        console.log("[Scheduler] [Books] update-s3 script completed successfully");
+
+        // Invalidate Next.js cache to serve fresh book data
+        console.log("[Scheduler] [Books] Invalidating Next.js cache for books...");
+        const apiUrl = getBaseUrl();
+        const revalidateUrl = new URL("/api/revalidate/books", apiUrl).toString();
+
+        const headers = process.env.BOOKMARK_CRON_REFRESH_SECRET
+          ? { Authorization: `Bearer ${process.env.BOOKMARK_CRON_REFRESH_SECRET}` }
+          : undefined;
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
+        fetch(revalidateUrl, {
+          method: "POST",
+          headers,
+          signal: controller.signal,
+        })
+          .then((response) => {
+            clearTimeout(timeoutId);
+            if (response.ok) {
+              console.log("[Scheduler] [Books] ✅ Cache invalidated successfully");
+            } else {
+              console.error(
+                `[Scheduler] [Books] Cache invalidation failed with status ${response.status}`,
+              );
+            }
+            return null;
+          })
+          .catch((error) => {
+            clearTimeout(timeoutId);
+            if (error instanceof Error && error.name === "AbortError") {
+              console.error("[Scheduler] [Books] Cache invalidation timed out after 10 seconds");
+            } else {
+              console.error("[Scheduler] [Books] Failed to invalidate cache:", error);
+            }
+          });
+      }
+    });
+  }, jitterBooks);
+});
+
 console.log(`[Scheduler] Logos schedule: ${logosCron} (weekly Sunday 1 AM)`);
 cron.schedule(logosCron, () => {
   console.log(
@@ -324,7 +402,7 @@ console.log(
   "[Scheduler] Setup complete. Scheduler is running and waiting for scheduled trigger times...",
 );
 console.log(
-  "[Scheduler] Production frequencies: Bookmarks (12x/day), GitHub (1x/day), Logos (1x/week)",
+  "[Scheduler] Production frequencies: Bookmarks (12x/day), Books (1x/day), GitHub (1x/day), Logos (1x/week)",
 );
 
 // Add process-level error handling to prevent silent crashes

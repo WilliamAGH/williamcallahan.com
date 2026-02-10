@@ -274,3 +274,61 @@ export const booksRelatedContentDataSchema = z.object({
 });
 
 export type BooksRelatedContentDataFromSchema = z.infer<typeof booksRelatedContentDataSchema>;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Book Enrichment & Consolidated Dataset Schemas
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Per-book manual enrichment entry.
+ * Keyed by AudioBookShelf item ID in data/book-enrichments.ts.
+ * Merged with ABS API data during generation (scripts/generate-books.ts).
+ */
+export const bookEnrichmentEntrySchema = z.object({
+  findMyBookUrl: z.url().optional(),
+  publisherUrl: z.url().optional(),
+  amazonUrl: z.url().optional(),
+  audibleUrl: z.url().optional(),
+  bookshopUrl: z.url().optional(),
+  aiSummary: z.string().optional(),
+  thoughts: z.string().optional(),
+});
+
+export type BookEnrichmentEntry = z.infer<typeof bookEnrichmentEntrySchema>;
+
+/**
+ * Book registry entry — enrichment data plus human-readable identifiers.
+ * The `slug` field is for reference only (not merged into Book); the record
+ * key is the canonical ABS item ID used for matching.
+ */
+export const bookRegistryEntrySchema = bookEnrichmentEntrySchema.extend({
+  slug: z.string(),
+});
+
+export type BookRegistryEntry = z.infer<typeof bookRegistryEntrySchema>;
+
+/**
+ * Consolidated books dataset persisted to S3 by scripts/generate-books.ts.
+ * Contains the full Book[] array with all ABS fields + enrichment fields merged.
+ */
+export const booksDatasetSchema = z.object({
+  version: z.string(),
+  generated: z.string(),
+  booksCount: z.number(),
+  checksum: z.string(),
+  books: z.array(bookSchema),
+});
+
+export type BooksDataset = z.infer<typeof booksDatasetSchema>;
+
+/**
+ * Latest pointer — points to the current versioned snapshot in S3.
+ * Written to json/books-{env}/latest.json.
+ */
+export const booksLatestSchema = z.object({
+  checksum: z.string(),
+  key: z.string(),
+  generated: z.string(),
+});
+
+export type BooksLatest = z.infer<typeof booksLatestSchema>;
