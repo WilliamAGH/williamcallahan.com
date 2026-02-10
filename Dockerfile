@@ -258,16 +258,6 @@ ENV S3_BUCKET=$S3_BUCKET \
     NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL \
     DEPLOYMENT_ENV=$DEPLOYMENT_ENV \
     NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID \
-    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
-
-# Make sure they are present at runtime (can still be overridden with `docker run -e`)
-# NOTE: S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY should ONLY be injected at runtime
-# via docker run -e or orchestration secrets to avoid baking them into the image
-ENV S3_BUCKET=$S3_BUCKET \
-    S3_SERVER_URL=$S3_SERVER_URL \
-    NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL \
-    DEPLOYMENT_ENV=$DEPLOYMENT_ENV \
-    NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     # Disable Next.js "use cache" in production runtime due to "Connection closed" instability
     USE_NEXTJS_CACHE=false
