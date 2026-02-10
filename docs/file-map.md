@@ -249,7 +249,9 @@ File/Path Functionality Description
     - [x] `build-prompt.ts` `bookmarks` - LLM prompt builder for bookmark analysis
     - [x] `extract-context.ts` `bookmarks` - Context extraction for bookmark analysis
 - [x] **books/**
-  - [x] `audiobookshelf.server.ts` `books` - AudioBookShelf API integration
+  - [x] `audiobookshelf.server.ts` `books` - AudioBookShelf API integration (used by generation scripts)
+  - [x] `books-data-access.server.ts` `books` - S3-backed book data reader (runtime, replaces ABS for web requests)
+  - [x] `generate.ts` `books` - Core books dataset generation logic (ABS → enrichments → AI → blur → S3)
   - [x] `slug-helpers.ts` `books` - Book slug generation and lookup
   - [x] **analysis/**
     - [x] `build-prompt.ts` `books` - LLM prompt builder for book analysis
@@ -288,6 +290,9 @@ File/Path Functionality Description
   - [x] `use-logo.ts` `image-handling` - Hook for using logos
   - [x] `use-window-size.client.ts` `state-theme-window-providers` - Hook for tracking window size
   - [x] `use-window-state.client.ts` `state-theme-window-providers` - Hook for managing window state
+- [x] **image-handling/**
+  - [x] `cached-manifest-loader.ts` `image-handling` - Next.js cache-component manifest readers for logo/OG/blog maps
+  - [x] `image-manifest-loader.ts` `image-handling` - Manifest warm-up + in-memory lookup helpers; production request paths skip lazy S3 loads when warm-up is unavailable
 - [ ] **imageAnalysis/**
   - [x] `index.ts` `image-handling` - Barrel file for image analysis
 - [ ] **imageCompare/**
@@ -569,6 +574,7 @@ File/Path Functionality Description
 - [x] `run-bun-tests.sh` `testing-config` - Script to run Bun tests
 - [x] `run-tests.sh` `testing-config` - Script to run all tests
 - [x] `setup-test-alias.sh` `testing-config` - Script to set up test aliases
+- [x] `generate-books.ts` `books` - CLI wrapper for books dataset generation (delegates to lib/books/generate.ts)
 - [x] `submit-sitemap.ts` `seo` - Script to submit sitemap to search engines
 - [x] `validate-opengraph-clear-cache.ts` `seo` - Script to validate and clear social media caches
 
@@ -584,6 +590,7 @@ File/Path Functionality Description
   - [ ] **posts/**
     - [x] `*.mdx` `blog-article` - Blog post content files
 - [ ] `*.ts` `data` - Data configuration files
+- [x] `book-enrichments.ts` `books` - Manual per-book enrichment data keyed by ABS item ID
 - [x] `projects.ts` `projects` - Project metadata source (2025-11-05: ComposerAI entry + `images/other/projects/composerai-app.png`)
 
 ## Public Directory
