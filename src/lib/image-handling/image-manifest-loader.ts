@@ -22,10 +22,17 @@ import { loadLogoManifestWithCache } from "./cached-manifest-loader";
 let logoManifest: LogoManifestFromSchema | null = null;
 let opengraphManifest: ImageManifestFromSchema | null = null;
 let blogManifest: ImageManifestFromSchema | null = null;
+let hasLoggedProductionRuntimeManifestSkip = false;
 
 // Loading state to prevent concurrent loads
 let isLoading = false;
 let loadingPromise: Promise<void> | null = null;
+
+const BUILD_PHASE = "phase-production-build" as const;
+const isProductionNodeRuntime = (): boolean =>
+  process.env.NODE_ENV === "production" &&
+  process.env.NEXT_RUNTIME === "nodejs" &&
+  process.env.NEXT_PHASE !== BUILD_PHASE;
 
 /**
  * Direct manifest loading (no cache)
@@ -145,6 +152,23 @@ export function getLogoFromManifest(domain: string): LogoManifestEntryFromSchema
 export async function getLogoFromManifestAsync(
   domain: string,
 ): Promise<LogoManifestEntryFromSchema | null> {
+  // Fast path for warmed manifest cache.
+  if (logoManifest) {
+    return logoManifest[domain] || null;
+  }
+
+  // In production Next.js runtime, avoid request-path manifest fetches.
+  // These can trigger cache-component prerender clock IO guards via SDK internals.
+  if (isProductionNodeRuntime()) {
+    if (!hasLoggedProductionRuntimeManifestSkip) {
+      hasLoggedProductionRuntimeManifestSkip = true;
+      console.warn(
+        "[ImageManifestLoader] Logo manifest is unavailable in production runtime; skipping request-time manifest fetch and using fallback logo behavior.",
+      );
+    }
+    return null;
+  }
+
   if (USE_NEXTJS_CACHE) {
     try {
       // Use the cached manifest loader
