@@ -34,6 +34,7 @@ async function checkRecentRun(): Promise<boolean> {
   // Skip check if specific operations are requested (not the default all operations)
   if (
     hasFlag(args, DATA_UPDATER_FLAGS.BOOKMARKS) ||
+    hasFlag(args, DATA_UPDATER_FLAGS.BOOKS) ||
     hasFlag(args, DATA_UPDATER_FLAGS.GITHUB) ||
     hasFlag(args, DATA_UPDATER_FLAGS.LOGOS) ||
     hasFlag(args, DATA_UPDATER_FLAGS.SEARCH_INDEXES)
@@ -110,16 +111,17 @@ if (hasFlag(args, DATA_UPDATER_FLAGS.HELP) || hasFlag(args, DATA_UPDATER_FLAGS.H
 
 Options:
   --bookmarks          Fetch and update bookmarks data
+  --books              Regenerate books dataset from AudioBookShelf
   --metadata-only      Use lightweight metadata refresh (titles/descriptions only)
   --metadata-limit N   Max items to refresh in metadata mode (default: 50)
-  --github             Fetch and update GitHub activity data  
+  --github             Fetch and update GitHub activity data
   --logos              Fetch and update logos for all domains
   --search-indexes     Build and update search indexes
   --force              Force refresh of all data
   --testLimit=N        Limit operations to N items for testing
   --help, -h           Show this help message
 
-If no options are specified, all operations will run (bookmarks, github, logos, search-indexes).
+If no options are specified, all operations will run (bookmarks, books, github, logos, search-indexes).
 
 Environment Variables:
   DRY_RUN=true         Skip all update processes (dry run mode)
@@ -162,6 +164,7 @@ const config: DataFetchConfig = {};
 // Check if any specific operations were requested
 const hasSpecificOperation =
   hasFlag(args, DATA_UPDATER_FLAGS.BOOKMARKS) ||
+  hasFlag(args, DATA_UPDATER_FLAGS.BOOKS) ||
   hasFlag(args, DATA_UPDATER_FLAGS.LOGOS) ||
   hasFlag(args, DATA_UPDATER_FLAGS.GITHUB) ||
   hasFlag(args, DATA_UPDATER_FLAGS.SEARCH_INDEXES);
@@ -169,6 +172,7 @@ const hasSpecificOperation =
 // If no specific operations, run all
 if (!hasSpecificOperation) {
   config.bookmarks = true;
+  config.books = true;
   config.logos = true;
   config.githubActivity = true;
   config.searchIndexes = true;
@@ -176,6 +180,9 @@ if (!hasSpecificOperation) {
   // Otherwise only run what was requested
   if (hasFlag(args, DATA_UPDATER_FLAGS.BOOKMARKS)) {
     config.bookmarks = true;
+  }
+  if (hasFlag(args, DATA_UPDATER_FLAGS.BOOKS)) {
+    config.books = true;
   }
   if (hasFlag(args, DATA_UPDATER_FLAGS.LOGOS)) {
     config.logos = true;
