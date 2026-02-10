@@ -25,7 +25,7 @@ import { RelatedContentFallback } from "@/components/features/related-content/re
 import {
   fetchBookByIdWithFallback,
   fetchBooksWithFallback,
-} from "@/lib/books/audiobookshelf.server";
+} from "@/lib/books/books-data-access.server";
 import { extractBookIdFromSlug, findBookBySlug } from "@/lib/books/slug-helpers";
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
 import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
@@ -217,5 +217,5 @@ export default async function BookPage({ params }: BookPageProps) {
 
 /**
  * Static params are intentionally omitted to keep this route dynamic under cacheComponents.
- * Book data comes from live AudioBookShelf API responses and should render at request time.
+ * Book data comes from consolidated S3 snapshots and should render at request time.
  */

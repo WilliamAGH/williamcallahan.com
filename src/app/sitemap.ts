@@ -34,7 +34,7 @@ import {
   getTagBookmarksIndex,
 } from "@/lib/bookmarks/service.server";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
-import { fetchBooks } from "@/lib/books/audiobookshelf.server";
+import { fetchBooks } from "@/lib/books/books-data-access.server";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
 import { getThoughtListItems } from "@/lib/thoughts/service.server";
 import { kebabCase } from "@/lib/utils/formatters";
