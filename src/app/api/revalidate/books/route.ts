@@ -1,4 +1,5 @@
 import { envLogger } from "@/lib/utils/env-logger";
+import { clearBooksCache } from "@/lib/books/books-data-access.server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -36,6 +37,9 @@ export function POST(request: NextRequest): NextResponse {
 
   try {
     console.log("[Cache Invalidation] Revalidating book paths...");
+
+    // Clear in-memory cache so next request loads fresh S3 data
+    clearBooksCache();
 
     // Main books grid page
     revalidatePath("/books");

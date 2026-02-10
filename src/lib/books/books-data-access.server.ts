@@ -33,6 +33,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const CACHE_RETRY_TTL_MS = 5 * 60 * 1000; // 5 minutes — shorter retry window after S3 failure
 
 /**
  * `lastRefreshFailed` tracks whether the most recent S3 load attempt failed.
@@ -44,7 +45,8 @@ let cache: { books: Book[]; timestamp: number; lastRefreshFailed: boolean } | nu
 function isCacheFresh(): boolean {
   if (!cache) return false;
   if (cache.timestamp === 0) return true; // prerender-safe
-  return getMonotonicTime() - cache.timestamp <= CACHE_TTL_MS;
+  const ttl = cache.lastRefreshFailed ? CACHE_RETRY_TTL_MS : CACHE_TTL_MS;
+  return getMonotonicTime() - cache.timestamp <= ttl;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -173,10 +175,17 @@ export async function fetchBooksWithFallback(
 /**
  * Fetch all books (simple wrapper).
  * Used by sitemap.ts and other consumers that don't need fallback metadata.
- * Throws on S3 infrastructure failure so the caller's error boundary handles it.
+ * Logs a warning when returning stale/fallback data so callers are aware.
  */
 export async function fetchBooks(): Promise<Book[]> {
-  const { books } = await fetchBooksInternal();
+  const { books, isFallback } = await fetchBooksInternal();
+  if (isFallback) {
+    envLogger.log(
+      "fetchBooks() returning stale/fallback data due to S3 failure",
+      { bookCount: books.length },
+      { category: "Books" },
+    );
+  }
   return books;
 }
 
