@@ -39,7 +39,15 @@ import {
 } from "@/lib/sitemap/bookmark-collectors";
 import {
   BOOK_PRIORITY,
+  PROJECT_TAG_CHANGE_FREQUENCY,
+  PROJECT_TAG_PRIORITY,
   SITEMAP_RUNTIME_CACHE_TTL_MS,
+  STATIC_CHANGE_FREQUENCY,
+  STATIC_PRIORITY_HIGH,
+  STATIC_PRIORITY_HOME,
+  STATIC_PRIORITY_LOW,
+  STATIC_PRIORITY_MEDIUM,
+  STATIC_PRIORITY_STANDARD,
   THOUGHT_PRIORITY,
 } from "@/lib/sitemap/constants";
 import {
@@ -75,29 +83,41 @@ const buildSitemapEntries = async (): Promise<MetadataRoute.Sitemap> => {
   // --- Static pages ---
   const staticPages = {
     "/": {
-      priority: 1.0,
+      priority: STATIC_PRIORITY_HOME,
       lastModified: getSafeDate(PAGE_METADATA.home.dateModified),
     },
-    "/experience": { priority: 0.8, lastModified: getSafeDate(experienceUpdatedAt) },
+    "/experience": {
+      priority: STATIC_PRIORITY_STANDARD,
+      lastModified: getSafeDate(experienceUpdatedAt),
+    },
     "/cv": {
-      priority: 0.85,
+      priority: STATIC_PRIORITY_MEDIUM,
       lastModified: getLatestDate(
         getSafeDate(PAGE_METADATA.cv?.dateModified),
         getSafeDate(experienceUpdatedAt),
       ),
     },
-    "/investments": { priority: 0.9, lastModified: getSafeDate(investmentsUpdatedAt) },
-    "/education": { priority: 0.7, lastModified: getSafeDate(educationUpdatedAt) },
-    "/projects": { priority: 0.9, lastModified: getSafeDate(projectsUpdatedAt) },
+    "/investments": {
+      priority: STATIC_PRIORITY_HIGH,
+      lastModified: getSafeDate(investmentsUpdatedAt),
+    },
+    "/education": {
+      priority: STATIC_PRIORITY_LOW,
+      lastModified: getSafeDate(educationUpdatedAt),
+    },
+    "/projects": {
+      priority: STATIC_PRIORITY_HIGH,
+      lastModified: getSafeDate(projectsUpdatedAt),
+    },
     "/bookmarks": {
-      priority: 0.7,
+      priority: STATIC_PRIORITY_LOW,
       lastModified: getLatestDate(
         getSafeDate(PAGE_METADATA.bookmarks?.dateModified),
         bookmarkData.latestBookmarkUpdateTime,
       ),
     },
     "/blog": {
-      priority: 0.9,
+      priority: STATIC_PRIORITY_HIGH,
       lastModified: getLatestDate(
         getSafeDate(PAGE_METADATA.blog.dateModified),
         blogData.latestPostUpdateTime,
@@ -118,11 +138,8 @@ const buildSitemapEntries = async (): Promise<MetadataRoute.Sitemap> => {
       ),
     },
     "/contact": {
-      priority: 0.8,
-      lastModified: getLatestDate(
-        getSafeDate(PAGE_METADATA.contact?.dateModified),
-        new Date(), // fallback to current date
-      ),
+      priority: STATIC_PRIORITY_STANDARD,
+      lastModified: getSafeDate(PAGE_METADATA.contact?.dateModified),
     },
   } as const;
 
@@ -130,7 +147,7 @@ const buildSitemapEntries = async (): Promise<MetadataRoute.Sitemap> => {
     ([route, { priority, lastModified }]) => ({
       url: `${siteUrl}${route}`,
       lastModified,
-      changeFrequency: "monthly",
+      changeFrequency: STATIC_CHANGE_FREQUENCY,
       priority,
     }),
   );
@@ -142,8 +159,8 @@ const buildSitemapEntries = async (): Promise<MetadataRoute.Sitemap> => {
     return {
       url: `${siteUrl}/projects?tag=${tagParam}`,
       lastModified: getSafeDate(projectsUpdatedAt),
-      changeFrequency: "weekly",
-      priority: 0.6,
+      changeFrequency: PROJECT_TAG_CHANGE_FREQUENCY,
+      priority: PROJECT_TAG_PRIORITY,
     } as MetadataRoute.Sitemap[number];
   });
 
