@@ -67,7 +67,6 @@ function buildBookOgImageUrl(book: Book): string {
     title: book.title,
     author: book.authors?.length ? book.authors.join(", ") : undefined,
     coverUrl: book.coverUrl ?? undefined,
-    formats: book.formats?.length ? book.formats.join(",") : undefined,
   });
 }
 

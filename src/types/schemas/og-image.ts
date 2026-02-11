@@ -25,7 +25,6 @@ export const ogBookParamsSchema = z.object({
   title: z.string().default("Untitled Book"),
   author: z.string().optional(),
   coverUrl: z.string().optional(),
-  formats: z.string().optional(),
 });
 
 export type OgBookParams = z.infer<typeof ogBookParamsSchema>;
