@@ -187,7 +187,7 @@ RUN bash -c 'set -euo pipefail \
 # S3_SESSION_TOKEN is mirrored to AWS_SESSION_TOKEN for SDK compatibility.
 # Ref: https://docs.docker.com/build/building/secrets/#secret-mounts
 RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false \
-    --mount=type=secret,id=S3_SECRET_ACCESS_KEY,env=S3_SECRET_ACCESS_KEY,required=true \
+    --mount=type=secret,id=S3_SECRET_ACCESS_KEY,env=S3_SECRET_ACCESS_KEY,required=false \
     --mount=type=secret,id=S3_SESSION_TOKEN,env=S3_SESSION_TOKEN,required=false \
     --mount=type=secret,id=S3_BUCKET,env=S3_BUCKET,required=false \
     --mount=type=secret,id=S3_SERVER_URL,env=S3_SERVER_URL,required=false \
