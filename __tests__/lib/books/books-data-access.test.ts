@@ -25,6 +25,17 @@ vi.mock("@/lib/cache", () => ({
     cacheTag: vi.fn(),
     revalidateTag: vi.fn(),
   },
+  USE_NEXTJS_CACHE: true,
+  withCacheFallback: async (
+    cachedFn: () => Promise<unknown>,
+    fallbackFn: () => Promise<unknown>,
+  ) => {
+    try {
+      return await cachedFn();
+    } catch {
+      return await fallbackFn();
+    }
+  },
 }));
 
 const { readJsonS3Optional } = await import("@/lib/s3/json");
