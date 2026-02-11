@@ -300,10 +300,10 @@ File/Path Functionality Description
 - [x] **og-image/**
   - [x] `security.ts` `opengraph` - SSRF protection for OG image fetching (host blocking, protocol restriction)
   - [x] `fetch-image.ts` `opengraph` - Image fetch with size/pixel/timeout limits, sharp PNG conversion for Satori
-  - [x] `design-tokens.ts` `opengraph` - Shared colors, typography, layout dimensions, badge configs
+  - [x] `design-tokens.ts` `opengraph` - Shared colors, typography, and layout dimensions
   - [x] `build-og-url.ts` `opengraph` - Type-safe URL builder for /api/og/[entity] endpoint
   - [x] **layouts/**
-    - [x] `book-layout.tsx` `opengraph` - Book OG image layout (cover + title/author/badges)
+    - [x] `book-layout.tsx` `opengraph` - Book OG image layout (cover + title/author)
     - [x] `bookmark-layout.tsx` `opengraph` - Bookmark OG image layout (screenshot + title/domain)
     - [x] `blog-layout.tsx` `opengraph` - Blog post OG image layout (cover + title/author/tags)
     - [x] `project-layout.tsx` `opengraph` - Project OG image layout (screenshot + title/tags)

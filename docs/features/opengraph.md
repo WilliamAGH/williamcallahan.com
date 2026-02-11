@@ -354,21 +354,21 @@ Page generateMetadata() -> buildOgImageUrl(entity, params)
 
 - **`lib/og-image/security.ts`**: SSRF protection (host blocking, protocol restriction)
 - **`lib/og-image/fetch-image.ts`**: Image fetch with size/pixel/timeout limits, sharp PNG conversion
-- **`lib/og-image/design-tokens.ts`**: Shared colors, typography, layout dimensions, badge configs
+- **`lib/og-image/design-tokens.ts`**: Shared colors, typography, and layout dimensions
 - **`lib/og-image/build-og-url.ts`**: Type-safe URL builder for page metadata
 - **`lib/og-image/layouts/`**: Per-entity JSX renderers (book, bookmark, blog, project, text)
 - **`types/schemas/og-image.ts`**: Zod schemas for entity types and per-entity params
 
 ### Supported Entities
 
-| Entity       | Layout                      | Image Source  | Use Case              |
-| ------------ | --------------------------- | ------------- | --------------------- |
-| `books`      | Cover + title/author/badges | coverUrl      | Book detail pages     |
-| `bookmarks`  | Screenshot + title/domain   | screenshotUrl | Bookmark detail pages |
-| `blog`       | Cover + title/author/tags   | coverUrl      | Blog post pages       |
-| `projects`   | Screenshot + title/tags     | screenshotUrl | Project detail pages  |
-| `thoughts`   | Centered title/subtitle     | None          | Thought detail pages  |
-| `collection` | Centered title/section      | None          | Tag/collection pages  |
+| Entity       | Layout                    | Image Source  | Use Case              |
+| ------------ | ------------------------- | ------------- | --------------------- |
+| `books`      | Cover + title/author      | coverUrl      | Book detail pages     |
+| `bookmarks`  | Screenshot + title/domain | screenshotUrl | Bookmark detail pages |
+| `blog`       | Cover + title/author/tags | coverUrl      | Blog post pages       |
+| `projects`   | Screenshot + title/tags   | screenshotUrl | Project detail pages  |
+| `thoughts`   | Centered title/subtitle   | None          | Thought detail pages  |
+| `collection` | Centered title/section    | None          | Tag/collection pages  |
 
 ## Debugging
 

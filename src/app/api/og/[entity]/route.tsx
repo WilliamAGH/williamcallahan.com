@@ -7,7 +7,7 @@
  *
  * Supported entities: books, bookmarks, blog, projects, thoughts, collection
  *
- * @example GET /api/og/books?title=...&coverUrl=...&formats=audio,ebook
+ * @example GET /api/og/books?title=...&coverUrl=...
  * @example GET /api/og/blog?title=...&author=...&coverUrl=...&tags=AI,Next.js
  * @example GET /api/og/thoughts?title=...&subtitle=...
  *
