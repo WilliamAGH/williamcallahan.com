@@ -37,7 +37,7 @@ export const OG_LAYOUT = {
 export const OG_TYPOGRAPHY = {
   title: { size: 56, weight: 700, lineHeight: 1.15 },
   subtitle: { size: 32, weight: 500 },
-  sectionLabel: { size: 26, weight: 600, letterSpacing: 3 },
+  sectionLabel: { size: 26, weight: 600, letterSpacing: 3, marginBottom: 20 },
   screenshotTitle: { size: 68, weight: 700, lineHeight: 1.08 },
   screenshotSubtitle: { size: 42, weight: 500 },
   branding: { size: 28, weight: 500 },
