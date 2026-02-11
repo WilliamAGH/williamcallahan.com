@@ -81,12 +81,12 @@ export function renderBlogLayout({ title, author, coverDataUrl }: OgBlogLayoutPr
           <div
             style={{
               display: "flex",
-              fontSize: 20,
-              fontWeight: 600,
+              fontSize: OG_TYPOGRAPHY.sectionLabel.size,
+              fontWeight: OG_TYPOGRAPHY.sectionLabel.weight,
               color: OG_COLORS.accent,
-              marginBottom: 16,
+              marginBottom: 20,
               textTransform: "uppercase",
-              letterSpacing: 2,
+              letterSpacing: OG_TYPOGRAPHY.sectionLabel.letterSpacing,
             }}
           >
             Blog
