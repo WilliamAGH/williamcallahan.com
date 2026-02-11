@@ -42,6 +42,14 @@ const CACHE_RETRY_TTL_MS = 5 * 60 * 1000; // 5 minutes — shorter retry window 
  */
 let cache: { books: Book[]; timestamp: number; lastRefreshFailed: boolean } | null = null;
 
+/**
+ * Monotonic generation counter incremented on each `clearBooksCache()` call.
+ * In-flight refreshes capture the generation before starting S3 reads and
+ * discard their results when the generation has advanced — preventing a slow
+ * refresh from overwriting a deliberate cache clear with stale data.
+ */
+let cacheGeneration = 0;
+
 function isCacheFresh(): boolean {
   if (!cache) return false;
   if (cache.timestamp === 0) return true; // prerender-safe
@@ -105,13 +113,22 @@ async function refreshCache(): Promise<void> {
     return inflightRefresh;
   }
 
+  const refreshGeneration = cacheGeneration;
+
   inflightRefresh = (async () => {
     try {
       const books = await loadBooksFromS3();
+
+      // If clearBooksCache() was called while we were fetching, discard stale results.
+      if (cacheGeneration !== refreshGeneration) return;
+
       cache = { books: books ?? [], timestamp: getMonotonicTime(), lastRefreshFailed: false };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       envLogger.log("Failed to load books from S3", { error: message }, { category: "Books" });
+
+      // If clearBooksCache() was called while we were fetching, discard stale results.
+      if (cacheGeneration !== refreshGeneration) return;
 
       // Preserve stale data if available; mark failure so callers see isFallback: true
       if (cache) {
@@ -219,9 +236,12 @@ export async function fetchBookListItemsWithFallback(
 }
 
 /**
- * Clear in-memory books cache. Exposed for testing.
+ * Clear in-memory books cache. Advances the generation counter to invalidate
+ * any in-flight refresh that captured a prior generation, preventing it from
+ * restoring stale data after the clear.
  */
 export function clearBooksCache(): void {
   cache = null;
   inflightRefresh = null;
+  cacheGeneration++;
 }
