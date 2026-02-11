@@ -116,7 +116,8 @@ export async function generateBooksDataset(
       const withBlur = books.filter((b) => b.coverBlurDataURL).length;
       logger.info(`[BooksGenerator] ${withBlur}/${books.length} books with blur placeholders`);
     } catch (error) {
-      logger.warn("[BooksGenerator] Blur generation failed (non-fatal):", error);
+      const message = error instanceof Error ? error.message : String(error);
+      logger.warn(`[BooksGenerator] Blur generation failed (non-fatal): ${message}`);
     }
 
     // Step 5: Compute checksum and check for changes

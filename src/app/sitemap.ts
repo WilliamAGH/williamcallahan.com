@@ -596,10 +596,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   if (hasFreshRuntimeSitemapCache()) {
-    const cacheSnapshot = runtimeSitemapCache;
-    if (cacheSnapshot) {
-      return cacheSnapshot.entries;
-    }
+    return runtimeSitemapCache!.entries;
   }
 
   if (inFlightSitemapBuild) {

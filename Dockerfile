@@ -147,8 +147,9 @@ ARG S3_SESSION_TOKEN
 ENV S3_BUCKET=$S3_BUCKET \
     S3_SERVER_URL=$S3_SERVER_URL \
     NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL
-# NOTE: S3 credentials remain optional. Provide them via BuildKit secrets for
-# secure builds or pass them as --build-arg when using classic docker builders.
+# NOTE: S3_SECRET_ACCESS_KEY is required for builds (used by generateStaticParams).
+# Other S3 credentials are optional. Provide via BuildKit secrets for secure
+# builds or pass as --build-arg when using classic docker builders.
 
 # Copy dependencies and source code
 COPY --from=deps /app/node_modules ./node_modules
