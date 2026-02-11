@@ -342,6 +342,12 @@ File/Path Functionality Description
   - [x] **image/**
     - [x] `logo-fetcher.ts` `image-handling` - Logo fetch orchestration
     - [x] `logo-source-priority.ts` `image-handling` - Logo source priority ordering
+- [x] **sitemap/**
+  - [x] `blog-collector.ts` `seo` - Synchronous blog post/tag sitemap entry collector (reads MDX frontmatter)
+  - [x] `bookmark-collectors.ts` `seo` - Bookmark and bookmark-tag sitemap entry collectors (slug mapping + paginated fallback)
+  - [x] `constants.ts` `seo` - Shared sitemap constants (change frequencies, priorities, cache TTL)
+  - [x] `content-collectors.ts` `seo` - Book and thought sitemap entry collectors
+  - [x] `date-utils.ts` `seo` - Date parsing, path sanitization, and test-environment detection for sitemap modules
 - [x] **test-utils/**
   - [x] `cache-tester.ts` `caching` - Cache testing utility
 - [x] **utils/**
@@ -485,7 +491,7 @@ File/Path Functionality Description
   - [x] `page.tsx` `home` - Landing page & SEO
 - [x] `providers.client.tsx` `state-theme-window-providers` - Client-side providers
 - [x] `robots.ts` `seo` - `robots.txt` generator
-- [x] `sitemap.ts` `seo` - `sitemap.xml` generator
+- [x] `sitemap.ts` `seo` - `sitemap.xml` orchestrator (delegates to `lib/sitemap/` collectors)
 - [~] **api/**
   - [x] **assets/`[assetId]`/`route.ts`** `image-handling` - API route for serving assets
   - [x] **bookmarks/**
