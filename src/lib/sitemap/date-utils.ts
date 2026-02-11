@@ -70,13 +70,19 @@ export const isTestEnvironment = (): boolean =>
 /**
  * Shared error handler for sitemap collectors.
  * Logs the error and returns a default fallback value.
- * In test environments, it rethrows to ensure failures are caught.
+ * Strategy can either throw in tests (default) or throw in production.
  */
-export const handleSitemapCollectorError = <T>(context: string, error: unknown, fallback: T): T => {
+export const handleSitemapCollectorError = <T>(
+  context: string,
+  error: unknown,
+  fallback: T,
+  throwStrategy: "throw-in-test" | "throw-in-production" = "throw-in-test",
+): T => {
   const message = error instanceof Error ? error.message : String(error);
   console.error(`[Sitemap] ${context}:`, message);
 
-  if (isTestEnvironment()) {
+  const isTestEnv = isTestEnvironment();
+  if (throwStrategy === "throw-in-production" ? !isTestEnv : isTestEnv) {
     throw error;
   }
 
