@@ -37,6 +37,7 @@ Example schemas:
 - `/src/types/schemas/education.ts` - Education data validation
 - `/src/types/schemas/experience.ts` - Experience data validation
 - `/src/types/schemas/related-content.ts` - Related content debug param validation
+- `/src/types/schemas/og-image.ts` - OG image entity types and per-entity param validation
 
 ---
 
@@ -49,15 +50,19 @@ Example schemas:
 - Oxlint JS plugins live under `config/oxlint/js-plugins/` and are wired from `.oxlintrc.json` (experimental; not supported in the language server/editor integrations).
 - S3 I/O is standardized under `lib/s3/*` with SDK retries only; CDN usage is explicit at call sites (see `s3-storage.md`).
 - Bookmark reads no longer use local S3 cache fallbacks; all bookmark storage access is S3-only (see `bookmarks.md`).
+- Books use an S3-first architecture: `lib/books/generate.ts` consolidates ABS data + manual enrichments + AI summaries into versioned S3 snapshots; the web app reads from S3 via `books-data-access.server.ts`, never calling ABS directly at request time. Books generation is automated via the scheduler (daily at 6 AM PT, `--books` flag) with cache invalidation through `/api/revalidate/books`.
 - GitHub activity orchestration is split across dedicated data-access modules for repo stats, commit counts, CSV repair, and summary persistence (see `features/github-activity.md`).
 - OpenGraph data access delegates Next.js cache and refresh workflows to focused modules (`opengraph-next-cache.ts`, `opengraph-refresh.ts`) with shared cache guards (`opengraph-cache-context.ts`) (see `features/opengraph.md`).
+- Dynamic OG image generation uses a unified `/api/og/[entity]` route with per-entity layout renderers in `lib/og-image/layouts/`, SSRF-protected image fetching, and shared design tokens. All page `generateMetadata()` functions use `buildOgImageUrl()` from `lib/og-image/build-og-url.ts` (see `features/opengraph.md`).
 - Route protections: `src/proxy.ts` applies sitewide rate limiting plus memory-pressure shedding for matched traffic, while `/api/ai/chat/[feature]` enforces its own `memoryPressureMiddleware(...)` check in `chat-helpers.ts` because that route bypasses the proxy matcher.
 - Live Chroma integration tests are opt-in and gated by `CHROMA_*` env vars (see `chroma.md`).
 - Test-only mock modules live under `__tests__/__mocks__/` and are enforced via linting (see `standards/testing.md`).
 - Terminal AI chat queues are handled by `src/components/ui/terminal/use-ai-chat-queue.client.tsx` to serialize requests and cap client-side pending messages (see `features/terminal.md`).
+- Image manifest warm-up is startup-critical in production: request-path logo lookups skip lazy S3 manifest fetches when warm-up fails to avoid cache-components prerender IO bailouts (see `image-handling.md`).
 - AI chat gateway contracts are SSE-only end-to-end (`/api/ai/chat/[feature]` plus `aiChat()` browser client), with shared feature identifiers/queue-key builders and upstream delta forwarding centralized in `ai-shared-services` (see `architecture/ai-services.md`).
 - AI upstream pipeline tests are split by responsibility (streaming, tools, analysis validation) and share a dedicated harness module for DRY fixture/mocking (`__tests__/api/ai/upstream-pipeline-test-harness.ts`).
 - RAG inventory catalogs for terminal chat are assembled server-side from repo data and dynamic sources with explicit token-bound truncation (`src/lib/ai/rag/inventory-*.ts`).
+- Sitemap generation is split into domain-specific collectors under `src/lib/sitemap/` (blog, bookmarks, books/thoughts, constants, date-utils) with `src/app/sitemap.ts` as a thin orchestrator owning only the runtime cache and static-page entries.
 - Navigation-first throttle policy: rate limiter only blocks `document` and `api` classes; `rsc`/`prefetch`/`_next/image` are not independently throttled to prevent partial renders. Memory shedding is stricter: all request classes are rejected with 503 when memory is critical (`src/lib/utils/request-utils.ts`, `src/lib/middleware/sitewide-rate-limit.ts`, `src/lib/middleware/memory-pressure.ts`).
 - Deterministic throttle/load-shed contracts: document requests return HTML `429/503`, API requests return standardized JSON `RATE_LIMITED|SERVICE_UNAVAILABLE` payloads with `Retry-After` + `Cache-Control: no-store` (`src/lib/utils/api-utils.ts`, `src/types/schemas/api.ts`).
 

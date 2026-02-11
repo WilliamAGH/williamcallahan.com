@@ -101,7 +101,15 @@ FROM base AS builder
 # 1. System packages (rarely changes) - FIRST for maximum cache reuse
 #    ca-certificates required for HTTPS connectivity checks (S3, CDN)
 #    fontconfig + fonts-dejavu required for @react-pdf/renderer PDF generation during static generation
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl bash fontconfig fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
+#    Node.js 22.x is required so Next.js build runs on Node (not Bun) under cacheComponents.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl gnupg bash fontconfig fonts-dejavu-core \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # 2. Static environment variables (rarely changes)
@@ -139,8 +147,9 @@ ARG S3_SESSION_TOKEN
 ENV S3_BUCKET=$S3_BUCKET \
     S3_SERVER_URL=$S3_SERVER_URL \
     NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL
-# NOTE: S3 credentials remain optional. Provide them via BuildKit secrets for
-# secure builds or pass them as --build-arg when using classic docker builders.
+# NOTE: S3_SECRET_ACCESS_KEY is required for builds (used by generateStaticParams).
+# Other S3 credentials are optional. Provide via BuildKit secrets for secure
+# builds or pass as --build-arg when using classic docker builders.
 
 # Copy dependencies and source code
 COPY --from=deps /app/node_modules ./node_modules
@@ -168,9 +177,8 @@ RUN bash -c 'set -euo pipefail \
        echo "⚠️  NEXT_PUBLIC_S3_CDN_URL not set; skipping CDN connectivity check"; \
      fi'
 
-# Now build the app using bun (Bun) to avoid OOM issues
-# Note: Bun uses JavaScriptCore which auto-manages memory, no --max-old-space-size support
-# The build script in package.json sets NODE_OPTIONS for the Next.js build step
+# Build orchestration runs through Bun scripts, but Next.js build runs on Node.
+# This keeps cacheComponents timer semantics aligned with Next.js expectations.
 #
 # BuildKit secrets are mounted directly as environment variables using the
 # idiomatic --mount=type=secret,env= syntax (requires dockerfile:1 syntax
@@ -251,7 +259,9 @@ ENV S3_BUCKET=$S3_BUCKET \
     NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL \
     DEPLOYMENT_ENV=$DEPLOYMENT_ENV \
     NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID \
-    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
+    # Disable Next.js "use cache" in production runtime due to "Connection closed" instability
+    USE_NEXTJS_CACHE=false
 
 # 5. Static dependencies (changes occasionally - when deps update)
 #    Copy node_modules for runtime dependencies (read-only, no chown needed)

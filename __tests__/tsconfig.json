@@ -47,7 +47,8 @@
     "**/*.js",
     "**/*.jsx",
     "../src/types/**/*.ts",
-    "../src/types/**/*.tsx"
+    "../src/types/**/*.tsx",
+    "../src/test-utils/**/*.ts"
   ],
   "exclude": ["node_modules", ".next", "out", "dist"]
 }

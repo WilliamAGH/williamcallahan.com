@@ -16,6 +16,7 @@ import { generateSchemaGraph } from "@/lib/seo/schema";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
+import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 import { RelatedContent, RelatedContentFallback } from "@/components/features/related-content";
 import { getThoughtBySlug } from "@/lib/thoughts/service.server";
 import type { ThoughtPageContext } from "@/types/features/thoughts";
@@ -58,6 +59,12 @@ export async function generateMetadata({ params }: ThoughtPageContext): Promise<
   // Generate excerpt from content for description
   const excerpt = generateExcerpt(thought.content);
 
+  const ogImageUrl = buildOgImageUrl("thoughts", {
+    title: thought.title,
+    subtitle: excerpt.slice(0, 100),
+  });
+  const ogImage = { url: ogImageUrl, width: 1200, height: 630, alt: customTitle };
+
   return {
     ...baseMetadata,
     title: customTitle,
@@ -68,11 +75,14 @@ export async function generateMetadata({ params }: ThoughtPageContext): Promise<
       description: excerpt,
       type: "article",
       url: ensureAbsoluteUrl(path),
+      images: [ogImage],
     },
     twitter: {
       ...baseMetadata.twitter,
+      card: "summary_large_image",
       title: customTitle,
       description: excerpt,
+      images: [ogImage],
     },
     alternates: {
       canonical: ensureAbsoluteUrl(path),

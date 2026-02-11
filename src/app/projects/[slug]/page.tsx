@@ -27,15 +27,9 @@ import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
-import { getStaticImageUrl } from "@/lib/data-access/static-images";
+import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 import type { Project } from "@/types/project";
 import type { ProjectPageProps } from "@/types/features/projects";
-
-/**
- * Pre-resolved default OG image URL for projects.
- * Resolved once at module load to avoid repeated processing.
- */
-const DEFAULT_PROJECT_OG_IMAGE = getStaticImageUrl("/images/og/projects-og.png");
 
 /**
  * Tag patterns mapped to schema.org applicationCategory values.
@@ -68,27 +62,27 @@ function deriveApplicationCategory(tags: string[]): string {
 }
 
 /**
- * Build dynamic OG image URL for a project
- * Uses the project screenshot image if available
+ * Build dynamic OG image URL for a project via the unified /api/og/[entity] endpoint.
+ * Passes the CDN screenshot URL as screenshotUrl for branded image generation.
  */
 function buildProjectOgImageUrl(project: Project): string {
-  // For projects, we use the screenshot image directly
-  // The imageKey is already an S3 path like "images/other/projects/..."
+  let screenshotUrl: string | undefined;
   if (project.imageKey) {
     try {
-      // Convert S3 key to CDN URL
-      return buildCdnUrl(project.imageKey, getCdnConfigFromEnv());
+      screenshotUrl = buildCdnUrl(project.imageKey, getCdnConfigFromEnv());
     } catch (error) {
       console.warn(
         `[ProjectMetadata] Failed to build CDN URL for project ${project.name}, using fallback`,
         error,
       );
-      // Fallback if CDN config is missing (e.g. in dev without env vars)
-      return ensureAbsoluteUrl(DEFAULT_PROJECT_OG_IMAGE);
     }
   }
-  // Fallback to default projects OG image
-  return ensureAbsoluteUrl(DEFAULT_PROJECT_OG_IMAGE);
+
+  return buildOgImageUrl("projects", {
+    title: project.name,
+    screenshotUrl,
+    tags: project.tags?.slice(0, 4).join(","),
+  });
 }
 
 export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {

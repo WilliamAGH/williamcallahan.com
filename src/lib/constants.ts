@@ -74,6 +74,16 @@ export const CONTENT_GRAPH_S3_PATHS = {
 } as const;
 
 /**
+ * S3 paths for consolidated books dataset (environment-aware)
+ * Versioned snapshots: `${BOOKS_S3_PATHS.DIR}/${checksum}.json`
+ */
+export const BOOKS_S3_PATHS = {
+  DIR: `json/books${envSuffix}`,
+  LATEST: `json/books${envSuffix}/latest.json`,
+  INDEX: `json/books${envSuffix}/index.json`,
+} as const;
+
+/**
  * S3 paths for search indexes (environment-aware)
  * Note: DIR is global; each leaf file appends the environment suffix.
  */

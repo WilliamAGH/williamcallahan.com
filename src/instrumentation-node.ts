@@ -105,8 +105,11 @@ export async function register(): Promise<void> {
   try {
     const { loadImageManifests } = await import("@/lib/image-handling/image-manifest-loader");
     await loadImageManifests();
-  } catch {
-    /* ignore manifest load failure */
+  } catch (error) {
+    console.warn(
+      "[Instrumentation] Failed to warm image manifests at startup; production runtime will use logo fallbacks until warm-up succeeds.",
+      error,
+    );
   }
 
   /** Load global Jina AI rate-limit store **/

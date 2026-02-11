@@ -249,7 +249,9 @@ File/Path Functionality Description
     - [x] `build-prompt.ts` `bookmarks` - LLM prompt builder for bookmark analysis
     - [x] `extract-context.ts` `bookmarks` - Context extraction for bookmark analysis
 - [x] **books/**
-  - [x] `audiobookshelf.server.ts` `books` - AudioBookShelf API integration
+  - [x] `audiobookshelf.server.ts` `books` - AudioBookShelf API integration (used by generation scripts)
+  - [x] `books-data-access.server.ts` `books` - S3-backed book data reader (runtime, replaces ABS for web requests)
+  - [x] `generate.ts` `books` - Core books dataset generation logic (ABS → enrichments → AI → blur → S3)
   - [x] `slug-helpers.ts` `books` - Book slug generation and lookup
   - [x] **analysis/**
     - [x] `build-prompt.ts` `books` - LLM prompt builder for book analysis
@@ -288,10 +290,26 @@ File/Path Functionality Description
   - [x] `use-logo.ts` `image-handling` - Hook for using logos
   - [x] `use-window-size.client.ts` `state-theme-window-providers` - Hook for tracking window size
   - [x] `use-window-state.client.ts` `state-theme-window-providers` - Hook for managing window state
+- [x] **image-handling/**
+  - [x] `cached-manifest-loader.ts` `image-handling` - Next.js cache-component manifest readers for logo/OG/blog maps
+  - [x] `image-manifest-loader.ts` `image-handling` - Manifest warm-up + in-memory lookup helpers; production request paths skip lazy S3 loads when warm-up is unavailable
 - [ ] **imageAnalysis/**
   - [x] `index.ts` `image-handling` - Barrel file for image analysis
 - [ ] **imageCompare/**
   - [x] `index.ts` `image-handling` - Barrel file for image comparison
+- [x] **og-image/**
+  - [x] `security.ts` `opengraph` - SSRF protection for OG image fetching (host blocking, protocol restriction)
+  - [x] `fetch-image.ts` `opengraph` - Image fetch with size/pixel/timeout limits, sharp PNG conversion for Satori
+  - [x] `design-tokens.ts` `opengraph` - Shared colors, typography, and layout dimensions
+  - [x] `build-og-url.ts` `opengraph` - Type-safe URL builder for /api/og/[entity] endpoint
+  - [x] **layouts/**
+    - [x] `book-layout.tsx` `opengraph` - Book OG image layout (cover + title/author)
+    - [x] `bookmark-layout.tsx` `opengraph` - Bookmark OG image layout (screenshot + title/domain)
+    - [x] `blog-layout.tsx` `opengraph` - Blog post OG image layout (cover + title/author/tags)
+    - [x] `project-layout.tsx` `opengraph` - Project OG image layout (screenshot + title/tags)
+    - [x] `text-layout.tsx` `opengraph` - Text-only OG image layout (thoughts, collections)
+    - [x] `shared-branding.tsx` `opengraph` - Shared branding footer across all layouts
+    - [x] `shared-placeholder.tsx` `opengraph` - Placeholder cover/screenshot elements
 - [x] **opengraph/**
   - [x] `constants.ts` `opengraph` - Centralized constants for OpenGraph functionality
   - [x] `parser.ts` `opengraph` - HTML parsing and platform-specific extraction logic
@@ -337,6 +355,12 @@ File/Path Functionality Description
   - [x] **image/**
     - [x] `logo-fetcher.ts` `image-handling` - Logo fetch orchestration
     - [x] `logo-source-priority.ts` `image-handling` - Logo source priority ordering
+- [x] **sitemap/**
+  - [x] `blog-collector.ts` `seo` - Synchronous blog post/tag sitemap entry collector (reads MDX frontmatter)
+  - [x] `bookmark-collectors.ts` `seo` - Bookmark and bookmark-tag sitemap entry collectors (slug mapping + paginated fallback)
+  - [x] `constants.ts` `seo` - Shared sitemap constants (change frequencies, priorities, cache TTL)
+  - [x] `content-collectors.ts` `seo` - Book and thought sitemap entry collectors
+  - [x] `date-utils.ts` `seo` - Date parsing, path sanitization, and test-environment detection for sitemap modules
 - [x] **test-utils/**
   - [x] `cache-tester.ts` `caching` - Cache testing utility
 - [x] **utils/**
@@ -383,6 +407,7 @@ File/Path Functionality Description
 - [x] `social.ts` `social-links` - Types for social links
 - [x] `terminal.ts` `terminal` - Types for terminal components
 - [ ] **schemas/**
+  - [x] `og-image.ts` `opengraph` - Zod schemas for OG image entity types, per-entity params, and layout props
   - [x] `related-content.ts` `search` - Zod schemas for related content debug params and content types
 - [ ] **global/**
   - [x] `bun-test-globals.d.ts` `testing-config` - Global type definitions for Bun tests
@@ -480,7 +505,7 @@ File/Path Functionality Description
   - [x] `page.tsx` `home` - Landing page & SEO
 - [x] `providers.client.tsx` `state-theme-window-providers` - Client-side providers
 - [x] `robots.ts` `seo` - `robots.txt` generator
-- [x] `sitemap.ts` `seo` - `sitemap.xml` generator
+- [x] `sitemap.ts` `seo` - `sitemap.xml` orchestrator (delegates to `lib/sitemap/` collectors)
 - [~] **api/**
   - [x] **assets/`[assetId]`/`route.ts`** `image-handling` - API route for serving assets
   - [x] **bookmarks/**
@@ -511,6 +536,7 @@ File/Path Functionality Description
   - [ ] **logo/**
     - [x] `route.ts` `image-handling` - Logo API
     - [x] **invert/`route.ts`** `image-handling` - Invert logo API
+  - [x] **og/`[entity]`/`route.tsx`** `opengraph` - Unified dynamic OG image generator for all entity types (books, bookmarks, blog, projects, thoughts, collection)
   - [x] **og-image/`route.ts`** `opengraph` - Universal OpenGraph image endpoint (2025-06 rewrite)
   - [x] **related-content/**
     - [x] `route.ts` `search` - Related content recommender (force-dynamic, request header aware)
@@ -569,6 +595,7 @@ File/Path Functionality Description
 - [x] `run-bun-tests.sh` `testing-config` - Script to run Bun tests
 - [x] `run-tests.sh` `testing-config` - Script to run all tests
 - [x] `setup-test-alias.sh` `testing-config` - Script to set up test aliases
+- [x] `generate-books.ts` `books` - CLI wrapper for books dataset generation (delegates to lib/books/generate.ts)
 - [x] `submit-sitemap.ts` `seo` - Script to submit sitemap to search engines
 - [x] `validate-opengraph-clear-cache.ts` `seo` - Script to validate and clear social media caches
 
@@ -584,6 +611,7 @@ File/Path Functionality Description
   - [ ] **posts/**
     - [x] `*.mdx` `blog-article` - Blog post content files
 - [ ] `*.ts` `data` - Data configuration files
+- [x] `book-enrichments.ts` `books` - Manual per-book enrichment data keyed by ABS item ID
 - [x] `projects.ts` `projects` - Project metadata source (2025-11-05: ComposerAI entry + `images/other/projects/composerai-app.png`)
 
 ## Public Directory
@@ -630,6 +658,8 @@ File/Path Functionality Description
         - [x] `cache.test.ts` `github-activity` - Tests for GitHub activity caching
       - [x] **upload/**
         - [x] `route.test.ts` `chroma` - Upload cleanup tests for S3/Chroma pipeline
+      - [x] **og/**
+        - [x] `entity-route.test.ts` `opengraph` - Unified OG image route handler dispatch and validation tests
       - [x] **logo/**
         - [x] `cache.test.ts` `image-handling` - Tests for logo caching
     - [x] `pages.smoke.test.ts` `app-layout` - Smoke tests for all pages
@@ -658,6 +688,8 @@ File/Path Functionality Description
         - [x] `terminalSelectionView.test.tsx` `terminal` - Terminal selection view tests
   - [x] **lib/**
     - [x] `api-sanitization.test.ts` `rate-limit-and-sanitize` - API sanitization tests
+    - [x] **og-image/**
+      - [x] `security.test.ts` `opengraph` - OG image SSRF protection tests (private hosts, protocol restrictions)
     - [x] `blog.test.ts` `blog` - Blog utility tests
     - [x] `bookmarks-s3-external-sync.unit.test.ts` `bookmarks` - Bookmarks S3 sync unit tests
     - [x] `bookmarks-validation.test.ts` `json-handling` - Bookmarks validation tests

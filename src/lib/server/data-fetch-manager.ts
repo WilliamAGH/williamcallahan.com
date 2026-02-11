@@ -74,9 +74,13 @@ export class DataFetchManager {
       results.push(await this.fetchBookmarks(config));
     }
 
-    // STEP 2: Fetch other primary data sources
+    // STEP 2: Fetch other primary data sources (no ordering dependency)
     if (config.githubActivity) {
       results.push(await this.fetchGithubActivity(config));
+    }
+
+    if (config.books) {
+      results.push(await this.fetchBooksData(config));
     }
 
     if (config.logos) {
@@ -231,6 +235,16 @@ export class DataFetchManager {
         duration: (getMonotonicTime() - startTime) / 1000,
       };
     }
+  }
+
+  /**
+   * Regenerate consolidated books dataset from AudioBookShelf → S3
+   * @param config - Configuration (passed through to generator)
+   * @returns Promise resolving to operation summary
+   */
+  private async fetchBooksData(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
+    const { generateBooksDataset } = await import("@/lib/books/generate");
+    return generateBooksDataset(config);
   }
 
   /**
@@ -704,6 +718,9 @@ if (require.main === module) {
   }
   if (hasFlag(args, DATA_UPDATER_FLAGS.LOGOS)) {
     config.logos = true;
+  }
+  if (hasFlag(args, DATA_UPDATER_FLAGS.BOOKS)) {
+    config.books = true;
   }
   if (hasFlag(args, DATA_UPDATER_FLAGS.GITHUB)) {
     config.githubActivity = true;
