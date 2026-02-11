@@ -84,7 +84,7 @@ export function renderBookmarkLayout({ title, domain, screenshotDataUrl }: OgBoo
               fontSize: OG_TYPOGRAPHY.sectionLabel.size,
               fontWeight: OG_TYPOGRAPHY.sectionLabel.weight,
               color: OG_COLORS.accent,
-              marginBottom: 20,
+              marginBottom: OG_TYPOGRAPHY.sectionLabel.marginBottom,
               textTransform: "uppercase",
               letterSpacing: OG_TYPOGRAPHY.sectionLabel.letterSpacing,
             }}
