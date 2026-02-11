@@ -6,7 +6,8 @@
  * Provides the same public API as audiobookshelf.server.ts so consumer code only
  * changes its import path, not its function calls.
  *
- * Caching: In-memory cache with 1-hour TTL + Next.js Cache Components ("use cache").
+ * Caching: In-memory cache with 1-hour TTL and 5-minute retry TTL, plus
+ * Next.js Cache Components ("use cache") with matching revalidate windows.
  *
  * Error contract: S3 connectivity errors surface via `isFallback: true` in the
  * public API return values. Callers can distinguish "successfully loaded books"
@@ -34,6 +35,8 @@ import {
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const CACHE_RETRY_TTL_MS = 5 * 60 * 1000; // 5 minutes — shorter retry window after S3 failure
+const CACHE_TTL_SECONDS = CACHE_TTL_MS / 1000;
+const CACHE_RETRY_TTL_SECONDS = CACHE_RETRY_TTL_MS / 1000;
 
 /**
  * `lastRefreshFailed` tracks whether the most recent S3 load attempt failed.
@@ -179,10 +182,14 @@ async function getCachedBooksState(): Promise<{ books: Book[]; isFallback: boole
 async function fetchBooksInternal(): Promise<{ books: Book[]; isFallback: boolean }> {
   "use cache";
 
-  cacheContextGuards.cacheLife("Books", { revalidate: 3600 }); // 1 hour
+  const state = await getCachedBooksState();
+
+  // Keep Next.js cache revalidate aligned with the in-memory cache freshness policy.
+  const revalidate = state.isFallback ? CACHE_RETRY_TTL_SECONDS : CACHE_TTL_SECONDS;
+  cacheContextGuards.cacheLife("Books", { revalidate });
   cacheContextGuards.cacheTag("Books", "books-dataset");
 
-  return getCachedBooksState();
+  return state;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -249,10 +256,10 @@ export async function fetchBookListItemsWithFallback(
 /**
  * Clear in-memory books cache. Advances the generation counter to invalidate
  * any in-flight refresh that captured a prior generation, preventing it from
- * restoring stale data after the clear.
+ * restoring stale data after the clear. In-flight refresh promises are preserved
+ * so concurrent callers keep coalescing onto a single refresh.
  */
 export function clearBooksCache(): void {
   cache = null;
-  inflightRefresh = null;
   cacheGeneration++;
 }
