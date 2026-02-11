@@ -20,9 +20,13 @@ export const OG_LAYOUT = {
   width: 1200,
   height: 630,
   padding: 56,
-  coverWidth: 340,
-  coverImageWidth: 320,
-  coverImageHeight: 420,
+  coverWidth: 440,
+  coverImageWidth: 420,
+  coverImageHeight: 500,
+  screenshotColumnWidth: 580,
+  screenshotImageWidth: 560,
+  screenshotImageHeight: 400,
+  screenshotContentGap: 24,
   contentGap: 48,
   borderRadius: 16,
 } as const;
@@ -31,5 +35,8 @@ export const OG_LAYOUT = {
 export const OG_TYPOGRAPHY = {
   title: { size: 56, weight: 700, lineHeight: 1.15 },
   subtitle: { size: 32, weight: 500 },
+  sectionLabel: { size: 26, weight: 600, letterSpacing: 3 },
+  screenshotTitle: { size: 68, weight: 700, lineHeight: 1.08 },
+  screenshotSubtitle: { size: 42, weight: 500 },
   branding: { size: 28, weight: 500 },
 } as const;

@@ -44,8 +44,8 @@ export function renderPlaceholderScreenshot() {
     <div
       style={{
         display: "flex",
-        width: OG_LAYOUT.coverImageWidth,
-        height: 240,
+        width: OG_LAYOUT.screenshotImageWidth,
+        height: OG_LAYOUT.screenshotImageHeight,
         borderRadius: OG_LAYOUT.borderRadius,
         backgroundColor: OG_COLORS.backgroundAlt,
         alignItems: "center",
