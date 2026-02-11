@@ -3,29 +3,18 @@
  * @module lib/og-image/layouts/book-layout
  * @description
  * Renders the OG image layout for book detail pages.
- * Cover image left, title/author/format badges right.
+ * Cover image left, title/author right.
  */
 
-import { truncateText, normalizeString } from "@/lib/utils";
-import {
-  OG_COLORS,
-  OG_LAYOUT,
-  OG_TYPOGRAPHY,
-  BOOK_FORMAT_CONFIG,
-  isBookFormatKey,
-} from "../design-tokens";
+import { truncateText } from "@/lib/utils";
+import { OG_COLORS, OG_LAYOUT, OG_TYPOGRAPHY } from "../design-tokens";
 import type { OgBookLayoutProps } from "@/types/schemas/og-image";
 import { renderBranding } from "./shared-branding";
 import { renderPlaceholderCover } from "./shared-placeholder";
 
-export function renderBookLayout({ title, author, formats, coverDataUrl }: OgBookLayoutProps) {
+export function renderBookLayout({ title, author, coverDataUrl }: OgBookLayoutProps) {
   const displayTitle = truncateText(title, 60);
   const displayAuthor = author ? truncateText(author, 45) : "";
-
-  const parsedFormats = (formats ?? "")
-    .split(",")
-    .map((f): string => normalizeString(f))
-    .filter(isBookFormatKey);
 
   return (
     <div
@@ -112,46 +101,6 @@ export function renderBookLayout({ title, author, formats, coverDataUrl }: OgBoo
               }}
             >
               by {displayAuthor}
-            </div>
-          )}
-
-          {parsedFormats.length > 0 && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                gap: OG_LAYOUT.badgeGap,
-                flexWrap: "wrap",
-              }}
-            >
-              {parsedFormats.map((format) => {
-                const config = BOOK_FORMAT_CONFIG[format];
-                return (
-                  <div
-                    key={format}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "14px 24px",
-                      borderRadius: OG_LAYOUT.badgeRadius,
-                      backgroundColor: `${config.color}22`,
-                      border: `2px solid ${config.color}`,
-                    }}
-                  >
-                    <span style={{ fontSize: OG_TYPOGRAPHY.badgeIcon.size }}>{config.icon}</span>
-                    <span
-                      style={{
-                        fontSize: OG_TYPOGRAPHY.badge.size,
-                        fontWeight: OG_TYPOGRAPHY.badge.weight,
-                        color: config.color,
-                      }}
-                    >
-                      {config.label}
-                    </span>
-                  </div>
-                );
-              })}
             </div>
           )}
         </div>

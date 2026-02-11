@@ -3,23 +3,18 @@
  * @module lib/og-image/layouts/blog-layout
  * @description
  * Renders the OG image layout for blog post pages.
- * Cover image left, title/author/tags right.
+ * Cover image left, title/author right.
  */
 
 import { truncateText } from "@/lib/utils";
-import { OG_COLORS, OG_LAYOUT, OG_TYPOGRAPHY, TAG_BADGE_COLORS } from "../design-tokens";
+import { OG_COLORS, OG_LAYOUT, OG_TYPOGRAPHY } from "../design-tokens";
 import type { OgBlogLayoutProps } from "@/types/schemas/og-image";
 import { renderBranding } from "./shared-branding";
 import { renderPlaceholderCover } from "./shared-placeholder";
 
-export function renderBlogLayout({ title, author, tags, coverDataUrl }: OgBlogLayoutProps) {
+export function renderBlogLayout({ title, author, coverDataUrl }: OgBlogLayoutProps) {
   const displayTitle = truncateText(title, 60);
   const displayAuthor = author ? truncateText(author, 45) : "";
-  const parsedTags = (tags ?? "")
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean)
-    .slice(0, 4);
 
   return (
     <div
@@ -121,31 +116,6 @@ export function renderBlogLayout({ title, author, tags, coverDataUrl }: OgBlogLa
               }}
             >
               by {displayAuthor}
-            </div>
-          )}
-
-          {parsedTags.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
-              {parsedTags.map((tag, idx) => {
-                const color = TAG_BADGE_COLORS[idx % TAG_BADGE_COLORS.length];
-                return (
-                  <div
-                    key={tag}
-                    style={{
-                      display: "flex",
-                      padding: "8px 18px",
-                      borderRadius: OG_LAYOUT.badgeRadius,
-                      backgroundColor: `${color}22`,
-                      border: `2px solid ${color}`,
-                      fontSize: OG_TYPOGRAPHY.badge.size,
-                      fontWeight: OG_TYPOGRAPHY.badge.weight,
-                      color,
-                    }}
-                  >
-                    {tag}
-                  </div>
-                );
-              })}
             </div>
           )}
         </div>
