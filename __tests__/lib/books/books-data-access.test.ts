@@ -29,6 +29,8 @@ vi.mock("@/lib/cache", () => ({
 
 const { readJsonS3Optional } = await import("@/lib/s3/json");
 const mockReadJson = readJsonS3Optional as ReturnType<typeof vi.fn>;
+const { cacheContextGuards } = await import("@/lib/cache");
+const mockCacheLife = cacheContextGuards.cacheLife as ReturnType<typeof vi.fn>;
 
 const SAMPLE_LATEST: BooksLatest = {
   checksum: "abc123",
@@ -54,7 +56,8 @@ const SAMPLE_DATASET: BooksDataset = {
 
 describe("Books S3 Data Access", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    mockReadJson.mockReset();
+    mockCacheLife.mockReset();
     clearBooksCache();
   });
 
@@ -159,6 +162,59 @@ describe("Books S3 Data Access", () => {
 
       await fetchBooksWithFallback();
       expect(mockReadJson).toHaveBeenCalledTimes(4);
+    });
+
+    it("preserves refresh coalescing when cache is cleared mid-refresh", async () => {
+      let resolveLatest: ((value: BooksLatest | null) => void) | null = null;
+      const pendingLatest = new Promise<BooksLatest | null>((resolve) => {
+        resolveLatest = resolve;
+      });
+
+      mockReadJson
+        .mockImplementationOnce(() => pendingLatest)
+        .mockResolvedValueOnce(SAMPLE_DATASET);
+
+      const firstRequest = fetchBooksWithFallback();
+      await Promise.resolve();
+
+      clearBooksCache();
+
+      const secondRequest = fetchBooksWithFallback();
+      await Promise.resolve();
+
+      // Second request should await the in-flight refresh instead of starting a new one.
+      expect(mockReadJson).toHaveBeenCalledTimes(1);
+
+      if (!resolveLatest) {
+        throw new Error("Expected pending latest resolver to be initialized");
+      }
+      resolveLatest(SAMPLE_LATEST);
+
+      const [firstResult, secondResult] = await Promise.all([firstRequest, secondRequest]);
+
+      expect(firstResult.isFallback).toBe(true);
+      expect(secondResult.isFallback).toBe(true);
+      expect(mockReadJson).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("Next.js cache revalidate policy", () => {
+    it("uses 1-hour revalidate when returning healthy data", async () => {
+      mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(SAMPLE_DATASET);
+
+      const result = await fetchBooksWithFallback();
+
+      expect(result.isFallback).toBe(false);
+      expect(mockCacheLife).toHaveBeenLastCalledWith("Books", { revalidate: 3600 });
+    });
+
+    it("uses 5-minute revalidate when returning fallback data", async () => {
+      mockReadJson.mockRejectedValueOnce(new Error("S3 unavailable"));
+
+      const result = await fetchBooksWithFallback();
+
+      expect(result.isFallback).toBe(true);
+      expect(mockCacheLife).toHaveBeenLastCalledWith("Books", { revalidate: 300 });
     });
   });
 
