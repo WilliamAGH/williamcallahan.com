@@ -297,6 +297,19 @@ File/Path Functionality Description
   - [x] `index.ts` `image-handling` - Barrel file for image analysis
 - [ ] **imageCompare/**
   - [x] `index.ts` `image-handling` - Barrel file for image comparison
+- [x] **og-image/**
+  - [x] `security.ts` `opengraph` - SSRF protection for OG image fetching (host blocking, protocol restriction)
+  - [x] `fetch-image.ts` `opengraph` - Image fetch with size/pixel/timeout limits, sharp PNG conversion for Satori
+  - [x] `design-tokens.ts` `opengraph` - Shared colors, typography, layout dimensions, badge configs
+  - [x] `build-og-url.ts` `opengraph` - Type-safe URL builder for /api/og/[entity] endpoint
+  - [x] **layouts/**
+    - [x] `book-layout.tsx` `opengraph` - Book OG image layout (cover + title/author/badges)
+    - [x] `bookmark-layout.tsx` `opengraph` - Bookmark OG image layout (screenshot + title/domain)
+    - [x] `blog-layout.tsx` `opengraph` - Blog post OG image layout (cover + title/author/tags)
+    - [x] `project-layout.tsx` `opengraph` - Project OG image layout (screenshot + title/tags)
+    - [x] `text-layout.tsx` `opengraph` - Text-only OG image layout (thoughts, collections)
+    - [x] `shared-branding.tsx` `opengraph` - Shared branding footer across all layouts
+    - [x] `shared-placeholder.tsx` `opengraph` - Placeholder cover/screenshot elements
 - [x] **opengraph/**
   - [x] `constants.ts` `opengraph` - Centralized constants for OpenGraph functionality
   - [x] `parser.ts` `opengraph` - HTML parsing and platform-specific extraction logic
@@ -394,6 +407,7 @@ File/Path Functionality Description
 - [x] `social.ts` `social-links` - Types for social links
 - [x] `terminal.ts` `terminal` - Types for terminal components
 - [ ] **schemas/**
+  - [x] `og-image.ts` `opengraph` - Zod schemas for OG image entity types, per-entity params, and layout props
   - [x] `related-content.ts` `search` - Zod schemas for related content debug params and content types
 - [ ] **global/**
   - [x] `bun-test-globals.d.ts` `testing-config` - Global type definitions for Bun tests
@@ -522,6 +536,7 @@ File/Path Functionality Description
   - [ ] **logo/**
     - [x] `route.ts` `image-handling` - Logo API
     - [x] **invert/`route.ts`** `image-handling` - Invert logo API
+  - [x] **og/`[entity]`/`route.tsx`** `opengraph` - Unified dynamic OG image generator for all entity types (books, bookmarks, blog, projects, thoughts, collection)
   - [x] **og-image/`route.ts`** `opengraph` - Universal OpenGraph image endpoint (2025-06 rewrite)
   - [x] **related-content/**
     - [x] `route.ts` `search` - Related content recommender (force-dynamic, request header aware)
@@ -643,6 +658,8 @@ File/Path Functionality Description
         - [x] `cache.test.ts` `github-activity` - Tests for GitHub activity caching
       - [x] **upload/**
         - [x] `route.test.ts` `chroma` - Upload cleanup tests for S3/Chroma pipeline
+      - [x] **og/**
+        - [x] `entity-route.test.ts` `opengraph` - Unified OG image route handler dispatch and validation tests
       - [x] **logo/**
         - [x] `cache.test.ts` `image-handling` - Tests for logo caching
     - [x] `pages.smoke.test.ts` `app-layout` - Smoke tests for all pages
@@ -671,6 +688,8 @@ File/Path Functionality Description
         - [x] `terminalSelectionView.test.tsx` `terminal` - Terminal selection view tests
   - [x] **lib/**
     - [x] `api-sanitization.test.ts` `rate-limit-and-sanitize` - API sanitization tests
+    - [x] **og-image/**
+      - [x] `security.test.ts` `opengraph` - OG image SSRF protection tests (private hosts, protocol restrictions)
     - [x] `blog.test.ts` `blog` - Blog utility tests
     - [x] `bookmarks-s3-external-sync.unit.test.ts` `bookmarks` - Bookmarks S3 sync unit tests
     - [x] `bookmarks-validation.test.ts` `json-handling` - Bookmarks validation tests

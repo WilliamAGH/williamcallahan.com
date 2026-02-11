@@ -334,6 +334,42 @@ function selectBestOpenGraphImage(metadata, pageUrl) {
 4. **Monitor circuit breaker logs** for failing domains
 5. **Check debug logs** for extraction issues
 
+## Dynamic OG Image Generation
+
+The `/api/og/[entity]` route generates branded 1200×630 OG images for all entity types using Satori.
+
+### Architecture
+
+```
+Page generateMetadata() -> buildOgImageUrl(entity, params)
+                                |
+                         /api/og/[entity]?title=...&coverUrl=...
+                                |
+                    Validate entity (Zod) -> Parse params -> Fetch image -> Render layout
+                                                                              |
+                                                                     ImageResponse (PNG)
+```
+
+### Modules
+
+- **`lib/og-image/security.ts`**: SSRF protection (host blocking, protocol restriction)
+- **`lib/og-image/fetch-image.ts`**: Image fetch with size/pixel/timeout limits, sharp PNG conversion
+- **`lib/og-image/design-tokens.ts`**: Shared colors, typography, layout dimensions, badge configs
+- **`lib/og-image/build-og-url.ts`**: Type-safe URL builder for page metadata
+- **`lib/og-image/layouts/`**: Per-entity JSX renderers (book, bookmark, blog, project, text)
+- **`types/schemas/og-image.ts`**: Zod schemas for entity types and per-entity params
+
+### Supported Entities
+
+| Entity       | Layout                      | Image Source  | Use Case              |
+| ------------ | --------------------------- | ------------- | --------------------- |
+| `books`      | Cover + title/author/badges | coverUrl      | Book detail pages     |
+| `bookmarks`  | Screenshot + title/domain   | screenshotUrl | Bookmark detail pages |
+| `blog`       | Cover + title/author/tags   | coverUrl      | Blog post pages       |
+| `projects`   | Screenshot + title/tags     | screenshotUrl | Project detail pages  |
+| `thoughts`   | Centered title/subtitle     | None          | Thought detail pages  |
+| `collection` | Centered title/section      | None          | Tag/collection pages  |
+
 ## Debugging
 
 Enable debug logging:
@@ -347,3 +383,5 @@ Key log patterns:
 - `[DataAccess/OpenGraph] Selected {type} as best image`
 - `[DataAccess/OpenGraph] HTML content...{size}MB. Attempting partial parse`
 - `[DataAccess/OpenGraph] Domain {domain} has failed too many times`
+- `[OG-Image] Failed to fetch image: {status}` (dynamic generation)
+- `[OG-Image] Image exceeds size limit` (dynamic generation)

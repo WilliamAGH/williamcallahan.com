@@ -297,7 +297,7 @@
       }
     },
     {
-      "files": ["src/app/api/og/**/*.{ts,tsx}"],
+      "files": ["src/app/api/og/**/*.{ts,tsx}", "src/lib/og-image/**/*.tsx"],
       "rules": {
         "nextjs/no-img-element": "off"
       }

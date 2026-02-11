@@ -17,6 +17,7 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
+import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 import { formatSeoDate } from "@/lib/seo/utils";
 import {
   generateDynamicTitle,
@@ -97,6 +98,13 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
     effectivePage > 1 ? `${baseDescription} — Page ${effectivePage}.` : baseDescription;
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
+  const ogImageUrl = buildOgImageUrl("collection", {
+    title: pageTitle,
+    section: "bookmarks",
+    subtitle: `${bookmarks.length} bookmark${bookmarks.length === 1 ? "" : "s"}`,
+  });
+  const ogImage = { url: ogImageUrl, width: 1200, height: 630, alt: customTitle };
+
   return {
     ...baseMetadata,
     title: customTitle,
@@ -106,11 +114,14 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
       title: customTitle,
       description: customDescription,
       url: ensureAbsoluteUrl(path),
+      images: [ogImage],
     },
     twitter: {
       ...baseMetadata.twitter,
+      card: "summary_large_image",
       title: customTitle,
       description: customDescription,
+      images: [ogImage],
     },
     alternates: {
       canonical: ensureAbsoluteUrl(path),

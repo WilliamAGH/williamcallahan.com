@@ -36,6 +36,7 @@ import { PAGE_METADATA } from "@/data/metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
+import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 import type { Book } from "@/types/schemas/book";
 import type { BookPageProps } from "@/types/features/books";
 
@@ -60,27 +61,14 @@ async function getBookBySlug(
   return { book, isFallback: result.isFallback };
 }
 
-/**
- * Build dynamic OG image URL for a book
- * Constructs URL to /api/og/books with book metadata as query params
- */
+/** Build dynamic OG image URL for a book via the unified /api/og/[entity] endpoint */
 function buildBookOgImageUrl(book: Book): string {
-  const params = new URLSearchParams();
-  params.set("title", book.title);
-
-  if (book.authors?.length) {
-    params.set("author", book.authors.join(", "));
-  }
-
-  if (book.coverUrl) {
-    params.set("coverUrl", book.coverUrl);
-  }
-
-  if (book.formats?.length) {
-    params.set("formats", book.formats.join(","));
-  }
-
-  return ensureAbsoluteUrl(`/api/og/books?${params.toString()}`);
+  return buildOgImageUrl("books", {
+    title: book.title,
+    author: book.authors?.length ? book.authors.join(", ") : undefined,
+    coverUrl: book.coverUrl ?? undefined,
+    formats: book.formats?.length ? book.formats.join(",") : undefined,
+  });
 }
 
 export async function generateMetadata({

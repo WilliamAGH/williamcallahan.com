@@ -13,10 +13,11 @@ import { TIME_CONSTANTS } from "@/lib/constants";
 import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
-import { PAGE_METADATA, OG_IMAGE_DIMENSIONS } from "@/data/metadata";
+import { PAGE_METADATA } from "@/data/metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
+import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { RelatedContent, RelatedContentFallback } from "@/components/features/related-content";
@@ -158,13 +159,13 @@ export async function generateMetadata({
   const customDescription =
     bookmark.description || `A bookmark from ${domainName} that I've saved for future reference.`;
 
-  let imageUrl: string | undefined;
+  let screenshotUrl: string | undefined;
   try {
     const rawImageUrl = selectBestImage(bookmark, {
       includeScreenshots: true,
     });
     if (typeof rawImageUrl === "string" && rawImageUrl.length > 0) {
-      imageUrl = ensureAbsoluteUrl(rawImageUrl);
+      screenshotUrl = rawImageUrl;
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -175,16 +176,13 @@ export async function generateMetadata({
     );
   }
 
-  const openGraphImages = imageUrl
-    ? [
-        {
-          url: imageUrl,
-          width: OG_IMAGE_DIMENSIONS.legacy.width,
-          height: OG_IMAGE_DIMENSIONS.legacy.height,
-          alt: customTitle,
-        },
-      ]
-    : baseMetadata.openGraph?.images || [];
+  const ogImageUrl = buildOgImageUrl("bookmarks", {
+    title: bookmark.title ?? "Bookmark",
+    domain: domainName !== "website" ? domainName : undefined,
+    screenshotUrl,
+  });
+
+  const ogImage = { url: ogImageUrl, width: 1200, height: 630, alt: customTitle };
 
   return {
     ...baseMetadata,
@@ -196,14 +194,14 @@ export async function generateMetadata({
       description: customDescription,
       type: "article",
       url: ensureAbsoluteUrl(path),
-      images: openGraphImages,
+      images: [ogImage],
     },
     twitter: {
       ...baseMetadata.twitter,
       card: "summary_large_image",
       title: customTitle,
       description: customDescription,
-      images: imageUrl ? [{ url: imageUrl, alt: customTitle }] : baseMetadata.twitter?.images || [],
+      images: [ogImage],
     },
     alternates: {
       canonical: ensureAbsoluteUrl(path),

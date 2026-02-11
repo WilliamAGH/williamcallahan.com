@@ -37,6 +37,7 @@ Example schemas:
 - `/src/types/schemas/education.ts` - Education data validation
 - `/src/types/schemas/experience.ts` - Experience data validation
 - `/src/types/schemas/related-content.ts` - Related content debug param validation
+- `/src/types/schemas/og-image.ts` - OG image entity types and per-entity param validation
 
 ---
 
@@ -52,6 +53,7 @@ Example schemas:
 - Books use an S3-first architecture: `lib/books/generate.ts` consolidates ABS data + manual enrichments + AI summaries into versioned S3 snapshots; the web app reads from S3 via `books-data-access.server.ts`, never calling ABS directly at request time. Books generation is automated via the scheduler (daily at 6 AM PT, `--books` flag) with cache invalidation through `/api/revalidate/books`.
 - GitHub activity orchestration is split across dedicated data-access modules for repo stats, commit counts, CSV repair, and summary persistence (see `features/github-activity.md`).
 - OpenGraph data access delegates Next.js cache and refresh workflows to focused modules (`opengraph-next-cache.ts`, `opengraph-refresh.ts`) with shared cache guards (`opengraph-cache-context.ts`) (see `features/opengraph.md`).
+- Dynamic OG image generation uses a unified `/api/og/[entity]` route with per-entity layout renderers in `lib/og-image/layouts/`, SSRF-protected image fetching, and shared design tokens. All page `generateMetadata()` functions use `buildOgImageUrl()` from `lib/og-image/build-og-url.ts` (see `features/opengraph.md`).
 - Route protections: `src/proxy.ts` applies sitewide rate limiting plus memory-pressure shedding for matched traffic, while `/api/ai/chat/[feature]` enforces its own `memoryPressureMiddleware(...)` check in `chat-helpers.ts` because that route bypasses the proxy matcher.
 - Live Chroma integration tests are opt-in and gated by `CHROMA_*` env vars (see `chroma.md`).
 - Test-only mock modules live under `__tests__/__mocks__/` and are enforced via linting (see `standards/testing.md`).

@@ -5,6 +5,7 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { metadata, PAGE_METADATA } from "@/data/metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
+import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 import {
   generateDynamicTitle,
   generateTagDescription,
@@ -33,6 +34,12 @@ export async function generateMetadata({
   const description = generateTagDescription(tagName, "blog");
   const url = ensureAbsoluteUrl(`/blog/tags/${tagSlug}`);
 
+  const ogImageUrl = buildOgImageUrl("collection", {
+    title: `${tagName} Posts`,
+    section: "blog",
+  });
+  const ogImage = { url: ogImageUrl, width: 1200, height: 630, alt: title };
+
   return {
     title: title,
     description: description,
@@ -46,14 +53,14 @@ export async function generateMetadata({
       siteName: metadata.site.name,
       type: "website",
       locale: "en_US",
-      images: metadata.openGraph.images, // Use openGraph images
+      images: [ogImage],
     },
     twitter: {
       card: "summary_large_image",
       title: title,
       description: description,
-      images: metadata.openGraph.images, // Use openGraph images for Twitter too
-      creator: metadata.social.twitter, // Use correct path for Twitter handle
+      images: [ogImage],
+      creator: metadata.social.twitter,
     },
   };
 }
