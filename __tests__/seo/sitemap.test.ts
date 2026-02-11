@@ -4,7 +4,31 @@
  * Tests for sitemap generation including bookmark tags with special characters
  */
 
+import type { MockedFunction } from "vitest";
 import { tagToSlug } from "@/lib/utils/tag-utils";
+import { getBookmarksIndex, listBookmarkTagSlugs } from "@/lib/bookmarks/service.server";
+import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
+import {
+  collectBookmarkSitemapData,
+  collectTagSitemapData,
+} from "@/lib/sitemap/bookmark-collectors";
+
+vi.mock("@/lib/bookmarks/service.server", () => ({
+  getBookmarksIndex: vi.fn(),
+  getBookmarksPage: vi.fn(),
+  listBookmarkTagSlugs: vi.fn(),
+  getTagBookmarksIndex: vi.fn(),
+}));
+
+vi.mock("@/lib/bookmarks/slug-manager", () => ({
+  loadSlugMapping: vi.fn(),
+}));
+
+const mockGetBookmarksIndex = getBookmarksIndex as MockedFunction<typeof getBookmarksIndex>;
+const mockListBookmarkTagSlugs = listBookmarkTagSlugs as MockedFunction<
+  typeof listBookmarkTagSlugs
+>;
+const mockLoadSlugMapping = loadSlugMapping as MockedFunction<typeof loadSlugMapping>;
 
 describe("Sitemap URL Generation", () => {
   const siteUrl = "https://williamcallahan.com";
@@ -128,6 +152,81 @@ describe("Sitemap URL Generation", () => {
 
       expect(paginatedEntry.priority).toBeLessThan(mainEntry.priority);
       expect(paginatedEntry.url).toContain("/page/2");
+    });
+  });
+});
+
+describe("Sitemap Collector Error Handling", () => {
+  const siteUrl = "https://williamcallahan.com";
+  let originalNodeEnv: string | undefined;
+  let originalVitest: string | undefined;
+  let originalTest: string | undefined;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    originalNodeEnv = process.env.NODE_ENV;
+    originalVitest = process.env.VITEST;
+    originalTest = process.env.TEST;
+    process.env.NODE_ENV = "test";
+    process.env.VITEST = "true";
+    process.env.TEST = "true";
+    mockLoadSlugMapping.mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    if (typeof originalNodeEnv === "string") {
+      process.env.NODE_ENV = originalNodeEnv;
+    } else {
+      delete process.env.NODE_ENV;
+    }
+    if (typeof originalVitest === "string") {
+      process.env.VITEST = originalVitest;
+    } else {
+      delete process.env.VITEST;
+    }
+    if (typeof originalTest === "string") {
+      process.env.TEST = originalTest;
+    } else {
+      delete process.env.TEST;
+    }
+  });
+
+  it("throws in production when bookmark collection fails", async () => {
+    const outage = new Error("S3 outage");
+    process.env.NODE_ENV = "production";
+    process.env.VITEST = "false";
+    process.env.TEST = "false";
+    mockGetBookmarksIndex.mockRejectedValue(outage);
+
+    await expect(collectBookmarkSitemapData(siteUrl)).rejects.toThrow("S3 outage");
+  });
+
+  it("throws in production when tag collection fails", async () => {
+    const outage = new Error("S3 outage");
+    process.env.NODE_ENV = "production";
+    process.env.VITEST = "false";
+    process.env.TEST = "false";
+    mockListBookmarkTagSlugs.mockRejectedValue(outage);
+
+    await expect(collectTagSitemapData(siteUrl)).rejects.toThrow("S3 outage");
+  });
+
+  it("returns empty fallback in tests when bookmark collection fails", async () => {
+    mockGetBookmarksIndex.mockRejectedValue(new Error("S3 outage"));
+
+    await expect(collectBookmarkSitemapData(siteUrl)).resolves.toEqual({
+      entries: [],
+      paginatedEntries: [],
+      latestBookmarkUpdateTime: undefined,
+    });
+  });
+
+  it("returns empty fallback in tests when tag collection fails", async () => {
+    mockListBookmarkTagSlugs.mockRejectedValue(new Error("S3 outage"));
+
+    await expect(collectTagSitemapData(siteUrl)).resolves.toEqual({
+      tagEntries: [],
+      paginatedTagEntries: [],
     });
   });
 });

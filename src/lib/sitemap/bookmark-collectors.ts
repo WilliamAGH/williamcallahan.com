@@ -139,11 +139,16 @@ export const collectBookmarkSitemapData = async (
       latestBookmarkUpdateTime,
     };
   } catch (error) {
-    return handleSitemapCollectorError("Failed to collect bookmark sitemap entries", error, {
-      entries: [],
-      paginatedEntries: [],
-      latestBookmarkUpdateTime: undefined,
-    });
+    return handleSitemapCollectorError(
+      "Failed to collect bookmark sitemap entries",
+      error,
+      {
+        entries: [],
+        paginatedEntries: [],
+        latestBookmarkUpdateTime: undefined,
+      },
+      "throw-in-production",
+    );
   }
 };
 
@@ -209,9 +214,14 @@ export const collectTagSitemapData = async (
 
     return { tagEntries, paginatedTagEntries };
   } catch (error) {
-    return handleSitemapCollectorError("Failed to collect bookmark tag sitemap entries", error, {
-      tagEntries: [],
-      paginatedTagEntries: [],
-    });
+    return handleSitemapCollectorError(
+      "Failed to collect bookmark tag sitemap entries",
+      error,
+      {
+        tagEntries: [],
+        paginatedTagEntries: [],
+      },
+      "throw-in-production",
+    );
   }
 };
