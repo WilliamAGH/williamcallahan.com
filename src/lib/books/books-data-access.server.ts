@@ -20,7 +20,7 @@ import { readJsonS3Optional } from "@/lib/s3/json";
 import { BOOKS_S3_PATHS } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getMonotonicTime } from "@/lib/utils";
-import { cacheContextGuards } from "@/lib/cache";
+import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import {
   booksDatasetSchema,
   booksLatestSchema,
@@ -179,7 +179,11 @@ async function getCachedBooksState(): Promise<{ books: Book[]; isFallback: boole
 // Cached Internal Implementation
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function fetchBooksInternal(): Promise<{ books: Book[]; isFallback: boolean }> {
+/**
+ * Cache-wrapped internal fetch with Next.js "use cache" directive.
+ * Isolated so the directive is only activated when USE_NEXTJS_CACHE is true.
+ */
+async function fetchBooksCached(): Promise<{ books: Book[]; isFallback: boolean }> {
   "use cache";
 
   const state = await getCachedBooksState();
@@ -190,6 +194,19 @@ async function fetchBooksInternal(): Promise<{ books: Book[]; isFallback: boolea
   cacheContextGuards.cacheTag("Books", "books-dataset");
 
   return state;
+}
+
+/**
+ * Gate on USE_NEXTJS_CACHE following the established codebase pattern
+ * (see bookmarks-data-access.server.ts:184-195 for reference).
+ */
+async function fetchBooksInternal(): Promise<{ books: Book[]; isFallback: boolean }> {
+  return USE_NEXTJS_CACHE
+    ? withCacheFallback(
+        () => fetchBooksCached(),
+        () => getCachedBooksState(),
+      )
+    : getCachedBooksState();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
