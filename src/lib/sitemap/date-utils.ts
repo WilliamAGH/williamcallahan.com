@@ -1,9 +1,9 @@
 /**
- * Sitemap Date Utilities
+ * Sitemap Collector Utilities
  * @module lib/sitemap/date-utils
  * @description
- * Date parsing, path sanitization, and test environment detection
- * used across all sitemap collector modules.
+ * Shared helpers for sitemap collectors: date parsing, path sanitization,
+ * error handling, and test-environment detection.
  */
 
 import type { UnifiedBookmark } from "@/types";
@@ -15,13 +15,13 @@ export const sanitizePathSegment = (segment: string): string =>
   segment.replace(/[^\u0020-\u007E]/g, "");
 
 /**
- * Safely parse a date string (including bare YYYY-MM-DD) into a Date.
- * Returns `undefined` for falsy or unparseable input.
+ * Safely parse a value into a Date. Accepts unknown input (e.g. frontmatter
+ * fields, S3 metadata) and returns `undefined` for falsy or unparseable values.
+ * Bare YYYY-MM-DD strings are treated as end-of-day UTC to ensure they sort
+ * after any same-day timestamped entries.
  */
-export const getSafeDate = (
-  dateInput: string | Date | number | undefined | null,
-): Date | undefined => {
-  if (!dateInput) return undefined;
+export const getSafeDate = (dateInput: unknown): Date | undefined => {
+  if (dateInput === null || dateInput === undefined || dateInput === "") return undefined;
   try {
     let dateStr = String(dateInput);
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
@@ -66,3 +66,19 @@ export const resolveBookmarkLastModified = (
  */
 export const isTestEnvironment = (): boolean =>
   process.env.NODE_ENV === "test" || process.env.VITEST === "true" || process.env.TEST === "true";
+
+/**
+ * Shared error handler for sitemap collectors.
+ * Logs the error and returns a default fallback value.
+ * In test environments, it rethrows to ensure failures are caught.
+ */
+export const handleSitemapCollectorError = <T>(context: string, error: unknown, fallback: T): T => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`[Sitemap] ${context}:`, message);
+
+  if (isTestEnvironment()) {
+    throw error;
+  }
+
+  return fallback;
+};

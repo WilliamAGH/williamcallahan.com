@@ -28,7 +28,7 @@ import {
   getSafeDate,
   getLatestDate,
   resolveBookmarkLastModified,
-  isTestEnvironment,
+  handleSitemapCollectorError,
 } from "@/lib/sitemap/date-utils";
 
 export const buildPaginatedBookmarkEntries = (
@@ -139,18 +139,11 @@ export const collectBookmarkSitemapData = async (
       latestBookmarkUpdateTime,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[Sitemap] Failed to collect bookmark sitemap entries:", message);
-
-    if (isTestEnvironment()) {
-      throw error;
-    }
-
-    return {
+    return handleSitemapCollectorError("Failed to collect bookmark sitemap entries", error, {
       entries: [],
       paginatedEntries: [],
       latestBookmarkUpdateTime: undefined,
-    };
+    });
   }
 };
 
@@ -160,14 +153,14 @@ export const collectTagSitemapData = async (
   tagEntries: MetadataRoute.Sitemap;
   paginatedTagEntries: MetadataRoute.Sitemap;
 }> => {
-  const tagEntries: MetadataRoute.Sitemap = [];
-  const paginatedTagEntries: MetadataRoute.Sitemap = [];
-
   try {
     const tagSlugs = await listBookmarkTagSlugs();
     if (tagSlugs.length === 0) {
-      return { tagEntries, paginatedTagEntries };
+      return { tagEntries: [], paginatedTagEntries: [] };
     }
+
+    const tagEntries: MetadataRoute.Sitemap = [];
+    const paginatedTagEntries: MetadataRoute.Sitemap = [];
 
     if (tagSlugs.length > TAG_INDEX_LOOKUP_BUDGET) {
       console.warn(
@@ -213,16 +206,12 @@ export const collectTagSitemapData = async (
         });
       }
     }
+
+    return { tagEntries, paginatedTagEntries };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[Sitemap] Failed to collect bookmark tag sitemap entries:", message);
-
-    if (isTestEnvironment()) {
-      throw error;
-    }
-
-    return { tagEntries: [], paginatedTagEntries: [] };
+    return handleSitemapCollectorError("Failed to collect bookmark tag sitemap entries", error, {
+      tagEntries: [],
+      paginatedTagEntries: [],
+    });
   }
-
-  return { tagEntries, paginatedTagEntries };
 };

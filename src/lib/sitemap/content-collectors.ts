@@ -22,7 +22,7 @@ import {
   sanitizePathSegment,
   getSafeDate,
   getLatestDate,
-  isTestEnvironment,
+  handleSitemapCollectorError,
 } from "@/lib/sitemap/date-utils";
 
 export const collectBookSitemapData = async (
@@ -51,14 +51,10 @@ export const collectBookSitemapData = async (
       latestBookUpdateTime: getSafeDate(PAGE_METADATA.books?.dateModified),
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[Sitemap] Failed to collect book sitemap entries:", message);
-
-    if (isTestEnvironment()) {
-      throw error;
-    }
-
-    return { entries: [], latestBookUpdateTime: undefined };
+    return handleSitemapCollectorError("Failed to collect book sitemap entries", error, {
+      entries: [],
+      latestBookUpdateTime: undefined,
+    });
   }
 };
 
@@ -110,13 +106,9 @@ export const collectThoughtSitemapData = async (
       latestThoughtUpdateTime: latestDate,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[Sitemap] Failed to collect thought sitemap entries:", message);
-
-    if (isTestEnvironment()) {
-      throw error;
-    }
-
-    return { entries: [], latestThoughtUpdateTime: undefined };
+    return handleSitemapCollectorError("Failed to collect thought sitemap entries", error, {
+      entries: [],
+      latestThoughtUpdateTime: undefined,
+    });
   }
 };
