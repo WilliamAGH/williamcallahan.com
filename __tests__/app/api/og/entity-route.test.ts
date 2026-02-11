@@ -41,6 +41,7 @@ function createMockRequest(url: string) {
       searchParams: fullUrl.searchParams,
       origin: fullUrl.origin,
     },
+    headers: new Headers({ host: fullUrl.host }),
   } as unknown as import("next/server").NextRequest;
 }
 
