@@ -13,7 +13,8 @@ import { renderBranding } from "./shared-branding";
 import { renderPlaceholderScreenshot } from "./shared-placeholder";
 
 export function renderBookmarkLayout({ title, domain, screenshotDataUrl }: OgBookmarkLayoutProps) {
-  const displayTitle = truncateText(title, 70);
+  const displayTitle = truncateText(title, 34);
+  const displayDomain = domain ? truncateText(domain, 24) : "";
 
   return (
     <div
@@ -42,7 +43,7 @@ export function renderBookmarkLayout({ title, domain, screenshotDataUrl }: OgBoo
             display: "flex",
             alignItems: "flex-start",
             justifyContent: "center",
-            width: OG_LAYOUT.coverWidth,
+            width: OG_LAYOUT.screenshotColumnWidth,
             flexShrink: 0,
           }}
         >
@@ -50,11 +51,11 @@ export function renderBookmarkLayout({ title, domain, screenshotDataUrl }: OgBoo
             <img
               src={screenshotDataUrl}
               alt=""
-              width={OG_LAYOUT.coverImageWidth}
-              height={240}
+              width={OG_LAYOUT.screenshotImageWidth}
+              height={OG_LAYOUT.screenshotImageHeight}
               style={{
-                width: OG_LAYOUT.coverImageWidth,
-                height: 240,
+                width: OG_LAYOUT.screenshotImageWidth,
+                height: OG_LAYOUT.screenshotImageHeight,
                 objectFit: "cover",
                 borderRadius: OG_LAYOUT.borderRadius,
                 boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
@@ -72,7 +73,7 @@ export function renderBookmarkLayout({ title, domain, screenshotDataUrl }: OgBoo
             display: "flex",
             flexDirection: "column",
             flex: 1,
-            paddingLeft: OG_LAYOUT.contentGap,
+            paddingLeft: OG_LAYOUT.screenshotContentGap,
             justifyContent: "flex-start",
           }}
         >
@@ -80,12 +81,12 @@ export function renderBookmarkLayout({ title, domain, screenshotDataUrl }: OgBoo
           <div
             style={{
               display: "flex",
-              fontSize: 20,
-              fontWeight: 600,
+              fontSize: OG_TYPOGRAPHY.sectionLabel.size,
+              fontWeight: OG_TYPOGRAPHY.sectionLabel.weight,
               color: OG_COLORS.accent,
-              marginBottom: 16,
+              marginBottom: 20,
               textTransform: "uppercase",
-              letterSpacing: 2,
+              letterSpacing: OG_TYPOGRAPHY.sectionLabel.letterSpacing,
             }}
           >
             Bookmark
@@ -94,26 +95,26 @@ export function renderBookmarkLayout({ title, domain, screenshotDataUrl }: OgBoo
           <div
             style={{
               display: "flex",
-              fontSize: OG_TYPOGRAPHY.title.size,
-              fontWeight: OG_TYPOGRAPHY.title.weight,
+              fontSize: OG_TYPOGRAPHY.screenshotTitle.size,
+              fontWeight: OG_TYPOGRAPHY.screenshotTitle.weight,
               color: OG_COLORS.text,
-              lineHeight: OG_TYPOGRAPHY.title.lineHeight,
-              marginBottom: 20,
+              lineHeight: OG_TYPOGRAPHY.screenshotTitle.lineHeight,
+              marginBottom: 24,
             }}
           >
             {displayTitle}
           </div>
 
-          {domain && (
+          {displayDomain && (
             <div
               style={{
                 display: "flex",
-                fontSize: OG_TYPOGRAPHY.subtitle.size,
-                fontWeight: OG_TYPOGRAPHY.subtitle.weight,
+                fontSize: OG_TYPOGRAPHY.screenshotSubtitle.size,
+                fontWeight: OG_TYPOGRAPHY.screenshotSubtitle.weight,
                 color: OG_COLORS.textMuted,
               }}
             >
-              {domain}
+              {displayDomain}
             </div>
           )}
         </div>

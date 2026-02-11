@@ -13,7 +13,7 @@ import { renderBranding } from "./shared-branding";
 import { renderPlaceholderScreenshot } from "./shared-placeholder";
 
 export function renderProjectLayout({ title, screenshotDataUrl }: OgProjectLayoutProps) {
-  const displayTitle = truncateText(title, 60);
+  const displayTitle = truncateText(title, 36);
 
   return (
     <div
@@ -42,7 +42,7 @@ export function renderProjectLayout({ title, screenshotDataUrl }: OgProjectLayou
             display: "flex",
             alignItems: "flex-start",
             justifyContent: "center",
-            width: OG_LAYOUT.coverWidth,
+            width: OG_LAYOUT.screenshotColumnWidth,
             flexShrink: 0,
           }}
         >
@@ -50,11 +50,11 @@ export function renderProjectLayout({ title, screenshotDataUrl }: OgProjectLayou
             <img
               src={screenshotDataUrl}
               alt=""
-              width={OG_LAYOUT.coverImageWidth}
-              height={240}
+              width={OG_LAYOUT.screenshotImageWidth}
+              height={OG_LAYOUT.screenshotImageHeight}
               style={{
-                width: OG_LAYOUT.coverImageWidth,
-                height: 240,
+                width: OG_LAYOUT.screenshotImageWidth,
+                height: OG_LAYOUT.screenshotImageHeight,
                 objectFit: "cover",
                 borderRadius: OG_LAYOUT.borderRadius,
                 boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
@@ -72,7 +72,7 @@ export function renderProjectLayout({ title, screenshotDataUrl }: OgProjectLayou
             display: "flex",
             flexDirection: "column",
             flex: 1,
-            paddingLeft: OG_LAYOUT.contentGap,
+            paddingLeft: OG_LAYOUT.screenshotContentGap,
             justifyContent: "flex-start",
           }}
         >
@@ -80,12 +80,12 @@ export function renderProjectLayout({ title, screenshotDataUrl }: OgProjectLayou
           <div
             style={{
               display: "flex",
-              fontSize: 20,
-              fontWeight: 600,
+              fontSize: OG_TYPOGRAPHY.sectionLabel.size,
+              fontWeight: OG_TYPOGRAPHY.sectionLabel.weight,
               color: OG_COLORS.accent,
-              marginBottom: 16,
+              marginBottom: 20,
               textTransform: "uppercase",
-              letterSpacing: 2,
+              letterSpacing: OG_TYPOGRAPHY.sectionLabel.letterSpacing,
             }}
           >
             Project
@@ -94,11 +94,11 @@ export function renderProjectLayout({ title, screenshotDataUrl }: OgProjectLayou
           <div
             style={{
               display: "flex",
-              fontSize: OG_TYPOGRAPHY.title.size,
-              fontWeight: OG_TYPOGRAPHY.title.weight,
+              fontSize: OG_TYPOGRAPHY.screenshotTitle.size,
+              fontWeight: OG_TYPOGRAPHY.screenshotTitle.weight,
               color: OG_COLORS.text,
-              lineHeight: OG_TYPOGRAPHY.title.lineHeight,
-              marginBottom: 24,
+              lineHeight: OG_TYPOGRAPHY.screenshotTitle.lineHeight,
+              marginBottom: 26,
             }}
           >
             {displayTitle}
