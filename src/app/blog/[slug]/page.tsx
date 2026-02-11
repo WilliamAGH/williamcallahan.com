@@ -17,6 +17,7 @@ import type { BlogPostPageProps, SoftwarePostDetails } from "@/types/blog";
 import { getPostBySlug, getPostMetaBySlug } from "@/lib/blog.ts";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/seo/metadata.ts";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
+import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 import type { ExtendedMetadata } from "@/types/seo";
 import { notFound } from "next/navigation";
 import { BlogArticle } from "../../../components/features/blog";
@@ -116,12 +117,27 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
         useNewsArticle: true,
       });
 
+  // Build dynamic OG image with branded layout
+  const ogImageUrl = buildOgImageUrl("blog", {
+    title: post.title,
+    author: post.author.name,
+    coverUrl: post.coverImage ?? undefined,
+    tags: post.tags?.slice(0, 4).join(","),
+  });
+  const ogImage = { url: ogImageUrl, width: 1200, height: 630, alt: post.title };
+
   const metadata: ExtendedMetadata = {
     title: articleMetadata.title,
     description: articleMetadata.description,
     alternates: articleMetadata.alternates,
-    openGraph: articleMetadata.openGraph,
-    twitter: articleMetadata.twitter,
+    openGraph: {
+      ...articleMetadata.openGraph,
+      images: [ogImage],
+    },
+    twitter: {
+      ...articleMetadata.twitter,
+      images: [ogImage],
+    },
     ...(articleMetadata.script && { script: articleMetadata.script }),
   };
 
