@@ -115,7 +115,7 @@ async function refreshCache(): Promise<void> {
 
   const refreshGeneration = cacheGeneration;
 
-  inflightRefresh = (async () => {
+  const thisRefresh: Promise<void> = (async () => {
     try {
       const books = await loadBooksFromS3();
 
@@ -137,11 +137,20 @@ async function refreshCache(): Promise<void> {
         cache = { books: [], timestamp: getMonotonicTime(), lastRefreshFailed: true };
       }
     }
-  })().finally(() => {
-    inflightRefresh = null;
+  })();
+
+  inflightRefresh = thisRefresh;
+
+  // Compare-and-swap cleanup: only clear inflightRefresh if it still points to
+  // THIS refresh. clearBooksCache() may have started a new refresh in the meantime,
+  // and unconditionally nullifying would break coalescing for the newer promise.
+  void thisRefresh.finally(() => {
+    if (inflightRefresh === thisRefresh) {
+      inflightRefresh = null;
+    }
   });
 
-  return inflightRefresh;
+  return thisRefresh;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -155,9 +164,11 @@ async function getCachedBooksState(): Promise<{ books: Book[]; isFallback: boole
   if (!isCacheFresh()) {
     await refreshCache();
   }
+  // When cache is null (cleared during an inflight refresh, or never populated),
+  // report isFallback: true so callers know the empty array is not authoritative.
   return {
     books: cache?.books ?? [],
-    isFallback: cache?.lastRefreshFailed ?? false,
+    isFallback: cache === null || cache.lastRefreshFailed,
   };
 }
 
