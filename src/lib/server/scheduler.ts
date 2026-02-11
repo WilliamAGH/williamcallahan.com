@@ -83,318 +83,125 @@ const booksCron = process.env.S3_BOOKS_CRON || "0 6 * * *"; // daily at 6 AM PT 
 const githubCron = process.env.S3_GITHUB_CRON || "0 0 * * *"; // daily at midnight (1x/day)
 const logosCron = process.env.S3_LOGOS_CRON || "0 1 * * 0"; // weekly Sunday at 1 AM (1x/week)
 
-console.log(`[Scheduler] Bookmarks schedule: ${bookmarksCron} (every 2 hours)`);
-cron.schedule(bookmarksCron, () => {
-  console.log(
-    `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Cron triggered at ${new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })}. Preparing to spawn update-s3...`,
-  );
-  const jitter = randomInt(DEFAULT_JITTER_MS);
-  console.log(
-    `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Applying jitter of ${jitter}ms before update-s3`,
-  );
-  setTimeout(() => {
-    // Check if job is already running
-    if (runningJobs.has("bookmarks")) {
-      console.warn(
-        `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Job is already running, skipping this execution`,
+/**
+ * Schedule a recurring data update job.
+ * Handles jitter, concurrency locks, process spawning, and cache invalidation.
+ */
+const scheduleCronJob = (
+  name: string,
+  schedule: string,
+  flag: string,
+  revalidatePath?: string,
+  authSecretKey?: string,
+) => {
+  console.log(`[Scheduler] ${name} schedule: ${schedule}`);
+  cron.schedule(schedule, () => {
+    const now = new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" });
+    console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Triggered at ${now}`);
+
+    const jitter = randomInt(DEFAULT_JITTER_MS);
+    console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Jitter: ${jitter}ms`);
+
+    setTimeout(() => {
+      if (runningJobs.has(name)) {
+        console.warn(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Already running, skipping`);
+        return;
+      }
+      runningJobs.add(name);
+
+      console.log(
+        `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Spawning: bun run update-s3 -- ${flag}`,
       );
-      return;
-    }
-    runningJobs.add("bookmarks");
-    console.log(
-      `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Command: bun run update-s3 -- ${DATA_UPDATER_FLAGS.BOOKMARKS}`,
-    );
-    console.log(
-      `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Using S3_BUCKET=${process.env.S3_BUCKET}`,
-    );
 
-    const updateProcess = spawn("bun", ["run", "update-s3", "--", DATA_UPDATER_FLAGS.BOOKMARKS], {
-      env: process.env,
-      stdio: "inherit",
-      detached: false,
-    });
+      const updateProcess = spawn("bun", ["run", "update-s3", "--", flag], {
+        env: process.env,
+        stdio: "inherit",
+        detached: false,
+      });
 
-    updateProcess.on("error", (err) => {
-      console.error(
-        `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Failed to start update-s3 process:`,
-        err,
-      );
-    });
-
-    updateProcess.on("close", (code) => {
-      // Remove from running jobs
-      runningJobs.delete("bookmarks");
-
-      if (code !== 0) {
+      updateProcess.on("error", (err) => {
         console.error(
-          `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] update-s3 script failed (code ${code}).`,
+          `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Failed to start process:`,
+          err,
         );
-      } else {
-        console.log(
-          `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] update-s3 script completed successfully`,
-        );
+      });
 
-        // Invalidate Next.js cache to serve fresh data
-        console.log("[Scheduler] [Bookmarks] Invalidating Next.js cache for bookmarks...");
-        const apiUrl = getBaseUrl();
-        const revalidateUrl = new URL("/api/revalidate/bookmarks", apiUrl).toString();
+      updateProcess.on("close", (code) => {
+        runningJobs.delete(name);
 
-        // Only include auth header if secret is configured
-        const headers = process.env.BOOKMARK_CRON_REFRESH_SECRET
-          ? { Authorization: `Bearer ${process.env.BOOKMARK_CRON_REFRESH_SECRET}` }
-          : undefined;
+        if (code !== 0) {
+          console.error(
+            `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Script failed (code ${code})`,
+          );
+          return;
+        }
 
-        // Add timeout using AbortController
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10_000); // 10 second timeout
+        console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Script completed`);
 
-        fetch(revalidateUrl, {
-          method: "POST",
-          headers,
-          signal: controller.signal,
-        })
-          .then((response) => {
-            clearTimeout(timeoutId);
-            if (response.ok) {
-              console.log("[Scheduler] [Bookmarks] ✅ Cache invalidated successfully");
-            } else {
-              console.error(
-                `[Scheduler] [Bookmarks] Cache invalidation failed with status ${response.status}`,
-              );
-            }
-            return null;
-          })
-          .catch((error) => {
-            clearTimeout(timeoutId);
-            if (error instanceof Error && error.name === "AbortError") {
-              console.error(
-                "[Scheduler] [Bookmarks] Cache invalidation timed out after 10 seconds",
-              );
-            } else {
-              console.error("[Scheduler] [Bookmarks] Failed to invalidate cache:", error);
-            }
-          });
+        if (name === "Logos") {
+          return; // Logos don't need explicit revalidation (handled by manifest reload)
+        }
 
-        // Submit updated sitemap to search engines
-        console.log(
-          "[Scheduler] [Bookmarks] Submitting updated sitemap to search engines asynchronously...",
-        );
-        const sitemapProcess = spawn("bun", ["run", "submit-sitemap"], {
-          env: process.env,
-          stdio: "inherit",
-        });
+        if (revalidatePath) {
+          console.log(`[Scheduler] [${name}] Invalidating cache: ${revalidatePath}`);
+          const apiUrl = getBaseUrl();
+          const revalidateUrl = new URL(revalidatePath, apiUrl).toString();
+          const secret = authSecretKey ? process.env[authSecretKey] : undefined;
+          const headers = secret ? { Authorization: `Bearer ${secret}` } : undefined;
 
-        sitemapProcess.on("error", (err) => {
-          console.error("[Scheduler] [Bookmarks] Failed to start sitemap submission process:", err);
-        });
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10_000);
 
-        sitemapProcess.on("close", (code) => {
-          if (code !== 0) {
-            console.error(`[Scheduler] [Bookmarks] Sitemap submission failed (code ${code}).`);
-          } else {
-            console.log("[Scheduler] [Bookmarks] Sitemap submitted successfully to search engines");
-          }
-        });
-      }
-    });
-  }, jitter);
-});
+          fetch(revalidateUrl, { method: "POST", headers, signal: controller.signal })
+            .then((res) => {
+              clearTimeout(timeoutId);
+              if (res.ok) console.log(`[Scheduler] [${name}] ✅ Cache invalidated`);
+              else console.error(`[Scheduler] [${name}] Cache invalidation failed: ${res.status}`);
+              return null;
+            })
+            .catch((err) => {
+              clearTimeout(timeoutId);
+              console.error(`[Scheduler] [${name}] Cache invalidation error:`, err);
+              return null;
+            });
+        }
 
-console.log(`[Scheduler] GitHub Activity schedule: ${githubCron} (daily at midnight)`);
-cron.schedule(githubCron, () => {
-  console.log(
-    `[Scheduler] [GitHub] Cron triggered at ${new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })}. Preparing to spawn update-s3...`,
-  );
-  const jitterGH = randomInt(DEFAULT_JITTER_MS);
-  console.log(`[Scheduler] [GitHub] Applying jitter of ${jitterGH}ms before update-s3`);
-  setTimeout(() => {
-    // Check if job is already running
-    if (runningJobs.has("github")) {
-      console.warn("[Scheduler] [GitHub] Job is already running, skipping this execution");
-      return;
-    }
-    runningJobs.add("github");
-    // CRITICAL: Use --github flag, NOT --github-activity (data-updater expects --github)
-    console.log(`[Scheduler] [GitHub] Command: bun run update-s3 -- ${DATA_UPDATER_FLAGS.GITHUB}`);
-    console.log(`[Scheduler] [GitHub] Using S3_BUCKET=${process.env.S3_BUCKET}`);
+        if (name === "Bookmarks") {
+          console.log(`[Scheduler] [${name}] Submitting sitemap...`);
+          spawn("bun", ["run", "submit-sitemap"], { env: process.env, stdio: "inherit" });
+        }
+      });
+    }, jitter);
+  });
+};
 
-    const updateProcess = spawn("bun", ["run", "update-s3", "--", DATA_UPDATER_FLAGS.GITHUB], {
-      env: process.env,
-      stdio: "inherit",
-      detached: false,
-    });
+// Register Jobs
+scheduleCronJob(
+  "Bookmarks",
+  bookmarksCron,
+  DATA_UPDATER_FLAGS.BOOKMARKS,
+  "/api/revalidate/bookmarks",
+  "BOOKMARK_CRON_REFRESH_SECRET",
+);
 
-    updateProcess.on("error", (err) => {
-      console.error("[Scheduler] [GitHub] Failed to start update-s3 process:", err);
-    });
+scheduleCronJob(
+  "Books",
+  booksCron,
+  DATA_UPDATER_FLAGS.BOOKS,
+  "/api/revalidate/books",
+  "BOOKMARK_CRON_REFRESH_SECRET",
+);
 
-    updateProcess.on("close", (code) => {
-      // Remove from running jobs
-      runningJobs.delete("github");
+// CRITICAL: Use --github flag (mapped to GITHUB constant), NOT --github-activity
+scheduleCronJob(
+  "GitHub",
+  githubCron,
+  DATA_UPDATER_FLAGS.GITHUB,
+  "/api/revalidate/github-activity",
+  "GITHUB_CRON_REFRESH_SECRET",
+);
 
-      if (code !== 0) {
-        console.error(`[Scheduler] [GitHub] update-s3 script failed (code ${code}).`);
-      } else {
-        console.log("[Scheduler] [GitHub] update-s3 script completed successfully");
-
-        // Invalidate Next.js cache to serve fresh data (mirrors bookmarks pattern)
-        console.log("[Scheduler] [GitHub] Invalidating Next.js cache for GitHub activity...");
-        const apiUrl = getBaseUrl();
-        const revalidateUrl = new URL("/api/revalidate/github-activity", apiUrl).toString();
-
-        // Only include auth header if secret is configured
-        const headers = process.env.GITHUB_CRON_REFRESH_SECRET
-          ? { Authorization: `Bearer ${process.env.GITHUB_CRON_REFRESH_SECRET}` }
-          : process.env.BOOKMARK_CRON_REFRESH_SECRET
-            ? { Authorization: `Bearer ${process.env.BOOKMARK_CRON_REFRESH_SECRET}` }
-            : undefined;
-
-        // Add timeout using AbortController
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10_000); // 10 second timeout
-
-        fetch(revalidateUrl, {
-          method: "POST",
-          headers,
-          signal: controller.signal,
-        })
-          .then((response) => {
-            clearTimeout(timeoutId);
-            if (response.ok) {
-              console.log("[Scheduler] [GitHub] ✅ Cache invalidated successfully");
-            } else {
-              console.error(
-                `[Scheduler] [GitHub] Cache invalidation failed with status ${response.status}`,
-              );
-            }
-            return null;
-          })
-          .catch((error) => {
-            clearTimeout(timeoutId);
-            if (error instanceof Error && error.name === "AbortError") {
-              console.error("[Scheduler] [GitHub] Cache invalidation timed out after 10 seconds");
-            } else {
-              console.error("[Scheduler] [GitHub] Failed to invalidate cache:", error);
-            }
-          });
-      }
-    });
-  }, jitterGH);
-});
-
-console.log(`[Scheduler] Books schedule: ${booksCron} (daily at 6 AM PT)`);
-cron.schedule(booksCron, () => {
-  console.log(
-    `[Scheduler] [Books] Cron triggered at ${new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })}. Preparing to spawn update-s3...`,
-  );
-  const jitterBooks = randomInt(DEFAULT_JITTER_MS);
-  console.log(`[Scheduler] [Books] Applying jitter of ${jitterBooks}ms before update-s3`);
-  setTimeout(() => {
-    if (runningJobs.has("books")) {
-      console.warn("[Scheduler] [Books] Job is already running, skipping this execution");
-      return;
-    }
-    runningJobs.add("books");
-    console.log(`[Scheduler] [Books] Command: bun run update-s3 -- ${DATA_UPDATER_FLAGS.BOOKS}`);
-
-    const updateProcess = spawn("bun", ["run", "update-s3", "--", DATA_UPDATER_FLAGS.BOOKS], {
-      env: process.env,
-      stdio: "inherit",
-      detached: false,
-    });
-
-    updateProcess.on("error", (err) => {
-      console.error("[Scheduler] [Books] Failed to start update-s3 process:", err);
-    });
-
-    updateProcess.on("close", (code) => {
-      runningJobs.delete("books");
-
-      if (code !== 0) {
-        console.error(`[Scheduler] [Books] update-s3 script failed (code ${code}).`);
-      } else {
-        console.log("[Scheduler] [Books] update-s3 script completed successfully");
-
-        // Invalidate Next.js cache to serve fresh book data
-        console.log("[Scheduler] [Books] Invalidating Next.js cache for books...");
-        const apiUrl = getBaseUrl();
-        const revalidateUrl = new URL("/api/revalidate/books", apiUrl).toString();
-
-        const headers = process.env.BOOKMARK_CRON_REFRESH_SECRET
-          ? { Authorization: `Bearer ${process.env.BOOKMARK_CRON_REFRESH_SECRET}` }
-          : undefined;
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10_000);
-
-        fetch(revalidateUrl, {
-          method: "POST",
-          headers,
-          signal: controller.signal,
-        })
-          .then((response) => {
-            clearTimeout(timeoutId);
-            if (response.ok) {
-              console.log("[Scheduler] [Books] ✅ Cache invalidated successfully");
-            } else {
-              console.error(
-                `[Scheduler] [Books] Cache invalidation failed with status ${response.status}`,
-              );
-            }
-            return null;
-          })
-          .catch((error) => {
-            clearTimeout(timeoutId);
-            if (error instanceof Error && error.name === "AbortError") {
-              console.error("[Scheduler] [Books] Cache invalidation timed out after 10 seconds");
-            } else {
-              console.error("[Scheduler] [Books] Failed to invalidate cache:", error);
-            }
-          });
-      }
-    });
-  }, jitterBooks);
-});
-
-console.log(`[Scheduler] Logos schedule: ${logosCron} (weekly Sunday 1 AM)`);
-cron.schedule(logosCron, () => {
-  console.log(
-    `[Scheduler] [Logos] Cron triggered at ${new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })}. Preparing to spawn update-s3...`,
-  );
-  const jitterLogo = randomInt(DEFAULT_JITTER_MS);
-  console.log(`[Scheduler] [Logos] Applying jitter of ${jitterLogo}ms before update-s3`);
-  setTimeout(() => {
-    // Check if job is already running
-    if (runningJobs.has("logos")) {
-      console.warn("[Scheduler] [Logos] Job is already running, skipping this execution");
-      return;
-    }
-    runningJobs.add("logos");
-    console.log(`[Scheduler] [Logos] Command: bun run update-s3 -- ${DATA_UPDATER_FLAGS.LOGOS}`);
-    console.log(`[Scheduler] [Logos] Using S3_BUCKET=${process.env.S3_BUCKET}`);
-
-    const updateProcess = spawn("bun", ["run", "update-s3", "--", DATA_UPDATER_FLAGS.LOGOS], {
-      env: process.env,
-      stdio: "inherit",
-      detached: false,
-    });
-
-    updateProcess.on("error", (err) => {
-      console.error("[Scheduler] [Logos] Failed to start update-s3 process:", err);
-    });
-
-    updateProcess.on("close", (code) => {
-      // Remove from running jobs
-      runningJobs.delete("logos");
-
-      if (code !== 0) {
-        console.error(`[Scheduler] [Logos] update-s3 script failed (code ${code}).`);
-      } else {
-        console.log("[Scheduler] [Logos] update-s3 script completed successfully");
-      }
-    });
-  }, jitterLogo);
-});
+scheduleCronJob("Logos", logosCron, DATA_UPDATER_FLAGS.LOGOS);
 
 // The scheduler process remains alive indefinitely, waiting for cron events.
 // DO NOT EXIT this process - it must stay running for scheduled updates to occur.
