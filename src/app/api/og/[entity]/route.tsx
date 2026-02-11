@@ -53,6 +53,30 @@ function searchParamsToRecord(searchParams: URLSearchParams): Record<string, str
   return record;
 }
 
+/**
+ * Derive the public-facing origin from request headers.
+ *
+ * On reverse-proxy deployments (Railway, Vercel, etc.) `request.nextUrl.origin`
+ * may resolve to an internal address (e.g. `http://0.0.0.0:PORT`) because the
+ * framework reconstructs the URL from the raw socket, not the proxy headers.
+ * This breaks self-referential fetches to sibling API routes like `/api/assets/`.
+ *
+ * The `Host` header always reflects the public hostname the client connected to,
+ * and `x-forwarded-proto` carries the original protocol from the TLS-terminating
+ * proxy. Together they give the correct public origin for resolving relative URLs.
+ */
+function getPublicOrigin(request: NextRequest): string {
+  const host = request.headers.get("host");
+  if (!host) return request.nextUrl.origin;
+
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  if (forwardedProto) return `${forwardedProto}://${host}`;
+
+  const isLocal =
+    host.startsWith("localhost") || host.startsWith("127.") || host.startsWith("[::1]");
+  return `${isLocal ? "http" : "https"}://${host}`;
+}
+
 /** Render the appropriate layout based on entity type */
 async function renderEntity(
   entity: OgEntity,
@@ -107,7 +131,8 @@ export async function GET(
     return new Response(`Invalid entity type: ${rawEntity}`, { status: 400 });
   }
 
-  const { searchParams, origin } = request.nextUrl;
+  const { searchParams } = request.nextUrl;
+  const origin = getPublicOrigin(request);
   const queryParams = searchParamsToRecord(searchParams);
 
   try {
