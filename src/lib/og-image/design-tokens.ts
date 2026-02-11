@@ -29,6 +29,8 @@ export const OG_LAYOUT = {
   screenshotContentGap: 24,
   contentGap: 48,
   borderRadius: 16,
+  faviconSize: 20,
+  faviconBorderRadius: 4,
 } as const;
 
 /** Typography scale for OG images */
