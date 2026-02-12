@@ -1,5 +1,5 @@
 /**
- * Modern Analytics Implementation for Next.js 15
+ * Modern Analytics Implementation for Next.js 16
  * Following official documentation from each provider
  *
  * Key insights:
@@ -14,6 +14,9 @@ import Image from "next/image";
 import Script from "next/script";
 import type { JSX } from "react";
 
+/** Umami hard limit on event names (see GH issue #2986) */
+const UMAMI_MAX_EVENT_NAME_LENGTH = 50;
+
 /**
  * Analytics component following official provider documentation
  * - Umami: Auto-tracks pageviews via data attributes
@@ -22,34 +25,63 @@ import type { JSX } from "react";
  * - Clicky: Auto-tracks pageviews
  */
 export function Analytics(): JSX.Element | null {
-  // Determine if analytics should run for this render
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-  const shouldSkip =
-    process.env.NODE_ENV === "development" ||
-    !process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID ||
-    !siteUrl ||
-    siteUrl.trim().length === 0;
-
-  if (shouldSkip) {
+  // Skip all analytics in development (compile-time constant; safe for dead-code elimination)
+  if (process.env.NODE_ENV === "development") {
     return null;
   }
+
+  // NEXT_PUBLIC_* values are inlined at build time in the client bundle. If the build step
+  // didn't receive these values, we fall back to runtime-detectable values so analytics
+  // doesn't fully regress in production.
+  const siteUrl = (() => {
+    const envSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+    if (envSiteUrl && envSiteUrl.length > 0) {
+      return envSiteUrl;
+    }
+
+    if (typeof window !== "undefined" && typeof window.location?.origin === "string") {
+      const origin = window.location.origin.trim();
+      if (origin.length > 0) {
+        console.warn(
+          "[Analytics] NEXT_PUBLIC_SITE_URL missing at build time; using window.location.origin",
+        );
+        return origin;
+      }
+    }
+
+    // [RC1] Intentional graceful degradation: this "use client" component cannot throw without
+    // crashing the page. The hardcoded origin ensures Plausible still tracks pageviews during
+    // SSR (where window is unavailable) if the Dockerfile secret mount regresses again.
+    console.warn("[Analytics] NEXT_PUBLIC_SITE_URL missing at build time; using hardcoded origin");
+    return "https://williamcallahan.com";
+  })();
+
+  const umamiWebsiteId = (() => {
+    const envWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID?.trim();
+    return envWebsiteId && envWebsiteId.length > 0 ? envWebsiteId : undefined;
+  })();
 
   const domain = (() => {
     try {
       return new URL(siteUrl).hostname;
     } catch {
+      // [RC1] Intentional graceful degradation: an unparseable siteUrl should not crash the page.
+      // Plausible will still track with the fallback domain; the warning surfaces the config issue.
+      console.warn(`[Analytics] Resolved site URL is not a valid URL: ${siteUrl}`);
       return "williamcallahan.com";
     }
   })();
 
   const shouldLoadUmami = (() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
+    if (!umamiWebsiteId) return false;
+    if (typeof window === "undefined") return false;
     try {
       void window.localStorage.length;
       return true;
     } catch {
+      // [RC1] localStorage unavailable (private browsing, storage disabled, or iframe sandbox).
+      // Skip Umami rather than crash; Plausible/SA/Clicky still track without localStorage.
+      console.warn("[Analytics] localStorage unavailable; skipping Umami");
       return false;
     }
   })();
@@ -62,7 +94,7 @@ export function Analytics(): JSX.Element | null {
           id="umami"
           strategy="afterInteractive"
           src="/stats/script.js"
-          data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+          data-website-id={umamiWebsiteId}
           data-host-url={siteUrl}
           data-auto-track="true"
           onError={() => {
@@ -116,21 +148,20 @@ export function Analytics(): JSX.Element | null {
 
 /**
  * safeTrack — defensive wrapper around window.umami.track
- *   • Truncates event names > 50 chars (Umami hard limit, see GH issue #2986)
+ *   • Truncates event names exceeding UMAMI_MAX_EVENT_NAME_LENGTH
  *   • Silently no-ops if Umami is unavailable (script blocked or disabled)
  */
 export function safeTrack(name: string, data: Record<string, unknown> = {}): void {
-  if (name.length > 50) {
-    console.warn(`[analytics] Event name truncated to 50 chars: ${name}`);
-    name = name.slice(0, 50);
+  if (name.length > UMAMI_MAX_EVENT_NAME_LENGTH) {
+    console.warn(
+      `[analytics] Event name truncated to ${UMAMI_MAX_EVENT_NAME_LENGTH} chars: ${name}`,
+    );
   }
+  const eventName = name.slice(0, UMAMI_MAX_EVENT_NAME_LENGTH);
   try {
-    window.umami?.track?.(name, data);
+    window.umami?.track?.(eventName, data);
   } catch (error: unknown) {
-    // Log error details in debug mode for better diagnosis
-    if (process.env.NODE_ENV === "development" || process.env.DEBUG === "true") {
-      console.error("[analytics] Failed to track event:", { name, data, error });
-    }
-    // Otherwise swallow to keep UI resilient
+    // [RC1] Always log tracking failures so production issues are visible
+    console.warn("[analytics] Failed to track event:", { name: eventName, error });
   }
 }

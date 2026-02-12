@@ -216,13 +216,21 @@ describe("Analytics", () => {
     // This is expected behavior for this test
   });
 
-  it("does not initialize without required environment variables", () => {
-    // Clear environment variables
+  it("skips Umami but renders other providers when Umami env vars are missing", async () => {
+    // Clear Umami-specific environment variables
     process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID = "";
     process.env.NEXT_PUBLIC_SITE_URL = "";
 
-    const { container } = render(<Analytics />);
-    expect(container.innerHTML).toBe("");
+    render(<Analytics />);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+
+    // Umami should NOT be initialized (requires website ID)
+    expect(getGlobalUmami()).toBeUndefined();
+    // Plausible should still be initialized (falls back to hardcoded domain)
+    expect(hasGlobalPlausible()).toBe(true);
   });
 
   it("tracks page views on route changes", async () => {
