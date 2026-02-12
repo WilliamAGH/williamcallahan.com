@@ -76,10 +76,15 @@ export const collectBlogSitemapData = (
       }
     }
   } catch (error) {
-    return handleSitemapCollectorError("Error reading blog posts directory", error, {
-      blogPostEntries: [],
-      blogTagEntries: [],
-    });
+    return handleSitemapCollectorError(
+      "Error reading blog posts directory",
+      error,
+      {
+        blogPostEntries: [],
+        blogTagEntries: [],
+      },
+      "throw-in-production",
+    );
   }
 
   const blogPostEntries: MetadataRoute.Sitemap = postsData.map((post) => ({

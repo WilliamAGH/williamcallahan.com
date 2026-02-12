@@ -69,8 +69,10 @@ export const isTestEnvironment = (): boolean =>
 
 /**
  * Shared error handler for sitemap collectors.
- * Logs the error and returns a default fallback value.
- * Strategy can either throw in tests (default) or throw in production.
+ * Logs the error, then either re-throws or returns a fallback:
+ *
+ *  - "throw-in-production" → THROWS in production, returns fallback in test
+ *  - "throw-in-test"       → THROWS in test, returns fallback in production
  */
 export const handleSitemapCollectorError = <T>(
   context: string,
@@ -82,7 +84,10 @@ export const handleSitemapCollectorError = <T>(
   console.error(`[Sitemap] ${context}:`, message);
 
   const isTestEnv = isTestEnvironment();
-  if (throwStrategy === "throw-in-production" ? !isTestEnv : isTestEnv) {
+  const shouldThrow =
+    (throwStrategy === "throw-in-production" && !isTestEnv) ||
+    (throwStrategy === "throw-in-test" && isTestEnv);
+  if (shouldThrow) {
     throw error;
   }
 
