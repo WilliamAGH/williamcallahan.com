@@ -37,11 +37,17 @@ export async function executeChatCompletionsTurn(
   requestMessages: OpenAiCompatibleChatMessage[],
   params: UpstreamTurnParams,
 ): Promise<UpstreamTurnOutcome> {
-  const { turnConfig, signal, toolChoice, hasToolSupport, onStreamEvent } = params;
+  const { turnConfig, signal, toolChoice, hasToolSupport, forcedToolName, onStreamEvent } = params;
+  const allChatTools = getChatCompletionsTools();
+  const tools = hasToolSupport
+    ? forcedToolName
+      ? allChatTools.filter((t) => t.function.name === forcedToolName)
+      : allChatTools
+    : undefined;
   const request: OpenAiCompatibleChatCompletionsRequest = {
     model: turnConfig.model,
     messages: requestMessages,
-    tools: hasToolSupport ? getChatCompletionsTools() : undefined,
+    tools,
     tool_choice: toolChoice,
     parallel_tool_calls: hasToolSupport ? false : undefined,
     temperature: params.temperature,
@@ -136,11 +142,17 @@ export async function executeResponsesTurn(
   requestMessages: OpenAiCompatibleChatMessage[],
   params: UpstreamTurnParams,
 ): Promise<UpstreamTurnOutcome> {
-  const { turnConfig, signal, toolChoice, hasToolSupport, onStreamEvent } = params;
+  const { turnConfig, signal, toolChoice, hasToolSupport, forcedToolName, onStreamEvent } = params;
+  const allResponsesTools = getResponsesTools();
+  const tools = hasToolSupport
+    ? forcedToolName
+      ? allResponsesTools.filter((t) => t.name === forcedToolName)
+      : allResponsesTools
+    : undefined;
   const request = {
     model: turnConfig.model,
     input: requestMessages,
-    tools: hasToolSupport ? getResponsesTools() : undefined,
+    tools,
     tool_choice: toolChoice,
     parallel_tool_calls: hasToolSupport ? false : undefined,
     temperature: params.temperature,
