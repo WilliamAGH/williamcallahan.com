@@ -192,6 +192,9 @@ RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false 
     --mount=type=secret,id=S3_BUCKET,env=S3_BUCKET,required=false \
     --mount=type=secret,id=S3_SERVER_URL,env=S3_SERVER_URL,required=false \
     --mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL,env=NEXT_PUBLIC_S3_CDN_URL,required=false \
+    --mount=type=secret,id=NEXT_PUBLIC_SITE_URL,env=NEXT_PUBLIC_SITE_URL,required=false \
+    --mount=type=secret,id=NEXT_PUBLIC_UMAMI_WEBSITE_ID,env=NEXT_PUBLIC_UMAMI_WEBSITE_ID,required=false \
+    --mount=type=secret,id=DEPLOYMENT_ENV,env=DEPLOYMENT_ENV,required=false \
     --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN,required=false \
     --mount=type=secret,id=SENTRY_DSN,env=SENTRY_DSN,required=false \
     --mount=type=secret,id=NEXT_PUBLIC_SENTRY_DSN,env=NEXT_PUBLIC_SENTRY_DSN,required=false \

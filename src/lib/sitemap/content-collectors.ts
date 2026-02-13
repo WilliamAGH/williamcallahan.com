@@ -51,10 +51,15 @@ export const collectBookSitemapData = async (
       latestBookUpdateTime: getSafeDate(PAGE_METADATA.books?.dateModified),
     };
   } catch (error) {
-    return handleSitemapCollectorError("Failed to collect book sitemap entries", error, {
-      entries: [],
-      latestBookUpdateTime: undefined,
-    });
+    return handleSitemapCollectorError(
+      "Failed to collect book sitemap entries",
+      error,
+      {
+        entries: [],
+        latestBookUpdateTime: undefined,
+      },
+      "throw-in-production",
+    );
   }
 };
 
@@ -106,9 +111,14 @@ export const collectThoughtSitemapData = async (
       latestThoughtUpdateTime: latestDate,
     };
   } catch (error) {
-    return handleSitemapCollectorError("Failed to collect thought sitemap entries", error, {
-      entries: [],
-      latestThoughtUpdateTime: undefined,
-    });
+    return handleSitemapCollectorError(
+      "Failed to collect thought sitemap entries",
+      error,
+      {
+        entries: [],
+        latestThoughtUpdateTime: undefined,
+      },
+      "throw-in-production",
+    );
   }
 };
