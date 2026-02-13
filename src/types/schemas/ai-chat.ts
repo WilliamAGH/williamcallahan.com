@@ -66,15 +66,6 @@ export const searchToolResultSchema = z.object({
 
 export type SearchToolResult = z.infer<typeof searchToolResultSchema>;
 
-/** @deprecated Use searchToolArgsSchema — kept for backward compatibility */
-export const searchBookmarksToolArgsSchema = searchToolArgsSchema;
-/** @deprecated Use SearchToolArgs — kept for backward compatibility */
-export type SearchBookmarksToolArgs = SearchToolArgs;
-/** @deprecated Use searchToolResultSchema — kept for backward compatibility */
-export const searchBookmarksToolResultSchema = searchToolResultSchema;
-/** @deprecated Use SearchToolResult — kept for backward compatibility */
-export type SearchBookmarksToolResult = SearchToolResult;
-
 // ─────────────────────────────────────────────────────────────────────────────
 // AI Gate Token (auth boundary validation)
 // ─────────────────────────────────────────────────────────────────────────────

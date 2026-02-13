@@ -19,8 +19,6 @@ export type ToolRegistration = {
   searcher: ScopeSearcher;
   /** Regex that triggers forced tool invocation on turn 0 */
   forcePattern: RegExp;
-  /** URL prefix for formatting result links (e.g. "/bookmarks/") */
-  urlPrefix: string;
 };
 /** Server-side stream event — derived from the client-facing schema to prevent drift. */
 export type AiChatModelStreamEvent = AiChatModelStreamUpdate;

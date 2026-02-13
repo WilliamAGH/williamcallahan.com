@@ -49,70 +49,60 @@ const TOOL_REGISTRATIONS: ToolRegistration[] = [
     description: "Searches saved bookmark entries by natural-language query",
     searcher: searchBookmarks,
     forcePattern: /\b(?:bookmarks?|links?|resources?|saved|favorites?)\b/i,
-    urlPrefix: "/bookmarks/",
   },
   {
     name: "search_blog",
     description: "Searches blog articles and posts by topic or keyword",
     searcher: searchBlogPostsServerSide,
-    forcePattern: /\b(?:blog|articles?|wrote|write|posts?)\b/i,
-    urlPrefix: "/blog/",
+    forcePattern: /\b(?:blog|articles?|posts?)\b/i,
   },
   {
     name: "search_tags",
     description: "Searches tags and topics across all content types",
     searcher: searchTags,
-    forcePattern: /\b(?:tags?|topics?|categories|subjects?|themes?)\b/i,
-    urlPrefix: "/tags/",
+    forcePattern: /\b(?:tags?|topics?|categories)\b/i,
   },
   {
     name: "search_investments",
     description: "Searches investment portfolio entries (startups, ventures, funds)",
     searcher: searchInvestments,
     forcePattern: /\b(?:invest|portfolio|startups?|fund|venture|vc|backed|seed)\b/i,
-    urlPrefix: "/investments/",
   },
   {
     name: "search_projects",
     description: "Searches software projects and applications",
     searcher: searchProjects,
-    forcePattern: /\b(?:projects?|built|apps?|tools?|software|code|github)\b/i,
-    urlPrefix: "/projects/",
+    forcePattern: /\b(?:projects?|built|apps?|software|github)\b/i,
   },
   {
     name: "search_experience",
     description: "Searches work experience and career history",
     searcher: searchExperience,
-    forcePattern: /\b(?:work|jobs?|roles?|experience|employ|company|career|position)\b/i,
-    urlPrefix: "/experience/",
+    forcePattern: /\b(?:work\s+(?:experience|history)|jobs?|roles?|experience|employ|career)\b/i,
   },
   {
     name: "search_education",
     description: "Searches education, degrees, and certifications",
     searcher: searchEducation,
     forcePattern: /\b(?:education|degrees?|certs?|certif|school|university|cfa|cfp|mba)\b/i,
-    urlPrefix: "/education/",
   },
   {
     name: "search_books",
     description: "Searches books and reading list entries",
     searcher: searchBooks,
-    forcePattern: /\b(?:books?|reading|read|authors?|library|shelf)\b/i,
-    urlPrefix: "/books/",
+    forcePattern: /\b(?:books?|reading\s+list|authors?|bookshelf)\b/i,
   },
   {
     name: "search_analysis",
     description: "Searches AI-generated analysis summaries and insights",
     searcher: searchAiAnalysis,
-    forcePattern: /\b(?:analysis|summaries|insight|overview|highlights?|ai\s*generated)\b/i,
-    urlPrefix: "/analysis/",
+    forcePattern: /\b(?:analysis|summaries|ai\s*generated)\b/i,
   },
   {
     name: "search_thoughts",
     description: "Searches personal thoughts and notes",
     searcher: searchThoughts,
-    forcePattern: /\b(?:thoughts?|notes?|ruminations?)\b/i,
-    urlPrefix: "/thoughts/",
+    forcePattern: /\b(?:thoughts?|ruminations?)\b/i,
   },
 ];
 
@@ -171,9 +161,4 @@ export function getForcedToolName(message: string | undefined): string | undefin
     if (reg.forcePattern.test(message)) return reg.name;
   }
   return undefined;
-}
-
-/** Returns true if any registered tool's force-pattern matches the message */
-export function matchesForcedToolPattern(message: string | undefined): boolean {
-  return getForcedToolName(message) !== undefined;
 }
