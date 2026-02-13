@@ -10,6 +10,7 @@ import "server-only";
 
 import { investments } from "@/data/investments";
 import { projects } from "@/data/projects";
+import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 import { experiences } from "@/data/experience";
 import { education, certifications, recentCourses } from "@/data/education";
 import { getAllMDXPostsForSearch } from "@/lib/blog/mdx";
@@ -125,14 +126,15 @@ export async function buildStaticInventorySections(): Promise<{
   sections.push(
     buildSectionLines({
       name: "projects",
-      fields: ["id", "name", "url", "githubUrl", "tags", "cvFeatured"],
+      fields: ["id", "name", "url", "externalUrl", "githubUrl", "tags", "cvFeatured"],
       rows: projects
         .toSorted((a, b) => a.name.localeCompare(b.name))
         .map((project) =>
           formatLine({
             id: project.id,
             name: project.name,
-            url: project.url ?? "/projects",
+            url: `/projects/${generateProjectSlug(project.name, project.id)}`,
+            externalUrl: project.url,
             githubUrl: project.githubUrl,
             tags: project.tags,
             cvFeatured: project.cvFeatured,
