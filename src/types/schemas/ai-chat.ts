@@ -42,14 +42,16 @@ export const requestBodySchema = z
 
 export type ParsedRequestBody = z.infer<typeof requestBodySchema>;
 
-export const searchBookmarksToolArgsSchema = z.object({
+/** Generic tool call arguments — all search tools share this shape */
+export const searchToolArgsSchema = z.object({
   query: z.string().min(1),
   maxResults: z.number().int().min(1).max(10).optional(),
 });
 
-export type SearchBookmarksToolArgs = z.infer<typeof searchBookmarksToolArgsSchema>;
+export type SearchToolArgs = z.infer<typeof searchToolArgsSchema>;
 
-export const searchBookmarksToolResultSchema = z.object({
+/** Generic tool call result — all search tools return this shape */
+export const searchToolResultSchema = z.object({
   query: z.string(),
   results: z.array(
     z.object({
@@ -62,7 +64,16 @@ export const searchBookmarksToolResultSchema = z.object({
   error: z.string().optional(),
 });
 
-export type SearchBookmarksToolResult = z.infer<typeof searchBookmarksToolResultSchema>;
+export type SearchToolResult = z.infer<typeof searchToolResultSchema>;
+
+/** @deprecated Use searchToolArgsSchema — kept for backward compatibility */
+export const searchBookmarksToolArgsSchema = searchToolArgsSchema;
+/** @deprecated Use SearchToolArgs — kept for backward compatibility */
+export type SearchBookmarksToolArgs = SearchToolArgs;
+/** @deprecated Use searchToolResultSchema — kept for backward compatibility */
+export const searchBookmarksToolResultSchema = searchToolResultSchema;
+/** @deprecated Use SearchToolResult — kept for backward compatibility */
+export type SearchBookmarksToolResult = SearchToolResult;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AI Gate Token (auth boundary validation)

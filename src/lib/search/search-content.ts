@@ -61,12 +61,12 @@ export function searchContent<T>(
     try {
       const searchResults = miniSearchIndex.search(sanitizedQuery, {
         prefix: true, // Allow prefix matching for autocomplete-like behavior
-        fuzzy: 0.1, // Allow minimal typos (10% edit distance)
+        fuzzy: 0.2, // Allow typos (20% edit distance)
         boost: {
           // Boost exact matches
           exactMatch: 2,
         },
-        combineWith: "AND", // All terms must match
+        combineWith: "OR", // Any term can match; MiniSearch scoring ranks multi-term hits higher
       });
 
       // Reuse pattern from searchBookmarks(): capture scores in a Map

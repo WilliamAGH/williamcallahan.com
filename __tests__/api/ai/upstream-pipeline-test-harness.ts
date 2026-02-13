@@ -59,6 +59,30 @@ vi.mock("@/lib/ai/openai-compatible/feature-config", () => ({
 
 vi.mock("@/lib/search/searchers/dynamic-searchers", () => ({
   searchBookmarks: vi.fn(),
+  searchBooks: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/blog/server-search", () => ({
+  searchBlogPostsServerSide: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/search/searchers/tag-search", () => ({
+  searchTags: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/search/searchers/static-searchers", () => ({
+  searchInvestments: vi.fn().mockResolvedValue([]),
+  searchExperience: vi.fn().mockResolvedValue([]),
+  searchEducation: vi.fn().mockResolvedValue([]),
+  searchProjects: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/search/searchers/ai-analysis-searcher", () => ({
+  searchAiAnalysis: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/search/searchers/thoughts-search", () => ({
+  searchThoughts: vi.fn().mockResolvedValue([]),
 }));
 
 export const mockedSearchBookmarks = vi.mocked(searchBookmarks);

@@ -523,6 +523,9 @@ File/Path Functionality Description
       - [x] **`[feature]`/`upstream-pipeline.ts`** `ai-shared-services` - Pipeline assembler: wires config, queue, log context, and upstream runner
       - [x] **`[feature]`/`upstream-runner.ts`** `ai-shared-services` - Multi-turn orchestrator for tool calls, fallback models, and deterministic reply handling
       - [x] **`[feature]`/`upstream-turn.ts`** `ai-shared-services` - Turn executors: run a single chat-completions or responses turn with delta forwarding
+      - [x] **`[feature]`/`tool-registry.ts`** `ai-shared-services` - Central tool registry for all content-scope search tools; generates both Chat Completions and Responses API schemas
+      - [x] **`[feature]`/`tool-dispatch.ts`** `ai-shared-services` - Generic tool dispatch: executes tool calls by looking up registered searcher functions
+      - [x] **`[feature]`/`bookmark-tool.ts`** `ai-shared-services` - Bookmark-specific helpers: link formatting, URL sanitization, search pattern matching, query extraction
       - [x] **`[feature]`/`analysis-output-config.ts`** `ai-shared-services` - Analysis schema/field configuration metadata shared by validation helpers
       - [x] **`[feature]`/`analysis-output-validation.ts`** `ai-shared-services` - Structured analysis output parse/normalize/leakage validation and repair prompt builder
   - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts (force-dynamic bearer auth)

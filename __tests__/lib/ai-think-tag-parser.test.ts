@@ -1,4 +1,9 @@
-import { createThinkTagParser, stripThinkTags } from "@/lib/ai/openai-compatible/think-tag-parser";
+import {
+  createThinkTagParser,
+  stripThinkTags,
+  stripHarmonyTokens,
+  sanitizeModelOutput,
+} from "@/lib/ai/openai-compatible/think-tag-parser";
 
 describe("think-tag-parser", () => {
   describe("createThinkTagParser", () => {
@@ -150,6 +155,60 @@ describe("think-tag-parser", () => {
 
     it("handles empty think blocks", () => {
       expect(stripThinkTags("<think></think>content")).toBe("content");
+    });
+  });
+
+  describe("stripHarmonyTokens", () => {
+    it("strips Harmony control tokens from the first occurrence onward", () => {
+      const input =
+        '<|channel|>to=functions.search_tags<|channel|>commentary <|constrain|>json<|message|>{"query":"work","maxResults":5}';
+      expect(stripHarmonyTokens(input)).toBe("");
+    });
+
+    it("preserves content before Harmony tokens", () => {
+      const input = "Here is some content<|channel|>leaked tokens";
+      expect(stripHarmonyTokens(input)).toBe("Here is some content");
+    });
+
+    it("returns original text when no Harmony tokens present", () => {
+      expect(stripHarmonyTokens("plain text with no tokens")).toBe("plain text with no tokens");
+    });
+
+    it("handles empty string", () => {
+      expect(stripHarmonyTokens("")).toBe("");
+    });
+
+    it("only strips <|channel|> sequences, preserves other tokens", () => {
+      // <|channel|> is the definitive Harmony tool-call marker — strip it
+      expect(stripHarmonyTokens("text<|channel|>leaked")).toBe("text");
+      // Other <|...|> tokens may appear in legitimate content (e.g. JSON analysis)
+      expect(stripHarmonyTokens("text<|end_of_turn|>more")).toBe("text<|end_of_turn|>more");
+      expect(stripHarmonyTokens("text<|im_start|>system")).toBe("text<|im_start|>system");
+    });
+  });
+
+  describe("sanitizeModelOutput", () => {
+    it("strips both think tags and Harmony tokens", () => {
+      const input = "<think>reasoning</think>visible<|channel|>leaked";
+      expect(sanitizeModelOutput(input)).toBe("visible");
+    });
+
+    it("handles think tags only", () => {
+      expect(sanitizeModelOutput("<think>thought</think>result")).toBe("result");
+    });
+
+    it("handles Harmony channel tokens only", () => {
+      expect(sanitizeModelOutput("content<|channel|>hidden")).toBe("content");
+    });
+
+    it("returns clean text unchanged", () => {
+      expect(sanitizeModelOutput("clean text")).toBe("clean text");
+    });
+
+    it("returns empty string when entire output is control tokens", () => {
+      expect(sanitizeModelOutput('<|channel|>to=functions.search_tags<|message|>{"q":"x"}')).toBe(
+        "",
+      );
     });
   });
 });
