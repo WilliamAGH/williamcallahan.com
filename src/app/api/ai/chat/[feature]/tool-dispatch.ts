@@ -251,24 +251,40 @@ export function extractToolCallsFromResponseOutput(
   responseOutput: unknown[],
 ): OpenAiCompatibleResponsesFunctionCall[] {
   const toolCalls: OpenAiCompatibleResponsesFunctionCall[] = [];
+  let functionCallItems = 0;
+  let droppedInvalidSchema = 0;
+  let droppedUnknownTool = 0;
   for (const item of responseOutput) {
     if (!item || typeof item !== "object" || !("type" in item) || item.type !== "function_call") {
       continue;
     }
+    functionCallItems += 1;
     const parsed = openAiCompatibleResponsesFunctionCallSchema.safeParse(item);
     if (!parsed.success) {
+      droppedInvalidSchema += 1;
       logger.warn("[AI Chat] Function call item failed schema validation", {
         error: parsed.error.message,
       });
       continue;
     }
     if (!getToolByName(parsed.data.name)) {
+      droppedUnknownTool += 1;
       logger.warn("[AI Chat] Ignoring unrecognized tool in response output", {
         toolName: parsed.data.name,
       });
       continue;
     }
     toolCalls.push(parsed.data);
+  }
+  const droppedTotal = droppedInvalidSchema + droppedUnknownTool;
+  if (droppedTotal > 0) {
+    logger.warn("[AI Chat] Dropped responses function_call items", {
+      totalOutputItems: responseOutput.length,
+      functionCallItems,
+      acceptedFunctionCalls: toolCalls.length,
+      droppedInvalidSchema,
+      droppedUnknownTool,
+    });
   }
   return toolCalls;
 }

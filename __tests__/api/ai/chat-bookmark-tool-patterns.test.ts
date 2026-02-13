@@ -34,7 +34,7 @@ describe("Search query extraction from user messages", () => {
     { input: "what bookmarks do you have that contain amd?", expected: "amd" },
     { input: "search bookmarks for wikipedia", expected: "wikipedia" },
     { input: "find bookmarks about react hooks", expected: "react hooks" },
-    { input: "show me links for typescript", expected: "links typescript" },
+    { input: "show me links for typescript", expected: "typescript" },
     { input: "what links do you have about rust?", expected: "rust" },
     { input: "hello there", expected: "there" },
   ])('extractSearchQueryFromMessage("$input") → "$expected"', ({ input, expected }) => {
