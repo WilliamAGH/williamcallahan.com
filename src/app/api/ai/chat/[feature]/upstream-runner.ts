@@ -61,6 +61,7 @@ function buildTurnParams(args: {
       model: args.activeModel,
     }),
     hasToolSupport: config.hasToolSupport,
+    forcedToolName: args.turn === 0 ? config.forcedToolName : undefined,
     temperature: config.modelParams.temperature,
     topP: config.modelParams.topP,
     reasoningEffort: config.modelParams.reasoningEffort,

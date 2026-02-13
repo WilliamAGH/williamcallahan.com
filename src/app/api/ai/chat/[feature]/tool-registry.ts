@@ -111,10 +111,6 @@ const TOOL_MAP = new Map<string, ToolRegistration>(
   TOOL_REGISTRATIONS.map((reg) => [reg.name, reg]),
 );
 
-export function getRegisteredTools(): readonly ToolRegistration[] {
-  return TOOL_REGISTRATIONS;
-}
-
 export function getToolByName(name: string): ToolRegistration | undefined {
   return TOOL_MAP.get(name);
 }
