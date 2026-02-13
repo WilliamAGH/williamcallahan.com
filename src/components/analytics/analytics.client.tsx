@@ -30,15 +30,12 @@ export function Analytics(): JSX.Element | null {
     return null;
   }
 
-  // NEXT_PUBLIC_* values are inlined at build time in the client bundle. If the build step
-  // didn't receive these values, we fall back to runtime-detectable values so analytics
-  // doesn't fully regress in production.
+  // Resolve site URL from build-time env var (NEXT_PUBLIC_* inlined at build) or runtime
+  // window.location. When neither is available, siteUrl is undefined — Umami and Plausible
+  // are skipped so missing config is immediately visible in analytics dashboards.
   const siteUrl = (() => {
     const envSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-    if (envSiteUrl && envSiteUrl.length > 0) {
-      return envSiteUrl;
-    }
-
+    if (envSiteUrl && envSiteUrl.length > 0) return envSiteUrl;
     if (typeof window !== "undefined" && typeof window.location?.origin === "string") {
       const origin = window.location.origin.trim();
       if (origin.length > 0) {
@@ -48,12 +45,8 @@ export function Analytics(): JSX.Element | null {
         return origin;
       }
     }
-
-    // [RC1] Intentional graceful degradation: this "use client" component cannot throw without
-    // crashing the page. The hardcoded origin ensures Plausible still tracks pageviews during
-    // SSR (where window is unavailable) if the Dockerfile secret mount regresses again.
-    console.warn("[Analytics] NEXT_PUBLIC_SITE_URL missing at build time; using hardcoded origin");
-    return "https://williamcallahan.com";
+    console.error("[Analytics] NEXT_PUBLIC_SITE_URL missing; Umami and Plausible will be disabled");
+    return undefined;
   })();
 
   const umamiWebsiteId = (() => {
@@ -62,24 +55,23 @@ export function Analytics(): JSX.Element | null {
   })();
 
   const domain = (() => {
+    if (!siteUrl) return undefined;
     try {
       return new URL(siteUrl).hostname;
     } catch {
-      // [RC1] Intentional graceful degradation: an unparseable siteUrl should not crash the page.
-      // Plausible will still track with the fallback domain; the warning surfaces the config issue.
-      console.warn(`[Analytics] Resolved site URL is not a valid URL: ${siteUrl}`);
-      return "williamcallahan.com";
+      console.error(`[Analytics] Cannot parse site URL "${siteUrl}"; Plausible will be disabled`);
+      return undefined;
     }
   })();
 
   const shouldLoadUmami = (() => {
-    if (!umamiWebsiteId) return false;
+    if (!umamiWebsiteId || !siteUrl) return false;
     if (typeof window === "undefined") return false;
     try {
       void window.localStorage.length;
       return true;
     } catch {
-      // [RC1] localStorage unavailable (private browsing, storage disabled, or iframe sandbox).
+      // localStorage unavailable (private browsing, storage disabled, or iframe sandbox).
       // Skip Umami rather than crash; Plausible/SA/Clicky still track without localStorage.
       console.warn("[Analytics] localStorage unavailable; skipping Umami");
       return false;
@@ -104,13 +96,15 @@ export function Analytics(): JSX.Element | null {
       )}
 
       {/* Plausible Analytics - Official docs: https://plausible.io/docs/script-extensions */}
-      <Script
-        id="plausible"
-        strategy="afterInteractive"
-        src="https://plausible.iocloudhost.net/js/script.js"
-        data-domain={domain}
-        data-api="https://plausible.iocloudhost.net/api/event"
-      />
+      {domain && (
+        <Script
+          id="plausible"
+          strategy="afterInteractive"
+          src="https://plausible.iocloudhost.net/js/script.js"
+          data-domain={domain}
+          data-api="https://plausible.iocloudhost.net/api/event"
+        />
+      )}
 
       {/* Simple Analytics - Official docs: https://docs.simpleanalytics.com/script */}
       <Script
