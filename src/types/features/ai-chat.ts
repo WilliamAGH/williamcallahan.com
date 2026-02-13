@@ -110,6 +110,8 @@ export type UpstreamTurnParams = {
   signal: AbortSignal;
   toolChoice: "required" | "auto" | undefined;
   hasToolSupport: boolean;
+  /** When set, only this tool is included in the tools array (single-tool determinism) */
+  forcedToolName?: string;
   temperature: number;
   topP: number;
   reasoningEffort: ReasoningEffort | null;
