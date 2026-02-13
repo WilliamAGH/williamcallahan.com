@@ -6,16 +6,21 @@ import type {
   AnalysisHandleResult,
   ContentOutcomeCtx,
   ContentOutcomeResult,
+  ToolContentResolution,
+  ToolLoopState,
   UpstreamRunnerConfig,
   UpstreamTurnOutcome,
   UpstreamTurnParams,
 } from "@/types/features/ai-chat";
 import type { OpenAiCompatibleChatMessage } from "@/types/schemas/ai-openai-compatible";
 import {
+  extractSearchQueryFromMessage,
   formatBookmarkResultsAsLinks,
-  runDeterministicBookmarkFallback,
   sanitizeBookmarkLinksAgainstAllowlist,
 } from "./bookmark-tool";
+import { getToolByName } from "./tool-registry";
+import { searchToolResultSchema } from "@/types/schemas/ai-chat";
+import logger from "@/lib/utils/logger";
 import { isHarmonyFormatModel, resolveToolChoice } from "./feature-defaults";
 import {
   isAnalysisFeature,
@@ -32,69 +37,63 @@ function buildTurnParams(args: {
   turn: number;
   activeModel: string;
   analysisValidationAttempts: number;
-  forceBookmarkTool: boolean;
-  hasToolSupport: boolean;
   toolObservedResultsCount: number;
   onStreamEvent?: (event: AiChatModelStreamEvent) => void;
-  requestConfig: UpstreamRunnerConfig;
+  config: UpstreamRunnerConfig;
 }): UpstreamTurnParams {
+  const { config } = args;
   const stripResponseFormat =
     isHarmonyFormatModel(args.activeModel) || args.analysisValidationAttempts > 0;
 
   return {
     turnConfig: {
       model: args.activeModel,
-      baseUrl: args.requestConfig.config.baseUrl,
-      apiKey: args.requestConfig.config.apiKey,
+      baseUrl: config.config.baseUrl,
+      apiKey: config.config.apiKey,
     },
-    signal: args.requestConfig.signal,
+    signal: config.signal,
     toolChoice: resolveToolChoice({
-      hasToolSupport: args.hasToolSupport,
-      forceBookmarkTool: args.forceBookmarkTool,
+      hasToolSupport: config.hasToolSupport,
+      forcedToolName: config.forcedToolName,
       turn: args.turn,
       model: args.activeModel,
     }),
-    hasToolSupport: args.hasToolSupport,
-    temperature: args.requestConfig.modelParams.temperature,
-    topP: args.requestConfig.modelParams.topP,
-    reasoningEffort: args.requestConfig.modelParams.reasoningEffort,
-    maxTokens: args.requestConfig.modelParams.maxTokens,
-    responseFormat: stripResponseFormat ? undefined : args.requestConfig.parsedBody.response_format,
+    hasToolSupport: config.hasToolSupport,
+    temperature: config.modelParams.temperature,
+    topP: config.modelParams.topP,
+    reasoningEffort: config.modelParams.reasoningEffort,
+    maxTokens: config.modelParams.maxTokens,
+    responseFormat: stripResponseFormat ? undefined : config.parsedBody.response_format,
     onStreamEvent:
-      args.forceBookmarkTool || args.toolObservedResultsCount > 0 ? undefined : args.onStreamEvent,
+      config.forcedToolName || args.toolObservedResultsCount > 0 ? undefined : args.onStreamEvent,
   };
 }
 
-function resolveBookmarkContent(
-  feature: string,
+function resolveToolContent(
   outcomeText: string | undefined,
   toolObservedResults: Array<{ title: string; url: string }>,
-): string {
+): ToolContentResolution {
   if (outcomeText) {
     const sanitized = sanitizeBookmarkLinksAgainstAllowlist({
       text: outcomeText,
       observedResults: toolObservedResults,
     });
     if (!sanitized.hadDisallowedLink && sanitized.allowedLinkCount > 0) {
-      return sanitized.sanitizedText;
+      return { source: "model", text: sanitized.sanitizedText };
     }
     if (sanitized.hadDisallowedLink) {
-      console.warn(
-        "[upstream-pipeline] Model produced non-allowlisted bookmark URL; using deterministic tool results",
-        {
-          feature,
-          observedResults: toolObservedResults.length,
-          allowedLinkCount: sanitized.allowedLinkCount,
-        },
-      );
+      return {
+        source: "deterministic_fallback",
+        text: formatBookmarkResultsAsLinks(toolObservedResults),
+        reason: "disallowed_links",
+      };
     }
   }
-
-  console.warn(
-    "[upstream-pipeline] Ignoring model-authored bookmark links; using deterministic tool results",
-    { feature, observedResults: toolObservedResults.length },
-  );
-  return formatBookmarkResultsAsLinks(toolObservedResults);
+  return {
+    source: "deterministic_fallback",
+    text: formatBookmarkResultsAsLinks(toolObservedResults),
+    reason: "no_model_links",
+  };
 }
 
 function handleAnalysisValidation(params: {
@@ -144,7 +143,7 @@ function resolveExhaustedTurnsMessage(
   args: UpstreamRunnerConfig,
   toolObservedResults: Array<{ title: string; url: string }>,
 ): string {
-  if (toolObservedResults.length > 0 || args.forceBookmarkTool) {
+  if (toolObservedResults.length > 0 || args.forcedToolName) {
     return formatBookmarkResultsAsLinks(toolObservedResults);
   }
   console.warn("[upstream-pipeline] All turns exhausted without content", {
@@ -155,38 +154,35 @@ function resolveExhaustedTurnsMessage(
   return "I wasn't able to generate a response. Please try rephrasing your question.";
 }
 
-function emitDone(
-  onStreamEvent: ((event: AiChatModelStreamEvent) => void) | undefined,
-  message: string,
-): string {
-  onStreamEvent?.({ event: "message_done", data: { message } });
-  return message;
-}
-
 export function createUpstreamRunner(args: UpstreamRunnerConfig) {
   return async function runUpstream(
     onStreamEvent?: (event: AiChatModelStreamEvent) => void,
   ): Promise<string> {
-    const requestMessages: OpenAiCompatibleChatMessage[] = [...args.messages];
-    const toolObservedResults: Array<{ title: string; url: string }> = [];
+    const loopState: ToolLoopState = {
+      requestMessages: [...args.messages],
+      toolObservedResults: [],
+      activeModel: args.primaryModel,
+      analysisValidationAttempts: 0,
+    };
     const analysisFeature = isAnalysisFeature(args.feature) ? args.feature : null;
-    let analysisValidationAttempts = 0;
-    let activeModel = args.primaryModel;
-    const done = (msg: string) => emitDone(onStreamEvent, msg);
+    const done = (msg: string): string => {
+      onStreamEvent?.({ event: "message_done", data: { message: msg } });
+      return msg;
+    };
 
     let turn = 0;
     while (turn < MAX_TOOL_TURNS) {
       const outcome = await executeTurnWithFallback({
         args,
-        requestMessages,
+        requestMessages: loopState.requestMessages,
         turn,
-        activeModel,
-        analysisValidationAttempts,
+        activeModel: loopState.activeModel,
+        analysisValidationAttempts: loopState.analysisValidationAttempts,
         onStreamEvent,
-        toolObservedResults,
+        toolObservedResults: loopState.toolObservedResults,
       });
       if (outcome.switchedModel) {
-        activeModel = outcome.switchedModel;
+        loopState.activeModel = outcome.switchedModel;
         continue;
       }
       if (!outcome.result || outcome.result.kind === "empty") break;
@@ -197,29 +193,26 @@ export function createUpstreamRunner(args: UpstreamRunnerConfig) {
           args,
           result,
           turn,
-          toolObservedResults,
+          loopState,
           analysisFeature,
-          analysisValidationAttempts,
-          requestMessages,
-          activeModel,
           done,
         });
         if (contentResult.done) return contentResult.text;
         if (contentResult.retry) {
-          analysisValidationAttempts = contentResult.newAttempts;
-          if (contentResult.switchedModel) activeModel = contentResult.switchedModel;
+          loopState.analysisValidationAttempts = contentResult.newAttempts;
+          if (contentResult.switchedModel) loopState.activeModel = contentResult.switchedModel;
           turn += 1;
           continue;
         }
         break;
       }
 
-      requestMessages.push(...result.newMessages);
-      toolObservedResults.push(...result.observedResults);
+      loopState.requestMessages.push(...result.newMessages);
+      loopState.toolObservedResults.push(...result.observedResults);
       turn += 1;
     }
 
-    return done(resolveExhaustedTurnsMessage(args, toolObservedResults));
+    return done(resolveExhaustedTurnsMessage(args, loopState.toolObservedResults));
   };
 }
 
@@ -236,11 +229,9 @@ async function executeTurnWithFallback(ctx: {
     turn: ctx.turn,
     activeModel: ctx.activeModel,
     analysisValidationAttempts: ctx.analysisValidationAttempts,
-    forceBookmarkTool: ctx.args.forceBookmarkTool,
-    hasToolSupport: ctx.args.hasToolSupport,
     toolObservedResultsCount: ctx.toolObservedResults.length,
     onStreamEvent: ctx.onStreamEvent,
-    requestConfig: ctx.args,
+    config: ctx.args,
   });
 
   try {
@@ -267,52 +258,83 @@ async function executeTurnWithFallback(ctx: {
   }
 }
 
-async function resolveBookmarkFallback(
+/** Run the forced tool's searcher directly when the model skipped the tool call */
+async function resolveForcedToolFallback(
   ctx: ContentOutcomeCtx,
 ): Promise<ContentOutcomeResult | null> {
   if (
-    !ctx.args.forceBookmarkTool ||
+    !ctx.args.forcedToolName ||
     ctx.result.text ||
-    ctx.toolObservedResults.length > 0 ||
+    ctx.loopState.toolObservedResults.length > 0 ||
     !ctx.args.latestUserMessage
   ) {
     return null;
   }
-  console.warn("[upstream-pipeline] No observed bookmark results; using deterministic fallback", {
+
+  const registration = getToolByName(ctx.args.forcedToolName);
+  if (!registration) return null;
+
+  logger.warn("[upstream-pipeline] No observed tool results; using deterministic fallback", {
     feature: ctx.args.feature,
+    tool: ctx.args.forcedToolName,
     turn: ctx.turn,
   });
-  const fallback = await runDeterministicBookmarkFallback(
-    ctx.args.feature,
-    ctx.args.latestUserMessage,
-  );
-  return { done: true, text: ctx.done(fallback) };
+
+  const searchQuery = extractSearchQueryFromMessage(ctx.args.latestUserMessage);
+  const rawResults = await registration.searcher(searchQuery);
+  const limitedResults = rawResults.slice(0, 5).map((r) => ({ title: r.title, url: r.url }));
+  const validated = searchToolResultSchema.safeParse({
+    query: searchQuery,
+    results: limitedResults,
+    totalResults: rawResults.length,
+  });
+  if (!validated.success) {
+    logger.error("[upstream-pipeline] Deterministic fallback: result failed schema validation", {
+      feature: ctx.args.feature,
+      tool: ctx.args.forcedToolName,
+      error: validated.error.message,
+    });
+    return {
+      done: true,
+      text: ctx.done(
+        "Sorry, I encountered an error while searching. Please try a different query.",
+      ),
+    };
+  }
+  return { done: true, text: ctx.done(formatBookmarkResultsAsLinks(limitedResults)) };
 }
 
 async function handleContentOutcome(ctx: ContentOutcomeCtx): Promise<ContentOutcomeResult> {
-  const bookmarkFallback = await resolveBookmarkFallback(ctx);
-  if (bookmarkFallback) return bookmarkFallback;
+  const forcedFallback = await resolveForcedToolFallback(ctx);
+  if (forcedFallback) return forcedFallback;
 
-  if (ctx.toolObservedResults.length > 0) {
-    const text = resolveBookmarkContent(ctx.args.feature, ctx.result.text, ctx.toolObservedResults);
-    return { done: true, text: ctx.done(text) };
+  if (ctx.loopState.toolObservedResults.length > 0) {
+    const resolution = resolveToolContent(ctx.result.text, ctx.loopState.toolObservedResults);
+    if (resolution.source === "deterministic_fallback") {
+      logger.warn("[upstream-pipeline] Tool content degraded to deterministic fallback", {
+        feature: ctx.args.feature,
+        reason: resolution.reason,
+        observedResults: ctx.loopState.toolObservedResults.length,
+      });
+    }
+    return { done: true, text: ctx.done(resolution.text) };
   }
 
   if (ctx.analysisFeature) {
     const result = handleAnalysisValidation({
       analysisFeature: ctx.analysisFeature,
       outcomeText: ctx.result.text,
-      attemptsSoFar: ctx.analysisValidationAttempts,
+      attemptsSoFar: ctx.loopState.analysisValidationAttempts,
       fallbackModel: ctx.args.fallbackModel,
-      activeModel: ctx.activeModel,
+      activeModel: ctx.loopState.activeModel,
     });
     if (result.action === "done") return { done: true, text: ctx.done(result.text) };
     if (result.action === "retry") {
-      ctx.requestMessages.push(...result.newMessages);
+      ctx.loopState.requestMessages.push(...result.newMessages);
       return {
         done: false,
         retry: true,
-        newAttempts: ctx.analysisValidationAttempts + 1,
+        newAttempts: ctx.loopState.analysisValidationAttempts + 1,
         switchedModel: result.newModel,
       };
     }

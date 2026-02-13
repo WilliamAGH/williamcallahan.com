@@ -85,6 +85,25 @@ export function stripThinkTags(text: string): string {
   return text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 }
 
+/**
+ * Strip Harmony-format control token sequences leaked by gpt-oss models via
+ * llama.cpp. The distinctive marker is `<|channel|>` which begins an internal
+ * tool-call sequence. Everything from the first `<|channel|>` onward is
+ * discarded — it never contains user-visible content.
+ *
+ * This intentionally does NOT strip other `<|...|>` tokens (e.g. `<|assistant|>`)
+ * which may appear inside JSON values in analysis output and are handled
+ * separately by the analysis validation layer.
+ */
+export function stripHarmonyTokens(text: string): string {
+  return text.replace(/<\|channel\|>[\s\S]*/g, "").trim();
+}
+
+/** Clean all model output artifacts: think tags, then Harmony control tokens. */
+export function sanitizeModelOutput(text: string): string {
+  return stripHarmonyTokens(stripThinkTags(text));
+}
+
 /** Returns how many trailing characters of `text` form a prefix of `tag`. */
 function partialMatchLength(text: string, tag: string): number {
   const maxCheck = Math.min(text.length, tag.length - 1);

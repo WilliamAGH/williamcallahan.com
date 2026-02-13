@@ -47,7 +47,7 @@ describe("resolveToolChoice with Harmony models", () => {
     expect(
       resolveToolChoice({
         hasToolSupport: true,
-        forceBookmarkTool: true,
+        forcedToolName: "search_bookmarks",
         turn: 0,
         model: "qwen3-30b-2507",
       }),
@@ -58,7 +58,7 @@ describe("resolveToolChoice with Harmony models", () => {
     expect(
       resolveToolChoice({
         hasToolSupport: true,
-        forceBookmarkTool: true,
+        forcedToolName: "search_bookmarks",
         turn: 0,
         model: "openai/gpt-oss-120b",
       }),
@@ -69,7 +69,7 @@ describe("resolveToolChoice with Harmony models", () => {
     expect(
       resolveToolChoice({
         hasToolSupport: true,
-        forceBookmarkTool: true,
+        forcedToolName: "search_bookmarks",
         turn: 1,
         model: "qwen3-30b-2507",
       }),
@@ -80,7 +80,7 @@ describe("resolveToolChoice with Harmony models", () => {
     expect(
       resolveToolChoice({
         hasToolSupport: false,
-        forceBookmarkTool: true,
+        forcedToolName: "search_bookmarks",
         turn: 0,
         model: "openai/gpt-oss-120b",
       }),

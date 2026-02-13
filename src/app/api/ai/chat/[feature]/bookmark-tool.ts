@@ -1,28 +1,17 @@
 /**
- * Bookmark Search Tool for AI Chat
+ * Bookmark Tool Helpers
  *
- * Handles the "search_bookmarks" tool call lifecycle: argument parsing,
- * executing the bookmark search, formatting results as markdown links,
- * and providing a deterministic fallback when the model skips the tool.
+ * Bookmark-specific helpers for link formatting, URL sanitization,
+ * search pattern matching, and query extraction. Tool schemas and
+ * execution logic live in tool-registry.ts and tool-dispatch.ts.
  *
  * @module api/ai/chat/bookmark-tool
  */
 
 import "server-only";
 
-import type { FunctionTool } from "openai/resources/responses/responses";
-import { searchBookmarks } from "@/lib/search/searchers/dynamic-searchers";
-import logger from "@/lib/utils/logger";
-import {
-  searchBookmarksToolArgsSchema,
-  searchBookmarksToolResultSchema,
-  type SearchBookmarksToolResult,
-} from "@/types/schemas/ai-chat";
-
 /** Cap per-query results to keep tool responses concise for the LLM context window */
 const TOOL_MAX_RESULTS_DEFAULT = 5;
-/** Maximum characters to include in log preview of raw arguments */
-const LOG_PREVIEW_MAX_LENGTH = 200;
 
 /** Matches explicit user intent to search (e.g. "search bookmarks", "find links") */
 const EXPLICIT_SEARCH_REQUEST_PATTERN = /\b(search|find|look\s+for|look\s+up|show)\b/i;
@@ -33,43 +22,14 @@ const TOPIC_CONNECTOR_PATTERN =
 const TOPIC_CONNECTOR_MAX_DISTANCE = 40;
 const MARKDOWN_LINK_PATTERN = /\[([^\]\n]+)\]\(([^)\n]+)\)/g;
 
-/** Shared parameter schema used by both Chat Completions and Responses API tool definitions */
-const BOOKMARK_TOOL_PARAMETERS = {
-  type: "object",
-  properties: {
-    query: {
-      type: "string",
-      description: "The user search query",
-    },
-    maxResults: {
-      type: "number",
-      description: "Maximum number of matches to return (default: 5)",
-    },
-  },
-  required: ["query", "maxResults"],
-  additionalProperties: false,
-} as const;
-
-export const SEARCH_BOOKMARKS_TOOL = {
-  type: "function" as const,
-  function: {
-    name: "search_bookmarks",
-    description: "Searches saved bookmark entries by natural-language query",
-    strict: true,
-    parameters: BOOKMARK_TOOL_PARAMETERS,
-  },
-};
-
-export const SEARCH_BOOKMARKS_RESPONSE_TOOL: FunctionTool = {
-  type: "function",
-  name: "search_bookmarks",
-  description: "Searches saved bookmark entries by natural-language query",
-  strict: true,
-  parameters: BOOKMARK_TOOL_PARAMETERS,
-};
-
-/** Reject protocol-relative and external URLs; accept only internal paths */
-function normalizeInternalPath(url: string): string | null {
+/**
+ * Reject protocol-relative and external URLs; accept only internal paths.
+ *
+ * @param url - Raw URL string from a search result or model-authored link
+ * @returns The trimmed path if it starts with a single `/`, or `null` for
+ *          external URLs, protocol-relative URLs (`//`), and empty strings
+ */
+export function normalizeInternalPath(url: string): string | null {
   const trimmed = url.trim();
   if (!trimmed.startsWith("/") || trimmed.startsWith("//")) return null;
   return trimmed;
@@ -94,75 +54,9 @@ export function matchesBookmarkSearchPattern(latestUserMessage: string | undefin
   return TOPIC_CONNECTOR_PATTERN.test(afterNoun);
 }
 
-export async function executeSearchBookmarksTool(
-  rawArguments: string,
-): Promise<SearchBookmarksToolResult> {
-  let parsedRawArguments: unknown;
-  try {
-    parsedRawArguments = JSON.parse(rawArguments);
-  } catch (error: unknown) {
-    const detail = error instanceof Error ? error.message : String(error);
-    logger.warn("[AI Chat] Failed to parse tool call arguments as JSON", {
-      rawArguments: rawArguments.slice(0, LOG_PREVIEW_MAX_LENGTH),
-      error: detail,
-    });
-    return {
-      query: "",
-      results: [],
-      totalResults: 0,
-      error: `Malformed JSON in tool arguments: ${detail}`,
-    };
-  }
-
-  const parsedJsonResult = searchBookmarksToolArgsSchema.safeParse(parsedRawArguments);
-  if (!parsedJsonResult.success) {
-    logger.warn("[AI Chat] Tool call arguments failed schema validation", {
-      rawArguments: rawArguments.slice(0, LOG_PREVIEW_MAX_LENGTH),
-      error: parsedJsonResult.error.message,
-    });
-    return {
-      query: "",
-      results: [],
-      totalResults: 0,
-      error: `Invalid tool arguments: ${parsedJsonResult.error.message}`,
-    };
-  }
-
-  const args = parsedJsonResult.data;
-  const rawResults = await searchBookmarks(args.query);
-  const normalizedResults = rawResults
-    .map((result) => {
-      const normalizedUrl = normalizeInternalPath(result.url);
-      if (!normalizedUrl) return null;
-      return {
-        title: result.title,
-        url: normalizedUrl,
-        ...(typeof result.description === "string" && result.description.length > 0
-          ? { description: result.description }
-          : {}),
-      };
-    })
-    .filter((result): result is NonNullable<typeof result> => result !== null);
-
-  let maxResults = args.maxResults;
-  if (typeof maxResults !== "number") {
-    logger.warn("[AI Chat] Tool args missing maxResults; defaulting to tool limit", {
-      query: args.query,
-    });
-    maxResults = TOOL_MAX_RESULTS_DEFAULT;
-  }
-  const limitedResults = normalizedResults.slice(0, maxResults);
-
-  return {
-    query: args.query,
-    results: limitedResults,
-    totalResults: normalizedResults.length,
-  };
-}
-
 /**
- * Format pre-normalized bookmark results as clickable markdown links.
- * URLs are already validated by executeSearchBookmarksTool; this deduplicates by URL.
+ * Format pre-normalized tool results as clickable markdown links.
+ * Deduplicates by URL. Works for any tool's results, not just bookmarks.
  */
 export function formatBookmarkResultsAsLinks(
   results: Array<{ title: string; url: string }>,
@@ -230,27 +124,4 @@ export function extractSearchQueryFromMessage(message: string): string {
     .replace(/\?+$/, "")
     .trim();
   return text.length > 0 ? text : message;
-}
-
-export async function runDeterministicBookmarkFallback(
-  feature: string,
-  latestUserMessage: string,
-): Promise<string> {
-  const searchQuery = extractSearchQueryFromMessage(latestUserMessage);
-  logger.warn("[AI Chat] Using deterministic bookmark fallback", { feature, searchQuery });
-  const result = await executeSearchBookmarksTool(
-    JSON.stringify({ query: searchQuery, maxResults: TOOL_MAX_RESULTS_DEFAULT }),
-  );
-  const parsed = searchBookmarksToolResultSchema.safeParse(result);
-  if (!parsed.success) {
-    logger.error("[AI Chat] Deterministic bookmark fallback: result failed schema validation", {
-      feature,
-      searchQuery,
-      error: parsed.error.message,
-    });
-    return "Sorry, I encountered an error while searching bookmarks. Please try a different query.";
-  }
-  return formatBookmarkResultsAsLinks(
-    parsed.data.results.map((r) => ({ title: r.title, url: r.url })),
-  );
 }

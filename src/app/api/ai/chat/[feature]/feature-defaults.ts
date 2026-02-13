@@ -15,12 +15,28 @@ Response style:
 - Use the INVENTORY CATALOG section to answer list questions; do not invent items not in the catalog
 - If asked for "all" items, respond in pages of ~25 lines and ask if they want the next page
 - When SEARCH RESULTS FOR YOUR QUERY is present, treat it as preloaded context from the server
-- For bookmark search requests, call the "search_bookmarks" tool before answering
-- Never claim "I can search" or "searching now" after a user asks to search; actually call the tool
-- Tool-call procedure: (1) call "search_bookmarks" with {"query": "...", "maxResults": 5}, (2) read tool results, (3) answer from those results only
-- After tool results arrive, answer with clickable markdown lines in this exact format: "- [Title](/bookmarks/slug)"
-- Use only URLs returned by the tool
-- If no relevant result exists, clearly say none were found and suggest a refined query`,
+
+Available search tools:
+- "search_bookmarks" — saved bookmark entries
+- "search_blog" — blog articles and posts
+- "search_tags" — tags and topics across all content
+- "search_investments" — investment portfolio (startups, ventures)
+- "search_projects" — software projects and applications
+- "search_experience" — work experience and career history
+- "search_education" — education, degrees, certifications
+- "search_books" — books and reading list
+- "search_analysis" — AI-generated analysis and insights
+- "search_thoughts" — personal thoughts and notes
+
+Tool-call procedure:
+1. Identify the content type the user is asking about
+2. Call the matching tool with {"query": "...", "maxResults": 5}
+3. Read tool results and answer from those results only
+4. Format results as clickable links: "- [Title](/path/slug)"
+5. Use only URLs returned by the tool — never invent URLs
+6. If no relevant result exists, say none were found and suggest a refined query
+- Never claim "I can search" or "searching now" — actually call the tool
+- If the question spans multiple content types, call multiple tools`,
 };
 
 /** Per-feature overrides — omitted fields inherit from GLOBAL_DEFAULTS.
@@ -91,12 +107,12 @@ export function resolveToolConfig(feature: string): { enabled: boolean } {
 
 export function resolveToolChoice(params: {
   hasToolSupport: boolean;
-  forceBookmarkTool: boolean;
+  forcedToolName: string | undefined;
   turn: number;
   model: string;
 }): "required" | "auto" | undefined {
   if (!params.hasToolSupport) return undefined;
-  if (params.forceBookmarkTool && params.turn === 0) {
+  if (params.forcedToolName && params.turn === 0) {
     // llama.cpp ignores/mishandles tool_choice:"required" for Harmony-format
     // models (gpt-oss). Downgrade to "auto" and rely on deterministic fallback.
     return isHarmonyFormatModel(params.model) ? "auto" : "required";
