@@ -229,8 +229,8 @@ describe("Analytics", () => {
 
     // Umami should NOT be initialized (requires website ID)
     expect(getGlobalUmami()).toBeUndefined();
-    // Plausible should still be initialized (falls back to hardcoded domain)
-    expect(hasGlobalPlausible()).toBe(true);
+    // Plausible should also be disabled — no domain can be derived without NEXT_PUBLIC_SITE_URL
+    expect(hasGlobalPlausible()).toBe(false);
   });
 
   it("tracks page views on route changes", async () => {

@@ -30,21 +30,12 @@ export function Analytics(): JSX.Element | null {
     return null;
   }
 
-  // Resolve site URL from build-time env var (NEXT_PUBLIC_* inlined at build) or runtime
-  // window.location. When neither is available, siteUrl is undefined — Umami and Plausible
-  // are skipped so missing config is immediately visible in analytics dashboards.
+  // Resolve site URL from build-time env var (NEXT_PUBLIC_* inlined at build).
+  // When missing, siteUrl is undefined — Umami and Plausible are deterministically
+  // skipped on both server and client so missing config is immediately visible.
   const siteUrl = (() => {
     const envSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
     if (envSiteUrl && envSiteUrl.length > 0) return envSiteUrl;
-    if (typeof window !== "undefined" && typeof window.location?.origin === "string") {
-      const origin = window.location.origin.trim();
-      if (origin.length > 0) {
-        console.warn(
-          "[Analytics] NEXT_PUBLIC_SITE_URL missing at build time; using window.location.origin",
-        );
-        return origin;
-      }
-    }
     console.error("[Analytics] NEXT_PUBLIC_SITE_URL missing; Umami and Plausible will be disabled");
     return undefined;
   })();

@@ -293,7 +293,7 @@ describe("search", () => {
     it("should include correct URL in results", async () => {
       const results = await searchProjects("Test Project 1");
       const project1Result = results.find((r) => r.title === "Test Project 1");
-      expect(project1Result?.url).toBe("https://example.com/project1");
+      expect(project1Result?.url).toBe("/projects/test-project-1");
     });
 
     it("should use cached results when available", async () => {

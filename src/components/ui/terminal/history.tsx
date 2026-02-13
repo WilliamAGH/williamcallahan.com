@@ -31,7 +31,7 @@ const TERMINAL_LINK_CLASS =
 
 const SAFE_INTERNAL_PATH_PATTERN = /^\/(?!\/)[A-Za-z0-9\-._~!$&'()*+,;=:@/?#[\]%]*$/;
 const SAFE_EXTERNAL_URL_PATTERN =
-  /^https:\/\/[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(\/[A-Za-z0-9\-._~!$&'()*+,;=:@/?#[\]%]*)?$/;
+  /^https:\/\/[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]{2,}(\/[A-Za-z0-9\-._~!$&'()*+,;=:@/?#[\]%]*)?$/i;
 
 function isInternalSlugPath(value: string): boolean {
   return SAFE_INTERNAL_PATH_PATTERN.test(value);
