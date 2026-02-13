@@ -93,6 +93,29 @@ describe("AI Chat Upstream Pipeline Tools", () => {
     expect(reply).toContain(bookmarkLink);
   });
 
+  it("returns a safe message when deterministic fallback tool searcher throws", async () => {
+    const { default: logger } = await import("@/lib/utils/logger");
+    logger.setSilent(true);
+
+    mockedSearchBookmarks.mockRejectedValueOnce(new Error("searcher exploded"));
+    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
+      choices: [{ message: { role: "assistant", content: "" } }],
+    });
+
+    let reply: string;
+    try {
+      reply = await createPipeline({ userContent: explicitSearchPrompt }).runUpstream();
+    } finally {
+      logger.setSilent(false);
+    }
+
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
+    expect(mockedSearchBookmarks).toHaveBeenCalledWith("wikipedia");
+    expect(reply).toBe(
+      "Sorry, I encountered an error while searching. Please try a different query.",
+    );
+  });
+
   it("preserves valid model text when forced tool is not called", async () => {
     const modelText = "I can search that for you.";
     mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
