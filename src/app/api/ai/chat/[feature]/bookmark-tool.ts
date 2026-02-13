@@ -112,16 +112,22 @@ export function sanitizeBookmarkLinksAgainstAllowlist(params: {
   return { sanitizedText, hadDisallowedLink, allowedLinkCount };
 }
 
-/** Strip common question phrasing to isolate the search topic from a user message. */
+/** Scope nouns across all content types, stripped during query extraction */
+const SCOPE_NOUN_PATTERN_STR =
+  "bookmarks?|links?|resources?|blog|articles?|posts?|tags?|topics?|investments?|portfolio|projects?|experience|jobs?|education|degrees?|books?|reading|analysis|summaries|thoughts?";
+
+/** Strip common question phrasing and content-scope nouns to isolate the search topic. */
 export function extractSearchQueryFromMessage(message: string): string {
+  const scopeNounGlobal = new RegExp(`\\b(?:${SCOPE_NOUN_PATTERN_STR})\\b\\s*`, "gi");
   const text = message
     .replace(/^(?:hello|hi|hey|greetings)[!,.]?\s*/i, "")
-    .replace(/\bwhat\s+(?:bookmarks?|links?|resources?)\b\s*/i, "")
     .replaceAll(/\b(?:do\s+you\s+have|that)\b\s*/gi, "")
+    .replace(/\b(?:search|find|show)\s*/i, "")
     .replace(/\b(?:for|about|on|contain(?:ing)?|with|matching|regarding)\s*/i, "")
-    .replace(/\b(?:search|find|show)\s+(?:bookmarks?|links?)?\s*/i, "")
-    .replaceAll(/\b(?:any|some|the|my|all|me)\s+/gi, "")
+    .replaceAll(scopeNounGlobal, "")
+    .replaceAll(/\b(?:any|some|the|my|your|all|me|what)\s+/gi, "")
     .replace(/\?+$/, "")
+    .replaceAll(/\s{2,}/g, " ")
     .trim();
   return text.length > 0 ? text : message;
 }

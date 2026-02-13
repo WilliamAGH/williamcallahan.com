@@ -33,6 +33,8 @@ import { executeChatCompletionsTurn, executeResponsesTurn } from "./upstream-tur
 
 const MAX_TOOL_TURNS = 4;
 const MAX_ANALYSIS_VALIDATION_ATTEMPTS = 3;
+const TOOL_FALLBACK_SEARCH_ERROR_MESSAGE =
+  "Sorry, I encountered an error while searching. Please try a different query.";
 
 function buildTurnParams(args: {
   turn: number;
@@ -45,7 +47,6 @@ function buildTurnParams(args: {
   const { config } = args;
   const stripResponseFormat =
     isHarmonyFormatModel(args.activeModel) || args.analysisValidationAttempts > 0;
-
   return {
     turnConfig: {
       model: args.activeModel,
@@ -115,25 +116,21 @@ function handleAnalysisValidation(params: {
   }
   const validation = validateAnalysisOutput(analysisFeature, text);
   if (validation.ok) return { action: "done", text: validation.normalizedText };
-
   const nextAttempt = attemptsSoFar + 1;
   if (nextAttempt < MAX_ANALYSIS_VALIDATION_ATTEMPTS) {
     console.warn(
       "[upstream-pipeline] Analysis output failed schema validation, retrying with stricter repair prompt",
       { feature: analysisFeature, attempt: nextAttempt, reason: validation.reason },
     );
-
     const newMessages: OpenAiCompatibleChatMessage[] = [];
     if (text.length > 0) newMessages.push({ role: "assistant", content: text });
     newMessages.push({
       role: "user",
       content: buildAnalysisRepairPrompt(analysisFeature, validation.reason),
     });
-
     const newModel = fallbackModel && activeModel !== fallbackModel ? fallbackModel : undefined;
     return { action: "retry", newModel, newMessages };
   }
-
   return {
     action: "error",
     message: `[upstream-pipeline] Analysis response validation failed for ${analysisFeature}: ${validation.reason}`,
@@ -170,7 +167,6 @@ export function createUpstreamRunner(args: UpstreamRunnerConfig) {
       onStreamEvent?.({ event: "message_done", data: { message: msg } });
       return msg;
     };
-
     let turn = 0;
     while (turn < MAX_TOOL_TURNS) {
       const outcome = await executeTurnWithFallback({
@@ -188,7 +184,6 @@ export function createUpstreamRunner(args: UpstreamRunnerConfig) {
       }
       if (!outcome.result || outcome.result.kind === "empty") break;
       const result = outcome.result;
-
       if (result.kind === "content") {
         const contentResult = await handleContentOutcome({
           args,
@@ -207,12 +202,10 @@ export function createUpstreamRunner(args: UpstreamRunnerConfig) {
         }
         break;
       }
-
       loopState.requestMessages.push(...result.newMessages);
       loopState.toolObservedResults.push(...result.observedResults);
       turn += 1;
     }
-
     return done(resolveExhaustedTurnsMessage(args, loopState.toolObservedResults));
   };
 }
@@ -234,7 +227,6 @@ async function executeTurnWithFallback(ctx: {
     onStreamEvent: ctx.onStreamEvent,
     config: ctx.args,
   });
-
   try {
     const result =
       ctx.args.apiMode === "chat_completions"
@@ -271,18 +263,30 @@ async function resolveForcedToolFallback(
   ) {
     return null;
   }
-
   const registration = getToolByName(ctx.args.forcedToolName);
-  if (!registration) return null;
-
+  if (!registration) {
+    logger.error("[upstream-pipeline] Forced tool missing from registry", {
+      tool: ctx.args.forcedToolName,
+    });
+    return null;
+  }
   logger.warn("[upstream-pipeline] No observed tool results; using deterministic fallback", {
     feature: ctx.args.feature,
     tool: ctx.args.forcedToolName,
     turn: ctx.turn,
   });
-
   const searchQuery = extractSearchQueryFromMessage(ctx.args.latestUserMessage);
-  const rawResults = await registration.searcher(searchQuery);
+  let rawResults: Awaited<ReturnType<typeof registration.searcher>>;
+  try {
+    rawResults = await registration.searcher(searchQuery);
+  } catch (error) {
+    logger.error("[upstream-pipeline] Deterministic fallback: tool searcher failed", {
+      feature: ctx.args.feature,
+      tool: ctx.args.forcedToolName,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { done: true, text: ctx.done(TOOL_FALLBACK_SEARCH_ERROR_MESSAGE) };
+  }
   const limitedResults = rawResults.slice(0, 5).flatMap((r) => {
     const normalized = normalizeInternalPath(r.url);
     return normalized ? [{ title: r.title, url: normalized }] : [];
@@ -298,12 +302,7 @@ async function resolveForcedToolFallback(
       tool: ctx.args.forcedToolName,
       error: validated.error.message,
     });
-    return {
-      done: true,
-      text: ctx.done(
-        "Sorry, I encountered an error while searching. Please try a different query.",
-      ),
-    };
+    return { done: true, text: ctx.done(TOOL_FALLBACK_SEARCH_ERROR_MESSAGE) };
   }
   return { done: true, text: ctx.done(formatBookmarkResultsAsLinks(limitedResults)) };
 }
@@ -311,7 +310,6 @@ async function resolveForcedToolFallback(
 async function handleContentOutcome(ctx: ContentOutcomeCtx): Promise<ContentOutcomeResult> {
   const forcedFallback = await resolveForcedToolFallback(ctx);
   if (forcedFallback) return forcedFallback;
-
   if (ctx.loopState.toolObservedResults.length > 0) {
     const resolution = resolveToolContent(ctx.result.text, ctx.loopState.toolObservedResults);
     if (resolution.source === "deterministic_fallback") {
@@ -323,7 +321,6 @@ async function handleContentOutcome(ctx: ContentOutcomeCtx): Promise<ContentOutc
     }
     return { done: true, text: ctx.done(resolution.text) };
   }
-
   if (ctx.analysisFeature) {
     const result = handleAnalysisValidation({
       analysisFeature: ctx.analysisFeature,
@@ -344,7 +341,6 @@ async function handleContentOutcome(ctx: ContentOutcomeCtx): Promise<ContentOutc
     }
     throw new Error(result.message);
   }
-
   if (ctx.result.text) return { done: true, text: ctx.done(ctx.result.text) };
   return { done: false, retry: false };
 }
