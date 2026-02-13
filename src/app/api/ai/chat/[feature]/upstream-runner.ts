@@ -16,6 +16,7 @@ import type { OpenAiCompatibleChatMessage } from "@/types/schemas/ai-openai-comp
 import {
   extractSearchQueryFromMessage,
   formatBookmarkResultsAsLinks,
+  normalizeInternalPath,
   sanitizeBookmarkLinksAgainstAllowlist,
 } from "./bookmark-tool";
 import { getToolByName } from "./tool-registry";
@@ -282,7 +283,10 @@ async function resolveForcedToolFallback(
 
   const searchQuery = extractSearchQueryFromMessage(ctx.args.latestUserMessage);
   const rawResults = await registration.searcher(searchQuery);
-  const limitedResults = rawResults.slice(0, 5).map((r) => ({ title: r.title, url: r.url }));
+  const limitedResults = rawResults.slice(0, 5).flatMap((r) => {
+    const normalized = normalizeInternalPath(r.url);
+    return normalized ? [{ title: r.title, url: normalized }] : [];
+  });
   const validated = searchToolResultSchema.safeParse({
     query: searchQuery,
     results: limitedResults,

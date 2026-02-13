@@ -10,6 +10,7 @@
 import { CV_PROFESSIONAL_SUMMARY, CV_QUALIFICATIONS, CV_TECHNICAL_FOCUS } from "@/data/cv";
 import { SITE_DESCRIPTION_SHORT, metadata } from "@/data/metadata";
 import { projects } from "@/data/projects";
+import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 import type { StaticContext } from "@/types/rag";
 
 export type { StaticContext };
@@ -43,7 +44,8 @@ function buildStaticContext(): StaticContext {
     .map((p) => ({
       name: p.name,
       description: p.shortSummary ?? p.description,
-      url: p.url ?? "/projects",
+      url: `/projects/${generateProjectSlug(p.name, p.id)}`,
+      externalUrl: p.url,
     }));
 
   // Social links from metadata
@@ -112,6 +114,9 @@ export function formatStaticContext(ctx: StaticContext): string {
   for (const project of ctx.currentProjects) {
     lines.push(`- ${project.name}: ${project.description}`);
     lines.push(`  URL: ${project.url}`);
+    if (project.externalUrl) {
+      lines.push(`  Website: ${project.externalUrl}`);
+    }
   }
   lines.push("");
 

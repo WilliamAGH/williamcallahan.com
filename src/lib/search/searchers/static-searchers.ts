@@ -19,6 +19,7 @@ import {
   experiences,
   projectsData,
 } from "../loaders/static-content";
+import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
 
 /**
@@ -104,7 +105,7 @@ export async function searchProjects(query: string): Promise<SearchResult[]> {
       type: "project" as const,
       title: p.name,
       description: p.shortSummary || p.description,
-      url: p.url ?? "/projects",
+      url: `/projects/${generateProjectSlug(p.name, p.id)}`,
       score,
     }),
   });
