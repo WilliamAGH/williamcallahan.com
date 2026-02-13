@@ -793,7 +793,7 @@ ls -la /Users/williamcallahan/.claude/skills/openai/references/
 
 ## Task Dependencies
 
-```
+```text
 Task 1 (types) ──→ Task 2 (registry) ──→ Task 3 (dispatch) ──→ Task 4 (upstream-turn)
                                                                        │
                                                                        ↓
