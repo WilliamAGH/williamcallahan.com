@@ -21,12 +21,13 @@ import type {
   OpenAiCompatibleChatCompletionsRequest,
   OpenAiCompatibleChatMessage,
 } from "@/types/schemas/ai-openai-compatible";
-import { SEARCH_BOOKMARKS_RESPONSE_TOOL, SEARCH_BOOKMARKS_TOOL } from "./bookmark-tool";
+import { sanitizeModelOutput } from "@/lib/ai/openai-compatible/think-tag-parser";
+import { getChatCompletionsTools, getResponsesTools } from "./tool-registry";
 import {
-  dispatchResponseToolCalls,
-  dispatchToolCalls,
-  extractSearchBookmarkToolCalls,
-} from "./bookmark-tool-dispatch";
+  dispatchToolCallsByName,
+  dispatchResponseToolCallsByName,
+  extractToolCallsFromResponseOutput,
+} from "./tool-dispatch";
 import { emitDeferredContentEvents } from "./upstream-error";
 
 /** Approximate characters per token for thinking-token estimation */
@@ -36,11 +37,17 @@ export async function executeChatCompletionsTurn(
   requestMessages: OpenAiCompatibleChatMessage[],
   params: UpstreamTurnParams,
 ): Promise<UpstreamTurnOutcome> {
-  const { turnConfig, signal, toolChoice, hasToolSupport, onStreamEvent } = params;
+  const { turnConfig, signal, toolChoice, hasToolSupport, forcedToolName, onStreamEvent } = params;
+  const allChatTools = getChatCompletionsTools();
+  const tools = hasToolSupport
+    ? forcedToolName
+      ? allChatTools.filter((t) => t.function.name === forcedToolName)
+      : allChatTools
+    : undefined;
   const request: OpenAiCompatibleChatCompletionsRequest = {
     model: turnConfig.model,
     messages: requestMessages,
-    tools: hasToolSupport ? [SEARCH_BOOKMARKS_TOOL] : undefined,
+    tools,
     tool_choice: toolChoice,
     parallel_tool_calls: hasToolSupport ? false : undefined,
     temperature: params.temperature,
@@ -101,7 +108,8 @@ export async function executeChatCompletionsTurn(
 
   const toolCalls = assistantMessage.tool_calls ?? [];
   if (toolCalls.length === 0) {
-    const content = assistantMessage.content?.trim();
+    const rawContent = assistantMessage.content?.trim();
+    const content = rawContent ? sanitizeModelOutput(rawContent) : rawContent;
     const refusal = assistantMessage.refusal?.trim();
     const text = content ? content : refusal;
     if (text && onStreamEvent && !emittedDeltaEvent) {
@@ -122,7 +130,7 @@ export async function executeChatCompletionsTurn(
     tool_calls: toolCalls,
   };
 
-  const dispatch = await dispatchToolCalls(toolCalls);
+  const dispatch = await dispatchToolCallsByName(toolCalls);
   return {
     kind: "tool_calls",
     newMessages: [assistantMsg, ...dispatch.responseMessages],
@@ -134,11 +142,17 @@ export async function executeResponsesTurn(
   requestMessages: OpenAiCompatibleChatMessage[],
   params: UpstreamTurnParams,
 ): Promise<UpstreamTurnOutcome> {
-  const { turnConfig, signal, toolChoice, hasToolSupport, onStreamEvent } = params;
+  const { turnConfig, signal, toolChoice, hasToolSupport, forcedToolName, onStreamEvent } = params;
+  const allResponsesTools = getResponsesTools();
+  const tools = hasToolSupport
+    ? forcedToolName
+      ? allResponsesTools.filter((t) => t.name === forcedToolName)
+      : allResponsesTools
+    : undefined;
   const request = {
     model: turnConfig.model,
     input: requestMessages,
-    tools: hasToolSupport ? [SEARCH_BOOKMARKS_RESPONSE_TOOL] : undefined,
+    tools,
     tool_choice: toolChoice,
     parallel_tool_calls: hasToolSupport ? false : undefined,
     temperature: params.temperature,
@@ -187,9 +201,9 @@ export async function executeResponsesTurn(
     });
   }
 
-  const toolCalls = extractSearchBookmarkToolCalls(response.output);
+  const toolCalls = extractToolCallsFromResponseOutput(response.output);
   if (toolCalls.length === 0) {
-    const text = response.output_text.trim();
+    const text = sanitizeModelOutput(response.output_text.trim());
     if (text && onStreamEvent && !emittedDeltaEvent) {
       emitDeferredContentEvents({
         text,
@@ -212,7 +226,7 @@ export async function executeResponsesTurn(
       function: { name: tc.name, arguments: tc.arguments },
     })),
   };
-  const dispatch = await dispatchResponseToolCalls(toolCalls);
+  const dispatch = await dispatchResponseToolCallsByName(toolCalls);
   const toolMessages: OpenAiCompatibleChatMessage[] = dispatch.outputs.map((output) => ({
     role: "tool" as const,
     tool_call_id: output.call_id,

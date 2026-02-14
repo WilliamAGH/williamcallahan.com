@@ -30,53 +30,88 @@ const TERMINAL_LINK_CLASS =
   "text-[#7aa2f7] underline underline-offset-2 hover:text-[#9ab7ff] transition-colors";
 
 const SAFE_INTERNAL_PATH_PATTERN = /^\/(?!\/)[A-Za-z0-9\-._~!$&'()*+,;=:@/?#[\]%]*$/;
+const SAFE_EXTERNAL_URL_PATTERN =
+  /^https:\/\/[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]{2,}(\/[A-Za-z0-9\-._~!$&'()*+,;=:@/?#[\]%]*)?$/i;
 
 function isInternalSlugPath(value: string): boolean {
   return SAFE_INTERNAL_PATH_PATTERN.test(value);
 }
 
-/** Each pattern extracts a prefix, display text, and link path from a chat line */
+function isExternalUrl(value: string): boolean {
+  return SAFE_EXTERNAL_URL_PATTERN.test(value);
+}
+
+/**
+ * Structural extractors only — no URL validation here.
+ * Validation is centralized in renderChatLine.
+ */
 const CHAT_LINK_PATTERNS: Array<{
   regex: RegExp;
-  extract: (match: RegExpMatchArray) => { prefix: string; text: string; path: string } | null;
+  extract: (
+    match: RegExpMatchArray,
+  ) => { prefix: string; text: string; url: string; suffix: string } | null;
 }> = [
   {
-    regex: /^- *\[([^\]]+)\]\((\/[^)]+)\)\s*$/,
+    // Markdown link: - [Title](url) optional trailing text
+    regex: /^- *\[([^\]]+)\]\(([^)]+)\)(.*)$/,
     extract: (m) => {
       const text = m[1]?.trim();
-      const path = m[2]?.trim();
-      return text && path ? { prefix: "- ", text, path } : null;
+      const url = m[2]?.trim();
+      if (!text || !url) return null;
+      return { prefix: "- ", text, url, suffix: m[3] ?? "" };
     },
   },
   {
+    // Label: /internal-path
     regex: /^- *(.+?):\s*(\/\S+)\s*$/,
     extract: (m) => {
       const text = m[1]?.trim();
-      const path = m[2]?.trim();
-      return text && path ? { prefix: "- ", text, path } : null;
+      const url = m[2]?.trim();
+      if (!text || !url) return null;
+      return { prefix: "- ", text, url, suffix: "" };
     },
   },
   {
+    // URL: /internal-path
     regex: /^URL:\s*(\/\S+)\s*$/,
     extract: (m) => {
-      const path = m[1]?.trim();
-      return path ? { prefix: "URL: ", text: path, path } : null;
+      const url = m[1]?.trim();
+      if (!url) return null;
+      return { prefix: "URL: ", text: url, url, suffix: "" };
+    },
+  },
+  {
+    // Standalone external URL: - https://example.com
+    regex: /^- *(https:\/\/\S+)\s*$/,
+    extract: (m) => {
+      const url = m[1]?.trim();
+      if (!url) return null;
+      return { prefix: "- ", text: url, url, suffix: "" };
     },
   },
 ];
 
+/** Centralized URL validation + link rendering for a single chat line */
 function renderChatLine(line: string): ReactNode {
   for (const { regex, extract } of CHAT_LINK_PATTERNS) {
     const match = line.match(regex);
     if (!match) continue;
     const parsed = extract(match);
-    if (!parsed || !isInternalSlugPath(parsed.path)) continue;
+    if (!parsed) continue;
+
+    const external = isExternalUrl(parsed.url);
+    if (!external && !isInternalSlugPath(parsed.url)) continue;
+
+    const linkProps = external
+      ? { href: parsed.url, target: "_blank" as const, rel: "noopener noreferrer" }
+      : { href: parsed.url };
     return (
       <>
         {parsed.prefix}
-        <a href={parsed.path} className={TERMINAL_LINK_CLASS}>
+        <a {...linkProps} className={TERMINAL_LINK_CLASS}>
           {parsed.text}
         </a>
+        {parsed.suffix}
       </>
     );
   }

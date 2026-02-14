@@ -23,14 +23,16 @@ describe("AI Chat Upstream Pipeline Tools", () => {
       toolChoice: "required" as const,
       userContent: explicitSearchPrompt,
       mutatedToken: "en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing-typo",
+      forcedSingleTool: true,
     },
     {
       label: "returns deterministic links when auto tool mode mutates a URL",
       toolChoice: "auto" as const,
       userContent: "hello there",
       mutatedToken: "en-wikipedia-org-wiki-wikipedia-signs-of-ai-writing-mutated",
+      forcedSingleTool: false,
     },
-  ])("$label", async ({ toolChoice, userContent, mutatedToken }) => {
+  ])("$label", async ({ toolChoice, userContent, mutatedToken, forcedSingleTool }) => {
     mockSingleBookmarkSearchResult();
     mockChatToolCallThenContent({
       finalContent: `Here are links:\n- [Wrong Link](/bookmarks/${mutatedToken})`,
@@ -43,6 +45,9 @@ describe("AI Chat Upstream Pipeline Tools", () => {
     const firstCallRequest = mockCallOpenAiCompatibleChatCompletions.mock.calls[0]?.[0]?.request;
     expect(firstCallRequest?.tool_choice).toBe(toolChoice);
     expect(firstCallRequest?.parallel_tool_calls).toBe(false);
+    if (forcedSingleTool) {
+      expect(firstCallRequest?.tools).toHaveLength(1);
+    }
     expect(firstCallRequest?.tools?.[0]?.function?.name).toBe("search_bookmarks");
     expect(mockedSearchBookmarks).toHaveBeenCalledWith(searchQuery);
     expect(reply).toContain("Here are the best matches I found:");
@@ -91,6 +96,29 @@ describe("AI Chat Upstream Pipeline Tools", () => {
     expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
     expect(mockedSearchBookmarks).toHaveBeenCalledWith("wikipedia");
     expect(reply).toContain(bookmarkLink);
+  });
+
+  it("returns a safe message when deterministic fallback tool searcher throws", async () => {
+    const { default: logger } = await import("@/lib/utils/logger");
+    logger.setSilent(true);
+
+    mockedSearchBookmarks.mockRejectedValueOnce(new Error("searcher exploded"));
+    mockCallOpenAiCompatibleChatCompletions.mockResolvedValueOnce({
+      choices: [{ message: { role: "assistant", content: "" } }],
+    });
+
+    let reply: string;
+    try {
+      reply = await createPipeline({ userContent: explicitSearchPrompt }).runUpstream();
+    } finally {
+      logger.setSilent(false);
+    }
+
+    expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(1);
+    expect(mockedSearchBookmarks).toHaveBeenCalledWith("wikipedia");
+    expect(reply).toBe(
+      "Sorry, I encountered an error while searching. Please try a different query.",
+    );
   });
 
   it("preserves valid model text when forced tool is not called", async () => {
@@ -171,6 +199,7 @@ describe("AI Chat Upstream Pipeline Tools", () => {
     const firstCallRequest = mockCallOpenAiCompatibleResponses.mock.calls[0]?.[0]?.request;
     expect(firstCallRequest?.tool_choice).toBe("required");
     expect(firstCallRequest?.parallel_tool_calls).toBe(false);
+    expect(firstCallRequest?.tools).toHaveLength(1);
     expect(firstCallRequest?.tools?.[0]?.name).toBe("search_bookmarks");
     expect(mockedSearchBookmarks).toHaveBeenCalledWith(searchQuery);
     expect(reply).toContain(bookmarkLink);

@@ -16,7 +16,7 @@ export interface StaticContext {
   biography: string;
   qualifications: string[];
   technicalFocus: Array<{ area: string; skills: string[] }>;
-  currentProjects: Array<{ name: string; description: string; url: string }>;
+  currentProjects: Array<{ name: string; description: string; url: string; externalUrl?: string }>;
   socialLinks: Array<{ platform: string; url: string }>;
   homePageHighlights: string[];
   contactSummary: string;

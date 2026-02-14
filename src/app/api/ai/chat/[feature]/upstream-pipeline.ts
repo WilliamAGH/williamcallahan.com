@@ -23,7 +23,7 @@ import type {
   ValidatedRequestContext,
 } from "@/types/features/ai-chat";
 import type { AiUpstreamApiMode } from "@/types/schemas/ai-openai-compatible";
-import { matchesBookmarkSearchPattern } from "./bookmark-tool";
+import { getForcedToolName } from "./tool-registry";
 import {
   resolveFeatureSystemPrompt,
   resolveModelParams,
@@ -109,7 +109,7 @@ export function buildChatPipeline(params: {
   const modelParams = resolveModelParams(feature, ctx.parsedBody);
   const latestUserMessage = resolveLatestUserMessage(ctx.parsedBody);
   const hasToolSupport = resolveToolConfig(feature).enabled;
-  const forceBookmarkTool = hasToolSupport && matchesBookmarkSearchPattern(latestUserMessage);
+  const forcedToolName = hasToolSupport ? getForcedToolName(latestUserMessage) : undefined;
 
   const runUpstream = createUpstreamRunner({
     feature,
@@ -120,7 +120,7 @@ export function buildChatPipeline(params: {
     primaryModel,
     fallbackModel,
     hasToolSupport,
-    forceBookmarkTool,
+    forcedToolName,
     latestUserMessage,
     modelParams,
     signal,

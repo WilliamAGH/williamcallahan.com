@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import type { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
-import type { ParsedRequestBody, SearchBookmarksToolResult } from "@/types/schemas/ai-chat";
+import type { ParsedRequestBody, SearchToolResult } from "@/types/schemas/ai-chat";
 import type {
   AiUpstreamApiMode,
   OpenAiCompatibleChatMessage,
@@ -8,8 +8,18 @@ import type {
   ReasoningEffort,
 } from "@/types/schemas/ai-openai-compatible";
 import type { AiChatModelStreamUpdate } from "@/types/schemas/ai-openai-compatible-client";
+import type { ScopeSearcher } from "@/types/rag";
 
 export type RagContextStatus = "included" | "partial" | "failed" | "not_applicable";
+
+/** Registration for a single search tool in the tool registry */
+export type ToolRegistration = {
+  name: string;
+  description: string;
+  searcher: ScopeSearcher;
+  /** Regex that triggers forced tool invocation on turn 0 */
+  forcePattern: RegExp;
+};
 /** Server-side stream event — derived from the client-facing schema to prevent drift. */
 export type AiChatModelStreamEvent = AiChatModelStreamUpdate;
 
@@ -74,12 +84,13 @@ export type FeatureModelDefaults = {
 /** Fully resolved model params — every field has a concrete value */
 export type ResolvedModelParams = Required<Omit<FeatureModelDefaults, "toolConfig">>;
 
-/** Internal result of executing a single bookmark tool call in a batch */
+/** Internal result of executing a single tool call in a batch */
 export type ExecutedToolCall = {
   callId: string;
+  toolName: string;
   /** Whether the tool call failed (execution error or schema validation failure) */
   failed: boolean;
-  parsed: SearchBookmarksToolResult;
+  parsed: SearchToolResult;
   links: Array<{ title: string; url: string }>;
 };
 
@@ -99,6 +110,8 @@ export type UpstreamTurnParams = {
   signal: AbortSignal;
   toolChoice: "required" | "auto" | undefined;
   hasToolSupport: boolean;
+  /** When set, only this tool is included in the tools array (single-tool determinism) */
+  forcedToolName?: string;
   temperature: number;
   topP: number;
   reasoningEffort: ReasoningEffort | null;
@@ -134,7 +147,7 @@ export type UpstreamRunnerConfig = {
   primaryModel: string;
   fallbackModel?: string;
   hasToolSupport: boolean;
-  forceBookmarkTool: boolean;
+  forcedToolName: string | undefined;
   latestUserMessage?: string;
   modelParams: ResolvedModelParams;
   signal: AbortSignal;
@@ -152,15 +165,29 @@ export type ContentOutcomeResult =
   | { done: false; retry: true; newAttempts: number; switchedModel?: string }
   | { done: false; retry: false };
 
-/** Context bag for handleContentOutcome and resolveBookmarkFallback */
+/** Result of resolving model-authored content against tool-observed results */
+export type ToolContentResolution =
+  | { source: "model"; text: string }
+  | {
+      source: "deterministic_fallback";
+      text: string;
+      reason: "disallowed_links" | "no_model_links";
+    };
+
+/** Mutable state accumulated across the multi-turn tool loop */
+export type ToolLoopState = {
+  requestMessages: OpenAiCompatibleChatMessage[];
+  toolObservedResults: Array<{ title: string; url: string }>;
+  activeModel: string;
+  analysisValidationAttempts: number;
+};
+
+/** Context bag for handleContentOutcome and resolveForcedToolFallback */
 export type ContentOutcomeCtx = {
   args: UpstreamRunnerConfig;
   result: Extract<UpstreamTurnOutcome, { kind: "content" }>;
   turn: number;
-  toolObservedResults: Array<{ title: string; url: string }>;
+  loopState: ToolLoopState;
   analysisFeature: AnalysisFeatureId | null;
-  analysisValidationAttempts: number;
-  requestMessages: OpenAiCompatibleChatMessage[];
-  activeModel: string;
   done: (message: string) => string;
 };
