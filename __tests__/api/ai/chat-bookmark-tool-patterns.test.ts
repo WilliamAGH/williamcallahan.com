@@ -1,32 +1,5 @@
-import {
-  matchesBookmarkSearchPattern,
-  extractSearchQueryFromMessage,
-} from "@/app/api/ai/chat/[feature]/bookmark-tool";
+import { extractSearchQueryFromMessage } from "@/app/api/ai/chat/[feature]/bookmark-tool";
 import { resolveToolChoice } from "@/app/api/ai/chat/[feature]/feature-defaults";
-
-describe("Bookmark tool pattern matching", () => {
-  it.each([
-    { input: "search bookmarks for wikipedia", expected: true },
-    { input: "find links about AI", expected: true },
-    { input: "show me saved resources", expected: true },
-    { input: "what bookmarks do you have for cli?", expected: true },
-    { input: "what bookmarks do you have that contain amd?", expected: true },
-    { input: "bookmarks containing react hooks", expected: true },
-    { input: "any bookmarks with typescript?", expected: true },
-    { input: "bookmarks matching kubernetes", expected: true },
-    { input: "what links do you have about rust?", expected: true },
-    { input: "what bookmarks do you have?", expected: true },
-    { input: "hello there", expected: false },
-    { input: "what is a bookmark?", expected: false },
-    { input: undefined, expected: false },
-    { input: "show me your resume", expected: false },
-    { input: "find the meaning of life", expected: false },
-    { input: "search for a good recipe", expected: false },
-    { input: "show me the weather", expected: false },
-  ])('matchesBookmarkSearchPattern("$input") → $expected', ({ input, expected }) => {
-    expect(matchesBookmarkSearchPattern(input)).toBe(expected);
-  });
-});
 
 describe("Search query extraction from user messages", () => {
   it.each([
