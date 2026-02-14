@@ -20,10 +20,7 @@ import {
   type OpenAiCompatibleChatMessage,
 } from "@/types/schemas/ai-openai-compatible";
 import { getToolByName } from "./tool-registry";
-import { normalizeInternalPath } from "./bookmark-tool";
-
-/** Cap per-query results to keep tool responses concise for the LLM context window */
-const TOOL_MAX_RESULTS_DEFAULT = 5;
+import { normalizeInternalPath, TOOL_MAX_RESULTS_DEFAULT } from "./bookmark-tool";
 /** Schema cap for maxResults — models frequently overshoot; clamp instead of rejecting */
 const TOOL_MAX_RESULTS_CAP = 10;
 /** Maximum characters to include in log preview of raw arguments */
