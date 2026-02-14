@@ -53,6 +53,26 @@ describe("AI Chat Tool Registry (tool-registry)", () => {
         message: "Share your thoughts",
         expected: "search_thoughts",
       },
+      {
+        label: "investments (suffixed form)",
+        message: "Show me your investments",
+        expected: "search_investments",
+      },
+      {
+        label: "funding (suffixed form)",
+        message: "What about funding?",
+        expected: "search_investments",
+      },
+      {
+        label: "employment (suffixed form)",
+        message: "Tell me about your employment history",
+        expected: "search_experience",
+      },
+      {
+        label: "certification (suffixed form)",
+        message: "Do you have any certifications?",
+        expected: "search_education",
+      },
     ])("detects $label", ({ message, expected }) => {
       expect(getForcedToolName(message)).toBe(expected);
     });
@@ -61,6 +81,8 @@ describe("AI Chat Tool Registry (tool-registry)", () => {
       { message: "tools", label: "tools" },
       { message: "read", label: "read" },
       { message: "position", label: "position" },
+      { message: "investigate this issue", label: "investigate" },
+      { message: "fundamental concepts", label: "fundamental" },
     ])("avoids false positives for $label", ({ message }) => {
       expect(getForcedToolName(message)).toBeUndefined();
     });
