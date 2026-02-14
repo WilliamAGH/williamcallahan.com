@@ -66,7 +66,8 @@ const TOOL_REGISTRATIONS: ToolRegistration[] = [
     name: "search_investments",
     description: "Searches investment portfolio entries (startups, ventures, funds)",
     searcher: searchInvestments,
-    forcePattern: /\b(?:invest|portfolio|startups?|fund|venture|vc|backed|seed)\b/i,
+    forcePattern:
+      /\b(?:invest(?:ments?|ing|ors?|ed)?|portfolio|startups?|funds?|funding|venture|vc|backed|seed)\b/i,
   },
   {
     name: "search_projects",
@@ -78,13 +79,15 @@ const TOOL_REGISTRATIONS: ToolRegistration[] = [
     name: "search_experience",
     description: "Searches work experience and career history",
     searcher: searchExperience,
-    forcePattern: /\b(?:work\s+(?:experience|history)|jobs?|roles?|experience|employ|career)\b/i,
+    forcePattern:
+      /\b(?:work\s+(?:experience|history)|jobs?|roles?|experience|employ(?:ment|ed|ee|ers?)?|career)\b/i,
   },
   {
     name: "search_education",
     description: "Searches education, degrees, and certifications",
     searcher: searchEducation,
-    forcePattern: /\b(?:education|degrees?|certs?|certif|school|university|cfa|cfp|mba)\b/i,
+    forcePattern:
+      /\b(?:education|degrees?|certs?|certif(?:ications?|ied|icates?)?|school|university|cfa|cfp|mba)\b/i,
   },
   {
     name: "search_books",
