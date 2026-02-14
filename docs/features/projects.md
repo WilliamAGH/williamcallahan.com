@@ -48,5 +48,5 @@ See [Projects Architecture Diagram](./projects.mmd).
 
 ## Notable Projects
 
-- **ComposerAI**: Svelte + Vite email client with Spring Boot/Qdrant/S3 services in `data/projects.ts`, screenshot at `images/other/projects/composerai-app.png`.
+- **ComposerAI**: Svelte + Vite email client with Spring Boot/Qdrant/S3 services in `data/projects.ts`, screenshot at `images/other/projects/composerai-app.png`. Live at `https://composer.email`.
 - **CV Integration**: `cvFeatured` flags in `data/projects.ts` allow `/cv` to reuse the curated project list without duplicating data.
