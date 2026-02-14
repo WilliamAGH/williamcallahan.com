@@ -11,7 +11,7 @@
 import "server-only";
 
 /** Cap per-query results to keep tool responses concise for the LLM context window */
-const TOOL_MAX_RESULTS_DEFAULT = 5;
+export const TOOL_MAX_RESULTS_DEFAULT = 5;
 
 const MARKDOWN_LINK_PATTERN = /\[([^\]\n]+)\]\(([^)\n]+)\)/g;
 
