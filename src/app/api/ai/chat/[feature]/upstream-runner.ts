@@ -18,6 +18,7 @@ import {
   formatBookmarkResultsAsLinks,
   normalizeInternalPath,
   sanitizeBookmarkLinksAgainstAllowlist,
+  TOOL_MAX_RESULTS_DEFAULT,
 } from "./bookmark-tool";
 import { getToolByName } from "./tool-registry";
 import { searchToolResultSchema } from "@/types/schemas/ai-chat";
@@ -288,10 +289,12 @@ async function resolveForcedToolFallback(
     });
     return { done: true, text: ctx.done(TOOL_FALLBACK_SEARCH_ERROR_MESSAGE) };
   }
-  const limitedResults = rawResults.slice(0, 5).flatMap((r) => {
-    const normalized = normalizeInternalPath(r.url);
-    return normalized ? [{ title: r.title, url: normalized }] : [];
-  });
+  const limitedResults = rawResults
+    .flatMap((r) => {
+      const normalized = normalizeInternalPath(r.url);
+      return normalized ? [{ title: r.title, url: normalized }] : [];
+    })
+    .slice(0, TOOL_MAX_RESULTS_DEFAULT);
   const validated = searchToolResultSchema.safeParse({
     query: searchQuery,
     results: limitedResults,
