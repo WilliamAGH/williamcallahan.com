@@ -48,7 +48,7 @@ const TOOL_REGISTRATIONS: ToolRegistration[] = [
     name: "search_bookmarks",
     description: "Searches saved bookmark entries by natural-language query",
     searcher: searchBookmarks,
-    forcePattern: /\b(?:bookmarks?|links?|resources?|saved|favorites?)\b/i,
+    forcePattern: /\b(?:bookmarks?|links?|resources?|saved)\b/i,
   },
   {
     name: "search_blog",
