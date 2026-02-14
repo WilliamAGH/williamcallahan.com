@@ -43,9 +43,9 @@ const mockStaticContext: StaticContext = {
 const mockDynamicResults: DynamicResult[] = [
   {
     scope: "projects",
-    title: "searchAI",
+    title: "Researchly",
     description: "AI-powered web search",
-    url: "https://search-ai.io",
+    url: "https://researchly.fyi",
     score: 0.95,
   },
   {
@@ -105,7 +105,7 @@ describe("RAG Context Formatter", () => {
       const { text } = formatContext(mockStaticContext, mockDynamicResults);
 
       expect(text).toContain("SEARCH RESULTS");
-      expect(text).toContain("searchAI");
+      expect(text).toContain("Researchly");
       expect(text).toContain("Building Terminal UIs");
     });
 
