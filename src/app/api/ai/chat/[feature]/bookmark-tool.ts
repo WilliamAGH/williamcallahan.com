@@ -2,8 +2,8 @@
  * Bookmark Tool Helpers
  *
  * Bookmark-specific helpers for link formatting, URL sanitization,
- * search pattern matching, and query extraction. Tool schemas and
- * execution logic live in tool-registry.ts and tool-dispatch.ts.
+ * and query extraction. Tool schemas and execution logic live in
+ * tool-registry.ts and tool-dispatch.ts.
  *
  * @module api/ai/chat/bookmark-tool
  */
@@ -13,13 +13,6 @@ import "server-only";
 /** Cap per-query results to keep tool responses concise for the LLM context window */
 const TOOL_MAX_RESULTS_DEFAULT = 5;
 
-/** Matches explicit user intent to search (e.g. "search bookmarks", "find links") */
-const EXPLICIT_SEARCH_REQUEST_PATTERN = /\b(search|find|look\s+for|look\s+up|show)\b/i;
-
-const BOOKMARK_NOUN_PATTERN = /\b(?:bookmarks?|links?|resources?|saved)\b/i;
-const TOPIC_CONNECTOR_PATTERN =
-  /\b(?:about|for|on|related|regarding|specifically?|contain(?:ing)?|with|matching|have)\b/i;
-const TOPIC_CONNECTOR_MAX_DISTANCE = 40;
 const MARKDOWN_LINK_PATTERN = /\[([^\]\n]+)\]\(([^)\n]+)\)/g;
 
 /**
@@ -33,25 +26,6 @@ export function normalizeInternalPath(url: string): string | null {
   const trimmed = url.trim();
   if (!trimmed.startsWith("/") || trimmed.startsWith("//")) return null;
   return trimmed;
-}
-
-/**
- * Test whether the user message matches bookmark search intent patterns.
- * Requires a bookmark-related noun to be present — a bare search verb
- * ("show me X", "find Y") is not sufficient to force a bookmark tool call.
- * The caller is responsible for gating on feature support.
- */
-export function matchesBookmarkSearchPattern(latestUserMessage: string | undefined): boolean {
-  if (typeof latestUserMessage !== "string") return false;
-  const hasBookmarkNoun = BOOKMARK_NOUN_PATTERN.test(latestUserMessage);
-  if (hasBookmarkNoun && EXPLICIT_SEARCH_REQUEST_PATTERN.test(latestUserMessage)) return true;
-  const nounMatch = BOOKMARK_NOUN_PATTERN.exec(latestUserMessage);
-  if (!nounMatch) return false;
-  const afterNoun = latestUserMessage.slice(
-    nounMatch.index + nounMatch[0].length,
-    nounMatch.index + nounMatch[0].length + TOPIC_CONNECTOR_MAX_DISTANCE,
-  );
-  return TOPIC_CONNECTOR_PATTERN.test(afterNoun);
 }
 
 /**
