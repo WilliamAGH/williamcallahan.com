@@ -184,12 +184,13 @@ rg "<Image" --type tsx -A5 | rg -v "sizes="
 ```
 
 **Error Symptoms:**
-| Pattern | Result |
-|---------|--------|
-| `buildCachedImageUrl(cdnUrl)` + `unoptimized` | No optimization, full-size images served |
-| Missing `sizes` on responsive `<Image>` | Browser downloads largest srcset variant |
-| Direct external URL without proxy | `/_next/image` rejects as not in remotePatterns |
-| `<Image>` for noscript tracking pixel | Fails if domain not in remotePatterns |
+
+| Pattern                                       | Result                                          |
+| --------------------------------------------- | ----------------------------------------------- |
+| `buildCachedImageUrl(cdnUrl)` + `unoptimized` | No optimization, full-size images served        |
+| Missing `sizes` on responsive `<Image>`       | Browser downloads largest srcset variant        |
+| Direct external URL without proxy             | `/_next/image` rejects as not in remotePatterns |
+| `<Image>` for noscript tracking pixel         | Fails if domain not in remotePatterns           |
 
 ### 5. Link Prefetch Behavior (Next.js 16)
 
