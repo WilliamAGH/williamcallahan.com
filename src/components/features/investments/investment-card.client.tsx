@@ -199,6 +199,7 @@ export function InvestmentCardClient({
                   alt="aVenture"
                   width={24}
                   height={24}
+                  sizes="24px"
                   className="inline-block h-6 w-6"
                   data-testid="aventure-icon"
                   unoptimized={true}

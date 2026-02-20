@@ -132,7 +132,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 ## Integration with Adjacent Domains
 
 - **S3 object storage**: Understand bucket layout, ACLs, and distributed lock behavior in [`s3-object-storage.md`](./s3-object-storage.md).
-- **Unified stack map**: The holistic flow (client -> Next -> API -> service -> S3/CDN) lives in [`s3-image-unified-stack.md`](./s3-image-unified-stack.md).
+- **Unified stack map**: The holistic flow (client -> Next -> API -> service -> S3/CDN) lives in [`image-stack.md`](./image-stack.md).
 - **Next.js 16 policies**: See `docs/standards/nextjs-framework.md` for caching, cache components, and outlawed patterns before changing API routes or components.
 
 ## Idempotency & Determinism (Deep Dive)
@@ -156,41 +156,54 @@ Keep this document synchronized with real code: every new image entry point, val
 
 ## Image Optimization Decision Matrix (CANONICAL)
 
-| Image Source                                             | Direct URL or Proxy?          | `unoptimized`? | Who Optimizes?          |
-| -------------------------------------------------------- | ----------------------------- | -------------- | ----------------------- |
-| Our CDN (`*.callahan.cloud`, `*.digitaloceanspaces.com`) | **Direct URL**                | **No**         | Next.js `/_next/image`  |
-| External URL (Twitter, LinkedIn, etc.)                   | Proxy via `/api/cache/images` | **Yes**        | API route streams bytes |
-| Local static (`/public/images/**`)                       | Direct URL or static import   | **No**         | Next.js                 |
-| `/api/logo`, `/api/og-image`                             | N/A (server-rendered)         | **Yes**        | API route               |
+> Verified against Next.js 16.1.6. The optimizer serves WebP or AVIF (depending on browser `Accept` header) with `cache-control: public, max-age=315360000, immutable`.
+
+| Image Source                                             | Direct URL or Proxy?          | `unoptimized`? | `sizes` Required?                      | Who Optimizes?           |
+| -------------------------------------------------------- | ----------------------------- | -------------- | -------------------------------------- | ------------------------ |
+| Our CDN (`*.callahan.cloud`, `*.digitaloceanspaces.com`) | **Direct URL**                | **No**         | Yes (responsive) / Recommended (fixed) | Next.js `/_next/image`   |
+| External URL (Twitter, LinkedIn, etc.)                   | Proxy via `/api/cache/images` | **Yes**        | Yes (responsive) / Recommended (fixed) | API route streams bytes  |
+| Local static (`/public/images/**`)                       | Direct URL or static import   | **No**         | Yes (responsive) / Recommended (fixed) | Next.js                  |
+| `/api/logo`, `/api/og-image`                             | N/A (server-rendered)         | **Yes**        | Yes (responsive) / Recommended (fixed) | API route                |
+| Tracking pixels (`<noscript>` analytics)                 | **Direct external URL**       | N/A            | N/A                                    | None (use plain `<img>`) |
 
 ### Why This Matters
 
-- Direct CDN URLs → Next.js fetches, Sharp resizes to display size, converts to WebP → **2MB → ~50KB**
+- Direct CDN URLs → Next.js fetches, Sharp resizes to display size, converts to WebP/AVIF → **2MB → ~50KB**
 - Proxied + `unoptimized` → Bytes streamed unchanged → **2MB stays 2MB**
 
-### NEVER Proxy Our Own CDN Images
+### `sizes` Prop Behavior (Next.js 16)
 
-The function `buildCachedImageUrl()` must ONLY be used for:
+Per Next.js docs: without `sizes`, the browser assumes the image is viewport-width (`100vw`) and Next.js generates a limited `1x, 2x` srcset (suitable for fixed-size images with explicit `width`/`height`). With `sizes`, Next.js generates a full responsive srcset (`640w, 750w, ...`).
 
-1. External URLs that need SSRF protection
-2. URLs not in `images.remotePatterns`
+- **Responsive images** (using `fill`, CSS `width: 100%`, or viewport-relative sizing): MUST have `sizes` with breakpoint-aware values.
+- **Fixed-size images**: SHOULD have `sizes` set to their display width (e.g., `sizes="48px"`) for precise srcset generation.
 
-It must NEVER be used for URLs already on our CDN. Use `getOptimizedImageSrc()` helper instead, which routes CDN URLs directly and external URLs through the proxy.
+### Canonical Helpers
+
+| Helper                    | Location                 | Purpose                                                                                    |
+| ------------------------- | ------------------------ | ------------------------------------------------------------------------------------------ |
+| `getOptimizedImageSrc()`  | `lib/utils/cdn-utils.ts` | Routes CDN URLs directly, external URLs through proxy. Use for all `<Image>` `src` values. |
+| `shouldBypassOptimizer()` | `lib/utils/cdn-utils.ts` | Returns `true` for API proxy routes and data URIs. Use for `unoptimized` prop.             |
+| `buildCachedImageUrl()`   | `lib/utils/cdn-utils.ts` | **Deprecated** (zero call sites). Do not use; `getOptimizedImageSrc()` supersedes it.      |
 
 ### Next.js Optimizer Guardrails
 
-- **`next.config.ts` is the source of truth.** `images.localPatterns` keeps `/api/cache/images` and `/api/assets` listed, and real CDN hostnames live in `images.remotePatterns`.
+- **`next.config.ts` is the source of truth.** `images.localPatterns` lists `/api/assets`, `/api/cache/images`, `/api/logo`, `/api/logo/invert`, `/api/og-image`. Real CDN hostnames live in `images.remotePatterns`.
 - **API routes stream bytes.** `/api/cache/images` resolves CDN redirects server-side, decodes double-encoded `url` params, and streams the body so `_next/image` never receives a 302.
 - **Placeholders stay static.** Anything under `/images/**` in `public/` is imported statically so Next infers width/height.
+- **Tracking pixels use plain `<img>`.** Noscript analytics pixels (1x1 GIFs from domains not in `remotePatterns` like `simpleanalyticscdn.com`, `getclicky.com`) must use `<img>` to avoid failed optimizer requests.
 
 **Detection Commands:**
 
 ```bash
-# Find incorrect proxy usage for CDN URLs
-grep -r "buildCachedImageUrl" --include="*.tsx" src/components/
+# Find deprecated proxy usage (should return zero results)
+rg "buildCachedImageUrl" --type tsx --type ts src/
 
-# Find missing sizes prop
-grep -r "<Image" --include="*.tsx" -A5 | grep -v "sizes="
+# Find <Image> components missing sizes prop
+rg "<Image" --type tsx -A5 | rg -v "sizes="
+
+# Verify remotePatterns covers all CDN hosts
+rg "remotePatterns" next.config.ts -A 50
 ```
 
-Document every policy change here **before** merging code. If a future regression appears, first check this section and `next-js-16-usage.md` to keep the rules consistent.
+Document every policy change here **before** merging code. If a future regression appears, first check this section and `image-stack.md` to keep the rules consistent.
