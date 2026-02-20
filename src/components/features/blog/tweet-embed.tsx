@@ -60,9 +60,10 @@ const proxy = (srcInput: string | Blob): string => {
     }
   }
 
-  const cleanPath = pathname.replace(/^\/+/, ""); // remove leading slash for catch-all route
+  const cleanPath = pathname.replace(/^\/+/, "");
   const query = params.toString();
-  return `/api/twitter-image/${cleanPath}${query ? `?${query}` : ""}`;
+  const suffix = query ? `?${query}` : "";
+  return `/api/twitter-image/${cleanPath}${suffix}`;
 };
 
 import type { TweetEmbedProps } from "@/types";
@@ -82,13 +83,11 @@ const ImgProxy = ({ src = "", alt, width, height, className }: ImgProxyProps) =>
 
   // Fallback to original pbs URL if proxy fails (belt-and-suspenders)
   const [srcStage, setSrcStage] = useState<"proxy" | "original" | "fallback">("proxy");
-  const resolvedSrc =
-    srcStage === "proxy"
-      ? proxy(safeSrc)
-      : srcStage === "original"
-        ? safeSrc
-        : // Final CDN fallback image for X/Twitter avatars
-          getStaticImageUrl("/images/social-media/profiles/x_5469c2d0.jpg");
+  const resolvedSrc = (() => {
+    if (srcStage === "proxy") return proxy(safeSrc);
+    if (srcStage === "original") return safeSrc;
+    return getStaticImageUrl("/images/social-media/profiles/x_5469c2d0.jpg");
+  })();
 
   const isAvatar = safeSrc.includes("/profile_images/");
   const imageWidth = width || (isAvatar ? 48 : 500);
@@ -100,6 +99,7 @@ const ImgProxy = ({ src = "", alt, width, height, className }: ImgProxyProps) =>
       alt={alt || (isAvatar ? "Tweet avatar" : "Tweet image")}
       width={imageWidth}
       height={imageHeight}
+      sizes={isAvatar ? "48px" : "(max-width: 500px) 100vw, 500px"}
       onError={() => {
         if (srcStage === "proxy" && safeSrc) setSrcStage("original");
         else if (srcStage === "original") setSrcStage("fallback");
@@ -132,12 +132,16 @@ const ImgProxy = ({ src = "", alt, width, height, className }: ImgProxyProps) =>
  * @param {TweetEmbedProps} props - The props for the component.
  * @returns {JSX.Element | null} The rendered tweet embed, or null if the tweet ID cannot be extracted.
  */
-export function TweetEmbed({ url: tweetUrl, className = "" }: TweetEmbedProps): JSX.Element | null {
+export function TweetEmbed({
+  url: tweetUrl,
+  className = "",
+}: Readonly<TweetEmbedProps>): JSX.Element | null {
   if (typeof tweetUrl !== "string") {
     console.error("TweetEmbed received non-string URL:", tweetUrl);
     return null;
   }
-  const id = tweetUrl.match(/status\/(\d+)/)?.[1];
+  const statusPattern = /status\/(\d+)/;
+  const id = statusPattern.exec(tweetUrl)?.[1];
   if (!id) return null;
 
   return (

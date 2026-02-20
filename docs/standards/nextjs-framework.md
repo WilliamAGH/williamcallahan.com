@@ -155,14 +155,14 @@ grep -r "revalidate.*:.*0" --include="*.ts" --include="*.tsx"
 
 1. **CDN URLs flow through `/_next/image` for optimization.** Use direct CDN URLs (e.g., `https://s3-storage.callahan.cloud/images/foo.jpg`) with `<Image>` and let Next.js optimize. Sharp resizes to the requested width, converts to WebP/AVIF, and caches for 7 days.
 
-2. **NEVER proxy CDN images through `/api/cache/images`.** This bypasses optimization because `/api/*` routes require `unoptimized`. The `buildCachedImageUrl()` function is ONLY for external URLs needing SSRF protection.
+2. **NEVER proxy CDN images through `/api/cache/images`.** This bypasses optimization because `/api/*` routes require `unoptimized`. The `buildCachedImageUrl()` function is deprecated (zero call sites); use `getOptimizedImageSrc()` which routes CDN URLs directly and external URLs through the proxy.
 
 3. **External URLs must be proxied.** URLs not in `images.remotePatterns` (Twitter, LinkedIn, etc.) go through `/api/cache/images` with `unoptimized`.
 
-4. **`sizes` prop is mandatory.** Every `<Image>` must specify `sizes` for correct srcset generation:
+4. **`sizes` prop policy.** Per Next.js 16 docs: without `sizes`, a limited `1x, 2x` srcset is generated (appropriate for fixed-size images). With `sizes`, a full responsive srcset (`640w, 750w, ...`) is generated. Responsive images MUST have `sizes`; fixed-size images SHOULD have `sizes`:
 
    ```tsx
-   sizes = "(max-width: 768px) 100vw, 400px"; // Card images
+   sizes = "(max-width: 768px) 100vw, 400px"; // Card images (responsive)
    sizes = "64px"; // Fixed-size logos
    sizes = "100vw"; // Full-width images
    ```
@@ -176,19 +176,21 @@ grep -r "revalidate.*:.*0" --include="*.ts" --include="*.tsx"
 **Detection Commands:**
 
 ```bash
-# Find incorrect proxy usage for CDN URLs
-grep -r "buildCachedImageUrl" --include="*.tsx" src/components/
+# Find deprecated proxy usage (should return zero results)
+rg "buildCachedImageUrl" --type ts src/
 
-# Find missing sizes prop
-grep -r "<Image" --include="*.tsx" -A5 | grep -v "sizes="
+# Find <Image> components missing sizes prop
+rg "<Image" --type tsx -A5 | rg -v "sizes="
 ```
 
 **Error Symptoms:**
-| Pattern | Result |
-|---------|--------|
-| `buildCachedImageUrl(cdnUrl)` + `unoptimized` | No optimization, full-size images served |
-| Missing `sizes` prop | Browser downloads largest srcset variant |
-| Direct external URL without proxy | `/_next/image` rejects as not in remotePatterns |
+
+| Pattern                                       | Result                                          |
+| --------------------------------------------- | ----------------------------------------------- |
+| `buildCachedImageUrl(cdnUrl)` + `unoptimized` | No optimization, full-size images served        |
+| Missing `sizes` on responsive `<Image>`       | Browser downloads largest srcset variant        |
+| Direct external URL without proxy             | `/_next/image` rejects as not in remotePatterns |
+| `<Image>` for noscript tracking pixel         | Fails if domain not in remotePatterns           |
 
 ### 5. Link Prefetch Behavior (Next.js 16)
 

@@ -88,7 +88,7 @@ Provide a single, verifiable description of how UI components, Next.js runtime f
 
 ## Cache & CDN Rules
 
-- **Next Image Optimizer**: `qualities: [75,80,90,100]`, `minimumCacheTTL: 7 days`, local patterns for `/api/assets`, `/api/logo`, `/api/logo/invert`, `/api/og-image` ensure `_next/image` can only wrap approved endpoints.
+- **Next Image Optimizer**: `qualities: [75,80,85,90,100]`, `formats: ["image/webp","image/avif"]`, `minimumCacheTTL: 7 days`, local patterns for `/api/assets`, `/api/cache/images`, `/api/logo`, `/api/logo/invert`, `/api/og-image` ensure `_next/image` can only wrap approved endpoints.
 - **API Responses**: Logos default to `301` (immutable CDN), cache/images to `Cache-Control: public, max-age=31536000, immutable`, Twitter proxy to `stale-while-revalidate` for a week.
 - **Manifests & Data**: `cacheLife("Images", "weeks")` and granular `cacheTag` names allow targeted invalidation via `revalidateTag()`.
 - **CDN + Browser**: hashed keys (e.g., `logos/foo_com_google_ab12cd34.png`) guarantee safe `max-age=31536000` across CDN and browser caches.
@@ -122,16 +122,22 @@ Keep this document synchronized with the other two structure docs whenever you i
 
 ## Next.js Optimizer Contract
 
-1. **CDN URLs go through `/_next/image` for optimization.** Images from our CDN (`s3-storage.callahan.cloud`, `*.digitaloceanspaces.com`, `*.callahan.cloud`) MUST use direct URLs without `unoptimized` so Next.js performs resize + WebP conversion. Sharp reduces 2MB images to ~50KB.
+> Verified against Next.js 16.1.6 (`node_modules/next/package.json`).
 
-2. **API routes set `unoptimized`.** Only `/api/logo`, `/api/cache/images` (for external URLs), and `/api/og-image` use `unoptimized` because these routes already process/stream the image.
+1. **CDN URLs go through `/_next/image` for optimization.** Images from our CDN (`s3-storage.callahan.cloud`, `*.digitaloceanspaces.com`, `*.callahan.cloud`) MUST use direct URLs without `unoptimized` so Next.js performs resize + WebP/AVIF conversion via Sharp.
 
-3. **`sizes` prop is mandatory.** Every `<Image>` component MUST include a `sizes` prop that reflects actual display dimensions. Without it, srcset generation is suboptimal.
+2. **API routes set `unoptimized`.** Only `/api/logo`, `/api/cache/images` (for external URLs), and `/api/og-image` use `unoptimized` because these routes already process/stream the image. The canonical helper is `shouldBypassOptimizer()` (`lib/utils/cdn-utils.ts`).
 
-4. **`remotePatterns` is the allowlist.** Every CDN hostname must be in `next.config.ts` `images.remotePatterns`. PRs adding hosts must update this config.
+3. **`sizes` prop policy.** Per Next.js docs: without `sizes`, a limited `1x, 2x` srcset is generated (appropriate for fixed-size images with explicit `width`/`height`). With `sizes`, a full responsive srcset (`640w, 750w, ...`) is generated. **Rules:**
+   - Responsive images (using `fill`, CSS `width: 100%`, or viewport-relative sizing) MUST have `sizes` with breakpoint-aware values.
+   - Fixed-size images SHOULD have `sizes` set to their display width (e.g., `sizes="48px"`) for precise srcset generation.
 
-5. **NEVER proxy CDN images.** Using `buildCachedImageUrl()` on CDN URLs routes them through `/api/cache/images` which requires `unoptimized`, defeating optimization entirely. Use `getOptimizedImageSrc()` instead.
+4. **`remotePatterns` is the allowlist.** Every CDN hostname must be in `next.config.ts` `images.remotePatterns`. PRs adding hosts must update this config. Domains intentionally excluded (e.g., analytics tracking pixel hosts) must use plain `<img>` instead of `<Image>`.
+
+5. **NEVER proxy CDN images.** Use `getOptimizedImageSrc()` which routes CDN URLs directly and external URLs through the proxy. The function `buildCachedImageUrl()` is deprecated (zero call sites) and should not be used.
 
 6. **Static imports stay static.** Assets in `public/` are statically imported so Next infers width/height.
+
+7. **Tracking pixels use plain `<img>`.** Noscript analytics tracking pixels (1x1 GIFs from domains not in `remotePatterns`) must use `<img>` instead of `<Image>` to avoid failed optimizer requests and unnecessary processing.
 
 Any change to these rules must update this section, `image-handling.md`, and `docs/standards/nextjs-framework.md` in the same PR.

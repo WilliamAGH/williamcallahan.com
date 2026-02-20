@@ -63,13 +63,13 @@ export const projects: Project[] = [
     cvFeatured: true,
   },
   {
-    id: "searchAI",
-    name: "searchAI",
+    id: "Researchly",
+    name: "Researchly",
     description:
       "Web app that merges search with an AI chat assistant: select results, then ask GPT/Groq/Gemini using that grounded context. Built with Next.js, TypeScript, Convex Database, and Vercel AI SDK, with heavy server-side scraping/parsing to filter only relevant context.",
     shortSummary: "AI-powered web search with a contextual chat assistant",
-    url: "https://search-ai.io",
-    githubUrl: "https://github.com/WilliamAGH/searchai",
+    url: "https://researchly.fyi",
+    githubUrl: "https://github.com/WilliamAGH/Researchly",
     imageKey: "images/other/projects/searchAI.png",
     tags: [
       "AI",
@@ -98,8 +98,8 @@ export const projects: Project[] = [
     description:
       "AI-native email client that indexes every message in Qdrant for semantic and BM25/BM42 search. Offers full-mailbox search, drafts cited replies, and surfaces follow-up tasks from context. Built with Svelte + Vite and Spring Boot.",
     shortSummary: "AI email client / mailbox for agentic search and tasks",
-    url: "https://composerai.app",
-    githubUrl: "https://github.com/WilliamAGH/ComposerAI",
+    url: "https://composer.email",
+    githubUrl: "https://github.com/WilliamAGH/Composer",
     imageKey: "images/other/projects/composerai-app.png",
     tags: [
       "AI",
