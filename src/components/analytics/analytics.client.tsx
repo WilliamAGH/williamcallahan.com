@@ -10,7 +10,6 @@
 
 "use client";
 
-import Image from "next/image";
 import Script from "next/script";
 import type { JSX } from "react";
 
@@ -57,9 +56,9 @@ export function Analytics(): JSX.Element | null {
 
   const shouldLoadUmami = (() => {
     if (!umamiWebsiteId || !siteUrl) return false;
-    if (typeof window === "undefined") return false;
+    if (globalThis.window === undefined) return false;
     try {
-      void window.localStorage.length;
+      void globalThis.localStorage.length;
       return true;
     } catch {
       // localStorage unavailable (private browsing, storage disabled, or iframe sandbox).
@@ -106,7 +105,9 @@ export function Analytics(): JSX.Element | null {
         async
       />
       <noscript>
-        <Image
+        {/* Plain <img> for tracking pixels: 1x1 GIFs gain nothing from
+            Next.js optimization and these domains are not in remotePatterns */}
+        <img
           src="https://queue.simpleanalyticscdn.com/noscript.gif?collect-dnt=true"
           alt=""
           referrerPolicy="no-referrer-when-downgrade"
@@ -124,7 +125,7 @@ export function Analytics(): JSX.Element | null {
       />
       <noscript>
         <p>
-          <Image alt="Clicky" width={1} height={1} src="https://in.getclicky.com/101484018ns.gif" />
+          <img alt="Clicky" width={1} height={1} src="https://in.getclicky.com/101484018ns.gif" />
         </p>
       </noscript>
     </>
@@ -144,7 +145,7 @@ export function safeTrack(name: string, data: Record<string, unknown> = {}): voi
   }
   const eventName = name.slice(0, UMAMI_MAX_EVENT_NAME_LENGTH);
   try {
-    window.umami?.track?.(eventName, data);
+    globalThis.umami?.track?.(eventName, data);
   } catch (error: unknown) {
     // [RC1] Always log tracking failures so production issues are visible
     console.warn("[analytics] Failed to track event:", { name: eventName, error });

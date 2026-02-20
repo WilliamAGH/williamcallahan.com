@@ -6,7 +6,7 @@ import type { Accelerator } from "@/types/accelerator";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import Image from "next/image";
 
-export function AcceleratorBadge({ accelerator }: { accelerator: Accelerator }) {
+export function AcceleratorBadge({ accelerator }: Readonly<{ accelerator: Accelerator }>) {
   const { program, batch, location } = accelerator;
 
   const programName = program === "techstars" ? "Techstars" : "Y Combinator";
@@ -26,6 +26,7 @@ export function AcceleratorBadge({ accelerator }: { accelerator: Accelerator }) 
             alt={programName}
             width={16}
             height={16}
+            sizes="16px"
             className="object-contain"
             priority
           />

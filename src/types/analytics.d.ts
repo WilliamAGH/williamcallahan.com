@@ -81,6 +81,8 @@ interface Twttr {
 }
 
 declare global {
+  var umami: UmamiAnalytics | undefined;
+
   interface Window {
     umami?: UmamiAnalytics;
     plausible?: PlausibleAnalytics;

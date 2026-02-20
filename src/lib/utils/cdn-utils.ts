@@ -131,7 +131,7 @@ export function extractS3KeyFromUrl(url: string, config: CdnConfig): string | nu
 
   // Check if it's a CDN URL
   const cdnBase = parseAbsoluteUrl(cdnBaseUrl);
-  if (cdnBase && parsed.host === cdnBase.host && parsed.protocol === cdnBase.protocol) {
+  if (parsed.host === cdnBase?.host && parsed.protocol === cdnBase?.protocol) {
     const basePath = normalizeBasePath(cdnBase.pathname);
     if (basePath === "/" || parsed.pathname.startsWith(basePath)) {
       const key =
@@ -176,7 +176,7 @@ export function isOurCdnUrl(url: string, config: CdnConfig): boolean {
 
   // Check CDN URL
   const cdnBase = parseAbsoluteUrl(cdnBaseUrl);
-  if (cdnBase && parsed.host === cdnBase.host && parsed.protocol === cdnBase.protocol) {
+  if (parsed.host === cdnBase?.host && parsed.protocol === cdnBase?.protocol) {
     const basePath = normalizeBasePath(cdnBase.pathname);
     if (basePath === "/" || parsed.pathname.startsWith(basePath)) {
       return true;
@@ -207,7 +207,7 @@ export function isOurCdnUrl(url: string, config: CdnConfig): boolean {
 
 /** Get CDN config from environment variables. */
 export function getCdnConfigFromEnv(): CdnConfig {
-  const isClient = typeof globalThis.window !== "undefined";
+  const isClient = globalThis.window !== undefined;
   const cdnBaseUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
 
   if (isClient) {
@@ -261,14 +261,11 @@ function buildImageProxyUrl(url: string, width?: number): string {
 }
 
 /**
- * Build a local `/api/cache/images` proxy URL for a CDN resource.
- * Mirrors the logic inside `components/ui/logo-image.client.tsx` so both
- * server and client consumers hit the exact same trusted proxy before passing
- * the response to `<Image>`.
- *
- * **WARNING:** Only use for external URLs that need SSRF protection.
- * NEVER use for our CDN URLs - that bypasses Next.js optimization.
- * Use `getOptimizedImageSrc()` instead which routes correctly.
+ * @deprecated Zero call sites. Use `getOptimizedImageSrc()` instead, which
+ * routes CDN URLs directly (for Next.js optimization) and external URLs
+ * through the proxy (for SSRF protection). This function is retained only
+ * because the ast-grep rule `no-cdn-image-proxy.yml` references it to catch
+ * accidental future usage.
  *
  * @see docs/architecture/image-handling.md (Image Optimization Decision Matrix)
  */
