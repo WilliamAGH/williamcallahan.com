@@ -8,7 +8,7 @@
 
 import { metadata } from "@/data/metadata";
 import type { OGImageValidation, OGImage, OGMetadata } from "../../types/seo/validation";
-import { getMonotonicTime } from "@/lib/utils";
+import { FIXED_BUILD_TIMESTAMP } from "@/lib/utils";
 
 /**
  * Validates an OpenGraph image URL according to platform requirements
@@ -159,21 +159,21 @@ export function validateOpenGraphMetadata(ogData: OGMetadata): OGImageValidation
 }
 
 /**
- * Creates a cache-busting URL for OpenGraph images
- * Uses a deterministic hash for static rendering compatibility
- * @param imageUrl - The base image URL
- * @param forceRefresh - Whether to force immediate refresh (uses URL hash)
- * @returns Cache-busted URL
+ * Creates a cache-busting URL for OpenGraph images.
+ * Uses FIXED_BUILD_TIMESTAMP to stay compatible with Next.js 16 prerendering
+ * (calling Date.now / performance.now before uncached data access is forbidden).
+ * OG images are static assets that change only at deploy time, so a build-stamp
+ * version parameter is sufficient.
  */
 export function createCacheBustingUrl(imageUrl: string, forceRefresh = false): string {
   const separator = imageUrl.includes("?") ? "&" : "?";
+  const buildDay = Math.floor(FIXED_BUILD_TIMESTAMP / (1000 * 60 * 60 * 24));
 
   if (forceRefresh) {
-    return `${imageUrl}${separator}cb=${getMonotonicTime()}`;
+    return `${imageUrl}${separator}cb=${FIXED_BUILD_TIMESTAMP}`;
   }
 
-  const dailyTimestamp = Math.floor(getMonotonicTime() / (1000 * 60 * 60 * 24));
-  return `${imageUrl}${separator}v=${dailyTimestamp}`;
+  return `${imageUrl}${separator}v=${buildDay}`;
 }
 
 /**
