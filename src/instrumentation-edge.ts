@@ -33,6 +33,17 @@ function redactSensitiveHeaders(
   );
 }
 
+function buildRedactedRequest(request: {
+  path: string;
+  method: string;
+  headers: Record<string, string | string[] | undefined>;
+}): { path: string; method: string; headers: Record<string, string | string[] | undefined> } {
+  return {
+    ...request,
+    headers: redactSensitiveHeaders(request.headers),
+  };
+}
+
 function resolveEdgeDsn(): string | null {
   const privateDsn = process.env.SENTRY_DSN?.trim();
   if (privateDsn && privateDsn.length > 0) {
@@ -116,11 +127,9 @@ export function onRequestError(
   request: { path: string; method: string; headers: Record<string, string | string[] | undefined> },
   context: { routerKind: string; routePath: string; routeType: string },
 ): void {
+  const redactedRequest = buildRedactedRequest(request);
+
   if (!sentryInitialized) {
-    const redactedRequest = {
-      ...request,
-      headers: redactSensitiveHeaders(request.headers),
-    };
     console.error(
       "[EdgeInstrumentation] Sentry SDK not initialized; logging edge request error to console.",
       error,
@@ -136,7 +145,7 @@ export function onRequestError(
 
   Sentry.captureException(error, {
     extra: {
-      request,
+      request: redactedRequest,
       context,
     },
   });
