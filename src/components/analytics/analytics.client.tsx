@@ -10,12 +10,15 @@
 
 "use client";
 
-import Image from "next/image";
 import Script from "next/script";
 import type { JSX } from "react";
 
 /** Umami hard limit on event names (see GH issue #2986) */
 const UMAMI_MAX_EVENT_NAME_LENGTH = 50;
+const SIMPLE_ANALYTICS_NOSCRIPT_PIXEL =
+  '<img src="https://queue.simpleanalyticscdn.com/noscript.gif?collect-dnt=true" referrerpolicy="no-referrer-when-downgrade" width="1" height="1" style="display:none" alt="" />';
+const CLICKY_NOSCRIPT_PIXEL =
+  '<img src="https://in.getclicky.com/101484018ns.gif" width="1" height="1" style="display:none" alt="" />';
 
 /**
  * Analytics component following official provider documentation
@@ -105,19 +108,7 @@ export function Analytics(): JSX.Element | null {
         data-collect-dnt="true"
         async
       />
-      <noscript>
-        {/* Use unoptimized Image for external tracking pixels; this preserves
-            noscript analytics without invoking the image optimizer. */}
-        <Image
-          src="https://queue.simpleanalyticscdn.com/noscript.gif?collect-dnt=true"
-          alt=""
-          referrerPolicy="no-referrer-when-downgrade"
-          width={1}
-          height={1}
-          sizes="1px"
-          unoptimized
-        />
-      </noscript>
+      <noscript dangerouslySetInnerHTML={{ __html: SIMPLE_ANALYTICS_NOSCRIPT_PIXEL }} />
 
       {/* Clicky Analytics - Official docs: https://clicky.com/help/custom */}
       <Script
@@ -126,18 +117,7 @@ export function Analytics(): JSX.Element | null {
         src="https://static.getclicky.com/101484018.js"
         async
       />
-      <noscript>
-        <p>
-          <Image
-            alt=""
-            width={1}
-            height={1}
-            src="https://in.getclicky.com/101484018ns.gif"
-            sizes="1px"
-            unoptimized
-          />
-        </p>
-      </noscript>
+      <noscript dangerouslySetInnerHTML={{ __html: CLICKY_NOSCRIPT_PIXEL }} />
     </>
   );
 }
