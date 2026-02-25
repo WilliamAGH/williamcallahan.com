@@ -103,6 +103,7 @@ export function onRequestError(
       error,
       { request, context },
     );
+    return;
   }
 
   if (typeof Sentry.captureRequestError === "function") {
