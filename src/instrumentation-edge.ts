@@ -13,22 +13,51 @@ export const runtime = "edge" as const;
 const EDGE_TRACES_SAMPLE_RATE = 0.25;
 
 let sentryInitialized = false;
-let hasLoggedMissingDsn = false;
 
 function resolveEdgeDsn(): string | null {
-  const dsn = process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN;
-  if (!dsn || dsn.trim().length === 0) {
-    return null;
+  const privateDsn = process.env.SENTRY_DSN?.trim();
+  if (privateDsn && privateDsn.length > 0) {
+    console.info("[EdgeInstrumentation] Using SENTRY_DSN for edge Sentry initialization.");
+    return privateDsn;
   }
-  return dsn;
+
+  const publicDsn = process.env.NEXT_PUBLIC_SENTRY_DSN?.trim();
+  if (publicDsn && publicDsn.length > 0) {
+    console.warn(
+      "[EdgeInstrumentation] SENTRY_DSN missing; falling back to NEXT_PUBLIC_SENTRY_DSN for edge Sentry initialization.",
+    );
+    return publicDsn;
+  }
+
+  console.error("[EdgeInstrumentation] No DSN found in SENTRY_DSN or NEXT_PUBLIC_SENTRY_DSN.");
+  return null;
 }
 
 function resolveReleaseVersion(): string | undefined {
-  return (
-    process.env.SENTRY_RELEASE ||
-    process.env.NEXT_PUBLIC_GIT_HASH ||
-    process.env.NEXT_PUBLIC_APP_VERSION
-  );
+  const sentryRelease = process.env.SENTRY_RELEASE?.trim();
+  if (sentryRelease && sentryRelease.length > 0) {
+    console.info("[EdgeInstrumentation] Using SENTRY_RELEASE for edge Sentry release.");
+    return sentryRelease;
+  }
+
+  const gitHash = process.env.NEXT_PUBLIC_GIT_HASH?.trim();
+  if (gitHash && gitHash.length > 0) {
+    console.warn(
+      "[EdgeInstrumentation] SENTRY_RELEASE missing; falling back to NEXT_PUBLIC_GIT_HASH.",
+    );
+    return gitHash;
+  }
+
+  const appVersion = process.env.NEXT_PUBLIC_APP_VERSION?.trim();
+  if (appVersion && appVersion.length > 0) {
+    console.warn(
+      "[EdgeInstrumentation] SENTRY_RELEASE and NEXT_PUBLIC_GIT_HASH missing; falling back to NEXT_PUBLIC_APP_VERSION.",
+    );
+    return appVersion;
+  }
+
+  console.warn("[EdgeInstrumentation] No release metadata found for edge Sentry events.");
+  return undefined;
 }
 
 /*
@@ -48,12 +77,6 @@ export async function register(): Promise<void> {
 
   const dsn = resolveEdgeDsn();
   if (!dsn) {
-    if (!hasLoggedMissingDsn) {
-      hasLoggedMissingDsn = true;
-      console.error(
-        "[EdgeInstrumentation] Missing SENTRY_DSN/NEXT_PUBLIC_SENTRY_DSN; edge errors cannot be sent to Sentry.",
-      );
-    }
     return;
   }
 
@@ -74,6 +97,14 @@ export function onRequestError(
   request: { path: string; method: string; headers: Record<string, string | string[] | undefined> },
   context: { routerKind: string; routePath: string; routeType: string },
 ): void {
+  if (!sentryInitialized) {
+    console.error(
+      "[EdgeInstrumentation] Sentry SDK not initialized; logging edge request error to console.",
+      error,
+      { request, context },
+    );
+  }
+
   if (typeof Sentry.captureRequestError === "function") {
     Sentry.captureRequestError(error, request, context);
     return;
