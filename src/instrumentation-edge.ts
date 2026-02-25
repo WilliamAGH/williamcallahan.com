@@ -14,6 +14,25 @@ const EDGE_TRACES_SAMPLE_RATE = 0.25;
 
 let sentryInitialized = false;
 
+const SENSITIVE_HEADER_NAMES = new Set([
+  "authorization",
+  "cookie",
+  "set-cookie",
+  "proxy-authorization",
+  "x-api-key",
+]);
+
+function redactSensitiveHeaders(
+  headers: Record<string, string | string[] | undefined>,
+): Record<string, string | string[] | undefined> {
+  return Object.fromEntries(
+    Object.entries(headers).map(([name, value]) => [
+      name,
+      SENSITIVE_HEADER_NAMES.has(name.toLowerCase()) ? "[REDACTED]" : value,
+    ]),
+  );
+}
+
 function resolveEdgeDsn(): string | null {
   const privateDsn = process.env.SENTRY_DSN?.trim();
   if (privateDsn && privateDsn.length > 0) {
@@ -98,10 +117,14 @@ export function onRequestError(
   context: { routerKind: string; routePath: string; routeType: string },
 ): void {
   if (!sentryInitialized) {
+    const redactedRequest = {
+      ...request,
+      headers: redactSensitiveHeaders(request.headers),
+    };
     console.error(
       "[EdgeInstrumentation] Sentry SDK not initialized; logging edge request error to console.",
       error,
-      { request, context },
+      { request: redactedRequest, context },
     );
     return;
   }
