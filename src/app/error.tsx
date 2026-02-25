@@ -6,8 +6,7 @@
 
 "use client";
 
-// Update Sentry import to be more specific
-import * as Sentry from "@sentry/browser";
+import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
