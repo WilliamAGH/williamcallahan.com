@@ -31,7 +31,13 @@ export function generateMetadata(): Metadata {
  * freshness comes from the bookmark data fetches that opt into `no-store` semantics instead of build-time snapshots.
  */
 
-export default function BookmarksPage() {
+export default async function BookmarksPage({
+  searchParams,
+}: Readonly<{ searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
+  // Ensure request data is read before any downstream code that may synchronously
+  // access current time (Next.js `next-prerender-current-time` constraint).
+  await searchParams;
+
   const pageMetadata = PAGE_METADATA.bookmarks;
 
   // Generate JSON-LD schema for the bookmarks page
