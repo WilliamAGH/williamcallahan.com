@@ -10,6 +10,7 @@
 
 "use client";
 
+import Image from "next/image";
 import Script from "next/script";
 import type { JSX } from "react";
 
@@ -105,14 +106,16 @@ export function Analytics(): JSX.Element | null {
         async
       />
       <noscript>
-        {/* Plain <img> for tracking pixels: 1x1 GIFs gain nothing from
-            Next.js optimization and these domains are not in remotePatterns */}
-        <img
+        {/* Use unoptimized Image for external tracking pixels; this preserves
+            noscript analytics without invoking the image optimizer. */}
+        <Image
           src="https://queue.simpleanalyticscdn.com/noscript.gif?collect-dnt=true"
           alt=""
           referrerPolicy="no-referrer-when-downgrade"
           width={1}
           height={1}
+          sizes="1px"
+          unoptimized
         />
       </noscript>
 
@@ -125,7 +128,14 @@ export function Analytics(): JSX.Element | null {
       />
       <noscript>
         <p>
-          <img alt="Clicky" width={1} height={1} src="https://in.getclicky.com/101484018ns.gif" />
+          <Image
+            alt=""
+            width={1}
+            height={1}
+            src="https://in.getclicky.com/101484018ns.gif"
+            sizes="1px"
+            unoptimized
+          />
         </p>
       </noscript>
     </>
