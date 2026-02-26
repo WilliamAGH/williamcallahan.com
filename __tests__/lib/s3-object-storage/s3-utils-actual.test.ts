@@ -36,7 +36,6 @@ import {
 import { readBinaryS3, writeBinaryS3 } from "@/lib/s3/binary";
 import { readJsonS3, writeJsonS3 } from "@/lib/s3/json";
 import { isS3ReadOnly } from "@/lib/utils/s3-read-only";
-import { Readable } from "node:stream";
 import { z } from "zod/v4";
 let mockClient: ((c: any) => any) | null = null;
 try {
@@ -44,13 +43,7 @@ try {
 } catch {
   mockClient = null;
 }
-import {
-  S3Client,
-  GetObjectCommand,
-  PutObjectCommand,
-  DeleteObjectCommand,
-  ListObjectsV2Command,
-} from "@aws-sdk/client-s3";
+import { S3Client } from "@aws-sdk/client-s3";
 
 // Removed extraneous exports to satisfy ESLint rules
 
