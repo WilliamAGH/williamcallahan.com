@@ -20,16 +20,16 @@ Rebrand the bookmarks collection page from "Bookmarks" to "Cool Stuff" (nav) / "
 
 ## 1. UI-Facing Name Changes
 
-| Location | Current | New |
-|----------|---------|-----|
-| Navigation link (`navigation-links.ts`) | "Bookmarks" | "Cool Stuff" |
-| Page `<title>` (`data/metadata.ts`) | "Bookmarks & Resources - William Callahan" | "Cool Stuff From the Web - William Callahan" |
-| Meta description | "A live updating directory of things online I found noteworthy..." | Updated for discovery/curation angle |
-| TerminalContext copy | "a bookmark from my personal collection" | Updated for "cool stuff" framing |
-| Schema.org / OG metadata | Updated title + description | Same `CollectionPage` type |
-| Window toolbar path | `~/bookmarks` | `~/bookmarks` (unchanged) |
-| URL path | `/bookmarks` | `/bookmarks` (unchanged) |
-| Internal code | All "bookmarks" | All "bookmarks" (unchanged) |
+| Location                                | Current                                                            | New                                          |
+| --------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------- |
+| Navigation link (`navigation-links.ts`) | "Bookmarks"                                                        | "Cool Stuff"                                 |
+| Page `<title>` (`data/metadata.ts`)     | "Bookmarks & Resources - William Callahan"                         | "Cool Stuff From the Web - William Callahan" |
+| Meta description                        | "A live updating directory of things online I found noteworthy..." | Updated for discovery/curation angle         |
+| TerminalContext copy                    | "a bookmark from my personal collection"                           | Updated for "cool stuff" framing             |
+| Schema.org / OG metadata                | Updated title + description                                        | Same `CollectionPage` type                   |
+| Window toolbar path                     | `~/bookmarks`                                                      | `~/bookmarks` (unchanged)                    |
+| URL path                                | `/bookmarks`                                                       | `/bookmarks` (unchanged)                     |
+| Internal code                           | All "bookmarks"                                                    | All "bookmarks" (unchanged)                  |
 
 ---
 
@@ -39,15 +39,15 @@ Rebrand the bookmarks collection page from "Bookmarks" to "Cool Stuff" (nav) / "
 
 New table `content_engagement`:
 
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | `BIGSERIAL` PK | |
-| `content_type` | `TEXT NOT NULL` | 'bookmark', 'blog', 'book', etc. |
-| `content_id` | `TEXT NOT NULL` | The entity id |
-| `event_type` | `TEXT NOT NULL` | 'impression', 'click', 'dwell', 'external_click' |
-| `duration_ms` | `INTEGER` | Populated for 'dwell' events only |
-| `visitor_hash` | `TEXT NOT NULL` | SHA-256(IP + User-Agent), no PII |
-| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | |
+| Column         | Type                                 | Notes                                            |
+| -------------- | ------------------------------------ | ------------------------------------------------ |
+| `id`           | `BIGSERIAL` PK                       |                                                  |
+| `content_type` | `TEXT NOT NULL`                      | 'bookmark', 'blog', 'book', etc.                 |
+| `content_id`   | `TEXT NOT NULL`                      | The entity id                                    |
+| `event_type`   | `TEXT NOT NULL`                      | 'impression', 'click', 'dwell', 'external_click' |
+| `duration_ms`  | `INTEGER`                            | Populated for 'dwell' events only                |
+| `visitor_hash` | `TEXT NOT NULL`                      | SHA-256(IP + User-Agent), no PII                 |
+| `created_at`   | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` |                                                  |
 
 Indexes:
 
@@ -60,12 +60,12 @@ New hook: `useEngagementTracker` in `src/hooks/use-engagement-tracker.ts`
 
 **Events captured:**
 
-| Event | Trigger | Implementation |
-|-------|---------|----------------|
-| `impression` | Card visible in viewport >= 1s | `IntersectionObserver`, threshold 0.5, 1s timer per card |
-| `click` | Navigate to detail page | Server-side: log on detail page render (more reliable than client click) |
-| `dwell` | Time spent on detail page | `performance.now()` on mount, `sendBeacon()` on `visibilitychange`/`pagehide` |
-| `external_click` | Click "Visit Site" / external URL | Client-side event before navigation |
+| Event            | Trigger                           | Implementation                                                                |
+| ---------------- | --------------------------------- | ----------------------------------------------------------------------------- |
+| `impression`     | Card visible in viewport >= 1s    | `IntersectionObserver`, threshold 0.5, 1s timer per card                      |
+| `click`          | Navigate to detail page           | Server-side: log on detail page render (more reliable than client click)      |
+| `dwell`          | Time spent on detail page         | `performance.now()` on mount, `sendBeacon()` on `visibilitychange`/`pagehide` |
+| `external_click` | Click "Visit Site" / external URL | Client-side event before navigation                                           |
 
 **Batching:** Impressions accumulate in an array, flushed via `navigator.sendBeacon()` to `POST /api/engagement` every 30s or on `visibilitychange`.
 
@@ -186,12 +186,12 @@ In Discover mode, every ~8 items, insert a divider:
 
 Existing `BookmarkCardClient` enhanced with additional data (all already in Postgres):
 
-| Addition | Source | Display |
-|----------|--------|---------|
-| AI category chip | `ai_analysis_latest.payload.category` | Small chip above title |
-| Reading time | `bookmarks.reading_time` | "5 min read" next to date |
-| Favorite indicator | `bookmarks.is_favorite` | Subtle star icon |
-| Personal note preview | `bookmarks.note` | On hero cards only, 2-line clamp |
+| Addition              | Source                                | Display                          |
+| --------------------- | ------------------------------------- | -------------------------------- |
+| AI category chip      | `ai_analysis_latest.payload.category` | Small chip above title           |
+| Reading time          | `bookmarks.reading_time`              | "5 min read" next to date        |
+| Favorite indicator    | `bookmarks.is_favorite`               | Subtle star icon                 |
+| Personal note preview | `bookmarks.note`                      | On hero cards only, 2-line clamp |
 
 **Hero card variant**: Same component with a `variant="hero"` prop that:
 
@@ -217,13 +217,13 @@ No vector embeddings used despite 100% coverage on bookmarks.
 
 ### 6.2 New Weights
 
-| Signal | New Weight | Old Weight |
-|--------|-----------|------------|
-| Vector cosine similarity | 0.50 | 0.00 |
-| Tag Jaccard | 0.20 | 0.40 |
-| Token overlap | 0.10 | 0.30 |
-| Domain match | 0.10 | 0.20 |
-| Recency | 0.10 | 0.10 |
+| Signal                   | New Weight | Old Weight |
+| ------------------------ | ---------- | ---------- |
+| Vector cosine similarity | 0.50       | 0.00       |
+| Tag Jaccard              | 0.20       | 0.40       |
+| Token overlap            | 0.10       | 0.30       |
+| Domain match             | 0.10       | 0.20       |
+| Recency                  | 0.10       | 0.10       |
 
 ### 6.3 Implementation
 
