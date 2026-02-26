@@ -12,17 +12,12 @@ import { RelatedContentSection } from "./related-content-section";
 import { resolveImageUrl } from "@/lib/seo/url-utils";
 import { debug } from "@/lib/utils/debug";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
-import { readJsonS3Optional } from "@/lib/s3/json";
-import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
+import { readRelatedContent } from "@/lib/db/queries/content-graph";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
-import {
-  relatedContentGraphSchema,
-  type RelatedContentEntryFromSchema,
-} from "@/types/schemas/book";
 import type {
   RelatedContentProps,
   RelatedContentItem,
@@ -252,12 +247,9 @@ export async function RelatedContent({
       return tags.some((tag) => normalizedExcludeTags.has(normalizeTagForComparison(tag)));
     };
 
-    // Try to load pre-computed related content first
+    // Try to load pre-computed related content from PostgreSQL first
     const contentKey = `${sourceType}:${actualSourceId}`;
-    const precomputed = await readJsonS3Optional<Record<string, RelatedContentEntryFromSchema[]>>(
-      CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
-      relatedContentGraphSchema,
-    );
+    const precomputed = await readRelatedContent();
 
     if (precomputed?.[contentKey]) {
       // Use pre-computed scores

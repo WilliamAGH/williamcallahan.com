@@ -24,7 +24,7 @@ import { parseS3Key } from "@/lib/utils/hash-utils";
  * @returns {Promise<NextResponse>} API response with logo image or error
  *
  * The unified logo system provides:
- * - In-memory cache (fastest)
+ * - Next.js cache tag invalidation hooks
  * - S3 persistent storage with source tracking
  * - External fetching from Google/DuckDuckGo
  * - Automatic validation against generic globe icons

@@ -3,31 +3,26 @@
  * @module lib/books/related-content.server
  * @description
  * Server-side service for reading pre-computed related content for books.
- * Fetches data from S3 and provides type-safe access to related content entries.
+ * Fetches data from PostgreSQL and provides type-safe access to related content entries.
  */
 
-import { readJsonS3Optional } from "@/lib/s3/json";
-import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
+import { readBooksRelatedContent } from "@/lib/db/queries/content-graph";
 import { envLogger } from "@/lib/utils/env-logger";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
-import { booksRelatedContentDataSchema } from "@/types/schemas/book";
 import type { BooksRelatedContentData, RelatedContentEntry } from "@/types/related-content";
 
 const CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 hours - matches generation frequency
 
 /**
- * Load related content dataset from S3.
+ * Load related content dataset from PostgreSQL.
  * Returns null when not available and logs infrastructure failures.
  */
 async function loadRelatedContentDirect(): Promise<BooksRelatedContentData | null> {
   try {
-    return await readJsonS3Optional(
-      CONTENT_GRAPH_S3_PATHS.BOOKS_RELATED_CONTENT,
-      booksRelatedContentDataSchema,
-    );
+    return await readBooksRelatedContent();
   } catch (error) {
     envLogger.log(
-      "Failed to fetch books related content from S3",
+      "Failed to fetch books related content from database",
       { error: error instanceof Error ? error.message : String(error) },
       { category: "BooksRelatedContent" },
     );

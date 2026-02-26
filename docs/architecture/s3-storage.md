@@ -38,12 +38,12 @@ Keys are immutable once written (content-hash suffix or deterministic domain has
 
 ## Access Layers
 
-| Layer                      | File                                                                                                                  | Highlights                                                                                                                                                                                                   |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Low-level SDK wrapper      | `lib/s3/client.ts`, `lib/s3/objects.ts`, `lib/s3/json.ts`, `lib/s3/binary.ts`, `lib/s3/errors.ts`, `lib/s3/config.ts` | Lazily instantiates AWS SDK v3 `S3Client` (forcePathStyle for Spaces), uses SDK retries (`maxAttempts`, `retryMode`), enforces memory limits for streams, strict JSON/binary helpers, canonical error types. |
-| Persistence helpers        | `lib/persistence/s3-persistence.ts`                                                                                   | Categorizes writes (PublicAsset, PublicData, PrivateData, Html), sets ACLs, ensures DigitalOcean Spaces compatibility, manages OpenGraph overrides, wraps JSON/binary writes with logging.                   |
-| Image-specific persistence | `lib/image-handling/image-s3-utils.ts`                                                                                | Idempotent saves, Karakeep asset handling, `handleStaleImageUrl` triggers, `persistImageToS3` streaming support.                                                                                             |
-| Server cache + Next tags   | `lib/data-access/images.server.ts`, `lib/data-access/logos.ts`, `lib/data-access/opengraph.ts`                        | Provide `"use cache"` wrappers, Next cache tags (`cacheLife`, `cacheTag`, `revalidateTag`), and S3 read short-circuiting.                                                                                    |
+| Layer                      | File                                                                                                                  | Highlights                                                                                                                                                                                                     |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Low-level SDK wrapper      | `lib/s3/client.ts`, `lib/s3/objects.ts`, `lib/s3/json.ts`, `lib/s3/binary.ts`, `lib/s3/errors.ts`, `lib/s3/config.ts` | Lazily instantiates AWS SDK v3 `S3Client` (forcePathStyle for Spaces), uses SDK retries (`maxAttempts`, `retryMode`), enforces stream size/time boundaries, strict JSON/binary helpers, canonical error types. |
+| Persistence helpers        | `lib/persistence/s3-persistence.ts`                                                                                   | Categorizes writes (PublicAsset, PublicData, PrivateData, Html), sets ACLs, ensures DigitalOcean Spaces compatibility, manages OpenGraph overrides, wraps JSON/binary writes with logging.                     |
+| Image-specific persistence | `lib/image-handling/image-s3-utils.ts`                                                                                | Idempotent saves, Karakeep asset handling, `handleStaleImageUrl` triggers, `persistImageToS3` streaming support.                                                                                               |
+| Server cache + Next tags   | `lib/data-access/images.server.ts`, `lib/data-access/logos.ts`, `lib/data-access/opengraph.ts`                        | Provide `"use cache"` wrappers, Next cache tags (`cacheLife`, `cacheTag`, `revalidateTag`), and S3 read short-circuiting.                                                                                      |
 
 ## Read Strategy
 
@@ -85,7 +85,7 @@ Keys are immutable once written (content-hash suffix or deterministic domain has
 ## Performance Considerations
 
 - **Latency Targets**: CDN redirect (~50 ms) vs direct S3 (~100–200 ms). Route handlers should always redirect when `cdnUrl` exists to stay in the fast lane.
-- **Memory Budget**: 50 MB max read, plus `getMemoryHealthMonitor` gate to prevent OOM in tight containers. Streaming pipeline keeps memory under 10 MB per transfer.
+- **Resource Boundaries**: 50 MB max read with streaming-first IO paths for large transfers.
 - **Parallelism**: `staticGenerationMaxConcurrency` (Next config) caps parallel page builds; storage reads must survive concurrency=2 by default.
 - **Throttling**: `FailureTracker` persists blocklists/rate limits via S3 to share state across stateless deployments.
 

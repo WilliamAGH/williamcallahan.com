@@ -4,19 +4,19 @@
 
 ## Purpose
 
-Deliver every logo, OpenGraph card, bookmark preview, profile photo, and social asset with consistent validation, deterministic storage, CDN-ready URLs, and memory-safe handling. This domain begins when a feature needs an image (component/server fetch) and ends when the asset is persisted, cached, and rendered through Next.js or a raw HTTP response.
+Deliver every logo, OpenGraph card, bookmark preview, profile photo, and social asset with consistent validation, deterministic storage, CDN-ready URLs, and bounded-resource handling. This domain begins when a feature needs an image (component/server fetch) and ends when the asset is persisted, cached, and rendered through Next.js or a raw HTTP response.
 
 ## Domain Scope & Non-Goals
 
-| Included                           | Notes                                                                                |
-| ---------------------------------- | ------------------------------------------------------------------------------------ |
-| Logo ingestion, caching, inversion | UnifiedImageService + `/api/logo`, `/api/logo/invert`, manifest warm-up              |
-| Bookmark/OG card imagery           | `/api/og-image`, `/api/assets`, `selectBestImage`, Karakeep fallbacks                |
-| Social & 3rd-party proxies         | `/api/twitter-image`, external avatar CDNs enumerated in `next.config.ts`            |
-| Static placeholder management      | `placeholder-images.ts`, `static-images.ts`, `data/blog/cover-image-map.json`        |
-| Memory, SSRF, circuit protections  | Domain failure tracker, `url-utils`, `image-analysis`, streaming threshold           |
-| Image metadata/analysis            | `image-metadata.ts`, `image-analysis.ts`, `image-compare.ts`, `svg-transform-fix.ts` |
-| Testing/tooling                    | `__tests__/components/ui/logo-image.test.tsx`, placeholder fixtures                  |
+| Included                            | Notes                                                                                |
+| ----------------------------------- | ------------------------------------------------------------------------------------ |
+| Logo ingestion, caching, inversion  | UnifiedImageService + `/api/logo`, `/api/logo/invert`, manifest warm-up              |
+| Bookmark/OG card imagery            | `/api/og-image`, `/api/assets`, `selectBestImage`, Karakeep fallbacks                |
+| Social & 3rd-party proxies          | `/api/twitter-image`, external avatar CDNs enumerated in `next.config.ts`            |
+| Static placeholder management       | `placeholder-images.ts`, `static-images.ts`, `data/blog/cover-image-map.json`        |
+| Resource, SSRF, circuit protections | Domain failure tracker, `url-utils`, `image-analysis`, streaming threshold           |
+| Image metadata/analysis             | `image-metadata.ts`, `image-analysis.ts`, `image-compare.ts`, `svg-transform-fix.ts` |
+| Testing/tooling                     | `__tests__/components/ui/logo-image.test.tsx`, placeholder fixtures                  |
 
 _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of cards, or non-image binary storage.
 
@@ -97,7 +97,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 
 ## Core Modules & Responsibilities
 
-- **`lib/services/unified-image-service.ts`** – orchestrates everything: domain session tracking, memory checks, streaming fallback, CDN URL generation, Next cache invalidation (`revalidateTag`).
+- **`lib/services/unified-image-service.ts`** – orchestrates everything: domain session tracking, streaming fallback, CDN URL generation, Next cache invalidation (`revalidateTag`).
 - **`lib/services/image/logo-fetcher.ts`** – logo fetch orchestration and source selection.
 - **`lib/services/image/logo-source-priority.ts`** – single source of truth for logo source ordering.
 - **`lib/image-handling/image-s3-utils.ts`** – idempotent persistence (checks existing S3 keys, handles base64 data), fallback recrawl triggers for Karakeep assets.
@@ -112,7 +112,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 
 1. **SSRF Defense** – `openGraphUrlSchema`, `assetIdSchema`, `sanitizePath`, `isLogoUrl`, and `url-utils` block private IP ranges, non-HTTP schemes, credentials, suspicious ports.
 2. **Hostname Allowing** – All remote origins must appear in `CALLAHAN_IMAGE_HOSTS` or explicit `remotePatterns`. CDN URL validation compares parsed host + base path to prevent prefix spoofing before proxying requests. Adding a CDN requires updating env vars + `next.config.ts`.
-3. **Memory Headroom** – `getMemoryHealthMonitor().shouldAcceptNewRequests()` gate exists in `getImage`, `getLogo`, streaming fallback, and S3 writes to prevent OOMs.
+3. **Bounded IO Paths** – large fetch/upload flows use explicit size/time boundaries and streaming fallback paths.
 4. **Streaming Re-fetch** – When a streaming upload consumes the response body and fails, the image service re-fetches before buffering; Response bodies are single-use, so buffering must use a fresh fetch.
 5. **Circuit Breaker** – `FailureTracker` + session maps block domains after repeated failures for 30 minutes, preventing infinite loops (e.g., recursive redirects).
 6. **Cache Safety** – Hashed filenames, `Cache-Control` invariants, and Next’s `minimumCacheTTL` ensure once persisted assets remain stable. Placeholders always available locally.
@@ -121,11 +121,11 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 
 ## Operational Tasks
 
-| Task                         | Command / File                                                                                                                              | Details                                                                                                                                                                                                                 |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sync blog covers -> S3       | `bun scripts/sync-blog-cover-images.ts`                                                                                                     | Hashes local `/public/images/posts/**`, uploads via `writeBinaryS3`, updates manifest JSON.                                                                                                                             |
-| Warm manifests               | Automatic via `instrumentation-node.ts` / `loadImageManifests()`                                                                            | Set `LOAD_IMAGE_MANIFESTS_AT_BOOT=false` if memory constrained. In production runtime, request-path logo lookups do not lazy-load manifests from S3; warm-up failures fall back to placeholders until warm-up succeeds. |
-| Purge logo cache             | `resetLogoSessionTracking()` / `invalidateLogoCache()`                                                                                      | Use via Node REPL or targeted script; ensures next request refreshes from origin.                                                                                                                                       |
+| Task                         | Command / File                                                                                                                              | Details                                                                                                                                                                                                                          |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sync blog covers -> S3       | `bun scripts/sync-blog-cover-images.ts`                                                                                                     | Hashes local `/public/images/posts/**`, uploads via `writeBinaryS3`, updates manifest JSON.                                                                                                                                      |
+| Warm manifests               | Automatic via `instrumentation-node.ts` / `loadImageManifests()`                                                                            | Set `LOAD_IMAGE_MANIFESTS_AT_BOOT=true` to enable process-start warm-up. In production runtime, request-path logo lookups do not lazy-load manifests from S3; warm-up failures fall back to placeholders until warm-up succeeds. |
+| Purge logo cache             | `resetLogoSessionTracking()` / `invalidateLogoCache()`                                                                                      | Use via Node REPL or targeted script; ensures next request refreshes from origin.                                                                                                                                                |
 | Investigate SSRF regressions | Review `url-utils` + `openGraphUrlSchema`; add tests under `__tests__/lib/validators`.                                                      |
 | Add new CDN host             | Update env (`CALLAHAN_IMAGE_HOSTS` or `NEXT_PUBLIC_S3_CDN_URL`), rerun `bun run validate` to ensure lint rule `no-hardcoded-images` passes. |
 

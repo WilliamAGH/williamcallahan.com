@@ -11,6 +11,19 @@ import { envLogger } from "@/lib/utils/env-logger";
 import { processSummaryText, removeCitations } from "@/lib/utils/formatters";
 import { normalizeScrapedContentText } from "./scraped-content";
 
+const READING_SPEED_WPM = 200;
+
+function computeWordCount(text: string | null | undefined): number | undefined {
+  if (typeof text !== "string" || text.trim().length === 0) return undefined;
+  const words = text.trim().split(/\s+/);
+  return words.length;
+}
+
+function computeReadingTime(wordCount: number | undefined): number | undefined {
+  if (wordCount === undefined || wordCount === 0) return undefined;
+  return Math.ceil(wordCount / READING_SPEED_WPM);
+}
+
 function parseAttachedBy(value: string | undefined): "user" | "ai" | undefined {
   if (value === "user") return "user";
   if (value === "ai") return "ai";
@@ -54,6 +67,8 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
     );
     const bookmarkUrl = raw.content?.url || "";
     const domain = extractDomain(bookmarkUrl);
+    const wordCount = computeWordCount(scrapedContentText);
+    const readingTime = computeReadingTime(wordCount);
 
     const normalizedTags = Array.isArray(raw.tags)
       ? raw.tags.map((tag) => ({
@@ -109,6 +124,8 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       summary: raw.summary ? processSummaryText(raw.summary) : raw.summary,
       content: unifiedContent,
       scrapedContentText: scrapedContentText ?? undefined,
+      wordCount,
+      readingTime,
       assets: Array.isArray(raw.assets) ? raw.assets : [],
 
       // Add new fields for selective refresh

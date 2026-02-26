@@ -5,14 +5,14 @@
  * Handles Clerk authentication, request logging, and security headers for all non-static routes.
  * Applies security headers and caching headers for static assets and analytics scripts.
  * Protected routes (/admin/*, /api/admin/*) require authentication when Clerk is configured.
- * Note: Renamed from middleware.ts to proxy.ts in Next.js 16
+ * Uses the Next.js 16 proxy file convention.
  *
  * @see https://clerk.com/docs/references/nextjs/clerk-middleware
  */
 
-// Runtime configuration for middleware (Edge)
+// Runtime configuration notes for Proxy (Edge).
 // Next.js v15+ expects runtime to be specified within the exported `config` object.
-// See: https://github.com/vercel/next.js/blob/canary/docs/01-app/03-api-reference/03-file-conventions/middleware.mdx
+// See: https://nextjs.org/docs/app/getting-started/proxy
 // Using `edge` here (not deprecated `experimental-edge`).
 
 import { CSP_DIRECTIVES } from "@/config/csp";

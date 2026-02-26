@@ -13,7 +13,7 @@ The OpenGraph system operates with a multi-layered approach:
 ```
 Request -> Cache Check -> S3 Check -> External Fetch -> Process -> Store -> Return
            |              |              |
-         Memory         Persistent    HTML Fetch
+         Next.js        Persistent    HTML Fetch
          (Fast)         (Durable)     (Slow)
 ```
 
@@ -22,7 +22,7 @@ Request -> Cache Check -> S3 Check -> External Fetch -> Process -> Store -> Retu
 ### Data Access Layer
 
 - **`lib/data-access/opengraph.ts`**: Core orchestration and caching logic (~280 LoC)
-  - Multi-tier caching strategy (Memory -> S3 -> External)
+  - Multi-tier caching strategy (Next.js cache -> S3 -> External)
   - Request coalescing to prevent duplicate fetches
   - Background refresh with stale-while-revalidate
   - Delegates to specialized modules for specific tasks
@@ -88,7 +88,7 @@ Request -> Cache Check -> S3 Check -> External Fetch -> Process -> Store -> Retu
   - Various platform-specific metadata types
 
 - **`types/image.ts`**: Unified image types used by OpenGraph
-  - `ImageSource`: Source enumeration (memory, s3, origin, etc.)
+  - `ImageSource`: Source enumeration (s3, origin, fallback, etc.)
   - `BaseImageData`: Base interface for all image data
   - `ImageResult`: Result from image service operations
 
@@ -104,7 +104,7 @@ Request -> Cache Check -> S3 Check -> External Fetch -> Process -> Store -> Retu
 - **`app/api/og-image/route.ts`**: Universal OpenGraph image endpoint
   - Single source of truth for ALL OpenGraph images
   - Multi-input support: S3 keys, Karakeep asset IDs, external URLs
-  - Hierarchy: Memory cache -> S3 storage -> External fetch -> Karakeep fallback
+  - Hierarchy: Next.js cache-backed data access -> S3 storage -> External fetch -> Karakeep fallback
   - Security: SSRF protection, domain allowlisting, size limits
   - Response streaming with background S3 persistence
   - Contextual fallback images (company, person, OpenGraph card)
@@ -138,7 +138,7 @@ The `/api/og-image` route serves as the single source of truth for all OpenGraph
 
 1. Check S3 existence (for S3 keys)
 2. Try Karakeep asset (for asset IDs)
-3. Fetch from OpenGraph data layer (memory -> S3 -> external)
+3. Fetch from OpenGraph data layer (Next.js cache -> S3 -> external)
 4. Direct image fetch if URL points to image
 5. Domain-specific fallbacks (GitHub, Twitter, etc.)
 6. Contextual fallbacks (person, OpenGraph card, company)
@@ -176,7 +176,7 @@ Validate URL -> Normalize -> Generate hash
 ### 2. Cache Check Phase
 
 ```typescript
-Memory Cache Check (ServerCacheInstance)
+Next.js Cache Components Check (tagged server data access)
   | (miss)
 S3 Metadata Check (opengraph/metadata/{urlHash}.json)
   | (miss)
@@ -200,7 +200,7 @@ Resolve Relative URLs -> Validate Images
 ### 4. Storage Phase
 
 ```typescript
-Store Metadata in S3 -> Persist Images to S3 -> Update Memory Cache
+Store Metadata in S3 -> Persist Images to S3 -> Refresh Tagged Cache
 ```
 
 ### 5. Background Operations
@@ -259,11 +259,11 @@ function selectBestOpenGraphImage(metadata, pageUrl) {
 
 ## Caching Strategy
 
-### Memory Cache (ServerCacheInstance)
+### Next.js Cache Components
 
-- **Success TTL**: 24 hours
-- **Failure TTL**: 1 hour
-- **Implementation**: In-memory Map with TTL tracking
+- **Success Profile**: cache life/tag profiles on server data functions
+- **Invalidation**: `revalidateTag(...)` from refresh/update flows
+- **Implementation**: framework cache (no custom in-process cache map)
 
 ### S3 Persistent Storage
 
@@ -281,7 +281,7 @@ function selectBestOpenGraphImage(metadata, pageUrl) {
 
 ### Graceful Degradation Chain
 
-1. Try memory cache (even if stale)
+1. Try Next.js cache-backed server reads (tagged cache path)
 2. Try S3 storage
 3. Try external fetch with retries
 4. Use Karakeep fallback data
@@ -296,7 +296,7 @@ function selectBestOpenGraphImage(metadata, pageUrl) {
 
 ## Performance Characteristics
 
-- **Cache Hit**: 1-5ms (memory)
+- **Cache Hit**: low-latency from Next.js cache-backed server reads
 - **S3 Hit**: 50-200ms
 - **External Fetch**: 500ms-5s (depends on site)
 - **Cold Start**: Up to 10s for slow sites

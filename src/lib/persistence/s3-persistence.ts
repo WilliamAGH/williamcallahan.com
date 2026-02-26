@@ -8,16 +8,16 @@
  */
 
 import { Readable } from "node:stream";
-import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
+import { writeJsonS3 } from "@/lib/s3/json";
 import { writeBinaryS3 } from "@/lib/s3/binary";
 import { putObject } from "@/lib/s3/objects";
 import { debug, isDebug } from "@/lib/utils/debug";
 import { hashUrl, normalizeUrl } from "@/lib/utils/opengraph-utils";
-import { OPENGRAPH_OVERRIDES_S3_DIR } from "@/lib/constants";
+import { readOgOverride } from "@/lib/db/queries/opengraph";
+import { writeOgOverride } from "@/lib/db/mutations/opengraph";
 import type { OgResult } from "@/types";
 import { OgError } from "@/types/opengraph";
 import { ContentCategory } from "@/types/s3-cdn";
-import { ogResultSchema } from "@/types/seo/opengraph";
 
 /**
  * Determine content category based on content type and path
@@ -117,39 +117,38 @@ export async function persistBinaryToS3(
 }
 
 /**
- * Retrieve a hardcoded OpenGraph override from S3
+ * Retrieve a hardcoded OpenGraph override from PostgreSQL
  *
  * @param url - The original URL to look up
  * @returns The override data or null if not found
- * @throws S3OperationError on real S3 failures (permissions, network, etc.)
  */
 export async function getS3Override(url: string): Promise<OgResult | null> {
-  const s3Key = `${OPENGRAPH_OVERRIDES_S3_DIR}/${hashUrl(normalizeUrl(url))}.json`;
+  const urlHash = hashUrl(normalizeUrl(url));
 
-  // readJsonS3Optional returns null for 404 and throws for real errors
-  // Do not catch - let real S3 errors propagate to caller per [RC1a]
-  const override = await readJsonS3Optional(s3Key, ogResultSchema);
+  // Delegate to PostgreSQL; let real DB errors propagate per [RC1a]
+  const override = await readOgOverride(urlHash);
   if (override) {
-    debug(`[DataAccess/OpenGraph] Found S3 override for ${url}`);
+    debug(`[DataAccess/OpenGraph] Found DB override for ${url}`);
   }
   return override;
 }
 
 /**
- * Persist an OpenGraph override to S3
+ * Persist an OpenGraph override to PostgreSQL
  *
  * @param url - The original URL
  * @param data - The OpenGraph data to store
  */
 export async function persistS3Override(url: string, data: OgResult): Promise<void> {
-  const s3Key = `${OPENGRAPH_OVERRIDES_S3_DIR}/${hashUrl(normalizeUrl(url))}.json`;
+  const normalizedUrl = normalizeUrl(url);
+  const urlHash = hashUrl(normalizedUrl);
 
   try {
-    await persistJsonToS3(s3Key, data);
-    debug(`[DataAccess/OpenGraph] Successfully persisted S3 override for ${url}`);
+    await writeOgOverride(urlHash, normalizedUrl, data);
+    debug(`[DataAccess/OpenGraph] Successfully persisted DB override for ${url}`);
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
-    const ogError = new OgError(`Error persisting S3 override for ${url}`, "s3-write-override", {
+    const ogError = new OgError(`Error persisting DB override for ${url}`, "db-write-override", {
       originalError: error,
     });
     debug(`[DataAccess/OpenGraph] ${ogError.message}`);

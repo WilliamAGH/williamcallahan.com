@@ -83,28 +83,6 @@ export const LOG_PREFIX = "[BookmarksDataAccess]";
 export const BOOKMARK_SERVICE_LOG_CATEGORY = "BookmarksDataAccess";
 
 // ============================================================================
-// Memory Cache Configuration
-// ============================================================================
-
-/**
- * Time-to-live for the full bookmarks dataset memory cache.
- * After this duration, the cache is considered stale and will be refreshed from S3.
- */
-export const FULL_DATASET_MEMORY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
-/**
- * Time-to-live for individual bookmark-by-id memory cache entries.
- * Matches the full dataset cache for consistency.
- */
-export const BOOKMARK_BY_ID_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
-/**
- * Maximum number of individual bookmarks to cache in memory.
- * Uses LRU eviction when limit is reached.
- */
-export const BOOKMARK_BY_ID_CACHE_LIMIT = 1024;
-
-// ============================================================================
 // Batch Processing Configuration
 // ============================================================================
 

@@ -1,4 +1,4 @@
-/** Bookmarks data access: In-memory → PostgreSQL → External API */
+/** Bookmarks data access: Next.js cache tags → PostgreSQL → External API */
 
 import { BOOKMARKS_PER_PAGE, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
@@ -296,7 +296,7 @@ export async function getBookmarkById(
   options: BookmarkLoadOptions = {},
 ): Promise<UnifiedBookmark | LightweightBookmark | null> {
   const includeImageData = options.includeImageData ?? true;
-  // Check memory cache first
+  // Check compatibility cache hooks first (no-op when runtime cache is disabled).
   if (includeImageData) {
     const cached = getCachedBookmarkById(bookmarkId, false);
     if (cached) {
@@ -377,9 +377,9 @@ export async function getBookmarksByTag(
   };
 }
 
-/** Cache invalidation functions (Next.js cache and in-memory runtime cache) */
+/** Cache invalidation functions (Next.js cache tags plus compatibility no-op hooks) */
 export const invalidateBookmarksCache = (): void => {
-  // Clear in-memory runtime cache (full dataset and per-ID caches)
+  // Clear compatibility no-op hooks and invalidate Next.js tags.
   clearFullDatasetCache();
   invalidateBookmarkByIdCaches();
   invalidateNextJsBookmarksCache();

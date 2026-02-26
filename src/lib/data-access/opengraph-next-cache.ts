@@ -5,16 +5,14 @@
 
 import { envLogger } from "@/lib/utils/env-logger";
 import { debug } from "@/lib/utils/debug";
-import { readJsonS3 } from "@/lib/s3/json";
 import { getS3Override } from "@/lib/persistence/s3-persistence";
 import { getDomainType, hashUrl, validateOgUrl } from "@/lib/utils/opengraph-utils";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
-import { OPENGRAPH_METADATA_S3_DIR, OPENGRAPH_CACHE_DURATION } from "@/lib/constants";
+import { OPENGRAPH_CACHE_DURATION } from "@/lib/constants";
 import { createFallbackResult } from "@/lib/opengraph/fallback";
-import { S3NotFoundError } from "@/lib/s3/errors";
+import { readOgMetadata } from "@/lib/db/queries/opengraph";
 import type { OgResult } from "@/types";
 import { isOgResult, type CachedOpenGraphInput } from "@/types/opengraph";
-import { ogResultSchema } from "@/types/seo/opengraph";
 import { safeCacheLife, safeCacheTag } from "./opengraph-cache-context";
 
 export async function getCachedOpenGraphDataInternal({
@@ -54,29 +52,21 @@ export async function getCachedOpenGraphDataInternal({
     return createFallbackResult(normalizedUrl, "Domain temporarily unavailable", validatedFallback);
   }
 
-  debug(`[OG-Priority-3] 🔍 Checking S3 persistent storage for: ${normalizedUrl}`);
-  try {
-    const stored = await readJsonS3(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`, ogResultSchema);
-    if (isOgResult(stored)) {
-      const isDataFresh =
-        stored.timestamp &&
-        getOgTimestamp() - stored.timestamp < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
+  debug(`[OG-Priority-3] Checking DB persistent storage for: ${normalizedUrl}`);
+  const stored = await readOgMetadata(urlHash);
+  if (stored && isOgResult(stored)) {
+    const isDataFresh =
+      stored.timestamp &&
+      getOgTimestamp() - stored.timestamp < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
 
-      if (isDataFresh) {
-        debug(
-          `[OG-Priority-3] ✅ Found FRESH S3 storage: ${normalizedUrl} (age: ${Math.round((getOgTimestamp() - (stored.timestamp || 0)) / 1000)}s)`,
-        );
-        return stored;
-      }
+    if (isDataFresh) {
+      debug(
+        `[OG-Priority-3] Found FRESH DB storage: ${normalizedUrl} (age: ${Math.round((getOgTimestamp() - (stored.timestamp || 0)) / 1000)}s)`,
+      );
+      return stored;
     }
-    debug(`[OG-Priority-3] ❌ No valid data in S3 storage for: ${normalizedUrl}`);
-  } catch (e) {
-    if (e instanceof S3NotFoundError) {
-      debug(`[OG-Priority-3] ❌ Not found in S3 storage: ${normalizedUrl}`);
-    } else {
-      const error = e instanceof Error ? e : new Error(String(e));
-      debug(`[OG-Priority-3] ❌ S3 read error for: ${normalizedUrl} - ${error.message}`);
-    }
+  } else {
+    debug(`[OG-Priority-3] No valid data in DB storage for: ${normalizedUrl}`);
   }
 
   if (skipExternalFetch) {

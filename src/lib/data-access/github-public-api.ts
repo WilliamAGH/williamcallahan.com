@@ -106,7 +106,7 @@ function formatActivityView(
 
 /**
  * Primary function to get GitHub activity data with intelligent caching
- * Access pattern: In-memory cache → S3 storage → GitHub API
+ * Access pattern: Next.js cache tags → S3 storage → GitHub API
  */
 export async function getGithubActivity(): Promise<UserActivityView> {
   debug("[DataAccess/GitHub:getGithubActivity] Starting GitHub activity fetch");

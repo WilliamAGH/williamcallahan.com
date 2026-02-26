@@ -179,25 +179,31 @@ function buildBookmarkEmbeddingInput(row) {
   return sections.join("\n");
 }
 
-function buildWhereClauseForMissingEmbeddings(sql, bookmarkIds) {
+function buildWhereClause(sql, bookmarkIds, forceAll) {
+  if (forceAll && bookmarkIds === undefined) return sql``;
+  if (forceAll && bookmarkIds !== undefined) {
+    if (bookmarkIds.length === 0) return sql`where false`;
+    return sql`where id = any(${sql.array(bookmarkIds, "text")})`;
+  }
   if (bookmarkIds === undefined) return sql`where qwen_4b_fp16_embedding is null`;
   if (bookmarkIds.length === 0) return sql`where false`;
   return sql`where qwen_4b_fp16_embedding is null and id = any(${sql.array(bookmarkIds, "text")})`;
 }
 
-async function readMissingEmbeddingRows(sql, limit, bookmarkIds) {
-  const whereClause = buildWhereClauseForMissingEmbeddings(sql, bookmarkIds);
+async function readTargetRows(sql, limit, bookmarkIds, forceAll, offset) {
+  const whereClause = buildWhereClause(sql, bookmarkIds, forceAll);
   return sql`
     select id, url, title, description, summary, note, domain, scraped_content_text as "scrapedContentText", tags, content
     from bookmarks
     ${whereClause}
     order by id asc
     limit ${limit}
+    offset ${offset}
   `;
 }
 
-async function countMissingEmbeddings(sql, bookmarkIds) {
-  const whereClause = buildWhereClauseForMissingEmbeddings(sql, bookmarkIds);
+async function countTargetRows(sql, bookmarkIds, forceAll) {
+  const whereClause = buildWhereClause(sql, bookmarkIds, forceAll);
   const rows = await sql`select count(*)::int as count from bookmarks ${whereClause}`;
   return rows[0]?.count ?? 0;
 }
@@ -259,6 +265,7 @@ async function run() {
   const maxRows = parsePositiveInteger(readFlagValue(args, "--max-rows"), "max-rows");
   const bookmarkIds = parseBookmarkIds(readFlagValue(args, "--bookmark-ids"));
   const dryRun = hasFlag(args, "--dry-run");
+  const forceAll = hasFlag(args, "--force");
   const config = {
     databaseUrl: readRequiredEnv("DATABASE_URL"),
     baseUrl: readRequiredEnv("AI_DEFAULT_OPENAI_BASE_URL"),
@@ -272,10 +279,15 @@ async function run() {
   let updatedRows = 0;
 
   console.log(
-    `[backfill-bookmark-embeddings:node] Starting (dryRun=${dryRun}, batchSize=${batchSize}, maxRows=${
+    `[backfill-bookmark-embeddings:node] Starting (dryRun=${dryRun}, force=${forceAll}, batchSize=${batchSize}, maxRows=${
       maxRows ?? "all"
     })`,
   );
+  if (forceAll) {
+    console.log(
+      "[backfill-bookmark-embeddings:node] --force: regenerating ALL embeddings (not just missing).",
+    );
+  }
   if (bookmarkIds && bookmarkIds.length > 0) {
     console.log(
       `[backfill-bookmark-embeddings:node] Restricting to ${bookmarkIds.length} bookmark IDs.`,
@@ -292,11 +304,14 @@ async function run() {
   }
 
   try {
+    const totalTarget = await countTargetRows(sql, bookmarkIds, forceAll);
+    console.log(`[backfill-bookmark-embeddings:node] Total rows to process: ${totalTarget}`);
+
     while (maxRows === undefined || processedRows < maxRows) {
       const remainingBudget =
         maxRows === undefined ? batchSize : Math.min(batchSize, maxRows - processedRows);
       if (remainingBudget <= 0) break;
-      const rows = await readMissingEmbeddingRows(sql, remainingBudget, bookmarkIds);
+      const rows = await readTargetRows(sql, remainingBudget, bookmarkIds, forceAll, processedRows);
       if (!rows[0]) break;
 
       const inputs = rows.map(buildBookmarkEmbeddingInput);
@@ -309,10 +324,9 @@ async function run() {
       processedRows += rows.length;
 
       if (dryRun) {
-        const remaining = await countMissingEmbeddings(sql, bookmarkIds);
         const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
         console.log(
-          `[backfill-bookmark-embeddings:node] dry-run batch processed=${processedRows} remaining=${remaining} elapsed_s=${elapsed}`,
+          `[backfill-bookmark-embeddings:node] dry-run batch processed=${processedRows}/${totalTarget} elapsed_s=${elapsed}`,
         );
         continue;
       }
@@ -321,23 +335,30 @@ async function run() {
         const row = rows[index];
         const embedding = embeddings[index];
         if (!row || !embedding) throw new Error(`Missing embedding payload at row index ${index}.`);
+        // Type modifier must be a literal constant (not a bind parameter)
         await sql`
           update bookmarks
-          set qwen_4b_fp16_embedding = ${serializeHalfvec(embedding)}::halfvec(${BOOKMARK_EMBEDDING_DIMENSIONS})
+          set qwen_4b_fp16_embedding = ${serializeHalfvec(embedding)}::halfvec(2560)
           where id = ${row.id}
         `;
         updatedRows += 1;
       }
 
-      const remaining = await countMissingEmbeddings(sql, bookmarkIds);
       const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
       console.log(
-        `[backfill-bookmark-embeddings:node] batch processed=${processedRows} updated=${updatedRows} remaining=${remaining} elapsed_s=${elapsed}`,
+        `[backfill-bookmark-embeddings:node] batch processed=${processedRows}/${totalTarget} updated=${updatedRows} elapsed_s=${elapsed}`,
       );
     }
 
-    const remainingRows = await countMissingEmbeddings(sql, bookmarkIds);
-    console.table({ processedRows, updatedRows, remainingRows, dryRun, model: config.model });
+    const remainingNull = await countTargetRows(sql, bookmarkIds, false);
+    console.table({
+      processedRows,
+      updatedRows,
+      remainingNull,
+      dryRun,
+      forceAll,
+      model: config.model,
+    });
   } finally {
     await sql.end({ timeout: 5 });
   }

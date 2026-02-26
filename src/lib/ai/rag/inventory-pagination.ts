@@ -2,7 +2,7 @@
  * RAG Inventory Pagination State Management
  *
  * Handles stateful pagination for inventory sections across conversation turns.
- * Uses server cache keyed by conversationId for cursor navigation.
+ * Pagination state is currently request-scoped and not persisted between requests.
  *
  * @module lib/ai/rag/inventory-pagination
  */
@@ -38,7 +38,7 @@ const withSectionUpdate = (
 
 /**
  * Get pagination state for a conversation.
- * Memory cache removed; always returns null (pagination resets each request).
+ * State is not persisted between requests.
  */
 export function getPaginationState(_conversationId: string): InventoryPaginationState | null {
   return null;
@@ -46,13 +46,13 @@ export function getPaginationState(_conversationId: string): InventoryPagination
 
 /**
  * Save pagination state for a conversation.
- * Memory cache removed; state is not persisted between requests.
+ * State persistence is currently disabled.
  */
 export function setPaginationState(
   _conversationId: string,
   _state: InventoryPaginationState,
 ): void {
-  // no-op: memory cache removed
+  // no-op while persistence is disabled
 }
 
 /**

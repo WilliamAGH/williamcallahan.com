@@ -1,27 +1,24 @@
 /**
- * AI Analysis S3 Reader (Server-only)
+ * AI Analysis Database Reader (Server-only)
  * @module lib/ai-analysis/reader.server
  * @description
- * Server-side reader for cached AI analysis from S3.
+ * Server-side reader for cached AI analysis from PostgreSQL.
  * Integrates with Next.js cache for optimal performance.
  *
- * Uses Cache Components so S3 reads remain cache-safe without
+ * Uses Cache Components so database reads remain cache-safe without
  * request-only APIs like `connection()`.
  */
 
-import { readJsonS3Optional } from "@/lib/s3/json";
-import { listS3Objects } from "@/lib/s3/objects";
+import {
+  hasAnalysisInDb,
+  listAnalysisItemIdsFromDb,
+  listAnalysisVersionsFromDb,
+  readLatestAnalysis,
+} from "@/lib/db/queries/ai-analysis";
 import { envLogger } from "@/lib/utils/env-logger";
 import { assertServerOnly } from "@/lib/utils/ensure-server-only";
 import { cacheContextGuards } from "@/lib/cache";
-import {
-  buildAnalysisBasePath,
-  buildAnalysisCacheTags,
-  buildAnalysisVersionsCacheTags,
-  buildLatestAnalysisKey,
-  buildVersionsPrefix,
-  extractTimestampFromKey,
-} from "./paths";
+import { buildAnalysisCacheTags, buildAnalysisVersionsCacheTags } from "./paths";
 import type {
   AnalysisDomain,
   CachedAnalysis,
@@ -31,11 +28,6 @@ import type {
 import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
 import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
 import type { ProjectAiAnalysisResponse } from "@/types/schemas/project-ai-analysis";
-import {
-  persistedBookmarkAnalysisSchema,
-  persistedBookAnalysisSchema,
-  persistedProjectAnalysisSchema,
-} from "@/types/schemas/ai-analysis-persisted";
 
 assertServerOnly();
 
@@ -62,24 +54,10 @@ async function getCachedAnalysisInternal(
   cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 86400 }); // 24 hours
   applyCacheTags(buildAnalysisCacheTags(domain, id));
 
-  const key = buildLatestAnalysisKey(domain, id);
-
-  // Domain-specific schema selection with explicit type narrowing
-  let data: CachedAnalysis<unknown> | null;
-  switch (domain) {
-    case "bookmarks":
-      data = await readJsonS3Optional(key, persistedBookmarkAnalysisSchema);
-      break;
-    case "books":
-      data = await readJsonS3Optional(key, persistedBookAnalysisSchema);
-      break;
-    case "projects":
-      data = await readJsonS3Optional(key, persistedProjectAnalysisSchema);
-      break;
-  }
+  const data = await readLatestAnalysis(domain, id);
 
   if (!data) {
-    envLogger.debug("No cached analysis found", { domain, id, key }, { category: "AiAnalysis" });
+    envLogger.debug("No cached analysis found", { domain, id }, { category: "AiAnalysis" });
     return null;
   }
 
@@ -91,10 +69,6 @@ async function getCachedAnalysisInternal(
 
   return data;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Reader Functions
-// ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Type-safe overloads for getCachedAnalysis
@@ -161,7 +135,7 @@ export async function getCachedAnalysis<
  *
  * The skipCache option is handled BEFORE the cache boundary to ensure
  * correct cache behavior. The internal function handles the actual
- * cached S3 read with proper cacheLife/cacheTag directives.
+ * cached database read with proper cacheLife/cacheTag directives.
  */
 export async function getCachedAnalysis(
   domain: AnalysisDomain,
@@ -190,18 +164,7 @@ export async function listAnalysisItemIds(domain: AnalysisDomain): Promise<strin
   cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 3600 }); // 1 hour
   applyCacheTags(buildAnalysisCacheTags(domain, "inventory"));
 
-  const prefix = `${buildAnalysisBasePath(domain)}/`;
-  const keys = await listS3Objects(prefix);
-  const ids = new Set<string>();
-
-  for (const key of keys) {
-    if (!key.startsWith(prefix) || !key.endsWith("/latest.json")) continue;
-    const remainder = key.slice(prefix.length);
-    const id = remainder.split("/")[0];
-    if (id) ids.add(id);
-  }
-
-  return Array.from(ids).toSorted();
+  return listAnalysisItemIdsFromDb(domain);
 }
 
 /**
@@ -221,25 +184,7 @@ export async function listAnalysisVersions(
   cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 3600 }); // 1 hour
   applyCacheTags(buildAnalysisVersionsCacheTags(domain, id));
 
-  const prefix = buildVersionsPrefix(domain, id);
-  const keys = await listS3Objects(prefix);
-  const versions: AnalysisVersion[] = [];
-
-  for (const key of keys) {
-    const timestamp = extractTimestampFromKey(key);
-    if (timestamp) {
-      versions.push({
-        key,
-        timestamp,
-        date: timestamp,
-      });
-    }
-  }
-
-  // Sort by timestamp, newest first
-  versions.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-
-  return versions;
+  return listAnalysisVersionsFromDb(domain, id);
 }
 
 /**
@@ -256,20 +201,5 @@ export async function hasCachedAnalysis(domain: AnalysisDomain, id: string): Pro
   cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 86400 }); // 24 hours
   applyCacheTags(buildAnalysisCacheTags(domain, id));
 
-  const key = buildLatestAnalysisKey(domain, id);
-
-  // Domain-specific schema selection
-  let data: unknown;
-  switch (domain) {
-    case "bookmarks":
-      data = await readJsonS3Optional(key, persistedBookmarkAnalysisSchema);
-      break;
-    case "books":
-      data = await readJsonS3Optional(key, persistedBookAnalysisSchema);
-      break;
-    case "projects":
-      data = await readJsonS3Optional(key, persistedProjectAnalysisSchema);
-      break;
-  }
-  return data !== null;
+  return hasAnalysisInDb(domain, id);
 }

@@ -23,10 +23,8 @@ graph TD
     end
 
     subgraph "Supporting Systems"
-        MAPCACHE[ServerCacheInstance<br/>metadata only]
         OG_ENRICH[OpenGraph Enhancement + UnifiedImageService]
         HEALTH[/api/health/deep<br/>verifies slug + JSON integrity]
-        MAPCACHE --> UI_PAGES
         OG_ENRICH --> REFRESH
         S3JSON --> HEALTH
     end

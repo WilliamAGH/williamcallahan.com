@@ -29,6 +29,41 @@
       "when": 1772145700000,
       "tag": "0003_drop-dead-bookmark-columns",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774200000000,
+      "tag": "0004_github-activity-store",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1774286400000,
+      "tag": "0005_content-graph-artifacts",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1774372800000,
+      "tag": "0006_books-dataset-tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1774459200000,
+      "tag": "0007_ai-analysis-tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1774545600000,
+      "tag": "0008_opengraph-tables",
+      "breakpoints": true
     }
   ]
 }

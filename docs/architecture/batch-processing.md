@@ -129,7 +129,7 @@ bun scripts/data-updater.ts --force --bookmarks
 
 - Logos fetched on-demand when first requested
 - Multi-tier data access ensures good performance:
-  - Memory cache: ~1ms (ServerCacheInstance)
+  - Next.js Cache Components (route data): low-latency repeat reads
   - S3 storage: ~10-50ms (persistent)
   - External API: 100ms-5s (only on storage miss)
   - **New:** logo downloads are now streamed directly from the source URL to S3. Memory footprint per logo is constant (~65 KB) because we no longer buffer the entire image in RAM before upload.
@@ -247,7 +247,7 @@ curl http://localhost:3000/api/bookmarks/refresh
 
 ### Caching Strategy
 
-1. **In-Memory Cache**: Fast access for active requests
+1. **Next.js Cache Components**: Fast access for active page/render flows
 2. **S3 Storage**: Persistent storage between deployments
 3. **External APIs**: Fallback when cache/S3 data is unavailable
 

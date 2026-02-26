@@ -163,16 +163,6 @@
           }
         }
       }
-    },
-    {
-      "includes": ["src/lib/server-cache.ts", "src/types/server-cache.d.ts"],
-      "linter": {
-        "rules": {
-          "suspicious": {
-            "noExplicitAny": "warn"
-          }
-        }
-      }
     }
   ]
 }

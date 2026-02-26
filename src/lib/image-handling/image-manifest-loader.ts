@@ -18,7 +18,7 @@ import {
 } from "@/types/schemas/image-manifest";
 import { loadLogoManifestWithCache } from "./cached-manifest-loader";
 
-// In-memory cache for manifests
+// Module-local cache for manifests
 let logoManifest: LogoManifestFromSchema | null = null;
 let opengraphManifest: ImageManifestFromSchema | null = null;
 let blogManifest: ImageManifestFromSchema | null = null;
@@ -66,8 +66,7 @@ async function getManifestsDirect(): Promise<{
  * Called once during instrumentation/startup
  */
 export async function loadImageManifests(): Promise<void> {
-  // Warm-up is opt-in because loading all manifests at boot can allocate
-  // substantial memory in constrained runtimes.
+  // Warm-up is opt-in to avoid extra boot-time allocations in constrained runtimes.
   if (process.env.LOAD_IMAGE_MANIFESTS_AT_BOOT !== "true") {
     return;
   }

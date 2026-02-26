@@ -4,7 +4,8 @@
  * @description
  * Core generation logic for the consolidated books dataset.
  * Fetches all books from AudioBookShelf, merges manual enrichments and cached
- * AI summaries, generates blur placeholders, and persists to S3 with versioning.
+ * AI summaries, generates blur placeholders, and persists to PostgreSQL with
+ * checksum-gated versioning.
  *
  * Used by:
  * - scripts/generate-books.ts (CLI entry point)
@@ -16,11 +17,10 @@ import { fetchBooks } from "@/lib/books/audiobookshelf.server";
 import { buildDirectCoverUrl } from "@/lib/books/transforms";
 import { applyBookCoverBlurs } from "@/lib/books/image-utils.server";
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
-import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
-import { BOOKS_S3_PATHS } from "@/lib/constants";
+import { readBooksLatestPointer } from "@/lib/db/queries/books";
+import { writeBooksSnapshot } from "@/lib/db/mutations/books";
 import { bookEnrichments } from "@/data/book-enrichments";
 import { safeJsonStringify } from "@/lib/utils/json-utils";
-import { booksLatestSchema } from "@/types/schemas/book";
 import { bookAiAnalysisResponseSchema } from "@/types/schemas/book-ai-analysis";
 import { getMonotonicTime } from "@/lib/utils";
 import logger from "@/lib/utils/logger";
@@ -37,10 +37,10 @@ function getAbsConfig(): { baseUrl: string; apiKey: string } {
 }
 
 /**
- * Generate consolidated books dataset and persist to S3.
+ * Generate consolidated books dataset and persist to PostgreSQL.
  *
- * Orchestrates the full pipeline: ABS fetch → enrichment merge → AI summaries →
- * blur placeholders → checksum-gated S3 write. Returns a standardized
+ * Orchestrates the full pipeline: ABS fetch -> enrichment merge -> AI summaries ->
+ * blur placeholders -> checksum-gated DB write. Returns a standardized
  * DataFetchOperationSummary for pipeline integration.
  */
 export async function generateBooksDataset(
@@ -127,9 +127,9 @@ export async function generateBooksDataset(
     }
     const checksum = createHash("sha256").update(booksJson).digest("hex").slice(0, 12);
 
-    const existingLatest = await readJsonS3Optional(BOOKS_S3_PATHS.LATEST, booksLatestSchema);
-    if (existingLatest?.checksum === checksum) {
-      logger.info(`[BooksGenerator] Checksum unchanged (${checksum}) — skipping S3 write`);
+    const existingPointer = await readBooksLatestPointer();
+    if (existingPointer?.checksum === checksum) {
+      logger.info(`[BooksGenerator] Checksum unchanged (${checksum}) — skipping DB write`);
       return {
         success: true,
         operation: "books",
@@ -139,9 +139,8 @@ export async function generateBooksDataset(
       };
     }
 
-    // Step 6: Write versioned snapshot to S3
+    // Step 6: Write versioned snapshot to PostgreSQL
     const generated = new Date().toISOString();
-    const snapshotKey = `${BOOKS_S3_PATHS.DIR}/${checksum}.json`;
 
     const dataset: BooksDataset = {
       version: "1.0.0",
@@ -151,17 +150,10 @@ export async function generateBooksDataset(
       books,
     };
 
-    await writeJsonS3(snapshotKey, dataset);
-    await writeJsonS3(BOOKS_S3_PATHS.LATEST, { checksum, key: snapshotKey, generated });
-    await writeJsonS3(BOOKS_S3_PATHS.INDEX, {
-      count: books.length,
-      checksum,
-      lastModified: generated,
-      lastFetchedAt: Date.now(),
-    });
+    await writeBooksSnapshot(dataset, checksum);
 
     logger.info(
-      `[BooksGenerator] Dataset written to S3 — ${books.length} books, checksum ${checksum}`,
+      `[BooksGenerator] Dataset written to DB — ${books.length} books, checksum ${checksum}`,
     );
 
     return {

@@ -49,11 +49,11 @@ bun run validate || { echo "❌ Code validation failed!"; exit 1; }
 echo "🧪 Running smoke tests..."
 bun run test:smoke || { echo "❌ Smoke tests failed!"; exit 1; }
 
-# Check bookmark integrity
-echo "🔍 Checking bookmark integrity..."
+# Check bookmark integrity (PostgreSQL-backed runtime checks)
+echo "🔍 Checking bookmark integrity (PostgreSQL)..."
 bun run scripts/bookmark-diagnostics.ts integrity || {
   echo "❌ Bookmark integrity check failed!"
-  echo "📚 Fix the bookmarks listed above before pushing."
+  echo "📚 Fix the PostgreSQL bookmark issues listed above before pushing."
   echo "💡 Run 'bun run scripts/bookmark-diagnostics.ts integrity' to see details."
   exit 1
 }

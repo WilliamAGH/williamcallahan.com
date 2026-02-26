@@ -73,7 +73,7 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 
 3. **Generic Search**: `searchContent<T>` function used by all search implementations.
 
-4. **Caching**: 15-minute TTL via `ServerCacheInstance`; lazy loading in terminal.
+4. **Caching**: Next.js Cache Components with search tags/lifetimes (~15-minute profiles for server search reads); lazy loading in terminal.
 
 5. **Search Quality**: MiniSearch for fuzzy/typo-tolerant search with substring fallback. Bookmarks API preserves MiniSearch score ordering when hydrating full bookmark objects.
 
@@ -123,11 +123,9 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 
 ### Caching Layer
 
-- **`lib/server-cache.ts`**: Enhanced with search caching
-  - `getSearchResults()`: Retrieves cached results
-  - `setSearchResults()`: Stores search results
-  - `shouldRefreshSearch()`: Checks cache validity
-  - 15-minute TTL for search results
+- **`lib/search.ts`**: Search data functions use `\"use cache\"`, `cacheLife`, and `cacheTag`
+  - Search-tag invalidation can be triggered with `revalidateTag(...)`
+  - API routes remain `noStore()` when fresh responses are required
 
 ### Integration Points
 
@@ -214,7 +212,7 @@ function searchContent<T>(
 - **Duration**: 15 minutes for successful searches
 - **Failure Handling**: 1 minute cache for failed attempts
 - **Key Format**: `search:{dataType}:{normalizedQuery}`
-- **Memory Efficient**: Uses existing `ServerCacheInstance`
+- **Tagged Invalidation**: Search cache profiles are invalidated by domain tag/path updates
 
 ### Lazy Loading
 
@@ -227,7 +225,7 @@ function searchContent<T>(
 
 - **Static Data**: Singleton MiniSearch indexes
 - **Dynamic Data**: Real-time API fetching
-- **Memory Conscious**: Indexes created on first use
+- **Lazy Initialization**: Indexes created on first use
 
 ## Security Features
 
@@ -338,11 +336,9 @@ GET /api/search/all?q=nextjs
 ### Cache Monitoring
 
 ```typescript
-// Check cache stats
-ServerCacheInstance.getStats();
-
-// Clear search cache
-ServerCacheInstance.clearSearchCache();
+// Invalidate tagged search cache entries when refresh flows complete
+import { revalidateTag } from "next/cache";
+revalidateTag("search");
 ```
 
 ### Debug Logging

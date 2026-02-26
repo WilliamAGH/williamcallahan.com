@@ -135,11 +135,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // If we have a buffer, return it
     if (result.buffer && bufferLength > 0) {
+      const cacheHitSources = new Set(["cache", "s3"]);
       return new NextResponse(new Uint8Array(result.buffer), {
         headers: {
           "Content-Type": result.contentType,
           "Cache-Control": `public, max-age=${CACHE_DURATION}, immutable`,
-          "X-Cache": result.source === "memory" ? "HIT" : "MISS",
+          "X-Cache": cacheHitSources.has(result.source) ? "HIT" : "MISS",
           "X-Source": result.source,
           ...IMAGE_SECURITY_HEADERS,
         },

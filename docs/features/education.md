@@ -60,7 +60,7 @@ export interface EducationLogoData {
 ## Performance & Security
 
 - Response times: ~200ms for cached logos, 2-5s for external fetch
-- TTL: 15min memory cache in ServerCacheInstance
+- Cache policy: Next.js cache tags/lifetimes on server read paths plus durable S3 logo artifacts
 - Security: No client-side S3 access, all logos via public CDN URLs
 
 ## Operations & Testing

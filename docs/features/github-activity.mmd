@@ -20,11 +20,9 @@ graph TD
     end
 
     subgraph "Supporting"
-        MAPCACHE[ServerCacheInstance<br/>metadata only]
         HEALTH[/api/health/deep<br/>validates JSON freshness]
         SCHED[scheduler.ts / cron]
         REF <-- SCHED
-        MAPCACHE --> UI
         S3 --> HEALTH
     end
 

@@ -4,7 +4,7 @@
  * This module now acts as a facade, delegating all operations to UnifiedImageService
  * while maintaining backward compatibility for existing code.
  *
- * Flow: UnifiedImageService → Memory cache → S3 → External APIs
+ * Flow: UnifiedImageService → Next.js cache tags → S3 → External APIs
  * Storage: S3 with CDN delivery
  *
  * @module lib/data-access/logos
@@ -24,10 +24,10 @@ const safeRevalidateTag = revalidateTag as (tag: string) => void;
 
 /**
  * Resets logo session tracking.
- * Previously cleared the server cache; now a no-op as memory cache is removed.
+ * Previously cleared legacy cache state; now a no-op.
  */
 export function resetLogoSessionTracking(): void {
-  console.debug("[Logos] Logo session tracking reset (no-op: memory cache removed)");
+  console.debug("[Logos] Logo session tracking reset (no-op)");
 }
 
 /**
@@ -133,7 +133,7 @@ export function invalidateLogoCache(): void {
     }
   } else {
     if (!isTestEnvironment) {
-      console.info("[Logos] Logo cache invalidation skipped (no memory cache)");
+      console.info("[Logos] Logo cache invalidation skipped (Next.js cache disabled)");
     }
   }
 }
@@ -168,7 +168,7 @@ export function getRuntimeLogoUrl(
 }
 
 /**
- * Get logo validation - memory cache removed; always returns null.
+ * Get logo validation placeholder.
  */
 export function getLogoValidation(_imageHash: string): LogoValidationResult | null {
   return null;
@@ -176,7 +176,7 @@ export function getLogoValidation(_imageHash: string): LogoValidationResult | nu
 
 /**
  * Set logo validation with Next.js cache invalidation when enabled.
- * Memory cache storage removed; only Next.js cache tag invalidation remains.
+ * Storage for validation payloads is not maintained here.
  */
 export function setLogoValidation(imageHash: string, _isGlobeIcon: boolean): void {
   if (USE_NEXTJS_CACHE) {
@@ -186,7 +186,7 @@ export function setLogoValidation(imageHash: string, _isGlobeIcon: boolean): voi
 }
 
 /**
- * Get logo analysis - memory cache removed; always returns null.
+ * Get logo analysis placeholder.
  */
 export function getLogoAnalysis(_cacheKey: string): LogoInversion | null {
   return null;
@@ -194,7 +194,7 @@ export function getLogoAnalysis(_cacheKey: string): LogoInversion | null {
 
 /**
  * Set logo analysis with Next.js cache invalidation when enabled.
- * Memory cache storage removed; only Next.js cache tag invalidation remains.
+ * Storage for analysis payloads is not maintained here.
  */
 export function setLogoAnalysis(cacheKey: string, _analysis: LogoInversion): void {
   if (USE_NEXTJS_CACHE) {

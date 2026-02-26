@@ -49,7 +49,7 @@ Provide a single, verifiable description of how UI components, Next.js runtime f
 | Client rendering   | `components/ui/logo-image.client.tsx`, `components/features/*/bookmark-card.client.tsx`, `components/features/home/profile-image.tsx`                                     | Choose image source, trigger retries, call `/api/logo` on failure, honor placeholders, rely on `<Image>` with config-mandated widths/qualities.                                                                                                 |
 | Next runtime       | `next.config.ts` (`images.localPatterns/remotePatterns/qualities/formats`)                                                                                                | Define which URLs `_next/image` may fetch, enforce `minimumCacheTTL`, `dangerouslyAllowSVG`, and remote host allowlists derived from env-driven CALLAHAN hosts.                                                                                 |
 | HTTP surface       | `app/api/logo`, `app/api/logo/invert`, `app/api/cache/images`, `app/api/og-image`, `app/api/assets/[assetId]`, `app/api/twitter-image/[...path]`, `app/api/validate-logo` | Normalize params, validate with Zod schemas, send cache headers, short-circuit to CDN, and delegate to the service or S3 utils.                                                                                                                 |
-| Service core       | `lib/services/unified-image-service.ts`, `lib/services/image-streaming.ts`, `lib/image-handling/*.ts`, `lib/utils/*.ts`                                                   | Domain-aware routing (logos vs OG vs generic), memory/circuit safeguards, stream >5 MB downloads directly to S3, metadata extraction, inversion analysis, manifest lookups, deterministic S3 key generation, CDN URL building, SSRF prevention. |
+| Service core       | `lib/services/unified-image-service.ts`, `lib/services/image-streaming.ts`, `lib/image-handling/*.ts`, `lib/utils/*.ts`                                                   | Domain-aware routing (logos vs OG vs generic), domain circuit safeguards, stream >5 MB downloads directly to S3, metadata extraction, inversion analysis, manifest lookups, deterministic S3 key generation, CDN URL building, SSRF prevention. |
 | Persistence        | `lib/s3/*`, `lib/image-handling/image-s3-utils.ts`, `lib/persistence/s3-persistence.ts`, `lib/data-access/images.server.ts`                                               | Execute AWS SDK reads/writes with SDK retries, lock coordination, JSON and binary helpers, cache tagging. No CDN fallback inside S3 IO.                                                                                                         |
 | Storage & delivery | DigitalOcean Spaces buckets + CDN edge + browser cache                                                                                                                    | Keep immutable assets, respect `Cache-Control` configured via Next + API responses, propagate hashed keys for safe long-lived caching.                                                                                                          |
 
@@ -67,7 +67,7 @@ Provide a single, verifiable description of how UI components, Next.js runtime f
 
 1. `<LogoImage>` receives a CDN path (`/logos/foo_com_google_ab12cd34.png`). If loading fails, it derives the domain via `extractDomainFromSrc()`, fires `/api/logo?website=foo.com&forceRefresh=true`, and retries with a cache buster.
 2. `/api/logo` normalizes `website`/`company` (rejects non-FQDN company fallbacks), then calls `getLogo()` on UnifiedImageService.
-3. UnifiedImageService checks `ServerCacheInstance`, manifest entries, and existing S3 objects (`generateS3Key` per source). If missing and writes allowed, it fans out to Google/DuckDuckGo/Clearbit, analyzes the buffer, streams to S3 if large, and records CDN URLs.
+3. UnifiedImageService checks manifest entries and existing S3 objects (`generateS3Key` per source). If missing and writes allowed, it fans out to Google/DuckDuckGo/Clearbit, analyzes the buffer, streams to S3 if large, and records CDN URLs.
 4. Response is always a redirect to CDN (or placeholder via `getStaticImageUrl`). Future loads hit the CDN and skip the service entirely.
 
 ### 3. OG Image Fetch via `/api/og-image`
@@ -99,7 +99,7 @@ Provide a single, verifiable description of how UI components, Next.js runtime f
 2. **Host Allowlists** – Remote hosts must exist in `CALLAHAN_IMAGE_HOSTS`, derived env hosts, or explicit social/CDN patterns defined in `next.config.ts`.
 3. **Private Network Blocking** – UnifiedImageService rejects private IPs before fetch; `ImageAnalysis` enforces buffer size limits (<512 KB for validation endpoints).
 4. **Content-Type Enforcement** – `IMAGE_SECURITY_HEADERS`, `guessImageContentType`, and `processImageBufferSimple` stop non-image payloads from reaching clients.
-5. **Memory Pressure Controls** – `getMemoryHealthMonitor()` gates fetches/uploads; streaming path keeps peak usage bounded.
+5. **Resource Controls** – size/time boundaries and streaming paths keep image operations bounded.
 6. **Placeholder Safety** – If any stage fails, we redirect to data URI or `/images/opengraph-placeholder.png` via `getStaticImageUrl` to avoid broken UI.
 
 ## Operations & Runbooks

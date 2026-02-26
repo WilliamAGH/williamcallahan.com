@@ -1,34 +1,22 @@
 /**
- * AI Analysis S3 Writer (Server-only)
+ * AI Analysis Database Writer (Server-only)
  * @module lib/ai-analysis/writer.server
  * @description
- * Server-side writer for persisting AI analysis to S3.
- * Writes both latest.json and versioned files for history.
+ * Server-side writer for persisting AI analysis to PostgreSQL.
+ * Writes both a latest row and versioned history rows.
  */
 
-import { writeJsonS3 } from "@/lib/s3/json";
+import { persistAnalysisToDb } from "@/lib/db/mutations/ai-analysis";
 import { cacheContextGuards } from "@/lib/cache";
 import { envLogger } from "@/lib/utils/env-logger";
 import { assertServerOnly } from "@/lib/utils/ensure-server-only";
-import {
-  buildAnalysisCacheTags,
-  buildAnalysisVersionsCacheTags,
-  buildLatestAnalysisKey,
-  buildVersionedAnalysisKey,
-} from "./paths";
-import type { AnalysisDomain, CachedAnalysis, PersistAnalysisOptions } from "./types";
-import type { AnalysisMetadata } from "@/types/schemas/ai-analysis-persisted";
+import { buildAnalysisCacheTags, buildAnalysisVersionsCacheTags } from "./paths";
+import type { AnalysisDomain, PersistAnalysisOptions } from "./types";
 
 assertServerOnly();
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
-
-const DEFAULT_MODEL_VERSION = "v1";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Writer Functions
+// Cache Invalidation
 // ─────────────────────────────────────────────────────────────────────────────
 
 const revalidateAnalysisCache = (domain: AnalysisDomain, id: string): void => {
@@ -39,9 +27,13 @@ const revalidateAnalysisCache = (domain: AnalysisDomain, id: string): void => {
   cacheContextGuards.revalidateTag("AiAnalysis", ...tags);
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Writer Functions
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * Persist analysis to S3 with metadata envelope.
- * Writes both latest.json (for fast reads) and a versioned file (for history).
+ * Persist analysis to PostgreSQL with metadata envelope.
+ * Writes both a latest row (for fast reads) and a versioned row (for history).
  *
  * @param domain - The analysis domain (e.g., "bookmarks")
  * @param id - The item ID
@@ -63,43 +55,18 @@ export async function persistAnalysis<T>(
   analysis: T,
   options?: PersistAnalysisOptions,
 ): Promise<void> {
-  const now = new Date();
-
-  // Build metadata envelope
-  const metadata: AnalysisMetadata = {
-    generatedAt: now.toISOString(),
-    modelVersion: options?.modelVersion ?? DEFAULT_MODEL_VERSION,
-    ...(options?.contentHash && { contentHash: options.contentHash }),
-  };
-
-  const persistedData: CachedAnalysis<T> = {
-    metadata,
-    analysis,
-  };
-
-  const latestKey = buildLatestAnalysisKey(domain, id);
-
   try {
-    // Write latest.json first (primary read path)
-    await writeJsonS3(latestKey, persistedData);
+    await persistAnalysisToDb(domain, id, analysis, {
+      modelVersion: options?.modelVersion,
+      contentHash: options?.contentHash,
+      skipVersioning: options?.skipVersioning,
+    });
 
     envLogger.log(
-      "Persisted analysis (latest)",
-      { domain, id, key: latestKey },
+      "Persisted analysis to database",
+      { domain, id, versioned: !options?.skipVersioning },
       { category: "AiAnalysis" },
     );
-
-    // Write versioned file for history (unless skipped)
-    if (!options?.skipVersioning) {
-      const versionedKey = buildVersionedAnalysisKey(domain, id, now);
-      await writeJsonS3(versionedKey, persistedData);
-
-      envLogger.log(
-        "Persisted analysis (versioned)",
-        { domain, id, key: versionedKey },
-        { category: "AiAnalysis" },
-      );
-    }
 
     revalidateAnalysisCache(domain, id);
   } catch (error) {
@@ -114,7 +81,7 @@ export async function persistAnalysis<T>(
 }
 
 /**
- * Update only the latest.json without creating a new version.
+ * Update only the latest analysis without creating a new version.
  * Useful for minor updates that don't warrant a full version.
  *
  * @param domain - The analysis domain

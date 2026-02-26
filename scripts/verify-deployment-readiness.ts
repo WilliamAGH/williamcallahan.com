@@ -279,25 +279,9 @@ class DeploymentVerifier {
     }
   }
 
-  // 6. Memory and Performance Checks
+  // 6. Performance Checks
   async checkPerformance(): Promise<void> {
     this.log("\n🔍 Checking Performance Configuration...", colors.cyan);
-
-    // Check package.json for memory settings
-    const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf-8"));
-    const buildScript = packageJson.scripts?.build || "";
-
-    const hasMemoryConfig = buildScript.includes("--max-old-space-size");
-
-    this.addCheck({
-      name: "Build Memory Configuration",
-      category: "Performance",
-      passed: hasMemoryConfig,
-      message: hasMemoryConfig
-        ? "Build has memory optimization"
-        : "Consider adding --max-old-space-size to build script",
-      severity: "warning",
-    });
 
     // Check for large files that might cause issues
     const publicDir = join(process.cwd(), "public");

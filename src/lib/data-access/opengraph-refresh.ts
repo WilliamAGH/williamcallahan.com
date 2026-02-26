@@ -8,12 +8,11 @@ import { debug } from "@/lib/utils/debug";
 import { getS3Override } from "@/lib/persistence/s3-persistence";
 import { fetchExternalOpenGraphWithRetry } from "@/lib/opengraph/fetch";
 import { createFallbackResult } from "@/lib/opengraph/fallback";
-import { writeJsonS3 } from "@/lib/s3/json";
+import { writeOgMetadata } from "@/lib/db/mutations/opengraph";
 import { hashUrl, normalizeUrl } from "@/lib/utils/opengraph-utils";
 import type { OgResult } from "@/types";
 import { OgError } from "@/types/opengraph";
 import { karakeepImageFallbackSchema } from "@/types/seo/opengraph";
-import { OPENGRAPH_METADATA_S3_DIR } from "@/lib/constants";
 
 const inFlightOgPromises: Map<string, Promise<OgResult | null>> = new Map();
 
@@ -57,10 +56,9 @@ export async function refreshOpenGraphData(
       );
 
       if (result && typeof result === "object" && "url" in result) {
-        debug(`[OpenGraph Refresh] ✅ Successfully refreshed: ${normalizedUrl}`);
-        const metadataS3Key = `${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`;
-        await writeJsonS3(metadataS3Key, result);
-        debug(`[OpenGraph S3] 💾 Persisted refreshed metadata to S3: ${metadataS3Key}`);
+        debug(`[OpenGraph Refresh] Successfully refreshed: ${normalizedUrl}`);
+        await writeOgMetadata(urlHash, normalizedUrl, result as OgResult);
+        debug(`[OpenGraph DB] Persisted refreshed metadata to DB: ${urlHash}`);
         return result;
       }
 

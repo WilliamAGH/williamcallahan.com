@@ -5,7 +5,7 @@
  * Handles S3 keys, Karakeep asset IDs, and external URLs with comprehensive
  * fallback logic and security measures.
  *
- * Hierarchy: Memory cache → S3 storage → External fetch → Karakeep fallback
+ * Hierarchy: Next.js cache-backed data access → S3 storage → External fetch → Karakeep fallback
  */
 
 import { preventCaching } from "@/lib/utils/api-utils";
@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
     // If we've reached here, proceed with OpenGraph image fetching
     const domain = getDomainType(url);
 
-    // Note: Memory cache removed - relying on HTTP cache headers and S3/CDN
+    // Cache behavior relies on HTTP cache headers and S3/CDN persistence.
 
     // Check if S3 image exists
     let s3ImageUrl: string | null = null;
@@ -247,7 +247,7 @@ export async function GET(request: NextRequest) {
       s3ImageUrl = buildCdnUrl(s3Key, getCdnConfigFromEnv());
       console.log(`[OG-Image] S3 image found: ${s3ImageUrl}`);
 
-      // S3 image found, no need for memory cache
+      // S3 image found, return immediately.
 
       return NextResponse.redirect(s3ImageUrl, {
         status: 302,

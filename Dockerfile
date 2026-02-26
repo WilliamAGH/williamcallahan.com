@@ -235,10 +235,6 @@ ENV RUNNING_IN_DOCKER=true
 ENV CONTAINER=true
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-# Memory configuration for Node.js (used by Next.js server)
-# Bun doesn't support this flag but Node.js respects it
-ENV NODE_OPTIONS="--max-old-space-size=4096"
-
 # 4. Build arguments and environment (rarely changes, but after static layers)
 #    Optionally inject the git commit at build time for release tracking:
 #    docker build --build-arg GIT_SHA=$(git rev-parse --short HEAD) ...

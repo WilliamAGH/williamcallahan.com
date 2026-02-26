@@ -53,6 +53,51 @@ export const contentGraphMetadataSchema = z.object({
 
 export type ContentGraphMetadataFromSchema = z.infer<typeof contentGraphMetadataSchema>;
 
+/**
+ * Build metadata written by content-graph/build.ts.
+ * Shape differs from contentGraphMetadataSchema (which is for the full UI metadata).
+ */
+export const contentGraphBuildMetadataSchema = z.object({
+  version: z.string(),
+  generated: z.string(),
+  counts: z.object({
+    total: z.number(),
+    blogPosts: z.number(),
+    projects: z.number(),
+    bookmarks: z.number(),
+  }),
+});
+
+export type ContentGraphBuildMetadata = z.infer<typeof contentGraphBuildMetadataSchema>;
+
+/**
+ * Tag entry within the tag co-occurrence graph.
+ */
+const tagGraphEntrySchema = z.object({
+  count: z.number(),
+  coOccurrences: z.record(z.string(), z.number()),
+  contentIds: z.array(z.string()),
+  relatedTags: z.array(z.string()),
+});
+
+/**
+ * Tag co-occurrence graph schema.
+ * Matches the TagGraph interface in types/related-content.ts.
+ */
+export const tagGraphSchema = z.object({
+  tags: z.record(z.string(), tagGraphEntrySchema),
+  tagHierarchy: z.record(z.string(), z.array(z.string())),
+  metadata: z
+    .object({
+      totalTags: z.number(),
+      totalContent: z.number(),
+      generated: z.string(),
+    })
+    .optional(),
+});
+
+export type TagGraphFromSchema = z.infer<typeof tagGraphSchema>;
+
 export const createRelatedContentDebugParamsSchema = ({
   maxLimit,
   defaultLimit,

@@ -284,13 +284,13 @@ const nextConfig = {
 
   /**
    * Configure headers for caching and security
-   * Note: The primary Content Security Policy (CSP) is now managed in `middleware.ts`
-   * @see {@link ./middleware.ts}
+   * Note: The primary Content Security Policy (CSP) is now managed in `src/proxy.ts`
+   * @see {@link ./src/proxy.ts}
    * @returns {Promise<Array<{source: string, headers: Array<{key: string, value: string}>>}
    */
   headers: () => [
-    // IMPORTANT: Content-Security-Policy is primarily set in middleware.ts
-    // Headers set here might be overridden or complemented by the middleware
+    // IMPORTANT: Content-Security-Policy is primarily set in src/proxy.ts
+    // Headers set here might be overridden or complemented by the proxy
     // This section is mainly for cache-control and other non-CSP headers
     {
       source: "/_next/static/:path*",
@@ -322,7 +322,7 @@ const nextConfig = {
     // minimumCacheTTL (7 days) and upstream Cache-Control. Custom overrides here
     // previously reduced browser cache from 7 days to 60 seconds, causing
     // unnecessary re-fetches and visible image flickering on navigation.
-    // NOTE: CSP is now primarily handled in middleware.ts.
+    // NOTE: CSP is now primarily handled in src/proxy.ts.
   ],
   poweredByHeader: false,
   reactStrictMode: true,

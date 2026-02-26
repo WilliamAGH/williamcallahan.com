@@ -77,11 +77,12 @@ export async function GET(
 
     // If we have a buffer, return it
     if (result.buffer) {
+      const cacheHitSources = new Set(["cache", "s3"]);
       const responseHeaders = new Headers({
         "Content-Type": result.contentType,
         // Enhanced caching: 24 hours with stale-while-revalidate for better performance
         "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800, immutable",
-        "X-Cache": result.source === "memory" ? "HIT" : "MISS",
+        "X-Cache": cacheHitSources.has(result.source) ? "HIT" : "MISS",
         "X-Source": result.source,
         ...IMAGE_SECURITY_HEADERS,
       });

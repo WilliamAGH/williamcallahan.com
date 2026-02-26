@@ -100,7 +100,7 @@ The components work together to enrich static MDX content with dynamic, client-s
 ## Performance Considerations
 
 1. **MDX Processing**
-   - In-memory cache with file modification checks
+   - Module-local cache with file modification checks
    - Concurrent post processing with `Promise.allSettled`
    - Fallback content for MDX compilation failures
    - `generateMetadata()` should use `getPostMetaBySlug()` (skips MDX compilation + blur generation)

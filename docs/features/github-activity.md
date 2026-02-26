@@ -26,14 +26,14 @@ The GitHub Activity system coordinates several modules to produce its final outp
    - Each environment uses suffixed filenames (e.g., `github_stats_summary-dev.json`).
 
 3. **Caching (`caching`)**:
-   - To ensure performance, the final JSON data is cached in the in-memory `ServerCacheInstance`. This is managed by the `caching` module.
-   - This allows the application to serve the complex GitHub statistics rapidly without needing to hit S3 or the GitHub APIs on every request.
+   - To ensure performance, server read paths use Next.js Cache Components with `cacheTag("github-activity")`.
+   - This allows the application to serve complex GitHub statistics rapidly without re-fetching upstream APIs on every request.
 
 This orchestration model allows the GitHub Activity feature to focus on its specific domain—presenting GitHub statistics—while delegating the complex, reusable tasks of data fetching, processing, and storage to the appropriate core services.
 
 ## Data Flow & Caching
 
-The system uses a three-tier caching hierarchy:
+The system uses a durable-source plus tagged-cache hierarchy:
 
 ```
 GitHub APIs -> Refresh jobs / authorized POST -> JSON in S3 -> Next.js Cache Components -> UI
@@ -46,7 +46,6 @@ GitHub APIs -> Refresh jobs / authorized POST -> JSON in S3 -> Next.js Cache Com
 | S3 JSON                          | Source of truth (`github_stats_summary*.json`, `aggregated_weekly_activity.json`, repo CSVs) |
 | Next.js Cache Components         | `cacheTag("github-activity")` with ~30 min lifetime for pages/cards                          |
 | API (`GET /api/github-activity`) | Calls `unstable_noStore()`, reads JSON, returns immediately                                  |
-| Legacy ServerCache               | Metadata-only; still used for instrumentation, not for trailing-year JSON                    |
 
 ## API & Data Source Strategy
 

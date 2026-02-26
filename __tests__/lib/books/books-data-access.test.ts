@@ -1,8 +1,8 @@
 /**
- * Books S3 Data Access Tests
- * @description Tests that the S3-backed data access module reads consolidated
- * book data correctly, surfaces S3 failures via isFallback, and emits cache-tag
- * invalidation requests when refreshes are forced.
+ * Books Database Data Access Tests
+ * @description Tests that the DB-backed data access module reads consolidated
+ * book data correctly, surfaces database failures via isFallback, and emits
+ * cache-tag invalidation requests when refreshes are forced.
  * @vitest-environment node
  */
 
@@ -13,10 +13,10 @@ import {
   fetchBooks,
   clearBooksCache,
 } from "@/lib/books/books-data-access.server";
-import type { BooksDataset, BooksLatest } from "@/types/schemas/book";
+import type { Book } from "@/types/schemas/book";
 
-vi.mock("@/lib/s3/json", () => ({
-  readJsonS3Optional: vi.fn(),
+vi.mock("@/lib/db/queries/books", () => ({
+  readBooksFromDb: vi.fn(),
 }));
 
 vi.mock("@/lib/cache", () => ({
@@ -38,45 +38,33 @@ vi.mock("@/lib/cache", () => ({
   },
 }));
 
-const { readJsonS3Optional } = await import("@/lib/s3/json");
-const mockReadJson = readJsonS3Optional as ReturnType<typeof vi.fn>;
+const { readBooksFromDb } = await import("@/lib/db/queries/books");
+const mockReadBooksFromDb = readBooksFromDb as ReturnType<typeof vi.fn>;
 const { cacheContextGuards } = await import("@/lib/cache");
 const mockCacheLife = cacheContextGuards.cacheLife as ReturnType<typeof vi.fn>;
 const mockRevalidateTag = cacheContextGuards.revalidateTag as ReturnType<typeof vi.fn>;
 
-const SAMPLE_LATEST: BooksLatest = {
-  checksum: "abc123",
-  key: "json/books-dev/abc123.json",
-  generated: "2026-01-01T00:00:00.000Z",
-};
+const SAMPLE_BOOKS: Book[] = [
+  { id: "li_book1", title: "TypeScript in Depth", authors: ["Author A"], formats: ["ebook"] },
+  {
+    id: "li_book2",
+    title: "Clean Architecture",
+    authors: ["Robert C. Martin"],
+    formats: ["ebook", "audio"],
+  },
+];
 
-const SAMPLE_DATASET: BooksDataset = {
-  version: "1.0.0",
-  generated: "2026-01-01T00:00:00.000Z",
-  booksCount: 2,
-  checksum: "abc123",
-  books: [
-    { id: "li_book1", title: "TypeScript in Depth", authors: ["Author A"], formats: ["ebook"] },
-    {
-      id: "li_book2",
-      title: "Clean Architecture",
-      authors: ["Robert C. Martin"],
-      formats: ["ebook", "audio"],
-    },
-  ],
-};
-
-describe("Books S3 Data Access", () => {
+describe("Books Database Data Access", () => {
   beforeEach(() => {
-    mockReadJson.mockReset();
+    mockReadBooksFromDb.mockReset();
     mockCacheLife.mockReset();
     mockRevalidateTag.mockReset();
     clearBooksCache();
   });
 
   describe("fetchBooksWithFallback", () => {
-    it("returns books with isFallback: false on successful S3 load", async () => {
-      mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(SAMPLE_DATASET);
+    it("returns books with isFallback: false on successful DB load", async () => {
+      mockReadBooksFromDb.mockResolvedValueOnce(SAMPLE_BOOKS);
 
       const result = await fetchBooksWithFallback();
 
@@ -86,16 +74,7 @@ describe("Books S3 Data Access", () => {
     });
 
     it("returns empty array with isFallback: false when dataset not yet generated", async () => {
-      mockReadJson.mockResolvedValueOnce(null); // no latest.json — expected first-deploy state
-
-      const result = await fetchBooksWithFallback();
-
-      expect(result.books).toHaveLength(0);
-      expect(result.isFallback).toBe(false);
-    });
-
-    it("returns empty array with isFallback: false when versioned snapshot missing", async () => {
-      mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(null);
+      mockReadBooksFromDb.mockResolvedValueOnce([]);
 
       const result = await fetchBooksWithFallback();
 
@@ -106,7 +85,7 @@ describe("Books S3 Data Access", () => {
 
   describe("fetchBooks", () => {
     it("returns the books array directly", async () => {
-      mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(SAMPLE_DATASET);
+      mockReadBooksFromDb.mockResolvedValueOnce(SAMPLE_BOOKS);
 
       const books = await fetchBooks();
 
@@ -117,7 +96,7 @@ describe("Books S3 Data Access", () => {
 
   describe("fetchBookByIdWithFallback", () => {
     it("finds a book by ID with isFallback: false", async () => {
-      mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(SAMPLE_DATASET);
+      mockReadBooksFromDb.mockResolvedValueOnce(SAMPLE_BOOKS);
 
       const result = await fetchBookByIdWithFallback("li_book2");
 
@@ -127,7 +106,7 @@ describe("Books S3 Data Access", () => {
     });
 
     it("returns null for unknown ID", async () => {
-      mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(SAMPLE_DATASET);
+      mockReadBooksFromDb.mockResolvedValueOnce(SAMPLE_BOOKS);
 
       const result = await fetchBookByIdWithFallback("li_nonexistent");
 
@@ -138,7 +117,7 @@ describe("Books S3 Data Access", () => {
 
   describe("fetchBookListItemsWithFallback", () => {
     it("returns minimal book list items with isFallback: false", async () => {
-      mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(SAMPLE_DATASET);
+      mockReadBooksFromDb.mockResolvedValueOnce(SAMPLE_BOOKS);
 
       const result = await fetchBookListItemsWithFallback();
 
@@ -152,16 +131,16 @@ describe("Books S3 Data Access", () => {
   });
 
   describe("cache behavior", () => {
-    it("reads from S3 for repeated uncached invocations", async () => {
-      mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(SAMPLE_DATASET);
-      mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(SAMPLE_DATASET);
+    it("reads from DB for repeated uncached invocations", async () => {
+      mockReadBooksFromDb.mockResolvedValueOnce(SAMPLE_BOOKS);
+      mockReadBooksFromDb.mockResolvedValueOnce(SAMPLE_BOOKS);
 
       await fetchBooksWithFallback();
-      expect(mockReadJson).toHaveBeenCalledTimes(2);
+      expect(mockReadBooksFromDb).toHaveBeenCalledTimes(1);
 
       const result = await fetchBooksWithFallback();
       expect(result.books).toHaveLength(2);
-      expect(mockReadJson).toHaveBeenCalledTimes(4);
+      expect(mockReadBooksFromDb).toHaveBeenCalledTimes(2);
     });
 
     it("clearBooksCache emits cache-tag invalidation for books dataset", () => {
@@ -172,7 +151,7 @@ describe("Books S3 Data Access", () => {
 
   describe("Next.js cache revalidate policy", () => {
     it("uses 1-hour revalidate when returning healthy data", async () => {
-      mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(SAMPLE_DATASET);
+      mockReadBooksFromDb.mockResolvedValueOnce(SAMPLE_BOOKS);
 
       const result = await fetchBooksWithFallback();
 
@@ -181,7 +160,7 @@ describe("Books S3 Data Access", () => {
     });
 
     it("uses 5-minute revalidate when returning fallback data", async () => {
-      mockReadJson.mockRejectedValueOnce(new Error("S3 unavailable"));
+      mockReadBooksFromDb.mockRejectedValueOnce(new Error("DB unavailable"));
 
       const result = await fetchBooksWithFallback();
 
@@ -190,9 +169,9 @@ describe("Books S3 Data Access", () => {
     });
   });
 
-  describe("S3 failure signaling", () => {
-    it("returns isFallback: true when S3 throws on first load", async () => {
-      mockReadJson.mockRejectedValueOnce(new Error("S3 unavailable"));
+  describe("database failure signaling", () => {
+    it("returns isFallback: true when DB throws on first load", async () => {
+      mockReadBooksFromDb.mockRejectedValueOnce(new Error("DB unavailable"));
 
       const result = await fetchBooksWithFallback();
 
@@ -200,29 +179,25 @@ describe("Books S3 Data Access", () => {
       expect(result.isFallback).toBe(true);
     });
 
-    it("returns stale data with isFallback: true when S3 fails after a successful load", async () => {
-      // First load succeeds
-      mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(SAMPLE_DATASET);
+    it("returns empty with isFallback: true when DB fails after a successful load", async () => {
+      mockReadBooksFromDb.mockResolvedValueOnce(SAMPLE_BOOKS);
 
       const initial = await fetchBooksWithFallback();
       expect(initial.books).toHaveLength(2);
       expect(initial.isFallback).toBe(false);
 
-      // Force cache expiry
       clearBooksCache();
 
-      // S3 throws on reload
-      mockReadJson.mockRejectedValueOnce(new Error("S3 unavailable"));
+      mockReadBooksFromDb.mockRejectedValueOnce(new Error("DB unavailable"));
 
       const result = await fetchBooksWithFallback();
 
-      // Returns empty (cache was cleared) but signals the failure
       expect(result.books).toHaveLength(0);
       expect(result.isFallback).toBe(true);
     });
 
     it("propagates isFallback through fetchBookByIdWithFallback", async () => {
-      mockReadJson.mockRejectedValueOnce(new Error("S3 unavailable"));
+      mockReadBooksFromDb.mockRejectedValueOnce(new Error("DB unavailable"));
 
       const result = await fetchBookByIdWithFallback("li_book1");
 
@@ -231,7 +206,7 @@ describe("Books S3 Data Access", () => {
     });
 
     it("propagates isFallback through fetchBookListItemsWithFallback", async () => {
-      mockReadJson.mockRejectedValueOnce(new Error("S3 unavailable"));
+      mockReadBooksFromDb.mockRejectedValueOnce(new Error("DB unavailable"));
 
       const result = await fetchBookListItemsWithFallback();
 
@@ -240,16 +215,13 @@ describe("Books S3 Data Access", () => {
     });
 
     it("clears isFallback after successful refresh following a failure", async () => {
-      // First load fails
-      mockReadJson.mockRejectedValueOnce(new Error("S3 unavailable"));
+      mockReadBooksFromDb.mockRejectedValueOnce(new Error("DB unavailable"));
       const failed = await fetchBooksWithFallback();
       expect(failed.isFallback).toBe(true);
 
-      // Force cache expiry
       clearBooksCache();
 
-      // Second load succeeds
-      mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(SAMPLE_DATASET);
+      mockReadBooksFromDb.mockResolvedValueOnce(SAMPLE_BOOKS);
 
       const recovered = await fetchBooksWithFallback();
       expect(recovered.books).toHaveLength(2);

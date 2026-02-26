@@ -181,7 +181,7 @@ class AsyncOperationsMonitor {
   }
 
   /**
-   * Clear all completed operations (for memory management)
+   * Clear all completed operations to keep monitoring state bounded.
    */
   clearCompleted(): void {
     const completed = this.getOperationsByStatus("completed");

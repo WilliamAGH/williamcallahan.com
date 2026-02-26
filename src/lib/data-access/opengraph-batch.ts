@@ -7,21 +7,20 @@
  * @module data-access/opengraph-batch
  */
 
-import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
 import { hashUrl, normalizeUrl, validateOgUrl } from "@/lib/utils/opengraph-utils";
 import { OPENGRAPH_CACHE_DURATION } from "@/lib/constants";
 import { fetchExternalOpenGraphWithRetry } from "@/lib/opengraph/fetch";
 import { createFallbackResult } from "@/lib/opengraph/fallback";
-import { generateS3Key } from "@/lib/utils/hash-utils";
+import { readOgMetadata } from "@/lib/db/queries/opengraph";
+import { writeOgMetadata } from "@/lib/db/mutations/opengraph";
 import { BatchProcessor, BatchProgressReporter } from "@/lib/batch-processing";
 import { getMonotonicTime } from "@/lib/utils";
 import { isOgResult, type OgResult, type KarakeepImageFallback } from "@/types";
-import { ogResultSchema } from "@/types/seo/opengraph";
 
 /**
  * Batch-optimized OpenGraph data fetching
  * Simple flow: Check S3 → Fetch if stale/missing → Store to S3
- * No memory caches, no overrides, no complex priority levels
+ * No runtime cache layers, no overrides, no complex priority levels
  */
 export async function getOpenGraphDataBatch(
   url: string,
@@ -30,37 +29,23 @@ export async function getOpenGraphDataBatch(
 ): Promise<OgResult> {
   const normalizedUrl = normalizeUrl(url);
   const urlHash = hashUrl(normalizedUrl);
-  const s3Key = generateS3Key({
-    type: "opengraph",
-    url: normalizedUrl,
-    hash: urlHash,
-  });
 
   // Validate URL
   if (!validateOgUrl(normalizedUrl)) {
     return createFallbackResult(normalizedUrl, "Invalid or unsafe URL", fallbackImageData);
   }
 
-  // Step 1: Check S3 for existing data
-  // readJsonS3Optional returns null for 404, throws for real S3 errors
+  // Step 1: Check PostgreSQL for existing data
   if (!forceRefresh) {
-    try {
-      const stored = await readJsonS3Optional(s3Key, ogResultSchema);
-      if (stored && isOgResult(stored)) {
-        const age = getMonotonicTime() - (stored.timestamp || 0);
-        const isDataFresh = age < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
+    const stored = await readOgMetadata(urlHash);
+    if (stored && isOgResult(stored)) {
+      const age = getMonotonicTime() - (stored.timestamp || 0);
+      const isDataFresh = age < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000;
 
-        if (isDataFresh) {
-          // Data is fresh, return it
-          return stored;
-        }
-        // Data is stale, will fetch fresh data below
+      if (isDataFresh) {
+        return stored;
       }
-    } catch (s3Error) {
-      // Log S3 read errors explicitly before propagating per [RC1a]
-      // Do NOT silently fall through to fetch - real S3 errors indicate infrastructure issues
-      console.error(`[OpenGraph Batch] S3 read error for ${s3Key}:`, s3Error);
-      throw s3Error;
+      // Data is stale, will fetch fresh data below
     }
   }
 
@@ -84,8 +69,8 @@ export async function getOpenGraphDataBatch(
       return createFallbackResult(normalizedUrl, "Network failure", fallbackImageData);
     }
 
-    // Step 3: Store to S3
-    await writeJsonS3(s3Key, result);
+    // Step 3: Store to PostgreSQL
+    await writeOgMetadata(urlHash, normalizedUrl, result as OgResult);
 
     return result;
   } catch (error) {

@@ -1,9 +1,8 @@
 /**
- * @file In-memory cache management for bookmarks
+ * @file Bookmark cache compatibility helpers
  * @module lib/bookmarks/cache-management.server
  *
- * Manages runtime caching of bookmark data to prevent repeated S3 reads.
- * These are temporary in-process caches, NOT S3 persistence.
+ * Maintains no-op compatibility wrappers for legacy bookmark cache APIs.
  */
 
 import type { UnifiedBookmark, LightweightBookmark } from "@/types/bookmark";
@@ -12,12 +11,12 @@ import { envLogger } from "@/lib/utils/env-logger";
 import { LOG_PREFIX } from "@/lib/bookmarks/config";
 
 // ============================================================================
-// Full Dataset Memory Cache
+// Full Dataset Compatibility API
 // ============================================================================
 
 /**
  * Get the current full dataset cache if valid.
- * Memory cache removed; always returns null.
+ * Cache storage is not maintained in this module.
  */
 export function getFullDatasetCache(): UnifiedBookmark[] | null {
   return null;
@@ -25,10 +24,10 @@ export function getFullDatasetCache(): UnifiedBookmark[] | null {
 
 /**
  * Update the full dataset cache.
- * Memory cache removed; no-op.
+ * No-op compatibility hook.
  */
 export function setFullDatasetCache(_bookmarks: UnifiedBookmark[]): void {
-  envLogger.log("Skipped full dataset cache update (memory cache removed)", undefined, {
+  envLogger.log("Skipped full dataset cache update (no-op compatibility path)", undefined, {
     category: LOG_PREFIX,
   });
 }
@@ -37,28 +36,28 @@ export function setFullDatasetCache(_bookmarks: UnifiedBookmark[]): void {
  * Clear the full dataset cache.
  */
 export function clearFullDatasetCache(): void {
-  envLogger.log("Skipped full dataset cache clear (memory cache removed)", undefined, {
+  envLogger.log("Skipped full dataset cache clear (no-op compatibility path)", undefined, {
     category: LOG_PREFIX,
   });
 }
 
 /**
  * Check if the full dataset cache is valid.
- * Memory cache removed; always returns false.
+ * Cache storage is not maintained in this module.
  */
 export function isFullDatasetCacheValid(_bypassForTest: boolean = false): boolean {
   return false;
 }
 
 // ============================================================================
-// Bookmark-by-ID Memory Cache
+// Bookmark-by-ID Compatibility API
 // ============================================================================
 
 /**
  * Clear both bookmark-by-id caches.
  */
 export function invalidateBookmarkByIdCaches(): void {
-  // no-op: memory cache removed
+  // no-op compatibility hook
 }
 
 /**
@@ -101,7 +100,7 @@ export function setCachedBookmarkById(
   _value: UnifiedBookmark | LightweightBookmark,
   _lightweight: boolean,
 ): void {
-  // no-op: memory cache removed
+  // no-op compatibility hook
 }
 
 /**

@@ -4,7 +4,6 @@
 # mixed barrels that re-export Server Components.
 #
 # Banned module specifiers:
-# - @/lib/server-cache (server-only guard at module evaluation)
 # - @/lib/seo/utils (date utils + deterministic timestamp; keep client URL helpers separate)
 # - @/components/ui (mixed barrel; import leaf modules instead)
 
@@ -28,7 +27,7 @@ rule:
 
 constraints:
   PATH:
-    regex: (^@/lib/server-cache$|/lib/server-cache$|^@/lib/seo/utils$|/lib/seo/utils$|^@/components/ui$|/components/ui$)
+    regex: (^@/lib/seo/utils$|/lib/seo/utils$|^@/components/ui$|/components/ui$)
 
 files:
   - "src/**/*.ts"

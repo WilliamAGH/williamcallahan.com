@@ -1,8 +1,7 @@
 import logger from "@/lib/utils/logger";
-import { writeJsonS3 } from "@/lib/s3/json";
-import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
 import { getMonotonicTime } from "@/lib/utils";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
+import { CONTENT_GRAPH_ARTIFACT_TYPES } from "@/lib/db/schema/content-graph";
 
 // This function was moved from DataFetchManager
 async function buildTagGraph(
@@ -104,6 +103,16 @@ async function buildTagGraph(
   return { tags, tagHierarchy };
 }
 
+async function persistContentGraphArtifacts(
+  artifacts: Array<{
+    artifactType: (typeof CONTENT_GRAPH_ARTIFACT_TYPES)[number];
+    payload: Record<string, unknown>;
+  }>,
+): Promise<void> {
+  const { writeContentGraphArtifacts } = await import("@/lib/db/mutations/content-graph");
+  await writeContentGraphArtifacts(artifacts);
+}
+
 // This function was moved from DataFetchManager
 export async function buildContentGraph(
   config: DataFetchConfig,
@@ -188,16 +197,13 @@ export async function buildContentGraph(
       }));
     }
 
-    // Build tag co-occurrence graph while saving related content
-    const [tagGraph] = await Promise.all([
-      buildTagGraph(allContent),
-      writeJsonS3(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT, relatedContentMappings),
-    ]);
+    // Build tag co-occurrence graph in parallel with related content computation
+    const tagGraph = await buildTagGraph(allContent);
     logger.info(
-      `[DataFetchManager] Saved ${Object.keys(relatedContentMappings).length} related content mappings`,
+      `[DataFetchManager] Computed ${Object.keys(relatedContentMappings).length} related content mappings`,
     );
 
-    // Save metadata
+    // Build metadata
     const metadata = {
       version: "1.0.0",
       generated: new Date().toISOString(),
@@ -209,10 +215,11 @@ export async function buildContentGraph(
       },
     };
 
-    // Batch write tag graph and metadata to S3
-    await Promise.all([
-      writeJsonS3(CONTENT_GRAPH_S3_PATHS.TAG_GRAPH, tagGraph),
-      writeJsonS3(CONTENT_GRAPH_S3_PATHS.METADATA, metadata),
+    // Persist all artifacts via environment-aware strategy
+    await persistContentGraphArtifacts([
+      { artifactType: "related-content", payload: relatedContentMappings },
+      { artifactType: "tag-graph", payload: tagGraph },
+      { artifactType: "metadata", payload: metadata },
     ]);
     logger.info(
       `[DataFetchManager] Saved tag graph with ${Object.keys(tagGraph.tags).length} tags`,

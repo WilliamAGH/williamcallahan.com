@@ -15,10 +15,8 @@ graph TD
     end
 
     subgraph "Supporting Layers"
-        LEGACY[ServerCacheInstance<br/>Metadata-only Map cache]
         LOCK[Distributed Locking<br/>(S3 lock files)]
         RC[Request Coalescing]
-        LEGACY --> UI
         LOCK --> JOB
         RC --> JOB
     end

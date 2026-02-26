@@ -49,11 +49,11 @@ graph TB
         PROCESS_ENV --> RUNTIME
         BUILD_PROCESS --> RUNTIME
         
-        MIDDLEWARE_CONFIG["middleware.ts"]
+        PROXY_CONFIG["src/proxy.ts"]
         CACHE_CONFIG["Cache Settings"]
         API_CONFIG["API Configuration"]
         
-        RUNTIME --> MIDDLEWARE_CONFIG
+        RUNTIME --> PROXY_CONFIG
         RUNTIME --> CACHE_CONFIG
         RUNTIME --> API_CONFIG
     end

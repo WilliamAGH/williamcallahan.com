@@ -2,179 +2,139 @@
 
 ## Overview
 
-This document outlines the data access layer for the William Callahan website, detailing how data retrieval and storage operations are managed within the application.
+This document describes how williamcallahan.com reads and writes runtime data across PostgreSQL, S3, and Next.js Cache Components.
 
 ### Key Components
 
 ```mermaid
 graph TD
-    A[Data Access Layer] --> B[Bookmarks]
-    A --> C[Logos]
-    A --> D[Investments]
-    A --> E[GitHub]
-    A --> F[S3 Operations]
-    A --> G[Caching Mechanisms]
+    A[Data Access Layer] --> B[Bookmarks: PostgreSQL]
+    A --> C[Logos: S3 + External Providers]
+    A --> D[OpenGraph: S3 + External Fetch]
+    A --> E[GitHub: S3 JSON]
+    A --> F[S3 IO Layer]
+    A --> G[Next.js Cache Components]
 ```
 
-## Core Logic
+## Core Modules
 
-### Data Access Modules (`lib/data-access/*`)
+### Data Access Modules (`src/lib/data-access/*`)
 
-- **Purpose**: Domain-specific data access modules for bookmarks, logos, investments, GitHub, and OpenGraph.
-- **Import Policy**: Import directly from source modules (per FS1d no barrel re-exports).
-  - GitHub: `@/lib/data-access/github`, `@/lib/data-access/github-activity-summaries`, `@/lib/data-access/github-commit-counts`, `@/lib/data-access/github-contributions`, `@/lib/data-access/github-csv-repair`, `@/lib/data-access/github-public-api`, `@/lib/data-access/github-repo-stats`
-  - Logos: `@/lib/data-access/logos`
-  - OpenGraph: `@/lib/data-access/opengraph`, `@/lib/data-access/opengraph-cache-context`, `@/lib/data-access/opengraph-next-cache`, `@/lib/data-access/opengraph-refresh`
-  - Investments: `@/lib/data-access/investments`
-- **Storage**: All modules delegate to `lib/s3/*` for S3 operations.
+- Purpose: domain-focused read/write orchestration.
+- Import policy: import source modules directly; no barrel re-exports.
+- Storage policy: S3 operations go through `src/lib/s3/*`; bookmark runtime reads/writes go through `src/lib/db/*`.
 
-### S3 Operations (`lib/s3/*`)
+### S3 Operations (`src/lib/s3/*`)
 
-- **Purpose**: Provides a comprehensive interface for interacting with Amazon S3 to manage data storage and retrieval operations.
-- **Key Features**:
-  - Raw object operations (`getObject`, `putObject`, `headObject`, `listS3Objects`, `deleteFromS3`) live in `lib/s3/objects.ts`.
-  - JSON helpers (`readJsonS3`, `writeJsonS3`, `readJsonS3Optional`) live in `lib/s3/json.ts` with strict schema validation.
-  - Binary helpers (`readBinaryS3`, `writeBinaryS3`) live in `lib/s3/binary.ts` with content-type enforcement.
-  - Client creation and retry strategy live in `lib/s3/client.ts` (SDK retry only; no custom retry loops).
-  - Configuration validation lives in `lib/s3/config.ts` (single source of truth; no implicit fallbacks).
-  - Errors are normalized in `lib/s3/errors.ts` (S3NotFound vs config vs operation errors).
-  - No CDN fallback logic exists inside S3 IO; CDN usage is explicit at call sites.
-- **Security Features**:
-  - All external URLs validated against SSRF attacks before fetch operations
-  - Path traversal protection for S3 keys
-  - Canonical use of `NEXT_PUBLIC_S3_CDN_URL` for CDN URLs in both server and client code
+- Purpose: shared object storage boundary for JSON and binary payloads.
+- Key capabilities:
+  - Raw object operations in `src/lib/s3/objects.ts`
+  - JSON helpers in `src/lib/s3/json.ts`
+  - Binary helpers in `src/lib/s3/binary.ts`
+  - Client and retry strategy in `src/lib/s3/client.ts`
+  - Config validation in `src/lib/s3/config.ts`
+  - Canonical errors in `src/lib/s3/errors.ts`
+- Security controls:
+  - URL and path validation before fetch/write operations
+  - Path traversal protections for S3 keys
+  - CDN URL construction is explicit at call sites
 
-### Caching Mechanisms (`lib/cache.ts`)
+### Next.js Cache Components
 
-- **Purpose**: Handles temporary data storage to improve application performance through efficient caching.
-- **Key Features**:
-  - Utilizes the 'node-cache' library to create a cache instance with a default TTL (Time To Live) of 30 days.
-  - Configures a check period of 24 hours to manage expired keys, ensuring outdated data is removed periodically.
-  - Disables cloning of stored data to optimize performance by directly referencing original objects.
-  - Defines TTL constants for flexible expiration settings: DEFAULT (30 days), DAILY (24 hours), and HOURLY (1 hour).
-  - Provides a centralized cache instance for use across the application to store and retrieve data efficiently.
+- Purpose: request/render caching for server-side data functions.
+- Primary primitives:
+  - `"use cache"`
+  - `cacheLife(...)`
+  - `cacheTag(...)`
+  - `revalidateTag(...)`
+- API routes are excluded and use `unstable_noStore()` when fresh reads are required.
 
-### Cache Debugging Middleware (`middleware/cache-debug.ts`)
+## Domain Flows
 
-- **Purpose**: Enhances debugging capabilities in development environments by adding cache statistics to API responses.
-- **Key Features**:
-  - Operates only in development mode, ensuring no performance impact in production.
-  - Targets specific API routes related to caching such as '/api/logo', '/api/bookmarks', and '/api/github-activity'.
-  - Appends custom headers to responses with cache metrics including hits, misses, and the number of keys.
-  - Utilizes 'ServerCacheInstance' from '@/lib/server-cache' to retrieve cache statistics for detailed monitoring.
+### Bookmarks Data Access (`src/lib/bookmarks/*`, `src/lib/db/*`)
 
-### Server-Side Cache Management (`lib/server-cache.ts`)
+- Runtime source of truth: PostgreSQL read model.
+- Refresh pipeline: external bookmark ingestion -> normalized records -> Drizzle mutations.
+- Concurrency controls:
+  - non-overlapping refresh execution
+  - in-flight deduplication for expensive refresh calls
+- Validation:
+  - schema validation at the IO boundary
+  - dataset guardrails before persistence
 
-- **Purpose**: Provides a comprehensive server-side in-memory caching system for various application data types to optimize performance.
-- **Key Features**:
-  - Implements a `ServerCache` class extending 'node-cache' with a default TTL of configurable duration (from constants in 'constants.ts').
-  - Manages caching for logos (validation, fetch results, inverted logos, analysis), bookmarks, GitHub activity, and OpenGraph data.
-  - Uses a singleton pattern with `ServerCacheInstance` to ensure a single cache instance across the application.
-  - Offers specific methods for getting, setting, and clearing cache entries with tailored TTLs for success and failure scenarios.
-  - Includes logic to determine if cached data needs refreshing based on revalidation thresholds to prevent stale data usage.
-  - Ensures server-only execution with `assertServerOnly` to prevent client-side cache operations.
+#### PostgreSQL Bookmark Runtime
 
-### Bookmarks Data Access (`lib/data-access/bookmarks.ts`)
+- `src/lib/db/connection.ts`: initializes Drizzle + postgres-js with explicit `DATABASE_URL` guard.
+- `src/lib/db/schema/bookmarks.ts`: bookmark table with full-text and vector indexes.
+- `src/lib/db/schema/bookmark-taxonomy.ts`: tag links and index-state tables.
+- `src/lib/db/queries/bookmarks.ts`: paginated/query read model APIs.
+- `src/lib/db/mutations/bookmarks.ts`: write model for upsert/delete and taxonomy rebuilds.
+- `src/lib/db/bookmark-record-mapper.ts`: schema-backed row mapper at the DB boundary.
 
-- **Purpose**: Manages retrieval, caching, and persistence of bookmark data using a hierarchical access pattern (in-memory cache -> PostgreSQL read model -> external API refresh).
-- **Key Features**:
-  - Uses PostgreSQL as the runtime read model for bookmark lists, pagination, tag routes, and index metadata when `DATABASE_URL` is configured.
-  - Uses an in-process refresh lock for single-instance deployments to prevent overlapping refresh writes.
-  - Validates bookmark data before persistence to prevent overwriting with invalid or test data.
-  - Handles non-blocking background refreshes to keep request flows responsive.
-  - Manages in-flight promises to avoid duplicate simultaneous fetches of external bookmark data.
-  - Persists refreshed datasets through Drizzle mutations (bookmark rows + taxonomy/index state).
-- **Validation Features**:
-  - All bookmark URLs validated with Zod schemas before processing
-  - External URLs checked against SSRF attack patterns
-  - Enhanced data validation with comprehensive schemas in `types/schemas/`
+#### Bookmark API and Orchestration
 
-#### PostgreSQL Bookmark Runtime (`lib/db/*`)
+- `src/lib/bookmarks/bookmarks.ts` coordinates fetch/normalize/enrich/persist flows.
+- OpenGraph enrichment runs in bounded batches.
+- Failure paths return durable persisted data instead of ad-hoc runtime cache fallbacks.
 
-- **Purpose**: Drizzle + PostgreSQL modules that now own runtime bookmark persistence and query paths for main, page, tag, and index reads.
-- **Key Components**:
-  - `lib/db/connection.ts`: Initializes `drizzle-orm/postgres-js` using `DATABASE_URL` with explicit runtime guard.
-  - `lib/db/schema/bookmarks.ts`: Defines the `bookmarks` table with generated `search_vector`, trigram indexes, and `halfvec(1024)` HNSW index.
-  - `lib/db/schema/bookmark-taxonomy.ts`: Defines `bookmark_tag_links`, `bookmark_index_state`, and `bookmark_tag_index_state` tables for tag joins and precomputed pagination metadata.
-  - `lib/db/queries/bookmarks.ts`: Read-model queries for all bookmarks, pagination, lookup by ID, row counts, FTS ranking, tag pages, and tag/index metadata.
-  - `lib/db/mutations/bookmarks.ts`: Upsert/delete write-model operations plus taxonomy/index-state rebuilds.
-  - `lib/db/bookmark-record-mapper.ts`: Zod-validated boundary mapper between Drizzle rows/inserts and `UnifiedBookmark`.
-- **Operational Notes**:
-  - `drizzle.config.ts` scopes `drizzle-kit push` to app tables (`bookmarks`, `bookmark_tag_links`, `bookmark_index_state`, `bookmark_tag_index_state`) so extension-managed objects (for example `pg_stat_statements`) are not mutated.
-  - PostgreSQL write operations are runtime-guarded: non-production environments (`DEPLOYMENT_ENV`/`NODE_ENV` resolving to development/unknown) fail fast before any DB mutation executes.
-  - `scripts/migrate-s3-to-postgres.ts` performs S3 JSON -> PostgreSQL migration and rebuilds taxonomy/index-state rows via unified mutations.
+#### Sitemap Bookmark Streaming
 
-#### Bookmarks API and Data Management (`lib/bookmarks.ts`)
+- Files: `src/app/sitemap.ts`, `src/lib/bookmarks/service.server.ts`.
+- Strategy: iterate paginated bookmark data rather than loading full corpus in one read.
+- Benefit: predictable request/build memory behavior under large datasets.
 
-- **Purpose**: Oversees the fetching, normalization, caching, and enrichment of bookmark data from an external API (Hoarder/Karakeep).
-- **Key Features**:
-  - Implements a multi-tiered caching strategy using in-memory server cache and PostgreSQL index checksum state to minimize redundant API calls.
-  - Handles pagination for API requests to fetch all bookmarks across multiple pages, incorporating timeout safeguards to prevent hanging on slow responses.
-  - Requests `includeContent=true` while paginating Karakeep API responses so crawled HTML is available during normalization.
-  - Performs non-blocking background refreshes to update data without impacting the main request flow, ensuring a responsive user experience.
-  - Normalizes raw API data into a unified bookmark format, converts crawled HTML into clean plain text stored as `bookmarks.scraped_content_text`, and explicitly excludes raw HTML from the persisted `content` JSONB column.
-  - Enriches bookmarks with OpenGraph metadata in controlled batches with jittered delays to optimize network usage and respect external service limits.
-  - Validates datasets before persistence using safeguard mechanisms to prevent overwriting with invalid or test data, ensuring data integrity.
-  - Provides robust fallback mechanisms to return cached/PostgreSQL data in case of fetch failures, enhancing application resilience during API downtime.
+#### Client-Side Bookmark Access
 
-#### Sitemap Bookmark Streaming (`app/sitemap.ts` + `lib/bookmarks/service.server.ts`)
+- `src/lib/bookmarks.client.ts` wraps server APIs for browser callers.
+- Client behavior focuses on API fetch lifecycles, not server in-process cache coordination.
 
-- **Purpose**: Generates the sitemap at request time without loading the entire bookmark corpus into memory.
-- **Key Features**:
-  - Uses DB-backed `getBookmarksIndex()` to determine page count and then iterates with `getBookmarksPage(pageNumber)`.
-  - Aggregates bookmark and tag metadata in small chunks, ensuring builds and runtime requests stay within heap limits.
-  - Respects the same cache tags as the rest of the bookmarks stack so ISR invalidations continue to work end-to-end.
+#### Bookmark Validation
 
-#### Client-Side Bookmark Operations (`lib/bookmarks.client.ts`)
+- `src/lib/validators/bookmarks.ts` enforces dataset safety checks before writes.
+- Validation failures are logged and block destructive updates.
 
-- **Purpose**: Serves as a client-side API wrapper for fetching bookmark data, optimized for browser environments.
-- **Key Features**:
-  - Utilizes in-memory caching to reduce redundant API calls and improve performance on the client side.
-  - Interacts with a backend API endpoint to fetch bookmark data, ensuring data consistency with server-side storage.
-  - Supports background refreshes to update data without blocking the main request flow, maintaining a responsive user experience.
-  - Provides methods to trigger explicit data refreshes and update the client-side cache with the latest data from the server.
+### Logos Data Access (`src/lib/data-access/logos.ts`)
 
-#### Bookmark Data Validation (`lib/validators/bookmarks.ts`)
+- Hierarchy: S3/manifest -> provider fetch -> placeholder fallback.
+- Persistence: deterministic S3 keys with source-aware naming.
+- Provider handling: retries, bounded timeouts, and source prioritization.
+- Caching model: Next.js cache wrappers for server reads plus durable S3 artifacts.
 
-- **Purpose**: Provides validation utilities for bookmark data to prevent accidental overwrites with invalid or test data during refresh operations.
-- **Key Features**:
-  - Checks for suspicious single test bookmarks by examining if there's only one bookmark with a title matching a test pattern.
-  - Validates datasets to ensure not all bookmarks are missing URLs, which would indicate invalid data.
-  - Includes detailed logging for debugging purposes when validation fails, aiding in root cause analysis.
+### External Logo Fetching (`src/lib/data-access/logos/external-fetch.ts`)
 
-### Logos Data Access (`lib/data-access/logos.ts`)
+- Source order and request headers are centralized.
+- Timeouts and validation prevent long-hanging or invalid payload paths.
+- Buffer/content checks enforce image-type correctness before persistence.
 
-- **Purpose**: Manages the fetching, caching, and persistence of logo data for domains using a multi-tiered approach.
-- **Key Features**:
-  - Implements a hierarchical access pattern: in-memory cache, S3 storage, external APIs (Google, Clearbit, DuckDuckGo), and a placeholder logo as a fallback.
-  - Supports retry logic with exponential backoff for failed logo fetches, up to a configurable maximum number of attempts.
-  - Handles logo storage in S3 with source tracking in filenames to maintain provenance (e.g., google, duckduckgo).
-  - Provides a placeholder logo mechanism for consistent failures, storing it in S3 to avoid repeated failed attempts.
-  - Caches successful and failed fetch results in memory using `ServerCacheInstance` to optimize performance and reduce redundant requests.
-  - Determines content type (SVG or PNG) based on buffer content analysis to ensure correct rendering.
+### OpenGraph Data Access (`src/lib/data-access/opengraph*.ts`)
 
-#### External Logo Fetching (`lib/data-access/logos/external-fetch.ts`)
+- Reads/writes metadata and images through S3-backed modules.
+- Uses cache tags for controlled invalidation across pages and APIs.
+- Refresh flows maintain in-flight deduplication to avoid duplicate remote work.
 
-- **Purpose**: Handles the retrieval of company logos from external providers with a prioritized approach.
-- **Key Features**:
-  - Fetches logos sequentially from sources in priority order: Google HD, Clearbit HD, Google MD, Clearbit MD, DuckDuckGo HD.
-  - Uses browser-like headers to mimic user requests and avoid bot detection during fetches.
-  - Implements timeouts (5 seconds per source) to prevent hanging on slow responses.
-  - Validates logo buffers for size and content, ensuring only valid images are processed.
-  - Integrates with a validation API (`/api/validate-logo`) to filter out generic globe icons when available.
-  - Processes image buffers to standardize format, converting to PNG if not SVG, and determines content type for correct rendering.
-- **Performance Optimizations**:
-  - Parallel fetching with Promise.allSettled() for all logo sources
-  - Batch S3 existence checking for multiple logos
-  - Reduced worst-case fetch time from 30s to ~6s
+### GitHub Data Access (`src/lib/data-access/github*.ts`)
 
-#### Client-Side Logo Fetching and Caching (`lib/logo.ts`)
+- Refresh jobs persist summary/statistics JSON to S3.
+- UI/server read flows hydrate from S3 + Next.js cache tags.
+- Public API routes use no-store reads when freshness is required.
 
-- **Purpose**: Manages client-side logo fetching and caching to optimize performance in browser environments.
-- **Key Features**:
-  - Implements localStorage caching with a 30-day duration to reduce redundant API calls for logo data.
-  - Follows a flow of checking the local cache before making API calls to `/api/logo` endpoint for logo retrieval.
-  - Handles domain extraction from URLs or company names to ensure accurate logo fetching.
-  - Includes error handling with a custom `LogoError` class for robust error management.
-  - Provides functionality to clear the cache, allowing for forced refreshes of logo data when needed.
-  - Determines logo source and content type from URLs to ensure correct rendering and attribution.
+## Performance and Reliability
+
+- Durable first: S3 or PostgreSQL state is the persistence boundary.
+- Cache Components: reduce duplicate read work in RSC/server contexts.
+- Streaming IO: large payload operations avoid unnecessary full buffering.
+- Failures degrade to durable state, not hidden in-process cache state.
+
+## Security and Type Safety
+
+- External data is validated at boundaries (schema-first contracts).
+- URL and host validation protects remote fetch paths.
+- DB writes are constrained by environment/runtime guards.
+- Serialization contracts are explicit between data-access and UI layers.
+
+## Related Docs
+
+- `docs/architecture/s3-storage.md`
+- `docs/architecture/image-handling.md`
+- `docs/features/bookmarks.md`
+- `docs/standards/type-policy.md`

@@ -61,7 +61,7 @@ graph TB
     subgraph "Storage & Performance"
         S3["S3 Bucket (AWS SDK 3.840.0)<br/>OG images & metadata<br/>Idempotent writes"]
         CDN["CloudFront CDN<br/>~50-200ms hit<br/>HTTP cache headers"]
-        PERF["Performance<br/>Metadata: <5ms<br/>OG API: 50-500ms<br/>No memory cache"]
+        PERF["Performance<br/>Metadata: <5ms<br/>OG API: 50-500ms<br/>No custom runtime cache"]
     end
     
     %% Data Flow - Metadata Generation

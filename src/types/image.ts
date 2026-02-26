@@ -22,7 +22,6 @@ export interface BaseMediaResult {
  */
 
 export type ImageSource =
-  | "memory"
   | "s3"
   | "origin"
   | "external"
@@ -52,7 +51,7 @@ export interface BaseImageData {
 }
 
 /**
- * Image data with buffer (used in memory cache)
+ * Image data with buffer
  */
 export interface ImageDataWithBuffer extends BaseImageData {
   /** Image data buffer */
