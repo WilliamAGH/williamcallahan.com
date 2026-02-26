@@ -6,11 +6,10 @@
  * Writes both latest.json and versioned files for history.
  */
 
-import "server-only";
-
 import { writeJsonS3 } from "@/lib/s3/json";
 import { cacheContextGuards } from "@/lib/cache";
 import { envLogger } from "@/lib/utils/env-logger";
+import { assertServerOnly } from "@/lib/utils/ensure-server-only";
 import {
   buildAnalysisCacheTags,
   buildAnalysisVersionsCacheTags,
@@ -19,6 +18,8 @@ import {
 } from "./paths";
 import type { AnalysisDomain, CachedAnalysis, PersistAnalysisOptions } from "./types";
 import type { AnalysisMetadata } from "@/types/schemas/ai-analysis-persisted";
+
+assertServerOnly();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants

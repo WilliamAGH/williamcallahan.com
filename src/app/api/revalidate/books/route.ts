@@ -38,7 +38,7 @@ export function POST(request: NextRequest): NextResponse {
   try {
     console.log("[Cache Invalidation] Revalidating book paths...");
 
-    // Clear in-memory cache so next request loads fresh S3 data
+    // Invalidate books cache tag so the next request reads fresh S3 data
     clearBooksCache();
 
     // Main books grid page

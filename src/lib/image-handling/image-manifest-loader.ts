@@ -1,8 +1,8 @@
 /**
  * Image Manifest Loader
  *
- * Loads and caches image manifests from S3 to prevent runtime image fetches.
- * Manifests are loaded once at startup and cached in memory.
+ * Loads image manifests from S3 for logo and image resolution.
+ * Startup warm-up is opt-in to avoid large boot-time allocations.
  *
  * @module lib/image-handling/image-manifest-loader
  */
@@ -66,13 +66,9 @@ async function getManifestsDirect(): Promise<{
  * Called once during instrumentation/startup
  */
 export async function loadImageManifests(): Promise<void> {
-  // In low-memory situations (local dev or constrained containers) we avoid
-  // the upfront 150-200 MB cost of loading three large manifest JSON files.
-  // By default manifests are loaded at boot. To disable, set
-  // `LOAD_IMAGE_MANIFESTS_AT_BOOT=false` in the environment.
-
-  // Default to loading manifests unless explicitly disabled
-  if (process.env.LOAD_IMAGE_MANIFESTS_AT_BOOT === "false") {
+  // Warm-up is opt-in because loading all manifests at boot can allocate
+  // substantial memory in constrained runtimes.
+  if (process.env.LOAD_IMAGE_MANIFESTS_AT_BOOT !== "true") {
     return;
   }
 
@@ -173,7 +169,6 @@ export async function getLogoFromManifestAsync(
     try {
       // Use the cached manifest loader
       const manifest = await loadLogoManifestWithCache();
-      logoManifest = manifest; // Update in-memory cache
       return manifest[domain] || null;
     } catch (error) {
       console.warn(

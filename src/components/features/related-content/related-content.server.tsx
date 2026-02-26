@@ -277,7 +277,7 @@ export async function RelatedContent({
       }
 
       // Get all content for mapping BEFORE limiting - we need tags to filter by excludeTags
-      // Use lazy loading to reduce memory pressure
+      // Use lazy loading to reduce peak allocations
       const neededTypes = Array.from(new Set(items.map((item) => item.type)));
       const contentMap = await getLazyContentMap(neededTypes);
 

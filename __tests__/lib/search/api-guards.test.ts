@@ -1,7 +1,7 @@
 /**
  * Tests for Search API Guards
  *
- * Tests for memory pressure detection, rate limiting, and production-safe error handling.
+ * Tests for rate limiting and production-safe error handling.
  */
 
 import {

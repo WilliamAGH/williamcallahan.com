@@ -8,38 +8,23 @@
 
 import { readJsonS3Optional } from "@/lib/s3/json";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
-import { getMonotonicTime } from "@/lib/utils";
 import { envLogger } from "@/lib/utils/env-logger";
+import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { booksRelatedContentDataSchema } from "@/types/schemas/book";
 import type { BooksRelatedContentData, RelatedContentEntry } from "@/types/related-content";
 
-/**
- * Cached data and timestamp for in-memory caching
- */
-let cachedData: BooksRelatedContentData | null = null;
-let cacheTimestamp = 0;
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours - matches generation frequency
+const CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 hours - matches generation frequency
 
 /**
- * Ensure cached data is loaded and fresh, fetching from S3 if needed
- * @returns Cached data or null if unavailable
+ * Load related content dataset from S3.
+ * Returns null when not available and logs infrastructure failures.
  */
-async function ensureCacheLoaded(): Promise<BooksRelatedContentData | null> {
-  const now = getMonotonicTime();
-  if (cachedData && cacheTimestamp > now - CACHE_TTL_MS) {
-    return cachedData;
-  }
-
+async function loadRelatedContentDirect(): Promise<BooksRelatedContentData | null> {
   try {
-    const data = await readJsonS3Optional(
+    return await readJsonS3Optional(
       CONTENT_GRAPH_S3_PATHS.BOOKS_RELATED_CONTENT,
       booksRelatedContentDataSchema,
     );
-    if (data) {
-      cachedData = data;
-      cacheTimestamp = now;
-      return data;
-    }
   } catch (error) {
     envLogger.log(
       "Failed to fetch books related content from S3",
@@ -48,6 +33,23 @@ async function ensureCacheLoaded(): Promise<BooksRelatedContentData | null> {
     );
   }
   return null;
+}
+
+async function loadRelatedContentCached(): Promise<BooksRelatedContentData | null> {
+  "use cache";
+  cacheContextGuards.cacheLife("BooksRelatedContent", { revalidate: CACHE_TTL_SECONDS });
+  cacheContextGuards.cacheTag("BooksRelatedContent", "books-related-content");
+  return loadRelatedContentDirect();
+}
+
+async function ensureCacheLoaded(): Promise<BooksRelatedContentData | null> {
+  if (!USE_NEXTJS_CACHE) {
+    return loadRelatedContentDirect();
+  }
+  return withCacheFallback(
+    () => loadRelatedContentCached(),
+    () => loadRelatedContentDirect(),
+  );
 }
 
 /**
@@ -89,10 +91,8 @@ export async function getBooksRelatedContentMetadata(): Promise<{
 }
 
 /**
- * Clear the in-memory cache
- * Useful for testing or forcing a refresh
+ * Invalidate the books-related-content cache tag.
  */
 export function clearBooksRelatedContentCache(): void {
-  cachedData = null;
-  cacheTimestamp = 0;
+  cacheContextGuards.revalidateTag("BooksRelatedContent", "books-related-content");
 }

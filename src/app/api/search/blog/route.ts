@@ -53,7 +53,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json([], { headers: withNoStoreHeaders() });
   }
   try {
-    // Apply rate limiting and memory pressure guards
+    // Apply request guards (rate limiting)
     const guardResponse = applySearchGuards(request);
     if (guardResponse) return guardResponse;
 

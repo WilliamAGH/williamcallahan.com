@@ -24,12 +24,6 @@ export interface DeploymentReadinessCheckResult {
 export const HealthMetricsResponseSchema = z.object({
   status: z.string(),
   timestamp: z.string(),
-  memory: z.object({
-    rss: z.number(),
-    heapTotal: z.number(),
-    heapUsed: z.number(),
-    external: z.number(),
-  }),
   // System details may vary by environment; keep them flexible
   system: z.record(z.string(), z.unknown()),
 });

@@ -148,7 +148,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const refreshPromise = manager.fetchData({
       bookmarks: true,
       forceRefresh: isCronJob, // Only force refresh for cron jobs
-      immediate: false, // Don't process logos immediately to reduce memory pressure
+      immediate: false, // Keep refresh non-blocking while logo processing runs in background
     });
 
     // Handle errors in background without blocking response
@@ -183,15 +183,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .catch((error) => {
         console.log(`[API Trigger] ❌ Refresh error: ${error}`);
         logger.error(`[API Bookmarks Refresh] Background refresh error:`, error);
-        // Check if memory related
-        if ((error as Error).message?.includes("memory")) {
-          console.log(
-            `[API Trigger] ⚠️  Memory exhaustion detected - container restart may be needed`,
-          );
-          logger.error(
-            `[API Bookmarks Refresh] Memory exhaustion detected. Container restart may be needed.`,
-          );
-        }
       })
       .finally(() => {
         // Always clear the flag when refresh completes

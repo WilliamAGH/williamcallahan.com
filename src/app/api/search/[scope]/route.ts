@@ -77,7 +77,7 @@ export async function GET(
     );
   }
   try {
-    // Apply rate limiting and memory pressure guards
+    // Apply request guards (rate limiting)
     const guardResponse = applySearchGuards(request);
     if (guardResponse) return guardResponse;
 
@@ -146,7 +146,7 @@ export async function GET(
         case "books":
           return searchBooks(query);
         case "thoughts":
-          // TODO: Add real thoughts search once Chroma vector store is available
+          // TODO: Add real thoughts search once a semantic index exists for thoughts
           return searchThoughts(query);
         case "tags":
           return searchTags(query);

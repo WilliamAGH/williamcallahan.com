@@ -1,8 +1,8 @@
 /**
  * Books S3 Data Access Tests
  * @description Tests that the S3-backed data access module reads consolidated
- * book data correctly, surfaces S3 failures via isFallback, and manages the
- * in-memory cache with TTL behavior.
+ * book data correctly, surfaces S3 failures via isFallback, and emits cache-tag
+ * invalidation requests when refreshes are forced.
  * @vitest-environment node
  */
 
@@ -42,6 +42,7 @@ const { readJsonS3Optional } = await import("@/lib/s3/json");
 const mockReadJson = readJsonS3Optional as ReturnType<typeof vi.fn>;
 const { cacheContextGuards } = await import("@/lib/cache");
 const mockCacheLife = cacheContextGuards.cacheLife as ReturnType<typeof vi.fn>;
+const mockRevalidateTag = cacheContextGuards.revalidateTag as ReturnType<typeof vi.fn>;
 
 const SAMPLE_LATEST: BooksLatest = {
   checksum: "abc123",
@@ -69,6 +70,7 @@ describe("Books S3 Data Access", () => {
   beforeEach(() => {
     mockReadJson.mockReset();
     mockCacheLife.mockReset();
+    mockRevalidateTag.mockReset();
     clearBooksCache();
   });
 
@@ -149,8 +151,9 @@ describe("Books S3 Data Access", () => {
     });
   });
 
-  describe("in-memory cache", () => {
-    it("serves subsequent calls from cache without re-reading S3", async () => {
+  describe("cache behavior", () => {
+    it("reads from S3 for repeated uncached invocations", async () => {
+      mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(SAMPLE_DATASET);
       mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(SAMPLE_DATASET);
 
       await fetchBooksWithFallback();
@@ -158,54 +161,12 @@ describe("Books S3 Data Access", () => {
 
       const result = await fetchBooksWithFallback();
       expect(result.books).toHaveLength(2);
-      expect(mockReadJson).toHaveBeenCalledTimes(2);
-    });
-
-    it("clearBooksCache forces re-read from S3", async () => {
-      mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(SAMPLE_DATASET);
-
-      await fetchBooksWithFallback();
-      expect(mockReadJson).toHaveBeenCalledTimes(2);
-
-      clearBooksCache();
-
-      mockReadJson.mockResolvedValueOnce(SAMPLE_LATEST).mockResolvedValueOnce(SAMPLE_DATASET);
-
-      await fetchBooksWithFallback();
       expect(mockReadJson).toHaveBeenCalledTimes(4);
     });
 
-    it("preserves refresh coalescing when cache is cleared mid-refresh", async () => {
-      let resolveLatest: ((value: BooksLatest | null) => void) | null = null;
-      const pendingLatest = new Promise<BooksLatest | null>((resolve) => {
-        resolveLatest = resolve;
-      });
-
-      mockReadJson
-        .mockImplementationOnce(() => pendingLatest)
-        .mockResolvedValueOnce(SAMPLE_DATASET);
-
-      const firstRequest = fetchBooksWithFallback();
-      await Promise.resolve();
-
+    it("clearBooksCache emits cache-tag invalidation for books dataset", () => {
       clearBooksCache();
-
-      const secondRequest = fetchBooksWithFallback();
-      await Promise.resolve();
-
-      // Second request should await the in-flight refresh instead of starting a new one.
-      expect(mockReadJson).toHaveBeenCalledTimes(1);
-
-      if (!resolveLatest) {
-        throw new Error("Expected pending latest resolver to be initialized");
-      }
-      resolveLatest(SAMPLE_LATEST);
-
-      const [firstResult, secondResult] = await Promise.all([firstRequest, secondRequest]);
-
-      expect(firstResult.isFallback).toBe(true);
-      expect(secondResult.isFallback).toBe(true);
-      expect(mockReadJson).toHaveBeenCalledTimes(2);
+      expect(mockRevalidateTag).toHaveBeenCalledWith("Books", "books-dataset");
     });
   });
 

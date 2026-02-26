@@ -1,6 +1,6 @@
 /**
  * Server component that pre-renders investment cards
- * Uses ServerCache for logo caching and processing
+ * Uses batched logo resolution to keep server render work bounded
  */
 
 import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-registry-context.client";

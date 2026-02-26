@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     const searchParams = requestUrl.searchParams;
     const rawQuery = searchParams.get("q");
 
-    // Apply rate limiting and memory pressure guards
+    // Apply request guards (rate limiting)
     const guardResponse = applySearchGuards(request);
     if (guardResponse) return guardResponse;
 

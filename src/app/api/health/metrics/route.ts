@@ -1,7 +1,7 @@
 /**
  * Health Metrics Endpoint
  *
- * Provides basic process metrics about the application.
+ * Provides basic runtime and system metrics about the application.
  *
  * @module app/api/health/metrics
  */
@@ -30,18 +30,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!validateAuthSecret(request, expectedToken)) {
     return createErrorResponse("Unauthorized", 401);
   }
-  const memUsage = process.memoryUsage();
   const systemMetrics = await getSystemMetrics();
   return NextResponse.json(
     {
       status: "healthy",
       timestamp: new Date().toISOString(),
-      memory: {
-        rss: Math.round(memUsage.rss / 1024 / 1024),
-        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
-        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
-        external: Math.round(memUsage.external / 1024 / 1024),
-      },
       system: systemMetrics,
     },
     { headers: NO_STORE_HEADERS },

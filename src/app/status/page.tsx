@@ -58,13 +58,12 @@ const StatusPage: NextPage = async () => {
         <header className="mb-8">
           <h1 className="text-4xl font-extrabold text-white">Application Status</h1>
           <p className="text-gray-400 mt-2">
-            Live metrics from the server. Last updated:{" "}
+            Live system metrics from the server. Last updated:{" "}
             <span className="text-cyan-400">{new Date(data.timestamp).toLocaleString()}</span>
           </p>
         </header>
         <main>
           <Suspense fallback={<div className="text-center text-xl">Loading status...</div>}>
-            {renderSection("Memory", data.memory)}
             {renderSection("System", data.system)}
           </Suspense>
         </main>

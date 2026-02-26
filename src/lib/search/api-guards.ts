@@ -1,7 +1,7 @@
 /**
  * Search API Guards
  *
- * Shared rate limiting and memory pressure checks for search API endpoints.
+ * Shared rate limiting checks for search API endpoints.
  * Extracted from app/api/search/all/route.ts to ensure consistent protection
  * across both scoped and site-wide search endpoints.
  */

@@ -1,5 +1,5 @@
 /**
- * Cached content aggregator with lazy loading to reduce memory pressure
+ * Cached content aggregator with lazy loading to reduce peak allocations
  *
  * This module provides a more efficient way to aggregate content by:
  * 1. Using React's cache() for request-level caching

@@ -6,8 +6,8 @@
  * Provides the same public API as audiobookshelf.server.ts so consumer code only
  * changes its import path, not its function calls.
  *
- * Caching: In-memory cache with 1-hour TTL and 5-minute retry TTL, plus
- * Next.js Cache Components ("use cache") with matching revalidate windows.
+ * Caching: Next.js Cache Components ("use cache") with cache tags and
+ * revalidation windows aligned to healthy/fallback states.
  *
  * Error contract: S3 connectivity errors surface via `isFallback: true` in the
  * public API return values. Callers can distinguish "successfully loaded books"
@@ -19,7 +19,6 @@ import "server-only";
 import { readJsonS3Optional } from "@/lib/s3/json";
 import { BOOKS_S3_PATHS } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
-import { getMonotonicTime } from "@/lib/utils";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import {
   booksDatasetSchema,
@@ -38,141 +37,34 @@ const CACHE_RETRY_TTL_MS = 5 * 60 * 1000; // 5 minutes — shorter retry window 
 const CACHE_TTL_SECONDS = CACHE_TTL_MS / 1000;
 const CACHE_RETRY_TTL_SECONDS = CACHE_RETRY_TTL_MS / 1000;
 
-/**
- * `lastRefreshFailed` tracks whether the most recent S3 load attempt failed.
- * When true, public API returns `isFallback: true` so callers know the data
- * may be stale or empty due to infrastructure issues — not because zero books exist.
- */
-let cache: { books: Book[]; timestamp: number; lastRefreshFailed: boolean } | null = null;
-
-/**
- * Monotonic generation counter incremented on each `clearBooksCache()` call.
- * In-flight refreshes capture the generation before starting S3 reads and
- * discard their results when the generation has advanced — preventing a slow
- * refresh from overwriting a deliberate cache clear with stale data.
- */
-let cacheGeneration = 0;
-
-function isCacheFresh(): boolean {
-  if (!cache) return false;
-  if (cache.timestamp === 0) return true; // prerender-safe
-  const ttl = cache.lastRefreshFailed ? CACHE_RETRY_TTL_MS : CACHE_TTL_MS;
-  return getMonotonicTime() - cache.timestamp <= ttl;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// S3 Loader
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Load the consolidated books dataset from S3.
- * Reads latest.json pointer, then fetches the versioned snapshot.
- *
- * Returns `null` when the dataset has not been generated yet (expected
- * on first deploy). Throws on real S3 connectivity/permission errors
- * so callers can distinguish "no data" from "infrastructure failure".
- */
-async function loadBooksFromS3(): Promise<Book[] | null> {
-  const latest = await readJsonS3Optional(BOOKS_S3_PATHS.LATEST, booksLatestSchema);
-  if (!latest) {
-    envLogger.log(
-      "No books latest.json found in S3 — dataset may not have been generated yet",
-      { path: BOOKS_S3_PATHS.LATEST },
-      { category: "Books" },
-    );
-    return null;
-  }
-
-  const dataset = await readJsonS3Optional<BooksDataset>(latest.key, booksDatasetSchema);
-  if (!dataset) {
-    envLogger.log(
-      "Books versioned snapshot not found in S3",
-      { key: latest.key, checksum: latest.checksum },
-      { category: "Books" },
-    );
-    return null;
-  }
-
-  return dataset.books;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Cache Management (Command — mutates state, returns nothing)
-// ─────────────────────────────────────────────────────────────────────────────
-
-let inflightRefresh: Promise<void> | null = null;
-
-/**
- * Command: refresh the in-memory cache from S3.
- * Coalesces concurrent refreshes via a shared promise.
- *
- * On success: updates cache with fresh data, clears failure flag.
- * On S3 error: logs the error and sets `lastRefreshFailed = true` so the
- * public API can report `isFallback: true`. Cache retains previous books
- * (if any) to serve stale data rather than empty.
- */
-async function refreshCache(): Promise<void> {
-  if (inflightRefresh) {
-    return inflightRefresh;
-  }
-
-  const refreshGeneration = cacheGeneration;
-
-  const thisRefresh: Promise<void> = (async () => {
-    try {
-      const books = await loadBooksFromS3();
-
-      // If clearBooksCache() was called while we were fetching, discard stale results.
-      if (cacheGeneration !== refreshGeneration) return;
-
-      cache = { books: books ?? [], timestamp: getMonotonicTime(), lastRefreshFailed: false };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      envLogger.log("Failed to load books from S3", { error: message }, { category: "Books" });
-
-      // If clearBooksCache() was called while we were fetching, discard stale results.
-      if (cacheGeneration !== refreshGeneration) return;
-
-      // Preserve stale data if available; mark failure so callers see isFallback: true
-      if (cache) {
-        cache = { ...cache, timestamp: getMonotonicTime(), lastRefreshFailed: true };
-      } else {
-        cache = { books: [], timestamp: getMonotonicTime(), lastRefreshFailed: true };
-      }
+async function loadBooksStateFromS3(): Promise<{ books: Book[]; isFallback: boolean }> {
+  try {
+    const latest = await readJsonS3Optional(BOOKS_S3_PATHS.LATEST, booksLatestSchema);
+    if (!latest) {
+      envLogger.log(
+        "No books latest.json found in S3 — dataset may not have been generated yet",
+        { path: BOOKS_S3_PATHS.LATEST },
+        { category: "Books" },
+      );
+      return { books: [], isFallback: false };
     }
-  })();
 
-  inflightRefresh = thisRefresh;
-
-  // Compare-and-swap cleanup: only clear inflightRefresh if it still points to
-  // THIS refresh. clearBooksCache() may have started a new refresh in the meantime,
-  // and unconditionally nullifying would break coalescing for the newer promise.
-  void thisRefresh.finally(() => {
-    if (inflightRefresh === thisRefresh) {
-      inflightRefresh = null;
+    const dataset = await readJsonS3Optional<BooksDataset>(latest.key, booksDatasetSchema);
+    if (!dataset) {
+      envLogger.log(
+        "Books versioned snapshot not found in S3",
+        { key: latest.key, checksum: latest.checksum },
+        { category: "Books" },
+      );
+      return { books: [], isFallback: false };
     }
-  });
 
-  return thisRefresh;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Cache Read (Query — reads state, does not mutate)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Query: return the current cached books and failure state, refreshing first if stale.
- */
-async function getCachedBooksState(): Promise<{ books: Book[]; isFallback: boolean }> {
-  if (!isCacheFresh()) {
-    await refreshCache();
+    return { books: dataset.books, isFallback: false };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    envLogger.log("Failed to load books from S3", { error: message }, { category: "Books" });
+    return { books: [], isFallback: true };
   }
-  // When cache is null (cleared during an inflight refresh, or never populated),
-  // report isFallback: true so callers know the empty array is not authoritative.
-  return {
-    books: cache?.books ?? [],
-    isFallback: cache === null || cache.lastRefreshFailed,
-  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -186,9 +78,9 @@ async function getCachedBooksState(): Promise<{ books: Book[]; isFallback: boole
 async function fetchBooksCached(): Promise<{ books: Book[]; isFallback: boolean }> {
   "use cache";
 
-  const state = await getCachedBooksState();
+  const state = await loadBooksStateFromS3();
 
-  // Keep Next.js cache revalidate aligned with the in-memory cache freshness policy.
+  // Keep cache revalidate aligned with healthy/fallback load outcomes.
   const revalidate = state.isFallback ? CACHE_RETRY_TTL_SECONDS : CACHE_TTL_SECONDS;
   cacheContextGuards.cacheLife("Books", { revalidate });
   cacheContextGuards.cacheTag("Books", "books-dataset");
@@ -204,9 +96,9 @@ async function fetchBooksInternal(): Promise<{ books: Book[]; isFallback: boolea
   return USE_NEXTJS_CACHE
     ? withCacheFallback(
         () => fetchBooksCached(),
-        () => getCachedBooksState(),
+        () => loadBooksStateFromS3(),
       )
-    : getCachedBooksState();
+    : loadBooksStateFromS3();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -271,12 +163,9 @@ export async function fetchBookListItemsWithFallback(
 }
 
 /**
- * Clear in-memory books cache. Advances the generation counter to invalidate
- * any in-flight refresh that captured a prior generation, preventing it from
- * restoring stale data after the clear. In-flight refresh promises are preserved
- * so concurrent callers keep coalescing onto a single refresh.
+ * Invalidate the cached books dataset tag.
+ * This intentionally avoids any process-lifetime cache state.
  */
 export function clearBooksCache(): void {
-  cache = null;
-  cacheGeneration++;
+  cacheContextGuards.revalidateTag("Books", "books-dataset");
 }

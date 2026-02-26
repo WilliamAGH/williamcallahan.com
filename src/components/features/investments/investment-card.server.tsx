@@ -18,7 +18,7 @@ import type { InvestmentCardExtendedProps } from "@/types/features/investments";
 /**
  * Resolves the logo data and supporting props for an investment card without creating a React element.
  * This allows callers to enrich investment data while retaining control over rendering to reduce
- * memory pressure during large page prerenders.
+ * peak allocation spikes during large page prerenders.
  */
 export async function resolveInvestmentCardData(
   investment: Investment & { logoOnlyDomain?: string | null; isDarkTheme?: boolean },

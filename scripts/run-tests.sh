@@ -1,7 +1,6 @@
 #!/bin/bash
 # This script is used to run the tests with HappyDOM and Testing Library setup
-# It is used to test the server-side cache by providing a mock implementation of the NodeCache class
-# which is used in the lib/server-cache.ts file and is used to cache the results of the getLogo function
+# It routes through `bun run test` so Vitest uses the project configuration.
 
 echo "Running tests with HappyDOM and Testing Library setup..."
 bun run test "$@"

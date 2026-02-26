@@ -9,11 +9,10 @@
  * request-only APIs like `connection()`.
  */
 
-import "server-only";
-
 import { readJsonS3Optional } from "@/lib/s3/json";
 import { listS3Objects } from "@/lib/s3/objects";
 import { envLogger } from "@/lib/utils/env-logger";
+import { assertServerOnly } from "@/lib/utils/ensure-server-only";
 import { cacheContextGuards } from "@/lib/cache";
 import {
   buildAnalysisBasePath,
@@ -37,6 +36,8 @@ import {
   persistedBookAnalysisSchema,
   persistedProjectAnalysisSchema,
 } from "@/types/schemas/ai-analysis-persisted";
+
+assertServerOnly();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Private Cached Implementations
