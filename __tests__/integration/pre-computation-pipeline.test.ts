@@ -6,15 +6,17 @@
 
 import type { Mock, MockedFunction } from "vitest";
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
-import { readJsonS3Optional } from "@/lib/s3/json";
-import { CONTENT_GRAPH_S3_PATHS, BOOKMARKS_S3_PATHS } from "@/lib/constants";
+import { readContentGraphArtifact } from "@/lib/db/queries/content-graph";
+import { writeContentGraphArtifacts } from "@/lib/db/mutations/content-graph";
+import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { DataFetchConfig } from "@/types/lib";
 import type { BookmarkSlugMapping } from "@/types/bookmark";
-import { z } from "zod/v4";
 
 // Mock external dependencies
 vi.mock("@/lib/s3/json");
 vi.mock("@/lib/s3/objects");
+vi.mock("@/lib/db/mutations/content-graph");
+vi.mock("@/lib/db/queries/content-graph");
 vi.mock("@/lib/db/queries/bookmarks", () => ({
   getBookmarksIndexFromDatabase: vi.fn().mockResolvedValue({
     count: 1,
@@ -42,7 +44,12 @@ vi.mock("@/lib/content-similarity/aggregator");
 vi.mock("@/lib/content-similarity");
 vi.mock("@/data/projects");
 
-const mockReadJsonS3 = readJsonS3Optional as MockedFunction<typeof readJsonS3Optional>;
+const mockReadContentGraphArtifact = readContentGraphArtifact as MockedFunction<
+  typeof readContentGraphArtifact
+>;
+const mockWriteContentGraphArtifacts = writeContentGraphArtifacts as MockedFunction<
+  typeof writeContentGraphArtifacts
+>;
 
 describe("Pre-computation Pipeline Integration", () => {
   let manager: DataFetchManager;
@@ -202,7 +209,7 @@ describe("Pre-computation Pipeline Integration", () => {
     });
 
     it("should produce hydration-safe output", async () => {
-      // Setup mock pre-computed data
+      // Setup mock pre-computed data in DB
       const mockRelatedContent = {
         "bookmark:b1": [
           { type: "blog", id: "p1", score: 0.8, title: "Related Post" },
@@ -210,8 +217,8 @@ describe("Pre-computation Pipeline Integration", () => {
         ],
       };
 
-      mockReadJsonS3.mockImplementation((path) => {
-        if (path === CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT) {
+      mockReadContentGraphArtifact.mockImplementation((artifactType) => {
+        if (artifactType === "related-content") {
           return Promise.resolve(mockRelatedContent);
         }
         return Promise.resolve(null);
@@ -225,94 +232,6 @@ describe("Pre-computation Pipeline Integration", () => {
 
       // Results should be identical (hydration-safe)
       expect(serverResult1).toEqual(serverResult2);
-    });
-  });
-
-  describe("Environment Isolation", () => {
-    it("should use different paths for different environments", async () => {
-      const originalEnv = process.env.NODE_ENV;
-      const originalApiUrl = process.env.API_BASE_URL;
-      const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-      const originalDeploymentEnv = process.env.DEPLOYMENT_ENV;
-
-      try {
-        // Clear URL and DEPLOYMENT_ENV vars to make NODE_ENV the primary determinant
-        delete process.env.API_BASE_URL;
-        delete process.env.NEXT_PUBLIC_SITE_URL;
-        delete process.env.DEPLOYMENT_ENV;
-
-        // Test production paths
-        process.env.NODE_ENV = "production";
-        vi.resetModules();
-        const prodConstants = await import("@/lib/constants");
-        expect(prodConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe(
-          "json/content-graph/related-content.json",
-        );
-
-        // Test development paths
-        process.env.NODE_ENV = "development";
-        vi.resetModules();
-        const devConstants = await import("@/lib/constants");
-        expect(devConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe(
-          "json/content-graph-dev/related-content.json",
-        );
-      } finally {
-        // Restore original environment variables even if test fails
-        if (originalEnv === undefined) {
-          delete process.env.NODE_ENV;
-        } else {
-          process.env.NODE_ENV = originalEnv;
-        }
-        if (originalApiUrl === undefined) {
-          delete process.env.API_BASE_URL;
-        } else {
-          process.env.API_BASE_URL = originalApiUrl;
-        }
-        if (originalSiteUrl === undefined) {
-          delete process.env.NEXT_PUBLIC_SITE_URL;
-        } else {
-          process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
-        }
-        if (originalDeploymentEnv === undefined) {
-          delete process.env.DEPLOYMENT_ENV;
-        } else {
-          process.env.DEPLOYMENT_ENV = originalDeploymentEnv;
-        }
-      }
-    });
-
-    it("should not interfere between environments", async () => {
-      // Mock different data for different environments
-      mockReadJsonS3.mockImplementation((path) => {
-        if (path.includes("-dev")) {
-          return Promise.resolve({ env: "development" });
-        }
-        return Promise.resolve({ env: "production" });
-      });
-
-      const devData = await readJsonS3Optional(
-        "json/content-graph-dev/metadata.json",
-        z.record(z.unknown()),
-      );
-      const prodData = await readJsonS3Optional(
-        "json/content-graph/metadata.json",
-        z.record(z.unknown()),
-      );
-
-      expect(devData).not.toEqual(prodData);
-
-      // Type-safe property access with proper checking
-      if (devData && typeof devData === "object" && "env" in devData) {
-        expect(devData.env).toBe("development");
-      } else {
-        throw new Error("devData missing expected env property");
-      }
-
-      if (prodData && typeof prodData === "object" && "env" in prodData) {
-        expect(prodData.env).toBe("production");
-      } else {
-        throw new Error("prodData missing expected env property");
-      }
     });
   });
 
@@ -380,8 +299,8 @@ describe("Pre-computation Pipeline Integration", () => {
     });
 
     it("should handle missing pre-computed data gracefully", async () => {
-      // Mock missing content graph data
-      mockReadJsonS3.mockResolvedValue(null);
+      // Mock missing content graph data in DB
+      mockReadContentGraphArtifact.mockResolvedValue(null);
 
       // Component should fall back to runtime computation
       const result = await getRelatedContentForItem("bookmark", "unknown");
@@ -475,25 +394,25 @@ describe("Pre-computation Pipeline Integration", () => {
       const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
       (getBookmarks as Mock).mockResolvedValue(mockBookmarks);
       (refreshBookmarks as Mock).mockResolvedValue(mockBookmarks);
+      mockWriteContentGraphArtifacts.mockResolvedValue(undefined);
 
       await manager.fetchData({
         bookmarks: true,
         forceRefresh: true,
       });
 
-      // Check metadata consistency
-      const { writeJsonS3 } = await import("@/lib/s3/json");
-      const metadataCall = (writeJsonS3 as Mock).mock.calls.find(
-        (call) => call[0] === CONTENT_GRAPH_S3_PATHS.METADATA,
+      // Check metadata consistency via DB artifacts
+      const artifactsArg = mockWriteContentGraphArtifacts.mock.calls[0]?.[0];
+      const metadataArtifact = artifactsArg?.find(
+        (a: { artifactType: string }) => a.artifactType === "metadata",
+      );
+      const relatedArtifact = artifactsArg?.find(
+        (a: { artifactType: string }) => a.artifactType === "related-content",
       );
 
-      const relatedContentCall = (writeJsonS3 as Mock).mock.calls.find(
-        (call) => call[0] === CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
-      );
-
-      if (metadataCall && relatedContentCall) {
+      if (metadataArtifact && relatedArtifact) {
         // Type-safe metadata access
-        const metadata = metadataCall[1];
+        const metadata = metadataArtifact.payload;
         if (!metadata || typeof metadata !== "object" || !("counts" in metadata)) {
           throw new Error("Invalid metadata structure");
         }
@@ -502,7 +421,7 @@ describe("Pre-computation Pipeline Integration", () => {
           throw new Error("Invalid counts structure in metadata");
         }
 
-        const relatedContent = relatedContentCall[1];
+        const relatedContent = relatedArtifact.payload;
         if (!relatedContent || typeof relatedContent !== "object") {
           throw new Error("Invalid related content structure");
         }
@@ -518,11 +437,8 @@ describe("Pre-computation Pipeline Integration", () => {
 // Helper function to simulate component usage
 async function getRelatedContentForItem(type: string, id: string): Promise<unknown[]> {
   // This would normally render the component
-  // For testing, we just check if data is available
-  const data = await readJsonS3Optional(
-    CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
-    z.record(z.array(z.unknown())),
-  );
+  // For testing, we just check if data is available from the DB
+  const data = await readContentGraphArtifact("related-content");
   if (data && typeof data === "object") {
     const key = `${type}:${id}`;
     return (data as Record<string, unknown[]>)[key] || [];

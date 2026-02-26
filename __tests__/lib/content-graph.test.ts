@@ -3,12 +3,11 @@
  */
 
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
-import { writeJsonS3 } from "@/lib/s3/json";
-import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
+import { writeContentGraphArtifacts } from "@/lib/db/mutations/content-graph";
 import type { Mock, MockedFunction } from "vitest";
 
-// Mock S3 utilities
-vi.mock("@/lib/s3/json");
+// Mock DB mutations for content graph persistence
+vi.mock("@/lib/db/mutations/content-graph");
 vi.mock("@/lib/bookmarks/service.server");
 vi.mock("@/lib/bookmarks/bookmarks-data-access.server");
 vi.mock("@/lib/blog");
@@ -23,7 +22,9 @@ vi.mock("@/data/projects", () => ({
   projects: [],
 }));
 
-const mockWriteJsonS3 = writeJsonS3 as MockedFunction<typeof writeJsonS3>;
+const mockWriteContentGraphArtifacts = writeContentGraphArtifacts as MockedFunction<
+  typeof writeContentGraphArtifacts
+>;
 
 describe("Content Graph Pre-computation", () => {
   let manager: DataFetchManager;
@@ -97,7 +98,7 @@ describe("Content Graph Pre-computation", () => {
       });
       // DEFAULT_WEIGHTS already mocked at module level
       (refreshBookmarks as Mock).mockResolvedValue([]);
-      mockWriteJsonS3.mockResolvedValue(undefined);
+      mockWriteContentGraphArtifacts.mockResolvedValue(undefined);
 
       // Run the content graph build
       await manager.fetchData({
@@ -105,19 +106,19 @@ describe("Content Graph Pre-computation", () => {
         forceRefresh: true,
       });
 
-      // Verify related content was written
-      expect(mockWriteJsonS3).toHaveBeenCalledWith(
-        CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
-        expect.any(Object),
+      // Verify related content was written via DB artifacts
+      expect(mockWriteContentGraphArtifacts).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ artifactType: "related-content" })]),
       );
 
       // Verify the structure of related content
-      const relatedContentCall = mockWriteJsonS3.mock.calls.find(
-        (call) => call[0] === CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
+      const artifactsArg = mockWriteContentGraphArtifacts.mock.calls[0]?.[0];
+      const relatedArtifact = artifactsArg?.find(
+        (a: { artifactType: string }) => a.artifactType === "related-content",
       );
 
-      if (relatedContentCall) {
-        const relatedContent = relatedContentCall[1] as Record<string, any[]>;
+      if (relatedArtifact) {
+        const relatedContent = relatedArtifact.payload as Record<string, unknown[]>;
 
         // Should have entries for each content item
         expect(Object.keys(relatedContent)).toContain("bookmark:b1");
@@ -196,27 +197,30 @@ describe("Content Graph Pre-computation", () => {
       });
       // DEFAULT_WEIGHTS already mocked at module level
       (refreshBookmarks as Mock).mockResolvedValue([]);
-      mockWriteJsonS3.mockResolvedValue(undefined);
+      mockWriteContentGraphArtifacts.mockResolvedValue(undefined);
 
       await manager.fetchData({
         bookmarks: true,
         forceRefresh: true,
       });
 
-      // Verify tag graph was written
-      expect(mockWriteJsonS3).toHaveBeenCalledWith(
-        CONTENT_GRAPH_S3_PATHS.TAG_GRAPH,
-        expect.any(Object),
+      // Verify tag graph was written via DB artifacts
+      expect(mockWriteContentGraphArtifacts).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ artifactType: "tag-graph" })]),
       );
 
       // Check tag graph structure
-      const tagGraphCall = mockWriteJsonS3.mock.calls.find(
-        (call) => call[0] === CONTENT_GRAPH_S3_PATHS.TAG_GRAPH,
+      const artifactsArg = mockWriteContentGraphArtifacts.mock.calls[0]?.[0];
+      const tagGraphArtifact = artifactsArg?.find(
+        (a: { artifactType: string }) => a.artifactType === "tag-graph",
       );
 
-      if (tagGraphCall) {
-        const tagGraph = tagGraphCall[1] as {
-          tags: Record<string, any>;
+      if (tagGraphArtifact) {
+        const tagGraph = tagGraphArtifact.payload as {
+          tags: Record<
+            string,
+            { count: number; coOccurrences: Record<string, number>; contentIds: string[] }
+          >;
           tagHierarchy: Record<string, string[]>;
         };
 
@@ -305,21 +309,22 @@ describe("Content Graph Pre-computation", () => {
             dateBookmarked: "2024-01-01",
           })),
       );
-      mockWriteJsonS3.mockResolvedValue(undefined);
+      mockWriteContentGraphArtifacts.mockResolvedValue(undefined);
 
       await manager.fetchData({
         bookmarks: true,
         forceRefresh: true,
       });
 
-      // Verify metadata was written (filter out lock-related calls)
-      const metadataCall = mockWriteJsonS3.mock.calls.find(
-        (call) => call[0] === CONTENT_GRAPH_S3_PATHS.METADATA,
+      // Verify metadata was written via DB artifacts
+      const artifactsArg = mockWriteContentGraphArtifacts.mock.calls[0]?.[0];
+      const metadataArtifact = artifactsArg?.find(
+        (a: { artifactType: string }) => a.artifactType === "metadata",
       );
 
-      expect(metadataCall).toBeDefined();
-      if (metadataCall) {
-        expect(metadataCall[1]).toMatchObject({
+      expect(metadataArtifact).toBeDefined();
+      if (metadataArtifact) {
+        expect(metadataArtifact.payload).toMatchObject({
           version: "1.0.0",
           generated: expect.any(String),
           counts: expect.objectContaining({
@@ -353,20 +358,6 @@ describe("Content Graph Pre-computation", () => {
       // Content graph should also fail gracefully
       const graphResult = result.find((r) => r.operation === "content-graph");
       expect(graphResult?.success).toBe(false);
-    });
-  });
-
-  describe("Environment-aware paths", () => {
-    it("should use environment-specific paths for all files", async () => {
-      // Import the actual environment suffix to verify paths are correctly formed
-      const { ENVIRONMENT_SUFFIX } = await import("@/lib/config/environment");
-
-      // Paths should contain the environment suffix (empty for prod, -dev/-test for others)
-      expect(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toContain(
-        `content-graph${ENVIRONMENT_SUFFIX}`,
-      );
-      expect(CONTENT_GRAPH_S3_PATHS.TAG_GRAPH).toContain(`content-graph${ENVIRONMENT_SUFFIX}`);
-      expect(CONTENT_GRAPH_S3_PATHS.METADATA).toContain(`content-graph${ENVIRONMENT_SUFFIX}`);
     });
   });
 });
