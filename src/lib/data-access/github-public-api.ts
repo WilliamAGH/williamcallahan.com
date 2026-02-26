@@ -1,8 +1,8 @@
 /**
  * GitHub Public API Module
  *
- * High-level functions for fetching GitHub activity data
- * Provides the main public interface with caching support
+ * High-level functions for fetching GitHub activity data from PostgreSQL.
+ * Provides the main public interface with caching support.
  *
  * @module data-access/github-public-api
  */
@@ -11,7 +11,6 @@ import { debug } from "@/lib/utils/debug";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { GITHUB_CACHE_TAGS } from "@/lib/cache/invalidation";
 import { formatPacificDateTime } from "@/lib/utils/date-format";
-import { getEnvironment } from "@/lib/config/environment";
 import type {
   GitHubActivityApiResponse,
   StoredGithubActivityS3,
@@ -22,12 +21,6 @@ import {
   isOldFlatStoredGithubActivityS3Format,
   getGitHubActivityMetadata,
 } from "./github-storage";
-import {
-  GITHUB_ACTIVITY_S3_PATHS,
-  GITHUB_ACTIVITY_S3_KEY_FILE,
-  GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK,
-} from "@/lib/constants";
-// Import detectAndRepairCsvFiles if needed for refreshGitHubActivityDataFromApi
 
 /**
  * Checks if GitHub activity data is empty or invalid
@@ -105,118 +98,36 @@ function formatActivityView(
 }
 
 /**
- * Primary function to get GitHub activity data with intelligent caching
- * Access pattern: Next.js cache tags → S3 storage → GitHub API
+ * Primary function to get GitHub activity data from the database.
+ * All GitHub activity is stored in a single PostgreSQL row; no S3 key
+ * fallback logic is needed.
  */
 export async function getGithubActivity(): Promise<UserActivityView> {
   debug("[DataAccess/GitHub:getGithubActivity] Starting GitHub activity fetch");
 
-  debug(
-    `[DataAccess/GitHub:getGithubActivity] Attempting to read GitHub activity from S3: ${GITHUB_ACTIVITY_S3_KEY_FILE}`,
-  );
-  let s3ActivityData = await readGitHubActivityFromS3();
-  let metadataKey = GITHUB_ACTIVITY_S3_KEY_FILE;
+  let activityData = await readGitHubActivityFromS3();
 
-  // Enhanced fallback mechanism: Try production file for ANY environment when primary is missing
-  // This ensures data is always available, even during initial deployments
-  // Try fallback for ANY environment if primary data is missing or empty
-  if (!s3ActivityData || isEmptyData(s3ActivityData)) {
-    const { envLogger } = await import("@/lib/utils/env-logger");
-    const currentEnv = getEnvironment();
-
-    // Always try the production fallback file
-    const fallbackKey = GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK;
-    envLogger.log(
-      `Primary data missing/empty for ${currentEnv}, attempting production fallback`,
-      { primaryKey: GITHUB_ACTIVITY_S3_KEY_FILE, fallbackKey },
-      { category: "GitHubActivity" },
-    );
-
-    const fallbackData = await readGitHubActivityFromS3(fallbackKey);
-
-    // Use fallback if it has valid data
-    if (fallbackData && !isEmptyData(fallbackData)) {
-      s3ActivityData = fallbackData;
-      metadataKey = fallbackKey;
-      envLogger.log(
-        `Successfully using production fallback data`,
-        { environment: currentEnv, fallbackKey },
-        { category: "GitHubActivity" },
-      );
-    } else {
-      // If we're in production and both files are missing, try WITHOUT suffix
-      // This handles the case where files might be stored without environment suffix
-      if (currentEnv === "production" && GITHUB_ACTIVITY_S3_KEY_FILE.includes(".json")) {
-        const baseKey = GITHUB_ACTIVITY_S3_PATHS.ACTIVITY_DATA_PROD_FALLBACK;
-        if (baseKey !== GITHUB_ACTIVITY_S3_KEY_FILE) {
-          const baseData = await readGitHubActivityFromS3(baseKey);
-          if (baseData && !isEmptyData(baseData)) {
-            s3ActivityData = baseData;
-            metadataKey = baseKey;
-            envLogger.log(
-              `Using base filename without environment suffix`,
-              { baseKey },
-              { category: "GitHubActivity" },
-            );
-          }
-        }
-      }
-    }
-
-    // Log critical error if still no data
-    if (!s3ActivityData || isEmptyData(s3ActivityData)) {
-      envLogger.log(
-        `CRITICAL: No usable GitHub data found in any location`,
-        {
-          primaryKey: GITHUB_ACTIVITY_S3_KEY_FILE,
-          fallbackKey: GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK,
-          environment: currentEnv,
-        },
-        { category: "GitHubActivity" },
-      );
-    }
-  }
-
-  const s3Metadata = await getGitHubActivityMetadata(metadataKey);
-  const lastRefreshed = s3Metadata?.lastModified
-    ? formatPacificDateTime(s3Metadata.lastModified)
-    : undefined;
-
-  if (!s3ActivityData) {
-    debug(
-      "[DataAccess/GitHub:getGithubActivity] No S3 data found. Attempting to refresh from GitHub API...",
-    );
-    try {
-      // TODO: Implement API refresh logic here to avoid circular dependency
-      // For now, return empty data
-      console.warn(
-        "[DataAccess/GitHub:getGithubActivity] API refresh not yet implemented in public API module",
-      );
-      return formatActivityView(null, "error");
-    } catch (error) {
-      console.error(
-        "[DataAccess/GitHub:getGithubActivity] Failed to refresh from API:",
-        error instanceof Error ? error.message : String(error),
-      );
-    }
-
-    // Return empty data if all else fails
+  if (!activityData || isEmptyData(activityData)) {
+    debug("[DataAccess/GitHub:getGithubActivity] No GitHub data found in database");
     return formatActivityView(null, "error");
   }
 
+  const metadata = await getGitHubActivityMetadata();
+  const lastRefreshed = metadata?.lastModified
+    ? formatPacificDateTime(metadata.lastModified)
+    : undefined;
+
   // Handle old flat format (backward compatibility)
-  if (isOldFlatStoredGithubActivityS3Format(s3ActivityData)) {
+  if (isOldFlatStoredGithubActivityS3Format(activityData)) {
     debug("[DataAccess/GitHub:getGithubActivity] Converting old flat format to new nested format");
-    const oldFormatData = s3ActivityData as StoredGithubActivityS3;
-    s3ActivityData = {
+    const oldFormatData = activityData as StoredGithubActivityS3;
+    activityData = {
       trailingYearData: oldFormatData,
       cumulativeAllTimeData: oldFormatData,
     };
   }
 
-  const formattedView = formatActivityView(s3ActivityData, "s3-store", lastRefreshed);
-
-  return formattedView;
+  return formatActivityView(activityData, "s3-store", lastRefreshed);
 }
 
 /**
