@@ -17,13 +17,13 @@ See `github-activity.mmd` for a visual diagram illustrating how this feature orc
 The GitHub Activity system coordinates several modules to produce its final output. **Like bookmarks (our other highest-traffic feature), GitHub activity is PostgreSQL-first for runtime JSON payloads plus Next.js Cache Components**—we do not hit the GitHub APIs from React components or public API routes.
 
 1. **Data Fetching & Processing (`json-handling`)**:
-   - A scheduler or authorized refresh endpoint kicks off `json-handling` to gather data from GitHub’s GraphQL API, REST API, and CSV fallback.
+   - A scheduler or authorized refresh endpoint kicks off `json-handling` to gather data from GitHub’s GraphQL API and REST API.
    - The module aggregates raw data into a structured JSON payload (trailing year + all time).
    - The resulting JSON is persisted to PostgreSQL (`github_activity_store`) before cache invalidation.
 
 2. **Persistence (`data-access` + `db`)**:
    - Runtime GitHub documents (`activity`, `summary`, `aggregated-weekly`, `repo-weekly-stats`) are upserted in PostgreSQL.
-   - Raw repository weekly CSV payloads remain durable binary artifacts in S3 for compatibility and fallback processing.
+   - Raw repository weekly CSV payloads may remain durable binary artifacts in S3 for operational diagnostics, but runtime reads are PostgreSQL-only.
 
 3. **Caching (`caching`)**:
    - To ensure performance, server read paths use Next.js Cache Components with `cacheTag("github-activity")`.
@@ -44,7 +44,7 @@ GitHub APIs -> Refresh jobs / authorized POST -> PostgreSQL github_activity_stor
 | Layer                                | Purpose                                                                                     |
 | ------------------------------------ | ------------------------------------------------------------------------------------------- |
 | PostgreSQL (`github_activity_store`) | Source of truth for GitHub activity/summary/aggregated documents                            |
-| S3 CSV artifacts                     | Raw repo weekly stats fallback input/output (`repo_raw_weekly_stats/*.csv`)                 |
+| S3 CSV artifacts                     | Optional archival/diagnostic artifacts (`repo_raw_weekly_stats/*.csv`)                      |
 | Next.js Cache Components             | `cacheTag("github-activity")` with ~30 min lifetime for pages/cards                         |
 | API (`GET /api/github-activity`)     | Calls `unstable_noStore()`, reads PostgreSQL-backed activity documents, returns immediately |
 
@@ -54,7 +54,7 @@ A hybrid approach is used to gather comprehensive data:
 
 - **GraphQL API**: Efficiently fetches user-level aggregated data, such as the contribution calendar and total commit counts.
 - **REST API**: Used for granular, repository-specific data like contributor stats and language breakdowns.
-- **CSV Export**: A fallback mechanism parses raw contribution history from a CSV file, with built-in logic to auto-repair common formatting issues.
+- **CSV Export**: Optional archival/repair input for operational scripts; runtime GitHub weekly reads do not depend on CSV parsing.
 
 ## Storage Model
 
@@ -65,14 +65,14 @@ Canonical runtime records live in PostgreSQL table `github_activity_store`:
 - `data_type = "aggregated-weekly", qualifier = "global"`: aggregated weekly chart payload.
 - `data_type = "repo-weekly-stats", qualifier = "owner/repo"`: per-repo weekly cache payload.
 
-S3 is still used for raw CSV artifacts under the GitHub prefix (`repo_raw_weekly_stats/*.csv`) to support fallback parsing and compatibility scripts.
+S3 can still hold raw CSV artifacts under the GitHub prefix (`repo_raw_weekly_stats/*.csv`) for operational diagnostics, but canonical runtime reads are PostgreSQL-only.
 
 ## Scheduled Data Refresh
 
 A cron job automatically refreshes the data from GitHub's APIs to ensure it remains up-to-date.
 
 - **Schedule**: Daily at midnight Pacific Time (`0 7 * * *` in UTC).
-- **Mechanism**: A `scheduler.ts` script uses `node-cron` to trigger the `update-s3-data.ts` script. A lock is acquired to prevent multiple concurrent refresh operations.
+- **Mechanism**: A `scheduler.ts` script uses `node-cron` to trigger the `data-updater.ts` script. A lock is acquired to prevent multiple concurrent refresh operations.
 
 ## API Endpoints
 
@@ -88,7 +88,7 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
   - Manages durable persistence and caching orchestration
   - Orchestrates per-repo processing, commit totals, and summary writes
 - **`src/lib/data-access/github-storage.ts`**
-  - Compatibility interface retaining historical `*FromS3` method names
+  - PostgreSQL-first activity persistence interface (`read*Record`/`write*Record`)
   - Delegates runtime JSON reads/writes to PostgreSQL query/mutation modules
   - Exposes metadata/listing helpers for cache invalidation paths
 - **`src/lib/data-access/github-repo-stats.ts`**

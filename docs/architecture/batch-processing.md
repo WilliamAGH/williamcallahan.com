@@ -45,7 +45,7 @@ The application uses a cron-based scheduler (`scripts/scheduler.ts`) that runs c
 
 ```typescript
 // scripts/scheduler.ts - Uses async spawn
-const updateProcess = spawn("bun", ["run", "update-s3", "--", "--bookmarks"], {
+const updateProcess = spawn("bun", ["run", "update-data", "--", "--bookmarks"], {
   env: process.env,
   stdio: "inherit",
   detached: false,
@@ -186,7 +186,7 @@ The schedules are deliberately staggered to prevent resource contention:
 
 ### Logos
 
-- No dedicated refresh endpoint (handled via update-s3 script)
+- No dedicated refresh endpoint (handled via update-data script)
 - Uses existing logo fetching infrastructure with S3 caching
 
 ## Monitoring & Logging
@@ -205,8 +205,8 @@ The schedules are deliberately staggered to prevent resource contention:
 ### Execution Logs
 
 ```bash
-[Scheduler] [Bookmarks] Cron triggered at <timestamp>. Spawning update-s3...
-[Scheduler] [Bookmarks] update-s3 script completed successfully
+[Scheduler] [Bookmarks] Cron triggered at <timestamp>. Spawning update-data...
+[Scheduler] [Bookmarks] update-data script completed successfully
 ```
 
 ## API Endpoints
@@ -224,8 +224,8 @@ curl -X POST http://localhost:3000/api/bookmarks/refresh \
 curl -X POST http://localhost:3000/api/github-activity/refresh \
   -H "x-refresh-secret: $GITHUB_REFRESH_SECRET"
 
-# Logos (via update-s3 script)
-bun run update-s3 -- --logos
+# Logos (via update-data script)
+bun run update-data -- --logos
 ```
 
 ### Status Check Endpoints
@@ -293,7 +293,7 @@ The scheduler process must remain running for automated updates. Monitor via:
 curl http://localhost:3000/api/bookmarks/refresh
 
 # Manual trigger for testing
-bun run update-s3 -- --bookmarks --verbose
+bun run update-data -- --bookmarks --verbose
 
 # View scheduler logs
 tail -f /path/to/scheduler.log

@@ -23,7 +23,7 @@ export const THOUGHT_EMBEDDING_DIMENSIONS = 2560 as const;
  * Thoughts table — TIL-style short-form content stored in PostgreSQL.
  *
  * Timestamps use epoch millis (bigint) consistent with other tables
- * (github_activity_store, json_documents). The Zod schema expects
+ * (github_activity_store, content_graph_artifacts). The Zod schema expects
  * ISO datetime strings, so the query layer converts between the two.
  */
 export const thoughts = pgTable(

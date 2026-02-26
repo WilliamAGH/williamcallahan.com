@@ -232,7 +232,6 @@ File/Path Functionality Description
   - [x] `config.ts` `s3-object-storage` - S3 configuration validation
   - [x] `errors.ts` `s3-object-storage` - Canonical S3 error types
   - [x] `objects.ts` `s3-object-storage` - Raw S3 object operations
-  - [x] `json.ts` `s3-object-storage` - JSON read/write helpers
   - [x] `binary.ts` `s3-object-storage` - Binary read/write helpers
   - [x] `stream.ts` `s3-object-storage` - Stream-to-buffer utilities
 - [x] `utils.ts` `shared-utils` - Shared utility helpers
@@ -250,8 +249,8 @@ File/Path Functionality Description
     - [x] `extract-context.ts` `bookmarks` - Context extraction for bookmark analysis
 - [x] **books/**
   - [x] `audiobookshelf.server.ts` `books` - AudioBookShelf API integration (used by generation scripts)
-  - [x] `books-data-access.server.ts` `books` - S3-backed book data reader (runtime, replaces ABS for web requests)
-  - [x] `generate.ts` `books` - Core books dataset generation logic (ABS → enrichments → AI → blur → S3)
+  - [x] `books-data-access.server.ts` `books` - PostgreSQL-backed book data reader (runtime, replaces ABS for web requests)
+  - [x] `generate.ts` `books` - Core books dataset generation logic (ABS → enrichments → AI → blur → PostgreSQL)
   - [x] `slug-helpers.ts` `books` - Book slug generation and lookup
   - [x] **analysis/**
     - [x] `build-prompt.ts` `books` - LLM prompt builder for book analysis
@@ -291,7 +290,6 @@ File/Path Functionality Description
     - [x] `bookmark-taxonomy.ts` `bookmarks` - Drizzle tag-link and bookmark/tag index-state tables for DB-backed tag pagination and index metadata
     - [x] `github-activity.ts` `github-activity` - Unified GitHub JSON document store (`github_activity_store`) keyed by `(data_type, qualifier)`
     - [x] `content-graph.ts` `search` - Precomputed related-content artifact table (`content_graph_artifacts`)
-    - [x] `json-documents.ts` `data-access` - Canonical compatibility JSON document store for former S3 JSON keys (`json_documents`)
     - [x] `books.ts` `books` - Books dataset latest pointer + immutable snapshots tables
     - [x] `ai-analysis.ts` `ai-analysis` - AI analysis latest materialized view + append-only versions tables
     - [x] `opengraph.ts` `seo` - OpenGraph metadata + overrides tables keyed by URL hash
@@ -301,7 +299,6 @@ File/Path Functionality Description
     - [x] `bookmarks.ts` `bookmarks` - Bookmark read queries (all/page/by-id/count/FTS/tag pages/global index/per-tag index/tag slug listing)
     - [x] `github-activity.ts` `github-activity` - GitHub activity/summary/repo-weekly/aggregated read queries from PostgreSQL
     - [x] `content-graph.ts` `search` - Related-content/books-related artifact reads from PostgreSQL
-    - [x] `json-documents.ts` `data-access` - Compatibility JSON document reads/metadata/listing from PostgreSQL
     - [x] `books.ts` `books` - Books dataset read queries (latest pointer, snapshot, combined)
     - [x] `ai-analysis.ts` `ai-analysis` - AI analysis latest/versions/listing read queries
     - [x] `opengraph.ts` `seo` - OpenGraph metadata/override read queries with Zod validation
@@ -314,7 +311,6 @@ File/Path Functionality Description
     - [x] `bookmark-embeddings.ts` `bookmarks` - Bookmark embedding backfill/update mutations for `qwen_4b_fp16_embedding` via endpoint-compatible Qwen embeddings
     - [x] `github-activity.ts` `github-activity` - GitHub activity/summary/repo-weekly/aggregated upserts and guarded writes
     - [x] `content-graph.ts` `search` - Content-graph artifact upserts for related-content precomputation
-    - [x] `json-documents.ts` `data-access` - Compatibility JSON upsert/delete mutations with etag/content-length metadata
     - [x] `books.ts` `books` - Books snapshot upserts with transactional latest pointer update
     - [x] `ai-analysis.ts` `ai-analysis` - AI analysis latest/versions upserts with optional versioning
     - [x] `opengraph.ts` `seo` - OpenGraph metadata/override upserts
@@ -365,7 +361,6 @@ File/Path Functionality Description
   - [x] `client.ts` `s3-object-storage` - S3 client creation + retry config
   - [x] `config.ts` `s3-object-storage` - S3 configuration validation
   - [x] `errors.ts` `s3-object-storage` - Canonical S3 error types
-  - [x] `json.ts` `s3-object-storage` - JSON compatibility helpers backed by PostgreSQL (`json_documents`) across all environments
   - [x] `objects.ts` `s3-object-storage` - Raw S3 object operations
   - [x] `stream.ts` `s3-object-storage` - Stream-to-buffer helpers
 - [x] **seo/**
@@ -503,7 +498,7 @@ File/Path Functionality Description
 - [x] `Dockerfile` `deployment` - Docker container configuration
 - [x] `drizzle/0002_bookmark-scraped-content-text.sql` `data-access` - Migration adding `bookmarks.scraped_content_text` for normalized crawled content
 - [x] `eslint.config.ts` `linting-formatting` - ESLint configuration
-- [x] `drizzle.config.ts` `data-access` - Drizzle Kit configuration for PostgreSQL schema sync (`bookmarks`, taxonomy/index tables, `json_documents`, `github_activity_store`, `content_graph_artifacts`, books/AI/OpenGraph tables)
+- [x] `drizzle.config.ts` `data-access` - Drizzle Kit configuration for PostgreSQL schema sync (`bookmarks`, taxonomy/index tables, `github_activity_store`, `content_graph_artifacts`, books/AI/OpenGraph tables)
   - [x] `instrumentation-client.ts` `log-error-debug-handling` - Client-side instrumentation setup
 - [x] `instrumentation.ts` `log-error-debug-handling` - Server-side instrumentation setup
 - [x] `vitest.config.ts` `testing-config` - Vitest configuration
@@ -626,7 +621,7 @@ File/Path Functionality Description
 - [x] `backfill-scraped-content.node.mjs` `bookmarks` - Node runtime backfill for `scraped_content_text` column from Karakeep `content.htmlContent` via HTML-to-plain-text conversion
 - [x] `backfill-computed-fields.node.mjs` `bookmarks` - Node runtime backfill for `word_count` and `reading_time` derived from `scraped_content_text` (whitespace split, 200 WPM)
 - [x] `backfill-og-metadata.node.mjs` `bookmarks` - Node runtime backfill for `og_title`, `og_description`, `og_image` by fetching bookmark URLs and parsing `<meta property="og:*">` tags
-- [x] `backfill-logo-data.node.mjs` `bookmarks` - Node runtime backfill for `logo_data` JSONB from S3 CDN logo manifest domain mapping
+- [x] `backfill-logo-data.node.mjs` `bookmarks` - Node runtime backfill for `logo_data` JSONB from PostgreSQL `image_manifests` logo payloads
 - [x] `populate-volumes.ts` `deprecated` - DEPRECATED: Use data-updater.ts instead
 - [x] `pre-build-checks.sh` `build` - Pre-build check script
 - [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations
@@ -730,7 +725,6 @@ File/Path Functionality Description
     - [x] **og-image/**
       - [x] `security.test.ts` `opengraph` - OG image SSRF protection tests (private hosts, protocol restrictions)
     - [x] `blog.test.ts` `blog` - Blog utility tests
-    - [x] `bookmarks-s3-external-sync.unit.test.ts` `bookmarks` - Bookmarks S3 sync unit tests
     - [x] `scraped-content-pipeline.unit.test.ts` `bookmarks` - Validates includeContent fetch pagination and HTML-to-plain-text normalization in bookmark refresh
     - [x] `db/bookmark-record-mapper.test.ts` `bookmarks` - Unit tests for Drizzle bookmark row/insert mapper behavior
     - [x] `bookmarks-validation.test.ts` `json-handling` - Bookmarks validation tests
@@ -769,7 +763,7 @@ File/Path Functionality Description
       - [x] `svg-transform-fix.test.ts` `image-handling` - SVG transform fix tests
   - [x] **scripts/**
     - [x] `fix-s3-acl-public.sh` `s3-object-storage` - Reapply public ACLs for S3 buckets; accepts optional `--prefix` to scope updates (2025-08 refresh)
-    - [x] `update-data-data.smoke.test.ts` `batch-fetch-update` - S3 data update smoke tests
+    - [x] `update-data.smoke.test.ts` `batch-fetch-update` - Data updater smoke tests
   - [x] **setup/**
     - [x] `bun-setup.ts` `testing-config` - Bun test environment setup
 - [x] `tsconfig.json` `testing-config` - TypeScript config for Vitest tests
