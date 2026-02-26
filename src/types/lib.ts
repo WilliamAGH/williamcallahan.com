@@ -629,32 +629,6 @@ export interface SitemapSubmissionResult {
   error?: string;
 }
 
-/** S3 storage paths for bookmarks configuration */
-export interface BookmarksS3Paths {
-  /** S3 directory for bookmark files */
-  DIR: string;
-  /** Full S3 path to bookmarks data file */
-  FILE: string;
-  /** Directory containing per-bookmark JSON files */
-  BY_ID_DIR: string;
-  /** S3 path to lightweight bookmark index */
-  INDEX: string;
-  /** S3 path prefix for paginated bookmark files */
-  PAGE_PREFIX: string;
-  /** S3 path prefix for tag-filtered bookmark files */
-  TAG_PREFIX: string;
-  /** S3 path prefix for tag index files */
-  TAG_INDEX_PREFIX: string;
-  /** Heartbeat file for operational checks */
-  HEARTBEAT: string;
-  /** S3 path to bookmark slug mapping */
-  SLUG_MAPPING: string;
-  /** Directory containing slug shard JSON files */
-  SLUG_SHARDS_DIR: string;
-  /** Prefix used to build individual slug shard paths */
-  SLUG_SHARD_PREFIX: string;
-}
-
 /** URL validation result */
 export interface UrlValidationResult {
   url: string;

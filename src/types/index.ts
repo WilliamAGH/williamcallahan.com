@@ -192,7 +192,7 @@ export * from "./debug";
  *   - Import only what's needed, avoid wildcard imports in type definitions
  *
  * 📝 SERVER TYPES:
- *   - Configuration types belong in types/lib.ts (e.g., BookmarksS3Paths, MonitoredAsyncOperation)
+ *   - Configuration types belong in types/lib.ts (e.g., MonitoredAsyncOperation)
  *   - API operation result types should be consistently named and exported
  *   - Use explicit type annotations when TypeScript inference fails with union types
  *

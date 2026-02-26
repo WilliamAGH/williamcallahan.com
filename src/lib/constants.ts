@@ -15,7 +15,7 @@
  * @see https://github.com/WilliamAGH/williamcallahan.com/issues/175
  * @deprecated Use lib/constants/client.ts for client components
  */
-import type { BookmarksS3Paths, RateLimiterConfig } from "@/types/lib";
+import type { RateLimiterConfig } from "@/types/lib";
 import type { BookmarkLoadOptions } from "@/types/bookmark";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { ENVIRONMENT_SUFFIX } from "@/lib/config/environment";
@@ -37,20 +37,6 @@ export const CACHE_DURATION = 30 * 24 * 60 * 60 * 1000;
 export const SERVER_CACHE_DURATION = 3 * 24 * 60 * 60;
 /** Logo cache: 30 days success, 1 day failure */
 export const LOGO_CACHE_DURATION = { SUCCESS: 30 * 24 * 60 * 60, FAILURE: 24 * 60 * 60 };
-
-export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
-  DIR: "json/bookmarks",
-  FILE: `json/bookmarks/bookmarks${envSuffix}.json`,
-  BY_ID_DIR: `json/bookmarks/by-id${envSuffix}`,
-  INDEX: `json/bookmarks/index${envSuffix}.json`,
-  PAGE_PREFIX: `json/bookmarks/pages${envSuffix}/page-`,
-  TAG_PREFIX: `json/bookmarks/tags${envSuffix}/`,
-  TAG_INDEX_PREFIX: `json/bookmarks/tags${envSuffix}/`,
-  HEARTBEAT: `json/bookmarks/heartbeat${envSuffix}.json`,
-  SLUG_MAPPING: `json/bookmarks/slug-mapping${envSuffix}.json`,
-  SLUG_SHARDS_DIR: `json/bookmarks/slug-shards${envSuffix}`,
-  SLUG_SHARD_PREFIX: `json/bookmarks/slug-shards${envSuffix}/`,
-} as const;
 
 export const LOGO_BLOCKLIST_STORE_KEY = `rate-limit/logo-failed-domains${envSuffix}`;
 
