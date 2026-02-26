@@ -4,7 +4,7 @@
  * Backfill logo_data for bookmarks in PostgreSQL.
  *
  * IMPORTANT: This script MUST run under Node.js (not bun). Bun's TLS
- * implementation fails SSL negotiation with PostgreSQL. See CLAUDE.md [RT1].
+ * implementation fails SSL negotiation with PostgreSQL. See AGENTS.md [RT1].
  *
  * Reads the logo manifest from PostgreSQL and maps each bookmark's domain
  * to its logo CDN URL, writing {url, alt} to the logo_data JSONB column.
@@ -95,7 +95,7 @@ async function main() {
   }
 
   const databaseUrl = readRequiredEnv("DATABASE_URL");
-  const sql = postgres(databaseUrl);
+  const sql = postgres(databaseUrl, { ssl: "require", max: 1, connect_timeout: 10 });
 
   console.log("=== Backfill logo_data ===");
   console.log(`  Mode:    ${DRY_RUN ? "DRY RUN" : "LIVE WRITE"}`);
@@ -189,11 +189,11 @@ async function main() {
         FROM bookmarks
       `;
       const s = stats[0];
+      const percentPopulated =
+        Number(s.total) > 0 ? ((Number(s.with_logo) / Number(s.total)) * 100).toFixed(1) : "0.0";
       console.log();
       console.log("=== Post-backfill state ===");
-      console.log(
-        `  logo_data: ${s.with_logo}/${s.total} populated (${((s.with_logo / s.total) * 100).toFixed(1)}%)`,
-      );
+      console.log(`  logo_data: ${s.with_logo}/${s.total} populated (${percentPopulated}%)`);
     }
   } finally {
     await sql.end();
