@@ -107,6 +107,17 @@ export interface SearchFunctionConfig<TDoc, TResult extends SearchResultShape> {
   getItemId?: (item: TDoc) => string;
   /** Function to transform a matched document into a search result */
   transformResult: (item: TDoc, score: number) => TResult;
+  /** Optional hybrid rerank configuration (BM25 candidate set + vector rerank) */
+  hybridRerank?: {
+    /** Text projected from each document and embedded for reranking */
+    getRerankText: (item: TDoc) => string;
+    /** Max candidates to rerank with vectors */
+    candidateLimit?: number;
+    /** Keyword score blend weight (default 0.55) */
+    keywordWeight?: number;
+    /** Vector similarity blend weight (default 0.45) */
+    vectorWeight?: number;
+  };
 }
 
 /**

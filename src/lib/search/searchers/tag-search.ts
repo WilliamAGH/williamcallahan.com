@@ -14,6 +14,7 @@ import { formatTagDisplay } from "@/lib/utils/tag-utils";
 import { aggregateTags } from "../tag-aggregator";
 import { getBookmarksIndex, getCachedBooksData } from "../loaders/dynamic-content";
 import { projectsData } from "../loaders/static-content";
+import { rerankScoredResultsWithEmbeddings } from "../search-content";
 
 /**
  * Get blog post tags with counts from MDX posts.
@@ -180,8 +181,15 @@ export async function searchTags(query: string): Promise<SearchResult[]> {
     return true;
   });
 
+  const reranked = await rerankScoredResultsWithEmbeddings({
+    query: sanitizedQuery,
+    scoredResults: limitedTags.map(({ tag, score }) => ({ item: tag, score })),
+    getRerankText: (tag) => `${tag.name}\n${tag.contentType}`,
+    logContext: "[searchTags]",
+  });
+
   // Transform to SearchResult format
-  const results: SearchResult[] = limitedTags.map(({ tag, score }) => ({
+  const results: SearchResult[] = reranked.map(({ item: tag, score }) => ({
     id: `tag:${tag.contentType}:${tag.slug}`,
     type: "tag" as const,
     title: formatTagTitle(tag),

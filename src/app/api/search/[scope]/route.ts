@@ -146,7 +146,6 @@ export async function GET(
         case "books":
           return searchBooks(query);
         case "thoughts":
-          // TODO: Add real thoughts search once a semantic index exists for thoughts
           return searchThoughts(query);
         case "tags":
           return searchTags(query);

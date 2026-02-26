@@ -15,6 +15,7 @@ import { sanitizeSearchQuery } from "../validators/search";
 import { prepareDocumentsForIndexing } from "../utils/search-helpers";
 import { getAllMDXPostsForSearch } from "./mdx";
 import type { BlogPost } from "@/types/blog";
+import { rerankScoredResultsWithEmbeddings } from "@/lib/search/search-content";
 
 async function getBlogSearchIndex(): Promise<MiniSearch<BlogPost>> {
   const posts = await getAllMDXPostsForSearch();
@@ -74,8 +75,16 @@ export async function searchBlogPostsServerSide(query: string): Promise<SearchRe
     score?: number;
   }>;
 
+  const rerankedResults = await rerankScoredResultsWithEmbeddings({
+    query: sanitizedQuery,
+    scoredResults: rawResults.map((result) => ({ item: result, score: result.score ?? 0 })),
+    getRerankText: (result) => [result.title ?? "", result.excerpt ?? ""].join("\n"),
+    logContext: "[searchBlogPostsServerSide]",
+  });
+
   // Map to SearchResult and keep a deterministic sort: score desc, then recency
-  return rawResults
+  return rerankedResults
+    .map(({ item, score }) => ({ ...item, score }))
     .map((result) => ({
       id: String(result.id),
       type: "blog-post" as const,

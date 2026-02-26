@@ -16,6 +16,7 @@ import { BOOKMARK_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/bookmarks";
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
 import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
 import { getBookmarksIndex, getBooksIndex } from "../loaders/dynamic-content";
+import { rerankScoredResultsWithEmbeddings } from "../search-content";
 import { isRecord } from "../serialization";
 
 // Dev log helper
@@ -78,19 +79,6 @@ async function tryHybridBookmarkSearch(query: string): Promise<SearchResult[] | 
   }
 }
 
-/**
- * Common filler words stripped from bookmark search queries before they hit
- * the MiniSearch index, improving precision by removing noise.
- *
- * Includes pronouns "them", "this", "those" — the same words detected by
- * `ANAPHORA_PATTERN` in `api/ai/chat/[feature]/chat-helpers.ts`.  This is
- * safe because the two mechanisms operate on separate pipelines:
- *   1. Anaphora resolution (chat-helpers) expands the *RAG retrieval query*
- *      by merging the current + previous user message.
- *   2. Stop-word stripping (here) cleans the *MiniSearch query* for the
- *      bookmark index, where bare pronouns would match nothing useful.
- * If these pipelines are ever merged, the pronoun overlap must be revisited.
- */
 const BOOKMARK_QUERY_STOP_WORDS = new Set(
   "a about all an are bookmarked bookmark bookmarks do find for from great have i in is link links look me my of on please resource resources saved search show specifically specific them this those to want what you".split(
     " ",
@@ -328,8 +316,16 @@ async function executeBooksSearch(query: string): Promise<SearchResult[]> {
     score: scoreById.get(String(id)) ?? 0,
   }));
 
-  devLog("[searchBooks] Final results:", results.length);
-  return results;
+  const reranked = await rerankScoredResultsWithEmbeddings({
+    query: sanitizedQuery,
+    scoredResults: results.map((item) => ({ item, score: item.score })),
+    getRerankText: (item) => [item.title, item.description ?? ""].join("\n"),
+    logContext: "[searchBooks]",
+  });
+  const finalResults = reranked.map(({ item, score }) => ({ ...item, score }));
+
+  devLog("[searchBooks] Final results:", finalResults.length);
+  return finalResults;
 }
 
 /**

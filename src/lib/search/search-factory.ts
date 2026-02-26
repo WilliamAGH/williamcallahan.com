@@ -8,7 +8,7 @@
  */
 
 import type { SearchResult, SearchFunctionConfig } from "@/types/search";
-import { searchContent } from "./search-content";
+import { rerankScoredResultsWithEmbeddings, searchContent } from "./search-content";
 
 /**
  * Execute a search and cache the results. Used for both foreground and background refresh.
@@ -27,7 +27,20 @@ async function executeSearch<TDoc, TResult extends SearchResult>(
     index,
     config.getItemId,
   );
-  return scoredResults.map(({ item, score }) => config.transformResult(item, score));
+
+  const rerankedResults = config.hybridRerank
+    ? await rerankScoredResultsWithEmbeddings({
+        query,
+        scoredResults,
+        getRerankText: config.hybridRerank.getRerankText,
+        candidateLimit: config.hybridRerank.candidateLimit,
+        keywordWeight: config.hybridRerank.keywordWeight,
+        vectorWeight: config.hybridRerank.vectorWeight,
+        logContext: `[search-factory:${config.cacheKey}]`,
+      })
+    : scoredResults;
+
+  return rerankedResults.map(({ item, score }) => config.transformResult(item, score));
 }
 
 /**

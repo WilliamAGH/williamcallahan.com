@@ -48,6 +48,9 @@ export const searchInvestments = createCachedSearchFunction({
     url: `/investments#${inv.id}`,
     score,
   }),
+  hybridRerank: {
+    getRerankText: (inv) => [inv.name, inv.description, inv.type, inv.status].join("\n"),
+  },
 });
 
 /**
@@ -67,6 +70,9 @@ export const searchExperience = createCachedSearchFunction({
     url: `/experience#${exp.id}`,
     score,
   }),
+  hybridRerank: {
+    getRerankText: (exp) => [exp.company, exp.role, exp.period].join("\n"),
+  },
 });
 
 /**
@@ -86,6 +92,9 @@ export const searchEducation = createCachedSearchFunction({
     url: item.path,
     score,
   }),
+  hybridRerank: {
+    getRerankText: (item) => [item.label, item.description].join("\n"),
+  },
 });
 
 /**
@@ -108,6 +117,9 @@ export async function searchProjects(query: string): Promise<SearchResult[]> {
       url: `/projects/${generateProjectSlug(p.name, p.id)}`,
       score,
     }),
+    hybridRerank: {
+      getRerankText: (p) => [p.name, p.description, (p.tags || []).join(", ")].join("\n"),
+    },
   });
 
   // Widen to SearchResult[] to allow adding navigation results with different types
