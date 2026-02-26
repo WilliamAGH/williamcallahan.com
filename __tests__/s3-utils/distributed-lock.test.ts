@@ -75,9 +75,7 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
         }
         return Promise.resolve();
       }),
-    }));
-    vi.doMock("@/lib/s3/objects", () => ({
-      deleteFromS3: vi.fn((key: string) => {
+      deleteJsonS3: vi.fn((key: string) => {
         if (key === lockKey) {
           lockState = null;
         }
@@ -119,9 +117,7 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
         return Promise.resolve(null);
       }),
       writeJsonS3: vi.fn(() => Promise.resolve()),
-    }));
-    vi.doMock("@/lib/s3/objects", () => ({
-      deleteFromS3: vi.fn(() => Promise.resolve()),
+      deleteJsonS3: vi.fn(() => Promise.resolve()),
     }));
 
     const { acquireDistributedLock } = await import("@/lib/utils/s3-distributed-lock.server");
@@ -164,11 +160,10 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
         }
         return Promise.resolve();
       }),
-    }));
-    vi.doMock("@/lib/s3/objects", () => ({
-      deleteFromS3: vi.fn((key: string) => {
+      deleteJsonS3: vi.fn((key: string) => {
         if (key === lockKey) {
           lockDeleted = true;
+          lockState = null;
         }
         return Promise.resolve();
       }),
@@ -208,9 +203,7 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
         return Promise.resolve(null);
       }),
       writeJsonS3: vi.fn(() => Promise.resolve()),
-    }));
-    vi.doMock("@/lib/s3/objects", () => ({
-      deleteFromS3: vi.fn((key: string) => {
+      deleteJsonS3: vi.fn((key: string) => {
         if (key === lockKey) {
           lockState = null;
         }
@@ -247,9 +240,7 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
         return Promise.resolve(null);
       }),
       writeJsonS3: vi.fn(() => Promise.resolve()),
-    }));
-    vi.doMock("@/lib/s3/objects", () => ({
-      deleteFromS3: vi.fn((key: string) => {
+      deleteJsonS3: vi.fn((key: string) => {
         if (key === lockKey) {
           lockState = null;
         }
@@ -289,9 +280,7 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
         return Promise.resolve(null);
       }),
       writeJsonS3: vi.fn(() => Promise.resolve()),
-    }));
-    vi.doMock("@/lib/s3/objects", () => ({
-      deleteFromS3: vi.fn((key: string) => {
+      deleteJsonS3: vi.fn((key: string) => {
         if (key === lockKey) {
           lockState = null;
         }
@@ -328,9 +317,7 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
         return Promise.resolve(null);
       }),
       writeJsonS3: vi.fn(() => Promise.resolve()),
-    }));
-    vi.doMock("@/lib/s3/objects", () => ({
-      deleteFromS3: vi.fn((key: string) => {
+      deleteJsonS3: vi.fn((key: string) => {
         if (key === lockKey) {
           lockState = null;
         }
@@ -368,9 +355,7 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
         }
         return Promise.resolve();
       }),
-    }));
-    vi.doMock("@/lib/s3/objects", () => ({
-      deleteFromS3: vi.fn((key: string) => {
+      deleteJsonS3: vi.fn((key: string) => {
         if (key === lockKey) {
           lockState = null;
         }
@@ -420,9 +405,7 @@ describe("S3 distributed lock (s3-distributed-lock.server)", () => {
         }
         return Promise.resolve();
       }),
-    }));
-    vi.doMock("@/lib/s3/objects", () => ({
-      deleteFromS3: vi.fn(() => Promise.resolve()),
+      deleteJsonS3: vi.fn(() => Promise.resolve()),
     }));
 
     const { acquireDistributedLock } = await import("@/lib/utils/s3-distributed-lock.server");
