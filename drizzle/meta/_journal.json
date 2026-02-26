@@ -85,6 +85,13 @@
       "when": 1774718400000,
       "tag": "0010_image-manifests",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1774804800000,
+      "tag": "0011_add-embeddings-to-domain-tables",
+      "breakpoints": true
     }
   ]
 }

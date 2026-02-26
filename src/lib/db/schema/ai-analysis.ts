@@ -10,7 +10,7 @@
  * - `ai_analysis_versions`: Append-only history keyed by (domain, entityId, generatedAt)
  */
 
-import { bigint, index, jsonb, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
+import { bigint, halfvec, index, jsonb, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 
 /**
  * Latest analysis for each (domain, entityId) pair.
@@ -33,11 +33,20 @@ export const aiAnalysisLatest = pgTable(
     contentHash: text("content_hash"),
     /** Unix epoch milliseconds of last upsert */
     updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
+    /**
+     * Qwen3-Embedding-4B FP16 vector (2560-d halfvec).
+     * Embeds the analysis summary, highlights, and themes for semantic search.
+     */
+    qwen4bFp16Embedding: halfvec("qwen_4b_fp16_embedding", { dimensions: 2560 }),
   },
   (table) => [
     primaryKey({ columns: [table.domain, table.entityId], name: "ai_analysis_latest_pk" }),
     index("idx_ai_analysis_latest_domain").on(table.domain),
     index("idx_ai_analysis_latest_updated_at").on(table.updatedAt),
+    index("idx_ai_analysis_latest_embedding").using(
+      "hnsw",
+      table.qwen4bFp16Embedding.op("halfvec_cosine_ops"),
+    ),
   ],
 );
 
