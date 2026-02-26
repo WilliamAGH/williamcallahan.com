@@ -1,19 +1,18 @@
 /**
- * GitHub CSV repair workflow
+ * GitHub repo-weekly-stats repair workflow
  * @module data-access/github-csv-repair
  */
 
-import { readBinaryS3, writeBinaryS3 } from "@/lib/s3/binary";
 import { waitForPermit } from "@/lib/rate-limiter";
 import { createHash } from "node:crypto";
 import { createCategorizedError } from "@/lib/utils/error-utils";
 import { retryWithDomainConfig } from "@/lib/utils/retry";
-import { generateGitHubStatsCSV } from "@/lib/utils/csv";
+import { generateGitHubStatsCSV, parseGitHubStatsCSV } from "@/lib/utils/csv";
 import { repairCsvData, filterContributorStats } from "@/lib/data-access/github-processing";
 import { readRepoCsvChecksum } from "@/lib/db/queries/github-activity";
 import { writeRepoCsvChecksumToDb } from "@/lib/db/mutations/github-activity";
 import { ContributorStatsResponseSchema, type GithubRepoNode } from "@/types/github";
-import { GITHUB_API_RATE_LIMIT_CONFIG, REPO_RAW_WEEKLY_STATS_S3_KEY_DIR } from "@/lib/constants";
+import { GITHUB_API_RATE_LIMIT_CONFIG } from "@/lib/constants";
 import type { ChecksumCircuitState, CsvRepairResult } from "@/types/features/github-processing";
 import {
   fetchContributedRepositories,
@@ -22,6 +21,7 @@ import {
   githubHttpClient,
   isGitHubApiConfigured,
 } from "./github-api";
+import { readRepoWeeklyStatsRecord, writeRepoWeeklyStatsRecord } from "./github-storage";
 
 const GITHUB_REPO_OWNER = getGitHubUsername();
 const CHECKSUM_FAILURE_THRESHOLD = 3;
@@ -87,7 +87,7 @@ async function tryWriteChecksum(
 async function processRepoChecksum(
   repoOwner: string,
   repoName: string,
-  csvString: string,
+  serializedStats: string,
   circuit: ChecksumCircuitState,
 ): Promise<{ skipRepair: boolean; checksumError: boolean }> {
   if (circuit.isOpen) {
@@ -97,10 +97,10 @@ async function processRepoChecksum(
   try {
     const existingChecksum = await tryReadChecksum(repoOwner, repoName, circuit);
     if (existingChecksum) {
-      const currentChecksum = createHash("sha256").update(csvString).digest("hex");
+      const currentChecksum = createHash("sha256").update(serializedStats).digest("hex");
       if (currentChecksum === existingChecksum) {
         console.log(
-          `[GitHub-CSV] CSV unchanged for ${repoOwner}/${repoName} (checksum match), skipping repair`,
+          `[GitHub-CSV] Repo weekly stats unchanged for ${repoOwner}/${repoName} (checksum match), skipping repair`,
         );
         return { skipRepair: true, checksumError: false };
       }
@@ -114,7 +114,7 @@ async function processRepoChecksum(
 async function updateRepoChecksum(
   repoOwner: string,
   repoName: string,
-  csvContent: string,
+  serializedStats: string,
   circuit: ChecksumCircuitState,
 ): Promise<boolean> {
   if (circuit.isOpen) {
@@ -122,7 +122,7 @@ async function updateRepoChecksum(
   }
 
   try {
-    const newChecksum = createHash("sha256").update(csvContent).digest("hex");
+    const newChecksum = createHash("sha256").update(serializedStats).digest("hex");
     await tryWriteChecksum(repoOwner, repoName, newChecksum, circuit);
     return true;
   } catch {
@@ -131,11 +131,7 @@ async function updateRepoChecksum(
   }
 }
 
-async function repairFromApi(
-  repoOwner: string,
-  repoName: string,
-  repoStatS3Key: string,
-): Promise<boolean> {
+async function repairFromApi(repoOwner: string, repoName: string): Promise<boolean> {
   const statsResponse = await retryWithDomainConfig(async () => {
     await waitForPermit("github-rest", "github-api-call", GITHUB_API_RATE_LIMIT_CONFIG);
     return await githubHttpClient(
@@ -184,13 +180,20 @@ async function repairFromApi(
     return false;
   }
 
-  await writeBinaryS3(repoStatS3Key, Buffer.from(generateGitHubStatsCSV(weeklyStats)), "text/csv");
+  const nowIso = new Date().toISOString();
+  await writeRepoWeeklyStatsRecord(repoOwner, repoName, {
+    repoOwnerLogin: repoOwner,
+    repoName,
+    lastFetched: nowIso,
+    status: "complete",
+    stats: weeklyStats,
+  });
   console.log(`[GitHub-CSV] Repaired ${repoOwner}/${repoName}: ${weeklyStats.length} weeks`);
   return true;
 }
 
 export async function detectAndRepairCsvFiles(): Promise<CsvRepairResult> {
-  console.log("[GitHub-CSV] Running CSV integrity check and repair...");
+  console.log("[GitHub-CSV] Running repo weekly stats integrity check and repair...");
 
   if (!isGitHubApiConfigured()) {
     console.warn("[GitHub-CSV] GitHub API token missing, cannot repair");
@@ -229,13 +232,12 @@ export async function detectAndRepairCsvFiles(): Promise<CsvRepairResult> {
   for (const repo of repoList) {
     const repoOwner = repo.owner.login;
     const repoName = repo.name;
-    const repoStatS3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwner}_${repoName}.csv`;
 
     try {
-      const csvContent = await readBinaryS3(repoStatS3Key);
+      const cache = await readRepoWeeklyStatsRecord(repoOwner, repoName);
 
-      if (csvContent) {
-        const csvString = csvContent.toString("utf-8");
+      if (cache && cache.stats.length > 0) {
+        const csvString = generateGitHubStatsCSV(cache.stats);
 
         const { skipRepair, checksumError } = await processRepoChecksum(
           repoOwner,
@@ -255,9 +257,16 @@ export async function detectAndRepairCsvFiles(): Promise<CsvRepairResult> {
 
         const repairedCsv = repairCsvData(csvString);
         const wasModified = repairedCsv !== csvString;
+        const stableStats = wasModified
+          ? parseGitHubStatsCSV(repairedCsv).toSorted((a, b) => a.w - b.w)
+          : cache.stats;
 
         if (wasModified) {
-          await writeBinaryS3(repoStatS3Key, Buffer.from(repairedCsv), "text/csv");
+          await writeRepoWeeklyStatsRecord(repoOwner, repoName, {
+            ...cache,
+            lastFetched: new Date().toISOString(),
+            stats: stableStats,
+          });
         }
 
         const checksumWritten = await updateRepoChecksum(
@@ -273,8 +282,10 @@ export async function detectAndRepairCsvFiles(): Promise<CsvRepairResult> {
 
         repairedCount++;
       } else {
-        console.log(`[GitHub-CSV] No existing CSV for ${repoOwner}/${repoName}, fetching from API`);
-        const success = await repairFromApi(repoOwner, repoName, repoStatS3Key);
+        console.log(
+          `[GitHub-CSV] No existing repo weekly stats for ${repoOwner}/${repoName}, fetching from API`,
+        );
+        const success = await repairFromApi(repoOwner, repoName);
         if (success) {
           repairedCount++;
         } else {
