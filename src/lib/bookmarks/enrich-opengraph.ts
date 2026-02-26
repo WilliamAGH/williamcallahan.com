@@ -10,7 +10,6 @@ import { BOOKMARKS_API_CONFIG } from "@/lib/constants";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import { getOpenGraphDataBatch } from "@/lib/data-access/opengraph-batch";
 import { selectBestImage } from "./bookmark-helpers";
-import { extractMarkdownContent, applyExtractedContent } from "./extract-markdown";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import { getMonotonicTime } from "@/lib/utils";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
@@ -61,7 +60,6 @@ export async function processBookmarksInBatches(
   bookmarks: UnifiedBookmark[],
   _isDev: boolean,
   useBatchMode = false,
-  extractContent = false,
   refreshOptions?: {
     metadataOnly?: boolean;
     refreshMetadataEvenIfImagePresent?: boolean;
@@ -70,7 +68,7 @@ export async function processBookmarksInBatches(
 ): Promise<UnifiedBookmark[]> {
   const startTime = getMonotonicTime();
   console.log(
-    `${LOG_PREFIX} Starting OpenGraph enrichment for ${bookmarks.length} bookmarks${useBatchMode ? " (batch mode)" : ""}${extractContent ? " with content extraction" : ""}`,
+    `${LOG_PREFIX} Starting OpenGraph enrichment for ${bookmarks.length} bookmarks${useBatchMode ? " (batch mode)" : ""}`,
   );
 
   // Track detailed image statistics
@@ -386,24 +384,6 @@ export async function processBookmarksInBatches(
         bookmark.ogImage = undefined;
         bookmark.ogImageExternal = undefined;
         imageStats.bookmarksWithoutImages++;
-      }
-
-      // 7. Extract markdown content if enabled (memory-efficient: one at a time)
-      if (extractContent) {
-        try {
-          const content = await extractMarkdownContent();
-          if (content) {
-            applyExtractedContent();
-            console.log(
-              `${LOG_PREFIX}   📝 Extracted ${content.wordCount} words (${content.readingTime}min read) from ${bookmark.url}`,
-            );
-          }
-        } catch (contentError) {
-          console.warn(
-            `${LOG_PREFIX}   ⚠️ Failed to extract content for ${bookmark.url}:`,
-            contentError,
-          );
-        }
       }
 
       enrichedBookmarks.push(bookmark);

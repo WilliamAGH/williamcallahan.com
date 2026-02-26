@@ -10,9 +10,6 @@ export { fetchBookmarksFromApi } from "./bookmarks.client";
 // Helper utilities (client-safe)
 export * from "./bookmark-helpers";
 
-// Utility exports (client-safe)
-export { omitHtmlContent } from "./utils";
-
 // Type exports (client-safe)
 export * from "./api-client";
 

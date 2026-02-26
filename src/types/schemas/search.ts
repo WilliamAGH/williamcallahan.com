@@ -117,6 +117,41 @@ export type BookmarkIndexItem = z.infer<typeof bookmarkIndexItemSchema>;
 // Serialized Index Types (for S3 persistence)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Build metadata shared across persisted search artifacts */
+export const searchIndexBuildMetadataSchema = z.object({
+  buildTime: z.string(),
+  version: z.string(),
+  environment: z.string(),
+});
+
+export type SearchIndexBuildMetadata = z.infer<typeof searchIndexBuildMetadataSchema>;
+
+/** Persisted search index artifact domains */
+export const searchIndexArtifactDomainSchema = z.enum([
+  "posts",
+  "investments",
+  "experience",
+  "education",
+  "projects",
+  "bookmarks",
+  "books",
+  "build-metadata",
+]);
+
+export type SearchIndexArtifactDomain = z.infer<typeof searchIndexArtifactDomainSchema>;
+
+/** Persisted index artifact domains that contain serialized MiniSearch payloads */
+export type SerializedSearchIndexArtifactDomain = Exclude<
+  SearchIndexArtifactDomain,
+  "build-metadata"
+>;
+
+/** Persisted index artifact domains used by static-content index loaders */
+export type StaticSearchIndexArtifactDomain = Extract<
+  SearchIndexArtifactDomain,
+  "investments" | "experience" | "education" | "projects"
+>;
+
 /** Serialized MiniSearch index with metadata */
 export const serializedIndexSchema = z.object({
   index: z.union([z.string(), z.record(z.string(), z.unknown())]), // MiniSearch serialized JSON format
@@ -129,6 +164,14 @@ export const serializedIndexSchema = z.object({
 
 export type SerializedIndex = z.infer<typeof serializedIndexSchema>;
 
+/** Unified payload schema for persisted search index artifacts */
+export const searchIndexArtifactPayloadSchema = z.union([
+  serializedIndexSchema,
+  searchIndexBuildMetadataSchema,
+]);
+
+export type SearchIndexArtifactPayload = z.infer<typeof searchIndexArtifactPayloadSchema>;
+
 /** All serialized indexes for S3 storage */
 export const allSerializedIndexesSchema = z.object({
   posts: serializedIndexSchema,
@@ -138,11 +181,7 @@ export const allSerializedIndexesSchema = z.object({
   projects: serializedIndexSchema,
   bookmarks: serializedIndexSchema,
   books: serializedIndexSchema,
-  buildMetadata: z.object({
-    buildTime: z.string(),
-    version: z.string(),
-    environment: z.string(),
-  }),
+  buildMetadata: searchIndexBuildMetadataSchema,
 });
 
 export type AllSerializedIndexes = z.infer<typeof allSerializedIndexesSchema>;

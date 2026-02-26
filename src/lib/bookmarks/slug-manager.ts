@@ -1,27 +1,24 @@
 /**
- * @file Bookmark Slug Manager - S3-persisted URL-to-slug mappings
+ * @file Bookmark Slug Manager - PostgreSQL-backed URL-to-slug mappings
  *
  * Critical for stable bookmark URLs across deployments:
  * - Generates deterministic slugs from bookmark URLs
- * - Persists to S3 (primary source of truth)
+ * - Reads canonical mappings from PostgreSQL bookmarks table
  * - Ensures bookmarks maintain consistent URLs across deployments
- *
- * Architecture:
- * - S3 = Source of truth (survives deployments)
  *
  * @module lib/bookmarks/slug-manager
  */
 
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
+import {
+  getBookmarkBySlugFromDatabase,
+  getSlugMappingRowsFromDatabase,
+} from "@/lib/db/queries/bookmarks";
 import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
-import { bookmarkSlugMappingSchema } from "@/types/bookmark";
-import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
-import { BOOKMARKS_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import logger from "@/lib/utils/logger";
 import { envLogger } from "@/lib/utils/env-logger";
 import { createHash } from "node:crypto";
 import { isSlugManagerLoggingEnabled } from "@/lib/bookmarks/config";
-import { persistSlugShards } from "@/lib/bookmarks/slug-shards";
 import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 
 const formatSlugEnvironmentSnapshot = (): string =>
@@ -120,25 +117,22 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
 }
 
 /**
- * Save slug mapping to S3 (primary).
+ * Validate and publish slug mapping updates in PostgreSQL-backed mode.
  *
- * CRITICAL OPERATION: Essential for bookmark navigation stability.
- * - S3 write ensures persistence across deployments
- * - Checksum comparison prevents unnecessary S3 writes
+ * In DB-backed mode, bookmark rows are the source of truth and this function
+ * validates deterministic mapping generation plus cache invalidation.
  *
  * @param bookmarks - Array of bookmarks to generate mapping from
- * @param overwrite - Whether to overwrite existing mapping (default: true)
- * @param saveToAllPaths - Save to all env paths for redundancy (default: false)
- * @throws Error on S3 write failure (critical for bookmark routing)
+ * @param overwrite - Kept for API compatibility; ignored in DB mode
  */
 export async function saveSlugMapping(
   bookmarks: UnifiedBookmark[],
   overwrite = true,
 ): Promise<void> {
-  const primaryPath = BOOKMARKS_S3_PATHS.SLUG_MAPPING;
+  void overwrite;
   logSlugEnvironmentOnce("save");
   if (isSlugManagerLoggingEnabled) {
-    logger.info(`[SlugManager] Preparing to save slug mapping to S3 path: ${primaryPath}`);
+    logger.info("[SlugManager] Validating slug mapping in PostgreSQL mode");
   }
 
   try {
@@ -149,36 +143,13 @@ export async function saveSlugMapping(
       );
     }
 
-    let previousMapping: BookmarkSlugMapping | null = null;
-
-    // Save to S3 (primary persistent storage)
-    // Checksum comparison prevents unnecessary writes and race conditions
-    if (overwrite) {
-      // For overwrites, check if the content has changed
-      // to avoid unnecessary writes and potential race conditions
-      previousMapping = await readJsonS3Optional<BookmarkSlugMapping>(
-        primaryPath,
-        bookmarkSlugMappingSchema,
-      );
-      if (previousMapping && previousMapping.checksum === mapping.checksum) {
-        if (isSlugManagerLoggingEnabled) {
-          logger.info(`[SlugManager] Slug mapping unchanged (same checksum), skipping write`);
-        }
-        return;
-      }
-      await writeJsonS3(primaryPath, mapping);
-    } else {
-      // Use conditional write to prevent concurrent creation
-      await writeJsonS3(primaryPath, mapping, { ifNoneMatch: "*" });
-    }
     if (isSlugManagerLoggingEnabled) {
-      logger.info(`[SlugManager] ✅ Successfully saved to primary path: ${primaryPath}`);
+      logger.info(
+        `[SlugManager] Slug mapping checksum in PostgreSQL mode: ${mapping.checksum} (${mapping.count} entries)`,
+      );
     }
-
-    await persistSlugShards(mapping, previousMapping);
 
     // Cache invalidation after successful save
-    // This is critical to prevent stale slug mappings from being served
     try {
       const { revalidateTag } = await import("next/cache");
       // Invalidate all bookmark-related caches
@@ -204,7 +175,6 @@ export async function saveSlugMapping(
       // Mark this as a critical system failure for monitoring
       console.error("CRITICAL_SYSTEM_ERROR: SLUG_MAPPING_SAVE_FAILED", {
         error: error instanceof Error ? error.message : String(error),
-        path: primaryPath,
         bookmarkCount: bookmarks.length,
       });
     }
@@ -214,41 +184,61 @@ export async function saveSlugMapping(
 }
 
 /**
- * Load slug mapping from the primary S3 path.
+ * Load slug mapping from PostgreSQL bookmarks table.
  *
  * @returns Slug mapping if found, null if not found or on error
  */
 export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
-  const primaryPath = BOOKMARKS_S3_PATHS.SLUG_MAPPING;
   if (isSlugManagerLoggingEnabled) {
-    logger.info(`[SlugManager] Attempting to load slug mapping from S3 path: ${primaryPath}`);
+    logger.info("[SlugManager] Attempting to load slug mapping from PostgreSQL");
   }
   logSlugEnvironmentOnce("load");
 
   try {
-    const data = await readJsonS3Optional<BookmarkSlugMapping>(
-      primaryPath,
-      bookmarkSlugMappingSchema,
-    );
-
-    if (data) {
+    const slugRows = await getSlugMappingRowsFromDatabase();
+    if (slugRows.length === 0) {
       if (isSlugManagerLoggingEnabled) {
-        logger.info(
-          `[SlugManager] Successfully loaded slug mapping with ${data.count} entries from primary path`,
-        );
+        logger.info("[SlugManager] No slug mapping rows found in PostgreSQL");
       }
-      return data;
+      return null;
     }
 
-    // File not found is a normal condition (e.g., first deployment) - not an error
-    if (isSlugManagerLoggingEnabled) {
-      logger.info(`[SlugManager] No slug mapping exists yet at: ${primaryPath}`);
+    const slugs: BookmarkSlugMapping["slugs"] = {};
+    const reverseMap: BookmarkSlugMapping["reverseMap"] = {};
+
+    for (const row of slugRows) {
+      slugs[row.id] = {
+        id: row.id,
+        slug: row.slug,
+        url: row.url,
+        title: row.title || row.url,
+      };
+      reverseMap[row.slug] = row.id;
     }
-    return null;
-  } catch (error) {
-    // Actual S3 errors (network, permissions, etc.) are logged as errors
+
+    const checksumPayload = Object.keys(slugs)
+      .toSorted((a, b) => a.localeCompare(b))
+      .map((id) => [id, slugs[id]?.slug]);
+    const checksum = createHash("md5").update(JSON.stringify(checksumPayload)).digest("hex");
+
+    const mapping: BookmarkSlugMapping = {
+      version: "1.0.0",
+      generated: new Date(getDeterministicTimestamp()).toISOString(),
+      count: slugRows.length,
+      checksum,
+      slugs,
+      reverseMap,
+    };
+
     if (isSlugManagerLoggingEnabled) {
-      logger.error(`[SlugManager] Failed to load slug mapping from ${primaryPath}:`, error);
+      logger.info(
+        `[SlugManager] Loaded slug mapping with ${mapping.count} entries from PostgreSQL`,
+      );
+    }
+    return mapping;
+  } catch (error) {
+    if (isSlugManagerLoggingEnabled) {
+      logger.error("[SlugManager] Failed to load slug mapping from PostgreSQL:", error);
     }
     return null;
   }
@@ -277,35 +267,17 @@ export function getBookmarkIdFromSlug(mapping: BookmarkSlugMapping, slug: string
  * Returns the bookmark data if found, null otherwise
  */
 export async function getBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null> {
-  const mapping = await loadSlugMapping();
-  if (!mapping) {
+  if (slug.trim().length === 0) {
     if (isSlugManagerLoggingEnabled) {
-      logger.error("[SlugManager] Failed to load slug mapping");
+      logger.warn("[SlugManager] Empty slug received");
     }
     return null;
   }
 
-  const bookmarkId = getBookmarkIdFromSlug(mapping, slug);
-  if (!bookmarkId) {
-    if (isSlugManagerLoggingEnabled) {
-      logger.warn(`[SlugManager] No bookmark found for slug: ${slug}`);
-    }
-    return null;
-  }
-
-  // Import here to avoid circular dependency
-  const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
-  const bookmarks = await getBookmarks({
-    ...DEFAULT_BOOKMARK_OPTIONS,
-    includeImageData: true,
-    skipExternalFetch: true,
-    force: false,
-  });
-
-  const bookmark = bookmarks.find((b) => b.id === bookmarkId);
+  const bookmark = await getBookmarkBySlugFromDatabase(slug);
   if (!bookmark) {
     if (isSlugManagerLoggingEnabled) {
-      logger.warn(`[SlugManager] Bookmark with ID ${bookmarkId} not found in bookmarks data`);
+      logger.warn(`[SlugManager] No bookmark found for slug: ${slug}`);
     }
     return null;
   }

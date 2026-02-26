@@ -17,7 +17,6 @@ const BASE_BOOKMARK_ROW: BookmarkRow = {
   content: null,
   assets: null,
   logoData: null,
-  registryLinks: null,
   ogImage: null,
   ogTitle: null,
   ogDescription: null,
@@ -35,11 +34,10 @@ const BASE_BOOKMARK_ROW: BookmarkRow = {
   dateBookmarked: "2026-02-25T00:00:00.000Z",
   datePublished: null,
   dateCreated: null,
-  dateUpdated: null,
   modifiedAt: null,
   sourceUpdatedAt: "2026-02-25T00:00:00.000Z",
   searchVector: "'bookmark':1A 'titl':2A",
-  embedding: null,
+  scrapedContentText: null,
 };
 
 describe("bookmark-record-mapper", () => {
@@ -54,7 +52,6 @@ describe("bookmark-record-mapper", () => {
     expect(unified.ogImage).toBeUndefined();
     expect(unified.content).toBeUndefined();
     expect(unified.assets).toBeUndefined();
-    expect(unified.registryLinks).toBeUndefined();
     expect(unified.isFavorite).toBe(true);
   });
 
@@ -82,7 +79,6 @@ describe("bookmark-record-mapper", () => {
     expect(insert.content).toBeNull();
     expect(insert.assets).toBeNull();
     expect(insert.logoData).toBeNull();
-    expect(insert.registryLinks).toBeNull();
     expect(insert.archived).toBe(false);
     expect(insert.isPrivate).toBe(false);
     expect(insert.isFavorite).toBe(true);

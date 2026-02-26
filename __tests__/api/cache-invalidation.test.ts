@@ -31,6 +31,21 @@ vi.mock("@/lib/s3/json", () => {
   };
 });
 
+vi.mock("@/lib/db/queries/bookmarks", () => {
+  return {
+    getBookmarksIndexFromDatabase: vi.fn().mockResolvedValue({
+      count: 10,
+      totalPages: 1,
+      pageSize: 24,
+      lastModified: new Date().toISOString(),
+      lastFetchedAt: Date.now(),
+      lastAttemptedAt: Date.now(),
+      checksum: "test-checksum",
+      changeDetected: true,
+    }),
+  };
+});
+
 // Mock bookmark data access
 vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => {
   return {

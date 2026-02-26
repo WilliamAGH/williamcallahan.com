@@ -4,6 +4,7 @@ import type {
   AiUpstreamApiMode,
   EndpointCompatibleEmbeddingConfig,
 } from "@/types/schemas/ai-openai-compatible";
+import { requireEmbeddingSpaceIdForProviderModelId } from "@/lib/ai/embeddings/embedding-space-registry";
 
 const DEFAULT_BASE_URL = "https://popos-sf7.com";
 const DEFAULT_MODEL = "openai/gpt-oss-120b,openai/gpt-oss-20b";
@@ -120,9 +121,13 @@ export function resolveDefaultEndpointCompatibleEmbeddingConfig(): EndpointCompa
     throw new Error("AI_DEFAULT_EMBEDDING_MODEL is set but AI_DEFAULT_OPENAI_API_KEY is missing.");
   }
 
+  const model = modelSchema.parse(embeddingModel ?? DEFAULT_EMBEDDING_MODEL);
+  const embeddingSpaceId = requireEmbeddingSpaceIdForProviderModelId(model);
+
   return {
     baseUrl: baseUrlSchema.parse(baseUrl),
     apiKey,
-    model: modelSchema.parse(embeddingModel ?? DEFAULT_EMBEDDING_MODEL),
+    embeddingSpaceId,
+    model,
   };
 }

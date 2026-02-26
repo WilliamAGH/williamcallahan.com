@@ -35,7 +35,6 @@ import { removeCitations, processSummaryText } from "@/lib/utils/formatters";
 import { safeExternalHref, getDisplayHostname, isGitHubUrl } from "@/lib/utils/url-utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 import { TerminalContext } from "@/components/ui/context-notes/terminal-context.client";
-import { RegistryLinks } from "@/components/ui/registry-links.client";
 
 // Helper to avoid rendering the literal "Invalid Date"
 function toDisplayDate(date?: string | Date | number | null): string | null {
@@ -74,7 +73,6 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
   const rawPublished = bookmark.content?.datePublished || bookmark.datePublished;
   const publishedDate = toDisplayDate(rawPublished);
   const bookmarkedDate = toDisplayDate(bookmark.dateBookmarked);
-  const updatedDate = toDisplayDate(bookmark.dateUpdated);
 
   // Get best image for display
   const featuredImage = selectBestImage(bookmark, {
@@ -335,30 +333,6 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                 </motion.section>
               )}
 
-              {/* Metadata Card - Only show if there's a valid date */}
-              {updatedDate && (
-                <motion.section
-                  initial={false}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5, duration: 0.5 }}
-                  className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2 sm:space-y-3"
-                >
-                  {/* Hide header on mobile, show on desktop */}
-                  <h2 className="hidden sm:block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
-                    Details
-                  </h2>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Updated</span>
-                    <span
-                      className="font-medium text-gray-900 dark:text-gray-100"
-                      suppressHydrationWarning
-                    >
-                      {updatedDate}
-                    </span>
-                  </div>
-                </motion.section>
-              )}
-
               {/* Action Buttons */}
               <motion.div
                 initial={false}
@@ -380,9 +354,6 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                   <span>{isGitHub ? "View on GitHub" : "Visit Site"}</span>
                   <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </a>
-
-                {/* Registry Links (npm, PyPI, etc.) */}
-                <RegistryLinks links={bookmark.registryLinks} />
 
                 <Link
                   href="/bookmarks"

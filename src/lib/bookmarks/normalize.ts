@@ -7,14 +7,23 @@
  */
 
 import type { RawApiBookmark, UnifiedBookmark, BookmarkContent } from "@/types/bookmark";
-import { omitHtmlContent } from "./utils";
 import { envLogger } from "@/lib/utils/env-logger";
 import { processSummaryText, removeCitations } from "@/lib/utils/formatters";
+import { normalizeScrapedContentText } from "./scraped-content";
 
 function parseAttachedBy(value: string | undefined): "user" | "ai" | undefined {
   if (value === "user") return "user";
   if (value === "ai") return "ai";
   return undefined;
+}
+
+function extractDomain(url: string): string | undefined {
+  if (!url) return undefined;
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -38,6 +47,13 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
     const bestTitle = raw.title || raw.content?.title || "Untitled Bookmark";
     // Prefer backend-provided description over summary to avoid AI text overriding clean descriptions
     const bestDescription = raw.content?.description || raw.summary || "No description available.";
+    // Extract raw HTML for text normalization; access via index since it's not in the Zod schema
+    const rawHtml = raw.content?.htmlContent;
+    const scrapedContentText = normalizeScrapedContentText(
+      typeof rawHtml === "string" ? rawHtml : null,
+    );
+    const bookmarkUrl = raw.content?.url || "";
+    const domain = extractDomain(bookmarkUrl);
 
     const normalizedTags = Array.isArray(raw.tags)
       ? raw.tags.map((tag) => ({
@@ -52,21 +68,30 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
     const screenshotAsset = raw.assets?.find((asset) => asset.assetType === "screenshot");
     const bannerAsset = raw.assets?.find((asset) => asset.assetType === "bannerImage");
 
+    // Explicitly list content properties — raw HTML is NOT carried to PostgreSQL
     const unifiedContent: BookmarkContent = {
-      ...(raw.content ? omitHtmlContent(raw.content) : {}),
       type: raw.content?.type ?? "link",
-      url: raw.content?.url || "",
+      url: bookmarkUrl,
       title: bestTitle || "Untitled Bookmark",
       description: bestDescription || "No description available.",
-      // Populate missing asset IDs for fallback rendering
-      screenshotAssetId: raw.content?.screenshotAssetId ?? screenshotAsset?.id,
+      contentAssetId: raw.content?.contentAssetId,
+      crawlStatus: raw.content?.crawlStatus,
+      imageUrl: raw.content?.imageUrl,
       imageAssetId: raw.content?.imageAssetId ?? bannerAsset?.id,
+      screenshotAssetId: raw.content?.screenshotAssetId ?? screenshotAsset?.id,
+      favicon: raw.content?.favicon,
+      crawledAt: raw.content?.crawledAt,
+      author: raw.content?.author,
+      publisher: raw.content?.publisher,
+      datePublished: raw.content?.datePublished,
+      dateModified: raw.content?.dateModified,
     };
 
     return {
       id: raw.id,
       slug: "", // Slug will be added by slug manager
-      url: raw.content?.url || "",
+      url: bookmarkUrl,
+      domain,
       title: bestTitle,
       description: bestDescription,
       tags: normalizedTags,
@@ -83,6 +108,7 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       // Process summary: remove citations and add paragraph breaks every 2 sentences
       summary: raw.summary ? processSummaryText(raw.summary) : raw.summary,
       content: unifiedContent,
+      scrapedContentText: scrapedContentText ?? undefined,
       assets: Array.isArray(raw.assets) ? raw.assets : [],
 
       // Add new fields for selective refresh

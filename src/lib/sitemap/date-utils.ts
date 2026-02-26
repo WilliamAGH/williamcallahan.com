@@ -52,11 +52,10 @@ export const getLatestDate = (...dates: (Date | undefined)[]): Date | undefined 
  * Resolve the most recent modification date for a bookmark from its date fields.
  */
 export const resolveBookmarkLastModified = (
-  bookmark: Pick<UnifiedBookmark, "modifiedAt" | "dateUpdated" | "dateCreated" | "dateBookmarked">,
+  bookmark: Pick<UnifiedBookmark, "modifiedAt" | "dateCreated" | "dateBookmarked">,
 ): Date | undefined =>
   getLatestDate(
     getSafeDate(bookmark.modifiedAt),
-    getSafeDate(bookmark.dateUpdated),
     getSafeDate(bookmark.dateCreated),
     getSafeDate(bookmark.dateBookmarked),
   );

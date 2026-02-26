@@ -1,10 +1,63 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres, { type Sql } from "postgres";
 
-const databaseUrl = process.env.DATABASE_URL?.trim();
+const DEFAULT_DATABASE_POOL_MAX = 5;
+const TEST_DATABASE_URL_PLACEHOLDER = "postgres://invalid:invalid@127.0.0.1:5432/invalid";
+const PRODUCTION_ENVIRONMENT = "production";
 
-if (!databaseUrl) {
+const databaseUrl = process.env.DATABASE_URL?.trim();
+const isTestEnvironment = process.env.NODE_ENV === "test";
+
+if (!databaseUrl && !isTestEnvironment) {
   throw new Error("DATABASE_URL environment variable is required for PostgreSQL access.");
+}
+
+const resolvedDatabaseUrl = databaseUrl ?? TEST_DATABASE_URL_PLACEHOLDER;
+
+const normalizeEnvironmentName = (value: string | undefined): string => {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (normalized === "prod") {
+    return PRODUCTION_ENVIRONMENT;
+  }
+  if (normalized === "testing") {
+    return "test";
+  }
+  return normalized;
+};
+
+const resolveWriteEnvironment = (): { environment: string; source: string } => {
+  const deploymentEnvironment = process.env.DEPLOYMENT_ENV?.trim();
+  if (deploymentEnvironment && deploymentEnvironment.length > 0) {
+    return {
+      environment: normalizeEnvironmentName(deploymentEnvironment),
+      source: "DEPLOYMENT_ENV",
+    };
+  }
+
+  const nodeEnvironment = process.env.NODE_ENV?.trim();
+  if (nodeEnvironment && nodeEnvironment.length > 0) {
+    return {
+      environment: normalizeEnvironmentName(nodeEnvironment),
+      source: "NODE_ENV",
+    };
+  }
+
+  return {
+    environment: "unknown",
+    source: "environment-default",
+  };
+};
+
+export function assertDatabaseWriteAllowed(operation: string): void {
+  const { environment, source } = resolveWriteEnvironment();
+  if (environment === PRODUCTION_ENVIRONMENT) {
+    return;
+  }
+
+  throw new Error(
+    `[db/write-guard] Blocked PostgreSQL write "${operation}" because ${source} resolved to "${environment}". ` +
+      "This project uses one shared database; only production runtime may write to PostgreSQL.",
+  );
 }
 
 const resolveOptionalPositiveInt = (envName: string, defaultValue: number): number => {
@@ -22,8 +75,8 @@ const resolveOptionalPositiveInt = (envName: string, defaultValue: number): numb
 };
 
 const createClient = (): Sql<Record<string, unknown>> =>
-  postgres(databaseUrl, {
-    max: resolveOptionalPositiveInt("DATABASE_POOL_MAX", 10),
+  postgres(resolvedDatabaseUrl, {
+    max: resolveOptionalPositiveInt("DATABASE_POOL_MAX", DEFAULT_DATABASE_POOL_MAX),
     idle_timeout: resolveOptionalPositiveInt("DATABASE_IDLE_TIMEOUT_SECONDS", 20),
     connect_timeout: resolveOptionalPositiveInt("DATABASE_CONNECT_TIMEOUT_SECONDS", 10),
     ssl: "require",

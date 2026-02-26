@@ -15,7 +15,6 @@ import type {
   BookmarkTag,
   BookmarkLogoData,
 } from "@/types/schemas/bookmark";
-import type { RegistryLink } from "@/types/schemas/registry-link";
 
 /**
  * Qwen3-Embedding-4B FP16 — the single authorized embedding model for this table.
@@ -57,7 +56,6 @@ export const bookmarks = pgTable(
     content: jsonb("content").$type<BookmarkContent | null>(),
     assets: jsonb("assets").$type<BookmarkAsset[] | null>(),
     logoData: jsonb("logo_data").$type<BookmarkLogoData | null>(),
-    registryLinks: jsonb("registry_links").$type<RegistryLink[] | null>(),
     ogImage: text("og_image"),
     ogTitle: text("og_title"),
     ogDescription: text("og_description"),
@@ -67,6 +65,7 @@ export const bookmarks = pgTable(
     ogImageEtag: text("og_image_etag"),
     readingTime: integer("reading_time"),
     wordCount: integer("word_count"),
+    scrapedContentText: text("scraped_content_text"),
     archived: boolean("archived").notNull().default(false),
     isPrivate: boolean("is_private").notNull().default(false),
     isFavorite: boolean("is_favorite").notNull().default(false),
@@ -75,7 +74,6 @@ export const bookmarks = pgTable(
     dateBookmarked: text("date_bookmarked").notNull(),
     datePublished: text("date_published"),
     dateCreated: text("date_created"),
-    dateUpdated: text("date_updated"),
     modifiedAt: text("modified_at"),
     sourceUpdatedAt: text("source_updated_at").notNull(),
     searchVector: tsvector("search_vector").generatedAlwaysAs(

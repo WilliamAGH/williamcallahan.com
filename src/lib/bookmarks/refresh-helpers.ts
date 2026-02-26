@@ -91,7 +91,9 @@ export async function fetchAllPagesFromApi(ctx: BookmarksApiContext): Promise<Ra
 
   do {
     pageCount += 1;
-    const pageUrl = cursor ? `${ctx.apiUrl}?cursor=${encodeURIComponent(cursor)}` : ctx.apiUrl;
+    const pageUrl = cursor
+      ? `${ctx.apiUrl}?cursor=${encodeURIComponent(cursor)}&includeContent=true`
+      : `${ctx.apiUrl}?includeContent=true`;
     console.log(`[refreshBookmarksData] Fetching page ${pageCount}: ${pageUrl}`);
 
     const pageController = new AbortController();
@@ -245,7 +247,6 @@ export async function enrichWithOpenGraph(
 
   const isDev = process.env.NODE_ENV === "development";
   const isBatchMode = process.env.IS_DATA_UPDATER === "true";
-  const extractContent = process.env.EXTRACT_BOOKMARK_CONTENT === "true" || isBatchMode;
 
   const metadataOnlyMode = process.env.BOOKMARK_METADATA_ONLY_REFRESH === "true";
   const refreshOptions = metadataOnlyMode
@@ -266,7 +267,6 @@ export async function enrichWithOpenGraph(
     bookmarksToProcess,
     isDev,
     isBatchMode,
-    extractContent,
     refreshOptions,
   );
 

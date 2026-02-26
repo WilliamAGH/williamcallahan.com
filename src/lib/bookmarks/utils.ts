@@ -1,15 +1,5 @@
-/**
- * @file Bookmark-specific utility functions for data conversion and normalization.
- * @module lib/bookmarks/utils
- * @description
- * Standardized utility functions for converting between UnifiedBookmark, LightweightBookmark,
- * and SerializableBookmark formats. These functions ensure consistency across the application
- * and proper preservation of essential fields like screenshotAssetId for fallback rendering.
- */
-
 import type {
   BookmarkTag,
-  BookmarkContent,
   UnifiedBookmark,
   RawBookmark,
   LightweightBookmark,
@@ -34,21 +24,6 @@ function thirtyDaysAgo(): Date {
  */
 function normalizeEtag(tag: string | null): string | undefined {
   return tag?.replace(/^W\//, "").replaceAll('"', "");
-}
-
-/**
- * Utility function to remove the potentially large `htmlContent` field from a bookmark's content object.
- * This is used to reduce the size of data stored in some caches or passed around.
- *
- * @template T - A type extending BookmarkContent.
- * @param {T} content - The bookmark content object.
- * @returns {Omit<T, 'htmlContent'>} The content object without the `htmlContent` property.
- * @internal
- */
-export function omitHtmlContent<T extends BookmarkContent>(content: T): Omit<T, "htmlContent"> {
-  const rest = { ...content };
-  delete rest.htmlContent;
-  return rest;
 }
 
 /**
@@ -113,18 +88,17 @@ export function convertRawBookmarksToUnified(rawBookmarks: RawBookmark[]): Unifi
         tags: bookmark.tags || [],
         dateBookmarked: bookmark.dateBookmarked,
         dateCreated: bookmark.dateCreated,
-        dateUpdated: bookmark.dateUpdated,
         isPrivate: bookmark.isPrivate,
         isFavorite: bookmark.isFavorite,
         readingTime: bookmark.readingTime,
         wordCount: bookmark.wordCount,
-        // Add additional UnifiedBookmark fields with sensible defaults
         datePublished: null,
-        modifiedAt: bookmark.dateUpdated,
+        modifiedAt: undefined,
         archived: false,
         taggingStatus: undefined,
         note: null,
         summary: null,
+        scrapedContentText: undefined,
         content: undefined,
         assets: undefined,
         logoData: undefined,
@@ -133,7 +107,7 @@ export function convertRawBookmarksToUnified(rawBookmarks: RawBookmark[]): Unifi
         ogImage: undefined,
         ogUrl: undefined,
         domain: undefined,
-        sourceUpdatedAt: bookmark.dateUpdated || bookmark.dateBookmarked,
+        sourceUpdatedAt: bookmark.dateBookmarked,
         ogImageLastFetchedAt: undefined,
         ogImageEtag: undefined,
       }) as UnifiedBookmark,
@@ -182,7 +156,6 @@ export const convertBookmarksToSerializable = (
     content: b.content,
     dateBookmarked: b.dateBookmarked,
     dateCreated: b.dateCreated,
-    dateUpdated: b.dateUpdated,
     logoData: b.logoData
       ? {
           url: b.logoData.url,
@@ -215,20 +188,23 @@ export const calculateBookmarksChecksum = (bookmarks: UnifiedBookmark[]): string
  *
  * This function preserves essential content fields needed for rendering like screenshotAssetId,
  * favicon, author, publisher, datePublished, and dateModified while removing heavy image assets
- * like imageUrl, imageAssetId, htmlContent, and crawledAt to reduce memory usage in lists.
+ * like imageUrl, imageAssetId, and crawledAt to reduce memory usage in lists.
  *
  * @param b - The UnifiedBookmark to convert
  * @returns A LightweightBookmark with image data stripped but essential fields preserved
  */
 export const stripImageData = (b: UnifiedBookmark): LightweightBookmark => {
-  // Destructure to omit heavy image fields
   const {
-    ogImage: omittedOgImage, // Intentionally unused - stripped from result
-    logoData: omittedLogoData, // Intentionally unused - stripped from result
+    ogImage: omittedOgImage,
+    logoData: omittedLogoData,
+    scrapedContentText: omittedScrapedContentText,
     ...bookmarkWithoutImages
   } = b;
 
-  // Build the base lightweight bookmark
+  void omittedOgImage;
+  void omittedLogoData;
+  void omittedScrapedContentText;
+
   const baseResult: LightweightBookmark = {
     ...bookmarkWithoutImages,
     content: b.content
@@ -250,9 +226,6 @@ export const stripImageData = (b: UnifiedBookmark): LightweightBookmark => {
       .filter((t) => t && (typeof t === "string" ? t.trim() : t.name?.trim()))
       .map(normalizeBookmarkTag),
   };
-
-  // Slug is REQUIRED in UnifiedBookmark, so it's always present
-  // No need for conditional checks - slug is guaranteed to exist
 
   return baseResult;
 };

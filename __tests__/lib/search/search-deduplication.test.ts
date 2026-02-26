@@ -14,6 +14,9 @@ vi.mock("@/lib/s3/json", () => ({
   readJsonS3: vi.fn().mockResolvedValue(null),
   writeJsonS3: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("@/lib/db/queries/search-index-artifacts", () => ({
+  getSerializedSearchIndexArtifact: vi.fn().mockResolvedValue(null),
+}));
 
 // Mock console methods to check for duplicate warnings
 const originalWarn = console.warn;

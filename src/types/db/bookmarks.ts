@@ -23,7 +23,9 @@ export type BookmarkEmbeddingRow = {
   summary: string | null;
   note: string | null;
   domain: string | null;
+  scrapedContentText: string | null;
   tags: unknown;
+  content: unknown;
 };
 
 export type BookmarkEmbeddingBackfillOptions = {

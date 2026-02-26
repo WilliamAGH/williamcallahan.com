@@ -27,6 +27,7 @@ describe("resolveDefaultEndpointCompatibleEmbeddingConfig", () => {
       model: "text-embedding-qwen3-embedding-4b",
       baseUrl: "https://example.test",
       apiKey: "test-key",
+      embeddingSpaceId: "qwen3-embedding-4b",
     });
   });
 

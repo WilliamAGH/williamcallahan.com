@@ -5,7 +5,7 @@ import {
   mapUnifiedBookmarksToBookmarkInserts,
   mapUnifiedBookmarkToBookmarkInsert,
 } from "@/lib/db/bookmark-record-mapper";
-import { db } from "@/lib/db/connection";
+import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import {
   bookmarkIndexState,
   bookmarkTagIndexState,
@@ -100,6 +100,8 @@ const resolveTagMetadata = (
 };
 
 export async function upsertBookmark(data: BookmarkInsert): Promise<void> {
+  assertDatabaseWriteAllowed("upsertBookmark");
+
   await db
     .insert(bookmarks)
     .values(data)
@@ -149,6 +151,8 @@ export async function rebuildBookmarkTaxonomyState(
   bookmarksData: readonly UnifiedBookmark[],
   changeDetected: boolean = true,
 ): Promise<void> {
+  assertDatabaseWriteAllowed("rebuildBookmarkTaxonomyState");
+
   const timestamp = Date.now();
   const lastModified = new Date(timestamp).toISOString();
 
@@ -249,5 +253,6 @@ export async function upsertUnifiedBookmarks(
 }
 
 export async function deleteBookmark(bookmarkId: string): Promise<void> {
+  assertDatabaseWriteAllowed("deleteBookmark");
   await db.delete(bookmarks).where(eq(bookmarks.id, bookmarkId));
 }

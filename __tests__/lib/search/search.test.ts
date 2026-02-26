@@ -92,6 +92,9 @@ vi.mock("@/data/projects", () => ({
 vi.mock("@/lib/s3/json", () => ({
   readJsonS3Optional: vi.fn().mockResolvedValue(null),
 }));
+vi.mock("@/lib/db/queries/search-index-artifacts", () => ({
+  getSerializedSearchIndexArtifact: vi.fn().mockResolvedValue(null),
+}));
 
 import { searchInvestments, searchExperience, searchEducation, searchProjects } from "@/lib/search";
 import { validateSearchQuery } from "@/lib/validators/search";

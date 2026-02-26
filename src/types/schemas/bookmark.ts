@@ -7,7 +7,6 @@
  */
 
 import { z } from "zod/v4";
-import { registryLinkSchema } from "./registry-link";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Primitive / Shared Schemas
@@ -60,22 +59,25 @@ export const rawApiBookmarkTagSchema = bookmarkTagSchema
 export type RawApiBookmarkTag = z.infer<typeof rawApiBookmarkTagSchema>;
 
 /** Single content schema used everywhere */
-export const bookmarkContentSchema = z.object({
-  type: z.string(),
-  url: z.string(),
-  title: z.string().nullable(),
-  description: z.string().nullable(),
-  imageUrl: z.string().nullable().optional(),
-  imageAssetId: z.string().nullable().optional(),
-  screenshotAssetId: z.string().nullable().optional(),
-  favicon: z.string().nullable().optional(),
-  htmlContent: z.string().nullable().optional(),
-  crawledAt: z.string().nullable().optional(),
-  author: z.string().nullable().optional(),
-  publisher: z.string().nullable().optional(),
-  datePublished: z.string().nullable().optional(),
-  dateModified: z.string().nullable().optional(),
-});
+export const bookmarkContentSchema = z
+  .object({
+    type: z.string(),
+    url: z.string(),
+    title: z.string().nullable(),
+    description: z.string().nullable(),
+    contentAssetId: z.string().nullable().optional(),
+    crawlStatus: z.string().nullable().optional(),
+    imageUrl: z.string().nullable().optional(),
+    imageAssetId: z.string().nullable().optional(),
+    screenshotAssetId: z.string().nullable().optional(),
+    favicon: z.string().nullable().optional(),
+    crawledAt: z.string().nullable().optional(),
+    author: z.string().nullable().optional(),
+    publisher: z.string().nullable().optional(),
+    datePublished: z.string().nullable().optional(),
+    dateModified: z.string().nullable().optional(),
+  })
+  .loose();
 
 export type BookmarkContent = z.infer<typeof bookmarkContentSchema>;
 
@@ -133,12 +135,12 @@ export const unifiedBookmarkSchema = z.object({
   dateBookmarked: z.string(),
   datePublished: z.string().nullable().optional(),
   dateCreated: z.string().optional(),
-  dateUpdated: z.string().optional(),
   modifiedAt: z.string().optional(),
   archived: z.boolean().optional(),
   taggingStatus: z.string().optional(),
   note: z.string().nullable().optional(),
   summary: z.string().nullable().optional(),
+  scrapedContentText: z.string().optional(),
   content: bookmarkContentSchema.optional(),
   assets: z.array(bookmarkAssetSchema).optional(),
   logoData: logoDataSchema.nullable().optional(),
@@ -154,8 +156,6 @@ export const unifiedBookmarkSchema = z.object({
   isPrivate: z.boolean().optional(),
   isFavorite: z.boolean().optional(),
   ogImageExternal: z.string().optional(),
-  /** Optional links to package registries where the bookmarked resource is distributed */
-  registryLinks: z.array(registryLinkSchema).optional(),
 });
 
 export type UnifiedBookmark = z.infer<typeof unifiedBookmarkSchema>;
@@ -176,7 +176,6 @@ const baseBookmarkSchema = z.object({
   slug: z.string().min(1),
   dateBookmarked: z.string(),
   dateCreated: z.string().optional(),
-  dateUpdated: z.string().optional(),
   isPrivate: z.boolean().default(false),
   isFavorite: z.boolean().default(false),
   readingTime: z.number().int().min(0).optional(),

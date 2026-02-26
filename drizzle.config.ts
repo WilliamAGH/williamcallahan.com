@@ -15,6 +15,7 @@ export default defineConfig({
     "bookmark_tag_links",
     "bookmark_index_state",
     "bookmark_tag_index_state",
+    "search_index_artifacts",
   ],
   schemaFilter: "public",
   dbCredentials: {

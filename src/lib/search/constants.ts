@@ -36,8 +36,8 @@ export const INDEX_TTL = {
 } as const;
 
 /**
- * Flag to control whether to load indexes from S3 or build in-memory.
- * Default: true (use S3 indexes for reliability and performance)
+ * Flag to control whether to load persisted indexes or build in-memory.
+ * Default: true (use persisted indexes for reliability and performance)
  * Set USE_S3_SEARCH_INDEXES=false to force live fetching.
  */
 export const USE_S3_INDEXES = process.env.USE_S3_SEARCH_INDEXES !== "false";

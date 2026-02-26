@@ -21,34 +21,6 @@ const MAX_CONTENT_EXCERPT_LENGTH = 2500;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Strips HTML tags from a string using regex.
- * Client-safe alternative to cheerio-based stripping.
- */
-function stripHtmlTags(html: string): string {
-  if (!html) return "";
-
-  return (
-    html
-      // Remove script and style elements entirely
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ")
-      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ")
-      // Remove all HTML tags
-      .replace(/<[^>]+>/g, " ")
-      // Decode common HTML entities
-      .replaceAll("&nbsp;", " ")
-      .replaceAll("&amp;", "&")
-      .replaceAll("&lt;", "<")
-      .replaceAll("&gt;", ">")
-      .replaceAll("&quot;", '"')
-      .replaceAll("&#39;", "'")
-      .replaceAll("&apos;", "'")
-      // Collapse whitespace
-      .replace(/\s+/g, " ")
-      .trim()
-  );
-}
-
-/**
  * Truncates text to a maximum length, breaking at word boundaries.
  */
 function truncateText(text: string, maxLength: number): string {
@@ -84,13 +56,9 @@ function extractTagNames(tags: (string | BookmarkTag)[] | undefined): string[] {
  * @returns Structured context object with pertinent fields
  */
 export function extractBookmarkAnalysisContext(bookmark: UnifiedBookmark): BookmarkAnalysisContext {
-  // Extract and clean HTML content
   let contentExcerpt: string | null = null;
-  if (bookmark.content?.htmlContent) {
-    const plainText = stripHtmlTags(bookmark.content.htmlContent);
-    if (plainText.length > 0) {
-      contentExcerpt = truncateText(plainText, MAX_CONTENT_EXCERPT_LENGTH);
-    }
+  if (typeof bookmark.scrapedContentText === "string" && bookmark.scrapedContentText.length > 0) {
+    contentExcerpt = truncateText(bookmark.scrapedContentText, MAX_CONTENT_EXCERPT_LENGTH);
   }
 
   return {

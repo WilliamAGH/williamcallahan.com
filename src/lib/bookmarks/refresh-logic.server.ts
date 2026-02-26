@@ -74,7 +74,7 @@ async function refreshMetadataIfNeeded(
   input: UnifiedBookmark[],
 ): Promise<{ changed: boolean; updated: UnifiedBookmark[] }> {
   const beforeSig = computeDisplaySignature(input);
-  const updated = await processBookmarksInBatches(input, false, true, false, {
+  const updated = await processBookmarksInBatches(input, false, true, {
     metadataOnly: true,
     refreshMetadataEvenIfImagePresent: true,
     maxItems: METADATA_REFRESH_MAX_ITEMS,

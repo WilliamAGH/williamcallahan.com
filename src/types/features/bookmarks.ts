@@ -230,7 +230,6 @@ export interface SerializableBookmark {
   content?: BookmarkContent;
   dateBookmarked: string;
   dateCreated?: string;
-  dateUpdated?: string;
   logoData?: {
     url: string;
     alt: string;

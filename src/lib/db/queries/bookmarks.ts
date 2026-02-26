@@ -23,6 +23,12 @@ const assertPositiveInteger = (value: number, label: string): void => {
   }
 };
 
+const assertNonEmptyString = (value: string, label: string): void => {
+  if (value.trim().length === 0) {
+    throw new Error(`${label} must be a non-empty string.`);
+  }
+};
+
 const mapBookmarkIndexStateToBookmarksIndex = (
   row: typeof bookmarkIndexState.$inferSelect | typeof bookmarkTagIndexState.$inferSelect,
 ): BookmarksIndex => ({
@@ -74,6 +80,48 @@ export async function getBookmarkById(bookmarkId: string): Promise<UnifiedBookma
     return null;
   }
   return mapBookmarkRowToUnifiedBookmark(row);
+}
+
+export async function getBookmarkRowBySlug(slug: string): Promise<BookmarkRow | null> {
+  assertNonEmptyString(slug, "slug");
+  const rows = await db.select().from(bookmarks).where(eq(bookmarks.slug, slug)).limit(1);
+  const firstRow = rows[0];
+  if (!firstRow) {
+    return null;
+  }
+  return firstRow;
+}
+
+export async function getBookmarkBySlugFromDatabase(slug: string): Promise<UnifiedBookmark | null> {
+  const row = await getBookmarkRowBySlug(slug);
+  if (!row) {
+    return null;
+  }
+  return mapBookmarkRowToUnifiedBookmark(row);
+}
+
+export async function getBookmarkIdBySlug(slug: string): Promise<string | null> {
+  assertNonEmptyString(slug, "slug");
+  const rows = await db
+    .select({ id: bookmarks.id })
+    .from(bookmarks)
+    .where(eq(bookmarks.slug, slug))
+    .limit(1);
+  return rows[0]?.id ?? null;
+}
+
+export async function getSlugMappingRowsFromDatabase(): Promise<
+  Array<{ id: string; slug: string; url: string; title: string }>
+> {
+  return db
+    .select({
+      id: bookmarks.id,
+      slug: bookmarks.slug,
+      url: bookmarks.url,
+      title: bookmarks.title,
+    })
+    .from(bookmarks)
+    .orderBy(asc(bookmarks.id));
 }
 
 export async function getBookmarksPage(

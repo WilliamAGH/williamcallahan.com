@@ -1,5 +1,15 @@
-import { boolean, bigint, index, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+} from "drizzle-orm/pg-core";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
+import type { SearchIndexArtifactDomain } from "@/types/schemas/search";
 
 const buildBookmarkIndexStateColumns = () => ({
   count: integer("count").notNull(),
@@ -49,4 +59,17 @@ export const bookmarkTagIndexState = pgTable(
     ...buildBookmarkIndexStateColumns(),
   },
   (table) => [index("idx_bookmark_tag_index_state_tag_name").on(table.tagName)],
+);
+
+export const searchIndexArtifacts = pgTable(
+  "search_index_artifacts",
+  {
+    domain: text("domain").primaryKey().$type<SearchIndexArtifactDomain>(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    checksum: text("checksum").notNull(),
+    itemCount: integer("item_count").notNull(),
+    generatedAt: text("generated_at").notNull(),
+    updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
+  },
+  (table) => [index("idx_search_index_artifacts_updated_at").on(table.updatedAt)],
 );

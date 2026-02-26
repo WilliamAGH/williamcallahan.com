@@ -26,7 +26,6 @@ export const buildBookmark = (
   tags: overrides.tags ?? [],
   imageAssetId: undefined,
   notes: undefined,
-  registryLinks: [],
   collectionId: undefined,
   sort: 0,
   type: "link" as const,

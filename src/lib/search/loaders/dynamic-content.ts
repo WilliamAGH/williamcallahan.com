@@ -3,23 +3,22 @@
  *
  * Index loaders for dynamic content types: bookmarks and books.
  * These have more complex loading logic with memory checks, API fallbacks,
- * and S3 index reconstruction.
+ * and persisted search-index reconstruction.
  *
  * @module lib/search/loaders/dynamic-content
  * @see {@link ../config} for MiniSearch index configurations
- * @see {@link ../constants} for cache keys, TTLs, and S3 flags
+ * @see {@link ../constants} for cache keys, TTLs, and persistence flags
  */
 
 import MiniSearch from "minisearch";
 import {
-  serializedIndexSchema,
   type BookmarkIndexInput,
   type BookmarkIndexItem,
   type SerializedIndex,
 } from "@/types/schemas/search";
 import type { Book } from "@/types/schemas/book";
-import { SEARCH_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
-import { readJsonS3Optional } from "@/lib/s3/json";
+import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
+import { getSerializedSearchIndexArtifact } from "@/lib/db/queries/search-index-artifacts";
 import { envLogger } from "@/lib/utils/env-logger";
 import logger from "@/lib/utils/logger";
 import { prepareDocumentsForIndexing } from "@/lib/utils/search-helpers";
@@ -73,7 +72,7 @@ export function buildBookmarksIndex(
 
 /**
  * Get or build the bookmarks search index.
- * Complex loader with memory checks, API fallback, and S3 reconstruction.
+ * Complex loader with memory checks, API fallback, and persisted artifact reconstruction.
  *
  * @returns Object containing the MiniSearch index and bookmark data for result mapping
  */
@@ -95,7 +94,7 @@ export async function getBookmarksIndex(): Promise<{
 
   // Fetch bookmarks data
   let bookmarks: BookmarkIndexInput[] = [];
-  let serializedBookmarksIndex: SerializedIndex | null = null;
+  let persistedBookmarksIndex: SerializedIndex | null = null;
 
   try {
     const { getBookmarks } = await import("@/lib/bookmarks/service.server");
@@ -165,29 +164,26 @@ export async function getBookmarksIndex(): Promise<{
   const { tryGetEmbeddedSlug } = await import("@/lib/bookmarks/slug-helpers");
   const slugMapping = await loadSlugMapping();
 
-  // Try to load index from S3
+  // Try to load index from persisted artifacts
   let bookmarksIndex: MiniSearch<BookmarkIndexItem>;
 
   if (USE_S3_INDEXES) {
     try {
-      const serializedIndex = await readJsonS3Optional<SerializedIndex>(
-        SEARCH_S3_PATHS.BOOKMARKS_INDEX,
-        serializedIndexSchema,
-      );
+      const serializedIndex = await getSerializedSearchIndexArtifact("bookmarks");
       if (serializedIndex?.index && serializedIndex.metadata) {
-        serializedBookmarksIndex = serializedIndex;
+        persistedBookmarksIndex = serializedIndex;
         bookmarksIndex = loadIndexFromJSON<BookmarkIndexItem>(
           serializedIndex,
           BOOKMARKS_INDEX_CONFIG,
         );
         console.log(
-          `[Search] Loaded bookmarks index from S3 (${serializedIndex.metadata.itemCount} items)`,
+          `[Search] Loaded bookmarks index from PostgreSQL (${serializedIndex.metadata.itemCount} items)`,
         );
       } else {
         bookmarksIndex = buildBookmarksIndex(bookmarks);
       }
     } catch (error) {
-      console.error("[Search] Error loading bookmarks index from S3:", error);
+      console.error("[Search] Error loading bookmarks index from PostgreSQL:", error);
       bookmarksIndex = buildBookmarksIndex(bookmarks);
     }
   } else {
@@ -227,19 +223,19 @@ export async function getBookmarksIndex(): Promise<{
     });
   }
 
-  // Fallback: reconstruct from S3 index if no live data
-  if (bookmarksForIndex.length === 0 && bookmarks.length === 0 && serializedBookmarksIndex) {
-    const reconstructed = extractBookmarksFromSerializedIndex(serializedBookmarksIndex);
+  // Fallback: reconstruct from persisted index if no live data
+  if (bookmarksForIndex.length === 0 && bookmarks.length === 0 && persistedBookmarksIndex) {
+    const reconstructed = extractBookmarksFromSerializedIndex(persistedBookmarksIndex);
     if (reconstructed.length > 0) {
       bookmarksForIndex.push(...reconstructed);
-      devLog("[getBookmarksIndex] using stored fields from S3 index for mapping", {
+      devLog("[getBookmarksIndex] using stored fields from persisted index for mapping", {
         reconstructed: reconstructed.length,
-        s3Documents: serializedBookmarksIndex.metadata.itemCount,
+        persistedDocuments: persistedBookmarksIndex.metadata.itemCount,
       });
     } else {
       envLogger.log(
-        "[Search] Unable to reconstruct bookmarks from S3 index stored fields",
-        { itemCount: serializedBookmarksIndex.metadata.itemCount },
+        "[Search] Unable to reconstruct bookmarks from persisted index stored fields",
+        { itemCount: persistedBookmarksIndex.metadata.itemCount },
         { category: "Search" },
       );
     }
@@ -247,11 +243,11 @@ export async function getBookmarksIndex(): Promise<{
 
   const result = { index: bookmarksIndex, bookmarks: bookmarksForIndex };
 
-  const serializedIndexCount = serializedBookmarksIndex?.metadata?.itemCount ?? 0;
+  const persistedIndexCount = persistedBookmarksIndex?.metadata?.itemCount ?? 0;
   devLog("[getBookmarksIndex] index built", {
     indexed: bookmarksForIndex.length,
     sourceBookmarks: bookmarks.length,
-    serializedIndexCount,
+    persistedIndexCount,
   });
 
   return result;
@@ -309,30 +305,30 @@ function buildBooksIndex(books: Book[]): MiniSearch<Book> {
 
 /**
  * Get or build the books search index.
- * Uses shared books data cache and S3 fallback.
+ * Uses shared books data cache and persisted artifact fallback.
  */
 export async function getBooksIndex(): Promise<MiniSearch<Book>> {
   let booksIndex: MiniSearch<Book>;
 
-  // Try to load from S3 first
+  // Try to load from persisted artifacts first
   if (USE_S3_INDEXES) {
     try {
-      devLog("[getBooksIndex] Trying to load books index from S3...");
-      const serializedIndex = await readJsonS3Optional<SerializedIndex>(
-        SEARCH_S3_PATHS.BOOKS_INDEX,
-        serializedIndexSchema,
-      );
+      devLog("[getBooksIndex] Trying to load books index from PostgreSQL...");
+      const serializedIndex = await getSerializedSearchIndexArtifact("books");
       if (serializedIndex?.index && serializedIndex.metadata) {
         booksIndex = loadIndexFromJSON<Book>(serializedIndex, BOOKS_INDEX_CONFIG);
         console.log(
-          `[Search] Loaded books index from S3 (${serializedIndex.metadata.itemCount} items)`,
+          `[Search] Loaded books index from PostgreSQL (${serializedIndex.metadata.itemCount} items)`,
         );
         return booksIndex;
       }
-      devLog("[getBooksIndex] S3 index not found or invalid, falling back to live fetch");
+      devLog("[getBooksIndex] Persisted index not found or invalid, falling back to live fetch");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      devLog("[getBooksIndex] S3 load failed, falling back to live fetch:", message);
+      devLog(
+        "[getBooksIndex] PostgreSQL artifact load failed, falling back to live fetch:",
+        message,
+      );
     }
   }
 

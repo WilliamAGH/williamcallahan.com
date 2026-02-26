@@ -2,16 +2,14 @@
  * Bookmarks Cache API Route
  *
  * Provides API endpoints for managing the bookmarks cache.
- * - GET: Returns the current status of the bookmarks (from S3)
+ * - GET: Returns the current status of the bookmarks (from PostgreSQL index state)
  * - POST: Forces a refresh of the bookmarks from external API
  * - DELETE: Clears the bookmarks cache metadata
  */
 
-import { readJsonS3Optional } from "@/lib/s3/json";
-import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
+import { getBookmarksIndexFromDatabase } from "@/lib/db/queries/bookmarks";
 import type { DataFetchOperationSummary } from "@/types/lib";
 import { NextResponse, type NextRequest } from "next/server";
-import { bookmarksIndexSchema, type BookmarksIndex } from "@/types/bookmark";
 import { invalidateBookmarksCache } from "@/lib/bookmarks/bookmarks-data-access.server";
 
 // Ensure this route is not statically cached
@@ -44,15 +42,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const index = await readJsonS3Optional<BookmarksIndex>(
-      BOOKMARKS_S3_PATHS.INDEX,
-      bookmarksIndexSchema,
-    );
+    const index = await getBookmarksIndexFromDatabase();
 
     return NextResponse.json({
       status: "success",
       data: {
-        cached: !!index,
+        cached: true,
         bookmarksCount: index?.count || 0,
         totalPages: index?.totalPages || 0,
         lastFetchedAt: index?.lastFetchedAt ? new Date(index.lastFetchedAt).toISOString() : null,
@@ -61,7 +56,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    console.error("Failed to read bookmarks cache status from S3:", error);
+    console.error("Failed to read bookmarks cache status from PostgreSQL:", error);
     return NextResponse.json(
       {
         status: "error",
@@ -100,11 +95,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Invalidate Next.js cache for bookmarks
     invalidateBookmarksCache();
 
-    // Read updated index from S3
-    const index = await readJsonS3Optional<BookmarksIndex>(
-      BOOKMARKS_S3_PATHS.INDEX,
-      bookmarksIndexSchema,
-    );
+    const index = await getBookmarksIndexFromDatabase();
 
     return NextResponse.json({
       status: "success",

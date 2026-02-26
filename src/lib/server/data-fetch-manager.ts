@@ -16,20 +16,16 @@ import { getMonotonicTime } from "@/lib/utils";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
-import {
-  BOOKMARKS_S3_PATHS,
-  KNOWN_DOMAINS,
-  SEARCH_S3_PATHS,
-  IMAGE_MANIFEST_S3_PATHS,
-  IMAGE_S3_PATHS,
-} from "@/lib/constants";
+import { KNOWN_DOMAINS, IMAGE_MANIFEST_S3_PATHS, IMAGE_S3_PATHS } from "@/lib/constants";
 import { DATA_UPDATER_FLAGS, hasFlag, parseTestLimit } from "@/lib/constants/cli-flags";
 import { getLogo, invalidateLogoS3Cache, resetLogoSessionTracking } from "@/lib/data-access/logos";
 import { processLogoBatch } from "@/lib/data-access/logos-batch";
 import { refreshBookmarks } from "@/lib/bookmarks/service.server";
-import { bookmarksIndexSchema, type UnifiedBookmark } from "@/types/bookmark";
+import { getBookmarksIndexFromDatabase } from "@/lib/db/queries/bookmarks";
+import { upsertAllSearchIndexArtifacts } from "@/lib/db/mutations/search-index-artifacts";
+import type { UnifiedBookmark } from "@/types/bookmark";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
-import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
+import { writeJsonS3 } from "@/lib/s3/json";
 import { listS3Objects } from "@/lib/s3/objects";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 import type { LogoManifest } from "@/types/image";
@@ -152,14 +148,9 @@ export class DataFetchManager {
       let changeDetected: boolean | undefined;
       let lastFetchedAt: number | undefined;
       try {
-        const index = await readJsonS3Optional<import("@/types/bookmark").BookmarksIndex>(
-          BOOKMARKS_S3_PATHS.INDEX,
-          bookmarksIndexSchema,
-        );
-        if (index) {
-          changeDetected = index.changeDetected ?? undefined;
-          lastFetchedAt = index.lastFetchedAt;
-        }
+        const index = await getBookmarksIndexFromDatabase();
+        changeDetected = index.changeDetected ?? undefined;
+        lastFetchedAt = index.lastFetchedAt;
       } catch (error) {
         logger.debug("[DataFetchManager] Failed to read bookmarks index", { error });
       }
@@ -479,7 +470,7 @@ export class DataFetchManager {
   }
 
   /**
-   * Build and upload search indexes to S3
+   * Build and persist serialized search indexes.
    * @param _config - Configuration (acknowledged but unused)
    * @returns Promise resolving to operation summary
    */
@@ -495,21 +486,14 @@ export class DataFetchManager {
         "[DataFetchManager] Ensuring slug mappings are up-to-date before building search indexes...",
       );
 
-      const { loadSlugMapping, saveSlugMapping } = await import("@/lib/bookmarks/slug-manager");
-      const { getBookmarks } = await import("@/lib/bookmarks/service.server");
+      const { loadSlugMapping } = await import("@/lib/bookmarks/slug-manager");
 
       // Check if slug mappings exist and are current
       const existingMapping = await loadSlugMapping();
       if (!existingMapping) {
         logger.warn(
-          "[DataFetchManager] No slug mapping found, generating before search index build...",
+          "[DataFetchManager] No slug mapping found in PostgreSQL; search build will use embedded or fallback slugs",
         );
-        const bookmarks = (await getBookmarks({
-          skipExternalFetch: false,
-          includeImageData: false,
-        })) as import("@/types/bookmark").UnifiedBookmark[];
-        await saveSlugMapping(bookmarks, true);
-        logger.info("[DataFetchManager] Slug mapping generated and saved");
       } else {
         logger.info(`[DataFetchManager] Slug mapping exists with ${existingMapping.count} entries`);
       }
@@ -520,21 +504,9 @@ export class DataFetchManager {
       // Build all search indexes
       const indexes = await buildAllSearchIndexes();
 
-      // Upload each index to S3
-      const uploadPromises = [
-        writeJsonS3(SEARCH_S3_PATHS.POSTS_INDEX, indexes.posts),
-        writeJsonS3(SEARCH_S3_PATHS.INVESTMENTS_INDEX, indexes.investments),
-        writeJsonS3(SEARCH_S3_PATHS.EXPERIENCE_INDEX, indexes.experience),
-        writeJsonS3(SEARCH_S3_PATHS.EDUCATION_INDEX, indexes.education),
-        writeJsonS3(SEARCH_S3_PATHS.BOOKMARKS_INDEX, indexes.bookmarks),
-        writeJsonS3(SEARCH_S3_PATHS.PROJECTS_INDEX, indexes.projects),
-        writeJsonS3(SEARCH_S3_PATHS.BOOKS_INDEX, indexes.books),
-        writeJsonS3(SEARCH_S3_PATHS.BUILD_METADATA, indexes.buildMetadata),
-      ];
+      await upsertAllSearchIndexArtifacts(indexes);
 
-      await Promise.all(uploadPromises);
-
-      logger.info("[DataFetchManager] Search indexes built and uploaded successfully");
+      logger.info("[DataFetchManager] Search indexes built and persisted to PostgreSQL");
 
       const duration = (getMonotonicTime() - startTime) / 1000;
       return {

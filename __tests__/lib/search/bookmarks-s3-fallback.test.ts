@@ -1,6 +1,6 @@
 /**
- * Ensures bookmark search still returns results when the S3 index is available
- * but the live bookmarks fetch returns no data (e.g., API failure or cold start).
+ * Ensures bookmark search still returns results when a persisted index artifact
+ * is available but the live bookmarks fetch returns no data.
  */
 
 import MiniSearch from "minisearch";
@@ -18,9 +18,10 @@ vi.mock("@/lib/search/constants", async (importOriginal) => {
   };
 });
 
-const mockReadJsonS3 = vi.fn();
-vi.mock("@/lib/s3/json", () => ({
-  readJsonS3Optional: (...args: unknown[]) => mockReadJsonS3(...args),
+const mockGetSerializedSearchIndexArtifact = vi.fn();
+vi.mock("@/lib/db/queries/search-index-artifacts", () => ({
+  getSerializedSearchIndexArtifact: (...args: unknown[]) =>
+    mockGetSerializedSearchIndexArtifact(...args),
 }));
 
 const mockGetBookmarks = vi.fn();
@@ -88,7 +89,7 @@ describe("searchBookmarks - S3 fallback mapping", () => {
     // Set env var for each test (Vitest reuses process across files)
     process.env.USE_S3_SEARCH_INDEXES = "true";
     vi.clearAllMocks();
-    mockReadJsonS3.mockResolvedValue(serializedIndex);
+    mockGetSerializedSearchIndexArtifact.mockResolvedValue(serializedIndex);
     mockGetBookmarks.mockResolvedValue([]);
     mockLoadSlugMapping.mockResolvedValue(null);
     mockGetSlugForBookmark.mockReturnValue(null);
@@ -109,7 +110,7 @@ describe("searchBookmarks - S3 fallback mapping", () => {
   it("returns results using stored fields when live fetch returns no bookmarks", async () => {
     const results = await searchBookmarks("sdk");
 
-    expect(mockReadJsonS3).toHaveBeenCalled();
+    expect(mockGetSerializedSearchIndexArtifact).toHaveBeenCalled();
     expect(results).toHaveLength(1);
     expect(results[0]?.id).toBe("bk-1");
     expect(results[0]?.url).toBe("/bookmarks/sdk-slug");

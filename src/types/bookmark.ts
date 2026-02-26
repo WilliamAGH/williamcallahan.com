@@ -61,16 +61,6 @@ export interface BookmarkS3Record extends Record<string, unknown> {
   tags?: unknown;
 }
 
-/**
- * Extracted markdown content from a bookmark
- */
-export interface ExtractedContent {
-  markdown: string;
-  wordCount: number;
-  readingTime: number; // in minutes
-  extractedAt: string;
-}
-
 export type BookmarksResponse = import("./lib").PaginatedResponse<
   import("./schemas/bookmark").UnifiedBookmark
 >;
@@ -87,7 +77,7 @@ export type BookmarksResponse = import("./lib").PaginatedResponse<
  */
 export type LightweightBookmark = Omit<
   import("./schemas/bookmark").UnifiedBookmark,
-  "ogImage" | "logoData"
+  "ogImage" | "logoData" | "scrapedContentText"
 > & {
   slug: string; // Explicitly include slug as required
   content?: Pick<

@@ -20,12 +20,12 @@ export function mapBookmarkRowToUnifiedBookmark(row: BookmarkRow): UnifiedBookma
     dateBookmarked: row.dateBookmarked,
     datePublished: row.datePublished,
     dateCreated: toUndefined(row.dateCreated),
-    dateUpdated: toUndefined(row.dateUpdated),
     modifiedAt: toUndefined(row.modifiedAt),
     archived: row.archived,
     taggingStatus: toUndefined(row.taggingStatus),
     note: row.note,
     summary: row.summary,
+    scrapedContentText: toUndefined(row.scrapedContentText),
     content: toUndefined(row.content),
     assets: toUndefined(row.assets),
     logoData: row.logoData,
@@ -41,7 +41,6 @@ export function mapBookmarkRowToUnifiedBookmark(row: BookmarkRow): UnifiedBookma
     isPrivate: row.isPrivate,
     isFavorite: row.isFavorite,
     ogImageExternal: toUndefined(row.ogImageExternal),
-    registryLinks: toUndefined(row.registryLinks),
   });
 }
 
@@ -58,11 +57,11 @@ export function mapUnifiedBookmarkToBookmarkInsert(bookmark: UnifiedBookmark): B
     description: bookmark.description,
     note: bookmark.note ?? null,
     summary: bookmark.summary ?? null,
+    scrapedContentText: bookmark.scrapedContentText ?? null,
     tags: bookmark.tags,
     content: bookmark.content ?? null,
     assets: bookmark.assets ?? null,
     logoData: bookmark.logoData ?? null,
-    registryLinks: bookmark.registryLinks ?? null,
     ogImage: bookmark.ogImage ?? null,
     ogTitle: bookmark.ogTitle ?? null,
     ogDescription: bookmark.ogDescription ?? null,
@@ -80,7 +79,6 @@ export function mapUnifiedBookmarkToBookmarkInsert(bookmark: UnifiedBookmark): B
     dateBookmarked: bookmark.dateBookmarked,
     datePublished: bookmark.datePublished ?? null,
     dateCreated: bookmark.dateCreated ?? null,
-    dateUpdated: bookmark.dateUpdated ?? null,
     modifiedAt: bookmark.modifiedAt ?? null,
     sourceUpdatedAt: bookmark.sourceUpdatedAt,
   };

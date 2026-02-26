@@ -164,43 +164,37 @@ export async function GET(request: NextRequest) {
       } else if (bookmarkId) {
         // If we only have bookmarkId, try to get bookmark data and check Karakeep assets first
         try {
-          const { readJsonS3Optional } = await import("@/lib/s3/json");
-          const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
-          const { unifiedBookmarksArraySchema } = await import("@/types/bookmark");
+          const { getBookmarkById } = await import("@/lib/db/queries/bookmarks");
+          const bookmark = await getBookmarkById(bookmarkId);
 
-          const bookmarksData = await readJsonS3Optional(
-            BOOKMARKS_S3_PATHS.FILE,
-            unifiedBookmarksArraySchema,
-          );
-          if (bookmarksData && Array.isArray(bookmarksData)) {
-            const bookmark = bookmarksData.find((b) => b.id === bookmarkId);
-
-            if (bookmark) {
-              // PRIORITY: Karakeep bannerImage (imageAssetId) takes precedence over OpenGraph
-              if (bookmark.content?.imageAssetId) {
-                logger.info(
-                  `[OG-Priority-KARAKEEP] 🎯 Found Karakeep bannerImage (imageAssetId), using INSTEAD of OpenGraph: ${bookmark.content.imageAssetId}`,
-                );
-                // Always use API proxy to ensure correct content-type
-                const assetUrl = `/api/assets/${bookmark.content.imageAssetId}`;
-                return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), {
-                  status: 302,
-                });
-              }
-
-              fallbackImageData = {
-                imageUrl: bookmark.content?.imageUrl || undefined,
-                imageAssetId: bookmark.content?.imageAssetId || undefined,
-                screenshotAssetId: bookmark.content?.screenshotAssetId || undefined,
-              };
+          if (bookmark) {
+            // PRIORITY: Karakeep bannerImage (imageAssetId) takes precedence over OpenGraph
+            if (bookmark.content?.imageAssetId) {
               logger.info(
-                `[OG-Image] No Karakeep bannerImage found, proceeding to OpenGraph with fallback data:`,
-                fallbackImageData,
+                `[OG-Priority-KARAKEEP] 🎯 Found Karakeep bannerImage (imageAssetId), using INSTEAD of OpenGraph: ${bookmark.content.imageAssetId}`,
               );
+              // Always use API proxy to ensure correct content-type
+              const assetUrl = `/api/assets/${bookmark.content.imageAssetId}`;
+              return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), {
+                status: 302,
+              });
             }
+
+            fallbackImageData = {
+              imageUrl: bookmark.content?.imageUrl || undefined,
+              imageAssetId: bookmark.content?.imageAssetId || undefined,
+              screenshotAssetId: bookmark.content?.screenshotAssetId || undefined,
+            };
+            logger.info(
+              `[OG-Image] No Karakeep bannerImage found, proceeding to OpenGraph with fallback data:`,
+              fallbackImageData,
+            );
           }
-        } catch (s3Error) {
-          logger.error("[OG-Image] Failed to read bookmarks for Karakeep priority check:", s3Error);
+        } catch (bookmarkError) {
+          logger.error(
+            "[OG-Image] Failed to read bookmark for Karakeep priority check:",
+            bookmarkError,
+          );
         }
       }
     }

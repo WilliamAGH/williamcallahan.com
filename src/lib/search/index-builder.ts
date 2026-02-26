@@ -215,11 +215,10 @@ async function buildBooksIndex(): Promise<SerializedIndex> {
 export async function buildAllSearchIndexes(): Promise<AllSerializedIndexes> {
   console.log("[Search Index Builder] Starting build process...");
 
-  const [postsIndex, bookmarksIndex, booksIndex] = await Promise.all([
-    buildPostsIndex(),
-    buildBookmarksIndex(),
-    buildBooksIndex(),
-  ]);
+  // Build high-cardinality indexes sequentially to reduce peak memory usage.
+  const postsIndex = await buildPostsIndex();
+  const bookmarksIndex = await buildBookmarksIndex();
+  const booksIndex = await buildBooksIndex();
 
   const investmentsIndex = buildInvestmentsIndex();
   const experienceIndex = buildExperienceIndex();

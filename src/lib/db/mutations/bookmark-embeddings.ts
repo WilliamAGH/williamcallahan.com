@@ -1,8 +1,9 @@
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
-import { db } from "@/lib/db/connection";
+import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import { BOOKMARK_EMBEDDING_DIMENSIONS, bookmarks } from "@/lib/db/schema/bookmarks";
+import { bookmarkContentSchema } from "@/types/schemas/bookmark";
 import type {
   BookmarkEmbeddingRow,
   BookmarkEmbeddingBackfillOptions,
@@ -11,7 +12,6 @@ import type {
 
 const DEFAULT_BATCH_SIZE = 16;
 const MAX_BATCH_SIZE = 128;
-const MAX_EMBEDDING_INPUT_CHARS = 8_000;
 
 function resolveBatchSize(input?: number): number {
   if (input === undefined) {
@@ -68,9 +68,21 @@ function collectTagNames(rawTags: unknown): string[] {
   return tagNames;
 }
 
+/**
+ * Build the text sent to the embedding model for a single bookmark.
+ *
+ * Layout: short structured metadata first, scraped content last.
+ * The embedding server (llama.cpp) auto-truncates at its configured context
+ * window (8 192 tokens for Qwen3-Embedding-4B).  Because scraped content is
+ * placed last, truncation clips only the tail of long page text while all
+ * structured metadata is always preserved.
+ */
 function buildBookmarkEmbeddingInput(row: BookmarkEmbeddingRow): string {
   const sections: string[] = [];
+  const parsedContent = bookmarkContentSchema.safeParse(row.content);
+  const content = parsedContent.success ? parsedContent.data : null;
 
+  // --- structured metadata (always fits within 8 192 tokens) ---
   sections.push(`Title: ${row.title}`);
   sections.push(`Description: ${row.description}`);
 
@@ -89,8 +101,52 @@ function buildBookmarkEmbeddingInput(row: BookmarkEmbeddingRow): string {
     sections.push(`Tags: ${tagNames.join(", ")}`);
   }
 
+  if (content) {
+    if (
+      content.title &&
+      content.title.trim().length > 0 &&
+      content.title.trim() !== row.title.trim()
+    ) {
+      sections.push(`Content Title: ${content.title.trim()}`);
+    }
+    if (
+      content.description &&
+      content.description.trim().length > 0 &&
+      content.description.trim() !== row.description.trim()
+    ) {
+      sections.push(`Content Description: ${content.description.trim()}`);
+    }
+    if (content.author && content.author.trim().length > 0) {
+      sections.push(`Author: ${content.author.trim()}`);
+    }
+    if (content.publisher && content.publisher.trim().length > 0) {
+      sections.push(`Publisher: ${content.publisher.trim()}`);
+    }
+    if (content.crawlStatus && content.crawlStatus.trim().length > 0) {
+      sections.push(`Crawl Status: ${content.crawlStatus.trim()}`);
+    }
+    if (content.contentAssetId && content.contentAssetId.trim().length > 0) {
+      sections.push(`Content Asset ID: ${content.contentAssetId.trim()}`);
+    }
+    if (content.crawledAt && content.crawledAt.trim().length > 0) {
+      sections.push(`Crawled At: ${content.crawledAt.trim()}`);
+    }
+    if (content.datePublished && content.datePublished.trim().length > 0) {
+      sections.push(`Published: ${content.datePublished.trim()}`);
+    }
+    if (content.dateModified && content.dateModified.trim().length > 0) {
+      sections.push(`Updated: ${content.dateModified.trim()}`);
+    }
+  }
+
   sections.push(`URL: ${row.url}`);
-  return sections.join("\n").slice(0, MAX_EMBEDDING_INPUT_CHARS);
+
+  // --- scraped content last: server truncation clips only its tail ---
+  if (typeof row.scrapedContentText === "string" && row.scrapedContentText.trim().length > 0) {
+    sections.push(`Scraped Content: ${row.scrapedContentText.trim()}`);
+  }
+
+  return sections.join("\n");
 }
 
 function buildHalfvecLiteral(embedding: number[]): string {
@@ -148,7 +204,9 @@ async function readMissingEmbeddingRows(
       summary: bookmarks.summary,
       note: bookmarks.note,
       domain: bookmarks.domain,
+      scrapedContentText: bookmarks.scrapedContentText,
       tags: bookmarks.tags,
+      content: bookmarks.content,
     })
     .from(bookmarks)
     .where(buildMissingEmbeddingWhereClause(bookmarkIds))
@@ -182,6 +240,10 @@ export async function backfillBookmarkEmbeddings(
   const dryRun = options.dryRun === true;
   const bookmarkIds = normalizeBookmarkIds(options.bookmarkIds);
 
+  if (!dryRun) {
+    assertDatabaseWriteAllowed("backfillBookmarkEmbeddings");
+  }
+
   let processedRows = 0;
   let updatedRows = 0;
 
@@ -192,11 +254,16 @@ export async function backfillBookmarkEmbeddings(
       break;
     }
 
+    console.log(
+      `[bookmark-embeddings] Selecting up to ${remainingBudget} rows (processed=${processedRows}).`,
+    );
     const rows = await readMissingEmbeddingRows(remainingBudget, bookmarkIds);
     if (rows.length === 0) {
+      console.log("[bookmark-embeddings] No remaining rows to backfill.");
       break;
     }
 
+    console.log(`[bookmark-embeddings] Generating embeddings for ${rows.length} rows.`);
     const embeddingInput = rows.map((row) => buildBookmarkEmbeddingInput(row));
     const embeddings = await embedTextsWithEndpointCompatibleModel({
       config,
@@ -207,9 +274,13 @@ export async function backfillBookmarkEmbeddings(
         `Embedding result count mismatch. Expected ${rows.length}, received ${embeddings.length}.`,
       );
     }
+    console.log(
+      `[bookmark-embeddings] Received ${embeddings.length} embeddings (dim=${embeddings[0]?.length ?? 0}).`,
+    );
 
     processedRows += rows.length;
     if (dryRun) {
+      console.log("[bookmark-embeddings] Dry run enabled; skipping database updates.");
       continue;
     }
 

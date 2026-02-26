@@ -8,6 +8,27 @@
       "when": 1772075867565,
       "tag": "0000_rename-embedding-to-qwen-4b-fp16",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772075868565,
+      "tag": "0001_search-index-artifacts",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772145600000,
+      "tag": "0002_bookmark-scraped-content-text",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1772145700000,
+      "tag": "0003_drop-dead-bookmark-columns",
+      "breakpoints": true
     }
   ]
 }

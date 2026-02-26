@@ -15,11 +15,28 @@ import { z } from "zod/v4";
 // Mock external dependencies
 vi.mock("@/lib/s3/json");
 vi.mock("@/lib/s3/objects");
+vi.mock("@/lib/db/queries/bookmarks", () => ({
+  getBookmarksIndexFromDatabase: vi.fn().mockResolvedValue({
+    count: 1,
+    totalPages: 1,
+    pageSize: 24,
+    lastModified: new Date().toISOString(),
+    lastFetchedAt: Date.now(),
+    lastAttemptedAt: Date.now(),
+    checksum: "test-checksum",
+    changeDetected: true,
+  }),
+  getSlugMappingRowsFromDatabase: vi.fn().mockResolvedValue([]),
+  getBookmarkBySlugFromDatabase: vi.fn().mockResolvedValue(null),
+}));
 vi.mock("@/lib/bookmarks/service.server");
 vi.mock("@/lib/bookmarks/bookmarks-data-access.server");
 vi.mock("@/lib/blog");
 vi.mock("@/lib/utils/logger");
 vi.mock("@/lib/search/index-builder");
+vi.mock("@/lib/db/mutations/search-index-artifacts", () => ({
+  upsertAllSearchIndexArtifacts: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/lib/blog/mdx");
 vi.mock("@/lib/content-similarity/aggregator");
 vi.mock("@/lib/content-similarity");

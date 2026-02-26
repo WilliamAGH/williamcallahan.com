@@ -9,18 +9,20 @@ import {
   getSlugForBookmark,
   getBookmarkIdFromSlug,
 } from "@/lib/bookmarks/slug-manager";
-import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
-import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
-import { bookmarkSlugMappingSchema } from "@/types/bookmark";
+import { getSlugMappingRowsFromDatabase } from "@/lib/db/queries/bookmarks";
 import type { MockedFunction } from "vitest";
 
-// Mock dependencies
-vi.mock("@/lib/s3/json");
+vi.mock("@/lib/db/queries/bookmarks", () => ({
+  getSlugMappingRowsFromDatabase: vi.fn(),
+  getBookmarkBySlugFromDatabase: vi.fn(),
+}));
+
 vi.mock("@/lib/utils/logger");
 
-const mockReadJsonS3 = readJsonS3Optional as MockedFunction<typeof readJsonS3Optional>;
-const mockWriteJsonS3 = writeJsonS3 as MockedFunction<typeof writeJsonS3>;
+const mockGetSlugMappingRows = getSlugMappingRowsFromDatabase as MockedFunction<
+  typeof getSlugMappingRowsFromDatabase
+>;
 
 describe("Bookmark Slug Mapping", () => {
   const mockBookmarks: UnifiedBookmark[] = [
@@ -140,79 +142,53 @@ describe("Bookmark Slug Mapping", () => {
   });
 
   describe("saveSlugMapping", () => {
-    it("should save mapping to S3 with correct path", async () => {
-      mockWriteJsonS3.mockResolvedValue(undefined);
-
-      // Call with default overwrite=true, which doesn't pass IfNoneMatch
-      await saveSlugMapping(mockBookmarks);
-
-      expect(mockWriteJsonS3).toHaveBeenCalledWith(
-        BOOKMARKS_S3_PATHS.SLUG_MAPPING,
-        expect.objectContaining({
-          version: "1.0.0",
-          count: 3,
-          slugs: expect.any(Object),
-          reverseMap: expect.any(Object),
-          generated: expect.any(String),
-        }),
-      );
+    it("should validate and complete in PostgreSQL mode", async () => {
+      await expect(saveSlugMapping(mockBookmarks)).resolves.toBeUndefined();
     });
 
-    it("should use environment-aware path", async () => {
-      // Import the actual environment suffix to verify path is correctly formed
-      const { ENVIRONMENT_SUFFIX } = await import("@/lib/config/environment");
-
-      // Path should contain the environment suffix (empty for prod, -dev/-test for others)
-      const expectedPath = `slug-mapping${ENVIRONMENT_SUFFIX}.json`;
-      expect(BOOKMARKS_S3_PATHS.SLUG_MAPPING).toContain(expectedPath);
-    });
-
-    it("should throw error on S3 write failure", async () => {
-      mockWriteJsonS3.mockRejectedValue(new Error("S3 Error"));
-
-      await expect(saveSlugMapping(mockBookmarks)).rejects.toThrow("S3 Error");
+    it("should allow compatibility overwrite flag", async () => {
+      await expect(saveSlugMapping(mockBookmarks, false)).resolves.toBeUndefined();
     });
   });
 
   describe("loadSlugMapping", () => {
-    const mockMapping: BookmarkSlugMapping = {
-      version: "1.0.0",
-      generated: new Date().toISOString(),
-      count: 2,
-      slugs: {
-        bookmark1: {
-          id: "bookmark1",
-          slug: "example-com",
-          url: "https://example.com",
-          title: "Example",
-        },
-        bookmark2: {
-          id: "bookmark2",
-          slug: "github-com",
-          url: "https://github.com",
-          title: "GitHub",
-        },
+    const mockMappingRows = [
+      {
+        id: "bookmark1",
+        slug: "example-com",
+        url: "https://example.com",
+        title: "Example",
       },
-      reverseMap: {
-        "example-com": "bookmark1",
-        "github-com": "bookmark2",
+      {
+        id: "bookmark2",
+        slug: "github-com",
+        url: "https://github.com",
+        title: "GitHub",
       },
-    };
+    ];
 
-    it("should load mapping from S3", async () => {
-      mockReadJsonS3.mockResolvedValue(mockMapping);
+    it("should load mapping from PostgreSQL rows", async () => {
+      mockGetSlugMappingRows.mockResolvedValue(mockMappingRows);
 
       const result = await loadSlugMapping();
 
-      expect(mockReadJsonS3).toHaveBeenCalledWith(
-        BOOKMARKS_S3_PATHS.SLUG_MAPPING,
-        bookmarkSlugMappingSchema,
-      );
-      expect(result).toEqual(mockMapping);
+      expect(mockGetSlugMappingRows).toHaveBeenCalledTimes(1);
+      expect(result).not.toBeNull();
+      expect(result?.count).toBe(2);
+      expect(result?.slugs.bookmark1?.slug).toBe("example-com");
+      expect(result?.reverseMap["github-com"]).toBe("bookmark2");
     });
 
-    it("should return null on S3 read error", async () => {
-      mockReadJsonS3.mockRejectedValue(new Error("Not found"));
+    it("should return null when no rows exist", async () => {
+      mockGetSlugMappingRows.mockResolvedValue([]);
+
+      const result = await loadSlugMapping();
+
+      expect(result).toBeNull();
+    });
+
+    it("should return null when db read fails", async () => {
+      mockGetSlugMappingRows.mockRejectedValue(new Error("db unavailable"));
 
       const result = await loadSlugMapping();
 
@@ -236,6 +212,7 @@ describe("Bookmark Slug Mapping", () => {
       reverseMap: {
         "test-slug": "bookmark1",
       },
+      checksum: "checksum",
     };
 
     it("should return slug for existing bookmark", () => {
@@ -265,6 +242,7 @@ describe("Bookmark Slug Mapping", () => {
       reverseMap: {
         "test-slug": "bookmark1",
       },
+      checksum: "checksum",
     };
 
     it("should return bookmark ID for existing slug", () => {
