@@ -101,6 +101,7 @@ graph TD
   - `lib/db/bookmark-record-mapper.ts`: Zod-validated boundary mapper between Drizzle rows/inserts and `UnifiedBookmark`.
 - **Operational Notes**:
   - `drizzle.config.ts` scopes `drizzle-kit push` to app tables (`bookmarks`, `bookmark_tag_links`, `bookmark_index_state`, `bookmark_tag_index_state`) so extension-managed objects (for example `pg_stat_statements`) are not mutated.
+  - PostgreSQL write operations are runtime-guarded: non-production environments (`DEPLOYMENT_ENV`/`NODE_ENV` resolving to development/unknown) fail fast before any DB mutation executes.
   - `scripts/migrate-s3-to-postgres.ts` performs S3 JSON -> PostgreSQL migration and rebuilds taxonomy/index-state rows via unified mutations.
 
 #### Bookmarks API and Data Management (`lib/bookmarks.ts`)
@@ -109,8 +110,9 @@ graph TD
 - **Key Features**:
   - Implements a multi-tiered caching strategy using in-memory server cache and PostgreSQL index checksum state to minimize redundant API calls.
   - Handles pagination for API requests to fetch all bookmarks across multiple pages, incorporating timeout safeguards to prevent hanging on slow responses.
+  - Requests `includeContent=true` while paginating Karakeep API responses so crawled HTML is available during normalization.
   - Performs non-blocking background refreshes to update data without impacting the main request flow, ensuring a responsive user experience.
-  - Normalizes raw API data into a unified bookmark format, omitting large fields like HTML content to reduce payload size and improve efficiency.
+  - Normalizes raw API data into a unified bookmark format, converts crawled HTML into clean plain text stored as `bookmarks.scraped_content_text`, and explicitly excludes raw HTML from the persisted `content` JSONB column.
   - Enriches bookmarks with OpenGraph metadata in controlled batches with jittered delays to optimize network usage and respect external service limits.
   - Validates datasets before persistence using safeguard mechanisms to prevent overwriting with invalid or test data, ensuring data integrity.
   - Provides robust fallback mechanisms to return cached/PostgreSQL data in case of fetch failures, enhancing application resilience during API downtime.

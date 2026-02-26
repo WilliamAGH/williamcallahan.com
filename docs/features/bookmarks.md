@@ -44,6 +44,13 @@ Karakeep API -> Selective Refresh Jobs -> Drizzle writes (bookmarks + taxonomy/i
    - Tag navigation with URL-based routing
    - Share functionality with pre-generated URLs
 
+### Scraped Content Normalization
+
+- Refresh pagination requests `includeContent=true` from Karakeep so crawled page HTML is available during normalization.
+- Crawled HTML from the Karakeep API is converted to clean plain text via `normalizeScrapedContentText()` during normalization.
+- Normalized text is stored in PostgreSQL as `scraped_content_text`; raw HTML is explicitly excluded from the persisted `content` JSONB column.
+- Embedding payload generation uses `scraped_content_text` as the content source (positioned last so server-side token truncation clips its tail first).
+
 ### Runtime Fetch Strategy
 
 - Builds no longer hydrate bookmark JSON locally. Docker images and workstation builds read bookmarks from PostgreSQL in runtime paths.
@@ -106,6 +113,7 @@ Core data model with fields for:
 - Timestamps (created, updated, bookmarked)
 - Enrichment data (OpenGraph, assets, logos)
 - Content from Karakeep (screenshots, metadata)
+- Normalized scraped text (`scrapedContentText`) derived from Karakeep HTML content
 
 ### S3 Storage Layout
 

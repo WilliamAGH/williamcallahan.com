@@ -243,6 +243,7 @@ File/Path Functionality Description
   - [x] `validation.ts` `blog` - Blog data validation schemas
 - [ ] **bookmarks/**
   - [x] `index.ts` `bookmarks` - Barrel file for bookmark library functions
+  - [x] `scraped-content.ts` `bookmarks` - Normalizes Karakeep HTML into clean plain-text bookmark content for persistence/embeddings
   - [x] `slug-shards.ts` `bookmarks` - S3 shard helpers for bookmark slugs
   - [x] **analysis/**
     - [x] `build-prompt.ts` `bookmarks` - LLM prompt builder for bookmark analysis
@@ -475,6 +476,7 @@ File/Path Functionality Description
 - [x] `bun.lock` `deps` - Bun lockfile
 - [x] `components.json` `config` - ShadCN UI component configuration
 - [x] `Dockerfile` `deployment` - Docker container configuration
+- [x] `drizzle/0002_bookmark-scraped-content-text.sql` `data-access` - Migration adding `bookmarks.scraped_content_text` for normalized crawled content
 - [x] `eslint.config.ts` `linting-formatting` - ESLint configuration
 - [x] `drizzle.config.ts` `data-access` - Drizzle Kit configuration for PostgreSQL schema sync (`bookmarks`, `bookmark_tag_links`, `bookmark_index_state`, `bookmark_tag_index_state`)
   - [x] `instrumentation-client.ts` `log-error-debug-handling` - Client-side instrumentation setup
@@ -597,6 +599,7 @@ File/Path Functionality Description
 - [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Script to force-refresh GitHub repo stats
 - [x] `migrate-s3-to-postgres.ts` `bookmarks` - Bookmark migration from S3 JSON to PostgreSQL via unified Drizzle mutations (including tag/index-state rebuild)
 - [x] `backfill-bookmark-embeddings.ts` `bookmarks` - CLI backfill for PostgreSQL bookmark embeddings (`qwen_4b_fp16_embedding`) using endpoint-compatible `/v1/embeddings`
+- [x] `backfill-bookmark-embeddings.node.mjs` `bookmarks` - Node runtime backfill for PostgreSQL bookmark embeddings (`qwen_4b_fp16_embedding`) using endpoint-compatible `/v1/embeddings` with resilient postgres-js connectivity
 - [x] `populate-volumes.ts` `deprecated` - DEPRECATED: Use data-updater.ts instead
 - [x] `pre-build-checks.sh` `build` - Pre-build check script
 - [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations
@@ -665,8 +668,8 @@ File/Path Functionality Description
         - [x] `chat-upstream-pipeline-analysis-validation.test.ts` `ai-shared-services` - Bookmark-analysis schema/retry normalization tests for upstream pipeline outputs
       - [x] **github-activity/**
         - [x] `cache.test.ts` `github-activity` - Tests for GitHub activity caching
-      - [x] **upload/**
-        - [x] `route.test.ts` `chroma` - Upload cleanup tests for S3/Chroma pipeline
+    - [x] **upload/**
+      - [x] `route.test.ts` `books` - Upload cleanup tests for the S3 upload pipeline (vector indexing disabled)
       - [x] **og/**
         - [x] `entity-route.test.ts` `opengraph` - Unified OG image route handler dispatch and validation tests
       - [x] **logo/**
@@ -701,6 +704,7 @@ File/Path Functionality Description
       - [x] `security.test.ts` `opengraph` - OG image SSRF protection tests (private hosts, protocol restrictions)
     - [x] `blog.test.ts` `blog` - Blog utility tests
     - [x] `bookmarks-s3-external-sync.unit.test.ts` `bookmarks` - Bookmarks S3 sync unit tests
+    - [x] `scraped-content-pipeline.unit.test.ts` `bookmarks` - Validates includeContent fetch pagination and HTML-to-plain-text normalization in bookmark refresh
     - [x] `db/bookmark-record-mapper.test.ts` `bookmarks` - Unit tests for Drizzle bookmark row/insert mapper behavior
     - [x] `bookmarks-validation.test.ts` `json-handling` - Bookmarks validation tests
     - [x] `bookmarks.test.ts` `bookmarks` - Bookmarks utility tests
@@ -726,8 +730,7 @@ File/Path Functionality Description
       - [x] `dynamic-retriever.test.ts` `ai-shared-services` - RAG dynamic retriever tests
       - [x] `inventory-context.test.ts` `ai-shared-services` - RAG inventory catalog tests
       - [x] `static-context.test.ts` `ai-shared-services` - RAG static context tests
-    - [x] `content-similarity/keyword-extractor.test.ts` `chroma` - Keyword extraction tag filtering tests
-    - [x] `chroma/chroma-actual.test.ts` `chroma` - Live Chroma integration test (opt-in)
+    - [x] `content-similarity/keyword-extractor.test.ts` `search` - Keyword extraction tag filtering tests
     - [x] **seo/**
       - [x] `metadata.test.ts` `seo` - SEO metadata tests
       - [x] `opengraph.test.ts` `seo` - OpenGraph metadata tests

@@ -6,7 +6,7 @@
 
 The search functionality provides site-wide and section-specific search capabilities with fuzzy matching, caching, and security features. It's primarily accessed through the terminal interface and enables users to find content across blog posts, bookmarks, investments, experience, and education sections.
 
-> **Note on Semantic Search:** This document describes the **keyword/fuzzy search** system (MiniSearch). For vector-based semantic search and related content discovery, see [`chroma.md`](../architecture/chroma.md).
+> **Note on Semantic Search:** This document describes the **keyword/fuzzy search** system (MiniSearch). Vector-based retrieval currently exists only for bookmarks via PostgreSQL embeddings (see `docs/features/bookmarks.md` and `src/lib/db/schema/bookmarks.ts`).
 
 ## Forbidden Patterns
 

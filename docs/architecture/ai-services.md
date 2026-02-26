@@ -92,12 +92,13 @@ For a route param `feature`, the server resolves configuration with this precede
 ### Endpoint-Compatible Embeddings
 
 - `AI_DEFAULT_EMBEDDING_MODEL` enables endpoint-compatible embeddings generation with the same upstream origin used by chat.
+- `AI_DEFAULT_EMBEDDING_MODEL` is treated as a **provider model id** (routing string), not the canonical model identity.
+  - The app maps known provider aliases (for example, `text-embedding-qwen3-embedding-4b` and `qwen/qwen3-embedding-4b`) onto a single canonical embedding space id (`qwen3-embedding-4b`) so provider naming differences do not imply different vector spaces.
 - Required alongside that model variable:
   - `AI_DEFAULT_OPENAI_BASE_URL`
   - `AI_DEFAULT_OPENAI_API_KEY`
 - Used for:
-  - Chroma embedding generation in `src/lib/chroma/embedding-function.ts`
-  - PostgreSQL bookmark embedding backfill (`bun run bookmarks:embeddings:backfill`)
+  - PostgreSQL bookmark embedding backfill (`bun run bookmarks:embeddings:backfill`, executed via Node script `scripts/backfill-bookmark-embeddings.node.mjs`)
 
 ## OpenAI SDK Notes
 

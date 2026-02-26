@@ -36,9 +36,8 @@ Vitest does not support rendering async Server Components. Unit tests may cover 
 ## Live Integration Tests (Opt-In)
 
 Some tests exercise real external services and are gated by environment variables with
-`describe.runIf(...)`. Example: `__tests__/lib/chroma/chroma-actual.test.ts` only runs
-when `CHROMA_API_KEY`, `CHROMA_TENANT`, and `CHROMA_DATABASE` are configured. These tests
-must remain opt-in and should be run explicitly in controlled environments.
+`describe.runIf(...)`. These tests must remain opt-in and should be run explicitly in
+controlled environments.
 
 ## Mocking Patterns (Vitest)
 

@@ -263,7 +263,7 @@ git commit -m "feat(db): add bookmarks Drizzle schema with hybrid search columns
 **Step 1: Push schema**
 
 ```bash
-DATABASE_URL="postgres://postgres:Upd3YV2nuh1ODzx15QLhPyjivmuMh3nhFx8dFi9uN8Y3fnyGxAUI50r1WLbPN9tA@167.234.219.57:5438/postgres?sslmode=require" bun drizzle-kit push
+DATABASE_URL="postgres://postgres:<password>@<host>:5438/postgres?sslmode=require" bun drizzle-kit push
 ```
 
 Expected: creates `bookmarks` table with all columns and indexes.
@@ -801,29 +801,362 @@ git commit -m "docs: add DATABASE_URL to .env-example"
 
 ---
 
-## Verification Checklist
+## Task 14: Bookmark Stragglers (S3 -> PostgreSQL)
+
+**Goal:** remove remaining bookmark JSON runtime dependencies (slug mapping/shards, cache route, OG bookmark lookup, DataFetchManager index read).
+
+**Files:**
+
+- Modify: `src/lib/db/queries/bookmarks.ts`
+- Modify: `src/lib/bookmarks/slug-manager.ts`
+- Modify: `src/lib/bookmarks/slug-shards.ts`
+- Modify: `src/app/api/cache/bookmarks/route.ts`
+- Modify: `src/app/api/og-image/route.ts`
+- Modify: `src/lib/server/data-fetch-manager.ts`
+- Modify tests covering these paths
+
+**Step 1: Add DB slug query helpers**
+
+- Add query functions in `src/lib/db/queries/bookmarks.ts`:
+  - `getSlugMappingFromDatabase()`
+  - `getBookmarkIdBySlug(slug: string)`
+  - `getBookmarkByIdFromDatabase(id: string)` (if not already available in the shape needed by OG route)
+- Use existing Drizzle mapper types (`UnifiedBookmark`) and avoid duplicate types.
+
+**Step 2: Convert slug manager to DB-backed reads**
+
+- Replace S3 read/write in `loadSlugMapping()` and `getBookmarkBySlug()` with DB queries.
+- Keep `generateSlugMapping()` as a deterministic utility for regeneration logic.
+- Keep API contract stable for call sites that still consume `BookmarkSlugMapping`.
+
+**Step 3: Remove shard file persistence path**
+
+- Replace `readSlugShard()` S3 behavior with DB slug lookup.
+- Remove runtime dependency on per-slug shard files for bookmark routing.
+
+**Step 4: Update bookmark-adjacent routes/services**
+
+- `src/app/api/cache/bookmarks/route.ts`: replace `readJsonS3Optional(...INDEX...)` with DB index-state query.
+- `src/app/api/og-image/route.ts`: replace bookmark-by-id read from bookmark S3 file with DB read.
+- `src/lib/server/data-fetch-manager.ts`: replace bookmark index S3 read with DB index-state read.
+
+**Step 5: Verification**
+
+```bash
+bun run test -- __tests__/lib/bookmarks/has-bookmarks-changed.unit.test.ts __tests__/lib/bookmarks/lock-and-freshness.unit.test.ts
+bun run test -- __tests__/api/bookmarks/pagination-limit.test.ts __tests__/api/bookmarks/tag-filtering.test.ts
+bun run type-check
+bun run validate
+```
+
+**Step 6: Commit**
+
+```bash
+git add src/lib/db/queries/bookmarks.ts src/lib/bookmarks/slug-manager.ts \
+  src/lib/bookmarks/slug-shards.ts src/app/api/cache/bookmarks/route.ts \
+  src/app/api/og-image/route.ts src/lib/server/data-fetch-manager.ts __tests__
+git commit -m "feat(db): remove remaining bookmark S3 read paths (slug/cache/og/index)"
+```
+
+---
+
+## Task 15: Search Index Persistence Off S3
+
+**Goal:** move serialized MiniSearch artifacts from `json/search/*.json` into PostgreSQL.
+
+**Files:**
+
+- Create: `src/lib/db/schema/search-index-artifacts.ts`
+- Modify: `src/lib/db/schema/index.ts`
+- Create: `src/lib/db/queries/search-index-artifacts.ts`
+- Create: `src/lib/db/mutations/search-index-artifacts.ts`
+- Modify: `src/lib/server/data-fetch-manager.ts`
+- Modify: `src/lib/search/loaders/static-content.ts`
+- Modify: `src/lib/search/loaders/dynamic-content.ts`
+- Create: `scripts/migrate-search-indexes-s3-to-postgres.ts`
+
+**Step 1: Add schema**
+
+- Table shape:
+  - `domain` (`posts|bookmarks|investments|experience|education|projects|books|build-metadata`)
+  - `payload` (`jsonb`)
+  - `checksum` (`text`)
+  - `itemCount` (`integer`)
+  - `generatedAt` (`timestamptz`)
+  - `updatedAt` (`timestamptz`)
+- Unique constraint on `domain`.
+
+**Step 2: Add query/mutation modules**
+
+- Query: `getSearchIndexArtifact(domain)`
+- Mutation: `upsertSearchIndexArtifact(domain, payload, metadata)`
+- Enforce strict Zod validation at the read boundary before index hydration.
+
+**Step 3: Switch writer**
+
+- In `DataFetchManager`, replace `writeJsonS3(SEARCH_S3_PATHS.*)` with DB upserts.
+
+**Step 4: Switch readers**
+
+- In static/dynamic search loaders, replace S3 reads for serialized indexes with DB queries.
+- Preserve existing fallback behavior (rebuild in-memory index if DB record missing/invalid).
+
+**Step 5: Backfill + verify**
+
+```bash
+DATABASE_URL="..." bun drizzle-kit push
+DATABASE_URL="..." bun run scripts/migrate-search-indexes-s3-to-postgres.ts
+bun run test -- __tests__/lib/search/api-guards.test.ts __tests__/api/search/bookmarks-search.test.ts
+bun run type-check
+bun run validate
+```
+
+**Step 6: Commit**
+
+```bash
+git add src/lib/db/schema/search-index-artifacts.ts src/lib/db/schema/index.ts \
+  src/lib/db/queries/search-index-artifacts.ts src/lib/db/mutations/search-index-artifacts.ts \
+  src/lib/server/data-fetch-manager.ts src/lib/search/loaders/static-content.ts \
+  src/lib/search/loaders/dynamic-content.ts scripts/migrate-search-indexes-s3-to-postgres.ts __tests__
+git commit -m "feat(db): migrate search index artifacts from S3 to PostgreSQL"
+```
+
+---
+
+## Task 16: GitHub Activity Domain (Task 10 Execution)
+
+**Goal:** execute Task 10 end-to-end (schema, backfill, data-access cutover).
+
+**Files:**
+
+- Create/Modify exactly as listed in Task 10:
+  - `src/lib/db/schema/github-activity.ts`
+  - `src/lib/db/schema/index.ts`
+  - `src/lib/db/queries/github-activity.ts`
+  - `src/lib/db/mutations/github-activity.ts`
+  - `scripts/migrate-github-s3-to-postgres.ts`
+  - `src/lib/data-access/github-storage.ts`
+
+**Step 1: Implement schema + modules**
+
+- Store canonical response, summary, aggregated weekly stats, repo weekly stats in relational/jsonb form.
+- Keep current non-degrading write semantics from `github-storage.ts`.
+
+**Step 2: Backfill and parity check**
+
+```bash
+DATABASE_URL="..." bun drizzle-kit push
+DATABASE_URL="..." bun run scripts/migrate-github-s3-to-postgres.ts
+bun run test -- __tests__/lib/data-access/github-storage.test.ts
+bun run type-check
+bun run validate
+```
+
+**Step 3: Commit**
+
+```bash
+git add src/lib/db/schema/github-activity.ts src/lib/db/queries/github-activity.ts \
+  src/lib/db/mutations/github-activity.ts scripts/migrate-github-s3-to-postgres.ts \
+  src/lib/data-access/github-storage.ts src/lib/db/schema/index.ts __tests__
+git commit -m "feat(db): migrate GitHub activity storage from S3 to PostgreSQL"
+```
+
+---
+
+## Task 17: Books Snapshot Runtime + Generator Migration
+
+**Goal:** migrate books `latest/index/snapshot` JSON persistence from S3 to PostgreSQL.
+
+**Files:**
+
+- Create: `src/lib/db/schema/books-snapshots.ts`
+- Modify: `src/lib/db/schema/index.ts`
+- Create: `src/lib/db/queries/books-snapshots.ts`
+- Create: `src/lib/db/mutations/books-snapshots.ts`
+- Modify: `src/lib/books/books-data-access.server.ts`
+- Modify: `src/lib/books/generate.ts`
+- Create: `scripts/migrate-books-s3-to-postgres.ts`
+
+**Step 1: Add tables**
+
+- `books_snapshots` (versioned payload/checksum/generated metadata)
+- `books_latest` pointer (single-row or keyed pointer table)
+- `books_index_state` (count/checksum/lastModified/lastFetchedAt)
+
+**Step 2: Cut runtime + generator**
+
+- Runtime loader reads DB latest pointer + snapshot.
+- Generator writes versioned snapshot + latest/index-state in a transaction.
+
+**Step 3: Verify**
+
+```bash
+DATABASE_URL="..." bun drizzle-kit push
+DATABASE_URL="..." bun run scripts/migrate-books-s3-to-postgres.ts
+bun run test -- __tests__/lib/books/books-data-access.server.test.ts
+bun run type-check
+bun run validate
+```
+
+**Step 4: Commit**
+
+```bash
+git add src/lib/db/schema/books-snapshots.ts src/lib/db/schema/index.ts \
+  src/lib/db/queries/books-snapshots.ts src/lib/db/mutations/books-snapshots.ts \
+  src/lib/books/books-data-access.server.ts src/lib/books/generate.ts \
+  scripts/migrate-books-s3-to-postgres.ts __tests__
+git commit -m "feat(db): migrate books snapshot storage from S3 to PostgreSQL"
+```
+
+---
+
+## Task 18: Content Graph Migration
+
+**Goal:** migrate related content/tag graph persistence from S3 JSON to PostgreSQL.
+
+**Files:**
+
+- Create: `src/lib/db/schema/content-graph.ts`
+- Modify: `src/lib/db/schema/index.ts`
+- Create: `src/lib/db/queries/content-graph.ts`
+- Create: `src/lib/db/mutations/content-graph.ts`
+- Modify: `src/lib/content-graph/build.ts`
+- Modify: `src/lib/books/related-content.server.ts`
+- Create: `scripts/migrate-content-graph-s3-to-postgres.ts`
+
+**Step 1: Add schema**
+
+- `content_related_edges` (source -> target + score + type)
+- `content_tag_graph` (tag co-occurrence/weights)
+- `content_graph_metadata`
+- `books_related_content` (or equivalent projection table)
+
+**Step 2: Update writer/reader**
+
+- `build.ts` writes graph data to DB, not `CONTENT_GRAPH_S3_PATHS.*`.
+- `related-content.server.ts` reads books related content from DB.
+
+**Step 3: Verify**
+
+```bash
+DATABASE_URL="..." bun drizzle-kit push
+DATABASE_URL="..." bun run scripts/migrate-content-graph-s3-to-postgres.ts
+bun run test -- __tests__/integration/pre-computation-pipeline.test.ts
+bun run type-check
+bun run validate
+```
+
+**Step 4: Commit**
+
+```bash
+git add src/lib/db/schema/content-graph.ts src/lib/db/schema/index.ts \
+  src/lib/db/queries/content-graph.ts src/lib/db/mutations/content-graph.ts \
+  src/lib/content-graph/build.ts src/lib/books/related-content.server.ts \
+  scripts/migrate-content-graph-s3-to-postgres.ts __tests__
+git commit -m "feat(db): migrate content graph persistence from S3 to PostgreSQL"
+```
+
+---
+
+## Task 19: AI Analysis Cache/History Migration
+
+**Goal:** migrate analysis `latest + versioned history` from S3 JSON to PostgreSQL.
+
+**Files:**
+
+- Create: `src/lib/db/schema/ai-analysis.ts`
+- Modify: `src/lib/db/schema/index.ts`
+- Create: `src/lib/db/queries/ai-analysis.ts`
+- Create: `src/lib/db/mutations/ai-analysis.ts`
+- Modify: `src/lib/ai-analysis/writer.server.ts`
+- Modify: `src/lib/ai-analysis/reader.server.ts`
+- Create: `scripts/migrate-ai-analysis-s3-to-postgres.ts`
+
+**Step 1: Add schema**
+
+- `analysis_latest` keyed by `(domain, entity_id)`
+- `analysis_history` keyed by `(domain, entity_id, generated_at)`
+- Store metadata and analysis payload as validated JSONB.
+
+**Step 2: Cut writer/reader**
+
+- Writer updates latest + optional version row.
+- Reader loads latest/history via DB queries with existing cache tags intact.
+
+**Step 3: Verify**
+
+```bash
+DATABASE_URL="..." bun drizzle-kit push
+DATABASE_URL="..." bun run scripts/migrate-ai-analysis-s3-to-postgres.ts
+bun run test -- __tests__/lib/ai-analysis
+bun run type-check
+bun run validate
+```
+
+**Step 4: Commit**
+
+```bash
+git add src/lib/db/schema/ai-analysis.ts src/lib/db/schema/index.ts \
+  src/lib/db/queries/ai-analysis.ts src/lib/db/mutations/ai-analysis.ts \
+  src/lib/ai-analysis/writer.server.ts src/lib/ai-analysis/reader.server.ts \
+  scripts/migrate-ai-analysis-s3-to-postgres.ts __tests__
+git commit -m "feat(db): migrate AI analysis cache/history from S3 to PostgreSQL"
+```
+
+---
+
+## Task 20 (Optional): Operational Stores (Rate Limiter + Failure Tracker)
+
+**Decision Gate:** migrate only if cross-restart durability is required; otherwise explicitly keep in-memory only and remove S3 persistence hooks.
+
+**Files (if migrated):**
+
+- `src/lib/rate-limiter.ts`
+- `src/lib/utils/failure-tracker.ts`
+- `src/lib/db/schema/operational-state.ts`
+- `src/lib/db/queries/operational-state.ts`
+- `src/lib/db/mutations/operational-state.ts`
+
+**Option A: PostgreSQL-backed durable state**
+
+- Add tables and replace S3 load/save with DB operations.
+
+**Option B: In-memory-only operational state**
+
+- Remove S3 persistence calls and document behavior as per-instance ephemeral state.
+
+**Verification**
+
+```bash
+bun run test -- __tests__/lib/middleware/memory-pressure.test.ts __tests__/lib/memory-health-monitor.test.ts
+bun run type-check
+bun run validate
+```
+
+---
+
+## Verification Checklist (Extended)
 
 - [ ] `bun run validate` passes with 0 errors, 0 warnings [VR1c]
 - [ ] `bun run type-check` passes [VR1d]
 - [ ] `bun run test` passes [VR1b]
 - [ ] `bun run build` succeeds [VR1a]
 - [ ] `bun run check:file-size` — no new files > 350 lines [LC1a]
-- [ ] All bookmark CRUD operations work via PostgreSQL
-- [ ] FTS search returns ranked results
-- [ ] Trigram fuzzy matching works on titles/slugs
-- [ ] Embedding column accepts halfvec(1024) data
-- [ ] No remaining S3 JSON reads for migrated entities (grep for removed imports)
-- [ ] `pg_stat_statements` shows queries executing correctly
+- [ ] Bookmark runtime has no S3 dataset/index/slug/shard dependencies
+- [ ] Search index artifacts are read/written from PostgreSQL
+- [ ] GitHub activity runtime uses PostgreSQL for persisted state
+- [ ] Books runtime and generator use PostgreSQL snapshots/pointers
+- [ ] Content-graph runtime and builder use PostgreSQL
+- [ ] AI analysis latest/history uses PostgreSQL
+- [ ] Optional operational-store decision is implemented and documented
+- [ ] `pg_stat_statements` shows expected query patterns for migrated domains
 
 ---
 
-## Out of Scope (Future Tasks)
+## Out of Scope (After Task 20)
 
 - [ ] Embedding generation pipeline (Qwen3-4B inference server integration)
 - [ ] Full hybrid search API endpoint (depends on embedding pipeline)
-- [ ] OG image / logo data migration (stays on S3 — binary assets)
-- [ ] Blog post migration (stays as MDX files — content, not data)
-- [ ] Chroma/MiniSearch/Fuse.js removal (after hybrid search is proven)
-- [ ] S3 JSON code removal (after migration is stable and verified)
-- [ ] Books data migration
-- [ ] OpenGraph cache migration
+- [ ] OG image / logo binary asset migration (stays on S3 object storage)
+- [ ] Blog post migration (stays as MDX content)
+- [ ] Chroma/MiniSearch/Fuse.js removal (after hybrid search + DB artifacts are proven)
