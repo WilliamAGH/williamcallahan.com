@@ -422,7 +422,7 @@ File/Path Functionality Description
 - [x] `experience.ts` `experience` - Types for professional experience
 - [x] `investment.ts` `investments` - Types for investments
 - [x] `logo.ts` `image-handling` - Types for logos
-- [x] `src/types/middleware.ts` `middleware` - Types for proxy helper contracts
+- [x] `middleware.ts` `middleware` - Types for proxy helper contracts
 - [x] `navigation.ts` `navigation` - Types for navigation components
 - [x] `node-cron.d.ts` `batch-fetch-update` - Type definitions for node-cron
 - [x] `project.ts` `projects` - Types for projects
