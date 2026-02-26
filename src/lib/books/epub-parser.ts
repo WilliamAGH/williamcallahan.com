@@ -4,7 +4,7 @@
  * @description
  * Parses ePub files to extract text content, metadata, and chapter structure.
  * Uses epub2 package for parsing and provides clean text output suitable for
- * vector embedding in Chroma.
+ * vector embedding.
  */
 
 import { writeFile, unlink, mkdtemp, rm } from "node:fs/promises";

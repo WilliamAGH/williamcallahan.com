@@ -3,7 +3,7 @@
  * @module types/features/upload
  * @description
  * Type definitions for the file upload feature components.
- * Supports uploading books (PDF, ePub) for processing into the Chroma vector store.
+ * Supports uploading books (PDF, ePub) for server-side processing after S3 upload.
  *
  * Note: UploadFileType is the canonical type from @/types/schemas/upload.
  * Import directly from there, not from this file.
@@ -63,8 +63,7 @@ export interface UploadState {
  */
 export interface UploadResult {
   s3Key: string;
-  chromaCollectionId?: string;
-  documentsIndexed?: number;
+  vectorIndexStatus?: "disabled" | "skipped";
   processingTimeMs: number;
 }
 

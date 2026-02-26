@@ -2,7 +2,7 @@
  * Thoughts Search
  *
  * Placeholder search for /thoughts collection page.
- * Will be enhanced with Chroma vector store when available.
+ * Semantic search is currently not implemented for thoughts.
  *
  * @module lib/search/searchers/thoughts-search
  */

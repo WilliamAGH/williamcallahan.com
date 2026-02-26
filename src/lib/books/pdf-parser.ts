@@ -4,7 +4,7 @@
  * @description
  * Parses PDF files to extract text content, metadata, and page structure.
  * Uses pdf-parse v2 for parsing and provides clean text output suitable for
- * vector embedding in Chroma.
+ * vector embedding.
  */
 
 import { PDFParse } from "pdf-parse";

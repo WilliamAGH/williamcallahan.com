@@ -3,7 +3,7 @@
  * @module app/upload-file/page
  * @description
  * Page for uploading documents (books) to the archive.
- * Supports PDF and ePub formats with S3 storage and Chroma vector indexing.
+ * Supports PDF and ePub formats with S3 storage.
  */
 
 import type { Metadata } from "next";

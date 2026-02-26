@@ -3,14 +3,11 @@
  * @module app/api/upload/route
  * @description
  * Handles file uploads for books (PDF, ePub) to S3 storage.
- * After upload, parses the content and indexes into Chroma vector database.
  *
  * Pipeline:
  * 1. Validate file type and size
  * 2. Upload to S3
- * 3. Parse content (ePub or PDF)
- * 4. Chunk text for optimal embedding
- * 5. Index chunks to Chroma
+ * 3. Parse content (ePub or PDF) to validate the file and extract basic stats
  */
 
 import { NextResponse } from "next/server";
@@ -24,8 +21,6 @@ import {
 } from "@/types/schemas/upload";
 import { parseEpubFromBuffer } from "@/lib/books/epub-parser";
 import { parsePdfFromBuffer } from "@/lib/books/pdf-parser";
-import { chunkChapters } from "@/lib/books/text-chunker";
-import { indexBookToChroma } from "@/lib/books/chroma-sync";
 import { z } from "zod/v4";
 import { requireCloudflareHeaders } from "@/lib/utils/api-utils";
 
@@ -65,85 +60,29 @@ function getContentType(fileType: UploadFileType): string {
 }
 
 /**
- * Process ePub file: parse and index to Chroma
+ * Process ePub file: parse for validation + stats.
  */
 async function processEpubFile(
   buffer: Buffer,
-  s3Key: string,
 ): Promise<{ chunksIndexed: number; totalWords: number }> {
-  // Parse ePub
   const parsed = await parseEpubFromBuffer(buffer, { includeHtml: false });
 
-  // Convert chapters to chunkable format
-  const chapterData = parsed.chapters.map((ch) => ({
-    id: ch.id,
-    title: ch.title,
-    text: ch.textContent,
-  }));
-
-  // Chunk the text
-  const chunks = chunkChapters(chapterData, {
-    targetWords: 500,
-    maxWords: 750,
-    overlapWords: 50,
-  });
-
-  // Index to Chroma
-  const result = await indexBookToChroma({
-    bookId: s3Key,
-    metadata: parsed.metadata,
-    chunks,
-    fileType: "book-epub",
-  });
-
-  if (!result.success) {
-    throw new Error(result.error ?? "Failed to index book to Chroma");
-  }
-
   return {
-    chunksIndexed: result.chunksIndexed,
+    chunksIndexed: 0,
     totalWords: parsed.totalWordCount,
   };
 }
 
 /**
- * Process PDF file: parse and index to Chroma
+ * Process PDF file: parse for validation + stats.
  */
 async function processPdfFile(
   buffer: Buffer,
-  s3Key: string,
 ): Promise<{ chunksIndexed: number; totalWords: number }> {
-  // Parse PDF
   const parsed = await parsePdfFromBuffer(buffer);
 
-  // Convert pages to chunkable format (treating pages like chapters)
-  const pageData = parsed.pages.map((p) => ({
-    id: `page-${p.pageNumber}`,
-    title: `Page ${p.pageNumber}`,
-    text: p.textContent,
-  }));
-
-  // Chunk the text
-  const chunks = chunkChapters(pageData, {
-    targetWords: 500,
-    maxWords: 750,
-    overlapWords: 50,
-  });
-
-  // Index to Chroma
-  const result = await indexBookToChroma({
-    bookId: s3Key,
-    metadata: parsed.metadata,
-    chunks,
-    fileType: "book-pdf",
-  });
-
-  if (!result.success) {
-    throw new Error(result.error ?? "Failed to index PDF to Chroma");
-  }
-
   return {
-    chunksIndexed: result.chunksIndexed,
+    chunksIndexed: 0,
     totalWords: parsed.totalWordCount,
   };
 }
@@ -236,17 +175,17 @@ export async function POST(request: Request): Promise<Response> {
 
     try {
       if (fileType === "book-epub") {
-        processingResult = await processEpubFile(buffer, s3Key);
+        processingResult = await processEpubFile(buffer);
       } else if (fileType === "book-pdf") {
-        processingResult = await processPdfFile(buffer, s3Key);
+        processingResult = await processPdfFile(buffer);
       } else {
         // Shouldn't happen due to validation, but handle gracefully
         return NextResponse.json(
           {
             success: true,
             s3Key,
-            message: "File uploaded but not processed (unsupported type for indexing)",
-            chromaStatus: "skipped",
+            message: "File uploaded but not processed (unsupported type for processing)",
+            vectorIndexStatus: "skipped",
           },
           { headers: CORS_HEADERS },
         );
@@ -269,8 +208,8 @@ export async function POST(request: Request): Promise<Response> {
       {
         success: true,
         s3Key,
-        message: "File uploaded and indexed successfully",
-        chromaStatus: "indexed",
+        message: "File uploaded successfully (vector indexing is disabled)",
+        vectorIndexStatus: "disabled",
         stats: {
           chunksIndexed: processingResult.chunksIndexed,
           totalWords: processingResult.totalWords,

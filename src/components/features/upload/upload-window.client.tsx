@@ -4,7 +4,7 @@
  * @description
  * Client-side file upload interface with macOS-style window chrome.
  * Supports drag-and-drop file uploads for books (PDF, ePub) to S3
- * with subsequent Chroma vector store processing.
+ * with subsequent server-side processing.
  *
  * Design: "Technical Document Archive" aesthetic - refined, utilitarian,
  * with monospace typography and geometric elements.
@@ -485,7 +485,7 @@ function UploadWindowContentInner({
 
       setUploadProgress(100);
       setUploadStatus("success");
-      setStatusMessage("Document uploaded and indexed successfully!");
+      setStatusMessage("Document uploaded successfully!");
     } catch (error) {
       setUploadStatus("error");
       setStatusMessage(error instanceof Error ? error.message : "Upload failed");

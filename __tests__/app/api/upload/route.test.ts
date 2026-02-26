@@ -6,7 +6,6 @@ import { writeBinaryS3 } from "@/lib/s3/binary";
 import { deleteFromS3 } from "@/lib/s3/objects";
 import { parsePdfFromBuffer } from "@/lib/books/pdf-parser";
 import { parseEpubFromBuffer } from "@/lib/books/epub-parser";
-import { indexBookToChroma } from "@/lib/books/chroma-sync";
 
 vi.mock("@/lib/s3/binary", () => ({
   writeBinaryS3: vi.fn(),
@@ -22,10 +21,6 @@ vi.mock("@/lib/books/pdf-parser", () => ({
 
 vi.mock("@/lib/books/epub-parser", () => ({
   parseEpubFromBuffer: vi.fn(),
-}));
-
-vi.mock("@/lib/books/chroma-sync", () => ({
-  indexBookToChroma: vi.fn(),
 }));
 
 describe("Upload API", () => {
@@ -125,17 +120,12 @@ describe("Upload API", () => {
     it("uploads and processes PDF successfully", async () => {
       const writeBinaryS3Mock = vi.mocked(writeBinaryS3);
       const parsePdfFromBufferMock = vi.mocked(parsePdfFromBuffer);
-      const indexBookToChromaMock = vi.mocked(indexBookToChroma);
 
       writeBinaryS3Mock.mockResolvedValue(undefined);
       parsePdfFromBufferMock.mockResolvedValue({
         metadata: { title: "Test Book", author: "Test Author" },
         pages: [{ pageNumber: 1, textContent: "Page 1 content" }],
         totalWordCount: 100,
-      });
-      indexBookToChromaMock.mockResolvedValue({
-        success: true,
-        chunksIndexed: 1,
       });
 
       const formData = new FormData();
@@ -155,8 +145,8 @@ describe("Upload API", () => {
 
       const data = await response.json();
       expect(data.success).toBe(true);
-      expect(data.chromaStatus).toBe("indexed");
-      expect(data.stats.chunksIndexed).toBe(1);
+      expect(data.vectorIndexStatus).toBe("disabled");
+      expect(data.stats.chunksIndexed).toBe(0);
     });
 
     it("deletes S3 object when PDF processing fails", async () => {
@@ -195,17 +185,12 @@ describe("Upload API", () => {
     it("uploads and processes ePub successfully", async () => {
       const writeBinaryS3Mock = vi.mocked(writeBinaryS3);
       const parseEpubFromBufferMock = vi.mocked(parseEpubFromBuffer);
-      const indexBookToChromaMock = vi.mocked(indexBookToChroma);
 
       writeBinaryS3Mock.mockResolvedValue(undefined);
       parseEpubFromBufferMock.mockResolvedValue({
         metadata: { title: "Test ePub", creator: "Test Author" },
         chapters: [{ id: "ch1", title: "Chapter 1", textContent: "Chapter content" }],
         totalWordCount: 150,
-      });
-      indexBookToChromaMock.mockResolvedValue({
-        success: true,
-        chunksIndexed: 1,
       });
 
       const formData = new FormData();
@@ -225,8 +210,8 @@ describe("Upload API", () => {
 
       const data = await response.json();
       expect(data.success).toBe(true);
-      expect(data.chromaStatus).toBe("indexed");
-      expect(data.stats.chunksIndexed).toBe(1);
+      expect(data.vectorIndexStatus).toBe("disabled");
+      expect(data.stats.chunksIndexed).toBe(0);
       expect(data.stats.totalWords).toBe(150);
     });
 

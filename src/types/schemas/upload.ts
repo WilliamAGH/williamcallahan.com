@@ -74,8 +74,7 @@ export type UploadCompleteRequest = z.infer<typeof UploadCompleteRequestSchema>;
  */
 export const UploadCompleteResponseSchema = z.object({
   success: z.boolean(),
-  chromaCollectionId: z.string().optional(),
-  documentsIndexed: z.number().optional(),
+  vectorIndexStatus: z.enum(["disabled", "skipped"]).optional(),
   processingTimeMs: z.number().optional(),
   error: z.string().optional(),
 });
