@@ -4,9 +4,9 @@
 
 ## Overview
 
-The search functionality provides site-wide and section-specific search capabilities with fuzzy matching, caching, and security features. It's primarily accessed through the terminal interface and enables users to find content across blog posts, bookmarks, investments, experience, and education sections.
+The search functionality provides site-wide and section-specific search capabilities with BM25/fuzzy matching, hybrid vector reranking, caching, and security features. It's primarily accessed through the terminal interface and enables users to find content across blog posts, bookmarks, investments, experience, education, projects, books, thoughts, tags, and AI analysis.
 
-> **Note on Semantic Search:** This document describes the **keyword/fuzzy search** system (MiniSearch). Vector-based retrieval currently exists only for bookmarks via PostgreSQL embeddings (see `docs/features/bookmarks.md` and `src/lib/db/schema/bookmarks.ts`).
+> **Note on Hybrid Retrieval:** Search uses domain-specific hybrid paths. Bookmarks and thoughts run PostgreSQL hybrid retrieval (FTS + trigram + pgvector). Other searchable domains run BM25/keyword retrieval with embedding-based rerank of top candidates.
 
 ## Forbidden Patterns
 
@@ -75,7 +75,7 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 
 4. **Caching**: Next.js Cache Components with search tags/lifetimes (~15-minute profiles for server search reads); lazy loading in terminal.
 
-5. **Search Quality**: MiniSearch for fuzzy/typo-tolerant search with substring fallback. Bookmarks API preserves MiniSearch score ordering when hydrating full bookmark objects.
+5. **Search Quality**: Hybrid retrieval blends keyword relevance and semantic similarity. MiniSearch remains the BM25/fuzzy keyword candidate stage for non-PostgreSQL domains.
 
 6. **Index Parity**: S3-loaded indexes hydrate with the same MiniSearch options (boost, fuzzy, idField, extractField) used during build to keep relevance scoring consistent with fresh indexes.
 

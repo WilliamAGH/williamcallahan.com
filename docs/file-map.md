@@ -292,17 +292,35 @@ File/Path Functionality Description
     - [x] `github-activity.ts` `github-activity` - Unified GitHub JSON document store (`github_activity_store`) keyed by `(data_type, qualifier)`
     - [x] `content-graph.ts` `search` - Precomputed related-content artifact table (`content_graph_artifacts`)
     - [x] `json-documents.ts` `data-access` - Canonical compatibility JSON document store for former S3 JSON keys (`json_documents`)
+    - [x] `books.ts` `books` - Books dataset latest pointer + immutable snapshots tables
+    - [x] `ai-analysis.ts` `ai-analysis` - AI analysis latest materialized view + append-only versions tables
+    - [x] `opengraph.ts` `seo` - OpenGraph metadata + overrides tables keyed by URL hash
+    - [x] `thoughts.ts` `thoughts` - Thoughts (TIL-style content) table with slug/category indexes
+    - [x] `image-manifests.ts` `image-handling` - Image manifests keyed by type (logos/opengraph/blog)
   - [x] **queries/**
     - [x] `bookmarks.ts` `bookmarks` - Bookmark read queries (all/page/by-id/count/FTS/tag pages/global index/per-tag index/tag slug listing)
     - [x] `github-activity.ts` `github-activity` - GitHub activity/summary/repo-weekly/aggregated read queries from PostgreSQL
     - [x] `content-graph.ts` `search` - Related-content/books-related artifact reads from PostgreSQL
     - [x] `json-documents.ts` `data-access` - Compatibility JSON document reads/metadata/listing from PostgreSQL
+    - [x] `books.ts` `books` - Books dataset read queries (latest pointer, snapshot, combined)
+    - [x] `ai-analysis.ts` `ai-analysis` - AI analysis latest/versions/listing read queries
+    - [x] `opengraph.ts` `seo` - OpenGraph metadata/override read queries with Zod validation
+    - [x] `hybrid-search.ts` `search` - Three-layer hybrid search: FTS + trigram + pgvector cosine
+    - [x] `thoughts.ts` `thoughts` - Thought read queries (all/by-slug/by-id/categories/list-items)
+    - [x] `image-manifests.ts` `image-handling` - Image manifest read queries by type
+    - [x] `search-index-artifacts.ts` `search` - Search index artifact reads from PostgreSQL
   - [x] **mutations/**
     - [x] `bookmarks.ts` `bookmarks` - Bookmark upsert/delete mutations plus taxonomy/index-state rebuilds for PostgreSQL persistence
     - [x] `bookmark-embeddings.ts` `bookmarks` - Bookmark embedding backfill/update mutations for `qwen_4b_fp16_embedding` via endpoint-compatible Qwen embeddings
     - [x] `github-activity.ts` `github-activity` - GitHub activity/summary/repo-weekly/aggregated upserts and guarded writes
     - [x] `content-graph.ts` `search` - Content-graph artifact upserts for related-content precomputation
     - [x] `json-documents.ts` `data-access` - Compatibility JSON upsert/delete mutations with etag/content-length metadata
+    - [x] `books.ts` `books` - Books snapshot upserts with transactional latest pointer update
+    - [x] `ai-analysis.ts` `ai-analysis` - AI analysis latest/versions upserts with optional versioning
+    - [x] `opengraph.ts` `seo` - OpenGraph metadata/override upserts
+    - [x] `thoughts.ts` `thoughts` - Thought upsert/delete mutations
+    - [x] `image-manifests.ts` `image-handling` - Image manifest upserts (single and batch)
+    - [x] `search-index-artifacts.ts` `search` - Search index artifact upserts
 - [ ] **hooks/**
   - [x] `use-anchor-scroll.client.ts` `navigation` - Hook for scrolling to anchor links
   - [x] `use-fix-svg-transforms.ts` `image-handling` - Hook to fix SVG transform issues
@@ -364,8 +382,6 @@ File/Path Functionality Description
   - [x] `bookmarks-preloader.ts` `bookmarks` - Server-side bookmark preloading orchestrator
   - [x] `data-fetch-manager.ts` `batch-fetch-update` - Centralized data fetching orchestrator with CLI handler
   - [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates
-- [x] **s3-reset/**
-  - [x] `index.ts` `s3-object-storage` - Factory functions and category config for S3 reset scripts
 - [ ] **services/**
   - [x] `image-streaming.ts` `image-handling` - Streaming pipeline for image uploads
   - [x] `unified-image-service.ts` `image-handling` - Unified image service orchestrator
@@ -602,11 +618,9 @@ File/Path Functionality Description
 - [x] `check-file-naming.ts` `testing-config` - Script to check file naming conventions
 - [x] `consolidate-configs.js` `build` - Script to consolidate configuration files
 - [x] `debug-test-bookmark.ts` `log-error-debug-handling` - Debugging script for bookmarks
-- [x] `fetch-bookmarks-public.ts` `bookmarks` - Optional local snapshot helper for offline work (no longer invoked during CI/CD builds)
 - [x] `entrypoint.sh` `deployment` - Docker entrypoint script
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
 - [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Script to force-refresh GitHub repo stats
-- [x] `migrate-s3-to-postgres.ts` `bookmarks` - Bookmark migration from S3 JSON to PostgreSQL via unified Drizzle mutations (including tag/index-state rebuild)
 - [x] `backfill-bookmark-embeddings.ts` `bookmarks` - CLI backfill for PostgreSQL bookmark embeddings (`qwen_4b_fp16_embedding`) using endpoint-compatible `/v1/embeddings`
 - [x] `backfill-bookmark-embeddings.node.mjs` `bookmarks` - Node runtime backfill for PostgreSQL bookmark embeddings (`qwen_4b_fp16_embedding`) using endpoint-compatible `/v1/embeddings` with resilient postgres-js connectivity; supports `--force` to regenerate all embeddings
 - [x] `backfill-scraped-content.node.mjs` `bookmarks` - Node runtime backfill for `scraped_content_text` column from Karakeep `content.htmlContent` via HTML-to-plain-text conversion
@@ -755,7 +769,7 @@ File/Path Functionality Description
       - [x] `svg-transform-fix.test.ts` `image-handling` - SVG transform fix tests
   - [x] **scripts/**
     - [x] `fix-s3-acl-public.sh` `s3-object-storage` - Reapply public ACLs for S3 buckets; accepts optional `--prefix` to scope updates (2025-08 refresh)
-    - [x] `update-s3-data.smoke.test.ts` `batch-fetch-update` - S3 data update smoke tests
+    - [x] `update-data-data.smoke.test.ts` `batch-fetch-update` - S3 data update smoke tests
   - [x] **setup/**
     - [x] `bun-setup.ts` `testing-config` - Bun test environment setup
 - [x] `tsconfig.json` `testing-config` - TypeScript config for Vitest tests

@@ -85,7 +85,7 @@ DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-emb
 
 - Builds no longer hydrate bookmark JSON locally. Docker images and workstation builds read bookmarks from PostgreSQL in runtime paths.
 - `app/sitemap.ts` iterates DB-backed pagination via `getBookmarksIndex()` + `getBookmarksPage()` and streams tag metadata via `listBookmarkTagSlugs()` + `getTagBookmarksIndex()`/`getTagBookmarksPage()` so the sitemap never materializes the full dataset in memory.
-- `bun scripts/fetch-bookmarks-public.ts` is still available for offline development snapshots, but it is **not** part of the default build pipeline.
+- All bookmark data is served from PostgreSQL at runtime; no local JSON snapshot step is required.
 
 ### Rendering Strategy
 
@@ -339,7 +339,4 @@ bun scripts/data-updater.ts --bookmarks --force
 
 # Check status
 bun scripts/debug-slug-mapping.ts
-
-# Fix suffix layout
-bun scripts/fix-s3-env-suffix.ts
 ```

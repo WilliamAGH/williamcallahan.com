@@ -95,8 +95,26 @@ vi.mock("@/lib/s3/json", () => ({
 vi.mock("@/lib/db/queries/search-index-artifacts", () => ({
   getSerializedSearchIndexArtifact: vi.fn().mockResolvedValue(null),
 }));
+const mockHybridSearchThoughts = vi.fn();
+vi.mock("@/lib/db/queries/hybrid-search", () => ({
+  hybridSearchThoughts: (...args: unknown[]) => mockHybridSearchThoughts(...args),
+  hybridSearchBookmarks: vi.fn().mockResolvedValue([]),
+}));
+vi.mock("@/lib/ai/openai-compatible/feature-config", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/ai/openai-compatible/feature-config")>();
+  return {
+    ...actual,
+    resolveDefaultEndpointCompatibleEmbeddingConfig: vi.fn().mockReturnValue(null),
+  };
+});
 
-import { searchInvestments, searchExperience, searchEducation, searchProjects } from "@/lib/search";
+import {
+  searchInvestments,
+  searchExperience,
+  searchEducation,
+  searchProjects,
+  searchThoughts,
+} from "@/lib/search";
 import { validateSearchQuery } from "@/lib/validators/search";
 
 describe("search", () => {
@@ -268,6 +286,37 @@ describe("search", () => {
       const results = await searchProjects("Test Project 1");
       const project1Result = results.find((r) => r.title === "Test Project 1");
       expect(project1Result?.url).toBe("/projects/test-project-1");
+    });
+  });
+
+  describe("searchThoughts", () => {
+    it("returns the thoughts page when no thought rows match", async () => {
+      mockHybridSearchThoughts.mockResolvedValueOnce([]);
+      const results = await searchThoughts("thoughts");
+      expect(results).toHaveLength(1);
+      expect(results[0]?.url).toBe("/thoughts");
+    });
+
+    it("returns mapped thought detail results when hybrid rows exist", async () => {
+      mockHybridSearchThoughts.mockResolvedValueOnce([
+        {
+          id: "8efbc310-7952-4dfa-8e1f-4d64858ea316",
+          slug: "postgres-hybrid-search",
+          title: "Postgres Hybrid Search",
+          content: "Combining BM25 and vector similarity in one ranking pipeline.",
+          category: "database",
+          tags: ["postgres", "search"],
+          createdAt: 1700000000000,
+          updatedAt: null,
+          score: 0.92,
+        },
+      ]);
+
+      const results = await searchThoughts("hybrid postgres");
+      expect(results).toHaveLength(1);
+      expect(results[0]?.title).toBe("Postgres Hybrid Search");
+      expect(results[0]?.url).toBe("/thoughts/postgres-hybrid-search");
+      expect(results[0]?.score).toBe(0.92);
     });
   });
 });
